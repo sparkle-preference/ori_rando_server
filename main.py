@@ -19,7 +19,7 @@ def int_to_bits(n, min_len=2):
 	if len(raw) < min_len:
 		raw = [0]*(min_len-len(raw))+raw
 	return raw
-	
+
 def bits_to_int(n):
 	return int("".join([str(b) for b in n]),2)
 
@@ -27,7 +27,7 @@ class GameMode(messages.Enum):
 	SHARED = 1
 	SWAPPED = 2				#not implemented, needs client work
 	SPLITSHARDS = 3
-	
+
 
 class ShareType(messages.Enum):
 	DUNGEON_KEY = 1
@@ -120,7 +120,7 @@ special_coords = {(0,0): "Vanilla Water Vein",
 	(0,16): "Vanilla Sunstone",
 	(0,20): "Final Escape Start"}
 
-special_coords.update({(0,20+4*x): "Mapstone %s" % x for x in range(1,10)}) 
+special_coords.update({(0,20+4*x): "Mapstone %s" % x for x in range(1,10)})
 
 def get_bit(bits_int, bit):
 	return int_to_bits(bits_int, log_2[bit]+1)[-(1+log_2[bit])]
@@ -129,27 +129,27 @@ def get_taste(bits_int, bit):
 	bits = int_to_bits(bits_int,log_2[bit]+2)[-(2+log_2[bit]):][:2]
 	return 2*bits[0]+bits[1]
 
-def add_single(bits_int, bit, remove=False):	
+def add_single(bits_int, bit, remove=False):
 	if bits_int >= bit:
 		if remove:
 			return bits_int-bit
 		if get_bit(bits_int, bit) == 1:
 			return bits_int
 	return bits_int + bit
-		
+
 def inc_stackable(bits_int, bit, remove=False):
 	if remove:
 		if get_taste(bits_int, bit) > 0:
 			return bits_int - bit
 		return bits_int
-		
+
 	if get_taste(bits_int, bit) > 2:
 		return bits_int
 	return bits_int+bit
-		
+
 
 def get(x,y):
-	return x*10000 + y 
+	return x*10000 + y
 
 def sign(x):
 	return 1 if x>=0 else -1
@@ -182,7 +182,7 @@ class HistoryLine(ndb.Model):
 	pickup_name = ndb.ComputedProperty(lambda self: _pickup_name(self))
 	def print_line (self,start_time=None):
 		t = (self.timestamp - start_time) if start_time else self.timestamp
-		if not self.removed:			
+		if not self.removed:
 			coords = unpack(self.coords)
 			coords = special_coords[coords] if coords in special_coords else "(%s, %s)" % coords
 			return "found %s at %s. (%s)" % (self.pickup_name, coords, t)
@@ -229,7 +229,7 @@ class Game(ndb.Model):
 		if not player:
 			if(self.mode == GameMode.SHARED and len(self.players)):
 				src = self.players[0].get()
-				player = Player(id=key, skills = src.skills, events = src.events, upgrades = src.upgrades, teleporters = src.teleporters, history=[], signals=[])			
+				player = Player(id=key, skills = src.skills, events = src.events, upgrades = src.upgrades, teleporters = src.teleporters, history=[], signals=[])
 			else:
 				player = Player(id=key, skills = 0, events=0, upgrades = 0, teleporters = 0, history=[])
 				k = player.put()
@@ -267,7 +267,7 @@ def clean_old_games():
 	old = [game for game in Game.query(Game.last_update < datetime.now() - timedelta(hours=1))]
 	[p.delete() for game in old for p in game.players]
 	return len([game.key.delete() for game in old])
-	
+
 def get_game(game_id):
 	return Game.get_by_id(int(game_id))
 
@@ -289,7 +289,7 @@ class GetGameId(webapp2.RequestHandler):
 		self.response.headers['Content-Type'] = 'text/plain'
 		self.response.status = 200
 		self.response.write("GC|%s.1" % get_new_game(paramVal(self, 'mode'), paramVal(self, 'shared'), paramVal(self, 'id')))
-	
+
 class CleanUp(webapp2.RequestHandler):
 	def get(self):
 		self.response.headers['Content-Type'] = 'text/plain'
@@ -300,7 +300,7 @@ class CleanUp(webapp2.RequestHandler):
 class ActiveGames(webapp2.RequestHandler):
 	def get(self):
 		self.response.headers['Content-Type'] = 'text/html'
-		self.response.write('<html><body><pre>Active games:\n' + 
+		self.response.write('<html><body><pre>Active games:\n' +
 			"\n".join(
 				["<a href='/%s/history'>Game #%s</a>:\n\t%s " % (game.key.id(), game.key.id(),game.summary()) for game in Game.query()])+"</pre></body></html>")
 
@@ -314,7 +314,7 @@ class FoundPickup(webapp2.RequestHandler):
 		remove = paramFlag(self,"remove")
 		coords = int(coords)
 		game = get_game(game_id)
-		
+
 		if not remove and not paramFlag(self, "override") and coords in [ h.coords for h in game.player(player_id).history]:
 			self.response.status = 410
 			self.response.write("Duplicate pickup at location %s from player %s" % (coords,  player_id))
@@ -331,12 +331,12 @@ class FoundPickup(webapp2.RequestHandler):
 			self.response.status = 200
 			self.response.write("logged")
 			return
-		
-		
+
+
 		self.response.status = game.found_pickup(player_id, pickup, coords, remove)
 		game.put()
 		self.response.write(self.response.status)
- 
+
 class ListPickups(webapp2.RequestHandler):
 	def get(self, game_id, player_id):
 		self.response.headers['Content-Type'] = 'text/plain'
@@ -347,7 +347,7 @@ class ListPickups(webapp2.RequestHandler):
 			return
 		p = game.player(player_id)
 		self.response.write(",".join([str(x) for x in [p.skills,p.events,p.upgrades,p.teleporters]+(["|".join(p.signals)] if p.signals else [])]))
-		
+
 
 class ShowHistory(webapp2.RequestHandler):
 	def get(self, game_id):
@@ -375,35 +375,35 @@ class SeedGenerator(webapp2.RequestHandler):
 			<td align="center" style="vertical-align: top;"><table class="row" cellspacing="0" cellpadding="0"><tbody><tr><td align="left" style="vertical-align: top;">
 			<td align="left" style="vertical-align: top;"><table class="inner_row" cellspacing="0" cellpadding="0"><tbody><tr><td align="left" style="vertical-align: top;">
 			<div class="label" style="white-space: normal;">Mode</div></td><td align="left" style="vertical-align: top;">
-			
+
 			<select size="1" class="dropdown" name="mode"><option>Default</option><option selected="Selected">Shards</option><option>Limitkeys</option><option>Clues</option></select>
-			
+
 			</td></tr></tbody></table></td>
-			
+
 			<td align="left" style="vertical-align: top;"><table class="inner_row" cellspacing="0" cellpadding="0"><tbody><tr><td align="left" style="vertical-align: top;"><div class="label" style="white-space: normal;">Path Difficulty</div></td><td align="left" style="vertical-align: top;">
-			
+
 			<select size="1" class="dropdown" name="pathdiff"><option>Easy</option><option selected="Selected">Normal</option><option>Hard</option></select>
-			
+
 			</td></tr></tbody></table></td></tr></tbody></table></td></tr><tr>
 			<td align="center" style="vertical-align: top;"><table class="row" cellspacing="0" cellpadding="0"><tbody><tr><td align="left" style="vertical-align: top;"><div class="section" style="white-space: normal;">Variations</div></td></tr><tr><td align="left" style="vertical-align: top;">
 			<table cellspacing="0" cellpadding="0"><tbody><tr><td align="left" style="vertical-align: top;"><table class="var_column" cellspacing="0" cellpadding="0"><tbody><tr><td align="left" style="vertical-align: top;">
-			
+
 			<span class="gwt-CheckBox"><input type="checkbox" name="forcetrees" checked=""><label for="check1">Force Trees</label></span></td></tr><tr><td align="left" style="vertical-align: top;">
 			<span class="gwt-CheckBox"><input type="checkbox" name="hardmode"><label for="check2">Hard Mode</label></span></td></tr><tr><td align="left" style="vertical-align: top;">
 			<span class="gwt-CheckBox"><input type="checkbox" name="notp"><label for="check3">No Teleporters</label></span></td></tr></tbody></table></td><td align="left" style="vertical-align: top;">
-			
+
 			<table class="var_column" cellspacing="0" cellpadding="0"><tbody><tr><td align="left" style="vertical-align: top;">
-			
+
 			<span class="gwt-CheckBox"><input type="checkbox" name="starved"><label for="check4">Starved</label></span></td></tr><tr><td align="left" style="vertical-align: top;">
 			<span class="gwt-CheckBox"><input type="checkbox" name="ohko"><label for="check5">OHKO</label></span></td></tr><tr><td align="left" style="vertical-align: top;">
 			<span class="gwt-CheckBox"><input type="checkbox" name="noplants"><label for="check6">No Plants</label></span></td></tr></tbody></table></td>
-			
+
 			<td align="left" style="vertical-align: top;"><table class="var_column" cellspacing="0" cellpadding="0"><tbody><tr><td align="left" style="vertical-align: top;">
-			
+
 			<span class="gwt-CheckBox"><input type="checkbox" name="discmaps"><label for="check7">Discrete Mapstones</label></span></td></tr><tr><td align="left" style="vertical-align: top;">
 			<span class="gwt-CheckBox"><input type="checkbox" name="0xp"><label for="check8">0 XP</label></span></td></tr><tr><td align="left" style="vertical-align: top;">
 			<span class="gwt-CheckBox"><input type="checkbox" name="nobonus"><label for="check9">No Bonuses</label></span></td></tr></tbody></table></td></tr></tbody></table></td></tr></tbody></table></td></tr>
-			
+
 			<tr><td align="center" style="vertical-align: top;"><table cellspacing="0" cellpadding="0" class="row open"><tbody><tr><td align="left" style="vertical-align: top;"><table><tbody><tr><td></td><td>Logic Paths</td></tr></tbody></table></a></td></tr><tr><td align="left" style="vertical-align: top;"><div style="padding: 0px; overflow: hidden;"><table cellspacing="0" cellpadding="0" class=" content"><tbody><tr><td align="left" style="vertical-align: top;"><table class="logic_column" cellspacing="0" cellpadding="0"><tbody><tr><td align="left" style="vertical-align: top;">
 			<span class="gwt-CheckBox"><input type="checkbox" name="normal" checked=""><label for="check10">Normal</label></span></td></tr><tr><td align="left" style="vertical-align: top;">
 			<span class="gwt-CheckBox"><input type="checkbox" name="lure" checked=""><label for="check11">Lure</label></span></td></tr><tr><td align="left" style="vertical-align: top;">
@@ -425,12 +425,12 @@ class SeedGenerator(webapp2.RequestHandler):
 			<span class="gwt-CheckBox"><input type="checkbox" name="ev" checked=""><label for="check23">Split:World Events</label></span></td></tr><tr><td align="left" style="vertical-align: top;">
 			<span class="gwt-CheckBox"><input type="checkbox" name="rb" checked=""><label for="check24">Split: Bonuses</label></span></td></tr><tr><td align="left" style="vertical-align: top;">
 			<span class="gwt-CheckBox"><input type="checkbox" name="hot" checked=""><label for="check25">Split: Hot</label></span></td></tr><table class="logic_column" cellspacing="0" cellpadding="0">
-			
+
 			</tbody></table></td></tr></tbody></table></div></td></tr></tbody></table></td></tr><tr>
-			
+
 			<tr><td align="center" style="vertical-align: top;"><table class="row" cellspacing="2" cellpadding="2"><tbody><tr><td align="left" style="vertical-align: top;">
 			<table cellspacing="2" cellpadding="2"><tbody><tr><td align="left" style="vertical-align: top;"><div class="label" style="white-space: normal;"># of players</div></td><td align="left" style="vertical-align: top;">
-			
+
 			<input name="playerCount" type="number" value="2" /></div></td></button></td></tr></tbody></table></td></tr>
 			<td align="center" style="vertical-align: top;"><table class="row" cellspacing="2" cellpadding="2"><tbody><tr><td align="left" style="vertical-align: top;">
 			<table cellspacing="2" cellpadding="2"><tbody><tr><td align="left" style="vertical-align: top;"><div  class="label" style="white-space: normal;">Seed</div></td><td align="left" style="vertical-align: top;">
@@ -438,8 +438,8 @@ class SeedGenerator(webapp2.RequestHandler):
 			  </form>
 			</body>
 		  </html>""")
-	 
-	def post(self):				
+
+	def post(self):
 		mode = self.request.get("mode").lower()
 		pathdiff = self.request.get("pathdiff").lower()
 		variations = set([x for x in ["forcetrees", "hardmode", "notp", "starved", "ohko", "noplants", "discmaps", "0xp", "nobonus"] if self.request.get(x)])
@@ -448,7 +448,7 @@ class SeedGenerator(webapp2.RequestHandler):
 		seed = self.request.get("seed")
 		if not seed:
 			seed = str(random.randint(10000000,100000000))
-		
+
 		urlargs = ["m=%s" % mode]
 		urlargs.append("vars=%s" % "|".join(variations))
 		urlargs.append("lps=%s" % "|".join(logic_paths))
@@ -476,9 +476,9 @@ class SeedDownloader(webapp2.RequestHandler):
 		logic_paths = params['lps'].split("|")
 		seed = params['s']
 		playercount = int(params['pc'])
-		pathdiff = params['pd']	
+		pathdiff = params['pd']
 		player = params['p']
-		
+
 		seed_num = sum([ord(c) * i for c,i in zip(seed, range(len(seed)))])
 		if pathdiff == "normal":
 			pathdiff == None
@@ -490,20 +490,20 @@ class SeedDownloader(webapp2.RequestHandler):
 			flags.append("prefer_path_difficulty=" + pathdiff)
 		for v in variations:
 			flags.append(varFlags[v])
-		
+
 		flag = ",".join(flags)
 		out = ""
-		placement = placeItems(seed, 10000, 
-				"hardmode" in variations, 
-				"noplants" not in variations, 
+		placement = placeItems(seed, 10000,
+				"hardmode" in variations,
+				"noplants" not in variations,
 				mode == "shards",
 				mode == "limitkeys",
 				mode == "clues",
-				"notp" not in variations, 
-				False, False, 
-				logic_paths, flag, 
-				"starved" in variations, 
-				pathdiff, 
+				"notp" not in variations,
+				False, False,
+				logic_paths, flag,
+				"starved" in variations,
+				pathdiff,
 				"discmaps" in variations)
 		if player == "spoiler":
 			self.response.headers['Content-Type'] = 'text/plain'
@@ -515,7 +515,7 @@ class SeedDownloader(webapp2.RequestHandler):
 		self.response.headers['Content-Type'] = 'application/x-gzip'
 		self.response.headers['Content-Disposition'] = 'attachment; filename=randomizer.dat'
 		self.response.out.write(ss)
-		
+
 class SignalCallback(webapp2.RequestHandler):
 	def get(self, game_id, player_id, signal):
 		self.response.headers['Content-Type'] = 'text/plain'
@@ -567,4 +567,4 @@ app = webapp2.WSGIApplication([
 	(r'/(\d+)\.(\w+)/signalCallback/(\w+)', SignalCallback),
 	(r'/(\d+)/history', ShowHistory)
 ], debug=True)
-	
+
