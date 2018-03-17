@@ -13,7 +13,7 @@ from seedbuilder.splitter import split_seed
 from abc import ABCMeta, abstractproperty
 from operator import attrgetter
 base_site = "http://orirandocoopserver.appspot.com"
-cd ..
+# cd ..
 def int_to_bits(n, min_len=2):
 	raw = [1 if digit=='1' else 0 for digit in bin(n)[2:]]
 	if len(raw) < min_len:
