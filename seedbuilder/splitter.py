@@ -12,7 +12,7 @@ def split_seed(seed, gameId, player, max_players, hot=False, sk=True, ev=True, r
 	pickups = shards + stacking_bonuses + (skills if sk else []) + (events if ev else []) + (bonuses if rb else [])
 	random.seed(seed)
 	prerolled_blunts = {p : random.randint(1,100) for p in pickups}
-	
+
 	random.seed(seed)
 	outlines = []
 	for line in seed.split("\n"):

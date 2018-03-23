@@ -766,7 +766,7 @@ def placeItems(seed, expPool, hardMode, includePlants, shardsMode, limitkeysMode
         ("TPValley", 0)
     ])
 
-    tree = XML.parse("areas.xml")
+    tree = XML.parse("seedbuilder/areas.xml")
     root = tree.getroot()
 
     for child in root:

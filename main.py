@@ -14,7 +14,7 @@ from seedbuilder.splitter import split_seed
 from abc import ABCMeta, abstractproperty
 from operator import attrgetter
 from google.appengine.ext.webapp import template
-
+from util import GameMode, ShareType, share_from_url, share_map
 base_site = "http://orirandocoopserver.appspot.com"
 # cd ..
 def int_to_bits(n, min_len=2):
@@ -26,29 +26,6 @@ def int_to_bits(n, min_len=2):
 def bits_to_int(n):
 	return int("".join([str(b) for b in n]),2)
 
-class GameMode(messages.Enum):
-	SHARED = 1
-	SWAPPED = 2				#not implemented, needs client work
-	SPLITSHARDS = 3
-
-
-class ShareType(messages.Enum):
-	DUNGEON_KEY = 1
-	UPGRADE = 2
-	SKILL = 3
-	EVENT = 4
-	TELEPORTER = 5
-def share_from_url(s):
-	if s == "keys":
-		return ShareType.DUNGEON_KEY
-	if s == "upgrades":
-		return ShareType.UPGRADE
-	if s == "skills":
-		return ShareType.SKILL
-	if s == "events":
-		return ShareType.EVENT
-	if s == "teleporters":
-		return ShareType.TELEPORTER
 
 class Pickup(object):
 	stacks = False
@@ -198,11 +175,13 @@ class Player(ndb.Model):
 	upgrades	= ndb.IntegerProperty()
 	teleporters = ndb.IntegerProperty()
 	signals = ndb.StringProperty(repeated=True)
+	pos_x = ndb.IntegerProperty()
+	pos_y = ndb.IntegerProperty()
 	history = ndb.StructuredProperty(HistoryLine, repeated=True)
-
+	bitfields = ndb.ComputedProperty(lambda p: ",".join([str(x) for x in [p.skills,p.events,p.upgrades,p.teleporters]+(["|".join(p.signals)] if p.signals else [])]))
 class Game(ndb.Model):
 	# id = Sync ID
-	DEFAULT_SHARED = [ShareType.DUNGEON_KEY, ShareType.SKILL, ShareType.UPGRADE, ShareType.EVENT]
+	DEFAULT_SHARED = [ShareType.DUNGEON_KEY, ShareType.SKILL, ShareType.UPGRADE, ShareType.EVENT, ShareType.TELEPORTER]
 	mode = msgprop.EnumProperty(GameMode, required=True)
 	shared = msgprop.EnumProperty(ShareType, repeated=True)
 	start_time = ndb.DateTimeProperty(auto_now_add=True)
@@ -235,14 +214,14 @@ class Game(ndb.Model):
 				player = Player(id=key, skills = src.skills, events = src.events, upgrades = src.upgrades, teleporters = src.teleporters, history=[], signals=[])
 			else:
 				player = Player(id=key, skills = 0, events=0, upgrades = 0, teleporters = 0, history=[])
-				k = player.put()
-				self.players.append(k)
-				self.put()
+			k = player.put()
+			self.players.append(k)
+			self.put()
 		return player
 
 	def found_pickup(self, finder, pickup, coords, remove=False):
 		retcode = 200
-		player = self.player(finder)
+		found_player = self.player(finder)
 		if (pickup.share_type not in self.shared):
 			retcode = 406
 		elif (self.mode == GameMode.SHARED):
@@ -254,6 +233,7 @@ class Game(ndb.Model):
 							setattr(player,field,inc_stackable(getattr(player,field), pickup.bit, remove))
 						else:
 							setattr(player,field,add_single(getattr(player,field), pickup.bit, remove))
+						player.put()
 		elif self.mode == GameMode.SPLITSHARDS:
 			shard_locs = [h.coords for player in self.players for h in player.get().history if h.pickup_code == "RB" and h.pickup_id in ["17", "19", "21"]]
 			if coords in shard_locs:
@@ -262,8 +242,8 @@ class Game(ndb.Model):
 			print "game mode not implemented"
 			retcode = 404
 		if retcode != 410: #410 GONE aka "haha nope"
-			player.history.append(HistoryLine(pickup_code = pickup.code, pickup_id = str(pickup.id), coords = coords, removed = remove))
-			player.put()
+			found_player.history.append(HistoryLine(pickup_code = pickup.code, pickup_id = str(pickup.id), coords = coords, removed = remove))
+			found_player.put()
 		return retcode
 
 def clean_old_games():
@@ -349,7 +329,21 @@ class ListPickups(webapp2.RequestHandler):
 			self.response.write(self.response.status)
 			return
 		p = game.player(player_id)
-		self.response.write(",".join([str(x) for x in [p.skills,p.events,p.upgrades,p.teleporters]+(["|".join(p.signals)] if p.signals else [])]))
+		self.response.write(p.bitfields)
+
+class Update(webapp2.RequestHandler):
+	def get(self, game_id, player_id, x, y):
+		self.response.headers['Content-Type'] = 'text/plain'
+		game = get_game(game_id)
+		if not game:
+			self.response.status = 412
+			self.response.write(self.response.status)
+			return
+		p = game.player(player_id)
+		p.pos_x = int(x)
+		p.pos_y = int(y)
+		p.put()
+		self.response.write(p.bitfields)
 
 
 class ShowHistory(webapp2.RequestHandler):
@@ -382,12 +376,17 @@ class SeedGenerator(webapp2.RequestHandler):
 		if not seed:
 			seed = str(random.randint(10000000,100000000))
 
+		share_types = [f for f in share_map.keys() if self.request.get(f)]
+		game_id = get_new_game(_mode=1, _shared=" ".join(share_types))
+		
 		urlargs = ["m=%s" % mode]
 		urlargs.append("vars=%s" % "|".join(variations))
 		urlargs.append("lps=%s" % "|".join(logic_paths))
 		urlargs.append("s=%s" % seed)
 		urlargs.append("pc=%s" % playercount)
 		urlargs.append("pd=%s" % pathdiff)
+		urlargs.append("shr=%s" % "+".join(share_types))
+		urlargs.append("gid=%s" % game_id)
 		for flg in ["ev", "sk", "rb", "hot"]:
 			if self.request.get(flg):
 				urlargs.append("%s=1" % flg)
@@ -411,12 +410,13 @@ class SeedDownloader(webapp2.RequestHandler):
 		playercount = int(params['pc'])
 		pathdiff = params['pd']
 		player = params['p']
-
+		game_id = int(params['gid'])
 		seed_num = sum([ord(c) * i for c,i in zip(seed, range(len(seed)))])
 		if pathdiff == "normal":
 			pathdiff == None
 		varFlags = {"starved":"starved", "hardmode":"hard","ohko":"OHKO","0xp":"0XP","nobonus":"NoBonus","noplants": "NoPlants", "forcetrees" : "ForceTrees", "discmaps" : "NonProgressMapStones",  "notp" : "NoTeleporters"}
-		flags = ["Custom"]
+		share_types = params['shr']
+		flags = ["Custom", "share=%s" % share_types.replace(" ", "+")]
 		if mode != "default":
 			flags.append(mode)
 		if pathdiff:
@@ -432,7 +432,7 @@ class SeedDownloader(webapp2.RequestHandler):
 				mode == "shards",
 				mode == "limitkeys",
 				mode == "clues",
-				"notp" not in variations,
+				"notp" in variations,
 				False, False,
 				logic_paths, flag,
 				"starved" in variations,
@@ -443,7 +443,6 @@ class SeedDownloader(webapp2.RequestHandler):
 			self.response.out.write(placement[1])
 			return
 		player = int(player)
-		game_id = get_new_game()
 		ss = split_seed(placement[0], game_id, player, playercount, "hot" in params, "sk" in params, "ev" in params, "rb" in params)
 		self.response.headers['Content-Type'] = 'application/x-gzip'
 		self.response.headers['Content-Disposition'] = 'attachment; filename=randomizer.dat'
@@ -485,7 +484,48 @@ class SignalSend(webapp2.RequestHandler):
 		self.response.status = 200
 		self.response.write("sent")
 
+class ListPlayers(webapp2.RequestHandler):
+	def get(self, game_id):
+		game = get_game(game_id)
+		outlines = []
+		for k in game.players:
+			p = k.get()
+			outlines.append("Player %s: %s" % (k.id(), p.bitfields))
+			outlines.append("\t\t"+"\n\t\t".join([hl.print_line(game.start_time) for hl in p.history]))
+			
+		self.response.headers['Content-Type'] = 'text/plain'
+		self.response.status = 200
+		self.response.out.write("\n".join(outlines))
 
+class RemovePlayer(webapp2.RequestHandler):
+	def get(self, game_id, pid):
+		key = ".".join([game_id, pid])
+		game = get_game(game_id)
+		if key in [p.id() for p in game.players]:
+			k = game.player(pid).key
+			game.players.remove(k)
+			k.delete()
+			game.put()
+			return webapp2.redirect("/%s/players" % game_id)
+		else:
+			print game.players,
+			self.response.headers['Content-Type'] = 'text/plain'
+			self.response.status = 404
+			self.response.out.write("player %s not in %s" % (key, game.players))
+				
+class GetPlayerPositions(webapp2.RequestHandler):
+	def get(self, game_id):
+		game = get_game(game_id)
+		players = [p.get() for p in game.players]
+		self.response.headers['Content-Type'] = 'text/plain'
+		self.response.status = 200
+		self.response.out.write("|".join(["%s,%s" % (p.pos_x, p.pos_y) for p in players]))
+
+class ShowMap(webapp2.RequestHandler):
+	def get(self, game_id):
+		path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
+		template_values = {'game_id': game_id}
+		self.response.out.write(template.render(path, template_values))
 
 app = webapp2.WSGIApplication([
 	('/', SeedGenerator),
@@ -496,8 +536,13 @@ app = webapp2.WSGIApplication([
 	(r'/(\d+)', HistPrompt),
 	(r'/(\d+)\.(\w+)/(-?\d+)/(\w+)/(\w+)', FoundPickup),
 	(r'/(\d+)\.(\w+)', ListPickups),
+	(r'/(\d+)\.(\w+)/(-?\d+),(-?\d+)', Update),
 	(r'/(\d+)\.(\w+)/SECRET/(\w+)', SignalSend),
 	(r'/(\d+)\.(\w+)/signalCallback/(\w+)', SignalCallback),
-	(r'/(\d+)/history', ShowHistory)
+	(r'/(\d+)/history', ShowHistory),
+	(r'/(\d+)/players', ListPlayers),
+	(r'/(\d+)\.(\w+)/remove', RemovePlayer),
+	(r'/(\d+)/map', ShowMap),
+	(r'/(\d+)/getPos', GetPlayerPositions),
 ], debug=True)
 

@@ -3,5 +3,13 @@ api_version: 1
 threadsafe: true
 
 handlers:
+- url: /map
+  static_dir: map
+  application_readable: true
+
+- url: /static
+  static_dir: map/build/static
+  application_readable: true
+
 - url: /.*
   script: main.app
