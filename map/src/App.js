@@ -119,7 +119,6 @@ function updatePlayerPos()
             		let pos = rawpos[i].split(",");
 					player_positions.push(toMapCoord(pos));
 				}
-				console.log(player_positions)
             })(xmlHttp.responseText);
     }
     xmlHttp.open("GET", "/"+game_id+"/getPos", true); // true for asynchronous 
@@ -128,10 +127,7 @@ function updatePlayerPos()
 
 function toMapCoord(gameCoords) {
     gameCoords = {x: gameCoords[1], y: gameCoords[0] }
-    let mapx = (gameCoords.x - gameLeftSide) / scalex;
-    let mapy = (gameCoords.y - gameTopSide) / scaley;
-
-  return [mapx, mapy]; //point(mapx, mapy)
+    return [gameCoords.x, gameCoords.y];
 }
 
 export default App;

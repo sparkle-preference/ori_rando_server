@@ -175,8 +175,8 @@ class Player(ndb.Model):
 	upgrades	= ndb.IntegerProperty()
 	teleporters = ndb.IntegerProperty()
 	signals = ndb.StringProperty(repeated=True)
-	pos_x = ndb.IntegerProperty()
-	pos_y = ndb.IntegerProperty()
+	pos_x = ndb.IntegerProperty(default=189)
+	pos_y = ndb.IntegerProperty(default=-219)
 	history = ndb.StructuredProperty(HistoryLine, repeated=True)
 	bitfields = ndb.ComputedProperty(lambda p: ",".join([str(x) for x in [p.skills,p.events,p.upgrades,p.teleporters]+(["|".join(p.signals)] if p.signals else [])]))
 class Game(ndb.Model):
@@ -340,8 +340,8 @@ class Update(webapp2.RequestHandler):
 			self.response.write(self.response.status)
 			return
 		p = game.player(player_id)
-		p.pos_x = int(x)
-		p.pos_y = int(y)
+		p.pos_x = int(float(x))
+		p.pos_y = int(float(y))
 		p.put()
 		self.response.write(p.bitfields)
 
@@ -536,7 +536,7 @@ app = webapp2.WSGIApplication([
 	(r'/(\d+)', HistPrompt),
 	(r'/(\d+)\.(\w+)/(-?\d+)/(\w+)/(\w+)', FoundPickup),
 	(r'/(\d+)\.(\w+)', ListPickups),
-	(r'/(\d+)\.(\w+)/(-?\d+),(-?\d+)', Update),
+	(r'/(\d+)\.(\w+)/(-?\d+.?\d*),(-?\d+.?\d*)', Update),
 	(r'/(\d+)\.(\w+)/SECRET/(\w+)', SignalSend),
 	(r'/(\d+)\.(\w+)/signalCallback/(\w+)', SignalCallback),
 	(r'/(\d+)/history', ShowHistory),

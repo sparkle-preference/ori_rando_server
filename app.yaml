@@ -13,3 +13,13 @@ handlers:
 
 - url: /.*
   script: main.app
+
+skip_files:
+- ^(.*/)?map/node_modules/.*$
+- ^(.*/)?map/src/.*$
+- ^(.*/)?#.*#$
+- ^(.*/)?.*~$
+- ^(.*/)?.*\.py[co]$
+- ^(.*/)?.*/RCS/.*$
+- ^(.*/)?\..*$
+- ^(.*/)?.*\.bak$
