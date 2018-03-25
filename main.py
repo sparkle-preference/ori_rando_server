@@ -285,7 +285,7 @@ class ActiveGames(webapp2.RequestHandler):
 		self.response.headers['Content-Type'] = 'text/html'
 		self.response.write('<html><body><pre>Active games:\n' +
 			"\n".join(
-				["<a href='/%s/history'>Game #%s</a>:\n\t%s " % (game.key.id(), game.key.id(),game.summary()) for game in Game.query()])+"</pre></body></html>")
+				["<a href='/%s/history'>Game #%s</a> (<a href='/%s/map'>(Map)</a>):\n\t%s " % (game.key.id(), game.key.id(), game.key.id(), game.summary()) for game in Game.query()])+"</pre></body></html>")
 
 def paramFlag(s,f):
 	return s.request.get(f,None) != None
@@ -516,11 +516,16 @@ class RemovePlayer(webapp2.RequestHandler):
 class GetPlayerPositions(webapp2.RequestHandler):
 	def get(self, game_id):
 		game = get_game(game_id)
-		players = [p.get() for p in game.players]
-		self.response.headers['Content-Type'] = 'text/plain'
-		self.response.status = 200
-		self.response.out.write("|".join(["%s,%s" % (p.pos_x, p.pos_y) for p in players]))
-
+		if game:
+			players = [p.get() for p in game.players]
+			self.response.headers['Content-Type'] = 'text/plain'
+			self.response.status = 200
+			self.response.out.write("|".join(["%s:%s,%s" % (p.key.id().partition(".")[2], p.pos_x, p.pos_y) for p in players]))
+		else:
+			self.response.headers['Content-Type'] = 'text/plain'
+			self.response.status = 404
+			self.response.out.write("")
+			
 class ShowMap(webapp2.RequestHandler):
 	def get(self, game_id):
 		path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
