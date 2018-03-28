@@ -218,6 +218,14 @@ def clean_old_games():
 def get_new_game(_mode = None, _shared = None, id=None):
 	shared = [share_from_url(i) for i in _shared] if _shared else Game.DEFAULT_SHARED
 	mode = GameMode(int(_mode)) if _mode else GameMode.SHARED
+	if not id:
+		id = 1
+		game_ids = set([int(game.key.id()) for game in Game.query()])
+		while id in game_ids:
+			id += 1
+		if id > 20:
+			clean_old_games()
+
 	game_id = id
 	game = Game(id = str(game_id), players=[], shared=shared, mode=mode)
 	key = Cache.put(game)
@@ -233,7 +241,7 @@ class GetGameId(webapp2.RequestHandler):
 		id = paramVal(self, 'id')
 		if "." in id:
 			id = id.partition(".")[0]
-		self.response.write("GC|%s" % get_new_game(paramVal(self, 'mode'), shared, id).key().id)
+		self.response.write("GC|%s" % get_new_game(paramVal(self, 'mode'), shared, id).key.id())
 
 class CleanUp(webapp2.RequestHandler):
 	def get(self):
@@ -316,7 +324,7 @@ class SeedGenerator(webapp2.RequestHandler):
 			seed = str(random.randint(10000000,100000000))
 
 		share_types = [f for f in share_map.keys() if self.request.get(f)]
-		game_id = get_new_game(_mode=1, _shared=" ".join(share_types))
+		game_id = get_new_game(_mode=1, _shared=share_types).key.id()
 		
 		urlargs = ["m=%s" % mode]
 		urlargs.append("vars=%s" % "|".join(variations))
