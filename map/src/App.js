@@ -123,7 +123,7 @@ function getLocInfo(pick, players, spoiler) {
 		if(spoiler || players[id].seen.includes(loc))
 			info += id + ":" + players[id].seed[loc] + "  ";
 		else
-			info += id + ":" + "(hidden)"
+			info += id + ":" + "(hidden) "
 	});
 	info = info.slice(0, -2)
 	return info;
