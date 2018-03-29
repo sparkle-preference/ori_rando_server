@@ -132,6 +132,7 @@ function getLocInfo(pick, players, spoiler) {
 function getPickupMarkers(players, pickupTypes, flags) {
 	let spoiler = flags.includes("show_spoiler")
 	let hide_found = flags.includes("hide_found")
+	let hide_unreachable = flags.includes("hide_unreachable")
 	let markers = []
 	for(let i in pickupTypes) {
 		let pre = pickupTypes[i];
@@ -145,6 +146,14 @@ function getPickupMarkers(players, pickupTypes, flags) {
 						show = true;
 				});				
 			}
+			if(hide_unreachable && Object.keys(players).length > 0) {
+				Object.keys(players).map((id) => {
+					if(!players[id].zones.includes(pick.zone)) 
+						show = false;
+				});				
+			}
+
+
 			if(show)
 				markers.push({key: pick.name+"|"+pick.x+","+pick.y, opacity:1, position: [pick.y, pick.x], info: getLocInfo(pick, players, spoiler), icon: pickup_icons[pre]});				
 	
@@ -177,7 +186,7 @@ const DEFAULT_VIEWPORT = {
 class App extends React.Component {
   constructor(props) {
     super(props)
-    this.state = {players: {}, done: false, check_seen: 5, flags: ['show_players', 'hide_found', 'show_pickups'], viewport: DEFAULT_VIEWPORT, pickups: ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC"] }
+    this.state = {players: {}, done: false, check_seen: 1, modes: ['normal', 'speed'], flags: ['show_players', 'hide_found', 'show_pickups'], viewport: DEFAULT_VIEWPORT, pickups: ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC"] }
   };
   componentDidMount() {
 	  this.interval = setInterval(() => this.tick(this), 1000);
@@ -188,6 +197,7 @@ class App extends React.Component {
   	if(s.state.check_seen == 0) {
 	  	s.setState({check_seen: 5});
 		getSeen((p) => s.setState(p));
+		getReachable((p) => s.setState(p),s.state.modes.join("+"));
   	} else 
 	  	s.setState({check_seen: s.state.check_seen -1});
 	if(s.state.check_seen < 10)
@@ -202,15 +212,14 @@ class App extends React.Component {
   componentWillUnmount() {
     clearInterval(this.interval);
   }
-  flagsChanged = (newFlags) => {
-    this.setState({flags: newFlags});
+  flagsChanged = (newVal) => { this.setState({flags: newVal}) }
+  pickupsChanged = (newVal) => { this.setState({pickups: newVal}) }
+  modesChanged = (newVal) => {
+  	this.setState({modes: newVal});
+	getReachable((p) => this.setState(p),this.state.modes.join("+"));
+  
   }
-  pickupsChanged = (newPickups) => {
-    this.setState({pickups: newPickups});
-  }
-  onViewportChanged = viewport => {
-    this.setState({ viewport })
-  }
+  onViewportChanged = viewport => { this.setState({ viewport }) }
 
 
     render() {
@@ -225,9 +234,28 @@ class App extends React.Component {
 		<CheckboxGroup checkboxDepth={2} name="flags" value={this.state.flags} onChange={this.flagsChanged}> 
         <label><Checkbox value="show_players"/> Players</label>
         <label><Checkbox value="show_spoiler"/> Spoiler</label>
-        <label><Checkbox value="hide_found"/> Hide found</label>
         <label><Checkbox value="show_pickups"/> Pickups</label>
+        <label><Checkbox value="hide_found"/> Hide found</label>
+        <label><Checkbox value="hide_unreachable"/> Hide unreachable</label>
         <label><Checkbox value="update_in_bg"/> Always Update</label>
+       </CheckboxGroup>
+		<CheckboxGroup checkboxDepth={2} name="modes" value={this.state.modes} onChange={this.modesChanged}> 
+			<label><Checkbox value="lure" /> lure</label>
+			<label><Checkbox value="extended" /> extended</label>
+			<label><Checkbox value="normal" /> normal</label>
+			<label><Checkbox value="dboost-light" /> dboost-light</label>
+			<label><Checkbox value="dboost" /> dboost</label>
+			<label><Checkbox value="glitched" /> glitched</label>
+			<label><Checkbox value="cdash-farming" /> cdash-farming</label>
+			<label><Checkbox value="cdash" /> cdash</label>
+			<label><Checkbox value="timed-level" /> timed-level</label>
+			<label><Checkbox value="speed-lure" /> speed-lure</label>
+			<label><Checkbox value="lure-hard" /> lure-hard</label>
+			<label><Checkbox value="extended-damage" /> extended-damage</label>
+			<label><Checkbox value="dbash" /> dbash</label>
+			<label><Checkbox value="speed" /> speed</label>
+			<label><Checkbox value="dboost-hard" /> dboost-hard</label>
+			<label><Checkbox value="extreme" /> extreme</label>
        </CheckboxGroup>
 		<CheckboxGroup checkboxDepth={2} name="options" value={this.state.pickups} onChange={this.pickupsChanged}> 
 			<label><Checkbox value="EX" />EX</label>
@@ -268,6 +296,41 @@ function getSeed(setter, pid)
     xmlHttp.send(null);
 }
 
+function getReachable(setter, modes)
+{
+    var xmlHttp = new XMLHttpRequest();
+    xmlHttp.onreadystatechange = function() { 
+        if (xmlHttp.readyState === 4 && xmlHttp.status === 200)
+            (function(res) {
+            	if(res == "Stop")
+            	{
+            		setter({done: true});
+					return;
+            	}
+            	let zones = {};
+            	let raw = res.split("|");
+            	for (let i = 0, len = raw.length; i < len; i++) {
+            		let withid = raw[i].split(":");
+            		if(withid[1] == "") 
+            			continue;
+            		let id = withid[0];
+					zones[id] = withid[1].split(",");
+				}
+				setter((prevState, props) => {
+					let retVal = prevState.players
+					Object.keys(zones).map((id) => {
+						if(!retVal.hasOwnProperty(id)){
+							retVal[id] = {seed: {}, pos: [0,0], seen: []};
+						}
+						retVal[id].zones = zones[id]
+					})
+					return {players:retVal}
+				})
+            })(xmlHttp.responseText);
+    }
+    xmlHttp.open("GET", "/"+game_id+"/reachable?modes="+modes, true); // true for asynchronous 
+    xmlHttp.send(null);
+}
 
 function getSeen(setter)
 {
@@ -297,8 +360,7 @@ function getSeen(setter)
 					let retVal = prevState.players
 					Object.keys(seens).map((id) => {
 						if(!retVal.hasOwnProperty(id)){
-							retVal[id] = {seed: {}, pos: [0,0]};
-							console.log("what?")
+							retVal[id] = {seed: {}, pos: [0,0], zones: []};
 						}
 						retVal[id].seen = seens[id]
 					})
@@ -338,7 +400,7 @@ function getPlayerPos(setter)
 					let retVal = prevState.players
 					Object.keys(player_positions).map((id) => {
 						if(!retVal.hasOwnProperty(id)) 
-							retVal[id] = {seed: {}, seen: []};
+							retVal[id] = {seed: {}, seen: [], zones: []};
 						retVal[id].pos = player_positions[id]
 					})
 					return {players:retVal}

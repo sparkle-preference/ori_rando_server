@@ -14,10 +14,11 @@ from abc import ABCMeta, abstractproperty
 from operator import attrgetter
 from google.appengine.ext.webapp import template
 from util import GameMode, ShareType, Pickup, Skill, Event, Teleporter, Upgrade, share_from_url, share_map, special_coords, get_bit, get_taste, add_single, inc_stackable, get, unpack
+from reachable import Map, PlayerState
 base_site = "http://orirandocoopserver.appspot.com"
 
 class Cache(object):
-	WRITE_EVERY = 1
+	WRITE_EVERY = 5
 	NONE_STALE = 300
 	s = {}
 	@staticmethod
@@ -77,10 +78,10 @@ class Cache(object):
 				id = Cache.id(key)
 				Cache.s[id] = (value, 0)
 		except:
+			key = value.put()
 			id = Cache.id(key)
 			Cache.s[id] = (value, 0)
 		return key
-		
 
 
 class HistoryLine(ndb.Model):
@@ -128,7 +129,8 @@ class Player(ndb.Model):
 	
 	def signal_conf(self, signal):
 		self.signals.remove(signal)
-		Cache.put(self)		
+		Cache.put(self, force=True)
+				
 
 class Game(ndb.Model):
 	# id = Sync ID
@@ -162,11 +164,12 @@ class Game(ndb.Model):
 	def remove_player(self, key):
 		key = ndb.Key(Player, key)
 		self.players.remove(key)
-		Cache.put(self)
+		Cache.put(self, force=True)
 		Cache.delete(key)
 
 	def player(self, pid):
 		key = "%s.%s" % (self.key.id(), pid)
+		print key, Cache.has(key)
 		if not Cache.has(key):
 			if(self.mode == GameMode.SHARED and len(self.players)):
 				src = Cache.get(self.players[0].id())
@@ -174,8 +177,10 @@ class Game(ndb.Model):
 			else:
 				player = Player(id=key, skills = 0, events=0, upgrades = 0, teleporters = 0, history=[])
 			k = Cache.put(player)
-			self.players.append(k)
-			Cache.put(self)
+			if k not in self.players:
+				# weird things can happen... lmao
+				self.players.append(k)
+			Cache.put(self, force=True)
 		
 		return Cache.get(key)
 
@@ -228,7 +233,7 @@ def get_new_game(_mode = None, _shared = None, id=None):
 
 	game_id = id
 	game = Game(id = str(game_id), players=[], shared=shared, mode=mode)
-	key = Cache.put(game)
+	key = Cache.put(game, force=True)
 	return game
 
 class GetGameId(webapp2.RequestHandler):
@@ -299,7 +304,7 @@ class ShowHistory(webapp2.RequestHandler):
 		game = Cache.get(game_id)
 		output = game.summary()
 		output += "\nHistory:"
-		for hl,pid in sorted([(h,p.key.id().partition('.')[2]) for p in game.get_players() for h in p.history if hl.pickup().share_type != ShareType.NOT_SHARED], key=lambda x: x[0].timestamp, reverse=True):
+		for hl,pid in sorted([(h,p.key.id().partition('.')[2]) for p in game.get_players() for h in p.history if h.pickup().share_type != ShareType.NOT_SHARED], key=lambda x: x[0].timestamp, reverse=True):
 			output += "\n\t\t Player %s %s" % (pid, hl.print_line(game.start_time))
 
 		self.response.status = 200
@@ -504,7 +509,7 @@ class SetSeed(webapp2.RequestHandler):
 		if not game:
 			flags = lines[0].split("|")
 			mode_opt = [int(f[5:]) for f in flags if f.lower().startswith("mode=")]
-			shared_opt = [f[7:].split("+") for f in flags if f.lower().startswith("shared=")]
+			shared_opt = [f[7:].split(" ") for f in flags if f.lower().startswith("shared=")]
 			mode = mode_opt[0] if mode_opt else None
 			shared = shared_opt[0] if shared_opt else None
 			game = get_new_game(_mode = mode, _shared = shared, id=game_id)
@@ -530,6 +535,21 @@ class GetSeed(webapp2.RequestHandler):
 		self.response.status = 200
 		self.response.out.write(player.seed)
 
+class GetReachable(webapp2.RequestHandler):
+	def get(self, game_id):
+		game = Cache.get(game_id)
+		print paramVal(self,"modes")
+		if not game or not paramVal(self, "modes"):
+			self.response.status = 404
+			self.response.write("Stop")
+			return
+		modes = paramVal(self,"modes").split(" ")
+		self.response.headers['Content-Type'] = 'text/plain'
+		self.response.status = 200
+		players = game.get_players()
+		self.response.out.write("|".join(["%s:%s" % (player.key.id().partition(".")[2], ",".join(Map.get_reachable_areas(PlayerState(player), modes))) for player in players]))
+
+
 app = webapp2.WSGIApplication([
 	('/', SeedGenerator),
 	('/activeGames', ActiveGames),
@@ -550,6 +570,7 @@ app = webapp2.WSGIApplication([
 	(r'/(\d+)/seen', GetSeenLocs),
 	(r'/(\d+)\.(\w+)/seed', GetSeed),
 	(r'/(\d+)\.(\w+)/setSeed', SetSeed),
+	(r'/(\d+)/reachable', GetReachable),
 ], debug=True)
 
 

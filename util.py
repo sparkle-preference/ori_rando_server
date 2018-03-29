@@ -25,6 +25,7 @@ share_map = {
 }
 rev_map = {v:k for k,v in share_map.iteritems()}
 
+
 def share_from_url(s):
 	return share_map[s]
 
@@ -92,17 +93,22 @@ class Teleporter(Pickup):
 
 class Upgrade(Pickup):
 	stacking= set([6,13,15,17,19,21])
+	name_only = set([0, 1])
 	names = {17:  "Water Vein Shard", 19: "Gumon Seal Shard", 21: "Sunstone Shard", 6: "Spirit Flame Upgrade", 13: "Health Regeneration", 15: "Energy Regeneration", 8: "Explosion Power Upgrade", 9:  "Spirit Light Efficiency", 10: "Extra Air Dash", 11:  "Charge Dash Efficiency", 12:  "Extra Double Jump", 0: "Mega Health", 1: "Mega Energy"}
 	bits = {17:1, 19:4, 21:16, 6:64, 13:256, 15:1024, 8:4096, 9:8192, 10:16384, 11:32768, 12:65536}
 	code = "RB"
 	def __new__(cls, id):
 		id = int(id)
+		if id in Upgrade.name_only:
+			inst = super(Upgrade, cls).__new__(cls)
+			inst.id, inst.share_type, inst.name = id, ShareType.NOT_SHARED, Upgrade.names[id]
+			return inst
 		if id not in Upgrade.bits or id not in Upgrade.names:
 			return None
 		inst = super(Upgrade, cls).__new__(cls)
 		inst.id, inst.bit, inst.name = id, Upgrade.bits[id], Upgrade.names[id]
 		inst.stacks = id in Upgrade.stacking
-		inst.share_type = ShareType.DUNGEON_KEY if id in [17, 19, 21] else (ShareType.NOT_SHARED if id in [0, 1] else ShareType.UPGRADE)
+		inst.share_type = ShareType.DUNGEON_KEY if id in [17, 19, 21] else ShareType.UPGRADE
 		return inst
 
 class Experience(Pickup):
