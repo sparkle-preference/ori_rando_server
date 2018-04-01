@@ -3,6 +3,10 @@ api_version: 1
 threadsafe: true
 
 handlers:
+- url: /sprites
+  static_dir: sprites
+  application_readable: true
+
 - url: /map
   static_dir: map
   application_readable: true
@@ -10,6 +14,8 @@ handlers:
 - url: /static
   static_dir: map/build/static
   application_readable: true
+
+
 
 - url: /.*
   script: main.app

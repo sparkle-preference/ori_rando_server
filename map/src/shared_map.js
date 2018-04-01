@@ -1,3 +1,114 @@
+import React from 'react';
+import Leaflet from 'leaflet';
+import {Marker} from 'react-leaflet';
+function point(x, y) {
+  return {x: x, y: y};
+};
+
+function download(filename, text) {
+  var element = document.createElement('a');
+  element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+  element.setAttribute('download', filename);
+
+  element.style.display = 'none';
+  document.body.appendChild(element);
+
+  element.click();
+
+  document.body.removeChild(element);
+}
+
+
+const pickup_icons = {
+	"SK": new Leaflet.Icon({iconUrl: '../sprites/skill-tree.png', iconSize: new Leaflet.Point(32, 32), iconAnchor: new Leaflet.Point(0, 32)}),
+	"HC": new Leaflet.Icon({iconUrl: '../sprites/health-cell.png', iconSize: new Leaflet.Point(24, 24)}),
+	"AC": new Leaflet.Icon({iconUrl: '../sprites/ability-cell.png', iconSize: new Leaflet.Point(24, 24)}),
+	"EC": new Leaflet.Icon({iconUrl: '../sprites/energy-cell.png', iconSize: new Leaflet.Point(24, 24)}),
+	"MS": new Leaflet.Icon({iconUrl: '../sprites/map-fragment.png', iconSize: new Leaflet.Point(24, 24)}),
+	"EX": new Leaflet.Icon({iconUrl: '../sprites/xp.png', iconSize: new Leaflet.Point(24, 24)}),
+	"Pl": new Leaflet.Icon({iconUrl: '../sprites/xp.png', iconSize: new Leaflet.Point(30, 10)}),
+	"KS": new Leaflet.Icon({iconUrl: '../sprites/keystone.png', iconSize: new Leaflet.Point(24, 24)}),
+};
+
+function getMapCrs() {
+	let swampTeleporter = point(493.719818, -74.31961);
+	let gladesTeleporter = point(109.90181, -257.681549);
+	
+	// Pretty close, not exact
+	let swampTeleporterOnMap = point(15258, 9587);
+	let gladesTeleporterOnMap = point(11897, 11185);
+	
+	let map1 = gladesTeleporterOnMap;
+	let map2 = swampTeleporterOnMap;
+	let game1 = gladesTeleporter;
+	let game2 = swampTeleporter;
+	
+	let mapRightSide = 20480;
+	let mapBottomSide = 14592;
+	
+	let gameLeftSide = game2.x - ((map2.x / (map2.x - map1.x)) * (game2.x - game1.x));
+	let gameTopSide = game2.y - ((map2.y / (map2.y - map1.y)) * (game2.y - game1.y));
+	
+	let gameRightSide = mapRightSide / map1.x * (game1.x - gameLeftSide) + gameLeftSide;
+	let gameBottomSide = mapBottomSide / map1.y * (game1.y - gameTopSide) + gameTopSide;
+	
+	let leafletTileSize = 256;
+	let maxZoom = 7;
+	
+	let gameTileSizeX = (2 ** maxZoom * leafletTileSize) / mapRightSide * (gameRightSide - gameLeftSide);
+	let scaleX = leafletTileSize / gameTileSizeX;
+	
+	let gameTileSizeY = (2 ** maxZoom * leafletTileSize) / mapBottomSide * (gameBottomSide - gameTopSide);
+	let scaleY = leafletTileSize / gameTileSizeY;
+	
+	let mapOriginX = (0 - gameLeftSide) / (game1.x - gameLeftSide) * map1.x / (2 ** maxZoom);
+	let mapOriginY = (0 + gameTopSide) / (gameTopSide - game1.y) * map1.y / (2 ** maxZoom);
+	
+	Leaflet.CRS.MySimple = Leaflet.extend({}, Leaflet.CRS.Simple, {
+	  transformation: new Leaflet.Transformation(scaleX, mapOriginX, scaleY, mapOriginY)
+	});
+
+	return Leaflet.CRS.MySimple;
+};
+
+const PickupMarker = ({ map, position, inner, icon, onClick}) => (
+  <Marker map={map} position={position} icon={icon} onClick={onClick}>
+  {inner}
+  </Marker>
+);
+
+const PickupMarkersList = ({ map, markers }) => {
+  const items = markers.map(({ key, ...props }) => (
+      <PickupMarker key={key} map={map} {...props} />
+  ));
+  return <div style={{display: 'none'}}>{items}</div>;
+};
+
+function pickup_name(code, id) {
+	let names = {
+		"SK": {0:"Bash", 2:"Charge Flame", 3:"Wall Jump", 4:"Stomp", 5:"Double Jump",8:"Charge Jump",12:"Climb",14:"Glide",50:"Dash",51:"Grenade"},
+		"EV": {0:"Water Vein", 1:"Clean Water", 2:"Gumon Seal", 3:"Wind Restored", 4:"Sunstone", 5:"Warmth Returned"},
+		"RB":  {17:"Water Vein Shard", 19: "Gumon Seal Shard", 21: "Sunstone Shard", 6: "Spirit Flame Upgrade", 13: "Health Regeneration", 15: "Energy Regeneration", 8: "Explosion Power Upgrade", 9:  "Spirit Light Efficiency", 10: "Extra Air Dash", 11:  "Charge Dash Efficiency", 12:  "Extra Double Jump", 0: "Mega Health", 1: "Mega Energy"}	
+	};
+	if(names.hasOwnProperty(code) && names[code][1*id])
+		return names[code][1*id];
+	 
+	if(code === "EX") 
+		return id+ " Experience";
+	if(code === "HC") 
+		return "Health Cell";
+	if(code === "EC") 
+		return "Energy Cell";
+	if(code === "AC") 
+		return "Ability Cell";
+	if(code === "MS") 
+		return "Mapstone";
+	if(code === "KS") 
+		return "Keystone";
+}
+
+
+
 const pickups = {
 "SK": [
 	{"loc": -4600020, "zone": "ValleyMain", "name": "SKGlide", "x": -460, "y": -20},
@@ -44,7 +155,17 @@ const pickups = {
 	{"loc": 4479568, "zone": "GumoHideoutRedirectAC", "name": "AC", "x": 449, "y": -430},
 	{"loc": 6399872, "zone": "DrainlessCell", "name": "AC", "x": 643, "y": -127},
 	{"loc": 1759964, "zone": "BelowHoruFields", "name": "AC", "x": 176, "y": -34}
-], "Ma": [
+], "MP": [
+	{"loc": 24, "zone": "Progressive", "name": "MS1", "x": 0, "y": 1},
+	{"loc": 28, "zone": "Progressive", "name": "MS2", "x": 0, "y": 2},
+	{"loc": 32, "zone": "Progressive", "name": "MS3", "x": 0, "y": 3},
+	{"loc": 36, "zone": "Progressive", "name": "MS4", "x": 0, "y": 4},
+	{"loc": 40, "zone": "Progressive", "name": "MS5", "x": 0, "y": 5},
+	{"loc": 44, "zone": "Progressive", "name": "MS6", "x": 0, "y": 6},
+	{"loc": 48, "zone": "Progressive", "name": "MS7", "x": 0, "y": 7},
+	{"loc": 52, "zone": "Progressive", "name": "MS8", "x": 0, "y": 8},
+	{"loc": 56, "zone": "Progressive", "name": "MS9", "x": 0, "y": 9}
+ ], "Ma": [
 	{"loc": 3479880, "zone": "HollowGroveMapStone", "name": "MapStone", "x": 351, "y": -119},
 	{"loc": -4080172, "zone": "ValleyMapStone", "name": "MapStone", "x": -408, "y": -170},
 	{"loc": -8440308, "zone": "ForlornMapStone", "name": "MapStone", "x": -843, "y": -308},
@@ -254,4 +375,5 @@ const pickups = {
 	{"loc": -6080316, "zone": "RightForlornPlant", "name": "Plant", "x": -607, "y": -314}
 ]};
  
- export default pickups;
+
+export {PickupMarker, PickupMarkersList, download, pickup_icons, getMapCrs, pickups, pickup_name};

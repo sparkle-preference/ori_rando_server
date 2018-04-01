@@ -483,11 +483,18 @@ class ClearCache(webapp2.RequestHandler):
 		self.response.headers['Content-Type'] = 'text/plain'
 		Cache.s = {}
 		self.response.write(str(Cache.s))
+
+
+class Plando(webapp2.RequestHandler):
+	def get(self):
+		path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
+		template_values = {'app': "plandoBuilder", 'title': "Plandomizer Editor v0.0.0001"}
+		self.response.out.write(template.render(path, template_values))
 			
 class ShowMap(webapp2.RequestHandler):
 	def get(self, game_id):
 		path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
-		template_values = {'game_id': game_id, 'is_spoiler': paramFlag(self, 'sp')}
+		template_values = {'app': "gameTracker", 'title': "Game %s" % game_id, 'game_id': game_id, 'is_spoiler': paramFlag(self, 'sp')}
 		self.response.out.write(template.render(path, template_values))
 
 class GetSeenLocs(webapp2.RequestHandler):
@@ -571,6 +578,7 @@ app = webapp2.WSGIApplication([
 	(r'/(\d+)\.(\w+)/seed', GetSeed),
 	(r'/(\d+)\.(\w+)/setSeed', SetSeed),
 	(r'/(\d+)/reachable', GetReachable),
+	(r'/plando', Plando)
 ], debug=True)
 
 

@@ -7,58 +7,13 @@ import { Map, Tooltip, Popup, ImageOverlay, TileLayer, Marker} from 'react-leafl
 import {Checkbox, CheckboxGroup} from 'react-checkbox-group';
 import Control from 'react-leaflet-control';
 import Leaflet from 'leaflet';
-import pickups from './pickup_locs.js';
 import { withRouter, Route } from 'react-router';
 import { BrowserRouter, Link } from 'react-router-dom';
 import uuid from 'uuid-encoded';
 import { Button } from 'reactstrap';
-
+import {pickups, PickupMarker, PickupMarkersList, pickup_icons, getMapCrs} from './shared_map.js';
 
 const game_id = document.getElementsByClassName("game-id-holder")[0].id;
-
-function point(x, y) {
-  return {x: x, y: y};
-}
-
-let swampTeleporter = point(493.719818, -74.31961);
-let gladesTeleporter = point(109.90181, -257.681549);
-
-// Pretty close, not exact
-let swampTeleporterOnMap = point(15258, 9587);
-let gladesTeleporterOnMap = point(11897, 11185);
-
-var map1 = gladesTeleporterOnMap;
-var map2 = swampTeleporterOnMap;
-var game1 = gladesTeleporter;
-var game2 = swampTeleporter;
-
-var mapRightSide = 20480;
-var mapBottomSide = 14592;
-
-var gameLeftSide = game2.x - ((map2.x / (map2.x - map1.x)) * (game2.x - game1.x));
-var gameTopSide = game2.y - ((map2.y / (map2.y - map1.y)) * (game2.y - game1.y));
-
-var gameRightSide = mapRightSide / map1.x * (game1.x - gameLeftSide) + gameLeftSide
-var gameBottomSide = mapBottomSide / map1.y * (game1.y - gameTopSide) + gameTopSide
-
-const leafletTileSize = 256;
-const maxZoom = 7;
-
-const gameTileSizeX = (2 ** maxZoom * leafletTileSize) / mapRightSide * (gameRightSide - gameLeftSide)
-const scaleX = leafletTileSize / gameTileSizeX
-
-const gameTileSizeY = (2 ** maxZoom * leafletTileSize) / mapBottomSide * (gameBottomSide - gameTopSide)
-const scaleY = leafletTileSize / gameTileSizeY
-
-const mapOriginX = (0 - gameLeftSide) / (game1.x - gameLeftSide) * map1.x / (2 ** maxZoom)
-const mapOriginY = (0 + gameTopSide) / (gameTopSide - game1.y) * map1.y / (2 ** maxZoom)
-
-Leaflet.CRS.MySimple = Leaflet.extend({}, Leaflet.CRS.Simple, {
-  transformation: new Leaflet.Transformation(scaleX, mapOriginX, scaleY, mapOriginY)
-});
-
-
-
 
 function parse_seed(raw) {
 	let out = {}
@@ -71,42 +26,17 @@ function parse_seed(raw) {
  }
 
 function player_icons(id)  {
-	let img = 	require('./sprites/ori-white.png');
-	if (id == 1)  img = require('./sprites/ori-blue.png');
-	else if (id == 2)  img = require('./sprites/ori-red.png');
-	else if (id == 3)  img = require('./sprites/ori-green.png');
-	else if (id == 4)  img = require('./sprites/ori-purple.png');
-	else if (id == 5)  img = require('./sprites/ori-yellow.png');
-	else if (id == 200)  img = require('./sprites/ori-skul.png');
+	let img = 	'../sprites/ori-white.png';
+	if (id == 1)  img = '../sprites/ori-blue.png';
+	else if (id == 2)  img = '../sprites/ori-red.png';
+	else if (id == 3)  img = '../sprites/ori-green.png';
+	else if (id == 4)  img = '../sprites/ori-purple.png';
+	else if (id == 5)  img = '../sprites/ori-yellow.png';
+	else if (id == 200)  img = '../sprites/ori-skul.png';
 	let ico = new Leaflet.Icon({iconUrl: img, iconSize: new Leaflet.Point(48, 48)});
 	return ico
 };
 
-const pickup_icons = {
-	"SK": new Leaflet.Icon({iconUrl: require('./sprites/skill-tree.png'), iconSize: new Leaflet.Point(32, 32), iconAnchor: new Leaflet.Point(0, 32)}),
-	"HC": new Leaflet.Icon({iconUrl: require('./sprites/health-cell.png'), iconSize: new Leaflet.Point(24, 24)}),
-	"AC": new Leaflet.Icon({iconUrl: require('./sprites/ability-cell.png'), iconSize: new Leaflet.Point(24, 24)}),
-	"EC": new Leaflet.Icon({iconUrl: require('./sprites/energy-cell.png'), iconSize: new Leaflet.Point(24, 24)}),
-	"MS": new Leaflet.Icon({iconUrl: require('./sprites/map-fragment.png'), iconSize: new Leaflet.Point(24, 24)}),
-	"EX": new Leaflet.Icon({iconUrl: require('./sprites/xp.png'), iconSize: new Leaflet.Point(24, 24)}),
-	"Pl": new Leaflet.Icon({iconUrl: require('./sprites/xp.png'), iconSize: new Leaflet.Point(30, 10)}),
-	"KS": new Leaflet.Icon({iconUrl: require('./sprites/keystone.png'), iconSize: new Leaflet.Point(24, 24)}),
-}
-
-const PickupMarker = ({ map, position, info, icon}) => (
-  <Marker map={map} position={position} icon={icon}>
-    <Tooltip>
-    <span> {info} </span> 
-    </Tooltip>
-  </Marker>
-);
-
-const PickupMarkersList = ({ map, markers }) => {
-  const items = markers.map(({ key, ...props }) => (
-      <PickupMarker key={key} map={map} {...props} />
-  ));
-  return <div style={{display: 'none'}}>{items}</div>;
-};
 
 const PlayerMarker = ({ map, position, icon}) => ( <Marker map={map} position={position} icon={icon} /> );
 const PlayerMarkersList = ({map, players}) => {
@@ -155,7 +85,19 @@ function getPickupMarkers(players, pickupTypes, flags) {
 
 
 			if(show)
-				markers.push({key: pick.name+"|"+pick.x+","+pick.y, opacity:1, position: [pick.y, pick.x], info: getLocInfo(pick, players, spoiler), icon: pickup_icons[pre]});				
+			{
+				let loc_info = getLocInfo(pick, players, spoiler);
+				if(!loc_info)
+					loc_info = "N/A";
+				let inner = (
+				<Tooltip>
+					<span>
+						{loc_info} 
+					</span> 
+				</Tooltip>
+				);
+				markers.push({key: pick.name+"|"+pick.x+","+pick.y, opacity:1, position: [pick.y, pick.x], inner: inner, icon: pickup_icons[pre]});								
+			}
 	
 		}
 	}
@@ -182,8 +124,8 @@ const DEFAULT_VIEWPORT = {
 	  center: [0, 0],
 	  zoom: 3,
 	}
-
-class App extends React.Component {
+const crs = getMapCrs();
+class GameTracker extends React.Component {
   constructor(props) {
     super(props)
     this.state = {players: {}, done: false, check_seen: 1, modes: ['normal', 'speed'], flags: ['show_players', 'hide_found', 'show_pickups'], viewport: DEFAULT_VIEWPORT, pickups: ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC"] }
@@ -267,7 +209,7 @@ class App extends React.Component {
 			<label><Checkbox value="EC" />EC</label>
 			<label><Checkbox value="AC" />AC</label>
        </CheckboxGroup>
-        <Map crs={Leaflet.CRS.MySimple} onViewportChanged={this.onViewportChanged} viewport={this.state.viewport}>
+        <Map crs={crs} onViewportChanged={this.onViewportChanged} viewport={this.state.viewport}>
 
      <TileLayer url=' https://ori-tracker.firebaseapp.com/images/ori-map/{z}/{x}/{y}.png' noWrap='true'  />
 		{pickups}
@@ -412,4 +354,4 @@ function getPlayerPos(setter)
 }
 
 
-export default App;
+export default GameTracker;

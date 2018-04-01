@@ -3,8 +3,9 @@
 <html>
 <head>
   <meta charset="utf-8">
+  <link rel="icon" href="static/favicon.ico">
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-  <title>Game {{game_id}}</title>
+  <title>{{title}}</title>
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.3.1/dist/leaflet.css" integrity="sha512-Rksm5RenBEKSKFjgI3a41vrjkw4EVPlJ3+OiI65vTjIdo9brlAacEuKOiQ5OFh7cOI1bkDwLqdLw3Zg0cRJAAQ==" crossorigin=""/>
 </head>
@@ -12,8 +13,7 @@
   <noscript>
     You need to enable JavaScript to run this app.
   </noscript>
-  <div id="root" class='stretch'></div>
+  <div id="{{app}}" class='stretch'></div>
   <div class="game-id-holder" id="{{game_id}}"></div>
-  <div class="spoiler-flag-holder" id="{{is_spoiler}}"></div>
 </body>
 </html>
