@@ -273,7 +273,7 @@ class ActiveGames(webapp2.RequestHandler):
 		self.response.headers['Content-Type'] = 'text/html'
 		self.response.write('<html><body><pre>Active games:\n' +
 			"\n".join(
-				["<a href='/%s/history'>Game #%s</a> (<a href='/%s/map'>(Map)</a>):\n\t%s " % (game.key.id(), game.key.id(), game.key.id(), game.summary()) for game in Game.query()])+"</pre></body></html>")
+				["<a href='/%s/history'>Game #%s</a> (<a href='/%s/map'>(Map)</a>):\n\t%s (Last updated: %s)" % (game.key.id(), game.key.id(), game.key.id(), game.summary(), game.last_update) for game in sorted(Game.query(), key=lambda x:x.last_update, reverse=True)])+"</pre></body></html>")
 
 def paramFlag(s,f):
 	return s.request.get(f,None) != None
