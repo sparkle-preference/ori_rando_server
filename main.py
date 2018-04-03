@@ -251,7 +251,22 @@ class GetGameId(webapp2.RequestHandler):
 class CleanUp(webapp2.RequestHandler):
 	def get(self):
 		self.response.headers['Content-Type'] = 'text/plain'
+		self.response.status = 200
 		self.response.write("Cleaned up %s games" % clean_old_games())
+
+class DeleteGame(webapp2.RequestHandler):
+	def get(game_id, self):
+		self.response.headers['Content-Type'] = 'text/plain'
+		if int(game_id) < 1000:
+			self.response.status = 403
+			self.response.write("No.")
+		else:
+			game = Cache.get(game_id)
+			Cache.delete(game)
+			self.response.status = 200
+			self.response.write("All according to daijobu")
+			
+		
 
 class ActiveGames(webapp2.RequestHandler):
 	def get(self):
@@ -567,6 +582,7 @@ app = webapp2.WSGIApplication([
 	(r'/(\d+)\.(\w+)/(-?\d+)/(\w+)/(\w+)', FoundPickup),
 	(r'/(\d+)\.(\w+)/(-?\d+.?\d*),(-?\d+.?\d*)', Update),
 	(r'/(\d+)\.(\w+)/signalCallback/(\w+)', SignalCallback),
+	(r'/(\d+)/delete', DeleteGame),
 	(r'/(\d+)/history', ShowHistory),
 	(r'/(\d+)/players', ListPlayers),
 	(r'/(\d+)\.(\w+)/remove', RemovePlayer),

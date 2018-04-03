@@ -10,8 +10,7 @@ import Leaflet from 'leaflet';
 import { withRouter, Route } from 'react-router';
 import { BrowserRouter, Link } from 'react-router-dom';
 import uuid from 'uuid-encoded';
-import { Button } from 'reactstrap';
-import {pickups, PickupMarker, PickupMarkersList, pickup_icons, getMapCrs} from './shared_map.js';
+import {picks_by_type, PickupMarker, PickupMarkersList, pickup_icons, getMapCrs} from './shared_map.js';
 
 const game_id = document.getElementsByClassName("game-id-holder")[0].id;
 
@@ -66,8 +65,8 @@ function getPickupMarkers(players, pickupTypes, flags) {
 	let markers = []
 	for(let i in pickupTypes) {
 		let pre = pickupTypes[i];
-		for(let p in pickups[pre]) {
-			let pick = pickups[pre][p]
+		for(let p in picks_by_type[pre]) {
+			let pick = picks_by_type[pre][p]
 			let show = true;
 			if(hide_found && Object.keys(players).length > 0) {
 				show = false;
@@ -78,7 +77,7 @@ function getPickupMarkers(players, pickupTypes, flags) {
 			}
 			if(hide_unreachable && Object.keys(players).length > 0) {
 				Object.keys(players).map((id) => {
-					if(!players[id].zones.includes(pick.zone)) 
+					if(!players[id].areas.includes(pick.area)) 
 						show = false;
 				});				
 			}
@@ -249,22 +248,22 @@ function getReachable(setter, modes)
             		setter({done: true});
 					return;
             	}
-            	let zones = {};
+            	let areas = {};
             	let raw = res.split("|");
             	for (let i = 0, len = raw.length; i < len; i++) {
             		let withid = raw[i].split(":");
             		if(withid[1] == "") 
             			continue;
             		let id = withid[0];
-					zones[id] = withid[1].split(",");
+					areas[id] = withid[1].split(",");
 				}
 				setter((prevState, props) => {
 					let retVal = prevState.players
-					Object.keys(zones).map((id) => {
+					Object.keys(areas).map((id) => {
 						if(!retVal.hasOwnProperty(id)){
 							retVal[id] = {seed: {}, pos: [0,0], seen: []};
 						}
-						retVal[id].zones = zones[id]
+						retVal[id].areas = areas[id]
 					})
 					return {players:retVal}
 				})
@@ -302,7 +301,7 @@ function getSeen(setter)
 					let retVal = prevState.players
 					Object.keys(seens).map((id) => {
 						if(!retVal.hasOwnProperty(id)){
-							retVal[id] = {seed: {}, pos: [0,0], zones: []};
+							retVal[id] = {seed: {}, pos: [0,0], areas: []};
 						}
 						retVal[id].seen = seens[id]
 					})
@@ -342,7 +341,7 @@ function getPlayerPos(setter)
 					let retVal = prevState.players
 					Object.keys(player_positions).map((id) => {
 						if(!retVal.hasOwnProperty(id)) 
-							retVal[id] = {seed: {}, seen: [], zones: []};
+							retVal[id] = {seed: {}, seen: [], areas: []};
 						retVal[id].pos = player_positions[id]
 					})
 					return {players:retVal}
