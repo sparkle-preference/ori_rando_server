@@ -23,7 +23,7 @@ def split_seed(seed, gameId, player, max_players, hot=False, sk=True, ev=True, r
 				outln = line.split("|")
 				repl_exp = prerolled_blunts["%s|%s" % (outln[1],outln[2])]
 				outln[1] = "EV" if hot else "EX"
-				outln[2] = "5" if hot else repl_exp 
+				outln[2] = "5" if hot else str(repl_exp)
 				outlines.append("|".join(outln))
 		else:
 			outlines.append(line)

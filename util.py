@@ -31,6 +31,12 @@ def share_from_url(s):
 
 def url_from_share(share_types):
 	"+".fold(rev_map[type] for type in share_types)
+
+coord_correction_map = {
+	-520160: -560160,
+	-4199936: -4600020,
+	8599908: 8599904
+}
 	
 class Pickup(object):
 	@staticmethod
@@ -221,7 +227,7 @@ def sign(x):
 	return 1 if x>=0 else -1
 
 def rnd(x):
-	return int(4*floor(abs(float(x)/4))*sign(x))
+	return int(4*floor(float(x)/4.0)*sign(x))
 
 def unpack(coord):
 	y = coord % (sign(coord)*10000)

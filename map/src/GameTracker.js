@@ -1,19 +1,15 @@
 import React from 'react';
-import ReactDOM from 'react-dom';
 import './index.css';
 import './bootstrap.cyborg.min.css';
-import registerServiceWorker from './registerServiceWorker';
-import { Map, Tooltip, Popup, ImageOverlay, TileLayer, Marker} from 'react-leaflet';
+//import registerServiceWorker from './registerServiceWorker';
+import { Map, Tooltip, TileLayer, Marker} from 'react-leaflet';
 import {Checkbox, CheckboxGroup} from 'react-checkbox-group';
-import Control from 'react-leaflet-control';
+import {Radio, RadioGroup} from 'react-radio-group';
 import Leaflet from 'leaflet';
-import { withRouter, Route } from 'react-router';
-import { BrowserRouter, Link } from 'react-router-dom';
-import uuid from 'uuid-encoded';
-import {picks_by_type, PickupMarker, PickupMarkersList, pickup_icons, getMapCrs} from './shared_map.js';
+import {picks_by_type, PickupMarkersList, pickup_icons, getMapCrs} from './shared_map.js';
 
 const game_id = document.getElementsByClassName("game-id-holder")[0].id;
-
+const EMPTY_PLAYER = {seed: {}, pos: [0,0], seen:[], flags: ["show_marker"], areas: []}
 function parse_seed(raw) {
 	let out = {}
 	let lines = raw.split("\n")
@@ -25,74 +21,124 @@ function parse_seed(raw) {
  }
 
 function player_icons(id)  {
+	id = 1*id;
 	let img = 	'../sprites/ori-white.png';
-	if (id == 1)  img = '../sprites/ori-blue.png';
-	else if (id == 2)  img = '../sprites/ori-red.png';
-	else if (id == 3)  img = '../sprites/ori-green.png';
-	else if (id == 4)  img = '../sprites/ori-purple.png';
-	else if (id == 5)  img = '../sprites/ori-yellow.png';
-	else if (id == 200)  img = '../sprites/ori-skul.png';
+	if (id === 1)  img = '../sprites/ori-blue.png';
+	else if (id === 2)  img = '../sprites/ori-red.png';
+	else if (id === 3)  img = '../sprites/ori-green.png';
+	else if (id === 4)  img = '../sprites/ori-purple.png';
+	else if (id === 5)  img = '../sprites/ori-yellow.png';
+	else if (id === 200)  img = '../sprites/ori-skul.png';
 	let ico = new Leaflet.Icon({iconUrl: img, iconSize: new Leaflet.Point(48, 48)});
 	return ico
 };
 
+function get_inner(id) {
+	return (
+	<Tooltip>
+	<span>{id}</span>	
+	</Tooltip>
+	);
+}
 
-const PlayerMarker = ({ map, position, icon}) => ( <Marker map={map} position={position} icon={icon} /> );
+const PlayerMarker = ({ map, position, icon, inner}) => ( 
+	<Marker map={map} position={position} icon={icon}>
+		{inner}
+	</Marker>
+	);
 const PlayerMarkersList = ({map, players}) => {
-	const items = Object.keys(players).map((id) => (
-		<PlayerMarker  key={"player_"+id} map={map} position={players[id].pos} icon={player_icons(id)}  /> 
-	));
-	return <div style={{display: 'none'}}>{items}</div>;
-}
-
-function getLocInfo(pick, players, spoiler) {
-	let loc = ""+pick.loc;
-	let info = "";
+	let players_to_show = [];
 	Object.keys(players).map((id) => {
-		if(spoiler || players[id].seen.includes(loc))
-			info += id + ":" + players[id].seed[loc] + "  ";
-		else
-			info += id + ":" + "(hidden) "
+		if(players[id].flags.includes("show_marker"))
+			players_to_show.push(id)
 	});
-	info = info.slice(0, -2)
-	return info;
+	const items = players_to_show.map((id) => (
+		<PlayerMarker  key={"player_"+id} map={map} position={players[id].pos} inner={get_inner(id)} icon={player_icons(id)}  /> 
+	));
+	return (<div style={{display: 'none'}}>{items}</div>);
 }
 
-function getPickupMarkers(players, pickupTypes, flags) {
-	let spoiler = flags.includes("show_spoiler")
-	let hide_found = flags.includes("hide_found")
-	let hide_unreachable = flags.includes("hide_unreachable")
+const PlayerUiOpts = ({players, setter}) => {
+	if(!players || Object.keys(players).length === 0)
+		return null;
+	const items = Object.keys(players).map((id) => {
+		let f = (newFlags) => setter((prevState) => {
+			let retVal = prevState.players;
+			retVal[id].flags = newFlags;
+			return {players:retVal};
+		});
+		return (		
+			<tr><td><table style={{width: "100%"}}><tbody>
+			<tr><td><h6>Player {id}</h6></td></tr>
+				<CheckboxGroup checkboxDepth={4} name={id+"_flags"} value={players[id].flags} onChange={f}>
+				<tr>
+					<td><label><Checkbox value="show_marker"/> Show on map</label></td>
+					<td><label><Checkbox value="show_spoiler"/> Show spoilers</label></td>
+					<td><label><Checkbox value="hide_found"/> Hide found</label></td>
+				</tr>
+				<tr>
+					<td><label><Checkbox value="hide_unreachable"/> Hide unreachable</label></td>
+					<td><label><Checkbox value="hide_remaining"/> Hide remaining</label></td>
+					<td><label><Checkbox value="hide_reachable"/> Hide reachable</label></td>
+				</tr>
+		       </CheckboxGroup>
+	       </tbody></table></td></tr>
+		);
+	});
+	return (<table style={{width: "100%"}}><tbody>{items}</tbody></table>);
+}
+
+
+
+
+function getLocInfo(pick, players) {
+	let loc = ""+pick.loc;
+	let info = Object.keys(players).map((id) => {
+		if(players[id].flags.includes("show_spoiler") || players[id].seen.includes(loc))
+			return id + ":" + players[id].seed[loc] + "\n";
+		else
+			return id + ":" + "(hidden)\n"
+	});
+	return info.join("\n");
+}
+
+function getPickupMarkers(state) {
+	let players = state.players;
+	let hideOpt = state.hideOpt;
+	let pickupTypes = state.pickups;
 	let markers = []
 	for(let i in pickupTypes) {
 		let pre = pickupTypes[i];
 		for(let p in picks_by_type[pre]) {
 			let pick = picks_by_type[pre][p]
-			let show = true;
-			if(hide_found && Object.keys(players).length > 0) {
-				show = false;
-				Object.keys(players).map((id) => {
-					if(!players[id].seen.includes(""+pick.loc)) 
-						show = true;
-				});				
+			let count = Object.keys(players).length
+			if(count === 0) {
+				markers.push({key: pick.name+"|"+pick.x+","+pick.y, opacity:1, position: [pick.y, pick.x], inner: null, icon: pickup_icons[pre]})
+				continue				
 			}
-			if(hide_unreachable && Object.keys(players).length > 0) {
-				Object.keys(players).map((id) => {
-					if(!players[id].areas.includes(pick.area)) 
-						show = false;
-				});				
-			}
+			Object.keys(players).map((id) => {
+				let player = players[id]
+				let hide_found = player.flags.includes("hide_found")
+				let hide_unreachable = player.flags.includes("hide_unreachable")
+				let hide_remaining = player.flags.includes("hide_remaining")
+				let hide_reachable = player.flags.includes("hide_reachable")
 
+				let found = player.seen.includes(""+pick.loc)
+				let reachable = players[id].areas.includes(pick.area)
 
-			if(show)
+				if( (found && hide_found) || (!found && hide_remaining) || (reachable && hide_reachable) || (!reachable && hide_unreachable))
+					count -= 1;
+			});
+			
+			
+			if((hideOpt === "any") ? (count === Object.keys(players).length) : (count > 0))
 			{
-				let loc_info = getLocInfo(pick, players, spoiler);
+				let loc_info = getLocInfo(pick, players);
 				if(!loc_info)
 					loc_info = "N/A";
 				let inner = (
 				<Tooltip>
-					<span>
-						{loc_info} 
-					</span> 
+					<pre>{loc_info}</pre> 
 				</Tooltip>
 				);
 				markers.push({key: pick.name+"|"+pick.x+","+pick.y, opacity:1, position: [pick.y, pick.x], inner: inner, icon: pickup_icons[pre]});								
@@ -127,33 +173,36 @@ const crs = getMapCrs();
 class GameTracker extends React.Component {
   constructor(props) {
     super(props)
-    this.state = {players: {}, done: false, check_seen: 1, modes: ['normal', 'speed'], flags: ['show_players', 'hide_found', 'show_pickups'], viewport: DEFAULT_VIEWPORT, pickups: ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC"] }
+    this.state = {players: {}, done: false, check_seen: 1, modes: ['normal', 'speed', 'dboost-light', 'lure'], flags: ['show_pickups'], viewport: DEFAULT_VIEWPORT, pickups: ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC"], hideOpt: "any"}
   };
   componentDidMount() {
-	  this.interval = setInterval(() => this.tick(this), 1000);
+	  this.interval = setInterval(() => this.tick(), 1000);
   };
   
-  tick(s) {
-  	if((!document.hasFocus() && !s.state.flags.includes("update_in_bg") )|| s.state.done) return;
-  	if(s.state.check_seen == 0) {
-	  	s.setState({check_seen: 5});
-		getSeen((p) => s.setState(p));
-		getReachable((p) => s.setState(p),s.state.modes.join("+"));
+  tick = () => {
+  	if((!document.hasFocus() && !this.state.flags.includes("update_in_bg") )|| this.state.done) return;
+  	if(this.state.check_seen == 0) {
+	  	this.setState({check_seen: 5});
+		getSeen((p) => this.setState(p));
+		getReachable((p) => this.setState(p),this.state.modes.join("+"));
   	} else 
-	  	s.setState({check_seen: s.state.check_seen -1});
-	if(s.state.check_seen < 10)
-		getPlayerPos((p) => s.setState(p));
+	  	this.setState({check_seen: this.state.check_seen -1});
+	if(this.state.check_seen < 10)
+		getPlayerPos((p) => this.setState(p));
 
-	Object.keys(s.state.players).map((id) => {
-		if(Object.keys(s.state.players[id].seed).length === 0)
-			getSeed((p) => s.setState(p), id);
+	Object.keys(this.state.players).map((id) => {
+		if(Object.keys(this.state.players[id].seed).length === 0)
+			getSeed((p) => this.setState(p), id);
 	})
-  }
+  };
 
   componentWillUnmount() {
     clearInterval(this.interval);
   }
-  flagsChanged = (newVal) => { this.setState({flags: newVal}) }
+  
+  
+  hideOptChanged = (newVal) => { this.setState({hideOpt: newVal}) }
+  flagsChanged = (newVal) => { this.setState({flagst: newVal}) }
   pickupsChanged = (newVal) => { this.setState({pickups: newVal}) }
   modesChanged = (newVal) => {
   	this.setState({modes: newVal});
@@ -164,57 +213,86 @@ class GameTracker extends React.Component {
 
 
     render() {
-	const pickups = this.state.flags.includes('show_pickups') ? ( <PickupMarkersList markers={getPickupMarkers(this.state.players, this.state.pickups, this.state.flags)} />) : null
-	const players = this.state.flags.includes('show_players') ? ( <PlayerMarkersList players={this.state.players} />) : null
-
+	const pickup_markers = this.state.flags.includes('show_pickups') ? ( <PickupMarkersList markers={getPickupMarkers(this.state)} />) : null
+	const player_markers =  ( <PlayerMarkersList players={this.state.players} />) 
+	const player_opts = ( <PlayerUiOpts players={this.state.players} setter={(p) => this.setState(p)} />)
     return (
-          <div style={{ textAlign: 'center' }}> 
-        <button  onClick={ () => this.setState({ viewport: DEFAULT_VIEWPORT }) } >
-          Reset View
-        </button>
-		<CheckboxGroup checkboxDepth={2} name="flags" value={this.state.flags} onChange={this.flagsChanged}> 
-        <label><Checkbox value="show_players"/> Players</label>
-        <label><Checkbox value="show_spoiler"/> Spoiler</label>
-        <label><Checkbox value="show_pickups"/> Pickups</label>
-        <label><Checkbox value="hide_found"/> Hide found</label>
-        <label><Checkbox value="hide_unreachable"/> Hide unreachable</label>
-        <label><Checkbox value="update_in_bg"/> Always Update</label>
-       </CheckboxGroup>
-		<CheckboxGroup checkboxDepth={2} name="modes" value={this.state.modes} onChange={this.modesChanged}> 
-			<label><Checkbox value="lure" /> lure</label>
-			<label><Checkbox value="extended" /> extended</label>
-			<label><Checkbox value="normal" /> normal</label>
-			<label><Checkbox value="dboost-light" /> dboost-light</label>
-			<label><Checkbox value="dboost" /> dboost</label>
-			<label><Checkbox value="glitched" /> glitched</label>
-			<label><Checkbox value="cdash-farming" /> cdash-farming</label>
-			<label><Checkbox value="cdash" /> cdash</label>
-			<label><Checkbox value="timed-level" /> timed-level</label>
-			<label><Checkbox value="speed-lure" /> speed-lure</label>
-			<label><Checkbox value="lure-hard" /> lure-hard</label>
-			<label><Checkbox value="extended-damage" /> extended-damage</label>
-			<label><Checkbox value="dbash" /> dbash</label>
-			<label><Checkbox value="speed" /> speed</label>
-			<label><Checkbox value="dboost-hard" /> dboost-hard</label>
-			<label><Checkbox value="extreme" /> extreme</label>
-       </CheckboxGroup>
-		<CheckboxGroup checkboxDepth={2} name="options" value={this.state.pickups} onChange={this.pickupsChanged}> 
-			<label><Checkbox value="EX" />EX</label>
-			<label><Checkbox value="SK" />SK</label>
-			<label><Checkbox value="Pl" />Pl</label>
-			<label><Checkbox value="KS" />KS</label>
-			<label><Checkbox value="HC" />HC</label>
-			<label><Checkbox value="MS" />MS</label>
-			<label><Checkbox value="EC" />EC</label>
-			<label><Checkbox value="AC" />AC</label>
-       </CheckboxGroup>
-        <Map crs={crs} onViewportChanged={this.onViewportChanged} viewport={this.state.viewport}>
+        <table style={{ width: '100%' }}><tbody>
+        <tr><td style={{ width: 'available' }}>
+             <Map crs={crs} onViewportChanged={this.onViewportChanged} viewport={this.state.viewport}>
+				<TileLayer url=' https://ori-tracker.firebaseapp.com/images/ori-map/{z}/{x}/{y}.png' noWrap='true'  />
+				{pickup_markers}
+				{player_markers}
+		     </Map>
+		</td>
+		<td style={{ width: '450px'}}>
+			<table style={{ width: '100%'}}><tbody>
+		        <tr><td><button  onClick={ () => this.setState({ viewport: DEFAULT_VIEWPORT }) } >
+		          Reset View
+		        </button></td></tr>
 
-     <TileLayer url=' https://ori-tracker.firebaseapp.com/images/ori-map/{z}/{x}/{y}.png' noWrap='true'  />
-		{pickups}
-		{players}
-     </Map>
-     </div>
+				<tr><td><h5>Flags</h5></td></tr>
+				<tr><CheckboxGroup checkboxDepth={3} name="flags" value={this.state.flags} onChange={this.flagsChanged}> 
+			        <td><label><Checkbox value="show_pickups"/> Pickups</label></td>
+			        <td><label><Checkbox value="update_in_bg"/> Always Update</label></td>
+		       </CheckboxGroup></tr>
+		       
+				<tr><td><h5>Players</h5></td></tr>		
+				{player_opts}
+
+				<tr><td><span>Hide pickup if it would be hidden for...</span></td></tr>
+				<tr><RadioGroup name="hideOpts" value={this.state.hideOpt} onChange={this.hideOptChanged}> 
+			        <td><label><Radio value="all"/> ...all players</label></td>
+			        <td><label><Radio value="any"/> ...any player</label></td>
+		       </RadioGroup ></tr>
+
+				<tr><td><h5>Logic Pathes</h5></td></tr>
+
+				<CheckboxGroup checkboxDepth={4} name="modes" value={this.state.modes} onChange={this.modesChanged}> 
+					<tr>
+						<td><label><Checkbox value="normal" /> normal</label></td>
+						<td><label><Checkbox value="speed" /> speed</label></td>
+						<td><label><Checkbox value="extended" /> extended</label></td>
+						<td><label><Checkbox value="extreme" /> extreme</label></td>
+					</tr>
+					<tr>
+						<td><label><Checkbox value="lure" /> lure</label></td>
+						<td><label><Checkbox value="speed-lure" /> speed-lure</label></td>
+						<td><label><Checkbox value="lure-hard" /> lure-hard</label></td>
+						<td><label><Checkbox value="timed-level" /> timed-level</label></td>
+					</tr>
+					<tr>
+						<td><label><Checkbox value="dboost-light" /> dboost-light</label></td>
+						<td><label><Checkbox value="dboost" /> dboost</label></td>
+						<td><label><Checkbox value="dboost-hard" /> dboost-hard</label></td>
+						<td><label><Checkbox value="extended-damage" /> extended-damage</label></td>
+					</tr>
+					<tr>		
+						<td><label><Checkbox value="cdash" /> cdash</label></td>
+						<td><label><Checkbox value="dbash" /> dbash</label></td>
+						<td><label><Checkbox value="glitched" /> glitched</label></td>
+						<td><label><Checkbox value="cdash-farming" /> cdash-farming</label></td>
+					</tr>
+		       </CheckboxGroup>
+
+				<tr><td><h5>Visible Pickups</h5></td></tr>				       
+				<CheckboxGroup checkboxDepth={4} name="options" value={this.state.pickups} onChange={this.pickupsChanged}> 
+					<tr>
+						<td><label><Checkbox value="SK" />Skill trees</label></td>
+						<td><label><Checkbox value="Pl" />Plants</label></td>
+						<td><label><Checkbox value="KS" />Keystones</label></td>
+						<td><label><Checkbox value="MS" />Mapstones</label></td>
+					</tr>
+					<tr>
+						<td><label><Checkbox value="EC" />Energy Cells</label></td>
+						<td><label><Checkbox value="AC" />Abiliy Cells</label></td>
+						<td><label><Checkbox value="HC" />Health Cells</label></td>
+						<td><label><Checkbox value="EX" />Exp Orbs</label></td>	
+					</tr>
+		       </CheckboxGroup>
+	       </tbody></table>
+	 </td></tr>
+     </tbody></table>
 	)
   }
 }
@@ -261,7 +339,7 @@ function getReachable(setter, modes)
 					let retVal = prevState.players
 					Object.keys(areas).map((id) => {
 						if(!retVal.hasOwnProperty(id)){
-							retVal[id] = {seed: {}, pos: [0,0], seen: []};
+							retVal[id] = {...EMPTY_PLAYER};
 						}
 						retVal[id].areas = areas[id]
 					})
@@ -301,7 +379,7 @@ function getSeen(setter)
 					let retVal = prevState.players
 					Object.keys(seens).map((id) => {
 						if(!retVal.hasOwnProperty(id)){
-							retVal[id] = {seed: {}, pos: [0,0], areas: []};
+							retVal[id] = {...EMPTY_PLAYER};
 						}
 						retVal[id].seen = seens[id]
 					})
@@ -341,7 +419,7 @@ function getPlayerPos(setter)
 					let retVal = prevState.players
 					Object.keys(player_positions).map((id) => {
 						if(!retVal.hasOwnProperty(id)) 
-							retVal[id] = {seed: {}, seen: [], areas: []};
+							retVal[id] = {...EMPTY_PLAYER};
 						retVal[id].pos = player_positions[id]
 					})
 					return {players:retVal}

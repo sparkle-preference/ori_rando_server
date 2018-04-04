@@ -13,7 +13,7 @@ from seedbuilder.splitter import split_seed
 from abc import ABCMeta, abstractproperty
 from operator import attrgetter
 from google.appengine.ext.webapp import template
-from util import GameMode, ShareType, Pickup, Skill, Event, Teleporter, Upgrade, share_from_url, share_map, special_coords, get_bit, get_taste, add_single, inc_stackable, get, unpack
+from util import GameMode, ShareType, Pickup, Skill, Event, Teleporter, Upgrade, share_from_url, share_map, special_coords, get_bit, get_taste, add_single, inc_stackable, get, unpack, coord_correction_map
 from reachable import Map, PlayerState
 base_site = "http://orirandocoopserver.appspot.com"
 
@@ -169,7 +169,6 @@ class Game(ndb.Model):
 
 	def player(self, pid):
 		key = "%s.%s" % (self.key.id(), pid)
-		print key, Cache.has(key)
 		if not Cache.has(key):
 			if(self.mode == GameMode.SHARED and len(self.players)):
 				src = Cache.get(self.players[0].id())
@@ -214,10 +213,14 @@ class Game(ndb.Model):
 			Cache.put(found_player)
 		return retcode
 
+def delete_game(game):
+	"""Expects game, NOT game id"""
+	[Cache.delete(p) for p in game.players]
+	Cache.delete(game)
+
 def clean_old_games():
 	old = [game for game in Game.query(Game.last_update < datetime.now() - timedelta(hours=1))]
-	[Cache.delete(p) for game in old for p in game.players]
-	return len([Cache.delete(game) for game in old])
+	return len([delete_game(game) for game in old])
 
 	
 def get_new_game(_mode = None, _shared = None, id=None):
@@ -262,7 +265,7 @@ class DeleteGame(webapp2.RequestHandler):
 			self.response.write("No.")
 		else:
 			game = Cache.get(game_id)
-			Cache.delete(game)
+			delete_game(game)
 			self.response.status = 200
 			self.response.write("All according to daijobu")
 			
@@ -284,6 +287,8 @@ class FoundPickup(webapp2.RequestHandler):
 	def get(self, game_id, player_id, coords, kind, id):
 		remove = paramFlag(self,"remove")
 		coords = int(coords)
+		if coords in coord_correction_map:
+			coords = coord_correction_map[coords]
 		game = Cache.get(game_id)
 		if not remove and not paramFlag(self, "override") and coords in [ h.coords for h in game.player(player_id).history]:
 			self.response.status = 410
@@ -339,13 +344,31 @@ class SeedGenerator(webapp2.RequestHandler):
 		variations = set([x for x in ["forcetrees", "hardmode", "notp", "starved", "ohko", "noplants", "discmaps", "0xp", "nobonus"] if self.request.get(x)])
 		logic_paths = [x for x in ["normal", "speed", "lure", "speed-lure", "dboost", "dboost-light", "dboost-hard", "cdash", "dbash", "extended", "lure-hard", "timed-level", "glitched", "extended-damage", "extreme"] if self.request.get(x)]
 		playercount = self.request.get("playerCount")
+		syncid = self.request.get("syncid")
+		syncmode = int(self.request.get("syncmode"))
 		seed = self.request.get("seed")
+		share_types = [f for f in share_map.keys() if self.request.get(f)]
+
+		game_id = False
 		if not seed:
 			seed = str(random.randint(10000000,100000000))
+		if syncid:
+			syncid = int(syncid)
+			if Cache.has(syncid):
+				if syncid > 999:
+					game = Cache.get(syncid)
+					delete_game(game)				
+					game_id = get_new_game(_mode=syncmode, _shared=share_types, id=syncid).key.id()
+				else:
+					self.response.status = 405
+					self.response.write("Seed ID in use! Leave blank or pick a different number.")
+					return				
+		if not game_id:
+			if syncid:
+				game_id = get_new_game(_mode=syncmode, _shared=share_types, id=syncid).key.id()			
+			else:
+				game_id = get_new_game(_mode=syncmode, _shared=share_types).key.id()			
 
-		share_types = [f for f in share_map.keys() if self.request.get(f)]
-		game_id = get_new_game(_mode=1, _shared=share_types).key.id()
-		
 		urlargs = ["m=%s" % mode]
 		urlargs.append("vars=%s" % "|".join(variations))
 		urlargs.append("lps=%s" % "|".join(logic_paths))
@@ -469,7 +492,6 @@ class RemovePlayer(webapp2.RequestHandler):
 			game.remove_player(key)
 			return webapp2.redirect("/%s/players" % game_id)
 		else:
-			print game.players,
 			self.response.headers['Content-Type'] = 'text/plain'
 			self.response.status = 404
 			self.response.out.write("player %s not in %s" % (key, game.players))
@@ -560,7 +582,6 @@ class GetSeed(webapp2.RequestHandler):
 class GetReachable(webapp2.RequestHandler):
 	def get(self, game_id):
 		game = Cache.get(game_id)
-		print paramVal(self,"modes")
 		if not game or not paramVal(self, "modes"):
 			self.response.status = 404
 			self.response.write("Stop")
