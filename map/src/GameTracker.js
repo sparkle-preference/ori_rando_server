@@ -95,9 +95,9 @@ function getLocInfo(pick, players) {
 	let loc = ""+pick.loc;
 	let info = Object.keys(players).map((id) => {
 		if(players[id].flags.includes("show_spoiler") || players[id].seen.includes(loc))
-			return id + ":" + players[id].seed[loc] + "\n";
+			return id + ":" + players[id].seed[loc];
 		else
-			return id + ":" + "(hidden)\n"
+			return id + ":" + "(hidden)"
 	});
 	return info.join("\n");
 }
