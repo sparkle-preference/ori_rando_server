@@ -2,26 +2,55 @@ import xml.etree.ElementTree as XML
 from collections import defaultdict, Counter
 
 class PlayerState(object):
-	name_from_id = {("SK",14): 'Glide', ("SK",50): 'Dash', ("TP","Swamp"): 'TPSwamp', ("EV", 4): 'HoruKey', ("TP","Grove"): 'TPGrove', ("SK",4): 'Stomp', ("SK",51): 'Grenade', ("EV", 1): 'Water', ("SK",0): 'Bash', ("SK",8): 'ChargeJump', ("TP","Valley"): 'TPValley', ("SK",12): 'Climb', ("TP","Grotto"): 'TPGrotto', ("EV", 3): 'Wind', ("EV", 2): 'ForlornKey', ("TP","Forlorn"): 'TPForlorn', ("SK",2): 'ChargeFlame', ("SK",3): 'WallJump', ("EV", 0): 'GinsoKey', ("TP","Sorrow"): 'TPSorrow', ("SK",5):  'DoubleJump'}
-	def __init__(self, player):
+	name_from_id = {
+		("SK",0): 'Bash',  ("SK",2): 'ChargeFlame',  ("SK",3): 'WallJump',  ("SK",4): 'Stomp',  ("SK",5):  'DoubleJump', 
+		("SK",8): 'ChargeJump',  ("SK",12): 'Climb',  ("SK",14): 'Glide',  ("SK",50): 'Dash',  ("SK",51): 'Grenade',
+		("EV", 0): 'GinsoKey', ("EV", 1): 'Water', ("EV", 2): 'ForlornKey', ("EV", 3): 'Wind', ("EV", 4): 'HoruKey', 
+		("TP","Swamp"): 'TPSwamp', ("TP","Grove"): 'TPGrove', ("TP","Valley"): 'TPValley', 
+		("TP","Grotto"): 'TPGrotto', ("TP","Forlorn"): 'TPForlorn', ("TP","Sorrow"): 'TPSorrow' 
+	}
+	def __init__(self):
 		self.has = Counter()
+
+	@staticmethod
+	def from_player(player):
+		inst = PlayerState()
+		inst.build_from_codes([(h.pickup_code, h.pickup_id, h.removed) for h in player.history])
+		return inst
+
+
+	@staticmethod
+	def from_codes(codes):
+		inst = PlayerState()
+		inst.build_from_codes(codes)
+		return inst
+
+
+
+	def build_from_codes(self, pickinfos):
 		wv = ss = gs = 0
-		for hl in player.history:				
-			code = hl.pickup_code
+		for code,id,removed in pickinfos:
 			if code in ["EX", "AC"]:
 				continue
-			id = hl.pickup_id if code=="TP" else int(hl.pickup_id)
+			id = id if code=="TP" else int(id)
 			if (code,id) in PlayerState.name_from_id:
-				self.has[PlayerState.name_from_id[(code,id)]] = (0 if hl.removed else 1)
+				self.has[PlayerState.name_from_id[(code,id)]] = (0 if removed else 1)
 			elif code == "RB":
 				if id == 17:
-					wv += (-1 if hl.removed else 1)
+					wv += (-1 if removed else 1)
 				elif id == 19:
-					gs += (-1 if hl.removed else 1)
+					gs += (-1 if removed else 1)
 				if id == 21:
-					ss += (-1 if hl.removed else 1)
-			elif code in ["HC","EC","KS"]:			
-				self.has[code] += (-id if hl.removed else id)
+					ss += (-1 if removed else 1)
+			elif code in ["HC","EC","KS","MS"]:			
+				self.has[code] += (-id if removed else id)
+		if wv >= 3:
+			self.has['GinsoKey'] = 1
+		if gs >= 3:
+			self.has['ForlornKey'] = 1
+		if ss >= 3:
+			self.has['HoruKey'] = 1
+			
 
 class Area(object):
 	def __init__(self, name):
@@ -61,7 +90,7 @@ class Map(object):
 					conn.reqs[req.attrib["mode"]].append(Requirement(req.text))
 				area.conns.append(conn)
 			Map.areas[area.name] = area
-
+		
 	@staticmethod
 	def get_reachable_areas(state, modes):
 		if not Map.areas:

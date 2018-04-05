@@ -34,8 +34,9 @@ def url_from_share(share_types):
 
 coord_correction_map = {
 	-520160: -560160,
-	-4199936: -4600020,
-	8599908: 8599904
+	-4600020: -4199936,
+	8599908: 8599904,
+	2959744: 2919744, 
 }
 	
 class Pickup(object):

@@ -525,7 +525,7 @@ class ClearCache(webapp2.RequestHandler):
 class Plando(webapp2.RequestHandler):
 	def get(self):
 		path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
-		template_values = {'app': "plandoBuilder", 'title': "Plandomizer Editor v0.0.0001"}
+		template_values = {'app': "plandoBuilder", 'title': "Plandomizer Editor v0.0.3"}
 		self.response.out.write(template.render(path, template_values))
 			
 class ShowMap(webapp2.RequestHandler):
@@ -590,7 +590,17 @@ class GetReachable(webapp2.RequestHandler):
 		self.response.headers['Content-Type'] = 'text/plain'
 		self.response.status = 200
 		players = game.get_players()
-		self.response.out.write("|".join(["%s:%s" % (player.key.id().partition(".")[2], ",".join(Map.get_reachable_areas(PlayerState(player), modes))) for player in players]))
+		self.response.out.write("|".join(["%s:%s" % (player.key.id().partition(".")[2], ",".join(Map.get_reachable_areas(PlayerState.from_player(player), modes))) for player in players]))
+
+
+
+class PlandoReachable(webapp2.RequestHandler):
+	def get(self):
+		modes = paramVal(self,"modes").split(" ")
+		codes = [tuple(c.split("|")+[False]) for c in paramVal(self,"codes").split(" ")] if paramVal(self,"codes") else []
+		self.response.headers['Content-Type'] = 'text/plain'
+		self.response.status = 200
+		self.response.out.write("|".join(Map.get_reachable_areas(PlayerState.from_codes(codes), modes)))
 
 
 app = webapp2.WSGIApplication([
@@ -615,6 +625,7 @@ app = webapp2.WSGIApplication([
 	(r'/(\d+)\.(\w+)/seed', GetSeed),
 	(r'/(\d+)\.(\w+)/setSeed', SetSeed),
 	(r'/(\d+)/reachable', GetReachable),
+	(r'/reachable', PlandoReachable),
 	(r'/plando', Plando)
 ], debug=True)
 

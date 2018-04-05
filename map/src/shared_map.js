@@ -26,8 +26,9 @@ const pickup_icons = {
 	"EC": new Leaflet.Icon({iconUrl: '../sprites/energy-cell.png', iconSize: new Leaflet.Point(24, 24)}),
 	"MS": new Leaflet.Icon({iconUrl: '../sprites/map-fragment.png', iconSize: new Leaflet.Point(24, 24)}),
 	"EX": new Leaflet.Icon({iconUrl: '../sprites/xp.png', iconSize: new Leaflet.Point(24, 24)}),
-	"Pl": new Leaflet.Icon({iconUrl: '../sprites/xp.png', iconSize: new Leaflet.Point(30, 10)}),
+	"Pl": new Leaflet.Icon({iconUrl: '../sprites/plant.png', iconSize: new Leaflet.Point(16, 16)}),
 	"KS": new Leaflet.Icon({iconUrl: '../sprites/keystone.png', iconSize: new Leaflet.Point(24, 24)}),
+	"EV": false
 };
 
 function getMapCrs() {
@@ -250,12 +251,12 @@ const picks_by_type = {
 	{'loc': 3199820, 'name': 'HC', 'zone': 'Grove', 'area': 'DeathGauntletRoof', 'y': -179, 'x': 321},
 	{'loc': 1599920, 'name': 'HC', 'zone': 'Grove', 'area': 'HoruFieldsStomp', 'y': -78, 'x': 160},
 ], "EV": [
-	{'loc': 20, 'name': 'EVWarmth', 'zone': 'Horu', 'area': 'End', 'y': 20, 'x': 0},
-	{'loc': 16, 'name': 'EVHoruKey', 'zone': 'Sorrow', 'area': 'Sunstone', 'y': 16, 'x': 0},
-	{'loc': 8, 'name': 'EVForlornKey', 'zone': 'Misty', 'area': 'MistyEnd', 'y': 8, 'x': 0},
-	{'loc': 12, 'name': 'EVWind', 'zone': 'Forlorn', 'area': 'RightForlorn', 'y': 12, 'x': 0},
-	{'loc': 0, 'name': 'EVGinsoKey', 'zone': 'Grotto', 'area': 'MobileGumoHideout', 'y': 0, 'x': 0},
-	{'loc': 4, 'name': 'EVWater', 'zone': 'Ginso', 'area': 'GinsoEscape', 'y': 4, 'x': 0},
+	{'loc': 0, 'name': 'EVGinsoKey', 'zone': 'Grotto', 'area': 'MobileGumoHideout', 'y': 0, 'x': 0, 'icon': new Leaflet.Icon({iconUrl: '../sprites/WaterVein.png', iconSize: new Leaflet.Point(24,24)}), '_x': 500, '_y': -244},
+	{'loc': 4, 'name': 'EVWater', 'zone': 'Ginso', 'area': 'GinsoEscape', 'y': 4, 'x': 0, 'icon': new Leaflet.Icon({iconUrl: '../sprites/CleanWater.png', iconSize: new Leaflet.Point(24,24)}), '_x': 525, '_y': 600},
+	{'loc': 12, 'name': 'EVWind', 'zone': 'Forlorn', 'area': 'RightForlorn', 'y': 12, 'x': 0, 'icon': new Leaflet.Icon({iconUrl: '../sprites/WindRestored.png', iconSize: new Leaflet.Point(24,24)}), '_x': -735, '_y': -225},
+	{'loc': 8, 'name': 'EVForlornKey', 'zone': 'Misty', 'area': 'MistyEnd', 'y': 8, 'x': 0, 'icon': new Leaflet.Icon({iconUrl: '../sprites/GumonSeal.png', iconSize: new Leaflet.Point(24,24)}), '_x': -720, '_y': -20},
+	{'loc': 16, 'name': 'EVHoruKey', 'zone': 'Sorrow', 'area': 'Sunstone', 'y': 16, 'x': 0, 'icon': new Leaflet.Icon({iconUrl: '../sprites/Sunstone.png', iconSize: new Leaflet.Point(24,24)}), '_x':-560, '_y':  607},
+	{'loc': 20, 'name': 'EVWarmth', 'zone': 'Horu', 'area': 'End', 'y': 20, 'x': 0, 'icon': new Leaflet.Icon({iconUrl: '../sprites/WarmthReturned.png', iconSize: new Leaflet.Point(24,24)}), '_x': -220, '_y': 504},
 ], "Pl": [
 	{'loc': 1240020, 'name': 'Plant', 'zone': 'Grove', 'area': 'HoruFieldsEnergyPlant', 'y': 21, 'x': 124},
 	{'loc': 4439632, 'name': 'Plant', 'zone': 'Grotto', 'area': 'MobileGumoHideoutPlants', 'y': -368, 'x': 447},
@@ -332,15 +333,15 @@ const picks_by_type = {
 	{'loc': 8599904, 'name': 'SKStomp', 'zone': 'Swamp', 'area': 'RightSwamp', 'y': -96, 'x': 860},
 	{'loc': -11880100, 'name': 'SKClimb', 'zone': 'Misty', 'area': 'Misty', 'y': -100, 'x': -1188},
 ], "MP": [
-	{'loc': 24, 'name': 'Mapstone 1', 'zone': 'Mapstone', 'x': 0, 'y': 1},
-	{'loc': 28, 'name': 'Mapstone 2', 'zone': 'Mapstone', 'x': 0, 'y': 2},
-	{'loc': 32, 'name': 'Mapstone 3', 'zone': 'Mapstone', 'x': 0, 'y': 3},
-	{'loc': 36, 'name': 'Mapstone 4', 'zone': 'Mapstone', 'x': 0, 'y': 4},
-	{'loc': 40, 'name': 'Mapstone 5', 'zone': 'Mapstone', 'x': 0, 'y': 5},
-	{'loc': 44, 'name': 'Mapstone 6', 'zone': 'Mapstone', 'x': 0, 'y': 6},
-	{'loc': 48, 'name': 'Mapstone 7', 'zone': 'Mapstone', 'x': 0, 'y': 7},
-	{'loc': 52, 'name': 'Mapstone 8', 'zone': 'Mapstone', 'x': 0, 'y': 8},
-	{'loc': 56, 'name': 'Mapstone 9', 'zone': 'Mapstone', 'x': 0, 'y': 9},
+	{'loc': 24, 'name': 'Mapstone 1', 'zone': 'Mapstone', 'area': 'MS1', 'x': 0, 'y': 1},
+	{'loc': 28, 'name': 'Mapstone 2', 'zone': 'Mapstone', 'area': 'MS2', 'x': 0, 'y': 2},
+	{'loc': 32, 'name': 'Mapstone 3', 'zone': 'Mapstone', 'area': 'MS3', 'x': 0, 'y': 3},
+	{'loc': 36, 'name': 'Mapstone 4', 'zone': 'Mapstone', 'area': 'MS4', 'x': 0, 'y': 4},
+	{'loc': 40, 'name': 'Mapstone 5', 'zone': 'Mapstone', 'area': 'MS5', 'x': 0, 'y': 5},
+	{'loc': 44, 'name': 'Mapstone 6', 'zone': 'Mapstone', 'area': 'MS6', 'x': 0, 'y': 6},
+	{'loc': 48, 'name': 'Mapstone 7', 'zone': 'Mapstone', 'area': 'MS7', 'x': 0, 'y': 7},
+	{'loc': 52, 'name': 'Mapstone 8', 'zone': 'Mapstone', 'area': 'MS8', 'x': 0, 'y': 8},
+	{'loc': 56, 'name': 'Mapstone 9', 'zone': 'Mapstone', 'area': 'MS9', 'x': 0, 'y': 9},
 ], "MS": [
 	{'loc': 1480360, 'name': 'MS', 'zone': 'Horu', 'area': 'Horu', 'y': 363, 'x': 148},
 	{'loc': -5640092, 'name': 'MS', 'zone': 'Valley', 'area': 'LowerValley', 'y': -89, 'x': -561},
@@ -460,7 +461,9 @@ const pickups = [];
 const picks_by_loc = {};
 const locs = [];
 const picks_by_zone = {};
+const picks_by_area = {};
 const zones = [];
+const areas = [];
 let ks = Object.keys(picks_by_type)
 ks.forEach((pre) => {
 	picks_by_type[pre].forEach((pick) => {
@@ -470,8 +473,14 @@ ks.forEach((pre) => {
 			picks_by_zone[pick.zone] = [];
 			zones.push(pick.zone);
 		}
+		if(!picks_by_area.hasOwnProperty(pick.area))
+		{
+			picks_by_area[pick.area] = [];
+			areas.push(pick.area);
+		}
 		locs.push(pick.loc);
 		picks_by_loc[pick.loc] = pick;
+		picks_by_area[pick.area].push(pick);
 		picks_by_zone[pick.zone].push(pick);
 	});
 });
@@ -479,4 +488,4 @@ ks.forEach((pre) => {
  
  
 
-export {PickupMarker, PickupMarkersList, download, pickup_icons, getStuffType, locs, picks_by_loc, getMapCrs, pickups, picks_by_type, picks_by_zone, zones, pickup_name, stuff_types, stuff_by_type};
+export {PickupMarker, PickupMarkersList, download, pickup_icons, getStuffType, locs, picks_by_loc, getMapCrs, pickups, picks_by_type, picks_by_zone, zones, pickup_name, stuff_types, stuff_by_type, areas, picks_by_area};

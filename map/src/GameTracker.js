@@ -112,8 +112,11 @@ function getPickupMarkers(state) {
 		for(let p in picks_by_type[pre]) {
 			let pick = picks_by_type[pre][p]
 			let count = Object.keys(players).length
+			let x = pick.hasOwnProperty("_x") ? pick._x : pick.x
+			let y = pick.hasOwnProperty("_y") ? pick._y : pick.y
+			let icon = pick.hasOwnProperty("icon") ? pick.icon : pickup_icons[pre]
 			if(count === 0) {
-				markers.push({key: pick.name+"|"+pick.x+","+pick.y, opacity:1, position: [pick.y, pick.x], inner: null, icon: pickup_icons[pre]})
+				markers.push({key: pick.name+"|"+pick.x+","+pick.y, position: [y, x], inner: null, icon: icon})
 				continue				
 			}
 			Object.keys(players).map((id) => {
@@ -141,7 +144,7 @@ function getPickupMarkers(state) {
 					<pre>{loc_info}</pre> 
 				</Tooltip>
 				);
-				markers.push({key: pick.name+"|"+pick.x+","+pick.y, opacity:1, position: [pick.y, pick.x], inner: inner, icon: pickup_icons[pre]});								
+				markers.push({key: pick.name+"|"+pick.x+","+pick.y, position: [y, x], inner: inner, icon: icon});								
 			}
 	
 		}
@@ -173,7 +176,7 @@ const crs = getMapCrs();
 class GameTracker extends React.Component {
   constructor(props) {
     super(props)
-    this.state = {players: {}, done: false, check_seen: 1, modes: ['normal', 'speed', 'dboost-light', 'lure'], flags: ['show_pickups'], viewport: DEFAULT_VIEWPORT, pickups: ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC"], hideOpt: "any"}
+    this.state = {players: {}, done: false, check_seen: 1, modes: ['normal', 'speed', 'dboost-light', 'lure'], flags: ['show_pickups'], viewport: DEFAULT_VIEWPORT, pickups: ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV"], hideOpt: "any"}
   };
   componentDidMount() {
 	  this.interval = setInterval(() => this.tick(), 1000);
@@ -202,7 +205,7 @@ class GameTracker extends React.Component {
   
   
   hideOptChanged = (newVal) => { this.setState({hideOpt: newVal}) }
-  flagsChanged = (newVal) => { this.setState({flagst: newVal}) }
+  flagsChanged = (newVal) => { this.setState({flags: newVal}) }
   pickupsChanged = (newVal) => { this.setState({pickups: newVal}) }
   modesChanged = (newVal) => {
   	this.setState({modes: newVal});
@@ -279,14 +282,17 @@ class GameTracker extends React.Component {
 				<CheckboxGroup checkboxDepth={4} name="options" value={this.state.pickups} onChange={this.pickupsChanged}> 
 					<tr>
 						<td><label><Checkbox value="SK" />Skill trees</label></td>
-						<td><label><Checkbox value="Pl" />Plants</label></td>
-						<td><label><Checkbox value="KS" />Keystones</label></td>
 						<td><label><Checkbox value="MS" />Mapstones</label></td>
+						<td><label><Checkbox value="EV" />Events</label></td>
 					</tr>
 					<tr>
-						<td><label><Checkbox value="EC" />Energy Cells</label></td>
 						<td><label><Checkbox value="AC" />Abiliy Cells</label></td>
 						<td><label><Checkbox value="HC" />Health Cells</label></td>
+						<td><label><Checkbox value="EC" />Energy Cells</label></td>
+					</tr>
+					<tr>
+						<td><label><Checkbox value="Pl" />Plants</label></td>
+						<td><label><Checkbox value="KS" />Keystones</label></td>
 						<td><label><Checkbox value="EX" />Exp Orbs</label></td>	
 					</tr>
 		       </CheckboxGroup>
