@@ -42,7 +42,7 @@ class PlayerState(object):
 					gs += (-1 if removed else 1)
 				if id == 21:
 					ss += (-1 if removed else 1)
-			elif code in ["HC","EC","KS","MS"]:			
+			elif code in ["HC","EC","KS", "MS"]:			
 				self.has[code] += (-id if removed else id)
 		if wv >= 3:
 			self.has['GinsoKey'] = 1
@@ -50,7 +50,7 @@ class PlayerState(object):
 			self.has['ForlornKey'] = 1
 		if ss >= 3:
 			self.has['HoruKey'] = 1
-			
+		print self.has["MS"]
 
 class Area(object):
 	def __init__(self, name):
@@ -101,6 +101,13 @@ class Map(object):
 			curr = unchecked_areas.pop()
 			checked_areas.add(curr)
 			unchecked_areas |= set([r for r in Map.areas[curr].get_reachable(state, modes) if r not in checked_areas])
-		return list(checked_areas)
+		mapstone_cnt = min(len([a for a in checked_areas if "MapStone" in a]), state.has["MS"])
+		if mapstone_cnt == 9 and state.has["MS"] < 11:
+			mapstone_cnt -= 1
+		if mapstone_cnt == 8 and state.has["MS"] < 9:
+			mapstone_cnt -= 1
+		ms_areas = ["MS%s"%i for i in range(1,mapstone_cnt +1) ]
+		print ms_areas
+		return list(checked_areas) + ms_areas 
 				
 			
