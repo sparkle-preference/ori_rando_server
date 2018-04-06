@@ -11,6 +11,7 @@ class PlayerState(object):
 	}
 	def __init__(self):
 		self.has = Counter()
+		self.has["HC"] = 3
 
 	@staticmethod
 	def from_player(player):
@@ -22,6 +23,7 @@ class PlayerState(object):
 	@staticmethod
 	def from_codes(codes):
 		inst = PlayerState()
+		inst.has["EC"] = 1
 		inst.build_from_codes(codes)
 		return inst
 
@@ -107,7 +109,6 @@ class Map(object):
 		if mapstone_cnt == 8 and state.has["MS"] < 9:
 			mapstone_cnt -= 1
 		ms_areas = ["MS%s"%i for i in range(1,mapstone_cnt +1) ]
-		print ms_areas
 		return list(checked_areas) + ms_areas 
 				
 			

@@ -209,13 +209,13 @@ class PlandoBuiler extends React.Component {
 	}
 
 	downloadSeed = () => {
-		let seed = [this.state.seedFlags]
+		let outLines = [this.state.seedFlags, "-280256|EC|1|Glades", "-1680104|EX|100|Grove", "-12320248|EX|100|Forlorn", "-10440008|EX|100|Misty"]
 		let locs = Object.keys(picks_by_loc)
 		let toFill = []
 		let {HC, EC, AC, KS, MS, EX} = this.state.fill_opts
 		locs.forEach((loc) => {
 			if(this.state.placements.hasOwnProperty(loc)) 
-				seed.push(loc+"|"+this.state.placements[loc].value+"|"+picks_by_loc[loc].zone);
+				outLines.push(loc+"|"+this.state.placements[loc].value+"|"+picks_by_loc[loc].zone);
 			else
 				toFill.push(loc);
 		});
@@ -223,27 +223,27 @@ class PlandoBuiler extends React.Component {
 		toFill.forEach((loc) => {
 			if(HC > 0) {
 				HC -= 1;
-				seed.push(loc+"|HC|1|"+picks_by_loc[loc].zone);				
+				outLines.push(loc+"|HC|1|"+picks_by_loc[loc].zone);				
 			}						
 			if(EC > 0) {
 				EC -= 1;
-				seed.push(loc+"|EC|1|"+picks_by_loc[loc].zone);				
+				outLines.push(loc+"|EC|1|"+picks_by_loc[loc].zone);				
 			}						
 			if(AC > 0) {
 				AC -= 1;
-				seed.push(loc+"|AC|1|"+picks_by_loc[loc].zone);				
+				outLines.push(loc+"|AC|1|"+picks_by_loc[loc].zone);				
 			}						
 			if(KS > 0) {
 				KS -= 1;
-				seed.push(loc+"|KS|1|"+picks_by_loc[loc].zone);				
+				outLines.push(loc+"|KS|1|"+picks_by_loc[loc].zone);				
 			}						
 			if(MS > 0) {
 				MS -= 1;
-				seed.push(loc+"|MS|1|"+picks_by_loc[loc].zone);				
+				outLines.push(loc+"|MS|1|"+picks_by_loc[loc].zone);				
 			}
-			seed.push(loc+"|EX|"+ Math.floor(Math.random() * EX)+"|"+picks_by_loc[loc].zone);				
+			outLines.push(loc+"|EX|"+ Math.floor(Math.random() * EX)+"|"+picks_by_loc[loc].zone);				
 		});
-		download('randomizer.dat', seed.join("\n")); 	
+		download('randomizer.dat', outLines.join("\n")); 	
 
 	}	
 	

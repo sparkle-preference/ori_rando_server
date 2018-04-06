@@ -525,7 +525,7 @@ class ClearCache(webapp2.RequestHandler):
 class Plando(webapp2.RequestHandler):
 	def get(self):
 		path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
-		template_values = {'app': "plandoBuilder", 'title': "Plandomizer Editor v0.0.3"}
+		template_values = {'app': "plandoBuilder", 'title': "Plandomizer Editor v0.0.4"}
 		self.response.out.write(template.render(path, template_values))
 			
 class ShowMap(webapp2.RequestHandler):
