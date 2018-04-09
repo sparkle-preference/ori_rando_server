@@ -179,7 +179,10 @@ const crs = getMapCrs();
 class GameTracker extends React.Component {
   constructor(props) {
     super(props)
-    this.state = {players: {}, done: false, check_seen: 1, modes: ['normal', 'speed', 'dboost-light', 'lure'], 
+    let modeRaw = document.getElementsByClassName("logic-modes-holder")[0]
+    let modes = modeRaw ? modeRaw.id.split(" ") : ['normal', 'speed', 'dboost-light', 'lure']
+
+    this.state = {players: {}, done: false, check_seen: 1, modes: modes, 
     flags: ['show_pickups'], viewport: DEFAULT_VIEWPORT, pickups: ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV"], 
     pathMode: 'standard', hideOpt: "any"}
   };
@@ -213,6 +216,7 @@ class GameTracker extends React.Component {
   flagsChanged = (newVal) => { this.setState({flags: newVal}) }
   pickupsChanged = (newVal) => { this.setState({pickups: newVal}) }
   modesChanged = (newVal) => this.setState({modes: newVal}, () => getReachable((p) => this.setState(p),this.state.modes.join("+")))
+  
   onViewportChanged = viewport => { this.setState({ viewport }) }
  _onPathModeChange = (n) => paths.includes(n.value) ? this.setState({modes: presets[n.value], pathMode: n.value}, () => getReachable((p) => this.setState(p),this.state.modes.join("+"))) : this.setState({pathMode: n.value})
 

@@ -18,7 +18,6 @@ function download(filename, text) {
   document.body.removeChild(element);
 }
 
-
 const pickup_icons = {
 	"SK": new Leaflet.Icon({iconUrl: '../sprites/skill-tree.png', iconSize: new Leaflet.Point(32, 32), iconAnchor: new Leaflet.Point(0, 32)}),
 	"HC": new Leaflet.Icon({iconUrl: '../sprites/health-cell.png', iconSize: new Leaflet.Point(24, 24)}),

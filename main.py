@@ -10,235 +10,22 @@ from google.appengine.ext import ndb
 from google.appengine.ext.ndb import msgprop
 from seedbuilder.generator import placeItems
 from seedbuilder.splitter import split_seed
-from abc import ABCMeta, abstractproperty
 from operator import attrgetter
 from google.appengine.ext.webapp import template
-from util import GameMode, ShareType, Pickup, Skill, Event, Teleporter, Upgrade, share_from_url, share_map, special_coords, get_bit, get_taste, add_single, inc_stackable, get, unpack, coord_correction_map
+from util import (GameMode, ShareType, Pickup, Skill, Event, Teleporter, Upgrade, share_from_url, share_map, special_coords, get_bit, get_taste, add_single,
+				 inc_stackable, get, unpack, coord_correction_map, Cache, HistoryLine, Player, Game, delete_game, get_new_game)
+
 from reachable import Map, PlayerState
+
 base_site = "http://orirandocoopserver.appspot.com"
 LAST_DLL = "Mar 27, 2018"
 PLANDO_VER = "0.0.6"
-class Cache(object):
-	WRITE_EVERY = 5
-	NONE_STALE = 300
-	s = {}
-	@staticmethod
-	def id(korid):
-		try:
-			return str(korid.id())
-		except:
-			return str(korid)
-
-	@staticmethod
-	def get(key):
-		id = Cache.id(key)
-		if id in Cache.s:
-			v, none_reads = Cache.s[id]
-			if v:
-				return v
-			elif none_reads < 0:
-				Cache.s[id] = (v, none_reads+1)
-				return None
-
-		if "." in id:
-			v = Player.get_by_id(id)
-		else:
-			v = Game.get_by_id(id)
-		Cache.s[id] = (v, -Cache.NONE_STALE)
-		return v
-
-	@staticmethod
-	def delete(korv):
-		try:
-			key = korv.key
-		except:
-			key = korv
-		id = Cache.id(key)
-		key.delete()
-		if Cache.has(id):
-			del Cache.s[id]
-		
-	@staticmethod
-	def has(key):
-		return Cache.id(key) in Cache.s	
-
-	@staticmethod
-	def put(value, force=False):
-		try:
-			key = value.key
-			id = Cache.id(key)
-			if Cache.has(id):
-				_, writes = Cache.s[id]
-				if force or writes >= Cache.WRITE_EVERY:
-					value.put()
-					Cache.s[id] = (value, 0)
-				else:
-					Cache.s[id] = (value, writes+1)
-			else:
-				key = value.put()
-				id = Cache.id(key)
-				Cache.s[id] = (value, 0)
-		except:
-			key = value.put()
-			id = Cache.id(key)
-			Cache.s[id] = (value, 0)
-		return key
 
 
-class HistoryLine(ndb.Model):
-	pickup_code = ndb.StringProperty()
-	pickup_id = ndb.StringProperty()
-	timestamp = ndb.DateTimeProperty()
-	removed = ndb.BooleanProperty()
-	coords = ndb.IntegerProperty()
-
-	def pickup(self):
-		return Pickup.n(self.pickup_code, self.pickup_id)
-
-	def print_line (self,start_time=None):
-		t = (self.timestamp - start_time) if start_time and self.timestamp else self.timestamp
-		if not self.removed:
-			coords = unpack(self.coords)
-			coords = special_coords[coords] if coords in special_coords else "(%s, %s)" % coords
-			return "found %s at %s. (%s)" % (self.pickup().name, coords, t)
-		else:
-			return "lost %s! (%s)" % (self.pickup().name, t)
-
-class Player(ndb.Model):
-	# id = gid.pid
-	skills	  = ndb.IntegerProperty()
-	events	  = ndb.IntegerProperty()
-	upgrades	= ndb.IntegerProperty()
-	teleporters = ndb.IntegerProperty()
-	seed =    ndb.TextProperty()
-	signals = ndb.StringProperty(repeated=True)
-	pos_x = ndb.FloatProperty(default=189.0)
-	pos_y = ndb.FloatProperty(default=-219.0)
-	history = ndb.StructuredProperty(HistoryLine, repeated=True)
-	bitfields = ndb.ComputedProperty(lambda p: ",".join([str(x) for x in [p.skills,p.events,p.upgrades,p.teleporters]+(["|".join(p.signals)] if p.signals else [])]))
-	
-	def update_pos(self, x, y):
-		if x == self.pos_x and y == self.pos_y:
-			return True
-		self.pos_x = float(x)
-		self.pos_y = float(y)
-		Cache.put(self)
-	
-	def signal_send(self, signal):
-		self.signals.append(signal)
-		Cache.put(self)
-	
-	def signal_conf(self, signal):
-		self.signals.remove(signal)
-		Cache.put(self, force=True)
-				
-
-class Game(ndb.Model):
-	# id = Sync ID
-	DEFAULT_SHARED = [ShareType.DUNGEON_KEY, ShareType.SKILL, ShareType.UPGRADE, ShareType.EVENT, ShareType.TELEPORTER]
-	mode = msgprop.EnumProperty(GameMode, required=True)
-	shared = msgprop.EnumProperty(ShareType, repeated=True)
-	start_time = ndb.DateTimeProperty(auto_now_add=True)
-	last_update = ndb.DateTimeProperty(auto_now=True)
-	players = ndb.KeyProperty(Player,repeated=True)
-	def summary(self):
-		out_lines = ["%s (%s)" %( self.mode, ",".join([s.name for s in self.shared]))]
-		if self.mode in [GameMode.SHARED, GameMode.SIMUSOLO] and len(self.players):
-			src = Cache.get(self.players[0])
-			for (field, cls) in [("skills", Skill), ("upgrades", Upgrade), ("teleporters", Teleporter), ("events",Event)]:
-				bitmap = getattr(src,field)
-				names = []
-				for id,bit in cls.bits.iteritems():
-					i = cls(id)
-					if i.stacks:
-						cnt = get_taste(bitmap,i.bit)
-						if cnt>0:
-							names.append("%sx %s" %(cnt, i.name))
-					elif get_bit(bitmap,i.bit):
-						names.append(i.name)
-				out_lines.append("%s: %s" % (field, ", ".join(names)))
-		return "\n\t"+"\n\t".join(out_lines)
-	
-	def get_players(self):
-		return [Cache.get(p) for p in self.players]
-
-	def remove_player(self, key):
-		key = ndb.Key(Player, key)
-		self.players.remove(key)
-		Cache.put(self, force=True)
-		Cache.delete(key)
-
-	def player(self, pid):
-		key = "%s.%s" % (self.key.id(), pid)
-		if not Cache.has(key):
-			if(self.mode == GameMode.SHARED and len(self.players)):
-				src = Cache.get(self.players[0].id())
-				player = Player(id=key, skills = src.skills, events = src.events, upgrades = src.upgrades, teleporters = src.teleporters, history=[], signals=[])
-			else:
-				player = Player(id=key, skills = 0, events=0, upgrades = 0, teleporters = 0, history=[])
-			k = Cache.put(player)
-			if k not in self.players:
-				# weird things can happen... lmao
-				self.players.append(k)
-			Cache.put(self, force=True)
-		
-		return Cache.get(key)
-
-	def found_pickup(self, finder, pickup, coords, remove=False):
-		retcode = 200
-		found_player = self.player(finder)
-		if (pickup.share_type not in self.shared):
-			retcode = 406
-		elif (self.mode == GameMode.SHARED):
-			for player in self.get_players():
-				for (field, cls) in [("skills", Skill), ("upgrades", Upgrade), ("teleporters", Teleporter), ("events",Event)]:
-					if isinstance(pickup, cls):
-						if pickup.stacks:
-							setattr(player,field,inc_stackable(getattr(player,field), pickup.bit, remove))
-						else:
-							setattr(player,field,add_single(getattr(player,field), pickup.bit, remove))
-						Cache.put(player)
-		elif self.mode == GameMode.SPLITSHARDS:
-			shard_locs = [h.coords for player in self.players for h in player.get().history if h.pickup_code == "RB" and h.pickup_id in ["17", "19", "21"]]
-			if coords in shard_locs:
-				retcode = 410
-		elif (self.mode == GameMode.SIMUSOLO):
-			found_player.history.append(HistoryLine(pickup_code = pickup.code, timestamp = datetime.now(), pickup_id = str(pickup.id), coords = coords, removed = remove))
-			Cache.put(found_player)
-			return 200
-		else:
-			print "game mode not implemented"
-			retcode = 404
-		if retcode != 410: #410 GONE aka "haha nope"
-			found_player.history.append(HistoryLine(pickup_code = pickup.code, timestamp = datetime.now(), pickup_id = str(pickup.id), coords = coords, removed = remove))
-			Cache.put(found_player)
-		return retcode
-
-def delete_game(game):
-	"""Expects game, NOT game id"""
-	[Cache.delete(p) for p in game.players]
-	Cache.delete(game)
-
-def clean_old_games():
-	old = [game for game in Game.query(Game.last_update < datetime.now() - timedelta(hours=12))]
-	return len([delete_game(game) for game in old])
-
-	
-def get_new_game(_mode = None, _shared = None, id=None):
-	shared = [share_from_url(i) for i in _shared] if _shared else Game.DEFAULT_SHARED
-	mode = GameMode(int(_mode)) if _mode else GameMode.SHARED
-	if not id:
-		id = 1
-		game_ids = set([int(game.key.id()) for game in Game.query()])
-		while id in game_ids:
-			id += 1
-		if id > 20:
-			clean_old_games()
-
-	game_id = id
-	game = Game(id = str(game_id), players=[], shared=shared, mode=mode)
-	key = Cache.put(game, force=True)
-	return game
+def paramFlag(s,f):
+	return s.request.get(f,None) != None
+def paramVal(s,f):
+	return s.request.get(f,None)
 
 class GetGameId(webapp2.RequestHandler):
 	def get(self):
@@ -268,9 +55,7 @@ class DeleteGame(webapp2.RequestHandler):
 			game = Cache.get(game_id)
 			delete_game(game)
 			self.response.status = 200
-			self.response.write("All according to daijobu")
-			
-		
+			self.response.write("All according to daijobu")		
 
 class ActiveGames(webapp2.RequestHandler):
 	def get(self):
@@ -279,10 +64,6 @@ class ActiveGames(webapp2.RequestHandler):
 			"\n".join(
 				["<a href='/%s/history'>Game #%s</a> (<a href='/%s/map'>(Map)</a>):\n\t%s (Last updated: %s)" % (game.key.id(), game.key.id(), game.key.id(), game.summary(), game.last_update) for game in sorted(Game.query(), key=lambda x:x.last_update, reverse=True)])+"</pre></body></html>")
 
-def paramFlag(s,f):
-	return s.request.get(f,None) != None
-def paramVal(s,f):
-	return s.request.get(f,None)
 
 class FoundPickup(webapp2.RequestHandler):
 	def get(self, game_id, player_id, coords, kind, id):
@@ -385,6 +166,9 @@ class SeedGenerator(webapp2.RequestHandler):
 		out = "<html><body>"
 		url = '/getseed?%s' % "&".join(urlargs)
 		out += "<div><a target='_blank' href='%s&p=spoiler'>Spoiler</a></div>" % url
+		out += "<div><a target='_blank' href='/%s/map?paths=%s'>Map</a></div>" % (game_id, "+".join(logic_paths))
+		out += "<div><a target='_blank' href='/%s/history'>History</a></div>" % game_id
+		
 		for i in range(1,1+int(playercount)):
 			purl = url+"&p=%s" % i
 			out += "<div>Player %s: <a target='_blank' href=%s>%s%s</a></div>" % (i, purl , base_site, purl )
@@ -404,7 +188,7 @@ class SeedDownloader(webapp2.RequestHandler):
 		game_id = int(params['gid'])
 		seed_num = sum([ord(c) * i for c,i in zip(seed, range(len(seed)))])
 		if pathdiff == "normal":
-			pathdiff == None
+			pathdiff = None
 		varFlags = {"starved":"starved", "hardmode":"hard","ohko":"OHKO","0xp":"0XP","nobonus":"NoBonus","noplants": "NoPlants", "forcetrees" : "ForceTrees", "discmaps" : "NonProgressMapStones",  "notp" : "NoTeleporters"}
 		share_types = params['shr']
 		flags = ["Custom", "shared=%s" % share_types.replace(" ", "+")]
@@ -536,7 +320,7 @@ class Plando(webapp2.RequestHandler):
 class ShowMap(webapp2.RequestHandler):
 	def get(self, game_id):
 		path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
-		template_values = {'app': "gameTracker", 'title': "Game %s" % game_id, 'game_id': game_id, 'is_spoiler': paramFlag(self, 'sp')}
+		template_values = {'app': "gameTracker", 'title': "Game %s" % game_id, 'game_id': game_id, 'is_spoiler': paramFlag(self, 'sp'), 'logic_modes': paramVal(self, 'paths')}
 		self.response.out.write(template.render(path, template_values))
 
 class GetSeenLocs(webapp2.RequestHandler):
