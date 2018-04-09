@@ -6,8 +6,11 @@ import { Map, Tooltip, TileLayer, Marker} from 'react-leaflet';
 import {Checkbox, CheckboxGroup} from 'react-checkbox-group';
 import {Radio, RadioGroup} from 'react-radio-group';
 import Leaflet from 'leaflet';
-import {picks_by_type, PickupMarkersList, pickup_icons, getMapCrs} from './shared_map.js';
+import {picks_by_type, PickupMarkersList, pickup_icons, getMapCrs, presets} from './shared_map.js';
+import Select from 'react-select';
+import 'react-select/dist/react-select.css';
 
+const paths = Object.keys(presets);
 const game_id = document.getElementsByClassName("game-id-holder")[0].id;
 const EMPTY_PLAYER = {seed: {}, pos: [0,0], seen:[], flags: ["show_marker"], areas: []}
 function parse_seed(raw) {
@@ -95,7 +98,7 @@ function getLocInfo(pick, players) {
 	let loc = ""+pick.loc;
 	let info = Object.keys(players).map((id) => {
 		if(players[id].flags.includes("show_spoiler") || players[id].seen.includes(loc))
-			return id + ":" + players[id].seed[loc];
+			return id + ":" + players[id].seed[loc] + (players[id].seen.includes(loc) ? "*" : "");
 		else
 			return id + ":" + "(hidden)"
 	});
@@ -176,7 +179,9 @@ const crs = getMapCrs();
 class GameTracker extends React.Component {
   constructor(props) {
     super(props)
-    this.state = {players: {}, done: false, check_seen: 1, modes: ['normal', 'speed', 'dboost-light', 'lure'], flags: ['show_pickups'], viewport: DEFAULT_VIEWPORT, pickups: ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV"], hideOpt: "any"}
+    this.state = {players: {}, done: false, check_seen: 1, modes: ['normal', 'speed', 'dboost-light', 'lure'], 
+    flags: ['show_pickups'], viewport: DEFAULT_VIEWPORT, pickups: ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV"], 
+    pathMode: 'standard', hideOpt: "any"}
   };
   componentDidMount() {
 	  this.interval = setInterval(() => this.tick(), 1000);
@@ -207,12 +212,9 @@ class GameTracker extends React.Component {
   hideOptChanged = (newVal) => { this.setState({hideOpt: newVal}) }
   flagsChanged = (newVal) => { this.setState({flags: newVal}) }
   pickupsChanged = (newVal) => { this.setState({pickups: newVal}) }
-  modesChanged = (newVal) => {
-  	this.setState({modes: newVal});
-	getReachable((p) => this.setState(p),this.state.modes.join("+"));
-  
-  }
+  modesChanged = (newVal) => this.setState({modes: newVal}, () => getReachable((p) => this.setState(p),this.state.modes.join("+")))
   onViewportChanged = viewport => { this.setState({ viewport }) }
+ _onPathModeChange = (n) => paths.includes(n.value) ? this.setState({modes: presets[n.value], pathMode: n.value}, () => getReachable((p) => this.setState(p),this.state.modes.join("+"))) : this.setState({pathMode: n.value})
 
 
     render() {
@@ -228,7 +230,7 @@ class GameTracker extends React.Component {
 				{player_markers}
 		     </Map>
 		</td>
-		<td style={{ width: '450px'}}>
+		<td style={{ width: '20%'}}>
 			<table style={{ width: '100%'}}><tbody>
 		        <tr><td><button  onClick={ () => this.setState({ viewport: DEFAULT_VIEWPORT }) } >
 		          Reset View
@@ -249,34 +251,50 @@ class GameTracker extends React.Component {
 			        <td><label><Radio value="any"/> ...any player</label></td>
 		       </RadioGroup ></tr>
 
-				<tr><td><h5>Logic Pathes</h5></td></tr>
+		       	<tr style={{width: '100%'}}><td>
+		       		<table style={{width: '100%'}}><tbody>
+		       			<tr><td style={{width: '120px'}}>
+		       				<label>Logic Presets:</label>
+		       			</td><td>
+		       				<Select options={paths.map((n) => {return {label: n, value: n}})} onChange={this._onPathModeChange} clearable={false} value={this.state.pathMode} label={this.state.pathMode}></Select>
+		       			</td></tr>
+		       		</tbody></table>
+		       	</td></tr>
+				<tr style={{width: '100%'}}><td>
+					<table style={{width: '100%'}}><tbody>
+						<CheckboxGroup checkboxDepth={4} name="modes" value={this.state.modes} onChange={this.modesChanged}> 
+							<tr style={{width: '100%'}}>
+								<td><label><Checkbox value="normal" /> normal</label></td>
+								<td><label><Checkbox value="speed" /> speed</label></td>
+								<td><label><Checkbox value="extended" /> extended</label></td>
+							</tr>
+							<tr style={{width: '100%'}}>
+								<td><label><Checkbox value="speed-lure" /> speed-lure</label></td>
+								<td><label><Checkbox value="lure" /> lure</label></td>
+								<td><label><Checkbox value="lure-hard" /> lure-hard</label></td>
+							</tr>
+							<tr style={{width: '100%'}}>
+								<td><label><Checkbox value="dboost-light" /> dboost-light</label></td>
+								<td><label><Checkbox value="dboost" /> dboost</label></td>
+								<td><label><Checkbox value="dboost-hard" /> dboost-hard</label></td>
+							</tr>
+							<tr style={{width: '100%'}}>		
+								<td><label><Checkbox value="cdash" /> cdash</label></td>
+								<td><label><Checkbox value="cdash-farming" /> cdash-farming</label></td>
+								<td><label><Checkbox value="extreme" /> extreme</label></td>
+							</tr>
+							<tr style={{width: '100%'}}>		
+								<td><label><Checkbox value="extended-damage" /> extended-damage</label></td>
+								<td><label><Checkbox value="timed-level" /> timed-level</label></td>
+							</tr>
+							<tr style={{width: '100%'}}>		
+								<td><label><Checkbox value="dbash" /> dbash</label></td>
+								<td><label><Checkbox value="glitched" /> glitched</label></td>
+							</tr>
+				       </CheckboxGroup>
+					</tbody></table>
+				</td></tr>
 
-				<CheckboxGroup checkboxDepth={4} name="modes" value={this.state.modes} onChange={this.modesChanged}> 
-					<tr>
-						<td><label><Checkbox value="normal" /> normal</label></td>
-						<td><label><Checkbox value="speed" /> speed</label></td>
-						<td><label><Checkbox value="extended" /> extended</label></td>
-						<td><label><Checkbox value="extreme" /> extreme</label></td>
-					</tr>
-					<tr>
-						<td><label><Checkbox value="lure" /> lure</label></td>
-						<td><label><Checkbox value="speed-lure" /> speed-lure</label></td>
-						<td><label><Checkbox value="lure-hard" /> lure-hard</label></td>
-						<td><label><Checkbox value="timed-level" /> timed-level</label></td>
-					</tr>
-					<tr>
-						<td><label><Checkbox value="dboost-light" /> dboost-light</label></td>
-						<td><label><Checkbox value="dboost" /> dboost</label></td>
-						<td><label><Checkbox value="dboost-hard" /> dboost-hard</label></td>
-						<td><label><Checkbox value="extended-damage" /> extended-damage</label></td>
-					</tr>
-					<tr>		
-						<td><label><Checkbox value="cdash" /> cdash</label></td>
-						<td><label><Checkbox value="dbash" /> dbash</label></td>
-						<td><label><Checkbox value="glitched" /> glitched</label></td>
-						<td><label><Checkbox value="cdash-farming" /> cdash-farming</label></td>
-					</tr>
-		       </CheckboxGroup>
 
 				<tr><td><h5>Visible Pickups</h5></td></tr>				       
 				<CheckboxGroup checkboxDepth={4} name="options" value={this.state.pickups} onChange={this.pickupsChanged}> 
@@ -329,7 +347,7 @@ function getReachable(setter, modes)
             (function(res) {
             	if(res == "Stop")
             	{
-            		setter({done: true});
+            		setter({check_seen: 90});
 					return;
             	}
             	let areas = {};
@@ -365,7 +383,7 @@ function getSeen(setter)
             (function(res) {
             	if(res == "Stop")
             	{
-            		setter({done: true});
+            		setter({check_seen: 90});
 					return;
             	}
             	if(!res.includes(':')) {
@@ -406,7 +424,7 @@ function getPlayerPos(setter)
             (function(res) {
             	if(res == "Stop")
             	{
-            		setter({done: true})
+            		setter({check_seen: 90});
 					return
             	}
             	if(!res.includes(':')) {
