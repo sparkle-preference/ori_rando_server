@@ -336,7 +336,7 @@ class ShowHistory(webapp2.RequestHandler):
 class SeedGenerator(webapp2.RequestHandler):
 	def get(self):
                 path = os.path.join(os.path.dirname(__file__), 'index.html')
-                template_values = {latest_dll: LAST_DLL, plando_version: PLANDO_VER}
+                template_values = {'latest_dll': LAST_DLL, 'plando_version': PLANDO_VER}
                 self.response.out.write(template.render(path, template_values))
 
 	def post(self):
@@ -378,7 +378,7 @@ class SeedGenerator(webapp2.RequestHandler):
 		urlargs.append("pd=%s" % pathdiff)
 		urlargs.append("shr=%s" % "+".join(share_types))
 		urlargs.append("gid=%s" % game_id)
-		for flg in ["ev", "sk", "rb", "hot"]:
+		for flg in ["dk", "ev", "sk", "rb", "tp", "hot"]:
 			if self.request.get(flg):
 				urlargs.append("%s=1" % flg)
 		self.response.headers['Content-Type'] = 'text/html'
@@ -434,7 +434,8 @@ class SeedDownloader(webapp2.RequestHandler):
 			self.response.out.write(placement[1])
 			return
 		player = int(player)
-		ss = split_seed(placement[0], game_id, player, playercount, "hot" in params, "sk" in params, "ev" in params, "rb" in params)
+		ss = split_seed(placement[0], game_id, player, playercount, "hot" in params, "dk" in params, 
+						"sk" in params, "ev" in params, "rb" in params, "tp" in params)
 		self.response.headers['Content-Type'] = 'application/x-gzip'
 		self.response.headers['Content-Disposition'] = 'attachment; filename=randomizer.dat'
 		self.response.out.write(ss)
