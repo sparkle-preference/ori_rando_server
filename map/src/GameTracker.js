@@ -21,7 +21,7 @@ function parse_seed(raw) {
  }
 
 function player_icons(id)  {
-	id = 1*id;
+	id = parseInt(id);
 	let img = 	'../sprites/ori-white.png';
 	if (id === 1)  img = '../sprites/ori-blue.png';
 	else if (id === 2)  img = '../sprites/ori-red.png';
@@ -244,7 +244,7 @@ class GameTracker extends React.Component {
 				{player_opts}
 
 				<tr><td><span>Hide pickup if it would be hidden for...</span></td></tr>
-				<tr><RadioGroup name="hideOpts" value={this.state.hideOpt} onChange={this.hideOptChanged}> 
+				<tr><RadioGroup name="hideOpts" selectedValue={this.state.hideOpt} onChange={this.hideOptChanged}> 
 			        <td><label><Radio value="all"/> ...all players</label></td>
 			        <td><label><Radio value="any"/> ...any player</label></td>
 		       </RadioGroup ></tr>

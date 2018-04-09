@@ -1,14 +1,18 @@
 import React from 'react';
 import './index.css';
 import './bootstrap.cyborg.min.css';
+import {Radio, RadioGroup} from 'react-radio-group';
 //import registerServiceWorker from './registerServiceWorker';
 import { Map, Tooltip, TileLayer} from 'react-leaflet';
 import Leaflet from 'leaflet';
 import {Checkbox, CheckboxGroup} from 'react-checkbox-group';
-import {download, getStuffType, stuff_types, stuff_by_type, picks_by_type, picks_by_loc, picks_by_zone, picks_by_area, zones,  pickup_name, PickupMarkersList, pickup_icons, getMapCrs} from './shared_map.js';
+import {download, getStuffType, stuff_types, stuff_by_type, picks_by_type, picks_by_loc, picks_by_zone, presets,
+		picks_by_area, zones,  pickup_name, PickupMarkersList, pickup_icons, getMapCrs} from './shared_map.js';
 import NumericInput from 'react-numeric-input';
 import Select from 'react-select';
 import 'react-select/dist/react-select.css';
+NumericInput.style.input.width = '100%';
+NumericInput.style.input.height = '30px';
 
 
 
@@ -16,7 +20,11 @@ const DEFAULT_VIEWPORT = {
 	  center: [0, 0],
 	  zoom: 4,
 	}
+
 const crs = getMapCrs();
+
+const paths = Object.keys(presets);
+
 
 
 function getPickupMarkers(pickupTypes, placements, reachable, flags, setSelected) {
@@ -90,6 +98,26 @@ function shuffle (array) {
 class PlandoBuiler extends React.Component {
   constructor(props) {
     super(props)
+    let pathmode = document.getElementsByClassName("pathmode-holder")[0].id;
+    let HC = parseInt(document.getElementsByClassName("HC-holder")[0].id) || 0;
+    let EC = parseInt(document.getElementsByClassName("EC-holder")[0].id) || 0;
+    let AC = parseInt(document.getElementsByClassName("AC-holder")[0].id) || 0;
+    let KS = parseInt(document.getElementsByClassName("KS-holder")[0].id) || 0;
+    let skills = document.getElementsByClassName("SK-holder")[0].id.split(" ").map(skill => {
+    	let parts = skill.split("|")
+    	return {label: pickup_name(parts[0], parts[1]), value: skill}
+    });
+    let tps  = document.getElementsByClassName("TP-holder")[0].id.split(" ").map(tp => {return {label: tp + " TP", value: "TP|" + tp}; });
+    let manual_reach = {HC: HC, EC: EC, AC: AC, KS: KS, MS: 9, skills: skills, tps: tps};
+    let logicMode = "auto";
+    let modes = ['normal', 'speed', 'dboost-light'];
+    if(paths.includes(pathmode)) {
+		logicMode = 'manual';
+		modes = presets[pathmode];
+
+    } else {
+    	pathmode = "standard";
+    }
     let zone = 'Glades';
     let i = 7;
 	let lastSelected = {};
@@ -100,17 +128,15 @@ class PlandoBuiler extends React.Component {
     let pick = picks_by_zone[zone][i];
     let pickup = {label: pick.name+"("+pick.x + "," + pick.y +")",value: pick}
     lastSelected['Glades'] = pickup
-    this.state = {zone: zone, pickup: pickup, seed_in: "", reachable: ['SunkenGladesRunaway'], modes: ['normal', 'speed', 'dboost-light'], lastSelected: lastSelected, placements: {}, 
-    			stuff_type: "Skills", stuff: {value: "SK|0", label: "Bash"}, fill_opts: {HC: 13, EC: 15, AC: 34, KS: 40, MS: 9, EX: 300, dynamic: true}, viewport: DEFAULT_VIEWPORT, 
-		    	flags: ['show_pickups', 'hide_unreachable'], seedFlags:"shards,forcetrees,Sync1002.1,mode=4,Custom|Plando", pickups: ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV"] }
+    this.state = {zone: zone, pickup: pickup, seed_in: "", reachable: ['SunkenGladesRunaway'], modes: modes, 
+    			  lastSelected: lastSelected, placements: {}, stuff_type: "Skills", stuff: {value: "SK|0", label: "Bash"}, 
+    			  fill_opts: {HC: 13, EC: 15, AC: 34, KS: 40, MS: 9, EX: 300, dynamic: true}, viewport: DEFAULT_VIEWPORT, 
+		    	  flags: ['show_pickups', 'hide_unreachable'], seedFlags:"shards,forcetrees,Sync1002.1,mode=4,Custom|Plando", 
+		    	  pickups: ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV"], logicMode: logicMode, pathMode: pathmode,
+		    	  manual_reach: manual_reach}
+	this._updateReachable()
   };
 
-	_fillUpdateHC = (n) => this.updateFill("HC",n)
-	_fillUpdateEC = (n) => this.updateFill("EC",n)
-	_fillUpdateAC = (n) => this.updateFill("AC",n)
-	_fillUpdateKS = (n) => this.updateFill("KS",n)
-	_fillUpdateMS = (n) => this.updateFill("MS",n)
-	_fillUpdateEX = (n) => this.updateFill("EX",n)
 	_onSeedFlags = (newVal) => { this.setState({seedFlags: newVal}) }
 
 	_fillToggleDynamic = (n) => this.updateFill("dynamic",!this.state.fill_opts.dynamic)
@@ -124,7 +150,18 @@ class PlandoBuiler extends React.Component {
     	};
     _onChangeExp = (n,s,_) => this.place({label: s, value: "EX|"+s});
 	_onSelectStuff = (newStuff) => newStuff ? this.place(newStuff) : false;
-	
+	_onPathModeChange = (n) => paths.includes(n.value) ? this.setState({modes: presets[n.value], pathMode: n.value}, () => this._updateReachable()) : this.setState({pathMode: n.value}, () => this._updateReachable())
+		
+
+	logicModeChanged = (newVal) => { this.setState({logicMode: newVal}, () => this._updateReachable()) }
+
+	updateManual = (param,val) => this.setState(prevState => {
+		let manual_reach = this.state.manual_reach;
+		manual_reach[param] = val;
+		return {manual_reach: manual_reach}
+	},() => this._updateReachable());
+
+
 	updateFill = (param,val) => this.setState(prevState => {
 		let fill_opts = this.state.fill_opts;
 		fill_opts[param] = val;
@@ -188,9 +225,9 @@ class PlandoBuiler extends React.Component {
 		let newplc = {}
 	    for (let i = 1, len = lines.length; i < len; i++) {
 	    	let line = lines[i].split("|")
-	    	let loc = line[0]*1;
+	    	let loc = parseInt(line[0]);
 	    	let code = line[1];
-	    	let id = (code == "TP") ? line[2] : line[2]*1;
+	    	let id = (code == "TP") ? line[2] : parseInt(line[2]);
 	    	let name = pickup_name(code, id);
 	    	let stuff = {label: name, value:code+"|"+id};
 	    	newplc[loc] = stuff;
@@ -252,125 +289,309 @@ class PlandoBuiler extends React.Component {
   			return
   		if(!this.state.flags.includes("hide_unreachable"))
   			return
-  		let reachableStuff = [];
-  		if(!this.state.reachable || this.state.reachable == undefined) {
+  		if(!this.state.reachable || this.state.reachable === undefined) {
   			this.setState({reachable: ["SunkenGladesRunaway"]}, () => this._updateReachable(layers));
   			return
   		}
-  		this.state.reachable.forEach((area) => {
-  			if(picks_by_area.hasOwnProperty(area)) 
-	  			picks_by_area[area].forEach((pick) => {
-	  				if(this.state.placements.hasOwnProperty(pick.loc)) 
-						reachableStuff.push(this.state.placements[pick.loc].value)
-	  			});
-  		});
-  		getReachable((state,callback) => this.setState(state,callback),
-  					 this.state.modes.join("+"), 
-  					 reachableStuff.join("+"),
-  					 () => this._updateReachable(layers-1));
+	  	let reachableStuff = [];
+  		if(this.state.logicMode === "auto")
+  		{
+	  		this.state.reachable.forEach((area) => {
+	  			if(picks_by_area.hasOwnProperty(area)) 
+		  			picks_by_area[area].forEach((pick) => {
+		  				if(this.state.placements.hasOwnProperty(pick.loc)) 
+							reachableStuff.push(this.state.placements[pick.loc].value)
+		  			});
+	  		});
+		} else {
+			reachableStuff.push("HC|"+this.state.manual_reach["HC"]);
+			reachableStuff.push("EC|"+this.state.manual_reach["EC"]);
+			reachableStuff.push("AC|"+this.state.manual_reach["AC"]);
+			reachableStuff.push("KS|"+this.state.manual_reach["KS"]);
+			this.state.manual_reach.skills.forEach(skill => {
+				reachableStuff.push(skill.value)
+	  		});
+			this.state.manual_reach.tps.forEach(tp => {
+				reachableStuff.push(tp.value)
+	  		});
+	  		layers = 0
+  		}
+  		  	getReachable((state,callback) => this.setState(state,callback),
+	  			this.state.modes.join("+"), 
+	  			reachableStuff.join("+"),
+	  			() => this._updateReachable(layers-1));  			
+  	
   	};
 
 	render() {
 		const pickup_markers = this.state.flags.includes('show_pickups') ? ( <PickupMarkersList markers={getPickupMarkers(this.state.pickups, this.state.placements, this.state.reachable, this.state.flags, this.selectPickupCurry )} />) : null
 		const zone_opts = zones.map(zone => ({label: zone, value: zone}))
 		const pickups_opts = picks_by_zone[this.state.zone].map(pick => ({label: pick.name+"("+pick.x + "," + pick.y +")",value: pick}) )
+		const manual_control = this.state.logicMode === "manual" ? (
+			<tr style={{width: '100%'}}><td>
+				<table style={{width: '100%'}}><tbody>
+					<tr style={{width: '100%'}}><td>
+						<table style={{width: '100%'}}><tbody>
+							<tr style={{width: '100%'}}><td  style={{width: '100px'}}>
+								<label>Health Cells: </label>
+							</td><td>
+								<NumericInput min={0} value={this.state.manual_reach.HC} onChange={(n) => this.updateManual("HC",n)}></NumericInput>
+							</td></tr>
+						</tbody></table>
+					</td><td>
+						<table style={{width: '100%'}}><tbody>
+							<tr style={{width: '100%'}}><td  style={{width: '100px'}}>
+								<label>Energy Cells: </label>
+							</td><td>
+								<NumericInput min={0} value={this.state.manual_reach.EC} onChange={(n) => this.updateManual("EC",n)}></NumericInput>
+							</td></tr>
+						</tbody></table>
+					</td></tr>
+					<tr style={{width: '100%'}}><td>
+						<table style={{width: '100%'}}><tbody>
+							<tr style={{width: '100%'}}><td  style={{width: '100px'}}>
+								<label>Ability Cells: </label>
+							</td><td>
+								<NumericInput min={0} value={this.state.manual_reach.AC} onChange={(n) => this.updateManual("AC",n)}></NumericInput>
+							</td></tr>
+						</tbody></table>
+					</td><td>
+						<table style={{width: '100%'}}><tbody>
+							<tr style={{width: '100%'}}><td  style={{width: '100px'}}>
+								<label>Keystones: </label>
+							</td><td>
+								<NumericInput min={0} value={this.state.manual_reach.KS} onChange={(n) => this.updateManual("KS",n)}></NumericInput>
+							</td></tr>
+						</tbody></table>
+					</td></tr>
+				</tbody></table>
+				<table style={{width: '100%'}}><tbody>
+					<tr style={{width: '100%'}}><td>
+						<table style={{width: '100%'}}><tbody>
+							<tr style={{width: '100%'}}><td style={{width: '60px' }}>
+								<label >Skills:</label>
+							</td><td>
+								<Select options={stuff_by_type["Skills"]} onChange={(n) => this.updateManual("skills", n)} multi={true} 
+										value={this.state.manual_reach.skills} label={this.state.manual_reach.skills}></Select>
+							</td></tr>
+						</tbody></table>
+					</td></tr>			
+				</tbody></table>
+				<table style={{width: '100%'}}><tbody>
+					<tr style={{width: '100%'}}><td>
+						<table style={{width: '100%'}}><tbody>
+							<tr style={{width: '100%'}}><td style={{width: '90px' }}>
+								<label >Teleporters:</label>
+							</td><td>
+								<Select options={stuff_by_type["Teleporters"]} onChange={(n) => this.updateManual("tps", n)} multi={true} 
+										value={this.state.manual_reach.tps} label={this.state.manual_reach.tps}></Select>
+							</td></tr>
+						</tbody></table>
+					</td></tr>			
+				</tbody></table>
+			</td></tr>			
+		) : null;
 		let stuff_select;
 		if(stuff_by_type[this.state.stuff_type]) 
 		{
 			let stuff = stuff_by_type[this.state.stuff_type];
-			stuff_select = (<label style={{width: '100%'}}>Pickup: <Select clearable={false} options={stuff} onChange={this._onSelectStuff} value={this.state.stuff.value} label={this.state.stuff.label}/></label>)
+			stuff_select = (
+			<tr style={{width: '100%'}}><td>
+				<table style={{width: '100%'}}><tbody>
+					<tr style={{width: '100%'}}><td style={{width: '90px'}}>
+						<label>Pickup: </label>
+					</td><td>
+						<Select clearable={false} options={stuff} onChange={this._onSelectStuff} value={this.state.stuff.value} label={this.state.stuff.label}></Select>
+					</td></tr>
+				</tbody></table>
+			</td></tr>);
 		} else if(this.state.stuff_type === "Experience") {
-			stuff_select = (<label style={{width: '100%'}}>Amount: <NumericInput min={0} value={this.state.stuff.label} onChange={this._onChangeExp}/></label> ) 
+			stuff_select = (
+			<tr style={{width: '100%'}}><td>
+				<table style={{width: '100%'}}><tbody>
+					<tr style={{width: '100%'}}><td style={{width: '90px'}}>
+						<label>Amount: </label>
+					</td><td>
+						<NumericInput min={0} value={this.state.stuff.label} onChange={this._onChangeExp}></NumericInput>
+					</td></tr>
+				</tbody></table>
+			</td></tr>); 
 		} else if (this.state.stuff_type === "Fill") {
 			stuff_select = (
-			<table><tbody>
-			<tr><td>
-				Every pickup not explicitly assigned will be filled by default, using the numbers here. Experience (a random amount between 2 and the value you enter) will be assigned to the remaining pickups.
+			<tr style={{width: '100%'}}><td>
+				<table style={{width: '100%'}}><tbody>
+					<tr style={{width: '100%'}}><td>
+						<h6><center>Fill params</center></h6>
+						<hl/>						
+					</td></tr>
+					<tr style={{width: '100%'}}><td>
+		 	    	    <label>
+		 	    	    	Update automatically
+		 	    	    	<input type="checkbox" checked={this.state.fill_opts.dynamic} onChange={this._fillToggleDynamic}/>	
+		 	    	    </label>
+					</td></tr>
+					<tr style={{width: '100%'}}><td>
+						<table style={{width: '100%'}}><tbody>
+							<tr style={{width: '100%'}}><td style={{width: '90px'}}>
+								<label>Health Cells: </label></td><td><NumericInput min={0} value={this.state.fill_opts.HC} onChange={(n) => this.updateFill("HC",n)}></NumericInput>
+							</td><td style={{width: '80px'}}>
+								<label>Energy Cells: </label></td><td><NumericInput min={0} value={this.state.fill_opts.EC} onChange={(n) => this.updateFill("EC",n)}></NumericInput>
+							</td></tr>
+							<tr style={{width: '100%'}}><td style={{width: '90px'}}>
+								<label>Ability Cells: </label></td><td><NumericInput min={0} value={this.state.fill_opts.AC} onChange={(n) => this.updateFill("AC",n)}></NumericInput>
+							</td><td style={{width: '80px'}}>
+								<label>Keystones: </label></td><td><NumericInput min={0} value={this.state.fill_opts.KS} onChange={(n) => this.updateFill("KS",n)}></NumericInput>
+							</td></tr>
+							<tr style={{width: '100%'}}><td style={{width: '90px'}}>
+								<label>Mapstones: </label></td><td><NumericInput min={0} value={this.state.fill_opts.MS} onChange={(n) => this.updateFill("MS",n)}></NumericInput>
+							</td><td style={{width: '80px'}}>
+								<label>Exp (Max): </label></td><td><NumericInput min={0} value={this.state.fill_opts.EX} onChange={(n) => this.updateFill("EX",n)}></NumericInput>
+							</td></tr>
+						</tbody></table>
+					</td></tr>
+				</tbody></table>
 			</td></tr>
-			<tr><td>
- 	    	    <label>Automatically change these values when placing pickups (Highly Recommended!) <input type="checkbox" checked={this.state.fill_opts.dynamic} onChange={this._fillToggleDynamic}/>	</label>
-			</td></tr>
-			<tr><td><label>Health Cells: <NumericInput min={0} value={this.state.fill_opts.HC} onChange={this._fillUpdateHC}/></label></td></tr>
-			<tr><td><label>Energy Cells: <NumericInput min={0} value={this.state.fill_opts.EC} onChange={this._fillUpdateEC}/></label></td></tr>
-			<tr><td><label>Ability Cells: <NumericInput min={0} value={this.state.fill_opts.AC} onChange={this._fillUpdateAC}/></label></td></tr>
-			<tr><td><label>Keystones: <NumericInput min={0} value={this.state.fill_opts.KS} onChange={this._fillUpdateKS}/></label></td></tr>
-			<tr><td><label>Mapstones: <NumericInput min={0} value={this.state.fill_opts.MS} onChange={this._fillUpdateMS}/></label></td></tr>
-			<tr><td><label>Experience Range: <NumericInput min={0} value={this.state.fill_opts.EX} onChange={this._fillUpdateEX}/></label></td></tr>
-
-			</tbody></table>
-			)
+			);
 		}
 		
 		return (
 		<table style={{width: '100%'}}><tbody>
-		<tr><td style={{width: '80%'}}>
-        <Map crs={crs} onViewportChanged={this.onViewportChanged} viewport={this.state.viewport}>
-	     <TileLayer url=' https://ori-tracker.firebaseapp.com/images/ori-map/{z}/{x}/{y}.png' noWrap='true'  />
-			{pickup_markers}
-	     </Map></td>
-		<td style={{width: '20%'}}>
-			<table style={{width: '100%'}}><tbody>
-				<tr><td><p>Import a seed by pasting it here</p></td></tr>
-				<tr><td><textarea value={this.state.seed_in} onChange={this.tryParseSeed} /></td></tr>
-				<tr><td><label style={{width: '100%'}}>Zone <Select options={zone_opts} onChange={this._onSelectZone} clearable={false} value={this.state.zone} label={this.state.zone}/></label></td></tr>
-				<tr><td><label style={{width: '100%'}}>Location<Select options={pickups_opts} onChange={this.selectPickup} clearable={false} value={this.state.pickup} label={this.state.pickup.name+"("+this.state.pickup.x + "," + this.state.pickup.y +")"} /></label></td></tr>
-				<tr><td><label style={{width: '100%'}}>Pickup Type<Select options={stuff_types} onChange={this._onSelectStuffType} clearable={false} value={this.state.stuff_type} label={this.state.stuff_type}/></label></td></tr>
-				<tr><td>{stuff_select}</td></tr>
-				<tr><td><label style={{width: '100%'}}>seed flags<input type="text" style={{width: '100%'}} value={this.state.seedFlags} onChange={this._onSeedFlags} /></label></td></tr>
-				<tr><td><label style={{width: '100%'}}><button onClick={this.downloadSeed} >Download Seed</button></label></td></tr>
-				<tr><td><h5>Logic Pathes</h5></td></tr>
+			<tr><td style={{width: '80%'}}>
+		        <Map crs={crs} onViewportChanged={this.onViewportChanged} viewport={this.state.viewport}>
+					<TileLayer url=' https://ori-tracker.firebaseapp.com/images/ori-map/{z}/{x}/{y}.png' noWrap='true'  />
+					{pickup_markers}
+			     </Map></td>
+			<td style={{width: '20%'}}>
+				<table style={{width: '100%'}}><tbody>
+					<tr style={{width: '100%'}}><td>
+						<p>Import a seed by pasting it here</p>
+					</td></tr>
+					<tr style={{width: '100%'}}><td>
+						<textarea value={this.state.seed_in} onChange={this.tryParseSeed} />
+					</td></tr>
+					<tr  style={{width: '100%'}}><td>
+						<table style={{width: '100%'}}><tbody>
+							<tr style={{width: '100%'}}><td style={{width: '90px'}}> 
+								<label>Zone: </label>
+							</td><td>
+								<Select options={zone_opts} onChange={this._onSelectZone} clearable={false} value={this.state.zone} label={this.state.zone}></Select>
+							</td></tr>
+						</tbody></table>
+					</td></tr>
+					<tr style={{width: '100%'}}><td>
+						<table style={{width: '100%'}}><tbody>
+							<tr><td style={{width: '90px'}}> 
+								<label>Location: </label>
+							</td><td>
+								<Select options={pickups_opts} onChange={this.selectPickup} clearable={false} value={this.state.pickup} label={this.state.pickup.name+"("+this.state.pickup.x + "," + this.state.pickup.y +")"}></Select>
+							</td></tr>
+						</tbody></table>
+					</td></tr>
+					<tr style={{width: '100%'}}><td>
+						<table style={{width: '100%'}}><tbody>
+							<tr><td style={{width: '90px'}}>
+								<label>Pickup Type: </label>
+							</td><td>
+								<Select options={stuff_types} onChange={this._onSelectStuffType} clearable={false} value={this.state.stuff_type} label={this.state.stuff_type}></Select>
+							</td></tr>
+						</tbody></table>
+					</td></tr>
+					{stuff_select}
+					<tr style={{width: '100%'}}><td>
+						<label style={{width: '100%'}}>seed flags<input type="text" style={{width: '100%'}} value={this.state.seedFlags} onChange={this._onSeedFlags} /></label>
+					</td></tr>
+					<tr style={{width: '100%'}}><td>
+						<label style={{width: '100%'}}><button onClick={this.downloadSeed} >Download Seed</button></label>
+					</td></tr>
+					<tr><td><h6><center>Flags</center></h6></td></tr>
 
-				<CheckboxGroup checkboxDepth={4} name="flags" value={this.state.flags} onChange={this.flagsChanged}> 
-					<tr>
-						<td><label><Checkbox value="hide_unreachable" /> hide unreachable</label></td>
-						<td><label><Checkbox value="show_pickups" /> show pickups</label></td>
-					</tr>
-						<td><label><Checkbox value="fill_on_select" /> fill on select</label></td>
-					<tr>
-					</tr>
-				</CheckboxGroup>
-		       <tr><td><h5>Logic Pathes</h5></td></tr>
+					<tr style={{width: '100%'}}><td>
+						<CheckboxGroup checkboxDepth={6} name="flags" value={this.state.flags} onChange={this.flagsChanged}> 
+							<table style={{width: '100%'}}><tbody>
+								<tr style={{width: '100%'}}><td>
+									<label><Checkbox value="hide_unreachable" /> hide unreachable</label>
+								</td><td>
+									<label><Checkbox value="show_pickups" /> show pickups</label>
+								</td></tr>
+								<tr style={{width: '100%'}}><td>
+									<label><Checkbox value="fill_on_select" /> fill on select</label>
+								</td><td>
+									
+								</td></tr>
+							</tbody></table>
+						</CheckboxGroup>
+					</td></tr>
+			       	<tr style={{width: '100%'}}><td>
+			       		<table style={{width: '100%'}}><tbody>
+			       			<tr><td style={{width: '120px'}}>
+			       				<label>Logic Presets:</label>
+			       			</td><td>
+			       				<Select options={paths.map((n) => {return {label: n, value: n}})} onChange={this._onPathModeChange} clearable={false} value={this.state.pathMode} label={this.state.pathMode}></Select>
+			       			</td></tr>
+			       		</tbody></table>
+			       	</td></tr>
 
-				<CheckboxGroup checkboxDepth={4} name="modes" value={this.state.modes} onChange={this.modesChanged}> 
-					<tr>
-						<td><label><Checkbox value="normal" /> normal</label></td>
-						<td><label><Checkbox value="speed" /> speed</label></td>
-						<td><label><Checkbox value="extended" /> extended</label></td>
-					</tr>
-					<tr>
-						<td><label><Checkbox value="speed-lure" /> speed-lure</label></td>
-						<td><label><Checkbox value="lure" /> lure</label></td>
-						<td><label><Checkbox value="lure-hard" /> lure-hard</label></td>
-					</tr>
-					<tr>
-						<td><label><Checkbox value="dboost-light" /> dboost-light</label></td>
-						<td><label><Checkbox value="dboost" /> dboost</label></td>
-						<td><label><Checkbox value="dboost-hard" /> dboost-hard</label></td>
-					</tr>
-					<tr>		
-						<td><label><Checkbox value="cdash" /> cdash</label></td>
-						<td><label><Checkbox value="cdash-farming" /> cdash-farming</label></td>
-						<td><label><Checkbox value="extreme" /> extreme</label></td>
-					</tr>
-					<tr>		
-						<td><label><Checkbox value="extended-damage" /> extended-damage</label></td>
-						<td><label><Checkbox value="timed-level" /> timed-level</label></td>
-					</tr>
-					<tr>		
-						<td><label><Checkbox value="dbash" /> dbash</label></td>
-						<td><label><Checkbox value="glitched" /> glitched</label></td>
-					</tr>
-		       </CheckboxGroup>
-
-			</tbody></table>
-		</td></tr>
+					<tr style={{width: '100%'}}><td>
+						<table style={{width: '100%'}}><tbody>
+							<CheckboxGroup checkboxDepth={4} name="modes" value={this.state.modes} onChange={this.modesChanged}> 
+								<tr style={{width: '100%'}}>
+									<td><label><Checkbox value="normal" /> normal</label></td>
+									<td><label><Checkbox value="speed" /> speed</label></td>
+									<td><label><Checkbox value="extended" /> extended</label></td>
+								</tr>
+								<tr style={{width: '100%'}}>
+									<td><label><Checkbox value="speed-lure" /> speed-lure</label></td>
+									<td><label><Checkbox value="lure" /> lure</label></td>
+									<td><label><Checkbox value="lure-hard" /> lure-hard</label></td>
+								</tr>
+								<tr style={{width: '100%'}}>
+									<td><label><Checkbox value="dboost-light" /> dboost-light</label></td>
+									<td><label><Checkbox value="dboost" /> dboost</label></td>
+									<td><label><Checkbox value="dboost-hard" /> dboost-hard</label></td>
+								</tr>
+								<tr style={{width: '100%'}}>		
+									<td><label><Checkbox value="cdash" /> cdash</label></td>
+									<td><label><Checkbox value="cdash-farming" /> cdash-farming</label></td>
+									<td><label><Checkbox value="extreme" /> extreme</label></td>
+								</tr>
+								<tr style={{width: '100%'}}>		
+									<td><label><Checkbox value="extended-damage" /> extended-damage</label></td>
+									<td><label><Checkbox value="timed-level" /> timed-level</label></td>
+								</tr>
+								<tr style={{width: '100%'}}>		
+									<td><label><Checkbox value="dbash" /> dbash</label></td>
+									<td><label><Checkbox value="glitched" /> glitched</label></td>
+								</tr>
+					       </CheckboxGroup>
+						</tbody></table>
+					</td></tr>
+			       <tr><td>Logic Mode</td></tr>
+					<tr style={{width: '100%'}}><td>
+						<table style={{width: '100%'}}><tbody>
+							<RadioGroup name="logic_mode" selectedValue={this.state.logicMode} onChange={this.logicModeChanged}>
+								<tr style={{width: '100%'}}><td>
+							        <label style={{width: '100%'}}><Radio value="auto"/>Auto</label>
+							    </td><td>
+							        <label style={{width: '100%'}}><Radio value="manual"/>Manual</label>
+						     	</td></tr>
+					       	</RadioGroup>
+						</tbody></table>
+			     	</td></tr>
+					<tr style={{width: '100%'}}><td>
+						{manual_control}
+			     	</td></tr>
+				</tbody></table>
+			</td></tr>
 		</tbody></table>
 		)
 
+
+
+
 	}
+}
 
 
-};
 
 
 function getReachable(setter, modes, codes, callback)
@@ -389,11 +610,6 @@ function getReachable(setter, modes, codes, callback)
 
 
 export default PlandoBuiler;
-
-
-
-
-
 
 
 

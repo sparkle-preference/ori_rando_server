@@ -360,8 +360,8 @@ function pickup_name(code, id) {
 		"EV": {0:"Water Vein", 1:"Clean Water", 2:"Gumon Seal", 3:"Wind Restored", 4:"Sunstone", 5:"Warmth Returned"},
 		"RB":  {17:"Water Vein Shard", 19: "Gumon Seal Shard", 21: "Sunstone Shard", 6: "Spirit Flame Upgrade", 13: "Health Regeneration", 15: "Energy Regeneration", 8: "Explosion Power Upgrade", 9:  "Spirit Light Efficiency", 10: "Extra Air Dash", 11:  "Charge Dash Efficiency", 12:  "Extra Double Jump", 0: "Mega Health", 1: "Mega Energy"}	
 	};
-	if(names.hasOwnProperty(code) && names[code][1*id])
-		return names[code][1*id];
+	if(names.hasOwnProperty(code) && names[code][parseInt(id)])
+		return names[code][parseInt(id)];
 	 
 	if(code === "EX") 
 		return id+ " Experience";
@@ -456,6 +456,17 @@ const stuff_by_type = {
 		{label: "Mapstone", value: "MS|1"}
 	]
 };
+const presets = {
+        "casual": ["normal", "dboost-light"],
+        "standard": ["normal", "speed", "lure", "dboost-light"],
+        "dboost": ["normal", "speed", "lure", "dboost", "dboost-light"],
+        "expert": ["normal", "speed", "lure", "speed-lure", "dboost", "dboost-light", "cdash", "extended", "extended-damage"],
+        "master": ["normal", "speed", "lure", "speed-lure", "dboost", "dboost-light", "dboost-hard", "cdash", "dbash", "extended", "extended-damage", "lure-hard", "extreme"],
+        "hard": ["normal", "speed", "lure",  "dboost-light", "cdash", "dbash", "extended"],
+        "ohko": ["normal", "speed", "lure", "cdash", "dbash", "extended"],
+        "0xp": ["normal", "speed", "lure", "dboost-light"],
+        "glitched": ["normal", "speed", "lure", "speed-lure", "dboost", "dboost-light", "dboost-hard", "cdash", "dbash", "extended", "lure-hard", "timed-level", "glitched", "extended-damage", "extreme"]
+    };
 
 const pickups = [];
 const picks_by_loc = {};
@@ -464,6 +475,7 @@ const picks_by_zone = {};
 const picks_by_area = {};
 const zones = [];
 const areas = [];
+
 let ks = Object.keys(picks_by_type)
 ks.forEach((pre) => {
 	picks_by_type[pre].forEach((pick) => {
@@ -488,4 +500,5 @@ ks.forEach((pre) => {
  
  
 
-export {PickupMarker, PickupMarkersList, download, pickup_icons, getStuffType, locs, picks_by_loc, getMapCrs, pickups, picks_by_type, picks_by_zone, zones, pickup_name, stuff_types, stuff_by_type, areas, picks_by_area};
+export {PickupMarker, PickupMarkersList, download, pickup_icons, getStuffType, locs, picks_by_loc, getMapCrs, pickups, 
+		picks_by_type, picks_by_zone, zones, pickup_name, stuff_types, stuff_by_type, areas, picks_by_area, presets};

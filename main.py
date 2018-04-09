@@ -16,7 +16,8 @@ from google.appengine.ext.webapp import template
 from util import GameMode, ShareType, Pickup, Skill, Event, Teleporter, Upgrade, share_from_url, share_map, special_coords, get_bit, get_taste, add_single, inc_stackable, get, unpack, coord_correction_map
 from reachable import Map, PlayerState
 base_site = "http://orirandocoopserver.appspot.com"
-
+LAST_DLL = "Mar 27, 2018"
+PLANDO_VER = "0.0.6"
 class Cache(object):
 	WRITE_EVERY = 5
 	NONE_STALE = 300
@@ -219,7 +220,7 @@ def delete_game(game):
 	Cache.delete(game)
 
 def clean_old_games():
-	old = [game for game in Game.query(Game.last_update < datetime.now() - timedelta(hours=1))]
+	old = [game for game in Game.query(Game.last_update < datetime.now() - timedelta(hours=12))]
 	return len([delete_game(game) for game in old])
 
 	
@@ -335,7 +336,7 @@ class ShowHistory(webapp2.RequestHandler):
 class SeedGenerator(webapp2.RequestHandler):
 	def get(self):
                 path = os.path.join(os.path.dirname(__file__), 'index.html')
-                template_values = {}
+                template_values = {latest_dll: LAST_DLL, plando_version: PLANDO_VER}
                 self.response.out.write(template.render(path, template_values))
 
 	def post(self):
@@ -525,7 +526,10 @@ class ClearCache(webapp2.RequestHandler):
 class Plando(webapp2.RequestHandler):
 	def get(self):
 		path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
-		template_values = {'app': "plandoBuilder", 'title': "Plandomizer Editor v0.0.4"}
+		template_values = {'app': "plandoBuilder", 'title': "Plandomizer Editor "+PLANDO_VER, 
+							'pathmode': paramVal(self, 'pathmode'), 'HC': paramVal(self, 'HC'),
+							'EC': paramVal(self, 'EC'), 'AC': paramVal(self, 'AC'), 'KS': paramVal(self, 'KS'),
+							'skills': paramVal(self, 'skills'), 'tps': paramVal(self, 'tps')}
 		self.response.out.write(template.render(path, template_values))
 			
 class ShowMap(webapp2.RequestHandler):

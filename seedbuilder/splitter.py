@@ -9,7 +9,7 @@ def split_seed(seed, gameId, player, max_players, hot=False, sk=True, ev=True, r
 	events = ["EV|0", "EV|1","EV|2", "EV|3", "EV|4"] # Water, Wind, keys
 	bonuses = ["RB|8","RB|9","RB|10", "RB|11", "RB|12"] # Explosion Power Upgrade, Spirit Light Efficiency, Extra Air Dash, Charge Dash Efficiency, Extra DJ
 	
-	pickups = shards + stacking_bonuses + (skills if sk else []) + (events if ev else []) + (bonuses if rb else [])
+	pickups = shards + (skills if sk else []) + (events if ev else []) + (stacking_bonuses + bonuses if rb else [])
 	random.seed(seed)
 	prerolled_blunts = {p : random.randint(1,100) for p in pickups}
 
