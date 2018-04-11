@@ -137,7 +137,7 @@ class PlandoBuiler extends React.Component {
 	this._updateReachable()
   };
 
-	_onSeedFlags = (newVal) => { this.setState({seedFlags: newVal}) }
+	_onSeedFlags = (event) => { this.setState({seedFlags: event.target.value}) }
 
 	_fillToggleDynamic = (n) => this.updateFill("dynamic",!this.state.fill_opts.dynamic)
     _onSelectZone = (newZone) => {this.selectPickup(this.state.lastSelected[newZone.value])};
