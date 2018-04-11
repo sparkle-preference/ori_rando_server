@@ -52,7 +52,6 @@ class PlayerState(object):
 			self.has['ForlornKey'] = 1
 		if ss >= 3:
 			self.has['HoruKey'] = 1
-		print self.has["MS"]
 
 class Area(object):
 	def __init__(self, name):

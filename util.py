@@ -2,6 +2,7 @@ from protorpc import messages
 from math import floor
 from google.appengine.ext import ndb
 from google.appengine.ext.ndb import msgprop
+from datetime import datetime, timedelta
 
 
 class GameMode(messages.Enum):

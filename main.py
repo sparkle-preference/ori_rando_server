@@ -13,7 +13,7 @@ from seedbuilder.splitter import split_seed
 from operator import attrgetter
 from google.appengine.ext.webapp import template
 from util import (GameMode, ShareType, Pickup, Skill, Event, Teleporter, Upgrade, share_from_url, share_map, special_coords, get_bit, get_taste, add_single,
-				 inc_stackable, get, unpack, coord_correction_map, Cache, HistoryLine, Player, Game, delete_game, get_new_game)
+				 inc_stackable, get, unpack, coord_correction_map, Cache, HistoryLine, Player, Game, delete_game, get_new_game, clean_old_games)
 
 from reachable import Map, PlayerState
 

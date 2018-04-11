@@ -6,21 +6,28 @@ import { Map, Tooltip, TileLayer, Marker} from 'react-leaflet';
 import {Checkbox, CheckboxGroup} from 'react-checkbox-group';
 import {Radio, RadioGroup} from 'react-radio-group';
 import Leaflet from 'leaflet';
-import {picks_by_type, PickupMarkersList, pickup_icons, getMapCrs, presets} from './shared_map.js';
+import {distance, picks_by_type, PickupMarkersList, pickup_icons, getMapCrs, presets} from './shared_map.js';
 import Select from 'react-select';
 import 'react-select/dist/react-select.css';
 
 const paths = Object.keys(presets);
 const game_id = document.getElementsByClassName("game-id-holder")[0].id;
-const EMPTY_PLAYER = {seed: {}, pos: [0,0], seen:[], flags: ["show_marker"], areas: []}
+
+const EMPTY_PLAYER = {seed: {}, pos: [0,0], seen:[], flags: ["show_marker"], areas: [], mapstones: {pos: [0,0], turnedIn: 0, picks: [], seen: [], foundAt: {}}}
+
 function parse_seed(raw) {
 	let out = {}
+	let msout = []
 	let lines = raw.split("\n")
     for (let i = 0, len = lines.length; i < len; i++) {
     	let line = lines[i].split(":")
-    	out[line[0]] = line[1]
+    	out[parseInt(line[0])] = line[1]
 	}
-	return out
+    for (let i = 24; i < 60; i+=4) {
+    	if(out.hasOwnProperty(i))
+			msout.push(out[i])
+	}
+	return {seed: out, ms: msout}
  }
 
 function player_icons(id)  {
@@ -31,6 +38,7 @@ function player_icons(id)  {
 	else if (id === 3)  img = '../sprites/ori-green.png';
 	else if (id === 4)  img = '../sprites/ori-purple.png';
 	else if (id === 5)  img = '../sprites/ori-yellow.png';
+	else if (id === 6)  img = '../sprites/ori-white.png';
 	else if (id === 200)  img = '../sprites/ori-skul.png';
 	let ico = new Leaflet.Icon({iconUrl: img, iconSize: new Leaflet.Point(48, 48)});
 	return ico
@@ -95,14 +103,29 @@ const PlayerUiOpts = ({players, setter}) => {
 
 
 function getLocInfo(pick, players) {
-	let loc = ""+pick.loc;
+	let loc = pick.loc;
+	let isMs = (pick.name === "MapStone")
+
 	let info = Object.keys(players).map((id) => {
-		if(players[id].flags.includes("show_spoiler") || players[id].seen.includes(loc))
-			return id + ":" + players[id].seed[loc] + (players[id].seen.includes(loc) ? "*" : "");
-		else
-			return id + ":" + "(hidden)"
+		let show_spoiler = players[id].flags.includes("show_spoiler");
+		let seen = players[id].seen.includes(loc) || players[id].mapstones.seen.includes(pick.loc);
+		if(isMs) {
+			let mapstones =  players[id].mapstones
+			if(seen)
+				return id + ":" + mapstones.foundAt[pick.loc] + (show_spoiler ? "*" : "");
+			else if(show_spoiler)
+				return id + ":" + mapstones.picks[mapstones.turnedIn];
+			else
+				return id + ":" + "(hidden)";
+			
+		}	else {
+			if(show_spoiler || seen)
+				return id + ":" + players[id].seed[loc] + (show_spoiler && seen ? "*" : "");
+			else
+				return id + ":" + "(hidden)"			
+		}	
 	});
-	return info.join("\n");
+	return info;
 }
 
 function getPickupMarkers(state) {
@@ -129,7 +152,8 @@ function getPickupMarkers(state) {
 				let hide_remaining = player.flags.includes("hide_remaining")
 				let hide_reachable = player.flags.includes("hide_reachable")
 
-				let found = player.seen.includes(""+pick.loc)
+				let found = player.seen.includes(pick.loc) || player.mapstones.seen.includes(pick.loc)
+				
 				let reachable = players[id].areas.includes(pick.area)
 
 				if( (found && hide_found) || (!found && hide_remaining) || (reachable && hide_reachable) || (!reachable && hide_unreachable))
@@ -140,13 +164,22 @@ function getPickupMarkers(state) {
 			if((hideOpt === "any") ? (count === Object.keys(players).length) : (count > 0))
 			{
 				let loc_info = getLocInfo(pick, players);
-				if(!loc_info)
-					loc_info = "N/A";
-				let inner = (
+				let inner = null;
+				if(loc_info)
+				{
+				let lines = loc_info.map((infoln) => {
+					return (
+					<tr><td style={{color:'black'}}>{infoln}</td></tr>
+					)
+				});
+				inner = (
 				<Tooltip>
-					<pre>{loc_info}</pre> 
+					<table>
+					{lines}
+					</table>
 				</Tooltip>
-				);
+				);					
+				}
 				markers.push({key: pick.name+"|"+pick.x+","+pick.y, position: [y, x], inner: inner, icon: icon});								
 			}
 	
@@ -176,14 +209,15 @@ const DEFAULT_VIEWPORT = {
 	  zoom: 3,
 	}
 const crs = getMapCrs();
+
 class GameTracker extends React.Component {
   constructor(props) {
     super(props)
-    let modeRaw = document.getElementsByClassName("logic-modes-holder")[0]
-    let modes = modeRaw ? modeRaw.id.split(" ") : ['normal', 'speed', 'dboost-light', 'lure']
+    let modeRaw = document.getElementsByClassName("logic-modes-holder")[0].id
+    let modes = (modeRaw !== "None") ? modeRaw.id.split(" ") : ['normal', 'speed', 'dboost-light', 'lure']
 
     this.state = {players: {}, done: false, check_seen: 1, modes: modes, 
-    flags: ['show_pickups'], viewport: DEFAULT_VIEWPORT, pickups: ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV"], 
+    flags: ['show_pickups', 'update_in_bg'], viewport: DEFAULT_VIEWPORT, pickups: ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "Ma"], 
     pathMode: 'standard', hideOpt: "any"}
   };
   componentDidMount() {
@@ -194,7 +228,7 @@ class GameTracker extends React.Component {
   	if((!document.hasFocus() && !this.state.flags.includes("update_in_bg") )|| this.state.done) return;
   	if(this.state.check_seen == 0) {
 	  	this.setState({check_seen: 5});
-		getSeen((p) => this.setState(p));
+		getSeen((p) => this.setState(p, this.checkMapstones()));
 		getReachable((p) => this.setState(p),this.state.modes.join("+"));
   	} else 
 	  	this.setState({check_seen: this.state.check_seen -1});
@@ -206,6 +240,40 @@ class GameTracker extends React.Component {
 			getSeed((p) => this.setState(p), id);
 	})
   };
+  
+  checkMapstones = () => {
+	this.setState((prevState, props) => {
+		let newPlayers = this.state.players;
+	  	Object.keys(newPlayers).map((id) => {
+	  		let player = newPlayers[id]
+	  		let mapstones = player.mapstones;
+	  		let nextMapstoneId = mapstones.turnedIn*4+24;
+	  		if(player.seen.includes(nextMapstoneId)) {
+	  			let min_dist = 99999;
+		  		let pos = mapstones.pos;
+	  			let closest_ms = null;
+	  			picks_by_type["Ma"].forEach((msPick) => {
+	  				if(!mapstones.seen.includes(msPick.loc))
+	  				{	  					
+		  				let dist = distance(pos[1], pos[0], msPick.x, msPick.y);
+		  				if(dist < min_dist) {
+		  					min_dist = dist;
+		  					closest_ms = msPick;
+		  				}
+	  				}
+	  			});
+	//  			if(min_dist > 150)
+				if(closest_ms) {
+					mapstones.seen.push(closest_ms.loc)
+					mapstones.foundAt[closest_ms.loc] = mapstones.picks[mapstones.turnedIn]
+					mapstones.turnedIn += 1
+				}
+			}
+			mapstones.pos = player.pos;
+	  	});
+	  	return {players: newPlayers};
+  	})
+  }
 
   componentWillUnmount() {
     clearInterval(this.interval);
@@ -234,7 +302,7 @@ class GameTracker extends React.Component {
 				{player_markers}
 		     </Map>
 		</td>
-		<td style={{ width: '20%'}}>
+		<td style={{ width: '360px'}}>
 			<table style={{ width: '100%'}}><tbody>
 		        <tr><td><button  onClick={ () => this.setState({ viewport: DEFAULT_VIEWPORT }) } >
 		          Reset View
@@ -317,6 +385,9 @@ class GameTracker extends React.Component {
 						<td><label><Checkbox value="KS" />Keystones</label></td>
 						<td><label><Checkbox value="EX" />Exp Orbs</label></td>	
 					</tr>
+					<tr>
+						<td><label><Checkbox value="Ma" />Mapstone turnins</label></td>
+					</tr>
 		       </CheckboxGroup>
 	       </tbody></table>
 	 </td></tr>
@@ -332,8 +403,10 @@ function getSeed(setter, pid)
         if (xmlHttp.readyState === 4 && xmlHttp.status === 200)
             (function(res) {
 				setter((prevState, props) => {
-					let retVal = prevState.players
-						retVal[pid].seed = parse_seed(res)
+					let retVal = prevState.players;
+					let out = parse_seed(res);
+					retVal[pid].seed = out.seed
+					retVal[pid].mapstones.picks = out.ms 
 					return {players:retVal}
 				});
 
@@ -401,7 +474,7 @@ function getSeen(setter)
             		if(withid[1] == "") 
             			continue;
             		let id = withid[0];
-					seens[id] = withid[1].split(",");
+					seens[id] = withid[1].split(",").map((i) => parseInt(i));
 				}
 				setter((prevState, props) => {
 					let retVal = prevState.players
@@ -441,7 +514,7 @@ function getPlayerPos(setter)
             		let withid = rawpos[i].split(":");
             		let id = withid[0];
             		let pos = withid[1].split(",");
-					player_positions[id] = [pos[1], pos[0]];
+					player_positions[id] = [pos[1]*1.0, pos[0]*1.0];
 				}
 				setter((prevState, props) => {
 					let retVal = prevState.players

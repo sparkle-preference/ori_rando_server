@@ -1,9 +1,8 @@
 import React from 'react';
 import Leaflet from 'leaflet';
 import {Marker} from 'react-leaflet';
-function point(x, y) {
-  return {x: x, y: y};
-};
+const point = (x, y) => {return {x: x, y: y}; } 
+const distance = (x1, y1, x2, y2) => Math.sqrt((x2-x1) ** 2 + (y2-y1) ** 2);
 
 function download(filename, text) {
   var element = document.createElement('a');
@@ -24,6 +23,7 @@ const pickup_icons = {
 	"AC": new Leaflet.Icon({iconUrl: '../sprites/ability-cell.png', iconSize: new Leaflet.Point(24, 24)}),
 	"EC": new Leaflet.Icon({iconUrl: '../sprites/energy-cell.png', iconSize: new Leaflet.Point(24, 24)}),
 	"MS": new Leaflet.Icon({iconUrl: '../sprites/map-fragment.png', iconSize: new Leaflet.Point(24, 24)}),
+	"Ma": new Leaflet.Icon({iconUrl: '../sprites/map-stone.png', iconSize: new Leaflet.Point(24, 24)}),
 	"EX": new Leaflet.Icon({iconUrl: '../sprites/xp.png', iconSize: new Leaflet.Point(24, 24)}),
 	"Pl": new Leaflet.Icon({iconUrl: '../sprites/plant.png', iconSize: new Leaflet.Point(16, 16)}),
 	"KS": new Leaflet.Icon({iconUrl: '../sprites/keystone.png', iconSize: new Leaflet.Point(24, 24)}),
@@ -122,7 +122,7 @@ const picks_by_type = {
 	{'loc': 4479568, 'name': 'AC', 'zone': 'Grotto', 'area': 'GumoHideoutRedirectAC', 'y': -430, 'x': 449},
 	{'loc': 6399872, 'name': 'AC', 'zone': 'Swamp', 'area': 'DrainlessCell', 'y': -127, 'x': 643},
 	{'loc': 1759964, 'name': 'AC', 'zone': 'Grove', 'area': 'BelowHoruFields', 'y': -34, 'x': 176},
-],/* "Ma": [
+], "Ma": [
 	{'loc': 3479880, 'name': 'MapStone', 'zone': 'Grove', 'area': 'HollowGroveMapStone', 'y': -119, 'x': 351},
 	{'loc': -4080172, 'name': 'MapStone', 'zone': 'Valley', 'area': 'ValleyMapStone', 'y': -170, 'x': -408},
 	{'loc': -8440308, 'name': 'MapStone', 'zone': 'Forlorn', 'area': 'ForlornMapStone', 'y': -308, 'x': -843},
@@ -132,7 +132,7 @@ const picks_by_type = {
 	{'loc': 4759608, 'name': 'MapStone', 'zone': 'Grotto', 'area': 'GumoHideoutMapStone', 'y': -389, 'x': 477},
 	{'loc': 6759868, 'name': 'MapStone', 'zone': 'Swamp', 'area': 'SwampMapStone', 'y': -129, 'x': 677},
 	{'loc': 560340, 'name': 'MapStone', 'zone': 'Horu', 'area': 'HoruMapStone', 'y': 343, 'x': 56},
-],*/ "EC": [
+], "EC": [
 	{'loc': 2719900, 'name': 'EC', 'zone': 'Grove', 'area': 'UpperGroveSpiderEnergy', 'y': -97, 'x': 272},
 	{'loc': -3200164, 'name': 'EC', 'zone': 'Valley', 'area': 'ValleyGrenadeWater', 'y': -162, 'x': -320},
 	{'loc': -6279608, 'name': 'EC', 'zone': 'Sorrow', 'area': 'LeftSorrow', 'y': 393, 'x': -627},
@@ -251,7 +251,7 @@ const picks_by_type = {
 	{'loc': 1599920, 'name': 'HC', 'zone': 'Grove', 'area': 'HoruFieldsStomp', 'y': -78, 'x': 160},
 ], "EV": [
 	{'loc': 0, 'name': 'EVGinsoKey', 'zone': 'Grotto', 'area': 'MobileGumoHideout', 'y': 0, 'x': 0, 'icon': new Leaflet.Icon({iconUrl: '../sprites/WaterVein.png', iconSize: new Leaflet.Point(24,24)}), '_x': 500, '_y': -244},
-	{'loc': 4, 'name': 'EVWater', 'zone': 'Ginso', 'area': 'GinsoEscape', 'y': 4, 'x': 0, 'icon': new Leaflet.Icon({iconUrl: '../sprites/CleanWater.png', iconSize: new Leaflet.Point(24,24)}), '_x': 525, '_y': 600},
+	{'loc': 4, 'name': 'EVWater', 'zone': 'Ginso', 'area': 'GinsoEscape', 'y': 4, 'x': 0, 'icon': new Leaflet.Icon({iconUrl: '../sprites/CleanWater.png', iconSize: new Leaflet.Point(24,24)}), '_x': 525, '_y': 980},
 	{'loc': 12, 'name': 'EVWind', 'zone': 'Forlorn', 'area': 'RightForlorn', 'y': 12, 'x': 0, 'icon': new Leaflet.Icon({iconUrl: '../sprites/WindRestored.png', iconSize: new Leaflet.Point(24,24)}), '_x': -735, '_y': -225},
 	{'loc': 8, 'name': 'EVForlornKey', 'zone': 'Misty', 'area': 'MistyEnd', 'y': 8, 'x': 0, 'icon': new Leaflet.Icon({iconUrl: '../sprites/GumonSeal.png', iconSize: new Leaflet.Point(24,24)}), '_x': -720, '_y': -20},
 	{'loc': 16, 'name': 'EVHoruKey', 'zone': 'Sorrow', 'area': 'Sunstone', 'y': 16, 'x': 0, 'icon': new Leaflet.Icon({iconUrl: '../sprites/Sunstone.png', iconSize: new Leaflet.Point(24,24)}), '_x':-560, '_y':  607},
@@ -499,5 +499,5 @@ ks.forEach((pre) => {
  
  
 
-export {PickupMarker, PickupMarkersList, download, pickup_icons, getStuffType, locs, picks_by_loc, getMapCrs, pickups, 
-		picks_by_type, picks_by_zone, zones, pickup_name, stuff_types, stuff_by_type, areas, picks_by_area, presets};
+export {PickupMarker, PickupMarkersList, download, pickup_icons, getStuffType, locs, picks_by_loc, getMapCrs, pickups, distance,
+		point, picks_by_type, picks_by_zone, zones, pickup_name, stuff_types, stuff_by_type, areas, picks_by_area, presets};

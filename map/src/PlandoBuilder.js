@@ -250,6 +250,7 @@ class PlandoBuiler extends React.Component {
 		let locs = Object.keys(picks_by_loc)
 		let toFill = []
 		let {HC, EC, AC, KS, MS, EX} = this.state.fill_opts
+		console.out(HC, EC, AC, KS, MS, EX);
 		locs.forEach((loc) => {
 			if(this.state.placements.hasOwnProperty(loc)) 
 				outLines.push(loc+"|"+this.state.placements[loc].value+"|"+picks_by_loc[loc].zone);
