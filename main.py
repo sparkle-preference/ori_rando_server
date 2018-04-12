@@ -13,13 +13,13 @@ from seedbuilder.splitter import split_seed
 from operator import attrgetter
 from google.appengine.ext.webapp import template
 from util import (GameMode, ShareType, Pickup, Skill, Event, Teleporter, Upgrade, share_from_url, share_map, special_coords, get_bit, get_taste, add_single,
-				 inc_stackable, get, unpack, coord_correction_map, Cache, HistoryLine, Player, Game, delete_game, get_new_game, clean_old_games)
+				 inc_stackable, get, unpack, coord_correction_map, Cache, HistoryLine, Player, Game, delete_game, get_new_game, clean_old_games, all_locs)
 
 from reachable import Map, PlayerState
 
 base_site = "http://orirandocoopserver.appspot.com"
 LAST_DLL = "Mar 27, 2018"
-PLANDO_VER = "0.0.6"
+PLANDO_VER = "0.0.8"
 
 
 def paramFlag(s,f):
@@ -51,18 +51,22 @@ class DeleteGame(webapp2.RequestHandler):
 		if int(game_id) < 1000:
 			self.response.status = 403
 			self.response.write("No.")
-		else:
+		elif Cache.has(game_id):
 			game = Cache.get(game_id)
 			delete_game(game)
 			self.response.status = 200
 			self.response.write("All according to daijobu")		
+		else:
+			self.response.status = 401
+			self.response.write("The game... was already dead...")		
+		
 
 class ActiveGames(webapp2.RequestHandler):
 	def get(self):
 		self.response.headers['Content-Type'] = 'text/html'
 		self.response.write('<html><body><pre>Active games:\n' +
 			"\n".join(
-				["<a href='/%s/history'>Game #%s</a> (<a href='/%s/map'>(Map)</a>):\n\t%s (Last updated: %s)" % (game.key.id(), game.key.id(), game.key.id(), game.summary(), game.last_update) for game in sorted(Game.query(), key=lambda x:x.last_update, reverse=True)])+"</pre></body></html>")
+				["<a href='/%s/history'>Game #%s</a> (<a href='/%s/map'>(Map)</a>):\n\t%s (Last update: %s ago)" % (game.key.id(), game.key.id(), game.key.id(), game.summary(), datetime.now() - game.last_update) for game in sorted(Game.query(), key=lambda x:x.last_update, reverse=True)])+"</pre></body></html>")
 
 
 class FoundPickup(webapp2.RequestHandler):
@@ -71,6 +75,8 @@ class FoundPickup(webapp2.RequestHandler):
 		coords = int(coords)
 		if coords in coord_correction_map:
 			coords = coord_correction_map[coords]
+		if coords not in all_locs:
+			print "Coord mismatch error! %s not in all_locs or correction map. Sync %s.%s, pickup %s|%s" % (coords, game_id, player_id, kind, id)
 		game = Cache.get(game_id)
 		if not remove and not paramFlag(self, "override") and coords in [ h.coords for h in game.player(player_id).history]:
 			self.response.status = 410
@@ -138,8 +144,9 @@ class SeedGenerator(webapp2.RequestHandler):
 			syncid = int(syncid)
 			if Cache.has(syncid):
 				if syncid > 999:
-					game = Cache.get(syncid)
-					delete_game(game)				
+					if Cache.has(syncid):
+						game = Cache.get(syncid)
+						delete_game(game)				
 					game_id = get_new_game(_mode=syncmode, _shared=share_types, id=syncid).key.id()
 				else:
 					self.response.status = 405

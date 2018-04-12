@@ -218,8 +218,9 @@ const picks_by_type = {
 	{'loc': 1040112, 'name': 'EX200', 'zone': 'Horu', 'area': 'DoorWarp', 'y': 112, 'x': 106},
 	{'loc': -2240084, 'name': 'EX100', 'zone': 'Valley', 'area': 'ValleyEntryTree', 'y': -84, 'x': -221},
 	{'loc': -4199936, 'name': 'EX100', 'zone': 'Valley', 'area': 'ValleyRight', 'y': 67, 'x': -418},
-	{'loc': -5479948, 'name': 'EX200', 'zone': 'Misty', 'area': 'ValleyMain', 'y': 54, 'x': -546},
+	{'loc': -5479948, 'name': 'EX200', 'zone': 'Sorrow', 'area': 'ValleyMain', 'y': 54, 'x': -546},
 	{'loc': -8240012, 'name': 'EX100', 'zone': 'Misty', 'area': 'ValleyMain', 'y': -9, 'x': -822},
+	{'loc': -6800032, 'name': 'EX100', 'zone': 'Misty', 'area': 'ValleyMain', 'y': -29, 'x': -678},
 	{'loc': -5719844, 'name': 'EX200', 'zone': 'Sorrow', 'area': 'PreSorrowOrb', 'y': 157, 'x': -572},
 	{'loc': -3600088, 'name': 'EX100', 'zone': 'Valley', 'area': 'ValleyWater', 'y': -87, 'x': -359},
 	{'loc': -5400104, 'name': 'EX100', 'zone': 'Valley', 'area': 'LowerValley', 'y': -104, 'x': -538},
@@ -478,21 +479,23 @@ const areas = [];
 let ks = Object.keys(picks_by_type)
 ks.forEach((pre) => {
 	picks_by_type[pre].forEach((pick) => {
-		pickups.push(pick);
-		if(!picks_by_zone.hasOwnProperty(pick.zone))
-		{
-			picks_by_zone[pick.zone] = [];
-			zones.push(pick.zone);
+		if(pick.name !== "MapStone") {
+			pickups.push(pick);
+			if(!picks_by_zone.hasOwnProperty(pick.zone))
+			{
+				picks_by_zone[pick.zone] = [];
+				zones.push(pick.zone);
+			}
+			if(!picks_by_area.hasOwnProperty(pick.area))
+			{
+				picks_by_area[pick.area] = [];
+				areas.push(pick.area);
+			}
+			locs.push(pick.loc);
+			picks_by_loc[pick.loc] = pick;
+			picks_by_area[pick.area].push(pick);
+			picks_by_zone[pick.zone].push(pick);				
 		}
-		if(!picks_by_area.hasOwnProperty(pick.area))
-		{
-			picks_by_area[pick.area] = [];
-			areas.push(pick.area);
-		}
-		locs.push(pick.loc);
-		picks_by_loc[pick.loc] = pick;
-		picks_by_area[pick.area].push(pick);
-		picks_by_zone[pick.zone].push(pick);
 	});
 });
 

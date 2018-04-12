@@ -156,7 +156,7 @@ function getPickupMarkers(state) {
 				
 				let reachable = players[id].areas.includes(pick.area)
 
-				if( (found && hide_found) || (!found && hide_remaining) || (reachable && hide_reachable) || (!reachable && hide_unreachable))
+				if( (found && hide_found) || (!found && hide_remaining) || (reachable && hide_reachable) || (!reachable && hide_unreachable && !found))
 					count -= 1;
 			});
 			
@@ -214,7 +214,7 @@ class GameTracker extends React.Component {
   constructor(props) {
     super(props)
     let modeRaw = document.getElementsByClassName("logic-modes-holder")[0].id
-    let modes = (modeRaw !== "None") ? modeRaw.id.split(" ") : ['normal', 'speed', 'dboost-light', 'lure']
+    let modes = (modeRaw !== "None") ? modeRaw.split(" ") : ['normal', 'speed', 'dboost-light', 'lure']
 
     this.state = {players: {}, done: false, check_seen: 1, modes: modes, 
     flags: ['show_pickups', 'update_in_bg'], viewport: DEFAULT_VIEWPORT, pickups: ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "Ma"], 

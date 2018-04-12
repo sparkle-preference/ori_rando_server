@@ -40,21 +40,31 @@ function getPickupMarkers(pickupTypes, placements, reachable, flags, setSelected
 						show = false;
 			if(show)
 			{
-				let raw = placements[pick.loc];
-				if(!raw)
-					raw = "";
-				else 
-					{
-						let pieces = raw.value.split("|");
-						raw = pickup_name(pieces[0], pieces[1]) || raw;
-					}
-				let inner = (
-				<Tooltip>
-					<span>
-						{raw}
-					</span> 
-				</Tooltip>
-				);
+				let inner = null
+				
+				if(pick.name === "MapStone") {
+				    let rows = picks_by_type["MP"].map((ms) => {
+				    	if(!placements[ms.loc]) 
+				    		return null				    		
+				    	return (
+				    		<tr><td style={{color:'black'}}>
+				    		{ms.area + ": " + placements[ms.loc].label}
+				    		</td></tr>
+				    	)
+				    });
+					inner = ( 
+					<Tooltip>
+					<table>{rows}</table>
+					</Tooltip>
+					)	
+				} else {
+					let text = placements[pick.loc] ? placements[pick.loc].label : "";
+					inner = (
+					<Tooltip>
+						<span>{text}</span> 
+					</Tooltip>
+					);
+				}
 				let name = pick.name+"("+pick.x + "," + pick.y +")"
 				let onclick = setSelected({label: name, value: pick})
 				markers.push({key: name, position: [y, x], inner: inner, icon: icon, onClick: onclick});								
@@ -103,18 +113,19 @@ class PlandoBuiler extends React.Component {
     let EC = parseInt(document.getElementsByClassName("EC-holder")[0].id) || 0;
     let AC = parseInt(document.getElementsByClassName("AC-holder")[0].id) || 0;
     let KS = parseInt(document.getElementsByClassName("KS-holder")[0].id) || 0;
-    let skills = document.getElementsByClassName("SK-holder")[0].id.split(" ").map(skill => {
+    let skillsRaw = document.getElementsByClassName("SK-holder")[0].id
+    let skills = (skillsRaw !== "None") ? skillsRaw.split(" ").map(skill => {
     	let parts = skill.split("|")
     	return {label: pickup_name(parts[0], parts[1]), value: skill}
-    });
-    let tps  = document.getElementsByClassName("TP-holder")[0].id.split(" ").map(tp => {return {label: tp + " TP", value: "TP|" + tp}; });
+    }) : [];
+	let tpsRaw = document.getElementsByClassName("TP-holder")[0].id; 
+    let tps  = (tpsRaw !== "None") ? tpsRaw.split(" ").map(tp => {return {label: tp + " TP", value: "TP|" + tp}; }) : [];
     let manual_reach = {HC: HC, EC: EC, AC: AC, KS: KS, MS: 9, skills: skills, tps: tps};
     let logicMode = "auto";
     let modes = ['normal', 'speed', 'dboost-light'];
     if(paths.includes(pathmode)) {
 		logicMode = 'manual';
 		modes = presets[pathmode];
-
     } else {
     	pathmode = "standard";
     }
@@ -129,10 +140,10 @@ class PlandoBuiler extends React.Component {
     let pickup = {label: pick.name+"("+pick.x + "," + pick.y +")",value: pick}
     lastSelected['Glades'] = pickup
     this.state = {zone: zone, pickup: pickup, seed_in: "", reachable: ['SunkenGladesRunaway'], modes: modes, 
-    			  lastSelected: lastSelected, placements: {}, stuff_type: "Skills", stuff: {value: "SK|0", label: "Bash"}, 
+    			  lastSelected: lastSelected, placements: {}, stuff_type: "Cells and Stones", stuff: {value: "KS|1", label: "Keystone"}, 
     			  fill_opts: {HC: 13, EC: 15, AC: 34, KS: 40, MS: 9, EX: 300, dynamic: true}, viewport: DEFAULT_VIEWPORT, 
 		    	  flags: ['show_pickups', 'hide_unreachable'], seedFlags:"shards,forcetrees,Sync1002.1,mode=4,Custom|Plando", 
-		    	  pickups: ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV"], logicMode: logicMode, pathMode: pathmode,
+		    	  pickups: ["EX", "Ma", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV"], logicMode: logicMode, pathMode: pathmode,
 		    	  manual_reach: manual_reach}
 	this._updateReachable()
   };
@@ -140,7 +151,7 @@ class PlandoBuiler extends React.Component {
 	_onSeedFlags = (event) => { this.setState({seedFlags: event.target.value}) }
 
 	_fillToggleDynamic = (n) => this.updateFill("dynamic",!this.state.fill_opts.dynamic)
-    _onSelectZone = (newZone) => {this.selectPickup(this.state.lastSelected[newZone.value])};
+    _onSelectZone = (newZone, pan=true) => {this.selectPickup(this.state.lastSelected[newZone.value], pan)};
     _onSelectStuffType = (newStuffType) => {
     	this.setState({stuff_type: newStuffType.value});
 		if(stuff_by_type[newStuffType.value])
@@ -169,30 +180,37 @@ class PlandoBuiler extends React.Component {
 	});
 	  flagsChanged = (newVal) => this.setState({flags: newVal});
 
-	  modesChanged = (newVal) => {
-	  	this.setState({modes: newVal});
-	}
+	  modesChanged = (newVal) => this.setState({modes: newVal});
 
 
-    selectPickup = (pick) => {
+    selectPickup = (pick, pan=true) => {
     	let last = this.state.lastSelected;
     	let newStuff = this.state.placements[pick.value.loc];
 		last[pick.value.zone] = pick;
-		let x = pick.value.hasOwnProperty("_x") ? pick.value._x : pick.value.x
-		let y = pick.value.hasOwnProperty("_y") ? pick.value._y : pick.value.y
-		let new_viewport = {
-			  center: [y, x],
-			  zoom: 5,
-			}
+		let viewport = this.state.viewport;
+		if(pan) {
+			let x = pick.value.hasOwnProperty("_x") ? pick.value._x : pick.value.x
+			let y = pick.value.hasOwnProperty("_y") ? pick.value._y : pick.value.y
+			viewport = {
+				  center: [y, x],
+				  zoom: 5, 
+				} 			
+		}
 		if(!this.state.flags.includes("fill_on_select") && (!newStuff || !newStuff.hasOwnProperty("value"))) {
-	    	this.setState({pickup: pick, zone: pick.value.zone, lastSelected: last, viewport: new_viewport}, () => this.place(this.state.stuff, false));
+	    	this.setState({pickup: pick, zone: pick.value.zone, lastSelected: last, viewport: viewport}, () => this.place(this.state.stuff, false));
 		} else {
 			let newStuffType = getStuffType(newStuff,"Fill");
-	    	this.setState({pickup: pick, zone: pick.value.zone, lastSelected: last, viewport: new_viewport, stuff: newStuff, stuff_type: newStuffType});		
+	    	this.setState({pickup: pick, zone: pick.value.zone, lastSelected: last, viewport: viewport, stuff: newStuff, stuff_type: newStuffType});		
 		}
     }
 
-    selectPickupCurry = (pick) => () => this.selectPickup(pick)
+    selectPickupCurry = (pick) => {
+    	if(pick.value.name === "MapStone")
+    		return () => this._onSelectZone({value: "Mapstone"}, false)
+    	else
+    		return () => this.selectPickup(pick)
+	}
+
 
     place = (s, doFill = true) => {
     	let old_stuff = this.state.stuff;
@@ -239,10 +257,8 @@ class PlandoBuiler extends React.Component {
     	this.setState(prevState => {
 	    	let oldplc = prevState.placements;
 			let plc = Object.assign(newplc, oldplc);
-    		return {placements: plc}
+    		return {placements: plc, seedFlags: lines[0]}
 		}, () => this._updateReachable(15));
-
-		this._onSeedFlags(lines[0]);
 	}
 
 	downloadSeed = () => {
@@ -250,7 +266,6 @@ class PlandoBuiler extends React.Component {
 		let locs = Object.keys(picks_by_loc)
 		let toFill = []
 		let {HC, EC, AC, KS, MS, EX} = this.state.fill_opts
-		console.out(HC, EC, AC, KS, MS, EX);
 		locs.forEach((loc) => {
 			if(this.state.placements.hasOwnProperty(loc)) 
 				outLines.push(loc+"|"+this.state.placements[loc].value+"|"+picks_by_loc[loc].zone);
@@ -454,15 +469,14 @@ class PlandoBuiler extends React.Component {
 			</td></tr>
 			);
 		}
-		
 		return (
 		<table style={{width: '100%'}}><tbody>
-			<tr><td style={{width: '80%'}}>
+			<tr><td style={{width: 'available'}}>
 		        <Map crs={crs} onViewportChanged={this.onViewportChanged} viewport={this.state.viewport}>
 					<TileLayer url=' https://ori-tracker.firebaseapp.com/images/ori-map/{z}/{x}/{y}.png' noWrap='true'  />
 					{pickup_markers}
 			     </Map></td>
-			<td style={{width: '20%'}}>
+			<td style={{width: '350px'}}>
 				<table style={{width: '100%'}}><tbody>
 					<tr style={{width: '100%'}}><td>
 						<p>Import a seed by pasting it here</p>
@@ -493,7 +507,7 @@ class PlandoBuiler extends React.Component {
 							<tr><td style={{width: '90px'}}>
 								<label>Pickup Type: </label>
 							</td><td>
-								<Select options={stuff_types} onChange={this._onSelectStuffType} clearable={false} value={this.state.stuff_type} label={this.state.stuff_type}></Select>
+								<Select options={stuff_types} style={{maxHeight: "1000px"}} onChange={this._onSelectStuffType} clearable={false} value={this.state.stuff_type} label={this.state.stuff_type}></Select>
 							</td></tr>
 						</tbody></table>
 					</td></tr>
@@ -571,9 +585,9 @@ class PlandoBuiler extends React.Component {
 						<table style={{width: '100%'}}><tbody>
 							<RadioGroup name="logic_mode" selectedValue={this.state.logicMode} onChange={this.logicModeChanged}>
 								<tr style={{width: '100%'}}><td>
-							        <label style={{width: '100%'}}><Radio value="auto"/>Auto</label>
+							        <label><Radio value="auto"/>Auto</label>
 							    </td><td>
-							        <label style={{width: '100%'}}><Radio value="manual"/>Manual</label>
+							        <label><Radio value="manual"/>Manual</label>
 						     	</td></tr>
 					       	</RadioGroup>
 						</tbody></table>
