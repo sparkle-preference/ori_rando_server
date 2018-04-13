@@ -256,6 +256,8 @@ def url_from_share(share_types):
 	"+".fold(rev_map[type] for type in share_types)
 
 coord_correction_map = {
+	679620: 719620,
+	-4600020: -4560020,
 	-520160: -560160,
 	-4600020: -4199936,
 	8599908: 8599904,

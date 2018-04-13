@@ -165,6 +165,7 @@ class SeedGenerator(webapp2.RequestHandler):
 		urlargs.append("pc=%s" % playercount)
 		urlargs.append("pd=%s" % pathdiff)
 		urlargs.append("shr=%s" % "+".join(share_types))
+		urlargs.append("sym=%s" % syncmode)
 		urlargs.append("gid=%s" % game_id)
 		for flg in ["dk", "ev", "sk", "rb", "tp", "hot"]:
 			if self.request.get(flg):
@@ -188,6 +189,7 @@ class SeedDownloader(webapp2.RequestHandler):
 		mode = params['m']
 		variations = params['vars'].split("|")
 		logic_paths = params['lps'].split("|")
+		syncmode = params["sym"]
 		seed = params['s']
 		playercount = int(params['pc'])
 		pathdiff = params['pd']
@@ -198,7 +200,7 @@ class SeedDownloader(webapp2.RequestHandler):
 			pathdiff = None
 		varFlags = {"starved":"starved", "hardmode":"hard","ohko":"OHKO","0xp":"0XP","nobonus":"NoBonus","noplants": "NoPlants", "forcetrees" : "ForceTrees", "discmaps" : "NonProgressMapStones",  "notp" : "NoTeleporters"}
 		share_types = params['shr']
-		flags = ["Custom", "shared=%s" % share_types.replace(" ", "+")]
+		flags = ["Custom", "shared=%s" % share_types.replace(" ", "+"),"mode=%s" % syncmode]
 		if mode != "default":
 			flags.append(mode)
 		if pathdiff:

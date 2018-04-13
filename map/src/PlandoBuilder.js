@@ -264,6 +264,7 @@ class PlandoBuiler extends React.Component {
 	downloadSeed = () => {
 		let outLines = [this.state.seedFlags, "-280256|EC|1|Glades", "-1680104|EX|100|Grove", "-12320248|EX|100|Forlorn", "-10440008|EX|100|Misty"]
 		let locs = Object.keys(picks_by_loc)
+		console.log(locs)
 		let toFill = []
 		let {HC, EC, AC, KS, MS, EX} = this.state.fill_opts
 		locs.forEach((loc) => {
@@ -271,30 +272,33 @@ class PlandoBuiler extends React.Component {
 				outLines.push(loc+"|"+this.state.placements[loc].value+"|"+picks_by_loc[loc].zone);
 			else
 				toFill.push(loc);
+				
 		});
+		console.log(toFill);
 		shuffle(toFill);
 		toFill.forEach((loc) => {
 			if(HC > 0) {
 				HC -= 1;
 				outLines.push(loc+"|HC|1|"+picks_by_loc[loc].zone);				
 			}						
-			if(EC > 0) {
+			else if(EC > 0) {
 				EC -= 1;
 				outLines.push(loc+"|EC|1|"+picks_by_loc[loc].zone);				
-			}						
-			if(AC > 0) {
+			}				
+			else if(AC > 0) {
 				AC -= 1;
 				outLines.push(loc+"|AC|1|"+picks_by_loc[loc].zone);				
 			}						
-			if(KS > 0) {
+			else if(KS > 0) {
 				KS -= 1;
 				outLines.push(loc+"|KS|1|"+picks_by_loc[loc].zone);				
 			}						
-			if(MS > 0) {
+			else if(MS > 0) {
 				MS -= 1;
 				outLines.push(loc+"|MS|1|"+picks_by_loc[loc].zone);				
 			}
-			outLines.push(loc+"|EX|"+ Math.floor(Math.random() * EX)+"|"+picks_by_loc[loc].zone);				
+			else
+				outLines.push(loc+"|EX|"+ Math.floor(Math.random() * (EX-1) + 1)+"|"+picks_by_loc[loc].zone);				
 		});
 		download('randomizer.dat', outLines.join("\n")); 	
 
