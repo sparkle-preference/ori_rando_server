@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from protorpc import messages
 from google.appengine.ext import ndb
 from google.appengine.ext.ndb import msgprop
-from seedbuilder.generator import placeItems
+from seedbuilder.generator import setSeedAndPlaceItems
 from seedbuilder.splitter import split_seed
 from operator import attrgetter
 from google.appengine.ext.webapp import template
@@ -195,7 +195,6 @@ class SeedDownloader(webapp2.RequestHandler):
 		pathdiff = params['pd']
 		player = params['p']
 		game_id = int(params['gid'])
-		seed_num = sum([ord(c) * i for c,i in zip(seed, range(len(seed)))])
 		if pathdiff == "normal":
 			pathdiff = None
 		varFlags = {"starved":"starved", "hardmode":"hard","ohko":"OHKO","0xp":"0XP","nobonus":"NoBonus","noplants": "NoPlants", "forcetrees" : "ForceTrees", "discmaps" : "NonProgressMapStones",  "notp" : "NoTeleporters"}
@@ -210,7 +209,7 @@ class SeedDownloader(webapp2.RequestHandler):
 
 		flag = ",".join(flags)
 		out = ""
-		placement = placeItems(seed, 10000,
+		placement = setSeedAndPlaceItems(seed, 10000,
 				"hardmode" in variations,
 				"noplants" not in variations,
 				mode == "shards",

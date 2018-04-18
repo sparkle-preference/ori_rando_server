@@ -108,9 +108,9 @@ function getLocInfo(pick, players) {
 
 	let info = Object.keys(players).map((id) => {
 		let show_spoiler = players[id].flags.includes("show_spoiler");
-		let seen = players[id].seen.includes(loc) || players[id].mapstones.seen.includes(pick.loc);
+		let mapstones =  players[id].mapstones
+		let seen = players[id].seen.includes(loc) || mapstones.seen.includes(pick.loc);
 		if(isMs) {
-			let mapstones =  players[id].mapstones
 			if(seen)
 				return id + ":" + mapstones.foundAt[pick.loc] + (show_spoiler ? "*" : "");
 			else if(show_spoiler)
@@ -245,8 +245,8 @@ class GameTracker extends React.Component {
 	this.setState((prevState, props) => {
 		let newPlayers = this.state.players;
 	  	Object.keys(newPlayers).map((id) => {
-	  		let player = newPlayers[id]
-	  		let mapstones = player.mapstones;
+	  		let player = {...newPlayers[id]}
+	  		let mapstones = player.mapstones
 	  		let nextMapstoneId = mapstones.turnedIn*4+24;
 	  		if(player.seen.includes(nextMapstoneId)) {
 	  			let min_dist = 99999;
@@ -262,7 +262,6 @@ class GameTracker extends React.Component {
 		  				}
 	  				}
 	  			});
-	//  			if(min_dist > 150)
 				if(closest_ms) {
 					mapstones.seen.push(closest_ms.loc)
 					mapstones.foundAt[closest_ms.loc] = mapstones.picks[mapstones.turnedIn]
@@ -270,6 +269,7 @@ class GameTracker extends React.Component {
 				}
 			}
 			mapstones.pos = player.pos;
+			newPlayers[id] = player
 	  	});
 	  	return {players: newPlayers};
   	})

@@ -4,15 +4,17 @@ import xml.etree.ElementTree as XML
 import argparse
 from collections import OrderedDict
 
-#A custom implementation of a Mersenne Twister
-#(since javascript hates everything)
-#https://en.wikipedia.org/wiki/Mersenne_Twister
-class Random:
+def seed_hash(seed):
+    value = 0
+    for index in range(len(seed)):
+        value = (value << 5) - value + ord(seed[index])
+    return 0xFFFFFFFF & value
 
+class Random:
     def seed(self, seed):
         self.index = 624
         self.mt = [0] * 624
-        self.mt[0] = hash(seed)
+        self.mt[0] = seed_hash(seed)
         for i in range(1, 624):
             self.mt[i] = int(0xFFFFFFFF & (1812433253 * (self.mt[i - 1] ^ self.mt[i - 1] >> 30) + i))
 
@@ -44,7 +46,7 @@ class Random:
 
         self.index = self.index + 1
 
-        return int(0xFFFFFFFF & y) / float(0x100000000)
+        return int(0x7FFFFFFF & y) / float(0x80000000)
 
     def randrange(self, length):
         return int(self.random() * length)
@@ -59,7 +61,6 @@ class Random:
         original = list(items)
         for i in range(len(items)):
             items[i] = original.pop(self.randrange(len(original)))
-
 class Area:
 
     def __init__(self, name):
@@ -196,6 +197,10 @@ def open_free_connections():
     # python 3 wont allow concurrent changes
     # list(areasReached.keys()) is a copy of the original list
     for area in list(areasReached.keys()):
+        if area not in areas:
+            print areasReached.keys()
+            print areas
+            print "panic?"
         for connection in areas[area].get_connections():
             cost = connection.cost()
             if cost[0] <= 0:
@@ -437,6 +442,12 @@ def preferred_difficulty_assign(item, locationsToAssign):
             break
     del locationsToAssign[i]
 
+def setSeedAndPlaceItems(seed, expPool, hardMode, includePlants, shardsMode, limitkeysMode, cluesMode, noTeleporters, doLocAnalysis, doSkillOrderAnalysis, modes, flags, starvedMode, preferPathDifficulty, setNonProgressiveMapstones):
+    global random
+    random = Random()
+    random.seed(seed)
+    return placeItems(seed, expPool, hardMode, includePlants, shardsMode, limitkeysMode, cluesMode, noTeleporters, doLocAnalysis, doSkillOrderAnalysis, modes, flags, starvedMode, preferPathDifficulty, setNonProgressiveMapstones)
+	
 def placeItems(seed, expPool, hardMode, includePlants, shardsMode, limitkeysMode, cluesMode, noTeleporters, doLocAnalysis, doSkillOrderAnalysis, modes, flags, starvedMode, preferPathDifficulty, setNonProgressiveMapstones):
 
     global costs
@@ -468,10 +479,7 @@ def placeItems(seed, expPool, hardMode, includePlants, shardsMode, limitkeysMode
     global locationAnalysis
     global locationAnalysisCopy
     global doLocationAnalysis
-    global random
     
-    random = Random()
-    random.seed(seed)
     shards = shardsMode
     limitkeys = limitkeysMode
     clues = cluesMode
@@ -970,197 +978,6 @@ def placeItems(seed, expPool, hardMode, includePlants, shardsMode, limitkeysMode
     for event in eventList:
         outputStr += event
 
-    if doLocationAnalysis:
-        locationAnalysis = locationAnalysisCopy
 
     return (outputStr, spoilerStr)
 
-def main():
-
-    global random
-
-    random = Random()
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--preset", help="Choose a preset group of paths for the generator to use", choices=["casual", "standard", "expert", "master", "hard", "ohko", "0xp", "glitched"])
-    parser.add_argument("--custom-logic", help="Customize paths that the generator will use, comma-separated: normal,speed,dbash,extended,extended-damage,lure,speed-lure,lure-hard,dboost,dboost-light,dboost-hard,cdash,cdash-farming,extreme,timed-level,glitched")
-    parser.add_argument("--seed", help="Seed number (default 1)", type=int, default=1)
-    parser.add_argument("--count", help="Number of seeds to generate (default 1)", type=int, default=1)
-    parser.add_argument("--hard", help="Enable hard mode", action="store_true")
-    parser.add_argument("--ohko", help="Enable one-hit-ko mode", action="store_true")
-    parser.add_argument("--zeroxp", help="Enable 0xp mode", action="store_true")
-    parser.add_argument("--nobonus", help="Remove bonus powerups from the item pool", action="store_true")
-    parser.add_argument("--noplants", help="Ignore petrified plants when assigning items", action="store_true")
-    parser.add_argument("--starved", help="Reduces the rate at which skills will appear when not required to advance", action="store_true")
-    parser.add_argument("--shards", help="The Water Vein, Gumon Seal, and Sunstone will be awarded after 3/5 shards are found", action="store_true")
-    parser.add_argument("--limitkeys", help="The Water Vein, Gumon Seal, and Sunstone will only appear at skill trees or event sources", action="store_true")
-    parser.add_argument("--clues", help="For each 3 trees visited, the location of a random dungeon key will be revealed", action="store_true")
-    parser.add_argument("--non-progressive-mapstones", help="Map Stones will retain their behaviour from before v1.2, having their own unique drops", action="store_true")
-    parser.add_argument("--force-trees", help="Prevent Ori from entering the final escape room until all skill trees have been visited", action="store_true");
-    parser.add_argument("--exp-pool", help="Size of the experience pool (default 10000)", type=int, default=10000)
-    parser.add_argument("--prefer-path-difficulty", help="Increase the chances of putting items in more convenient (easy) or less convenient (hard) locations", choices=["easy", "hard"])
-    parser.add_argument("--no-teleporters", help="Remove teleporter activation pickups from the pool", action="store_true")
-    parser.add_argument("--analysis", help="Report stats on the skill order for all seeds generated", action="store_true")
-    parser.add_argument("--loc-analysis", help="Report stats on where skills are placed over multiple seeds", action="store_true")
-
-    args = parser.parse_args()
-
-    includePlants = not args.noplants
-
-    presets = {
-        "casual": ["normal", "dboost-light"],
-        "standard": ["normal", "speed", "lure", "dboost-light"],
-        "dboost": ["normal", "speed", "lure", "dboost", "dboost-light"],
-        "expert": ["normal", "speed", "lure", "speed-lure", "dboost", "dboost-light", "cdash", "extended", "extended-damage"],
-        "master": ["normal", "speed", "lure", "speed-lure", "dboost", "dboost-light", "dboost-hard", "cdash", "dbash", "extended", "extended-damage", "lure-hard", "extreme"],
-        "hard": ["normal", "speed", "lure",  "dboost-light", "cdash", "dbash", "extended"],
-        "ohko": ["normal", "speed", "lure", "cdash", "dbash", "extended"],
-        "0xp": ["normal", "speed", "lure", "dboost-light"],
-        "glitched": ["normal", "speed", "lure", "speed-lure", "dboost", "dboost-light", "dboost-hard", "cdash", "dbash", "extended", "lure-hard", "timed-level", "glitched", "extended-damage", "extreme"]
-    }
-
-    if args.preset:
-        mode = args.preset
-        modes = presets[args.preset]
-    if args.custom_logic:
-        mode = "custom"
-        modes = args.custom_logic.split(',')
-
-    flags = ""
-    flags += mode + ","
-    if args.limitkeys:
-        flags += "limitkeys,"
-    if args.shards:
-        flags += "shards,"
-    if args.clues:
-        flags += "clues,"
-    if args.starved:
-        flags += "starved,"
-    if args.prefer_path_difficulty:
-        flags += "prefer_path_difficulty=" + args.prefer_path_difficulty + ","
-    if args.hard:
-        flags += "hard,"
-    if args.ohko:
-        flags += "OHKO,"
-    if args.zeroxp:
-        flags += "0XP,"
-    if args.nobonus:
-        flags += "NoBonus,"
-    if args.noplants:
-        flags += "NoPlants,"
-    if args.force_trees:
-        flags += "ForceTrees,"
-    if args.non_progressive_mapstones:
-        flags += "NonProgressMapStones,"
-    if args.no_teleporters:
-        flags += "NoTeleporters,"
-
-    flags = flags[:-1]
-
-    global skillAnalysis
-    global itemsToAnalyze
-    global locationAnalysis
-
-    skillAnalysis = {
-        "WallJump": 0,
-        "ChargeFlame": 0,
-        "DoubleJump": 0,
-        "Bash": 0,
-        "Stomp": 0,
-        "Glide": 0,
-        "Climb": 0,
-        "ChargeJump": 0,
-        "Dash": 0,
-        "Grenade": 0
-    }
-
-    itemsToAnalyze = {
-        "WallJump": 0,
-        "ChargeFlame": 0,
-        "DoubleJump": 0,
-        "Bash": 0,
-        "Stomp": 0,
-        "Glide": 0,
-        "Climb": 0,
-        "ChargeJump": 0,
-        "Dash": 0,
-        "Grenade": 0,
-        "GinsoKey": 0,
-        "ForlornKey": 0,
-        "HoruKey": 0,
-        "Water": 0,
-        "Wind": 0,
-        "WaterVeinShard": 0,
-        "GumonSealShard": 0,
-        "SunstoneShard": 0,
-        "TPForlorn": 0,
-        "TPGrotto": 0,
-        "TPSorrow": 0,
-        "TPGrove": 0,
-        "TPSwamp": 0,
-        "TPValley": 0
-    }
-
-    locationAnalysis = {}
-    for i in range(1,10):
-        locationAnalysis["MapStone " + str(i)] = itemsToAnalyze.copy()
-
-    for seedOffset in range(0, args.count):
-
-        seed = args.seed + seedOffset
-
-        placement = placeItems(seed, args.exp_pool, args.hard, includePlants, args.shards, args.limitkeys, args.clues, args.no_teleporters, args.loc_analysis, args.analysis, modes, flags, args.starved, args.prefer_path_difficulty, args.non_progressive_mapstones)
-
-        if not args.analysis and not args.loc_analysis:
-            output = open("randomizer_" + mode + str(seed) + ".dat", 'w')
-            output.write(placement[0])
-            output.close()
-
-            spoiler = open("spoiler_" + mode + str(seed) + ".txt", 'w')
-            spoiler.write(placement[1])
-            spoiler.close()
-
-    if args.analysis:
-        print(skillAnalysis["WallJump"])
-        print(skillAnalysis["ChargeFlame"])
-        print(skillAnalysis["DoubleJump"])
-        print(skillAnalysis["Bash"])
-        print(skillAnalysis["Stomp"])
-        print(skillAnalysis["Glide"])
-        print(skillAnalysis["Climb"])
-        print(skillAnalysis["ChargeJump"])
-        print(skillAnalysis["Dash"])
-        print(skillAnalysis["Grenade"])
-
-    if args.loc_analysis:
-        print("location,WallJump,ChargeFlame,DoubleJump,Bash,Stomp,Glide,Climb,ChargeJump,Dash,Grenade,GinsoKey,ForlornKey,HoruKey,Water,Wind,WaterVeinShard,GumonSealShard,SunstoneShard,TPForlorn,TPGrotto,TPSorrow,TPGrove,TPSwamp,TPValley")
-        for key in locationAnalysis.keys():
-            line = key + ","
-            line += str(locationAnalysis[key]["WallJump"]) + ","
-            line += str(locationAnalysis[key]["ChargeFlame"]) + ","
-            line += str(locationAnalysis[key]["DoubleJump"]) + ","
-            line += str(locationAnalysis[key]["Bash"]) + ","
-            line += str(locationAnalysis[key]["Stomp"]) + ","
-            line += str(locationAnalysis[key]["Glide"]) + ","
-            line += str(locationAnalysis[key]["Climb"]) + ","
-            line += str(locationAnalysis[key]["ChargeJump"]) + ","
-            line += str(locationAnalysis[key]["Dash"]) + ","
-            line += str(locationAnalysis[key]["Grenade"]) + ","
-            line += str(locationAnalysis[key]["GinsoKey"]) + ","
-            line += str(locationAnalysis[key]["ForlornKey"]) + ","
-            line += str(locationAnalysis[key]["HoruKey"]) + ","
-            line += str(locationAnalysis[key]["Water"]) + ","
-            line += str(locationAnalysis[key]["Wind"]) + ","
-            line += str(locationAnalysis[key]["WaterVeinShard"]) + ","
-            line += str(locationAnalysis[key]["GumonSealShard"]) + ","
-            line += str(locationAnalysis[key]["SunstoneShard"]) + ","
-            line += str(locationAnalysis[key]["TPForlorn"]) + ","
-            line += str(locationAnalysis[key]["TPGrotto"]) + ","
-            line += str(locationAnalysis[key]["TPSorrow"]) + ","
-            line += str(locationAnalysis[key]["TPGrove"]) + ","
-            line += str(locationAnalysis[key]["TPSwamp"]) + ","
-            line += str(locationAnalysis[key]["TPValley"])
-            print(line)
-
-if __name__ == "__main__":
-    main()
