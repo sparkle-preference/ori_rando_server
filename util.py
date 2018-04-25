@@ -4,12 +4,13 @@ from google.appengine.ext import ndb
 from google.appengine.ext.ndb import msgprop
 from datetime import datetime, timedelta
 
-
 class GameMode(messages.Enum):
 	SHARED = 1
 	SWAPPED = 2				#not implemented, needs client work
 	SPLITSHARDS = 3
 	SIMUSOLO = 4
+
+DEDUP_MODES = [GameMode.SHARED, GameMode.SPLITSHARDS, GameMode.SWAPPED]
 
 class ShareType(messages.Enum):
 	NOT_SHARED = 1
@@ -20,71 +21,35 @@ class ShareType(messages.Enum):
 	TELEPORTER = 6
 
 class Cache(object):
-	WRITE_EVERY = 5
-	NONE_STALE = 300
-	s = {}
-	@staticmethod
-	def id(korid):
-		try:
-			return str(korid.id())
-		except:
-			return str(korid)
+	pos = {}
+	hist = {}
 
 	@staticmethod
-	def get(key):
-		id = Cache.id(key)
-		if id in Cache.s:
-			v, none_reads = Cache.s[id]
-			if v:
-				return v
-			elif none_reads < 0:
-				Cache.s[id] = (v, none_reads+1)
-				return None
-
-		if "." in id:
-			v = Player.get_by_id(id)
-		else:
-			v = Game.get_by_id(id)
-		Cache.s[id] = (v, -Cache.NONE_STALE)
-		return v
+	def getHist(gid):
+		gid = int(gid)
+		return Cache.hist[gid] if gid in Cache.hist else None
 
 	@staticmethod
-	def delete(korv):
-		try:
-			key = korv.key
-		except:
-			key = korv
-		id = Cache.id(key)
-		key.delete()
-		if Cache.has(id):
-			del Cache.s[id]
-		
-	@staticmethod
-	def has(key):
-		return Cache.id(key) in Cache.s	
+	def setHist(gid, pid, hist):
+		gid = int(gid)
+		pid = int(pid)
+		newHists = Cache.hist[gid] if gid in Cache.hist else {}
+		newHists[pid] = hist
+		Cache.hist[gid] = newHists
 
 	@staticmethod
-	def put(value, force=False):
-		try:
-			key = value.key
-			id = Cache.id(key)
-			if Cache.has(id):
-				_, writes = Cache.s[id]
-				if force or writes >= Cache.WRITE_EVERY:
-					value.put()
-					Cache.s[id] = (value, 0)
-				else:
-					Cache.s[id] = (value, writes+1)
-			else:
-				key = value.put()
-				id = Cache.id(key)
-				Cache.s[id] = (value, 0)
-		except:
-			key = value.put()
-			id = Cache.id(key)
-			Cache.s[id] = (value, 0)
-		return key
+	def getPos(gid):
+		gid = int(gid)
+		return Cache.pos[gid] if gid in Cache.pos else None
 
+	@staticmethod
+	def setPos(gid, pid, x, y):
+		gid = int(gid)
+		pid = int(pid)
+		newPos = Cache.pos[gid] if gid in Cache.pos else {}
+		newPos[pid] = (x,y)
+		Cache.pos[gid] = newPos
+	
 class HistoryLine(ndb.Model):
 	pickup_code = ndb.StringProperty()
 	pickup_id = ndb.StringProperty()
@@ -112,29 +77,20 @@ class Player(ndb.Model):
 	teleporters = ndb.IntegerProperty()
 	seed =    ndb.TextProperty()
 	signals = ndb.StringProperty(repeated=True)
-	pos_x = ndb.FloatProperty(default=189.0)
-	pos_y = ndb.FloatProperty(default=-219.0)
 	history = ndb.StructuredProperty(HistoryLine, repeated=True)
 	bitfields = ndb.ComputedProperty(lambda p: ",".join([str(x) for x in [p.skills,p.events,p.upgrades,p.teleporters]+(["|".join(p.signals)] if p.signals else [])]))
 	
-	def update_pos(self, x, y):
-		if x == self.pos_x and y == self.pos_y:
-			return True
-		self.pos_x = float(x)
-		self.pos_y = float(y)
-		Cache.put(self)
-	
 	def signal_send(self, signal):
 		self.signals.append(signal)
-		Cache.put(self)
+		self.put()
 	
 	def signal_conf(self, signal):
 		self.signals.remove(signal)
-		Cache.put(self, force=True)
+		self.put()
 				
 
 class Game(ndb.Model):
-	# id = Sync ID
+	# id = Sync ID	
 	DEFAULT_SHARED = [ShareType.DUNGEON_KEY, ShareType.SKILL, ShareType.UPGRADE, ShareType.EVENT, ShareType.TELEPORTER]
 	mode = msgprop.EnumProperty(GameMode, required=True)
 	shared = msgprop.EnumProperty(ShareType, repeated=True)
@@ -144,7 +100,7 @@ class Game(ndb.Model):
 	def summary(self):
 		out_lines = ["%s (%s)" %( self.mode, ",".join([s.name for s in self.shared]))]
 		if self.mode in [GameMode.SHARED, GameMode.SIMUSOLO] and len(self.players):
-			src = Cache.get(self.players[0])
+			src = self.players[0].get()
 			for (field, cls) in [("skills", Skill), ("upgrades", Upgrade), ("teleporters", Teleporter), ("events",Event)]:
 				bitmap = getattr(src,field)
 				names = []
@@ -160,71 +116,79 @@ class Game(ndb.Model):
 		return "\n\t"+"\n\t".join(out_lines)
 	
 	def get_players(self):
-		return [Cache.get(p) for p in self.players]
+		return [p.get() for p in self.players]
 
 	def remove_player(self, key):
 		key = ndb.Key(Player, key)
 		self.players.remove(key)
-		Cache.put(self, force=True)
-		Cache.delete(key)
+		key.delete()
+		self.put()
 
 	def player(self, pid):
-		key = "%s.%s" % (self.key.id(), pid)
-		if not Cache.has(key):
+		full_pid = "%s.%s" % (self.key.id(), pid)
+		player = Player.get_by_id(full_pid)
+		if not player:
 			if(self.mode == GameMode.SHARED and len(self.players)):
-				src = Cache.get(self.players[0].id())
-				player = Player(id=key, skills = src.skills, events = src.events, upgrades = src.upgrades, teleporters = src.teleporters, history=[], signals=[])
+				src = self.players[0].get()
+				player = Player(id=full_pid, skills = src.skills, events = src.events, upgrades = src.upgrades, teleporters = src.teleporters, history=[], signals=[])
 			else:
-				player = Player(id=key, skills = 0, events=0, upgrades = 0, teleporters = 0, history=[])
-			k = Cache.put(player)
+				player = Player(id=full_pid, skills = 0, events=0, upgrades = 0, teleporters = 0, history=[])
+			k = player.put()
+			Cache.setHist(self.key.id(), pid, [])
 			if k not in self.players:
-				# weird things can happen... lmao
 				self.players.append(k)
-			Cache.put(self, force=True)
-		
-		return Cache.get(key)
+				self.put()
+		return player
 
-	def found_pickup(self, finder, pickup, coords, remove=False):
+	def found_pickup(self, pid, pickup, coords, remove, dedup):
 		retcode = 200
-		found_player = self.player(finder)
-		if (pickup.share_type not in self.shared):
-			retcode = 406
-		elif (self.mode == GameMode.SHARED):
-			for player in self.get_players():
-				for (field, cls) in [("skills", Skill), ("upgrades", Upgrade), ("teleporters", Teleporter), ("events",Event)]:
-					if isinstance(pickup, cls):
-						if pickup.stacks:
-							setattr(player,field,inc_stackable(getattr(player,field), pickup.bit, remove))
-						else:
-							setattr(player,field,add_single(getattr(player,field), pickup.bit, remove))
-						Cache.put(player)
+		share = pickup.share_type in self.shared
+		finder = self.player(pid)
+		if share and dedup and coords in [h.coords for h in finder.history]:
+			retcode = 410
+			print "ERROR: Duplicate pickup at location %s from player %s" % (coords,  pid)
+		elif self.mode == GameMode.SHARED:
+			if not share:
+				retcode = 406
+			else:
+				for player in self.get_players():
+					for (field, cls) in [("skills", Skill), ("upgrades", Upgrade), ("teleporters", Teleporter), ("events",Event)]:
+						if isinstance(pickup, cls):
+							if pickup.stacks:
+								setattr(player,field,inc_stackable(getattr(player,field), pickup.bit, remove))
+							else:
+								setattr(player,field,add_single(getattr(player,field), pickup.bit, remove))
+							player.put()
 		elif self.mode == GameMode.SPLITSHARDS:
-			shard_locs = [h.coords for player in self.players for h in player.get().history if h.pickup_code == "RB" and h.pickup_id in ["17", "19", "21"]]
-			if coords in shard_locs:
-				retcode = 410
-		elif (self.mode == GameMode.SIMUSOLO):
-			found_player.history.append(HistoryLine(pickup_code = pickup.code, timestamp = datetime.now(), pickup_id = str(pickup.id), coords = coords, removed = remove))
-			Cache.put(found_player)
-			return 200
+			if pickup.code != "RB" or pickup.id not in [17, 19, 21]:
+				retcode = 406
+			else:
+				my_shards = len([h.coords for h in finder.history if h.pickup_code == "RB" and int(h.pickup_id) == pickup.id])
+				if my_shards < 3:
+					shard_locs = [h.coords for player in self.players for h in player.get().history if h.pickup_code == "RB" and h.pickup_id in ["17", "19", "21"]]
+					if coords in shard_locs:
+						retcode = 410
+		elif self.mode == GameMode.SIMUSOLO:
+			pass
 		else:
-			print "game mode not implemented"
+			print "ERROR: game mode %s not implemented" % self.mode
 			retcode = 404
 		if retcode != 410: #410 GONE aka "haha nope"
-			found_player.history.append(HistoryLine(pickup_code = pickup.code, timestamp = datetime.now(), pickup_id = str(pickup.id), coords = coords, removed = remove))
-			Cache.put(found_player)
+			finder.history.append(HistoryLine(pickup_code = pickup.code, timestamp = datetime.now(), pickup_id = str(pickup.id), coords = coords, removed = remove))
+			finder.put()
+			Cache.setHist(self.key.id(), pid, finder.history)
 		return retcode
 
 def delete_game(game):
-	"""Expects game, NOT game id"""
-	[Cache.delete(p) for p in game.players]
-	Cache.delete(game)
+	[p.delete() for p in game.players]
+	game.key.delete()
 
 def clean_old_games():
 	old = [game for game in Game.query(Game.last_update < datetime.now() - timedelta(hours=12))]
 	return len([delete_game(game) for game in old])
 	
 def get_new_game(_mode = None, _shared = None, id=None):
-	shared = [share_from_url(i) for i in _shared] if _shared else Game.DEFAULT_SHARED
+	shared = [share_map[i] for i in _shared if i in share_map] if _shared else Game.DEFAULT_SHARED
 	mode = GameMode(int(_mode)) if _mode else GameMode.SHARED
 	if not id:
 		id = 1
@@ -235,8 +199,7 @@ def get_new_game(_mode = None, _shared = None, id=None):
 			clean_old_games()
 
 	game_id = id
-	game = Game(id = str(game_id), players=[], shared=shared, mode=mode)
-	key = Cache.put(game, force=True)
+	game = Game(id = game_id, players=[], shared=shared, mode=mode)
 	return game
 
 share_map = {
@@ -249,17 +212,14 @@ share_map = {
 rev_map = {v:k for k,v in share_map.iteritems()}
 
 
-def share_from_url(s):
-	return share_map[s]
-
 def url_from_share(share_types):
 	"+".fold(rev_map[type] for type in share_types)
 
 coord_correction_map = {
 	679620: 719620,
-	-4600020: -4560020,
+	-4560020: -4600020,
 	-520160: -560160,
-	-4600020: -4199936,
+	-4199936: -4600020,
 	8599908: 8599904,
 	2959744: 2919744, 
 }

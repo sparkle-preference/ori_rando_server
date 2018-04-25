@@ -9,27 +9,9 @@ class PlayerState(object):
 		("TP","Swamp"): 'TPSwamp', ("TP","Grove"): 'TPGrove', ("TP","Valley"): 'TPValley', 
 		("TP","Grotto"): 'TPGrotto', ("TP","Forlorn"): 'TPForlorn', ("TP","Sorrow"): 'TPSorrow' 
 	}
-	def __init__(self):
+	def __init__(self, pickinfos):
 		self.has = Counter()
 		self.has["HC"] = 3
-
-	@staticmethod
-	def from_player(player):
-		inst = PlayerState()
-		inst.build_from_codes([(h.pickup_code, h.pickup_id, h.removed) for h in player.history])
-		return inst
-
-
-	@staticmethod
-	def from_codes(codes):
-		inst = PlayerState()
-		inst.has["EC"] = 1
-		inst.build_from_codes(codes)
-		return inst
-
-
-
-	def build_from_codes(self, pickinfos):
 		wv = ss = gs = 0
 		for code,id,removed in pickinfos:
 			if code in ["EX", "AC"]:

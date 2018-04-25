@@ -12,14 +12,14 @@ from seedbuilder.generator import setSeedAndPlaceItems
 from seedbuilder.splitter import split_seed
 from operator import attrgetter
 from google.appengine.ext.webapp import template
-from util import (GameMode, ShareType, Pickup, Skill, Event, Teleporter, Upgrade, share_from_url, share_map, special_coords, get_bit, get_taste, add_single,
-				 inc_stackable, get, unpack, coord_correction_map, Cache, HistoryLine, Player, Game, delete_game, get_new_game, clean_old_games, all_locs)
+from util import (GameMode, ShareType, Pickup, Skill, Event, Teleporter, Upgrade, share_map, special_coords, get_bit, get_taste, add_single,
+				 DEDUP_MODES, get, unpack, coord_correction_map, Cache, HistoryLine, Player, Game, delete_game, get_new_game, clean_old_games, all_locs)
 
 from reachable import Map, PlayerState
 
 base_site = "http://orirandocoopserver.appspot.com"
 LAST_DLL = "Mar 27, 2018"
-PLANDO_VER = "0.0.8"
+PLANDO_VER = "0.1.0"
 
 
 def paramFlag(s,f):
@@ -33,7 +33,7 @@ class GetGameId(webapp2.RequestHandler):
 		self.response.status = 200
 		shared = paramVal(self, 'shared')
 		if shared:
-			shared = shared.split(" ")
+			shared = [s for s in shared.split(" ") if s]
 		id = paramVal(self, 'id')
 		if "." in id:
 			id = id.partition(".")[0]
@@ -51,8 +51,8 @@ class DeleteGame(webapp2.RequestHandler):
 		if int(game_id) < 1000:
 			self.response.status = 403
 			self.response.write("No.")
-		elif Cache.has(game_id):
-			game = Cache.get(game_id)
+		game = Game.get_by_id(game_id)
+		if game:
 			delete_game(game)
 			self.response.status = 200
 			self.response.write("All according to daijobu")		
@@ -64,52 +64,53 @@ class DeleteGame(webapp2.RequestHandler):
 class ActiveGames(webapp2.RequestHandler):
 	def get(self):
 		self.response.headers['Content-Type'] = 'text/html'
-		self.response.write('<html><body><pre>Active games:\n' +
-			"\n".join(
-				["<a href='/%s/history'>Game #%s</a> (<a href='/%s/map'>(Map)</a>):\n\t%s (Last update: %s ago)" % (game.key.id(), game.key.id(), game.key.id(), game.summary(), datetime.now() - game.last_update) for game in sorted(Game.query(), key=lambda x:x.last_update, reverse=True)])+"</pre></body></html>")
+		games = Game.query().fetch()
+		if len(games):
+			self.response.write('<html><body><pre>Active games:\n' + "\n".join(["<a href='/%s/history'>Game #%s</a> (<a href='/%s/map'>(Map)</a>):\n\t%s (Last update: %s ago)" % (game.key.id(), game.key.id(), game.key.id(), game.summary(), datetime.now() - game.last_update) for game in sorted(games, key=lambda x:x.last_update, reverse=True)])+"</pre></body></html>")
+		else:
+			self.response.write('<html><body>No active games...</body></html>')
 
 
 class FoundPickup(webapp2.RequestHandler):
 	def get(self, game_id, player_id, coords, kind, id):
+		game = Game.get_by_id(game_id)
+		if not game:
+			self.response.status = 412
+			self.response.write(self.response.status)
+			return
+		
 		remove = paramFlag(self,"remove")
 		coords = int(coords)
 		if coords in coord_correction_map:
 			coords = coord_correction_map[coords]
 		if coords not in all_locs:
 			print "Coord mismatch error! %s not in all_locs or correction map. Sync %s.%s, pickup %s|%s" % (coords, game_id, player_id, kind, id)
-		game = Cache.get(game_id)
-		if not remove and not paramFlag(self, "override") and coords in [ h.coords for h in game.player(player_id).history]:
-			self.response.status = 410
-			self.response.write("Duplicate pickup at location %s from player %s" % (coords,  player_id))
-			return
+		dedup = not paramFlag(self, "override") and not remove and game.mode in DEDUP_MODES
 		pickup = Pickup.n(kind, id)
 		if not pickup:
+			print "ERROR: Couldn't build pickup %s|%s" % (kind, id)
 			self.response.status = 406
 			return
-		if paramFlag(self,"log_only"):
-			self.response.status = 200
-			self.response.write("logged")
-			return
-		self.response.status = game.found_pickup(player_id, pickup, coords, remove)
+		self.response.status = game.found_pickup(player_id, pickup, coords, remove, dedup)
 		self.response.write(self.response.status)
 
 class Update(webapp2.RequestHandler):
 	def get(self, game_id, player_id, x, y):
 		self.response.headers['Content-Type'] = 'text/plain'
-		game = Cache.get(game_id)
+		game = Game.get_by_id(game_id)
 		if not game:
 			self.response.status = 412
 			self.response.write(self.response.status)
 			return
 		p = game.player(player_id)
-		p.update_pos(x,y)
+		Cache.setPos(game_id, player_id, x, y)
 		self.response.write(p.bitfields)
 
 
 class ShowHistory(webapp2.RequestHandler):
 	def get(self, game_id):
 		self.response.headers['Content-Type'] = 'text/plain'
-		game = Cache.get(game_id)
+		game = Game.get_by_id(game_id)
 		output = game.summary()
 		output += "\nHistory:"
 		for hl,pid in sorted([(h,p.key.id().partition('.')[2]) for p in game.get_players() for h in p.history if h.pickup().share_type != ShareType.NOT_SHARED], key=lambda x: x[0].timestamp, reverse=True):
@@ -142,21 +143,20 @@ class SeedGenerator(webapp2.RequestHandler):
 			seed = str(random.randint(10000000,100000000))
 		if syncid:
 			syncid = int(syncid)
-			if Cache.has(syncid):
+			oldGame = Game.get_by_id(syncid)
+			if oldGame != None:
 				if syncid > 999:
-					if Cache.has(syncid):
-						game = Cache.get(syncid)
-						delete_game(game)				
+					delete_game(oldGame)				
 					game_id = get_new_game(_mode=syncmode, _shared=share_types, id=syncid).key.id()
 				else:
 					self.response.status = 405
 					self.response.write("Seed ID in use! Leave blank or pick a different number.")
-					return				
-		if not game_id:
-			if syncid:
-				game_id = get_new_game(_mode=syncmode, _shared=share_types, id=syncid).key.id()			
+					return
 			else:
-				game_id = get_new_game(_mode=syncmode, _shared=share_types).key.id()			
+				game_id = get_new_game(_mode=syncmode, _shared=share_types, id=syncid).key.id()		
+
+		if not game_id:
+			game_id = get_new_game(_mode=syncmode, _shared=share_types).key.id()			
 
 		urlargs = ["m=%s" % mode]
 		urlargs.append("vars=%s" % "|".join(variations))
@@ -235,7 +235,7 @@ class SeedDownloader(webapp2.RequestHandler):
 class SignalCallback(webapp2.RequestHandler):
 	def get(self, game_id, player_id, signal):
 		self.response.headers['Content-Type'] = 'text/plain'
-		game = Cache.get(game_id)
+		game = Game.get_by_id(game_id)
 		if not game:
 			self.response.status = 412
 			self.response.write(self.response.status)
@@ -256,7 +256,7 @@ class HistPrompt(webapp2.RequestHandler):
 class SignalSend(webapp2.RequestHandler):
 	def get(self, game_id, player_id, signal):
 		self.response.headers['Content-Type'] = 'text/plain'
-		game = Cache.get(game_id)
+		game = Game.get_by_id(game_id)
 		if not game:
 			self.response.status = 412
 			self.response.write(self.response.status)
@@ -268,7 +268,7 @@ class SignalSend(webapp2.RequestHandler):
 
 class ListPlayers(webapp2.RequestHandler):
 	def get(self, game_id):
-		game = Cache.get(game_id)
+		game = Game.get_by_id(game_id)
 		outlines = []
 		for p in game.get_players():
 			outlines.append("Player %s: %s" % (p.key.id(), p.bitfields))
@@ -281,7 +281,7 @@ class ListPlayers(webapp2.RequestHandler):
 class RemovePlayer(webapp2.RequestHandler):
 	def get(self, game_id, pid):
 		key = ".".join([game_id, pid])
-		game = Cache.get(game_id)
+		game = Game.get_by_id(game_id)
 		if key in [p.id() for p in game.players]:
 			game.remove_player(key)
 			return webapp2.redirect("/%s/players" % game_id)
@@ -290,30 +290,16 @@ class RemovePlayer(webapp2.RequestHandler):
 			self.response.status = 404
 			self.response.out.write("player %s not in %s" % (key, game.players))
 
-
-class GetPlayerPositions(webapp2.RequestHandler):
-	def get(self, game_id):
-		game = Cache.get(game_id)
-		if game:
-			players = game.get_players()
-			self.response.headers['Content-Type'] = 'text/plain'
-			self.response.status = 200
-			self.response.out.write("|".join(["%s:%s,%s" % (p.key.id().partition(".")[2], p.pos_x, p.pos_y) for p in players]))
-		else:
-			self.response.headers['Content-Type'] = 'text/plain'
-			self.response.status = 404
-			self.response.out.write("Stop")
-
 class ShowCache(webapp2.RequestHandler):
 	def get(self):
 		self.response.headers['Content-Type'] = 'text/plain'
-		self.response.write(str(Cache.s))
+		self.response.write(str(Cache.pos)+"\n"+str(Cache.hist))
 
 class ClearCache(webapp2.RequestHandler):
 	def get(self):
 		self.response.headers['Content-Type'] = 'text/plain'
-		Cache.s = {}
-		self.response.write(str(Cache.s))
+		Cache.pos = Cache.hist = {}
+		self.response.write("Cleared")
 
 
 class Plando(webapp2.RequestHandler):
@@ -325,28 +311,21 @@ class Plando(webapp2.RequestHandler):
 							'skills': paramVal(self, 'skills'), 'tps': paramVal(self, 'tps')}
 		self.response.out.write(template.render(path, template_values))
 			
-class ShowMap(webapp2.RequestHandler):
-	def get(self, game_id):
-		path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
-		template_values = {'app': "gameTracker", 'title': "Game %s" % game_id, 'game_id': game_id, 'is_spoiler': paramFlag(self, 'sp'), 'logic_modes': paramVal(self, 'paths')}
-		self.response.out.write(template.render(path, template_values))
+class PlandoReachable(webapp2.RequestHandler):
+	def get(self):
+		modes = paramVal(self,"modes").split(" ")
+		codes = [tuple(c.split("|")+[False]) for c in paramVal(self,"codes").split(" ")] if paramVal(self,"codes") else []
+		codes.append(("EC", "1", False))
+		self.response.headers['Content-Type'] = 'text/plain'
+		self.response.status = 200
+		self.response.out.write("|".join(Map.get_reachable_areas(PlayerState(codes), modes)))
 
-class GetSeenLocs(webapp2.RequestHandler):
-	def get(self, game_id):
-		game = Cache.get(game_id)
-		if not game:
-			self.response.headers['Content-Type'] = 'text/plain'
-			self.response.status = 404
-			self.response.out.write("Stop")
-			return
-		players = game.get_players()
-		self.response.out.write("|".join([ "%s:%s" % (p.key.id().partition(".")[2], ",".join([str(h.coords) for h in p.history])) for p in players]))
 
 class SetSeed(webapp2.RequestHandler):
 	def get(self, game_id, player_id):
 		seedlines = []
 		lines = paramVal(self, "seed").split(",")		
-		game = Cache.get(game_id)
+		game = Game.get_by_id(game_id)
 		if not game:
 			flags = lines[0].split("|")
 			mode_opt = [int(f[5:]) for f in flags if f.lower().startswith("mode=")]
@@ -359,16 +338,36 @@ class SetSeed(webapp2.RequestHandler):
 			seedlines.append("%s: %s" % (line[0], Pickup.name(line[1],line[2])))
 		player = game.player(player_id)
 		player.seed = "\n".join(seedlines)
-		Cache.put(player)
+		player.put()
 		self.response.headers['Content-Type'] = 'text/plain'
 		self.response.status = 200
 		self.response.out.write("ok")
 
+class ShowMap(webapp2.RequestHandler):
+	def get(self, game_id):
+		path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
+		template_values = {'app': "gameTracker", 'title': "Game %s" % game_id, 'game_id': game_id, 'is_spoiler': paramFlag(self, 'sp'), 'logic_modes': paramVal(self, 'paths')}
+		self.response.out.write(template.render(path, template_values))
+
+class GetSeenLocs(webapp2.RequestHandler):
+	def get(self, game_id):
+		game = Game.get_by_id(game_id)
+		hist = Cache.getHist(game_id)
+		if not hist:
+			self.response.status = 404
+			self.response.write(self.response.status)
+			return
+		self.response.headers['Content-Type'] = 'text/plain'
+		self.response.status = 200
+		self.response.out.write("|".join(
+			["%s:%s" % (p, ",".join([str(h.coords) for h in hls])) for p,hls in hist.iteritems()]
+		))
+
 class GetSeed(webapp2.RequestHandler):
 	def get(self, game_id, player_id):
-		game = Cache.get(game_id)
+		game = Game.get_by_id(game_id)
 		if not game:
-			self.response.status = 412
+			self.response.status = 404
 			self.response.write(self.response.status)
 			return
 		player = game.player(player_id)
@@ -378,27 +377,30 @@ class GetSeed(webapp2.RequestHandler):
 
 class GetReachable(webapp2.RequestHandler):
 	def get(self, game_id):
-		game = Cache.get(game_id)
-		if not game or not paramVal(self, "modes"):
+		hist = Cache.getHist(game_id)
+		if not hist or not paramVal(self, "modes"):
 			self.response.status = 404
-			self.response.write("Stop")
+			self.response.write(self.response.status)
 			return
 		modes = paramVal(self,"modes").split(" ")
 		self.response.headers['Content-Type'] = 'text/plain'
 		self.response.status = 200
-		players = game.get_players()
-		self.response.out.write("|".join(["%s:%s" % (player.key.id().partition(".")[2], ",".join(Map.get_reachable_areas(PlayerState.from_player(player), modes))) for player in players]))
+		self.response.out.write("|".join(
+			["%s:%s" % (p, ",".join(
+				Map.get_reachable_areas(PlayerState([(h.pickup_code, h.pickup_id, h.removed) for h in hls]), modes)
+			)) for p,hls in hist.iteritems()]
+		))
 
-
-
-class PlandoReachable(webapp2.RequestHandler):
-	def get(self):
-		modes = paramVal(self,"modes").split(" ")
-		codes = [tuple(c.split("|")+[False]) for c in paramVal(self,"codes").split(" ")] if paramVal(self,"codes") else []
-		self.response.headers['Content-Type'] = 'text/plain'
-		self.response.status = 200
-		self.response.out.write("|".join(Map.get_reachable_areas(PlayerState.from_codes(codes), modes)))
-
+class GetPlayerPositions(webapp2.RequestHandler):
+	def get(self, game_id):
+		pos = Cache.getPos(game_id)
+		if pos:
+			self.response.headers['Content-Type'] = 'text/plain'
+			self.response.status = 200
+			self.response.out.write("|".join(["%s:%s,%s" % (p,x,y) for p, (x,y) in pos.iteritems()]))
+		else:
+			self.response.headers['Content-Type'] = 'text/plain'
+			self.response.status = 404
 
 app = webapp2.WSGIApplication([
 	('/', SeedGenerator),
@@ -415,13 +417,13 @@ app = webapp2.WSGIApplication([
 	(r'/(\d+)/players', ListPlayers),
 	(r'/(\d+)\.(\w+)/remove', RemovePlayer),
 	(r'/(\d+)/map', ShowMap),
-	(r'/(\d+)/getPos', GetPlayerPositions),
+	(r'/(\d+)/_getPos', GetPlayerPositions),
 	(r'/cache', ShowCache),
 	(r'/cache/clear', ClearCache),
-	(r'/(\d+)/seen', GetSeenLocs),
-	(r'/(\d+)\.(\w+)/seed', GetSeed),
+	(r'/(\d+)/_seen', GetSeenLocs),
+	(r'/(\d+)\.(\w+)/_seed', GetSeed),
 	(r'/(\d+)\.(\w+)/setSeed', SetSeed),
-	(r'/(\d+)/reachable', GetReachable),
+	(r'/(\d+)/_reachable', GetReachable),
 	(r'/reachable', PlandoReachable),
 	(r'/plando', Plando)
 ], debug=True)

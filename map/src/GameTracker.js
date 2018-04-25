@@ -216,7 +216,7 @@ class GameTracker extends React.Component {
     let modeRaw = document.getElementsByClassName("logic-modes-holder")[0].id
     let modes = (modeRaw !== "None") ? modeRaw.split(" ") : ['normal', 'speed', 'dboost-light', 'lure']
 
-    this.state = {players: {}, done: false, check_seen: 1, modes: modes, 
+    this.state = {players: {}, retries: 60, check_seen: 1, modes: modes, 
     flags: ['show_pickups', 'update_in_bg'], viewport: DEFAULT_VIEWPORT, pickups: ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "Ma"], 
     pathMode: 'standard', hideOpt: "any"}
   };
@@ -225,28 +225,34 @@ class GameTracker extends React.Component {
   };
   
   tick = () => {
-  	if((!document.hasFocus() && !this.state.flags.includes("update_in_bg") )|| this.state.done) return;
+  	if(!document.hasFocus() && !this.state.flags.includes("update_in_bg")) return;
+  	if(this.state.retries === 0) return;
+
   	if(this.state.check_seen == 0) {
 	  	this.setState({check_seen: 5});
-		getSeen((p) => this.setState(p, this.checkMapstones()));
-		getReachable((p) => this.setState(p),this.state.modes.join("+"));
+		getSeen((p) => this.setState(p, () => this.checkMapstones()), this.state.retries);
+		getReachable((p) => this.setState(p),this.state.modes.join("+"), this.state.retries);
+		Object.keys(this.state.players).map((id) => {
+			if(Object.keys(this.state.players[id].seed).length < 50)
+			{
+				console.log("before: " + Object.keys(this.state.players[id].seed).length)
+				getSeed((p) => this.setState(p, () =>  console.log("after: " + Object.keys(this.state.players[id].seed).length)), id, this.state.retries);
+			}
+		})
   	} else 
 	  	this.setState({check_seen: this.state.check_seen -1});
 	if(this.state.check_seen < 10)
-		getPlayerPos((p) => this.setState(p));
+		getPlayerPos((p) => this.setState(p), this.state.retries);
 
-	Object.keys(this.state.players).map((id) => {
-		if(Object.keys(this.state.players[id].seed).length === 0)
-			getSeed((p) => this.setState(p), id);
-	})
   };
   
   checkMapstones = () => {
 	this.setState((prevState, props) => {
-		let newPlayers = this.state.players;
+		let newPlayers = prevState.players;
 	  	Object.keys(newPlayers).map((id) => {
 	  		let player = {...newPlayers[id]}
-	  		let mapstones = player.mapstones
+	  		let mapstones = {...player.mapstones}
+	  		if(mapstones.picks.length === 0) return {}
 	  		let nextMapstoneId = mapstones.turnedIn*4+24;
 	  		if(player.seen.includes(nextMapstoneId)) {
 	  			let min_dist = 99999;
@@ -269,6 +275,7 @@ class GameTracker extends React.Component {
 				}
 			}
 			mapstones.pos = player.pos;
+			player.mapstones = mapstones
 			newPlayers[id] = player
 	  	});
 	  	return {players: newPlayers};
@@ -396,12 +403,25 @@ class GameTracker extends React.Component {
   }
 }
 
-function getSeed(setter, pid)
+function doNetRequest(onRes, setter, url, rets)
 {
     var xmlHttp = new XMLHttpRequest();
     xmlHttp.onreadystatechange = function() { 
-        if (xmlHttp.readyState === 4 && xmlHttp.status === 200)
-            (function(res) {
+        if (xmlHttp.readyState === 4) {
+        	 if(xmlHttp.status === 404) 
+        	 	setter({check_seen: 90, retries: rets-1})
+        	 else
+	        	 onRes(xmlHttp.responseText);
+        }
+	}
+    xmlHttp.open("GET", url, true); // true for asynchronous 
+    xmlHttp.send(null);
+}
+
+
+function getSeed(setter, pid, rets)
+{
+     var onRes = (res) => {
 				setter((prevState, props) => {
 					let retVal = prevState.players;
 					let out = parse_seed(res);
@@ -409,24 +429,15 @@ function getSeed(setter, pid)
 					retVal[pid].mapstones.picks = out.ms 
 					return {players:retVal}
 				});
-
-            })(xmlHttp.responseText);
-    }
-    xmlHttp.open("GET", "/"+game_id+"."+pid+"/seed", true); // true for asynchronous 
-    xmlHttp.send(null);
+            }
+     doNetRequest(onRes, setter, "/"+game_id+"."+pid+"/_seed", rets)
 }
 
-function getReachable(setter, modes)
+
+
+function getReachable(setter, modes, rets)
 {
-    var xmlHttp = new XMLHttpRequest();
-    xmlHttp.onreadystatechange = function() { 
-        if (xmlHttp.readyState === 4 && xmlHttp.status === 200)
-            (function(res) {
-            	if(res == "Stop")
-            	{
-            		setter({check_seen: 90});
-					return;
-            	}
+     var onRes = (res) => {
             	let areas = {};
             	let raw = res.split("|");
             	for (let i = 0, len = raw.length; i < len; i++) {
@@ -446,27 +457,13 @@ function getReachable(setter, modes)
 					})
 					return {players:retVal}
 				})
-            })(xmlHttp.responseText);
     }
-    xmlHttp.open("GET", "/"+game_id+"/reachable?modes="+modes, true); // true for asynchronous 
-    xmlHttp.send(null);
+    doNetRequest(onRes, setter, "/"+game_id+"/_reachable?modes="+modes, rets)
 }
 
-function getSeen(setter)
+function getSeen(setter, rets)
 {
-    var xmlHttp = new XMLHttpRequest();
-    xmlHttp.onreadystatechange = function() { 
-        if (xmlHttp.readyState === 4 && xmlHttp.status === 200)
-            (function(res) {
-            	if(res == "Stop")
-            	{
-            		setter({check_seen: 90});
-					return;
-            	}
-            	if(!res.includes(':')) {
-            		setter({check_seen: 60})
-            		return;
-            	}
+     var onRes = (res) => {
             	let seens = {};
             	let raw = res.split("|");
             	for (let i = 0, len = raw.length; i < len; i++) {
@@ -486,28 +483,14 @@ function getSeen(setter)
 					})
 					return {players:retVal}
 				})
-            })(xmlHttp.responseText);
     }
-    xmlHttp.open("GET", "/"+game_id+"/seen", true); // true for asynchronous 
-    xmlHttp.send(null);
+    doNetRequest(onRes, setter, "/"+game_id+"/_seen", rets)
 }
 
 
-function getPlayerPos(setter)
+function getPlayerPos(setter, rets)
 {
-    var xmlHttp = new XMLHttpRequest();
-    xmlHttp.onreadystatechange = function() { 
-        if (xmlHttp.readyState === 4 && xmlHttp.status === 200)
-            (function(res) {
-            	if(res == "Stop")
-            	{
-            		setter({check_seen: 90});
-					return
-            	}
-            	if(!res.includes(':')) {
-            		setter({check_seen: 60})
-            		return;
-            	}
+     var onRes = (res) => {
             	let player_positions = {};
             	let rawpos = res.split("|");
             	for (let i = 0, len = rawpos.length; i < len; i++) {
@@ -525,10 +508,8 @@ function getPlayerPos(setter)
 					})
 					return {players:retVal}
 				})
-            })(xmlHttp.responseText);
     }
-    xmlHttp.open("GET", "/"+game_id+"/getPos", true); // true for asynchronous 
-    xmlHttp.send(null);
+    doNetRequest(onRes, setter, "/"+game_id+"/_getPos", rets)
 }
 
 
