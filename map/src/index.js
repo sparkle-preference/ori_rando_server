@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 import './index.css';
+import './bootstrap.cyborg.min.css';
 import GameTracker from './GameTracker';
 import PlandoBuilder from './PlandoBuilder';
 if(document.getElementById('gameTracker'))
