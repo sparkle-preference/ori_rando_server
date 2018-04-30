@@ -19,56 +19,183 @@ main {
   flex-direction: column;
 }
 
+.stretch {
+  width: 100%;
+  height: 100%;
+  min-height: 600px;
+}
+
+.wrapper {
+  display: flex;
+  width: 100%;
+  height: 100%;
+}
+
 .board-container {
   display: flex;
   flex-direction: column;
   flex-grow: 1;
 }
+
 .leaflet-container {
-    width: 100%;
-    height: 1000px;
-    flex-grow: 1;
-    background: rgb(18, 18, 18);
+  height: 100%;
+  flex-grow: 1;
+  background: rgb(18, 18, 18);
 }
 
-:root {
-  --jumbotron-padding-y: 3rem;
+.controls {
+  width: 380px;
+  height: 100%;
+  float: right;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 10px;
+
+  color: white;
 }
 
-.jumbotron {
-  padding-top: var(--jumbotron-padding-y);
-  padding-bottom: var(--jumbotron-padding-y);
-  margin-bottom: 0;
-  background-color: #fff;
-}
-@media (min-width: 768px) {
-  .jumbotron {
-    padding-top: calc(var(--jumbotron-padding-y) * 2);
-    padding-bottom: calc(var(--jumbotron-padding-y) * 2);
-  }
+#file-controls {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 16px;
 }
 
-.jumbotron p:last-child {
-  margin-bottom: 0;
+#import-wrapper {
+  padding-left: 8px;
+  padding-right: 8px;
 }
 
-.jumbotron-heading {
-  font-weight: 300;
+#import-seed-area{
+  margin-bottom: 16px;
 }
 
-.jumbotron .container {
-  max-width: 40rem;
+#pickup-controls {
+  width: 100%;
+  margin-bottom: 16px;
 }
 
-footer {
-  padding-top: 3rem;
-  padding-bottom: 3rem;
+#pickup-controls .label {
+  width: 90px;
 }
 
-footer p {
-  margin-bottom: .25rem;
+#pickup-controls > .pickup-wrapper {
+  width: 100%;
+  height: 36px;
+  display: flex;
+  align-items: center;
+
+  margin-bottom: 4px;
 }
 
-.box-shadow { box-shadow: 0 .25rem .75rem rgba(0, 0, 0, .05); }
+#pickup-controls > .pickup-wrapper > div {
+  flex-grow: 1;
+}
 
-.text-center { text-align: center; }
+#fill-params {
+  width: 100%;
+}
+
+.fill-wrapper {
+  width: 100%;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.fill-wrapper > .react-numeric-input {
+  width: 80px;
+}
+
+#fill-params > .checkbox-label {
+  width: 100%;
+}
+
+#display-controls {
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+#display-controls .label {
+  width: 90px;
+}
+
+#display-flags {
+  width: 100%;
+  margin-top: 4px;
+  margin-bottom: 4px;
+  display: flex;
+  align-content: center;
+  justify-content: space-between;
+}
+
+#logic-controls {
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+#logic-mode-wrapper {
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+#logic-mode-wrapper .label {
+  width: 90px;
+}
+
+#manual-controls {
+  width: 100%;
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+.manual-wrapper {
+  width: 100%;
+  height: 36px;
+  margin-bottom: 4px;
+  display: flex;
+  align-content: center;
+}
+
+.manual-wrapper .label {
+  width: 90px;
+}
+
+.manual-wrapper .react-numeric-input {
+  flex-grow: 1;
+}
+
+.manual-wrapper > div {
+  flex-grow: 1;
+}
+
+#logic-mode-controls {
+  width: 100%;
+}
+
+#logic-presets {
+  width: 100%;
+  display: flex;
+  align-content: center;
+  margin-bottom: 4px;
+}
+
+#logic-presets > div {
+  flex-grow: 1;
+}
+
+#logic-options-wrapper {
+  width: 100%;
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+#logic-options {
+  width: 100%;
+  display: inline-grid;
+  grid-template-columns: auto auto auto auto;
+  grid-template-rows: 42px 42px auto auto;
+  justify-content: space-between;
+}
