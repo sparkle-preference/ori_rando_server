@@ -549,7 +549,7 @@ class AuthorIndex(webapp2.RequestHandler):
 			if len(seeds):
 				self.response.write('<html><body><pre>Seeds by %s:\n' % author + "\n".join(["<a href='/%s/%s'>%s</a>: %s (%s players, %s) <a href='/%s/%s/edit'>Edit</a>" % (author, seed.name, seed.name, seed.description, seed.players, ",".join(seed.flags), author, seed.name) for seed in seeds])+"</pre></body></html>")
 			else:
-				self.response.write("<html><body>You haven't made any seeds yet! <a href='/%s/newseed/edit>Start a new seed</a></body></html>" % author)		
+				self.response.write("<html><body>You haven't made any seeds yet! <a href='/%s/newseed/edit'>Start a new seed</a></body></html>" % author)		
 		else:
 			if len(seeds):
 				self.response.write('<html><body><pre>Seeds by %s:\n' % author + "\n".join(["<a href='/%s/%s'>%s</a>: %s (%s players, %s) " % (author, seed.name, seed.name, seed.description, seed.players, ",".join(seed.flags)) for seed in seeds])+"</pre></body></html>")
@@ -593,11 +593,11 @@ app = webapp2.WSGIApplication([
 	(r'/login', HandleLogin),
 	(r'/logout', HandleLogout),
 	(r'/plando', PlandoOld),
-	(r'/(\w+)/(\w+)/upload', PlandoUpload),
-	(r'/(\w+)/(\w+)/download', PlandoDownload),
-	(r'/(\w+)/(\w+)/edit', PlandoEdit),
-	(r'/(\w+)', AuthorIndex),
-	(r'/(\w+)/(\w+)', PlandoView)
+	(r'/([^ ?=/]+)/([^ ?=/]+)/upload', PlandoUpload),
+	(r'/([^ ?=/]+)/([^ ?=/]+)/download', PlandoDownload),
+	(r'/([^ ?=/]+)/([^ ?=/]+)/edit', PlandoEdit),
+	(r'/([^ ?=/]+)', AuthorIndex),
+	(r'/([^ ?=/]+)/([^ ?=/]+)', PlandoView)
 ], debug=True)
 
 
