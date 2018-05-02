@@ -3,10 +3,13 @@ import ReactDOM from 'react-dom';
 import './index.css';
 import './bootstrap.cyborg.min.css';
 import GameTracker from './GameTracker';
+import SeedDisplayPage from './SeedDisplayPage';
 import PlandoBuilder from './PlandoBuilder';
 if(document.getElementById('gameTracker'))
 	ReactDOM.render(<GameTracker />, document.getElementById('gameTracker'));
 if(document.getElementById('plandoBuilder'))
 	ReactDOM.render(<PlandoBuilder />, document.getElementById('plandoBuilder'));
+if(document.getElementById('seedDisplay'))
+	ReactDOM.render(<SeedDisplayPage/>, document.getElementById('seedDisplay'));
 
 //registerServiceWorker();

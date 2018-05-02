@@ -10,7 +10,15 @@ class GameMode(messages.Enum):
 	SPLITSHARDS = 3
 	SIMUSOLO = 4
 
-DEDUP_MODES = [GameMode.SHARED, GameMode.SPLITSHARDS, GameMode.SWAPPED]
+
+DEDUP_MODES = [GameMode.SHARED, GameMode.SWAPPED]
+
+mode_map = {
+	"shared": 1,
+	"swap": 2,
+	"split": 3,
+	"none": 4
+}
 
 class ShareType(messages.Enum):
 	NOT_SHARED = 1
@@ -20,6 +28,19 @@ class ShareType(messages.Enum):
 	EVENT = 5
 	TELEPORTER = 6
 
+share_map = {
+	"keys": ShareType.DUNGEON_KEY,
+	"upgrades": ShareType.UPGRADE,
+	"skills": ShareType.SKILL,
+	"events": ShareType.EVENT,
+	"teleporters": ShareType.TELEPORTER
+}
+rev_map = {v:k for k,v in share_map.iteritems()}
+
+
+def url_from_share(share_types):
+	"+".fold(rev_map[type] for type in share_types)
+
 class Cache(object):
 	pos = {}
 	hist = {}
@@ -27,7 +48,7 @@ class Cache(object):
 	@staticmethod
 	def getHist(gid):
 		gid = int(gid)
-		return Cache.hist[gid] if gid in Cache.hist else None
+		return Cache.hist[gid].copy() if gid in Cache.hist else None
 
 	@staticmethod
 	def setHist(gid, pid, hist):
@@ -40,7 +61,7 @@ class Cache(object):
 	@staticmethod
 	def getPos(gid):
 		gid = int(gid)
-		return Cache.pos[gid] if gid in Cache.pos else None
+		return Cache.pos[gid].copy() if gid in Cache.pos else None
 
 	@staticmethod
 	def setPos(gid, pid, x, y):
@@ -69,6 +90,67 @@ class HistoryLine(ndb.Model):
 		else:
 			return "lost %s! (%s)" % (self.pickup().name, t)
 
+
+
+
+
+class Stuff(ndb.Model):
+	code = ndb.StringProperty()
+	id = ndb.StringProperty()
+	player = ndb.StringProperty()
+
+class Placement(ndb.Model):
+	location = ndb.StringProperty()
+	zone = ndb.StringProperty()
+	stuff = ndb.LocalStructuredProperty(Stuff, repeated=True)
+	
+class Seed(ndb.Model):
+	#id = author:name
+	placements = ndb.LocalStructuredProperty(Placement, repeated=True)
+	flags = ndb.StringProperty(repeated=True)
+	description = ndb.TextProperty()
+	players = ndb.IntegerProperty(default=1)
+	author = ndb.StringProperty(required=True)
+	name = ndb.StringProperty(required=True)
+
+	def mode(self):
+		mode_opt = [int(f[5:]) for f in self.flags if f.lower().startswith("mode=")]
+		return GameMode(mode_opt[0]) if mode_opt else None
+	def shared(self):
+		shared_opt = [f[7:].replace("+"," ").split(" ") for f in self.flags if f.lower().startswith("shared=")]
+		return [share_map[i] for i in shared_opt[0] if i in share_map] if shared_opt else []
+
+	
+	@staticmethod
+	def from_plando(lines, author, name, desc):
+		s = Seed(id="%s:%s" % (author, name), name=name, author=author, description=desc)
+		rawFlags,_,s.name = lines[0].partition("|")
+		s.flags = [flag.replace(" ", "+") for flag in rawFlags.split(",") if not flag.lower().startswith("sync")]
+		for line in lines[1:]:
+			loczone,_,stuffs = line.partition(":")
+			loc,_,zone = loczone.partition("|")
+			plc = Placement(location=loc,zone=zone)
+			for stuff in stuffs.split(","):
+				player,_,codeid = stuff.partition(".")
+				if int(player) > s.players:
+					s.players = int(player)
+				code,_,id = codeid.partition("|")
+				plc.stuff.append(Stuff(code=code,id=id,player=player))
+			s.placements.append(plc)
+		
+		return s
+
+	def to_plando_lines(self):
+		outlines = ["%s|%s" % (",".join(self.flags), self.name)]
+		for p in self.placements:
+			outlines.append(p.location + ":" + ",".join(["%s.%s|%s" % (s.player, s.code, s.id) for s in p.stuff]))
+		return outlines
+	
+	def to_lines(self, player=1, extraFlags=[]):
+		return ["%s|%s" % (",".join(extraFlags + self.flags), self.name)] + ["|".join((str(p.location),s.id,s.code,p.zone))for p in self.placements for s in p.stuff if int(s.player) == player]
+
+		
+
 class Player(ndb.Model):
 	# id = gid.pid
 	skills	  = ndb.IntegerProperty()
@@ -77,7 +159,7 @@ class Player(ndb.Model):
 	teleporters = ndb.IntegerProperty()
 	seed =    ndb.TextProperty()
 	signals = ndb.StringProperty(repeated=True)
-	history = ndb.StructuredProperty(HistoryLine, repeated=True)
+	history = ndb.LocalStructuredProperty(HistoryLine, repeated=True)
 	bitfields = ndb.ComputedProperty(lambda p: ",".join([str(x) for x in [p.skills,p.events,p.upgrades,p.teleporters]+(["|".join(p.signals)] if p.signals else [])]))
 	
 	def signal_send(self, signal):
@@ -186,34 +268,25 @@ def delete_game(game):
 def clean_old_games():
 	old = [game for game in Game.query(Game.last_update < datetime.now() - timedelta(hours=12))]
 	return len([delete_game(game) for game in old])
+
+def get_open_gid():
+	id = 1
+	game_ids = set([int(game.key.id()) for game in Game.query()])
+	while id in game_ids:
+		id += 1
+	if id > 20:
+		clean_old_games()
+	return id
+
 	
 def get_new_game(_mode = None, _shared = None, id=None):
 	shared = [share_map[i] for i in _shared if i in share_map] if _shared else Game.DEFAULT_SHARED
 	mode = GameMode(int(_mode)) if _mode else GameMode.SHARED
 	if not id:
-		id = 1
-		game_ids = set([int(game.key.id()) for game in Game.query()])
-		while id in game_ids:
-			id += 1
-		if id > 20:
-			clean_old_games()
-
-	game_id = id
-	game = Game(id = game_id, players=[], shared=shared, mode=mode)
+		id = get_open_gid()
+	game = Game(id = id, players=[], shared=shared, mode=mode)
 	return game
 
-share_map = {
-	"keys": ShareType.DUNGEON_KEY,
-	"upgrades": ShareType.UPGRADE,
-	"skills": ShareType.SKILL,
-	"events": ShareType.EVENT,
-	"teleporters": ShareType.TELEPORTER
-}
-rev_map = {v:k for k,v in share_map.iteritems()}
-
-
-def url_from_share(share_types):
-	"+".fold(rev_map[type] for type in share_types)
 
 coord_correction_map = {
 	679620: 719620,

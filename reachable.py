@@ -40,24 +40,27 @@ class Area(object):
 		self.name = name
 		self.conns = []		
 	def get_reachable(self, state, modes):
-		return [conn.target for conn in self.conns if conn.is_active(state, modes)]
+		reachable = []
+		for conn in self.conns:
+			active, ksSpent = conn.is_active(state, modes)
+			if active:
+				state.has['KS'] -= ksSpent
+				reachable.append(conn.target)
+
+		return reachable
 
 class Connection(object):
 	def __init__(self, target):
 		self.target = target
 		self.reqs = defaultdict(list)
 	def is_active(self, state, modes):
-		for mode in modes:
-			for reqs in self.reqs[mode]:
-				if not reqs.cnt - state.has:
-					return True
-		return False
-	
+		res = [reqs.cnt["KS"] for mode in modes for reqs in self.reqs[mode] if not reqs.cnt - state.has]
+		return (True, min(res)) if res else (False, 0)
+
 
 class Requirement(object):
 	def __init__(self, raw):
 		self.cnt = Counter([r for r in raw.split('+') if r != "Free"])
-
 
 class Map(object):
 	areas = {}
@@ -91,5 +94,3 @@ class Map(object):
 			mapstone_cnt -= 1
 		ms_areas = ["MS%s"%i for i in range(1,mapstone_cnt +1) ]
 		return list(checked_areas) + ms_areas 
-				
-			

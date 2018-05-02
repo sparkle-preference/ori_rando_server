@@ -13,6 +13,10 @@ body, #root, #app {
   flex-direction: column;
 }
 
+.Select-menu-outer {
+    z-index: 999 !important;
+}
+
 main {
   flex-grow: 1;
   display: flex;
@@ -84,7 +88,6 @@ main {
   height: 36px;
   display: flex;
   align-items: center;
-
   margin-bottom: 4px;
 }
 
@@ -195,7 +198,60 @@ main {
 #logic-options {
   width: 100%;
   display: inline-grid;
-  grid-template-columns: auto auto auto auto;
-  grid-template-rows: 42px 42px auto auto;
+  grid-template-columns: auto auto auto;
+  grid-template-rows: auto auto auto auto auto auto;
   justify-content: space-between;
+}
+
+.basic-coop-options {
+  width: 100%;
+  display: flex;
+  align-content: center;
+  margin-bottom: 4px;	
+}
+
+.basic-coop-options .label{
+  width: 90px;
+  margin-left: 10px;
+  margin-top: 5px;
+}
+.basic-coop-options .Select{
+  width: auto;
+}
+#coop-wrapper {
+  width: 100%;
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+.coop-select-wrapper {
+  width: 100%;
+  height: 36px;
+  margin-bottom: 4px;
+  display: flex;
+  align-content: center;
+}
+
+.coop-select-wrapper .label {
+  width: 90px;
+}
+
+.coop-select-wrapper > div {
+  flex-grow: 1;
+}
+
+#logic-mode-controls {
+  width: 100%;
+}
+
+
+#flag-controls {
+  width: 100%;
+  display: flex;
+  align-content: center;
+  margin-bottom: 4px;	
+}
+
+#flag-controls .label{
+  width: 90px;
 }

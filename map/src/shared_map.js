@@ -18,15 +18,15 @@ function download(filename, text) {
 }
 
 const pickup_icons = {
-	"SK": new Leaflet.Icon({iconUrl: '../sprites/skill-tree.png', iconSize: new Leaflet.Point(32, 32), iconAnchor: new Leaflet.Point(0, 32)}),
-	"HC": new Leaflet.Icon({iconUrl: '../sprites/health-cell.png', iconSize: new Leaflet.Point(24, 24)}),
-	"AC": new Leaflet.Icon({iconUrl: '../sprites/ability-cell.png', iconSize: new Leaflet.Point(24, 24)}),
-	"EC": new Leaflet.Icon({iconUrl: '../sprites/energy-cell.png', iconSize: new Leaflet.Point(24, 24)}),
-	"MS": new Leaflet.Icon({iconUrl: '../sprites/map-fragment.png', iconSize: new Leaflet.Point(24, 24)}),
-	"Ma": new Leaflet.Icon({iconUrl: '../sprites/map-stone.png', iconSize: new Leaflet.Point(24, 24)}),
-	"EX": new Leaflet.Icon({iconUrl: '../sprites/xp.png', iconSize: new Leaflet.Point(24, 24)}),
-	"Pl": new Leaflet.Icon({iconUrl: '../sprites/plant.png', iconSize: new Leaflet.Point(16, 16)}),
-	"KS": new Leaflet.Icon({iconUrl: '../sprites/keystone.png', iconSize: new Leaflet.Point(24, 24)}),
+	"SK": new Leaflet.Icon({iconUrl: '/sprites/skill-tree.png', iconSize: new Leaflet.Point(32, 32), iconAnchor: new Leaflet.Point(0, 32)}),
+	"HC": new Leaflet.Icon({iconUrl: '/sprites/health-cell.png', iconSize: new Leaflet.Point(24, 24)}),
+	"AC": new Leaflet.Icon({iconUrl: '/sprites/ability-cell.png', iconSize: new Leaflet.Point(24, 24)}),
+	"EC": new Leaflet.Icon({iconUrl: '/sprites/energy-cell.png', iconSize: new Leaflet.Point(24, 24)}),
+	"MS": new Leaflet.Icon({iconUrl: '/sprites/map-fragment.png', iconSize: new Leaflet.Point(24, 24)}),
+	"Ma": new Leaflet.Icon({iconUrl: '/sprites/map-stone.png', iconSize: new Leaflet.Point(24, 24)}),
+	"EX": new Leaflet.Icon({iconUrl: '/sprites/xp.png', iconSize: new Leaflet.Point(24, 24)}),
+	"Pl": new Leaflet.Icon({iconUrl: '/sprites/plant.png', iconSize: new Leaflet.Point(16, 16)}),
+	"KS": new Leaflet.Icon({iconUrl: '/sprites/keystone.png', iconSize: new Leaflet.Point(24, 24)}),
 	"EV": false
 };
 
@@ -136,6 +136,7 @@ const picks_by_type = {
 	{'loc': 2719900, 'name': 'EC', 'zone': 'Grove', 'area': 'UpperGroveSpiderEnergy', 'y': -97, 'x': 272},
 	{'loc': -3200164, 'name': 'EC', 'zone': 'Valley', 'area': 'ValleyGrenadeWater', 'y': -162, 'x': -320},
 	{'loc': -6279608, 'name': 'EC', 'zone': 'Sorrow', 'area': 'LeftSorrow', 'y': 393, 'x': -627},
+	{'loc': -280256, 'name': 'EC', 'zone': 'Glades', 'area': 'SunkenGladesRunaway', 'y': -256, 'x': -28},
 	{'loc': -400240, 'name': 'EC', 'zone': 'Glades', 'area': 'SunkenGladesMainPoolDeep', 'y': -239, 'x': -40},
 	{'loc': -3360288, 'name': 'EC', 'zone': 'Glades', 'area': 'LeftWallJump', 'y': -288, 'x': -336},
 	{'loc': -1560188, 'name': 'EC', 'zone': 'Glades', 'area': 'GladesLaser', 'y': -186, 'x': -155},
@@ -171,6 +172,7 @@ const picks_by_type = {
 	{'loc': 6159900, 'name': 'EX100', 'zone': 'Swamp', 'area': 'MoonGrotto', 'y': -98, 'x': 618},
 	{'loc': 6639952, 'name': 'EX200', 'zone': 'Swamp', 'area': 'RightGinsoOrb', 'y': -48, 'x': 666},
 	{'loc': 1839836, 'name': 'EX100', 'zone': 'Grove', 'area': 'GroveWater', 'y': -163, 'x': 187},
+	{'loc': -1680104, 'name': 'EX100', 'zone': 'Grove', 'area': 'SpritTreeRefined', 'y': -104, 'x': -168},
 	{'loc': 3559792, 'name': 'EX200', 'zone': 'Grotto', 'area': 'DeathStomp', 'y': -207, 'x': 356},
 	{'loc': 4759860, 'name': 'EX100', 'zone': 'Grotto', 'area': 'UpperGrottoOrbs', 'y': -140, 'x': 477},
 	{'loc': 4319892, 'name': 'EX100', 'zone': 'Grotto', 'area': 'UpperGrottoOrbs', 'y': -108, 'x': 432},
@@ -229,10 +231,12 @@ const picks_by_type = {
 	{'loc': -5400236, 'name': 'EX200', 'zone': 'Valley', 'area': 'OutsideForlornCliff', 'y': -234, 'x': -538},
 	{'loc': -7040392, 'name': 'EX200', 'zone': 'Forlorn', 'area': 'Forlorn', 'y': -390, 'x': -703},
 	{'loc': -8440352, 'name': 'EX100', 'zone': 'Forlorn', 'area': 'Forlorn', 'y': -350, 'x': -841},
+	{'loc': -12320248, 'name': 'EX100', 'zone': 'Forlorn', 'area': 'RightForlorn', 'y': -248, 'x': -1232},
 	{'loc': -6799732, 'name': 'EX200', 'zone': 'Sorrow', 'area': 'LeftSorrowGrenade', 'y': 269, 'x': -677},
 	{'loc': -5479592, 'name': 'EX100', 'zone': 'Sorrow', 'area': 'UpperSorrow', 'y': 409, 'x': -545},
 	{'loc': -9799980, 'name': 'EX100', 'zone': 'Misty', 'area': 'Misty', 'y': 23, 'x': -979},
 	{'loc': -10839992, 'name': 'EX100', 'zone': 'Misty', 'area': 'Misty', 'y': 8, 'x': -1082},
+	{'loc': -10440008, 'name': 'KS', 'zone': 'Misty', 'area': 'Misty', 'y': 8, 'x': -1044},
 	{'loc': -10120036, 'name': 'EX100', 'zone': 'Misty', 'area': 'Misty', 'y': -35, 'x': -1009},
 	{'loc': -8400124, 'name': 'EX100', 'zone': 'Misty', 'area': 'MistyPostClimb', 'y': -123, 'x': -837},
 	{'loc': -7960144, 'name': 'EX200', 'zone': 'Misty', 'area': 'MistyPostClimb', 'y': -144, 'x': -796},
@@ -251,12 +255,12 @@ const picks_by_type = {
 	{'loc': 3199820, 'name': 'HC', 'zone': 'Grove', 'area': 'DeathGauntletRoof', 'y': -179, 'x': 321},
 	{'loc': 1599920, 'name': 'HC', 'zone': 'Grove', 'area': 'HoruFieldsStomp', 'y': -78, 'x': 160},
 ], "EV": [
-	{'loc': 0, 'name': 'EVGinsoKey', 'zone': 'Grotto', 'area': 'MobileGumoHideout', 'y': 0, 'x': 0, 'icon': new Leaflet.Icon({iconUrl: '../sprites/WaterVein.png', iconSize: new Leaflet.Point(24,24)}), '_x': 500, '_y': -244},
-	{'loc': 4, 'name': 'EVWater', 'zone': 'Ginso', 'area': 'GinsoEscape', 'y': 4, 'x': 0, 'icon': new Leaflet.Icon({iconUrl: '../sprites/CleanWater.png', iconSize: new Leaflet.Point(24,24)}), '_x': 525, '_y': 980},
-	{'loc': 12, 'name': 'EVWind', 'zone': 'Forlorn', 'area': 'RightForlorn', 'y': 12, 'x': 0, 'icon': new Leaflet.Icon({iconUrl: '../sprites/WindRestored.png', iconSize: new Leaflet.Point(24,24)}), '_x': -735, '_y': -225},
-	{'loc': 8, 'name': 'EVForlornKey', 'zone': 'Misty', 'area': 'MistyEnd', 'y': 8, 'x': 0, 'icon': new Leaflet.Icon({iconUrl: '../sprites/GumonSeal.png', iconSize: new Leaflet.Point(24,24)}), '_x': -720, '_y': -20},
-	{'loc': 16, 'name': 'EVHoruKey', 'zone': 'Sorrow', 'area': 'Sunstone', 'y': 16, 'x': 0, 'icon': new Leaflet.Icon({iconUrl: '../sprites/Sunstone.png', iconSize: new Leaflet.Point(24,24)}), '_x':-560, '_y':  607},
-	{'loc': 20, 'name': 'EVWarmth', 'zone': 'Horu', 'area': 'End', 'y': 20, 'x': 0, 'icon': new Leaflet.Icon({iconUrl: '../sprites/WarmthReturned.png', iconSize: new Leaflet.Point(24,24)}), '_x': -220, '_y': 504},
+	{'loc': 0, 'name': 'EVGinsoKey', 'zone': 'Grotto', 'area': 'MobileGumoHideout', 'y': 0, 'x': 0, 'icon': new Leaflet.Icon({iconUrl: '/sprites/WaterVein.png', iconSize: new Leaflet.Point(24,24)}), '_x': 500, '_y': -244},
+	{'loc': 4, 'name': 'EVWater', 'zone': 'Ginso', 'area': 'GinsoEscape', 'y': 4, 'x': 0, 'icon': new Leaflet.Icon({iconUrl: '/sprites/CleanWater.png', iconSize: new Leaflet.Point(24,24)}), '_x': 525, '_y': 980},
+	{'loc': 12, 'name': 'EVWind', 'zone': 'Forlorn', 'area': 'RightForlorn', 'y': 12, 'x': 0, 'icon': new Leaflet.Icon({iconUrl: '/sprites/WindRestored.png', iconSize: new Leaflet.Point(24,24)}), '_x': -735, '_y': -225},
+	{'loc': 8, 'name': 'EVForlornKey', 'zone': 'Misty', 'area': 'MistyEnd', 'y': 8, 'x': 0, 'icon': new Leaflet.Icon({iconUrl: '/sprites/GumonSeal.png', iconSize: new Leaflet.Point(24,24)}), '_x': -720, '_y': -20},
+	{'loc': 16, 'name': 'EVHoruKey', 'zone': 'Sorrow', 'area': 'Sunstone', 'y': 16, 'x': 0, 'icon': new Leaflet.Icon({iconUrl: '/sprites/Sunstone.png', iconSize: new Leaflet.Point(24,24)}), '_x':-560, '_y':  607},
+	{'loc': 20, 'name': 'EVWarmth', 'zone': 'Horu', 'area': 'End', 'y': 20, 'x': 0, 'icon': new Leaflet.Icon({iconUrl: '/sprites/WarmthReturned.png', iconSize: new Leaflet.Point(24,24)}), '_x': -220, '_y': 504},
 ], "Pl": [
 	{'loc': 1240020, 'name': 'Plant', 'zone': 'Grove', 'area': 'HoruFieldsEnergyPlant', 'y': 21, 'x': 124},
 	{'loc': 4439632, 'name': 'Plant', 'zone': 'Grotto', 'area': 'MobileGumoHideoutPlants', 'y': -368, 'x': 447},
@@ -499,8 +503,44 @@ ks.forEach((pre) => {
 	});
 });
 
+function get_param(name) {
+	let retVal = document.getElementsByClassName(name)[0].id
+	return (retVal !== "None") ? retVal : null
+}
+
+function get_flag(name) {
+	return get_param(name) !== null
+}
+
+function get_int(name, orElse) {
+	return parseInt(get_param(name), 10) || orElse
+}
+
+function get_list(name, sep) {
+	let raw = get_param(name)
+	if(raw)
+		return raw.split(sep)
+	else
+		return []
+}
+
+
+function get_seed() {
+    let authed = get_flag("authed")
+    let user = "N/A", name = "new seed", desc = ""
+    if(authed)
+    {
+    	user = get_param("user")
+    	name = get_param("seed_name") || "new seed"
+    	desc = get_param("seed_desc") || ""
+    	let rawSeed = get_param("seed_data")
+	    return {rawSeed: rawSeed, user: user, authed: authed, seed_name: name, seed_desc: desc}
+    }
+}
+
  
  
 
 export {PickupMarker, PickupMarkersList, download, pickup_icons, getStuffType, locs, picks_by_loc, getMapCrs, pickups, distance,
-		point, picks_by_type, picks_by_zone, zones, pickup_name, stuff_types, stuff_by_type, areas, picks_by_area, presets};
+		point, picks_by_type, picks_by_zone, zones, pickup_name, stuff_types, stuff_by_type, areas, picks_by_area, presets,
+		get_param, get_flag, get_int, get_list, get_seed};

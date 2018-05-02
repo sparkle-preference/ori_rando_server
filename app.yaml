@@ -1,6 +1,10 @@
 runtime: python27
 api_version: 1
 threadsafe: true
+instance_class: B4
+manual_scaling:
+  instances: 1
+
 
 handlers:
 - url: /sprites

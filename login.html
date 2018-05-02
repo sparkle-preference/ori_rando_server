@@ -7,8 +7,10 @@ td {
 }</style>
   </head>
 <body>
-<script src="https://apis.google.com/js/platform.js" async defer></script>
-<meta name="google-signin-client_id" content="1050221059884-ug19ch5cp9l95nhn88t1hqr1e4p1ap45.apps.googleusercontent.com">
+<a href="{{ url }}" class="btn">{{ url_linktext }}</a>
+{ % if logged_in % }
 
+{ % else % }
+<div>Please log in to browse or create a new plando seed.</div>
 </body>
 </html>

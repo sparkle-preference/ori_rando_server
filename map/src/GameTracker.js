@@ -11,23 +11,18 @@ import Select from 'react-select';
 import 'react-select/dist/react-select.css';
 
 const paths = Object.keys(presets);
-const game_id = document.getElementsByClassName("game-id-holder")[0].id;
+const game_id = document.getElementsByClassName("game-id")[0].id;
 
-const EMPTY_PLAYER = {seed: {}, pos: [0,0], seen:[], flags: ["show_marker"], areas: [], mapstones: {pos: [0,0], turnedIn: 0, picks: [], seen: [], foundAt: {}}}
+const EMPTY_PLAYER = {seed: {}, pos: [0,0], seen:[], flags: ["show_marker", "hide_found", "hide_unreachable"], areas: []}
 
 function parse_seed(raw) {
 	let out = {}
-	let msout = []
 	let lines = raw.split("\n")
     for (let i = 0, len = lines.length; i < len; i++) {
     	let line = lines[i].split(":")
     	out[parseInt(line[0])] = line[1]
 	}
-    for (let i = 24; i < 60; i+=4) {
-    	if(out.hasOwnProperty(i))
-			msout.push(out[i])
-	}
-	return {seed: out, ms: msout}
+	return out
  }
 
 function player_icons(id)  {
@@ -90,7 +85,7 @@ const PlayerUiOpts = ({players, setter}) => {
 				<tr>
 					<td><label><Checkbox value="hide_unreachable"/> Hide unreachable</label></td>
 					<td><label><Checkbox value="hide_remaining"/> Hide remaining</label></td>
-					<td><label><Checkbox value="hide_reachable"/> Hide reachable</label></td>
+					<td><label><Checkbox value="hot_assist"/> Split assist mode</label></td>
 				</tr>
 		       </CheckboxGroup>
 	       </tbody></table></td></tr>
@@ -104,26 +99,13 @@ const PlayerUiOpts = ({players, setter}) => {
 
 function getLocInfo(pick, players) {
 	let loc = pick.loc;
-	let isMs = (pick.name === "MapStone")
-
 	let info = Object.keys(players).map((id) => {
 		let show_spoiler = players[id].flags.includes("show_spoiler");
-		let mapstones =  players[id].mapstones
-		let seen = players[id].seen.includes(loc) || mapstones.seen.includes(pick.loc);
-		if(isMs) {
-			if(seen)
-				return id + ":" + mapstones.foundAt[pick.loc] + (show_spoiler ? "*" : "");
-			else if(show_spoiler)
-				return id + ":" + mapstones.picks[mapstones.turnedIn];
-			else
-				return id + ":" + "(hidden)";
-			
-		}	else {
-			if(show_spoiler || seen)
-				return id + ":" + players[id].seed[loc] + (show_spoiler && seen ? "*" : "");
-			else
-				return id + ":" + "(hidden)"			
-		}	
+		let seen = players[id].seen.includes(loc);
+		if(show_spoiler || seen)
+			return id + ":" + players[id].seed[loc] + ((show_spoiler && seen) ? "*" : "");
+		else
+			return id + ":" + "(hidden)"			
 	});
 	return info;
 }
@@ -145,18 +127,26 @@ function getPickupMarkers(state) {
 				markers.push({key: pick.name+"|"+pick.x+","+pick.y, position: [y, x], inner: null, icon: icon})
 				continue				
 			}
+			let is_hot = false;
+			let highlight = false;
 			Object.keys(players).map((id) => {
 				let player = players[id]
 				let hide_found = player.flags.includes("hide_found")
 				let hide_unreachable = player.flags.includes("hide_unreachable")
 				let hide_remaining = player.flags.includes("hide_remaining")
-				let hide_reachable = player.flags.includes("hide_reachable")
-
-				let found = player.seen.includes(pick.loc) || player.mapstones.seen.includes(pick.loc)
+				let hot_assist = player.flags.includes("hot_assist")
+				let show_spoiler = player.flags.includes("show_spoiler");
+				let pick_name = player.seed[pick.loc]
+				let found = player.seen.includes(pick.loc);
+				if(!is_hot && found &&  pick_name === "Warmth Returned")
+					is_hot = true;
+				if(is_hot && !found && hot_assist)
+					highlight = true;
+				if(!highlight && (found || show_spoiler) && state.searchStr && pick_name.toLowerCase().includes(state.searchStr.toLowerCase()))
+					highlight = true;
+				let reachable = players[id].areas.includes(pick.area);
 				
-				let reachable = players[id].areas.includes(pick.area)
-
-				if( (found && hide_found) || (!found && hide_remaining) || (reachable && hide_reachable) || (!reachable && hide_unreachable && !found))
+				if( (found && hide_found) || (!found && hide_remaining) || (!reachable && hide_unreachable && !found))
 					count -= 1;
 			});
 			
@@ -166,21 +156,23 @@ function getPickupMarkers(state) {
 				let loc_info = getLocInfo(pick, players);
 				let inner = null;
 				if(loc_info)
-				{
-				let lines = loc_info.map((infoln) => {
-					return (
-					<tr><td style={{color:'black'}}>{infoln}</td></tr>
-					)
-				});
-				inner = (
-				<Tooltip>
-					<table>
-					{lines}
-					</table>
-				</Tooltip>
-				);					
+					{
+					let lines = loc_info.map((infoln) => {
+						return (
+						<tr><td style={{color:'black'}}>{infoln + (is_hot ? " !hot!" : "")}</td></tr>
+						)
+					});
+					inner = (
+					<Tooltip>
+						<table>
+						{lines}
+						</table>
+					</Tooltip>
+					);					
 				}
-				markers.push({key: pick.name+"|"+pick.x+","+pick.y, position: [y, x], inner: inner, icon: icon});								
+				if(highlight)
+					icon = new Leaflet.Icon({iconUrl: icon.options.iconUrl, iconSize: new Leaflet.Point(icon.options.iconSize.x*2, icon.options.iconSize.y*2)})
+				markers.push({key: pick.name+"|"+pick.x+","+pick.y, position: [y, x], inner: inner, icon: icon});
 			}
 	
 		}
@@ -208,89 +200,57 @@ const DEFAULT_VIEWPORT = {
 	  center: [0, 0],
 	  zoom: 3,
 	}
+const RETRY_MAX = 60
+const TIMEOUT_START = 5
+const TIMEOUT_INC = 5
+
 const crs = getMapCrs();
 
 class GameTracker extends React.Component {
   constructor(props) {
     super(props)
-    let modeRaw = document.getElementsByClassName("logic-modes-holder")[0].id
+    let modeRaw = document.getElementsByClassName("logic-modes")[0].id
     let modes = (modeRaw !== "None") ? modeRaw.split(" ") : ['normal', 'speed', 'dboost-light', 'lure']
 
-    this.state = {players: {}, retries: 60, check_seen: 1, modes: modes, 
-    flags: ['show_pickups', 'update_in_bg'], viewport: DEFAULT_VIEWPORT, pickups: ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "Ma"], 
-    pathMode: 'standard', hideOpt: "any"}
+    this.state = {players: {}, retries: 0, check_seen: 1, modes: modes, timeout: TIMEOUT_START, searchStr: "",
+    flags: ['show_pickups', 'update_in_bg'], viewport: DEFAULT_VIEWPORT, pickups: ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV"], 
+    pathMode: 'standard', hideOpt: "all"}
   };
   componentDidMount() {
 	  this.interval = setInterval(() => this.tick(), 1000);
   };
-  
+  timeout = () => {
+  	return {retries: this.state.retries+1, check_seen: this.state.timeout, timeout: this.state.timeout+TIMEOUT_INC}
+  }
   tick = () => {
+  	if(this.state.retries >= RETRY_MAX) return;
   	if(!document.hasFocus() && !this.state.flags.includes("update_in_bg")) return;
-  	if(this.state.retries === 0) return;
-
+	
   	if(this.state.check_seen == 0) {
 	  	this.setState({check_seen: 5});
-		getSeen((p) => this.setState(p, () => this.checkMapstones()), this.state.retries);
-		getReachable((p) => this.setState(p),this.state.modes.join("+"), this.state.retries);
+		getSeen((p) => this.setState(p), this.timeout);
+		getReachable((p) => this.setState(p),this.state.modes.join("+"), this.timeout);
 		Object.keys(this.state.players).map((id) => {
 			if(Object.keys(this.state.players[id].seed).length < 50)
-			{
-				console.log("before: " + Object.keys(this.state.players[id].seed).length)
-				getSeed((p) => this.setState(p, () =>  console.log("after: " + Object.keys(this.state.players[id].seed).length)), id, this.state.retries);
-			}
+				getSeed((p) => this.setState(p), id, this.timeout);
 		})
   	} else 
 	  	this.setState({check_seen: this.state.check_seen -1});
 	if(this.state.check_seen < 10)
-		getPlayerPos((p) => this.setState(p), this.state.retries);
+		getPlayerPos((p) => this.setState(p), this.timeout);
 
   };
   
-  checkMapstones = () => {
-	this.setState((prevState, props) => {
-		let newPlayers = prevState.players;
-	  	Object.keys(newPlayers).map((id) => {
-	  		let player = {...newPlayers[id]}
-	  		let mapstones = {...player.mapstones}
-	  		if(mapstones.picks.length === 0) return {}
-	  		let nextMapstoneId = mapstones.turnedIn*4+24;
-	  		if(player.seen.includes(nextMapstoneId)) {
-	  			let min_dist = 99999;
-		  		let pos = mapstones.pos;
-	  			let closest_ms = null;
-	  			picks_by_type["Ma"].forEach((msPick) => {
-	  				if(!mapstones.seen.includes(msPick.loc))
-	  				{	  					
-		  				let dist = distance(pos[1], pos[0], msPick.x, msPick.y);
-		  				if(dist < min_dist) {
-		  					min_dist = dist;
-		  					closest_ms = msPick;
-		  				}
-	  				}
-	  			});
-				if(closest_ms) {
-					mapstones.seen.push(closest_ms.loc)
-					mapstones.foundAt[closest_ms.loc] = mapstones.picks[mapstones.turnedIn]
-					mapstones.turnedIn += 1
-				}
-			}
-			mapstones.pos = player.pos;
-			player.mapstones = mapstones
-			newPlayers[id] = player
-	  	});
-	  	return {players: newPlayers};
-  	})
-  }
-
   componentWillUnmount() {
     clearInterval(this.interval);
   }
   
   
-  hideOptChanged = (newVal) => { this.setState({hideOpt: newVal}) }
-  flagsChanged = (newVal) => { this.setState({flags: newVal}) }
-  pickupsChanged = (newVal) => { this.setState({pickups: newVal}) }
-  modesChanged = (newVal) => this.setState({modes: newVal}, () => getReachable((p) => this.setState(p),this.state.modes.join("+")))
+  hideOptChanged = newVal => { this.setState({hideOpt: newVal}) }
+  flagsChanged = newVal => { this.setState({flags: newVal}) }
+  pickupsChanged = newVal => { this.setState({pickups: newVal}) }
+  modesChanged = newVal => this.setState({modes: newVal}, () => getReachable((p) => this.setState(p),this.state.modes.join("+")))
+  onSearch = event => { this.setState({searchStr: event.target.value}) }
   
   onViewportChanged = viewport => { this.setState({ viewport }) }
  _onPathModeChange = (n) => paths.includes(n.value) ? this.setState({modes: presets[n.value], pathMode: n.value}, () => getReachable((p) => this.setState(p),this.state.modes.join("+"))) : this.setState({pathMode: n.value})
@@ -302,6 +262,7 @@ class GameTracker extends React.Component {
 	const player_opts = ( <PlayerUiOpts players={this.state.players} setter={(p) => this.setState(p)} />)
     return (
         <table style={{ width: '100%' }}><tbody>
+
         <tr><td style={{ width: 'available' }}>
              <Map crs={crs} onViewportChanged={this.onViewportChanged} viewport={this.state.viewport}>
 				<TileLayer url=' https://ori-tracker.firebaseapp.com/images/ori-map/{z}/{x}/{y}.png' noWrap='true'  />
@@ -311,6 +272,8 @@ class GameTracker extends React.Component {
 		</td>
 		<td style={{ width: '360px'}}>
 			<table style={{ width: '100%'}}><tbody>
+		        <tr><td><label style={{width: '100%'}}>Search<input type="text" style={{width: '100%'}} value={this.state.searchStr} onChange={this.onSearch} /></label></td></tr>
+
 		        <tr><td><button  onClick={ () => this.setState({ viewport: DEFAULT_VIEWPORT }) } >
 		          Reset View
 		        </button></td></tr>
@@ -392,9 +355,6 @@ class GameTracker extends React.Component {
 						<td><label><Checkbox value="KS" />Keystones</label></td>
 						<td><label><Checkbox value="EX" />Exp Orbs</label></td>	
 					</tr>
-					<tr>
-						<td><label><Checkbox value="Ma" />Mapstone turnins</label></td>
-					</tr>
 		       </CheckboxGroup>
 	       </tbody></table>
 	 </td></tr>
@@ -403,13 +363,13 @@ class GameTracker extends React.Component {
   }
 }
 
-function doNetRequest(onRes, setter, url, rets)
+function doNetRequest(onRes, setter, url, timeout)
 {
     var xmlHttp = new XMLHttpRequest();
     xmlHttp.onreadystatechange = function() { 
         if (xmlHttp.readyState === 4) {
         	 if(xmlHttp.status === 404) 
-        	 	setter({check_seen: 90, retries: rets-1})
+        	 	setter(timeout())
         	 else
 	        	 onRes(xmlHttp.responseText);
         }
@@ -419,23 +379,21 @@ function doNetRequest(onRes, setter, url, rets)
 }
 
 
-function getSeed(setter, pid, rets)
+function getSeed(setter, pid, timeout)
 {
      var onRes = (res) => {
 				setter((prevState, props) => {
 					let retVal = prevState.players;
-					let out = parse_seed(res);
-					retVal[pid].seed = out.seed
-					retVal[pid].mapstones.picks = out.ms 
-					return {players:retVal}
+					retVal[pid].seed = parse_seed(res);
+					return {players:retVal, retries: 0, timeout: TIMEOUT_START}
 				});
             }
-     doNetRequest(onRes, setter, "/"+game_id+"."+pid+"/_seed", rets)
+     doNetRequest(onRes, setter, "/"+game_id+"."+pid+"/_seed", timeout)
 }
 
 
 
-function getReachable(setter, modes, rets)
+function getReachable(setter, modes, timeout)
 {
      var onRes = (res) => {
             	let areas = {};
@@ -455,13 +413,13 @@ function getReachable(setter, modes, rets)
 						}
 						retVal[id].areas = areas[id]
 					})
-					return {players:retVal}
+					return {players:retVal, retries: 0, timeout: TIMEOUT_START}
 				})
     }
-    doNetRequest(onRes, setter, "/"+game_id+"/_reachable?modes="+modes, rets)
+    doNetRequest(onRes, setter, "/"+game_id+"/_reachable?modes="+modes, timeout)
 }
 
-function getSeen(setter, rets)
+function getSeen(setter, timeout)
 {
      var onRes = (res) => {
             	let seens = {};
@@ -481,14 +439,14 @@ function getSeen(setter, rets)
 						}
 						retVal[id].seen = seens[id]
 					})
-					return {players:retVal}
+					return {players:retVal, retries: 0, timeout: TIMEOUT_START}
 				})
     }
-    doNetRequest(onRes, setter, "/"+game_id+"/_seen", rets)
+    doNetRequest(onRes, setter, "/"+game_id+"/_seen", timeout)
 }
 
 
-function getPlayerPos(setter, rets)
+function getPlayerPos(setter, timeout)
 {
      var onRes = (res) => {
             	let player_positions = {};
@@ -506,10 +464,10 @@ function getPlayerPos(setter, rets)
 							retVal[id] = {...EMPTY_PLAYER};
 						retVal[id].pos = player_positions[id]
 					})
-					return {players:retVal}
+					return {players:retVal, retries: 0, timeout: TIMEOUT_START}
 				})
     }
-    doNetRequest(onRes, setter, "/"+game_id+"/_getPos", rets)
+    doNetRequest(onRes, setter, "/"+game_id+"/_getPos", timeout)
 }
 
 

@@ -1,25 +1,31 @@
 #haha this is garbage sorry
 
-import webapp2
+# py imports
 import random
 import os
+from operator import attrgetter
 import pickle
+
+# web imports
+import webapp2
 from datetime import datetime, timedelta
 from protorpc import messages
+from google.appengine.api import users
 from google.appengine.ext import ndb
 from google.appengine.ext.ndb import msgprop
+from google.appengine.ext.webapp import template
+
+# project impports
 from seedbuilder.generator import setSeedAndPlaceItems
 from seedbuilder.splitter import split_seed
-from operator import attrgetter
-from google.appengine.ext.webapp import template
-from util import (GameMode, ShareType, Pickup, Skill, Event, Teleporter, Upgrade, share_map, special_coords, get_bit, get_taste, add_single,
-				 DEDUP_MODES, get, unpack, coord_correction_map, Cache, HistoryLine, Player, Game, delete_game, get_new_game, clean_old_games, all_locs)
-
+from util import (GameMode, ShareType, Pickup, Skill, Event, Teleporter, Upgrade, share_map, special_coords, get_bit, get_taste, add_single, Seed, get_open_gid,
+				 mode_map, DEDUP_MODES, get, unpack, coord_correction_map, Cache, HistoryLine, Player, Game, delete_game, get_new_game, clean_old_games, all_locs)
 from reachable import Map, PlayerState
 
-base_site = "http://orirandocoopserver.appspot.com"
 LAST_DLL = "Mar 27, 2018"
-PLANDO_VER = "0.1.0"
+PLANDO_VER = "0.2.0"
+debug = os.environ.get('SERVER_SOFTWARE', '').startswith('Dev')
+base_site = "http://orirandocoopserver.appspot.com" if not debug else "https://8080-dot-3616814-dot-devshell.appspot.com"
 
 
 def paramFlag(s,f):
@@ -134,7 +140,8 @@ class SeedGenerator(webapp2.RequestHandler):
 		logic_paths = [x for x in ["normal", "speed", "lure", "speed-lure", "dboost", "dboost-light", "dboost-hard", "cdash", "dbash", "extended", "lure-hard", "timed-level", "glitched", "extended-damage", "extreme"] if self.request.get(x)]
 		playercount = self.request.get("playerCount")
 		syncid = self.request.get("syncid")
-		syncmode = int(self.request.get("syncmode"))
+		syncmode = self.request.get("syncmode").lower()
+		syncmode = mode_map[syncmode] if syncmode in mode_map else int(syncmode)
 		seed = self.request.get("seed")
 		share_types = [f for f in share_map.keys() if self.request.get(f)]
 
@@ -328,14 +335,19 @@ class SetSeed(webapp2.RequestHandler):
 		game = Game.get_by_id(game_id)
 		if not game:
 			flags = lines[0].split("|")
-			mode_opt = [int(f[5:]) for f in flags if f.lower().startswith("mode=")]
+			mode_opt = [f[5:] for f in flags if f.lower().startswith("mode=")]
 			shared_opt = [f[7:].split(" ") for f in flags if f.lower().startswith("shared=")]
-			mode = mode_opt[0] if mode_opt else None
+			mode = mode_opt[0].lower() if mode_opt else None
+			mode = mode_map[mode] if mode in mode_map else int(mode)
+
 			shared = shared_opt[0] if shared_opt else None
 			game = get_new_game(_mode = mode, _shared = shared, id=game_id)
 		for l in lines[1:]:
 			line = l.split("|")
-			seedlines.append("%s: %s" % (line[0], Pickup.name(line[1],line[2])))
+			if len(line) < 3:
+				print "ERROR: malformed seed line %s, skipping" % l
+			else:
+				seedlines.append("%s:%s" % (line[0], Pickup.name(line[1],line[2])))
 		player = game.player(player_id)
 		player.seed = "\n".join(seedlines)
 		player.put()
@@ -402,7 +414,146 @@ class GetPlayerPositions(webapp2.RequestHandler):
 			self.response.headers['Content-Type'] = 'text/plain'
 			self.response.status = 404
 
+class HandleLogin(webapp2.RequestHandler):
+	def get(self):
+		path = os.path.join(os.path.dirname(__file__), 'login.html')
+		user = users.get_current_user()
+		if user:
+			dispname = user.email().partition("@")[0]
+			url = users.create_logout_url(self.request.uri)
+			url_linktext = 'Logout'
+		else:
+			url = users.create_login_url(self.request.uri)
+			url_linktext = 'Login'
+			
+		template_values = {'url': url, 'url_linktext': url_linktext}
+		self.response.out.write(template.render(path, template_values))
+
+class PlandoUpload(webapp2.RequestHandler):
+	def post(self, author, plando):
+		user = users.get_current_user()
+		if user:
+			dispname = user.email().partition("@")[0]
+			if dispname == author:
+				id = author+":"+plando
+				seedLines = self.request.POST["seed"]
+				desc = self.request.POST["desc"]
+				seed = Seed.from_plando(seedLines.split("!"), author, plando, desc)
+				self.response.headers['Content-Type'] = 'text/plain'
+				self.response.status = 200
+				self.response.out.write("Saved")
+			else:
+				print "ERROR: Auth failed, logged in as %s, trying to access %s" % (dispname, author)
+		else:
+			print "ERROR: no auth D:"
+
+
+
+class PlandoView(webapp2.RequestHandler):
+	def get(self, author, plando):
+		user = users.get_current_user()
+		if user:
+			dispname = user.email().partition("@")[0]
+		id = author+":"+plando
+		seed = Seed.get_by_id(id)
+		if seed:
+			self.response.status = 200
+			self.response.headers['Content-Type'] = 'text/html'
+			path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
+			template_values = {'app': "seedDisplay", 'title': "%s by %s" % (plando, author), 'players': seed.players, 'seed_data': seed.to_lines()[0], 
+				  				'seed_name': plando, 'author': author, 'seed_desc': seed.description, 'user': dispname, 'game_id': get_open_gid()}
+			self.response.out.write(template.render(path, template_values))
+		else:
+			self.response.status = 404
+			self.response.headers['Content-Type'] = 'text/plain'
+			self.response.out.write("seed not found")
+
+
+class PlandoEdit(webapp2.RequestHandler):
+	def get(self, author, plando):
+		path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
+		template_values = {'app': "plandoBuilder", 'title': "Plandomizer Editor "+PLANDO_VER, 'seed_name': plando}
+		owner = False
+		user = users.get_current_user()
+		if user:
+			dispname = user.email().partition("@")[0]
+			owner = dispname == author			
+		id = author+":"+plando
+		if not owner:
+			self.redirect('/login')
+		else:
+			seed = Seed.get_by_id(id)
+			template_values['user'] = dispname
+			template_values['authed'] = "True"
+			if seed:
+				template_values['seed_desc'] = seed.description
+				template_values['seed_data'] = "\n".join(seed.to_plando_lines())
+			self.response.out.write(template.render(path, template_values))
+				
+	
+class PlandoOld(webapp2.RequestHandler):
+	def get(self):
+		path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
+		template_values = {'app': "plandoBuilder", 'title': "Plandomizer Editor "+PLANDO_VER, 
+							'pathmode': paramVal(self, 'pathmode'), 'HC': paramVal(self, 'HC'),
+							'EC': paramVal(self, 'EC'), 'AC': paramVal(self, 'AC'), 'KS': paramVal(self, 'KS'),
+							'skills': paramVal(self, 'skills'), 'tps': paramVal(self, 'tps')}
+		self.response.out.write(template.render(path, template_values))
+
+class PlandoDownload(webapp2.RequestHandler):
+	def get(self, author, plando):
+		owner = False
+		user = users.get_current_user()
+		if user:
+			dispname = user.email().partition("@")[0]
+			owner = dispname == author			
+		id = author+":"+plando
+		seed = Seed.get_by_id(id)
+		if seed:
+			gid = paramVal(self, "gid")
+			pid = paramVal(self, "pid")
+			syncFlag = "Sync%s.%s" % (gid, pid)
+			self.response.status = 200
+			self.response.headers['Content-Type'] = 'application/x-gzip'
+			self.response.headers['Content-Disposition'] = 'attachment; filename=randomizer.dat'
+			self.response.out.write("\n".join(seed.to_lines(player=int(pid), extraFlags=[syncFlag])))
+		else:
+			self.response.status = 404
+			self.response.headers['Content-Type'] = 'text/plain'
+			self.response.out.write("seed not found")
+
+class AuthorIndex(webapp2.RequestHandler):
+	def get(self,author):
+		self.response.headers['Content-Type'] = 'text/html'
+		seeds = Seed.query(Seed.author == author).fetch()
+		owner = False
+		user = users.get_current_user()
+		if user:
+			dispname = user.email().partition("@")[0]
+			owner = dispname == author
+		if owner:
+			if len(seeds):
+				self.response.write('<html><body><pre>Seeds by %s:\n' % author + "\n".join(["<a href='/%s/%s'>%s</a>: %s (%s players, %s) <a href='/%s/%s/edit'>Edit</a>" % (author, seed.name, seed.name, seed.description, seed.players, ",".join(seed.flags), author, seed.name) for seed in seeds])+"</pre></body></html>")
+			else:
+				self.response.write("<html><body>You haven't made any seeds yet! <div><a href='/%s/newseed/edit>Start a new seed</a></div></body></html>" % author)		
+		else:
+			if len(seeds):
+				self.response.write('<html><body><pre>Seeds by %s:\n' % author + "\n".join(["<a href='/%s/%s'>%s</a>: %s (%s players, %s) " % (author, seed.name, seed.name, seed.description, seed.players, ",".join(seed.flags)) for seed in seeds])+"</pre></body></html>")
+			else:
+				self.response.write('<html><body>No seeds by user %s</body></html>' % author)
+class QuickStart(webapp2.RequestHandler):
+	def get(self):
+		self.response.write("""<html><body><pre>: Misc info:
+- From <a href=http://orirandocoopserver.appspot.com/activeGames>this page</a> you can see a list of active games, and follow links to see a game's history or an active map. 
+- If you set game mode to 4 from the seed gen page, you can generate seeds that play out like solo rando seeds but with map tracking.
+- The <a href=http://orirandocoopserver.appspot.com/>seed generator</a> currently produces multiplayer seeds by splitting up important pickups, giving each to 1 player and the rest of the players a dummy pickup. With split: hot set, that dummy pickup is warmth returned: otherwise it's 1-100 exp (chosen randomly).
+- The plandomizer editor is located <a href=http://orirandocoopserver.appspot.com/plando>here</a>. The interface is graphical: click on pickups or select them using the zone/location dropdowns, and then fill in what you want to be there. (You may need to change or disable the logic options if your plando does things outside of the logic).
+- You can generate a visual spoiler for any seed by importing it into the plando (paste the full text of the .dat file into the text box).
+- If you have any questions or bug reports please ping me  ( @SOL | Eiko  on the ori discord)
+</pre></body></html>""")
+
 app = webapp2.WSGIApplication([
+	('/faq/', QuickStart),
 	('/', SeedGenerator),
 	('/activeGames', ActiveGames),
 	('/clean', CleanUp),
@@ -425,7 +576,13 @@ app = webapp2.WSGIApplication([
 	(r'/(\d+)\.(\w+)/setSeed', SetSeed),
 	(r'/(\d+)/_reachable', GetReachable),
 	(r'/reachable', PlandoReachable),
-	(r'/plando', Plando)
+	(r'/login', HandleLogin),
+	(r'/plando', PlandoOld),
+	(r'/(\w+)/(\w+)/upload', PlandoUpload),
+	(r'/(\w+)/(\w+)/download', PlandoDownload),
+	(r'/(\w+)/(\w+)/edit', PlandoEdit),
+	(r'/(\w+)', AuthorIndex),
+	(r'/(\w+)/(\w+)', PlandoView)
 ], debug=True)
 
 
