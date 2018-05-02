@@ -431,9 +431,10 @@ class PlandoUpload(webapp2.RequestHandler):
 				seedLines = self.request.POST["seed"]
 				desc = self.request.POST["desc"]
 				seed = Seed.from_plando(seedLines.split("!"), author, plando, desc)
+				res = seed.put()
 				self.response.headers['Content-Type'] = 'text/plain'
 				self.response.status = 200
-				self.response.out.write("Saved")
+				self.response.out.write(res)
 			else:
 				print "ERROR: Auth failed, logged in as %s, trying to access %s" % (dispname, author)
 		else:
