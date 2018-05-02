@@ -414,20 +414,6 @@ class GetPlayerPositions(webapp2.RequestHandler):
 			self.response.headers['Content-Type'] = 'text/plain'
 			self.response.status = 404
 
-class HandleLogin(webapp2.RequestHandler):
-	def get(self):
-		path = os.path.join(os.path.dirname(__file__), 'login.html')
-		user = users.get_current_user()
-		if user:
-			dispname = user.email().partition("@")[0]
-			url = users.create_logout_url(self.request.uri)
-			url_linktext = 'Logout'
-		else:
-			url = users.create_login_url(self.request.uri)
-			url_linktext = 'Login'
-			
-		template_values = {'url': url, 'url_linktext': url_linktext}
-		self.response.out.write(template.render(path, template_values))
 
 class PlandoUpload(webapp2.RequestHandler):
 	def post(self, author, plando):
@@ -500,6 +486,27 @@ class PlandoOld(webapp2.RequestHandler):
 							'skills': paramVal(self, 'skills'), 'tps': paramVal(self, 'tps')}
 		self.response.out.write(template.render(path, template_values))
 
+class HandleLogin(webapp2.RequestHandler):
+	def get(self):
+		user = users.get_current_user()
+		if user:
+			dispname = user.email().partition("@")[0]
+			self.redirect('/'+dispname)
+		else:
+			url = users.create_login_url(self.request.uri)
+			url_linktext = 'Login'
+			self.response.out.write("""<html><body><a href="%s" class="btn">%s</a></body></html>""" % (url, url_linktext))
+
+class HandleLogout(webapp2.RequestHandler):
+	def get(self):
+		user = users.get_current_user()
+		if user:
+			url = users.create_logout_url("/")
+			url_linktext = 'Logout'
+		else:
+			self.redirect("/")
+		self.response.out.write("""<html><body><a href="%s" class="btn">%s</a></body></html>""" % (url, url_linktext))
+
 class PlandoDownload(webapp2.RequestHandler):
 	def get(self, author, plando):
 		owner = False
@@ -535,7 +542,7 @@ class AuthorIndex(webapp2.RequestHandler):
 			if len(seeds):
 				self.response.write('<html><body><pre>Seeds by %s:\n' % author + "\n".join(["<a href='/%s/%s'>%s</a>: %s (%s players, %s) <a href='/%s/%s/edit'>Edit</a>" % (author, seed.name, seed.name, seed.description, seed.players, ",".join(seed.flags), author, seed.name) for seed in seeds])+"</pre></body></html>")
 			else:
-				self.response.write("<html><body>You haven't made any seeds yet! <div><a href='/%s/newseed/edit>Start a new seed</a></div></body></html>" % author)		
+				self.response.write("<html><body>You haven't made any seeds yet! <a href='/%s/newseed/edit>Start a new seed</a></body></html>" % author)		
 		else:
 			if len(seeds):
 				self.response.write('<html><body><pre>Seeds by %s:\n' % author + "\n".join(["<a href='/%s/%s'>%s</a>: %s (%s players, %s) " % (author, seed.name, seed.name, seed.description, seed.players, ",".join(seed.flags)) for seed in seeds])+"</pre></body></html>")
@@ -543,7 +550,7 @@ class AuthorIndex(webapp2.RequestHandler):
 				self.response.write('<html><body>No seeds by user %s</body></html>' % author)
 class QuickStart(webapp2.RequestHandler):
 	def get(self):
-		self.response.write("""<html><body><pre>: Misc info:
+		self.response.write("""<html><body><pre>Misc info:
 - From <a href=http://orirandocoopserver.appspot.com/activeGames>this page</a> you can see a list of active games, and follow links to see a game's history or an active map. 
 - If you set game mode to 4 from the seed gen page, you can generate seeds that play out like solo rando seeds but with map tracking.
 - The <a href=http://orirandocoopserver.appspot.com/>seed generator</a> currently produces multiplayer seeds by splitting up important pickups, giving each to 1 player and the rest of the players a dummy pickup. With split: hot set, that dummy pickup is warmth returned: otherwise it's 1-100 exp (chosen randomly).
@@ -577,6 +584,7 @@ app = webapp2.WSGIApplication([
 	(r'/(\d+)/_reachable', GetReachable),
 	(r'/reachable', PlandoReachable),
 	(r'/login', HandleLogin),
+	(r'/logout', HandleLogout),
 	(r'/plando', PlandoOld),
 	(r'/(\w+)/(\w+)/upload', PlandoUpload),
 	(r'/(\w+)/(\w+)/download', PlandoDownload),
