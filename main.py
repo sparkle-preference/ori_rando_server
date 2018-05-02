@@ -304,9 +304,9 @@ class ShowCache(webapp2.RequestHandler):
 
 class ClearCache(webapp2.RequestHandler):
 	def get(self):
-		self.response.headers['Content-Type'] = 'text/plain'
-		Cache.pos = Cache.hist = {}
-		self.response.write("Cleared")
+		Cache.pos = {} 
+		Cache.hist = {}
+		self.redirect("/cache")
 
 
 class Plando(webapp2.RequestHandler):
@@ -333,6 +333,12 @@ class SetSeed(webapp2.RequestHandler):
 		seedlines = []
 		lines = paramVal(self, "seed").split(",")		
 		game = Game.get_by_id(game_id)
+		hist = Cache.getHist(game_id)
+		if not hist:
+			Cache.setHist(game_id, player_id, [])
+		pos = Cache.getPos(game_id)
+		if not pos:
+			Cache.setPos(game_id, player_id, 0, 0)
 		if not game:
 			flags = lines[0].split("|")
 			mode_opt = [f[5:] for f in flags if f.lower().startswith("mode=")]

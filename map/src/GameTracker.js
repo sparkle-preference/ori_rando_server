@@ -261,9 +261,9 @@ class GameTracker extends React.Component {
 	const player_markers =  ( <PlayerMarkersList players={this.state.players} />) 
 	const player_opts = ( <PlayerUiOpts players={this.state.players} setter={(p) => this.setState(p)} />)
     return (
-        <table style={{ width: '100%' }}><tbody>
+        <table style={{ width: '100%', height: "1000px"}}><tbody>
 
-        <tr><td style={{ width: 'available' }}>
+        <tr><td style={{ width: 'flex' }}>
              <Map crs={crs} onViewportChanged={this.onViewportChanged} viewport={this.state.viewport}>
 				<TileLayer url=' https://ori-tracker.firebaseapp.com/images/ori-map/{z}/{x}/{y}.png' noWrap='true'  />
 				{pickup_markers}
