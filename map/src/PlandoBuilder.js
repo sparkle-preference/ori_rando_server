@@ -37,6 +37,8 @@ const DANGEROUS = [-280256, -1680104, -12320248, -10440008]
 const paths = Object.keys(presets);
 
 
+const dev = window.document.URL.includes("devshell")
+
 
 function getPickupMarkers(pickupTypes, placements, reachable, flags, setSelected, searchStr) {
 	let hide_unreachable = flags.includes("hide_unreachable")
@@ -150,7 +152,7 @@ class PlandoBuiler extends React.Component {
     
     this.state = {seed_in: "", reachable: ['SunkenGladesRunaway'], placements: {1: {...DEFAULT_DATA}}, player: 1, 
     			  fill_opts: {HC: 13, EC: 15, AC: 34, KS: 40, MS: 9, EX: 300, dynamic: true}, viewport: DEFAULT_VIEWPORT, searchStr: "",
-		    	  flags: ['hide_unreachable', 'hide_softlockable'], seedFlags:["forcetrees"], share_types: ["keys"], coop_mode: {label: "Solo", value: 4},
+		    	  flags: ['hide_unreachable', 'hide_softlockable'], seedFlags:["forcetrees"], share_types: ["keys"], coop_mode: {label: "Solo", value: "None"},
 		    	  pickups: ["EX", "Ma", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV"],  display_import: false, display_logic: false, display_coop: false, display_meta: false}
 	}
 
@@ -183,12 +185,14 @@ class PlandoBuiler extends React.Component {
 
   };
   componentDidMount() {
-  	let {rawSeed, user, authed, seed_name, seed_desc} = get_seed()
-	this.setState({user: user,  authed: authed, seed_name: seed_name, seed_desc: seed_desc})
-	if(rawSeed !== null)
-		this.parseSavedSeed(rawSeed)
-	else
-		this._updateReachable()
+  	if(this.state.authed)
+  	{
+	  	let {rawSeed, user, authed, seed_name, seed_desc} = get_seed()
+		this.setState({user: user,  authed: authed, seed_name: seed_name, seed_desc: seed_desc})
+		if(rawSeed)
+			this.parseSavedSeed(rawSeed)  		
+  	}
+	this._updateReachable()
 
   }
 
@@ -307,7 +311,7 @@ class PlandoBuiler extends React.Component {
 
 	parseSavedSeed = (seedText) => {
 		let lines = seedText.split("\n")
-		let newplc = {}
+		let newplc = {1: {}}
 	    for (let i = 1, len = lines.length; i < len; i++) {
 	    	let [loc, pickups] = lines[i].split(":")
 	    	loc = parseInt(loc, 10);
@@ -487,7 +491,11 @@ class PlandoBuiler extends React.Component {
 
   	};
 
-	toggleImport = () => {this.setState({display_import: !this.state.display_import})};
+	toggleImport = () => {
+		if(dev)
+			console.log(this.state)
+		this.setState({display_import: !this.state.display_import})
+	};
 	toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
 	toggleCoop = () => {this.setState({display_coop: !this.state.display_coop})};
 	toggleMeta = () => {this.setState({display_meta: !this.state.display_meta})};
@@ -527,7 +535,8 @@ class PlandoBuiler extends React.Component {
 		const pickup_markers = ( <PickupMarkersList markers={getPickupMarkers(this.state.pickups, this.state.placements, this.state.reachable, this.state.flags, this.selectPickupCurry, this.state.searchStr)} />) 
 		const zone_opts = zones.map(zone => ({label: zone, value: zone}))
 		const pickups_opts = picks_by_zone[this.state.zone].map(pick => ({label: pick.name+"("+pick.x + "," + pick.y +")",value: pick}) )
-		let alert = this.state.authed ? null : (<Alert color="danger">You aren't logged in!</Alert>)
+		let alert = this.state.authed ? null : (<Alert color="danger">Please <a href="/login">login</a> to enable saving.</Alert>)
+		let save_if_auth = this.state.authed ? ( <Button color="primary" onClick={this.toggleMeta} >Meta/Save</Button> ) : (<Button color="disabled">Meta/Save</Button>)
 		let stuff_select;
 		if(stuff_by_type[this.state.stuff_type])
 		{
@@ -583,7 +592,7 @@ class PlandoBuiler extends React.Component {
 					<div id="file-controls">
 						<Button color="primary" onClick={this.toggleImport} >Import</Button>
 						<Button color="primary" onClick={this.downloadSeed} >Download Seed</Button>
-						<Button color="primary" onClick={this.toggleMeta} >Meta/Save</Button>
+						{save_if_auth}
 					</div>
 					<Collapse id="import-wrapper" isOpen={this.state.display_meta}>
 						<textarea id="seed-name-input" className="form-control" value={this.state.seed_name} onChange={event => this.setState({seed_name: event.target.value})} />

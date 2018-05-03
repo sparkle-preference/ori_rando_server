@@ -487,11 +487,16 @@ class PlandoEdit(webapp2.RequestHandler):
 class PlandoOld(webapp2.RequestHandler):
 	def get(self):
 		path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
-		template_values = {'app': "plandoBuilder", 'title': "Plandomizer Editor "+PLANDO_VER, 
-							'pathmode': paramVal(self, 'pathmode'), 'HC': paramVal(self, 'HC'),
-							'EC': paramVal(self, 'EC'), 'AC': paramVal(self, 'AC'), 'KS': paramVal(self, 'KS'),
-							'skills': paramVal(self, 'skills'), 'tps': paramVal(self, 'tps')}
-		self.response.out.write(template.render(path, template_values))
+		user = users.get_current_user()
+		if user:
+			dispname = user.email().partition("@")[0]
+			self.redirect("/%s/seedName/edit" % dispname)
+		else:
+			template_values = {'app': "plandoBuilder", 'title': "Plandomizer Editor "+PLANDO_VER, 
+								'pathmode': paramVal(self, 'pathmode'), 'HC': paramVal(self, 'HC'), 
+								'EC': paramVal(self, 'EC'), 'AC': paramVal(self, 'AC'), 'KS': paramVal(self, 'KS'),
+								'skills': paramVal(self, 'skills'), 'tps': paramVal(self, 'tps')}
+			self.response.out.write(template.render(path, template_values))
 
 class HandleLogin(webapp2.RequestHandler):
 	def get(self):
@@ -500,19 +505,15 @@ class HandleLogin(webapp2.RequestHandler):
 			dispname = user.email().partition("@")[0]
 			self.redirect('/'+dispname)
 		else:
-			url = users.create_login_url(self.request.uri)
-			url_linktext = 'Login'
-			self.response.out.write("""<html><body><a href="%s" class="btn">%s</a></body></html>""" % (url, url_linktext))
-
+			self.redirect(users.create_login_url(self.request.uri))
+	
 class HandleLogout(webapp2.RequestHandler):
 	def get(self):
 		user = users.get_current_user()
 		if user:
-			url = users.create_logout_url("/")
-			url_linktext = 'Logout'
+			self.redirect(users.create_logout_url("/"))
 		else:
 			self.redirect("/")
-		self.response.out.write("""<html><body><a href="%s" class="btn">%s</a></body></html>""" % (url, url_linktext))
 
 class PlandoDownload(webapp2.RequestHandler):
 	def get(self, author, plando):

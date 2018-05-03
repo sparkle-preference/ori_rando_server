@@ -505,7 +505,7 @@ ks.forEach((pre) => {
 
 function get_param(name) {
 	let retVal = document.getElementsByClassName(name)[0].id
-	return (retVal !== "None") ? retVal : null
+	return (retVal !== "" && retVal !== "None") ? retVal : null
 }
 
 function get_flag(name) {
