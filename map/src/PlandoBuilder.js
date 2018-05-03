@@ -5,20 +5,20 @@ import { Map, Tooltip, TileLayer} from 'react-leaflet';
 import Leaflet from 'leaflet';
 import {Checkbox, CheckboxGroup} from 'react-checkbox-group';
 import {download, getStuffType, stuff_types, stuff_by_type, picks_by_type, picks_by_loc, picks_by_zone, presets,
-		picks_by_area, zones,  pickup_name, PickupMarkersList, pickup_icons, getMapCrs, 
+		picks_by_area, zones,  pickup_name, PickupMarkersList, pickup_icons, getMapCrs,
 		get_param, get_flag, get_int, get_list, get_seed} from './shared_map.js';
 import NumericInput from 'react-numeric-input';
 import Select from 'react-select';
 import 'react-select/dist/react-select.css';
 import {Alert, Button, ButtonGroup, Collapse} from 'reactstrap';
 NumericInput.style.input.width = '100%';
-NumericInput.style.input.height = '30px';
+NumericInput.style.input.height = '36px';
 
 
 const DEFAULT_DATA = {
-	'-280256': {label: "Energy Cell", value: "EC|1"}, 
-	'-1680104': {label: "100 Experience", value: "EX|100"}, 
-	'-12320248': {label: "100 Experience", value: "EX|100"}, 
+	'-280256': {label: "Energy Cell", value: "EC|1"},
+	'-1680104': {label: "100 Experience", value: "EX|100"},
+	'-12320248': {label: "100 Experience", value: "EX|100"},
 	'-10440008': {label: "100 Experience", value: "EX|100"}
 }
 
@@ -45,7 +45,7 @@ function getPickupMarkers(pickupTypes, placements, reachable, flags, setSelected
 	let skip_danger = flags.includes("hide_softlockable")
 	let markers = []
 	pickupTypes.forEach((pre) => {
-		picks_by_type[pre].forEach((pick) => {				
+		picks_by_type[pre].forEach((pick) => {
 			let x = pick.hasOwnProperty("_x") ? pick._x : pick.x
 			let y = pick.hasOwnProperty("_y") ? pick._y : pick.y
 			let icon = pick.hasOwnProperty("icon") ? pick.icon : pickup_icons[pre]
@@ -54,7 +54,7 @@ function getPickupMarkers(pickupTypes, placements, reachable, flags, setSelected
 						show = false;
 			if(show)
 			{
-				let highlight = false 
+				let highlight = false
 				let rows = null
 
 				if(pick.name === "MapStone") {
@@ -68,7 +68,7 @@ function getPickupMarkers(pickupTypes, placements, reachable, flags, setSelected
 					    		<td style={{color:'black'}}>
 					    		({pid}) {placements[pid][ms.loc].label}
 					    		</td>
-					    	)				    		
+					    	)
 				    	});
 				    	return (
 				    	<tr><td style={{color:'black'}}>{ms.area} :</td>
@@ -86,7 +86,7 @@ function getPickupMarkers(pickupTypes, placements, reachable, flags, setSelected
 				    		</td></tr>
 					  	)
 			  		});
-				}	
+				}
 				let inner = (
 					<Tooltip>
 						<table>{rows}</table>
@@ -104,8 +104,6 @@ function getPickupMarkers(pickupTypes, placements, reachable, flags, setSelected
 	return markers
 };
 
-// Work-around for lines between tiles on fractional zoom levels
-// https://github.com/Leaflet/Leaflet/issues/3575
 (function(){
     var originalInitTile = Leaflet.GridLayer.prototype._initTile
     Leaflet.GridLayer.include({
@@ -133,7 +131,6 @@ function shuffle (array) {
   }
 }
 
-
 function get_manual_reach() {
 	let HC = get_int("HC", 0);
     let EC = get_int("EC", 0);
@@ -149,8 +146,8 @@ function get_manual_reach() {
 class PlandoBuiler extends React.Component {
   constructor(props) {
     super(props)
-    
-    this.state = {seed_in: "", reachable: ['SunkenGladesRunaway'], placements: {1: {...DEFAULT_DATA}}, player: 1, 
+
+    this.state = {seed_in: "", reachable: ['SunkenGladesRunaway'], placements: {1: {...DEFAULT_DATA}}, player: 1,
     			  fill_opts: {HC: 13, EC: 15, AC: 34, KS: 40, MS: 9, EX: 300, dynamic: true}, viewport: DEFAULT_VIEWPORT, searchStr: "",
 		    	  flags: ['hide_unreachable', 'hide_softlockable'], seedFlags:["forcetrees"], share_types: ["keys"], coop_mode: {label: "Solo", value: "None"},
 		    	  pickups: ["EX", "Ma", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV"],  display_import: false, display_logic: false, display_coop: false, display_meta: false}
@@ -158,7 +155,7 @@ class PlandoBuiler extends React.Component {
 
   componentWillMount() {
     let pathmode = get_param("pathmode");
-    let manual_reach = get_manual_reach(); 
+    let manual_reach = get_manual_reach();
     let logicMode, modes;
 
     if(pathmode && paths.includes(pathmode)) {
@@ -179,8 +176,8 @@ class PlandoBuiler extends React.Component {
     let pick = picks_by_zone[zone][i];
     let pickup = {label: pick.name+"("+pick.x + "," + pick.y +")",value: pick}
     lastSelected['Glades'] = pickup
-	
-	this.setState({zone: zone, pickup: pickup, modes: modes, lastSelected: lastSelected, logicMode: logicMode, pathMode: pathmode, 
+
+	this.setState({zone: zone, pickup: pickup, modes: modes, lastSelected: lastSelected, logicMode: logicMode, pathMode: pathmode,
 		    	  manual_reach: manual_reach, stuff_type: "Cells and Stones", stuff: {value: "KS|1", label: "Keystone"}, authed: get_flag("authed")})
 
   };
@@ -205,11 +202,11 @@ class PlandoBuiler extends React.Component {
 	    else if(newStuffType.value === "Experience")
 	    	this._onChangeExp(15,"15");
     	};
-    	
+
     _onChangeExp = (n,s,_) => this.place({label: s, value: "EX|"+s});
 	_onSelectStuff = (newStuff) => newStuff ? this.place(newStuff) : false;
 	_onPathModeChange = (n) => paths.includes(n.value) ? this.setState({modes: presets[n.value], pathMode: n.value}, () => this._updateReachable()) : this.setState({pathMode: n.value}, () => this._updateReachable())
-	
+
 
 	logicModeChanged = (newVal) => { this.setState({logicMode: newVal}, () => this._updateReachable()) }
 
@@ -284,7 +281,7 @@ class PlandoBuiler extends React.Component {
 		}
 
     };
-    
+
     parseUploadedSeed = (seedText) => {
 		let lines = seedText.split("\n")
 		let newplc = {}
@@ -331,7 +328,7 @@ class PlandoBuiler extends React.Component {
     	}
 		this.parseFlagLine(lines[0])
 	    this.setState({placements: newplc}, () => this._updateReachable(15));
-		
+
 	}
 
 	parseFlagLine = (flagLine) => {
@@ -347,7 +344,7 @@ class PlandoBuiler extends React.Component {
     			seedFlags.push({label: flag, value: flag})
     		else if(flag.startsWith("mode="))
     		{
-				display_coop = true    			
+				display_coop = true
     			let k=flag.substring(5)
 				coop_mode={label: modes_by_key[k], value: k}
     		}
@@ -357,23 +354,23 @@ class PlandoBuiler extends React.Component {
     	this.setState({seedFlags: seedFlags, share_types: share_types, coop_mode: coop_mode, display_coop: display_coop, seed_name: seed_name})
 
 	}
-	
+
 	buildFlagLine = () => {
 		let flags = []
 		flags.concat(this.state.seedFlags.map(f => f.value).filter(f => f))
 		let stypes = this.state.share_types.map(f => f.value).filter(f => f)
 		if(stypes.length > 0)
 			flags.push("shared="+stypes.join("+"))
-		flags.push("mode="+this.state.coop_mode.value)		
+		flags.push("mode="+this.state.coop_mode.value)
 		return flags.join(",") + "|" + this.state.seed_name
 	}
-	
+
 
 	doFill  = () => {
 		let players = Object.keys(this.state.placements);
 		let newPlc = {...this.state.placements}
 		let locs = Object.keys(picks_by_loc)
-		players.forEach(player => {				
+		players.forEach(player => {
 			let toFill = []
 			let {HC, EC, AC, KS, MS, EX} = this.state.fill_opts
 			locs.forEach((loc) => {
@@ -410,7 +407,7 @@ class PlandoBuiler extends React.Component {
 			});
 		})
 		this.setState({placements: newPlc})
-	}	
+	}
 
 	getLines = () => {
 		this.doFill();
@@ -424,7 +421,7 @@ class PlandoBuiler extends React.Component {
 	}
 
 
-	
+
 	getUploadLines = () => {
 		this.doFill();
 		let outLines = [this.buildFlagLine()]
@@ -438,7 +435,7 @@ class PlandoBuiler extends React.Component {
 		uploadSeed(this.getUploadLines(), this.state.user, this.state.seed_name, this.state.seed_desc, () => this.savedSuccessful())
 		this.toggleMeta()
 	}
-	
+
 	savedSuccessful = () => {
 		alert("Seed was successfully saved!")
 	}
@@ -464,7 +461,7 @@ class PlandoBuiler extends React.Component {
 	  			if(picks_by_area.hasOwnProperty(area))
 		  			picks_by_area[area].forEach((pick) => {
 	  				if(this.state.placements[1] && this.state.placements[1].hasOwnProperty(pick.loc))
-						reachableStuff.push(this.state.placements[this.state.player][pick.loc].value)		  					
+						reachableStuff.push(this.state.placements[this.state.player][pick.loc].value)
 		  			});
 	  		});
 		} else {
@@ -532,7 +529,7 @@ class PlandoBuiler extends React.Component {
 
 
 	render() {
-		const pickup_markers = ( <PickupMarkersList markers={getPickupMarkers(this.state.pickups, this.state.placements, this.state.reachable, this.state.flags, this.selectPickupCurry, this.state.searchStr)} />) 
+		const pickup_markers = ( <PickupMarkersList markers={getPickupMarkers(this.state.pickups, this.state.placements, this.state.reachable, this.state.flags, this.selectPickupCurry, this.state.searchStr)} />)
 		const zone_opts = zones.map(zone => ({label: zone, value: zone}))
 		const pickups_opts = picks_by_zone[this.state.zone].map(pick => ({label: pick.name+"("+pick.x + "," + pick.y +")",value: pick}) )
 		let alert = this.state.authed ? null : (<Alert color="danger">Please <a href="/login">login</a> to enable saving.</Alert>)
@@ -706,21 +703,21 @@ class PlandoBuiler extends React.Component {
 							<span className="label">Player: </span>
 							<Select className="player-select" options={select_wrap(Object.keys(this.state.placements))} onChange={(n) => this.setState({player: n.value})} clearable={false} value={this.state.player} label={this.state.player}></Select>
 						</div>
-					<Collapse id="coop-wrapper" isOpen={this.state.display_coop}>
-				 		<div className="coop-select-wrapper">
-							<span className="label">Mode: </span>
-							<Select options={COOP_MODES} onChange={(n) => this.setState({coop_mode: n})} clearable={false} value={this.state.coop_mode.value} label={this.state.coop_mode.label}></Select>
-						</div>
-				 		<div className="coop-select-wrapper">
-							<span className="label">Shared: </span>
-							<Select options={select_wrap(SHARE_TYPES)} onChange={(n) => this.setState({share_types: n})} clearable={false} multi={true} value={this.state.share_types} label={this.state.share_types}></Select>
-						</div>
-						<div>
-						<Button color="primary" onClick={this.addPlayer}>Add Player</Button>
-						<Button color="primary" onClick={this.dupePlayer}>Duplicate</Button>
-						<Button color="secondary" onClick={this.removePlayer} active={Object.keys(this.state.placements).length > 1}>Remove Player</Button>
-						</div>
-					</Collapse>
+						<Collapse id="coop-wrapper" isOpen={this.state.display_coop}>
+				 			<div className="coop-select-wrapper">
+								<span className="label">Mode: </span>
+								<Select options={COOP_MODES} onChange={(n) => this.setState({coop_mode: n})} clearable={false} value={this.state.coop_mode.value} label={this.state.coop_mode.label}></Select>
+							</div>
+				 			<div className="coop-select-wrapper">
+								<span className="label">Shared: </span>
+								<Select options={select_wrap(SHARE_TYPES)} onChange={(n) => this.setState({share_types: n})} clearable={false} multi={true} value={this.state.share_types} label={this.state.share_types}></Select>
+							</div>
+							<div>
+								<Button color="primary" onClick={this.addPlayer}>Add Player</Button>
+								<Button color="primary" onClick={this.dupePlayer}>Duplicate</Button>
+								<Button color="secondary" onClick={this.removePlayer} active={Object.keys(this.state.placements).length > 1}>Remove Player</Button>
+							</div>
+						</Collapse>
 					</div>
 				</div>
 			</div>
@@ -738,7 +735,7 @@ function getReachable(setter, modes, codes, callback)
 					setter({reachable: res.split("|")}, callback)
             })(xmlHttp.responseText);
     }
-    xmlHttp.open("GET", "/reachable?modes="+modes+"&codes="+codes, true); 
+    xmlHttp.open("GET", "/reachable?modes="+modes+"&codes="+codes, true);
     xmlHttp.send(null);
 }
 
