@@ -22,7 +22,7 @@ from util import (GameMode, ShareType, Pickup, Skill, Event, Teleporter, Upgrade
 				 mode_map, DEDUP_MODES, get, unpack, coord_correction_map, Cache, HistoryLine, Player, Game, delete_game, get_new_game, clean_old_games, all_locs)
 from reachable import Map, PlayerState
 
-LAST_DLL = "Mar 27, 2018"
+LAST_DLL = "May 5, 2018"
 PLANDO_VER = "0.2.0"
 debug = os.environ.get('SERVER_SOFTWARE', '').startswith('Dev')
 base_site = "http://orirandocoopserver.appspot.com" if not debug else "https://8080-dot-3616814-dot-devshell.appspot.com"
@@ -84,7 +84,6 @@ class FoundPickup(webapp2.RequestHandler):
 			self.response.status = 412
 			self.response.write(self.response.status)
 			return
-		
 		remove = paramFlag(self,"remove")
 		coords = int(coords)
 		if coords in coord_correction_map:
@@ -112,6 +111,19 @@ class Update(webapp2.RequestHandler):
 		Cache.setPos(game_id, player_id, x, y)
 		self.response.write(p.bitfields)
 
+# post-refactor. uses different URL (with /), for dll switching
+class GetUpdate(webapp2.RequestHandler):
+	def get(self, game_id, player_id, x, y):
+		self.response.headers['Content-Type'] = 'text/plain'
+		game = Game.get_by_id(game_id)
+		if not game:
+			self.response.status = 412
+			self.response.write(self.response.status)
+			return
+		p = game.player(player_id)
+		Cache.setPos(game_id, player_id, x, y)
+		self.response.write(p.output())
+
 
 class ShowHistory(webapp2.RequestHandler):
 	def get(self, game_id):
@@ -120,7 +132,7 @@ class ShowHistory(webapp2.RequestHandler):
 		output = game.summary()
 		output += "\nHistory:"
 		for hl,pid in sorted([(h,p.key.id().partition('.')[2]) for p in game.get_players() for h in p.history if h.pickup().share_type != ShareType.NOT_SHARED], key=lambda x: x[0].timestamp, reverse=True):
-			output += "\n\t\t Player %s %s" % (pid, hl.print_line(game.start_time))
+			output += "\n\t\t Player %s %s" % (pid, hl._line(game.start_time))
 
 		self.response.status = 200
 		self.response.write(output)
@@ -174,7 +186,7 @@ class SeedGenerator(webapp2.RequestHandler):
 		urlargs.append("shr=%s" % "+".join(share_types))
 		urlargs.append("sym=%s" % syncmode)
 		urlargs.append("gid=%s" % game_id)
-		for flg in ["dk", "ev", "sk", "rb", "tp", "hot"]:
+		for flg in ["dk", "ev", "sk", "rb", "tp", "hot", "wild"]:
 			if self.request.get(flg):
 				urlargs.append("%s=1" % flg)
 		self.response.headers['Content-Type'] = 'text/html'
@@ -227,7 +239,8 @@ class SeedDownloader(webapp2.RequestHandler):
 				logic_paths, flag,
 				"starved" in variations,
 				pathdiff,
-				"discmaps" in variations)
+				"discmaps" in variations,
+				"wild" in params)
 		if player == "spoiler":
 			self.response.headers['Content-Type'] = 'text/plain'
 			self.response.out.write(placement[1])
@@ -279,7 +292,7 @@ class ListPlayers(webapp2.RequestHandler):
 		outlines = []
 		for p in game.get_players():
 			outlines.append("Player %s: %s" % (p.key.id(), p.bitfields))
-			outlines.append("\t\t"+"\n\t\t".join([hl.print_line(game.start_time) for hl in p.history if hl.pickup().share_type != ShareType.NOT_SHARED]))
+			outlines.append("\t\t"+"\n\t\t".join([hl._line(game.start_time) for hl in p.history if hl.pickup().share_type != ShareType.NOT_SHARED]))
 			
 		self.response.headers['Content-Type'] = 'text/plain'
 		self.response.status = 200
@@ -445,8 +458,9 @@ class PlandoUpload(webapp2.RequestHandler):
 class PlandoView(webapp2.RequestHandler):
 	def get(self, author, plando):
 		user = users.get_current_user()
+		dispname = "Guest"
 		if user:
-			dispname = user.email().partition("@")[0]
+			dispname = user.email().partition("@")[0] 
 		id = author+":"+plando
 		seed = Seed.get_by_id(id)
 		if seed:
@@ -454,7 +468,7 @@ class PlandoView(webapp2.RequestHandler):
 			self.response.headers['Content-Type'] = 'text/html'
 			path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
 			template_values = {'app': "seedDisplay", 'title': "%s by %s" % (plando, author), 'players': seed.players, 'seed_data': seed.to_lines()[0], 
-				  				'seed_name': plando, 'author': author, 'seed_desc': seed.description, 'user': dispname, 'game_id': get_open_gid()}
+				  				'seed_name': plando, 'author': author, 'authed': True, 'seed_desc': seed.description, 'user': dispname, 'game_id': get_open_gid()}
 			self.response.out.write(template.render(path, template_values))
 		else:
 			self.response.status = 404
@@ -568,21 +582,22 @@ class QuickStart(webapp2.RequestHandler):
 </pre></body></html>""")
 
 app = webapp2.WSGIApplication([
-	('/faq/', QuickStart),
+	('/faq/?', QuickStart),
 	('/', SeedGenerator),
-	('/activeGames', ActiveGames),
-	('/clean', CleanUp),
-	('/getseed', SeedDownloader),
-	('/getNewGame', GetGameId),
-	(r'/(\d+)', HistPrompt),
+	('/activeGames/?', ActiveGames),
+	('/clean/?', CleanUp),
+	('/getseed/?', SeedDownloader),
+	('/getNewGame/?', GetGameId),
+	(r'/(\d+)/?', HistPrompt),
 	(r'/(\d+)\.(\w+)/(-?\d+)/(\w+)/(\w+)', FoundPickup),
-	(r'/(\d+)\.(\w+)/(-?\d+.?\d*),(-?\d+.?\d*)', Update),
+	(r'/(\d+)\.(\w+)/(-?\d+\.?\d*),(-?\d+\.?\d*)', Update),
+	(r'/(\d+)\.(\w+)/(-?\d+\.?\d*),(-?\d+\.?\d*)/', GetUpdate),
 	(r'/(\d+)\.(\w+)/signalCallback/(\w+)', SignalCallback),
 	(r'/(\d+)/delete', DeleteGame),
-	(r'/(\d+)/history', ShowHistory),
+	(r'/(\d+)/history/?', ShowHistory),
 	(r'/(\d+)/players', ListPlayers),
 	(r'/(\d+)\.(\w+)/remove', RemovePlayer),
-	(r'/(\d+)/map', ShowMap),
+	(r'/(\d+)/map/?', ShowMap),
 	(r'/(\d+)/_getPos', GetPlayerPositions),
 	(r'/cache', ShowCache),
 	(r'/cache/clear', ClearCache),
@@ -591,14 +606,14 @@ app = webapp2.WSGIApplication([
 	(r'/(\d+)\.(\w+)/setSeed', SetSeed),
 	(r'/(\d+)/_reachable', GetReachable),
 	(r'/reachable', PlandoReachable),
-	(r'/login', HandleLogin),
-	(r'/logout', HandleLogout),
-	(r'/plando', PlandoOld),
+	(r'/login/?', HandleLogin),
+	(r'/logout/?', HandleLogout),
+	(r'/plando/?', PlandoOld),
 	(r'/([^ ?=/]+)/([^ ?=/]+)/upload', PlandoUpload),
 	(r'/([^ ?=/]+)/([^ ?=/]+)/download', PlandoDownload),
-	(r'/([^ ?=/]+)/([^ ?=/]+)/edit', PlandoEdit),
-	(r'/([^ ?=/]+)', AuthorIndex),
-	(r'/([^ ?=/]+)/([^ ?=/]+)', PlandoView)
+	(r'/([^ ?=/]+)/([^ ?=/]+)/edit/?', PlandoEdit),
+	(r'/([^ ?=/]+)/?', AuthorIndex),
+	(r'/([^ ?=/]+)/([^ ?=/]+)/?', PlandoView)
 ], debug=True)
 
 

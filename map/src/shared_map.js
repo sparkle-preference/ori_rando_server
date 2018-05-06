@@ -231,12 +231,10 @@ const picks_by_type = {
 	{'loc': -5400236, 'name': 'EX200', 'zone': 'Valley', 'area': 'OutsideForlornCliff', 'y': -234, 'x': -538},
 	{'loc': -7040392, 'name': 'EX200', 'zone': 'Forlorn', 'area': 'Forlorn', 'y': -390, 'x': -703},
 	{'loc': -8440352, 'name': 'EX100', 'zone': 'Forlorn', 'area': 'Forlorn', 'y': -350, 'x': -841},
-	{'loc': -12320248, 'name': 'EX100', 'zone': 'Forlorn', 'area': 'RightForlorn', 'y': -248, 'x': -1232},
 	{'loc': -6799732, 'name': 'EX200', 'zone': 'Sorrow', 'area': 'LeftSorrowGrenade', 'y': 269, 'x': -677},
 	{'loc': -5479592, 'name': 'EX100', 'zone': 'Sorrow', 'area': 'UpperSorrow', 'y': 409, 'x': -545},
 	{'loc': -9799980, 'name': 'EX100', 'zone': 'Misty', 'area': 'Misty', 'y': 23, 'x': -979},
 	{'loc': -10839992, 'name': 'EX100', 'zone': 'Misty', 'area': 'Misty', 'y': 8, 'x': -1082},
-	{'loc': -10440008, 'name': 'KS', 'zone': 'Misty', 'area': 'Misty', 'y': 8, 'x': -1044},
 	{'loc': -10120036, 'name': 'EX100', 'zone': 'Misty', 'area': 'Misty', 'y': -35, 'x': -1009},
 	{'loc': -8400124, 'name': 'EX100', 'zone': 'Misty', 'area': 'MistyPostClimb', 'y': -123, 'x': -837},
 	{'loc': -7960144, 'name': 'EX200', 'zone': 'Misty', 'area': 'MistyPostClimb', 'y': -144, 'x': -796},
@@ -284,6 +282,7 @@ const picks_by_type = {
 	{'loc': -1800088, 'name': 'Plant', 'zone': 'Valley', 'area': 'ValleyEntryTreePlant', 'y': -88, 'x': -179},
 	{'loc': -4680068, 'name': 'Plant', 'zone': 'Valley', 'area': 'ValleyMainPlant', 'y': -67, 'x': -468},
 	{'loc': 399844, 'name': 'Plant', 'zone': 'Grove', 'area': 'ChargeFlamePlant', 'y': -156, 'x': 43},
+	{'loc': -12320248, 'name': 'Plant', 'zone': 'Forlorn', 'area': 'RightForlornPlant', 'y': -248, 'x': -1232},
 	{'loc': -6080316, 'name': 'Plant', 'zone': 'Forlorn', 'area': 'RightForlornPlant', 'y': -314, 'x': -607},
 ], "KS": [
 	{'loc': -8600356, 'name': 'KS', 'zone': 'Forlorn', 'area': 'Forlorn', 'y': -353, 'x': -858},
@@ -303,6 +302,7 @@ const picks_by_type = {
 	{'loc': -5159576, 'name': 'KS', 'zone': 'Sorrow', 'area': 'UpperSorrow', 'y': 427, 'x': -514},
 	{'loc': -5919556, 'name': 'KS', 'zone': 'Sorrow', 'area': 'UpperSorrow', 'y': 445, 'x': -592},
 	{'loc': -10759968, 'name': 'KS', 'zone': 'Misty', 'area': 'Misty', 'y': 32, 'x': -1076},
+	{'loc': -10440008, 'name': 'KS', 'zone': 'Misty', 'area': 'Misty', 'y': 8, 'x': -1044},
 	{'loc': -9120036, 'name': 'KS', 'zone': 'Misty', 'area': 'MistyPostClimb', 'y': -36, 'x': -912},
 	{'loc': -7680144, 'name': 'KS', 'zone': 'Misty', 'area': 'MistyPostClimb', 'y': -144, 'x': -768},
 	{'loc': 799776, 'name': 'KS', 'zone': 'Glades', 'area': 'SunkenGladesRunaway', 'y': -222, 'x': 83},
@@ -357,7 +357,8 @@ const picks_by_type = {
 	{'loc': 5119584, 'name': 'MS', 'zone': 'Grotto', 'area': 'GumoHideout', 'y': -413, 'x': 513},
 	{'loc': 7959788, 'name': 'MS', 'zone': 'Swamp', 'area': 'SwampWater', 'y': -210, 'x': 796},
 ]};
-const stuff_types = [{value: "Skills", label: "Skills"}, {value: "Events", label: "Events"}, {value: "Upgrades", label: "Upgrades"}, {value: "Teleporters", label: "Teleporters"}, {value: "Experience", label: "Experience"}, {value: "Cells and Stones", label: "Cells and Stones"}, {value: "Fill", label: "Fill"}];
+const stuff_types = [{value: "Skills", label: "Skills"}, {value: "Events", label: "Events"}, {value: "Upgrades", label: "Upgrades"}, {value: "Teleporters", label: "Teleporters"}, {value: "Experience", label: "Experience"}, 
+					 {value: "Cells and Stones", label: "Cells and Stones"}, {value: "Messages", label: "Messages"}, {value: "Fill", label: "Fill"}];
 function pickup_name(code, id) {
 	let names = {
 		"SK": {0:"Bash", 2:"Charge Flame", 3:"Wall Jump", 4:"Stomp", 5:"Double Jump",8:"Charge Jump",12:"Climb",14:"Glide",50:"Dash",51:"Grenade"},
@@ -432,6 +433,7 @@ const stuff_by_type = {
 	"Upgrades": [
 		{label: "Mega Health", value: "RB|0"},
 		{label: "Mega Energy", value: "RB|1"},
+		{label: "Go Home", value: "RB|2"},
 		{label: "Spirit Flame Upgrade", value: "RB|6"},
 		{label: "Explosion Power Upgrade", value: "RB|8"},
 		{label: "Spirit Light Efficiency", value: "RB|9"},
@@ -442,7 +444,11 @@ const stuff_by_type = {
 		{label: "Energy Regeneration", value: "RB|15"},
 		{label: "Water Vein Shard", value: "RB|17"},
 		{label: "Gumon Seal Shard", value: "RB|19"},
-		{label: "Sunstone Shard", value: "RB|21"}
+		{label: "Sunstone Shard", value: "RB|21"},
+		{label: "Polarity Shift", value: "RB|101"},
+		{label: "Gravity Swap", value: "RB|102"},
+		{label: "Drag Racer", value: "RB|103"},
+		{label: "Airbrake", value: "RB|104"},
 	],
 	"Teleporters": [
 		{label: "Grotto TP", value: "TP|Grotto"},
@@ -536,6 +542,9 @@ function get_seed() {
     	let rawSeed = get_param("seed_data")
 	    return {rawSeed: rawSeed, user: user, authed: authed, seed_name: name, seed_desc: desc}
     }
+    else
+    	return {authed:false}
+    
 }
 
  

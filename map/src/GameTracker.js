@@ -1,6 +1,6 @@
 import React from 'react';
 //import registerServiceWorker from './registerServiceWorker';
-import {Map, Tooltip, TileLayer, Marker} from 'react-leaflet';
+import {Map, Tooltip, TileLayer, Marker, ZoomControl} from 'react-leaflet';
 import {Checkbox, CheckboxGroup} from 'react-checkbox-group';
 import {Radio, RadioGroup} from 'react-radio-group';
 import Leaflet from 'leaflet';
@@ -8,6 +8,7 @@ import {distance, picks_by_type, PickupMarkersList, pickup_icons, getMapCrs, pre
 import Select from 'react-select';
 import 'react-select/dist/react-select.css';
 import {Button, Collapse} from 'reactstrap';
+import Control from 'react-leaflet-control';
 
 const paths = Object.keys(presets);
 const game_id = document.getElementsByClassName("game-id")[0].id;
@@ -82,7 +83,7 @@ const PlayerUiOpts = ({players, setter}) => {
 					<label><Checkbox value="hide_found"/> Hide found</label>
 					<label><Checkbox value="hide_unreachable"/> Hide unreachable</label>
 					<label><Checkbox value="hide_remaining"/> Hide remaining</label>
-					<label><Checkbox value="hot_assist"/> Split assist mode</label>
+					<label><Checkbox value="hot_assist"/> Split assist</label>
 		    </CheckboxGroup>
 			</div>
 		);
@@ -106,7 +107,7 @@ function getLocInfo(pick, players) {
 function getPickupMarkers(state) {
 	let players = state.players;
 	let hideOpt = state.hideOpt;
-	let pickupTypes = state.pickups;
+	let pickupTypes = (state.pickup_display === "Some") ? state.pickups : ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV"];
 	let markers = []
 	for(let i in pickupTypes) {
 		let pre = pickupTypes[i];
@@ -188,7 +189,7 @@ function getPickupMarkers(state) {
 
 const DEFAULT_VIEWPORT = {
 	  center: [0, 0],
-	  zoom: 3,
+	  zoom: 4,
 	};
 const RETRY_MAX = 60;
 const TIMEOUT_START = 5;
@@ -202,7 +203,7 @@ class GameTracker extends React.Component {
     let modeRaw = document.getElementsByClassName("logic-modes")[0].id
     let modes = (modeRaw !== "None") ? modeRaw.split(" ") : ['normal', 'speed', 'dboost-light', 'lure']
 
-    this.state = {players: {}, retries: 0, check_seen: 1, modes: modes, timeout: TIMEOUT_START, searchStr: "",
+    this.state = {players: {}, retries: 0, check_seen: 1, modes: modes, timeout: TIMEOUT_START, searchStr: "", pickup_display: "all", show_sidebar: true,
     flags: ['show_pickups', 'update_in_bg'], viewport: DEFAULT_VIEWPORT, pickups: ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV"],
     pathMode: 'standard', hideOpt: "all", display_logic: false};
   };
@@ -242,34 +243,26 @@ class GameTracker extends React.Component {
   modesChanged = newVal => { this.setState({modes: newVal}, () => getReachable((p) => this.setState(p),this.state.modes.join("+"))) }
   onSearch = event => { this.setState({searchStr: event.target.value}) }
 
-	toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
+toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
 
   onViewportChanged = viewport => { this.setState({ viewport }) }
  _onPathModeChange = (n) => paths.includes(n.value) ? this.setState({modes: presets[n.value], pathMode: n.value}, () => getReachable((p) => this.setState(p),this.state.modes.join("+"))) : this.setState({pathMode: n.value})
 
   render() {
-		const pickup_markers = this.state.flags.includes('show_pickups') ? ( <PickupMarkersList markers={getPickupMarkers(this.state)} />) : null;
+		const pickup_markers = (this.state.pickup_display !== "none") ? ( <PickupMarkersList markers={getPickupMarkers(this.state)} />) : null;
 		const player_markers = ( <PlayerMarkersList players={this.state.players} />)
 		const player_opts = ( <PlayerUiOpts players={this.state.players} setter={(p) => this.setState(p)} />)
-    return (
-			<div className="wrapper">
-      	<Map crs={crs} onViewportChanged={this.onViewportChanged} viewport={this.state.viewport}>
-					<TileLayer url=' https://ori-tracker.firebaseapp.com/images/ori-map/{z}/{x}/{y}.png' noWrap='true' />
-					{pickup_markers}
-					{player_markers}
-		    </Map>
+		const sidebar = this.state.show_sidebar ? (
 				<div className="controls">
 		    	<div id="search-wrapper">
 						<label for="search">Search</label>
 						<input id="search" className="form-control" type="text" value={this.state.searchStr} onChange={this.onSearch} />
 					</div>
-					<Button onClick={() => this.setState({ viewport: DEFAULT_VIEWPORT })}>Reset View</Button>
 					<div id="map-controls">
 						<span className="control-label"><h5>Flags</h5></span>
 						<CheckboxGroup style={{paddingLeft: '8px', paddingRight: '8px'}} checkboxDepth={3} name="flags" value={this.state.flags} onChange={this.flagsChanged}>
-			        <label><Checkbox value="show_pickups"/> Pickups</label>
 							<label><Checkbox value="update_in_bg"/> Always Update</label>
-		       </CheckboxGroup>
+				       </CheckboxGroup>
 					</div>
 					<div id="player-controls">
 						<span className="control-label"><h5>Players</h5></span>
@@ -277,9 +270,9 @@ class GameTracker extends React.Component {
 						<div style={{paddingLeft: '8px', paddingRight: '8px'}}>
 							<span>Hide pickup if it would be hidden for...</span>
 							<RadioGroup name="hideOpts" selectedValue={this.state.hideOpt} onChange={this.hideOptChanged}>
-								<label><Radio value="all"/> ...all players</label>
-								<label><Radio value="any"/> ...any player</label>
-		       		</RadioGroup>
+								<label class="radio-label"><Radio value="all"/> ...all players</label>
+								<label class="radio-label"><Radio value="any"/> ...any player</label>
+				       		</RadioGroup>
 						</div>
 					</div>
 					<div id="logic-controls">
@@ -288,7 +281,7 @@ class GameTracker extends React.Component {
 			      	<Select options={paths.map((n) => {return {label: n, value: n}})} onChange={this._onPathModeChange} clearable={false} value={this.state.pathMode} label={this.state.pathMode}></Select>
 						</div>
 						<Collapse id="logic-options-wrapper" isOpen={this.state.display_logic}>
-							<CheckboxGroup id="logic-options" checkboxDepth={4} name="modes" value={this.state.modes} onChange={this.modesChanged}>
+							<CheckboxGroup id="logic-options" checkboxDepth={2} name="modes" value={this.state.modes} onChange={this.modesChanged}>
 								<label><Checkbox value="normal" /> normal</label>
 								<label><Checkbox value="speed" /> speed</label>
 								<label><Checkbox value="extended" /> extended</label>
@@ -305,24 +298,48 @@ class GameTracker extends React.Component {
 								<label><Checkbox value="timed-level" /> timed-level</label>
 								<label><Checkbox value="dbash" /> dbash</label>
 								<label><Checkbox value="glitched" /> glitched</label>
-					  	</CheckboxGroup>
+						  	</CheckboxGroup>
 						</Collapse>
 					</div>
 					<div id="pickup-controls">
 						<span className="control-label"><h5>Visible Pickups</h5></span>
-						<CheckboxGroup id="pickup-wrapper" checkboxDepth={4} name="options" value={this.state.pickups} onChange={this.pickupsChanged}>
-							<label><Checkbox value="SK" />Skill trees</label>
-							<label><Checkbox value="MS" />Mapstones</label>
-							<label><Checkbox value="EV" />Events</label>
-							<label><Checkbox value="AC" />Abiliy Cells</label>
-							<label><Checkbox value="HC" />Health Cells</label>
-							<label><Checkbox value="EC" />Energy Cells</label>
-							<label><Checkbox value="Pl" />Plants</label>
-							<label><Checkbox value="KS" />Keystones</label>
-							<label><Checkbox value="EX" />Exp Orbs</label>
-		    		</CheckboxGroup>
+						<RadioGroup name="pickup_display_opts" selectedValue={this.state.pickup_display} onChange={newVal => this.setState({pickup_display: newVal})}>
+							<label class="radio-label"><Radio value="all"/> All</label>
+							<label class="radio-label"><Radio value="some"/>Some</label>
+							<label class="radio-label"><Radio value="none"/>None</label>
+			       		</RadioGroup>
+						<Collapse id="logic-options-wrapper" isOpen={this.state.pickup_display === "some"}>
+							<CheckboxGroup id="pickup-wrapper" checkboxDepth={2} name="options" value={this.state.pickups} onChange={this.pickupsChanged}>
+								<label><Checkbox value="SK" />Skill trees</label>
+								<label><Checkbox value="MS" />Mapstones</label>
+								<label><Checkbox value="EV" />Events</label>
+								<label><Checkbox value="AC" />Abiliy Cells</label>
+								<label><Checkbox value="HC" />Health Cells</label>
+								<label><Checkbox value="EC" />Energy Cells</label>
+								<label><Checkbox value="Pl" />Plants</label>
+								<label><Checkbox value="KS" />Keystones</label>
+								<label><Checkbox value="EX" />Exp Orbs</label>
+				    		</CheckboxGroup>
+						</Collapse>
 					</div>
 				</div>
+		) : null
+    return (
+			<div className="wrapper">
+		      	<Map crs={crs} zoomControl={false} onViewportChanged={this.onViewportChanged} viewport={this.state.viewport}>
+		      	     <ZoomControl position="topright" />
+
+					<TileLayer url=' https://ori-tracker.firebaseapp.com/images/ori-map/{z}/{x}/{y}.png' noWrap='true' />
+					<Control position="topleft" >
+					<div>
+						<Button size="sm" onClick={() => this.setState({show_sidebar: !this.state.show_sidebar})}>{this.state.show_sidebar ? "Hide Options" : "Show Options"}</Button>
+						<Button size="sm" onClick={() => this.setState({ viewport: DEFAULT_VIEWPORT })}>Reset View</Button>
+					</div>
+					</Control>
+					{pickup_markers}
+					{player_markers}
+			    </Map>
+			    {sidebar}
 			</div>
 		)
 	}

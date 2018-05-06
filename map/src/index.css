@@ -297,6 +297,10 @@ main {
   justify-content: space-between;
 }
 
+.radio-label {
+	padding-left: 4px;
+	padding-right: 4px;
+}
 .control-label {
   width: 100%;
 }

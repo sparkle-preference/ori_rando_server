@@ -147,7 +147,7 @@ class Seed(ndb.Model):
 		return outlines
 	
 	def to_lines(self, player=1, extraFlags=[]):
-		return ["%s|%s" % (",".join(extraFlags + self.flags), self.name)] + ["|".join((str(p.location),s.id,s.code,p.zone))for p in self.placements for s in p.stuff if int(s.player) == player]
+		return ["%s|%s" % (",".join(extraFlags + self.flags), self.name)] + ["|".join((str(p.location),s.code,s.id,p.zone))for p in self.placements for s in p.stuff if int(s.player) == player]
 
 		
 
@@ -156,11 +156,20 @@ class Player(ndb.Model):
 	skills	  = ndb.IntegerProperty()
 	events	  = ndb.IntegerProperty()
 	upgrades	= ndb.IntegerProperty()
+	bonuses 	= ndb.JsonProperty(default={})
 	teleporters = ndb.IntegerProperty()
 	seed =    ndb.TextProperty()
 	signals = ndb.StringProperty(repeated=True)
 	history = ndb.LocalStructuredProperty(HistoryLine, repeated=True)
 	bitfields = ndb.ComputedProperty(lambda p: ",".join([str(x) for x in [p.skills,p.events,p.upgrades,p.teleporters]+(["|".join(p.signals)] if p.signals else [])]))
+
+	# post-refactor version of bitfields
+	def output(self):
+		outlines = [str(x) for x in [self.skills,self.events,self.teleporters]]
+		outlines.append(";".join([str(id) + "x%s" % count for (id, count) in self.bonuses.iteritems()]))
+		if self.signals:
+			outlines.append("|".join(self.signals))
+		return ",".join(outlines)
 	
 	def signal_send(self, signal):
 		self.signals.append(signal)
@@ -188,7 +197,7 @@ class Game(ndb.Model):
 				names = []
 				for id,bit in cls.bits.iteritems():
 					i = cls(id)
-					if i.stacks:
+					if i and i.stacks:
 						cnt = get_taste(bitmap,i.bit)
 						if cnt>0:
 							names.append("%sx %s" %(cnt, i.name))
@@ -234,8 +243,20 @@ class Game(ndb.Model):
 				retcode = 406
 			else:
 				for player in self.get_players():
-					for (field, cls) in [("skills", Skill), ("upgrades", Upgrade), ("teleporters", Teleporter), ("events",Event)]:
-						if isinstance(pickup, cls):
+					if pickup.code == "RB":
+						pick_id = str(pickup.id)
+						if remove and pid in player.bonuses:
+							player.bonuses[pick_id] -= 1
+							if player.bonuses[pick_id] == 0:
+								del player.bonuses[pick_id]
+						else:
+							if pick_id in player.bonuses:
+								if not (pickup.max and player.bonuses[pick_id] >= pickup.max):
+									player.bonuses[pick_id] += 1
+							else:
+								player.bonuses[pick_id] = 1
+					for (field, code) in [("skills", "SK"), ("upgrades", "RB"), ("teleporters", "TP"), ("events","EV")]:
+						if code == pickup.code:
 							if pickup.stacks:
 								setattr(player,field,inc_stackable(getattr(player,field), pickup.bit, remove))
 							else:
@@ -300,7 +321,7 @@ coord_correction_map = {
 class Pickup(object):
 	@staticmethod
 	def subclasses():
-		return [Skill, Event, Teleporter, Upgrade, Experience, AbilityCell, HealthCell, EnergyCell, Keystone, Mapstone]
+		return [Skill, Event, Teleporter, Upgrade, Experience, AbilityCell, HealthCell, EnergyCell, Keystone, Mapstone, Message]
 	
 	stacks = False
 	def __eq__(self, other):
@@ -345,8 +366,16 @@ class Event(Pickup):
 		inst.share_type = ShareType.EVENT if id in [1, 3, 5] else ShareType.DUNGEON_KEY
 		return inst
 
+class Message(Pickup):
+	code = "SH"
+	def __new__(cls, id):
+		inst.id, inst.name = id, id + "Message: "
+		inst.share_type = ShareType.NOT_SHARED
+		return inst
+
+
 class Teleporter(Pickup):
-	bits = {"Grove":1, "Swamp":2, "Grotto":4, "Valley":8, "Forlorn":16, "Sorrow":32}
+	bits = {"Grove":1, "Swamp":2, "Grotto":4, "Valley":8, "Forlorn":16, "Sorrow":32, "Lost": 64}
 	code = "TP"
 	def __new__(cls, id):
 		if id not in Teleporter.bits:
@@ -358,8 +387,11 @@ class Teleporter(Pickup):
 
 class Upgrade(Pickup):
 	stacking= set([6,13,15,17,19,21])
-	name_only = set([0, 1])
-	names = {17:  "Water Vein Shard", 19: "Gumon Seal Shard", 21: "Sunstone Shard", 6: "Spirit Flame Upgrade", 13: "Health Regeneration", 15: "Energy Regeneration", 8: "Explosion Power Upgrade", 9:  "Spirit Light Efficiency", 10: "Extra Air Dash", 11:  "Charge Dash Efficiency", 12:  "Extra Double Jump", 0: "Mega Health", 1: "Mega Energy"}
+	name_only = set([0, 1, 2])
+	maxes = {17: 3, 19: 3, 21: 3}
+	names = {17:  "Water Vein Shard", 19: "Gumon Seal Shard", 21: "Sunstone Shard", 6: "Spirit Flame Upgrade", 13: "Health Regeneration", 2: "Go Home",
+			15: "Energy Regeneration", 8: "Explosion Power Upgrade", 9:  "Spirit Light Efficiency", 10: "Extra Air Dash", 1:  "Charge Dash Efficiency", 
+			12: "Extra Double Jump", 0: "Mega Health", 1: "Mega Energy", 101: "Polarity Shift", 102: "Gravity Swap", 103: "Drag Racer", 104: "Airbrake"}
 	bits = {17:1, 19:4, 21:16, 6:64, 13:256, 15:1024, 8:4096, 9:8192, 10:16384, 11:32768, 12:65536}
 	code = "RB"
 	def __new__(cls, id):
@@ -368,10 +400,13 @@ class Upgrade(Pickup):
 			inst = super(Upgrade, cls).__new__(cls)
 			inst.id, inst.share_type, inst.name = id, ShareType.NOT_SHARED, Upgrade.names[id]
 			return inst
-		if id not in Upgrade.bits or id not in Upgrade.names:
+		if id not in Upgrade.names:
 			return None
 		inst = super(Upgrade, cls).__new__(cls)
-		inst.id, inst.bit, inst.name = id, Upgrade.bits[id], Upgrade.names[id]
+		inst.id, inst.name = id, Upgrade.names[id]
+		inst.bit = Upgrade.bits[id] if id in Upgrade.bits else -1
+		inst.max = Upgrade.maxes[id] if id in Upgrade.maxes else None
+
 		inst.stacks = id in Upgrade.stacking
 		inst.share_type = ShareType.DUNGEON_KEY if id in [17, 19, 21] else ShareType.UPGRADE
 		return inst
@@ -430,6 +465,14 @@ class Keystone(Pickup):
 		inst.share_type = ShareType.NOT_SHARED
 		return inst
 
+class Message(Pickup):
+	code = "SH"
+	def __new__(cls, id):
+		inst = super(Message, cls).__new__(cls)
+		inst.id, inst.bit, inst.name = id,None, id + "Message: "
+		inst.share_type = ShareType.NOT_SHARED
+		return inst
+
 
 
 def int_to_bits(n, min_len=2):
@@ -474,6 +517,8 @@ def get_taste(bits_int, bit):
 	return 2*bits[0]+bits[1]
 
 def add_single(bits_int, bit, remove=False):
+	if bit<0:
+		return bits_int
 	if bits_int >= bit:
 		if remove:
 			return bits_int-bit
@@ -482,6 +527,8 @@ def add_single(bits_int, bit, remove=False):
 	return bits_int + bit
 
 def inc_stackable(bits_int, bit, remove=False):
+	if bit<0:
+		return bits_int
 	if remove:
 		if get_taste(bits_int, bit) > 0:
 			return bits_int - bit

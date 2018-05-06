@@ -16,7 +16,7 @@ class PlayerState(object):
 		for code,id,removed in pickinfos:
 			if code in ["EX", "AC"]:
 				continue
-			id = id if code=="TP" else int(id)
+			id = id if code in ["TP", "SH", "NO"] else int(id)
 			if (code,id) in PlayerState.name_from_id:
 				self.has[PlayerState.name_from_id[(code,id)]] = (0 if removed else 1)
 			elif code == "RB":
@@ -24,8 +24,10 @@ class PlayerState(object):
 					wv += (-1 if removed else 1)
 				elif id == 19:
 					gs += (-1 if removed else 1)
-				if id == 21:
+				elif id == 21:
 					ss += (-1 if removed else 1)
+				else:
+					continue
 			elif code in ["HC","EC","KS", "MS"]:			
 				self.has[code] += (-id if removed else id)
 		if wv >= 3:

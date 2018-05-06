@@ -444,13 +444,13 @@ def preferred_difficulty_assign(item, locationsToAssign):
 			break
 	del locationsToAssign[i]
 
-def setSeedAndPlaceItems(seed, expPool, hardMode, includePlants, shardsMode, limitkeysMode, cluesMode, noTeleporters, doLocAnalysis, doSkillOrderAnalysis, modes, flags, starvedMode, preferPathDifficulty, setNonProgressiveMapstones):
+def setSeedAndPlaceItems(seed, expPool, hardMode, includePlants, shardsMode, limitkeysMode, cluesMode, noTeleporters, doLocAnalysis, doSkillOrderAnalysis, modes, flags, starvedMode, preferPathDifficulty, setNonProgressiveMapstones, wild):
 	global random
 	random = Random()
 	random.seed(seed)
-	return placeItems(seed, expPool, hardMode, includePlants, shardsMode, limitkeysMode, cluesMode, noTeleporters, doLocAnalysis, doSkillOrderAnalysis, modes, flags, starvedMode, preferPathDifficulty, setNonProgressiveMapstones)
+	return placeItems(seed, expPool, hardMode, includePlants, shardsMode, limitkeysMode, cluesMode, noTeleporters, doLocAnalysis, doSkillOrderAnalysis, modes, flags, starvedMode, preferPathDifficulty, setNonProgressiveMapstones, wild)
 	
-def placeItems(seed, expPool, hardMode, includePlants, shardsMode, limitkeysMode, cluesMode, noTeleporters, doLocAnalysis, doSkillOrderAnalysis, modes, flags, starvedMode, preferPathDifficulty, setNonProgressiveMapstones):
+def placeItems(seed, expPool, hardMode, includePlants, shardsMode, limitkeysMode, cluesMode, noTeleporters, doLocAnalysis, doSkillOrderAnalysis, modes, flags, starvedMode, preferPathDifficulty, setNonProgressiveMapstones, wild):
 
 	global costs
 	global areas
@@ -689,12 +689,23 @@ def placeItems(seed, expPool, hardMode, includePlants, shardsMode, limitkeysMode
 			("TPGrove", 1),
 			("TPSwamp", 1),
 			("TPValley", 1)
-		])
-
+		])		
 	plants = []
 	if not includePlants:
 		itemCount -= 24
 		itemPool["EX*"] -= 24
+
+	if wild:
+		itemPool["RB6"] += 2
+		itemPool["RB13"] += 2
+		itemPool["RB15"] += 2
+		itemPool["RB2"] = 1
+		itemPool["RB12"] += 5
+		itemPool["RB101"] = 1
+		itemPool["RB102"] = 1
+		itemPool["RB103"] = 1
+		itemPool["RB104"] = 1
+		itemPool["EX*"] -= 16
 
 	if shards:
 		itemPool["WaterVeinShard"] = 5
@@ -757,6 +768,7 @@ def placeItems(seed, expPool, hardMode, includePlants, shardsMode, limitkeysMode
 		("Warmth", 0),
 		("RB0", 0),
 		("RB1", 0),
+		("RB2", 0),
 		("RB6", 0),
 		("RB8", 0),
 		("RB9", 0),
@@ -765,6 +777,10 @@ def placeItems(seed, expPool, hardMode, includePlants, shardsMode, limitkeysMode
 		("RB12", 0),
 		("RB13", 0),
 		("RB15", 0),
+		("RB101", 0),
+		("RB102", 0),
+		("RB103", 0),
+		("RB104", 0),
 		("WaterVeinShard", 0),
 		("GumonSealShard", 0),
 		("SunstoneShard", 0),
@@ -871,7 +887,7 @@ def placeItems(seed, expPool, hardMode, includePlants, shardsMode, limitkeysMode
 			if not assignQueue:
 				# we've painted ourselves into a corner, try again
 				if not reservedLocations:
-					return placeItems(seed, expPool, hardMode, includePlants, shardsMode, limitkeysMode, cluesMode, noTeleporters, doLocationAnalysis, doSkillOrderAnalysis, modes, flags, starvedMode, preferPathDifficulty, setNonProgressiveMapstones)
+					return placeItems(seed, expPool, hardMode, includePlants, shardsMode, limitkeysMode, cluesMode, noTeleporters, doLocationAnalysis, doSkillOrderAnalysis, modes, flags, starvedMode, preferPathDifficulty, setNonProgressiveMapstones, wild)
 				locationsToAssign.append(reservedLocations.pop(0))
 				locationsToAssign.append(reservedLocations.pop(0))
 				spoilerPath = prepare_path(len(locationsToAssign))
@@ -880,7 +896,7 @@ def placeItems(seed, expPool, hardMode, includePlants, shardsMode, limitkeysMode
 		if len(locationsToAssign) < len(assignQueue) + max(keystoneCount - inventory["KS"], 0) + max(mapstoneCount - inventory["MS"], 0):
 			# we've painted ourselves into a corner, try again
 			if not reservedLocations:
-				return placeItems(seed, expPool, hardMode, includePlants, shardsMode, limitkeysMode, cluesMode, noTeleporters, doLocationAnalysis, doSkillOrderAnalysis, modes, flags, starvedMode, preferPathDifficulty, setNonProgressiveMapstones)
+				return placeItems(seed, expPool, hardMode, includePlants, shardsMode, limitkeysMode, cluesMode, noTeleporters, doLocationAnalysis, doSkillOrderAnalysis, modes, flags, starvedMode, preferPathDifficulty, setNonProgressiveMapstones, wild)
 			locationsToAssign.append(reservedLocations.pop(0))
 			locationsToAssign.append(reservedLocations.pop(0))
 		for i in range(0, len(locationsToAssign)):

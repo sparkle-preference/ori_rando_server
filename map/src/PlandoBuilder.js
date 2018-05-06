@@ -1,7 +1,5 @@
 import React from 'react';
-//import {Radio, RadioGroup} from 'react-radio-group';
-//import registerServiceWorker from './registerServiceWorker';
-import { Map, Tooltip, TileLayer} from 'react-leaflet';
+import { ZoomControl, Map, Tooltip, TileLayer} from 'react-leaflet';
 import Leaflet from 'leaflet';
 import {Checkbox, CheckboxGroup} from 'react-checkbox-group';
 import {download, getStuffType, stuff_types, stuff_by_type, picks_by_type, picks_by_loc, picks_by_zone, presets,
@@ -60,7 +58,7 @@ function getPickupMarkers(pickupTypes, placements, reachable, flags, setSelected
 				if(pick.name === "MapStone") {
 				    rows = picks_by_type["MP"].map((ms) => {
 				    	let cols = Object.keys(placements).map((pid) => {
-				    		if(!highlight && searchStr && placements[pid][ms.loc].label.toLowerCase().includes(searchStr.toLowerCase()))
+				    		if(!highlight && searchStr && placements[pid][ms.loc] && placements[pid][ms.loc].label.toLowerCase().includes(searchStr.toLowerCase()))
 				    			highlight = true
 					    	if(!placements[pid][ms.loc])
 					    		return null
@@ -78,7 +76,7 @@ function getPickupMarkers(pickupTypes, placements, reachable, flags, setSelected
 				    });
 				} else {
 				  	rows = Object.keys(placements).map((pid) => {
-			    		if(!highlight && searchStr && placements[pid][pick.loc].label.includes(searchStr.toLowerCase()))
+			    		if(!highlight && searchStr && placements[pid][pick.loc] && placements[pid][pick.loc].label.toLowerCase().includes(searchStr.toLowerCase()))
 			    			highlight = true
 					  	return (
 				    		<tr><td style={{color:'black'}}>
@@ -149,7 +147,7 @@ class PlandoBuiler extends React.Component {
 
     this.state = {seed_in: "", reachable: ['SunkenGladesRunaway'], placements: {1: {...DEFAULT_DATA}}, player: 1,
     			  fill_opts: {HC: 13, EC: 15, AC: 34, KS: 40, MS: 9, EX: 300, dynamic: true}, viewport: DEFAULT_VIEWPORT, searchStr: "",
-		    	  flags: ['hide_unreachable', 'hide_softlockable'], seedFlags:["forcetrees"], share_types: ["keys"], coop_mode: {label: "Solo", value: "None"},
+		    	  flags: ['hide_unreachable', 'hide_softlockable'], seedFlags: select_wrap(["forcetrees"]), share_types: select_wrap(["keys"]), coop_mode: {label: "Solo", value: "None"},
 		    	  pickups: ["EX", "Ma", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV"],  display_import: false, display_logic: false, display_coop: false, display_meta: false}
 	}
 
@@ -201,6 +199,8 @@ class PlandoBuiler extends React.Component {
 	    	this._onSelectStuff(stuff_by_type[newStuffType.value][0]);
 	    else if(newStuffType.value === "Experience")
 	    	this._onChangeExp(15,"15");
+	    else if(newStuffType.value === "Messages")
+	    	this.place({label: "Your Message Here", value: "SH|Your Message Here"});
     	};
 
     _onChangeExp = (n,s,_) => this.place({label: s, value: "EX|"+s});
@@ -357,9 +357,9 @@ class PlandoBuiler extends React.Component {
 
 	buildFlagLine = () => {
 		let flags = []
-		flags.concat(this.state.seedFlags.map(f => f.value).filter(f => f))
-		let stypes = this.state.share_types.map(f => f.value).filter(f => f)
-		if(stypes.length > 0)
+		flags = flags.concat(this.state.seedFlags.map(f => f.value))
+		let stypes = this.state.share_types.map(f => f.value)
+		if(stypes.length)
 			flags.push("shared="+stypes.join("+"))
 		flags.push("mode="+this.state.coop_mode.value)
 		return flags.join(",") + "|" + this.state.seed_name
@@ -410,11 +410,10 @@ class PlandoBuiler extends React.Component {
 	}
 
 	getLines = () => {
-		this.doFill();
 		let outLines = [this.buildFlagLine()]
-		let locs = Object.keys(picks_by_loc)
+		let locs = Object.keys(picks_by_loc).filter(loc => this.state.placements[this.state.player].hasOwnProperty(loc))
 		locs.forEach((loc) => {
-			outLines.push(loc+this.state.placements[this.state.player][loc].value+"|"+picks_by_loc[loc].zone)
+			outLines.push(loc+"|"+this.state.placements[this.state.player][loc].value+"|"+picks_by_loc[loc].zone)
 		})
 
 		return outLines;
@@ -423,11 +422,14 @@ class PlandoBuiler extends React.Component {
 
 
 	getUploadLines = () => {
-		this.doFill();
 		let outLines = [this.buildFlagLine()]
 		let locs = Object.keys(picks_by_loc)
 		let players = Object.keys(this.state.placements);
-		locs.forEach((loc) => outLines.push(loc+"|"+picks_by_loc[loc].zone+":"+players.map(player => player+"."+this.state.placements[player][loc].value).join(",")))
+		locs.forEach((loc) => {
+			let players_at_loc = players.filter(p => this.state.placements[p].hasOwnProperty(loc))
+			if(players_at_loc.length > 0)
+				outLines.push(loc+"|"+picks_by_loc[loc].zone+":"+players_at_loc.map(player => player+"."+this.state.placements[player][loc].value).join(","))
+		})
 		return outLines;
 	}
 
@@ -442,7 +444,6 @@ class PlandoBuiler extends React.Component {
 
 	downloadSeed = () => {
 		download('randomizer.dat', this.getLines().join("\n"));
-
 	}
 
   	_updateReachable = (layers=0) => {
@@ -551,6 +552,15 @@ class PlandoBuiler extends React.Component {
 					<NumericInput min={0} value={this.state.stuff.label} onChange={this._onChangeExp}></NumericInput>
 				</div>
 			);
+		} else if(this.state.stuff_type === "Messages") {
+			stuff_select = (
+				<div className="pickup-wrapper">
+					<span className="label">Message: </span>
+						<textarea id="seed-desc-input" className="form-control" placeholder="Seed Description" value={this.state.stuff.label} onChange={event => this.place({label: event.target.value, value: "SH|"+event.target.value})} />
+				</div>
+			);
+			
+			
 		} else if (this.state.stuff_type === "Fill") {
 			stuff_select = (
 				<div id="fill-params">
@@ -580,7 +590,9 @@ class PlandoBuiler extends React.Component {
 		}
 		return (
 			<div className="wrapper">
-				<Map crs={crs} onViewportChanged={this.onViewportChanged} viewport={this.state.viewport}>
+				<Map crs={crs} zoomControl={false} onViewportChanged={this.onViewportChanged} viewport={this.state.viewport}>
+			        <ZoomControl position="topright" />
+
 					<TileLayer url=' https://ori-tracker.firebaseapp.com/images/ori-map/{z}/{x}/{y}.png' noWrap='true'  />
 					{pickup_markers}
 				</Map>
@@ -588,7 +600,8 @@ class PlandoBuiler extends React.Component {
 				{alert}
 					<div id="file-controls">
 						<Button color="primary" onClick={this.toggleImport} >Import</Button>
-						<Button color="primary" onClick={this.downloadSeed} >Download Seed</Button>
+						<Button color="primary" onClick={this.downloadSeed} >Download</Button>
+						<Button color="primary" onClick={this.doFill} >Fill</Button>
 						{save_if_auth}
 					</div>
 					<Collapse id="import-wrapper" isOpen={this.state.display_meta}>
