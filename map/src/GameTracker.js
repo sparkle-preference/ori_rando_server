@@ -252,17 +252,19 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
 		const pickup_markers = (this.state.pickup_display !== "none") ? ( <PickupMarkersList markers={getPickupMarkers(this.state)} />) : null;
 		const player_markers = ( <PlayerMarkersList players={this.state.players} />)
 		const player_opts = ( <PlayerUiOpts players={this.state.players} setter={(p) => this.setState(p)} />)
+		const show_button = !this.state.show_sidebar ? (<Button size="sm" onClick={() => this.setState({show_sidebar: true})}>Show Options</Button>) : null
 		const sidebar = this.state.show_sidebar ? (
 				<div className="controls">
-		    	<div id="search-wrapper">
+			    	<div id="search-wrapper">
 						<label for="search">Search</label>
 						<input id="search" className="form-control" type="text" value={this.state.searchStr} onChange={this.onSearch} />
 					</div>
 					<div id="map-controls">
-						<span className="control-label"><h5>Flags</h5></span>
+						<span className="control-label"><h5>Options</h5></span>
 						<CheckboxGroup style={{paddingLeft: '8px', paddingRight: '8px'}} checkboxDepth={3} name="flags" value={this.state.flags} onChange={this.flagsChanged}>
 							<label><Checkbox value="update_in_bg"/> Always Update</label>
 				       </CheckboxGroup>
+				       <Button size="sm" onClick={() => this.setState({show_sidebar: false})}>Hide Options</Button>
 					</div>
 					<div id="player-controls">
 						<span className="control-label"><h5>Players</h5></span>
@@ -332,7 +334,7 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
 					<TileLayer url=' https://ori-tracker.firebaseapp.com/images/ori-map/{z}/{x}/{y}.png' noWrap='true' />
 					<Control position="topleft" >
 					<div>
-						<Button size="sm" onClick={() => this.setState({show_sidebar: !this.state.show_sidebar})}>{this.state.show_sidebar ? "Hide Options" : "Show Options"}</Button>
+						{show_button}
 						<Button size="sm" onClick={() => this.setState({ viewport: DEFAULT_VIEWPORT })}>Reset View</Button>
 					</div>
 					</Control>

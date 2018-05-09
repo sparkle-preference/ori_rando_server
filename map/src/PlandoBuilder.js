@@ -434,12 +434,23 @@ class PlandoBuiler extends React.Component {
 	}
 
 	saveSeed = () => {
-		uploadSeed(this.getUploadLines(), this.state.user, this.state.seed_name, this.state.seed_desc, () => this.savedSuccessful())
-		this.toggleMeta()
+		uploadSeed(this.getUploadLines(), this.state.user, this.state.seed_name, this.state.seed_desc, this.savedSuccessful)
 	}
 
-	savedSuccessful = () => {
-		alert("Seed was successfully saved!")
+	savedSuccessful = (statusCode) => {
+		if(statusCode === 200)
+		{
+		    let [http, _, oldurl] = window.document.URL.split('/')
+		    window.history.replaceState('',window.document.title, http+"//"+oldurl+"/"+this.state.user+"/"+this.state.seed_name+"/edit");
+			this.toggleMeta()
+			alert("Seed was successfully saved!")
+		}
+		else if(statusCode === 404)
+			alert("Failed to save seed: invalid name.")
+		else if(statusCode >= 500)
+			alert("Failed to save seed: server error.")
+		else 
+			alert("Failed to save seed: unknown error.")
 	}
 
 	downloadSeed = () => {
@@ -756,15 +767,13 @@ function uploadSeed(seedLines, author, seedName, description, callback)
 {
     var xmlHttp = new XMLHttpRequest();
     xmlHttp.onreadystatechange = function() {
-        if (xmlHttp.readyState === 4 && xmlHttp.status === 200)
-        	callback()
+        if (xmlHttp.readyState === 4)
+        	callback(xmlHttp.status)
     }
 
     xmlHttp.open("POST", "/"+author+"/"+seedName+"/upload", true);
     xmlHttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
     xmlHttp.send("seed="+seedLines.join("!")+"&desc="+description);
-    let [http, _, oldurl] = window.document.URL.split('/')
-    window.history.replaceState('',window.document.title, http+"//"+oldurl+"/"+author+"/"+seedName+"/edit");
 
 }
 

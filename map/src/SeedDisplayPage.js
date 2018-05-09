@@ -28,7 +28,7 @@ export default class SeedDisplayPage extends React.Component {
 		let download_links = []
 	    for (let i = 1; i <= this.state.players; i++) {
 	    	let url="/"+this.state.author+"/"+this.state.seed_name + "/download?gid="+this.state.gid+"&pid="+i 
-	    	download_links.push((<div>Player {i}: <a href={url}>{url}</a></div>))
+	    	download_links.push((<div><a href={url}>Player {i}</a></div>))
     	}
 
 		return (

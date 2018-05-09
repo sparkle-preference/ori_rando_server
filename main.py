@@ -5,6 +5,7 @@ import random
 import os
 from operator import attrgetter
 import pickle
+from collections import Counter
 
 # web imports
 import webapp2
@@ -22,7 +23,7 @@ from util import (GameMode, ShareType, Pickup, Skill, Event, Teleporter, Upgrade
 				 mode_map, DEDUP_MODES, get, unpack, coord_correction_map, Cache, HistoryLine, Player, Game, delete_game, get_new_game, clean_old_games, all_locs)
 from reachable import Map, PlayerState
 
-LAST_DLL = "May 5, 2018"
+LAST_DLL = "May 8, 2018"
 PLANDO_VER = "0.2.0"
 debug = os.environ.get('SERVER_SOFTWARE', '').startswith('Dev')
 base_site = "http://orirandocoopserver.appspot.com" if not debug else "https://8080-dot-3616814-dot-devshell.appspot.com"
@@ -132,7 +133,7 @@ class ShowHistory(webapp2.RequestHandler):
 		output = game.summary()
 		output += "\nHistory:"
 		for hl,pid in sorted([(h,p.key.id().partition('.')[2]) for p in game.get_players() for h in p.history if h.pickup().share_type != ShareType.NOT_SHARED], key=lambda x: x[0].timestamp, reverse=True):
-			output += "\n\t\t Player %s %s" % (pid, hl._line(game.start_time))
+			output += "\n\t\t Player %s %s" % (pid, hl.print_line(game.start_time))
 
 		self.response.status = 200
 		self.response.write(output)
@@ -292,7 +293,7 @@ class ListPlayers(webapp2.RequestHandler):
 		outlines = []
 		for p in game.get_players():
 			outlines.append("Player %s: %s" % (p.key.id(), p.bitfields))
-			outlines.append("\t\t"+"\n\t\t".join([hl._line(game.start_time) for hl in p.history if hl.pickup().share_type != ShareType.NOT_SHARED]))
+			outlines.append("\t\t"+"\n\t\t".join([hl.print_line(game.start_time) for hl in p.history if hl.pickup().share_type != ShareType.NOT_SHARED]))
 			
 		self.response.headers['Content-Type'] = 'text/plain'
 		self.response.status = 200
@@ -551,6 +552,23 @@ class PlandoDownload(webapp2.RequestHandler):
 			self.response.headers['Content-Type'] = 'text/plain'
 			self.response.out.write("seed not found")
 
+class AllAuthors(webapp2.RequestHandler):
+	def get(self):
+		self.response.headers['Content-Type'] = 'text/html'
+		seeds = Seed.query()
+		
+		out = '<html><head><title>All Plando Authors</title></head><body><ul style="list-style-type:none;padding:5px">'
+		authors = Counter([seed.author for seed in seeds])
+		for author, cnt in authors.most_common():
+			if cnt > 0:
+				url = "%s/%s" % (base_site, author)
+				out += '<li style="padding:2px"><a href="%s">%s</a> (%s plandos)</li>' % (url, author, cnt)
+			
+		out += "</ul></body></html>"
+		self.response.out.write(out)
+		
+
+
 class AuthorIndex(webapp2.RequestHandler):
 	def get(self,author):
 		self.response.headers['Content-Type'] = 'text/html'
@@ -560,16 +578,23 @@ class AuthorIndex(webapp2.RequestHandler):
 		if user:
 			dispname = user.email().partition("@")[0]
 			owner = dispname == author
-		if owner:
-			if len(seeds):
-				self.response.write('<html><body><pre>Seeds by %s:\n' % author + "\n".join(["<a href='/%s/%s'>%s</a>: %s (%s players, %s) <a href='/%s/%s/edit'>Edit</a>" % (author, seed.name, seed.name, seed.description, seed.players, ",".join(seed.flags), author, seed.name) for seed in seeds])+"</pre></body></html>")
-			else:
-				self.response.write("<html><body>You haven't made any seeds yet! <a href='/%s/newseed/edit'>Start a new seed</a></body></html>" % author)		
+		if len(seeds):
+			out = '<html><head><title>Seeds by %s</title></head><body><div>Seeds by %s:</div><ul style="list-style-type:none;padding:5px">' % (author, author)
+			for seed in seeds:
+				url = "%s/%s/%s" % (base_site, author, seed.name)
+				flags = ",".join(seed.flags)
+				out += '<li style="padding:2px"><a href="%s">%s</a>: %s (%s players, %s)' % (url, seed.name, seed.description, seed.players, flags)
+				if owner:
+					out += ' <a href="%s/edit">Edit</a>' % url
+				out += "</li>"			
+			out += "</ul></body></html>"
+			self.response.write(out)
 		else:
-			if len(seeds):
-				self.response.write('<html><body><pre>Seeds by %s:\n' % author + "\n".join(["<a href='/%s/%s'>%s</a>: %s (%s players, %s) " % (author, seed.name, seed.name, seed.description, seed.players, ",".join(seed.flags)) for seed in seeds])+"</pre></body></html>")
+			if owner:
+				self.response.write("<html><body>You haven't made any seeds yet! <a href='/%s/newseed/edit'>Start a new seed</a></body></html>" % author)
 			else:
 				self.response.write('<html><body>No seeds by user %s</body></html>' % author)
+
 class QuickStart(webapp2.RequestHandler):
 	def get(self):
 		self.response.write("""<html><body><pre>Misc info:
@@ -609,6 +634,7 @@ app = webapp2.WSGIApplication([
 	(r'/login/?', HandleLogin),
 	(r'/logout/?', HandleLogout),
 	(r'/plando/?', PlandoOld),
+	(r'/AllAuthors/?', AllAuthors),
 	(r'/([^ ?=/]+)/([^ ?=/]+)/upload', PlandoUpload),
 	(r'/([^ ?=/]+)/([^ ?=/]+)/download', PlandoDownload),
 	(r'/([^ ?=/]+)/([^ ?=/]+)/edit/?', PlandoEdit),

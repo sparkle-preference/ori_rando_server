@@ -197,12 +197,13 @@ class Game(ndb.Model):
 				names = []
 				for id,bit in cls.bits.iteritems():
 					i = cls(id)
-					if i and i.stacks:
-						cnt = get_taste(bitmap,i.bit)
-						if cnt>0:
-							names.append("%sx %s" %(cnt, i.name))
-					elif get_bit(bitmap,i.bit):
-						names.append(i.name)
+					if i:
+						if i.stacks:
+							cnt = get_taste(bitmap,i.bit)
+							if cnt>0:
+								names.append("%sx %s" %(cnt, i.name))
+						elif get_bit(bitmap,i.bit):
+							names.append(i.name)
 				out_lines.append("%s: %s" % (field, ", ".join(names)))
 		return "\n\t"+"\n\t".join(out_lines)
 	
@@ -221,7 +222,7 @@ class Game(ndb.Model):
 		if not player:
 			if(self.mode == GameMode.SHARED and len(self.players)):
 				src = self.players[0].get()
-				player = Player(id=full_pid, skills = src.skills, events = src.events, upgrades = src.upgrades, teleporters = src.teleporters, history=[], signals=[])
+				player = Player(id=full_pid, skills = src.skills, events = src.events, upgrades = src.upgrades, teleporters = src.teleporters,bonuses = src.bonuses, history=[], signals=[])
 			else:
 				player = Player(id=full_pid, skills = 0, events=0, upgrades = 0, teleporters = 0, history=[])
 			k = player.put()
