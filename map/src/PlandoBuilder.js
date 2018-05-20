@@ -1,13 +1,17 @@
+import './bootstrap.cyborg.min.css';
+import './index.css';
 import React from 'react';
 import { ZoomControl, Map, Tooltip, TileLayer} from 'react-leaflet';
 import Leaflet from 'leaflet';
+import {NotificationContainer, NotificationManager} from 'react-notifications';
 import {Checkbox, CheckboxGroup} from 'react-checkbox-group';
 import {download, getStuffType, stuff_types, stuff_by_type, picks_by_type, picks_by_loc, picks_by_zone, presets,
-		picks_by_area, zones,  pickup_name, PickupMarkersList, pickup_icons, getMapCrs,
-		get_param, get_flag, get_int, get_list, get_seed} from './shared_map.js';
+		picks_by_area, zones,  pickup_name, PickupMarkersList, pickup_icons, getMapCrs, hide_opacity,
+		get_param, get_flag, get_int, get_list, get_seed, is_match, str_ids} from './shared_map.js';
 import NumericInput from 'react-numeric-input';
 import Select from 'react-select';
 import 'react-select/dist/react-select.css';
+import 'react-notifications/lib/notifications.css';
 import {Alert, Button, ButtonGroup, Collapse} from 'reactstrap';
 NumericInput.style.input.width = '100%';
 NumericInput.style.input.height = '36px';
@@ -36,7 +40,7 @@ const paths = Object.keys(presets);
 
 
 const dev = window.document.URL.includes("devshell")
-
+const base_url = dev ?  "https://8080-dot-3616814-dot-devshell.appspot.com" : "http://orirandocoopserver.appspot.com"
 
 function getPickupMarkers(pickupTypes, placements, reachable, flags, setSelected, searchStr) {
 	let hide_unreachable = flags.includes("hide_unreachable")
@@ -52,16 +56,16 @@ function getPickupMarkers(pickupTypes, placements, reachable, flags, setSelected
 						show = false;
 			if(show)
 			{
-				let highlight = false
-				let rows = null
+				let highlight = searchStr ? false : true;
+				let rows = null;
 
 				if(pick.name === "MapStone") {
 				    rows = picks_by_type["MP"].map((ms) => {
 				    	let cols = Object.keys(placements).map((pid) => {
-				    		if(!highlight && searchStr && placements[pid][ms.loc] && placements[pid][ms.loc].label.toLowerCase().includes(searchStr.toLowerCase()))
-				    			highlight = true
 					    	if(!placements[pid][ms.loc])
 					    		return null
+				    		if(!highlight && searchStr && is_match(placements[pid][ms.loc], searchStr))
+				    			highlight = true
 					    	return (
 					    		<td style={{color:'black'}}>
 					    		({pid}) {placements[pid][ms.loc].label}
@@ -76,7 +80,7 @@ function getPickupMarkers(pickupTypes, placements, reachable, flags, setSelected
 				    });
 				} else {
 				  	rows = Object.keys(placements).map((pid) => {
-			    		if(!highlight && searchStr && placements[pid][pick.loc] && placements[pid][pick.loc].label.toLowerCase().includes(searchStr.toLowerCase()))
+			    		if(!highlight && searchStr && placements[pid][pick.loc] && is_match(placements[pid][pick.loc], searchStr))
 			    			highlight = true
 					  	return (
 				    		<tr><td style={{color:'black'}}>
@@ -90,11 +94,10 @@ function getPickupMarkers(pickupTypes, placements, reachable, flags, setSelected
 						<table>{rows}</table>
 					</Tooltip>
 				);
-				if(highlight)
-					icon = new Leaflet.Icon({iconUrl: icon.options.iconUrl, iconSize: new Leaflet.Point(icon.options.iconSize.x*2, icon.options.iconSize.y*2)})
+				let opacity = highlight ? 1  : hide_opacity
 				let name = pick.name+"("+pick.x + "," + pick.y +")"
 				let onclick = setSelected({label: name, value: pick})
-				markers.push({key: name, position: [y, x], inner: inner, icon: icon, onClick: onclick});
+				markers.push({key: name, position: [y, x], inner: inner, icon: icon, opacity: opacity, onClick: onclick});
 			}
 
 		});
@@ -150,46 +153,48 @@ class PlandoBuiler extends React.Component {
 		    	  flags: ['hide_unreachable', 'hide_softlockable'], seedFlags: select_wrap(["forcetrees"]), share_types: select_wrap(["keys"]), coop_mode: {label: "Solo", value: "None"},
 		    	  pickups: ["EX", "Ma", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV"],  display_import: false, display_logic: false, display_coop: false, display_meta: false}
 	}
+	
+  	
 
-  componentWillMount() {
-    let pathmode = get_param("pathmode");
-    let manual_reach = get_manual_reach();
-    let logicMode, modes;
+ 	componentWillMount() {
+	    let pathmode = get_param("pathmode");
+	    let manual_reach = get_manual_reach();
+	    let logicMode, modes;
+	
+	    if(pathmode && paths.includes(pathmode)) {
+			logicMode = 'manual';
+			modes = presets[pathmode];
+	    } else {
+	    	pathmode = "standard";
+	        logicMode = "auto";
+	        modes = ['normal', 'speed', 'dboost-light'];
+	    }
+	    let zone = 'Glades';
+	    let i = 7;
+		let lastSelected = {};
+		zones.forEach((zone) => {
+			let pick = picks_by_zone[zone][0];
+			lastSelected[zone] = {label: pick.name+"("+pick.x + "," + pick.y +")",value: pick}
+		});
+	    let pick = picks_by_zone[zone][i];
+	    let pickup = {label: pick.name+"("+pick.x + "," + pick.y +")",value: pick}
+	    lastSelected['Glades'] = pickup
+	
+		this.setState({zone: zone, pickup: pickup, modes: modes, lastSelected: lastSelected, logicMode: logicMode, pathMode: pathmode,
+			    	  manual_reach: manual_reach, stuff_type: "Cells and Stones", stuff: {value: "KS|1", label: "Keystone"}, authed: get_flag("authed")})
+	
+	};
 
-    if(pathmode && paths.includes(pathmode)) {
-		logicMode = 'manual';
-		modes = presets[pathmode];
-    } else {
-    	pathmode = "standard";
-        logicMode = "auto";
-        modes = ['normal', 'speed', 'dboost-light'];
-    }
-    let zone = 'Glades';
-    let i = 7;
-	let lastSelected = {};
-	zones.forEach((zone) => {
-		let pick = picks_by_zone[zone][0];
-		lastSelected[zone] = {label: pick.name+"("+pick.x + "," + pick.y +")",value: pick}
-	});
-    let pick = picks_by_zone[zone][i];
-    let pickup = {label: pick.name+"("+pick.x + "," + pick.y +")",value: pick}
-    lastSelected['Glades'] = pickup
-
-	this.setState({zone: zone, pickup: pickup, modes: modes, lastSelected: lastSelected, logicMode: logicMode, pathMode: pathmode,
-		    	  manual_reach: manual_reach, stuff_type: "Cells and Stones", stuff: {value: "KS|1", label: "Keystone"}, authed: get_flag("authed")})
-
-  };
-  componentDidMount() {
-  	if(this.state.authed)
-  	{
-	  	let {rawSeed, user, authed, seed_name, seed_desc} = get_seed()
-		this.setState({user: user,  authed: authed, seed_name: seed_name, seed_desc: seed_desc})
-		if(rawSeed)
-			this.parseSavedSeed(rawSeed)  		
-  	}
-	this._updateReachable()
-
-  }
+	componentDidMount() {
+	  	if(this.state.authed)
+	  	{
+		  	let {rawSeed, user, authed, seed_name, seed_desc} = get_seed()
+			this.setState({user: user,  authed: authed, seed_name: seed_name, seed_desc: seed_desc})
+			if(rawSeed)
+				this.parseSavedSeed(rawSeed)  		
+	  	}
+		this._updateReachable()
+	};
 
 	_fillToggleDynamic = (n) => this.updateFill("dynamic",!this.state.fill_opts.dynamic)
     _onSelectZone = (newZone, pan=true) => {this.selectPickup(this.state.lastSelected[newZone.value], pan)};
@@ -201,6 +206,8 @@ class PlandoBuiler extends React.Component {
 	    	this._onChangeExp(15,"15");
 	    else if(newStuffType.value === "Messages")
 	    	this.place({label: "Your Message Here", value: "SH|Your Message Here"});
+	    else if(newStuffType.value === "Custom")
+	    	this.place({label: "NO|1", value: "NO|1"});
     	};
 
     _onChangeExp = (n,s,_) => this.place({label: s, value: "EX|"+s});
@@ -258,6 +265,17 @@ class PlandoBuiler extends React.Component {
 
 
     place = (s, doFill = true) => {
+		if(s.value.length < 4 || s.value[2] != "|") {
+			NotificationManager.warning("Pickup should be in the form XX|Y", "Invalid Pickup!",2000);
+				return;
+		}
+		let reserved_chars = [":", ",", ".", "|", "\n"];
+		let stuff_id = s.value.substr(3);
+		if(reserved_chars.some(c => stuff_id.includes(c))) {
+				NotificationManager.warning("'" + stuff_id + "' contains a forbidden character", "Invalid Id!",1000);
+				return;
+		}
+
     	let old_stuff = this.state.stuff;
     	this.setState(prevState => {
 	    	let plc = prevState.placements;
@@ -267,8 +285,8 @@ class PlandoBuiler extends React.Component {
 		let fill_opts = this.state.fill_opts;
 		if(fill_opts.dynamic && doFill)
 		{
-			let old_code = old_stuff ? old_stuff.value.split("|")[0] : "";
-			let new_code = s.value.split("|")[0];
+			let old_code = old_stuff ? old_stuff.value.substr(0,2) : "";
+			let new_code = s.value.substr(0,2);
 			if(old_code === new_code)
 				return
 			for(let x of ["HC", "AC", "EC", "KS", "MS"]) {
@@ -289,7 +307,7 @@ class PlandoBuiler extends React.Component {
 	    	let line = lines[i].split("|")
 	    	let loc = parseInt(line[0]);
 	    	let code = line[1];
-	    	let id = (code == "TP") ? line[2] : parseInt(line[2]);
+	    	let id = str_ids.includes(code) ? line[2] : parseInt(line[2]);
 	    	let name = pickup_name(code, id);
 	    	let stuff = {label: name, value:code+"|"+id};
 	    	newplc[loc] = stuff;
@@ -317,13 +335,16 @@ class PlandoBuiler extends React.Component {
 				let [player, codeid] = pickup.split(".")
 				let [code, id] = codeid.split("|")
 				player = parseInt(player, 10)
-				if(code!=="TP")
+				if(!str_ids.includes(code))
 					id = parseInt(id, 10)
 		    	let name = pickup_name(code, id);
 		    	let stuff = {label: name, value:code+"|"+id};
 		    	if(!newplc.hasOwnProperty(player))
 		    		newplc[player] = {}
 		    	newplc[player][loc] = stuff;
+		    	if(loc === this.state.pickup.value.loc && player === this.state.player)
+					this.setState({stuff_type: getStuffType(stuff), stuff: stuff});
+
 	    	})
     	}
 		this.parseFlagLine(lines[0])
@@ -332,7 +353,7 @@ class PlandoBuiler extends React.Component {
 	}
 
 	parseFlagLine = (flagLine) => {
-		let seedFlags = this.state.seedFlags
+		let seedFlags = this.state.seedFlags.map(f => f.value)
 		let coop_mode = this.state.coop_mode
 		let share_types = this.state.share_types
 		let display_coop = this.state.display_coop
@@ -340,8 +361,8 @@ class PlandoBuiler extends React.Component {
     	if(this.state.seed_name) // don't overwrite name on upload
     		seed_name = this.state.seed_name
     	flags.split(",").forEach((flag) => {
-    		if(SEED_FLAGS.includes(flag))
-    			seedFlags.push({label: flag, value: flag})
+    		if(SEED_FLAGS.includes(flag) && !seedFlags.includes(flag))
+    			seedFlags.push(flag)
     		else if(flag.startsWith("mode="))
     		{
 				display_coop = true
@@ -351,7 +372,7 @@ class PlandoBuiler extends React.Component {
     		else if(flag.startsWith("shared="))
     			share_types=select_wrap(flag.substring(7).split("+").filter((id) => SHARE_TYPES.includes(id)))
     	});
-    	this.setState({seedFlags: seedFlags, share_types: share_types, coop_mode: coop_mode, display_coop: display_coop, seed_name: seed_name})
+    	this.setState({seedFlags: select_wrap(seedFlags), share_types: share_types, coop_mode: coop_mode, display_coop: display_coop, seed_name: seed_name})
 
 	}
 
@@ -440,17 +461,16 @@ class PlandoBuiler extends React.Component {
 	savedSuccessful = (statusCode) => {
 		if(statusCode === 200)
 		{
-		    let [http, _, oldurl] = window.document.URL.split('/')
-		    window.history.replaceState('',window.document.title, http+"//"+oldurl+"/"+this.state.user+"/"+this.state.seed_name+"/edit");
+		    window.history.replaceState('',window.document.title, base_url+"/plando/"+this.state.user+"/"+this.state.seed_name+"/edit");
 			this.toggleMeta()
-			alert("Seed was successfully saved!")
+			NotificationManager.success("Seed saved", "Success!", 2500);
 		}
 		else if(statusCode === 404)
-			alert("Failed to save seed: invalid name.")
+				NotificationManager.error("Invalid name", "Failed to save seed!", 4000);
 		else if(statusCode >= 500)
-			alert("Failed to save seed: server error.")
+				NotificationManager.error("Server error", "Failed to save seed!", 4000);
 		else 
-			alert("Failed to save seed: unknown error.")
+				NotificationManager.error("Unknown error", "Failed to save seed!", 4000);
 	}
 
 	downloadSeed = () => {
@@ -472,8 +492,11 @@ class PlandoBuiler extends React.Component {
 	  		this.state.reachable.forEach((area) => {
 	  			if(picks_by_area.hasOwnProperty(area))
 		  			picks_by_area[area].forEach((pick) => {
-	  				if(this.state.placements[1] && this.state.placements[1].hasOwnProperty(pick.loc))
-						reachableStuff.push(this.state.placements[this.state.player][pick.loc].value)
+	  				if(this.state.placements[1] && this.state.placements[1].hasOwnProperty(pick.loc)) {
+	  					let code = this.state.placements[1][pick.loc].value;
+	  					if(!["SH", "NO", "AC", "EX"].includes(code.substr(0,2)))
+							reachableStuff.push(code);	  					
+		  				}
 		  			});
 	  		});
 		} else {
@@ -567,10 +590,16 @@ class PlandoBuiler extends React.Component {
 			stuff_select = (
 				<div className="pickup-wrapper">
 					<span className="label">Message: </span>
-						<textarea id="seed-desc-input" className="form-control" placeholder="Seed Description" value={this.state.stuff.label} onChange={event => this.place({label: event.target.value, value: "SH|"+event.target.value})} />
+						<input id="seed-desc-input" type="text" className="form-control" value={this.state.stuff.label} onChange={event => this.place({label: event.target.value, value: "SH|"+event.target.value})} />
 				</div>
 			);
-			
+		} else if(this.state.stuff_type === "Custom") {
+			stuff_select = (
+				<div className="pickup-wrapper">
+					<span className="label">Custom: </span>
+						<input id="seed-desc-input" type="text" className="form-control" value={this.state.stuff.label} onChange={event => this.place({label: event.target.value, value: event.target.value})} />
+				</div>
+			);
 			
 		} else if (this.state.stuff_type === "Fill") {
 			stuff_select = (
@@ -603,9 +632,10 @@ class PlandoBuiler extends React.Component {
 			<div className="wrapper">
 				<Map crs={crs} zoomControl={false} onViewportChanged={this.onViewportChanged} viewport={this.state.viewport}>
 			        <ZoomControl position="topright" />
-
+	
 					<TileLayer url=' https://ori-tracker.firebaseapp.com/images/ori-map/{z}/{x}/{y}.png' noWrap='true'  />
 					{pickup_markers}
+			        <NotificationContainer/>
 				</Map>
 				<div className="controls">
 				{alert}
@@ -623,10 +653,14 @@ class PlandoBuiler extends React.Component {
 					<Collapse id="import-wrapper" isOpen={this.state.display_import}>
 						<textarea id="import-seed-area" className="form-control" placeholder="Paste Seed Here" value={this.state.seed_in} onChange={event => {this.parseUploadedSeed(event.target.value) ; this.toggleImport() }} />
 					</Collapse>
-					<div className="form-group" id="flag-controls">
-						<span className="label">Seed Flags: </span>
-						<Select options={select_wrap(SEED_FLAGS)} onChange={(n) => this.setState({seedFlags: n})} multi={true} value={this.state.seedFlags} label={this.state.seedFlags}></Select>
+					<hr style={{ backgroundColor: 'grey', height: 2 }}/>
+					<div id="pickup-controls">
+						<div className="pickup-wrapper">
+							<span className="label">Seed Flags: </span>
+							<Select options={select_wrap(SEED_FLAGS)} onChange={(n) => this.setState({seedFlags: n})} multi={true} value={this.state.seedFlags} label={this.state.seedFlags}></Select>
+						</div>
 					</div>
+					<hr style={{ backgroundColor: 'grey', height: 2 }}/>
 					<div id="pickup-controls">
 				 		<div className="pickup-wrapper">
 							<span className="label">Zone:</span>
@@ -642,16 +676,19 @@ class PlandoBuiler extends React.Component {
 						</div>
 						{stuff_select}
 					</div>
+					<hr style={{ backgroundColor: 'grey', height: 2 }}/>
 					<div id="display-controls">
 						<CheckboxGroup id="display-flags" checkboxDepth={6} name="flags" value={this.state.flags} onChange={this.flagsChanged}>
 							<label className="form-check-label"><Checkbox value="hide_unreachable" />Hide Unreachable</label>
 							<label className="form-check-label"><Checkbox value="hide_softlockable" />Hide Dangerous</label>
 						</CheckboxGroup>
+					<hr style={{ backgroundColor: 'grey', height: 2 }}/>
 						<div id="search-wrapper">
 							<label for="search">Search</label>
 							<input id="search" class="form-control" value={this.state.searchStr} onChange={(event) => this.setState({searchStr: event.target.value})} type="text" />
 						</div>
 					</div>
+					<hr style={{ backgroundColor: 'grey', height: 2 }}/>
 					<div id="logic-controls">
 						<div id="logic-mode-wrapper">
 							<span className="label">Logic Mode:</span>
@@ -694,6 +731,7 @@ class PlandoBuiler extends React.Component {
 								</div>
 							</Collapse>
 						</div>
+						<hr style={{ backgroundColor: 'grey', height: 2 }}/>
 						<div id="logic-mode-controls">
 							<div id="logic-presets">
 								<Button color="primary" onClick={this.toggleLogic} >Logic Paths:</Button>
@@ -759,7 +797,7 @@ function getReachable(setter, modes, codes, callback)
 					setter({reachable: res.split("|")}, callback)
             })(xmlHttp.responseText);
     }
-    xmlHttp.open("GET", "/reachable?modes="+modes+"&codes="+codes, true);
+    xmlHttp.open("GET", "/plando/reachable?modes="+modes+"&codes="+codes, true);
     xmlHttp.send(null);
 }
 
@@ -770,8 +808,12 @@ function uploadSeed(seedLines, author, seedName, description, callback)
         if (xmlHttp.readyState === 4)
         	callback(xmlHttp.status)
     }
-
-    xmlHttp.open("POST", "/"+author+"/"+seedName+"/upload", true);
+	let url = "/plando/"+author+"/"+seedName+"/upload";
+	let old_name = window.document.URL.split("/")[5];
+	if(old_name != seedName) {
+		url += "?old_name=" + old_name
+	}
+    xmlHttp.open("POST", url, true);
     xmlHttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
     xmlHttp.send("seed="+seedLines.join("!")+"&desc="+description);
 

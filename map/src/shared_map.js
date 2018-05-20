@@ -71,8 +71,8 @@ function getMapCrs() {
 	return Leaflet.CRS.MySimple;
 };
 
-const PickupMarker = ({ map, position, inner, icon, onClick}) => (
-  <Marker map={map} position={position} icon={icon} onClick={onClick}>
+const PickupMarker = ({inner, map, position, icon, ...props}) => (
+  <Marker map={map} position={position} icon={icon} {...props}>
   {inner}
   </Marker>
 );
@@ -358,31 +358,41 @@ const picks_by_type = {
 	{'loc': 7959788, 'name': 'MS', 'zone': 'Swamp', 'area': 'SwampWater', 'y': -210, 'x': 796},
 ]};
 const stuff_types = [{value: "Skills", label: "Skills"}, {value: "Events", label: "Events"}, {value: "Upgrades", label: "Upgrades"}, {value: "Teleporters", label: "Teleporters"}, {value: "Experience", label: "Experience"}, 
-					 {value: "Cells and Stones", label: "Cells and Stones"}, {value: "Messages", label: "Messages"}, {value: "Fill", label: "Fill"}];
+					 {value: "Cells and Stones", label: "Cells and Stones"}, {value: "Messages", label: "Messages"}, {value: "Custom", label: "Custom"}, {value: "Fill", label: "Fill"}];
 function pickup_name(code, id) {
+	let upgrade_names = {};
+	stuff_by_type["Upgrades"].forEach(s => {
+		upgrade_names[s.value.substr(3)] = s.label;
+	});
 	let names = {
 		"SK": {0:"Bash", 2:"Charge Flame", 3:"Wall Jump", 4:"Stomp", 5:"Double Jump",8:"Charge Jump",12:"Climb",14:"Glide",50:"Dash",51:"Grenade"},
 		"EV": {0:"Water Vein", 1:"Clean Water", 2:"Gumon Seal", 3:"Wind Restored", 4:"Sunstone", 5:"Warmth Returned"},
-		"RB":  {17:"Water Vein Shard", 19: "Gumon Seal Shard", 21: "Sunstone Shard", 6: "Spirit Flame Upgrade", 13: "Health Regeneration", 15: "Energy Regeneration", 8: "Explosion Power Upgrade", 9:  "Spirit Light Efficiency", 10: "Extra Air Dash", 11:  "Charge Dash Efficiency", 12:  "Extra Double Jump", 0: "Mega Health", 1: "Mega Energy"}	
+		"RB": upgrade_names,
 	};
-	if(names.hasOwnProperty(code) && names[code][parseInt(id)])
-		return names[code][parseInt(id)];
+	if(names.hasOwnProperty(code) && names[code][id])
+		return names[code][id];
 	 
-	if(code === "EX") 
-		return id+ " Experience";
-	if(code === "HC") 
-		return "Health Cell";
-	if(code === "EC") 
-		return "Energy Cell";
-	if(code === "AC") 
-		return "Ability Cell";
-	if(code === "MS") 
-		return "Mapstone";
-	if(code === "KS") 
-		return "Keystone";
-	if(code === "TP") 
-		return id + "TP";
-	return code + "|" + id;
+	switch(code) {
+		case "TP":
+			return id + "TP";
+		case "EX":
+			return id+ " Experience";
+		case "HC":
+			return "Health Cell";
+		case "AC":
+			return "Ability Cell";
+		case "EC":
+			return "Energy Cell";
+		case "KS":
+			return "Keystone";
+		case "MS":
+			return "Mapstone";
+		case "SH":
+			return id;
+		default:
+			return code + "|" + id;
+	}
+
 }
 
 const getStuffType = (stuff) => {
@@ -405,8 +415,11 @@ const getStuffType = (stuff) => {
 		case "KS":
 		case "MS":
 			return "Cells and Stones"
+		case "SH":
+			return "Messages"
 		default:
-			return "Fill"	}
+			return "Custom"
+	}
 }
 
 const stuff_by_type = {
@@ -447,8 +460,8 @@ const stuff_by_type = {
 		{label: "Sunstone Shard", value: "RB|21"},
 		{label: "Polarity Shift", value: "RB|101"},
 		{label: "Gravity Swap", value: "RB|102"},
-		{label: "Drag Racer", value: "RB|103"},
-		{label: "Airbrake", value: "RB|104"},
+		{label: "ExtremeSpeed", value: "RB|103"},
+		{label: "Energy Jump", value: "RB|104"},
 	],
 	"Teleporters": [
 		{label: "Grotto TP", value: "TP|Grotto"},
@@ -485,7 +498,6 @@ const picks_by_zone = {};
 const picks_by_area = {};
 const zones = [];
 const areas = [];
-
 let ks = Object.keys(picks_by_type)
 ks.forEach((pre) => {
 	picks_by_type[pre].forEach((pick) => {
@@ -533,23 +545,29 @@ function get_list(name, sep) {
 
 function get_seed() {
     let authed = get_flag("authed")
-    let user = "N/A", name = "new seed", desc = ""
     if(authed)
     {
-    	user = get_param("user")
-    	name = get_param("seed_name") || "new seed"
-    	desc = get_param("seed_desc") || ""
+    	let user = get_param("user")
+    	let name = get_param("seed_name") || "new seed"
+    	let desc = get_param("seed_desc") || ""
+    	let hidden = get_flag("seed_hidden") 
     	let rawSeed = get_param("seed_data")
-	    return {rawSeed: rawSeed, user: user, authed: authed, seed_name: name, seed_desc: desc}
+	    return {rawSeed: rawSeed, user: user, authed: authed, seed_name: name, seed_desc: desc, hidden: hidden}
     }
     else
     	return {authed:false}
     
 }
 
- 
- 
 
+function is_match(pickup, searchstr) {
+	searchstr = searchstr.toLowerCase();
+	return pickup.label.toLowerCase().includes(searchstr) || pickup.value.toLowerCase().includes(searchstr);
+} 
+ 
+const str_ids = ["TP", "NO", "SH"];
+const hide_opacity = .2;
+const seed_name_regex = new RegExp("^[^ ?=/]+$");
 export {PickupMarker, PickupMarkersList, download, pickup_icons, getStuffType, locs, picks_by_loc, getMapCrs, pickups, distance,
 		point, picks_by_type, picks_by_zone, zones, pickup_name, stuff_types, stuff_by_type, areas, picks_by_area, presets,
-		get_param, get_flag, get_int, get_list, get_seed};
+		get_param, get_flag, get_int, get_list, get_seed, is_match, str_ids, hide_opacity, seed_name_regex };

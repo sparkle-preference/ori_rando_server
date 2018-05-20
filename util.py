@@ -108,6 +108,7 @@ class Seed(ndb.Model):
 	#id = author:name
 	placements = ndb.LocalStructuredProperty(Placement, repeated=True)
 	flags = ndb.StringProperty(repeated=True)
+	hidden = ndb.BooleanProperty(default=False)
 	description = ndb.TextProperty()
 	players = ndb.IntegerProperty(default=1)
 	author = ndb.StringProperty(required=True)
@@ -365,13 +366,6 @@ class Event(Pickup):
 		inst = super(Event, cls).__new__(cls)
 		inst.id, inst.bit, inst.name = id, Event.bits[id], Event.names[id]
 		inst.share_type = ShareType.EVENT if id in [1, 3, 5] else ShareType.DUNGEON_KEY
-		return inst
-
-class Message(Pickup):
-	code = "SH"
-	def __new__(cls, id):
-		inst.id, inst.name = id, id + "Message: "
-		inst.share_type = ShareType.NOT_SHARED
 		return inst
 
 

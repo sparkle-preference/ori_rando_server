@@ -1,10 +1,12 @@
+import './bootstrap.cyborg.min.css';
+import './index.css';
 import React from 'react';
 //import registerServiceWorker from './registerServiceWorker';
 import {Map, Tooltip, TileLayer, Marker, ZoomControl} from 'react-leaflet';
 import {Checkbox, CheckboxGroup} from 'react-checkbox-group';
 import {Radio, RadioGroup} from 'react-radio-group';
 import Leaflet from 'leaflet';
-import {distance, picks_by_type, PickupMarkersList, pickup_icons, getMapCrs, presets} from './shared_map.js';
+import {distance, picks_by_type, PickupMarkersList, pickup_icons, getMapCrs, presets, hide_opacity} from './shared_map.js';
 import Select from 'react-select';
 import 'react-select/dist/react-select.css';
 import {Button, Collapse} from 'reactstrap';
@@ -122,8 +124,14 @@ function getPickupMarkers(state) {
 				continue
 			}
 			let is_hot = false;
-			let highlight = false;
-			Object.keys(players).map((id) => {
+			Object.keys(players).forEach((id) => {
+				if(!is_hot && players[id].seen.includes(pick.loc) &&  players[id].seed[pick.loc] === "Warmth Returned")
+					is_hot = true;				
+			});
+
+			let highlight = (state.searchStr || is_hot) ? false : true;
+
+			Object.keys(players).forEach((id) => {
 				let player = players[id]
 				let hide_found = player.flags.includes("hide_found")
 				let hide_unreachable = player.flags.includes("hide_unreachable")
@@ -132,11 +140,9 @@ function getPickupMarkers(state) {
 				let show_spoiler = player.flags.includes("show_spoiler");
 				let pick_name = player.seed[pick.loc]
 				let found = player.seen.includes(pick.loc);
-				if(!is_hot && found &&  pick_name === "Warmth Returned")
-					is_hot = true;
 				if(is_hot && !found && hot_assist)
 					highlight = true;
-				if(!highlight && (found || show_spoiler) && state.searchStr && pick_name.toLowerCase().includes(state.searchStr.toLowerCase()))
+				if(!highlight && (found || show_spoiler) && pick_name.toLowerCase().includes(state.searchStr.toLowerCase()))
 					highlight = true;
 				let reachable = players[id].areas.includes(pick.area);
 
@@ -163,9 +169,8 @@ function getPickupMarkers(state) {
 					</Tooltip>
 					);
 				}
-				if(highlight)
-					icon = new Leaflet.Icon({iconUrl: icon.options.iconUrl, iconSize: new Leaflet.Point(icon.options.iconSize.x*2, icon.options.iconSize.y*2)})
-				markers.push({key: pick.name+"|"+pick.x+","+pick.y, position: [y, x], inner: inner, icon: icon});
+				let opacity = highlight ? 1  : hide_opacity;
+				markers.push({key: pick.name+"|"+pick.x+","+pick.y, position: [y, x], inner: inner, icon: icon, opacity: opacity});
 			}
 
 		}

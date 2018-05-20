@@ -309,3 +309,9 @@ main {
   width: 100%;
   margin-bottom: 4px;
 }
+
+.react-confirm-alert-body > h1 {
+	color: #666;
+	font-size: 28px;
+	font-weight: 700;
+}

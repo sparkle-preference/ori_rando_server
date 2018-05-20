@@ -1,7 +1,5 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
-import './index.css';
-import './bootstrap.cyborg.min.css';
 import GameTracker from './GameTracker';
 import SeedDisplayPage from './SeedDisplayPage';
 import PlandoBuilder from './PlandoBuilder';
