@@ -19,11 +19,11 @@ from google.appengine.ext.webapp import template
 # project impports
 from seedbuilder.generator import setSeedAndPlaceItems
 from seedbuilder.splitter import split_seed
-from util import (GameMode, ShareType, Pickup, Skill, Event, Teleporter, Upgrade, share_map, special_coords, get_bit, get_taste, add_single, Seed, get_open_gid,
+from util import (GameMode, ShareType, Pickup, Skill, Event, Teleporter, Upgrade, share_map, special_coords, get_bit, get_taste, add_single, Seed, get_open_gid, 
+				 dll_last_update,
 				 mode_map, DEDUP_MODES, get, unpack, coord_correction_map, Cache, HistoryLine, Player, Game, delete_game, get_new_game, clean_old_games, all_locs)
 from reachable import Map, PlayerState
 
-LAST_DLL = "May 19, 2018"
 PLANDO_VER = "0.3.1"
 debug = os.environ.get('SERVER_SOFTWARE', '').startswith('Dev')
 base_site = "http://orirandocoopserver.appspot.com" if not debug else "https://8080-dot-3616814-dot-devshell.appspot.com"
@@ -147,7 +147,7 @@ class ShowHistory(webapp2.RequestHandler):
 class SeedGenerator(webapp2.RequestHandler):
 	def get(self):
                 path = os.path.join(os.path.dirname(__file__), 'index.html')
-                template_values = {'latest_dll': LAST_DLL, 'plando_version': PLANDO_VER}
+                template_values = {'latest_dll': dll_last_update(), 'plando_version': PLANDO_VER}
                 self.response.out.write(template.render(path, template_values))
 
 	def post(self):
@@ -344,7 +344,8 @@ class SetSeed(webapp2.RequestHandler):
 			mode_opt = [f[5:] for f in flags if f.lower().startswith("mode=")]
 			shared_opt = [f[7:].split(" ") for f in flags if f.lower().startswith("shared=")]
 			mode = mode_opt[0].lower() if mode_opt else None
-			mode = mode_map[mode] if mode in mode_map else int(mode)
+			if mode:
+				mode = mode_map[mode] if mode in mode_map else int(mode)
 
 			shared = shared_opt[0] if shared_opt else None
 			game = get_new_game(_mode = mode, _shared = shared, id=game_id)
@@ -692,7 +693,7 @@ class AuthorIndex(webapp2.RequestHandler):
 			self.response.write(out)
 		else:
 			if owner:
-				self.response.write("<html><body>You haven't made any seeds yet! <a href='/%s/newseed/edit'>Start a new seed</a></body></html>" % author)
+				self.response.write("<html><body>You haven't made any seeds yet! <a href='/plando/%s/newseed/edit'>Start a new seed</a></body></html>" % author)
 			else:
 				self.response.write('<html><body>No seeds by user %s</body></html>' % author)
 
@@ -715,6 +716,7 @@ app = webapp2.WSGIApplication([
 	('/getseed/?', SeedDownloader),
 	('/getNewGame/?', GetGameId),
 	(r'/(\d+)/?', HistPrompt),
+	(r'/(\d+)\.(\w+)/(-?\d+)/(SH)/([^?=/]+)', FoundPickup),
 	(r'/(\d+)\.(\w+)/(-?\d+)/(\w+)/(\w+)', FoundPickup),
 	(r'/(\d+)\.(\w+)/(-?\d+\.?\d*),(-?\d+\.?\d*)', Update),
 	(r'/(\d+)\.(\w+)/(-?\d+\.?\d*),(-?\d+\.?\d*)/', GetUpdate),
@@ -731,7 +733,6 @@ app = webapp2.WSGIApplication([
 	(r'/(\d+)\.(\w+)/_seed', GetSeed),
 	(r'/(\d+)\.(\w+)/setSeed', SetSeed),
 	(r'/(\d+)/_reachable', GetReachable),
-
 	(r'/login/?', HandleLogin),
 	(r'/logout/?', HandleLogout),
 

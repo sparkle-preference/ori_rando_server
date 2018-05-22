@@ -42,9 +42,14 @@ const paths = Object.keys(presets);
 const dev = window.document.URL.includes("devshell")
 const base_url = dev ?  "https://8080-dot-3616814-dot-devshell.appspot.com" : "http://orirandocoopserver.appspot.com"
 
-function getPickupMarkers(pickupTypes, placements, reachable, flags, setSelected, searchStr) {
+function getPickupMarkers(state, setSelected, searchStr) {
+	let pickupTypes = state.pickups
+	let placements = state.placements
+	let reachable = state.reachable
+	let flags = state.flags
 	let hide_unreachable = flags.includes("hide_unreachable")
 	let skip_danger = flags.includes("hide_softlockable")
+	let skip_assigned = flags.includes("hide_assigned")
 	let markers = []
 	pickupTypes.forEach((pre) => {
 		picks_by_type[pre].forEach((pick) => {
@@ -54,11 +59,12 @@ function getPickupMarkers(pickupTypes, placements, reachable, flags, setSelected
 			let show = !(skip_danger && DANGEROUS.includes(pick.loc));
 			if(hide_unreachable && !reachable.includes(pick.area))
 						show = false;
+			if(skip_assigned && placements[state.player].hasOwnProperty(pick.loc))
+						show = false;
 			if(show)
 			{
 				let highlight = searchStr ? false : true;
 				let rows = null;
-
 				if(pick.name === "MapStone") {
 				    rows = picks_by_type["MP"].map((ms) => {
 				    	let cols = Object.keys(placements).map((pid) => {
@@ -269,7 +275,7 @@ class PlandoBuiler extends React.Component {
 			NotificationManager.warning("Pickup should be in the form XX|Y", "Invalid Pickup!",2000);
 				return;
 		}
-		let reserved_chars = [":", ",", ".", "|", "\n"];
+		let reserved_chars = [":", ",", ".", "|", "\n", "!", "?", "&", "="];
 		let stuff_id = s.value.substr(3);
 		if(reserved_chars.some(c => stuff_id.includes(c))) {
 				NotificationManager.warning("'" + stuff_id + "' contains a forbidden character", "Invalid Id!",1000);
@@ -564,7 +570,7 @@ class PlandoBuiler extends React.Component {
 
 
 	render() {
-		const pickup_markers = ( <PickupMarkersList markers={getPickupMarkers(this.state.pickups, this.state.placements, this.state.reachable, this.state.flags, this.selectPickupCurry, this.state.searchStr)} />)
+		const pickup_markers = ( <PickupMarkersList markers={getPickupMarkers(this.state, this.selectPickupCurry, this.state.searchStr)} />)
 		const zone_opts = zones.map(zone => ({label: zone, value: zone}))
 		const pickups_opts = picks_by_zone[this.state.zone].map(pick => ({label: pick.name+"("+pick.x + "," + pick.y +")",value: pick}) )
 		let alert = this.state.authed ? null : (<Alert color="danger">Please <a href="/login">login</a> to enable saving.</Alert>)
@@ -680,6 +686,7 @@ class PlandoBuiler extends React.Component {
 					<div id="display-controls">
 						<CheckboxGroup id="display-flags" checkboxDepth={6} name="flags" value={this.state.flags} onChange={this.flagsChanged}>
 							<label className="form-check-label"><Checkbox value="hide_unreachable" />Hide Unreachable</label>
+							<label className="form-check-label"><Checkbox value="hide_assigned" />Hide Assigned</label>
 							<label className="form-check-label"><Checkbox value="hide_softlockable" />Hide Dangerous</label>
 						</CheckboxGroup>
 					<hr style={{ backgroundColor: 'grey', height: 2 }}/>

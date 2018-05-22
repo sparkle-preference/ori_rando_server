@@ -3,6 +3,11 @@ from math import floor
 from google.appengine.ext import ndb
 from google.appengine.ext.ndb import msgprop
 from datetime import datetime, timedelta
+import sys,os
+LIBS = os.path.join(os.path.dirname(os.path.realpath(__file__)),"lib")
+if LIBS not in sys.path:
+	sys.path.insert(0, LIBS)
+from github import Github
 
 class GameMode(messages.Enum):
 	SHARED = 1
@@ -386,7 +391,8 @@ class Upgrade(Pickup):
 	maxes = {17: 3, 19: 3, 21: 3}
 	names = {17:  "Water Vein Shard", 19: "Gumon Seal Shard", 21: "Sunstone Shard", 6: "Spirit Flame Upgrade", 13: "Health Regeneration", 2: "Go Home",
 			15: "Energy Regeneration", 8: "Explosion Power Upgrade", 9:  "Spirit Light Efficiency", 10: "Extra Air Dash", 1:  "Charge Dash Efficiency", 
-			12: "Extra Double Jump", 0: "Mega Health", 1: "Mega Energy", 101: "Polarity Shift", 102: "Gravity Swap", 103: "Drag Racer", 104: "Airbrake"}
+			12: "Extra Double Jump", 0: "Mega Health", 1: "Mega Energy", 30: "Bleeding", 31: "Lifesteal", 32: "Manavamp",
+			101: "Polarity Shift", 102: "Gravity Swap", 103: "Drag Racer", 104: "Airbrake"}
 	bits = {17:1, 19:4, 21:16, 6:64, 13:256, 15:1024, 8:4096, 9:8192, 10:16384, 11:32768, 12:65536}
 	code = "RB"
 	def __new__(cls, id):
@@ -554,3 +560,6 @@ def unpack(coord):
 	x = rnd(coord/10000)
 	return x,y
 
+def dll_last_update():
+	# hidiously bad practice but the token only has read rights so w/eeeeee
+	return Github("483492d99a7355ac75561b59d1723914eb8c2fe6").get_repo(124633989).get_commits(path="Assembly-CSharp.dll")[0].commit.last_modified
