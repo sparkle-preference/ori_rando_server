@@ -525,10 +525,15 @@ class PlandoUpload(webapp2.RequestHandler):
 				seedLines = self.request.POST["seed"]
 				desc = self.request.POST["desc"]
 				old_name = paramVal(self, "old_name")
+				if old_name:
+					old_seed = Seed.get_by_id("%s:%s" % (author, old_name))
+				else:
+					old_seed = Seed.get_by_id("%s:%s" % (author, plando))					
 				seed = Seed.from_plando(seedLines.split("!"), author, plando, desc)
+				if old_seed:
+					seed.hidden = old_seed.hidden
 				res = seed.put()
 				if res and old_name and old_name != plando:
-					old_seed = Seed.get_by_id("%s:%s" % (author, old_name))
 					if not old_seed:
 						print "ERROR: couldn't find old seed when trying to rename!"
 					else:

@@ -655,6 +655,7 @@ class PlandoBuiler extends React.Component {
 						<textarea id="seed-name-input" className="form-control" value={this.state.seed_name} onChange={event => this.setState({seed_name: event.target.value})} />
 						<textarea id="seed-desc-input" className="form-control" placeholder="Seed Description" value={this.state.seed_desc} onChange={event => this.setState({seed_desc: event.target.value})} />
 						<Button color="primary" onClick={this.saveSeed} >Save</Button>
+						<Button color="primary" onClick={() => window.open(window.document.URL.slice(0,-5),'_blank') } >Open Seed Page</Button>
 					</Collapse>
 					<Collapse id="import-wrapper" isOpen={this.state.display_import}>
 						<textarea id="import-seed-area" className="form-control" placeholder="Paste Seed Here" value={this.state.seed_in} onChange={event => {this.parseUploadedSeed(event.target.value) ; this.toggleImport() }} />

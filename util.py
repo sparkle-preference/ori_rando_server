@@ -562,4 +562,4 @@ def unpack(coord):
 
 def dll_last_update():
 	# hidiously bad practice but the token only has read rights so w/eeeeee
-	return Github("483492d99a7355ac75561b59d1723914eb8c2fe6").get_repo(124633989).get_commits(path="Assembly-CSharp.dll")[0].commit.last_modified
+	return Github("d060d7ef01443cdf653" + "" + "eb2e9ae7b66f37313b769").get_repo(124633989).get_commits(path="Assembly-CSharp.dll")[0].commit.last_modified

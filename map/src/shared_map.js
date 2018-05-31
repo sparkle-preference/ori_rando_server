@@ -141,7 +141,7 @@ const picks_by_type = {
 	{'loc': -3360288, 'name': 'EC', 'zone': 'Glades', 'area': 'LeftWallJump', 'y': -288, 'x': -336},
 	{'loc': -1560188, 'name': 'EC', 'zone': 'Glades', 'area': 'GladesLaser', 'y': -186, 'x': -155},
 	{'loc': 599844, 'name': 'EC', 'zone': 'Grove', 'area': 'SpiderSacEnergy', 'y': -155, 'x': 60},
-	{'loc': 4199828, 'name': 'EC', 'zone': 'Grotto', 'area': 'MoonGrotto', 'y': -169, 'x': 423},
+	{'loc': 4199828, 'name': 'EC', 'zone': 'Grotto', 'area': 'DeathGauntlet', 'y': -169, 'x': 423},
 	{'loc': 5439640, 'name': 'EC', 'zone': 'Grotto', 'area': 'MobileGumoHideout', 'y': -357, 'x': 545},
 	{'loc': 5119556, 'name': 'EC', 'zone': 'Grotto', 'area': 'HideoutRedirect', 'y': -441, 'x': 515},
 	{'loc': 5360432, 'name': 'EC', 'zone': 'Ginso', 'area': 'UpperGinsoFloors', 'y': 434, 'x': 536},
