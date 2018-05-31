@@ -7,7 +7,6 @@ import sys,os
 LIBS = os.path.join(os.path.dirname(os.path.realpath(__file__)),"lib")
 if LIBS not in sys.path:
 	sys.path.insert(0, LIBS)
-from github import Github
 
 class GameMode(messages.Enum):
 	SHARED = 1
@@ -561,5 +560,8 @@ def unpack(coord):
 	return x,y
 
 def dll_last_update():
+	if os.environ.get('SERVER_SOFTWARE', '').startswith('Dev'):
+		return "N/A"
+	from github import Github
 	# hidiously bad practice but the token only has read rights so w/eeeeee
 	return Github("d060d7ef01443cdf653" + "" + "eb2e9ae7b66f37313b769").get_repo(124633989).get_commits(path="Assembly-CSharp.dll")[0].commit.last_modified

@@ -823,7 +823,7 @@ function uploadSeed(seedLines, author, seedName, description, callback)
 	}
     xmlHttp.open("POST", url, true);
     xmlHttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-    xmlHttp.send("seed="+seedLines.join("!")+"&desc="+description);
+    xmlHttp.send(encodeURI("seed="+seedLines.join("!")+"&desc="+description));
 
 }
 

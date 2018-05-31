@@ -9,5 +9,7 @@ if(document.getElementById('plandoBuilder'))
 	ReactDOM.render(<PlandoBuilder />, document.getElementById('plandoBuilder'));
 if(document.getElementById('seedDisplay'))
 	ReactDOM.render(<SeedDisplayPage/>, document.getElementById('seedDisplay'));
+if(document.getElementById('MainPage'))
+    ReactDOM.render(<MainPage />, document.getElementById('mainPage'));
 
 //registerServiceWorker();
