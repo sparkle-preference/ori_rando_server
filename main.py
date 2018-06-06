@@ -162,14 +162,15 @@ class ShowHistory(webapp2.RequestHandler):
 class SeedGenerator(webapp2.RequestHandler):
     def get(self):
         path = os.path.join(os.path.dirname(__file__), 'index.html')
-        template_values = {'latest_dll': dll_last_update(), 'plando_version': PLANDO_VER}
+        template_values = {'latest_dll': dll_last_update(), 'plando_version': PLANDO_VER, 'seed': random.randint(10000000, 100000000)}
         self.response.out.write(template.render(path, template_values))
 
-    def post(self):
+class SeedGenLanding(webapp2.RequestHandler):
+    def get(self):
         mode = self.request.get("mode").lower()
         pathdiff = self.request.get("pathdiff").lower()
         variations = set(
-            [x for x in ["forcetrees", "hardmode", "notp", "starved", "ohko", "noplants", "discmaps", "0xp", "nobonus"]
+            [x for x in ["forcetrees", "hardmode", "notp", "starved", "ohko", "noplants", "discmaps", "0xp", "nobonus", "entshuf"]
              if self.request.get(x)])
         logic_paths = [x for x in
                        ["normal", "speed", "lure", "speed-lure", "dboost", "dboost-light", "dboost-hard", "cdash",
@@ -179,6 +180,8 @@ class SeedGenerator(webapp2.RequestHandler):
         syncid = self.request.get("syncid")
         syncmode = self.request.get("syncmode").lower()
         syncmode = mode_map[syncmode] if syncmode in mode_map else int(syncmode)
+        synctype = self.request.get("synctype").lower()
+        genmode = self.request.get("genmode").lower()
         seed = self.request.get("seed")
         share_types = [f for f in share_map.keys() if self.request.get(f)]
 
@@ -210,75 +213,101 @@ class SeedGenerator(webapp2.RequestHandler):
         urlargs.append("pd=%s" % pathdiff)
         urlargs.append("shr=%s" % "+".join(share_types))
         urlargs.append("sym=%s" % syncmode)
+        urlargs.append("syt=%s" % synctype)
+        urlargs.append("gnm=%s" % genmode)
         urlargs.append("gid=%s" % game_id)
-        for flg in ["dk", "ev", "sk", "rb", "tp", "hot", "wild"]:
+        for flg in ["dk", "ev", "sk", "rb", "tp", "hints", "wild"]:
             if self.request.get(flg):
                 urlargs.append("%s=1" % flg)
         self.response.headers['Content-Type'] = 'text/html'
         out = "<html><body>"
         url = '/getseed?%s' % "&".join(urlargs)
-        out += "<div><a target='_blank' href='%s&p=spoiler'>Spoiler</a></div>" % url
+        if synctype == "split":
+            out += "<div><a target='_blank' href='%s&p=1&splr=1'>Spoiler</a></div>" % url
         out += "<div><a target='_blank' href='/%s/map?paths=%s'>Map</a></div>" % (game_id, "+".join(logic_paths))
         out += "<div><a target='_blank' href='/%s/history'>History</a></div>" % game_id
-
+        out += "<ul>"
         for i in range(1, 1 + int(playercount)):
             purl = url + "&p=%s" % i
-            out += "<div>Player %s: <a target='_blank' href=%s>%s%s</a></div>" % (i, purl, base_site, purl)
-        out += "</body></html>"
+            out += "<li>Player %s: <a target='_blank' href=%s>%s%s</a>" % (i, purl, base_site, purl)
+            if synctype == "disjoint":
+                out += "<ul><li>Spoiler:<a target='_blank' href=%s&splr=1>%s%s&splr=1</a></li></ul>" % (purl, base_site, purl)
+            out += "</li>"
+        out += "</ul></body></html>"
         self.response.out.write(out)
 
 
 class SeedDownloader(webapp2.RequestHandler):
     def get(self):
+        self.response.headers['Content-Type'] = 'text/plain'
         params = self.request.GET
         mode = params['m']
         variations = params['vars'].split("|")
         logic_paths = params['lps'].split("|")
         syncmode = params["sym"]
+        synctype = params["syt"]
+        genmode = params["gnm"]
         seed = params['s']
         playercount = int(params['pc'])
         pathdiff = params['pd']
-        player = params['p']
+        spoiler = "splr" in params
+        player = int(params['p'])
         game_id = int(params['gid'])
         if pathdiff == "normal":
             pathdiff = None
         varFlags = {"starved": "starved", "hardmode": "hard", "ohko": "OHKO", "0xp": "0XP", "nobonus": "NoBonus",
                     "noplants": "NoPlants", "forcetrees": "ForceTrees", "discmaps": "NonProgressMapStones",
-                    "notp": "NoTeleporters"}
+                    "notp": "NoTeleporters", "entshuf": "entrance"}
         share_types = params['shr']
         flags = ["Custom", "shared=%s" % share_types.replace(" ", "+"), "mode=%s" % syncmode]
         if mode != "default":
             flags.append(mode)
-        if pathdiff:
+        if genmode == "balanced":
+            flags.append(genmode)
+        if pathdiff and pathdiff != "normal":
             flags.append("prefer_path_difficulty=" + pathdiff)
         for v in variations:
             flags.append(varFlags[v])
 
         flag = ",".join(flags)
         out = ""
-        placement = setSeedAndPlaceItems(seed, 10000,
-                                         "hardmode" in variations,
-                                         "noplants" not in variations,
-                                         mode == "shards",
-                                         mode == "limitkeys",
-                                         mode == "clues",
-                                         "notp" in variations,
-                                         False, False,
-                                         logic_paths, flag,
-                                         "starved" in variations,
-                                         pathdiff,
-                                         "discmaps" in variations,
-                                         "wild" in params)
-        if player == "spoiler":
-            self.response.headers['Content-Type'] = 'text/plain'
-            self.response.out.write(placement[1])
-            return
-        player = int(player)
-        ss = split_seed(placement[0], game_id, player, playercount, "hot" in params, "dk" in params,
-                        "sk" in params, "ev" in params, "rb" in params, "tp" in params)
-        self.response.headers['Content-Type'] = 'application/x-gzip'
-        self.response.headers['Content-Disposition'] = 'attachment; filename=randomizer.dat'
-        self.response.out.write(ss)
+        placements = setSeedAndPlaceItems(
+            seed = seed, 
+            expPool = 10000,
+            hardMode = "hardmode" in variations,
+            includePlants = "noplants" not in variations,
+            shardsMode = mode == "shards",
+            limitkeysMode = mode == "limitkeys",
+            cluesMode = mode == "clues",
+            noTeleporters = "notp" in variations,
+            modes = logic_paths, 
+            flags = flag,
+            starvedMode = "starved" in variations,
+            preferPathDifficulty = pathdiff,
+            setNonProgressiveMapstones = "discmaps" in variations,
+            playerCountIn = playercount if synctype == "disjoint" else 1,
+            balanced = genmode == "balanced",
+            entrance = "entshuf" in variations,
+            sharedItems = share_types,
+            wild = "wild" in params)
+        if synctype == "split":
+            (seed, spoil) = placements[0]
+            if spoiler:
+                self.response.out.write(spoil)
+                return
+            else:
+                out = split_seed(seed, game_id, player, playercount, "hints" in params, "dk" in params,
+                            "sk" in params, "ev" in params, "rb" in params, "tp" in params)
+        elif synctype == "disjoint":
+            (out, spoil) = placements[player-1]
+            if spoiler:
+                self.response.out.write(spoil)
+                return
+
+        if not debug:
+            self.response.headers['Content-Type'] = 'application/x-gzip'
+            self.response.headers['Content-Disposition'] = 'attachment; filename=randomizer.dat'
+        self.response.out.write(out)
 
 
 class SignalCallback(webapp2.RequestHandler):
@@ -766,6 +795,7 @@ class QuickStart(webapp2.RequestHandler):
 app = webapp2.WSGIApplication([
     ('/faq/?', QuickStart),
     ('/', SeedGenerator),
+    ('/mkseed/?', SeedGenLanding),
     ('/activeGames/?', ActiveGames),
     ('/clean/?', CleanUp),
     ('/getseed/?', SeedDownloader),
