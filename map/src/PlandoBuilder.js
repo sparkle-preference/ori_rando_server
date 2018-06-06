@@ -155,7 +155,7 @@ class PlandoBuiler extends React.Component {
     super(props)
 
     this.state = {seed_in: "", reachable: ['SunkenGladesRunaway'], placements: {1: {...DEFAULT_DATA}}, player: 1,
-    			  fill_opts: {HC: 13, EC: 15, AC: 34, KS: 40, MS: 9, EX: 300, dynamic: true}, viewport: DEFAULT_VIEWPORT, searchStr: "",
+    			  fill_opts: {HC: 13, EC: 15, AC: 34, KS: 40, MS: 9, EX: 300, dynamic: false, dumb: false}, viewport: DEFAULT_VIEWPORT, searchStr: "",
 		    	  flags: ['hide_unreachable', 'hide_softlockable'], seedFlags: select_wrap(["forcetrees"]), share_types: select_wrap(["keys"]), coop_mode: {label: "Solo", value: "None"},
 		    	  pickups: ["EX", "Ma", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV"],  display_import: false, display_logic: false, display_coop: false, display_meta: false}
 	}
@@ -202,7 +202,6 @@ class PlandoBuiler extends React.Component {
 		this._updateReachable()
 	};
 
-	_fillToggleDynamic = (n) => this.updateFill("dynamic",!this.state.fill_opts.dynamic)
     _onSelectZone = (newZone, pan=true) => {this.selectPickup(this.state.lastSelected[newZone.value], pan)};
     _onSelectStuffType = (newStuffType) => {
     	this.setState({stuff_type: newStuffType.value});
@@ -460,6 +459,48 @@ class PlandoBuiler extends React.Component {
 		return outLines;
 	}
 
+	doFillGen = () => {
+	    var xmlHttp = new XMLHttpRequest();
+	    var parser = this.parseUploadedSeed;
+	    xmlHttp.onreadystatechange = function() {
+	        if (xmlHttp.readyState === 4)
+	            (function(res) {
+	            	if(xmlHttp.status !== 200)
+		            	NotificationManager.error("Unfinishable Seed", "Failed to complete seed using seedgen", 4000);
+					else
+						parser(res);
+	            })(xmlHttp.responseText);
+	    }
+	  		let codes = []; 
+	  		this.state.reachable.forEach((area) => {
+	  			if(picks_by_area.hasOwnProperty(area))
+		  			picks_by_area[area].forEach((pick) => {
+		  				if(this.state.placements[this.state.player] && this.state.placements[this.state.player].hasOwnProperty(pick.loc)) 
+		  					codes.push(pick.loc+":"+this.state.placements[1][pick.loc].value.replace("|",""));
+		  			});
+	  		});
+	    let url = "/plando/fillgen?lps="+this.state.modes.join("|");
+		let seedFlags = this.state.seedFlags.map(f => f.value);
+		let mode = "";
+		if(seedFlags.includes("shards"))
+			mode = "shards";
+		else if(seedFlags.includes("clues"))
+			mode = "clues";
+		else if(seedFlags.includes("limitkeys"))
+			mode = "limitkeys";
+		if(mode) {
+			url += "&m="+mode;
+			seedFlags = seedFlags.filter(x => x !== mode)
+		}
+			
+		
+		url += "&vars="+seedFlags.join("|")
+		url += "&fass="+codes.join("|")	    
+	    xmlHttp.open("GET", url, true);
+	    xmlHttp.send(null);
+	}
+
+
 	saveSeed = () => {
 		uploadSeed(this.getUploadLines(), this.state.user, this.state.seed_name, this.state.seed_desc, this.savedSuccessful)
 	}
@@ -575,6 +616,11 @@ class PlandoBuiler extends React.Component {
 		const pickups_opts = picks_by_zone[this.state.zone].map(pick => ({label: pick.name+"("+pick.x + "," + pick.y +")",value: pick}) )
 		let alert = this.state.authed ? null : (<Alert color="danger">Please <a href="/login">login</a> to enable saving.</Alert>)
 		let save_if_auth = this.state.authed ? ( <Button color="primary" onClick={this.toggleMeta} >Meta/Save</Button> ) : (<Button color="disabled">Meta/Save</Button>)
+		let fill_button = this.state.fill_opts.dumb ? (
+			<Button color="warning" onClick={this.doFill} >Fill (Dumb)</Button>
+		) : (
+			<Button color="success" onClick={this.doFillGen} >Fill</Button>
+		)
 		let stuff_select;
 		if(stuff_by_type[this.state.stuff_type])
 		{
@@ -612,24 +658,25 @@ class PlandoBuiler extends React.Component {
 				<div id="fill-params">
 					<div className="fill-wrapper">
 						<span className="label">Health Cells:</span>
-						<NumericInput min={0} value={this.state.fill_opts.HC} onChange={(n) => this.updateFill("HC",n)}></NumericInput>
+						<NumericInput min={0} disabled={!this.state.fill_opts.dumb} value={this.state.fill_opts.HC} onChange={(n) => this.updateFill("HC",n)}></NumericInput>
 						<span className="label">Energy Cells:</span>
-						<NumericInput min={0} value={this.state.fill_opts.EC} onChange={(n) => this.updateFill("EC",n)}></NumericInput>
+						<NumericInput min={0} disabled={!this.state.fill_opts.dumb} value={this.state.fill_opts.EC} onChange={(n) => this.updateFill("EC",n)}></NumericInput>
 					</div>
 					<div className="fill-wrapper">
 						<span className="label">Ability Cells:</span>
-						<NumericInput min={0} value={this.state.fill_opts.AC} onChange={(n) => this.updateFill("AC",n)}></NumericInput>
+						<NumericInput min={0} disabled={!this.state.fill_opts.dumb} value={this.state.fill_opts.AC} onChange={(n) => this.updateFill("AC",n)}></NumericInput>
 						<span className="label">Keystones:</span>
-						<NumericInput min={0} value={this.state.fill_opts.KS} onChange={(n) => this.updateFill("KS",n)}></NumericInput>
+						<NumericInput min={0} disabled={!this.state.fill_opts.dumb} value={this.state.fill_opts.KS} onChange={(n) => this.updateFill("KS",n)}></NumericInput>
 					</div>
 					<div className="fill-wrapper">
 						<span className="label">Mapstones:</span>
-						<NumericInput min={0} value={this.state.fill_opts.MS} onChange={(n) => this.updateFill("MS",n)}></NumericInput>
+						<NumericInput min={0} disabled={!this.state.fill_opts.dumb} value={this.state.fill_opts.MS} onChange={(n) => this.updateFill("MS",n)}></NumericInput>
 						<span className="label">Max EXP: </span>
-						<NumericInput min={0} value={this.state.fill_opts.EX} onChange={(n) => this.updateFill("EX",n)}></NumericInput>
+						<NumericInput min={0} disabled={!this.state.fill_opts.dumb} value={this.state.fill_opts.EX} onChange={(n) => this.updateFill("EX",n)}></NumericInput>
 					</div>
 					<div className="form-check-label">
-						<label className="form-check-label"><input type="checkbox" checked={this.state.fill_opts.dynamic} onChange={this._fillToggleDynamic}/>Update Automatically</label>
+						<label className="form-check-label"><input type="checkbox" checked={this.state.fill_opts.dynamic} onChange={() => this.updateFill("dynamic",!this.state.fill_opts.dynamic)}/>Update Automatically</label>
+						<label className="form-check-label"><input type="checkbox" checked={this.state.fill_opts.dumb} onChange={() => this.updateFill("dumb",!this.state.fill_opts.dumb)}/>Enable Dumb Fill</label>
 					</div>
 				</div>
 			);
@@ -648,7 +695,7 @@ class PlandoBuiler extends React.Component {
 					<div id="file-controls">
 						<Button color="primary" onClick={this.toggleImport} >Import</Button>
 						<Button color="primary" onClick={this.downloadSeed} >Download</Button>
-						<Button color="primary" onClick={this.doFill} >Fill</Button>
+						{fill_button}
 						{save_if_auth}
 					</div>
 					<Collapse id="import-wrapper" isOpen={this.state.display_meta}>
@@ -808,6 +855,8 @@ function getReachable(setter, modes, codes, callback)
     xmlHttp.open("GET", "/plando/reachable?modes="+modes+"&codes="+codes, true);
     xmlHttp.send(null);
 }
+
+
 
 function uploadSeed(seedLines, author, seedName, description, callback)
 {

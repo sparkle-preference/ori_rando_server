@@ -105,12 +105,49 @@ function getLocInfo(pick, players) {
 	});
 	return info;
 }
+function getMapstoneToolTip(players) {
+	let rows = [];
+	let msNum = 0;
+	for(let loc = 24; loc <= 56; loc += 4) {
+		msNum++;
+		let row = [(
+			<td>MS{msNum}:</td>
+		)];
+		row = row.concat(Object.keys(players).map((id) => {
+			let show_spoiler = players[id].flags.includes("show_spoiler");
+			let seen = players[id].seen.includes(loc);
+			let cell = "("+id+") ";
+			let val = players[id].seed[loc] || "N/A"
+			if(show_spoiler || seen)
+				cell += val + ((show_spoiler && seen) ? "*" : "");
+			else
+				cell += "(hidden)";
+			return (
+	    		<td style={{color:'black'}}>{cell}</td>
+			)			
+		}));
+		rows.push(row);
+	}
+	let jsxRows = rows.map(row => {
+		return (
+			<tr>{row}</tr>
+		)
+	});
+	return (
+		<Tooltip>
+			<table>
+			{jsxRows}
+			</table>
+		</Tooltip>
+	)
+}
 
 function getPickupMarkers(state) {
 	let players = state.players;
 	let hideOpt = state.hideOpt;
-	let pickupTypes = (state.pickup_display === "Some") ? state.pickups : ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV"];
+	let pickupTypes = (state.pickup_display === "Some") ? state.pickups : ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "Ma"];
 	let markers = []
+	let msTT = getMapstoneToolTip(players);
 	for(let i in pickupTypes) {
 		let pre = pickupTypes[i];
 		for(let p in picks_by_type[pre]) {
@@ -138,7 +175,7 @@ function getPickupMarkers(state) {
 				let hide_remaining = player.flags.includes("hide_remaining")
 				let hot_assist = player.flags.includes("hot_assist")
 				let show_spoiler = player.flags.includes("show_spoiler");
-				let pick_name = player.seed[pick.loc]
+				let pick_name = player.seed[pick.loc];
 				let found = player.seen.includes(pick.loc);
 				if(is_hot && !found && hot_assist)
 					highlight = true;
@@ -152,22 +189,26 @@ function getPickupMarkers(state) {
 
 			if((hideOpt === "any") ? (count === Object.keys(players).length) : (count > 0))
 			{
-				let loc_info = getLocInfo(pick, players);
 				let inner = null;
-				if(loc_info)
-					{
-					let lines = loc_info.map((infoln) => {
-						return (
-						<tr><td style={{color:'black'}}>{infoln + (is_hot ? " !hot!" : "")}</td></tr>
-						)
-					});
-					inner = (
-					<Tooltip>
-						<table>
-						{lines}
-						</table>
-					</Tooltip>
-					);
+				if(pick.name === "MapStone") {
+					inner = msTT;
+				} else {
+				let loc_info = getLocInfo(pick, players);
+					if(loc_info)
+						{
+						let lines = loc_info.map((infoln) => {
+							return (
+							<tr><td style={{color:'black'}}>{infoln + (is_hot ? " !hot!" : "")}</td></tr>
+							)
+						});
+						inner = (
+						<Tooltip>
+							<table>
+							{lines}
+							</table>
+						</Tooltip>
+						);
+					}					
 				}
 				let opacity = highlight ? 1  : hide_opacity;
 				markers.push({key: pick.name+"|"+pick.x+","+pick.y, position: [y, x], inner: inner, icon: icon, opacity: opacity});
@@ -209,7 +250,7 @@ class GameTracker extends React.Component {
     let modes = (modeRaw !== "None") ? modeRaw.split(" ") : ['normal', 'speed', 'dboost-light', 'lure']
 
     this.state = {players: {}, retries: 0, check_seen: 1, modes: modes, timeout: TIMEOUT_START, searchStr: "", pickup_display: "all", show_sidebar: true,
-    flags: ['show_pickups', 'update_in_bg'], viewport: DEFAULT_VIEWPORT, pickups: ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV"],
+    flags: ['show_pickups', 'update_in_bg'], viewport: DEFAULT_VIEWPORT, pickups: ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "Ma"],
     pathMode: 'standard', hideOpt: "all", display_logic: false};
   };
 
@@ -326,6 +367,7 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
 								<label><Checkbox value="Pl" />Plants</label>
 								<label><Checkbox value="KS" />Keystones</label>
 								<label><Checkbox value="EX" />Exp Orbs</label>
+								<label><Checkbox value="Ma" />Mapstone turnins</label>
 				    		</CheckboxGroup>
 						</Collapse>
 					</div>

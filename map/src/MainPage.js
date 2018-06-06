@@ -1,7 +1,6 @@
 import './bootstrap.cyborg.min.css';
 import './index.css';
 import React from 'react';
-import Helmet from 'react-helmet';
 
 
 
@@ -16,7 +15,6 @@ export default class MainPage extends React.Component {
 		let plando_version = ""
 		return (
 		<div style={{color: "black"}}>
-		<Helmet bodyAttributes={{style: 'background-color : white'}}/>
 		<table><tbody><tr>
 	    <td><a href="https://github.com/turntekGodhead/OriDERandomizer/raw/master/Assembly-CSharp.dll">latest dll (last updated {{latest_dll}})</a></td>
         <td><a href="/activeGames">Games list</a></td>

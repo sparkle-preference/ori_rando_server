@@ -394,9 +394,7 @@ class SetSeed(webapp2.RequestHandler):
         hist = Cache.getHist(game_id)
         if not hist:
             Cache.setHist(game_id, player_id, [])
-        pos = Cache.getPos(game_id)
-        if not pos:
-            Cache.setPos(game_id, player_id, 0, 0)
+        Cache.setPos(game_id, player_id, 189, -210)
         if not game:
             flags = lines[0].split("|")
             mode_opt = [f[5:] for f in flags if f.lower().startswith("mode=")]
@@ -704,6 +702,61 @@ class HandleLogout(webapp2.RequestHandler):
         else:
             self.redirect("/")
 
+class PlandoFillGen(webapp2.RequestHandler):
+    def get(self):
+        self.response.headers['Content-Type'] = 'text/plain'
+        params = self.request.GET
+        mode = params['m'] if 'm' in params else "standard"
+        variations = params['vars'].split("|")
+        logic_paths = params['lps'].split("|")
+        forced_assignments = dict([(int(a), b) for (a,b) in ([ tuple(fass.split(":")) for fass in params['fass'].split("|")] if "fass" in params else [])])
+        genmode = params["gnm"] if "gnm" in params else "classic"
+        seed = params['s'] if "s" in params else str(random.randint(10000000, 100000000))
+        pathdiff = params['pd'] if "pd" in params and params['pd'] != "normal" else None
+        varFlags = {"starved": "starved", "hardmode": "hard", "ohko": "OHKO", "0xp": "0XP", "nobonus": "NoBonus",
+                    "noplants": "NoPlants", "forcetrees": "ForceTrees", "discmaps": "NonProgressMapStones",
+                    "notp": "NoTeleporters", "entshuf": "entrance"}
+        flags = ["Custom"]
+        if mode != "default":
+            flags.append(mode)
+        if genmode == "balanced":
+            flags.append(genmode)
+        if pathdiff and pathdiff != "normal":
+            flags.append("prefer_path_difficulty=" + pathdiff)
+        for v in variations:
+            flags.append(varFlags[v])
+
+        flag = ",".join(flags)
+        out = ""
+        placements = setSeedAndPlaceItems(
+            seed = seed, 
+            expPool = 10000,
+            hardMode = "hardmode" in variations,
+            includePlants = "noplants" not in variations,
+            shardsMode = mode == "shards",
+            limitkeysMode = mode == "limitkeys",
+            cluesMode = mode == "clues",
+            noTeleporters = "notp" in variations,
+            modes = logic_paths, 
+            flags = flag,
+            starvedMode = "starved" in variations,
+            preferPathDifficulty = pathdiff,
+            setNonProgressiveMapstones = "discmaps" in variations,
+            playerCountIn = 1,
+            balanced = genmode == "balanced",
+            entrance = "entshuf" in variations,
+            sharedItems = [],
+            wild = "wild" in params,
+            preplacedIn = forced_assignments,
+            retries = 10)
+        if placements: 
+        	out += placements[0][0]
+        else:
+        	self.response.status = 422
+        if not debug:
+            self.response.headers['Content-Type'] = 'application/x-gzip'
+            self.response.headers['Content-Disposition'] = 'attachment; filename=randomizer.dat'
+        self.response.out.write(out)
 
 class PlandoDownload(webapp2.RequestHandler):
     def get(self, author, plando):
@@ -822,6 +875,7 @@ app = webapp2.WSGIApplication([
     (r'/logout/?', HandleLogout),
 
     (r'/plando/reachable', PlandoReachable),
+    (r'/plando/fillgen', PlandoFillGen),
     (r'/plando/simple/?', PlandoOld),
     (r'/plando/all/?', AllAuthors),
     (r'/plando/([^ ?=/]+)/([^ ?=/]+)/upload', PlandoUpload),
