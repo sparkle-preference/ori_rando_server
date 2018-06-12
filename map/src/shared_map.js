@@ -461,6 +461,7 @@ const stuff_by_type = {
 		{label: "Bleeding", value: "RB|30"},
 		{label: "Lifesteal", value: "RB|31"},
 		{label: "Manavamp", value: "RB|32"},
+		{label: "Skill Velocity Upgrade", value: "RB|33"},
 		{label: "Polarity Shift", value: "RB|101"},
 		{label: "Gravity Swap", value: "RB|102"},
 		{label: "ExtremeSpeed", value: "RB|103"},

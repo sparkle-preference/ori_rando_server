@@ -30,7 +30,7 @@ const DEFAULT_VIEWPORT = {
 	}
 
 const select_wrap = (items) => items.map((item) => {return {label: item, value: item}})
-const SEED_FLAGS = ["shards", "clues", "forcetrees", "ohko", "discmaps", "custom"]
+const SEED_FLAGS = ["shards", "clues", "forcetrees", "ohko", "discmaps", "custom", "forcemapstones", "forcerandomescape", "hardmode"]
 const modes_by_key = {"Shared": "Shared", "None": "Solo", "Split": "Shards Race", "Swap": "Swap"}
 const COOP_MODES = Object.keys(modes_by_key).map((k) => { return {label: modes_by_key[k], value: k} });
 const SHARE_TYPES = ["keys", "events", "upgrades", "teleporters", "skills"]

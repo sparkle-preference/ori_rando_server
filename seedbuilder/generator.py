@@ -983,12 +983,13 @@ def placeItems(seed, expPool, hardMode, includePlants, shardsMode, limitkeysMode
 		itemPool["RB6"] += 2
 		itemPool["RB31"] = 3
 		itemPool["RB32"] = 3
+		itemPool["RB33"] = 3
 		itemPool["RB12"] += 5
 		itemPool["RB101"] = 1
 		itemPool["RB102"] = 1
 		itemPool["RB103"] = 1
 		itemPool["RB104"] = 1
-		itemPool["EX*"] -= 17
+		itemPool["EX*"] -= 20
 
 	if shards:
 		itemPool["WaterVeinShard"] = 5

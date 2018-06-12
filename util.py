@@ -390,7 +390,7 @@ class Upgrade(Pickup):
 	maxes = {17: 3, 19: 3, 21: 3}
 	names = {17:  "Water Vein Shard", 19: "Gumon Seal Shard", 21: "Sunstone Shard", 6: "Spirit Flame Upgrade", 13: "Health Regeneration", 2: "Go Home",
 			15: "Energy Regeneration", 8: "Explosion Power Upgrade", 9:  "Spirit Light Efficiency", 10: "Extra Air Dash", 1:  "Charge Dash Efficiency", 
-			12: "Extra Double Jump", 0: "Mega Health", 1: "Mega Energy", 30: "Bleeding", 31: "Lifesteal", 32: "Manavamp",
+			12: "Extra Double Jump", 0: "Mega Health", 1: "Mega Energy", 30: "Bleeding", 31: "Lifesteal", 32: "Manavamp", 33: "Skill Velocity Upgrade",
 			101: "Polarity Shift", 102: "Gravity Swap", 103: "Drag Racer", 104: "Airbrake"}
 	bits = {17:1, 19:4, 21:16, 6:64, 13:256, 15:1024, 8:4096, 9:8192, 10:16384, 11:32768, 12:65536}
 	code = "RB"
@@ -423,6 +423,7 @@ class Experience(Pickup):
 class AbilityCell(Pickup):
 	code="AC"
 	def __new__(cls, id):
+	
 		id = int(id)
 		inst = super(AbilityCell, cls).__new__(cls)
 		inst.id, inst.bit, inst.name = id, None, "Ability Cell"
