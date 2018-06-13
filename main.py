@@ -177,61 +177,72 @@ class SeedGenLanding(webapp2.RequestHandler):
 					   ["normal", "speed", "lure", "speed-lure", "dboost", "dboost-light", "dboost-hard", "cdash",
 						"dbash", "extended", "lure-hard", "timed-level", "glitched", "extended-damage", "extreme"] if
 					   self.request.get(x)]
-		playercount = self.request.get("playerCount")
-		syncid = self.request.get("syncid")
+		playercount = max(int(self.request.get("playerCount")),1)
 		syncmode = self.request.get("syncmode").lower()
 		syncmode = mode_map[syncmode] if syncmode in mode_map else int(syncmode)
-		synctype = self.request.get("synctype").lower()
+		synctype = self.request.get("synctype").lower() if syncmode != 4 and playercount > 1 else "none"
+		dotracking = playercount > 1 or syncmode == 4
+		if dotracking:
+			syncid = self.request.get("syncid")
+			share_types = [f for f in share_map.keys() if self.request.get(f)]
+	
 		genmode = self.request.get("genmode").lower()
-		seed = self.request.get("seed")
-		share_types = [f for f in share_map.keys() if self.request.get(f)]
 
-		game_id = False
+		seed = self.request.get("seed")
 		if not seed:
 			seed = str(random.randint(10000000, 100000000))
-		if syncid:
-			syncid = int(syncid)
-			oldGame = Game.get_by_id(syncid)
-			if oldGame != None:
-				if syncid > 999:
-					delete_game(oldGame)
-					game_id = get_new_game(_mode=syncmode, _shared=share_types, id=syncid).key.id()
+					
+		if dotracking:
+			game_id = False
+			if syncid:
+				syncid = int(syncid)
+				oldGame = Game.get_by_id(syncid)
+				if oldGame != None:
+					if syncid > 999:
+						delete_game(oldGame)
+						game_id = get_new_game(_mode=syncmode, _shared=share_types, id=syncid).key.id()
+					else:
+						self.response.status = 405
+						self.response.write("Seed ID in use! Leave blank or pick a different number.")
+						return
 				else:
-					self.response.status = 405
-					self.response.write("Seed ID in use! Leave blank or pick a different number.")
-					return
-			else:
-				game_id = get_new_game(_mode=syncmode, _shared=share_types, id=syncid).key.id()
-
-		if not game_id:
-			game_id = get_new_game(_mode=syncmode, _shared=share_types).key.id()
+					game_id = get_new_game(_mode=syncmode, _shared=share_types, id=syncid).key.id()	
+			if not game_id:
+				game_id = get_new_game(_mode=syncmode, _shared=share_types).key.id()
 
 		urlargs = ["m=%s" % mode]
 		urlargs.append("vars=%s" % "|".join(variations))
 		urlargs.append("lps=%s" % "|".join(logic_paths))
 		urlargs.append("s=%s" % seed)
 		urlargs.append("pc=%s" % playercount)
-		urlargs.append("pd=%s" % pathdiff)
-		urlargs.append("shr=%s" % "+".join(share_types))
 		urlargs.append("sym=%s" % syncmode)
-		urlargs.append("syt=%s" % synctype)
+		urlargs.append("pd=%s" % pathdiff)
 		urlargs.append("gnm=%s" % genmode)
-		urlargs.append("gid=%s" % game_id)
-		for flg in ["dk", "ev", "sk", "rb", "tp", "hints", "wild"]:
-			if self.request.get(flg):
-				urlargs.append("%s=1" % flg)
+		if self.request.get("wild"):
+			urlargs.append("wild=1")
+		if dotracking:
+			urlargs.append("gid=%s" % game_id)
+		if playercount > 1:
+			urlargs.append("syt=%s" % synctype)
+			if synctype != "none":
+				urlargs.append("shr=%s" % "+".join(share_types))
+			if synctype == "split":
+				for flg in ["dk", "ev", "sk", "rb", "tp", "hints"]:
+					if self.request.get(flg):
+						urlargs.append("%s=1" % flg)
 		self.response.headers['Content-Type'] = 'text/html'
 		out = "<html><body>"
 		url = '/getseed?%s' % "&".join(urlargs)
-		if synctype == "split":
+		if playercount == 1 or synctype in ["split", "none"]:
 			out += "<div><a target='_blank' href='%s&p=1&splr=1'>Spoiler</a></div>" % url
-		out += "<div><a target='_blank' href='/%s/map?paths=%s'>Map</a></div>" % (game_id, "+".join(logic_paths))
-		out += "<div><a target='_blank' href='/%s/history'>History</a></div>" % game_id
+		if dotracking:
+			out += "<div><a target='_blank' href='/%s/map?paths=%s'>Map</a></div>" % (game_id, "+".join(logic_paths))
+			out += "<div><a target='_blank' href='/%s/history'>History</a></div>" % game_id
 		out += "<ul>"
 		for i in range(1, 1 + int(playercount)):
 			purl = url + "&p=%s" % i
 			out += "<li>Player %s: <a target='_blank' href=%s>%s%s</a>" % (i, purl, base_site, purl)
-			if synctype == "disjoint":
+			if playercount > 1 and synctype == "disjoint":
 				out += "<ul><li>Spoiler:<a target='_blank' href=%s&splr=1>%s%s&splr=1</a></li></ul>" % (purl, base_site, purl)
 			out += "</li>"
 		out += "</ul></body></html>"
@@ -245,22 +256,31 @@ class SeedDownloader(webapp2.RequestHandler):
 		mode = params['m']
 		variations = params['vars'].split("|")
 		logic_paths = params['lps'].split("|")
-		syncmode = params["sym"]
-		synctype = params["syt"]
+		playercount = int(params['pc'])
+		syncmode = int(params["sym"])
+		dotracking = playercount > 1 or syncmode == 4
+		dosharetypes = playercount > 1 and syncmode != 4
+		if dotracking:
+			game_id = int(params['gid'])
+		if playercount > 1:
+			synctype = params["syt"]
+		if dosharetypes:
+			share_types = params['shr']
 		genmode = params["gnm"]
 		seed = params['s']
-		playercount = int(params['pc'])
 		pathdiff = params['pd']
 		spoiler = "splr" in params
 		player = int(params['p'])
-		game_id = int(params['gid'])
 		if pathdiff == "normal":
 			pathdiff = None
 		varFlags = {"starved": "starved", "hardmode": "hard", "ohko": "OHKO", "0xp": "0XP", "nobonus": "NoBonus",
 					"noplants": "NoPlants", "forcetrees": "ForceTrees", "discmaps": "NonProgressMapStones",
 					"notp": "NoTeleporters", "entshuf": "entrance", "forcemapstones": "ForceMapstones", "forcerandomescape": "ForceRandomEscape"}
-		share_types = params['shr']
-		flags = ["Custom", "shared=%s" % share_types.replace(" ", "+"), "mode=%s" % syncmode]
+		flags = ["Custom"]
+		if dotracking:
+			flags = flags + ["mode=%s" % syncmode, "Sync%s.%s" % (game_id, player)]
+		if dosharetypes:
+			flags.append("shared=%s" % share_types.replace(" ", "+"))
 		if mode != "default":
 			flags.append(mode)
 		if genmode == "balanced":
@@ -290,24 +310,25 @@ class SeedDownloader(webapp2.RequestHandler):
 			starvedMode = "starved" in variations,
 			preferPathDifficulty = pathdiff,
 			setNonProgressiveMapstones = "discmaps" in variations,
-			playerCountIn = playercount if synctype == "disjoint" else 1,
+			playerCountIn = playercount if playercount > 1 and synctype == "disjoint" else 1,
 			balanced = genmode == "balanced",
 			entrance = "entshuf" in variations,
-			sharedItems = share_types,
+			sharedItems = share_types if dosharetypes else [],
 			wild = "wild" in params)
 		if synctype == "split":
 			(seed, spoil) = placements[0]
 			if spoiler:
 				self.response.out.write(spoil)
 				return
-			else:
-				out = split_seed(seed, game_id, player, playercount, "hints" in params, "dk" in params,
+			out = split_seed(seed, game_id, player, playercount, "hints" in params, "dk" in params,
 							"sk" in params, "ev" in params, "rb" in params, "tp" in params)
 		elif synctype == "disjoint":
 			(out, spoil) = placements[player-1]
 			if spoiler:
 				self.response.out.write(spoil)
 				return
+		elif synctype == "none":
+			out = placements[0][0]	
 
 		if not debug:
 			self.response.headers['Content-Type'] = 'application/x-gzip'

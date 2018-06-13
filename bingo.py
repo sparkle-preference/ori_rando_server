@@ -4,6 +4,7 @@ from random import choice, randint, seed, sample
 DUNGEONS = ["Forlorn Ruins", "Ginso Tree", "Mount Horu"]
 AREAS_WITH_TPS = ["Ginso Tree", "Forlorn Ruins", "Moon Grotto", "Hollow Grove", "Sunken Glades", "Blackroot Burrows", "Thornfelt Swamp", "Valley of the Wind", "Sorrow Pass", "Lost Grove", "Mount Horu"]
 AREAS = AREAS_WITH_TPS + ["Misty Woods"]
+AREAS_WITH_MAPSTONES = ["Sunken Glades", "Forlorn Ruins", "Moon Grotto", "Blackroot Burrows", "Thornfelt Swamp", "Valley of the Wind", "Sorrow Pass", "Mount Horu", "Hollow Grove"]
 SKILLS = ["Wall Jump", "Charge Flame", "Double Jump", "Bash", "Stomp", "Glide", "Climb", "Charge Jump", "Dash", "Grenade"]
 EVENTS = ["Water Vein", "Clean Water", "Gumon Seal", "Wind Restored", "Sunstone", "Warmth Returned"]
 BONUS_PICKUPS = ["Extra Double Jump", "Extra Air Dash", "Explosion Power Upgrade", "Charge Dash Efficiency", "Spirit Light Efficiency"]
@@ -13,9 +14,16 @@ class Card(object):
 	singletons = [
 	"Warmth Returned or 1 exp", 
 	"Fish Strats or Core Skip",
-	"Save only on spirit wells",
 	"Visit the triforce",
 	"Quad Jump",
+	"Hear Wilhelm's scream",
+	"Collect a regen pickup",
+	"Chase Gumo through the Moon Grotto",
+	"Escape Kuro outside of Forlorn",
+	"Drown an amphibian",
+	"Drain the swamp",
+	"Kill an enemy with a baneling", 
+	"Escape the L4 Lava"
 	]
 	@staticmethod
 	def all_cards():
@@ -27,17 +35,23 @@ class Card(object):
 class HoruRoomXorY(Card):
 	@staticmethod
 	def get():
-		return "Complete %s or %s" % (choice(["L1", "L2", "L3", "L4"]), choice(["R1", "R2", "R3", "R4"]))
+		return "Complete %s or %s" % (choice(["L2", "L3", "L4"]), choice(["R2", "R3", "R4"]))
 
-class HaveNMapstones(Card):
+class CollectNMapstones(Card):
 	@staticmethod
 	def get():
-		return "Have %s mapstones" % randint(2,4)
+		return "Collect %s mapstones" % (randint(4,6)+randint(0,2)+randint(0,1)+randint(0,1))
 
 class OpenNDoors(Card):
 	@staticmethod
 	def get():
 		return "Open %s keystone doors" % randint(3,6)
+
+class BreakNBarriers(Card):
+	@staticmethod
+	def get():
+		return "Break %s breakable walls" % randint(3,6)
+
 
 class OpenNrgyDoors(Card):
 	@staticmethod
@@ -47,7 +61,7 @@ class OpenNrgyDoors(Card):
 class MaxAbilityTree(Card):
 	@staticmethod
 	def get():
-		return "Get every ability in the %s tree" % choice(["Red", "Purple"])
+		return "Get every ability in the %s tree" % choice(["Red", "Purple", "Blue"])
 
 class HaveNKeystones(Card):
 	@staticmethod
@@ -57,27 +71,22 @@ class HaveNKeystones(Card):
 class DieToXorY(Card):
 	@staticmethod
 	def get():
-		return "Die to %s or %s" % tuple(sample(["Valley Killplane", "Forlorn Approach Baneling", "Lava", "Spidersack spikes", "Misty Baneling", "Lightning above Sorrow Pass", "Lasers above far right Forlorn plant", "Lost Grove Lasers"],2))
+		return "Die to %s or %s" % tuple(sample(["Valley Killplane", "Forlorn Approach Baneling", "Horu Lavafalls", "Spidersack spikes", "Misty Baneling", "Lightning above Sorrow Pass", "Lasers above far right Forlorn plant", "Lost Grove Lasers"],2))
 
 class NTotalPickups(Card):	
 	@staticmethod
 	def get():
 		return "Collect %s pickups" % randint(80,120)
 
-class Regen(Card):	
-	@staticmethod
-	def get():
-		return "Collect %s regen pickups" % randint(2,4)
-
 class GrenadeLocked(Card):	
 	@staticmethod
 	def get():
-		return "Collect %s grenade-locked pickups" % randint(3,6)
+		return "Light %s grenade-lanterns" % randint(3,6)
 
 class CollectNPlants(Card):
 	@staticmethod
 	def get():
-		return "Break %s Plants" % randint(5,12)
+		return "Break %s Plants" % randint(3,6)
 
 class CollectNUnderwater(Card):
 	@staticmethod
@@ -87,27 +96,33 @@ class CollectNUnderwater(Card):
 class NHealth(Card):
 	@staticmethod
 	def get():
-		return "Have %s Health" % randint(8,11)
+		return "Collect %s Health Cells" % randint(4,8)
 
 class NPoints(Card):
 	@staticmethod
 	def get():
-		return "Have %s Unspent Ability Points" % randint(5,12)
+		return "Level up %s abilities in any tree" % randint(12,24)
+
+#disabled until integration
+#class ReachLevelN(Card):
+#	@staticmethod
+#	def get():
+#		return "Reach level %s" % randint(8,16)
 
 class Nrgy(Card):
 	@staticmethod
 	def get():
-		return "Have %s Energy" % randint(6,9)
+		return "Collect %s Energy Cells" % randint(4,8)
 
 class CollectNUnderwater(Card):
 	@staticmethod
 	def get():
 		return "Collect %s pickups underwater" % randint(2,5)
 
-class EnterDungeon(Card):
+class EnterArea(Card):
 	@staticmethod
 	def get():
-		return "Enter %s" % choice(DUNGEONS)
+		return "Enter %s" % choice(["Forlorn Ruins", "Lost Grove", "Sorrow Pass", "Misty Woods", "Ginso Tree"])
 
 class DungeonEscape(Card):
 	@staticmethod
@@ -122,24 +137,19 @@ class ActivateNTPs(Card):
 class StompPegXorY(Card):
 	@staticmethod
 	def get():
-		return "Stomp the peg at %s or %s" % tuple(sample(["Right of Spidersack", "Kuro CS Tree", "Sorrow Tumbleweed Area", "Swamp Post-Stomp", "Valley Enterance"],2))
+		return "Stomp the peg at %s or %s" % tuple(sample(["Hollow Groves Spider Lake", "Kuro CS Tree", "Sorrow Tumbleweed Area", "Swamp Post-Stomp", "Valley Enterance", "Above Death Gauntlet"],2))
 
 class ActivateNTrees(Card):
 	@staticmethod
 	def get():
-		return "Activate %s Trees" % randint(3,10)
+		return "Activate %s Trees" % randint(4,10)
 
 class CollectNSkills(Card):
 	@staticmethod
 	def get():
 		return "Collect %s Skills" % randint(6,9)
 
-class KillNBanelings(Card):
-	@staticmethod
-	def get():
-		return "Kill %s unique Banelings" % randint(3,6)
-
-class KillNBanelings(Card):
+class KillByLevelup(Card):
 	@staticmethod
 	def get():
 		return "Kill %s enemies by leveling up" % randint(2,6)
@@ -147,7 +157,7 @@ class KillNBanelings(Card):
 class MapstoneN(Card):
 	@staticmethod
 	def get():
-		return "Mapstone %s" % randint(2,9)
+		return "Turn in Mapstone %s" % randint(2,9)
 
 class XorYTp(Card):
 	@staticmethod
@@ -167,12 +177,22 @@ class XandYSkill(Card):
 class XorYFullClear(Card):
 	@staticmethod
 	def get():
-		return "Full clear %s, %s, or %s" % tuple(sample(AREAS_WITH_TPS,3))
+		return "Get every pickup in %s, %s, or %s" % tuple(sample(AREAS_WITH_TPS,3))
+
+class FindXInY(Card):
+	@staticmethod
+	def get():
+		return "Get %s pickups from %s" % (randint(2,10), choice(AREAS_WITH_TPS))
 
 class XorYEvent(Card):
 	@staticmethod
 	def get():
 		return "%s or %s" % tuple(sample(EVENTS,2))
+
+class XandYMapstoneTurnins(Card):
+	@staticmethod
+	def get():
+		return "Activate the %s and %s Mapstones" % tuple(sample(AREAS_WITH_MAPSTONES,2))
 
 class XorYBonus(Card):
 	@staticmethod
@@ -182,22 +202,27 @@ class XorYBonus(Card):
 class GarbagePickupXorY(Card):
 	@staticmethod
 	def get():
-		return "Get the pickup at %s or %s" % tuple(sample(["Lost Grove Underwater AC", "Racist Dad 3 AC", "Sunstone", "Forlorn Escape Plant", "Atsu's Torch", "Validation Exp", "Gladezer EC"],2))
+		return "Get the pickup at %s or %s" % tuple(sample(["Lost Grove Underwater AC", "Sunstone", "Forlorn Escape Plant", "Validation Exp", "Gladezer EC", "Forlorn HC", "R3 Plant", "Misty Grenade Pickup", "Valley Enterance Long Swim EC"],2))
 
-class Never(Card):
+class EventLocationXorY(Card):
 	@staticmethod
 	def get():
-		return "Never %s" % choice(["Double Bash", "Greande Jump", "Rocket Jump"])
+		return "Collect the pickup at vanilla %s or %s" % tuple(sample(["Water Vein", "Clean Water", "Gumon Seal", "Wind Restored", "Sunstone"], 2))
 
 class WatchXorY(Card):
 	@staticmethod
 	def get():
-		return "Watch %s or %s" % tuple(sample(["Racist Dad 3", "Spirit Tree Cutscene", "Post-Forlorn Escape Cutscene", "Racist Dad 2", "Sunstone cutscene"],2))
+		return "Watch (don't skip) %s or %s" % tuple(sample(["Racist Dad 3", "Spirit Tree Cutscene", "Post-Forlorn Escape Cutscene", "Racist Dad 2", "Sunstone cutscene", "Kuro CS"],2))
+
+class XorYTree(Card):
+	@staticmethod
+	def get():
+		return "Get the %s or %s Tree" % tuple(sample(SKILLS,2))
 
 class KillEnemyXorY(Card):
 	@staticmethod
 	def get():
-		return "Kill %s or %s" % tuple(sample(["Wilhelm", "Stomp Tree Rhino", "Grotto Miniboss", "Lower Ginso Miniboss", "Upper Ginso Miniboss", "Misty Minibosses", "Horu Final Miniboss"],2))
+		return "Kill %s or %s" % tuple(sample(["Stomp Tree Rhino", "Grotto Miniboss", "Lower Ginso Miniboss", "Lost Grove Fight Room", "Upper Ginso Miniboss", "Misty Minibosses", "Horu Final Miniboss"],2))
 
 class AltRAfter(Card):
 	@staticmethod
