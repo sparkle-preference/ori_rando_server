@@ -262,8 +262,7 @@ class SeedDownloader(webapp2.RequestHandler):
 		dosharetypes = playercount > 1 and syncmode != 4
 		if dotracking:
 			game_id = int(params['gid'])
-		if playercount > 1:
-			synctype = params["syt"]
+		synctype = params["syt"] if playercount > 1 else "none"
 		if dosharetypes:
 			share_types = params['shr']
 		genmode = params["gnm"]
@@ -328,8 +327,10 @@ class SeedDownloader(webapp2.RequestHandler):
 				self.response.out.write(spoil)
 				return
 		elif synctype == "none":
-			out = placements[0][0]	
-
+			(out, spoil) = placements[0]
+			if spoiler:
+				self.response.out.write(spoil)
+				return
 		if not debug:
 			self.response.headers['Content-Type'] = 'application/x-gzip'
 			self.response.headers['Content-Disposition'] = 'attachment; filename=randomizer.dat'
