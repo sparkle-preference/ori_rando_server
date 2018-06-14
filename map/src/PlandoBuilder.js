@@ -154,7 +154,7 @@ class PlandoBuiler extends React.Component {
   constructor(props) {
     super(props)
 
-    this.state = {seed_in: "", reachable: ['SunkenGladesRunaway'], placements: {1: {...DEFAULT_DATA}}, player: 1,
+    this.state = {seed_in: "", reachable: ['SunkenGladesRunaway'], placements: {1: {...DEFAULT_DATA}}, player: 1, logic_helper_mode: false,
     			  fill_opts: {HC: 13, EC: 15, AC: 34, KS: 40, MS: 9, EX: 300, dynamic: false, dumb: false}, viewport: DEFAULT_VIEWPORT, searchStr: "",
 		    	  flags: ['hide_unreachable', 'hide_softlockable'], seedFlags: select_wrap(["forcetrees"]), share_types: select_wrap(["keys"]), coop_mode: {label: "Solo", value: "None"},
 		    	  pickups: ["EX", "Ma", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV"],  display_import: false, display_logic: false, display_coop: false, display_meta: false}
@@ -163,6 +163,7 @@ class PlandoBuiler extends React.Component {
   	
 
  	componentWillMount() {
+ 		let spoiler_mode = get_flag("spoiler");
 	    let pathmode = get_param("pathmode");
 	    let manual_reach = get_manual_reach();
 	    let logicMode, modes;
@@ -186,7 +187,7 @@ class PlandoBuiler extends React.Component {
 	    let pickup = {label: pick.name+"("+pick.x + "," + pick.y +")",value: pick}
 	    lastSelected['Glades'] = pickup
 	
-		this.setState({zone: zone, pickup: pickup, modes: modes, lastSelected: lastSelected, logicMode: logicMode, pathMode: pathmode,
+		this.setState({zone: zone, pickup: pickup, modes: modes, lastSelected: lastSelected, logicMode: logicMode, pathMode: pathmode, logic_helper_mode: spoiler_mode,
 			    	  manual_reach: manual_reach, stuff_type: "Cells and Stones", stuff: {value: "KS|1", label: "Keystone"}, authed: get_flag("authed")})
 	
 	};
@@ -533,7 +534,7 @@ class PlandoBuiler extends React.Component {
   			this.setState({reachable: ["SunkenGladesRunaway"]}, () => this._updateReachable(layers));
   			return
   		}
-	  	let reachableStuff = [];
+	  	let reachableStuff = {};
   		if(this.state.logicMode === "auto" && this.state.player === 1)
   		{
 	  		this.state.reachable.forEach((area) => {
@@ -541,31 +542,33 @@ class PlandoBuiler extends React.Component {
 		  			picks_by_area[area].forEach((pick) => {
 	  				if(this.state.placements[1] && this.state.placements[1].hasOwnProperty(pick.loc)) {
 	  					let code = this.state.placements[1][pick.loc].value;
-	  					if(!["SH", "NO", "AC", "EX"].includes(code.substr(0,2)))
-							reachableStuff.push(code);	  					
+	  					if(!["SH", "NO","EX"].includes(code.substr(0,2)))
+	  						if(reachableStuff.hasOwnProperty(code))
+								reachableStuff[code] += 1;
+							else
+								reachableStuff[code] = 1;
 		  				}
 		  			});
 	  		});
 		} else {
-			reachableStuff.push("HC|"+this.state.manual_reach["HC"]);
-			reachableStuff.push("EC|"+this.state.manual_reach["EC"]);
-			reachableStuff.push("AC|"+this.state.manual_reach["AC"]);
-			reachableStuff.push("KS|"+this.state.manual_reach["KS"]);
-			reachableStuff.push("MS|"+this.state.manual_reach["MS"]);
+			["HC", "EC", "AC", "KS", "MS"].forEach((code) => {
+				if(this.state.manual_reach[code] > 0)
+					reachableStuff[code+"|1"] = this.state.manual_reach[code];
+			});
 			this.state.manual_reach.skills.forEach(skill => {
-				reachableStuff.push(skill.value)
+				reachableStuff[skill.value] = 1;
 	  		});
 			this.state.manual_reach.events.forEach(event => {
-				reachableStuff.push(event.value)
+				reachableStuff[event.value] = 1;
 	  		});
 			this.state.manual_reach.tps.forEach(tp => {
-				reachableStuff.push(tp.value)
+				reachableStuff[tp.value] = 1;
 	  		});
 	  		layers = 0
   		}
   		  	getReachable((state,callback) => this.setState(state,callback),
 	  			this.state.modes.join("+"),
-	  			reachableStuff.join("+"),
+	  			Object.keys(reachableStuff).map((key) => key+":"+reachableStuff[key]).join("+"),
 	  			() => this._updateReachable(layers-1));
 
   	};
@@ -608,9 +611,117 @@ class PlandoBuiler extends React.Component {
 	    		return {placements: newPlc, player: 1}
     		})
 	}
+	
+	resetReachable = () => this.setState({reachable: ["SunkenGladesRunaway"]})
 
 
 	render() {
+		if(this.state.logic_helper_mode)
+			return this.render_logic_mode();
+		else
+			return this.render_normal();
+	}
+	
+	render_logic_mode()
+ 	{
+		const pickup_markers = ( <PickupMarkersList markers={getPickupMarkers(this.state, this.selectPickupCurry, this.state.searchStr)} />)
+		return (
+			<div className="wrapper">
+				<Map crs={crs} zoomControl={false} onViewportChanged={this.onViewportChanged} viewport={this.state.viewport}>
+			        <ZoomControl position="topright" />
+	
+					<TileLayer url=' https://ori-tracker.firebaseapp.com/images/ori-map/{z}/{x}/{y}.png' noWrap='true'  />
+					{pickup_markers}
+			        <NotificationContainer/>
+				</Map>
+				<div className="controls">
+					<Collapse id="import-wrapper" isOpen={!this.state.placements[1].hasOwnProperty("0") }>
+						<textarea id="import-seed-area" className="form-control" placeholder="Paste Seed Here" value={this.state.seed_in} onChange={event => {this.parseUploadedSeed(event.target.value) ; this.toggleImport() }} />
+					</Collapse>				
+					<div id="file-controls">
+						<Button color="primary" onClick={this.resetReachable} >Reset</Button>
+						<Button color="primary" onClick={() => this._updateReachable(0)} >Step</Button>
+					</div>
+					<div id="search-wrapper">
+						<label for="search">Search</label>
+						<input id="search" class="form-control" value={this.state.searchStr} onChange={(event) => this.setState({searchStr: event.target.value})} type="text" />
+					</div>
+					<hr style={{ backgroundColor: 'grey', height: 2 }}/>
+					<div id="logic-controls">
+						<div id="logic-mode-wrapper">
+							<span className="label">Logic Mode:</span>
+							<ButtonGroup>
+								<Button color="secondary" onClick={() => this.logicModeChanged("auto")} active={this.state.logicMode === "auto" && Object.keys(this.state.placements).length === 1}>Auto</Button>
+								<Button color="secondary" onClick={() => this.logicModeChanged("manual")} active={this.state.logicMode === "manual" || Object.keys(this.state.placements).length > 1}>Manual</Button>
+							</ButtonGroup>
+							<Collapse id="manual-controls" isOpen={this.state.logicMode === "manual" || this.state.player > 1}>
+								<div className="manual-wrapper">
+									<span className="label">Health Cells:</span>
+									<NumericInput min={0} value={this.state.manual_reach.HC} onChange={(n) => this.updateManual("HC",n)}></NumericInput>
+								</div>
+								<div className="manual-wrapper">
+									<span className="label">Energy Cells:</span>
+									<NumericInput min={0} value={this.state.manual_reach.EC} onChange={(n) => this.updateManual("EC",n)}></NumericInput>
+								</div>
+								<div className="manual-wrapper">
+									<span className="label">Ability Cells:</span>
+									<NumericInput min={0} value={this.state.manual_reach.AC} onChange={(n) => this.updateManual("AC",n)}></NumericInput>
+								</div>
+								<div className="manual-wrapper">
+									<span className="label">Keystones:</span>
+									<NumericInput min={0} value={this.state.manual_reach.KS} onChange={(n) => this.updateManual("KS",n)}></NumericInput>
+								</div>
+								<div className="manual-wrapper">
+									<span className="label">Mapstones:</span>
+									<NumericInput min={0} value={this.state.manual_reach.MS} onChange={(n) => this.updateManual("MS",n)}></NumericInput>
+								</div>
+								<div className="manual-wrapper">
+									<span className="label">Skills:</span>
+									<Select options={stuff_by_type["Skills"]} onChange={(n) => this.updateManual("skills", n)} multi={true} value={this.state.manual_reach.skills} label={this.state.manual_reach.skills}></Select>
+								</div>
+								<div className="manual-wrapper">
+									<span className="label">Teleporters:</span>
+									<Select options={stuff_by_type["Teleporters"]} onChange={(n) => this.updateManual("tps", n)} multi={true} value={this.state.manual_reach.tps} label={this.state.manual_reach.tps}></Select>
+								</div>
+								<div className="manual-wrapper">
+									<span className="label">Events:</span>
+									<Select options={stuff_by_type["Events"]} onChange={(n) => this.updateManual("events", n)} multi={true} value={this.state.manual_reach.events} label={this.state.manual_reach.events}></Select>
+								</div>
+							</Collapse>
+						</div>
+						<hr style={{ backgroundColor: 'grey', height: 2 }}/>
+						<div id="logic-mode-controls">
+							<div id="logic-presets">
+								<Button color="primary" onClick={this.toggleLogic} >Logic Paths:</Button>
+								<Select options={paths.map((n) => {return {label: n, value: n}})} onChange={this._onPathModeChange} clearable={false} value={this.state.pathMode} label={this.state.pathMode}></Select>
+							</div>
+							<Collapse id="logic-options-wrapper" isOpen={this.state.display_logic}>
+								<CheckboxGroup id="logic-options" checkboxDepth={2} name="modes" value={this.state.modes} onChange={this.modesChanged}>
+									<label className="checkbox-label"><Checkbox value="normal" /> normal</label>
+									<label className="checkbox-label"><Checkbox value="speed" /> speed</label>
+									<label className="checkbox-label"><Checkbox value="extended" /> extended</label>
+									<label className="checkbox-label"><Checkbox value="speed-lure" /> speed-lure</label>
+									<label className="checkbox-label"><Checkbox value="lure" /> lure</label>
+									<label className="checkbox-label"><Checkbox value="lure-hard" /> lure-hard</label>
+									<label className="checkbox-label"><Checkbox value="dboost-light" /> dboost-light</label>
+									<label className="checkbox-label"><Checkbox value="dboost" /> dboost</label>
+									<label className="checkbox-label"><Checkbox value="dboost-hard" /> dboost-hard</label>
+									<label className="checkbox-label"><Checkbox value="cdash" /> cdash</label>
+									<label className="checkbox-label"><Checkbox value="cdash-farming" /> cdash-farming</label>
+									<label className="checkbox-label"><Checkbox value="extreme" /> extreme</label>
+									<label className="checkbox-label"><Checkbox value="extended-damage" /> extended-damage</label>
+									<label className="checkbox-label"><Checkbox value="timed-level" /> timed-level</label>
+									<label className="checkbox-label"><Checkbox value="dbash" /> dbash</label>
+									<label className="checkbox-label"><Checkbox value="glitched" /> glitched</label>
+								</CheckboxGroup>
+							</Collapse>
+						</div>
+					</div>
+				</div>
+			</div>
+		)
+	}
+	render_normal() {
 		const pickup_markers = ( <PickupMarkersList markers={getPickupMarkers(this.state, this.selectPickupCurry, this.state.searchStr)} />)
 		const zone_opts = zones.map(zone => ({label: zone, value: zone}))
 		const pickups_opts = picks_by_zone[this.state.zone].map(pick => ({label: pick.name+"("+pick.x + "," + pick.y +")",value: pick}) )

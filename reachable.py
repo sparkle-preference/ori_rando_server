@@ -13,23 +13,23 @@ class PlayerState(object):
 		self.has = Counter()
 		self.has["HC"] = 3
 		wv = ss = gs = 0
-		for code,id,removed in pickinfos:
+		for code,id,count,removed in pickinfos:
 			if code in ["EX", "AC"]:
 				continue
 			id = id if code in ["TP", "SH", "NO"] else int(id)
 			if (code,id) in PlayerState.name_from_id:
-				self.has[PlayerState.name_from_id[(code,id)]] = (0 if removed else 1)
+				self.has[PlayerState.name_from_id[(code,id)]] = (0 if removed else count)
 			elif code == "RB":
 				if id == 17:
-					wv += (-1 if removed else 1)
+					wv += (-count if removed else count)
 				elif id == 19:
-					gs += (-1 if removed else 1)
+					gs += (-count if removed else count)
 				elif id == 21:
-					ss += (-1 if removed else 1)
+					ss += (-count if removed else count)
 				else:
 					continue
 			elif code in ["HC","EC","KS", "MS"]:			
-				self.has[code] += (-id if removed else id)
+				self.has[code] += (-count if removed else count)
 		if wv >= 3:
 			self.has['GinsoKey'] = 1
 		if gs >= 3:
@@ -41,10 +41,12 @@ class Area(object):
 	def __init__(self, name):
 		self.name = name
 		self.conns = []		
-	def get_reachable(self, state, modes):
+	def get_reachable(self, state, modes, spendKS=False):
 		reachable = []
 		for conn in self.conns:
 			active, ksSpent = conn.is_active(state, modes)
+			if not spendKS and ksSpent > 0:
+				continue
 			if active:
 				state.has['KS'] -= ksSpent
 				reachable.append(conn.target)
@@ -84,15 +86,21 @@ class Map(object):
 		if not Map.areas:
 			Map.build()
 		unchecked_areas = set(["SunkenGladesRunaway"])
-		checked_areas = set()
-		while(len(unchecked_areas) > 0):
+		reachable_areas = set()
+		needs_ks_check = set()
+		while len(unchecked_areas) > 0:
 			curr = unchecked_areas.pop()
-			checked_areas.add(curr)
-			unchecked_areas |= set([r for r in Map.areas[curr].get_reachable(state, modes) if r not in checked_areas])
-		mapstone_cnt = min(len([a for a in checked_areas if "MapStone" in a]), state.has["MS"])
+			reachable_areas.add(curr)
+			needs_ks_check.add(curr)
+			unchecked_areas |= set([r for r in Map.areas[curr].get_reachable(state, modes) if r not in reachable_areas])
+			while len(unchecked_areas) < len(needs_ks_check):
+				curr = needs_ks_check.pop()
+				unchecked_areas |= set([r for r in Map.areas[curr].get_reachable(state, modes, True) if r not in reachable_areas])
+
+		mapstone_cnt = min(len([a for a in reachable_areas  if "MapStone" in a]), state.has["MS"])
 		if mapstone_cnt == 9 and state.has["MS"] < 11:
 			mapstone_cnt -= 1
 		if mapstone_cnt == 8 and state.has["MS"] < 9:
 			mapstone_cnt -= 1
 		ms_areas = ["MS%s"%i for i in range(1,mapstone_cnt +1) ]
-		return list(checked_areas) + ms_areas 
+		return list(reachable_areas) + ms_areas 

@@ -143,7 +143,12 @@ function getMapstoneToolTip(players) {
 }
 
 function getPickupMarkers(state) {
-	let players = state.players;
+	let players = {};
+	Object.keys(state.players).forEach((id) => {
+		if(state.players[id].flags.includes("show_marker"))
+			players[id] = state.players[id];
+	});
+	
 	let hideOpt = state.hideOpt;
 	let pickupTypes = (state.pickup_display === "Some") ? state.pickups : ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "Ma"];
 	let markers = []
