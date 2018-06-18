@@ -27,7 +27,7 @@ from util import (GameMode, ShareType, Pickup, Skill, Event, Teleporter, Upgrade
 				  delete_game, get_new_game, clean_old_games, all_locs)
 from reachable import Map, PlayerState
 
-PLANDO_VER = "0.3.1"
+PLANDO_VER = "0.5.0"
 debug = os.environ.get('SERVER_SOFTWARE', '').startswith('Dev')
 base_site = "http://orirandocoopserver.appspot.com" if not debug else "https://8080-dot-3616814-dot-devshell.appspot.com"
 
@@ -66,7 +66,7 @@ class DeleteGame(webapp2.RequestHandler):
 		if int(game_id) < 1000:
 			self.response.status = 403
 			self.response.write("No.")
-		game = Game.get_by_id(game_id)
+		game = Game.with_id(game_id)
 		if game:
 			delete_game(game)
 			self.response.status = 200
@@ -77,23 +77,31 @@ class DeleteGame(webapp2.RequestHandler):
 
 
 class ActiveGames(webapp2.RequestHandler):
-	def get(self):
+	def get(self, hours=12):
 		self.response.headers['Content-Type'] = 'text/html'
-		games = Game.query().fetch()
-		if len(games):
-			self.response.write('<html><body><pre>Active games:\n' + "\n".join([
-			   "<a href='/%s/history'>Game #%s</a> (<a href='/%s/map'>(Map)</a>):\n\t%s (Last update: %s ago)" % (
-			   game.key.id(), game.key.id(),
-			   game.key.id(), game.summary(),
-			   datetime.now() - game.last_update)
-			   for game in sorted(games, key=lambda x: x.last_update, reverse=True)]) + "</pre></body></html>")
+		title = "Games active in the last %s hours" % hours
+		body = ""
+		games = Game.query(Game.last_update < datetime.now() - timedelta(hours=hours)).fetch()
+		if not len(games):
+			games = Game.query().fetch()
+			if not len(games):
+				title = "No active games found!"
+			else:
+				title = "All active games"
+		
+		for game in sorted(games, key=lambda x: x.last_update, reverse=True):
+			id = game.key.id()
+			body += "<li><a href='/%s/history'>Game #%s</a> (<a href='/%s/map'>(Map)</a>)<ul><li>\t%s (Last update: %s ago)</li></ul></li>" % (id, id, id, game.summary, datetime.now() - game.last_update)
+		out = "<html><head><title>%s - ORCS</title></head><body>" % title
+		if body:
+			out += "<h4>%s:</h4><ul>%s</ul></body</html>" % (title, body)
 		else:
-			self.response.write('<html><body>No active games...</body></html>')
-
+			out += "<h4>%s</h4></body></html>" % title
+		self.response.write(out)
 
 class FoundPickup(webapp2.RequestHandler):
 	def get(self, game_id, player_id, coords, kind, id):
-		game = Game.get_by_id(game_id)
+		game = Game.with_id(game_id)
 		if not game:
 			self.response.status = 412
 			self.response.write(self.response.status)
@@ -118,7 +126,7 @@ class FoundPickup(webapp2.RequestHandler):
 class Update(webapp2.RequestHandler):
 	def get(self, game_id, player_id, x, y):
 		self.response.headers['Content-Type'] = 'text/plain'
-		game = Game.get_by_id(game_id)
+		game = Game.with_id(game_id)
 		if not game:
 			self.response.status = 412
 			self.response.write(self.response.status)
@@ -132,7 +140,7 @@ class Update(webapp2.RequestHandler):
 class GetUpdate(webapp2.RequestHandler):
 	def get(self, game_id, player_id, x, y):
 		self.response.headers['Content-Type'] = 'text/plain'
-		game = Game.get_by_id(game_id)
+		game = Game.with_id(game_id)
 		if not game:
 			self.response.status = 412
 			self.response.write(self.response.status)
@@ -145,7 +153,7 @@ class GetUpdate(webapp2.RequestHandler):
 class ShowHistory(webapp2.RequestHandler):
 	def get(self, game_id):
 		self.response.headers['Content-Type'] = 'text/plain'
-		game = Game.get_by_id(game_id)
+		game = Game.with_id(game_id)
 		if game:
 			output = game.summary()
 			output += "\nHistory:"
@@ -196,7 +204,7 @@ class SeedGenLanding(webapp2.RequestHandler):
 			game_id = False
 			if syncid:
 				syncid = int(syncid)
-				oldGame = Game.get_by_id(syncid)
+				oldGame = Game.with_id(syncid)
 				if oldGame != None:
 					if syncid > 999:
 						delete_game(oldGame)
@@ -341,7 +349,7 @@ class SeedDownloader(webapp2.RequestHandler):
 class SignalCallback(webapp2.RequestHandler):
 	def get(self, game_id, player_id, signal):
 		self.response.headers['Content-Type'] = 'text/plain'
-		game = Game.get_by_id(game_id)
+		game = Game.with_id(game_id)
 		if not game:
 			self.response.status = 412
 			self.response.write(self.response.status)
@@ -363,7 +371,7 @@ class HistPrompt(webapp2.RequestHandler):
 class SignalSend(webapp2.RequestHandler):
 	def get(self, game_id, player_id, signal):
 		self.response.headers['Content-Type'] = 'text/plain'
-		game = Game.get_by_id(game_id)
+		game = Game.with_id(game_id)
 		if not game:
 			self.response.status = 412
 			self.response.write(self.response.status)
@@ -376,7 +384,7 @@ class SignalSend(webapp2.RequestHandler):
 
 class ListPlayers(webapp2.RequestHandler):
 	def get(self, game_id):
-		game = Game.get_by_id(game_id)
+		game = Game.with_id(game_id)
 		outlines = []
 		for p in game.get_players():
 			outlines.append("Player %s: %s" % (p.key.id(), p.bitfields))
@@ -391,7 +399,7 @@ class ListPlayers(webapp2.RequestHandler):
 class RemovePlayer(webapp2.RequestHandler):
 	def get(self, game_id, pid):
 		key = ".".join([game_id, pid])
-		game = Game.get_by_id(game_id)
+		game = Game.with_id(game_id)
 		if key in [p.id() for p in game.players]:
 			game.remove_player(key)
 			return webapp2.redirect("/%s/players" % game_id)
@@ -418,7 +426,7 @@ class SetSeed(webapp2.RequestHandler):
 	def get(self, game_id, player_id):
 		seedlines = []
 		lines = paramVal(self, "seed").split(",")
-		game = Game.get_by_id(game_id)
+		game = Game.with_id(game_id)
 		hist = Cache.getHist(game_id)
 		if not hist:
 			Cache.setHist(game_id, player_id, [])
@@ -452,12 +460,20 @@ class ShowMap(webapp2.RequestHandler):
 		path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
 		template_values = {'app': "gameTracker", 'title': "Game %s" % game_id, 'game_id': game_id,
 						   'is_spoiler': paramFlag(self, 'sp'), 'logic_modes': paramVal(self, 'paths')}
+		if debug and paramFlag(self, "from_test"):
+			game = Game.with_id(game_id)
+			pos = Cache.getPos(game_id)
+			hist = Cache.getHist(game_id)
+			seeds = [p.seed for p in game.get_players()] if game else []
+			if any([x is None for x in [game, pos, hist]+seeds]):
+				return webapp2.redirect("/maptest/%s" % game_id)
+
 		self.response.out.write(template.render(path, template_values))
 
 
 class GetSeenLocs(webapp2.RequestHandler):
 	def get(self, game_id):
-		game = Game.get_by_id(game_id)
+		game = Game.with_id(game_id)
 		hist = Cache.getHist(game_id)
 		if not hist:
 			self.response.status = 404
@@ -472,7 +488,7 @@ class GetSeenLocs(webapp2.RequestHandler):
 
 class GetSeed(webapp2.RequestHandler):
 	def get(self, game_id, player_id):
-		game = Game.get_by_id(game_id)
+		game = Game.with_id(game_id)
 		if not game:
 			self.response.status = 404
 			self.response.write(self.response.status)
@@ -495,7 +511,10 @@ class GetReachable(webapp2.RequestHandler):
 		self.response.status = 200
 		self.response.out.write("|".join(
 			["%s:%s" % (p, ",".join(
-				Map.get_reachable_areas(PlayerState([(h.pickup_code, h.pickup_id, 1, h.removed) for h in hls]), modes)
+				["%s#%s" % (area, "/".join(
+					["&".join([ item + ("(%s)" % count if count > 1 else "") for item, count in s.cnt.iteritems()])
+					for s in reachedWith]))
+				for (area, reachedWith) in Map.get_reachable_areas(PlayerState([(h.pickup_code, h.pickup_id, 1, h.removed) for h in hls]), modes).iteritems()]
 			)) for p, hls in hist.iteritems()]
 		))
 
@@ -532,7 +551,12 @@ class PlandoReachable(webapp2.RequestHandler):
 				codes.append(tuple(code.split("|")+[int(times), False]))
 		self.response.headers['Content-Type'] = 'text/plain'
 		self.response.status = 200
-		self.response.out.write("|".join(Map.get_reachable_areas(PlayerState(codes), modes)))
+		self.response.out.write("|".join(
+				["%s#%s" % (area, "/".join(
+					["&".join([ item + ("(%s)" % count if count > 1 else "") for item, count in s.cnt.iteritems()])
+					for s in reachedWith]))
+				for (area, reachedWith) in Map.get_reachable_areas(PlayerState(codes), modes).iteritems()]
+			))
 
 
 def clone_entity(e, **extra_args):
@@ -883,14 +907,19 @@ class Bingo(webapp2.RequestHandler):
 
 class MapTest(webapp2.RequestHandler):
 	def get(self, game_id = 101):
+		game_id = int(game_id)
 		if not debug:
 			return webapp2.redirect("/")
+		game = Game.with_id(game_id)
+		if game:
+			print "deleted old game"
+			delete_game(game)
 		seedlines = []
 		seed = "mode=Shared|shared=keys+skills+teleporters,-280256|EC|1|Glades,-1680104|EX|100|Grove,-12320248|EX|100|Forlorn,-10440008|EX|100|Misty,799776|EV|5|Glades,-120208|EC|1|Glades,1519708|KS|1|Blackroot,1799708|KS|1|Blackroot,1959768|RB|9|Blackroot,-1560272|KS|1|Glades,-600244|EX|46|Glades,-3160308|HC|1|Glades,-2840236|EX|15|Glades,-3360288|MS|1|Glades,-2480208|EX|6|Glades,-2400212|AC|1|Glades,-1840228|HC|1|Glades,919772|KS|1|Glades,-2200184|KS|1|Glades,-1800156|KS|1|Glades,24|KS|1|Mapstone,2919744|KS|1|Blackroot,-1840196|SK|2|Glades,-800192|AC|1|Glades,-2080116|SK|14|Valley,-560160|EX|32|Grove,1479880|AC|1|Grove,599844|KS|1|Grove,2999904|RB|1|Grove,6999916|KS|1|Swamp,6159900|HC|1|Swamp,3639880|EX|27|Grove,5119584|MS|1|Grotto,6199596|MS|1|Grotto,5719620|HC|1|Grotto,5879616|KS|1|Grotto,6279880|KS|1|Swamp,5119900|EX|67|Swamp,39804|EX|9|Glades,28|EV|5|Mapstone,7839588|EX|51|Grotto,2999808|EC|1|Grove,3039696|SK|50|Blackroot,3119768|EX|33|Blackroot,-2200148|HC|1|Glades,-2240084|EX|53|Valley,4199828|EX|15|Grotto,32|AC|1|Mapstone,3439744|EX|44|Blackroot,-160096|EC|1|Grove,4239780|SK|5|Grotto,-480168|RB|13|Glades,-1560188|KS|1|Glades,-2160176|EX|50|Glades,3319936|KS|1|Grove,4759860|KS|1|Grotto,4319892|EX|82|Grotto,3639888|EC|1|Grove,5799932|EX|114|Swamp,4479832|EX|77|Grotto,5439640|EC|1|Grotto,5639752|EX|56|Grotto,0|EX|62|Grotto,4039612|AC|1|Grotto,3919624|EX|27|Grotto,4959628|EV|5|Grotto,4639628|EX|97|Grotto,4479568|EC|1|Grotto,7559600|EX|30|Grotto,3919688|EX|10|Blackroot,5399780|EX|32|Grotto,5119556|MS|1|Grotto,4439632|EX|40|Grotto,4359656|EX|52|Grotto,4919600|EX|97|Grotto,-1800088|EX|66|Valley,639888|EX|97|Grove,36|EV|5|Mapstone,2559800|EX|83|Glades,-2480280|EX|44|Glades,3199820|EC|1|Grove,1719892|RB|15|Grove,2599880|HC|1|Grove,4079964|EX|30|Swamp,4999892|KS|1|Swamp,5399808|KS|1|Grotto,5519856|EV|5|Grotto,3399820|EX|63|Grove,3279644|MS|1|Grotto,7199904|EV|5|Swamp,8599904|RB|0|Swamp,40|EX|99|Mapstone,799804|EX|22|Glades,6359836|EX|103|Swamp,4479704|EX|82|Grotto,5200140|AC|1|Ginso,5280264|KS|1|Ginso,5080304|MS|1|Ginso,5280296|EX|175|Ginso,5400100|EX|92|Ginso,6639952|KS|1|Swamp,2719900|EV|5|Grove,5320328|AC|1|Ginso,5320488|AC|1|Ginso,5080496|KS|1|Ginso,5400276|EC|1|Ginso,2759624|EV|5|Blackroot,959960|AC|1|Grove,6399872|EX|156|Swamp,4319860|EX|40|Grotto,4319676|AC|1|Blackroot,7679852|RB|0|Swamp,5359824|EX|148|Grotto,8839900|KS|1|Swamp,5160384|EX|118|Ginso,5280404|EX|153|Ginso,5360432|KS|1|Ginso,3879576|AC|1|Blackroot,3359580|KS|1|Blackroot,719620|KS|1|Blackroot,1759964|EX|125|Grove,2239640|AC|1|Blackroot,1240020|HC|1|Grove,559720|KS|1|Glades,39756|EX|73|Glades,-400240|RB|0|Glades,-3559936|EX|49|Valley,-4199936|HC|1|Valley,-3600088|AC|1|Valley,1839836|KS|1|Grove,3519820|KS|1|Grove,5919864|KS|1|Swamp,4199724|EX|171|Grotto,3559792|KS|1|Grotto,3359784|AC|1|Grove,-3200164|EX|155|Valley,3959588|KS|1|Grotto,7599824|KS|1|Swamp,6839792|EX|183|Swamp,7959788|HC|1|Swamp,8719856|EX|61|Swamp,4599508|KS|1|Blackroot,3039472|EV|5|Blackroot,5239456|EC|1|Blackroot,-4600020|MS|1|Valley,-5479948|EX|121|Sorrow,-6800032|KS|1|Misty,-8240012|EX|265|Misty,-2919980|AC|1|Valley,-5719844|EX|62|Sorrow,-5119796|EX|267|Sorrow,-4879680|EX|35|Sorrow,-5039728|RB|1|Sorrow,-5159700|MS|1|Sorrow,-5959772|KS|1|Sorrow,-9799980|EX|86|Misty,-10760004|RB|11|Misty,-10120036|EX|48|Misty,-10759968|HC|1|Misty,-4600188|EX|147|Valley,-4160080|EX|25|Valley,-4680068|RB|6|Valley,-3520100|KS|1|Valley,-5640092|EX|152|Valley,-6119704|EX|1|Sorrow,-4359680|EC|1|Sorrow,-8400124|EX|315|Misty,-7960144|EX|94|Misty,-9120036|EX|315|Misty,-7680144|AC|1|Misty,-11040068|AC|1|Misty,1720000|EC|1|Grove,2519668|EX|253|Blackroot,4560564|EC|1|Ginso,-6719712|EX|178|Sorrow,-6079672|EC|1|Sorrow,-6119656|RB|1|Sorrow,-6039640|EX|140|Sorrow,-6159632|EX|297|Sorrow,-6279608|EX|14|Sorrow,8|EX|9|Misty,44|AC|1|Mapstone,48|EV|5|Mapstone,-7040392|EX|62|Forlorn,-8440352|KS|1|Forlorn,-8920328|MS|1|Forlorn,-8880252|EX|256|Forlorn,-8720256|EX|154|Forlorn,5320660|EX|291|Ginso,5360732|AC|1|Ginso,5320824|AC|1|Ginso,5160864|KS|1|Ginso,4|EX|135|Ginso,6080608|AC|1|Ginso,-6799732|AC|1|Sorrow,-6319752|AC|1|Sorrow,-8160268|AC|1|Forlorn,-5160280|AC|1|Valley,-5400236|EX|236|Valley,-10839992|EX|284|Misty,7639816|AC|1|Swamp,-4559584|RB|6|Sorrow,-4159572|RB|13|Sorrow,-5479592|EX|382|Sorrow,-5919556|KS|1|Sorrow,-6280316|EV|5|Forlorn,12|EX|277|Forlorn,52|MS|1|Mapstone,1920384|KS|1|Horu,1480360|MS|1|Horu,2480400|EX|291|Horu,-6080316|AC|1|Forlorn,1880164|RB|12|Horu,2520192|AC|1|Horu,1600136|KS|1|Horu,-1919808|AC|1|Horu,-319852|AC|1|Horu,120164|EX|128|Horu,1280164|EX|115|Horu,960128|HC|1|Horu,3160244|EX|235|Horu,20|EC|1|Horu,1040112|AC|1|Horu,-8600356|AC|1|Forlorn,-6959592|EX|15|Sorrow,-6479528|HC|1|Sorrow,-4799416|EX|382|Sorrow,4680612|EV|5|Ginso,56|EX|322|Mapstone,-5159576|AC|1|Sorrow,16|EV|5|Sorrow,5040476|RB|21|Ginso,4559492|RB|19|Blackroot,399844|RB|19|Grove,-1680140|EV|5|Glades,9119928|EV|5|Swamp,2079568|EV|1|Blackroot,3279920|RB|17|Grove,-4600256|RB|21|Valley,-4440152|RB|21|Valley,919908|RB|17|Grove,1599920|RB|17|Grove,-11880100|RB|21|Misty,-5400104|EV|5|Valley,-6720040|RB|19|Misty,5039560|RB|17|Grotto,5280500|EV|5|Ginso,5160336|EV|5|Ginso"
 		lines = seed.split(",")
 		flags = lines[0].split("|")
 		mode_opt = [f[5:] for f in flags if f.lower().startswith("mode=")]
-		shared_opt = [f[7:].split(" ") for f in flags if f.lower().startswith("shared=")]
+		shared_opt = [f[7:].split("+") for f in flags if f.lower().startswith("shared=")]
 		mode = mode_opt[0].lower() if mode_opt else None
 		if mode:
 			mode = mode_map[mode] if mode in mode_map else int(mode)	
@@ -901,18 +930,18 @@ class MapTest(webapp2.RequestHandler):
 				print "ERROR: malformed seed line %s, skipping" % l
 			else:
 				seedlines.append("%s:%s" % (line[0], Pickup.name(line[1], line[2])))
+		game = get_new_game(_mode=mode, _shared=shared, id=game_id)
+		game.put()
 		for player_id in [1,2,3]:
-			game = Game.get_by_id(game_id)
+			game = Game.with_id(game_id)
 			hist = Cache.getHist(game_id)
 			if not hist:
 				Cache.setHist(game_id, player_id, [])
 			Cache.setPos(game_id, player_id, 189, -210)
-			if not game:
-				game = get_new_game(_mode=mode, _shared=shared, id=game_id)
 			player = game.player(player_id)
 			player.seed = "\n".join(seedlines)
 			player.put()
-		return webapp2.redirect("/%s/map" % game_id)
+		return webapp2.redirect("/%s/map?from_test=1" % game_id)
 			
 class LogicHelper(webapp2.RequestHandler):
 	def get(self):	

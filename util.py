@@ -63,6 +63,26 @@ class Cache(object):
 		Cache.hist[gid] = newHists
 
 	@staticmethod
+	def removeGame(gid):
+		gid = int(gid)
+		if gid in Cache.hist:
+			del Cache.hist[gid]
+		else:
+			return False
+		if gid in Cache.pos:
+			del Cache.pos[gid]
+		else:
+			return False
+		return True
+
+	@staticmethod
+	def removePlayer(gid, pid):
+		gid = int(gid)
+		newHists = Cache.hist[gid] if gid in Cache.hist else {}
+		newHists[pid] = hist
+		Cache.hist[gid] = newHists
+
+	@staticmethod
 	def getPos(gid):
 		gid = int(gid)
 		return Cache.pos[gid].copy() if gid in Cache.pos else None
@@ -193,6 +213,11 @@ class Game(ndb.Model):
 	start_time = ndb.DateTimeProperty(auto_now_add=True)
 	last_update = ndb.DateTimeProperty(auto_now=True)
 	players = ndb.KeyProperty(Player,repeated=True)
+	
+	@staticmethod
+	def with_id(id):
+		return Game.get_by_id(int(id))
+	
 	def summary(self):
 		out_lines = ["%s (%s)" %( self.mode, ",".join([s.name for s in self.shared]))]
 		if self.mode in [GameMode.SHARED, GameMode.SIMUSOLO] and len(self.players):
@@ -290,10 +315,11 @@ class Game(ndb.Model):
 
 def delete_game(game):
 	[p.delete() for p in game.players]
+	Cache.removeGame(game.key.id())
 	game.key.delete()
 
-def clean_old_games():
-	old = [game for game in Game.query(Game.last_update < datetime.now() - timedelta(hours=12))]
+def clean_old_games(timeout_window = timedelta(hours=12)):
+	old = [game for game in Game.query(Game.last_update < datetime.now() - timeout_window)]	
 	return len([delete_game(game) for game in old])
 
 def get_open_gid():

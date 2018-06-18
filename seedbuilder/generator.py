@@ -1,7 +1,7 @@
 import re
 import math
 import xml.etree.ElementTree as XML
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 
 # A custom implementation of a Mersenne Twister
 # (since javascript hates everything)
@@ -293,40 +293,16 @@ class SeedGenerator:
 				for req_set in connection.get_requirements():
 					requirements = []
 					cost = 0
-					energy = 0
-					health = 0
-					waterVeinShard = 0
-					gumonSealShard = 0
-					sunstoneShard = 0
+					cnts = defaultdict(lambda: 0)
 					for req in req_set:
 						# for paired randomizer -- if the item isn't yours to assign, skip connection
 						if self.itemPool[req] == 0:
 							requirements = []
 							break
 						if self.costs[req] > 0:
-							if req == "EC":
-								energy += 1
-								if energy > self.inventory["EC"]:
-									requirements.append(req)
-									cost += self.costs[req]
-							elif req == "HC":
-								health += 1
-								if health > self.inventory["HC"]:
-									requirements.append(req)
-									cost += self.costs[req]
-							elif req == "WaterVeinShard":
-								waterVeinShard += 1
-								if waterVeinShard > self.inventory["WaterVeinShard"]:
-									requirements.append(req)
-									cost += self.costs[req]
-							elif req == "GumonSealShard":
-								gumonSealShard += 1
-								if gumonSealShard > self.inventory["GumonSealShard"]:
-									requirements.append(req)
-									cost += self.costs[req]
-							elif req == "SunstoneShard":
-								sunstoneShard += 1
-								if sunstoneShard > self.inventory["SunstoneShard"]:
+							if req in ["HC", "EC", "WaterVeinShard", "GumonSealShard", "SunstoneShard"]:
+								cnts[req] += 1
+								if cnts[req] > self.inventory[req]:
 									requirements.append(req)
 									cost += self.costs[req]
 							else:
@@ -478,10 +454,10 @@ class SeedGenerator:
 		del locationsToAssign[i]
 
 	def connect_doors(self, door1, door2, requirements=["Free"]):
-		connection1 = Connection(door1.name, door2.name)
+		connection1 = Connection(door1.name, door2.name, self)
 		connection1.add_requirements(requirements, 1)
 		self.areas[door1.name].add_connection(connection1)
-		connection2 = Connection(door2.name, door1.name)
+		connection2 = Connection(door2.name, door1.name, self)
 		connection2.add_requirements(requirements, 1)
 		self.areas[door2.name].add_connection(connection2)
 		return str(door1.get_key()) + "|EN|" + str(door2.x) + "|" + str(door2.y) + "\n" + str(
@@ -533,7 +509,7 @@ class SeedGenerator:
 			horuEntryGroup += 2
 		if horuEntryGroup == 11:
 			horuEntryGroup = 1
-			if self.random.self.random() > 0.5:
+			if self.random.random() > 0.5:
 				doorStr += self.connect_doors(firstDoors[0], innerDoors[1].pop(0))
 				outerDoors[0].append(firstDoors[1])
 			else:

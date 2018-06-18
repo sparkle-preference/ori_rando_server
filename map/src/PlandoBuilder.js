@@ -24,6 +24,7 @@ const DEFAULT_DATA = {
 	'-10440008': {label: "100 Experience", value: "EX|100"}
 }
 
+const DEFAULT_REACHABLE = {'SunkenGladesRunaway': [["Free"]]};
 const DEFAULT_VIEWPORT = {
 	  center: [0, 0],
 	  zoom: 4,
@@ -45,7 +46,7 @@ const base_url = dev ?  "https://8080-dot-3616814-dot-devshell.appspot.com" : "h
 function getPickupMarkers(state, setSelected, searchStr) {
 	let pickupTypes = state.pickups
 	let placements = state.placements
-	let reachable = state.reachable
+	let reachable = Object.keys(state.reachable)
 	let flags = state.flags
 	let hide_unreachable = flags.includes("hide_unreachable")
 	let skip_danger = flags.includes("hide_softlockable")
@@ -154,7 +155,7 @@ class PlandoBuiler extends React.Component {
   constructor(props) {
     super(props)
 
-    this.state = {seed_in: "", reachable: ['SunkenGladesRunaway'], placements: {1: {...DEFAULT_DATA}}, player: 1, logic_helper_mode: false,
+    this.state = {seed_in: "", reachable: {...DEFAULT_REACHABLE}, new_areas: {...DEFAULT_REACHABLE}, placements: {1: {...DEFAULT_DATA}}, player: 1, logic_helper_mode: false,
     			  fill_opts: {HC: 13, EC: 15, AC: 34, KS: 40, MS: 9, EX: 300, dynamic: false, dumb: false}, viewport: DEFAULT_VIEWPORT, searchStr: "",
 		    	  flags: ['hide_unreachable', 'hide_softlockable'], seedFlags: select_wrap(["forcetrees"]), share_types: select_wrap(["keys"]), coop_mode: {label: "Solo", value: "None"},
 		    	  pickups: ["EX", "Ma", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV"],  display_import: false, display_logic: false, display_coop: false, display_meta: false}
@@ -271,7 +272,7 @@ class PlandoBuiler extends React.Component {
 
 
     place = (s, doFill = true) => {
-		if(s.value.length < 4 || s.value[2] != "|") {
+		if(s.value.length < 4 || s.value[2] !== "|") {
 			NotificationManager.warning("Pickup should be in the form XX|Y", "Invalid Pickup!",2000);
 				return;
 		}
@@ -311,9 +312,9 @@ class PlandoBuiler extends React.Component {
 		let newplc = {}
 	    for (let i = 1, len = lines.length; i < len; i++) {
 	    	let line = lines[i].split("|")
-	    	let loc = parseInt(line[0]);
+	    	let loc = parseInt(line[0], 10);
 	    	let code = line[1];
-	    	let id = str_ids.includes(code) ? line[2] : parseInt(line[2]);
+	    	let id = str_ids.includes(code) ? line[2] : parseInt(line[2], 10);
 	    	let name = pickup_name(code, id);
 	    	let stuff = {label: name, value:code+"|"+id};
 	    	newplc[loc] = stuff;
@@ -325,7 +326,7 @@ class PlandoBuiler extends React.Component {
 	    		let oldplc = prevState.placements;
 		    	oldplc[this.state.player] = newplc
 		    	return {placements: oldplc}
-			}, () => this._updateReachable(15));
+			}, () => this._updateReachable(this.state.logic_helper_mode ? 0 : 15));
 
 	}
 
@@ -473,7 +474,7 @@ class PlandoBuiler extends React.Component {
 	            })(xmlHttp.responseText);
 	    }
 	  		let codes = []; 
-	  		this.state.reachable.forEach((area) => {
+	  		Object.keys(this.state.reachable).forEach((area) => {
 	  			if(picks_by_area.hasOwnProperty(area))
 		  			picks_by_area[area].forEach((pick) => {
 		  				if(this.state.placements[this.state.player] && this.state.placements[this.state.player].hasOwnProperty(pick.loc)) 
@@ -531,13 +532,13 @@ class PlandoBuiler extends React.Component {
   		if(!this.state.flags.includes("hide_unreachable"))
   			return
   		if(!this.state.reachable || this.state.reachable === undefined) {
-  			this.setState({reachable: ["SunkenGladesRunaway"]}, () => this._updateReachable(layers));
+  			this.setState({reachedWith: {}, reachable: {...DEFAULT_REACHABLE}}, () => this._updateReachable(layers));
   			return
   		}
 	  	let reachableStuff = {};
   		if(this.state.logicMode === "auto" && this.state.player === 1)
   		{
-	  		this.state.reachable.forEach((area) => {
+	  		Object.keys(this.state.reachable).forEach((area) => {
 	  			if(picks_by_area.hasOwnProperty(area))
 		  			picks_by_area[area].forEach((pick) => {
 	  				if(this.state.placements[1] && this.state.placements[1].hasOwnProperty(pick.loc)) {
@@ -612,7 +613,7 @@ class PlandoBuiler extends React.Component {
     		})
 	}
 	
-	resetReachable = () => this.setState({reachable: ["SunkenGladesRunaway"]})
+	resetReachable = () => this.setState({reachable: {...DEFAULT_REACHABLE}})
 
 
 	render() {
@@ -625,6 +626,28 @@ class PlandoBuiler extends React.Component {
 	render_logic_mode()
  	{
 		const pickup_markers = ( <PickupMarkersList markers={getPickupMarkers(this.state, this.selectPickupCurry, this.state.searchStr)} />)
+		const new_areas_report = Object.keys(this.state.new_areas).map((area) => {
+			// new_areas: Map<string,list[list[string]]> 
+			// paths: list[list[string]]
+			// reqs: list[string]
+			// Sunken Glades:
+			// > Free
+			// > S
+			let paths = this.state.new_areas[area];
+			let path_rows = paths.map(reqs => ( 
+			<li>
+				{reqs.join("+")}
+			</li>
+			));
+			return (
+			<div>
+				<label>{area}</label>
+				<ul>
+				{path_rows}
+				</ul>
+			</div>
+			)
+		});
 		return (
 			<div className="wrapper">
 				<Map crs={crs} zoomControl={false} onViewportChanged={this.onViewportChanged} viewport={this.state.viewport}>
@@ -640,12 +663,18 @@ class PlandoBuiler extends React.Component {
 					</Collapse>				
 					<div id="file-controls">
 						<Button color="primary" onClick={this.resetReachable} >Reset</Button>
-						<Button color="primary" onClick={() => this._updateReachable(0)} >Step</Button>
+						<Button color="primary" onClick={() => {
+							if(dev)
+								console.log(this.state)
+							this._updateReachable(0)
+						}} >Step</Button>
 					</div>
 					<div id="search-wrapper">
 						<label for="search">Search</label>
 						<input id="search" class="form-control" value={this.state.searchStr} onChange={(event) => this.setState({searchStr: event.target.value})} type="text" />
 					</div>
+					<hr style={{ backgroundColor: 'grey', height: 2 }}/>
+					{new_areas_report}
 					<hr style={{ backgroundColor: 'grey', height: 2 }}/>
 					<div id="logic-controls">
 						<div id="logic-mode-wrapper">
@@ -960,7 +989,29 @@ function getReachable(setter, modes, codes, callback)
         if (xmlHttp.readyState === 4 && xmlHttp.status === 200)
             (function(res) {
             	if(res && res.includes("|"))
-					setter({reachable: res.split("|")}, callback)
+            		{
+            		let reachable = {};
+            		res.split("|").forEach((areaRaw) => {
+            			let areaSplit = areaRaw.split("#");
+            			let name = areaSplit[0];
+            			let reachedWith = areaSplit[1].split("/").map((reqs) => reqs === "" ? ["Free"] : reqs.split('&'));
+            			reachable[name] = reachedWith;
+            		});
+					setter(prevState => {
+						let old_reachable = prevState.reachable;
+						let new_areas = {};
+						Object.keys(reachable).forEach((area) => {
+							if(!old_reachable.hasOwnProperty(area))
+							{
+								new_areas[area] = reachable[area];
+								old_reachable[area] = reachable[area];
+							}
+							old_reachable[area] = old_reachable[area].concat(reachable[area]);
+
+						});
+						return {reachable: old_reachable, new_areas: new_areas}
+					}, callback)
+            		}
             })(xmlHttp.responseText);
     }
     xmlHttp.open("GET", "/plando/reachable?modes="+modes+"&codes="+codes, true);
@@ -978,7 +1029,7 @@ function uploadSeed(seedLines, author, seedName, description, callback)
     }
 	let url = "/plando/"+author+"/"+seedName+"/upload";
 	let old_name = window.document.URL.split("/")[5];
-	if(old_name != seedName) {
+	if(old_name !== seedName) {
 		url += "?old_name=" + old_name
 	}
     xmlHttp.open("POST", url, true);

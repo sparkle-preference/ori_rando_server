@@ -42,14 +42,14 @@ class Area(object):
 		self.name = name
 		self.conns = []		
 	def get_reachable(self, state, modes, spendKS=False):
-		reachable = []
+		reachable = {}
 		for conn in self.conns:
-			active, ksSpent = conn.is_active(state, modes)
+			active, conns, ksSpent = conn.is_active(state, modes)
 			if not spendKS and ksSpent > 0:
 				continue
 			if active:
 				state.has['KS'] -= ksSpent
-				reachable.append(conn.target)
+				reachable[conn.target] = conns
 
 		return reachable
 
@@ -58,8 +58,12 @@ class Connection(object):
 		self.target = target
 		self.reqs = defaultdict(list)
 	def is_active(self, state, modes):
-		res = [reqs.cnt["KS"] for mode in modes for reqs in self.reqs[mode] if not reqs.cnt - state.has]
-		return (True, min(res)) if res else (False, 0)
+		res = [reqs for mode in modes for reqs in self.reqs[mode] if not reqs.cnt - state.has]
+		if not res:
+			return (False, [], 0)
+		least_ks = min([r.cnt["KS"] for r in res])
+		cheapest = [req for req in res if req.cnt["KS"] <= least_ks]
+		return (True, cheapest, least_ks)
 
 
 class Requirement(object):
@@ -68,6 +72,7 @@ class Requirement(object):
 
 class Map(object):
 	areas = {}
+	reached_with = defaultdict(lambda: set())
 	@staticmethod
 	def build():
 		tree = XML.parse("seedbuilder/areas.xml")
@@ -85,6 +90,7 @@ class Map(object):
 	def get_reachable_areas(state, modes):
 		if not Map.areas:
 			Map.build()
+		Map.reached_with = defaultdict(lambda: set())
 		unchecked_areas = set(["SunkenGladesRunaway"])
 		reachable_areas = set()
 		needs_ks_check = set()
@@ -92,10 +98,16 @@ class Map(object):
 			curr = unchecked_areas.pop()
 			reachable_areas.add(curr)
 			needs_ks_check.add(curr)
-			unchecked_areas |= set([r for r in Map.areas[curr].get_reachable(state, modes) if r not in reachable_areas])
+			reachable = Map.areas[curr].get_reachable(state, modes)
+			for k,v in reachable.iteritems():
+				Map.reached_with[k] |= set(v)
+			unchecked_areas |= set([r for r in reachable.keys() if r not in reachable_areas])
 			while len(unchecked_areas) < len(needs_ks_check):
 				curr = needs_ks_check.pop()
-				unchecked_areas |= set([r for r in Map.areas[curr].get_reachable(state, modes, True) if r not in reachable_areas])
+				reachable = Map.areas[curr].get_reachable(state, modes, True)
+				for k,v in reachable.iteritems():
+					Map.reached_with[k] |= set(v)
+				unchecked_areas |= set([r for r in reachable.keys() if r not in reachable_areas])
 
 		mapstone_cnt = min(len([a for a in reachable_areas  if "MapStone" in a]), state.has["MS"])
 		if mapstone_cnt == 9 and state.has["MS"] < 11:
@@ -103,4 +115,5 @@ class Map(object):
 		if mapstone_cnt == 8 and state.has["MS"] < 9:
 			mapstone_cnt -= 1
 		ms_areas = ["MS%s"%i for i in range(1,mapstone_cnt +1) ]
-		return list(reachable_areas) + ms_areas 
+		
+		return {area: list(Map.reached_with[area]) for area in (list(reachable_areas) + ms_areas)}
