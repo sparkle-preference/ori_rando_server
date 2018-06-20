@@ -335,8 +335,7 @@ def get_open_gid():
 def get_new_game(_mode = None, _shared = None, id=None):
 	shared = [share_map[i] for i in _shared if i in share_map] if _shared else Game.DEFAULT_SHARED
 	mode = GameMode(int(_mode)) if _mode else GameMode.SHARED
-	if not id:
-		id = get_open_gid()
+	id = int(id) if id else get_open_gid()
 	game = Game(id = id, players=[], shared=shared, mode=mode)
 	return game
 

@@ -63,7 +63,7 @@ class CleanUp(webapp2.RequestHandler):
 class DeleteGame(webapp2.RequestHandler):
 	def get(game_id, self):
 		self.response.headers['Content-Type'] = 'text/plain'
-		if int(game_id) < 1000:
+		if int(game_id) < 1000 and not paramFlag(self, "override"):
 			self.response.status = 403
 			self.response.write("No.")
 		game = Game.with_id(game_id)
@@ -81,7 +81,7 @@ class ActiveGames(webapp2.RequestHandler):
 		self.response.headers['Content-Type'] = 'text/html'
 		title = "Games active in the last %s hours" % hours
 		body = ""
-		games = Game.query(Game.last_update < datetime.now() - timedelta(hours=hours)).fetch()
+		games = Game.query(Game.last_update > datetime.now() - timedelta(hours=hours)).fetch()
 		if not len(games):
 			games = Game.query().fetch()
 			if not len(games):
@@ -201,23 +201,23 @@ class SeedGenLanding(webapp2.RequestHandler):
 			seed = str(random.randint(10000000, 100000000))
 					
 		if dotracking:
-			game_id = False
+			game = False
 			if syncid:
 				syncid = int(syncid)
 				oldGame = Game.with_id(syncid)
 				if oldGame != None:
 					if syncid > 999:
 						delete_game(oldGame)
-						game_id = get_new_game(_mode=syncmode, _shared=share_types, id=syncid).key.id()
+						game = get_new_game(_mode=syncmode, _shared=share_types, id=syncid)
 					else:
 						self.response.status = 405
 						self.response.write("Seed ID in use! Leave blank or pick a different number.")
 						return
 				else:
-					game_id = get_new_game(_mode=syncmode, _shared=share_types, id=syncid).key.id()	
-			if not game_id:
-				game_id = get_new_game(_mode=syncmode, _shared=share_types).key.id()
-
+					game = get_new_game(_mode=syncmode, _shared=share_types, id=syncid)
+			if not game:
+				game = get_new_game(_mode=syncmode, _shared=share_types)
+			game_id = game.put().id()
 		urlargs = ["m=%s" % mode]
 		urlargs.append("vars=%s" % "|".join(variations))
 		urlargs.append("lps=%s" % "|".join(logic_paths))
@@ -234,10 +234,9 @@ class SeedGenLanding(webapp2.RequestHandler):
 			urlargs.append("syt=%s" % synctype)
 			if synctype != "none":
 				urlargs.append("shr=%s" % "+".join(share_types))
-			if synctype == "split":
-				for flg in ["dk", "ev", "sk", "rb", "tp", "hints"]:
-					if self.request.get(flg):
-						urlargs.append("%s=1" % flg)
+
+			if synctype == "split" and self.request.get("hints"):
+				urlargs.append("hints=1")
 		self.response.headers['Content-Type'] = 'text/html'
 		out = "<html><body>"
 		url = '/getseed?%s' % "&".join(urlargs)
@@ -271,8 +270,8 @@ class SeedDownloader(webapp2.RequestHandler):
 		if dotracking:
 			game_id = int(params['gid'])
 		synctype = params["syt"] if playercount > 1 else "none"
-		if dosharetypes:
-			share_types = params['shr']
+		share_types = params['shr'] if dosharetypes else []
+
 		genmode = params["gnm"]
 		seed = params['s']
 		pathdiff = params['pd']
@@ -321,15 +320,16 @@ class SeedDownloader(webapp2.RequestHandler):
 			playerCountIn = playercount if playercount > 1 and synctype == "disjoint" else 1,
 			balanced = genmode == "balanced",
 			entrance = "entshuf" in variations,
-			sharedItems = share_types if dosharetypes else [],
+			sharedItems = share_types,
 			wild = "wild" in params)
 		if synctype == "split":
 			(seed, spoil) = placements[0]
 			if spoiler:
 				self.response.out.write(spoil)
 				return
-			out = split_seed(seed, game_id, player, playercount, "hints" in params, "dk" in params,
-							"sk" in params, "ev" in params, "rb" in params, "tp" in params)
+			split_types = share_types.split(" ")
+			out = split_seed(seed, game_id, player, playercount, "hints" in params, "keys" in split_types,
+							"skills" in split_types, "events" in split_types, "upgrades" in split_types, "teleporters" in split_types)
 		elif synctype == "disjoint":
 			(out, spoil) = placements[player-1]
 			if spoiler:
@@ -441,6 +441,7 @@ class SetSeed(webapp2.RequestHandler):
 
 			shared = shared_opt[0] if shared_opt else None
 			game = get_new_game(_mode=mode, _shared=shared, id=game_id)
+			game.put()
 		for l in lines[1:]:
 			line = l.split("|")
 			if len(line) < 3:
@@ -509,14 +510,19 @@ class GetReachable(webapp2.RequestHandler):
 		modes = paramVal(self, "modes").split(" ")
 		self.response.headers['Content-Type'] = 'text/plain'
 		self.response.status = 200
+		game = Game.with_id(game_id)
+		shared_history = []
+		if game and game.mode == GameMode.SHARED:
+			shared_history = [hl for hls in hist.values() for hl in hls if hl.pickup().share_type in game.shared]
 		self.response.out.write("|".join(
 			["%s:%s" % (p, ",".join(
 				["%s#%s" % (area, "/".join(
 					["&".join([ item + ("(%s)" % count if count > 1 else "") for item, count in s.cnt.iteritems()])
 					for s in reachedWith]))
-				for (area, reachedWith) in Map.get_reachable_areas(PlayerState([(h.pickup_code, h.pickup_id, 1, h.removed) for h in hls]), modes).iteritems()]
+				for (area, reachedWith) in Map.get_reachable_areas(PlayerState([(h.pickup_code, h.pickup_id, 1, h.removed) for h in shared_history+hls]), modes).iteritems()]
 			)) for p, hls in hist.iteritems()]
 		))
+
 
 
 class GetPlayerPositions(webapp2.RequestHandler):
@@ -946,11 +952,14 @@ class MapTest(webapp2.RequestHandler):
 class LogicHelper(webapp2.RequestHandler):
 	def get(self):	
 		path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
-		template_values = {'app': "plandoBuilder", 'title': "Logic Helper!", 'is_spoiler': "True",
+		template_values = {'app': "logicHelper", 'title': "Logic Helper!", 'is_spoiler': "True",
 						   'pathmode': paramVal(self, 'pathmode'), 'HC': paramVal(self, 'HC'),
 						   'EC': paramVal(self, 'EC'), 'AC': paramVal(self, 'AC'), 'KS': paramVal(self, 'KS'),
 						   'skills': paramVal(self, 'skills'), 'tps': paramVal(self, 'tps')}
 		self.response.out.write(template.render(path, template_values))
+
+
+from test import TestRunner
 
 app = webapp2.WSGIApplication([
 	(r'/maptest/(\d+)/?', MapTest),
@@ -985,6 +994,7 @@ app = webapp2.WSGIApplication([
 	(r'/(\d+)/_reachable', GetReachable),
 	(r'/login/?', HandleLogin),
 	(r'/logout/?', HandleLogout),
+	(r'/tests/?', TestRunner),
 
 	(r'/plando/reachable', PlandoReachable),
 	(r'/plando/fillgen', PlandoFillGen),

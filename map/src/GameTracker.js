@@ -6,7 +6,7 @@ import {Map, Tooltip, TileLayer, Marker, ZoomControl} from 'react-leaflet';
 import {Checkbox, CheckboxGroup} from 'react-checkbox-group';
 import {Radio, RadioGroup} from 'react-radio-group';
 import Leaflet from 'leaflet';
-import {picks_by_type, PickupMarkersList, pickup_icons, getMapCrs, presets, hide_opacity} from './shared_map.js';
+import {picks_by_type, PickupMarkersList, pickup_icons, getMapCrs, presets, hide_opacity, uniq} from './shared_map.js';
 import Select from 'react-select';
 import 'react-select/dist/react-select.css';
 import {Button, Collapse} from 'reactstrap';
@@ -81,7 +81,6 @@ const PlayerUiOpts = ({players, setter}) => {
 					<label><Checkbox value="hide_found"/> Hide found</label>
 					<label><Checkbox value="hide_unreachable"/> Hide unreachable</label>
 					<label><Checkbox value="hide_remaining"/> Hide remaining</label>
-					<label><Checkbox value="hot_assist"/> Split assist</label>
 		    </CheckboxGroup>
 			</div>
 		);
@@ -167,27 +166,19 @@ function getPickupMarkers(state) {
 				markers.push({key: pick.name+"|"+pick.x+","+pick.y, position: [y, x], inner: null, icon: icon})
 				continue
 			}
-			let is_hot = false;
-			Object.keys(players).forEach((id) => {
-				if(!is_hot && players[id].seen.includes(pick.loc) &&  players[id].seed[pick.loc] === "Warmth Returned")
-					is_hot = true;
-			});
 
-			let highlight = (searchStr || is_hot) ? false : true;
+			let highlight = searchStr ? false : true;
 
 			Object.keys(players).forEach((id) => {
 				let player = players[id]
 				let hide_found = player.flags.includes("hide_found")
 				let hide_unreachable = player.flags.includes("hide_unreachable")
 				let hide_remaining = player.flags.includes("hide_remaining")
-				let hot_assist = player.flags.includes("hot_assist")
 				let show_spoiler = player.flags.includes("show_spoiler");
 				let pick_name = (player.seed[pick.loc] || "").toLowerCase();
 				if(searchStr && pick.name === "MapStone") 
 					pick_name = getMapstoneToolTip({id: player}, false).toLowerCase();
 				let found = player.seen.includes(pick.loc);
-				if(is_hot && !found && hot_assist)
-					highlight = true;
 				if(!highlight && (found || show_spoiler) && (pick_name && searchStr && pick_name.includes(searchStr)))
 					highlight = true;
 				let reachable = players[id].areas.includes(pick.area);
@@ -207,7 +198,7 @@ function getPickupMarkers(state) {
 						{
 						let lines = loc_info.map((infoln) => {
 							return (
-							<tr><td style={{color:'black'}}>{infoln + (is_hot ? " !hot!" : "")}</td></tr>
+							<tr><td style={{color:'black'}}>{infoln}</td></tr>
 							)
 						});
 						inner = (
@@ -444,14 +435,16 @@ function getReachable(setter, modes, timeout) {
 					areas[id] = withid[1].split(",").map((raw) => raw.split("#")[0]);
 				}
 				setter((prevState, props) => {
-					let retVal = prevState.players
+					let players = prevState.players
 					Object.keys(areas).forEach((id) => {
-						if(!retVal.hasOwnProperty(id)){
-							retVal[id] = {...EMPTY_PLAYER};
+						if(!players.hasOwnProperty(id)){
+							players[id] = {...EMPTY_PLAYER};
 						}
-						retVal[id].areas = areas[id]
+						areas[id].forEach(area => {
+							players[id].areas = uniq(players[id].areas.concat(area))
+						});
 					})
-					return {players:retVal, retries: 0, timeout: TIMEOUT_START}
+					return {players:players, retries: 0, timeout: TIMEOUT_START}
 				})
     }
     doNetRequest(onRes, setter, "/"+game_id+"/_reachable?modes="+modes, timeout)

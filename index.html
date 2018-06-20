@@ -140,37 +140,27 @@ div {
     <h4>Sync Options</h4>
 <table><tbody>
   <tr><td>
-    <div class="label">Sync Seed Type:</div>
+    <div class="label">Multiplayer Seed Generation Mode:</div>
   </td><td>
     <select size="1" class="dropdown" name="synctype">
-      <option value="disjoint" selected="Selected">Disjoint</option>
-      <option value="split" >Split</option>
+      <option value="disjoint" >Seperate Seeds</option>
+      <option value="split" selected="Selected">Cloned Seeds</option>
     </select>
   </td></tr>
 </tbody></table>
 <table><tbody>
   <tr><td>
-    <span class="gwt-CheckBox"><input type="checkbox" name="skills" checked=""><label>Shared: Skills</label></span>
+    <span class="gwt-CheckBox"><input type="checkbox" name="skills" checked=""><label>Share Skills</label></span>
   </td><td>  
-    <span class="gwt-CheckBox"><input type="checkbox" name="sk" checked=""><label>Split: Skills</label></span>
+    <span class="gwt-CheckBox"><input type="checkbox" name="events" checked=""><label>Share World Events</label></span>
+  </td><td>  
+    <span class="gwt-CheckBox"><input type="checkbox" name="upgrades"><label>Share Bonuses</label></span>
   </td></tr><tr><td>
-    <span class="gwt-CheckBox"><input type="checkbox" name="events" checked=""><label>Shared: World Events</label></span>
+    <span class="gwt-CheckBox"><input type="checkbox" name="keys" checked=""><label>Share Dungeon Keys</label></span>
   </td><td>  
-    <span class="gwt-CheckBox"><input type="checkbox" name="ev" checked=""><label>Split: World Events</label></span>
-  </td></tr><tr><td>
-    <span class="gwt-CheckBox"><input type="checkbox" name="upgrades"><label>Shared: Bonuses</label></span>
+    <span class="gwt-CheckBox"><input type="checkbox" name="teleporters" checked=""><label>Share Teleporters</label></span>
   </td><td>  
-    <span class="gwt-CheckBox"><input type="checkbox" name="rb" ><label>Split: Bonuses</label></span>
-  </td></tr><tr><td>
-    <span class="gwt-CheckBox"><input type="checkbox" name="keys" checked=""><label>Shared: Dungeon Keys</label></span>
-  </td><td>  
-    <span class="gwt-CheckBox"><input type="checkbox" name="tp" checked=""><label>Split: Teleporters</label></span>
-  </td></tr><tr><td>
-    <span class="gwt-CheckBox"><input type="checkbox" name="teleporters" checked=""><label>Shared: Teleporters</label></span>
-  </td><td>  
-    <span class="gwt-CheckBox"><input type="checkbox" name="dk" checked=""><label>Split: Dungeon Keys</label></span>
-  </td></tr><tr><td></td><td>  
-    <span class="gwt-CheckBox"><input type="checkbox" name="hints"><label>Split: Hints</label></span>
+    <span class="gwt-CheckBox"><input type="checkbox" name="hints"><label>Hints (Cloned Seed Only)</label></span>
   </td></tr>
 </tbody></table>
 <table><tbody>
@@ -183,16 +173,15 @@ div {
   </td><td>
     <input type="text" name="seed" id="seedHolder" value=""/>
   </td></tr><tr><td>
-    <div  class="label">SyncId (leave this blank probably)</div>
+    <div  class="label">SyncId (optional)</div>
   </td><td>
     <input type="number" name="syncid" />
   </td></tr><tr><td>
-    <div  class="label">Game mode</div>
+    <div  class="label">Co-op game mode</div>
   </td><td>
     <select size="1" class="dropdown" name="syncmode">
-      <option selected="Selected">Shared</option>
-      <option>Split</option>
-      <option>None</option>
+      <option value="Shared" selected="Selected">Shared Pickups</option>
+      <option value="None">Tracking Only</option>
     </select>
   </td></tr><tr><td>
     <input type="button" value="Generate" onclick="beforeSubmit();" />

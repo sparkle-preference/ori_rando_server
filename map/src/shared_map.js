@@ -359,6 +359,13 @@ const picks_by_type = {
 ]};
 const stuff_types = [{value: "Skills", label: "Skills"}, {value: "Events", label: "Events"}, {value: "Upgrades", label: "Upgrades"}, {value: "Teleporters", label: "Teleporters"}, {value: "Experience", label: "Experience"}, 
 					 {value: "Cells and Stones", label: "Cells and Stones"}, {value: "Messages", label: "Messages"}, {value: "Custom", label: "Custom"}, {value: "Fill", label: "Fill"}];
+
+function name_from_str(pick) {
+	let parts = pick.split("|");
+	return pickup_name(parts[0],parts[1])
+}
+
+
 function pickup_name(code, id) {
 	let upgrade_names = {};
 	stuff_by_type["Upgrades"].forEach(s => {
@@ -568,10 +575,15 @@ function is_match(pickup, searchstr) {
 	searchstr = searchstr.toLowerCase();
 	return pickup.label.toLowerCase().includes(searchstr) || pickup.value.toLowerCase().includes(searchstr);
 } 
+
+function uniq(array) {
+    let seen = {};
+    return array.filter(item => seen.hasOwnProperty(item) ? false : (seen[item] = true));
+}
  
 const str_ids = ["TP", "NO", "SH"];
 const hide_opacity = .2;
 const seed_name_regex = new RegExp("^[^ ?=/]+$");
 export {PickupMarker, PickupMarkersList, download, pickup_icons, getStuffType, locs, picks_by_loc, getMapCrs, pickups, distance,
 		point, picks_by_type, picks_by_zone, zones, pickup_name, stuff_types, stuff_by_type, areas, picks_by_area, presets,
-		get_param, get_flag, get_int, get_list, get_seed, is_match, str_ids, hide_opacity, seed_name_regex };
+		get_param, get_flag, get_int, get_list, get_seed, is_match, str_ids, hide_opacity, seed_name_regex, uniq, name_from_str};
