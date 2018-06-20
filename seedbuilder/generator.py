@@ -264,7 +264,7 @@ class SeedGenerator:
 			if self.forcedAssignments:
 				reachable_forced_ass_locs = [l for l in currentLocations if l.get_key() in self.forcedAssignments]
 				for loc in reachable_forced_ass_locs:
-					self.force_assign(forcedAssignments[loc.get_key()], loc)
+					self.force_assign(self.forcedAssignments[loc.get_key()], loc)
 					currentLocations.remove(loc)
 				
 			locations.extend(currentLocations)
