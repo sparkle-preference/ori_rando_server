@@ -1229,7 +1229,6 @@
           <Requirement mode="extended">ChargeJump+Climb+Grenade</Requirement>
           <Requirement mode="extended">Bash+Grenade</Requirement>
           <Requirement mode="extended">DoubleJump</Requirement>
-          <Requirement mode="glitched">Free</Requirement>
         </Requirements>
       </Connection>
     </Connections>

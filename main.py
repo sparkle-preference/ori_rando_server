@@ -27,7 +27,7 @@ from util import (GameMode, ShareType, Pickup, Skill, Event, Teleporter, Upgrade
 				  delete_game, get_new_game, clean_old_games, all_locs)
 from reachable import Map, PlayerState
 
-PLANDO_VER = "0.5.0"
+PLANDO_VER = "0.5.1"
 debug = os.environ.get('SERVER_SOFTWARE', '').startswith('Dev')
 base_site = "http://orirandocoopserver.appspot.com" if not debug else "https://8080-dot-3616814-dot-devshell.appspot.com"
 
