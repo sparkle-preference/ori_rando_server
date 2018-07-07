@@ -23,8 +23,10 @@ class Card(object):
 	"Drown an amphibian",
 	"Drain the swamp",
 	"Kill an enemy with a baneling", 
-	"Escape the L4 Lava"
+	"Escape the L4 Lava",
+	"Beat the game"
 	]
+	
 	@staticmethod
 	def all_cards():
 		return [c.get() for c in Card.__subclasses__()] + Card.singletons
@@ -122,12 +124,22 @@ class CollectNUnderwater(Card):
 class EnterArea(Card):
 	@staticmethod
 	def get():
-		return "Enter %s" % choice(["Forlorn Ruins", "Lost Grove", "Sorrow Pass", "Misty Woods", "Ginso Tree"])
+		return "Enter %s" % choice(["Lost Grove", "Sorrow Pass", "Misty Woods"] + DUNGEONS)
+
+class EnterAreaXorY(Card):
+	@staticmethod
+	def get():
+		return "Enter %s or %s" % tuple(sample(["Lost Grove", "Sorrow Pass", "Misty Woods"] + DUNGEONS,2))
 
 class DungeonEscape(Card):
 	@staticmethod
 	def get():
-		return "Complete the %s escape" % choice(["Forlorn Ruins", "Ginso Tree"])
+		return "Complete the %s escape" % choice(DUNGEONS)
+
+class NEscapeS(Card):
+	@staticmethod
+	def get():
+		return "Complete %s dungeon escape(s)" % randint(1,3)
 
 class ActivateNTPs(Card):
 	@staticmethod
@@ -142,12 +154,12 @@ class StompPegXorY(Card):
 class ActivateNTrees(Card):
 	@staticmethod
 	def get():
-		return "Activate %s Trees" % randint(4,10)
+		return "Activate %s Trees" % (randint(2,5)+randint(1,3)+randint(0,2))
 
 class CollectNSkills(Card):
 	@staticmethod
 	def get():
-		return "Collect %s Skills" % randint(6,9)
+		return "Collect %s Skills" % (randint(2,6)+randint(1,3)+randint(0,1))
 
 class KillByLevelup(Card):
 	@staticmethod
@@ -227,4 +239,4 @@ class KillEnemyXorY(Card):
 class AltRAfter(Card):
 	@staticmethod
 	def get():
-		return "Alt-r after you Find %s" % choice(["1 Experience"]+SKILLS+EVENTS)
+		return "Alt-r immediately after you Find %s" % choice(["1 Experience"]+SKILLS+EVENTS)

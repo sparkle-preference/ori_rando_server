@@ -19,7 +19,7 @@ def split_seed(seed, gameId, player, max_players, hints=False, dk=True, sk=True,
 					if (outln[1] == "RB" and outln[2] in ["17", "19", "21"]) or (outln[1] == "EV" and outln[2] in ["0", "2", "4"]):
 						outln[2] = "@Dungeon Key@"
 					else:
-						outln[2] = "@%s@" % hint_text[outlin[1]]
+						outln[2] = "@%s@" % hint_text[outln[1]]
 					outln[1] = "SH"
 				else:
 					outln[1] = "EV"

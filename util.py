@@ -1,5 +1,6 @@
 from protorpc import messages
 from math import floor
+from collections import defaultdict
 from google.appengine.ext import ndb
 from google.appengine.ext.ndb import msgprop
 from datetime import datetime, timedelta
@@ -48,6 +49,28 @@ def url_from_share(share_types):
 class Cache(object):
 	pos = {}
 	hist = {}
+	lastSanCheck = {}
+
+	@staticmethod
+	def canSanCheck(gid):
+		gid = int(gid)
+		if gid not in Cache.lastSanCheck:
+			return True
+		return timedelta(seconds=10) < (datetime.now() - Cache.lastSanCheck[gid])
+
+	@staticmethod
+	def doSanCheck(gid):
+		gid = int(gid)
+		Cache.lastSanCheck[gid] = datetime.now()
+
+	@staticmethod
+	def setHist(gid, pid, hist):
+		gid = int(gid)
+		pid = int(pid)
+		newHists = Cache.hist[gid] if gid in Cache.hist else {}
+		newHists[pid] = hist
+		Cache.hist[gid] = newHists
+
 
 	@staticmethod
 	def getHist(gid):
@@ -67,13 +90,10 @@ class Cache(object):
 		gid = int(gid)
 		if gid in Cache.hist:
 			del Cache.hist[gid]
-		else:
-			return False
 		if gid in Cache.pos:
 			del Cache.pos[gid]
-		else:
-			return False
-		return True
+		if gid in Cache.lastSanCheck:
+			del Cache.lastSanCheck[gid]
 
 	@staticmethod
 	def removePlayer(gid, pid):
@@ -187,7 +207,7 @@ class Player(ndb.Model):
 	signals = ndb.StringProperty(repeated=True)
 	history = ndb.LocalStructuredProperty(HistoryLine, repeated=True)
 	bitfields = ndb.ComputedProperty(lambda p: ",".join([str(x) for x in [p.skills,p.events,p.upgrades,p.teleporters]+(["|".join(p.signals)] if p.signals else [])]))
-
+	
 	# post-refactor version of bitfields
 	def output(self):
 		outlines = [str(x) for x in [self.skills,self.events,self.teleporters]]
@@ -203,7 +223,49 @@ class Player(ndb.Model):
 	def signal_conf(self, signal):
 		self.signals.remove(signal)
 		self.put()
-				
+	
+	def give_pickup(self, pickup, remove=False, delay_put=False):
+		print self.key.id(), pickup, remove, delay_put
+		if pickup.code == "RB":
+			# handle upgrade refactor storage
+			pick_id = str(pickup.id)
+			if remove:
+				if pick_id in self.bonuses:
+					self.bonuses[pick_id] -= 1
+					if self.bonuses[pick_id] == 0:
+						del self.bonuses[pick_id]
+			else:
+				if pick_id in self.bonuses:
+					if not (pickup.max and self.bonuses[pick_id] >= pickup.max):
+						self.bonuses[pick_id] += 1
+				else:
+					self.bonuses[pick_id] = 1
+		# bitfields
+			self.upgrades = add_pickup_to_bitfield(self.upgrades, pickup, remove)
+		elif pickup.code == "SK":
+			self.skills = add_pickup_to_bitfield(self.skills, pickup, remove)
+		elif pickup.code == "TP":
+			self.teleporters = add_pickup_to_bitfield(self.teleporters, pickup, remove)
+		elif pickup.code == "EV":
+			self.events = add_pickup_to_bitfield(self.events, pickup, remove)
+		if delay_put:
+			return
+		return self.put()
+		
+	
+	def has_pickup(self, pickup):
+		if pickup.code == "RB":
+			pick_id = str(pickup.id)
+			return self.bonuses[pick_id] if pick_id in self.bonuses else 0
+		elif pickup.code == "SK":
+			return get_bit(self.skills, pickup.bit)
+		elif pickup.code == "TP":
+			return get_bit(self.teleporters, pickup.bit)
+		elif pickup.code == "EV":
+			return get_bit(self.events, pickup.bit)
+		else:
+			return 0
+
 
 class Game(ndb.Model):
 	# id = Sync ID	
@@ -245,6 +307,38 @@ class Game(ndb.Model):
 		self.players.remove(key)
 		key.delete()
 		self.put()
+		
+	def sanity_check(self):
+		if self.mode != GameMode.SHARED:
+			return
+		if not Cache.canSanCheck(self.key.id()):
+			print "WARNING: Skipping sanity check."
+			return
+		Cache.doSanCheck(self.key.id())
+		players = self.get_players()
+		hls = [hl for player in players for hl in player.history if hl.pickup().share_type in self.shared]
+		inv = defaultdict(lambda : 0)
+		for hl in hls:
+			inv[(hl.pickup_code,hl.pickup_id)] += -1 if hl.removed else 1
+		
+		for key, count in inv.iteritems():
+			pickup = Pickup.n(key[0], key[1])
+			for player in players:
+				has = player.has_pickup(pickup)
+				if has < count:
+					if has == 0 and count == 1:
+						print "ERROR: Player %s should have %s but did not. Fixing..." % (player.key.id(), pickup.name)
+					else: 
+						print "ERROR: Player %s should have had %s of %s but had %s instead. Fixing..." % (player.key.id(), count, pickup.name, has)
+					while(player.has_pickup(pickup) < count):
+						player.give_pickup(pickup, delay_put=True)
+				elif has > count:
+					print "ERROR: Player %s has too many %s! Fixing..." % (player.key.id(), pickup.name)
+					while(player.has_pickup(pickup) > count):
+						player.give_pickup(pickup, remove=True, delay_put=True)
+		
+		[player.put() for player in players]
+		
 
 	def player(self, pid):
 		full_pid = "%s.%s" % (self.key.id(), pid)
@@ -274,25 +368,10 @@ class Game(ndb.Model):
 				retcode = 406
 			else:
 				for player in self.get_players():
-					if pickup.code == "RB":
-						pick_id = str(pickup.id)
-						if remove and pid in player.bonuses:
-							player.bonuses[pick_id] -= 1
-							if player.bonuses[pick_id] == 0:
-								del player.bonuses[pick_id]
-						else:
-							if pick_id in player.bonuses:
-								if not (pickup.max and player.bonuses[pick_id] >= pickup.max):
-									player.bonuses[pick_id] += 1
-							else:
-								player.bonuses[pick_id] = 1
-					for (field, code) in [("skills", "SK"), ("upgrades", "RB"), ("teleporters", "TP"), ("events","EV")]:
-						if code == pickup.code:
-							if pickup.stacks:
-								setattr(player,field,inc_stackable(getattr(player,field), pickup.bit, remove))
-							else:
-								setattr(player,field,add_single(getattr(player,field), pickup.bit, remove))
-							player.put()
+					if player.key.id() != finder.key.id():
+						key = player.give_pickup(pickup, remove)
+				finder.give_pickup(pickup, remove)
+
 		elif self.mode == GameMode.SPLITSHARDS:
 			if pickup.code != "RB" or pickup.id not in [17, 19, 21]:
 				retcode = 406
@@ -344,7 +423,7 @@ coord_correction_map = {
 	679620: 719620,
 	-4560020: -4600020,
 	-520160: -560160,
-	-4199936: -4600020,
+#	-4199936: -4600020, Past me WHY, WHY DID YOU DO THIS
 	8599908: 8599904,
 	2959744: 2919744, 
 }
@@ -542,6 +621,12 @@ def get_taste(bits_int, bit):
 	bits = int_to_bits(bits_int,log_2[bit]+2)[-(2+log_2[bit]):][:2]
 	return 2*bits[0]+bits[1]
 
+def add_pickup_to_bitfield(bits_int, pickup, remove=False):
+	if pickup.stacks:
+		return inc_stackable(bits_int, pickup.bit, remove)
+	return add_single(bits_int, pickup.bit, remove)
+
+
 def add_single(bits_int, bit, remove=False):
 	if bit<0:
 		return bits_int
@@ -559,7 +644,6 @@ def inc_stackable(bits_int, bit, remove=False):
 		if get_taste(bits_int, bit) > 0:
 			return bits_int - bit
 		return bits_int
-
 	if get_taste(bits_int, bit) > 2:
 		return bits_int
 	return bits_int+bit

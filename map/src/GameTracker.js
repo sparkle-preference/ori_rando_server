@@ -6,9 +6,8 @@ import {Map, Tooltip, TileLayer, Marker, ZoomControl} from 'react-leaflet';
 import {Checkbox, CheckboxGroup} from 'react-checkbox-group';
 import {Radio, RadioGroup} from 'react-radio-group';
 import Leaflet from 'leaflet';
-import {picks_by_type, PickupMarkersList, pickup_icons, getMapCrs, presets, hide_opacity, uniq} from './shared_map.js';
+import {picks_by_type, PickupMarkersList, get_icon, getMapCrs, presets, hide_opacity, select_styles, uniq} from './shared_map.js';
 import Select from 'react-select';
-import 'react-select/dist/react-select.css';
 import {Button, Collapse} from 'reactstrap';
 import Control from 'react-leaflet-control';
 
@@ -161,7 +160,7 @@ function getPickupMarkers(state) {
 			let count = Object.keys(players).length
 			let x = pick.hasOwnProperty("_x") ? pick._x : pick.x
 			let y = pick.hasOwnProperty("_y") ? pick._y : pick.y
-			let icon = pick.hasOwnProperty("icon") ? pick.icon : pickup_icons[pre]
+			let icon = get_icon(pick)
 			if(count === 0) {
 				markers.push({key: pick.name+"|"+pick.x+","+pick.y, position: [y, x], inner: null, icon: icon})
 				continue
@@ -249,7 +248,7 @@ class GameTracker extends React.Component {
     let modeRaw = document.getElementsByClassName("logic-modes")[0].id
     let modes = (modeRaw !== "None") ? modeRaw.split(" ") : ['normal', 'speed', 'dboost-light', 'lure']
 
-    this.state = {players: {}, retries: 0, check_seen: 1, modes: modes, timeout: TIMEOUT_START, searchStr: "", pickup_display: "all", show_sidebar: true,
+    this.state = {mousePos: {lat: 0, lng: 0}, players: {}, retries: 0, check_seen: 1, modes: modes, timeout: TIMEOUT_START, searchStr: "", pickup_display: "all", show_sidebar: true,
     flags: ['show_pickups', 'update_in_bg'], viewport: DEFAULT_VIEWPORT, pickups: ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "Ma"],
     pathMode: 'standard', hideOpt: "all", display_logic: false};
   };
@@ -326,7 +325,7 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
 					<div id="logic-controls">
 						<div id="logic-presets">
 			      	<Button color="primary" onClick={this.toggleLogic} >Logic Presets:</Button>
-			      	<Select options={paths.map((n) => {return {label: n, value: n}})} onChange={this._onPathModeChange} clearable={false} value={this.state.pathMode} label={this.state.pathMode}></Select>
+			      	<Select styles={select_styles}  options={paths.map((n) => {return {label: n, value: n}})} onChange={this._onPathModeChange} clearable={false} value={this.state.pathMode} label={this.state.pathMode}></Select>
 						</div>
 						<Collapse id="logic-options-wrapper" isOpen={this.state.display_logic}>
 							<CheckboxGroup id="logic-options" checkboxDepth={2} name="modes" value={this.state.modes} onChange={this.modesChanged}>
@@ -375,7 +374,7 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
 		) : null
     return (
 			<div className="wrapper">
-		      	<Map crs={crs} zoomControl={false} onViewportChanged={this.onViewportChanged} viewport={this.state.viewport}>
+		      	<Map crs={crs} onMouseMove={(ev) => this.setState({mousePos: ev.latlng})} zoomControl={false} onViewportChanged={this.onViewportChanged} viewport={this.state.viewport}>
 		      	     <ZoomControl position="topright" />
 
 					<TileLayer url=' https://ori-tracker.firebaseapp.com/images/ori-map/{z}/{x}/{y}.png' noWrap='true' />
@@ -383,6 +382,7 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
 					<div>
 						{show_button}
 						<Button size="sm" onClick={() => this.setState({ viewport: DEFAULT_VIEWPORT })}>Reset View</Button>
+						<Button size="sm" color="disabled">{Math.round(this.state.mousePos.lng)},{Math.round(this.state.mousePos.lat)}</Button>
 					</div>
 					</Control>
 					{pickup_markers}

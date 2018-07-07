@@ -27,8 +27,87 @@ const pickup_icons = {
 	"EX": new Leaflet.Icon({iconUrl: '/sprites/xp.png', iconSize: new Leaflet.Point(24, 24)}),
 	"Pl": new Leaflet.Icon({iconUrl: '/sprites/plant.png', iconSize: new Leaflet.Point(16, 16)}),
 	"KS": new Leaflet.Icon({iconUrl: '/sprites/keystone.png', iconSize: new Leaflet.Point(24, 24)}),
-	"EV": false
+	"EVGinsoKey": new Leaflet.Icon({iconUrl: '/sprites/WaterVein.png', iconSize: new Leaflet.Point(24, 24)}),
+	"EVWater": new Leaflet.Icon({iconUrl: '/sprites/CleanWater.png', iconSize: new Leaflet.Point(24, 24)}),
+	"EVWind": new Leaflet.Icon({iconUrl: '/sprites/GumonSeal.png', iconSize: new Leaflet.Point(24, 24)}),
+	"EVForlornKey": new Leaflet.Icon({iconUrl: '/sprites/WindRestored.png', iconSize: new Leaflet.Point(24, 24)}),
+	"EVHoruKey": new Leaflet.Icon({iconUrl: '/sprites/Sunstone.png', iconSize: new Leaflet.Point(24, 24)}),
+	"EVWarmth": new Leaflet.Icon({iconUrl: '/sprites/WarmthReturned.png', iconSize: new Leaflet.Point(24, 24)}),
 };
+
+const blank_icon = new Leaflet.Icon({iconUrl: '/sprites/blank.png', iconSize: new Leaflet.Point(24, 24)});
+
+const icon_color = {
+	blue: {
+		"SK": new Leaflet.Icon({iconUrl: '/sprites/colors/skill-tree-blue.png', iconSize: new Leaflet.Point(32, 32), iconAnchor: new Leaflet.Point(0, 32)}),
+		"HC": new Leaflet.Icon({iconUrl: '/sprites/colors/health-cell-blue.png', iconSize: new Leaflet.Point(24, 24)}),
+		"AC": new Leaflet.Icon({iconUrl: '/sprites/colors/ability-cell-blue.png', iconSize: new Leaflet.Point(24, 24)}),
+		"EC": new Leaflet.Icon({iconUrl: '/sprites/colors/energy-cell-blue.png', iconSize: new Leaflet.Point(24, 24)}),
+		"MS": new Leaflet.Icon({iconUrl: '/sprites/colors/map-fragment-blue.png', iconSize: new Leaflet.Point(24, 24)}),
+		"Ma": new Leaflet.Icon({iconUrl: '/sprites/colors/map-stone-blue.png', iconSize: new Leaflet.Point(24, 24)}),
+		"EX": new Leaflet.Icon({iconUrl: '/sprites/colors/xp-blue.png', iconSize: new Leaflet.Point(24, 24)}),
+		"Pl": new Leaflet.Icon({iconUrl: '/sprites/colors/plant-blue.png', iconSize: new Leaflet.Point(16, 16)}),
+		"KS": new Leaflet.Icon({iconUrl: '/sprites/colors/keystone-blue.png', iconSize: new Leaflet.Point(24, 24)}),
+		"EVGinsoKey": new Leaflet.Icon({iconUrl: '/sprites/colors/WaterVein-blue.png', iconSize: new Leaflet.Point(24, 24)}),
+		"EVWater": new Leaflet.Icon({iconUrl: '/sprites/colors/CleanWater-blue.png', iconSize: new Leaflet.Point(24, 24)}),
+		"EVWind": new Leaflet.Icon({iconUrl: '/sprites/colors/GumonSeal-blue.png', iconSize: new Leaflet.Point(24, 24)}),
+		"EVForlornKey": new Leaflet.Icon({iconUrl: '/sprites/colors/WindRestored-blue.png', iconSize: new Leaflet.Point(24, 24)}),
+		"EVHoruKey": new Leaflet.Icon({iconUrl: '/sprites/colors/Sunstone-blue.png', iconSize: new Leaflet.Point(24, 24)}),
+		"EVWarmth": new Leaflet.Icon({iconUrl: '/sprites/colors/WarmthReturned-blue.png', iconSize: new Leaflet.Point(24, 24)}),
+	},
+	red: {
+		"SK": new Leaflet.Icon({iconUrl: '/sprites/colors/skill-tree-red.png', iconSize: new Leaflet.Point(32, 32), iconAnchor: new Leaflet.Point(0, 32)}),
+		"HC": new Leaflet.Icon({iconUrl: '/sprites/colors/health-cell-red.png', iconSize: new Leaflet.Point(24, 24)}),
+		"AC": new Leaflet.Icon({iconUrl: '/sprites/colors/ability-cell-red.png', iconSize: new Leaflet.Point(24, 24)}),
+		"EC": new Leaflet.Icon({iconUrl: '/sprites/colors/energy-cell-red.png', iconSize: new Leaflet.Point(24, 24)}),
+		"MS": new Leaflet.Icon({iconUrl: '/sprites/colors/map-fragment-red.png', iconSize: new Leaflet.Point(24, 24)}),
+		"Ma": new Leaflet.Icon({iconUrl: '/sprites/colors/map-stone-red.png', iconSize: new Leaflet.Point(24, 24)}),
+		"EX": new Leaflet.Icon({iconUrl: '/sprites/colors/xp-red.png', iconSize: new Leaflet.Point(24, 24)}),
+		"Pl": new Leaflet.Icon({iconUrl: '/sprites/colors/plant-red.png', iconSize: new Leaflet.Point(16, 16)}),
+		"KS": new Leaflet.Icon({iconUrl: '/sprites/colors/keystone-red.png', iconSize: new Leaflet.Point(24, 24)}),
+		"EVGinsoKey": new Leaflet.Icon({iconUrl: '/sprites/colors/WaterVein-red.png', iconSize: new Leaflet.Point(24, 24)}),
+		"EVWater": new Leaflet.Icon({iconUrl: '/sprites/colors/CleanWater-red.png', iconSize: new Leaflet.Point(24, 24)}),
+		"EVWind": new Leaflet.Icon({iconUrl: '/sprites/colors/GumonSeal-red.png', iconSize: new Leaflet.Point(24, 24)}),
+		"EVForlornKey": new Leaflet.Icon({iconUrl: '/sprites/colors/WindRestored-red.png', iconSize: new Leaflet.Point(24, 24)}),
+		"EVHoruKey": new Leaflet.Icon({iconUrl: '/sprites/colors/Sunstone-red.png', iconSize: new Leaflet.Point(24, 24)}),
+		"EVWarmth": new Leaflet.Icon({iconUrl: '/sprites/colors/WarmthReturned-red.png', iconSize: new Leaflet.Point(24, 24)}),
+	},
+	green: {
+		"SK": new Leaflet.Icon({iconUrl: '/sprites/colors/skill-tree-green.png', iconSize: new Leaflet.Point(32, 32), iconAnchor: new Leaflet.Point(0, 32)}),
+		"HC": new Leaflet.Icon({iconUrl: '/sprites/colors/health-cell-green.png', iconSize: new Leaflet.Point(24, 24)}),
+		"AC": new Leaflet.Icon({iconUrl: '/sprites/colors/ability-cell-green.png', iconSize: new Leaflet.Point(24, 24)}),
+		"EC": new Leaflet.Icon({iconUrl: '/sprites/colors/energy-cell-green.png', iconSize: new Leaflet.Point(24, 24)}),
+		"MS": new Leaflet.Icon({iconUrl: '/sprites/colors/map-fragment-green.png', iconSize: new Leaflet.Point(24, 24)}),
+		"Ma": new Leaflet.Icon({iconUrl: '/sprites/colors/map-stone-green.png', iconSize: new Leaflet.Point(24, 24)}),
+		"EX": new Leaflet.Icon({iconUrl: '/sprites/colors/xp-green.png', iconSize: new Leaflet.Point(24, 24)}),
+		"Pl": new Leaflet.Icon({iconUrl: '/sprites/colors/plant-green.png', iconSize: new Leaflet.Point(16, 16)}),
+		"KS": new Leaflet.Icon({iconUrl: '/sprites/colors/keystone-green.png', iconSize: new Leaflet.Point(24, 24)}),
+		"EVGinsoKey": new Leaflet.Icon({iconUrl: '/sprites/colors/WaterVein-green.png', iconSize: new Leaflet.Point(24, 24)}),
+		"EVWater": new Leaflet.Icon({iconUrl: '/sprites/colors/CleanWater-green.png', iconSize: new Leaflet.Point(24, 24)}),
+		"EVWind": new Leaflet.Icon({iconUrl: '/sprites/colors/GumonSeal-green.png', iconSize: new Leaflet.Point(24, 24)}),
+		"EVForlornKey": new Leaflet.Icon({iconUrl: '/sprites/colors/WindRestored-green.png', iconSize: new Leaflet.Point(24, 24)}),
+		"EVHoruKey": new Leaflet.Icon({iconUrl: '/sprites/colors/Sunstone-green.png', iconSize: new Leaflet.Point(24, 24)}),
+		"EVWarmth": new Leaflet.Icon({iconUrl: '/sprites/colors/WarmthReturned-green.png', iconSize: new Leaflet.Point(24, 24)}),
+	}
+};
+
+
+function get_icon(pick, color = null) {
+	let iconGroup = pickup_icons;
+
+	if(color && icon_color.hasOwnProperty(color))
+		iconGroup = icon_color[color];
+
+	if(iconGroup.hasOwnProperty(pick.name))
+		return iconGroup[pick.name];
+
+	let prefix = pick.name.substr(0, 2);
+	if(iconGroup.hasOwnProperty(prefix ))
+		return iconGroup[prefix];
+
+	console.log("no icon found!");
+	return blank_icon;
+}
 
 function getMapCrs() {
 	let swampTeleporter = point(493.719818, -74.31961);
@@ -253,12 +332,12 @@ const picks_by_type = {
 	{'loc': 3199820, 'name': 'HC', 'zone': 'Grove', 'area': 'DeathGauntletRoof', 'y': -179, 'x': 321},
 	{'loc': 1599920, 'name': 'HC', 'zone': 'Grove', 'area': 'HoruFieldsStomp', 'y': -78, 'x': 160},
 ], "EV": [
-	{'loc': 0, 'name': 'EVGinsoKey', 'zone': 'Grotto', 'area': 'MobileGumoHideout', 'y': 0, 'x': 0, 'icon': new Leaflet.Icon({iconUrl: '/sprites/WaterVein.png', iconSize: new Leaflet.Point(24,24)}), '_x': 500, '_y': -244},
-	{'loc': 4, 'name': 'EVWater', 'zone': 'Ginso', 'area': 'GinsoEscape', 'y': 4, 'x': 0, 'icon': new Leaflet.Icon({iconUrl: '/sprites/CleanWater.png', iconSize: new Leaflet.Point(24,24)}), '_x': 525, '_y': 980},
-	{'loc': 12, 'name': 'EVWind', 'zone': 'Forlorn', 'area': 'RightForlorn', 'y': 12, 'x': 0, 'icon': new Leaflet.Icon({iconUrl: '/sprites/WindRestored.png', iconSize: new Leaflet.Point(24,24)}), '_x': -735, '_y': -225},
-	{'loc': 8, 'name': 'EVForlornKey', 'zone': 'Misty', 'area': 'MistyEnd', 'y': 8, 'x': 0, 'icon': new Leaflet.Icon({iconUrl: '/sprites/GumonSeal.png', iconSize: new Leaflet.Point(24,24)}), '_x': -720, '_y': -20},
-	{'loc': 16, 'name': 'EVHoruKey', 'zone': 'Sorrow', 'area': 'Sunstone', 'y': 16, 'x': 0, 'icon': new Leaflet.Icon({iconUrl: '/sprites/Sunstone.png', iconSize: new Leaflet.Point(24,24)}), '_x':-560, '_y':  607},
-	{'loc': 20, 'name': 'EVWarmth', 'zone': 'Horu', 'area': 'End', 'y': 20, 'x': 0, 'icon': new Leaflet.Icon({iconUrl: '/sprites/WarmthReturned.png', iconSize: new Leaflet.Point(24,24)}), '_x': -220, '_y': 504},
+	{'loc': 0, 'name': 'EVGinsoKey', 'zone': 'Grotto', 'area': 'MobileGumoHideout', 'y': 0, 'x': 0, '_x': 500, '_y': -244},
+	{'loc': 4, 'name': 'EVWater', 'zone': 'Ginso', 'area': 'GinsoEscape', 'y': 4, 'x': 0, '_x': 525, '_y': 980},
+	{'loc': 12, 'name': 'EVWind', 'zone': 'Forlorn', 'area': 'RightForlorn', 'y': 12, 'x': 0, '_x': -735, '_y': -225},
+	{'loc': 8, 'name': 'EVForlornKey', 'zone': 'Misty', 'area': 'MistyEnd', 'y': 8, 'x': 0, '_x': -720, '_y': -20},
+	{'loc': 16, 'name': 'EVHoruKey', 'zone': 'Sorrow', 'area': 'Sunstone', 'y': 16, 'x': 0, '_x':-560, '_y':  607},
+	{'loc': 20, 'name': 'EVWarmth', 'zone': 'Horu', 'area': 'End', 'y': 20, 'x': 0, '_x': -220, '_y': 504},
 ], "Pl": [
 	{'loc': 1240020, 'name': 'Plant', 'zone': 'Grove', 'area': 'HoruFieldsEnergyPlant', 'y': 21, 'x': 124},
 	{'loc': 4439632, 'name': 'Plant', 'zone': 'Grotto', 'area': 'MobileGumoHideoutPlants', 'y': -368, 'x': 447},
@@ -577,13 +656,22 @@ function is_match(pickup, searchstr) {
 } 
 
 function uniq(array) {
-    let seen = {};
-    return array.filter(item => seen.hasOwnProperty(item) ? false : (seen[item] = true));
+    let seen = [];
+    return array.filter(item => seen.includes(item) ? false : (seen.push(item) && true));
 }
  
 const str_ids = ["TP", "NO", "SH"];
 const hide_opacity = .2;
 const seed_name_regex = new RegExp("^[^ ?=/]+$");
-export {PickupMarker, PickupMarkersList, download, pickup_icons, getStuffType, locs, picks_by_loc, getMapCrs, pickups, distance,
-		point, picks_by_type, picks_by_zone, zones, pickup_name, stuff_types, stuff_by_type, areas, picks_by_area, presets,
+const select_styles = {
+  option: (base, state) => ({
+    ...base,
+    borderBottom: '1px dotted pink',
+    color: 'black',
+  }),
+  }
+const select_wrap = (items) => items.map((item) => {return {label: item, value: item}})
+
+export {PickupMarker, PickupMarkersList, download, getStuffType, locs, picks_by_loc, getMapCrs, pickups, distance, get_icon, select_wrap,
+		point, picks_by_type, picks_by_zone, zones, pickup_name, stuff_types, stuff_by_type, areas, picks_by_area, presets, select_styles,
 		get_param, get_flag, get_int, get_list, get_seed, is_match, str_ids, hide_opacity, seed_name_regex, uniq, name_from_str};

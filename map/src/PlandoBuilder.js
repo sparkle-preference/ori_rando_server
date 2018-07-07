@@ -6,13 +6,13 @@ import Leaflet from 'leaflet';
 import {NotificationContainer, NotificationManager} from 'react-notifications';
 import {Checkbox, CheckboxGroup} from 'react-checkbox-group';
 import {download, getStuffType, stuff_types, stuff_by_type, picks_by_type, picks_by_loc, picks_by_zone, presets,
-		picks_by_area, zones,  pickup_name, PickupMarkersList, pickup_icons, getMapCrs, hide_opacity,
-		get_param, get_flag, get_int, get_list, get_seed, is_match, str_ids} from './shared_map.js';
+		picks_by_area, zones,  pickup_name, PickupMarkersList, get_icon, getMapCrs, hide_opacity, select_wrap,
+		get_param, get_flag, get_int, get_list, get_seed, is_match, str_ids, select_styles} from './shared_map.js';
 import NumericInput from 'react-numeric-input';
 import Select from 'react-select';
-import 'react-select/dist/react-select.css';
 import 'react-notifications/lib/notifications.css';
 import {Alert, Button, ButtonGroup, Collapse} from 'reactstrap';
+import Control from 'react-leaflet-control';
 NumericInput.style.input.width = '100%';
 NumericInput.style.input.height = '36px';
 
@@ -30,7 +30,6 @@ const DEFAULT_VIEWPORT = {
 	  zoom: 4,
 	}
 
-const select_wrap = (items) => items.map((item) => {return {label: item, value: item}})
 const SEED_FLAGS = ["shards", "clues", "forcetrees", "ohko", "discmaps", "custom", "forcemapstones", "forcerandomescape", "hardmode"]
 const modes_by_key = {"Shared": "Shared", "None": "Solo", "Split": "Shards Race", "Swap": "Swap"}
 const COOP_MODES = Object.keys(modes_by_key).map((k) => { return {label: modes_by_key[k], value: k} });
@@ -56,7 +55,7 @@ function getPickupMarkers(state, setSelected, searchStr) {
 		picks_by_type[pre].forEach((pick) => {
 			let x = pick.hasOwnProperty("_x") ? pick._x : pick.x
 			let y = pick.hasOwnProperty("_y") ? pick._y : pick.y
-			let icon = pick.hasOwnProperty("icon") ? pick.icon : pickup_icons[pre]
+			let icon = get_icon(pick)
 			let show = !(skip_danger && DANGEROUS.includes(pick.loc));
 			if(hide_unreachable && !reachable.includes(pick.area))
 						show = false;
@@ -188,7 +187,7 @@ class PlandoBuiler extends React.Component {
 	    let pickup = {label: pick.name+"("+pick.x + "," + pick.y +")",value: pick}
 	    lastSelected['Glades'] = pickup
 	
-		this.setState({zone: zone, pickup: pickup, modes: modes, lastSelected: lastSelected, logicMode: logicMode, pathMode: pathmode, logic_helper_mode: spoiler_mode,
+		this.setState({mousePos: {lat: 0, lng: 0}, zone: zone, pickup: pickup, modes: modes, lastSelected: lastSelected, logicMode: logicMode, pathMode: pathmode, logic_helper_mode: spoiler_mode,
 			    	  manual_reach: manual_reach, stuff_type: "Cells and Stones", stuff: {value: "KS|1", label: "Keystone"}, authed: get_flag("authed")})
 	
 	};
@@ -633,7 +632,7 @@ class PlandoBuiler extends React.Component {
 			stuff_select = (
 				<div className="pickup-wrapper">
 					<span className="label">Pickup: </span>
-					<Select clearable={false} options={stuff} onChange={this._onSelectStuff} value={this.state.stuff.value} label={this.state.stuff.label}></Select>
+					<Select styles={select_styles}  isClearable={false} options={stuff} onChange={this._onSelectStuff} value={this.state.stuff.value} label={this.state.stuff.label}/>
 				</div>
 			);
 		} else if(this.state.stuff_type === "Experience") {
@@ -688,9 +687,13 @@ class PlandoBuiler extends React.Component {
 		}
 		return (
 			<div className="wrapper">
-				<Map crs={crs} zoomControl={false} onViewportChanged={this.onViewportChanged} viewport={this.state.viewport}>
+				<Map crs={crs} onMouseMove={(ev) => this.setState({mousePos: ev.latlng})} zoomControl={false} onViewportChanged={this.onViewportChanged} viewport={this.state.viewport}>
 			        <ZoomControl position="topright" />
-	
+					<Control position="topleft" >
+					<div>
+						<Button size="sm" color="disabled">{Math.round(this.state.mousePos.lng)},{Math.round(this.state.mousePos.lat)}</Button>
+					</div>
+					</Control>	
 					<TileLayer url=' https://ori-tracker.firebaseapp.com/images/ori-map/{z}/{x}/{y}.png' noWrap='true'  />
 					{pickup_markers}
 			        <NotificationContainer/>
@@ -716,22 +719,22 @@ class PlandoBuiler extends React.Component {
 					<div id="pickup-controls">
 						<div className="pickup-wrapper">
 							<span className="label">Seed Flags: </span>
-							<Select options={select_wrap(SEED_FLAGS)} onChange={(n) => this.setState({seedFlags: n})} multi={true} value={this.state.seedFlags} label={this.state.seedFlags}></Select>
+							<Select styles={select_styles} options={select_wrap(SEED_FLAGS)} onChange={(n) => this.setState({seedFlags: n})} isMulti={true} value={this.state.seedFlags} label={this.state.seedFlags}/>
 						</div>
 					</div>
 					<hr style={{ backgroundColor: 'grey', height: 2 }}/>
 					<div id="pickup-controls">
 				 		<div className="pickup-wrapper">
 							<span className="label">Zone:</span>
-							<Select options={zone_opts} onChange={this._onSelectZone} clearable={false} value={this.state.zone} label={this.state.zone}></Select>
+							<Select styles={select_styles} options={zone_opts} onChange={this._onSelectZone} clearable={false} value={this.state.zone} label={this.state.zone}></Select>
 						</div>
 						<div className="pickup-wrapper">
 							<span className="label">Location: </span>
-							<Select options={pickups_opts} onChange={this.selectPickup} clearable={false} value={this.state.pickup} label={this.state.pickup.name+"("+this.state.pickup.x + "," + this.state.pickup.y +")"}></Select>
+							<Select styles={select_styles}   options={pickups_opts} onChange={this.selectPickup} clearable={false} value={this.state.pickup} label={this.state.pickup.name+"("+this.state.pickup.x + "," + this.state.pickup.y +")"}></Select>
 						</div>
 						<div className="pickup-wrapper">
 							<span className="label">Pickup Type: </span>
-							<Select options={stuff_types} style={{maxHeight: "1000px"}} onChange={this._onSelectStuffType} clearable={false} value={this.state.stuff_type} label={this.state.stuff_type}></Select>
+							<Select styles={select_styles}   options={stuff_types} style={{maxHeight: "1000px"}} onChange={this._onSelectStuffType} clearable={false} value={this.state.stuff_type} label={this.state.stuff_type}></Select>
 						</div>
 						{stuff_select}
 					</div>
@@ -766,10 +769,6 @@ class PlandoBuiler extends React.Component {
 									<NumericInput min={0} value={this.state.manual_reach.EC} onChange={(n) => this.updateManual("EC",n)}></NumericInput>
 								</div>
 								<div className="manual-wrapper">
-									<span className="label">Ability Cells:</span>
-									<NumericInput min={0} value={this.state.manual_reach.AC} onChange={(n) => this.updateManual("AC",n)}></NumericInput>
-								</div>
-								<div className="manual-wrapper">
 									<span className="label">Keystones:</span>
 									<NumericInput min={0} value={this.state.manual_reach.KS} onChange={(n) => this.updateManual("KS",n)}></NumericInput>
 								</div>
@@ -778,16 +777,15 @@ class PlandoBuiler extends React.Component {
 									<NumericInput min={0} value={this.state.manual_reach.MS} onChange={(n) => this.updateManual("MS",n)}></NumericInput>
 								</div>
 								<div className="manual-wrapper">
-									<span className="label">Skills:</span>
-									<Select options={stuff_by_type["Skills"]} onChange={(n) => this.updateManual("skills", n)} multi={true} value={this.state.manual_reach.skills} label={this.state.manual_reach.skills}></Select>
+									<Select styles={select_styles} placeholder="Skills" options={stuff_by_type["Skills"]} onChange={(n) => this.updateManual("skills", n)} multi={true} value={this.state.manual_reach.skills} label={this.state.manual_reach.skills}></Select>
 								</div>
 								<div className="manual-wrapper">
 									<span className="label">Teleporters:</span>
-									<Select options={stuff_by_type["Teleporters"]} onChange={(n) => this.updateManual("tps", n)} multi={true} value={this.state.manual_reach.tps} label={this.state.manual_reach.tps}></Select>
+									<Select styles={select_styles} placeholder="Teleporters" options={stuff_by_type["Teleporters"]} onChange={(n) => this.updateManual("tps", n)} multi={true} value={this.state.manual_reach.tps} label={this.state.manual_reach.tps}></Select>
 								</div>
 								<div className="manual-wrapper">
 									<span className="label">Events:</span>
-									<Select options={stuff_by_type["Events"]} onChange={(n) => this.updateManual("events", n)} multi={true} value={this.state.manual_reach.events} label={this.state.manual_reach.events}></Select>
+									<Select styles={select_styles} placeholder="Events" options={stuff_by_type["Events"]} onChange={(n) => this.updateManual("events", n)} multi={true} value={this.state.manual_reach.events} label={this.state.manual_reach.events}></Select>
 								</div>
 							</Collapse>
 						</div>
@@ -795,7 +793,7 @@ class PlandoBuiler extends React.Component {
 						<div id="logic-mode-controls">
 							<div id="logic-presets">
 								<Button color="primary" onClick={this.toggleLogic} >Logic Paths:</Button>
-								<Select options={paths.map((n) => {return {label: n, value: n}})} onChange={this._onPathModeChange} clearable={false} value={this.state.pathMode} label={this.state.pathMode}></Select>
+								<Select styles={select_styles}   options={paths.map((n) => {return {label: n, value: n}})} onChange={this._onPathModeChange} clearable={false} value={this.state.pathMode} label={this.state.pathMode}></Select>
 							</div>
 							<Collapse id="logic-options-wrapper" isOpen={this.state.display_logic}>
 								<CheckboxGroup id="logic-options" checkboxDepth={2} name="modes" value={this.state.modes} onChange={this.modesChanged}>
@@ -823,16 +821,16 @@ class PlandoBuiler extends React.Component {
 						<div className="basic-coop-options">
 							<Button color="primary" onClick={this.toggleCoop}>Multiplayer Controls</Button>
 							<span className="label">Player: </span>
-							<Select className="player-select" options={select_wrap(Object.keys(this.state.placements))} onChange={(n) => this.setState({player: n.value})} clearable={false} value={this.state.player} label={this.state.player}></Select>
+							<Select styles={select_styles}   className="player-select" options={select_wrap(Object.keys(this.state.placements))} onChange={(n) => this.setState({player: n.value})} clearable={false} value={this.state.player} label={this.state.player}></Select>
 						</div>
 						<Collapse id="coop-wrapper" isOpen={this.state.display_coop}>
 				 			<div className="coop-select-wrapper">
 								<span className="label">Mode: </span>
-								<Select options={COOP_MODES} onChange={(n) => this.setState({coop_mode: n})} clearable={false} value={this.state.coop_mode.value} label={this.state.coop_mode.label}></Select>
+								<Select styles={select_styles}   options={COOP_MODES} onChange={(n) => this.setState({coop_mode: n})} clearable={false} value={this.state.coop_mode.value} label={this.state.coop_mode.label}></Select>
 							</div>
 				 			<div className="coop-select-wrapper">
 								<span className="label">Shared: </span>
-								<Select options={select_wrap(SHARE_TYPES)} onChange={(n) => this.setState({share_types: n})} clearable={false} multi={true} value={this.state.share_types} label={this.state.share_types}></Select>
+								<Select styles={select_styles}   options={select_wrap(SHARE_TYPES)} onChange={(n) => this.setState({share_types: n})} clearable={false} multi={true} value={this.state.share_types} label={this.state.share_types}></Select>
 							</div>
 							<div>
 								<Button color="primary" onClick={this.addPlayer}>Add Player</Button>

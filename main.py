@@ -442,6 +442,8 @@ class SetSeed(webapp2.RequestHandler):
 			shared = shared_opt[0] if shared_opt else None
 			game = get_new_game(_mode=mode, _shared=shared, id=game_id)
 			game.put()
+		else:
+			game.sanity_check() # cheap if game is short!
 		for l in lines[1:]:
 			line = l.split("|")
 			if len(line) < 3:

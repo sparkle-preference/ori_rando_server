@@ -2,7 +2,6 @@ import './bootstrap.cyborg.min.css';
 import './index.css';
 import React from 'react';
 import {get_param, get_int, get_seed, seed_name_regex } from './shared_map.js';
-import 'react-select/dist/react-select.css';
 import { confirmAlert } from 'react-confirm-alert'; // Import
 import 'react-confirm-alert/src/react-confirm-alert.css' // Import css
 import {Button} from 'reactstrap';
@@ -49,15 +48,27 @@ export default class SeedDisplayPage extends React.Component {
     	}
     	let rename_copy = ((this.state.rename_to !== this.state.seed_name) && (seed_name_regex.test(this.state.rename_to))) ? (
 			<div>
-				<Button color="primary" onClick={() => { window.location.href = url + "/rename/" + this.state.rename_to }} >Rename</Button>
-	 			<Button color="primary" onClick={() => { window.location.href = url + "/rename/" + this.state.rename_to + "?cp=1"}} >Copy</Button>
-				<input type="text" value={this.state.rename_to} onChange={event => this.setState({rename_to: event.target.value})} />
+				<table><tbody>
+					<tr><td>
+						<Button color="primary" onClick={() => { window.location.href = url + "/rename/" + this.state.rename_to }} >Rename</Button>
+					</td><td>
+			 			<Button color="primary" onClick={() => { window.location.href = url + "/rename/" + this.state.rename_to + "?cp=1"}} >Copy</Button>
+					</td><td>
+						<input type="text" value={this.state.rename_to} onChange={event => this.setState({rename_to: event.target.value})} />
+					</td></tr>
+				</tbody></table>
 			</div>
     	) : (
 			<div>
-				<Button color="disabled" onClick={() => { alert("Please enter a new name"); }} >Rename</Button>
-	 			<Button color="disabled" onClick={() => { alert("Please enter a new name"); }} >Copy</Button>
-				<input type="text" value={this.state.rename_to} onChange={event => this.setState({rename_to: event.target.value})} />
+				<table><tbody>
+					<tr><td>
+						<Button color="disabled" onClick={() => { alert("Please enter a new name"); }} >Rename</Button>
+					</td><td>
+			 			<Button color="disabled" onClick={() => { alert("Please enter a new name"); }} >Copy</Button>
+					</td><td>
+						<input type="text" value={this.state.rename_to} onChange={event => this.setState({rename_to: event.target.value})} />
+					</td></tr>
+				</tbody></table>
 			</div>
     	)
     	let hide_button = this.state.hidden ? (
@@ -69,9 +80,15 @@ export default class SeedDisplayPage extends React.Component {
 		<div>
 				{rename_copy}
 			<div>
-				<Button color="danger" onClick={() => this.conf_delete()} >Delete</Button>
-				<Button color="primary" onClick={() => { window.location.href = url + "/edit"}} >Edit</Button>
-				{hide_button}
+				<table><tbody>
+					<tr><td>
+						<Button color="danger" onClick={() => this.conf_delete()} >Delete</Button>
+					</td><td>
+						<Button color="primary" onClick={() => { window.location.href = url + "/edit"}} >Edit</Button>
+					</td><td>
+						{hide_button}
+					</td></tr>
+				</tbody></table>
 			</div>
 		</div>	
 			) : null
