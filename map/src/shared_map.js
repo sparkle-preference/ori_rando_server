@@ -544,6 +544,7 @@ const stuff_by_type = {
 		{label: "Water Vein Shard", value: "RB|17"},
 		{label: "Gumon Seal Shard", value: "RB|19"},
 		{label: "Sunstone Shard", value: "RB|21"},
+		{label: "Warmth Fragment", value: "RB|28"},
 		{label: "Bleeding", value: "RB|30"},
 		{label: "Lifesteal", value: "RB|31"},
 		{label: "Manavamp", value: "RB|32"},
@@ -578,7 +579,7 @@ const presets = {
         "hard": ["normal", "speed", "lure",  "dboost-light", "cdash", "dbash", "extended"],
         "ohko": ["normal", "speed", "lure", "cdash", "dbash", "extended"],
         "0xp": ["normal", "speed", "lure", "dboost-light"],
-        "glitched": ["normal", "speed", "lure", "speed-lure", "dboost", "dboost-light", "dboost-hard", "cdash", "dbash", "extended", "lure-hard", "timed-level", "glitched", "extended-damage", "extreme"]
+        "glitched": ["normal", "speed", "dboost-light", "dboost", "lure", "speed-lure", "lure-hard", "dboost-hard", "extended", "extended-damage", "dbash", "cdash", "extreme", "timed-level", "glitched", "cdash-farming"]
     };
 
 const pickups = [];
@@ -670,8 +671,18 @@ const select_styles = {
     color: 'black',
   }),
   }
-const select_wrap = (items) => items.map((item) => {return {label: item, value: item}})
+const select_wrap = x => Array.isArray(x) ? x.map(select_wrap) : {label: x, value: x}
+function listSwap(list, items)
+{
+	items.forEach(item => {
+		if(list.includes(item))
+			list = list.filter(i => i !== item);
+		else
+			list = list.concat(item);
+	})
+	return list
+}
 
 export {PickupMarker, PickupMarkersList, download, getStuffType, locs, picks_by_loc, getMapCrs, pickups, distance, get_icon, select_wrap,
 		point, picks_by_type, picks_by_zone, zones, pickup_name, stuff_types, stuff_by_type, areas, picks_by_area, presets, select_styles,
-		get_param, get_flag, get_int, get_list, get_seed, is_match, str_ids, hide_opacity, seed_name_regex, uniq, name_from_str};
+		get_param, get_flag, get_int, get_list, get_seed, is_match, str_ids, hide_opacity, seed_name_regex, uniq, name_from_str, listSwap};

@@ -1,16 +1,16 @@
-import './bootstrap.cyborg.min.css';
 import './index.css';
 import React from 'react';
 import { ZoomControl, Map, Tooltip, TileLayer} from 'react-leaflet';
 import Leaflet from 'leaflet';
 import {Checkbox, CheckboxGroup} from 'react-checkbox-group';
 import {stuff_by_type, picks_by_type, presets, picks_by_area, pickup_name, PickupMarkersList, get_icon, getMapCrs, 
-		name_from_str, get_param, get_int, get_list, str_ids, select_styles, select_wrap} from './shared_map.js';
+		name_from_str, get_param, get_int, get_list, str_ids, select_styles, select_wrap, listSwap} from './shared_map.js';
 import NumericInput from 'react-numeric-input';
 import Select from 'react-select';
 import {Button, ButtonGroup, Collapse} from 'reactstrap';
 import Control from 'react-leaflet-control';
 import Dropzone from 'react-dropzone'
+import {Helmet} from 'react-helmet';
 
 NumericInput.style.input.width = '100%';
 NumericInput.style.input.height = '36px';
@@ -103,16 +103,6 @@ Object.keys(stuff_by_type).forEach(group => {
 	});
 });
 
-function listSwap(list, items)
-{
-	items.forEach(item => {
-		if(list.includes(item))
-			list = list.filter(i => i !== item);
-		else
-			list = list.concat(item);
-	})
-	return list
-}
 function getInventory(state) {
 	let activeAreas = state.reachable;
 	let placements = state.placements;
@@ -462,6 +452,11 @@ class LogicHelper extends React.Component {
 		return (
 	      <Dropzone className="wrapper" disableClick onDrop={this.onDrop} onDragEnter={this.onDragEnter} onDragLeave={this.onDragLeave} >
           { dropzoneActive && <div style={overlayStyle}>Import your randomizer.dat to begin analysis</div> }
+	            <Helmet>
+	                <style>{'body { background-color: black}'}</style>
+					<link rel="stylesheet" href="https://unpkg.com/leaflet@1.3.1/dist/leaflet.css" integrity="sha512-Rksm5RenBEKSKFjgI3a41vrjkw4EVPlJ3+OiI65vTjIdo9brlAacEuKOiQ5OFh7cOI1bkDwLqdLw3Zg0cRJAAQ==" crossorigin=""/>
+	            </Helmet>
+
 				<Map crs={crs} ref="map" zoomControl={false} onMouseMove={(ev) => this.setState({mousePos: ev.latlng})} onViewportChanged={this.onViewportChanged} viewport={this.state.viewport}>
 			        <ZoomControl position="topright" />
 					<Control position="topleft" >
@@ -508,13 +503,13 @@ class LogicHelper extends React.Component {
 									<NumericInput min={0} value={this.state.manual_reach.MS} onChange={(n) => this.updateManual("MS",n)}></NumericInput>
 								</div>
 								<div className="manual-wrapper">
-									<Select styles={select_styles} placeholder="Skills" options={stuff_by_type["Skills"]} onChange={(n) => this.updateManual("skills", n)} isMulti={true} value={this.state.manual_reach.skills} label={this.state.manual_reach.skills}></Select>
+									<Select styles={select_styles} placeholder="Skills" options={stuff_by_type["Skills"]} onChange={(n) => this.updateManual("skills", n)} isMulti={true} value={this.state.manual_reach.skills}></Select>
 								</div>
 								<div className="manual-wrapper">
-									<Select styles={select_styles} placeholder="Teleporters" options={stuff_by_type["Teleporters"]} onChange={(n) => this.updateManual("tps", n)} isMulti={true} value={this.state.manual_reach.tps} label={this.state.manual_reach.tps}></Select>
+									<Select styles={select_styles} placeholder="Teleporters" options={stuff_by_type["Teleporters"]} onChange={(n) => this.updateManual("tps", n)} isMulti={true} value={this.state.manual_reach.tps}></Select>
 								</div>
 								<div className="manual-wrapper">
-									<Select styles={select_styles} placeholder="Events" options={stuff_by_type["Events"]} onChange={(n) => this.updateManual("events", n)} isMulti={true} value={this.state.manual_reach.events} label={this.state.manual_reach.events}></Select>
+									<Select styles={select_styles} placeholder="Events" options={stuff_by_type["Events"]} onChange={(n) => this.updateManual("events", n)} isMulti={true} value={this.state.manual_reach.events}></Select>
 								</div>
 							</Collapse>
 						</div>
@@ -522,7 +517,7 @@ class LogicHelper extends React.Component {
 						<div id="logic-mode-controls">
 							<div id="logic-presets">
 								<Button color="primary" onClick={this.toggleLogic} >Logic Paths:</Button>
-								<Select styles={select_styles}  options={select_wrap(paths)} onChange={this._onPathModeChange} isClearable={false} value={this.state.pathMode} label={this.state.pathMode}></Select>
+								<Select styles={select_styles}  options={select_wrap(paths)} onChange={this._onPathModeChange} isClearable={false} value={this.state.pathMode}></Select>
 							</div>
 							<Collapse id="logic-options-wrapper" isOpen={this.state.display_logic}>
 								<CheckboxGroup id="logic-options" checkboxDepth={2} name="modes" value={this.state.modes} onChange={this.modesChanged}>

@@ -46,6 +46,7 @@ div {
       <option selected="Selected">Shards</option>
       <option>Limitkeys</option>
       <option>Clues</option>
+      <option value="frags">Warmth Fragments</option>
     </select>
   </td><td>
     <div class="label">Path Difficulty</div>
@@ -185,6 +186,42 @@ div {
     </select>
   </td></tr><tr><td>
     <input type="button" value="Generate" onclick="beforeSubmit();" />
+  </td></tr>
+</tbody></table>
+    <h4>Warmth Fragment Customization!</h4>
+<table><tbody>
+  <tr><td>
+    <div class="label">Enable Warmth Fragements:</div>
+  </td><td>
+    <span class="gwt-CheckBox"><input type="checkbox" name="warm_frags"><label>Enable</label></span>
+  </td></tr><tr><td>
+    <div class="label"># of total frags</div>
+  </td><td>
+    <input name="fragNum" type="number" value="40" />
+  </td></tr><tr><td>
+    <div class="label">first dungeon key threshold</div>
+  </td><td>
+    <input name="fragKey1" type="number" value="5" />
+  </td></tr><tr><td>
+    <div class="label">second dungeon key threshold</div>
+  </td><td>
+    <input name="fragKey2" type="number" value="10" />
+  </td></tr><tr><td>
+    <div class="label">third dungeon key threshold</div>
+  </td><td>
+    <input name="fragKey3" type="number" value="20" />
+  </td></tr><tr><td>
+    <div class="label">finish game threshold</div>
+  </td><td>
+    <input name="fragKey4" type="number" value="30" />
+  </td></tr><tr><td>
+    <div class="label">Logic Tolerance</div>
+  </td><td>
+    <input name="fragKey5" type="number" value="2" />
+  </td></tr><tr><td>
+    <div class="label">ExpPool</div>
+  </td><td>
+    <input name="expPool" type="number" value="10000" />
   </td></tr>
 </tbody></table>
 </form>

@@ -178,6 +178,7 @@ class SeedGenLanding(webapp2.RequestHandler):
 	def get(self):
 		mode = self.request.get("mode").lower()
 		pathdiff = self.request.get("pathdiff").lower()
+		pathmode = self.request.get("pathMode") or "Custom"
 		variations = set(
 			[x for x in ["forcetrees", "hardmode", "notp", "starved", "ohko", "noplants", "discmaps", "0xp", "nobonus", "entshuf", "forcemapstones", "forcerandomescape"]
 			 if self.request.get(x)])
@@ -186,6 +187,18 @@ class SeedGenLanding(webapp2.RequestHandler):
 						"dbash", "extended", "lure-hard", "timed-level", "glitched", "extended-damage", "extreme"] if
 					   self.request.get(x)]
 		playercount = max(int(self.request.get("playerCount")),1)
+		do_frags = self.request.get("warm_frags")
+		expPool = int(self.request.get("expPool") or 10000)
+		if do_frags:
+			frag_count = int(self.request.get("fragNum"))
+			f1 = int(self.request.get("fragKey1"))
+			f2 = int(self.request.get("fragKey2"))
+			f3 = int(self.request.get("fragKey3"))
+			f4 = int(self.request.get("fragKey4"))
+			f5 = int(self.request.get("fragKey5"))
+			fragflag = "Frags/%s/%s/%s/%s/%s/%s" % (frag_count,f1, f2, f3, f4, f5)
+		elif mode == "frags":
+			return webapp2.redirect("/")		
 		syncmode = self.request.get("syncmode").lower()
 		syncmode = mode_map[syncmode] if syncmode in mode_map else int(syncmode)
 		synctype = self.request.get("synctype").lower() if syncmode != 4 and playercount > 1 else "none"
@@ -226,6 +239,10 @@ class SeedGenLanding(webapp2.RequestHandler):
 		urlargs.append("sym=%s" % syncmode)
 		urlargs.append("pd=%s" % pathdiff)
 		urlargs.append("gnm=%s" % genmode)
+		urlargs.append("exppl=%s" % expPool)
+		urlargs.append("pthm=%s" % pathmode)
+		if do_frags:
+			urlargs.append("frgflg=%s" % fragflag)
 		if self.request.get("wild"):
 			urlargs.append("wild=1")
 		if dotracking:
@@ -271,9 +288,10 @@ class SeedDownloader(webapp2.RequestHandler):
 			game_id = int(params['gid'])
 		synctype = params["syt"] if playercount > 1 else "none"
 		share_types = params['shr'] if dosharetypes else []
-
+		expPool = int(params["exppl"])
 		genmode = params["gnm"]
 		seed = params['s']
+		pathmode = params["pthm"]
 		pathdiff = params['pd']
 		spoiler = "splr" in params
 		player = int(params['p'])
@@ -282,15 +300,22 @@ class SeedDownloader(webapp2.RequestHandler):
 		varFlags = {"starved": "starved", "hardmode": "hard", "ohko": "OHKO", "0xp": "0XP", "nobonus": "NoBonus",
 					"noplants": "NoPlants", "forcetrees": "ForceTrees", "discmaps": "NonProgressMapStones",
 					"notp": "NoTeleporters", "entshuf": "entrance", "forcemapstones": "ForceMapstones", "forcerandomescape": "ForceRandomEscape"}
-		flags = ["Custom"]
+		flags = [pathmode.capitalize()]
+		do_frag = False
+		if "frgflg" in params:
+			do_frag = True
+			rawfrg = params["frgflg"]
+			flags.append(rawfrg)
+			fragOpts = tuple([int(x) for x in rawfrg.split("/")[1:]])
+			
 		if dotracking:
 			flags = flags + ["mode=%s" % syncmode, "Sync%s.%s" % (game_id, player)]
 		if dosharetypes:
 			flags.append("shared=%s" % share_types.replace(" ", "+"))
 		if mode != "default":
-			flags.append(mode)
+			flags.append(mode.capitalize())
 		if genmode == "balanced":
-			flags.append(genmode)
+			flags.append(genmode.capitalize())
 		if pathdiff and pathdiff != "normal":
 			flags.append("prefer_path_difficulty=" + pathdiff)
 		for v in variations:
@@ -305,12 +330,13 @@ class SeedDownloader(webapp2.RequestHandler):
 		sg = SeedGenerator()
 		placements = sg.setSeedAndPlaceItems(
 			seed = seed, 
-			expPool = 10000,
+			expPool = expPool,
 			hardMode = "hardmode" in variations,
 			includePlants = "noplants" not in variations,
 			shardsMode = mode == "shards",
 			limitkeysMode = mode == "limitkeys",
 			cluesMode = mode == "clues",
+			fragsMode = mode == "frags",
 			noTeleporters = "notp" in variations,
 			modes = logic_paths, 
 			flags = flag,
@@ -321,7 +347,8 @@ class SeedDownloader(webapp2.RequestHandler):
 			balanced = genmode == "balanced",
 			entrance = "entshuf" in variations,
 			sharedItems = share_types,
-			wild = "wild" in params)
+			wild = "wild" in params,
+			fragOpts = fragOpts if do_frag else None)
 		if synctype == "split":
 			(seed, spoil) = placements[0]
 			if spoiler:
@@ -799,6 +826,7 @@ class PlandoFillGen(webapp2.RequestHandler):
 			shardsMode = mode == "shards",
 			limitkeysMode = mode == "limitkeys",
 			cluesMode = mode == "clues",
+			fragsMode = mode == "frags",
 			noTeleporters = "notp" in variations,
 			modes = logic_paths, 
 			flags = flag,
@@ -960,6 +988,13 @@ class LogicHelper(webapp2.RequestHandler):
 						   'skills': paramVal(self, 'skills'), 'tps': paramVal(self, 'tps')}
 		self.response.out.write(template.render(path, template_values))
 
+class ReactLanding(webapp2.RequestHandler):
+	def get(self):
+		user = users.get_current_user()
+		dispname = user.email().partition("@")[0] if user else ""
+		path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
+		template_values = {'app': "mainPage", 'dll_last_update': dll_last_update(), 'title': "Ori DE Randomizer", 'user': dispname}
+		self.response.out.write(template.render(path, template_values))
 
 from test import TestRunner
 
@@ -970,7 +1005,8 @@ app = webapp2.WSGIApplication([
 	(r'/bingo/(\d+)/?', Bingo),
 	(r'/bingo/?', Bingo),
 	(r'/faq/?', QuickStart),
-	('/', SeedGenForm),
+	('/vold', SeedGenForm),
+	('/', ReactLanding),
 	(r'/mkseed/?', SeedGenLanding),
 	(r'/activeGames/?', ActiveGames),
 	(r'/clean/?', CleanUp),
@@ -981,7 +1017,7 @@ app = webapp2.WSGIApplication([
 	(r'/(\d+)\.(\w+)/(-?\d+)/(\w+)/(\w+)', FoundPickup),
 	(r'/(\d+)\.(\w+)/(-?\d+\.?\d*),(-?\d+\.?\d*)', Update),
 	(r'/(\d+)\.(\w+)/(-?\d+\.?\d*),(-?\d+\.?\d*)/', GetUpdate),
-	(r'/(\d+)\.(\w+)/signalCallback/(\w+)', SignalCallback),
+	(r'/(\d+)\.(\w+)/signalCallback/(.*)', SignalCallback),
 	(r'/(\d+)/delete', DeleteGame),
 	(r'/(\d+)/history/?', ShowHistory),
 	(r'/(\d+)/players', ListPlayers),

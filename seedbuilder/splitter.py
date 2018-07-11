@@ -27,5 +27,5 @@ def split_seed(seed, gameId, player, max_players, hints=False, dk=True, sk=True,
 				outlines.append("|".join(outln))
 		else:
 			outlines.append(line)
-	outlines[0] = "Sync%s.%s," %(gameId,player) + outlines[0]
+	#outlines[0] = "Sync%s.%s," %(gameId,player) + outlines[0]
 	return "\n".join(outlines)

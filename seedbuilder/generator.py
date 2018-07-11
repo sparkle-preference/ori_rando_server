@@ -2,7 +2,10 @@ import re
 import math
 import xml.etree.ElementTree as XML
 from collections import OrderedDict, defaultdict
+from operator import mul
 
+def ordhash(s):
+	return reduce(mul, [ord(c) for c in s])
 # A custom implementation of a Mersenne Twister
 # (since javascript hates everything)
 # https://en.wikipedia.org/wiki/Mersenne_Twister
@@ -99,31 +102,41 @@ class Connection:
 		self.sg = sg
 
 	def add_requirements(self, req, difficulty):
-		if self.sg.shards:
-			match = re.match(".*GinsoKey.*", str(req))
-			if match:
-				req.remove("GinsoKey")
-				req.append("WaterVeinShard")
-				req.append("WaterVeinShard")
-				req.append("WaterVeinShard")
-				req.append("WaterVeinShard")
-				req.append("WaterVeinShard")
-			match = re.match(".*ForlornKey.*", str(req))
-			if match:
-				req.remove("ForlornKey")
-				req.append("GumonSealShard")
-				req.append("GumonSealShard")
-				req.append("GumonSealShard")
-				req.append("GumonSealShard")
-				req.append("GumonSealShard")
-			match = re.match(".*HoruKey.*", str(req))
-			if match:
-				req.remove("HoruKey")
-				req.append("SunstoneShard")
-				req.append("SunstoneShard")
-				req.append("SunstoneShard")
-				req.append("SunstoneShard")
-				req.append("SunstoneShard")
+		if "GinsoKey" in req or "ForlornKey" in req or "HoruKey" in req:
+			if self.sg.shards:
+				if "GinsoKey" in req:
+					req.remove("GinsoKey")
+					req += ["WaterVeinShard"] * 5
+				if "ForlornKey" in req:
+					req.remove("ForlornKey")
+					req += ["GumonSealShard"] * 5
+				if "HoruKey" in req:
+					req.remove("HoruKey")
+					req += ["SunstoneShard"] * 5
+			elif self.sg.fragDungeon:
+				_, first, second, third, end, tol = self.sg.fragOpts
+				if "GinsoKey" in req and "ForlornKey" in req and "HoruKey" in req:				
+					req.remove("GinsoKey")
+					req.remove("ForlornKey")
+					req.remove("HoruKey")
+					req += ["RB28"]*(end+tol)
+				else:
+					fragCnts = [first, second, third]
+					frgToAdd = 0
+					if "GinsoKey" in req:
+						req.remove("GinsoKey")
+						frgToAdd = max(fragCnts[self.sg.fragOrder.index("G")],frgToAdd)
+					if "ForlornKey" in req:
+						req.remove("ForlornKey")
+						frgToAdd = max(fragCnts[self.sg.fragOrder.index("F")],frgToAdd)
+					if "HoruKey" in req:
+						req.remove("HoruKey")
+						frgToAdd = max(fragCnts[self.sg.fragOrder.index("H")],frgToAdd)
+					frgToAdd += tol
+					req += ["RB28"] * frgToAdd 
+			
+#			for (dungeon) in zip(self.sg.fragOrder,[first, second, third]):
+			
 		self.requirements.append(req)
 		self.difficulties.append(difficulty)
 		match = re.match(".*KS.*KS.*KS.*KS.*", str(req))
@@ -266,7 +279,6 @@ class SeedGenerator:
 				for loc in reachable_forced_ass_locs:
 					self.force_assign(self.forcedAssignments[loc.get_key()], loc)
 					currentLocations.remove(loc)
-				
 			locations.extend(currentLocations)
 			self.areas[area].clear_locations()
 		if self.reservedLocations:
@@ -338,6 +350,9 @@ class SeedGenerator:
 		value = self.random.random()
 		position = 0.0
 		denom = float(sum(self.itemPool.values()))
+		if denom == 0 or sum(self.itemPool.values()) == 0:
+			print "WARNING: itemPool was empty", denom, self.itemPool, self.itemCount
+			return self.assign("EX*")
 		for key in self.itemPool.keys():
 			position += self.itemPool[key] / denom
 			if value <= position:
@@ -558,9 +573,9 @@ class SeedGenerator:
 
 		return doorStr
 
-	def setSeedAndPlaceItems(self, seed, expPool, hardMode, includePlants, shardsMode, limitkeysMode, cluesMode, noTeleporters,
+	def setSeedAndPlaceItems(self, seed, expPool, hardMode, includePlants, shardsMode, limitkeysMode, cluesMode, fragsMode, noTeleporters,
 						modes, flags, starvedMode, preferPathDifficulty,
-						setNonProgressiveMapstones, playerCountIn, balanced, entrance, sharedItems, wild=False, preplacedIn={}, retries=5):
+						setNonProgressiveMapstones, playerCountIn, balanced, entrance, sharedItems, wild=False, fragOpts=None, preplacedIn={}, retries=10):
 		self.sharedMap = {}
 		self.sharedList = []
 		self.playerCount = playerCountIn
@@ -570,6 +585,7 @@ class SeedGenerator:
 		self.limitkeys = limitkeysMode
 		self.clues = cluesMode
 		self.starved = starvedMode
+		self.fragDungeon = fragsMode
 		self.pathDifficulty = preferPathDifficulty
 		self.nonProgressiveMapstones = setNonProgressiveMapstones
 		self.balanced = balanced
@@ -578,10 +594,35 @@ class SeedGenerator:
 		self.noTeleporters = noTeleporters
 		self.wild = wild
 		self.entrance = entrance
-		self.preplaced = preplacedIn
+		self.preplaced = preplacedIn.copy()
 		self.expPool = expPool
 		self.modes = modes
 		self.flags = flags
+		self.doFrags = (fragOpts != None)
+#		print fragOpts, self.doFrags, self.preplaced, preplacedIn, retries
+		if self.doFrags:
+			for treeLoc in [-4600020, -6959592, -3160308, -560160, 2919744, 719620, 7839588, 5320328, 8599904, -11880100]:
+#				if treeLoc in preplacedIn and preplacedIn[treeLoc] != "RB28":
+#					print "ERROR: Invalid value found in preplaced, given flags"
+#					return None
+				self.preplaced[treeLoc] = "RB28"
+			self.fragOpts = fragOpts
+			if self.fragDungeon:
+				# hahahahaha kill me
+				perm = ordhash(seed) % 6
+				if perm==0:
+					self.fragOrder=["G","F","H"]
+				if perm==1:
+					self.fragOrder=["G","H","F"]
+				if perm==2:
+					self.fragOrder=["F","G","H"]
+				if perm==3:
+					self.fragOrder=["F","H","G"]
+				if perm==4:
+					self.fragOrder=["H","G","F"]
+				if perm==5:
+					self.fragOrder=["H","F","G"]
+#		print fragOpts, self.doFrags, self.preplaced, preplacedIn
 
 		if self.playerCount > 1:
 			if "skills" in sharedItems:
@@ -591,6 +632,8 @@ class SeedGenerator:
 					self.sharedList.append("WaterVeinShard")
 					self.sharedList.append("GumonSealShard")
 					self.sharedList.append("SunstoneShard")
+				elif self.fragDungeon:
+					self.sharedList.append("RB28")
 				else:
 					self.sharedList.append("GinsoKey")
 					self.sharedList.append("ForlornKey")
@@ -607,10 +650,10 @@ class SeedGenerator:
 				self.sharedList.append("TPSwamp")
 				self.sharedList.append("TPValley")
 			if "upgrades" in sharedItems:
-				self.sharedList += ["RB6", "RB8", "RB9", "RB10", "RB11", "RB12", "RB13", "RB15" ]
+				self.sharedList += ["RB6", "RB8", "RB9", "RB10", "RB11", "RB12", "RB13", "RB15", "RB31", "RB32", "RB33", "RB101", "RB102", "RB103", "RB104" ]
 
 		return self.placeItemsMulti(seed, retries)
-
+		
 	def placeItemsMulti(self, seed, retries=5):
 
 		placements = []
@@ -738,6 +781,7 @@ class SeedGenerator:
 			"WaterVeinShard": 5,
 			"GumonSealShard": 5,
 			"SunstoneShard": 5,
+			"RB28": 2,
 			"TPForlorn": 120,
 			"TPGrotto": 60,
 			"TPSorrow": 90,
@@ -858,11 +902,10 @@ class SeedGenerator:
 			self.itemPool["RB31"] = 3
 			self.itemPool["RB32"] = 3
 			self.itemPool["RB33"] = 3
-			self.itemPool["RB12"] += 5
+			self.itemPool["RB12"] += 6
 			self.itemPool["RB101"] = 1
 			self.itemPool["RB102"] = 1
 			self.itemPool["RB103"] = 1
-			self.itemPool["RB104"] = 1
 			self.itemPool["EX*"] -= 20
 
 		if self.shards:
@@ -873,7 +916,16 @@ class SeedGenerator:
 			self.itemPool["ForlornKey"] = 0
 			self.itemPool["HoruKey"] = 0
 			self.itemPool["EX*"] -= 12
-
+		
+		if self.doFrags:
+			self.itemPool["RB28"] = self.fragOpts[0]
+			self.itemPool["EX*"] -= self.fragOpts[0]
+			if self.fragDungeon:
+				self.itemPool["GinsoKey"] = 0
+				self.itemPool["ForlornKey"] = 0
+				self.itemPool["HoruKey"] = 0
+				self.itemPool["EX*"] += 3
+		
 		if self.limitkeys:
 			satisfied = False
 			while not satisfied:
@@ -891,10 +943,7 @@ class SeedGenerator:
 			self.itemPool["HoruKey"] = 0
 			self.itemCount -= 3
 		
-		for item in self.forcedAssignments.values():			
-			self.itemCount -= 1
-			if item in self.itemPool:
-				self.itemPool[item] -= 1
+		self.itemCount -= len(self.forcedAssignments)
 		
 		if self.noTeleporters:
 			self.itemPool["TPForlorn"] = 0
@@ -939,8 +988,10 @@ class SeedGenerator:
 			("RB12", 0),
 			("RB13", 0),
 			("RB15", 0),
+			("RB28", 0),
 			("RB31", 0),
 			("RB32", 0),
+			("RB33", 0),
 			("RB101", 0),
 			("RB102", 0),
 			("RB103", 0),
@@ -956,6 +1007,8 @@ class SeedGenerator:
 			("TPValley", 0)
 		])
 		
+		if "OHKO" in self.flags:
+			self.inventory["HC"] = -15
 
 		# paired setup for subsequent players
 		if self.playerID > 1:

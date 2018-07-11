@@ -1,4 +1,3 @@
-import './bootstrap.cyborg.min.css';
 import './index.css';
 import React from 'react';
 //import registerServiceWorker from './registerServiceWorker';
@@ -6,10 +5,11 @@ import {Map, Tooltip, TileLayer, Marker, ZoomControl} from 'react-leaflet';
 import {Checkbox, CheckboxGroup} from 'react-checkbox-group';
 import {Radio, RadioGroup} from 'react-radio-group';
 import Leaflet from 'leaflet';
-import {picks_by_type, PickupMarkersList, get_icon, getMapCrs, presets, hide_opacity, select_styles, uniq} from './shared_map.js';
+import {picks_by_type, PickupMarkersList, get_icon, getMapCrs, presets, hide_opacity, select_styles, uniq, select_wrap} from './shared_map.js';
 import Select from 'react-select';
 import {Button, Collapse} from 'reactstrap';
 import Control from 'react-leaflet-control';
+import {Helmet} from 'react-helmet';
 
 const paths = Object.keys(presets);
 const game_id = document.getElementsByClassName("game-id")[0].id;
@@ -80,7 +80,7 @@ const PlayerUiOpts = ({players, setter}) => {
 					<label><Checkbox value="hide_found"/> Hide found</label>
 					<label><Checkbox value="hide_unreachable"/> Hide unreachable</label>
 					<label><Checkbox value="hide_remaining"/> Hide remaining</label>
-		    </CheckboxGroup>
+			    </CheckboxGroup>
 			</div>
 		);
 	});
@@ -325,7 +325,7 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
 					<div id="logic-controls">
 						<div id="logic-presets">
 			      	<Button color="primary" onClick={this.toggleLogic} >Logic Presets:</Button>
-			      	<Select styles={select_styles}  options={paths.map((n) => {return {label: n, value: n}})} onChange={this._onPathModeChange} clearable={false} value={this.state.pathMode} label={this.state.pathMode}></Select>
+			      	<Select styles={select_styles}  options={select_wrap(paths)} onChange={this._onPathModeChange} clearable={false} value={select_wrap(this.state.pathMode)}></Select>
 						</div>
 						<Collapse id="logic-options-wrapper" isOpen={this.state.display_logic}>
 							<CheckboxGroup id="logic-options" checkboxDepth={2} name="modes" value={this.state.modes} onChange={this.modesChanged}>
@@ -374,6 +374,10 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
 		) : null
     return (
 			<div className="wrapper">
+	            <Helmet>
+	                <style>{'body { background-color: black}'}</style>
+					<link rel="stylesheet" href="https://unpkg.com/leaflet@1.3.1/dist/leaflet.css" integrity="sha512-Rksm5RenBEKSKFjgI3a41vrjkw4EVPlJ3+OiI65vTjIdo9brlAacEuKOiQ5OFh7cOI1bkDwLqdLw3Zg0cRJAAQ==" crossorigin=""/>
+	            </Helmet>
 		      	<Map crs={crs} onMouseMove={(ev) => this.setState({mousePos: ev.latlng})} zoomControl={false} onViewportChanged={this.onViewportChanged} viewport={this.state.viewport}>
 		      	     <ZoomControl position="topright" />
 

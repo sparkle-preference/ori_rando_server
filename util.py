@@ -217,15 +217,15 @@ class Player(ndb.Model):
 		return ",".join(outlines)
 	
 	def signal_send(self, signal):
-		self.signals.append(signal)
-		self.put()
+		if signal not in self.signals:
+			self.signals.append(signal)
+			self.put()
 	
 	def signal_conf(self, signal):
 		self.signals.remove(signal)
 		self.put()
 	
 	def give_pickup(self, pickup, remove=False, delay_put=False):
-		print self.key.id(), pickup, remove, delay_put
 		if pickup.code == "RB":
 			# handle upgrade refactor storage
 			pick_id = str(pickup.id)
@@ -316,13 +316,18 @@ class Game(ndb.Model):
 			return
 		Cache.doSanCheck(self.key.id())
 		players = self.get_players()
+		sanFailedSignal = "msg:@Major Error during sanity check. If this persists please contact Eiko@"
 		hls = [hl for player in players for hl in player.history if hl.pickup().share_type in self.shared]
 		inv = defaultdict(lambda : 0)
 		for hl in hls:
 			inv[(hl.pickup_code,hl.pickup_id)] += -1 if hl.removed else 1
-		
+		i = 0
 		for key, count in inv.iteritems():
 			pickup = Pickup.n(key[0], key[1])
+			if not (pickup.stacks or refactor_stacks(pickup)):
+				count = 1
+			elif pickup.max:
+				count = max
 			for player in players:
 				has = player.has_pickup(pickup)
 				if has < count:
@@ -331,13 +336,21 @@ class Game(ndb.Model):
 					else: 
 						print "ERROR: Player %s should have had %s of %s but had %s instead. Fixing..." % (player.key.id(), count, pickup.name, has)
 					while(player.has_pickup(pickup) < count):
+						i += 1
 						player.give_pickup(pickup, delay_put=True)
+						if i > 50:
+							player.signal_send(sanFailedSignal)
+							return False
 				elif has > count:
 					print "ERROR: Player %s has too many %s! Fixing..." % (player.key.id(), pickup.name)
 					while(player.has_pickup(pickup) > count):
+						i += 1
 						player.give_pickup(pickup, remove=True, delay_put=True)
-		
+						if i > 50:
+							player.signal_send(sanFailedSignal)
+							return False
 		[player.put() for player in players]
+		return True
 		
 
 	def player(self, pid):
@@ -418,6 +431,11 @@ def get_new_game(_mode = None, _shared = None, id=None):
 	game = Game(id = id, players=[], shared=shared, mode=mode)
 	return game
 
+def refactor_stacks(pickup):
+	if pickup.code != "RB":
+		return False
+	return pickup.id in [6,12,13,15,17,19,21,30,31,32,33]
+
 
 coord_correction_map = {
 	679620: 719620,
@@ -492,7 +510,7 @@ class Upgrade(Pickup):
 	stacking= set([6,13,15,17,19,21])
 	name_only = set([0, 1, 2])
 	maxes = {17: 3, 19: 3, 21: 3}
-	names = {17:  "Water Vein Shard", 19: "Gumon Seal Shard", 21: "Sunstone Shard", 6: "Spirit Flame Upgrade", 13: "Health Regeneration", 2: "Go Home",
+	names = {17:  "Water Vein Shard", 19: "Gumon Seal Shard", 21: "Sunstone Shard", 28: "Warmth Fragment", 6: "Spirit Flame Upgrade", 13: "Health Regeneration", 2: "Go Home",
 			15: "Energy Regeneration", 8: "Explosion Power Upgrade", 9:  "Spirit Light Efficiency", 10: "Extra Air Dash", 1:  "Charge Dash Efficiency", 
 			12: "Extra Double Jump", 0: "Mega Health", 1: "Mega Energy", 30: "Bleeding", 31: "Lifesteal", 32: "Manavamp", 33: "Skill Velocity Upgrade",
 			101: "Polarity Shift", 102: "Gravity Swap", 103: "Drag Racer", 104: "Airbrake"}
@@ -510,9 +528,8 @@ class Upgrade(Pickup):
 		inst.id, inst.name = id, Upgrade.names[id]
 		inst.bit = Upgrade.bits[id] if id in Upgrade.bits else -1
 		inst.max = Upgrade.maxes[id] if id in Upgrade.maxes else None
-
 		inst.stacks = id in Upgrade.stacking
-		inst.share_type = ShareType.DUNGEON_KEY if id in [17, 19, 21] else ShareType.UPGRADE
+		inst.share_type = ShareType.DUNGEON_KEY if id in [17, 19, 21, 28] else ShareType.UPGRADE
 		return inst
 
 class Experience(Pickup):
