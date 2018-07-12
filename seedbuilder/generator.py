@@ -1,5 +1,6 @@
 import re
 import math
+import logging as log
 import xml.etree.ElementTree as XML
 from collections import OrderedDict, defaultdict
 from operator import mul
@@ -351,7 +352,7 @@ class SeedGenerator:
 		position = 0.0
 		denom = float(sum(self.itemPool.values()))
 		if denom == 0 or sum(self.itemPool.values()) == 0:
-			print "WARNING: itemPool was empty", denom, self.itemPool, self.itemCount
+			log.warning("itemPool was empty", denom, self.itemPool, self.itemCount)
 			return self.assign("EX*")
 		for key in self.itemPool.keys():
 			position += self.itemPool[key] / denom
@@ -600,9 +601,11 @@ class SeedGenerator:
 		self.flags = flags
 		self.doFrags = (fragOpts != None)
 		if self.doFrags:
+			if not preplacedIn:
+				retries += 30 # this is kind of dumb but not necessarily the stupidest!
 			for treeLoc in [-4600020, -6959592, -3160308, -560160, 2919744, 719620, 7839588, 5320328, 8599904, -11880100]:
 				if treeLoc in preplacedIn and preplacedIn[treeLoc] != "RB28":
-					print "ERROR: Invalid value found in preplaced, given flags"
+					log.error("Invalid value found in preplaced, given flags")
 					return None
 				self.preplaced[treeLoc] = "RB28"
 			self.fragOpts = fragOpts
@@ -666,7 +669,7 @@ class SeedGenerator:
 				if retries > 0:
 					retries -= 1
 				else:
-					print "ERROR: Seed not completeable with these params and placements"
+					log.error("Seed not completeable with these params and placements")
 					return None
 			return self.placeItemsMulti(seed, retries)
 		placements.append(placement)
@@ -678,7 +681,7 @@ class SeedGenerator:
 					if retries > 0:
 						retries -= 1
 					else:
-						print "ERROR: Seed not completeable with these params and placements"
+						log.error("Seed not completeable with these params and placements")
 						return None
 				return self.placeItemsMulti(seed, retries)
 			placements.append(placement)
@@ -1049,11 +1052,11 @@ class SeedGenerator:
 		if self.entrance:
 			self.outputStr += self.randomize_entrances()
 
-		self.outputStr += ("-280256|EC|1|Glades\n") if not (-280256 in forcedAssignments) else "" # first energy cell
-		self.outputStr += ("-1680104|EX|100|Grove\n") if not (-1680104 in forcedAssignments) else ""  # glitchy 100 orb at spirit tree
-		self.outputStr += ("-12320248|EX|100|Forlorn\n") if not (-12320248 in forcedAssignments) else ""  # forlorn escape plant
+		self.outputStr += ("-280256|EC|1|Glades\n") if not (-280256 in self.forcedAssignments) else "" # first energy cell
+		self.outputStr += ("-1680104|EX|100|Grove\n") if not (-1680104 in self.forcedAssignments) else ""  # glitchy 100 orb at spirit tree
+		self.outputStr += ("-12320248|EX|100|Forlorn\n") if not (-12320248 in self.forcedAssignments) else ""  # forlorn escape plant
 		# the 2nd keystone in misty can get blocked by alt+R, so make it unimportant
-		self.outputStr += ("-10440008|EX|100|Misty\n") if not (-10440008 in forcedAssignments) else ""
+		self.outputStr += ("-10440008|EX|100|Misty\n") if not (-10440008 in self.forcedAssignments) else ""
 
 		if not self.includePlants:
 			for location in plants:

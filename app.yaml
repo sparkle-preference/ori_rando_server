@@ -13,7 +13,9 @@ automatic_scaling:
 libraries:
 - name: webapp2
   version: "latest" 
-
+- name: enum
+  version: "latest"
+  
 handlers:
 - url: /sprites
   static_dir: sprites

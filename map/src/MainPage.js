@@ -157,7 +157,7 @@ export default class MainPage extends React.Component {
 						this.setState({helpTitle: "Discrete Mapstones", helpSub: "Variations", helpText: "The Discrete Mapstone variation changes how mapstones function, making each individual mapstone turn-in have its own pickup. (By default, the mapstone pickups are granted based on the number of mapstones you have turned in, regardless of where). This variation exists primarily for legacy reasons and is not recommended for normal use.", helpExtra: null})
 						break;
 					case "hardmode":
-						this.setState({helpTitle: "Hard Mode", helpSub: "Variations", helpText: "The Hard Mode variation removes all health cells and all but 3 energy cells from the pool of available items, capping your health at 3 and energy at 4 for the entire seed. As a result, it is incompatible with logic paths that require taking 3 or more damage (dboost, dboost-hard, extended-damage, and extreme). Recommended for people who hate feeling safe and like to live on the edge.", helpExtra: null})
+						this.setState({helpTitle: "Hard Mode", helpSub: "Variations", helpText: "The Hard Mode variation removes all health cells and all but 3 energy cells from the pool of available items, capping your health at 3 and energy at 4 for the entire seed. Additionally, it removes all bonus pickups from the pickup pool. As a result, it is incompatible with logic paths that require taking 3 or more damage (dboost, dboost-hard, extended-damage, and extreme), and the Extra Bonus Pickups variation. Recommended for people who hate feeling safe and like to live on the edge.", helpExtra: null})
 						break;
 					case "ohko":
 						this.setState({helpTitle: "One-Hit KO", helpSub: "Variations", helpText: "The One-Hit KO variation causes any amount of damage Ori takes to be instantly lethal. As such, it is incompatible with all logic paths that require damage boosts. NOTE: this variation is rarely used and thus is less tested than most. Tread carefully!", helpExtra: null})
@@ -388,6 +388,7 @@ export default class MainPage extends React.Component {
 		urlParams.push("expPool="+this.state.expPool)
 		if(this.state.tracking)
 		{
+				urlParams.push("tracking=on")
 			if(this.state.syncId !== "")
 				urlParams.push("syncid="+this.state.syncId)
 			if(this.state.players > 1) {
@@ -466,7 +467,7 @@ export default class MainPage extends React.Component {
 		let pathDiffOptions = ["Easy", "Normal", "Hard"].map(mode => (
 			<DropdownItem active={mode===this.state.pathDiff} onClick={()=> this.setState({pathDiff: mode})}>{mode}</DropdownItem>
 		))
-		let variationButtons = Object.keys(variations).map(v=> {
+		let variationButtons = Object.keys(variations).filter(x => x !== "wild").map(v=> {
 			let name = variations[v];
 			return (
 			<Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("variations", v)} className="p-2">
@@ -474,6 +475,20 @@ export default class MainPage extends React.Component {
 			</Col>
 			)		
 		})
+		variationButtons.push((
+			(
+			<Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("variations", "wild")} className="p-2">
+				<Button block outline={!this.state.variations.includes("wild")} disabled={(() => {
+					if(this.state.variations.includes("hardmode")) {
+						if(this.state.variations.includes("wild"))
+							this.onVar("wild")()
+						return true;
+					}
+					return false;
+				})()} onClick={this.onVar("wild")}>{variations["wild"]}</Button>
+			</Col>
+			)		
+		))
 		let pathButtons = presets["glitched"].map(path=> (
 			<Col xs="3" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("logicPaths", path)}  className="p-2">
 				<Button block outline={!this.state.paths.includes(path)} disabled={this.pathDisabled(path)} className="text-capitalize" onClick={this.onPath(path)}>{path}</Button>

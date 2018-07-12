@@ -8,6 +8,7 @@ import pickle
 from collections import Counter
 
 # web imports
+import logging
 import webapp2
 from datetime import datetime, timedelta
 from protorpc import messages
@@ -17,14 +18,14 @@ from google.appengine.ext.ndb import msgprop
 from google.appengine.ext.webapp import template
 
 # project impports
-from seedbuilder.generator import SeedGenerator
+from seedbuilder.generator import SeedGenerator, Random
 from seedbuilder.splitter import split_seed
 from bingo import Card
-from util import (GameMode, ShareType, Pickup, Skill, Event, Teleporter, Upgrade, share_map, special_coords, get_bit,
-				  get_taste, add_single, Seed, get_open_gid,
-				  dll_last_update,
-				  mode_map, DEDUP_MODES, get, unpack, coord_correction_map, Cache, HistoryLine, Player, Game,
-				  delete_game, get_new_game, clean_old_games, all_locs)
+from enums import MultiplayerGameType, ShareType
+from models import Game, Seed, Player, HistoryLine
+from pickups import Pickup
+from cache import Cache
+from util import dll_last_update, coord_correction_map, all_locs
 from reachable import Map, PlayerState
 
 PLANDO_VER = "0.5.1"
@@ -50,14 +51,14 @@ class GetGameId(webapp2.RequestHandler):
 		id = paramVal(self, 'id')
 		if "." in id:
 			id = id.partition(".")[0]
-		self.response.write("GC|%s" % get_new_game(paramVal(self, 'mode'), shared, id).key.id())
+		self.response.write("GC|%s" % Game.new(paramVal(self, 'mode'), shared, id).key.id())
 
 
 class CleanUp(webapp2.RequestHandler):
 	def get(self):
 		self.response.headers['Content-Type'] = 'text/plain'
 		self.response.status = 200
-		self.response.write("Cleaned up %s games" % clean_old_games())
+		self.response.write("Cleaned up %s games" % Game.clean_old())
 
 
 class DeleteGame(webapp2.RequestHandler):
@@ -68,7 +69,7 @@ class DeleteGame(webapp2.RequestHandler):
 			self.response.write("No.")
 		game = Game.with_id(game_id)
 		if game:
-			delete_game(game)
+			game.clean_up()
 			self.response.status = 200
 			self.response.write("All according to daijobu")
 		else:
@@ -111,12 +112,12 @@ class FoundPickup(webapp2.RequestHandler):
 		if coords in coord_correction_map:
 			coords = coord_correction_map[coords]
 		if coords not in all_locs:
-			print "Coord mismatch error! %s not in all_locs or correction map. Sync %s.%s, pickup %s|%s" % (
-			coords, game_id, player_id, kind, id)
-		dedup = not paramFlag(self, "override") and not remove and game.mode in DEDUP_MODES
+			logging.warning("Coord mismatch error! %s not in all_locs or correction map. Sync %s.%s, pickup %s|%s" % (
+			coords, game_id, player_id, kind, id))
+		dedup = not paramFlag(self, "override") and not remove and game.mode.is_dedup()
 		pickup = Pickup.n(kind, id)
 		if not pickup:
-			print "ERROR: Couldn't build pickup %s|%s" % (kind, id)
+			logging.error("Couldn't build pickup %s|%s" % (kind, id))
 			self.response.status = 406
 			return
 		self.response.status = game.found_pickup(player_id, pickup, coords, remove, dedup)
@@ -170,9 +171,13 @@ class ShowHistory(webapp2.RequestHandler):
 
 class SeedGenForm(webapp2.RequestHandler):
 	def get(self):
-		path = os.path.join(os.path.dirname(__file__), 'index.html')
-		template_values = {'latest_dll': dll_last_update(), 'plando_version': PLANDO_VER, 'seed': random.randint(10000000, 100000000)}
-		self.response.out.write(template.render(path, template_values))
+		if debug:
+			out = "hahahah idk dude"
+			self.response.out.write(out)
+		else:
+			path = os.path.join(os.path.dirname(__file__), 'index.html')
+			template_values = {'latest_dll': dll_last_update(), 'plando_version': PLANDO_VER, 'seed': random.randint(10000000, 100000000)}
+			self.response.out.write(template.render(path, template_values))
 
 class SeedGenLanding(webapp2.RequestHandler):
 	def get(self):
@@ -187,7 +192,7 @@ class SeedGenLanding(webapp2.RequestHandler):
 						"dbash", "extended", "lure-hard", "timed-level", "glitched", "extended-damage", "extreme"] if
 					   self.request.get(x)]
 		playercount = max(int(self.request.get("playerCount")),1)
-		do_frags = self.request.get("warm_frags")
+		do_frags = paramFlag(self, "warm_frags")
 		expPool = int(self.request.get("expPool") or 10000)
 		if do_frags:
 			frag_count = int(self.request.get("fragNum"))
@@ -199,13 +204,12 @@ class SeedGenLanding(webapp2.RequestHandler):
 			fragflag = "Frags/%s/%s/%s/%s/%s/%s" % (frag_count,f1, f2, f3, f4, f5)
 		elif mode == "frags":
 			return webapp2.redirect("/")		
-		syncmode = self.request.get("syncmode").lower()
-		syncmode = mode_map[syncmode] if syncmode in mode_map else int(syncmode)
+		syncmode = MultiplayerGameType.from_url(self.request.get("syncmode"))
 		synctype = self.request.get("synctype").lower() if syncmode != 4 and playercount > 1 else "none"
-		dotracking = playercount > 1 or syncmode == 4
+		dotracking = paramFlag(self, "tracking")
 		if dotracking:
 			syncid = self.request.get("syncid")
-			share_types = [f for f in share_map.keys() if self.request.get(f)]
+			share_types = [f for f in ShareType.url_names().keys() if self.request.get(f)]
 	
 		genmode = self.request.get("genmode").lower()
 
@@ -220,23 +224,23 @@ class SeedGenLanding(webapp2.RequestHandler):
 				oldGame = Game.with_id(syncid)
 				if oldGame != None:
 					if syncid > 999:
-						delete_game(oldGame)
-						game = get_new_game(_mode=syncmode, _shared=share_types, id=syncid)
+						oldGame.clean_up()
+						game = Game.new(_mode=syncmode, _shared=share_types, id=syncid)
 					else:
 						self.response.status = 405
 						self.response.write("Seed ID in use! Leave blank or pick a different number.")
 						return
 				else:
-					game = get_new_game(_mode=syncmode, _shared=share_types, id=syncid)
+					game = Game.new(_mode=syncmode, _shared=share_types, id=syncid)
 			if not game:
-				game = get_new_game(_mode=syncmode, _shared=share_types)
+				game = Game.new(_mode=syncmode, _shared=share_types)
 			game_id = game.put().id()
 		urlargs = ["m=%s" % mode]
 		urlargs.append("vars=%s" % "|".join(variations))
 		urlargs.append("lps=%s" % "|".join(logic_paths))
 		urlargs.append("s=%s" % seed)
 		urlargs.append("pc=%s" % playercount)
-		urlargs.append("sym=%s" % syncmode)
+		urlargs.append("sym=%s" % syncmode.value)
 		urlargs.append("pd=%s" % pathdiff)
 		urlargs.append("gnm=%s" % genmode)
 		urlargs.append("exppl=%s" % expPool)
@@ -246,6 +250,7 @@ class SeedGenLanding(webapp2.RequestHandler):
 		if self.request.get("wild"):
 			urlargs.append("wild=1")
 		if dotracking:
+			urlargs.append("tracking=1")
 			urlargs.append("gid=%s" % game_id)
 		if playercount > 1:
 			urlargs.append("syt=%s" % synctype)
@@ -282,7 +287,7 @@ class SeedDownloader(webapp2.RequestHandler):
 		logic_paths = params['lps'].split("|")
 		playercount = int(params['pc'])
 		syncmode = int(params["sym"])
-		dotracking = playercount > 1 or syncmode == 4
+		dotracking = paramFlag(self,"tracking")
 		dosharetypes = playercount > 1 and syncmode != 4
 		if dotracking:
 			game_id = int(params['gid'])
@@ -465,19 +470,16 @@ class SetSeed(webapp2.RequestHandler):
 			flags = lines[0].split("|")
 			mode_opt = [f[5:] for f in flags if f.lower().startswith("mode=")]
 			shared_opt = [f[7:].split(" ") for f in flags if f.lower().startswith("shared=")]
-			mode = mode_opt[0].lower() if mode_opt else None
-			if mode:
-				mode = mode_map[mode] if mode in mode_map else int(mode)
-
+			mode = MultiplayerGameType.from_url(mode_opt[0]) if mode_opt else None
 			shared = shared_opt[0] if shared_opt else None
-			game = get_new_game(_mode=mode, _shared=shared, id=game_id)
+			game = Game.new(_mode=mode, _shared=shared, id=game_id)
 			game.put()
 		else:
 			game.sanity_check() # cheap if game is short!
 		for l in lines[1:]:
 			line = l.split("|")
 			if len(line) < 3:
-				print "ERROR: malformed seed line %s, skipping" % l
+				logging.error("malformed seed line %s, skipping" % l)
 			else:
 				seedlines.append("%s:%s" % (line[0], Pickup.name(line[1], line[2])))
 		player = game.player(player_id)
@@ -544,7 +546,7 @@ class GetReachable(webapp2.RequestHandler):
 		self.response.status = 200
 		game = Game.with_id(game_id)
 		shared_history = []
-		if game and game.mode == GameMode.SHARED:
+		if game and game.mode == MultiplayerGameType.SHARED:
 			shared_history = [hl for hls in hist.values() for hl in hls if hl.pickup().share_type in game.shared]
 		self.response.out.write("|".join(
 			["%s:%s" % (p, ",".join(
@@ -613,7 +615,7 @@ class PlandoRename(webapp2.RequestHandler):
 			if dispname == author:
 				old_seed = Seed.get_by_id("%s:%s" % (author, old_name))
 				if not old_seed:
-					print "ERROR: couldn't find old seed when trying to rename!"
+					logging.error("couldn't find old seed when trying to rename!")
 					self.response.status = 404
 					return
 				new_seed = clone_entity(old_seed, id="%s:%s" % (author, new_name), name=new_name)
@@ -622,13 +624,13 @@ class PlandoRename(webapp2.RequestHandler):
 						old_seed.key.delete()
 					self.redirect('/plando/%s/%s' % (author, new_name))
 				else:
-					print "ERROR: Failed to rename seed"
+					logging.error("Failed to rename seed")
 					self.response.status = 500
 			else:
-				print "ERROR: Auth failed, logged in as %s, trying to edit %s's seed" % (dispname, author)
+				logging.error("Auth failed, logged in as %s, trying to edit %s's seed" % (dispname, author))
 				self.response.status = 401
 		else:
-			print "ERROR: no auth D:"
+			logging.error("no auth D:")
 			self.response.status = 401
 
 
@@ -643,13 +645,13 @@ class PlandoDelete(webapp2.RequestHandler):
 					seed.key.delete()
 					self.redirect('/plando/%s' % author)
 				else:
-					print "ERROR: couldn't find seed!"
+					logging.error("couldn't find seed!")
 					self.response.status = 404
 			else:
-				print "ERROR: Auth failed, logged in as %s, trying to edit %s's seed" % (dispname, author)
+				logging.error("Auth failed, logged in as %s, trying to edit %s's seed" % (dispname, author))
 				self.response.status = 401
 		else:
-			print "ERROR: no auth D:"
+			logging.error("no auth D:")
 			self.response.status = 401
 
 
@@ -666,13 +668,13 @@ class PlandoToggleHide(webapp2.RequestHandler):
 					self.response.out.write(seed.hidden)
 					self.redirect('/plando/%s/%s' % (author, seed_name))
 				else:
-					print "ERROR: couldn't find seed!"
+					logging.error("couldn't find seed!")
 					self.response.status = 404
 			else:
-				print "ERROR: Auth failed, logged in as %s, trying to edit %s's seed" % (dispname, author)
+				logging.error("Auth failed, logged in as %s, trying to edit %s's seed" % (dispname, author))
 				self.response.status = 401
 		else:
-			print "ERROR: no auth D:"
+			logging.error("no auth D:")
 			self.response.status = 401
 
 
@@ -696,17 +698,17 @@ class PlandoUpload(webapp2.RequestHandler):
 				res = seed.put()
 				if res and old_name and old_name != plando:
 					if not old_seed:
-						print "ERROR: couldn't find old seed when trying to rename!"
+						logging.error("couldn't find old seed when trying to rename!")
 					else:
 						old_seed.key.delete()
 				self.response.headers['Content-Type'] = 'text/plain'
 				self.response.status = 200
 				self.response.out.write(res)
 			else:
-				print "ERROR: Auth failed, logged in as %s, trying to edit %s's seed" % (dispname, author)
+				logging.error("Auth failed, logged in as %s, trying to edit %s's seed" % (dispname, author))
 				self.response.status = 401
 		else:
-			print "ERROR: no auth D:"
+			logging.error("no auth D:")
 			self.response.status = 401
 
 
@@ -727,7 +729,7 @@ class PlandoView(webapp2.RequestHandler):
 				template_values = {'app': "seedDisplay", 'title': "%s by %s" % (plando, author),
 								   'players': seed.players, 'seed_data': seed.to_lines()[0],
 								   'seed_name': plando, 'author': author, 'authed': True, 'seed_desc': seed.description,
-								   'user': dispname, 'game_id': get_open_gid()}
+								   'user': dispname, 'game_id': Game.get_open_gid()}
 				if hidden:
 					template_values['seed_hidden'] = True
 
@@ -796,7 +798,6 @@ class HandleLogout(webapp2.RequestHandler):
 
 class PlandoFillGen(webapp2.RequestHandler):
 	def get(self):
-		self.response.headers['Content-Type'] = 'text/plain'
 		params = self.request.GET
 		mode = params['m'] if 'm' in params else "standard"
 		variations = params['vars'].split("|")
@@ -847,9 +848,8 @@ class PlandoFillGen(webapp2.RequestHandler):
 			out += placements[0][0]
 		else:
 			self.response.status = 422
-		if not debug:
-			self.response.headers['Content-Type'] = 'application/x-gzip'
-			self.response.headers['Content-Disposition'] = 'attachment; filename=randomizer.dat'
+		self.response.headers['Content-Type'] = 'application/x-gzip' if not debug else 	'text/plain'
+		self.response.headers['Content-Disposition'] = 'attachment; filename=randomizer.dat' if not debug else ""
 		self.response.out.write(out)
 
 class PlandoDownload(webapp2.RequestHandler):
@@ -866,9 +866,15 @@ class PlandoDownload(webapp2.RequestHandler):
 			pid = paramVal(self, "pid")
 			syncFlag = "Sync%s.%s" % (gid, pid)
 			self.response.status = 200
-			self.response.headers['Content-Type'] = 'application/x-gzip'
-			self.response.headers['Content-Disposition'] = 'attachment; filename=randomizer.dat'
-			self.response.out.write("\n".join(seed.to_lines(player=int(pid), extraFlags=[syncFlag])))
+			self.response.headers['Content-Type'] = 'application/x-gzip' if not debug else 	'text/plain'
+			self.response.headers['Content-Disposition'] = 'attachment; filename=randomizer.dat' if not debug else ""
+			seedlines = seed.to_lines(player=int(pid), extraFlags=[syncFlag])
+			rand = Random()
+			rand.seed(seed.name)
+			flagline = seedlines.pop(0)
+			rand.shuffle(seedlines)
+			seedlines.insert(0, flagline)
+			self.response.out.write("\n".join(seedlines))
 		else:
 			self.response.status = 404
 			self.response.headers['Content-Type'] = 'text/plain'
@@ -951,25 +957,22 @@ class MapTest(webapp2.RequestHandler):
 			return webapp2.redirect("/")
 		game = Game.with_id(game_id)
 		if game:
-			print "deleted old game"
-			delete_game(game)
+			game.clean_up()
 		seedlines = []
 		seed = "mode=Shared|shared=keys+skills+teleporters,-280256|EC|1|Glades,-1680104|EX|100|Grove,-12320248|EX|100|Forlorn,-10440008|EX|100|Misty,799776|EV|5|Glades,-120208|EC|1|Glades,1519708|KS|1|Blackroot,1799708|KS|1|Blackroot,1959768|RB|9|Blackroot,-1560272|KS|1|Glades,-600244|EX|46|Glades,-3160308|HC|1|Glades,-2840236|EX|15|Glades,-3360288|MS|1|Glades,-2480208|EX|6|Glades,-2400212|AC|1|Glades,-1840228|HC|1|Glades,919772|KS|1|Glades,-2200184|KS|1|Glades,-1800156|KS|1|Glades,24|KS|1|Mapstone,2919744|KS|1|Blackroot,-1840196|SK|2|Glades,-800192|AC|1|Glades,-2080116|SK|14|Valley,-560160|EX|32|Grove,1479880|AC|1|Grove,599844|KS|1|Grove,2999904|RB|1|Grove,6999916|KS|1|Swamp,6159900|HC|1|Swamp,3639880|EX|27|Grove,5119584|MS|1|Grotto,6199596|MS|1|Grotto,5719620|HC|1|Grotto,5879616|KS|1|Grotto,6279880|KS|1|Swamp,5119900|EX|67|Swamp,39804|EX|9|Glades,28|EV|5|Mapstone,7839588|EX|51|Grotto,2999808|EC|1|Grove,3039696|SK|50|Blackroot,3119768|EX|33|Blackroot,-2200148|HC|1|Glades,-2240084|EX|53|Valley,4199828|EX|15|Grotto,32|AC|1|Mapstone,3439744|EX|44|Blackroot,-160096|EC|1|Grove,4239780|SK|5|Grotto,-480168|RB|13|Glades,-1560188|KS|1|Glades,-2160176|EX|50|Glades,3319936|KS|1|Grove,4759860|KS|1|Grotto,4319892|EX|82|Grotto,3639888|EC|1|Grove,5799932|EX|114|Swamp,4479832|EX|77|Grotto,5439640|EC|1|Grotto,5639752|EX|56|Grotto,0|EX|62|Grotto,4039612|AC|1|Grotto,3919624|EX|27|Grotto,4959628|EV|5|Grotto,4639628|EX|97|Grotto,4479568|EC|1|Grotto,7559600|EX|30|Grotto,3919688|EX|10|Blackroot,5399780|EX|32|Grotto,5119556|MS|1|Grotto,4439632|EX|40|Grotto,4359656|EX|52|Grotto,4919600|EX|97|Grotto,-1800088|EX|66|Valley,639888|EX|97|Grove,36|EV|5|Mapstone,2559800|EX|83|Glades,-2480280|EX|44|Glades,3199820|EC|1|Grove,1719892|RB|15|Grove,2599880|HC|1|Grove,4079964|EX|30|Swamp,4999892|KS|1|Swamp,5399808|KS|1|Grotto,5519856|EV|5|Grotto,3399820|EX|63|Grove,3279644|MS|1|Grotto,7199904|EV|5|Swamp,8599904|RB|0|Swamp,40|EX|99|Mapstone,799804|EX|22|Glades,6359836|EX|103|Swamp,4479704|EX|82|Grotto,5200140|AC|1|Ginso,5280264|KS|1|Ginso,5080304|MS|1|Ginso,5280296|EX|175|Ginso,5400100|EX|92|Ginso,6639952|KS|1|Swamp,2719900|EV|5|Grove,5320328|AC|1|Ginso,5320488|AC|1|Ginso,5080496|KS|1|Ginso,5400276|EC|1|Ginso,2759624|EV|5|Blackroot,959960|AC|1|Grove,6399872|EX|156|Swamp,4319860|EX|40|Grotto,4319676|AC|1|Blackroot,7679852|RB|0|Swamp,5359824|EX|148|Grotto,8839900|KS|1|Swamp,5160384|EX|118|Ginso,5280404|EX|153|Ginso,5360432|KS|1|Ginso,3879576|AC|1|Blackroot,3359580|KS|1|Blackroot,719620|KS|1|Blackroot,1759964|EX|125|Grove,2239640|AC|1|Blackroot,1240020|HC|1|Grove,559720|KS|1|Glades,39756|EX|73|Glades,-400240|RB|0|Glades,-3559936|EX|49|Valley,-4199936|HC|1|Valley,-3600088|AC|1|Valley,1839836|KS|1|Grove,3519820|KS|1|Grove,5919864|KS|1|Swamp,4199724|EX|171|Grotto,3559792|KS|1|Grotto,3359784|AC|1|Grove,-3200164|EX|155|Valley,3959588|KS|1|Grotto,7599824|KS|1|Swamp,6839792|EX|183|Swamp,7959788|HC|1|Swamp,8719856|EX|61|Swamp,4599508|KS|1|Blackroot,3039472|EV|5|Blackroot,5239456|EC|1|Blackroot,-4600020|MS|1|Valley,-5479948|EX|121|Sorrow,-6800032|KS|1|Misty,-8240012|EX|265|Misty,-2919980|AC|1|Valley,-5719844|EX|62|Sorrow,-5119796|EX|267|Sorrow,-4879680|EX|35|Sorrow,-5039728|RB|1|Sorrow,-5159700|MS|1|Sorrow,-5959772|KS|1|Sorrow,-9799980|EX|86|Misty,-10760004|RB|11|Misty,-10120036|EX|48|Misty,-10759968|HC|1|Misty,-4600188|EX|147|Valley,-4160080|EX|25|Valley,-4680068|RB|6|Valley,-3520100|KS|1|Valley,-5640092|EX|152|Valley,-6119704|EX|1|Sorrow,-4359680|EC|1|Sorrow,-8400124|EX|315|Misty,-7960144|EX|94|Misty,-9120036|EX|315|Misty,-7680144|AC|1|Misty,-11040068|AC|1|Misty,1720000|EC|1|Grove,2519668|EX|253|Blackroot,4560564|EC|1|Ginso,-6719712|EX|178|Sorrow,-6079672|EC|1|Sorrow,-6119656|RB|1|Sorrow,-6039640|EX|140|Sorrow,-6159632|EX|297|Sorrow,-6279608|EX|14|Sorrow,8|EX|9|Misty,44|AC|1|Mapstone,48|EV|5|Mapstone,-7040392|EX|62|Forlorn,-8440352|KS|1|Forlorn,-8920328|MS|1|Forlorn,-8880252|EX|256|Forlorn,-8720256|EX|154|Forlorn,5320660|EX|291|Ginso,5360732|AC|1|Ginso,5320824|AC|1|Ginso,5160864|KS|1|Ginso,4|EX|135|Ginso,6080608|AC|1|Ginso,-6799732|AC|1|Sorrow,-6319752|AC|1|Sorrow,-8160268|AC|1|Forlorn,-5160280|AC|1|Valley,-5400236|EX|236|Valley,-10839992|EX|284|Misty,7639816|AC|1|Swamp,-4559584|RB|6|Sorrow,-4159572|RB|13|Sorrow,-5479592|EX|382|Sorrow,-5919556|KS|1|Sorrow,-6280316|EV|5|Forlorn,12|EX|277|Forlorn,52|MS|1|Mapstone,1920384|KS|1|Horu,1480360|MS|1|Horu,2480400|EX|291|Horu,-6080316|AC|1|Forlorn,1880164|RB|12|Horu,2520192|AC|1|Horu,1600136|KS|1|Horu,-1919808|AC|1|Horu,-319852|AC|1|Horu,120164|EX|128|Horu,1280164|EX|115|Horu,960128|HC|1|Horu,3160244|EX|235|Horu,20|EC|1|Horu,1040112|AC|1|Horu,-8600356|AC|1|Forlorn,-6959592|EX|15|Sorrow,-6479528|HC|1|Sorrow,-4799416|EX|382|Sorrow,4680612|EV|5|Ginso,56|EX|322|Mapstone,-5159576|AC|1|Sorrow,16|EV|5|Sorrow,5040476|RB|21|Ginso,4559492|RB|19|Blackroot,399844|RB|19|Grove,-1680140|EV|5|Glades,9119928|EV|5|Swamp,2079568|EV|1|Blackroot,3279920|RB|17|Grove,-4600256|RB|21|Valley,-4440152|RB|21|Valley,919908|RB|17|Grove,1599920|RB|17|Grove,-11880100|RB|21|Misty,-5400104|EV|5|Valley,-6720040|RB|19|Misty,5039560|RB|17|Grotto,5280500|EV|5|Ginso,5160336|EV|5|Ginso"
 		lines = seed.split(",")
 		flags = lines[0].split("|")
 		mode_opt = [f[5:] for f in flags if f.lower().startswith("mode=")]
 		shared_opt = [f[7:].split("+") for f in flags if f.lower().startswith("shared=")]
-		mode = mode_opt[0].lower() if mode_opt else None
-		if mode:
-			mode = mode_map[mode] if mode in mode_map else int(mode)	
+		mode = MultiplayerGameType.from_url(mode_opt[0]) if mode_opt else None
 		shared = shared_opt[0] if shared_opt else None
 		for l in lines[1:]:
 			line = l.split("|")
 			if len(line) < 3:
-				print "ERROR: malformed seed line %s, skipping" % l
+				logging.error("malformed seed line %s, skipping" % l)
 			else:
 				seedlines.append("%s:%s" % (line[0], Pickup.name(line[1], line[2])))
-		game = get_new_game(_mode=mode, _shared=shared, id=game_id)
+		game = Game.new(_mode=mode, _shared=shared, id=game_id)
 		game.put()
 		for player_id in [1,2,3]:
 			game = Game.with_id(game_id)
@@ -1020,6 +1023,7 @@ app = webapp2.WSGIApplication([
 	(r'/(\d+)\.(\w+)/(-?\d+)/(\w+)/(\w+)', FoundPickup),
 	(r'/(\d+)\.(\w+)/(-?\d+\.?\d*),(-?\d+\.?\d*)', Update),
 	(r'/(\d+)\.(\w+)/(-?\d+\.?\d*),(-?\d+\.?\d*)/', GetUpdate),
+	(r'/_update/(\d+)\.(\w+)/(-?\d+\.?\d*),(-?\d+\.?\d*)/', GetUpdate),
 	(r'/(\d+)\.(\w+)/signalCallback/(.*)', SignalCallback),
 	(r'/(\d+)/delete', DeleteGame),
 	(r'/(\d+)/history/?', ShowHistory),
