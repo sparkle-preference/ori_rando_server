@@ -599,12 +599,11 @@ class SeedGenerator:
 		self.modes = modes
 		self.flags = flags
 		self.doFrags = (fragOpts != None)
-#		print fragOpts, self.doFrags, self.preplaced, preplacedIn, retries
 		if self.doFrags:
 			for treeLoc in [-4600020, -6959592, -3160308, -560160, 2919744, 719620, 7839588, 5320328, 8599904, -11880100]:
-#				if treeLoc in preplacedIn and preplacedIn[treeLoc] != "RB28":
-#					print "ERROR: Invalid value found in preplaced, given flags"
-#					return None
+				if treeLoc in preplacedIn and preplacedIn[treeLoc] != "RB28":
+					print "ERROR: Invalid value found in preplaced, given flags"
+					return None
 				self.preplaced[treeLoc] = "RB28"
 			self.fragOpts = fragOpts
 			if self.fragDungeon:
@@ -622,7 +621,6 @@ class SeedGenerator:
 					self.fragOrder=["H","G","F"]
 				if perm==5:
 					self.fragOrder=["H","F","G"]
-#		print fragOpts, self.doFrags, self.preplaced, preplacedIn
 
 		if self.playerCount > 1:
 			if "skills" in sharedItems:
@@ -650,7 +648,9 @@ class SeedGenerator:
 				self.sharedList.append("TPSwamp")
 				self.sharedList.append("TPValley")
 			if "upgrades" in sharedItems:
-				self.sharedList += ["RB6", "RB8", "RB9", "RB10", "RB11", "RB12", "RB13", "RB15", "RB31", "RB32", "RB33", "RB101", "RB102", "RB103", "RB104" ]
+				self.sharedList += ["RB6", "RB8", "RB9", "RB10", "RB11", "RB12", "RB13", "RB15"]
+				if wild:
+					self.sharedList += ["RB31", "RB32", "RB33", "RB101", "RB102", "RB103"]
 
 		return self.placeItemsMulti(seed, retries)
 		
@@ -988,14 +988,6 @@ class SeedGenerator:
 			("RB12", 0),
 			("RB13", 0),
 			("RB15", 0),
-			("RB28", 0),
-			("RB31", 0),
-			("RB32", 0),
-			("RB33", 0),
-			("RB101", 0),
-			("RB102", 0),
-			("RB103", 0),
-			("RB104", 0),
 			("WaterVeinShard", 0),
 			("GumonSealShard", 0),
 			("SunstoneShard", 0),
@@ -1057,11 +1049,11 @@ class SeedGenerator:
 		if self.entrance:
 			self.outputStr += self.randomize_entrances()
 
-		self.outputStr += ("-280256|EC|1|Glades\n") #if not (preplaced and -280256 in forcedAssignments) else "" # first energy cell
-		self.outputStr += ("-1680104|EX|100|Grove\n") #if not (preplaced and -280256 in forcedAssignments) else ""  # glitchy 100 orb at spirit tree
-		self.outputStr += ("-12320248|EX|100|Forlorn\n") #if not (preplaced and -280256 in forcedAssignments) else ""  # forlorn escape plant
+		self.outputStr += ("-280256|EC|1|Glades\n") if not (-280256 in forcedAssignments) else "" # first energy cell
+		self.outputStr += ("-1680104|EX|100|Grove\n") if not (-1680104 in forcedAssignments) else ""  # glitchy 100 orb at spirit tree
+		self.outputStr += ("-12320248|EX|100|Forlorn\n") if not (-12320248 in forcedAssignments) else ""  # forlorn escape plant
 		# the 2nd keystone in misty can get blocked by alt+R, so make it unimportant
-		self.outputStr += ("-10440008|EX|100|Misty\n") #if not (preplaced and -10440008 in forcedAssignments) else ""
+		self.outputStr += ("-10440008|EX|100|Misty\n") if not (-10440008 in forcedAssignments) else ""
 
 		if not self.includePlants:
 			for location in plants:

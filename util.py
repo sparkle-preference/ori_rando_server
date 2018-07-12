@@ -364,9 +364,11 @@ class Game(ndb.Model):
 				player = Player(id=full_pid, skills = 0, events=0, upgrades = 0, teleporters = 0, history=[])
 			k = player.put()
 			Cache.setHist(self.key.id(), pid, [])
-			if k not in self.players:
-				self.players.append(k)
-				self.put()
+		else:
+			k = player.key
+		if k not in self.players:
+			self.players.append(k)
+			self.put()
 		return player
 
 	def found_pickup(self, pid, pickup, coords, remove, dedup):
@@ -434,7 +436,7 @@ def get_new_game(_mode = None, _shared = None, id=None):
 def refactor_stacks(pickup):
 	if pickup.code != "RB":
 		return False
-	return pickup.id in [6,12,13,15,17,19,21,30,31,32,33]
+	return pickup.id in [6,12,13,15,17,19,21,28,30,31,32,33]
 
 
 coord_correction_map = {

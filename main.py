@@ -349,6 +349,9 @@ class SeedDownloader(webapp2.RequestHandler):
 			sharedItems = share_types,
 			wild = "wild" in params,
 			fragOpts = fragOpts if do_frag else None)
+		if not placements:
+			self.response.out.write("seed generator failed to create a seed with these params. Change the seed number and try again?")		
+			return
 		if synctype == "split":
 			(seed, spoil) = placements[0]
 			if spoiler:
