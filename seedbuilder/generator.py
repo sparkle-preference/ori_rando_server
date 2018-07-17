@@ -211,6 +211,96 @@ class Door:
 			math.floor(self.y / self.factor) * self.factor)
 
 class SeedGenerator:
+	
+	seedDifficultyMap = OrderedDict({
+		"Dash": 2,
+		"Bash": 2,
+		"Glide": 3,
+		"DoubleJump": 2,
+		"ChargeJump": 1
+	})
+
+	limitKeysPool = ["SKWallJump", "SKChargeFlame", "SKDash", "SKStomp", "SKDoubleJump", "SKGlide", "SKClimb", "SKGrenade", "SKChargeJump", "EVGinsoKey", "EVForlornKey", "EVHoruKey", "SKBash", "EVWater", "EVWind"]
+
+	difficultyMap = OrderedDict({
+		"normal": 1,
+		"speed": 2,
+		"lure": 2,
+		"speed-lure": 3,
+		"dboost": 2,
+		"dboost-light": 1,
+		"dboost-hard": 3,
+		"cdash": 2,
+		"cdash-farming": 2,
+		"dbash": 3,
+		"extended": 3,
+		"extended-damage": 3,
+		"lure-hard": 4,
+		"extreme": 4,
+		"glitched": 5,
+		"timed-level": 5
+	})
+
+	costs = OrderedDict({
+		"Free": 0,
+		"MS": 0,
+		"KS": 2,
+		"EC": 6,
+		"HC": 12,
+		"WallJump": 13,
+		"ChargeFlame": 13,
+		"DoubleJump": 13,
+		"Bash": 41,
+		"Stomp": 29,
+		"Glide": 17,
+		"Climb": 41,
+		"ChargeJump": 59,
+		"Dash": 13,
+		"Grenade": 29,
+		"GinsoKey": 12,
+		"ForlornKey": 12,
+		"HoruKey": 12,
+		"Water": 80,
+		"Wind": 80,
+		"WaterVeinShard": 5,
+		"GumonSealShard": 5,
+		"SunstoneShard": 5,
+		"TPForlorn": 120,
+		"TPGrotto": 60,
+		"TPSorrow": 90,
+		"TPGrove": 60,
+		"TPSwamp": 60,
+		"TPValley": 90
+	})
+	
+	skillsOutput = OrderedDict({
+		"WallJump": "SK3",
+		"ChargeFlame": "SK2",
+		"Dash": "SK50",
+		"Stomp": "SK4",
+		"DoubleJump": "SK5",
+		"Glide": "SK14",
+		"Bash": "SK0",
+		"Climb": "SK12",
+		"Grenade": "SK51",
+		"ChargeJump": "SK8"
+	})
+
+	eventsOutput = OrderedDict({
+		"GinsoKey": "EV0",
+		"Water": "EV1",
+		"ForlornKey": "EV2",
+		"Wind": "EV3",
+		"HoruKey": "EV4",
+		"Warmth": "EV5",
+		"WaterVeinShard": "RB17",
+		"GumonSealShard": "RB19",
+		"SunstoneShard": "RB21"
+	})
+
+	def __init__(self):	
+
+		self.codeToName = OrderedDict([(v,k) for k,v in self.skillsOutput.items() + self.eventsOutput.items()])
 
 	def reach_area(self, target):
 		if target in self.sharedMap and self.playerID > 1:
@@ -576,7 +666,7 @@ class SeedGenerator:
 
 	def setSeedAndPlaceItems(self, seed, expPool, hardMode, includePlants, shardsMode, limitkeysMode, cluesMode, fragsMode, noTeleporters,
 						modes, flags, starvedMode, preferPathDifficulty,
-						setNonProgressiveMapstones, playerCountIn, balanced, entrance, sharedItems, wild=False, fragOpts=None, preplacedIn={}, retries=10):
+						setNonProgressiveMapstones, playerCountIn, balanced, entrance, sharedItems, wild=False, fragOpts=None, preplacedIn={}, retries=20):
 		self.sharedMap = {}
 		self.sharedList = []
 		self.playerCount = playerCountIn
@@ -595,14 +685,14 @@ class SeedGenerator:
 		self.noTeleporters = noTeleporters
 		self.wild = wild
 		self.entrance = entrance
-		self.preplaced = preplacedIn.copy()
+		self.preplaced = {k: (self.codeToName[v] if v in self.codeToName else v) for k,v in preplacedIn.iteritems()}
 		self.expPool = expPool
 		self.modes = modes
 		self.flags = flags
 		self.doFrags = (fragOpts != None)
 		if self.doFrags:
 			if not preplacedIn:
-				retries += 30 # this is kind of dumb but not necessarily the stupidest!
+				retries += 20 # this is kind of dumb but not necessarily the stupidest!
 			for treeLoc in [-4600020, -6959592, -3160308, -560160, 2919744, 719620, 7839588, 5320328, 8599904, -11880100]:
 				if treeLoc in preplacedIn and preplacedIn[treeLoc] != "RB28":
 					log.error("Invalid value found in preplaced, given flags")
@@ -669,7 +759,7 @@ class SeedGenerator:
 				if retries > 0:
 					retries -= 1
 				else:
-					log.error("Seed not completeable with these params and placements")
+					log.error("Seed not completeable with these params and placements. %s Items remaining: %s, areas reached: %s, inventory: %s, assignments: %s" % (self.itemCount, {k: v for k,v in self.itemPool.iteritems() if v > 0}, self.areasReached, self.inventory, self.forcedAssignments))
 					return None
 			return self.placeItemsMulti(seed, retries)
 		placements.append(placement)
@@ -681,7 +771,7 @@ class SeedGenerator:
 					if retries > 0:
 						retries -= 1
 					else:
-						log.error("Seed not completeable with these params and placements")
+						log.error("Coop seed not completeable with these params and placements")
 						return None
 				return self.placeItemsMulti(seed, retries)
 			placements.append(placement)
@@ -698,100 +788,12 @@ class SeedGenerator:
 			
 		self.forcedAssignments = self.preplaced
 
-		self.skillsOutput = {
-			"WallJump": "SK3",
-			"ChargeFlame": "SK2",
-			"Dash": "SK50",
-			"Stomp": "SK4",
-			"DoubleJump": "SK5",
-			"Glide": "SK14",
-			"Bash": "SK0",
-			"Climb": "SK12",
-			"Grenade": "SK51",
-			"ChargeJump": "SK8"
-		}
-
-		self.eventsOutput = {
-			"GinsoKey": "EV0",
-			"Water": "EV1",
-			"ForlornKey": "EV2",
-			"Wind": "EV3",
-			"HoruKey": "EV4",
-			"Warmth": "EV5",
-			"WaterVeinShard": "RB17",
-			"GumonSealShard": "RB19",
-			"SunstoneShard": "RB21"
-		}
-
-		seedDifficultyMap = {
-			"Dash": 2,
-			"Bash": 2,
-			"Glide": 3,
-			"DoubleJump": 2,
-			"ChargeJump": 1
-		}
 		self.seedDifficulty = 0
-
-		self.limitKeysPool = ["SKWallJump", "SKChargeFlame", "SKDash", "SKStomp", "SKDoubleJump", "SKGlide", "SKClimb",
-						 "SKGrenade", "SKChargeJump", "EVGinsoKey", "EVForlornKey", "EVHoruKey", "SKBash", "EVWater",
-						 "EVWind"]
-
-		difficultyMap = {
-			"normal": 1,
-			"speed": 2,
-			"lure": 2,
-			"speed-lure": 3,
-			"dboost": 2,
-			"dboost-light": 1,
-			"dboost-hard": 3,
-			"cdash": 2,
-			"cdash-farming": 2,
-			"dbash": 3,
-			"extended": 3,
-			"extended-damage": 3,
-			"lure-hard": 4,
-			"extreme": 4,
-			"glitched": 5,
-			"timed-level": 5
-		}
 
 		self.outputStr = ""
 		self.eventList = []
 		spoilerStr = ""
 		groupDepth = 0
-
-		self.costs = {
-			"Free": 0,
-			"MS": 0,
-			"KS": 2,
-			"EC": 6,
-			"HC": 12,
-			"WallJump": 13,
-			"ChargeFlame": 13,
-			"DoubleJump": 13,
-			"Bash": 41,
-			"Stomp": 29,
-			"Glide": 17,
-			"Climb": 41,
-			"ChargeJump": 59,
-			"Dash": 13,
-			"Grenade": 29,
-			"GinsoKey": 12,
-			"ForlornKey": 12,
-			"HoruKey": 12,
-			"Water": 80,
-			"Wind": 80,
-			"WaterVeinShard": 5,
-			"GumonSealShard": 5,
-			"SunstoneShard": 5,
-			"RB28": 2,
-			"TPForlorn": 120,
-			"TPGrotto": 60,
-			"TPSorrow": 90,
-			"TPGrove": 60,
-			"TPSwamp": 60,
-			"TPValley": 90
-		}
 
 		# we use OrderedDicts here because the order of a dict depends on the size of the dict and the hash of the keys
 		# since python 3.3 the order of a given dict is also dependent on the random hash seed for the current Python invocation
@@ -945,7 +947,10 @@ class SeedGenerator:
 			self.itemPool["ForlornKey"] = 0
 			self.itemPool["HoruKey"] = 0
 			self.itemCount -= 3
-		
+
+		for item in self.forcedAssignments.values():
+			if item in self.itemPool:
+				self.itemPool[item] -= 1
 		self.itemCount -= len(self.forcedAssignments)
 		
 		if self.noTeleporters:
@@ -1002,9 +1007,6 @@ class SeedGenerator:
 			("TPValley", 0)
 		])
 		
-		if "OHKO" in self.flags:
-			self.inventory["HC"] = -15
-
 		# paired setup for subsequent players
 		if self.playerID > 1:
 			for item in self.sharedList:
@@ -1041,7 +1043,7 @@ class SeedGenerator:
 						continue
 				for req in conn.find("Requirements"):
 					if req.attrib["mode"] in self.modes:
-						connection.add_requirements(req.text.split('+'), difficultyMap[req.attrib["mode"]])
+						connection.add_requirements(req.text.split('+'), self.difficultyMap[req.attrib["mode"]])
 				if connection.get_requirements():
 					area.add_connection(connection)
 			self.areas[area.name] = area
@@ -1166,8 +1168,8 @@ class SeedGenerator:
 				if skill in self.spoilerGroup:
 					for instance in self.spoilerGroup[skill]:
 						currentGroupSpoiler += "	" + instance
-					if skill in seedDifficultyMap:
-						self.seedDifficulty += groupDepth * seedDifficultyMap[skill]
+					if skill in self.seedDifficultyMap:
+						self.seedDifficulty += groupDepth * self.seedDifficultyMap[skill]
 
 			for event in self.eventsOutput:
 				if event in self.spoilerGroup:

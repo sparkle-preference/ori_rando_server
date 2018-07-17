@@ -2,13 +2,16 @@ import './index.css';
 import React from 'react';
 import  {Collapse,  Navbar,  NavbarBrand, Nav,  NavItem,  NavLink, UncontrolledDropdown, Input, 
 		UncontrolledButtonDropdown, DropdownToggle, DropdownMenu, DropdownItem, Button, Row, FormFeedback,
-		Col, Container, TabContent, TabPane, Card, CardBody, CardTitle, CardSubtitle, CardText} from 'reactstrap'
+		Col, Container, TabContent, TabPane} from 'reactstrap'
 import {Helmet} from 'react-helmet';
+
+import {getHelpContent, HelpBox} from "./helpbox.js"
 import {listSwap, get_param, presets} from './shared_map.js';
 
 
 const dev = window.document.URL.includes("devshell")
 const base_url = dev ?  "https://8080-dot-3616814-dot-devshell.appspot.com" : "http://orirandocoopserver.appspot.com"
+const keymode_options = ["None", "Shards", "Limitkeys", "Clues", "Warmth Frags"];
 
 const textStyle = {color: "black", textAlign: "center"}
 const SiteBar = ({dlltime, user}) => {
@@ -90,145 +93,22 @@ const variations = {
 	entshuf: "Entrance Shuffle",
 	wild: "More Bonus Pickups"
 }
+const optional_paths = ["speed", "dboost-light", "dboost", "lure", "speed-lure", "lure-hard", "dboost-hard", "extended", "extended-damage", "dbash", "cdash", "extreme", "timed-level", "glitched", "cdash-farming"]
 const varPaths = {"ohko": ["ohko", "hardmode"], "0xp": ["0xp", "hardmode"], "hard": ["hardmode"], "master": ["starved"]}
 const diffPaths = {"glitched": "hard", "master": "hard"}
 const disabledPaths = {
-					"hardmode": ["dboost", "dboost-hard", "extended-damage", "extreme"], 
-					"0xp": ["glitched", "cdash", "cdash-farming", "speed-lure"], 
-					"ohko": ["dboost-light", "dboost", "dboost-hard", "extended-damage", "extreme", "glitched"]
+					"hardmode": ["dboost", "dboost-hard", "extended-damage", "extreme", "lure-hard"], 
+					"0xp": ["glitched", "cdash", "cdash-farming", "speed-lure", "timed-level"], 
+					"ohko": ["dboost-light", "dboost", "dboost-hard", "extended-damage", "extreme", "glitched", "lure-hard"]
 					}
-const revDisabledPaths = {"dboost": ["hardmode", "ohko"], "dboost-hard": ["hardmode", "ohko"], "extended-damage": ["hardmode", "ohko"], 
-						"extreme": ["ohko", "hardmode"], "glitched": ["0xp", "ohko"], "cdash": ["0xp"], "cdash-farming": ["0xp"], "speed-lure": ["0xp"]}
+const revDisabledPaths = {}
+Object.keys(disabledPaths).forEach(v => disabledPaths[v].forEach(path => revDisabledPaths.hasOwnProperty(path) ? revDisabledPaths[path].push(v) : revDisabledPaths[path] = [v]))
 
-const noneTitle = "Confused?"
-const noneSub = "Mouse over anything to learn more!"
-const noneText = "Additional context-specific information will appear here as you interact with the UI."
 
 export default class MainPage extends React.Component {
 	helpEnter = (category, option) => () => {clearTimeout(this.state.helpTimeout) ; this.setState({helpTimeout: setTimeout(this.help(category, option), 250)})}
 	helpLeave = () => clearTimeout(this.state.helpTimeout) 
-	help = (category, option) => () => {
-		switch(category ) {
-			case "logicModes":
-				let helpParams = {helpSub: "Logic Mode", helpExtra: (
-					<CardText>For more detailed info about Logic Modes, check the help sections inside the Logic Paths tab</CardText>
-				)}
-				
-				switch(option) {
-					case "casual":						
-						helpParams = Object.assign({helpTitle: "Casual", helpText: "Casual is the easiest logic mode, intended for players who have never done a speedrun of Ori."}, helpParams)
-						break;
-					case "standard":						
-						helpParams = Object.assign({helpTitle: "Standard", helpText: "Standard is the default randomizer logic mode, intended for users who are familiar with Ori movement and basic speedrunning tech. The community weekly races use this logic mode."}, helpParams)
-						break;
-					case "dboost":						
-						helpParams = Object.assign({helpTitle: "Dboost", helpText: "Dboost (or Damage Boost) is the next step up from Standard, and can require players to take up to 5 damage from spikes, poison water, or other hazards while collecting pickups."}, helpParams)
-						break;
-					case "expert":						
-						helpParams = Object.assign({helpTitle: "Expert", helpText: "Expert is for players who've been playing the randomizer for a while, and can require tedious, more difficult, and more annoying techniques."}, helpParams)
-						break;
-					case "master":						
-						helpParams = Object.assign({helpTitle: "Master", helpText: "Master is even more difficult than Expert, and is only recommended for players looking to push the game to the limit. Additionally, the path difficulty is set to hard and the Starved variation is set. Warning: can require double bashing."}, helpParams)
-						break;
-					case "hard":						
-						helpParams = Object.assign({helpTitle: "Hard", helpText: "The Hard logic mode is designed for the 'Hard Mode' variation, which limits players to 3 health and 4 energy for the entire game. Selecting this Logic Mode will automatically turn Hard Mode on. Warning: can require double bashing"}, helpParams)
-						break;
-					case "ohko":						
-						helpParams = Object.assign({helpTitle: "One-Hit KO", helpText: "The One-Hit KO logic mode uses the 'OHKO' and 'Hard Mode' variations. This limits Ori to 3 health and 4 energy (Hard Mode) and makes all damage taken by Ori lethal (OHKO). Selecting this Logic Mode will automatically turn both Hard Mode and OHKO on. Warning: can require double bashing"}, helpParams)
-						break;
-					case "0xp":						
-						helpParams = Object.assign({helpTitle: "Zero Experience", helpText: "The Zero Experience logic mode uses the '0xp' and 'Hard Mode' variations. This limits Ori to 3 health and 4 energy (Hard Mode) and makes it impossible to acquire experience or ability cells (0xp). Selecting this option will automatically turn both Hard Mode and 0xp on. Warning: not for the feint of heart."}, helpParams)
-						break;
-					case "glitched":						
-						helpParams = Object.assign({helpTitle: "Glitched", helpText: "Glitched is the hardest logic mode in the game, and not recommended for most players. In addition to everything that Master requires, it requires knowledge of the game's various out-of-bounds tricks and other unsafe paths. Tread carefully!"}, helpParams)
-						break;
-				}
-				this.setState(helpParams);
-				break;
-			case "variations":
-				switch(option) {
-					case "forcetrees":
-						this.setState({helpTitle: "Force Trees", helpSub: "Variations", helpText: "The Force Trees variation requires players to visit all ten skill trees before completing the game. It is wildly popular, enabled by default, and recommended for all players. The community weekly races use this variation.", helpExtra: null})
-						break;
-					case "starved":
-						this.setState({helpTitle: "Starved", helpSub: "Variations", helpText: "The Starved variation reduces the probability that players will be given skill pickups, unless one is needed to proceed. This tends to create more linear seeds, where each skill gives access to the area or areas where the next skill or important item will be found. Recommended for everyone at least once, and for players who enjoy more linear pathing or constrained situations.", helpExtra: null})
-						break;
-					case "discmaps":
-						this.setState({helpTitle: "Discrete Mapstones", helpSub: "Variations", helpText: "The Discrete Mapstone variation changes how mapstones function, making each individual mapstone turn-in have its own pickup. (By default, the mapstone pickups are granted based on the number of mapstones you have turned in, regardless of where). This variation exists primarily for legacy reasons and is not recommended for normal use.", helpExtra: null})
-						break;
-					case "hardmode":
-						this.setState({helpTitle: "Hard Mode", helpSub: "Variations", helpText: "The Hard Mode variation removes all health cells and all but 3 energy cells from the pool of available items, capping your health at 3 and energy at 4 for the entire seed. Additionally, it removes all bonus pickups from the pickup pool. As a result, it is incompatible with logic paths that require taking 3 or more damage (dboost, dboost-hard, extended-damage, and extreme), and the Extra Bonus Pickups variation. Recommended for people who hate feeling safe and like to live on the edge.", helpExtra: null})
-						break;
-					case "ohko":
-						this.setState({helpTitle: "One-Hit KO", helpSub: "Variations", helpText: "The One-Hit KO variation causes any amount of damage Ori takes to be instantly lethal. As such, it is incompatible with all logic paths that require damage boosts. NOTE: this variation is rarely used and thus is less tested than most. Tread carefully!", helpExtra: null})
-						break;
-					case "0xp":
-						this.setState({helpTitle: "0 Experience", helpSub: "Variations", helpText: "Inspired by the incredibly unpopular 0exp speedrunning category, the 0 Experience variation prevents Ori from ever gaining levels or acquiring experience. Experience dropped by enemies will kill Ori on contact! Recommended for anyone who watched a 0xp run and thought it seemed fun.", helpExtra: null})
-						break;
-					case "noplants":
-						this.setState({helpTitle: "No Plants", helpSub: "Variations", helpText: "The No Plants variation makes it so that pickups will not be placed in plants. This variation exists primarily for legacy reasons and is not recommended for normal use.", helpExtra: null})
-						break;
-					case "notp":
-						this.setState({helpTitle: "No Teleporters", helpSub: "Variations", helpText: "The No Teleporters variation makes it so that you cannot unlock teleporters via pickups. This variation exists primarily for legacy reasons, but if you find that teleporter unlocks are frequently causing you confusion or unhappiness, this will help.", helpExtra: null})
-						break;
-					case "forcemaps":
-						this.setState({helpTitle: "Force Maps", helpSub: "Variations", helpText: "The Force Maps variation requires that you turn in all 9 mapstones before finishing the game. Intended as an alternative to Force Trees (though you can do both), it has the effect of making the Forlorn Ruins (and thus either the Forlorn TP or Gumon Seal) manditory. Recommend for players looking for something new to try and for cartographers everywhere", helpExtra: null})
-						break;
-					case "forcerandomescape":
-						this.setState({helpTitle: "Force Random Escape", helpSub: "Variations", helpText: "The Force Random Escape variation requires that you finish either the Forlorn or Ginso escapes before completing the game. Recommended for anyone who misses doing the Forlorn Escape, since it is otherwise never useful to complete.", helpExtra: null})
-						break;
-					case "entshuf":
-						this.setState({helpTitle: "Entrance Shuffle", helpSub: "Variations", helpText: "The Entrance Shuffle variation remaps each door (the dungeon enterances and the 8 horu side rooms) in the game to go to another door instead. Recommended for anyone who likes being confused, or is interested in spending more time in Horu than usually necessary.", helpExtra: null})
-						break;
-					case "wild":
-						this.setState({helpTitle: "More Bonus Pickups", helpSub: "Variations", helpText: "More Bonus Pickups introduces several new bonus pickups not normally found in the randomizer, including some new activateable skills. Recommended for people interested in trying out some cool and probably pretty overpowered pickups.", helpExtra: (<CardText>Note: The default bindings for bonus skills are Alt+Q to swap between them, and Alt+Mouse1 to activate them. These bindings can be changed in the RandomizerRebinding.txt file. The "ExtremeSpeed" and "Gravity Swap" pickups are toggleable: activating them will turn them on, and cost energy over time. They will automatically turn off if you run out of energy</CardText>)})
-						break;
-				}
-				
-				break;
-			case "keyModes":
-				switch(option) {
-					case "Shards":
-						this.setState({helpTitle: "Shards", helpSub: "Dungeon Key Modes", helpText: "In Shards, the dungeon keys are replaced with dungeon key shards. Each key has 5 shards on the map, but only 3 are needed to assemble the full key. Shards cannot generate within the dungeon they unlock.", helpExtra: (<CardText>Recommended for: experienced players, Co-op, and players who enjoy exploring and checking lots of pickups.</CardText>)})
-						break;
-					case "Clues":
-						this.setState({helpTitle: "Clues", helpSub: "Dungeon Key Modes", helpText: "In Clues, the dungeon keys are placed randomly throughout the map. Every 3 skill trees you visit, the game will tell you which zone you can find one of the keys in. You can check your currently unlocked hints (as well as tree, mapstone, and overall progress) by pressing alt+p.", helpExtra: [(<CardText>Note: A map of the Zones is available <a target="_blank" href="https://i.imgur.com/lHgbqmI.jpg">here</a>.</CardText>), (<CardText>Recommended for: newer players, players who like exploring, but don't want to check every pickup.</CardText>)]})
-						break;
-					case "Limitkeys":
-						this.setState({helpTitle: "Limitkeys", helpSub: "Dungeon Key Modes", helpText: "In Limitkeys, the dungeon keys are placed randomly at one of the Skill Trees or World Event locations (the vanilla locations for the Water Vein, Gumon Seal, and Sunstone, Wind Restored at the start of the Forlorn Escape, and Clean Water at the end of the Ginso Escape.)", helpExtra: (<CardText>Recommended for: newer players, players who dislike hunting for dungeon keys once they have the skills they need.</CardText>)})
-						break;
-					case "None":
-						this.setState({helpTitle: "None", helpSub: "Dungeon Key Modes", helpText: "In None, the dungeon keys are placed randomly throughout the map. No constraints or info is given to help find them.", helpExtra: (<CardText>Recommended for: mashochists, people with too much free time.</CardText>)})
-						break;
-					case "Warmth Frags":
-						this.setState({helpTitle: "Warmth Fragments", helpSub: "Dungeon Key Modes", helpText: "Warmth Fragments is an experimental new mode which removes the dungeon keys entirely. Instead, a configurable number of Warmth Fragments are required to access each dungeon (the unlock order is random). Check out the Warmth Fragment Mode tab for more details.", helpExtra: (<CardText>Recommended for: people who like exploring and efficiently checking large numbers of pickups</CardText>)})
-						break;
-				}
-				break;
-			case "general":
-				switch(option) {
-					case "logicModes":
-						this.setState({helpTitle: "Logic Modes", helpSub: "General Options", helpText: "Logic Modes are sets of Logic Paths tailored for specific play experiences. Some Logic Modes, such as Hard or OHKO, also have associated variations that will be applied on selection. Changing the Logic Mode will have a major impact on seed difficulty. Mouse over a logic mode in the dropdown to learn more.", helpExtra: null})
-						break;
-					case "keyModes":
-						this.setState({helpTitle: "Dungeon Key Modes", helpSub: "General Options", helpText: "Dungeon Key Modes change how the 3 dungeon keys (the Watervein, Gumon Seal, and Sunstone) are acquired. Since the Sunstone is always required, and the Water Vein is required by default (see Forcetrees under Variations for more info), placement of the Dungeon Keys matters a fair bit. New players should start with Clues or Limitkeys.", helpExtra: null})
-						break;
-					case "pathDiff":
-						this.setState({helpTitle: "Path Difficulty", helpSub: "General Options", helpText: "Path Difficulty influences the likelihood that important or required pickups are placed in obscure or difficult to reach locations. With difficulty set to high, expect to see more pickups in difficult or out-of-the-way locations.", helpExtra: null})
-						break;
-					case "variations":
-						this.setState({helpTitle: "Variations", helpSub: "General Options", helpText: "Variations introduce additional restrictions on how the game is played or how the seed is generated. Mouse over individual variations for more info. Note: Some variations are not compatible with certain Logic Paths.", helpExtra: null})
-						break;
-				}
-				break;	
-			case "logicPaths":
-				this.setState({helpTitle: option, helpSub: "Logic Paths (WIP)", helpText: "Coming soon(tm)"})
-				break;
-			case "none":
-			default:
-				this.setState({helpTitle: noneTitle, helpSub: noneSub, helpText: noneText})
-		}
-	}
+	help = (category, option) => () => this.setState({helpParams: getHelpContent(category, option)})
 	
 	getWarmthFragsTab = () => {
 		let onWarmthClick = () =>  this.state.warmthFragsEnabled ? this.setState({warmthFragsEnabled: false, keyMode: this.state.oldKeyMode}) : this.setState({warmthFragsEnabled: true, oldKeyMode: this.state.keyMode, keyMode: "Warmth Frags"})
@@ -420,10 +300,9 @@ export default class MainPage extends React.Component {
 		super(props);
 		let user = get_param("user");
 		let dllTime = get_param("dll_last_update");
-		let keymode_options = ["None", "Shards", "Limitkeys", "Clues"];
 		this.state = {user: user, activeTab: 'variations', coopGenMode: "Cloned Seeds", coopGameMode: "Co-op", players: 1, tracking: true, dllTime: dllTime, variations: ["forcetrees"], 
-					 paths: presets["standard"], keyMode: "Shards", oldKeyMode: "Shards", pathMode: "standard", pathDiff: "Normal", helpTitle: noneTitle, helpSub: noneSub, helpText: noneText, helpExtra: null,
-					 keymodeOptions: keymode_options, customSyncId: "", seed: "", fillAlg: "Balanced", shared: ["Skills", "Dungeon Keys", "Teleporters", "World Events"], hints: false,
+					 paths: presets["standard"], keyMode: "Shards", oldKeyMode: "Shards", pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null),
+					 customSyncId: "", seed: "", fillAlg: "Balanced", shared: ["Skills", "Dungeon Keys", "Teleporters", "World Events"], hints: false,
 					 warmthFragsEnabled: false, fragCount: 35, fragKeys: [7, 14, 21, 28], fragTol: 3, syncId: "", expPool: 10000, lastHelp: new Date()};
 	}
 	onPath = (p) => () => this.state.paths.includes(p) ? this.setState({pathMode: "custom", paths: this.state.paths.filter(x => x !== p)}) : this.setState({pathMode: "custom", paths: this.state.paths.concat(p)})	
@@ -439,6 +318,7 @@ export default class MainPage extends React.Component {
 			}
 		return false
 	}
+	onKeyMode = (mode) => () => (mode === "Warmth Frags" && !this.state.warmthFragsEnabled) ? this.setState({keyMode: mode, warmthFragsEnabled: true, activeTab: "warmthFrags"}) : this.setState({keyMode: mode})
 
 	
 	onMode = (mode) => () => {
@@ -461,8 +341,8 @@ export default class MainPage extends React.Component {
 		let pathModeOptions = Object.keys(presets).map(mode => (
 			<DropdownItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("logicModes", mode)} className="text-capitalize" active={mode===this.state.pathMode.toLowerCase()} onClick={this.onMode(mode)}>{mode}</DropdownItem>
 		))
-		let keyModeOptions = this.state.keymodeOptions.map(mode => (
-			<DropdownItem active={mode===this.state.keyMode} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("keyModes", mode)} onClick={()=> this.setState({keyMode: mode})}>{mode}</DropdownItem>
+		let keyModeOptions = keymode_options.map(mode => (
+			<DropdownItem active={mode===this.state.keyMode} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("keyModes", mode)} onClick={this.onKeyMode(mode)}>{mode}</DropdownItem>
 		))
 		let pathDiffOptions = ["Easy", "Normal", "Hard"].map(mode => (
 			<DropdownItem active={mode===this.state.pathDiff} onClick={()=> this.setState({pathDiff: mode})}>{mode}</DropdownItem>
@@ -489,11 +369,15 @@ export default class MainPage extends React.Component {
 			</Col>
 			)		
 		))
-		let pathButtons = presets["glitched"].map(path=> (
+		let pathButtons = [(
+		<Col xs="3" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("logicPaths",  "normal")}  className="p-2">
+				<Button block disabled={true} className="text-capitalize">Normal</Button>
+		</Col>
+		)].concat(optional_paths.map(path=> (
 			<Col xs="3" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("logicPaths", path)}  className="p-2">
 				<Button block outline={!this.state.paths.includes(path)} disabled={this.pathDisabled(path)} className="text-capitalize" onClick={this.onPath(path)}>{path}</Button>
 			</Col>
-		))
+		)))
 		let multiplayerTab = this.getMultiplayerTab()
 		let warmthFragsTab = this.getWarmthFragsTab()
 		
@@ -525,14 +409,13 @@ export default class MainPage extends React.Component {
 				<Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "keyModes")}>
 					<Row>
 						<Col xs="6"  className="text-center pt-1 border">
-							<span class="align-middle">Mode</span>
+							<span class="align-middle">Key Mode</span>
 						</Col>
 						<Col xs="6">
 							<UncontrolledButtonDropdown className="w-100">
 								<DropdownToggle color="primary" caret block> {this.state.keyMode} </DropdownToggle>
 								<DropdownMenu>
 									{keyModeOptions}
-									<DropdownItem active={this.state.keyMode==="Warmth Frags"} disabled={!this.state.warmthFragsEnabled} onClick={()=> this.setState({keyMode: "Warmth Frags"})}>Warmth Frags</DropdownItem>
 								</DropdownMenu>
 							</UncontrolledButtonDropdown>
 						</Col>
@@ -555,22 +438,22 @@ export default class MainPage extends React.Component {
 			<Row className="justify-content-middle p-2">
 			<Col>
 				<Nav tabs>
-					<NavItem>
+					<NavItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "variations")}>
 						<NavLink active={this.state.activeTab === 'variations'} onClick={() => { this.setState({activeTab: 'variations'})}}>
 						Variations
 						</NavLink>
 					</NavItem>
-					<NavItem>
+					<NavItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "logicPaths")}>
 						<NavLink active={this.state.activeTab === 'logic paths'} onClick={() => { this.setState({activeTab: 'logic paths'})}}>
 						Logic Paths
 						</NavLink>
 					</NavItem>
-					<NavItem>
+					<NavItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "multiplayer")}>
 						<NavLink active={this.state.activeTab === 'multiplayer'} onClick={() => { this.setState({activeTab: 'multiplayer'})}}>
 						Multiplayer Options
 						</NavLink>
 					</NavItem>
-					<NavItem>
+					<NavItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("keyModes", "Warmth Frags")}>
 						<NavLink active={this.state.activeTab === 'warmthFrags'} onClick={() => { this.setState({activeTab: 'warmthFrags'})}}>
 						Warmth Fragment Mode
 						</NavLink>
@@ -630,15 +513,9 @@ export default class MainPage extends React.Component {
 					</Row>
 				</Col>
 				<Col>
-					<Card><CardBody>
-						<CardTitle className="text-center">{this.state.helpTitle}</CardTitle>
-							<CardSubtitle className="p-1 text-center">{this.state.helpSub}</CardSubtitle>
-						<CardText>{this.state.helpText}</CardText>
-						{this.state.helpExtra}
-					</CardBody></Card>
+					<HelpBox {...this.state.helpParams} />
 				</Col>
 			</Row>
-
 			</Container>
 		)
 

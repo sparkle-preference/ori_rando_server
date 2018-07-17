@@ -573,7 +573,6 @@ const stuff_by_type = {
 const presets = {
         "casual": ["normal", "dboost-light"],
         "standard": ["normal", "speed", "lure", "dboost-light"],
-        "dboost": ["normal", "speed", "lure", "dboost", "dboost-light"],
         "expert": ["normal", "speed", "lure", "speed-lure", "dboost", "dboost-light", "cdash", "extended", "extended-damage"],
         "master": ["normal", "speed", "lure", "speed-lure", "dboost", "dboost-light", "dboost-hard", "cdash", "dbash", "extended", "extended-damage", "lure-hard", "extreme"],
         "hard": ["normal", "speed", "lure",  "dboost-light", "cdash", "dbash", "extended"],

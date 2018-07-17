@@ -21,7 +21,7 @@ from google.appengine.ext.webapp import template
 from seedbuilder.generator import SeedGenerator, Random
 from seedbuilder.splitter import split_seed
 from bingo import Card
-from enums import MultiplayerGameType, ShareType
+from enums import MultiplayerGameType, ShareType, LogicPath, Variation
 from models import Game, Seed, Player, HistoryLine
 from pickups import Pickup
 from cache import Cache
@@ -184,13 +184,8 @@ class SeedGenLanding(webapp2.RequestHandler):
 		mode = self.request.get("mode").lower()
 		pathdiff = self.request.get("pathdiff").lower()
 		pathmode = self.request.get("pathMode") or "Custom"
-		variations = set(
-			[x for x in ["forcetrees", "hardmode", "notp", "starved", "ohko", "noplants", "discmaps", "0xp", "nobonus", "entshuf", "forcemapstones", "forcerandomescape"]
-			 if self.request.get(x)])
-		logic_paths = [x for x in
-					   ["normal", "speed", "lure", "speed-lure", "dboost", "dboost-light", "dboost-hard", "cdash",
-						"dbash", "extended", "lure-hard", "timed-level", "glitched", "extended-damage", "extreme"] if
-					   self.request.get(x)]
+		variations = set([v.value for v in Variation if self.request.get(v.value)])
+		logic_paths = [p.value for p in LogicPath if self.request.get(p.value)]
 		playercount = max(int(self.request.get("playerCount")),1)
 		do_frags = paramFlag(self, "warm_frags")
 		expPool = int(self.request.get("expPool") or 10000)
@@ -510,10 +505,12 @@ class GetSeenLocs(webapp2.RequestHandler):
 	def get(self, game_id):
 		game = Game.with_id(game_id)
 		hist = Cache.getHist(game_id)
-		if not hist:
+		if not game:
 			self.response.status = 404
 			self.response.write(self.response.status)
 			return
+		if not hist:
+			hist = game.rebuild_hist()
 		self.response.headers['Content-Type'] = 'text/plain'
 		self.response.status = 200
 		self.response.out.write("|".join(
@@ -806,8 +803,7 @@ class PlandoFillGen(webapp2.RequestHandler):
 		genmode = params["gnm"] if "gnm" in params else "classic"
 		seed = params['s'] if "s" in params else str(random.randint(10000000, 100000000))
 		pathdiff = params['pd'] if "pd" in params and params['pd'] != "normal" else None
-		varFlags = {"starved": "starved", "hardmode": "hard", "ohko": "OHKO", "0xp": "0XP", "nobonus": "NoBonus",
-					"noplants": "NoPlants", "forcetrees": "ForceTrees", "discmaps": "NonProgressMapStones",
+		varFlags = {"starved": "starved", "hardmode": "hard", "ohko": "OHKO", "0xp": "0XP",  "noplants": "NoPlants", "forcetrees": "ForceTrees", "discmaps": "NonProgressMapStones",
 					"notp": "NoTeleporters", "entshuf": "entrance"}
 		flags = ["Custom"]
 		if mode != "default":
@@ -844,7 +840,7 @@ class PlandoFillGen(webapp2.RequestHandler):
 			wild = "wild" in params,
 			preplacedIn = forced_assignments,
 			retries = 10)
-		if placements: 
+		if placements:
 			out += placements[0][0]
 		else:
 			self.response.status = 422

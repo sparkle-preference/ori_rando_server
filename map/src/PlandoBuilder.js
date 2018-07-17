@@ -11,13 +11,15 @@ import NumericInput from 'react-numeric-input';
 import Select from 'react-select'
 import {Creatable} from 'react-select';
 import 'react-notifications/lib/notifications.css';
-import {Alert, Button, ButtonGroup, Collapse} from 'reactstrap';
+import {Alert, Button, Collapse} from 'reactstrap';
 import Control from 'react-leaflet-control';
 import {Helmet} from 'react-helmet';
+import Toggle from 'react-bootstrap-toggle';
 
 NumericInput.style.input.width = '100%';
 NumericInput.style.input.height = '36px';
 
+const relevantCodes = ["HC", "AC", "EC", "KS", "MS", "TP", "RB", "EV", "SK"];
 
 const DEFAULT_DATA = {
 	'-280256': {label: "Energy Cell", value: "EC|1"},
@@ -178,13 +180,12 @@ class PlandoBuiler extends React.Component {
 	        modes = ['normal', 'speed', 'dboost-light'];
 	    }
 	    let zone = 'Glades';
-	    let i = 7;
 		let lastSelected = {};
 		zones.forEach((zone) => {
 			let pick = picks_by_zone[zone][0];
 			lastSelected[zone] = {label: pick.name+"("+pick.x + "," + pick.y +")",value: pick}
 		});
-	    let pick = picks_by_zone[zone][i];
+	    let pick = {loc: 919772, name: "EX15", zone: "Glades", area: "SunkenGladesRunaway", y: -227, x: 92};
 	    let pickup = {label: pick.name+"("+pick.x + "," + pick.y +")",value: pick}
 	    lastSelected['Glades'] = pickup
 	
@@ -217,13 +218,13 @@ class PlandoBuiler extends React.Component {
 	    	this.place({label: "NO|1", value: "NO|1"});
     	};
 
-    _onChangeExp = (n,s,_) => this.place({label: s, value: "EX|"+s});
+    _onChangeExp = (n,s,_) => this.place({label: s + " Experience", value: "EX|"+s});
 	_onSelectStuff = (newStuff) => newStuff ? this.place(newStuff) : false;
 	_onPathModeChange = (n) => paths.includes(n.value) ? this.setState({modes: presets[n.value], pathMode: n.value}, () => this._updateReachable()) : this.setState({pathMode: n.value}, () => this._updateReachable())
 
 
 	logicModeChanged = (newVal) => { this.setState({logicMode: newVal}, () => this._updateReachable()) }
-
+	autoLogicToggle = () => this.state.logicMode === "auto" ? this.logicModeChanged("manual") : this.logicModeChanged("auto")
 
 	updateManual = (param,val) => this.setState(prevState => {
 		let manual_reach = this.state.manual_reach;
@@ -255,10 +256,10 @@ class PlandoBuiler extends React.Component {
 				  zoom: 5,
 				}
 		}
-		if(!this.state.flags.includes("fill_on_select") && (!newStuff || !newStuff.hasOwnProperty("value"))) {
-	    	this.setState({pickup: pick, zone: pick.value.zone, lastSelected: last, viewport: viewport}, () => this.place(this.state.stuff, false));
+		if(!newStuff || !newStuff.hasOwnProperty("value")) {
+	    	this.setState({pickup: pick, zone: pick.value.zone, lastSelected: last, viewport: viewport}, () => this.place(this.state.stuff));
 		} else {
-			let newStuffType = getStuffType(newStuff,"Fill");
+			let newStuffType = getStuffType(newStuff, "Experience");
 	    	this.setState({pickup: pick, zone: pick.value.zone, lastSelected: last, viewport: viewport, stuff: newStuff, stuff_type: newStuffType});
 		}
     }
@@ -271,7 +272,7 @@ class PlandoBuiler extends React.Component {
 	}
 
 
-    place = (s, doFill = true) => {
+    place = (s) => {
 		if(s.value.length < 4 || s.value[2] !== "|") {
 			NotificationManager.warning("Pickup should be in the form XX|Y", "Invalid Pickup!",2000);
 				return;
@@ -283,27 +284,13 @@ class PlandoBuiler extends React.Component {
 				return;
 		}
 
-    	let old_stuff = this.state.stuff;
+    	let {r, i} = relevantCodes.includes(this.state.stuff.value.substr(0,2)) ? {r: {...DEFAULT_REACHABLE}, i: 10} : {r: this.state.reachable, i: 1};
     	this.setState(prevState => {
 	    	let plc = prevState.placements;
     		plc[prevState.player][prevState.pickup.value.loc] = s;
-    		return {placements: plc, stuff: s};
-		}, () => this._updateReachable(1));
+    		return {placements: plc, stuff: s, reachable: r};
+		}, () => this._updateReachable(i));
 		let fill_opts = this.state.fill_opts;
-		if(fill_opts.dynamic && doFill)
-		{
-			let old_code = old_stuff ? old_stuff.value.substr(0,2) : "";
-			let new_code = s.value.substr(0,2);
-			if(old_code === new_code)
-				return
-			for(let x of ["HC", "AC", "EC", "KS", "MS"]) {
-				if(old_code === x)
-					fill_opts[x] += 1;
-				if(new_code === x)
-					fill_opts[x] -= 1;
-			}
-			this.setState({fill_opts: fill_opts})
-		}
 
     };
 
@@ -690,6 +677,7 @@ class PlandoBuiler extends React.Component {
 			<div className="wrapper">
 	            <Helmet>
 	                <style>{'body { background-color: black}'}</style>
+	                <link rel="stylesheet" href="https://gitcdn.github.io/bootstrap-toggle/2.2.2/css/bootstrap-toggle.min.css"/>
 					<link rel="stylesheet" href="https://unpkg.com/leaflet@1.3.1/dist/leaflet.css" integrity="sha512-Rksm5RenBEKSKFjgI3a41vrjkw4EVPlJ3+OiI65vTjIdo9brlAacEuKOiQ5OFh7cOI1bkDwLqdLw3Zg0cRJAAQ==" crossorigin=""/>
 	            </Helmet>
 
@@ -740,7 +728,7 @@ class PlandoBuiler extends React.Component {
 						</div>
 						<div className="pickup-wrapper">
 							<span className="label">Pickup Type: </span>
-							<Select styles={select_styles}   options={stuff_types} onChange={this._onSelectStuffType} clearable={false} defaultValue={stuff_types[0]}></Select>
+							<Select styles={select_styles} options={stuff_types} onChange={this._onSelectStuffType} clearable={false} value={select_wrap(this.state.stuff_type)}></Select>
 						</div>
 						{stuff_select}
 					</div>
@@ -760,11 +748,17 @@ class PlandoBuiler extends React.Component {
 					<hr style={{ backgroundColor: 'grey', height: 2 }}/>
 					<div id="logic-controls">
 						<div id="logic-mode-wrapper">
-							<span className="label">Logic Mode:</span>
-							<ButtonGroup>
-								<Button color="secondary" onClick={() => this.logicModeChanged("auto")} active={this.state.logicMode === "auto" && Object.keys(this.state.placements).length === 1}>Auto</Button>
-								<Button color="secondary" onClick={() => this.logicModeChanged("manual")} active={this.state.logicMode === "manual" || Object.keys(this.state.placements).length > 1}>Manual</Button>
-							</ButtonGroup>
+							<span className="label">Automatic Logic:</span>
+							<Toggle
+					          onClick={this.autoLogicToggle}
+					          on="Enabled"
+					          off="Disabled"
+					          size="xs"
+					          onstyle="primary"
+					          offstyle="secondary"
+					          active={this.state.logicMode === "auto" && Object.keys(this.state.placements).length === 1}
+					          disabled={Object.keys(this.state.placements).length > 1}
+					        />
 							<Collapse id="manual-controls" isOpen={this.state.logicMode === "manual" || this.state.player > 1}>
 								<div className="manual-wrapper">
 									<span className="label">Health Cells:</span>
@@ -866,18 +860,16 @@ function getReachable(setter, modes, codes, callback)
             		});
 					setter(prevState => {
 						let old_reachable = prevState.reachable;
-						let new_areas = {};
 						Object.keys(reachable).forEach((area) => {
 							if(!old_reachable.hasOwnProperty(area))
 							{
-								new_areas[area] = reachable[area];
 								old_reachable[area] = reachable[area];
 							}
 							old_reachable[area] = old_reachable[area].concat(reachable[area]);
 
 						});
-						return {reachable: old_reachable, new_areas: new_areas}
-					}, callback)
+						return {reachable: old_reachable}
+					}, callback())
             		}
             })(xmlHttp.responseText);
     }

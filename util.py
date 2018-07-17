@@ -8,11 +8,6 @@ if LIBS not in sys.path:
 	sys.path.insert(0, LIBS)
 
 
-class SeedParams(object):
-	def __init__(self, seed, variations, logic_paths, mode,  pathdiff = "Normal"):
-		pass
-
-
 coord_correction_map = {
 	679620: 719620,
 	-4560020: -4600020,

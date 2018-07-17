@@ -285,13 +285,21 @@ class GameTracker extends React.Component {
   hideOptChanged = newVal => { this.setState({hideOpt: newVal}) }
   flagsChanged = newVal => { this.setState({flags: newVal}) }
   pickupsChanged = newVal => { this.setState({pickups: newVal}) }
-  modesChanged = newVal => { this.setState({modes: newVal}, () => getReachable((p) => this.setState(p),this.state.modes.join("+"))) }
+  modesChanged = newVal => this.changeLogicMode(newVal, this.state.pathMode)
   onSearch = event => { this.setState({searchStr: event.target.value}) }
 
+  changeLogicMode = (paths, pathMode) => this.setState(prevState => {
+		let players = prevState.players
+		Object.keys(players).forEach(id => {		
+				players[id].areas = []
+			});
+		return {players: players, modes: paths, pathMode: pathMode}
+		}, () => getReachable((p) => this.setState(p),this.state.modes.join("+")))
+		
 toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
 
   onViewportChanged = viewport => { this.setState({ viewport }) }
- _onPathModeChange = (n) => paths.includes(n.value) ? this.setState({modes: presets[n.value], pathMode: n.value}, () => getReachable((p) => this.setState(p),this.state.modes.join("+"))) : this.setState({pathMode: n.value})
+ _onPathModeChange = (n) => paths.includes(n.value) ? this.changeLogicMode(presets[n.value], n.value) : this.setState({pathMode: n.value})
 
   render() {
 		const pickup_markers = (this.state.pickup_display !== "none") ? ( <PickupMarkersList markers={getPickupMarkers(this.state)} />) : null;
@@ -438,7 +446,7 @@ function getReachable(setter, modes, timeout) {
             		let id = withid[0];
 					areas[id] = withid[1].split(",").map((raw) => raw.split("#")[0]);
 				}
-				setter((prevState, props) => {
+				setter((prevState) => {
 					let players = prevState.players
 					Object.keys(areas).forEach((id) => {
 						if(!players.hasOwnProperty(id)){
