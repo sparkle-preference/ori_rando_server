@@ -241,37 +241,6 @@ class SeedGenerator:
 		"timed-level": 5
 	})
 
-	costs = OrderedDict({
-		"Free": 0,
-		"MS": 0,
-		"KS": 2,
-		"EC": 6,
-		"HC": 12,
-		"WallJump": 13,
-		"ChargeFlame": 13,
-		"DoubleJump": 13,
-		"Bash": 41,
-		"Stomp": 29,
-		"Glide": 17,
-		"Climb": 41,
-		"ChargeJump": 59,
-		"Dash": 13,
-		"Grenade": 29,
-		"GinsoKey": 12,
-		"ForlornKey": 12,
-		"HoruKey": 12,
-		"Water": 80,
-		"Wind": 80,
-		"WaterVeinShard": 5,
-		"GumonSealShard": 5,
-		"SunstoneShard": 5,
-		"TPForlorn": 120,
-		"TPGrotto": 60,
-		"TPSorrow": 90,
-		"TPGrove": 60,
-		"TPSwamp": 60,
-		"TPValley": 90
-	})
 	
 	skillsOutput = OrderedDict({
 		"WallJump": "SK3",
@@ -297,9 +266,85 @@ class SeedGenerator:
 		"GumonSealShard": "RB19",
 		"SunstoneShard": "RB21"
 	})
+	def reset(self):
+		self.costs = OrderedDict({
+			"Free": 0,
+			"MS": 0,
+			"KS": 2,
+			"EC": 6,
+			"HC": 12,
+			"WallJump": 13,
+			"ChargeFlame": 13,
+			"DoubleJump": 13,
+			"Bash": 41,
+			"Stomp": 29,
+			"Glide": 17,
+			"Climb": 41,
+			"ChargeJump": 59,
+			"Dash": 13,
+			"Grenade": 29,
+			"GinsoKey": 12,
+			"ForlornKey": 12,
+			"HoruKey": 12,
+			"Water": 80,
+			"Wind": 80,
+			"WaterVeinShard": 5,
+			"GumonSealShard": 5,
+			"SunstoneShard": 5,
+			"TPForlorn": 120,
+			"TPGrotto": 60,
+			"TPSorrow": 90,
+			"TPGrove": 60,
+			"TPSwamp": 60,
+			"TPValley": 90
+		})
+		self.inventory = OrderedDict([
+			("EX1", 0),
+			("EX*", 0),
+			("KS", 0),
+			("MS", 0),
+			("AC", 0),
+			("EC", 1),
+			("HC", 3),
+			("WallJump", 0),
+			("ChargeFlame", 0),
+			("Dash", 0),
+			("Stomp", 0),
+			("DoubleJump", 0),
+			("Glide", 0),
+			("Bash", 0),
+			("Climb", 0),
+			("Grenade", 0),
+			("ChargeJump", 0),
+			("GinsoKey", 0),
+			("ForlornKey", 0),
+			("HoruKey", 0),
+			("Water", 0),
+			("Wind", 0),
+			("Warmth", 0),
+			("RB0", 0),
+			("RB1", 0),
+			("RB6", 0),
+			("RB8", 0),
+			("RB9", 0),
+			("RB10", 0),
+			("RB11", 0),
+			("RB12", 0),
+			("RB13", 0),
+			("RB15", 0),
+			("WaterVeinShard", 0),
+			("GumonSealShard", 0),
+			("SunstoneShard", 0),
+			("TPForlorn", 0),
+			("TPGrotto", 0),
+			("TPSorrow", 0),
+			("TPGrove", 0),
+			("TPSwamp", 0),
+			("TPValley", 0)
+		])
 
 	def __init__(self):	
-
+		self.reset()
 		self.codeToName = OrderedDict([(v,k) for k,v in self.skillsOutput.items() + self.eventsOutput.items()])
 
 	def reach_area(self, target):
@@ -310,8 +355,6 @@ class SeedGenerator:
 					self.itemCount += 1
 				else:
 					self.assign(sharedItem[0])
-					if sharedItem[0] not in self.spoilerGroup:
-						self.spoilerGroup[sharedItem[0]] = []
 					self.spoilerGroup[sharedItem[0]].append(sharedItem[0] + " from Player " + str(sharedItem[1]) + "\n")
 		self.currentAreas.append(target)
 		self.areasReached[target] = True
@@ -470,9 +513,9 @@ class SeedGenerator:
 		self.assign_to_location(item, location)
 
 	def assign_to_location(self, item, location):
-		assignment = ""
 		zone = location.zone
 		value = 0
+		has_cost = item in self.costs.keys()
 
 		# if this is the first player of a paired seed, construct the map
 		if self.playerCount > 1 and self.playerID == 1 and item in self.sharedList:
@@ -485,8 +528,6 @@ class SeedGenerator:
 				if player not in self.sharedMap:
 					self.sharedMap[player] = 0
 				self.sharedMap[player] += 1
-				if item not in self.spoilerGroup:
-					self.spoilerGroup[item] = []
 				self.spoilerGroup[item].append(item + " from Player " + str(player) + "\n")
 				item = "EX*"
 				self.expSlots += 1
@@ -494,42 +535,45 @@ class SeedGenerator:
 		# if mapstones are progressive, set a special location
 		if not self.nonProgressiveMapstones and location.orig == "MapStone":
 			self.mapstonesAssigned += 1
-			assignment += (str(20 + self.mapstonesAssigned * 4) + "|")
+			loc = 20 + self.mapstonesAssigned * 4
 			zone = "Mapstone"
-			if item in self.costs.keys():
-				if item not in self.spoilerGroup:
-					self.spoilerGroup[item] = []
+			if has_cost:
 				self.spoilerGroup[item].append(item + " from MapStone " + str(self.mapstonesAssigned) + "\n")
 		else:
-			assignment += (str(location.get_key()) + "|")
-			if item in self.costs.keys():
-				if item not in self.spoilerGroup:
-					self.spoilerGroup[item] = []
+			loc = location.get_key()
+			if has_cost:
 				self.spoilerGroup[item].append(item + " from " + location.to_string() + "\n")
 
+		fixed_item = self.adjust_item(item)
+		assignment = self.get_assignment(loc, fixed_item, zone)
+		
+		if item in self.eventsOutput:
+			self.eventList.append(assignment)
+		elif self.balanced and not has_cost and location.orig != "MapStone":
+			self.balanceList.append((fixed_item, location, assignment))
+		else:
+			self.outputStr += assignment
+			
+	def adjust_item(self, item):
 		if item in self.skillsOutput:
-			assignment += (str(self.skillsOutput[item][:2]) + "|" + self.skillsOutput[item][2:])
+			item = self.skillsOutput[item]
 		elif item in self.eventsOutput:
-			assignment += (str(self.eventsOutput[item][:2]) + "|" + self.eventsOutput[item][2:])
+			item = self.eventsOutput[item]
 		elif item == "EX*":
 			value = self.get_random_exp_value()
 			self.expRemaining -= value
 			self.expSlots -= 1
-			assignment += "EX|" + str(value)
-		elif item[2:]:
-			assignment += (item[:2] + "|" + item[2:])
-		else:
-			assignment += (item[:2] + "|1")
-		assignment += ("|" + zone + "\n")
+			item = "EX%s" % value
+		return item
 
-		if item in self.eventsOutput:
-			self.eventList.append(assignment)
-		elif self.balanced and item not in self.costs.keys() and location.orig != "MapStone":
-			if value > 0:
-				item = "EX" + str(value)
-			self.balanceList.append((item, location, assignment))
+	def get_assignment(self, loc, item, zone):
+		pickup = ""
+		if item[2:]:
+			pickup = "%s|%s" % (item[:2], item[2:])
 		else:
-			self.outputStr += assignment
+			pickup = "%s|1" % item[:2]
+		return "%s|%s|%s\n" % (loc,pickup,zone)
+
 
 	def get_random_exp_value(self):
 		min = self.random.randint(2, 9)
@@ -784,6 +828,7 @@ class SeedGenerator:
 		self.balanceLevel = 0
 		self.balanceList = []
 		self.balanceListLeftovers = []
+		self.reset()
 
 			
 		self.forcedAssignments = self.preplaced
@@ -948,10 +993,6 @@ class SeedGenerator:
 			self.itemPool["HoruKey"] = 0
 			self.itemCount -= 3
 
-		for item in self.forcedAssignments.values():
-			if item in self.itemPool:
-				self.itemPool[item] -= 1
-		self.itemCount -= len(self.forcedAssignments)
 		
 		if self.noTeleporters:
 			self.itemPool["TPForlorn"] = 0
@@ -962,50 +1003,7 @@ class SeedGenerator:
 			self.itemPool["TPValley"] = 0
 			self.itemPool["EX*"] += 6
 
-		self.inventory = OrderedDict([
-			("EX1", 0),
-			("EX*", 0),
-			("KS", 0),
-			("MS", 0),
-			("AC", 0),
-			("EC", 1),
-			("HC", 3),
-			("WallJump", 0),
-			("ChargeFlame", 0),
-			("Dash", 0),
-			("Stomp", 0),
-			("DoubleJump", 0),
-			("Glide", 0),
-			("Bash", 0),
-			("Climb", 0),
-			("Grenade", 0),
-			("ChargeJump", 0),
-			("GinsoKey", 0),
-			("ForlornKey", 0),
-			("HoruKey", 0),
-			("Water", 0),
-			("Wind", 0),
-			("Warmth", 0),
-			("RB0", 0),
-			("RB1", 0),
-			("RB6", 0),
-			("RB8", 0),
-			("RB9", 0),
-			("RB10", 0),
-			("RB11", 0),
-			("RB12", 0),
-			("RB13", 0),
-			("RB15", 0),
-			("WaterVeinShard", 0),
-			("GumonSealShard", 0),
-			("SunstoneShard", 0),
-			("TPForlorn", 0),
-			("TPGrotto", 0),
-			("TPSorrow", 0),
-			("TPGrove", 0),
-			("TPSwamp", 0),
-			("TPValley", 0)
-		])
+
 		
 		# paired setup for subsequent players
 		if self.playerID > 1:
@@ -1054,11 +1052,22 @@ class SeedGenerator:
 		if self.entrance:
 			self.outputStr += self.randomize_entrances()
 
-		self.outputStr += ("-280256|EC|1|Glades\n") if not (-280256 in self.forcedAssignments) else "" # first energy cell
-		self.outputStr += ("-1680104|EX|100|Grove\n") if not (-1680104 in self.forcedAssignments) else ""  # glitchy 100 orb at spirit tree
-		self.outputStr += ("-12320248|EX|100|Forlorn\n") if not (-12320248 in self.forcedAssignments) else ""  # forlorn escape plant
-		# the 2nd keystone in misty can get blocked by alt+R, so make it unimportant
-		self.outputStr += ("-10440008|EX|100|Misty\n") if not (-10440008 in self.forcedAssignments) else ""
+		# handle the fixed pickups: first energy cell, the glitchy 100 orb at spirit tree, the forlorn escape plant, and the 2nd keystone in misty
+
+		for loc, item, zone in [(-280256, "EC1", "Glades"), (-1680104,"EX100","Grove"), (-12320248,"EX100","Forlorn"), (-10440008,"EX100","Misty")]:
+			if loc in self.forcedAssignments:
+				item = self.forcedAssignments[loc]
+				del self.forcedAssignments[loc] # don't count these ones
+			self.outputStr += self.get_assignment(loc, self.adjust_item(item), zone)
+				
+		
+		print self.outputStr, str(self.forcedAssignments)
+
+		for item in self.forcedAssignments.values():
+			if item in self.itemPool:
+				self.itemPool[item] -= 1
+		self.itemCount -= len(self.forcedAssignments)
+
 
 		if not self.includePlants:
 			for location in plants:
@@ -1072,7 +1081,7 @@ class SeedGenerator:
 		self.mapstonesAssigned = 0
 		self.expSlots = self.itemPool["EX*"]
 
-		self.spoilerGroup = {"MS": [], "KS": [], "EC": [], "HC": []}
+		self.spoilerGroup = defaultdict(list, {"MS": [], "KS": [], "EC": [], "HC": []})
 
 		self.doorQueue = OrderedDict()
 		self.mapQueue = OrderedDict()
@@ -1225,7 +1234,7 @@ class SeedGenerator:
 				self.areas[area].remove_connection(self.mapQueue[area])
 
 			locationsToAssign = []
-			self.spoilerGroup = {"MS": [], "KS": [], "EC": [], "HC": []}
+			self.spoilerGroup = defaultdict(list, {"MS": [], "KS": [], "EC": [], "HC": []})
 
 			self.doorQueue = OrderedDict()
 			self.mapQueue = OrderedDict()

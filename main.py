@@ -172,7 +172,8 @@ class ShowHistory(webapp2.RequestHandler):
 class SeedGenForm(webapp2.RequestHandler):
 	def get(self):
 		if debug:
-			out = "hahahah idk dude"
+			from enums import NDB_Variation
+			out = [NDB_Variation.to_dict(), Variation.to_dict()]
 			self.response.out.write(out)
 		else:
 			path = os.path.join(os.path.dirname(__file__), 'index.html')
@@ -574,7 +575,7 @@ class Plando(webapp2.RequestHandler):
 		template_values = {'app': "plandoBuilder", 'title': "Plandomizer Editor " + PLANDO_VER,
 						   'pathmode': paramVal(self, 'pathmode'), 'HC': paramVal(self, 'HC'),
 						   'EC': paramVal(self, 'EC'), 'AC': paramVal(self, 'AC'), 'KS': paramVal(self, 'KS'),
-						   'skills': paramVal(self, 'skills'), 'tps': paramVal(self, 'tps')}
+						   'skills': paramVal(self, 'skills'), 'tps': paramVal(self, 'tps'),  'evs': paramVal(self, 'evs')}
 		self.response.out.write(template.render(path, template_values))
 
 
@@ -771,7 +772,7 @@ class PlandoOld(webapp2.RequestHandler):
 			template_values = {'app': "plandoBuilder", 'title': "Plandomizer Editor " + PLANDO_VER,
 							   'pathmode': paramVal(self, 'pathmode'), 'HC': paramVal(self, 'HC'),
 							   'EC': paramVal(self, 'EC'), 'AC': paramVal(self, 'AC'), 'KS': paramVal(self, 'KS'),
-							   'skills': paramVal(self, 'skills'), 'tps': paramVal(self, 'tps')}
+							   'skills': paramVal(self, 'skills'), 'tps': paramVal(self, 'tps'), 'evs': paramVal(self, 'evs')}
 			self.response.out.write(template.render(path, template_values))
 
 
@@ -987,7 +988,7 @@ class LogicHelper(webapp2.RequestHandler):
 		template_values = {'app': "logicHelper", 'title': "Logic Helper!", 'is_spoiler': "True",
 						   'pathmode': paramVal(self, 'pathmode'), 'HC': paramVal(self, 'HC'),
 						   'EC': paramVal(self, 'EC'), 'AC': paramVal(self, 'AC'), 'KS': paramVal(self, 'KS'),
-						   'skills': paramVal(self, 'skills'), 'tps': paramVal(self, 'tps')}
+						   'skills': paramVal(self, 'skills'), 'tps': paramVal(self, 'tps'), 'evs': paramVal(self, 'evs')}
 		self.response.out.write(template.render(path, template_values))
 
 class ReactLanding(webapp2.RequestHandler):

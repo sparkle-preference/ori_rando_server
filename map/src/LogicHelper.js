@@ -68,18 +68,18 @@ const xml_name_to_code = {
 
 const dev = window.document.URL.includes("devshell")
 const base_url = dev ?  "https://8080-dot-3616814-dot-devshell.appspot.com" : "http://orirandocoopserver.appspot.com"
-
+const url = new URL(window.document.URL)
+const params = url.searchParams
 
 function get_manual_reach() {
 	let HC = get_int("HC", 0);
     let EC = get_int("EC", 0);
-    let AC = get_int("AC", 0);
     let KS = get_int("KS", 0);
     let MS = get_int("MS", 0);
     let skills = get_list("SK"," ").map(skill => { let parts = skill.split("|"); return {label: pickup_name(parts[0], parts[1]), value: skill}; });
-    let events = get_list("EV"," ").map(event => { let parts = event.split("|"); return {label: pickup_name(parts[0], parts[1]), value: event}; });
+    let evs = get_list("EV"," ").map(event => { let parts = event.split("|"); return {label: pickup_name(parts[0], parts[1]), value: event}; });
     let tps  = get_list("TP"," ").map(tp => {return {label: tp + " TP", value: "TP|" + tp}; });
-    return {HC: HC, EC: EC, AC: AC, KS: KS, MS: MS, skills: skills, tps: tps, events: events};
+    return {HC: HC, EC: EC, KS: KS, MS: MS, skills: skills, tps: tps, evs: evs};
 }
 
 (function(){
@@ -160,7 +160,7 @@ function getInventoryPane(inventory, that) {
 function getAreasPane(inventory, that) {
 
 		let area_groups = Object.keys(that.state.new_areas).filter(area => area.substr(0,2) !== "MS").map((area) => {
-			let is_selected = that.state.selected_area === area;
+			let is_selected = that.state.seedReceived && that.state.selected_area === area;
 			let paths = that.state.new_areas[area];
 			let path_rows = is_selected ? paths.map(reqs => {
 				if(reqs.length === 1 && reqs[0] === "Free")
@@ -179,6 +179,9 @@ function getAreasPane(inventory, that) {
 					if(!code_to_group.hasOwnProperty(code))
 						return null;
 					let group = code_to_group[code]
+					if(!inventory.hasOwnProperty(group) || !inventory[group].hasOwnProperty(code)) {
+						return null;
+					}
 					let picks = inventory[group][code]
 					let name = name_from_str(code)+ (count > 1 ? " x" + count : "")
 					return (
@@ -209,7 +212,7 @@ function getAreasPane(inventory, that) {
 		});
 		return (
 			<div>
-				<div style={{textAlign: 'center', fontSize: '1.2em' }}>New Reachable Areas</div>
+				<div style={{textAlign: 'center', fontSize: '1.2em' }}>{that.state.seedReceived ? "New Reachable Areas" : "Reachable Areas"}</div>
 				{area_groups}
 			</div>
 		)
@@ -262,7 +265,7 @@ class LogicHelper extends React.Component {
 	    super(props)
 	
 	    this.state = {mousePos: {lat: 0, lng: 0}, seed_in: "", reachable: {...DEFAULT_REACHABLE}, new_areas: {...DEFAULT_REACHABLE}, selected: "", selected_area: "", history: {}, 
-	    			  step: 0, placements: {...DEFAULT_DATA}, viewport: DEFAULT_VIEWPORT, seedRecieved: false, highlight_picks: [], logicMode: 'manual'}
+	    			  step: 0, placements: {...DEFAULT_DATA}, viewport: DEFAULT_VIEWPORT, seedReceived: false, highlight_picks: [], logicMode: 'manual'}
 	}
   	
 
@@ -277,8 +280,12 @@ class LogicHelper extends React.Component {
 	    	pathmode = "standard";
 	        modes = ['normal', 'speed', 'dboost-light'];
 	    }
-		this.setState({modes: modes, pathMode: {label: pathmode, value: pathmode}, manual_reach: manual_reach,})
-	
+
+	    if(Object.keys(manual_reach).some(key => Array.isArray(manual_reach[key]) ? manual_reach[key].length > 0 : manual_reach[key] > 0 ))
+			this.setState({modes: modes, pathMode: {label: pathmode, value: pathmode}, manual_reach: manual_reach}, () => {this._updateReachable() ; this.updateURL()})
+		else
+			this.setState({modes: modes, pathMode: {label: pathmode, value: pathmode}, manual_reach: manual_reach}, this.updateURL)
+
 	};
 
 	onDragEnter = () => this.setState({dropzoneActive: true});
@@ -292,7 +299,7 @@ class LogicHelper extends React.Component {
 		    reader.onload = () => {
 		        let text = reader.result;
 		        this.parseUploadedSeed(text);
-		        this.setState({dropzoneActive: false, seedRecieved: true, logicMode: "auto"})
+		        this.setState({dropzoneActive: false, seedReceived: true, logicMode: "auto"})
 		        window.URL.revokeObjectURL(file.preview);
 		        // do whatever you want with the file content
 		    };
@@ -364,23 +371,34 @@ class LogicHelper extends React.Component {
 		this.setState({highlight_picks: highlight_picks, selected: selected, prev_viewport: this.state.viewport})
 	}
 	
+	updateURL = () => {
+		if(this.state.logicMode === "auto")
+			return
+		let reach = this.state.manual_reach
+		let args = Object.keys(reach).filter(key => Array.isArray(reach[key]) ? reach[key].length > 0 : reach[key] > 0 ).map(key => key + "=" + (Array.isArray(reach[key]) ? reach[key].map(i => i.value).join("+") : reach[key]))
+		args.push("pathmode="+this.state.pathMode.value)
+	    window.history.replaceState('',window.document.title, base_url+"/logichelper?"+args.join("&"));		
+	}
+	
 	updateManual = (param,val) => this.setState(prevState => {
+
 		let manual_reach = this.state.manual_reach;
 		manual_reach[param] = val;
 		return {manual_reach: manual_reach}
-	}, this._updateReachable)
+	}, () => {this._updateReachable() ; this.updateURL()})
 	
   	_updateReachable = (layers=0) => {
-  		if(layers<0)
-  			return
+		if(layers < 0)
+			return
   		if(!this.state.reachable || this.state.reachable === undefined) {
-  			this.setState({reachedWith: {}, reachable: {...DEFAULT_REACHABLE}}, () => this._updateReachable(layers));
+  			this.setState({reachedWith: {}, reachable: {...DEFAULT_REACHABLE}}, () => this._updateReachable());
   			return
   		}
+  		
 	  	let reachableStuff = {};
   		if(this.state.logicMode === "auto")
   		{
-  			if(!this.state.seedRecieved)
+  			if(!this.state.seedReceived)
   				return;
 	  		Object.keys(this.state.reachable).forEach((area) => {
 	  			if(picks_by_area.hasOwnProperty(area))
@@ -397,22 +415,21 @@ class LogicHelper extends React.Component {
   					});
 	  		});
 		} else {
-			["HC", "EC", "AC", "KS", "MS"].forEach((code) => {
+			["HC", "EC", "KS", "MS"].forEach((code) => {
 				if(this.state.manual_reach[code] > 0)
 					reachableStuff[code+"|1"] = this.state.manual_reach[code];
 			});
 			this.state.manual_reach.skills.forEach(skill => {
 				reachableStuff[skill.value] = 1;
 	  		});
-			this.state.manual_reach.events.forEach(event => {
+			this.state.manual_reach.evs.forEach(event => {
 				reachableStuff[event.value] = 1;
 	  		});
 			this.state.manual_reach.tps.forEach(tp => {
 				reachableStuff[tp.value] = 1;
 	  		});
-	  		layers = 0;
   		}
-  		  	getReachable((state,callback) => this.setState(state,callback),
+  		  	getReachable((s, c) => this.setState(s, c),
 	  			this.state.modes.join("+"),
 	  			Object.keys(reachableStuff).map((key) => key+":"+reachableStuff[key]).join("+"),
 	  			() => this._updateReachable(layers-1));
@@ -474,7 +491,7 @@ class LogicHelper extends React.Component {
 						<Button color="primary" onClick={this.resetReachable} >Reset</Button> 
 						<Button color="primary" onClick={() => this.rewind()} >{"Back"}</Button> 
 						<Button color="disabled" disabled={true}>{this.state.step}</Button>
-						<Button color="primary" onClick={() => this._updateReachable(0)} >{"Next"}</Button> 
+						<Button color="primary" onClick={() => this._updateReachable()} >{"Next"}</Button> 
 					</div>
 					{inv_pane}
 					<div id="logic-controls">

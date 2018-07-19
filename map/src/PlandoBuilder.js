@@ -284,14 +284,12 @@ class PlandoBuiler extends React.Component {
 				return;
 		}
 
-    	let {r, i} = relevantCodes.includes(this.state.stuff.value.substr(0,2)) ? {r: {...DEFAULT_REACHABLE}, i: 10} : {r: this.state.reachable, i: 1};
+    	let r = relevantCodes.includes(this.state.stuff.value.substr(0,2)) ? {...DEFAULT_REACHABLE} : this.state.reachable;
     	this.setState(prevState => {
 	    	let plc = prevState.placements;
     		plc[prevState.player][prevState.pickup.value.loc] = s;
     		return {placements: plc, stuff: s, reachable: r};
-		}, () => this._updateReachable(i));
-		let fill_opts = this.state.fill_opts;
-
+		}, () => this._updateReachable());
     };
 
     parseUploadedSeed = (seedText) => {
@@ -313,7 +311,7 @@ class PlandoBuiler extends React.Component {
 	    		let oldplc = prevState.placements;
 		    	oldplc[this.state.player] = newplc
 		    	return {placements: oldplc}
-			}, () => this._updateReachable(this.state.logic_helper_mode ? 0 : 15));
+			}, () => this._updateReachable());
 
 	}
 
@@ -342,7 +340,7 @@ class PlandoBuiler extends React.Component {
 	    	})
     	}
 		this.parseFlagLine(lines[0])
-	    this.setState({placements: newplc}, () => this._updateReachable(15));
+	    this.setState({placements: newplc}, () => this._updateReachable());
 
 	}
 
@@ -512,24 +510,29 @@ class PlandoBuiler extends React.Component {
 		download('randomizer.dat', this.getLines().join("\n"));
 	}
 
-  	_updateReachable = (layers=0) => {
-  		if(layers<0)
-  			return
+  	_updateReachable = (lastPass=[]) => {
+  		let recursive = true
   		if(!this.state.flags.includes("hide_unreachable"))
   			return
   		if(!this.state.reachable || this.state.reachable === undefined) {
-  			this.setState({reachable: {...DEFAULT_REACHABLE}}, () => this._updateReachable(layers));
+  			this.setState({reachable: {...DEFAULT_REACHABLE}}, () => this._updateReachable());
   			return
   		}
+		let reachableAreas = Object.keys(this.state.reachable)
+		
+		// if we've seen every area we can reach in our last iteration, halt
+		if(reachableAreas.every(area => lastPass.includes(area)))
+			return
+
 	  	let reachableStuff = {};
   		if(this.state.logicMode === "auto" && this.state.player === 1)
   		{
-	  		Object.keys(this.state.reachable).forEach((area) => {
+	  		reachableAreas.forEach((area) => {
 	  			if(picks_by_area.hasOwnProperty(area))
 		  			picks_by_area[area].forEach((pick) => {
 	  				if(this.state.placements[1] && this.state.placements[1].hasOwnProperty(pick.loc)) {
 	  					let code = this.state.placements[1][pick.loc].value;
-	  					if(!["SH", "NO","EX"].includes(code.substr(0,2)))
+	  					if(!["SH", "NO","EX", "AC"].includes(code.substr(0,2)))
 	  						if(reachableStuff.hasOwnProperty(code))
 								reachableStuff[code] += 1;
 							else
@@ -551,12 +554,12 @@ class PlandoBuiler extends React.Component {
 			this.state.manual_reach.tps.forEach(tp => {
 				reachableStuff[tp.value] = 1;
 	  		});
-	  		layers = 0
+	  		recursive = false
   		}
-  		  	getReachable((state,callback) => this.setState(state,callback),
+  		  	getReachable((s, c) => this.setState(s, c),
 	  			this.state.modes.join("+"),
 	  			Object.keys(reachableStuff).map((key) => key+":"+reachableStuff[key]).join("+"),
-	  			() => this._updateReachable(layers-1));
+	  			recursive ? () => this._updateReachable(reachableAreas) : () => null);
 
   	};
 
@@ -869,7 +872,7 @@ function getReachable(setter, modes, codes, callback)
 
 						});
 						return {reachable: old_reachable}
-					}, callback())
+					}, callback)
             		}
             })(xmlHttp.responseText);
     }
