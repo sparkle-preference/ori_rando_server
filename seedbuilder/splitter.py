@@ -11,15 +11,17 @@ def split_seed(seed, gameId, player, max_players, hints=False, dk=True, sk=True,
 	outlines = []
 	for line in seed.split("\n"):
 		if any(i in line for i in pickups):
-			if player == random.randint(1, max_players):
+			for_player = random.randint(1, max_players)
+			if player == for_player:
 				outlines.append(line)
 			else:
 				outln = line.split("|")
 				if hints:
 					if (outln[1] == "RB" and outln[2] in ["17", "19", "21"]) or (outln[1] == "EV" and outln[2] in ["0", "2", "4"]):
-						outln[2] = "@Dungeon Key@"
+						outln[2] = "@Dungeon Key"
 					else:
-						outln[2] = "@%s@" % hint_text[outln[1]]
+						outln[2] = "@%s" % hint_text[outln[1]]
+					outln[2] += (" for Player %s@" % for_player) if max_players > 2 else "@"
 					outln[1] = "SH"
 				else:
 					outln[1] = "EV"
@@ -27,5 +29,4 @@ def split_seed(seed, gameId, player, max_players, hints=False, dk=True, sk=True,
 				outlines.append("|".join(outln))
 		else:
 			outlines.append(line)
-	#outlines[0] = "Sync%s.%s," %(gameId,player) + outlines[0]
 	return "\n".join(outlines)

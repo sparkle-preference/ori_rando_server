@@ -17,7 +17,7 @@ const textStyle = {color: "black", textAlign: "center"}
 const SiteBar = ({dlltime, user}) => {
 	
 	let logonoff = user ? [
-		(<DropdownItem href={"'/plando/"+ user + "'"}> {user}'s seeds </DropdownItem>),
+		(<DropdownItem href={"/plando/"+ user}> {user}'s seeds </DropdownItem>),
 		(<DropdownItem href="/logout">  Logout </DropdownItem>)
 	] :  (<DropdownItem href="/login"> Login </DropdownItem>) 
 
@@ -112,30 +112,31 @@ export default class MainPage extends React.Component {
 	
 	getWarmthFragsTab = () => {
 		let onWarmthClick = () =>  this.state.warmthFragsEnabled ? this.setState({warmthFragsEnabled: false, keyMode: this.state.oldKeyMode}) : this.setState({warmthFragsEnabled: true, oldKeyMode: this.state.keyMode, keyMode: "Warmth Frags"})
-		let fragCountValid = this.state.fragCount > 0 && this.state.fragCount <= 60
-		let fragCountFeedback = this.state.fragCount  > 0 ? (this.state.freqCount <= 60 ? null : (
-				<FormFeedback tooltip>Fragment count must be less than or equal to 60</FormFeedback>
-			)) : (
+		let maxFrags = (this.state.variations.includes("hardmode") ? 150 : 80) - (this.state.variations.includes("wild") ? 20 : 0) - (this.state.variations.includes("noplants") ? 20 : 0)
+		let fragCountValid = this.state.fragCount > 0 && this.state.fragCount <= maxFrags
+		let fragCountFeedback = this.state.fragCount > maxFrags ? (
+				<FormFeedback tooltip>Fragment count must be less than or equal to {maxFrags}</FormFeedback>
+			) : (
 				<FormFeedback tooltip>Fragment count must be greater than 0</FormFeedback>
 			)
-		let maxReq = this.state.fragCount + this.state.fragTol;
+		let maxReq = this.state.fragCount - this.state.fragTol;
 		let fragRows = ["First Dungeon Key", "Second Dungeon Key", "Last Dungeon Key", "Total Required"].map((text, i) => {
 			let key = i;
 			let setter = (e) => {
 				let curr = this.state.fragKeys;
-				curr[key] = e.target.value
+				curr[key] = parseInt(e.target.value, 10)
 				this.setState({fragKeys: curr})
 			};
 			let currCount = this.state.fragKeys[key] 
-			let valid = currCount > 0 && currCount < maxReq;
-			let feedback = currCount > 0 ? (currCount < maxReq ? null : (
-				<FormFeedback tooltip>Fragment requirement must be less than the total number of fragments, plus the tolerance value</FormFeedback>
-			)) : (
+			let valid = currCount > 0 && currCount <= maxReq;
+			let feedback = currCount > maxReq ? (
+				<FormFeedback tooltip>Fragment requirement must not be greater than {maxReq} (the total number of fragments, minus the tolerance value)</FormFeedback>
+			) : (
 				<FormFeedback tooltip>Fragment requirement must be greater than 0</FormFeedback>
-			)			
+			)
 			return (
 				<Row className="p-1 justify-content-center">
-					<Col xs="4" className="text-center pt-1 border">
+					<Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("warmthFrags", text)} className="text-center pt-1 border">
 						<span class="align-middle">{text}</span>
 					</Col><Col xs="4">
 						<Input type="number" value={currCount } disabled={!this.state.warmthFragsEnabled} invalid={!valid} onChange={setter}/> 
@@ -146,33 +147,33 @@ export default class MainPage extends React.Component {
 		})
 		return (
 			<TabPane tabId="warmthFrags">
-				<Row className="p-1 justify-content-center">
+				<Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("warmthFrags", "Enable")} className="p-1 justify-content-center">
 					<Col xs="6">
 						<Button block color="warning" outline={!this.state.warmthFragsEnabled} onClick={onWarmthClick}>{this.state.warmthFragsEnabled ? "Disable" : "Enable"} Warmth Fragments</Button>
 					</Col>
 				</Row>
-				<Row className="p-1 justify-content-center">
+				<Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("warmthFrags", "fragCount")} className="p-1 justify-content-center">
 					<Col xs="4" className="text-center pt-1 border">
 						<span class="align-middle">Warmth Fragment Count</span>
 					</Col><Col xs="4">
-						<Input type="number" value={this.state.fragCount} disabled={!this.state.warmthFragsEnabled} invalid={!fragCountValid} onChange={(e) => this.setState({fragCount: e.target.value})}/> 
+						<Input type="number" value={this.state.fragCount} disabled={!this.state.warmthFragsEnabled} invalid={!fragCountValid} onChange={(e) => this.setState({fragCount: parseInt(e.target.value, 10)})}/> 
 						{fragCountFeedback}
 					</Col>
 				</Row>
 				{fragRows}
-				<Row className="p-1 justify-content-center">
+				<Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("warmthFrags", "fragTol")} className="p-1 justify-content-center">
 					<Col xs="4" className="text-center pt-1 border">
 						<span class="align-middle">Logic Tolerance</span>
 					</Col><Col xs="4">
-						<Input type="number" value={this.state.fragTol} disabled={!this.state.warmthFragsEnabled} invalid={this.state.fragTol <= 0} onChange={(e) => this.setState({fragTol: e.target.value})}/> 
+						<Input type="number" value={this.state.fragTol} disabled={!this.state.warmthFragsEnabled} invalid={this.state.fragTol <= 0} onChange={(e) => this.setState({fragTol: parseInt(e.target.value, 10)})}/> 
 						<FormFeedback tooltip>Tolerance cannot be negative</FormFeedback>
 					</Col>
 				</Row>
-				<Row className="p-1 justify-content-center">
+				<Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("warmthFrags", "expPool")} className="p-1 justify-content-center">
 					<Col xs="4" className="text-center pt-1 border">
 						<span class="align-middle">Exp Pool</span>
 					</Col><Col xs="4">
-						<Input type="number" value={this.state.expPool} invalid={this.state.expPool < 100} onChange={(e) => this.setState({expPool: e.target.value})}/> 
+						<Input type="number" value={this.state.expPool} invalid={this.state.expPool < 100} onChange={(e) => this.setState({expPool: parseInt(e.target.value, 10)})}/> 
 						<FormFeedback tooltip>Experience Pool must be at least 100</FormFeedback>
 					</Col>
 				</Row>
@@ -183,7 +184,7 @@ export default class MainPage extends React.Component {
 	
 	getMultiplayerTab = () => {
 		let multiplayerButtons = ["Skills", "Dungeon Keys", "Teleporters", "Upgrades", "World Events"].map(stype => (
-			<Col xs="4" className="p-2">
+			<Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("Shared Item Categories", stype)} className="p-2">
 				<Button block outline={!this.state.shared.includes(stype)} onClick={this.onSType(stype)}>Share {stype}</Button>
 			</Col>
 		))
@@ -196,28 +197,15 @@ export default class MainPage extends React.Component {
 		)
 		return (
  			<TabPane tabId="multiplayer">
-				<Row className="p-1 justify-content-center">
+				<Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "playerCount")}  className="p-1 justify-content-center">
 					<Col xs="4" className="text-center pt-1 border">
 						<span class="align-middle">Players</span>
 					</Col><Col xs="4">
-						<Input type="number" value={this.state.players} disabled={!this.state.tracking} invalid={!playerNumValid} onChange={(e) => this.setState({players: e.target.value})}/> 
+						<Input type="number" value={this.state.players} disabled={!this.state.tracking} invalid={!playerNumValid} onChange={(e) => this.setState({players: parseInt(e.target.value, 10)})}/> 
 						{playerNumFeedback }
 					</Col>
 				</Row>
-				<Row className="p-1 justify-content-center">
-					<Col xs="4" className="text-center pt-1 border">
-						<span class="align-middle">Seed Sync Mode</span>
-					</Col><Col xs="4">
-						<UncontrolledButtonDropdown className="w-100">
-							<DropdownToggle disabled={this.state.players < 2} color={this.state.players > 1 ? "primary" : "secondary"} caret block> {this.state.coopGenMode} </DropdownToggle>
-							<DropdownMenu>
-								<DropdownItem active={"Cloned Seeds"===this.state.coopGenMode} onClick={()=> this.setState({coopGenMode: "Cloned Seeds"})}>Cloned Seeds</DropdownItem>
-								<DropdownItem active={"Seperate Seeds"===this.state.coopGenMode} onClick={()=> this.setState({coopGenMode: "Seperate Seeds"})}>Seperate Seeds</DropdownItem>
-							</DropdownMenu>
-						</UncontrolledButtonDropdown>
-					</Col>
-				</Row>
-				<Row className="p-1 justify-content-center">
+				<Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "multiGameType")} className="p-1 justify-content-center">
 					<Col xs="4" className="text-center pt-1 border">
 						<span class="align-middle">Multiplayer Game Type</span>
 					</Col><Col xs="4">
@@ -230,21 +218,34 @@ export default class MainPage extends React.Component {
 						</UncontrolledButtonDropdown>
 					</Col>
 				</Row>
-				<Collapse isOpen={this.state.user !== ""}>
+				<Collapse isOpen={this.state.players > 1 && this.state.coopGameMode === "Co-op"}>
+					<Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "syncSeedType")} className="p-1 justify-content-center">
+						<Col xs="4" className="text-center pt-1 border">
+							<span class="align-middle">Seed Generation Mode</span>
+						</Col><Col onMouseLeave={this.helpEnter("multiplayerOptions", "syncSeedType")} onMouseEnter={this.helpEnter("multiplayerOptions", this.state.coopGenMode)} xs="4">
+							<UncontrolledButtonDropdown className="w-100">
+								<DropdownToggle disabled={this.state.players < 2} color={this.state.players > 1 ? "primary" : "secondary"} caret block> {this.state.coopGenMode} </DropdownToggle>
+								<DropdownMenu>
+									<DropdownItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "Cloned Seeds")}  active={"Cloned Seeds"===this.state.coopGenMode} onClick={()=> this.setState({coopGenMode: "Cloned Seeds"})}>Cloned Seeds</DropdownItem>
+									<DropdownItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "Seperate Seeds")}  active={"Seperate Seeds"===this.state.coopGenMode} onClick={()=> this.setState({coopGenMode: "Seperate Seeds"})}>Seperate Seeds</DropdownItem>
+								</DropdownMenu>
+							</UncontrolledButtonDropdown>
+						</Col>
+					</Row>
+					<Row className="p-2">
+						{multiplayerButtons}
+						<Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("Shared Item Categories", "Hints")} className="p-2">
+							<Button block outline={!this.state.hints} disabled={this.state.coopGenMode!=="Cloned Seeds"} onClick={() => this.setState({hints: !this.state.hints})}>Show Hints</Button>
+						</Col>
+					</Row>
+				</Collapse>
+				<Collapse isOpen={this.state.user}>
 					<Row className="p-1 justify-content-center">
 						<Col xs="4" className="text-center pt-1 border">
 							<span class="align-middle">SyncId (leave blank)</span>
 						</Col><Col xs="4">
-							<Input type="number" value={this.state.syncId} invalid={!(this.state.syncId === "" || this.state.syncId > 0)} onChange={(e) => this.setState({syncId: e.target.value})}/>
+							<Input type="number" value={this.state.syncId} invalid={!(this.state.syncId === "" || this.state.syncId > 0)} onChange={(e) => this.setState({syncId: parseInt(e.target.value)})}/>
 							<FormFeedback tooltip>syncId must be positive</FormFeedback>
-						</Col>
-					</Row>
-				</Collapse>
-				<Collapse isOpen={this.state.players > 1 && this.state.coopGameMode === "Co-op"}>
-					<Row className="p-2">
-						{multiplayerButtons}
-						<Col xs="4" className="p-2">
-							<Button block outline={!this.state.hints} disabled={this.state.coopGenMode!=="Cloned Seeds"} onClick={() => this.setState({hints: !this.state.hints})}>Show Hints</Button>
 						</Col>
 					</Row>
 				</Collapse>
@@ -301,7 +302,7 @@ export default class MainPage extends React.Component {
 		let user = get_param("user");
 		let dllTime = get_param("dll_last_update");
 		this.state = {user: user, activeTab: 'variations', coopGenMode: "Cloned Seeds", coopGameMode: "Co-op", players: 1, tracking: true, dllTime: dllTime, variations: ["forcetrees"], 
-					 paths: presets["standard"], keyMode: "Shards", oldKeyMode: "Shards", pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null),
+					 paths: presets["standard"], keyMode: "Clues", oldKeyMode: "Clues", pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null),
 					 customSyncId: "", seed: "", fillAlg: "Balanced", shared: ["Skills", "Dungeon Keys", "Teleporters", "World Events"], hints: false,
 					 warmthFragsEnabled: false, fragCount: 35, fragKeys: [7, 14, 21, 28], fragTol: 3, syncId: "", expPool: 10000, lastHelp: new Date()};
 	}
@@ -323,17 +324,17 @@ export default class MainPage extends React.Component {
 	
 	onMode = (mode) => () => {
 		let vars = this.state.variations
+		// If a variation is in the list due to current pathmode, remove it.
 		if(varPaths.hasOwnProperty(this.state.pathMode))
-			vars = listSwap(vars, varPaths[this.state.pathMode])
+			vars = vars.filter(v => !varPaths[this.state.pathMode].includes(v))
+		// Then add any variations tied to the new pathmode.
 		if(varPaths.hasOwnProperty(mode))
-			vars = listSwap(vars, varPaths[mode])
-		
+			varPaths[mode].forEach(v => vars.includes(v) ? null : vars.push(v))		
 		let pd = this.state.pathDiff
 		if(diffPaths.hasOwnProperty(this.state.pathMode))
 			pd = "Normal"	
 		if(diffPaths.hasOwnProperty(mode))
-			pd = diffPaths[mode]
-		
+			pd = diffPaths[mode]		
 		this.setState({variations: vars, pathMode: mode, paths: presets[mode], pathDiff: pd})
 	}
 
@@ -398,7 +399,7 @@ export default class MainPage extends React.Component {
 						<Col xs="6"  className="text-center pt-1 border">
 							<span class="align-middle">Logic Mode</span>
 						</Col>
-						<Col xs="6">
+						<Col xs="6" onMouseLeave={this.helpEnter("general", "logicModes")} onMouseEnter={this.helpEnter("logicModes", this.state.pathMode)}>
 							<UncontrolledButtonDropdown className="w-100">
 								<DropdownToggle color="primary" className="text-capitalize" caret block> {this.state.pathMode} </DropdownToggle>
 								<DropdownMenu> {pathModeOptions} </DropdownMenu>
@@ -411,7 +412,7 @@ export default class MainPage extends React.Component {
 						<Col xs="6"  className="text-center pt-1 border">
 							<span class="align-middle">Key Mode</span>
 						</Col>
-						<Col xs="6">
+						<Col xs="6" onMouseLeave={this.helpEnter("general", "keyModes")} onMouseEnter={this.helpEnter("keyModes", this.state.keyMode)}>
 							<UncontrolledButtonDropdown className="w-100">
 								<DropdownToggle color="primary" caret block> {this.state.keyMode} </DropdownToggle>
 								<DropdownMenu>
