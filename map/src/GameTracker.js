@@ -28,14 +28,14 @@ function parse_seed(raw) {
 
 function player_icons(id)  {
 	id = parseInt(id, 10);
-	let img = 	'../sprites/ori-white.png';
-	if (id === 1)  img = '../sprites/ori-blue.png';
-	else if (id === 2)  img = '../sprites/ori-red.png';
-	else if (id === 3)  img = '../sprites/ori-green.png';
-	else if (id === 4)  img = '../sprites/ori-purple.png';
-	else if (id === 5)  img = '../sprites/ori-yellow.png';
-	else if (id === 6)  img = '../sprites/ori-white.png';
-	else if (id === 200)  img = '../sprites/ori-skul.png';
+	let img = 	'/sprites/ori-white.png';
+	if (id === 1)  img = '/sprites/ori-blue.png';
+	else if (id === 2)  img = '/sprites/ori-red.png';
+	else if (id === 3)  img = '/sprites/ori-green.png';
+	else if (id === 4)  img = '/sprites/ori-purple.png';
+	else if (id === 5)  img = '/sprites/ori-yellow.png';
+	else if (id === 6)  img = '/sprites/ori-white.png';
+	else if (id === 200)  img = '/sprites/ori-skul.png';
 	let ico = new Leaflet.Icon({iconUrl: img, iconSize: new Leaflet.Point(48, 48)});
 	return ico
 };
@@ -430,7 +430,7 @@ function getSeed(setter, pid, timeout)
 					return {players:retVal, retries: 0, timeout: TIMEOUT_START}
 				});
             }
-     doNetRequest(onRes, setter, "/"+game_id+"."+pid+"/_seed", timeout)
+     doNetRequest(onRes, setter, "/tracker/game/"+game_id+"/fetch/player/"+pid+"/seed", timeout)
 }
 
 
@@ -459,7 +459,7 @@ function getReachable(setter, modes, timeout) {
 					return {players:players, retries: 0, timeout: TIMEOUT_START}
 				})
     }
-    doNetRequest(onRes, setter, "/"+game_id+"/_reachable?modes="+modes, timeout)
+    doNetRequest(onRes, setter, "/tracker/game/"+game_id+"/fetch/reachable?modes="+modes, timeout)
 }
 
 function getSeen(setter, timeout)
@@ -485,7 +485,7 @@ function getSeen(setter, timeout)
 					return {players:retVal, retries: 0, timeout: TIMEOUT_START}
 				})
     }
-    doNetRequest(onRes, setter, "/"+game_id+"/_seen", timeout)
+    doNetRequest(onRes, setter, "/tracker/game/"+game_id+"/fetch/seen", timeout)
 }
 
 
@@ -510,7 +510,7 @@ function getPlayerPos(setter, timeout)
 					return {players:retVal, retries: 0, timeout: TIMEOUT_START}
 				})
     }
-    doNetRequest(onRes, setter, "/"+game_id+"/_getPos", timeout)
+    doNetRequest(onRes, setter, "/tracker/game/"+game_id+"/fetch/pos", timeout)
 }
 
 

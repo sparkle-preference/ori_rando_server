@@ -100,11 +100,11 @@
         <Home name="SunkenGladesRunaway"/>
         <Target name="Forlorn"/>
         <Requirements>
-          <Requirement mode="dboost-light">ForlornKey+TPForlorn+DoubleJump+ChargeJump</Requirement>
-          <Requirement mode="dboost-light">ForlornKey+TPForlorn+DoubleJump+Bash</Requirement>
+          <Requirement mode="dboost-light">ForlornKey+TPForlorn+WallJump+DoubleJump+ChargeJump</Requirement>
+          <Requirement mode="dboost-light">ForlornKey+TPForlorn+WallJump+DoubleJump+Bash</Requirement>
           <Requirement mode="dboost-light">ForlornKey+TPForlorn+Glide+ChargeJump</Requirement>
-          <Requirement mode="dboost-light">ForlornKey+TPForlorn+Glide+Bash</Requirement>
           <Requirement mode="dboost-light">ForlornKey+TPForlorn+Grenade+Bash</Requirement>
+          <Requirement mode="extended-damage">ForlornKey+TPForlorn+Glide+Bash</Requirement>
         </Requirements>
       </Connection>
       <Connection>
@@ -305,12 +305,9 @@
       </Connection>
       <Connection>
         <Home name="WallJump"/>
-        <Target name="SpiritCaverns"/>
+        <Target name="SpiritCavernsDoor"/>
         <Requirements>
-          <Requirement mode="normal">KS+KS+Climb</Requirement>
-          <Requirement mode="normal">KS+KS+WallJump</Requirement>
-          <Requirement mode="normal">KS+KS+ChargeJump</Requirement>
-          <Requirement mode="normal">KS+KS+Bash+Grenade</Requirement>
+          <Requirement mode="normal">KS+KS</Requirement>
         </Requirements>
       </Connection>
       <Connection>
@@ -372,13 +369,6 @@
         <Item>EX100</Item>
         <Difficulty>0</Difficulty>
         <Zone>Grove</Zone>
-      </Location>
-      <Location>
-        <X>423</X>
-        <Y>-169</Y>
-        <Item>EC</Item>
-        <Difficulty>0</Difficulty>
-        <Zone>Grotto</Zone>
       </Location>
     </Locations>
     <Connections>
@@ -502,6 +492,22 @@
       </Location>
     </Locations>
     <Connections>
+    </Connections>
+  </Area>
+  <Area name="SpiritCavernsDoor">
+    <Locations>
+    </Locations>
+    <Connections>
+      <Connection>
+        <Home name="SpiritCavernsDoor"/>
+        <Target name="SpiritCaverns"/>
+        <Requirements>
+          <Requirement mode="normal">Climb</Requirement>
+          <Requirement mode="normal">WallJump</Requirement>
+          <Requirement mode="normal">ChargeJump</Requirement>
+          <Requirement mode="normal">Bash+Grenade</Requirement>
+        </Requirements>
+      </Connection>
     </Connections>
   </Area>
   <Area name="SpiritCaverns">
@@ -1042,7 +1048,6 @@
           <Requirement mode="normal">Bash+Grenade</Requirement>
           <Requirement mode="normal">Glide+WallJump+Grenade</Requirement>
           <Requirement mode="extended">DoubleJump+Grenade</Requirement>
-          <Requirement mode="extended">DoubleJump+ChargeFlame</Requirement>
           <Requirement mode="cdash-farming">ChargeJump+Climb+Dash</Requirement>
           <Requirement mode="cdash-farming">ChargeJump+WallJump+Dash</Requirement>
           <Requirement mode="cdash-farming">DoubleJump+Dash</Requirement>
@@ -1087,9 +1092,10 @@
         <Home name="RazielNo"/>
         <Target name="BlackrootGrottoConnection"/>
         <Requirements>
-          <Requirement mode="normal">Dash+DoubleJump</Requirement>
-          <Requirement mode="normal">Dash+ChargeJump</Requirement>
+          <Requirement mode="normal">Dash+WallJump</Requirement>
+          <Requirement mode="normal">Dash+Climb</Requirement>
           <Requirement mode="normal">Dash+Bash+Grenade</Requirement>
+          <Reuqirement mode="normal">Dash+ChargeJump</Reuqirement>
           <Requirement mode="speed">ChargeJump+Climb</Requirement>
           <Requirement mode="speed">ChargeJump+WallJump</Requirement>
           <Requirement mode="speed">Bash+Grenade</Requirement>
@@ -1524,7 +1530,9 @@
         <Target name="MortarCell"/>
         <Requirements>
           <Requirement mode="normal">ChargeJump</Requirement>
-          <Requirement mode="normal">Bash</Requirement>
+          <Requirement mode="normal">Climb+Bash</Requirement>
+          <Requirement mode="normal">WallJump+Bash</Requirement>
+          <Requirement mode="lure-hard">Bash</Requirement>
           <Requirement mode="extreme">WallJump+DoubleJump</Requirement>
           <Requirement mode="glitched">Free</Requirement>
         </Requirements>
@@ -1647,6 +1655,13 @@
   </Area>
   <Area name="MoonGrotto">
     <Locations>
+      <Location>
+        <X>423</X>
+        <Y>-169</Y>
+        <Item>EC</Item>
+        <Difficulty>0</Difficulty>
+        <Zone>Grotto</Zone>
+      </Location>
     </Locations>
     <Connections>
       <Connection>
@@ -2107,18 +2122,9 @@
       </Location>
     </Locations>
     <Connections>
-      <Connection>
-        <Home name="UpperGrottoOrbs"/>
-        <Target name="UpperGrottoOrbsPlant"/>
-        <Requirements>
-          <Requirement mode="normal">ChargeFlame</Requirement>
-          <Requirement mode="normal">Grenade</Requirement>
-          <Requirement mode="cdash">Dash</Requirement>
-        </Requirements>
-      </Connection>
     </Connections>
   </Area>
-  <Area name="UpperGrottoOrbsPlant">
+  <Area name="RightGrottoHealthPlant">
     <Locations>
       <Location>
         <X>540</X>
@@ -2181,6 +2187,15 @@
       </Location>
     </Locations>
     <Connections>
+      <Connection>
+        <Home name="RightGrottoHealth"/>
+        <Target name="RightGrottoHealthPlant"/>
+        <Requirements>
+          <Requirement mode="normal">ChargeFlame</Requirement>
+          <Requirement mode="normal">Grenade</Requirement>
+          <Requirement mode="cdash">Dash</Requirement>
+        </Requirements>
+      </Connection>
     </Connections>
   </Area>
   <Area name="MoonGrottoEnergyWater">
@@ -2334,6 +2349,17 @@
           <Requirement mode="normal">WallJump+DoubleJump</Requirement>
           <Requirement mode="normal">Climb+ChargeJump</Requirement>
           <Requirement mode="normal">WallJump+ChargeJump</Requirement>
+          <Requirement mode="normal">Grenade+Bash</Requirement>
+          <Requirement mode="extreme">WallJump+Bash</Requirement>
+        </Requirements>
+      </Connection>
+      <Connection>
+        <Home name="GumoHideout"/>
+        <Target name="GumoHideoutLeft"/>
+        <Requirements>
+          <Requirement mode="normal">WallJump+DoubleJump</Requirement>
+          <Requirement mode="normal">Grenade+Bash+Climb</Requirement>
+          <Requirement mode="normal">WallJump+Glide+Wind</Requirement>
           <Requirement mode="extreme">WallJump+Bash</Requirement>
         </Requirements>
       </Connection>
@@ -2535,13 +2561,6 @@
         <Difficulty>1</Difficulty>
         <Zone>Grotto</Zone>
       </Location>
-      <Location>
-        <X>328</X>
-        <Y>-353</Y>
-        <Item>EX100</Item>
-        <Difficulty>2</Difficulty>
-        <Zone>Grotto</Zone>
-      </Location>
     </Locations>
     <Connections>
       <Connection>
@@ -2630,6 +2649,19 @@
         <X>505</X>
         <Y>-439</Y>
         <Item>EX200</Item>
+        <Difficulty>2</Difficulty>
+        <Zone>Grotto</Zone>
+      </Location>
+    </Locations>
+    <Connections>
+    </Connections>
+  </Area>
+  <Area name="GumoHideoutLeft">
+    <Locations>
+      <Location>
+        <X>328</X>
+        <Y>-353</Y>
+        <Item>EX100</Item>
         <Difficulty>2</Difficulty>
         <Zone>Grotto</Zone>
       </Location>
@@ -3014,8 +3046,8 @@
         <Home name="Swamp"/>
         <Target name="SwampStomp"/>
         <Requirements>
-          <Requirement mode="normal">Stomp</Requirement>
-          <Requirement mode="extended">Climb+ChargeJump</Requirement>
+          <Requirement mode="dboost-light">Stomp</Requirement>
+          <Requirement mode="normal">Stomp+Water</Requirement>
         </Requirements>
       </Connection>
       <Connection>
@@ -3149,6 +3181,7 @@
         <Requirements>
           <Requirement mode="normal">Stomp</Requirement>
           <Requirement mode="normal">Bash</Requirement>
+          <Requirement mode="extended">ChargeFlame</Requirement>
         </Requirements>
       </Connection>
       <Connection>
@@ -3257,7 +3290,10 @@
         <Home name="HoruFields"/>
         <Target name="DoorWarp"/>
         <Requirements>
-          <Requirement mode="extended">HoruKey</Requirement>
+          <Requirement mode="extended">HoruKey+WallJump+DoubleJump</Requirement>
+          <Requirement mode="extended">HoruKey+ChargeJump</Requirement>
+          <Requirement mode="extended">HoruKey+Bash+Grenade</Requirement>
+          <Requirement mode="extreme">HoruKey+Bash</Requirement>
         </Requirements>
       </Connection>
     </Connections>
@@ -4060,6 +4096,8 @@
         <Home name="ValleyEntry"/>
         <Target name="ValleyEntryTreePlant"/>
         <Requirements>
+          <Requirement mode="normal">ChargeJump+ChargeFlame</Requirement>
+          <Requirement mode="extended">WallJump+ChargeFlame</Requirement>
           <Requirement mode="extended">Grenade</Requirement>
         </Requirements>
       </Connection>
@@ -4612,7 +4650,10 @@
         <Home name="ForlornInnerDoor"/>
         <Target name="Forlorn"/>
         <Requirements>
-          <Requirement mode="normal">Free</Requirement>
+          <Requirement mode="normal">WallJump+DoubleJump</Requirement>
+          <Requirement mode="normal">ChargeJump</Requirement>
+          <Requirement mode="normal">Bash+Grenade</Requirement>
+          <Requirement mode="extended">Free</Requirement>
         </Requirements>
       </Connection>
     </Connections>

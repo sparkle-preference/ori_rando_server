@@ -1060,8 +1060,6 @@ class SeedGenerator:
 				del self.forcedAssignments[loc] # don't count these ones
 			self.outputStr += self.get_assignment(loc, self.adjust_item(item), zone)
 				
-		
-		print self.outputStr, str(self.forcedAssignments)
 
 		for item in self.forcedAssignments.values():
 			if item in self.itemPool:

@@ -31,8 +31,12 @@ class Card(object):
 	def all_cards():
 		return [c.get() for c in Card.__subclasses__()] + Card.singletons
 	@staticmethod
-	def get_json(num_cards=25):
-		return "[%s]" % ",\n".join(['{"name": "%s"}' % c for c in sample(Card.all_cards(), num_cards)])
+	def get_json(cards=25):
+		c = Card.all_cards()
+		if cards > len(c):
+			print  "%s>%s :C" %(cards, len(c))
+			cards = 25
+		return "[%s]" % ",\n".join(['{"name": "%s"}' % c for c in sample(Card.all_cards(), cards)])
 
 class HoruRoomXorY(Card):
 	@staticmethod

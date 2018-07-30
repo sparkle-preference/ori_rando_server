@@ -3,6 +3,7 @@ import React from 'react';
 import { ZoomControl, Map, Tooltip, TileLayer} from 'react-leaflet';
 import Leaflet from 'leaflet';
 import {NotificationContainer, NotificationManager} from 'react-notifications';
+import 'react-notifications/lib/notifications.css';
 import {Checkbox, CheckboxGroup} from 'react-checkbox-group';
 import {download, getStuffType, stuff_types, stuff_by_type, picks_by_type, picks_by_loc, picks_by_zone, presets,
 		picks_by_area, zones,  pickup_name, PickupMarkersList, get_icon, getMapCrs, hide_opacity, select_wrap,
@@ -10,7 +11,6 @@ import {download, getStuffType, stuff_types, stuff_by_type, picks_by_type, picks
 import NumericInput from 'react-numeric-input';
 import Select from 'react-select'
 import {Creatable} from 'react-select';
-import 'react-notifications/lib/notifications.css';
 import {Alert, Button, Collapse} from 'reactstrap';
 import Control from 'react-leaflet-control';
 import {Helmet} from 'react-helmet';
@@ -678,6 +678,7 @@ class PlandoBuiler extends React.Component {
 		}
 		return (
 			<div className="wrapper">
+		        <NotificationContainer/>
 	            <Helmet>
 	                <style>{'body { background-color: black}'}</style>
 	                <link rel="stylesheet" href="https://gitcdn.github.io/bootstrap-toggle/2.2.2/css/bootstrap-toggle.min.css"/>
@@ -688,7 +689,6 @@ class PlandoBuiler extends React.Component {
 			        <ZoomControl position="topright" />
 					<Control position="topleft" >
 					<div>
-        		        <NotificationContainer/>
 						<Button size="sm" color="disabled">{Math.round(this.state.mousePos.lng)},{Math.round(this.state.mousePos.lat)}</Button>
 					</div>
 					</Control>	

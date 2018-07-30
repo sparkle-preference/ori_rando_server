@@ -9,7 +9,9 @@ from collections import Counter
 
 # web imports
 import logging
-import webapp2
+from webapp2_extras.routes import PathPrefixRoute, RedirectRoute as Route
+from test import TestRunner
+from webapp2 import WSGIApplication, RequestHandler, redirect, uri_for
 from datetime import datetime, timedelta
 from protorpc import messages
 from google.appengine.api import users
@@ -20,6 +22,7 @@ from google.appengine.ext.webapp import template
 # project impports
 from seedbuilder.generator import SeedGenerator, Random
 from seedbuilder.splitter import split_seed
+from seedbuilder.vanilla import seedtext as vanilla_seed
 from bingo import Card
 from enums import MultiplayerGameType, ShareType, LogicPath, Variation
 from models import Game, Seed, Player, HistoryLine
@@ -41,7 +44,7 @@ def paramVal(s, f):
 	return s.request.get(f, None)
 
 
-class GetGameId(webapp2.RequestHandler):
+class GetGameId(RequestHandler):
 	def get(self):
 		self.response.headers['Content-Type'] = 'text/plain'
 		self.response.status = 200
@@ -54,14 +57,14 @@ class GetGameId(webapp2.RequestHandler):
 		self.response.write("GC|%s" % Game.new(paramVal(self, 'mode'), shared, id).key.id())
 
 
-class CleanUp(webapp2.RequestHandler):
+class CleanUp(RequestHandler):
 	def get(self):
 		self.response.headers['Content-Type'] = 'text/plain'
 		self.response.status = 200
 		self.response.write("Cleaned up %s games" % Game.clean_old())
 
 
-class DeleteGame(webapp2.RequestHandler):
+class DeleteGame(RequestHandler):
 	def get(game_id, self):
 		self.response.headers['Content-Type'] = 'text/plain'
 		if int(game_id) < 1000 and not paramFlag(self, "override"):
@@ -77,7 +80,7 @@ class DeleteGame(webapp2.RequestHandler):
 			self.response.write("The game... was already dead...")
 
 
-class ActiveGames(webapp2.RequestHandler):
+class ActiveGames(RequestHandler):
 	def get(self, hours=12):
 		self.response.headers['Content-Type'] = 'text/html'
 		title = "Games active in the last %s hours" % hours
@@ -92,7 +95,9 @@ class ActiveGames(webapp2.RequestHandler):
 		
 		for game in sorted(games, key=lambda x: x.last_update, reverse=True):
 			id = game.key.id()
-			body += "<li><a href='/%s/history'>Game #%s</a> (<a href='/%s/map'>(Map)</a>)<ul><li>\t%s (Last update: %s ago)</li></ul></li>" % (id, id, id, game.summary, datetime.now() - game.last_update)
+			game_link = uri_for('game-show-history', game_id=id)
+			map_link = uri_for('map-render', game_id=id)
+			body += "<li><a href='%s'>Game #%s</a> (<a href='%s'>(Map)</a>)<ul><li>\t%s (Last update: %s ago)</li></ul></li>" % (game_link, id, map_link, game.summary, datetime.now() - game.last_update)
 		out = "<html><head><title>%s - ORCS</title></head><body>" % title
 		if body:
 			out += "<h4>%s:</h4><ul>%s</ul></body</html>" % (title, body)
@@ -100,8 +105,13 @@ class ActiveGames(webapp2.RequestHandler):
 			out += "<h4>%s</h4></body></html>" % title
 		self.response.write(out)
 
-class FoundPickup(webapp2.RequestHandler):
-	def get(self, game_id, player_id, coords, kind, id):
+
+
+class FoundPickup(RequestHandler):
+	def old(self, game_id, player_id, coords, kind, id):
+		return self.get(game_id, player_id, coords, kind, id, old=True)		
+		
+	def get(self, game_id, player_id, coords, kind, id, old=False):
 		game = Game.with_id(game_id)
 		if not game:
 			self.response.status = 412
@@ -120,11 +130,11 @@ class FoundPickup(webapp2.RequestHandler):
 			logging.error("Couldn't build pickup %s|%s" % (kind, id))
 			self.response.status = 406
 			return
-		self.response.status = game.found_pickup(player_id, pickup, coords, remove, dedup)
+		self.response.status = game.found_pickup(player_id, pickup, coords, remove, dedup, old)
 		self.response.write(self.response.status)
 
 
-class Update(webapp2.RequestHandler):
+class Update(RequestHandler):
 	def get(self, game_id, player_id, x, y):
 		self.response.headers['Content-Type'] = 'text/plain'
 		game = Game.with_id(game_id)
@@ -138,7 +148,7 @@ class Update(webapp2.RequestHandler):
 
 
 # post-refactor. uses different URL (with /), for dll switching
-class GetUpdate(webapp2.RequestHandler):
+class GetUpdate(RequestHandler):
 	def get(self, game_id, player_id, x, y):
 		self.response.headers['Content-Type'] = 'text/plain'
 		game = Game.with_id(game_id)
@@ -151,7 +161,7 @@ class GetUpdate(webapp2.RequestHandler):
 		self.response.write(p.output())
 
 
-class ShowHistory(webapp2.RequestHandler):
+class ShowHistory(RequestHandler):
 	def get(self, game_id):
 		self.response.headers['Content-Type'] = 'text/plain'
 		game = Game.with_id(game_id)
@@ -169,7 +179,7 @@ class ShowHistory(webapp2.RequestHandler):
 			self.response.out.write("Game %s not found!" % game_id)
 
 
-class SeedGenForm(webapp2.RequestHandler):
+class SeedGenForm(RequestHandler):
 	def get(self):
 		if debug:
 			from enums import NDB_Variation
@@ -180,7 +190,7 @@ class SeedGenForm(webapp2.RequestHandler):
 			template_values = {'latest_dll': dll_last_update(), 'plando_version': PLANDO_VER, 'seed': random.randint(10000000, 100000000)}
 			self.response.out.write(template.render(path, template_values))
 
-class SeedGenLanding(webapp2.RequestHandler):
+class SeedGenLanding(RequestHandler):
 	def get(self):
 		mode = self.request.get("mode").lower()
 		pathdiff = self.request.get("pathdiff").lower()
@@ -199,7 +209,7 @@ class SeedGenLanding(webapp2.RequestHandler):
 			f5 = int(self.request.get("fragKey5"))
 			fragflag = "Frags/%s/%s/%s/%s/%s/%s" % (frag_count,f1, f2, f3, f4, f5)
 		elif mode == "frags":
-			return webapp2.redirect("/")		
+			return redirect("/")		
 		syncmode = MultiplayerGameType.from_url(self.request.get("syncmode"))
 		synctype = self.request.get("synctype").lower() if syncmode != 4 and playercount > 1 else "none"
 		dotracking = paramFlag(self, "tracking")
@@ -261,8 +271,8 @@ class SeedGenLanding(webapp2.RequestHandler):
 		if playercount == 1 or synctype in ["split", "none"]:
 			out += "<div><a target='_blank' href='%s&p=1&splr=1'>Spoiler</a></div>" % url
 		if dotracking:
-			out += "<div><a target='_blank' href='/%s/map?paths=%s'>Map</a></div>" % (game_id, "+".join(logic_paths))
-			out += "<div><a target='_blank' href='/%s/history'>History</a></div>" % game_id
+			out += "<div><a target='_blank' href='/tracker/game/%s/map?paths=%s'>Map</a></div>" % (game_id, "+".join(logic_paths))
+			out += "<div><a target='_blank' href='/game/%s/history'>History</a></div>" % game_id
 		out += "<ul>"
 		for i in range(1, 1 + int(playercount)):
 			purl = url + "&p=%s" % i
@@ -274,7 +284,7 @@ class SeedGenLanding(webapp2.RequestHandler):
 		self.response.out.write(out)
 
 
-class SeedDownloader(webapp2.RequestHandler):
+class SeedDownloader(RequestHandler):
 	def get(self):
 		self.response.headers['Content-Type'] = 'text/plain'
 		params = self.request.GET
@@ -376,8 +386,14 @@ class SeedDownloader(webapp2.RequestHandler):
 			self.response.headers['Content-Disposition'] = 'attachment; filename=randomizer.dat'
 		self.response.out.write(out)
 
+class Vanilla(RequestHandler):
+	def get(self):
+		self.response.headers['Content-Type'] = 'application/x-gzip'
+		self.response.headers['Content-Disposition'] = 'attachment; filename=randomizer.dat'
+		self.response.out.write(vanilla_seed)
 
-class SignalCallback(webapp2.RequestHandler):
+
+class SignalCallback(RequestHandler):
 	def get(self, game_id, player_id, signal):
 		self.response.headers['Content-Type'] = 'text/plain'
 		game = Game.with_id(game_id)
@@ -391,15 +407,12 @@ class SignalCallback(webapp2.RequestHandler):
 		self.response.write("cleared")
 
 
-class HistPrompt(webapp2.RequestHandler):
+class HistPrompt(RequestHandler):
 	def get(self, game_id):
-		self.response.headers['Content-Type'] = 'text/html'
-		self.response.status = 412
-		self.response.write("<html><body><a href='%s/history'>go here</a></body></html>" % game_id)
-		return
+		return redirect("/game/%s/history" % game_id)
 
 
-class SignalSend(webapp2.RequestHandler):
+class SignalSend(RequestHandler):
 	def get(self, game_id, player_id, signal):
 		self.response.headers['Content-Type'] = 'text/plain'
 		game = Game.with_id(game_id)
@@ -413,7 +426,7 @@ class SignalSend(webapp2.RequestHandler):
 		self.response.write("sent")
 
 
-class ListPlayers(webapp2.RequestHandler):
+class ListPlayers(RequestHandler):
 	def get(self, game_id):
 		game = Game.with_id(game_id)
 		outlines = []
@@ -427,33 +440,33 @@ class ListPlayers(webapp2.RequestHandler):
 		self.response.out.write("\n".join(outlines))
 
 
-class RemovePlayer(webapp2.RequestHandler):
+class RemovePlayer(RequestHandler):
 	def get(self, game_id, pid):
 		key = ".".join([game_id, pid])
 		game = Game.with_id(game_id)
 		if key in [p.id() for p in game.players]:
 			game.remove_player(key)
-			return webapp2.redirect("/%s/players" % game_id)
+			return redirect("game/%s/players" % game_id)
 		else:
 			self.response.headers['Content-Type'] = 'text/plain'
 			self.response.status = 404
 			self.response.out.write("player %s not in %s" % (key, game.players))
 
 
-class ShowCache(webapp2.RequestHandler):
+class ShowCache(RequestHandler):
 	def get(self):
 		self.response.headers['Content-Type'] = 'text/plain'
 		self.response.write(str(Cache.pos) + "\n" + str(Cache.hist))
 
 
-class ClearCache(webapp2.RequestHandler):
+class ClearCache(RequestHandler):
 	def get(self):
 		Cache.pos = {}
 		Cache.hist = {}
 		self.redirect("/cache")
 
 
-class SetSeed(webapp2.RequestHandler):
+class SetSeed(RequestHandler):
 	def get(self, game_id, player_id):
 		seedlines = []
 		lines = paramVal(self, "seed").split(",")
@@ -486,7 +499,7 @@ class SetSeed(webapp2.RequestHandler):
 		self.response.out.write("ok")
 
 
-class ShowMap(webapp2.RequestHandler):
+class ShowMap(RequestHandler):
 	def get(self, game_id):
 		path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
 		template_values = {'app': "gameTracker", 'title': "Game %s" % game_id, 'game_id': game_id,
@@ -497,12 +510,12 @@ class ShowMap(webapp2.RequestHandler):
 			hist = Cache.getHist(game_id)
 			seeds = [p.seed for p in game.get_players()] if game else []
 			if any([x is None for x in [game, pos, hist]+seeds]):
-				return webapp2.redirect("/maptest/%s" % game_id)
+				return redirect(uri_for('tests-map-gid', game_id=game_id,from_test=1))
 
 		self.response.out.write(template.render(path, template_values))
 
 
-class GetSeenLocs(webapp2.RequestHandler):
+class GetSeenLocs(RequestHandler):
 	def get(self, game_id):
 		game = Game.with_id(game_id)
 		hist = Cache.getHist(game_id)
@@ -519,7 +532,7 @@ class GetSeenLocs(webapp2.RequestHandler):
 		))
 
 
-class GetSeed(webapp2.RequestHandler):
+class GetSeed(RequestHandler):
 	def get(self, game_id, player_id):
 		game = Game.with_id(game_id)
 		if not game:
@@ -532,7 +545,7 @@ class GetSeed(webapp2.RequestHandler):
 		self.response.out.write(player.seed)
 
 
-class GetReachable(webapp2.RequestHandler):
+class GetReachable(RequestHandler):
 	def get(self, game_id):
 		hist = Cache.getHist(game_id)
 		if not hist or not paramVal(self, "modes"):
@@ -557,7 +570,7 @@ class GetReachable(webapp2.RequestHandler):
 
 
 
-class GetPlayerPositions(webapp2.RequestHandler):
+class GetPlayerPositions(RequestHandler):
 	def get(self, game_id):
 		pos = Cache.getPos(game_id)
 		if pos:
@@ -569,7 +582,7 @@ class GetPlayerPositions(webapp2.RequestHandler):
 			self.response.status = 404
 
 
-class Plando(webapp2.RequestHandler):
+class Plando(RequestHandler):
 	def get(self):
 		path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
 		template_values = {'app': "plandoBuilder", 'title': "Plandomizer Editor " + PLANDO_VER,
@@ -579,7 +592,7 @@ class Plando(webapp2.RequestHandler):
 		self.response.out.write(template.render(path, template_values))
 
 
-class PlandoReachable(webapp2.RequestHandler):
+class PlandoReachable(RequestHandler):
 	def get(self):
 		modes = paramVal(self, "modes").split(" ")
 		codes = []
@@ -605,7 +618,7 @@ def clone_entity(e, **extra_args):
 	return klass(**props)
 
 
-class PlandoRename(webapp2.RequestHandler):
+class PlandoRename(RequestHandler):
 	def get(self, author, old_name, new_name):
 		user = users.get_current_user()
 		if user:
@@ -632,7 +645,7 @@ class PlandoRename(webapp2.RequestHandler):
 			self.response.status = 401
 
 
-class PlandoDelete(webapp2.RequestHandler):
+class PlandoDelete(RequestHandler):
 	def get(self, author, seed_name):
 		user = users.get_current_user()
 		if user:
@@ -653,7 +666,7 @@ class PlandoDelete(webapp2.RequestHandler):
 			self.response.status = 401
 
 
-class PlandoToggleHide(webapp2.RequestHandler):
+class PlandoToggleHide(RequestHandler):
 	def get(self, author, seed_name):
 		user = users.get_current_user()
 		if user:
@@ -676,7 +689,7 @@ class PlandoToggleHide(webapp2.RequestHandler):
 			self.response.status = 401
 
 
-class PlandoUpload(webapp2.RequestHandler):
+class PlandoUpload(RequestHandler):
 	def post(self, author, plando):
 		user = users.get_current_user()
 		if user:
@@ -710,7 +723,7 @@ class PlandoUpload(webapp2.RequestHandler):
 			self.response.status = 401
 
 
-class PlandoView(webapp2.RequestHandler):
+class PlandoView(RequestHandler):
 	def get(self, author, plando):
 		user = users.get_current_user()
 		dispname = "Guest"
@@ -738,7 +751,7 @@ class PlandoView(webapp2.RequestHandler):
 		self.response.out.write("seed not found")
 
 
-class PlandoEdit(webapp2.RequestHandler):
+class PlandoEdit(RequestHandler):
 	def get(self, author, plando):
 		path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
 		template_values = {'app': "plandoBuilder", 'title': "Plandomizer Editor " + PLANDO_VER, 'seed_name': plando}
@@ -761,7 +774,7 @@ class PlandoEdit(webapp2.RequestHandler):
 			self.response.out.write(template.render(path, template_values))
 
 
-class PlandoOld(webapp2.RequestHandler):
+class PlandoOld(RequestHandler):
 	def get(self):
 		path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
 		user = users.get_current_user()
@@ -776,7 +789,7 @@ class PlandoOld(webapp2.RequestHandler):
 			self.response.out.write(template.render(path, template_values))
 
 
-class HandleLogin(webapp2.RequestHandler):
+class HandleLogin(RequestHandler):
 	def get(self):
 		user = users.get_current_user()
 		if user:
@@ -786,7 +799,7 @@ class HandleLogin(webapp2.RequestHandler):
 			self.redirect(users.create_login_url(self.request.uri))
 
 
-class HandleLogout(webapp2.RequestHandler):
+class HandleLogout(RequestHandler):
 	def get(self):
 		user = users.get_current_user()
 		if user:
@@ -794,7 +807,7 @@ class HandleLogout(webapp2.RequestHandler):
 		else:
 			self.redirect("/")
 
-class PlandoFillGen(webapp2.RequestHandler):
+class PlandoFillGen(RequestHandler):
 	def get(self):
 		params = self.request.GET
 		mode = params['m'] if 'm' in params else "standard"
@@ -849,7 +862,7 @@ class PlandoFillGen(webapp2.RequestHandler):
 		self.response.headers['Content-Disposition'] = 'attachment; filename=randomizer.dat' if not debug else ""
 		self.response.out.write(out)
 
-class PlandoDownload(webapp2.RequestHandler):
+class PlandoDownload(RequestHandler):
 	def get(self, author, plando):
 		owner = False
 		user = users.get_current_user()
@@ -878,7 +891,7 @@ class PlandoDownload(webapp2.RequestHandler):
 			self.response.out.write("seed not found")
 
 
-class AllAuthors(webapp2.RequestHandler):
+class AllAuthors(RequestHandler):
 	def get(self):
 		self.response.headers['Content-Type'] = 'text/html'
 		seeds = Seed.query(Seed.hidden != True)
@@ -893,7 +906,7 @@ class AllAuthors(webapp2.RequestHandler):
 		self.response.out.write(out)
 
 
-class AuthorIndex(webapp2.RequestHandler):
+class AuthorIndex(RequestHandler):
 	def get(self, author):
 		self.response.headers['Content-Type'] = 'text/html'
 		owner = False
@@ -930,7 +943,7 @@ class AuthorIndex(webapp2.RequestHandler):
 				self.response.write('<html><body>No seeds by user %s</body></html>' % author)
 
 
-class QuickStart(webapp2.RequestHandler):
+class QuickStart(RequestHandler):
 	def get(self):
 		self.response.write("""<html><body><pre>Misc info:
 - From <a href=http://orirandocoopserver.appspot.com/activeGames>this page</a> you can see a list of active games, and follow links to see a game's history or an active map. 
@@ -942,16 +955,16 @@ class QuickStart(webapp2.RequestHandler):
 </pre></body></html>""")
 
 
-class Bingo(webapp2.RequestHandler):
-	def get(self, numCards=25):
+class Bingo(RequestHandler):
+	def get(self, cards = 25):
 		self.response.headers['Content-Type'] = 'text/plain'
-		self.response.write(Card.get_json(numCards))
+		self.response.write(Card.get_json(int(cards)))
 
-class MapTest(webapp2.RequestHandler):
+class MapTest(RequestHandler):
 	def get(self, game_id = 101):
 		game_id = int(game_id)
 		if not debug:
-			return webapp2.redirect("/")
+			return redirect("/")
 		game = Game.with_id(game_id)
 		if game:
 			game.clean_up()
@@ -980,9 +993,11 @@ class MapTest(webapp2.RequestHandler):
 			player = game.player(player_id)
 			player.seed = "\n".join(seedlines)
 			player.put()
-		return webapp2.redirect("/%s/map?from_test=1" % game_id)
+		url = uri_for("map-render", game_id=game_id, from_test=1)
+		return redirect(url)
+		#self.response.out.write("""<html><head><script> open('%s'); </script></head><body/></html>""" % url)
 			
-class LogicHelper(webapp2.RequestHandler):
+class LogicHelper(RequestHandler):
 	def get(self):	
 		path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
 		template_values = {'app': "logicHelper", 'title': "Logic Helper!", 'is_spoiler': "True",
@@ -991,7 +1006,7 @@ class LogicHelper(webapp2.RequestHandler):
 						   'skills': paramVal(self, 'skills'), 'tps': paramVal(self, 'tps'), 'evs': paramVal(self, 'evs')}
 		self.response.out.write(template.render(path, template_values))
 
-class ReactLanding(webapp2.RequestHandler):
+class ReactLanding(RequestHandler):
 	def get(self):
 		user = users.get_current_user()
 		dispname = user.email().partition("@")[0] if user else ""
@@ -999,14 +1014,38 @@ class ReactLanding(webapp2.RequestHandler):
 		template_values = {'app': "mainPage", 'dll_last_update': dll_last_update(), 'title': "Ori DE Randomizer", 'user': dispname}
 		self.response.out.write(template.render(path, template_values))
 
-from test import TestRunner
 
-app = webapp2.WSGIApplication([
-	(r'/maptest/(\d+)/?', MapTest),
-	(r'/maptest/?', MapTest),
+
+app = WSGIApplication(routes=[
+	# testing endpoints
+	PathPrefixRoute('/tests', [
+		Route('/', handler=TestRunner, name='tests-run'),
+		Route('/map', handler=MapTest, name='tests-map', strict_slash=True),
+		Route('/map/<game_id:\d+>', handler=MapTest, name='tests-map-gid', strict_slash=True),
+	]),
+	Route('/tests', redirect_to_name='tests-run'),
+
+	
+	PathPrefixRoute('/tracker/game/<game_id:\d+>', [
+		Route('/', redirect_to_name="map-render"),
+		Route('/map', handler=ShowMap, name='map-render', strict_slash=True),
+
+		] + list(PathPrefixRoute('/fetch', [
+			Route('/pos', handler=GetPlayerPositions, name="map-fetch-pos"),
+			Route('/seen', handler=GetSeenLocs, name="map-fetch-seen"),
+			Route('/reachable', handler=GetReachable, name="map-fetch-reachable"),
+
+			] + list(PathPrefixRoute('/player/<player_id>', [
+				Route('/seed', GetSeed, name="map-fetch-seed"),
+				Route('/setSeed', SetSeed, name="map-set-seed"),		
+			]).get_routes())
+		).get_routes())
+	),
+
+	# misc / top level endpoints
+	Route('/bingo/<cards:\d+>', handler=Bingo,  name="bingo-json-cards", strict_slash=True),
+	Route('/bingo', handler=Bingo, name="bingo-json", strict_slash=True),
 	(r'/logichelper/?', LogicHelper),
-	(r'/bingo/(\d+)/?', Bingo),
-	(r'/bingo/?', Bingo),
 	(r'/faq/?', QuickStart),
 	('/vold', SeedGenForm),
 	('/', ReactLanding),
@@ -1015,29 +1054,59 @@ app = webapp2.WSGIApplication([
 	(r'/clean/?', CleanUp),
 	(r'/getseed/?', SeedDownloader),
 	(r'/getNewGame/?', GetGameId),
-	(r'/(\d+)/?', HistPrompt),
-	(r'/(\d+)\.(\w+)/(-?\d+)/(SH)/([^?=/]+)', FoundPickup),
-	(r'/(\d+)\.(\w+)/(-?\d+)/(\w+)/(\w+)', FoundPickup),
-	(r'/(\d+)\.(\w+)/(-?\d+\.?\d*),(-?\d+\.?\d*)', Update),
+	(r'/cache', ShowCache),
+	(r'/cache/clear', ClearCache),
+	(r'/login/?', HandleLogin),
+	(r'/logout/?', HandleLogout),
+	('/vanilla', Vanilla),
+
+	# new update game endpoints (add to dll asap)
+	PathPrefixRoute('/netcode/game/<game_id:\d+>/player/<player_id>', [
+		Route('/found/<coords:-?\d+>/<kind>/<id>', handler=FoundPickup, name="netcode-player-found-pickup"),
+		Route('/tick/<x:[^,]+>,<y>', handler=GetUpdate, name="netcode-player-tick"),
+		Route('/callback/<signal>', handler=SignalCallback,  name="netcode-player-signal-callback"),
+	]),
+
+
+
+
+	# old game update endpoints (leave until merge...)
+
+#	Route('/<\d+\.\w+>/<-?\d+>/(SH)/<[^?=/]+>', handler=FoundPickup, handler_method="old"),
+	Route('/<game_id:\d+>.<player_id>/<coords:-?\d+>/<kind>/<id>', handler=FoundPickup, handler_method="old"),
 	(r'/(\d+)\.(\w+)/(-?\d+\.?\d*),(-?\d+\.?\d*)/', GetUpdate),
-	(r'/_update/(\d+)\.(\w+)/(-?\d+\.?\d*),(-?\d+\.?\d*)/', GetUpdate),
 	(r'/(\d+)\.(\w+)/signalCallback/(.*)', SignalCallback),
+	
+	# pre item refactor
+	(r'/(\d+)\.(\w+)/(-?\d+\.?\d*),(-?\d+\.?\d*)', Update),
+
+	# new game endpoints 
+	PathPrefixRoute('/game/<game_id:\d+>', [
+        Route('/delete', handler = DeleteGame, strict_slash=True, name="game-delete"),
+        Route('/history', handler = ShowHistory, strict_slash=True, name="game-show-history"),
+        Route('/players', handler = ListPlayers, strict_slash=True, name="game-list-players"),
+        Route('/player/(\w+)/remove', handler = RemovePlayer, strict_slash=True, name="game-remove-player"),
+        Route('/', redirect_to_name="game-show-history"),
+	]),
+
+
+	# old game endpoints 
 	(r'/(\d+)/delete', DeleteGame),
 	(r'/(\d+)/history/?', ShowHistory),
 	(r'/(\d+)/players', ListPlayers),
 	(r'/(\d+)\.(\w+)/remove', RemovePlayer),
+	(r'/(\d+)/?', HistPrompt),
+
+#	Route('/map/game/<game_id:\d+>', handler=ShowMap, name='map-render'),
+	# old map endpoints (todo: remove)
 	(r'/(\d+)/map/?', ShowMap),
 	(r'/(\d+)/_getPos', GetPlayerPositions),
-	(r'/cache', ShowCache),
-	(r'/cache/clear', ClearCache),
 	(r'/(\d+)/_seen', GetSeenLocs),
 	(r'/(\d+)\.(\w+)/_seed', GetSeed),
 	(r'/(\d+)\.(\w+)/setSeed', SetSeed),
 	(r'/(\d+)/_reachable', GetReachable),
-	(r'/login/?', HandleLogin),
-	(r'/logout/?', HandleLogout),
-	(r'/tests/?', TestRunner),
 
+	# plando endpoints
 	(r'/plando/reachable', PlandoReachable),
 	(r'/plando/fillgen', PlandoFillGen),
 	(r'/plando/simple/?', PlandoOld),
@@ -1049,5 +1118,5 @@ app = webapp2.WSGIApplication([
 	(r'/plando/([^ ?=/]+)/([^ ?=/]+)/rename/([^ ?=/]+)', PlandoRename),
 	(r'/plando/([^ ?=/]+)/([^ ?=/]+)/hideToggle', PlandoToggleHide),
 	(r'/plando/([^ ?=/]+)/?', AuthorIndex),
-	(r'/plando/([^ ?=/]+)/([^ ?=/]+)/?', PlandoView)
+	(r'/plando/([^ ?=/]+)/([^ ?=/]+)/?', PlandoView),
 ], debug=True)

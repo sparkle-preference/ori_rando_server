@@ -17,6 +17,9 @@ function download(filename, text) {
   document.body.removeChild(element);
 }
 
+const dev = window.document.URL.includes("devshell")
+const base_url = dev ?  "https://8080-dot-3616814-dot-devshell.appspot.com" : "http://orirandocoopserver.appspot.com"
+
 const pickup_icons = {
 	"SK": new Leaflet.Icon({iconUrl: '/sprites/skill-tree.png', iconSize: new Leaflet.Point(32, 32), iconAnchor: new Leaflet.Point(0, 32)}),
 	"HC": new Leaflet.Icon({iconUrl: '/sprites/health-cell.png', iconSize: new Leaflet.Point(24, 24)}),
