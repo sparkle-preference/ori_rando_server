@@ -385,7 +385,7 @@ export default class MainPage extends React.Component {
 			}) : (
 				<Row className="p-1">
 					<Col xs="3">
-						<Button color="primary" block onClick={goToCurry(base_url+"/generator/seed/"+this.state.paramId + ((this.state.inputGameId > 0) ? "&game_id="+this.state.inputGameId : ""))}>Download Seed</Button>
+						<Button color="primary" block onClick={goToCurry(base_url+"/generator/seed/"+this.state.paramId + ((this.state.inputGameId > 0) ? "?game_id="+this.state.inputGameId : ""))}>Download Seed</Button>
 					</Col>
 					<Col xs="3">
 						<Button color="primary" block href={base_url+"/generator/spoiler/"+this.state.paramId} target="_blank">View Spoiler</Button>
