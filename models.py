@@ -6,13 +6,15 @@ import logging as log
 from datetime import datetime, timedelta
 from collections import defaultdict
 from itertools import ifilter
+from seedbuilder.seedparams import SeedGenParams, Placement, Stuff
+from seedbuilder.generator import SeedGenerator
 
-from protorpc import messages
+from enums import NDB_MultiGameType, NDB_ShareType, MultiplayerGameType, ShareType
+from util import special_coords, get_bit, get_taste, unpack, enums_from_strlist
 
-from enums import NDB_MultiGameType, NDB_ShareType, ShareType, MultiplayerGameType
-from util import special_coords, get_bit, get_taste, unpack
 from pickups import Pickup, Skill, Upgrade, Teleporter, Event 
 from cache import Cache
+
 
 class HistoryLine(ndb.Model):
 	pickup_code = ndb.StringProperty()
@@ -33,20 +35,9 @@ class HistoryLine(ndb.Model):
 		else:
 			return "lost %s! (%s)" % (self.pickup().name, t)
 
-class Stuff(ndb.Model):
-	code = ndb.StringProperty()
-	id = ndb.StringProperty()
-	player = ndb.StringProperty()
-
-class Placement(ndb.Model):
-	location = ndb.StringProperty()
-	zone = ndb.StringProperty()
-	stuff = ndb.LocalStructuredProperty(Stuff, repeated=True)
-
-
 	
 class Seed(ndb.Model):
-	#id = author:name
+	# Seed ids are author
 	placements = ndb.LocalStructuredProperty(Placement, repeated=True)
 	flags = ndb.StringProperty(repeated=True)
 	hidden = ndb.BooleanProperty(default=False)
@@ -56,12 +47,12 @@ class Seed(ndb.Model):
 	name = ndb.StringProperty()
 
 	def mode(self):
-		mode_opt = [int(f[5:]) for f in self.flags if f.lower().startswith("mode=")]
-		return MultiplayerGameType(mode_opt[0]) if mode_opt else None
+		mode_opt = [MultiplayerGameType.mk(f[5:]) for f in self.flags if f.lower().startswith("mode=")]
+		return mode_opt[0] if mode_opt else None
+
 	def shared(self):
 		shared_opt = [f[7:].replace("+"," ").split(" ") for f in self.flags if f.lower().startswith("shared=")]
-		return [share_map[i] for i in shared_opt[0] if i in share_map] if shared_opt else []
-
+		return enums_from_strlist(shared_opt[0]) if shared_opt else []
 	
 	@staticmethod
 	def from_plando(lines, author, name, desc):
@@ -103,6 +94,7 @@ class Player(ndb.Model):
 	signals = ndb.StringProperty(repeated=True)
 	history = ndb.LocalStructuredProperty(HistoryLine, repeated=True)
 	bitfields = ndb.ComputedProperty(lambda p: ",".join([str(x) for x in [p.skills,p.events,p.upgrades,p.teleporters]+(["|".join(p.signals)] if p.signals else [])]))
+	last_update = ndb.DateTimeProperty(auto_now=True)
 	
 	# post-refactor version of bitfields
 	def output(self):
@@ -381,6 +373,13 @@ class Game(ndb.Model):
 		if id > 20:
 			Game.clean_old()
 		return id
+	
+	@staticmethod
+	def from_params(params, id=None):
+		id = int(id) if id else Game.get_open_gid()
+		game = Game(id = id, players=[], ndb_shared=[s.to_ndb() for s in params.sync.shared], ndb_mode=params.sync.mode.to_ndb())
+		log.info("Game.from_params(%s, %s): Created game %s ", params.key, id, game)
+		return game
 
 	@staticmethod
 	def new(_mode = None, _shared = None, id=None):

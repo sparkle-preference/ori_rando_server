@@ -20,9 +20,9 @@ class Pickup(object):
 		for subcls in Pickup.subclasses():
 			if code == subcls.code and subcls(id):
 				return subcls(id).name
- 		return "%s|%s" % (code, id)
- 	
- 	def add_to_bitfield(self, bits_int, remove=False):
+		return "%s|%s" % (code, id)
+	
+	def add_to_bitfield(self, bits_int, remove=False):
 		if self.stacks:
 			return inc_stackable(bits_int, self.bit, remove)
 		return add_single(bits_int, self.bit, remove)

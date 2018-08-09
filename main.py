@@ -3,8 +3,7 @@
 # py imports
 import random
 import os
-from operator import attrgetter
-import pickle
+import json
 from collections import Counter
 
 # web imports
@@ -13,19 +12,18 @@ from webapp2_extras.routes import PathPrefixRoute, RedirectRoute as Route
 from test import TestRunner
 from webapp2 import WSGIApplication, RequestHandler, redirect, uri_for
 from datetime import datetime, timedelta
-from protorpc import messages
 from google.appengine.api import users
 from google.appengine.ext import ndb
-from google.appengine.ext.ndb import msgprop
 from google.appengine.ext.webapp import template
 
 # project impports
 from seedbuilder.generator import SeedGenerator, Random
+from seedbuilder.seedparams import SeedGenParams
 from seedbuilder.splitter import split_seed
 from seedbuilder.vanilla import seedtext as vanilla_seed
 from bingo import Card
 from enums import MultiplayerGameType, ShareType, LogicPath, Variation
-from models import Game, Seed, Player, HistoryLine
+from models import Game, Seed
 from pickups import Pickup
 from cache import Cache
 from util import dll_last_update, coord_correction_map, all_locs
@@ -181,14 +179,9 @@ class ShowHistory(RequestHandler):
 
 class SeedGenForm(RequestHandler):
 	def get(self):
-		if debug:
-			from enums import NDB_Variation
-			out = [NDB_Variation.to_dict(), Variation.to_dict()]
-			self.response.out.write(out)
-		else:
-			path = os.path.join(os.path.dirname(__file__), 'index.html')
-			template_values = {'latest_dll': dll_last_update(), 'plando_version': PLANDO_VER, 'seed': random.randint(10000000, 100000000)}
-			self.response.out.write(template.render(path, template_values))
+		path = os.path.join(os.path.dirname(__file__), 'index.html')
+		template_values = {'latest_dll': dll_last_update(), 'plando_version': PLANDO_VER, 'seed': random.randint(10000000, 100000000)}
+		self.response.out.write(template.render(path, template_values))
 
 class SeedGenLanding(RequestHandler):
 	def get(self):
@@ -210,12 +203,12 @@ class SeedGenLanding(RequestHandler):
 			fragflag = "Frags/%s/%s/%s/%s/%s/%s" % (frag_count,f1, f2, f3, f4, f5)
 		elif mode == "frags":
 			return redirect("/")		
-		syncmode = MultiplayerGameType.from_url(self.request.get("syncmode"))
+		syncmode = MultiplayerGameType(self.request.get("syncmode"))
 		synctype = self.request.get("synctype").lower() if syncmode != 4 and playercount > 1 else "none"
 		dotracking = paramFlag(self, "tracking")
 		if dotracking:
 			syncid = self.request.get("syncid")
-			share_types = [f for f in ShareType.url_names().keys() if self.request.get(f)]
+			share_types = [f for f in ["keys", "upgrades", "skills", "events", "teleporters"] if self.request.get(f)]
 	
 		genmode = self.request.get("genmode").lower()
 
@@ -292,7 +285,7 @@ class SeedDownloader(RequestHandler):
 		variations = params['vars'].split("|")
 		logic_paths = params['lps'].split("|")
 		playercount = int(params['pc'])
-		syncmode = int(params["sym"])
+		syncmode = MultiplayerGameType(params["sym"])
 		dotracking = paramFlag(self,"tracking")
 		dosharetypes = playercount > 1 and syncmode != 4
 		if dotracking:
@@ -320,7 +313,7 @@ class SeedDownloader(RequestHandler):
 			fragOpts = tuple([int(x) for x in rawfrg.split("/")[1:]])
 			
 		if dotracking:
-			flags = flags + ["mode=%s" % syncmode, "Sync%s.%s" % (game_id, player)]
+			flags = flags + ["mode=%s" % syncmode.capitalize(), "Sync%s.%s" % (game_id, player)]
 		if dosharetypes:
 			flags.append("shared=%s" % share_types.replace(" ", "+"))
 		if mode != "default":
@@ -891,11 +884,12 @@ class PlandoDownload(RequestHandler):
 			self.response.out.write("seed not found")
 
 
+		
+
 class AllAuthors(RequestHandler):
 	def get(self):
 		self.response.headers['Content-Type'] = 'text/html'
 		seeds = Seed.query(Seed.hidden != True)
-
 		out = '<html><head><title>All Plando Authors</title></head><body><h5>All Seeds</h5><ul style="list-style-type:none;padding:5px">'
 		authors = Counter([seed.author for seed in seeds])
 		for author, cnt in authors.most_common():
@@ -974,7 +968,7 @@ class MapTest(RequestHandler):
 		flags = lines[0].split("|")
 		mode_opt = [f[5:] for f in flags if f.lower().startswith("mode=")]
 		shared_opt = [f[7:].split("+") for f in flags if f.lower().startswith("shared=")]
-		mode = MultiplayerGameType.from_url(mode_opt[0]) if mode_opt else None
+		mode = MultiplayerGameType(mode_opt[0]) if mode_opt else None
 		shared = shared_opt[0] if shared_opt else None
 		for l in lines[1:]:
 			line = l.split("|")
@@ -1015,6 +1009,93 @@ class ReactLanding(RequestHandler):
 		self.response.out.write(template.render(path, template_values))
 
 
+class MakeSeedWithParams(RequestHandler):
+	def get(self):
+		self.response.headers['Content-Type'] = 'application/json'
+		param_key = SeedGenParams.from_url(self.request.GET)
+		params = param_key.get()
+		if params.generate():
+			resp = {"paramId": param_key.id(), "playerCount": params.players, "flagLine": params.flag_line()}
+			if params.tracking:
+				game = Game.from_params(params, self.request.GET.get("game_id"))
+				key = game.put()
+				resp["gameId"] = key.id()
+			self.response.out.write(json.dumps(resp))
+		else:
+			self.response.status = 500
+			self.response.out.write("Failed to build seed!")
+
+
+class SeedGenJson(RequestHandler):
+	def get(self):
+		self.response.headers['Content-Type'] = 'application/json'
+		param_key = SeedGenParams.from_url(self.request.GET)
+		verbose_paths = self.request.GET.get("verbose_paths") is not None
+		params = param_key.get()
+		if params.generate():
+			players = []
+			resp = {}
+			if params.tracking:
+				game = Game.from_params(params, self.request.GET.get("game_id"))
+				key = game.put()
+				resp["map_url"] = uri_for("map-render", game_id=key.id())
+				resp["history_url"] = uri_for("game-show-history", game_id=key.id())
+			for p in range(1, params.players+1):
+				if params.tracking:
+					seed = params.get_seed(p, key.id(), verbose_paths)
+				else:
+					seed = params.get_seed(p, verbose_paths = verbose_paths)
+				spoiler = params.get_spoiler(p)					
+				players.append({"seed": seed, "spoiler": spoiler})
+			resp["players"] = players
+			self.response.out.write(json.dumps(resp))	
+		else:
+			log.error("param gen failed")
+			self.response.status = 500
+
+class GetParamMetadata(RequestHandler):
+	def get(self, params_id):
+		self.response.headers['Content-Type'] = 'application/json'
+		params = SeedGenParams.with_id(params_id)
+		if params:
+			resp = {"playerCount": params.players, "flagLine": params.flag_line()}
+			self.response.out.write(json.dumps(resp))
+		else:
+			self.response.status = 404
+
+class GetSeedFromParams(RequestHandler):
+	def get(self, params_id):
+		self.response.headers['Content-Type'] = 'text/plain'
+		verbose_paths = self.request.GET.get("verbose_paths") is not None
+		params = SeedGenParams.with_id(params_id)
+		if params:
+			player = int(self.request.GET.get("player",1))
+			if params.tracking:
+				game_id = self.request.GET.get("game_id")
+				seed = params.get_seed(player, game_id, verbose_paths)
+			else:
+				seed = params.get_seed(player, verbose_paths = verbose_paths)
+			if not debug:
+				self.response.headers['Content-Type'] = 'application/x-gzip'
+				self.response.headers['Content-Disposition'] = 'attachment; filename=randomizer.dat'
+			self.response.out.write(seed)
+		else:
+			self.response.status = 404
+			self.response.out.write("Param %s not found" % params_id)
+
+class GetSpoilerFromParams(RequestHandler):
+	def get(self, params_id):
+		self.response.headers['Content-Type'] = 'text/plain'
+		params = SeedGenParams.with_id(params_id)
+		if params:
+			player = int(self.request.GET.get("player",1))
+			spoiler = params.get_spoiler(player)
+			self.response.out.write(spoiler)
+		else:
+			self.response.status = 404
+			self.response.out.write("Param %s not found" % params_id)
+
+
 
 app = WSGIApplication(routes=[
 	# testing endpoints
@@ -1024,6 +1105,14 @@ app = WSGIApplication(routes=[
 		Route('/map/<game_id:\d+>', handler=MapTest, name='tests-map-gid', strict_slash=True),
 	]),
 	Route('/tests', redirect_to_name='tests-run'),
+
+	PathPrefixRoute('/generator', [
+		Route('/build', handler=MakeSeedWithParams, name="gen-params-build", strict_slash=True),
+		Route('/meatadata/<params_id:\d+>', handler=GetParamMetadata, name="gen-params-get-metadata", strict_slash=True),
+		Route('/seed/<params_id:\d+>', handler=GetSeedFromParams, name="gen-params-get-seed", strict_slash=True),
+		Route('/spoiler/<params_id:\d+>', handler=GetSpoilerFromParams, name="gen-params-get-spoiler", strict_slash=True),
+		Route('/json', handler=SeedGenJson, name="gen-params-get-json")
+	]),
 
 	
 	PathPrefixRoute('/tracker/game/<game_id:\d+>', [
@@ -1045,6 +1134,7 @@ app = WSGIApplication(routes=[
 	# misc / top level endpoints
 	Route('/bingo/<cards:\d+>', handler=Bingo,  name="bingo-json-cards", strict_slash=True),
 	Route('/bingo', handler=Bingo, name="bingo-json", strict_slash=True),
+	Route('/logichelper', handler=LogicHelper, name="logic-helper", strict_slash=True),
 	(r'/logichelper/?', LogicHelper),
 	(r'/faq/?', QuickStart),
 	('/vold', SeedGenForm),

@@ -1,6 +1,7 @@
-# constants
-from random import choice, randint, seed, sample
+import logging as log
+from random import choice, randint, sample
 
+# constants
 DUNGEONS = ["Forlorn Ruins", "Ginso Tree", "Mount Horu"]
 AREAS_WITH_TPS = ["Ginso Tree", "Forlorn Ruins", "Moon Grotto", "Hollow Grove", "Sunken Glades", "Blackroot Burrows", "Thornfelt Swamp", "Valley of the Wind", "Sorrow Pass", "Lost Grove", "Mount Horu"]
 AREAS = AREAS_WITH_TPS + ["Misty Woods"]
@@ -34,7 +35,7 @@ class Card(object):
 	def get_json(cards=25):
 		c = Card.all_cards()
 		if cards > len(c):
-			print  "%s>%s :C" %(cards, len(c))
+			log.warning("%s>%s :C" % (cards, len(c)))
 			cards = 25
 		return "[%s]" % ",\n".join(['{"name": "%s"}' % c for c in sample(Card.all_cards(), cards)])
 

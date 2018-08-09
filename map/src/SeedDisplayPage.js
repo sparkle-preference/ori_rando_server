@@ -1,11 +1,10 @@
 import React from 'react';
-import {get_param, get_int, get_seed, seed_name_regex } from './shared_map.js';
+import {goToCurry, get_param, get_int, get_seed, seed_name_regex } from './shared_map.js';
 import { confirmAlert } from 'react-confirm-alert'; 
 import 'react-confirm-alert/src/react-confirm-alert.css' 
 import {DropdownToggle, DropdownMenu, DropdownItem, ButtonDropdown, Button, Container, Row, Col, Input, Badge} from 'reactstrap';
 import {Helmet} from 'react-helmet';
 
-const goToCurry = (url) => () => { window.location.href = url } 
 const textStyle = {color: "black", textAlign: "center"}
 export default class SeedDisplayPage extends React.Component {
   constructor(props) {

@@ -1,6 +1,7 @@
 from math import floor
 from collections import defaultdict
 from datetime import datetime, timedelta
+import logging as log
 
 import sys,os
 LIBS = os.path.join(os.path.dirname(os.path.realpath(__file__)),"lib")
@@ -16,9 +17,18 @@ coord_correction_map = {
 	8599908: 8599904,
 	2959744: 2919744, 
 }
+
+def enums_from_strlist(enum, strlist):
+	enums = []
+	for elem in strlist:
+		maybe_enum = enum.mk(elem)
+		if maybe_enum:
+			enums.append(maybe_enum)
+		else:
+			log.warning("%s is not a valid %s! Skipping param." % (elem, enum))
+	return enums
+
 	
-
-
 def int_to_bits(n, min_len=2):
 	raw = [1 if digit=='1' else 0 for digit in bin(n)[2:]]
 	if len(raw) < min_len:
@@ -28,7 +38,9 @@ def int_to_bits(n, min_len=2):
 def bits_to_int(n):
 	return int("".join([str(b) for b in n]),2)
 
-
+def rm_none(itr):
+	return [elem for elem in itr if elem is not None]
+	
 
 log_2 = {1:0, 2:1, 4:2, 8:3, 16:4, 32:5, 64:6, 128:7, 256:8, 512:9, 1024:10, 2048:11, 4096:12, 8192:13, 16384:14, 32768:15, 65536:16}
 

@@ -1,17 +1,19 @@
 from protorpc import messages
 
-import logging as log
-import re
-
-from util import is_int
-
 import sys,os
 LIBS = os.path.join(os.path.dirname(os.path.realpath(__file__)),"lib")
 if LIBS not in sys.path:
 	sys.path.insert(0, LIBS)
-from enum import Enum, IntEnum
+from enum import Enum
 
-	
+class StrEnum(str, Enum):
+	@classmethod
+	def mk(cls, val):
+		try:
+			return cls(val)
+		except ValueError:
+			return None
+
 
 class NDB_MultiGameType(messages.Enum):
 	SHARED = 1
@@ -19,109 +21,47 @@ class NDB_MultiGameType(messages.Enum):
 	SPLITSHARDS = 3
 	SIMUSOLO = 4
 
-class MultiplayerGameType(IntEnum):
-	SHARED = 1
-	SWAPPED = 2	
-	SPLITSHARDS = 3
-	SIMUSOLO = 4
-	
-	def is_dedup(self):
-		return self in [MultiplayerGameType.SHARED, MultiplayerGameType.SWAPPED]
+ndbMultiTypeByName = { v.name:v for v in NDB_MultiGameType }
 
+	
+class MultiplayerGameType(StrEnum):
+	SHARED = "Shared"
+	SWAPPED = "Swap"
+	SPLITSHARDS = "Split"
+	SIMUSOLO = "None"
+	
+	def is_dedup(self): return self in [MultiplayerGameType.SHARED, MultiplayerGameType.SWAPPED]
+	def to_ndb(self): return ndbMultiTypeByName.get(self.name, None)
 	@classmethod
 	def from_ndb(clazz, ndb_val):
-		return {x.name: x for x in clazz.__members__.values()}[ndb_val.name]
-	@classmethod
-	def to_dict(clazz):
-		return { x.value: x for x in clazz.__members__.values()}	
-	def to_ndb(self):
-		return NDB_MultiGameType(self.value)
-	def __str__(self):
-		return "wraps(%s)" % self.to_ndb()
-
-	@staticmethod
-	def url_names():
-		return {
-			"shared": MultiplayerGameType.SHARED,
-			"swap": MultiplayerGameType.SWAPPED,
-			"split": MultiplayerGameType.SPLITSHARDS,
-			"none": MultiplayerGameType.SIMUSOLO
-		}
-
-	@staticmethod
-	def from_url(raw):
-		low = raw.lower()
-		names = MultiplayerGameType.url_names()
-		if low in names:
-			return names[low] 
-		mk = MultiplayerGameType.to_dict()
-		if is_int(low) and int(low) in mk:
-			return mk[int(low)]
-		log.warning("could not convert %s into a MultiplayerGameType! Defaulting to SIMUSOLO" % raw)
-		return MultiplayerGameType.SIMUSOLO
-		
+		if ndb_val:
+			return {x.name: x for x in clazz.__members__.values()}[ndb_val.name]
+				
 class NDB_ShareType(messages.Enum):
-	NOT_SHARED = 1
+	NOT_SHARED = 1	
 	DUNGEON_KEY = 2
 	UPGRADE = 3
 	SKILL = 4
 	EVENT = 5
 	TELEPORTER = 6
 
-class ShareType(Enum):
-	NOT_SHARED = 1
-	DUNGEON_KEY = 2
-	UPGRADE = 3
-	SKILL = 4
-	EVENT = 5
-	TELEPORTER = 6
+ndbShareTypeByName = { v.name:v for v in NDB_ShareType }
+
+class ShareType(StrEnum):
+	NOT_SHARED = "Unshareable"
+	DUNGEON_KEY = "Keys"
+	UPGRADE = "Upgrades"
+	SKILL = "Skills"
+	EVENT = "Events"
+	TELEPORTER = "Teleporters"
 	
+	def to_ndb(self): return ndbShareTypeByName.get(self.name, None)
 	@classmethod
 	def from_ndb(clazz, ndb_val):
-		return {x.name: x for x in clazz.__members__.values()}[ndb_val.name]
-	@classmethod
-	def to_dict(clazz):
-		return { x.value: x for x in clazz.__members__.values()}	
-	def to_ndb(self):
-		return NDB_ShareType(self.value)
-	def __str__(self):
-		return "wraps(%s)" % self.to_ndb()
-
-	@staticmethod
-	def url_names():
-		return {
-		"keys": ShareType.DUNGEON_KEY,
-		"upgrades": ShareType.UPGRADE,
-		"skills": ShareType.SKILL,
-		"events": ShareType.EVENT,
-		"teleporters": ShareType.TELEPORTER
-	}
-		
-	@staticmethod
-	def from_url(raw):
-		return [st for st in [ShareType.from_str(t) for t in re.split("+|", raw)] if st]
-
-	@staticmethod
-	def from_str(raw):
-		low = raw.lower()
-		names = ShareType.url_names()
-		if low in names:
-			return names[low]
-		mk = ShareType.to_dict()
-		if is_int(low) and int(low) in mk:
-			return mk[int(low)]
-		log.warning("could not convert %s into a ShareType! Returning None" % raw)
-		return None
-	
-	def url_name(self):
-		return {v:k for k,v in ShareType.url_names().items()}.get(self, "")
+		if ndb_val:
+			return {x.name: x for x in clazz.__members__.values()}[ndb_val.name]
 		
 
-class StrEnum(str, Enum):
-	pass
-	
-
-varToFlag = {"starved": "Starved", "hardmode": "Hard", "ohko": "OHKO", "0xp": "0XP",  "noplants": "NoPlants", "forcetrees": "ForceTrees", "discmaps": "NonProgressMapStones", "notp": "NoTeleporters", "entshuf": "Entrance", "wild": "BonusPickups", "forcemapstones": "ForceMapStones", "forcerandomescape": "ForceRandomEscape"}
 
 class NDB_Variation(messages.Enum):
 	FORCE_TREES = 1
@@ -137,60 +77,119 @@ class NDB_Variation(messages.Enum):
 	FORCE_RANDOM_ESCAPE = 11
 	EXTRA_BONUS_PICKUPS = 12
 
-reverseVar = NDB_Variation.to_dict()
+
+oldFlags = {"starved": "Starved", "hardmode": "Hard", "ohko": "OHKO", "0xp": "0XP",  "noplants": "NoPlants", "forcetrees": "ForceTrees", "discmaps": "NonProgressMapStones", "notp": "NoTeleporters", "entshuf": "Entrance", "wild": "BonusPickups", "forcemapstones": "ForceMapStones", "forcerandomescape": "ForceRandomEscape"}
+ndbVarByName = { v.name:v for v in NDB_Variation }
 
 class Variation(StrEnum):
-	FORCE_TREES = "forcetrees"
-	HARDMODE = "hardmode"
-	NO_TELEPORTERS = "notp"
-	STARVED = "starved"
-	ONE_HIT_KO = "ohko"
-	NO_PLANTS = "noplants"
-	DISCRETE_MAPSTONES = "discmaps"
-	ZERO_EXP = "0xp"
-	ENTRANCE_SHUFFLE = "entshuf"
-	FORCE_MAPSTONES = "forcemapstones"
-	FORCE_RANDOM_ESCAPE = "forcerandomescape"
-	EXTRA_BONUS_PICKUPS = "wild"
-	def to_flag(self):
-		return varToFlag.get(self.value, self.value)
+	ZERO_EXP = "0XP"
+	DISCRETE_MAPSTONES = "NonProgressMapStones"
+	ENTRANCE_SHUFFLE = "Entrance"
+	FORCE_MAPSTONES = "ForceMapStones"
+	FORCE_RANDOM_ESCAPE = "ForceRandomEscape"
+	FORCE_TREES = "ForceTrees"
+	HARDMODE = "Hard"
+	NO_PLANTS = "NoPlants"
+	NO_TELEPORTERS = "NoTeleporters"
+	ONE_HIT_KO = "OHKO"
+	STARVED = "Starved"
+	EXTRA_BONUS_PICKUPS = "BonusPickups"
+	@staticmethod
+	def from_old(old):
+		low = old.lower()
+		if low not in oldFlags:
+			return None
+		return Variation(oldFlags[old])
 	@classmethod
 	def from_ndb(clazz, ndb_val):
-		return {x.name: x for x in clazz.__members__.values()}[ndb_val.name]
-	@classmethod
-	def to_dict(clazz):
-		return { k:v for k,v  in clazz.__members__.iteritems()}
+		if ndb_val:
+			return {x.name: x for x in clazz.__members__.values()}[ndb_val.name]
 	def to_ndb(self):
-		return reverseVar.get(self.value, None)
-#	def __str__(self):
-#		return "wraps(%s)" % self.to_ndb()
+		return ndbVarByName.get(self.name, None)
+
+
+class NDB_LogicPath(messages.Enum):
+	NORMAL = 1
+	SPEED = 2
+	LURE = 3
+	SPEED_LURE = 4
+	DBOOST = 5
+	DBOOST_LIGHT = 6
+	DBOOST_HARD = 7
+	CDASH = 8
+	CDASH_FARMING = 9
+	DBASH = 10
+	EXTENDED = 11
+	LURE_HARD = 12
+	TIMED_LEVEL = 13
+	GLITCHED = 14
+	EXTENDED_DAMAGE = 15
+	EXTREME = 16
+
+ndbLPByName = { v.name:v for v in NDB_LogicPath }
 
 class LogicPath(StrEnum):
-	NORMAL ="normal"
-	SPEED ="speed"
-	LURE ="lure"
-	SPEED_LURE ="speed-lure"
-	DBOOST ="dboost"
-	DBOOST_LIGHT ="dboost-light"
-	DBOOST_HARD ="dboost-hard"
-	CDASH ="cdash"
-	CDASH_FARMING ="cdash-farming"
-	DBASH ="dbash"
-	EXTENDED ="extended"
-	LURE_HARD ="lure-hard"
-	TIMED_LEVEL ="timed-level"
-	GLITCHED ="glitched"
-	EXTENDED_DAMAGE ="extended-damage"
-	EXTREME ="extreme"
+	NORMAL = "normal"
+	SPEED = "speed"
+	LURE = "lure"
+	SPEED_LURE = "speed-lure"
+	DBOOST = "dboost"
+	DBOOST_LIGHT = "dboost-light"
+	DBOOST_HARD = "dboost-hard"
+	CDASH = "cdash"
+	CDASH_FARMING = "cdash-farming"
+	DBASH = "dbash"
+	EXTENDED = "extended"
+	LURE_HARD = "lure-hard"
+	TIMED_LEVEL = "timed-level"
+	GLITCHED = "glitched"
+	EXTENDED_DAMAGE = "extended-damage"
+	EXTREME = "extreme"
+	@classmethod
+	def from_ndb(clazz, ndb_val):
+		if ndb_val:
+			return {x.name: x for x in clazz.__members__.values()}[ndb_val.name]
+	def to_ndb(self):
+		return ndbLPByName.get(self.name, None)
+
+
+class NDB_KeyMode(messages.Enum):
+	SHARDS = 1
+	CLUES = 2
+	LIMITKEYS = 3
+	WARMTH_FRAGS = 4
+	NONE = 5
+
+ndbKMByName = { v.name:v for v in NDB_KeyMode }
 
 class KeyMode(StrEnum):
-	SHARDS = "shards"
-	CLUES = "clues"
-	LIMITKEYS = "limitkeys"
-	WARMTH_FRAGS = "frags"
-	NONE = "default"
+	SHARDS = "Shards"
+	CLUES = "Clues"
+	LIMITKEYS = "Limitkeys"
+	WARMTH_FRAGS = "Frags"
+	NONE = "Default"
+	@classmethod
+	def from_ndb(clazz, ndb_val):
+		if ndb_val:
+			return {x.name: x for x in clazz.__members__.values()}[ndb_val.name]
+	def to_ndb(self):
+		return ndbKMByName.get(self.name, None)
+
+class NDB_PathDiff(messages.Enum):
+	NORMAL = 1
+	EASY = 2
+	HARD = 3
+
+ndbPMByName = { v.name:v for v in NDB_PathDiff }
 
 class PathDifficulty(StrEnum):
-	EASY = "easy"
-	NORMAL = "normal"
-	HARD = "hard"
+	EASY = "Easy"
+	NORMAL = "Normal"
+	HARD = "Hard"
+	@classmethod
+	def from_ndb(clazz, ndb_val):
+		if ndb_val:
+			return {x.name: x for x in clazz.__members__.values()}[ndb_val.name]
+	def to_ndb(self): return ndbPMByName.get(self.name, None)
+
+ndbPMByName = { v.name:v for v in NDB_PathDiff }

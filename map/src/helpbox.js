@@ -89,7 +89,7 @@ const getHelpContent = (category, option) => {
 		case "variations":
 			subtitle = "Variations"
 			switch(option) {
-				case "forcetrees":
+				case "ForceTrees":
 					title = "Force Trees"
 					lines = [
 						"The Force Trees variation requires players to visit all ten skill trees before completing the game. As a side-effect, it makes the Water Vein mandatory, as the Bash tree cannot be reached without it.", 
@@ -97,21 +97,21 @@ const getHelpContent = (category, option) => {
 						"The community weekly races use this variation; the upcoming Ori Randomizer Tournament will as well."
 					]
 					break;
-				case "starved":
+				case "Starved":
 					title = "Starved"
 					lines = [
 						"The Starved variation reduces the probability that players will be given skill pickups, unless one is needed to proceed. This tends to create more linear seeds, where each skill gives access to the area or areas where the next skill or important item will be found.",
 						"Recommended for everyone at least once, and for players who enjoy more linear pathing or constrained situations."
 					]
 					break;
-				case "discmaps":
+				case "NonProgressMapStones":
 					title = "Discrete Mapstones"
 					lines = [
 						"The Discrete Mapstone variation changes how mapstones function, making each individual mapstone turn-in have its own pickup. (By default, the mapstone pickups are granted based on the number of mapstones you have turned in, regardless of where).",
 						"This variation exists primarily for legacy reasons and is not recommended for normal use."
 					]
 					break;
-				case "hardmode":
+				case "Hard":
 					title = "Hard Mode"
 					lines = [
 						"The Hard Mode variation removes all health cells and all but 3 energy cells from the pool of available items, capping your health at 3 and energy at 4 for the entire seed. Additionally, it removes all bonus pickups from the pickup pool.",
@@ -119,56 +119,56 @@ const getHelpContent = (category, option) => {
 						"Recommended for people who hate feeling safe and like to live on the edge."
 					]
 					break;
-				case "ohko":
+				case "OHKO":
 					title = "One-Hit KO"
 					lines = [
 						"The One-Hit KO variation causes any amount of damage Ori takes to be instantly lethal. It is incompatible with all logic paths that require damage boosts.",
 						"NOTE: this variation is rarely used and thus is less tested than most. Tread carefully!"
 					]
 					break;
-				case "0xp":
+				case "0XP":
 					title = "0 Experience"
 					lines = [
 						"Inspired by the incredibly unpopular 0exp speedrunning category, the 0 Experience variation prevents Ori from ever gaining levels or acquiring experience. Experience dropped by enemies will kill Ori on contact!",
 						"Recommended for anyone who watched a 0xp run and thought it seemed fun."
 					]
 					break;
-				case "noplants":
+				case "NoPlants":
 					title = "No Plants"
 					lines = [
 						"The No Plants variation makes it so that pickups will not be placed in plants.",
 						"This variation exists primarily for legacy reasons and is not recommended for normal use."
 					]
 					break;
-				case "notp":
+				case "NoTeleporters":
 					title = "No Teleporters"
 					lines = [
 						"The No Teleporters variation makes it so that you cannot unlock teleporters via pickups. This variation exists primarily for legacy reasons, but if you find that teleporter unlocks are frequently causing you confusion or unhappiness, this will help."
 					]
 					extra = null
 					break;
-				case "forcemaps":
+				case "ForceMapStones":
 					title = "Force Maps"
 					lines = [
 						"The Force Maps variation requires that you turn in all 9 mapstones before finishing the game. Intended as an alternative to Force Trees (though you can do both), it has the effect of making the Forlorn Ruins (and thus either the Forlorn TP or Gumon Seal) manditory. Recommend for players looking for something new to try and for cartographers everywhere"
 					]
 					extra = null
 					break;
-				case "forcerandomescape":
+				case "ForceRandomEscape":
 					title = "Force Random Escape"
 					lines = [
 						"The Force Random Escape variation requires that you finish either the Forlorn or Ginso escapes before completing the game. Recommended for anyone who misses doing the Forlorn Escape, since it is otherwise never useful to complete."
 					]
 					extra = null
 					break;
-				case "entshuf":
+				case "Entrance":
 					title = "Entrance Shuffle"
 					lines = [
 						"The Entrance Shuffle variation remaps each door (the dungeon entrances and the 8 Horu side rooms) in the game to go to another door instead. Recommended for anyone who likes being confused, or is interested in spending more time in Horu than usually necessary."
 					]
 					extra = null
 					break;
-				case "wild":
+				case "BonusPickups":
 					title = "More Bonus Pickups"
 					lines = [
 						"More Bonus Pickups introduces several new bonus pickups not normally found in the randomizer, including some new activateable skills.",

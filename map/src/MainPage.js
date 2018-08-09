@@ -1,14 +1,14 @@
 import React from 'react';
 import  {Collapse,  Navbar,  NavbarBrand, Nav,  NavItem,  NavLink, UncontrolledDropdown, Input, 
 		UncontrolledButtonDropdown, DropdownToggle, DropdownMenu, DropdownItem, Button, Row, FormFeedback,
-		Col, Container, TabContent, TabPane} from 'reactstrap'
+		Col, Container, TabContent, TabPane, Modal, ModalHeader, ModalBody, ModalFooter} from 'reactstrap'
 import {Helmet} from 'react-helmet';
 import {NotificationContainer, NotificationManager} from 'react-notifications';
 import 'react-notifications/lib/notifications.css';
 import './index.css';
 
 import {getHelpContent, HelpBox} from "./helpbox.js"
-import {listSwap, get_param, presets} from './shared_map.js';
+import {listSwap, get_param, presets, goToCurry} from './shared_map.js';
 
 
 const dev = window.document.URL.includes("devshell")
@@ -85,54 +85,52 @@ const SiteBar = ({dlltime, user}) => {
 }
 
 const variations = {
-	forcetrees: "Force Trees",
-	starved: "Starved",
-	discmaps: "Discrete Mapstones",
-	hardmode: "Hard Mode",
-	ohko: "OHKO",
-	"0xp": "0 XP",
-	notp: "No Teleporters",
-	noplants: "No Plants",
-	forcemaps: "Force Mapstones",
-	forcerandomescape: "Force Random Escape",
-	entshuf: "Entrance Shuffle",
-	wild: "More Bonus Pickups"
+	ForceTrees: "Force Trees",
+	Starved: "Starved",
+	NonProgressMapStones: "Discrete Mapstones",
+	Hard: "Hard Mode",
+	OHKO: "One Hit KO",
+	"0XP": "Zero Experience",
+	NoTeleporters: "No Teleporters",
+	NoPlants: "No Plants",
+	ForceMapStones: "Force Mapstones",
+	ForceRandomEscape: "Force Random Escape",
+//	Entrance: "Entrance Shuffle",
+	BonusPickups: "More Bonus Pickups"
 }
 const optional_paths = ["speed", "dboost-light", "dboost", "lure", "speed-lure", "lure-hard", "dboost-hard", "extended", "extended-damage", "dbash", "cdash", "extreme", "timed-level", "glitched", "cdash-farming"]
-const varPaths = {"ohko": ["ohko", "hardmode"], "0xp": ["0xp", "hardmode"], "hard": ["hardmode"], "master": ["starved"]}
-const diffPaths = {"glitched": "hard", "master": "hard"}
+const varPaths = {"ohko": ["OHKO", "Hard"], "0xp": ["0XP", "Hard"], "hard": ["Hard"], "master": ["Starved"]}
+const diffPaths = {"glitched": "Hard", "master": "Hard"}
 const disabledPaths = {
-					"hardmode": ["dboost", "dboost-hard", "extended-damage", "extreme", "lure-hard"], 
-					"0xp": ["glitched", "cdash", "cdash-farming", "speed-lure", "timed-level"], 
-					"ohko": ["dboost-light", "dboost", "dboost-hard", "extended-damage", "extreme", "glitched", "lure-hard"]
+					"Hard": ["dboost", "dboost-hard", "extended-damage", "extreme", "lure-hard"], 
+					"0XP": ["glitched", "cdash", "cdash-farming", "speed-lure", "timed-level"], 
+					"OHKO": ["dboost-light", "dboost", "dboost-hard", "extended-damage", "extreme", "glitched", "lure-hard"]
 					}
 const revDisabledPaths = {}
 Object.keys(disabledPaths).forEach(v => disabledPaths[v].forEach(path => revDisabledPaths.hasOwnProperty(path) ? revDisabledPaths[path].push(v) : revDisabledPaths[path] = [v]))
 
 
 export default class MainPage extends React.Component {
-	helpEnter = (category, option) => () => {clearTimeout(this.state.helpTimeout) ; this.setState({helpTimeout: setTimeout(this.help(category, option), 250)})}
+	helpEnter = (category, option, timeout=250) => () => {clearTimeout(this.state.helpTimeout) ; this.setState({helpTimeout: setTimeout(this.help(category, option), timeout)})}
 	helpLeave = () => clearTimeout(this.state.helpTimeout) 
-	help = (category, option) => () => this.setState({helpParams: getHelpContent(category, option)})
+	help = (category, option) => () => this.setState({helpcat: category, helpopt: option, helpParams: getHelpContent(category, option)})
 	
 	getWarmthFragsTab = () => {
-		let onWarmthClick = () =>  this.state.warmthFragsEnabled ? this.setState({warmthFragsEnabled: false, keyMode: this.state.oldKeyMode}) : this.setState({warmthFragsEnabled: true, oldKeyMode: this.state.keyMode, keyMode: "Warmth Frags"})
-		let maxFrags = (this.state.variations.includes("hardmode") ? 150 : 80) - (this.state.variations.includes("wild") ? 20 : 0) - (this.state.variations.includes("noplants") ? 20 : 0)
-		let fragCountValid = this.state.fragCount > 0 && this.state.fragCount <= maxFrags
-		let fragCountFeedback = this.state.fragCount > maxFrags ? (
+		let frag = this.state.frag
+		let onWarmthClick = () =>  frag.enabled ? this.onFrag("enabled", false, {keyMode: this.state.oldKeyMode}) : this.onFrag("enabled", true, {oldKeyMode: this.state.keyMode, keyMode: "Warmth Frags"})
+		let maxFrags = (this.state.variations.includes("Hard") ? 150 : 80) - (this.state.variations.includes("BonusPickups") ? 20 : 0) - (this.state.variations.includes("NoPlants") ? 20 : 0)
+		let fragCountValid = frag.count > 0 && frag.count <= maxFrags
+		let fragCountFeedback = frag.count > maxFrags ? (
 				<FormFeedback tooltip>Fragment count must be less than or equal to {maxFrags}</FormFeedback>
 			) : (
 				<FormFeedback tooltip>Fragment count must be greater than 0</FormFeedback>
 			)
-		let maxReq = this.state.fragCount - this.state.fragTol;
+		let maxReq = frag.count - frag.tolerance;
+		let frag_row_data = ["key_1", "key_2", "key_3", "required"]
 		let fragRows = ["First Dungeon Key", "Second Dungeon Key", "Last Dungeon Key", "Total Required"].map((text, i) => {
-			let key = i;
-			let setter = (e) => {
-				let curr = this.state.fragKeys;
-				curr[key] = parseInt(e.target.value, 10)
-				this.setState({fragKeys: curr})
-			};
-			let currCount = this.state.fragKeys[key] 
+			let key = frag_row_data[i];
+			let setter = (e) => this.onFrag(key, parseInt(e.target.value, 10))
+			let currCount = frag[key] 
 			let valid = currCount > 0 && currCount <= maxReq;
 			let feedback = currCount > maxReq ? (
 				<FormFeedback tooltip>Fragment requirement must not be greater than {maxReq} (the total number of fragments, minus the tolerance value)</FormFeedback>
@@ -144,7 +142,7 @@ export default class MainPage extends React.Component {
 					<Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("warmthFrags", text)} className="text-center pt-1 border">
 						<span class="align-middle">{text}</span>
 					</Col><Col xs="4">
-						<Input type="number" value={currCount } disabled={!this.state.warmthFragsEnabled} invalid={!valid} onChange={setter}/> 
+						<Input type="number" value={currCount} disabled={!frag.enabled} invalid={!valid} onChange={setter}/> 
 						{feedback}
 					</Col>
 				</Row>
@@ -154,14 +152,14 @@ export default class MainPage extends React.Component {
 			<TabPane tabId="warmthFrags">
 				<Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("warmthFrags", "Enable")} className="p-1 justify-content-center">
 					<Col xs="6">
-						<Button block color="warning" outline={!this.state.warmthFragsEnabled} onClick={onWarmthClick}>{this.state.warmthFragsEnabled ? "Disable" : "Enable"} Warmth Fragments</Button>
+						<Button block color="warning" outline={!frag.enabled} onClick={onWarmthClick}>{frag.enabled ? "Disable" : "Enable"} Warmth Fragments</Button>
 					</Col>
 				</Row>
 				<Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("warmthFrags", "fragCount")} className="p-1 justify-content-center">
 					<Col xs="4" className="text-center pt-1 border">
 						<span class="align-middle">Warmth Fragment Count</span>
 					</Col><Col xs="4">
-						<Input type="number" value={this.state.fragCount} disabled={!this.state.warmthFragsEnabled} invalid={!fragCountValid} onChange={(e) => this.setState({fragCount: parseInt(e.target.value, 10)})}/> 
+						<Input type="number" value={frag.count} disabled={!frag.enabled} invalid={!fragCountValid} onChange={e => this.onFrag("count", parseInt(e.target.value, 10))}/> 
 						{fragCountFeedback}
 					</Col>
 				</Row>
@@ -170,7 +168,7 @@ export default class MainPage extends React.Component {
 					<Col xs="4" className="text-center pt-1 border">
 						<span class="align-middle">Logic Tolerance</span>
 					</Col><Col xs="4">
-						<Input type="number" value={this.state.fragTol} disabled={!this.state.warmthFragsEnabled} invalid={this.state.fragTol <= 0} onChange={(e) => this.setState({fragTol: parseInt(e.target.value, 10)})}/> 
+						<Input type="number" value={this.state.frag.tolerance} disabled={!frag.enabled} invalid={this.state.fragTol <= 0} onChange={e => this.onFrag("tolerance", parseInt(e.target.value, 10))}/> 
 						<FormFeedback tooltip>Tolerance cannot be negative</FormFeedback>
 					</Col>
 				</Row>
@@ -257,43 +255,36 @@ export default class MainPage extends React.Component {
 			</TabPane>
 		)
 	}
-	
 	generateSeed = () => {
-		let pMap = {"Race": "None", "None": "Default", "Co-op": "Shared", "Cloned Seeds": "split", "Seperate Seeds": "disjoint", "Warmth Frags": "frags", 
-					"World Events": "events", "Dungeon Keys": "keys", "hard": "hardmode"}
-		let f = (p) => pMap.hasOwnProperty(p) ? pMap[p] : p.toLowerCase()
+		let pMap = {"Race": "None", "None": "Default", "Co-op": "Shared", "Warmth Frags": "Frags", 
+					"World Events": "Events", "Dungeon Keys": "Keys", "Cloned Seeds": "cloned", "Seperate Seeds": "disjoint"}
+		let f = (p) => pMap.hasOwnProperty(p) ? pMap[p] : p
 		let urlParams = []
-		urlParams.push("mode="+f(this.state.keyMode))
+		urlParams.push("key_mode="+f(this.state.keyMode))
 		if(this.state.pathDiff !== "Normal")
-			urlParams.push("pathdiff="+this.state.pathDiff)
-		urlParams.push("genmode="+this.state.fillAlg)
-		this.state.variations.forEach(v => urlParams.push(f(v)+"=on"))
-		this.state.paths.forEach(v => urlParams.push(v+"=on"))
-		urlParams.push("pathMode="+this.state.pathMode)
-		urlParams.push("playerCount="+this.state.players)
-		urlParams.push("expPool="+this.state.expPool)
+			urlParams.push("path_diff="+this.state.pathDiff)
+		urlParams.push("gen_mode="+this.state.fillAlg)
+		this.state.variations.forEach(v => urlParams.push("var="+v))
+		this.state.paths.forEach(p => urlParams.push("path="+p))
+		urlParams.push("exp_pool="+this.state.expPool)
+		urlParams.push("players="+this.state.players)
 		if(this.state.tracking)
 		{
-				urlParams.push("tracking=on")
 			if(this.state.syncId !== "")
-				urlParams.push("syncid="+this.state.syncId)
+				urlParams.push("sync_id="+this.state.syncId)
 			if(this.state.players > 1) {
-				urlParams.push("synctype="+f(this.state.coopGenMode))
-				urlParams.push("syncmode="+f(this.state.coopGameMode))
+				urlParams.push("sync_get="+f(this.state.coopGenMode))
+				urlParams.push("sync_mode="+f(this.state.coopGameMode))
 				if(this.state.coopGameMode === "Co-op")
-					this.state.shared.forEach(s => urlParams.push(f(s)+"=on"))
+					this.state.shared.forEach(s => urlParams.push("sync_shared="+f(s)))
 				if(this.state.coopGenMode === "Cloned Seeds" && this.state.hints)
-					urlParams.push("hints=on")				
-			} else {
-				urlParams.push("syncmode=None")
-			}			
+					urlParams.push("sync_hints=on")
+			}
+		} else {
+			urlParams.push("tracking=Disabled")
 		}
-		if(this.state.warmthFragsEnabled)
-		{
-			urlParams.push("warm_frags=on")
-			urlParams.push("fragNum="+this.state.fragCount)
-			this.state.fragKeys.concat(this.state.fragTol).forEach((key, i) => urlParams.push("fragKey"+(i+1)+"="+key))
-		}
+		if(this.state.frag.enabled)
+			Object.keys(this.state.frag).filter(p => p !== "enabled").forEach(p => urlParams.push("frag_"+p+"="+this.state.frag[p]))
 		let seed = this.state.seed || Math.round(Math.random() * 1000000000) ;
 		if(seed === "daily")
 		{
@@ -304,44 +295,179 @@ export default class MainPage extends React.Component {
 		    if (month.length < 2) month = '0' + month;
 		    if (day.length < 2) day = '0' + day;
 			seed = [year, month, day].join('-');
-			urlParams.push("seed=" + seed)			
-			let url = base_url + "/mkseed?" + urlParams.join("&")
-			NotificationManager.warning("Daily seeds generated here will not match those generated by the other site. Click here to download anyways.", "Continue?", 10000, () => { window.location.href = url })
+			urlParams.push("seed=" + seed)
+			let url = base_url + "/generator/build?" + urlParams.join("&")
+			NotificationManager.warning(
+				"Daily seeds generated here will not match those generated by the other site. Click here to download anyways.", 
+				"Continue?", 
+				10000, 
+				() => this.setState({seedIsGenerating: true, modalOpen: true}, () => doNetRequest(url, this.seedBuildCallback))
+				)
 			return
 		} else if(seed === "vanilla") {
-			this.setState({seed: ""})
 			window.location.href = "/vanilla"
 			return
 		} else {
 			urlParams.push("seed=" + seed)			
-			let url = base_url + "/mkseed?" + urlParams.join("&")
-			window.location.href = url
+			let url = base_url + "/generator/build?" + urlParams.join("&")
+			this.setState({seedIsGenerating: true, modalOpen: true}, () => doNetRequest(url, this.seedBuildCallback))
+		}
+	}
+	acceptMetadata = ({status, responseText}) => {
+		if(status !== 200)
+		{
+			NotificationManager.error("Failed to recieve seed metadata", "Seed could not be retrieved!", 5000)
+			this.setState({modalOpen: false})
+		    window.history.replaceState('',window.document.title, base_url);
+		} else {
+			let res = JSON.parse(responseText)
+			this.setState({inputPlayerCount: res["playerCount"], inputFlagLine: res["flagLine"]})
 		}
 	}
 
+
+	
+	seedBuildCallback = ({status, responseText}) => {
+		if(status !== 200)
+		{
+			NotificationManager.error("Failed to generate seed!", "Seed generation failure!", 5000)
+			this.setState({seedIsGenerating: false, modalOpen: false})
+			return
+		} else {
+			let res = JSON.parse(responseText)
+			let paramId = res["paramId"]
+			let gameId = res["gameId"]
+			let playerCount = res["playerCount"]
+			let flagLine = res["flagLine"]
+			let url = base_url+"?param_id="+paramId
+			if(gameId > 0)
+				url += "&game_id="+gameId
+		    window.history.replaceState('',window.document.title, url);
+			this.setState({paramId: paramId, seedIsGenerating: false, modalOpen: true, inputPlayerCount: playerCount, inputFlagLine: flagLine, allowReopenModal: true, inputGameId: gameId})
+		}
+	}
+	
+	getModal = () => {
+		if(this.state.seedIsGenerating)
+		{
+		    return (
+		        <Modal isOpen={this.state.modalOpen} toggle={this.closeModal} backdrop={"static"}>
+		          <ModalHeader toggle={this.closeModal}>Generating Seed.</ModalHeader>
+		          <ModalBody>
+					The server is generating your seed. This may take a few seconds...
+		          </ModalBody>
+		          <ModalFooter>
+		            <Button color="secondary" onClick={this.closeModal}>Close</Button>
+		          </ModalFooter>
+		        </Modal>
+		    	)
+		}
+		else 
+		{
+			let playerRows = (this.state.inputPlayerCount > 1) ? [...Array(this.state.inputPlayerCount).keys()].map(p => {				
+				p++;
+				let seedUrl = base_url+"/generator/seed/"+this.state.paramId+"?player_id="+p
+				let spoilerUrl = base_url+"/generator/spoiler/"+this.state.paramId+"?player_id="+p
+				if(this.state.inputGameId > 0) seedUrl += "&game_id="+this.state.inputGameId
+				return (
+					<Row className="p-1">
+						<Col xs="3"  className="text-center pt-1 border">
+							<span class="align-middle">Player {p}</span>
+						</Col>
+						<Col xs="3">
+							<Button color="primary" block onClick={goToCurry(seedUrl)}>Download Seed</Button>
+						</Col>
+						<Col xs="3">
+							<Button color="primary" href={spoilerUrl} target="_blank" block >View Spoiler</Button>
+						</Col>
+					</Row>
+				)
+			}) : (
+				<Row className="p-1">
+					<Col xs="3">
+						<Button color="primary" block onClick={goToCurry(base_url+"/generator/seed/"+this.state.paramId + ((this.state.inputGameId > 0) ? "&game_id="+this.state.inputGameId : ""))}>Download Seed</Button>
+					</Col>
+					<Col xs="3">
+						<Button color="primary" block href={base_url+"/generator/spoiler/"+this.state.paramId} target="_blank">View Spoiler</Button>
+					</Col>
+				</Row>
+			)
+			let trackedInfo = this.state.inputGameId > 0 ? (
+	          	<Row className="p-1">
+		          	<Col xs="3">
+						<Button color="primary" block href={base_url+"/tracker/game/"+this.state.inputGameId+"/map"} target="_blank">Open Tracking Map</Button>
+	          		</Col>
+		          	<Col xs="3">
+						<Button color="primary" block href={base_url+"/game/"+this.state.inputGameId+"/history"} target="_blank">View Game History</Button>
+	          		</Col>
+          		</Row>
+      		) : null		
+		    return (
+		        <Modal size="lg" isOpen={this.state.modalOpen} backdrop={"static"} className={"modal-dialog-centered"} toggle={this.closeModal}>
+		          <ModalHeader toggle={this.closeModal} className="text-center">Seed ready!</ModalHeader>
+		          <ModalBody>
+		          	<Container fluid>
+		          	<Row>
+			          	<Col className="text-center pt-1 border">
+			          		<span class="align-middle">Flags: {this.state.inputFlagLine}</span>
+		          		</Col>
+	          		</Row>
+	          		{trackedInfo}
+					{playerRows}
+					</Container>
+		          </ModalBody>
+		          <ModalFooter>
+		            <Button color="secondary" onClick={this.closeModal}>Close</Button>
+		          </ModalFooter>
+		        </Modal>
+		    	)
+		}
+	}
 	constructor(props) {
 		super(props);
 		let user = get_param("user");
-		let dllTime = get_param("dll_last_update");
-		this.state = {user: user, activeTab: 'variations', coopGenMode: "Cloned Seeds", coopGameMode: "Co-op", players: 1, tracking: true, dllTime: dllTime, variations: ["forcetrees"], 
+		let dllTime = get_param("dll_last_update")
+		let url = new URL(window.document.location.href);
+		let paramId = url.searchParams.get("param_id");
+		let inputGameId = parseInt(url.searchParams.get("game_id") || -1, 10);
+		let modalOpen = (paramId !== null);
+		if(modalOpen)
+			doNetRequest(base_url+"/generator/metadata/"+paramId,this.acceptMetadata)
+		this.state = {user: user, activeTab: 'variations', coopGenMode: "Cloned Seeds", coopGameMode: "Co-op", players: 1, tracking: true, dllTime: dllTime, variations: ["ForceTrees"], 
 					 paths: presets["standard"], keyMode: "Clues", oldKeyMode: "Clues", pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null),
-					 customSyncId: "", seed: "", fillAlg: "Balanced", shared: ["Skills", "Dungeon Keys", "Teleporters", "World Events"], hints: false,
-					 warmthFragsEnabled: false, fragCount: 35, fragKeys: [7, 14, 21, 28], fragTol: 3, syncId: "", expPool: 10000, lastHelp: new Date()};
+					 customSyncId: "", seed: "", fillAlg: "Balanced", shared: ["Skills", "Dungeon Keys", "Teleporters", "World Events"], hints: false, helpcat: "", helpopt: "",
+					 frag: {enabled: false, count: 40, key_1: 7, key_2:14, key_3: 21, required: 28, tolerance: 3}, syncId: "", expPool: 10000, lastHelp: new Date(), seedIsGenerating: false,
+					 paramId: paramId, modalOpen: modalOpen, inputGameId: inputGameId, allowReopenModal: modalOpen, reopenUrl: ""};
 	}
+	
+	
+	closeModal = () => {
+	    window.history.replaceState('',window.document.title, base_url);
+		this.setState({modalOpen: false})
+	}
+	reopenModal = () => {
+		let url = base_url+"?param_id="+this.state.paramId;
+		if(this.state.inputGameId > 0)
+			url+="&game_id="+this.state.inputGameId
+	    window.history.replaceState('',window.document.title, url);
+		this.setState({modalOpen: true})
+	}
+	
 	onPath = (p) => () => this.state.paths.includes(p) ? this.setState({pathMode: "custom", paths: this.state.paths.filter(x => x !== p)}) : this.setState({pathMode: "custom", paths: this.state.paths.concat(p)})	
 	onSType = (s) => () => this.state.shared.includes(s) ? this.setState({shared: this.state.shared.filter(x => x !== s)}) : this.setState({shared: this.state.shared.concat(s)})	
 	onVar = (v) => () =>  this.state.variations.includes(v) ? this.setState({variations: this.state.variations.filter(x => x !== v)}) : this.setState({variations: this.state.variations.concat(v)})
+	onFrag = (k, v, args) => this.setState(prev => { let frag = prev.frag; frag[k] = v ; return {frag: frag, ...args} })
 	pathDisabled = (path) => {
 		if(revDisabledPaths.hasOwnProperty(path))
 			if(revDisabledPaths[path].some(v => this.state.variations.includes(v)))
 			{
 				if(this.state.paths.includes(path))
 					this.onPath(path)()
-				return true				
+				return true
 			}
 		return false
 	}
-	onKeyMode = (mode) => () => (mode === "Warmth Frags" && !this.state.warmthFragsEnabled) ? this.setState({keyMode: mode, warmthFragsEnabled: true, activeTab: "warmthFrags"}) : this.setState({keyMode: mode})
+	onKeyMode = (mode) => () => (mode === "Warmth Frags" && !this.state.frag.enabled) ? this.onFrag("enabled", true, {keyMode: mode, activeTab: "warmthFrags"}) : this.setState({keyMode: mode})
 
 	
 	onMode = (mode) => () => {
@@ -370,7 +496,7 @@ export default class MainPage extends React.Component {
 		let pathDiffOptions = ["Easy", "Normal", "Hard"].map(mode => (
 			<DropdownItem active={mode===this.state.pathDiff} onClick={()=> this.setState({pathDiff: mode})}>{mode}</DropdownItem>
 		))
-		let variationButtons = Object.keys(variations).filter(x => x !== "wild").map(v=> {
+		let variationButtons = Object.keys(variations).filter(x => x !== "BonusPickups").map(v=> {
 			let name = variations[v];
 			return (
 			<Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("variations", v)} className="p-2">
@@ -378,17 +504,18 @@ export default class MainPage extends React.Component {
 			</Col>
 			)		
 		})
+		// Bonus Pickups is incompatible with Hard.
 		variationButtons.push((
 			(
-			<Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("variations", "wild")} className="p-2">
-				<Button block outline={!this.state.variations.includes("wild")} disabled={(() => {
-					if(this.state.variations.includes("hardmode")) {
-						if(this.state.variations.includes("wild"))
-							this.onVar("wild")()
+			<Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("variations", "BonusPickups")} className="p-2">
+				<Button block outline={!this.state.variations.includes("BonusPickups")} disabled={(() => {
+					if(this.state.variations.includes("Hard")) {
+						if(this.state.variations.includes("BonusPickups"))
+							this.onVar("BonusPickups")()
 						return true;
 					}
 					return false;
-				})()} onClick={this.onVar("wild")}>{variations["wild"]}</Button>
+				})()} onClick={this.onVar("BonusPickups")}>{variations["BonusPickups"]}</Button>
 			</Col>
 			)		
 		))
@@ -403,17 +530,23 @@ export default class MainPage extends React.Component {
 		)))
 		let multiplayerTab = this.getMultiplayerTab()
 		let warmthFragsTab = this.getWarmthFragsTab()
-		
+		let modal = this.getModal()
+		let reopenModalBtn = this.state.allowReopenModal ? (<Button color="primary" block onClick={this.reopenModal}>Show Prior Seed</Button>) : null
 		return (
  		<Container className="pl-4 pr-4 pb-4 pt-2 mt-5">
- 			<NotificationContainer style={{top: "inherit", right: "inherit"}}/>
-			<SiteBar dlltime={this.state.dllTime} user={this.state.user}/>
 			<Helmet>
 				<style>{'body { background-color: white}'}</style>
 			</Helmet>
+ 			<Row className="justify-content-center">
+	 			<Col>
+	 				{modal}
+					<NotificationContainer/>
+					<SiteBar dlltime={this.state.dllTime} user={this.state.user}/>
+				</Col>
+			</Row>
 			<Row className="p-1">
 				<Col>
-					<span><h3 style={textStyle}>Seed Generator v2.5.C:</h3></span>
+					<span><h3 style={textStyle}>Seed Generator v2.6.4.^___^</h3></span>
 				</Col>
 			</Row>
 			<Row className="p-3 border">
@@ -435,7 +568,7 @@ export default class MainPage extends React.Component {
 						<Col xs="6"  className="text-center pt-1 border">
 							<span class="align-middle">Key Mode</span>
 						</Col>
-						<Col xs="6" onMouseLeave={this.helpEnter("general", "keyModes")} onMouseEnter={this.helpEnter("keyModes", this.state.keyMode)}>
+						<Col xs="6" onMouseEnter={this.helpEnter("keyModes", this.state.keyMode)} onMouseLeave={this.helpEnter("general", "keyModes",(this.state.keyMode === "Clues" && this.state.helpcat === "keyModes") ? 1000 : 250 )}>
 							<UncontrolledButtonDropdown className="w-100">
 								<DropdownToggle color="primary" caret block> {this.state.keyMode} </DropdownToggle>
 								<DropdownMenu>
@@ -532,7 +665,15 @@ export default class MainPage extends React.Component {
 							</Row>
 						</Col>
 						<Col>
-							<Button color="success" size="lg" onClick={this.generateSeed} block>Generate Seed</Button>
+							<Row>
+								<Col>
+									<Button color="success" size="lg" onClick={this.generateSeed} block>Generate Seed</Button>
+								</Col>
+							</Row><Row>
+								<Col>
+									{reopenModalBtn}
+								</Col>
+							</Row>
 						</Col>
 					</Row>
 				</Col>
@@ -547,3 +688,14 @@ export default class MainPage extends React.Component {
 };
 
 
+function doNetRequest(url, onRes)
+{
+    var xmlHttp = new XMLHttpRequest();
+    xmlHttp.onreadystatechange = function() {
+        if (xmlHttp.readyState === 4) {
+        	 onRes(xmlHttp);
+        }
+	}
+    xmlHttp.open("GET", url, true); // true for asynchronous
+    xmlHttp.send(null);
+}

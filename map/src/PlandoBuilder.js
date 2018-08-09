@@ -218,7 +218,7 @@ class PlandoBuiler extends React.Component {
 	    	this.place({label: "NO|1", value: "NO|1"});
     	};
 
-    _onChangeExp = (n,s,_) => this.place({label: s + " Experience", value: "EX|"+s});
+    _onChangeExp = (n,s,_) => this.place({label: s, value: "EX|"+s});
 	_onSelectStuff = (newStuff) => newStuff ? this.place(newStuff) : false;
 	_onPathModeChange = (n) => paths.includes(n.value) ? this.setState({modes: presets[n.value], pathMode: n.value}, () => this._updateReachable()) : this.setState({pathMode: n.value}, () => this._updateReachable())
 
@@ -287,7 +287,15 @@ class PlandoBuiler extends React.Component {
     	let r = relevantCodes.includes(this.state.stuff.value.substr(0,2)) ? {...DEFAULT_REACHABLE} : this.state.reachable;
     	this.setState(prevState => {
 	    	let plc = prevState.placements;
-    		plc[prevState.player][prevState.pickup.value.loc] = s;
+    		// i hate this i hate this i hate this
+	    	if((s.value.substr(0,2) === "EX") && !s.label.endsWith("Experience"))
+	    	{
+	    		let new_s = {...s}
+	    		new_s.label += " Experience"
+	    		plc[prevState.player][prevState.pickup.value.loc] = new_s;	    		
+	    	} else 
+	    		plc[prevState.player][prevState.pickup.value.loc] = s;
+
     		return {placements: plc, stuff: s, reachable: r};
 		}, () => this._updateReachable());
     };
