@@ -78,7 +78,7 @@ function get_manual_reach() {
     let MS = get_int("MS", 0);
     let skills = get_list("SK"," ").map(skill => { let parts = skill.split("|"); return {label: pickup_name(parts[0], parts[1]), value: skill}; });
     let evs = get_list("EV"," ").map(event => { let parts = event.split("|"); return {label: pickup_name(parts[0], parts[1]), value: event}; });
-    let tps  = get_list("TP"," ").map(tp => {return {label: tp + " TP", value: "TP|" + tp}; });
+    let tps  = get_list("TP"," ").map(tp => {return {label: tp.substr(3) + " TP", value: tp}; });
     return {HC: HC, EC: EC, KS: KS, MS: MS, skills: skills, tps: tps, evs: evs};
 }
 
@@ -385,7 +385,7 @@ class LogicHelper extends React.Component {
 		let manual_reach = this.state.manual_reach;
 		manual_reach[param] = val;
 		return {manual_reach: manual_reach}
-	}, () => {this._updateReachable() ; this.updateURL()})
+	}, () => {this.resetReachable() ; this.updateURL()})
 	
   	_updateReachable = (layers=0) => {
 		if(layers < 0)
@@ -440,7 +440,7 @@ class LogicHelper extends React.Component {
 
 	_onPathModeChange = (n) => paths.includes(n.value) ? this.setState({modes: presets[n.value], pathMode: n}, this.resetReachable) : this.setState({pathMode: n}, this.resetReachable)
 	toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
-	resetReachable = () => this.setState({ reachable: {...DEFAULT_REACHABLE}, new_areas: {...DEFAULT_REACHABLE}, selected: "", selected_area: "", highlight_picks: [], history: {}, step: 0})
+	resetReachable = () => this.setState({ reachable: {...DEFAULT_REACHABLE}, new_areas: {...DEFAULT_REACHABLE}, selected: "", selected_area: "", highlight_picks: [], history: {}, step: 0}, () => (this.state.logicMode === "auto") ? null : this._updateReachable())
 	rewind = () => {
 		if(dev)
 			console.log(this.state)
@@ -526,7 +526,7 @@ class LogicHelper extends React.Component {
 									<Select styles={select_styles} placeholder="Teleporters" options={stuff_by_type["Teleporters"]} onChange={(n) => this.updateManual("tps", n)} isMulti={true} value={this.state.manual_reach.tps}></Select>
 								</div>
 								<div className="manual-wrapper">
-									<Select styles={select_styles} placeholder="Events" options={stuff_by_type["Events"]} onChange={(n) => this.updateManual("events", n)} isMulti={true} value={this.state.manual_reach.events}></Select>
+									<Select styles={select_styles} placeholder="Events" options={stuff_by_type["Events"]} onChange={(n) => this.updateManual("evs", n)} isMulti={true} value={this.state.manual_reach.events}></Select>
 								</div>
 							</Collapse>
 						</div>
