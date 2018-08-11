@@ -1,6 +1,7 @@
 from math import floor
 from collections import defaultdict
 from datetime import datetime, timedelta
+import xml.etree.ElementTree as XML
 import logging as log
 
 import sys,os
@@ -101,7 +102,7 @@ def sign(x):
 	return 1 if x>=0 else -1
 
 def rnd(x):
-	return int(4*floor(float(x)/4.0)*sign(x))
+	return int(4*floor(float(x)*sign(x)/4.0)*sign(x))
 
 def unpack(coord):
 	y = coord % (sign(coord)*10000)
@@ -120,6 +121,29 @@ def is_int(s):
         return True
     except ValueError:
         return False
+
+def picks_by_type_gen():
+	tree = XML.parse("seedbuilder/areas.xml")
+	root = tree.getroot()
+	picks_by_type=defaultdict(lambda: [])
+	retval = ""
+	
+	for child in root:
+		area = child.attrib["name"]
+		for loc in child.find("Locations"):
+			x = loc.find("X").text
+			y = loc.find("Y").text
+			item = loc.find("Item").text
+			zone = loc.find("Zone").text
+			line = (get(rnd(int(x)),rnd(int(y))),item,zone,area,y,x)
+			picks_by_type[item[0:2]].append(line)
+	for key in sorted(picks_by_type.keys()):
+		retval += '"%s": [\n' % key
+		for item in sorted(picks_by_type[key], key=lambda x: str(x[0])):
+			retval += """	{'loc': %s, 'name': '%s', 'zone': '%s', 'area': '%s', 'y': %s, 'x': %s}, \n""" % item # tuple(list(item[1:]))
+		retval += '], '
+	return retval
+
 
 def dll_last_update():
 	if os.environ.get('SERVER_SOFTWARE', '').startswith('Dev'):

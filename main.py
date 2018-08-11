@@ -1095,8 +1095,14 @@ class GetSpoilerFromParams(RequestHandler):
 			self.response.status = 404
 			self.response.out.write("Param %s not found" % params_id)
 
-
-
+from util import picks_by_type_gen
+class PicksByTypeGen(RequestHandler):
+	def get(self):
+		self.response.headers['Content-Type'] = 'text/plain'
+		self.response.out.write(picks_by_type_gen())
+		return
+		
+		
 app = WSGIApplication(routes=[
 	# testing endpoints
 	PathPrefixRoute('/tests', [
@@ -1105,6 +1111,7 @@ app = WSGIApplication(routes=[
 		Route('/map/<game_id:\d+>', handler=MapTest, name='tests-map-gid', strict_slash=True),
 	]),
 	Route('/tests', redirect_to_name='tests-run'),
+	Route('/picksbytype', handler=PicksByTypeGen, name='picks-by-type-gen', strict_slash=True),
 
 	PathPrefixRoute('/generator', [
 		Route('/build', handler=MakeSeedWithParams, name="gen-params-build", strict_slash=True),
