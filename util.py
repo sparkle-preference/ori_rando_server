@@ -102,7 +102,7 @@ def sign(x):
 	return 1 if x>=0 else -1
 
 def rnd(x):
-	return int(4*floor(float(x)*sign(x)/4.0)*sign(x))
+	return int(floor((x) / 4.0) * 4.0)
 
 def unpack(coord):
 	y = coord % (sign(coord)*10000)
@@ -127,20 +127,41 @@ def picks_by_type_gen():
 	root = tree.getroot()
 	picks_by_type=defaultdict(lambda: [])
 	retval = ""
-	
+	all_locs_unpacked = { unpack(loc) : loc for loc in all_locs }
+	non_area_lines = {
+		"EC": "\t{'loc': -280256, 'name': 'EC', 'zone': 'Glades', 'area': 'SunkenGladesRunaway', 'y': -256, 'x': -28},\n",
+		"EX": "\t{'loc': -1680104, 'name': 'EX100', 'zone': 'Grove', 'area': 'SpritTreeRefined', 'y': -104, 'x': -168},\n",
+		"Pl": "\t{'loc': -12320248, 'name': 'Plant', 'zone': 'Forlorn', 'area': 'RightForlornPlant', 'y': -248, 'x': -1232},\n",
+		"KS": "\t{'loc': -10440008, 'name': 'KS', 'zone': 'Misty', 'area': 'Misty', 'y': 8, 'x': -1044},\n"
+		}
+
 	for child in root:
 		area = child.attrib["name"]
 		for loc in child.find("Locations"):
 			x = loc.find("X").text
 			y = loc.find("Y").text
 			item = loc.find("Item").text
+			if item == "MapStone":
+				continue
 			zone = loc.find("Zone").text
-			line = (get(rnd(int(x)),rnd(int(y))),item,zone,area,y,x)
+			crd = get(rnd(int(x)),rnd(int(y)))
+			if crd not in all_locs:
+				secondary_match = all_locs_unpacked.get((rnd(x),rnd(y)))
+				if secondary_match:
+					print "had to secondary match:", crd, secondary_match
+					crd = secondary_match
+				else:
+					print "No secondary match found here!", crd, item, zone, area, y, x
+			line = (crd,item,zone,area,y,x)
 			picks_by_type[item[0:2]].append(line)
 	for key in sorted(picks_by_type.keys()):
+		if key == "EV":
+			continue
 		retval += '"%s": [\n' % key
+		if key in non_area_lines:
+			retval += non_area_lines[key]
 		for item in sorted(picks_by_type[key], key=lambda x: str(x[0])):
-			retval += """	{'loc': %s, 'name': '%s', 'zone': '%s', 'area': '%s', 'y': %s, 'x': %s}, \n""" % item # tuple(list(item[1:]))
+			retval += """\t{'loc': %s, 'name': '%s', 'zone': '%s', 'area': '%s', 'y': %s, 'x': %s}, \n""" % item # tuple(list(item[1:]))
 		retval += '], '
 	return retval
 

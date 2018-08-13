@@ -93,7 +93,10 @@ function getLocInfo(pick, players) {
 		let show_spoiler = players[id].flags.includes("show_spoiler");
 		let seen = players[id].seen.includes(loc);
 		if(show_spoiler || seen)
-			return id + ":" + players[id].seed[loc] + ((show_spoiler && seen) ? "*" : "");
+			if(players[id].seed.hasOwnProperty(loc))
+				return id + ":" + players[id].seed[loc] + ((show_spoiler && seen) ? "*" : "");
+			else
+				return id + ": Nothing in seed at " + loc
 		else
 			return id + ": (hidden)"
 	});
@@ -167,15 +170,15 @@ function getPickupMarkers(state) {
 			}
 
 			let highlight = searchStr ? false : true;
-
+			let loc_info = getLocInfo(pick, players);
+			let pick_name = loc_info.join(",").toLowerCase();
 			Object.keys(players).forEach((id) => {
 				let player = players[id]
 				let hide_found = player.flags.includes("hide_found")
 				let hide_unreachable = player.flags.includes("hide_unreachable")
 				let hide_remaining = player.flags.includes("hide_remaining")
 				let show_spoiler = player.flags.includes("show_spoiler");
-				let pick_name = (player.seed[pick.loc] || "").toLowerCase();
-				if(searchStr && pick.name === "MapStone") 
+				if(searchStr && pick.name === "MapStone")
 					pick_name = getMapstoneToolTip({id: player}, false).toLowerCase();
 				let found = player.seen.includes(pick.loc);
 				if(!highlight && (found || show_spoiler) && (pick_name && searchStr && pick_name.includes(searchStr)))
@@ -192,7 +195,6 @@ function getPickupMarkers(state) {
 				if(pick.name === "MapStone") {
 					inner = msTT;
 				} else {
-				let loc_info = getLocInfo(pick, players);
 					if(loc_info)
 						{
 						let lines = loc_info.map((infoln) => {

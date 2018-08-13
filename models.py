@@ -52,7 +52,7 @@ class Seed(ndb.Model):
 
 	def shared(self):
 		shared_opt = [f[7:].replace("+"," ").split(" ") for f in self.flags if f.lower().startswith("shared=")]
-		return enums_from_strlist(shared_opt[0]) if shared_opt else []
+		return enums_from_strlist(ShareType, shared_opt[0]) if shared_opt else []
 	
 	@staticmethod
 	def from_plando(lines, author, name, desc):
@@ -384,10 +384,7 @@ class Game(ndb.Model):
 	@staticmethod
 	def new(_mode = None, _shared = None, id=None):
 		if _shared:
-			if isinstance(_shared, basestring):
-				shared = ShareType.from_url(_shared)
-			else:
-				shared = [st for st in [ShareType.from_str(s) for s in _shared] if st]
+			shared = enums_from_strlist(ShareType, _shared)
 		else:
 			shared = Game.DEFAULT_SHARED
 		mode = MultiplayerGameType(_mode) if _mode else MultiplayerGameType.SHARED

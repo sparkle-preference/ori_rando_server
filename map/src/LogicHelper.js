@@ -1,6 +1,6 @@
 import './index.css';
 import React from 'react';
-import { ZoomControl, Map, Tooltip, TileLayer} from 'react-leaflet';
+import {LayerGroup, ZoomControl, Map, Tooltip, TileLayer} from 'react-leaflet';
 import Leaflet from 'leaflet';
 import {Checkbox, CheckboxGroup} from 'react-checkbox-group';
 import {stuff_by_type, picks_by_type, presets, picks_by_area, pickup_name, PickupMarkersList, get_icon, getMapCrs, 
@@ -130,6 +130,8 @@ function getInventory(state) {
 
 
 function getInventoryPane(inventory, that) {
+	if(!that.state.hasSeed)
+		return null
 	let groups = Object.keys(inventory).map(group => {
 		let items = Object.keys(inventory[group]).map(code => {			
 			let picks = inventory[group][code];
@@ -158,67 +160,69 @@ function getInventoryPane(inventory, that) {
 }
 
 function getAreasPane(inventory, that) {
-
-		let area_groups = Object.keys(that.state.new_areas).filter(area => area.substr(0,2) !== "MS").map((area) => {
-			let is_selected = that.state.seedReceived && that.state.selected_area === area;
-			let paths = that.state.new_areas[area];
-			let path_rows = is_selected ? paths.map(reqs => {
-				if(reqs.length === 1 && reqs[0] === "Free")
-					return null;
-					
+	let area_groups = Object.keys(that.state.new_areas).filter(area => area.substr(0,2) !== "MS").map((area) => {
+		let is_selected = that.state.hasSeed && that.state.selected_area === area;
+		let paths = that.state.new_areas[area];
+		let path_rows = is_selected ? paths.map(reqs => {
+			if(reqs.length === 1 && reqs[0] === "Free")
+				return null;
 				
-				let buttons = reqs.map(req => {
-					let count = 1;
-					if(req.includes("(")) {
-						count = req.substr(3,req.indexOf(")")-3)
-						req = req.substr(0,2)
-					}
-					if(!xml_name_to_code.hasOwnProperty(req))
-						return null;
-					let code = xml_name_to_code[req]
-					if(!code_to_group.hasOwnProperty(code))
-						return null;
-					let group = code_to_group[code]
-					if(!inventory.hasOwnProperty(group) || !inventory[group].hasOwnProperty(code)) {
-						return null;
-					}
-					let picks = inventory[group][code]
-					let name = name_from_str(code)+ (count > 1 ? " x" + count : "")
-					return (
-						<Button color={"danger"} outline={that.state.selected !== name} size="sm" onClick={() => that.onGroupClick(picks, name)}>{name}</Button>
-					)
-				}).reduce((accu, elem) => accu === null ? [elem] : [...accu, <span>+</span>, elem] , null);
-				return ( 
-					<li>
-					{buttons}
-					</li>
-				);
-			}) : []; 
-			let area_name = area.split(/(?=[A-Z])/).join(" ");
-			let unlocked_with = path_rows.filter(x => x !== null).length > 0 ? (<div>unlocked with:</div>) : null
-			if(!picks_by_area.hasOwnProperty(area))
-				return null
-			return (
-			<div>
-				<Button color={is_selected ? "warning" : "danger"} outline={that.state.selected !== area}  onClick={() => that.setState({selected_area: area}, () => that.onGroupClick(picks_by_area[area], area))}>{area_name}</Button>
-				<Collapse isOpen={is_selected}>
-					{unlocked_with}
-					<ul>
-					{path_rows}
-					</ul> 
-				</Collapse>
-			</div>
-			)  
-		});
+			
+			let buttons = reqs.map(req => {
+				let count = 1;
+				if(req.includes("(")) {
+					count = req.substr(3,req.indexOf(")")-3)
+					req = req.substr(0,2)
+				}
+				if(!xml_name_to_code.hasOwnProperty(req))
+					return null;
+				let code = xml_name_to_code[req]
+				if(!code_to_group.hasOwnProperty(code))
+					return null;
+				let group = code_to_group[code]
+				if(!inventory.hasOwnProperty(group) || !inventory[group].hasOwnProperty(code)) {
+					return null;
+				}
+				let picks = inventory[group][code]
+				let name = name_from_str(code)+ (count > 1 ? " x" + count : "")
+				return (
+					<Button color={"danger"} outline={that.state.selected !== name} size="sm" onClick={() => that.onGroupClick(picks, name)}>{name}</Button>
+				)
+			}).reduce((accu, elem) => accu === null ? [elem] : [...accu, <span>+</span>, elem] , null);
+			return ( 
+				<li>
+				{buttons}
+				</li>
+			);
+		}) : []; 
+		let area_name = area.split(/(?=[A-Z])/).join(" ");
+		let unlocked_with = path_rows.filter(x => x !== null).length > 0 ? (<div>unlocked with:</div>) : null
+		if(!picks_by_area.hasOwnProperty(area))
+			return null
 		return (
-			<div>
-				<div style={{textAlign: 'center', fontSize: '1.2em' }}>{that.state.seedReceived ? "New Reachable Areas" : "Reachable Areas"}</div>
-				{area_groups}
-			</div>
-		)
+		<div>
+			<Button color={is_selected ? "warning" : "danger"} outline={that.state.selected !== area}  onClick={() => that.setState({selected_area: area}, () => that.onGroupClick(picks_by_area[area], area))}>{area_name}</Button>
+			<Collapse isOpen={is_selected}>
+				{unlocked_with}
+				<ul>
+				{path_rows}
+				</ul> 
+			</Collapse>
+		</div>
+		)  
+	});
+	return (
+		<div>
+			<div style={{textAlign: 'center', fontSize: '1.2em' }}>{that.state.hasSeed ? "New Reachable Areas" : "Reachable Areas"}</div>
+			{area_groups}
+		</div>
+	)
 }
 
 const marker_types = Object.keys(picks_by_type).filter(t => t !== "MP");
+const int = (s) => parseInt(s,10)
+const rnd = (x) => Math.floor(int(x)/4.0) * 4.0
+
 function getPickupMarkers(state, setSelected) {
 	let placements = state.placements;
 	let reachable = Object.keys(state.reachable)
@@ -229,20 +233,25 @@ function getPickupMarkers(state, setSelected) {
 			let y = pick.hasOwnProperty("_y") ? pick._y : pick.y
 			let icon = get_icon(pick, state.highlight_picks.includes(pick.loc) ? "red" : null)
 			let rows = null;
-			if(reachable.includes(pick.area))
+			let base_name = pick.area + " " +pick.name + " ("+rnd(pick.x)+" "+rnd(pick.y)+")";
+			let name = "";
+			if(reachable.includes(pick.area) || (state.searchStr && base_name.includes(state.searchStr)))
 			{
 				if(pick.name === "MapStone") {
-				    rows = picks_by_type["MP"].map((ms) => {				    	
-				    	return placements[ms.loc] ? (
+					let i = 1;
+				    rows = picks_by_type["MP"].map(ms => {
+				    	name = placements[ms.loc] ? placements[ms.loc].label : base_name
+				    	return (
 				    		<tr><td style={{color:'black'}}>
-					    		{placements[ms.loc].label}
+					    		{name}
 				    		</td></tr>
-				    	) : null
+				    	)
 			    	});
-				} else if(placements[pick.loc]) {
+				} else {
+					name = placements[pick.loc] ? placements[pick.loc].label : base_name;
 				  	rows =  (
 			    		<tr><td style={{color:'black'}}>
-					  		{placements[pick.loc].label}
+					  		{name}
 			    		</td></tr>
 				  	)
 				}
@@ -251,8 +260,10 @@ function getPickupMarkers(state, setSelected) {
 						<table>{rows}</table>
 					</Tooltip>
 				);
-				let name = pick.name+"("+pick.x + "," + pick.y +")"
-				markers.push({key: name, position: [y, x], inner: inner, icon: icon, onClick: () => setSelected({label: name, value: pick}) });
+				let search = state.searchStr ? state.searchStr.toLower() : false
+				if(search && (name.toLower().includes(search) || base_name.toLower().includes(search)))
+					icon = get_icon(pick, "green");
+				markers.push({key: x+","+y, position: [y, x], inner: inner, icon: icon, onClick: () => setSelected({label: name, value: pick}) });
 			}
 		});
 	});
@@ -265,7 +276,7 @@ class LogicHelper extends React.Component {
 	    super(props)
 	
 	    this.state = {mousePos: {lat: 0, lng: 0}, seed_in: "", reachable: {...DEFAULT_REACHABLE}, new_areas: {...DEFAULT_REACHABLE}, selected: "", selected_area: "", history: {}, 
-	    			  step: 0, placements: {...DEFAULT_DATA}, viewport: DEFAULT_VIEWPORT, seedReceived: false, highlight_picks: [], logicMode: 'manual'}
+	    			  step: 0, placements: {...DEFAULT_DATA}, viewport: DEFAULT_VIEWPORT, hasSeed: false, highlight_picks: [], logicMode: 'manual', searchStr: "", noMarkers: false}
 	}
   	
 
@@ -282,7 +293,7 @@ class LogicHelper extends React.Component {
 	    }
 
 	    if(Object.keys(manual_reach).some(key => Array.isArray(manual_reach[key]) ? manual_reach[key].length > 0 : manual_reach[key] > 0 ))
-			this.setState({modes: modes, pathMode: {label: pathmode, value: pathmode}, manual_reach: manual_reach}, () => {this._updateReachable() ; this.updateURL()})
+			this.setState({modes: modes, pathMode: {label: pathmode, value: pathmode}, manual_reach: manual_reach}, () => {this.updateReachable() ; this.updateURL()})
 		else
 			this.setState({modes: modes, pathMode: {label: pathmode, value: pathmode}, manual_reach: manual_reach}, this.updateURL)
 
@@ -298,8 +309,7 @@ class LogicHelper extends React.Component {
 		    let reader = new FileReader();
 		    reader.onload = () => {
 		        let text = reader.result;
-		        this.parseUploadedSeed(text);
-		        this.setState({dropzoneActive: false, seedReceived: true, logicMode: "auto"})
+		        this.setState({placements: this.parseUploadedSeed(text), dropzoneActive: false, hasSeed: true, logicMode: "auto"}, this.resetReachable)
 		        window.URL.revokeObjectURL(file.preview);
 		        // do whatever you want with the file content
 		    };
@@ -338,8 +348,7 @@ class LogicHelper extends React.Component {
 	    	let stuff = {label: name, value:code+"|"+id};
 	    	newplc[loc] = stuff;
     	}
-    	this.setState({placements: newplc});
-
+    	return newplc;
 	}
 
 	onGroupClick = (picks, clickedName) =>  {
@@ -387,18 +396,16 @@ class LogicHelper extends React.Component {
 		return {manual_reach: manual_reach}
 	}, () => {this.resetReachable() ; this.updateURL()})
 	
-  	_updateReachable = (layers=0) => {
-		if(layers < 0)
-			return
+  	updateReachable = () => {
   		if(!this.state.reachable || this.state.reachable === undefined) {
-  			this.setState({reachedWith: {}, reachable: {...DEFAULT_REACHABLE}}, () => this._updateReachable());
+  			this.resetReachable();
   			return
   		}
   		
 	  	let reachableStuff = {};
   		if(this.state.logicMode === "auto")
   		{
-  			if(!this.state.seedReceived)
+  			if(!this.state.hasSeed)
   				return;
 	  		Object.keys(this.state.reachable).forEach((area) => {
 	  			if(picks_by_area.hasOwnProperty(area))
@@ -429,18 +436,16 @@ class LogicHelper extends React.Component {
 				reachableStuff[tp.value] = 1;
 	  		});
   		}
-  		  	getReachable((s, c) => this.setState(s, c),
-	  			this.state.modes.join("+"),
-	  			Object.keys(reachableStuff).map((key) => key+":"+reachableStuff[key]).join("+"),
-	  			() => this._updateReachable(layers-1));
+  		getReachable((s) => this.setState(s), this.state.modes.join("+"), Object.keys(reachableStuff).map((key) => key+":"+reachableStuff[key]).join("+"));
 
   	};
 
 	onViewportChanged= (viewport) => this.setState({viewport: viewport})
 
-	_onPathModeChange = (n) => paths.includes(n.value) ? this.setState({modes: presets[n.value], pathMode: n}, this.resetReachable) : this.setState({pathMode: n}, this.resetReachable)
+	onPathModeChange = (n) => paths.includes(n.value) ? this.setState({modes: presets[n.value], pathMode: n}, this.resetReachable) : this.setState({pathMode: n}, this.resetReachable)
 	toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
-	resetReachable = () => this.setState({ reachable: {...DEFAULT_REACHABLE}, new_areas: {...DEFAULT_REACHABLE}, selected: "", selected_area: "", highlight_picks: [], history: {}, step: 0}, () => (this.state.logicMode === "auto") ? null : this._updateReachable())
+	resetReachable = () => this.setState({ reachable: {...DEFAULT_REACHABLE}, new_areas: {...DEFAULT_REACHABLE}, selected: "", selected_area: "", highlight_picks: [], history: {}, step: 0}, () => (this.state.logicMode === "auto") ? null : this.updateReachable())
+	unloadSeed = () => this.setState({hasSeed: false, placements: {...DEFAULT_DATA}, logicMode: "manual"}, this.resetReachable)
 	rewind = () => {
 		if(dev)
 			console.log(this.state)
@@ -460,15 +465,36 @@ class LogicHelper extends React.Component {
 
 	render() {
 	    let { accept, files, dropzoneActive } = this.state;
-	    let overlayStyle = { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, padding: '10em 0', background: 'rgba(0,0,0,0.5)', textAlign: 'center', color: '#fff' };
+	    let overlay_style = { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, padding: '10em 0', background: 'rgba(0,0,0,0.5)', textAlign: 'center', color: '#fff' };
 		let inventory = getInventory(this.state);
 		let inv_pane = getInventoryPane(inventory, this)
-		let pickup_markers = ( <PickupMarkersList markers={getPickupMarkers(this.state, this.selectPickup)} />)
 		let new_areas_report = getAreasPane(inventory, this)
+		let logic_auto_toggle = this.state.hasSeed ? (
+			<div>
+				<span className="label">Logic Mode:</span>
+				<ButtonGroup>
+					<Button color="secondary" onClick={() => this.setState({logicMode: "auto"}, this.resetReachable)} active={this.state.logicMode === "auto"}>Auto</Button>
+					<Button color="secondary" onClick={() => this.setState({logicMode: "manual"}, this.resetReachable)} active={this.state.logicMode === "manual"}>Manual</Button>
+				</ButtonGroup>
+			</div>
+		) : null
+		let import_or_step = this.state.hasSeed ? (
+					<div id="file-controls">
+						<div>
+							<Button color="primary" onClick={this.unloadSeed} >Unload Seed</Button> 
+							<Button color="primary" onClick={this.resetReachable} >Reset Steps</Button>
+						</div>{" "}
+						<div>
+							<Button color="primary" onClick={() => this.rewind()} >{"Back"}</Button>
+							<Button color="disabled" disabled={true}>{this.state.step}</Button>
+							<Button color="primary" onClick={this.updateReachable} >{"Next"}</Button>
+						</div>
+					</div>
+				) : ( <h6>Drag and drop your seed file onto the map to upload</h6> );
 
 		return (
 	      <Dropzone className="wrapper" disableClick onDrop={this.onDrop} onDragEnter={this.onDragEnter} onDragLeave={this.onDragLeave} >
-          { dropzoneActive && <div style={overlayStyle}>Import your randomizer.dat to begin analysis</div> }
+          { dropzoneActive && <div style={overlay_style}>Import your randomizer.dat to begin analysis</div> }
 	            <Helmet>
 	                <style>{'body { background-color: black}'}</style>
 					<link rel="stylesheet" href="https://unpkg.com/leaflet@1.3.1/dist/leaflet.css" integrity="sha512-Rksm5RenBEKSKFjgI3a41vrjkw4EVPlJ3+OiI65vTjIdo9brlAacEuKOiQ5OFh7cOI1bkDwLqdLw3Zg0cRJAAQ==" crossorigin=""/>
@@ -481,26 +507,21 @@ class LogicHelper extends React.Component {
 						<Button size="sm" color="disabled">{Math.round(this.state.mousePos.lng)},{Math.round(this.state.mousePos.lat)}</Button>
 					</div>
 					</Control>
-
+					<LayerGroup>
+						<PickupMarkersList markers={getPickupMarkers(this.state, this.selectPickup)} />
+					</LayerGroup>
 					<TileLayer url=' https://ori-tracker.firebaseapp.com/images/ori-map/{z}/{x}/{y}.png' noWrap='true'  />
-					{pickup_markers}
 				</Map> 
 				<div className="controls">
-					<h6>Drag and drop your seed file onto the map to get started!</h6>
-					<div id="file-controls">
-						<Button color="primary" onClick={this.resetReachable} >Reset</Button> 
-						<Button color="primary" onClick={() => this.rewind()} >{"Back"}</Button> 
-						<Button color="disabled" disabled={true}>{this.state.step}</Button>
-						<Button color="primary" onClick={() => this._updateReachable()} >{"Next"}</Button> 
+					{import_or_step}
+			    	<div id="search-wrapper">
+						<label for="search">Search</label>
+						<input id="search" className="form-control" type="text" value={this.state.searchStr} onChange={(e) => this.setState({searchStr: e.target.value})} />
 					</div>
 					{inv_pane}
 					<div id="logic-controls">
 						<div id="logic-mode-wrapper">
-							<span className="label">Logic Mode:</span>
-							<ButtonGroup>
-								<Button color="secondary" onClick={() => this.setState({logicMode: "auto"}, this.resetReachable)} active={this.state.logicMode === "auto"}>Auto</Button>
-								<Button color="secondary" onClick={() => this.setState({logicMode: "manual"}, this.resetReachable)} active={this.state.logicMode === "manual"}>Manual</Button>
-							</ButtonGroup>
+							{logic_auto_toggle}
 							<Collapse id="manual-controls" isOpen={this.state.logicMode === "manual"}>
 								<hr style={{ backgroundColor: 'grey', height: 2 }}/>
 								<div className="manual-wrapper">
@@ -534,7 +555,7 @@ class LogicHelper extends React.Component {
 						<div id="logic-mode-controls">
 							<div id="logic-presets">
 								<Button color="primary" onClick={this.toggleLogic} >Logic Paths:</Button>
-								<Select styles={select_styles}  options={select_wrap(paths)} onChange={this._onPathModeChange} isClearable={false} value={this.state.pathMode}></Select>
+								<Select styles={select_styles}  options={select_wrap(paths)} onChange={this.onPathModeChange} isClearable={false} value={this.state.pathMode}></Select>
 							</div>
 							<Collapse id="logic-options-wrapper" isOpen={this.state.display_logic}>
 								<CheckboxGroup id="logic-options" checkboxDepth={2} name="modes" value={this.state.modes} onChange={this.modesChanged}>
@@ -573,7 +594,7 @@ function uniq(array) {
 }
 
 
-function getReachable(setter, modes, codes, callback)
+function getReachable(setter, modes, codes)
 {
     var xmlHttp = new XMLHttpRequest();
     xmlHttp.onreadystatechange = function() {
@@ -605,7 +626,7 @@ function getReachable(setter, modes, codes, callback)
 								old_reachable[area] = uniq(old_reachable[area].concat(reachable[area]));
 							});
 							return {reachable: old_reachable, new_areas: new_areas, history: history, step: step+1, highlight_picks: []}
-						}, callback)
+						})
             		}
             })(xmlHttp.responseText);
     }
