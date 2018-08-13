@@ -260,8 +260,8 @@ function getPickupMarkers(state, setSelected) {
 						<table>{rows}</table>
 					</Tooltip>
 				);
-				let search = state.searchStr ? state.searchStr.toLower() : false
-				if(search && (name.toLower().includes(search) || base_name.toLower().includes(search)))
+				let search = state.searchStr ? state.searchStr.toLowerCase() : false
+				if(search && (name.toLowerCase().includes(search) || base_name.toLowerCase().includes(search)))
 					icon = get_icon(pick, "green");
 				markers.push({key: x+","+y, position: [y, x], inner: inner, icon: icon, onClick: () => setSelected({label: name, value: pick}) });
 			}
