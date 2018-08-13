@@ -161,7 +161,7 @@ const PickupMarker = ({inner, map, position, icon, ...props}) => (
 
 const PickupMarkersList = ({ map, markers }) => {
   const items = markers.map(({ key, ...props }) => (
-      <PickupMarker key={key} map={map} {...props} />
+	  <PickupMarker key={key} map={map} {...props} />
   ));
   return <div style={{display: 'none'}}>{items}</div>;
 };
@@ -231,17 +231,17 @@ const picks_by_type = {
 	{'loc': 599844, 'name': 'EC', 'zone': 'Grove', 'area': 'SpiderSacEnergy', 'y': -155, 'x': 60},
 	{'loc': 7199904, 'name': 'EC', 'zone': 'Swamp', 'area': 'SwampEnergy', 'y': -95, 'x': 722},
 ], "EX": [
-	{'loc': -1680104, 'name': 'EX100', 'zone': 'Grove', 'area': 'SpritTreeRefined', 'y': -104, 'x': -168},
 	{'loc': -10120036, 'name': 'EX100', 'zone': 'Misty', 'area': 'Misty', 'y': -35, 'x': -1009},
 	{'loc': -10839992, 'name': 'EX100', 'zone': 'Misty', 'area': 'Misty', 'y': 8, 'x': -1082},
-	{'loc': -160096, 'name': 'EX100', 'zone': 'Grove', 'area': 'ChargeFlameTree', 'y': -95, 'x': -14},
 	{'loc': -1560272, 'name': 'EX15', 'zone': 'Glades', 'area': 'SunkenGladesRunaway', 'y': -271, 'x': -154},
+	{'loc': -160096, 'name': 'EX100', 'zone': 'Grove', 'area': 'ChargeFlameTree', 'y': -95, 'x': -14},
+	{'loc': -1680104, 'name': 'EX100', 'zone': 'Grove', 'area': 'SpritTreeRefined', 'y': -104, 'x': -168},
 	{'loc': -1919808, 'name': 'EX200', 'zone': 'Horu', 'area': 'L4', 'y': 194, 'x': -191},
 	{'loc': -2240084, 'name': 'EX100', 'zone': 'Valley', 'area': 'ValleyEntryTree', 'y': -84, 'x': -221},
 	{'loc': -2480208, 'name': 'EX15', 'zone': 'Glades', 'area': 'LeftWallJump', 'y': -207, 'x': -247},
 	{'loc': -2480280, 'name': 'EX200', 'zone': 'Glades', 'area': 'RightWallJump', 'y': -277, 'x': -245},
-	{'loc': -319852, 'name': 'EX200', 'zone': 'Horu', 'area': 'L4', 'y': 148, 'x': -29},
 	{'loc': -2840236, 'name': 'EX15', 'zone': 'Glades', 'area': 'WallJump', 'y': -236, 'x': -283},
+	{'loc': -319852, 'name': 'EX200', 'zone': 'Horu', 'area': 'L4', 'y': 148, 'x': -29},
 	{'loc': -3600088, 'name': 'EX100', 'zone': 'Valley', 'area': 'ValleyWater', 'y': -87, 'x': -359},
 	{'loc': -4199936, 'name': 'EX100', 'zone': 'Valley', 'area': 'ValleyRight', 'y': 67, 'x': -418},
 	{'loc': -4600256, 'name': 'EX100', 'zone': 'Valley', 'area': 'OutsideForlornTree', 'y': -255, 'x': -460},
@@ -308,18 +308,18 @@ const picks_by_type = {
 	{'loc': 5639752, 'name': 'EX100', 'zone': 'Grotto', 'area': 'MobileGumoHideout', 'y': -246, 'x': 567},
 	{'loc': 5719620, 'name': 'EX100', 'zone': 'Grotto', 'area': 'GumoHideout', 'y': -378, 'x': 572},
 	{'loc': 5919864, 'name': 'EX200', 'zone': 'Swamp', 'area': 'SwampGrottoWater', 'y': -136, 'x': 595},
-	{'loc': 6159904, 'name': 'EX100', 'zone': 'Swamp', 'area': 'RightGinso', 'y': -98, 'x': 618}, 
-	{'loc': 6359840, 'name': 'EX100', 'zone': 'Swamp', 'area': 'DrainExp', 'y': -162, 'x': 636}, 
-	{'loc': 6639952, 'name': 'EX200', 'zone': 'Swamp', 'area': 'RightGinsoOrb', 'y': -48, 'x': 666}, 
-	{'loc': 7559604, 'name': 'EX100', 'zone': 'Grotto', 'area': 'MobileDoubleJumpArea', 'y': -398, 'x': 759}, 
-	{'loc': 7599828, 'name': 'EX100', 'zone': 'Swamp', 'area': 'SwampWater', 'y': -173, 'x': 761}, 
-	{'loc': 7679852, 'name': 'EX100', 'zone': 'Swamp', 'area': 'SwampStomp', 'y': -148, 'x': 770}, 
-	{'loc': 8719860, 'name': 'EX200', 'zone': 'Swamp', 'area': 'RightSwampGrenade', 'y': -143, 'x': 874}, 
-	{'loc': 8839904, 'name': 'EX100', 'zone': 'Swamp', 'area': 'RightSwampStomp', 'y': -98, 'x': 884}, 
-	{'loc': 9119932, 'name': 'EX200', 'zone': 'Swamp', 'area': 'RightSwampCJump', 'y': -71, 'x': 914}, 
-	{'loc': 919776, 'name': 'EX15', 'zone': 'Glades', 'area': 'SunkenGladesRunaway', 'y': -227, 'x': 92}, 
-	{'loc': 959964, 'name': 'EX200', 'zone': 'Grove', 'area': 'HoruFields', 'y': -37, 'x': 97}, 
-	{'loc': 960128, 'name': 'EX200', 'zone': 'Horu', 'area': 'HoruBottom', 'y': 130, 'x': 98}, 
+	{'loc': 6159904, 'name': 'EX100', 'zone': 'Swamp', 'area': 'RightGinso', 'y': -98, 'x': 618},
+	{'loc': 6359840, 'name': 'EX100', 'zone': 'Swamp', 'area': 'DrainExp', 'y': -162, 'x': 636},
+	{'loc': 6639952, 'name': 'EX200', 'zone': 'Swamp', 'area': 'RightGinsoOrb', 'y': -48, 'x': 666},
+	{'loc': 7559604, 'name': 'EX100', 'zone': 'Grotto', 'area': 'MobileDoubleJumpArea', 'y': -398, 'x': 759},
+	{'loc': 7599828, 'name': 'EX100', 'zone': 'Swamp', 'area': 'SwampWater', 'y': -173, 'x': 761},
+	{'loc': 7679852, 'name': 'EX100', 'zone': 'Swamp', 'area': 'SwampStomp', 'y': -148, 'x': 770},
+	{'loc': 8719860, 'name': 'EX200', 'zone': 'Swamp', 'area': 'RightSwampGrenade', 'y': -143, 'x': 874},
+	{'loc': 8839904, 'name': 'EX100', 'zone': 'Swamp', 'area': 'RightSwampStomp', 'y': -98, 'x': 884},
+	{'loc': 9119932, 'name': 'EX200', 'zone': 'Swamp', 'area': 'RightSwampCJump', 'y': -71, 'x': 914},
+	{'loc': 919776, 'name': 'EX15', 'zone': 'Glades', 'area': 'SunkenGladesRunaway', 'y': -227, 'x': 92},
+	{'loc': 959964, 'name': 'EX200', 'zone': 'Grove', 'area': 'HoruFields', 'y': -37, 'x': 97},
+	{'loc': 960128, 'name': 'EX200', 'zone': 'Horu', 'area': 'HoruBottom', 'y': 130, 'x': 98},
 ], "HC": [
 	{'loc': -6119704, 'name': 'HC', 'zone': 'Sorrow', 'area': 'SorrowHealth', 'y': 299, 'x': -609},
 	{'loc': -6280316, 'name': 'HC', 'zone': 'Forlorn', 'area': 'RightForlorn', 'y': -315, 'x': -625},
@@ -341,8 +341,8 @@ const picks_by_type = {
 	{'loc': 16, 'name': 'EVHoruKey', 'zone': 'Sorrow', 'area': 'Sunstone', 'y': 16, 'x': 0, '_x':-560, '_y':  607},
 	{'loc': 20, 'name': 'EVWarmth', 'zone': 'Horu', 'area': 'End', 'y': 20, 'x': 0, '_x': -220, '_y': 504},
 ], "Pl": [
-	{'loc': -12320248, 'name': 'Plant', 'zone': 'Forlorn', 'area': 'RightForlornPlant', 'y': -248, 'x': -1232},
 	{'loc': -11040068, 'name': 'Plant', 'zone': 'Misty', 'area': 'MistyPlant', 'y': -67, 'x': -1102},
+	{'loc': -12320248, 'name': 'Plant', 'zone': 'Forlorn', 'area': 'RightForlornPlant', 'y': -248, 'x': -1232},
 	{'loc': -1800088, 'name': 'Plant', 'zone': 'Valley', 'area': 'ValleyEntryTreePlant', 'y': -88, 'x': -179},
 	{'loc': -4680068, 'name': 'Plant', 'zone': 'Valley', 'area': 'ValleyMainPlant', 'y': -67, 'x': -468},
 	{'loc': -4799416, 'name': 'Plant', 'zone': 'Sorrow', 'area': 'SunstonePlant', 'y': 586, 'x': -478},
@@ -366,9 +366,21 @@ const picks_by_type = {
 	{'loc': 5400100, 'name': 'Plant', 'zone': 'Ginso', 'area': 'LowerGinsoTreePlant', 'y': 101, 'x': 540},
 	{'loc': 6080608, 'name': 'Plant', 'zone': 'Ginso', 'area': 'TopGinsoTreePlant', 'y': 611, 'x': 610},
 	{'loc': 6279880, 'name': 'Plant', 'zone': 'Swamp', 'area': 'SwampPlant', 'y': -120, 'x': 628},
+], "SK": [
+	{'loc': -11880100, 'name': 'SKClimb', 'zone': 'Misty', 'area': 'Misty', 'y': -100, 'x': -1188},
+	{'loc': -3160308, 'name': 'SKWallJump', 'zone': 'Glades', 'area': 'WallJump', 'y': -308, 'x': -316},
+	{'loc': -4600020, 'name': 'SKGlide', 'zone': 'Valley', 'area': 'ValleyMain', 'y': -20, 'x': -460},
+	{'loc': -560160, 'name': 'SKChargeFlame', 'zone': 'Grove', 'area': 'ChargeFlame', 'y': -160, 'x': -56},
+	{'loc': -6959592, 'name': 'SKChargeJump', 'zone': 'Sorrow', 'area': 'ChargeJump', 'y': 408, 'x': -696},
+	{'loc': 2919744, 'name': 'SKDash', 'zone': 'Blackroot', 'area': 'DashArea', 'y': -256, 'x': 292},
+	{'loc': 5320328, 'name': 'SKBash', 'zone': 'Ginso', 'area': 'BashTree', 'y': 328, 'x': 532},
+	{'loc': 719620, 'name': 'SKGrenade', 'zone': 'Blackroot', 'area': 'GrenadeArea', 'y': -380, 'x': 72},
+	{'loc': 7839588, 'name': 'SKDoubleJump', 'zone': 'Grotto', 'area': 'DoubleJumpArea', 'y': -412, 'x': 784},
+	{'loc': 8599904, 'name': 'SKStomp', 'zone': 'Swamp', 'area': 'RightSwamp', 'y': -96, 'x': 860},
 ], "KS": [
 	{'loc': -10440008, 'name': 'KS', 'zone': 'Misty', 'area': 'Misty', 'y': 8, 'x': -1044},
 	{'loc': -10759968, 'name': 'KS', 'zone': 'Misty', 'area': 'Misty', 'y': 32, 'x': -1076},
+	{'loc': -120208, 'name': 'KS', 'zone': 'Glades', 'area': 'SunkenGladesRunaway', 'y': -206, 'x': -11},
 	{'loc': -1800156, 'name': 'KS', 'zone': 'Glades', 'area': 'SpiritCavernsTopRight', 'y': -154, 'x': -177},
 	{'loc': -1840196, 'name': 'KS', 'zone': 'Glades', 'area': 'SpiritCaverns', 'y': -193, 'x': -182},
 	{'loc': -2200148, 'name': 'KS', 'zone': 'Glades', 'area': 'SpiritCavernsTopLeft', 'y': -146, 'x': -217},
@@ -380,15 +392,14 @@ const picks_by_type = {
 	{'loc': -5039728, 'name': 'KS', 'zone': 'Sorrow', 'area': 'Sorrow', 'y': 274, 'x': -503},
 	{'loc': -5159576, 'name': 'KS', 'zone': 'Sorrow', 'area': 'UpperSorrow', 'y': 427, 'x': -514},
 	{'loc': -5159700, 'name': 'KS', 'zone': 'Sorrow', 'area': 'Sorrow', 'y': 303, 'x': -514},
-	{'loc': -600244, 'name': 'KS', 'zone': 'Glades', 'area': 'WallJump', 'y': -244, 'x': -59},
 	{'loc': -5919556, 'name': 'KS', 'zone': 'Sorrow', 'area': 'UpperSorrow', 'y': 445, 'x': -592},
 	{'loc': -5959772, 'name': 'KS', 'zone': 'Sorrow', 'area': 'Sorrow', 'y': 229, 'x': -596},
+	{'loc': -600244, 'name': 'KS', 'zone': 'Glades', 'area': 'WallJump', 'y': -244, 'x': -59},
 	{'loc': -6039640, 'name': 'KS', 'zone': 'Sorrow', 'area': 'LeftSorrow', 'y': 361, 'x': -604},
 	{'loc': -6079672, 'name': 'KS', 'zone': 'Sorrow', 'area': 'LeftSorrow', 'y': 329, 'x': -608},
 	{'loc': -6119656, 'name': 'KS', 'zone': 'Sorrow', 'area': 'LeftSorrow', 'y': 347, 'x': -612},
 	{'loc': -6159632, 'name': 'KS', 'zone': 'Sorrow', 'area': 'LeftSorrow', 'y': 371, 'x': -613},
 	{'loc': -7680144, 'name': 'KS', 'zone': 'Misty', 'area': 'MistyPostClimb', 'y': -144, 'x': -768},
-	{'loc': -120208, 'name': 'KS', 'zone': 'Glades', 'area': 'SunkenGladesRunaway', 'y': -206, 'x': -11},
 	{'loc': -8600356, 'name': 'KS', 'zone': 'Forlorn', 'area': 'Forlorn', 'y': -353, 'x': -858},
 	{'loc': -8720256, 'name': 'KS', 'zone': 'Forlorn', 'area': 'Forlorn', 'y': -255, 'x': -869},
 	{'loc': -8880252, 'name': 'KS', 'zone': 'Forlorn', 'area': 'Forlorn', 'y': -251, 'x': -888},
@@ -407,27 +418,16 @@ const picks_by_type = {
 	{'loc': 6839792, 'name': 'KS', 'zone': 'Swamp', 'area': 'SwampWater', 'y': -205, 'x': 684},
 	{'loc': 7639816, 'name': 'KS', 'zone': 'Swamp', 'area': 'SwampWater', 'y': -183, 'x': 766},
 	{'loc': 799776, 'name': 'KS', 'zone': 'Glades', 'area': 'SunkenGladesRunaway', 'y': -222, 'x': 83},
-], "SK": [
-	{'loc': -11880100, 'name': 'SKClimb', 'zone': 'Misty', 'area': 'Misty', 'y': -100, 'x': -1188},
-	{'loc': -3160308, 'name': 'SKWallJump', 'zone': 'Glades', 'area': 'WallJump', 'y': -308, 'x': -316},
-	{'loc': -4600020, 'name': 'SKGlide', 'zone': 'Valley', 'area': 'ValleyMain', 'y': -20, 'x': -460},
-	{'loc': -560160, 'name': 'SKChargeFlame', 'zone': 'Grove', 'area': 'ChargeFlame', 'y': -160, 'x': -56},
-	{'loc': -6959592, 'name': 'SKChargeJump', 'zone': 'Sorrow', 'area': 'ChargeJump', 'y': 408, 'x': -696},
-	{'loc': 2919744, 'name': 'SKDash', 'zone': 'Blackroot', 'area': 'DashArea', 'y': -256, 'x': 292},
-	{'loc': 5320328, 'name': 'SKBash', 'zone': 'Ginso', 'area': 'BashTree', 'y': 328, 'x': 532},
-	{'loc': 719620, 'name': 'SKGrenade', 'zone': 'Blackroot', 'area': 'GrenadeArea', 'y': -380, 'x': 72},
-	{'loc': 7839588, 'name': 'SKDoubleJump', 'zone': 'Grotto', 'area': 'DoubleJumpArea', 'y': -412, 'x': 784},
-	{'loc': 8599904, 'name': 'SKStomp', 'zone': 'Swamp', 'area': 'RightSwamp', 'y': -96, 'x': 860},
 ], "MP": [
-	{'loc': 24, 'name': 'Mapstone 1', 'zone': 'Mapstone', 'area': 'MS1', 'x': 0, 'y': 24},
-	{'loc': 28, 'name': 'Mapstone 2', 'zone': 'Mapstone', 'area': 'MS2', 'x': 0, 'y': 28},
-	{'loc': 32, 'name': 'Mapstone 3', 'zone': 'Mapstone', 'area': 'MS3', 'x': 0, 'y': 32},
-	{'loc': 36, 'name': 'Mapstone 4', 'zone': 'Mapstone', 'area': 'MS4', 'x': 0, 'y': 36},
-	{'loc': 40, 'name': 'Mapstone 5', 'zone': 'Mapstone', 'area': 'MS5', 'x': 0, 'y': 40},
-	{'loc': 44, 'name': 'Mapstone 6', 'zone': 'Mapstone', 'area': 'MS6', 'x': 0, 'y': 44},
-	{'loc': 48, 'name': 'Mapstone 7', 'zone': 'Mapstone', 'area': 'MS7', 'x': 0, 'y': 48},
-	{'loc': 52, 'name': 'Mapstone 8', 'zone': 'Mapstone', 'area': 'MS8', 'x': 0, 'y': 52},
-	{'loc': 56, 'name': 'Mapstone 9', 'zone': 'Mapstone', 'area': 'MS9', 'x': 0, 'y': 56},
+	{'loc': 24, 'name': 'Mapstone 1', 'zone': 'Mapstone', 'area': 'MS1', 'y': 24, 'x': 0},
+	{'loc': 28, 'name': 'Mapstone 2', 'zone': 'Mapstone', 'area': 'MS2', 'y': 28, 'x': 0},
+	{'loc': 32, 'name': 'Mapstone 3', 'zone': 'Mapstone', 'area': 'MS3', 'y': 32, 'x': 0},
+	{'loc': 36, 'name': 'Mapstone 4', 'zone': 'Mapstone', 'area': 'MS4', 'y': 36, 'x': 0},
+	{'loc': 40, 'name': 'Mapstone 5', 'zone': 'Mapstone', 'area': 'MS5', 'y': 40, 'x': 0},
+	{'loc': 44, 'name': 'Mapstone 6', 'zone': 'Mapstone', 'area': 'MS6', 'y': 44, 'x': 0},
+	{'loc': 48, 'name': 'Mapstone 7', 'zone': 'Mapstone', 'area': 'MS7', 'y': 48, 'x': 0},
+	{'loc': 52, 'name': 'Mapstone 8', 'zone': 'Mapstone', 'area': 'MS8', 'y': 52, 'x': 0},
+	{'loc': 56, 'name': 'Mapstone 9', 'zone': 'Mapstone', 'area': 'MS9', 'y': 56, 'x': 0},
 ], "MS": [
 	{'loc': -1840228, 'name': 'MS', 'zone': 'Glades', 'area': 'LeftWallJump', 'y': -227, 'x': -184},
 	{'loc': -4359680, 'name': 'MS', 'zone': 'Sorrow', 'area': 'SorrowMapFragment', 'y': 322, 'x': -435},
@@ -575,15 +575,15 @@ const stuff_by_type = {
 	]
 };
 const presets = {
-        "casual": ["normal", "dboost-light"],
-        "standard": ["normal", "speed", "lure", "dboost-light"],
-        "expert": ["normal", "speed", "lure", "speed-lure", "dboost", "dboost-light", "cdash", "extended", "extended-damage"],
-        "master": ["normal", "speed", "lure", "speed-lure", "dboost", "dboost-light", "dboost-hard", "cdash", "dbash", "extended", "extended-damage", "lure-hard", "extreme"],
-        "hard": ["normal", "speed", "lure",  "dboost-light", "cdash", "dbash", "extended"],
-        "ohko": ["normal", "speed", "lure", "cdash", "dbash", "extended"],
-        "0xp": ["normal", "speed", "lure", "dboost-light"],
-        "glitched": ["normal", "speed", "dboost-light", "dboost", "lure", "speed-lure", "lure-hard", "dboost-hard", "extended", "extended-damage", "dbash", "cdash", "extreme", "timed-level", "glitched", "cdash-farming"]
-    };
+		"casual": ["normal", "dboost-light"],
+		"standard": ["normal", "speed", "lure", "dboost-light"],
+		"expert": ["normal", "speed", "lure", "speed-lure", "dboost", "dboost-light", "cdash", "extended", "extended-damage"],
+		"master": ["normal", "speed", "lure", "speed-lure", "dboost", "dboost-light", "dboost-hard", "cdash", "dbash", "extended", "extended-damage", "lure-hard", "extreme"],
+		"hard": ["normal", "speed", "lure",  "dboost-light", "cdash", "dbash", "extended"],
+		"ohko": ["normal", "speed", "lure", "cdash", "dbash", "extended"],
+		"0xp": ["normal", "speed", "lure", "dboost-light"],
+		"glitched": ["normal", "speed", "dboost-light", "dboost", "lure", "speed-lure", "lure-hard", "dboost-hard", "extended", "extended-damage", "dbash", "cdash", "extreme", "timed-level", "glitched", "cdash-farming"]
+	};
 
 const pickups = [];
 const picks_by_loc = {};
@@ -638,19 +638,19 @@ function get_list(name, sep) {
 
 
 function get_seed() {
-    let authed = get_flag("authed")
-    if(authed)
-    {
-    	let user = get_param("user")
-    	let name = get_param("seed_name") || "new seed"
-    	let desc = get_param("seed_desc") || ""
-    	let hidden = get_flag("seed_hidden") 
-    	let rawSeed = get_param("seed_data")
-	    return {rawSeed: rawSeed, user: user, authed: authed, seed_name: name, seed_desc: desc, hidden: hidden}
-    }
-    else
-    	return {authed:false}
-    
+	let authed = get_flag("authed")
+	if(authed)
+	{
+		let user = get_param("user")
+		let name = get_param("seed_name") || "new seed"
+		let desc = get_param("seed_desc") || ""
+		let hidden = get_flag("seed_hidden") 
+		let rawSeed = get_param("seed_data")
+		return {rawSeed: rawSeed, user: user, authed: authed, seed_name: name, seed_desc: desc, hidden: hidden}
+	}
+	else
+		return {authed:false}
+	
 }
 
 
@@ -660,8 +660,8 @@ function is_match(pickup, searchstr) {
 } 
 
 function uniq(array) {
-    let seen = [];
-    return array.filter(item => seen.includes(item) ? false : (seen.push(item) && true));
+	let seen = [];
+	return array.filter(item => seen.includes(item) ? false : (seen.push(item) && true));
 }
  
 const str_ids = ["TP", "NO", "SH"];
@@ -669,9 +669,9 @@ const hide_opacity = .2;
 const seed_name_regex = new RegExp("^[^ ?=/]+$");
 const select_styles = {
   option: (base, state) => ({
-    ...base,
-    borderBottom: '1px dotted pink',
-    color: 'black',
+	...base,
+	borderBottom: '1px dotted pink',
+	color: 'black',
   }),
   }
 const select_wrap = x => Array.isArray(x) ? x.map(select_wrap) : {label: x, value: x}

@@ -509,7 +509,7 @@ class SeedGenerator:
 		self.balanceListLeftovers.append(location[0])
 		return location[1]
 
-	def cloned_item(self, item):
+	def cloned_item(self, item, player=None):
 		if not self.params.sync.hints:
 			return "EV5"
 		if item in ["GinsoKey", "ForlornKey", "HoruKey"]:
@@ -522,7 +522,11 @@ class SeedGenerator:
 			if item in self.skillsOutput:	item = self.skillsOutput[item]
 			if item in self.eventsOutput:	item = self.eventsOutput[item]
 			hint_text = {"SK": "Skill", "TP": "Teleporter", "RB": "Upgrade", "EV": "Event"}.get(item[:2],"?Unknown?")
-		return "SH@%s@" % hint_text
+		
+		msg = "SH@%s@" % hint_text
+		if player and self.params.players > 2:
+			msg = msg[:-1]+ " for Player %s@" % player 
+		return msg
 
 	def assign_random(self, recurseCount=0):
 		value = self.random.random()
@@ -584,7 +588,7 @@ class SeedGenerator:
 				self.spoilerGroup[item].append("%s from Player %s at %s\n" % (item, player, location.to_string()))
 				hist_written = True
 				if player is not self.playerID:
-					item = self.cloned_item(item)
+					item = self.cloned_item(item,player=player)
 			else:
 				if location.area not in self.sharedMap:
 					self.sharedMap[location.area] = []
@@ -858,7 +862,7 @@ class SeedGenerator:
 					if int(loc) in self.split_locs:
 						player, split_item = self.split_locs[int(loc)]
 						if self.playerID is not player: #theirs
-							hint = self.cloned_item(split_item)
+							hint = self.cloned_item(split_item, player)
 							outlines.append("|".join([loc, hint[:2], hint[2:], zone]))
 						else: #ours
 							outlines.append("|".join([loc, split_item[:2], split_item[2:], zone]))

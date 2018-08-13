@@ -1069,10 +1069,11 @@ class GetSeedFromParams(RequestHandler):
 		verbose_paths = self.request.GET.get("verbose_paths") is not None
 		params = SeedGenParams.with_id(params_id)
 		if params:
-			player = int(self.request.GET.get("player",1))
+			player = int(self.request.GET.get("player_id",1))
 			if params.tracking:
 				game_id = self.request.GET.get("game_id")
 				seed = params.get_seed(player, game_id, verbose_paths)
+
 			else:
 				seed = params.get_seed(player, verbose_paths = verbose_paths)
 			if not debug:
@@ -1115,7 +1116,7 @@ app = WSGIApplication(routes=[
 
 	PathPrefixRoute('/generator', [
 		Route('/build', handler=MakeSeedWithParams, name="gen-params-build", strict_slash=True),
-		Route('/meatadata/<params_id:\d+>', handler=GetParamMetadata, name="gen-params-get-metadata", strict_slash=True),
+		Route('/metadata/<params_id:\d+>', handler=GetParamMetadata, name="gen-params-get-metadata", strict_slash=True),
 		Route('/seed/<params_id:\d+>', handler=GetSeedFromParams, name="gen-params-get-seed", strict_slash=True),
 		Route('/spoiler/<params_id:\d+>', handler=GetSpoilerFromParams, name="gen-params-get-spoiler", strict_slash=True),
 		Route('/json', handler=SeedGenJson, name="gen-params-get-json")
