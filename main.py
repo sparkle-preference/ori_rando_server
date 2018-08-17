@@ -472,7 +472,7 @@ class SetSeed(RequestHandler):
 			flags = lines[0].split("|")
 			mode_opt = [f[5:] for f in flags if f.lower().startswith("mode=")]
 			shared_opt = [f[7:].split(" ") for f in flags if f.lower().startswith("shared=")]
-			mode = MultiplayerGameType.from_url(mode_opt[0]) if mode_opt else None
+			mode = MultiplayerGameType.mk(mode_opt[0]) if mode_opt else None
 			shared = shared_opt[0] if shared_opt else None
 			game = Game.new(_mode=mode, _shared=shared, id=game_id)
 			game.put()
@@ -606,7 +606,7 @@ class PlandoReachable(RequestHandler):
 def clone_entity(e, **extra_args):
 	klass = e.__class__
 	props = dict((v._code_name, v.__get__(e, klass)) for v in klass._properties.itervalues() if
-				 type(v) is not ndb.ComputedProperty)
+				 type(v) != ndb.ComputedProperty)
 	props.update(extra_args)
 	return klass(**props)
 

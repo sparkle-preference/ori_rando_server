@@ -27,7 +27,7 @@ class Random:
 			y = int(0xFFFFFFFF & (self.mt[i] & 0x80000000) + (self.mt[(i + 1) % 624] & 0x7fffffff))
 			self.mt[i] = self.mt[(i + 397) % 624] ^ y >> 1
 
-			if y % 2 is not 0:
+			if y % 2 != 0:
 				self.mt[i] = self.mt[i] ^ 0x9908b0df
 		self.index = 0
 
@@ -340,7 +340,7 @@ class SeedGenerator:
 					ginso = 14
 				forlorn = self.random.randint(0, 13)
 				horu = self.random.randint(0, 14)
-				if ginso is not forlorn and ginso is not horu and forlorn is not horu and ginso + forlorn < 26:
+				if ginso != forlorn and ginso != horu and forlorn != horu and ginso + forlorn < 26:
 					satisfied = True
 			self.keySpots = {self.limitKeysPool[ginso]: "GinsoKey", self.limitKeysPool[forlorn]: "ForlornKey",
 						self.limitKeysPool[horu]: "HoruKey"}
@@ -547,10 +547,9 @@ class SeedGenerator:
 		if item in ["EC", "KS", "HC", "WaterVeinShard", "GumonSealShard", "SunstoneShard"]:
 			if self.costs[item] > 0:
 				self.costs[item] -= 1
-		elif item is "RB28":
+		elif item == "RB28":
 			if self.costs[item] > 0:
-				self.costs[item] -= 3
-#				self.costs[item] -= min(3, self.costs.item)
+				self.costs[item] -= min(3, self.costs[item])
 		elif item in self.costs:
 			self.costs[item] = 0
 		self.inventory[item] = 1 + (self.inventory[item] if item in self.inventory else 0)
@@ -587,13 +586,13 @@ class SeedGenerator:
 
 				self.spoilerGroup[item].append("%s from Player %s at %s\n" % (item, player, location.to_string()))
 				hist_written = True
-				if player is not self.playerID:
+				if player != self.playerID:
 					item = self.cloned_item(item,player=player)
 			else:
 				if location.area not in self.sharedMap:
 					self.sharedMap[location.area] = []
 				self.sharedMap[location.area].append((item, player))
-				if player is not self.playerID:
+				if player != self.playerID:
 					if player not in self.sharedMap:
 						self.sharedMap[player] = 0
 					self.sharedMap[player] += 1
@@ -613,7 +612,7 @@ class SeedGenerator:
 		
 		if item in self.eventsOutput:
 			self.eventList.append(assignment)
-		elif self.params.balanced and not has_cost and location.orig is not "MapStone":
+		elif self.params.balanced and not has_cost and location.orig != "MapStone":
 			self.balanceList.append((fixed_item, location, assignment))
 		else:
 			self.outputStr += assignment
@@ -786,7 +785,7 @@ class SeedGenerator:
 			if not preplaced:
 				retries += 20 # this is kind of dumb but not necessarily the stupidest!
 			for treeLoc in [-4600020, -6959592, -3160308, -560160, 2919744, 719620, 7839588, 5320328, 8599904, -11880100]:
-				if treeLoc in preplaced and preplaced[treeLoc] is not "RB28":
+				if treeLoc in preplaced and preplaced[treeLoc] != "RB28":
 					log.error("Invalid value found in preplaced, given flags")
 					return None
 				self.preplaced[treeLoc] = "RB28"
@@ -861,7 +860,7 @@ class SeedGenerator:
 					loc,_,_,zone = tuple(line.split("|"))
 					if int(loc) in self.split_locs:
 						player, split_item = self.split_locs[int(loc)]
-						if self.playerID is not player: #theirs
+						if self.playerID != player: #theirs
 							hint = self.cloned_item(split_item, player)
 							outlines.append("|".join([loc, hint[:2], hint[2:], zone]))
 						else: #ours
@@ -1034,7 +1033,7 @@ class SeedGenerator:
 				self.itemCount -= 1
 
 			# force assign things if using --prefer-path-difficulty
-			if self.params.path_diff is not PathDifficulty.NORMAL:
+			if self.params.path_diff != PathDifficulty.NORMAL:
 				for item in list(itemsToAssign):
 					if item in self.skillsOutput or item in self.eventsOutput:
 						self.preferred_difficulty_assign(item, locationsToAssign)

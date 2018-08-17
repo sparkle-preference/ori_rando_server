@@ -380,12 +380,12 @@ class LogicHelper extends React.Component {
 		this.setState({highlight_picks: highlight_picks, selected: selected, prev_viewport: this.state.viewport})
 	}
 	
-	updateURL = () => {
+	updateURL = () => { 
 		if(this.state.logicMode === "auto")
 			return
 		let reach = this.state.manual_reach
 		let args = Object.keys(reach).filter(key => Array.isArray(reach[key]) ? reach[key].length > 0 : reach[key] > 0 ).map(key => key + "=" + (Array.isArray(reach[key]) ? reach[key].map(i => i.value).join("+") : reach[key]))
-		args.push("pathmode="+this.state.pathMode.value)
+		args.unshift("pathmode="+this.state.pathMode.value)
 	    window.history.replaceState('',window.document.title, base_url+"/logichelper?"+args.join("&"));		
 	}
 	
@@ -547,7 +547,7 @@ class LogicHelper extends React.Component {
 									<Select styles={select_styles} placeholder="Teleporters" options={stuff_by_type["Teleporters"]} onChange={(n) => this.updateManual("tps", n)} isMulti={true} value={this.state.manual_reach.tps}></Select>
 								</div>
 								<div className="manual-wrapper">
-									<Select styles={select_styles} placeholder="Events" options={stuff_by_type["Events"]} onChange={(n) => this.updateManual("evs", n)} isMulti={true} value={this.state.manual_reach.events}></Select>
+									<Select styles={select_styles} placeholder="Events" options={stuff_by_type["Events"]} onChange={(n) => this.updateManual("evs", n)} isMulti={true} value={this.state.manual_reach.evs}></Select>
 								</div>
 							</Collapse>
 						</div>

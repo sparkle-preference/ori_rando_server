@@ -82,7 +82,7 @@ class MultiplayerOptions(ndb.Model):
 		opts.enabled	= int(qparams.get("players", 1)) > 1
 		if opts.enabled:
 			opts.mode 	= MultiplayerGameType(qparams.get("sync_mode", "None"))
-			opts.cloned	= qparams.get("sync_gen") is not "disjoint"
+			opts.cloned	= qparams.get("sync_gen") != "disjoint"
 			opts.hints 	= bool(opts.cloned and qparams.get("sync_hints"))
 			opts.shared	= enums_from_strlist(ShareType, qparams.getall("sync_shared"))
 		return opts
