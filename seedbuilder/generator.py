@@ -510,19 +510,18 @@ class SeedGenerator:
 		return location[1]
 
 	def cloned_item(self, item, player=None):
+		if item in self.skillsOutput:	item = self.skillsOutput[item]
+		if item in self.eventsOutput:	item = self.eventsOutput[item]
 		if not self.params.sync.hints:
 			return "EV5"
-		if item in ["GinsoKey", "ForlornKey", "HoruKey"]:
+		hint_text = {"SK": "Skill", "TP": "Teleporter", "RB": "Upgrade", "EV": "Event"}.get(item[:2],"?Unknown?")
+		if item in ["EV0", "EV2", "EV4"]:
 			hint_text = "Dungeon Key"
-		if item in ["WaterVeinShard", "GumonSealShard", "SunstoneShard"]:
+		elif item in ["RB17", "RB19", "RB21"]:
 			hint_text = "Shard"
 		elif item == "RB28":
 			hint_text = "Warmth Fragment"
-		else:
-			if item in self.skillsOutput:	item = self.skillsOutput[item]
-			if item in self.eventsOutput:	item = self.eventsOutput[item]
-			hint_text = {"SK": "Skill", "TP": "Teleporter", "RB": "Upgrade", "EV": "Event"}.get(item[:2],"?Unknown?")
-		
+ 		
 		msg = "SH@%s@" % hint_text
 		if player and self.params.players > 2:
 			msg = msg[:-1]+ " for Player %s@" % player 
@@ -862,6 +861,7 @@ class SeedGenerator:
 						player, split_item = self.split_locs[int(loc)]
 						if self.playerID != player: #theirs
 							hint = self.cloned_item(split_item, player)
+							print split_item, hint
 							outlines.append("|".join([loc, hint[:2], hint[2:], zone]))
 						else: #ours
 							outlines.append("|".join([loc, split_item[:2], split_item[2:], zone]))

@@ -21,7 +21,7 @@ function parse_seed(raw) {
 	let lines = raw.split("\n")
     for (let i = 0, len = lines.length; i < len; i++) {
     	let line = lines[i].split(":")
-    	out[parseInt(line[0], 10)] = line[1]
+    	out[parseInt(line[0], 10)] = (line[1] === "Message" ? line[2] : line[1])
 	}
 	return out
 };

@@ -109,17 +109,17 @@ class Player(ndb.Model):
 			self.signals.append(signal)
 			self.put()
 	
-	def signal_conf(self, signal):
+	def signal_conf(self, signal):	
 		if signal in self.signals:
 			self.signals.remove(signal)
-
 		elif signal.startswith("msg:"):
 		# basically it is never ok to be spamming ppl, so if we get a message callback 
 		# we remove the first message we find if we don't get an exact match.
 			for s in self.signals:
+				self.signals.remove(s)
 				if s.startswith("msg:"):
+					log.warning("No exact match for signal %s, removing %s instead (spam protection)" % (signal, s))
 					break
-			self.signals.remove(s)
 		self.put()
 	
 	def give_pickup(self, pickup, remove=False, delay_put=False):
@@ -307,7 +307,8 @@ class Game(ndb.Model):
 		retcode = 200
 		share = pickup.share_type in self.shared
 		finder = self.player(pid)
-		if share and dedup and coords in [h.coords for h in finder.history]:
+		is_dup = coords in [h.coords for h in finder.history]
+		if share and dedup and is_dup:
 			retcode = 410
 			log.error("Duplicate pickup at location %s from player %s" % (coords,  pid))
 		elif self.mode == MultiplayerGameType.SHARED:
@@ -335,15 +336,30 @@ class Game(ndb.Model):
 			retcode = 404
 		if retcode != 410: #410 GONE aka "haha nope"
 			finder.history.append(HistoryLine(pickup_code = pickup.code, timestamp = datetime.now(), pickup_id = str(pickup.id), coords = coords, removed = remove))
+
 			if pickup.code == "SH" and old:
-				msgtext = pickup.id
-				if finder.seed:
-					raw = next(ifilter(lambda line: line.startswith(str(coords)), finder.seed.split("\n")), None)
-					if raw:
-						msgtext = raw.split(':')[1].replace("Message", "")						
-				msg = ''.join(ch for ch in msgtext if ch.isalnum() or ch in "_ @$#!%").strip()
-				finder.signal_send("msg:" + msg)
-				log.warning("manually sending message: %s to player %s" % (msg, pid))
+				try: # workaround for message pickups not working with old clients. Sketchy, so wrapped in try (we learnin')
+					msgtext = pickup.id
+					if finder.seed: # for hilarious reasons sometimes the message sent from the client is 0 instead of the message text?
+						raw = next(ifilter(lambda line: line.startswith(str(coords)), finder.seed.split("\n")), None)
+						if raw:
+							msgtext = raw.split(':')[2] # msglines are loc:Message:actual message
+					if "for Player " in msgtext:
+						if is_dup:
+							msgtext = msgtext.replace("@", "")
+						_, _, raw_num = msgtext.partition("for Player ")
+						hint_pid = raw_num.replace("@", "")
+						if hint_pid in [key.id().partition(".")[2] for key in self.players]:
+							hint_player = self.player(hint_pid)
+							found = next(ifilter(lambda hl: hl.coords == coords, hint_player.history), None)
+							if found:
+								msgtext = "$Player %s found %s here$" % (hint_pid, found.pickup().name)
+					msg = ''.join(ch for ch in msgtext if ch.isalnum() or ch in "_ ()*@$!%").strip()
+					finder.signal_send("msg:" + msg)
+					log.warning("manually sending message: %s to player %s" % (msg, pid))
+				except Exception as error:
+					log.error("Failed trying to message workaround. Pickup: %s, player: %s, error: %s" % (pickup, finder, error))
+			
 			finder.put()
 			Cache.setHist(self.key.id(), pid, finder.history)
 			

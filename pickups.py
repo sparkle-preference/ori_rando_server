@@ -152,6 +152,6 @@ class Message(Pickup):
 	code = "SH"
 	def __new__(cls, id):
 		inst = super(Message, cls).__new__(cls)
-		inst.id, inst.bit, inst.name = id,None, id + "Message: "
+		inst.id, inst.bit, inst.name = id,None, "Message: " + id
 		inst.share_type = ShareType.NOT_SHARED
 		return inst
