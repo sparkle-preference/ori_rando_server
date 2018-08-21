@@ -183,202 +183,6 @@ class SeedGenForm(RequestHandler):
 		template_values = {'latest_dll': dll_last_update(), 'plando_version': PLANDO_VER, 'seed': random.randint(10000000, 100000000)}
 		self.response.out.write(template.render(path, template_values))
 
-class SeedGenLanding(RequestHandler):
-	def get(self):
-		mode = self.request.get("mode").lower()
-		pathdiff = self.request.get("pathdiff").lower()
-		pathmode = self.request.get("pathMode") or "Custom"
-		variations = set([v.value for v in Variation if self.request.get(v.value)])
-		logic_paths = [p.value for p in LogicPath if self.request.get(p.value)]
-		playercount = max(int(self.request.get("playerCount")),1)
-		do_frags = paramFlag(self, "warm_frags")
-		expPool = int(self.request.get("expPool") or 10000)
-		if do_frags:
-			frag_count = int(self.request.get("fragNum"))
-			f1 = int(self.request.get("fragKey1"))
-			f2 = int(self.request.get("fragKey2"))
-			f3 = int(self.request.get("fragKey3"))
-			f4 = int(self.request.get("fragKey4"))
-			f5 = int(self.request.get("fragKey5"))
-			fragflag = "Frags/%s/%s/%s/%s/%s/%s" % (frag_count,f1, f2, f3, f4, f5)
-		elif mode == "frags":
-			return redirect("/")		
-		syncmode = MultiplayerGameType(self.request.get("syncmode"))
-		synctype = self.request.get("synctype").lower() if syncmode != 4 and playercount > 1 else "none"
-		dotracking = paramFlag(self, "tracking")
-		if dotracking:
-			syncid = self.request.get("syncid")
-			share_types = [f for f in ["keys", "upgrades", "skills", "events", "teleporters"] if self.request.get(f)]
-	
-		genmode = self.request.get("genmode").lower()
-
-		seed = self.request.get("seed")
-		if not seed:
-			seed = str(random.randint(10000000, 100000000))
-					
-		if dotracking:
-			game = False
-			if syncid:
-				syncid = int(syncid)
-				oldGame = Game.with_id(syncid)
-				if oldGame != None:
-					if syncid > 999:
-						oldGame.clean_up()
-						game = Game.new(_mode=syncmode, _shared=share_types, id=syncid)
-					else:
-						self.response.status = 405
-						self.response.write("Seed ID in use! Leave blank or pick a different number.")
-						return
-				else:
-					game = Game.new(_mode=syncmode, _shared=share_types, id=syncid)
-			if not game:
-				game = Game.new(_mode=syncmode, _shared=share_types)
-			game_id = game.put().id()
-		urlargs = ["m=%s" % mode]
-		urlargs.append("vars=%s" % "|".join(variations))
-		urlargs.append("lps=%s" % "|".join(logic_paths))
-		urlargs.append("s=%s" % seed)
-		urlargs.append("pc=%s" % playercount)
-		urlargs.append("sym=%s" % syncmode.value)
-		urlargs.append("pd=%s" % pathdiff)
-		urlargs.append("gnm=%s" % genmode)
-		urlargs.append("exppl=%s" % expPool)
-		urlargs.append("pthm=%s" % pathmode)
-		if do_frags:
-			urlargs.append("frgflg=%s" % fragflag)
-		if self.request.get("wild"):
-			urlargs.append("wild=1")
-		if dotracking:
-			urlargs.append("tracking=1")
-			urlargs.append("gid=%s" % game_id)
-		if playercount > 1:
-			urlargs.append("syt=%s" % synctype)
-			if synctype != "none":
-				urlargs.append("shr=%s" % "+".join(share_types))
-
-			if synctype == "split" and self.request.get("hints"):
-				urlargs.append("hints=1")
-		self.response.headers['Content-Type'] = 'text/html'
-		out = "<html><body>"
-		url = '/getseed?%s' % "&".join(urlargs)
-		if playercount == 1 or synctype in ["split", "none"]:
-			out += "<div><a target='_blank' href='%s&p=1&splr=1'>Spoiler</a></div>" % url
-		if dotracking:
-			out += "<div><a target='_blank' href='/tracker/game/%s/map?paths=%s'>Map</a></div>" % (game_id, "+".join(logic_paths))
-			out += "<div><a target='_blank' href='/game/%s/history'>History</a></div>" % game_id
-		out += "<ul>"
-		for i in range(1, 1 + int(playercount)):
-			purl = url + "&p=%s" % i
-			out += "<li>Player %s: <a target='_blank' href=%s>%s%s</a>" % (i, purl, base_site, purl)
-			if playercount > 1 and synctype == "disjoint":
-				out += "<ul><li>Spoiler:<a target='_blank' href=%s&splr=1>%s%s&splr=1</a></li></ul>" % (purl, base_site, purl)
-			out += "</li>"
-		out += "</ul></body></html>"
-		self.response.out.write(out)
-
-
-class SeedDownloader(RequestHandler):
-	def get(self):
-		self.response.headers['Content-Type'] = 'text/plain'
-		params = self.request.GET
-		mode = params['m']
-		variations = params['vars'].split("|")
-		logic_paths = params['lps'].split("|")
-		playercount = int(params['pc'])
-		syncmode = MultiplayerGameType(params["sym"])
-		dotracking = paramFlag(self,"tracking")
-		dosharetypes = playercount > 1 and syncmode != 4
-		if dotracking:
-			game_id = int(params['gid'])
-		synctype = params["syt"] if playercount > 1 else "none"
-		share_types = params['shr'] if dosharetypes else []
-		expPool = int(params["exppl"])
-		genmode = params["gnm"]
-		seed = params['s']
-		pathmode = params["pthm"]
-		pathdiff = params['pd']
-		spoiler = "splr" in params
-		player = int(params['p'])
-		if pathdiff == "normal":
-			pathdiff = None
-		varFlags = {"starved": "starved", "hardmode": "hard", "ohko": "OHKO", "0xp": "0XP", "nobonus": "NoBonus",
-					"noplants": "NoPlants", "forcetrees": "ForceTrees", "discmaps": "NonProgressMapStones",
-					"notp": "NoTeleporters", "entshuf": "entrance", "forcemapstones": "ForceMapstones", "forcerandomescape": "ForceRandomEscape"}
-		flags = [pathmode.capitalize()]
-		do_frag = False
-		if "frgflg" in params:
-			do_frag = True
-			rawfrg = params["frgflg"]
-			flags.append(rawfrg)
-			fragOpts = tuple([int(x) for x in rawfrg.split("/")[1:]])
-			
-		if dotracking:
-			flags = flags + ["mode=%s" % syncmode.capitalize(), "Sync%s.%s" % (game_id, player)]
-		if dosharetypes:
-			flags.append("shared=%s" % share_types.replace(" ", "+"))
-		if mode != "default":
-			flags.append(mode.capitalize())
-		if genmode == "balanced":
-			flags.append(genmode.capitalize())
-		if pathdiff and pathdiff != "normal":
-			flags.append("prefer_path_difficulty=" + pathdiff)
-		for v in variations:
-			if v:
-				if v in varFlags:
-					flags.append(varFlags[v])
-				else:
-					flags.append(v)
-
-		flag = ",".join(flags)
-		out = ""
-		sg = SeedGenerator()
-		placements = sg.setSeedAndPlaceItems(
-			seed = seed, 
-			expPool = expPool,
-			hardMode = "hardmode" in variations,
-			includePlants = "noplants" not in variations,
-			shardsMode = mode == "shards",
-			limitkeysMode = mode == "limitkeys",
-			cluesMode = mode == "clues",
-			fragsMode = mode == "frags",
-			noTeleporters = "notp" in variations,
-			modes = logic_paths, 
-			flags = flag,
-			starvedMode = "starved" in variations,
-			preferPathDifficulty = pathdiff,
-			setNonProgressiveMapstones = "discmaps" in variations,
-			playerCountIn = playercount if playercount > 1 and synctype == "disjoint" else 1,
-			balanced = genmode == "balanced",
-			entrance = "entshuf" in variations,
-			sharedItems = share_types,
-			wild = "wild" in params,
-			fragOpts = fragOpts if do_frag else None)
-		if not placements:
-			self.response.out.write("seed generator failed to create a seed with these params. Change the seed number and try again?")		
-			return
-		if synctype == "split":
-			(seed, spoil) = placements[0]
-			if spoiler:
-				self.response.out.write(spoil)
-				return
-			split_types = share_types.split(" ")
-			out = split_seed(seed, game_id, player, playercount, "hints" in params, "keys" in split_types,
-							"skills" in split_types, "events" in split_types, "upgrades" in split_types, "teleporters" in split_types)
-		elif synctype == "disjoint":
-			(out, spoil) = placements[player-1]
-			if spoiler:
-				self.response.out.write(spoil)
-				return
-		elif synctype == "none":
-			(out, spoil) = placements[0]
-			if spoiler:
-				self.response.out.write(spoil)
-				return
-		if not debug:
-			self.response.headers['Content-Type'] = 'application/x-gzip'
-			self.response.headers['Content-Disposition'] = 'attachment; filename=randomizer.dat'
-		self.response.out.write(out)
-
 class Vanilla(RequestHandler):
 	def get(self):
 		self.response.headers['Content-Type'] = 'application/x-gzip'
@@ -802,58 +606,16 @@ class HandleLogout(RequestHandler):
 
 class PlandoFillGen(RequestHandler):
 	def get(self):
-		params = self.request.GET
-		mode = params['m'] if 'm' in params else "standard"
-		variations = params['vars'].split("|")
-		logic_paths = params['lps'].split("|")
-		forced_assignments = dict([(int(a), b) for (a,b) in ([ tuple(fass.split(":")) for fass in params['fass'].split("|")] if "fass" in params else [])])
-		genmode = params["gnm"] if "gnm" in params else "classic"
-		seed = params['s'] if "s" in params else str(random.randint(10000000, 100000000))
-		pathdiff = params['pd'] if "pd" in params and params['pd'] != "normal" else None
-		varFlags = {"starved": "starved", "hardmode": "hard", "ohko": "OHKO", "0xp": "0XP",  "noplants": "NoPlants", "forcetrees": "ForceTrees", "discmaps": "NonProgressMapStones",
-					"notp": "NoTeleporters", "entshuf": "entrance"}
-		flags = ["Custom"]
-		if mode != "default":
-			flags.append(mode)
-		if genmode == "balanced":
-			flags.append(genmode)
-		if pathdiff and pathdiff != "normal":
-			flags.append("prefer_path_difficulty=" + pathdiff)
-		for v in variations:
-			flags.append(varFlags[v] if v in varFlags else v)
+		self.response.headers['Content-Type'] = 'text/plain'
+		qparams = self.request.GET
+		forced_assignments = dict([(int(a), b) for (a,b) in ([ tuple(fass.split(":")) for fass in qparams['fass'].split("|")] if "fass" in qparams else [])])
 
-		flag = ",".join(flags)
-		out = ""
-		sg = SeedGenerator()
-		placements = sg.setSeedAndPlaceItems(
-			seed = seed, 
-			expPool = 10000,
-			hardMode = "hardmode" in variations,
-			includePlants = "noplants" not in variations,
-			shardsMode = mode == "shards",
-			limitkeysMode = mode == "limitkeys",
-			cluesMode = mode == "clues",
-			fragsMode = mode == "frags",
-			noTeleporters = "notp" in variations,
-			modes = logic_paths, 
-			flags = flag,
-			starvedMode = "starved" in variations,
-			preferPathDifficulty = pathdiff,
-			setNonProgressiveMapstones = "discmaps" in variations,
-			playerCountIn = 1,
-			balanced = genmode == "balanced",
-			entrance = "entshuf" in variations,
-			sharedItems = [],
-			wild = "wild" in params,
-			preplacedIn = forced_assignments,
-			retries = 10)
-		if placements:
-			out += placements[0][0]
+		param_key = SeedGenParams.from_url(qparams)
+		params = param_key.get()
+		if params.generate(preplaced=forced_assignments):
+			self.response.out.write(params.get_seed(1))
 		else:
 			self.response.status = 422
-		self.response.headers['Content-Type'] = 'application/x-gzip' if not debug else 	'text/plain'
-		self.response.headers['Content-Disposition'] = 'attachment; filename=randomizer.dat' if not debug else ""
-		self.response.out.write(out)
 
 class PlandoDownload(RequestHandler):
 	def get(self, author, plando):
@@ -1018,7 +780,7 @@ class MakeSeedWithParams(RequestHandler):
 			resp = {"paramId": param_key.id(), "playerCount": params.players, "flagLine": params.flag_line()}
 			if params.tracking:
 				game = Game.from_params(params, self.request.GET.get("game_id"))
-				key = game.put()
+				key = game.key
 				resp["gameId"] = key.id()
 			self.response.out.write(json.dumps(resp))
 		else:
@@ -1037,7 +799,7 @@ class SeedGenJson(RequestHandler):
 			resp = {}
 			if params.tracking:
 				game = Game.from_params(params, self.request.GET.get("game_id"))
-				key = game.put()
+				key = game.key
 				resp["map_url"] = uri_for("map-render", game_id=key.id())
 				resp["history_url"] = uri_for("game-show-history", game_id=key.id())
 			for p in range(1, params.players+1):
@@ -1147,10 +909,8 @@ app = WSGIApplication(routes=[
 	(r'/faq/?', QuickStart),
 	('/vold', SeedGenForm),
 	('/', ReactLanding),
-	(r'/mkseed/?', SeedGenLanding),
 	(r'/activeGames/?', ActiveGames),
 	(r'/clean/?', CleanUp),
-	(r'/getseed/?', SeedDownloader),
 	(r'/getNewGame/?', GetGameId),
 	(r'/cache', ShowCache),
 	(r'/cache/clear', ClearCache),

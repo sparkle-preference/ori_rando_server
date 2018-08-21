@@ -95,6 +95,7 @@ class Player(ndb.Model):
 	history = ndb.LocalStructuredProperty(HistoryLine, repeated=True)
 	bitfields = ndb.ComputedProperty(lambda p: ",".join([str(x) for x in [p.skills,p.events,p.upgrades,p.teleporters]+(["|".join(p.signals)] if p.signals else [])]))
 	last_update = ndb.DateTimeProperty(auto_now=True)
+	teammates = ndb.KeyProperty('Player',repeated=True)
 	
 	# post-refactor version of bitfields
 	def output(self):
@@ -138,6 +139,7 @@ class Player(ndb.Model):
 				else:
 					self.bonuses[pick_id] = 1
 		# bitfields
+		
 			self.upgrades = pickup.add_to_bitfield(self.upgrades, remove)
 		elif pickup.code == "SK":
 			self.skills = pickup.add_to_bitfield(self.skills, remove)
@@ -182,6 +184,7 @@ class Game(ndb.Model):
 	start_time = ndb.DateTimeProperty(auto_now_add=True)
 	last_update = ndb.DateTimeProperty(auto_now=True)
 	players = ndb.KeyProperty(Player,repeated=True)
+
 		
 	def summary(self):
 		out_lines = ["%s (%s)" %( self.mode, ",".join([s.name for s in self.shared]))]
@@ -252,7 +255,6 @@ class Game(ndb.Model):
 						player.give_pickup(pickup, delay_put=True)
 						has = player.has_pickup(pickup)
 						if has == last:
-#							player.signal_send(sanFailedSignal)
 							log.critical("Aborting sanity check for Player %s: tried and failed to increment %s (at %s, should be %s)" % (player.key.id(), pickup.name, has, count))
 							return False
 						if i > 100:
@@ -267,7 +269,6 @@ class Game(ndb.Model):
 						player.give_pickup(pickup, remove=True, delay_put=True)
 						has = player.has_pickup(pickup) 
 						if has == last:
-#							player.signal_send(sanFailedSignal)
 							log.critical("Aborting sanity check for Player %s: tried and failed to decrement %s (at %s, should be %s)" % (player.key.id(), pickup.name, has, count))
 							return False
 							
@@ -307,26 +308,29 @@ class Game(ndb.Model):
 		retcode = 200
 		share = pickup.share_type in self.shared
 		finder = self.player(pid)
-		is_dup = coords in [h.coords for h in finder.history]
-		if share and dedup and is_dup:
-			retcode = 410
-			log.error("Duplicate pickup at location %s from player %s" % (coords,  pid))
+		players = self.get_players()
+		if share and dedup:
+			if coords in [h.coords for h in finder.history]:
+				retcode = 410
+				log.error("Duplicate pickup at location %s from player %s" % (coords,  pid))
+			elif coords in [h.coords for teammate in players for h in teammate.history if teammate.key in finder.teammates]:
+				retcode = 410
+				log.info("Won't grant %s to player %s, as a teammate found it already" % (pickup.name,  pid))
 		elif self.mode == MultiplayerGameType.SHARED:
 			if not share:
 				retcode = 406
 			else:
-				for player in self.get_players():
-					if player.key.id() != finder.key.id():
+				for player in players:
+					if player.key != finder.key:
 						key = player.give_pickup(pickup, remove)
 				finder.give_pickup(pickup, remove)
-
 		elif self.mode == MultiplayerGameType.SPLITSHARDS:
 			if pickup.code != "RB" or pickup.id not in [17, 19, 21]:
 				retcode = 406
 			else:
 				my_shards = len([h.coords for h in finder.history if h.pickup_code == "RB" and int(h.pickup_id) == pickup.id])
 				if my_shards < 3:
-					shard_locs = [h.coords for player in self.players for h in player.get().history if h.pickup_code == "RB" and h.pickup_id in ["17", "19", "21"]]
+					shard_locs = [h.coords for player in players for h in player.history if h.pickup_code == "RB" and h.pickup_id in ["17", "19", "21"]]
 					if coords in shard_locs:
 						retcode = 410
 		elif self.mode == MultiplayerGameType.SIMUSOLO:
@@ -335,31 +339,30 @@ class Game(ndb.Model):
 			log.error("game mode %s not implemented" % self.mode)
 			retcode = 404
 		if retcode != 410: #410 GONE aka "haha nope"
-			finder.history.append(HistoryLine(pickup_code = pickup.code, timestamp = datetime.now(), pickup_id = str(pickup.id), coords = coords, removed = remove))
-
 			if pickup.code == "SH" and old:
 				try: # workaround for message pickups not working with old clients. Sketchy, so wrapped in try (we learnin')
+					found_here = {player.key.id().partition(".")[2]: hl.pickup() for player in players for hl in player.history if hl.coords == coords}
 					msgtext = pickup.id
-					if finder.seed: # for hilarious reasons sometimes the message sent from the client is 0 instead of the message text?
+					if finder.seed:
+					# for *reasons*, sometimes the message sent from the client is 0 instead of the message text.
+					# we take the message from the seed instead to ensure accuracy.
 						raw = next(ifilter(lambda line: line.startswith(str(coords)), finder.seed.split("\n")), None)
 						if raw:
 							msgtext = raw.split(':')[2] # msglines are loc:Message:actual message
-					if "for Player " in msgtext:
-						if is_dup:
+					if "for Player" in msgtext or "for Team" in msgtext:
+						if any([p.code=="SH" for p in found_here.itervalues()]):
 							msgtext = msgtext.replace("@", "")
-						_, _, raw_num = msgtext.partition("for Player ")
-						hint_pid = raw_num.replace("@", "")
-						if hint_pid in [key.id().partition(".")[2] for key in self.players]:
-							hint_player = self.player(hint_pid)
-							found = next(ifilter(lambda hl: hl.coords == coords, hint_player.history), None)
-							if found:
-								msgtext = "$Player %s found %s here$" % (hint_pid, found.pickup().name)
+						hint_pid, found = next(ifilter(lambda (_,pickup): pickup.code != "SH", found_here.iteritems()), (None, None))
+						if found:
+							msgtext = "$Player %s found %s here$" % (hint_pid, found.name)
 					msg = ''.join(ch for ch in msgtext if ch.isalnum() or ch in "_ ()*@$!%").strip()
 					finder.signal_send("msg:" + msg)
 					log.warning("manually sending message: %s to player %s" % (msg, pid))
 				except Exception as error:
 					log.error("Failed trying to message workaround. Pickup: %s, player: %s, error: %s" % (pickup, finder, error))
+
 			
+			finder.history.append(HistoryLine(pickup_code = pickup.code, timestamp = datetime.now(), pickup_id = str(pickup.id), coords = coords, removed = remove))
 			finder.put()
 			Cache.setHist(self.key.id(), pid, finder.history)
 			
@@ -393,7 +396,19 @@ class Game(ndb.Model):
 	@staticmethod
 	def from_params(params, id=None):
 		id = int(id) if id else Game.get_open_gid()
+
 		game = Game(id = id, players=[], ndb_shared=[s.to_ndb() for s in params.sync.shared], ndb_mode=params.sync.mode.to_ndb())
+		game.put()
+		teams = params.sync.teams
+		if teams:
+			for playerNums in teams.itervalues():
+				team = [game.player(p) for p in playerNums]
+				teamKeys = [p.key for p in team]
+				for player in team:
+					tset = set(teamKeys)
+					tset.remove(player.key)
+					player.teammates = list(tset)
+					player.put()
 		log.info("Game.from_params(%s, %s): Created game %s ", params.key, id, game)
 		return game
 

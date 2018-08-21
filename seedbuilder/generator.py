@@ -280,7 +280,6 @@ class SeedGenerator:
 		self.init_fields()
 		self.expRemaining = self.params.exp_pool
 		self.forcedAssignments = self.preplaced
-
 		if not self.var(Variation.HARDMODE):
 			self.itemPool = OrderedDict([
 				("EX1", 1), ("EX*", 91), ("KS", 40), ("MS", 11), ("AC", 33), ("EC", 14), ("HC", 12), ("WallJump", 1), ("ChargeFlame", 1), ("Dash", 1), ("Stomp", 1), 
@@ -523,13 +522,16 @@ class SeedGenerator:
 			hint_text = "Warmth Fragment"
  		
 		msg = "SH@%s@" % hint_text
-		if player and self.params.players > 2:
-			msg = msg[:-1]+ " for Player %s@" % player 
+		if player:
+			if self.params.sync.teams:
+				msg = msg[:-1]+ " for Team %s@" % player 
+			elif self.playerCount > 2:		
+				msg = msg[:-1]+ " for Player %s@" % player 
 		return msg
 
 	def assign_random(self, recurseCount=0):
 		value = self.random.random()
-		position = 0.0
+		position = 0.0 
 		denom = float(sum(self.itemPool.values()))
 		if denom == 0.0:
 			log.warning("itemPool was empty! itemSum: %s itemPool: %s itemCount %s", denom, {k: v for k,v in self.itemPool.iteritems() if v > 0}, self.itemCount)
@@ -773,13 +775,21 @@ class SeedGenerator:
 	def setSeedAndPlaceItems(self, params, preplaced={}, retries=20, verbose_paths = False):
 		self.verbose_paths = verbose_paths
 		self.params = params
+		
 		self.sharedMap = {}
 		self.sharedList = []
 		self.random = Random()
 		self.random.seed(self.params.seed)
 		self.preplaced = {k: (self.codeToName[v] if v in self.codeToName else v) for k,v in preplaced.iteritems()}
 		self.do_multi = self.params.sync.enabled and self.params.sync.mode == MultiplayerGameType.SHARED
-		self.playerCount = self.params.players if self.do_multi else 1
+
+		self.playerCount = 1
+		if self.do_multi:
+			if self.params.sync.teams:
+				self.playerCount = len(self.params.sync.teams)
+			else:
+				self.playerCount = self.params.players
+
 		if self.params.warmth.enabled and self.params.key_mode == KeyMode.WARMTH_FRAGS:
 			if not preplaced:
 				retries += 20 # this is kind of dumb but not necessarily the stupidest!
@@ -861,7 +871,6 @@ class SeedGenerator:
 						player, split_item = self.split_locs[int(loc)]
 						if self.playerID != player: #theirs
 							hint = self.cloned_item(split_item, player)
-							print split_item, hint
 							outlines.append("|".join([loc, hint[:2], hint[2:], zone]))
 						else: #ours
 							outlines.append("|".join([loc, split_item[:2], split_item[2:], zone]))
@@ -1010,7 +1019,6 @@ class SeedGenerator:
 				# we've painted ourselves into a corner, try again
 				if not self.reservedLocations:
 					if self.playerID == 1:
-						log.warning("======================")
 						self.split_locs = {}
 						self.sharedMap = {}
 					if depth > self.playerCount * self.playerCount:

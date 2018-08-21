@@ -32,10 +32,13 @@ function player_icons(id)  {
 	if (id === 1)  img = '/sprites/ori-blue.png';
 	else if (id === 2)  img = '/sprites/ori-red.png';
 	else if (id === 3)  img = '/sprites/ori-green.png';
-	else if (id === 4)  img = '/sprites/ori-purple.png';
+	else if (id === 4)  img = '/sprites/ori-cyan.png';
 	else if (id === 5)  img = '/sprites/ori-yellow.png';
-	else if (id === 6)  img = '/sprites/ori-white.png';
-	else if (id === 200)  img = '/sprites/ori-skul.png';
+	else if (id === 6)  img = '/sprites/ori-magenta.png';
+	else if (id === 7)  img = '/sprites/ori-multi-1.png';
+	else if (id === 8)  img = '/sprites/ori-multi-2.png';
+	else if (id === 9)  img = '/sprites/ori-multi-3.png';
+	else if (id === 10) img = '/sprites/ori-skul.png';
 	let ico = new Leaflet.Icon({iconUrl: img, iconSize: new Leaflet.Point(48, 48)});
 	return ico
 };

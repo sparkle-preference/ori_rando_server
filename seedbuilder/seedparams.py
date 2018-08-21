@@ -15,7 +15,8 @@ presets =  {
 	"Expert":	set([LogicPath.NORMAL, LogicPath.SPEED, LogicPath.LURE, LogicPath.SPEED_LURE, LogicPath.DBOOST, LogicPath.DBOOST_LIGHT, LogicPath.CDASH, LogicPath.EXTENDED, LogicPath.EXTENDED_DAMAGE]),
 	"Master":	set([LogicPath.NORMAL, LogicPath.SPEED, LogicPath.LURE, LogicPath.SPEED_LURE, LogicPath.DBOOST, LogicPath.DBOOST_LIGHT, LogicPath.DBOOST_HARD, LogicPath.CDASH, LogicPath.DBASH, LogicPath.EXTENDED, LogicPath.EXTENDED_DAMAGE, LogicPath.LURE_HARD, LogicPath.EXTREME]),
 	"Glitched":	set([LogicPath.NORMAL, LogicPath.SPEED, LogicPath.DBOOST_LIGHT, LogicPath.DBOOST, LogicPath.LURE, LogicPath.SPEED_LURE, LogicPath.LURE_HARD, LogicPath.DBOOST_HARD, LogicPath.EXTENDED, LogicPath.EXTENDED_DAMAGE, LogicPath.DBASH, LogicPath.CDASH, LogicPath.EXTREME, LogicPath.TIMED_LEVEL, LogicPath.GLITCHED, LogicPath.CDASH_FARMING]),
-#	"0xp":		set([LogicPath.NORMAL, LogicPath.SPEED, LogicPath.LURE, LogicPath.DBOOST_LIGHT]), same LPs as standard. Gotta distinguish elsewhere :C
+#	"0xp":		set([LogicPath.NORMAL, LogicPath.SPEED, LogicPath.LURE, LogicPath.DBOOST_LIGHT]), 
+#   0xp has the same LPs as standard. Gotta distinguish elsewhere :C
 	"Hard":		set([LogicPath.NORMAL, LogicPath.SPEED, LogicPath.LURE, LogicPath.DBOOST_LIGHT, LogicPath.CDASH, LogicPath.DBASH, LogicPath.EXTENDED]),
 	"Ohko":		set([LogicPath.NORMAL, LogicPath.SPEED, LogicPath.LURE, LogicPath.CDASH, LogicPath.DBASH, LogicPath.EXTENDED])
 }
@@ -75,6 +76,7 @@ class MultiplayerOptions(ndb.Model):
 	enabled = ndb.BooleanProperty(default=False)
 	cloned 	= ndb.BooleanProperty(default=True)
 	hints	= ndb.BooleanProperty(default=True)
+	teams   = ndb.PickleProperty(default={})
 	
 	@staticmethod
 	def from_url(qparams):
@@ -84,7 +86,16 @@ class MultiplayerOptions(ndb.Model):
 			opts.mode 	= MultiplayerGameType(qparams.get("sync_mode", "None"))
 			opts.cloned	= qparams.get("sync_gen") != "disjoint"
 			opts.hints 	= bool(opts.cloned and qparams.get("sync_hints"))
-			opts.shared	= enums_from_strlist(ShareType, qparams.getall("sync_shared"))
+			opts.shared = enums_from_strlist(ShareType, qparams.getall("sync_shared"))
+
+			teamsRaw = qparams.get("teams")
+			if teamsRaw and opts.mode == MultiplayerGameType.SHARED and opts.cloned:
+				cnt = 1
+				teams = {}
+				for teamRaw in teamsRaw.split("|"):
+					teams[cnt] = [int(p) for p in teamRaw.split(",")]
+					cnt += 1
+				opts.teams = teams
 		return opts
 
 class SeedGenParams(ndb.Model):
@@ -141,12 +152,11 @@ class SeedGenParams(ndb.Model):
 		params.warmth		= WarmthFragmentOptions.from_url(qparams)
 		params.sync			= MultiplayerOptions.from_url(qparams)
 		return params.put()
-	
-	def generate(self):
-		log.info("gen start")
+			
+	def generate(self, preplaced={}):
+
 		sg = SeedGenerator()
-		raw = sg.setSeedAndPlaceItems(self)
-		log.info("gen finish")
+		raw = sg.setSeedAndPlaceItems(self, preplaced=preplaced)
 		placemap = OrderedDict()
 		spoilers = []
 		if not raw:
@@ -163,25 +173,32 @@ class SeedGenParams(ndb.Model):
 					placemap[loc] = Placement(location=loc, zone=zone, stuff=[stuff])
 				else:
 					placemap[loc].stuff.append(stuff)
-		if player != self.players:
-			log.error("aaaaaa, %s != %s", player, self.players)
+		if player != self.players and player != len(self.sync.teams):
+			log.error("seed count mismatch!, %s != %s or %s", player, self.players, len(self.teams))
 			return False
 		self.spoilers = spoilers
 		self.placements = placemap.values()
-		log.info("plc conv finish")
 		self.put()
 		return True
 
+
+	def teams_inv(self): # generates {pid: tid}
+		return { pid:tid for tid,pids in self.sync.teams.iteritems() for pid in pids}	
+
+	def team_pid(self, pid): #given pid, get team or return pid if no teams exist
+		return self.teams_inv()[pid] if self.sync.teams else pid
+		
 	def get_seed(self, player = 1, game_id = None, verbose_paths = False):
 		flags = self.flag_line(verbose_paths)
 		if self.tracking:
 			flags = "Sync%s.%s," % (game_id,player) + flags
 		outlines = [flags]
-		outlines += ["|".join((str(p.location),s.code,s.id,p.zone))for p in self.placements for s in p.stuff if int(s.player) == player]
+		pid_map = self.teams_inv()
+		outlines += ["|".join((str(p.location),s.code,s.id,p.zone))for p in self.placements for s in p.stuff if int(s.player) == self.team_pid(player)]
 		return "\n".join(outlines)+"\n"
 
 	def get_spoiler(self, player = 1):
-		return self.spoilers[player-1]
+		return self.spoilers[self.team_pid(player)-1]
 
 	def flag_line(self, verbose_paths=False):
 		flags = []

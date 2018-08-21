@@ -32,14 +32,20 @@ const SiteBar = ({dlltime, user}) => {
 				Downloads
 				</DropdownToggle>
 				<DropdownMenu right>
-				<DropdownItem href="https://github.com/turntekGodhead/OriDERandomizer/raw/master/Assembly-CSharp.dll">
-					DLL (Last Updated {dlltime})
+				<DropdownItem href="https://github.com/sigmasin/OriDERandomizer/blob/master/Assembly-CSharp.dll">
+					Tournament 2.6 dll (Currently recommended: works for everything but bonus pickups and warmth fragments)
 				</DropdownItem>
-				<DropdownItem href="https://github.com/david-c-miller/OriDETracker/releases/download/v3.0-beta/OriDETracker-v3.0-beta.zip">
-					Beta Tracker
+				<DropdownItem href="https://github.com/sigmasin/OriDERandomizer/blob/master/OriDERandoDecoder.dll">
+					Decoder DLL (required for 2.6: place in same folder)				
 				</DropdownItem>
 				<DropdownItem href="/vanilla">
 					Vanilla Seed
+				</DropdownItem>
+				<DropdownItem href="https://github.com/turntekGodhead/OriDERandomizer/raw/master/Assembly-CSharp.dll">
+					Experimental dll (Not currently recommended. Last Updated {dlltime})
+				</DropdownItem>
+				<DropdownItem href="https://github.com/david-c-miller/OriDETracker/releases/download/v3.0-beta/OriDETracker-v3.0-beta.zip">
+					Beta Tracker
 				</DropdownItem>
 				</DropdownMenu>
 			</UncontrolledDropdown>
@@ -245,16 +251,43 @@ export default class MainPage extends React.Component {
 				<Collapse isOpen={this.state.user}>
 					<Row className="p-1 justify-content-center">
 						<Col xs="4" className="text-center pt-1 border">
-							<span class="align-middle">SyncId (leave blank)</span>
+							<span class="align-middle">SyncId (leave blank if unsure)</span>
 						</Col><Col xs="4">
 							<Input type="number" value={this.state.syncId} invalid={!(this.state.syncId === "" || this.state.syncId > 0)} onChange={(e) => this.setState({syncId: parseInt(e.target.value)})}/>
 							<FormFeedback tooltip>syncId must be positive</FormFeedback>
 						</Col>
 					</Row>
+					<Collapse isOpen={this.state.coopGenMode==="Cloned Seeds" && this.state.players > 1 && this.state.coopGameMode === "Co-op"}>
+						<Row className="p-1 justify-content-center">
+							<Col xs="4" className="text-center pt-1 border">
+								<span class="align-middle">Teams</span>
+							</Col><Col xs="4">
+								<Input type="text" value={this.state.teamStr} invalid={!this.teamStrValid()} onChange={(e) => this.setState({teamStr: e.target.value})}/>
+								<FormFeedback tooltip>Team format: 1,2|3,4|5,6. Must be at least 2 teams, and each player must appear once.</FormFeedback>
+							</Col>
+						</Row>
+					</Collapse>
 				</Collapse>
 			</TabPane>
 		)
 	}
+	teamStrValid = () => {
+		let teamStr = this.state.teamStr;
+		if(teamStr === "") return true;
+		let teams = teamStr.split("|");
+		if(teams.length < 2) return false;
+		let retval = true;
+		let players = [...Array(this.state.players).keys()].map(i => i+1)
+		teams.forEach(team => team.split(",").forEach(p => {
+			if(isNaN(p)) retval = false;
+			else p = parseInt(p,10)
+			if(p > this.state.players) retval = false;
+			if(players[p-1] !== p) retval = false;
+			players[p-1] = 0;
+		}))
+		return retval && players.reduce((a,b)=>a+b,0) === 0
+	}
+	
 	generateSeed = () => {
 		let pMap = {"Race": "None", "None": "Default", "Co-op": "Shared", "Warmth Frags": "Frags", 
 					"World Events": "Events", "Dungeon Keys": "Keys", "Cloned Seeds": "cloned", "Seperate Seeds": "disjoint"}
@@ -279,6 +312,9 @@ export default class MainPage extends React.Component {
 					this.state.shared.forEach(s => urlParams.push("sync_shared="+f(s)))
 				if(this.state.coopGenMode === "Cloned Seeds" && this.state.hints)
 					urlParams.push("sync_hints=on")
+				if(this.state.teamStr !== "") {
+					urlParams.push("teams="+this.state.teamStr)
+				}
 			}
 		} else {
 			urlParams.push("tracking=Disabled")
@@ -437,7 +473,7 @@ export default class MainPage extends React.Component {
 					 paths: presets["standard"], keyMode: "Clues", oldKeyMode: "Clues", pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null),
 					 customSyncId: "", seed: "", fillAlg: "Balanced", shared: ["Skills", "Dungeon Keys", "Teleporters", "World Events"], hints: true, helpcat: "", helpopt: "",
 					 frag: {enabled: false, count: 40, key_1: 7, key_2:14, key_3: 21, required: 28, tolerance: 3}, syncId: "", expPool: 10000, lastHelp: new Date(), seedIsGenerating: false,
-					 paramId: paramId, modalOpen: modalOpen, inputGameId: inputGameId, allowReopenModal: modalOpen, reopenUrl: ""};
+					 paramId: paramId, modalOpen: modalOpen, inputGameId: inputGameId, allowReopenModal: modalOpen, reopenUrl: "", teamStr: ""};
 	}
 	
 	

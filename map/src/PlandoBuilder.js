@@ -34,14 +34,19 @@ const DEFAULT_VIEWPORT = {
 	  zoom: 4,
 	}
 
-const SEED_FLAGS = ["shards", "clues", "forcetrees", "ohko", "discmaps", "custom", "forcemapstones", "forcerandomescape", "hardmode"]
+const VALID_VARS = ["0XP", "NonProgressMapStones", "ForceMapStones", "ForceRandomEscape", "ForceTrees",	"Hard",	"NoPlants",	"NoTeleporters", "OHKO", "Starved", "BonusPickups"]
+const VALID_KEYMODES = ["Shards", "Clues", "Limitkeys"];
+const SEED_FLAGS = VALID_VARS.concat(VALID_KEYMODES);
+const FLAG_CASEFIX = {};
+
+SEED_FLAGS.forEach(flag => FLAG_CASEFIX[flag.toLowerCase()] = flag);
+
 const modes_by_key = {"Shared": "Shared", "None": "Solo", "Split": "Shards Race", "Swap": "Swap"}
 const COOP_MODES = Object.keys(modes_by_key).map((k) => { return {label: modes_by_key[k], value: k} });
 const SHARE_TYPES = ["keys", "events", "upgrades", "teleporters", "skills"]
 const crs = getMapCrs();
 const DANGEROUS = [-280256, -1680104, -12320248, -10440008]
 const paths = Object.keys(presets);
-
 
 const dev = window.document.URL.includes("devshell")
 const base_url = dev ?  "https://8080-dot-3616814-dot-devshell.appspot.com" : "http://orirandocoopserver.appspot.com"
@@ -159,7 +164,7 @@ class PlandoBuiler extends React.Component {
 
     this.state = {seed_in: "", reachable: {...DEFAULT_REACHABLE}, new_areas: {...DEFAULT_REACHABLE}, placements: {1: {...DEFAULT_DATA}}, player: 1,
     			  fill_opts: {HC: 13, EC: 15, AC: 34, KS: 40, MS: 9, EX: 300, dynamic: false, dumb: false}, viewport: DEFAULT_VIEWPORT, searchStr: "",
-		    	  flags: ['hide_unreachable', 'hide_softlockable'], seedFlags: select_wrap(["forcetrees"]), share_types: select_wrap(["keys"]), coop_mode: {label: "Solo", value: "None"},
+		    	  flags: ['hide_unreachable', 'hide_softlockable'], seedFlags: select_wrap(["ForceTrees"]), share_types: select_wrap(["keys"]), coop_mode: {label: "Solo", value: "None"},
 		    	  pickups: ["EX", "Ma", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV"],  display_import: false, display_logic: false, display_coop: false, display_meta: false}
 	}
 	
@@ -440,7 +445,6 @@ class PlandoBuiler extends React.Component {
 	}
 
 
-
 	getUploadLines = () => {
 		let outLines = [this.buildFlagLine()]
 		let locs = Object.keys(picks_by_loc)
@@ -465,31 +469,30 @@ class PlandoBuiler extends React.Component {
 						parser(res);
 	            })(xmlHttp.responseText);
 	    }
-	  		let codes = []; 
-	  		Object.keys(this.state.reachable).forEach((area) => {
-	  			if(picks_by_area.hasOwnProperty(area))
-		  			picks_by_area[area].forEach((pick) => {
-		  				if(this.state.placements[this.state.player] && this.state.placements[this.state.player].hasOwnProperty(pick.loc)) 
-		  					codes.push(pick.loc+":"+this.state.placements[1][pick.loc].value.replace("|",""));
-		  			});
-	  		});
-	    let url = "/plando/fillgen?lps="+this.state.modes.join("|");
-		let seedFlags = this.state.seedFlags.map(f => f.value);
+  		let codes = []; 
+  		Object.keys(this.state.reachable).forEach((area) => {
+  			if(picks_by_area.hasOwnProperty(area))
+	  			picks_by_area[area].forEach((pick) => {
+	  				if(this.state.placements[this.state.player] && this.state.placements[this.state.player].hasOwnProperty(pick.loc)) 
+	  					codes.push(pick.loc+":"+this.state.placements[1][pick.loc].value.replace("|",""));
+	  			});
+  		});
+
 		let mode = "";
-		if(seedFlags.includes("shards"))
-			mode = "shards";
-		else if(seedFlags.includes("clues"))
-			mode = "clues";
-		else if(seedFlags.includes("limitkeys"))
-			mode = "limitkeys";
-		if(mode) {
-			url += "&m="+mode;
-			seedFlags = seedFlags.filter(x => x !== mode)
-		}
-			
-		
-		url += "&vars="+seedFlags.join("|")
-		url += "&fass="+codes.join("|")	    
+		let urlParams = [];
+	    this.state.modes.forEach(p => urlParams.push("path="+p));
+
+		this.state.seedFlags.forEach(f => {
+			let flag = FLAG_CASEFIX[f.value.toLowerCase()] || f.value
+			if(VALID_KEYMODES.includes(flag)) mode = flag
+			else if(VALID_VARS.includes(flag)) urlParams.push("var="+flag)
+			else urlParams.push("flag="+flag)
+		});
+		if(mode) urlParams.push("key_mode="+mode)
+		urlParams.push("fass="+codes.join("|"));
+		urlParams.push("tracking=Disabled");
+		urlParams.push("seed="+Math.round(Math.random() * 1000000000));
+		let url = "/plando/fillgen?" + urlParams.join("&");
 	    xmlHttp.open("GET", url, true);
 	    xmlHttp.send(null);
 	}
@@ -611,6 +614,8 @@ class PlandoBuiler extends React.Component {
 	}
 	
 	resetReachable = () => this.setState({reachable: {...DEFAULT_REACHABLE}})
+	
+	onFlags = (n) => this.setState({seedFlags: select_wrap(n.map(flag => FLAG_CASEFIX[flag.value.toLowerCase()] || flag.value))})
 
 
 	render() {
@@ -684,6 +689,7 @@ class PlandoBuiler extends React.Component {
 				</div>
 			);
 		}
+		// 						<Button color="primary" onClick={this.downloadSeed} >Download</Button> not working for someass reason?
 		return (
 			<div className="wrapper">
 		        <NotificationContainer/>
@@ -707,7 +713,6 @@ class PlandoBuiler extends React.Component {
 				{alert}
 					<div id="file-controls">
 						<Button color="primary" onClick={this.toggleImport} >Import</Button>
-						<Button color="primary" onClick={this.downloadSeed} >Download</Button>
 						{fill_button}
 						{save_if_auth}
 					</div>
@@ -724,7 +729,7 @@ class PlandoBuiler extends React.Component {
 					<div id="pickup-controls">
 						<div className="pickup-wrapper">
 							<span className="label">Seed Flags: </span>
-							<Creatable styles={select_styles} options={select_wrap(SEED_FLAGS)} onChange={(n) => this.setState({seedFlags: n})} isMulti={true} value={this.state.seedFlags} label={this.state.seedFlags}/>
+							<Creatable styles={select_styles} options={select_wrap(SEED_FLAGS)} onChange={this.onFlags} isMulti={true} value={this.state.seedFlags} label={this.state.seedFlags}/>
 						</div>
 					</div>
 					<hr style={{ backgroundColor: 'grey', height: 2 }}/>
