@@ -1,5 +1,5 @@
 from math import floor
-from collections import defaultdict
+from collections import defaultdict, namedtuple 
 from datetime import datetime, timedelta
 import xml.etree.ElementTree as XML
 import logging as log
@@ -18,6 +18,26 @@ coord_correction_map = {
 	8599908: 8599904,
 	2959744: 2919744, 
 }
+# for picks_by_loc_gen
+non_area_lines = {
+	"EC": "\t{'loc': -280256, 'name': 'EC', 'zone': 'Glades', 'area': 'SunkenGladesRunaway', 'y': -256, 'x': -28},\n",
+	"EX": "\t{'loc': -1680104, 'name': 'EX100', 'zone': 'Grove', 'area': 'SpritTreeRefined', 'y': -104, 'x': -168},\n",
+	"Pl": "\t{'loc': -12320248, 'name': 'Plant', 'zone': 'Forlorn', 'area': 'RightForlornPlant', 'y': -248, 'x': -1232},\n",
+	"KS": "\t{'loc': -10440008, 'name': 'KS', 'zone': 'Misty', 'area': 'Misty', 'y': 8, 'x': -1044},\n"
+}
+PickLoc = namedtuple("PickLoc", ["coords", "name", "zone", "area", "y", "x"])
+
+extra_PBT = [
+	PickLoc(24, 'Mapstone 1', 'Mapstone', 'MS1', 24,  0),
+	PickLoc(28, 'Mapstone 2', 'Mapstone', 'MS2', 28,  0),
+	PickLoc(32, 'Mapstone 3', 'Mapstone', 'MS3', 32,  0),
+	PickLoc(36, 'Mapstone 4', 'Mapstone', 'MS4', 36,  0),
+	PickLoc(40, 'Mapstone 5', 'Mapstone', 'MS5', 40,  0),
+	PickLoc(44, 'Mapstone 6', 'Mapstone', 'MS6', 44,  0),
+	PickLoc(48, 'Mapstone 7', 'Mapstone', 'MS7', 48,  0),
+	PickLoc(52, 'Mapstone 8', 'Mapstone', 'MS8', 52,  0),
+	PickLoc(56, 'Mapstone 9', 'Mapstone', 'MS9', 56,  0)
+]
 
 def enums_from_strlist(enum, strlist):
 	enums = []
@@ -122,19 +142,12 @@ def is_int(s):
     except ValueError:
         return False
 
+
 def picks_by_type_gen():
 	tree = XML.parse("seedbuilder/areas.xml")
 	root = tree.getroot()
 	picks_by_type=defaultdict(lambda: [])
-	retval = ""
 	all_locs_unpacked = { unpack(loc) : loc for loc in all_locs }
-	non_area_lines = {
-		"EC": "\t{'loc': -280256, 'name': 'EC', 'zone': 'Glades', 'area': 'SunkenGladesRunaway', 'y': -256, 'x': -28},\n",
-		"EX": "\t{'loc': -1680104, 'name': 'EX100', 'zone': 'Grove', 'area': 'SpritTreeRefined', 'y': -104, 'x': -168},\n",
-		"Pl": "\t{'loc': -12320248, 'name': 'Plant', 'zone': 'Forlorn', 'area': 'RightForlornPlant', 'y': -248, 'x': -1232},\n",
-		"KS": "\t{'loc': -10440008, 'name': 'KS', 'zone': 'Misty', 'area': 'Misty', 'y': 8, 'x': -1044},\n"
-		}
-
 	for child in root:
 		area = child.attrib["name"]
 		for loc in child.find("Locations"):
@@ -146,16 +159,20 @@ def picks_by_type_gen():
 			zone = loc.find("Zone").text
 			crd = get(rnd(int(x)),rnd(int(y)))
 			if crd not in all_locs:
-				secondary_match = all_locs_unpacked.get((rnd(x),rnd(y)))
+				secondary_match = all_locs_unpacked.get((rnd(int(x)),rnd(int(y))))
 				if secondary_match:
-					print "had to secondary match:", crd, secondary_match
 					crd = secondary_match
 				else:
 					print "No secondary match found here!", crd, item, zone, area, y, x
-			line = (crd,item,zone,area,y,x)
+			line = PickLoc(crd,item,zone,area,y,x)
 			picks_by_type[item[0:2]].append(line)
+	return picks_by_type
+
+def picks_by_type_formatter():
+	retval = ""
+	picks_by_type = picks_by_type_gen()
 	for key in sorted(picks_by_type.keys()):
-		if key == "EV":
+		if key in ["EV", "MP", "Ma"]:
 			continue
 		retval += '"%s": [\n' % key
 		if key in non_area_lines:
@@ -164,6 +181,59 @@ def picks_by_type_gen():
 			retval += """\t{'loc': %s, 'name': '%s', 'zone': '%s', 'area': '%s', 'y': %s, 'x': %s}, \n""" % item # tuple(list(item[1:]))
 		retval += '], '
 	return retval
+
+from seedbuilder.generator import SeedGenerator
+from pickups import Pickup
+import seedbuilder.seedparams
+import random
+from enums import Variation, LogicPath, KeyMode, PathDifficulty, ShareType
+anal_table = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: 0)))
+count = 0
+
+def analysis(runs=100):
+	global count, anal_table
+	count += runs
+	pbt = picks_by_type_gen()
+	pbt["MA"] = extra_PBT
+	loc_ref = { str(pick.coords) : pick for picks in pbt.values() for pick in picks }
+	initial_seed = random.randint(1,10000000)
+
+	params = seedbuilder.seedparams.SeedGenParams(tracking=False)
+	params.variations=[Variation.FORCE_TREES]
+	params.logic_paths=[LogicPath.NORMAL, LogicPath.SPEED, LogicPath.LURE]
+	params.key_mode = KeyMode.CLUES
+	params.path_diff = PathDifficulty.NORMAL
+	params.players = 1
+	params.balanced = True
+	params.sync = seedbuilder.seedparams.MultiplayerOptions(enabled=False)
+	params.warmth = seedbuilder.seedparams.WarmthFragmentOptions(enabled=False)
+	sg = SeedGenerator()
+	for i in range(runs):
+		params.seed = str(initial_seed+i)
+		placements = sg.setSeedAndPlaceItems(params)
+		if placements:
+			for line in placements[0][0].split("\n")[1:-1]:
+				loc,code,id,zone = tuple(line.split('|'))
+				if loc in ["-280256", "-1680104", "-12320248", "-10440008"]:
+					continue
+				pick = Pickup.n(code,id)
+				if pick.share_type in [ShareType.EVENT, ShareType.DUNGEON_KEY, ShareType.SKILL, ShareType.UPGRADE]:
+					anal_table[zone][loc][pick.name] += 1
+					anal_table[zone][loc]["TOTAL"] += 1
+		
+	retlines = ["%s runs total" % count, "Location, Zone, Total, WallJump, ChargeFlame, DoubleJump, Bash, Stomp, Glide, Climb, ChargeJump, Dash, Grenade, GinsoKey, ForlornKey, HoruKey, Water, Wind, TPForlorn, TPGrotto, TPSorrow, TPGrove, TPSwamp, TPValley"]
+	for zone in sorted(anal_table.keys()):
+		for loc in sorted(anal_table[zone].keys(), reverse=True, key=lambda x: anal_table[zone][x]["TOTAL"]):
+			t = anal_table[zone][loc]
+			p = loc_ref[loc]
+			line = ["%s %s (%s %s)" % (p.area, p.name, p.x, p.y), zone, t["TOTAL"]]
+			line += [t["Wall Jump"], t["Charge Flame"], t["Double Jump"], t["Bash"], t["Stomp"], t["Glide"], t["Climb"], t["Charge Jump"], t["Dash"], t["Grenade"]]
+			line += [t["Water Vein"], t["Gumon Seal"], t["Sunstone"], t["Clean Water"], t["Wind Restored"]]
+			line += [t["Forlorn teleporter"], t["Grotto teleporter"], t["Sorrow teleporter"], t["Grove teleporter"], t["Swamp teleporter"], t["Valley teleporter"]]
+			retlines.append(", ".join([str(x) for x in line]))
+	return "\n".join(retlines)
+
+			
 
 
 def dll_last_update():

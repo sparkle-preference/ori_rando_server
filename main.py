@@ -19,7 +19,6 @@ from google.appengine.ext.webapp import template
 # project impports
 from seedbuilder.generator import SeedGenerator, Random
 from seedbuilder.seedparams import SeedGenParams
-from seedbuilder.splitter import split_seed
 from seedbuilder.vanilla import seedtext as vanilla_seed
 from bingo import Card
 from enums import MultiplayerGameType, ShareType, LogicPath, Variation
@@ -858,11 +857,17 @@ class GetSpoilerFromParams(RequestHandler):
 			self.response.status = 404
 			self.response.out.write("Param %s not found" % params_id)
 
-from util import picks_by_type_gen
+from util import picks_by_type_formatter, analysis
 class PicksByTypeGen(RequestHandler):
 	def get(self):
 		self.response.headers['Content-Type'] = 'text/plain'
-		self.response.out.write(picks_by_type_gen())
+		self.response.out.write(picks_by_type_formatter())
+		return
+
+class SeedAnalysis(RequestHandler):
+	def get(self):
+		self.response.headers['Content-Type'] = 'text/plain'
+		self.response.out.write(analysis())
 		return
 		
 		
@@ -875,6 +880,7 @@ app = WSGIApplication(routes=[
 	]),
 	Route('/tests', redirect_to_name='tests-run'),
 	Route('/picksbytype', handler=PicksByTypeGen, name='picks-by-type-gen', strict_slash=True),
+	Route('/analysis', handler=SeedAnalysis, name='seed-analysis', strict_slash=True),
 
 	PathPrefixRoute('/generator', [
 		Route('/build', handler=MakeSeedWithParams, name="gen-params-build", strict_slash=True),

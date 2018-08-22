@@ -289,7 +289,7 @@ class LogicHelper extends React.Component {
 			modes = presets[pathmode];
 	    } else {
 	    	pathmode = "standard";
-	        modes = ['normal', 'speed', 'dboost-light'];
+	        modes = presets['standard'];
 	    }
 
 	    if(Object.keys(manual_reach).some(key => Array.isArray(manual_reach[key]) ? manual_reach[key].length > 0 : manual_reach[key] > 0 ))
@@ -339,6 +339,7 @@ class LogicHelper extends React.Component {
     parseUploadedSeed = (seedText) => {
 		let lines = seedText.split("\n")
 		let newplc = {}
+		lines[0].split(",").forEach(flag => Object.keys(presets).includes(flag.toLowerCase()) ? this.onPathModeChange({label: flag, value: flag.toLowerCase()}) : null)
 	    for (let i = 1, len = lines.length; i < len; i++) {
 	    	let line = lines[i].split("|")
 	    	let loc = parseInt(line[0], 10);
