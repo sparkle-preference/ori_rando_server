@@ -241,7 +241,7 @@ class Game(ndb.Model):
 			if not stacks(pickup):
 				count = 1
 			elif pickup.max:
-				count = max
+				count = min(count,pickup.max)
 			for player in players:
 				has = player.has_pickup(pickup)
 				if has < count:
@@ -313,16 +313,18 @@ class Game(ndb.Model):
 			if coords in [h.coords for h in finder.history]:
 				retcode = 410
 				log.error("Duplicate pickup at location %s from player %s" % (coords,  pid))
+				return
 			elif coords in [h.coords for teammate in players for h in teammate.history if teammate.key in finder.teammates]:
 				retcode = 410
 				log.info("Won't grant %s to player %s, as a teammate found it already" % (pickup.name,  pid))
-		elif self.mode == MultiplayerGameType.SHARED:
+				return
+		if self.mode == MultiplayerGameType.SHARED:
 			if not share:
 				retcode = 406
 			else:
 				for player in players:
 					if player.key != finder.key:
-						key = player.give_pickup(pickup, remove)
+						player.give_pickup(pickup, remove)
 				finder.give_pickup(pickup, remove)
 		elif self.mode == MultiplayerGameType.SPLITSHARDS:
 			if pickup.code != "RB" or pickup.id not in [17, 19, 21]:
@@ -332,7 +334,8 @@ class Game(ndb.Model):
 				if my_shards < 3:
 					shard_locs = [h.coords for player in players for h in player.history if h.pickup_code == "RB" and h.pickup_id in ["17", "19", "21"]]
 					if coords in shard_locs:
-						retcode = 410
+						log.info("%s at %s already taken, player %s will not get one." % (pickup.name, coords,  pid))
+						return
 		elif self.mode == MultiplayerGameType.SIMUSOLO:
 			pass
 		else:
@@ -360,8 +363,6 @@ class Game(ndb.Model):
 					log.warning("manually sending message: %s to player %s" % (msg, pid))
 				except Exception as error:
 					log.error("Failed trying to message workaround. Pickup: %s, player: %s, error: %s" % (pickup, finder, error))
-
-			
 			finder.history.append(HistoryLine(pickup_code = pickup.code, timestamp = datetime.now(), pickup_id = str(pickup.id), coords = coords, removed = remove))
 			finder.put()
 			Cache.setHist(self.key.id(), pid, finder.history)

@@ -5,7 +5,8 @@ import {Map, Tooltip, TileLayer, Marker, ZoomControl} from 'react-leaflet';
 import {Checkbox, CheckboxGroup} from 'react-checkbox-group';
 import {Radio, RadioGroup} from 'react-radio-group';
 import Leaflet from 'leaflet';
-import {picks_by_type, PickupMarkersList, get_icon, getMapCrs, presets, hide_opacity, select_styles, uniq, select_wrap} from './shared_map.js';
+import {picks_by_type, PickupMarkersList, get_icon, getMapCrs, presets, player_icons, 
+		hide_opacity, select_styles, uniq, select_wrap} from './shared_map.js';
 import Select from 'react-select';
 import {Button, Collapse} from 'reactstrap';
 import Control from 'react-leaflet-control';
@@ -26,22 +27,6 @@ function parse_seed(raw) {
 	return out
 };
 
-function player_icons(id)  {
-	id = parseInt(id, 10);
-	let img = 	'/sprites/ori-white.png';
-	if (id === 1)  img = '/sprites/ori-blue.png';
-	else if (id === 2)  img = '/sprites/ori-red.png';
-	else if (id === 3)  img = '/sprites/ori-green.png';
-	else if (id === 4)  img = '/sprites/ori-cyan.png';
-	else if (id === 5)  img = '/sprites/ori-yellow.png';
-	else if (id === 6)  img = '/sprites/ori-magenta.png';
-	else if (id === 7)  img = '/sprites/ori-multi-1.png';
-	else if (id === 8)  img = '/sprites/ori-multi-2.png';
-	else if (id === 9)  img = '/sprites/ori-multi-3.png';
-	else if (id === 10) img = '/sprites/ori-skul.png';
-	let ico = new Leaflet.Icon({iconUrl: img, iconSize: new Leaflet.Point(48, 48)});
-	return ico
-};
 
 function get_inner(id) {
 	return (

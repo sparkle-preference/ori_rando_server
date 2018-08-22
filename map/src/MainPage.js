@@ -1,14 +1,14 @@
 import React from 'react';
 import  {Collapse,  Navbar,  NavbarBrand, Nav,  NavItem,  NavLink, UncontrolledDropdown, Input, 
 		UncontrolledButtonDropdown, DropdownToggle, DropdownMenu, DropdownItem, Button, Row, FormFeedback,
-		Col, Container, TabContent, TabPane, Modal, ModalHeader, ModalBody, ModalFooter} from 'reactstrap'
+		Col, Container, TabContent, TabPane, Modal, ModalHeader, ModalBody, ModalFooter, Media} from 'reactstrap'
 import {Helmet} from 'react-helmet';
 import {NotificationContainer, NotificationManager} from 'react-notifications';
 import 'react-notifications/lib/notifications.css';
 import './index.css';
 
 import {getHelpContent, HelpBox} from "./helpbox.js"
-import {listSwap, get_param, presets, goToCurry} from './shared_map.js';
+import {listSwap, get_param, presets, goToCurry, player_icons} from './shared_map.js';
 
 
 const dev = window.document.URL.includes("devshell")
@@ -400,15 +400,27 @@ export default class MainPage extends React.Component {
 		}
 		else 
 		{
+			let raw = this.state.inputFlagLine.split('|');
+			let seedStr = raw.pop();
+			let {shared, unshared} = raw.join("").split(",").reduce((acc, curr) => (curr.startsWith("mode=") || curr.startsWith("shared=")) ? 
+					{shared: acc.shared.concat(curr), unshared: acc.unshared} : {shared: acc.shared, unshared: acc.unshared.concat(curr)}, {shared: [], unshared: []})
+			
+			let sharedFlags = shared.length > 0 ? (<Row><Col><span class="align-middle">Sync: {shared.join(", ")}</span></Col></Row>) : null
+			let flags = unshared.join(", ");
+			
 			let playerRows = (this.state.inputPlayerCount > 1) ? [...Array(this.state.inputPlayerCount).keys()].map(p => {				
 				p++;
 				let seedUrl = base_url+"/generator/seed/"+this.state.paramId+"?player_id="+p
 				let spoilerUrl = base_url+"/generator/spoiler/"+this.state.paramId+"?player_id="+p
 				if(this.state.inputGameId > 0) seedUrl += "&game_id="+this.state.inputGameId
 				return (
-					<Row className="p-1">
-						<Col xs="3"  className="text-center pt-1 border">
-							<span class="align-middle">Player {p}</span>
+					<Row className="p-1 border-top border-bottom">
+						<Col xs="2" className="text-center pt-1 border">
+							<Row><Col xs="2">
+								<Media object style={{width: "25px", height: "25px"}} src={player_icons(p,false)} alt={"Icon for player "+p} />
+							</Col><Col >
+								<span class="align-middle">Player {p}</span>
+							</Col></Row>
 						</Col>
 						<Col xs="3">
 							<Button color="primary" block onClick={goToCurry(seedUrl)}>Download Seed</Button>
@@ -429,8 +441,8 @@ export default class MainPage extends React.Component {
 				</Row>
 			)
 			let trackedInfo = this.state.inputGameId > 0 ? (
-	          	<Row className="p-1">
-		          	<Col xs="3">
+	          	<Row className="p-1 border-dark border-bottom">
+		          	<Col xs={{ size: 3, offset: 2 }}>
 						<Button color="primary" block href={base_url+"/tracker/game/"+this.state.inputGameId+"/map"} target="_blank">Open Tracking Map</Button>
 	          		</Col>
 		          	<Col xs="3">
@@ -440,12 +452,15 @@ export default class MainPage extends React.Component {
       		) : null		
 		    return (
 		        <Modal size="lg" isOpen={this.state.modalOpen} backdrop={"static"} className={"modal-dialog-centered"} toggle={this.closeModal}>
-		          <ModalHeader toggle={this.closeModal} className="text-center">Seed ready!</ModalHeader>
+		          <ModalHeader toggle={this.closeModal} centered>Seed {seedStr} ready!</ModalHeader>
 		          <ModalBody>
 		          	<Container fluid>
 		          	<Row>
 			          	<Col className="text-center pt-1 border">
-			          		<span class="align-middle">Flags: {this.state.inputFlagLine}</span>
+			          		<Row><Col>
+				          		<span class="align-middle">Flags: {flags}</span>
+		          			</Col></Row>
+		          			{sharedFlags}			          		
 		          		</Col>
 	          		</Row>
 	          		{trackedInfo}
@@ -473,7 +488,7 @@ export default class MainPage extends React.Component {
 					 paths: presets["standard"], keyMode: "Clues", oldKeyMode: "Clues", pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null),
 					 customSyncId: "", seed: "", fillAlg: "Balanced", shared: ["Skills", "Dungeon Keys", "Teleporters", "World Events"], hints: true, helpcat: "", helpopt: "",
 					 frag: {enabled: false, count: 40, key_1: 7, key_2:14, key_3: 21, required: 28, tolerance: 3}, syncId: "", expPool: 10000, lastHelp: new Date(), seedIsGenerating: false,
-					 paramId: paramId, modalOpen: modalOpen, inputGameId: inputGameId, allowReopenModal: modalOpen, reopenUrl: "", teamStr: ""};
+					 paramId: paramId, modalOpen: modalOpen, inputGameId: inputGameId, allowReopenModal: modalOpen, reopenUrl: "", teamStr: "", inputFlagLine: ""};
 	}
 	
 	

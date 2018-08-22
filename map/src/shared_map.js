@@ -20,6 +20,27 @@ function download(filename, text) {
 const dev = window.document.URL.includes("devshell")
 const base_url = dev ?  "https://8080-dot-3616814-dot-devshell.appspot.com" : "http://orirandocoopserver.appspot.com"
 
+function player_icons(id, as_leaflet=true)  {
+	id = parseInt(id, 10);
+	let img = 	'/sprites/ori-white.png';
+	if (id === 1)  img = '/sprites/ori-blue.png';
+	else if (id === 2)  img = '/sprites/ori-red.png';
+	else if (id === 3)  img = '/sprites/ori-green.png';
+	else if (id === 4)  img = '/sprites/ori-cyan.png';
+	else if (id === 5)  img = '/sprites/ori-yellow.png';
+	else if (id === 6)  img = '/sprites/ori-magenta.png';
+	else if (id === 7)  img = '/sprites/ori-multi-1.png';
+	else if (id === 8)  img = '/sprites/ori-multi-2.png';
+	else if (id === 9)  img = '/sprites/ori-multi-3.png';
+	else if (id === 10) img = '/sprites/ori-skul.png';
+
+	if(!as_leaflet) return img;
+
+	let ico = new Leaflet.Icon({iconUrl: img, iconSize: new Leaflet.Point(48, 48)});
+	return ico
+};
+
+
 const pickup_icons = {
 	"SK": new Leaflet.Icon({iconUrl: '/sprites/skill-tree.png', iconSize: new Leaflet.Point(32, 32), iconAnchor: new Leaflet.Point(0, 32)}),
 	"HC": new Leaflet.Icon({iconUrl: '/sprites/health-cell.png', iconSize: new Leaflet.Point(24, 24)}),
@@ -692,4 +713,4 @@ const goToCurry = (url) => () => { window.location.href = url }
 export {PickupMarker, PickupMarkersList, download, getStuffType, locs, picks_by_loc, getMapCrs, pickups, distance, get_icon, select_wrap,
 		point, picks_by_type, picks_by_zone, zones, pickup_name, stuff_types, stuff_by_type, areas, picks_by_area, presets, select_styles,
 		get_param, get_flag, get_int, get_list, get_seed, is_match, str_ids, hide_opacity, seed_name_regex, uniq, name_from_str, listSwap,
-		goToCurry};
+		goToCurry, player_icons};
