@@ -1,94 +1,21 @@
 import React from 'react';
-import  {Collapse,  Navbar,  NavbarBrand, Nav,  NavItem,  NavLink, UncontrolledDropdown, Input, 
-		UncontrolledButtonDropdown, DropdownToggle, DropdownMenu, DropdownItem, Button, Row, FormFeedback,
-		Col, Container, TabContent, TabPane, Modal, ModalHeader, ModalBody, ModalFooter, Media} from 'reactstrap'
+import  {DropdownToggle, DropdownMenu, DropdownItem, Nav, NavLink, NavItem, Collapse,  Input, UncontrolledButtonDropdown, Button, 
+		Row, FormFeedback, Col, Container, TabContent, TabPane, Modal, ModalHeader, ModalBody, ModalFooter, Media} from 'reactstrap'
 import {Helmet} from 'react-helmet';
 import {NotificationContainer, NotificationManager} from 'react-notifications';
 import 'react-notifications/lib/notifications.css';
 import './index.css';
 
 import {getHelpContent, HelpBox} from "./helpbox.js"
-import {listSwap, get_param, presets, goToCurry, player_icons} from './shared_map.js';
-
+import {listSwap, get_param, presets, goToCurry, player_icons, doNetRequest} from './shared_map.js';
+import SiteBar from "./SiteBar.js"
 
 const dev = window.document.URL.includes("devshell")
 const base_url = dev ?  "https://8080-dot-3616814-dot-devshell.appspot.com" : "http://orirandocoopserver.appspot.com"
 const keymode_options = ["None", "Shards", "Limitkeys", "Clues", "Warmth Frags"];
 
 const textStyle = {color: "black", textAlign: "center"}
-const SiteBar = ({dlltime, user}) => {
-	
-	let logonoff = user ? [
-		(<DropdownItem href={"/plando/"+ user}> {user}'s seeds </DropdownItem>),
-		(<DropdownItem href="/logout">  Logout </DropdownItem>)
-	] :  (<DropdownItem href="/login"> Login </DropdownItem>) 
 
-	return (
-		<Navbar className="border border-dark p-2" expand="md">
-		<NavbarBrand href="/">Ori DE Randomizer</NavbarBrand>
-			<Nav className="ml-auto" navbar>
-			<UncontrolledDropdown nav inNavbar>
-				<DropdownToggle nav caret>
-				Downloads
-				</DropdownToggle>
-				<DropdownMenu right>
-				<DropdownItem href="https://github.com/sigmasin/OriDERandomizer/blob/master/Assembly-CSharp.dll">
-					Tournament 2.6 dll (Currently recommended: works for everything but bonus pickups and warmth fragments)
-				</DropdownItem>
-				<DropdownItem href="https://github.com/sigmasin/OriDERandomizer/blob/master/OriDERandoDecoder.dll">
-					Decoder DLL (required for 2.6: place in same folder)				
-				</DropdownItem>
-				<DropdownItem href="/vanilla">
-					Vanilla Seed
-				</DropdownItem>
-				<DropdownItem href="https://github.com/turntekGodhead/OriDERandomizer/raw/master/Assembly-CSharp.dll">
-					Experimental dll (Not currently recommended. Last Updated {dlltime})
-				</DropdownItem>
-				<DropdownItem href="https://github.com/david-c-miller/OriDETracker/releases/download/v3.0-beta/OriDETracker-v3.0-beta.zip">
-					Beta Tracker
-				</DropdownItem>
-				</DropdownMenu>
-			</UncontrolledDropdown>
-			<NavItem>
-				<NavLink href={"/activeGames"}>Active Games</NavLink>
-			</NavItem>
-			<NavItem>
-				<NavLink href={"/logichelper"}>Interactive Logic Helper</NavLink>
-			</NavItem>
-			<UncontrolledDropdown nav inNavbar>
-				<DropdownToggle nav caret>
-				Bingo
-				</DropdownToggle>
-				<DropdownMenu right>
-				<DropdownItem href="/bingo">
-					Generate Board
-				</DropdownItem>
-				<DropdownItem href="https://bingosync.com/">
-					Start Bingo Game
-				</DropdownItem>
-				</DropdownMenu>
-			</UncontrolledDropdown>
-				
-			<UncontrolledDropdown nav inNavbar>
-				<DropdownToggle nav caret>
-				Plandomizer
-				</DropdownToggle>
-				<DropdownMenu right>
-				<DropdownItem href="/plando/simple">
-					Open Plando Editor
-				</DropdownItem>
-				<DropdownItem href="/plando/all">
-					View All Seeds
-				</DropdownItem>
-				<DropdownItem divider />
-				{logonoff}
-				</DropdownMenu>
-			</UncontrolledDropdown>
-			</Nav>
-		</Navbar>
-	)
-
-}
 
 const variations = {
 	ForceTrees: "Force Trees",
@@ -275,7 +202,6 @@ export default class MainPage extends React.Component {
 		let teamStr = this.state.teamStr;
 		if(teamStr === "") return true;
 		let teams = teamStr.split("|");
-		if(teams.length < 2) return false;
 		let retval = true;
 		let players = [...Array(this.state.players).keys()].map(i => i+1)
 		teams.forEach(team => team.split(",").forEach(p => {
@@ -737,16 +663,3 @@ export default class MainPage extends React.Component {
 
 	}
 };
-
-
-function doNetRequest(url, onRes)
-{
-    var xmlHttp = new XMLHttpRequest();
-    xmlHttp.onreadystatechange = function() {
-        if (xmlHttp.readyState === 4) {
-        	 onRes(xmlHttp);
-        }
-	}
-    xmlHttp.open("GET", url, true); // true for asynchronous
-    xmlHttp.send(null);
-}

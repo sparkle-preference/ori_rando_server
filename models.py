@@ -311,13 +311,11 @@ class Game(ndb.Model):
 		players = self.get_players()
 		if share and dedup:
 			if coords in [h.coords for h in finder.history]:
-				retcode = 410
 				log.error("Duplicate pickup at location %s from player %s" % (coords,  pid))
-				return
+				return 410
 			elif coords in [h.coords for teammate in players for h in teammate.history if teammate.key in finder.teammates]:
-				retcode = 410
 				log.info("Won't grant %s to player %s, as a teammate found it already" % (pickup.name,  pid))
-				return
+				return 410
 		if self.mode == MultiplayerGameType.SHARED:
 			if not share:
 				retcode = 406
@@ -335,38 +333,37 @@ class Game(ndb.Model):
 					shard_locs = [h.coords for player in players for h in player.history if h.pickup_code == "RB" and h.pickup_id in ["17", "19", "21"]]
 					if coords in shard_locs:
 						log.info("%s at %s already taken, player %s will not get one." % (pickup.name, coords,  pid))
-						return
+						return 410
 		elif self.mode == MultiplayerGameType.SIMUSOLO:
 			pass
 		else:
 			log.error("game mode %s not implemented" % self.mode)
 			retcode = 404
-		if retcode != 410: #410 GONE aka "haha nope"
-			if pickup.code == "SH" and old:
-				try: # workaround for message pickups not working with old clients. Sketchy, so wrapped in try (we learnin')
-					found_here = {player.key.id().partition(".")[2]: hl.pickup() for player in players for hl in player.history if hl.coords == coords}
-					msgtext = pickup.id
-					if finder.seed:
-					# for *reasons*, sometimes the message sent from the client is 0 instead of the message text.
-					# we take the message from the seed instead to ensure accuracy.
-						raw = next(ifilter(lambda line: line.startswith(str(coords)), finder.seed.split("\n")), None)
-						if raw:
-							msgtext = raw.split(':')[2] # msglines are loc:Message:actual message
-					if "for Player" in msgtext or "for Team" in msgtext:
-						if any([p.code=="SH" for p in found_here.itervalues()]):
-							msgtext = msgtext.replace("@", "")
-						hint_pid, found = next(ifilter(lambda (_,pickup): pickup.code != "SH", found_here.iteritems()), (None, None))
-						if found:
-							msgtext = "$Player %s found %s here$" % (hint_pid, found.name)
-					msg = ''.join(ch for ch in msgtext if ch.isalnum() or ch in "_ ()*@$!%").strip()
-					finder.signal_send("msg:" + msg)
-					log.warning("manually sending message: %s to player %s" % (msg, pid))
-				except Exception as error:
-					log.error("Failed trying to message workaround. Pickup: %s, player: %s, error: %s" % (pickup, finder, error))
-			finder.history.append(HistoryLine(pickup_code = pickup.code, timestamp = datetime.now(), pickup_id = str(pickup.id), coords = coords, removed = remove))
-			finder.put()
-			Cache.setHist(self.key.id(), pid, finder.history)
-			
+		if pickup.code == "SH" and old:
+			try: # workaround for message pickups not working with old clients. Sketchy, so wrapped in try (we learnin')
+				found_here = {player.key.id().partition(".")[2]: hl.pickup() for player in players for hl in player.history if hl.coords == coords}
+				msgtext = pickup.id
+				if finder.seed:
+				# for *reasons*, sometimes the message sent from the client is 0 instead of the message text.
+				# we take the message from the seed instead to ensure accuracy.
+					raw = next(ifilter(lambda line: line.startswith(str(coords)), finder.seed.split("\n")), None)
+					if raw:
+						msgtext = raw.split(':')[2] # msglines are loc:Message:actual message
+				if "for Player" in msgtext or "for Team" in msgtext:
+					if any([p.code=="SH" for p in found_here.itervalues()]):
+						msgtext = msgtext.replace("@", "")
+					hint_pid, found = next(ifilter(lambda (_,pickup): pickup.code != "SH", found_here.iteritems()), (None, None))
+					if found:
+						msgtext = "$Player %s found %s here$" % (hint_pid, found.name)
+				msg = ''.join(ch for ch in msgtext if ch.isalnum() or ch in "_ ()*@$!%").strip()
+				finder.signal_send("msg:" + msg)
+				log.warning("manually sending message: %s to player %s" % (msg, pid))
+			except Exception as error:
+				log.error("Failed trying to message workaround. Pickup: %s, player: %s, error: %s" % (pickup, finder, error))
+		finder.history.append(HistoryLine(pickup_code = pickup.code, timestamp = datetime.now(), pickup_id = str(pickup.id), coords = coords, removed = remove))
+		finder.put()
+		Cache.setHist(self.key.id(), pid, finder.history)
+		
 		return retcode
 
 	def clean_up(self):

@@ -857,7 +857,7 @@ class GetSpoilerFromParams(RequestHandler):
 			self.response.status = 404
 			self.response.out.write("Param %s not found" % params_id)
 
-from util import picks_by_type_formatter, analysis
+from util import picks_by_type_formatter
 class PicksByTypeGen(RequestHandler):
 	def get(self):
 		self.response.headers['Content-Type'] = 'text/plain'
@@ -866,8 +866,9 @@ class PicksByTypeGen(RequestHandler):
 
 class SeedAnalysis(RequestHandler):
 	def get(self):
-		self.response.headers['Content-Type'] = 'text/plain'
-		self.response.out.write(analysis())
+		path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
+		template_values = {'app': "seedAnalysis", 'title': "seedAnalysis tool"}
+		self.response.out.write(template.render(path, template_values))
 		return
 		
 		

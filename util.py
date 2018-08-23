@@ -190,7 +190,7 @@ from enums import Variation, LogicPath, KeyMode, PathDifficulty, ShareType
 anal_table = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: 0)))
 count = 0
 
-def analysis(runs=100):
+def analysis(runs=50):
 	global count, anal_table
 	count += runs
 	pbt = picks_by_type_gen()
@@ -217,7 +217,7 @@ def analysis(runs=100):
 				if loc in ["-280256", "-1680104", "-12320248", "-10440008"]:
 					continue
 				pick = Pickup.n(code,id)
-				if pick.share_type in [ShareType.EVENT, ShareType.DUNGEON_KEY, ShareType.SKILL, ShareType.UPGRADE]:
+				if pick.share_type in [ShareType.EVENT, ShareType.DUNGEON_KEY, ShareType.SKILL, ShareType.UPGRADE, ShareType.TELEPORTER]:
 					anal_table[zone][loc][pick.name] += 1
 					anal_table[zone][loc]["TOTAL"] += 1
 		
