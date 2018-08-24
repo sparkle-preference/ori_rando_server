@@ -4,7 +4,7 @@ import {LayerGroup, ZoomControl, Map, Tooltip, TileLayer} from 'react-leaflet';
 import Leaflet from 'leaflet';
 import {Checkbox, CheckboxGroup} from 'react-checkbox-group';
 import {stuff_by_type, picks_by_type, presets, picks_by_area, pickup_name, PickupMarkersList, get_icon, getMapCrs, 
-		name_from_str, get_param, get_int, get_list, str_ids, select_styles, select_wrap, listSwap} from './shared_map.js';
+		name_from_str, get_param, get_int, get_list, str_ids, select_styles, select_wrap} from './shared_map.js';
 import NumericInput from 'react-numeric-input';
 import Select from 'react-select';
 import {Button, ButtonGroup, Collapse} from 'reactstrap';
@@ -68,8 +68,6 @@ const xml_name_to_code = {
 
 const dev = window.document.URL.includes("devshell")
 const base_url = dev ?  "https://8080-dot-3616814-dot-devshell.appspot.com" : "http://orirandocoopserver.appspot.com"
-const url = new URL(window.document.URL)
-const params = url.searchParams
 
 function get_manual_reach() {
 	let HC = get_int("HC", 0);
@@ -238,7 +236,6 @@ function getPickupMarkers(state, setSelected) {
 			if(reachable.includes(pick.area) || (state.searchStr && base_name.includes(state.searchStr)))
 			{
 				if(pick.name === "MapStone") {
-					let i = 1;
 				    rows = picks_by_type["MP"].map(ms => {
 				    	name = placements[ms.loc] ? placements[ms.loc].label : base_name
 				    	return (
@@ -465,7 +462,7 @@ class LogicHelper extends React.Component {
 	}
 
 	render() {
-	    let { accept, files, dropzoneActive } = this.state;
+	    let { dropzoneActive } = this.state;
 	    let overlay_style = { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, padding: '10em 0', background: 'rgba(0,0,0,0.5)', textAlign: 'center', color: '#fff' };
 		let inventory = getInventory(this.state);
 		let inv_pane = getInventoryPane(inventory, this)

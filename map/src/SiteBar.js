@@ -1,6 +1,5 @@
 import React from 'react';
-import {Navbar,  NavbarBrand, Nav,  NavItem,  NavLink, UncontrolledDropdown, Input, 
-		UncontrolledButtonDropdown, DropdownToggle, DropdownMenu, DropdownItem} from 'reactstrap'
+import {Navbar,  NavbarBrand, Nav,  NavItem,  NavLink, UncontrolledDropdown, DropdownToggle, DropdownMenu, DropdownItem} from 'reactstrap'
 const SiteBar = ({dlltime, user}) => {	
 	let logonoff = user ? [
 		(<DropdownItem href={"/plando/"+ user}> {user}'s seeds </DropdownItem>),

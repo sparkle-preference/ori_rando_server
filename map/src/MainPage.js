@@ -7,7 +7,7 @@ import 'react-notifications/lib/notifications.css';
 import './index.css';
 
 import {getHelpContent, HelpBox} from "./helpbox.js"
-import {listSwap, get_param, presets, goToCurry, player_icons, doNetRequest} from './shared_map.js';
+import {get_param, presets, goToCurry, player_icons, doNetRequest} from './shared_map.js';
 import SiteBar from "./SiteBar.js"
 
 const dev = window.document.URL.includes("devshell")
@@ -180,7 +180,7 @@ export default class MainPage extends React.Component {
 						<Col xs="4" className="text-center pt-1 border">
 							<span class="align-middle">SyncId (leave blank if unsure)</span>
 						</Col><Col xs="4">
-							<Input type="number" value={this.state.syncId} invalid={!(this.state.syncId === "" || this.state.syncId > 0)} onChange={(e) => this.setState({syncId: parseInt(e.target.value)})}/>
+							<Input type="number" value={this.state.syncId} invalid={!(this.state.syncId === "" || this.state.syncId > 0)} onChange={(e) => this.setState({syncId: parseInt(e.target.value, 10)})}/>
 							<FormFeedback tooltip>syncId must be positive</FormFeedback>
 						</Col>
 					</Row>

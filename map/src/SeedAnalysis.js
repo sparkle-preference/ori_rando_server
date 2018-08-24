@@ -1,11 +1,7 @@
 import React from 'react';
 import {doNetRequest, stuff_by_type, picks_by_zone, picks_by_loc} from './shared_map.js';
-import {ButtonDropdown, Button, Container, Row, Col, Input} from 'reactstrap';
+import {Button, Container, Row, Col, Input} from 'reactstrap';
 import {Helmet} from 'react-helmet';
-
-const textStyle = {color: "black", textAlign: "center"}
-// one day I'll figure out why I left progressive mapstones out of picks_by_[zone|loc|area]
-// by default. But not today!
 
 const EMPTY_COUNTS = {"RB|17": 0, "RB|19": 0, "RB|21": 0, "TOTAL": 0};
 const ALPHA_ZONES = ["Blackroot", "Forlorn", "Ginso", "Glades", "Grotto", "Grove", "Horu", "Mapstone", "Misty", "Sorrow", "Swamp", "Valley"];
@@ -18,20 +14,32 @@ delete EMPTY_COUNTS["EV|5"] // not that interested in warmth locations tbh
 
 export default class SeedAnalysis extends React.Component {
   	constructor(props) {
-    	super(props);
+    	super(props);    	
     	let seed_data = {};
-    	Object.keys(picks_by_loc).forEach(loc => seed_data[loc] = {...EMPTY_COUNTS})
-    	this.state = {seed_data: seed_data, fill_alg: "Balanced", key_mode: "Clues", vars: ["ForceTrees"], 
+    	Object.keys(picks_by_loc).forEach(loc => seed_data[loc] = {...EMPTY_COUNTS});
+    	this.state = {seed_data: seed_data , fill_alg: "Balanced", key_mode: "Clues", vars: ["ForceTrees"], 
     					paths: ["normal", "speed", "lure", "dboost-light"], count: 0, fails: 0, limit: 50};
 	}
 	
+	resetChangeState = (k,v) => {
+		//eslint-disable-next-line
+		if(this.state.count === 0 || confirm("You'll lose your current data, you sure?")) {
+	    	let seed_data = {};
+	    	Object.keys(picks_by_loc).forEach(loc => seed_data[loc] = {...EMPTY_COUNTS});
+			let state_updates = {count:0, fails: 0, seed_data: seed_data}
+			state_updates[k] = v
+			this.setState(state_updates)			
+		} 
+	}
+
     parseSeed = (seed) => {
 		let lines = seed.split("\n")
 		let new_locs = {}
+		let col_order = this.col_order();
 	    for (let i = 1, len = lines.length; i < len; i++) {
 	    	let [loc, code, id] = lines[i].split("|");
 	    	let codeid = code+"|"+id
-	    	if(COL_ORDER.includes(codeid)) new_locs[loc] = codeid
+	    	if(col_order.includes(codeid)) new_locs[loc] = codeid
     	}
     	this.setState(prev => {
 	    		let data = prev.seed_data;
@@ -71,12 +79,22 @@ export default class SeedAnalysis extends React.Component {
 		this.parseSeed(res.players[0].seed);
 	}
 
-
+	col_order = () => {
+		let col_ord = [...COL_ORDER];
+			if(this.state.key_mode === "Shards")
+			{
+				col_ord[col_ord.indexOf("EV|0")] = "RB|17"
+				col_ord[col_ord.indexOf("EV|2")] = "RB|19"
+				col_ord[col_ord.indexOf("EV|4")] = "RB|21"
+			}
+		return col_ord;
+	}
 
 	render = () => {
-		
+		let col_ord = this.col_order();		
 		let rows = ALPHA_ZONES.map(zone => {
 			return picks_by_zone[zone].sort((a,b) => this.state.seed_data[b.loc]["TOTAL"] - this.state.seed_data[a.loc]["TOTAL"]).map(pick => {
+				if(pick.loc === -12320248) return null // no grenade plant PLS
 				let counts = this.state.seed_data[pick.loc];
 				if(!counts) {
 					console.log(pick.loc,Object.keys(this.state.seed_data))
@@ -85,7 +103,7 @@ export default class SeedAnalysis extends React.Component {
 					(<td class="border">{[pick.area, pick.name, "("+(pick.x / 4)*4, (pick.y / 4)*4+")"].join(" ")}</td>),
 					(<td class="border">{pick.zone}</td>)
 				];
-				let cols = COL_ORDER.map(key => (<td class="border">{counts[key]}</td>))
+				let cols = col_ord.map(key => (<td class="border">{counts[key]}</td>))
 				return (
 				<tr class="border-top border-dark">
 					{loc_zone}
@@ -115,15 +133,15 @@ export default class SeedAnalysis extends React.Component {
 		        </Row></Col>
 	            <Col xs="2"><Row>
 					<Col>Mode</Col>
-					<Col xs="8"><Input type="text" value={this.state.key_mode} onChange={(n) => this.setState({key_mode: n.target.value})}/></Col>
+					<Col xs="8"><Input type="text" value={this.state.key_mode} onChange={(n) => this.resetChangeState("key_mode", n.target.value)}/></Col>
 		        </Row></Col>
 	            <Col xs="3"><Row>
 					<Col>Paths</Col>
-					<Col xs="10"><Input type="text" value={this.state.paths.join(",")} onChange={(n) => this.setState({paths: n.target.value.split(",")})}/></Col>
+					<Col xs="10"><Input type="text" value={this.state.paths.join(",")} onChange={(n) => this.resetChangeState("paths", n.target.value.split(","))}/></Col>
 		        </Row></Col>
 	            <Col xs="2"><Row>
 					<Col>Vars</Col>
-					<Col xs="10"><Input type="text" value={this.state.vars.join(",")} onChange={(n) => this.setState({vars: n.target.value.split(",")})}/></Col>
+					<Col xs="10"><Input type="text" value={this.state.vars.join(",")} onChange={(n) => this.resetChangeState("vars", n.target.value.split(","))}/></Col>
 		        </Row></Col>
 	        </Row>
 	        </Container>

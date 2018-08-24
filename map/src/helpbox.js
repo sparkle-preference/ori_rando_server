@@ -83,6 +83,9 @@ const getHelpContent = (category, option) => {
 					lines = [ 
 						"Custom is the Logic Mode for any user-specified set of logic paths.",
 					]
+					break;
+				default:
+					break;
 			}
 			lines.push("For more detailed info about Logic Modes, check out the help sections inside the Logic Paths tab")
 			break;
@@ -177,6 +180,8 @@ const getHelpContent = (category, option) => {
 						'Note: The "ExtremeSpeed" and "Gravity Swap" pickups are toggleable: activating them will turn them on, and cost energy over time. They will automatically turn off if you run out of energy.'
 					]
 					break;
+				default:
+					break;
 			}			
 			break;
 		case "keyModes":
@@ -193,7 +198,7 @@ const getHelpContent = (category, option) => {
 					title = "Clues"
 					lines = [
 						"In Clues, the dungeon keys are placed randomly throughout the map. Every 3 skill trees you visit, the game will tell you which zone you can find one of the keys in. You can check your currently unlocked hints (as well as tree, mapstone, and overall progress) by pressing alt+p.",
-						(<div>Note: A map of the Zones is available <a target="_blank" href="https://i.imgur.com/lHgbqmI.jpg">here</a>.</div>),
+						(<div>Note: A map of the Zones is available <a target="_blank" rel="noopener noreferrer" href="https://i.imgur.com/lHgbqmI.jpg">here</a>.</div>),
 						"Recommended for: newer players, players who like exploring, but don't want to check every pickup"
 					]
 					break;
@@ -218,6 +223,8 @@ const getHelpContent = (category, option) => {
 						"Check out the Warmth Fragment Mode tab for more details. (You can also edit the seed's experience pool in that tab, no matter what game mode is selected).",
 						"Recommended for: people who like exploring and efficiently checking large numbers of pickups."
 					]
+					break;
+				default:
 					break;
 			}
 			break;
@@ -270,7 +277,8 @@ const getHelpContent = (category, option) => {
 						"Seperate Seeds work best when individual shared items don't block progression for other players. Recommended settings: Do not share skills (or teleporters), do share upgrades, and set the dungeon key mode set to either Shards or Warmth Fragments."
 					]
 					break;
-					
+				default:
+					break;					
 			}
 		break;
 
@@ -322,6 +330,8 @@ const getHelpContent = (category, option) => {
 						"Without hints, Cloned Seeds work best with fewer players (more than 3 can lead to a lot of duplicate checking) and fewer overall shared items (shared upgrades not recommended).",
 						"With hints, however, the number of players and shared pickups can both be higher without issue; knowing the pickup type helps distinguish between which shared pickups are important.",
 					]
+					break;
+				default:
 					break;
 			}
 		break;
@@ -389,6 +399,8 @@ const getHelpContent = (category, option) => {
 						"This option affects every game mode and as such is editable even with Warmth Fragments disabled.",
 					]
 					break;				
+				default:
+					break;
 			}
 			break;
 		case "general":
@@ -453,6 +465,8 @@ const getHelpContent = (category, option) => {
 						"Web tracking is required for the Map tracker to function properly and for all multiplayer modes."
 					]
 				break;
+				default:
+					break;
 			}
 			break;	
 		case "logicPaths":
@@ -479,7 +493,7 @@ const getHelpContent = (category, option) => {
 					title = "Damage Boost (light)"
 					lines = [
 						"Damage Boost (light) is simplest of the damage boost logic path groups. It contains paths that require taking at most 2 damage.", 
-						"Examples: Using Climb instead of Wall Jump to get to the Double Jump tree. Getting to and through Death Gauntlet with 4 Energy Cells and Wall Jump or Climb. Getting the Top Left keystone in Spirit Caverns with Bash/Charge Jump (but no wall interaction)",
+						"Examples: Using Climb instead of Wall Jump to get to the Double Jump tree. Getting to and through Death Gauntlet with 4 Energy Cells and Wall Jump or Climb. Getting the Top Left keystone in Spirit Caverns with Charge Jump (but no wall interaction)",
 						"The Damage Boost (Light) paths are usually pretty straightforward, though some of them can be tricky to execute without 1 or 2 extra Health.",
 						"These logic paths are enabled by default in every logic mode besides OHKO, and are incompatible with the OHKO variation."
 					]
@@ -491,7 +505,6 @@ const getHelpContent = (category, option) => {
 						"Examples: Getting to the Energy Cell underwater in the Sunken Glades main pool with 6 Health. Getting to the Climb tree with Bash, DoubleJump, and 4 Health. Getting the Ability Cell behind the underwater 4 energy door with only 3 Health",
 						"The Damage Boost paths can be difficult to execute on the minimum amount of health they require, especially without practice. Some pickups (especially underwater ones) can require a quick alt+R after grabbing, depending on your Health.",
 						"These logic paths are enabled by default in the Expert, Master, and Glitched logic modes, and are incompatible with the OHKO and Hard Mode variations."
-
 					]
 					break;
 				case "lure":
@@ -592,6 +605,8 @@ const getHelpContent = (category, option) => {
 						"As the name implies, the major difference between the two logic path groups is that Charge Dash (Farming) is far more likely to force you to farm for the ability points required to unlock the Charge Dash ability, since the Plants included are earlier in the game.",
 						"These logic paths are enabled by default only in the Glitched logic mode, and are incompatible with the 0XP variation."
 					]
+					break;
+				default:
 					break;
 			}
 
