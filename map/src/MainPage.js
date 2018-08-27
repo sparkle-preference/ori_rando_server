@@ -522,7 +522,9 @@ export default class MainPage extends React.Component {
 			</Row>
 			<Row className="p-1">
 				<Col>
-					<span><h3 style={textStyle}>Seed Generator v2.6.8 ヽ(•‿•)ノ </h3></span>
+					<span>
+						<h3 style={textStyle}>Seed Generator v2.6.9 ;) (;</h3>
+					</span>
 				</Col>
 			</Row>
 			<Row className="p-3 border">
