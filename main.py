@@ -857,11 +857,11 @@ class GetSpoilerFromParams(RequestHandler):
 			self.response.status = 404
 			self.response.out.write("Param %s not found" % params_id)
 
-from util import picks_by_type_formatter
+from util import picks_by_type_generator
 class PicksByTypeGen(RequestHandler):
 	def get(self):
-		self.response.headers['Content-Type'] = 'text/plain'
-		self.response.out.write(picks_by_type_formatter())
+		self.response.headers['Content-Type'] = 'application/json'
+		self.response.out.write(picks_by_type_generator())
 		return
 
 class SeedAnalysis(RequestHandler):

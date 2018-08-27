@@ -20,23 +20,32 @@ coord_correction_map = {
 }
 # for picks_by_loc_gen
 non_area_lines = {
-	"EC": "\t{'loc': -280256, 'name': 'EC', 'zone': 'Glades', 'area': 'SunkenGladesRunaway', 'y': -256, 'x': -28},\n",
-	"EX": "\t{'loc': -1680104, 'name': 'EX100', 'zone': 'Grove', 'area': 'SpritTreeRefined', 'y': -104, 'x': -168},\n",
-	"Pl": "\t{'loc': -12320248, 'name': 'Plant', 'zone': 'Forlorn', 'area': 'RightForlornPlant', 'y': -248, 'x': -1232},\n",
-	"KS": "\t{'loc': -10440008, 'name': 'KS', 'zone': 'Misty', 'area': 'Misty', 'y': 8, 'x': -1044},\n"
+	"EC": """\t{"loc": -280256, "name": "EC", "zone": "Glades", "area": "SunkenGladesRunaway", "x": -28, "y": -256},\n""",
+	"EX": """\t{"loc": -1680104, "name": "EX100", "zone": "Grove", "area": "SpritTreeRefined", "x": -168, "y": -104},\n""",
+	"Pl": """\t{"loc": -12320248, "name": "Plant", "zone": "Forlorn", "area": "RightForlornPlant", "x": -1232, "y": -248},\n""",
+	"KS": """\t{"loc": -10440008, "name": "KS", "zone": "Misty", "area": "Misty", "x": -1044, "y": 8},\n"""
 }
-PickLoc = namedtuple("PickLoc", ["coords", "name", "zone", "area", "y", "x"])
 
+PickLoc = namedtuple("PickLoc", ["coords", "name", "zone", "area", "x", "y"])
+PBT_json_path = "map/src/PBT.json"
+EV_truecoords = {
+	0: """"_x": 500, "_y": -244""",
+	4: """"_x": 525, "_y": 980""",
+	8: """"_x": -720, "_y": -20""",
+	12: """"_x": -735, "_y": -225""",
+	16: """"_x":-560, "_y":  607""",
+	20: """"_x": -220, "_y": 504""",
+}
 extra_PBT = [
-	PickLoc(24, 'Mapstone 1', 'Mapstone', 'MS1', 24,  0),
-	PickLoc(28, 'Mapstone 2', 'Mapstone', 'MS2', 28,  0),
-	PickLoc(32, 'Mapstone 3', 'Mapstone', 'MS3', 32,  0),
-	PickLoc(36, 'Mapstone 4', 'Mapstone', 'MS4', 36,  0),
-	PickLoc(40, 'Mapstone 5', 'Mapstone', 'MS5', 40,  0),
-	PickLoc(44, 'Mapstone 6', 'Mapstone', 'MS6', 44,  0),
-	PickLoc(48, 'Mapstone 7', 'Mapstone', 'MS7', 48,  0),
-	PickLoc(52, 'Mapstone 8', 'Mapstone', 'MS8', 52,  0),
-	PickLoc(56, 'Mapstone 9', 'Mapstone', 'MS9', 56,  0)
+	PickLoc(24, 'Mapstone 1', 'Mapstone', 'MS1', 0, 24),
+	PickLoc(28, 'Mapstone 2', 'Mapstone', 'MS2', 0, 28),
+	PickLoc(32, 'Mapstone 3', 'Mapstone', 'MS3', 0, 32),
+	PickLoc(36, 'Mapstone 4', 'Mapstone', 'MS4', 0, 36),
+	PickLoc(40, 'Mapstone 5', 'Mapstone', 'MS5', 0, 40),
+	PickLoc(44, 'Mapstone 6', 'Mapstone', 'MS6', 0, 44),
+	PickLoc(48, 'Mapstone 7', 'Mapstone', 'MS7', 0, 48),
+	PickLoc(52, 'Mapstone 8', 'Mapstone', 'MS8', 0, 52),
+	PickLoc(56, 'Mapstone 9', 'Mapstone', 'MS9', 0, 56)
 ]
 
 def enums_from_strlist(enum, strlist):
@@ -154,39 +163,64 @@ def picks_by_type_gen():
 			x = loc.find("X").text
 			y = loc.find("Y").text
 			item = loc.find("Item").text
-			if item == "MapStone":
-				continue
 			zone = loc.find("Zone").text
 			crd = get(rnd(int(x)),rnd(int(y)))
-			if crd not in all_locs:
+			if crd not in all_locs and item != "MapStone":
 				secondary_match = all_locs_unpacked.get((rnd(int(x)),rnd(int(y))))
 				if secondary_match:
 					crd = secondary_match
 				else:
-					print "No secondary match found here!", crd, item, zone, area, y, x
-			line = PickLoc(crd,item,zone,area,y,x)
+					print "No secondary match found here!", crd, item, zone, area, x, y
+			line = PickLoc(crd,item,zone,area,x,y)
 			picks_by_type[item[0:2]].append(line)
 	return picks_by_type
 
-def picks_by_type_formatter():
-	retval = ""
+def picks_by_type_generator():
+	lines = "{\n"
 	picks_by_type = picks_by_type_gen()
+	picks_by_type["MP"] = extra_PBT
 	for key in sorted(picks_by_type.keys()):
-		if key in ["EV", "MP", "Ma"]:
-			continue
-		retval += '"%s": [\n' % key
+		lines += '"%s": [\n' % key
 		if key in non_area_lines:
-			retval += non_area_lines[key]
-		for item in sorted(picks_by_type[key], key=lambda x: str(x[0])):
-			retval += """\t{'loc': %s, 'name': '%s', 'zone': '%s', 'area': '%s', 'y': %s, 'x': %s}, \n""" % item # tuple(list(item[1:]))
-		retval += '], '
-	return retval
+			lines += non_area_lines[key]
+		items = []
+		for item in sorted(picks_by_type[key], key=lambda x: str(x.coords)):
+			if key == "EV":
+				lines += """\t{"loc": %s, "name": "%s", "zone": "%s", "area": "%s", "x": %s, "y": %s, %s}, \n""" % tuple(list(item) + [EV_truecoords[item.coords]])	
+			else:
+				lines += """\t{"loc": %s, "name": "%s", "zone": "%s", "area": "%s", "x": %s, "y": %s}, \n""" % item # tuple(list(item[1:]))
+		lines = lines[:-3] + '\n], '
+	lines = lines[:-2] + "\n}"
+	return lines
+#	
+#	if os.path.exists(PBT_json_path):
+#	    os.remove(PBT_json_path)
+#	with open(PBT_json_path, "w") as out:
+#		out.write(lines)
+
+# TODO: DELETE ME
+#def picks_by_type_formatter():
+#	retval = ""
+#	picks_by_type = picks_by_type_gen()
+#	for key in sorted(picks_by_type.keys()):
+#		if key in ["EV", "MP", "Ma"]:
+#			continue
+#		retval += '"%s": [\n' % key
+#		if key in non_area_lines:
+#			retval += non_area_lines[key]
+#		for item in sorted(picks_by_type[key], key=lambda x: str(x[0])):
+#			retval += """\t{'loc': %s, 'name': '%s', 'zone': '%s', 'area': '%s', 'y': %s, 'x': %s}, \n""" % item # tuple(list(item[1:]))
+#		retval += '], '
+#	return retval
 
 from seedbuilder.generator import SeedGenerator
 from pickups import Pickup
 import seedbuilder.seedparams
 import random
 from enums import Variation, LogicPath, KeyMode, PathDifficulty, ShareType
+
+
+# the shit below is whack just FYI
 anal_table = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: 0)))
 count = 0
 
