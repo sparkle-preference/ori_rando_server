@@ -225,6 +225,7 @@ function getPickupMarkers(state, setSelected) {
 	let placements = state.placements;
 	let reachable = Object.keys(state.reachable)
 	let markers = []
+	let search = state.searchStr ? state.searchStr.toLowerCase() : false
 	marker_types.forEach(pre => {
 		picks_by_type[pre].forEach(pick => {
 			let x = pick.hasOwnProperty("_x") ? pick._x : pick.x
@@ -233,7 +234,7 @@ function getPickupMarkers(state, setSelected) {
 			let rows = null;
 			let base_name = pick.area + " " +pick.name + " ("+rnd(pick.x)+" "+rnd(pick.y)+")";
 			let name = "";
-			if(reachable.includes(pick.area) || (state.searchStr && base_name.includes(state.searchStr)))
+			if(reachable.includes(pick.area) || (search && base_name.toLowerCase().includes(search)))
 			{
 				if(pick.name === "MapStone") {
 				    rows = picks_by_type["MP"].map(ms => {
@@ -257,7 +258,6 @@ function getPickupMarkers(state, setSelected) {
 						<table>{rows}</table>
 					</Tooltip>
 				);
-				let search = state.searchStr ? state.searchStr.toLowerCase() : false
 				if(search && (name.toLowerCase().includes(search) || base_name.toLowerCase().includes(search)))
 					icon = get_icon(pick, "green");
 				markers.push({key: x+","+y, position: [y, x], inner: inner, icon: icon, onClick: () => setSelected({label: name, value: pick}) });
@@ -289,10 +289,7 @@ class LogicHelper extends React.Component {
 	        modes = presets['standard'];
 	    }
 
-	    if(Object.keys(manual_reach).some(key => Array.isArray(manual_reach[key]) ? manual_reach[key].length > 0 : manual_reach[key] > 0 ))
-			this.setState({modes: modes, pathMode: {label: pathmode, value: pathmode}, manual_reach: manual_reach}, () => {this.updateReachable() ; this.updateURL()})
-		else
-			this.setState({modes: modes, pathMode: {label: pathmode, value: pathmode}, manual_reach: manual_reach}, this.updateURL)
+		this.setState({modes: modes, pathMode: {label: pathmode, value: pathmode}, manual_reach: manual_reach}, () => {this.updateReachable() ; this.updateURL()})
 
 	};
 
