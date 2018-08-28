@@ -27,7 +27,7 @@ const variations = {
 	NoPlants: "No Plants",
 	ForceMapStones: "Force Mapstones",
 	ForceRandomEscape: "Force Random Escape",
-//	Entrance: "Entrance Shuffle",
+	Entrance: "Entrance Shuffle",
 	BonusPickups: "More Bonus Pickups"
 }
 const optional_paths = ["speed", "dboost-light", "dboost", "lure", "speed-lure", "lure-hard", "dboost-hard", "extended", "extended-damage", "dbash", "cdash", "extreme", "timed-level", "glitched", "cdash-farming"]
