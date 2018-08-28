@@ -30,7 +30,7 @@ def get_areas():
 		global conn, has_reqs, all_req
 		path_type = tokens[0]
 	
-		if path_type == "all":
+		if path_type == "ALL":
 			all_req = tokens[1:]
 			return
 	
