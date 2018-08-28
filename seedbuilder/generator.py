@@ -5,6 +5,7 @@ import xml.etree.ElementTree as XML
 from collections import OrderedDict, defaultdict, Counter
 from operator import mul
 from enums import KeyMode, PathDifficulty, ShareType, Variation, MultiplayerGameType
+from seedbuilder.areas import get_areas
 
 def ordhash(s):
 	return reduce(mul, [ord(c) for c in s])
@@ -901,7 +902,7 @@ class SeedGenerator:
 		mapstoneCount = 0
 		plants = []
 
-		tree = XML.parse("seedbuilder/areas.xml")
+		tree = get_areas()
 		root = tree.getroot()
 		logic_paths = [lp.value for lp in self.params.logic_paths]
 		for child in root:
