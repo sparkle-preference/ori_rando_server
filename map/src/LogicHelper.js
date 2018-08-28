@@ -67,7 +67,6 @@ const xml_name_to_code = {
 }
 
 const dev = window.document.URL.includes("devshell")
-const base_url = dev ?  "https://8080-dot-3616814-dot-devshell.appspot.com" : "http://orirandocoopserver.appspot.com"
 
 function get_manual_reach() {
 	let HC = get_int("HC", 0);
@@ -381,7 +380,7 @@ class LogicHelper extends React.Component {
 		let reach = this.state.manual_reach
 		let args = Object.keys(reach).filter(key => Array.isArray(reach[key]) ? reach[key].length > 0 : reach[key] > 0 ).map(key => key + "=" + (Array.isArray(reach[key]) ? reach[key].map(i => i.value).join("+") : reach[key]))
 		args.unshift("pathmode="+this.state.pathMode.value)
-	    window.history.replaceState('',window.document.title, base_url+"/logichelper?"+args.join("&"));		
+	    window.history.replaceState('',window.document.title, window.document.URL.split("?")[0]+"?"+args.join("&"));
 	}
 	
 	updateManual = (param,val) => this.setState(prevState => {
