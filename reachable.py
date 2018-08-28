@@ -1,4 +1,4 @@
-import xml.etree.ElementTree as XML
+from seedbuilder.areas import get_areas
 from collections import defaultdict, Counter
 
 class PlayerState(object):
@@ -75,7 +75,7 @@ class Map(object):
 	reached_with = defaultdict(lambda: set())
 	@staticmethod
 	def build():
-		tree = XML.parse("seedbuilder/areas.xml")
+		tree = get_areas()
 		root = tree.getroot()
 		for child in root:
 			area = Area(child.attrib["name"])

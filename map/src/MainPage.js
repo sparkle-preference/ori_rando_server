@@ -523,7 +523,7 @@ export default class MainPage extends React.Component {
 			<Row className="p-1">
 				<Col>
 					<span>
-						<h3 style={textStyle}>Seed Generator v2.6.9 ;) (;</h3>
+						<h3 style={textStyle}>Seed Generator v3 PRE-ALPHA</h3>
 					</span>
 				</Col>
 			</Row>

@@ -1,7 +1,7 @@
 from math import floor
 from collections import defaultdict, namedtuple 
 from datetime import datetime, timedelta
-import xml.etree.ElementTree as XML
+from seedbuilder.areas import get_areas
 import logging as log
 
 import sys,os
@@ -153,7 +153,7 @@ def is_int(s):
 
 
 def picks_by_type_gen():
-	tree = XML.parse("seedbuilder/areas.xml")
+	tree = get_areas()
 	root = tree.getroot()
 	picks_by_type=defaultdict(lambda: [])
 	all_locs_unpacked = { unpack(loc) : loc for loc in all_locs }
