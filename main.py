@@ -806,8 +806,8 @@ class SeedGenJson(RequestHandler):
 					seed = params.get_seed(p, key.id(), verbose_paths)
 				else:
 					seed = params.get_seed(p, verbose_paths = verbose_paths)
-				spoiler = params.get_spoiler(p)					
-				players.append({"seed": seed, "spoiler": spoiler})
+				spoiler = params.get_spoiler(p).replace("\n","\r\n")
+				players.append({"seed": seed, "spoiler": spoiler, "spoiler_url": uri_for('gen-params-get-spoiler',params_id=param_key.id(), player=p, _full=True)})
 			resp["players"] = players
 			self.response.out.write(json.dumps(resp))	
 		else:

@@ -277,7 +277,9 @@ class LogicHelper extends React.Component {
   	
 
  	componentWillMount() {
-	    let pathmode = get_param("pathmode");
+		let url = new URL(window.document.location.href); // TODO: get all non-proccessed url params this way instead of via template (it's easier)
+	    let pathmode = url.searchParams.get("pathmode");
+	    let search = url.searchParams.get("search") || "";
 	    let manual_reach = get_manual_reach();
 	    let modes;
 	
@@ -289,7 +291,6 @@ class LogicHelper extends React.Component {
 	    }
 
 		this.setState({modes: modes, pathMode: {label: pathmode, value: pathmode}, manual_reach: manual_reach}, () => {this.updateReachable() ; this.updateURL()})
-
 	};
 
 	onDragEnter = () => this.setState({dropzoneActive: true});
@@ -380,7 +381,8 @@ class LogicHelper extends React.Component {
 		let reach = this.state.manual_reach
 		let args = Object.keys(reach).filter(key => Array.isArray(reach[key]) ? reach[key].length > 0 : reach[key] > 0 ).map(key => key + "=" + (Array.isArray(reach[key]) ? reach[key].map(i => i.value).join("+") : reach[key]))
 		args.unshift("pathmode="+this.state.pathMode.value)
-	    window.history.replaceState('',window.document.title, window.document.URL.split("?")[0]+"?"+args.join("&"));
+		if(this.state.searchStr) args.push("search="+this.state.searchStr)
+	    window.history.replaceState('',window.document.title, window.document.URL.split("?")[0]+"?"+args.join("&"));		
 	}
 	
 	updateManual = (param,val) => this.setState(prevState => {
@@ -435,9 +437,8 @@ class LogicHelper extends React.Component {
   	};
 
 	onViewportChanged= (viewport) => this.setState({viewport: viewport})
-
-	onPathModeChange = (n) => paths.includes(n.value) ? this.setState({modes: presets[n.value], pathMode: n}, this.resetReachable) : this.setState({pathMode: n}, this.resetReachable)
-	toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
+	onSearch = (e) => this.setState({searchStr: e.target.value}, this.updateURL)
+	onPathModeChange = (n) => this.setState({modes: presets[n.value], pathMode: n}, () => { this.updateURL() ; this.resetReachable()});
 	resetReachable = () => this.setState({ reachable: {...DEFAULT_REACHABLE}, new_areas: {...DEFAULT_REACHABLE}, selected: "", selected_area: "", highlight_picks: [], history: {}, step: 0}, () => (this.state.logicMode === "auto") ? null : this.updateReachable())
 	unloadSeed = () => this.setState({hasSeed: false, placements: {...DEFAULT_DATA}, logicMode: "manual"}, this.resetReachable)
 	rewind = () => {
@@ -510,7 +511,7 @@ class LogicHelper extends React.Component {
 					{import_or_step}
 			    	<div id="search-wrapper">
 						<label for="search">Search</label>
-						<input id="search" className="form-control" type="text" value={this.state.searchStr} onChange={(e) => this.setState({searchStr: e.target.value})} />
+						<input id="search" className="form-control" type="text" value={this.state.searchStr} onChange={this.onSearch} />
 					</div>
 					{inv_pane}
 					<div id="logic-controls">
@@ -548,7 +549,7 @@ class LogicHelper extends React.Component {
 						<hr style={{ backgroundColor: 'grey', height: 2 }}/>
 						<div id="logic-mode-controls">
 							<div id="logic-presets">
-								<Button color="primary" onClick={this.toggleLogic} >Logic Paths:</Button>
+								<Button color="primary" onClick={() => this.setState({display_logic: !this.state.display_logic})} >Logic Paths:</Button>
 								<Select styles={select_styles}  options={select_wrap(paths)} onChange={this.onPathModeChange} isClearable={false} value={this.state.pathMode}></Select>
 							</div>
 							<Collapse id="logic-options-wrapper" isOpen={this.state.display_logic}>
