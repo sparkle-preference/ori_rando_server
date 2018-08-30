@@ -4,7 +4,7 @@ import urllib2
 def get_areas():
 	global area, area_name, conn, has_reqs, all_req
 	
-	response = urllib2.urlopen('https://raw.githubusercontent.com/Vulajin/OriDERandomizer/master/seed_gen/areas.ori')
+	response = urllib2.urlopen('https://raw.githubusercontent.com/sigmasin/OriDERandomizer/3.0/seed_gen/areas.ori')
 	
 	meta = response.read().split("\n")
 	
