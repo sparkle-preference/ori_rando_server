@@ -16,12 +16,12 @@ from google.appengine.api import users
 from google.appengine.ext import ndb
 from google.appengine.ext.webapp import template
 
-# project impports
-from seedbuilder.generator import SeedGenerator, Random
+# project imports
+from seedbuilder.generator import Random
 from seedbuilder.seedparams import SeedGenParams
 from seedbuilder.vanilla import seedtext as vanilla_seed
 from bingo import Card
-from enums import MultiplayerGameType, ShareType, LogicPath, Variation
+from enums import MultiplayerGameType, ShareType
 from models import Game, Seed
 from pickups import Pickup
 from cache import Cache
