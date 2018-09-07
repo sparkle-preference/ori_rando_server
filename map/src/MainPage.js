@@ -226,6 +226,13 @@ export default class MainPage extends React.Component {
 		this.state.paths.forEach(p => urlParams.push("path="+p))
 		urlParams.push("exp_pool="+this.state.expPool)
 		urlParams.push("players="+this.state.players)
+        let fass = []
+        Object.keys(this.state.fass).forEach(loc => {
+            if(this.state.fass[loc])
+                fass.push(loc+":"+this.state.fass[loc].replace("|","")); // hahahahaha
+        })
+        if(fass)
+            urlParams.push("fass="+fass.join("|"))
 		if(this.state.tracking)
 		{
 			if(this.state.syncId !== "")
@@ -413,7 +420,7 @@ export default class MainPage extends React.Component {
 					 paths: presets["standard"], keyMode: "Clues", oldKeyMode: "Clues", pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null),
 					 customSyncId: "", seed: "", fillAlg: "Balanced", shared: ["Skills", "Dungeon Keys", "Teleporters", "World Events"], hints: true, helpcat: "", helpopt: "",
 					 frag: {enabled: false, count: 40, key_1: 7, key_2:14, key_3: 21, required: 28, tolerance: 3}, syncId: "", expPool: 10000, lastHelp: new Date(), seedIsGenerating: false,
-					 paramId: paramId, modalOpen: modalOpen, inputGameId: inputGameId, allowReopenModal: modalOpen, reopenUrl: "", teamStr: "", inputFlagLine: ""};
+					 paramId: paramId, modalOpen: modalOpen, inputGameId: inputGameId, allowReopenModal: modalOpen, reopenUrl: "", teamStr: "", inputFlagLine: "", fass: {}};
 	}
 	
 	
@@ -428,7 +435,11 @@ export default class MainPage extends React.Component {
 	    window.history.replaceState('',window.document.title, url);
 		this.setState({modalOpen: true})
 	}
-	
+	onFass = (l, i) => this.setState(prevState => {
+        let new_fass = prevState.fass;
+        new_fass[l] = i;
+        return {fass: new_fass}        
+    })
 	onPath = (p) => () => this.state.paths.includes(p) ? this.setState({pathMode: "custom", paths: this.state.paths.filter(x => x !== p)}) : this.setState({pathMode: "custom", paths: this.state.paths.concat(p)})	
 	onSType = (s) => () => this.state.shared.includes(s) ? this.setState({shared: this.state.shared.filter(x => x !== s)}) : this.setState({shared: this.state.shared.concat(s)})	
 	onVar = (v) => () =>  this.state.variations.includes(v) ? this.setState({variations: this.state.variations.filter(x => x !== v)}) : this.setState({variations: this.state.variations.concat(v)})
@@ -593,6 +604,11 @@ export default class MainPage extends React.Component {
 						Warmth Fragment Mode
 						</NavLink>
 					</NavItem>
+					<NavItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "advanced")}>
+						<NavLink active={this.state.activeTab === 'advanced'} onClick={() => { dev && console.log(this.state); this.setState({activeTab: 'advanced'})}}>
+						Advanced
+						</NavLink>
+					</NavItem>
 				</Nav>
 			</Col>
 			</Row>
@@ -613,6 +629,36 @@ export default class MainPage extends React.Component {
 								</TabPane>
 								{multiplayerTab}
 								{warmthFragsTab}
+								<TabPane tabId="advanced">
+                                    <Row className="p-1 justify-content-center">
+                                        <Col xs="4" className="text-center pt-1 border">
+                                            <span class="align-middle">First Pickup:</span>
+                                        </Col><Col xs="4">
+                                            <Input type="text" value={this.state.fass[919772]} onChange={e => this.onFass(919772, e.target.value)}/> 
+                                        </Col>
+                                    </Row>
+                                    <Row className="p-1 justify-content-center">
+                                        <Col xs="4" className="text-center pt-1 border">
+                                            <span class="align-middle">Second Pickup:</span>
+                                        </Col><Col xs="4">
+                                            <Input type="text" value={this.state.fass[-1560272]} onChange={e => this.onFass(-1560272, e.target.value)}/> 
+                                        </Col>
+                                    </Row>
+                                    <Row className="p-1 justify-content-center">
+                                        <Col xs="4" className="text-center pt-1 border">
+                                            <span class="align-middle">Third Pickup:</span>
+                                        </Col><Col xs="4">
+                                            <Input type="text" value={this.state.fass[799776]} onChange={e => this.onFass(799776, e.target.value)}/> 
+                                        </Col>
+                                    </Row>
+                                    <Row className="p-1 justify-content-center">
+                                        <Col xs="4" className="text-center pt-1 border">
+                                            <span class="align-middle">Fourth Pickup:</span>
+                                        </Col><Col xs="4">
+                                            <Input type="text" value={this.state.fass[-120208]} onChange={e => this.onFass(-120208, e.target.value)}/> 
+                                        </Col>
+                                    </Row>
+                                </TabPane>
 							</TabContent>
 						</Col>
 					</Row>
