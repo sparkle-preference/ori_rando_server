@@ -31,7 +31,7 @@ const DEFAULT_VIEWPORT = {
 }
 
 const paths = Object.keys(presets);
-const releveant_picks = ["RB|15","RB|17","RB|19","RB|21", "HC|1", "EC|1", "KS|1", "MS|1", 'SK|0', 'SK|51', 'SK|2', 'SK|3', 'SK|4', 'SK|5', 'SK|8', 'SK|12', 'SK|50', 'SK|14', 'TP|Lost', 'TP|Grotto', 'TP|Grove', 'TP|Forlorn', 'TP|Sorrow', 'TP|Swamp', 'TP|Valley', 'EV|0', 'EV|1', 'EV|2', 'EV|3', 'EV|4']
+const releveant_picks = ["RB|15","RB|17","RB|19","RB|21", "HC|1", "EC|1", "KS|1", "MS|1", "AC|1", 'SK|0', 'SK|51', 'SK|2', 'SK|3', 'SK|4', 'SK|5', 'SK|8', 'SK|12', 'SK|50', 'SK|14', 'TP|Lost', 'TP|Grotto', 'TP|Grove', 'TP|Forlorn', 'TP|Sorrow', 'TP|Swamp', 'TP|Valley', 'EV|0', 'EV|1', 'EV|2', 'EV|3', 'EV|4']
 
 // patch picks_by_area to include mapstone areas because haha fuck
 picks_by_type["Ma"].forEach(pick => {
@@ -43,6 +43,7 @@ const xml_name_to_code = {
 'MS': 'MS|1',
 'EC': 'EC|1',
 'HC': 'HC|1',
+'AC': 'AC|1',
 'TPSwamp': 'TP|Swamp',
 'TPGrove': 'TP|Grove',
 'TPGrotto': 'TP|Grotto',
@@ -71,12 +72,13 @@ const dev = window.document.URL.includes("devshell")
 function get_manual_reach() {
 	let HC = get_int("HC", 0);
     let EC = get_int("EC", 0);
+    let AC = get_int("AC", 0);
     let KS = get_int("KS", 0);
     let MS = get_int("MS", 0);
     let skills = get_list("SK"," ").map(skill => { let parts = skill.split("|"); return {label: pickup_name(parts[0], parts[1]), value: skill}; });
     let evs = get_list("EV"," ").map(event => { let parts = event.split("|"); return {label: pickup_name(parts[0], parts[1]), value: event}; });
     let tps  = get_list("TP"," ").map(tp => {return {label: tp.substr(3) + " TP", value: tp}; });
-    return {HC: HC, EC: EC, KS: KS, MS: MS, skills: skills, tps: tps, evs: evs};
+    return {HC: HC, EC: EC, AC: AC, KS: KS, MS: MS, skills: skills, tps: tps, evs: evs};
 }
 
 (function(){
@@ -416,7 +418,7 @@ class LogicHelper extends React.Component {
   					});
 	  		});
 		} else {
-			["HC", "EC", "KS", "MS"].forEach((code) => {
+			["HC", "EC", "AC", "KS", "MS"].forEach((code) => {
 				if(this.state.manual_reach[code] > 0)
 					reachableStuff[code+"|1"] = this.state.manual_reach[code];
 			});
@@ -525,6 +527,10 @@ class LogicHelper extends React.Component {
 								<div className="manual-wrapper">
 									<span className="label">Energy Cells:</span>
 									<NumericInput min={0} value={this.state.manual_reach.EC} onChange={(n) => this.updateManual("EC",n)}></NumericInput>
+								</div>
+								<div className="manual-wrapper">
+									<span className="label">Ability Cells:</span>
+									<NumericInput min={0} value={this.state.manual_reach.AC} onChange={(n) => this.updateManual("AC",n)}></NumericInput>
 								</div>
 								<div className="manual-wrapper">
 									<span className="label">Keystones:</span>
