@@ -4,7 +4,7 @@ import {LayerGroup, ZoomControl, Map, Tooltip, TileLayer} from 'react-leaflet';
 import Leaflet from 'leaflet';
 import {Checkbox, CheckboxGroup} from 'react-checkbox-group';
 import {stuff_by_type, picks_by_type, presets, picks_by_area, pickup_name, PickupMarkersList, get_icon, getMapCrs, 
-		name_from_str, get_param, get_int, get_list, str_ids, select_styles, select_wrap} from './shared_map.js';
+		name_from_str, get_int, get_list, str_ids, select_styles, select_wrap} from './shared_map.js';
 import NumericInput from 'react-numeric-input';
 import Select from 'react-select';
 import {Button, ButtonGroup, Collapse} from 'reactstrap';

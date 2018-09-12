@@ -335,12 +335,21 @@ const presets = {
 		"0xp": ["normal", "speed", "lure", "dboost-light"],
 		"glitched": ["normal", "speed", "dboost-light", "dboost", "lure", "speed-lure", "lure-hard", "dboost-hard", "extended", "extended-damage", "dbash", "cdash", "extreme", "timed-level", "glitched", "cdash-farming"]
 	};
+const get_preset = (paths, standard = true) => {
+    for (let preset of Object.keys(presets)) {
+        if(preset === "0xp") continue
+        let p = presets[preset];
+        if(paths.length === p.length && paths.every(path => p.includes(path)))
+            return ("standard" === preset && !standard) ? "0xp": preset;
+    }
+    return "custom"    
+}
 
 
 let request = new XMLHttpRequest()
 request.open('GET', '/picksbytype', false)
 request.send(null)
-if (request.status ==! 200) alert("critical error! picks_by_type could not generate")
+if (request.status !== 200) alert("critical error! picks_by_type could not generate")
 
 
 const picks_by_type = JSON.parse(request.responseText);
@@ -463,4 +472,4 @@ function doNetRequest(url, onRes)
 export {PickupMarker, PickupMarkersList, download, getStuffType, locs, picks_by_loc, getMapCrs, pickups, distance, get_icon, select_wrap,
 		point, picks_by_type, picks_by_zone, zones, pickup_name, stuff_types, stuff_by_type, areas, picks_by_area, presets, select_styles,
 		get_param, get_flag, get_int, get_list, get_seed, is_match, str_ids, hide_opacity, seed_name_regex, uniq, name_from_str, listSwap,
-		goToCurry, player_icons, doNetRequest, base_url};
+		goToCurry, player_icons, doNetRequest, base_url, get_preset};

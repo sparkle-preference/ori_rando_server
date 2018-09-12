@@ -255,19 +255,28 @@ class SeedGenerator:
         return v in self.params.variations
 
     def init_fields(self):
-        """Part one of a reset. All initialization that doesn't require reading from params goes here."""
+        """Part one of a reset. All initialization that doesn't
+        require reading from params goes here."""
         self.costs = OrderedDict({
-            "Free": 0, "MS": 0, "KS": 2, "EC": 6, "HC": 12, "WallJump": 13, "ChargeFlame": 13, "DoubleJump": 13, "Bash": 41, "Stomp": 29,
-            "Glide": 17, "Climb": 41, "ChargeJump": 59, "Dash": 13, "Grenade": 29, "GinsoKey": 12, "ForlornKey": 12, "HoruKey": 12,
-            "Water": 80, "Wind": 80, "WaterVeinShard": 5, "GumonSealShard": 5, "SunstoneShard": 5, "TPForlorn": 120, "TPGrotto": 60,
+            "Free": 0, "MS": 0, "KS": 2, "EC": 6, "HC": 12, "WallJump": 13,
+            "ChargeFlame": 13, "DoubleJump": 13, "Bash": 41, "Stomp": 29,
+            "Glide": 17, "Climb": 41, "ChargeJump": 59, "Dash": 13,
+            "Grenade": 29, "GinsoKey": 12, "ForlornKey": 12, "HoruKey": 12,
+            "Water": 80, "Wind": 80, "WaterVeinShard": 5, "GumonSealShard": 5,
+            "SunstoneShard": 5, "TPForlorn": 120, "TPGrotto": 60,
             "TPSorrow": 90, "TPGrove": 60, "TPSwamp": 60, "TPValley": 90
         })
         self.inventory = OrderedDict([
-            ("EX1", 0), ("EX*", 0), ("KS", 0), ("MS", 0), ("AC", 0), ("EC", 1), ("HC", 3), ("WallJump", 0), ("ChargeFlame", 0), ("Dash", 0),
-            ("Stomp", 0), ("DoubleJump", 0), ("Glide", 0), ("Bash", 0), ("Climb", 0), ("Grenade", 0), ("ChargeJump", 0), ("GinsoKey", 0),
-            ("ForlornKey", 0), ("HoruKey", 0), ("Water", 0), ("Wind", 0), ("Warmth", 0), ("RB0", 0), ("RB1", 0), ("RB6", 0), ("RB8", 0),
-            ("RB9", 0), ("RB10", 0), ("RB11", 0), ("RB12", 0), ("RB13", 0), ("RB15", 0), ("WaterVeinShard", 0), ("GumonSealShard", 0),
-            ("SunstoneShard", 0), ("TPForlorn", 0), ("TPGrotto", 0), ("TPSorrow", 0), ("TPGrove", 0), ("TPSwamp", 0), ("TPValley", 0)
+            ("EX1", 0), ("EX*", 0), ("KS", 0), ("MS", 0), ("AC", 0), ("EC", 1),
+            ("HC", 3), ("WallJump", 0), ("ChargeFlame", 0), ("Dash", 0),
+            ("Stomp", 0), ("DoubleJump", 0), ("Glide", 0), ("Bash", 0),
+            ("Climb", 0), ("Grenade", 0), ("ChargeJump", 0), ("GinsoKey", 0),
+            ("ForlornKey", 0), ("HoruKey", 0), ("Water", 0), ("Wind", 0),
+            ("Warmth", 0), ("RB0", 0), ("RB1", 0), ("RB6", 0), ("RB8", 0),
+            ("RB9", 0), ("RB10", 0), ("RB11", 0), ("RB12", 0), ("RB13", 0),
+            ("RB15", 0), ("WaterVeinShard", 0), ("GumonSealShard", 0),
+            ("SunstoneShard", 0), ("TPForlorn", 0), ("TPGrotto", 0),
+            ("TPSorrow", 0), ("TPGrove", 0), ("TPSwamp", 0), ("TPValley", 0)
         ])
 
         self.balanceLevel = 0
@@ -288,26 +297,32 @@ class SeedGenerator:
         self.itemCount = 244.0
 
     def reset(self):
-        """A full reset. Resets internal state completely (besides pRNG advancement), then sets initial values according to params."""
+        """A full reset. Resets internal state completely (besides pRNG
+        advancement), then sets initial values according to params."""
         self.init_fields()
         self.expRemaining = self.params.exp_pool
         self.forcedAssignments = self.preplaced
         self.forceAssignedLocs = set()
-        if not self.var(Variation.HARDMODE):
-            self.itemPool = OrderedDict([
-                ("EX1", 1), ("EX*", 91), ("KS", 40), ("MS", 11), ("AC", 33), ("EC", 14), ("HC", 12), ("WallJump", 1), ("ChargeFlame", 1), ("Dash", 1), ("Stomp", 1),
-                ("DoubleJump", 1), ("Glide", 1), ("Bash", 1), ("Climb", 1), ("Grenade", 1), ("ChargeJump", 1), ("GinsoKey", 1), ("ForlornKey", 1), ("HoruKey", 1),
-                ("Water", 1), ("Wind", 1), ("Warmth", 1), ("RB0", 3), ("RB1", 3), ("RB6", 3), ("RB8", 1), ("RB9", 1), ("RB10", 1), ("RB11", 1), ("RB12", 1),
-                ("RB13", 3), ("RB15", 3), ("WaterVeinShard", 0), ("GumonSealShard", 0), ("SunstoneShard", 0), ("TPForlorn", 1), ("TPGrotto", 1), ("TPSorrow", 1),
-                ("TPGrove", 1), ("TPSwamp", 1), ("TPValley", 1)
-            ])
-        else:
-            self.itemPool = OrderedDict([
-                ("EX1", 1), ("EX*", 167), ("KS", 40), ("MS", 11), ("AC", 0), ("EC", 3), ("HC", 0), ("WallJump", 1), ("ChargeFlame", 1), ("Dash", 1), ("Stomp", 1),
-                ("DoubleJump", 1), ("Glide", 1), ("Bash", 1), ("Climb", 1), ("Grenade", 1), ("ChargeJump", 1), ("GinsoKey", 1), ("ForlornKey", 1), ("HoruKey", 1),
-                ("Water", 1), ("Wind", 1), ("Warmth", 1), ("WaterVeinShard", 0), ("GumonSealShard", 0), ("SunstoneShard", 0), ("TPForlorn", 1), ("TPGrotto", 1),
-                ("TPSorrow", 1), ("TPGrove", 1), ("TPSwamp", 1), ("TPValley", 1)
-            ])
+        self.itemPool = OrderedDict([
+            ("EX1", 1), ("EX*", 91), ("KS", 40), ("MS", 11), ("AC", 33),
+            ("EC", 14), ("HC", 12), ("WallJump", 1), ("ChargeFlame", 1),
+            ("Dash", 1), ("Stomp", 1), ("DoubleJump", 1), ("Glide", 1),
+            ("Bash", 1), ("Climb", 1), ("Grenade", 1), ("ChargeJump", 1),
+            ("GinsoKey", 1), ("ForlornKey", 1), ("HoruKey", 1), ("Water", 1),
+            ("Wind", 1), ("Warmth", 1), ("RB0", 3), ("RB1", 3), ("RB6", 3),
+            ("RB8", 1), ("RB9", 1), ("RB10", 1), ("RB11", 1), ("RB12", 1),
+            ("RB13", 3), ("RB15", 3), ("WaterVeinShard", 0),
+            ("GumonSealShard", 0), ("SunstoneShard", 0), ("TPForlorn", 1),
+            ("TPGrotto", 1), ("TPSorrow", 1), ("TPGrove", 1), ("TPSwamp", 1),
+            ("TPValley", 1)
+        ])
+        if self.var(Variation.HARDMODE):
+            self.itemPool["AC"] = 0
+            self.itemPool["HC"] = 0
+            self.itemPool["EC"] = 3
+            self.itemPool["EX*"] = 167
+            for bonus in [k for k in self.itemPool.keys() if k[:2] == "RB"]:
+                del self.itemPool[bonus]
 
         if self.var(Variation.NO_PLANTS):
             self.itemCount -= 24
@@ -334,8 +349,7 @@ class SeedGenerator:
             self.itemPool["EX*"] -= 12
 
         if self.params.warmth.enabled:
-            self.costs["RB28"] = 3 * \
-                (self.params.warmth.required+self.params.warmth.tolerance)
+            self.costs["RB28"] = 3 * (self.params.warmth.required+self.params.warmth.tolerance)
             self.inventory["RB28"] = 0
             self.itemPool["RB28"] = self.params.warmth.count
             self.itemPool["EX*"] -= self.params.warmth.count
@@ -958,7 +972,7 @@ class SeedGenerator:
                         continue
                 area.add_location(loc)
             if None == child.find("Connections"):
-                print child, str(child), child.attrib["name"]
+                log.error("No connections found for child %s, (name %s)" % (child, child.attrib["name"]))
             for conn in child.find("Connections"):
                 connection = Connection(conn.find("Home").attrib["name"], conn.find(
                     "Target").attrib["name"], self)
@@ -1058,8 +1072,8 @@ class SeedGenerator:
                     for item in self.assignQueue:
                         if len(self.balanceList) == 0:
                             break
-                        locationsToAssign.append(
-                            self.get_location_from_balance_list())
+                        locationsToAssign.append(self.get_location_from_balance_list())
+                        
             # pick what we're going to put in our accessible space
             itemsToAssign = []
             if len(locationsToAssign) < len(self.assignQueue) + max(keystoneCount - self.inventory["KS"], 0) + max(
