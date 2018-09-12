@@ -6,7 +6,7 @@ import {Checkbox, CheckboxGroup} from 'react-checkbox-group';
 import {Radio, RadioGroup} from 'react-radio-group';
 import Leaflet from 'leaflet';
 import {picks_by_type, PickupMarkersList, get_icon, getMapCrs, presets, player_icons, 
-		hide_opacity, select_styles, uniq, select_wrap} from './shared_map.js';
+		hide_opacity, select_styles, uniq, select_wrap, get_preset} from './shared_map.js';
 import Select from 'react-select';
 import {Button, Collapse} from 'reactstrap';
 import Control from 'react-leaflet-control';
@@ -236,11 +236,13 @@ class GameTracker extends React.Component {
   constructor(props) {
     super(props)
     let modeRaw = document.getElementsByClassName("logic-modes")[0].id
-    let modes = (modeRaw !== "None") ? modeRaw.split(" ") : ['normal', 'speed', 'dboost-light', 'lure']
-
+    let modes = ['normal', 'speed', 'dboost-light', 'lure'];
+    if(modeRaw !== "None"){
+        modes = modeRaw.split(" ");
+    }
     this.state = {mousePos: {lat: 0, lng: 0}, players: {}, retries: 0, check_seen: 1, modes: modes, timeout: TIMEOUT_START, searchStr: "", pickup_display: "all", show_sidebar: true,
     flags: ['show_pickups', 'update_in_bg'], viewport: DEFAULT_VIEWPORT, pickups: ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "Ma"],
-    pathMode: 'standard', hideOpt: "all", display_logic: false};
+    pathMode: get_preset(modes), hideOpt: "all", display_logic: (modeRaw !== "None")};
   };
 
   componentDidMount() {
@@ -275,21 +277,20 @@ class GameTracker extends React.Component {
   hideOptChanged = newVal => { this.setState({hideOpt: newVal}) }
   flagsChanged = newVal => { this.setState({flags: newVal}) }
   pickupsChanged = newVal => { this.setState({pickups: newVal}) }
-  modesChanged = newVal => this.changeLogicMode(newVal, this.state.pathMode)
   onSearch = event => { this.setState({searchStr: event.target.value}) }
 
-  changeLogicMode = (paths, pathMode) => this.setState(prevState => {
+  modesChanged = (paths) => this.setState(prevState => {
 		let players = prevState.players
 		Object.keys(players).forEach(id => {		
 				players[id].areas = []
 			});
-		return {players: players, modes: paths, pathMode: pathMode}
-		}, () => getReachable((p) => this.setState(p),this.state.modes.join("+")))
+		return {players: players, modes: paths, pathMode: get_preset(paths)}
+		}, () => getReachable((p) => this.setState(p),this.state.modes.join("+"), this.timeout))
 		
 toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
 
   onViewportChanged = viewport => { this.setState({ viewport }) }
- _onPathModeChange = (n) => paths.includes(n.value) ? this.changeLogicMode(presets[n.value], n.value) : this.setState({pathMode: n.value})
+ _onPathModeChange = (n) => paths.includes(n.value) ? this.modesChanged(presets[n.value]) : this.setState({pathMode: n.value})
 
   render() {
 		const pickup_markers = (this.state.pickup_display !== "none") ? ( <PickupMarkersList markers={getPickupMarkers(this.state)} />) : null;

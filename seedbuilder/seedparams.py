@@ -22,14 +22,6 @@ presets = {
 }
 
 
-def get_preset_name(paths):
-    pathset = set(paths)
-    for name, lps in presets.iteritems():
-        if lps == pathset:
-            return name
-    return "Custom"
-
-
 class Stuff(ndb.Model):
     code = ndb.StringProperty()
     id = ndb.StringProperty()
@@ -176,11 +168,11 @@ class SeedGenParams(ndb.Model):
 
     def generate(self, preplaced={}):
         if self.placements:
+            preplaced = {}
             for placement in self.placements:
                 s = placement.stuff[0]
                 preplaced[int(placement.location)] = s.code + s.id
             self.placements = []
-        print preplaced
         sg = SeedGenerator()
         raw = sg.setSeedAndPlaceItems(self, preplaced=preplaced)
         placemap = OrderedDict()
@@ -218,7 +210,6 @@ class SeedGenParams(ndb.Model):
         if self.tracking:
             flags = "Sync%s.%s," % (game_id, player) + flags
         outlines = [flags]
-        pid_map = self.teams_inv()
         outlines += ["|".join((str(p.location), s.code, s.id, p.zone))
                for p in self.placements for s in p.stuff if int(s.player) == self.team_pid(player)]
         return "\n".join(outlines)+"\n"
@@ -226,16 +217,22 @@ class SeedGenParams(ndb.Model):
     def get_spoiler(self, player=1):
         return self.spoilers[self.team_pid(player)-1]
 
+    def get_preset(self):
+        pathset = set(self.logic_paths)
+        for name, lps in presets.iteritems():
+            if lps == pathset:
+                if name == "Standard" and Variation.ZERO_EXP in self.variations:
+                    return "0xp"
+                return name
+        return "Custom"
+
     def flag_line(self, verbose_paths=False):
         flags = []
         if verbose_paths:
             flags.append("lps=%s" %
                          "+".join([lp.capitalize() for lp in self.logic_paths]))
         else:
-            name = get_preset_name(self.logic_paths)
-            if name == "Standard" and Variation.ZERO_EXP in self.variations:
-                name = "0xp"
-            flags.append(name)
+            flags.append(self.get_preset())
         flags.append(self.key_mode)
         if self.warmth.enabled:
             flags.append("Frags/%s/%s/%s/%s/%s/%s" % (self.warmth.count, self.warmth.key_1,
