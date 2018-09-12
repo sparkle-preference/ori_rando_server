@@ -381,7 +381,7 @@ class Game(ndb.Model):
         game_ids = set([int(game.key.id()) for game in Game.query()])
         while id in game_ids:
             id += 1
-        if id > 20:
+        if id > 100:
             Game.clean_old()
         return id
     
