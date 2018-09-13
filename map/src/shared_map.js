@@ -129,7 +129,8 @@ function get_icon(pick, color = null) {
 	if(iconGroup.hasOwnProperty(prefix ))
 		return iconGroup[prefix];
 
-	console.log("no icon found!");
+    if(prefix !== "CS") // shhhh it's ok
+    	console.log("no icon found for "+ pick.name + "!");
 	return blank_icon;
 }
 
@@ -326,23 +327,38 @@ const stuff_by_type = {
 	]
 };
 const presets = {
-		"casual": ["normal", "dboost-light"],
-		"standard": ["normal", "speed", "lure", "dboost-light"],
-		"expert": ["normal", "speed", "lure", "speed-lure", "dboost", "dboost-light", "cdash", "extended", "extended-damage"],
-		"master": ["normal", "speed", "lure", "speed-lure", "dboost", "dboost-light", "dboost-hard", "cdash", "dbash", "extended", "extended-damage", "lure-hard", "extreme"],
-		"hard": ["normal", "speed", "lure",  "dboost-light", "cdash", "dbash", "extended"],
-		"ohko": ["normal", "speed", "lure", "cdash", "dbash", "extended"],
-		"0xp": ["normal", "speed", "lure", "dboost-light"],
-		"glitched": ["normal", "speed", "dboost-light", "dboost", "lure", "speed-lure", "lure-hard", "dboost-hard", "extended", "extended-damage", "dbash", "cdash", "extreme", "timed-level", "glitched", "cdash-farming"]
-	};
+    casual: ['casual-core', 'casual-dboost'],
+    standard: [
+        'casual-core', 'casual-dboost', 
+        'standard-core', 'standard-dboost', 'standard-lure', 'standard-abilities'
+        ],
+    expert: [
+        'casual-core', 'casual-dboost', 
+        'standard-core', 'standard-dboost', 'standard-lure', 'standard-abilities',
+        'expert-core', 'expert-dboost', 'expert-lure', 'expert-abilities', 'dbash'
+        ],
+    master: [
+        'casual-core', 'casual-dboost', 
+        'standard-core', 'standard-dboost', 'standard-lure', 'standard-abilities',
+        'expert-core', 'expert-dboost', 'expert-lure', 'expert-abilities', 'dbash',
+        'master-core', 'master-dboost', 'master-lure', 'master-abilities', 'gjump'
+        ],
+    glitched: [
+        'casual-core', 'casual-dboost', 
+        'standard-core', 'standard-dboost', 'standard-lure', 'standard-abilities',
+        'expert-core', 'expert-dboost', 'expert-lure', 'expert-abilities', 'dbash',
+        'master-core', 'master-dboost', 'master-lure', 'master-abilities', 'gjump',
+        'glitched', 'timed-level'
+        ]
+};
+const logic_paths = presets['glitched'].concat('insane');
 const get_preset = (paths, standard = true) => {
     for (let preset of Object.keys(presets)) {
-        if(preset === "0xp") continue
         let p = presets[preset];
         if(paths.length === p.length && paths.every(path => p.includes(path)))
-            return ("standard" === preset && !standard) ? "0xp": preset;
+            return preset;
     }
-    return "custom"    
+    return "custom"
 }
 
 
@@ -472,4 +488,4 @@ function doNetRequest(url, onRes)
 export {PickupMarker, PickupMarkersList, download, getStuffType, locs, picks_by_loc, getMapCrs, pickups, distance, get_icon, select_wrap,
 		point, picks_by_type, picks_by_zone, zones, pickup_name, stuff_types, stuff_by_type, areas, picks_by_area, presets, select_styles,
 		get_param, get_flag, get_int, get_list, get_seed, is_match, str_ids, hide_opacity, seed_name_regex, uniq, name_from_str, listSwap,
-		goToCurry, player_icons, doNetRequest, base_url, get_preset};
+		goToCurry, player_icons, doNetRequest, base_url, get_preset, logic_paths};
