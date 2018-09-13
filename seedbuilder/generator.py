@@ -1206,4 +1206,3 @@ class SeedGenerator:
             self.outputStr += event
 
         return (self.outputStr, spoilerStr)
->>>>>>> origin/master

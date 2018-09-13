@@ -64,11 +64,15 @@ class Connection(object):
         least_ks = min([r.cnt["KS"] for r in res])
         cheapest = [req for req in res if req.cnt["KS"] <= least_ks]
         return (True, cheapest, least_ks)
+    def __str__(self):
+        return "Connection to %s: %s" % (self.target, "\n".join(["%s: %s" % (mode, "|".join([str(x) for x in req])) for mode,req in self.reqs.items()]))
 
 
 class Requirement(object):
     def __init__(self, raw):
         self.cnt = Counter([r for r in raw.split('+') if r != "Free"])
+    def __str__(self):
+        return str(self.cnt)
 
 
 class Map(object):
@@ -116,5 +120,4 @@ class Map(object):
         if mapstone_cnt == 8 and state.has["MS"] < 9:
             mapstone_cnt -= 1
         ms_areas = ["MS%s"%i for i in range(1,mapstone_cnt +1) ]
-        
         return {area: list(Map.reached_with[area]) for area in (list(reachable_areas) + ms_areas)}

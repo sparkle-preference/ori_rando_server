@@ -4,7 +4,7 @@ import {LayerGroup, ZoomControl, Map, Tooltip, TileLayer} from 'react-leaflet';
 import Leaflet from 'leaflet';
 import {Checkbox, CheckboxGroup} from 'react-checkbox-group';
 import {stuff_by_type, picks_by_type, presets, picks_by_area, pickup_name, PickupMarkersList, get_icon, getMapCrs, 
-		name_from_str, get_int, get_list, str_ids, select_styles, select_wrap} from './shared_map.js';
+		name_from_str, get_int, get_list, str_ids, select_styles, select_wrap, logic_paths} from './shared_map.js';
 import NumericInput from 'react-numeric-input';
 import Select from 'react-select';
 import {Button, ButtonGroup, Collapse} from 'reactstrap';
@@ -440,6 +440,7 @@ class LogicHelper extends React.Component {
 
 	onViewportChanged= (viewport) => this.setState({viewport: viewport})
 	onSearch = (e) => this.setState({searchStr: e.target.value}, this.updateURL)
+    modesChanged = (m) => this.setState({modes: m}, () => { this.updateURL() ; this.resetReachable()});
 	onPathModeChange = (n) => this.setState({modes: presets[n.value], pathMode: n}, () => { this.updateURL() ; this.resetReachable()});
 	resetReachable = () => this.setState({ reachable: {...DEFAULT_REACHABLE}, new_areas: {...DEFAULT_REACHABLE}, selected: "", selected_area: "", highlight_picks: [], history: {}, step: 0}, () => (this.state.logicMode === "auto") ? null : this.updateReachable())
 	unloadSeed = () => this.setState({hasSeed: false, placements: {...DEFAULT_DATA}, logicMode: "manual"}, this.resetReachable)
@@ -488,7 +489,7 @@ class LogicHelper extends React.Component {
 						</div>
 					</div>
 				) : ( <h6>Drag and drop your seed file onto the map to upload</h6> );
-
+        let logic_path_boxes = logic_paths.map(lp => {return (<label className="checkbox-label"><Checkbox value={lp} />{lp}</label>)});
 		return (
 	      <Dropzone className="wrapper" disableClick onDrop={this.onDrop} onDragEnter={this.onDragEnter} onDragLeave={this.onDragLeave} >
           { dropzoneActive && <div style={overlay_style}>Import your randomizer.dat to begin analysis</div> }
@@ -560,23 +561,8 @@ class LogicHelper extends React.Component {
 							</div>
 							<Collapse id="logic-options-wrapper" isOpen={this.state.display_logic}>
 								<CheckboxGroup id="logic-options" checkboxDepth={2} name="modes" value={this.state.modes} onChange={this.modesChanged}>
-									<label className="checkbox-label"><Checkbox value="normal" /> normal</label>
-									<label className="checkbox-label"><Checkbox value="speed" /> speed</label>
-									<label className="checkbox-label"><Checkbox value="extended" /> extended</label>
-									<label className="checkbox-label"><Checkbox value="speed-lure" /> speed-lure</label>
-									<label className="checkbox-label"><Checkbox value="lure" /> lure</label>
-									<label className="checkbox-label"><Checkbox value="lure-hard" /> lure-hard</label>
-									<label className="checkbox-label"><Checkbox value="dboost-light" /> dboost-light</label>
-									<label className="checkbox-label"><Checkbox value="dboost" /> dboost</label>
-									<label className="checkbox-label"><Checkbox value="dboost-hard" /> dboost-hard</label>
-									<label className="checkbox-label"><Checkbox value="cdash" /> cdash</label>
-									<label className="checkbox-label"><Checkbox value="cdash-farming" /> cdash-farming</label>
-									<label className="checkbox-label"><Checkbox value="extreme" /> extreme</label>
-									<label className="checkbox-label"><Checkbox value="extended-damage" /> extended-damage</label>
-									<label className="checkbox-label"><Checkbox value="timed-level" /> timed-level</label>
-									<label className="checkbox-label"><Checkbox value="dbash" /> dbash</label>
-									<label className="checkbox-label"><Checkbox value="glitched" /> glitched</label>
-								</CheckboxGroup>
+                                    {logic_path_boxes}
+                                </CheckboxGroup>
 							</Collapse>
 						</div>
 						<hr style={{ backgroundColor: 'grey', height: 2 }}/>
