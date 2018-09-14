@@ -280,6 +280,12 @@ class Game(ndb.Model):
             player.put()
         return True
 
+    def rebuild_hist(self):
+        for player in self.get_players():
+            gid, _, pid = player.key.id().partition(".")
+            Cache.setHist(gid, pid, player.history)
+        return Cache.getHist(gid)
+
     def player(self, pid):
         full_pid = "%s.%s" % (self.key.id(), pid)
         player = Player.get_by_id(full_pid)
