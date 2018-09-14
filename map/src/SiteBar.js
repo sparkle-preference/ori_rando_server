@@ -15,20 +15,20 @@ const SiteBar = ({dlltime, user}) => {
 				Downloads
 				</DropdownToggle>
 				<DropdownMenu right>
-				<DropdownItem href="https://github.com/sigmasin/OriDERandomizer/blob/master/Assembly-CSharp.dll">
-					Tournament 2.6 dll (Currently recommended: works for everything but bonus pickups and warmth fragments)
+				<DropdownItem href="https://github.com/sigmasin/OriDERandomizer/raw/master/Assembly-CSharp.dll">
+					2.6 (Tournament) DLL
 				</DropdownItem>
-				<DropdownItem href="https://github.com/sigmasin/OriDERandomizer/blob/master/OriDERandoDecoder.dll">
+				<DropdownItem href="https://github.com/sigmasin/OriDERandomizer/raw/master/OriDERandoDecoder.dll">
 					Decoder DLL (required for 2.6: place in same folder)				
 				</DropdownItem>
 				<DropdownItem href="/vanilla">
 					Vanilla Seed
 				</DropdownItem>
-				<DropdownItem href="https://github.com/turntekGodhead/OriDERandomizer/raw/master/Assembly-CSharp.dll">
-					Experimental dll (Not currently recommended. Last Updated {dlltime})
+				<DropdownItem href="https://github.com/sigmasin/OriDERandomizer/raw/3.0/Assembly-CSharp.dll">
+					3.0 Beta DLL
 				</DropdownItem>
 				<DropdownItem href="https://github.com/david-c-miller/OriDETracker/releases/download/v3.0-beta/OriDETracker-v3.0-beta.zip">
-					Beta Tracker
+					3.0 Beta Skill Tracker
 				</DropdownItem>
 				</DropdownMenu>
 			</UncontrolledDropdown>
