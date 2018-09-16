@@ -191,7 +191,7 @@ class SeedGenParams(ndb.Model):
                     placemap[loc] = Placement(location=loc, zone=zone, stuff=[stuff])
                 else:
                     placemap[loc].stuff.append(stuff)
-        if player != self.players and player != len(self.sync.teams):
+        if self.sync.mode == MultiplayerGameType.SHARED and player != self.players and player != len(self.sync.teams):
             log.error("seed count mismatch!, %s != %s or %s", player, self.players, len(self.teams))
             return False
         self.spoilers = spoilers
@@ -209,12 +209,16 @@ class SeedGenParams(ndb.Model):
         flags = self.flag_line(verbose_paths)
         if self.tracking:
             flags = "Sync%s.%s," % (game_id, player) + flags
+        if self.sync.mode == MultiplayerGameType.SIMUSOLO:
+            player = 1  # look, it's probably fine
         outlines = [flags]
         outlines += ["|".join((str(p.location), s.code, s.id, p.zone))
                for p in self.placements for s in p.stuff if int(s.player) == self.team_pid(player)]
         return "\n".join(outlines)+"\n"
 
     def get_spoiler(self, player=1):
+        if self.sync.mode == MultiplayerGameType.SIMUSOLO:
+            player = 1  # look, it's probably fine
         return self.spoilers[self.team_pid(player)-1]
 
     def get_preset(self):
