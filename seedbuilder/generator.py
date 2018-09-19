@@ -408,14 +408,18 @@ class SeedGenerator:
         for area in list(self.areasReached.keys()):
             for connection in self.areas[area].get_connections():
                 cost = connection.cost()
+                reached = connection.target in self.areasReached
                 if cost[0] <= 0:
-                    self.areas[connection.target].difficulty = cost[2]
+                    if not reached:
+                        self.areas[connection.target].difficulty = cost[2]
+                        if len(self.areas[connection.target].locations) > 0:
+                            self.areas[connection.target].difficulty += area.difficulty
                     if connection.keys > 0:
                         if area not in self.doorQueue.keys():
                             self.doorQueue[area] = connection
                             keystoneCount += connection.keys
                     elif connection.mapstone:
-                        if connection.target not in self.areasReached:
+                        if not reached:
                             visitMap = True
                             for mp in self.mapQueue.keys():
                                 if mp == area or self.mapQueue[mp].target == connection.target:
@@ -424,7 +428,7 @@ class SeedGenerator:
                                 self.mapQueue[area] = connection
                                 mapstoneCount += 1
                     else:
-                        if connection.target not in self.areasReached:
+                        if not reached:
                             self.seedDifficulty += cost[2] * cost[2]
                             self.reach_area(connection.target)
                         if connection.target in self.areasRemaining:
@@ -678,15 +682,15 @@ class SeedGenerator:
         total = 0.0
         for loc in locationsToAssign:
             if self.params.path_diff == PathDifficulty.EASY:
-                total += (15 - loc.difficulty) * (15 - loc.difficulty)
+                total += (20 - loc.difficulty) * (20 - loc.difficulty)
             else:
                 total += (loc.difficulty * loc.difficulty)
         value = self.random.random()
         position = 0.0
         for i in range(0, len(locationsToAssign)):
             if self.params.path_diff == PathDifficulty.EASY:
-                position += (15 - locationsToAssign[i].difficulty) * (
-                    15 - locationsToAssign[i].difficulty) / total
+                position += (20 - locationsToAssign[i].difficulty) * (
+                    20 - locationsToAssign[i].difficulty) / total
             else:
                 position += locationsToAssign[i].difficulty * \
                     locationsToAssign[i].difficulty / total
