@@ -23,18 +23,17 @@ const variations = {
 	Hard: "Hard Mode",
 	OHKO: "One Hit KO",
 	"0XP": "Zero Experience",
-	NoTeleporters: "No Teleporters",
-	NoPlants: "No Plants",
 	ForceMapStones: "Force Mapstones",
 	ForceRandomEscape: "Force Random Escape",
 	Entrance: "Entrance Shuffle",
-	BonusPickups: "More Bonus Pickups"
+	BonusPickups: "More Bonus Pickups",
+    
 }
-const optional_paths = ["speed", "dboost-light", "dboost", "lure", "speed-lure", "lure-hard", "dboost-hard", "extended", "extended-damage", "dbash", "cdash", "extreme", "timed-level", "glitched", "cdash-farming"]
+const optional_paths = ['casual-dboost', 'standard-core', 'standard-dboost', 'standard-lure', 'standard-abilities', 'expert-core', 'expert-dboost', 'expert-lure', 'expert-abilities', 'dbash', 'master-core', 'master-dboost', 'master-lure', 'master-abilities', 'gjump', 'glitched', 'timed-level', 'insane']
 const varPaths = {"ohko": ["OHKO", "Hard"], "0xp": ["0XP", "Hard"], "hard": ["Hard"], "master": ["Starved"]}
 const diffPaths = {"glitched": "Hard", "master": "Hard"}
 const disabledPaths = {
-					"Hard": ["dboost", "dboost-hard", "extended-damage", "extreme", "lure-hard"], 
+					"Hard": ["standard-dboost", "expert-dboost", "master-dboost"], 
 					"0XP": ["glitched", "cdash", "cdash-farming", "speed-lure", "timed-level"], 
 					"OHKO": ["dboost-light", "dboost", "dboost-hard", "extended-damage", "extreme", "glitched", "lure-hard"]
 					}

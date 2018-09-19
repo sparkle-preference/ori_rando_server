@@ -324,10 +324,6 @@ class SeedGenerator:
             for bonus in [k for k in self.itemPool.keys() if k[:2] == "RB"]:
                 del self.itemPool[bonus]
 
-        if self.var(Variation.NO_PLANTS):
-            self.itemCount -= 24
-            self.itemPool["EX*"] -= 24
-
         if self.var(Variation.EXTRA_BONUS_PICKUPS):
             self.itemPool["RB6"] += 2
             self.itemPool["RB31"] = 3
@@ -375,15 +371,6 @@ class SeedGenerator:
             self.itemPool["ForlornKey"] = 0
             self.itemPool["HoruKey"] = 0
             self.itemCount -= 3
-
-        if self.var(Variation.NO_TELEPORTERS):
-            self.itemPool["TPForlorn"] = 0
-            self.itemPool["TPGrotto"] = 0
-            self.itemPool["TPSorrow"] = 0
-            self.itemPool["TPGrove"] = 0
-            self.itemPool["TPSwamp"] = 0
-            self.itemPool["TPValley"] = 0
-            self.itemPool["EX*"] += 6
 
         # paired setup for subsequent players
         if self.playerID > 1:
@@ -960,12 +947,8 @@ class SeedGenerator:
                                location.find("Item").text, int(
                                    location.find("Difficulty").text),
                                location.find("Zone").text)
-                if self.var(Variation.NO_PLANTS):
-                    if re.match(".*Plant.*", area.name):
-                        plants.append(loc)
-                        continue
                 area.add_location(loc)
-            if None == child.find("Connections"):
+            if child.find("Connections") is None:
                 log.error("No connections found for child %s, (name %s)" % (child, child.attrib["name"]))
             for conn in child.find("Connections"):
                 connection = Connection(conn.find("Home").attrib["name"], conn.find(
@@ -973,9 +956,6 @@ class SeedGenerator:
                 entranceConnection = conn.find("Entrance")
                 if self.var(Variation.ENTRANCE_SHUFFLE) and entranceConnection is not None:
                     continue
-                if self.var(Variation.NO_PLANTS):
-                    if re.match(".*Plant.*", connection.target):
-                        continue
                 for req in conn.find("Requirements"):
                     if req.attrib["mode"] in logic_paths:
                         connection.add_requirements(req.text.split(
@@ -996,17 +976,12 @@ class SeedGenerator:
             if loc in self.forcedAssignments:
                 item = self.forcedAssignments[loc]
                 del self.forcedAssignments[loc]  # don't count these ones
-            self.outputStr += self.get_assignment(loc,
-                                                  self.adjust_item(item), zone)
+            self.outputStr += self.get_assignment(loc, self.adjust_item(item), zone)
 
         for v in self.forcedAssignments.values():
             if v in self.itemPool:
                 self.itemPool[v] -= 1
         self.itemCount -= len(self.forcedAssignments)
-
-        if self.var(Variation.NO_PLANTS):
-            for location in plants:
-                self.outputStr += (str(location.get_key()) + "|NO|0\n")
 
         locationsToAssign = []
         self.connectionQueue = []
