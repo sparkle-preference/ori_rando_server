@@ -10,16 +10,30 @@ from collections import OrderedDict
 from seedbuilder.generator import SeedGenerator
 
 presets = {
-    "Casual":    set([LogicPath.NORMAL, LogicPath.DBOOST_LIGHT]),
-    "Standard":    set([LogicPath.NORMAL, LogicPath.SPEED, LogicPath.LURE, LogicPath.DBOOST_LIGHT]),
-    "Expert":    set([LogicPath.NORMAL, LogicPath.SPEED, LogicPath.LURE, LogicPath.SPEED_LURE, LogicPath.DBOOST, LogicPath.DBOOST_LIGHT, LogicPath.CDASH, LogicPath.EXTENDED, LogicPath.EXTENDED_DAMAGE]),
-    "Master":    set([LogicPath.NORMAL, LogicPath.SPEED, LogicPath.LURE, LogicPath.SPEED_LURE, LogicPath.DBOOST, LogicPath.DBOOST_LIGHT, LogicPath.DBOOST_HARD, LogicPath.CDASH, LogicPath.DBASH, LogicPath.EXTENDED, LogicPath.EXTENDED_DAMAGE, LogicPath.LURE_HARD, LogicPath.EXTREME]),
-    "Glitched":    set([LogicPath.NORMAL, LogicPath.SPEED, LogicPath.DBOOST_LIGHT, LogicPath.DBOOST, LogicPath.LURE, LogicPath.SPEED_LURE, LogicPath.LURE_HARD, LogicPath.DBOOST_HARD, LogicPath.EXTENDED, LogicPath.EXTENDED_DAMAGE, LogicPath.DBASH, LogicPath.CDASH, LogicPath.EXTREME, LogicPath.TIMED_LEVEL, LogicPath.GLITCHED, LogicPath.CDASH_FARMING]),
-    #    "0xp":        set([LogicPath.NORMAL, LogicPath.SPEED, LogicPath.LURE, LogicPath.DBOOST_LIGHT]),
-    #   0xp has the same LPs as standard. Gotta distinguish elsewhere :C
-    "Hard":        set([LogicPath.NORMAL, LogicPath.SPEED, LogicPath.LURE, LogicPath.DBOOST_LIGHT, LogicPath.CDASH, LogicPath.DBASH, LogicPath.EXTENDED]),
-    "Ohko":        set([LogicPath.NORMAL, LogicPath.SPEED, LogicPath.LURE, LogicPath.CDASH, LogicPath.DBASH, LogicPath.EXTENDED])
-}
+    "Casual": {LogicPath.CASUAL_CORE, LogicPath.CASUAL_DBOOST},
+    "Standard": {
+        LogicPath.CASUAL_CORE, LogicPath.CASUAL_DBOOST, 
+        LogicPath.STANDARD_CORE, LogicPath.STANDARD_DBOOST, LogicPath.STANDARD_LURE, LogicPath.STANDARD_ABILITIES
+        },
+    "Expert": {
+        LogicPath.CASUAL_CORE, LogicPath.CASUAL_DBOOST, 
+        LogicPath.STANDARD_CORE, LogicPath.STANDARD_DBOOST, LogicPath.STANDARD_LURE, LogicPath.STANDARD_ABILITIES,
+        LogicPath.EXPERT_CORE, LogicPath.EXPERT_DBOOST, LogicPath.EXPERT_LURE, LogicPath.EXPERT_ABILITIES, LogicPath.DBASH
+        },
+    "Master": {
+            LogicPath.CASUAL_CORE, LogicPath.CASUAL_DBOOST, 
+            LogicPath.STANDARD_CORE, LogicPath.STANDARD_DBOOST, LogicPath.STANDARD_LURE, LogicPath.STANDARD_ABILITIES,
+            LogicPath.EXPERT_CORE, LogicPath.EXPERT_DBOOST, LogicPath.EXPERT_LURE, LogicPath.EXPERT_ABILITIES, LogicPath.DBASH,
+            LogicPath.MASTER_CORE, LogicPath.MASTER_DBOOST, LogicPath.MASTER_LURE, LogicPath.MASTER_ABILITIES, LogicPath.GJUMP
+        },
+    "Glitched": {
+            LogicPath.CASUAL_CORE, LogicPath.CASUAL_DBOOST, 
+            LogicPath.STANDARD_CORE, LogicPath.STANDARD_DBOOST, LogicPath.STANDARD_LURE, LogicPath.STANDARD_ABILITIES,
+            LogicPath.EXPERT_CORE, LogicPath.EXPERT_DBOOST, LogicPath.EXPERT_LURE, LogicPath.EXPERT_ABILITIES, LogicPath.DBASH,
+            LogicPath.MASTER_CORE, LogicPath.MASTER_DBOOST, LogicPath.MASTER_LURE, LogicPath.MASTER_ABILITIES, LogicPath.GJUMP,
+            LogicPath.GLITCHED, LogicPath.TIMED_LEVEL
+        }
+    }
 
 
 class Stuff(ndb.Model):
@@ -32,30 +46,6 @@ class Placement(ndb.Model):
     location = ndb.StringProperty()
     zone = ndb.StringProperty()
     stuff = ndb.LocalStructuredProperty(Stuff, repeated=True)
-
-
-class WarmthFragmentOptions(ndb.Model):
-    enabled = ndb.BooleanProperty(default=False)
-    count = ndb.IntegerProperty()
-    key_1 = ndb.IntegerProperty()
-    key_2 = ndb.IntegerProperty()
-    key_3 = ndb.IntegerProperty()
-    required = ndb.IntegerProperty()
-    tolerance = ndb.IntegerProperty()
-
-    @staticmethod
-    def from_url(qparams):
-        opts = WarmthFragmentOptions()
-        opts.enabled = bool(qparams.get("frag_count"))
-        if opts.enabled:
-            opts.count = int(qparams.get("frag_count", 40))
-            opts.key_1 = int(qparams.get("frag_key_1", 7))
-            opts.key_2 = int(qparams.get("frag_key_2", 14))
-            opts.key_3 = int(qparams.get("frag_key_3", 21))
-            opts.required = int(qparams.get("frag_required", 28))
-            opts.tolerance = int(qparams.get("frag_tolerance", 3))
-        return opts
-
 
 class MultiplayerOptions(ndb.Model):
     ndb_mode = msgprop.EnumProperty(
@@ -132,9 +122,10 @@ class SeedGenParams(ndb.Model):
     players = ndb.IntegerProperty(default=1)
     created_on = ndb.DateTimeProperty(auto_now_add=True)
     sync = ndb.LocalStructuredProperty(MultiplayerOptions)
-    warmth = ndb.LocalStructuredProperty(WarmthFragmentOptions)
-    placements = ndb.LocalStructuredProperty(
-        Placement, repeated=True, compressed=True)
+    frag_count = ndb.IntegerProperty(default=40)
+    frag_extra = ndb.IntegerProperty(default=10)
+    cell_freq = ndb.IntegerProperty(default=256)
+    placements = ndb.LocalStructuredProperty(Placement, repeated=True, compressed=True)
     spoilers = ndb.TextProperty(repeated=True, compressed=True)
 
     @staticmethod
@@ -155,7 +146,9 @@ class SeedGenParams(ndb.Model):
         params.balanced = qparams.get("gen_mode") != "Classic"
         params.players = int(qparams.get("players", 1))
         params.tracking = qparams.get("tracking") != "Disabled"
-        params.warmth = WarmthFragmentOptions.from_url(qparams)
+        params.frag_count = int(qparams.get("frags", 40))
+        params.frag_extra = int(qparams.get("extra_frags", 10))
+        params.cell_freq = int(qparams.get("cell_freq", 256))
         params.sync = MultiplayerOptions.from_url(qparams)
         raw_fass = qparams.get("fass")
         if raw_fass:
@@ -210,8 +203,7 @@ class SeedGenParams(ndb.Model):
         if self.tracking:
             flags = "Sync%s.%s," % (game_id, player) + flags
         outlines = [flags]
-        outlines += ["|".join((str(p.location), s.code, s.id, p.zone))
-               for p in self.placements for s in p.stuff if int(s.player) == self.team_pid(player)]
+        outlines += ["|".join((str(p.location), s.code, s.id, p.zone)) for p in self.placements for s in p.stuff if int(s.player) == self.team_pid(player)]
         return "\n".join(outlines)+"\n"
 
     def get_spoiler(self, player=1):
@@ -229,14 +221,12 @@ class SeedGenParams(ndb.Model):
     def flag_line(self, verbose_paths=False):
         flags = []
         if verbose_paths:
-            flags.append("lps=%s" %
-                         "+".join([lp.capitalize() for lp in self.logic_paths]))
+            flags.append("lps=%s" % "+".join([lp.capitalize() for lp in self.logic_paths]))
         else:
             flags.append(self.get_preset())
         flags.append(self.key_mode)
-        if self.warmth.enabled:
-            flags.append("Frags/%s/%s/%s/%s/%s/%s" % (self.warmth.count, self.warmth.key_1,
-                                             self.warmth.key_2, self.warmth.key_3, self.warmth.required, self.warmth.tolerance))
+        if Variation.WARMTH_FRAGMENTS in self.variations:
+            flags.append("Frags/%s/%s" % (self.frag_count, self.frag_extra))
         flags += [v.value for v in self.variations]
         if self.path_diff != PathDifficulty.NORMAL:
             flags.append("prefer_path_difficulty=%s" % self.path_diff.value)

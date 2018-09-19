@@ -40,7 +40,7 @@ class MultiplayerGameType(StrEnum):
 
 
 class NDB_ShareType(messages.Enum):
-    NOT_SHARED = 1    
+    NOT_SHARED = 1
     DUNGEON_KEY = 2
     UPGRADE = 3
     SKILL = 4
@@ -77,6 +77,7 @@ class NDB_Variation(messages.Enum):
     EXTRA_BONUS_PICKUPS = 10
     OPEN_MODE = 11
     WORLD_TOUR = 12
+    WARMTH_FRAGMENTS = 13
 
 
 oldFlags = {"starved": "Starved", "hardmode": "Hard", "ohko": "OHKO", "0xp": "0XP",  "noplants": "NoPlants", "forcetrees": "ForceTrees", "discmaps": "NonProgressMapStones", "notp": "NoTeleporters", "entshuf": "Entrance", "wild": "BonusPickups", "forcemapstones": "ForceMapStones", "forcerandomescape": "ForceRandomEscape"}
@@ -95,6 +96,7 @@ class Variation(StrEnum):
     EXTRA_BONUS_PICKUPS = "BonusPickups"
     OPEN_MODE = "Open"
     WORLD_TOUR = "WorldTour"
+    WARMTH_FRAGMENTS = "WarmthFrags"
     @staticmethod
     def from_old(old):
         low = old.lower()
@@ -133,22 +135,25 @@ class NDB_LogicPath(messages.Enum):
 ndbLPByName = { v.name:v for v in NDB_LogicPath }
 
 class LogicPath(StrEnum):
-    NORMAL = "normal"
-    SPEED = "speed"
-    LURE = "lure"
-    SPEED_LURE = "speed-lure"
-    DBOOST = "dboost"
-    DBOOST_LIGHT = "dboost-light"
-    DBOOST_HARD = "dboost-hard"
-    CDASH = "cdash"
-    CDASH_FARMING = "cdash-farming"
-    DBASH = "dbash"
-    EXTENDED = "extended"
-    LURE_HARD = "lure-hard"
-    TIMED_LEVEL = "timed-level"
-    GLITCHED = "glitched"
-    EXTENDED_DAMAGE = "extended-damage"
-    EXTREME = "extreme"
+    CASUAL_CORE = 'casual-core'
+    CASUAL_DBOOST = 'casual-dboost'
+    STANDARD_CORE = 'standard-core'
+    STANDARD_DBOOST = 'standard-dboost'
+    STANDARD_LURE = 'standard-lure'
+    STANDARD_ABILITIES = 'standard-abilities'
+    EXPERT_CORE = 'expert-core'
+    EXPERT_DBOOST = 'expert-dboost'
+    EXPERT_LURE = 'expert-lure'
+    EXPERT_ABILITIES = 'expert-abilities'
+    DBASH = 'dbash'
+    MASTER_CORE = 'master-core'
+    MASTER_DBOOST = 'master-dboost'
+    MASTER_LURE = 'master-lure'
+    MASTER_ABILITIES = 'master-abilities'
+    GJUMP = 'gjump'
+    GLITCHED = 'glitched'
+    TIMED_LEVEL = 'timed-level'
+    INSANE = 'insane'
     @classmethod
     def from_ndb(clazz, ndb_val):
         if ndb_val:
@@ -161,9 +166,8 @@ class NDB_KeyMode(messages.Enum):
     SHARDS = 1
     CLUES = 2
     LIMITKEYS = 3
-    WARMTH_FRAGS = 4
+    FREE = 4
     NONE = 5
-    FREE = 6
 
 ndbKMByName = { v.name:v for v in NDB_KeyMode }
 
@@ -171,9 +175,8 @@ class KeyMode(StrEnum):
     SHARDS = "Shards"
     CLUES = "Clues"
     LIMITKEYS = "Limitkeys"
-    WARMTH_FRAGS = "Frags"
-    NONE = "Default"
     FREE = "Free"
+    NONE = "Default"
     @classmethod
     def from_ndb(clazz, ndb_val):
         if ndb_val:
