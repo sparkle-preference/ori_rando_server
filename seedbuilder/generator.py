@@ -408,8 +408,7 @@ class SeedGenerator:
                     self.itemCount += 1
                 else:
                     self.assign(sharedItem[0])
-                    self.spoilerGroup[sharedItem[0]].append(
-                        sharedItem[0] + " from Player " + str(sharedItem[1]) + "\n")
+                    self.spoilerGroup[sharedItem[0]].append(sharedItem[0] + " from Player " + str(sharedItem[1]) + "\n")
         self.currentAreas.append(target)
         self.areasReached[target] = True
 
@@ -594,8 +593,7 @@ class SeedGenerator:
                 self.costs[item] -= min(3, self.costs[item])
         elif item in self.costs:
             self.costs[item] = 0
-        self.inventory[item] = 1 + \
-            (self.inventory[item] if item in self.inventory else 0)
+        self.inventory[item] = 1 + (self.inventory[item] if item in self.inventory else 0)
 
         return item
 
@@ -627,8 +625,7 @@ class SeedGenerator:
                 adjusted_item = self.adjust_item(item)
                 self.split_locs[loc] = (player, adjusted_item)
 
-                self.spoilerGroup[item].append(
-                    "%s from Player %s at %s\n" % (item, player, location.to_string()))
+                self.spoilerGroup[item].append("%s from Player %s at %s\n" % (item, player, location.to_string()))
                 hist_written = True
                 if player != self.playerID:
                     item = self.cloned_item(item, player=player)
@@ -640,19 +637,16 @@ class SeedGenerator:
                     if player not in self.sharedMap:
                         self.sharedMap[player] = 0
                     self.sharedMap[player] += 1
-                    self.spoilerGroup[item].append(
-                        "%s from Player %s\n" % (item, player))
+                    self.spoilerGroup[item].append("%s from Player %s\n" % (item, player))
                     item = "EX*"
                     self.expSlots += 1
         # if mapstones are progressive, set a special location
 
         if has_cost and not hist_written:
             if at_mapstone:
-                self.spoilerGroup[item].append(
-                    item + " from MapStone " + str(self.mapstonesAssigned) + "\n")
+                self.spoilerGroup[item].append(item + " from MapStone " + str(self.mapstonesAssigned) + "\n")
             else:
-                self.spoilerGroup[item].append(
-                    item + " from " + location.to_string() + "\n")
+                self.spoilerGroup[item].append(item + " from " + location.to_string() + "\n")
 
         fixed_item = self.adjust_item(item)
         assignment = self.get_assignment(loc, fixed_item, zone)
@@ -1118,16 +1112,14 @@ class SeedGenerator:
             currentGroupSpoiler = ""
 
             if spoilerPath:
-                currentGroupSpoiler += ("	Forced pickups: " +
-                                        str(spoilerPath) + "\n")
+                currentGroupSpoiler += ("	Forced pickups: " + str(spoilerPath) + "\n")
 
             for skill in self.skillsOutput:
                 if skill in self.spoilerGroup:
                     for instance in self.spoilerGroup[skill]:
                         currentGroupSpoiler += "	" + instance
                     if skill in self.seedDifficultyMap:
-                        self.seedDifficulty += groupDepth * \
-                            self.seedDifficultyMap[skill]
+                        self.seedDifficulty += groupDepth * self.seedDifficultyMap[skill]
 
             for event in self.eventsOutput:
                 if event in self.spoilerGroup:
@@ -1155,8 +1147,7 @@ class SeedGenerator:
                 groupDepth += 1
                 self.currentAreas.sort()
 
-                spoilerStr += str(groupDepth) + ": " + \
-                    str(self.currentAreas) + " {\n"
+                spoilerStr += str(groupDepth) + ": " + str(self.currentAreas) + " {\n"
 
                 spoilerStr += currentGroupSpoiler
 
@@ -1195,8 +1186,7 @@ class SeedGenerator:
             for item in self.balanceList:
                 self.outputStr += item[2]
 
-        spoilerStr = self.params.flag_line(
-            self.verbose_paths) + "\n" + "Difficulty Rating: " + str(self.seedDifficulty) + "\n" + spoilerStr
+        spoilerStr = self.params.flag_line(self.verbose_paths) + "\n" + "Difficulty Rating: " + str(self.seedDifficulty) + "\n" + spoilerStr
         self.random.shuffle(self.eventList)
         for event in self.eventList:
             self.outputStr += event
