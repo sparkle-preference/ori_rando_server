@@ -413,7 +413,7 @@ class SeedGenerator:
                     if not reached:
                         self.areas[connection.target].difficulty = cost[2]
                         if len(self.areas[connection.target].locations) > 0:
-                            self.areas[connection.target].difficulty += area.difficulty
+                            self.areas[connection.target].difficulty += self.areas[area].difficulty
                     if connection.keys > 0:
                         if area not in self.doorQueue.keys():
                             self.doorQueue[area] = connection
@@ -508,7 +508,8 @@ class SeedGenerator:
                             else:
                                 requirements.append(req)
                                 cost += self.costs[req]
-                    # cost *= len(requirements) # decrease the rate of multi-ability paths
+                    # decrease the rate of multi-ability paths
+                    cost *= max(1, len(requirements) - 1)
                     if len(requirements) <= free_space:
                         for req in requirements:
                             if req not in abilities_to_open:
@@ -520,13 +521,28 @@ class SeedGenerator:
             totalCost += 1.0 / abilities_to_open[path][0]
         position = 0
         target = self.random.random() * totalCost
+        path_selected = None
         for path in abilities_to_open:
             position += 1.0 / abilities_to_open[path][0]
             if target <= position:
+                path_selected = abilities_to_open[path]
+                break
+        # if a connection will open with a subset of skills in the selected path, use that instead
+        for path in abilities_to_open:
+            isSubset = abilities_to_open[path][0] < path_selected[0]
+            if isSubset:
                 for req in abilities_to_open[path][1]:
-                    if self.itemPool[req] > 0:
-                        self.assignQueue.append(req)
-                return abilities_to_open[path][1]
+                    if req not in path_selected[1]:
+                        isSubset = False
+                        break
+                if isSubset:
+                    path_selected = abilities_to_open[path]
+        if path_selected:
+            for req in path_selected[1]:
+                if self.itemPool[req] > 0:
+                    self.assignQueue.append(req)
+            return path_selected[1]
+        return None
 
     def get_location_from_balance_list(self):
         target = int(pow(self.random.random(), 1.0 /
