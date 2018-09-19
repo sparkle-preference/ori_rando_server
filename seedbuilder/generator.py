@@ -175,6 +175,7 @@ class Connection:
             score = 0
             energy = 0
             health = 0
+            ability = 0
             warmth = 0
             for abil in self.requirements[i]:
                 if abil == "EC":
@@ -184,6 +185,10 @@ class Connection:
                 elif abil == "HC":
                     health += 1
                     if self.sg.inventory["HC"] < health:
+                        score += self.sg.costs[abil.strip()]
+                elif abil == "AC":
+                    ability += 1
+                    if self.sg.inventory["AC"] < ability:
                         score += self.sg.costs[abil.strip()]
                 elif abil == "RB28":
                     warmth += 1
@@ -258,7 +263,7 @@ class SeedGenerator:
         """Part one of a reset. All initialization that doesn't
         require reading from params goes here."""
         self.costs = OrderedDict({
-            "Free": 0, "MS": 0, "KS": 2, "EC": 6, "HC": 12, "WallJump": 13,
+            "Free": 0, "MS": 0, "KS": 2, "AC": 12, "EC": 6, "HC": 12, "WallJump": 13,
             "ChargeFlame": 13, "DoubleJump": 13, "Bash": 41, "Stomp": 29,
             "Glide": 17, "Climb": 41, "ChargeJump": 59, "Dash": 13,
             "Grenade": 29, "GinsoKey": 12, "ForlornKey": 12, "HoruKey": 12,
@@ -495,11 +500,11 @@ class SeedGenerator:
                     cost = 0
                     cnts = defaultdict(lambda: 0)
                     for req in req_set:
-                        # for paired randomizer -- if the item isn't yours to assign, skip connection
-                        if self.itemPool[req] == 0:
-                            requirements = []
-                            break
                         if self.costs[req] > 0:
+                            # for paired randomizer -- if the item isn't yours to assign, skip connection
+                            if self.itemPool[req] == 0:
+                                requirements = []
+                                break
                             if req in ["HC", "EC", "WaterVeinShard", "GumonSealShard", "SunstoneShard", "RB28"]:
                                 cnts[req] += 1
                                 if cnts[req] > self.inventory[req]:
@@ -592,7 +597,7 @@ class SeedGenerator:
     def assign(self, item):
         self.itemPool[item] = max(
             self.itemPool[item] - 1, 0) if item in self.itemPool else 0
-        if item in ["EC", "KS", "HC", "WaterVeinShard", "GumonSealShard", "SunstoneShard"]:
+        if item in ["EC", "KS", "HC", "AC", "WaterVeinShard", "GumonSealShard", "SunstoneShard"]:
             if self.costs[item] > 0:
                 self.costs[item] -= 1
         elif item == "RB28":
