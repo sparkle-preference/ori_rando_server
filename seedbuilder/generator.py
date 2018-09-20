@@ -6,6 +6,12 @@ from collections import OrderedDict, defaultdict, Counter
 from operator import mul
 from enums import KeyMode, PathDifficulty, ShareType, Variation, MultiplayerGameType
 
+def translate(itemCode):
+    if itemCode[0:2] in ["HC", "KS", "MS", "EC", "AC"]:
+        return itemCode[0:2]
+    elif itemCode[0:2] == "EX":
+        return "EX*"
+    return itemCode
 
 def ordhash(s):
     return reduce(mul, [ord(c) for c in s])
@@ -303,7 +309,7 @@ class SeedGenerator:
         advancement), then sets initial values according to params."""
         self.init_fields()
         self.expRemaining = self.params.exp_pool
-        self.forcedAssignments = self.preplaced
+        self.forcedAssignments = {k: translate(v) for k, v in self.preplaced.items()}
         self.forceAssignedLocs = set()
         self.itemPool = OrderedDict([
             ("EX1", 1), ("EX*", 91), ("KS", 40), ("MS", 11), ("AC", 33),
@@ -1005,6 +1011,8 @@ class SeedGenerator:
         for loc, item, zone in [(-280256, "EC1", "Glades"), (-1680104, "EX100", "Grove"), (-12320248, "Grenade", "Forlorn"), (-10440008, "EX100", "Misty")]:
             if loc in self.forcedAssignments:
                 item = self.forcedAssignments[loc]
+                if item not in self.itemPool:
+                    log.warning("Preplaced item %s was not in pool. Translation may be necessary.")
                 del self.forcedAssignments[loc]  # don't count these ones
             self.outputStr += self.get_assignment(loc,
                                                   self.adjust_item(item), zone)
@@ -1053,7 +1061,7 @@ class SeedGenerator:
                 self.connectionQueue = []
             reset_loop = False
             locationsToAssign, reset_loop = self.get_all_accessible_locations()
-            
+
             # if there aren't any doors to open, it's time to get a new skill
             # consider -- work on stronger anti-key-lock logic so that we don't
             # have to give keys out right away (this opens up the potential of
