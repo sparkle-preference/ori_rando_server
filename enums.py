@@ -78,6 +78,7 @@ class NDB_Variation(messages.Enum):
     OPEN_MODE = 11
     WORLD_TOUR = 12
     WARMTH_FRAGMENTS = 13
+    DOUBLE_SKILL = 14
 
 
 oldFlags = {"starved": "Starved", "hardmode": "Hard", "ohko": "OHKO", "0xp": "0XP",  "noplants": "NoPlants", "forcetrees": "ForceTrees", "discmaps": "NonProgressMapStones", "notp": "NoTeleporters", "entshuf": "Entrance", "wild": "BonusPickups", "forcemapstones": "ForceMapStones", "forcerandomescape": "ForceRandomEscape"}
@@ -97,6 +98,7 @@ class Variation(StrEnum):
     OPEN_MODE = "Open"
     WORLD_TOUR = "WorldTour"
     WARMTH_FRAGMENTS = "WarmthFrags"
+    DOUBLE_SKILL = "DoubleSkills"
     @staticmethod
     def from_old(old):
         low = old.lower()
