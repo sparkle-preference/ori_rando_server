@@ -123,46 +123,20 @@ class Connection:
                 if "HoruKey" in req:
                     req.remove("HoruKey")
                     req += ["SunstoneShard"] * 5
-            elif self.sg.params.key_mode == KeyMode.WARMTH_FRAGS:
-                warmth = self.sg.params.warmth
-                first, second, third, end, tol = warmth.key_1, warmth.key_2, warmth.key_3, warmth.required, warmth.tolerance
+            elif Variation.WARMTH_FRAGMENTS in self.sg.params.variations:
                 if "GinsoKey" in req and "ForlornKey" in req and "HoruKey" in req:
                     req.remove("GinsoKey")
                     req.remove("ForlornKey")
                     req.remove("HoruKey")
-                    req += ["RB28"]*(end+tol)
-                else:
-                    fragCnts = [first, second, third]
-                    frgToAdd = 0
-                    if "GinsoKey" in req:
-                        req.remove("GinsoKey")
-                        frgToAdd = max(
-                            fragCnts[self.sg.fragOrder.index("G")], frgToAdd)
-                    if "ForlornKey" in req:
-                        req.remove("ForlornKey")
-                        frgToAdd = max(
-                            fragCnts[self.sg.fragOrder.index("F")], frgToAdd)
-                    if "HoruKey" in req:
-                        req.remove("HoruKey")
-                        frgToAdd = max(
-                            fragCnts[self.sg.fragOrder.index("H")], frgToAdd)
-                    frgToAdd += tol
-                    req += ["RB28"] * frgToAdd
+                    req += ["RB28"]*self.sg.params.frag_count
 
+        if "Free" in req:
+            req.remove("Free")
         self.requirements.append(req)
         self.difficulties.append(difficulty)
-        match = re.match(".*KS.*KS.*KS.*KS.*", str(req))
-        if match:
-            self.keys = 4
-            return
-        match = re.match(".*KS.*KS.*", str(req))
-        if match:
-            self.keys = 2
-            return
-        match = re.match(".*MS.*", str(req))
-        if match:
-            self.mapstone = True
-            return
+        if not self.keys:
+            self.keys = req.count("KS")
+        self.mapstone = "MS" in req
 
     def get_requirements(self):
         return self.requirements
@@ -244,8 +218,11 @@ class SeedGenerator:
         "SKChargeJump", "EVGinsoKey", "EVForlornKey", "EVHoruKey", "SKBash", "EVWater", "EVWind"
     ]
     difficultyMap = OrderedDict({
-        "normal": 1, "speed": 2, "lure": 2, "speed-lure": 3, "dboost": 2, "dboost-light": 1, "dboost-hard": 3, "cdash": 2,
-        "cdash-farming": 2, "dbash": 3, "extended": 3, "extended-damage": 3, "lure-hard": 4, "extreme": 4, "glitched": 5, "timed-level": 5
+        'casual-core': 1, 'casual-dboost': 1,
+        'standard-core': 2, 'standard-dboost': 2, 'standard-lure': 2, 'standard-abilities': 2,
+        'expert-core': 3, 'expert-dboost': 3, 'expert-lure': 3, 'expert-abilities': 3, 'dbash': 3,
+        'master-core': 4, 'master-dboost': 4, 'master-lure': 4, 'master-abilities': 4, 'gjump': 4, 
+        'glitched': 5, 'timed-level': 5, 'insane': 7
     })
     skillsOutput = OrderedDict({
         "WallJump": "SK3", "ChargeFlame": "SK2", "Dash": "SK50", "Stomp": "SK4", "DoubleJump": "SK5",
@@ -349,16 +326,19 @@ class SeedGenerator:
             self.itemPool["HoruKey"] = 0
             self.itemPool["EX*"] -= 12
 
-        if self.params.warmth.enabled:
-            self.costs["RB28"] = 3 * (self.params.warmth.required+self.params.warmth.tolerance)
+        if Variation.WARMTH_FRAGMENTS in self.params.variations:
+            self.costs["RB28"] = 3 * self.params.frag_count
             self.inventory["RB28"] = 0
-            self.itemPool["RB28"] = self.params.warmth.count
-            self.itemPool["EX*"] -= self.params.warmth.count
-            if self.params.key_mode == KeyMode.WARMTH_FRAGS:
-                self.itemPool["GinsoKey"] = 0
-                self.itemPool["ForlornKey"] = 0
-                self.itemPool["HoruKey"] = 0
-                self.itemPool["EX*"] += 3
+            self.itemPool["RB28"] = self.params.frag_count
+            self.itemPool["EX*"] -= self.params.frag_count
+
+        if self.params.key_mode == KeyMode.FREE:
+            # TODO: do the dll and placement work for this
+            for key in ["GinsoKey", "HoruKey", "ForlornKey"]:
+                self.costs[key] = 0
+                self.itemPool[key] = 0
+                self.inventory[key] = 1
+                self.itemPool["EX*"] += 1
 
         if self.params.key_mode == KeyMode.LIMITKEYS:
             satisfied = False
@@ -833,7 +813,7 @@ class SeedGenerator:
 
         return doorStr
 
-    def setSeedAndPlaceItems(self, params, preplaced={}, retries=20, verbose_paths=False):
+    def setSeedAndPlaceItems(self, params, preplaced={}, retries=10, verbose_paths=False):
         self.verbose_paths = verbose_paths
         self.params = params
 
@@ -852,35 +832,27 @@ class SeedGenerator:
             else:
                 self.playerCount = self.params.players
 
-        if self.params.warmth.enabled and self.params.key_mode == KeyMode.WARMTH_FRAGS:
-            self.fragOrder = fragOrders[ordhash(self.params.seed) % 6]
         if self.do_multi:
             if ShareType.SKILL in self.params.sync.shared:
-                self.sharedList += ["WallJump", "ChargeFlame", "Dash", "Stomp",
-                                    "DoubleJump", "Glide", "Bash", "Climb", "Grenade", "ChargeJump"]
+                self.sharedList += ["WallJump", "ChargeFlame", "Dash", "Stomp", "DoubleJump", "Glide", "Bash", "Climb", "Grenade", "ChargeJump"]
             if ShareType.DUNGEON_KEY in self.params.sync.shared:
-                if self.params.key_mode == KeyMode.SHARDS:
-                    self.sharedList += ["WaterVeinShard",
-                                        "GumonSealShard", "SunstoneShard"]
-                elif self.params.key_mode == KeyMode.WARMTH_FRAGS:
+                if Variation.WARMTH_FRAGMENTS in self.params.variations:
                     self.sharedList.append("RB28")
+                if self.params.key_mode == KeyMode.SHARDS:
+                    self.sharedList += ["WaterVeinShard", "GumonSealShard", "SunstoneShard"]
                 else:
                     self.sharedList += ["GinsoKey", "ForlornKey", "HoruKey"]
             if ShareType.EVENT in self.params.sync.shared:
                 self.sharedList += ["Water", "Wind", "Warmth"]
             if ShareType.TELEPORTER in self.params.sync.shared:
-                self.sharedList += ["TPForlorn", "TPGrotto",
-                                    "TPSorrow", "TPGrove", "TPSwamp", "TPValley"]
+                self.sharedList += ["TPForlorn", "TPGrotto", "TPSorrow", "TPGrove", "TPSwamp", "TPValley"]
             if ShareType.UPGRADE in self.params.sync.shared:
-                self.sharedList += ["RB6", "RB8", "RB9",
-                                    "RB10", "RB11", "RB12", "RB13", "RB15"]
+                self.sharedList += ["RB6", "RB8", "RB9", "RB10", "RB11", "RB12", "RB13", "RB15"]
                 if self.var(Variation.EXTRA_BONUS_PICKUPS):
-                    self.sharedList += ["RB31", "RB32",
-                                        "RB33", "RB101", "RB102", "RB103"]
+                    self.sharedList += ["RB31", "RB32", "RB33", "RB101", "RB102", "RB103"]
         return self.placeItemsMulti(retries)
 
     def placeItemsMulti(self, retries=5):
-
         placements = []
         self.sharedMap = {}
         self.split_locs = {}
@@ -888,30 +860,28 @@ class SeedGenerator:
 
         placement = self.placeItems(0)
         if not placement:
-            if self.preplaced:
-                if retries > 0:
-                    retries -= 1
-                else:
-                    log.error("""Seed not completeable with these params and placements.
-                    ItemCount: %s
-                    Items remaining: %s,
-                    Areas reached: %s,
-                    AreasRemaining: %s,
-                    Inventory: %s,
-                    Forced Assignments: %s,
-                    Nonzero Costs:%s,
-                    Partial Seed: %s""",
-                              self.itemCount,
-                              {k: v for k, v in self.itemPool.iteritems() if v > 0},
-                              [x for x in self.areasReached],
-                              [x for x in self.areasRemaining],
-                              {k: v for k, v in self.inventory.iteritems()
-                               if v != 0},
-                              self.forcedAssignments,
-                              {k: v for k, v in self.costs.iteritems() if v != 0},
-                              self.outputStr
-                              )
-                    return None
+            if retries > 0:
+                retries -= 1
+            else:
+                log.error("""Seed not completeable with these params and placements.
+                            ItemCount: %s
+                            Items remaining: %s,
+                            Areas reached: %s,
+                            AreasRemaining: %s,
+                            Inventory: %s,
+                            Forced Assignments: %s,
+                            Nonzero Costs:%s,
+                            Partial Seed: %s""",
+                            self.itemCount,
+                            {k: v for k, v in self.itemPool.iteritems() if v > 0},
+                            [x for x in self.areasReached],
+                            [x for x in self.areasRemaining],
+                            {k: v for k, v in self.inventory.iteritems() if v != 0},
+                            self.forcedAssignments,
+                            {k: v for k, v in self.costs.iteritems() if v != 0},
+                            self.outputStr
+                        )
+                return None
             return self.placeItemsMulti(retries)
         placements.append(placement)
         if self.params.sync.cloned:
@@ -942,8 +912,7 @@ class SeedGenerator:
                         if retries > 0:
                             retries -= 1
                         else:
-                            log.error(
-                                "Coop seed not completeable with these params and placements")
+                            log.error("Coop seed not completeable with these params and placements")
                             return None
                     return self.placeItemsMulti(retries)
                 placements.append(placement)
@@ -951,7 +920,6 @@ class SeedGenerator:
         return placements
 
     def placeItems(self, depth=0):
-
         self.reset()
 
         spoilerStr = ""
@@ -960,7 +928,7 @@ class SeedGenerator:
         mapstoneCount = 0
         plants = []
 
-        tree = XML.parse("seedbuilder/areas.xml")
+        tree = get_areas()
         root = tree.getroot()
         logic_paths = [lp.value for lp in self.params.logic_paths]
         for child in root:
@@ -976,15 +944,13 @@ class SeedGenerator:
             if child.find("Connections") is None:
                 log.error("No connections found for child %s, (name %s)" % (child, child.attrib["name"]))
             for conn in child.find("Connections"):
-                connection = Connection(conn.find("Home").attrib["name"], conn.find(
-                    "Target").attrib["name"], self)
+                connection = Connection(conn.find("Home").attrib["name"], conn.find("Target").attrib["name"], self)
                 entranceConnection = conn.find("Entrance")
                 if self.var(Variation.ENTRANCE_SHUFFLE) and entranceConnection is not None:
                     continue
                 for req in conn.find("Requirements"):
                     if req.attrib["mode"] in logic_paths:
-                        connection.add_requirements(req.text.split(
-                            '+'), self.difficultyMap[req.attrib["mode"]])
+                        connection.add_requirements(req.text.split('+'), self.difficultyMap[req.attrib["mode"]])
                 if connection.get_requirements():
                     area.add_connection(connection)
             self.areas[area.name] = area
@@ -1008,6 +974,7 @@ class SeedGenerator:
                 self.itemPool[v] -= 1
         self.itemCount -= len(self.forcedAssignments)
 
+
         locationsToAssign = []
         self.connectionQueue = []
         self.reservedLocations = []
@@ -1024,7 +991,6 @@ class SeedGenerator:
         spoilerPath = ""
 
         self.reach_area("SunkenGladesRunaway")
-
         while self.itemCount > 0 or (self.params.balanced and self.balanceListLeftovers):
 
             self.balanceLevel += 1

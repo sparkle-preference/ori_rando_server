@@ -11,7 +11,7 @@ import {get_param, presets, player_icons, doNetRequest} from './shared_map.js';
 import SiteBar from "./SiteBar.js"
 
 const dev = window.document.URL.includes("devshell")
-const keymode_options = ["None", "Shards", "Limitkeys", "Clues", "Warmth Frags"];
+const keymode_options = ["None", "Shards", "Limitkeys", "Clues", "Free"];
 
 const textStyle = {color: "black", textAlign: "center"}
 
@@ -27,15 +27,16 @@ const variations = {
 	ForceRandomEscape: "Force Random Escape",
 	Entrance: "Entrance Shuffle",
 	BonusPickups: "More Bonus Pickups",
-    
+    WarmthFrags: "Warmth Fragments"   
 }
+const cellFreqPresets = (preset) => preset === "casual" ? 20 : (preset === "standard" ? 40 : 256)
 const optional_paths = ['casual-dboost', 'standard-core', 'standard-dboost', 'standard-lure', 'standard-abilities', 'expert-core', 'expert-dboost', 'expert-lure', 'expert-abilities', 'dbash', 'master-core', 'master-dboost', 'master-lure', 'master-abilities', 'gjump', 'glitched', 'timed-level', 'insane']
-const varPaths = {"ohko": ["OHKO", "Hard"], "0xp": ["0XP", "Hard"], "hard": ["Hard"], "master": ["Starved"]}
+const varPaths = {"master": ["Starved"]}
 const diffPaths = {"glitched": "Hard", "master": "Hard"}
 const disabledPaths = {
 					"Hard": ["standard-dboost", "expert-dboost", "master-dboost"], 
-					"0XP": ["glitched", "cdash", "cdash-farming", "speed-lure", "timed-level"], 
-					"OHKO": ["dboost-light", "dboost", "dboost-hard", "extended-damage", "extreme", "glitched", "lure-hard"]
+					"0XP": ["glitched", "standard-abilities", "expert-abilities", "master-abilities", "master-dboost", "timed-level", "insane"], 
+					"OHKO": ["standard-dboost", "expert-dboost", "master-dboost", "glitched", "master-lure"]
 					}
 const revDisabledPaths = {}
 Object.keys(disabledPaths).forEach(v => disabledPaths[v].forEach(path => revDisabledPaths.hasOwnProperty(path) ? revDisabledPaths[path].push(v) : revDisabledPaths[path] = [v]))
@@ -45,77 +46,63 @@ export default class MainPage extends React.Component {
 	helpEnter = (category, option, timeout=250) => () => {clearTimeout(this.state.helpTimeout) ; this.setState({helpTimeout: setTimeout(this.help(category, option), timeout)})}
 	helpLeave = () => clearTimeout(this.state.helpTimeout) 
 	help = (category, option) => () => this.setState({helpcat: category, helpopt: option, helpParams: getHelpContent(category, option)})
-	
-	getWarmthFragsTab = () => {
-		let frag = this.state.frag
-		let onWarmthClick = () =>  frag.enabled ? this.onFrag("enabled", false, {keyMode: this.state.oldKeyMode}) : this.onFrag("enabled", true, {oldKeyMode: this.state.keyMode, keyMode: "Warmth Frags"})
-		let maxFrags = (this.state.variations.includes("Hard") ? 150 : 80) - (this.state.variations.includes("BonusPickups") ? 20 : 0) - (this.state.variations.includes("NoPlants") ? 20 : 0)
-		let fragCountValid = frag.count > 0 && frag.count <= maxFrags
-		let fragCountFeedback = frag.count > maxFrags ? (
-				<FormFeedback tooltip>Fragment count must be less than or equal to {maxFrags}</FormFeedback>
-			) : (
-				<FormFeedback tooltip>Fragment count must be greater than 0</FormFeedback>
-			)
-		let maxReq = frag.count - frag.tolerance;
-		let frag_row_data = ["key_1", "key_2", "key_3", "required"]
-		let fragRows = ["First Dungeon Key", "Second Dungeon Key", "Last Dungeon Key", "Total Required"].map((text, i) => {
-			let key = frag_row_data[i];
-			let setter = (e) => this.onFrag(key, parseInt(e.target.value, 10))
-			let currCount = frag[key] 
-			let valid = currCount > 0 && currCount <= maxReq;
-			let feedback = currCount > maxReq ? (
-				<FormFeedback tooltip>Fragment requirement must not be greater than {maxReq} (the total number of fragments, minus the tolerance value)</FormFeedback>
-			) : (
-				<FormFeedback tooltip>Fragment requirement must be greater than 0</FormFeedback>
-			)
-			return (
-				<Row className="p-1 justify-content-center">
-					<Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("warmthFrags", text)} className="text-center pt-1 border">
-						<span class="align-middle">{text}</span>
-					</Col><Col xs="4">
-						<Input type="number" value={currCount} disabled={!frag.enabled} invalid={!valid} onChange={setter}/> 
-						{feedback}
-					</Col>
-				</Row>
-			)
-		})
-		return (
-			<TabPane tabId="warmthFrags">
-				<Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("warmthFrags", "Enable")} className="p-1 justify-content-center">
-					<Col xs="6">
-						<Button block color="warning" outline={!frag.enabled} onClick={onWarmthClick}>{frag.enabled ? "Disable" : "Enable"} Warmth Fragments</Button>
-					</Col>
-				</Row>
-				<Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("warmthFrags", "fragCount")} className="p-1 justify-content-center">
-					<Col xs="4" className="text-center pt-1 border">
-						<span class="align-middle">Warmth Fragment Count</span>
-					</Col><Col xs="4">
-						<Input type="number" value={frag.count} disabled={!frag.enabled} invalid={!fragCountValid} onChange={e => this.onFrag("count", parseInt(e.target.value, 10))}/> 
-						{fragCountFeedback}
-					</Col>
-				</Row>
-				{fragRows}
-				<Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("warmthFrags", "fragTol")} className="p-1 justify-content-center">
-					<Col xs="4" className="text-center pt-1 border">
-						<span class="align-middle">Logic Tolerance</span>
-					</Col><Col xs="4">
-						<Input type="number" value={this.state.frag.tolerance} disabled={!frag.enabled} invalid={this.state.fragTol <= 0} onChange={e => this.onFrag("tolerance", parseInt(e.target.value, 10))}/> 
-						<FormFeedback tooltip>Tolerance cannot be negative</FormFeedback>
-					</Col>
-				</Row>
-				<Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("warmthFrags", "expPool")} className="p-1 justify-content-center">
-					<Col xs="4" className="text-center pt-1 border">
-						<span class="align-middle">Exp Pool</span>
-					</Col><Col xs="4">
-						<Input type="number" value={this.state.expPool} invalid={this.state.expPool < 100} onChange={(e) => this.setState({expPool: parseInt(e.target.value, 10)})}/> 
-						<FormFeedback tooltip>Experience Pool must be at least 100</FormFeedback>
-					</Col>
-				</Row>
-			</TabPane>
-		)
-	}
 
-	
+    getAdvancedTab = () => {
+        const starting_pickups = {"First Pickup:": 919722, "Second Pickup:": -1560272, "Third Pickup:": 799776, "Fourth Pickup:": -120208}
+        let fass_rows = Object.keys(starting_pickups).map(name => {
+            let coord = starting_pickups[name];
+            return (
+                    <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "preplacement")} className="p-1 justify-content-center">
+                        <Col xs="4" className="text-center pt-1 border">
+                            <span class="align-middle">{name}</span>
+                        </Col><Col xs="4">
+                            <Input type="text" value={this.state.fass[coord]} onChange={e => this.onFass(coord, e.target.value)}/> 
+                        </Col>
+                    </Row>
+            )   
+        })
+        let fragCountSetter = this.state.variations.includes("WarmthFrags") ? [(                    
+            <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "fragCount")} className="p-1 justify-content-center">
+                        <Col xs="4" className="text-center pt-1 border">
+                            <span class="align-middle">Fragment Count</span>
+                        </Col><Col xs="4">
+                            <Input type="number" value={this.state.fragCount} invalid={this.state.fragCount > 60 || this.state.fragCount < 1} onChange={(e) => this.setState({fragCount: parseInt(e.target.value, 10)})}/> 
+                            <FormFeedback tooltip>Frag Count must be between 1 and 60</FormFeedback>
+                        </Col>
+                    </Row>
+        ),(                    
+            <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "fragExtra")} className="p-1 justify-content-center">
+                        <Col xs="4" className="text-center pt-1 border">
+                            <span class="align-middle">Extra Frags</span>
+                        </Col><Col xs="4">
+                            <Input type="number" value={this.state.fragExtra} invalid={this.state.fragExtra < 0} onChange={(e) => this.setState({fragExtra: parseInt(e.target.value, 10)})}/> 
+                            <FormFeedback tooltip>Extra Frags can't be negative</FormFeedback>
+                        </Col>
+                    </Row>
+        )] : null
+        return (
+                <TabPane tabId="advanced">
+                    {fass_rows}
+                    <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "expPool")} className="p-1 justify-content-center">
+                        <Col xs="4" className="text-center pt-1 border">
+                            <span class="align-middle">Exp Pool</span>
+                        </Col><Col xs="4">
+                            <Input type="number" value={this.state.expPool} invalid={this.state.expPool < 100} onChange={(e) => this.setState({expPool: parseInt(e.target.value, 10)})}/> 
+                            <FormFeedback tooltip>Experience Pool must be at least 100</FormFeedback>
+                        </Col>
+                    </Row>
+                    {fragCountSetter}
+                    <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "cellFreq")} className="p-1 justify-content-center">
+                        <Col xs="4" className="text-center pt-1 border">
+                            <span class="align-middle">Forced Cell Frequency</span>
+                        </Col><Col xs="4">
+                            <Input type="number" value={this.state.cellFreq} invalid={this.state.cellFreq < 3} onChange={(e) => this.setState({cellFreq: parseInt(e.target.value, 10)})}/> 
+                            <FormFeedback tooltip>Forced Cell Frequency must be at least 3</FormFeedback>
+                        </Col>
+                    </Row>
+                </TabPane>
+        )
+    }
 	getMultiplayerTab = () => {
 		let multiplayerButtons = ["Skills", "Dungeon Keys", "Teleporters", "Upgrades", "World Events"].map(stype => (
 			<Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("Shared Item Categories", stype)} className="p-2">
@@ -188,7 +175,7 @@ export default class MainPage extends React.Component {
 								<span class="align-middle">Teams</span>
 							</Col><Col xs="4">
 								<Input type="text" value={this.state.teamStr} invalid={!this.teamStrValid()} onChange={(e) => this.setState({teamStr: e.target.value})}/>
-								<FormFeedback tooltip>Team format: 1,2|3,4|5,6. Must be at least 2 teams, and each player must appear once.</FormFeedback>
+								<FormFeedback tooltip>Team format: 1,2|3,4|5,6. Each player must appear once.</FormFeedback>
 							</Col>
 						</Row>
 					</Collapse>
@@ -213,7 +200,7 @@ export default class MainPage extends React.Component {
 	}
 	
 	generateSeed = () => {
-		let pMap = {"Race": "None", "None": "Default", "Co-op": "Shared", "Warmth Frags": "Frags", 
+		let pMap = {"Race": "None", "None": "Default", "Co-op": "Shared", 
 					"World Events": "Events", "Dungeon Keys": "Keys", "Cloned Seeds": "cloned", "Seperate Seeds": "disjoint"}
 		let f = (p) => pMap.hasOwnProperty(p) ? pMap[p] : p
 		let urlParams = []
@@ -224,6 +211,10 @@ export default class MainPage extends React.Component {
 		this.state.variations.forEach(v => urlParams.push("var="+v))
 		this.state.paths.forEach(p => urlParams.push("path="+p))
 		urlParams.push("exp_pool="+this.state.expPool)
+		urlParams.push("cell_freq="+this.state.cellFreq)
+        if(this.state.variations.includes("WarmthFrags"))
+    		urlParams.push("frags="+this.state.fragCount)
+    		urlParams.push("extra_frags="+this.state.fragExtra)
 		urlParams.push("players="+this.state.players)
         let fass = []
         Object.keys(this.state.fass).forEach(loc => {
@@ -254,8 +245,6 @@ export default class MainPage extends React.Component {
 		} else {
 			urlParams.push("tracking=Disabled")
 		}
-		if(this.state.frag.enabled)
-			Object.keys(this.state.frag).filter(p => p !== "enabled").forEach(p => urlParams.push("frag_"+p+"="+this.state.frag[p]))
 		let seed = this.state.seed || Math.round(Math.random() * 1000000000) ;
 		if(seed === "daily")
 		{
@@ -428,7 +417,7 @@ export default class MainPage extends React.Component {
 		this.state = {user: user, activeTab: 'variations', coopGenMode: "Cloned Seeds", coopGameMode: "Co-op", players: 1, tracking: true, dllTime: dllTime, variations: ["ForceTrees"], 
 					 paths: presets["standard"], keyMode: "Clues", oldKeyMode: "Clues", pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null),
 					 customSyncId: "", seed: "", fillAlg: "Balanced", shared: ["Skills", "Dungeon Keys", "Teleporters", "World Events"], hints: true, helpcat: "", helpopt: "",
-					 frag: {enabled: false, count: 40, key_1: 7, key_2:14, key_3: 21, required: 28, tolerance: 3}, syncId: "", expPool: 10000, lastHelp: new Date(), seedIsGenerating: false,
+					 syncId: "", expPool: 10000, lastHelp: new Date(), seedIsGenerating: false, cellFreq: cellFreqPresets("standard"), fragCount: 40, fragExtra: 10,
 					 paramId: paramId, modalOpen: modalOpen, inputGameId: inputGameId, allowReopenModal: modalOpen, reopenUrl: "", teamStr: "", inputFlagLine: "", inputPaths: "", fass: {}};
 	}
 	
@@ -452,7 +441,6 @@ export default class MainPage extends React.Component {
 	onPath = (p) => () => this.state.paths.includes(p) ? this.setState({pathMode: "custom", paths: this.state.paths.filter(x => x !== p)}) : this.setState({pathMode: "custom", paths: this.state.paths.concat(p)})	
 	onSType = (s) => () => this.state.shared.includes(s) ? this.setState({shared: this.state.shared.filter(x => x !== s)}) : this.setState({shared: this.state.shared.concat(s)})	
 	onVar = (v) => () =>  this.state.variations.includes(v) ? this.setState({variations: this.state.variations.filter(x => x !== v)}) : this.setState({variations: this.state.variations.concat(v)})
-	onFrag = (k, v, args) => this.setState(prev => { let frag = prev.frag; frag[k] = v ; return {frag: frag, ...args} })
 	pathDisabled = (path) => {
 		if(revDisabledPaths.hasOwnProperty(path))
 			if(revDisabledPaths[path].some(v => this.state.variations.includes(v)))
@@ -463,7 +451,7 @@ export default class MainPage extends React.Component {
 			}
 		return false
 	}
-	onKeyMode = (mode) => () => (mode === "Warmth Frags" && !this.state.frag.enabled) ? this.onFrag("enabled", true, {keyMode: mode, activeTab: "warmthFrags"}) : this.setState({keyMode: mode})
+	onKeyMode = (mode) => () => this.setState({keyMode: mode})
 
 	
 	onMode = (mode) => () => {
@@ -478,8 +466,8 @@ export default class MainPage extends React.Component {
 		if(diffPaths.hasOwnProperty(this.state.pathMode))
 			pd = "Normal"	
 		if(diffPaths.hasOwnProperty(mode))
-			pd = diffPaths[mode]		
-		this.setState({variations: vars, pathMode: mode, paths: presets[mode], pathDiff: pd})
+			pd = diffPaths[mode]
+		this.setState({variations: vars,cellFreq: cellFreqPresets(mode), pathMode: mode, paths: presets[mode], pathDiff: pd})
 	}
 
 	render = () => {
@@ -516,8 +504,8 @@ export default class MainPage extends React.Component {
 			)		
 		))
 		let pathButtons = [(
-		<Col xs="3" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("logicPaths",  "normal")}  className="p-2">
-				<Button block disabled={true} className="text-capitalize">Normal</Button>
+		<Col xs="3" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("logicPaths",  "casual-core")}  className="p-2">
+				<Button block disabled={true} className="text-capitalize">Casual-Core</Button>
 		</Col>
 		)].concat(optional_paths.map(path=> (
 			<Col xs="3" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("logicPaths", path)}  className="p-2">
@@ -525,7 +513,7 @@ export default class MainPage extends React.Component {
 			</Col>
 		)))
 		let multiplayerTab = this.getMultiplayerTab()
-		let warmthFragsTab = this.getWarmthFragsTab()
+        let advancedTab = this.getAdvancedTab()
 		let modal = this.getModal()
 		let reopenModalBtn = this.state.allowReopenModal ? (<Button color="primary" block onClick={this.reopenModal}>Show Prior Seed</Button>) : null
 		return (
@@ -608,11 +596,6 @@ export default class MainPage extends React.Component {
 						Multiplayer Options
 						</NavLink>
 					</NavItem>
-					<NavItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("keyModes", "Warmth Frags")}>
-						<NavLink active={this.state.activeTab === 'warmthFrags'} onClick={() => { this.setState({activeTab: 'warmthFrags'})}}>
-						Warmth Fragment Mode
-						</NavLink>
-					</NavItem>
 					<NavItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "advanced")}>
 						<NavLink active={this.state.activeTab === 'advanced'} onClick={() => { dev && console.log(this.state); this.setState({activeTab: 'advanced'})}}>
 						Advanced
@@ -637,37 +620,7 @@ export default class MainPage extends React.Component {
 									</Row>
 								</TabPane>
 								{multiplayerTab}
-								{warmthFragsTab}
-								<TabPane tabId="advanced">
-                                    <Row className="p-1 justify-content-center">
-                                        <Col xs="4" className="text-center pt-1 border">
-                                            <span class="align-middle">First Pickup:</span>
-                                        </Col><Col xs="4">
-                                            <Input type="text" value={this.state.fass[919772]} onChange={e => this.onFass(919772, e.target.value)}/> 
-                                        </Col>
-                                    </Row>
-                                    <Row className="p-1 justify-content-center">
-                                        <Col xs="4" className="text-center pt-1 border">
-                                            <span class="align-middle">Second Pickup:</span>
-                                        </Col><Col xs="4">
-                                            <Input type="text" value={this.state.fass[-1560272]} onChange={e => this.onFass(-1560272, e.target.value)}/> 
-                                        </Col>
-                                    </Row>
-                                    <Row className="p-1 justify-content-center">
-                                        <Col xs="4" className="text-center pt-1 border">
-                                            <span class="align-middle">Third Pickup:</span>
-                                        </Col><Col xs="4">
-                                            <Input type="text" value={this.state.fass[799776]} onChange={e => this.onFass(799776, e.target.value)}/> 
-                                        </Col>
-                                    </Row>
-                                    <Row className="p-1 justify-content-center">
-                                        <Col xs="4" className="text-center pt-1 border">
-                                            <span class="align-middle">Fourth Pickup:</span>
-                                        </Col><Col xs="4">
-                                            <Input type="text" value={this.state.fass[-120208]} onChange={e => this.onFass(-120208, e.target.value)}/> 
-                                        </Col>
-                                    </Row>
-                                </TabPane>
+                                {advancedTab}
 							</TabContent>
 						</Col>
 					</Row>
