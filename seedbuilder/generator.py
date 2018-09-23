@@ -149,6 +149,7 @@ class Connection:
             score = 0
             energy = 0
             health = 0
+            ability = 0
             warmth = 0
             for abil in self.requirements[i]:
                 if abil == "EC":
@@ -158,6 +159,13 @@ class Connection:
                 elif abil == "HC":
                     health += 1
                     if self.sg.inventory["HC"] < health:
+                        score += self.sg.costs[abil.strip()]
+                elif abil == "AC":
+                    ability += 1
+                    if self.sg.inventory["AC"] < ability:
+                        score += self.sg.costs[abil.strip()]
+                elif abil == "MS":
+                    if inventory["MS"] < self.sg.mapstonesSeen:
                         score += self.sg.costs[abil.strip()]
                 elif abil == "RB28":
                     warmth += 1
@@ -235,13 +243,14 @@ class SeedGenerator:
         """Part one of a reset. All initialization that doesn't
         require reading from params goes here."""
         self.costs = OrderedDict({
-            "Free": 0, "MS": 0, "KS": 2, "EC": 6, "HC": 12, "WallJump": 13,
+            "Free": 0, "MS": 0, "KS": 4, "AC": 12, "EC": 6, "HC": 12, "WallJump": 13,
             "ChargeFlame": 13, "DoubleJump": 13, "Bash": 41, "Stomp": 29,
             "Glide": 17, "Climb": 41, "ChargeJump": 59, "Dash": 13,
             "Grenade": 29, "GinsoKey": 12, "ForlornKey": 12, "HoruKey": 12,
             "Water": 80, "Wind": 80, "WaterVeinShard": 5, "GumonSealShard": 5,
             "SunstoneShard": 5, "TPForlorn": 120, "TPGrotto": 60,
-            "TPSorrow": 90, "TPGrove": 60, "TPSwamp": 60, "TPValley": 90
+            "TPSorrow": 90, "TPGrove": 60, "TPSwamp": 60, "TPValley": 90,
+            "TPGinso": 150, "TPHoru": 180, "Open": 1
         })
         self.inventory = OrderedDict([
             ("EX1", 0), ("EX*", 0), ("KS", 0), ("MS", 0), ("AC", 0), ("EC", 1),
@@ -253,9 +262,11 @@ class SeedGenerator:
             ("RB9", 0), ("RB10", 0), ("RB11", 0), ("RB12", 0), ("RB13", 0),
             ("RB15", 0), ("WaterVeinShard", 0), ("GumonSealShard", 0),
             ("SunstoneShard", 0), ("TPForlorn", 0), ("TPGrotto", 0),
-            ("TPSorrow", 0), ("TPGrove", 0), ("TPSwamp", 0), ("TPValley", 0)
+            ("TPSorrow", 0), ("TPGrove", 0), ("TPSwamp", 0), ("TPValley", 0),
+            ("TPGinso", 0), ("TPHoru", 0), ("Open", 0)
         ])
 
+        self.mapstonesSeen = 1
         self.balanceLevel = 0
         self.balanceList = []
         self.balanceListLeftovers = []
@@ -281,7 +292,7 @@ class SeedGenerator:
         self.forcedAssignments = self.preplaced
         self.forceAssignedLocs = set()
         self.itemPool = OrderedDict([
-            ("EX1", 1), ("EX*", 99), ("KS", 40), ("MS", 11), ("AC", 33),
+            ("EX1", 1), ("EX*", 97), ("KS", 40), ("MS", 11), ("AC", 33),
             ("EC", 14), ("HC", 12), ("WallJump", 1), ("ChargeFlame", 1),
             ("Dash", 1), ("Stomp", 1), ("DoubleJump", 1), ("Glide", 1),
             ("Bash", 1), ("Climb", 1), ("Grenade", 1), ("ChargeJump", 1),
@@ -291,13 +302,19 @@ class SeedGenerator:
             ("RB13", 3), ("RB15", 3), ("WaterVeinShard", 0),
             ("GumonSealShard", 0), ("SunstoneShard", 0), ("TPForlorn", 1),
             ("TPGrotto", 1), ("TPSorrow", 1), ("TPGrove", 1), ("TPSwamp", 1),
-            ("TPValley", 1)
+            ("TPValley", 1), ("TPGinso", 1), ("TPHoru", 1), ("Open", 0)
         ])
+        if self.var(Variation.OPEN_MODE):
+            self.inventory["Open"] = 1
+
+        if self.var(Variation.FREE_MAPSTONES):
+            self.costs["MS"] = 11
+
         if self.var(Variation.HARDMODE):
             self.itemPool["AC"] = 0
             self.itemPool["HC"] = 0
             self.itemPool["EC"] = 3
-            self.itemPool["EX*"] = 175
+            self.itemPool["EX*"] = 173
             for bonus in [k for k in self.itemPool.keys() if k[:2] == "RB"]:
                 del self.itemPool[bonus]
 
@@ -368,7 +385,7 @@ class SeedGenerator:
             [(v, k) for k, v in self.skillsOutput.items() + self.eventsOutput.items()])
 
     def reach_area(self, target):
-        if target in self.sharedMap and self.playerID > 1:
+        if self.playerID > 1 and target in self.sharedMap:
             for sharedItem in self.sharedMap[target]:
                 if sharedItem[1] == self.playerID:
                     self.assignQueue.append(sharedItem[0])
@@ -388,14 +405,18 @@ class SeedGenerator:
         for area in list(self.areasReached.keys()):
             for connection in self.areas[area].get_connections():
                 cost = connection.cost()
+                reached = connection.target in self.areasReached
                 if cost[0] <= 0:
-                    self.areas[connection.target].difficulty = cost[2]
+                    if not reached:
+                        self.areas[connection.target].difficulty = cost[2]
+                        if len(self.areas[connection.target].locations) > 0:
+                            self.areas[connection.target].difficulty += self.areas[area].difficulty
                     if connection.keys > 0:
                         if area not in self.doorQueue.keys():
                             self.doorQueue[area] = connection
                             keystoneCount += connection.keys
-                    elif connection.mapstone:
-                        if connection.target not in self.areasReached:
+                    elif connection.mapstone and not self.var(Variation.FREE_MAPSTONES):
+                        if not reached:
                             visitMap = True
                             for mp in self.mapQueue.keys():
                                 if mp == area or self.mapQueue[mp].target == connection.target:
@@ -404,9 +425,15 @@ class SeedGenerator:
                                 self.mapQueue[area] = connection
                                 mapstoneCount += 1
                     else:
-                        if connection.target not in self.areasReached:
+                        if not reached:
                             self.seedDifficulty += cost[2] * cost[2]
                             self.reach_area(connection.target)
+                            if connection.mapstone and self.var(Variation.FREE_MAPSTONES):
+                                self.mapstonesSeen += 1
+                                if self.mapstonesSeen >= 9:
+                                    self.mapstonesSeen = 11
+                                if self.mapstonesSeen == 8:
+                                    self.mapstonesSeen = 9
                         if connection.target in self.areasRemaining:
                             self.areasRemaining.remove(connection.target)
                         self.connectionQueue.append((area, connection))
@@ -471,11 +498,11 @@ class SeedGenerator:
                     cost = 0
                     cnts = defaultdict(lambda: 0)
                     for req in req_set:
-                        # for paired randomizer -- if the item isn't yours to assign, skip connection
-                        if self.itemPool[req] == 0:
-                            requirements = []
-                            break
                         if self.costs[req] > 0:
+                            # for paired randomizer -- if the item isn't yours to assign, skip connection
+                            if self.itemPool[req] == 0:
+                                requirements = []
+                                break
                             if req in ["HC", "EC", "WaterVeinShard", "GumonSealShard", "SunstoneShard", "RB28"]:
                                 cnts[req] += 1
                                 if cnts[req] > self.inventory[req]:
@@ -484,7 +511,8 @@ class SeedGenerator:
                             else:
                                 requirements.append(req)
                                 cost += self.costs[req]
-                    # cost *= len(requirements) # decrease the rate of multi-ability paths
+                    # decrease the rate of multi-ability paths
+                    cost *= max(1, len(requirements) - 1)
                     if len(requirements) <= free_space:
                         for req in requirements:
                             if req not in abilities_to_open:
@@ -496,13 +524,28 @@ class SeedGenerator:
             totalCost += 1.0 / abilities_to_open[path][0]
         position = 0
         target = self.random.random() * totalCost
+        path_selected = None
         for path in abilities_to_open:
             position += 1.0 / abilities_to_open[path][0]
             if target <= position:
+                path_selected = abilities_to_open[path]
+                break
+        # if a connection will open with a subset of skills in the selected path, use that instead
+        for path in abilities_to_open:
+            isSubset = abilities_to_open[path][0] < path_selected[0]
+            if isSubset:
                 for req in abilities_to_open[path][1]:
-                    if self.itemPool[req] > 0:
-                        self.assignQueue.append(req)
-                return abilities_to_open[path][1]
+                    if req not in path_selected[1]:
+                        isSubset = False
+                        break
+                if isSubset:
+                    path_selected = abilities_to_open[path]
+        if path_selected:
+            for req in path_selected[1]:
+                if self.itemPool[req] > 0:
+                    self.assignQueue.append(req)
+            return path_selected[1]
+        return None
 
     def get_location_from_balance_list(self):
         target = int(pow(self.random.random(), 1.0 /
@@ -552,13 +595,16 @@ class SeedGenerator:
     def assign(self, item):
         self.itemPool[item] = max(
             self.itemPool[item] - 1, 0) if item in self.itemPool else 0
-        if item in ["EC", "KS", "HC", "WaterVeinShard", "GumonSealShard", "SunstoneShard"]:
+        if item == "KS":
+            if self.costs[item] > 0:
+                self.costs[item] -= 2
+        elif item in ["EC", "HC", "AC", "WaterVeinShard", "GumonSealShard", "SunstoneShard"]:
             if self.costs[item] > 0:
                 self.costs[item] -= 1
         elif item == "RB28":
             if self.costs[item] > 0:
                 self.costs[item] -= min(3, self.costs[item])
-        elif item in self.costs:
+        elif item in self.costs and self.itemPool[item] == 0:
             self.costs[item] = 0
         self.inventory[item] = 1 + (self.inventory[item] if item in self.inventory else 0)
 
@@ -658,15 +704,15 @@ class SeedGenerator:
         total = 0.0
         for loc in locationsToAssign:
             if self.params.path_diff == PathDifficulty.EASY:
-                total += (15 - loc.difficulty) * (15 - loc.difficulty)
+                total += (20 - loc.difficulty) * (20 - loc.difficulty)
             else:
                 total += (loc.difficulty * loc.difficulty)
         value = self.random.random()
         position = 0.0
         for i in range(0, len(locationsToAssign)):
             if self.params.path_diff == PathDifficulty.EASY:
-                position += (15 - locationsToAssign[i].difficulty) * (
-                    15 - locationsToAssign[i].difficulty) / total
+                position += (20 - locationsToAssign[i].difficulty) * (
+                    20 - locationsToAssign[i].difficulty) / total
             else:
                 position += locationsToAssign[i].difficulty * \
                     locationsToAssign[i].difficulty / total
@@ -820,7 +866,7 @@ class SeedGenerator:
             if ShareType.EVENT in self.params.sync.shared:
                 self.sharedList += ["Water", "Wind", "Warmth"]
             if ShareType.TELEPORTER in self.params.sync.shared:
-                self.sharedList += ["TPForlorn", "TPGrotto", "TPSorrow", "TPGrove", "TPSwamp", "TPValley"]
+                self.sharedList += ["TPForlorn", "TPGrotto", "TPSorrow", "TPGrove", "TPSwamp", "TPValley", "TPGinso", "TPHoru"]
             if ShareType.UPGRADE in self.params.sync.shared:
                 self.sharedList += ["RB6", "RB8", "RB9", "RB10", "RB11", "RB12", "RB13", "RB15"]
                 if self.var(Variation.EXTRA_BONUS_PICKUPS):
@@ -975,10 +1021,10 @@ class SeedGenerator:
                 (opening, keys, mapstones) = self.open_free_connections()
                 keystoneCount += keys
                 mapstoneCount += mapstones
+                if mapstoneCount >= 9:
+                    mapstoneCount = 11
                 if mapstoneCount == 8:
                     mapstoneCount = 9
-                if mapstoneCount == 10:
-                    mapstoneCount = 11
                 for connection in self.connectionQueue:
                     self.areas[connection[0]].remove_connection(connection[1])
                 self.connectionQueue = []
@@ -1030,6 +1076,10 @@ class SeedGenerator:
                     itemsToAssign.append(self.assign("KS"))
                 elif self.inventory["MS"] < mapstoneCount:
                     itemsToAssign.append(self.assign("MS"))
+                elif self.inventory["HC"] * self.params.cell_freq < (252 - self.itemCount) and self.itemPool["HC"] > 0:
+                    itemsToAssign.append(self.assign("HC"))
+                elif self.inventory["EC"] * self.params.cell_freq < (252 - self.itemCount) and self.itemPool["EC"] > 0:
+                    itemsToAssign.append(self.assign("EC"))
                 elif self.params.balanced and self.itemCount == 0:
                     itemsToAssign.append(self.balanceListLeftovers.pop(0))
                     self.itemCount += 1
