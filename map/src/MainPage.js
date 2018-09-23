@@ -31,6 +31,7 @@ const variations = {
     WorldTour: "World Tour",
     DoubleSkills: "Double Skills",
     WarmthFrags: "Warmth Fragments",
+    FreeMapstones: "Free Mapstones",
 }
 const cellFreqPresets = (preset) => preset === "casual" ? 20 : (preset === "standard" ? 40 : 256)
 const optional_paths = ['casual-dboost', 'standard-core', 'standard-dboost', 'standard-lure', 'standard-abilities', 'expert-core', 'expert-dboost', 'expert-lure', 'expert-abilities', 'dbash', 'master-core', 'master-dboost', 'master-lure', 'master-abilities', 'gjump', 'glitched', 'timed-level', 'insane']

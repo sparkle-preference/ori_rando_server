@@ -165,7 +165,7 @@ class Connection:
                     if self.sg.inventory["AC"] < ability:
                         score += self.sg.costs[abil.strip()]
                 elif abil == "MS":
-                    if inventory["MS"] < self.sg.mapstonesSeen:
+                    if self.sg.inventory["MS"] < self.sg.mapstonesSeen:
                         score += self.sg.costs[abil.strip()]
                 elif abil == "RB28":
                     warmth += 1
