@@ -13,10 +13,8 @@ def ordhash(s):
 # A custom implementation of a Mersenne Twister
 # (since javascript hates everything)
 # https://en.wikipedia.org/wiki/Mersenne_Twister
-fragOrders = {0: ["G", "F", "H"], 1: ["G", "H", "F"], 2: ["F", "G", "H"], 3: ["F", "H", "G"], 4: ["H", "G", "F"], 5: ["H", "F", "G"]}
 
 class Random:
-
     def seed(self, seed):
         self.index = 624
         self.mt = [0] * 624
@@ -988,7 +986,13 @@ class SeedGenerator:
             if loc in self.forcedAssignments:
                 item = self.forcedAssignments[loc]
                 del self.forcedAssignments[loc]  # don't count these ones
-            self.outputStr += self.get_assignment(loc, self.adjust_item(item), zone)
+            ass = self.get_assignment(loc, self.adjust_item(item), zone)
+            if loc == -280256 and self.params.key_mode:
+                splitAss = ass.split("|")
+                splitAss[2] = "EV/0/EV/2/EV/4/%s/%s" % (splitAss[1], splitAss[2])
+                splitAss[1] = "MU"
+                ass = "|".join(splitAss)
+            self.outputStr += ass
 
         for v in self.forcedAssignments.values():
             if v in self.itemPool:
