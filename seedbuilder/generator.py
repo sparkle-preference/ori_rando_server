@@ -249,7 +249,8 @@ class SeedGenerator:
             "Grenade": 29, "GinsoKey": 12, "ForlornKey": 12, "HoruKey": 12,
             "Water": 80, "Wind": 80, "WaterVeinShard": 5, "GumonSealShard": 5,
             "SunstoneShard": 5, "TPForlorn": 120, "TPGrotto": 60,
-            "TPSorrow": 90, "TPGrove": 60, "TPSwamp": 60, "TPValley": 90
+            "TPSorrow": 90, "TPGrove": 60, "TPSwamp": 60, "TPValley": 90,
+            "TPGinso": 150, "TPHoru": 180, "Open": 1
         })
         self.inventory = OrderedDict([
             ("EX1", 0), ("EX*", 0), ("KS", 0), ("MS", 0), ("AC", 0), ("EC", 1),
@@ -261,7 +262,8 @@ class SeedGenerator:
             ("RB9", 0), ("RB10", 0), ("RB11", 0), ("RB12", 0), ("RB13", 0),
             ("RB15", 0), ("WaterVeinShard", 0), ("GumonSealShard", 0),
             ("SunstoneShard", 0), ("TPForlorn", 0), ("TPGrotto", 0),
-            ("TPSorrow", 0), ("TPGrove", 0), ("TPSwamp", 0), ("TPValley", 0)
+            ("TPSorrow", 0), ("TPGrove", 0), ("TPSwamp", 0), ("TPValley", 0),
+            ("TPGinso", 0), ("TPHoru", 0), ("Open", 0)
         ])
 
         self.mapstonesSeen = 1
@@ -290,7 +292,7 @@ class SeedGenerator:
         self.forcedAssignments = self.preplaced
         self.forceAssignedLocs = set()
         self.itemPool = OrderedDict([
-            ("EX1", 1), ("EX*", 99), ("KS", 40), ("MS", 11), ("AC", 33),
+            ("EX1", 1), ("EX*", 97), ("KS", 40), ("MS", 11), ("AC", 33),
             ("EC", 14), ("HC", 12), ("WallJump", 1), ("ChargeFlame", 1),
             ("Dash", 1), ("Stomp", 1), ("DoubleJump", 1), ("Glide", 1),
             ("Bash", 1), ("Climb", 1), ("Grenade", 1), ("ChargeJump", 1),
@@ -300,8 +302,11 @@ class SeedGenerator:
             ("RB13", 3), ("RB15", 3), ("WaterVeinShard", 0),
             ("GumonSealShard", 0), ("SunstoneShard", 0), ("TPForlorn", 1),
             ("TPGrotto", 1), ("TPSorrow", 1), ("TPGrove", 1), ("TPSwamp", 1),
-            ("TPValley", 1)
+            ("TPValley", 1), ("TPGinso", 1), ("TPHoru", 1), ("Open", 0)
         ])
+        if self.var(Variation.OPEN_MODE):
+            self.inventory["Open"] = 1
+
         if self.var(Variation.FREE_MAPSTONES):
             self.costs["MS"] = 11
 
@@ -309,7 +314,7 @@ class SeedGenerator:
             self.itemPool["AC"] = 0
             self.itemPool["HC"] = 0
             self.itemPool["EC"] = 3
-            self.itemPool["EX*"] = 175
+            self.itemPool["EX*"] = 173
             for bonus in [k for k in self.itemPool.keys() if k[:2] == "RB"]:
                 del self.itemPool[bonus]
 
@@ -861,7 +866,7 @@ class SeedGenerator:
             if ShareType.EVENT in self.params.sync.shared:
                 self.sharedList += ["Water", "Wind", "Warmth"]
             if ShareType.TELEPORTER in self.params.sync.shared:
-                self.sharedList += ["TPForlorn", "TPGrotto", "TPSorrow", "TPGrove", "TPSwamp", "TPValley"]
+                self.sharedList += ["TPForlorn", "TPGrotto", "TPSorrow", "TPGrove", "TPSwamp", "TPValley", "TPGinso", "TPHoru"]
             if ShareType.UPGRADE in self.params.sync.shared:
                 self.sharedList += ["RB6", "RB8", "RB9", "RB10", "RB11", "RB12", "RB13", "RB15"]
                 if self.var(Variation.EXTRA_BONUS_PICKUPS):
