@@ -164,6 +164,9 @@ class Connection:
                     ability += 1
                     if self.sg.inventory["AC"] < ability:
                         score += self.sg.costs[abil.strip()]
+                elif abil == "MS":
+                    if inventory["MS"] < self.sg.mapstonesSeen:
+                        score += self.sg.costs[abil.strip()]
                 elif abil == "RB28":
                     warmth += 1
                     if self.sg.inventory["RB28"] < warmth:
@@ -240,7 +243,7 @@ class SeedGenerator:
         """Part one of a reset. All initialization that doesn't
         require reading from params goes here."""
         self.costs = OrderedDict({
-            "Free": 0, "MS": 0, "KS": 2, "AC": 12, "EC": 6, "HC": 12, "WallJump": 13,
+            "Free": 0, "MS": 0, "KS": 4, "AC": 12, "EC": 6, "HC": 12, "WallJump": 13,
             "ChargeFlame": 13, "DoubleJump": 13, "Bash": 41, "Stomp": 29,
             "Glide": 17, "Climb": 41, "ChargeJump": 59, "Dash": 13,
             "Grenade": 29, "GinsoKey": 12, "ForlornKey": 12, "HoruKey": 12,
@@ -261,6 +264,7 @@ class SeedGenerator:
             ("TPSorrow", 0), ("TPGrove", 0), ("TPSwamp", 0), ("TPValley", 0)
         ])
 
+        self.mapstonesSeen = 1
         self.balanceLevel = 0
         self.balanceList = []
         self.balanceListLeftovers = []
@@ -298,6 +302,9 @@ class SeedGenerator:
             ("TPGrotto", 1), ("TPSorrow", 1), ("TPGrove", 1), ("TPSwamp", 1),
             ("TPValley", 1)
         ])
+        if self.var(Variation.FREE_MAPSTONES):
+            self.costs["MS"] = 11
+
         if self.var(Variation.HARDMODE):
             self.itemPool["AC"] = 0
             self.itemPool["HC"] = 0
@@ -373,7 +380,7 @@ class SeedGenerator:
             [(v, k) for k, v in self.skillsOutput.items() + self.eventsOutput.items()])
 
     def reach_area(self, target):
-        if target in self.sharedMap and self.playerID > 1:
+        if self.playerID > 1 and target in self.sharedMap:
             for sharedItem in self.sharedMap[target]:
                 if sharedItem[1] == self.playerID:
                     self.assignQueue.append(sharedItem[0])
@@ -403,7 +410,7 @@ class SeedGenerator:
                         if area not in self.doorQueue.keys():
                             self.doorQueue[area] = connection
                             keystoneCount += connection.keys
-                    elif connection.mapstone:
+                    elif connection.mapstone and not self.var(Variation.FREE_MAPSTONES):
                         if not reached:
                             visitMap = True
                             for mp in self.mapQueue.keys():
@@ -416,6 +423,12 @@ class SeedGenerator:
                         if not reached:
                             self.seedDifficulty += cost[2] * cost[2]
                             self.reach_area(connection.target)
+                            if connection.mapstone and self.var(Variation.FREE_MAPSTONES):
+                                self.mapstonesSeen += 1
+                                if self.mapstonesSeen >= 9:
+                                    self.mapstonesSeen = 11
+                                if self.mapstonesSeen == 8:
+                                    self.mapstonesSeen = 9
                         if connection.target in self.areasRemaining:
                             self.areasRemaining.remove(connection.target)
                         self.connectionQueue.append((area, connection))
@@ -577,13 +590,16 @@ class SeedGenerator:
     def assign(self, item):
         self.itemPool[item] = max(
             self.itemPool[item] - 1, 0) if item in self.itemPool else 0
-        if item in ["EC", "KS", "HC", "AC", "WaterVeinShard", "GumonSealShard", "SunstoneShard"]:
+        if item == "KS":
+            if self.costs[item] > 0:
+                self.costs[item] -= 2
+        elif item in ["EC", "HC", "AC", "WaterVeinShard", "GumonSealShard", "SunstoneShard"]:
             if self.costs[item] > 0:
                 self.costs[item] -= 1
         elif item == "RB28":
             if self.costs[item] > 0:
                 self.costs[item] -= min(3, self.costs[item])
-        elif item in self.costs:
+        elif item in self.costs and self.itemPool[item] == 0:
             self.costs[item] = 0
         self.inventory[item] = 1 + (self.inventory[item] if item in self.inventory else 0)
 
@@ -1000,10 +1016,10 @@ class SeedGenerator:
                 (opening, keys, mapstones) = self.open_free_connections()
                 keystoneCount += keys
                 mapstoneCount += mapstones
+                if mapstoneCount >= 9:
+                    mapstoneCount = 11
                 if mapstoneCount == 8:
                     mapstoneCount = 9
-                if mapstoneCount == 10:
-                    mapstoneCount = 11
                 for connection in self.connectionQueue:
                     self.areas[connection[0]].remove_connection(connection[1])
                 self.connectionQueue = []
