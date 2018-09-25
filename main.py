@@ -25,7 +25,7 @@ from enums import MultiplayerGameType, ShareType
 from models import Game, Seed
 from pickups import Pickup
 from cache import Cache
-from util import dll_last_update, coord_correction_map, all_locs
+from util import coord_correction_map, all_locs
 from reachable import Map, PlayerState
 
 PLANDO_VER = "0.5.1"
@@ -179,7 +179,7 @@ class ShowHistory(RequestHandler):
 class SeedGenForm(RequestHandler):
     def get(self):
         path = os.path.join(os.path.dirname(__file__), 'index.html')
-        template_values = {'latest_dll': dll_last_update(), 'plando_version': PLANDO_VER, 'seed': random.randint(10000000, 100000000)}
+        template_values = {'latest_dll': "N/A", 'plando_version': PLANDO_VER, 'seed': random.randint(10000000, 100000000)}
         self.response.out.write(template.render(path, template_values))
 
 class Vanilla(RequestHandler):
@@ -766,7 +766,7 @@ class ReactLanding(RequestHandler):
         user = users.get_current_user()
         dispname = user.email().partition("@")[0] if user else ""
         path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
-        template_values = {'app': "mainPage", 'dll_last_update': dll_last_update(), 'title': "Ori DE Randomizer", 'user': dispname}
+        template_values = {'app': "mainPage", 'dll_last_update': "N/A", 'title': "Ori DE Randomizer", 'user': dispname}
         self.response.out.write(template.render(path, template_values))
 
 
@@ -865,14 +865,6 @@ class PicksByTypeGen(RequestHandler):
         self.response.out.write(picks_by_type_generator())
         return
 
-class SeedAnalysis(RequestHandler):
-    def get(self):
-        path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
-        template_values = {'app': "seedAnalysis", 'title': "seedAnalysis tool"}
-        self.response.out.write(template.render(path, template_values))
-        return
-        
-        
 app = WSGIApplication(routes=[
     # testing endpoints
     PathPrefixRoute('/tests', [
@@ -882,7 +874,6 @@ app = WSGIApplication(routes=[
     ]),
     Route('/tests', redirect_to_name='tests-run'),
     Route('/picksbytype', handler=PicksByTypeGen, name='picks-by-type-gen', strict_slash=True),
-    Route('/analysis', handler=SeedAnalysis, name='seed-analysis', strict_slash=True),
 
     PathPrefixRoute('/generator', [
         Route('/build', handler=MakeSeedWithParams, name="gen-params-build", strict_slash=True),

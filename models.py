@@ -8,7 +8,7 @@ from collections import defaultdict
 from itertools import ifilter
 from seedbuilder.seedparams import Placement, Stuff
 
-from enums import NDB_MultiGameType, NDB_ShareType, MultiplayerGameType, ShareType
+from enums import MultiplayerGameType, ShareType
 from util import special_coords, get_bit, get_taste, unpack, enums_from_strlist
 
 from pickups import Pickup, Skill, Upgrade, Teleporter, Event 
@@ -169,15 +169,18 @@ class Game(ndb.Model):
     # id = Sync ID    
     DEFAULT_SHARED = [ShareType.DUNGEON_KEY, ShareType.SKILL, ShareType.EVENT, ShareType.TELEPORTER]
 
-    ndb_mode = msgprop.EnumProperty(NDB_MultiGameType, required=True)
-    ndb_shared = msgprop.EnumProperty(NDB_ShareType, repeated=True)
-    
-    def get_mode(self):            return MultiplayerGameType.from_ndb(self.ndb_mode)
-    def set_mode(self, mode):     self.ndb_mode = mode.to_ndb()
-    mode = property(get_mode, set_mode)
+    str_mode = ndb.StringProperty(default="None")
+    str_shared = ndb.StringProperty(repeated=True)
 
-    def get_shared(self):            return [ShareType.from_ndb(ndb_st) for ndb_st in self.ndb_shared]
-    def set_shared(self, shared):     self.ndb_shared = [s.to_ndb() for s in shared]
+    def get_mode(self): return MultiplayerGameType.mk(self.str_mode) or MultiplayerGameType.SIMUSOLO
+
+    def set_mode(self, mode):         self.str_mode = mode.value
+
+    def get_shared(self): return [ShareType.mk(st) for st in self.str_shared if ShareType.mk(st)]
+
+    def set_shared(self, shared):    self.str_shared = [s.value for s in shared]
+
+    mode = property(get_mode, set_mode)
     shared = property(get_shared, set_shared)
 
     start_time = ndb.DateTimeProperty(auto_now_add=True)
@@ -389,7 +392,7 @@ class Game(ndb.Model):
     def from_params(params, id=None):
         id = int(id) if id else Game.get_open_gid()
 
-        game = Game(id = id, players=[], ndb_shared=[s.to_ndb() for s in params.sync.shared], ndb_mode=params.sync.mode.to_ndb())
+        game = Game(id = id, players=[], str_shared=[s.value for s in params.sync.shared], str_mode=params.sync.mode.value)
         game.put()
         teams = params.sync.teams
         if teams:
@@ -412,6 +415,6 @@ class Game(ndb.Model):
             shared = Game.DEFAULT_SHARED
         mode = MultiplayerGameType(_mode) if _mode else MultiplayerGameType.SHARED
         id = int(id) if id else Game.get_open_gid()
-        game = Game(id = id, players=[], ndb_shared=[s.to_ndb() for s in shared], ndb_mode=mode.to_ndb())
+        game = Game(id = id, players=[], str_shared=[s.value for s in shared], str_mode=mode.value)
         log.info("Game.new(%s, %s, %s): Created game %s ", _mode, _shared, id, game)
         return game

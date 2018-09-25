@@ -1,40 +1,11 @@
 from google.appengine.ext import ndb
-from google.appengine.ext.ndb import msgprop
 
 import logging as log
 
 from util import enums_from_strlist
-from enums import (NDB_MultiGameType, NDB_ShareType, NDB_Variation, NDB_LogicPath, NDB_KeyMode, NDB_PathDiff,
-                   MultiplayerGameType, ShareType, Variation, LogicPath, KeyMode, PathDifficulty)
+from enums import (MultiplayerGameType, ShareType, Variation, LogicPath, KeyMode, PathDifficulty, presets)
 from collections import OrderedDict
 from seedbuilder.generator import SeedGenerator
-
-presets = {
-    "Casual": {LogicPath.CASUAL_CORE, LogicPath.CASUAL_DBOOST},
-    "Standard": {
-        LogicPath.CASUAL_CORE, LogicPath.CASUAL_DBOOST, 
-        LogicPath.STANDARD_CORE, LogicPath.STANDARD_DBOOST, LogicPath.STANDARD_LURE, LogicPath.STANDARD_ABILITIES
-        },
-    "Expert": {
-        LogicPath.CASUAL_CORE, LogicPath.CASUAL_DBOOST, 
-        LogicPath.STANDARD_CORE, LogicPath.STANDARD_DBOOST, LogicPath.STANDARD_LURE, LogicPath.STANDARD_ABILITIES,
-        LogicPath.EXPERT_CORE, LogicPath.EXPERT_DBOOST, LogicPath.EXPERT_LURE, LogicPath.EXPERT_ABILITIES, LogicPath.DBASH
-        },
-    "Master": {
-            LogicPath.CASUAL_CORE, LogicPath.CASUAL_DBOOST, 
-            LogicPath.STANDARD_CORE, LogicPath.STANDARD_DBOOST, LogicPath.STANDARD_LURE, LogicPath.STANDARD_ABILITIES,
-            LogicPath.EXPERT_CORE, LogicPath.EXPERT_DBOOST, LogicPath.EXPERT_LURE, LogicPath.EXPERT_ABILITIES, LogicPath.DBASH,
-            LogicPath.MASTER_CORE, LogicPath.MASTER_DBOOST, LogicPath.MASTER_LURE, LogicPath.MASTER_ABILITIES, LogicPath.GJUMP
-        },
-    "Glitched": {
-            LogicPath.CASUAL_CORE, LogicPath.CASUAL_DBOOST, 
-            LogicPath.STANDARD_CORE, LogicPath.STANDARD_DBOOST, LogicPath.STANDARD_LURE, LogicPath.STANDARD_ABILITIES,
-            LogicPath.EXPERT_CORE, LogicPath.EXPERT_DBOOST, LogicPath.EXPERT_LURE, LogicPath.EXPERT_ABILITIES, LogicPath.DBASH,
-            LogicPath.MASTER_CORE, LogicPath.MASTER_DBOOST, LogicPath.MASTER_LURE, LogicPath.MASTER_ABILITIES, LogicPath.GJUMP,
-            LogicPath.GLITCHED, LogicPath.TIMED_LEVEL
-        }
-    }
-
 
 class Stuff(ndb.Model):
     code = ndb.StringProperty()
@@ -48,18 +19,16 @@ class Placement(ndb.Model):
     stuff = ndb.LocalStructuredProperty(Stuff, repeated=True)
 
 class MultiplayerOptions(ndb.Model):
-    ndb_mode = msgprop.EnumProperty(
-        NDB_MultiGameType, default=NDB_MultiGameType.SIMUSOLO)
-    ndb_shared = msgprop.EnumProperty(NDB_ShareType, repeated=True)
+    str_mode = ndb.StringProperty(default="None")
+    str_shared = ndb.StringProperty(repeated=True)
 
-    def get_mode(self): return MultiplayerGameType.from_ndb(self.ndb_mode)
+    def get_mode(self): return MultiplayerGameType.mk(self.str_mode) or MultiplayerGameType.SIMUSOLO
 
-    def set_mode(self, mode):         self.ndb_mode = mode.to_ndb()
+    def set_mode(self, mode):         self.str_mode = mode.value
 
-    def get_shared(self): return [ShareType.from_ndb(ndb_st)
-                               for ndb_st in self.ndb_shared]
+    def get_shared(self): return [ShareType.mk(st) for st in self.str_shared if ShareType.mk(st)]
 
-    def set_shared(self, shared):    self.ndb_shared = [s.to_ndb() for s in shared]
+    def set_shared(self, shared):    self.str_shared = [s.value for s in shared]
 
     mode = property(get_mode, set_mode)
     shared = property(get_shared, set_shared)
@@ -90,26 +59,26 @@ class MultiplayerOptions(ndb.Model):
 
 
 class SeedGenParams(ndb.Model):
-    ndb_vars = msgprop.EnumProperty(NDB_Variation, repeated=True)
-    ndb_paths = msgprop.EnumProperty(NDB_LogicPath, repeated=True)
-    ndb_pathdiff = msgprop.EnumProperty(NDB_PathDiff, default=NDB_PathDiff.NORMAL)
-    ndb_keymode = msgprop.EnumProperty(NDB_KeyMode, default=NDB_KeyMode.CLUES)
+    str_vars = ndb.StringProperty(repeated=True)
+    str_paths = ndb.StringProperty(repeated=True)
+    str_pathdiff = ndb.StringProperty(default=PathDifficulty.NORMAL.value)
+    str_keymode = ndb.StringProperty(default=KeyMode.CLUES.value)
 
-    def get_pathdiff(self): return PathDifficulty.from_ndb(self.ndb_pathdiff)
+    def get_pathdiff(self): return PathDifficulty(self.str_pathdiff)
 
-    def set_pathdiff(self, pathdiff): self.ndb_pathdiff = pathdiff.to_ndb()
+    def set_pathdiff(self, pathdiff): self.str_pathdiff = pathdiff.value
 
-    def get_vars(self): return [Variation.from_ndb(ndb_var) for ndb_var in self.ndb_vars]
+    def get_vars(self): return [Variation(var) for var in self.str_vars]
 
-    def set_vars(self, vars): self.ndb_vars = [v.to_ndb() for v in vars]
+    def set_vars(self, vars): self.str_vars = [v.value for v in vars]
 
-    def get_paths(self): return [LogicPath.from_ndb(ndb_path) for ndb_path in self.ndb_paths]
+    def get_paths(self): return [LogicPath(path) for path in self.str_paths]
 
-    def set_paths(self, paths): self.ndb_paths = [p.to_ndb() for p in paths]
+    def set_paths(self, paths): self.str_paths = [p.value for p in paths]
 
-    def get_keymode(self): return KeyMode.from_ndb(self.ndb_keymode)
+    def get_keymode(self): return KeyMode(self.str_keymode)
 
-    def set_keymode(self, key_mode):     self.ndb_keymode = key_mode.to_ndb()
+    def set_keymode(self, key_mode):     self.str_keymode = key_mode.value
 
     seed = ndb.StringProperty(required=True)
     variations = property(get_vars, set_vars)

@@ -1,20 +1,12 @@
 from math import floor
-from collections import defaultdict, namedtuple 
-from datetime import datetime, timedelta
+from collections import defaultdict, namedtuple
 from seedbuilder.areas import get_areas
 import logging as log
-
-import sys,os
-LIBS = os.path.join(os.path.dirname(os.path.realpath(__file__)),"lib")
-if LIBS not in sys.path:
-	sys.path.insert(0, LIBS)
-
 
 coord_correction_map = {
 	679620: 719620,
 	-4560020: -4600020,
 	-520160: -560160,
-#	-4199936: -4600020, Past me WHY, WHY DID YOU DO THIS
 	8599908: 8599904,
 	2959744: 2919744, 
 }
@@ -192,87 +184,3 @@ def picks_by_type_generator():
 		lines = lines[:-3] + '\n], '
 	lines = lines[:-2] + "\n}"
 	return lines
-#	
-#	if os.path.exists(PBT_json_path):
-#	    os.remove(PBT_json_path)
-#	with open(PBT_json_path, "w") as out:
-#		out.write(lines)
-
-# TODO: DELETE ME
-#def picks_by_type_formatter():
-#	retval = ""
-#	picks_by_type = picks_by_type_gen()
-#	for key in sorted(picks_by_type.keys()):
-#		if key in ["EV", "MP", "Ma"]:
-#			continue
-#		retval += '"%s": [\n' % key
-#		if key in non_area_lines:
-#			retval += non_area_lines[key]
-#		for item in sorted(picks_by_type[key], key=lambda x: str(x[0])):
-#			retval += """\t{'loc': %s, 'name': '%s', 'zone': '%s', 'area': '%s', 'y': %s, 'x': %s}, \n""" % item # tuple(list(item[1:]))
-#		retval += '], '
-#	return retval
-
-from seedbuilder.generator import SeedGenerator
-from pickups import Pickup
-import seedbuilder.seedparams
-import random
-from enums import Variation, LogicPath, KeyMode, PathDifficulty, ShareType
-
-
-# the shit below is whack just FYI
-anal_table = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: 0)))
-count = 0
-
-def analysis(runs=50):
-	global count, anal_table
-	count += runs
-	pbt = picks_by_type_gen()
-	pbt["MA"] = extra_PBT
-	loc_ref = { str(pick.coords) : pick for picks in pbt.values() for pick in picks }
-	initial_seed = random.randint(1,10000000)
-
-	params = seedbuilder.seedparams.SeedGenParams(tracking=False)
-	params.variations=[Variation.FORCE_TREES]
-	params.logic_paths=[LogicPath.NORMAL, LogicPath.SPEED, LogicPath.LURE]
-	params.key_mode = KeyMode.CLUES
-	params.path_diff = PathDifficulty.NORMAL
-	params.players = 1
-	params.balanced = True
-	params.sync = seedbuilder.seedparams.MultiplayerOptions(enabled=False)
-	params.warmth = seedbuilder.seedparams.WarmthFragmentOptions(enabled=False)
-	sg = SeedGenerator()
-	for i in range(runs):
-		params.seed = str(initial_seed+i)
-		placements = sg.setSeedAndPlaceItems(params)
-		if placements:
-			for line in placements[0][0].split("\n")[1:-1]:
-				loc,code,id,zone = tuple(line.split('|'))
-				if loc in ["-280256", "-1680104", "-12320248", "-10440008"]:
-					continue
-				pick = Pickup.n(code,id)
-				if pick.share_type in [ShareType.EVENT, ShareType.DUNGEON_KEY, ShareType.SKILL, ShareType.UPGRADE, ShareType.TELEPORTER]:
-					anal_table[zone][loc][pick.name] += 1
-					anal_table[zone][loc]["TOTAL"] += 1
-		
-	retlines = ["%s runs total" % count, "Location, Zone, Total, WallJump, ChargeFlame, DoubleJump, Bash, Stomp, Glide, Climb, ChargeJump, Dash, Grenade, GinsoKey, ForlornKey, HoruKey, Water, Wind, TPForlorn, TPGrotto, TPSorrow, TPGrove, TPSwamp, TPValley"]
-	for zone in sorted(anal_table.keys()):
-		for loc in sorted(anal_table[zone].keys(), reverse=True, key=lambda x: anal_table[zone][x]["TOTAL"]):
-			t = anal_table[zone][loc]
-			p = loc_ref[loc]
-			line = ["%s %s (%s %s)" % (p.area, p.name, p.x, p.y), zone, t["TOTAL"]]
-			line += [t["Wall Jump"], t["Charge Flame"], t["Double Jump"], t["Bash"], t["Stomp"], t["Glide"], t["Climb"], t["Charge Jump"], t["Dash"], t["Grenade"]]
-			line += [t["Water Vein"], t["Gumon Seal"], t["Sunstone"], t["Clean Water"], t["Wind Restored"]]
-			line += [t["Forlorn teleporter"], t["Grotto teleporter"], t["Sorrow teleporter"], t["Grove teleporter"], t["Swamp teleporter"], t["Valley teleporter"]]
-			retlines.append(", ".join([str(x) for x in line]))
-	return "\n".join(retlines)
-
-			
-
-
-def dll_last_update():
-	if os.environ.get('SERVER_SOFTWARE', '').startswith('Dev'):
-		return "N/A"
-	from github import Github
-	# hidiously bad practice but the token only has read rights so w/eeeeee
-	return Github("d060d7ef01443cdf653" + "" + "eb2e9ae7b66f37313b769").get_repo(124633989).get_commits(path="Assembly-CSharp.dll")[0].commit.last_modified
