@@ -290,7 +290,7 @@ class SeedGenerator:
         self.forcedAssignments = self.preplaced
         self.forceAssignedLocs = set()
         self.itemPool = OrderedDict([
-            ("EX1", 1), ("EX*", 97), ("KS", 40), ("MS", 11), ("AC", 33),
+            ("EX1", 1), ("EX*", 99), ("KS", 40), ("MS", 11), ("AC", 33),
             ("EC", 14), ("HC", 12), ("WallJump", 1), ("ChargeFlame", 1),
             ("Dash", 1), ("Stomp", 1), ("DoubleJump", 1), ("Glide", 1),
             ("Bash", 1), ("Climb", 1), ("Grenade", 1), ("ChargeJump", 1),
@@ -300,10 +300,13 @@ class SeedGenerator:
             ("RB13", 3), ("RB15", 3), ("WaterVeinShard", 0),
             ("GumonSealShard", 0), ("SunstoneShard", 0), ("TPForlorn", 1),
             ("TPGrotto", 1), ("TPSorrow", 1), ("TPGrove", 1), ("TPSwamp", 1),
-            ("TPValley", 1), ("TPGinso", 1), ("TPHoru", 1), ("Open", 0)
+            ("TPValley", 1), ("TPGinso", 0), ("TPHoru", 0), ("Open", 0)
         ])
         if self.var(Variation.OPEN_MODE):
             self.inventory["Open"] = 1
+            self.itemPool["TPGinso"] = 1
+            self.itemPool["TPHoru"] = 1
+            self.itemPool["KS"] -= 2
 
         if self.var(Variation.FREE_MAPSTONES):
             self.costs["MS"] = 11
@@ -312,7 +315,7 @@ class SeedGenerator:
             self.itemPool["AC"] = 0
             self.itemPool["HC"] = 0
             self.itemPool["EC"] = 3
-            self.itemPool["EX*"] = 173
+            self.itemPool["EX*"] = 175
             for bonus in [k for k in self.itemPool.keys() if k[:2] == "RB"]:
                 del self.itemPool[bonus]
 
@@ -1016,6 +1019,12 @@ class SeedGenerator:
         spoilerPath = ""
 
         self.reach_area("SunkenGladesRunaway")
+        if self.var(Variation.OPEN_MODE):
+            self.reach_area("GladesMain")
+            for connection in list(self.areas["SunkenGladesRunaway"].connections):
+                if connection.target == "GladesMain":
+                    self.areas["SunkenGladesRunaway"].remove_connection(connection)
+
         while self.itemCount > 0 or (self.params.balanced and self.balanceListLeftovers):
 
             self.balanceLevel += 1
