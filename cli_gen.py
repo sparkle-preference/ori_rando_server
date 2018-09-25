@@ -25,10 +25,10 @@ class CLISeedParams(object):
 
     def from_cli(self):
         parser = argparse.ArgumentParser()
+        parser.add_argument("--output-dir", help="directory to put the seeds in", type=str, default=".")
         parser.add_argument("--preset", help="Choose a preset group of paths for the generator to use")
         parser.add_argument("--custom-logic", help="Customize paths that the generator will use, comma-separated: %s" % ", ".join(vals(LogicPath)))
         parser.add_argument("--seed", help="Seed value (default 'test')", type=str, default="test")
-        # keymodes
         parser.add_argument("--keymode", help="""Changes how the dungeon keys (The Water Vein, Gumon Seal, and Sunstone) are handled:
         Default: The dungeon keys are placed without any special consideration.
         Clues: For each 3 trees visited, the zone of a random dungeon key will be revealed
@@ -152,11 +152,9 @@ class CLISeedParams(object):
                 log.error("Couldn't build seed!")
                 return
         player = 0
-        flags = self.flag_line(args.verbose_paths or False)
         for player_raw in raw:
             player += 1
             seed, spoiler = tuple(player_raw)
-            seed = flags + "\n" + seed
             if self.tracking:
                 seed = "Sync%s.%s," % (self.sync_id, player) + seed
             seedfile = "randomizer_%s.dat" % player
@@ -165,9 +163,9 @@ class CLISeedParams(object):
                 seedfile = "randomizer.dat"
                 spoilerfile = "spoiler.txt"
 
-            with open(seedfile, 'w') as f:
+            with open(args.output_dir+"/"+seedfile, 'w') as f:
                 f.write(seed)
-            with open(spoilerfile, 'w') as f:
+            with open(args.output_dir+"/"+spoilerfile, 'w') as f:
                 f.write(spoiler)
 
     def get_preset(self):

@@ -499,6 +499,9 @@ class SeedGenerator:
                     cost = 0
                     cnts = defaultdict(lambda: 0)
                     for req in req_set:
+                        if not req:
+                            log.warning(req, req_set, str(connection), connection.target)
+                            continue
                         if self.costs[req] > 0:
                             # for paired randomizer -- if the item isn't yours to assign, skip connection
                             if self.itemPool[req] == 0:
@@ -990,7 +993,7 @@ class SeedGenerator:
                 item = self.forcedAssignments[loc]
                 del self.forcedAssignments[loc]  # don't count these ones
             ass = self.get_assignment(loc, self.adjust_item(item), zone)
-            if loc == -280256 and self.params.key_mode:
+            if loc == -280256 and self.params.key_mode == KeyMode.FREE:
                 splitAss = ass.split("|")
                 splitAss[2] = "EV/0/EV/2/EV/4/%s/%s" % (splitAss[1], splitAss[2])
                 splitAss[1] = "MU"
