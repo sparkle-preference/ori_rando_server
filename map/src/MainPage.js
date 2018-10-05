@@ -24,7 +24,6 @@ const variations = {
 	OHKO: "One Hit KO",
 	"0XP": "Zero Experience",
 	ForceMapStones: "Force Mapstones",
-	ForceRandomEscape: "Force Random Escape",
 	Entrance: "Entrance Shuffle",
 	BonusPickups: "More Bonus Pickups",
     Open: "Open Mode",
@@ -108,7 +107,7 @@ export default class MainPage extends React.Component {
         )
     }
 	getMultiplayerTab = () => {
-		let multiplayerButtons = ["Skills", "Dungeon Keys", "Teleporters", "Upgrades", "World Events"].map(stype => (
+		let multiplayerButtons = ["Skills", "Teleporters", "Upgrades", "World Events", "Misc"].map(stype => (
 			<Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("Shared Item Categories", stype)} className="p-2">
 				<Button block outline={!this.state.shared.includes(stype)} onClick={this.onSType(stype)}>Share {stype}</Button>
 			</Col>
@@ -205,7 +204,7 @@ export default class MainPage extends React.Component {
 	
 	generateSeed = () => {
 		let pMap = {"Race": "None", "None": "Default", "Co-op": "Shared", 
-					"World Events": "Events", "Dungeon Keys": "Keys", "Cloned Seeds": "cloned", "Seperate Seeds": "disjoint"}
+					"World Events": "WorldEvents", "Cloned Seeds": "cloned", "Seperate Seeds": "disjoint"}
 		let f = (p) => pMap.hasOwnProperty(p) ? pMap[p] : p
 		let urlParams = []
 		urlParams.push("key_mode="+f(this.state.keyMode))
@@ -420,7 +419,7 @@ export default class MainPage extends React.Component {
 			doNetRequest("/generator/metadata/"+paramId,this.acceptMetadata)
 		this.state = {user: user, activeTab: 'variations', coopGenMode: "Cloned Seeds", coopGameMode: "Co-op", players: 1, tracking: true, dllTime: dllTime, variations: ["ForceTrees"], 
 					 paths: presets["standard"], keyMode: "Clues", oldKeyMode: "Clues", pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null),
-					 customSyncId: "", seed: "", fillAlg: "Balanced", shared: ["Skills", "Dungeon Keys", "Teleporters", "World Events"], hints: true, helpcat: "", helpopt: "",
+					 customSyncId: "", seed: "", fillAlg: "Balanced", shared: ["Skills", "Teleporters", "World Events"], hints: true, helpcat: "", helpopt: "",
 					 syncId: "", expPool: 10000, lastHelp: new Date(), seedIsGenerating: false, cellFreq: cellFreqPresets("standard"), fragCount: 40, fragExtra: 10,
 					 paramId: paramId, modalOpen: modalOpen, inputGameId: inputGameId, allowReopenModal: modalOpen, reopenUrl: "", teamStr: "", inputFlagLine: "", inputPaths: "", fass: {}};
 	}

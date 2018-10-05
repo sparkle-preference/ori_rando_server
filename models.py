@@ -1,17 +1,15 @@
 from google.appengine.ext import ndb
-from google.appengine.ext.ndb import msgprop
 
 import logging as log
 
 from datetime import datetime, timedelta
 from collections import defaultdict
-from itertools import ifilter
 from seedbuilder.seedparams import Placement, Stuff
 
 from enums import MultiplayerGameType, ShareType
 from util import special_coords, get_bit, get_taste, unpack, enums_from_strlist
 
-from pickups import Pickup, Skill, Upgrade, Teleporter, Event 
+from pickups import Pickup, Skill, Teleporter, Event
 from cache import Cache
 
 
@@ -86,35 +84,35 @@ class Player(ndb.Model):
     # id = gid.pid
     skills      = ndb.IntegerProperty()
     events      = ndb.IntegerProperty()
-    upgrades    = ndb.IntegerProperty()
     bonuses     = ndb.JsonProperty(default={})
+    hints = ndb.JsonProperty(default={})
     teleporters = ndb.IntegerProperty()
     seed =    ndb.TextProperty()
     signals = ndb.StringProperty(repeated=True)
     history = ndb.LocalStructuredProperty(HistoryLine, repeated=True)
-    bitfields = ndb.ComputedProperty(lambda p: ",".join([str(x) for x in [p.skills,p.events,p.upgrades,p.teleporters]+(["|".join(p.signals)] if p.signals else [])]))
     last_update = ndb.DateTimeProperty(auto_now=True)
-    teammates = ndb.KeyProperty('Player',repeated=True)
-    
+    teammates = ndb.KeyProperty('Player', repeated=True)
+
     # post-refactor version of bitfields
     def output(self):
-        outlines = [str(x) for x in [self.skills,self.events,self.teleporters]]
+        outlines = [str(x) for x in [self.skills, self.events, self.teleporters]]
         outlines.append(";".join([str(id) + "x%s" % count for (id, count) in self.bonuses.iteritems()]))
+        outlines.append(";".join([str(loc) + ":%s" % finder for (loc, finder) in self.hints.iteritems()]))
         if self.signals:
             outlines.append("|".join(self.signals))
         return ",".join(outlines)
-    
+
     def signal_send(self, signal):
         if signal not in self.signals:
             self.signals.append(signal)
             self.put()
-    
-    def signal_conf(self, signal):    
+
+    def signal_conf(self, signal):
         if signal in self.signals:
             self.signals.remove(signal)
-        elif signal.startswith("msg:"):
         # basically it is never ok to be spamming ppl, so if we get a message callback 
         # we remove the first message we find if we don't get an exact match.
+        elif signal.startswith("msg:"):
             for s in self.signals:
                 self.signals.remove(s)
                 if s.startswith("msg:"):
@@ -122,7 +120,9 @@ class Player(ndb.Model):
                     break
         self.put()
     
-    def give_pickup(self, pickup, remove=False, delay_put=False):
+    def give_pickup(self, pickup, remove=False, delay_put=False, coords=None, finder=None):
+        if coords and finder:
+            self.hints[coords] = finder
         if pickup.code == "RB":
             # handle upgrade refactor storage
             pick_id = str(pickup.id)
@@ -138,8 +138,6 @@ class Player(ndb.Model):
                 else:
                     self.bonuses[pick_id] = 1
         # bitfields
-        
-            self.upgrades = pickup.add_to_bitfield(self.upgrades, remove)
         elif pickup.code == "SK":
             self.skills = pickup.add_to_bitfield(self.skills, remove)
         elif pickup.code == "TP":
@@ -166,8 +164,8 @@ class Player(ndb.Model):
 
 
 class Game(ndb.Model):
-    # id = Sync ID    
-    DEFAULT_SHARED = [ShareType.DUNGEON_KEY, ShareType.SKILL, ShareType.EVENT, ShareType.TELEPORTER]
+    # id = Sync ID
+    DEFAULT_SHARED = [ShareType.SKILL, ShareType.EVENT, ShareType.TELEPORTER]
 
     str_mode = ndb.StringProperty(default="None")
     str_shared = ndb.StringProperty(repeated=True)
@@ -185,17 +183,16 @@ class Game(ndb.Model):
 
     start_time = ndb.DateTimeProperty(auto_now_add=True)
     last_update = ndb.DateTimeProperty(auto_now=True)
-    players = ndb.KeyProperty(Player,repeated=True)
-
+    players = ndb.KeyProperty(Player, repeated=True)
 
     def summary(self):
         out_lines = ["%s (%s)" %( self.mode, ",".join([s.name for s in self.shared]))]
         if self.mode in [MultiplayerGameType.SHARED, MultiplayerGameType.SIMUSOLO] and len(self.players):
             src = self.players[0].get()
-            for (field, cls) in [("skills", Skill), ("upgrades", Upgrade), ("teleporters", Teleporter), ("events",Event)]:
+            for (field, cls) in [("skills", Skill), ("teleporters", Teleporter), ("events",Event)]:
                 bitmap = getattr(src,field)
                 names = []
-                for id,bit in cls.bits.iteritems():
+                for id, bit in cls.bits.iteritems():
                     i = cls(id)
                     if i:
                         if i.stacks:
@@ -205,6 +202,7 @@ class Game(ndb.Model):
                         elif get_bit(bitmap,i.bit):
                             names.append(i.name)
                 out_lines.append("%s: %s" % (field, ", ".join(names)))
+            out_lines.append("upgrades: %s" % (",".join(["%sx %s" % (k, v) for k, v in src.bonuses])))
         return "\n\t"+"\n\t".join(out_lines)
 
     def get_players(self):
@@ -217,7 +215,7 @@ class Game(ndb.Model):
         self.put()
 
     def sanity_check(self):
-    # helper function, checks if a pickup stacks
+        # helper function, checks if a pickup stacks
         def stacks(pickup):
             if pickup.stacks:
                 return True
@@ -269,7 +267,7 @@ class Game(ndb.Model):
                         i += 1
                         last = has
                         player.give_pickup(pickup, remove=True, delay_put=True)
-                        has = player.has_pickup(pickup) 
+                        has = player.has_pickup(pickup)
                         if has == last:
                             log.critical("Aborting sanity check for Player %s: tried and failed to decrement %s (at %s, should be %s)" % (player.key.id(), pickup.name, has, count))
                             return False
@@ -289,9 +287,9 @@ class Game(ndb.Model):
         if not player:
             if(self.mode == MultiplayerGameType.SHARED and len(self.players)):
                 src = self.players[0].get()
-                player = Player(id=full_pid, skills = src.skills, events = src.events, upgrades = src.upgrades, teleporters = src.teleporters,bonuses = src.bonuses, history=[], signals=[])
+                player = Player(id=full_pid, skills = src.skills, events = src.events, teleporters = src.teleporters,bonuses = src.bonuses, history=[], signals=[], hints = src.hints)
             else:
-                player = Player(id=full_pid, skills = 0, events=0, upgrades = 0, teleporters = 0, history=[])
+                player = Player(id=full_pid, skills = 0, events=0, teleporters = 0, history=[])
             k = player.put()
             Cache.setHist(self.key.id(), pid, [])
         else:
@@ -300,8 +298,8 @@ class Game(ndb.Model):
             self.players.append(k)
             self.put()
         return player
-    
-    def found_pickup(self, pid, pickup, coords, remove, dedup, old=False):
+
+    def found_pickup(self, pid, pickup, coords, remove, dedup):
         retcode = 200
         share = pickup.share_type in self.shared
         finder = self.player(pid)
@@ -315,11 +313,15 @@ class Game(ndb.Model):
                 return 410
         if self.mode == MultiplayerGameType.SHARED:
             if not share:
+                if pickup.code == "HN" and coords not in finder.hints:
+                    for player in players:
+                        player.hints[coords] = 0  # hint 0 means the clue's been found
+                        player.put()
                 retcode = 406
             else:
                 for player in players:
                     if player.key != finder.key:
-                        player.give_pickup(pickup, remove)
+                        player.give_pickup(pickup, remove, coords=coords, finder=pid)
                 finder.give_pickup(pickup, remove)
         elif self.mode == MultiplayerGameType.SPLITSHARDS:
             if pickup.code != "RB" or pickup.id not in [17, 19, 21]:
@@ -336,31 +338,10 @@ class Game(ndb.Model):
         else:
             log.error("game mode %s not implemented" % self.mode)
             retcode = 404
-        if pickup.code == "SH" and old:
-            try:  # workaround for message pickups not working with old clients. Sketchy, so wrapped in try (we learnin')
-                found_here = {player.key.id().partition(".")[2]: hl.pickup() for player in players for hl in player.history if hl.coords == coords}
-                msgtext = pickup.id
-                if finder.seed:
-                # for *reasons*, sometimes the message sent from the client is 0 instead of the message text.
-                # we take the message from the seed instead to ensure accuracy.
-                    raw = next(ifilter(lambda line: line.startswith(str(coords)), finder.seed.split("\n")), None)
-                    if raw:
-                        msgtext = raw.split(':')[2] # msglines are loc:Message:actual message
-                if "for Player" in msgtext or "for Team" in msgtext:
-                    if any([p.code=="SH" for p in found_here.itervalues()]):
-                        msgtext = msgtext.replace("@", "")
-                    hint_pid, found = next(ifilter(lambda (_,pickup): pickup.code != "SH", found_here.iteritems()), (None, None))
-                    if found:
-                        msgtext = "$Player %s found %s here$" % (hint_pid, found.name)
-                msg = ''.join(ch for ch in msgtext if ch.isalnum() or ch in "_ ()*@$!%").strip()
-                finder.signal_send("msg:" + msg)
-                log.warning("manually sending message: %s to player %s" % (msg, pid))
-            except Exception as error:
-                log.error("Failed trying to message workaround. Pickup: %s, player: %s, error: %s" % (pickup, finder, error))
         finder.history.append(HistoryLine(pickup_code = pickup.code, timestamp = datetime.now(), pickup_id = str(pickup.id), coords = coords, removed = remove))
         finder.put()
+        self.put()
         Cache.setHist(self.key.id(), pid, finder.history)
-        
         return retcode
 
     def clean_up(self):
@@ -377,7 +358,7 @@ class Game(ndb.Model):
     def clean_old(timeout_window = timedelta(hours=12)):
         old = [game for game in Game.query(Game.last_update < datetime.now() - timeout_window)]    
         return len([Game.clean_up(game) for game in old])
-        
+
     @staticmethod
     def get_open_gid():
         id = 1
@@ -387,7 +368,7 @@ class Game(ndb.Model):
         if id > 100:
             Game.clean_old()
         return id
-    
+
     @staticmethod
     def from_params(params, id=None):
         id = int(id) if id else Game.get_open_gid()

@@ -35,7 +35,7 @@ class MultiplayerOptions(ndb.Model):
     enabled = ndb.BooleanProperty(default=False)
     cloned = ndb.BooleanProperty(default=True)
     hints = ndb.BooleanProperty(default=True)
-    teams = ndb.PickleProperty(default={})
+    teams = ndb.JsonProperty(default={})
 
     @staticmethod
     def from_url(qparams):

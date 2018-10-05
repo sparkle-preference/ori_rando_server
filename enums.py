@@ -25,21 +25,20 @@ class StrEnum(str, Enum):
 
 class MultiplayerGameType(StrEnum):
     SHARED = "Shared"
-    SWAPPED = "Swap"
-    SPLITSHARDS = "Split"
+    SPLITSHARDS = "SplitShards"
     SIMUSOLO = "None"
 
-    def is_dedup(self): return self in [MultiplayerGameType.SHARED, MultiplayerGameType.SWAPPED]
+    def is_dedup(self): return self in [MultiplayerGameType.SHARED]
 
 
 
 class ShareType(StrEnum):
     NOT_SHARED = "Unshareable"
-    DUNGEON_KEY = "Keys"
     UPGRADE = "Upgrades"
     SKILL = "Skills"
-    EVENT = "Events"
+    EVENT = "WorldEvents"
     TELEPORTER = "Teleporters"
+    MISC = "Misc"
 
 oldFlags = {"starved": "Starved", "hardmode": "Hard", "ohko": "OHKO", "0xp": "0XP",  "noplants": "NoPlants", "forcetrees": "ForceTrees", "discmaps": "NonProgressMapStones", "notp": "NoTeleporters", "entshuf": "Entrance", "wild": "BonusPickups", "forcemapstones": "ForceMapStones", "forcerandomescape": "ForceRandomEscape"}
 
@@ -48,7 +47,6 @@ class Variation(StrEnum):
     DISCRETE_MAPSTONES = "NonProgressMapStones"
     ENTRANCE_SHUFFLE = "Entrance"
     FORCE_MAPSTONES = "ForceMapStones"
-    FORCE_RANDOM_ESCAPE = "ForceRandomEscape"
     FORCE_TREES = "ForceTrees"
     HARDMODE = "Hard"
     ONE_HIT_KO = "OHKO"

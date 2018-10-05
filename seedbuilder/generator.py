@@ -1,5 +1,5 @@
-import re
 import math
+import random
 import logging as log
 import xml.etree.ElementTree as XML
 from collections import OrderedDict, defaultdict, Counter
@@ -10,64 +10,6 @@ from seedbuilder.areas import get_areas
 
 def ordhash(s):
     return reduce(mul, [ord(c) for c in s])
-# A custom implementation of a Mersenne Twister
-# (since javascript hates everything)
-# https://en.wikipedia.org/wiki/Mersenne_Twister
-
-class Random:
-    def seed(self, seed):
-        self.index = 624
-        self.mt = [0] * 624
-        self.mt[0] = hash(seed)
-        for i in range(1, 624):
-            self.mt[i] = int(0xFFFFFFFF & (
-                1812433253 * (self.mt[i - 1] ^ self.mt[i - 1] >> 30) + i))
-
-    def generate_sequence(self):
-        for i in range(624):
-            # Get the most significant bit and add it to the less significant
-            # bits of the next number
-            y = int(0xFFFFFFFF & (
-                self.mt[i] & 0x80000000) + (self.mt[(i + 1) % 624] & 0x7fffffff))
-            self.mt[i] = self.mt[(i + 397) % 624] ^ y >> 1
-
-            if y % 2 != 0:
-                self.mt[i] = self.mt[i] ^ 0x9908b0df
-        self.index = 0
-
-    def random(self):
-        if self.index >= 624:
-            self.generate_sequence()
-
-        y = self.mt[self.index]
-
-        # Right shift by 11 bits
-        y = y ^ y >> 11
-        # Shift y left by 7 and take the bitwise and of 2636928640
-        y = y ^ y << 7 & 2636928640
-        # Shift y left by 15 and take the bitwise and of y and 4022730752
-        y = y ^ y << 15 & 4022730752
-        # Right shift by 18 bits
-        y = y ^ y >> 18
-
-        self.index = self.index + 1
-
-        return int(0xFFFFFFFF & y) / float(0x100000000)
-
-    def randrange(self, length):
-        return int(self.random() * length)
-
-    def randint(self, low, high):
-        return int(low + self.random() * (high - low + 1))
-
-    def uniform(self, low, high):
-        return self.random() * (high - low) + low
-
-    def shuffle(self, items):
-        original = list(items)
-        for i in range(len(items)):
-            items[i] = original.pop(self.randrange(len(original)))
-
 
 class Area:
     def __init__(self, name):
@@ -346,7 +288,6 @@ class SeedGenerator:
             self.itemPool["EX*"] -= self.params.frag_count
 
         if self.params.key_mode == KeyMode.FREE:
-            # TODO: do the dll and placement work for this
             for key in ["GinsoKey", "HoruKey", "ForlornKey"]:
                 self.costs[key] = 0
                 self.itemPool[key] = 0
@@ -558,27 +499,27 @@ class SeedGenerator:
         self.balanceListLeftovers.append(location[0])
         return location[1]
 
-    def cloned_item(self, item, player=None):
+    def cloned_item(self, item, player):
+        name = item  # TODO: get upgrade names lol
         if item in self.skillsOutput:
             item = self.skillsOutput[item]
         if item in self.eventsOutput:
             item = self.eventsOutput[item]
         if not self.params.sync.hints:
             return "EV5"
-        hint_text = {"SK": "Skill", "TP": "Teleporter", "RB": "Upgrade", "EV": "Event"}.get(item[:2], "?Unknown?")
-        if item in ["EV0", "EV2", "EV4"]:
-            hint_text = "Dungeon Key"
-        elif item in ["RB17", "RB19", "RB21"]:
+        hint_text = {"SK": "Skill", "TP": "Teleporter", "RB": "Upgrade", "EV": "World Event"}.get(item[:2], "?Unknown?")
+        if item in ["RB17", "RB19", "RB21"]:
+            name = "a " + name  # grammar lol
             hint_text = "Shard"
         elif item == "RB28":
+            name = "a Warmth Fragment"
             hint_text = "Warmth Fragment"
+        elif item[:2] == "WT":
+            name = "a Relic"
+            hint_text = "Relic"
 
-        msg = "SH@%s@" % hint_text
-        if player:
-            if self.params.sync.teams:
-                msg = msg[:-1] + " for Team %s@" % player
-            elif self.playerCount > 2:
-                msg = msg[:-1] + " for Player %s@" % player
+        owner = ("Team " if self.params.sync.teams else "Player ") + str(player)
+        msg = "HN%s/%s/%s" % (name, hint_text, owner)
         return msg
 
     def assign_random(self, recurseCount=0):
@@ -844,7 +785,7 @@ class SeedGenerator:
 
         self.sharedMap = {}
         self.sharedList = []
-        self.random = Random()
+        self.random = random.Random()
         self.random.seed(self.params.seed)
         self.preplaced = {k: (
             self.codeToName[v] if v in self.codeToName else v) for k, v in preplaced.iteritems()}
@@ -858,23 +799,27 @@ class SeedGenerator:
                 self.playerCount = self.params.players
 
         if self.do_multi:
-            if ShareType.SKILL in self.params.sync.shared:
+            shared = self.params.sync.shared
+            if ShareType.SKILL in shared:
                 self.sharedList += ["WallJump", "ChargeFlame", "Dash", "Stomp", "DoubleJump", "Glide", "Bash", "Climb", "Grenade", "ChargeJump"]
-            if ShareType.DUNGEON_KEY in self.params.sync.shared:
-                if Variation.WARMTH_FRAGMENTS in self.params.variations:
-                    self.sharedList.append("RB28")
+            if ShareType.EVENT in shared:
                 if self.params.key_mode == KeyMode.SHARDS:
                     self.sharedList += ["WaterVeinShard", "GumonSealShard", "SunstoneShard"]
                 else:
                     self.sharedList += ["GinsoKey", "ForlornKey", "HoruKey"]
-            if ShareType.EVENT in self.params.sync.shared:
                 self.sharedList += ["Water", "Wind", "Warmth"]
-            if ShareType.TELEPORTER in self.params.sync.shared:
+            if ShareType.TELEPORTER in shared:
                 self.sharedList += ["TPForlorn", "TPGrotto", "TPSorrow", "TPGrove", "TPSwamp", "TPValley", "TPGinso", "TPHoru"]
             if ShareType.UPGRADE in self.params.sync.shared:
                 self.sharedList += ["RB6", "RB8", "RB9", "RB10", "RB11", "RB12", "RB13", "RB15"]
                 if self.var(Variation.EXTRA_BONUS_PICKUPS):
                     self.sharedList += ["RB31", "RB32", "RB33", "RB101", "RB102", "RB103"]
+            if ShareType.MISC in shared:
+                if self.var(Variation.WARMTH_FRAGMENTS):
+                    self.sharedList.append("RB28")
+                if self.var(Variation.WORLD_TOUR):
+                    self.sharedList.append("Relic")
+                    # TODO: is this the proper generator stringform? Probably not.
         return self.placeItemsMulti(retries)
 
     def placeItemsMulti(self, retries=5):
@@ -922,11 +867,9 @@ class SeedGenerator:
                         player, split_item = self.split_locs[int(loc)]
                         if self.playerID != player:  # theirs
                             hint = self.cloned_item(split_item, player)
-                            outlines.append(
-                                "|".join([loc, hint[:2], hint[2:], zone]))
+                            outlines.append("|".join([loc, hint[:2], hint[2:], zone]))
                         else:  # ours
-                            outlines.append(
-                                "|".join([loc, split_item[:2], split_item[2:], zone]))
+                            outlines.append("|".join([loc, split_item[:2], split_item[2:], zone]))
                     else:
                         outlines.append(line)
                 placements.append(("\n".join(outlines)+"\n", spoiler))

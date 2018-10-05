@@ -46,7 +46,8 @@ def get_areas():
         "Ability",
         "Keystone",
         "Mapstone",
-        "Free"
+        "Free",
+        "Open"
     ]
 
     allowed_paths = [

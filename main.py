@@ -17,7 +17,6 @@ from google.appengine.ext import ndb
 from google.appengine.ext.webapp import template
 
 # project imports
-from seedbuilder.generator import Random
 from seedbuilder.seedparams import SeedGenParams
 from seedbuilder.vanilla import seedtext as vanilla_seed
 from bingo import Card
@@ -94,7 +93,7 @@ class ActiveGames(RequestHandler):
             id = game.key.id()
             game_link = uri_for('game-show-history', game_id=id)
             map_link = uri_for('map-render', game_id=id)
-            body += "<li><a href='%s'>Game #%s</a> (<a href='%s'>(Map)</a>)<ul><li>\t%s (Last update: %s ago)</li></ul></li>" % (game_link, id, map_link, game.summary, datetime.now() - game.last_update)
+            body += "<li><a href='%s'>Game #%s</a> (<a href='%s'>(Map)</a>) (Last update: %s ago)</li>" % (game_link, id, map_link, datetime.now() - game.last_update)
         out = "<html><head><title>%s - ORCS</title></head><body>" % title
         if body:
             out += "<h4>%s:</h4><ul>%s</ul></body</html>" % (title, body)
@@ -280,7 +279,7 @@ class SetSeed(RequestHandler):
             game = Game.new(_mode=mode, _shared=shared, id=game_id)
             game.put()
         else:
-            game.sanity_check() # cheap if game is short!
+            game.sanity_check()  # cheap if game is short!
         for l in lines[1:]:
             line = l.split("|")
             if len(line) < 3:
@@ -633,7 +632,7 @@ class PlandoDownload(RequestHandler):
             self.response.headers['Content-Type'] = 'application/x-gzip' if not debug else     'text/plain'
             self.response.headers['Content-Disposition'] = 'attachment; filename=randomizer.dat' if not debug else ""
             seedlines = seed.to_lines(player=int(pid), extraFlags=[syncFlag])
-            rand = Random()
+            rand = random.Random()
             rand.seed(seed.name)
             flagline = seedlines.pop(0)
             rand.shuffle(seedlines)
@@ -917,25 +916,13 @@ app = WSGIApplication(routes=[
     (r'/logout/?', HandleLogout),
     ('/vanilla', Vanilla),
 
-    # new update game endpoints (add to dll asap)
-    PathPrefixRoute('/netcode/game/<game_id:\d+>/player/<player_id>', [
-        Route('/found/<coords:-?\d+>/<kind>/<id>', handler=FoundPickup, name="netcode-player-found-pickup"),
+    # new netcode endpoints
+    PathPrefixRoute('/netcode/game/<game_id:\d+>/player/<player_id:[^/]+>', [
+        Route('/found/<coords>/<kind>/<id>', handler=FoundPickup, name="netcode-player-found-pickup"),
         Route('/tick/<x:[^,]+>,<y>', handler=GetUpdate, name="netcode-player-tick"),
         Route('/callback/<signal>', handler=SignalCallback,  name="netcode-player-signal-callback"),
+        Route('/setSeed', handler=SetSeed,  name="netcode-player-set-seed"),
     ]),
-
-
-
-
-    # old game update endpoints (leave until merge...)
-
-#    Route('/<\d+\.\w+>/<-?\d+>/(SH)/<[^?=/]+>', handler=FoundPickup, handler_method="old"),
-    Route('/<game_id:\d+>.<player_id>/<coords:-?\d+>/<kind>/<id>', handler=FoundPickup, handler_method="old"),
-    (r'/(\d+)\.(\w+)/(-?\d+\.?\d*),(-?\d+\.?\d*)/', GetUpdate),
-    (r'/(\d+)\.(\w+)/signalCallback/(.*)', SignalCallback),
-    
-    # pre item refactor
-    (r'/(\d+)\.(\w+)/(-?\d+\.?\d*),(-?\d+\.?\d*)', Update),
 
     # new game endpoints 
     PathPrefixRoute('/game/<game_id:\d+>', [
@@ -945,23 +932,6 @@ app = WSGIApplication(routes=[
         Route('/player/(\w+)/remove', handler = RemovePlayer, strict_slash=True, name="game-remove-player"),
         Route('/', redirect_to_name="game-show-history"),
     ]),
-
-
-    # old game endpoints 
-    (r'/(\d+)/delete', DeleteGame),
-    (r'/(\d+)/history/?', ShowHistory),
-    (r'/(\d+)/players', ListPlayers),
-    (r'/(\d+)\.(\w+)/remove', RemovePlayer),
-    (r'/(\d+)/?', HistPrompt),
-
-#    Route('/map/game/<game_id:\d+>', handler=ShowMap, name='map-render'),
-    # old map endpoints (todo: remove)
-    (r'/(\d+)/map/?', ShowMap),
-    (r'/(\d+)/_getPos', GetPlayerPositions),
-    (r'/(\d+)/_seen', GetSeenLocs),
-    (r'/(\d+)\.(\w+)/_seed', GetSeed),
-    (r'/(\d+)\.(\w+)/setSeed', SetSeed),
-    (r'/(\d+)/_reachable', GetReachable),
 
     # plando endpoints
     (r'/plando/reachable', PlandoReachable),
