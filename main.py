@@ -126,7 +126,7 @@ class FoundPickup(RequestHandler):
             log.error("Couldn't build pickup %s|%s" % (kind, id))
             self.response.status = 406
             return
-        self.response.status = game.found_pickup(player_id, pickup, coords, remove, dedup, old)
+        self.response.status = game.found_pickup(player_id, pickup, coords, remove, dedup)
         self.response.write(self.response.status)
 
 
