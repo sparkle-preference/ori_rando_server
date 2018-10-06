@@ -519,7 +519,7 @@ class SeedGenerator:
             hint_text = "Relic"
 
         owner = ("Team " if self.params.sync.teams else "Player ") + str(player)
-        msg = "HN%s/%s/%s" % (name, hint_text, owner)
+        msg = "HN%s\%s\%s" % (name, hint_text, owner)
         return msg
 
     def assign_random(self, recurseCount=0):

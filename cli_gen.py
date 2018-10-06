@@ -88,10 +88,12 @@ class CLISeedParams(object):
         """
         self.seed = args.seed
         if args.preset:
-            self.logic_paths = presets[args.preset]
+            self.logic_paths = presets[args.preset.capitalize()]
         elif args.custom_logic:
             self.logic_paths = enums_from_strlist(LogicPath, args.custom_logic.split(","))
-        self.key_mode = KeyMode.mk(args.keymode) or KeyMode.DEFAULT
+        else:
+            self.logic_paths = presets["Standard"]
+        self.key_mode = KeyMode.mk(args.keymode) or KeyMode.NONE
         # variations (help)
         varMap = {
             "zeroxp": "0XP", "hard": "Hard", "non_progressive_mapstones": "NonProgressMapStones", "ohko": "OHKO", "force_trees": "ForceTrees", "starved": "Starved",
