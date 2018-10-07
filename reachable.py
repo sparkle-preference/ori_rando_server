@@ -16,7 +16,7 @@ class PlayerState(object):
         for code,id,count,removed in pickinfos:
             if code in ["EX"]:
                 continue
-            id = id if code in ["TP", "SH", "NO"] else int(id)
+            id = id if code in ["TP", "SH", "NO", "MU", "HN", "WT"] else int(id)
             if (code,id) in PlayerState.name_from_id:
                 self.has[PlayerState.name_from_id[(code,id)]] = (0 if removed else count)
             elif code == "RB":
