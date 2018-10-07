@@ -122,7 +122,7 @@ class Player(ndb.Model):
     
     def give_pickup(self, pickup, remove=False, delay_put=False, coords=None, finder=None):
         if coords and finder:
-            self.hints[coords] = finder
+            self.hints[str(coords)] = finder
         if pickup.code == "RB":
             # handle upgrade refactor storage
             pick_id = str(pickup.id)
@@ -313,16 +313,15 @@ class Game(ndb.Model):
                 return 410
         if self.mode == MultiplayerGameType.SHARED:
             if not share:
-                if pickup.code == "HN" and coords not in finder.hints:
+                if pickup.code == "HN":
                     for player in players:
-                        player.hints[coords] = 0  # hint 0 means the clue's been found
+                        if str(coords) not in player.hints:
+                            player.hints[str(coords)] = 0  # hint 0 means the clue's been found
                         player.put()
                 retcode = 406
             else:
                 for player in players:
-                    if player.key != finder.key:
-                        player.give_pickup(pickup, remove, coords=coords, finder=pid)
-                finder.give_pickup(pickup, remove)
+                    player.give_pickup(pickup, remove, coords=coords, finder=pid)
         elif self.mode == MultiplayerGameType.SPLITSHARDS:
             if pickup.code != "RB" or pickup.id not in [17, 19, 21]:
                 retcode = 406
@@ -346,6 +345,7 @@ class Game(ndb.Model):
 
     def clean_up(self):
         [p.delete() for p in self.players]
+        
         Cache.removeGame(self.key.id())
         log.info("Deleting game %s" % self)
         self.key.delete()
@@ -394,7 +394,7 @@ class Game(ndb.Model):
             shared = enums_from_strlist(ShareType, _shared)
         else:
             shared = Game.DEFAULT_SHARED
-        mode = MultiplayerGameType(_mode) if _mode else MultiplayerGameType.SHARED
+        mode = MultiplayerGameType(_mode) if _mode else MultiplayerGameType.SIMUSOLO
         id = int(id) if id else Game.get_open_gid()
         game = Game(id = id, players=[], str_shared=[s.value for s in shared], str_mode=mode.value)
         log.info("Game.new(%s, %s, %s): Created game %s ", _mode, _shared, id, game)

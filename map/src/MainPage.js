@@ -51,7 +51,7 @@ export default class MainPage extends React.Component {
 	help = (category, option) => () => this.setState({helpcat: category, helpopt: option, helpParams: getHelpContent(category, option)})
 
     getAdvancedTab = () => {
-        const starting_pickups = {"First Pickup:": 919722, "Second Pickup:": -1560272, "Third Pickup:": 799776, "Fourth Pickup:": -120208}
+        const starting_pickups = {"First Pickup:": 919772, "Second Pickup:": -1560272, "Third Pickup:": 799776, "Fourth Pickup:": -120208}
         let fass_rows = Object.keys(starting_pickups).map(name => {
             let coord = starting_pickups[name];
             return (

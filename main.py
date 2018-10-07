@@ -29,16 +29,14 @@ from reachable import Map, PlayerState
 
 PLANDO_VER = "0.5.1"
 debug = os.environ.get('SERVER_SOFTWARE', '').startswith('Dev')
-base_site = "http://orirandocoopserver.appspot.com" if not debug else "https://8080-dot-3616814-dot-devshell.appspot.com"
+base_site = "http://orirando.com" if not debug else "https://8080-dot-3616814-dot-devshell.appspot.com"
 
 
 def paramFlag(s, f):
     return s.request.get(f, None) != None
-
-
+    
 def paramVal(s, f):
     return s.request.get(f, None)
-
 
 class GetGameId(RequestHandler):
     def get(self):
@@ -274,7 +272,7 @@ class SetSeed(RequestHandler):
             flags = lines[0].split("|")
             mode_opt = [f[5:] for f in flags if f.lower().startswith("mode=")]
             shared_opt = [f[7:].split(" ") for f in flags if f.lower().startswith("shared=")]
-            mode = MultiplayerGameType.mk(mode_opt[0]) if mode_opt else None
+            mode = mode_opt[0] if mode_opt else None
             shared = shared_opt[0] if shared_opt else None
             game = Game.new(_mode=mode, _shared=shared, id=game_id)
             game.put()
@@ -728,7 +726,7 @@ class MapTest(RequestHandler):
         flags = lines[0].split("|")
         mode_opt = [f[5:] for f in flags if f.lower().startswith("mode=")]
         shared_opt = [f[7:].split("+") for f in flags if f.lower().startswith("shared=")]
-        mode = MultiplayerGameType(mode_opt[0]) if mode_opt else None
+        mode = mode_opt[0] if mode_opt else None
         shared = shared_opt[0] if shared_opt else None
         for l in lines[1:]:
             line = l.split("|")

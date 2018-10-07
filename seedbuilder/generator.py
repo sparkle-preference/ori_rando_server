@@ -562,10 +562,8 @@ class SeedGenerator:
 
     def assign_to_location(self, item, location):
         zone = location.zone
-#        value = 0
         hist_written = False
-        at_mapstone = not self.var(
-            Variation.DISCRETE_MAPSTONES) and location.orig == "MapStone"
+        at_mapstone = not self.var(Variation.DISCRETE_MAPSTONES) and location.orig == "MapStone"
         has_cost = item in self.costs.keys()
 
         loc = location.get_key()
@@ -946,8 +944,9 @@ class SeedGenerator:
         for v in self.forcedAssignments.values():
             if v in self.itemPool:
                 self.itemPool[v] -= 1
-        self.itemCount -= len(self.forcedAssignments)
-
+            else:
+                self.itemPool["EX*"] -= 1
+            self.itemCount -= 1
 
         locationsToAssign = []
         self.connectionQueue = []
