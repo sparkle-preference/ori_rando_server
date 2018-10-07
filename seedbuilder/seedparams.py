@@ -166,14 +166,15 @@ class SeedGenParams(ndb.Model):
         return {pid: tid for tid, pids in self.sync.teams.iteritems() for pid in pids}
 
     def team_pid(self, pid):  # given pid, get team or return pid if no teams exist
-        return self.teams_inv()[pid] if self.sync.teams else pid
+        return int(self.teams_inv()[pid]) if self.sync.teams else pid
 
     def get_seed(self, player=1, game_id=None, verbose_paths= False):
         flags = self.flag_line(verbose_paths)
         if self.tracking:
             flags = "Sync%s.%s," % (game_id, player) + flags
         outlines = [flags]
-        outlines += ["|".join((str(p.location), s.code, s.id, p.zone)) for p in self.placements for s in p.stuff if s.player == self.team_pid(player)]
+        outlines += ["|".join((str(p.location), s.code, s.id, p.zone)) for p in self.placements for s in p.stuff if int(s.player) == self.team_pid(player)]
+        assert len(outlines) > 1
         return "\n".join(outlines)+"\n"
 
     def get_spoiler(self, player=1):
@@ -195,6 +196,9 @@ class SeedGenParams(ndb.Model):
         else:
             flags.append(self.get_preset())
         flags.append(self.key_mode)
+
+
+        
         if Variation.WARMTH_FRAGMENTS in self.variations:
             flags.append("Frags/%s/%s" % (self.frag_count, self.frag_extra))
         flags += [v.value for v in self.variations]
