@@ -276,10 +276,16 @@ class Game(ndb.Model):
                             log.critical("Aborting sanity check for Player %s after too many iterations." % player.key.id())
                             return False
         for player in players:
-            gid, _, pid = player.key.id().partition(".")
-            Cache.setHist(gid, pid, player.history[:])
             player.put()
+        self.rebuild_hist()
         return True
+
+    def rebuild_hist(self):
+        gid = self.key.id()
+        for player in self.get_players():
+            pid = player.key.id().partition(".")[2]
+            Cache.setHist(gid, pid, player.history)
+        return Cache.getHist(gid)
 
     def player(self, pid):
         full_pid = "%s.%s" % (self.key.id(), pid)

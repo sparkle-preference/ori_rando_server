@@ -292,7 +292,7 @@ class LogicHelper extends React.Component {
 	        modes = presets['standard'];
 	    }
 
-		this.setState({modes: modes, pathMode: {label: pathmode, value: pathmode}, manual_reach: manual_reach}, () => {this.updateReachable() ; this.updateURL()})
+		this.setState({modes: modes, search: search, pathMode: {label: pathmode, value: pathmode}, manual_reach: manual_reach}, () => {this.updateReachable() ; this.updateURL()})
 	};
 
 	onDragEnter = () => this.setState({dropzoneActive: true});
@@ -587,34 +587,55 @@ function getReachable(setter, modes, codes)
     xmlHttp.onreadystatechange = function() {
         if (xmlHttp.readyState === 4 && xmlHttp.status === 200)
             (function(res) {
-            	if(res && res.includes("|"))
-            		{
-	            		let reachable = {};
-	            		res.split("|").forEach((areaRaw) => {
-	            			let areaSplit = areaRaw.split("#");
-	            			let name = areaSplit[0];
-	            			let reachedWith = areaSplit[1].split("/").map((reqs) => reqs === "" ? ["Free"] : reqs.split('&'));
-	            			reachable[name] = reachedWith;
-            		});
-						setter(prevState => {
-		            		if(Object.keys(reachable).filter(area => !Object.keys(prevState.reachable).includes(area)).length === 0)
-			            		return {}
-							let history = prevState.history;
-							let step = prevState.step;
-							let old_reachable = prevState.reachable;
-							history[step] = {reachable: {...prevState.reachable}, new_areas: {...prevState.new_areas}}
-							let new_areas = {};
-							Object.keys(reachable).forEach((area) => {
-								if(!old_reachable.hasOwnProperty(area))
-								{
-									new_areas[area] = uniq(reachable[area]);
-									old_reachable[area] = reachable[area];
-								}
-								old_reachable[area] = uniq(old_reachable[area].concat(reachable[area]));
-							});
-							return {reachable: old_reachable, new_areas: new_areas, history: history, step: step+1, highlight_picks: []}
-						})
-            		}
+                let reachable = JSON.parse(res);
+                setter(prevState => {
+                    let prevReachable = Object.keys(prevState.reachable);
+                    if(Object.keys(reachable).filter(area => !prevReachable.includes(area)).length === 0)
+                        return {}
+                    let history = prevState.history;
+                    let step = prevState.step;
+                    let old_reachable = prevState.reachable;
+                    history[step] = {reachable: {...prevState.reachable}, new_areas: {...prevState.new_areas}}
+                    let new_areas = {};
+                    Object.keys(reachable).forEach((area) => {
+                        let paths = reachable[area].map(reqSet => Object.keys(reqSet))
+                        if(!old_reachable.hasOwnProperty(area))
+                        {
+                            new_areas[area] = uniq(paths);
+                            old_reachable[area] = [];
+                        }
+                        old_reachable[area] = uniq(old_reachable[area].concat(paths));
+                    });
+                    return {reachable: old_reachable, new_areas: new_areas, history: history, step: step+1, highlight_picks: []}                    
+                });
+            	// if(res && res.includes("|"))
+            	// 	{
+	            // 		let reachable = {};
+	            // 		res.split("|").forEach((areaRaw) => {
+	            // 			let areaSplit = areaRaw.split("#");
+	            // 			let name = areaSplit[0];
+	            // 			let reachedWith = areaSplit[1].split("/").map((reqs) => reqs === "" ? ["Free"] : reqs.split('&'));
+	            // 			reachable[name] = reachedWith;
+            	// 	});
+				// 		setter(prevState => {
+		        //     		if(Object.keys(reachable).filter(area => !Object.keys(prevState.reachable).includes(area)).length === 0)
+			    //         		return {}
+				// 			let history = prevState.history;
+				// 			let step = prevState.step;
+				// 			let old_reachable = prevState.reachable;
+				// 			history[step] = {reachable: {...prevState.reachable}, new_areas: {...prevState.new_areas}}
+				// 			let new_areas = {};
+				// 			Object.keys(reachable).forEach((area) => {
+				// 				if(!old_reachable.hasOwnProperty(area))
+				// 				{
+				// 					new_areas[area] = uniq(reachable[area]);
+				// 					old_reachable[area] = reachable[area];
+				// 				}
+				// 				old_reachable[area] = uniq(old_reachable[area].concat(reachable[area]));
+				// 			});
+				// 			return {reachable: old_reachable, new_areas: new_areas, history: history, step: step+1, highlight_picks: []}
+				// 		})
+            	// 	}
             })(xmlHttp.responseText);
     }
     xmlHttp.open("GET", "/plando/reachable?modes="+modes+"&codes="+codes, true);
