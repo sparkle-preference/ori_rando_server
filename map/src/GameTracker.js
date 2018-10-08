@@ -236,7 +236,7 @@ class GameTracker extends React.Component {
   constructor(props) {
     super(props)
     let modeRaw = document.getElementsByClassName("logic-modes")[0].id
-    let modes = ['normal', 'speed', 'dboost-light', 'lure'];
+    let modes = presets['standard'];
     if(modeRaw !== "None"){
         modes = modeRaw.split(" ");
     }

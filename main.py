@@ -355,11 +355,13 @@ class GetReachable(RequestHandler):
         self.response.status = 200
         game = Game.with_id(game_id)
         shared_hist = []
+        shared_coords = set()
         if game and game.mode == MultiplayerGameType.SHARED:
             shared_hist = [hl for hls in hist.values() for hl in hls if hl.pickup().share_type in game.shared]
             shared_coords = set([hl.coords for hl in shared_hist])
         for player, personal_hist in hist.items():
-            player_hist = [hl for hl in shared_hist if hl.coords not in shared_coords] + shared_hist
+            print hist.keys(), player, player in hist
+            player_hist = [hl for hl in hist[player] if hl.coords not in shared_coords] + shared_hist
             state = PlayerState([(h.pickup_code, h.pickup_id, 1, h.removed) for h in player_hist])
             areas = {}
             for area, reqs in Map.get_reachable_areas(state, modes).items():
