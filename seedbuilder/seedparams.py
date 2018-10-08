@@ -196,9 +196,6 @@ class SeedGenParams(ndb.Model):
         else:
             flags.append(self.get_preset())
         flags.append(self.key_mode)
-
-
-        
         if Variation.WARMTH_FRAGMENTS in self.variations:
             flags.append("Frags/%s/%s" % (self.frag_count, self.frag_extra))
         flags += [v.value for v in self.variations]

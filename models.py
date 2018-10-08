@@ -215,7 +215,7 @@ class Game(ndb.Model):
         self.put()
 
     def sanity_check(self):
-        # helper function, checks if a pickup stacks
+        #  helper function, checks if a pickup stacks
         def stacks(pickup):
             if pickup.stacks:
                 return True
@@ -277,7 +277,7 @@ class Game(ndb.Model):
                             return False
         for player in players:
             gid, _, pid = player.key.id().partition(".")
-            Cache.setHist(gid, pid, player.history)
+            Cache.setHist(gid, pid, player.history[:])
             player.put()
         return True
 
