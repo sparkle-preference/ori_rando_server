@@ -158,7 +158,6 @@ class SeedGenParams(ndb.Model):
             return False
         self.spoilers = spoilers
         self.placements = placemap.values()
-        print len(placemap.values())
         self.put()
         return True
 
