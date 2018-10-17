@@ -140,7 +140,7 @@ function getPickupMarkers(state) {
 	});
 	
 	let hideOpt = state.hideOpt;
-	let pickupTypes = (state.pickup_display === "Some") ? state.pickups : ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "Ma"];
+	let pickupTypes = (state.pickup_display === "Some") ? state.pickups : ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "Ma", "CS"];
 	let searchStr = (state.searchStr || "").toLowerCase();
 	let markers = []
 	let msTT = getMapstoneToolTip(players);
@@ -241,7 +241,7 @@ class GameTracker extends React.Component {
         modes = modeRaw.split(" ");
     }
     this.state = {mousePos: {lat: 0, lng: 0}, players: {}, retries: 0, check_seen: 1, modes: modes, timeout: TIMEOUT_START, searchStr: "", pickup_display: "all", show_sidebar: true,
-    flags: ['show_pickups', 'update_in_bg'], viewport: DEFAULT_VIEWPORT, pickups: ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "Ma"],
+    flags: ['show_pickups', 'update_in_bg'], viewport: DEFAULT_VIEWPORT, pickups: ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "Ma", "CS"],
     pathMode: get_preset(modes), hideOpt: "all", display_logic: (modeRaw !== "None")};
   };
 
@@ -366,6 +366,7 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
 								<label><Checkbox value="KS" />Keystones</label>
 								<label><Checkbox value="EX" />Exp Orbs</label>
 								<label><Checkbox value="Ma" />Mapstone turnins</label>
+								<label><Checkbox value="CS" />Special/Cutscenes</label>
 				    		</CheckboxGroup>
 						</Collapse>
 					</div>
