@@ -222,7 +222,7 @@ class SeedGenerator:
         self.connectionQueue = []
         self.assignQueue = []
 
-        self.itemCount = 252.0
+        self.itemCount = 253.0
 
     def reset(self):
         """A full reset. Resets internal state completely (besides pRNG
@@ -927,9 +927,9 @@ class SeedGenerator:
         if self.var(Variation.ENTRANCE_SHUFFLE):
             self.outputStr += self.randomize_entrances()
 
-        # handle the fixed pickups: first energy cell, the glitchy 100 orb at spirit tree, the forlorn escape plant, and the 2nd keystone in misty
+        # handle the fixed pickups: first energy cell, the glitchy 100 orb at spirit tree, and the forlorn escape plant
 
-        for loc, item, zone in [(-280256, "EC1", "Glades"), (-1680104, "EX100", "Grove"), (-12320248, "Grenade", "Forlorn"), (-10440008, "EX100", "Misty")]:
+        for loc, item, zone in [(-280256, "EC1", "Glades"), (-1680104, "EX100", "Grove"), (-12320248, "Grenade", "Forlorn")]:
             if loc in self.forcedAssignments:
                 item = self.forcedAssignments[loc]
                 del self.forcedAssignments[loc]  # don't count these ones
