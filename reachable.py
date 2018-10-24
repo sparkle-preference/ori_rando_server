@@ -97,6 +97,9 @@ class Map(object):
             Map.build()
         Map.reached_with = defaultdict(lambda: set())
         unchecked_areas = set(["SunkenGladesRunaway"])
+        if "OPEN" in modes:
+            unchecked_areas.add("GladesMain")
+            state.has["Open"] = 1  # todo; it's unclear if this works
         reachable_areas = set()
         needs_ks_check = set()
         while len(unchecked_areas) > 0:

@@ -30,7 +30,7 @@ const variations = {
     WorldTour: "World Tour",
     DoubleSkills: "Double Skills",
     WarmthFrags: "Warmth Fragments",
-    FreeMapstones: "Free Mapstones",
+    StrictMapstones: "Strict Mapstones",
 }
 const cellFreqPresets = (preset) => preset === "casual" ? 20 : (preset === "standard" ? 40 : 256)
 const optional_paths = ['casual-dboost', 'standard-core', 'standard-dboost', 'standard-lure', 'standard-abilities', 'expert-core', 'expert-dboost', 'expert-lure', 'expert-abilities', 'dbash', 'master-core', 'master-dboost', 'master-lure', 'master-abilities', 'gjump', 'glitched', 'timed-level', 'insane']
@@ -417,7 +417,7 @@ export default class MainPage extends React.Component {
 		let modalOpen = (paramId !== null);
 		if(modalOpen)
 			doNetRequest("/generator/metadata/"+paramId,this.acceptMetadata)
-		this.state = {user: user, activeTab: 'variations', coopGenMode: "Cloned Seeds", coopGameMode: "Co-op", players: 1, tracking: true, dllTime: dllTime, variations: ["ForceTrees"], 
+		this.state = {user: user, activeTab: 'variations', coopGenMode: "Cloned Seeds", coopGameMode: "Co-op", players: 1, tracking: true, dllTime: dllTime, variations: ["ForceTrees", "Open"], 
 					 paths: presets["standard"], keyMode: "Clues", oldKeyMode: "Clues", pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null),
 					 customSyncId: "", seed: "", fillAlg: "Balanced", shared: ["Skills", "Teleporters", "World Events"], hints: true, helpcat: "", helpopt: "",
 					 syncId: "", expPool: 10000, lastHelp: new Date(), seedIsGenerating: false, cellFreq: cellFreqPresets("standard"), fragCount: 40, fragExtra: 10,
@@ -483,7 +483,7 @@ export default class MainPage extends React.Component {
 		let pathDiffOptions = ["Easy", "Normal", "Hard"].map(mode => (
 			<DropdownItem active={mode===this.state.pathDiff} onClick={()=> this.setState({pathDiff: mode})}>{mode}</DropdownItem>
 		))
-		let variationButtons = Object.keys(variations).filter(x => x !== "BonusPickups").map(v=> {
+		let variationButtons = Object.keys(variations).filter(x => !["NonProgressMapStones", "BonusPickups"].includes(x)).map(v=> {
 			let name = variations[v];
 			return (
 			<Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("variations", v)} className="p-2">
@@ -503,6 +503,21 @@ export default class MainPage extends React.Component {
 					}
 					return false;
 				})()} onClick={this.onVar("BonusPickups")}>{variations["BonusPickups"]}</Button>
+			</Col>
+			)		
+		))
+        // Discrete Mapstones requires Strict Mapstones.
+		variationButtons.push((
+			(
+			<Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("variations", "NonProgressMapStones")} className="p-2">
+				<Button block outline={!this.state.variations.includes("NonProgressMapStones")} disabled={(() => {
+					if(!this.state.variations.includes("StrictMapstones")) {
+						if(this.state.variations.includes("NonProgressMapStones"))
+							this.onVar("NonProgressMapStones")()
+						return true;
+					}
+					return false;
+				})()} onClick={this.onVar("NonProgressMapStones")}>{variations["NonProgressMapStones"]}</Button>
 			</Col>
 			)		
 		))
