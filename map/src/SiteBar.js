@@ -18,8 +18,8 @@ const SiteBar = ({dlltime, user}) => {
                     <DropdownItem href="https://github.com/sigmasin/OriDERandomizer/raw/3.0/Assembly-CSharp.dll">
                         3.0 DLL 
                     </DropdownItem>
-                    <DropdownItem href="https://github.com/david-c-miller/OriDETracker/releases/download/v3.0-beta/OriDETracker-v3.0-beta.zip">
-                        3.0 Tracker (CURRENTLY BROKEN)
+                    <DropdownItem href="https://github.com/turntekGodhead/OriDETracker/raw/master/OriDETracker/bin/Latest.zip">
+                        3.0 Tracker (Beta)
                     </DropdownItem>
                     <DropdownItem href="/vanilla">
                         Vanilla Seed
