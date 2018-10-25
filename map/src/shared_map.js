@@ -18,7 +18,7 @@ function download(filename, text) {
 }
 
 const dev = window.document.URL.includes("devshell")
-const base_url = dev ?  "https://8080-dot-3616814-dot-devshell.appspot.com" : "http://orirandocoopserver.appspot.com"
+const base_url = dev ?  "https://8080-dot-3616814-dot-devshell.appspot.com" : "http://orirando.com"
 
 function player_icons(id, as_leaflet=true)  {
 	id = parseInt(id, 10);
@@ -51,6 +51,7 @@ const pickup_icons = {
 	"EX": new Leaflet.Icon({iconUrl: '/sprites/xp.png', iconSize: new Leaflet.Point(24, 24)}),
 	"Pl": new Leaflet.Icon({iconUrl: '/sprites/plant.png', iconSize: new Leaflet.Point(16, 16)}),
 	"KS": new Leaflet.Icon({iconUrl: '/sprites/keystone.png', iconSize: new Leaflet.Point(24, 24)}),
+    "CS": new Leaflet.Icon({iconUrl: '/sprites/WarmthReturned.png', iconSize: new Leaflet.Point(20, 20)}),
 	"EVGinsoKey": new Leaflet.Icon({iconUrl: '/sprites/WaterVein.png', iconSize: new Leaflet.Point(24, 24)}),
 	"EVWater": new Leaflet.Icon({iconUrl: '/sprites/CleanWater.png', iconSize: new Leaflet.Point(24, 24)}),
 	"EVForlornKey": new Leaflet.Icon({iconUrl: '/sprites/GumonSeal.png', iconSize: new Leaflet.Point(24, 24)}),
@@ -70,8 +71,9 @@ const icon_color = {
 		"MS": new Leaflet.Icon({iconUrl: '/sprites/colors/map-fragment-blue.png', iconSize: new Leaflet.Point(24, 24)}),
 		"Ma": new Leaflet.Icon({iconUrl: '/sprites/colors/map-stone-blue.png', iconSize: new Leaflet.Point(24, 24)}),
 		"EX": new Leaflet.Icon({iconUrl: '/sprites/colors/xp-blue.png', iconSize: new Leaflet.Point(24, 24)}),
-		"Pl": new Leaflet.Icon({iconUrl: '/sprites/colors/plant-blue.png', iconSize: new Leaflet.Point(16, 16)}),
+		"Pl": new Leaflet.Icon({iconUrl: '/sprites/colors/plant-blue.png', iconSize: new Leaflet.Point(20, 20)}),
 		"KS": new Leaflet.Icon({iconUrl: '/sprites/colors/keystone-blue.png', iconSize: new Leaflet.Point(24, 24)}),
+		"CS": new Leaflet.Icon({iconUrl: '/sprites/colors/WarmthReturned-blue.png', iconSize: new Leaflet.Point(16, 16)}),
 		"EVGinsoKey": new Leaflet.Icon({iconUrl: '/sprites/colors/WaterVein-blue.png', iconSize: new Leaflet.Point(24, 24)}),
 		"EVWater": new Leaflet.Icon({iconUrl: '/sprites/colors/CleanWater-blue.png', iconSize: new Leaflet.Point(24, 24)}),
 		"EVForlornKey": new Leaflet.Icon({iconUrl: '/sprites/colors/GumonSeal-blue.png', iconSize: new Leaflet.Point(24, 24)}),
@@ -89,6 +91,7 @@ const icon_color = {
 		"EX": new Leaflet.Icon({iconUrl: '/sprites/colors/xp-red.png', iconSize: new Leaflet.Point(24, 24)}),
 		"Pl": new Leaflet.Icon({iconUrl: '/sprites/colors/plant-red.png', iconSize: new Leaflet.Point(16, 16)}),
 		"KS": new Leaflet.Icon({iconUrl: '/sprites/colors/keystone-red.png', iconSize: new Leaflet.Point(24, 24)}),
+		"CS": new Leaflet.Icon({iconUrl: '/sprites/colors/WarmthReturned-red.png', iconSize: new Leaflet.Point(20, 20)}),
 		"EVGinsoKey": new Leaflet.Icon({iconUrl: '/sprites/colors/WaterVein-red.png', iconSize: new Leaflet.Point(24, 24)}),
 		"EVWater": new Leaflet.Icon({iconUrl: '/sprites/colors/CleanWater-red.png', iconSize: new Leaflet.Point(24, 24)}),
 		"EVForlornKey": new Leaflet.Icon({iconUrl: '/sprites/colors/GumonSeal-red.png', iconSize: new Leaflet.Point(24, 24)}),
@@ -106,6 +109,7 @@ const icon_color = {
 		"EX": new Leaflet.Icon({iconUrl: '/sprites/colors/xp-green.png', iconSize: new Leaflet.Point(24, 24)}),
 		"Pl": new Leaflet.Icon({iconUrl: '/sprites/colors/plant-green.png', iconSize: new Leaflet.Point(16, 16)}),
 		"KS": new Leaflet.Icon({iconUrl: '/sprites/colors/keystone-green.png', iconSize: new Leaflet.Point(24, 24)}),
+		"CS": new Leaflet.Icon({iconUrl: '/sprites/colors/WarmthReturned-green.png', iconSize: new Leaflet.Point(20, 20)}),
 		"EVGinsoKey": new Leaflet.Icon({iconUrl: '/sprites/colors/WaterVein-green.png', iconSize: new Leaflet.Point(24, 24)}),
 		"EVWater": new Leaflet.Icon({iconUrl: '/sprites/colors/CleanWater-green.png', iconSize: new Leaflet.Point(24, 24)}),
 		"EVForlornKey": new Leaflet.Icon({iconUrl: '/sprites/colors/GumonSeal-green.png', iconSize: new Leaflet.Point(24, 24)}),
@@ -126,10 +130,10 @@ function get_icon(pick, color = null) {
 		return iconGroup[pick.name];
 
 	let prefix = pick.name.substr(0, 2);
-	if(iconGroup.hasOwnProperty(prefix ))
+	if(iconGroup.hasOwnProperty(prefix))
 		return iconGroup[prefix];
 
-	console.log("no icon found!");
+    console.log("no icon found for "+ pick.name + "!");
 	return blank_icon;
 }
 
@@ -326,23 +330,38 @@ const stuff_by_type = {
 	]
 };
 const presets = {
-		"casual": ["normal", "dboost-light"],
-		"standard": ["normal", "speed", "lure", "dboost-light"],
-		"expert": ["normal", "speed", "lure", "speed-lure", "dboost", "dboost-light", "cdash", "extended", "extended-damage"],
-		"master": ["normal", "speed", "lure", "speed-lure", "dboost", "dboost-light", "dboost-hard", "cdash", "dbash", "extended", "extended-damage", "lure-hard", "extreme"],
-		"hard": ["normal", "speed", "lure",  "dboost-light", "cdash", "dbash", "extended"],
-		"ohko": ["normal", "speed", "lure", "cdash", "dbash", "extended"],
-		"0xp": ["normal", "speed", "lure", "dboost-light"],
-		"glitched": ["normal", "speed", "dboost-light", "dboost", "lure", "speed-lure", "lure-hard", "dboost-hard", "extended", "extended-damage", "dbash", "cdash", "extreme", "timed-level", "glitched", "cdash-farming"]
-	};
-const get_preset = (paths, standard = true) => {
+    casual: ['casual-core', 'casual-dboost'],
+    standard: [
+        'casual-core', 'casual-dboost', 
+        'standard-core', 'standard-dboost', 'standard-lure', 'standard-abilities'
+        ],
+    expert: [
+        'casual-core', 'casual-dboost', 
+        'standard-core', 'standard-dboost', 'standard-lure', 'standard-abilities',
+        'expert-core', 'expert-dboost', 'expert-lure', 'expert-abilities', 'dbash'
+        ],
+    master: [
+        'casual-core', 'casual-dboost', 
+        'standard-core', 'standard-dboost', 'standard-lure', 'standard-abilities',
+        'expert-core', 'expert-dboost', 'expert-lure', 'expert-abilities', 'dbash',
+        'master-core', 'master-dboost', 'master-lure', 'master-abilities', 'gjump'
+        ],
+    glitched: [
+        'casual-core', 'casual-dboost', 
+        'standard-core', 'standard-dboost', 'standard-lure', 'standard-abilities',
+        'expert-core', 'expert-dboost', 'expert-lure', 'expert-abilities', 'dbash',
+        'master-core', 'master-dboost', 'master-lure', 'master-abilities', 'gjump',
+        'glitched', 'timed-level'
+        ]
+};
+const logic_paths = presets['glitched'].concat('insane');
+const get_preset = (paths) => {
     for (let preset of Object.keys(presets)) {
-        if(preset === "0xp") continue
         let p = presets[preset];
         if(paths.length === p.length && paths.every(path => p.includes(path)))
-            return ("standard" === preset && !standard) ? "0xp": preset;
+            return preset;
     }
-    return "custom"    
+    return "custom"
 }
 
 
@@ -433,7 +452,7 @@ function uniq(array) {
 	return array.filter(item => seen.includes(item) ? false : (seen.push(item) && true));
 }
  
-const str_ids = ["TP", "NO", "SH"];
+const str_ids = ["TP", "NO", "SH", "WT", "MU", "HN"];
 const hide_opacity = .2;
 const seed_name_regex = new RegExp("^[^ ?=/]+$");
 const select_styles = {
@@ -472,4 +491,4 @@ function doNetRequest(url, onRes)
 export {PickupMarker, PickupMarkersList, download, getStuffType, locs, picks_by_loc, getMapCrs, pickups, distance, get_icon, select_wrap,
 		point, picks_by_type, picks_by_zone, zones, pickup_name, stuff_types, stuff_by_type, areas, picks_by_area, presets, select_styles,
 		get_param, get_flag, get_int, get_list, get_seed, is_match, str_ids, hide_opacity, seed_name_regex, uniq, name_from_str, listSwap,
-		goToCurry, player_icons, doNetRequest, base_url, get_preset};
+		goToCurry, player_icons, doNetRequest, base_url, get_preset, logic_paths};

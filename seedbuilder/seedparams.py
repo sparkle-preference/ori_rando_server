@@ -1,26 +1,11 @@
 from google.appengine.ext import ndb
-from google.appengine.ext.ndb import msgprop
 
 import logging as log
 
 from util import enums_from_strlist
-from enums import (NDB_MultiGameType, NDB_ShareType, NDB_Variation, NDB_LogicPath, NDB_KeyMode, NDB_PathDiff,
-                   MultiplayerGameType, ShareType, Variation, LogicPath, KeyMode, PathDifficulty)
+from enums import (MultiplayerGameType, ShareType, Variation, LogicPath, KeyMode, PathDifficulty, presets)
 from collections import OrderedDict
 from seedbuilder.generator import SeedGenerator
-
-presets = {
-    "Casual":    set([LogicPath.NORMAL, LogicPath.DBOOST_LIGHT]),
-    "Standard":    set([LogicPath.NORMAL, LogicPath.SPEED, LogicPath.LURE, LogicPath.DBOOST_LIGHT]),
-    "Expert":    set([LogicPath.NORMAL, LogicPath.SPEED, LogicPath.LURE, LogicPath.SPEED_LURE, LogicPath.DBOOST, LogicPath.DBOOST_LIGHT, LogicPath.CDASH, LogicPath.EXTENDED, LogicPath.EXTENDED_DAMAGE]),
-    "Master":    set([LogicPath.NORMAL, LogicPath.SPEED, LogicPath.LURE, LogicPath.SPEED_LURE, LogicPath.DBOOST, LogicPath.DBOOST_LIGHT, LogicPath.DBOOST_HARD, LogicPath.CDASH, LogicPath.DBASH, LogicPath.EXTENDED, LogicPath.EXTENDED_DAMAGE, LogicPath.LURE_HARD, LogicPath.EXTREME]),
-    "Glitched":    set([LogicPath.NORMAL, LogicPath.SPEED, LogicPath.DBOOST_LIGHT, LogicPath.DBOOST, LogicPath.LURE, LogicPath.SPEED_LURE, LogicPath.LURE_HARD, LogicPath.DBOOST_HARD, LogicPath.EXTENDED, LogicPath.EXTENDED_DAMAGE, LogicPath.DBASH, LogicPath.CDASH, LogicPath.EXTREME, LogicPath.TIMED_LEVEL, LogicPath.GLITCHED, LogicPath.CDASH_FARMING]),
-    #    "0xp":        set([LogicPath.NORMAL, LogicPath.SPEED, LogicPath.LURE, LogicPath.DBOOST_LIGHT]),
-    #   0xp has the same LPs as standard. Gotta distinguish elsewhere :C
-    "Hard":        set([LogicPath.NORMAL, LogicPath.SPEED, LogicPath.LURE, LogicPath.DBOOST_LIGHT, LogicPath.CDASH, LogicPath.DBASH, LogicPath.EXTENDED]),
-    "Ohko":        set([LogicPath.NORMAL, LogicPath.SPEED, LogicPath.LURE, LogicPath.CDASH, LogicPath.DBASH, LogicPath.EXTENDED])
-}
-
 
 class Stuff(ndb.Model):
     code = ndb.StringProperty()
@@ -33,50 +18,24 @@ class Placement(ndb.Model):
     zone = ndb.StringProperty()
     stuff = ndb.LocalStructuredProperty(Stuff, repeated=True)
 
-
-class WarmthFragmentOptions(ndb.Model):
-    enabled = ndb.BooleanProperty(default=False)
-    count = ndb.IntegerProperty()
-    key_1 = ndb.IntegerProperty()
-    key_2 = ndb.IntegerProperty()
-    key_3 = ndb.IntegerProperty()
-    required = ndb.IntegerProperty()
-    tolerance = ndb.IntegerProperty()
-
-    @staticmethod
-    def from_url(qparams):
-        opts = WarmthFragmentOptions()
-        opts.enabled = bool(qparams.get("frag_count"))
-        if opts.enabled:
-            opts.count = int(qparams.get("frag_count", 40))
-            opts.key_1 = int(qparams.get("frag_key_1", 7))
-            opts.key_2 = int(qparams.get("frag_key_2", 14))
-            opts.key_3 = int(qparams.get("frag_key_3", 21))
-            opts.required = int(qparams.get("frag_required", 28))
-            opts.tolerance = int(qparams.get("frag_tolerance", 3))
-        return opts
-
-
 class MultiplayerOptions(ndb.Model):
-    ndb_mode = msgprop.EnumProperty(
-        NDB_MultiGameType, default=NDB_MultiGameType.SIMUSOLO)
-    ndb_shared = msgprop.EnumProperty(NDB_ShareType, repeated=True)
+    str_mode = ndb.StringProperty(default="None")
+    str_shared = ndb.StringProperty(repeated=True)
 
-    def get_mode(self): return MultiplayerGameType.from_ndb(self.ndb_mode)
+    def get_mode(self): return MultiplayerGameType.mk(self.str_mode) or MultiplayerGameType.SIMUSOLO
 
-    def set_mode(self, mode):         self.ndb_mode = mode.to_ndb()
+    def set_mode(self, mode):         self.str_mode = mode.value
 
-    def get_shared(self): return [ShareType.from_ndb(ndb_st)
-                               for ndb_st in self.ndb_shared]
+    def get_shared(self): return [ShareType.mk(st) for st in self.str_shared if ShareType.mk(st)]
 
-    def set_shared(self, shared):    self.ndb_shared = [s.to_ndb() for s in shared]
+    def set_shared(self, shared):    self.str_shared = [s.value for s in shared]
 
     mode = property(get_mode, set_mode)
     shared = property(get_shared, set_shared)
     enabled = ndb.BooleanProperty(default=False)
     cloned = ndb.BooleanProperty(default=True)
     hints = ndb.BooleanProperty(default=True)
-    teams = ndb.PickleProperty(default={})
+    teams = ndb.JsonProperty(default={})
 
     @staticmethod
     def from_url(qparams):
@@ -100,26 +59,26 @@ class MultiplayerOptions(ndb.Model):
 
 
 class SeedGenParams(ndb.Model):
-    ndb_vars = msgprop.EnumProperty(NDB_Variation, repeated=True)
-    ndb_paths = msgprop.EnumProperty(NDB_LogicPath, repeated=True)
-    ndb_pathdiff = msgprop.EnumProperty(NDB_PathDiff, default=NDB_PathDiff.NORMAL)
-    ndb_keymode = msgprop.EnumProperty(NDB_KeyMode, default=NDB_KeyMode.CLUES)
+    str_vars = ndb.StringProperty(repeated=True)
+    str_paths = ndb.StringProperty(repeated=True)
+    str_pathdiff = ndb.StringProperty(default=PathDifficulty.NORMAL.value)
+    str_keymode = ndb.StringProperty(default=KeyMode.CLUES.value)
 
-    def get_pathdiff(self): return PathDifficulty.from_ndb(self.ndb_pathdiff)
+    def get_pathdiff(self): return PathDifficulty(self.str_pathdiff)
 
-    def set_pathdiff(self, pathdiff): self.ndb_pathdiff = pathdiff.to_ndb()
+    def set_pathdiff(self, pathdiff): self.str_pathdiff = pathdiff.value
 
-    def get_vars(self): return [Variation.from_ndb(ndb_var) for ndb_var in self.ndb_vars]
+    def get_vars(self): return [Variation(var) for var in self.str_vars]
 
-    def set_vars(self, vars): self.ndb_vars = [v.to_ndb() for v in vars]
+    def set_vars(self, vars): self.str_vars = [v.value for v in vars]
 
-    def get_paths(self): return [LogicPath.from_ndb(ndb_path) for ndb_path in self.ndb_paths]
+    def get_paths(self): return [LogicPath(path) for path in self.str_paths]
 
-    def set_paths(self, paths): self.ndb_paths = [p.to_ndb() for p in paths]
+    def set_paths(self, paths): self.str_paths = [p.value for p in paths]
 
-    def get_keymode(self): return KeyMode.from_ndb(self.ndb_keymode)
+    def get_keymode(self): return KeyMode(self.str_keymode)
 
-    def set_keymode(self, key_mode):     self.ndb_keymode = key_mode.to_ndb()
+    def set_keymode(self, key_mode):     self.str_keymode = key_mode.value
 
     seed = ndb.StringProperty(required=True)
     variations = property(get_vars, set_vars)
@@ -132,9 +91,10 @@ class SeedGenParams(ndb.Model):
     players = ndb.IntegerProperty(default=1)
     created_on = ndb.DateTimeProperty(auto_now_add=True)
     sync = ndb.LocalStructuredProperty(MultiplayerOptions)
-    warmth = ndb.LocalStructuredProperty(WarmthFragmentOptions)
-    placements = ndb.LocalStructuredProperty(
-        Placement, repeated=True, compressed=True)
+    frag_count = ndb.IntegerProperty(default=40)
+    frag_extra = ndb.IntegerProperty(default=10)
+    cell_freq = ndb.IntegerProperty(default=256)
+    placements = ndb.LocalStructuredProperty(Placement, repeated=True, compressed=True)
     spoilers = ndb.TextProperty(repeated=True, compressed=True)
 
     @staticmethod
@@ -155,7 +115,9 @@ class SeedGenParams(ndb.Model):
         params.balanced = qparams.get("gen_mode") != "Classic"
         params.players = int(qparams.get("players", 1))
         params.tracking = qparams.get("tracking") != "Disabled"
-        params.warmth = WarmthFragmentOptions.from_url(qparams)
+        params.frag_count = int(qparams.get("frags", 40))
+        params.frag_extra = int(qparams.get("extra_frags", 10))
+        params.cell_freq = int(qparams.get("cell_freq", 256))
         params.sync = MultiplayerOptions.from_url(qparams)
         raw_fass = qparams.get("fass")
         if raw_fass:
@@ -203,7 +165,7 @@ class SeedGenParams(ndb.Model):
         return {pid: tid for tid, pids in self.sync.teams.iteritems() for pid in pids}
 
     def team_pid(self, pid):  # given pid, get team or return pid if no teams exist
-        return self.teams_inv()[pid] if self.sync.teams else pid
+        return int(self.teams_inv()[pid]) if self.sync.teams else pid
 
     def get_seed(self, player=1, game_id=None, verbose_paths= False):
         flags = self.flag_line(verbose_paths)
@@ -212,8 +174,8 @@ class SeedGenParams(ndb.Model):
         if self.sync.mode == MultiplayerGameType.SIMUSOLO:
             player = 1  # look, it's probably fine
         outlines = [flags]
-        outlines += ["|".join((str(p.location), s.code, s.id, p.zone))
-               for p in self.placements for s in p.stuff if int(s.player) == self.team_pid(player)]
+        outlines += ["|".join((str(p.location), s.code, s.id, p.zone)) for p in self.placements for s in p.stuff if int(s.player) == self.team_pid(player)]
+        assert len(outlines) > 1
         return "\n".join(outlines)+"\n"
 
     def get_spoiler(self, player=1):
@@ -233,14 +195,12 @@ class SeedGenParams(ndb.Model):
     def flag_line(self, verbose_paths=False):
         flags = []
         if verbose_paths:
-            flags.append("lps=%s" %
-                         "+".join([lp.capitalize() for lp in self.logic_paths]))
+            flags.append("lps=%s" % "+".join([lp.capitalize() for lp in self.logic_paths]))
         else:
             flags.append(self.get_preset())
         flags.append(self.key_mode)
-        if self.warmth.enabled:
-            flags.append("Frags/%s/%s/%s/%s/%s/%s" % (self.warmth.count, self.warmth.key_1,
-                                             self.warmth.key_2, self.warmth.key_3, self.warmth.required, self.warmth.tolerance))
+        if Variation.WARMTH_FRAGMENTS in self.variations:
+            flags.append("Frags/%s/%s" % (self.frag_count, self.frag_extra))
         flags += [v.value for v in self.variations]
         if self.path_diff != PathDifficulty.NORMAL:
             flags.append("prefer_path_difficulty=%s" % self.path_diff.value)

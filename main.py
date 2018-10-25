@@ -17,7 +17,6 @@ from google.appengine.ext import ndb
 from google.appengine.ext.webapp import template
 
 # project imports
-from seedbuilder.generator import Random
 from seedbuilder.seedparams import SeedGenParams
 from seedbuilder.vanilla import seedtext as vanilla_seed
 from bingo import Card
@@ -25,21 +24,19 @@ from enums import MultiplayerGameType, ShareType
 from models import Game, Seed
 from pickups import Pickup
 from cache import Cache
-from util import dll_last_update, coord_correction_map, all_locs
+from util import coord_correction_map, all_locs
 from reachable import Map, PlayerState
 
 PLANDO_VER = "0.5.1"
 debug = os.environ.get('SERVER_SOFTWARE', '').startswith('Dev')
-base_site = "http://orirandocoopserver.appspot.com" if not debug else "https://8080-dot-3616814-dot-devshell.appspot.com"
+base_site = "http://orirando.com" if not debug else "https://8080-dot-3616814-dot-devshell.appspot.com"
 
 
 def paramFlag(s, f):
     return s.request.get(f, None) != None
-
-
+    
 def paramVal(s, f):
     return s.request.get(f, None)
-
 
 class GetGameId(RequestHandler):
     def get(self):
@@ -94,7 +91,7 @@ class ActiveGames(RequestHandler):
             id = game.key.id()
             game_link = uri_for('game-show-history', game_id=id)
             map_link = uri_for('map-render', game_id=id)
-            body += "<li><a href='%s'>Game #%s</a> (<a href='%s'>(Map)</a>)<ul><li>\t%s (Last update: %s ago)</li></ul></li>" % (game_link, id, map_link, game.summary, datetime.now() - game.last_update)
+            body += "<li><a href='%s'>Game #%s</a> (<a href='%s'>(Map)</a>) (Last update: %s ago)</li>" % (game_link, id, map_link, datetime.now() - game.last_update)
         out = "<html><head><title>%s - ORCS</title></head><body>" % title
         if body:
             out += "<h4>%s:</h4><ul>%s</ul></body</html>" % (title, body)
@@ -127,7 +124,7 @@ class FoundPickup(RequestHandler):
             log.error("Couldn't build pickup %s|%s" % (kind, id))
             self.response.status = 406
             return
-        self.response.status = game.found_pickup(player_id, pickup, coords, remove, dedup, old)
+        self.response.status = game.found_pickup(player_id, pickup, coords, remove, dedup)
         self.response.write(self.response.status)
 
 
@@ -179,7 +176,7 @@ class ShowHistory(RequestHandler):
 class SeedGenForm(RequestHandler):
     def get(self):
         path = os.path.join(os.path.dirname(__file__), 'index.html')
-        template_values = {'latest_dll': dll_last_update(), 'plando_version': PLANDO_VER, 'seed': random.randint(10000000, 100000000)}
+        template_values = {'latest_dll': "N/A", 'plando_version': PLANDO_VER, 'seed': random.randint(10000000, 100000000)}
         self.response.out.write(template.render(path, template_values))
 
 class Vanilla(RequestHandler):
@@ -275,12 +272,12 @@ class SetSeed(RequestHandler):
             flags = lines[0].split("|")
             mode_opt = [f[5:] for f in flags if f.lower().startswith("mode=")]
             shared_opt = [f[7:].split(" ") for f in flags if f.lower().startswith("shared=")]
-            mode = MultiplayerGameType.mk(mode_opt[0]) if mode_opt else None
+            mode = mode_opt[0] if mode_opt else None
             shared = shared_opt[0] if shared_opt else None
             game = Game.new(_mode=mode, _shared=shared, id=game_id)
             game.put()
         else:
-            game.sanity_check() # cheap if game is short!
+            game.sanity_check()  # cheap if game is short!
         for l in lines[1:]:
             line = l.split("|")
             if len(line) < 3:
@@ -313,19 +310,23 @@ class ShowMap(RequestHandler):
 
 class GetSeenLocs(RequestHandler):
     def get(self, game_id):
-        game = Game.with_id(game_id)
-        hist = Cache.getHist(game_id)
-        if not game:
-            self.response.status = 404
-            self.response.write(self.response.status)
-            return
-        if not hist:
-            hist = game.rebuild_hist()
-        self.response.headers['Content-Type'] = 'text/plain'
+        self.response.headers['Content-Type'] = 'application/json'
         self.response.status = 200
-        self.response.out.write("|".join(
-            ["%s:%s" % (p, ",".join([str(h.coords) for h in hls])) for p, hls in hist.iteritems()]
-        ))
+        seenLocs = {}
+        try:
+            game = Game.with_id(game_id)
+            hist = Cache.getHist(game_id)
+            if not game:
+                self.response.status = 404
+                return
+            if not hist:
+                hist = game.rebuild_hist()
+            for player, history_lines in hist.items():
+                seenLocs[player] = [hl.coords for hl in history_lines]
+            self.response.out.write(json.dumps(seenLocs))
+        except Exception as e:
+            log.error("error getting seen locations for game %s! Returning partial list" % game_id, e)
+            self.response.out.write(json.dumps(seenLocs))
 
 
 class GetSeed(RequestHandler):
@@ -343,38 +344,43 @@ class GetSeed(RequestHandler):
 
 class GetReachable(RequestHandler):
     def get(self, game_id):
+        self.response.headers['Content-Type'] = 'application/json'
         hist = Cache.getHist(game_id)
+        reachable_areas = {}
         if not hist or not paramVal(self, "modes"):
             self.response.status = 404
-            self.response.write(self.response.status)
+            self.response.write(json.dumps(reachable_areas))
             return
         modes = paramVal(self, "modes").split(" ")
-        self.response.headers['Content-Type'] = 'text/plain'
         self.response.status = 200
         game = Game.with_id(game_id)
-        shared_history = []
+        shared_hist = []
+        shared_coords = set()
         if game and game.mode == MultiplayerGameType.SHARED:
-            shared_history = [hl for hls in hist.values() for hl in hls if hl.pickup().share_type in game.shared]
-        self.response.out.write("|".join(
-            ["%s:%s" % (p, ",".join(
-                ["%s#%s" % (area, "/".join(
-                    ["&".join([ item + ("(%s)" % count if count > 1 else "") for item, count in s.cnt.iteritems()])
-                    for s in reachedWith]))
-                for (area, reachedWith) in Map.get_reachable_areas(PlayerState([(h.pickup_code, h.pickup_id, 1, h.removed) for h in shared_history+hls]), modes).iteritems()]
-            )) for p, hls in hist.iteritems()]
-        ))
-
+            shared_hist = [hl for hls in hist.values() for hl in hls if hl.pickup().share_type in game.shared]
+            shared_coords = set([hl.coords for hl in shared_hist])
+        for player, personal_hist in hist.items():
+            print hist.keys(), player, player in hist
+            player_hist = [hl for hl in hist[player] if hl.coords not in shared_coords] + shared_hist
+            state = PlayerState([(h.pickup_code, h.pickup_id, 1, h.removed) for h in player_hist])
+            areas = {}
+            for area, reqs in Map.get_reachable_areas(state, modes).items():
+                areas[area] = [{item: count for (item, count) in req.cnt.items()} for req in reqs if len(req.cnt)]
+            reachable_areas[player] = areas
+        self.response.out.write(json.dumps(reachable_areas))
 
 
 class GetPlayerPositions(RequestHandler):
     def get(self, game_id):
+        self.response.headers['Content-Type'] = 'application/json'
         pos = Cache.getPos(game_id)
         if pos:
-            self.response.headers['Content-Type'] = 'text/plain'
             self.response.status = 200
-            self.response.out.write("|".join(["%s:%s,%s" % (p, x, y) for p, (x, y) in pos.iteritems()]))
+            players = {}
+            for p, (x, y) in pos.items():
+                players[p] = [y, x]  # bc we use tiling software, this is lat/lng
+            self.response.out.write(json.dumps(players))
         else:
-            self.response.headers['Content-Type'] = 'text/plain'
             self.response.status = 404
 
 
@@ -396,14 +402,14 @@ class PlandoReachable(RequestHandler):
             for codemulti in paramVal(self, "codes").split(" "):
                 code, _, times = codemulti.partition(":")
                 codes.append(tuple(code.split("|")+[int(times), False]))
-        self.response.headers['Content-Type'] = 'text/plain'
+        self.response.headers['Content-Type'] = 'application/json'
         self.response.status = 200
-        self.response.out.write("|".join(
-                ["%s#%s" % (area, "/".join(
-                    ["&".join([ item + ("(%s)" % count if count > 1 else "") for item, count in s.cnt.iteritems()])
-                    for s in reachedWith]))
-                for (area, reachedWith) in Map.get_reachable_areas(PlayerState(codes), modes).iteritems()]
-            ))
+
+        areas = {}
+        for area, reqs in Map.get_reachable_areas(PlayerState(codes), modes).items():
+            areas[area] = [{item: count for (item, count) in req.cnt.items()} for req in reqs if len(req.cnt)]
+
+        self.response.out.write(json.dumps(areas))
 
 
 def clone_entity(e, **extra_args):
@@ -633,7 +639,7 @@ class PlandoDownload(RequestHandler):
             self.response.headers['Content-Type'] = 'application/x-gzip' if not debug else     'text/plain'
             self.response.headers['Content-Disposition'] = 'attachment; filename=randomizer.dat' if not debug else ""
             seedlines = seed.to_lines(player=int(pid), extraFlags=[syncFlag])
-            rand = Random()
+            rand = random.Random()
             rand.seed(seed.name)
             flagline = seedlines.pop(0)
             rand.shuffle(seedlines)
@@ -724,12 +730,12 @@ class MapTest(RequestHandler):
         if game:
             game.clean_up()
         seedlines = []
-        seed = "mode=Shared|shared=Keys+Skills+Teleporters,-280256|EC|1|Glades,-1680104|EX|100|Grove,-12320248|EX|100|Forlorn,-10440008|EX|100|Misty,799776|EV|5|Glades,-120208|EC|1|Glades,1519708|SH|@Skill For Player 1@|Blackroot,1799708|KS|1|Blackroot,1959768|RB|9|Blackroot,-1560272|KS|1|Glades,-600244|EX|46|Glades,-3160308|HC|1|Glades,-2840236|EX|15|Glades,-3360288|MS|1|Glades,-2480208|EX|6|Glades,-2400212|AC|1|Glades,-1840228|HC|1|Glades,919772|KS|1|Glades,-2200184|KS|1|Glades,-1800156|KS|1|Glades,24|KS|1|Mapstone,2919744|KS|1|Blackroot,-1840196|SK|2|Glades,-800192|AC|1|Glades,-2080116|SK|14|Valley,-560160|EX|32|Grove,1479880|AC|1|Grove,599844|KS|1|Grove,2999904|RB|1|Grove,6999916|KS|1|Swamp,6159900|HC|1|Swamp,3639880|EX|27|Grove,5119584|MS|1|Grotto,6199596|MS|1|Grotto,5719620|HC|1|Grotto,5879616|KS|1|Grotto,6279880|KS|1|Swamp,5119900|EX|67|Swamp,39804|EX|9|Glades,28|EV|5|Mapstone,7839588|EX|51|Grotto,2999808|EC|1|Grove,3039696|SK|50|Blackroot,3119768|EX|33|Blackroot,-2200148|HC|1|Glades,-2240084|EX|53|Valley,4199828|EX|15|Grotto,32|AC|1|Mapstone,3439744|EX|44|Blackroot,-160096|EC|1|Grove,4239780|SK|5|Grotto,-480168|RB|13|Glades,-1560188|KS|1|Glades,-2160176|EX|50|Glades,3319936|KS|1|Grove,4759860|KS|1|Grotto,4319892|EX|82|Grotto,3639888|EC|1|Grove,5799932|EX|114|Swamp,4479832|EX|77|Grotto,5439640|EC|1|Grotto,5639752|EX|56|Grotto,0|EX|62|Grotto,4039612|AC|1|Grotto,3919624|EX|27|Grotto,4959628|EV|5|Grotto,4639628|EX|97|Grotto,4479568|EC|1|Grotto,7559600|EX|30|Grotto,3919688|EX|10|Blackroot,5399780|EX|32|Grotto,5119556|MS|1|Grotto,4439632|EX|40|Grotto,4359656|EX|52|Grotto,4919600|EX|97|Grotto,-1800088|EX|66|Valley,639888|EX|97|Grove,36|EV|5|Mapstone,2559800|EX|83|Glades,-2480280|EX|44|Glades,3199820|EC|1|Grove,1719892|RB|15|Grove,2599880|HC|1|Grove,4079964|EX|30|Swamp,4999892|KS|1|Swamp,5399808|KS|1|Grotto,5519856|EV|5|Grotto,3399820|EX|63|Grove,3279644|MS|1|Grotto,7199904|EV|5|Swamp,8599904|RB|0|Swamp,40|EX|99|Mapstone,799804|EX|22|Glades,6359836|EX|103|Swamp,4479704|EX|82|Grotto,5200140|AC|1|Ginso,5280264|KS|1|Ginso,5080304|MS|1|Ginso,5280296|EX|175|Ginso,5400100|EX|92|Ginso,6639952|KS|1|Swamp,2719900|EV|5|Grove,5320328|AC|1|Ginso,5320488|AC|1|Ginso,5080496|KS|1|Ginso,5400276|EC|1|Ginso,2759624|EV|5|Blackroot,959960|AC|1|Grove,6399872|EX|156|Swamp,4319860|EX|40|Grotto,4319676|AC|1|Blackroot,7679852|RB|0|Swamp,5359824|EX|148|Grotto,8839900|KS|1|Swamp,5160384|EX|118|Ginso,5280404|EX|153|Ginso,5360432|KS|1|Ginso,3879576|AC|1|Blackroot,3359580|KS|1|Blackroot,719620|KS|1|Blackroot,1759964|EX|125|Grove,2239640|AC|1|Blackroot,1240020|HC|1|Grove,559720|KS|1|Glades,39756|EX|73|Glades,-400240|RB|0|Glades,-3559936|EX|49|Valley,-4199936|HC|1|Valley,-3600088|AC|1|Valley,1839836|KS|1|Grove,3519820|KS|1|Grove,5919864|KS|1|Swamp,4199724|EX|171|Grotto,3559792|KS|1|Grotto,3359784|AC|1|Grove,-3200164|EX|155|Valley,3959588|KS|1|Grotto,7599824|KS|1|Swamp,6839792|EX|183|Swamp,7959788|HC|1|Swamp,8719856|EX|61|Swamp,4599508|KS|1|Blackroot,3039472|EV|5|Blackroot,5239456|EC|1|Blackroot,-4600020|MS|1|Valley,-5479948|EX|121|Sorrow,-6800032|KS|1|Misty,-8240012|EX|265|Misty,-2919980|AC|1|Valley,-5719844|EX|62|Sorrow,-5119796|EX|267|Sorrow,-4879680|EX|35|Sorrow,-5039728|RB|1|Sorrow,-5159700|MS|1|Sorrow,-5959772|KS|1|Sorrow,-9799980|EX|86|Misty,-10760004|RB|11|Misty,-10120036|EX|48|Misty,-10759968|HC|1|Misty,-4600188|EX|147|Valley,-4160080|EX|25|Valley,-4680068|RB|6|Valley,-3520100|KS|1|Valley,-5640092|EX|152|Valley,-6119704|EX|1|Sorrow,-4359680|EC|1|Sorrow,-8400124|EX|315|Misty,-7960144|EX|94|Misty,-9120036|EX|315|Misty,-7680144|AC|1|Misty,-11040068|AC|1|Misty,1720000|EC|1|Grove,2519668|EX|253|Blackroot,4560564|EC|1|Ginso,-6719712|EX|178|Sorrow,-6079672|EC|1|Sorrow,-6119656|RB|1|Sorrow,-6039640|EX|140|Sorrow,-6159632|EX|297|Sorrow,-6279608|EX|14|Sorrow,8|EX|9|Misty,44|AC|1|Mapstone,48|EV|5|Mapstone,-7040392|EX|62|Forlorn,-8440352|KS|1|Forlorn,-8920328|MS|1|Forlorn,-8880252|EX|256|Forlorn,-8720256|EX|154|Forlorn,5320660|EX|291|Ginso,5360732|AC|1|Ginso,5320824|AC|1|Ginso,5160864|KS|1|Ginso,4|EX|135|Ginso,6080608|AC|1|Ginso,-6799732|AC|1|Sorrow,-6319752|AC|1|Sorrow,-8160268|AC|1|Forlorn,-5160280|AC|1|Valley,-5400236|EX|236|Valley,-10839992|EX|284|Misty,7639816|AC|1|Swamp,-4559584|RB|6|Sorrow,-4159572|RB|13|Sorrow,-5479592|EX|382|Sorrow,-5919556|KS|1|Sorrow,-6280316|EV|5|Forlorn,12|EX|277|Forlorn,52|MS|1|Mapstone,1920384|KS|1|Horu,1480360|MS|1|Horu,2480400|EX|291|Horu,-6080316|AC|1|Forlorn,1880164|RB|12|Horu,2520192|AC|1|Horu,1600136|KS|1|Horu,-1919808|AC|1|Horu,-319852|AC|1|Horu,120164|EX|128|Horu,1280164|EX|115|Horu,960128|HC|1|Horu,3160244|EX|235|Horu,20|EC|1|Horu,1040112|AC|1|Horu,-8600356|AC|1|Forlorn,-6959592|EX|15|Sorrow,-6479528|HC|1|Sorrow,-4799416|EX|382|Sorrow,4680612|EV|5|Ginso,56|EX|322|Mapstone,-5159576|AC|1|Sorrow,16|EV|5|Sorrow,5040476|RB|21|Ginso,4559492|RB|19|Blackroot,399844|RB|19|Grove,-1680140|EV|5|Glades,9119928|EV|5|Swamp,2079568|EV|1|Blackroot,3279920|RB|17|Grove,-4600256|RB|21|Valley,-4440152|RB|21|Valley,919908|RB|17|Grove,1599920|RB|17|Grove,-11880100|RB|21|Misty,-5400104|EV|5|Valley,-6720040|RB|19|Misty,5039560|RB|17|Grotto,5280500|EV|5|Ginso,5160336|EV|5|Ginso"
+        seed = "Open,Standard,Clues,mode=Shared|shared=WorldEvents+Skills+Teleporters,-280256|EC|1|Glades,-1680104|EX|100|Grove,-12320248|TP|Ginso|Forlorn,-10440008|EX|100|Misty,799776|EV|5|Glades,-120208|EC|1|Glades,1519708|SH|@Skill For Player 1@|Blackroot,1799708|KS|1|Blackroot,1959768|RB|9|Blackroot,-1560272|KS|1|Glades,-600244|EX|46|Glades,-3160308|HC|1|Glades,-2840236|EX|15|Glades,-3360288|MS|1|Glades,-2480208|EX|6|Glades,-2400212|AC|1|Glades,-1840228|HC|1|Glades,919772|KS|1|Glades,-2200184|KS|1|Glades,-1800156|KS|1|Glades,24|KS|1|Mapstone,2919744|KS|1|Blackroot,-1840196|SK|2|Glades,-800192|AC|1|Glades,-2080116|SK|14|Valley,-560160|EX|32|Grove,1479880|AC|1|Grove,599844|KS|1|Grove,2999904|RB|1|Grove,6999916|KS|1|Swamp,6159900|HC|1|Swamp,3639880|EX|27|Grove,5119584|MS|1|Grotto,6199596|MS|1|Grotto,5719620|HC|1|Grotto,5879616|KS|1|Grotto,6279880|KS|1|Swamp,5119900|EX|67|Swamp,39804|EX|9|Glades,28|EV|5|Mapstone,7839588|EX|51|Grotto,2999808|EC|1|Grove,3039696|SK|50|Blackroot,3119768|EX|33|Blackroot,-2200148|HC|1|Glades,-2240084|EX|53|Valley,4199828|EX|15|Grotto,32|AC|1|Mapstone,3439744|EX|44|Blackroot,-160096|EC|1|Grove,4239780|SK|5|Grotto,-480168|RB|13|Glades,-1560188|KS|1|Glades,-2160176|EX|50|Glades,3319936|KS|1|Grove,4759860|KS|1|Grotto,4319892|EX|82|Grotto,3639888|EC|1|Grove,5799932|EX|114|Swamp,4479832|EX|77|Grotto,5439640|EC|1|Grotto,5639752|EX|56|Grotto,0|EX|62|Grotto,4039612|AC|1|Grotto,3919624|EX|27|Grotto,4959628|EV|5|Grotto,4639628|EX|97|Grotto,4479568|EC|1|Grotto,7559600|EX|30|Grotto,3919688|EX|10|Blackroot,5399780|EX|32|Grotto,5119556|MS|1|Grotto,4439632|EX|40|Grotto,4359656|EX|52|Grotto,4919600|EX|97|Grotto,-1800088|EX|66|Valley,639888|EX|97|Grove,36|EV|5|Mapstone,2559800|EX|83|Glades,-2480280|EX|44|Glades,3199820|EC|1|Grove,1719892|RB|15|Grove,2599880|HC|1|Grove,4079964|EX|30|Swamp,4999892|KS|1|Swamp,5399808|KS|1|Grotto,5519856|EV|5|Grotto,3399820|EX|63|Grove,3279644|MS|1|Grotto,7199904|EV|5|Swamp,8599904|RB|0|Swamp,40|EX|99|Mapstone,799804|EX|22|Glades,6359836|EX|103|Swamp,4479704|EX|82|Grotto,5200140|AC|1|Ginso,5280264|KS|1|Ginso,5080304|MS|1|Ginso,5280296|EX|175|Ginso,5400100|EX|92|Ginso,6639952|KS|1|Swamp,2719900|EV|5|Grove,5320328|AC|1|Ginso,5320488|AC|1|Ginso,5080496|KS|1|Ginso,5400276|EC|1|Ginso,2759624|EV|5|Blackroot,959960|AC|1|Grove,6399872|EX|156|Swamp,4319860|EX|40|Grotto,4319676|AC|1|Blackroot,7679852|RB|0|Swamp,5359824|EX|148|Grotto,8839900|KS|1|Swamp,5160384|EX|118|Ginso,5280404|EX|153|Ginso,5360432|KS|1|Ginso,3879576|AC|1|Blackroot,3359580|KS|1|Blackroot,719620|KS|1|Blackroot,1759964|EX|125|Grove,2239640|AC|1|Blackroot,1240020|HC|1|Grove,559720|KS|1|Glades,39756|EX|73|Glades,-400240|RB|0|Glades,-3559936|EX|49|Valley,-4199936|HC|1|Valley,-3600088|AC|1|Valley,1839836|KS|1|Grove,3519820|KS|1|Grove,5919864|KS|1|Swamp,4199724|EX|171|Grotto,3559792|KS|1|Grotto,3359784|AC|1|Grove,-3200164|EX|155|Valley,3959588|KS|1|Grotto,7599824|KS|1|Swamp,6839792|EX|183|Swamp,7959788|HC|1|Swamp,8719856|EX|61|Swamp,4599508|KS|1|Blackroot,3039472|EV|5|Blackroot,5239456|EC|1|Blackroot,-4600020|MS|1|Valley,-5479948|EX|121|Sorrow,-6800032|KS|1|Misty,-8240012|EX|265|Misty,-2919980|AC|1|Valley,-5719844|EX|62|Sorrow,-5119796|EX|267|Sorrow,-4879680|EX|35|Sorrow,-5039728|RB|1|Sorrow,-5159700|MS|1|Sorrow,-5959772|KS|1|Sorrow,-9799980|EX|86|Misty,-10760004|RB|11|Misty,-10120036|EX|48|Misty,-10759968|HC|1|Misty,-4600188|EX|147|Valley,-4160080|EX|25|Valley,-4680068|RB|6|Valley,-3520100|KS|1|Valley,-5640092|EX|152|Valley,-6119704|EX|1|Sorrow,-4359680|EC|1|Sorrow,-8400124|EX|315|Misty,-7960144|EX|94|Misty,-9120036|EX|315|Misty,-7680144|AC|1|Misty,-11040068|AC|1|Misty,1720000|EC|1|Grove,2519668|EX|253|Blackroot,4560564|EC|1|Ginso,-6719712|EX|178|Sorrow,-6079672|EC|1|Sorrow,-6119656|RB|1|Sorrow,-6039640|EX|140|Sorrow,-6159632|EX|297|Sorrow,-6279608|EX|14|Sorrow,8|EX|9|Misty,44|AC|1|Mapstone,48|EV|5|Mapstone,-7040392|EX|62|Forlorn,-8440352|KS|1|Forlorn,-8920328|MS|1|Forlorn,-8880252|EX|256|Forlorn,-8720256|EX|154|Forlorn,5320660|EX|291|Ginso,5360732|AC|1|Ginso,5320824|AC|1|Ginso,5160864|KS|1|Ginso,4|EX|135|Ginso,6080608|AC|1|Ginso,-6799732|AC|1|Sorrow,-6319752|AC|1|Sorrow,-8160268|AC|1|Forlorn,-5160280|AC|1|Valley,-5400236|EX|236|Valley,-10839992|EX|284|Misty,7639816|AC|1|Swamp,-4559584|RB|6|Sorrow,-4159572|RB|13|Sorrow,-5479592|EX|382|Sorrow,-5919556|KS|1|Sorrow,-6280316|EV|5|Forlorn,12|EX|277|Forlorn,52|MS|1|Mapstone,1920384|KS|1|Horu,1480360|MS|1|Horu,2480400|EX|291|Horu,-6080316|AC|1|Forlorn,1880164|RB|12|Horu,2520192|AC|1|Horu,1600136|KS|1|Horu,-1919808|AC|1|Horu,-319852|AC|1|Horu,120164|EX|128|Horu,1280164|EX|115|Horu,960128|HC|1|Horu,3160244|EX|235|Horu,20|EC|1|Horu,1040112|AC|1|Horu,-8600356|AC|1|Forlorn,-6959592|EX|15|Sorrow,-6479528|HC|1|Sorrow,-4799416|EX|382|Sorrow,4680612|EV|5|Ginso,56|EX|322|Mapstone,-5159576|AC|1|Sorrow,16|EV|5|Sorrow,5040476|RB|21|Ginso,4559492|RB|19|Blackroot,399844|RB|19|Grove,-1680140|EV|5|Glades,9119928|EV|5|Swamp,2079568|EV|1|Blackroot,3279920|RB|17|Grove,-4600256|RB|21|Valley,-4440152|RB|21|Valley,919908|RB|17|Grove,1599920|RB|17|Grove,-11880100|RB|21|Misty,-5400104|EV|5|Valley,-6720040|RB|19|Misty,5039560|RB|17|Grotto,5280500|EV|5|Ginso,5160336|EV|5|Ginso"
         lines = seed.split(",")
         flags = lines[0].split("|")
         mode_opt = [f[5:] for f in flags if f.lower().startswith("mode=")]
         shared_opt = [f[7:].split("+") for f in flags if f.lower().startswith("shared=")]
-        mode = MultiplayerGameType(mode_opt[0]) if mode_opt else None
+        mode = mode_opt[0] if mode_opt else None
         shared = shared_opt[0] if shared_opt else None
         for l in lines[1:]:
             line = l.split("|")
@@ -750,10 +756,10 @@ class MapTest(RequestHandler):
             player.put()
         url = uri_for("map-render", game_id=game_id, from_test=1)
         return redirect(url)
-        #self.response.out.write("""<html><head><script> open('%s'); </script></head><body/></html>""" % url)
-            
+
+
 class LogicHelper(RequestHandler):
-    def get(self):    
+    def get(self):
         path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
         template_values = {'app': "logicHelper", 'title': "Logic Helper!", 'is_spoiler': "True",
                            'pathmode': paramVal(self, 'pathmode'), 'HC': paramVal(self, 'HC'),
@@ -766,7 +772,7 @@ class ReactLanding(RequestHandler):
         user = users.get_current_user()
         dispname = user.email().partition("@")[0] if user else ""
         path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
-        template_values = {'app': "mainPage", 'dll_last_update': dll_last_update(), 'title': "Ori DE Randomizer", 'user': dispname}
+        template_values = {'app': "mainPage", 'dll_last_update': "N/A", 'title': "Ori DE Randomizer", 'user': dispname}
         self.response.out.write(template.render(path, template_values))
 
 
@@ -865,14 +871,6 @@ class PicksByTypeGen(RequestHandler):
         self.response.out.write(picks_by_type_generator())
         return
 
-class SeedAnalysis(RequestHandler):
-    def get(self):
-        path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
-        template_values = {'app': "seedAnalysis", 'title': "seedAnalysis tool"}
-        self.response.out.write(template.render(path, template_values))
-        return
-        
-        
 app = WSGIApplication(routes=[
     # testing endpoints
     PathPrefixRoute('/tests', [
@@ -882,7 +880,6 @@ app = WSGIApplication(routes=[
     ]),
     Route('/tests', redirect_to_name='tests-run'),
     Route('/picksbytype', handler=PicksByTypeGen, name='picks-by-type-gen', strict_slash=True),
-    Route('/analysis', handler=SeedAnalysis, name='seed-analysis', strict_slash=True),
 
     PathPrefixRoute('/generator', [
         Route('/build', handler=MakeSeedWithParams, name="gen-params-build", strict_slash=True),
@@ -926,25 +923,13 @@ app = WSGIApplication(routes=[
     (r'/logout/?', HandleLogout),
     ('/vanilla', Vanilla),
 
-    # new update game endpoints (add to dll asap)
-    PathPrefixRoute('/netcode/game/<game_id:\d+>/player/<player_id>', [
-        Route('/found/<coords:-?\d+>/<kind>/<id>', handler=FoundPickup, name="netcode-player-found-pickup"),
+    # new netcode endpoints
+    PathPrefixRoute('/netcode/game/<game_id:\d+>/player/<player_id:[^/]+>', [
+        Route('/found/<coords>/<kind>/<id>', handler=FoundPickup, name="netcode-player-found-pickup"),
         Route('/tick/<x:[^,]+>,<y>', handler=GetUpdate, name="netcode-player-tick"),
         Route('/callback/<signal>', handler=SignalCallback,  name="netcode-player-signal-callback"),
+        Route('/setSeed', handler=SetSeed,  name="netcode-player-set-seed"),
     ]),
-
-
-
-
-    # old game update endpoints (leave until merge...)
-
-#    Route('/<\d+\.\w+>/<-?\d+>/(SH)/<[^?=/]+>', handler=FoundPickup, handler_method="old"),
-    Route('/<game_id:\d+>.<player_id>/<coords:-?\d+>/<kind>/<id>', handler=FoundPickup, handler_method="old"),
-    (r'/(\d+)\.(\w+)/(-?\d+\.?\d*),(-?\d+\.?\d*)/', GetUpdate),
-    (r'/(\d+)\.(\w+)/signalCallback/(.*)', SignalCallback),
-    
-    # pre item refactor
-    (r'/(\d+)\.(\w+)/(-?\d+\.?\d*),(-?\d+\.?\d*)', Update),
 
     # new game endpoints 
     PathPrefixRoute('/game/<game_id:\d+>', [
@@ -954,23 +939,6 @@ app = WSGIApplication(routes=[
         Route('/player/(\w+)/remove', handler = RemovePlayer, strict_slash=True, name="game-remove-player"),
         Route('/', redirect_to_name="game-show-history"),
     ]),
-
-
-    # old game endpoints 
-    (r'/(\d+)/delete', DeleteGame),
-    (r'/(\d+)/history/?', ShowHistory),
-    (r'/(\d+)/players', ListPlayers),
-    (r'/(\d+)\.(\w+)/remove', RemovePlayer),
-    (r'/(\d+)/?', HistPrompt),
-
-#    Route('/map/game/<game_id:\d+>', handler=ShowMap, name='map-render'),
-    # old map endpoints (todo: remove)
-    (r'/(\d+)/map/?', ShowMap),
-    (r'/(\d+)/_getPos', GetPlayerPositions),
-    (r'/(\d+)/_seen', GetSeenLocs),
-    (r'/(\d+)\.(\w+)/_seed', GetSeed),
-    (r'/(\d+)\.(\w+)/setSeed', SetSeed),
-    (r'/(\d+)/_reachable', GetReachable),
 
     # plando endpoints
     (r'/plando/reachable', PlandoReachable),

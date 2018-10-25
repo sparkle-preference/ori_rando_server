@@ -15,7 +15,9 @@ libraries:
   version: "latest" 
 - name: enum
   version: "latest"
-  
+- name: yaml
+  version: "latest"
+
 handlers:
 - url: /sprites
   static_dir: sprites

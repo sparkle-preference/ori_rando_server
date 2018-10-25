@@ -1,195 +1,125 @@
-from protorpc import messages
-
 import sys,os
-LIBS = os.path.join(os.path.dirname(os.path.realpath(__file__)),"lib")
+import logging as log
+LIBS = os.path.join(os.path.dirname(os.path.realpath(__file__)), "lib")
 if LIBS not in sys.path:
-	sys.path.insert(0, LIBS)
+    sys.path.insert(0, LIBS)
+
 from enum import Enum
 
 class StrEnum(str, Enum):
-	@classmethod
-	def mk(cls, val):
-		try:
-			return cls(val)
-		except ValueError:
-			return None
+    @classmethod
+    def mk(cls, val, try_others=True):
+        if val is None:
+            log.warning("None is not a valid %s, returning None" % cls)
+            return None
+        try:
+            return cls(val)
+        except ValueError:
+            if try_others:
+                for other in [val.lower(), val.capitalize(), val.upper()]:
+                    res = cls.mk(other, False)
+                    if res:
+                        return res
+            log.warning("%s is not a valid %s, returning None" % (val, cls))
+            return None
 
-
-class NDB_MultiGameType(messages.Enum):
-	SHARED = 1
-	SWAPPED = 2
-	SPLITSHARDS = 3
-	SIMUSOLO = 4
-
-ndbMultiTypeByName = { v.name:v for v in NDB_MultiGameType }
-
-	
 class MultiplayerGameType(StrEnum):
-	SHARED = "Shared"
-	SWAPPED = "Swap"
-	SPLITSHARDS = "Split"
-	SIMUSOLO = "None"
-	
-	def is_dedup(self): return self in [MultiplayerGameType.SHARED, MultiplayerGameType.SWAPPED]
-	def to_ndb(self): return ndbMultiTypeByName.get(self.name, None)
-	@classmethod
-	def from_ndb(clazz, ndb_val):
-		if ndb_val:
-			return {x.name: x for x in clazz.__members__.values()}[ndb_val.name]
-				
-class NDB_ShareType(messages.Enum):
-	NOT_SHARED = 1	
-	DUNGEON_KEY = 2
-	UPGRADE = 3
-	SKILL = 4
-	EVENT = 5
-	TELEPORTER = 6
+    SHARED = "Shared"
+    SPLITSHARDS = "SplitShards"
+    SIMUSOLO = "None"
 
-ndbShareTypeByName = { v.name:v for v in NDB_ShareType }
+    def is_dedup(self): return self in [MultiplayerGameType.SHARED]
+
+
 
 class ShareType(StrEnum):
-	NOT_SHARED = "Unshareable"
-	DUNGEON_KEY = "Keys"
-	UPGRADE = "Upgrades"
-	SKILL = "Skills"
-	EVENT = "Events"
-	TELEPORTER = "Teleporters"
-	
-	def to_ndb(self): return ndbShareTypeByName.get(self.name, None)
-	@classmethod
-	def from_ndb(clazz, ndb_val):
-		if ndb_val:
-			return {x.name: x for x in clazz.__members__.values()}[ndb_val.name]
-		
-
-
-class NDB_Variation(messages.Enum):
-	FORCE_TREES = 1
-	HARDMODE = 2
-	NO_TELEPORTERS = 3
-	STARVED = 4
-	ONE_HIT_KO = 5
-	NO_PLANTS = 6
-	DISCRETE_MAPSTONES = 7
-	ZERO_EXP = 8
-	ENTRANCE_SHUFFLE = 9
-	FORCE_MAPSTONES = 10
-	FORCE_RANDOM_ESCAPE = 11
-	EXTRA_BONUS_PICKUPS = 12
-
+    NOT_SHARED = "Unshareable"
+    UPGRADE = "Upgrades"
+    SKILL = "Skills"
+    EVENT = "WorldEvents"
+    TELEPORTER = "Teleporters"
+    MISC = "Misc"
 
 oldFlags = {"starved": "Starved", "hardmode": "Hard", "ohko": "OHKO", "0xp": "0XP",  "noplants": "NoPlants", "forcetrees": "ForceTrees", "discmaps": "NonProgressMapStones", "notp": "NoTeleporters", "entshuf": "Entrance", "wild": "BonusPickups", "forcemapstones": "ForceMapStones", "forcerandomescape": "ForceRandomEscape"}
-ndbVarByName = { v.name:v for v in NDB_Variation }
 
 class Variation(StrEnum):
-	ZERO_EXP = "0XP"
-	DISCRETE_MAPSTONES = "NonProgressMapStones"
-	ENTRANCE_SHUFFLE = "Entrance"
-	FORCE_MAPSTONES = "ForceMapStones"
-	FORCE_RANDOM_ESCAPE = "ForceRandomEscape"
-	FORCE_TREES = "ForceTrees"
-	HARDMODE = "Hard"
-	NO_PLANTS = "NoPlants"
-	NO_TELEPORTERS = "NoTeleporters"
-	ONE_HIT_KO = "OHKO"
-	STARVED = "Starved"
-	EXTRA_BONUS_PICKUPS = "BonusPickups"
-	@staticmethod
-	def from_old(old):
-		low = old.lower()
-		if low not in oldFlags:
-			return None
-		return Variation(oldFlags[old])
-	@classmethod
-	def from_ndb(clazz, ndb_val):
-		if ndb_val:
-			return {x.name: x for x in clazz.__members__.values()}[ndb_val.name]
-	def to_ndb(self):
-		return ndbVarByName.get(self.name, None)
-
-
-class NDB_LogicPath(messages.Enum):
-	NORMAL = 1
-	SPEED = 2
-	LURE = 3
-	SPEED_LURE = 4
-	DBOOST = 5
-	DBOOST_LIGHT = 6
-	DBOOST_HARD = 7
-	CDASH = 8
-	CDASH_FARMING = 9
-	DBASH = 10
-	EXTENDED = 11
-	LURE_HARD = 12
-	TIMED_LEVEL = 13
-	GLITCHED = 14
-	EXTENDED_DAMAGE = 15
-	EXTREME = 16
-
-ndbLPByName = { v.name:v for v in NDB_LogicPath }
+    ZERO_EXP = "0XP"
+    DISCRETE_MAPSTONES = "NonProgressMapStones"
+    ENTRANCE_SHUFFLE = "Entrance"
+    FORCE_MAPSTONES = "ForceMapStones"
+    FORCE_TREES = "ForceTrees"
+    HARDMODE = "Hard"
+    ONE_HIT_KO = "OHKO"
+    STARVED = "Starved"
+    EXTRA_BONUS_PICKUPS = "BonusPickups"
+    OPEN_MODE = "Open"
+    WORLD_TOUR = "WorldTour"
+    WARMTH_FRAGMENTS = "WarmthFrags"
+    DOUBLE_SKILL = "DoubleSkills"
+    STRICT_MAPSTONES = "StrictMapstones"
+    @staticmethod
+    def from_old(old):
+        low = old.lower()
+        if low not in oldFlags:
+            return None
+        return Variation(oldFlags[old])
 
 class LogicPath(StrEnum):
-	NORMAL = "normal"
-	SPEED = "speed"
-	LURE = "lure"
-	SPEED_LURE = "speed-lure"
-	DBOOST = "dboost"
-	DBOOST_LIGHT = "dboost-light"
-	DBOOST_HARD = "dboost-hard"
-	CDASH = "cdash"
-	CDASH_FARMING = "cdash-farming"
-	DBASH = "dbash"
-	EXTENDED = "extended"
-	LURE_HARD = "lure-hard"
-	TIMED_LEVEL = "timed-level"
-	GLITCHED = "glitched"
-	EXTENDED_DAMAGE = "extended-damage"
-	EXTREME = "extreme"
-	@classmethod
-	def from_ndb(clazz, ndb_val):
-		if ndb_val:
-			return {x.name: x for x in clazz.__members__.values()}[ndb_val.name]
-	def to_ndb(self):
-		return ndbLPByName.get(self.name, None)
-
-
-class NDB_KeyMode(messages.Enum):
-	SHARDS = 1
-	CLUES = 2
-	LIMITKEYS = 3
-	WARMTH_FRAGS = 4
-	NONE = 5
-
-ndbKMByName = { v.name:v for v in NDB_KeyMode }
+    CASUAL_CORE = 'casual-core'
+    CASUAL_DBOOST = 'casual-dboost'
+    STANDARD_CORE = 'standard-core'
+    STANDARD_DBOOST = 'standard-dboost'
+    STANDARD_LURE = 'standard-lure'
+    STANDARD_ABILITIES = 'standard-abilities'
+    EXPERT_CORE = 'expert-core'
+    EXPERT_DBOOST = 'expert-dboost'
+    EXPERT_LURE = 'expert-lure'
+    EXPERT_ABILITIES = 'expert-abilities'
+    DBASH = 'dbash'
+    MASTER_CORE = 'master-core'
+    MASTER_DBOOST = 'master-dboost'
+    MASTER_LURE = 'master-lure'
+    MASTER_ABILITIES = 'master-abilities'
+    GJUMP = 'gjump'
+    GLITCHED = 'glitched'
+    TIMED_LEVEL = 'timed-level'
+    INSANE = 'insane'
 
 class KeyMode(StrEnum):
-	SHARDS = "Shards"
-	CLUES = "Clues"
-	LIMITKEYS = "Limitkeys"
-	WARMTH_FRAGS = "Frags"
-	NONE = "Default"
-	@classmethod
-	def from_ndb(clazz, ndb_val):
-		if ndb_val:
-			return {x.name: x for x in clazz.__members__.values()}[ndb_val.name]
-	def to_ndb(self):
-		return ndbKMByName.get(self.name, None)
-
-class NDB_PathDiff(messages.Enum):
-	NORMAL = 1
-	EASY = 2
-	HARD = 3
-
-ndbPMByName = { v.name:v for v in NDB_PathDiff }
+    SHARDS = "Shards"
+    CLUES = "Clues"
+    LIMITKEYS = "Limitkeys"
+    FREE = "Free"
+    NONE = "Default"
 
 class PathDifficulty(StrEnum):
-	EASY = "Easy"
-	NORMAL = "Normal"
-	HARD = "Hard"
-	@classmethod
-	def from_ndb(clazz, ndb_val):
-		if ndb_val:
-			return {x.name: x for x in clazz.__members__.values()}[ndb_val.name]
-	def to_ndb(self): return ndbPMByName.get(self.name, None)
+    EASY = "Easy"
+    NORMAL = "Normal"
+    HARD = "Hard"
 
-ndbPMByName = { v.name:v for v in NDB_PathDiff }
+presets = {
+    "Casual": {LogicPath.CASUAL_CORE, LogicPath.CASUAL_DBOOST},
+    "Standard": {
+        LogicPath.CASUAL_CORE, LogicPath.CASUAL_DBOOST, 
+        LogicPath.STANDARD_CORE, LogicPath.STANDARD_DBOOST, LogicPath.STANDARD_LURE, LogicPath.STANDARD_ABILITIES
+        },
+    "Expert": {
+        LogicPath.CASUAL_CORE, LogicPath.CASUAL_DBOOST, 
+        LogicPath.STANDARD_CORE, LogicPath.STANDARD_DBOOST, LogicPath.STANDARD_LURE, LogicPath.STANDARD_ABILITIES,
+        LogicPath.EXPERT_CORE, LogicPath.EXPERT_DBOOST, LogicPath.EXPERT_LURE, LogicPath.EXPERT_ABILITIES, LogicPath.DBASH
+        },
+    "Master": {
+            LogicPath.CASUAL_CORE, LogicPath.CASUAL_DBOOST, 
+            LogicPath.STANDARD_CORE, LogicPath.STANDARD_DBOOST, LogicPath.STANDARD_LURE, LogicPath.STANDARD_ABILITIES,
+            LogicPath.EXPERT_CORE, LogicPath.EXPERT_DBOOST, LogicPath.EXPERT_LURE, LogicPath.EXPERT_ABILITIES, LogicPath.DBASH,
+            LogicPath.MASTER_CORE, LogicPath.MASTER_DBOOST, LogicPath.MASTER_LURE, LogicPath.MASTER_ABILITIES, LogicPath.GJUMP
+        },
+    "Glitched": {
+            LogicPath.CASUAL_CORE, LogicPath.CASUAL_DBOOST, 
+            LogicPath.STANDARD_CORE, LogicPath.STANDARD_DBOOST, LogicPath.STANDARD_LURE, LogicPath.STANDARD_ABILITIES,
+            LogicPath.EXPERT_CORE, LogicPath.EXPERT_DBOOST, LogicPath.EXPERT_LURE, LogicPath.EXPERT_ABILITIES, LogicPath.DBASH,
+            LogicPath.MASTER_CORE, LogicPath.MASTER_DBOOST, LogicPath.MASTER_LURE, LogicPath.MASTER_ABILITIES, LogicPath.GJUMP,
+            LogicPath.GLITCHED, LogicPath.TIMED_LEVEL
+        }
+    }
+

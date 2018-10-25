@@ -8,12 +8,11 @@ const noneTitle = "Confused?"
 const noneSub = "Mouse over anything to learn more!"
 const noneLines = ["Additional context-specific information will appear here as you interact with the UI."]
 
-
 const getHelpContent = (category, option) => {
-	let lines = noneLines;
-	let title = noneTitle;
-	let subtitle = noneSub;
-	let extra = []
+	let lines = ["placeholder"];
+    let title = option;
+	let subtitle = category;  
+	let extra = [];
 	switch(category ) {
 		case "logicModes":	
 			subtitle = "Logic Modes"

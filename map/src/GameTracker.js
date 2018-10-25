@@ -15,16 +15,20 @@ import {Helmet} from 'react-helmet';
 const paths = Object.keys(presets);
 const game_id = document.getElementsByClassName("game-id")[0].id;
 
-const EMPTY_PLAYER = {seed: {}, pos: [0,0], seen:[], flags: ["show_marker", "hide_found", "hide_unreachable"], areas: []}
+const EMPTY_PLAYER = {seed: {}, open: false, pos: [0,0], seen:[], flags: ["show_marker", "hide_found", "hide_unreachable"], areas: []}
 
 function parse_seed(raw) {
 	let out = {}
+    let open = false;
 	let lines = raw.split("\n")
     for (let i = 0, len = lines.length; i < len; i++) {
     	let line = lines[i].split(":")
     	out[parseInt(line[0], 10)] = (line[1] === "Message" ? line[2] : line[1])
+        if(line[1] === "Ginso teleporter") {
+            open = true;
+        }
 	}
-	return out
+	return {seed: out, open: open};
 };
 
 
@@ -140,7 +144,7 @@ function getPickupMarkers(state) {
 	});
 	
 	let hideOpt = state.hideOpt;
-	let pickupTypes = (state.pickup_display === "Some") ? state.pickups : ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "Ma"];
+	let pickupTypes = (state.pickup_display === "Some") ? state.pickups : ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "Ma", "CS"];
 	let searchStr = (state.searchStr || "").toLowerCase();
 	let markers = []
 	let msTT = getMapstoneToolTip(players);
@@ -236,12 +240,12 @@ class GameTracker extends React.Component {
   constructor(props) {
     super(props)
     let modeRaw = document.getElementsByClassName("logic-modes")[0].id
-    let modes = ['normal', 'speed', 'dboost-light', 'lure'];
+    let modes = presets['standard'];
     if(modeRaw !== "None"){
         modes = modeRaw.split(" ");
     }
     this.state = {mousePos: {lat: 0, lng: 0}, players: {}, retries: 0, check_seen: 1, modes: modes, timeout: TIMEOUT_START, searchStr: "", pickup_display: "all", show_sidebar: true,
-    flags: ['show_pickups', 'update_in_bg'], viewport: DEFAULT_VIEWPORT, pickups: ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "Ma"],
+    flags: ['show_pickups', 'update_in_bg'], viewport: DEFAULT_VIEWPORT, pickups: ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "Ma", "CS"],
     pathMode: get_preset(modes), hideOpt: "all", display_logic: (modeRaw !== "None")};
   };
 
@@ -259,7 +263,7 @@ class GameTracker extends React.Component {
   	if(this.state.check_seen === 0) {
 	  	this.setState({check_seen: 5});
 		getSeen((p) => this.setState(p), this.timeout);
-		getReachable((p) => this.setState(p),this.state.modes.join("+"), this.timeout);
+		this.getReachable(this.state.modes.join("+"), this.timeout);
 		Object.keys(this.state.players).forEach((id) => {
 			if(Object.keys(this.state.players[id].seed).length < 50)
 				getSeed((p) => this.setState(p), id, this.timeout);
@@ -285,7 +289,7 @@ class GameTracker extends React.Component {
 				players[id].areas = []
 			});
 		return {players: players, modes: paths, pathMode: get_preset(paths)}
-		}, () => getReachable((p) => this.setState(p),this.state.modes.join("+"), this.timeout))
+		}, () => this.getReachable(this.state.modes.join("+"), this.timeout))
 		
 toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
 
@@ -366,6 +370,7 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
 								<label><Checkbox value="KS" />Keystones</label>
 								<label><Checkbox value="EX" />Exp Orbs</label>
 								<label><Checkbox value="Ma" />Mapstone turnins</label>
+								<label><Checkbox value="CS" />Special/Cutscenes</label>
 				    		</CheckboxGroup>
 						</Collapse>
 					</div>
@@ -395,6 +400,28 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
 			</div>
 		)
 	}
+    getReachable = (modes, timeout) => {
+     var onRes = (res) => {
+            	let areas = JSON.parse(res);
+				this.setState(prevState => {
+					let players = prevState.players
+					Object.keys(areas).forEach(id => {
+						if(!players.hasOwnProperty(id)){
+							players[id] = {...EMPTY_PLAYER};
+						}
+						Object.keys(areas[id]).forEach(area => {                            
+							players[id].areas = uniq(players[id].areas.concat(area))
+						});
+					})
+					return {players: players, retries: 0, timeout: TIMEOUT_START}
+				})
+    }
+    if(this.state.open) {
+        modes +="+OPEN"
+    }
+    doNetRequest(onRes, this.setState, "/tracker/game/"+game_id+"/fetch/reachable?modes="+modes, timeout)
+}
+
 };
 
 function doNetRequest(onRes, setter, url, timeout)
@@ -417,63 +444,27 @@ function getSeed(setter, pid, timeout)
      var onRes = (res) => {
 				setter((prevState, props) => {
 					let retVal = prevState.players;
-					retVal[pid].seed = parse_seed(res);
-					return {players:retVal, retries: 0, timeout: TIMEOUT_START}
+					let {seed, open} = parse_seed(res);
+                    retVal[pid].seed = seed;
+					return {players:retVal, open: open, retries: 0, timeout: TIMEOUT_START}
 				});
             }
      doNetRequest(onRes, setter, "/tracker/game/"+game_id+"/fetch/player/"+pid+"/seed", timeout)
 }
 
-
-
-function getReachable(setter, modes, timeout) {
-     var onRes = (res) => {
-            	let areas = {};
-            	let raw = res.split("|");
-            	for (let i = 0, len = raw.length; i < len; i++) {
-            		let withid = raw[i].split(":");
-            		if(withid[1] === "")
-            			continue;
-            		let id = withid[0];
-					areas[id] = withid[1].split(",").map((raw) => raw.split("#")[0]);
-				}
-				setter((prevState) => {
-					let players = prevState.players
-					Object.keys(areas).forEach((id) => {
-						if(!players.hasOwnProperty(id)){
-							players[id] = {...EMPTY_PLAYER};
-						}
-						areas[id].forEach(area => {
-							players[id].areas = uniq(players[id].areas.concat(area))
-						});
-					})
-					return {players:players, retries: 0, timeout: TIMEOUT_START}
-				})
-    }
-    doNetRequest(onRes, setter, "/tracker/game/"+game_id+"/fetch/reachable?modes="+modes, timeout)
-}
-
 function getSeen(setter, timeout)
 {
      var onRes = (res) => {
-            	let seens = {};
-            	let raw = res.split("|");
-            	for (let i = 0, len = raw.length; i < len; i++) {
-            		let withid = raw[i].split(":");
-            		if(withid[1] === "")
-            			continue;
-            		let id = withid[0];
-					seens[id] = withid[1].split(",").map(i => parseInt(i, 10));
-				}
-				setter((prevState, props) => {
-					let retVal = prevState.players
-					Object.keys(seens).forEach((id) => {
-						if(!retVal.hasOwnProperty(id)){
-							retVal[id] = {...EMPTY_PLAYER};
+            	let seens = JSON.parse(res);
+				setter(prevState => {
+					let players = prevState.players
+					Object.keys(seens).forEach(id => {
+						if(!players.hasOwnProperty(id)){
+							players[id] = {...EMPTY_PLAYER};
 						}
-						retVal[id].seen = seens[id]
+						players[id].seen = seens[id]
 					})
-					return {players:retVal, retries: 0, timeout: TIMEOUT_START}
+					return {players: players, retries: 0, timeout: TIMEOUT_START}
 				})
     }
     doNetRequest(onRes, setter, "/tracker/game/"+game_id+"/fetch/seen", timeout)
@@ -483,26 +474,18 @@ function getSeen(setter, timeout)
 function getPlayerPos(setter, timeout)
 {
      var onRes = (res) => {
-            	let player_positions = {};
-            	let rawpos = res.split("|");
-            	for (let i = 0, len = rawpos.length; i < len; i++) {
-            		let withid = rawpos[i].split(":");
-            		let id = withid[0];
-            		let pos = withid[1].split(",");
-					player_positions[id] = [pos[1]*1.0, pos[0]*1.0];
-				}
-				setter((prevState, props) => {
-					let retVal = prevState.players
-					Object.keys(player_positions).forEach((id) => {
-						if(!retVal.hasOwnProperty(id))
-							retVal[id] = {...EMPTY_PLAYER};
-						retVal[id].pos = player_positions[id]
+            	let player_positions = JSON.parse(res);
+				setter(prevState => {
+					let players = prevState.players
+					Object.keys(player_positions).forEach(id => {
+						if(!players.hasOwnProperty(id))
+							players[id] = {...EMPTY_PLAYER};
+						players[id].pos = player_positions[id]
 					})
-					return {players:retVal, retries: 0, timeout: TIMEOUT_START}
+					return {players: players, retries: 0, timeout: TIMEOUT_START}
 				})
     }
     doNetRequest(onRes, setter, "/tracker/game/"+game_id+"/fetch/pos", timeout)
 }
-
 
 export default GameTracker;

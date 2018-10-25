@@ -4,7 +4,7 @@ import {LayerGroup, ZoomControl, Map, Tooltip, TileLayer} from 'react-leaflet';
 import Leaflet from 'leaflet';
 import {Checkbox, CheckboxGroup} from 'react-checkbox-group';
 import {stuff_by_type, picks_by_type, presets, picks_by_area, pickup_name, PickupMarkersList, get_icon, getMapCrs, 
-		name_from_str, get_int, get_list, str_ids, select_styles, select_wrap} from './shared_map.js';
+		name_from_str, get_int, get_list, str_ids, select_styles, select_wrap, logic_paths} from './shared_map.js';
 import NumericInput from 'react-numeric-input';
 import Select from 'react-select';
 import {Button, ButtonGroup, Collapse} from 'reactstrap';
@@ -31,7 +31,7 @@ const DEFAULT_VIEWPORT = {
 }
 
 const paths = Object.keys(presets);
-const releveant_picks = ["RB|15","RB|17","RB|19","RB|21", "HC|1", "EC|1", "KS|1", "MS|1", 'SK|0', 'SK|51', 'SK|2', 'SK|3', 'SK|4', 'SK|5', 'SK|8', 'SK|12', 'SK|50', 'SK|14', 'TP|Lost', 'TP|Grotto', 'TP|Grove', 'TP|Forlorn', 'TP|Sorrow', 'TP|Swamp', 'TP|Valley', 'EV|0', 'EV|1', 'EV|2', 'EV|3', 'EV|4']
+const releveant_picks = ["RB|15","RB|17","RB|19","RB|21", "HC|1", "EC|1", "KS|1", "MS|1", "AC|1", 'SK|0', 'SK|51', 'SK|2', 'SK|3', 'SK|4', 'SK|5', 'SK|8', 'SK|12', 'SK|50', 'SK|14', 'TP|Lost', 'TP|Grotto', 'TP|Grove', 'TP|Forlorn', 'TP|Sorrow', 'TP|Swamp', 'TP|Valley', 'EV|0', 'EV|1', 'EV|2', 'EV|3', 'EV|4']
 
 // patch picks_by_area to include mapstone areas because haha fuck
 picks_by_type["Ma"].forEach(pick => {
@@ -43,6 +43,7 @@ const xml_name_to_code = {
 'MS': 'MS|1',
 'EC': 'EC|1',
 'HC': 'HC|1',
+'AC': 'AC|1',
 'TPSwamp': 'TP|Swamp',
 'TPGrove': 'TP|Grove',
 'TPGrotto': 'TP|Grotto',
@@ -71,12 +72,13 @@ const dev = window.document.URL.includes("devshell")
 function get_manual_reach() {
 	let HC = get_int("HC", 0);
     let EC = get_int("EC", 0);
+    let AC = get_int("AC", 0);
     let KS = get_int("KS", 0);
     let MS = get_int("MS", 0);
     let skills = get_list("SK"," ").map(skill => { let parts = skill.split("|"); return {label: pickup_name(parts[0], parts[1]), value: skill}; });
     let evs = get_list("EV"," ").map(event => { let parts = event.split("|"); return {label: pickup_name(parts[0], parts[1]), value: event}; });
     let tps  = get_list("TP"," ").map(tp => {return {label: tp.substr(3) + " TP", value: tp}; });
-    return {HC: HC, EC: EC, KS: KS, MS: MS, skills: skills, tps: tps, evs: evs};
+    return {HC: HC, EC: EC, AC: AC, KS: KS, MS: MS, skills: skills, tps: tps, evs: evs};
 }
 
 (function(){
@@ -290,11 +292,7 @@ class LogicHelper extends React.Component {
 	        modes = presets['standard'];
 	    }
 
-	    if(Object.keys(manual_reach).some(key => Array.isArray(manual_reach[key]) ? manual_reach[key].length > 0 : manual_reach[key] > 0 ))
-			this.setState({searchStr: search, modes: modes, pathMode: {label: pathmode, value: pathmode}, manual_reach: manual_reach}, () => {this.updateReachable() ; this.updateURL()})
-		else
-			this.setState({searchStr: search, modes: modes, pathMode: {label: pathmode, value: pathmode}, manual_reach: manual_reach}, this.updateURL)
-
+		this.setState({modes: modes, search: search, pathMode: {label: pathmode, value: pathmode}, manual_reach: manual_reach}, () => {this.updateReachable() ; this.updateURL()})
 	};
 
 	onDragEnter = () => this.setState({dropzoneActive: true});
@@ -422,7 +420,7 @@ class LogicHelper extends React.Component {
   					});
 	  		});
 		} else {
-			["HC", "EC", "KS", "MS"].forEach((code) => {
+			["HC", "EC", "AC", "KS", "MS"].forEach((code) => {
 				if(this.state.manual_reach[code] > 0)
 					reachableStuff[code+"|1"] = this.state.manual_reach[code];
 			});
@@ -442,6 +440,7 @@ class LogicHelper extends React.Component {
 
 	onViewportChanged= (viewport) => this.setState({viewport: viewport})
 	onSearch = (e) => this.setState({searchStr: e.target.value}, this.updateURL)
+    modesChanged = (m) => this.setState({modes: m}, () => { this.updateURL() ; this.resetReachable()});
 	onPathModeChange = (n) => this.setState({modes: presets[n.value], pathMode: n}, () => { this.updateURL() ; this.resetReachable()});
 	resetReachable = () => this.setState({ reachable: {...DEFAULT_REACHABLE}, new_areas: {...DEFAULT_REACHABLE}, selected: "", selected_area: "", highlight_picks: [], history: {}, step: 0}, () => (this.state.logicMode === "auto") ? null : this.updateReachable())
 	unloadSeed = () => this.setState({hasSeed: false, placements: {...DEFAULT_DATA}, logicMode: "manual"}, this.resetReachable)
@@ -490,7 +489,7 @@ class LogicHelper extends React.Component {
 						</div>
 					</div>
 				) : ( <h6>Drag and drop your seed file onto the map to upload</h6> );
-
+        let logic_path_boxes = logic_paths.map(lp => {return (<label className="checkbox-label"><Checkbox value={lp} />{lp}</label>)});
 		return (
 	      <Dropzone className="wrapper" disableClick onDrop={this.onDrop} onDragEnter={this.onDragEnter} onDragLeave={this.onDragLeave} >
           { dropzoneActive && <div style={overlay_style}>Import your randomizer.dat to begin analysis</div> }
@@ -532,6 +531,10 @@ class LogicHelper extends React.Component {
 									<NumericInput min={0} value={this.state.manual_reach.EC} onChange={(n) => this.updateManual("EC",n)}></NumericInput>
 								</div>
 								<div className="manual-wrapper">
+									<span className="label">Ability Cells:</span>
+									<NumericInput min={0} value={this.state.manual_reach.AC} onChange={(n) => this.updateManual("AC",n)}></NumericInput>
+								</div>
+								<div className="manual-wrapper">
 									<span className="label">Keystones:</span>
 									<NumericInput min={0} value={this.state.manual_reach.KS} onChange={(n) => this.updateManual("KS",n)}></NumericInput>
 								</div>
@@ -558,23 +561,8 @@ class LogicHelper extends React.Component {
 							</div>
 							<Collapse id="logic-options-wrapper" isOpen={this.state.display_logic}>
 								<CheckboxGroup id="logic-options" checkboxDepth={2} name="modes" value={this.state.modes} onChange={this.modesChanged}>
-									<label className="checkbox-label"><Checkbox value="normal" /> normal</label>
-									<label className="checkbox-label"><Checkbox value="speed" /> speed</label>
-									<label className="checkbox-label"><Checkbox value="extended" /> extended</label>
-									<label className="checkbox-label"><Checkbox value="speed-lure" /> speed-lure</label>
-									<label className="checkbox-label"><Checkbox value="lure" /> lure</label>
-									<label className="checkbox-label"><Checkbox value="lure-hard" /> lure-hard</label>
-									<label className="checkbox-label"><Checkbox value="dboost-light" /> dboost-light</label>
-									<label className="checkbox-label"><Checkbox value="dboost" /> dboost</label>
-									<label className="checkbox-label"><Checkbox value="dboost-hard" /> dboost-hard</label>
-									<label className="checkbox-label"><Checkbox value="cdash" /> cdash</label>
-									<label className="checkbox-label"><Checkbox value="cdash-farming" /> cdash-farming</label>
-									<label className="checkbox-label"><Checkbox value="extreme" /> extreme</label>
-									<label className="checkbox-label"><Checkbox value="extended-damage" /> extended-damage</label>
-									<label className="checkbox-label"><Checkbox value="timed-level" /> timed-level</label>
-									<label className="checkbox-label"><Checkbox value="dbash" /> dbash</label>
-									<label className="checkbox-label"><Checkbox value="glitched" /> glitched</label>
-								</CheckboxGroup>
+                                    {logic_path_boxes}
+                                </CheckboxGroup>
 							</Collapse>
 						</div>
 						<hr style={{ backgroundColor: 'grey', height: 2 }}/>
@@ -599,34 +587,55 @@ function getReachable(setter, modes, codes)
     xmlHttp.onreadystatechange = function() {
         if (xmlHttp.readyState === 4 && xmlHttp.status === 200)
             (function(res) {
-            	if(res && res.includes("|"))
-            		{
-	            		let reachable = {};
-	            		res.split("|").forEach((areaRaw) => {
-	            			let areaSplit = areaRaw.split("#");
-	            			let name = areaSplit[0];
-	            			let reachedWith = areaSplit[1].split("/").map((reqs) => reqs === "" ? ["Free"] : reqs.split('&'));
-	            			reachable[name] = reachedWith;
-            		});
-						setter(prevState => {
-		            		if(Object.keys(reachable).filter(area => !Object.keys(prevState.reachable).includes(area)).length === 0)
-			            		return {}
-							let history = prevState.history;
-							let step = prevState.step;
-							let old_reachable = prevState.reachable;
-							history[step] = {reachable: {...prevState.reachable}, new_areas: {...prevState.new_areas}}
-							let new_areas = {};
-							Object.keys(reachable).forEach((area) => {
-								if(!old_reachable.hasOwnProperty(area))
-								{
-									new_areas[area] = uniq(reachable[area]);
-									old_reachable[area] = reachable[area];
-								}
-								old_reachable[area] = uniq(old_reachable[area].concat(reachable[area]));
-							});
-							return {reachable: old_reachable, new_areas: new_areas, history: history, step: step+1, highlight_picks: []}
-						})
-            		}
+                let reachable = JSON.parse(res);
+                setter(prevState => {
+                    let prevReachable = Object.keys(prevState.reachable);
+                    if(Object.keys(reachable).filter(area => !prevReachable.includes(area)).length === 0)
+                        return {}
+                    let history = prevState.history;
+                    let step = prevState.step;
+                    let old_reachable = prevState.reachable;
+                    history[step] = {reachable: {...prevState.reachable}, new_areas: {...prevState.new_areas}}
+                    let new_areas = {};
+                    Object.keys(reachable).forEach((area) => {
+                        let paths = reachable[area].map(reqSet => Object.keys(reqSet))
+                        if(!old_reachable.hasOwnProperty(area))
+                        {
+                            new_areas[area] = uniq(paths);
+                            old_reachable[area] = [];
+                        }
+                        old_reachable[area] = uniq(old_reachable[area].concat(paths));
+                    });
+                    return {reachable: old_reachable, new_areas: new_areas, history: history, step: step+1, highlight_picks: []}                    
+                });
+            	// if(res && res.includes("|"))
+            	// 	{
+	            // 		let reachable = {};
+	            // 		res.split("|").forEach((areaRaw) => {
+	            // 			let areaSplit = areaRaw.split("#");
+	            // 			let name = areaSplit[0];
+	            // 			let reachedWith = areaSplit[1].split("/").map((reqs) => reqs === "" ? ["Free"] : reqs.split('&'));
+	            // 			reachable[name] = reachedWith;
+            	// 	});
+				// 		setter(prevState => {
+		        //     		if(Object.keys(reachable).filter(area => !Object.keys(prevState.reachable).includes(area)).length === 0)
+			    //         		return {}
+				// 			let history = prevState.history;
+				// 			let step = prevState.step;
+				// 			let old_reachable = prevState.reachable;
+				// 			history[step] = {reachable: {...prevState.reachable}, new_areas: {...prevState.new_areas}}
+				// 			let new_areas = {};
+				// 			Object.keys(reachable).forEach((area) => {
+				// 				if(!old_reachable.hasOwnProperty(area))
+				// 				{
+				// 					new_areas[area] = uniq(reachable[area]);
+				// 					old_reachable[area] = reachable[area];
+				// 				}
+				// 				old_reachable[area] = uniq(old_reachable[area].concat(reachable[area]));
+				// 			});
+				// 			return {reachable: old_reachable, new_areas: new_areas, history: history, step: step+1, highlight_picks: []}
+				// 		})
+            	// 	}
             })(xmlHttp.responseText);
     }
     xmlHttp.open("GET", "/plando/reachable?modes="+modes+"&codes="+codes, true);
