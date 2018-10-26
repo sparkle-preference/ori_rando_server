@@ -4,14 +4,14 @@ import {CardText, CardTitle, Card, CardBody, CardSubtitle} from 'reactstrap';
 
 const DbashWarning = (<CardText className="border font-weight-bold border-danger">Warning: This logic mode can require chained double bashes!</CardText>)
 
-const noneTitle = "Confused?"
-const noneSub = "Mouse over anything to learn more!"
-const noneLines = ["Additional context-specific information will appear here as you interact with the UI."]
+const noneTitle = "Confused?";
+const noneSub = "Mouse over anything to learn more!";
+const noneLines = ["Additional context-specific information will appear here as you interact with the UI."];
 
 const getHelpContent = (category, option) => {
-	let lines = ["placeholder"];
-    let title = option;
-	let subtitle = category;  
+	let lines = noneLines;
+    let title = option || noneTitle;
+	let subtitle = category || noneSub;  
 	let extra = [];
 	switch(category ) {
 		case "logicModes":	

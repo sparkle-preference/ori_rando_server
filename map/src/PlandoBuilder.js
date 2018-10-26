@@ -24,8 +24,7 @@ const relevantCodes = ["HC", "AC", "EC", "KS", "MS", "TP", "RB", "EV", "SK"];
 const DEFAULT_DATA = {
 	'-280256': {label: "Energy Cell", value: "EC|1"},
 	'-1680104': {label: "100 Experience", value: "EX|100"},
-	'-12320248': {label: "100 Experience", value: "EX|100"},
-	'-10440008': {label: "100 Experience", value: "EX|100"}
+	'-12320248': {label: "100 Experience", value: "EX|100"}
 }
 
 const DEFAULT_REACHABLE = {'SunkenGladesRunaway': [["Free"]]};
@@ -34,18 +33,18 @@ const DEFAULT_VIEWPORT = {
 	  zoom: 4,
 	}
 
-const VALID_VARS = ["0XP", "NonProgressMapStones", "ForceMapStones", "ForceRandomEscape", "ForceTrees",	"Hard",	"NoPlants",	"NoTeleporters", "OHKO", "Starved", "BonusPickups"]
-const VALID_KEYMODES = ["Shards", "Clues", "Limitkeys"];
+const VALID_VARS = ["0XP", "NonProgressMapStones", "ForceMapStones", "ForceTrees", "Hard", "WorldTour", "Open", "OHKO", "Starved", "BonusPickups"]
+const VALID_KEYMODES = ["Shards", "Clues", "Limitkeys", "Free"];
 const SEED_FLAGS = VALID_VARS.concat(VALID_KEYMODES);
 const FLAG_CASEFIX = {};
 
 SEED_FLAGS.forEach(flag => FLAG_CASEFIX[flag.toLowerCase()] = flag);
 
-const modes_by_key = {"Shared": "Shared", "None": "Solo", "Split": "Shards Race", "Swap": "Swap"}
+const modes_by_key = {"Shared": "Shared", "None": "Solo", "Split": "Shards Race"}
 const COOP_MODES = Object.keys(modes_by_key).map((k) => { return {label: modes_by_key[k], value: k} });
-const SHARE_TYPES = ["keys", "events", "upgrades", "teleporters", "skills"]
+const SHARE_TYPES = ["WorldEvents", "Misc", "Upgrades", "Teleporters", "Skills"]
 const crs = getMapCrs();
-const DANGEROUS = [-280256, -1680104, -12320248, -10440008]
+const DANGEROUS = [-280256, -1680104, -12320248]
 const paths = Object.keys(presets);
 
 const dev = window.document.URL.includes("devshell")
@@ -135,9 +134,7 @@ function getPickupMarkers(state, setSelected, searchStr) {
 })()
 
 function shuffle (array) {
-  var i = 0
-    , j = 0
-    , temp = null
+  let i = 0, j = 0, temp = null;
 
   for (i = array.length - 1; i > 0; i -= 1) {
     j = Math.floor(Math.random() * (i + 1))
@@ -152,10 +149,11 @@ function get_manual_reach() {
     let EC = get_int("EC", 0);
     let KS = get_int("KS", 0);
     let MS = get_int("MS", 0);
+    let AC = get_int("AC", 0);
     let skills = get_list("SK"," ").map(skill => { let parts = skill.split("|"); return {label: pickup_name(parts[0], parts[1]), value: skill}; });
     let events = get_list("EV"," ").map(event => { let parts = event.split("|"); return {label: pickup_name(parts[0], parts[1]), value: event}; });
     let tps  = get_list("TP"," ").map(tp => {return {label: tp + " TP", value: "TP|" + tp}; });
-    return {HC: HC, EC: EC, KS: KS, MS: MS, skills: skills, tps: tps, events: events};
+    return {HC: HC, EC: EC, AC: AC, KS: KS, MS: MS, skills: skills, tps: tps, events: events};
 }
 
 class PlandoBuiler extends React.Component {
@@ -164,8 +162,8 @@ class PlandoBuiler extends React.Component {
 
     this.state = {seed_in: "", reachable: {...DEFAULT_REACHABLE}, new_areas: {...DEFAULT_REACHABLE}, placements: {1: {...DEFAULT_DATA}}, player: 1,
     			  fill_opts: {HC: 13, EC: 15, AC: 34, KS: 40, MS: 9, EX: 300, dynamic: false, dumb: false}, viewport: DEFAULT_VIEWPORT, searchStr: "",
-		    	  flags: ['hide_unreachable', 'hide_softlockable'], seedFlags: select_wrap(["ForceTrees"]), share_types: select_wrap(["keys"]), coop_mode: {label: "Solo", value: "None"},
-		    	  pickups: ["EX", "Ma", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV"],  display_import: false, display_logic: false, display_coop: false, display_meta: false}
+		    	  flags: ['hide_unreachable', 'hide_softlockable'], seedFlags: select_wrap(["Open", "ForceTrees"]), share_types: select_wrap(["keys"]), coop_mode: {label: "Solo", value: "None"},
+		    	  pickups: ["EX", "Ma", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "CS"],  display_import: false, display_logic: false, display_coop: false, display_meta: false}
 	}
 	
   	
@@ -182,7 +180,7 @@ class PlandoBuiler extends React.Component {
 	    } else {
 	    	pathmode = "standard";
 	        logicMode = "auto";
-	        modes = ['normal', 'speed', 'dboost-light'];
+	        modes = presets["standard"];
 	    }
 	    let zone = 'Glades';
 		let lastSelected = {};
@@ -223,7 +221,7 @@ class PlandoBuiler extends React.Component {
 	    	this.place({label: "NO|1", value: "NO|1"});
     	};
 
-    _onChangeExp = (n,s,_) => this.place({label: s, value: "EX|"+s});
+    _onChangeExp = (n,s,_) => this.place({label: s, value: "EX|"+n});
 	_onSelectStuff = (newStuff) => newStuff ? this.place(newStuff) : false;
 	_onPathModeChange = (n) => paths.includes(n.value) ? this.setState({modes: presets[n.value], pathMode: n.value}, () => this._updateReachable()) : this.setState({pathMode: n.value}, () => this._updateReachable())
 
@@ -543,7 +541,7 @@ class PlandoBuiler extends React.Component {
 		  			picks_by_area[area].forEach((pick) => {
 	  				if(this.state.placements[1] && this.state.placements[1].hasOwnProperty(pick.loc)) {
 	  					let code = this.state.placements[1][pick.loc].value;
-	  					if(!["SH", "NO","EX", "AC"].includes(code.substr(0,2)))
+	  					if(!["SH", "NO", "EX"].includes(code.substr(0,2)))
 	  						if(reachableStuff.hasOwnProperty(code))
 								reachableStuff[code] += 1;
 							else
@@ -552,7 +550,7 @@ class PlandoBuiler extends React.Component {
 		  			});
 	  		});
 		} else {
-			["HC", "EC", "KS", "MS"].forEach((code) => {
+			["HC", "EC", "KS", "MS", "AC"].forEach((code) => {
 				if(this.state.manual_reach[code] > 0)
 					reachableStuff[code+"|1"] = this.state.manual_reach[code];
 			});
@@ -568,10 +566,9 @@ class PlandoBuiler extends React.Component {
 	  		recursive = false
   		}
   		  	getReachable((s, c) => this.setState(s, c),
-	  			this.state.modes.join("+"),
+	  			this.state.modes.join("+") + (this.state.seedFlags.map(f => f.value).includes("Open") ? "+OPEN" : ""),
 	  			Object.keys(reachableStuff).map((key) => key+":"+reachableStuff[key]).join("+"),
 	  			recursive ? () => this._updateReachable(reachableAreas) : () => null);
-
   	};
 
 	toggleImport = () => {
@@ -616,7 +613,6 @@ class PlandoBuiler extends React.Component {
 	resetReachable = () => this.setState({reachable: {...DEFAULT_REACHABLE}})
 	
 	onFlags = (n) => this.setState({seedFlags: select_wrap(n.map(flag => FLAG_CASEFIX[flag.value.toLowerCase()] || flag.value))})
-
 
 	render() {
 		const pickup_markers = ( <PickupMarkersList markers={getPickupMarkers(this.state, this.selectPickupCurry, this.state.searchStr)} />)
@@ -865,28 +861,17 @@ function getReachable(setter, modes, codes, callback)
     xmlHttp.onreadystatechange = function() {
         if (xmlHttp.readyState === 4 && xmlHttp.status === 200)
             (function(res) {
-            	if(res && res.includes("|"))
-            		{
-            		let reachable = {};
-            		res.split("|").forEach((areaRaw) => {
-            			let areaSplit = areaRaw.split("#");
-            			let name = areaSplit[0];
-            			let reachedWith = areaSplit[1].split("/").map((reqs) => reqs === "" ? ["Free"] : reqs.split('&'));
-            			reachable[name] = reachedWith;
-            		});
+                    let new_reachables = JSON.parse(res);
 					setter(prevState => {
-						let old_reachable = prevState.reachable;
-						Object.keys(reachable).forEach((area) => {
-							if(!old_reachable.hasOwnProperty(area))
-							{
-								old_reachable[area] = reachable[area];
-							}
-							old_reachable[area] = old_reachable[area].concat(reachable[area]);
+						let reachable = prevState.reachable;
+						Object.keys(new_reachables).forEach((area) => {
+							if(!reachable.hasOwnProperty(area))
+								reachable[area] = new_reachables[area];
+							reachable[area] = reachable[area].concat(new_reachables[area]);
 
 						});
-						return {reachable: old_reachable}
+						return {reachable: reachable}
 					}, callback)
-            		}
             })(xmlHttp.responseText);
     }
     xmlHttp.open("GET", "/plando/reachable?modes="+modes+"&codes="+codes, true);
