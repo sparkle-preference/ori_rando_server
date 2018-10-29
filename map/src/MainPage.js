@@ -83,6 +83,16 @@ export default class MainPage extends React.Component {
                         </Col>
                     </Row>
         )] : null
+        let relicCountSetter = this.state.variations.includes("WorldTour") ? (                    
+            <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "relicCount")} className="p-1 justify-content-center">
+                        <Col xs="4" className="text-center pt-1 border">
+                            <span class="align-middle">Relic Count</span>
+                        </Col><Col xs="4">
+                            <Input type="number" value={this.state.relicCount} invalid={this.state.relicCount > 11 || this.state.relicCount < 1} onChange={(e) => this.setState({relicCount: parseInt(e.target.value, 10)})}/> 
+                            <FormFeedback tooltip>Relic count must be greater than 0 and less than 12</FormFeedback>
+                        </Col>
+                    </Row>
+        ) : null
         return (
                 <TabPane tabId="advanced">
                     {fass_rows}
@@ -95,6 +105,7 @@ export default class MainPage extends React.Component {
                         </Col>
                     </Row>
                     {fragCountSetter}
+                    {relicCountSetter}
                     <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "cellFreq")} className="p-1 justify-content-center">
                         <Col xs="4" className="text-center pt-1 border">
                             <span class="align-middle">Forced Cell Frequency</span>
@@ -216,8 +227,14 @@ export default class MainPage extends React.Component {
 		urlParams.push("exp_pool="+this.state.expPool)
 		urlParams.push("cell_freq="+this.state.cellFreq)
         if(this.state.variations.includes("WarmthFrags"))
+        {
     		urlParams.push("frags="+this.state.fragCount)
-    		urlParams.push("extra_frags="+this.state.fragExtra)
+    		urlParams.push("extra_frags="+this.state.fragExtra)            
+        }
+        if(this.state.variations.includes("WorldTour"))
+        {
+            urlParams.push("relics="+this.state.relicCount)
+        }
 		urlParams.push("players="+this.state.players)
         let fass = []
         Object.keys(this.state.fass).forEach(loc => {
@@ -420,7 +437,7 @@ export default class MainPage extends React.Component {
 		this.state = {user: user, activeTab: 'variations', coopGenMode: "Cloned Seeds", coopGameMode: "Co-op", players: 1, tracking: true, dllTime: dllTime, variations: ["ForceTrees", "Open"], 
 					 paths: presets["standard"], keyMode: "Clues", oldKeyMode: "Clues", pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null),
 					 customSyncId: "", seed: "", fillAlg: "Balanced", shared: ["Skills", "Teleporters", "World Events"], hints: true, helpcat: "", helpopt: "",
-					 syncId: "", expPool: 10000, lastHelp: new Date(), seedIsGenerating: false, cellFreq: cellFreqPresets("standard"), fragCount: 40, fragExtra: 10,
+					 syncId: "", expPool: 10000, lastHelp: new Date(), seedIsGenerating: false, cellFreq: cellFreqPresets("standard"), fragCount: 40, fragExtra: 10, relicCount: 8,
 					 paramId: paramId, modalOpen: modalOpen, inputGameId: inputGameId, allowReopenModal: modalOpen, reopenUrl: "", teamStr: "", inputFlagLine: "", inputPaths: "", fass: {}};
 	}
 	
