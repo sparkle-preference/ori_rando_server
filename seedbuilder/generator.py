@@ -997,6 +997,8 @@ class SeedGenerator:
 
                 self.relic_assign(relic_loc)
                 self.itemCount -= 1
+            # Capture relic spoilers before the spoiler group is overwritten
+            relicSpoiler = self.spoilerGroup["Relic"]
 
         for loc, item, zone in [(-280256, "EC1", "Glades"), (-1680104, "EX100", "Grove"), (-12320248, "Grenade", "Forlorn")]:
             if loc in self.forcedAssignments:
@@ -1028,7 +1030,6 @@ class SeedGenerator:
         self.doorQueue = OrderedDict()
         self.mapQueue = OrderedDict()
         spoilerPath = ""
-        relicSpoiler = []
         
         self.reach_area("SunkenGladesRunaway")
         if self.var(Variation.OPEN_MODE):
@@ -1116,8 +1117,7 @@ class SeedGenerator:
             if self.params.path_diff != PathDifficulty.NORMAL:
                 for item in list(itemsToAssign):
                     if item in self.skillsOutput or item in self.eventsOutput:
-                        self.preferred_difficulty_assign(
-                            item, locationsToAssign)
+                        self.preferred_difficulty_assign(item, locationsToAssign)
                         itemsToAssign.remove(item)
 
             # shuffle the items around and put them somewhere
@@ -1158,9 +1158,6 @@ class SeedGenerator:
 
             for instance in self.spoilerGroup["EC"]:
                 currentGroupSpoiler += "	" + instance
-
-            for instance in self.spoilerGroup["Relic"]:
-                relicSpoiler.append(instance)
 
             if currentGroupSpoiler:
                 groupDepth += 1
