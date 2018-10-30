@@ -30,6 +30,9 @@ const SiteBar = ({user, quickstartHook}) => {
 				<NavLink href={"/quickstart"}>Getting Started</NavLink>
 			</NavItem>
 			<NavItem>
+				<NavLink href={"https://goo.gl/csgRUw"}>3.0 Changelog</NavLink>
+			</NavItem>
+			<NavItem>
 				<NavLink href={"/logichelper"}>Interactive Logic Helper</NavLink>
 			</NavItem>
 			<UncontrolledDropdown nav inNavbar>

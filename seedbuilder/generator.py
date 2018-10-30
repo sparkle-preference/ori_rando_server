@@ -64,12 +64,6 @@ class Connection:
                 if "HoruKey" in req:
                     req.remove("HoruKey")
                     req += ["SunstoneShard"] * 5
-            elif Variation.WARMTH_FRAGMENTS in self.sg.params.variations:
-                if "GinsoKey" in req and "ForlornKey" in req and "HoruKey" in req:
-                    req.remove("GinsoKey")
-                    req.remove("ForlornKey")
-                    req.remove("HoruKey")
-                    req += ["RB28"]*self.sg.params.frag_count
 
         if "Free" in req:
             req.remove("Free")
@@ -286,7 +280,7 @@ class SeedGenerator:
             self.itemPool["ForlornKey"] = 0
             self.itemPool["HoruKey"] = 0
             self.itemPool["EX*"] -= 12
-            
+
         if self.var(Variation.DOUBLE_SKILL):
             self.itemPool["EX*"] -= 9
             self.itemPool["DoubleJump"] += 1
@@ -298,12 +292,13 @@ class SeedGenerator:
             self.itemPool["Grenade"] += 1
             self.itemPool["Water"] += 1
             self.itemPool["Wind"] += 1
-            
+
         if self.var(Variation.WARMTH_FRAGMENTS):
             self.costs["RB28"] = 3 * self.params.frag_count
             self.inventory["RB28"] = 0
             self.itemPool["RB28"] = self.params.frag_count
-            self.itemPool["EX*"] -= self.params.frag_count
+            self.itemPool["Warmth"] = 0
+            self.itemPool["EX*"] -= (self.params.frag_count - 1)
 
         if self.params.key_mode == KeyMode.FREE:
             for key in ["GinsoKey", "HoruKey", "ForlornKey"]:

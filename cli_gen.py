@@ -1,4 +1,5 @@
-import argparse
+import argparse, time
+from collections import OrderedDict
 import logging as log
 
 from util import enums_from_strlist
@@ -73,6 +74,7 @@ class CLISeedParams(object):
         parser.add_argument("--cloned", help="Make a split cloned seed instead of seperate seeds", action="store_true")
         parser.add_argument("--teams", help="Cloned seeds only: define teams. Format: 1|2,3,4|5,6. Each player must appear once", type=str)
         parser.add_argument("--hints", help="Cloned seeds only: display a hint with the item category on a shared location instead of 'Warmth Returned'", action="store_true")
+        parser.add_argument("--do-reachability-analysis", help="Analyze how many locations are opened by various progression items in various inventory states", action="store_true")
         args = parser.parse_args()
 
         """
@@ -149,6 +151,10 @@ class CLISeedParams(object):
         self.repeat_count = args.count
 
         sg = SeedGenerator()
+
+        if args.do_reachability_analysis:
+            sg.do_reachability_analysis(self)
+
         raw = sg.setSeedAndPlaceItems(self, preplaced={})
         seeds = []
         spoilers = []
