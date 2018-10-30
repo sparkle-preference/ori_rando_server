@@ -1,6 +1,6 @@
 import argparse, time
-from collections import OrderedDict
 import logging as log
+from collections import OrderedDict
 
 from util import enums_from_strlist
 from enums import (MultiplayerGameType, ShareType, Variation, LogicPath, KeyMode, PathDifficulty, presets)
@@ -154,6 +154,7 @@ class CLISeedParams(object):
 
         if args.do_reachability_analysis:
             sg.do_reachability_analysis(self)
+            return
 
         raw = sg.setSeedAndPlaceItems(self, preplaced={})
         seeds = []

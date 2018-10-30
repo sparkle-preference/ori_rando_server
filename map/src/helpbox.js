@@ -82,7 +82,7 @@ const getHelpContent = (category, option) => {
 				case "ForceMapStones":
 					title = "Force Maps"
 					lines = [
-						"The Force Maps Goal Mode requires that you turn in all 9 mapstones before finishing the game. As a side-effect, it makes Forlorn Ruins access manditory.",
+						"The Force Maps Goal Mode requires that you turn in all 9 mapstones before finishing the game. As a side-effect, it makes Forlorn Ruins access mandatory.",
                         "Force Maps is recommended for players looking for something new to try, and for cartographers everywhere."
 					]
                     break;

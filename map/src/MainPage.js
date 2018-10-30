@@ -580,12 +580,12 @@ export default class MainPage extends React.Component {
                             </li>
                             <li>
                                 Purple Tree changes. We've buffed the purple tree substantially in Rando 3.0. Most notably, the Sense ability activates "Hot/Cold" mode, causing Ori to 
-                                gradually change colors as you get close to a Skill, Relic, Shard, or World Event. See the <a target='_blank' rel='noopener noreferrer' href="https://docs.google.com/document/d/1tprqq7mUJMGcgAA0TM-O5FeOklzz4dOReB0Nru3QlsI">patch notes</a>
-                                for more details. 
+                                gradually change colors as you get close to a Skill, Relic, Shard, or World Event. See the <a target='_blank' rel='noopener noreferrer' href="https://docs.google.com/document/d/1tprqq7mUJMGcgAA0TM-O5FeOklzz4dOReB0Nru3QlsI">patch notes</a> for
+                                more details. 
                             </li>
                             <li>
-                                The new seed generator interface. The web generator has been rewritten from scratch for better performance, Gumo compatibility, and better usability. 
-                                Parts of it are still under construction (specifically, not every UI element has relevant help text).
+                                The new seed generator interface. The web generator has been rewritten from scratch for better performance and ease-of-use. 
+                                Parts of it are still under construction (specifically, not every UI element has relevant help text, and you may find some typos. Let us know!)
                             </li>
 	      				</ul>
 	          		</Row>

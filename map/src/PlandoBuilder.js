@@ -487,7 +487,8 @@ class PlandoBuiler extends React.Component {
 			else urlParams.push("flag="+flag)
 		});
 		if(mode) urlParams.push("key_mode="+mode)
-		urlParams.push("fass="+codes.join("|"));
+        if(codes.length > 0)
+    		urlParams.push("fass="+codes.join("|"));
 		urlParams.push("tracking=Disabled");
 		urlParams.push("seed="+Math.round(Math.random() * 1000000000));
 		let url = "/plando/fillgen?" + urlParams.join("&");
