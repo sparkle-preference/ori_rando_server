@@ -889,7 +889,6 @@ app = WSGIApplication(routes=[
         Route('/json', handler=SeedGenJson, name="gen-params-get-json")
     ]),
 
-    
     PathPrefixRoute('/tracker/game/<game_id:\d+>', [
         Route('/', redirect_to_name="map-render"),
         Route('/map', handler=ShowMap, name='map-render', strict_slash=True),
@@ -901,7 +900,7 @@ app = WSGIApplication(routes=[
 
             ] + list(PathPrefixRoute('/player/<player_id>', [
                 Route('/seed', GetSeed, name="map-fetch-seed"),
-                Route('/setSeed', SetSeed, name="map-set-seed"),        
+                Route('/setSeed', SetSeed, name="map-set-seed"),
             ]).get_routes())
         ).get_routes())
     ),
@@ -914,6 +913,7 @@ app = WSGIApplication(routes=[
     (r'/faq/?', QuickStart),
     ('/vold', SeedGenForm),
     ('/', ReactLanding),
+    ('/quickstart', ReactLanding),
     (r'/activeGames/?', ActiveGames),
     (r'/clean/?', CleanUp),
     (r'/getNewGame/?', GetGameId),

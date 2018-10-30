@@ -1,14 +1,14 @@
-import argparse, time
+import argparse
 import logging as log
-from collections import OrderedDict
 
 from util import enums_from_strlist
 from enums import (MultiplayerGameType, ShareType, Variation, LogicPath, KeyMode, PathDifficulty, presets)
 from seedbuilder.generator import SeedGenerator
 
+FLAGLESS_VARS = [Variation.WARMTH_FRAGMENTS, Variation.WORLD_TOUR]
+
 def vals(enumType):
     return [v.value for v in enumType.__members__.values()]
-
 
 class CLIMultiOptions(object):
     def __init__(self, mode=MultiplayerGameType.SIMUSOLO, shared=[], enabled=False, cloned=False, hints=False, teams={}):
@@ -49,7 +49,7 @@ class CLISeedParams(object):
         parser.add_argument("--bonus-pickups", help="Adds some extra bonus pickups not balanced for competitive play", action="store_true")
         parser.add_argument("--easy", help="Add an extra copy of double jump, bash, stomp, glide, charge jump, dash, grenade, water, and wind", action="store_true")
         parser.add_argument("--free-mapstones", help="Don't require a mapstone to be placed when a map monument becomes accessible", action="store_true")
-        parser.add_argument("--world-tour", help="Prevent Ori from entering the final escape until collecting one relic from each of the zones in the world", action="store_true")
+        parser.add_argument("--world-tour", help="Prevent Ori from entering the final escape until collecting one relic from each of the zones in the world. Recommended default: 8", type=int)
         parser.add_argument("--warmth-frags", help="Prevent Ori from entering the final escape until collecting some number of warmth fragments. Recommended default: 40", type=int)
 
         # misc
@@ -108,6 +108,8 @@ class CLISeedParams(object):
                     self.variations.append(v)
                 else:
                     log.warning("Failed to make a Variation from %s" % flagStr)
+        if Variation.WORLD_TOUR in self.variations:
+            self.relic_count = args.world_tour
         if Variation.WARMTH_FRAGMENTS in self.variations:
             self.frag_count = args.warmth_frags
             self.frag_extra = args.extra_frags
@@ -188,7 +190,9 @@ class CLISeedParams(object):
         flags.append(self.key_mode)
         if Variation.WARMTH_FRAGMENTS in self.variations:
             flags.append("Frags/%s/%s" % (self.frag_count, self.frag_extra))
-        flags += [v.value for v in self.variations]
+        if Variation.WORLD_TOUR in self.variations:
+            flags.append("WorldTour=%s" % self.relic_count)
+        flags += [v.value for v in self.variations if v not in FLAGLESS_VARS]
         if self.path_diff != PathDifficulty.NORMAL:
             flags.append("prefer_path_difficulty=%s" % self.path_diff.value)
         if self.sync.enabled:

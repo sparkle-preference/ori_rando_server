@@ -1,6 +1,6 @@
 import React from 'react';
 import {Navbar,  NavbarBrand, Nav,  NavItem,  NavLink, UncontrolledDropdown, DropdownToggle, DropdownMenu, DropdownItem} from 'reactstrap'
-const SiteBar = ({dlltime, user}) => {	
+const SiteBar = ({user, quickstartHook}) => {	
 	let logonoff = user ? [
 		(<DropdownItem href={"/plando/"+ user}> {user}'s seeds </DropdownItem>),
 		(<DropdownItem href="/logout">  Logout </DropdownItem>)
@@ -27,7 +27,7 @@ const SiteBar = ({dlltime, user}) => {
 				</DropdownMenu>
 			</UncontrolledDropdown>
 			<NavItem>
-				<NavLink href={"/activeGames"}>Active Games</NavLink>
+				<NavLink href={"/quickstart"}>Getting Started</NavLink>
 			</NavItem>
 			<NavItem>
 				<NavLink href={"/logichelper"}>Interactive Logic Helper</NavLink>

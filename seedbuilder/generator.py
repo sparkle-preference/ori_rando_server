@@ -1,5 +1,4 @@
 import math
-from relics import relics
 import random
 import logging as log
 import xml.etree.ElementTree as XML
@@ -7,6 +6,7 @@ from collections import OrderedDict, defaultdict, Counter
 from operator import mul
 from enums import KeyMode, PathDifficulty, ShareType, Variation, MultiplayerGameType
 from seedbuilder.areas import get_areas
+from seedbuilder.relics import relics
 
 
 def ordhash(s):
@@ -253,8 +253,8 @@ class SeedGenerator:
             self.itemPool["KS"] -= 2
 
         if self.var(Variation.WORLD_TOUR):
-            self.itemPool["EX*"] -= 11
-            self.itemPool["Relic"] += 11
+            self.itemPool["EX*"] -= self.params.relic_count
+            self.itemPool["Relic"] += self.params.relic_count
 
         if not self.var(Variation.STRICT_MAPSTONES):
             self.costs["MS"] = 11
@@ -608,7 +608,6 @@ class SeedGenerator:
                 # handle cloned seed placement
                 adjusted_item = self.adjust_item(item, zone)
                 self.split_locs[loc] = (player, adjusted_item)
-
                 self.spoilerGroup[item].append("%s from Player %s at %s\n" % (item, player, location.to_string()))
                 hist_written = True
                 if player != self.playerID:
@@ -879,7 +878,6 @@ class SeedGenerator:
                     self.sharedList.append("RB28")
                 if self.var(Variation.WORLD_TOUR):
                     self.sharedList.append("Relic")
-                    # TODO: is this the proper generator stringform? Probably not.
         return self.placeItemsMulti(retries)
 
     def placeItemsMulti(self, retries=5):
@@ -967,23 +965,16 @@ class SeedGenerator:
 
         # handle the fixed pickups: first energy cell, the glitchy 100 orb at spirit tree, and the forlorn escape plant
         if self.var(Variation.WORLD_TOUR):
-            locations_by_zone = OrderedDict([
-                ("Glades", []),
-                ("Grove", []),
-                ("Grotto", []),
-                ("Blackroot", []),
-                ("Swamp", []),
-                ("Ginso", []),
-                ("Valley", []),
-                ("Misty", []),
-                ("Forlorn", []),
-                ("Sorrow", []),
-                ("Horu", [])
-            ])
+            zones = ["Glades", "Grove", "Grotto", "Blackroot", "Swamp", "Ginso", "Valley", "Misty", "Forlorn", "Sorrow", "Horu"]
+            for i in range(11 - self.params.relic_count):
+                zones.pop(self.random.randint(0, len(zones)-1))
+
+            locations_by_zone = OrderedDict({zone: [] for zone in zones})
 
             for area in self.areas.values():
                 for location in area.locations:
-                    locations_by_zone[location.zone].append(location)
+                    if location.zone in locations_by_zone:
+                        locations_by_zone[location.zone].append(location)
 
             for locations in locations_by_zone.values():
                 self.random.shuffle(locations)
@@ -1033,12 +1024,12 @@ class SeedGenerator:
         self.skillCount = 10
         self.mapstonesAssigned = 0
         self.expSlots = self.itemPool["EX*"]
-
-
+        
         self.doorQueue = OrderedDict()
         self.mapQueue = OrderedDict()
         spoilerPath = ""
-
+        relicSpoiler = []
+        
         self.reach_area("SunkenGladesRunaway")
         if self.var(Variation.OPEN_MODE):
             self.reach_area("GladesMain")
@@ -1168,6 +1159,9 @@ class SeedGenerator:
             for instance in self.spoilerGroup["EC"]:
                 currentGroupSpoiler += "	" + instance
 
+            for instance in self.spoilerGroup["Relic"]:
+                relicSpoiler.append(instance)
+
             if currentGroupSpoiler:
                 groupDepth += 1
                 self.currentAreas.sort()
@@ -1200,8 +1194,7 @@ class SeedGenerator:
                 self.areas[area].remove_connection(self.mapQueue[area])
 
             locationsToAssign = []
-            self.spoilerGroup = defaultdict(
-                list, {"MS": [], "KS": [], "EC": [], "HC": []})
+            self.spoilerGroup = defaultdict(list)
 
             self.doorQueue = OrderedDict()
             self.mapQueue = OrderedDict()
@@ -1209,11 +1202,10 @@ class SeedGenerator:
 
         if self.var(Variation.WORLD_TOUR):
             spoilerStr += "Relics: {\n"
-
-            for instance in self.spoilerGroup["Relic"]:
+            for instance in relicSpoiler:
                 spoilerStr += "    " + instance
-
             spoilerStr += "}\n"
+
         if self.params.balanced:
             for item in self.balanceList:
                 self.outputStr += item[2]
