@@ -66,37 +66,21 @@ export default class MainPage extends React.Component {
                     </Row>
             )   
         })
-        let fragCountSetter = this.state.variations.includes("WarmthFrags") ? [(                    
-            <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "fragCount")} className="p-1 justify-content-center">
-                        <Col xs="4" className="text-center pt-1 border">
-                            <span class="align-middle">Fragment Count</span>
-                        </Col><Col xs="4">
-                            <Input type="number" value={this.state.fragCount} invalid={this.state.fragCount > 60 || this.state.fragCount < 1} onChange={(e) => this.setState({fragCount: parseInt(e.target.value, 10)})}/> 
-                            <FormFeedback tooltip>Frag Count must be between 1 and 60</FormFeedback>
-                        </Col>
-                    </Row>
-        ),(                    
-            <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "fragRequired")} className="p-1 justify-content-center">
-                        <Col xs="4" className="text-center pt-1 border">
-                            <span class="align-middle">Fragments Required</span>
-                        </Col><Col xs="4">
-                            <Input type="number" value={this.state.fragCount-this.state.fragExtra} invalid={(this.state.fragCount-this.state.fragExtra) < 0 || this.state.fragExtra < 0} onChange={(e) => this.setState({fragExtra: (this.state.fragCount-parseInt(e.target.value, 10))})}/> 
-                            <FormFeedback tooltip>Fragments Required must be between 0 and Fragment Count ({this.state.fragCount})</FormFeedback>
-                        </Col>
-                    </Row>
-        )] : null
-        let relicCountSetter = this.state.variations.includes("WorldTour") ? (                    
-            <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "relicCount")} className="p-1 justify-content-center">
-                        <Col xs="4" className="text-center pt-1 border">
-                            <span class="align-middle">Relic Count</span>
-                        </Col><Col xs="4">
-                            <Input type="number" value={this.state.relicCount} invalid={this.state.relicCount > 11 || this.state.relicCount < 1} onChange={(e) => this.setState({relicCount: parseInt(e.target.value, 10)})}/> 
-                            <FormFeedback tooltip>Relic count must be greater than 0 and less than 12</FormFeedback>
-                        </Col>
-                    </Row>
-        ) : null
+        let goalCol = (v) => (
+            <Col xs="4" onMouseLeave={this.helpEnter("advanced", "goalModes")} onMouseEnter={this.helpEnter("goalModes", v)} className="p-2">
+                <Button block outline={!this.state.variations.includes(v)} onClick={this.onGoalModeAdvanced(v)}>{variations[v]}</Button>
+            </Col>
+        )
         return (
                 <TabPane tabId="advanced">
+                    <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "goalModes")} className="p-1 justify-content-center">
+                        {goalCol("WorldTour")}
+                        {goalCol("WarmthFrags")}
+                    </Row>
+                    <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "goalModes")} className="p-1 justify-content-center border-bottom">
+                        {goalCol("ForceTrees")}
+                        {goalCol("ForceMapStones")}
+                    </Row>
                     <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "expPool")} className="p-1 justify-content-center">
                         <Col xs="4" className="text-center pt-1 border">
                             <span class="align-middle">Exp Pool</span>
@@ -105,8 +89,6 @@ export default class MainPage extends React.Component {
                             <FormFeedback tooltip>Experience Pool must be at least 100</FormFeedback>
                         </Col>
                     </Row>
-                    {fragCountSetter}
-                    {relicCountSetter}
                     <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "fillAlg")} className="p-1 justify-content-center">
                         <Col xs="4" className="text-center pt-1 border">
                             <span class="align-middle">Fill Algorithm</span>
@@ -139,7 +121,35 @@ export default class MainPage extends React.Component {
                             <FormFeedback tooltip>Forced Cell Frequency must be at least 3</FormFeedback>
                         </Col>
                     </Row>
-                    {fass_rows}
+                    {fass_rows}                    
+                    <Collapse isOpen={this.state.variations.includes("WorldTour")}>
+                        <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "relicCount")} className="p-1 justify-content-center">
+                            <Col xs="4" className="text-center pt-1 border">
+                                <span class="align-middle">Relic Count</span>
+                            </Col><Col xs="4">
+                                <Input type="number" value={this.state.relicCount} invalid={this.state.relicCount > 11 || this.state.relicCount < 1} onChange={(e) => this.setState({relicCount: parseInt(e.target.value, 10)})}/> 
+                                <FormFeedback tooltip>Relic count must be greater than 0 and less than 12</FormFeedback>
+                            </Col>
+                        </Row>
+                    </Collapse>
+                    <Collapse isOpen={this.state.variations.includes("WarmthFrags")}>
+                        <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "fragCount")} className="p-1 justify-content-center">
+                            <Col xs="4" className="text-center pt-1 border">
+                                <span class="align-middle">Fragment Count</span>
+                            </Col><Col xs="4">
+                                <Input type="number" value={this.state.fragCount} invalid={this.state.fragCount > 60 || this.state.fragCount < 1} onChange={(e) => this.setState({fragCount: parseInt(e.target.value, 10)})}/> 
+                                <FormFeedback tooltip>Frag Count must be between 1 and 60</FormFeedback>
+                            </Col>
+                        </Row>
+                        <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "fragRequired")} className="p-1 justify-content-center">
+                            <Col xs="4" className="text-center pt-1 border">
+                                <span class="align-middle">Fragments Required</span>
+                            </Col><Col xs="4">
+                                <Input type="number" value={this.state.fragCount-this.state.fragExtra} invalid={(this.state.fragCount-this.state.fragExtra) < 0 || this.state.fragExtra < 0} onChange={(e) => this.setState({fragExtra: (this.state.fragCount-parseInt(e.target.value, 10))})}/> 
+                                <FormFeedback tooltip>Fragments Required must be between 0 and Fragment Count ({this.state.fragCount})</FormFeedback>
+                            </Col>
+                        </Row>
+                    </Collapse>
                 </TabPane>
         )
     }
@@ -612,7 +622,7 @@ export default class MainPage extends React.Component {
 			doNetRequest("/generator/metadata/"+paramId,this.acceptMetadata);
         let activeTab = seedTabExists ? 'seed' : 'variations';
 		this.state = {user: user, activeTab: activeTab, coopGenMode: "Cloned Seeds", coopGameMode: "Co-op", players: 1, tracking: true, dllTime: dllTime, variations: ["ForceTrees", "Open"], 
-					 paths: presets["standard"], keyMode: "Clues", oldKeyMode: "Clues", pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null), goalMode: "ForceTrees",
+					 paths: presets["standard"], keyMode: "Clues", oldKeyMode: "Clues", pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null), goalModes: ["ForceTrees"],
 					 customSyncId: "", seed: "", fillAlg: "Balanced", shared: ["Skills", "Teleporters", "World Events"], hints: true, helpcat: "", helpopt: "", quickstartOpen: quickstartOpen,
 					 syncId: "", expPool: 10000, lastHelp: new Date(), seedIsGenerating: false, cellFreq: cellFreqPresets("standard"), fragCount: 40, fragExtra: 10, relicCount: 8,
 					 paramId: paramId, inputGameId: inputGameId, seedTabExists: seedTabExists, reopenUrl: "", teamStr: "", inputFlagLine: "", inputPaths: "", fass: {}, goalModesOpen: false};
@@ -622,14 +632,6 @@ export default class MainPage extends React.Component {
 	     window.history.replaceState('',window.document.title, window.document.URL.split("/quickstart")[0]);
 	     this.setState({quickstartOpen: false})
 	}
-
-	// reopenModal = () => {
-	// 	let url = window.document.URL.split("?")[0]+"?param_id="+this.state.paramId;
-	// 	if(this.state.inputGameId > 0)
-	// 		url+="&game_id="+this.state.inputGameId
-	//     window.history.replaceState('',window.document.title, url);
-	// 	this.setState({modalOpen: true})
-	// }
 
     onTab = (tabName) => () => this.setState({activeTab: tabName})
 	onFass = (l, i) => this.setState(prevState => {
@@ -651,24 +653,39 @@ export default class MainPage extends React.Component {
 		return false
 	}
 	onKeyMode = (mode) => () => this.setState({keyMode: mode})
-    
+
+    onGoalModeAdvanced = (mode) => () => {
+        let goalModes = this.state.goalModes.filter(v => v !== "None");
+        if(goalModes.includes(mode))
+        {
+            if(goalModes.length === 1)
+            {
+                this.setState({goalModes: ["None"], variations: this.state.variations.filter(v => v !== mode)})                
+            } else {
+                this.setState({goalModes: goalModes.filter(v => v !== mode), variations: this.state.variations.filter(v => v !== mode)})
+            }
+        }
+        else
+        {
+            this.setState({goalModes: goalModes.concat(mode), variations: this.state.variations.concat(mode)})
+        }
+    }
+
+
     onGoalMode = (mode) => () => {
-        if(this.state.goalMode === mode)
+        let oldMode = this.state.goalModes[0];
+        if(oldMode === mode)
             return;
         let vars = this.state.variations;
-        if(vars.includes(this.state.goalMode))
-            vars = vars.filter(v => v !== this.state.goalMode);
+        if(vars.includes(oldMode))
+            vars = vars.filter(v => v !== oldMode);
         else
-            console.log("vars did not include previous goalMode?")
-        if(mode !== "None")
-        {
-            if(!vars.includes(mode))
-                vars = vars.concat(mode)
-            else
-                console.log("vars already included goalMode?")            
-        }
-
-        this.setState({goalMode: mode, variations: vars});
+            console.log("vars did not include previous goalMode?");
+        if(mode !== "None" && !vars.includes(mode))
+            vars = vars.concat(mode)
+        else
+            console.log("vars already included goalMode?")
+        this.setState({goalModes: [mode], variations: vars})
     }
 	
 	onMode = (mode) => () => {
@@ -694,9 +711,9 @@ export default class MainPage extends React.Component {
 		let keyModeOptions = keymode_options.map(mode => (
 			<DropdownItem active={mode===this.state.keyMode} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("keyModes", mode)} onClick={this.onKeyMode(mode)}>{mode}</DropdownItem>
 		))
-		let goalModeOptions = ["None", "ForceTrees", "WorldTour", "ForceMapStones", "WarmthFrags"].map(mode => (
-			<DropdownItem active={mode===this.state.goalMode} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("goalModes", mode)} onClick={this.onGoalMode(mode)}>{variations[mode] || mode}</DropdownItem>
-		))
+		let goalModeOptions = this.state.goalModes.length === 1 ? ["None", "ForceTrees", "WorldTour", "ForceMapStones", "WarmthFrags"].map(mode => (
+			<DropdownItem active={mode===this.state.goalModes[0]} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("goalModes", mode)} onClick={this.onGoalMode(mode)}>{variations[mode] || mode}</DropdownItem>
+		)) : null
 
         let helpParams = this.state.helpParams;
         helpParams.padding = this.state.goalModesOpen ? "pt-5" : ""
@@ -708,13 +725,14 @@ export default class MainPage extends React.Component {
         let pathsTab = this.getPathsTab()
         
         let seedNav = this.state.seedTabExists ? (
-            <NavItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "advanced")}>
+            <NavItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "seedTab")}>
                 <NavLink active={this.state.activeTab === 'seed'} onClick={this.onTab('seed')}>
                     Seed
                 </NavLink>
             </NavItem>
         ) : null;
 		let modal = this.getQuickstartModal();
+        let goalModeMulti = this.state.goalModes.length > 1;
 		return (
  		<Container className="pl-4 pr-4 pb-4 pt-2 mt-5">
 			<Helmet>
@@ -768,11 +786,12 @@ export default class MainPage extends React.Component {
 						<Col xs="6"  className="text-center pt-1 border">
 							<span class="align-middle">Goal Mode</span>
 						</Col>
-						<Col xs="6" onMouseLeave={this.helpEnter("general", "goalModes")} onMouseEnter={this.helpEnter("goalModes", this.state.goalMode)}>
-							<Dropdown isOpen={this.state.goalModesOpen} toggle={() => this.setState({goalModesOpen: !this.state.goalModesOpen})} className="w-100">
-								<DropdownToggle color="primary" className="text-capitalize" caret block> {variations[this.state.goalMode] || this.state.goalMode} </DropdownToggle>
-								<DropdownMenu> {goalModeOptions} </DropdownMenu>
-							</Dropdown>
+						<Col xs="6" onMouseLeave={this.helpEnter("general", "goalModes")} onMouseEnter={this.helpEnter("goalModes", goalModeMulti ? "Multiple" : this.state.goalModes[0])}>
+							<Dropdown disabled={goalModeMulti} isOpen={this.state.goalModesOpen} toggle={() => this.setState({goalModesOpen: !this.state.goalModesOpen})} className="w-100">
+								<DropdownToggle disabled={goalModeMulti} color={goalModeMulti ? "disabled" :"primary"} className="text-capitalize" caret={!goalModeMulti} block> 
+                                  {goalModeMulti ? "Multiple" : (variations[this.state.goalModes[0]] || this.state.goalModes[0])}
+                                </DropdownToggle>
+                            </Dropdown>
 						</Col>
 					</Row>
 				</Col>
@@ -820,7 +839,7 @@ export default class MainPage extends React.Component {
                     <Collapse isOpen={this.state.activeTab !== "seed"}>
                         <Row className="align-items-center">
                             <Col xs="6">
-                                <Row className="p-1">
+                                <Row className="m-1">
                                     <Col xs="5" className="text-center pt-1 border">
                                         <span class="align-middle">Seed</span>
                                     </Col><Col xs="7">

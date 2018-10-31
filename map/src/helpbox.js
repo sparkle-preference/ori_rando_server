@@ -2,7 +2,12 @@ import React from 'react';
 import {CardText, CardTitle, Card, CardBody, CardSubtitle} from 'reactstrap';
 
 
-//const DbashWarning = (<CardText className="border font-weight-bold border-danger">Warning: This logic mode can require chained double bashes!</CardText>)
+const UntestedWarning = (<CardText className="border font-weight-bold border-danger">
+NOTE: this variation is rarely used and thus is less tested than most.
+In rare cases you may recieve an unfinishable seed. Leaving Web Tracking on is recommended for troubleshooting purposes.
+If you believe you have recieved an unfinishable seed, please inform Eiko, Sigma, or Vulajin 
+in the <a target="_blank"  rel="noopener noreferrer" href="https://discord.gg/TZfue9V">Ori discord</a>.
+</CardText>)
 
 const noneTitle = "Confused?";
 const noneSub = "Mouse over anything to learn more!";
@@ -19,7 +24,11 @@ const getHelpContent = (category, option) => {
 			switch(option) {
 				case "casual":						
 					title =  "Casual" 
-					lines = ["Casual is the easiest logic mode, intended and recommended for players who have never done a speedrun of Ori."]
+					lines = [
+                        "Casual is the easiest logic mode, intended and recommended for players who have never done a speedrun of Ori.",
+                        "This difficulty mode generally does not require the use of glitches or skills in unintended ways: the one exception to this is the usage of Stomp to break blue (Charge Flame) walls from the left side.",
+                        "Recommended for people who played Ori casually and are looking to try out the randomizer."
+                    ]
 					break;
 				case "standard":						
 					title = "Standard"
@@ -38,10 +47,10 @@ const getHelpContent = (category, option) => {
 				case "master":						
 					title = "Master"
 					lines = [
-						"Master is even more difficult than Expert, and is only recommended for players looking to push the game to the limit. Master seeds frequently require several extremely difficult or obscure tricks, including very long double bash chains.", 
+						"Master is even more difficult than Expert, and is only recommended for players looking to push the game (and their sanity) to the limit.",
+                        (<div>Master seeds frequently require several extremely difficult and obscure tricks, including very long double bash chains, and some <i>truly awful</i> lures. <b>Not for the feint of heart.</b></div>), 
 						"Selecting this logic mode will set the path difficulty to Hard and enable the Starved variation."
 					]
-//					extra.push(DbashWarning)
 					break;
 				case "glitched":						
 					title = "Glitched"
@@ -50,7 +59,6 @@ const getHelpContent = (category, option) => {
 						"This logic mode also contains paths that require timed level-ups, farming for ability points, and various tricks that potentially softlock your save file (or the game) if done incorrectly.",
 						"Selecting this logic mode will set the path difficulty to Hard.",
 					]
-//					extra.push(DbashWarning)
 					break;
 				case "custom":
 					title = "Custom"
@@ -69,7 +77,14 @@ const getHelpContent = (category, option) => {
 				case "None":
 					title = "None"
 					lines = [
-						"Selecting this option creates a seed with no Goal Mode; the final escape can be accessed at any time."
+						"Selecting this option creates a seed with no Goal Mode, allowing the game to be completed once enough skills (and the Sunstone) are acquired.",
+                        "Playing with no goal mode is not recommended."
+					]
+					break;
+				case "Multiple":
+					title = "Multiple"
+					lines = [
+						"You have multiple goal modes selected. Check out the Advanced Tab for more info."
 					]
 					break;                
 				case "ForceTrees":
@@ -120,30 +135,34 @@ const getHelpContent = (category, option) => {
 					title = "Discrete Mapstones"
 					lines = [
 						"The Discrete Mapstone variation changes how mapstones function, making each individual mapstone turn-in have its own pickup. (By default, the mapstone pickups are granted based on the number of mapstones you have turned in, regardless of where).",
-						"This variation exists primarily for legacy reasons and is not recommended for normal use. It cannot be enabled without the StrictMapstones variation."
+						"This variation exists primarily for legacy reasons and is not recommended for normal use. It cannot be enabled without the Strict Mapstones variation."
 					]
 					break;
 				case "Hard":
 					title = "Hard Mode"
 					lines = [
 						"The Hard Mode variation removes all health cells and all but 3 energy cells from the pool of available items, capping your health at 3 and energy at 4 for the entire seed. Additionally, it removes all bonus pickups from the pickup pool.",
-						"Due to these restrictions, it is incompatible with logic paths that require taking 3 or more damage (dboost, dboost-hard, extended-damage, and extreme), and the Extra Bonus Pickups variation.",
+						"Due to these restrictions, it is incompatible with logic paths that require taking 3 or more damage (standard-dboost, expert-dboost, master-dboost), and the Extra Bonus Pickups variation.",
 						"Recommended for people who hate feeling safe and like to live on the edge."
 					]
+                    extra.push(UntestedWarning);
 					break;
 				case "OHKO":
 					title = "One-Hit KO"
 					lines = [
 						"The One-Hit KO variation causes any amount of damage Ori takes to be instantly lethal. It is incompatible with all logic paths that require damage boosts.",
-						"NOTE: this variation is rarely used and thus is less tested than most. Tread carefully!"
+                        "Recommended for anyone who really enjoys the sound Ori makes when dying."
 					]
+                    extra.push(UntestedWarning);
 					break;
 				case "0XP":
 					title = "0 Experience"
 					lines = [
-						"Inspired by the incredibly unpopular 0exp speedrunning category, the 0 Experience variation prevents Ori from ever gaining levels or acquiring experience. Experience dropped by enemies will kill Ori on contact!",
-						"Recommended for anyone who watched a 0xp run and thought it seemed fun."
+						"Inspired by the incredibly unpopular 0 XP speedrunning category, the 0 Experience variation prevents Ori from ever gaining levels or acquiring experience. Experience dropped by enemies will kill Ori on contact!",
+						"Recommended for anyone who watched a 0 XP run and thought it seemed fun.",
+						"NOTE: this variation is rarely used and thus is less tested than most. Tread carefully!"
 					]
+                    extra.push(UntestedWarning);
 					break;
 				case "Entrance":
 					title = "Entrance Shuffle"
@@ -168,7 +187,7 @@ const getHelpContent = (category, option) => {
 					]
 					break;
                 case "StrictMapstones":
-					title = "StrictMapstones"
+					title = "Strict Mapstones"
 					lines = [
 						"The Strict Mapstones variation forces the seed generator to place a mapstone for every reachable mapstone pedistal.",
                         "Strict Mapstones is required for Discrete Mapstones (since otherwise Discrete Mapstones could softlock players by not providing enough maps).",
@@ -388,6 +407,12 @@ const getHelpContent = (category, option) => {
 						"Change the algorithm used to place items during seed generation here. At the moment, only two Fill Algorithms are available, Balanced and Classic"
 					]
                     break;
+                case "goalModes":
+					title = "Extra Goal Modes"
+					lines = [
+						"Use these buttons to add extra goal modes to your seed."
+					]
+                    break;
                 case "fillAlgClassic":
 					title = "Classic Algorithm"
 					lines = [
@@ -430,8 +455,8 @@ const getHelpContent = (category, option) => {
 				case "logicModes":
 					title = "Logic Modes"
 					lines = [
-						"Logic modes are sets of logic paths tailored for specific play experiences. Some logic modes, such as Hard or OHKO, also have associated variations that will be applied on selection.",
-						"Changing the logic mode will have a major impact on seed difficulty.", 
+						"Logic modes are sets of logic paths tailored for specific play experiences. Changing the logic mode will have a major impact on seed difficulty.", 
+                        "New players should start out with the Casual logic mode unless they are already familiar with the basics of Ori speedrunning.",
 						"Mouse over a logic mode in the dropdown to learn more about it."
 					]
 					break;
@@ -453,8 +478,8 @@ const getHelpContent = (category, option) => {
 				case "keyModes":
 					title = "Dungeon Key Modes"
 					lines = [
-						"Dungeon key modes change how the 3 dungeon keys (the Watervein, Gumon Seal, and Sunstone) are acquired. Since the Sunstone is always required, and the Water Vein is required by default (see Forcetrees under Variations for more info), placement of the Dungeon Keys matters a fair bit.",
-						"New players should start with Clues or Limitkeys."
+						"Dungeon key modes change how the 3 dungeon keys (the Watervein, Gumon Seal, and Sunstone) are acquired. Since the Sunstone is always required, and the Water Vein is required by default (see Forcetrees under Goal Modes for more info), placement of the Dungeon Keys matters a fair bit.",
+						"New players should start with Clues or Free."
 					]
 					break;
 				case "seedTab":
