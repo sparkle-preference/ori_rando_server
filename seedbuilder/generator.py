@@ -1,5 +1,4 @@
 import math
-from relics import relics
 import random
 import logging as log
 import xml.etree.ElementTree as XML
@@ -7,6 +6,7 @@ from collections import OrderedDict, defaultdict, Counter
 from operator import mul
 from enums import KeyMode, PathDifficulty, ShareType, Variation, MultiplayerGameType
 from seedbuilder.areas import get_areas
+from seedbuilder.relics import relics
 
 def translate(itemCode):
     if itemCode[0:2] in ["HC", "KS", "MS", "EC", "AC"]:
@@ -70,12 +70,6 @@ class Connection:
                 if "HoruKey" in req:
                     req.remove("HoruKey")
                     req += ["SunstoneShard"] * 5
-            elif Variation.WARMTH_FRAGMENTS in self.sg.params.variations:
-                if "GinsoKey" in req and "ForlornKey" in req and "HoruKey" in req:
-                    req.remove("GinsoKey")
-                    req.remove("ForlornKey")
-                    req.remove("HoruKey")
-                    req += ["RB28"]*self.sg.params.frag_count
 
         if "Free" in req:
             req.remove("Free")
@@ -229,7 +223,7 @@ class SeedGenerator:
         self.connectionQueue = []
         self.assignQueue = []
 
-        self.itemCount = 253.0
+        self.itemCount = 252.0
 
     def reset(self):
         """A full reset. Resets internal state completely (besides pRNG
@@ -259,8 +253,8 @@ class SeedGenerator:
             self.itemPool["KS"] -= 2
 
         if self.var(Variation.WORLD_TOUR):
-            self.itemPool["EX*"] -= 11
-            self.itemPool["Relic"] += 11
+            self.itemPool["EX*"] -= self.params.relic_count
+            self.itemPool["Relic"] += self.params.relic_count
 
         if not self.var(Variation.STRICT_MAPSTONES):
             self.costs["MS"] = 11
@@ -292,7 +286,7 @@ class SeedGenerator:
             self.itemPool["ForlornKey"] = 0
             self.itemPool["HoruKey"] = 0
             self.itemPool["EX*"] -= 12
-            
+
         if self.var(Variation.DOUBLE_SKILL):
             self.itemPool["EX*"] -= 9
             self.itemPool["DoubleJump"] += 1
@@ -304,12 +298,13 @@ class SeedGenerator:
             self.itemPool["Grenade"] += 1
             self.itemPool["Water"] += 1
             self.itemPool["Wind"] += 1
-            
+
         if self.var(Variation.WARMTH_FRAGMENTS):
             self.costs["RB28"] = 3 * self.params.frag_count
             self.inventory["RB28"] = 0
             self.itemPool["RB28"] = self.params.frag_count
-            self.itemPool["EX*"] -= self.params.frag_count
+            self.itemPool["Warmth"] = 0
+            self.itemPool["EX*"] -= (self.params.frag_count - 1)
 
         if self.params.key_mode == KeyMode.FREE:
             for key in ["GinsoKey", "HoruKey", "ForlornKey"]:
@@ -407,7 +402,7 @@ class SeedGenerator:
         return (found, keystoneCount, mapstoneCount)
 
     def choose_relic_for_zone(self, zone):
-        random.shuffle(relics[zone])
+        self.random.shuffle(relics[zone])
         return relics[zone][0]
 
     def get_all_accessible_locations(self):
@@ -614,7 +609,6 @@ class SeedGenerator:
                 # handle cloned seed placement
                 adjusted_item = self.adjust_item(item, zone)
                 self.split_locs[loc] = (player, adjusted_item)
-
                 self.spoilerGroup[item].append("%s from Player %s at %s\n" % (item, player, location.to_string()))
                 hist_written = True
                 if player != self.playerID:
@@ -885,7 +879,6 @@ class SeedGenerator:
                     self.sharedList.append("RB28")
                 if self.var(Variation.WORLD_TOUR):
                     self.sharedList.append("Relic")
-                    # TODO: is this the proper generator stringform? Probably not.
         return self.placeItemsMulti(retries)
 
     def placeItemsMulti(self, retries=5):
@@ -973,26 +966,19 @@ class SeedGenerator:
 
         # handle the fixed pickups: first energy cell, the glitchy 100 orb at spirit tree, and the forlorn escape plant
         if self.var(Variation.WORLD_TOUR):
-            locations_by_zone = OrderedDict([
-                ("Glades", []),
-                ("Grove", []),
-                ("Grotto", []),
-                ("Blackroot", []),
-                ("Swamp", []),
-                ("Ginso", []),
-                ("Valley", []),
-                ("Misty", []),
-                ("Forlorn", []),
-                ("Sorrow", []),
-                ("Horu", [])
-            ])
+            zones = ["Glades", "Grove", "Grotto", "Blackroot", "Swamp", "Ginso", "Valley", "Misty", "Forlorn", "Sorrow", "Horu"]
+            for i in range(11 - self.params.relic_count):
+                zones.pop(self.random.randint(0, len(zones)-1))
+
+            locations_by_zone = OrderedDict({zone: [] for zone in zones})
 
             for area in self.areas.values():
                 for location in area.locations:
-                    locations_by_zone[location.zone].append(location)
+                    if location.zone in locations_by_zone:
+                        locations_by_zone[location.zone].append(location)
 
             for locations in locations_by_zone.values():
-                random.shuffle(locations)
+                self.random.shuffle(locations)
 
                 relic_loc = None
 
@@ -1012,8 +998,10 @@ class SeedGenerator:
 
                 self.relic_assign(relic_loc)
                 self.itemCount -= 1
+            # Capture relic spoilers before the spoiler group is overwritten
+            relicSpoiler = self.spoilerGroup["Relic"]
 
-        for loc, item, zone in [(-280256, "EC1", "Glades"), (-1680104, "EX100", "Grove"), (-12320248, "Grenade", "Forlorn")]:
+        for loc, item, zone in [(-280256, "EC1", "Glades"), (-1680104, "EX100", "Grove"), (-12320248, "RB81", "Forlorn")]:
             if loc in self.forcedAssignments:
                 item = self.forcedAssignments[loc]
                 if item not in self.itemPool:
@@ -1041,12 +1029,11 @@ class SeedGenerator:
         self.skillCount = 10
         self.mapstonesAssigned = 0
         self.expSlots = self.itemPool["EX*"]
-
-
+        
         self.doorQueue = OrderedDict()
         self.mapQueue = OrderedDict()
         spoilerPath = ""
-
+        
         self.reach_area("SunkenGladesRunaway")
         if self.var(Variation.OPEN_MODE):
             self.reach_area("GladesMain")
@@ -1133,8 +1120,7 @@ class SeedGenerator:
             if self.params.path_diff != PathDifficulty.NORMAL:
                 for item in list(itemsToAssign):
                     if item in self.skillsOutput or item in self.eventsOutput:
-                        self.preferred_difficulty_assign(
-                            item, locationsToAssign)
+                        self.preferred_difficulty_assign(item, locationsToAssign)
                         itemsToAssign.remove(item)
 
             # shuffle the items around and put them somewhere
@@ -1208,8 +1194,7 @@ class SeedGenerator:
                 self.areas[area].remove_connection(self.mapQueue[area])
 
             locationsToAssign = []
-            self.spoilerGroup = defaultdict(
-                list, {"MS": [], "KS": [], "EC": [], "HC": []})
+            self.spoilerGroup = defaultdict(list)
 
             self.doorQueue = OrderedDict()
             self.mapQueue = OrderedDict()
@@ -1217,11 +1202,10 @@ class SeedGenerator:
 
         if self.var(Variation.WORLD_TOUR):
             spoilerStr += "Relics: {\n"
-
-            for instance in self.spoilerGroup["Relic"]:
+            for instance in relicSpoiler:
                 spoilerStr += "    " + instance
-
             spoilerStr += "}\n"
+
         if self.params.balanced:
             for item in self.balanceList:
                 self.outputStr += item[2]
@@ -1230,6 +1214,15 @@ class SeedGenerator:
         self.random.shuffle(self.eventList)
         for event in self.eventList:
             self.outputStr += event
+
+        # place the last item on the final escape
+        balanced = self.params.balanced
+        self.params.balanced = False
+        for item in self.itemPool:
+            if self.itemPool[item] > 0:
+                self.assign_to_location(item, Location(-240, 512, 'FinalEscape', 'EVWarmth', 0, 'Horu'))
+                break
+        self.params.balanced = balanced
 
         return (self.outputStr, spoilerStr)
 

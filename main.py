@@ -163,8 +163,7 @@ class ShowHistory(RequestHandler):
             output = game.summary()
             output += "\nHistory:"
             for hl, pid in sorted([(h, p.key.id().partition('.')[2]) for p in game.get_players() for h in p.history if
-                                   h.pickup().share_type != ShareType.NOT_SHARED], key=lambda x: x[0].timestamp,
-                                  reverse=True):
+                                   h.pickup().share_type != ShareType.NOT_SHARED], key=lambda x: x[0].timestamp, reverse=True):
                 output += "\n\t\t Player %s %s" % (pid, hl.print_line(game.start_time))
             self.response.status = 200
             self.response.write(output)
@@ -225,8 +224,7 @@ class ListPlayers(RequestHandler):
         outlines = []
         for p in game.get_players():
             outlines.append("Player %s: %s" % (p.key.id(), p.bitfields))
-            outlines.append("\t\t" + "\n\t\t".join(
-                [hl.print_line(game.start_time) for hl in p.history if hl.pickup().share_type != ShareType.NOT_SHARED]))
+            outlines.append("\t\t" + "\n\t\t".join([hl.print_line(game.start_time) for hl in p.history if hl.pickup().share_type != ShareType.NOT_SHARED]))
 
         self.response.headers['Content-Type'] = 'text/plain'
         self.response.status = 200
@@ -360,7 +358,6 @@ class GetReachable(RequestHandler):
             shared_hist = [hl for hls in hist.values() for hl in hls if hl.pickup().share_type in game.shared]
             shared_coords = set([hl.coords for hl in shared_hist])
         for player, personal_hist in hist.items():
-            print hist.keys(), player, player in hist
             player_hist = [hl for hl in hist[player] if hl.coords not in shared_coords] + shared_hist
             state = PlayerState([(h.pickup_code, h.pickup_id, 1, h.removed) for h in player_hist])
             areas = {}
@@ -889,7 +886,6 @@ app = WSGIApplication(routes=[
         Route('/json', handler=SeedGenJson, name="gen-params-get-json")
     ]),
 
-    
     PathPrefixRoute('/tracker/game/<game_id:\d+>', [
         Route('/', redirect_to_name="map-render"),
         Route('/map', handler=ShowMap, name='map-render', strict_slash=True),
@@ -901,7 +897,7 @@ app = WSGIApplication(routes=[
 
             ] + list(PathPrefixRoute('/player/<player_id>', [
                 Route('/seed', GetSeed, name="map-fetch-seed"),
-                Route('/setSeed', SetSeed, name="map-set-seed"),        
+                Route('/setSeed', SetSeed, name="map-set-seed"),
             ]).get_routes())
         ).get_routes())
     ),
@@ -914,6 +910,7 @@ app = WSGIApplication(routes=[
     (r'/faq/?', QuickStart),
     ('/vold', SeedGenForm),
     ('/', ReactLanding),
+    ('/quickstart', ReactLanding),
     (r'/activeGames/?', ActiveGames),
     (r'/clean/?', CleanUp),
     (r'/getNewGame/?', GetGameId),

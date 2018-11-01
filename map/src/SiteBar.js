@@ -1,6 +1,6 @@
 import React from 'react';
 import {Navbar,  NavbarBrand, Nav,  NavItem,  NavLink, UncontrolledDropdown, DropdownToggle, DropdownMenu, DropdownItem} from 'reactstrap'
-const SiteBar = ({dlltime, user}) => {	
+const SiteBar = ({user, quickstartHook}) => {	
 	let logonoff = user ? [
 		(<DropdownItem href={"/plando/"+ user}> {user}'s seeds </DropdownItem>),
 		(<DropdownItem href="/logout">  Logout </DropdownItem>)
@@ -18,8 +18,8 @@ const SiteBar = ({dlltime, user}) => {
                     <DropdownItem href="https://github.com/sigmasin/OriDERandomizer/raw/3.0/Assembly-CSharp.dll">
                         3.0 DLL 
                     </DropdownItem>
-                    <DropdownItem href="https://github.com/david-c-miller/OriDETracker/releases/download/v3.0-beta/OriDETracker-v3.0-beta.zip">
-                        3.0 Tracker (CURRENTLY BROKEN)
+                    <DropdownItem href="https://github.com/turntekGodhead/OriDETracker/raw/master/OriDETracker/bin/Latest.zip">
+                        3.0 Tracker (Beta)
                     </DropdownItem>
                     <DropdownItem href="/vanilla">
                         Vanilla Seed
@@ -27,7 +27,10 @@ const SiteBar = ({dlltime, user}) => {
 				</DropdownMenu>
 			</UncontrolledDropdown>
 			<NavItem>
-				<NavLink href={"/activeGames"}>Active Games</NavLink>
+				<NavLink href={"/quickstart"}>Getting Started</NavLink>
+			</NavItem>
+			<NavItem>
+				<NavLink href={"https://goo.gl/csgRUw"}>3.0 Changelog</NavLink>
 			</NavItem>
 			<NavItem>
 				<NavLink href={"/logichelper"}>Interactive Logic Helper</NavLink>

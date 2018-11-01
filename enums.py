@@ -30,8 +30,6 @@ class MultiplayerGameType(StrEnum):
 
     def is_dedup(self): return self in [MultiplayerGameType.SHARED]
 
-
-
 class ShareType(StrEnum):
     NOT_SHARED = "Unshareable"
     UPGRADE = "Upgrades"

@@ -2,16 +2,21 @@ import React from 'react';
 import {CardText, CardTitle, Card, CardBody, CardSubtitle} from 'reactstrap';
 
 
-const DbashWarning = (<CardText className="border font-weight-bold border-danger">Warning: This logic mode can require chained double bashes!</CardText>)
+const UntestedWarning = (<CardText className="border font-weight-bold border-danger">
+NOTE: this variation is rarely used and thus is less tested than most.
+In rare cases you may recieve an unfinishable seed. Leaving Web Tracking on is recommended for troubleshooting purposes.
+If you believe you have recieved an unfinishable seed, please inform Eiko, Sigma, or Vulajin 
+in the <a target="_blank"  rel="noopener noreferrer" href="https://discord.gg/TZfue9V">Ori discord</a>.
+</CardText>)
 
-const noneTitle = "Confused?"
-const noneSub = "Mouse over anything to learn more!"
-const noneLines = ["Additional context-specific information will appear here as you interact with the UI."]
+const noneTitle = "Confused?";
+const noneSub = "Mouse over anything to learn more!";
+const noneLines = ["Additional context-specific information will appear here as you interact with the UI."];
 
 const getHelpContent = (category, option) => {
-	let lines = ["placeholder"];
-    let title = option;
-	let subtitle = category;  
+	let lines = noneLines;
+    let title = noneTitle;
+	let subtitle = noneSub;  
 	let extra = [];
 	switch(category ) {
 		case "logicModes":	
@@ -19,7 +24,11 @@ const getHelpContent = (category, option) => {
 			switch(option) {
 				case "casual":						
 					title =  "Casual" 
-					lines = ["Casual is the easiest logic mode, intended and recommended for players who have never done a speedrun of Ori."]
+					lines = [
+                        "Casual is the easiest logic mode, intended and recommended for players who have never done a speedrun of Ori.",
+                        "This difficulty mode generally does not require the use of glitches or skills in unintended ways: the one exception to this is the usage of Stomp to break blue (Charge Flame) walls from the left side.",
+                        "Recommended for people who played Ori casually and are looking to try out the randomizer."
+                    ]
 					break;
 				case "standard":						
 					title = "Standard"
@@ -38,35 +47,10 @@ const getHelpContent = (category, option) => {
 				case "master":						
 					title = "Master"
 					lines = [
-						"Master is even more difficult than Expert, and is only recommended for players looking to push the game to the limit. Master seeds frequently require several extremely difficult or obscure tricks, including very long double bash chains.", 
+						"Master is even more difficult than Expert, and is only recommended for players looking to push the game (and their sanity) to the limit.",
+                        (<div>Master seeds frequently require several extremely difficult and obscure tricks, including very long double bash chains, and some <i>truly awful</i> lures. <b>Not for the feint of heart.</b></div>), 
 						"Selecting this logic mode will set the path difficulty to Hard and enable the Starved variation."
 					]
-					extra.push(DbashWarning)
-					break;
-				case "hard":						
-					title = "Hard"
-					lines =[
-						"The Hard logic mode generates seeds with a unique kind of challenge: players are limited to 3 health and 4 energy for the entire game, receive no bonus upgrades.",
-						"In addition, the preset logic paths contain the same tricks as are needed for Expert, but with the addition of double-bashing.",
-						 "Selecting this logic mode will enable the Hard Mode variation."
-					]
-					extra.push(DbashWarning)
-					break;
-				case "ohko":
-					title = "One-Hit KO"
-					lines = [
-						"The One-Hit KO logic mode builds upon Hard with an additional constraint: any damage Ori takes is lethal. Not for the faint of heart!",
-						"As with Hard, the preset logic paths expect the same tricks that are needed for Expert (besides damage boosts).",
-					]
-					extra.push(DbashWarning)
-					break;
-				case "0xp":						
-					title = "Zero Experience"
-					lines  = [
-						"The 0 Exp logic mode builds upon Hard with an additional constraint: Ori can never gain levels or Ability Cells from any source, and EXP dropped from enemies will kill Ori on contact!",
-						"This logic mode uses the same logic path settings as Standard does. However, the inability to spend ability points and lethal EXP orbs makes it more difficult, and substantially more tedious.",
-						"Selecting this logic mode will enable the Hard Mode and 0 Exp variations."
-					 ]
 					break;
 				case "glitched":						
 					title = "Glitched"
@@ -75,7 +59,6 @@ const getHelpContent = (category, option) => {
 						"This logic mode also contains paths that require timed level-ups, farming for ability points, and various tricks that potentially softlock your save file (or the game) if done incorrectly.",
 						"Selecting this logic mode will set the path difficulty to Hard.",
 					]
-					extra.push(DbashWarning)
 					break;
 				case "custom":
 					title = "Custom"
@@ -88,87 +71,104 @@ const getHelpContent = (category, option) => {
 			}
 			lines.push("For more detailed info about Logic Modes, check out the help sections inside the Logic Paths tab")
 			break;
-		case "variations":
-			subtitle = "Variations"
-			switch(option) {
+        case "goalModes":
+            subtitle = "Goal Modes"
+            switch(option) {
+				case "None":
+					title = "None"
+					lines = [
+						"Selecting this option creates a seed with no Goal Mode, allowing the game to be completed once enough skills (and the Sunstone) are acquired.",
+                        "Playing with no goal mode is not recommended."
+					]
+					break;
+				case "Multiple":
+					title = "Multiple"
+					lines = [
+						"You have multiple goal modes selected. Check out the Advanced Tab for more info."
+					]
+					break;                
 				case "ForceTrees":
 					title = "Force Trees"
 					lines = [
-						"The Force Trees variation requires players to visit all ten skill trees before completing the game. As a side-effect, it makes the Water Vein mandatory, as the Bash tree cannot be reached without it.", 
-						"Force Trees is wildly popular, enabled by default, and recommended for all players.",
-						"The community weekly races use this variation; the upcoming Ori Randomizer Tournament will as well."
+						"The Force Trees Goal Mode requires players to visit all ten skill trees before completing the game. As a side-effect, it makes Ginso Tree access mandatory, as the Bash tree cannot be reached without it.", 
+						"Force Trees is the default Goal Mode, and is a good starting point for new players.",
 					]
-					break;
+					break;                
+				case "ForceMapStones":
+					title = "Force Maps"
+					lines = [
+						"The Force Maps Goal Mode requires that you turn in all 9 mapstones before finishing the game. As a side-effect, it makes Forlorn Ruins access mandatory.",
+                        "Force Maps is recommended for players looking for something new to try, and for cartographers everywhere."
+					]
+                    break;
+				case "WorldTour":
+					title = "World Tour"
+					lines = [
+						"The World Tour Goal Mode selects 8 zones at random, and places a Relic in a random location in each of those zones. Relics are special pickups with unique flavor text, and collecting all 8 of them is required to access the final escape.",
+                        "You can learn which zones contain Relics and check what Relics you have already collected by pressing alt+4, configurable via RandomizerKeybindings.txt.",
+                        "World Tour is intended for players who wish to see more of the game world, including less-visited zones like Forlorn and Horu, and can be played with any Key Mode, through Shards is recommended. You can configure the number of Relics (1-11, default 8) in the Advanced Tab of the seed generator."
+					]
+                    break;
+				case "WarmthFrags":
+					title = "Warmth Fragments"
+					lines = [
+						"The Warmth Fragments Goal Mode scatters a large number of fragments (default 40) across the entire map. Players must collect a certain number of those fragments (default 30) to access the final escape.",
+						"The total number of fragments, as well as the number of 'extra' (non-required) fragments, can be configured in the Advanced Tab of the seed generator.",
+						"Warmth Fragments is recommended for players who like exploring and efficiently checking large numbers of pickups in an unstructured manner, and plays well with most Key Modes, including Free."
+					]
+                    break;
+                default:
+                    break;
+            }
+            break;
+		case "variations":
+			subtitle = "Variations"
+			switch(option) {
 				case "Starved":
 					title = "Starved"
 					lines = [
 						"The Starved variation reduces the probability that players will be given skill pickups, unless one is needed to proceed. This tends to create more linear seeds, where each skill gives access to the area or areas where the next skill or important item will be found.",
-						"Recommended for everyone at least once, and for players who enjoy more linear pathing or constrained situations."
+						"Recommended for everyone at least once, and for players who enjoy more linear pathing or constrained situations. Note that the Balanced fill algorithm can sometimes interfere with Starved."
 					]
 					break;
 				case "NonProgressMapStones":
 					title = "Discrete Mapstones"
 					lines = [
 						"The Discrete Mapstone variation changes how mapstones function, making each individual mapstone turn-in have its own pickup. (By default, the mapstone pickups are granted based on the number of mapstones you have turned in, regardless of where).",
-						"This variation exists primarily for legacy reasons and is not recommended for normal use."
+						"This variation exists primarily for legacy reasons and is not recommended for normal use. It cannot be enabled without the Strict Mapstones variation."
 					]
 					break;
 				case "Hard":
 					title = "Hard Mode"
 					lines = [
 						"The Hard Mode variation removes all health cells and all but 3 energy cells from the pool of available items, capping your health at 3 and energy at 4 for the entire seed. Additionally, it removes all bonus pickups from the pickup pool.",
-						"Due to these restrictions, it is incompatible with logic paths that require taking 3 or more damage (dboost, dboost-hard, extended-damage, and extreme), and the Extra Bonus Pickups variation.",
+						"Due to these restrictions, it is incompatible with logic paths that require taking 3 or more damage (standard-dboost, expert-dboost, master-dboost), and the Extra Bonus Pickups variation.",
 						"Recommended for people who hate feeling safe and like to live on the edge."
 					]
+                    extra.push(UntestedWarning);
 					break;
 				case "OHKO":
 					title = "One-Hit KO"
 					lines = [
 						"The One-Hit KO variation causes any amount of damage Ori takes to be instantly lethal. It is incompatible with all logic paths that require damage boosts.",
-						"NOTE: this variation is rarely used and thus is less tested than most. Tread carefully!"
+                        "Recommended for anyone who really enjoys the sound Ori makes when dying."
 					]
+                    extra.push(UntestedWarning);
 					break;
 				case "0XP":
 					title = "0 Experience"
 					lines = [
-						"Inspired by the incredibly unpopular 0exp speedrunning category, the 0 Experience variation prevents Ori from ever gaining levels or acquiring experience. Experience dropped by enemies will kill Ori on contact!",
-						"Recommended for anyone who watched a 0xp run and thought it seemed fun."
+						"Inspired by the incredibly unpopular 0 XP speedrunning category, the 0 Experience variation prevents Ori from ever gaining levels or acquiring experience. Experience dropped by enemies will kill Ori on contact!",
+						"Recommended for anyone who watched a 0 XP run and thought it seemed fun.",
+						"NOTE: this variation is rarely used and thus is less tested than most. Tread carefully!"
 					]
-					break;
-				case "NoPlants":
-					title = "No Plants"
-					lines = [
-						"The No Plants variation makes it so that pickups will not be placed in plants.",
-						"This variation exists primarily for legacy reasons and is not recommended for normal use."
-					]
-					break;
-				case "NoTeleporters":
-					title = "No Teleporters"
-					lines = [
-						"The No Teleporters variation makes it so that you cannot unlock teleporters via pickups. This variation exists primarily for legacy reasons, but if you find that teleporter unlocks are frequently causing you confusion or unhappiness, this will help."
-					]
-					extra = null
-					break;
-				case "ForceMapStones":
-					title = "Force Maps"
-					lines = [
-						"The Force Maps variation requires that you turn in all 9 mapstones before finishing the game. Intended as an alternative to Force Trees (though you can do both), it has the effect of making the Forlorn Ruins (and thus either the Forlorn TP or Gumon Seal) manditory. Recommend for players looking for something new to try and for cartographers everywhere"
-					]
-					extra = null
-					break;
-				case "ForceRandomEscape":
-					title = "Force Random Escape"
-					lines = [
-						"The Force Random Escape variation requires that you finish either the Forlorn or Ginso escapes before completing the game. Recommended for anyone who misses doing the Forlorn Escape, since it is otherwise never useful to complete."
-					]
-					extra = null
+                    extra.push(UntestedWarning);
 					break;
 				case "Entrance":
 					title = "Entrance Shuffle"
 					lines = [
 						"The Entrance Shuffle variation remaps each door (the dungeon entrances and the 8 Horu side rooms) in the game to go to another door instead. Recommended for anyone who likes being confused, or is interested in spending more time in Horu than usually necessary."
 					]
-					extra = null
 					break;
 				case "BonusPickups":
 					title = "More Bonus Pickups"
@@ -177,6 +177,33 @@ const getHelpContent = (category, option) => {
 						"Recommended for people interested in trying out some cool and probably pretty overpowered pickups.",
 						"Note: The default bindings for bonus skills are Alt+Q to swap between them, and Alt+Mouse1 to activate them. These bindings can be changed in the RandomizerRebinding.txt file.",
 						'Note: The "ExtremeSpeed" and "Gravity Swap" pickups are toggleable: activating them will turn them on, and cost energy over time. They will automatically turn off if you run out of energy.'
+					]
+					break;
+                case "DoubleSkills":
+					title = "Extra Copies"
+					lines = [
+						"The Extra Copies variation adds an extra copy of most skills and world events (though not the dungeon keys) to the item pool, causing 2 of each of these items to be placed on the map.",
+                        "Recommended to reduce the frustration inherent in searching for one specific item. Combos well with Key Mode: Free."
+					]
+					break;
+                case "StrictMapstones":
+					title = "Strict Mapstones"
+					lines = [
+						"The Strict Mapstones variation forces the seed generator to place a mapstone for every reachable mapstone pedistal.",
+                        "Strict Mapstones is required for Discrete Mapstones (since otherwise Discrete Mapstones could softlock players by not providing enough maps).",
+                        "This variation represents the pre-3.0 default behavior, and is not generally recommended due to how predictable it makes early game mapstone placements."
+					]
+					break;
+                case "Open":
+					title = "Open Mode"
+					lines = [
+						"The Open Mode variation makes several changes with the primary aim of making the dungeons more accessable. Major changes: ",
+                        "> Horu and Ginso Teleporters have been added to the item pool",
+                        "> Horu starts with the lava already drained, allowing TP access to the entire dungeon.",
+                        "> The second Ginso miniboss room has both lower doors opened by default, allowing TP access to most of the dungeon. (The lowest two pickups are blocked by the first miniboss)",
+                        "> The first keystone door in Glades is always open",
+                        "> Keystone doors can be opened from behind",
+                        "Open Mode is enabled by default and recommended for all players and modes."
 					]
 					break;
 				default:
@@ -190,7 +217,8 @@ const getHelpContent = (category, option) => {
 					title = "Shards"
 					lines = [
 						"In Shards, the dungeon keys are replaced with dungeon key shards. Each key has 5 shards on the map, but only 3 are needed to assemble the full key. Shards cannot generate within the dungeon they unlock.",
-						"Recommended for: experienced players, Co-op, and players who enjoy exploring and checking lots of pickups. Shards will be used as the mode for the doubles portion of the upcoming Ori Randomizer tournament."
+                        "To prevent dungeon teleporters from invalidating the shard hunt, the Forlorn, Horu, and Ginso teleporter pickups now require 2 shards of their respective dungeon keys before they activate.",
+						"Recommended for: experienced players, Co-op, and players who enjoy exploring and checking lots of pickups."
 					]
 					break;
 				case "Clues":
@@ -208,19 +236,18 @@ const getHelpContent = (category, option) => {
 						"Recommended for: newer players, players who dislike hunting for dungeon keys once they have the skills they need."
 					]
 					break;
+                case "Free":
+                    title = "Free"
+                    lines = [
+                        "As the name implies, Key Mode Free gives the player all 3 dungeon keys for free upon picking up the first energy.",
+                        "Recommended for use with the Warmth Fragments and World Tour goal modes, or for anyone who would prefer to skip the Dungeon Key hunt."
+                    ]
+                    break;
 				case "None":
 					title = "None"
 					lines = [
 						"In None, the dungeon keys are placed randomly throughout the map. No constraints or info is given to help find them.",
 						"Recommended for: masochists, people with too much free time."
-					]
-					break;
-				case "Warmth Frags":
-					title = "Warmth Fragments"
-					lines = [
-						"Warmth Fragments is an experimental new mode which removes the dungeon keys entirely. Instead, a configurable number of Warmth Fragments are required to access each dungeon (the unlock order is random).",
-						"Check out the Warmth Fragment Mode tab for more details. (You can also edit the seed's experience pool in that tab, no matter what game mode is selected).",
-						"Recommended for: people who like exploring and efficiently checking large numbers of pickups."
 					]
 					break;
 				default:
@@ -273,7 +300,8 @@ const getHelpContent = (category, option) => {
 						"Seperate Seeds are made by simulataneously generating a seed for each player in the game. Each shared item is only assigned to one player; once it becomes accessable for one player, it will be in the logic for both of them.",
 						"Because the seeds for each player are generated seperately, the progression paths of each player will be different, though they will at certain points rely on each other.",
 						"For Seperate Seeds, player communication is not as important, as no information gained by one player will be relevant to the others (besides informing them of shared pickups they have, which the game does already).",
-						"Seperate Seeds work best when individual shared items don't block progression for other players. Recommended settings: Do not share skills (or teleporters), do share upgrades, and set the dungeon key mode set to either Shards or Warmth Fragments."
+						"Seperate Seeds work best when individual shared items don't block progression for other players.",
+                        "Recommended settings: Do not share skills (or teleporters), do share upgrades, world events, and misc, set the dungeon key mode to either Shards or Free, and set the Goal Mode to either Warmth Fragments or World Tour."
 					]
 					break;
 				default:
@@ -299,18 +327,18 @@ const getHelpContent = (category, option) => {
 						"Skill sharing is great for Cloned Seeds, but can be frustrating in Seperate Seeds, particularly with more players, as it can lead to situations where 1 player needs to find a skill before the others can do anything."
 					]
 					break;
-				case "Dungeon Keys":
-					title = "Share Dungeon Keys"
+				case "Misc":
+					title = "Share Miscellaneous Items"
 					lines = [
-						"With Share Dungeon Keys enabled, all 3 Dungeon Keys (or Shards or Warmth Fragments) will be shared between players when found.",
-						"Sharing Dungeon Keys is recommended for every co-op game varient, though it is less interesting in certain Dungeon Key modes (*cough*limitkeys*cough*)."
+						"With Share Misc enabled, Warmth Fragments and World Tour Relics are shared between players, if they exist.",
+						"Sharing Relics and Warmth Fragments will greatly reduce the amount of time an average co-op seed will take to complete."
 					]
 					break;
 				case "World Events":
 					title = "Share World Events"
 					lines = [
-						"With Share World Events enabled, Clean Water, Wind Restored, and Warmth Returned will be shared between players when found.",
-						"With only 3 total items, 1 of which is useless, this is the least impactful shared item category."
+						"With Share World Events enabled, the 3 Dungeon Keys (or Shards), Clean Water, Wind Restored, and Warmth Returned will be shared between players when found.",
+						"Sharing World Events is recommended for every co-op game varient, though it is less interesting in certain Dungeon Key modes (*cough*limitkeys*cough*)."
 					]
 					break;
 				case "Upgrades":
@@ -318,7 +346,7 @@ const getHelpContent = (category, option) => {
 					lines = [
 						"With Share World Events enabled, all permenant upgrades (or bonuses) will be shared between players when found.",
 						"All upgrades besides Mega Health and Mega Energy are considered permenant upgrades, including everything unlocked by the 'More Bonus Pickups' variation.",
-						"There are more upgrades than there are items in any other shared item category. It is disabled by default because it can make Cloned Seeds tedious to check unless Hints are enabled."
+						"There are more upgrades than there are items in any other shared item category. It is disabled by default because it can make Cloned Seeds tedious to check, even when Hints are enabled."
 					]
 					break;
 				case "Hints":
@@ -334,101 +362,132 @@ const getHelpContent = (category, option) => {
 					break;
 			}
 		break;
-
-		case "warmthFrags":
-			subtitle = "Warmth Fragment Options"
-			switch (option) {
-				case "Enable":
-					title = "Enable Warmth Fragments"
+        case "advanced":
+            subtitle = "Advanced Options"
+            switch(option) {
+                case "pathDiff":
+					title = "Path Difficulty"
 					lines = [
-						"This button toggles on Warmth Fragments mode. When enabled, it will change the Dungeon Key Mode to Warmth Fragments and allow editing of the options below.",
-						"Use the options below to tweak the difficulty and general game length of the mode."
+						"Path difficulty influences the likelihood that higher difficulty logic paths will be selected when the randomizer selects forced progression paths.",
+						"When set to Hard, paths from higher difficulty logic groups are far more likely to be selected. When set to easy, the opposite is true.",
+						"Path difficulty is set to Hard by default in the Master and Glitched logic modes. Leaving it set to normal is recommended otherwise."
 					]
-					break;
+                    break;
 				case "fragCount":
 					title = "Warmth Fragment Count"
 					lines = [
-						"Set the number of Warmth Fragments that appear on the map here.",
-						"The more fragments there are, the easier they will be to find.",
-						"Note that this number has no impact on how many fragments are required. The options below control that."
+						"Set the number of Warmth Fragments that appear on the map here. The more fragments there are, the easier they will be to find."
 					]
-					break;
-				case "First Dungeon Key":
-					title = "Frags Required: First Dungeon Key"
+                    break;
+				case "fragRequired":
+					title = "Required Fragment Count"
 					lines = [
-						"Set the number of Warmth Fragments required to unlock the first dungeon key.",
-						"Like Clues, the order in which the keys are unlocked is random for each seed, and is unknown to the player until it is unlocked."
+						"Set the number of Warmth Fragments that are required to finish the game here.",
+                        "The closer the required fragment count is to the total fragment count, the longer and more tedious the search for fragments becomes"
 					]
-					break;
-				case "Second Dungeon Key":
-					title = "Frags Required: Second Dungeon Key"
+                    break;
+				case "relicCount":
+					title = "Relic Count"
 					lines = [
-						"Set the number of Warmth Fragments required to unlock the second dungeon key.",
-						"Like Clues, the order in which the keys are unlocked is random for each seed, and is unknown to the player until it is unlocked."
+						"Set the number of zones that will contain Relics here. There are 11 zones in total.",
+                        "Note that numbers lower than 8 are not generally recommended."
 					]
-					break;
-				case "Last Dungeon Key":
-					title = "Frags Required: Last Dungeon Key"
-					lines = [
-						"Set the number of Warmth Fragments required to unlock the final dungeon key.",
-						"Like Clues, the order in which the keys are unlocked is random for each seed, and is unknown to the player until it is unlocked."
-					]
-					break;
-				case "Total Required":
-					title = "Frags Required: Final Escape Access"
-					lines = [
-						"Set the number of Warmth Fragments required to access the final escape.",
-						"Until you have at least this many fragments, access to the final escape will be barred, in the same way it is barred when the Force Trees variation is set."
-					]
-					break;
-				case "fragTol":
-					title = "Logic Fragment Tolerance"
-					lines = [
-						"Set the number of extra Warmth Fragments that are guaranteed to be reachable before each dungeon key enters the logic.",
-						"For example, with the default settings (first key unlocked at 7, tolerance of 3), there will be 10 Warmth Fragments accessable before the first dungeon key is considered to be in the logic.",
-						"If this number is too high, dungeon keys will not be in the logic until very 'late' in the game. However, setting it too low can result in required tedious scavenger hunts to access a dungeon for progression."
-					]
-					break;
+                    break;
 				case "expPool":
 					title = "Experience Pool"
 					lines = [
 						"This number controls the total amount of experience that will be placed in the experience pickups throughout the game.",
-						"The number of exp pickups normally changes only slightly between game modes (91 in clues, 79 in shards). A few variations also impact it (No Plants and Extra Bonuses both remove 20, while Hard Mode adds over 70!)",
-						"Because Warmth Fragments can use up a large number of those pickup slots, leaving this number unchanged can result in very high exp values; you can multiply it by about FragCount/90 to normalize this.",
-						"This option affects every game mode and as such is editable even with Warmth Fragments disabled.",
+                        "Regardless of the number of exp pickups, the total amount of EXP on the map will always be this number.",
+                        "Change it only if you are interested in seeing how the game plays with more (or less) total experience available"
 					]
-					break;				
-				default:
 					break;
-			}
-			break;
+                case "fillAlg":
+					title = "Fill Algorithm"
+					lines = [
+						"Change the algorithm used to place items during seed generation here. At the moment, only two Fill Algorithms are available, Balanced and Classic"
+					]
+                    break;
+                case "goalModes":
+					title = "Extra Goal Modes"
+					lines = [
+						"Use these buttons to add extra goal modes to your seed."
+					]
+                    break;
+                case "fillAlgClassic":
+					title = "Classic Algorithm"
+					lines = [
+						"The Classic fill algorithm places pickups throughout the world one at a time and mostly at random (though subject to logical constraints).",
+                        "It is only recommended for players who are using the Starved flag and don't want to risk the Balanced algorithm interfering with this."
+					]
+                    break;
+                case "fillAlgBalanced":
+					title = "Balanced Algorithm"
+					lines = [
+						"The Balanced fill algorithm is an improved version of the Classic algorithm that insures a more balanced placement of progression items.", 
+                        "It does this by swapping newly placed progression items with 'useless' (exp, bonus pickups, etc) items that were placed earlier, creating a more even distribution of skills and other progression items throughout the seed",
+                        "Balanced is the default algorithm and recommended in most cases. However, the swaps it makes can result in easier or less linear Starved seeds, as skills can be made available earlier than the progression path originally intended."
+					]
+                    break;
+                case "preplacement":
+					title = "Forced Item Placement"
+					lines = [
+                        (<div>You can use these fields to control what the first 4 pickups of your seed will be! Use the codes found <a target="_blank" rel="noopener noreferrer" href="https://github.com/turntekGodhead/ori_rando_server/blob/master/map/src/shared_map.js#L266">here</a> (no quotes) to specify the pickups you wish to recieve.</div>),
+                        "(Future versions of this feature will allow users to select pickups from a list instead of typing their item codes)",
+                        "Note that some item combinations (like 4 mapstones in standard logic) can result in an uncompleteable seed.",
+                        "This feature is primarily intended for generating seeds to practice specific skill combinations, like Bash+Grenade or Grenade Jumps"
+					]
+                    break;
+                case "cellFreq":
+					title = "Forced Cell Frequency"
+					lines = [
+						"The Forced Cell Frequency number is the maximum number of pickups that can be placed without adding at least 1 Health and Energy cell. Defaults: 20 for Casual, 40 for Standard, and 256 (disabled) for all other difficulties.",
+                        "Lower numbers usually means easier access to health and energy, particularly early game. Numbers below 15 are not recommended.",
+                        "The standard setting, 40, has minimal impact on most seeds, but can prevent extremely rare situations where most health and energy cells are unreachable for the majority of the seed."
+					]
+                    break;
+                default:
+                    break;
+            }
+        break;
 		case "general":
 			subtitle = "General Options"
 			switch(option) {
 				case "logicModes":
 					title = "Logic Modes"
 					lines = [
-						"Logic modes are sets of logic paths tailored for specific play experiences. Some logic modes, such as Hard or OHKO, also have associated variations that will be applied on selection.",
-						"Changing the logic mode will have a major impact on seed difficulty.", 
+						"Logic modes are sets of logic paths tailored for specific play experiences. Changing the logic mode will have a major impact on seed difficulty.", 
+                        "New players should start out with the Casual logic mode unless they are already familiar with the basics of Ori speedrunning.",
 						"Mouse over a logic mode in the dropdown to learn more about it."
+					]
+					break;
+				case "goalModes":
+					title = "Goal Modes"
+					lines = [
+						"Goal Modes are a special kind of Variation that limit access to the final escape until a secondary objective has been completed.",
+						"Goal Modes have a major impact on how the game is played. The most popular Goal Modes are Force Trees and World Tour.", 
+						"Mouse over a goal mode in the dropdown to learn more about it."
+					]
+					break;
+				case "advanced":
+					title = "Advanced Options"
+					lines = [
+						"The Advanced Options tab contains a variety of settings for power users, including the ability to modify parameters for the World Tour and Warmth Fragments modes, and force seeds to start with specific pickups.",
+						"Mouse over the various options within to learn more.", 
 					]
 					break;
 				case "keyModes":
 					title = "Dungeon Key Modes"
 					lines = [
-						"Dungeon key modes change how the 3 dungeon keys (the Watervein, Gumon Seal, and Sunstone) are acquired. Since the Sunstone is always required, and the Water Vein is required by default (see Forcetrees under Variations for more info), placement of the Dungeon Keys matters a fair bit.",
-						"New players should start with Clues or Limitkeys."
+						"Dungeon key modes change how the 3 dungeon keys (the Watervein, Gumon Seal, and Sunstone) are acquired. Since the Sunstone is always required, and the Water Vein is required by default (see Forcetrees under Goal Modes for more info), placement of the Dungeon Keys matters a fair bit.",
+						"New players should start with Clues or Free."
 					]
-					extra = null
 					break;
-				case "pathDiff":
-					title = "Path Difficulty"
+				case "seedTab":
+					title = "Seed Tab"
 					lines = [
-						"Path difficulty influences the likelihood that important or required pickups are placed in obscure or difficult to reach locations.",
-						"When set to Hard, useful pickups will be placed in in difficult-to-reach or out-of-the-way locations. When set to easy, the opposite is true, and useful pickups will be more plentiful.",
-						"Leaving path difficulty set to normal is recommend in most cases."
+						"View and download your generated seed here!"
 					]
-					break;
+                break;
 				case "variations":
 					title = "Variations"
 					lines = [
@@ -617,8 +676,8 @@ const getHelpContent = (category, option) => {
 	return {lines: lines.map(l => (<CardText>{l}</CardText>)), title: title, subtitle: subtitle, extras: extra}
 }
 
-const HelpBox = ({title, subtitle, lines, extras}) => (
-	<Card><CardBody>
+const HelpBox = ({title, subtitle, lines, extras, padding}) => (
+	<Card className={padding}><CardBody className={padding}>
 		<CardTitle className="text-center">{title}</CardTitle>
 			<CardSubtitle className="p-1 text-center">{subtitle}</CardSubtitle>
 		{lines}

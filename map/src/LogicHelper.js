@@ -608,34 +608,6 @@ function getReachable(setter, modes, codes)
                     });
                     return {reachable: old_reachable, new_areas: new_areas, history: history, step: step+1, highlight_picks: []}                    
                 });
-            	// if(res && res.includes("|"))
-            	// 	{
-	            // 		let reachable = {};
-	            // 		res.split("|").forEach((areaRaw) => {
-	            // 			let areaSplit = areaRaw.split("#");
-	            // 			let name = areaSplit[0];
-	            // 			let reachedWith = areaSplit[1].split("/").map((reqs) => reqs === "" ? ["Free"] : reqs.split('&'));
-	            // 			reachable[name] = reachedWith;
-            	// 	});
-				// 		setter(prevState => {
-		        //     		if(Object.keys(reachable).filter(area => !Object.keys(prevState.reachable).includes(area)).length === 0)
-			    //         		return {}
-				// 			let history = prevState.history;
-				// 			let step = prevState.step;
-				// 			let old_reachable = prevState.reachable;
-				// 			history[step] = {reachable: {...prevState.reachable}, new_areas: {...prevState.new_areas}}
-				// 			let new_areas = {};
-				// 			Object.keys(reachable).forEach((area) => {
-				// 				if(!old_reachable.hasOwnProperty(area))
-				// 				{
-				// 					new_areas[area] = uniq(reachable[area]);
-				// 					old_reachable[area] = reachable[area];
-				// 				}
-				// 				old_reachable[area] = uniq(old_reachable[area].concat(reachable[area]));
-				// 			});
-				// 			return {reachable: old_reachable, new_areas: new_areas, history: history, step: step+1, highlight_picks: []}
-				// 		})
-            	// 	}
             })(xmlHttp.responseText);
     }
     xmlHttp.open("GET", "/plando/reachable?modes="+modes+"&codes="+codes, true);

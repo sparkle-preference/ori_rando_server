@@ -361,8 +361,8 @@ class Game(ndb.Model):
         return Game.get_by_id(int(id))
 
     @staticmethod
-    def clean_old(timeout_window = timedelta(hours=12)):
-        old = [game for game in Game.query(Game.last_update < datetime.now() - timeout_window)]    
+    def clean_old(timeout_window=timedelta(hours=96)):
+        old = [game for game in Game.query(Game.last_update < datetime.now() - timeout_window)]
         return len([Game.clean_up(game) for game in old])
 
     @staticmethod
