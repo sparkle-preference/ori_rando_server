@@ -995,7 +995,7 @@ class SeedGenerator:
             # Capture relic spoilers before the spoiler group is overwritten
             relicSpoiler = self.spoilerGroup["Relic"]
 
-        for loc, item, zone in [(-280256, "EC1", "Glades"), (-1680104, "EX100", "Grove"), (-12320248, "Grenade", "Forlorn")]:
+        for loc, item, zone in [(-280256, "EC1", "Glades"), (-1680104, "EX100", "Grove"), (-12320248, "RB81", "Forlorn")]:
             if loc in self.forcedAssignments:
                 item = self.forcedAssignments[loc]
                 del self.forcedAssignments[loc]  # don't count these ones
