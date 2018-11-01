@@ -18,28 +18,7 @@ function download(filename, text) {
 }
 
 const dev = window.document.URL.includes("devshell")
-const base_url = dev ?  "https://8080-dot-3616814-dot-devshell.appspot.com" : "http://orirando.com"
-
-function player_icons(id, as_leaflet=true)  {
-	id = parseInt(id, 10);
-	let img = 	'/sprites/ori-white.png';
-	if (id === 1)  img = '/sprites/ori-blue.png';
-	else if (id === 2)  img = '/sprites/ori-red.png';
-	else if (id === 3)  img = '/sprites/ori-green.png';
-	else if (id === 4)  img = '/sprites/ori-cyan.png';
-	else if (id === 5)  img = '/sprites/ori-yellow.png';
-	else if (id === 6)  img = '/sprites/ori-magenta.png';
-	else if (id === 7)  img = '/sprites/ori-multi-1.png';
-	else if (id === 8)  img = '/sprites/ori-multi-2.png';
-	else if (id === 9)  img = '/sprites/ori-multi-3.png';
-	else if (id === 10) img = '/sprites/ori-skul.png';
-
-	if(!as_leaflet) return img;
-
-	let ico = new Leaflet.Icon({iconUrl: img, iconSize: new Leaflet.Point(48, 48)});
-	return ico
-};
-
+const base_url = dev ?  "https://8080-dot-3616814-dot-devshell.appspot.com" : "https://orirando.com"
 
 const pickup_icons = {
 	"SK": new Leaflet.Icon({iconUrl: '/sprites/skill-tree.png', iconSize: new Leaflet.Point(32, 32), iconAnchor: new Leaflet.Point(0, 32)}),
@@ -196,7 +175,7 @@ const PickupMarkersList = ({ map, markers }) => {
 
 
 const stuff_types = [{value: "Skills", label: "Skills"}, {value: "Events", label: "Events"}, {value: "Upgrades", label: "Upgrades"}, {value: "Teleporters", label: "Teleporters"}, {value: "Experience", label: "Experience"}, 
-					 {value: "Cells and Stones", label: "Cells and Stones"}, {value: "Messages", label: "Messages"}, {value: "Custom", label: "Custom"}, {value: "Fill", label: "Fill"}];
+					 {value: "Cells/Stones", label: "Cells/Stones"}, {value: "Messages", label: "Messages"}, {value: "Custom", label: "Custom"}, {value: "Fill", label: "Fill"}];
 
 function name_from_str(pick) {
 	let parts = pick.split("|");
@@ -259,7 +238,7 @@ const getStuffType = (stuff) => {
 		case "EC":
 		case "KS":
 		case "MS":
-			return "Cells and Stones"
+			return "Cells/Stones"
 		case "SH":
 			return "Messages"
 		default:
@@ -311,7 +290,9 @@ const stuff_by_type = {
 		{label: "Polarity Shift", value: "RB|101"},
 		{label: "Gravity Swap", value: "RB|102"},
 		{label: "ExtremeSpeed", value: "RB|103"},
-		{label: "Energy Jump", value: "RB|104"},
+		{label: "Roose's Wind", value: "RB|104"},
+		{label: "Respawn Without Dying", value: "RB|105"},
+		{label: "Respec", value: "RB|106"},
 	],
 	"Teleporters": [
 		{label: "Grotto TP", value: "TP|Grotto"},
@@ -319,9 +300,11 @@ const stuff_by_type = {
 		{label: "Forlorn TP", value: "TP|Forlorn"},
 		{label: "Valley TP", value: "TP|Valley"},
 		{label: "Sorrow TP", value: "TP|Sorrow"},
-		{label: "Swamp TP", value: "TP|Swamp"}
+		{label: "Swamp TP", value: "TP|Swamp"},
+		{label: "Ginso TP", value: "TP|Ginso"},
+		{label: "Horu TP", value: "TP|Horu"},
 	],
-	"Cells and Stones": [
+	"Cells/Stones": [
 		{label: "Health Cell", value: "HC|1"},
 		{label: "Energy Cell", value: "EC|1"},
 		{label: "Ability Cell", value: "AC|1"},
@@ -329,40 +312,6 @@ const stuff_by_type = {
 		{label: "Mapstone", value: "MS|1"}
 	]
 };
-const presets = {
-    casual: ['casual-core', 'casual-dboost'],
-    standard: [
-        'casual-core', 'casual-dboost', 
-        'standard-core', 'standard-dboost', 'standard-lure', 'standard-abilities'
-        ],
-    expert: [
-        'casual-core', 'casual-dboost', 
-        'standard-core', 'standard-dboost', 'standard-lure', 'standard-abilities',
-        'expert-core', 'expert-dboost', 'expert-lure', 'expert-abilities', 'dbash'
-        ],
-    master: [
-        'casual-core', 'casual-dboost', 
-        'standard-core', 'standard-dboost', 'standard-lure', 'standard-abilities',
-        'expert-core', 'expert-dboost', 'expert-lure', 'expert-abilities', 'dbash',
-        'master-core', 'master-dboost', 'master-lure', 'master-abilities', 'gjump'
-        ],
-    glitched: [
-        'casual-core', 'casual-dboost', 
-        'standard-core', 'standard-dboost', 'standard-lure', 'standard-abilities',
-        'expert-core', 'expert-dboost', 'expert-lure', 'expert-abilities', 'dbash',
-        'master-core', 'master-dboost', 'master-lure', 'master-abilities', 'gjump',
-        'glitched', 'timed-level'
-        ]
-};
-const logic_paths = presets['glitched'].concat('insane');
-const get_preset = (paths) => {
-    for (let preset of Object.keys(presets)) {
-        let p = presets[preset];
-        if(paths.length === p.length && paths.every(path => p.includes(path)))
-            return preset;
-    }
-    return "custom"
-}
 
 
 let request = new XMLHttpRequest()
@@ -403,43 +352,6 @@ ks.forEach((pre) => {
 	});
 });
 
-function get_param(name) {
-	let retVal = document.getElementsByClassName(name)[0].id
-	return (retVal !== "" && retVal !== "None") ? retVal : null
-}
-
-function get_flag(name) {
-	return get_param(name) !== null
-}
-
-function get_int(name, orElse) {
-	return parseInt(get_param(name), 10) || orElse
-}
-
-function get_list(name, sep) {
-	let raw = get_param(name)
-	if(raw)
-		return raw.split(sep)
-	else
-		return []
-}
-
-
-function get_seed() {
-	let authed = get_flag("authed")
-	if(authed)
-	{
-		let user = get_param("user")
-		let name = get_param("seed_name") || "new seed"
-		let desc = get_param("seed_desc") || ""
-		let hidden = get_flag("seed_hidden") 
-		let rawSeed = get_param("seed_data")
-		return {rawSeed: rawSeed, user: user, authed: authed, seed_name: name, seed_desc: desc, hidden: hidden}
-	}
-	else
-		return {authed:false}
-	
-}
 
 
 function is_match(pickup, searchstr) {
@@ -475,20 +387,6 @@ function listSwap(list, items)
 }
 const goToCurry = (url) => () => { window.location.href = url } 
 
-function doNetRequest(url, onRes)
-{
-    var xmlHttp = new XMLHttpRequest();
-    xmlHttp.onreadystatechange = function() {
-        if (xmlHttp.readyState === 4) {
-        	 onRes(xmlHttp);
-        }
-	}
-    xmlHttp.open("GET", url, true); // true for asynchronous
-    xmlHttp.send(null);
-}
-
-
 export {PickupMarker, PickupMarkersList, download, getStuffType, locs, picks_by_loc, getMapCrs, pickups, distance, get_icon, select_wrap,
-		point, picks_by_type, picks_by_zone, zones, pickup_name, stuff_types, stuff_by_type, areas, picks_by_area, presets, select_styles,
-		get_param, get_flag, get_int, get_list, get_seed, is_match, str_ids, hide_opacity, seed_name_regex, uniq, name_from_str, listSwap,
-		goToCurry, player_icons, doNetRequest, base_url, get_preset, logic_paths};
+		point, picks_by_type, picks_by_zone, zones, pickup_name, stuff_types, stuff_by_type, areas, picks_by_area, select_styles,
+		is_match, str_ids, hide_opacity, seed_name_regex, uniq, name_from_str, listSwap, goToCurry, base_url};

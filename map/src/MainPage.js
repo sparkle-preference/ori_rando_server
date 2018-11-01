@@ -1,4 +1,4 @@
-    import React from 'react';
+import React from 'react';
 import  {DropdownToggle, DropdownMenu, Dropdown, DropdownItem, Nav, NavLink, NavItem, Collapse,  Input, UncontrolledButtonDropdown, Button, 
 		Row, FormFeedback, Col, Container, TabContent, TabPane, Modal, ModalHeader, ModalBody, ModalFooter, Media} from 'reactstrap'
 import {Helmet} from 'react-helmet';
@@ -7,7 +7,7 @@ import 'react-notifications/lib/notifications.css';
 import './index.css';
 
 import {getHelpContent, HelpBox} from "./helpbox.js"
-import {get_param, presets, player_icons, doNetRequest} from './shared_map.js';
+import {get_param, presets, player_icons, doNetRequest} from './common.js';
 import SiteBar from "./SiteBar.js"
 
 const dev = window.document.URL.includes("devshell")

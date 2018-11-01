@@ -5,9 +5,10 @@ import Leaflet from 'leaflet';
 import {NotificationContainer, NotificationManager} from 'react-notifications';
 import 'react-notifications/lib/notifications.css';
 import {Checkbox, CheckboxGroup} from 'react-checkbox-group';
-import {download, getStuffType, stuff_types, stuff_by_type, picks_by_type, picks_by_loc, picks_by_zone, presets,
+import {get_param, get_flag, get_int, get_list, get_seed, presets} from './common.js';
+import {download, getStuffType, stuff_types, stuff_by_type, picks_by_type, picks_by_loc, picks_by_zone,
 		picks_by_area, zones,  pickup_name, PickupMarkersList, get_icon, getMapCrs, hide_opacity, select_wrap,
-		get_param, get_flag, get_int, get_list, get_seed, is_match, str_ids, select_styles} from './shared_map.js';
+		is_match, str_ids, select_styles} from './shared_map.js';
 import NumericInput from 'react-numeric-input';
 import Select from 'react-select'
 import {Creatable} from 'react-select';
@@ -193,7 +194,7 @@ class PlandoBuiler extends React.Component {
 	    lastSelected['Glades'] = pickup
 	
 		this.setState({mousePos: {lat: 0, lng: 0}, zone: zone, pickup: pickup, modes: modes, lastSelected: lastSelected, logicMode: logicMode, pathMode: pathmode, logic_helper_mode: spoiler_mode,
-			    	  manual_reach: manual_reach, stuff_type: "Cells and Stones", stuff: {value: "KS|1", label: "Keystone"}, authed: get_flag("authed")})
+			    	  manual_reach: manual_reach, stuff_type: "Cells/Stones", stuff: {value: "KS|1", label: "Keystone"}, authed: get_flag("authed")})
 	
 	};
 

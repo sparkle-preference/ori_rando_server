@@ -1,5 +1,6 @@
 import React from 'react';
-import {goToCurry, get_param, get_int, get_seed, seed_name_regex } from './shared_map.js';
+import {get_param, get_int, get_seed} from './common.js';
+import {goToCurry, seed_name_regex } from './shared_map.js';
 import { confirmAlert } from 'react-confirm-alert'; 
 import 'react-confirm-alert/src/react-confirm-alert.css' 
 import {DropdownToggle, DropdownMenu, DropdownItem, ButtonDropdown, Button, Container, Row, Col, Input, Badge} from 'reactstrap';

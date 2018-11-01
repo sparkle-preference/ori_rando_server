@@ -1,12 +1,11 @@
 import './index.css';
 import React from 'react';
-//import registerServiceWorker from './registerServiceWorker';
 import {Map, Tooltip, TileLayer, Marker, ZoomControl} from 'react-leaflet';
 import {Checkbox, CheckboxGroup} from 'react-checkbox-group';
 import {Radio, RadioGroup} from 'react-radio-group';
 import Leaflet from 'leaflet';
-import {picks_by_type, PickupMarkersList, get_icon, getMapCrs, presets, player_icons, 
-		hide_opacity, select_styles, uniq, select_wrap, get_preset} from './shared_map.js';
+import {presets, player_icons, get_preset} from './common.js';
+import {picks_by_type, PickupMarkersList, get_icon, getMapCrs, hide_opacity, select_styles, uniq, select_wrap} from './shared_map.js';
 import Select from 'react-select';
 import {Button, Collapse} from 'reactstrap';
 import Control from 'react-leaflet-control';

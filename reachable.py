@@ -116,7 +116,7 @@ class Map(object):
                     Map.reached_with[k] |= set(v)
                 unchecked_areas |= set([r for r in reachable.keys() if r not in reachable_areas])
 
-        mapstone_cnt = min(len([a for a in reachable_areas  if "MapStone" in a]), state.has["MS"])
+        mapstone_cnt = min(len([a for a in reachable_areas if a.endswith("Map")]), state.has["MS"])
         if mapstone_cnt == 9 and state.has["MS"] < 11:
             mapstone_cnt -= 1
         if mapstone_cnt == 8 and state.has["MS"] < 9:

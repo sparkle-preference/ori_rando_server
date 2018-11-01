@@ -351,7 +351,6 @@ class Game(ndb.Model):
 
     def clean_up(self):
         [p.delete() for p in self.players]
-        
         Cache.removeGame(self.key.id())
         log.info("Deleting game %s" % self)
         self.key.delete()

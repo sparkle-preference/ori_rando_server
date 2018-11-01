@@ -2,12 +2,12 @@ import './index.css';
 import React from 'react';
 import {LayerGroup, ZoomControl, Map, Tooltip, TileLayer} from 'react-leaflet';
 import Leaflet from 'leaflet';
-import {Checkbox, CheckboxGroup} from 'react-checkbox-group';
-import {stuff_by_type, picks_by_type, presets, picks_by_area, pickup_name, PickupMarkersList, get_icon, getMapCrs, 
-		name_from_str, get_int, get_list, str_ids, select_styles, select_wrap, logic_paths} from './shared_map.js';
+import {get_int, get_list, presets, logic_paths} from './common.js';
+import {stuff_by_type,  str_ids, picks_by_type, picks_by_area, pickup_name, PickupMarkersList, get_icon, getMapCrs, 
+		name_from_str, select_styles, select_wrap} from './shared_map.js';
 import NumericInput from 'react-numeric-input';
 import Select from 'react-select';
-import {Button, ButtonGroup, Collapse} from 'reactstrap';
+import {Row, Input, Col, Container, Button, Collapse, InputGroupAddon, InputGroupText, InputGroup} from 'reactstrap';
 import Control from 'react-leaflet-control';
 import Dropzone from 'react-dropzone'
 import {Helmet} from 'react-helmet';
@@ -17,12 +17,6 @@ NumericInput.style.input.height = '36px';
 
 
 const crs = getMapCrs();
-const DEFAULT_DATA = {
-	'-280256': {label: "Energy Cell", value: "EC|1"},
-	'-1680104': {label: "100 Experience", value: "EX|100"},
-	'-12320248': {label: "100 Experience", value: "EX|100"},
-	'-10440008': {label: "100 Experience", value: "EX|100"}
-}
 
 const DEFAULT_REACHABLE = {'SunkenGladesRunaway': [["Free"]]};
 const DEFAULT_VIEWPORT = {
@@ -31,7 +25,7 @@ const DEFAULT_VIEWPORT = {
 }
 
 const paths = Object.keys(presets);
-const releveant_picks = ["RB|15","RB|17","RB|19","RB|21", "HC|1", "EC|1", "KS|1", "MS|1", "AC|1", 'SK|0', 'SK|51', 'SK|2', 'SK|3', 'SK|4', 'SK|5', 'SK|8', 'SK|12', 'SK|50', 'SK|14', 'TP|Lost', 'TP|Grotto', 'TP|Grove', 'TP|Forlorn', 'TP|Sorrow', 'TP|Swamp', 'TP|Valley', 'EV|0', 'EV|1', 'EV|2', 'EV|3', 'EV|4']
+const releveant_picks = ["RB|6", "RB|8", "RB|9", "RB|10", "RB|11", "RB|12", "RB|13", "RB|15","RB|17","RB|19", "RB|21", "HC|1", "EC|1", "KS|1", "MS|1", "AC|1", 'SK|0', 'SK|51', 'SK|2', 'SK|3', 'SK|4', 'SK|5', 'SK|8', 'SK|12', 'SK|50', 'SK|14', 'TP|Ginso', 'TP|Horu', 'TP|Grotto', 'TP|Grove', 'TP|Forlorn', 'TP|Sorrow', 'TP|Swamp', 'TP|Valley', 'EV|0', 'EV|1', 'EV|2', 'EV|3', 'EV|4']
 
 // patch picks_by_area to include mapstone areas because haha fuck
 picks_by_type["Ma"].forEach(pick => {
@@ -50,6 +44,8 @@ const xml_name_to_code = {
 'TPValley': 'TP|Valley',
 'TPSorrow': 'TP|Sorrow',
 'TPForlorn': 'TP|Forlorn',
+'TPGinso': 'TP|Ginso',
+'TPHoru': 'TP|Horu',
 'Bash': 'SK|0',
 'ChargeFlame': 'SK|2',
 'WallJump': 'SK|3',
@@ -105,7 +101,7 @@ Object.keys(stuff_by_type).forEach(group => {
 function getInventory(state) {
 	let activeAreas = state.reachable;
 	let placements = state.placements;
-	let inventory = {"Cells and Stones": {"HC|1": ["Free", "Free", "Free"]}}
+	let inventory = {"Cells/Stones": {"HC|1": ["Free", "Free", "Free"]}}
 	Object.keys(activeAreas).forEach(area => {
 		if(picks_by_area[area])
 			picks_by_area[area].forEach(pick => {
@@ -121,101 +117,10 @@ function getInventory(state) {
 							inventory[group][item] = [];
 						inventory[group][item].push(pick);  						
   					}
-				}
+				} 
 			});
 	});
 	return inventory;
-}
-
-
-function getInventoryPane(inventory, that) {
-	if(!that.state.hasSeed)
-		return null
-	let groups = Object.keys(inventory).map(group => {
-		let items = Object.keys(inventory[group]).map(code => {			
-			let picks = inventory[group][code];
-			let count = picks.length;
-			let name = name_from_str(code);
-			let buttontext = name + (count > 1 ? " x" + count : "")
-
-			return (
-				<span><Button color={"danger"} disabled={picks.every(pick => pick === "Free")} outline={that.state.selected !== name} onClick={() => that.onGroupClick(picks, name)}>{buttontext}</Button></span>
-			)
-		});
-		return (
-		<div>
-			<div>{group}:</div>
-			{items}
-			<hr style={{ backgroundColor: 'grey', height: 1 }}/>
-		</div>
-		) 
-	});
-	return (
-	<div>
-		<div style={{textAlign: 'center', fontSize: '1.2em' }}>Inventory</div>
-		{groups}
-	</div>
-	)
-}
-
-function getAreasPane(inventory, that) {
-	let area_groups = Object.keys(that.state.new_areas).filter(area => area.substr(0,2) !== "MS").map((area) => {
-		let is_selected = that.state.hasSeed && that.state.selected_area === area;
-		let paths = that.state.new_areas[area];
-		let path_rows = is_selected ? paths.map(reqs => {
-			if(reqs.length === 1 && reqs[0] === "Free")
-				return null;
-				
-			
-			let buttons = reqs.map(req => {
-				let count = 1;
-				if(req.includes("(")) {
-					count = req.substr(3,req.indexOf(")")-3)
-					req = req.substr(0,2)
-				}
-				if(!xml_name_to_code.hasOwnProperty(req))
-					return null;
-				let code = xml_name_to_code[req]
-				if(!code_to_group.hasOwnProperty(code))
-					return null;
-				let group = code_to_group[code]
-				if(!inventory.hasOwnProperty(group) || !inventory[group].hasOwnProperty(code)) {
-					return null;
-				}
-				let picks = inventory[group][code]
-				let name = name_from_str(code)+ (count > 1 ? " x" + count : "")
-				return (
-					<Button color={"danger"} outline={that.state.selected !== name} size="sm" onClick={() => that.onGroupClick(picks, name)}>{name}</Button>
-				)
-			}).reduce((accu, elem) => accu === null ? [elem] : [...accu, <span>+</span>, elem] , null);
-			return ( 
-				<li>
-				{buttons}
-				</li>
-			);
-		}) : []; 
-		let area_name = area.split(/(?=[A-Z])/).join(" ");
-		let unlocked_with = path_rows.filter(x => x !== null).length > 0 ? (<div>unlocked with:</div>) : null
-		if(!picks_by_area.hasOwnProperty(area))
-			return null
-		return (
-		<div>
-			<Button color={is_selected ? "warning" : "danger"} outline={that.state.selected !== area}  onClick={() => that.setState({selected_area: area}, () => that.onGroupClick(picks_by_area[area], area))}>{area_name}</Button>
-			<Collapse isOpen={is_selected}>
-				{unlocked_with}
-				<ul>
-				{path_rows}
-				</ul> 
-			</Collapse>
-		</div>
-		)  
-	});
-	return (
-		<div>
-			<div style={{textAlign: 'center', fontSize: '1.2em' }}>{that.state.hasSeed ? "New Reachable Areas" : "Reachable Areas"}</div>
-			{area_groups}
-		</div>
-	)
 }
 
 const marker_types = Object.keys(picks_by_type).filter(t => t !== "MP");
@@ -273,10 +178,138 @@ class LogicHelper extends React.Component {
   constructor(props) {
 	    super(props)
 	
-	    this.state = {mousePos: {lat: 0, lng: 0}, seed_in: "", reachable: {...DEFAULT_REACHABLE}, new_areas: {...DEFAULT_REACHABLE}, selected: "", selected_area: "", history: {}, 
-	    			  step: 0, placements: {...DEFAULT_DATA}, viewport: DEFAULT_VIEWPORT, hasSeed: false, highlight_picks: [], logicMode: 'manual', searchStr: "", noMarkers: false}
+	    this.state = {mousePos: {lat: 0, lng: 0}, seed_in: "", reachable: {...DEFAULT_REACHABLE}, new_areas: {...DEFAULT_REACHABLE}, selected: "", selected_area: "", history: {}, openMode: true,
+	    			  step: 0, placements: {}, viewport: DEFAULT_VIEWPORT, hasSeed: false, highlight_picks: [], logicMode: 'manual', searchStr: "", noMarkers: false}
 	}
   	
+    getInventoryPane = (inventory) => {
+        if(!this.state.hasSeed)
+            return null
+        let groups = Object.keys(inventory).map(group => {
+            let items = Object.keys(inventory[group]).map(code => {			
+                let picks = inventory[group][code];
+                let count = picks.length;
+                let name = name_from_str(code);
+                let buttontext = name + (count > 1 ? " x" + count : "")
+
+                return (
+                    <Col xs="auto" className="pr-0"><Button size="sm" color={"danger"} disabled={picks.every(pick => pick === "Free")} outline={this.state.selected !== name} onClick={() => this.onGroupClick(picks, name)}>{buttontext}</Button></Col>
+                )
+            });
+            return (
+            <Row className="p-1 border-bottom border-left border-right">
+                <Col className="pl-0 pr-0" xs="3"><Button size="sm" block disabled>{group}:</Button></Col>
+                <Col xs="9"><Row>
+                {items}
+                </Row></Col>
+            </Row>
+            )
+        });
+        return [(
+            <Row className="pt-2 border-bottom">
+                <Col xs={{size:4, offset:4}}> <Button size="lg" outline color="warning" disabled>Inventory</Button></Col>
+            </Row>
+            ),groups]
+    }
+
+    getAreasPane = (inventory) => {
+        let area_groups = Object.keys(this.state.new_areas).filter(area => area.substr(0,2) !== "MS").map((area) => {
+            let is_selected = this.state.hasSeed && this.state.selected_area === area;
+            let paths = this.state.new_areas[area];
+            let path_rows = is_selected ? paths.map(reqs => {
+                if(reqs.length === 1 && reqs[0] === "Free")
+                    return null;
+                    
+                
+                let buttons = reqs.map(req => {
+                    let count = 1;
+                    if(req.includes("(")) {
+                        count = req.substr(3,req.indexOf(")")-3)
+                        req = req.substr(0,2)
+                    }
+                    if(!xml_name_to_code.hasOwnProperty(req))
+                        return null;
+                    let code = xml_name_to_code[req]
+                    if(!code_to_group.hasOwnProperty(code))
+                        return null;
+                    let group = code_to_group[code]
+                    if(!inventory.hasOwnProperty(group) || !inventory[group].hasOwnProperty(code)) {
+                        return null;
+                    }
+                    let picks = inventory[group][code]
+                    let name = name_from_str(code)+ (count > 1 ? " x" + count : "")
+                    return (
+                        <Button color={"danger"} outline={this.state.selected !== name} size="sm" onClick={() => this.onGroupClick(picks, name)}>{name}</Button>
+                    )
+                }).reduce((accu, elem) => accu === null ? [elem] : [...accu, <span>+</span>, elem] , null);
+                return ( 
+                    <li>
+                    {buttons}
+                    </li>
+                );
+            }) : []; 
+            let area_name = area.split(/(?=[A-Z])/).join(" ");
+            let unlocked_with = path_rows.filter(x => x !== null).length > 0 ? (<div>unlocked with:</div>) : null
+            if(!picks_by_area.hasOwnProperty(area))
+                return null
+            return (
+            <div>
+                <Button color={is_selected ? "warning" : "danger"} outline={this.state.selected !== area}  onClick={() => this.setState({selected_area: area}, () => this.onGroupClick(picks_by_area[area], area))}>{area_name}</Button>
+                <Collapse isOpen={is_selected}>
+                    {unlocked_with}
+                    <ul>
+                    {path_rows}
+                    </ul> 
+                </Collapse>
+            </div>
+            )  
+        });
+        return (
+            <div>
+                <div style={{textAlign: 'center', fontSize: '1.2em' }}>{this.state.hasSeed ? "New Reachable Areas" : "Reachable Areas"}</div>
+                {area_groups}
+            </div>
+        )
+    }
+
+
+    getManualLogicControls = () => {
+        let numInputData = {HC: "Health Cells:", EC: "Energy Cells:", KS: "Keystones:", MS: "Mapstones:", AC: "Ability Cells:"};
+        let numInputs  = Object.keys(numInputData).map(code => (
+            <Row className="p-1">
+                <Col xs="4" className="pr-0">
+                    <Button disabled block>{numInputData[code]}</Button>
+                </Col>
+                <Col xs="8">
+                        <Input type="number" value={this.state.manual_reach[code]} onChange={e => {
+                            let newVal = parseInt(e.target.value, 10);
+                            if(newVal >= 0)
+                                this.updateManual(code, newVal);   
+                            else
+                                this.updateManual(code, 0);   
+                            }}/>
+                </Col>
+            </Row>
+        ))
+        return (
+            <Collapse isOpen={this.state.logicMode === "manual"}>
+                {numInputs}
+                <Row className="p-1"><Col xs="12">
+                    <Select styles={select_styles} placeholder="Skills" options={stuff_by_type["Skills"]} onChange={(n) => this.updateManual("skills", n)} isMulti={true} value={this.state.manual_reach.skills}></Select>
+                </Col></Row>
+                <Row className="p-1"><Col xs="12">
+                    <Select styles={select_styles} placeholder="Teleporters" options={stuff_by_type["Teleporters"]} onChange={(n) => this.updateManual("tps", n)} isMulti={true} value={this.state.manual_reach.tps}></Select>
+                </Col></Row>
+                <Row className="p-1"><Col xs="12">
+                    <Select styles={select_styles} placeholder="Events" options={stuff_by_type["Events"]} onChange={(n) => this.updateManual("evs", n)} isMulti={true} value={this.state.manual_reach.evs}></Select>
+                </Col></Row>
+                <Row className="p-1"><Col xs="12">
+                    <Button block outline={!this.state.openMode} color="primary" onClick={() => this.setState({openMode: !this.state.openMode}, this.resetReachable)}>Open Mode</Button>
+                </Col></Row>
+            </Collapse>            
+        )
+    }
+
 
  	componentWillMount() {
 		let url = new URL(window.document.location.href); // TODO: get all non-proccessed url params this way instead of via template (it's easier)
@@ -305,7 +338,8 @@ class LogicHelper extends React.Component {
 		    let reader = new FileReader();
 		    reader.onload = () => {
 		        let text = reader.result;
-		        this.setState({placements: this.parseUploadedSeed(text), dropzoneActive: false, hasSeed: true, logicMode: "auto"}, this.resetReachable)
+                let {open, plc} = this.parseUploadedSeed(text);
+		        this.setState({placements: plc, openMode: open, dropzoneActive: false, hasSeed: true, logicMode: "auto"}, this.resetReachable)
 		        window.URL.revokeObjectURL(file.preview);
 		        // do whatever you want with the file content
 		    };
@@ -335,7 +369,13 @@ class LogicHelper extends React.Component {
     parseUploadedSeed = (seedText) => {
 		let lines = seedText.split("\n")
 		let newplc = {}
-		lines[0].split(",").forEach(flag => Object.keys(presets).includes(flag.toLowerCase()) ? this.onPathModeChange({label: flag, value: flag.toLowerCase()}) : null)
+        let open = false;
+		lines[0].split(",").forEach(flag => {
+            if(Object.keys(presets).includes(flag.toLowerCase()))
+                this.onPathModeChange({label: flag, value: flag.toLowerCase()})
+            if(flag.toLowerCase() === "open")
+                open = true;            
+        })
 	    for (let i = 1, len = lines.length; i < len; i++) {
 	    	let line = lines[i].split("|")
 	    	let loc = parseInt(line[0], 10);
@@ -345,7 +385,7 @@ class LogicHelper extends React.Component {
 	    	let stuff = {label: name, value:code+"|"+id};
 	    	newplc[loc] = stuff;
     	}
-    	return newplc;
+    	return {plc: newplc, open: open};
 	}
 
 	onGroupClick = (picks, clickedName) =>  {
@@ -387,9 +427,8 @@ class LogicHelper extends React.Component {
 	    window.history.replaceState('',window.document.title, window.document.URL.split("?")[0]+"?"+args.join("&"));		
 	}
 	
-	updateManual = (param,val) => this.setState(prevState => {
-
-		let manual_reach = this.state.manual_reach;
+	updateManual = (param, val) => this.setState(prevState => {
+		let manual_reach = prevState.manual_reach;
 		manual_reach[param] = val;
 		return {manual_reach: manual_reach}
 	}, () => {this.resetReachable() ; this.updateURL()})
@@ -434,16 +473,22 @@ class LogicHelper extends React.Component {
 				reachableStuff[tp.value] = 1;
 	  		});
   		}
-  		getReachable((s) => this.setState(s), this.state.modes.join("+"), Object.keys(reachableStuff).map((key) => key+":"+reachableStuff[key]).join("+"));
-
+        let modes = this.state.modes.join("+");
+        if(this.state.openMode)
+            modes += "+OPEN";
+  		getReachable((s) => this.setState(s), modes, Object.keys(reachableStuff).map(key => key+":"+reachableStuff[key]).join("+"));
   	};
 
 	onViewportChanged= (viewport) => this.setState({viewport: viewport})
 	onSearch = (e) => this.setState({searchStr: e.target.value}, this.updateURL)
-    modesChanged = (m) => this.setState({modes: m}, () => { this.updateURL() ; this.resetReachable()});
+    onMode = (m) => () => this.setState(prevState => {
+        if(prevState.modes.includes(m))
+            return {modes: prevState.modes.filter(x => x !== m)}
+        return {modes: prevState.modes.concat(m)}
+    }, () => { this.updateURL() ; this.resetReachable()});
 	onPathModeChange = (n) => this.setState({modes: presets[n.value], pathMode: n}, () => { this.updateURL() ; this.resetReachable()});
 	resetReachable = () => this.setState({ reachable: {...DEFAULT_REACHABLE}, new_areas: {...DEFAULT_REACHABLE}, selected: "", selected_area: "", highlight_picks: [], history: {}, step: 0}, () => (this.state.logicMode === "auto") ? null : this.updateReachable())
-	unloadSeed = () => this.setState({hasSeed: false, placements: {...DEFAULT_DATA}, logicMode: "manual"}, this.resetReachable)
+	unloadSeed = () => this.setState({hasSeed: false, placements: {}, logicMode: "manual"}, this.resetReachable)
 	rewind = () => {
 		if(dev)
 			console.log(this.state)
@@ -465,36 +510,58 @@ class LogicHelper extends React.Component {
 	    let { dropzoneActive } = this.state;
 	    let overlay_style = { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, padding: '10em 0', background: 'rgba(0,0,0,0.5)', textAlign: 'center', color: '#fff' };
 		let inventory = getInventory(this.state);
-		let inv_pane = getInventoryPane(inventory, this)
-		let new_areas_report = getAreasPane(inventory, this)
-		let logic_auto_toggle = this.state.hasSeed ? (
-			<div>
-				<span className="label">Logic Mode:</span>
-				<ButtonGroup>
-					<Button color="secondary" onClick={() => this.setState({logicMode: "auto"}, this.resetReachable)} active={this.state.logicMode === "auto"}>Auto</Button>
-					<Button color="secondary" onClick={() => this.setState({logicMode: "manual"}, this.resetReachable)} active={this.state.logicMode === "manual"}>Manual</Button>
-				</ButtonGroup>
-			</div>
-		) : null
-		let import_or_step = this.state.hasSeed ? (
-					<div id="file-controls">
-						<div>
-							<Button color="primary" onClick={this.unloadSeed} >Unload Seed</Button> 
-							<Button color="primary" onClick={this.resetReachable} >Reset Steps</Button>
-						</div>{" "}
-						<div>
-							<Button color="primary" onClick={() => this.rewind()} >{"Back"}</Button>
-							<Button color="disabled" disabled={true}>{this.state.step}</Button>
-							<Button color="primary" onClick={this.updateReachable} >{"Next"}</Button>
-						</div>
-					</div>
-				) : ( <h6>Drag and drop your seed file onto the map to upload</h6> );
-        let logic_path_boxes = logic_paths.map(lp => {return (<label className="checkbox-label"><Checkbox value={lp} />{lp}</label>)});
-		return (
+		let inv_pane = this.getInventoryPane(inventory);
+        let new_areas_report = null //this.getAreasPane(inventory); disabled until path compression exists
+        let manual_controls = this.getManualLogicControls();
+		let logic_auto_toggle = (
+            <Collapse isOpen={this.state.hasSeed}>
+			<Row  className="p-1">
+                <Col xs="4">
+				<Button block disabled>Logic Mode:</Button>
+                </Col>
+                <Col xs="4">
+					<Button color="primary" onClick={() => this.setState({logicMode: "auto"}, this.resetReachable)} outline={this.state.logicMode !== "auto"}>Auto</Button>
+                </Col>
+                <Col xs="4">
+					<Button color="primary" onClick={() => this.setState({logicMode: "manual"}, this.resetReachable)} outline={this.state.logicMode !== "manual"}>Manual</Button>
+                </Col>
+			</Row>
+            </Collapse>
+		) 
+		let step_buttons = (
+            <Collapse isOpen={this.state.hasSeed}>
+                <Row className="p-1">
+                    <Col xs={{size: "5", offset: 1}}>
+                        <Button block color="primary" onClick={this.unloadSeed} >Unload Seed</Button> 
+                    </Col>
+                    <Col xs={{size: "5", offset: 1}}>
+                        <Button block color="primary" onClick={this.resetReachable} >Reset Steps</Button>
+                    </Col>
+                </Row>
+                <Row className="p-1">
+                    <Col xs={{size: "4", offset: 1}}>
+                        <Button block color="primary" onClick={() => this.rewind()} >{"Back"}</Button>
+                    </Col>
+                    <Col xs="2">
+                        <Button block disabled >{this.state.step}</Button>
+                    </Col>
+                    <Col xs="4">
+                        <Button block color="primary" onClick={this.updateReachable} >{"Next"}</Button>
+                    </Col>
+                </Row>
+            </Collapse>
+        )
+        let logic_path_buttons = logic_paths.map(lp => {return (<Col className="pr-0" xs="4"><Button block size="sm" outline={!this.state.modes.includes(lp)} onClick={this.onMode(lp)}>{lp}</Button></Col>)});
+        return (
 	      <Dropzone className="wrapper" disableClick onDrop={this.onDrop} onDragEnter={this.onDragEnter} onDragLeave={this.onDragLeave} >
           { dropzoneActive && <div style={overlay_style}>Import your randomizer.dat to begin analysis</div> }
 	            <Helmet>
-	                <style>{'body { background-color: black}'}</style>
+                    <style type="text/css">{`
+                        body {
+                            background-color: black;
+                            text-color: white;
+                        }
+                    `}</style>
 					<link rel="stylesheet" href="https://unpkg.com/leaflet@1.3.1/dist/leaflet.css" integrity="sha512-Rksm5RenBEKSKFjgI3a41vrjkw4EVPlJ3+OiI65vTjIdo9brlAacEuKOiQ5OFh7cOI1bkDwLqdLw3Zg0cRJAAQ==" crossorigin=""/>
 	            </Helmet>
 
@@ -511,64 +578,40 @@ class LogicHelper extends React.Component {
 					<TileLayer url=' https://ori-tracker.firebaseapp.com/images/ori-map/{z}/{x}/{y}.png' noWrap='true'  />
 				</Map> 
 				<div className="controls">
-					{import_or_step}
-			    	<div id="search-wrapper">
-						<label for="search">Search</label>
-						<input id="search" className="form-control" type="text" value={this.state.searchStr} onChange={this.onSearch} />
-					</div>
+                <Container fluid>
+                    <Collapse isOpen={!this.state.hasSeed}>
+                        <Row className="p-1"><Col xs="12">
+                            <Button block color="secondary" disabled>Drag and drop your seed file onto the map to upload</Button>
+                        </Col></Row>
+                    </Collapse>
+                    {step_buttons}
+			    	<Row className="p-1 border-top">
+                        <Col xs="4" className="pr-0">
+    						<Button block disabled color="secondary">Search</Button>
+                        </Col>
+                        <Col xs="8">
+    						<Input type="text" value={this.state.searchStr} onChange={this.onSearch} />
+	                    </Col>
+    				</Row>
 					{inv_pane}
-					<div id="logic-controls">
-						<div id="logic-mode-wrapper">
-							{logic_auto_toggle}
-							<Collapse id="manual-controls" isOpen={this.state.logicMode === "manual"}>
-								<hr style={{ backgroundColor: 'grey', height: 2 }}/>
-								<div className="manual-wrapper">
-									<span className="label">Health Cells:</span>
-									<NumericInput min={0} value={this.state.manual_reach.HC} onChange={(n) => this.updateManual("HC",n)}></NumericInput>
-								</div>
-								<div className="manual-wrapper">
-									<span className="label">Energy Cells:</span>
-									<NumericInput min={0} value={this.state.manual_reach.EC} onChange={(n) => this.updateManual("EC",n)}></NumericInput>
-								</div>
-								<div className="manual-wrapper">
-									<span className="label">Ability Cells:</span>
-									<NumericInput min={0} value={this.state.manual_reach.AC} onChange={(n) => this.updateManual("AC",n)}></NumericInput>
-								</div>
-								<div className="manual-wrapper">
-									<span className="label">Keystones:</span>
-									<NumericInput min={0} value={this.state.manual_reach.KS} onChange={(n) => this.updateManual("KS",n)}></NumericInput>
-								</div>
-								<div className="manual-wrapper">
-									<span className="label">Mapstones:</span>
-									<NumericInput min={0} value={this.state.manual_reach.MS} onChange={(n) => this.updateManual("MS",n)}></NumericInput>
-								</div>
-								<div className="manual-wrapper">
-									<Select styles={select_styles} placeholder="Skills" options={stuff_by_type["Skills"]} onChange={(n) => this.updateManual("skills", n)} isMulti={true} value={this.state.manual_reach.skills}></Select>
-								</div>
-								<div className="manual-wrapper">
-									<Select styles={select_styles} placeholder="Teleporters" options={stuff_by_type["Teleporters"]} onChange={(n) => this.updateManual("tps", n)} isMulti={true} value={this.state.manual_reach.tps}></Select>
-								</div>
-								<div className="manual-wrapper">
-									<Select styles={select_styles} placeholder="Events" options={stuff_by_type["Events"]} onChange={(n) => this.updateManual("evs", n)} isMulti={true} value={this.state.manual_reach.evs}></Select>
-								</div>
-							</Collapse>
-						</div>
-						<hr style={{ backgroundColor: 'grey', height: 2 }}/>
-						<div id="logic-mode-controls">
-							<div id="logic-presets">
-								<Button color="primary" onClick={() => this.setState({display_logic: !this.state.display_logic})} >Logic Paths:</Button>
-								<Select styles={select_styles}  options={select_wrap(paths)} onChange={this.onPathModeChange} isClearable={false} value={this.state.pathMode}></Select>
-							</div>
-							<Collapse id="logic-options-wrapper" isOpen={this.state.display_logic}>
-								<CheckboxGroup id="logic-options" checkboxDepth={2} name="modes" value={this.state.modes} onChange={this.modesChanged}>
-                                    {logic_path_boxes}
-                                </CheckboxGroup>
-							</Collapse>
-						</div>
-						<hr style={{ backgroundColor: 'grey', height: 2 }}/>
-						{new_areas_report}
-					</div>
-				</div>
+                    {logic_auto_toggle}
+                    {manual_controls}
+                    <Row className="border-top border-bottom p-1">
+                        <Col xs="4">
+                            <Button color="primary" block active={this.state.display_logic} onClick={() => this.setState({display_logic: !this.state.display_logic})} >Logic Paths:</Button>
+                        </Col>
+                        <Col xs="8">
+                            <Select styles={select_styles}  options={select_wrap(paths)} onChange={this.onPathModeChange} isClearable={false} value={this.state.pathMode}></Select>
+                        </Col>
+                    </Row>
+                    <Collapse id="logic-options-wrapper" isOpen={this.state.display_logic}>
+                    <Row className="p-1">
+                        {logic_path_buttons}
+                    </Row>
+                    </Collapse>
+                    {new_areas_report}
+                </Container>
+                </div>
 			</Dropzone>
 
 		)
