@@ -25,7 +25,7 @@ const DEFAULT_VIEWPORT = {
 }
 
 const paths = Object.keys(presets);
-const releveant_picks = ["RB|6", "RB|8", "RB|9", "RB|10", "RB|11", "RB|12", "RB|13", "RB|15","RB|17","RB|19", "RB|21", "HC|1", "EC|1", "KS|1", "MS|1", "AC|1", 'SK|0', 'SK|51', 'SK|2', 'SK|3', 'SK|4', 'SK|5', 'SK|8', 'SK|12', 'SK|50', 'SK|14', 'TP|Ginso', 'TP|Horu', 'TP|Grotto', 'TP|Grove', 'TP|Forlorn', 'TP|Sorrow', 'TP|Swamp', 'TP|Valley', 'EV|0', 'EV|1', 'EV|2', 'EV|3', 'EV|4']
+const relevant_picks = ["RB|6", "RB|8", "RB|9", "RB|10", "RB|11", "RB|12", "RB|13", "RB|15","RB|17","RB|19", "RB|21", "HC|1", "EC|1", "KS|1", "MS|1", "AC|1", 'SK|0', 'SK|51', 'SK|2', 'SK|3', 'SK|4', 'SK|5', 'SK|8', 'SK|12', 'SK|50', 'SK|14', 'TP|Ginso', 'TP|Horu', 'TP|Grotto', 'TP|Grove', 'TP|Forlorn', 'TP|Sorrow', 'TP|Swamp', 'TP|Valley', 'EV|0', 'EV|1', 'EV|2', 'EV|3', 'EV|4']
 
 // patch picks_by_area to include mapstone areas because haha fuck
 picks_by_type["Ma"].forEach(pick => {
@@ -109,7 +109,7 @@ function getInventory(state) {
 				{					
 					let item = placements[pick.loc].value;
 					let group = code_to_group[item];
-  					if(releveant_picks.includes(item))
+  					if(relevant_picks.includes(item))
   					{
   						if(!Object.keys(inventory).includes(group))
   							inventory[group] = {};
@@ -450,7 +450,7 @@ class LogicHelper extends React.Component {
 			  			if(this.state.placements[pick.loc])
 			  			{
 		  					let code = this.state.placements[pick.loc].value;
-		  					if(!["SH", "NO","EX"].includes(code.substr(0,2)))
+		  					if(!["SH", "NO", "EX", "WT", "HN"].includes(code.substr(0,2)))
 		  						if(reachableStuff.hasOwnProperty(code))
 									reachableStuff[code] += 1;
 								else
