@@ -4,7 +4,7 @@ import logging as log
 
 from datetime import datetime, timedelta
 from collections import defaultdict
-from seedbuilder.seedparams import Placement, Stuff
+from seedbuilder.seedparams import Placement, Stuff, SeedGenParams
 
 from enums import MultiplayerGameType, ShareType
 from util import special_coords, get_bit, get_taste, unpack, enums_from_strlist
@@ -23,7 +23,7 @@ class HistoryLine(ndb.Model):
     def pickup(self):
         return Pickup.n(self.pickup_code, self.pickup_id)
 
-    def print_line (self,start_time=None):
+    def print_line(self, start_time=None):
         t = (self.timestamp - start_time) if start_time and self.timestamp else self.timestamp
         if not self.removed:
             coords = unpack(self.coords)
@@ -32,7 +32,6 @@ class HistoryLine(ndb.Model):
         else:
             return "lost %s! (%s)" % (self.pickup().name, t)
 
-    
 class Seed(ndb.Model):
     # Seed ids are author
     placements = ndb.LocalStructuredProperty(Placement, repeated=True)
@@ -184,6 +183,7 @@ class Game(ndb.Model):
     start_time = ndb.DateTimeProperty(auto_now_add=True)
     last_update = ndb.DateTimeProperty(auto_now=True)
     players = ndb.KeyProperty(Player, repeated=True)
+    params = ndb.KeyProperty(SeedGenParams)
 
     def summary(self):
         out_lines = ["%s (%s)" %( self.mode, ",".join([s.name for s in self.shared]))]
@@ -352,6 +352,8 @@ class Game(ndb.Model):
     def clean_up(self):
         [p.delete() for p in self.players]
         Cache.removeGame(self.key.id())
+        if self.params:
+            self.params.delete()
         log.info("Deleting game %s" % self)
         self.key.delete()
 
@@ -377,8 +379,11 @@ class Game(ndb.Model):
     @staticmethod
     def from_params(params, id=None):
         id = int(id) if id else Game.get_open_gid()
-
-        game = Game(id = id, players=[], str_shared=[s.value for s in params.sync.shared], str_mode=params.sync.mode.value)
+        game = Game(
+            id=id, params=params.key, players=[],
+            str_shared=[s.value for s in params.sync.shared],
+            str_mode=params.sync.mode.value
+        )
         game.put()
         teams = params.sync.teams
         if teams:
@@ -390,11 +395,17 @@ class Game(ndb.Model):
                     tset.remove(player.key)
                     player.teammates = list(tset)
                     player.put()
+        else:
+            for i in range(params.players):
+                player = game.player(i+1)
+                player.put()
+                Cache.setPos(id, i+1, 189, -210)
+        game.rebuild_hist()
         log.info("Game.from_params(%s, %s): Created game %s ", params.key, id, game)
         return game
 
     @staticmethod
-    def new(_mode = None, _shared = None, id=None):
+    def new(_mode=None, _shared=None,  id=None):
         if _shared:
             shared = enums_from_strlist(ShareType, _shared)
         else:

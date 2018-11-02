@@ -1,19 +1,21 @@
 from seedbuilder.areas import get_areas
 from collections import defaultdict, Counter
 
+
 class PlayerState(object):
     name_from_id = {
-        ("SK",0): 'Bash',  ("SK",2): 'ChargeFlame',  ("SK",3): 'WallJump',  ("SK",4): 'Stomp',  ("SK",5):  'DoubleJump', 
-        ("SK",8): 'ChargeJump',  ("SK",12): 'Climb',  ("SK",14): 'Glide',  ("SK",50): 'Dash',  ("SK",51): 'Grenade',
-        ("EV", 0): 'GinsoKey', ("EV", 1): 'Water', ("EV", 2): 'ForlornKey', ("EV", 3): 'Wind', ("EV", 4): 'HoruKey', 
-        ("TP","Swamp"): 'TPSwamp', ("TP","Grove"): 'TPGrove', ("TP","Valley"): 'TPValley', 
-        ("TP","Grotto"): 'TPGrotto', ("TP","Forlorn"): 'TPForlorn', ("TP","Sorrow"): 'TPSorrow' 
+        ("SK", 0): 'Bash',  ("SK", 2): 'ChargeFlame',  ("SK", 3): 'WallJump',  ("SK", 4): 'Stomp',  ("SK", 5):  'DoubleJump',
+        ("SK", 8): 'ChargeJump',  ("SK", 12): 'Climb',  ("SK", 14): 'Glide',  ("SK", 50): 'Dash',  ("SK", 51): 'Grenade',
+        ("EV", 0): 'GinsoKey', ("EV", 1): 'Water', ("EV", 2): 'ForlornKey', ("EV", 3): 'Wind', ("EV", 4): 'HoruKey',
+        ("TP", "Swamp"): 'TPSwamp', ("TP", "Grove"): 'TPGrove', ("TP", "Valley"): 'TPValley',
+        ("TP", "Grotto"): 'TPGrotto', ("TP", "Forlorn"): 'TPForlorn', ("TP", "Sorrow"): 'TPSorrow'
     }
+    
     def __init__(self, pickinfos):
         self.has = Counter()
         self.has["HC"] = 3
         wv = ss = gs = 0
-        for code,id,count,removed in pickinfos:
+        for code, id, count, removed in pickinfos:
             if code in ["EX"]:
                 continue
             id = id if code in ["TP", "SH", "NO", "MU", "HN", "WT"] else int(id)

@@ -1,4 +1,32 @@
+import React from 'react';
 import Leaflet from 'leaflet';
+import {BeatLoader, BounceLoader, CircleLoader, ClipLoader, ClimbingBoxLoader, DotLoader, GridLoader, HashLoader, MoonLoader,
+         PacmanLoader, PulseLoader, RingLoader, RiseLoader, RotateLoader, SyncLoader, FadeLoader, ScaleLoader} from 'react-spinners';
+import { css } from 'react-emotion';
+
+const loaders = [
+    (<BeatLoader  loading/>),
+    (<BounceLoader  loading/>),
+    (<CircleLoader  loading/>),
+    (<ClipLoader  loading/>),
+    (<ClimbingBoxLoader  loading/>),
+    (<DotLoader  loading/>),
+    (<GridLoader  loading/>),
+    (<HashLoader  loading/>),
+    (<MoonLoader  loading/>),
+    (<PacmanLoader  loading/>),
+    (<PulseLoader  loading/>),
+    (<RingLoader  loading/>),
+    (<RiseLoader  loading/>),
+    (<RotateLoader  loading/>),
+    (<FadeLoader  loading/>),
+    (<ScaleLoader  loading/>),
+    (<SyncLoader  loading/>)
+]
+
+function get_random_loader() {
+    return loaders[Math.floor(Math.random() * loaders.length)]
+}
 
 function get_param(name) {
 	let retVal = document.getElementsByClassName(name)[0].id
@@ -106,4 +134,4 @@ function doNetRequest(url, onRes)
     xmlHttp.send(null);
 }
 
-export {player_icons, doNetRequest, get_param, get_flag, get_int, get_list, get_preset, presets, get_seed, logic_paths};
+export {player_icons, doNetRequest, get_param, get_flag, get_int, get_list, get_preset, presets, get_seed, logic_paths, get_random_loader};

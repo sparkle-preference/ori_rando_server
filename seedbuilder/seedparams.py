@@ -98,6 +98,7 @@ class SeedGenParams(ndb.Model):
     cell_freq = ndb.IntegerProperty(default=256)
     placements = ndb.LocalStructuredProperty(Placement, repeated=True, compressed=True)
     spoilers = ndb.TextProperty(repeated=True, compressed=True)
+    do_loc_analysis = False
 
     @staticmethod
     def from_url(qparams):
@@ -175,9 +176,13 @@ class SeedGenParams(ndb.Model):
         if self.tracking:
             flags = "Sync%s.%s," % (game_id, player) + flags
         outlines = [flags]
-        outlines += ["|".join((str(p.location), s.code, s.id, p.zone)) for p in self.placements for s in p.stuff if int(s.player) == self.team_pid(player)]
+        outlines += ["|".join(line) for line in self.get_seed_data(player)]
         assert len(outlines) > 1
         return "\n".join(outlines)+"\n"
+
+    def get_seed_data(self, player=1):
+        player = int(player)
+        return [(str(p.location), s.code, s.id, p.zone) for p in self.placements for s in p.stuff if int(s.player) == self.team_pid(player)]
 
     def get_spoiler(self, player=1):
         return self.spoilers[self.team_pid(player)-1]
