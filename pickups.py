@@ -173,7 +173,6 @@ class Relic(Pickup):
     code = "WT"
     def __new__(cls, id):
         inst = super(Relic, cls).__new__(cls)
-        inst.id, inst.bit, inst.name = id,None, "Relic"
+        inst.id, inst.bit, inst.name = id, None, "Relic"
         inst.share_type = ShareType.NOT_SHARED
         return inst
-    

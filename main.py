@@ -235,7 +235,6 @@ class ClearCache(RequestHandler):
 
 class SetSeed(RequestHandler):
     def get(self, game_id, player_id):
-        seedlines = []
         lines = paramVal(self, "seed").split(",")
         game = Game.with_id(game_id)
         hist = Cache.getHist(game_id)
@@ -243,6 +242,9 @@ class SetSeed(RequestHandler):
             Cache.setHist(game_id, player_id, [])
         Cache.setPos(game_id, player_id, 189, -210)
         if not game:
+            # TODO: this branch is now probably unnecessary.
+            # experiment with deleting it.
+            log.error("game was not already created! %s" % game_id)
             flags = lines[0].split("|")
             mode_opt = [f[5:] for f in flags if f.lower().startswith("mode=")]
             shared_opt = [f[7:].split(" ") for f in flags if f.lower().startswith("shared=")]
@@ -252,15 +254,6 @@ class SetSeed(RequestHandler):
             game.put()
         else:
             game.sanity_check()  # cheap if game is short!
-        for l in lines[1:]:
-            line = l.split("|")
-            if len(line) < 3:
-                log.error("malformed seed line %s, skipping" % l)
-            else:
-                seedlines.append("%s:%s" % (line[0], Pickup.name(line[1], line[2])))
-        player = game.player(player_id)
-        player.seed = "\n".join(seedlines)
-        player.put()
         self.response.headers['Content-Type'] = 'text/plain'
         self.response.status = 200
         self.response.out.write("ok")
@@ -322,7 +315,7 @@ class GetGameData(RequestHandler):
         self.response.headers['Content-Type'] = 'application/json'
         gamedata = {}
         game = Game.with_id(game_id)
-        if not game:
+        if not game or not game.params:
             self.response.write(json.dumps({"error": "Game not found!"}))
             self.response.status = 404
             return
