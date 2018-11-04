@@ -333,6 +333,7 @@ const getHelpContent = (category, option) => {
 						"With Share Misc enabled, Warmth Fragments and World Tour Relics are shared between players, if they exist.",
 						"Sharing Relics and Warmth Fragments will greatly reduce the amount of time an average co-op seed will take to complete."                        
 					]
+                    extra.push((<CardText className="border font-weight-bold border-danger">Relic sharing is currently disabled. Relics will not be shared.</CardText>))
 					break;
 				case "World Events":
 					title = "Share World Events"

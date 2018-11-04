@@ -894,8 +894,8 @@ class SeedGenerator:
             if ShareType.MISC in shared:
                 if self.var(Variation.WARMTH_FRAGMENTS):
                     self.sharedList.append("RB28")
-                if self.var(Variation.WORLD_TOUR):
-                    self.sharedList.append("Relic")
+#                if self.var(Variation.WORLD_TOUR):
+#                    self.sharedList.append("Relic")
         return self.placeItemsMulti(retries)
 
     def placeItemsMulti(self, retries=5):
