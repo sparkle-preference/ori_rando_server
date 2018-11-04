@@ -174,6 +174,6 @@ class Relic(Pickup):
     def __new__(cls, id):
         inst = super(Relic, cls).__new__(cls)
         inst.id, inst.bit, inst.name = id,None, "Relic"
-        inst.share_type = ShareType.MISC
+        inst.share_type = ShareType.NOT_SHARED
         return inst
     
