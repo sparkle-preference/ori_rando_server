@@ -157,7 +157,7 @@ class Message(Pickup):
     code = "SH"
     def __new__(cls, id):
         inst = super(Message, cls).__new__(cls)
-        inst.id, inst.bit, inst.name = id,None, "Message: " + id
+        inst.id, inst.bit, inst.name = id, None, "Message: " + id
         inst.share_type = ShareType.NOT_SHARED
         return inst
 
@@ -165,7 +165,9 @@ class Hint(Pickup):
     code = "HN"
     def __new__(cls, id):
         inst = super(Hint, cls).__new__(cls)
-        inst.id, inst.bit, inst.name = id,None, "Hint: " + id
+        inst.id, inst.bit = id, None
+        hintParts = id.split('-')
+        inst.name = "Hint: %s for %s" % (hintParts[1], hintParts[2])
         inst.share_type = ShareType.NOT_SHARED
         return inst
 

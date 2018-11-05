@@ -146,8 +146,7 @@ class Player(ndb.Model):
         if delay_put:
             return
         return self.put()
-        
-    
+
     def has_pickup(self, pickup):
         if pickup.code == "RB":
             pick_id = str(pickup.id)

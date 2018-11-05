@@ -10,11 +10,12 @@ class PlayerState(object):
         ("TP", "Swamp"): 'TPSwamp', ("TP", "Grove"): 'TPGrove', ("TP", "Valley"): 'TPValley',
         ("TP", "Grotto"): 'TPGrotto', ("TP", "Forlorn"): 'TPForlorn', ("TP", "Sorrow"): 'TPSorrow'
     }
-    
+
     def __init__(self, pickinfos):
         self.has = Counter()
         self.has["HC"] = 3
         wv = ss = gs = 0
+        pickinfos = [x for x in pickinfos if len(x) == 4]
         for code, id, count, removed in pickinfos:
             if code in ["EX"]:
                 continue
@@ -30,7 +31,7 @@ class PlayerState(object):
                     ss += (-count if removed else count)
                 else:
                     continue
-            elif code in ["HC","EC","KS", "MS", "AC"]:            
+            elif code in ["HC","EC","KS", "MS", "AC"]:
                 self.has[code] += (-count if removed else count)
         if wv >= 3:
             self.has['GinsoKey'] = 1

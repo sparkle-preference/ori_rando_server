@@ -80,19 +80,24 @@ class ActiveGames(RequestHandler):
         title = "Games active in the last %s hours" % hours
         body = ""
         games = Game.query(Game.last_update > datetime.now() - timedelta(hours=hours)).fetch()
+        games = [game for game in games if len([hl for players, hls in game.rebuild_hist().items() for hl in hls]) > 0]
         if not len(games):
             games = Game.query().fetch()
+            games = [game for game in games if len([hl for players, hls in game.rebuild_hist().items() for hl in hls]) > 0]
             if not len(games):
                 title = "No active games found!"
             else:
                 title = "All active games"
-        
         for game in sorted(games, key=lambda x: x.last_update, reverse=True):
             id = game.key.id()
             game_link = uri_for('game-show-history', game_id=id)
             map_link = uri_for('map-render', game_id=id)
-            body += "<li><a href='%s'>Game #%s</a> (<a href='%s'>(Map)</a>) (Last update: %s ago)</li>" % (game_link, id, map_link, datetime.now() - game.last_update)
-        out = "<html><head><title>%s - ORCS</title></head><body>" % title
+            flags = ""
+            if game.params:
+                params = game.params.get()
+                flags = params.flag_line()
+            body += "<li><a href='%s'>Game #%s</a> <a href='%s'>Map</a> %s (Last update: %s ago)</li>" % (game_link, id, map_link, flags, datetime.now() - game.last_update)
+        out = "<html><head><title>%s - Ori Rando Server</title></head><body>" % title
         if body:
             out += "<h4>%s:</h4><ul>%s</ul></body</html>" % (title, body)
         else:

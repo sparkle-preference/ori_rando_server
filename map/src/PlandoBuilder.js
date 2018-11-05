@@ -49,7 +49,6 @@ const DANGEROUS = [-280256, -1680104, -12320248]
 const paths = Object.keys(presets);
 
 const dev = window.document.URL.includes("devshell")
-const base_url = dev ?  "https://8080-dot-3616814-dot-devshell.appspot.com" : "http://orirandocoopserver.appspot.com"
 
 function getPickupMarkers(state, setSelected, searchStr) {
 	let pickupTypes = state.pickups
@@ -505,6 +504,7 @@ class PlandoBuiler extends React.Component {
 	savedSuccessful = (statusCode) => {
 		if(statusCode === 200)
 		{
+            let base_url = window.document.title.split("/plando")[0]
 		    window.history.replaceState('',window.document.title, base_url+"/plando/"+this.state.user+"/"+this.state.seed_name+"/edit");
 			this.toggleMeta()
 			NotificationManager.success("Seed saved", "Success!", 2500);

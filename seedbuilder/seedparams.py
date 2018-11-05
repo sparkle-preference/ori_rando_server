@@ -47,7 +47,6 @@ class MultiplayerOptions(ndb.Model):
             opts.cloned = qparams.get("sync_gen") != "disjoint"
             opts.hints = bool(opts.cloned and qparams.get("sync_hints"))
             opts.shared = enums_from_strlist(ShareType, qparams.getall("sync_shared"))
-
             teamsRaw = qparams.get("teams")
             if teamsRaw and opts.mode == MultiplayerGameType.SHARED and opts.cloned:
                 cnt = 1
@@ -157,8 +156,12 @@ class SeedGenParams(ndb.Model):
                     placemap[loc] = Placement(location=loc, zone=zone, stuff=[stuff])
                 else:
                     placemap[loc].stuff.append(stuff)
-        if player != self.players and player != len(self.sync.teams):
-            log.error("seed count mismatch!, %s != %s or %s", player, self.players, len(self.teams))
+        if self.sync.mode == MultiplayerGameType.SIMUSOLO:
+            if player != 1:
+                log.error("seed count mismatch! Should only be 1 simusolo seed and instead found  %s", player)
+                return False
+        elif player != self.players and player != len(self.sync.teams):
+            log.error("seed count mismatch!, %s != %s or %s", player, self.players, len(self.sync.teams))
             return False
         self.spoilers = spoilers
         self.placements = placemap.values()
@@ -182,9 +185,13 @@ class SeedGenParams(ndb.Model):
 
     def get_seed_data(self, player=1):
         player = int(player)
+        if self.sync.mode == MultiplayerGameType.SIMUSOLO:
+            player = 1
         return [(str(p.location), s.code, s.id, p.zone) for p in self.placements for s in p.stuff if int(s.player) == self.team_pid(player)]
 
     def get_spoiler(self, player=1):
+        if self.sync.mode == MultiplayerGameType.SIMUSOLO:
+            player = 1
         return self.spoilers[self.team_pid(player)-1]
 
     def get_preset(self):
