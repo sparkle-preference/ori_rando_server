@@ -24,7 +24,7 @@ from enums import MultiplayerGameType, ShareType, Variation
 from models import Game, Seed
 from pickups import Pickup
 from cache import Cache
-from util import coord_correction_map, all_locs
+from util import coord_correction_map, all_locs, picks_by_type_generator
 from reachable import Map, PlayerState
 
 PLANDO_VER = "0.5.1"
@@ -388,7 +388,7 @@ class PlandoReachable(RequestHandler):
         if paramVal(self, "codes"):
             for codemulti in paramVal(self, "codes").split(" "):
                 code, _, times = codemulti.partition(":")
-                codes.append(tuple(code.split("|")+[int(times), False]))
+                codes.append(tuple(code.split("|") + [int(times), False]))
         self.response.headers['Content-Type'] = 'application/json'
         self.response.status = 200
 
@@ -484,7 +484,6 @@ class PlandoUpload(RequestHandler):
         if user:
             dispname = user.email().partition("@")[0]
             if dispname == author:
-                id = author + ":" + plando
                 seedLines = self.request.POST["seed"]
                 desc = self.request.POST["desc"]
                 old_name = paramVal(self, "old_name")
@@ -571,7 +570,7 @@ class PlandoOld(RequestHandler):
             dispname = user.email().partition("@")[0]
             self.redirect("/plando/%s/seedName/edit" % dispname)
         else:
-            template_values = {'app': "plandoBuilder", 'title': "Plandomizer Editor " + PLANDO_VER,
+            template_values = {'app': "plandoBuilder", 'title': "Plandomizer Editor (Beta)",
                                'pathmode': paramVal(self, 'pathmode'), 'HC': paramVal(self, 'HC'),
                                'EC': paramVal(self, 'EC'), 'AC': paramVal(self, 'AC'), 'KS': paramVal(self, 'KS'),
                                'skills': paramVal(self, 'skills'), 'tps': paramVal(self, 'tps'), 'evs': paramVal(self, 'evs')}
@@ -600,7 +599,7 @@ class PlandoFillGen(RequestHandler):
     def get(self):
         self.response.headers['Content-Type'] = 'text/plain'
         qparams = self.request.GET
-        forced_assignments = dict([(int(a), b) for (a,b) in ([ tuple(fass.split(":")) for fass in qparams['fass'].split("|")] if "fass" in qparams else [])])
+        forced_assignments = dict([(int(a), b) for (a, b) in ([ tuple(fass.split(":")) for fass in qparams['fass'].split("|")] if "fass" in qparams else [])])
 
         param_key = SeedGenParams.from_url(qparams)
         params = param_key.get()
@@ -611,11 +610,6 @@ class PlandoFillGen(RequestHandler):
 
 class PlandoDownload(RequestHandler):
     def get(self, author, plando):
-        owner = False
-        user = users.get_current_user()
-        if user:
-            dispname = user.email().partition("@")[0]
-            owner = dispname == author
         id = author + ":" + plando
         seed = Seed.get_by_id(id)
         if seed:
@@ -623,7 +617,7 @@ class PlandoDownload(RequestHandler):
             pid = paramVal(self, "pid")
             syncFlag = "Sync%s.%s" % (gid, pid)
             self.response.status = 200
-            self.response.headers['Content-Type'] = 'application/x-gzip' if not debug else     'text/plain'
+            self.response.headers['Content-Type'] = 'application/x-gzip' if not debug else 'text/plain'
             self.response.headers['Content-Disposition'] = 'attachment; filename=randomizer.dat' if not debug else ""
             seedlines = seed.to_lines(player=int(pid), extraFlags=[syncFlag])
             rand = random.Random()
@@ -636,9 +630,6 @@ class PlandoDownload(RequestHandler):
             self.response.status = 404
             self.response.headers['Content-Type'] = 'text/plain'
             self.response.out.write("seed not found")
-
-
-        
 
 class AllAuthors(RequestHandler):
     def get(self):
@@ -669,13 +660,11 @@ class AuthorIndex(RequestHandler):
         seeds = query.fetch()
 
         if len(seeds):
-            out = '<html><head><title>Seeds by %s</title></head><body><div>Seeds by %s:</div><ul style="list-style-type:none;padding:5px">' % (
-            author, author)
+            out = '<html><head><title>Seeds by %s</title></head><body><div>Seeds by %s:</div><ul style="list-style-type:none;padding:5px">' % (author, author)
             for seed in seeds:
                 url = "%s/plando/%s/%s" % (base_site, author, seed.name)
                 flags = ",".join(seed.flags)
-                out += '<li style="padding:2px"><a href="%s">%s</a>: %s (%s players, %s)' % (
-                url, seed.name, seed.description, seed.players, flags)
+                out += '<li style="padding:2px"><a href="%s">%s</a>: %s (%s players, %s)' % (url, seed.name, seed.description, seed.players, flags)
                 if owner:
                     out += ' <a href="%s/edit">Edit</a>' % url
                     if seed.hidden:
@@ -692,13 +681,13 @@ class AuthorIndex(RequestHandler):
 
 
 class Bingo(RequestHandler):
-    def get(self, cards = 25):
+    def get(self, cards=25):
         self.response.headers['Content-Type'] = 'text/plain'
         self.response.write(Card.get_json(int(cards)))
 
 
 class MapTest(RequestHandler):
-    def get(self, game_id = 101):
+    def get(self, game_id=101):
         if not debug:
             self.redirect("/")
         game_id = int(game_id)
@@ -764,9 +753,9 @@ class SeedGenJson(RequestHandler):
                 if params.tracking:
                     seed = params.get_seed(p, key.id(), verbose_paths)
                 else:
-                    seed = params.get_seed(p, verbose_paths = verbose_paths)
-                spoiler = params.get_spoiler(p).replace("\n","\r\n")
-                players.append({"seed": seed, "spoiler": spoiler, "spoiler_url": uri_for('gen-params-get-spoiler',params_id=param_key.id(), player=p)})
+                    seed = params.get_seed(p, verbose_paths=verbose_paths)
+                spoiler = params.get_spoiler(p).replace("\n", "\r\n")
+                players.append({"seed": seed, "spoiler": spoiler, "spoiler_url": uri_for('gen-params-get-spoiler', params_id=param_key.id(), player=p)})
             resp["players"] = players
             self.response.out.write(json.dumps(resp))
         else:
@@ -794,7 +783,7 @@ class GetSeedFromParams(RequestHandler):
                 game_id = self.request.GET.get("game_id")
                 seed = params.get_seed(player, game_id, verbose_paths)
             else:
-                seed = params.get_seed(player, verbose_paths = verbose_paths)
+                seed = params.get_seed(player, verbose_paths=verbose_paths)
             if not debug:
                 self.response.headers['Content-Type'] = 'application/x-gzip'
                 self.response.headers['Content-Disposition'] = 'attachment; filename=randomizer.dat'
@@ -808,19 +797,19 @@ class GetSpoilerFromParams(RequestHandler):
         self.response.headers['Content-Type'] = 'text/plain'
         params = SeedGenParams.with_id(params_id)
         if params:
-            player = int(self.request.GET.get("player",1))
+            player = int(self.request.GET.get("player", 1))
             spoiler = params.get_spoiler(player)
             self.response.out.write(spoiler)
         else:
             self.response.status = 404
             self.response.out.write("Param %s not found" % params_id)
 
-from util import picks_by_type_generator
 class PicksByTypeGen(RequestHandler):
     def get(self):
         self.response.headers['Content-Type'] = 'application/json'
         self.response.out.write(picks_by_type_generator())
         return
+
 
 app = WSGIApplication(routes=[
     # testing endpoints
@@ -883,10 +872,10 @@ app = WSGIApplication(routes=[
 
     # new game endpoints 
     PathPrefixRoute('/game/<game_id:\d+>', [
-        Route('/delete', handler = DeleteGame, strict_slash=True, name="game-delete"),
-        Route('/history', handler = ShowHistory, strict_slash=True, name="game-show-history"),
-        Route('/players', handler = ListPlayers, strict_slash=True, name="game-list-players"),
-        Route('/player/(\w+)/remove', handler = RemovePlayer, strict_slash=True, name="game-remove-player"),
+        Route('/delete', handler=DeleteGame, strict_slash=True, name="game-delete"),
+        Route('/history', handler=ShowHistory, strict_slash=True, name="game-show-history"),
+        Route('/players', handler=ListPlayers, strict_slash=True, name="game-list-players"),
+        Route('/player/(\w+)/remove', handler=RemovePlayer, strict_slash=True, name="game-remove-player"),
         Route('/', redirect_to_name="game-show-history"),
     ]),
 

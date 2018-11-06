@@ -504,7 +504,7 @@ class PlandoBuiler extends React.Component {
 	savedSuccessful = (statusCode) => {
 		if(statusCode === 200)
 		{
-            let base_url = window.document.title.split("/plando")[0]
+            let base_url = window.document.URL.split("/plando")[0]
 		    window.history.replaceState('',window.document.title, base_url+"/plando/"+this.state.user+"/"+this.state.seed_name+"/edit");
 			this.toggleMeta()
 			NotificationManager.success("Seed saved", "Success!", 2500);
