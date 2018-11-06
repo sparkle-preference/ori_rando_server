@@ -1,11 +1,11 @@
 from seedbuilder.areas import get_areas
 from collections import defaultdict, Counter
-
+from pickups import Pickup
 
 class PlayerState(object):
     name_from_id = {
-        ("SK", 0): 'Bash',  ("SK", 2): 'ChargeFlame',  ("SK", 3): 'WallJump',  ("SK", 4): 'Stomp',  ("SK", 5):  'DoubleJump',
-        ("SK", 8): 'ChargeJump',  ("SK", 12): 'Climb',  ("SK", 14): 'Glide',  ("SK", 50): 'Dash',  ("SK", 51): 'Grenade',
+        ("SK", 0): 'Bash', ("SK", 2): 'ChargeFlame', ("SK", 3): 'WallJump', ("SK", 4): 'Stomp', ("SK", 5): 'DoubleJump',
+        ("SK", 8): 'ChargeJump', ("SK", 12): 'Climb', ("SK", 14): 'Glide', ("SK", 50): 'Dash', ("SK", 51): 'Grenade',
         ("EV", 0): 'GinsoKey', ("EV", 1): 'Water', ("EV", 2): 'ForlornKey', ("EV", 3): 'Wind', ("EV", 4): 'HoruKey',
         ("TP", "Swamp"): 'TPSwamp', ("TP", "Grove"): 'TPGrove', ("TP", "Valley"): 'TPValley',
         ("TP", "Grotto"): 'TPGrotto', ("TP", "Forlorn"): 'TPForlorn', ("TP", "Sorrow"): 'TPSorrow'
@@ -19,9 +19,9 @@ class PlayerState(object):
         for code, id, count, removed in pickinfos:
             if code in ["EX"]:
                 continue
-            id = id if code in ["TP", "SH", "NO", "MU", "HN", "WT"] else int(id)
-            if (code,id) in PlayerState.name_from_id:
-                self.has[PlayerState.name_from_id[(code,id)]] = (0 if removed else count)
+            id = int(id) if Pickup.n(code, id).int_id else id
+            if (code, id) in PlayerState.name_from_id:
+                self.has[PlayerState.name_from_id[(code, id)]] = (0 if removed else count)
             elif code == "RB":
                 if id == 17:
                     wv += (-count if removed else count)
@@ -31,7 +31,7 @@ class PlayerState(object):
                     ss += (-count if removed else count)
                 else:
                     continue
-            elif code in ["HC","EC","KS", "MS", "AC"]:
+            elif code in ["HC", "EC", "KS", "MS", "AC"]:
                 self.has[code] += (-count if removed else count)
         if wv >= 3:
             self.has['GinsoKey'] = 1
@@ -43,7 +43,7 @@ class PlayerState(object):
 class Area(object):
     def __init__(self, name):
         self.name = name
-        self.conns = []        
+        self.conns = []
     def get_reachable(self, state, modes, spendKS=False):
         reachable = {}
         for conn in self.conns:
@@ -68,7 +68,7 @@ class Connection(object):
         cheapest = [req for req in res if req.cnt["KS"] <= least_ks]
         return (True, cheapest, least_ks)
     def __str__(self):
-        return "Connection to %s: %s" % (self.target, "\n".join(["%s: %s" % (mode, "|".join([str(x) for x in req])) for mode,req in self.reqs.items()]))
+        return "Connection to %s: %s" % (self.target, "\n".join(["%s: %s" % (mode, "|".join([str(x) for x in req])) for mode, req in self.reqs.items()]))
 
 
 class Requirement(object):
@@ -81,6 +81,7 @@ class Requirement(object):
 class Map(object):
     areas = {}
     reached_with = defaultdict(lambda: set())
+
     @staticmethod
     def build():
         tree = get_areas()
@@ -93,7 +94,7 @@ class Map(object):
                     conn.reqs[req.attrib["mode"]].append(Requirement(req.text))
                 area.conns.append(conn)
             Map.areas[area.name] = area
-        
+
     @staticmethod
     def get_reachable_areas(state, modes):
         if not Map.areas:
@@ -109,13 +110,13 @@ class Map(object):
             reachable_areas.add(curr)
             needs_ks_check.add(curr)
             reachable = Map.areas[curr].get_reachable(state, modes)
-            for k,v in reachable.iteritems():
+            for k, v in reachable.iteritems():
                 Map.reached_with[k] |= set(v)
             unchecked_areas |= set([r for r in reachable.keys() if r not in reachable_areas])
             while len(unchecked_areas) < len(needs_ks_check):
                 curr = needs_ks_check.pop()
                 reachable = Map.areas[curr].get_reachable(state, modes, True)
-                for k,v in reachable.iteritems():
+                for k, v in reachable.iteritems():
                     Map.reached_with[k] |= set(v)
                 unchecked_areas |= set([r for r in reachable.keys() if r not in reachable_areas])
 
@@ -124,5 +125,5 @@ class Map(object):
             mapstone_cnt -= 1
         if mapstone_cnt == 8 and state.has["MS"] < 9:
             mapstone_cnt -= 1
-        ms_areas = ["MS%s"%i for i in range(1,mapstone_cnt +1) ]
+        ms_areas = ["MS%s" % i for i in range(1, mapstone_cnt + 1)]
         return {area: list(Map.reached_with[area]) for area in (list(reachable_areas) + ms_areas)}

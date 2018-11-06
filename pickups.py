@@ -4,11 +4,12 @@ from util import add_single, inc_stackable
 class Pickup(object):
     @staticmethod
     def subclasses():
-        return [Skill, Event, Teleporter, Upgrade, Experience, AbilityCell, HealthCell, EnergyCell, Keystone, Mapstone, Message, Hint, Relic]
-    
+        return [Skill, Event, Teleporter, Upgrade, Experience, AbilityCell, HealthCell, EnergyCell, Keystone, Mapstone, Message, Hint, Relic, Multiple]
     stacks = False
+    int_id = True
+    share_type = ShareType.NOT_SHARED
     def __eq__(self, other):
-        return isinstance(other, Pickup) and self.id == other.id
+        return isinstance(other, Pickup) and self.id == other.id and self.code == other.code
     @classmethod
     def n(cls, code, id):
         for subcls in Pickup.subclasses():
@@ -21,19 +22,18 @@ class Pickup(object):
             if code == subcls.code and subcls(id):
                 return subcls(id).name
         return "%s|%s" % (code, id)
-    
     def add_to_bitfield(self, bits_int, remove=False):
         if self.stacks:
             return inc_stackable(bits_int, self.bit, remove)
         return add_single(bits_int, self.bit, remove)
-
-
+    def is_shared(self, share_types):
+        return self.share_type in share_types
 
 class Skill(Pickup):
-    bits = {0:1, 2:2, 3:4, 4:8, 5:16, 8:32, 12:64, 14:128, 50:256, 51:512}
-    names = {0:"Bash", 2:"Charge Flame", 3:"Wall Jump", 4:"Stomp", 5:"Double Jump",8:"Charge Jump",12:"Climb",14:"Glide",50:"Dash",51:"Grenade"}
-    share_type = ShareType.SKILL
+    bits = {0: 1, 2: 2, 3: 4, 4: 8, 5: 16, 8: 32, 12: 64, 14: 128, 50: 256, 51: 512}
+    names = {0: "Bash", 2: "Charge Flame", 3: "Wall Jump", 4: "Stomp", 5: "Double Jump", 8: "Charge Jump", 12: "Climb", 14: "Glide", 50: "Dash", 51: "Grenade"}
     code = "SK"
+    share_type = ShareType.SKILL
     def __new__(cls, id):
         id = int(id)
         if id not in Skill.bits or id not in Skill.names:
@@ -43,39 +43,39 @@ class Skill(Pickup):
         return inst
 
 class Event(Pickup):
-    bits = {0:1, 1:2, 2:4, 3:8, 4:16, 5:32}
-    names = {0:"Water Vein", 1:"Clean Water", 2:"Gumon Seal", 3:"Wind Restored", 4:"Sunstone", 5:"Warmth Returned"}
+    bits = {0: 1, 1: 2, 2: 4, 3: 8, 4: 16, 5: 32}
+    names = {0: "Water Vein", 1: "Clean Water", 2: "Gumon Seal", 3: "Wind Restored", 4: "Sunstone", 5: "Warmth Returned"}
     code = "EV"
+    share_type = ShareType.EVENT
     def __new__(cls, id):
         id = int(id)
         if id not in Event.bits or id not in Event.names:
             return None
         inst = super(Event, cls).__new__(cls)
         inst.id, inst.bit, inst.name = id, Event.bits[id], Event.names[id]
-        inst.share_type = ShareType.EVENT
         return inst
 
-
 class Teleporter(Pickup):
-    bits = {"Grove":1, "Swamp":2, "Grotto":4, "Valley":8, "Forlorn":16, "Sorrow":32, "Ginso": 64, "Horu": 128}
+    bits = {"Grove": 1, "Swamp": 2, "Grotto": 4, "Valley": 8, "Forlorn": 16, "Sorrow": 32, "Ginso": 64, "Horu": 128}
     code = "TP"
+    share_type = ShareType.TELEPORTER
+    int_id = False
     def __new__(cls, id):
         if id not in Teleporter.bits:
             return None
         inst = super(Teleporter, cls).__new__(cls)
         inst.id, inst.bit, inst.name = id, Teleporter.bits[id], id + " teleporter"
-        inst.share_type = ShareType.TELEPORTER
         return inst
 
 class Upgrade(Pickup):
-    stacking= set([6, 13, 15, 17, 19, 21])
+    stacking = set([6, 13, 15, 17, 19, 21])
     name_only = set([0, 1, 2, 81])
     maxes = {17: 3, 19: 3, 21: 3}
-    names = {17:  "Water Vein Shard", 19: "Gumon Seal Shard", 21: "Sunstone Shard", 28: "Warmth Fragment", 6: "Spirit Flame Upgrade", 13: "Health Regeneration", 2: "Go Home",
-            15: "Energy Regeneration", 8: "Explosion Power Upgrade", 9:  "Spirit Light Efficiency", 10: "Extra Air Dash", 11:  "Charge Dash Efficiency", 
+    names = {17: "Water Vein Shard", 19: "Gumon Seal Shard", 21: "Sunstone Shard", 28: "Warmth Fragment", 6: "Spirit Flame Upgrade", 13: "Health Regeneration", 2: "Go Home",
+            15: "Energy Regeneration", 8: "Explosion Power Upgrade", 9: "Spirit Light Efficiency", 10: "Extra Air Dash", 11: "Charge Dash Efficiency",
             12: "Extra Double Jump", 0: "Mega Health", 1: "Mega Energy", 30: "Bleeding", 31: "Lifesteal", 32: "Manavamp", 33: "Skill Velocity Upgrade",
             101: "Polarity Shift", 102: "Gravity Swap", 103: "Drag Racer", 104: "Warp One", 105: "Warp Two", 106: "Respec", 81: "Stompnade Hint"}
-    bits = {17:1, 19:4, 21:16, 6:64, 13:256, 15:1024, 8:4096, 9:8192, 10:16384, 11:32768, 12:65536}
+    bits = {17: 1, 19: 4, 21: 16, 6: 64, 13: 256, 15: 1024, 8: 4096, 9: 8192, 10: 16384, 11: 32768, 12: 65536}
     code = "RB"
     def __new__(cls, id):
         id = int(id)
@@ -99,82 +99,92 @@ class Upgrade(Pickup):
         return inst
 
 class Experience(Pickup):
-    code="EX"
+    code = "EX"
     def __new__(cls, id):
         id = int(id)
         inst = super(Experience, cls).__new__(cls)
         inst.id, inst.bit, inst.name = id, None, "%s experience" % id
-        inst.share_type = ShareType.NOT_SHARED
         return inst
 
 class AbilityCell(Pickup):
-    code="AC"
+    code = "AC"
     def __new__(cls, id):
-    
         id = int(id)
         inst = super(AbilityCell, cls).__new__(cls)
         inst.id, inst.bit, inst.name = id, None, "Ability Cell"
-        inst.share_type = ShareType.NOT_SHARED
         return inst
 
 class HealthCell(Pickup):
-    code="HC"
+    code = "HC"
     def __new__(cls, id):
         id = int(id)
         inst = super(HealthCell, cls).__new__(cls)
         inst.id, inst.bit, inst.name = id, None, "Health Cell"
-        inst.share_type = ShareType.NOT_SHARED
         return inst
 
 class EnergyCell(Pickup):
-    code="EC"
+    code = "EC"
     def __new__(cls, id):
         id = int(id)
         inst = super(EnergyCell, cls).__new__(cls)
         inst.id, inst.bit, inst.name = id, None, "Energy Cell"
-        inst.share_type = ShareType.NOT_SHARED
         return inst
 
 class Mapstone(Pickup):
-    code="MS"
+    code = "MS"
     def __new__(cls, id):
         id = int(id)
         inst = super(Mapstone, cls).__new__(cls)
         inst.id, inst.bit, inst.name = id, None, "Mapstone"
-        inst.share_type = ShareType.NOT_SHARED
         return inst
 
 class Keystone(Pickup):
-    code="KS"
+    code = "KS"
     def __new__(cls, id):
         id = int(id)
         inst = super(Keystone, cls).__new__(cls)
         inst.id, inst.bit, inst.name = id, None, "Keystone"
-        inst.share_type = ShareType.NOT_SHARED
         return inst
 
 class Message(Pickup):
     code = "SH"
+    int_id = False
     def __new__(cls, id):
         inst = super(Message, cls).__new__(cls)
         inst.id, inst.bit, inst.name = id, None, "Message: " + id
-        inst.share_type = ShareType.NOT_SHARED
         return inst
 
 class Hint(Pickup):
     code = "HN"
+    int_id = False
     def __new__(cls, id):
         inst = super(Hint, cls).__new__(cls)
         inst.id, inst.bit = id, None
         hintParts = id.split('-')
         inst.name = "Hint: %s for %s" % (hintParts[1], hintParts[2])
-        inst.share_type = ShareType.NOT_SHARED
         return inst
+
+class Multiple(Pickup):
+    code = "MU"
+    int_id = False
+    def __new__(cls, id):
+        inst = super(Multiple, cls).__new__(cls)
+        inst.id, inst.bit = id, None
+        subparts = id.split('/')
+        inst.children = []
+        while len(subparts) > 1:
+            inst.children.append(Pickup.n(subparts[0], subparts[1]))
+            subparts = subparts[2:]
+        inst.name = "+".join([child.name for child in inst.children])
+        return inst
+
+    def is_shared(self, share_types):
+        return any([c.is_shared(share_types) for c in self.children])
 
 class Relic(Pickup):
     code = "WT"
+    int_id = False
     def __new__(cls, id):
         inst = super(Relic, cls).__new__(cls)
         inst.id, inst.bit, inst.name = id, None, "Relic"
-        inst.share_type = ShareType.NOT_SHARED
         return inst

@@ -30,11 +30,11 @@ from reachable import Map, PlayerState
 PLANDO_VER = "0.5.1"
 debug = os.environ.get('SERVER_SOFTWARE', '').startswith('Dev')
 base_site = "http://orirando.com" if not debug else "https://8080-dot-3616814-dot-devshell.appspot.com"
-
+share_types = [ShareType.EVENT, ShareType.SKILL, ShareType.UPGRADE, ShareType.MISC, ShareType.TELEPORTER]
 
 def paramFlag(s, f):
-    return s.request.get(f, None) != None
-    
+    return s.request.get(f, None) is not None
+
 def paramVal(s, f):
     return s.request.get(f, None)
 
@@ -149,8 +149,7 @@ class ShowHistory(RequestHandler):
         if game:
             output = game.summary()
             output += "\nHistory:"
-            for hl, pid in sorted([(h, p.key.id().partition('.')[2]) for p in game.get_players() for h in p.history if
-                                   h.pickup().share_type != ShareType.NOT_SHARED], key=lambda x: x[0].timestamp, reverse=True):
+            for hl, pid in sorted([(h, p.key.id().partition('.')[2]) for p in game.get_players() for h in p.history if h.pickup().is_shared(share_types)], key=lambda x: x[0].timestamp, reverse=True):
                 output += "\n\t\t Player %s %s" % (pid, hl.print_line(game.start_time))
             self.response.status = 200
             self.response.write(output)
@@ -205,7 +204,7 @@ class ListPlayers(RequestHandler):
         outlines = []
         for p in game.get_players():
             outlines.append("Player %s: %s" % (p.key.id(), p.bitfields))
-            outlines.append("\t\t" + "\n\t\t".join([hl.print_line(game.start_time) for hl in p.history if hl.pickup().share_type != ShareType.NOT_SHARED]))
+            outlines.append("\t\t" + "\n\t\t".join([hl.print_line(game.start_time) for hl in p.history if hl.pickup().is_shared(share_types)]))
 
         self.response.headers['Content-Type'] = 'text/plain'
         self.response.status = 200
@@ -346,7 +345,7 @@ class GetReachable(RequestHandler):
         shared_hist = []
         shared_coords = set()
         if game and game.mode == MultiplayerGameType.SHARED:
-            shared_hist = [hl for hls in hist.values() for hl in hls if hl.pickup().share_type in game.shared]
+            shared_hist = [hl for hls in hist.values() for hl in hls if hl.pickup().is_shared(game.shared)]
             shared_coords = set([hl.coords for hl in shared_hist])
         for player, personal_hist in hist.items():
             player_hist = [hl for hl in hist[player] if hl.coords not in shared_coords] + shared_hist
@@ -876,7 +875,7 @@ app = WSGIApplication(routes=[
 
     # new netcode endpoints
     PathPrefixRoute('/netcode/game/<game_id:\d+>/player/<player_id:[^/]+>', [
-        Route('/found/<coords>/<kind>/<id>', handler=FoundPickup, name="netcode-player-found-pickup"),
+        Route('/found/<coords>/<kind>/<id:.*>', handler=FoundPickup, name="netcode-player-found-pickup"),
         Route('/tick/<x:[^,]+>,<y>', handler=GetUpdate, name="netcode-player-tick"),
         Route('/callback/<signal>', handler=SignalCallback,  name="netcode-player-signal-callback"),
         Route('/setSeed', handler=SetSeed,  name="netcode-player-set-seed"),
