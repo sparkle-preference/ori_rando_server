@@ -599,7 +599,7 @@ class PlandoFillGen(RequestHandler):
     def get(self):
         self.response.headers['Content-Type'] = 'text/plain'
         qparams = self.request.GET
-        forced_assignments = dict([(int(a), b) for (a, b) in ([ tuple(fass.split(":")) for fass in qparams['fass'].split("|")] if "fass" in qparams else [])])
+        forced_assignments = dict([(int(a), b) for (a, b) in ([tuple(fass.split(":")) for fass in qparams['fass'].split("|")] if "fass" in qparams else [])])
 
         param_key = SeedGenParams.from_url(qparams)
         params = param_key.get()
@@ -749,7 +749,7 @@ class SeedGenJson(RequestHandler):
                 key = game.key
                 resp["map_url"] = uri_for("map-render", game_id=key.id())
                 resp["history_url"] = uri_for("game-show-history", game_id=key.id())
-            for p in range(1, params.players+1):
+            for p in range(1, params.players + 1):
                 if params.tracking:
                     seed = params.get_seed(p, key.id(), verbose_paths)
                 else:
@@ -778,7 +778,7 @@ class GetSeedFromParams(RequestHandler):
         verbose_paths = self.request.GET.get("verbose_paths") is not None
         params = SeedGenParams.with_id(params_id)
         if params:
-            player = int(self.request.GET.get("player_id",1))
+            player = int(self.request.GET.get("player_id", 1))
             if params.tracking:
                 game_id = self.request.GET.get("game_id")
                 seed = params.get_seed(player, game_id, verbose_paths)
@@ -870,7 +870,7 @@ app = WSGIApplication(routes=[
         Route('/setSeed', handler=SetSeed,  name="netcode-player-set-seed"),
     ]),
 
-    # new game endpoints 
+    # new game endpoints
     PathPrefixRoute('/game/<game_id:\d+>', [
         Route('/delete', handler=DeleteGame, strict_slash=True, name="game-delete"),
         Route('/history', handler=ShowHistory, strict_slash=True, name="game-show-history"),

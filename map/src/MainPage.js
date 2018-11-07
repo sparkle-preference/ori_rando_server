@@ -1,6 +1,6 @@
 import React from 'react';
 import  {DropdownToggle, DropdownMenu, Dropdown, DropdownItem, Nav, NavLink, NavItem, Collapse,  Input, UncontrolledButtonDropdown, Button, 
-		Row, FormFeedback, Col, Container, TabContent, TabPane, Modal, ModalHeader, ModalBody, ModalFooter, Media} from 'reactstrap'
+        Row, FormFeedback, Col, Container, TabContent, TabPane, Modal, ModalHeader, ModalBody, ModalFooter, Media} from 'reactstrap'
 import {Helmet} from 'react-helmet';
 import {NotificationContainer, NotificationManager} from 'react-notifications';
 
@@ -17,15 +17,15 @@ const keymode_options = ["None", "Shards", "Limitkeys", "Clues", "Free"];
 const textStyle = {color: "black", textAlign: "center"}
 
 const variations = {
-	ForceTrees: "Force Trees",
-	Starved: "Starved",
-	NonProgressMapStones: "Discrete Mapstones",
-	Hard: "Hard Mode",
-	OHKO: "One Hit KO",
-	"0XP": "Zero Experience",
-	ForceMapStones: "Force Mapstones",
-	Entrance: "Entrance Shuffle",
-	BonusPickups: "More Bonus Pickups",
+    ForceTrees: "Force Trees",
+    Starved: "Starved",
+    NonProgressMapStones: "Discrete Mapstones",
+    Hard: "Hard Mode",
+    OHKO: "One Hit KO",
+    "0XP": "Zero Experience",
+    ForceMapStones: "Force Mapstones",
+    Entrance: "Entrance Shuffle",
+    BonusPickups: "More Bonus Pickups",
     Open: "Open Mode",
     WorldTour: "World Tour",
     DoubleSkills: "Extra Copies",
@@ -37,23 +37,23 @@ const optional_paths = ['casual-dboost', 'standard-core', 'standard-dboost', 'st
 const varPaths = {"master": ["Starved"]}
 const diffPaths = {"glitched": "Hard", "master": "Hard"}
 const disabledPaths = {
-					"Hard": ["standard-dboost", "expert-dboost", "master-dboost"], 
-					"0XP": ["glitched", "standard-abilities", "expert-abilities", "master-abilities", "master-dboost", "timed-level", "insane"], 
-					"OHKO": ["standard-dboost", "expert-dboost", "master-dboost", "glitched", "master-lure"]
-					}
+                    "Hard": ["standard-dboost", "expert-dboost", "master-dboost"], 
+                    "0XP": ["glitched", "standard-abilities", "expert-abilities", "master-abilities", "master-dboost", "timed-level", "insane"], 
+                    "OHKO": ["standard-dboost", "expert-dboost", "master-dboost", "glitched", "master-lure"]
+                    }
 const revDisabledPaths = {}
 Object.keys(disabledPaths).forEach(v => disabledPaths[v].forEach(path => revDisabledPaths.hasOwnProperty(path) ? revDisabledPaths[path].push(v) : revDisabledPaths[path] = [v]))
 
 
 export default class MainPage extends React.Component {
-	helpEnter = (category, option, timeout=250) => () => {clearTimeout(this.state.helpTimeout) ; this.setState({helpTimeout: setTimeout(this.help(category, option), timeout)})}
-	helpLeave = () => clearTimeout(this.state.helpTimeout) 
-	help = (category, option) => () => this.setState({helpcat: category, helpopt: option, helpParams: getHelpContent(category, option)})
+    helpEnter = (category, option, timeout=250) => () => {clearTimeout(this.state.helpTimeout) ; this.setState({helpTimeout: setTimeout(this.help(category, option), timeout)})}
+    helpLeave = () => clearTimeout(this.state.helpTimeout) 
+    help = (category, option) => () => this.setState({helpcat: category, helpopt: option, helpParams: getHelpContent(category, option)})
 
     getAdvancedTab = () => {
-		let pathDiffOptions = ["Easy", "Normal", "Hard"].map(mode => (
-			<DropdownItem active={mode===this.state.pathDiff} onClick={()=> this.setState({pathDiff: mode})}>{mode}</DropdownItem>
-		))
+        let pathDiffOptions = ["Easy", "Normal", "Hard"].map(mode => (
+            <DropdownItem active={mode===this.state.pathDiff} onClick={()=> this.setState({pathDiff: mode})}>{mode}</DropdownItem>
+        ))
         const starting_pickups = {"First Pickup:": 919772, "Second Pickup:": -1560272, "Third Pickup:": 799776, "Fourth Pickup:": -120208}
         let fass_rows = Object.keys(starting_pickups).map(name => {
             let coord = starting_pickups[name];
@@ -103,17 +103,17 @@ export default class MainPage extends React.Component {
                             </UncontrolledButtonDropdown>
                         </Col>
                     </Row>
-    				<Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "pathDiff")} className="p-1 justify-content-center">
-						<Col xs="4"  className="text-center pt-1 border">
-							<span class="align-middle">Path Difficulty</span>
-						</Col>
-						<Col xs="4">
-							<UncontrolledButtonDropdown className="w-100">
-								<DropdownToggle color="primary" caret block> {this.state.pathDiff} </DropdownToggle>
-								<DropdownMenu> {pathDiffOptions} </DropdownMenu>
-							</UncontrolledButtonDropdown>
-						</Col>
-					</Row>
+                    <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "pathDiff")} className="p-1 justify-content-center">
+                        <Col xs="4"  className="text-center pt-1 border">
+                            <span class="align-middle">Path Difficulty</span>
+                        </Col>
+                        <Col xs="4">
+                            <UncontrolledButtonDropdown className="w-100">
+                                <DropdownToggle color="primary" caret block> {this.state.pathDiff} </DropdownToggle>
+                                <DropdownMenu> {pathDiffOptions} </DropdownMenu>
+                            </UncontrolledButtonDropdown>
+                        </Col>
+                    </Row>
                     <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "cellFreq")} className="p-1 justify-content-center">
                         <Col xs="4" className="text-center pt-1 border">
                             <span class="align-middle">Forced Cell Frequency</span>
@@ -154,125 +154,124 @@ export default class MainPage extends React.Component {
                 </TabPane>
         )
     }
-	getMultiplayerTab = () => {
-		let multiplayerButtons = ["Skills", "Teleporters", "Upgrades", "World Events", "Misc"].map(stype => (
-			<Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("Shared Item Categories", stype)} className="p-2">
-				<Button block outline={!this.state.shared.includes(stype)} onClick={this.onSType(stype)}>Share {stype}</Button>
-			</Col>
-		))
-		
-		let playerNumValid = this.state.tracking && this.state.players > 0;
-		let playerNumFeedback = this.state.tracking ? (this.state.players > 0 ? null : (
-			<FormFeedback tooltip>Need at least one player...</FormFeedback>
-		)) : (
-			<FormFeedback tooltip>Multiplayer modes require web tracking to be enabled</FormFeedback>
-		)
-		return (
- 			<TabPane tabId="multiplayer">
-				<Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "playerCount")}  className="p-1 justify-content-center">
-					<Col xs="4" className="text-center pt-1 border">
-						<span class="align-middle">Players</span>
-					</Col><Col xs="4">
-						<Input type="number" value={this.state.players} disabled={!this.state.tracking} invalid={!playerNumValid} onChange={(e) => this.setState({players: parseInt(e.target.value, 10)})}/> 
-						{playerNumFeedback }
-					</Col>
-				</Row>
-				<Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "multiGameType")} className="p-1 justify-content-center">
-					<Col xs="4" className="text-center pt-1 border">
-						<span class="align-middle">Multiplayer Game Type</span>
-					</Col><Col xs="4">
-						<UncontrolledButtonDropdown className="w-100" >
-							<DropdownToggle disabled={this.state.players < 2} color={this.state.players > 1 ? "primary" : "secondary"} caret block> {this.state.coopGameMode} </DropdownToggle>
-							<DropdownMenu>
-								<DropdownItem active={"Race"===this.state.coopGameMode} onClick={()=> this.setState({coopGameMode: "Race"})}>Race</DropdownItem>
-								<DropdownItem active={"Co-op"===this.state.coopGameMode} onClick={()=> this.setState({coopGameMode: "Co-op"})}>Co-op</DropdownItem>
-							</DropdownMenu>
-						</UncontrolledButtonDropdown>
-					</Col>
-				</Row>
-				<Collapse isOpen={this.state.players > 1 && this.state.coopGameMode === "Co-op"}>
-					<Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "syncSeedType")} className="p-1 justify-content-center">
-						<Col xs="4" className="text-center pt-1 border">
-							<span class="align-middle">Seed Generation Mode</span>
-						</Col><Col onMouseLeave={this.helpEnter("multiplayerOptions", "syncSeedType")} onMouseEnter={this.helpEnter("multiplayerOptions", this.state.coopGenMode)} xs="4">
-							<UncontrolledButtonDropdown className="w-100">
-								<DropdownToggle disabled={this.state.players < 2} color={this.state.players > 1 ? "primary" : "secondary"} caret block> {this.state.coopGenMode} </DropdownToggle>
-								<DropdownMenu>
-									<DropdownItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "Cloned Seeds")}  active={"Cloned Seeds"===this.state.coopGenMode} onClick={()=> this.setState({coopGenMode: "Cloned Seeds"})}>Cloned Seeds</DropdownItem>
-									<DropdownItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "Seperate Seeds")}  active={"Seperate Seeds"===this.state.coopGenMode} onClick={()=> this.setState({coopGenMode: "Seperate Seeds"})}>Seperate Seeds</DropdownItem>
-								</DropdownMenu>
-							</UncontrolledButtonDropdown>
-						</Col>
-					</Row>
-					<Row className="p-2">
-						{multiplayerButtons}
-						<Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("Shared Item Categories", "Hints")} className="p-2">
-							<Button block outline={!this.state.hints} disabled={this.state.coopGenMode!=="Cloned Seeds"} onClick={() => this.setState({hints: !this.state.hints})}>Show Hints</Button>
-						</Col>
-					</Row>
-				</Collapse>
-				<Collapse isOpen={this.state.user}>
-					<Row className="p-1 justify-content-center">
-						<Col xs="4" className="text-center pt-1 border">
-							<span class="align-middle">SyncId</span>
-						</Col><Col xs="4">
-							<Input type="number" value={this.state.syncId} invalid={!(this.state.syncId === "" || this.state.syncId > 0)} onChange={(e) => this.setState({syncId: parseInt(e.target.value, 10)})}/>
-							<FormFeedback tooltip>syncId must be positive</FormFeedback>
-						</Col>
-					</Row>
-					<Collapse isOpen={this.state.coopGenMode==="Cloned Seeds" && this.state.players > 1 && this.state.coopGameMode === "Co-op"}>
-						<Row className="p-1 justify-content-center">
-							<Col xs="4" className="text-center pt-1 border">
-								<span class="align-middle">Teams</span>
-							</Col><Col xs="4">
-								<Input type="text" value={this.state.teamStr} invalid={!this.teamStrValid()} onChange={(e) => this.setState({teamStr: e.target.value})}/>
-								<FormFeedback tooltip>Team format: 1,2|3,4|5,6. Each player must appear once.</FormFeedback>
-							</Col>
-						</Row>
-					</Collapse>
-				</Collapse>
-			</TabPane>
-		)
-	}
-	teamStrValid = () => {
-		let teamStr = this.state.teamStr;
-		if(teamStr === "") return true;
-		let teams = teamStr.split("|");
-		let retval = true;
-		let players = [...Array(this.state.players).keys()].map(i => i+1)
-		teams.forEach(team => team.split(",").forEach(p => {
-			if(isNaN(p)) retval = false;
-			else p = parseInt(p,10)
-			if(p > this.state.players) retval = false;
-			if(players[p-1] !== p) retval = false;
-			players[p-1] = 0;
-		}))
-		return retval && players.reduce((a,b)=>a+b,0) === 0
-	}
-	
-	generateSeed = () => {
-		let pMap = {"Race": "None", "None": "Default", "Co-op": "Shared", 
-					"World Events": "WorldEvents", "Cloned Seeds": "cloned", "Seperate Seeds": "disjoint"}
-		let f = (p) => pMap.hasOwnProperty(p) ? pMap[p] : p
-		let urlParams = []
-		urlParams.push("key_mode="+f(this.state.keyMode))
-		if(this.state.pathDiff !== "Normal")
-			urlParams.push("path_diff="+this.state.pathDiff)
-		urlParams.push("gen_mode="+this.state.fillAlg)
-		this.state.variations.forEach(v => urlParams.push("var="+v))
-		this.state.paths.forEach(p => urlParams.push("path="+p))
-		urlParams.push("exp_pool="+this.state.expPool)
-		urlParams.push("cell_freq="+this.state.cellFreq)
+    getMultiplayerTab = () => {
+        let multiplayerButtons = ["Skills", "Teleporters", "Upgrades", "World Events", "Misc"].map(stype => (
+            <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("Shared Item Categories", stype)} className="p-2">
+                <Button block outline={!this.state.shared.includes(stype)} onClick={this.onSType(stype)}>Share {stype}</Button>
+            </Col>
+        ))
+        
+        let playerNumValid = this.state.tracking && this.state.players > 0;
+        let playerNumFeedback = this.state.tracking ? (this.state.players > 0 ? null : (
+            <FormFeedback tooltip>Need at least one player...</FormFeedback>
+        )) : (
+            <FormFeedback tooltip>Multiplayer modes require web tracking to be enabled</FormFeedback>
+        )
+        return (
+             <TabPane tabId="multiplayer">
+                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "playerCount")}  className="p-1 justify-content-center">
+                    <Col xs="4" className="text-center pt-1 border">
+                        <span class="align-middle">Players</span>
+                    </Col><Col xs="4">
+                        <Input type="number" value={this.state.players} disabled={!this.state.tracking} invalid={!playerNumValid} onChange={(e) => this.setState({players: parseInt(e.target.value, 10)})}/> 
+                        {playerNumFeedback }
+                    </Col>
+                </Row>
+                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "multiGameType")} className="p-1 justify-content-center">
+                    <Col xs="4" className="text-center pt-1 border">
+                        <span class="align-middle">Multiplayer Game Type</span>
+                    </Col><Col xs="4">
+                        <UncontrolledButtonDropdown className="w-100" >
+                            <DropdownToggle disabled={this.state.players < 2} color={this.state.players > 1 ? "primary" : "secondary"} caret block> {this.state.coopGameMode} </DropdownToggle>
+                            <DropdownMenu>
+                                <DropdownItem active={"Race"===this.state.coopGameMode} onClick={()=> this.setState({coopGameMode: "Race"})}>Race</DropdownItem>
+                                <DropdownItem active={"Co-op"===this.state.coopGameMode} onClick={()=> this.setState({coopGameMode: "Co-op"})}>Co-op</DropdownItem>
+                            </DropdownMenu>
+                        </UncontrolledButtonDropdown>
+                    </Col>
+                </Row>
+                <Collapse isOpen={this.state.players > 1 && this.state.coopGameMode === "Co-op"}>
+                    <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "syncSeedType")} className="p-1 justify-content-center">
+                        <Col xs="4" className="text-center pt-1 border">
+                            <span class="align-middle">Seed Generation Mode</span>
+                        </Col><Col onMouseLeave={this.helpEnter("multiplayerOptions", "syncSeedType")} onMouseEnter={this.helpEnter("multiplayerOptions", this.state.coopGenMode)} xs="4">
+                            <UncontrolledButtonDropdown className="w-100">
+                                <DropdownToggle disabled={this.state.players < 2} color={this.state.players > 1 ? "primary" : "secondary"} caret block> {this.state.coopGenMode} </DropdownToggle>
+                                <DropdownMenu>
+                                    <DropdownItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "Cloned Seeds")}  active={"Cloned Seeds"===this.state.coopGenMode} onClick={()=> this.setState({coopGenMode: "Cloned Seeds"})}>Cloned Seeds</DropdownItem>
+                                    <DropdownItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "Seperate Seeds")}  active={"Seperate Seeds"===this.state.coopGenMode} onClick={()=> this.setState({coopGenMode: "Seperate Seeds"})}>Seperate Seeds</DropdownItem>
+                                </DropdownMenu>
+                            </UncontrolledButtonDropdown>
+                        </Col>
+                    </Row>
+                    <Row className="p-2">
+                        {multiplayerButtons}
+                        <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("Shared Item Categories", "Hints")} className="p-2">
+                            <Button block outline={!this.state.hints} disabled={this.state.coopGenMode!=="Cloned Seeds"} onClick={() => this.setState({hints: !this.state.hints})}>Show Hints</Button>
+                        </Col>
+                    </Row>
+                </Collapse>
+                <Collapse isOpen={this.state.user}>
+                    <Row className="p-1 justify-content-center">
+                        <Col xs="4" className="text-center pt-1 border">
+                            <span class="align-middle">SyncId</span>
+                        </Col><Col xs="4">
+                            <Input type="number" value={this.state.syncId} invalid={!(this.state.syncId === "" || this.state.syncId > 0)} onChange={(e) => this.setState({syncId: parseInt(e.target.value, 10)})}/>
+                            <FormFeedback tooltip>syncId must be positive</FormFeedback>
+                        </Col>
+                    </Row>
+                    <Collapse isOpen={this.state.coopGenMode==="Cloned Seeds" && this.state.players > 1 && this.state.coopGameMode === "Co-op"}>
+                        <Row className="p-1 justify-content-center">
+                            <Col xs="4" className="text-center pt-1 border">
+                                <span class="align-middle">Teams</span>
+                            </Col><Col xs="4">
+                                <Input type="text" value={this.state.teamStr} invalid={!this.teamStrValid()} onChange={(e) => this.setState({teamStr: e.target.value})}/>
+                                <FormFeedback tooltip>Team format: 1,2|3,4|5,6. Each player must appear once.</FormFeedback>
+                            </Col>
+                        </Row>
+                    </Collapse>
+                </Collapse>
+            </TabPane>
+        )
+    }
+    teamStrValid = () => {
+        let teamStr = this.state.teamStr;
+        if(teamStr === "") return true;
+        let teams = teamStr.split("|");
+        let retval = true;
+        let players = [...Array(this.state.players).keys()].map(i => i+1)
+        teams.forEach(team => team.split(",").forEach(p => {
+            if(isNaN(p)) retval = false;
+            else p = parseInt(p,10)
+            if(p > this.state.players) retval = false;
+            if(players[p-1] !== p) retval = false;
+            players[p-1] = 0;
+        }))
+        return retval && players.reduce((a,b)=>a+b,0) === 0
+    }
+    
+    generateSeed = () => {
+        let pMap = {"Race": "None", "None": "Default", "Co-op": "Shared", "World Events": "WorldEvents", "Cloned Seeds": "cloned", "Seperate Seeds": "disjoint"}
+        let f = (p) => pMap.hasOwnProperty(p) ? pMap[p] : p
+        let urlParams = []
+        urlParams.push("key_mode="+f(this.state.keyMode))
+        if(this.state.pathDiff !== "Normal")
+            urlParams.push("path_diff="+this.state.pathDiff)
+        urlParams.push("gen_mode="+this.state.fillAlg)
+        this.state.variations.forEach(v => urlParams.push("var="+v))
+        this.state.paths.forEach(p => urlParams.push("path="+p))
+        urlParams.push("exp_pool="+this.state.expPool)
+        urlParams.push("cell_freq="+this.state.cellFreq)
         if(this.state.variations.includes("WarmthFrags"))
         {
-    		urlParams.push("frags="+this.state.fragCount)
-    		urlParams.push("extra_frags="+this.state.fragExtra) 
+            urlParams.push("frags="+this.state.fragCount)
+            urlParams.push("extra_frags="+this.state.fragExtra) 
         }
         if(this.state.variations.includes("WorldTour"))
         {
             urlParams.push("relics="+this.state.relicCount)
         }
-		urlParams.push("players="+this.state.players)
+        urlParams.push("players="+this.state.players)
         let fass = []
         Object.keys(this.state.fass).forEach(loc => {
             if(this.state.fass[loc]) {
@@ -284,77 +283,78 @@ export default class MainPage extends React.Component {
         })
         if(fass.length > 0)
             urlParams.push("fass="+fass.join("|"))
-		if(this.state.tracking)
-		{
-			if(this.state.syncId !== "")
-				urlParams.push("sync_id="+this.state.syncId)
-			if(this.state.players > 1) {
-				urlParams.push("sync_gen="+f(this.state.coopGenMode))
-				urlParams.push("sync_mode="+f(this.state.coopGameMode))
-				if(this.state.coopGameMode === "Co-op")
-					this.state.shared.forEach(s => urlParams.push("sync_shared="+f(s)))
-				if(this.state.coopGenMode === "Cloned Seeds" && this.state.hints)
-					urlParams.push("sync_hints=on")
-				if(this.state.teamStr !== "") {
-					urlParams.push("teams="+this.state.teamStr)
-				}
-			}
-		} else {
-			urlParams.push("tracking=Disabled")
-		}
-		let seed = this.state.seed || Math.round(Math.random() * 1000000000);
-		if(seed === "daily")
-		{
-	  	    let d = new Date();
-	        let month = '' + (d.getMonth() + 1);
-	        let day = '' + d.getDate();
-	        let year = d.getFullYear();
-		    if (month.length < 2) month = '0' + month;
-		    if (day.length < 2) day = '0' + day;
-			seed = [year, month, day].join('-');
-		} else if(seed === "vanilla") {
-			window.location.href = "/vanilla"
-			return
+        if(this.state.tracking)
+        {
+            if(this.state.syncId !== "")
+                urlParams.push("sync_id="+this.state.syncId)
+            if(this.state.players > 1) {
+                urlParams.push("sync_gen="+f(this.state.coopGenMode))
+                urlParams.push("sync_mode="+f(this.state.coopGameMode))
+                if(this.state.coopGameMode === "Co-op")
+                    this.state.shared.forEach(s => urlParams.push("sync_shared="+f(s)))
+                if(this.state.coopGenMode === "Cloned Seeds" && this.state.hints)
+                    urlParams.push("sync_hints=on")
+                if(this.state.teamStr !== "") {
+                    urlParams.push("teams="+this.state.teamStr)
+                }
+            }
+        } else {
+            urlParams.push("tracking=Disabled")
+        }
+        let seed = this.state.seed || Math.round(Math.random() * 1000000000);
+        if(seed === "daily")
+        {
+              let d = new Date();
+            let month = '' + (d.getMonth() + 1);
+            let day = '' + d.getDate();
+            let year = d.getFullYear();
+            if (month.length < 2) month = '0' + month;
+            if (day.length < 2) day = '0' + day;
+            seed = [year, month, day].join('-');
+        } else if(seed === "vanilla") {
+            window.location.href = "/vanilla"
+            return
         }
         urlParams.push("seed=" + seed);
         let url = "/generator/build?" + urlParams.join("&")
-        this.helpEnter("general", "seedBuilding")()
+        this.helpEnter("general", "seedBuilding" + this.multi())()
         this.setState({seedIsGenerating: true, seedTabExists: true, loader: get_random_loader(), activeTab: "seed"}, () => doNetRequest(url, this.seedBuildCallback))
-	}
+    }
     
-	acceptMetadata = ({status, responseText}) => {
-		if(status !== 200)
-		{
-			NotificationManager.error("Failed to recieve seed metadata", "Seed could not be retrieved!", 5000)
-			this.setState({modalOpen: false})
-		    window.history.replaceState('',window.document.title, window.document.URL.split("?")[0]);
-		} else {
-			let res = JSON.parse(responseText)
-			this.setState({inputPlayerCount: res["playerCount"], inputFlagLine: res["flagLine"]})
-		}
-	}
-	
-	seedBuildCallback = ({status, responseText}) => {
-		if(status !== 200)
-		{
-			NotificationManager.error("Failed to generate seed!", "Seed generation failure!", 5000)
-			this.setState({seedIsGenerating: false, seedTabExists: false, activeTab: 'variations'})
-			return
-		} else {
-			let res = JSON.parse(responseText)
-			let paramId = res["paramId"]
-			let gameId = res["gameId"]
-			let url = window.document.URL.split("?")[0]+"?param_id="+paramId
-			if(gameId > 0)
-				url += "&game_id="+gameId
-		    window.history.replaceState('',window.document.title, url);
-			this.setState({
+    acceptMetadata = ({status, responseText}) => {
+        if(status !== 200)
+        {
+            NotificationManager.error("Failed to recieve seed metadata", "Seed could not be retrieved!", 5000)
+            this.setState({seedTabExists: false, activeTab: 'variations'})
+            window.history.replaceState('',window.document.title, window.document.URL.split("?")[0]);
+        } else {
+            let res = JSON.parse(responseText)
+            this.setState({inputPlayerCount: res["playerCount"], inputFlagLine: res["flagLine"]})
+        }
+    }
+    
+    seedBuildCallback = ({status, responseText}) => {
+        if(status !== 200)
+        {
+            NotificationManager.error("Failed to generate seed!", "Seed generation failure!", 5000)
+            this.setState({seedIsGenerating: false, seedTabExists: false, activeTab: 'variations'})
+            return
+        } else {
+            let res = JSON.parse(responseText)
+            let paramId = res["paramId"]
+            let gameId = res["gameId"]
+            let url = window.document.URL.split("?")[0]+"?param_id="+paramId
+            if(gameId > 0)
+                url += "&game_id="+gameId
+            window.history.replaceState('',window.document.title, url);
+            this.helpEnter("general", "seedBuilt" + this.multi())()
+            this.setState({
                 paramId: paramId, seedIsGenerating: false, inputPlayerCount: res["playerCount"], 
                 inputFlagLine: res["flagLine"], inputGameId: gameId
             })
-		}
-	}
-	getVariationsTab = () => {
+        }
+    }
+    getVariationsTab = () => {
         let variationButtons = Object.keys(variations).filter(x => !["Entrance", "NonProgressMapStones", "BonusPickups", "ForceTrees", "WorldTour", "ForceMapStones", "WarmthFrags"].includes(x)).map(v=> {
             let name = variations[v];
             return (
@@ -376,7 +376,7 @@ export default class MainPage extends React.Component {
                     return false;
                 })()} onClick={this.onVar("BonusPickups")}>{variations["BonusPickups"]}</Button>
             </Col>
-            )		
+            )        
         ))
         // Discrete Mapstones requires Strict Mapstones.
         variationButtons.push((
@@ -391,7 +391,7 @@ export default class MainPage extends React.Component {
                     return false;
                 })()} onClick={this.onVar("NonProgressMapStones")}>{variations["NonProgressMapStones"]}</Button>
             </Col>
-            )		
+            )        
         ))
         return (
             <TabPane tabId="variations">
@@ -402,36 +402,36 @@ export default class MainPage extends React.Component {
         )
     }
     
-	getSeedTab = () => {
+    getSeedTab = () => {
         if(!this.state.seedTabExists)
             return null;
-		if(this.state.seedIsGenerating)
-		{
-		    return (
-                <TabPane tabId='seed'>
+        if(this.state.seedIsGenerating)
+        {
+            return (
+                <TabPane tabId='seed' onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "seedBuilding" + this.multi())}>
                     <Row className="p-2 justify-content-center align-items-center">
                         <Col xs="auto" className="align-items-center justify-content-center p-2">{this.state.loader}</Col>
                     </Row>
                 </TabPane>
-		    )
-		}
-		else 
-		{
-			let raw = this.state.inputFlagLine.split('|');
-			let seedStr = raw.pop();
-			// let {shared, unshared} = raw.join("").split(",").reduce((acc, curr) => (curr.startsWith("mode=") || curr.startsWith("shared=")) ? 
-			// 		{shared: acc.shared.concat(curr), unshared: acc.unshared} : {shared: acc.shared, unshared: acc.unshared.concat(curr)}, {shared: [], unshared: []})
-			
-			// let sharedFlags = shared.length > 0 ? (<Row><Col><span class="align-middle">Sync: {shared.join(", ")}</span></Col></Row>) : null
-			// let flags = unshared.join(", ");
-            let flagCols = raw.join("").split(",").map(flag => (<Col className="text-center m-0" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("flags", flag)}><span class="align-middle">{flag}</span></Col>))
+            )
+        }
+        else 
+        {
+            let raw = this.state.inputFlagLine.split('|');
+            let seedStr = raw.pop();
+            // let {shared, unshared} = raw.join("").split(",").reduce((acc, curr) => (curr.startsWith("mode=") || curr.startsWith("shared=")) ? 
+            //         {shared: acc.shared.concat(curr), unshared: acc.unshared} : {shared: acc.shared, unshared: acc.unshared.concat(curr)}, {shared: [], unshared: []})
+            
+            // let sharedFlags = shared.length > 0 ? (<Row><Col><span class="align-middle">Sync: {shared.join(", ")}</span></Col></Row>) : null
+            // let flags = unshared.join(", ");
+            let flagCols = raw.join("").split(",").map(flag => (<Col className="m-1 text-center" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("flags", flag)}><span class="ml-auto mr-auto align-middle">{flag}</span></Col>))
 
             let mapUrl = "/tracker/game/"+this.state.inputGameId+"/map";
-			
-			let playerRows = [...Array(this.state.inputPlayerCount).keys()].map(p => {
-				p++;
+            
+            let playerRows = [...Array(this.state.inputPlayerCount).keys()].map(p => {
+                p++;
                 let seedParams = [];
-				if(this.state.inputGameId > 0)
+                if(this.state.inputGameId > 0)
                     seedParams.push("game_id="+this.state.inputGameId)
                 let seedUrl = "/generator/seed/"+this.state.paramId
                 let spoilerUrl = "/generator/spoiler/"+this.state.paramId
@@ -441,107 +441,114 @@ export default class MainPage extends React.Component {
                     spoilerUrl += "?player_id="+p;
                 }
                 seedUrl += "?" + seedParams.join("&")
-				return (
-					<Row className="align-content-center p-1 border-top border-bottom">
-						<Col xs="3" className="pt-1 border">
-							<Row className="align-content-center"><Col xs="3" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "playerPanel")}>
-								<Media object style={{width: "25px", height: "25px"}} src={player_icons(p,false)} alt={"Icon for player "+p} />
-							</Col><Col >
-								<span class="align-middle">Player {p}</span>
-							</Col></Row>
-						</Col>
-						<Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "downloadButton")}>
-							<Button color="primary" block href={seedUrl}>Download Seed</Button>
-						</Col>
-						<Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "spoilerButton")}>
-							<Button color="primary" href={spoilerUrl} target="_blank" block >View Spoiler</Button>
-						</Col>
-					</Row>
-				)
-			})           
-			let trackedInfo = this.state.inputGameId > 0 ? (
-	          	<Row className="p-1 border-dark border-top">
-		          	<Col xs={{ size: 4, offset: 3 }}>
-						<Button color="primary" block href={mapUrl} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "mapLink")} target="_blank">Open Tracking Map</Button>
-	          		</Col>
-		          	<Col xs="4">
-						<Button color="primary" block href={"/game/"+this.state.inputGameId+"/history"} target="_blank">View Game History</Button>
-	          		</Col>
-          		</Row>
-      		) : null
-		    return (
-		        <TabPane tabId='seed'>
-		          	<Row className="justify-content-center">
+                return (
+                    <Row className="align-content-center p-1 border-bottom">
+                        <Col xs="3" className="pt-1 border" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "playerPanel"+this.multi())}>
+                            <Row className="align-content-center"><Col xs="3">
+                                <Media object style={{width: "25px", height: "25px"}} src={player_icons(p,false)} alt={"Icon for player "+p} />
+                            </Col><Col>
+                                <span class="align-middle">Player {p}</span>
+                            </Col></Row>
+                        </Col>
+                        <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "downloadButton"+this.multi())}>
+                            <Button color="primary" block href={seedUrl}>Download Seed</Button>
+                        </Col>
+                        <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "spoilerButton")}>
+                            <Button color="primary" href={spoilerUrl} target="_blank" block >View Spoiler</Button>
+                        </Col>
+                    </Row>
+                )
+            })
+            let trackedInfo = this.state.inputGameId > 0 ? (
+                  <Row className="p-1 pt-3 align-items-center border-dark border-top">
+                    <Col xs="3" className="text-center" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "tracking")}>
+                        Tracking:
+                    </Col>
+                    <Col xs="4">
+                        <Button color="primary" block onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "mapLink")} href={mapUrl} target="_blank">Open Map</Button>
+                    </Col>
+                    <Col xs="4">
+                        <Button color="primary" block onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "histLink")} href={"/game/"+this.state.inputGameId+"/history"} target="_blank">View Game History</Button>
+                    </Col>
+                  </Row>
+              ) : null
+            return (
+                <TabPane tabId='seed'>
+                      <Row className="justify-content-center">
                         <span class="align-middle">
                             <h5>Seed {seedStr} ready!</h5>
                         </span>
                     </Row>
-                    <Row className="justify-content-left border-top border-left border-right">
-                        <Col  className="text-center border">
-							<span class="align-middle">Flags:</span>
-						</Col> 
-                        {flagCols}
-	          		</Row>
-					{playerRows}
-	          		{trackedInfo}
-		        </TabPane>
-		    	)
-		}
-	}
+                    <Row className="p-1 align-items-center border-top border-bottom">
+                        <Col xs="3" className="text-center" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "flags")}>
+                            Flags:
+                        </Col>
+                        <Col xs="9 border-left">
+                            <Row>
+                            {flagCols}
+                            </Row>
+                        </Col>
+                      </Row>
+                    {playerRows}
+                    {trackedInfo}
+                </TabPane>
+                )
+        }
+    }
 
     getPathsTab = () => {
-		let pathButtons = [(
-		<Col xs="3" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("logicPaths",  "casual-core")}  className="p-2">
-				<Button block disabled={true} className="text-capitalize">Casual-Core</Button>
-		</Col>
-		)].concat(optional_paths.map(path=> (
-			<Col xs="3" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("logicPaths", path)}  className="p-2">
-				<Button block outline={!this.state.paths.includes(path)} disabled={this.pathDisabled(path)} className="text-capitalize" onClick={this.onPath(path)}>{path}</Button>
-			</Col>
-		)))	
-		return (
-			<TabPane tabId="logic paths">
-				<Row className="p-2">
-					{pathButtons}
-				</Row>
-			</TabPane>
-		)
-	}
+        let pathButtons = [(
+        <Col xs="3" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("logicPaths",  "casual-core")}  className="p-2">
+                <Button block disabled={true} className="text-capitalize">Casual-Core</Button>
+        </Col>
+        )].concat(optional_paths.map(path=> (
+            <Col xs="3" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("logicPaths", path)}  className="p-2">
+                <Button block outline={!this.state.paths.includes(path)} disabled={this.pathDisabled(path)} className="text-capitalize" onClick={this.onPath(path)}>{path}</Button>
+            </Col>
+        )))    
+        return (
+            <TabPane tabId="logic paths">
+                <Row className="p-2">
+                    {pathButtons}
+                </Row>
+            </TabPane>
+        )
+    }
 
     getQuickstartModal = () => {
         return (
-            	<Modal size="lg" isOpen={this.state.quickstartOpen} backdrop={"static"} className={"modal-dialog-centered"} toggle={this.closeQuickstart}>
-		          <ModalHeader toggle={this.closeQuickstart} centered>Welcome to the Ori DE Randomizer 3.0 Beta!</ModalHeader>
-		          <ModalBody>
-		          	<Container fluid>
-		          	<Row className="p-1">
-						<span>
+                <Modal size="lg" isOpen={this.state.quickstartOpen} backdrop={"static"} className={"modal-dialog-centered"} toggle={this.closeQuickstart}>
+                  <ModalHeader toggle={this.closeQuickstart} centered>Welcome to the Ori DE Randomizer 3.0 Beta!</ModalHeader>
+                  <ModalBody>
+                      <Container fluid>
+                      <Row className="p-1">
+                        <span>
                         Welcome! We've got a lot of new features and changes that need testing and feedback, 
                         including fully-rewritten logic, ability tree balance changes, several new ways to play the game, and <a target='_blank' rel='noopener noreferrer' href="https://docs.google.com/document/d/1tprqq7mUJMGcgAA0TM-O5FeOklzz4dOReB0Nru3QlsI">more!</a>
                         </span>
-	          		</Row>
-	          		<Row>
-	          			<h5>Getting Started</h5>
-	          			<ol>
-	          			<li>
-	          				Join the Ori Rando development <a target='_blank' rel='noopener noreferrer' href="https://discord.gg/jeAnNpT">discord</a>. 
+                      </Row>
+                      <Row>
+                          <h5>Getting Started</h5>
+                          <ol>
+                          <li>
+                              Join the Ori Rando development <a target='_blank' rel='noopener noreferrer' href="https://discord.gg/jeAnNpT">discord</a>. 
                             We're using this as a place to gather feedback, post bug reports, and answer any questions players might have.
-	          			</li>
-	          			<li>
-	          				Install the 3.0 beta by placing this <a target='_blank' rel='noopener noreferrer' href="https://github.com/sigmasin/OriDERandomizer/raw/3.0/Assembly-CSharp.dll">dll</a> in 
+                          </li>
+                          <li>
+                              Install the 3.0 beta by placing this <a target='_blank' rel='noopener noreferrer' href="https://github.com/sigmasin/OriDERandomizer/raw/3.0/Assembly-CSharp.dll">dll</a> in 
                             your Ori DE/oriDE_Data/Managed folder.
-          				</li>
-	          			<li>
-	          				(Optional) Get the beta 3.0 tracker <a target='_blank' rel='noopener noreferrer' href="https://github.com/turntekGodhead/OriDETracker/raw/master/OriDETracker/bin/Latest.zip">here</a>.
+                          </li>
+                          <li>
+                              (Optional) Get the beta 3.0 tracker <a target='_blank' rel='noopener noreferrer' href="https://github.com/turntekGodhead/OriDETracker/raw/master/OriDETracker/bin/Latest.zip">here</a>.
                             Note that older (2.x) versions of the tracker won't work with the 3.0 dll.
-          				</li>
-          				<li>
-          					Generate seeds using the new web <a href="https://orirando.com">generator</a>, also available by clicking the "close" button below.
-          				</li>
-          				</ol>
-	          		</Row>
-	          		<Row>
-	          			<h5>Priority feedback targets</h5>
+                          </li>
+                          <li>
+                              Generate seeds using the new web <a href="https://orirando.com">generator</a>, also available by clicking the "close" button below.
+                          </li>
+                          </ol>
+                      </Row>
+                      <Row>
+                          <h5>Priority feedback targets</h5>
                         <ul>
                             <li>
                                 Open mode, a new variation aimed to increase seed diversity and allow access to more areas, particularly the dungeons:
@@ -552,6 +559,7 @@ export default class MainPage extends React.Component {
                                     <li>Horu and Ginso teleporter pickups have been added</li>
                                     <li>The orb turn-in cutscene in Forlorn is already completed and cannot be activated.</li>
                                     <li>In Forlorn, the orb will always appear by the player (except on the first visit)</li>
+                                    <li>The upper and lower left doors in Valley Entrance (the room left of the Grove Teleporter) are always open</li>
                                 </ul>
                                 Seeds will use the Open mode variation by default, so generate any kind of seed to start testing it.
                                 Note that in addition to the above, each room in Horu will grant a randomized pickup upon completion of the room 
@@ -578,62 +586,62 @@ export default class MainPage extends React.Component {
                                 The new seed generator interface. The web generator has been rewritten from scratch for better performance and ease-of-use. 
                                 Parts of it are still under construction (specifically, not every UI element has relevant help text, and you may find some typos. Let us know!)
                             </li>
-	      				</ul>
-	          		</Row>
+                          </ul>
+                      </Row>
                     <Row>Enjoy, and don't forget to post any feedback you have!</Row>
-					</Container>
-		          </ModalBody>
-		          <ModalFooter>
-		            <Button color="secondary" onClick={this.closeQuickstart}>Close</Button>
-		          </ModalFooter>
-		        </Modal>
+                    </Container>
+                  </ModalBody>
+                  <ModalFooter>
+                    <Button color="secondary" onClick={this.closeQuickstart}>Close</Button>
+                  </ModalFooter>
+                </Modal>
         )
     }
 
-	constructor(props) {
-		super(props);
-		let user = get_param("user");
-		let dllTime = get_param("dll_last_update")
-		let url = new URL(window.document.location.href);
-		let paramId = url.searchParams.get("param_id");
+    constructor(props) {
+        super(props);
+        let user = get_param("user");
+        let dllTime = get_param("dll_last_update")
+        let url = new URL(window.document.location.href);
+        let paramId = url.searchParams.get("param_id");
         let quickstartOpen = window.document.location.href.includes("/quickstart");
-		let inputGameId = parseInt(url.searchParams.get("game_id") || -1, 10);
-		let seedTabExists = (paramId !== null);
-		if(seedTabExists)
-			doNetRequest("/generator/metadata/"+paramId,this.acceptMetadata);
+        let inputGameId = parseInt(url.searchParams.get("game_id") || -1, 10);
+        let seedTabExists = (paramId !== null);
+        if(seedTabExists)
+            doNetRequest("/generator/metadata/"+paramId,this.acceptMetadata);
         let activeTab = seedTabExists ? 'seed' : 'variations';
-		this.state = {user: user, activeTab: activeTab, coopGenMode: "Cloned Seeds", coopGameMode: "Co-op", players: 1, tracking: true, dllTime: dllTime, variations: ["ForceTrees", "Open"], 
-					 paths: presets["standard"], keyMode: "Clues", oldKeyMode: "Clues", pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null), goalModes: ["ForceTrees"],
-					 customSyncId: "", seed: "", fillAlg: "Balanced", shared: ["Skills", "Teleporters", "World Events"], hints: true, helpcat: "", helpopt: "", quickstartOpen: quickstartOpen,
-					 syncId: "", expPool: 10000, lastHelp: new Date(), seedIsGenerating: false, cellFreq: cellFreqPresets("standard"), fragCount: 40, fragExtra: 10, relicCount: 8, loader: get_random_loader(),
-					 paramId: paramId, inputGameId: inputGameId, seedTabExists: seedTabExists, reopenUrl: "", teamStr: "", inputFlagLine: "", fass: {}, goalModesOpen: false};
-	}
-		
-	closeQuickstart = () => {
-	     window.history.replaceState('',window.document.title, window.document.URL.split("/quickstart")[0]);
-	     this.setState({quickstartOpen: false})
-	}
+        this.state = {user: user, activeTab: activeTab, coopGenMode: "Cloned Seeds", coopGameMode: "Co-op", players: 1, tracking: true, dllTime: dllTime, variations: ["ForceTrees", "Open"], 
+                     paths: presets["standard"], keyMode: "Clues", oldKeyMode: "Clues", pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null), goalModes: ["ForceTrees"],
+                     customSyncId: "", seed: "", fillAlg: "Balanced", shared: ["Skills", "Teleporters", "World Events"], hints: true, helpcat: "", helpopt: "", quickstartOpen: quickstartOpen,
+                     syncId: "", expPool: 10000, lastHelp: new Date(), seedIsGenerating: false, cellFreq: cellFreqPresets("standard"), fragCount: 40, fragExtra: 10, relicCount: 8, loader: get_random_loader(),
+                     paramId: paramId, inputGameId: inputGameId, seedTabExists: seedTabExists, reopenUrl: "", teamStr: "", inputFlagLine: "", fass: {}, goalModesOpen: false};
+    }
+        
+    closeQuickstart = () => {
+         window.history.replaceState('',window.document.title, window.document.URL.split("/quickstart")[0]);
+         this.setState({quickstartOpen: false})
+    }
 
     onTab = (tabName) => () => this.setState({activeTab: tabName})
-	onFass = (l, i) => this.setState(prevState => {
+    onFass = (l, i) => this.setState(prevState => {
         let new_fass = prevState.fass;
         new_fass[l] = i;
         return {fass: new_fass}
     })
-	onPath = (p) => () => this.state.paths.includes(p) ? this.setState({pathMode: "custom", paths: this.state.paths.filter(x => x !== p)}) : this.setState({pathMode: "custom", paths: this.state.paths.concat(p)})	
-	onSType = (s) => () => this.state.shared.includes(s) ? this.setState({shared: this.state.shared.filter(x => x !== s)}) : this.setState({shared: this.state.shared.concat(s)})	
-	onVar = (v) => () =>  this.state.variations.includes(v) ? this.setState({variations: this.state.variations.filter(x => x !== v)}) : this.setState({variations: this.state.variations.concat(v)})
-	pathDisabled = (path) => {
-		if(revDisabledPaths.hasOwnProperty(path))
-			if(revDisabledPaths[path].some(v => this.state.variations.includes(v)))
-			{
-				if(this.state.paths.includes(path))
-					this.onPath(path)()
-				return true
-			}
-		return false
-	}
-	onKeyMode = (mode) => () => this.setState({keyMode: mode})
+    onPath = (p) => () => this.state.paths.includes(p) ? this.setState({pathMode: "custom", paths: this.state.paths.filter(x => x !== p)}) : this.setState({pathMode: "custom", paths: this.state.paths.concat(p)})    
+    onSType = (s) => () => this.state.shared.includes(s) ? this.setState({shared: this.state.shared.filter(x => x !== s)}) : this.setState({shared: this.state.shared.concat(s)})    
+    onVar = (v) => () =>  this.state.variations.includes(v) ? this.setState({variations: this.state.variations.filter(x => x !== v)}) : this.setState({variations: this.state.variations.concat(v)})
+    pathDisabled = (path) => {
+        if(revDisabledPaths.hasOwnProperty(path))
+            if(revDisabledPaths[path].some(v => this.state.variations.includes(v)))
+            {
+                if(this.state.paths.includes(path))
+                    this.onPath(path)()
+                return true
+            }
+        return false
+    }
+    onKeyMode = (mode) => () => this.setState({keyMode: mode})
 
     onGoalModeAdvanced = (mode) => () => {
         let goalModes = this.state.goalModes.filter(v => v !== "None");
@@ -668,38 +676,38 @@ export default class MainPage extends React.Component {
             console.log("vars already included goalMode?")
         this.setState({goalModes: [mode], variations: vars})
     }
-	
-	onMode = (mode) => () => {
-		let vars = this.state.variations
-		// If a variation is in the list due to current pathmode, remove it.
-		if(varPaths.hasOwnProperty(this.state.pathMode))
-			vars = vars.filter(v => !varPaths[this.state.pathMode].includes(v))
-		// Then add any variations tied to the new pathmode.
-		if(varPaths.hasOwnProperty(mode))
-			varPaths[mode].forEach(v => vars.includes(v) ? null : vars.push(v))		
-		let pd = this.state.pathDiff
-		if(diffPaths.hasOwnProperty(this.state.pathMode))
-			pd = "Normal"	
-		if(diffPaths.hasOwnProperty(mode))
-			pd = diffPaths[mode]
-		this.setState({variations: vars,cellFreq: cellFreqPresets(mode), pathMode: mode, paths: presets[mode], pathDiff: pd})
-	}
+    multi = () => this.state.players > 1 ? "Multi" : ""
+    onMode = (mode) => () => {
+        let vars = this.state.variations
+        // If a variation is in the list due to current pathmode, remove it.
+        if(varPaths.hasOwnProperty(this.state.pathMode))
+            vars = vars.filter(v => !varPaths[this.state.pathMode].includes(v))
+        // Then add any variations tied to the new pathmode.
+        if(varPaths.hasOwnProperty(mode))
+            varPaths[mode].forEach(v => vars.includes(v) ? null : vars.push(v))        
+        let pd = this.state.pathDiff
+        if(diffPaths.hasOwnProperty(this.state.pathMode))
+            pd = "Normal"    
+        if(diffPaths.hasOwnProperty(mode))
+            pd = diffPaths[mode]
+        this.setState({variations: vars,cellFreq: cellFreqPresets(mode), pathMode: mode, paths: presets[mode], pathDiff: pd})
+    }
 
-	render = () => {
-		let pathModeOptions = Object.keys(presets).map(mode => (
-			<DropdownItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("logicModes", mode)} className="text-capitalize" active={mode===this.state.pathMode.toLowerCase()} onClick={this.onMode(mode)}>{mode}</DropdownItem>
-		))
-		let keyModeOptions = keymode_options.map(mode => (
-			<DropdownItem active={mode===this.state.keyMode} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("keyModes", mode)} onClick={this.onKeyMode(mode)}>{mode}</DropdownItem>
-		))
-		let goalModeOptions = this.state.goalModes.length === 1 ? ["None", "ForceTrees", "WorldTour", "ForceMapStones", "WarmthFrags"].map(mode => (
-			<DropdownItem active={mode===this.state.goalModes[0]} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("goalModes", mode)} onClick={this.onGoalMode(mode)}>{variations[mode] || mode}</DropdownItem>
-		)) : null
+    render = () => {
+        let pathModeOptions = Object.keys(presets).map(mode => (
+            <DropdownItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("logicModes", mode)} className="text-capitalize" active={mode===this.state.pathMode.toLowerCase()} onClick={this.onMode(mode)}>{mode}</DropdownItem>
+        ))
+        let keyModeOptions = keymode_options.map(mode => (
+            <DropdownItem active={mode===this.state.keyMode} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("keyModes", mode)} onClick={this.onKeyMode(mode)}>{mode}</DropdownItem>
+        ))
+        let goalModeOptions = this.state.goalModes.length === 1 ? ["None", "ForceTrees", "WorldTour", "ForceMapStones", "WarmthFrags"].map(mode => (
+            <DropdownItem active={mode===this.state.goalModes[0]} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("goalModes", mode)} onClick={this.onGoalMode(mode)}>{variations[mode] || mode}</DropdownItem>
+        )) : null
 
         let helpParams = this.state.helpParams;
         helpParams.padding = this.state.goalModesOpen ? "pt-5" : ""
 
-		let multiplayerTab = this.getMultiplayerTab()
+        let multiplayerTab = this.getMultiplayerTab()
         let advancedTab = this.getAdvancedTab()
         let seedTab = this.getSeedTab()
         let variationsTab = this.getVariationsTab()
@@ -712,114 +720,114 @@ export default class MainPage extends React.Component {
                 </NavLink>
             </NavItem>
         ) : null;
-		let modal = this.getQuickstartModal();
+        let modal = this.getQuickstartModal();
         let goalModeMulti = this.state.goalModes.length > 1;
-		return (
- 		<Container className="pl-4 pr-4 pb-4 pt-2 mt-5">
-			<Helmet>
-				<style>{'body { background-color: white}'}</style>
-			</Helmet>
- 			<Row className="justify-content-center">
-	 			<Col>
-	 				{modal}
-					<NotificationContainer/>
-					<SiteBar user={this.state.user}/>
-				</Col>
-			</Row>
-			<Row className="p-1">
-				<Col>
-					<span>
-						<h3 style={textStyle}>Seed Generator v3 Beta</h3>
-					</span>
-				</Col>
-			</Row>
-			<Row className="p-3 border">
-				<Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "logicModes")}>
-					<Row>
-						<Col xs="6"  className="text-center pt-1 border">
-							<span class="align-middle">Logic Mode</span>
-						</Col>
-						<Col xs="6" onMouseLeave={this.helpEnter("general", "logicModes")} onMouseEnter={this.helpEnter("logicModes", this.state.pathMode)}>
-							<UncontrolledButtonDropdown className="w-100">
-								<DropdownToggle color="primary" className="text-capitalize" caret block> {this.state.pathMode} </DropdownToggle>
-								<DropdownMenu> {pathModeOptions} </DropdownMenu>
-							</UncontrolledButtonDropdown>
-						</Col>
-					</Row>
-				</Col>
-				<Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "keyModes")}>
-					<Row>
-						<Col xs="6"  className="text-center pt-1 border">
-							<span class="align-middle">Key Mode</span>
-						</Col>
-						<Col xs="6" onMouseEnter={this.helpEnter("keyModes", this.state.keyMode)} onMouseLeave={this.helpEnter("general", "keyModes",(this.state.keyMode === "Clues" && this.state.helpcat === "keyModes") ? 1000 : 250 )}>
-							<UncontrolledButtonDropdown className="w-100">
-								<DropdownToggle color="primary" caret block> {this.state.keyMode} </DropdownToggle>
-								<DropdownMenu>
-									{keyModeOptions}
-								</DropdownMenu>
-							</UncontrolledButtonDropdown>
-						</Col>
-					</Row>
-				</Col>
-				<Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "goalModes")}>
-					<Row>
-						<Col xs="6"  className="text-center pt-1 border">
-							<span class="align-middle">Goal Mode</span>
-						</Col>
-						<Col xs="6" onMouseLeave={this.helpEnter("general", "goalModes")} onMouseEnter={this.helpEnter("goalModes", goalModeMulti ? "Multiple" : this.state.goalModes[0])}>
-							<Dropdown disabled={goalModeMulti} isOpen={this.state.goalModesOpen} toggle={() => this.setState({goalModesOpen: !this.state.goalModesOpen})} className="w-100">
-								<DropdownToggle disabled={goalModeMulti} color={goalModeMulti ? "disabled" :"primary"} className="text-capitalize" caret={!goalModeMulti} block> 
+        return (
+         <Container className="pl-4 pr-4 pb-4 pt-2 mt-5">
+            <Helmet>
+                <style>{'body { background-color: white}'}</style>
+            </Helmet>
+             <Row className="justify-content-center">
+                 <Col>
+                     {modal}
+                    <NotificationContainer/>
+                    <SiteBar user={this.state.user}/>
+                </Col>
+            </Row>
+            <Row className="p-1">
+                <Col>
+                    <span>
+                        <h3 style={textStyle}>Seed Generator v3 Beta</h3>
+                    </span>
+                </Col>
+            </Row>
+            <Row className="p-3 border">
+                <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "logicModes")}>
+                    <Row>
+                        <Col xs="6"  className="text-center pt-1 border">
+                            <span class="align-middle">Logic Mode</span>
+                        </Col>
+                        <Col xs="6" onMouseLeave={this.helpEnter("general", "logicModes")} onMouseEnter={this.helpEnter("logicModes", this.state.pathMode)}>
+                            <UncontrolledButtonDropdown className="w-100">
+                                <DropdownToggle color="primary" className="text-capitalize" caret block> {this.state.pathMode} </DropdownToggle>
+                                <DropdownMenu> {pathModeOptions} </DropdownMenu>
+                            </UncontrolledButtonDropdown>
+                        </Col>
+                    </Row>
+                </Col>
+                <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "keyModes")}>
+                    <Row>
+                        <Col xs="6"  className="text-center pt-1 border">
+                            <span class="align-middle">Key Mode</span>
+                        </Col>
+                        <Col xs="6" onMouseEnter={this.helpEnter("keyModes", this.state.keyMode)} onMouseLeave={this.helpEnter("general", "keyModes",(this.state.keyMode === "Clues" && this.state.helpcat === "keyModes") ? 1000 : 250 )}>
+                            <UncontrolledButtonDropdown className="w-100">
+                                <DropdownToggle color="primary" caret block> {this.state.keyMode} </DropdownToggle>
+                                <DropdownMenu>
+                                    {keyModeOptions}
+                                </DropdownMenu>
+                            </UncontrolledButtonDropdown>
+                        </Col>
+                    </Row>
+                </Col>
+                <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "goalModes")}>
+                    <Row>
+                        <Col xs="6"  className="text-center pt-1 border">
+                            <span class="align-middle">Goal Mode</span>
+                        </Col>
+                        <Col xs="6" onMouseLeave={this.helpEnter("general", "goalModes")} onMouseEnter={this.helpEnter("goalModes", goalModeMulti ? "Multiple" : this.state.goalModes[0])}>
+                            <Dropdown disabled={goalModeMulti} isOpen={this.state.goalModesOpen} toggle={() => this.setState({goalModesOpen: !this.state.goalModesOpen})} className="w-100">
+                                <DropdownToggle disabled={goalModeMulti} color={goalModeMulti ? "disabled" :"primary"} className="text-capitalize" caret={!goalModeMulti} block> 
                                   {goalModeMulti ? "Multiple" : (variations[this.state.goalModes[0]] || this.state.goalModes[0])}                                  
                                 </DropdownToggle>
-								<DropdownMenu>
-									{goalModeOptions}
-								</DropdownMenu>
+                                <DropdownMenu>
+                                    {goalModeOptions}
+                                </DropdownMenu>
                             </Dropdown>
-						</Col>
-					</Row>
-				</Col>
-			</Row>
-			<Row className="justify-content-center p-2">
-			<Col>
-				<Nav tabs>
-					<NavItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "variations")}>
-						<NavLink active={this.state.activeTab === 'variations'} onClick={this.onTab('variations')}>
-						Variations
-						</NavLink>
-					</NavItem>
-					<NavItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "logicPaths")}>
-						<NavLink active={this.state.activeTab === 'logic paths'} onClick={this.onTab('logic paths')}>
-						Logic Paths
-						</NavLink>
-					</NavItem>
-					<NavItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "multiplayer")}>
-						<NavLink active={this.state.activeTab === 'multiplayer'} onClick={this.onTab('multiplayer')}>
-						Multiplayer Options
-						</NavLink>
-					</NavItem>
-					<NavItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "advanced")}>
-						<NavLink active={this.state.activeTab === 'advanced'} onClick={() => { dev && console.log(this.state); this.onTab('advanced')()}}>
-						Advanced
-						</NavLink>
-					</NavItem>
+                        </Col>
+                    </Row>
+                </Col>
+            </Row>
+            <Row className="justify-content-center p-2">
+            <Col>
+                <Nav tabs>
+                    <NavItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "variations")}>
+                        <NavLink active={this.state.activeTab === 'variations'} onClick={this.onTab('variations')}>
+                        Variations
+                        </NavLink>
+                    </NavItem>
+                    <NavItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "logicPaths")}>
+                        <NavLink active={this.state.activeTab === 'logic paths'} onClick={this.onTab('logic paths')}>
+                        Logic Paths
+                        </NavLink>
+                    </NavItem>
+                    <NavItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "multiplayer")}>
+                        <NavLink active={this.state.activeTab === 'multiplayer'} onClick={this.onTab('multiplayer')}>
+                        Multiplayer Options
+                        </NavLink>
+                    </NavItem>
+                    <NavItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "advanced")}>
+                        <NavLink active={this.state.activeTab === 'advanced'} onClick={() => { dev && console.log(this.state); this.onTab('advanced')()}}>
+                        Advanced
+                        </NavLink>
+                    </NavItem>
                     {seedNav}
-				</Nav>
-			</Col>
-			</Row>
-			<Row className="justify-content-start p-2">
-				<Col xs="8">
-					<Row>
-						<Col>
-							<TabContent className="p-3 border" activeTab={this.state.activeTab}>
+                </Nav>
+            </Col>
+            </Row>
+            <Row className="justify-content-start p-2">
+                <Col xs="8">
+                    <Row>
+                        <Col>
+                            <TabContent className="p-3 border" activeTab={this.state.activeTab}>
                                 {variationsTab}
                                 {pathsTab}
-								{multiplayerTab}
+                                {multiplayerTab}
                                 {advancedTab}
                                 {seedTab}
-							</TabContent>
-						</Col>
-					</Row>
+                            </TabContent>
+                        </Col>
+                    </Row>
                     <Collapse isOpen={this.state.activeTab !== "seed"}>
                         <Row className="align-items-center">
                             <Col xs="6">
@@ -836,7 +844,7 @@ export default class MainPage extends React.Component {
                                 </Row>
                             </Col>
                             <Col>
-                                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "generate")}>
+                                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "generate" + this.multi())}>
                                     <Col>
                                         <Button color="success" disabled={this.state.seedIsGenerating} size="lg" onClick={this.generateSeed} block>Generate Seed</Button>
                                     </Col>
@@ -844,15 +852,15 @@ export default class MainPage extends React.Component {
                             </Col>
                         </Row>
                     </Collapse>
-				</Col>
-				<Col>
+                </Col>
+                <Col>
                     <Row>
-    					<HelpBox {...helpParams} />
+                        <HelpBox {...helpParams} />
                     </Row>
-				</Col>
-			</Row>
-			</Container>
-		)
+                </Col>
+            </Row>
+            </Container>
+        )
 
-	}
+    }
 };

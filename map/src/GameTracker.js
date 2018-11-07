@@ -4,17 +4,17 @@ import {Map, Tooltip, TileLayer, Marker, ZoomControl} from 'react-leaflet';
 import {Checkbox, CheckboxGroup} from 'react-checkbox-group';
 import {Radio, RadioGroup} from 'react-radio-group';
 import Leaflet from 'leaflet';
-import {presets, player_icons, get_preset} from './common.js';
+import {presets, player_icons, get_preset, logic_paths} from './common.js';
 import {picks_by_type, PickupMarkersList, get_icon, getMapCrs, hide_opacity, select_styles, uniq, select_wrap} from './shared_map.js';
 import Select from 'react-select';
-import {Button, Collapse} from 'reactstrap';
+import {Button, Collapse, Container, Row, Col} from 'reactstrap';
 import Control from 'react-leaflet-control';
 import {Helmet} from 'react-helmet';
 
 const paths = Object.keys(presets);
 const game_id = document.getElementsByClassName("game-id")[0].id;
 
-const EMPTY_PLAYER = {seed: {}, pos: [0,0], seen:[], flags: ["show_marker", "hide_found", "hide_unreachable"], areas: []}
+const EMPTY_PLAYER = {seed: {}, pos: [-210, 189], seen:[], flags: ["show_marker", "hide_found", "hide_unreachable"], areas: []}
 
 function get_inner(id) {
 	return (
@@ -230,7 +230,7 @@ class GameTracker extends React.Component {
   };
 
   componentDidMount() {
-      getGamedata(this.setState, this.timeout);
+      this.getGamedata();
 	  this.interval = setInterval(() => this.tick(), 1000);
   };
 
@@ -263,13 +263,26 @@ class GameTracker extends React.Component {
   flagsChanged = newVal => { this.setState({flags: newVal}) }
   pickupsChanged = newVal => { this.setState({pickups: newVal}) }
   onSearch = event => { this.setState({searchStr: event.target.value}) }
-
   modesChanged = (paths) => this.setState(prevState => {
 		let players = prevState.players
 		Object.keys(players).forEach(id => {		
 				players[id].areas = []
 			});
 		return {players: players, modes: paths, pathMode: get_preset(paths)}
+		}, () => this.getReachable(this.state.modes.join("+"), this.timeout))
+        
+  onMode = (m) => () => this.setState(prevState => {
+        let modes = prevState.modes;
+        if(modes.includes(m)) {
+            modes = modes.filter(x => x !== m)
+        } else {
+            modes.push(m)
+        }
+		let players = prevState.players
+		Object.keys(players).forEach(id => {
+				players[id].areas = []
+			});
+		return {players: players, modes: modes, pathMode: get_preset(modes)}
 		}, () => this.getReachable(this.state.modes.join("+"), this.timeout))
 		
 toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
@@ -278,11 +291,13 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
  _onPathModeChange = (n) => paths.includes(n.value) ? this.modesChanged(presets[n.value]) : this.setState({pathMode: n.value})
 
   render() {
-		const pickup_markers = (this.state.pickup_display !== "none") ? ( <PickupMarkersList markers={getPickupMarkers(this.state)} />) : null;
-		const player_markers = ( <PlayerMarkersList players={this.state.players} />)
-		const player_opts = ( <PlayerUiOpts players={this.state.players} setter={(p) => this.setState(p)} />)
-		const show_button = !this.state.show_sidebar ? (<Button size="sm" onClick={() => this.setState({show_sidebar: true})}>Show Options</Button>) : null
-		const sidebar = this.state.show_sidebar ? (
+		let pickup_markers = (this.state.pickup_display !== "none") ? ( <PickupMarkersList markers={getPickupMarkers(this.state)} />) : null;
+		let player_markers = ( <PlayerMarkersList players={this.state.players} />)
+		let player_opts = ( <PlayerUiOpts players={this.state.players} setter={(p) => this.setState(p)} />)
+		let show_button = !this.state.show_sidebar ? (<Button size="sm" onClick={() => this.setState({show_sidebar: true})}>Show Options</Button>) : null
+        let logic_path_buttons = logic_paths.map(lp => {return (<Col className="pr-0" xs="4"><Button block size="sm" outline={!this.state.modes.includes(lp)} onClick={this.onMode(lp)}>{lp}</Button></Col>)});
+
+		let sidebar = this.state.show_sidebar ? (
 				<div className="controls">
 			    	<div id="search-wrapper">
 						<label for="search">Search</label>
@@ -312,24 +327,11 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
 			      	<Select styles={select_styles}  options={select_wrap(paths)} onChange={this._onPathModeChange} clearable={false} value={select_wrap(this.state.pathMode)}></Select>
 						</div>
 						<Collapse id="logic-options-wrapper" isOpen={this.state.display_logic}>
-							<CheckboxGroup id="logic-options" checkboxDepth={2} name="modes" value={this.state.modes} onChange={this.modesChanged}>
-								<label><Checkbox value="normal" /> normal</label>
-								<label><Checkbox value="speed" /> speed</label>
-								<label><Checkbox value="extended" /> extended</label>
-								<label><Checkbox value="speed-lure" /> speed-lure</label>
-								<label><Checkbox value="lure" /> lure</label>
-								<label><Checkbox value="lure-hard" /> lure-hard</label>
-								<label><Checkbox value="dboost-light" /> dboost-light</label>
-								<label><Checkbox value="dboost" /> dboost</label>
-								<label><Checkbox value="dboost-hard" /> dboost-hard</label>
-								<label><Checkbox value="cdash" /> cdash</label>
-								<label><Checkbox value="cdash-farming" /> cdash-farming</label>
-								<label><Checkbox value="extreme" /> extreme</label>
-								<label><Checkbox value="extended-damage" /> extended-damage</label>
-								<label><Checkbox value="timed-level" /> timed-level</label>
-								<label><Checkbox value="dbash" /> dbash</label>
-								<label><Checkbox value="glitched" /> glitched</label>
-						  	</CheckboxGroup>
+							<Container>
+                            <Row className="p-1">
+                                {logic_path_buttons}
+                            </Row>
+                            </Container>
 						</Collapse>
 					</div>
 					<div id="pickup-controls">
@@ -382,7 +384,7 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
 		)
 	}
     getReachable = (modes, timeout) => {
-     var onRes = (res) => {
+        let onRes = (res) => {
             	let areas = JSON.parse(res);
 				this.setState(prevState => {
 					let players = prevState.players
@@ -396,12 +398,27 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
 					})
 					return {players: players, retries: 0, timeout: TIMEOUT_START}
 				})
+        }
+        if(this.state.open) {
+            modes +="+OPEN"
+        }
+        doNetRequest(onRes, this.setState, "/tracker/game/"+game_id+"/fetch/reachable?modes="+modes, timeout)
     }
-    if(this.state.open) {
-        modes +="+OPEN"
+    getGamedata = () => {
+        let onRes = (res) => {
+                    this.setState(state => {
+                        let {paths, open, playerCount} = JSON.parse(res);
+                        let players = state.players;
+                        while(playerCount > Object.keys(players).length)
+                        {
+                            players[Object.keys(players).length + 1] = {...EMPTY_PLAYER}
+                        }
+                        return {pathMode: get_preset(paths), players: players, retries: 0, modes: paths, open: open}
+                    });
+                }
+        doNetRequest(onRes, this.setState, "/tracker/game/"+game_id+"/fetch/gamedata", this.timeout)
     }
-    doNetRequest(onRes, this.setState, "/tracker/game/"+game_id+"/fetch/reachable?modes="+modes, timeout)
-}
+
 
 };
 
@@ -419,23 +436,6 @@ function doNetRequest(onRes, setter, url, timeout)
     xmlHttp.open("GET", url, true); // true for asynchronous
     xmlHttp.send(null);
 }
-
-function getGamedata(setter, timeout)
-{
-     var onRes = (res) => {
-				setter(state => {
-                    let {paths, open, playerCount} = JSON.parse(res);
-                    let players = state.players;
-                    while(playerCount > Object.keys(players).length)
-                    {
-                        players[Object.keys(players).length] = {...EMPTY_PLAYER}
-                    }
-					return {players: players, retries: 0, modes: paths, open: open}
-				});
-            }
-     doNetRequest(onRes, setter, "/tracker/game/"+game_id+"/fetch/gamedata", timeout)
-}
-
 
 function getSeed(setter, pid, timeout)
 {

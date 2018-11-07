@@ -87,12 +87,11 @@ const presets = {
         'casual-core', 'casual-dboost', 
         'standard-core', 'standard-dboost', 'standard-lure', 'standard-abilities',
         'expert-core', 'expert-dboost', 'expert-lure', 'expert-abilities', 'dbash',
-        'master-core', 'master-dboost', 'master-lure', 'master-abilities', 'gjump',
         'glitched', 'timed-level'
         ]
 };
 
-const logic_paths = presets['glitched'].concat('insane');
+const logic_paths = presets['master'].concat('glitched', 'timed-level', 'insane');
 const get_preset = (paths) => {
     for (let preset of Object.keys(presets)) {
         let p = presets[preset];
