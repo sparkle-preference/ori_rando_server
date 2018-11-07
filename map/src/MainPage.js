@@ -355,7 +355,7 @@ export default class MainPage extends React.Component {
 		}
 	}
 	getVariationsTab = () => {
-        let variationButtons = Object.keys(variations).filter(x => !["NonProgressMapStones", "BonusPickups", "ForceTrees", "WorldTour", "ForceMapStones", "WarmthFrags"].includes(x)).map(v=> {
+        let variationButtons = Object.keys(variations).filter(x => !["Entrance", "NonProgressMapStones", "BonusPickups", "ForceTrees", "WorldTour", "ForceMapStones", "WarmthFrags"].includes(x)).map(v=> {
             let name = variations[v];
             return (
             <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("variations", v)} className="p-2">
@@ -618,7 +618,7 @@ export default class MainPage extends React.Component {
 	onFass = (l, i) => this.setState(prevState => {
         let new_fass = prevState.fass;
         new_fass[l] = i;
-        return {fass: new_fass}        
+        return {fass: new_fass}
     })
 	onPath = (p) => () => this.state.paths.includes(p) ? this.setState({pathMode: "custom", paths: this.state.paths.filter(x => x !== p)}) : this.setState({pathMode: "custom", paths: this.state.paths.concat(p)})	
 	onSType = (s) => () => this.state.shared.includes(s) ? this.setState({shared: this.state.shared.filter(x => x !== s)}) : this.setState({shared: this.state.shared.concat(s)})	
