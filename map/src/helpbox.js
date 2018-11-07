@@ -331,8 +331,9 @@ const getHelpContent = (category, option) => {
 					title = "Share Miscellaneous Items"
 					lines = [
 						"With Share Misc enabled, Warmth Fragments and World Tour Relics are shared between players, if they exist.",
-						"Sharing Relics and Warmth Fragments will greatly reduce the amount of time an average co-op seed will take to complete."
+						"Sharing Relics and Warmth Fragments will greatly reduce the amount of time an average co-op seed will take to complete."                        
 					]
+                    extra.push((<CardText className="border font-weight-bold border-danger">Relic sharing is currently disabled. Relics will not be shared.</CardText>))
 					break;
 				case "World Events":
 					title = "Share World Events"
@@ -509,22 +510,36 @@ const getHelpContent = (category, option) => {
 						"Mouse over the logic path groups for more info."
 					]
 					break;
-				case "Seed":
+				case "seed":
 					title = "Seed"
 					lines = [
-						"The Seed field is used as a starting point for the generator's RNG. This means that if you use the same Seed and leave all other options the same, you will get end up with the same randomizer.dat file every time.",
-						"A seed value is auto-generated, so you can leave this field without issue."
+						"The Seed field is used as a starting point for the seed generator's pRNG. If left blank, a value will be auto-generated",
+                        "If you use the same seed value and leave all the other options the same, you will get end up with the same randomizer.dat file (though only for the same seed generator release)."
 					]
 				break;
-				case "WebTracking":
+				case "webTracking":
 					title = "Web Tracking"
 					lines = [
 						"With Web Tracking enabled, the randomizer will send updates to the server as you play the game. Seeds downloaded with Web Tracking enabled have a special Sync flag, which is used by the server to identify and track that game.",
 						"Web tracking is required for the Map tracker to function properly and for all multiplayer modes."
 					]
 				break;
+				case "generate":
+					title = "Generate Seed"
+                    subtitle = ""
+					lines = [
+                        "Click here to start building your seed! This may take several seconds."
+					]
+				break;
+				case "seedBuilding":
+					title = "Generating..."
+                    subtitle = ""
+					lines = [
+                        "The server is building your seed now. This may take several seconds."
+					]
+				break;
 				default:
-					break;
+                break;
 			}
 			break;	
 		case "logicPaths":

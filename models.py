@@ -4,7 +4,7 @@ import logging as log
 
 from datetime import datetime, timedelta
 from collections import defaultdict
-from seedbuilder.seedparams import Placement, Stuff
+from seedbuilder.seedparams import Placement, Stuff, SeedGenParams
 
 from enums import MultiplayerGameType, ShareType
 from util import special_coords, get_bit, get_taste, unpack, enums_from_strlist
@@ -23,7 +23,7 @@ class HistoryLine(ndb.Model):
     def pickup(self):
         return Pickup.n(self.pickup_code, self.pickup_id)
 
-    def print_line (self,start_time=None):
+    def print_line(self, start_time=None):
         t = (self.timestamp - start_time) if start_time and self.timestamp else self.timestamp
         if not self.removed:
             coords = unpack(self.coords)
@@ -32,7 +32,6 @@ class HistoryLine(ndb.Model):
         else:
             return "lost %s! (%s)" % (self.pickup().name, t)
 
-    
 class Seed(ndb.Model):
     # Seed ids are author
     placements = ndb.LocalStructuredProperty(Placement, repeated=True)
@@ -48,26 +47,25 @@ class Seed(ndb.Model):
         return mode_opt[0] if mode_opt else None
 
     def shared(self):
-        shared_opt = [f[7:].replace("+"," ").split(" ") for f in self.flags if f.lower().startswith("shared=")]
+        shared_opt = [f[7:].replace("+", " ").split(" ") for f in self.flags if f.lower().startswith("shared=")]
         return enums_from_strlist(ShareType, shared_opt[0]) if shared_opt else []
-    
+
     @staticmethod
     def from_plando(lines, author, name, desc):
         s = Seed(id="%s:%s" % (author, name), name=name, author=author, description=desc)
-        rawFlags,_,s.name = lines[0].partition("|")
+        rawFlags, _, s.name = lines[0].partition("|")
         s.flags = [flag.replace(" ", "+") for flag in rawFlags.split(",") if not flag.lower().startswith("sync")]
         for line in lines[1:]:
-            loczone,_,stuffs = line.partition(":")
-            loc,_,zone = loczone.partition("|")
-            plc = Placement(location=loc,zone=zone)
+            loczone, _, stuffs = line.partition(":")
+            loc, _, zone = loczone.partition("|")
+            plc = Placement(location=loc, zone=zone)
             for stuff in stuffs.split(","):
-                player,_,codeid = stuff.partition(".")
+                player, _, codeid = stuff.partition(".")
                 if int(player) > s.players:
                     s.players = int(player)
-                code,_,id = codeid.partition("|")
-                plc.stuff.append(Stuff(code=code,id=id,player=player))
+                code, _, id = codeid.partition("|")
+                plc.stuff.append(Stuff(code=code, id=id, player=player))
             s.placements.append(plc)
-        
         return s
 
     def to_plando_lines(self):
@@ -75,9 +73,9 @@ class Seed(ndb.Model):
         for p in self.placements:
             outlines.append(p.location + ":" + ",".join(["%s.%s|%s" % (s.player, s.code, s.id) for s in p.stuff]))
         return outlines
-    
+
     def to_lines(self, player=1, extraFlags=[]):
-        return ["%s|%s" % (",".join(extraFlags + self.flags), self.name)] + ["|".join((str(p.location),s.code,s.id,p.zone))for p in self.placements for s in p.stuff if int(s.player) == player]
+        return ["%s|%s" % (",".join(extraFlags + self.flags), self.name)] + ["|".join((str(p.location), s.code, s.id, p.zone)) for p in self.placements for s in p.stuff if int(s.player) == player]
 
 
 class Player(ndb.Model):
@@ -85,13 +83,13 @@ class Player(ndb.Model):
     skills      = ndb.IntegerProperty()
     events      = ndb.IntegerProperty()
     bonuses     = ndb.JsonProperty(default={})
-    hints = ndb.JsonProperty(default={})
+    hints       = ndb.JsonProperty(default={})
     teleporters = ndb.IntegerProperty()
-    seed =    ndb.TextProperty()
-    signals = ndb.StringProperty(repeated=True)
-    history = ndb.LocalStructuredProperty(HistoryLine, repeated=True)
+    seed        = ndb.TextProperty()
+    signals     = ndb.StringProperty(repeated=True)
+    history     = ndb.LocalStructuredProperty(HistoryLine, repeated=True)
     last_update = ndb.DateTimeProperty(auto_now=True)
-    teammates = ndb.KeyProperty('Player', repeated=True)
+    teammates   = ndb.KeyProperty('Player', repeated=True)
 
     # post-refactor version of bitfields
     def output(self):
@@ -110,7 +108,7 @@ class Player(ndb.Model):
     def signal_conf(self, signal):
         if signal in self.signals:
             self.signals.remove(signal)
-        # basically it is never ok to be spamming ppl, so if we get a message callback 
+        # basically it is never ok to be spamming ppl, so if we get a message callback
         # we remove the first message we find if we don't get an exact match.
         elif signal.startswith("msg:"):
             for s in self.signals:
@@ -119,7 +117,7 @@ class Player(ndb.Model):
                     log.warning("No exact match for signal %s, removing %s instead (spam protection)" % (signal, s))
                     break
         self.put()
-    
+
     def give_pickup(self, pickup, remove=False, delay_put=False, coords=None, finder=None):
         if coords and finder:
             self.hints[str(coords)] = finder
@@ -147,8 +145,7 @@ class Player(ndb.Model):
         if delay_put:
             return
         return self.put()
-        
-    
+
     def has_pickup(self, pickup):
         if pickup.code == "RB":
             pick_id = str(pickup.id)
@@ -170,40 +167,36 @@ class Game(ndb.Model):
     str_mode = ndb.StringProperty(default="None")
     str_shared = ndb.StringProperty(repeated=True)
 
-    def get_mode(self): return MultiplayerGameType.mk(self.str_mode) or MultiplayerGameType.SIMUSOLO
-
-    def set_mode(self, mode):         self.str_mode = mode.value
-
-    def get_shared(self): return [ShareType.mk(st) for st in self.str_shared if ShareType.mk(st)]
-
-    def set_shared(self, shared):    self.str_shared = [s.value for s in shared]
-
+    def get_mode(self):            return MultiplayerGameType.mk(self.str_mode) or MultiplayerGameType.SIMUSOLO
+    def set_mode(self, mode):      self.str_mode = mode.value
+    def get_shared(self):          return [ShareType.mk(st) for st in self.str_shared if ShareType.mk(st)]
+    def set_shared(self, shared):  self.str_shared = [s.value for s in shared]
     mode = property(get_mode, set_mode)
     shared = property(get_shared, set_shared)
-
     start_time = ndb.DateTimeProperty(auto_now_add=True)
     last_update = ndb.DateTimeProperty(auto_now=True)
     players = ndb.KeyProperty(Player, repeated=True)
+    params = ndb.KeyProperty(SeedGenParams)
 
     def summary(self):
-        out_lines = ["%s (%s)" %( self.mode, ",".join([s.name for s in self.shared]))]
+        out_lines = ["%s (%s)" % (self.mode, ",".join([s.name for s in self.shared]))]
         if self.mode in [MultiplayerGameType.SHARED, MultiplayerGameType.SIMUSOLO] and len(self.players):
             src = self.players[0].get()
-            for (field, cls) in [("skills", Skill), ("teleporters", Teleporter), ("events",Event)]:
-                bitmap = getattr(src,field)
+            for (field, cls) in [("skills", Skill), ("teleporters", Teleporter), ("events", Event)]:
+                bitmap = getattr(src, field)
                 names = []
                 for id, bit in cls.bits.iteritems():
                     i = cls(id)
                     if i:
                         if i.stacks:
-                            cnt = get_taste(bitmap,i.bit)
-                            if cnt>0:
-                                names.append("%sx %s" %(cnt, i.name))
-                        elif get_bit(bitmap,i.bit):
+                            cnt = get_taste(bitmap, i.bit)
+                            if cnt > 0:
+                                names.append("%sx %s" % (cnt, i.name))
+                        elif get_bit(bitmap, i.bit):
                             names.append(i.name)
                 out_lines.append("%s: %s" % (field, ", ".join(names)))
             out_lines.append("upgrades: %s" % (",".join(["%sx %s" % (k, v) for k, v in src.bonuses])))
-        return "\n\t"+"\n\t".join(out_lines)
+        return "\n\t" + "\n\t".join(out_lines)
 
     def get_players(self):
         return [p.get() for p in self.players]
@@ -221,7 +214,7 @@ class Game(ndb.Model):
                 return True
             if pickup.code != "RB":
                 return False
-            return pickup.id in [6,12,13,15,17,19,21,28,30,31,32,33]
+            return pickup.id in [6, 12, 13, 15, 17, 19, 21, 28, 30, 31, 32, 33]
 
         if self.mode != MultiplayerGameType.SHARED:
             return
@@ -231,23 +224,28 @@ class Game(ndb.Model):
         Cache.doSanCheck(self.key.id())
         players = self.get_players()
         sanFailedSignal = "msg:@Major Error during sanity check. If this persists across multiple alt+l attempts please contact Eiko@"
-        hls = [hl for player in players for hl in player.history if hl.pickup().share_type in self.shared]
-        inv = defaultdict(lambda : 0)
-        for hl in hls:
-            inv[(hl.pickup_code,hl.pickup_id)] += -1 if hl.removed else 1
+        inv = defaultdict(lambda: 0)
+        for hl in [hl for player in players for hl in player.history]:
+            pick = hl.pickup()
+            if pick.code == "MU":
+                for c in pick.children:
+                    if c.is_shared(self.shared):
+                        inv[(c.code, c.id)] += -1 if hl.removed else 1
+            elif pick.is_shared(self.shared):
+                inv[(pick.code, pick.id)] += -1 if hl.removed else 1
         i = 0
         for key, count in inv.iteritems():
             pickup = Pickup.n(key[0], key[1])
             if not stacks(pickup):
                 count = 1
             elif pickup.max:
-                count = min(count,pickup.max)
+                count = min(count, pickup.max)
             for player in players:
                 has = player.has_pickup(pickup)
                 if has < count:
                     if has == 0 and count == 1:
                         log.error("Player %s should have %s but did not. Fixing..." % (player.key.id(), pickup.name))
-                    else: 
+                    else:
                         log.error("Player %s should have had %s of %s but had %s instead. Fixing..." % (player.key.id(), count, pickup.name, has))
                     while(has < count):
                         i += 1
@@ -293,9 +291,9 @@ class Game(ndb.Model):
         if not player:
             if(self.mode == MultiplayerGameType.SHARED and len(self.players)):
                 src = self.players[0].get()
-                player = Player(id=full_pid, skills = src.skills, events = src.events, teleporters = src.teleporters,bonuses = src.bonuses, history=[], signals=[], hints = src.hints)
+                player = Player(id=full_pid, skills=src.skills, events=src.events, teleporters=src.teleporters, bonuses=src.bonuses, history=[], signals=[], hints=src.hints)
             else:
-                player = Player(id=full_pid, skills = 0, events=0, teleporters = 0, history=[])
+                player = Player(id=full_pid, skills=0, events=0, teleporters=0, history=[])
             k = player.put()
             Cache.setHist(self.key.id(), pid, [])
         else:
@@ -307,16 +305,20 @@ class Game(ndb.Model):
 
     def found_pickup(self, pid, pickup, coords, remove, dedup):
         retcode = 200
-        share = pickup.share_type in self.shared
+        share = pickup.is_shared(self.shared)
         finder = self.player(pid)
         players = self.get_players()
         if share and dedup:
             if coords in [h.coords for h in finder.history]:
-                log.error("Duplicate pickup at location %s from player %s" % (coords,  pid))
+                log.error("Duplicate pickup at location %s from player %s" % (coords, pid))
                 return 410
             elif coords in [h.coords for teammate in players for h in teammate.history if teammate.key in finder.teammates]:
-                log.info("Won't grant %s to player %s, as a teammate found it already" % (pickup.name,  pid))
+                log.info("Won't grant %s to player %s, as a teammate found it already" % (pickup.name, pid))
                 return 410
+        if pickup.code == "MU":
+            for child in pickup.children:
+                retcode = max(self.found_pickup(pid, child, coords, remove, False), retcode)
+            return retcode
         if self.mode == MultiplayerGameType.SHARED:
             if not share:
                 if pickup.code == "HN":
@@ -336,14 +338,14 @@ class Game(ndb.Model):
                 if my_shards < 3:
                     shard_locs = [h.coords for player in players for h in player.history if h.pickup_code == "RB" and h.pickup_id in ["17", "19", "21"]]
                     if coords in shard_locs:
-                        log.info("%s at %s already taken, player %s will not get one." % (pickup.name, coords,  pid))
+                        log.info("%s at %s already taken, player %s will not get one." % (pickup.name, coords, pid))
                         return 410
         elif self.mode == MultiplayerGameType.SIMUSOLO:
             pass
         else:
             log.error("game mode %s not implemented" % self.mode)
             retcode = 404
-        finder.history.append(HistoryLine(pickup_code = pickup.code, timestamp = datetime.now(), pickup_id = str(pickup.id), coords = coords, removed = remove))
+        finder.history.append(HistoryLine(pickup_code=pickup.code, timestamp=datetime.now(), pickup_id=str(pickup.id), coords=coords, removed=remove))
         finder.put()
         self.put()
         Cache.setHist(self.key.id(), pid, finder.history)
@@ -351,8 +353,9 @@ class Game(ndb.Model):
 
     def clean_up(self):
         [p.delete() for p in self.players]
-        
         Cache.removeGame(self.key.id())
+        if self.params:
+            self.params.delete()
         log.info("Deleting game %s" % self)
         self.key.delete()
 
@@ -378,8 +381,11 @@ class Game(ndb.Model):
     @staticmethod
     def from_params(params, id=None):
         id = int(id) if id else Game.get_open_gid()
-
-        game = Game(id = id, players=[], str_shared=[s.value for s in params.sync.shared], str_mode=params.sync.mode.value)
+        game = Game(
+            id=id, params=params.key, players=[],
+            str_shared=[s.value for s in params.sync.shared],
+            str_mode=params.sync.mode.value
+        )
         game.put()
         teams = params.sync.teams
         if teams:
@@ -391,17 +397,23 @@ class Game(ndb.Model):
                     tset.remove(player.key)
                     player.teammates = list(tset)
                     player.put()
+        else:
+            for i in range(params.players):
+                player = game.player(i + 1)
+                player.put()
+                Cache.setPos(id, i + 1, 189, -210)
+        game.rebuild_hist()
         log.info("Game.from_params(%s, %s): Created game %s ", params.key, id, game)
         return game
 
     @staticmethod
-    def new(_mode = None, _shared = None, id=None):
+    def new(_mode=None, _shared=None, id=None):
         if _shared:
             shared = enums_from_strlist(ShareType, _shared)
         else:
             shared = Game.DEFAULT_SHARED
         mode = MultiplayerGameType(_mode) if _mode else MultiplayerGameType.SIMUSOLO
         id = int(id) if id else Game.get_open_gid()
-        game = Game(id = id, players=[], str_shared=[s.value for s in shared], str_mode=mode.value)
+        game = Game(id=id, players=[], str_shared=[s.value for s in shared], str_mode=mode.value)
         log.info("Game.new(%s, %s, %s): Created game %s ", _mode, _shared, id, game)
         return game

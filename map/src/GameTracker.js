@@ -1,12 +1,11 @@
 import './index.css';
 import React from 'react';
-//import registerServiceWorker from './registerServiceWorker';
 import {Map, Tooltip, TileLayer, Marker, ZoomControl} from 'react-leaflet';
 import {Checkbox, CheckboxGroup} from 'react-checkbox-group';
 import {Radio, RadioGroup} from 'react-radio-group';
 import Leaflet from 'leaflet';
-import {picks_by_type, PickupMarkersList, get_icon, getMapCrs, presets, player_icons, 
-		hide_opacity, select_styles, uniq, select_wrap, get_preset} from './shared_map.js';
+import {presets, player_icons, get_preset} from './common.js';
+import {picks_by_type, PickupMarkersList, get_icon, getMapCrs, hide_opacity, select_styles, uniq, select_wrap} from './shared_map.js';
 import Select from 'react-select';
 import {Button, Collapse} from 'reactstrap';
 import Control from 'react-leaflet-control';
@@ -15,22 +14,7 @@ import {Helmet} from 'react-helmet';
 const paths = Object.keys(presets);
 const game_id = document.getElementsByClassName("game-id")[0].id;
 
-const EMPTY_PLAYER = {seed: {}, open: false, pos: [0,0], seen:[], flags: ["show_marker", "hide_found", "hide_unreachable"], areas: []}
-
-function parse_seed(raw) {
-	let out = {}
-    let open = false;
-	let lines = raw.split("\n")
-    for (let i = 0, len = lines.length; i < len; i++) {
-    	let line = lines[i].split(":")
-    	out[parseInt(line[0], 10)] = (line[1] === "Message" ? line[2] : line[1])
-        if(line[1] === "Ginso teleporter") {
-            open = true;
-        }
-	}
-	return {seed: out, open: open};
-};
-
+const EMPTY_PLAYER = {seed: {}, pos: [0,0], seen:[], flags: ["show_marker", "hide_found", "hide_unreachable"], areas: []}
 
 function get_inner(id) {
 	return (
@@ -239,17 +223,14 @@ const crs = getMapCrs();
 class GameTracker extends React.Component {
   constructor(props) {
     super(props)
-    let modeRaw = document.getElementsByClassName("logic-modes")[0].id
     let modes = presets['standard'];
-    if(modeRaw !== "None"){
-        modes = modeRaw.split(" ");
-    }
     this.state = {mousePos: {lat: 0, lng: 0}, players: {}, retries: 0, check_seen: 1, modes: modes, timeout: TIMEOUT_START, searchStr: "", pickup_display: "all", show_sidebar: true,
-    flags: ['show_pickups', 'update_in_bg'], viewport: DEFAULT_VIEWPORT, pickups: ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "Ma", "CS"],
-    pathMode: get_preset(modes), hideOpt: "all", display_logic: (modeRaw !== "None")};
+    flags: ['show_pickups', 'update_in_bg'], viewport: DEFAULT_VIEWPORT, pickups: ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "Ma", "CS"], open: true,
+    pathMode: get_preset(modes), hideOpt: "all", display_logic: false};
   };
 
   componentDidMount() {
+      getGamedata(this.setState, this.timeout);
 	  this.interval = setInterval(() => this.tick(), 1000);
   };
 
@@ -439,14 +420,30 @@ function doNetRequest(onRes, setter, url, timeout)
     xmlHttp.send(null);
 }
 
+function getGamedata(setter, timeout)
+{
+     var onRes = (res) => {
+				setter(state => {
+                    let {paths, open, playerCount} = JSON.parse(res);
+                    let players = state.players;
+                    while(playerCount > Object.keys(players).length)
+                    {
+                        players[Object.keys(players).length] = {...EMPTY_PLAYER}
+                    }
+					return {players: players, retries: 0, modes: paths, open: open}
+				});
+            }
+     doNetRequest(onRes, setter, "/tracker/game/"+game_id+"/fetch/gamedata", timeout)
+}
+
+
 function getSeed(setter, pid, timeout)
 {
      var onRes = (res) => {
-				setter((prevState, props) => {
+				setter(prevState => {
 					let retVal = prevState.players;
-					let {seed, open} = parse_seed(res);
-                    retVal[pid].seed = seed;
-					return {players:retVal, open: open, retries: 0, timeout: TIMEOUT_START}
+                    retVal[pid].seed = JSON.parse(res);
+					return {players:retVal, retries: 0, timeout: TIMEOUT_START}
 				});
             }
      doNetRequest(onRes, setter, "/tracker/game/"+game_id+"/fetch/player/"+pid+"/seed", timeout)

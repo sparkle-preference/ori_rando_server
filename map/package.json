@@ -24,6 +24,7 @@
     "react-router-dom": "^4.2.2",
     "react-scripts": "1.1.1",
     "react-select": "^2.0.0-beta.6",
+    "react-spinners": "^0.4.7",
     "reactstrap": "^5.0.0-beta.3",
     "underscore": "^1.8.3",
     "uuid-encoded": "0.0.3"
