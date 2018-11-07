@@ -545,138 +545,165 @@ const getHelpContent = (category, option) => {
 		case "logicPaths":
 			subtitle = "Logic Paths"
 			switch(option) {
-				case "normal":
-					title = "Normal"
+				case "casual-core":
+					title = "Casual Core"
 					lines = [
-						"The Normal logic paths specify the intended mechanics of the game: Using wall jump to climb walls, bash to get through Ginso, Keystones to open doors, and energy cells to open Energy doors.",
-						"It also contains a few interactions players may not have seen in a casual playthrough, such as using Stomp to break barriers.",
-						"These logic paths are enabled by default in every logic mode, and cannot be disabled."
+						"<b>Casual Core</b> logic paths are the basis of the casual preset and the randomizer logic as a whole. All of the intended mechanics taught by a casual playthrough are included, including bashing off of your thrown grenades and performing wall charge jumps.",
+						"A small number of non-casual behaviors are also included, such as using Stomp to break some barriers.",
+						"<b>Casual Core</b> paths are enabled by default in all logic presets, and cannot be disabled."
 					]
 					break;
-				case "speed":
-					title = "Speed"
+				case "casual-dboost":
+					title = "Casual Damage Boost"
 					lines = [
-						"The Speed logic paths specify the kinds of tricks that one might learn when doing a no-OOB speedrun of Ori.",
-						"Examples: using Double Jump to get the Ability Cells in Spirit Caverns and above the First Health Cell in Sunken Glades. Using Dash to dash glide to the plant at the mortar puzzle above Moon Grotto.",
-						"The Speed paths tend not to be very difficult to execute and are (with a few exceptions) don't require much in the way of specific knowledge.",
-						"These logic paths are enabled by default in every logic mode besides Casual."
+						"<b>Casual Damage Boost</b> paths are the simplest type of damage boost. These paths may require you to take up to 2 damage. You won't be required to collect any underwater pickups, but you may be required to briefly swim through dirty water or cross a spike pit.",
+						"Examples: boosting once on the spike wall near the Grenade tree to get the XP orb with only Charge Jump; using Climb instead of Wall Jump to reach the Double Jump tree; collecting the top-left keystone in Spirit Caverns without wall interaction.",
+						"<b>Casual Damage Boost</b> paths are generally very straightforward to perform, though they can be a little tricky if you're still at 3 HP.",
+						"These paths are enabled by default in all logic presets except OHKO."
 					]
 					break;
-				case "dboost-light":
-					title = "Damage Boost (light)"
+				case "standard-core":
+					title = "Standard Core"
 					lines = [
-						"Damage Boost (light) is simplest of the damage boost logic path groups. It contains paths that require taking at most 2 damage.", 
-						"Examples: Using Climb instead of Wall Jump to get to the Double Jump tree. Getting to and through Death Gauntlet with 4 Energy Cells and Wall Jump or Climb. Getting the Top Left keystone in Spirit Caverns with Charge Jump (but no wall interaction)",
-						"The Damage Boost (Light) paths are usually pretty straightforward, though some of them can be tricky to execute without 1 or 2 extra Health.",
-						"These logic paths are enabled by default in every logic mode besides OHKO, and are incompatible with the OHKO variation."
+						"<b>Standard Core</b> logic paths are the basis of the standard preset. These paths represent the tricks, tech, and knowledge that one might learn from doing speedruns of Ori DE.",
+						"Tech that might be required includes bash glides, dash glides, and using wall charge jumps to break floors/ceilings. Some slightly precise jumps may also be required, such as reaching the Spirit Caverns ability cell using Double Jump and Wall Jump.",
+						"<b>Standard Core</b> paths don't require a high level of execution, nor do they require a high degree of area-specific knowledge, but they do require a higher degree of overall game knowledge than Casual paths.",
+						"These paths are enabled by default in all logic presets except Casual."
 					]
 					break;
-				case "dboost":
-					title = "Damage Boost"
+				case "standard-lure":
+					title = "Standard Lure"
 					lines = [
-						"Damage Boost is largest of the damage boost logic path groups. It contains paths that require taking up to 5 damage, as well a few more difficult 1-2 damage pickups deemed not appropriate for Damage Boost (Light).", 
-						"Examples: Getting to the Energy Cell underwater in the Sunken Glades main pool with 6 Health. Getting to the Climb tree with Bash, DoubleJump, and 4 Health. Getting the Ability Cell behind the underwater 4 energy door with only 3 Health",
-						"The Damage Boost paths can be difficult to execute on the minimum amount of health they require, especially without practice. Some pickups (especially underwater ones) can require a quick alt+R after grabbing, depending on your Health.",
-						"These logic paths are enabled by default in the Expert, Master, and Glitched logic modes, and are incompatible with the OHKO and Hard Mode variations."
+						"<b>Standard Lure</b> logic paths represent manipulating enemies to cross distances or drawing their projectiles in a particular way to help you reach pickups or locations that would otherwise not be accessible.",
+						"Examples: performing the all skills \"fronkey walk\" to bash up to the XP orb right of the start; using the baneling near the Horu Fields entrance to break the floor to get the health cell.",
+						"<b>Standard Lure</b> paths may require some minor area-specific knowledge, but are generally not difficult to perform.",
+						"These paths are enabled by default in all logic presets except Casual."
 					]
 					break;
-				case "lure":
-					title = "Lure"
+				case "standard-dboost":
+					title = "Standard Damage Boost"
 					lines = [
-						"The Lure logic paths all involve manipulating an enemy into a position that allows them to be used to access a pickup, either via bashing off them or by bashing shots or otherwise using their attacks to break walls or floors.",
-						"Examples: Doing the All Skills route Fronkey Walk, and then bashing off the Fronkey to get up to the EXP Orb (or the energy door without wall interaction). Using the Baneling to get the Horu Fields Health Cell without Stomp.",
-						"The Lure paths sometimes require a bit of practice to do, but tend not to not take very long and are easy to retry.",
-						"These logic paths are enabled by default in every logic mode besides Casual."
+						"<b>Standard Damage Boost</b> logic paths incorporate damage boosts of up to 3 damage, plus a few more difficult 1-2 damage boost paths. Underwater pickups are still not required, nor is any damage boosting in Misty Woods.",
+						"Examples: collecting Ginso Tree keystones without Double Jump or Bash; collecting the health cell behind the 2-energy door in Moon Grotto with only Wall Jump; crossing the moat in death gauntlet with only Wall Jump or Climb.",
+						"<b>Standard Damage Boost</b> paths usually are not especially tricky to do, but may require some confidence jumping onto spikes that deal a lot of damage.",
+						"These paths are enabled by default in all logic presets except Casual and OHKO."
 					]
 					break;
-				case "speed-lure":
-					title = "Speed Lure"
+				case "standard-abilities":
+					title = "Standard Abilities"
 					lines = [
-						"The Speed Lure logic paths contain two very tricky lures used in the All Skills route: Swamp Entry (Entering Swamp with Bash by repositioning and redirecting the frog to the right of the Mortar Redirect puzzle), and Sorrow Bash (Entering Sorrow Pass without Wind Restored by luring and bashing birds).",
-						"Both tricks in Speed Lure paths require a fair bit of practice to do for runners not already familiar with them. Tutorial information .",
-						"These logic paths are enabled by default in Expert, Master, and Glitched logic modes."	
+						"<b>Standard Abilities</b> logic paths incorporate use of the Air Dash ability. At least three ability cells will be provided before you're expected to make use of Air Dash.",
+						"Examples: collecting Ginso Tree keystones without taking damage; accessing the area below the Moon Grotto teleporter.",
+						"These paths are enabled by default in all logic presets except Casual, OHKO, and 0 XP."
 					]
 					break;
-				case "lure-hard":
-					title = "Lure (Hard)"
+				case "expert-core":
+					title = "Expert Core"
 					lines = [
-						"The Lure (Hard) logic paths contain a few difficult and/or tedious enemy manipulations considered too difficult for Lure.",
-						"Examples: Luring a Fronkey down to the Wall Jump Tree to Bash up to the pickups there. Using a Fronkey to stomp the peg and floor to get to the underwater Ability Cell in the area directly below the Hollow Grove mapstone.",
-						"These logic paths are enabled by default in the Master and Glitched logic modes, and (due to a single damage boost path) are incompatible with the OHKO and Hard Mode variations."
+						"<b>Expert Core</b> logic paths are the basis of the expert preset. These paths either require a notable amount of area-specific knowledge or a higher degree of execution than standard paths.",
+						"Examples: juggling a frog up Sorrow Pass to get access to the Sunstone; passing through the crushing blocks in Blackroot without Dash; reaching the plant in Valley entry with only Wall Jump and Charge Flame.",
+						"These paths are enabled by default in the Expert, Master, and Glitched presets."
 					]
 					break;
-				case "dboost-hard":
-					title = "Damage Boost (Hard)"
+				case "expert-lure":
+					title = "Expert Lure"
 					lines = [
-						"The Damage (Hard) logic paths contain 3 very long swimming sections through dirty water: entering Swamp via the lower route, getting the grenade-locked Energy Cell past the water in the Valley Entrance room, and getting the far right Ability Cell in Lost Grove.",
-						"These logic paths are enabled by default in the Master and Glitched logic modes, and are incompatible with the OHKO and Hard Mode variations."
+						"<b>Expert Lure</b> logic paths represent more difficult enemy lures possibly involving multiple enemies or complex combinations of bash angles and other movement techniques.",
+						"Examples: performing the \"Sorrow Bash\" trick to enter Sorrow Pass using chained bashes on the birds at the top of Valley; bashing the frog near the upper Swamp entrance to use his projectiles to break your way in.",
+						"<b>Expert Lure</b> paths require a fair bit of practice for most runners. Don't be afraid to ask for help on the Ori discord!",
+						"These paths are enabled by default in the Expert, Master, and Glitched presets."
 					]
 					break;
-				case "extended":
-					title = "Extended"
+				case "expert-dboost":
+					title = "Expert Damage Boost"
 					lines = [
-						"The Extended logic paths are full of tricks that require area-specific knowledge or some tricky or tedious execution to reach.",
-						"Examples: Opening the Valley entrance door by bashing the Fronkey onto the peg. Juggling a frog up Sorrow to get access the Sunstone. Passing through the high crushers right of the Dash Tree or at the Boulder Chase area without Dash.",
-						"These logic paths are enabled by default in the Expert, Master, Hard, OHKO and Glitched logic modes."
+						"<b>Expert Damage Boost</b> logic paths incorporate damage boosts of up to 6 damage. These could include swimming sequences with underwater pickups or damaging yourself repeatedly across spikes.",
+						"Examples: getting to the Energy Cell in the main pool of Sunken Glades with 6 health; reaching the lower Swamp access in Moon Grotto using only Dash and 4 health; getting the underwater ability cell in Death Gauntlet with 4 health.",
+						"These paths are enabled by default in the Expert, Master, and Glitched presets."
 					]
 					break;
-				case "extended-damage":
-					title = "Extended (Damage)"
+				case "expert-abilities":
+					title = "Expert Abilities"
 					lines = [
-						"The Extended (Damage) logic paths contain damage boosting tricks that require area-specific knowledge, or are otherwise too difficult or tedious to be included in the Damage Boost logic paths.",
-						"Examples: Going from the Spirit Tree to the Valley teleporter without Bash. Going up into Sorrow by repeatedly Charge Jumping off the spikes. Opening the door that leads to the Lost Grove Teleporter without Bash.",
-						"These logic paths are enabled by default in the Expert, Master, and Glitched logic modes."
+						"<b>Expert Abilities</b> logic paths incorporate use of the Charge Dash ability. These paths may also implicitly assume use of Air Dash. Six ability cells will be provided for these paths.",
+						"Charge Dash can be expected to be used to break plants or cross long distances without losing height. You may also be expected to perform Rocket Jumps by quickly canceling an upwards Charge Dash with a jump input.",
+						"These paths are enabled by default in the Expert, Master, and Glitched presets."
 					]
 					break;
 				case "dbash":
 					title = "Double Bash"
 					lines = [
-						"The Double Bash logic paths all require doing at least one Double Bash to reach a pickup.",
-						"These logic paths are enabled by default in the Master, Hard, OHKO and Glitched logic modes."
+						"<b>Double Bash</b> logic paths require performing one or more double bashes. Incredibly long sequences of double bashes are not included, but you may be expected to do up to five or six in a row.",
+						"Examples: reaching the pickups above the water in the Spider Coves area with only Bash; navigating Horu Fields with only Bash; you get the idea.",
+						"The randomizer has support for \"free double bashes\", which you can configure in RandomizerKeybindings.txt. This allows you to hold a specified button while releasing one Bash to get an automatic double bash.",
+						"<b>Double Bash</b> paths are enabled by default in the Expert, Master, and Glitched presets."
 					]
 					break;
-				case "cdash":
-					title = "Charge Dash"
-					lines = [ 
-						"The Charge Dash logic paths allow the use of Charge Dash to break open some blue plants, doors, or barriers.",
-						"This group also contains a path allowing access to the Glades Laser Grenade pickup with Dash and Grenade, as it is reachable using a combination of Rocket Jumps and normal Charge Dashes.",
-						"These logic paths do not include the Valley Entrance Plant, the Dash Plant, the Charge Flame Plant, or any of the Hollow Grove plants, as they are located too early in the game for the player to have gotten enough Ability Points to unlock Charge Dash.",
-						"These logic paths are enabled by default in the Expert, Master, Hard, OHKO and Glitched logic modes, and are incompatible with the 0XP variation."
-
-					]
-					break;
-				case "extreme":
-					title = "Extreme"
+				case "master-core":
+					title = "Master Core"
 					lines = [
-						"The Extreme logic paths contain tricks too crazy to put anywhere else; the only requirement is that they not require major glitches or induce softlocks",
-						"Examples: Double Bashing a spider shot from the left part of Blackroot all the way to the stompable barrier that blocks access to lower Blackroot. Getting the underwater pickups in Swamp without Clean Water.",
-						"These logic paths are enabled by default only in the Master and Glitched logic modes, and are incompatible with the OHKO and Hard Mode variations."
+						"<b>Master Core</b> logic paths are the basis of the master preset. These paths require deep, thorough knowledge of the intricacies of each area of the game, as well as the ability to execute difficult strategies.",
+						"Examples: double bashing a spider shot from the bottom of Blackroot Burrows to break the floor to enter lower Blackroot; performing the \"iceless\" jump to reach the experience orb above the Hollow Grove map.",
+						"<b>Master Core</b> paths may also require you to perform \"double jump wall climbing\", repeatedly jumping into and then turning away from a single wall to refresh your jumps to continue scaling it.",
+						"These paths are only enabled by default in the Master preset."
 					]
 					break;
-				case "timed-level":
-					title = "Timed Level-up"
+				case "master-lure":
+					title = "Master Lure"
 					lines = [
-						"The Timed Level-up paths contain tricks that are only possible to do by leveling up at a specific place. These can require luck, careful planning or a lot of farming.",
-						"Examples: Core skip (leveling up to skip the left room in Ginso). Fronkey Walk (the actual All-Skills version, leveling up to open the 4-energy door into Death Gauntlet.)",
-						"These logic paths are enabled by default only in the Glitched logic mode, and are incompatible with the 0XP variation."
-
+						"<b>Master Lure</b> logic paths represent the most difficult enemy lures, involving avoiding damaging environmental obstacles or maneuvering enemies through tight quarters.",
+						"Examples: kiting a fronkey down to the Wall Jump tree area to Bash off of him to reach the pickups there; using a fronkey to break both barriers to reach the underwater cell in the main area of Hollow Grove.",
+						"These paths are only enabled by default in the Master preset."
+					]
+					break;
+				case "master-dboost":
+					title = "Master Damage Boost"
+					lines = [
+						"<b>Master Damage Boost</b> logic paths incorporate damage boosts of any amount. In addition, these paths may require the Ultra Defense ability. Twelve ability cells will be provided before Ultra Defense is expected.",
+						"Examples: collecting all of the underwater pickups in Swamp with 7 health and Ultra Defense; getting from the Swamp keystone door to the Stomp tree with only Wall Jump and 12 health.",
+						"These paths are only enabled by default in the Master preset."
+					]
+					break;
+				case "master-abilities":
+					title = "Master Abilities"
+					lines = [
+						"<b>Master Abilities</b> logic paths incorporate use of the Triple Jump ability. These paths may also implicitly assume use of Air Dash and Charge Dash. Twelve ability cells will be provided for these paths.",
+						"Examples: crossing Horu Fields with only Wall Jump, Double Jump, Dash, and the Triple Jump ability; reaching the ability cell in the outer Swamp mortar area with only Wall Jump, Double Jump, and the Triple Jump ability.",
+						"These paths are only enabled by default in the Master preset."
+					]
+					break;
+				case "gjump":
+					title = "Grenade Jump"
+					lines = [
+						"<b>Grenade Jump</b> logic paths incorporate use of grenade jumps, a trick in which you press Grenade one frame before performing a wall Charge Jump. These paths all require Climb, Charge Jump, and Grenade.",
+						"Examples: crossing Horu Fields with grenade jumps; navigating the right side of Lost Grove without Bash; ascending from the Valley entrance to the main area of Valley (with some combination of Double Jump and damage boosts).",
+						"These paths are only enabled by default in the Master preset."
 					]
 					break;
 				case "glitched":
 					title = "Glitched"
 					lines = [
-						"The Glitched Level-up paths contains many of the known out-of-bounds tricks and other glitches not normally used or allowed in the Randomizer.",
-						"Examples: Wrongwarping from the Ginso Tree to Horu. Going out-of-bounds from Valley into the right side of Forlorn.",
-						"Warning: Some of these tricks can softlock your save file if required and failed.",
-						"These logic paths are enabled by default only in the Glitched logic mode, and are incompatible with the 0XP variation."
+						"<b>Glitched</b> logic paths incorporate the tricks which are disallowed by the common randomizer ruleset: clips, out of bounds, teleport anywhere, and warp displacement.",
+						"Examples: Terra clipping from the Ginso Tree to Horu; warp displacing using the Swamp teleporter to reach the outer Swamp mortar ability cell; using the Blackroot boulder to clip into Moon Grotto.",
+						"WARNING: many <b>Glitched</b> paths require spending ability points or other one-time tricks. Backing up your save early and often is heavily recommended.",
+						"These paths are only enabled by default in the Glitched preset."
 					]
 					break;
-				case "cdash-farming":
-					title = "Charge Dash (Farming)"
+				case "timed-level":
+					title = "Timed Level"
 					lines = [
-						"The Charge Dash (Farming) logic paths are similar to the Charged Dash logic paths, but contain a few more rocket jumps. Additionally, it includes paths that unlock the plants not unlocked by the normal Charge Dash logic paths.",
-						"As the name implies, the major difference between the two logic path groups is that Charge Dash (Farming) is far more likely to force you to farm for the ability points required to unlock the Charge Dash ability, since the Plants included are earlier in the game.",
-						"These logic paths are enabled by default only in the Glitched logic mode, and are incompatible with the 0XP variation."
+						"<b>Timed Level</b> logic paths represent leveling up at specific places to obtain health and energy refills or damage otherwise unreachable enemies. These can require luck, careful planning, or a lot of farming.",
+						"Examples: the all skills \"fronkey walk\", using a timed level on a fronkey to enter death gauntlet with only 2 energy; leveling on the frog at the grenade basketball puzzle in Blackroot to kill the other frog to reach an ability cell.",
+						"These paths are only enabled by default in the Glitched preset."
+					]
+					break;
+				case "insane":
+					title = "Insane"
+					lines = [
+						"<b>Insane</b> logic paths should not exist. They are a sign of the depths of depravity to which the randomizer developers have sunk.",
+						"Examples: completing the Ginso escape with nothing but Double Jump and Triple Jump; accessing the right Valley \"bird stomp cell\" by double bashing a baneling from lower Valley.",
+						"WARNING: seriously, if you turn these on, you will regret it. Some of these might take you an hour just to execute once. They're HARD.",
+						"These paths are not enabled by default in any mode. We don't hate you that much."
 					]
 					break;
 				default:
