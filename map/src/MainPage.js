@@ -435,10 +435,12 @@ export default class MainPage extends React.Component {
                     seedParams.push("game_id="+this.state.inputGameId)
                 let seedUrl = "/generator/seed/"+this.state.paramId
                 let spoilerUrl = "/generator/spoiler/"+this.state.paramId
+                let downloadSpoilerUrl = spoilerUrl + "?download=1"
                 if(this.state.inputPlayerCount > 1)
                 {
                     seedParams.push("player_id="+p);
                     spoilerUrl += "?player_id="+p;
+                    downloadSpoilerUrl += "&player_id="+p;
                 }
                 seedUrl += "?" + seedParams.join("&")
                 return (
@@ -450,11 +452,14 @@ export default class MainPage extends React.Component {
                                 <span class="align-middle">Player {p}</span>
                             </Col></Row>
                         </Col>
-                        <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "downloadButton"+this.multi())}>
+                        <Col xs="3" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "downloadButton"+this.multi())}>
                             <Button color="primary" block href={seedUrl}>Download Seed</Button>
                         </Col>
-                        <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "spoilerButton")}>
+                        <Col xs="3" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "spoilerButton")}>
                             <Button color="primary" href={spoilerUrl} target="_blank" block >View Spoiler</Button>
+                        </Col>
+                        <Col xs="3" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "spoilerDownload")}>
+                            <Button color="primary" href={downloadSpoilerUrl} target="_blank" block >Download Spoiler</Button>
                         </Col>
                     </Row>
                 )

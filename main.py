@@ -799,6 +799,10 @@ class GetSpoilerFromParams(RequestHandler):
         if params:
             player = int(self.request.GET.get("player", 1))
             spoiler = params.get_spoiler(player)
+            if paramFlag(self, "download"):
+                self.response.headers['Content-Type'] = 'application/x-gzip'
+                self.response.headers['Content-Disposition'] = 'attachment; filename=spoiler.txt'
+                spoiler = spoiler.replace("\n", "\r\n")
             self.response.out.write(spoiler)
         else:
             self.response.status = 404

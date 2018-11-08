@@ -52,7 +52,7 @@ const getHelpHelper = (category, option) => {
                 let required = parseInt(total,10) - parseInt(extra, 10)
                 h.title = "Warmth Fragments"
                 h.lines = [
-                    "The Warmth Fragments Goal Mode scatters " + total + "warmth fragments across the entire map. You must collect " + required + " of them to access the final escape.",
+                    "The Warmth Fragments Goal Mode scatters " + total + " warmth fragments across the entire map. You must collect " + required + " of them to access the final escape.",
                     (<div><i>(Your seed is using this Goal Mode.)</i></div>)
                 ]
             } else if(option.startsWith("WorldTour")) {
@@ -304,7 +304,7 @@ const getHelpHelper = (category, option) => {
                 case "downloadButton":
                     title = "Download Seed"
                     lines = [
-                        "Click here to download your seed file (randomizer.dat)",
+                        "Click here to download your seed file.",
                         "Once downloaded, move or copy the randomizer.dat file into your OriDE folder. (It should be named randomizer.dat and be in the same folder as OriDE.exe)"
                     ]
                     if(multi)
@@ -314,6 +314,14 @@ const getHelpHelper = (category, option) => {
                     title = "Open Spoiler"
                     lines = [
                         "Click here to open your spoiler in a new tab.",
+                        "The spoiler contains a detailed report of what items are placed where, and the order in which the randomizer intended you to find them.",
+                        "Don't be afraid to check your spoiler if you get stuck!"
+                    ]
+                break;
+                case "spoilerDownload":
+                    title = "Download Spoiler"
+                    lines = [
+                        "Click here to download your spoiler as a text file.",
                         "The spoiler contains a detailed report of what items are placed where, and the order in which the randomizer intended you to find them.",
                         "Don't be afraid to check your spoiler if you get stuck!"
                     ]
