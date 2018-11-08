@@ -71,14 +71,15 @@ class Connection:
             if item in longform_to_code:
                 return count * longform_to_code[item]
             return count * [item]
-        # the double list comprehension below is equivilent to flatten([translate(part) for part in req])
-        # (or, more accurately, it would be equivilent to that if flatten was a thing in python)
-        req = [translated_part for part in req for translated_part in translate(part)]
-        self.requirements.append(req)
+        translated_req = []
+        for part in req:
+            translated_req += translate(part)
+
+        self.requirements.append(translated_req)
         self.difficulties.append(difficulty)
         if not self.keys:
             self.keys = req.count("KS")
-        self.mapstone = "MS" in req
+        self.mapstone = "MS" in translated_req
 
     def get_requirements(self):
         return self.requirements
@@ -95,8 +96,9 @@ class Connection:
                     items[req_part] += 1
                     if self.sg.inventory[req_part] < items[req_part]:
                         score += self.sg.costs[req_part]
-                elif req_part == "MS" and self.sg.inventory["MS"] < self.sg.mapstonesSeen:
-                    score += self.sg.costs["MS"]
+                elif req_part == "MS":
+                    if self.sg.inventory["MS"] < self.sg.mapstonesSeen:
+                        score += self.sg.costs["MS"]
                 else:
                     score += self.sg.costs.get(req_part, 0)
             if score < minReqScore:
@@ -1250,6 +1252,9 @@ class SeedGenerator:
                 currentGroupSpoiler += "    " + instance
 
             for instance in self.spoilerGroup["EC"]:
+                currentGroupSpoiler += "    " + instance
+
+            for instance in self.spoilerGroup["AC"]:
                 currentGroupSpoiler += "    " + instance
 
             self.currentAreas.sort()
