@@ -697,6 +697,9 @@ class MapTest(RequestHandler):
         url = "/generator/build?key_mode=Shards&gen_mode=Balanced&var=Open&var=WorldTour&path=casual-core&path=casual-dboost&exp_pool=10000&cell_freq=40&relics=8&players=3&sync_mode=Shared&sync_shared=WorldEvents&sync_shared=Teleporters&sync_shared=WorldEvents&sync_shared=Skills&sync_hints=1&test_map_redir=%s&seed=%s" % (game_id, random.randint(100000,1000000))
         self.redirect(url)
 
+class DiscordRedirect(RequestHandler):
+    def get(self):
+        self.redirect("https://discord.gg/TZfue9V")
 
 class LogicHelper(RequestHandler):
     def get(self):
@@ -865,6 +868,7 @@ app = WSGIApplication(routes=[
     (r'/login/?', HandleLogin),
     (r'/logout/?', HandleLogout),
     ('/vanilla', Vanilla),
+    ('/discord'. DiscordRedirect),
 
     # new netcode endpoints
     PathPrefixRoute('/netcode/game/<game_id:\d+>/player/<player_id:[^/]+>', [

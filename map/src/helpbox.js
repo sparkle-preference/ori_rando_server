@@ -6,7 +6,7 @@ const UntestedWarning = (<CardText className="border m-1 font-weight-bold border
 NOTE: this variation is rarely used and thus is less tested than most.
 In rare cases you may recieve an unfinishable seed. Leaving Web Tracking on is recommended for troubleshooting purposes.
 If you believe you have recieved an unfinishable seed, please inform Eiko, Sigma, or Vulajin 
-in the <a target="_blank"  rel="noopener noreferrer" href="https://discord.gg/TZfue9V">Ori discord</a>.
+in the <a target="_blank"  rel="noopener noreferrer" href="/discord">Ori discord</a>.
 </CardText>)
 
 const noneTitle = "Confused?";
