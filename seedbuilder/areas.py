@@ -215,7 +215,6 @@ def get_areas():
             assert area is not None
             loc = tokens[1]
 
-            assert loc_homes[loc] == "NOT LINKED", loc
             loc_homes[loc] = area_name
 
             CloseConnection()

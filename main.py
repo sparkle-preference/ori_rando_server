@@ -868,7 +868,7 @@ app = WSGIApplication(routes=[
     (r'/login/?', HandleLogin),
     (r'/logout/?', HandleLogout),
     ('/vanilla', Vanilla),
-    ('/discord'. DiscordRedirect),
+    ('/discord', DiscordRedirect),
 
     # new netcode endpoints
     PathPrefixRoute('/netcode/game/<game_id:\d+>/player/<player_id:[^/]+>', [
