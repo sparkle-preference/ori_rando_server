@@ -484,14 +484,14 @@ class PlandoUpload(RequestHandler):
         if user:
             dispname = user.email().partition("@")[0]
             if dispname == author:
-                seedLines = self.request.POST["seed"]
+                seed_data = json.loads(self.request.POST["seed"])
                 desc = self.request.POST["desc"]
                 old_name = paramVal(self, "old_name")
                 if old_name:
                     old_seed = Seed.get_by_id("%s:%s" % (author, old_name))
                 else:
                     old_seed = Seed.get_by_id("%s:%s" % (author, plando))
-                seed = Seed.from_plando(seedLines.split("!"), author, plando, desc)
+                seed = Seed.from_plando(seed_data, author, plando, desc)
                 if old_seed:
                     seed.hidden = old_seed.hidden
                 res = seed.put()
@@ -694,7 +694,7 @@ class MapTest(RequestHandler):
         game = Game.with_id(game_id)
         if game:
             game.clean_up()
-        url = "/generator/build?key_mode=Shards&gen_mode=Balanced&var=Open&var=WorldTour&path=casual-core&path=casual-dboost&exp_pool=10000&cell_freq=40&relics=8&players=3&sync_mode=Shared&sync_shared=WorldEvents&sync_shared=Teleporters&sync_shared=WorldEvents&sync_shared=Skills&sync_hints=1&test_map_redir=%s&seed=%s" % (game_id, random.randint(100000,1000000))
+        url = "/generator/build?key_mode=Free&gen_mode=Balanced&var=Open&var=WorldTour&path=casual-core&path=casual-dboost&exp_pool=10000&cell_freq=40&relics=10&players=3&sync_mode=Shared&sync_shared=WorldEvents&sync_shared=Teleporters&sync_shared=WorldEvents&sync_shared=Skills&sync_hints=1&test_map_redir=%s&seed=%s" % (game_id, random.randint(100000,1000000))
         self.redirect(url)
 
 class DiscordRedirect(RequestHandler):
@@ -743,27 +743,28 @@ class SeedGenJson(RequestHandler):
         self.response.headers['Content-Type'] = 'application/json'
         param_key = SeedGenParams.from_url(self.request.GET)
         verbose_paths = self.request.GET.get("verbose_paths") is not None
-        params = param_key.get()
-        if params.generate(preplaced={}):
-            players = []
-            resp = {}
-            if params.tracking:
-                game = Game.from_params(params, self.request.GET.get("game_id"))
-                key = game.key
-                resp["map_url"] = uri_for("map-render", game_id=key.id())
-                resp["history_url"] = uri_for("game-show-history", game_id=key.id())
-            for p in range(1, params.players + 1):
+        if param_key:
+            params = param_key.get()
+            if params.generate(preplaced={}):
+                players = []
+                resp = {}
                 if params.tracking:
-                    seed = params.get_seed(p, key.id(), verbose_paths)
-                else:
-                    seed = params.get_seed(p, verbose_paths=verbose_paths)
-                spoiler = params.get_spoiler(p).replace("\n", "\r\n")
-                players.append({"seed": seed, "spoiler": spoiler, "spoiler_url": uri_for('gen-params-get-spoiler', params_id=param_key.id(), player=p)})
-            resp["players"] = players
-            self.response.out.write(json.dumps(resp))
-        else:
-            log.error("param gen failed")
-            self.response.status = 500
+                    game = Game.from_params(params, self.request.GET.get("game_id"))
+                    key = game.key
+                    resp["map_url"] = uri_for("map-render", game_id=key.id())
+                    resp["history_url"] = uri_for("game-show-history", game_id=key.id())
+                for p in range(1, params.players + 1):
+                    if params.tracking:
+                        seed = params.get_seed(p, key.id(), verbose_paths)
+                    else:
+                        seed = params.get_seed(p, verbose_paths=verbose_paths)
+                    spoiler = params.get_spoiler(p).replace("\n", "\r\n")
+                    players.append({"seed": seed, "spoiler": spoiler, "spoiler_url": uri_for('gen-params-get-spoiler', params_id=param_key.id(), player=p)})
+                resp["players"] = players
+                self.response.out.write(json.dumps(resp))
+                return
+        log.error("param gen failed")
+        self.response.status = 500
 
 class GetParamMetadata(RequestHandler):
     def get(self, params_id):

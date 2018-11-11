@@ -48,8 +48,7 @@ const getHelpHelper = (category, option) => {
                 h = getHelpHelper("goalModes", option)
                 h.lines[h.lines.length-1] = (<div><i>(Your seed is using this Goal Mode.)</i></div>)
             } else if(option.startsWith("Frags")) {
-                let [, total, extra] = option.split("/")
-                let required = parseInt(total,10) - parseInt(extra, 10)
+                let [, required, total] = option.split("/")
                 h.title = "Warmth Fragments"
                 h.lines = [
                     "The Warmth Fragments Goal Mode scatters " + total + " warmth fragments across the entire map. You must collect " + required + " of them to access the final escape.",
@@ -530,7 +529,7 @@ const getHelpHelper = (category, option) => {
                     title = "Required Fragment Count"
                     lines = [
                         "Set the number of Warmth Fragments that are required to finish the game here.",
-                        "The closer the required fragment count is to the total fragment count, the longer and more tedious the search for fragments becomes"
+                        "The closer the required fragment count is to the total fragment count, the longer and more tedious the search for fragments becomes."
                     ]
                     break;
                 case "relicCount":

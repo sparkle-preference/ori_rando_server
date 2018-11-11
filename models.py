@@ -51,20 +51,17 @@ class Seed(ndb.Model):
         return enums_from_strlist(ShareType, shared_opt[0]) if shared_opt else []
 
     @staticmethod
-    def from_plando(lines, author, name, desc):
+    def from_plando(data, author, name, desc):
         s = Seed(id="%s:%s" % (author, name), name=name, author=author, description=desc)
-        rawFlags, _, s.name = lines[0].partition("|")
-        s.flags = [flag.replace(" ", "+") for flag in rawFlags.split(",") if not flag.lower().startswith("sync")]
-        for line in lines[1:]:
-            loczone, _, stuffs = line.partition(":")
-            loc, _, zone = loczone.partition("|")
-            plc = Placement(location=loc, zone=zone)
-            for stuff in stuffs.split(","):
-                player, _, codeid = stuff.partition(".")
+        s.flags = data['flags']
+        s.name = data['name']
+        for placement in data['placements']:
+            plc = Placement(location=placement['loc'], zone=placement['zone'])
+            for stuff in placement['stuff']:
+                player = stuff['player']
                 if int(player) > s.players:
                     s.players = int(player)
-                code, _, id = codeid.partition("|")
-                plc.stuff.append(Stuff(code=code, id=id, player=player))
+                plc.stuff.append(Stuff(code=stuff['code'], id=stuff['id'], player=player))
             s.placements.append(plc)
         return s
 

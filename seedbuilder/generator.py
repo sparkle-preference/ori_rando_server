@@ -78,7 +78,7 @@ class Connection:
         self.requirements.append(translated_req)
         self.difficulties.append(difficulty)
         if not self.keys:
-            self.keys = req.count("KS")
+            self.keys = translated_req.count("KS")
         self.mapstone = "MS" in translated_req
 
     def get_requirements(self):
@@ -242,7 +242,6 @@ class SeedGenerator:
 
         if self.var(Variation.WORLD_TOUR):
             self.itemPool["EX*"] -= self.params.relic_count
-            self.itemPool["Relic"] += self.params.relic_count
 
         if not self.var(Variation.STRICT_MAPSTONES):
             self.costs["MS"] = 11
@@ -329,8 +328,7 @@ class SeedGenerator:
 
     def __init__(self):
         self.init_fields()
-        self.codeToName = OrderedDict(
-            [(v, k) for k, v in self.skillsOutput.items() + self.eventsOutput.items()])
+        self.codeToName = OrderedDict([(v, k) for k, v in self.skillsOutput.items() + self.eventsOutput.items()])
 
     def reach_area(self, target):
         if self.playerID > 1 and target in self.sharedMap:
@@ -547,26 +545,30 @@ class SeedGenerator:
                     return self.assign_random(recurseCount=recurseCount + 1)
                 return self.assign(key)
 
-    def assign(self, item):
-        self.itemPool[item] = max(self.itemPool[item] - 1, 0) if item in self.itemPool else 0
-        if item == "KS":
-            if self.costs[item] > 0:
-                self.costs[item] -= 4
-        elif item in ["EC", "HC", "AC", "WaterVeinShard", "GumonSealShard", "SunstoneShard"]:
-            if self.costs[item] > 0:
-                self.costs[item] -= 1
-        elif item == "RB28":
-            if self.costs[item] > 0:
-                self.costs[item] -= min(3, self.costs[item])
-        elif item in self.costs and self.itemPool[item] == 0:
-            self.costs[item] = 0
-        self.inventory[item] = 1 + (self.inventory[item] if item in self.inventory else 0)
-
+    def assign(self, item, preplaced=False):
+        if item[0:2] == "MU":
+            for multi_item in self.get_multi_items(item):
+                self.assign(multi_item, preplaced)
+        else:
+            if not preplaced:
+                self.itemPool[item] = max(self.itemPool[item] - 1, 0) if item in self.itemPool else 0
+            if item == "KS":
+                if self.costs[item] > 0:
+                    self.costs[item] -= 4
+            elif item in ["EC", "HC", "AC", "WaterVeinShard", "GumonSealShard", "SunstoneShard"]:
+                if self.costs[item] > 0:
+                    self.costs[item] -= 1
+            elif item == "RB28":
+                if self.costs[item] > 0:
+                    self.costs[item] -= min(3, self.costs[item])
+            elif item in self.costs and self.itemPool[item] == 0:
+                self.costs[item] = 0
+            self.inventory[item] = 1 + (self.inventory[item] if item in self.inventory else 0)
         return item
 
     # for use in limitkeys mode
     def force_assign(self, item, location):
-        self.assign(item)
+        self.assign(item, True)
         self.assign_to_location(item, location)
 
     # for use in world tour mode
@@ -855,7 +857,7 @@ class SeedGenerator:
         self.sharedList = []
         self.random = random.Random()
         self.random.seed(self.params.seed)
-        self.preplaced = {k: (self.codeToName[v] if v in self.codeToName else v) for k, v in preplaced.iteritems()}
+        self.preplaced = {k: self.codeToName.get(v, v) for k, v in preplaced.iteritems()}
         self.do_multi = self.params.sync.enabled and self.params.sync.mode == MultiplayerGameType.SHARED
 
         if self.var(Variation.WORLD_TOUR):
@@ -887,9 +889,9 @@ class SeedGenerator:
             if ShareType.MISC in shared:
                 if self.var(Variation.WARMTH_FRAGMENTS):
                     self.sharedList.append("RB28")
-#              TODO: figure out relic sharing
-#              if self.var(Variation.WORLD_TOUR):
-#                    self.sharedList.append("Relic")
+                # TODO: figure out relic sharing
+                # if self.var(Variation.WORLD_TOUR):
+                #      self.sharedList.append("Relic")
         return self.placeItemsMulti(retries)
 
     def placeItemsMulti(self, retries=5):
@@ -1007,7 +1009,6 @@ class SeedGenerator:
                     if next_loc.get_key() in self.forcedAssignments:
                         continue
                     relic_loc = next_loc
-
                 self.relic_assign(relic_loc)
                 self.itemCount -= 1
             # Capture relic spoilers before the spoiler group is overwritten
@@ -1028,6 +1029,11 @@ class SeedGenerator:
             self.outputStr += ass
 
         for v in self.forcedAssignments.values():
+            if v[0:2] == "MU":
+                for item in self.get_multi_items(v):
+                    if item in self.itemPool:
+                        self.itemPool[item] -= 1
+                        self.itemPool["EX*"] += 1
             if v in self.itemPool:
                 self.itemPool[v] -= 1
             else:
@@ -1200,8 +1206,17 @@ class SeedGenerator:
 
         return (self.outputStr, spoilerStr)
 
-    def form_spoiler(self):
+    def get_multi_items(self, multi_item):
+        multi_parts = multi_item[2:].split("/")
+        multi_items = []
+        while len(multi_parts) > 1:
+            item = multi_parts.pop(0) + multi_parts.pop(0)
+            if item[0:2] in ["AC", "EC", "KS", "MS", "HC"]:
+                item = item[0:2]
+            multi_items.append(self.codeToName.get(item, item))
+        return multi_items
 
+    def form_spoiler(self):
         i = 0
         groupDepth = 0
         spoilerStr = ""

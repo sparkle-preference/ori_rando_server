@@ -5,14 +5,14 @@ import Leaflet from 'leaflet';
 import {NotificationContainer, NotificationManager} from 'react-notifications';
 import 'react-notifications/lib/notifications.css';
 import {Checkbox, CheckboxGroup} from 'react-checkbox-group';
-import {get_param, get_flag, get_int, get_list, get_seed, presets} from './common.js';
+import {get_param, get_flag, get_int, get_list, get_seed, presets, get_preset, logic_paths} from './common.js';
 import {download, getStuffType, stuff_types, stuff_by_type, picks_by_type, picks_by_loc, picks_by_zone,
 		picks_by_area, zones,  pickup_name, PickupMarkersList, get_icon, getMapCrs, hide_opacity, select_wrap,
-		is_match, str_ids, select_styles} from './shared_map.js';
+		is_match, str_ids, select_styles, name_from_str} from './shared_map.js';
 import NumericInput from 'react-numeric-input';
 import Select from 'react-select'
 import {Creatable} from 'react-select';
-import {Alert, Button, Collapse} from 'reactstrap';
+import {Alert, Button, Collapse,  Container, Row, Col} from 'reactstrap';
 import Control from 'react-leaflet-control';
 import {Helmet} from 'react-helmet';
 import Toggle from 'react-bootstrap-toggle';
@@ -34,7 +34,7 @@ const DEFAULT_VIEWPORT = {
 	  zoom: 4,
 	}
 
-const VALID_VARS = ["0XP", "NonProgressMapStones", "ForceMapStones", "ForceTrees", "Hard", "WorldTour", "Open", "OHKO", "Starved", "BonusPickups"]
+const VALID_VARS = ["0XP", "NonProgressMapStones", "NoAltR", "ForceMapStones", "ForceTrees", "Hard", "WorldTour", "Open", "OHKO", "Starved", "BonusPickups"]
 const VALID_KEYMODES = ["Shards", "Clues", "Limitkeys", "Free"];
 const SEED_FLAGS = VALID_VARS.concat(VALID_KEYMODES);
 const FLAG_CASEFIX = {};
@@ -165,8 +165,7 @@ class PlandoBuiler extends React.Component {
 		    	  flags: ['hide_unreachable', 'hide_softlockable'], seedFlags: select_wrap(["Open", "ForceTrees"]), share_types: select_wrap(["keys"]), coop_mode: {label: "Solo", value: "None"},
 		    	  pickups: ["EX", "Ma", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "CS"],  display_import: false, display_logic: false, display_coop: false, display_meta: false}
 	}
-	
-  	
+
 
  	componentWillMount() {
  		let spoiler_mode = get_flag("spoiler");
@@ -223,10 +222,18 @@ class PlandoBuiler extends React.Component {
 
     _onChangeExp = (n,s,_) => this.place({label: s, value: "EX|"+n});
 	_onSelectStuff = (newStuff) => newStuff ? this.place(newStuff) : false;
-	_onPathModeChange = (n) => paths.includes(n.value) ? this.setState({modes: presets[n.value], pathMode: n.value}, () => this._updateReachable()) : this.setState({pathMode: n.value}, () => this._updateReachable())
+	_onPathModeChange = (n) => this.setState({modes: presets[n.value], pathMode: n.value}, this._updateReachable)
+    onMode = (m) => () => this.setState(prevState => {
+        let modes = prevState.modes;
+        if(modes.includes(m)) {
+            modes = modes.filter(x => x !== m)
+        } else {
+            modes.push(m)
+        }
+    return {modes: modes, pathMode: get_preset(modes)}}, this._updateReachable)
 
 
-	logicModeChanged = (newVal) => { this.setState({logicMode: newVal}, () => this._updateReachable()) }
+	logicModeChanged = (newVal) => { this.setState({logicMode: newVal}, this._updateReachable) }
 	autoLogicToggle = () => this.state.logicMode === "auto" ? this.logicModeChanged("manual") : this.logicModeChanged("auto")
 
 	updateManual = (param,val) => this.setState(prevState => {
@@ -243,7 +250,6 @@ class PlandoBuiler extends React.Component {
 	});
 	  flagsChanged = (newVal) => this.setState({flags: newVal});
 
-	  modesChanged = (newVal) => this.setState({modes: newVal});
 
 
     selectPickup = (pick, pan=true) => {
@@ -280,7 +286,7 @@ class PlandoBuiler extends React.Component {
 			NotificationManager.warning("Pickup should be in the form XX|Y", "Invalid Pickup!",2000);
 				return;
 		}
-		let reserved_chars = [ ",", "|", ":", ';', "!"];
+		let reserved_chars = ["|", "#"];
 		let stuff_id = s.value.substr(3);
 		if(reserved_chars.some(c => stuff_id.includes(c))) {
 				NotificationManager.warning("'" + stuff_id + "' contains a forbidden character", "Invalid Id!",1000);
@@ -368,19 +374,20 @@ class PlandoBuiler extends React.Component {
     			seedFlags.push(flag)
     		else if(flag.startsWith("mode="))
     		{
-				display_coop = true
     			let k=flag.substring(5)
 				coop_mode={label: modes_by_key[k], value: k}
     		}
     		else if(flag.startsWith("shared="))
+            {
+				display_coop = true
     			share_types=select_wrap(flag.substring(7).split("+").filter((id) => SHARE_TYPES.includes(id)))
+            }
     	});
     	this.setState({seedFlags: select_wrap(seedFlags), share_types: share_types, coop_mode: coop_mode, display_coop: display_coop, seed_name: seed_name})
 	}
 
 	buildFlagLine = () => {
-		let flags = []
-		flags = flags.concat(this.state.seedFlags.map(f => f.value))
+		let flags = this.state.seedFlags.map(f => f.value)
 		let stypes = this.state.share_types.map(f => f.value)
 		if(stypes.length)
 			flags.push("shared="+stypes.join("+"))
@@ -443,16 +450,26 @@ class PlandoBuiler extends React.Component {
 	}
 
 
-	getUploadLines = () => {
-		let outLines = [this.buildFlagLine()]
+	getUploadData = () => {
+        let data = {}
+		data.flagLine = this.buildFlagLine()
+        data.name = this.state.seed_name
+        data.sharedMode = this.state.coop_mode.value
+        data.shareTypes = this.state.share_types.map(f => f.value)
+        data.flags = this.state.seedFlags.map(f => f.value);
+        data.placements = [];
 		let locs = Object.keys(picks_by_loc)
 		let players = Object.keys(this.state.placements);
 		locs.forEach((loc) => {
 			let players_at_loc = players.filter(p => this.state.placements[p].hasOwnProperty(loc))
+            let stuff = players_at_loc.map(player => {
+                let [code, id] = this.state.placements[player][loc].value.split("|");
+                return {player: player, code: code, id: id};
+            })
 			if(players_at_loc.length > 0)
-				outLines.push(loc+"|"+picks_by_loc[loc].zone+":"+players_at_loc.map(player => player+"."+this.state.placements[player][loc].value).join(","))
+				data.placements.push({loc: loc, zone: picks_by_loc[loc].zone, stuff: stuff})
 		})
-		return outLines;
+		return data;
 	}
 
 	doFillGen = () => {
@@ -498,7 +515,7 @@ class PlandoBuiler extends React.Component {
 
 
 	saveSeed = () => {
-		uploadSeed(this.getUploadLines(), this.state.user, this.state.seed_name, this.state.seed_desc, this.savedSuccessful)
+		uploadSeed(this.getUploadData(), this.state.user, this.state.seed_name, this.state.seed_desc, this.savedSuccessful)
 	}
 
 	savedSuccessful = (statusCode) => {
@@ -616,51 +633,40 @@ class PlandoBuiler extends React.Component {
 	
 	onFlags = (n) => this.setState({seedFlags: select_wrap(n.map(flag => FLAG_CASEFIX[flag.value.toLowerCase()] || flag.value))})
 
-	render() {
-		const pickup_markers = ( <PickupMarkersList markers={getPickupMarkers(this.state, this.selectPickupCurry, this.state.searchStr)} />)
-		const zone_opts = zones.map(zone => ({label: zone, value: zone}))
-		const pickups_opts = picks_by_zone[this.state.zone].map(pick => ({label: pick.name+"("+pick.x + "," + pick.y +")",value: pick}) )
-		let alert = this.state.authed ? null : (<Alert color="danger">Please <a href="/login">login</a> to enable saving.</Alert>)
-		let save_if_auth = this.state.authed ? ( <Button color="primary" onClick={this.toggleMeta} >Meta/Save</Button> ) : (<Button color="disabled">Meta/Save</Button>)
-		let fill_button = this.state.fill_opts.dumb ? (
-			<Button color="warning" onClick={this.doFill} >Fill (Dumb)</Button>
-		) : (
-			<Button color="success" onClick={this.doFillGen} >Fill</Button>
-		)
-		let stuff_select;
-		if(stuff_by_type[this.state.stuff_type])
+    get_stuff_select = () => {
+        if(stuff_by_type[this.state.stuff_type])
 		{
 			let stuff = stuff_by_type[this.state.stuff_type];
-			stuff_select = (
+			return (
 				<div className="pickup-wrapper">
 					<span className="label">Pickup: </span>
 					<Select styles={select_styles}  isClearable={false} options={stuff} onChange={this._onSelectStuff} value={this.state.stuff}/>
 				</div>
 			);
 		} else if(this.state.stuff_type === "Experience") {
-			stuff_select = (
+			return (
 				<div className="pickup-wrapper">
 					<span className="label">Amount: </span>
 					<NumericInput min={0} value={this.state.stuff.label} onChange={this._onChangeExp}></NumericInput>
 				</div>
 			);
 		} else if(this.state.stuff_type === "Messages") {
-			stuff_select = (
+			return (
 				<div className="pickup-wrapper">
 					<span className="label">Message: </span>
 						<input id="seed-desc-input" type="text" className="form-control" value={this.state.stuff.label} onChange={event => this.place({label: event.target.value, value: "SH|"+event.target.value})} />
 				</div>
 			);
 		} else if(this.state.stuff_type === "Custom") {
-			stuff_select = (
+			return (
 				<div className="pickup-wrapper">
 					<span className="label">Custom: </span>
-						<input id="seed-desc-input" type="text" className="form-control" value={this.state.stuff.label} onChange={event => this.place({label: event.target.value, value: event.target.value})} />
+						<input id="seed-desc-input" type="text" className="form-control" value={this.state.stuff.value} onChange={event => this.place({label: name_from_str(event.target.value), value: event.target.value})} />
 				</div>
 			);
 			
 		} else if (this.state.stuff_type === "Fill") {
-			stuff_select = (
+			return (
 				<div id="fill-params">
 					<div className="fill-wrapper">
 						<span className="label">Health Cells:</span>
@@ -687,6 +693,24 @@ class PlandoBuiler extends React.Component {
 				</div>
 			);
 		}
+        return null;
+    
+    }
+
+	render() {
+		const pickup_markers = ( <PickupMarkersList markers={getPickupMarkers(this.state, this.selectPickupCurry, this.state.searchStr)} />)
+		const zone_opts = zones.map(zone => ({label: zone, value: zone}))
+		const pickups_opts = picks_by_zone[this.state.zone].map(pick => ({label: pick.name+"("+pick.x + "," + pick.y +")",value: pick}) )
+		let alert = this.state.authed ? null : (<Alert color="danger">Please <a href="/login">login</a> to enable saving.</Alert>)
+		let save_if_auth = this.state.authed ? ( <Button color="primary" onClick={this.toggleMeta} >Meta/Save</Button> ) : (<Button color="disabled">Meta/Save</Button>)
+		let fill_button = this.state.fill_opts.dumb ? (
+			<Button color="warning" onClick={this.doFill} >Fill (Dumb)</Button>
+		) : (
+			<Button color="success" onClick={this.doFillGen} >Fill</Button>
+		)
+		let stuff_select = this.get_stuff_select();
+        let logic_path_buttons = logic_paths.map(lp => {return (<Col className="pr-0" xs="4"><Button block size="sm" outline={!this.state.modes.includes(lp)} onClick={this.onMode(lp)}>{lp}</Button></Col>)});
+
 		// 						<Button color="primary" onClick={this.downloadSeed} >Download</Button> not working for someass reason?
 		return (
 			<div className="wrapper">
@@ -805,35 +829,22 @@ class PlandoBuiler extends React.Component {
 						<div id="logic-mode-controls">
 							<div id="logic-presets">
 								<Button color="primary" onClick={this.toggleLogic} >Logic Paths:</Button>
-								<Select styles={select_styles}   options={select_wrap(paths)} onChange={this._onPathModeChange} clearable={false} value={select_wrap(this.state.pathMode)}></Select>
+								<Select styles={select_styles} options={select_wrap(paths)} onChange={this._onPathModeChange} clearable={false} value={select_wrap(this.state.pathMode)}></Select>
 							</div>
-							<Collapse id="logic-options-wrapper" isOpen={this.state.display_logic}>
-								<CheckboxGroup id="logic-options" checkboxDepth={2} name="modes" value={this.state.modes} onChange={this.modesChanged}>
-									<label className="checkbox-label"><Checkbox value="normal" /> normal</label>
-									<label className="checkbox-label"><Checkbox value="speed" /> speed</label>
-									<label className="checkbox-label"><Checkbox value="extended" /> extended</label>
-									<label className="checkbox-label"><Checkbox value="speed-lure" /> speed-lure</label>
-									<label className="checkbox-label"><Checkbox value="lure" /> lure</label>
-									<label className="checkbox-label"><Checkbox value="lure-hard" /> lure-hard</label>
-									<label className="checkbox-label"><Checkbox value="dboost-light" /> dboost-light</label>
-									<label className="checkbox-label"><Checkbox value="dboost" /> dboost</label>
-									<label className="checkbox-label"><Checkbox value="dboost-hard" /> dboost-hard</label>
-									<label className="checkbox-label"><Checkbox value="cdash" /> cdash</label>
-									<label className="checkbox-label"><Checkbox value="cdash-farming" /> cdash-farming</label>
-									<label className="checkbox-label"><Checkbox value="extreme" /> extreme</label>
-									<label className="checkbox-label"><Checkbox value="extended-damage" /> extended-damage</label>
-									<label className="checkbox-label"><Checkbox value="timed-level" /> timed-level</label>
-									<label className="checkbox-label"><Checkbox value="dbash" /> dbash</label>
-									<label className="checkbox-label"><Checkbox value="glitched" /> glitched</label>
-								</CheckboxGroup>
-							</Collapse>
+                            <Collapse id="logic-options-wrapper" isOpen={this.state.display_logic}>
+                                <Container>
+                                <Row className="p-1">
+                                    {logic_path_buttons}
+                                </Row>
+                                </Container>
+                            </Collapse>
 						</div>
 					</div>
 					<div id="coop-controls">
 						<div className="basic-coop-options">
 							<Button color="primary" onClick={this.toggleCoop}>Multiplayer Controls</Button>
 							<span className="label">Player: </span>
-							<Select styles={select_styles}   className="player-select" options={select_wrap(Object.keys(this.state.placements))} onChange={(n) => this.setState({player: n.value})} clearable={false} value={select_wrap(this.state.player)} label={this.state.player}></Select>
+							<Select styles={select_styles}  options={select_wrap(Object.keys(this.state.placements))} onChange={(n) => this.setState({player: n.value})} clearable={false} value={select_wrap(this.state.player)} label={this.state.player}></Select>
 						</div>
 						<Collapse id="coop-wrapper" isOpen={this.state.display_coop}>
 				 			<div className="coop-select-wrapper">
@@ -882,7 +893,7 @@ function getReachable(setter, modes, codes, callback)
 
 
 
-function uploadSeed(seedLines, author, seedName, description, callback)
+function uploadSeed(seedData, author, seedName, description, callback)
 {
     var xmlHttp = new XMLHttpRequest();
     xmlHttp.onreadystatechange = function() {
@@ -896,8 +907,7 @@ function uploadSeed(seedLines, author, seedName, description, callback)
 	}
     xmlHttp.open("POST", url, true);
     xmlHttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-    xmlHttp.send(encodeURI("seed="+seedLines.join("!")+"&desc="+description));
-
+    xmlHttp.send(encodeURI("seed="+JSON.stringify(seedData)+"&desc="+description));
 }
 
 

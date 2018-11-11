@@ -3,7 +3,7 @@ import Leaflet from 'leaflet';
 import {BeatLoader, BounceLoader, CircleLoader, ClipLoader, ClimbingBoxLoader, DotLoader, GridLoader, HashLoader, MoonLoader,
          PacmanLoader, PulseLoader, RingLoader, RiseLoader, RotateLoader, SyncLoader, FadeLoader, ScaleLoader} from 'react-spinners';
 import { css } from 'react-emotion';
-
+import  {Badge} from 'reactstrap';
 const loaders = [
     (<BeatLoader  loading/>),
     (<BounceLoader  loading/>),
@@ -24,6 +24,10 @@ const loaders = [
     (<SyncLoader  loading/>)
 ]
 
+const Blabel = (props) => {
+    
+    return (<Badge style={{fontWeight: 400, fontSize: "100%", display: "flex", alignItems: "center", justifyContent: "center", height: "100%"}} {...props}/>)
+}
 function get_random_loader() {
     return loaders[Math.floor(Math.random() * loaders.length)]
 }
@@ -133,4 +137,4 @@ function doNetRequest(url, onRes)
     xmlHttp.send(null);
 }
 
-export {player_icons, doNetRequest, get_param, get_flag, get_int, get_list, get_preset, presets, get_seed, logic_paths, get_random_loader};
+export {player_icons, doNetRequest, get_param, get_flag, get_int, get_list, get_preset, presets, get_seed, logic_paths, get_random_loader, Blabel};

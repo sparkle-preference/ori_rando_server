@@ -1,20 +1,20 @@
 import './index.css';
-import React from 'react';
+import React, {Fragment} from 'react';
 import {Map, Tooltip, TileLayer, Marker, ZoomControl} from 'react-leaflet';
 import {Checkbox, CheckboxGroup} from 'react-checkbox-group';
 import {Radio, RadioGroup} from 'react-radio-group';
 import Leaflet from 'leaflet';
-import {presets, player_icons, get_preset, logic_paths} from './common.js';
+import {presets, player_icons, get_preset, logic_paths, Blabel} from './common.js';
 import {picks_by_type, PickupMarkersList, get_icon, getMapCrs, hide_opacity, select_styles, uniq, select_wrap} from './shared_map.js';
 import Select from 'react-select';
-import {Button, Collapse, Container, Row, Col} from 'reactstrap';
+import {Button, Collapse, Container, Row, Col, Input, UncontrolledButtonDropdown, DropdownToggle, DropdownMenu, DropdownItem} from 'reactstrap';
 import Control from 'react-leaflet-control';
 import {Helmet} from 'react-helmet';
 
 const paths = Object.keys(presets);
 const game_id = document.getElementsByClassName("game-id")[0].id;
 
-const EMPTY_PLAYER = {seed: {}, pos: [-210, 189], seen:[], flags: ["show_marker", "hide_found", "hide_unreachable"], areas: []}
+const EMPTY_PLAYER = {seed: {}, pos: [-210, 189], seen:[], show_marker: true, hide_found: true, hide_unreachable: true, spoiler: false, hide_remaining: false, areas: []}
 
 function get_inner(id) {
 	return (
@@ -31,7 +31,7 @@ const PlayerMarker = ({ map, position, icon, inner}) => (
 	)
 
 const PlayerMarkersList = ({map, players}) => {
-	let players_to_show = Object.keys(players).filter(id => players[id].flags.includes("show_marker"))
+	let players_to_show = Object.keys(players).filter(id => players[id].show_marker)
 	const items = players_to_show.map((id) => (
 		<PlayerMarker  key={"player_"+id} map={map} position={players[id].pos} inner={get_inner(id)} icon={player_icons(id)}  />
 	));
@@ -39,34 +39,32 @@ const PlayerMarkersList = ({map, players}) => {
 }
 
 const PlayerUiOpts = ({players, setter}) => {
+    let tog = (pid, target) => () => setter((prevState) => {
+			let retVal = prevState.players;
+			retVal[pid][target] = !retVal[pid][target];
+			return {players: retVal};
+		});
 	if(!players || Object.keys(players).length === 0)
 		return null;
 	const items = Object.keys(players).map((id) => {
-		let f = (newFlags) => setter((prevState) => {
-			let retVal = prevState.players;
-			retVal[id].flags = newFlags;
-			return {players:retVal};
-		});
 		return (
-			<div class="player-wrapper">
-				<span class="player-name">Player {id}</span>
-				<CheckboxGroup class="player-options" checkboxDepth={4} name={id+"_flags"} value={players[id].flags} onChange={f}>
-					<label><Checkbox value="show_marker"/> Show on map</label>
-					<label><Checkbox value="show_spoiler"/> Show spoilers</label>
-					<label><Checkbox value="hide_found"/> Hide found</label>
-					<label><Checkbox value="hide_unreachable"/> Hide unreachable</label>
-					<label><Checkbox value="hide_remaining"/> Hide remaining</label>
-			    </CheckboxGroup>
-			</div>
+			<Row className="pt-2 pb-2">
+                <Col className="p-1"><Blabel color="light">Player {id}</Blabel></Col>
+                <Col className="p-1"><Button block active={players[id]["show_marker"]} color="primary" outline={!players[id]["show_marker"]} onClick={tog(id, "show_marker")}>Visible</Button></Col>
+                <Col className="p-1"><Button block active={players[id]["show_spoiler"]} color="primary" outline={!players[id]["show_spoiler"]} onClick={tog(id, "show_spoiler")}>Spoilers</Button></Col>
+                <Col className="p-1"><Button block active={players[id]["hide_found"]} color="primary" outline={!players[id]["hide_found"]} onClick={tog(id, "hide_found")}>Hide found</Button></Col>
+                <Col className="p-1"><Button block active={players[id]["hide_unreachable"]} color="primary" outline={!players[id]["hide_unreachable"]} onClick={tog(id, "hide_unreachable")}>Hide unreachable</Button></Col>
+                <Col className="p-1"><Button block active={players[id]["hide_remaining"]} color="primary" outline={!players[id]["hide_remaining"]} onClick={tog(id, "hide_remaining")}>Hide remaining</Button></Col>
+            </Row>
 		);
 	});
-	return (<div>{items}</div>);
+	return items;
 }
 
 function getLocInfo(pick, players) {
 	let loc = pick.loc;
 	let info = Object.keys(players).map((id) => {
-		let show_spoiler = players[id].flags.includes("show_spoiler");
+		let show_spoiler = players[id].show_spoiler;
 		let seen = players[id].seen.includes(loc);
 		if(show_spoiler || seen)
 			if(players[id].seed.hasOwnProperty(loc))
@@ -88,7 +86,7 @@ function getMapstoneToolTip(players, inHTML = true) {
 			<td>MS{msNum}:</td>
 		)] : [];
 		row = row.concat(Object.keys(players).map((id) => {
-			let show_spoiler = players[id].flags.includes("show_spoiler");
+			let show_spoiler = players[id].show_spoiler;
 			let seen = players[id].seen.includes(loc);
 			if(!inHTML) 
 				return (show_spoiler || seen) ? (players[id].seed[loc] || "") : "";
@@ -123,7 +121,7 @@ function getMapstoneToolTip(players, inHTML = true) {
 function getPickupMarkers(state) {
 	let players = {};
 	Object.keys(state.players).forEach((id) => {
-		if(state.players[id].flags.includes("show_marker"))
+		if(state.players[id].show_marker)
 			players[id] = state.players[id];
 	});
 	
@@ -150,10 +148,7 @@ function getPickupMarkers(state) {
 			let pick_name = loc_info.join(",").toLowerCase();
 			Object.keys(players).forEach((id) => {
 				let player = players[id]
-				let hide_found = player.flags.includes("hide_found")
-				let hide_unreachable = player.flags.includes("hide_unreachable")
-				let hide_remaining = player.flags.includes("hide_remaining")
-				let show_spoiler = player.flags.includes("show_spoiler");
+				let {hide_found, hide_unreachable, hide_remaining, show_spoiler} = player
 				if(searchStr && pick.name === "MapStone")
 					pick_name = getMapstoneToolTip({id: player}, false).toLowerCase();
 				let found = player.seen.includes(pick.loc);
@@ -224,9 +219,8 @@ class GameTracker extends React.Component {
   constructor(props) {
     super(props)
     let modes = presets['standard'];
-    this.state = {mousePos: {lat: 0, lng: 0}, players: {}, retries: 0, check_seen: 1, modes: modes, timeout: TIMEOUT_START, searchStr: "", pickup_display: "all", show_sidebar: true,
-    flags: ['show_pickups', 'update_in_bg'], viewport: DEFAULT_VIEWPORT, pickups: ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "Ma", "CS"], open: true,
-    pathMode: get_preset(modes), hideOpt: "all", display_logic: false};
+    this.state = {mousePos: {lat: 0, lng: 0}, players: {}, retries: 0, check_seen: 1, modes: modes, timeout: TIMEOUT_START, searchStr: "", pickup_display: "all", show_sidebar: true, idle_countdown: 7200,
+    bg_update: true, viewport: DEFAULT_VIEWPORT, pickups: ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "Ma", "CS"], open: true, pathMode: get_preset(modes), hideOpt: "all", display_logic: false};
   };
 
   componentDidMount() {
@@ -239,7 +233,14 @@ class GameTracker extends React.Component {
   };
   tick = () => {
   	if(this.state.retries >= RETRY_MAX) return;
-  	if(!document.hasFocus() && !this.state.flags.includes("update_in_bg")) return;
+
+  	if(!document.hasFocus()) {
+        if(!this.state.bg_update) return;
+        if(this.state.idle_countdown > 0)
+            this.setState({idle_countdown: this.state.idle_countdown-1})
+        else
+            this.setState({idle_countdown: 7200, bg_update: false})
+    } 
 
   	if(this.state.check_seen === 0) {
 	  	this.setState({check_seen: 5});
@@ -260,7 +261,6 @@ class GameTracker extends React.Component {
   };
 
   hideOptChanged = newVal => { this.setState({hideOpt: newVal}) }
-  flagsChanged = newVal => { this.setState({flags: newVal}) }
   pickupsChanged = newVal => { this.setState({pickups: newVal}) }
   onSearch = event => { this.setState({searchStr: event.target.value}) }
   modesChanged = (paths) => this.setState(prevState => {
@@ -282,8 +282,7 @@ class GameTracker extends React.Component {
 		Object.keys(players).forEach(id => {
 				players[id].areas = []
 			});
-		return {players: players, modes: modes, pathMode: get_preset(modes)}
-		}, () => this.getReachable(this.state.modes.join("+"), this.timeout))
+		return {players: players, modes: modes, pathMode: get_preset(modes)}}, () => this.getReachable(this.state.modes.join("+"), this.timeout))
 		
 toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
 
@@ -294,69 +293,58 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
 		let pickup_markers = (this.state.pickup_display !== "none") ? ( <PickupMarkersList markers={getPickupMarkers(this.state)} />) : null;
 		let player_markers = ( <PlayerMarkersList players={this.state.players} />)
 		let player_opts = ( <PlayerUiOpts players={this.state.players} setter={(p) => this.setState(p)} />)
-		let show_button = !this.state.show_sidebar ? (<Button size="sm" onClick={() => this.setState({show_sidebar: true})}>Show Options</Button>) : null
-        let logic_path_buttons = logic_paths.map(lp => {return (<Col className="pr-0" xs="4"><Button block size="sm" outline={!this.state.modes.includes(lp)} onClick={this.onMode(lp)}>{lp}</Button></Col>)});
-
+		let show_button = !this.state.show_sidebar ? (<Button size="sm" onClick={() => this.setState({show_sidebar: true})}>Show Sidebar</Button>) : null
+        let logic_path_buttons = logic_paths.map(lp => {return (<Col className="pr-0 pb-1" xs="4"><Button block size="sm" outline={!this.state.modes.includes(lp)} onClick={this.onMode(lp)}>{lp}</Button></Col>)});
+        let hidetext = {any: "any player", all: "all players"}
+        let hideopts = Object.keys(this.state.players).length > 1 ? (
+            <Row className="pt-2">
+                <Col>
+                    <Blabel color="white">Hide pickups that are...</Blabel>
+                </Col>
+                <Col>
+                    <UncontrolledButtonDropdown>
+                        <DropdownToggle caret block>
+                            hidden for {hidetext[this.state.hideOpt]}
+                        </DropdownToggle>
+                        <DropdownMenu>
+                            <DropdownItem onClick={() => this.hideOptChanged("all")} disabled={this.state.hideOpt === "all"}>hidden for all players</DropdownItem>
+                            <DropdownItem onClick={() => this.hideOptChanged("any")} disabled={this.state.hideOpt === "any"}>hidden for any player</DropdownItem>
+                        </DropdownMenu>
+                    </UncontrolledButtonDropdown>
+                </Col>
+            </Row>
+        ) : null
 		let sidebar = this.state.show_sidebar ? (
 				<div className="controls">
-			    	<div id="search-wrapper">
-						<label for="search">Search</label>
-						<input id="search" className="form-control" type="text" value={this.state.searchStr} onChange={this.onSearch} />
-					</div>
-					<div id="map-controls">
-						<span className="control-label"><h5>Options</h5></span>
-						<CheckboxGroup style={{paddingLeft: '8px', paddingRight: '8px'}} checkboxDepth={3} name="flags" value={this.state.flags} onChange={this.flagsChanged}>
-							<label><Checkbox value="update_in_bg"/> Always Update</label>
-				       </CheckboxGroup>
-				       <Button size="sm" onClick={() => this.setState({show_sidebar: false})}>Hide Options</Button>
-					</div>
-					<div id="player-controls">
-						<span className="control-label"><h5>Players</h5></span>
-						{player_opts}
-						<div style={{paddingLeft: '8px', paddingRight: '8px'}}>
-							<span>Hide pickup if it would be hidden for...</span>
-							<RadioGroup name="hideOpts" selectedValue={this.state.hideOpt} onChange={this.hideOptChanged}>
-								<label class="radio-label"><Radio value="all"/> ...all players</label>
-								<label class="radio-label"><Radio value="any"/> ...any player</label>
-				       		</RadioGroup>
-						</div>
-					</div>
-					<div id="logic-controls">
-						<div id="logic-presets">
-			      	<Button color="primary" onClick={this.toggleLogic} >Logic Presets:</Button>
-			      	<Select styles={select_styles}  options={select_wrap(paths)} onChange={this._onPathModeChange} clearable={false} value={select_wrap(this.state.pathMode)}></Select>
-						</div>
-						<Collapse id="logic-options-wrapper" isOpen={this.state.display_logic}>
-							<Container>
-                            <Row className="p-1">
+                    <Container fluid>
+                        <Row className="p-1 pb-3 pt-3">
+                            <Col xs="4" className="pr-0">
+                                <Blabel  color="light">Search</Blabel>
+                            </Col>
+                            <Col xs="8">
+                                <Input type="text" value={this.state.searchStr} onChange={this.onSearch} />
+                            </Col>
+                        </Row>
+                        <Row>
+                        <Col className="p-2"><Blabel  color="light">Options: </Blabel></Col>
+                        <Col className="p-2"><Button block onClick={() => this.setState({show_sidebar: false})}>Hide Sidebar</Button></Col>
+                        <Col className="p-2"><Button block outline={!this.state.bg_update} onClick={() => this.setState({bg_update: !this.state.bg_update})}>Always Update</Button></Col>
+                        </Row>
+                        {player_opts}
+                        {hideopts}
+                        <Row className="pt-2">
+                        <Col xs="4">
+                            <Button color="primary" onClick={this.toggleLogic} >Logic Presets:</Button>
+                        </Col><Col xs="8">
+                            <Select styles={select_styles}  options={select_wrap(paths)} onChange={this._onPathModeChange} clearable={false} value={select_wrap(this.state.pathMode)}></Select>
+                        </Col>
+                        </Row>
+                        <Collapse id="logic-options-wrapper" isOpen={this.state.display_logic}>
+                            <Row className="p-0">
                                 {logic_path_buttons}
                             </Row>
-                            </Container>
-						</Collapse>
-					</div>
-					<div id="pickup-controls">
-						<span className="control-label"><h5>Visible Pickups</h5></span>
-						<RadioGroup name="pickup_display_opts" selectedValue={this.state.pickup_display} onChange={newVal => this.setState({pickup_display: newVal})}>
-							<label class="radio-label"><Radio value="all"/> All</label>
-							<label class="radio-label"><Radio value="some"/>Some</label>
-							<label class="radio-label"><Radio value="none"/>None</label>
-			       		</RadioGroup>
-						<Collapse id="logic-options-wrapper" isOpen={this.state.pickup_display === "some"}>
-							<CheckboxGroup id="pickup-wrapper" checkboxDepth={2} name="options" value={this.state.pickups} onChange={this.pickupsChanged}>
-								<label><Checkbox value="SK" />Skill trees</label>
-								<label><Checkbox value="MS" />Mapstones</label>
-								<label><Checkbox value="EV" />Events</label>
-								<label><Checkbox value="AC" />Abiliy Cells</label>
-								<label><Checkbox value="HC" />Health Cells</label>
-								<label><Checkbox value="EC" />Energy Cells</label>
-								<label><Checkbox value="Pl" />Plants</label>
-								<label><Checkbox value="KS" />Keystones</label>
-								<label><Checkbox value="EX" />Exp Orbs</label>
-								<label><Checkbox value="Ma" />Mapstone turnins</label>
-								<label><Checkbox value="CS" />Special/Cutscenes</label>
-				    		</CheckboxGroup>
-						</Collapse>
-					</div>
+                        </Collapse>
+                    </Container>
 				</div>
 		) : null
     return (
@@ -418,8 +406,6 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
                 }
         doNetRequest(onRes, this.setState, "/tracker/game/"+game_id+"/fetch/gamedata", this.timeout)
     }
-
-
 };
 
 function doNetRequest(onRes, setter, url, timeout)

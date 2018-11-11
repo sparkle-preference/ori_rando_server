@@ -2,12 +2,12 @@ import './index.css';
 import React from 'react';
 import {LayerGroup, ZoomControl, Map, Tooltip, TileLayer} from 'react-leaflet';
 import Leaflet from 'leaflet';
-import {get_int, get_list, presets, logic_paths} from './common.js';
+import {get_int, get_list, presets, logic_paths, Blabel} from './common.js';
 import {stuff_by_type,  str_ids, picks_by_type, picks_by_area, pickup_name, PickupMarkersList, get_icon, getMapCrs, 
 		name_from_str, select_styles, select_wrap} from './shared_map.js';
 import NumericInput from 'react-numeric-input';
 import Select from 'react-select';
-import {Row, Input, Col, Container, Button, Collapse, InputGroupAddon, InputGroupText, InputGroup} from 'reactstrap';
+import {Row, Input, Col, Container, Button, Collapse} from 'reactstrap';
 import Control from 'react-leaflet-control';
 import Dropzone from 'react-dropzone'
 import {Helmet} from 'react-helmet';
@@ -98,31 +98,6 @@ Object.keys(stuff_by_type).forEach(group => {
 	});
 });
 
-function getInventory(state) {
-	let activeAreas = state.reachable;
-	let placements = state.placements;
-	let inventory = {"Cells/Stones": {"HC|1": ["Free", "Free", "Free"]}}
-	Object.keys(activeAreas).forEach(area => {
-		if(picks_by_area[area])
-			picks_by_area[area].forEach(pick => {
-				if(placements[pick.loc])
-				{					
-					let item = placements[pick.loc].value;
-					let group = code_to_group[item];
-  					if(relevant_picks.includes(item))
-  					{
-  						if(!Object.keys(inventory).includes(group))
-  							inventory[group] = {};
-						if(!Object.keys(inventory[group]).includes(item))
-							inventory[group][item] = [];
-						inventory[group][item].push(pick);  						
-  					}
-				} 
-			});
-	});
-	return inventory;
-}
-
 const marker_types = Object.keys(picks_by_type).filter(t => t !== "MP");
 const int = (s) => parseInt(s,10)
 const rnd = (x) => Math.floor(int(x)/4.0) * 4.0
@@ -181,6 +156,41 @@ class LogicHelper extends React.Component {
 	    this.state = {mousePos: {lat: 0, lng: 0}, seed_in: "", reachable: {...DEFAULT_REACHABLE}, new_areas: {...DEFAULT_REACHABLE}, selected: "", selected_area: "", history: {}, openMode: true,
 	    			  step: 0, placements: {}, viewport: DEFAULT_VIEWPORT, hasSeed: false, highlight_picks: [], logicMode: 'manual', searchStr: "", noMarkers: false}
 	}
+
+     getInventory = () => {
+        let activeAreas = this.state.reachable;
+        let placements = this.state.placements;
+        let inventory = {"Cells/Stones": {"HC|1": ["Free", "Free", "Free"]}}
+        let addToInventory = (item, pick) => {
+            let group = code_to_group[item];
+            if(relevant_picks.includes(item))
+            {
+                if(!Object.keys(inventory).includes(group))
+                    inventory[group] = {};
+                if(!Object.keys(inventory[group]).includes(item))
+                    inventory[group][item] = [];
+                inventory[group][item].push(pick);  						
+            }            
+        }
+        Object.keys(activeAreas).forEach(area => {
+            if(picks_by_area[area])
+                picks_by_area[area].forEach(pick => {
+                    if(placements[pick.loc])
+                    {					
+                        let item = placements[pick.loc].value;
+                        if(item.startsWith("MU")) {
+                            let parts = item.substr(3).split("/");
+                            while(parts.length > 1) {
+                                addToInventory(parts.shift()+"|"+parts.shift(), pick)
+                            }
+                        } else {
+                            addToInventory(item, pick);
+                        }
+                    } 
+                });
+        });
+        return inventory;
+    }
   	
     getInventoryPane = (inventory) => {
         if(!this.state.hasSeed)
@@ -197,8 +207,8 @@ class LogicHelper extends React.Component {
                 )
             });
             return (
-            <Row className="p-1 border-bottom border-left border-right">
-                <Col className="pl-0 pr-0" xs="3"><Button size="sm" block disabled>{group}:</Button></Col>
+            <Row className="p-1 border-bottom border-left border-right border-warning">
+                <Col className="pl-0 pr-0" xs="3"><Blabel>{group}:</Blabel></Col>
                 <Col xs="9"><Row>
                 {items}
                 </Row></Col>
@@ -206,8 +216,8 @@ class LogicHelper extends React.Component {
             )
         });
         return [(
-            <Row className="pt-2 border-bottom">
-                <Col xs={{size:4, offset:4}}> <Button size="lg" outline color="warning" disabled>Inventory</Button></Col>
+            <Row className="pt-2 border-bottom border-warning">
+                <Col xs={{size:6, offset:3}} className="pt-2 pb-2"> <Blabel outline color="warning">Inventory</Blabel></Col>
             </Row>
             ),groups]
     }
@@ -278,7 +288,7 @@ class LogicHelper extends React.Component {
         let numInputs  = Object.keys(numInputData).map(code => (
             <Row className="p-1">
                 <Col xs="4" className="pr-0">
-                    <Button disabled block>{numInputData[code]}</Button>
+                    <Blabel >{numInputData[code]}</Blabel>
                 </Col>
                 <Col xs="8">
                         <Input type="number" value={this.state.manual_reach[code]} onChange={e => {
@@ -292,7 +302,7 @@ class LogicHelper extends React.Component {
             </Row>
         ))
         return (
-            <Collapse isOpen={this.state.logicMode === "manual"}>
+            <Collapse className="border-info border rounded" isOpen={this.state.logicMode === "manual"}>
                 {numInputs}
                 <Row className="p-1"><Col xs="12">
                     <Select styles={select_styles} placeholder="Skills" options={stuff_by_type["Skills"]} onChange={(n) => this.updateManual("skills", n)} isMulti={true} value={this.state.manual_reach.skills}></Select>
@@ -303,10 +313,10 @@ class LogicHelper extends React.Component {
                 <Row className="p-1"><Col xs="12">
                     <Select styles={select_styles} placeholder="Events" options={stuff_by_type["Events"]} onChange={(n) => this.updateManual("evs", n)} isMulti={true} value={this.state.manual_reach.evs}></Select>
                 </Col></Row>
-                <Row className="p-1"><Col xs="12">
+                <Row className="p-1"><Col xs={{size: 8, offset: 2}}>
                     <Button block outline={!this.state.openMode} color="primary" onClick={() => this.setState({openMode: !this.state.openMode}, this.resetReachable)}>Open Mode</Button>
                 </Col></Row>
-            </Collapse>            
+            </Collapse>
         )
     }
 
@@ -509,7 +519,7 @@ class LogicHelper extends React.Component {
 	render() {
 	    let { dropzoneActive } = this.state;
 	    let overlay_style = { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, padding: '10em 0', background: 'rgba(0,0,0,0.5)', textAlign: 'center', color: '#fff' };
-		let inventory = getInventory(this.state);
+		let inventory = this.getInventory();
 		let inv_pane = this.getInventoryPane(inventory);
         let new_areas_report = null //this.getAreasPane(inventory); disabled until path compression exists
         let manual_controls = this.getManualLogicControls();
@@ -517,13 +527,13 @@ class LogicHelper extends React.Component {
             <Collapse isOpen={this.state.hasSeed}>
 			<Row  className="p-1">
                 <Col xs="4">
-				<Button block disabled>Logic Mode:</Button>
+				<Blabel >Logic Mode:</Blabel>
                 </Col>
                 <Col xs="4">
-					<Button color="primary" onClick={() => this.setState({logicMode: "auto"}, this.resetReachable)} outline={this.state.logicMode !== "auto"}>Auto</Button>
+					<Button block color="primary" onClick={() => this.setState({logicMode: "auto"}, this.resetReachable)} outline={this.state.logicMode !== "auto"}>Auto</Button>
                 </Col>
                 <Col xs="4">
-					<Button color="primary" onClick={() => this.setState({logicMode: "manual"}, this.resetReachable)} outline={this.state.logicMode !== "manual"}>Manual</Button>
+					<Button block color="primary" onClick={() => this.setState({logicMode: "manual"}, this.resetReachable)} outline={this.state.logicMode !== "manual"}>Manual</Button>
                 </Col>
 			</Row>
             </Collapse>
@@ -543,7 +553,7 @@ class LogicHelper extends React.Component {
                         <Button block color="primary" onClick={() => this.rewind()} >{"Back"}</Button>
                     </Col>
                     <Col xs="2">
-                        <Button block disabled >{this.state.step}</Button>
+                        <Blabel >{this.state.step}</Blabel>
                     </Col>
                     <Col xs="4">
                         <Button block color="primary" onClick={this.updateReachable} >{"Next"}</Button>
@@ -551,7 +561,7 @@ class LogicHelper extends React.Component {
                 </Row>
             </Collapse>
         )
-        let logic_path_buttons = logic_paths.map(lp => {return (<Col className="pr-0" xs="4"><Button block size="sm" outline={!this.state.modes.includes(lp)} onClick={this.onMode(lp)}>{lp}</Button></Col>)});
+        let logic_path_buttons = logic_paths.map(lp => {return (<Col className="pr-0 pb-1" xs="4"><Button block size="sm" outline={!this.state.modes.includes(lp)} onClick={this.onMode(lp)}>{lp}</Button></Col>)});
         return (
 	      <Dropzone className="wrapper" disableClick onDrop={this.onDrop} onDragEnter={this.onDragEnter} onDragLeave={this.onDragLeave} >
           { dropzoneActive && <div style={overlay_style}>Import your randomizer.dat to begin analysis</div> }
@@ -569,7 +579,7 @@ class LogicHelper extends React.Component {
 			        <ZoomControl position="topright" />
 					<Control position="topleft" >
 					<div>
-						<Button size="sm" color="disabled">{Math.round(this.state.mousePos.lng)},{Math.round(this.state.mousePos.lat)}</Button>
+						<Blabel className="p-2">{Math.round(this.state.mousePos.lng)}, {Math.round(this.state.mousePos.lat)}</Blabel>
 					</div>
 					</Control>
 					<LayerGroup>
@@ -581,13 +591,13 @@ class LogicHelper extends React.Component {
                 <Container fluid>
                     <Collapse isOpen={!this.state.hasSeed}>
                         <Row className="p-1"><Col xs="12">
-                            <Button block color="secondary" disabled>Drag and drop your seed file onto the map to upload</Button>
+                            <Blabel className="pt-2 pb-2" >Drag and drop your seed file onto the map to upload</Blabel>
                         </Col></Row>
                     </Collapse>
                     {step_buttons}
-			    	<Row className="p-1 border-top">
+			    	<Row className="p-1 border-top pb-3 pt-3">
                         <Col xs="4" className="pr-0">
-    						<Button block disabled color="secondary">Search</Button>
+    						<Blabel >Search</Blabel>
                         </Col>
                         <Col xs="8">
     						<Input type="text" value={this.state.searchStr} onChange={this.onSearch} />

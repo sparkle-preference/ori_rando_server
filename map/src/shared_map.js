@@ -197,6 +197,13 @@ function pickup_name(code, id) {
 		return names[code][id];
 	 
 	switch(code) {
+        case "MU":
+            let parts = id.split("/");
+            let names = [];
+            while(parts.length > 1) {
+                names.push(pickup_name(parts.shift(), parts.shift()))
+            }
+            return names.join(", ")
 		case "TP":
 			return id + "TP";
 		case "EX":
@@ -213,6 +220,16 @@ function pickup_name(code, id) {
 			return "Mapstone";
 		case "SH":
 			return id;
+        case "WT":
+            return "Relic";
+        case "HN":
+            let hintParts = id.split('-');
+            if(hintParts.length > 2)
+                return "Hint: " + hintParts[1] + " for " + hintParts[2];
+            else
+                return "Hint"
+        case "WP":
+            return "Warp to " + id
 		default:
 			return code + "|" + id;
 	}
@@ -287,6 +304,17 @@ const stuff_by_type = {
 		{label: "Lifesteal", value: "RB|31"},
 		{label: "Manavamp", value: "RB|32"},
 		{label: "Skill Velocity Upgrade", value: "RB|33"},
+        {label: "Remove Wall Jump", value: "RB|40"}, 
+        {label: "Remove Charge Flame", value: "RB|41"}, 
+        {label: "Remove Double Jump", value: "RB|42"}, 
+        {label: "Remove Bash", value: "RB|43"}, 
+        {label: "Remove Stomp", value: "RB|44"}, 
+        {label: "Remove Glide", value: "RB|45"}, 
+        {label: "Remove Climb", value: "RB|46"}, 
+        {label: "Remove Charge Jump", value: "RB|47"}, 
+        {label: "Remove Dash", value: "RB|48"}, 
+        {label: "Remove Grenade", value: "RB|49"}, 
+        {label: "Stompnade Hint", value: "RB|81"}, 
 		{label: "Polarity Shift", value: "RB|101"},
 		{label: "Gravity Swap", value: "RB|102"},
 		{label: "ExtremeSpeed", value: "RB|103"},
@@ -364,7 +392,7 @@ function uniq(array) {
 	return array.filter(item => seen.includes(item) ? false : (seen.push(item) && true));
 }
  
-const str_ids = ["TP", "NO", "SH", "WT", "MU", "HN"];
+const str_ids = ["TP", "NO", "SH", "WT", "MU", "HN", "WP"];
 const hide_opacity = .2;
 const seed_name_regex = new RegExp("^[^ ?=/]+$");
 const select_styles = {

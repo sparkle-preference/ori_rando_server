@@ -29,7 +29,7 @@ const variations = {
     Open: "Open Mode",
     WorldTour: "World Tour",
     DoubleSkills: "Extra Copies",
-    WarmthFrags: "Warmth Fragments",
+    WarmthFrags: "Warmth Frags",
     StrictMapstones: "Strict Mapstones",
 }
 const cellFreqPresets = (preset) => preset === "casual" ? 20 : (preset === "standard" ? 40 : 256)
@@ -146,7 +146,7 @@ export default class MainPage extends React.Component {
                             <Col xs="4" className="text-center pt-1 border">
                                 <span class="align-middle">Fragments Required</span>
                             </Col><Col xs="4">
-                                <Input type="number" value={this.state.fragCount-this.state.fragExtra} invalid={(this.state.fragCount-this.state.fragExtra) < 0 || this.state.fragExtra < 0} onChange={(e) => this.setState({fragExtra: (this.state.fragCount-parseInt(e.target.value, 10))})}/> 
+                                <Input type="number" value={this.state.fragReq} invalid={this.state.fragCount < this.state.fragReq || this.state.fragReq <= 0} onChange={e => this.setState({fragReq: parseInt(e.target.value, 10)})}/> 
                                 <FormFeedback tooltip>Fragments Required must be between 0 and Fragment Count ({this.state.fragCount})</FormFeedback>
                             </Col>
                         </Row>
@@ -265,7 +265,7 @@ export default class MainPage extends React.Component {
         if(this.state.variations.includes("WarmthFrags"))
         {
             urlParams.push("frags="+this.state.fragCount)
-            urlParams.push("extra_frags="+this.state.fragExtra) 
+            urlParams.push("frags_req="+this.state.fragReq)
         }
         if(this.state.variations.includes("WorldTour"))
         {
@@ -304,12 +304,10 @@ export default class MainPage extends React.Component {
         let seed = this.state.seed || Math.round(Math.random() * 1000000000);
         if(seed === "daily")
         {
-              let d = new Date();
-            let month = '' + (d.getMonth() + 1);
-            let day = '' + d.getDate();
-            let year = d.getFullYear();
-            if (month.length < 2) month = '0' + month;
-            if (day.length < 2) day = '0' + day;
+            let d = new Date()
+            let day = d.toLocaleString("en-US", {day: "2-digit", timeZone: "America/Los_Angeles"});
+            let month = d.toLocaleString("en-US", {month: "2-digit", timeZone: "America/Los_Angeles"});
+            let year = d.toLocaleString("en-US", {year: "numeric",  timeZone: "America/Los_Angeles"});
             seed = [year, month, day].join('-');
         } else if(seed === "vanilla") {
             window.location.href = "/vanilla"
@@ -424,7 +422,7 @@ export default class MainPage extends React.Component {
             
             // let sharedFlags = shared.length > 0 ? (<Row><Col><span class="align-middle">Sync: {shared.join(", ")}</span></Col></Row>) : null
             // let flags = unshared.join(", ");
-            let flagCols = raw.join("").split(",").map(flag => (<Col className="m-1 text-center" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("flags", flag)}><span class="ml-auto mr-auto align-middle">{flag}</span></Col>))
+            let flagCols = raw.join("").split(",").map(flag => (<Col xs="auto" className="text-center" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("flags", flag)}><span class="ml-auto mr-auto align-middle">{flag}</span></Col>))
 
             let mapUrl = "/tracker/game/"+this.state.inputGameId+"/map";
             
@@ -452,14 +450,14 @@ export default class MainPage extends React.Component {
                                 <span class="align-middle">Player {p}</span>
                             </Col></Row>
                         </Col>
-                        <Col xs="3" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "downloadButton"+this.multi())}>
+                        <Col xs="3" className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "downloadButton"+this.multi())}>
                             <Button color="primary" block href={seedUrl}>Download Seed</Button>
                         </Col>
-                        <Col xs="3" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "spoilerButton")}>
+                        <Col xs="3" className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "spoilerButton")}>
                             <Button color="primary" href={spoilerUrl} target="_blank" block >View Spoiler</Button>
                         </Col>
-                        <Col xs="3" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "spoilerDownload")}>
-                            <Button color="primary" href={downloadSpoilerUrl} target="_blank" block >Download Spoiler</Button>
+                        <Col xs="3" className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "spoilerDownload")}>
+                            <Button color="primary" href={downloadSpoilerUrl} target="_blank" block >Save Spoiler</Button>
                         </Col>
                     </Row>
                 )
@@ -489,7 +487,7 @@ export default class MainPage extends React.Component {
                             Flags:
                         </Col>
                         <Col xs="9 border-left">
-                            <Row>
+                            <Row className="justify-content-start">
                             {flagCols}
                             </Row>
                         </Col>
@@ -503,11 +501,11 @@ export default class MainPage extends React.Component {
 
     getPathsTab = () => {
         let pathButtons = [(
-        <Col xs="3" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("logicPaths",  "casual-core")}  className="p-2">
+        <Col xs="3" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("logicPaths",  "casual-core")}  className="p-1">
                 <Button block disabled={true} className="text-capitalize">Casual-Core</Button>
         </Col>
         )].concat(optional_paths.map(path=> (
-            <Col xs="3" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("logicPaths", path)}  className="p-2">
+            <Col xs="3" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("logicPaths", path)}  className="p-1">
                 <Button block outline={!this.state.paths.includes(path)} disabled={this.pathDisabled(path)} className="text-capitalize" onClick={this.onPath(path)}>{path}</Button>
             </Col>
         )))    
@@ -523,7 +521,7 @@ export default class MainPage extends React.Component {
     getQuickstartModal = () => {
         return (
                 <Modal size="lg" isOpen={this.state.quickstartOpen} backdrop={"static"} className={"modal-dialog-centered"} toggle={this.closeQuickstart}>
-                  <ModalHeader toggle={this.closeQuickstart} centered>Welcome to the Ori DE Randomizer 3.0 Beta!</ModalHeader>
+                  <ModalHeader toggle={this.closeQuickstart} centered>Welcome to the Ori DE Randomizer 3.0c Beta!</ModalHeader>
                   <ModalBody>
                       <Container fluid>
                       <Row className="p-1">
@@ -618,7 +616,7 @@ export default class MainPage extends React.Component {
         this.state = {user: user, activeTab: activeTab, coopGenMode: "Cloned Seeds", coopGameMode: "Co-op", players: 1, tracking: true, dllTime: dllTime, variations: ["ForceTrees", "Open"], 
                      paths: presets["standard"], keyMode: "Clues", oldKeyMode: "Clues", pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null), goalModes: ["ForceTrees"],
                      customSyncId: "", seed: "", fillAlg: "Balanced", shared: ["Skills", "Teleporters", "World Events"], hints: true, helpcat: "", helpopt: "", quickstartOpen: quickstartOpen,
-                     syncId: "", expPool: 10000, lastHelp: new Date(), seedIsGenerating: false, cellFreq: cellFreqPresets("standard"), fragCount: 40, fragExtra: 10, relicCount: 8, loader: get_random_loader(),
+                     syncId: "", expPool: 10000, lastHelp: new Date(), seedIsGenerating: false, cellFreq: cellFreqPresets("standard"), fragCount: 30, fragReq: 20, relicCount: 8, loader: get_random_loader(),
                      paramId: paramId, inputGameId: inputGameId, seedTabExists: seedTabExists, reopenUrl: "", teamStr: "", inputFlagLine: "", fass: {}, goalModesOpen: false};
     }
         
@@ -742,7 +740,7 @@ export default class MainPage extends React.Component {
             <Row className="p-1">
                 <Col>
                     <span>
-                        <h3 style={textStyle}>Seed Generator v3 Beta</h3>
+                        <h3 style={textStyle}>Seed Generator 3.0.c Beta</h3>
                     </span>
                 </Col>
             </Row>

@@ -11,33 +11,36 @@ class PlayerState(object):
         ("TP", "Grotto"): 'TPGrotto', ("TP", "Forlorn"): 'TPForlorn', ("TP", "Sorrow"): 'TPSorrow'
     }
 
+    def add_to_inventory(self, pickup, removed, count):
+        if not pickup:
+            return
+        if (pickup.code, pickup.id) in PlayerState.name_from_id:
+            self.has[PlayerState.name_from_id[(pickup.code, pickup.id)]] = (0 if removed else count)
+        elif pickup.code == "RB":
+            if pickup.id in [17, 19, 21]:
+                self.has["RB%s" % id] += (-count if removed else count)
+        elif pickup.code in ["HC", "EC", "KS", "MS", "AC"]:
+            self.has[pickup.code] += (-count if removed else count)
+
     def __init__(self, pickinfos):
         self.has = Counter()
         self.has["HC"] = 3
-        wv = ss = gs = 0
+        self.wv = self.ss = self.gs = 0
         pickinfos = [x for x in pickinfos if len(x) == 4]
         for code, id, count, removed in pickinfos:
-            if code in ["EX"]:
+            if code in ["EX", "HN", "SH"]:
                 continue
-            id = int(id) if Pickup.n(code, id).int_id else id
-            if (code, id) in PlayerState.name_from_id:
-                self.has[PlayerState.name_from_id[(code, id)]] = (0 if removed else count)
-            elif code == "RB":
-                if id == 17:
-                    wv += (-count if removed else count)
-                elif id == 19:
-                    gs += (-count if removed else count)
-                elif id == 21:
-                    ss += (-count if removed else count)
-                else:
-                    continue
-            elif code in ["HC", "EC", "KS", "MS", "AC"]:
-                self.has[code] += (-count if removed else count)
-        if wv >= 3:
+            pickup = Pickup.n(code, id)
+            if code == "MU":
+                for child in pickup.children:
+                    self.add_to_inventory(child, removed, count)
+            else:
+                self.add_to_inventory(pickup, removed, count)
+        if self.has["RB17"] >= 3:
             self.has['GinsoKey'] = 1
-        if gs >= 3:
+        if self.has["RB19"] >= 3:
             self.has['ForlornKey'] = 1
-        if ss >= 3:
+        if self.has["RB21"] >= 3:
             self.has['HoruKey'] = 1
 
 class Area(object):

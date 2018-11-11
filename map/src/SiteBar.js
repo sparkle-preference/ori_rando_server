@@ -8,7 +8,7 @@ const SiteBar = ({user, quickstartHook}) => {
 
 	return (
 		<Navbar className="border border-dark p-2" expand="md">
-		<NavbarBrand href="/">Ori DE Randomizer</NavbarBrand>
+		<NavbarBrand href="/">Ori Rando</NavbarBrand>
 			<Nav className="ml-auto" navbar>
 			<UncontrolledDropdown nav inNavbar>
 				<DropdownToggle nav caret>
@@ -30,10 +30,10 @@ const SiteBar = ({user, quickstartHook}) => {
 				<NavLink href={"/quickstart"}>Getting Started</NavLink>
 			</NavItem>
 			<NavItem>
-				<NavLink href={"https://goo.gl/csgRUw"}>3.0 Changelog</NavLink>
+				<NavLink href={"https://goo.gl/csgRUw"}>Patch Notes</NavLink>
 			</NavItem>
 			<NavItem>
-				<NavLink href={"/logichelper"}>Interactive Logic Helper</NavLink>
+				<NavLink href={"/logichelper"}>Logic Helper</NavLink>
 			</NavItem>
 			<UncontrolledDropdown nav inNavbar>
 				<DropdownToggle nav caret>
@@ -51,7 +51,7 @@ const SiteBar = ({user, quickstartHook}) => {
 				
 			<UncontrolledDropdown nav inNavbar>
 				<DropdownToggle nav caret>
-				Plandomizer
+				Plando
 				</DropdownToggle>
 				<DropdownMenu right>
 				<DropdownItem href="/plando/simple">
