@@ -197,6 +197,13 @@ function pickup_name(code, id) {
 		return names[code][id];
 	 
 	switch(code) {
+        case "RP":
+            let parts = id.split("/");
+            let names = [];
+            while(parts.length > 1) {
+                names.push(pickup_name(parts.shift(), parts.shift()))
+            }
+            return "Repeatable: " + names.join(", ")
         case "MU":
             let parts = id.split("/");
             let names = [];
@@ -304,6 +311,8 @@ const stuff_by_type = {
 		{label: "Lifesteal", value: "RB|31"},
 		{label: "Manavamp", value: "RB|32"},
 		{label: "Skill Velocity Upgrade", value: "RB|33"},
+        {label: "Disable Alt+R", value: "RB|34"}, 
+        {label: "Enable Alt+R", value: "RB|35"}, 
         {label: "Remove Wall Jump", value: "RB|40"}, 
         {label: "Remove Charge Flame", value: "RB|41"}, 
         {label: "Remove Double Jump", value: "RB|42"}, 
@@ -392,7 +401,7 @@ function uniq(array) {
 	return array.filter(item => seen.includes(item) ? false : (seen.push(item) && true));
 }
  
-const str_ids = ["TP", "NO", "SH", "WT", "MU", "HN", "WP"];
+const str_ids = ["TP", "NO", "SH", "WT", "MU", "HN", "WP", "RP"];
 const hide_opacity = .2;
 const seed_name_regex = new RegExp("^[^ ?=/]+$");
 const select_styles = {

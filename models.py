@@ -192,7 +192,7 @@ class Game(ndb.Model):
                         elif get_bit(bitmap, i.bit):
                             names.append(i.name)
                 out_lines.append("%s: %s" % (field, ", ".join(names)))
-            out_lines.append("upgrades: %s" % (",".join(["%sx %s" % (k, v) for k, v in src.bonuses])))
+            out_lines.append("upgrades: %s" % (",".join(["%sx %s" % (k, v) for k, v in src.bonuses.iteritems()])))
         return "\n\t" + "\n\t".join(out_lines)
 
     def get_players(self):

@@ -7,8 +7,8 @@ class PlayerState(object):
         ("SK", 0): 'Bash', ("SK", 2): 'ChargeFlame', ("SK", 3): 'WallJump', ("SK", 4): 'Stomp', ("SK", 5): 'DoubleJump',
         ("SK", 8): 'ChargeJump', ("SK", 12): 'Climb', ("SK", 14): 'Glide', ("SK", 50): 'Dash', ("SK", 51): 'Grenade',
         ("EV", 0): 'GinsoKey', ("EV", 1): 'Water', ("EV", 2): 'ForlornKey', ("EV", 3): 'Wind', ("EV", 4): 'HoruKey',
-        ("TP", "Swamp"): 'TPSwamp', ("TP", "Grove"): 'TPGrove', ("TP", "Valley"): 'TPValley',
-        ("TP", "Grotto"): 'TPGrotto', ("TP", "Forlorn"): 'TPForlorn', ("TP", "Sorrow"): 'TPSorrow'
+        ("TP", "Swamp"): 'TPSwamp', ("TP", "Grove"): 'TPGrove', ("TP", "Valley"): 'TPValley', ("TP", "Horu"): 'TPHoru',
+        ("TP", "Ginso"): 'TPGinso', ("TP", "Grotto"): 'TPGrotto', ("TP", "Forlorn"): 'TPForlorn', ("TP", "Sorrow"): 'TPSorrow'
     }
 
     def add_to_inventory(self, pickup, removed, count):
@@ -31,7 +31,7 @@ class PlayerState(object):
             if code in ["EX", "HN", "SH"]:
                 continue
             pickup = Pickup.n(code, id)
-            if code == "MU":
+            if code in ["MU", "RP"]:
                 for child in pickup.children:
                     self.add_to_inventory(child, removed, count)
             else:
