@@ -204,13 +204,14 @@ function pickup_name(code, id) {
                 names.push(pickup_name(parts.shift(), parts.shift()))
             }
             return "Repeatable: " + names.join(", ")
+            break;
         case "MU":
-            let parts = id.split("/");
-            let names = [];
-            while(parts.length > 1) {
-                names.push(pickup_name(parts.shift(), parts.shift()))
+            let parts2 = id.split("/");
+            let names2 = [];
+            while(parts2.length > 1) {
+                names2.push(pickup_name(parts2.shift(), parts2.shift()))
             }
-            return names.join(", ")
+            return names2.join(", ")
 		case "TP":
 			return id + "TP";
 		case "EX":
