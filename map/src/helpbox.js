@@ -426,6 +426,7 @@ const getHelpHelper = (category, option) => {
                         "These options specify which kind of multiplayer game is generated.",
                         "A Co-op game creates different seeds for each player in the game (see the help for Seed Generation Modes for more info). Items in the selected Shared Item Categories will be shared between players when found.",
                         "A Race creates 1 copy of the generated seed for each player, each with a different player ID. This creates a map that can be used to watch all the players racing at once!",
+                        "One player should generate the game and share the generated link or distribute the seeds to ensure all players are using the same seed.", 
                     ]
                     break;
                 case "Cloned Seeds":
