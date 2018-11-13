@@ -1,4 +1,4 @@
-import logging as log 
+import logging as log
 
 from enums import ShareType
 from util import add_single, inc_stackable

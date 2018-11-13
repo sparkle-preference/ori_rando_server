@@ -1,5 +1,3 @@
-# haha this is garbage sorry
-
 # py imports
 import random
 import os
@@ -29,7 +27,6 @@ from reachable import Map, PlayerState
 
 PLANDO_VER = "0.5.1"
 debug = os.environ.get('SERVER_SOFTWARE', '').startswith('Dev')
-base_site = "http://orirando.com" if not debug else "https://8080-dot-3616814-dot-devshell.appspot.com"
 share_types = [ShareType.EVENT, ShareType.SKILL, ShareType.UPGRADE, ShareType.MISC, ShareType.TELEPORTER]
 
 def paramFlag(s, f):
@@ -639,7 +636,7 @@ class AllAuthors(RequestHandler):
         authors = Counter([seed.author for seed in seeds])
         for author, cnt in authors.most_common():
             if cnt > 0:
-                url = "%s/plando/%s" % (base_site, author)
+                url = "/plando/%s" % author
                 out += '<li style="padding:2px"><a href="%s">%s</a> (%s plandos)</li>' % (url, author, cnt)
         out += "</ul></body></html>"
         self.response.out.write(out)
@@ -662,7 +659,7 @@ class AuthorIndex(RequestHandler):
         if len(seeds):
             out = '<html><head><title>Seeds by %s</title></head><body><div>Seeds by %s:</div><ul style="list-style-type:none;padding:5px">' % (author, author)
             for seed in seeds:
-                url = "%s/plando/%s/%s" % (base_site, author, seed.name)
+                url = "/plando/%s/%s" % (author, seed.name)
                 flags = ",".join(seed.flags)
                 out += '<li style="padding:2px"><a href="%s">%s</a>: %s (%s players, %s)' % (url, seed.name, seed.description, seed.players, flags)
                 if owner:

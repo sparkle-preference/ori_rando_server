@@ -7,11 +7,15 @@ from collections import defaultdict
 from seedbuilder.seedparams import Placement, Stuff, SeedGenParams
 
 from enums import MultiplayerGameType, ShareType
-from util import special_coords, get_bit, get_taste, unpack, enums_from_strlist
+from util import picks_by_coord, get_bit, get_taste, enums_from_strlist, PickLoc
 
 from pickups import Pickup, Skill, Teleporter, Event
 from cache import Cache
 
+pbc = picks_by_coord()
+pbc[-280256] = PickLoc(-280256, "EC", "Glades", "SunkenGladesFirstEC", -28, -256)
+pbc[-1680104] = PickLoc(-1680104, "EX100", "Grove", "UnsafeSpiritTree100Ex", -168, -104)
+pbc[-12320248] = PickLoc(-12320248, "Plant", "Forlorn", "ForlornEscapePlant", -1232, -248)
 
 class HistoryLine(ndb.Model):
     pickup_code = ndb.StringProperty()
@@ -26,9 +30,13 @@ class HistoryLine(ndb.Model):
     def print_line(self, start_time=None):
         t = (self.timestamp - start_time) if start_time and self.timestamp else self.timestamp
         if not self.removed:
-            coords = unpack(self.coords)
-            coords = special_coords[coords] if coords in special_coords else "(%s, %s)" % coords
-            return "found %s at %s. (%s)" % (self.pickup().name, coords, t)
+            name = ""
+            if self.coords in pbc:
+                name = pbc[self.coords].area
+            else:
+                log.warning("Unknown coords: %s", self.coords)
+                name = str(self.coords)
+            return "found %s at %s. (%s)" % (self.pickup().name, name, t)
         else:
             return "lost %s! (%s)" % (self.pickup().name, t)
 
@@ -205,7 +213,7 @@ class Game(ndb.Model):
         self.put()
 
     def sanity_check(self):
-        #  helper function, checks if a pickup stacks
+        # helper function, checks if a pickup stacks
         def stacks(pickup):
             if pickup.stacks:
                 return True

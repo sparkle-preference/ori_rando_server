@@ -1,4 +1,5 @@
-from seedbuilder.areas import get_areas
+from seedbuilder.oriparse import ori_load_url
+
 from collections import defaultdict, Counter
 from pickups import Pickup
 
@@ -56,8 +57,10 @@ class Area(object):
             if active:
                 state.has['KS'] -= ksSpent
                 reachable[conn.target] = conns
-
         return reachable
+
+
+longform_to_code = {"Health": ["HC"], "Energy": ["EC"], "Ability": ["AC"], "Keystone": ["KS"], "Mapstone": ["MS"], "Free": []}
 
 class Connection(object):
     def __init__(self, target):
@@ -73,13 +76,30 @@ class Connection(object):
     def __str__(self):
         return "Connection to %s: %s" % (self.target, "\n".join(["%s: %s" % (mode, "|".join([str(x) for x in req])) for mode, req in self.reqs.items()]))
 
+    def add_requirements(self, req, mode):
+        def translate(req_part):
+            """Helper function. Turns a req from areas.ori into
+            the list of the things that req indicates are required"""
+            if req_part in longform_to_code:
+                return longform_to_code[req_part]
+            if '=' not in req_part:
+                return [req_part]
+            item, _, count = req_part.partition("=")
+            count = int(count)
+            if item in longform_to_code:
+                return count * longform_to_code[item]
+            return count * [item]
+        self.reqs[mode].append(Req([t_part for part in req for t_part in translate(part)]))
 
-class Requirement(object):
-    def __init__(self, raw):
-        self.cnt = Counter([r for r in raw.split('+') if r != "Free"])
+class Req(object):
+    def __init__(self, req):
+        self.cnt = Counter(req)
     def __str__(self):
         return str(self.cnt)
-
+    def __eq__(self, other):
+        return other and not ((self.cnt - other.cnt) or (other.cnt - self.cnt))
+    def __hash__(self):
+        return hash(tuple(self.cnt.items()))
 
 class Map(object):
     areas = {}
@@ -87,14 +107,17 @@ class Map(object):
 
     @staticmethod
     def build():
-        tree = get_areas()
-        root = tree.getroot()
-        for child in root:
-            area = Area(child.attrib["name"])
-            for c in child.find("Connections"):
-                conn = Connection(c.find("Target").attrib["name"])
-                for req in c.find("Requirements"):
-                    conn.reqs[req.attrib["mode"]].append(Requirement(req.text))
+        areas = ori_load_url('http://raw.githubusercontent.com/sigmasin/OriDERandomizer/3.0/seed_gen/areas.ori')["homes"]
+        for name, area_data in areas.iteritems():
+            area = Area(name)
+            for target, conn_data in area_data["conns"].iteritems():
+                conn = Connection(target)
+                if not conn_data["paths"]:
+                    conn.add_requirements([], "casual-core")
+                if conn_data["type"] == "pickup" and target not in Map.areas:
+                    Map.areas[target] = Area(target)
+                for path in conn_data["paths"]:
+                    conn.add_requirements(path[1:], path[0])
                 area.conns.append(conn)
             Map.areas[area.name] = area
 
