@@ -6,7 +6,7 @@ from util import add_single, inc_stackable
 class Pickup(object):
     @staticmethod
     def subclasses():
-        return [Skill, Event, Teleporter, Upgrade, Experience, AbilityCell, HealthCell, EnergyCell, Keystone, Mapstone, Message, Hint, Relic, Multiple, Warp]
+        return [Skill, Event, Teleporter, Upgrade, Experience, AbilityCell, HealthCell, EnergyCell, Keystone, Mapstone, Message, Hint, Relic, Multiple, Repeatable, Warp]
     stacks = False
     int_id = True
     share_type = ShareType.NOT_SHARED
@@ -192,8 +192,12 @@ class Multiple(Pickup):
 class Repeatable(Multiple):
     code = "RP"
     def __new__(cls, id):
-        inst = super(Repeatable, cls).__new__(cls)
-        inst.name = "Repeatable: "
+        inst = super(Repeatable, cls).__new__(cls, id)
+        inst.name = "Repeatable: " + inst.name
+        return inst
+    # repeatable pickups can't be shared
+    def is_shared(self, share_types):
+        return False
 
 class Relic(Pickup):
     code = "WT"

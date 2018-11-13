@@ -578,7 +578,7 @@ const getHelpHelper = (category, option) => {
                 case "preplacement":
                     title = "Forced Item Placement"
                     lines = [
-                        (<div>You can use these fields to control what the first 4 pickups of your seed will be! Use the codes found <a target="_blank" rel="noopener noreferrer" href="https://github.com/turntekGodhead/ori_rando_server/blob/master/map/src/shared_map.js#L266">here</a> (no quotes) to specify the pickups you wish to recieve.</div>),
+                        (<div>You can use these fields to control what the first 4 pickups of your seed will be! Use the codes found <a target="_blank" rel="noopener noreferrer" href="https://github.com/turntekGodhead/ori_rando_server/blob/future/map/src/shared_map.js#L274">here</a> (no quotes) to specify the pickups you wish to recieve.</div>),
                         "(Future versions of this feature will allow users to select pickups from a list instead of typing their item codes)",
                         "Note that some item combinations (like 4 mapstones in standard logic) can result in an uncompleteable seed.",
                         "This feature is primarily intended for generating seeds to practice specific skill combinations, like Bash+Grenade or Grenade Jumps"
