@@ -14,7 +14,7 @@ BONUS_PICKUPS = ["Extra Double Jump", "Extra Air Dash", "Explosion Power Upgrade
 
 class Card(object):
     @staticmethod
-    def singletons(is_rando=True):
+    def singletons(is_rando):
         return [
             "Fish Strats or Core Skip",
             "Visit the triforce",
@@ -33,22 +33,23 @@ class Card(object):
         ] if is_rando else ["Triple Jump"]
 
     @staticmethod
-    def all_cards(is_rando=True):
+    def all_cards(is_rando):
         return [c.get() for c in Card.__subclasses__() if c.valid(is_rando)] + Card.singletons(is_rando)
     @staticmethod
-    def get_json(cards=25):
-        c = Card.all_cards()
+    def get_json(is_rando, cards=25):
+        c = Card.all_cards(is_rando)
         if cards > len(c):
             log.warning("%s>%s :C" % (cards, len(c)))
             cards = 25
-        return "[%s]" % ",\n".join(['{"name": "%s"}' % crd for crd in sample(Card.all_cards(), cards)])
+        return "[%s]" % ",\n".join(['{"name": "%s"}' % crd for crd in sample(c, cards)])
 
     @staticmethod
-    def is_valid(rando):
+    def valid(rando):
         return True
 
-class RandoCard(Card):
-    def is_valid(rando):
+class Rando():
+    @staticmethod
+    def valid(rando):
         return rando
 
 class HoruRoomXorY(Card):
@@ -173,10 +174,6 @@ class ActivateNTrees(Card):
     def get():
         return "Activate %s Trees" % (randint(2, 5) + randint(1, 3) + randint(0, 2))
 
-class CollectNSkills(RandoCard):
-    @staticmethod
-    def get():
-        return "Collect %s Skills" % (randint(2, 6) + randint(1, 3) + randint(0, 1))
 
 class KillByLevelup(Card):
     @staticmethod
@@ -192,16 +189,6 @@ class XorYTp(Card):
     @staticmethod
     def get():
         return "Find or Activate the %s, %s, or %s TP" % tuple(sample(AREAS_WITH_TPS, 3))
-
-class XorYSkill(RandoCard):
-    @staticmethod
-    def get():
-        return "%s or %s" % tuple(sample(SKILLS, 2))
-
-class XandYSkill(RandoCard):
-    @staticmethod
-    def get():
-        return "%s and %s" % tuple(sample(SKILLS, 2))
 
 class XorYFullClear(Card):
     @staticmethod
@@ -222,11 +209,6 @@ class XandYMapstoneTurnins(Card):
     @staticmethod
     def get():
         return "Activate the %s and %s Mapstones" % tuple(sample(AREAS_WITH_MAPSTONES, 2))
-
-class XorYBonus(RandoCard):
-    @staticmethod
-    def get():
-        return "%s or %s" % tuple(sample(BONUS_PICKUPS, 2))
 
 class GarbagePickupXorY(Card):
     @staticmethod
@@ -253,7 +235,27 @@ class KillEnemyXorY(Card):
     def get():
         return "Kill %s or %s" % tuple(sample(["Stomp Tree Rhino", "Grotto Miniboss", "Lower Ginso Miniboss", "Lost Grove Fight Room", "Upper Ginso Miniboss", "Misty Minibosses", "Horu Final Miniboss"], 2))
 
-class AltRAfter(RandoCard):
+class AltRAfter(Rando, Card):
     @staticmethod
     def get():
         return "Alt-r immediately after you Find %s" % choice(["1 Experience"] + SKILLS + EVENTS)
+
+class CollectNSkills(Rando, Card):
+    @staticmethod
+    def get():
+        return "Collect %s Skills" % (randint(2, 6) + randint(1, 3) + randint(0, 1))
+
+class XorYSkill(Rando, Card):
+    @staticmethod
+    def get():
+        return "%s or %s" % tuple(sample(SKILLS, 2))
+
+class XandYSkill(Rando, Card):
+    @staticmethod
+    def get():
+        return "%s and %s" % tuple(sample(SKILLS, 2))
+
+class XorYBonus(Rando, Card):
+    @staticmethod
+    def get():
+        return "%s or %s" % tuple(sample(BONUS_PICKUPS, 2))

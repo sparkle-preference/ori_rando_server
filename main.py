@@ -679,7 +679,7 @@ class AuthorIndex(RequestHandler):
 class Bingo(RequestHandler):
     def get(self, cards=25):
         self.response.headers['Content-Type'] = 'text/plain'
-        self.response.write(Card.get_json(int(cards)))
+        self.response.write(Card.get_json(paramFlag(self, "rando"), int(cards)))
 
 
 class MapTest(RequestHandler):

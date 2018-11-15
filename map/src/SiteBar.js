@@ -40,8 +40,11 @@ const SiteBar = ({user, quickstartHook}) => {
 				Bingo
 				</DropdownToggle>
 				<DropdownMenu right>
+				<DropdownItem href="/bingo?rando=1">
+					Generate Board (rando)
+				</DropdownItem>
 				<DropdownItem href="/bingo">
-					Generate Board
+					Generate Board (vanilla ori)
 				</DropdownItem>
 				<DropdownItem href="https://bingosync.com/">
 					Start Bingo Game
