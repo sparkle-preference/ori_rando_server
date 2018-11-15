@@ -4,7 +4,7 @@ import {LayerGroup, ZoomControl, Map, Tooltip, TileLayer} from 'react-leaflet';
 import Leaflet from 'leaflet';
 import {get_int, get_list, presets, logic_paths, Blabel} from './common.js';
 import {stuff_by_type,  str_ids, picks_by_type, picks_by_area, pickup_name, PickupMarkersList, get_icon, getMapCrs, 
-		name_from_str, select_styles, select_wrap} from './shared_map.js';
+        name_from_str, select_styles, select_wrap} from './shared_map.js';
 import NumericInput from 'react-numeric-input';
 import Select from 'react-select';
 import {Row, Input, Col, Container, Button, Collapse} from 'reactstrap';
@@ -20,8 +20,8 @@ const crs = getMapCrs();
 
 const DEFAULT_REACHABLE = {'SunkenGladesRunaway': [["Free"]]};
 const DEFAULT_VIEWPORT = {
-	  center: [0, 0],
-	  zoom: 4,
+      center: [0, 0],
+      zoom: 4,
 }
 
 const paths = Object.keys(presets);
@@ -29,7 +29,7 @@ const relevant_picks = ["RB|6", "RB|8", "RB|9", "RB|10", "RB|11", "RB|12", "RB|1
 
 // patch picks_by_area to include mapstone areas because haha fuck
 picks_by_type["Ma"].forEach(pick => {
-	picks_by_area[pick.area] = [pick]
+    picks_by_area[pick.area] = [pick]
 })
 
 const xml_name_to_code = {
@@ -66,7 +66,7 @@ const xml_name_to_code = {
 const dev = window.document.URL.includes("devshell")
 
 function get_manual_reach() {
-	let HC = get_int("HC", 0);
+    let HC = get_int("HC", 0);
     let EC = get_int("EC", 0);
     let AC = get_int("AC", 0);
     let KS = get_int("KS", 0);
@@ -93,9 +93,9 @@ function get_manual_reach() {
 
 const code_to_group = {};
 Object.keys(stuff_by_type).forEach(group => {
-	stuff_by_type[group].forEach(stuff => {
-		code_to_group[stuff.value] = group
-	});
+    stuff_by_type[group].forEach(stuff => {
+        code_to_group[stuff.value] = group
+    });
 });
 
 const marker_types = Object.keys(picks_by_type).filter(t => t !== "MP");
@@ -103,59 +103,59 @@ const int = (s) => parseInt(s,10)
 const rnd = (x) => Math.floor(int(x)/4.0) * 4.0
 
 function getPickupMarkers(state, setSelected) {
-	let placements = state.placements;
-	let reachable = Object.keys(state.reachable)
-	let markers = []
-	let search = state.searchStr ? state.searchStr.toLowerCase() : false
-	marker_types.forEach(pre => {
-		picks_by_type[pre].forEach(pick => {
-			let x = pick.hasOwnProperty("_x") ? pick._x : pick.x
-			let y = pick.hasOwnProperty("_y") ? pick._y : pick.y
-			let icon = get_icon(pick, state.highlight_picks.includes(pick.loc) ? "red" : null)
-			let rows = null;
-			let base_name = pick.area + " " +pick.name + " ("+rnd(pick.x)+" "+rnd(pick.y)+")";
-			let name = "";
-			if(reachable.includes(pick.area) || (search && base_name.toLowerCase().includes(search)))
-			{
-				if(pick.name === "MapStone") {
-				    rows = picks_by_type["MP"].map(ms => {
-				    	name = placements[ms.loc] ? placements[ms.loc].label : base_name
-				    	return (
-				    		<tr><td style={{color:'black'}}>
-					    		{name}
-				    		</td></tr>
-				    	)
-			    	});
-				} else {
-					name = placements[pick.loc] ? placements[pick.loc].label : base_name;
-				  	rows =  (
-			    		<tr><td style={{color:'black'}}>
-					  		{name}
-			    		</td></tr>
-				  	)
-				}
-				let inner = (
-					<Tooltip>
-						<table>{rows}</table>
-					</Tooltip>
-				);
-				if(search && (name.toLowerCase().includes(search) || base_name.toLowerCase().includes(search)))
-					icon = get_icon(pick, "green");
-				markers.push({key: x+","+y, position: [y, x], inner: inner, icon: icon, onClick: () => setSelected({label: name, value: pick}) });
-			}
-		});
-	});
-	return markers
+    let placements = state.placements;
+    let reachable = Object.keys(state.reachable)
+    let markers = []
+    let search = state.searchStr ? state.searchStr.toLowerCase() : false
+    marker_types.forEach(pre => {
+        picks_by_type[pre].forEach(pick => {
+            let x = pick.hasOwnProperty("_x") ? pick._x : pick.x
+            let y = pick.hasOwnProperty("_y") ? pick._y : pick.y
+            let icon = get_icon(pick, state.highlight_picks.includes(pick.loc) ? "red" : null)
+            let rows = null;
+            let base_name = pick.area + " " +pick.name + " ("+rnd(pick.x)+" "+rnd(pick.y)+")";
+            let name = "";
+            if(reachable.includes(pick.area) || (search && base_name.toLowerCase().includes(search)))
+            {
+                if(pick.name === "MapStone") {
+                    rows = picks_by_type["MP"].map(ms => {
+                        name = placements[ms.loc] ? placements[ms.loc].label : base_name
+                        return (
+                            <tr><td style={{color:'black'}}>
+                                {name}
+                            </td></tr>
+                        )
+                    });
+                } else {
+                    name = placements[pick.loc] ? placements[pick.loc].label : base_name;
+                      rows =  (
+                        <tr><td style={{color:'black'}}>
+                              {name}
+                        </td></tr>
+                      )
+                }
+                let inner = (
+                    <Tooltip>
+                        <table>{rows}</table>
+                    </Tooltip>
+                );
+                if(search && (name.toLowerCase().includes(search) || base_name.toLowerCase().includes(search)))
+                    icon = get_icon(pick, "green");
+                markers.push({key: x+","+y, position: [y, x], inner: inner, icon: icon, onClick: () => setSelected({label: name, value: pick}) });
+            }
+        });
+    });
+    return markers
 };
 
 
 class LogicHelper extends React.Component {
   constructor(props) {
-	    super(props)
-	
-	    this.state = {mousePos: {lat: 0, lng: 0}, seed_in: "", reachable: {...DEFAULT_REACHABLE}, new_areas: {...DEFAULT_REACHABLE}, selected: "", selected_area: "", history: {}, openMode: true,
-	    			  step: 0, placements: {}, viewport: DEFAULT_VIEWPORT, hasSeed: false, highlight_picks: [], logicMode: 'manual', searchStr: "", noMarkers: false}
-	}
+        super(props)
+    
+        this.state = {mousePos: {lat: 0, lng: 0}, seed_in: "", reachable: {...DEFAULT_REACHABLE}, new_areas: {...DEFAULT_REACHABLE}, selected: "", selected_area: "", history: {}, open_world: false,
+                      step: 0, placements: {}, viewport: DEFAULT_VIEWPORT, hasSeed: false, highlight_picks: [], logicMode: 'manual', searchStr: "", noMarkers: false, closed_dungeons: false}
+    }
 
      getInventory = () => {
         let activeAreas = this.state.reachable;
@@ -169,14 +169,14 @@ class LogicHelper extends React.Component {
                     inventory[group] = {};
                 if(!Object.keys(inventory[group]).includes(item))
                     inventory[group][item] = [];
-                inventory[group][item].push(pick);  						
+                inventory[group][item].push(pick);                          
             }            
         }
         Object.keys(activeAreas).forEach(area => {
             if(picks_by_area[area])
                 picks_by_area[area].forEach(pick => {
                     if(placements[pick.loc])
-                    {					
+                    {                    
                         let item = placements[pick.loc].value;
                         if(item.startsWith("MU")) {
                             let parts = item.substr(3).split("/");
@@ -191,12 +191,12 @@ class LogicHelper extends React.Component {
         });
         return inventory;
     }
-  	
+      
     getInventoryPane = (inventory) => {
         if(!this.state.hasSeed)
             return null
         let groups = Object.keys(inventory).map(group => {
-            let items = Object.keys(inventory[group]).map(code => {			
+            let items = Object.keys(inventory[group]).map(code => {            
                 let picks = inventory[group][code];
                 let count = picks.length;
                 let name = name_from_str(code);
@@ -313,232 +313,242 @@ class LogicHelper extends React.Component {
                 <Row className="p-1"><Col xs="12">
                     <Select styles={select_styles} placeholder="Events" options={stuff_by_type["Events"]} onChange={(n) => this.updateManual("evs", n)} isMulti={true} value={this.state.manual_reach.evs}></Select>
                 </Col></Row>
-                <Row className="p-1"><Col xs={{size: 8, offset: 2}}>
-                    <Button block outline={!this.state.openMode} color="primary" onClick={() => this.setState({openMode: !this.state.openMode}, this.resetReachable)}>Open Mode</Button>
-                </Col></Row>
+                <Row className="p-1">
+                    <Col xs="6">
+                        <Button block outline={!this.state.open_world} color="primary" onClick={() => this.setState({open_world: !this.state.open_world}, this.resetReachable)}>Open World</Button>
+                    </Col>
+                    <Col xs="6">
+                        <Button block outline={!this.state.closed_dungeons} color="warning" onClick={() => this.setState({closed_dungeons: !this.state.closed_dungeons}, this.resetReachable)}>Closed Dungeons</Button>
+                    </Col>
+                </Row>
             </Collapse>
         )
     }
 
 
- 	componentWillMount() {
-		let url = new URL(window.document.location.href); // TODO: get all non-proccessed url params this way instead of via template (it's easier)
-	    let pathmode = url.searchParams.get("pathmode");
-	    let search = url.searchParams.get("search") || "";
-	    let manual_reach = get_manual_reach();
-	    let modes;
-	
-	    if(pathmode && paths.includes(pathmode)) {
-			modes = presets[pathmode];
-	    } else {
-	    	pathmode = "standard";
-	        modes = presets['standard'];
-	    }
+     componentWillMount() {
+        let url = new URL(window.document.location.href); // TODO: get all non-proccessed url params this way instead of via template (it's easier)
+        let pathmode = url.searchParams.get("pathmode");
+        let search = url.searchParams.get("search") || "";
+        let manual_reach = get_manual_reach();
+        let modes;
+    
+        if(pathmode && paths.includes(pathmode)) {
+            modes = presets[pathmode];
+        } else {
+            pathmode = "standard";
+            modes = presets['standard'];
+        }
 
-		this.setState({modes: modes, search: search, pathMode: {label: pathmode, value: pathmode}, manual_reach: manual_reach}, () => {this.updateReachable() ; this.updateURL()})
-	};
+        this.setState({modes: modes, search: search, pathMode: {label: pathmode, value: pathmode}, manual_reach: manual_reach}, () => {this.updateReachable() ; this.updateURL()})
+    };
 
-	onDragEnter = () => this.setState({dropzoneActive: true});
+    onDragEnter = () => this.setState({dropzoneActive: true});
 
-	onDragLeave = () => this.setState({dropzoneActive: false});
-	
-	onDrop = (files) => {
-		let file = files.pop();
-		if(file) {
-		    let reader = new FileReader();
-		    reader.onload = () => {
-		        let text = reader.result;
-                let {open, plc} = this.parseUploadedSeed(text);
-		        this.setState({placements: plc, openMode: open, dropzoneActive: false, hasSeed: true, logicMode: "auto"}, this.resetReachable)
-		        window.URL.revokeObjectURL(file.preview);
-		        // do whatever you want with the file content
-		    };
-		    reader.onabort = () => console.log('file reading was aborted');
-		    reader.onerror = () => console.log('file reading has failed');
-	
-		    reader.readAsText(file);			
-		} else {
-			this.setState({dropzoneActive: false})
-		}
-	}
+    onDragLeave = () => this.setState({dropzoneActive: false});
+    
+    onDrop = (files) => {
+        let file = files.pop();
+        if(file) {
+            let reader = new FileReader();
+            reader.onload = () => {
+                let text = reader.result;
+                let {closed_dungeons, open_world, plc} = this.parseUploadedSeed(text);
+                this.setState({placements: plc, open_world: open_world, closed_dungeons: closed_dungeons, dropzoneActive: false, hasSeed: true, logicMode: "auto"}, this.resetReachable)
+                window.URL.revokeObjectURL(file.preview);
+                // do whatever you want with the file content
+            };
+            reader.onabort = () => console.log('file reading was aborted');
+            reader.onerror = () => console.log('file reading has failed');
+    
+            reader.readAsText(file);            
+        } else {
+            this.setState({dropzoneActive: false})
+        }
+    }
 
 
     selectPickup = (pick, pan=true) => {
-		let viewport = this.state.viewport;
-		if(pan) {
-			let x = pick.value.hasOwnProperty("_x") ? pick.value._x : pick.value.x
-			let y = pick.value.hasOwnProperty("_y") ? pick.value._y : pick.value.y
-			viewport = {
-				  center: [y, x],
-				  zoom: 5,
-				}
-	    	this.setState({viewport: viewport});
-	    }
+        let viewport = this.state.viewport;
+        if(pan) {
+            let x = pick.value.hasOwnProperty("_x") ? pick.value._x : pick.value.x
+            let y = pick.value.hasOwnProperty("_y") ? pick.value._y : pick.value.y
+            viewport = {
+                  center: [y, x],
+                  zoom: 5,
+                }
+            this.setState({viewport: viewport});
+        }
     }
 
     parseUploadedSeed = (seedText) => {
-		let lines = seedText.split("\n")
-		let newplc = {}
-        let open = false;
-		lines[0].split(",").forEach(flag => {
+        let lines = seedText.split("\n")
+        let newplc = {}
+        let open_world = false;
+        let closed_dungeons = false;
+        lines[0].split(",").forEach(flag => {
             if(Object.keys(presets).includes(flag.toLowerCase()))
                 this.onPathModeChange({label: flag, value: flag.toLowerCase()})
-            if(flag.toLowerCase() === "open")
-                open = true;            
+            if(flag.toLowerCase() === "openworld")
+                open_world = true;            
+            if(flag.toLowerCase() === "closeddungeons")
+                closed_dungeons = true;            
         })
-	    for (let i = 1, len = lines.length; i < len; i++) {
-	    	let line = lines[i].split("|")
-	    	let loc = parseInt(line[0], 10);
-	    	let code = line[1];
-	    	let id = str_ids.includes(code) ? line[2] : parseInt(line[2], 10);
-	    	let name = pickup_name(code, id);
-	    	let stuff = {label: name, value:code+"|"+id};
-	    	newplc[loc] = stuff;
-    	}
-    	return {plc: newplc, open: open};
-	}
+        for (let i = 1, len = lines.length; i < len; i++) {
+            let line = lines[i].split("|")
+            let loc = parseInt(line[0], 10);
+            let code = line[1];
+            let id = str_ids.includes(code) ? line[2] : parseInt(line[2], 10);
+            let name = pickup_name(code, id);
+            let stuff = {label: name, value:code+"|"+id};
+            newplc[loc] = stuff;
+        }
+        return {plc: newplc, open_world: open_world, closed_dungeons: closed_dungeons};
+    }
 
-	onGroupClick = (picks, clickedName) =>  {
-		let activated = (clickedName !== this.state.selected)
-		let selected = "";
-		let viewport = this.state.prev_viewport;
-		let highlight_picks = [];
-	    let map = this.refs.map.leafletElement;
-		picks = picks.filter(pick => pick !== "Free");
-		if(activated)
-		{
-			selected = clickedName;
-			highlight_picks = picks.map(pick => pick.loc);
-			let coords = picks.map(pick => { return {x: pick.hasOwnProperty("_x") ? pick._x : pick.x, y: pick.hasOwnProperty("_y") ? pick._y : pick.y}; })
-			let center = coords.reduce((acc, coord) => { return {x: (coord.x / coords.length)+acc.x,y: (coord.y / coords.length)+acc.y} ; }, {x: 0, y: 0});
-			if(coords.length > 1)
-			{
-				let xmin = Math.min(...coords.map(coord => coord.x));
-				let xmax = Math.max(...coords.map(coord => coord.x));
-				let ymin = Math.min(...coords.map(coord => coord.y));
-				let ymax = Math.max(...coords.map(coord => coord.y));
-				map.flyToBounds([[ymin, xmin], [ymax, xmax]], {maxZoom: 6, padding: [10, 10]})
-			} else {
-				map.flyTo([center.y, center.x], 6)
-			}			
-		} else
-			map.flyTo(viewport.center, viewport.zoom)
-		
-		this.setState({highlight_picks: highlight_picks, selected: selected, prev_viewport: this.state.viewport})
-	}
-	
-	updateURL = () => { 
-		if(this.state.logicMode === "auto")
-			return
-		let reach = this.state.manual_reach
-		let args = Object.keys(reach).filter(key => Array.isArray(reach[key]) ? reach[key].length > 0 : reach[key] > 0 ).map(key => key + "=" + (Array.isArray(reach[key]) ? reach[key].map(i => i.value).join("+") : reach[key]))
-		args.unshift("pathmode="+this.state.pathMode.value)
-		if(this.state.searchStr) args.push("search="+this.state.searchStr)
-	    window.history.replaceState('',window.document.title, window.document.URL.split("?")[0]+"?"+args.join("&"));		
-	}
-	
-	updateManual = (param, val) => this.setState(prevState => {
-		let manual_reach = prevState.manual_reach;
-		manual_reach[param] = val;
-		return {manual_reach: manual_reach}
-	}, () => {this.resetReachable() ; this.updateURL()})
-	
-  	updateReachable = () => {
-  		if(!this.state.reachable || this.state.reachable === undefined) {
-  			this.resetReachable();
-  			return
-  		}
-  		
-	  	let reachableStuff = {};
-  		if(this.state.logicMode === "auto")
-  		{
-  			if(!this.state.hasSeed)
-  				return;
-	  		Object.keys(this.state.reachable).forEach((area) => {
-	  			if(picks_by_area.hasOwnProperty(area))
-		  			picks_by_area[area].forEach((pick) => {
-			  			if(this.state.placements[pick.loc])
-			  			{
-		  					let code = this.state.placements[pick.loc].value;
-		  					if(!["SH", "NO", "EX", "WT", "HN"].includes(code.substr(0,2)))
-		  						if(reachableStuff.hasOwnProperty(code))
-									reachableStuff[code] += 1;
-								else
-									reachableStuff[code] = 1;
-		  				}
-  					});
-	  		});
-		} else {
-			["HC", "EC", "AC", "KS", "MS"].forEach((code) => {
-				if(this.state.manual_reach[code] > 0)
-					reachableStuff[code+"|1"] = this.state.manual_reach[code];
-			});
-			this.state.manual_reach.skills.forEach(skill => {
-				reachableStuff[skill.value] = 1;
-	  		});
-			this.state.manual_reach.evs.forEach(event => {
-				reachableStuff[event.value] = 1;
-	  		});
-			this.state.manual_reach.tps.forEach(tp => {
-				reachableStuff[tp.value] = 1;
-	  		});
-  		}
+    onGroupClick = (picks, clickedName) =>  {
+        let activated = (clickedName !== this.state.selected)
+        let selected = "";
+        let viewport = this.state.prev_viewport;
+        let highlight_picks = [];
+        let map = this.refs.map.leafletElement;
+        picks = picks.filter(pick => pick !== "Free");
+        if(activated)
+        {
+            selected = clickedName;
+            highlight_picks = picks.map(pick => pick.loc);
+            let coords = picks.map(pick => { return {x: pick.hasOwnProperty("_x") ? pick._x : pick.x, y: pick.hasOwnProperty("_y") ? pick._y : pick.y}; })
+            let center = coords.reduce((acc, coord) => { return {x: (coord.x / coords.length)+acc.x,y: (coord.y / coords.length)+acc.y} ; }, {x: 0, y: 0});
+            if(coords.length > 1)
+            {
+                let xmin = Math.min(...coords.map(coord => coord.x));
+                let xmax = Math.max(...coords.map(coord => coord.x));
+                let ymin = Math.min(...coords.map(coord => coord.y));
+                let ymax = Math.max(...coords.map(coord => coord.y));
+                map.flyToBounds([[ymin, xmin], [ymax, xmax]], {maxZoom: 6, padding: [10, 10]})
+            } else {
+                map.flyTo([center.y, center.x], 6)
+            }            
+        } else
+            map.flyTo(viewport.center, viewport.zoom)
+        
+        this.setState({highlight_picks: highlight_picks, selected: selected, prev_viewport: this.state.viewport})
+    }
+    
+    updateURL = () => { 
+        if(this.state.logicMode === "auto")
+            return
+        let reach = this.state.manual_reach
+        let args = Object.keys(reach).filter(key => Array.isArray(reach[key]) ? reach[key].length > 0 : reach[key] > 0 ).map(key => key + "=" + (Array.isArray(reach[key]) ? reach[key].map(i => i.value).join("+") : reach[key]))
+        args.unshift("pathmode="+this.state.pathMode.value)
+        if(this.state.searchStr) args.push("search="+this.state.searchStr)
+        window.history.replaceState('',window.document.title, window.document.URL.split("?")[0]+"?"+args.join("&"));        
+    }
+    
+    updateManual = (param, val) => this.setState(prevState => {
+        let manual_reach = prevState.manual_reach;
+        manual_reach[param] = val;
+        return {manual_reach: manual_reach}
+    }, () => {this.resetReachable() ; this.updateURL()})
+    
+      updateReachable = () => {
+          if(!this.state.reachable || this.state.reachable === undefined) {
+              this.resetReachable();
+              return
+          }
+          
+          let reachableStuff = {};
+          if(this.state.logicMode === "auto")
+          {
+              if(!this.state.hasSeed)
+                  return;
+              Object.keys(this.state.reachable).forEach((area) => {
+                  if(picks_by_area.hasOwnProperty(area))
+                      picks_by_area[area].forEach((pick) => {
+                          if(this.state.placements[pick.loc])
+                          {
+                              let code = this.state.placements[pick.loc].value;
+                              if(!["SH", "NO", "EX", "WT", "HN"].includes(code.substr(0,2)))
+                                  if(reachableStuff.hasOwnProperty(code))
+                                    reachableStuff[code] += 1;
+                                else
+                                    reachableStuff[code] = 1;
+                          }
+                      });
+              });
+        } else {
+            ["HC", "EC", "AC", "KS", "MS"].forEach((code) => {
+                if(this.state.manual_reach[code] > 0)
+                    reachableStuff[code+"|1"] = this.state.manual_reach[code];
+            });
+            this.state.manual_reach.skills.forEach(skill => {
+                reachableStuff[skill.value] = 1;
+              });
+            this.state.manual_reach.evs.forEach(event => {
+                reachableStuff[event.value] = 1;
+              });
+            this.state.manual_reach.tps.forEach(tp => {
+                reachableStuff[tp.value] = 1;
+              });
+          }
         let modes = this.state.modes.join("+");
-        if(this.state.openMode)
-            modes += "+OPEN";
-  		getReachable((s) => this.setState(s), modes, Object.keys(reachableStuff).map(key => key+":"+reachableStuff[key]).join("+"));
-  	};
+        if(this.state.closed_dungeons) 
+            modes +="+CLOSED_DUNGEON"
+        if(this.state.open_world) 
+            modes +="+OPEN_WORLD"
+        getReachable((s) => this.setState(s), modes, Object.keys(reachableStuff).map(key => key+":"+reachableStuff[key]).join("+"));
+      };
 
-	onViewportChanged= (viewport) => this.setState({viewport: viewport})
-	onSearch = (e) => this.setState({searchStr: e.target.value}, this.updateURL)
+    onViewportChanged= (viewport) => this.setState({viewport: viewport})
+    onSearch = (e) => this.setState({searchStr: e.target.value}, this.updateURL)
     onMode = (m) => () => this.setState(prevState => {
         if(prevState.modes.includes(m))
             return {modes: prevState.modes.filter(x => x !== m)}
         return {modes: prevState.modes.concat(m)}
     }, () => { this.updateURL() ; this.resetReachable()});
-	onPathModeChange = (n) => this.setState({modes: presets[n.value], pathMode: n}, () => { this.updateURL() ; this.resetReachable()});
-	resetReachable = () => this.setState({ reachable: {...DEFAULT_REACHABLE}, new_areas: {...DEFAULT_REACHABLE}, selected: "", selected_area: "", highlight_picks: [], history: {}, step: 0}, () => (this.state.logicMode === "auto") ? null : this.updateReachable())
-	unloadSeed = () => this.setState({hasSeed: false, placements: {}, logicMode: "manual"}, this.resetReachable)
-	rewind = () => {
-		if(dev)
-			console.log(this.state)
+    onPathModeChange = (n) => this.setState({modes: presets[n.value], pathMode: n}, () => { this.updateURL() ; this.resetReachable()});
+    resetReachable = () => this.setState({ reachable: {...DEFAULT_REACHABLE}, new_areas: {...DEFAULT_REACHABLE}, selected: "", selected_area: "", highlight_picks: [], history: {}, step: 0}, () => (this.state.logicMode === "auto") ? null : this.updateReachable())
+    unloadSeed = () => this.setState({hasSeed: false, placements: {}, logicMode: "manual"}, this.resetReachable)
+    rewind = () => {
+        if(dev)
+            console.log(this.state)
 
-		if(this.state.step>0)
-			this.setState(prevState => {
-				let hist = prevState.history[prevState.step-1];
-				return {
-					highlight_picks: [],
-					selected: "",
-					selected_area: "",
-					reachable: {...hist.reachable}, 
-					new_areas: {...hist.new_areas}, 
-					step: prevState.step-1};
-				}, () => dev ? console.log(this.state) : null)
-	}
+        if(this.state.step>0)
+            this.setState(prevState => {
+                let hist = prevState.history[prevState.step-1];
+                return {
+                    highlight_picks: [],
+                    selected: "",
+                    selected_area: "",
+                    reachable: {...hist.reachable}, 
+                    new_areas: {...hist.new_areas}, 
+                    step: prevState.step-1};
+                }, () => dev ? console.log(this.state) : null)
+    }
 
-	render() {
-	    let { dropzoneActive } = this.state;
-	    let overlay_style = { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, padding: '10em 0', background: 'rgba(0,0,0,0.5)', textAlign: 'center', color: '#fff' };
-		let inventory = this.getInventory();
-		let inv_pane = this.getInventoryPane(inventory);
+    render() {
+        let { dropzoneActive } = this.state;
+        let overlay_style = { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, padding: '10em 0', background: 'rgba(0,0,0,0.5)', textAlign: 'center', color: '#fff' };
+        let inventory = this.getInventory();
+        let inv_pane = this.getInventoryPane(inventory);
         let new_areas_report = null //this.getAreasPane(inventory); disabled until path compression exists
         let manual_controls = this.getManualLogicControls();
-		let logic_auto_toggle = (
+        let logic_auto_toggle = (
             <Collapse isOpen={this.state.hasSeed}>
-			<Row  className="p-1">
+            <Row  className="p-1">
                 <Col xs="4">
-				<Blabel >Logic Mode:</Blabel>
+                <Blabel >Logic Mode:</Blabel>
                 </Col>
                 <Col xs="4">
-					<Button block color="primary" onClick={() => this.setState({logicMode: "auto"}, this.resetReachable)} outline={this.state.logicMode !== "auto"}>Auto</Button>
+                    <Button block color="primary" onClick={() => this.setState({logicMode: "auto"}, this.resetReachable)} outline={this.state.logicMode !== "auto"}>Auto</Button>
                 </Col>
                 <Col xs="4">
-					<Button block color="primary" onClick={() => this.setState({logicMode: "manual"}, this.resetReachable)} outline={this.state.logicMode !== "manual"}>Manual</Button>
+                    <Button block color="primary" onClick={() => this.setState({logicMode: "manual"}, this.resetReachable)} outline={this.state.logicMode !== "manual"}>Manual</Button>
                 </Col>
-			</Row>
+            </Row>
             </Collapse>
-		) 
-		let step_buttons = (
+        ) 
+        let step_buttons = (
             <Collapse isOpen={this.state.hasSeed}>
                 <Row className="p-1">
                     <Col xs={{size: "5", offset: 1}}>
@@ -563,31 +573,31 @@ class LogicHelper extends React.Component {
         )
         let logic_path_buttons = logic_paths.map(lp => {return (<Col className="pr-0 pb-1" xs="4"><Button block size="sm" outline={!this.state.modes.includes(lp)} onClick={this.onMode(lp)}>{lp}</Button></Col>)});
         return (
-	      <Dropzone className="wrapper" disableClick onDrop={this.onDrop} onDragEnter={this.onDragEnter} onDragLeave={this.onDragLeave} >
+          <Dropzone className="wrapper" disableClick onDrop={this.onDrop} onDragEnter={this.onDragEnter} onDragLeave={this.onDragLeave} >
           { dropzoneActive && <div style={overlay_style}>Import your randomizer.dat to begin analysis</div> }
-	            <Helmet>
+                <Helmet>
                     <style type="text/css">{`
                         body {
                             background-color: black;
                             text-color: white;
                         }
                     `}</style>
-					<link rel="stylesheet" href="https://unpkg.com/leaflet@1.3.1/dist/leaflet.css" integrity="sha512-Rksm5RenBEKSKFjgI3a41vrjkw4EVPlJ3+OiI65vTjIdo9brlAacEuKOiQ5OFh7cOI1bkDwLqdLw3Zg0cRJAAQ==" crossorigin=""/>
-	            </Helmet>
+                    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.3.1/dist/leaflet.css" integrity="sha512-Rksm5RenBEKSKFjgI3a41vrjkw4EVPlJ3+OiI65vTjIdo9brlAacEuKOiQ5OFh7cOI1bkDwLqdLw3Zg0cRJAAQ==" crossorigin=""/>
+                </Helmet>
 
-				<Map crs={crs} ref="map" zoomControl={false} onMouseMove={(ev) => this.setState({mousePos: ev.latlng})} onViewportChanged={this.onViewportChanged} viewport={this.state.viewport}>
-			        <ZoomControl position="topright" />
-					<Control position="topleft" >
-					<div>
-						<Blabel className="p-2">{Math.round(this.state.mousePos.lng)}, {Math.round(this.state.mousePos.lat)}</Blabel>
-					</div>
-					</Control>
-					<LayerGroup>
-						<PickupMarkersList markers={getPickupMarkers(this.state, this.selectPickup)} />
-					</LayerGroup>
-					<TileLayer url=' https://ori-tracker.firebaseapp.com/images/ori-map/{z}/{x}/{y}.png' noWrap='true'  />
-				</Map> 
-				<div className="controls">
+                <Map crs={crs} ref="map" zoomControl={false} onMouseMove={(ev) => this.setState({mousePos: ev.latlng})} onViewportChanged={this.onViewportChanged} viewport={this.state.viewport}>
+                    <ZoomControl position="topright" />
+                    <Control position="topleft" >
+                    <div>
+                        <Blabel className="p-2">{Math.round(this.state.mousePos.lng)}, {Math.round(this.state.mousePos.lat)}</Blabel>
+                    </div>
+                    </Control>
+                    <LayerGroup>
+                        <PickupMarkersList markers={getPickupMarkers(this.state, this.selectPickup)} />
+                    </LayerGroup>
+                    <TileLayer url=' https://ori-tracker.firebaseapp.com/images/ori-map/{z}/{x}/{y}.png' noWrap='true'  />
+                </Map> 
+                <div className="controls">
                 <Container fluid>
                     <Collapse isOpen={!this.state.hasSeed}>
                         <Row className="p-1"><Col xs="12">
@@ -595,15 +605,15 @@ class LogicHelper extends React.Component {
                         </Col></Row>
                     </Collapse>
                     {step_buttons}
-			    	<Row className="p-1 border-top pb-3 pt-3">
+                    <Row className="p-1 border-top pb-3 pt-3">
                         <Col xs="4" className="pr-0">
-    						<Blabel >Search</Blabel>
+                            <Blabel >Search</Blabel>
                         </Col>
                         <Col xs="8">
-    						<Input type="text" value={this.state.searchStr} onChange={this.onSearch} />
-	                    </Col>
-    				</Row>
-					{inv_pane}
+                            <Input type="text" value={this.state.searchStr} onChange={this.onSearch} />
+                        </Col>
+                    </Row>
+                    {inv_pane}
                     {logic_auto_toggle}
                     {manual_controls}
                     <Row className="border-top border-bottom p-1">
@@ -622,10 +632,10 @@ class LogicHelper extends React.Component {
                     {new_areas_report}
                 </Container>
                 </div>
-			</Dropzone>
+            </Dropzone>
 
-		)
-	}
+        )
+    }
 }
 
 function uniq(array) {

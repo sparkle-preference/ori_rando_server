@@ -220,7 +220,7 @@ class GameTracker extends React.Component {
     super(props)
     let modes = presets['standard'];
     this.state = {mousePos: {lat: 0, lng: 0}, players: {}, retries: 0, check_seen: 1, modes: modes, timeout: TIMEOUT_START, searchStr: "", pickup_display: "all", show_sidebar: true, idle_countdown: 7200,
-    bg_update: true, viewport: DEFAULT_VIEWPORT, pickups: ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "Ma", "CS"], open: true, pathMode: get_preset(modes), hideOpt: "all", display_logic: false};
+    bg_update: true, viewport: DEFAULT_VIEWPORT, pickups: ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "Ma", "CS"], open_world: false, closed_dungeons: false, pathMode: get_preset(modes), hideOpt: "all", display_logic: false};
   };
 
   componentDidMount() {
@@ -387,21 +387,23 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
 					return {players: players, retries: 0, timeout: TIMEOUT_START}
 				})
         }
-        if(this.state.open) {
-            modes +="+OPEN"
-        }
+        if(this.state.closed_dungeons) 
+            modes +="+CLOSED_DUNGEON"
+        if(this.state.open_world) 
+            modes +="+OPEN_WORLD"
+            
         doNetRequest(onRes, this.setState, "/tracker/game/"+game_id+"/fetch/reachable?modes="+modes, timeout)
     }
     getGamedata = () => {
         let onRes = (res) => {
                     this.setState(state => {
-                        let {paths, open, playerCount} = JSON.parse(res);
+                        let {paths, closed_dungeons, open_world, playerCount} = JSON.parse(res);
                         let players = state.players;
                         while(playerCount > Object.keys(players).length)
                         {
                             players[Object.keys(players).length + 1] = {...EMPTY_PLAYER}
                         }
-                        return {pathMode: get_preset(paths), players: players, retries: 0, modes: paths, open: open}
+                        return {pathMode: get_preset(paths), players: players, retries: 0, modes: paths, closed_dungeons: closed_dungeons, open_world: open_world}
                     });
                 }
         doNetRequest(onRes, this.setState, "/tracker/game/"+game_id+"/fetch/gamedata", this.timeout)

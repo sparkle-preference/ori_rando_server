@@ -126,8 +126,10 @@ class Map(object):
             Map.build()
         Map.reached_with = defaultdict(lambda: set())
         unchecked_areas = set(["SunkenGladesRunaway"])
-        if "OPEN" in modes:
+        if "CLOSED_DUNGEON" not in modes:
             state.has["Open"] = 1
+        if "OPEN_WORLD" in modes:
+            state.has["OpenWorld"] = 1
         reachable_areas = set()
         needs_ks_check = set()
         while len(unchecked_areas) > 0:

@@ -322,7 +322,8 @@ class GetGameData(RequestHandler):
         params = game.params.get()
         gamedata["paths"] = params.logic_paths
         gamedata["playerCount"] = params.players
-        gamedata["open"] = Variation.OPEN_MODE in params.variations
+        gamedata["closed_dungeons"] = Variation.CLOSED_DUNGEONS in params.variations
+        gamedata["open_world"] = Variation.OPEN_WORLD in params.variations
         self.response.write(json.dumps(gamedata))
 
 
@@ -690,7 +691,7 @@ class MapTest(RequestHandler):
         game = Game.with_id(game_id)
         if game:
             game.clean_up()
-        url = "/generator/build?key_mode=Free&gen_mode=Balanced&var=Open&var=WorldTour&path=casual-core&path=casual-dboost&exp_pool=10000&cell_freq=40&relics=10&players=3&sync_mode=Shared&sync_shared=WorldEvents&sync_shared=Teleporters&sync_shared=WorldEvents&sync_shared=Skills&sync_hints=1&test_map_redir=%s&seed=%s" % (game_id, random.randint(100000,1000000))
+        url = "/generator/build?key_mode=Free&gen_mode=Balanced&var=OpenWorld&var=WorldTour&path=casual-core&path=casual-dboost&exp_pool=10000&cell_freq=40&relics=10&players=3&sync_mode=Shared&sync_shared=WorldEvents&sync_shared=Teleporters&sync_shared=WorldEvents&sync_shared=Skills&sync_hints=1&test_map_redir=%s&seed=%s" % (game_id, random.randint(100000,1000000))
         self.redirect(url)
 
 class DiscordRedirect(RequestHandler):

@@ -34,7 +34,7 @@ const DEFAULT_VIEWPORT = {
 	  zoom: 4,
 	}
 
-const VALID_VARS = ["0XP", "NonProgressMapStones", "NoAltR", "ForceMapStones", "ForceTrees", "Hard", "WorldTour", "Open", "OHKO", "Starved", "BonusPickups"]
+const VALID_VARS = ["0XP", "NonProgressMapStones", "NoAltR", "ForceMapStones", "ForceTrees", "Hard", "WorldTour", "OpenWorld", "ClosedDungeons", "OHKO", "Starved", "BonusPickups"]
 const VALID_KEYMODES = ["Shards", "Clues", "Limitkeys", "Free"];
 const SEED_FLAGS = VALID_VARS.concat(VALID_KEYMODES);
 const FLAG_CASEFIX = {};
@@ -584,8 +584,15 @@ class PlandoBuiler extends React.Component {
 	  		});
 	  		recursive = false
   		}
+            let modes = this.state.modes.join("+")
+            let flags = this.state.seedFlags.map(f => f.value)
+            if(flags.includes("ClosedDungeon")) 
+                modes +="+CLOSED_DUNGEON"
+            if(flags.includes("OpenWorld")) 
+                modes +="+OPEN_WORLD"
+
   		  	getReachable((s, c) => this.setState(s, c),
-	  			this.state.modes.join("+") + (this.state.seedFlags.map(f => f.value).includes("Open") ? "+OPEN" : ""),
+	  			modes,
 	  			Object.keys(reachableStuff).map((key) => key+":"+reachableStuff[key]).join("+"),
 	  			recursive ? () => this._updateReachable(reachableAreas) : () => null);
   	};

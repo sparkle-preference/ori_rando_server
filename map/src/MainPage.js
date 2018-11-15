@@ -26,7 +26,8 @@ const variations = {
     ForceMapStones: "Force Mapstones",
     Entrance: "Entrance Shuffle",
     BonusPickups: "More Bonus Pickups",
-    Open: "Open Mode",
+    ClosedDungeons: "Closed Dungeons",
+    OpenWorld: "Open World",
     WorldTour: "World Tour",
     DoubleSkills: "Extra Copies",
     WarmthFrags: "Warmth Frags",
@@ -622,7 +623,7 @@ export default class MainPage extends React.Component {
         if(seedTabExists)
             doNetRequest("/generator/metadata/"+paramId,this.acceptMetadata);
         let activeTab = seedTabExists ? 'seed' : 'variations';
-        this.state = {user: user, activeTab: activeTab, coopGenMode: "Cloned Seeds", coopGameMode: "Co-op", players: 1, tracking: true, dllTime: dllTime, variations: ["ForceTrees", "Open"], 
+        this.state = {user: user, activeTab: activeTab, coopGenMode: "Cloned Seeds", coopGameMode: "Co-op", players: 1, tracking: true, dllTime: dllTime, variations: ["ForceTrees"], 
                      paths: presets["standard"], keyMode: "Clues", oldKeyMode: "Clues", pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null), goalModes: ["ForceTrees"],
                      customSyncId: "", seed: "", fillAlg: "Balanced", shared: ["Skills", "Teleporters", "World Events"], hints: true, helpcat: "", helpopt: "", quickstartOpen: quickstartOpen,
                      syncId: "", expPool: 10000, lastHelp: new Date(), seedIsGenerating: false, cellFreq: cellFreqPresets("standard"), fragCount: 30, fragReq: 20, relicCount: 8, loader: get_random_loader(),

@@ -12,7 +12,7 @@ in the <a target="_blank"  rel="noopener noreferrer" href="/discord">Ori discord
 const noneTitle = "Confused?";
 const noneSub = "Mouse over anything to learn more!";
 const noneLines = ["Additional context-specific information will appear here as you interact with the UI."];
-const vars = ["Starved", "NonProgressMapStones", "Hard", "0XP", "Entrance", "BonusPickups", "DoubleSkills", "StrictMapstones", "Open"]
+const vars = ["Starved", "NonProgressMapStones", "Hard", "0XP", "Entrance", "BonusPickups", "DoubleSkills", "StrictMapstones", "ClosedDungeons", "OpenWorld"]
 const presets = ["Casual", "Standard", "Expert", "Master", "Glitched", "Custom"]
 
 const goalModes = ["ForceTrees", "ForceMapStones"]
@@ -261,19 +261,30 @@ const getHelpHelper = (category, option) => {
                         "This variation represents the pre-3.0 default behavior, and is not generally recommended due to how predictable it makes early game mapstone placements."
                     ]
                     break;
-                case "Open":
-                    title = "Open Mode"
+                case "ClosedDungeons":
+                    title = "Closed Dungeons"
                     lines = [
-                        "The Open Mode variation makes several changes with the primary aim of making the dungeons more accessable. Major changes: ",
+                        "The Closed Dungeons variation reverts several changes made in version 3.0 that made the dungeons more accessable. These changes were: ",
                         (<ul>
                             <li>Keystone doors can be opened from both sides</li>
                             <li>Horu and Ginso Teleporters have been added to the item pool</li>
                             <li>Horu starts with the lava already drained, allowing TP access to the entire dungeon</li>
                             <li>The second Ginso miniboss room has both lower doors opened by default, allowing TP access to most of the dungeon. (The lowest two pickups are blocked by the first miniboss)</li>
-                            <li>The first keystone door in Glades is always open</li>
-                            <li>The upper and lower left doors in Valley Entrance (the room left of the Grove Teleporter) are always open</li>
                         </ul>),
-                        "Open Mode is enabled by default and recommended for all players and modes."
+                        "Enabling this variation will disable all of the above!",
+                        "Closed Dungeons is a legacy mode and not generally recommended."
+                    ]
+                    break;
+                case "OpenWorld":
+                    title = "Open World"
+                    lines = [
+                        "The Open World variation makes a few impactful changes to the state of the world, with the primary intent of making more areas reachable earlier, especially the left side of the map. These changes are:",
+                        (<ul>
+                            <li>The first Keystone door in the Sunken Glades area starts open</li>
+                            <li>The two doors into Valley of the Wind from the "Valley Entry" room (immediately left of the Spirit Tree) start out open</li>
+                            <li>The Valley "killplane" has been removed (Kuro will no longer autokill players passing through the main Valley room)</li>
+                        </ul>),
+                        "Open World is recommended for players who are familiar with the randomizer ."
                     ]
                     break;
                 default:
