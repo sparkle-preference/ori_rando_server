@@ -1,5 +1,4 @@
 from seedbuilder.oriparse import ori_load_url
-
 from collections import defaultdict, Counter
 from pickups import Pickup
 

@@ -512,6 +512,13 @@ const getHelpHelper = (category, option) => {
         case "advanced":
             subtitle = "Advanced Options"
             switch(option) {
+                case "sense":
+                    title = "Sense Triggers"
+                    lines = [
+                        "Use this field to trigger what pickups the sense ability can sense. The default value is EV+RB17+RB19+RB21+RB28+SK",
+                        "To match an entire class of pickups, use the first 2 characters; to match a specific pickup, use the entire pickup code (no |)"
+                    ]
+                    break;
                 case "pathDiff":
                     title = "Path Difficulty"
                     lines = [

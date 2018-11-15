@@ -101,7 +101,6 @@ class ActiveGames(RequestHandler):
             out += "<h4>%s</h4></body></html>" % title
         self.response.write(out)
 
-
 class FoundPickup(RequestHandler):
     def get(self, game_id, player_id, coords, kind, id, old=False):
         game = Game.with_id(game_id)

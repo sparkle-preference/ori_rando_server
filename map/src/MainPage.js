@@ -90,6 +90,13 @@ export default class MainPage extends React.Component {
                             <FormFeedback tooltip>Experience Pool must be at least 100</FormFeedback>
                         </Col>
                     </Row>
+                    <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "sense")} className="p-1 justify-content-center">
+                        <Col xs="4" className="text-center pt-1 border">
+                            <span class="align-middle">Sense Triggers</span>
+                        </Col><Col xs="4">
+                            <Input type="text" value={this.state.senseData}  onChange={(e) => this.setState({senseData: e.target.value})}/> 
+                        </Col>
+                    </Row>
                     <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "fillAlg")} className="p-1 justify-content-center">
                         <Col xs="4" className="text-center pt-1 border">
                             <span class="align-middle">Fill Algorithm</span>
@@ -260,6 +267,8 @@ export default class MainPage extends React.Component {
         urlParams.push("gen_mode="+this.state.fillAlg)
         this.state.variations.forEach(v => urlParams.push("var="+v))
         this.state.paths.forEach(p => urlParams.push("path="+p))
+        if(this.state.senseData)
+            urlParams.push("sense="+this.state.senseData)
         urlParams.push("exp_pool="+this.state.expPool)
         urlParams.push("cell_freq="+this.state.cellFreq)
         if(this.state.variations.includes("WarmthFrags"))
