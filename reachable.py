@@ -128,6 +128,8 @@ class Map(object):
         unchecked_areas = set(["SunkenGladesRunaway"])
         if "CLOSED_DUNGEON" not in modes:
             state.has["Open"] = 1
+            state.has["TPGinso"] = 0
+            state.has["TPHoru"] = 0
         if "OPEN_WORLD" in modes:
             state.has["OpenWorld"] = 1
         reachable_areas = set()
