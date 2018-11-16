@@ -12,7 +12,7 @@ in the <a target="_blank"  rel="noopener noreferrer" href="/discord">Ori discord
 const noneTitle = "Confused?";
 const noneSub = "Mouse over anything to learn more!";
 const noneLines = ["Additional context-specific information will appear here as you interact with the UI."];
-const vars = ["Starved", "NonProgressMapStones", "Hard", "0XP", "Entrance", "BonusPickups", "DoubleSkills", "StrictMapstones", "ClosedDungeons", "OpenWorld"]
+const vars = ["Starved", "NonProgressMapStones", "Hard", "0XP", "Entrance", "BonusPickups", "DoubleSkills", "StrictMapstones", "ClosedDungeons", "OpenWorld", "StompTriggers"]
 const presets = ["Casual", "Standard", "Expert", "Master", "Glitched", "Custom"]
 
 const goalModes = ["ForceTrees", "ForceMapStones"]
@@ -272,7 +272,7 @@ const getHelpHelper = (category, option) => {
                             <li>The second Ginso miniboss room has both lower doors opened by default, allowing TP access to most of the dungeon. (The lowest two pickups are blocked by the first miniboss)</li>
                         </ul>),
                         "Enabling this variation will disable all of the above!",
-                        "Closed Dungeons is a legacy mode and not generally recommended."
+                        "This variation exists primarily for legacy reasons and is not recommended for normal use"
                     ]
                     break;
                 case "OpenWorld":
@@ -284,7 +284,15 @@ const getHelpHelper = (category, option) => {
                             <li>The two doors into Valley of the Wind from the "Valley Entry" room (immediately left of the Spirit Tree) start out open</li>
                             <li>The Valley "killplane" has been removed (Kuro will no longer autokill players passing through the main Valley room)</li>
                         </ul>),
-                        "Open World is recommended for players who are familiar with the randomizer ."
+                        "Recommended for players who are familiar with the randomizer and looking for more varied and challenging seeds."
+                    ]
+                    break;
+                case "StompTriggers":
+                    title = "Legacy Kuro Behavior"
+                    lines = [
+                        "The Legacy Kuro Behavior variation reverts to the vanilla and pre-3.0 randomizer behavior for the Kuro kill plane in Valley and the Kuro cutscene in Hollow Grove. Both of these will only exist once you've acquired the Stomp skill.",
+                        "This variation will be overridden if you select Open World, which removes the killplane and cutscene completely.",
+                        "This variation exists primarily for legacy reasons and is not recommended for normal use."
                     ]
                     break;
                 default:

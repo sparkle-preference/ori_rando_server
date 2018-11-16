@@ -32,6 +32,7 @@ const variations = {
     DoubleSkills: "Extra Copies",
     WarmthFrags: "Warmth Frags",
     StrictMapstones: "Strict Mapstones",
+    StompTriggers: "Legacy Kuro Behavior",
 }
 const cellFreqPresets = (preset) => preset === "casual" ? 20 : (preset === "standard" ? 40 : 256)
 const optional_paths = ['casual-dboost', 'standard-core', 'standard-dboost', 'standard-lure', 'standard-abilities', 'expert-core', 'expert-dboost', 'expert-lure', 'expert-abilities', 'dbash', 'master-core', 'master-dboost', 'master-lure', 'master-abilities', 'gjump', 'glitched', 'timed-level', 'insane']
@@ -363,7 +364,8 @@ export default class MainPage extends React.Component {
         }
     }
     getVariationsTab = () => {
-        let variationButtons = Object.keys(variations).filter(x => !["Entrance", "NonProgressMapStones", "BonusPickups", "ForceTrees", "WorldTour", "ForceMapStones", "WarmthFrags"].includes(x)).map(v=> {
+        let variationButtons = Object.keys(variations).filter(x => !["Entrance", "NonProgressMapStones", "BonusPickups", "StompTriggers", 
+                                                                     "ForceTrees", "WorldTour", "ForceMapStones", "WarmthFrags"].includes(x)).map(v=> {
             let name = variations[v];
             return (
             <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("variations", v)} className="p-2">
@@ -384,7 +386,7 @@ export default class MainPage extends React.Component {
                     return false;
                 })()} onClick={this.onVar("BonusPickups")}>{variations["BonusPickups"]}</Button>
             </Col>
-            )        
+            )
         ))
         // Discrete Mapstones requires Strict Mapstones.
         variationButtons.push((
@@ -399,7 +401,22 @@ export default class MainPage extends React.Component {
                     return false;
                 })()} onClick={this.onVar("NonProgressMapStones")}>{variations["NonProgressMapStones"]}</Button>
             </Col>
-            )        
+            )
+        ))
+        // Legacy Killplane is incompatible with Open World.
+        variationButtons.push((
+            (
+            <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("variations", "StompTriggers")} className="p-2">
+                <Button block outline={!this.state.variations.includes("StompTriggers")} disabled={(() => {
+                    if(this.state.variations.includes("OpenWorld")) {
+                        if(this.state.variations.includes("StompTriggers"))
+                            this.onVar("StompTriggers")()
+                        return true;
+                    }
+                    return false;
+                })()} onClick={this.onVar("StompTriggers")}>{variations["StompTriggers"]}</Button>
+            </Col>
+            )
         ))
         return (
             <TabPane tabId="variations">
