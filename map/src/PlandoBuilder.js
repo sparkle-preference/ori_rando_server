@@ -162,7 +162,7 @@ class PlandoBuiler extends React.Component {
 
     this.state = {seed_in: "", reachable: {...DEFAULT_REACHABLE}, new_areas: {...DEFAULT_REACHABLE}, placements: {1: {...DEFAULT_DATA}}, player: 1,
     			  fill_opts: {HC: 13, EC: 15, AC: 34, KS: 40, MS: 9, EX: 300, dynamic: false, dumb: false}, viewport: DEFAULT_VIEWPORT, searchStr: "",
-		    	  flags: ['hide_unreachable', 'hide_softlockable'], seedFlags: select_wrap(["Open", "ForceTrees"]), share_types: select_wrap(["keys"]), coop_mode: {label: "Solo", value: "None"},
+		    	  flags: ['hide_unreachable', 'hide_softlockable'], seedFlags: select_wrap(["ForceTrees"]), share_types: select_wrap(["keys"]), coop_mode: {label: "Solo", value: "None"},
 		    	  pickups: ["EX", "Ma", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "CS"],  display_import: false, display_logic: false, display_coop: false, display_meta: false}
 	}
 
@@ -196,7 +196,8 @@ class PlandoBuiler extends React.Component {
 	
 	};
 
-	componentDidMount() {
+    componentDidMount() {
+        setTimeout(() => this.refs['map'].leafletElement.invalidateSize(false), 100);
 	  	if(this.state.authed)
 	  	{
 		  	let {rawSeed, user, authed, seed_name, seed_desc} = get_seed()
@@ -730,7 +731,7 @@ class PlandoBuiler extends React.Component {
 					<link rel="stylesheet" href="https://unpkg.com/leaflet@1.3.1/dist/leaflet.css" integrity="sha512-Rksm5RenBEKSKFjgI3a41vrjkw4EVPlJ3+OiI65vTjIdo9brlAacEuKOiQ5OFh7cOI1bkDwLqdLw3Zg0cRJAAQ==" crossorigin=""/>
 	            </Helmet>
 
-				<Map crs={crs} onMouseMove={(ev) => this.setState({mousePos: ev.latlng})} zoomControl={false} onViewportChanged={this.onViewportChanged} viewport={this.state.viewport}>
+				<Map ref="map" crs={crs} onMouseMove={(ev) => this.setState({mousePos: ev.latlng})} zoomControl={false} onViewportChanged={this.onViewportChanged} viewport={this.state.viewport}>
 			        <ZoomControl position="topright" />
 					<Control position="topleft" >
 					<div>

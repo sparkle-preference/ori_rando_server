@@ -229,8 +229,9 @@ class GameTracker extends React.Component {
   };
 
   componentDidMount() {
-      this.getGamedata();
-	  this.interval = setInterval(() => this.tick(), 1000);
+        setTimeout(() => this.refs['map'].leafletElement.invalidateSize(false), 100);
+        this.getGamedata();
+        this.interval = setInterval(() => this.tick(), 1000);
   };
 
   timeout = () => {
@@ -358,7 +359,7 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
 	                <style>{'body { background-color: black}'}</style>
 					<link rel="stylesheet" href="https://unpkg.com/leaflet@1.3.1/dist/leaflet.css" integrity="sha512-Rksm5RenBEKSKFjgI3a41vrjkw4EVPlJ3+OiI65vTjIdo9brlAacEuKOiQ5OFh7cOI1bkDwLqdLw3Zg0cRJAAQ==" crossorigin=""/>
 	            </Helmet>
-		      	<Map crs={crs} onMouseMove={(ev) => this.setState({mousePos: ev.latlng})} zoomControl={false} onViewportChanged={this.onViewportChanged} viewport={this.state.viewport}>
+		      	<Map ref="map" crs={crs} onMouseMove={(ev) => this.setState({mousePos: ev.latlng})} zoomControl={false} onViewportChanged={this.onViewportChanged} viewport={this.state.viewport}>
 		      	     <ZoomControl position="topright" />
 
 					<TileLayer url=' https://ori-tracker.firebaseapp.com/images/ori-map/{z}/{x}/{y}.png' noWrap='true' />

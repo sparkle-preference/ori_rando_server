@@ -326,7 +326,7 @@ class LogicHelper extends React.Component {
     }
 
 
-     componentWillMount() {
+    componentWillMount() {
         let url = new URL(window.document.location.href); // TODO: get all non-proccessed url params this way instead of via template (it's easier)
         let pathmode = url.searchParams.get("pathmode");
         let search = url.searchParams.get("search") || "";
@@ -342,6 +342,10 @@ class LogicHelper extends React.Component {
 
         this.setState({modes: modes, search: search, pathMode: {label: pathmode, value: pathmode}, manual_reach: manual_reach}, () => {this.updateReachable() ; this.updateURL()})
     };
+    componentDidMount() {
+        setTimeout(() => this.refs['map'].leafletElement.invalidateSize(false), 100);
+    }
+
 
     onDragEnter = () => this.setState({dropzoneActive: true});
 
@@ -585,7 +589,7 @@ class LogicHelper extends React.Component {
                     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.3.1/dist/leaflet.css" integrity="sha512-Rksm5RenBEKSKFjgI3a41vrjkw4EVPlJ3+OiI65vTjIdo9brlAacEuKOiQ5OFh7cOI1bkDwLqdLw3Zg0cRJAAQ==" crossorigin=""/>
                 </Helmet>
 
-                <Map crs={crs} ref="map" zoomControl={false} onMouseMove={(ev) => this.setState({mousePos: ev.latlng})} onViewportChanged={this.onViewportChanged} viewport={this.state.viewport}>
+                <Map ref="map" crs={crs} ref="map" zoomControl={false} onMouseMove={(ev) => this.setState({mousePos: ev.latlng})} onViewportChanged={this.onViewportChanged} viewport={this.state.viewport}>
                     <ZoomControl position="topright" />
                     <Control position="topleft" >
                     <div>

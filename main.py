@@ -262,7 +262,7 @@ class SetSeed(RequestHandler):
 class ShowMap(RequestHandler):
     def get(self, game_id):
         path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
-        template_values = {'app': "gameTracker", 'title': "Game %s" % game_id, 'game_id': game_id}
+        template_values = {'app': "GameTracker", 'title': "Game %s" % game_id, 'game_id': game_id}
         if debug and paramFlag(self, "from_test"):
             game = Game.with_id(game_id)
             pos = Cache.getPos(game_id)
@@ -373,7 +373,7 @@ class GetPlayerPositions(RequestHandler):
 class Plando(RequestHandler):
     def get(self):
         path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
-        template_values = {'app': "plandoBuilder", 'title': "Plandomizer Editor " + PLANDO_VER,
+        template_values = {'app': "PlandoBuilder", 'title': "Plandomizer Editor " + PLANDO_VER,
                            'pathmode': paramVal(self, 'pathmode'), 'HC': paramVal(self, 'HC'),
                            'EC': paramVal(self, 'EC'), 'AC': paramVal(self, 'AC'), 'KS': paramVal(self, 'KS'),
                            'skills': paramVal(self, 'skills'), 'tps': paramVal(self, 'tps'),  'evs': paramVal(self, 'evs')}
@@ -524,7 +524,7 @@ class PlandoView(RequestHandler):
                 self.response.status = 200
                 self.response.headers['Content-Type'] = 'text/html'
                 path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
-                template_values = {'app': "seedDisplay", 'title': "%s by %s" % (plando, author),
+                template_values = {'app': "SeedDisplay", 'title': "%s by %s" % (plando, author),
                                    'players': seed.players, 'seed_data': seed.to_lines()[0],
                                    'seed_name': plando, 'author': author, 'authed': True, 'seed_desc': seed.description,
                                    'user': dispname, 'game_id': Game.get_open_gid()}
@@ -541,7 +541,7 @@ class PlandoView(RequestHandler):
 class PlandoEdit(RequestHandler):
     def get(self, author, plando):
         path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
-        template_values = {'app': "plandoBuilder", 'title': "Plandomizer Editor " + PLANDO_VER, 'seed_name': plando}
+        template_values = {'app': "PlandoBuilder", 'title': "Plandomizer Editor " + PLANDO_VER, 'seed_name': plando}
         owner = False
         user = users.get_current_user()
         if user:
@@ -569,7 +569,7 @@ class PlandoOld(RequestHandler):
             dispname = user.email().partition("@")[0]
             self.redirect("/plando/%s/seedName/edit" % dispname)
         else:
-            template_values = {'app': "plandoBuilder", 'title': "Plandomizer Editor (Beta)",
+            template_values = {'app': "PlandoBuilder", 'title': "Plandomizer Editor (Beta)",
                                'pathmode': paramVal(self, 'pathmode'), 'HC': paramVal(self, 'HC'),
                                'EC': paramVal(self, 'EC'), 'AC': paramVal(self, 'AC'), 'KS': paramVal(self, 'KS'),
                                'skills': paramVal(self, 'skills'), 'tps': paramVal(self, 'tps'), 'evs': paramVal(self, 'evs')}
@@ -703,7 +703,7 @@ class DiscordRedirect(RequestHandler):
 class LogicHelper(RequestHandler):
     def get(self):
         path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
-        template_values = {'app': "logicHelper", 'title': "Logic Helper!", 'is_spoiler': "True",
+        template_values = {'app': "LogicHelper", 'title': "Logic Helper!", 'is_spoiler': "True",
                            'pathmode': paramVal(self, 'pathmode'), 'HC': paramVal(self, 'HC'),
                            'EC': paramVal(self, 'EC'), 'AC': paramVal(self, 'AC'), 'KS': paramVal(self, 'KS'),
                            'skills': paramVal(self, 'skills'), 'tps': paramVal(self, 'tps'), 'evs': paramVal(self, 'evs')}
@@ -714,7 +714,7 @@ class ReactLanding(RequestHandler):
         user = users.get_current_user()
         dispname = user.email().partition("@")[0] if user else ""
         path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
-        template_values = {'app': "mainPage", 'dll_last_update': "N/A", 'title': "Ori DE Randomizer", 'user': dispname}
+        template_values = {'app': "MainPage", 'dll_last_update': "N/A", 'title': "Ori DE Randomizer", 'user': dispname}
         self.response.out.write(template.render(path, template_values))
 
 
@@ -817,6 +817,12 @@ class PicksByTypeGen(RequestHandler):
         self.response.out.write(picks_by_type_generator())
         return
 
+class RebindingsEditor(RequestHandler):
+    def get(self):
+        path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
+        template_values = {'app': "RebindingsEditor", 'title': "Ori DE Rebindings Editor"}
+        self.response.out.write(template.render(path, template_values))
+
 
 app = WSGIApplication(routes=[
     # testing endpoints
@@ -859,6 +865,7 @@ app = WSGIApplication(routes=[
     Route('/logichelper', handler=LogicHelper, name="logic-helper", strict_slash=True),
     (r'/logichelper/?', LogicHelper),
     ('/', ReactLanding),
+    ('/rebinds', RebindingsEditor),
     ('/quickstart', ReactLanding),
     (r'/activeGames/?', ActiveGames),
     (r'/clean/?', CleanUp),
