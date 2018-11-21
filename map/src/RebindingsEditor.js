@@ -156,7 +156,7 @@ export default class RebindingsEditor extends React.Component {
                                 To use: customize your keybindings using the form and click download.
                                 Then, press Windows+R to open the "run" dialog, paste in this text <code>%localappdata%/Ori&nbsp;and&nbsp;the&nbsp;Blind&nbsp;Forest&nbsp;DE/</code> and
                                 press enter to open your Ori AppData folder (this is where your keybindings and save files are stored).
-                                Copy the downloaded KeyRebindings.txt into this folder, replacing the existing one. 
+                                Copy the downloaded KeyRebindings.txt into this folder, replacing the existing one (You'll need to restart the game if it's already running).
                             </Col>
                             <Col xs="12" className="p-2">
                                 The common shortcuts above are compound binds (Charge Dash is Dash + Charge Jump, for example) to make certain tricks or actions easier. Depending on how
