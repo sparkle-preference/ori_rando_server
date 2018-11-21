@@ -1,9 +1,9 @@
 import React from 'react';
-import {get_param, get_int, get_seed} from './common.js';
 import {Container, Row, Col, Button} from 'reactstrap';
 import {Helmet} from 'react-helmet';
 import {download} from "./shared_map.js"
 import Select, { createFilter } from 'react-select';
+import SiteBar from "./SiteBar.js"
 
 const textStyle = {color: "black", textAlign: "center"}
 
@@ -54,13 +54,13 @@ const Keys = [
 const DEFAULT_BINDINGS = {
     "Movement Left": ["A", "LeftArrow"], "Movement Right": ["D", "RightArrow"], "Movement Down": ["S", "DownArrow"], "Movement Up": ["W", "UpArrow"], "Menu Left": ["A", "LeftArrow"], "Menu Right": ["D", "RightArrow"], 
     "Menu Down": ["S", "DownArrow"], "Menu Up": ["W", "UpArrow"], "Menu Previous": ["K", "PageUp"], "Menu Next": ["L", "PageDown"], "Proceed": ["Space", "Return"], "Soul Link": ["E"], "Jump": ["Space"], 
-    "Grab": ["LeftShift", "RightShift"], "Spirit Flame": ["X"], "Bash": ["Mouse1", "C"], "Glide": ["LeftShift", "RightShift"], "Charge Jump": ["UpArrow", "W"], "Select": ["Tab"], "Start": ["Escape"], "Cancel": ["Mouse1", "Escape"], 
+    "Grab": ["LeftShift", "RightShift"], "Spirit Flame": ["X"], "Bash": ["Mouse1", "C"], "Glide": ["LeftShift", "RightShift"], "Charge Jump": ["UpArrow", "W"], "Select": ["Tab"], "Start": ["Escape"], "Cancel": ["Escape", "Mouse1"], 
     "Grenade": ["R"], "Dash": ["LeftControl", "RightControl"], "Left Stick": ["Alpha7"], "Debug Menu (shhh)": ["Alpha8"], "Zoom In World Map": ["RightShift", "LeftShift"], 
     "Zoom Out World Map": ["RightControl", "LeftControl"], "Copy": ["C"], "Delete": ["Delete"], "Focus": ["F"], "Filter": ["F"], "Legend": ["L"]
 }
 
 const COMPOUND_ACTIONS = {
-    "Save Anywhere": ["Spirit Flame", "Cancel"],
+    "Save Anywhere": ["Spirit Flame", "Cancel", "Proceed"],
     "Charge Dash": ["Charge Jump", "Dash"],
     "Rocket Jump": ["Charge Jump", "Dash", "Jump"],
     "Bashable Grenade": ["Grenade", "Movement Down"],
@@ -112,43 +112,64 @@ export default class RebindingsEditor extends React.Component {
     }
     render = () => {
         return (
-            <Container className="pl-4 pr-4 pb-4 pt-2 mt-2 w-75 border border-dark">
-            <Helmet>
-                <style>{'body { background-color: white}'}</style>
-            </Helmet>
-            <Row className="p-1">
-                <Col>
-                    <span><h3 style={textStyle}>Ori Rebinding Editor</h3></span>
-                </Col>
-            </Row>
-            <Row>
-                <Col xs="7">
-                    <Row className="p-1">
-                        <Col>
-                            <span><h5 style={textStyle}>Normal Controls</h5></span>
-                        </Col>
-                    </Row>
-                    <KeyRows setter={this.OnKey} bindings={this.state.bindings}/>
-                </Col>
-                <Col xs="5">
-                    <Row className="p-1">
-                        <Col>
-                            <span><h5 style={textStyle}>Common Shortcuts</h5></span>
-                        </Col>
-                    </Row>
-                    <KeyRows setter={this.OnCompound} bindings={this.state.compounds}/>
-                    <Row>
-                        <Col xs="4">
-                            <Button block onClick={this.reset}>Defaults</Button>
-                        </Col>
-                        <Col xs="4">
-                            <Button block onClick={this.download}>Download</Button>
-                        </Col>
-                    </Row>
-                </Col>
-            </Row>
-        </Container>
-    )
+            <Container className="pl-4 pr-4 pb-4 pt-2 mt-2 w-75">
+                <Helmet>
+                    <style>{'body { background-color: white}'}</style>
+                </Helmet>
+                <SiteBar user={this.state.user}/>
+                <Row className="p-1">
+                    <Col>
+                        <span><h3 style={textStyle}>Ori Rebinding Editor</h3></span>
+                    </Col>
+                </Row>
+                <Row>
+                    <Col xs="7">
+                        <Row className="p-1">
+                            <Col>
+                                <span><h5 style={textStyle}>Normal Controls</h5></span>
+                            </Col>
+                        </Row>
+                        <KeyRows setter={this.OnKey} bindings={this.state.bindings}/>
+                    </Col>
+                    <Col xs="5">
+                        <Row className="p-1">
+                            <Col>
+                                <span><h5 style={textStyle}>Common Shortcuts</h5></span>
+                            </Col>
+                        </Row>
+                        <KeyRows setter={this.OnCompound} bindings={this.state.compounds}/>
+                        <Row>
+                            <Col xs="4">
+                                <Button block onClick={this.reset}>Defaults</Button>
+                            </Col>
+                            <Col xs="4">
+                                <Button block onClick={this.download}>Download</Button>
+                            </Col>
+                        </Row>
+                        <Row className="p-2 m-2 border">
+                            <Col xs="12" className="p-2">
+                                Ori and the Blind Forest supports key remapping through a text file,
+                                KeyRebindings.txt. This webpage creates properly formatted versions of 
+                                that file. 
+                            </Col>
+                            <Col xs="12" className="p-2">
+                                To use: customize your keybindings using the form and click download.
+                                Then, press Windows+R to open the "run" dialog, paste in this text <code>%localappdata%/Ori&nbsp;and&nbsp;the&nbsp;Blind&nbsp;Forest&nbsp;DE/</code> and
+                                press enter to open your Ori AppData folder (this is where your keybindings and save files are stored).
+                                Copy the downloaded KeyRebindings.txt into this folder, replacing the existing one. 
+                            </Col>
+                            <Col xs="12" className="p-2">
+                                The common shortcuts above are compound binds (Charge Dash is Dash + Charge Jump, for example) to make certain tricks or actions easier. Depending on how
+                                you play Ori, you may want other, more specific bindings: ask around on the discord for more info.
+                            </Col>
+                            <Col xs="12" className="p-2">
+                                <i>The instructions on this page are still being written. If you're confused, don't panic! Join the <a href="/discord" target='_blank' rel='noopener noreferrer'>Ori Discord</a> for help. (Feel free to ping @Eiko with any questions about this website).</i>
+                            </Col>
+                        </Row>
+                    </Col>
+                </Row>
+            </Container>
+        )
     }
 };
 
