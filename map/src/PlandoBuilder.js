@@ -283,14 +283,16 @@ class PlandoBuiler extends React.Component {
 
     place = (s) => {
 		if(s.value.length < 4 || s.value[2] !== "|") {
-			NotificationManager.warning("Pickup should be in the form XX|Y", "Invalid Pickup!",2000);
-				return;
+			NotificationManager.warning("Pickup should be in the form XX|Y", "Invalid Pickup!", 1000);
+            this.setState({stuff: s});
+            return;
 		}
-		let reserved_chars = ["|", "#"];
+		let reserved_chars = ["|"];
 		let stuff_id = s.value.substr(3);
 		if(reserved_chars.some(c => stuff_id.includes(c))) {
-				NotificationManager.warning("'" + stuff_id + "' contains a forbidden character", "Invalid Id!",1000);
-				return;
+            NotificationManager.warning("'" + stuff_id + "' contains a forbidden character", "Invalid Id!",1000);
+            this.setState({stuff: s});
+            return;
 		}
 
     	let r = relevantCodes.includes(this.state.stuff.value.substr(0,2)) ? {...DEFAULT_REACHABLE} : this.state.reachable;

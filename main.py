@@ -348,6 +348,8 @@ class GetReachable(RequestHandler):
             player_hist = [hl for hl in hist[player] if hl.coords not in shared_coords] + shared_hist
             state = PlayerState([(h.pickup_code, h.pickup_id, 1, h.removed) for h in player_hist])
             areas = {}
+            if state.has["KS"] > 8 and "standard-core" in modes:
+                state.has["KS"] += 2 * (state.has["KS"] - 8)
             for area, reqs in Map.get_reachable_areas(state, modes).items():
                 areas[area] = [{item: count for (item, count) in req.cnt.items()} for req in reqs if len(req.cnt)]
             reachable_areas[player] = areas

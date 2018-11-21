@@ -1,6 +1,5 @@
 from datetime import timedelta, datetime
 
-
 class Cache(object):
     """A static cache object for holding player positions, histories,
         and the time since the last sanity check"""
