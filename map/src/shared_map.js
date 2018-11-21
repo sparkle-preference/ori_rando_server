@@ -197,21 +197,16 @@ function pickup_name(code, id) {
         return names[code][id];
      
     switch(code) {
+        case "MU":
         case "RP":
             let parts = id.split("/");
             let names = [];
             while(parts.length > 1) {
                 names.push(pickup_name(parts.shift(), parts.shift()))
             }
-            return "Repeatable: " + names.join(", ")
-            break;
-        case "MU":
-            let parts2 = id.split("/");
-            let names2 = [];
-            while(parts2.length > 1) {
-                names2.push(pickup_name(parts2.shift(), parts2.shift()))
-            }
-            return names2.join(", ")
+            if(code === "RP")
+                return "Repeatable: " + names.join(", ")
+            return names.join(", ")
         case "TP":
             return id + "TP";
         case "EX":

@@ -669,6 +669,9 @@ function getReachable(setter, modes, codes)
                         }
                         old_reachable[area] = uniq(old_reachable[area].concat(paths));
                     });
+                    if(Object.keys(old_reachable).length >= 455) {
+                        old_reachable["FinalEscape"] = [];
+                    }
                     return {reachable: old_reachable, new_areas: new_areas, history: history, step: step+1, highlight_picks: []}                    
                 });
             })(xmlHttp.responseText);

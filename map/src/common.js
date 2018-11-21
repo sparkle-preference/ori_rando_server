@@ -2,7 +2,6 @@ import React from 'react';
 import Leaflet from 'leaflet';
 import {BeatLoader, BounceLoader, CircleLoader, ClipLoader, ClimbingBoxLoader, DotLoader, GridLoader, HashLoader, MoonLoader,
          PacmanLoader, PulseLoader, RingLoader, RiseLoader, RotateLoader, SyncLoader, FadeLoader, ScaleLoader} from 'react-spinners';
-import { css } from 'react-emotion';
 import  {Badge} from 'reactstrap';
 const loaders = [
     (<BeatLoader  loading/>),

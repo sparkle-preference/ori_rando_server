@@ -18,7 +18,7 @@ class PlayerState(object):
             self.has[PlayerState.name_from_id[(pickup.code, pickup.id)]] = (0 if removed else count)
         elif pickup.code == "RB":
             if pickup.id in [17, 19, 21]:
-                self.has["RB%s" % id] += (-count if removed else count)
+                self.has["RB%s" % pickup.id] += (-count if removed else count)
         elif pickup.code in ["HC", "EC", "KS", "MS", "AC"]:
             self.has[pickup.code] += (-count if removed else count)
 
@@ -36,11 +36,11 @@ class PlayerState(object):
                     self.add_to_inventory(child, removed, count)
             else:
                 self.add_to_inventory(pickup, removed, count)
-        if self.has["RB17"] >= 3:
+        if self.has["RB17"] == 5:
             self.has['GinsoKey'] = 1
-        if self.has["RB19"] >= 3:
+        if self.has["RB19"] == 5:
             self.has['ForlornKey'] = 1
-        if self.has["RB21"] >= 3:
+        if self.has["RB21"] == 5:
             self.has['HoruKey'] = 1
 
 class Area(object):

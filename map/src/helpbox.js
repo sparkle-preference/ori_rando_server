@@ -83,7 +83,6 @@ const getHelpHelper = (category, option) => {
             }
             h.subtitle = "Flags"
             return h
-            break;
         case "logicModes":    
             subtitle = "Logic Modes"
             switch(option) {

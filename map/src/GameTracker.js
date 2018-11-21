@@ -1,8 +1,6 @@
 import './index.css';
-import React, {Fragment} from 'react';
+import React from 'react';
 import {Map, Tooltip, TileLayer, Marker, ZoomControl} from 'react-leaflet';
-import {Checkbox, CheckboxGroup} from 'react-checkbox-group';
-import {Radio, RadioGroup} from 'react-radio-group';
 import Leaflet from 'leaflet';
 import {presets, player_icons, get_preset, logic_paths, Blabel} from './common.js';
 import {picks_by_type, PickupMarkersList, get_icon, getMapCrs, hide_opacity, select_styles, uniq, select_wrap} from './shared_map.js';
