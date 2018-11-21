@@ -1,6 +1,6 @@
 import './index.css';
-import React from 'react';
-import {Map, Tooltip, TileLayer, Marker, ZoomControl} from 'react-leaflet';
+import React, {Fragment} from 'react';
+import {Map, Tooltip, TileLayer, Marker, ZoomControl, Circle} from 'react-leaflet';
 import Leaflet from 'leaflet';
 import {presets, player_icons, get_preset, logic_paths, Blabel} from './common.js';
 import {picks_by_type, PickupMarkersList, get_icon, getMapCrs, hide_opacity, select_styles, uniq, select_wrap} from './shared_map.js';
@@ -12,7 +12,7 @@ import {Helmet} from 'react-helmet';
 const paths = Object.keys(presets);
 const game_id = document.getElementsByClassName("game-id")[0].id;
 
-const EMPTY_PLAYER = {seed: {}, pos: [-210, 189], seen:[], show_marker: true, hide_found: true, hide_unreachable: true, spoiler: false, hide_remaining: false, areas: []}
+const EMPTY_PLAYER = {seed: {}, pos: [-210, 189], seen:[], show_marker: true, hide_found: true, hide_unreachable: true, spoiler: false, hide_remaining: false, sense: false, areas: []}
 
 function get_inner(id) {
 	return (
@@ -22,7 +22,13 @@ function get_inner(id) {
 	);
 };
 
-const PlayerMarker = ({ map, position, icon, inner}) => (
+const PlayerMarker = ({ map, position, icon, inner, sense}) => sense ? (
+    <Fragment>
+	<Marker map={map} position={position} icon={icon}>
+		{inner}
+	</Marker>
+    <Circle center={position} radius={64}/>
+	</Fragment>) : (
 	<Marker map={map} position={position} icon={icon}>
 		{inner}
 	</Marker>
@@ -31,7 +37,7 @@ const PlayerMarker = ({ map, position, icon, inner}) => (
 const PlayerMarkersList = ({map, players}) => {
 	let players_to_show = Object.keys(players).filter(id => players[id].show_marker)
 	const items = players_to_show.map((id) => (
-		<PlayerMarker  key={"player_"+id} map={map} position={players[id].pos} inner={get_inner(id)} icon={player_icons(id)}  />
+		<PlayerMarker  key={"player_"+id} map={map} position={players[id].pos} inner={get_inner(id)} icon={player_icons(id)} sense={players[id].show_sense}  />
 	));
 	return (<div style={{display: 'none'}}>{items}</div>);
 }
@@ -48,11 +54,12 @@ const PlayerUiOpts = ({players, setter}) => {
 		return (
 			<Row className="pt-2 pb-2">
                 <Col className="p-1"><Blabel color="light">Player {id}</Blabel></Col>
-                <Col className="p-1"><Button block active={players[id]["show_marker"]} color="primary" outline={!players[id]["show_marker"]} onClick={tog(id, "show_marker")}>Visible</Button></Col>
-                <Col className="p-1"><Button block active={players[id]["show_spoiler"]} color="primary" outline={!players[id]["show_spoiler"]} onClick={tog(id, "show_spoiler")}>Spoilers</Button></Col>
-                <Col className="p-1"><Button block active={players[id]["hide_found"]} color="primary" outline={!players[id]["hide_found"]} onClick={tog(id, "hide_found")}>Hide found</Button></Col>
-                <Col className="p-1"><Button block active={players[id]["hide_unreachable"]} color="primary" outline={!players[id]["hide_unreachable"]} onClick={tog(id, "hide_unreachable")}>Hide unreachable</Button></Col>
-                <Col className="p-1"><Button block active={players[id]["hide_remaining"]} color="primary" outline={!players[id]["hide_remaining"]} onClick={tog(id, "hide_remaining")}>Hide remaining</Button></Col>
+                <Col className="p-1"><Button block active={players[id].show_marker} color="primary" outline={!players[id].show_marker} onClick={tog(id, "show_marker")}>Visible</Button></Col>
+                <Col className="p-1"><Button block active={players[id].show_spoiler} color="primary" outline={!players[id].show_spoiler} onClick={tog(id, "show_spoiler")}>Spoilers</Button></Col>
+                <Col className="p-1"><Button block active={players[id].show_sense} color="primary" outline={!players[id].show_sense} onClick={tog(id, "show_sense")}>Sense</Button></Col>
+                <Col className="p-1"><Button block active={players[id].hide_found} color="primary" outline={!players[id].hide_found} onClick={tog(id, "hide_found")}>Hide found</Button></Col>
+                <Col className="p-1"><Button block active={players[id].hide_unreachable} color="primary" outline={!players[id].hide_unreachable} onClick={tog(id, "hide_unreachable")}>Hide unreachable</Button></Col>
+                <Col className="p-1"><Button block active={players[id].hide_remaining} color="primary" outline={!players[id].hide_remaining} onClick={tog(id, "hide_remaining")}>Hide remaining</Button></Col>
             </Row>
 		);
 	});
