@@ -1,7 +1,7 @@
 import React from 'react';
 import {Container, Row, Col, Button} from 'reactstrap';
 import {Helmet} from 'react-helmet';
-import {download} from "./shared_map.js"
+import {download, uniq} from "./shared_map.js"
 import Select, { createFilter } from 'react-select';
 import SiteBar from "./SiteBar.js"
 
@@ -102,6 +102,7 @@ export default class RebindingsEditor extends React.Component {
                 if(COMPOUND_ACTIONS[c_act].includes(action))
                     bindings = bindings.concat(this.state.compounds[c_act])
             })
+            bindings = uniq(bindings)
             if(bindings.length == 0) {
                 bindings.push("None")
             }
@@ -139,7 +140,7 @@ export default class RebindingsEditor extends React.Component {
                         </Row>
                         <KeyRows setter={this.OnCompound} bindings={this.state.compounds}/>
                         <Row>
-                            <Col xs="4">
+                            <Col xs={{size: 4, offset: 2}}>
                                 <Button block onClick={this.reset}>Defaults</Button>
                             </Col>
                             <Col xs="4">
