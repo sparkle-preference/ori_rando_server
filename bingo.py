@@ -72,6 +72,11 @@ class BreakNBarriers(Card):
     def get():
         return "Break %s breakable walls" % randint(3, 6)
 
+class BreakNBarriers(Card):
+    @staticmethod
+    def get():
+        return "Break %s breakable floors/ceilings" % randint(4, 8)
+
 
 class OpenNrgyDoors(Card):
     @staticmethod
@@ -91,12 +96,12 @@ class HaveNKeystones(Card):
 class DieToXorY(Card):
     @staticmethod
     def get():
-        return "Die to %s or %s" % tuple(sample(["Valley Killplane", "Forlorn Approach Baneling", "Horu Lavafalls", "Spidersack spikes", "Misty Baneling", "Lightning above Sorrow Pass", "Lasers above far right Forlorn plant", "Lost Grove Lasers"], 2))
+        return "Die to %s or %s" % tuple(sample(["Kuro (anywhere)", "Forlorn Approach Baneling", "Horu Lava", "Spidersack spikes", "Misty Baneling", "Lightning above Sorrow Pass", "Lasers above far right Forlorn plant", "Lost Grove Lasers"], 2))
 
 class NTotalPickups(Card):
     @staticmethod
     def get():
-        return "Collect %s pickups" % randint(80, 120)
+        return "Collect %s pickups" % randint(60, 100)
 
 class GrenadeLocked(Card):
     @staticmethod
@@ -162,12 +167,12 @@ class NEscapeS(Card):
 class ActivateNTPs(Card):
     @staticmethod
     def get():
-        return "Activate %s Spirit Wells" % randint(3, 6)
+        return "Activate %s Spirit Wells" % randint(2, 5)
 
 class StompPegXorY(Card):
     @staticmethod
     def get():
-        return "Stomp the peg at %s or %s" % tuple(sample(["Hollow Groves Spider Lake", "Kuro CS Tree", "Sorrow Tumbleweed Area", "Swamp Post-Stomp", "Valley Enterance", "Above Death Gauntlet"], 2))
+        return "Stomp the peg(s) at %s or %s" % tuple(sample(["Hollow Groves Spider Lake", "Kuro CS Tree", "Sorrow Tumbleweed Area", "Swamp Post-Stomp", "Above Death Gauntlet"], 2))
     
 class ActivateNTrees(Card):
     @staticmethod
@@ -185,7 +190,7 @@ class MapstoneN(Card):
     def get():
         return "Turn in Mapstone %s" % randint(2, 9)
 
-class XorYTp(Card):
+class XorYTp(Rando, Card):
     @staticmethod
     def get():
         return "Find or Activate the %s, %s, or %s TP" % tuple(sample(AREAS_WITH_TPS, 3))
@@ -223,7 +228,7 @@ class EventLocationXorY(Card):
 class WatchXorY(Card):
     @staticmethod
     def get():
-        return "Watch (don't skip) %s or %s" % tuple(sample(["Racist Dad 3", "Spirit Tree Cutscene", "Post-Forlorn Escape Cutscene", "Racist Dad 2", "Sunstone cutscene", "Kuro CS"], 2))
+        return "Watch (don't skip) %s or %s" % tuple(sample(["Racist Dad 3", "Spirit Tree Cutscene", "Post-Forlorn Escape Cutscene", "Racist Dad 2", "Sunstone cutscene", "Post-Ginso Escape cutscene"], 2))
 
 class XorYTree(Card):
     @staticmethod

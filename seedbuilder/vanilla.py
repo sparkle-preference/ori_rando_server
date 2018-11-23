@@ -1,7 +1,7 @@
-seedtext = """Vanilla|Vanilla
+seedtext = """ClosedDungeons,StompTriggers|Vanilla
 -280256|EC|1|Glades
 -1680104|EX|100|Grove
--12320248|SH| |Forlorn
+-12320248|NO|1|Forlorn
 -10440008|KS|1|Misty
 919772|EX|15|Glades
 -1560272|EX|15|Glades
@@ -18,7 +18,7 @@ seedtext = """Vanilla|Vanilla
 -2840236|EX|15|Glades
 2999808|EX|100|Grove
 4199828|EC|1|Grotto
--840248|SH| |Glades
+-840248|NO|1|Glades
 -480168|AC|1|Glades
 -2480280|EX|200|Glades
 -3360288|EC|1|Glades
@@ -33,7 +33,7 @@ seedtext = """Vanilla|Vanilla
 -1560188|EC|1|Glades
 -1680140|AC|1|Glades
 -560160|SK|2|Grove
-399844|SH| |Grove
+399844|NO|1|Grove
 39804|EX|100|Glades
 -160096|EX|100|Grove
 639888|AC|1|Grove
@@ -44,11 +44,11 @@ seedtext = """Vanilla|Vanilla
 1799708|AC|1|Blackroot
 1959768|EX|100|Blackroot
 2919744|SK|50|Blackroot
-3119768|SH| |Blackroot
+3119768|NO|1|Blackroot
 3039696|EX|100|Blackroot
 3439744|MS|1|Blackroot
 3919688|HC|1|Blackroot
-4159708|SH| |Blackroot
+4159708|NO|1|Blackroot
 4319676|EX|100|Blackroot
 719620|SK|51|Blackroot
 2239640|EX|100|Blackroot
@@ -64,13 +64,13 @@ seedtext = """Vanilla|Vanilla
 2999904|MS|1|Grove
 6999916|AC|1|Swamp
 6159900|EX|100|Swamp
-3479880|SH| |Grove
+3479880|NO|1|Grove
 3319936|AC|1|Grove
-3639880|SH| |Grove
-3279920|SH| |Grove
-6279880|SH| |Swamp
-4319860|SH| |Grotto
-5119900|SH| |Swamp
+3639880|NO|1|Grove
+3279920|NO|1|Grove
+6279880|NO|1|Swamp
+4319860|NO|1|Grotto
+5119900|NO|1|Swamp
 3519820|AC|1|Grove
 6639952|EX|200|Swamp
 4079964|AC|1|Swamp
@@ -84,7 +84,7 @@ seedtext = """Vanilla|Vanilla
 4319892|EX|100|Grotto
 3639888|EX|100|Grove
 5799932|HC|1|Swamp
-5399780|SH| |Grotto
+5399780|NO|1|Grotto
 4479832|EX|200|Grotto
 4999892|AC|1|Swamp
 5919864|EX|200|Swamp
@@ -92,7 +92,7 @@ seedtext = """Vanilla|Vanilla
 4199724|EX|100|Grotto
 4239780|HC|1|Grotto
 5519856|EX|100|Grotto
-5359824|SH| |Grotto
+5359824|NO|1|Grotto
 4479704|AC|1|Grotto
 5119584|MS|1|Grotto
 6199596|KS|1|Grotto
@@ -101,30 +101,29 @@ seedtext = """Vanilla|Vanilla
 4959628|EX|15|Grotto
 4639628|EX|15|Grotto
 4479568|AC|1|Grotto
-4759608|SH| |Grotto
+4759608|NO|1|Grotto
 7839588|SK|5|Grotto
 7559600|EX|100|Grotto
 5439640|EC|1|Grotto
 5639752|EX|100|Grotto
-0|EV|0|Grotto
 4039612|EX|100|Grotto
 3919624|HC|1|Grotto
 3279644|EX|100|Grotto
-4439632|SH| |Grotto
-4359656|SH| |Grotto
-4919600|SH| |Grotto
+4439632|NO|1|Grotto
+4359656|NO|1|Grotto
+4919600|NO|1|Grotto
 3959588|EX|100|Grotto
 5119556|EC|1|Grotto
 5039560|EX|200|Grotto
 6399872|AC|1|Swamp
 3199820|HC|1|Grove
-3399820|SH| |Grove
+3399820|NO|1|Grove
 5200140|EX|100|Ginso
 5280264|KS|1|Ginso
 5400276|KS|1|Ginso
 5080304|KS|1|Ginso
 5280296|KS|1|Ginso
-5400100|SH| |Ginso
+5400100|NO|1|Ginso
 5320328|SK|0|Ginso
 5160336|EX|100|Ginso
 5040476|KS|1|Ginso
@@ -136,13 +135,12 @@ seedtext = """Vanilla|Vanilla
 5360432|EC|1|Ginso
 4560564|EX|100|Ginso
 4680612|EX|100|Ginso
-6080608|SH| |Ginso
+6080608|NO|1|Ginso
 5320660|EX|200|Ginso
 5360732|EX|100|Ginso
 5320824|EX|100|Ginso
 5160864|EX|100|Ginso
-4|EV|1|Ginso
-6759868|SH| |Swamp
+6759868|NO|1|Swamp
 6359836|EX|100|Swamp
 7599824|EX|100|Swamp
 6839792|KS|1|Swamp
@@ -156,27 +154,26 @@ seedtext = """Vanilla|Vanilla
 8719856|EX|200|Swamp
 959960|EX|200|Grove
 1720000|EC|1|Grove
-1240020|SH| |Grove
+1240020|NO|1|Grove
 1759964|AC|1|Grove
 1599920|HC|1|Grove
-560340|SH| |Horu
+560340|NO|1|Horu
 -319852|EX|200|Horu
 -1919808|EX|200|Horu
 120164|EX|200|Horu
 1920384|EX|100|Horu
 1480360|MS|1|Horu
 2480400|EC|1|Horu
-3160244|SH| |Horu
+3160244|NO|1|Horu
 1880164|EX|200|Horu
 2520192|EX|200|Horu
 1600136|EX|200|Horu
 1280164|EX|200|Horu
 1040112|EX|200|Horu
 960128|EX|200|Horu
-20|EV|5|Horu
 -2080116|AC|1|Valley
 -2240084|EX|100|Valley
--1800088|SH| |Valley
+-1800088|NO|1|Valley
 -3200164|EC|1|Valley
 -3559936|AC|1|Valley
 -4199936|EX|100|Valley
@@ -185,8 +182,8 @@ seedtext = """Vanilla|Vanilla
 -5479948|EX|200|Sorrow
 -6800032|EX|100|Misty
 -8240012|EX|100|Misty
--4080172|SH| |Valley
--4680068|SH| |Valley
+-4080172|NO|1|Valley
+-4680068|NO|1|Valley
 -5719844|EX|200|Sorrow
 -3600088|EX|100|Valley
 -4160080|AC|1|Valley
@@ -204,17 +201,16 @@ seedtext = """Vanilla|Vanilla
 -8920328|KS|1|Forlorn
 -8880252|KS|1|Forlorn
 -8720256|KS|1|Forlorn
--8440308|SH| |Forlorn
--8160268|SH| |Forlorn
+-8440308|NO|1|Forlorn
+-8160268|NO|1|Forlorn
 -6280316|HC|1|Forlorn
-12|EV|3|Forlorn
--6080316|SH| |Forlorn
+-6080316|NO|1|Forlorn
 -5119796|AC|1|Sorrow
 -4879680|KS|1|Sorrow
 -5039728|KS|1|Sorrow
 -5159700|KS|1|Sorrow
 -5959772|KS|1|Sorrow
--4519716|SH| |Sorrow
+-4519716|NO|1|Sorrow
 -4359680|MS|1|Sorrow
 -6119704|HC|1|Sorrow
 -6719712|AC|1|Sorrow
@@ -223,7 +219,7 @@ seedtext = """Vanilla|Vanilla
 -6039640|KS|1|Sorrow
 -6159632|KS|1|Sorrow
 -6279608|EC|1|Sorrow
--6319752|SH| |Sorrow
+-6319752|NO|1|Sorrow
 -6799732|EX|200|Sorrow
 -4559584|KS|1|Sorrow
 -4159572|KS|1|Sorrow
@@ -232,18 +228,30 @@ seedtext = """Vanilla|Vanilla
 -5919556|KS|1|Sorrow
 -6959592|SK|8|Sorrow
 -6479528|AC|1|Sorrow
-16|EV|4|Sorrow
--4799416|SH| |Sorrow
+-4799416|NO|1|Sorrow
 -9799980|EX|100|Misty
 -10760004|AC|1|Misty
 -10839992|EX|100|Misty
 -10120036|EX|100|Misty
 -10759968|KS|1|Misty
 -11880100|SK|12|Misty
--11040068|SH| |Misty
+-11040068|NO|1|Misty
 -8400124|EX|100|Misty
 -7960144|EX|200|Misty
 -9120036|KS|1|Misty
 -7680144|KS|1|Misty
-8|EV|2|Misty
--6720040|EX|200|Misty"""
+-6720040|EX|200|Misty
+4999752|EV|0|Grotto
+5480952|EV|1|Ginso
+-7200024|EV|2|Misty
+-7320236|EV|3|Forlorn
+-5599400|EV|4|Sorrow
+-2399488|EV|5|Horu
+-1639664|NO|1|Horu
+-199724|NO|1|Horu
+-919624|NO|1|Horu
+-959848|NO|1|Horu
+1720288|NO|1|Horu
+2160192|NO|1|Horu
+2640380|NO|1|Horu
+3040304|NO|1|Horu"""

@@ -823,6 +823,21 @@ class RebindingsEditor(RequestHandler):
         template_values = {'app': "RebindingsEditor", 'title': "Ori DE Rebindings Editor"}
         self.response.out.write(template.render(path, template_values))
 
+class VanillaPlusSeeds(RequestHandler):
+    def get(self):
+        skills = int(paramVal(self, "skills") or 3)
+        cells = int(paramVal(self, "cells") or 4)
+        skill_pool = ["SK/0", "SK/2", "SK/3", "SK/4", "SK/5", "SK/8", "SK/12", "SK/14", "SK/50", "SK/51"]
+        start_with = random.sample(skill_pool, skills)
+        start_with += [random.choice(["AC/1/AC/1", "HC/1", "EC/1"]) for _ in range(cells)]
+        mu_line = "2|MU|TP/Valley/TP/Swamp/" + "/".join(start_with) + "|Glades"
+        base = vanilla_seed.split("\n")
+        base[0] = "OpenWorld|BingoSeed"
+        base.insert(1, mu_line)
+        self.response.headers['Content-Type'] = 'application/x-gzip' if not debug else 'text/plain'
+        self.response.headers['Content-Disposition'] = 'attachment; filename=randomizer.dat' if not debug else ""
+        self.response.out.write("\n".join(base))
+
 
 app = WSGIApplication(routes=[
     # testing endpoints
@@ -875,6 +890,7 @@ app = WSGIApplication(routes=[
     (r'/login/?', HandleLogin),
     (r'/logout/?', HandleLogout),
     ('/vanilla', Vanilla),
+    ('/vanillaplus', VanillaPlusSeeds),
     ('/discord', DiscordRedirect),
 
     # new netcode endpoints
