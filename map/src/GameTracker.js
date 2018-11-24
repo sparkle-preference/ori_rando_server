@@ -213,7 +213,7 @@ function getPickupMarkers(state) {
 const DEFAULT_VIEWPORT = {
 	  center: [0, 0],
 	  zoom: 4,
-	};
+};
 const RETRY_MAX = 60;
 const TIMEOUT_START = 5;
 const TIMEOUT_INC = 5;
@@ -225,11 +225,14 @@ class GameTracker extends React.Component {
     super(props)
     let modes = presets['standard'];
     this.state = {mousePos: {lat: 0, lng: 0}, players: {}, retries: 0, check_seen: 1, modes: modes, timeout: TIMEOUT_START, searchStr: "", pickup_display: "all", show_sidebar: true, idle_countdown: 7200,
-    bg_update: true, viewport: DEFAULT_VIEWPORT, pickups: ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "Ma", "CS"], open_world: false, closed_dungeons: false, pathMode: get_preset(modes), hideOpt: "all", display_logic: false};
+    bg_update: true, viewport: {center: [0, 0], zoom: 5}, pickups: ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "Ma", "CS"], open_world: false, closed_dungeons: false, pathMode: get_preset(modes), hideOpt: "all", display_logic: false};
   };
 
   componentDidMount() {
-        setTimeout(() => this.refs['map'].leafletElement.invalidateSize(false), 100);
+        setTimeout(() => {
+            this.refs.map.leafletElement.invalidateSize(false);
+            this.setState({viewport: DEFAULT_VIEWPORT});
+        }, 100);
         this.getGamedata();
         this.interval = setInterval(() => this.tick(), 1000);
   };

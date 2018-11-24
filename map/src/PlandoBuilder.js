@@ -161,7 +161,7 @@ class PlandoBuiler extends React.Component {
     super(props)
 
     this.state = {seed_in: "", reachable: {...DEFAULT_REACHABLE}, new_areas: {...DEFAULT_REACHABLE}, placements: {1: {...DEFAULT_DATA}}, player: 1,
-    			  fill_opts: {HC: 13, EC: 15, AC: 34, KS: 40, MS: 9, EX: 300, dynamic: false, dumb: false}, viewport: DEFAULT_VIEWPORT, searchStr: "",
+    			  fill_opts: {HC: 13, EC: 15, AC: 34, KS: 40, MS: 9, EX: 300, dynamic: false, dumb: false}, viewport: {center: [0, 0], zoom: 5}, searchStr: "",
 		    	  flags: ['hide_unreachable', 'hide_softlockable'], seedFlags: select_wrap(["ForceTrees"]), share_types: select_wrap(["keys"]), coop_mode: {label: "Solo", value: "None"},
 		    	  pickups: ["EX", "Ma", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "CS"],  display_import: false, display_logic: false, display_coop: false, display_meta: false}
 	}
@@ -197,7 +197,10 @@ class PlandoBuiler extends React.Component {
 	};
 
     componentDidMount() {
-        setTimeout(() => this.refs['map'].leafletElement.invalidateSize(false), 100);
+        setTimeout(() => {
+            this.refs.map.leafletElement.invalidateSize(false);
+            this.setState({viewport: DEFAULT_VIEWPORT});
+        }, 100);
 	  	if(this.state.authed)
 	  	{
 		  	let {rawSeed, user, authed, seed_name, seed_desc} = get_seed()

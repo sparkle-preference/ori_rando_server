@@ -76,7 +76,7 @@ class Upgrade(Pickup):
     names = {17: "Water Vein Shard", 19: "Gumon Seal Shard", 21: "Sunstone Shard", 28: "Warmth Fragment", 6: "Spirit Flame Upgrade", 13: "Health Regeneration", 2: "Go Home",
             15: "Energy Regeneration", 8: "Explosion Power Upgrade", 9: "Spirit Light Efficiency", 10: "Extra Air Dash", 11: "Charge Dash Efficiency",
             12: "Extra Double Jump", 0: "Mega Health", 1: "Mega Energy", 30: "Bleeding", 31: "Lifesteal", 32: "Manavamp", 33: "Skill Velocity Upgrade",
-            101: "Polarity Shift", 102: "Gravity Swap", 103: "Drag Racer", 104: "Warp One", 105: "Warp Two", 106: "Respec", 81: "Stompnade Hint",
+            101: "Polarity Shift", 102: "Gravity Swap", 103: "Extreme Speed", 104: "Roose's Wind", 105: "Respawn Without Dying", 106: "Respec", 81: "Stompnade Hint",
             40: "Remove Wall Jump", 41: "Remove Charge Flame", 42: "Remove Double Jump", 43: "Remove Bash", 44: "Remove Stomp", 45: "Remove Glide",
             46: "Remove Climb", 47: "Remove Charge Jump", 48: "Remove Dash", 49: "Remove Grenade", 34: "Disable Alt+R", 35: "Enable Alt+R"}
     bits = {17: 1, 19: 4, 21: 16, 6: 64, 13: 256, 15: 1024, 8: 4096, 9: 8192, 10: 16384, 11: 32768, 12: 65536}

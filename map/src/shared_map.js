@@ -115,8 +115,7 @@ function get_icon(pick, color = null) {
     console.log("no icon found for "+ pick.name + "!");
     return blank_icon;
 }
-
-function getMapCrs() {
+function getMapCrs(x = .0001, y = -.0005, a = 0, b = -.2) {
     let swampTeleporter = point(493.719818, -74.31961);
     let gladesTeleporter = point(109.90181, -257.681549);
     
@@ -151,7 +150,7 @@ function getMapCrs() {
     let mapOriginY = (0 + gameTopSide) / (gameTopSide - game1.y) * map1.y / (2 ** maxZoom);
     
     Leaflet.CRS.MySimple = Leaflet.extend({}, Leaflet.CRS.Simple, {
-      transformation: new Leaflet.Transformation(scaleX, mapOriginX, scaleY, mapOriginY)
+      transformation: new Leaflet.Transformation(scaleX + x, mapOriginX + a, scaleY + y, mapOriginY + b)
     });
 
     return Leaflet.CRS.MySimple;

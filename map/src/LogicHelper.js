@@ -5,15 +5,11 @@ import Leaflet from 'leaflet';
 import {get_int, get_list, presets, logic_paths, Blabel} from './common.js';
 import {stuff_by_type,  str_ids, picks_by_type, picks_by_area, pickup_name, PickupMarkersList, get_icon, getMapCrs, 
         name_from_str, select_styles, select_wrap} from './shared_map.js';
-import NumericInput from 'react-numeric-input';
 import Select from 'react-select';
 import {Row, Input, Col, Container, Button, Collapse} from 'reactstrap';
 import Control from 'react-leaflet-control';
 import Dropzone from 'react-dropzone'
 import {Helmet} from 'react-helmet';
-
-NumericInput.style.input.width = '100%';
-NumericInput.style.input.height = '36px';
 
 
 const crs = getMapCrs();
@@ -154,7 +150,7 @@ class LogicHelper extends React.Component {
         super(props)
     
         this.state = {mousePos: {lat: 0, lng: 0}, seed_in: "", reachable: {...DEFAULT_REACHABLE}, new_areas: {...DEFAULT_REACHABLE}, selected: "", selected_area: "", history: {}, open_world: false,
-                      step: 0, placements: {}, viewport: DEFAULT_VIEWPORT, hasSeed: false, highlight_picks: [], logicMode: 'manual', searchStr: "", noMarkers: false, closed_dungeons: false}
+                      step: 0, placements: {}, viewport: {center: [0, 0], zoom: 5}, hasSeed: false, highlight_picks: [], logicMode: 'manual', searchStr: "", noMarkers: false, closed_dungeons: false}
     }
 
      getInventory = () => {
@@ -332,6 +328,10 @@ class LogicHelper extends React.Component {
         let search = url.searchParams.get("search") || "";
         let manual_reach = get_manual_reach();
         let modes;
+        let a = parseFloat(url.searchParams.get("a") || 0)
+        let b = parseFloat(url.searchParams.get("b") || 0)
+        let x = parseFloat(url.searchParams.get("x") || 0)
+        let y = parseFloat(url.searchParams.get("y") || 0)
     
         if(pathmode && paths.includes(pathmode)) {
             modes = presets[pathmode];
@@ -340,10 +340,13 @@ class LogicHelper extends React.Component {
             modes = presets['standard'];
         }
 
-        this.setState({modes: modes, search: search, pathMode: {label: pathmode, value: pathmode}, manual_reach: manual_reach}, () => {this.updateReachable() ; this.updateURL()})
+        this.setState({a:a, b:b, x:x, y:y, modes: modes, search: search, pathMode: {label: pathmode, value: pathmode}, manual_reach: manual_reach}, () => {this.updateReachable() ; this.updateURL()})
     };
     componentDidMount() {
-        setTimeout(() => this.refs['map'].leafletElement.invalidateSize(false), 100);
+         setTimeout(() => {
+        this.refs.map.leafletElement.invalidateSize(false);
+        this.setState({viewport: DEFAULT_VIEWPORT});
+         }, 100);
     }
 
 
@@ -589,7 +592,7 @@ class LogicHelper extends React.Component {
                     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.3.1/dist/leaflet.css" integrity="sha512-Rksm5RenBEKSKFjgI3a41vrjkw4EVPlJ3+OiI65vTjIdo9brlAacEuKOiQ5OFh7cOI1bkDwLqdLw3Zg0cRJAAQ==" crossorigin=""/>
                 </Helmet>
 
-                <Map ref="map" crs={crs} ref="map" zoomControl={false} onMouseMove={(ev) => this.setState({mousePos: ev.latlng})} onViewportChanged={this.onViewportChanged} viewport={this.state.viewport}>
+                <Map ref="map" crs={dev ? getMapCrs(this.state.x, this.state.y, this.state.a, this.state.b): crs} ref="map" zoomControl={false} onMouseMove={(ev) => this.setState({mousePos: ev.latlng})} onViewportChanged={this.onViewportChanged} viewport={this.state.viewport}>
                     <ZoomControl position="topright" />
                     <Control position="topleft" >
                     <div>
