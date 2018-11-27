@@ -61,8 +61,8 @@ function get_seed() {
 		let name = get_param("seed_name") || "new seed"
 		let desc = get_param("seed_desc") || ""
 		let hidden = get_flag("seed_hidden") 
-		let rawSeed = get_param("seed_data")
-		return {rawSeed: rawSeed, user: user, authed: authed, seed_name: name, seed_desc: desc, hidden: hidden}
+		let seedJson = get_param("seed_data")
+		return {seedJson: seedJson, user: user, authed: authed, seed_name: name, seed_desc: desc, hidden: hidden}
 	}
 	else
 		return {authed:false}

@@ -1,6 +1,7 @@
 from google.appengine.ext import ndb
 
 import logging as log
+from json import dumps as jsonify
 
 from datetime import datetime, timedelta
 from collections import defaultdict
@@ -73,11 +74,17 @@ class Seed(ndb.Model):
             s.placements.append(plc)
         return s
 
-    def to_plando_lines(self):
-        outlines = ["%s|%s" % (",".join(self.flags), self.name)]
+    def flag_line(self):
+        return "%s|%s" % (",".join(self.flags), self.name)
+
+    def get_plando_json(self):
+        placements = []
         for p in self.placements:
-            outlines.append(p.location + ":" + ",".join(["%s.%s|%s" % (s.player, s.code, s.id) for s in p.stuff]))
-        return outlines
+            stuffs = []
+            for stuff in p.stuff: 
+                stuffs.append({"player": stuff.player, "code": stuff.code, "id": stuff.id})
+            placements.append({'loc': p.location, 'stuff': stuffs})
+        return jsonify({'placements': placements, 'flagline': self.flag_line()})
 
     def to_lines(self, player=1, extraFlags=[]):
         return ["%s|%s" % (",".join(extraFlags + self.flags), self.name)] + ["|".join((str(p.location), s.code, s.id, p.zone)) for p in self.placements for s in p.stuff if int(s.player) == player]

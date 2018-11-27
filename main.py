@@ -557,7 +557,8 @@ class PlandoEdit(RequestHandler):
             if seed:
                 template_values['seed_desc'] = seed.description
                 template_values['seed_hidden'] = seed.hidden or False
-                template_values['seed_data'] = "\n".join(seed.to_plando_lines())
+                template_values['seed_data'] = seed.get_plando_json()
+                print template_values['seed_data']
             self.response.out.write(template.render(path, template_values))
 
 
