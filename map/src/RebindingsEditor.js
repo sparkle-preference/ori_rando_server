@@ -103,7 +103,7 @@ export default class RebindingsEditor extends React.Component {
                     bindings = bindings.concat(this.state.compounds[c_act])
             })
             bindings = uniq(bindings)
-            if(bindings.length == 0) {
+            if(bindings.length === 0) {
                 bindings.push("None")
             }
             lines.push(`${action}: ${bindings.join(", ")}`)

@@ -56,7 +56,7 @@ export default class MainPage extends React.Component {
         let pathDiffOptions = ["Easy", "Normal", "Hard"].map(mode => (
             <DropdownItem active={mode===this.state.pathDiff} onClick={()=> this.setState({pathDiff: mode})}>{mode}</DropdownItem>
         ))
-        const starting_pickups = {"First Pickup:": 919772, "Second Pickup:": -1560272, "Third Pickup:": 799776, "Fourth Pickup:": -120208}
+        const starting_pickups = {"Spawn With:": 2, "First Pickup:": 919772, "Second Pickup:": -1560272, "Third Pickup:": 799776, "Fourth Pickup:": -120208}
         let fass_rows = Object.keys(starting_pickups).map(name => {
             let coord = starting_pickups[name];
             return (

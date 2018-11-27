@@ -379,7 +379,7 @@ ks.forEach((pre) => {
             locs.push(pick.loc);
             picks_by_loc[pick.loc] = pick;
             picks_by_area[pick.area].push(pick);
-            picks_by_zone[pick.zone].push(pick);                
+            picks_by_zone[pick.zone].push(pick);
         }
     });
 });

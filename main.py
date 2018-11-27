@@ -524,7 +524,7 @@ class PlandoView(RequestHandler):
                 self.response.status = 200
                 self.response.headers['Content-Type'] = 'text/html'
                 path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
-                template_values = {'app': "SeedDisplay", 'title': "%s by %s" % (plando, author),
+                template_values = {'app': "SeedDisplayPage", 'title': "%s by %s" % (plando, author),
                                    'players': seed.players, 'seed_data': seed.to_lines()[0],
                                    'seed_name': plando, 'author': author, 'authed': True, 'seed_desc': seed.description,
                                    'user': dispname, 'game_id': Game.get_open_gid()}

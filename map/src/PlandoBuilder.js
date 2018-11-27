@@ -187,7 +187,12 @@ class PlandoBuiler extends React.Component {
 			let pick = picks_by_zone[zone][0];
 			lastSelected[zone] = {label: pick.name+"("+pick.x + "," + pick.y +")",value: pick}
 		});
-	    let pick = {loc: 919772, name: "EX15", zone: "Glades", area: "SunkenGladesRunaway", y: -227, x: 92};
+        // i hate this
+        picks_by_zone['Glades'].push({"loc": 2, "name": "SPAWN", "zone": "Glades", "area": "FirstPickup", "x": 189, "y": -210})
+        picks_by_area['FirstPickup'].push({"loc": 2, "name": "SPAWN", "zone": "Glades", "area": "FirstPickup", "x": 189, "y": -210})
+        picks_by_loc[2] = {"loc": 2, "name": "SPAWN", "zone": "Glades", "area": "FirstPickup", "x": 189, "y": -210}
+
+	    let pick = {loc: 919772, name: "EX15", zone: "Glades", area: "FirstPickup", y: -227, x: 92};
 	    let pickup = {label: pick.name+"("+pick.x + "," + pick.y +")",value: pick}
 	    lastSelected['Glades'] = pickup
 	
@@ -464,9 +469,9 @@ class PlandoBuiler extends React.Component {
         data.shareTypes = this.state.share_types.map(f => f.value)
         data.flags = this.state.seedFlags.map(f => f.value);
         data.placements = [];
-		let locs = Object.keys(picks_by_loc)
+		let locs = Object.keys(picks_by_loc);
 		let players = Object.keys(this.state.placements);
-		locs.forEach((loc) => {
+		locs.forEach(loc => {
 			let players_at_loc = players.filter(p => this.state.placements[p].hasOwnProperty(loc))
             let stuff = players_at_loc.map(player => {
                 let [code, id] = this.state.placements[player][loc].value.split("|");
