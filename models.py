@@ -12,11 +12,7 @@ from util import picks_by_coord, get_bit, get_taste, enums_from_strlist, PickLoc
 
 from pickups import Pickup, Skill, Teleporter, Event
 from cache import Cache
-
-pbc = picks_by_coord()
-pbc[-280256] = PickLoc(-280256, "EC", "Glades", "SunkenGladesFirstEC", -28, -256)
-pbc[-1680104] = PickLoc(-1680104, "EX100", "Grove", "UnsafeSpiritTree100Ex", -168, -104)
-pbc[-12320248] = PickLoc(-12320248, "Plant", "Forlorn", "ForlornEscapePlant", -1232, -248)
+pbc = picks_by_coord(extras=True)
 
 class HistoryLine(ndb.Model):
     pickup_code = ndb.StringProperty()
@@ -320,11 +316,14 @@ class Game(ndb.Model):
         share = pickup.is_shared(self.shared)
         finder = self.player(pid)
         players = self.get_players()
-        if share and dedup:
-            if coords in [h.coords for h in finder.history]:
+        if coords in [h.coords for h in finder.history]:
+            if share and dedup:
                 log.error("Duplicate pickup at location %s from player %s" % (coords, pid))
                 return 410
-            elif coords in [h.coords for teammate in players for h in teammate.history if teammate.key in finder.teammates]:
+            elif any([h for h in finder.history if h.coords == coords and h.pickup_code == pickup.code and h.pickup_id == pickup.id]):
+                log.debug("Not writing this to history, as an identical HL already exists (death dupe)")
+                return 200
+        elif share and dedup and coords in [h.coords for teammate in players for h in teammate.history if teammate.key in finder.teammates]:
                 log.info("Won't grant %s to player %s, as a teammate found it already" % (pickup.name, pid))
                 return 410
         if pickup.code == "MU":
@@ -332,16 +331,16 @@ class Game(ndb.Model):
                 retcode = max(self.found_pickup(pid, child, coords, remove, False), retcode)
             return retcode
         if self.mode == MultiplayerGameType.SHARED:
-            if not share:
+            if share:
+                for player in players:
+                    player.give_pickup(pickup, remove, coords=coords, finder=pid)
+            else:
+                retcode = 406
                 if pickup.code == "HN":
                     for player in players:
                         if str(coords) not in player.hints:
                             player.hints[str(coords)] = 0  # hint 0 means the clue's been found
                         player.put()
-                retcode = 406
-            else:
-                for player in players:
-                    player.give_pickup(pickup, remove, coords=coords, finder=pid)
         elif self.mode == MultiplayerGameType.SPLITSHARDS:
             if pickup.code != "RB" or pickup.id not in [17, 19, 21]:
                 retcode = 406
