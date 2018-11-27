@@ -424,7 +424,8 @@ const getHelpHelper = (category, option) => {
                     title = "Player Count"
                     lines = [
                         "The number of players in the multiplayer game.",
-                        "For a coop game, set this to the number of players in the game. Note that games with more people will have less relevant pickups for each individual player (see Co-op below for more details)",
+                        "For a coop game, set this to the number of players in the game. Note that games with more people will have less relevant pickups for each individual player.",
+                        "For a split shards game, set this to the number of players in the game.",
                         "For a tracked race, set the mode to Race and this to the number of people in the race to give them each their own tracked icon on the map."
                     ]
                     break;

@@ -195,6 +195,7 @@ export default class MainPage extends React.Component {
                             <DropdownMenu>
                                 <DropdownItem active={"Race"===this.state.coopGameMode} onClick={()=> this.setState({coopGameMode: "Race"})}>Race</DropdownItem>
                                 <DropdownItem active={"Co-op"===this.state.coopGameMode} onClick={()=> this.setState({coopGameMode: "Co-op"})}>Co-op</DropdownItem>
+                                <DropdownItem active={"SplitShards"===this.state.coopGameMode} disabled={this.state.keyMode !== "Shards"} onClick={()=> this.setState({coopGameMode: "SplitShards"})}>Split Shards</DropdownItem>
                             </DropdownMenu>
                         </UncontrolledButtonDropdown>
                     </Col>
