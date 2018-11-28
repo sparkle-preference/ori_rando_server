@@ -230,8 +230,9 @@ function pickup_name(code, id) {
                 return "Hint: " + hintParts[1] + " for " + hintParts[2];
             else
                 return "Hint"
+        case "WS":
         case "WP":
-            return "Warp to " + id
+            return "Warp to " + id + (code === "WS" ? " and save" : "")
         default:
             return code + "|" + id;
     }
@@ -396,7 +397,7 @@ function uniq(array) {
     return array.filter(item => seen.includes(item) ? false : (seen.push(item) && true));
 }
  
-const str_ids = ["TP", "NO", "SH", "WT", "MU", "HN", "WP", "RP"];
+const str_ids = ["TP", "NO", "SH", "WT", "MU", "HN", "WP", "RP", "WS"];
 const hide_opacity = .2;
 const seed_name_regex = new RegExp("^[^ ?=/]+$");
 const select_styles = {

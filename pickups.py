@@ -6,7 +6,7 @@ from util import add_single, inc_stackable
 class Pickup(object):
     @staticmethod
     def subclasses():
-        return [Skill, Event, Teleporter, Upgrade, Experience, AbilityCell, HealthCell, EnergyCell, Keystone, Mapstone, Message, Hint, Relic, Multiple, Repeatable, Warp]
+        return [Skill, Event, Teleporter, Upgrade, Experience, AbilityCell, HealthCell, EnergyCell, Keystone, Mapstone, Message, Hint, Relic, Multiple, Repeatable, Warp, WarpSave]
     stacks = False
     int_id = True
     share_type = ShareType.NOT_SHARED
@@ -213,4 +213,12 @@ class Warp(Pickup):
     def __new__(cls, id):
         inst = super(Warp, cls).__new__(cls)
         inst.id, inst.bit, inst.name = id, None, "Warp to " + id
+        return inst
+
+class WarpSave(Pickup):
+    code = "WS"
+    int_id = False
+    def __new__(cls, id):
+        inst = super(Warp, cls).__new__(cls)
+        inst.id, inst.bit, inst.name = id, None, "Warp to " + id + " and save"
         return inst
