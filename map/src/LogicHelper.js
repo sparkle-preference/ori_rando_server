@@ -14,7 +14,7 @@ import {Helmet} from 'react-helmet';
 
 const crs = getMapCrs();
 
-const DEFAULT_REACHABLE = {'SunkenGladesRunaway': [["Free"]]};
+const DEFAULT_REACHABLE = {'SunkenGladesRunaway': [["Free"]], 'SunkenGladesFirstEC': [["Free"]]};
 const DEFAULT_VIEWPORT = {
       center: [0, 0],
       zoom: 4,
