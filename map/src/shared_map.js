@@ -309,6 +309,7 @@ const stuff_by_type = {
         {label: "Skill Velocity Upgrade", value: "RB|33"},
         {label: "Disable Alt+R", value: "RB|34"}, 
         {label: "Enable Alt+R", value: "RB|35"}, 
+        {label: "Gravity Suit", value: "RB|36"}, 
         {label: "Remove Wall Jump", value: "RB|40"}, 
         {label: "Remove Charge Flame", value: "RB|41"}, 
         {label: "Remove Double Jump", value: "RB|42"}, 
@@ -326,6 +327,7 @@ const stuff_by_type = {
         {label: "Roose's Wind", value: "RB|104"},
         {label: "Respawn Without Dying", value: "RB|105"},
         {label: "Respec", value: "RB|106"},
+        {label: "Level Explosion", value: "RB|107"},
     ],
     "Teleporters": [
         {label: "Grotto TP", value: "TP|Grotto"},
