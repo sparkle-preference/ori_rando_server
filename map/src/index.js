@@ -1,7 +1,7 @@
 import 'bootstrap/dist/css/bootstrap.css';
 import React from 'react';
 import ReactDOM from 'react-dom';
-const apps = ['MainPage', 'GameTracker', 'PlandoBuilder', 'SeedAnalysis', 'RebindingsEditor', 'LogicHelper', 'SeedDisplayPage'];
+const apps = ['MainPage', 'GameTracker', 'PlandoBuilder', 'SeedAnalysis', 'RebindingsEditor', 'LogicHelper', 'SeedDisplayPage', "HelpAndGuides"];
 
 (() => {
     apps.forEach(async (app) => {

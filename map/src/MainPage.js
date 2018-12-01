@@ -566,11 +566,11 @@ export default class MainPage extends React.Component {
                             We're using this as a place to gather feedback, post bug reports, and answer any questions players might have.
                           </li>
                           <li>
-                              Install the 3.0 beta by placing this <a target='_blank' rel='noopener noreferrer' href="https://github.com/sigmasin/OriDERandomizer/raw/3.0/Assembly-CSharp.dll">dll</a> in 
+                              Install the 3.0 beta by placing this <a target='_blank' rel='noopener noreferrer' href="/dll">dll</a> in 
                             your Ori DE/oriDE_Data/Managed folder.
                           </li>
                           <li>
-                              (Optional) Get the beta 3.0 tracker <a target='_blank' rel='noopener noreferrer' href="https://github.com/turntekGodhead/OriDETracker/raw/master/OriDETracker/bin/Latest.zip">here</a>.
+                              (Optional) Get the beta 3.0 tracker <a target='_blank' rel='noopener noreferrer' href="/tracker">here</a>.
                             Note that older (2.x) versions of the tracker won't work with the 3.0 dll.
                           </li>
                           <li>

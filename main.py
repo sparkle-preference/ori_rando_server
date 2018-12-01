@@ -697,10 +697,6 @@ class MapTest(RequestHandler):
         url = "/generator/build?key_mode=Free&gen_mode=Balanced&var=OpenWorld&var=WorldTour&path=casual-core&path=casual-dboost&exp_pool=10000&cell_freq=40&relics=10&players=3&sync_mode=Shared&sync_shared=WorldEvents&sync_shared=Teleporters&sync_shared=WorldEvents&sync_shared=Skills&sync_hints=1&test_map_redir=%s&seed=%s" % (game_id, random.randint(100000,1000000))
         self.redirect(url)
 
-class DiscordRedirect(RequestHandler):
-    def get(self):
-        self.redirect("https://discord.gg/TZfue9V")
-
 class LogicHelper(RequestHandler):
     def get(self):
         path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
@@ -840,6 +836,7 @@ class VanillaPlusSeeds(RequestHandler):
         self.response.out.write("\n".join(base))
 
 
+
 app = WSGIApplication(routes=[
     # testing endpoints
     PathPrefixRoute('/tests', [
@@ -892,7 +889,10 @@ app = WSGIApplication(routes=[
     (r'/logout/?', HandleLogout),
     ('/vanilla', Vanilla),
     ('/vanillaplus', VanillaPlusSeeds),
-    ('/discord', DiscordRedirect),
+    Route('/discord', redirect_to="https://discord.gg/TZfue9V"),
+    Route('/dll', redirect_to="https://github.com/sigmasin/OriDERandomizer/raw/3.0/Assembly-CSharp.dll"),
+    Route('/tracker', redirect_to="https://github.com/turntekGodhead/OriDETracker/raw/master/OriDETracker/bin/Latest.zip"),
+    
 
     # new netcode endpoints
     PathPrefixRoute('/netcode/game/<game_id:\d+>/player/<player_id:[^/]+>', [
