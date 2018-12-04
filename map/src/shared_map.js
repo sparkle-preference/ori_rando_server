@@ -1,6 +1,9 @@
 import React from 'react';
 import Leaflet from 'leaflet';
 import {Marker} from 'react-leaflet';
+
+
+
 const point = (x, y) => {return {x: x, y: y}; } 
 const distance = (x1, y1, x2, y2) => Math.sqrt((x2-x1) ** 2 + (y2-y1) ** 2);
 
@@ -170,74 +173,8 @@ const PickupMarkersList = ({ map, markers }) => {
 };
 
 
-
-
-
 const stuff_types = [{value: "Skills", label: "Skills"}, {value: "Events", label: "Events"}, {value: "Upgrades", label: "Upgrades"}, {value: "Teleporters", label: "Teleporters"}, {value: "Experience", label: "Experience"}, 
                      {value: "Cells/Stones", label: "Cells/Stones"}, {value: "Messages", label: "Messages"}, {value: "Custom", label: "Custom"}, {value: "Fill", label: "Fill"}];
-
-function name_from_str(pick) {
-    let parts = pick.split("|");
-    return pickup_name(parts[0],parts[1])
-}
-
-
-function pickup_name(code, id) {
-    let upgrade_names = {};
-    stuff_by_type["Upgrades"].forEach(s => {
-        upgrade_names[s.value.substr(3)] = s.label;
-    });
-    let names = {
-        "SK": {0:"Bash", 2:"Charge Flame", 3:"Wall Jump", 4:"Stomp", 5:"Double Jump",8:"Charge Jump",12:"Climb",14:"Glide",50:"Dash",51:"Grenade"},
-        "EV": {0:"Water Vein", 1:"Clean Water", 2:"Gumon Seal", 3:"Wind Restored", 4:"Sunstone", 5:"Warmth Returned"},
-        "RB": upgrade_names,
-    };
-    if(names.hasOwnProperty(code) && names[code][id])
-        return names[code][id];
-     
-    switch(code) {
-        case "MU":
-        case "RP":
-            let parts = id.split("/");
-            let names = [];
-            while(parts.length > 1) {
-                names.push(pickup_name(parts.shift(), parts.shift()))
-            }
-            if(code === "RP")
-                return "Repeatable: " + names.join(", ")
-            return names.join(", ")
-        case "TP":
-            return id + "TP";
-        case "EX":
-            return id+ " Experience";
-        case "HC":
-            return "Health Cell";
-        case "AC":
-            return "Ability Cell";
-        case "EC":
-            return "Energy Cell";
-        case "KS":
-            return "Keystone";
-        case "MS":
-            return "Mapstone";
-        case "SH":
-            return id;
-        case "WT":
-            return "Relic";
-        case "HN":
-            let hintParts = id.split('-');
-            if(hintParts.length > 2)
-                return "Hint: " + hintParts[1] + " for " + hintParts[2];
-            else
-                return "Hint"
-        case "WS":
-        case "WP":
-            return "Warp to " + id + (code === "WS" ? " and save" : "")
-        default:
-            return code + "|" + id;
-    }
-
-}
 
 const getStuffType = (stuff) => {
     if(!stuff || !stuff.hasOwnProperty("value"))
@@ -265,88 +202,6 @@ const getStuffType = (stuff) => {
             return "Custom"
     }
 }
-
-const stuff_by_type = {
-    "Skills" : [
-        {label: "Bash", value: "SK|0"},
-        {label: "Charge Flame", value: "SK|2"},
-        {label: "Wall Jump", value: "SK|3"},
-        {label: "Stomp", value: "SK|4"},
-        {label: "Double Jump", value: "SK|5"},
-        {label: "Charge Jump", value: "SK|8"},
-        {label: "Climb", value: "SK|12"},
-        {label: "Glide", value: "SK|14"},
-        {label: "Dash", value: "SK|50"},
-        {label: "Grenade", value: "SK|51"}
-    ], 
-    "Events": [
-        {label: "Water Vein", value: "EV|0"},
-        {label: "Clean Water", value: "EV|1"},
-        {label: "Gumon Seal", value: "EV|2"},
-        {label: "Wind Restored", value: "EV|3"},
-        {label: "Sunstone", value: "EV|4"},
-        {label: "Warmth Returned", value: "EV|5"}
-    ],
-    "Upgrades": [
-        {label: "Mega Health", value: "RB|0"},
-        {label: "Mega Energy", value: "RB|1"},
-        {label: "Go Home", value: "RB|2"},
-        {label: "Spirit Flame Upgrade", value: "RB|6"},
-        {label: "Explosion Power Upgrade", value: "RB|8"},
-        {label: "Spirit Light Efficiency", value: "RB|9"},
-        {label: "Extra Air Dash", value: "RB|10"},
-        {label: "Charge Dash Efficiency", value: "RB|11"},
-        {label: "Extra Double Jump", value: "RB|12"},
-        {label: "Health Regeneration", value: "RB|13"},
-        {label: "Energy Regeneration", value: "RB|15"},
-        {label: "Water Vein Shard", value: "RB|17"},
-        {label: "Gumon Seal Shard", value: "RB|19"},
-        {label: "Sunstone Shard", value: "RB|21"},
-        {label: "Warmth Fragment", value: "RB|28"},
-        {label: "Bleeding", value: "RB|30"},
-        {label: "Lifesteal", value: "RB|31"},
-        {label: "Manavamp", value: "RB|32"},
-        {label: "Skill Velocity Upgrade", value: "RB|33"},
-        {label: "Disable Alt+R", value: "RB|34"}, 
-        {label: "Enable Alt+R", value: "RB|35"}, 
-        {label: "Gravity Suit", value: "RB|36"}, 
-        {label: "Remove Wall Jump", value: "RB|40"}, 
-        {label: "Remove Charge Flame", value: "RB|41"}, 
-        {label: "Remove Double Jump", value: "RB|42"}, 
-        {label: "Remove Bash", value: "RB|43"}, 
-        {label: "Remove Stomp", value: "RB|44"}, 
-        {label: "Remove Glide", value: "RB|45"}, 
-        {label: "Remove Climb", value: "RB|46"}, 
-        {label: "Remove Charge Jump", value: "RB|47"}, 
-        {label: "Remove Dash", value: "RB|48"}, 
-        {label: "Remove Grenade", value: "RB|49"}, 
-        {label: "Stompnade Hint", value: "RB|81"}, 
-        {label: "Polarity Shift", value: "RB|101"},
-        {label: "Gravity Swap", value: "RB|102"},
-        {label: "ExtremeSpeed", value: "RB|103"},
-        {label: "Roose's Wind", value: "RB|104"},
-        {label: "Respawn Without Dying", value: "RB|105"},
-        {label: "Respec", value: "RB|106"},
-        {label: "Level Explosion", value: "RB|107"},
-    ],
-    "Teleporters": [
-        {label: "Grotto TP", value: "TP|Grotto"},
-        {label: "Grove TP", value: "TP|Grove"},
-        {label: "Forlorn TP", value: "TP|Forlorn"},
-        {label: "Valley TP", value: "TP|Valley"},
-        {label: "Sorrow TP", value: "TP|Sorrow"},
-        {label: "Swamp TP", value: "TP|Swamp"},
-        {label: "Ginso TP", value: "TP|Ginso"},
-        {label: "Horu TP", value: "TP|Horu"},
-    ],
-    "Cells/Stones": [
-        {label: "Health Cell", value: "HC|1"},
-        {label: "Energy Cell", value: "EC|1"},
-        {label: "Ability Cell", value: "AC|1"},
-        {label: "Keystone", value: "KS|1"},
-        {label: "Mapstone", value: "MS|1"}
-    ]
-};
 
 
 let request = new XMLHttpRequest()
@@ -403,11 +258,15 @@ const str_ids = ["TP", "NO", "SH", "WT", "MU", "HN", "WP", "RP", "WS"];
 const hide_opacity = .2;
 const seed_name_regex = new RegExp("^[^ ?=/]+$");
 const select_styles = {
-  option: (base, state) => ({
+  option: (base, _) => ({
     ...base,
     borderBottom: '1px dotted pink',
     color: 'black',
   }),
+//   multiValue: (base, _) => ({
+//     ...base,
+//     color: 'black',
+//   }),
   }
 const select_wrap = x => Array.isArray(x) ? x.map(select_wrap) : {label: x, value: x}
 function listSwap(list, items)
@@ -423,5 +282,5 @@ function listSwap(list, items)
 const goToCurry = (url) => () => { window.location.href = url } 
 
 export {PickupMarker, PickupMarkersList, download, getStuffType, locs, picks_by_loc, getMapCrs, pickups, distance, get_icon, select_wrap,
-        point, picks_by_type, picks_by_zone, zones, pickup_name, stuff_types, stuff_by_type, areas, picks_by_area, select_styles,
-        is_match, str_ids, hide_opacity, seed_name_regex, uniq, name_from_str, listSwap, goToCurry, base_url};
+        point, picks_by_type, picks_by_zone, zones, stuff_types, areas, picks_by_area, select_styles,
+        is_match, str_ids, hide_opacity, seed_name_regex, uniq, listSwap, goToCurry, base_url};

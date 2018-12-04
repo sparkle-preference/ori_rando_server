@@ -6,10 +6,9 @@ import Leaflet from 'leaflet';
 import {NotificationContainer, NotificationManager} from 'react-notifications';
 import 'react-notifications/lib/notifications.css';
 import {Checkbox, CheckboxGroup} from 'react-checkbox-group';
-import {get_param, get_flag, get_int, get_list, get_seed, presets, get_preset, logic_paths} from './common.js';
-import {download, getStuffType, stuff_types, stuff_by_type, picks_by_type, picks_by_loc, picks_by_zone,
-        picks_by_area, zones,  pickup_name, PickupMarkersList, get_icon, getMapCrs, hide_opacity, select_wrap,
-        is_match, str_ids, select_styles, name_from_str} from './shared_map.js';
+import {get_param, get_flag, get_int, get_list, get_seed, presets, get_preset, logic_paths, pickup_name, PickupSelect, stuff_by_type} from './common.js';
+import {download, picks_by_type, picks_by_loc, picks_by_zone, picks_by_area, zones, PickupMarkersList, get_icon, 
+        getMapCrs, hide_opacity, select_wrap, is_match, str_ids, select_styles} from './shared_map.js';
 import NumericInput from 'react-numeric-input';
 import Select from 'react-select'
 import {Creatable} from 'react-select';
@@ -62,8 +61,7 @@ function getPickupMarkers(state, setSelected, searchStr) {
     let markers = []
     pickupTypes.forEach((pre) => {
         picks_by_type[pre].forEach((pick) => {
-            let x = pick.hasOwnProperty("_x") ? pick._x : pick.x
-            let y = pick.hasOwnProperty("_y") ? pick._y : pick.y
+            let {x, y} = pick
             let icon = get_icon(pick)
             let show = !(skip_danger && DANGEROUS.includes(pick.loc));
             if(hide_unreachable && !reachable.includes(pick.area))
@@ -161,15 +159,14 @@ class PlandoBuiler extends React.Component {
   constructor(props) {
     super(props)
 
-    this.state = {seed_in: "", reachable: {...DEFAULT_REACHABLE}, new_areas: {...DEFAULT_REACHABLE}, placements: {1: {...DEFAULT_DATA}}, player: 1,
+    this.state = {seed_in: "", reachable: {...DEFAULT_REACHABLE}, new_areas: {...DEFAULT_REACHABLE}, placements: {1: {...DEFAULT_DATA}}, player: 1, saving: false,
                   fill_opts: {HC: 13, EC: 15, AC: 34, KS: 40, MS: 9, EX: 300, dynamic: false, dumb: false}, viewport: {center: [0, 0], zoom: 5}, searchStr: "",
                   flags: ['hide_unreachable', 'hide_softlockable'], seedFlags: select_wrap(["ForceTrees"]), share_types: select_wrap(["keys"]), coop_mode: {label: "Solo", value: "None"},
-                  pickups: ["EX", "Ma", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "CS"],  display_import: false, display_logic: false, display_coop: false, display_meta: false}
+                  pickups: ["EX", "Ma", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "CS"], display_fill: false, display_import: false, display_logic: false, display_coop: false, display_meta: false}
     }
 
 
      componentWillMount() {
-         let spoiler_mode = get_flag("spoiler");
         let pathmode = get_param("pathmode");
         let manual_reach = get_manual_reach();
         let logicMode, modes;
@@ -197,8 +194,8 @@ class PlandoBuiler extends React.Component {
         let pickup = {label: pick.name+"("+pick.x + "," + pick.y +")",value: pick}
         lastSelected['Glades'] = pickup
     
-        this.setState({mousePos: {lat: 0, lng: 0}, zone: zone, pickup: pickup, modes: modes, lastSelected: lastSelected, logicMode: logicMode, pathMode: pathmode, logic_helper_mode: spoiler_mode,
-                      manual_reach: manual_reach, stuff_type: "Cells/Stones", stuff: {value: "KS|1", label: "Keystone"}, authed: get_flag("authed")})
+        this.setState({mousePos: {lat: 0, lng: 0}, zone: zone, pickup: pickup, modes: modes, lastSelected: lastSelected, logicMode: logicMode, pathMode: pathmode,
+                      manual_reach: manual_reach, stuff: {value: "NO|1", label: "Nothing"}, authed: get_flag("authed")})
     
     };
 
@@ -217,22 +214,8 @@ class PlandoBuiler extends React.Component {
         this._updateReachable()
     };
 
-    _onSelectZone = (newZone, pan=true) => {this.selectPickup(this.state.lastSelected[newZone.value], pan)};
-    _onSelectStuffType = (newStuffType) => {
-        this.setState({stuff_type: newStuffType.value});
-        if(stuff_by_type[newStuffType.value])
-            this._onSelectStuff(stuff_by_type[newStuffType.value][0]);
-        else if(newStuffType.value === "Experience")
-            this._onChangeExp(15,"15");
-        else if(newStuffType.value === "Messages")
-            this.place({label: "Your Message Here", value: "SH|Your Message Here"});
-        else if(newStuffType.value === "Custom")
-            this.place({label: "NO|1", value: "NO|1"});
-        };
-
-    _onChangeExp = (n,s,_) => this.place({label: s, value: "EX|"+n});
-    _onSelectStuff = (newStuff) => newStuff ? this.place(newStuff) : false;
-    _onPathModeChange = (n) => this.setState({modes: presets[n.value], pathMode: n.value}, this._updateReachable)
+    onSelectZone = (newZone, pan=true) => {this.selectPickup(this.state.lastSelected[newZone.value], pan)};
+    onPathModeChange = (n) => this.setState({modes: presets[n.value], pathMode: n.value}, this._updateReachable)
     onMode = (m) => () => this.setState(prevState => {
         let modes = prevState.modes;
         if(modes.includes(m)) {
@@ -268,8 +251,7 @@ class PlandoBuiler extends React.Component {
         last[pick.value.zone] = pick;
         let viewport = this.state.viewport;
         if(pan) {
-            let x = pick.value.hasOwnProperty("_x") ? pick.value._x : pick.value.x
-            let y = pick.value.hasOwnProperty("_y") ? pick.value._y : pick.value.y
+            let {x, y} = pick.value
             viewport = {
                   center: [y, x],
                   zoom: 5,
@@ -278,14 +260,13 @@ class PlandoBuiler extends React.Component {
         if(!newStuff || !newStuff.hasOwnProperty("value")) {
             this.setState({pickup: pick, zone: pick.value.zone, lastSelected: last, viewport: viewport}, () => this.place(this.state.stuff));
         } else {
-            let newStuffType = getStuffType(newStuff, "Experience");
-            this.setState({pickup: pick, zone: pick.value.zone, lastSelected: last, viewport: viewport, stuff: newStuff, stuff_type: newStuffType});
+            this.setState({pickup: pick, zone: pick.value.zone, lastSelected: last, viewport: viewport, stuff: newStuff}, () => this.refs.pickupSelect.valFromStr(newStuff.value, true));
         }
     }
 
     selectPickupCurry = (pick) => {
         if(pick.value.name === "MapStone")
-            return () => this._onSelectZone({value: "Mapstone"}, false)
+            return () => this.onSelectZone({value: "Mapstone"}, false)
         else
             return () => this.selectPickup(pick)
     }
@@ -333,7 +314,7 @@ class PlandoBuiler extends React.Component {
 	    	let stuff = {label: name, value:code+"|"+id};
 	    	newplc[loc] = stuff;
     		if(loc === this.state.pickup.value.loc)
-				this.setState({stuff_type: getStuffType(stuff), stuff: stuff});
+				this.setState({stuff: stuff});
     	}
     	this.parseFlagLine(lines[0])
     	this.setState(prevState => {
@@ -361,7 +342,7 @@ class PlandoBuiler extends React.Component {
                     placements[player] = {}
                 placements[player][loc] = stuff_obj
                 if(loc === this.state.pickup.value.loc && player === "1")
-                    this.setState({stuff_type: getStuffType(stuff_obj), stuff: stuff_obj});
+                    this.setState({stuff: stuff_obj});
             })
         })
         this.parseFlagLine(seedData['flagline'])
@@ -397,10 +378,16 @@ class PlandoBuiler extends React.Component {
 
     buildFlagLine = () => {
         let flags = this.state.seedFlags.map(f => f.value)
-        let stypes = this.state.share_types.map(f => f.value)
-        if(stypes.length)
-            flags.push("shared="+stypes.join("+"))
-        flags.push("mode="+this.state.coop_mode.value)
+        if(this.state.coop_mode.value !== "None")
+        {
+            if(this.state.coop_mode.value === "Shared")
+            {
+                let stypes = this.state.share_types.map(f => f.value)
+                if(stypes.length)
+                    flags.push("shared="+stypes.join("+"))
+            }
+            flags.push("mode="+this.state.coop_mode.value)
+        }
         return flags.join(",") + "|" + this.state.seed_name
     }
 
@@ -524,10 +511,10 @@ class PlandoBuiler extends React.Component {
 
 
     saveSeed = () => {
-        uploadSeed(this.getUploadData(), this.state.user, this.state.seed_name, this.state.seed_desc, this.savedSuccessful)
+        uploadSeed(this.getUploadData(), this.state.user, this.state.seed_name, this.state.seed_desc, this.saveCallback)
     }
 
-    savedSuccessful = (statusCode) => {
+    saveCallback = (statusCode) => {
         if(statusCode === 200)
         {
             let base_url = window.document.URL.split("/plando")[0]
@@ -536,11 +523,13 @@ class PlandoBuiler extends React.Component {
             NotificationManager.success("Seed saved", "Success!", 2500);
         }
         else if(statusCode === 404)
-                NotificationManager.error("Invalid name", "Failed to save seed!", 4000);
+            NotificationManager.error("Invalid name", "Failed to save seed!", 4000);
         else if(statusCode >= 500)
-                NotificationManager.error("Server error", "Failed to save seed!", 4000);
+            NotificationManager.error("Server error", "Failed to save seed!", 4000);
         else 
-                NotificationManager.error("Unknown error", "Failed to save seed!", 4000);
+            NotificationManager.error("Unknown error", "Failed to save seed!", 4000);
+        this.setState({saving: false})
+        
     }
 
     downloadSeed = () => {
@@ -599,13 +588,12 @@ class PlandoBuiler extends React.Component {
                 modes +="+CLOSED_DUNGEON"
             if(flags.includes("OpenWorld")) 
                 modes +="+OPEN_WORLD"
-
                 getReachable((s, c) => this.setState(s, c),
                   modes,
                   Object.keys(reachableStuff).map((key) => key+":"+reachableStuff[key]).join("+"),
                   recursive ? () => this._updateReachable(reachableAreas) : () => null);
       };
-
+      
     toggleImport = () => {
         if(dev)
             console.log(this.state)
@@ -649,69 +637,6 @@ class PlandoBuiler extends React.Component {
     
     onFlags = (n) => this.setState({seedFlags: select_wrap(n.map(flag => FLAG_CASEFIX[flag.value.toLowerCase()] || flag.value))})
 
-    get_stuff_select = () => {
-        if(stuff_by_type[this.state.stuff_type])
-        {
-            let stuff = stuff_by_type[this.state.stuff_type];
-            return (
-                <div className="pickup-wrapper">
-                    <span className="label">Pickup: </span>
-                    <Select styles={select_styles}  isClearable={false} options={stuff} onChange={this._onSelectStuff} value={this.state.stuff}/>
-                </div>
-            );
-        } else if(this.state.stuff_type === "Experience") {
-            return (
-                <div className="pickup-wrapper">
-                    <span className="label">Amount: </span>
-                    <NumericInput min={0} value={this.state.stuff.label} onChange={this._onChangeExp}></NumericInput>
-                </div>
-            );
-        } else if(this.state.stuff_type === "Messages") {
-            return (
-                <div className="pickup-wrapper">
-                    <span className="label">Message: </span>
-                        <input id="seed-desc-input" type="text" className="form-control" value={this.state.stuff.label} onChange={event => this.place({label: event.target.value, value: "SH|"+event.target.value})} />
-                </div>
-            );
-        } else if(this.state.stuff_type === "Custom") {
-            return (
-                <div className="pickup-wrapper">
-                    <span className="label">Custom: </span>
-                        <input id="seed-desc-input" type="text" className="form-control" value={this.state.stuff.value} onChange={event => this.place({label: name_from_str(event.target.value), value: event.target.value})} />
-                </div>
-            );
-            
-        } else if (this.state.stuff_type === "Fill") {
-            return (
-                <div id="fill-params">
-                    <div className="fill-wrapper">
-                        <span className="label">Health Cells:</span>
-                        <NumericInput min={0} disabled={!this.state.fill_opts.dumb} value={this.state.fill_opts.HC} onChange={(n) => this.updateFill("HC",n)}></NumericInput>
-                        <span className="label">Energy Cells:</span>
-                        <NumericInput min={0} disabled={!this.state.fill_opts.dumb} value={this.state.fill_opts.EC} onChange={(n) => this.updateFill("EC",n)}></NumericInput>
-                    </div>
-                    <div className="fill-wrapper">
-                        <span className="label">Ability Cells:</span>
-                        <NumericInput min={0} disabled={!this.state.fill_opts.dumb} value={this.state.fill_opts.AC} onChange={(n) => this.updateFill("AC",n)}></NumericInput>
-                        <span className="label">Keystones:</span>
-                        <NumericInput min={0} disabled={!this.state.fill_opts.dumb} value={this.state.fill_opts.KS} onChange={(n) => this.updateFill("KS",n)}></NumericInput>
-                    </div>
-                    <div className="fill-wrapper">
-                        <span className="label">Mapstones:</span>
-                        <NumericInput min={0} disabled={!this.state.fill_opts.dumb} value={this.state.fill_opts.MS} onChange={(n) => this.updateFill("MS",n)}></NumericInput>
-                        <span className="label">Max EXP: </span>
-                        <NumericInput min={0} disabled={!this.state.fill_opts.dumb} value={this.state.fill_opts.EX} onChange={(n) => this.updateFill("EX",n)}></NumericInput>
-                    </div>
-                    <div className="form-check-label">
-                        <label className="form-check-label"><input type="checkbox" checked={this.state.fill_opts.dynamic} onChange={() => this.updateFill("dynamic",!this.state.fill_opts.dynamic)}/>Update Automatically</label>
-                        <label className="form-check-label"><input type="checkbox" checked={this.state.fill_opts.dumb} onChange={() => this.updateFill("dumb",!this.state.fill_opts.dumb)}/>Enable Dumb Fill</label>
-                    </div>
-                </div>
-            );
-        }
-        return null;
-    
-    }
 
     render() {
         const pickup_markers = ( <PickupMarkersList markers={getPickupMarkers(this.state, this.selectPickupCurry, this.state.searchStr)} />)
@@ -724,10 +649,7 @@ class PlandoBuiler extends React.Component {
         ) : (
             <Button color="success" onClick={this.doFillGen} >Fill</Button>
         )
-        let stuff_select = this.get_stuff_select();
         let logic_path_buttons = logic_paths.map(lp => {return (<Col className="pr-0" xs="4"><Button block size="sm" outline={!this.state.modes.includes(lp)} onClick={this.onMode(lp)}>{lp}</Button></Col>)});
-
-        //                         <Button color="primary" onClick={this.downloadSeed} >Download</Button> not working for someass reason?
         return (
             <div className="wrapper">
                 <NotificationContainer/>
@@ -752,6 +674,7 @@ class PlandoBuiler extends React.Component {
                     <div id="file-controls">
                         <Button color="primary" onClick={this.toggleImport} >Import</Button>
                         {fill_button}
+                        <Button color="primary" onClick={this.downloadSeed} >Download</Button>
                         {save_if_auth}
                     </div>
                     <Collapse id="import-wrapper" isOpen={this.state.display_meta}>
@@ -774,17 +697,42 @@ class PlandoBuiler extends React.Component {
                     <div id="pickup-controls">
                          <div className="pickup-wrapper">
                             <span className="label">Zone:</span>
-                            <Select styles={select_styles} options={zone_opts} onChange={this._onSelectZone} clearable={false} value={select_wrap(this.state.zone)}></Select>
+                            <Select styles={select_styles} options={zone_opts} onChange={this.onSelectZone} clearable={false} value={select_wrap(this.state.zone)}></Select>
                         </div>
                         <div className="pickup-wrapper">
                             <span className="label">Location: </span>
                             <Select styles={select_styles} options={pickups_opts} onChange={this.selectPickup} clearable={false} value={this.state.pickup} label={this.state.pickup.name+"("+this.state.pickup.x + "," + this.state.pickup.y +")"}></Select>
                         </div>
                         <div className="pickup-wrapper">
-                            <span className="label">Pickup Type: </span>
-                            <Select styles={select_styles} options={stuff_types} onChange={this._onSelectStuffType} clearable={false} value={select_wrap(this.state.stuff_type)}></Select>
+                            <PickupSelect ref="pickupSelect" value={this.state.stuff.value} styles={select_styles} updater={(code, name) => this.place({label: name, value: code})}/>
                         </div>
-                        {stuff_select}
+                        <Button onClick={() => this.setState(prev => ({display_fill: !prev.display_fill}))}>Show Fill</Button>
+                        <Collapse isOpen={this.state.display_fill}>
+                            <div id="fill-params">
+                                <div className="fill-wrapper">
+                                    <span className="label">Health Cells:</span>
+                                    <NumericInput min={0} disabled={!this.state.fill_opts.dumb} value={this.state.fill_opts.HC} onChange={(n) => this.updateFill("HC",n)}></NumericInput>
+                                    <span className="label">Energy Cells:</span>
+                                    <NumericInput min={0} disabled={!this.state.fill_opts.dumb} value={this.state.fill_opts.EC} onChange={(n) => this.updateFill("EC",n)}></NumericInput>
+                                </div>
+                                <div className="fill-wrapper">
+                                    <span className="label">Ability Cells:</span>
+                                    <NumericInput min={0} disabled={!this.state.fill_opts.dumb} value={this.state.fill_opts.AC} onChange={(n) => this.updateFill("AC",n)}></NumericInput>
+                                    <span className="label">Keystones:</span>
+                                    <NumericInput min={0} disabled={!this.state.fill_opts.dumb} value={this.state.fill_opts.KS} onChange={(n) => this.updateFill("KS",n)}></NumericInput>
+                                </div>
+                                <div className="fill-wrapper">
+                                    <span className="label">Mapstones:</span>
+                                    <NumericInput min={0} disabled={!this.state.fill_opts.dumb} value={this.state.fill_opts.MS} onChange={(n) => this.updateFill("MS",n)}></NumericInput>
+                                    <span className="label">Max EXP: </span>
+                                    <NumericInput min={0} disabled={!this.state.fill_opts.dumb} value={this.state.fill_opts.EX} onChange={(n) => this.updateFill("EX",n)}></NumericInput>
+                                </div>
+                                <div className="form-check-label">
+                                    <label className="form-check-label"><input type="checkbox" checked={this.state.fill_opts.dynamic} onChange={() => this.updateFill("dynamic",!this.state.fill_opts.dynamic)}/>Update Automatically</label>
+                                    <label className="form-check-label"><input type="checkbox" checked={this.state.fill_opts.dumb} onChange={() => this.updateFill("dumb",!this.state.fill_opts.dumb)}/>Enable Dumb Fill</label>
+                                </div>
+                            </div>
+                        </Collapse>
                     </div>
                     <hr style={{ backgroundColor: 'grey', height: 2 }}/>
                     <div id="display-controls">
@@ -845,7 +793,7 @@ class PlandoBuiler extends React.Component {
                         <div id="logic-mode-controls">
                             <div id="logic-presets">
                                 <Button color="primary" onClick={this.toggleLogic} >Logic Paths:</Button>
-                                <Select styles={select_styles} options={select_wrap(paths)} onChange={this._onPathModeChange} clearable={false} value={select_wrap(this.state.pathMode)}></Select>
+                                <Select styles={select_styles} options={select_wrap(paths)} onChange={this.onPathModeChange} clearable={false} value={select_wrap(this.state.pathMode)}></Select>
                             </div>
                             <Collapse id="logic-options-wrapper" isOpen={this.state.display_logic}>
                                 <Container>

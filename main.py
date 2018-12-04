@@ -548,8 +548,12 @@ class PlandoEdit(RequestHandler):
             dispname = user.email().partition("@")[0]
             owner = dispname == author
         id = author + ":" + plando
-        if not owner:
-            self.redirect('/login')
+        if not user:
+            self.redirect('/login?from=plando_edit&plando=%s' % plando)
+        elif not owner:
+            self.response.status = 401
+            self.response.headers['Content-Type'] = 'text/plain'
+            self.response.out.write("Edit unauthorized: seed not owned by current user")
         else:
             seed = Seed.get_by_id(id)
             template_values['user'] = dispname
@@ -558,7 +562,6 @@ class PlandoEdit(RequestHandler):
                 template_values['seed_desc'] = seed.description
                 template_values['seed_hidden'] = seed.hidden or False
                 template_values['seed_data'] = seed.get_plando_json()
-                print template_values['seed_data']
             self.response.out.write(template.render(path, template_values))
 
 
@@ -582,7 +585,13 @@ class HandleLogin(RequestHandler):
         user = users.get_current_user()
         if user:
             dispname = user.email().partition("@")[0]
-            self.redirect('plando/' + dispname)
+            from_page = paramVal(self, "from")
+            if from_page == "plando_edit":
+                plando = paramVal(self, "plando")
+                if plando:
+                    self.redirect('plando/%s/%s' %(dispname, plando))
+            else:
+                self.redirect('/')
         else:
             self.redirect(users.create_login_url(self.request.uri))
 
@@ -816,8 +825,18 @@ class PicksByTypeGen(RequestHandler):
 
 class RebindingsEditor(RequestHandler):
     def get(self):
+        user = users.get_current_user()
+        dispname = user.email().partition("@")[0] if user else ""
         path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
-        template_values = {'app': "RebindingsEditor", 'title': "Ori DE Rebindings Editor"}
+        template_values = {'app': "RebindingsEditor", 'title': "Ori DE Rebindings Editor", "user": dispname}
+        self.response.out.write(template.render(path, template_values))
+
+class Guides(RequestHandler):
+    def get(self):
+        user = users.get_current_user()
+        dispname = user.email().partition("@")[0] if user else ""
+        path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
+        template_values = {'app': "HelpAndGuides", 'title': "Randomizer Help and Guides", "user": dispname}
         self.response.out.write(template.render(path, template_values))
 
 class VanillaPlusSeeds(RequestHandler):
@@ -876,7 +895,7 @@ app = WSGIApplication(routes=[
     Route('/bingo/<cards:\d+>', handler=Bingo,  name="bingo-json-cards", strict_slash=True),
     Route('/bingo', handler=Bingo, name="bingo-json", strict_slash=True),
     Route('/logichelper', handler=LogicHelper, name="logic-helper", strict_slash=True),
-    (r'/logichelper/?', LogicHelper),
+    Route('/faq', handler=Guides, name="help-guides", strict_slash=True),
     ('/', ReactLanding),
     ('/rebinds', RebindingsEditor),
     ('/quickstart', ReactLanding),

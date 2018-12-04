@@ -8,7 +8,7 @@ import 'react-notifications/lib/notifications.css';
 import './index.css';
 
 import {getHelpContent, HelpBox} from "./helpbox.js"
-import {get_param, presets, get_preset, player_icons, doNetRequest, get_random_loader} from './common.js';
+import {get_param, presets, get_preset, player_icons, doNetRequest, get_random_loader, PickupSelect} from './common.js';
 import SiteBar from "./SiteBar.js"
 
 const dev = window.document.URL.includes("devshell")
@@ -51,8 +51,9 @@ export default class MainPage extends React.Component {
     helpEnter = (category, option, timeout=250) => () => {clearTimeout(this.state.helpTimeout) ; this.setState({helpTimeout: setTimeout(this.help(category, option), timeout)})}
     helpLeave = () => clearTimeout(this.state.helpTimeout) 
     help = (category, option) => () => this.setState({helpcat: category, helpopt: option, helpParams: getHelpContent(category, option)})
-
+    
     getAdvancedTab = () => {
+        let [leftCol, rightCol] = [4, 7]
         let pathDiffOptions = ["Easy", "Normal", "Hard"].map(mode => (
             <DropdownItem active={mode===this.state.pathDiff} onClick={()=> this.setState({pathDiff: mode})}>{mode}</DropdownItem>
         ))
@@ -61,10 +62,10 @@ export default class MainPage extends React.Component {
             let coord = starting_pickups[name];
             return (
                     <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "preplacement")} className="p-1 justify-content-center">
-                        <Col xs="4" className="text-center pt-1 border">
+                        <Col xs={leftCol} className="text-center pt-1 border">
                             <span class="align-middle">{name}</span>
-                        </Col><Col xs="4">
-                            <Input type="text" value={this.state.fass[coord]} onChange={e => this.onFass(coord, e.target.value)}/> 
+                        </Col><Col xs={rightCol}>
+                            <PickupSelect updater={(code, _) => this.onFass(coord, code)}/> 
                         </Col>
                     </Row>
             )   
@@ -85,24 +86,24 @@ export default class MainPage extends React.Component {
                         {goalCol("ForceMapStones")}
                     </Row>
                     <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "expPool")} className="p-1 justify-content-center">
-                        <Col xs="4" className="text-center pt-1 border">
+                        <Col xs={leftCol} className="text-center pt-1 border">
                             <span class="align-middle">Exp Pool</span>
-                        </Col><Col xs="4">
+                        </Col><Col xs={rightCol}>
                             <Input type="number" value={this.state.expPool} invalid={this.state.expPool < 100} onChange={(e) => this.setState({expPool: parseInt(e.target.value, 10)})}/> 
                             <FormFeedback tooltip>Experience Pool must be at least 100</FormFeedback>
                         </Col>
                     </Row>
                     <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "sense")} className="p-1 justify-content-center">
-                        <Col xs="4" className="text-center pt-1 border">
+                        <Col xs={leftCol} className="text-center pt-1 border">
                             <span class="align-middle">Sense Triggers</span>
-                        </Col><Col xs="4">
+                        </Col><Col xs={rightCol}>
                             <Input type="text" value={this.state.senseData}  onChange={(e) => this.setState({senseData: e.target.value})}/> 
                         </Col>
                     </Row>
                     <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "fillAlg")} className="p-1 justify-content-center">
-                        <Col xs="4" className="text-center pt-1 border">
+                        <Col xs={leftCol} className="text-center pt-1 border">
                             <span class="align-middle">Fill Algorithm</span>
-                        </Col><Col xs="4">
+                        </Col><Col xs={rightCol}>
                             <UncontrolledButtonDropdown className="w-100">
                                 <DropdownToggle color="primary" caret block> {this.state.fillAlg} </DropdownToggle>
                                 <DropdownMenu>
@@ -113,10 +114,10 @@ export default class MainPage extends React.Component {
                         </Col>
                     </Row>
                     <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "pathDiff")} className="p-1 justify-content-center">
-                        <Col xs="4"  className="text-center pt-1 border">
+                        <Col xs={leftCol} className="text-center pt-1 border">
                             <span class="align-middle">Path Difficulty</span>
                         </Col>
-                        <Col xs="4">
+                        <Col xs={rightCol}>
                             <UncontrolledButtonDropdown className="w-100">
                                 <DropdownToggle color="primary" caret block> {this.state.pathDiff} </DropdownToggle>
                                 <DropdownMenu> {pathDiffOptions} </DropdownMenu>
@@ -124,9 +125,9 @@ export default class MainPage extends React.Component {
                         </Col>
                     </Row>
                     <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "cellFreq")} className="p-1 justify-content-center">
-                        <Col xs="4" className="text-center pt-1 border">
+                        <Col xs={leftCol} className="text-center pt-1 border">
                             <span class="align-middle">Forced Cell Frequency</span>
-                        </Col><Col xs="4">
+                        </Col><Col xs={rightCol}>
                             <Input type="number" value={this.state.cellFreq} invalid={this.state.cellFreq < 3} onChange={(e) => this.setState({cellFreq: parseInt(e.target.value, 10)})}/> 
                             <FormFeedback tooltip>Forced Cell Frequency must be at least 3</FormFeedback>
                         </Col>
@@ -134,9 +135,9 @@ export default class MainPage extends React.Component {
                     {fass_rows}                    
                     <Collapse isOpen={this.state.variations.includes("WorldTour")}>
                         <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "relicCount")} className="p-1 justify-content-center">
-                            <Col xs="4" className="text-center pt-1 border">
+                            <Col xs={leftCol} className="text-center pt-1 border">
                                 <span class="align-middle">Relic Count</span>
-                            </Col><Col xs="4">
+                            </Col><Col xs={rightCol}>
                                 <Input type="number" value={this.state.relicCount} invalid={this.state.relicCount > 11 || this.state.relicCount < 1} onChange={(e) => this.setState({relicCount: parseInt(e.target.value, 10)})}/> 
                                 <FormFeedback tooltip>Relic count must be greater than 0 and less than 12</FormFeedback>
                             </Col>
@@ -144,17 +145,17 @@ export default class MainPage extends React.Component {
                     </Collapse>
                     <Collapse isOpen={this.state.variations.includes("WarmthFrags")}>
                         <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "fragCount")} className="p-1 justify-content-center">
-                            <Col xs="4" className="text-center pt-1 border">
+                            <Col xs={leftCol} className="text-center pt-1 border">
                                 <span class="align-middle">Fragment Count</span>
-                            </Col><Col xs="4">
+                            </Col><Col xs={rightCol}>
                                 <Input type="number" value={this.state.fragCount} invalid={this.state.fragCount > 60 || this.state.fragCount < 1} onChange={(e) => this.setState({fragCount: parseInt(e.target.value, 10)})}/> 
                                 <FormFeedback tooltip>Frag Count must be between 1 and 60</FormFeedback>
                             </Col>
                         </Row>
                         <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "fragRequired")} className="p-1 justify-content-center">
-                            <Col xs="4" className="text-center pt-1 border">
+                            <Col xs={leftCol} className="text-center pt-1 border">
                                 <span class="align-middle">Fragments Required</span>
-                            </Col><Col xs="4">
+                            </Col><Col xs={rightCol}>
                                 <Input type="number" value={this.state.fragReq} invalid={this.state.fragCount < this.state.fragReq || this.state.fragReq <= 0} onChange={e => this.setState({fragReq: parseInt(e.target.value, 10)})}/> 
                                 <FormFeedback tooltip>Fragments Required must be between 0 and Fragment Count ({this.state.fragCount})</FormFeedback>
                             </Col>

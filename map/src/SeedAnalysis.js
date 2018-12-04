@@ -1,6 +1,6 @@
 import React from 'react';
-import {doNetRequest} from './common.js';
-import {stuff_by_type, picks_by_zone, picks_by_loc} from './shared_map.js';
+import {stuff_by_type, doNetRequest} from './common.js';
+import {picks_by_zone, picks_by_loc} from './shared_map.js';
 import {Button, Container, Row, Col, Input} from 'reactstrap';
 import {Helmet} from 'react-helmet';
 

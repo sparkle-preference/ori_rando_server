@@ -2,9 +2,8 @@ import './index.css';
 import React from 'react';
 import {LayerGroup, ZoomControl, Map, Tooltip, TileLayer} from 'react-leaflet';
 import Leaflet from 'leaflet';
-import {get_int, get_list, presets, logic_paths, Blabel} from './common.js';
-import {stuff_by_type,  str_ids, picks_by_type, picks_by_area, pickup_name, PickupMarkersList, get_icon, getMapCrs, 
-        name_from_str, select_styles, select_wrap} from './shared_map.js';
+import {get_int, get_list, presets, logic_paths, stuff_by_type, name_from_str, pickup_name, Blabel} from './common.js';
+import {str_ids, picks_by_type, picks_by_area, PickupMarkersList, get_icon, getMapCrs, select_styles, select_wrap} from './shared_map.js';
 import Select from 'react-select';
 import {Row, Input, Col, Container, Button, Collapse} from 'reactstrap';
 import Control from 'react-leaflet-control';
@@ -21,7 +20,7 @@ const DEFAULT_VIEWPORT = {
 }
 
 const paths = Object.keys(presets);
-const relevant_picks = ["RB|6", "RB|8", "RB|9", "RB|10", "RB|11", "RB|12", "RB|13", "RB|15","RB|17","RB|19", "RB|21", "HC|1", "EC|1", "KS|1", "MS|1", "AC|1", 'SK|0', 'SK|51', 'SK|2', 'SK|3', 'SK|4', 'SK|5', 'SK|8', 'SK|12', 'SK|50', 'SK|14', 'TP|Ginso', 'TP|Horu', 'TP|Grotto', 'TP|Grove', 'TP|Forlorn', 'TP|Sorrow', 'TP|Swamp', 'TP|Valley', 'EV|0', 'EV|1', 'EV|2', 'EV|3', 'EV|4']
+const relevant_picks = ["RB|6", "RB|8", "RB|9", "RB|10", "RB|11", "RB|12", "RB|13", "RB|15", "RB|17", "RB|19", "RB|21", "HC|1", "EC|1", "KS|1", "MS|1", "AC|1", 'SK|0', 'SK|51', 'SK|2', 'SK|3', 'SK|4', 'SK|5', 'SK|8', 'SK|12', 'SK|50', 'SK|14', 'TP|Ginso', 'TP|Horu', 'TP|Grotto', 'TP|Grove', 'TP|Forlorn', 'TP|Sorrow', 'TP|Swamp', 'TP|Valley', 'EV|0', 'EV|1', 'EV|2', 'EV|3', 'EV|4']
 
 // patch picks_by_area to include mapstone areas because haha fuck
 picks_by_type["Ma"].forEach(pick => {
@@ -105,8 +104,7 @@ function getPickupMarkers(state, setSelected) {
     let search = state.searchStr ? state.searchStr.toLowerCase() : false
     marker_types.forEach(pre => {
         picks_by_type[pre].forEach(pick => {
-            let x = pick.hasOwnProperty("_x") ? pick._x : pick.x
-            let y = pick.hasOwnProperty("_y") ? pick._y : pick.y
+            let {x, y} = pick
             let icon = get_icon(pick, state.highlight_picks.includes(pick.loc) ? "red" : null)
             let rows = null;
             let base_name = pick.area + " " +pick.name + " ("+rnd(pick.x)+" "+rnd(pick.y)+")";
@@ -378,8 +376,7 @@ class LogicHelper extends React.Component {
     selectPickup = (pick, pan=true) => {
         let viewport = this.state.viewport;
         if(pan) {
-            let x = pick.value.hasOwnProperty("_x") ? pick.value._x : pick.value.x
-            let y = pick.value.hasOwnProperty("_y") ? pick.value._y : pick.value.y
+            let {x, y} = pick
             viewport = {
                   center: [y, x],
                   zoom: 5,
@@ -679,7 +676,7 @@ function getReachable(setter, modes, codes)
                     if(Object.keys(old_reachable).length >= 455) {
                         old_reachable["FinalEscape"] = [];
                     }
-                    return {reachable: old_reachable, new_areas: new_areas, history: history, step: step+1, highlight_picks: []}                    
+                    return {reachable: old_reachable, new_areas: new_areas, history: history, step: step+1, highlight_picks: []}
                 });
             })(xmlHttp.responseText);
     }

@@ -140,8 +140,7 @@ function getPickupMarkers(state) {
 		for(let p in picks_by_type[pre]) {
 			let pick = picks_by_type[pre][p]
 			let count = Object.keys(players).length
-			let x = pick.hasOwnProperty("_x") ? pick._x : pick.x
-			let y = pick.hasOwnProperty("_y") ? pick._y : pick.y
+            let {x, y} = pick
 			let icon = get_icon(pick)
 			if(count === 0) {
 				markers.push({key: pick.name+"|"+pick.x+","+pick.y, position: [y, x], inner: null, icon: icon})
