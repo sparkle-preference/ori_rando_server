@@ -7,12 +7,12 @@ import SiteBar from "./SiteBar.js"
 
 const GUIDES = ["install", "gen_seed", "get_tracker", "bonus_pickups"];
 const counts = {
-  "standard": { "RB|0": 3, "RB|1": 3, "RB|6": 3, "RB|8": 0, "RB|9": 1, "RB|10": 1, "RB|11": 1, "RB|12": 1, "RB|13": 3, "RB|15": 3, "RB|17": 5, "RB|19": 5, "RB|21": 5},
+  "standard": { "RB|0": 3, "RB|1": 3, "RB|6": "3/5*", "RB|9": 1, "RB|10": 1, "RB|11": 1, "RB|12": "1/5*", "RB|13": 3, "RB|15": 3, "RB|17": "5**", "RB|19": "5**", "RB|21": "5**"},
   "bonus": { "RB|31": 1, "RB|32": 1, "RB|33": 3, "RB|36": 1, "RB|6": 5, "RB|12": 5, "RB|101": "*", "RB|102": "*", "RB|103": "*", "RB|104": "**", "RB|105": "**", "RB|106": "*", "RB|107": "*"},
 }
 
 export default class HelpAndGuides extends React.Component {
-  getGlosseryCardContent = () => {
+  getGlossaryCardContent = () => {
     let normal = []
     let bonus = []
     let plandoOnly = []
@@ -20,10 +20,6 @@ export default class HelpAndGuides extends React.Component {
       let {label, value, desc} = upgrade_data;
       if(counts["standard"].hasOwnProperty(value)) {
         let count = counts["standard"][value];
-        if(counts["bonus"].hasOwnProperty(value)) 
-          count = (<Fragment>{count}/{counts["bonus"][value]}<sup>*</sup></Fragment>)
-        else if(["RB|17", "RB|19", "RB|21"].includes(label))
-          count = (<Fragment>{count}<sup>**</sup></Fragment>)
         normal.push((
           <Row className="border">
             <Col className="align-self-center text-center" xs="3">{label}</Col>
@@ -48,7 +44,7 @@ export default class HelpAndGuides extends React.Component {
         <CardBody>
           <CardTitle className=" text-center border-none">
             <Button color="primary" active={this.state.open["bonus_pickups"]} onClick={this.toggleOpen("bonus_pickups")}>
-              Bonus Item Glossery
+              Bonus Item Glossary
               </Button>
           </CardTitle>
           <Collapse isOpen={this.state.open["bonus_pickups"]}>
@@ -160,8 +156,8 @@ export default class HelpAndGuides extends React.Component {
                     </li></ul></small>
                   </li>
                   <li>
-                    From the Ori folder, navigate to oriDE_Data/Managed. Look for a file named "Assembly-Csharp.dll". To install the randomizer, we will be replacing this file, so create a
-                    backup first, either by renaming it to something like Assembly-Csharp-Vanilla.dll, or moving it into a different folder.
+                    From the Ori folder, navigate to oriDE_Data/Managed. Look for a file named "Assembly-CSharp.dll". To install the randomizer, we will be replacing this file, so create a
+                    backup first, either by renaming it to something like Assembly-CSharp-Vanilla.dll, or moving it into a different folder.
                   </li>
                   <li>
                     Download the Randomizer version of Assembly-Csharp.dll{" "}<a target="_blank" rel="noopener noreferrer" href="/dll">here</a>, and move it into the oriDE_Data/Managed folder.
@@ -270,7 +266,7 @@ export default class HelpAndGuides extends React.Component {
             </Collapse>
           </CardBody>
         </Card>
-        {this.getGlosseryCardContent()}
+        {this.getGlossaryCardContent()}
       </Container>
     );
   };
