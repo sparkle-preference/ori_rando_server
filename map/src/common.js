@@ -178,140 +178,164 @@ grouped_opts.push({
 });
 
 class PickupSelect extends Component {
-    valFromStr = (input, update=false) => {
-        let value = []
-        if(input && input.includes("|") && input !== "NO|1")
-        {
-            let [code, id] = input.split("|");
-            if (code === "RP")
-                value.push({ label: "Repeatable", value: "RP" })
-            else if (code === "MU" || value.length) {
-                let parts = id.split("/")
-                while (parts.length > 1) {
-                    let part = `${parts.shift()}|${parts.shift()}`
-                    value.push({ label: name_from_str(part), value: part })
-                }
-            } else {
-                value.push({ label: name_from_str(input), value: input })
-            }
-            if(update)
-                this.setState({value: value})
+  valFromStr = (input, update = false) => {
+    let value = []
+    if (input && input.includes("|") && input !== "NO|1") {
+      let [code, id] = input.split("|");
+      if (code === "RP")
+        value.push({ label: "Repeatable", value: "RP" })
+      else if (code === "MU" || value.length) {
+        let parts = id.split("/")
+        while (parts.length > 1) {
+          let part = `${parts.shift()}|${parts.shift()}`
+          value.push({ label: name_from_str(part), value: part })
         }
-        return value
+      } else {
+        value.push({ label: name_from_str(input), value: input })
+      }
+      if (update)
+        this.setState({ value: value })
     }
-    
-    constructor(props) {
-        super(props);
-        let value = []
-        if (props.value) {
-            value = this.valFromStr(props.value);
-        }
-        this.state = {
-            options: grouped_opts,
-            value: value,
-            inputValue: "",
-            updater: props.updater || console.log
-        };
+    return value
+  }
+
+  constructor(props) {
+    super(props);
+    let value = []
+    if (props.value) {
+      value = this.valFromStr(props.value);
     }
-    handleInputChange = inputValue => {
-        this.setState({ inputValue });
+    this.state = {
+      options: grouped_opts,
+      value: value,
+      inputValue: "",
+      updater: props.updater || console.log
     };
+  }
+  handleInputChange = inputValue => {
+    this.setState({ inputValue });
+  };
 
-    handleChange = (newValue, actionMeta) => {
-        let last = newValue[newValue.length - 1];
-        if (last && last.fake && actionMeta.action === "select-option") {
-            this.setState({ inputValue: last.value }, this.updatePickup);
-        } else {
-            this.setState({ value: newValue }, this.updatePickup);
-        }
-    };
-    updatePickup = () => {
-        let pickup = "";
-        let values = []
-        let repeat = false;
-        this.state.value.forEach(v => {
-            if (v.value === "RP")
-                repeat = true;
-            else
-                values.push(v.value);
-        });
-
-        if (values.length === 0)
-            pickup = "NO|1"
-        else if (!repeat && values.length === 1)
-            pickup = values[0]
-        else {
-            pickup = repeat ? "RP|" : "MU|"
-            pickup += values.join("/").replace(/\|/g, "/")
-        }
-        this.state.updater(pickup, name_from_str(pickup))
+  handleChange = (newValue, actionMeta) => {
+    let last = newValue[newValue.length - 1];
+    if (last && last.fake && actionMeta.action === "select-option") {
+      this.setState({ inputValue: last.value }, this.updatePickup);
+    } else {
+      this.setState({ value: newValue }, this.updatePickup);
     }
-
-    isValidNewOption = (input, values) => {
-        if (!input) return false;
-        if (values.some(option => compareOption(input, option))) return false;
-        if (all_opts.some(option => compareOption(input, option))) return false;
-        return true;
-    };
-
-    onCreateOption = option => {
-        option = this.correct(option);
-        if (option.includes("|")) {
-            let opt = { value: option, label: name_from_str(option) };
-            this.setState(prev => ({ value: prev.value.concat([opt]) }), this.updatePickup);
-        }
-    };
-    correct = raw => {
-        let corrected = raw;
-        let cleaned = raw.toLowerCase().trim();
-        if (cleaned.startsWith("print"))
-            corrected = `SH|${raw.substring(5).trim()}`;
-        else if (cleaned.startsWith("message"))
-            corrected = `SH|${raw.substring(7).trim()}`;
-        return corrected;
-    };
-
-    filterFunc = (option, rawInput) => {
-        const trimString = str => str.replace(/^\s+|\s+$/g, "");
-        if (option.data.fake && rawInput.includes("|")) return false;
-        if (option.data.__isNew__) return this.correct(rawInput).includes("|");
-        let input = trimString(rawInput);
-        let candidate = `${option.label} ${option.value}`;
-        input = input.toLowerCase();
-        candidate = candidate.toLowerCase();
-        return candidate.indexOf(input) > -1;
-    };
-    getNewOptionData = raw => {
-        let input = this.correct(raw)
-        if (
-            input.includes("|") &&
-            (raw.length === 3 || input.split("|")[1].trim())
-        )
-            return {
-                label: name_from_str(input),
-                value: input,
-                __isNew__: true
-            };
-    };
-    render() {
-        const { options, value, inputValue } = this.state;
-        return (
-            <CreatableSelect
-                isClearable
-                isMulti
-                inputValue={inputValue}
-                filterOption={this.filterFunc}
-                onInputChange={this.handleInputChange}
-                onChange={this.handleChange}
-                isValidNewOption={this.isValidNewOption}
-                getNewOptionData={this.getNewOptionData}
-                onCreateOption={this.onCreateOption}
-                options={options}
-                value={value}
-                styles={this.props.styles}
-            />
-        );
+  };
+  updatePickup = () => {
+    let pickup = "";
+    let values = []
+    let repeat = false;
+    this.state.value.forEach(v => {
+      let val = v.value
+      while(val.endsWith("|"))
+      {
+        val = val.slice(0, -1)
+      }
+      if (val === "RP")
+        repeat = true;
+      else
+        values.push(val);
+    });
+    if (values.length === 0)
+      pickup = "NO|1"
+    else if (!repeat && values.length === 1)
+      pickup = values[0]
+    else {
+      pickup = repeat ? "RP|" : "MU|"
+      pickup += values.join("/").replace(/\|/g, "/")
     }
+    this.state.updater(pickup, name_from_str(pickup))
+  }
+
+  isValidNewOption = (input, values) => {
+    if (!input) return false;
+    if (all_opts.some(option => compareOption(input, option))) return false;
+    return true;
+  };
+
+  onCreateOption = option => {
+    option = this.correct(option);
+    if (option.includes("|")) {
+      let opt = { value: option, label: name_from_str(option) };
+      this.setState(prev => ({ value: prev.value.concat([opt]) }), this.updatePickup);
+    }
+  };
+  correct = raw => {
+    let corrected = raw;
+    let cleaned = raw.toLowerCase().trim();
+    if (cleaned.startsWith("print"))
+      corrected = `SH|${raw.substring(5).trim()}`;
+    else if (cleaned.startsWith("message"))
+      corrected = `SH|${raw.substring(7).trim()}`;
+    return corrected;
+  };
+
+  filterFunc = (option, rawInput) => {
+    const trimString = str => str.replace(/^\s+|\s+$/g, "");
+    if (option.data.fake && rawInput.includes("|")) return false;
+    if (option.data.__isNew__) return this.correct(rawInput).includes("|");
+    let input = trimString(rawInput);
+    let candidate = `${option.label} ${option.value}`;
+    input = input.toLowerCase();
+    candidate = candidate.toLowerCase();
+    return candidate.indexOf(input) > -1;
+  };
+  getNewOptionData = raw => {
+    let input = this.correct(raw)
+    if (
+      input.includes("|") &&
+      (raw.length === 3 || input.split("|")[1].trim())
+    )
+      return {
+        label: name_from_str(input),
+        value: input,
+        __isNew__: true
+      };
+  };
+  selectOption = (that) => (newValue) => {
+    let { blurInputOnSelect } = that.props;
+    let { selectValue } = that.state;
+    let values = selectValue.map(v => v.value);
+    let mutVal = {...newValue}
+    while (values.includes(mutVal.value))
+    {
+      mutVal.value += "|"
+    }
+    that.setValue([...selectValue, mutVal], 'select-option', mutVal);
+    that.announceAriaLiveSelection({event: 'select-option', context: { value: that.getOptionLabel(mutVal) },});
+    if (blurInputOnSelect) {
+      that.blurInput();
+    }
+  };
+
+  componentDidMount() {
+    this.cref.select.select.isOptionSelected = () => false
+    this.cref.select.select.selectOption = this.selectOption(this.cref.select.select)
+  }
+  render() {
+    const { options, value, inputValue } = this.state;
+    return (
+      <CreatableSelect
+        ref={ref => { this.cref = ref; }}
+        hideSelectedOptions={false}
+        isClearable
+        isMulti
+        inputValue={inputValue}
+        filterOption={this.filterFunc}
+        onInputChange={this.handleInputChange}
+        onChange={this.handleChange}
+        isValidNewOption={this.isValidNewOption}
+        getNewOptionData={this.getNewOptionData}
+        onCreateOption={this.onCreateOption}
+        options={options}
+        value={value}
+        styles={this.props.styles}
+      />
+    );
+  }
 }
 
 const loaders = [
