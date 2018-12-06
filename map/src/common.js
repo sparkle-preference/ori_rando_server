@@ -6,6 +6,7 @@ import {
 } from 'react-spinners';
 import { Badge } from 'reactstrap';
 import CreatableSelect from 'react-select/lib/Creatable';
+import { colors } from 'react-select/lib/theme';
 
 
 function name_from_str(pick) {

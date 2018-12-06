@@ -96,7 +96,7 @@ class HaveNKeystones(Card):
 class DieToXorY(Card):
     @staticmethod
     def get():
-        return "Die to %s or %s" % tuple(sample(["Kuro (anywhere)", "Forlorn Approach Baneling", "Horu Lava", "Spidersack spikes", "Misty Baneling", "Lightning above Sorrow Pass", "Lasers above far right Forlorn plant", "Lost Grove Lasers"], 2))
+        return "Die to %s or %s" % tuple(sample(["Kuro (anywhere)", "Forlorn Approach Baneling", "Horu Lava", "Spidersack spikes", "Misty Baneling", "Lightning above Sorrow Pass", "Lasers above far right Forlorn plant", "Lost Grove Bottom Lasers"], 2))
 
 class NTotalPickups(Card):
     @staticmethod
