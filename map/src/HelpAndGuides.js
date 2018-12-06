@@ -1,4 +1,4 @@
-import React, {Fragment} from 'react';
+import React from 'react';
 import {Container, Button, Collapse, Row, Col, Card, CardTitle, CardHeader, CardSubtitle, CardText, CardBody} from 'reactstrap';
 import {Helmet} from 'react-helmet';
 
@@ -36,7 +36,6 @@ export default class HelpAndGuides extends React.Component {
             <Col className="text-center align-self-center" xs="1">{count}</Col>
           </Row>
         ))
-
       }
     })
     return (

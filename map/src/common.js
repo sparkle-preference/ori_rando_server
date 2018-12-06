@@ -1,4 +1,4 @@
-import React, { Component } from 'react';
+import React, { Component, Fragment } from 'react';
 import Leaflet from 'leaflet';
 import {
     BeatLoader, BounceLoader, CircleLoader, ClipLoader, ClimbingBoxLoader, DotLoader, GridLoader, HashLoader, MoonLoader,
@@ -85,6 +85,23 @@ const stuff_by_type = {
         { label: "Dash", value: "SK|50" },
         { label: "Grenade", value: "SK|51" }
     ],
+    "Cells/Stones": [
+        { label: "Health Cell", value: "HC|1" },
+        { label: "Energy Cell", value: "EC|1" },
+        { label: "Ability Cell", value: "AC|1" },
+        { label: "Keystone", value: "KS|1" },
+        { label: "Mapstone", value: "MS|1" }
+    ],
+    "Teleporters": [
+        { label: "Grotto TP", value: "TP|Grotto" },
+        { label: "Grove TP", value: "TP|Grove" },
+        { label: "Forlorn TP", value: "TP|Forlorn" },
+        { label: "Valley TP", value: "TP|Valley" },
+        { label: "Sorrow TP", value: "TP|Sorrow" },
+        { label: "Swamp TP", value: "TP|Swamp" },
+        { label: "Ginso TP", value: "TP|Ginso" },
+        { label: "Horu TP", value: "TP|Horu" },
+    ],
     "Events": [
         { label: "Water Vein", value: "EV|0" },
         { label: "Clean Water", value: "EV|1" },
@@ -134,23 +151,6 @@ const stuff_by_type = {
         { label: "Respec", value: "RB|106", desc: "On use: Refund all your spent AP."},
         { label: "Level Explosion", value: "RB|107", desc: "On use: Pay 1 energy to create a level-up explosion."},
     ],
-    "Teleporters": [
-        { label: "Grotto TP", value: "TP|Grotto" },
-        { label: "Grove TP", value: "TP|Grove" },
-        { label: "Forlorn TP", value: "TP|Forlorn" },
-        { label: "Valley TP", value: "TP|Valley" },
-        { label: "Sorrow TP", value: "TP|Sorrow" },
-        { label: "Swamp TP", value: "TP|Swamp" },
-        { label: "Ginso TP", value: "TP|Ginso" },
-        { label: "Horu TP", value: "TP|Horu" },
-    ],
-    "Cells/Stones": [
-        { label: "Health Cell", value: "HC|1" },
-        { label: "Energy Cell", value: "EC|1" },
-        { label: "Ability Cell", value: "AC|1" },
-        { label: "Keystone", value: "KS|1" },
-        { label: "Mapstone", value: "MS|1" }
-    ]
 };
 
 const compareOption = (inputValue, option) => {
@@ -168,11 +168,8 @@ grouped_opts.push({
     options: [
         { label: "Repeatable", value: "RP" },
         { label: 'Print "Your text here"', value: "SH|Your text here", fake: true },
-        { label: 'Message "Your text here"', value: "SH|Your text here", fake: true },
-        { label: 'Warp to 0, 0', value: "WP|0, 0", fake: true },
-        { label: 'Teleport to 0, 0', value: "WP|0, 0", fake: true },
-        { label: 'Warp to 0, 0 and save', value: "WS|0, 0", fake: true },
-        { label: 'Teleport to 0, 0 and save', value: "WS|0, 0", fake: true },
+        { label: 'Warp to 0,0', value: "WP|0,0", fake: true },
+        { label: 'Warp to 0,0 and save', value: "WS|0,0", fake: true },
         { label: '15 Experience', value: "EX|15", fake: true },
     ]
 });
@@ -202,13 +199,26 @@ class PickupSelect extends Component {
   constructor(props) {
     super(props);
     let value = []
-    if (props.value) {
+    if (props.value) 
       value = this.valFromStr(props.value);
-    }
+    
+    let styles = props.styles || {
+        option: (base, data) => {
+          let { isDisabled, isFocused } = data
+          let bgc = isDisabled ? colors.dangerLight : isFocused ? colors.primary25 : 'transparent'
+          return ({
+          ...base,
+          backgroundColor: bgc,
+          color: 'black',
+        })},
+      }
+
     this.state = {
       options: grouped_opts,
       value: value,
+      menuOpen: false,
       inputValue: "",
+      styles: styles, 
       updater: props.updater || console.log
     };
   }
@@ -219,7 +229,10 @@ class PickupSelect extends Component {
   handleChange = (newValue, actionMeta) => {
     let last = newValue[newValue.length - 1];
     if (last && last.fake && actionMeta.action === "select-option") {
-      this.setState({ inputValue: last.value }, this.updatePickup);
+      let val = last.value
+      while (val.endsWith("|") && val.length > 3)
+        val = val.slice(0, -1)      
+      this.setState({ inputValue: val, menuOpen: true }, this.updatePickup);
     } else {
       this.setState({ value: newValue }, this.updatePickup);
     }
@@ -290,8 +303,8 @@ class PickupSelect extends Component {
       (raw.length === 3 || input.split("|")[1].trim())
     )
       return {
-        label: name_from_str(input),
         value: input,
+        label: name_from_str(input),
         __isNew__: true
       };
   };
@@ -311,18 +324,48 @@ class PickupSelect extends Component {
     }
   };
 
+  optionDisabled = (opt) => {
+    if(!opt.__isNew__)
+      return false;
+    if (opt.value.startsWith("WP|") || opt.value.startsWith("WS|"))
+    {
+      let parts = opt.value.substr(3).split(",");
+      if(parts.length !== 2 || !parts.every(x => !isNaN(x)))
+      {
+        if (parts.length === 1) 
+          if (parts[0] === "")
+            opt.label = (<Fragment>Warp to <b>X</b>,Y</Fragment>)
+          else if (isNaN(parts[0]))
+            opt.label = (<Fragment>Warp to <s>{parts[0]}</s><i> (invalid number)</i></Fragment>)
+          else
+            opt.label = (<Fragment>Warp to {parts[0]}<b>,Y</b></Fragment>)
+        else if(parts.length > 2)
+          opt.label = (<Fragment>Warp to {parts[0]},{parts[1]}<s>,{parts.slice(2).join(",")}</s> <i>(remove extra chars)</i></Fragment>)
+        else if(parts[1] === "")
+            opt.label = (<Fragment>Warp to {parts[0]},<b>Y</b></Fragment>)
+        else
+          opt.label = (<Fragment>Warp to {parts[0]},<s>{parts[1]}</s><i> (invalid number)</i></Fragment>)
+      return true
+      }
+     }
+    return false
+  }
+
   componentDidMount() {
-    this.cref.select.select.isOptionSelected = () => false
+    this.cref.select.select.isOptionSelected = (opt, values) => opt.value === "RP" && values.some(v => v.value === "RP")
     this.cref.select.select.selectOption = this.selectOption(this.cref.select.select)
   }
   render() {
-    const { options, value, inputValue } = this.state;
+    const { options, value, inputValue, menuOpen, styles } = this.state;
     return (
       <CreatableSelect
         ref={ref => { this.cref = ref; }}
-        hideSelectedOptions={false}
+        isOptionDisabled={this.optionDisabled}
         isClearable
         isMulti
+        onMenuOpen={() => this.setState({ menuOpen: true })}
+        onMenuClose={() => this.setState({ menuOpen: false })}
+        menuIsOpen={menuOpen}
         inputValue={inputValue}
         filterOption={this.filterFunc}
         onInputChange={this.handleInputChange}
@@ -332,7 +375,7 @@ class PickupSelect extends Component {
         onCreateOption={this.onCreateOption}
         options={options}
         value={value}
-        styles={this.props.styles}
+        styles={styles}
       />
     );
   }

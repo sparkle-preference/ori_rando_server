@@ -704,7 +704,7 @@ class PlandoBuiler extends React.Component {
                             <Select styles={select_styles} options={pickups_opts} onChange={this.selectPickup} clearable={false} value={this.state.pickup} label={this.state.pickup.name+"("+this.state.pickup.x + "," + this.state.pickup.y +")"}></Select>
                         </div>
                         <div className="pickup-wrapper">
-                            <PickupSelect ref="pickupSelect" value={this.state.stuff.value} styles={select_styles} updater={(code, name) => this.place({label: name, value: code})}/>
+                            <PickupSelect ref="pickupSelect" value={this.state.stuff.value} updater={(code, name) => this.place({label: name, value: code})}/>
                         </div>
                         <Button onClick={() => this.setState(prev => ({display_fill: !prev.display_fill}))}>Show Fill</Button>
                         <Collapse isOpen={this.state.display_fill}>

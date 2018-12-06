@@ -731,12 +731,11 @@ class MakeSeedWithParams(RequestHandler):
         params = param_key.get()
         if params.generate():
             resp = {"paramId": param_key.id(), "playerCount": params.players, "flagLine": params.flag_line()}
-            if params.tracking:
-                game = Game.from_params(params, self.request.GET.get("game_id"))
-                game_id = game.key.id()
-                resp["gameId"] = game_id
+            if(params.tracking):
+                resp["gameId"] = Game.get_open_gid()
                 if debug and paramFlag(self, "test_map_redir"):
-                    self.redirect(uri_for("map-render", game_id=resp["gameId"], from_test=1))
+                    game = Game.from_params(params, resp["gameId"])
+                    self.redirect(uri_for("map-render", game_id=game.key.id(), from_test=1))
             self.response.out.write(json.dumps(resp))
         else:
             self.response.status = 500
@@ -777,6 +776,8 @@ class GetParamMetadata(RequestHandler):
         params = SeedGenParams.with_id(params_id)
         if params:
             resp = {"playerCount": params.players, "flagLine": params.flag_line()}
+            if params.tracking:
+                resp["gameId"] = Game.get_open_gid()
             self.response.out.write(json.dumps(resp))
         else:
             self.response.status = 404
@@ -790,6 +791,7 @@ class GetSeedFromParams(RequestHandler):
             player = int(self.request.GET.get("player_id", 1))
             if params.tracking:
                 game_id = self.request.GET.get("game_id")
+                game = Game.from_params(params, game_id)
                 seed = params.get_seed(player, game_id, verbose_paths)
             else:
                 seed = params.get_seed(player, verbose_paths=verbose_paths)

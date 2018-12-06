@@ -52,6 +52,27 @@ export default class MainPage extends React.Component {
     helpLeave = () => clearTimeout(this.state.helpTimeout) 
     help = (category, option) => () => this.setState({helpcat: category, helpopt: option, helpParams: getHelpContent(category, option)})
     
+    onDownloadTracked = () => {
+        let request = new XMLHttpRequest()
+        request.open('GET', "/generator/metadata/"+this.state.paramId, false)
+        request.send(null)
+        if (request.status !== 200)
+        {
+            console.log("WARNING: game_id might be wrong")
+            return false
+        }
+        else {
+            let res = JSON.parse(request.responseText)
+            if(res["gameId"] !== this.state.inputGameId)
+            {
+                this.setState({inputGameId: res["gameId"]})
+                return false
+            }
+            return true
+        }
+    }
+
+    
     getAdvancedTab = () => {
         let [leftCol, rightCol] = [4, 7]
         let pathDiffOptions = ["Easy", "Normal", "Hard"].map(mode => (
@@ -340,7 +361,7 @@ export default class MainPage extends React.Component {
             window.history.replaceState('',window.document.title, window.document.URL.split("?")[0]);
         } else {
             let res = JSON.parse(responseText)
-            this.setState({inputPlayerCount: res["playerCount"], inputFlagLine: res["flagLine"]})
+            this.setState({inputPlayerCount: res["playerCount"],inputGameId: res["gameId"], inputFlagLine: res["flagLine"]})
         }
     }
     
@@ -352,11 +373,8 @@ export default class MainPage extends React.Component {
             return
         } else {
             let res = JSON.parse(responseText)
-            let paramId = res["paramId"]
-            let gameId = res["gameId"]
+            let {paramId, gameId} = res
             let url = window.document.URL.split("?")[0]+"?param_id="+paramId
-            if(gameId > 0)
-                url += "&game_id="+gameId
             window.history.replaceState('',window.document.title, url);
             this.helpEnter("general", "seedBuilt" + this.multi())()
             this.setState({
@@ -458,8 +476,12 @@ export default class MainPage extends React.Component {
             let playerRows = [...Array(this.state.inputPlayerCount).keys()].map(p => {
                 p++;
                 let seedParams = [];
+                let onClickDownload = () => true
                 if(this.state.inputGameId > 0)
+                {
+                    onClickDownload = this.onDownloadTracked
                     seedParams.push("game_id="+this.state.inputGameId)
+                }
                 let seedUrl = "/generator/seed/"+this.state.paramId
                 let spoilerUrl = "/generator/spoiler/"+this.state.paramId
                 let downloadSpoilerUrl = spoilerUrl + "?download=1"
@@ -480,7 +502,7 @@ export default class MainPage extends React.Component {
                             </Col></Row>
                         </Col>
                         <Col xs="3" className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "downloadButton"+this.multi())}>
-                            <Button color="primary" block href={seedUrl}>Download Seed</Button>
+                            <Button color="primary" block onClick={onClickDownload} target="_blank" href={seedUrl}>Download Seed</Button>
                         </Col>
                         <Col xs="3" className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "spoilerButton")}>
                             <Button color="primary" href={spoilerUrl} target="_blank" block >View Spoiler</Button>
@@ -637,7 +659,6 @@ export default class MainPage extends React.Component {
         let url = new URL(window.document.location.href);
         let paramId = url.searchParams.get("param_id");
         let quickstartOpen = window.document.location.href.includes("/quickstart");
-        let inputGameId = parseInt(url.searchParams.get("game_id") || -1, 10);
         let seedTabExists = (paramId !== null);
         if(seedTabExists)
             doNetRequest("/generator/metadata/"+paramId,this.acceptMetadata);
@@ -646,7 +667,7 @@ export default class MainPage extends React.Component {
                      paths: presets["standard"], keyMode: "Clues", oldKeyMode: "Clues", pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null), goalModes: ["ForceTrees"],
                      customSyncId: "", seed: "", fillAlg: "Balanced", shared: ["Skills", "Teleporters", "World Events"], hints: true, helpcat: "", helpopt: "", quickstartOpen: quickstartOpen,
                      syncId: "", expPool: 10000, lastHelp: new Date(), seedIsGenerating: false, cellFreq: cellFreqPresets("standard"), fragCount: 30, fragReq: 20, relicCount: 8, loader: get_random_loader(),
-                     paramId: paramId, inputGameId: inputGameId, seedTabExists: seedTabExists, reopenUrl: "", teamStr: "", inputFlagLine: "", fass: {}, goalModesOpen: false};
+                     paramId: paramId, seedTabExists: seedTabExists, reopenUrl: "", teamStr: "", inputFlagLine: "", fass: {}, inputGameId: -1, goalModesOpen: false};
     }
         
     closeQuickstart = () => {
