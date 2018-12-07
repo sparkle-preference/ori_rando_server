@@ -1,7 +1,6 @@
 import React from 'react';
 import  {DropdownToggle, DropdownMenu, Dropdown, DropdownItem, Nav, NavLink, NavItem, Collapse,  Input, UncontrolledButtonDropdown, Button, 
         Row, FormFeedback, Col, Container, TabContent, TabPane, Modal, ModalHeader, ModalBody, ModalFooter, Media} from 'reactstrap'
-import {Helmet} from 'react-helmet';
 import {NotificationContainer, NotificationManager} from 'react-notifications';
 
 import 'react-notifications/lib/notifications.css';
@@ -777,9 +776,6 @@ export default class MainPage extends React.Component {
         let goalModeMulti = this.state.goalModes.length > 1;
         return (
          <Container className="pl-4 pr-4 pb-4 pt-2 mt-5">
-            <Helmet>
-                <style>{'body { background-color: white}'}</style>
-            </Helmet>
              <Row className="justify-content-center">
                  <Col>
                      {modal}

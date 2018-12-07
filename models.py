@@ -37,6 +37,22 @@ class HistoryLine(ndb.Model):
         else:
             return "lost %s! (%s)" % (self.pickup().name, t)
 
+class UserPrefs(ndb.Model):
+    user_id = ndb.StringProperty(required=True)
+    chosen_name = ndb.StringProperty()
+    dark_theme = ndb.BooleanProperty(default=False)
+
+    @classmethod
+    def get_by_user(cls, user):
+        return cls.query().filter(cls.user_id == user.user_id()).get()
+    
+    @staticmethod
+    def create(user):
+        prefs = UserPrefs()
+        prefs.user_id = user.user_id()
+        prefs.chosen_name = user.email().partition("@")[0]
+#        for plando in Seed.query(Seed.author == author).fetch():
+
 class Seed(ndb.Model):
     # Seed ids are author
     placements = ndb.LocalStructuredProperty(Placement, repeated=True)
