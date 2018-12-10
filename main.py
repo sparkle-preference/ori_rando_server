@@ -10,7 +10,6 @@ from webapp2_extras.routes import PathPrefixRoute, RedirectRoute as Route
 from test import TestRunner
 from webapp2 import WSGIApplication, RequestHandler, redirect, uri_for
 from datetime import datetime, timedelta
-from google.appengine.api import users
 from google.appengine.ext import ndb
 from google.appengine.ext.webapp import template
 
@@ -19,7 +18,7 @@ from seedbuilder.seedparams import SeedGenParams
 from seedbuilder.vanilla import seedtext as vanilla_seed
 from bingo import Card
 from enums import MultiplayerGameType, ShareType, Variation
-from models import Game, Seed
+from models import Game, Seed, User
 from pickups import Pickup
 from cache import Cache
 from util import coord_correction_map, all_locs, picks_by_type_generator
@@ -28,6 +27,8 @@ from reachable import Map, PlayerState
 PLANDO_VER = "0.5.1"
 debug = os.environ.get('SERVER_SOFTWARE', '').startswith('Dev')
 share_types = [ShareType.EVENT, ShareType.SKILL, ShareType.UPGRADE, ShareType.MISC, ShareType.TELEPORTER]
+path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
+
 
 def paramFlag(s, f):
     return s.request.get(f, None) is not None
@@ -261,7 +262,6 @@ class SetSeed(RequestHandler):
 
 class ShowMap(RequestHandler):
     def get(self, game_id):
-        path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
         template_values = {'app': "GameTracker", 'title': "Game %s" % game_id, 'game_id': game_id}
         if debug and paramFlag(self, "from_test"):
             game = Game.with_id(game_id)
@@ -370,16 +370,6 @@ class GetPlayerPositions(RequestHandler):
             self.response.status = 404
 
 
-class Plando(RequestHandler):
-    def get(self):
-        path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
-        template_values = {'app': "PlandoBuilder", 'title': "Plandomizer Editor " + PLANDO_VER,
-                           'pathmode': paramVal(self, 'pathmode'), 'HC': paramVal(self, 'HC'),
-                           'EC': paramVal(self, 'EC'), 'AC': paramVal(self, 'AC'), 'KS': paramVal(self, 'KS'),
-                           'skills': paramVal(self, 'skills'), 'tps': paramVal(self, 'tps'),  'evs': paramVal(self, 'evs')}
-        self.response.out.write(template.render(path, template_values))
-
-
 class PlandoReachable(RequestHandler):
     def get(self):
         modes = paramVal(self, "modes").split(" ")
@@ -407,130 +397,101 @@ def clone_entity(e, **extra_args):
 
 
 class PlandoRename(RequestHandler):
-    def get(self, author, old_name, new_name):
-        user = users.get_current_user()
-        if user:
-            dispname = user.email().partition("@")[0]
-            if dispname == author:
-                old_seed = Seed.get_by_id("%s:%s" % (author, old_name))
-                if not old_seed:
-                    log.error("couldn't find old seed when trying to rename!")
-                    self.response.status = 404
-                    return
-                new_seed = clone_entity(old_seed, id="%s:%s" % (author, new_name), name=new_name)
-                if new_seed.put():
-                    if not paramFlag(self, "cp"):
-                        old_seed.key.delete()
-                    self.redirect('/plando/%s/%s' % (author, new_name))
-                else:
-                    log.error("Failed to rename seed")
-                    self.response.status = 500
-            else:
-                log.error("Auth failed, logged in as %s, trying to edit %s's seed" % (dispname, author))
-                self.response.status = 401
-        else:
-            log.error("no auth D:")
+    def get(self, seed_name, new_name):
+        user = User.get()
+        if not user:
+            log.error("Error: unauthenticated rename attempt")
             self.response.status = 401
+            return
+        old_seed = user.plando(seed_name)
+        if not old_seed:
+            log.error("couldn't find old seed when trying to rename!")
+            self.response.status = 404
+            return
+        new_seed = clone_entity(old_seed, id="%s:%s" % (user.key.id(), new_name), name=new_name)
+        if new_seed.put():
+            if not paramFlag(self, "cp"):
+                old_seed.key.delete()
+            self.redirect(uri_for("plando-view", author_name=user.name, seed_name=new_name))
+        else:
+            log.error("Failed to rename seed")
+            self.response.status = 500
 
 
 class PlandoDelete(RequestHandler):
-    def get(self, author, seed_name):
-        user = users.get_current_user()
-        if user:
-            dispname = user.email().partition("@")[0]
-            if dispname == author:
-                seed = Seed.get_by_id("%s:%s" % (author, seed_name))
-                if seed:
-                    seed.key.delete()
-                    self.redirect('/plando/%s' % author)
-                else:
-                    log.error("couldn't find seed!")
-                    self.response.status = 404
-            else:
-                log.error("Auth failed, logged in as %s, trying to edit %s's seed" % (dispname, author))
-                self.response.status = 401
-        else:
-            log.error("no auth D:")
+    def get(self, seed_name):
+        user = User.get()
+        if not user:
+            log.error("Error: unauthenticated delete attempt")
             self.response.status = 401
+            return
+        seed = user.plando(seed_name)
+        if not seed:
+            log.error("couldn't find seed when trying to delete!")
+            self.response.status = 404
+            return
+        seed.key.delete()
+        self.redirect(uri_for("plando-author-index", author_name=user.name))
 
 
 class PlandoToggleHide(RequestHandler):
-    def get(self, author, seed_name):
-        user = users.get_current_user()
-        if user:
-            dispname = user.email().partition("@")[0]
-            if dispname == author:
-                seed = Seed.get_by_id("%s:%s" % (author, seed_name))
-                if seed:
-                    seed.hidden = not (seed.hidden or False)
-                    seed.put()
-                    self.response.out.write(seed.hidden)
-                    self.redirect('/plando/%s/%s' % (author, seed_name))
-                else:
-                    log.error("couldn't find seed!")
-                    self.response.status = 404
-            else:
-                log.error("Auth failed, logged in as %s, trying to edit %s's seed" % (dispname, author))
-                self.response.status = 401
-        else:
-            log.error("no auth D:")
+    def get(self, seed_name):
+        user = User.get()
+        if not user:
+            log.error("Error: unauthenticated hide attempt")
             self.response.status = 401
+            return
+        seed = user.plando(seed_name)
+        if not seed:
+            log.error("couldn't find seed when trying to hide!")
+            self.response.status = 404
+            return
+        seed.hidden = not (seed.hidden or False)
+        seed.put()
+        self.redirect(uri_for("plando-view", author_name=user.name, seed_name=seed_name))
 
 
 class PlandoUpload(RequestHandler):
-    def post(self, author, plando):
-        user = users.get_current_user()
-        if user:
-            dispname = user.email().partition("@")[0]
-            if dispname == author:
-                seed_data = json.loads(self.request.POST["seed"])
-                desc = self.request.POST["desc"]
-                old_name = paramVal(self, "old_name")
-                if old_name:
-                    old_seed = Seed.get_by_id("%s:%s" % (author, old_name))
-                else:
-                    old_seed = Seed.get_by_id("%s:%s" % (author, plando))
-                seed = Seed.from_plando(seed_data, author, plando, desc)
-                if old_seed:
-                    seed.hidden = old_seed.hidden
-                res = seed.put()
-                if res and old_name and old_name != plando:
-                    if not old_seed:
-                        log.error("couldn't find old seed when trying to rename!")
-                    else:
-                        old_seed.key.delete()
-                self.response.headers['Content-Type'] = 'text/plain'
-                self.response.status = 200
-                self.response.out.write(res)
-            else:
-                log.error("Auth failed, logged in as %s, trying to edit %s's seed" % (dispname, author))
-                self.response.status = 401
-        else:
-            log.error("no auth D:")
+    def post(self, seed_name):
+        user = User.get()
+        if not user:
+            log.error("Error: unauthenticated upload attempt")
             self.response.status = 401
+            return
+        seed_data = json.loads(self.request.POST["seed"])
+        old_name = seed_data["oldName"]
+        name = seed_data["name"]
+        old_seed = user.plando(old_name)
+        if old_seed:
+            res = old_seed.update(seed_data)
+        else:
+            res = Seed.new(seed_data)
+        self.response.headers['Content-Type'] = 'text/plain'
+        self.response.status = 200
+        self.response.out.write(res)
 
 
 class PlandoView(RequestHandler):
-    def get(self, author, plando):
-        user = users.get_current_user()
-        dispname = "Guest"
-        if user:
-            dispname = user.email().partition("@")[0]
-        id = author + ":" + plando
-        seed = Seed.get_by_id(id)
+    def get(self, author_name, seed_name):
+        authed = False
+        user = User.get()
+        seed = Seed.get(author_name, seed_name)
+        if user and user.key == seed.author_key:
+            authed = True
         if seed:
+            template_values = {
+                'app': "SeedDisplayPage", 'title': "%s by %s" % (seed_name, author_name),
+                'players': seed.players, 'seed_data': seed.get_plando_json(),
+                'seed_name': seed_name, 'author': author_name, 'authed': authed, 
+                'seed_desc': seed.description, 'game_id': Game.get_open_gid()
+            }
+            
             hidden = seed.hidden or False
-            if not (hidden and dispname != author):
+            if not hidden or authed:
                 self.response.status = 200
                 self.response.headers['Content-Type'] = 'text/html'
-                path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
-                template_values = {'app': "SeedDisplayPage", 'title': "%s by %s" % (plando, author),
-                                   'players': seed.players, 'seed_data': seed.to_lines()[0],
-                                   'seed_name': plando, 'author': author, 'authed': True, 'seed_desc': seed.description,
-                                   'user': dispname, 'game_id': Game.get_open_gid()}
                 if hidden:
                     template_values['seed_hidden'] = True
-
                 self.response.out.write(template.render(path, template_values))
                 return
         self.response.status = 404
@@ -539,68 +500,41 @@ class PlandoView(RequestHandler):
 
 
 class PlandoEdit(RequestHandler):
-    def get(self, author, plando):
-        path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
-        template_values = {'app': "PlandoBuilder", 'title': "Plandomizer Editor " + PLANDO_VER, 'seed_name': plando}
-        owner = False
-        user = users.get_current_user()
+    def get(self, seed_name):
+        user = User.get()
+
+        template_values = {'app': "PlandoBuilder", 'title': "Plandomizer Editor " + PLANDO_VER, 'seed_name': seed_name}
         if user:
-            dispname = user.email().partition("@")[0]
-            owner = dispname == author
-        id = author + ":" + plando
-        if not user:
-            self.redirect('/login?from=plando_edit&plando=%s' % plando)
-        elif not owner:
-            self.response.status = 401
-            self.response.headers['Content-Type'] = 'text/plain'
-            self.response.out.write("Edit unauthorized: seed not owned by current user")
-        else:
-            seed = Seed.get_by_id(id)
-            template_values['user'] = dispname
+            seed = user.plando(seed_name)
             template_values['authed'] = "True"
+            template_values['user'] = user.name
             if seed:
                 template_values['seed_desc'] = seed.description
                 template_values['seed_hidden'] = seed.hidden or False
                 template_values['seed_data'] = seed.get_plando_json()
-            self.response.out.write(template.render(path, template_values))
-
-
-class PlandoOld(RequestHandler):
-    def get(self):
-        path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
-        user = users.get_current_user()
-        if user:
-            dispname = user.email().partition("@")[0]
-            self.redirect("/plando/%s/seedName/edit" % dispname)
-        else:
-            template_values = {'app': "PlandoBuilder", 'title': "Plandomizer Editor (Beta)",
-                               'pathmode': paramVal(self, 'pathmode'), 'HC': paramVal(self, 'HC'),
-                               'EC': paramVal(self, 'EC'), 'AC': paramVal(self, 'AC'), 'KS': paramVal(self, 'KS'),
-                               'skills': paramVal(self, 'skills'), 'tps': paramVal(self, 'tps'), 'evs': paramVal(self, 'evs')}
-            self.response.out.write(template.render(path, template_values))
+        self.response.out.write(template.render(path, template_values))
 
 
 class HandleLogin(RequestHandler):
     def get(self):
-        user = users.get_current_user()
+        user = User.get()
         if user:
-            dispname = user.email().partition("@")[0]
             from_page = paramVal(self, "from")
             if from_page == "plando_edit":
                 plando = paramVal(self, "plando")
                 if plando:
-                    self.redirect('plando/%s/%s' %(dispname, plando))
+                    self.redirect(uri_for('plando-edit', seed_name=plando))
             else:
                 self.redirect('/')
         else:
-            self.redirect(users.create_login_url(self.request.uri))
+            self.redirect(User.login_url(self.request.uri))
 
 
 class HandleLogout(RequestHandler):
     def get(self):
-        user = users.get_current_user()
+        user = User.get()
         if user:
-            self.redirect(users.create_logout_url("/"))
+            self.redirect(User.logout_url("/"))
         else:
             self.redirect("/")
 
@@ -618,10 +552,16 @@ class PlandoFillGen(RequestHandler):
             self.response.status = 422
 
 class PlandoDownload(RequestHandler):
-    def get(self, author, plando):
-        id = author + ":" + plando
-        seed = Seed.get_by_id(id)
+    def get(self, author_name, seed_name):
+        seed = Seed.get(author_name, seed_name)
         if seed:
+            if seed.hidden:
+                user = User.get()
+                if not user or user.key != seed.author_key:
+                    self.response.status = 404
+                    self.response.headers['Content-Type'] = 'text/plain'
+                    self.response.out.write("seed not found")
+                    return
             gid = paramVal(self, "gid")
             pid = paramVal(self, "pid")
             syncFlag = "Sync%s.%s" % (gid, pid)
@@ -645,7 +585,7 @@ class AllAuthors(RequestHandler):
         self.response.headers['Content-Type'] = 'text/html'
         seeds = Seed.query(Seed.hidden != True)
         out = '<html><head><title>All Plando Authors</title></head><body><h5>All Seeds</h5><ul style="list-style-type:none;padding:5px">'
-        authors = Counter([seed.author for seed in seeds])
+        authors = Counter([seed.author_key.get().name if seed.author_key else seed.author for seed in seeds])
         for author, cnt in authors.most_common():
             if cnt > 0:
                 url = "/plando/%s" % author
@@ -655,27 +595,29 @@ class AllAuthors(RequestHandler):
 
 
 class AuthorIndex(RequestHandler):
-    def get(self, author):
+    def get(self, author_name):
         self.response.headers['Content-Type'] = 'text/html'
         owner = False
-        user = users.get_current_user()
-        if user:
-            dispname = user.email().partition("@")[0]
-            owner = dispname == author
-
-        query = Seed.query(Seed.author == author)
-        if not owner:
-            query = query.filter(Seed.hidden != True)
+        user = User.get()
+        author = User.get_by_name(author_name)
+        if author:
+            author_name = author.name
+            owner = user and user.key.id() == author.key.id()
+            query = Seed.query(Seed.author_key == author.key)
+            if not owner:
+                query = query.filter(Seed.hidden != True)
+        else:
+            query = Seed.query(Seed.author == author_name).filter(Seed.hidden != True)
+        
         seeds = query.fetch()
-
         if len(seeds):
-            out = '<html><head><title>Seeds by %s</title></head><body><div>Seeds by %s:</div><ul style="list-style-type:none;padding:5px">' % (author, author)
+            out = '<html><head><title>Seeds by %s</title></head><body><div>Seeds by %s:</div><ul style="list-style-type:none;padding:5px">' % (author_name, author_name)
             for seed in seeds:
-                url = "/plando/%s/%s" % (author, seed.name)
+                url = uri_for("plando-view", author_name=author_name, seed_name=seed.name)
                 flags = ",".join(seed.flags)
                 out += '<li style="padding:2px"><a href="%s">%s</a>: %s (%s players, %s)' % (url, seed.name, seed.description, seed.players, flags)
                 if owner:
-                    out += ' <a href="%s/edit">Edit</a>' % url
+                    out += ' <a href="%s">Edit</a>' % uri_for("plando-edit", seed_name=seed.name)
                     if seed.hidden:
                         out += " (hidden)"
                 out += "</li>"
@@ -684,7 +626,7 @@ class AuthorIndex(RequestHandler):
         else:
             if owner:
                 self.response.write(
-                    "<html><body>You haven't made any seeds yet! <a href='/plando/%s/newseed/edit'>Start a new seed</a></body></html>" % author)
+                    "<html><body>You haven't made any seeds yet! <a href='%s'>Start a new seed</a></body></html>" % uri_for('plando-edit', seed_name="newSeed"))
             else:
                 self.response.write('<html><body>No seeds by user %s</body></html>' % author)
 
@@ -708,7 +650,7 @@ class MapTest(RequestHandler):
 
 class LogicHelper(RequestHandler):
     def get(self):
-        path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
+
         template_values = {'app': "LogicHelper", 'title': "Logic Helper!", 'is_spoiler': "True",
                            'pathmode': paramVal(self, 'pathmode'), 'HC': paramVal(self, 'HC'),
                            'EC': paramVal(self, 'EC'), 'AC': paramVal(self, 'AC'), 'KS': paramVal(self, 'KS'),
@@ -717,10 +659,11 @@ class LogicHelper(RequestHandler):
 
 class ReactLanding(RequestHandler):
     def get(self):
-        user = users.get_current_user()
-        dispname = user.email().partition("@")[0] if user else ""
-        path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
-        template_values = {'app': "MainPage", 'dll_last_update': "N/A", 'title': "Ori DE Randomizer", 'user': dispname}
+        template_values = {'app': "MainPage", 'dll_last_update': "N/A", 'title': "Ori DE Randomizer 3.0"}
+        user = User.get()
+        if user:
+            template_values['user'] = user.name
+        self.response
         self.response.out.write(template.render(path, template_values))
 
 
@@ -731,11 +674,11 @@ class MakeSeedWithParams(RequestHandler):
         params = param_key.get()
         if params.generate():
             resp = {"paramId": param_key.id(), "playerCount": params.players, "flagLine": params.flag_line()}
-            if(params.tracking):
-                resp["gameId"] = Game.get_open_gid()
+            if params.tracking:
+                game = Game.from_params(params, self.request.GET.get("game_id"))
+                resp["gameId"] = game.key.id()
                 if debug and paramFlag(self, "test_map_redir"):
-                    game = Game.from_params(params, resp["gameId"])
-                    self.redirect(uri_for("map-render", game_id=game.key.id(), from_test=1))
+                     self.redirect(uri_for("map-render", game_id=resp["gameId"], from_test=1))
             self.response.out.write(json.dumps(resp))
         else:
             self.response.status = 500
@@ -776,11 +719,21 @@ class GetParamMetadata(RequestHandler):
         params = SeedGenParams.with_id(params_id)
         if params:
             resp = {"playerCount": params.players, "flagLine": params.flag_line()}
-            if params.tracking:
-                resp["gameId"] = Game.get_open_gid()
             self.response.out.write(json.dumps(resp))
         else:
             self.response.status = 404
+
+class UserRename(RequestHandler):
+    def get(self, name):
+        self.response.headers['Content-Type'] = 'text/plain'
+        user = User.get()
+        if user:
+            if user.rename(name):
+                self.response.out.write("Rename successful!")
+            else:
+                self.response.out.write("Rename failed!")
+        else:
+            self.response.out.write("You are not logged in!")
 
 class GetSeedFromParams(RequestHandler):
     def get(self, params_id):
@@ -791,7 +744,6 @@ class GetSeedFromParams(RequestHandler):
             player = int(self.request.GET.get("player_id", 1))
             if params.tracking:
                 game_id = self.request.GET.get("game_id")
-                game = Game.from_params(params, game_id)
                 seed = params.get_seed(player, game_id, verbose_paths)
             else:
                 seed = params.get_seed(player, verbose_paths=verbose_paths)
@@ -827,18 +779,20 @@ class PicksByTypeGen(RequestHandler):
 
 class RebindingsEditor(RequestHandler):
     def get(self):
-        user = users.get_current_user()
-        dispname = user.email().partition("@")[0] if user else ""
-        path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
-        template_values = {'app': "RebindingsEditor", 'title': "Ori DE Rebindings Editor", "user": dispname}
+
+        template_values = {'app': "RebindingsEditor", 'title': "Ori DE Rebindings Editor"}
+        user = User.get()
+        if user:
+            template_values['user'] = user.name
         self.response.out.write(template.render(path, template_values))
 
 class Guides(RequestHandler):
     def get(self):
-        user = users.get_current_user()
-        dispname = user.email().partition("@")[0] if user else ""
-        path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
-        template_values = {'app': "HelpAndGuides", 'title': "Randomizer Help and Guides", "user": dispname}
+
+        template_values = {'app': "HelpAndGuides", 'title': "Randomizer Help and Guides"}
+        user = User.get()
+        if user:
+            template_values['user'] = user.name
         self.response.out.write(template.render(path, template_values))
 
 class VanillaPlusSeeds(RequestHandler):
@@ -913,9 +867,9 @@ app = WSGIApplication(routes=[
     Route('/discord', redirect_to="https://discord.gg/TZfue9V"),
     Route('/dll', redirect_to="https://github.com/sigmasin/OriDERandomizer/raw/3.0/Assembly-CSharp.dll"),
     Route('/tracker', redirect_to="https://github.com/turntekGodhead/OriDETracker/raw/master/OriDETracker/bin/Latest.zip"),
-    
+    Route('/rename/<name>', handler=UserRename, strict_slash=True, name="user-rename"),
 
-    # new netcode endpoints
+    # netcode endpoints
     PathPrefixRoute('/netcode/game/<game_id:\d+>/player/<player_id:[^/]+>', [
         Route('/found/<coords>/<kind>/<id:.*>', handler=FoundPickup, name="netcode-player-found-pickup"),
         Route('/tick/<x:[^,]+>,<y>', handler=GetUpdate, name="netcode-player-tick"),
@@ -923,7 +877,7 @@ app = WSGIApplication(routes=[
         Route('/setSeed', handler=SetSeed,  name="netcode-player-set-seed"),
     ]),
 
-    # new game endpoints
+    # game endpoints
     PathPrefixRoute('/game/<game_id:\d+>', [
         Route('/delete', handler=DeleteGame, strict_slash=True, name="game-delete"),
         Route('/history', handler=ShowHistory, strict_slash=True, name="game-show-history"),
@@ -933,16 +887,21 @@ app = WSGIApplication(routes=[
     ]),
 
     # plando endpoints
-    (r'/plando/reachable', PlandoReachable),
-    (r'/plando/fillgen', PlandoFillGen),
-    (r'/plando/simple/?', PlandoOld),
-    (r'/plando/all/?', AllAuthors),
-    (r'/plando/([^ ?=/]+)/([^ ?=/]+)/upload', PlandoUpload),
-    (r'/plando/([^ ?=/]+)/([^ ?=/]+)/download', PlandoDownload),
-    (r'/plando/([^ ?=/]+)/([^ ?=/]+)/edit/?', PlandoEdit),
-    (r'/plando/([^ ?=/]+)/([^ ?=/]+)/delete', PlandoDelete),
-    (r'/plando/([^ ?=/]+)/([^ ?=/]+)/rename/([^ ?=/]+)', PlandoRename),
-    (r'/plando/([^ ?=/]+)/([^ ?=/]+)/hideToggle', PlandoToggleHide),
-    (r'/plando/([^ ?=/]+)/?', AuthorIndex),
-    (r'/plando/([^ ?=/]+)/([^ ?=/]+)/?', PlandoView),
-], debug=True)
+    Route('/plando/reachable', PlandoReachable, strict_slash=True, name="plando-reachable"),
+    Route('/plando/fillgen', PlandoFillGen, strict_slash=True, name="plando-fillgen"),
+    Route('/plandos', AllAuthors, strict_slash=True, name="plando-view-all"),
+
+    PathPrefixRoute('/plando/<seed_name:[^ ?=/]+>', [
+        Route('/upload', PlandoUpload, strict_slash=True, name="plando-upload"),
+        Route('/edit', PlandoEdit, strict_slash=True, name="plando-edit"),
+        Route('/delete', PlandoDelete, strict_slash=True, name="plando-delete"),
+        Route('/rename/<new_name:[^ ?=/]+>', PlandoRename, strict_slash=True, name="plando-rename"),
+        Route('/hideToggle', PlandoToggleHide, strict_slash=True, name="plando-toggle-hide"),
+    ]),
+    Route('/plando/<author_name:[^ ?=/]+>', AuthorIndex, strict_slash=True, name="plando-author-index"),
+
+    PathPrefixRoute('/plando/<author_name:[^ ?=/]+>/<seed_name:[^ ?=/]+>', [
+        Route('/download', PlandoDownload, strict_slash=True, name="plando-download"),
+        Route('/', PlandoView, strict_slash=True, name="plando-view"),
+    ]),
+], debug=debug)

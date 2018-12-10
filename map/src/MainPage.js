@@ -51,26 +51,6 @@ export default class MainPage extends React.Component {
     helpLeave = () => clearTimeout(this.state.helpTimeout) 
     help = (category, option) => () => this.setState({helpcat: category, helpopt: option, helpParams: getHelpContent(category, option)})
     
-    onDownloadTracked = () => {
-        let request = new XMLHttpRequest()
-        request.open('GET', "/generator/metadata/"+this.state.paramId, false)
-        request.send(null)
-        if (request.status !== 200)
-        {
-            console.log("WARNING: game_id might be wrong")
-            return false
-        }
-        else {
-            let res = JSON.parse(request.responseText)
-            if(res["gameId"] !== this.state.inputGameId)
-            {
-                this.setState({inputGameId: res["gameId"]})
-                return false
-            }
-            return true
-        }
-    }
-
     
     getAdvancedTab = () => {
         let [leftCol, rightCol] = [4, 7]
@@ -186,7 +166,7 @@ export default class MainPage extends React.Component {
     }
     getMultiplayerTab = () => {
         let multiplayerButtons = ["Skills", "Teleporters", "Upgrades", "World Events", "Misc"].map(stype => (
-            <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("Shared Item Categories", stype)} className="p-2">
+            <Col xs="4" key={`share-${stype}`} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("Shared Item Categories", stype)} className="p-2">
                 <Button block outline={!this.state.shared.includes(stype)} onClick={this.onSType(stype)}>Share {stype}</Button>
             </Col>
         ))
@@ -242,7 +222,7 @@ export default class MainPage extends React.Component {
                         </Col>
                     </Row>
                 </Collapse>
-                <Collapse isOpen={this.state.user}>
+                <Collapse isOpen={this.state.user != ""}>
                     <Row className="p-1 justify-content-center">
                         <Col xs="4" className="text-center pt-1 border">
                             <span class="align-middle">SyncId</span>
@@ -356,30 +336,44 @@ export default class MainPage extends React.Component {
         if(status !== 200)
         {
             NotificationManager.error("Failed to recieve seed metadata", "Seed could not be retrieved!", 5000)
-            this.setState({seedTabExists: false, activeTab: 'variations'})
-            window.history.replaceState('',window.document.title, window.document.URL.split("?")[0]);
+            this.setState({seedTabExists: false, activeTab: 'variations'}, this.updateUrl)
         } else {
             let res = JSON.parse(responseText)
-            this.setState({inputPlayerCount: res["playerCount"],inputGameId: res["gameId"], inputFlagLine: res["flagLine"]})
+            let metaUpdate = {inputPlayerCount: res["playerCount"], inputFlagLine: res["flagLine"]}
+            if(res.hasOwnProperty("gameId"))
+            {
+                metaUpdate.gameId = res["gameId"]
+            }
+            this.setState(metaUpdate, this.updateUrl)
         }
+    }
+
+    updateUrl = () => {
+        let {paramId, gameId, seedTabExists, seedIsGenerating} = this.state;
+        let url = window.document.URL.split("?")[0];
+        if(!seedIsGenerating && seedTabExists)
+        {
+            url += `?param_id=${paramId}`;
+            if(gameId && gameId > 0)
+                url += `&game_id=${gameId}`
+        }
+        window.history.replaceState('',window.document.title, url);
+
     }
     
     seedBuildCallback = ({status, responseText}) => {
         if(status !== 200)
         {
             NotificationManager.error("Failed to generate seed!", "Seed generation failure!", 5000)
-            this.setState({seedIsGenerating: false, seedTabExists: false, activeTab: 'variations'})
+            this.setState({seedIsGenerating: false, seedTabExists: false, activeTab: 'variations'}, this.updateUrl)
             return
         } else {
             let res = JSON.parse(responseText)
-            let {paramId, gameId} = res
-            let url = window.document.URL.split("?")[0]+"?param_id="+paramId
-            window.history.replaceState('',window.document.title, url);
             this.helpEnter("general", "seedBuilt" + this.multi())()
             this.setState({
-                paramId: paramId, seedIsGenerating: false, inputPlayerCount: res["playerCount"], 
-                inputFlagLine: res["flagLine"], inputGameId: gameId
-            })
+                paramId: res.paramId, seedIsGenerating: false, inputPlayerCount: res.playerCount, 
+                inputFlagLine: res.flagLine, gameId: res.gameId
+            }, this.updateUrl)
         }
     }
     getVariationsTab = () => {
@@ -470,17 +464,13 @@ export default class MainPage extends React.Component {
             // let flags = unshared.join(", ");
             let flagCols = raw.join("").split(",").map(flag => (<Col xs="auto" className="text-center" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("flags", flag)}><span class="ml-auto mr-auto align-middle">{flag}</span></Col>))
 
-            let mapUrl = "/tracker/game/"+this.state.inputGameId+"/map";
+            let mapUrl = "/tracker/game/"+this.state.gameId+"/map";
             
             let playerRows = [...Array(this.state.inputPlayerCount).keys()].map(p => {
                 p++;
                 let seedParams = [];
-                let onClickDownload = () => true
-                if(this.state.inputGameId > 0)
-                {
-                    onClickDownload = this.onDownloadTracked
-                    seedParams.push("game_id="+this.state.inputGameId)
-                }
+                if(this.state.gameId > 0)
+                    seedParams.push(`game_id=${this.state.gameId}`)
                 let seedUrl = "/generator/seed/"+this.state.paramId
                 let spoilerUrl = "/generator/spoiler/"+this.state.paramId
                 let downloadSpoilerUrl = spoilerUrl + "?download=1"
@@ -501,7 +491,7 @@ export default class MainPage extends React.Component {
                             </Col></Row>
                         </Col>
                         <Col xs="3" className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "downloadButton"+this.multi())}>
-                            <Button color="primary" block onClick={onClickDownload} target="_blank" href={seedUrl}>Download Seed</Button>
+                            <Button color="primary" block target="_blank" href={seedUrl}>Download Seed</Button>
                         </Col>
                         <Col xs="3" className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "spoilerButton")}>
                             <Button color="primary" href={spoilerUrl} target="_blank" block >View Spoiler</Button>
@@ -512,7 +502,7 @@ export default class MainPage extends React.Component {
                     </Row>
                 )
             })
-            let trackedInfo = this.state.inputGameId > 0 ? (
+            let trackedInfo = this.state.gameId > 0 ? (
                   <Row className="p-1 pt-3 align-items-center border-dark border-top">
                     <Col xs="3" className="text-center" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "tracking")}>
                         Tracking:
@@ -521,7 +511,7 @@ export default class MainPage extends React.Component {
                         <Button color="primary" block onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "mapLink")} href={mapUrl} target="_blank">Open Map</Button>
                     </Col>
                     <Col xs="4">
-                        <Button color="primary" block onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "histLink")} href={"/game/"+this.state.inputGameId+"/history"} target="_blank">View Game History</Button>
+                        <Button color="primary" block onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "histLink")} href={"/game/"+this.state.gameId+"/history"} target="_blank">View Game History</Button>
                     </Col>
                   </Row>
               ) : null
@@ -658,15 +648,16 @@ export default class MainPage extends React.Component {
         let url = new URL(window.document.location.href);
         let paramId = url.searchParams.get("param_id");
         let quickstartOpen = window.document.location.href.includes("/quickstart");
+        let gameId = parseInt(url.searchParams.get("game_id") || -1, 10);
         let seedTabExists = (paramId !== null);
         if(seedTabExists)
             doNetRequest("/generator/metadata/"+paramId,this.acceptMetadata);
         let activeTab = seedTabExists ? 'seed' : 'variations';
-        this.state = {user: user, activeTab: activeTab, coopGenMode: "Cloned Seeds", coopGameMode: "Co-op", players: 1, tracking: true, dllTime: dllTime, variations: ["ForceTrees"], 
+        this.state = {user: user, activeTab: activeTab, coopGenMode: "Cloned Seeds", coopGameMode: "Co-op", players: 1, tracking: true, dllTime: dllTime, variations: ["ForceTrees"], gameId: gameId,
                      paths: presets["standard"], keyMode: "Clues", oldKeyMode: "Clues", pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null), goalModes: ["ForceTrees"],
                      customSyncId: "", seed: "", fillAlg: "Balanced", shared: ["Skills", "Teleporters", "World Events"], hints: true, helpcat: "", helpopt: "", quickstartOpen: quickstartOpen,
                      syncId: "", expPool: 10000, lastHelp: new Date(), seedIsGenerating: false, cellFreq: cellFreqPresets("standard"), fragCount: 30, fragReq: 20, relicCount: 8, loader: get_random_loader(),
-                     paramId: paramId, seedTabExists: seedTabExists, reopenUrl: "", teamStr: "", inputFlagLine: "", fass: {}, inputGameId: -1, goalModesOpen: false};
+                     paramId: paramId, seedTabExists: seedTabExists, reopenUrl: "", teamStr: "", inputFlagLine: "", fass: {}, gameId: -1, goalModesOpen: false};
     }
         
     closeQuickstart = () => {
@@ -794,7 +785,7 @@ export default class MainPage extends React.Component {
                 <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "logicModes")}>
                     <Row>
                         <Col xs="6"  className="text-center pt-1 border">
-                            <span class="align-middle">Logic Mode</span>
+                            <span className="align-middle">Logic Mode</span>
                         </Col>
                         <Col xs="6" onMouseLeave={this.helpEnter("general", "logicModes")} onMouseEnter={this.helpEnter("logicModes", this.state.pathMode)}>
                             <UncontrolledButtonDropdown className="w-100">

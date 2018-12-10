@@ -416,7 +416,8 @@ function get_param(name) {
 }
 
 function get_flag(name) {
-    return get_param(name) !== null
+    let p = get_param(name);
+    return p !== null && !p.toLowerCase().includes("false")
 }
 
 function get_int(name, orElse) {
@@ -434,17 +435,12 @@ function get_list(name, sep) {
 
 function get_seed() {
     let authed = get_flag("authed")
-    if (authed) {
-        let user = get_param("user")
-        let name = get_param("seed_name") || "new seed"
-        let desc = get_param("seed_desc") || ""
-        let hidden = get_flag("seed_hidden")
-        let seedJson = get_param("seed_data")
-        return { seedJson: seedJson, user: user, authed: authed, seed_name: name, seed_desc: desc, hidden: hidden }
-    }
-    else
-        return { authed: false }
-
+    let user = get_param("user")
+    let name = get_param("seed_name") || "new seed"
+    let desc = get_param("seed_desc") || ""
+    let hidden = get_flag("seed_hidden")
+    let seedJson = get_param("seed_data")
+    return { seedJson: seedJson, user: user, authed: authed, seed_name: name, seed_desc: desc, hidden: hidden }
 }
 
 const presets = {

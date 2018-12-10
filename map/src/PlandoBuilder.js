@@ -206,8 +206,8 @@ class PlandoBuiler extends React.Component {
         }, 100);
         if(this.state.authed)
         {
-            let {seedJson, user, authed, seed_name, seed_desc} = get_seed()
-            this.setState({user: user,  authed: authed, seed_name: seed_name, seed_desc: seed_desc})
+            let {seedJson, seed_name, seed_desc, user} = get_seed()
+            this.setState({seed_name: seed_name, last_seed_name: seed_name, seed_desc: seed_desc, user: user})
             if(seedJson)
                 this.parseSavedSeed(seedJson)
         }
@@ -281,7 +281,7 @@ class PlandoBuiler extends React.Component {
         let reserved_chars = ["|"];
         let stuff_id = s.value.substr(3);
         if(reserved_chars.some(c => stuff_id.includes(c))) {
-            NotificationManager.warning("'" + stuff_id + "' contains a forbidden character", "Invalid Id!",1000);
+            NotificationManager.warning("'" + stuff_id + "' contains a forbidden character", "Invalid Id!", 1000);
             this.setState({stuff: s});
             return;
         }
@@ -450,6 +450,8 @@ class PlandoBuiler extends React.Component {
         let data = {}
         data.flagLine = this.buildFlagLine()
         data.name = this.state.seed_name
+        data.oldName = this.state.last_seed_name
+        data.desc = this.state.seed_desc
         data.sharedMode = this.state.coop_mode.value
         data.shareTypes = this.state.share_types.map(f => f.value)
         data.flags = this.state.seedFlags.map(f => f.value);
@@ -511,14 +513,18 @@ class PlandoBuiler extends React.Component {
 
 
     saveSeed = () => {
-        uploadSeed(this.getUploadData(), this.state.user, this.state.seed_name, this.state.seed_desc, this.saveCallback)
+        uploadSeed(this.getUploadData(), this.saveCallback)
     }
 
     saveCallback = (statusCode) => {
         if(statusCode === 200)
         {
-            let base_url = window.document.URL.split("/plando")[0]
-            window.history.replaceState('',window.document.title, base_url+"/plando/"+this.state.user+"/"+this.state.seed_name+"/edit");
+            if(this.state.last_seed_name !== this.state.seed_name)
+            {
+                let new_url = window.document.URL.replace(this.state.last_seed_name, this.state.seed_name);
+                window.history.replaceState('',window.document.title, new_url);
+                this.setState({last_seed_name: this.state.seed_name})
+            }
             this.toggleMeta()
             NotificationManager.success("Seed saved", "Success!", 2500);
         }
@@ -642,7 +648,7 @@ class PlandoBuiler extends React.Component {
         const pickup_markers = ( <PickupMarkersList markers={getPickupMarkers(this.state, this.selectPickupCurry, this.state.searchStr)} />)
         const zone_opts = zones.map(zone => ({label: zone, value: zone}))
         const pickups_opts = picks_by_zone[this.state.zone].map(pick => ({label: pick.name+"("+pick.x + "," + pick.y +")",value: pick}) )
-        let alert = this.state.authed ? null : (<Alert color="danger">Please <a href="/login">login</a> to enable saving.</Alert>)
+        let alert = this.state.authed ? null : (<Alert color="danger">Please <a href={`/login?from=plando_edit&plando=${this.state.last_seed_name}`}>login</a> to enable saving.</Alert>)
         let save_if_auth = this.state.authed ? ( <Button color="primary" onClick={this.toggleMeta} >Meta/Save</Button> ) : (<Button color="disabled">Meta/Save</Button>)
         let fill_button = this.state.fill_opts.dumb ? (
             <Button color="warning" onClick={this.doFill} >Fill (Dumb)</Button>
@@ -681,7 +687,7 @@ class PlandoBuiler extends React.Component {
                         <textarea id="seed-name-input" className="form-control" value={this.state.seed_name} onChange={event => this.setState({seed_name: event.target.value})} />
                         <textarea id="seed-desc-input" className="form-control" placeholder="Seed Description" value={this.state.seed_desc} onChange={event => this.setState({seed_desc: event.target.value})} />
                         <Button color="primary" onClick={this.saveSeed} >Save</Button>
-                        <Button color="primary" onClick={() => window.open(window.document.URL.slice(0,-5),'_blank') } >Open Seed Page</Button>
+                        <Button color="primary" onClick={() => window.open(`/plando/${this.state.user}/${this.state.last_seed_name}/`,'_blank') } >Open Seed Page</Button>
                     </Collapse>
                     <Collapse id="import-wrapper" isOpen={this.state.display_import}>
                         <textarea id="import-seed-area" className="form-control" placeholder="Paste Seed Here" value={this.state.seed_in} onChange={event => {this.parseUploadedSeed(event.target.value) ; this.toggleImport() }} />
@@ -857,21 +863,17 @@ function getReachable(setter, modes, codes, callback)
 
 
 
-function uploadSeed(seedData, author, seedName, description, callback)
+function uploadSeed(seedData, callback)
 {
     var xmlHttp = new XMLHttpRequest();
     xmlHttp.onreadystatechange = function() {
         if (xmlHttp.readyState === 4)
             callback(xmlHttp.status)
     }
-    let url = "/plando/"+author+"/"+seedName+"/upload";
-    let old_name = window.document.URL.split("/")[5];
-    if(old_name !== seedName) {
-        url += "?old_name=" + old_name
-    }
+    let url = "/plando/"+seedData.name+"/upload";
     xmlHttp.open("POST", url, true);
     xmlHttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-    xmlHttp.send(encodeURI("seed="+JSON.stringify(seedData)+"&desc="+description));
+    xmlHttp.send(encodeURI("seed="+JSON.stringify(seedData)));
 }
 
 

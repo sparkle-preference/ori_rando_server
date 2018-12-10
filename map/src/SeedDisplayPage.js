@@ -1,4 +1,5 @@
 import React from 'react';
+import he from 'he';
 import {get_param, get_int, get_seed} from './common.js';
 import {goToCurry, seed_name_regex } from './shared_map.js';
 import { confirmAlert } from 'react-confirm-alert'; 
@@ -10,15 +11,16 @@ const textStyle = {color: "black", textAlign: "center"}
 export default class SeedDisplayPage extends React.Component {
   constructor(props) {
     super(props);
-    let {rawSeed, user, authed, seed_name, hidden, seed_desc} = get_seed();
+    let {seedJson, authed, seed_name, hidden, seed_desc} = get_seed();
+    let seedData = JSON.parse(he.decode(seedJson))
     let author = get_param("author")
     let gid = get_param("game-id")
     let complain_message = get_param("error_msg")
+    
 	if(complain_message)
 		alert(complain_message);
-    let players = get_int("players",1)
-    let isOwner =  author === user;
-    this.state = {rawSeed: rawSeed, user: user, author: author, isOwner: isOwner, authed: authed, seed_name: seed_name,
+    let players = get_int("players", 1)
+    this.state = {flags: seedData["flagline"].split("|")[0].split(","), author: author, authed: authed, seed_name: seed_name,
     			  players: players, seed_desc: seed_desc, gid: gid, rename_to: seed_name, hidden: hidden || false, dropdownOpen: false};
 }
   conf_delete = () => {
@@ -28,7 +30,7 @@ export default class SeedDisplayPage extends React.Component {
       buttons: [
         {
           label: 'Yes, it is time :C',
-          onClick: () => { window.location.href = "/plando/"+this.state.author+"/"+this.state.seed_name + "/delete"; }
+          onClick: () => { window.location.href = `/plando/${this.state.seed_name}/delete`; }
         },
         {
           label: 'No wait! I still love you!',
@@ -40,15 +42,14 @@ export default class SeedDisplayPage extends React.Component {
 
 	render = () => {
 		let download_button;
-		let url = "/plando/"+this.state.author+"/"+this.state.seed_name;
+		let url = `/plando/${this.state.seed_name}`;
 		if(this.state.players === 1)
-			download_button = (<Button color="primary" onClick={goToCurry(url + "/download?gid="+this.state.gid+"&pid=1")}>Download Seed</Button>)
+			download_button = (<Button color="primary" onClick={goToCurry(`/plando/${this.state.author}/${this.state.seed_name}/download?gid=${this.state.gid}&pid=1`)}>Download Seed</Button>)
 		else
 		{
 			let players = []
 		    for (let i = 1; i <= this.state.players; i++) {
-		    	let purl = url + "/download?gid="+this.state.gid+"&pid="+i;
-		    	players.push((<DropdownItem onClick={goToCurry(purl)}>Player {i}</DropdownItem>))
+		    	players.push((<DropdownItem onClick={goToCurry(`/plando/${this.state.author}/${this.state.seed_name}/download?gid=${this.state.gid}&pid=${i}`)}>Player {i}</DropdownItem>))
 	    	}
 	    	download_button=(
 				<ButtonDropdown color="primary" isOpen={this.state.dropdownOpen} toggle={() => this.setState({dropdownOpen: !this.state.dropdownOpen})}>
@@ -67,25 +68,25 @@ export default class SeedDisplayPage extends React.Component {
     	let rename_copy = (
 			<Row className="p-3 border border-danger border-bottom-0 justify-content-center">
 				<Col xs="4">
-					<Button color={color} block onClick={rename_enabled ? goToCurry(url + "/rename/" + this.state.rename_to) : () => { alert("Please enter a new name")}}>Rename</Button>
+					<Button color={color} block onClick={rename_enabled ? goToCurry(`${url}/rename/${this.state.rename_to}`) : () => { alert("Please enter a new name")}}>Rename</Button>
 				</Col><Col xs="4">
-		 			<Button color={color} block onClick={rename_enabled ? goToCurry(url + "/rename/" + this.state.rename_to + "?cp=1") : () => { alert("Please enter a new name")}}>Copy</Button>
+		 			<Button color={color} block onClick={rename_enabled ? goToCurry(`${url}/rename/${this.state.rename_to}?cp=1`) : () => { alert("Please enter a new name")}}>Copy</Button>
 				</Col><Col xs="4">
 					<Input type="text" value={this.state.rename_to} onChange={event => this.setState({rename_to: event.target.value})} />
 				</Col>
 			</Row>
     	) 
     	let hide_button = this.state.hidden ? (
-    		<Button color="success" block onClick={goToCurry(url + "/hideToggle")} >Show Seed</Button>
+    		<Button color="success" block onClick={goToCurry(`${url}/hideToggle`)} >Show Seed</Button>
     	) : (
-    		<Button color="info" block onClick={goToCurry(url + "/hideToggle" )} >Hide Seed</Button>
+    		<Button color="info" block onClick={goToCurry(`${url}/hideToggle` )} >Hide Seed</Button>
     	)
-		let owner_box = this.state.isOwner ? [rename_copy, (
+		let owner_box = this.state.authed ? [rename_copy, (
 			<Row className="p-3 border border-danger border-top-0 justify-content-center">
 				<Col xs="4">
 					<Button block color="danger" onClick={() => this.conf_delete()} >Delete</Button>
 				</Col><Col xs="4">
-					<Button block color="primary" onClick={goToCurry(url + "/edit")} >Edit</Button>
+					<Button block color="primary" onClick={goToCurry(`${url}/edit`)} >Edit</Button>
 				</Col><Col xs="4">
 					{hide_button}
 				</Col>
@@ -114,7 +115,7 @@ export default class SeedDisplayPage extends React.Component {
 					<Col xs="2" className="text-right">
 						<span style={textStyle}>Flags: </span>
 					</Col><Col xs="10">
-						<span style={textStyle}>{this.state.rawSeed}</span>
+						<span style={textStyle}>{this.state.flags.join(", ")}</span>
 					</Col>
 				</Row>
 				{summary}

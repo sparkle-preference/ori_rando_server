@@ -66,10 +66,10 @@ const SiteBar = ({user, quickstartHook}) => {
                 Plando
                 </DropdownToggle>
                 <DropdownMenu right>
-                <DropdownItem href="/plando/simple">
+                <DropdownItem href="/plando/newSeed/edit">
                     Open Plando Editor
                 </DropdownItem>
-                <DropdownItem href="/plando/all">
+                <DropdownItem href="/plandos">
                     View All Seeds
                 </DropdownItem>
                 <DropdownItem divider />

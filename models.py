@@ -1,17 +1,17 @@
 from google.appengine.ext import ndb
+from google.appengine.api import users
 
 import logging as log
 from json import dumps as jsonify
-
 from datetime import datetime, timedelta
 from collections import defaultdict
-from seedbuilder.seedparams import Placement, Stuff, SeedGenParams
 
+from seedbuilder.seedparams import Placement, Stuff, SeedGenParams
 from enums import MultiplayerGameType, ShareType
 from util import picks_by_coord, get_bit, get_taste, enums_from_strlist, PickLoc
-
 from pickups import Pickup, Skill, Teleporter, Event
 from cache import Cache
+
 pbc = picks_by_coord(extras=True)
 
 class HistoryLine(ndb.Model):
@@ -37,31 +37,85 @@ class HistoryLine(ndb.Model):
         else:
             return "lost %s! (%s)" % (self.pickup().name, t)
 
-class UserPrefs(ndb.Model):
-    user_id = ndb.StringProperty(required=True)
-    chosen_name = ndb.StringProperty()
+class User(ndb.Model):
+    # key = user_id
+    name = ndb.StringProperty()
     dark_theme = ndb.BooleanProperty(default=False)
 
-    @classmethod
-    def get_by_user(cls, user):
-        return cls.query().filter(cls.user_id == user.user_id()).get()
-    
     @staticmethod
-    def create(user):
-        prefs = UserPrefs()
-        prefs.user_id = user.user_id()
-        prefs.chosen_name = user.email().partition("@")[0]
-#        for plando in Seed.query(Seed.author == author).fetch():
+    def login_url(redirect_after):
+        return users.create_login_url(redirect_after)
+
+    @staticmethod
+    def logout_url(redirect_after):
+        return users.create_logout_url(redirect_after)
+
+    @staticmethod
+    def get():
+        app_user = users.get_current_user()
+        if not app_user:
+            return None
+        user = User.get_by_id(app_user.user_id())
+        if not user:
+            return User.create(app_user)
+        return user
+
+    def rename(self, desired_name):
+        if any([forbidden in desired_name for forbidden in ["@", "/", "\\", "?", "#", "&", "="]]):
+            return False
+        if User.get_by_name(desired_name):
+            return False
+        self.name = desired_name
+        if self.put():
+            return True
+        return False
+
+    @staticmethod
+    def get_by_name(name):
+        return User.query().filter(User.name == name).get()
+
+    @staticmethod
+    def create(app_user):
+        user = User(id=app_user.user_id())
+        user.name = app_user.email().partition("@")[0]
+        key = user.put()
+        for old in Seed.query(Seed.author == user.name).fetch():
+            new = Seed(
+                id="%s:%s" % (key.id(), old.name), 
+                placements=old.placements, 
+                flags=old.flags, 
+                hidden=old.hidden, 
+                description=old.description, 
+                players=old.players, 
+                author_key=key,
+                name=old.name
+            )
+            new = new.put()
+            old.key.delete()
+            log.info("Seed conversion: %s -> %s", old.key, new)
+        return user
+    
+    def plando(self, seed_name):
+        return Seed.get_by_id("%s:%s" % (self.key.id(), seed_name))
 
 class Seed(ndb.Model):
-    # Seed ids are author
+    # Seed ids used to be author_name:name but are being migrated to author_id:name
     placements = ndb.LocalStructuredProperty(Placement, repeated=True)
     flags = ndb.StringProperty(repeated=True)
     hidden = ndb.BooleanProperty(default=False)
     description = ndb.TextProperty()
     players = ndb.IntegerProperty(default=1)
-    author = ndb.StringProperty()
+    author_key = ndb.KeyProperty(User)
+    author = ndb.StringProperty()  # deprecated: will remove after migration is complete
     name = ndb.StringProperty()
+
+    @staticmethod
+    def get(author_name, seed_name):
+        author = User.get_by_name(author_name)
+        if author:
+            return author.plando(seed_name)
+        log.warning("No user found for %s, looking for old-style seed instead...", author_name)
+        return Seed.get_by_id("%s:%s" % (author_name, seed_name))
 
     def mode(self):
         mode_opt = [MultiplayerGameType.mk(f[5:]) for f in self.flags if f.lower().startswith("mode=")]
@@ -72,19 +126,60 @@ class Seed(ndb.Model):
         return enums_from_strlist(ShareType, shared_opt[0]) if shared_opt else []
 
     @staticmethod
-    def from_plando(data, author, name, desc):
-        s = Seed(id="%s:%s" % (author, name), name=name, author=author, description=desc)
-        s.flags = data['flags']
-        s.name = data['name']
-        for placement in data['placements']:
+    def new(data):
+        author = User.get()
+        if not author:
+            log.error("Error! No author found when attempting to create seed: %s", data)
+            return None
+        placements, players = Seed.get_placements(data['placements'])
+        s = Seed(
+            id="%s:%s" % (author.key.id(), data["name"]),
+                description = data['desc'],
+                flags = data['flags'],
+                name = data['name'],
+                author_key = author.key,
+                placements = placements,
+                players = players,
+                hidden = data.get('hidden', False)
+            )
+        return s.put()
+
+    @staticmethod
+    def get_placements(raw_data):
+        players = 1
+        placements = []
+        for placement in raw_data:
             plc = Placement(location=placement['loc'], zone=placement['zone'])
             for stuff in placement['stuff']:
                 player = stuff['player']
-                if int(player) > s.players:
-                    s.players = int(player)
+                if int(player) > players:
+                    players = int(player)
                 plc.stuff.append(Stuff(code=stuff['code'], id=stuff['id'], player=player))
-            s.placements.append(plc)
-        return s
+            placements.append(plc)
+        return placements, players 
+
+    def update(self, data):
+        author = self.author_key.get()
+        if not author:
+            log.error("Error! No author found when attempting to update seed %s with data %s",self, data)
+            return None
+        if self.key.id() != "%s:%s" % (author.key.id(), data["name"]):
+            log.info("Deleting due to rename... goodbye world")
+            new = Seed.new(data)
+            self.key.delete()
+            return new
+        else:
+            placements, players = Seed.get_placements(data['placements'])
+            self.populate(
+                description = data['desc'],
+                flags = data['flags'],
+                name = data['name'],
+                author_key = author.key,
+                placements = placements,
+                players = players,
+                hidden = data.get('hidden', self.hidden)
+            )
+            return self.put()
 
     def flag_line(self):
         return "%s|%s" % (",".join(self.flags), self.name)
@@ -201,6 +296,12 @@ class Game(ndb.Model):
     last_update = ndb.DateTimeProperty(auto_now=True)
     players = ndb.KeyProperty(Player, repeated=True)
     params = ndb.KeyProperty(SeedGenParams)
+
+    def next_player(self):
+        if self.mode != MultiplayerGameType.SIMUSOLO:
+            return False
+        player_nums =  [int(k.id().partition(".")[2]) for k in self.players]
+        return max(player_nums)+1
 
     def summary(self):
         out_lines = ["%s (%s)" % (self.mode, ",".join([s.name for s in self.shared]))]
