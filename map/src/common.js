@@ -182,10 +182,14 @@ class PickupSelect extends Component {
       let [code, id] = input.split("|");
       if (code === "RP")
         value.push({ label: "Repeatable", value: "RP" })
-      else if (code === "MU" || value.length) {
+      if (code === "MU" || code === "RP") {
+        let seen = []
         let parts = id.split("/")
         while (parts.length > 1) {
           let part = `${parts.shift()}|${parts.shift()}`
+          while (seen.includes(part))
+            part += "|"
+          seen.push(part)
           value.push({ label: name_from_str(part), value: part })
         }
       } else {
@@ -264,7 +268,7 @@ class PickupSelect extends Component {
     this.state.updater(pickup, name_from_str(pickup))
   }
 
-  isValidNewOption = (input, values) => {
+  isValidNewOption = (input, _) => {
     if (!input) return false;
     if (all_opts.some(option => compareOption(input, option))) return false;
     return true;
