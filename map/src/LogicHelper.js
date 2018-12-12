@@ -495,12 +495,13 @@ class LogicHelper extends React.Component {
                 reachableStuff[tp.value] = 1;
               });
           }
-        let modes = this.state.modes.join("+");
+
+        let modes = [...this.state.modes]
         if(this.state.closed_dungeons) 
-            modes +="+CLOSED_DUNGEON"
+            modes.push("CLOSED_DUNGEON")
         if(this.state.open_world) 
-            modes +="+OPEN_WORLD"
-        getReachable((s) => this.setState(s), modes, Object.keys(reachableStuff).map(key => key+":"+reachableStuff[key]).join("+"));
+            modes.push("OPEN_WORLD")
+        getReachable((s) => this.setState(s), reachableStuff, modes);
       };
 
     onViewportChanged= (viewport) => this.setState({viewport: viewport})
@@ -648,7 +649,7 @@ function uniq(array) {
 }
 
 
-function getReachable(setter, modes, codes)
+function getReachable(setter, inventory, modes)
 {
     var xmlHttp = new XMLHttpRequest();
     xmlHttp.onreadystatechange = function() {
@@ -680,8 +681,9 @@ function getReachable(setter, modes, codes)
                 });
             })(xmlHttp.responseText);
     }
-    xmlHttp.open("GET", "/plando/reachable?modes="+modes+"&codes="+codes, true);
-    xmlHttp.send(null);
+    xmlHttp.open("POST", "/plando/reachable", true);
+    xmlHttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+    xmlHttp.send(encodeURI(`inventory=${JSON.stringify(inventory)}&modes=${JSON.stringify(modes)}`));
 }
 
 
