@@ -66,6 +66,8 @@ function pickup_name(code, id) {
         case "WS":
         case "WP":
             return "Warp to " + id + (code === "WS" ? " and save" : "")
+        case "NO":
+            return "Nothing"
         default:
             return code + "|" + id;
     }

@@ -34,7 +34,7 @@ const DEFAULT_VIEWPORT = {
       zoom: 4,
     }
 
-const VALID_VARS = ["0XP", "NonProgressMapStones", "NoAltR", "ForceMapStones", "ForceTrees", "Hard", "WorldTour", "OpenWorld", "ClosedDungeons", "OHKO", "Starved", "BonusPickups"]
+const VALID_VARS = ["0XP", "NonProgressMapStones", "NoAltR", "ForceMapStones", "ForceTrees", "Hard", "WorldTour", "OpenWorld", "ClosedDungeons", "OHKO", "Starved", "BonusPickups", "NoExtraExp"]
 const VALID_KEYMODES = ["Shards", "Clues", "Limitkeys", "Free"];
 const SEED_FLAGS = VALID_VARS.concat(VALID_KEYMODES);
 const FLAG_CASEFIX = {};
@@ -160,7 +160,7 @@ class PlandoBuiler extends React.Component {
     super(props)
 
     this.state = {seed_in: "", reachable: {...DEFAULT_REACHABLE}, new_areas: {...DEFAULT_REACHABLE}, placements: {1: {...DEFAULT_DATA}}, player: 1, saving: false,
-                  fill_opts: {HC: 13, EC: 15, AC: 34, KS: 40, MS: 9, EX: 300, dynamic: false, dumb: false}, viewport: {center: [0, 0], zoom: 5}, searchStr: "",
+                  fill_opts: {HC: 13, EC: 15, AC: 34, KS: 40, MS: 9, EX: 300, ex_pool: 10000, dynamic: false, dumb: false}, viewport: {center: [0, 0], zoom: 5}, searchStr: "",
                   flags: ['hide_unreachable', 'hide_softlockable'], seedFlags: select_wrap(["ForceTrees"]), share_types: select_wrap(["keys"]), coop_mode: {label: "Solo", value: "None"},
                   pickups: ["EX", "Ma", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "CS"], display_fill: false, display_import: false, display_logic: false, display_coop: false, display_meta: false}
     }
@@ -211,11 +211,11 @@ class PlandoBuiler extends React.Component {
             if(seedJson)
                 this.parseSavedSeed(seedJson)
         }
-        this._updateReachable()
+        this.updateReachable()
     };
 
     onSelectZone = (newZone, pan=true) => {this.selectPickup(this.state.lastSelected[newZone.value], pan)};
-    onPathModeChange = (n) => this.setState({modes: presets[n.value], pathMode: n.value}, this._updateReachable)
+    onPathModeChange = (n) => this.setState({modes: presets[n.value], pathMode: n.value}, this.updateReachable)
     onMode = (m) => () => this.setState(prevState => {
         let modes = prevState.modes;
         if(modes.includes(m)) {
@@ -223,21 +223,21 @@ class PlandoBuiler extends React.Component {
         } else {
             modes.push(m)
         }
-    return {modes: modes, pathMode: get_preset(modes)}}, this._updateReachable)
+    return {modes: modes, pathMode: get_preset(modes)}}, this.updateReachable)
 
 
-    logicModeChanged = (newVal) => { this.setState({logicMode: newVal}, this._updateReachable) }
+    logicModeChanged = (newVal) => { this.setState({logicMode: newVal}, this.updateReachable) }
     autoLogicToggle = () => this.state.logicMode === "auto" ? this.logicModeChanged("manual") : this.logicModeChanged("auto")
 
     updateManual = (param,val) => this.setState(prevState => {
         let manual_reach = this.state.manual_reach;
         manual_reach[param] = val;
         return {manual_reach: manual_reach}
-    },() => this._updateReachable());
+    },() => this.updateReachable());
 
 
     updateFill = (param,val) => this.setState(prevState => {
-        let fill_opts = this.state.fill_opts;
+        let fill_opts = prevState.fill_opts;
         fill_opts[param] = val;
         return {fill_opts: fill_opts}
     });
@@ -294,36 +294,40 @@ class PlandoBuiler extends React.Component {
             {
                 let new_s = {...s}
                 new_s.label += " Experience"
-                plc[prevState.player][prevState.pickup.value.loc] = new_s;                
+                plc[prevState.player][prevState.pickup.value.loc] = new_s;
             } else 
                 plc[prevState.player][prevState.pickup.value.loc] = s;
-
             return {placements: plc, stuff: s, reachable: r};
-        }, () => this._updateReachable());
+        }, () => this.updateReachable());
     };
 
     parseUploadedSeed = (seedText) => {
-		let lines = seedText.split("\n")
-		let newplc = {}
-	    for (let i = 1, len = lines.length; i < len; i++) {
-	    	let line = lines[i].split("|")
-	    	let loc = parseInt(line[0], 10);
-	    	let code = line[1];
-	    	let id = str_ids.includes(code) ? line[2] : parseInt(line[2], 10);
-	    	let name = pickup_name(code, id);
-	    	let stuff = {label: name, value:code+"|"+id};
-	    	newplc[loc] = stuff;
-    		if(loc === this.state.pickup.value.loc)
-				this.setState({stuff: stuff});
-    	}
-    	this.parseFlagLine(lines[0])
-    	this.setState(prevState => {
-	    		let oldplc = prevState.placements;
-		    	oldplc[this.state.player] = newplc
-		    	return {placements: oldplc}
-			}, () => this._updateReachable());
+        let lines = seedText.split("\n")
+        let newplc = {}
+        let currplc = this.state.placements[this.state.player]
+        for (let i = 1, len = lines.length; i < len; i++) {
+            let line = lines[i].split("|")
+            let loc = parseInt(line[0], 10);
+            if(currplc.hasOwnProperty(loc) && currplc[loc].value !== "NO|1")
+                continue;
+            let code = line[1];
+            let id = str_ids.includes(code) ? line[2] : parseInt(line[2], 10);
+            if(code === "EX" && this.state.seedFlags.some(f => f.value === "NoExtraExp"))
+                id = 0
+            let name = pickup_name(code, id);
+            let stuff = {label: name, value:code+"|"+id};
+            newplc[loc] = stuff;
+            if(loc === this.state.pickup.value.loc)
+                this.setState({stuff: stuff});
+        }
+        this.parseFlagLine(lines[0])
+        this.setState(prevState => {
+                let oldplc = prevState.placements;
+                oldplc[prevState.player] = newplc
+                return {placements: oldplc}
+            }, () => this.updateReachable());
 
-	}
+    }
 
 
     parseSavedSeed = (seedJson) => {
@@ -346,7 +350,7 @@ class PlandoBuiler extends React.Component {
             })
         })
         this.parseFlagLine(seedData['flagline'])
-        this.setState({placements: placements}, () => this._updateReachable());
+        this.setState({placements: placements}, () => this.updateReachable());
 
 
     }
@@ -493,20 +497,21 @@ class PlandoBuiler extends React.Component {
 
         let mode = "";
         let urlParams = [];
-        this.state.modes.forEach(p => urlParams.push("path="+p));
+        this.state.modes.forEach(p => urlParams.push(`path=${p}`));
+        urlParams.push(`exp_pool=${this.state.fill_opts.ex_pool}`)
 
         this.state.seedFlags.forEach(f => {
             let flag = FLAG_CASEFIX[f.value.toLowerCase()] || f.value
             if(VALID_KEYMODES.includes(flag)) mode = flag
-            else if(VALID_VARS.includes(flag)) urlParams.push("var="+flag)
-            else urlParams.push("flag="+flag)
+            else if(VALID_VARS.includes(flag)) urlParams.push(`var=${flag}`)
+            else urlParams.push(`flag=${flag}`)
         });
-        if(mode) urlParams.push("key_mode="+mode)
+        if(mode) urlParams.push(`key_mode=${mode}`)
         if(codes.length > 0)
-            urlParams.push("fass="+codes.join("|"));
+            urlParams.push(`fass=${codes.join("|")}`);
         urlParams.push("tracking=Disabled");
-        urlParams.push("seed="+Math.round(Math.random() * 1000000000));
-        let url = "/plando/fillgen?" + urlParams.join("&");
+        urlParams.push(`seed=${Math.round(Math.random() * 1000000000)}`);
+        let url = `/plando/fillgen?${urlParams.join("&")}`;
         xmlHttp.open("GET", url, true);
         xmlHttp.send(null);
     }
@@ -542,12 +547,12 @@ class PlandoBuiler extends React.Component {
         download('randomizer.dat', this.getLines().join("\n"));
     }
 
-      _updateReachable = (lastPass=[]) => {
+      updateReachable = (lastPass=[]) => {
           let recursive = true
           if(!this.state.flags.includes("hide_unreachable"))
               return
           if(!this.state.reachable || this.state.reachable === undefined) {
-              this.setState({reachable: {...DEFAULT_REACHABLE}}, () => this._updateReachable());
+              this.setState({reachable: {...DEFAULT_REACHABLE}}, () => this.updateReachable());
               return
           }
         let reachableAreas = Object.keys(this.state.reachable)
@@ -588,16 +593,15 @@ class PlandoBuiler extends React.Component {
               });
               recursive = false
           }
-            let modes = this.state.modes.join("+")
+            let modes = [...this.state.modes]
             let flags = this.state.seedFlags.map(f => f.value)
             if(flags.includes("ClosedDungeon")) 
-                modes +="+CLOSED_DUNGEON"
+                modes.push("CLOSED_DUNGEON")
             if(flags.includes("OpenWorld")) 
-                modes +="+OPEN_WORLD"
-                getReachable((s, c) => this.setState(s, c),
-                  modes,
-                  Object.keys(reachableStuff).map((key) => key+":"+reachableStuff[key]).join("+"),
-                  recursive ? () => this._updateReachable(reachableAreas) : () => null);
+                modes.push("OPEN_WORLD")
+
+
+            getReachable((s, c) => this.setState(s, c), reachableStuff, modes, recursive ? () => this.updateReachable(reachableAreas) : () => null);
       };
       
     toggleImport = () => {
@@ -641,7 +645,7 @@ class PlandoBuiler extends React.Component {
     
     resetReachable = () => this.setState({reachable: {...DEFAULT_REACHABLE}})
     
-    onFlags = (n) => this.setState({seedFlags: select_wrap(n.map(flag => FLAG_CASEFIX[flag.value.toLowerCase()] || flag.value))})
+    onFlags = (n) => this.setState({seedFlags: select_wrap(n.map(flag => FLAG_CASEFIX[flag.value.toLowerCase()] || flag.value))}, this.updateReachable)
 
 
     render() {
@@ -732,6 +736,8 @@ class PlandoBuiler extends React.Component {
                                     <NumericInput min={0} disabled={!this.state.fill_opts.dumb} value={this.state.fill_opts.MS} onChange={(n) => this.updateFill("MS",n)}></NumericInput>
                                     <span className="label">Max EXP: </span>
                                     <NumericInput min={0} disabled={!this.state.fill_opts.dumb} value={this.state.fill_opts.EX} onChange={(n) => this.updateFill("EX",n)}></NumericInput>
+                                    <span className="label">EXP Pool: </span>
+                                    <NumericInput min={0} disabled={this.state.fill_opts.dumb} value={this.state.fill_opts.ex_pool} onChange={(n) => this.updateFill("ex_pool",n)}></NumericInput>
                                 </div>
                                 <div className="form-check-label">
                                     <label className="form-check-label"><input type="checkbox" checked={this.state.fill_opts.dynamic} onChange={() => this.updateFill("dynamic",!this.state.fill_opts.dynamic)}/>Update Automatically</label>
@@ -838,7 +844,7 @@ class PlandoBuiler extends React.Component {
     }
 }
 
-function getReachable(setter, modes, codes, callback)
+function getReachable(setter, inventory, modes, callback)
 {
     var xmlHttp = new XMLHttpRequest();
     xmlHttp.onreadystatechange = function() {
@@ -857,8 +863,9 @@ function getReachable(setter, modes, codes, callback)
                     }, callback)
             })(xmlHttp.responseText);
     }
-    xmlHttp.open("GET", "/plando/reachable?modes="+modes+"&codes="+codes, true);
-    xmlHttp.send(null);
+    xmlHttp.open("POST", "/plando/reachable", true);
+    xmlHttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+    xmlHttp.send(encodeURI(`inventory=${JSON.stringify(inventory)}&modes=${JSON.stringify(modes)}`));
 }
 
 

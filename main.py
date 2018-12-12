@@ -371,16 +371,13 @@ class GetPlayerPositions(RequestHandler):
 
 
 class PlandoReachable(RequestHandler):
-    def get(self):
-        modes = paramVal(self, "modes").split(" ")
+    def post(self):
+        modes = json.loads(self.request.POST["modes"])
         codes = []
-        if paramVal(self, "codes"):
-            for codemulti in paramVal(self, "codes").split(" "):
-                code, _, times = codemulti.partition(":")
-                codes.append(tuple(code.split("|") + [int(times), False]))
+        for item, count in json.loads(self.request.POST["inventory"]).iteritems():
+            codes.append(tuple(item.split("|") + [count, False]))
         self.response.headers['Content-Type'] = 'application/json'
         self.response.status = 200
-
         areas = {}
         for area, reqs in Map.get_reachable_areas(PlayerState(codes), modes).items():
             areas[area] = [{item: count for (item, count) in req.cnt.items()} for req in reqs if len(req.cnt)]
@@ -628,7 +625,7 @@ class AuthorIndex(RequestHandler):
                 self.response.write(
                     "<html><body>You haven't made any seeds yet! <a href='%s'>Start a new seed</a></body></html>" % uri_for('plando-edit', seed_name="newSeed"))
             else:
-                self.response.write('<html><body>No seeds by user %s</body></html>' % author)
+                self.response.write('<html><body>No seeds by user %s</body></html>' % author_name)
 
 
 class Bingo(RequestHandler):

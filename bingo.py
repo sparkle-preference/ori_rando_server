@@ -16,10 +16,9 @@ class Card(object):
     @staticmethod
     def singletons(is_rando):
         return [
-            "Fish Strats or Core Skip",
+            "Fast Stompless or Core Skip",
             "Visit the triforce",
             "Hear Wilhelm's scream",
-            "Chase Gumo through the Moon Grotto",
             "Escape Kuro outside of Forlorn",
             "Drown an amphibian",
             "Drain the swamp",
@@ -55,7 +54,7 @@ class Rando():
 class HoruRoomXorY(Card):
     @staticmethod
     def get():
-        return "Complete %s or %s" % (choice(["L2", "L3", "L4"]), choice(["R2", "R3", "R4"]))
+        return "Complete %s or %s" % (choice(["L1", "L2", "L3", "L4"]), choice(["R1", "R2", "R3", "R4"]))
 
 class CollectNMapstones(Card):
     @staticmethod
@@ -72,7 +71,7 @@ class BreakNBarriers(Card):
     def get():
         return "Break %s breakable walls" % randint(3, 6)
 
-class BreakNBarriers(Card):
+class BreakNVertBarriers(Card):
     @staticmethod
     def get():
         return "Break %s breakable floors/ceilings" % randint(4, 8)
