@@ -22,7 +22,7 @@ const variations = {
     Hard: "Hard Mode",
     OHKO: "One Hit KO",
     "0XP": "Zero Experience",
-    ForceMapStones: "Force Mapstones",
+    ForceMaps: "Force Maps",
     Entrance: "Entrance Shuffle",
     BonusPickups: "More Bonus Pickups",
     ClosedDungeons: "Closed Dungeons",
@@ -83,7 +83,7 @@ export default class MainPage extends React.Component {
                     </Row>
                     <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "goalModes")} className="p-1 justify-content-center border-bottom">
                         {goalCol("ForceTrees")}
-                        {goalCol("ForceMapStones")}
+                        {goalCol("ForceMaps")}
                     </Row>
                     <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "expPool")} className="p-1 justify-content-center">
                         <Col xs={leftCol} className="text-center pt-1 border">
@@ -378,7 +378,7 @@ export default class MainPage extends React.Component {
     }
     getVariationsTab = () => {
         let variationButtons = Object.keys(variations).filter(x => !["Entrance", "NonProgressMapStones", "BonusPickups", "StompTriggers", 
-                                                                     "ForceTrees", "WorldTour", "ForceMapStones", "WarmthFrags"].includes(x)).map(v=> {
+                                                                     "ForceTrees", "WorldTour", "ForceMaps", "WarmthFrags"].includes(x)).map(v=> {
             let name = variations[v];
             return (
             <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("variations", v)} className="p-2">
@@ -743,7 +743,7 @@ export default class MainPage extends React.Component {
         let keyModeOptions = keymode_options.map(mode => (
             <DropdownItem active={mode===this.state.keyMode} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("keyModes", mode)} onClick={this.onKeyMode(mode)}>{mode}</DropdownItem>
         ))
-        let goalModeOptions = this.state.goalModes.length === 1 ? ["None", "ForceTrees", "WorldTour", "ForceMapStones", "WarmthFrags"].map(mode => (
+        let goalModeOptions = this.state.goalModes.length === 1 ? ["None", "ForceTrees", "WorldTour", "ForceMaps", "WarmthFrags"].map(mode => (
             <DropdownItem active={mode===this.state.goalModes[0]} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("goalModes", mode)} onClick={this.onGoalMode(mode)}>{variations[mode] || mode}</DropdownItem>
         )) : null
 

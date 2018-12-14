@@ -15,7 +15,7 @@ const noneLines = ["Additional context-specific information will appear here as 
 const vars = ["Starved", "NonProgressMapStones", "Hard", "0XP", "Entrance", "BonusPickups", "DoubleSkills", "StrictMapstones", "ClosedDungeons", "OpenWorld", "StompTriggers"]
 const presets = ["Casual", "Standard", "Expert", "Master", "Glitched", "Custom"]
 
-const goalModes = ["ForceTrees", "ForceMapStones"]
+const goalModes = ["ForceTrees", "ForceMaps"]
 const keyModes = ["Shards", "Clues", "Limitkeys", "Free"]
 
 const getHelpContent = (category, option) => {
@@ -158,8 +158,8 @@ const getHelpHelper = (category, option) => {
                         "The Force Trees Goal Mode requires players to visit all ten skill trees before completing the game. As a side-effect, it makes Ginso Tree access mandatory, as the Bash tree cannot be reached without it.", 
                         "Force Trees is the default Goal Mode, and is a good starting point for new players.",
                     ]
-                    break;                
-                case "ForceMapStones":
+                    break;
+                case "ForceMaps":
                     title = "Force Maps"
                     lines = [
                         "The Force Maps Goal Mode requires that you turn in all 9 mapstones before finishing the game. As a side-effect, it makes Forlorn Ruins access mandatory.",
