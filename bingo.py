@@ -15,32 +15,36 @@ BONUS_PICKUPS = ["Extra Double Jump", "Extra Air Dash", "Explosion Power Upgrade
 class Card(object):
     @staticmethod
     def singletons(is_rando):
-        return [
-            "Fast Stompless or Core Skip",
-            "Visit the triforce",
-            "Hear Wilhelm's scream",
-            "Escape Kuro outside of Forlorn",
-            "Drown an amphibian",
-            "Drain the swamp",
-            "Kill an enemy with a baneling",
-            "Escape the L4 Lava",
-            "Beat the game"
+        tuples = [
+            ("StomplessOrCoreSkip", "Fast Stompless or Core Skip"),
+            ("Triforce", "Collect the Triforce AC"),
+            ("Wilhelm", "Hear Wilhelm's scream"),
+            ("CatMouse", "Escape Kuro outside of Forlorn"),
+            ("DrownFrog", "Drown an amphibian"),
+            ("DrainSwamp", "Drain the swamp"),
+            ("BanelingKill, ""Kill an enemy with a baneling"),
+            ("L4 lava", "Escape the L4 Lava")
         ] + [
-            "Warmth Returned or 1 exp",
-            "Quad Jump",
-            "Collect a regen pickup"
-        ] if is_rando else ["Triple Jump"]
-
+            ("UselessPickup", "Warmth Returned or 1 exp"),
+            ("QuadJump", "Quad Jump"),
+            ("Regen", "Collect a regen pickup")
+        ] if is_rando else [("TripleJump", "Triple Jump")]
+        return [{'name': name, 'text': text} for (name, text) in tuples]
     @staticmethod
     def all_cards(is_rando):
-        return [c.get(is_rando) for c in Card.__subclasses__() if c.valid(is_rando)] + Card.singletons(is_rando)
+        return [{'text': c.get(is_rando), 'name': c.__name__} for c in Card.__subclasses__() if c.valid(is_rando)] + Card.singletons(is_rando)
+
     @staticmethod
-    def get_json(is_rando, cards=25):
+    def get_cards(is_rando, gridSize=5):
+        cards = gridSize * gridSize
         c = Card.all_cards(is_rando)
         if cards > len(c):
-            log.warning("%s>%s :C" % (cards, len(c)))
+            log.warning("Not enough cards! %s>%s" % (cards, len(c)))
             cards = 25
-        return "[%s]" % ",\n".join(['{"name": "%s"}' % crd for crd in sample(c, cards)])
+        return sample(c, cards)
+    @staticmethod
+    def get_json(is_rando, cards=25):
+        return "[%s]" % ",\n".join(['{"name": "%s"}' % card["text"] for card in Card.get_cards(is_rando, cards)])
 
     @staticmethod
     def valid(rando):

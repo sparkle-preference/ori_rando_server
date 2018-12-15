@@ -70,20 +70,6 @@ measureFileSizesBeforeBuild(paths.appBuild)
       } else {
         console.log(chalk.green('Compiled successfully.\n'));
       }
-
-      console.log();
-
-      const appPackage = require(paths.appPackageJson);
-      const publicUrl = paths.publicUrl;
-      const publicPath = config.output.publicPath;
-      const buildFolder = path.relative(process.cwd(), paths.appBuild);
-      printHostingInstructions(
-        appPackage,
-        publicUrl,
-        publicPath,
-        buildFolder,
-        useYarn
-      );
     },
     err => {
       console.log(chalk.red('Failed to compile.\n'));
@@ -94,7 +80,7 @@ measureFileSizesBeforeBuild(paths.appBuild)
 
 // Create the production build and print the deployment instructions.
 function build(previousFileSizes) {
-  console.log('Creating an optimized production build...');
+  console.log('Building...');
 
   let compiler = webpack(config);
   return new Promise((resolve, reject) => {

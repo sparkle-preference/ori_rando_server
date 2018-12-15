@@ -222,7 +222,7 @@ export default class MainPage extends React.Component {
                         </Col>
                     </Row>
                 </Collapse>
-                <Collapse isOpen={this.state.user != ""}>
+                <Collapse isOpen={this.state.user !== ""}>
                     <Row className="p-1 justify-content-center">
                         <Col xs="4" className="text-center pt-1 border">
                             <span class="align-middle">SyncId</span>
@@ -358,7 +358,6 @@ export default class MainPage extends React.Component {
                 url += `&game_id=${gameId}`
         }
         window.history.replaceState('',window.document.title, url);
-
     }
     
     seedBuildCallback = ({status, responseText}) => {
@@ -657,7 +656,7 @@ export default class MainPage extends React.Component {
                      paths: presets["standard"], keyMode: "Clues", oldKeyMode: "Clues", pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null), goalModes: ["ForceTrees"],
                      customSyncId: "", seed: "", fillAlg: "Balanced", shared: ["Skills", "Teleporters", "World Events"], hints: true, helpcat: "", helpopt: "", quickstartOpen: quickstartOpen,
                      syncId: "", expPool: 10000, lastHelp: new Date(), seedIsGenerating: false, cellFreq: cellFreqPresets("standard"), fragCount: 30, fragReq: 20, relicCount: 8, loader: get_random_loader(),
-                     paramId: paramId, seedTabExists: seedTabExists, reopenUrl: "", teamStr: "", inputFlagLine: "", fass: {}, gameId: -1, goalModesOpen: false};
+                     paramId: paramId, seedTabExists: seedTabExists, reopenUrl: "", teamStr: "", inputFlagLine: "", fass: {},  goalModesOpen: false};
     }
         
     closeQuickstart = () => {

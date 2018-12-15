@@ -36,19 +36,6 @@ def paramFlag(s, f):
 def paramVal(s, f):
     return s.request.get(f, None)
 
-class GetGameId(RequestHandler):
-    def get(self):
-        self.response.headers['Content-Type'] = 'text/plain'
-        self.response.status = 200
-        shared = paramVal(self, 'shared')
-        if shared:
-            shared = [s for s in shared.split(" ") if s]
-        id = paramVal(self, 'id')
-        if "." in id:
-            id = id.partition(".")[0]
-        self.response.write("GC|%s" % Game.new(paramVal(self, 'mode'), shared, id).key.id())
-
-
 class CleanUp(RequestHandler):
     def get(self):
         self.response.headers['Content-Type'] = 'text/plain'
@@ -251,8 +238,7 @@ class SetSeed(RequestHandler):
             shared_opt = [f[7:].split(" ") for f in flags if f.lower().startswith("shared=")]
             mode = mode_opt[0] if mode_opt else None
             shared = shared_opt[0] if shared_opt else None
-            game = Game.new(_mode=mode, _shared=shared, id=game_id)
-            game.put()
+            Game.new(_mode=mode, _shared=shared, id=game_id)
         else:
             game.sanity_check()  # cheap if game is short!
         self.response.headers['Content-Type'] = 'text/plain'
@@ -807,7 +793,51 @@ class VanillaPlusSeeds(RequestHandler):
         self.response.headers['Content-Disposition'] = 'attachment; filename=randomizer.dat' if not debug else ""
         self.response.out.write("\n".join(base))
 
+class BingoBoard(RequestHandler):
+    def get(self):
+        template_values = {'app': "Bingo", 'title': "OriDE Bingo"}
+        user = User.get()
+        if user:
+            template_values['user'] = user.name
+        self.response.out.write(template.render(path, template_values))
 
+class BingoCreate(RequestHandler):
+    def get(self):
+        res = {}
+        skills = int(paramVal(self, "skills") or 3)
+        cells = int(paramVal(self, "cells") or 4)
+        grid_size = int(paramVal(self, "grid_size") or 5)
+        show_info = paramFlag(self, "show_info")
+        misc = paramVal(self, "misc") or "TP/Valley/TP/Swamp"
+        misc = misc.replace("MU|", "")
+        skill_pool = ["SK/0", "SK/2", "SK/3", "SK/4", "SK/5", "SK/8", "SK/12", "SK/14", "SK/50", "SK/51"]
+        start_with = misc.split("/")
+        start_with += random.sample(skill_pool, skills)
+        start_with += [random.choice(["AC/1/AC/1", "HC/1", "EC/1"]) for _ in range(cells)]
+        pid = "/".join(start_with)
+        mu_line = "2|MU|%s|Glades" % pid
+        seed_name = Pickup.name("MU", pid) if show_info else "BingoSeed"
+        base = vanilla_seed.split("\n")
+        base[0] = "OpenWorld,Bingo|%s" + seed_name
+        base.insert(1, mu_line)
+        key = Game.new(_mode="Bingo", _shared=[])
+        res["gameId"] = key.id()
+        res["seed"] = "\n".join(base)
+        res["cards"] = Card.get_cards(False, grid_size)
+        game = key.get()
+        game.bingo = res
+        game.put()
+        self.response.headers['Content-Type'] = 'application/json'
+        self.response.out.write(json.dumps(res))
+
+class BingoGetGame(RequestHandler):
+    def get(self, gameId):
+        res = {}
+        game = Game.with_id(int(gameId))
+        if game:
+            res = game.bingo
+        self.response.headers['Content-Type'] = 'application/json'
+        self.response.out.write(json.dumps(res))
 
 app = WSGIApplication(routes=[
     # testing endpoints
@@ -847,6 +877,9 @@ app = WSGIApplication(routes=[
     # misc / top level endpoints
     Route('/bingo/<cards:\d+>', handler=Bingo,  name="bingo-json-cards", strict_slash=True),
     Route('/bingo', handler=Bingo, name="bingo-json", strict_slash=True),
+    Route('/bingo/board', handler=BingoBoard, name="bingo-board", strict_slash=True),
+    Route('/bingo/load/<gameId>', handler=BingoGetGame, name="bingo-get-game", strict_slash=True),
+    Route('/bingo/new', handler=BingoCreate, name="bingo-create-game", strict_slash=True),
     Route('/logichelper', handler=LogicHelper, name="logic-helper", strict_slash=True),
     Route('/faq', handler=Guides, name="help-guides", strict_slash=True),
     ('/', ReactLanding),
@@ -854,7 +887,6 @@ app = WSGIApplication(routes=[
     ('/quickstart', ReactLanding),
     (r'/activeGames/?', ActiveGames),
     (r'/clean/?', CleanUp),
-    (r'/getNewGame/?', GetGameId),
     (r'/cache', ShowCache),
     (r'/cache/clear', ClearCache),
     (r'/login/?', HandleLogin),

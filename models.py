@@ -209,6 +209,8 @@ class Player(ndb.Model):
     history     = ndb.LocalStructuredProperty(HistoryLine, repeated=True)
     last_update = ndb.DateTimeProperty(auto_now=True)
     teammates   = ndb.KeyProperty('Player', repeated=True)
+    bingo_data  = ndb.JsonProperty(default={})
+    name        = ndb.StringProperty()
 
     # post-refactor version of bitfields
     def output(self):
@@ -290,12 +292,13 @@ class Game(ndb.Model):
     def set_mode(self, mode):      self.str_mode = mode.value
     def get_shared(self):          return [ShareType.mk(st) for st in self.str_shared if ShareType.mk(st)]
     def set_shared(self, shared):  self.str_shared = [s.value for s in shared]
-    mode = property(get_mode, set_mode)
-    shared = property(get_shared, set_shared)
-    start_time = ndb.DateTimeProperty(auto_now_add=True)
+    mode        = property(get_mode, set_mode)
+    shared      = property(get_shared, set_shared)
+    start_time  = ndb.DateTimeProperty(auto_now_add=True)
     last_update = ndb.DateTimeProperty(auto_now=True)
-    players = ndb.KeyProperty(Player, repeated=True)
-    params = ndb.KeyProperty(SeedGenParams)
+    players     = ndb.KeyProperty(Player, repeated=True)
+    params      = ndb.KeyProperty(SeedGenParams)
+    bingo       = ndb.JsonProperty()
 
     def next_player(self):
         if self.mode != MultiplayerGameType.SIMUSOLO:
@@ -536,12 +539,13 @@ class Game(ndb.Model):
 
     @staticmethod
     def new(_mode=None, _shared=None, id=None):
-        if _shared:
+        if isinstance(_shared, (list,)):
             shared = enums_from_strlist(ShareType, _shared)
         else:
             shared = Game.DEFAULT_SHARED
-        mode = MultiplayerGameType(_mode) if _mode else MultiplayerGameType.SIMUSOLO
+        mode = MultiplayerGameType.mk(_mode) if _mode else MultiplayerGameType.SIMUSOLO
         id = int(id) if id else Game.get_open_gid()
         game = Game(id=id, players=[], str_shared=[s.value for s in shared], str_mode=mode.value)
+        key = game.put()
         log.info("Game.new(%s, %s, %s): Created game %s ", _mode, _shared, id, game)
-        return game
+        return key
