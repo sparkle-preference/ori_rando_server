@@ -154,7 +154,7 @@ const handleCard = (card, playerData, activePlayer) => {
                         infix = card.parts.length > 1 ? "any of these " : "this "
                         break;
                     case "count":
-                        players = Object.keys(playerData).filter(p =>  valid(p) && playerData[p][name].value.total >= card.target)
+                        players = Object.keys(playerData).filter(p => valid(p) && playerData[p][name].total >= card.target)
                         suffix = apValid ? ` (${Math.min(playerData[activePlayer][name].total, card.target)}/${card.target})` : ` (${card.target})`
                         s = "s"
                         yies = "ies"
@@ -261,7 +261,7 @@ export default class Bingo extends React.Component {
         super(props);
         let url = new URL(window.document.location.href);
         let gameId = parseInt(url.searchParams.get("game_id") || -1, 10);
-        this.state = {cards: [], haveGame: false, creatingGame: false, createModalOpen: true, playerData: {}, activePlayer: 0, gameId: gameId, startSkills: 3, startCells: 4, startMisc: "MU|TP/Swamp/TP/Valley"};
+        this.state = {cards: [], haveGame: false, creatingGame: false, createModalOpen: true, playerData: {}, activePlayer: 1, gameId: gameId, startSkills: 3, startCells: 4, startMisc: "MU|TP/Swamp/TP/Valley"};
  
         if(gameId > 0)
         {
@@ -284,9 +284,9 @@ export default class Bingo extends React.Component {
     }
 
     joinGame = () => {
-        let {gameId, seed, haveGame} = this.state;
+        let {gameId, seed, activePlayer, haveGame} = this.state;
         if(!haveGame) return;
-        let nextPlayer = 1
+        let nextPlayer = activePlayer;
         let players = Object.keys(this.state.playerData)
         while(players.includes("" + nextPlayer))
             nextPlayer++;
@@ -396,11 +396,12 @@ export default class Bingo extends React.Component {
                 </Row>
                 <BingoBoard cards={this.state.cards} playerData={this.state.playerData} activePlayer={this.state.activePlayer}/>
                 <Row className="align-items-center pt-2">
-                    <Col>
-                    <Button onClick={this.toggleCreate}>Create New Game</Button>
-                    </Col><Col>
-                    <Button onClick={this.joinGame}>Join Game</Button>
-                    </Col><Col>
+                    <Col xs="4">
+                        <Button onClick={this.toggleCreate}>Create New Game</Button>
+                    </Col><Col xs="4">
+                        <Button onClick={this.joinGame}>Join Game</Button>
+                    </Col><Col xs="3">
+                        {this.state.activePlayer > 0 ? make_icons([this.state.activePlayer]) : null}
                         Player Number: <Input type="number" value={this.state.activePlayer} onChange={(e) => this.setState({activePlayer: parseInt(e.target.value, 10)})}/> 
                     </Col>
                 </Row>

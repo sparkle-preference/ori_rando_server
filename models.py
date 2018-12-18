@@ -473,7 +473,7 @@ class Game(ndb.Model):
                     if coords in shard_locs:
                         log.info("%s at %s already taken, player %s will not get one." % (pickup.name, coords, pid))
                         return 410
-        elif self.mode == MultiplayerGameType.SIMUSOLO:
+        elif self.mode in [MultiplayerGameType.SIMUSOLO, MultiplayerGameType.BINGO]:
             pass
         else:
             log.error("game mode %s not implemented" % self.mode)
