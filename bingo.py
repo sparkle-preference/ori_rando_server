@@ -1,6 +1,7 @@
+import json
 import logging as log
 from random import choice, randint, sample
-
+from collections import defaultdict
 # constants
 DUNGEONS = ["Forlorn Ruins", "Ginso Tree", "Mount Horu"]
 AREAS_WITH_TPS = ["Ginso Tree", "Forlorn Ruins", "Moon Grotto", "Hollow Grove", "Sunken Glades",
@@ -22,21 +23,21 @@ class Card(object):
             ("CatMouse", "Escape Kuro outside of Forlorn"),
             ("DrownFrog", "Drown an amphibian"),
             ("DrainSwamp", "Drain the swamp"),
-            ("BanelingKill, ""Kill an enemy with a baneling"),
+            ("BanelingKill", "Kill an enemy with a baneling"),
             ("L4 lava", "Escape the L4 Lava")
-        ] + [
+        ] + ([
             ("UselessPickup", "Warmth Returned or 1 exp"),
             ("QuadJump", "Quad Jump"),
             ("Regen", "Collect a regen pickup")
-        ] if is_rando else [("TripleJump", "Triple Jump")]
+        ] if is_rando else [("TripleJump", "Triple Jump")])
+        print tuples
         return [{'name': name, 'text': text} for (name, text) in tuples]
     @staticmethod
     def all_cards(is_rando):
         return [{'text': c.get(is_rando), 'name': c.__name__} for c in Card.__subclasses__() if c.valid(is_rando)] + Card.singletons(is_rando)
 
     @staticmethod
-    def get_cards(is_rando, gridSize=5):
-        cards = gridSize * gridSize
+    def get_cards(is_rando, cards=25):
         c = Card.all_cards(is_rando)
         if cards > len(c):
             log.warning("Not enough cards! %s>%s" % (cards, len(c)))
@@ -267,3 +268,159 @@ class XorYBonus(Rando, Card):
     @staticmethod
     def get(rando):
         return "%s or %s" % tuple(sample(BONUS_PICKUPS, 2))
+
+
+
+
+
+
+
+def r(low, high):
+    return lambda: randint(low, high)
+
+
+
+class BingoGoal(object):
+    maxRepeats = 1
+    def getCard(self, banned_goals=[], banned_methods=[]):
+        cardData = {'name': self.name, 'type': self.goalType}
+        return cardData
+
+class BoolGoal(BingoGoal):
+    goalType = "bool"
+    def __init__(self, name):
+        self.name = name
+
+class IntGoal(BingoGoal):
+    goalType = "int"
+    def __init__(self, name, rangeFunc):
+        self.name = name
+        self.rangeFunc = rangeFunc
+    def getCard(self, banned_goals=[], banned_methods=[]):
+        cardData = super(IntGoal, self).getCard()
+        cardData['target'] = self.rangeFunc()
+        return cardData
+
+class GoalGroup(BingoGoal):
+    def __init__(self, name, goals, low=1, methods=[("or", r(1, 3)), ("and", r(1, 2))], maxRepeats=1):
+        self.name = name
+        self.maxRepeats = maxRepeats
+        self.goals = goals
+        self.low = low
+        self.methods = methods
+        assert len(methods) > 0
+    def getCard(self, banned_goals=[], banned_methods=[]):
+        method, countFunc = choice([(m,c) for m,c in self.methods if m not in banned_methods])
+        count = countFunc()
+        if method == "count":
+            return {'name': self.name, 'type': "multi", 'method': method, 'target': count}
+        subgoals = [goal for goal in self.goals if goal.name not in banned_goals]
+        count = min(count, len(subgoals))
+        if count > 0:
+            goals = sample(self.goals, count)
+            return {'name': self.name, 'type': "multi", 'method': method, 'parts': [goal.getCard() for goal in goals]}
+        else:
+            return None
+
+class BingoGenerator(object):
+    def __init__(self, is_rando = False):
+        self.is_rando = is_rando
+        self.goals = []
+        for name in ["FastStompless", "CoreSkip", "DrownFrog", "DrainSwamp", "WilhelmScream"]:
+            self.goals.append(BoolGoal(name))
+        self.goals += [
+            IntGoal("CollectMapstones", r(3, 7)),
+            IntGoal("ActivateMaps", r(2, 7)),
+            IntGoal("OpenKSDoors", r(3, 8)),
+            IntGoal("OpenEnergyDoors", r(3, 6)),
+            IntGoal("BreakFloors", r(4, 10)),
+            IntGoal("BreakWalls", r(4, 10)),
+            IntGoal("UnspentKeystones", r(4, 18)),
+            IntGoal("BreakPlants", r(5, 12)),
+            IntGoal("TotalPickups", r(50, 90)),
+            IntGoal("UnderwaterPickups", r(2, 6)),
+            IntGoal("HealthCells", r(4, 8)),
+            IntGoal("EnergyCells", r(5, 9)),
+            IntGoal("AbilityCells", r(6, 15)),
+            IntGoal("LightLanterns", r(4, 10)),
+            IntGoal("SpendPoints", r(20, 30)),
+            IntGoal("GainExperience", lambda: 500*randint(8, 16)),
+            IntGoal("KillEnemies", lambda: 5*randint(5, 25)),
+        ]
+        self.goals += [
+            GoalGroup(
+                name="CompleteHoruRoom", 
+                goals=[BoolGoal(name) for name in ["L1", "L2", "L3", "L4", "R1", "R2", "R3", "R4"]], 
+                methods=[("or", lambda: 2), ("and", r(1, 3)), ("count", r(2, 5))]
+                ),
+            GoalGroup(
+                name="ActivateTeleporter", 
+                goals=[BoolGoal(name) for name in ["sunkenGlades", "moonGrotto", "mangroveFalls", "valleyOfTheWind", "spiritTree", "mangroveB", "horuFields", "ginsoTree", "forlorn", "mountHoru"]],  # "swamp", "sorrowPass" if rando
+                methods=[("or", lambda: 2), ("and", r(1, 3)), ("count", r(4, 7))],
+                maxRepeats=3
+                ),
+            GoalGroup(
+                name="EnterArea", 
+                goals=[BoolGoal(name) for name in ["Lost Grove", "Misty Woods", "Sorrow Pass", "Forlorn Ruins", "Mount Horu", "Ginso Tree"]],
+                methods=[("or", lambda: 2), ("and", r(1, 2))],
+                maxRepeats=2
+                ),
+            GoalGroup(
+                name="GetEvent",
+                goals=[BoolGoal(name) for name in ["Water Vein", "Gumon Seal", "Sunstone", "Clean Water", "Wind Restored", "Warmth Returned"]],
+                methods=[("or", r(2, 3)), ("and", r(1, 2))],
+                maxRepeats=2
+                ),
+            GoalGroup(
+                name="GetItemAtLoc", 
+                goals=[BoolGoal(name) for name in ["LostGroveLongSwim", "ValleyEntryGrenadeLongSwim", "SpiderSacEnergyDoor", "SorrowHealthCell", "SunstonePlant", "GladesLaser", "LowerBlackrootLaserAbilityCell", 
+                                                "MistyGrenade", "LeftSorrowGrenade", "DoorWarpExp", "HoruR3Plant", "RightForlornHealthCell", "ForlornEscapePlant"]],
+                methods=[("or", r(2,3)), ("and", r(1, 2))],
+                maxRepeats=2
+                ),
+            GoalGroup(
+                name="VisitTree", 
+                goals=[BoolGoal(name) for name in ["Wall Jump", "Charge Flame", "Double Jump", "Bash", "Stomp", "Glide", "Climb", "Charge Jump", "Grenade", "Dash"]],
+                methods=[("or", lambda: 2), ("and", r(2, 3)), ("count", r(4, 9))],
+                maxRepeats=2
+                ),
+            GoalGroup(
+                name="GetAbility", 
+                goals=[BoolGoal(name) for name in ["Ultra Defense", "Spirit Light Efficiency", "Ultra Stomp"]],
+                methods=[("or", r(1, 3)), ("and", r(1, 2))],
+                ),
+            GoalGroup(
+                name="StompPeg", 
+                goals=[BoolGoal(name) for name in ["BlackrootTeleporter", "SwampPostStomp", "GroveMapstoneTree", "HoruFieldsTPAccess", "L1", "R2", 
+                                                "L2", "L4Fire", "L4Drain", "SpiderLake", "GroveGrottoUpper", "GroveGrottoLower"]],
+                methods=[("count", r(4,6)), ("and", r(2, 3))],
+                maxRepeats=2
+                ),
+        ]
+    
+    def get_cards(self, cards=25):
+        print len(self.goals)
+        groupSeen = defaultdict(lambda: (1, [], []))
+        output = []
+        goals = self.goals[:]
+        while(len(output) < cards):
+            print len(output), len(goals)
+            goal = choice(goals)
+            repeats, banned_subgoals, banned_methods = groupSeen[goal.name]
+            if repeats == goal.maxRepeats:
+                print "removing %s after %s repeats" % (goal.name, goal.maxRepeats)
+                goals.remove(goal)
+            elif repeats > goal:
+                assert "help?" and False
+            cardData = goal.getCard(banned_subgoals, banned_methods)
+            if not cardData:
+                print "Failed %s" % goal.name 
+                continue
+            if "method" in cardData:
+                banned_methods.append(cardData["method"])
+            if "parts" in cardData:
+                banned_subgoals += [part["name"] for part in cardData["parts"]]
+            output.append(cardData)
+            groupSeen[goal.name] = (repeats+1, banned_subgoals, banned_methods) 
+        return output
+

@@ -58,6 +58,9 @@ const SiteBar = ({user, quickstartHook}) => {
                 <DropdownItem href="https://bingosync.com/">
                     Start Bingo Game
                 </DropdownItem>
+                <DropdownItem href="/bingo/board">
+                    Start Bingo Game (internal alpha autotracking)
+                </DropdownItem>
                 </DropdownMenu>
             </UncontrolledDropdown>
                 

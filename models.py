@@ -303,8 +303,10 @@ class Game(ndb.Model):
     def next_player(self):
         if self.mode != MultiplayerGameType.SIMUSOLO:
             return False
-        player_nums =  [int(k.id().partition(".")[2]) for k in self.players]
+        player_nums = self.player_nums
         return max(player_nums)+1
+    def player_nums(self):
+        return [int(k.id().partition(".")[2]) for k in self.players]        
 
     def summary(self):
         out_lines = ["%s (%s)" % (self.mode, ",".join([s.name for s in self.shared]))]

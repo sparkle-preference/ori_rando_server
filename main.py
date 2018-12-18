@@ -16,7 +16,7 @@ from google.appengine.ext.webapp import template
 # project imports
 from seedbuilder.seedparams import SeedGenParams
 from seedbuilder.vanilla import seedtext as vanilla_seed
-from bingo import Card
+from bingo import Card, BingoGenerator
 from enums import MultiplayerGameType, ShareType, Variation
 from models import Game, Seed, User
 from pickups import Pickup
@@ -762,7 +762,6 @@ class PicksByTypeGen(RequestHandler):
 
 class RebindingsEditor(RequestHandler):
     def get(self):
-
         template_values = {'app': "RebindingsEditor", 'title': "Ori DE Rebindings Editor"}
         user = User.get()
         if user:
@@ -771,7 +770,6 @@ class RebindingsEditor(RequestHandler):
 
 class Guides(RequestHandler):
     def get(self):
-
         template_values = {'app': "HelpAndGuides", 'title': "Randomizer Help and Guides"}
         user = User.get()
         if user:
@@ -801,12 +799,13 @@ class BingoBoard(RequestHandler):
             template_values['user'] = user.name
         self.response.out.write(template.render(path, template_values))
 
+VanillaGenerator = BingoGenerator()
+
 class BingoCreate(RequestHandler):
     def get(self):
         res = {}
         skills = int(paramVal(self, "skills") or 3)
         cells = int(paramVal(self, "cells") or 4)
-        grid_size = int(paramVal(self, "grid_size") or 5)
         show_info = paramFlag(self, "show_info")
         misc = paramVal(self, "misc") or "TP/Valley/TP/Swamp"
         misc = misc.replace("MU|", "")
@@ -818,26 +817,598 @@ class BingoCreate(RequestHandler):
         mu_line = "2|MU|%s|Glades" % pid
         seed_name = Pickup.name("MU", pid) if show_info else "BingoSeed"
         base = vanilla_seed.split("\n")
-        base[0] = "OpenWorld,Bingo|%s" + seed_name
+        base[0] = "OpenWorld,Bingo|%s" % seed_name
         base.insert(1, mu_line)
         key = Game.new(_mode="Bingo", _shared=[])
         res["gameId"] = key.id()
         res["seed"] = "\n".join(base)
-        res["cards"] = Card.get_cards(False, grid_size)
+        res["cards"] = VanillaGenerator.get_cards()
+        res["playerData"] = {}
         game = key.get()
         game.bingo = res
         game.put()
         self.response.headers['Content-Type'] = 'application/json'
         self.response.out.write(json.dumps(res))
 
-class BingoGetGame(RequestHandler):
-    def get(self, gameId):
+class BingoAddPlayer(RequestHandler):
+    def get(self, game_id, player_id):
+        player_id = int(player_id)
         res = {}
-        game = Game.with_id(int(gameId))
-        if game:
-            res = game.bingo
+        game = Game.with_id(game_id)
+        if not game:
+            self.response.status = 404
+            return
+        if player_id in game.player_nums():
+            self.response.status = 409
+            return
+        p = game.player(player_id)
+        res = game.bingo
+        res["playerData"] = {}
+        for player in game.get_players():
+            pid = player.key.id().partition(".")[2]
+            res["playerData"][pid] = player.bingo_data
         self.response.headers['Content-Type'] = 'application/json'
         self.response.out.write(json.dumps(res))
+
+class BingoGetGame(RequestHandler):
+    def get(self, game_id):
+        res = {}
+        game = Game.with_id(game_id)
+        if not game:
+            self.response.status = 404
+            return
+        res = game.bingo
+        res["playerData"] = {}
+        for player in game.get_players():
+            pid = player.key.id().partition(".")[2]
+            res["playerData"][pid] = player.bingo_data
+        false = False
+        true = True
+        res["playerData"]["1"] = {
+			"FastStompless": {
+				"type": "bool",
+				"name": "FastStompless",
+				"value": false
+			},
+			"CoreSkip": {
+				"type": "bool",
+				"name": "CoreSkip",
+				"value": false
+			},
+			"DrownFrog": {
+				"type": "bool",
+				"name": "DrownFrog",
+				"value": false
+			},
+			"DrainSwamp": {
+				"type": "bool",
+				"name": "DrainSwamp",
+				"value": false
+			},
+			"WilhelmScream": {
+				"type": "bool",
+				"name": "WilhelmScream",
+				"value": false
+			},
+			"CollectMapstones": {
+				"type": "int",
+				"name": "CollectMapstones",
+				"value": 0
+			},
+			"OpenKSDoors": {
+				"type": "int",
+				"name": "OpenKSDoors",
+				"value": 0
+			},
+			"BreakFloors": {
+				"type": "int",
+				"name": "BreakFloors",
+				"value": 0
+			},
+			"BreakWalls": {
+				"type": "int",
+				"name": "BreakWalls",
+				"value": 0
+			},
+			"UnspentKeystones": {
+				"type": "int",
+				"name": "UnspentKeystones",
+				"value": 0
+			},
+			"BreakPlants": {
+				"type": "int",
+				"name": "BreakPlants",
+				"value": 0
+			},
+			"TotalPickups": {
+				"type": "int",
+				"name": "TotalPickups",
+				"value": 5
+			},
+			"UnderwaterPickups": {
+				"type": "int",
+				"name": "UnderwaterPickups",
+				"value": 1
+			},
+			"HealthCells": {
+				"type": "int",
+				"name": "HealthCells",
+				"value": 0
+			},
+			"EnergyCells": {
+				"type": "int",
+				"name": "EnergyCells",
+				"value": 1
+			},
+			"AbilityCells": {
+				"type": "int",
+				"name": "AbilityCells",
+				"value": 0
+			},
+			"LightLanterns": {
+				"type": "int",
+				"name": "LightLanterns",
+				"value": 0
+			},
+			"SpendPoints": {
+				"type": "int",
+				"name": "SpendPoints",
+				"value": 0
+			},
+			"GainExperience": {
+				"type": "int",
+				"name": "GainExperience",
+				"value": 870
+			},
+			"KillEnemies": {
+				"type": "int",
+				"name": "KillEnemies",
+				"value": 11
+			},
+			"OpenEnergyDoors": {
+				"type": "int",
+				"name": "OpenEnergyDoors",
+				"value": 0
+			},
+			"ActivateMaps": {
+				"type": "int",
+				"name": "ActivateMaps",
+				"value": 0
+			},
+			"CompleteHoruRoom": {
+				"total": 0,
+				"type": "multi<bool>",
+				"name": "CompleteHoruRoom",
+				"value": {
+					"L1": {
+						"type": "bool",
+						"name": "L1",
+						"value": true
+					},
+					"L2": {
+						"type": "bool",
+						"name": "L2",
+						"value": true
+					},
+					"L3": {
+						"type": "bool",
+						"name": "L3",
+						"value": true
+					},
+					"L4": {
+						"type": "bool",
+						"name": "L4",
+						"value": false
+					},
+					"R1": {
+						"type": "bool",
+						"name": "R1",
+						"value": false
+					},
+					"R2": {
+						"type": "bool",
+						"name": "R2",
+						"value": false
+					},
+					"R3": {
+						"type": "bool",
+						"name": "R3",
+						"value": false
+					},
+					"R4": {
+						"type": "bool",
+						"name": "R4",
+						"value": false
+					}
+				}
+			},
+			"CompleteEscape": {
+				"total": 0,
+				"type": "multi<bool>",
+				"name": "CompleteEscape",
+				"value": {
+					"Ginso": {
+						"type": "bool",
+						"name": "Ginso",
+						"value": false
+					},
+					"Forlorn": {
+						"type": "bool",
+						"name": "Forlorn",
+						"value": false
+					},
+					"Horu": {
+						"type": "bool",
+						"name": "Horu",
+						"value": false
+					}
+				}
+			},
+			"ActivateTeleporter": {
+				"total": 0,
+				"type": "multi<bool>",
+				"name": "ActivateTeleporter",
+				"value": {
+				"swamp": {
+					"type": "bool",
+					"name": "swamp",
+					"value": false
+				},
+				"sorrowPass": {
+					"type": "bool",
+					"name": "sorrowPass",
+					"value": false
+				},
+				"sunkenGlades": {
+					"type": "bool",
+					"name": "sunkenGlades",
+					"value": false
+				},
+				"moonGrotto": {
+					"type": "bool",
+					"name": "moonGrotto",
+					"value": false
+				},
+				"mangroveFalls": {
+					"type": "bool",
+					"name": "mangroveFalls",
+					"value": false
+				},
+				"valleyOfTheWind": {
+					"type": "bool",
+					"name": "valleyOfTheWind",
+					"value": false
+				},
+				"spiritTree": {
+					"type": "bool",
+					"name": "spiritTree",
+					"value": false
+				},
+				"mangroveB": {
+					"type": "bool",
+					"name": "mangroveB",
+					"value": false
+				},
+				"horuFields": {
+					"type": "bool",
+					"name": "horuFields",
+					"value": false
+				},
+				"ginsoTree": {
+					"type": "bool",
+					"name": "ginsoTree",
+					"value": false
+				},
+				"forlorn": {
+					"type": "bool",
+					"name": "forlorn",
+					"value": false
+				},
+				"mountHoru": {
+					"type": "bool",
+					"name": "mountHoru",
+					"value": false
+				}
+			}
+			},
+			"EnterArea": {
+				"total": 0,
+				"type": "multi<bool>",
+				"name": "EnterArea",
+				"value": {"Lost Grove": {
+					"type": "bool",
+					"name": "Lost Grove",
+					"value": false
+				}, "Misty Woods": {
+					"type": "bool",
+					"name": "Misty Woods",
+					"value": false
+				}, "Forlorn Ruins": {
+					"type": "bool",
+					"name": "Forlorn Ruins",
+					"value": false
+				}, "Sorrow Pass": {
+					"type": "bool",
+					"name": "Sorrow Pass",
+					"value": false
+				}, "Mount Horu": {
+					"type": "bool",
+					"name": "Mount Horu",
+					"value": false
+				}, "Ginso Tree": {
+					"type": "bool",
+					"name": "Ginso Tree",
+					"value": false
+				}}
+			},
+			"GetEvent": {
+				"total": 0,
+				"type": "multi<bool>",
+				"name": "GetEvent",
+				"value": {
+					"Water Vein": {
+						"type": "bool",
+						"name": "Water Vein",
+						"value": false
+					},
+					"Gumon Seal": {
+						"type": "bool",
+						"name": "Gumon Seal",
+						"value": false
+					},
+					"Sunstone": {
+						"type": "bool",
+						"name": "Sunstone",
+						"value": false
+					},
+					"Clean Water": {
+						"type": "bool",
+						"name": "Clean Water",
+						"value": false
+					},
+					"Wind Restored": {
+						"type": "bool",
+						"name": "Wind Restored",
+						"value": false
+					},
+					"Warmth Returned": {
+						"type": "bool",
+						"name": "Warmth Returned",
+						"value": false
+					}
+				}
+			},
+			"GetItemAtLoc": {
+				"total": 0,
+				"type": "multi<bool>",
+				"name": "GetItemAtLoc",
+				"value": {
+					"LostGroveLongSwim": {
+						"type": "bool",
+						"name": "LostGroveLongSwim",
+						"value": false
+					},
+					"ValleyEntryGrenadeLongSwim": {
+						"type": "bool",
+						"name": "ValleyEntryGrenadeLongSwim",
+						"value": false
+					},
+					"SpiderSacEnergyDoor": {
+						"type": "bool",
+						"name": "SpiderSacEnergyDoor",
+						"value": false
+					},
+					"SorrowHealthCell": {
+						"type": "bool",
+						"name": "SorrowHealthCell",
+						"value": false
+					},
+					"SunstonePlant": {
+						"type": "bool",
+						"name": "SunstonePlant",
+						"value": false
+					},
+					"GladesLaser": {
+						"type": "bool",
+						"name": "GladesLaser",
+						"value": false
+					},
+					"LowerBlackrootLaserAbilityCell": {
+						"type": "bool",
+						"name": "LowerBlackrootLaserAbilityCell",
+						"value": false
+					},
+					"MistyGrenade": {
+						"type": "bool",
+						"name": "MistyGrenade",
+						"value": false
+					},
+					"LeftSorrowGrenade": {
+						"type": "bool",
+						"name": "LeftSorrowGrenade",
+						"value": false
+					},
+					"DoorWarpExp": {
+						"type": "bool",
+						"name": "DoorWarpExp",
+						"value": false
+					},
+					"HoruR3Plant": {
+						"type": "bool",
+						"name": "HoruR3Plant",
+						"value": false
+					},
+					"RightForlornHealthCell": {
+						"type": "bool",
+						"name": "RightForlornHealthCell",
+						"value": false
+					},
+					"ForlornEscapePlant": {
+						"type": "bool",
+						"name": "ForlornEscapePlant",
+						"value": false
+					}
+				}
+			},
+			"VisitTree": {
+				"total": 1,
+				"type": "multi<bool>",
+				"name": "VisitTree",
+				"value": {
+					"Wall Jump": {
+						"type": "bool",
+						"name": "Wall Jump",
+						"value": false
+					},
+					"Charge Flame": {
+						"type": "bool",
+						"name": "Charge Flame",
+						"value": false
+					},
+					"Double Jump": {
+						"type": "bool",
+						"name": "Double Jump",
+						"value": false
+					},
+					"Bash": {
+						"type": "bool",
+						"name": "Bash",
+						"value": false
+					},
+					"Stomp": {
+						"type": "bool",
+						"name": "Stomp",
+						"value": false
+					},
+					"Glide": {
+						"type": "bool",
+						"name": "Glide",
+						"value": true
+					},
+					"Climb": {
+						"type": "bool",
+						"name": "Climb",
+						"value": false
+					},
+					"Charge Jump": {
+						"type": "bool",
+						"name": "Charge Jump",
+						"value": false
+					},
+					"Grenade": {
+						"type": "bool",
+						"name": "Grenade",
+						"value": false
+					},
+					"Dash": {
+						"type": "bool",
+						"name": "Dash",
+						"value": false
+					}
+				}
+			},
+			"GetAbility": {
+				"total": 0,
+				"type": "multi<bool>",
+				"name": "GetAbility",
+				"value": {
+					"Ultra Defense": {
+						"type": "bool",
+						"name": "UltraDefense",
+						"value": false
+					},
+					"Spirit Light Efficiency": {
+						"type": "bool",
+						"name": "SpiritLightEfficiency",
+						"value": false
+					},
+					"Ultra Stomp": {
+						"type": "bool",
+						"name": "UltraStomp",
+						"value": false
+					}
+				}
+			},
+			"StompPeg": {
+				"total": 0,
+				"type": "multi<bool>",
+				"name": "StompPeg",
+				"value": {
+					"BlackrootTeleporter": {
+						"type": "bool",
+						"name": "BlackrootTeleporter",
+						"value": false
+					},
+					"SwampPostSwamp": {
+						"type": "bool",
+						"name": "SwampPostSwamp",
+						"value": false
+					},
+					"GroveMapstoneTree": {
+						"type": "bool",
+						"name": "GroveMapstoneTree",
+						"value": false
+					},
+					"HoruFieldsTPAccess": {
+						"type": "bool",
+						"name": "HoruFieldsTPAccess",
+						"value": false
+					},
+					"L1": {
+						"type": "bool",
+						"name": "L1",
+						"value": false
+					},
+					"R2": {
+						"type": "bool",
+						"name": "R2",
+						"value": false
+					},
+					"L2": {
+						"type": "bool",
+						"name": "L2",
+						"value": false
+					},
+					"L4Fire": {
+						"type": "bool",
+						"name": "L4Fire",
+						"value": false
+					},
+					"L4Drain": {
+						"type": "bool",
+						"name": "L4Drain",
+						"value": false
+					},
+					"SpiderLake": {
+						"type": "bool",
+						"name": "SpiderLake",
+						"value": false
+					},
+					"GroveGrottoUpper": {
+						"type": "bool",
+						"name": "GroveGrottoUpper",
+						"value": false
+					},
+					"GroveGrottoLower": {
+						"type": "bool",
+						"name": "GroveGrottoLower",
+						"value": false
+					}
+				}
+			}
+		}
+        self.response.headers['Content-Type'] = 'application/json'
+        self.response.out.write(json.dumps(res))
+
+class HandleBingoUpdate(RequestHandler):
+    def post(self, game_id, player_id):
+        game = Game.with_id(game_id)
+        if not game:
+            self.response.status = 404
+            return
+        p = game.player(player_id)
+        p.bingo_data = json.loads(self.request.POST["bingoData"])
+        p.put()
 
 app = WSGIApplication(routes=[
     # testing endpoints
@@ -878,7 +1449,8 @@ app = WSGIApplication(routes=[
     Route('/bingo/<cards:\d+>', handler=Bingo,  name="bingo-json-cards", strict_slash=True),
     Route('/bingo', handler=Bingo, name="bingo-json", strict_slash=True),
     Route('/bingo/board', handler=BingoBoard, name="bingo-board", strict_slash=True),
-    Route('/bingo/load/<gameId>', handler=BingoGetGame, name="bingo-get-game", strict_slash=True),
+    Route('/bingo/game/<game_id>/fetch', handler=BingoGetGame, name="bingo-get-game", strict_slash=True),
+    Route('/bingo/game/<game_id>/add/<player_id>', handler=BingoAddPlayer, name="bingo-add-player", strict_slash=True),
     Route('/bingo/new', handler=BingoCreate, name="bingo-create-game", strict_slash=True),
     Route('/logichelper', handler=LogicHelper, name="logic-helper", strict_slash=True),
     Route('/faq', handler=Guides, name="help-guides", strict_slash=True),
@@ -904,6 +1476,7 @@ app = WSGIApplication(routes=[
         Route('/tick/<x:[^,]+>,<y>', handler=GetUpdate, name="netcode-player-tick"),
         Route('/callback/<signal>', handler=SignalCallback,  name="netcode-player-signal-callback"),
         Route('/setSeed', handler=SetSeed,  name="netcode-player-set-seed"),
+        Route('/bingo', handler=HandleBingoUpdate,  name="netcode-player-bingo-tick"),
     ]),
 
     # game endpoints

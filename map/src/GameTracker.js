@@ -400,7 +400,7 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
         if(this.state.open_world) 
             modes +="+OPEN_WORLD"
             
-        doNetRequest(onRes, this.setState, "/tracker/game/"+game_id+"/fetch/reachable?modes="+modes, timeout)
+        doNetRequest(onRes, (s) => this.setState(s), "/tracker/game/"+game_id+"/fetch/reachable?modes="+modes, timeout)
     }
     getGamedata = () => {
         let onRes = (res) => {
@@ -414,7 +414,7 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
                         return {pathMode: get_preset(paths), players: players, retries: 0, modes: paths, closed_dungeons: closed_dungeons, open_world: open_world}
                     });
                 }
-        doNetRequest(onRes, this.setState, "/tracker/game/"+game_id+"/fetch/gamedata", this.timeout)
+        doNetRequest(onRes, (s) => this.setState(s), "/tracker/game/"+game_id+"/fetch/gamedata", this.timeout)
     }
 };
 
