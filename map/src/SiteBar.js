@@ -50,16 +50,19 @@ const SiteBar = ({user, quickstartHook}) => {
                     Generate Bingo Board (rando)
                 </DropdownItem>
                 <DropdownItem href="/bingo">
-                    Generate Bingo Board (vanilla+)
+                    Generate Bingo Board (old, vanilla+)
                 </DropdownItem>
                 <DropdownItem href="/vanillaplus">
-                    Get Vanilla+ Seed
+                    Get Vanilla+ Seed (old)
                 </DropdownItem>
                 <DropdownItem href="https://bingosync.com/">
-                    Start Bingo Game
+                    Start Bingo Game (old)
+                </DropdownItem>
+                <DropdownItem href="/dll/bingo">
+                    Get Bingo dll (beta)
                 </DropdownItem>
                 <DropdownItem href="/bingo/board">
-                    Start Bingo Game (internal alpha autotracking)
+                    Start Bingo Game (beta)
                 </DropdownItem>
                 </DropdownMenu>
             </UncontrolledDropdown>

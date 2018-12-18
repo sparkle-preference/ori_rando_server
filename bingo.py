@@ -323,10 +323,10 @@ class GoalGroup(BingoGoal):
             return None
 
 class BingoGenerator(object):
-    def __init__(self, is_rando = False):
+    def __init__(self, hard = False, is_rando = False):
         self.is_rando = is_rando
         self.goals = []
-        for name in ["FastStompless", "CoreSkip", "DrownFrog", "DrainSwamp", "WilhelmScream"]:
+        for name in ["DrownFrog", "DrainSwamp", "WilhelmScream"] + (["FastStompless", "CoreSkip"] if hard else []):
             self.goals.append(BoolGoal(name))
         self.goals += [
             IntGoal("CollectMapstones", r(3, 7)),
@@ -395,6 +395,13 @@ class BingoGenerator(object):
                                                 "L2", "L4Fire", "L4Drain", "SpiderLake", "GroveGrottoUpper", "GroveGrottoLower"]],
                 methods=[("count", r(4,6)), ("and", r(2, 3))],
                 maxRepeats=2
+                ),
+            GoalGroup(
+                name="HuntEnemies", 
+                goals=[BoolGoal(name) for name in ["Fronkey Fight", "Misty Miniboss", "Lost Grove Fight Room", "Grotto Miniboss", 
+                                                "Lower Ginso Miniboss", "Upper Ginso Miniboss", "Swamp Rhino Miniboss", "Mount Horu Miniboss"]],
+                methods=[("count", r(3, 5)), ("and", r(1, 3)), ("or", r(2, 3))],
+                maxRepeats=3
                 ),
         ]
     

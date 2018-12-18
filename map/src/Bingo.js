@@ -24,6 +24,21 @@ const niceTPNames = {
     "swamp": "Thornfelt Swamp", 
     "sorrowPass": "Valley of the Wind"
 }
+const niceLocNames = {
+    "LostGroveLongSwim" : "Lost Grove Long Swim",
+    "ValleyEntryGrenadeLongSwim": "Valley Long Swim" ,
+    "SpiderSacEnergyDoor" : "Spider Energy Door",
+    "SorrowHealthCell" : "Sorrow HC",
+    "SunstonePlant" : "Sunstone Plant",
+    "GladesLaser" : "Gladzer EC",
+    "LowerBlackrootLaserAbilityCell": "BRB Right Laser AC",
+    "MistyGrenade" : "Misty Grenade EX",
+    "LeftSorrowGrenade": "Sorrow Grenade EX",
+    "DoorWarpExp" : "Door Warp EX",
+    "HoruR3Plant" : "R3 Plant",
+    "RightForlornHealthCell" : "Right Forlorn HC",
+    "ForlornEscapePlant" : "Forlorn Escape Plant"
+}
 const handleCard = (card, playerData, activePlayer) => {
     let {name, type} = card;
     let text = name
@@ -184,7 +199,7 @@ const handleCard = (card, playerData, activePlayer) => {
                     case "GetItemAtLoc":
                         text = `Get the pickup${s} at ${infix}location${s+suffix}`
                         if(card.parts) 
-                            optionNames = card.parts.map(part => {return {partname: part.name}})
+                            optionNames = card.parts.map(part => {return {niceName: niceLocNames[part.name], partname: part.name}})
                     break;
                     case "VisitTree":
                         text = `Visit ${infix}tree${s+suffix}`
@@ -203,6 +218,11 @@ const handleCard = (card, playerData, activePlayer) => {
                     break;
                     case "StompPeg":
                         text = `Stomp ${infix}post${s+suffix}`
+                        if(card.parts)
+                            optionNames = card.parts.map(part => {return {partname: part.name}})
+                    break;
+                    case "HuntEnemies":
+                        text = `Defeat ${infix}Miniboss encounter${s+suffix}`
                         if(card.parts)
                             optionNames = card.parts.map(part => {return {partname: part.name}})
                     break;

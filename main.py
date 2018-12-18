@@ -934,6 +934,7 @@ app = WSGIApplication(routes=[
     ('/vanillaplus', VanillaPlusSeeds),
     Route('/discord', redirect_to="https://discord.gg/TZfue9V"),
     Route('/dll', redirect_to="https://github.com/sigmasin/OriDERandomizer/raw/3.0/Assembly-CSharp.dll"),
+    Route('/dll/bingo', redirect_to="https://github.com/turntekGodhead/OriDERandomizer/raw/master/Assembly-CSharp.dll"),
     Route('/tracker', redirect_to="https://github.com/turntekGodhead/OriDETracker/raw/master/OriDETracker/bin/Latest.zip"),
     Route('/rename/<name>', handler=UserRename, strict_slash=True, name="user-rename"),
 
