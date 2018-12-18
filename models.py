@@ -418,7 +418,7 @@ class Game(ndb.Model):
     def get_all_hls(self):
         hist = self.rebuild_hist()
         if not hist:
-            return False
+            return []
         return [hl for players, hls in hist.items() for hl in hls]
 
     def player(self, pid):

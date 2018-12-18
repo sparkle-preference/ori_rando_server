@@ -257,10 +257,13 @@ const handleCard = (card, playerData, activePlayer) => {
 }
 
 const make_icons = players => players.map(p => (<Media key={`playerIcon${p}`} object style={{width: "25px", height: "25px"}} src={player_icons(p, false)} alt={"Icon for player "+p} />))
-const BingoCard = ({text, players, id}) => {
+const BingoCard = ({text, players, tinted}) => {
     let className = "pl-1 pr-1 pb-0 justify-content-center text-center align-items-center d-flex " + ((text.length > 1) ? "pt-0 flex-column" : "pt-1")
+    let cardStyles = {width: 160, height: 160}
+    if(tinted)
+        cardStyles.background = "#cfc"
     return (
-        <Card style={{width: 160, height: 160}}>
+        <Card style={cardStyles}>
             <CardBody style={{fontSize: ".8rem"}} className={className}>{text}</CardBody>
             <CardFooter className="p-0 justify-content-center d-flex">{make_icons(players)}</CardFooter>
         </Card>
@@ -278,7 +281,7 @@ const BingoBoard = ({cards, playerData, activePlayer}) => {
             let card = cards.shift()
             let {text, players} = handleCard(card, playerData, activePlayer)
             let key=`${row.length}, ${rows.length}`
-            row.push((<Col key={key}><BingoCard id={key} text={text} players={players} /></Col>))
+            row.push((<Col key={key}><BingoCard tinted={players.includes("" + activePlayer)} text={text} players={players} /></Col>))
         }
         rows.push((<Row key={`row-${rows.length}`} className="justify-content-center align-items-center w-100">{row}</Row>))
     }

@@ -74,14 +74,19 @@ class ActiveGames(RequestHandler):
             else:
                 title = "All active games"
         for game in sorted(games, key=lambda x: x.last_update, reverse=True):
-            id = game.key.id()
-            game_link = uri_for('game-show-history', game_id=id)
-            map_link = uri_for('map-render', game_id=id)
+            gid = game.key.id()
+            game_link = uri_for('game-show-history', game_id=gid)
+            map_link = uri_for('map-render', game_id=gid)
             flags = ""
             if game.params:
                 params = game.params.get()
                 flags = params.flag_line()
-            body += "<li><a href='%s'>Game #%s</a> <a href='%s'>Map</a> %s (Last update: %s ago)</li>" % (game_link, id, map_link, flags, datetime.now() - game.last_update)
+
+            blink = ""
+            if game.mode == MultiplayerGameType.BINGO:
+                blink += " <a href='/bingo/board?game_id=%s'>Bingo board</a>" % gid
+            
+            body += "<li><a href='%s'>Game #%s</a> <a href='%s'>Map</a>%s %s (Last update: %s ago)</li>" % (game_link, gid, map_link, blink, flags, datetime.now() - game.last_update)
         out = "<html><head><title>%s - Ori Rando Server</title></head><body>" % title
         if body:
             out += "<h4>%s:</h4><ul>%s</ul></body</html>" % (title, body)
@@ -845,7 +850,6 @@ class BingoCreate(RequestHandler):
             if misc:
                 sw_parts.append(", ".join(misc))
             res["startWith"] = " | ".join(sw_parts)
-            print res["startWith"], skills, cells, tps, misc, start_with.id 
         base = vanilla_seed.split("\n")
         base[0] = "OpenWorld,Bingo|Bingo Game %s" % res["gameId"]
         if start_with:
