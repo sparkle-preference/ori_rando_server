@@ -30,7 +30,6 @@ class Card(object):
             ("QuadJump", "Quad Jump"),
             ("Regen", "Collect a regen pickup")
         ] if is_rando else [("TripleJump", "Triple Jump")])
-        print tuples
         return [{'name': name, 'text': text} for (name, text) in tuples]
     @staticmethod
     def all_cards(is_rando):
@@ -116,11 +115,6 @@ class CollectNPlants(Card):
     @staticmethod
     def get(rando):
         return "Break %s Plants" % randint(3, 6)
-
-class CollectNUnderwater(Card):
-    @staticmethod
-    def get(rando):
-        return "Collect %s pickups underwater" % randint(2, 5)
 
 class NHealth(Card):
     @staticmethod
@@ -406,22 +400,18 @@ class BingoGenerator(object):
         ]
     
     def get_cards(self, cards=25):
-        print len(self.goals)
         groupSeen = defaultdict(lambda: (1, [], []))
         output = []
         goals = self.goals[:]
         while(len(output) < cards):
-            print len(output), len(goals)
             goal = choice(goals)
             repeats, banned_subgoals, banned_methods = groupSeen[goal.name]
             if repeats == goal.maxRepeats:
-                print "removing %s after %s repeats" % (goal.name, goal.maxRepeats)
                 goals.remove(goal)
             elif repeats > goal:
                 assert "help?" and False
             cardData = goal.getCard(banned_subgoals, banned_methods)
             if not cardData:
-                print "Failed %s" % goal.name 
                 continue
             if "method" in cardData:
                 banned_methods.append(cardData["method"])

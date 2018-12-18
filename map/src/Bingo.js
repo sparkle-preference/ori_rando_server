@@ -151,6 +151,8 @@ const handleCard = (card, playerData, activePlayer) => {
                         text = `Kill enemies ${progress}`
                         help = "Large swarms count as 3 enemies (the initial swarm and the first split)."
                         break;
+                    default:
+                       break;
                 }
             break;
             case "multi":
@@ -173,6 +175,8 @@ const handleCard = (card, playerData, activePlayer) => {
                         suffix = apValid ? ` (${Math.min(playerData[activePlayer][name].total, card.target)}/${card.target})` : ` (${card.target})`
                         s = "s"
                         yies = "ies"
+                        break;
+                    default:
                         break;
                 }
                 switch(name) {
@@ -226,7 +230,9 @@ const handleCard = (card, playerData, activePlayer) => {
                         if(card.parts)
                             optionNames = card.parts.map(part => {return {partname: part.name}})
                     break;
-                }
+                    default:
+                        break;
+                    }
                 extraLines = optionNames.map(({partname, niceName}) => 
                 {
                     niceName = niceName || partname
@@ -235,9 +241,12 @@ const handleCard = (card, playerData, activePlayer) => {
                         checked = "☑"
                     return `᛫ ${niceName} ${checked}`
                 })
-            break;
+                break;
+            default:
+                break;
         }
-        text = [text].concat(extraLines).map(t => (<div>{t}</div>))
+        let i = 0;
+        text = [text].concat(extraLines).map(t => (<div key={`card-line-${i++}`}>{t}</div>))
         return {text: text, help: help, players: players}
     }
     catch(error)
@@ -247,8 +256,8 @@ const handleCard = (card, playerData, activePlayer) => {
     }
 }
 
-const make_icons = players => players.map(p => (<Media object style={{width: "25px", height: "25px"}} src={player_icons(p, false)} alt={"Icon for player "+p} />))
-const BingoCard = ({text, players}) => {
+const make_icons = players => players.map(p => (<Media key={`playerIcon${p}`} object style={{width: "25px", height: "25px"}} src={player_icons(p, false)} alt={"Icon for player "+p} />))
+const BingoCard = ({text, players, id}) => {
     let className = "pl-1 pr-1 pb-0 justify-content-center text-center align-items-center d-flex " + ((text.length > 1) ? "pt-0 flex-column" : "pt-1")
     return (
         <Card style={{width: 160, height: 160}}>
@@ -268,9 +277,10 @@ const BingoBoard = ({cards, playerData, activePlayer}) => {
         while(row.length < 5) {
             let card = cards.shift()
             let {text, players} = handleCard(card, playerData, activePlayer)
-            row.push((<Col><BingoCard text={text} players={players} /></Col>))
+            let key=`${row.length}, ${rows.length}`
+            row.push((<Col key={key}><BingoCard id={key} text={text} players={players} /></Col>))
         }
-        rows.push((<Row className="justify-content-center align-items-center w-100">{row}</Row>))
+        rows.push((<Row key={`row-${rows.length}`} className="justify-content-center align-items-center w-100">{row}</Row>))
     }
     return (<Container>{rows}</Container>);
 }
@@ -281,7 +291,8 @@ export default class Bingo extends React.Component {
         super(props);
         let url = new URL(window.document.location.href);
         let gameId = parseInt(url.searchParams.get("game_id") || -1, 10);
-        this.state = {cards: [], haveGame: false, creatingGame: false, createModalOpen: true, playerData: {}, activePlayer: 1, gameId: gameId, startSkills: 3, startCells: 4, startMisc: "MU|TP/Swamp/TP/Valley"};
+        this.state = {cards: [], haveGame: false, creatingGame: false, createModalOpen: true, playerData: {}, activePlayer: 1, showInfo: false, 
+                      gameId: gameId, startSkills: 3, startCells: 4, startMisc: "MU|TP/Swamp/TP/Valley", start_with: ""};
  
         if(gameId > 0)
         {
@@ -318,17 +329,19 @@ export default class Bingo extends React.Component {
     }
     tick = () => {
         let {gameId, haveGame} = this.state;
-        if(gameId && gameId > 0 && haveGame)
+        if(gameId && gameId > 0 && haveGame && this.state.fails < 50)
             doNetRequest(`/bingo/game/${gameId}/fetch`, this.tickCallback)
     }
 
     tickCallback = ({status, responseText}) => {
         if(status !== 200)
         {
-            NotificationManager.error("error getting data from server", "connection error", 5000)
+            if((this.state.fails - 1) % 5 === 0)
+                NotificationManager.error(`error getting data from server: ${status}`, "error", 5000)
+            this.setState({fails: this.state.fails + 1})
         } else {
             let res = JSON.parse(responseText)
-            this.setState({playerData: res.playerData})
+            this.setState({playerData: res.playerData, fails: 0})
         }
     }
 
@@ -336,7 +349,7 @@ export default class Bingo extends React.Component {
 
     loadingModal = () => { return (
         <Modal size="sm" isOpen={this.state.creatingGame } backdrop={"static"} className={"modal-dialog-centered"}>
-            <ModalHeader centered>Please wait...</ModalHeader>
+            <ModalHeader centered="true">Please wait...</ModalHeader>
             <ModalBody>
                 <Container fluid>
                     <Row className="p-2 justify-content-center align-items-center">
@@ -348,28 +361,33 @@ export default class Bingo extends React.Component {
     )}
     createModal = () =>  { return (
         <Modal size="lg" isOpen={this.state.createModalOpen} backdrop={"static"} className={"modal-dialog-centered"} toggle={this.toggleCreate}>
-            <ModalHeader toggle={this.toggleCreate} centered>Bingo options</ModalHeader>
+            <ModalHeader toggle={this.toggleCreate} centered="true">Bingo options</ModalHeader>
             <ModalBody>
                 <Container fluid>
                 <Row className="p-1">
                     <Col xs="4" className="text-center pt-1 border">
-                        <span class="align-middle">random free skill count</span>
+                        <span className="align-middle">random free skill count</span>
                     </Col><Col xs="4">
                         <Input type="number" value={this.state.startSkills}  onChange={(e) => this.setState({startSkills: parseInt(e.target.value, 10)})}/> 
                     </Col>
                 </Row>
                 <Row className="p-1">
                     <Col xs="4" className="text-center pt-1 border">
-                        <span class="align-middle">random free cell count</span>
+                        <span className="align-middle">random free cell count</span>
                     </Col><Col xs="4">
                         <Input type="number" value={this.state.startCells} onChange={(e) => this.setState({startCells: parseInt(e.target.value, 10)})}/> 
                     </Col>
                 </Row>
                 <Row className="p-1">
                     <Col xs="4" className="text-center pt-1 border">
-                        <span class="align-middle">Also start with</span>
+                        <span className="align-middle">Also start with</span>
                     </Col><Col xs="8">
                         <PickupSelect value={this.state.startMisc} updater={(code, _) => this.setState({startMisc: code})}/> 
+                    </Col>
+                </Row>
+                <Row className="p-1">
+                    <Col xs={{size: 6, offset: 3 }} className="text-center pt-1 border">
+                        <Button active={this.state.showInfo} outline={!this.state.showInfo} onClick={() => this.setState({showInfo: !this.state.showInfo})}>Show starting skills</Button>
                     </Col>
                 </Row>
             </Container>
@@ -383,6 +401,8 @@ export default class Bingo extends React.Component {
     toggleCreate = () => this.setState({createModalOpen: !this.state.createModalOpen})
     createGame = () => {
         let url = `/bingo/new?skills=${this.state.startSkills}&cells=${this.state.startCells}&misc=${this.state.startMisc}`
+        if(this.state.showInfo)
+            url += "&showInfo=1"
         doNetRequest(url, this.createCallback)
         this.setState({creatingGame: true, createModalOpen: false, loader: get_random_loader()})
     }
@@ -395,34 +415,45 @@ export default class Bingo extends React.Component {
             return
         } else {
             let res = JSON.parse(responseText)
-            this.setState({gameId: res.gameId, createModalOpen: false, creatingGame: false, haveGame: true, seed: res.seed, playerData: res.playerData, cards: res.cards}, this.updateUrl)
+            this.setState({startWith: res.startWith, gameId: res.gameId, createModalOpen: false, creatingGame: false, haveGame: true, 
+                          seed: res.seed, playerData: res.playerData, cards: res.cards, fails: 0}, this.updateUrl)
         }
     }
   
     render = () => {
+        let {activePlayer, playerData, startWith, cards, haveGame, gameId, user} = this.state
+        let headerText = haveGame ? `Bingo Game ${gameId}` : "Bingo!"
+        let subheader = (haveGame && startWith !== "") ? (
+            <Row>
+                <Col>
+                    <span><h6 style={textStyle}>{startWith}</h6></span>
+                </Col>
+            </Row>
+        ) : null 
         return (
             <Container className="pl-4 pr-4 pb-4 pt-2 mt-2 w-75">
                 <Helmet>
                     <style>{'body { background-color: white}'}</style>
                 </Helmet>
                 <NotificationContainer/>
-                <SiteBar user={this.state.user}/>
+                <SiteBar user={user}/>
                 {this.createModal()}
                 {this.loadingModal()}
                 <Row className="p-1">
                     <Col>
-                        <span><h3 style={textStyle}>Bingo!</h3></span>
+                        <span><h3 style={textStyle}>{headerText}</h3></span>
                     </Col>
                 </Row>
-                <BingoBoard cards={this.state.cards} playerData={this.state.playerData} activePlayer={this.state.activePlayer}/>
+                {subheader}
+                <BingoBoard cards={cards} playerData={playerData} activePlayer={activePlayer}/>
                 <Row className="align-items-center pt-2">
                     <Col xs="4">
                         <Button onClick={this.toggleCreate}>Create New Game</Button>
                     </Col><Col xs="4">
                         <Button onClick={this.joinGame}>Join Game</Button>
                     </Col><Col xs="3">
-                        {this.state.activePlayer > 0 ? make_icons([this.state.activePlayer]) : null}
-                        Player Number: <Input type="number" value={this.state.activePlayer} onChange={(e) => this.setState({activePlayer: parseInt(e.target.value, 10)})}/> 
+                        {activePlayer > 0 ? make_icons([activePlayer]) : null}
+                        Player Number: <Input type="number" value={activePlayer} onChange={(e) => this.setState({activePlayer: parseInt(e.target.value, 10)})}/> 
                     </Col>
                 </Row>
             </Container>

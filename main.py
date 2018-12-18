@@ -19,7 +19,7 @@ from seedbuilder.vanilla import seedtext as vanilla_seed
 from bingo import Card, BingoGenerator
 from enums import MultiplayerGameType, ShareType, Variation
 from models import Game, Seed, User
-from pickups import Pickup
+from pickups import Pickup, Skill, AbilityCell, HealthCell, EnergyCell, Multiple
 from cache import Cache
 from util import coord_correction_map, all_locs, picks_by_type_generator
 from reachable import Map, PlayerState
@@ -65,10 +65,10 @@ class ActiveGames(RequestHandler):
         title = "Games active in the last %s hours" % hours
         body = ""
         games = Game.query(Game.last_update > datetime.now() - timedelta(hours=hours)).fetch()
-        games = [game for game in games if len([hl for players, hls in game.rebuild_hist().items() for hl in hls]) > 0]
+        games = [game for game in games if len(game.get_all_hls()) > 0]
         if not len(games):
             games = Game.query().fetch()
-            games = [game for game in games if len([hl for players, hls in game.rebuild_hist().items() for hl in hls]) > 0]
+            games = [game for game in games if len(game.get_all_hls()) > 0]
             if not len(games):
                 title = "No active games found!"
             else:
@@ -803,31 +803,60 @@ VanillaGenerator = BingoGenerator()
 
 class BingoCreate(RequestHandler):
     def get(self):
+        self.response.headers['Content-Type'] = 'application/json'
         res = {}
         skills = int(paramVal(self, "skills") or 3)
         cells = int(paramVal(self, "cells") or 4)
-        show_info = paramFlag(self, "show_info")
-        misc = paramVal(self, "misc") or "TP/Valley/TP/Swamp"
-        misc = misc.replace("MU|", "")
-        skill_pool = ["SK/0", "SK/2", "SK/3", "SK/4", "SK/5", "SK/8", "SK/12", "SK/14", "SK/50", "SK/51"]
-        start_with = misc.split("/")
-        start_with += random.sample(skill_pool, skills)
-        start_with += [random.choice(["AC/1/AC/1", "HC/1", "EC/1"]) for _ in range(cells)]
-        pid = "/".join(start_with)
-        mu_line = "2|MU|%s|Glades" % pid
-        seed_name = Pickup.name("MU", pid) if show_info else "BingoSeed"
-        base = vanilla_seed.split("\n")
-        base[0] = "OpenWorld,Bingo|%s" % seed_name
-        base.insert(1, mu_line)
+        show_info = paramFlag(self, "showInfo")
+        misc_raw = paramVal(self, "misc")
+        misc_pickup = Pickup.from_str(misc_raw) if misc_raw != "NO|1" else None
+        skill_pool = [Skill(x) for x in [0, 2, 3, 4, 5, 8, 12, 14, 50, 51]]
+        cell_pool  = [Multiple.with_pickups([AbilityCell(1), AbilityCell(1)]), HealthCell(1), EnergyCell(1)]
+
+        start_pickups = random.sample(skill_pool, skills)
+        for _ in range(cells):
+            start_pickups.append(random.choice(cell_pool))
+        if misc_pickup:
+            start_pickups.append(misc_pickup)
+        start_with = Multiple.with_pickups(start_pickups)
         key = Game.new(_mode="Bingo", _shared=[])
         res["gameId"] = key.id()
+        if show_info and start_with:
+            tps = []
+            skills = []
+            misc = []
+            cells = Counter()
+            for pick in start_with.children:
+                if pick.code == "TP":
+                    tps.append(pick.name[:-11])
+                elif pick.code == "SK":
+                    skills.append(pick.name)
+                elif pick.code in ["HC", "EC", "AC"]:
+                    cells[pick.code]+=1
+                else:
+                    misc.append(pick.name)
+            sw_parts = []
+            if skills:
+                sw_parts.append("Skills: " + ", ".join(skills))
+            if tps:
+                sw_parts.append("TPs: " + ", ".join(tps))
+            if cells:
+                sw_parts.append("Cells: " + ", ".join(cells))
+            if misc:
+                sw_parts.append(", ".join(misc))
+            res["startWith"] = " | ".join(sw_parts)
+            print res["startWith"], skills, cells, tps, misc, start_with.id 
+        base = vanilla_seed.split("\n")
+        base[0] = "OpenWorld,Bingo|Bingo Game %s" % res["gameId"]
+        if start_with:
+            mu_line = "2|MU|%s|Glades" % start_with.id
+            base.insert(1, mu_line)
         res["seed"] = "\n".join(base)
         res["cards"] = VanillaGenerator.get_cards()
         res["playerData"] = {}
         game = key.get()
         game.bingo = res
         game.put()
-        self.response.headers['Content-Type'] = 'application/json'
         self.response.out.write(json.dumps(res))
 
 class BingoAddPlayer(RequestHandler):

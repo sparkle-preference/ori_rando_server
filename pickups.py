@@ -9,10 +9,16 @@ class Pickup(object):
         return [Skill, Event, Teleporter, Upgrade, Experience, AbilityCell, HealthCell, EnergyCell, Keystone, 
                 Mapstone, Message, Hint, Relic, Multiple, Repeatable, Warp, WarpSave, Nothing]
     stacks = False
+    has_children = False
     int_id = True
     share_type = ShareType.NOT_SHARED
     def __eq__(self, other):
         return isinstance(other, Pickup) and self.id == other.id and self.code == other.code
+    @classmethod
+    def from_str(cls, code_id):
+        code, _, pid = code_id.partition("|")
+        return cls.n(code, pid)
+
     @classmethod
     def n(cls, code, id):
         for subcls in Pickup.subclasses():
@@ -33,8 +39,8 @@ class Pickup(object):
         return self.share_type in share_types
 
 class Skill(Pickup):
-    bits = {0: 1, 2: 2, 3: 4, 4: 8, 5: 16, 8: 32, 12: 64, 14: 128, 50: 256, 51: 512}
-    names = {0: "Bash", 2: "Charge Flame", 3: "Wall Jump", 4: "Stomp", 5: "Double Jump", 8: "Charge Jump", 12: "Climb", 14: "Glide", 50: "Dash", 51: "Grenade"}
+    bits = {0: 1, 2: 2, 3: 4, 4: 8, 5: 16, 8: 32, 12: 64, 14: 128, 50: 256, 51: 512, 15: 1024}
+    names = {0: "Bash", 2: "Charge Flame", 3: "Wall Jump", 4: "Stomp", 5: "Double Jump", 8: "Charge Jump", 12: "Climb", 14: "Glide", 50: "Dash", 51: "Grenade", 15: "Spirit Flame"}
     code = "SK"
     share_type = ShareType.SKILL
     def __new__(cls, id):
@@ -172,6 +178,7 @@ class Hint(Pickup):
 class Multiple(Pickup):
     code = "MU"
     int_id = False
+    has_children = True
     def __new__(cls, id):
         inst = super(Multiple, cls).__new__(cls)
         inst.id, inst.bit = id, None
@@ -187,6 +194,29 @@ class Multiple(Pickup):
             subparts = subparts[2:]
         inst.name = ", ".join([child.name for child in inst.children])
         return inst
+    @classmethod
+    def with_pickups(cls, children):
+        if not children:
+            log.warning("Can't build empty multipickup.")
+            return None
+        ids = []
+        for child in children:
+            if child.has_children:
+                for grandchild in child.children:
+                    ids += [grandchild.code, str(grandchild.id)]
+            else:
+                ids += [child.code, str(child.id)]
+        return cls.__new__(cls, "/".join(ids))
+    def add_pickups(self, children):
+        for child in children:
+            self.add_pickup(child)
+
+    def add_pickup(self, child):
+        if child.has_children:
+            self.add_pickups(child.children)
+        else:
+            self.id += "/%s/%s" % (child.code, child.id)
+            self.children.append(child)
     def is_shared(self, share_types):
         return any([c.is_shared(share_types) for c in self.children])
 

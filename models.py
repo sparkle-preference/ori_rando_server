@@ -414,6 +414,12 @@ class Game(ndb.Model):
             pid = player.key.id().partition(".")[2]
             Cache.setHist(gid, pid, player.history)
         return Cache.getHist(gid)
+    
+    def get_all_hls(self):
+        hist = self.rebuild_hist()
+        if not hist:
+            return False
+        return [hl for players, hls in hist.items() for hl in hls]
 
     def player(self, pid):
         full_pid = "%s.%s" % (self.key.id(), pid)
