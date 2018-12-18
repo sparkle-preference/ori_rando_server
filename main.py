@@ -814,7 +814,7 @@ class BingoCreate(RequestHandler):
         cells = int(paramVal(self, "cells") or 4)
         show_info = paramFlag(self, "showInfo")
         misc_raw = paramVal(self, "misc")
-        misc_pickup = Pickup.from_str(misc_raw) if misc_raw != "NO|1" else None
+        misc_pickup = Pickup.from_str(misc_raw) if misc_raw and misc_raw != "NO|1" else None
         skill_pool = [Skill(x) for x in [0, 2, 3, 4, 5, 8, 12, 14, 50, 51]]
         cell_pool  = [Multiple.with_pickups([AbilityCell(1), AbilityCell(1)]), HealthCell(1), EnergyCell(1)]
 

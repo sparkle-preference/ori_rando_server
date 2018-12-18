@@ -311,7 +311,7 @@ class GoalGroup(BingoGoal):
         subgoals = [goal for goal in self.goals if goal.name not in banned_goals]
         count = min(count, len(subgoals))
         if count > 0:
-            goals = sample(self.goals, count)
+            goals = sample(subgoals, count)
             return {'name': self.name, 'type': "multi", 'method': method, 'parts': [goal.getCard() for goal in goals]}
         else:
             return None
