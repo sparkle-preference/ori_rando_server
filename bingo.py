@@ -265,10 +265,6 @@ class XorYBonus(Rando, Card):
 
 
 
-
-
-
-
 def r(low, high):
     return lambda: randint(low, high)
 
@@ -276,33 +272,42 @@ def r(low, high):
 
 class BingoGoal(object):
     maxRepeats = 1
+    tags = []
     def getCard(self, banned_goals=[], banned_methods=[]):
         cardData = {'name': self.name, 'type': self.goalType}
         return cardData
+    def isAllowed(self, allowed_tags=[]):
+        # if any([tag not in allowed_tags for tag in self.tags]):
+        #     print "Excluding %s for tag mismatch: [%s] contains an element not in [%s]" % (self.name, ",".join(self.tags), ",".join(allowed_tags))
+        return not any([tag not in allowed_tags for tag in self.tags])
 
 class BoolGoal(BingoGoal):
     goalType = "bool"
-    def __init__(self, name):
+    def __init__(self, name, tags=[]):
         self.name = name
+        self.tags = tags
 
 class IntGoal(BingoGoal):
     goalType = "int"
-    def __init__(self, name, rangeFunc):
+    def __init__(self, name, rangeFunc, tags=[]):
         self.name = name
         self.rangeFunc = rangeFunc
+        self.tags = tags
+
     def getCard(self, banned_goals=[], banned_methods=[]):
         cardData = super(IntGoal, self).getCard()
         cardData['target'] = self.rangeFunc()
         return cardData
 
 class GoalGroup(BingoGoal):
-    def __init__(self, name, goals, low=1, methods=[("or", r(1, 3)), ("and", r(1, 2))], maxRepeats=1):
+    def __init__(self, name, goals, low=1, methods=[("or", r(1, 3)), ("and", r(1, 2))], maxRepeats=1, tags=[]):
         self.name = name
         self.maxRepeats = maxRepeats
         self.goals = goals
         self.low = low
         self.methods = methods
-        assert len(methods) > 0
+        self.tags = []
+
     def getCard(self, banned_goals=[], banned_methods=[]):
         method, countFunc = choice([(m,c) for m,c in self.methods if m not in banned_methods])
         count = countFunc()
@@ -317,22 +322,30 @@ class GoalGroup(BingoGoal):
             return None
 
 class BingoGenerator(object):
-    def __init__(self, hard = False, is_rando = False):
-        self.is_rando = is_rando
-        self.goals = []
-        for name in ["DrownFrog", "DrainSwamp", "WilhelmScream"] + (["FastStompless", "CoreSkip"] if hard else []):
-            self.goals.append(BoolGoal(name))
-        self.goals += [
-            IntGoal("CollectMapstones", r(3, 7)),
-            IntGoal("ActivateMaps", r(2, 7)),
+    goals = []
+    @staticmethod
+    def init_goals():
+        BingoGenerator.goals = [
+            BoolGoal("DrownFrog"),
+            BoolGoal("DrainSwamp"),
+            BoolGoal("WilhelmScream"),
+            BoolGoal("CoreSkip", tags = ["hard"]),
+            BoolGoal("FastStompless", tags = ["hard"]),
+            IntGoal("CollectMapstones", r(3, 8)),
+            IntGoal("ActivateMaps", r(2, 6), tags = ["vanilla"]),
+            IntGoal("ActivateMaps", r(4, 8), tags = ["rando"]),
             IntGoal("OpenKSDoors", r(3, 8)),
             IntGoal("OpenEnergyDoors", r(3, 6)),
             IntGoal("BreakFloors", r(4, 10)),
             IntGoal("BreakWalls", r(4, 10)),
             IntGoal("UnspentKeystones", r(4, 18)),
             IntGoal("BreakPlants", r(5, 12)),
-            IntGoal("TotalPickups", r(50, 90)),
+            IntGoal("TotalPickups", r(50, 90), tags = ["vanilla"]),
+            IntGoal("TotalPickups", r(70, 130), tags = ["rando"]),
             IntGoal("UnderwaterPickups", r(2, 6)),
+            IntGoal("HealthCellLocs", r(4, 8), tags = ["rando"]),
+            IntGoal("EnergyCellLocs", r(5, 9), tags = ["rando"]),
+            IntGoal("AbilityCellLocs", r(6, 15), tags = ["rando"]),
             IntGoal("HealthCells", r(4, 8)),
             IntGoal("EnergyCells", r(5, 9)),
             IntGoal("AbilityCells", r(6, 15)),
@@ -340,8 +353,6 @@ class BingoGenerator(object):
             IntGoal("SpendPoints", r(20, 30)),
             IntGoal("GainExperience", lambda: 500*randint(8, 16)),
             IntGoal("KillEnemies", lambda: 5*randint(5, 25)),
-        ]
-        self.goals += [
             GoalGroup(
                 name="CompleteHoruRoom", 
                 goals=[BoolGoal(name) for name in ["L1", "L2", "L3", "L4", "R1", "R2", "R3", "R4"]], 
@@ -387,7 +398,7 @@ class BingoGenerator(object):
                 name="StompPeg", 
                 goals=[BoolGoal(name) for name in ["BlackrootTeleporter", "SwampPostStomp", "GroveMapstoneTree", "HoruFieldsTPAccess", "L1", "R2", 
                                                 "L2", "L4Fire", "L4Drain", "SpiderLake", "GroveGrottoUpper", "GroveGrottoLower"]],
-                methods=[("count", r(4,6)), ("and", r(2, 3))],
+                methods=[("count", r(3,7)), ("or", lambda: 2), ("and", r(2, 3))],
                 maxRepeats=2
                 ),
             GoalGroup(
@@ -398,12 +409,14 @@ class BingoGenerator(object):
                 maxRepeats=3
                 ),
         ]
-    
-    def get_cards(self, cards=25):
+    @staticmethod
+    def get_cards(cards=25, allowed_tags=[]):
+        if not BingoGenerator.goals:
+            BingoGenerator.init_goals()
         groupSeen = defaultdict(lambda: (1, [], []))
         output = []
-        goals = self.goals[:]
-        while(len(output) < cards):
+        goals = [goal for goal in BingoGenerator.goals if goal.isAllowed(allowed_tags)]
+        while len(output) < cards:
             goal = choice(goals)
             repeats, banned_subgoals, banned_methods = groupSeen[goal.name]
             if repeats == goal.maxRepeats:

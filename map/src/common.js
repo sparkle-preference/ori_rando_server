@@ -412,6 +412,15 @@ const Blabel = (props) => {
 
     return (<Badge style={{ fontWeight: 400, fontSize: "100%", display: "flex", alignItems: "center", justifyContent: "center", height: "100%" }} {...props} />)
 }
+const Cent = (props) => {
+    let className = "justify-content-center text-center align-items-center d-flex w-100 h-100"
+    if(props.hasOwnProperty("className"))
+        className += props.className;
+    let spanProps = {...props}
+    spanProps.className = className
+    
+    return (<span {...spanProps} />)
+}
 function get_random_loader() {
     return loaders[Math.floor(Math.random() * loaders.length)]
 }
@@ -517,5 +526,5 @@ function doNetRequest(url, onRes) {
 
 export {
     player_icons, doNetRequest, get_param, get_flag, get_int, get_list, get_preset, presets, get_seed, logic_paths, get_random_loader, Blabel,
-    pickup_name, stuff_by_type, name_from_str, PickupSelect
+    pickup_name, stuff_by_type, name_from_str, PickupSelect, Cent
 };

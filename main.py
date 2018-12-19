@@ -36,6 +36,14 @@ def paramFlag(s, f):
 def paramVal(s, f):
     return s.request.get(f, None)
 
+def resp_error(handler, code=400, response=None, altRespType=None):
+    handler.response.status = code
+    if altRespType:
+        handler.response.headers['Content-Type'] = altRespType
+    if response and handler.response.headers['Content-Type'] == 'application/json':
+        response = json.dumps(response)
+    handler.response.write(response)
+
 class CleanUp(RequestHandler):
     def get(self):
         self.response.headers['Content-Type'] = 'text/plain'
@@ -83,7 +91,7 @@ class ActiveGames(RequestHandler):
                 flags = params.flag_line()
 
             blink = ""
-            if game.mode == MultiplayerGameType.BINGO:
+            if len(game.bingo) > 0:
                 blink += " <a href='/bingo/board?game_id=%s'>Bingo board</a>" % gid
             
             body += "<li><a href='%s'>Game #%s</a> <a href='%s'>Map</a>%s %s (Last update: %s ago)</li>" % (game_link, gid, map_link, blink, flags, datetime.now() - game.last_update)
@@ -144,14 +152,14 @@ class ShowHistory(RequestHandler):
             self.response.write(output)
         else:
             self.response.status = 404
-            self.response.out.write("Game %s not found!" % game_id)
+            self.response.write("Game %s not found!" % game_id)
 
 
 class Vanilla(RequestHandler):
     def get(self):
         self.response.headers['Content-Type'] = 'application/x-gzip'
         self.response.headers['Content-Disposition'] = 'attachment; filename=randomizer.dat'
-        self.response.out.write(vanilla_seed)
+        self.response.write(vanilla_seed)
 
 
 class SignalCallback(RequestHandler):
@@ -197,7 +205,7 @@ class ListPlayers(RequestHandler):
 
         self.response.headers['Content-Type'] = 'text/plain'
         self.response.status = 200
-        self.response.out.write("\n".join(outlines))
+        self.response.write("\n".join(outlines))
 
 
 class RemovePlayer(RequestHandler):
@@ -210,7 +218,7 @@ class RemovePlayer(RequestHandler):
         else:
             self.response.headers['Content-Type'] = 'text/plain'
             self.response.status = 404
-            self.response.out.write("player %s not in %s" % (key, game.players))
+            self.response.write("player %s not in %s" % (key, game.players))
 
 
 class ShowCache(RequestHandler):
@@ -248,7 +256,7 @@ class SetSeed(RequestHandler):
             game.sanity_check()  # cheap if game is short!
         self.response.headers['Content-Type'] = 'text/plain'
         self.response.status = 200
-        self.response.out.write("ok")
+        self.response.write("ok")
 
 
 class ShowMap(RequestHandler):
@@ -261,7 +269,7 @@ class ShowMap(RequestHandler):
             if any([x is None for x in [game, pos, hist]]):
                 return redirect(uri_for('tests-map-gid', game_id=game_id, from_test=1))
 
-        self.response.out.write(template.render(path, template_values))
+        self.response.write(template.render(path, template_values))
 
 
 class GetSeenLocs(RequestHandler):
@@ -279,10 +287,10 @@ class GetSeenLocs(RequestHandler):
                 hist = game.rebuild_hist()
             for player, history_lines in hist.items():
                 seenLocs[player] = [hl.coords for hl in history_lines]
-            self.response.out.write(json.dumps(seenLocs))
+            self.response.write(json.dumps(seenLocs))
         except Exception as e:
             log.error("error getting seen locations for game %s! Returning partial list" % game_id, e)
-            self.response.out.write(json.dumps(seenLocs))
+            self.response.write(json.dumps(seenLocs))
 
 
 class GetSeed(RequestHandler):
@@ -298,7 +306,7 @@ class GetSeed(RequestHandler):
         for (coords, code, id, _) in params.get_seed_data(player_id):
             seed[coords] = Pickup.name(code, id)
         self.response.status = 200
-        self.response.out.write(json.dumps(seed))
+        self.response.write(json.dumps(seed))
 
 
 class GetGameData(RequestHandler):
@@ -344,7 +352,7 @@ class GetReachable(RequestHandler):
             for area, reqs in Map.get_reachable_areas(state, modes).items():
                 areas[area] = [{item: count for (item, count) in req.cnt.items()} for req in reqs if len(req.cnt)]
             reachable_areas[player] = areas
-        self.response.out.write(json.dumps(reachable_areas))
+        self.response.write(json.dumps(reachable_areas))
 
 
 class GetPlayerPositions(RequestHandler):
@@ -356,7 +364,7 @@ class GetPlayerPositions(RequestHandler):
             players = {}
             for p, (x, y) in pos.items():
                 players[p] = [y, x]  # bc we use tiling software, this is lat/lng
-            self.response.out.write(json.dumps(players))
+            self.response.write(json.dumps(players))
         else:
             self.response.status = 404
 
@@ -373,7 +381,7 @@ class PlandoReachable(RequestHandler):
         for area, reqs in Map.get_reachable_areas(PlayerState(codes), modes).items():
             areas[area] = [{item: count for (item, count) in req.cnt.items()} for req in reqs if len(req.cnt)]
 
-        self.response.out.write(json.dumps(areas))
+        self.response.write(json.dumps(areas))
 
 
 def clone_entity(e, **extra_args):
@@ -456,7 +464,7 @@ class PlandoUpload(RequestHandler):
             res = Seed.new(seed_data)
         self.response.headers['Content-Type'] = 'text/plain'
         self.response.status = 200
-        self.response.out.write(res)
+        self.response.write(res)
 
 
 class PlandoView(RequestHandler):
@@ -480,11 +488,11 @@ class PlandoView(RequestHandler):
                 self.response.headers['Content-Type'] = 'text/html'
                 if hidden:
                     template_values['seed_hidden'] = True
-                self.response.out.write(template.render(path, template_values))
+                self.response.write(template.render(path, template_values))
                 return
         self.response.status = 404
         self.response.headers['Content-Type'] = 'text/plain'
-        self.response.out.write("seed not found")
+        self.response.write("seed not found")
 
 
 class PlandoEdit(RequestHandler):
@@ -500,7 +508,7 @@ class PlandoEdit(RequestHandler):
                 template_values['seed_desc'] = seed.description
                 template_values['seed_hidden'] = seed.hidden or False
                 template_values['seed_data'] = seed.get_plando_json()
-        self.response.out.write(template.render(path, template_values))
+        self.response.write(template.render(path, template_values))
 
 
 class HandleLogin(RequestHandler):
@@ -531,11 +539,10 @@ class PlandoFillGen(RequestHandler):
         self.response.headers['Content-Type'] = 'text/plain'
         qparams = self.request.GET
         forced_assignments = dict([(int(a), b) for (a, b) in ([tuple(fass.split(":")) for fass in qparams['fass'].split("|")] if "fass" in qparams else [])])
-
         param_key = SeedGenParams.from_url(qparams)
         params = param_key.get()
         if params.generate(preplaced=forced_assignments):
-            self.response.out.write(params.get_seed(1))
+            self.response.write(params.get_seed(1))
         else:
             self.response.status = 422
 
@@ -548,7 +555,7 @@ class PlandoDownload(RequestHandler):
                 if not user or user.key != seed.author_key:
                     self.response.status = 404
                     self.response.headers['Content-Type'] = 'text/plain'
-                    self.response.out.write("seed not found")
+                    self.response.write("seed not found")
                     return
             gid = paramVal(self, "gid")
             pid = paramVal(self, "pid")
@@ -562,11 +569,11 @@ class PlandoDownload(RequestHandler):
             flagline = seedlines.pop(0)
             rand.shuffle(seedlines)
             seedlines.insert(0, flagline)
-            self.response.out.write("\n".join(seedlines))
+            self.response.write("\n".join(seedlines))
         else:
             self.response.status = 404
             self.response.headers['Content-Type'] = 'text/plain'
-            self.response.out.write("seed not found")
+            self.response.write("seed not found")
 
 class AllAuthors(RequestHandler):
     def get(self):
@@ -579,7 +586,7 @@ class AllAuthors(RequestHandler):
                 url = "/plando/%s" % author
                 out += '<li style="padding:2px"><a href="%s">%s</a> (%s plandos)</li>' % (url, author, cnt)
         out += "</ul></body></html>"
-        self.response.out.write(out)
+        self.response.write(out)
 
 
 class AuthorIndex(RequestHandler):
@@ -643,7 +650,7 @@ class LogicHelper(RequestHandler):
                            'pathmode': paramVal(self, 'pathmode'), 'HC': paramVal(self, 'HC'),
                            'EC': paramVal(self, 'EC'), 'AC': paramVal(self, 'AC'), 'KS': paramVal(self, 'KS'),
                            'skills': paramVal(self, 'skills'), 'tps': paramVal(self, 'tps'), 'evs': paramVal(self, 'evs')}
-        self.response.out.write(template.render(path, template_values))
+        self.response.write(template.render(path, template_values))
 
 class ReactLanding(RequestHandler):
     def get(self):
@@ -652,7 +659,7 @@ class ReactLanding(RequestHandler):
         if user:
             template_values['user'] = user.name
         self.response
-        self.response.out.write(template.render(path, template_values))
+        self.response.write(template.render(path, template_values))
 
 
 class MakeSeedWithParams(RequestHandler):
@@ -667,10 +674,10 @@ class MakeSeedWithParams(RequestHandler):
                 resp["gameId"] = game.key.id()
                 if debug and paramFlag(self, "test_map_redir"):
                      self.redirect(uri_for("map-render", game_id=resp["gameId"], from_test=1))
-            self.response.out.write(json.dumps(resp))
+            self.response.write(json.dumps(resp))
         else:
             self.response.status = 500
-            self.response.out.write("Failed to build seed!")
+            self.response.write("Failed to build seed!")
 
 
 class SeedGenJson(RequestHandler):
@@ -696,7 +703,7 @@ class SeedGenJson(RequestHandler):
                     spoiler = params.get_spoiler(p).replace("\n", "\r\n")
                     players.append({"seed": seed, "spoiler": spoiler, "spoiler_url": uri_for('gen-params-get-spoiler', params_id=param_key.id(), player=p)})
                 resp["players"] = players
-                self.response.out.write(json.dumps(resp))
+                self.response.write(json.dumps(resp))
                 return
         log.error("param gen failed")
         self.response.status = 500
@@ -707,7 +714,7 @@ class GetParamMetadata(RequestHandler):
         params = SeedGenParams.with_id(params_id)
         if params:
             resp = {"playerCount": params.players, "flagLine": params.flag_line()}
-            self.response.out.write(json.dumps(resp))
+            self.response.write(json.dumps(resp))
         else:
             self.response.status = 404
 
@@ -717,11 +724,11 @@ class UserRename(RequestHandler):
         user = User.get()
         if user:
             if user.rename(name):
-                self.response.out.write("Rename successful!")
+                self.response.write("Rename successful!")
             else:
-                self.response.out.write("Rename failed!")
+                self.response.write("Rename failed!")
         else:
-            self.response.out.write("You are not logged in!")
+            self.response.write("You are not logged in!")
 
 class GetSeedFromParams(RequestHandler):
     def get(self, params_id):
@@ -738,10 +745,10 @@ class GetSeedFromParams(RequestHandler):
             if not debug:
                 self.response.headers['Content-Type'] = 'application/x-gzip'
                 self.response.headers['Content-Disposition'] = 'attachment; filename=randomizer.dat'
-            self.response.out.write(seed)
+            self.response.write(seed)
         else:
             self.response.status = 404
-            self.response.out.write("Param %s not found" % params_id)
+            self.response.write("Param %s not found" % params_id)
 
 class GetSpoilerFromParams(RequestHandler):
     def get(self, params_id):
@@ -754,15 +761,15 @@ class GetSpoilerFromParams(RequestHandler):
                 self.response.headers['Content-Type'] = 'application/x-gzip'
                 self.response.headers['Content-Disposition'] = 'attachment; filename=spoiler.txt'
                 spoiler = spoiler.replace("\n", "\r\n")
-            self.response.out.write(spoiler)
+            self.response.write(spoiler)
         else:
             self.response.status = 404
-            self.response.out.write("Param %s not found" % params_id)
+            self.response.write("Param %s not found" % params_id)
 
 class PicksByTypeGen(RequestHandler):
     def get(self):
         self.response.headers['Content-Type'] = 'application/json'
-        self.response.out.write(picks_by_type_generator())
+        self.response.write(picks_by_type_generator())
         return
 
 class RebindingsEditor(RequestHandler):
@@ -771,7 +778,7 @@ class RebindingsEditor(RequestHandler):
         user = User.get()
         if user:
             template_values['user'] = user.name
-        self.response.out.write(template.render(path, template_values))
+        self.response.write(template.render(path, template_values))
 
 class Guides(RequestHandler):
     def get(self):
@@ -779,7 +786,7 @@ class Guides(RequestHandler):
         user = User.get()
         if user:
             template_values['user'] = user.name
-        self.response.out.write(template.render(path, template_values))
+        self.response.write(template.render(path, template_values))
 
 class VanillaPlusSeeds(RequestHandler):
     def get(self):
@@ -794,7 +801,7 @@ class VanillaPlusSeeds(RequestHandler):
         base.insert(1, mu_line)
         self.response.headers['Content-Type'] = 'application/x-gzip' if not debug else 'text/plain'
         self.response.headers['Content-Disposition'] = 'attachment; filename=randomizer.dat' if not debug else ""
-        self.response.out.write("\n".join(base))
+        self.response.write("\n".join(base))
 
 class BingoBoard(RequestHandler):
     def get(self):
@@ -802,9 +809,7 @@ class BingoBoard(RequestHandler):
         user = User.get()
         if user:
             template_values['user'] = user.name
-        self.response.out.write(template.render(path, template_values))
-
-VanillaGenerator = BingoGenerator()
+        self.response.write(template.render(path, template_values))
 
 class BingoCreate(RequestHandler):
     def get(self):
@@ -846,7 +851,7 @@ class BingoCreate(RequestHandler):
             if tps:
                 sw_parts.append("TPs: " + ", ".join(tps))
             if cells:
-                sw_parts.append("Cells: " + ", ".join(cells))
+                sw_parts.append("Cells: " + ", ".join([cell if amount == 1 else "%s %ss" % (amount, cell) for cell,amount in cells.items()]))
             if misc:
                 sw_parts.append(", ".join(misc))
             res["startWith"] = " | ".join(sw_parts)
@@ -856,12 +861,45 @@ class BingoCreate(RequestHandler):
             mu_line = "2|MU|%s|Glades" % start_with.id
             base.insert(1, mu_line)
         res["seed"] = "\n".join(base)
-        res["cards"] = VanillaGenerator.get_cards()
+        tags = ["vanilla"]
+        if paramFlag(self, "hard"):
+            tags.append("hard")
+        res["cards"] = BingoGenerator.get_cards(25, tags)
         res["playerData"] = {}
         game = key.get()
         game.bingo = res
         game.put()
-        self.response.out.write(json.dumps(res))
+        self.response.write(json.dumps(res))
+
+class AddBingoToGame(RequestHandler):
+    def get(self, game_id):
+        game_id = int(game_id)
+        
+        self.response.headers['Content-Type'] = 'application/json'
+        res = {}
+        if not game_id or int(game_id) < 1:
+            return resp_error(self, 404, "please provide a valid game id", 'plain/text')
+        game = Game.with_id(game_id)
+        if not game:
+            return resp_error(self, 404, "game not found", 'plain/text')
+        if not game.params:
+            return resp_error(self, 412, "game did not have required seed data", 'plain/text')
+        if game.mode in [MultiplayerGameType.SHARED, MultiplayerGameType.SPLITSHARDS]:
+            return resp_error(self, 412, "Co-op / splitshards bingo are not currently supported", 'plain/text')
+        params = game.params.get()
+        params.tracking = False
+        res["gameId"] = game_id
+        res["seed"] =  "Bingo," + params.get_seed()
+        tags = ["rando"]
+        if paramFlag(self, "hard"):
+            tags.append("hard")
+        res["cards"] = BingoGenerator.get_cards(25, tags)
+        res["playerData"] = {}
+        game.bingo = res
+        for pkey in game.players:
+            game.remove_player(pkey.id())
+        game.put()
+        self.response.write(json.dumps(res))
 
 class BingoAddPlayer(RequestHandler):
     def get(self, game_id, player_id):
@@ -871,7 +909,7 @@ class BingoAddPlayer(RequestHandler):
         if not game:
             self.response.status = 404
             return
-        if player_id in game.player_nums():
+        if player_id in game.player_nums() and not game.params:
             self.response.status = 409
             return
         p = game.player(player_id)
@@ -881,7 +919,7 @@ class BingoAddPlayer(RequestHandler):
             pid = player.key.id().partition(".")[2]
             res["playerData"][pid] = player.bingo_data
         self.response.headers['Content-Type'] = 'application/json'
-        self.response.out.write(json.dumps(res))
+        self.response.write(json.dumps(res))
 
 class BingoGetGame(RequestHandler):
     def get(self, game_id):
@@ -898,7 +936,7 @@ class BingoGetGame(RequestHandler):
         false = False
         true = True
         self.response.headers['Content-Type'] = 'application/json'
-        self.response.out.write(json.dumps(res))
+        self.response.write(json.dumps(res))
 
 class HandleBingoUpdate(RequestHandler):
     def post(self, game_id, player_id):
@@ -952,6 +990,7 @@ app = WSGIApplication(routes=[
     Route('/bingo/game/<game_id>/fetch', handler=BingoGetGame, name="bingo-get-game", strict_slash=True),
     Route('/bingo/game/<game_id>/add/<player_id>', handler=BingoAddPlayer, name="bingo-add-player", strict_slash=True),
     Route('/bingo/new', handler=BingoCreate, name="bingo-create-game", strict_slash=True),
+    Route('/bingo/from_game/<game_id>', handler=AddBingoToGame, name="add-bingo-to-game", strict_slash=True),
     Route('/logichelper', handler=LogicHelper, name="logic-helper", strict_slash=True),
     Route('/faq', handler=Guides, name="help-guides", strict_slash=True),
     ('/', ReactLanding),

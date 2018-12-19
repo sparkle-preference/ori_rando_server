@@ -1,10 +1,11 @@
 import React from 'react';
-import {Container, Row, Col, Button, Modal, ModalHeader, ModalBody, ModalFooter, Input, Card, CardBody, CardFooter, Media} from 'reactstrap';
+import {Container, Row, Col, Collapse, Button, ButtonGroup, Modal, ModalHeader, 
+        ModalBody, ModalFooter, Input, Card, CardBody, CardFooter, Media} from 'reactstrap';
 import {NotificationContainer, NotificationManager} from 'react-notifications';
 import {Helmet} from 'react-helmet';
 
 import {download} from './shared_map.js'
-import {doNetRequest, player_icons, get_random_loader, PickupSelect} from './common.js'
+import {Cent, doNetRequest, player_icons, get_random_loader, PickupSelect} from './common.js'
 import SiteBar from "./SiteBar.js";
 
 import 'react-notifications/lib/notifications.css';
@@ -134,6 +135,18 @@ const handleCard = (card, playerData, activePlayer) => {
                     case "AbilityCells":
                         text = `Collect Ability Cells ${progress}`
                         help = "Any bonus ability cells you spawn with will not count."
+                        break;
+                    case "HealthCellLocs":
+                        text = `Get pickups from Health Cells ${progress}`
+                        help = "Collect pickups from this many vanilla health cell locations."
+                        break;
+                    case "EnergyCellLocs":
+                        text = `Get pickups from Energy Cells ${progress}`
+                        help = "Collect pickups from this many vanilla energy cell locations."
+                        break;
+                    case "AbilityCellLocs":
+                        text = `Get pickups from Ability Cells ${progress}`
+                        help = "Collect pickups from this many vanilla ability cell locations."
                         break;
                     case "LightLanterns":
                         text = `Use Grenade to light Lanterns ${progress}`
@@ -295,7 +308,7 @@ export default class Bingo extends React.Component {
         let url = new URL(window.document.location.href);
         let gameId = parseInt(url.searchParams.get("game_id") || -1, 10);
         this.state = {cards: [], haveGame: false, creatingGame: false, createModalOpen: true, playerData: {}, activePlayer: 1, showInfo: false, 
-                      gameId: gameId, startSkills: 3, startCells: 4, startMisc: "MU|TP/Swamp/TP/Valley", start_with: ""};
+                      gameId: gameId, startSkills: 3, startCells: 4, startMisc: "MU|TP/Swamp/TP/Valley", start_with: "", isRandoBingo: false, randoGameId: -1};
  
         if(gameId > 0)
         {
@@ -340,7 +353,7 @@ export default class Bingo extends React.Component {
         if(status !== 200)
         {
             if((this.state.fails - 1) % 5 === 0)
-                NotificationManager.error(`error getting data from server: ${status}`, "error", 5000)
+                NotificationManager.error(`error ${status}: ${responseText}`, "error", 5000)
             this.setState({fails: this.state.fails + 1})
         } else {
             let res = JSON.parse(responseText)
@@ -367,54 +380,91 @@ export default class Bingo extends React.Component {
             <ModalHeader toggle={this.toggleCreate} centered="true">Bingo options</ModalHeader>
             <ModalBody>
                 <Container fluid>
-                <Row className="p-1">
-                    <Col xs="4" className="text-center pt-1 border">
-                        <span className="align-middle">random free skill count</span>
-                    </Col><Col xs="4">
-                        <Input type="number" value={this.state.startSkills}  onChange={(e) => this.setState({startSkills: parseInt(e.target.value, 10)})}/> 
-                    </Col>
-                </Row>
-                <Row className="p-1">
-                    <Col xs="4" className="text-center pt-1 border">
-                        <span className="align-middle">random free cell count</span>
-                    </Col><Col xs="4">
-                        <Input type="number" value={this.state.startCells} onChange={(e) => this.setState({startCells: parseInt(e.target.value, 10)})}/> 
-                    </Col>
-                </Row>
-                <Row className="p-1">
-                    <Col xs="4" className="text-center pt-1 border">
-                        <span className="align-middle">Also start with</span>
-                    </Col><Col xs="8">
-                        <PickupSelect value={this.state.startMisc} updater={(code, _) => this.setState({startMisc: code})}/> 
-                    </Col>
-                </Row>
-                <Row className="p-1">
-                    <Col xs={{size: 6, offset: 3 }} className="text-center pt-1 border">
-                        <Button active={this.state.showInfo} outline={!this.state.showInfo} onClick={() => this.setState({showInfo: !this.state.showInfo})}>Show starting skills</Button>
-                    </Col>
-                </Row>
-            </Container>
+                    <Row className="p-1">
+                        <Col xs="4" className="p-1 border">
+                            <Cent>Random Starting Items:</Cent>
+                        </Col><Col xs="4" className="text-center p-1">
+                            <ButtonGroup>
+                                <Button active={!this.state.isRandoBingo} outline={this.state.isRandoBingo} onClick={() => this.setState({isRandoBingo: false})}>Vanilla+</Button>
+                                <Button active={this.state.isRandoBingo} outline={!this.state.isRandoBingo} onClick={() => this.setState({isRandoBingo: true})}>Rando</Button>
+                            </ButtonGroup>
+                        </Col>
+                    </Row>
+                    <Collapse isOpen={this.state.isRandoBingo}>
+                        <Row className="p-1">
+                            <Col xs="12" className="text-center p-1">
+                                <Cent>Please generate a normal rando seed and input the game id below. (Don't download the generated seed! Use the join game link on this page)</Cent>
+                            </Col>
+                            <Col xs="4" className="text-center p-1 border">
+                                <Cent>Rando game id:</Cent>
+                            </Col><Col xs="4">
+                                <Input type="number" value={this.state.randoGameId}  onChange={(e) => this.setState({randoGameId: parseInt(e.target.value, 10)})}/> 
+                            </Col>
+                        </Row>
+                    </Collapse>
+                    <Collapse isOpen={!this.state.isRandoBingo}>
+                        <Row className="p-1">
+                            <Col xs="4" className="text-center p-1 border">
+                                <Cent>random free skill count</Cent>
+                            </Col><Col xs="4">
+                                <Input type="number" value={this.state.startSkills}  onChange={(e) => this.setState({startSkills: parseInt(e.target.value, 10)})}/> 
+                            </Col>
+                        </Row>
+                        <Row className="p-1">
+                            <Col xs="4" className="text-center p-1 border">
+                                <Cent>random free cell count</Cent>
+                            </Col><Col xs="4">
+                                <Input type="number" value={this.state.startCells} onChange={(e) => this.setState({startCells: parseInt(e.target.value, 10)})}/> 
+                            </Col>
+                        </Row>
+                        <Row className="p-1">
+                            <Col xs="4" className="text-center p-1 border">
+                                <Cent>Also start with</Cent>
+                            </Col><Col xs="8">
+                                <PickupSelect value={this.state.startMisc} updater={(code, _) => this.setState({startMisc: code})}/> 
+                            </Col>
+                        </Row>
+                        <Row className="p-1">
+                            <Col xs="4" className="text-center pt-1 border">
+                                <Cent>Random Starting Items:</Cent>
+                            </Col><Col xs="4" className="text-center p-1">
+                                <ButtonGroup>
+                                    <Button active={this.state.showInfo} outline={!this.state.showInfo} onClick={() => this.setState({showInfo: true})}>Show</Button>
+                                    <Button active={!this.state.showInfo} outline={this.state.showInfo} onClick={() => this.setState({showInfo: false})}>Hide</Button>
+                                </ButtonGroup>
+                            </Col>
+                        </Row>
+                    </Collapse>
+                </Container>
             </ModalBody>
             <ModalFooter>
-            <Button color="primary" onClick={this.createGame}>Create Game</Button>
-            <Button color="secondary" onClick={this.toggleCreate}>Cancel</Button>
+                <Button color="primary" onClick={this.createGame}>Create Game</Button>
+                <Button color="secondary" onClick={this.toggleCreate}>Cancel</Button>
             </ModalFooter>
         </Modal>
     )}
     toggleCreate = () => this.setState({createModalOpen: !this.state.createModalOpen})
     createGame = () => {
-        let url = `/bingo/new?skills=${this.state.startSkills}&cells=${this.state.startCells}&misc=${this.state.startMisc}`
-        if(this.state.showInfo)
-            url += "&showInfo=1"
-        doNetRequest(url, this.createCallback)
-        this.setState({creatingGame: true, createModalOpen: false, loader: get_random_loader()})
+        let {isRandoBingo, randoGameId, startSkills, startCells, startMisc, showInfo} = this.state
+        if(isRandoBingo)
+        {
+            let url = `/bingo/from_game/${randoGameId}`
+            doNetRequest(url, this.createCallback)
+            this.setState({creatingGame: true, createModalOpen: false, loader: get_random_loader()})
+        } else {
+            let url = `/bingo/new?skills=${startSkills}&cells=${startCells}&misc=${startMisc}`
+            if(showInfo)
+                url += "&showInfo=1"
+            doNetRequest(url, this.createCallback)
+            this.setState({creatingGame: true, createModalOpen: false, loader: get_random_loader()})
+        }
     }
 
     createCallback = ({status, responseText}) => {
         if(status !== 200)
         {
-            NotificationManager.error("Failed to generate bingo game!", "bingo generation failure!", 5000)
-            this.setState({createModalOpen: false, haveGame: false, creatingGame: false, activeTab: 'variations'}, this.updateUrl)
+            NotificationManager.error(`error ${status}: ${responseText}`, "error creating seed", 5000)
+            this.setState({createModalOpen: false, haveGame: false, creatingGame: false}, this.updateUrl)
             return
         } else {
             let res = JSON.parse(responseText)
@@ -429,7 +479,7 @@ export default class Bingo extends React.Component {
         let subheader = (haveGame && startWith !== "") ? (
             <Row>
                 <Col>
-                    <span><h6 style={textStyle}>{startWith}</h6></span>
+                    <Cent><h6 style={textStyle}>{startWith}</h6></Cent>
                 </Col>
             </Row>
         ) : null 
@@ -444,7 +494,7 @@ export default class Bingo extends React.Component {
                 {this.loadingModal()}
                 <Row className="p-1">
                     <Col>
-                        <span><h3 style={textStyle}>{headerText}</h3></span>
+                        <Cent><h3 style={textStyle}>{headerText}</h3></Cent>
                     </Col>
                 </Row>
                 {subheader}
@@ -453,7 +503,7 @@ export default class Bingo extends React.Component {
                     <Col xs="4">
                         <Button onClick={this.toggleCreate}>Create New Game</Button>
                     </Col><Col xs="4">
-                        <Button onClick={this.joinGame}>Join Game</Button>
+                        <Button onClick={this.joinGame} disabled={!haveGame}>Join Game / Download Seed</Button>
                     </Col><Col xs="3">
                         {activePlayer > 0 ? make_icons([activePlayer]) : null}
                         Player Number: <Input type="number" value={activePlayer} onChange={(e) => this.setState({activePlayer: parseInt(e.target.value, 10)})}/> 
