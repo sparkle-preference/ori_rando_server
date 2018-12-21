@@ -264,17 +264,22 @@ const bingos = (board, players) => {
     let dim = board.length
     players.forEach(p => {
         ret[p] = [];
-        let tlbr = true, bltr = true;
-        for(let i = 0; i < dim; i++) {
-            tlbr = tlbr && board[i][i].includes(p);
-            bltr = bltr && board[dim-i-1][i].includes(p);
-            if(board[i].every(card => card.includes(p)))
-                ret[p].push(`row ${i+1}`)
-            if(board.every(col => col[i].includes(p)))
-                ret[p].push(`col ${i+1}`)
+        try {
+            let tlbr = true, bltr = true;
+            for(let i = 0; i < dim; i++) {
+                tlbr = tlbr && board[i][i].includes(p);
+                bltr = bltr && board[dim-i-1][i].includes(p);
+                if(board[i].every(card => card.includes(p)))
+                    ret[p].push(`row ${i+1}`)
+                if(board.every(col => col[i].includes(p)))
+                    ret[p].push(`col ${i+1}`)
+            }
+            if(tlbr) ret[p].push("tlbr")
+            if(bltr) ret[p].push("bltr")
+        } catch(error) {
+            console.log(error, board)
         }
-        if(tlbr) ret[p].push("tlbr")
-        if(bltr) ret[p].push("bltr")
+
     })
     return ret;
 }
@@ -407,11 +412,11 @@ export default class Bingo extends React.Component {
                         case "multi":
                             switch(card.method) {
                                 case "and":
-                                    prog.completedParts = card.parts.filter(part => cardData[part.name].value).map(part => part.name);
+                                    prog.completedParts = card.parts.filter(part => cardData.value[part.name].value).map(part => part.name);
                                     prog.completed = card.parts.length === prog.completedParts.length;
                                     break;
                                 case "or":
-                                    prog.completedParts = card.parts.filter(part => cardData[part.name].value).map(part => part.name);
+                                    prog.completedParts = card.parts.filter(part => cardData.value[part.name].value).map(part => part.name);
                                     prog.completed = prog.completedParts.length > 0;
                                     break;
                                 case "count":
@@ -437,6 +442,7 @@ export default class Bingo extends React.Component {
                 board.push([])
             }
         })
+        board.pop()
         this.setState({playerData: playerData, fails: 0, cards: cards, bingos: bingos(board, Object.keys(playerData))})
     } 
     
