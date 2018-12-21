@@ -297,9 +297,9 @@ const bingos = (board, players) => {
             tlbr = tlbr && board[i][i].includes(p);
             bltr = bltr && board[dim-i-1][i].includes(p);
             if(board[i].every(card => card.includes(p)))
-                ret[p].push(`row ${i}`)
+                ret[p].push(`row ${i+1}`)
             if(board.every(col => col[i].includes(p)))
-                ret[p].push(`col ${i}`)
+                ret[p].push(`col ${i+1}`)
         }
         if(tlbr) ret[p].push("tlbr")
         if(bltr) ret[p].push("bltr")
