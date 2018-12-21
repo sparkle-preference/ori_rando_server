@@ -247,6 +247,15 @@ seedtext = """ClosedDungeons,StompTriggers|Vanilla
 -7320236|EV|3|Forlorn
 -5599400|EV|4|Sorrow
 -2399488|EV|5|Horu
+24|NO|1|Mapstone
+28|NO|1|Mapstone
+32|NO|1|Mapstone
+36|NO|1|Mapstone
+40|NO|1|Mapstone
+44|NO|1|Mapstone
+48|NO|1|Mapstone
+52|NO|1|Mapstone
+56|NO|1|Mapstone
 -1639664|NO|1|Horu
 -199724|NO|1|Horu
 -919624|NO|1|Horu

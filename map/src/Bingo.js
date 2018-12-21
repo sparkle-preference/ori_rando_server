@@ -46,12 +46,15 @@ const handleCard = (card, playerData, activePlayer) => {
     let help = ""
     let extraLines = []
     let players = [];
-    let valid = (p) => playerData.hasOwnProperty(p) && playerData[p].hasOwnProperty(name)
-    let apValid = valid(activePlayer)
+    let valid = (p) => playerData.hasOwnProperty(p) && playerData[p].bingoData.hasOwnProperty(name)
+    let pData = {}
+    let validPs = Object.keys(playerData).filter(p => valid(p));
+    validPs.forEach(p => pData[p] = playerData[p].bingoData[name])
+    let apData = valid(activePlayer) ? pData[activePlayer] : null
     try {
         switch(type) {
             case "bool":
-                players = Object.keys(playerData).filter(p => valid(p) && playerData[p][name].value)
+                players = validPs.filter(p => pData[p].value)
                 switch(name) {
                     case "FastStompless":
                         text = "Fast Stompless"
@@ -81,8 +84,8 @@ const handleCard = (card, playerData, activePlayer) => {
             break;
             case "int":
                 let target = card.target
-                players = Object.keys(playerData).filter(p => valid(p) && playerData[p][name].value >= target)
-                let progress = apValid ? `(${Math.min(playerData[activePlayer][name].value, target)}/${target})` : `(${target})`
+                players = validPs.filter(p => pData[p].value >= target)
+                let progress = apData ? `(${Math.min(apData.value, target)}/${target})` : `(${target})`
                 switch(name) {
                     case "CollectMapstones":
                         text = `Collect mapstones ${progress}`
@@ -176,16 +179,16 @@ const handleCard = (card, playerData, activePlayer) => {
                 let yies = card.parts && card.parts.length > 1 ? "ies" : "y"
                 switch(card.method) {
                     case "and":
-                        players = Object.keys(playerData).filter(p =>  valid(p) && card.parts.every(part => playerData[p][name].value[part.name].value))
+                        players = validPs.filter(p => card.parts.every(part => pData[p].value[part.name].value))
                         infix = card.parts.length > 1 ? ( card.parts.length > 2 ? "all of these " : "both of these ") : "this "
                         break;
                     case "or":
-                        players = Object.keys(playerData).filter(p =>  valid(p) && card.parts.some(part => playerData[p][name].value[part.name].value))
+                        players = validPs.filter(p => card.parts.some(part => pData[p].value[part.name].value))
                         infix = card.parts.length > 1 ? "any of these " : "this "
                         break;
                     case "count":
-                        players = Object.keys(playerData).filter(p => valid(p) && playerData[p][name].total >= card.target)
-                        suffix = apValid ? ` (${Math.min(playerData[activePlayer][name].total, card.target)}/${card.target})` : ` (${card.target})`
+                        players = validPs.filter(p => pData[p].total >= card.target)
+                        suffix = apData ? ` (${Math.min(apData.total, card.target)}/${card.target})` : ` (${card.target})`
                         s = "s"
                         yies = "ies"
                         break;
@@ -250,7 +253,7 @@ const handleCard = (card, playerData, activePlayer) => {
                 {
                     niceName = niceName || partname
                     let checked = "☐";
-                    if(apValid && playerData[activePlayer][name].value[partname].value)
+                    if(apData && apData.value[partname].value)
                         checked = "☑"
                     return `᛫ ${niceName} ${checked}`
                 })
@@ -282,22 +285,49 @@ const BingoCard = ({text, players, tinted}) => {
         </Card>
 )}
 
-const BingoBoard = ({cards, playerData, activePlayer}) => {
+// board: rows[cols[players]]
+const bingos = (board, players) => {
+    let ret = {}
+    players.forEach(p => ret[p] = [])
+    let dim = board.length
+    players.forEach(p => {
+        let tlbr = true;
+        let bltr = true;
+        for(let i = 0; i < dim; i++) {
+            tlbr = tlbr && board[i][i].includes(p);
+            bltr = bltr && board[dim-i-1][i].includes(p);
+            if(board[i].every(card => card.includes(p)))
+                ret[p].push(`row ${i}`)
+            if(board.every(col => col[i].includes(p)))
+                ret[p].push(`col ${i}`)
+        }
+        if(tlbr) ret[p].push("tlbr")
+        if(bltr) ret[p].push("bltr")
+    })
+    return ret;
+}
+
+const BingoBoard = ({cards, playerData, activePlayer, bingoUpdater}) => {
     cards = [...cards]
     if(cards.length < 25) {
         return null
     }
+    let board = []
     let rows = []
     while(rows.length < 5) {
         let row = []
+        let row_comp = []
         while(row.length < 5) {
             let card = cards.shift()
             let {text, players} = handleCard(card, playerData, activePlayer)
+            row_comp.push(players)
             let key=`${row.length}, ${rows.length}`
             row.push((<Col key={key}><BingoCard tinted={players.includes("" + activePlayer)} text={text} players={players} /></Col>))
         }
+        board.push(row_comp)
         rows.push((<Row key={`row-${rows.length}`} className="justify-content-center align-items-center w-100">{row}</Row>))
     }
+    bingoUpdater(bingos(board, Object.keys(playerData)))
     return (<Container>{rows}</Container>);
 }
 
@@ -307,7 +337,7 @@ export default class Bingo extends React.Component {
         super(props);
         let url = new URL(window.document.location.href);
         let gameId = parseInt(url.searchParams.get("game_id") || -1, 10);
-        this.state = {cards: [], haveGame: false, creatingGame: false, createModalOpen: true, playerData: {}, activePlayer: 1, showInfo: false, 
+        this.state = {cards: [], haveGame: false, creatingGame: false, createModalOpen: true, playerData: {}, activePlayer: 1, showInfo: false, bingos: {},
                       gameId: gameId, startSkills: 3, startCells: 4, startMisc: "MU|TP/Swamp/TP/Valley", start_with: "", isRandoBingo: false, randoGameId: -1};
  
         if(gameId > 0)
@@ -472,7 +502,10 @@ export default class Bingo extends React.Component {
                           seed: res.seed, playerData: res.playerData, cards: res.cards, fails: 0}, this.updateUrl)
         }
     }
-  
+    updateBingos = (bingos) =>  {
+        if(!Object.keys(bingos).every(p => bingos[p].every(b => this.state.bingos[p] && this.state.bingos[p].includes(b))))
+            this.setState({bingos: bingos})
+    }
     render = () => {
         let {activePlayer, playerData, startWith, cards, haveGame, gameId, user} = this.state
         let headerText = haveGame ? `Bingo Game ${gameId}` : "Bingo!"
@@ -498,7 +531,7 @@ export default class Bingo extends React.Component {
                     </Col>
                 </Row>
                 {subheader}
-                <BingoBoard cards={cards} playerData={playerData} activePlayer={activePlayer}/>
+                <BingoBoard cards={cards} playerData={playerData} activePlayer={activePlayer} bingoUpdater={(bingos) => this.updateBingos(bingos)}/>
                 <Row className="align-items-center pt-2">
                     <Col xs="4">
                         <Button onClick={this.toggleCreate}>Create New Game</Button>

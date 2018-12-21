@@ -40,6 +40,8 @@ class HistoryLine(ndb.Model):
 class User(ndb.Model):
     # key = user_id
     name = ndb.StringProperty()
+    color = ndb.StringProperty()
+    games = ndb.KeyProperty("Game", repeated=True)
     dark_theme = ndb.BooleanProperty(default=False)
 
     @staticmethod
@@ -210,7 +212,17 @@ class Player(ndb.Model):
     last_update = ndb.DateTimeProperty(auto_now=True)
     teammates   = ndb.KeyProperty('Player', repeated=True)
     bingo_data  = ndb.JsonProperty(default={})
-    name        = ndb.StringProperty()
+    user        = ndb.KeyProperty(User)
+
+    def name(self):
+        if self.user:
+            u = self.user.get()
+            if u and u.name:
+                return u.name
+        return "Player %s" % self.pid()
+
+    def pid(self):
+        return int(self.key.id().partition(".")[2])
 
     # post-refactor version of bitfields
     def output(self):
@@ -411,7 +423,7 @@ class Game(ndb.Model):
     def rebuild_hist(self):
         gid = self.key.id()
         for player in self.get_players():
-            pid = player.key.id().partition(".")[2]
+            pid = player.pid()
             Cache.setHist(gid, pid, player.history)
         return Cache.getHist(gid)
     

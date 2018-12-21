@@ -91,6 +91,37 @@ class ActiveGames(RequestHandler):
                 flags = params.flag_line()
 
             blink = ""
+            if game.bingo and len(game.bingo) > 0:
+                blink += " <a href='/bingo/board?game_id=%s'>Bingo board</a>" % gid
+            
+            body += "<li><a href='%s'>Game #%s</a> <a href='%s'>Map</a>%s %s (Last update: %s ago)</li>" % (game_link, gid, map_link, blink, flags, datetime.now() - game.last_update)
+        out = "<html><head><title>%s - Ori Rando Server</title></head><body>" % title
+        if body:
+            out += "<h4>%s:</h4><ul>%s</ul></body</html>" % (title, body)
+        else:
+            out += "<h4>%s</h4></body></html>" % title
+        self.response.write(out)
+
+class MyGames(RequestHandler):
+    def get(self):
+        self.response.headers['Content-Type'] = 'text/html'
+        user = User.get()
+        if not user:
+            return resp_error(self, 401, "You must be logged in to view this page!")
+        
+        title = "Games played by %s" % user.name
+        body = ""
+        games = [key.get() for key in user.games]
+        for game in sorted(games, key=lambda x: x.last_update, reverse=True):
+            gid = game.key.id()
+            game_link = uri_for('game-show-history', game_id=gid)
+            map_link = uri_for('map-render', game_id=gid)
+            flags = ""
+            if game.params:
+                params = game.params.get()
+                flags = params.flag_line()
+
+            blink = ""
             if len(game.bingo) > 0:
                 blink += " <a href='/bingo/board?game_id=%s'>Bingo board</a>" % gid
             
@@ -301,12 +332,13 @@ class GetSeed(RequestHandler):
             self.response.status = 404
             self.response.write(json.dumps({}))
             return
-        seed = {}
+        player = game.player(player_id)
+        res = {"seed": {}, 'name': player.name()}
         params = game.params.get()
         for (coords, code, id, _) in params.get_seed_data(player_id):
-            seed[coords] = Pickup.name(code, id)
+            res["seed"][coords] = Pickup.name(code, id)
         self.response.status = 200
-        self.response.write(json.dumps(seed))
+        self.response.write(json.dumps(res))
 
 
 class GetGameData(RequestHandler):
@@ -559,11 +591,13 @@ class PlandoDownload(RequestHandler):
                     return
             gid = paramVal(self, "gid")
             pid = paramVal(self, "pid")
-            syncFlag = "Sync%s.%s" % (gid, pid)
+            extraFlags=[]
+            if gid and pid:
+                syncFlag = "Sync%s.%s" % (gid, pid)
             self.response.status = 200
             self.response.headers['Content-Type'] = 'application/x-gzip' if not debug else 'text/plain'
             self.response.headers['Content-Disposition'] = 'attachment; filename=randomizer.dat' if not debug else ""
-            seedlines = seed.to_lines(player=int(pid), extraFlags=[syncFlag])
+            seedlines = seed.to_lines(player=int(pid), extraFlags=extraFlags)
             rand = random.Random()
             rand.seed(seed.name)
             flagline = seedlines.pop(0)
@@ -624,12 +658,6 @@ class AuthorIndex(RequestHandler):
                     "<html><body>You haven't made any seeds yet! <a href='%s'>Start a new seed</a></body></html>" % uri_for('plando-edit', seed_name="newSeed"))
             else:
                 self.response.write('<html><body>No seeds by user %s</body></html>' % author_name)
-
-
-class Bingo(RequestHandler):
-    def get(self, cards=25):
-        self.response.headers['Content-Type'] = 'text/plain'
-        self.response.write(Card.get_json(paramFlag(self, "rando"), int(cards)))
 
 
 class MapTest(RequestHandler):
@@ -736,12 +764,20 @@ class GetSeedFromParams(RequestHandler):
         verbose_paths = self.request.GET.get("verbose_paths") is not None
         params = SeedGenParams.with_id(params_id)
         if params:
-            player = int(self.request.GET.get("player_id", 1))
+            pid = int(self.request.GET.get("player_id", 1))
             if params.tracking:
                 game_id = self.request.GET.get("game_id")
-                seed = params.get_seed(player, game_id, verbose_paths)
+                seed = params.get_seed(pid, game_id, verbose_paths)
+                game = Game.with_id(game_id)
+                user = User.get()
+                if game and user:
+                    player = game.player(pid)
+                    player.user = user.key
+                    player.put()
+                    user.games.append(game.key)
+                    user.put()
             else:
-                seed = params.get_seed(player, verbose_paths=verbose_paths)
+                seed = params.get_seed(pid, verbose_paths=verbose_paths)
             if not debug:
                 self.response.headers['Content-Type'] = 'application/x-gzip'
                 self.response.headers['Content-Disposition'] = 'attachment; filename=randomizer.dat'
@@ -787,21 +823,6 @@ class Guides(RequestHandler):
         if user:
             template_values['user'] = user.name
         self.response.write(template.render(path, template_values))
-
-class VanillaPlusSeeds(RequestHandler):
-    def get(self):
-        skills = int(paramVal(self, "skills") or 3)
-        cells = int(paramVal(self, "cells") or 4)
-        skill_pool = ["SK/0", "SK/2", "SK/3", "SK/4", "SK/5", "SK/8", "SK/12", "SK/14", "SK/50", "SK/51"]
-        start_with = random.sample(skill_pool, skills)
-        start_with += [random.choice(["AC/1/AC/1", "HC/1", "EC/1"]) for _ in range(cells)]
-        mu_line = "2|MU|TP/Valley/TP/Swamp/" + "/".join(start_with) + "|Glades"
-        base = vanilla_seed.split("\n")
-        base[0] = "OpenWorld|BingoSeed"
-        base.insert(1, mu_line)
-        self.response.headers['Content-Type'] = 'application/x-gzip' if not debug else 'text/plain'
-        self.response.headers['Content-Disposition'] = 'attachment; filename=randomizer.dat' if not debug else ""
-        self.response.write("\n".join(base))
 
 class BingoBoard(RequestHandler):
     def get(self):
@@ -913,11 +934,17 @@ class BingoAddPlayer(RequestHandler):
             self.response.status = 409
             return
         p = game.player(player_id)
+        user = User.get()
+        if user:
+            p.user = user.key
+            p.put()
+            user.games.append(game.key)
+            user.put()
         res = game.bingo
         res["playerData"] = {}
         for player in game.get_players():
-            pid = player.key.id().partition(".")[2]
-            res["playerData"][pid] = player.bingo_data
+            pid = player.pid()
+            res["playerData"][pid] = {'name': player.name(), 'bingoData': player.bingo_data}
         self.response.headers['Content-Type'] = 'application/json'
         self.response.write(json.dumps(res))
 
@@ -931,8 +958,8 @@ class BingoGetGame(RequestHandler):
         res = game.bingo
         res["playerData"] = {}
         for player in game.get_players():
-            pid = player.key.id().partition(".")[2]
-            res["playerData"][pid] = player.bingo_data
+            pid = player.pid()
+            res["playerData"][pid] = {'name': player.name(), 'bingoData': player.bingo_data}
         false = False
         true = True
         self.response.headers['Content-Type'] = 'application/json'
@@ -984,8 +1011,6 @@ app = WSGIApplication(routes=[
     ),
 
     # misc / top level endpoints
-    Route('/bingo/<cards:\d+>', handler=Bingo,  name="bingo-json-cards", strict_slash=True),
-    Route('/bingo', handler=Bingo, name="bingo-json", strict_slash=True),
     Route('/bingo/board', handler=BingoBoard, name="bingo-board", strict_slash=True),
     Route('/bingo/game/<game_id>/fetch', handler=BingoGetGame, name="bingo-get-game", strict_slash=True),
     Route('/bingo/game/<game_id>/add/<player_id>', handler=BingoAddPlayer, name="bingo-add-player", strict_slash=True),
@@ -997,13 +1022,13 @@ app = WSGIApplication(routes=[
     ('/rebinds', RebindingsEditor),
     ('/quickstart', ReactLanding),
     (r'/activeGames/?', ActiveGames),
+    (r'/myGames/?', MyGames),
     (r'/clean/?', CleanUp),
     (r'/cache', ShowCache),
     (r'/cache/clear', ClearCache),
     (r'/login/?', HandleLogin),
     (r'/logout/?', HandleLogout),
     ('/vanilla', Vanilla),
-    ('/vanillaplus', VanillaPlusSeeds),
     Route('/discord', redirect_to="https://discord.gg/TZfue9V"),
     Route('/dll', redirect_to="https://github.com/sigmasin/OriDERandomizer/raw/3.0/Assembly-CSharp.dll"),
     Route('/dll/bingo', redirect_to="https://github.com/turntekGodhead/OriDERandomizer/raw/master/Assembly-CSharp.dll"),

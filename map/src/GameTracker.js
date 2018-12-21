@@ -14,30 +14,30 @@ const game_id = document.getElementsByClassName("game-id")[0].id;
 
 const EMPTY_PLAYER = {seed: {}, pos: [-210, 189], seen:[], show_marker: true, hide_found: true, hide_unreachable: true, spoiler: false, hide_remaining: false, sense: false, areas: []}
 
-function get_inner(id) {
-	return (
-	<Tooltip>
-	<span>{id}</span>
-	</Tooltip>
-	);
-};
+// function get_inner(id) {
+// 	return (
+// 	<Tooltip>
+// 	<span>{id}</span>
+// 	</Tooltip>
+// 	);
+// };
 
-const PlayerMarker = ({ map, position, icon, inner, sense}) => sense ? (
+const PlayerMarker = ({ map, position, icon, name, sense}) => sense ? (
     <Fragment>
 	<Marker map={map} position={position} icon={icon}>
-		{inner}
+        <Tooltip><span>{name}</span></Tooltip>
 	</Marker>
     <Circle center={position} radius={64}/>
 	</Fragment>) : (
 	<Marker map={map} position={position} icon={icon}>
-		{inner}
+        <Tooltip><span>{name}</span></Tooltip>
 	</Marker>
-	)
+)
 
 const PlayerMarkersList = ({map, players}) => {
 	let players_to_show = Object.keys(players).filter(id => players[id].show_marker)
 	const items = players_to_show.map((id) => (
-		<PlayerMarker  key={"player_"+id} map={map} position={players[id].pos} inner={get_inner(id)} icon={player_icons(id)} sense={players[id].show_sense}  />
+		<PlayerMarker  key={"player_"+id} map={map} position={players[id].pos} name={players[id].name} icon={player_icons(id)} sense={players[id].show_sense}  />
 	));
 	return (<div style={{display: 'none'}}>{items}</div>);
 }
@@ -53,7 +53,7 @@ const PlayerUiOpts = ({players, setter}) => {
 	const items = Object.keys(players).map((id) => {
 		return (
 			<Row className="pt-2 pb-2">
-                <Col className="p-1"><Blabel color="light">Player {id}</Blabel></Col>
+                <Col className="p-1"><Blabel color="light">{players[id].name}</Blabel></Col>
                 <Col className="p-1"><Button block active={players[id].show_marker} color="primary" outline={!players[id].show_marker} onClick={tog(id, "show_marker")}>Visible</Button></Col>
                 <Col className="p-1"><Button block active={players[id].show_spoiler} color="primary" outline={!players[id].show_spoiler} onClick={tog(id, "show_spoiler")}>Spoilers</Button></Col>
                 <Col className="p-1"><Button block active={players[id].show_sense} color="primary" outline={!players[id].show_sense} onClick={tog(id, "show_sense")}>Sense</Button></Col>
@@ -409,7 +409,9 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
                         let players = state.players;
                         while(playerCount > Object.keys(players).length)
                         {
-                            players[Object.keys(players).length + 1] = {...EMPTY_PLAYER}
+                            let pid = Object.keys(players).length + 1;
+                            players[pid] = {...EMPTY_PLAYER}
+                            players[pid].name = `Player ${pid}`
                         }
                         return {pathMode: get_preset(paths), players: players, retries: 0, modes: paths, closed_dungeons: closed_dungeons, open_world: open_world}
                     });
@@ -438,7 +440,9 @@ function getSeed(setter, pid, timeout)
      var onRes = (res) => {
 				setter(prevState => {
 					let retVal = prevState.players;
-                    retVal[pid].seed = JSON.parse(res);
+                    let {seed, name} = JSON.parse(res);
+                    retVal[pid].seed = seed;
+                    retVal[pid].name = name;
 					return {players:retVal, retries: 0, timeout: TIMEOUT_START}
 				});
             }
