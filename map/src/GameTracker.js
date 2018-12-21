@@ -184,7 +184,7 @@ function getPickupMarkers(state) {
 							</table>
 						</Tooltip>
 						);
-					}					
+					}
 				}
 				let opacity = highlight ? 1  : hide_opacity;
 				markers.push({key: pick.name+"|"+pick.x+","+pick.y, position: [y, x], inner: inner, icon: icon, opacity: opacity});

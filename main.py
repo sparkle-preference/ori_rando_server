@@ -134,13 +134,14 @@ class MyGames(RequestHandler):
         self.response.write(out)
 
 class FoundPickup(RequestHandler):
-    def get(self, game_id, player_id, coords, kind, id, old=False):
+    def get(self, game_id, player_id, coords, kind, id):
         game = Game.with_id(game_id)
         if not game:
             self.response.status = 412
             self.response.write(self.response.status)
             return
         remove = paramFlag(self, "remove")
+        zone = paramVal(self, "zone")
         coords = int(coords)
         if coords in coord_correction_map:
             coords = coord_correction_map[coords]
@@ -152,7 +153,7 @@ class FoundPickup(RequestHandler):
             log.error("Couldn't build pickup %s|%s" % (kind, id))
             self.response.status = 406
             return
-        self.response.status = game.found_pickup(player_id, pickup, coords, remove, dedup)
+        self.response.status = game.found_pickup(player_id, pickup, coords, remove, dedup, zone)
         self.response.write(self.response.status)
 
 
@@ -317,7 +318,7 @@ class GetSeenLocs(RequestHandler):
             if not hist:
                 hist = game.rebuild_hist()
             for player, history_lines in hist.items():
-                seenLocs[player] = [hl.coords for hl in history_lines]
+                seenLocs[player] = [hl.coords for hl in history_lines] + [hl.map_coords for hl in history_lines if hl.map_coords]
             self.response.write(json.dumps(seenLocs))
         except Exception as e:
             log.error("error getting seen locations for game %s! Returning partial list" % game_id, e)

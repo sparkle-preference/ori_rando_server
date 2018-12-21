@@ -73,7 +73,7 @@ class SiteBar extends Component {
                 <NavItem>
                     <NavLink href={"/logichelper"}>Logic Helper</NavLink>
                 </NavItem>
-                <UncontrolledDropdown nav inBar>
+                <UncontrolledDropdown nav inNavBar>
                 <DropdownToggle nav caret>
                 Bingo
                 </DropdownToggle>

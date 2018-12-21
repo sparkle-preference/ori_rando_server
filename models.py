@@ -13,6 +13,7 @@ from pickups import Pickup, Skill, Teleporter, Event
 from cache import Cache
 
 pbc = picks_by_coord(extras=True)
+map_coords_by_zone = { "Valley": -4080172, "Sorrow": -4519716, "Glades": -840248, "Forlorn": -8440308, "Grove": 3479880, "Blackroot": 4159708, "Grotto": 4759608, "Horu": 560340, "Swamp": 6759868}
 
 class HistoryLine(ndb.Model):
     pickup_code = ndb.StringProperty()
@@ -20,6 +21,7 @@ class HistoryLine(ndb.Model):
     timestamp = ndb.DateTimeProperty()
     removed = ndb.BooleanProperty()
     coords = ndb.IntegerProperty()
+    map_coords = ndb.IntegerProperty()
 
     def pickup(self):
         return Pickup.n(self.pickup_code, self.pickup_id)
@@ -451,7 +453,7 @@ class Game(ndb.Model):
             self.put()
         return player
 
-    def found_pickup(self, pid, pickup, coords, remove, dedup):
+    def found_pickup(self, pid, pickup, coords, remove, dedup, zone=""):
         retcode = 200
         share = pickup.is_shared(self.shared)
         finder = self.player(pid)
@@ -496,7 +498,10 @@ class Game(ndb.Model):
         else:
             log.error("game mode %s not implemented" % self.mode)
             retcode = 404
-        finder.history.append(HistoryLine(pickup_code=pickup.code, timestamp=datetime.now(), pickup_id=str(pickup.id), coords=coords, removed=remove))
+        hl = HistoryLine(pickup_code=pickup.code, timestamp=datetime.now(), pickup_id=str(pickup.id), coords=coords, removed=remove)
+        if coords in range(24, 60, 4) and zone in map_coords_by_zone:
+            hl.map_coords = map_coords_by_zone[zone]
+        finder.history.append(hl)
         finder.put()
         self.put()
         Cache.setHist(self.key.id(), pid, finder.history)

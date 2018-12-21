@@ -11,50 +11,44 @@ import SiteBar from "./SiteBar.js";
 import 'react-notifications/lib/notifications.css';
 
 const textStyle = {color: "black", textAlign: "center"}
-const niceTPNames = {
-    "sunkenGlades": "Sunken Glades",
-    "moonGrotto": "Moon Grotto", 
-    "mangroveFalls": "Blackroot Burrows", 
-    "valleyOfTheWind": "Sorrow Pass", 
-    "spiritTree": "Hollow Grove",
-    "mangroveB": "Lost Grove", 
-    "horuFields": "Horu Fields",
-    "ginsoTree": "Ginso Tree", 
-    "forlorn": "Forlorn Ruins",
-    "mountHoru": "Mount Horu",
-    "swamp": "Thornfelt Swamp", 
-    "sorrowPass": "Valley of the Wind"
+const nicePartNames = {
+        "ActivateTeleporter": {
+        "sunkenGlades": "Sunken Glades",
+        "moonGrotto": "Moon Grotto", 
+        "mangroveFalls": "Blackroot Burrows", 
+        "valleyOfTheWind": "Sorrow Pass", 
+        "spiritTree": "Hollow Grove",
+        "mangroveB": "Lost Grove", 
+        "horuFields": "Horu Fields",
+        "ginsoTree": "Ginso Tree", 
+        "forlorn": "Forlorn Ruins",
+        "mountHoru": "Mount Horu",
+        "swamp": "Thornfelt Swamp", 
+        "sorrowPass": "Valley of the Wind"
+    },
+    "GetItemAtLoc": {
+        "LostGroveLongSwim" : "Lost Grove Long Swim",
+        "ValleyEntryGrenadeLongSwim": "Valley Long Swim" ,
+        "SpiderSacEnergyDoor" : "Spider Energy Door",
+        "SorrowHealthCell" : "Sorrow HC",
+        "SunstonePlant" : "Sunstone Plant",
+        "GladesLaser" : "Gladzer EC",
+        "LowerBlackrootLaserAbilityCell": "BRB Right Laser AC",
+        "MistyGrenade" : "Misty Grenade EX",
+        "LeftSorrowGrenade": "Sorrow Grenade EX",
+        "DoorWarpExp" : "Door Warp EX",
+        "HoruR3Plant" : "R3 Plant",
+        "RightForlornHealthCell" : "Right Forlorn HC",
+        "ForlornEscapePlant" : "Forlorn Escape Plant"
+    }
 }
-const niceLocNames = {
-    "LostGroveLongSwim" : "Lost Grove Long Swim",
-    "ValleyEntryGrenadeLongSwim": "Valley Long Swim" ,
-    "SpiderSacEnergyDoor" : "Spider Energy Door",
-    "SorrowHealthCell" : "Sorrow HC",
-    "SunstonePlant" : "Sunstone Plant",
-    "GladesLaser" : "Gladzer EC",
-    "LowerBlackrootLaserAbilityCell": "BRB Right Laser AC",
-    "MistyGrenade" : "Misty Grenade EX",
-    "LeftSorrowGrenade": "Sorrow Grenade EX",
-    "DoorWarpExp" : "Door Warp EX",
-    "HoruR3Plant" : "R3 Plant",
-    "RightForlornHealthCell" : "Right Forlorn HC",
-    "ForlornEscapePlant" : "Forlorn Escape Plant"
-}
-const handleCard = (card, playerData, activePlayer) => {
-    let {name, type} = card;
-    let text = name
-    let help = ""
-    let extraLines = []
-    let players = [];
-    let valid = (p) => playerData.hasOwnProperty(p) && playerData[p].bingoData.hasOwnProperty(name)
-    let pData = {}
-    let validPs = Object.keys(playerData).filter(p => valid(p));
-    validPs.forEach(p => pData[p] = playerData[p].bingoData[name])
-    let apData = valid(activePlayer) ? pData[activePlayer] : null
+const getCardContent = (card, activePlayer) => {
+    let {name, type, progress} = card;
+    let prog = progress[activePlayer] || {completed: false, noData: true};
+    let text = name, help = "", extraLines = []
     try {
         switch(type) {
             case "bool":
-                players = validPs.filter(p => pData[p].value)
                 switch(name) {
                     case "FastStompless":
                         text = "Fast Stompless"
@@ -83,9 +77,7 @@ const handleCard = (card, playerData, activePlayer) => {
                 }
             break;
             case "int":
-                let target = card.target
-                players = validPs.filter(p => pData[p].value >= target)
-                let progress = apData ? `(${Math.min(apData.value, target)}/${target})` : `(${target})`
+                let progress =  `(${prog.noData ? '' : Math.min(prog.count, card.target)+"/"}${card.target})`
                 switch(name) {
                     case "CollectMapstones":
                         text = `Collect mapstones ${progress}`
@@ -172,23 +164,27 @@ const handleCard = (card, playerData, activePlayer) => {
                 }
             break;
             case "multi":
-                let infix = "";
-                let suffix = ":";
+                let infix = "", suffix = ":"
                 let optionNames = []
+                if(card.parts)
+                {
+                    if(nicePartNames.hasOwnProperty(name))
+                        optionNames = card.parts.map(part => {return {niceName: nicePartNames[name][part.name], partName: part.name}})
+                    else
+                        optionNames = card.parts.map(part => {return {partName: part.name}})
+                }
+
                 let s = card.parts && card.parts.length > 1 ? "s" : ""
                 let yies = card.parts && card.parts.length > 1 ? "ies" : "y"
                 switch(card.method) {
                     case "and":
-                        players = validPs.filter(p => card.parts.every(part => pData[p].value[part.name].value))
-                        infix = card.parts.length > 1 ? ( card.parts.length > 2 ? "all of these " : "both of these ") : "this "
+                        infix = card.parts.length > 1 ? ( card.parts.length > 2 ? "ALL of these " : "BOTH of these ") : "this "
                         break;
                     case "or":
-                        players = validPs.filter(p => card.parts.some(part => pData[p].value[part.name].value))
-                        infix = card.parts.length > 1 ? "any of these " : "this "
+                        infix = card.parts.length > 1 ? "ANY of these " : "this "
                         break;
                     case "count":
-                        players = validPs.filter(p => pData[p].total >= card.target)
-                        suffix = apData ? ` (${Math.min(apData.total, card.target)}/${card.target})` : ` (${card.target})`
+                        suffix = ` (${prog.noData ? '' : Math.min(prog.count, card.target)+"/"}${card.target})`
                         s = "s"
                         yies = "ies"
                         break;
@@ -198,64 +194,42 @@ const handleCard = (card, playerData, activePlayer) => {
                 switch(name) {
                     case "CompleteHoruRoom":
                         text = `Complete ${infix}Horu room${s+suffix}`
-                        if(card.parts) 
-                            optionNames = card.parts.map(part => {return {partname: part.name}})
                     break;
                     case "CompleteEscape":
                         text = `Escape ${infix}dungeon${s+suffix}`
-                        if(card.parts) 
-                            optionNames = card.parts.map(part => {return {partname: part.name}})
                     break;
                     case "ActivateTeleporter":
                         text = `Activate ${infix}spirit well${s+suffix}`
-                        if(card.parts)
-                            optionNames = card.parts.map(part => {return {niceName: niceTPNames[part.name], partname: part.name}})
                     break;
                     case "EnterArea":
                         text = `Enter ${infix}area${s+suffix}`
-                        if(card.parts) 
-                            optionNames = card.parts.map(part => {return {partname: part.name}})
                     break;
                     case "GetItemAtLoc":
                         text = `Get the pickup${s} at ${infix}location${s+suffix}`
-                        if(card.parts) 
-                            optionNames = card.parts.map(part => {return {niceName: niceLocNames[part.name], partname: part.name}})
                     break;
                     case "VisitTree":
                         text = `Visit ${infix}tree${s+suffix}`
-                        if(card.parts)
-                            optionNames = card.parts.map(part => {return {partname: part.name}})
                     break;
                     case "GetAbility":
                         text = `Level up ${infix}abilit${yies+suffix}`
-                        if(card.parts)
-                            optionNames = card.parts.map(part => {return {partname: part.name}})
                     break;
                     case "GetEvent":
                         text = `Unlock ${infix}event${s+suffix}`
-                        if(card.parts)
-                            optionNames = card.parts.map(part => {return {partname: part.name}})
                     break;
                     case "StompPeg":
                         text = `Stomp ${infix}post${s+suffix}`
-                        if(card.parts)
-                            optionNames = card.parts.map(part => {return {partname: part.name}})
                     break;
                     case "HuntEnemies":
                         text = `Defeat ${infix}Miniboss encounter${s+suffix}`
-                        if(card.parts)
-                            optionNames = card.parts.map(part => {return {partname: part.name}})
                     break;
                     default:
                         break;
                     }
-                extraLines = optionNames.map(({partname, niceName}) => 
+                extraLines = optionNames.map(({partName, niceName}) => 
                 {
-                    niceName = niceName || partname
-                    let checked = "☐";
-                    if(apData && apData.value[partname].value)
-                        checked = "☑"
-                    return `᛫ ${niceName} ${checked}`
+                    niceName = niceName || partName
+                    let checked = prog.completed ? "☑" : "☐";
+                    return `${niceName} ${checked}`
                 })
                 break;
             default:
@@ -263,13 +237,12 @@ const handleCard = (card, playerData, activePlayer) => {
         }
         let i = 0;
         text = [text].concat(extraLines).map(t => (<div key={`card-line-${i++}`}>{t}</div>))
-        return {text: text, help: help, players: players}
     }
     catch(error)
     {
-        console.log(error, card, playerData)
-        return {text: text, help: help, players: players}
+        console.log(error, card, activePlayer)
     }
+    return {text: text, help: help, completed: prog.completed}
 }
 
 const make_icons = players => players.map(p => (<Media key={`playerIcon${p}`} object style={{width: "25px", height: "25px"}} src={player_icons(p, false)} alt={"Icon for player "+p} />))
@@ -288,11 +261,10 @@ const BingoCard = ({text, players, tinted}) => {
 // board: rows[cols[players]]
 const bingos = (board, players) => {
     let ret = {}
-    players.forEach(p => ret[p] = [])
     let dim = board.length
     players.forEach(p => {
-        let tlbr = true;
-        let bltr = true;
+        ret[p] = [];
+        let tlbr = true, bltr = true;
         for(let i = 0; i < dim; i++) {
             tlbr = tlbr && board[i][i].includes(p);
             bltr = bltr && board[dim-i-1][i].includes(p);
@@ -307,27 +279,23 @@ const bingos = (board, players) => {
     return ret;
 }
 
-const BingoBoard = ({cards, playerData, activePlayer, bingoUpdater}) => {
+const BingoBoard = ({cards, activePlayer}) => {
     cards = [...cards]
     if(cards.length < 25) {
         return null
     }
-    let board = []
     let rows = []
     while(rows.length < 5) {
         let row = []
-        let row_comp = []
         while(row.length < 5) {
             let card = cards.shift()
-            let {text, players} = handleCard(card, playerData, activePlayer)
-            row_comp.push(players)
+            let {text, help, completed} = getCardContent(card, activePlayer)
+            let players = Object.keys(card.progress).filter(p => card.progress[p].completed)
             let key=`${row.length}, ${rows.length}`
-            row.push((<Col key={key}><BingoCard tinted={players.includes("" + activePlayer)} text={text} players={players} /></Col>))
+            row.push((<Col key={key}><BingoCard tinted={completed} text={text} players={players} /></Col>))
         }
-        board.push(row_comp)
         rows.push((<Row key={`row-${rows.length}`} className="justify-content-center align-items-center w-100">{row}</Row>))
     }
-    bingoUpdater(bingos(board, Object.keys(playerData)))
     return (<Container>{rows}</Container>);
 }
 
@@ -378,7 +346,6 @@ export default class Bingo extends React.Component {
         if(gameId && gameId > 0 && haveGame && this.state.fails < 50)
             doNetRequest(`/bingo/game/${gameId}/fetch`, this.tickCallback)
     }
-
     tickCallback = ({status, responseText}) => {
         if(status !== 200)
         {
@@ -387,12 +354,133 @@ export default class Bingo extends React.Component {
             this.setState({fails: this.state.fails + 1})
         } else {
             let res = JSON.parse(responseText)
-            this.setState({playerData: res.playerData, fails: 0})
+            this.updatePlayerProgress(res.playerData)
+        }
+    }
+    createGame = () => {
+        let {isRandoBingo, randoGameId, startSkills, startCells, startMisc, showInfo} = this.state;
+        if(isRandoBingo)
+        {
+            let url = `/bingo/from_game/${randoGameId}`
+            doNetRequest(url, this.createCallback)
+            this.setState({creatingGame: true, createModalOpen: false, loader: get_random_loader()})
+        } else {
+            let url = `/bingo/new?skills=${startSkills}&cells=${startCells}&misc=${startMisc}`
+            if(showInfo)
+                url += "&showInfo=1"
+            doNetRequest(url, this.createCallback)
+            this.setState({creatingGame: true, createModalOpen: false, loader: get_random_loader()})
+        }
+    }
+    createCallback = ({status, responseText}) => {
+        if(status !== 200)
+        {
+            NotificationManager.error(`error ${status}: ${responseText}`, "error creating seed", 5000)
+            this.setState({createModalOpen: false, haveGame: false, creatingGame: false}, this.updateUrl)
+            return
+        } else {
+            let res = JSON.parse(responseText)
+            this.setState({startWith: res.startWith, gameId: res.gameId, createModalOpen: false, creatingGame: false, haveGame: true, fails: 0, 
+                          seed: res.seed, playerData: res.playerData, cards: res.cards.map(card => {return {progress: {}, ...card}})}, this.updateUrl)
         }
     }
 
+    updatePlayerProgress = (playerData) => {
+        let cards = [...this.state.cards];
+        let col = 0, row = 0, board = [[]]
+        cards.forEach(card => {
+            let {name, type} = card;
+            card.progress = {}
+            Object.keys(playerData).forEach(p => {
+                let prog = {'completed': false}
+                if((playerData[p].hasOwnProperty("bingoData") && playerData[p].bingoData.hasOwnProperty(name)))
+                {
+                    let cardData = playerData[p].bingoData[name]
+                    switch(type) {
+                        case "bool":
+                            prog.completed = cardData.value;
+                            break;
+                        case "int":
+                            prog.count = cardData.value;
+                            prog.completed = prog.count >= card.target;
+                            break;
+                        case "multi":
+                            switch(card.method) {
+                                case "and":
+                                    prog.completedParts = card.parts.filter(part => cardData[part.name].value).map(part => part.name);
+                                    prog.completed = card.parts.length === prog.completedParts.length;
+                                    break;
+                                case "or":
+                                    prog.completedParts = card.parts.filter(part => cardData[part.name].value).map(part => part.name);
+                                    prog.completed = prog.completedParts.length > 0;
+                                    break;
+                                case "count":
+                                    prog.count = cardData.total;
+                                    prog.completed = prog.count >= card.target;
+                                    break;
+                                default:
+                                    break;
+                            }
+                            break;
+                        default:
+                            break;
+                    }
+                } else {
+                    prog.noData = true
+                }
+                card.progress[p] = prog
+            })
+            board[row][col] = Object.keys(card.progress).filter(p => card.progress[p].completed)
+            col++
+            if(col > 4) {
+                col = 0; row++
+                board.push([])
+            }
+        })
+        this.setState({playerData: playerData, fails: 0, cards: cards, bingos: bingos(board, Object.keys(playerData))})
+    } 
+    
+    toggleCreate = () => this.setState({createModalOpen: !this.state.createModalOpen})
 
-
+    render = () => {
+        let {activePlayer, playerData, startWith, cards, haveGame, gameId, user} = this.state
+        let headerText = haveGame ? `Bingo Game ${gameId}` : "Bingo!"
+        let subheader = (haveGame && startWith !== "") ? (
+            <Row>
+                <Col>
+                    <Cent><h6 style={textStyle}>{startWith}</h6></Cent>
+                </Col>
+            </Row>
+        ) : null 
+        return (
+            <Container className="pl-4 pr-4 pb-4 pt-2 mt-2 w-75">
+                <Helmet>
+                    <style>{'body { background-color: white}'}</style>
+                </Helmet>
+                <NotificationContainer/>
+                <SiteBar user={user}/>
+                {this.createModal()}
+                {this.loadingModal()}
+                <Row className="p-1">
+                    <Col>
+                        <Cent><h3 style={textStyle}>{headerText}</h3></Cent>
+                    </Col>
+                </Row>
+                {subheader}
+                <BingoBoard cards={cards} playerData={playerData} activePlayer={activePlayer} bingoUpdater={(bingos) => this.updateBingos(bingos)}/>
+                <Row className="align-items-center pt-2">
+                    <Col xs="4">
+                        <Button onClick={this.toggleCreate}>Create New Game</Button>
+                    </Col><Col xs="4">
+                        <Button onClick={this.joinGame} disabled={!haveGame}>Join Game / Download Seed</Button>
+                    </Col><Col xs="3">
+                        {activePlayer > 0 ? make_icons([activePlayer]) : null}
+                        Player Number: <Input type="number" value={activePlayer} onChange={(e) => this.setState({activePlayer: parseInt(e.target.value, 10)})}/> 
+                    </Col>
+                </Row>
+            </Container>
+        )
+    }
     loadingModal = () => { return (
         <Modal size="sm" isOpen={this.state.creatingGame } backdrop={"static"} className={"modal-dialog-centered"}>
             <ModalHeader centered="true">Please wait...</ModalHeader>
@@ -473,77 +561,5 @@ export default class Bingo extends React.Component {
             </ModalFooter>
         </Modal>
     )}
-    toggleCreate = () => this.setState({createModalOpen: !this.state.createModalOpen})
-    createGame = () => {
-        let {isRandoBingo, randoGameId, startSkills, startCells, startMisc, showInfo} = this.state
-        if(isRandoBingo)
-        {
-            let url = `/bingo/from_game/${randoGameId}`
-            doNetRequest(url, this.createCallback)
-            this.setState({creatingGame: true, createModalOpen: false, loader: get_random_loader()})
-        } else {
-            let url = `/bingo/new?skills=${startSkills}&cells=${startCells}&misc=${startMisc}`
-            if(showInfo)
-                url += "&showInfo=1"
-            doNetRequest(url, this.createCallback)
-            this.setState({creatingGame: true, createModalOpen: false, loader: get_random_loader()})
-        }
-    }
-
-    createCallback = ({status, responseText}) => {
-        if(status !== 200)
-        {
-            NotificationManager.error(`error ${status}: ${responseText}`, "error creating seed", 5000)
-            this.setState({createModalOpen: false, haveGame: false, creatingGame: false}, this.updateUrl)
-            return
-        } else {
-            let res = JSON.parse(responseText)
-            this.setState({startWith: res.startWith, gameId: res.gameId, createModalOpen: false, creatingGame: false, haveGame: true, 
-                          seed: res.seed, playerData: res.playerData, cards: res.cards, fails: 0}, this.updateUrl)
-        }
-    }
-    updateBingos = (bingos) =>  {
-        if(!Object.keys(bingos).every(p => bingos[p].every(b => this.state.bingos[p] && this.state.bingos[p].includes(b))))
-            this.setState({bingos: bingos})
-    }
-    render = () => {
-        let {activePlayer, playerData, startWith, cards, haveGame, gameId, user} = this.state
-        let headerText = haveGame ? `Bingo Game ${gameId}` : "Bingo!"
-        let subheader = (haveGame && startWith !== "") ? (
-            <Row>
-                <Col>
-                    <Cent><h6 style={textStyle}>{startWith}</h6></Cent>
-                </Col>
-            </Row>
-        ) : null 
-        return (
-            <Container className="pl-4 pr-4 pb-4 pt-2 mt-2 w-75">
-                <Helmet>
-                    <style>{'body { background-color: white}'}</style>
-                </Helmet>
-                <NotificationContainer/>
-                <SiteBar user={user}/>
-                {this.createModal()}
-                {this.loadingModal()}
-                <Row className="p-1">
-                    <Col>
-                        <Cent><h3 style={textStyle}>{headerText}</h3></Cent>
-                    </Col>
-                </Row>
-                {subheader}
-                <BingoBoard cards={cards} playerData={playerData} activePlayer={activePlayer} bingoUpdater={(bingos) => this.updateBingos(bingos)}/>
-                <Row className="align-items-center pt-2">
-                    <Col xs="4">
-                        <Button onClick={this.toggleCreate}>Create New Game</Button>
-                    </Col><Col xs="4">
-                        <Button onClick={this.joinGame} disabled={!haveGame}>Join Game / Download Seed</Button>
-                    </Col><Col xs="3">
-                        {activePlayer > 0 ? make_icons([activePlayer]) : null}
-                        Player Number: <Input type="number" value={activePlayer} onChange={(e) => this.setState({activePlayer: parseInt(e.target.value, 10)})}/> 
-                    </Col>
-                </Row>
-            </Container>
-        )
-    }
 };
 
