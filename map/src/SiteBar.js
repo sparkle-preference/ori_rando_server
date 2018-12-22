@@ -41,7 +41,8 @@ class SiteBar extends Component {
     render() {
         let {user} = this.state
         let logonoff = user ? [
-            (<DropdownItem href="/logout">  Logout </DropdownItem>),
+            (<DropdownItem key="username" disabled>`(Logged in as ${user})` </DropdownItem>),
+            (<DropdownItem key="logout" href="/logout">  Logout </DropdownItem>),
             // (<DropdownItem onClick={this.settingsModal}>  Settings </DropdownItem>),
         ] : (<DropdownItem href="/login"> Login </DropdownItem>)
         let myseeds = user ? (<DropdownItem href={"/plando/"+ user}> {user}'s seeds </DropdownItem>) : null 
