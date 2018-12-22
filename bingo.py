@@ -2,272 +2,6 @@ import json
 import logging as log
 from random import choice, randint, sample
 from collections import defaultdict
-# constants
-DUNGEONS = ["Forlorn Ruins", "Ginso Tree", "Mount Horu"]
-AREAS_WITH_TPS = ["Ginso Tree", "Forlorn Ruins", "Moon Grotto", "Hollow Grove", "Sunken Glades",
-    "Blackroot Burrows", "Thornfelt Swamp", "Valley of the Wind", "Sorrow Pass", "Lost Grove", "Mount Horu"]
-AREAS = AREAS_WITH_TPS + ["Misty Woods"]
-AREAS_WITH_MAPSTONES = ["Sunken Glades", "Forlorn Ruins", "Moon Grotto", "Blackroot Burrows", "Thornfelt Swamp", "Valley of the Wind", "Sorrow Pass", "Mount Horu", "Hollow Grove"]
-SKILLS = ["Wall Jump", "Charge Flame", "Double Jump", "Bash", "Stomp", "Glide", "Climb", "Charge Jump", "Dash", "Grenade"]
-EVENTS = ["Water Vein", "Clean Water", "Gumon Seal", "Wind Restored", "Sunstone", "Warmth Returned"]
-BONUS_PICKUPS = ["Extra Double Jump", "Extra Air Dash", "Explosion Power Upgrade", "Charge Dash Efficiency", "Spirit Light Efficiency"]
-
-
-class Card(object):
-    @staticmethod
-    def singletons(is_rando):
-        tuples = [
-            ("StomplessOrCoreSkip", "Fast Stompless or Core Skip"),
-            ("Triforce", "Collect the Triforce AC"),
-            ("Wilhelm", "Hear Wilhelm's scream"),
-            ("CatMouse", "Escape Kuro outside of Forlorn"),
-            ("DrownFrog", "Drown an amphibian"),
-            ("DrainSwamp", "Drain the swamp"),
-            ("BanelingKill", "Kill an enemy with a baneling"),
-            ("L4 lava", "Escape the L4 Lava")
-        ] + ([
-            ("UselessPickup", "Warmth Returned or 1 exp"),
-            ("QuadJump", "Quad Jump"),
-            ("Regen", "Collect a regen pickup")
-        ] if is_rando else [("TripleJump", "Triple Jump")])
-        return [{'name': name, 'text': text} for (name, text) in tuples]
-    @staticmethod
-    def all_cards(is_rando):
-        return [{'text': c.get(is_rando), 'name': c.__name__} for c in Card.__subclasses__() if c.valid(is_rando)] + Card.singletons(is_rando)
-
-    @staticmethod
-    def get_cards(is_rando, cards=25):
-        c = Card.all_cards(is_rando)
-        if cards > len(c):
-            log.warning("Not enough cards! %s>%s" % (cards, len(c)))
-            cards = 25
-        return sample(c, cards)
-    @staticmethod
-    def get_json(is_rando, cards=25):
-        return "[%s]" % ",\n".join(['{"name": "%s"}' % card["text"] for card in Card.get_cards(is_rando, cards)])
-
-    @staticmethod
-    def valid(rando):
-        return True
-
-class Rando():
-    @staticmethod
-    def valid(rando):
-        return rando
-
-class HoruRoomXorY(Card):
-    @staticmethod
-    def get(rando):
-        return "Complete %s or %s" % (choice(["L1", "L2", "L3", "L4"]), choice(["R1", "R2", "R3", "R4"]))
-
-class CollectNMapstones(Card):
-    @staticmethod
-    def get(rando):
-        return "Collect %s mapstones" % (randint(4, 6) + randint(0, 2) + randint(0, 1) + randint(0, 1))
-
-class OpenNDoors(Card):
-    @staticmethod
-    def get(rando):
-        return "Open %s keystone doors" % randint(3, 6)
-
-class BreakNBarriers(Card):
-    @staticmethod
-    def get(rando):
-        return "Break %s breakable walls" % randint(3, 6)
-
-class BreakNVertBarriers(Card):
-    @staticmethod
-    def get(rando):
-        return "Break %s breakable floors/ceilings" % randint(4, 8)
-
-
-class OpenNrgyDoors(Card):
-    @staticmethod
-    def get(rando):
-        return "Open %s energy doors" % randint(2, 4)
-
-class MaxAbilityTree(Card):
-    @staticmethod
-    def get(rando):
-        return "Get %s abilities in the %s tree" % ("all" if rando else randint(6,10), choice(["Red", "Purple", "Blue"]))
-
-class HaveNKeystones(Card):
-    @staticmethod
-    def get(rando):
-        return "Have %s unspent keystones" % randint(8, 16)
-
-class DieToXorY(Card):
-    @staticmethod
-    def get(rando):
-        return "Die to %s or %s" % tuple(sample(["Kuro (anywhere)", "Forlorn Approach Baneling", "Horu Lava", "Spidersack spikes", "Misty Baneling", "Lightning above Sorrow Pass", "Lasers above far right Forlorn plant", "Lost Grove Bottom Lasers"], 2))
-
-class NTotalPickups(Card):
-    @staticmethod
-    def get(rando):
-        return "Collect %s pickups" % (randint(60, 140) if rando else randint(50, 90))
-
-class GrenadeLocked(Card):
-    @staticmethod
-    def get(rando):
-        return "Light %s grenade-lanterns" % randint(3, 6)
-
-class CollectNPlants(Card):
-    @staticmethod
-    def get(rando):
-        return "Break %s Plants" % randint(3, 6)
-
-class NHealth(Card):
-    @staticmethod
-    def get(rando):
-        return "Collect %s Health Cells" % randint(4, 8)
-
-class NPoints(Card):
-    @staticmethod
-    def get(rando):
-        return "Level up %s abilities in any tree" % randint(12, 24)
-
-# disabled until integration
-# class ReachLevelN(Card):
-#	@staticmethod
-#	def get(rando):
-#		return "Reach level %s" % randint(8,16)
-
-class Nrgy(Card):
-    @staticmethod
-    def get(rando):
-        return "Collect %s Energy Cells" % randint(4, 8)
-
-class CollectNUnderwater(Card):
-    @staticmethod
-    def get(rando):
-        return "Collect %s pickups underwater" % randint(2, 5)
-
-class EnterArea(Card):
-    @staticmethod
-    def get(rando):
-        return "Enter %s" % choice(["Lost Grove", "Sorrow Pass", "Misty Woods"] + DUNGEONS)
-
-class EnterAreaXorY(Card):
-    @staticmethod
-    def get(rando):
-        return "Enter %s or %s" % tuple(sample(["Lost Grove", "Sorrow Pass", "Misty Woods"] + DUNGEONS, 2))
-
-class DungeonEscape(Card):
-    @staticmethod
-    def get(rando):
-        return "Complete the %s escape" % choice(DUNGEONS)
-
-class NEscapeS(Card):
-    @staticmethod
-    def get(rando):
-        return "Complete %s dungeon escape(s)" % randint(1, 3)
-
-class ActivateNTPs(Card):
-    @staticmethod
-    def get(rando):
-        return "Activate %s Spirit Wells" % randint(2, 5)
-
-class StompPegXorY(Card):
-    @staticmethod
-    def get(rando):
-        return "Stomp the peg(s) at %s or %s" % tuple(sample(["Hollow Groves Spider Lake", "Kuro CS Tree", "Sorrow Tumbleweed Area", "Swamp Post-Stomp", "Above Death Gauntlet"], 2))
-    
-class ActivateNTrees(Card):
-    @staticmethod
-    def get(rando):
-        return "Activate %s Trees" % (randint(2, 5) + randint(1, 3) + randint(0, 2))
-
-
-class KillByLevelup(Card):
-    @staticmethod
-    def get(rando):
-        return "Kill %s enemies by leveling up" % randint(2, 6)
-
-class MapstoneN(Card):
-    @staticmethod
-    def get(rando):
-        return "Turn in Mapstone %s" % randint(2, 9)
-
-class XorYTp(Rando, Card):
-    @staticmethod
-    def get(rando):
-        return "Find or Activate the %s, %s, or %s TP" % tuple(sample(AREAS_WITH_TPS, 3))
-
-class XorYFullClear(Card):
-    @staticmethod
-    def get(rando):
-        return "Get every pickup in %s, %s, or %s" % tuple(sample(AREAS_WITH_TPS, 3))
-
-class FindXInY(Card):
-    @staticmethod
-    def get(rando):
-        return "Get %s pickups from %s" % (randint(2, 10), choice(AREAS_WITH_TPS))
-
-class XorYEvent(Card):
-    @staticmethod
-    def get(rando):
-        return "%s or %s" % tuple(sample(EVENTS, 2))
-
-class XandYMapstoneTurnins(Card):
-    @staticmethod
-    def get(rando):
-        return "Activate the %s and %s Mapstones" % tuple(sample(AREAS_WITH_MAPSTONES, 2))
-
-class GarbagePickupXorY(Card):
-    @staticmethod
-    def get(rando):
-        return "Get the pickup at %s or %s" % tuple(sample(["Lost Grove Underwater AC", "Sunstone", "Forlorn Escape Plant", "Validation Exp", "Gladezer EC", "Forlorn HC", "R3 Plant", "Misty Grenade Pickup", "Valley Enterance Long Swim EC"], 2))
-
-class EventLocationXorY(Card):
-    @staticmethod
-    def get(rando):
-        return "Collect the pickup at vanilla %s or %s" % tuple(sample(["Water Vein", "Clean Water", "Gumon Seal", "Wind Restored", "Sunstone"], 2))
-
-class WatchXorY(Card):
-    @staticmethod
-    def get(rando):
-        return "Watch (don't skip) %s or %s" % tuple(sample(["Racist Dad 3", "Spirit Tree Cutscene", "Post-Forlorn Escape Cutscene", "Racist Dad 2", "Sunstone cutscene", "Post-Ginso Escape cutscene"], 2))
-
-class XorYTree(Card):
-    @staticmethod
-    def get(rando):
-        return "Get the %s or %s Tree" % tuple(sample(SKILLS, 2))
-
-class KillEnemyXorY(Card):
-    @staticmethod
-    def get(rando):
-        return "Kill %s or %s" % tuple(sample(["Stomp Tree Rhino", "Grotto Miniboss", "Lower Ginso Miniboss", "Lost Grove Fight Room", "Upper Ginso Miniboss", "Misty Minibosses", "Horu Final Miniboss"], 2))
-
-class AltRAfter(Rando, Card):
-    @staticmethod
-    def get(rando):
-        return "Alt-r immediately after you Find %s" % choice(["1 Experience"] + SKILLS + EVENTS)
-
-class CollectNSkills(Rando, Card):
-    @staticmethod
-    def get(rando):
-        return "Collect %s Skills" % (randint(2, 6) + randint(1, 3) + randint(0, 1))
-
-class XorYSkill(Rando, Card):
-    @staticmethod
-    def get(rando):
-        return "%s or %s" % tuple(sample(SKILLS, 2))
-
-class XandYSkill(Rando, Card):
-    @staticmethod
-    def get(rando):
-        return "%s and %s" % tuple(sample(SKILLS, 2))
-
-class XorYBonus(Rando, Card):
-    @staticmethod
-    def get(rando):
-        return "%s or %s" % tuple(sample(BONUS_PICKUPS, 2))
-
-
-
-def r(low, high):
-    return lambda: randint(low, high)
-
 
 
 class BingoGoal(object):
@@ -300,7 +34,7 @@ class IntGoal(BingoGoal):
         return cardData
 
 class GoalGroup(BingoGoal):
-    def __init__(self, name, goals, low=1, methods=[("or", r(1, 3)), ("and", r(1, 2))], maxRepeats=1, tags=[]):
+    def __init__(self, name, goals, methods, low=1, maxRepeats=1, tags=[]):
         self.name = name
         self.maxRepeats = maxRepeats
         self.goals = goals
@@ -322,100 +56,109 @@ class GoalGroup(BingoGoal):
             return None
 
 class BingoGenerator(object):
-    goals = []
     @staticmethod
-    def init_goals():
-        BingoGenerator.goals = [
-            BoolGoal("DrownFrog"),
+    def get_cards(cards=25, rando=False, difficulty="normal"):
+        def r(low, easy_high, high, hard_high, scalar=1):
+            if difficulty == "easy":
+                return lambda: randint(low, easy_high)*scalar
+            if difficulty == "hard":
+                return lambda: randint(easy_high, hard_high)*scalar
+            return lambda: randint(low, high)*scalar
+        teleporterNames = ["sunkenGlades", "moonGrotto", "mangroveFalls", "valleyOfTheWind", "spiritTree", "mangroveB", "horuFields", "ginsoTree", "forlorn", "mountHoru"] + (["swamp", "sorrowPass"] if rando else [])
+        goals = [
             BoolGoal("DrainSwamp"),
             BoolGoal("WilhelmScream"),
-            BoolGoal("CoreSkip", tags = ["hard"]),
-            BoolGoal("FastStompless", tags = ["hard"]),
-            IntGoal("CollectMapstones", r(3, 8)),
-            IntGoal("ActivateMaps", r(2, 6), tags = ["vanilla"]),
-            IntGoal("ActivateMaps", r(4, 8), tags = ["rando"]),
-            IntGoal("OpenKSDoors", r(3, 8)),
-            IntGoal("OpenEnergyDoors", r(3, 6)),
-            IntGoal("BreakFloors", r(4, 10)),
-            IntGoal("BreakWalls", r(4, 10)),
-            IntGoal("UnspentKeystones", r(4, 18)),
-            IntGoal("BreakPlants", r(5, 12)),
-            IntGoal("TotalPickups", r(50, 90), tags = ["vanilla"]),
-            IntGoal("TotalPickups", r(70, 130), tags = ["rando"]),
-            IntGoal("UnderwaterPickups", r(2, 6)),
-            IntGoal("HealthCellLocs", r(4, 8), tags = ["rando"]),
-            IntGoal("EnergyCellLocs", r(5, 9), tags = ["rando"]),
-            IntGoal("AbilityCellLocs", r(6, 15), tags = ["rando"]),
-            IntGoal("HealthCells", r(4, 8)),
-            IntGoal("EnergyCells", r(5, 9)),
-            IntGoal("AbilityCells", r(6, 15)),
-            IntGoal("LightLanterns", r(4, 10)),
-            IntGoal("SpendPoints", r(20, 30)),
-            IntGoal("GainExperience", lambda: 500*randint(8, 16)),
-            IntGoal("KillEnemies", lambda: 5*randint(5, 25)),
+            IntGoal("CollectMapstones", r(3, 5, 7, 9)),
+            IntGoal("ActivateMaps", r(3, 5, 7, 9)) if rando else IntGoal("ActivateMaps", r(2, 4, 6, 9)),
+            IntGoal("OpenKSDoors", r(3, 4, 8, 11)),
+            IntGoal("OpenEnergyDoors", r(3, 4, 5, 6)),
+            IntGoal("BreakFloors", r(4, 10, 25, 42)),
+            IntGoal("BreakWalls", r(4, 10, 20, 28)),
+            IntGoal("UnspentKeystones", r(4, 10, 18, 24)),
+            IntGoal("BreakPlants", r(5, 10, 15, 21)),
+            IntGoal("TotalPickups", r(60, 100, 140, 180)) if rando else IntGoal("TotalPickups", r(50, 70, 120, 180)),
+            IntGoal("UnderwaterPickups", r(2, 6, 10, 16)),
+            IntGoal("HealthCells", r(4, 6, 9, 11)),
+            IntGoal("EnergyCells", r(4, 6, 9, 13)),
+            IntGoal("AbilityCells", r(6, 15, 20, 30)),
+            IntGoal("LightLanterns", r(4, 6, 10, 14)), 
+            IntGoal("SpendPoints", r(15, 25, 30, 35)),
+            IntGoal("GainExperience", r(8, 10, 16, 20, scalar=500)),  # todo: see if these suck or not
+            IntGoal("KillEnemies", r(5, 15, 25, 40, scalar=5)),
             GoalGroup(
                 name="CompleteHoruRoom", 
                 goals=[BoolGoal(name) for name in ["L1", "L2", "L3", "L4", "R1", "R2", "R3", "R4"]], 
-                methods=[("or", lambda: 2), ("and", r(1, 3)), ("count", r(2, 5))]
+                methods=[("or", lambda: 2), ("and", r(1, 2, 3, 4)), ("count", r(2, 4, 5, 7))]
                 ),
             GoalGroup(
                 name="ActivateTeleporter", 
-                goals=[BoolGoal(name) for name in ["sunkenGlades", "moonGrotto", "mangroveFalls", "valleyOfTheWind", "spiritTree", "mangroveB", "horuFields", "ginsoTree", "forlorn", "mountHoru"]],  # "swamp", "sorrowPass" if rando
-                methods=[("or", lambda: 2), ("and", r(1, 3)), ("count", r(4, 7))],
+                goals=[BoolGoal(name) for name in teleporterNames],   
+                methods=[("or", lambda: 2), ("and", r(1, 3, 3, 4)), ("count", r(4, 7, 9, 11) if rando else r(4, 6, 8, 10))],
                 maxRepeats=3
                 ),
             GoalGroup(
                 name="EnterArea", 
                 goals=[BoolGoal(name) for name in ["Lost Grove", "Misty Woods", "Sorrow Pass", "Forlorn Ruins", "Mount Horu", "Ginso Tree"]],
-                methods=[("or", lambda: 2), ("and", r(1, 2))],
+                methods=[("or", (lambda: 3) if difficulty == "easy" else (lambda: 2)), ("and", r(1, 2, 2, 3))],
                 maxRepeats=2
                 ),
             GoalGroup(
                 name="GetEvent",
                 goals=[BoolGoal(name) for name in ["Water Vein", "Gumon Seal", "Sunstone", "Clean Water", "Wind Restored", "Warmth Returned"]],
-                methods=[("or", r(2, 3)), ("and", r(1, 2))],
+                methods=[("or", (lambda: 3) if difficulty == "easy" else (lambda: 2)), ("and", r(1, 2, 2, 3))],
                 maxRepeats=2
                 ),
             GoalGroup(
                 name="GetItemAtLoc", 
                 goals=[BoolGoal(name) for name in ["LostGroveLongSwim", "ValleyEntryGrenadeLongSwim", "SpiderSacEnergyDoor", "SorrowHealthCell", "SunstonePlant", "GladesLaser", "LowerBlackrootLaserAbilityCell", 
                                                 "MistyGrenade", "LeftSorrowGrenade", "DoorWarpExp", "HoruR3Plant", "RightForlornHealthCell", "ForlornEscapePlant"]],
-                methods=[("or", r(2,3)), ("and", r(1, 2))],
+                methods=[("or", (lambda: 3) if difficulty == "easy" else (lambda: 2)), ("and", r(1, 2, 3, 4))],
                 maxRepeats=2
                 ),
             GoalGroup(
                 name="VisitTree", 
                 goals=[BoolGoal(name) for name in ["Wall Jump", "Charge Flame", "Double Jump", "Bash", "Stomp", "Glide", "Climb", "Charge Jump", "Grenade", "Dash"]],
-                methods=[("or", lambda: 2), ("and", r(2, 3)), ("count", r(4, 9))],
+                methods=[("or", (lambda: 3) if difficulty == "easy" else (lambda: 2)), ("and", r(2, 2, 3, 4)), ("count", r(4, 6, 8, 10))],
                 maxRepeats=2
                 ),
             GoalGroup(
                 name="GetAbility", 
                 goals=[BoolGoal(name) for name in ["Ultra Defense", "Spirit Light Efficiency", "Ultra Stomp"]],
-                methods=[("or", r(1, 3)), ("and", r(1, 2))],
+                methods=[("or", (lambda: 2) if difficulty == "easy" else (lambda: 1)), ("and", r(1, 2, 2, 3))],
                 ),
             GoalGroup(
                 name="StompPeg", 
                 goals=[BoolGoal(name) for name in ["BlackrootTeleporter", "SwampPostStomp", "GroveMapstoneTree", "HoruFieldsTPAccess", "L1", "R2", 
                                                 "L2", "L4Fire", "L4Drain", "SpiderLake", "GroveGrottoUpper", "GroveGrottoLower"]],
-                methods=[("count", r(3,7)), ("or", lambda: 2), ("and", r(2, 3))],
+                methods=[("count", r(3, 5, 7, 10)), ("or", (lambda: 3) if difficulty == "easy" else (lambda: 2)), ("and", r(2, 3, 3, 4 ))],
                 maxRepeats=2
                 ),
             GoalGroup(
                 name="HuntEnemies", 
                 goals=[BoolGoal(name) for name in ["Fronkey Fight", "Misty Miniboss", "Lost Grove Fight Room", "Grotto Miniboss", 
                                                 "Lower Ginso Miniboss", "Upper Ginso Miniboss", "Swamp Rhino Miniboss", "Mount Horu Miniboss"]],
-                methods=[("count", r(3, 5)), ("and", r(1, 3)), ("or", r(2, 3))],
+                methods=[("count", r(3, 4, 6, 7)), ("and", r(1, 2, 3, 4)), ("or", (lambda: 3) if difficulty == "easy" else (lambda: 2))],
                 maxRepeats=3
                 ),
         ]
-    @staticmethod
-    def get_cards(cards=25, allowed_tags=[]):
-        if not BingoGenerator.goals:
-            BingoGenerator.init_goals()
+        if rando:
+            goals += [
+                IntGoal("HealthCellLocs", r(4, 6, 9, 11)),
+                IntGoal("EnergyCellLocs", r(4, 6, 9, 13)),
+                IntGoal("AbilityCellLocs", r(6, 15, 20, 30)),
+                IntGoal("CollectMapstones", r(3, 5, 7, 9))
+            ]
+
+        if difficulty == "hard":
+            goals += [
+                BoolGoal("CoreSkip"),
+                BoolGoal("FastStompless"),
+            ]
+        else:
+            goals.append(BoolGoal("DrownFrog"))
         groupSeen = defaultdict(lambda: (1, [], []))
         output = []
-        goals = [goal for goal in BingoGenerator.goals if goal.isAllowed(allowed_tags)]
+        goals = [goal for goal in goals]
         while len(output) < cards:
             goal = choice(goals)
             repeats, banned_subgoals, banned_methods = groupSeen[goal.name]

@@ -143,6 +143,10 @@ const getCardContent = (card, activePlayer) => {
                         text = `Get pickups from Ability Cells ${progress}`
                         help = "Collect pickups from this many vanilla ability cell locations."
                         break;
+                    case "CollectMapstones":
+                        text = `Get pickups from Mapstones ${progress}`
+                        help = "Collect pickups from this many vanilla mapstone locations."
+                        break;
                     case "LightLanterns":
                         text = `Use Grenade to light Lanterns ${progress}`
                         help = "The lanterns in the pre-dash area of BRB do not count."

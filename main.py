@@ -16,7 +16,7 @@ from google.appengine.ext.webapp import template
 # project imports
 from seedbuilder.seedparams import SeedGenParams
 from seedbuilder.vanilla import seedtext as vanilla_seed
-from bingo import Card, BingoGenerator
+from bingo import BingoGenerator
 from enums import MultiplayerGameType, ShareType, Variation
 from models import Game, Seed, User
 from pickups import Pickup, Skill, AbilityCell, HealthCell, EnergyCell, Multiple
@@ -883,10 +883,8 @@ class BingoCreate(RequestHandler):
             mu_line = "2|MU|%s|Glades" % start_with.id
             base.insert(1, mu_line)
         res["seed"] = "\n".join(base)
-        tags = ["vanilla"]
-        if paramFlag(self, "hard"):
-            tags.append("hard")
-        res["cards"] = BingoGenerator.get_cards(25, tags)
+        difficulty = paramVal(self, "difficulty") or "normal"
+        res["cards"] = BingoGenerator.get_cards(25, False, difficulty)
         res["playerData"] = {}
         game = key.get()
         game.bingo = res
@@ -912,10 +910,8 @@ class AddBingoToGame(RequestHandler):
         params.tracking = False
         res["gameId"] = game_id
         res["seed"] =  "Bingo," + params.get_seed()
-        tags = ["rando"]
-        if paramFlag(self, "hard"):
-            tags.append("hard")
-        res["cards"] = BingoGenerator.get_cards(25, tags)
+        difficulty = paramVal(self, "difficulty") or "normal"
+        res["cards"] = BingoGenerator.get_cards(25, True, difficulty)
         res["playerData"] = {}
         game.bingo = res
         for pkey in game.players:
