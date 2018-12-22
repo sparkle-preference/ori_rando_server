@@ -41,7 +41,7 @@ class SiteBar extends Component {
     render() {
         let {user} = this.state
         let logonoff = user ? [
-            (<DropdownItem key="username" disabled>`(Logged in as ${user})` </DropdownItem>),
+            (<DropdownItem key="username" disabled>(Logged in as {user}) </DropdownItem>),
             (<DropdownItem key="logout" href="/logout">  Logout </DropdownItem>),
             // (<DropdownItem onClick={this.settingsModal}>  Settings </DropdownItem>),
         ] : (<DropdownItem href="/login"> Login </DropdownItem>)

@@ -13,7 +13,7 @@ from pickups import Pickup, Skill, Teleporter, Event
 from cache import Cache
 
 pbc = picks_by_coord(extras=True)
-map_coords_by_zone = { "Valley": -4080172, "Sorrow": -4519716, "Glades": -840248, "Forlorn": -8440308, "Grove": 3479880, "Blackroot": 4159708, "Grotto": 4759608, "Horu": 560340, "Swamp": 6759868}
+map_coords_by_zone = { "valleyOfTheWind": -4080172, "sorrowPass": -4519716, "sunkenGlades": -840248, "forlornRuins": -8440308, "hollowGrove": 3479880, "mangrove": 4159708, "moonGrotto": 4759608, "mountHoru": 560340, "thornfeltSwamp": 6759868}
 
 class HistoryLine(ndb.Model):
     pickup_code = ndb.StringProperty()

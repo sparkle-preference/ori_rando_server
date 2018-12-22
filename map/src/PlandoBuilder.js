@@ -25,7 +25,7 @@ const relevantCodes = ["HC", "AC", "EC", "KS", "MS", "TP", "RB", "EV", "SK"];
 const DEFAULT_DATA = {
     '-280256': {label: "Energy Cell", value: "EC|1"},
     '-1680104': {label: "100 Experience", value: "EX|100"},
-    '-12320248': {label: "100 Experience", value: "EX|100"}
+    '-12320248': {label: "Nothing", value: "NO|1"}
 }
 
 const DEFAULT_REACHABLE = {'SunkenGladesRunaway': [["Free"]]};
@@ -309,7 +309,10 @@ class PlandoBuiler extends React.Component {
             let line = lines[i].split("|")
             let loc = parseInt(line[0], 10);
             if(currplc.hasOwnProperty(loc) && currplc[loc].value !== "NO|1")
+            {
+                newplc[loc] = currplc[loc];
                 continue;
+            }
             let code = line[1];
             let id = str_ids.includes(code) ? line[2] : parseInt(line[2], 10);
             if(code === "EX" && this.state.seedFlags.some(f => f.value === "NoExtraExp"))
