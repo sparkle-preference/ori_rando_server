@@ -884,6 +884,7 @@ class BingoCreate(RequestHandler):
             base.insert(1, mu_line)
         res["seed"] = "\n".join(base)
         difficulty = paramVal(self, "difficulty") or "normal"
+        res["difficulty"] = difficulty
         res["cards"] = BingoGenerator.get_cards(25, False, difficulty)
         res["playerData"] = {}
         game = key.get()
@@ -911,6 +912,7 @@ class AddBingoToGame(RequestHandler):
         res["gameId"] = game_id
         res["seed"] =  "Bingo," + params.get_seed()
         difficulty = paramVal(self, "difficulty") or "normal"
+        res["difficulty"] = difficulty
         res["cards"] = BingoGenerator.get_cards(25, True, difficulty)
         res["playerData"] = {}
         game.bingo = res

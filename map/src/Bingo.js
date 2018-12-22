@@ -236,7 +236,7 @@ const getCardContent = (card, activePlayer) => {
                     let styles = {};
                     if(lineCompleted) {
                         if(prog.completed) 
-                            styles.background = "#ccf"
+                            styles.background = "#8f8"
                         else
                             styles.background = "#cfc"
                     }
@@ -425,7 +425,7 @@ export default class Bingo extends React.Component {
             return
         } else {
             let res = JSON.parse(responseText)
-            this.setState({startWith: res.startWith, gameId: res.gameId, createModalOpen: false, creatingGame: false, haveGame: true, fails: 0,
+            this.setState({startWith: res.startWith, gameId: res.gameId, createModalOpen: false, creatingGame: false, haveGame: true, fails: 0, dispDiff: res.difficulty || this.state.difficulty,
                           seed: res.seed, playerData: res.playerData, cards: res.cards.map(card => {return {progress: {}, ...card}})}, this.updateUrl)
         }
     }
@@ -497,8 +497,8 @@ export default class Bingo extends React.Component {
     toggleCreate = () => this.setState({createModalOpen: !this.state.createModalOpen})
 
     render = () => {
-        let {activePlayer, playerData, startWith, cards, haveGame, bingos, gameId, user} = this.state
-        let headerText = haveGame ? `Bingo Game ${gameId}` : "Bingo!"
+        let {activePlayer, playerData, startWith, cards, haveGame, bingos, gameId, user, dispDiff} = this.state
+        let headerText = haveGame && dispDiff ? `Bingo Game ${gameId} (${dispDiff})` : "Bingo!"
         let subheader = (haveGame && startWith !== "") ? (
             <Row>
                 <Col>
