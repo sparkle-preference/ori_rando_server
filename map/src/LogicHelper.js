@@ -391,13 +391,15 @@ class LogicHelper extends React.Component {
         let open_world = false;
         let closed_dungeons = false;
         lines[0].split(",").forEach(flag => {
+            
             if(Object.keys(presets).includes(flag.toLowerCase()))
-                this.onPathModeChange({label: flag, value: flag.toLowerCase()})
+            {
+                this.onPathModeChange({label: flag, value: flag.toLowerCase()})                
+            }
             if(flag.toLowerCase() === "openworld")
                 open_world = true;            
             if(flag.toLowerCase() === "closeddungeons")
                 closed_dungeons = true;            
-            if(flag.ToLowerCase())
         })
         for (let i = 1, len = lines.length; i < len; i++) {
             let line = lines[i].split("|")

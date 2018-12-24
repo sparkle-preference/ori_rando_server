@@ -21,7 +21,7 @@ NumericInput.style.input.width = '100%';
 NumericInput.style.input.height = '36px';
 
 const relevantCodes = ["HC", "AC", "EC", "KS", "MS", "TP", "RB", "EV", "SK"];
-
+const DUNGEON_KEYS = ["EV|0", "EV|2", "EV|4"]
 const DEFAULT_DATA = {
     '-280256': {label: "Energy Cell", value: "EC|1"},
     '-1680104': {label: "100 Experience", value: "EX|100"},
@@ -33,6 +33,16 @@ const DEFAULT_VIEWPORT = {
       center: [0, 0],
       zoom: 4,
     }
+const keyNames = {"EV|0": "Water Vein", "EV|2": "Gumon Seal", "EV|4": "Sunstone"}
+const mkClueOrderLabel = (clueOrder) => clueOrder.map(key => keyNames[key]).join(", ")
+const CLUE_ORDERS = [
+     ["EV|0", "EV|2", "EV|4"],
+     ["EV|0", "EV|4", "EV|2"],
+     ["EV|2", "EV|0", "EV|4"],
+     ["EV|2", "EV|4", "EV|0"],
+     ["EV|4", "EV|2", "EV|0"],
+     ["EV|4", "EV|0", "EV|2"],
+].map(clueOrder => {return {label: mkClueOrderLabel(clueOrder), value: clueOrder}})
 
 const VALID_VARS = ["0XP", "NonProgressMapStones", "NoAltR", "ForceMaps", "ForceTrees", "Hard", "WorldTour", "OpenWorld", "ClosedDungeons", "OHKO", "Starved", "BonusPickups", "NoExtraExp"]
 const VALID_KEYMODES = ["Shards", "Clues", "Limitkeys", "Free"];
@@ -160,7 +170,7 @@ class PlandoBuiler extends React.Component {
     super(props)
 
     this.state = {seed_in: "", reachable: {...DEFAULT_REACHABLE}, new_areas: {...DEFAULT_REACHABLE}, placements: {1: {...DEFAULT_DATA}}, player: 1, saving: false,
-                  fill_opts: {HC: 13, EC: 15, AC: 34, KS: 40, MS: 9, EX: 300, ex_pool: 10000, dynamic: false, dumb: false}, viewport: {center: [0, 0], zoom: 5}, searchStr: "",
+                  fill_opts: {HC: 13, EC: 15, AC: 34, KS: 40, MS: 9, EX: 300, ex_pool: 10000, dynamic: false, dumb: false}, viewport: {center: [0, 0], zoom: 5}, searchStr: "", clueOrder: CLUE_ORDERS[0],
                   flags: ['hide_unreachable', 'hide_softlockable'], seedFlags: select_wrap(["ForceTrees"]), share_types: select_wrap(["keys"]), coop_mode: {label: "Solo", value: "None"},
                   pickups: ["EX", "Ma", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "CS"], display_fill: false, display_import: false, display_logic: false, display_coop: false, display_meta: false}
     }
@@ -304,6 +314,7 @@ class PlandoBuiler extends React.Component {
     parseUploadedSeed = (seedText) => {
         let lines = seedText.split("\n")
         let newplc = {}
+        let newClueOrder = []
         let currplc = this.state.placements[this.state.player]
         for (let i = 1, len = lines.length; i < len; i++) {
             let line = lines[i].split("|")
@@ -317,6 +328,9 @@ class PlandoBuiler extends React.Component {
             let id = str_ids.includes(code) ? line[2] : parseInt(line[2], 10);
             if(code === "EX" && this.state.seedFlags.some(f => f.value === "NoExtraExp"))
                 id = 0
+            if(code === "EV" && id % 2 === 0){
+                newClueOrder.push(`${code}|${id}`)
+            }
             let name = pickup_name(code, id);
             let stuff = {label: name, value:code+"|"+id};
             newplc[loc] = stuff;
@@ -325,9 +339,12 @@ class PlandoBuiler extends React.Component {
         }
         this.parseFlagLine(lines[0])
         this.setState(prevState => {
-                let oldplc = prevState.placements;
-                oldplc[prevState.player] = newplc
-                return {placements: oldplc}
+                let retVal = {}
+                retVal.placements = prevState.placements;
+                retVal.placements[prevState.player] = newplc
+                if(newClueOrder.length === 3) 
+                    retVal.clueOrder = {value: newClueOrder, label: mkClueOrderLabel(newClueOrder)}
+                return retVal
             }, () => this.updateReachable());
 
     }
@@ -335,6 +352,7 @@ class PlandoBuiler extends React.Component {
 
     parseSavedSeed = (seedJson) => {
         // help
+        let newClueOrder = []
         let seedData = JSON.parse(he.decode(seedJson))
         let placements = {}
         seedData['placements'].forEach(placement => {
@@ -342,6 +360,9 @@ class PlandoBuiler extends React.Component {
             placement['stuff'].forEach(stuff => {
                 let code = stuff['code']
                 let id = str_ids.includes(code) ? stuff['id'] : parseInt(stuff['id'], 10);
+                if(code === "EV" && id % 2 === 0){
+                    newClueOrder.push(`${code}|${id}`)
+                }
                 let name = pickup_name(code, id);
                 let stuff_obj = {label: name, value: code+"|"+id};
                 let player = stuff['player']
@@ -353,6 +374,11 @@ class PlandoBuiler extends React.Component {
             })
         })
         this.parseFlagLine(seedData['flagline'])
+        let retVal = {}
+        retVal.placements = placements;
+        if(newClueOrder.length === 3) 
+            retVal.clueOrder = {value: newClueOrder, label: mkClueOrderLabel(newClueOrder)}
+        this.setState(retVal, () => this.updateReachable());
         this.setState({placements: placements}, () => this.updateReachable());
 
 
@@ -443,11 +469,18 @@ class PlandoBuiler extends React.Component {
     }
 
     getLines = () => {
+        let playerPlacements = this.state.placements[this.state.player] || {}
         let outLines = [this.buildFlagLine()]
-        let locs = Object.keys(picks_by_loc).filter(loc => this.state.placements[this.state.player].hasOwnProperty(loc))
+        let locs = Object.keys(picks_by_loc).filter(loc => playerPlacements.hasOwnProperty(loc))
+        let evLines = {};
         locs.forEach((loc) => {
-            outLines.push(loc+"|"+this.state.placements[this.state.player][loc].value+"|"+picks_by_loc[loc].zone)
+            let lineText = loc+"|"+playerPlacements[loc].value+"|"+picks_by_loc[loc].zone;
+            if(DUNGEON_KEYS.includes(playerPlacements[loc].value))
+                evLines[playerPlacements[loc].value] = (lineText)
+            else
+                outLines.push(lineText)
         })
+        this.state.clueOrder.value.forEach(ev => outLines.push(evLines[ev]))
 
         return outLines;
     }
@@ -465,15 +498,28 @@ class PlandoBuiler extends React.Component {
         data.placements = [];
         let locs = Object.keys(picks_by_loc);
         let players = Object.keys(this.state.placements);
+        let evStuff = {};
         locs.forEach(loc => {
             let players_at_loc = players.filter(p => this.state.placements[p].hasOwnProperty(loc))
+            let keyName = "";
             let stuff = players_at_loc.map(player => {
-                let [code, id] = this.state.placements[player][loc].value.split("|");
+                let rawId = this.state.placements[player][loc].value
+                let [code, id] = rawId.split("|");
+                if(DUNGEON_KEYS.includes(rawId)) {
+                    keyName = rawId;
+                }
                 return {player: player, code: code, id: id};
             })
-            if(players_at_loc.length > 0)
-                data.placements.push({loc: loc, zone: picks_by_loc[loc].zone, stuff: stuff})
+            if(players_at_loc.length > 0){
+                let plcmnt = {loc: loc, zone: picks_by_loc[loc].zone, stuff: stuff};
+                if(keyName !== "" && !evStuff.hasOwnProperty(keyName))
+                    evStuff[keyName] = plcmnt
+                 else 
+                    data.placements.push(plcmnt)                
+            }
         })
+        this.state.clueOrder.value.forEach(ev => evStuff.hasOwnProperty(ev) && data.placements.push(evStuff[ev]))
+
         return data;
     }
 
@@ -652,17 +698,24 @@ class PlandoBuiler extends React.Component {
 
 
     render() {
-        const pickup_markers = ( <PickupMarkersList markers={getPickupMarkers(this.state, this.selectPickupCurry, this.state.searchStr)} />)
+        let {clueOrder, modes, searchStr, seedFlags, authed, last_seed_name} = this.state;
+        const pickup_markers = ( <PickupMarkersList markers={getPickupMarkers(this.state, this.selectPickupCurry, searchStr)} />)
         const zone_opts = zones.map(zone => ({label: zone, value: zone}))
         const pickups_opts = picks_by_zone[this.state.zone].map(pick => ({label: pick.name+"("+pick.x + "," + pick.y +")",value: pick}) )
-        let alert = this.state.authed ? null : (<Alert color="danger">Please <a href={`/login?from=plando_edit&plando=${this.state.last_seed_name}`}>login</a> to enable saving.</Alert>)
-        let save_if_auth = this.state.authed ? ( <Button color="primary" onClick={this.toggleMeta} >Meta/Save</Button> ) : (<Button color="disabled">Meta/Save</Button>)
+        let clue_order_picker = seedFlags.map(f => f.value).includes("Clues") ? (
+            <div className="pickup-wrapper">
+                <span className="label">Clue Order: </span>
+                <Select styles={select_styles} options={CLUE_ORDERS} onChange={(n) => this.setState({clueOrder: n})} clearable={false} value={clueOrder}/>
+            </div>
+        ) : null
+        let alert = authed ? null : (<Alert color="danger">Please <a href={`/login?from=plando_edit&plando=${last_seed_name}`}>login</a> to enable saving.</Alert>)
+        let save_if_auth = authed ? ( <Button color="primary" onClick={this.toggleMeta} >Meta/Save</Button> ) : (<Button color="disabled">Meta/Save</Button>)
         let fill_button = this.state.fill_opts.dumb ? (
             <Button color="warning" onClick={this.doFill} >Fill (Dumb)</Button>
         ) : (
             <Button color="success" onClick={this.doFillGen} >Fill</Button>
         )
-        let logic_path_buttons = logic_paths.map(lp => {return (<Col className="pr-0" xs="4"><Button block size="sm" outline={!this.state.modes.includes(lp)} onClick={this.onMode(lp)}>{lp}</Button></Col>)});
+        let logic_path_buttons = logic_paths.map(lp => {return (<Col className="pr-0" xs="4"><Button block size="sm" outline={!modes.includes(lp)} onClick={this.onMode(lp)}>{lp}</Button></Col>)});
         return (
             <div className="wrapper">
                 <NotificationContainer/>
@@ -705,6 +758,7 @@ class PlandoBuiler extends React.Component {
                             <span className="label">Seed Flags: </span>
                             <Creatable styles={select_styles} options={select_wrap(SEED_FLAGS)} onChange={this.onFlags} isMulti={true} value={this.state.seedFlags} label={this.state.seedFlags}/>
                         </div>
+                        {clue_order_picker}
                     </div>
                     <hr style={{ backgroundColor: 'grey', height: 2 }}/>
                     <div id="pickup-controls">

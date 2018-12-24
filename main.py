@@ -590,21 +590,12 @@ class PlandoDownload(RequestHandler):
                     self.response.headers['Content-Type'] = 'text/plain'
                     self.response.write("seed not found")
                     return
-            gid = paramVal(self, "gid")
-            pid = paramVal(self, "pid")
-            extraFlags=[]
-            if gid and pid:
-                syncFlag = "Sync%s.%s" % (gid, pid)
-            self.response.status = 200
-            self.response.headers['Content-Type'] = 'application/x-gzip' if not debug else 'text/plain'
-            self.response.headers['Content-Disposition'] = 'attachment; filename=randomizer.dat' if not debug else ""
-            seedlines = seed.to_lines(player=int(pid), extraFlags=extraFlags)
-            rand = random.Random()
-            rand.seed(seed.name)
-            flagline = seedlines.pop(0)
-            rand.shuffle(seedlines)
-            seedlines.insert(0, flagline)
-            self.response.write("\n".join(seedlines))
+            params = SeedGenParams.from_plando(seed, paramFlag(self, "tracking"))
+            url = uri_for("main-page", param_id=params.key.id())
+            if params.tracking:
+                game = Game.from_params(params, self.request.GET.get("game_id"))
+                url += "&game_id=%s" % game.key.id()
+            self.redirect(url)
         else:
             self.response.status = 404
             self.response.headers['Content-Type'] = 'text/plain'
@@ -645,7 +636,7 @@ class AuthorIndex(RequestHandler):
             for seed in seeds:
                 url = uri_for("plando-view", author_name=author_name, seed_name=seed.name)
                 flags = ",".join(seed.flags)
-                out += '<li style="padding:2px"><a href="%s">%s</a>: %s (%s players, %s)' % (url, seed.name, seed.description, seed.players, flags)
+                out += '<li style="padding:2px"><a href="%s">%s</a>: %s (%s players, %s)' % (url, seed.name, seed.description.partition("\n")[0], seed.players, flags)
                 if owner:
                     out += ' <a href="%s">Edit</a>' % uri_for("plando-edit", seed_name=seed.name)
                     if seed.hidden:
@@ -697,7 +688,7 @@ class MakeSeedWithParams(RequestHandler):
         param_key = SeedGenParams.from_url(self.request.GET)
         params = param_key.get()
         if params.generate():
-            resp = {"paramId": param_key.id(), "playerCount": params.players, "flagLine": params.flag_line()}
+            resp = {"paramId": param_key.id(), "playerCount": params.players, "flagLine": params.flag_line(), "spoilers": True}
             if params.tracking:
                 game = Game.from_params(params, self.request.GET.get("game_id"))
                 resp["gameId"] = game.key.id()
@@ -742,7 +733,7 @@ class GetParamMetadata(RequestHandler):
         self.response.headers['Content-Type'] = 'application/json'
         params = SeedGenParams.with_id(params_id)
         if params:
-            resp = {"playerCount": params.players, "flagLine": params.flag_line()}
+            resp = {"playerCount": params.players, "flagLine": params.flag_line(), "spoilers": len(params.spoilers[0]) > 100}
             self.response.write(json.dumps(resp))
         else:
             self.response.status = 404
@@ -1017,7 +1008,7 @@ app = WSGIApplication(routes=[
     Route('/bingo/from_game/<game_id>', handler=AddBingoToGame, name="add-bingo-to-game", strict_slash=True),
     Route('/logichelper', handler=LogicHelper, name="logic-helper", strict_slash=True),
     Route('/faq', handler=Guides, name="help-guides", strict_slash=True),
-    ('/', ReactLanding),
+    Route('/', handler=ReactLanding, name="main-page"),
     ('/rebinds', RebindingsEditor),
     ('/quickstart', ReactLanding),
     (r'/activeGames/?', ActiveGames),

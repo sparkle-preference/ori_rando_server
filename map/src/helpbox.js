@@ -335,6 +335,12 @@ const getHelpHelper = (category, option) => {
                         "Don't be afraid to check your spoiler if you get stuck!"
                     ]
                 break;
+                case "noSpoilers":
+                    title = "No Spoilers Available"
+                    lines = [
+                        "This seed has no text spoiler available! Consider loading it into the Logic Helper or using the tracking map's spoiler function."
+                    ]
+                break;
                 case "spoilerDownload":
                     title = "Download Spoiler"
                     lines = [

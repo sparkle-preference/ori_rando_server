@@ -4,7 +4,7 @@ import {get_param, get_int, get_seed} from './common.js';
 import {goToCurry, seed_name_regex } from './shared_map.js';
 import { confirmAlert } from 'react-confirm-alert'; 
 import 'react-confirm-alert/src/react-confirm-alert.css' 
-import {DropdownToggle, DropdownMenu, DropdownItem, ButtonDropdown, Button, Container, Row, Col, Input, Badge} from 'reactstrap';
+import {Button, Container, Row, Col, Input, Badge} from 'reactstrap';
 import {Helmet} from 'react-helmet';
 
 const textStyle = {color: "black", textAlign: "center"}
@@ -20,7 +20,7 @@ export default class SeedDisplayPage extends React.Component {
 	if(complain_message)
 		alert(complain_message);
     let players = get_int("players", 1)
-    this.state = {flags: seedData["flagline"].split("|")[0].split(","), author: author, authed: authed, seed_name: seed_name,
+    this.state = {flags: seedData["flagline"].split("|")[0].split(","), author: author, authed: authed, seed_name: seed_name, tracking: true,
     			  players: players, seed_desc: seed_desc, gid: gid, rename_to: seed_name, hidden: hidden || false, dropdownOpen: false};
 }
   conf_delete = () => {
@@ -41,48 +41,40 @@ export default class SeedDisplayPage extends React.Component {
   };
 
 	render = () => {
-		let download_button;
 		let url = `/plando/${this.state.seed_name}`;
-		if(this.state.players === 1)
-			download_button = (<Button color="primary" onClick={goToCurry(`/plando/${this.state.author}/${this.state.seed_name}/download?gid=${this.state.gid}&pid=1`)}>Download Seed</Button>)
-		else
-		{
-			let players = []
-		    for (let i = 1; i <= this.state.players; i++) {
-		    	players.push((<DropdownItem onClick={goToCurry(`/plando/${this.state.author}/${this.state.seed_name}/download?gid=${this.state.gid}&pid=${i}`)}>Player {i}</DropdownItem>))
-	    	}
-	    	download_button=(
-				<ButtonDropdown color="primary" isOpen={this.state.dropdownOpen} toggle={() => this.setState({dropdownOpen: !this.state.dropdownOpen})}>
-					<DropdownToggle caret>
-					  Download Seed (Select Player)
-					</DropdownToggle>
-					<DropdownMenu>
-						{players}
-	    		    </DropdownMenu>
-	      		</ButtonDropdown>
-      		)	    		
-			
-		}
     	let rename_enabled = (this.state.rename_to !== this.state.seed_name) && (seed_name_regex.test(this.state.rename_to))
     	let color = rename_enabled ? "primary" : "disabled"
     	let rename_copy = (
-			<Row className="p-3 border border-danger border-bottom-0 justify-content-center">
+			<Row key="rename/copy" className="p-3 border border-danger border-bottom-0 justify-content-center">
 				<Col xs="4">
-					<Button color={color} block onClick={rename_enabled ? goToCurry(`${url}/rename/${this.state.rename_to}`) : () => { alert("Please enter a new name")}}>Rename</Button>
+					<Button color={color} block enabled={rename_enabled} onClick={rename_enabled ? goToCurry(`${url}/rename/${this.state.rename_to}`) : () => { alert("Please enter a new name")}}>Rename</Button>
 				</Col><Col xs="4">
-		 			<Button color={color} block onClick={rename_enabled ? goToCurry(`${url}/rename/${this.state.rename_to}?cp=1`) : () => { alert("Please enter a new name")}}>Copy</Button>
+		 			<Button color={color} block enabled={rename_enabled} onClick={rename_enabled ? goToCurry(`${url}/rename/${this.state.rename_to}?cp=1`) : () => { alert("Please enter a new name")}}>Copy</Button>
 				</Col><Col xs="4">
 					<Input type="text" value={this.state.rename_to} onChange={event => this.setState({rename_to: event.target.value})} />
 				</Col>
 			</Row>
     	) 
     	let hide_button = this.state.hidden ? (
-    		<Button color="success" block onClick={goToCurry(`${url}/hideToggle`)} >Show Seed</Button>
+    		<Button color="success" block href={`${url}/hideToggle`} >Show Seed</Button>
     	) : (
-    		<Button color="info" block onClick={goToCurry(`${url}/hideToggle` )} >Hide Seed</Button>
+    		<Button color="info" block href={`${url}/hideToggle`} >Hide Seed</Button>
     	)
-		let owner_box = this.state.authed ? [rename_copy, (
-			<Row className="p-3 border border-danger border-top-0 justify-content-center">
+		let owner_box = this.state.authed ? [
+            rename_copy, 
+            (
+                <Row key="spoiler/desc"  className="p-3 border border-danger border-top-0 border-bottom-0 justify-content-center">
+				<Col xs="4">
+					<Button block onClick={this.updateDesc}>Update</Button>
+				</Col>
+                <Col xs="8">
+					<Input type="textarea" value={this.state.seed_desc} onChange={e => this.setState({seed_desc: e.target.value})}/>
+				</Col>
+                </Row>
+
+            ),
+            (
+			<Row key="delete/edit/hide" className="p-3 border border-danger border-top-0 justify-content-center">
 				<Col xs="4">
 					<Button block color="danger" onClick={() => this.conf_delete()} >Delete</Button>
 				</Col><Col xs="4">
@@ -91,7 +83,8 @@ export default class SeedDisplayPage extends React.Component {
 					{hide_button}
 				</Col>
 			</Row>
-			)] : null
+			), 
+            ] : null
 		let summary = this.state.seed_desc ? (
 			<Row className="p-3 border">
 				<Col xs="2" className="text-right">
@@ -120,14 +113,29 @@ export default class SeedDisplayPage extends React.Component {
 				</Row>
 				{summary}
 				<Row className="p-3 justify-content-center">
-					<Col xs="auto">
-						{download_button}
+					<Col xs={{size: 3, offset: 3}}>
+                        <Button block color="primary" href={`/plando/${this.state.author}/${this.state.seed_name}/download${this.state.tracking ? "?tracking=1" : ""}`}>Start Seed</Button>
 					</Col>
+                    <Col xs="3">
+                        <Button color="info" block outline={!this.state.tracking} onClick={()=>this.setState({tracking: !this.state.tracking})}>Web Tracking {this.state.tracking ? "Enabled" : "Disabled"}</Button>
+                    </Col>
 				</Row>
 			{owner_box}
 			</Container>
 	)
 
 	}
+    updateDesc = () => {
+        let xmlHttp = new XMLHttpRequest();
+        let url = "/plando/"+this.state.seed_name+"/upload";
+        xmlHttp.open("POST", url, true);
+        xmlHttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+        let res = {}
+        res.desc = this.state.seed_desc
+        res.name = this.state.seed_name
+        res.oldName = this.state.seed_name
+        xmlHttp.send(encodeURI("seed="+JSON.stringify(res)));
+
+    }
 };
 

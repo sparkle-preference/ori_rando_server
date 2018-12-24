@@ -339,7 +339,7 @@ export default class MainPage extends React.Component {
             this.setState({seedTabExists: false, activeTab: 'variations'}, this.updateUrl)
         } else {
             let res = JSON.parse(responseText)
-            let metaUpdate = {inputPlayerCount: res["playerCount"], inputFlagLine: res["flagLine"]}
+            let metaUpdate = {inputPlayerCount: res["playerCount"], inputFlagLine: res["flagLine"], spoilers: res.spoilers}
             if(res.hasOwnProperty("gameId"))
             {
                 metaUpdate.gameId = res["gameId"]
@@ -492,11 +492,11 @@ export default class MainPage extends React.Component {
                         <Col xs="3" className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "downloadButton"+this.multi())}>
                             <Button color="primary" block target="_blank" href={seedUrl}>Download Seed</Button>
                         </Col>
-                        <Col xs="3" className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "spoilerButton")}>
-                            <Button color="primary" href={spoilerUrl} target="_blank" block >View Spoiler</Button>
+                        <Col xs="3" className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", this.state.spoilers ? "spoilerButton" : "noSpoilers")}>
+                            <Button color={this.state.spoilers ? "disabled" : "primary"} disabled={!this.state.spoilers} href={spoilerUrl} target="_blank" block >View Spoiler</Button>
                         </Col>
-                        <Col xs="3" className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "spoilerDownload")}>
-                            <Button color="primary" href={downloadSpoilerUrl} target="_blank" block >Save Spoiler</Button>
+                        <Col xs="3" className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", this.state.spoilers ? "spoilerDownload" : "noSpoilers")}>
+                            <Button color={this.state.spoilers ? "disabled" : "primary"} disabled={!this.state.spoilers} href={downloadSpoilerUrl} target="_blank" block >Save Spoiler</Button>
                         </Col>
                     </Row>
                 )
@@ -560,77 +560,35 @@ export default class MainPage extends React.Component {
     getQuickstartModal = () => {
         return (
                 <Modal size="lg" isOpen={this.state.quickstartOpen} backdrop={"static"} className={"modal-dialog-centered"} toggle={this.closeQuickstart}>
-                  <ModalHeader toggle={this.closeQuickstart} centered>Welcome to the Ori DE Randomizer 3.0c Beta!</ModalHeader>
+                  <ModalHeader toggle={this.closeQuickstart} centered>Welcome to the Ori DE Randomizer!</ModalHeader>
                   <ModalBody>
                       <Container fluid>
                       <Row className="p-1">
                         <span>
-                        Welcome! We've got a lot of new features and changes that need testing and feedback, 
-                        including fully-rewritten logic, ability tree balance changes, several new ways to play the game, and <a target='_blank' rel='noopener noreferrer' href="https://docs.google.com/document/d/1tprqq7mUJMGcgAA0TM-O5FeOklzz4dOReB0Nru3QlsI">more!</a>
+                        Welcome to the Ori DE Randomizer! Check out the links below to get started.
                         </span>
                       </Row>
                       <Row>
-                          <h5>Getting Started</h5>
                           <ol>
                           <li>
-                              Join the Ori Rando development <a target='_blank' rel='noopener noreferrer' href="https://discord.gg/jeAnNpT">discord</a>. 
-                            We're using this as a place to gather feedback, post bug reports, and answer any questions players might have.
+                              Join the Ori <a target='_blank' rel='noopener noreferrer' href="https://discord.gg/jeAnNpT">discord</a>. 
+                              The community is one of the best resources for getting help with learning the randomizer.
                           </li>
                           <li>
-                              Install the 3.0 beta by placing this <a target='_blank' rel='noopener noreferrer' href="/dll">dll</a> in 
-                            your Ori DE/oriDE_Data/Managed folder.
+                              Install the Ori Randomizer by copying this <a target='_blank' rel='noopener noreferrer' href="/dll">dll</a> into
+                              your Ori DE/oriDE_Data/Managed folder. (Detailed installation instructions are available <a href="/faq?g=install">here</a>)
                           </li>
                           <li>
-                              (Optional) Get the beta 3.0 tracker <a target='_blank' rel='noopener noreferrer' href="/tracker">here</a>.
-                            Note that older (2.x) versions of the tracker won't work with the 3.0 dll.
+                              (Optional) Get the Rando Item Tracker <a target='_blank' rel='noopener noreferrer' href="/tracker">here</a>.  (Detailed installation instructions are available <a target='_blank' href="/faq?g=get_tracker">here</a>)
                           </li>
                           <li>
-                              Generate seeds using the new web <a href="https://orirando.com">generator</a>, also available by clicking the "close" button below.
+                              Get a seed! Download one of our <a href="/faq?g=starter_seeds">starter seeds</a> or roll your own using the <a href="/">generator</a>. Check out the <a href="/faq?g=gen_seed">generator instructions</a> to learn how to create and install a seed.
+                          </li>
+                          <li>
+                              Start playing! Maybe take a quick glance at the <a href="/faq?g=differences">changes</a> unique to the Ori Randomizer, and check out the <a href="/faq?g=gotchas">list of gotchas</a>.
                           </li>
                           </ol>
                       </Row>
-                      <Row>
-                          <h5>Priority feedback targets</h5>
-                        <ul>
-                            <li>
-                                Open mode, a new variation aimed to increase seed diversity and allow access to more areas, particularly the dungeons:
-                                <ul>
-                                    <li>The first keystone door in Glades starts out opened</li>
-                                    <li>The lava in Horu starts drained</li>
-                                    <li>The second Ginso miniboss room has both doors opened</li>
-                                    <li>Horu and Ginso teleporter pickups have been added</li>
-                                    <li>The orb turn-in cutscene in Forlorn is already completed and cannot be activated.</li>
-                                    <li>In Forlorn, the orb will always appear by the player (except on the first visit)</li>
-                                    <li>The upper and lower left doors in Valley Entrance (the room left of the Grove Teleporter) are always open</li>
-                                </ul>
-                                Seeds will use the Open mode variation by default, so generate any kind of seed to start testing it.
-                                Note that in addition to the above, each room in Horu will grant a randomized pickup upon completion of the room 
-                                (whatever action required to drain the lava for that room). This is a general change, and not just limited to Open mode.
-                            </li>
-                            <li>
-                                World Tour, one of several new <i>goal modes</i>. A replacement for the familiar Force Trees, World Tour places relics in zones throughout the world, 
-                                all of which must be collected before ending the game. You can check which relics you've collected and which zones you still need to search with a
-                                new keybinding (default alt+4). To enable World Tour, select it from the Goal Mode dropdown on the top right section of the generator page.
-                                Note: relic text currently has a very high chance of being a placeholder.
-                            </li>
-                            <li>
-                                The new logic, especially the Casual, Standard, and Expert presets. For 3.0, we've completely rewritten the logic, and as such it needs testing. 
-                                The most effective way to test the logic is to generate a seed with web tracking enabled, then keep the provided tracking map link open on a second monitor
-                                while you play. The map will show you what pickups are currently considered reachable, making it easy to stay within logic and identify if something that 
-                                shouldn't be reachable is considered in-logic, or vice versa.
-                            </li>
-                            <li>
-                                Purple Tree changes. We've buffed the purple tree substantially in Rando 3.0. Most notably, the Sense ability activates "Hot/Cold" mode, causing Ori to 
-                                gradually change colors as you get close to a Skill, Relic, Shard, or World Event. See the <a target='_blank' rel='noopener noreferrer' href="https://docs.google.com/document/d/1tprqq7mUJMGcgAA0TM-O5FeOklzz4dOReB0Nru3QlsI">patch notes</a> for
-                                more details. 
-                            </li>
-                            <li>
-                                The new seed generator interface. The web generator has been rewritten from scratch for better performance and ease-of-use. 
-                                Parts of it are still under construction (specifically, not every UI element has relevant help text, and you may find some typos. Let us know!)
-                            </li>
-                          </ul>
-                      </Row>
-                    <Row>Enjoy, and don't forget to post any feedback you have!</Row>
                     </Container>
                   </ModalBody>
                   <ModalFooter>
@@ -656,7 +614,7 @@ export default class MainPage extends React.Component {
                      paths: presets["standard"], keyMode: "Clues", oldKeyMode: "Clues", pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null), goalModes: ["ForceTrees"],
                      customSyncId: "", seed: "", fillAlg: "Balanced", shared: ["Skills", "Teleporters", "World Events"], hints: true, helpcat: "", helpopt: "", quickstartOpen: quickstartOpen,
                      syncId: "", expPool: 10000, lastHelp: new Date(), seedIsGenerating: false, cellFreq: cellFreqPresets("standard"), fragCount: 30, fragReq: 20, relicCount: 8, loader: get_random_loader(),
-                     paramId: paramId, seedTabExists: seedTabExists, reopenUrl: "", teamStr: "", inputFlagLine: "", fass: {},  goalModesOpen: false};
+                     paramId: paramId, seedTabExists: seedTabExists, reopenUrl: "", teamStr: "", inputFlagLine: "", fass: {},  goalModesOpen: false, spoilers: true};
     }
         
     closeQuickstart = () => {
@@ -776,7 +734,7 @@ export default class MainPage extends React.Component {
             <Row className="p-1">
                 <Col>
                     <span>
-                        <h3 style={textStyle}>Seed Generator 3.0.c Beta</h3>
+                        <h3 style={textStyle}>Seed Generator 3.0</h3>
                     </span>
                 </Col>
             </Row>

@@ -144,7 +144,7 @@ class Seed(ndb.Model):
                 author_key = author.key,
                 placements = placements,
                 players = players,
-                hidden = data.get('hidden', False)
+                hidden = data.get('hidden', False),
             )
         return s.put()
 
@@ -173,15 +173,15 @@ class Seed(ndb.Model):
             self.key.delete()
             return new
         else:
-            placements, players = Seed.get_placements(data['placements'])
+            placements, players = Seed.get_placements(data['placements']) if 'placements' in data else (self.placements, self.players)
             self.populate(
-                description = data['desc'],
-                flags = data['flags'],
-                name = data['name'],
+                description = data.get('desc', self.description),
+                flags = data.get('flags', self.flags),
+                name = data.get('name', self.name),
                 author_key = author.key,
                 placements = placements,
                 players = players,
-                hidden = data.get('hidden', self.hidden)
+                hidden = data.get('hidden', self.hidden),
             )
             return self.put()
 

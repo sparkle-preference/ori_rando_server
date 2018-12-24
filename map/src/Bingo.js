@@ -406,7 +406,7 @@ export default class Bingo extends React.Component {
         let {isRandoBingo, randoGameId, startSkills, startCells, startMisc, showInfo, difficulty} = this.state;
         if(isRandoBingo)
         {
-            let url = `/bingo/from_game/${randoGameId}`
+            let url = `/bingo/from_game/${randoGameId}?difficulty=${difficulty}`
             doNetRequest(url, this.createCallback)
             this.setState({creatingGame: true, createModalOpen: false, loader: get_random_loader()})
         } else {
