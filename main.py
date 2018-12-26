@@ -547,25 +547,23 @@ class PlandoEdit(RequestHandler):
 class HandleLogin(RequestHandler):
     def get(self):
         user = User.get()
+        target_url = paramVal(self, "redir") or "/"
+        print target_url
         if user:
-            from_page = paramVal(self, "from")
-            if from_page == "plando_edit":
-                plando = paramVal(self, "plando")
-                if plando:
-                    self.redirect(uri_for('plando-edit', seed_name=plando))
-            else:
-                self.redirect('/')
+            self.redirect(target_url)
         else:
-            self.redirect(User.login_url(self.request.uri))
+            self.redirect(User.login_url(target_url))
 
 
 class HandleLogout(RequestHandler):
     def get(self):
         user = User.get()
+        target_url = paramVal(self, "redir") or "/"
+        print target_url
         if user:
-            self.redirect(User.logout_url("/"))
+            self.redirect(User.logout_url(target_url))
         else:
-            self.redirect("/")
+            self.redirect(target_url)
 
 class PlandoFillGen(RequestHandler):
     def get(self):
@@ -965,6 +963,14 @@ class HandleBingoUpdate(RequestHandler):
         p.bingo_data = json.loads(self.request.POST["bingoData"])
         p.put()
 
+class GetNamesInUse(RequestHandler):
+    def get(self):
+        names = [user.name for user in User.query().fetch()]
+        self.response.headers['Content-Type'] = 'application/json'
+        self.response.write(json.dumps(names))
+        
+        
+
 app = WSGIApplication(routes=[
     # testing endpoints
     PathPrefixRoute('/tests', [
@@ -1009,6 +1015,7 @@ app = WSGIApplication(routes=[
     Route('/logichelper', handler=LogicHelper, name="logic-helper", strict_slash=True),
     Route('/faq', handler=Guides, name="help-guides", strict_slash=True),
     Route('/', handler=ReactLanding, name="main-page"),
+    Route('/users/names', handler=GetNamesInUse, name="names-list"),
     ('/rebinds', RebindingsEditor),
     ('/quickstart', ReactLanding),
     (r'/activeGames/?', ActiveGames),

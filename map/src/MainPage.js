@@ -493,10 +493,10 @@ export default class MainPage extends React.Component {
                             <Button color="primary" block target="_blank" href={seedUrl}>Download Seed</Button>
                         </Col>
                         <Col xs="3" className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", this.state.spoilers ? "spoilerButton" : "noSpoilers")}>
-                            <Button color={this.state.spoilers ? "disabled" : "primary"} disabled={!this.state.spoilers} href={spoilerUrl} target="_blank" block >View Spoiler</Button>
+                            <Button color={this.state.spoilers ? "primary" : "secondary"} disabled={!this.state.spoilers} href={spoilerUrl} target="_blank" block >View Spoiler</Button>
                         </Col>
                         <Col xs="3" className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", this.state.spoilers ? "spoilerDownload" : "noSpoilers")}>
-                            <Button color={this.state.spoilers ? "disabled" : "primary"} disabled={!this.state.spoilers} href={downloadSpoilerUrl} target="_blank" block >Save Spoiler</Button>
+                            <Button color={this.state.spoilers ? "primary" : "secondary"} disabled={!this.state.spoilers} href={downloadSpoilerUrl} target="_blank" block >Save Spoiler</Button>
                         </Col>
                     </Row>
                 )

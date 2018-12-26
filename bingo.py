@@ -58,10 +58,13 @@ class GoalGroup(BingoGoal):
 class BingoGenerator(object):
     @staticmethod
     def get_cards(cards=25, rando=False, difficulty="normal"):
+        easy = difficulty == "easy"
+        hard = difficulty == "hard"
+
         def r(low, easy_high, high, hard_high, scalar=1):
-            if difficulty == "easy":
+            if easy:
                 return lambda: randint(low, easy_high)*scalar
-            if difficulty == "hard":
+            if hard:
                 return lambda: randint(easy_high, hard_high)*scalar
             return lambda: randint(low, high)*scalar
         teleporterNames = ["sunkenGlades", "moonGrotto", "mangroveFalls", "valleyOfTheWind", "spiritTree", "mangroveB", "horuFields", "ginsoTree", "forlorn", "mountHoru"] + (["swamp", "sorrowPass"] if rando else [])
@@ -99,46 +102,51 @@ class BingoGenerator(object):
             GoalGroup(
                 name="EnterArea", 
                 goals=[BoolGoal(name) for name in ["Lost Grove", "Misty Woods", "Sorrow Pass", "Forlorn Ruins", "Mount Horu", "Ginso Tree"]],
-                methods=[("or", (lambda: 3) if difficulty == "easy" else (lambda: 2)), ("and", r(1, 2, 2, 3))],
+                methods=[("or", (lambda: 3) if easy else (lambda: 2)), ("and", r(1, 2, 2, 3))],
                 maxRepeats=2
                 ),
             GoalGroup(
                 name="GetEvent",
                 goals=[BoolGoal(name) for name in ["Water Vein", "Gumon Seal", "Sunstone", "Clean Water", "Wind Restored", "Warmth Returned"]],
-                methods=[("or", (lambda: 3) if difficulty == "easy" else (lambda: 2)), ("and", r(1, 2, 2, 3))],
+                methods=[("or", (lambda: 3) if easy else (lambda: 2)), ("and", r(1, 2, 2, 3))],
                 maxRepeats=2
                 ),
             GoalGroup(
                 name="GetItemAtLoc", 
                 goals=[BoolGoal(name) for name in ["LostGroveLongSwim", "ValleyEntryGrenadeLongSwim", "SpiderSacEnergyDoor", "SorrowHealthCell", "SunstonePlant", "GladesLaser", "LowerBlackrootLaserAbilityCell", 
                                                 "MistyGrenade", "LeftSorrowGrenade", "DoorWarpExp", "HoruR3Plant", "RightForlornHealthCell", "ForlornEscapePlant"]],
-                methods=[("or", (lambda: 3) if difficulty == "easy" else (lambda: 2)), ("and", r(1, 2, 3, 4))],
+                methods=[("or", (lambda: 3) if easy else (lambda: 2)), ("and", r(1, 2, 3, 4))],
                 maxRepeats=2
                 ),
             GoalGroup(
                 name="VisitTree", 
                 goals=[BoolGoal(name) for name in ["Wall Jump", "Charge Flame", "Double Jump", "Bash", "Stomp", "Glide", "Climb", "Charge Jump", "Grenade", "Dash"]],
-                methods=[("or", (lambda: 3) if difficulty == "easy" else (lambda: 2)), ("and", r(2, 2, 3, 4)), ("count", r(4, 6, 8, 10))],
+                methods=[("or", (lambda: 3) if easy else (lambda: 2)), ("and", r(2, 2, 3, 4)), ("count", r(4, 6, 8, 10))],
                 maxRepeats=2
                 ),
             GoalGroup(
                 name="GetAbility", 
                 goals=[BoolGoal(name) for name in ["Ultra Defense", "Spirit Light Efficiency", "Ultra Stomp"]],
-                methods=[("or", (lambda: 2) if difficulty == "easy" else (lambda: 1)), ("and", r(1, 2, 2, 3))],
+                methods=[("or", (lambda: 2) if easy else (lambda: 1)), ("and", r(1, 2, 2, 3))],
                 ),
             GoalGroup(
                 name="StompPeg", 
                 goals=[BoolGoal(name) for name in ["BlackrootTeleporter", "SwampPostStomp", "GroveMapstoneTree", "HoruFieldsTPAccess", "L1", "R2", 
                                                 "L2", "L4Fire", "L4Drain", "SpiderLake", "GroveGrottoUpper", "GroveGrottoLower"]],
-                methods=[("count", r(3, 5, 7, 10)), ("or", (lambda: 3) if difficulty == "easy" else (lambda: 2)), ("and", r(2, 3, 3, 4 ))],
+                methods=[("count", r(3, 5, 7, 10)), ("or", (lambda: 3) if easy else (lambda: 2)), ("and", r(2, 3, 3, 4 ))],
                 maxRepeats=2
                 ),
             GoalGroup(
                 name="HuntEnemies", 
                 goals=[BoolGoal(name) for name in ["Fronkey Fight", "Misty Miniboss", "Lost Grove Fight Room", "Grotto Miniboss", 
                                                 "Lower Ginso Miniboss", "Upper Ginso Miniboss", "Swamp Rhino Miniboss", "Mount Horu Miniboss"]],
-                methods=[("count", r(3, 4, 6, 7)), ("and", r(1, 2, 3, 4)), ("or", (lambda: 3) if difficulty == "easy" else (lambda: 2))],
+                methods=[("count", r(3, 4, 6, 7)), ("and", r(1, 2, 3, 4)), ("or", (lambda: 3) if easy else (lambda: 2))],
                 maxRepeats=3
+                ),
+            GoalGroup(
+                name="CompleteEscape", 
+                goals=[BoolGoal(name) for name in ["Forlorn Ruins", "Mount Horu", "Ginso Tree"]],
+                methods=[("and", r(1, 2, 2, 3)), ("or", (lambda: 1) if hard else (lambda: 2))],
                 ),
         ]
         if rando:
@@ -146,10 +154,10 @@ class BingoGenerator(object):
                 IntGoal("HealthCellLocs", r(4, 6, 9, 11)),
                 IntGoal("EnergyCellLocs", r(4, 6, 9, 13)),
                 IntGoal("AbilityCellLocs", r(6, 15, 20, 30)),
-                IntGoal("CollectMapstones", r(3, 5, 7, 9))
+                IntGoal("MapstoneLocs", r(3, 5, 7, 9))
             ]
 
-        if difficulty == "hard":
+        if hard:
             goals += [
                 BoolGoal("CoreSkip"),
                 BoolGoal("FastStompless"),

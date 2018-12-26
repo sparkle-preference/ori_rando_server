@@ -698,7 +698,8 @@ class PlandoBuiler extends React.Component {
 
 
     render() {
-        let {clueOrder, modes, searchStr, seedFlags, authed, last_seed_name} = this.state;
+        let {clueOrder, modes, searchStr, seedFlags, authed} = this.state;
+        let page = encodeURIComponent(window.document.URL.split(".com")[1])
         const pickup_markers = ( <PickupMarkersList markers={getPickupMarkers(this.state, this.selectPickupCurry, searchStr)} />)
         const zone_opts = zones.map(zone => ({label: zone, value: zone}))
         const pickups_opts = picks_by_zone[this.state.zone].map(pick => ({label: pick.name+"("+pick.x + "," + pick.y +")",value: pick}) )
@@ -708,7 +709,7 @@ class PlandoBuiler extends React.Component {
                 <Select styles={select_styles} options={CLUE_ORDERS} onChange={(n) => this.setState({clueOrder: n})} clearable={false} value={clueOrder}/>
             </div>
         ) : null
-        let alert = authed ? null : (<Alert color="danger">Please <a href={`/login?from=plando_edit&plando=${last_seed_name}`}>login</a> to enable saving.</Alert>)
+        let alert = authed ? null : (<Alert color="danger">Please <a href={`/login?redir=${page}`}>login</a> to enable saving.</Alert>)
         let save_if_auth = authed ? ( <Button color="primary" onClick={this.toggleMeta} >Meta/Save</Button> ) : (<Button color="disabled">Meta/Save</Button>)
         let fill_button = this.state.fill_opts.dumb ? (
             <Button color="warning" onClick={this.doFill} >Fill (Dumb)</Button>
