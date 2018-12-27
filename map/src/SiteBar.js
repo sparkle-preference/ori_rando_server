@@ -8,7 +8,9 @@ class SiteBar extends Component {
         super(props);
         let {user} = props;
         this.state = {user: user, settingsOpen: false, quickstartOpen: false, editName: user, loadedNames: false, saveInProgress: false, loader: get_random_loader(), saveStatus: 0}
-        if(user) 
+    }
+    componentDidMount() {
+        if(this.state.user) 
             this.getUsedNames()
     }
     getUsedNames = () => {

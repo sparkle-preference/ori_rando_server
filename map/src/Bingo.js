@@ -26,6 +26,10 @@ const nicePartNames = {
         "swamp": "Thornfelt Swamp",
         "sorrowPass": "Valley of the Wind"
     },
+    "DieTo": {
+        "NoobSpikes": "Sorrow Spike Maze"
+    },
+
     "HuntEnemies": {
         "Upper Ginso Miniboss": "Ginso (Upper)",
         "Lower Ginso Miniboss": "Ginso (Lower)",
@@ -52,6 +56,7 @@ const getCardContent = (card, activePlayer) => {
     let prog = progress[activePlayer] || {completed: false, noData: true};
     let text = name, help = "", extraLines = []
     try {
+        let optionNames = []
         switch(type) {
             case "bool":
                 switch(name) {
@@ -82,90 +87,90 @@ const getCardContent = (card, activePlayer) => {
                 }
             break;
             case "int":
-                let progress =  `(${prog.noData ? '' : Math.min(prog.count, card.target)+"/"}${card.target})`
+                optionNames.push({partName: `(${prog.noData ? '' : Math.min(prog.count, card.target)+"/"}${card.target})`, fake: true})
                 switch(name) {
                     case "CollectMapstones":
-                        text = `Collect mapstones ${progress}`
+                        text = `Collect mapstones`
                         help = "You do not need to turn them in."
                         break;
                     case "ActivateMaps":
-                        text = `Activate map altars ${progress}`
+                        text = `Activate map altars`
                         help = "There are map altars in every zone besides Misty and Ginso"
                         break;
                     case "OpenKSDoors":
-                        text = `Open keystone doors ${progress}`
+                        text = `Open keystone doors`
                         help = "In Open Mode, the already-opened door in Sunken Glades will not count."
                         break;
                     case "OpenEnergyDoors":
-                        text = `Open energy doors ${progress}`
+                        text = `Open energy doors`
                         help = "There are 2 energy doors in Grotto, 2 in Glades, 1 in Grove, and 1 in Sorrow."
                         break;
                     case "BreakFloors":
-                        text = `Break floors or ceilings. ${progress}`
+                        text = `Break floors or ceilings`
                         help = "A floor or ceiling is a horizontal barrier that can be broken with a skill."
                         break;
                     case "BreakWalls":
-                        text = `Break walls ${progress}`
+                        text = `Break walls`
                         help = "A wall is a vertical barrier that can be broken with a skill."
                         break;
                     case "UnspentKeystones":
-                        text = `Get ${progress} keystones in your inventory`
+                        text = `Keystones in inventory`
                         help = "Keyduping is allowed, and you can spend your keys after completing this goal."
                         break;
                     case "BreakPlants":
-                        text = `Break plants ${progress}`
+                        text = `Break plants`
                         help = "Plants are the large blue bulbs that can only be broken with Charge Flame, Grenade, or Charge Dash"
                         break;
                     case "TotalPickups":
-                        text = `Collect pickups ${progress}`
+                        text = `Collect pickups`
                         help = "This includes petrified plants, mapstone turnins, world events, and horu rooms."
                         break;
                     case "UnderwaterPickups":
-                        text = `Collect underwater pickups ${progress}`
+                        text = `Collect underwater pickups`
                         help = "Pickups are considered underwater if they are submerged or in an area only reachable by swimming."
                         break;
                     case "HealthCells":
-                        text = `Collect Health Cells ${progress}`
+                        text = `Collect Health Cells`
                         help = "Any bonus health cells you spawn with will not count."
                         break;
                     case "EnergyCells":
-                        text = `Collect Energy Cells ${progress}`
+                        text = `Collect Energy Cells`
                         help = "Any bonus energy cells you spawn with will not count."
                         break;
                     case "AbilityCells":
-                        text = `Collect Ability Cells ${progress}`
+                        text = `Collect Ability Cells`
                         help = "Any bonus ability cells you spawn with will not count."
                         break;
                     case "HealthCellLocs":
-                        text = `Get pickups from Health Cells ${progress}`
+                        text = `Get pickups from Health Cells`
                         help = "Collect pickups from this many vanilla health cell locations."
                         break;
                     case "EnergyCellLocs":
-                        text = `Get pickups from Energy Cells ${progress}`
+                        text = `Get pickups from Energy Cells`
                         help = "Collect pickups from this many vanilla energy cell locations."
                         break;
                     case "AbilityCellLocs":
-                        text = `Get pickups from Ability Cells ${progress}`
+                        text = `Get pickups from Ability Cells`
                         help = "Collect pickups from this many vanilla ability cell locations."
                         break;
                     case "MapstoneLocs":
-                        text = `Get pickups from Mapstones ${progress}`
+                        text = `Get pickups from Mapstones`
                         help = "Collect pickups from this many vanilla mapstone locations."
                         break;
                     case "LightLanterns":
-                        text = `Use Grenade to light Lanterns ${progress}`
+                        text = `Light Lanterns`
                         help = "The lanterns in the pre-dash area of Blackroot Burrows do not count."
                         break;
                     case "SpendPoints":
-                        text = `Spend Ability Points ${progress}`
+                        text = `Spend Ability Points`
                         help = "What you spend them on is up to you."
                         break;
                     case "GainExperience":
-                        text = `Gain spirit light ${progress}`
+                        text = `Gain spirit light`
                         help = "bonus experience gained from the Spirit Light Efficiency ability counts."
                         break;
                     case "KillEnemies":
-                        text = `Kill enemies ${progress}`
+                        text = `Kill enemies`
                         help = "Large swarms count as 3 enemies (the initial swarm and the first split)."
                         break;
                     default:
@@ -174,7 +179,6 @@ const getCardContent = (card, activePlayer) => {
             break;
             case "multi":
                 let infix = "", suffix = ":"
-                let optionNames = []
                 if(card.parts)
                 {
                     if(nicePartNames.hasOwnProperty(name))
@@ -185,14 +189,17 @@ const getCardContent = (card, activePlayer) => {
                 let plural = card.parts && card.parts.length > 1
                 switch(card.method) {
                     case "and":
-                        infix = card.parts.length > 1 ? ( card.parts.length > 2 ? "ALL of these " : "BOTH of these ") : "this "
+                        infix = card.parts.length > 1 ? ( card.parts.length > 2 ? "THESE " : "BOTH ") : "this "
                         break;
                     case "or":
-                        infix = card.parts.length > 1 ? ( card.parts.length > 2 ? "ANY of these " : "EITHER of these ") : "this "
+                        infix = card.parts.length > 1 ? ( card.parts.length > 2 ? "ANY " : "EITHER ") : "this "
+                        if(card.parts.length === 2)
+                            plural = false;
                         break;
                     case "count":
-                        suffix = ` (${prog.noData ? '' : Math.min(prog.count, card.target)+"/"}${card.target})`
+                        optionNames.push({partName: `(${prog.noData ? '' : Math.min(prog.count, card.target)+"/"}${card.target})`, fake: true})
                         plural = card.target > 1;
+                        suffix=""
                         break;
                     default:
                         break;
@@ -215,7 +222,7 @@ const getCardContent = (card, activePlayer) => {
                     break;
                     case "EnterArea":
                         text = `Enter ${infix}area${s+suffix}`
-                        help = "Entering via warps or teleporters is allowed (but currently bugged)"
+                        help = "Entering via warps or teleporters is allowed"
                     break;
                     case "GetItemAtLoc":
                         text = `Get ${infix}pickup${s+suffix}`
@@ -243,30 +250,42 @@ const getCardContent = (card, activePlayer) => {
                     case "HuntEnemies":
                         text = `Defeat ${infix}Miniboss${es+suffix}`
                         if(card.method === "count")
-                            help = "The minibosses are: the Fronkey Fight (don't skip it!), the Lost Grove fight room, the Grotto miniboss, the Misty miniboss, the two Ginso minibosses, and the Horu final Miniboss"
+                            help = "The minibosses are: the Fronkey Fight (don't skip it!), the Lost Grove fight room, the Grotto miniboss, the Misty miniboss, the two Ginso minibosses, the Rhino below the stomp tree, and the Horu final Miniboss"
                         else
-                            help = "A miniboss is defeated when all the enemies involved are killed."
+                            help = "A miniboss encounter is defeated when all the enemies involved are killed. In most cases, a purple door will open."
+                    break;
+                    case "VanillaEventLocs":
+                        text = `Visit ${infix}event location${s+suffix}`
+                        help = "The event locations are where the 3 dungeon keys and Clean Water, Wind Restored, and Warmth Returned are obtained in vanilla"
+                    break;
+                    case "DieTo":
+                        text = `Die to ${infix}thing${s+suffix}`
+                        help = "Saving to avoid losing your pickups is recommended"
                     break;
                     default:
                         break;
                     }
-                extraLines = optionNames.map(({partName, niceName}) =>
-                {
-                    niceName = niceName || partName
-                    let lineCompleted = prog.hasOwnProperty("completedParts") && prog.completedParts.includes(partName)
-                    let styles = {};
-                    if(lineCompleted) {
-                        if(prog.completed) 
-                            styles.background = "#8f8"
-                        else
-                            styles.background = "#cfc"
-                    }
-                    return <div className="w-100" style={styles}>{niceName}</div>
-                })
                 break;
             default:
                 break;
         }
+        extraLines = optionNames.map(({partName, niceName, fake}) =>
+        {
+            fake = fake || false
+            niceName = niceName || partName
+            let styles = {};
+            if(!fake)
+                {
+                let lineCompleted = prog.hasOwnProperty("completedParts") && prog.completedParts.includes(partName)
+                if(lineCompleted) {
+                    if(prog.completed) 
+                        styles.background = "#8f8"
+                    else
+                        styles.background = "#cfc"
+                }
+            }
+            return <div className="w-100" style={styles}>{niceName}</div>
+        })
         let i = 0;
         text = [text].concat(extraLines).map(t => (<div className="w-100" key={`card-line-${i++}`}>{t}</div>))
     }
@@ -298,8 +317,8 @@ const BingoCard = ({text, players, tinted, help}) => {
         cardStyles.background = "#cfc"
     return (
         <Card style={cardStyles}>
-                <CardBody style={{fontSize: "1.3vh",}} className={className}>
-                            {text}
+                <CardBody style={{fontSize: "1.5vh",}} className={className}>
+                    <b>{text}</b>
                 </CardBody>
                 <CardFooter className="p-0 text-center">
                 {helpLink}
@@ -369,7 +388,7 @@ class BingoBoard extends Component {
 
 }
 
-const PlayerList = ({playerData, bingos, activePlayer}) => {
+const PlayerList = ({playerData, bingos, activePlayer, onClickName}) => {
     let players = Object.keys(playerData).map(p => {
         let number = (bingos[p] && bingos[p].length) || 0
         let text = (<span>{playerData[p].name} ({number})</span>) 
@@ -378,10 +397,10 @@ const PlayerList = ({playerData, bingos, activePlayer}) => {
         return [number, (
             <Row key={`player-list-${p}`} className="pl-3 text-center pt-1">
                 <Col className="p-0 pl-1" xs="auto">
-                    {make_icons([p])}
+                    <Cent>{make_icons([p])}</Cent>
                 </Col>
                 <Col className="p-0 pr-1" xs="auto">
-                    {text}
+                    <Button color="link" onClick={onClickName(p)}>{text}</Button>
                 </Col>
             </Row>
         )]
@@ -401,10 +420,10 @@ export default class Bingo extends React.Component {
     constructor(props) {
         super(props);
         let url = new URL(window.document.location.href);
+        let view_only = url.href.includes("bingo/spectate")
         let gameId = parseInt(url.searchParams.get("game_id") || -1, 10);
         this.state = {cards: [], haveGame: false, creatingGame: false, createModalOpen: true, playerData: {}, activePlayer: 1, showInfo: false, bingos: {}, user: get_param("user"), loading: true,
-                      fails: 0, gameId: gameId, startSkills: 3, startCells: 4, startMisc: "MU|TP/Swamp/TP/Valley", start_with: "", difficulty: "normal", isRandoBingo: false, randoGameId: -1};
-
+                      fails: 0, gameId: gameId, startSkills: 3, startCells: 4, startMisc: "MU|TP/Swamp/TP/Valley", start_with: "", difficulty: "normal", isRandoBingo: false, randoGameId: -1, view_only: view_only};
         if(gameId > 0)
         {
             let url = `/bingo/game/${gameId}/fetch`
@@ -456,6 +475,9 @@ export default class Bingo extends React.Component {
             let res = JSON.parse(responseText)
             this.updatePlayerProgress(res.playerData)
         }
+    }
+    onClickName = (player) => () => {
+        this.setState({activePlayer: player})
     }
     createGame = () => {
         let {isRandoBingo, randoGameId, startSkills, startCells, startMisc, showInfo, difficulty} = this.state;
@@ -552,6 +574,9 @@ export default class Bingo extends React.Component {
     toggleCreate = () => this.setState({createModalOpen: !this.state.createModalOpen})
 
     render = () => {
+        if(this.state.view_only)
+            return this.renderSpectate()
+        
         let {activePlayer, playerData, startWith, cards, haveGame, bingos, gameId, user, dispDiff} = this.state
         let headerText = haveGame && dispDiff ? `Bingo Game ${gameId} (${dispDiff})` : "Bingo!"
         let subheader = (haveGame && startWith !== "") ? (
@@ -564,7 +589,7 @@ export default class Bingo extends React.Component {
         let bingoContent = haveGame ? (
             <Row className="align-items-center">
                 <Col><BingoBoard cards={cards} activePlayer={activePlayer}/></Col>
-                <Col><PlayerList playerData={playerData} bingos={bingos} activePlayer={activePlayer}/></Col>
+                <Col><PlayerList playerData={playerData} bingos={bingos} activePlayer={activePlayer} onClickName={this.onClickName}/></Col>
             </Row>
             ) : null
         return (
@@ -605,6 +630,41 @@ export default class Bingo extends React.Component {
                         </Row>
                     </Col>
                 </Row>
+                {bingoContent}
+                <Row className="align-items-center">
+                    <small> spectator link: {window.document.location.href.replace("board", "spectate")}</small>
+                </Row>
+            </Container>
+        )
+    }
+    renderSpectate = () => {
+        let {activePlayer, playerData, startWith, cards, haveGame, bingos, dispDiff, gameId} = this.state
+        let headerText = haveGame && dispDiff ? `Bingo Game ${gameId} (${dispDiff})` : "Game not found"
+        let subheader = (haveGame && startWith !== "") ? (
+            <Row>
+                <Col>
+                    <Cent><h6 style={textStyle}>{startWith}</h6></Cent>
+                </Col>
+            </Row>
+        ) : null
+        let bingoContent = haveGame ? (
+            <Row className="align-items-center">
+                <Col><BingoBoard cards={cards} activePlayer={activePlayer}/></Col>
+                <Col><PlayerList playerData={playerData} bingos={bingos} activePlayer={activePlayer} onClickName={this.onClickName}/></Col>
+            </Row>
+            ) : null
+        return (
+            <Container className="pl-4 pr-4 pb-4 pt-2 mt-2 w-100">
+                <Helmet>
+                    <style>{'body { background-color: white}'}</style>
+                </Helmet>
+                <NotificationContainer/>
+                <Row className="p-1">
+                    <Col>
+                        <Cent><h3 style={textStyle}>{headerText}</h3></Cent>
+                    </Col>
+                </Row>
+                {subheader}
                 {bingoContent}
             </Container>
         )

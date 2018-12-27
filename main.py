@@ -1008,6 +1008,7 @@ app = WSGIApplication(routes=[
 
     # misc / top level endpoints
     Route('/bingo/board', handler=BingoBoard, name="bingo-board", strict_slash=True),
+    Route('/bingo/spectate', handler=BingoBoard, name="bingo-board-spectate", strict_slash=True),
     Route('/bingo/game/<game_id>/fetch', handler=BingoGetGame, name="bingo-get-game", strict_slash=True),
     Route('/bingo/game/<game_id>/add/<player_id>', handler=BingoAddPlayer, name="bingo-add-player", strict_slash=True),
     Route('/bingo/new', handler=BingoCreate, name="bingo-create-game", strict_slash=True),

@@ -71,8 +71,6 @@ class BingoGenerator(object):
         goals = [
             BoolGoal("DrainSwamp"),
             BoolGoal("WilhelmScream"),
-            IntGoal("CollectMapstones", r(3, 5, 7, 9)),
-            IntGoal("ActivateMaps", r(3, 5, 7, 9)) if rando else IntGoal("ActivateMaps", r(2, 4, 6, 9)),
             IntGoal("OpenKSDoors", r(3, 4, 8, 11)),
             IntGoal("OpenEnergyDoors", r(3, 4, 5, 6)),
             IntGoal("BreakFloors", r(4, 10, 25, 42)),
@@ -81,9 +79,6 @@ class BingoGenerator(object):
             IntGoal("BreakPlants", r(5, 10, 15, 21)),
             IntGoal("TotalPickups", r(60, 100, 140, 180)) if rando else IntGoal("TotalPickups", r(50, 70, 120, 180)),
             IntGoal("UnderwaterPickups", r(2, 6, 10, 16)),
-            IntGoal("HealthCells", r(4, 6, 9, 11)),
-            IntGoal("EnergyCells", r(4, 6, 9, 13)),
-            IntGoal("AbilityCells", r(6, 15, 20, 30)),
             IntGoal("LightLanterns", r(4, 6, 10, 14)), 
             IntGoal("SpendPoints", r(15, 25, 30, 35)),
             IntGoal("GainExperience", r(8, 10, 16, 20, scalar=500)),  # todo: see if these suck or not
@@ -102,12 +97,6 @@ class BingoGenerator(object):
             GoalGroup(
                 name="EnterArea", 
                 goals=[BoolGoal(name) for name in ["Lost Grove", "Misty Woods", "Sorrow Pass", "Forlorn Ruins", "Mount Horu", "Ginso Tree"]],
-                methods=[("or", (lambda: 3) if easy else (lambda: 2)), ("and", r(1, 2, 2, 3))],
-                maxRepeats=2
-                ),
-            GoalGroup(
-                name="GetEvent",
-                goals=[BoolGoal(name) for name in ["Water Vein", "Gumon Seal", "Sunstone", "Clean Water", "Wind Restored", "Warmth Returned"]],
                 methods=[("or", (lambda: 3) if easy else (lambda: 2)), ("and", r(1, 2, 2, 3))],
                 maxRepeats=2
                 ),
@@ -148,15 +137,46 @@ class BingoGenerator(object):
                 goals=[BoolGoal(name) for name in ["Forlorn Ruins", "Mount Horu", "Ginso Tree"]],
                 methods=[("and", r(1, 2, 2, 3)), ("or", (lambda: 1) if hard else (lambda: 2))],
                 ),
+            GoalGroup(
+                name="DieTo",
+                goals=[BoolGoal(name) for name in ["Sunstone Lightning", "Lost Grove Laser", "Forlorn Void", "Stomp Rhino", "Horu Fields Acid", "Doorwarp Lava", "Ginso Escape Fronkey", "Blackroot Teleporter Crushers", "NoobSpikes"]],
+                methods=[("and", r(1, 2, 2, 3)), ("and_", r(1, 2, 2, 3)), ("or", (lambda: 2))],
+                maxRepeats=3
+            )
         ]
         if rando:
             goals += [
                 IntGoal("HealthCellLocs", r(4, 6, 9, 11)),
                 IntGoal("EnergyCellLocs", r(4, 6, 9, 13)),
                 IntGoal("AbilityCellLocs", r(6, 15, 20, 30)),
-                IntGoal("MapstoneLocs", r(3, 5, 7, 9))
+                IntGoal("MapstoneLocs", r(3, 5, 7, 9)),
+                GoalGroup(
+                    name="VanillaEventLocs",
+                    goals=[BoolGoal(name) for name in ["Water Vein", "Gumon Seal", "Sunstone", "Clean Water", "Wind Restored", "Warmth Returned"]],
+                    methods=[("or", (lambda: 3) if easy else (lambda: 2)), ("and", r(1, 2, 2, 3))],
+                    maxRepeats=2
+                    ),
+                GoalGroup(
+                    name="GetEvent",
+                    goals=[BoolGoal(name) for name in ["Water Vein", "Gumon Seal", "Sunstone"]],
+                    methods=[("or", (lambda: 2)), ("and", r(1, 2, 2, 3))],
+                    maxRepeats=1
+                ),
             ]
-
+        else:
+            goals += [
+                IntGoal("CollectMapstones", r(3, 5, 7, 9)),
+                IntGoal("ActivateMaps", r(3, 5, 7, 9)),
+                IntGoal("HealthCells", r(4, 6, 9, 11)),
+                IntGoal("EnergyCells", r(4, 6, 9, 13)),
+                IntGoal("AbilityCells", r(6, 15, 20, 30)),
+                GoalGroup(
+                    name="GetEvent",
+                    goals=[BoolGoal(name) for name in ["Water Vein", "Gumon Seal", "Sunstone", "Clean Water", "Wind Restored", "Warmth Returned"]],
+                    methods=[("or", (lambda: 3) if easy else (lambda: 2)), ("and", r(1, 2, 2, 3))],
+                    maxRepeats=2
+                ),
+            ]
         if hard:
             goals += [
                 BoolGoal("CoreSkip"),
@@ -179,6 +199,7 @@ class BingoGenerator(object):
                 continue
             if "method" in cardData:
                 banned_methods.append(cardData["method"])
+                cardData["method"] = cardData["method"].replace("_", "")
             if "parts" in cardData:
                 banned_subgoals += [part["name"] for part in cardData["parts"]]
             output.append(cardData)
