@@ -6,8 +6,8 @@ import {Cent, doNetRequest, get_random_loader} from './common.js';
 class SiteBar extends Component {
     constructor(props) {
         super(props);
-        let {user} = props;
-        this.state = {user: user, settingsOpen: false, quickstartOpen: false, editName: user, loadedNames: false, saveInProgress: false, loader: get_random_loader(), saveStatus: 0}
+        let {user, dark} = props;
+        this.state = {user: user, dark: dark, settingsOpen: false, quickstartOpen: false, editName: user, loadedNames: false, saveInProgress: false, loader: get_random_loader(), saveStatus: 0}
     }
     componentDidMount() {
         if(this.state.user) 
@@ -79,15 +79,6 @@ class SiteBar extends Component {
                                 {feedback}
                             </Col>
                         </Row>
-                        {/*
-                        <Row className="p-1">
-                            <Col xs="4" className="text-center p-1 border">
-                                <Cent>color</Cent>
-                            </Col><Col xs="4">
-                                <Input type="text" value={this.state.userColor}  onChange={(e) => this.setState({userColor: e.target.value})}/> 
-                            </Col>
-                        </Row>
-                        */}
                     </Container>
                 </ModalBody>
                 <ModalFooter>
@@ -96,20 +87,45 @@ class SiteBar extends Component {
             </Modal>
         )
     }
- 
+    themeToggle = () => {
+        let {user, dark} = this.state;
+        let url = new URL(window.document.URL)
+        let page = encodeURIComponent(url.pathname + url.search)
+        if(user) {
+            let redirTarget = new URL(url.protocol + "//" + url.host + `/theme/toggle`)
+            redirTarget.searchParams.append("redir", page)
+            window.location.replace(redirTarget.href)
+        } else {
+            if(dark && url.searchParams.has("dark"))
+                url.searchParams.delete("dark")
+            else 
+                url.searchParams.append("dark", 1)
+            window.location.replace(url.href)
+        }
+    }
 
     render() {
-        let {user} = this.state;
-        let page = encodeURIComponent(window.document.URL.split(".com")[1])
+        let {user, dark} = this.state;
+        let url = new URL(window.document.URL)
+        let page = encodeURIComponent(url.pathname + url.search)
+        let xMode = dark ? "Light Mode" : "Dark Mode"
         let logonoff = user ? [
             (<DropdownItem key="username" disabled>(Logged in as {user}) </DropdownItem>),
-            (<DropdownItem key="settings" onClick={() => this.setState({settingsOpen: true})}> Settings </DropdownItem>),
+            (<DropdownItem key="settings" onClick={() => this.setState({settingsOpen: true})}> Rename </DropdownItem>),
             (<DropdownItem key="logout" href={"/logout?redir="+page}>  Logout </DropdownItem>),
-        ] : (<DropdownItem href={"/login?redir="+page}> Login </DropdownItem>)
+        ] : [
+            (<DropdownItem href={"/login?redir="+page}> Login </DropdownItem>)
+        ]
         let myseeds = user ? (<DropdownItem href={"/plando/"+ user}> {user}'s seeds </DropdownItem>) : null 
         let settings = this.settingsModal()
+        let dropdownStyle = {}, navClass = "border border-dark p-2"
+        if(dark)
+        {
+            dropdownStyle.backgroundColor = "#666"
+            navClass = "border border-light p-2"
+        }
         return (
-            <Navbar className="border border-dark p-2" expand="md">
+            <Navbar className={navClass} expand="md">
             {settings}
             <NavbarBrand href="/">Ori Rando</NavbarBrand>
                 <Nav className="ml-auto" navbar>
@@ -123,9 +139,12 @@ class SiteBar extends Component {
                     <DropdownToggle nav caret>
                     Downloads
                     </DropdownToggle>
-                    <DropdownMenu right>
+                    <DropdownMenu style={dropdownStyle} right>
+                        <DropdownItem href="/vanilla">
+                            Vanilla Seed
+                        </DropdownItem>
                         <DropdownItem href="/dll">
-                            Rando dll 
+                            Rando dll
                         </DropdownItem>
                         <DropdownItem href="/tracker">
                             Rando Tracker
@@ -139,7 +158,7 @@ class SiteBar extends Component {
                 <DropdownToggle nav caret>
                 Bingo
                 </DropdownToggle>
-                <DropdownMenu right>
+                <DropdownMenu style={dropdownStyle} right>
                     <DropdownItem href="/dll/bingo">
                         Bingo dll (Works with rando)
                     </DropdownItem>
@@ -153,17 +172,18 @@ class SiteBar extends Component {
                     <DropdownToggle nav caret>
                     Misc
                     </DropdownToggle>
-                    <DropdownMenu right>
+                    <DropdownMenu style={dropdownStyle} right>
                     <DropdownItem target="_blank" href="https://goo.gl/csgRUw">
                         Patch Notes
                     </DropdownItem>
                     <DropdownItem href="/rebinds">
-                        Ori Keyboard Rebinding Helper
+                        Ori Keyboard Rebinding Editor
                     </DropdownItem>
-                    <DropdownItem href="/vanilla">
-                        Vanilla Seed
-                    </DropdownItem>
+                    <DropdownItem onClick={this.themeToggle}> 
+                        {xMode} 
+                    </DropdownItem>,
                      {logonoff}
+
                    </DropdownMenu>
                 </UncontrolledDropdown>
                     
@@ -171,7 +191,7 @@ class SiteBar extends Component {
                     <DropdownToggle nav caret>
                     Plando
                     </DropdownToggle>
-                    <DropdownMenu right>
+                    <DropdownMenu style={dropdownStyle} right>
                     <DropdownItem href="/plando/newSeed/edit">
                         Open Plando Editor
                     </DropdownItem>

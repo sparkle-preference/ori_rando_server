@@ -7,7 +7,7 @@ import 'react-notifications/lib/notifications.css';
 import './index.css';
 
 import {getHelpContent, HelpBox} from "./helpbox.js"
-import {get_param, presets, get_preset, player_icons, doNetRequest, get_random_loader, PickupSelect} from './common.js';
+import {get_param, presets, get_preset, get_flag, player_icons, doNetRequest, get_random_loader, PickupSelect} from './common.js';
 import SiteBar from "./SiteBar.js"
 
 const dev = window.document.URL.includes("devshell")
@@ -606,6 +606,7 @@ export default class MainPage extends React.Component {
         let paramId = url.searchParams.get("param_id");
         let quickstartOpen = window.document.location.href.includes("/quickstart");
         let gameId = parseInt(url.searchParams.get("game_id") || -1, 10);
+        let dark = get_flag("dark") || url.searchParams.has("dark")
         let seedTabExists = (paramId !== null);
         if(seedTabExists)
             doNetRequest("/generator/metadata/"+paramId,this.acceptMetadata);
@@ -614,7 +615,7 @@ export default class MainPage extends React.Component {
                      paths: presets["standard"], keyMode: "Clues", oldKeyMode: "Clues", pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null), goalModes: ["ForceTrees"],
                      customSyncId: "", seed: "", fillAlg: "Balanced", shared: ["Skills", "Teleporters", "World Events"], hints: true, helpcat: "", helpopt: "", quickstartOpen: quickstartOpen,
                      syncId: "", expPool: 10000, lastHelp: new Date(), seedIsGenerating: false, cellFreq: cellFreqPresets("standard"), fragCount: 30, fragReq: 20, relicCount: 8, loader: get_random_loader(),
-                     paramId: paramId, seedTabExists: seedTabExists, reopenUrl: "", teamStr: "", inputFlagLine: "", fass: {},  goalModesOpen: false, spoilers: true};
+                     paramId: paramId, seedTabExists: seedTabExists, reopenUrl: "", teamStr: "", inputFlagLine: "", fass: {},  goalModesOpen: false, spoilers: true, dark: dark};
     }
         
     closeQuickstart = () => {
@@ -728,7 +729,7 @@ export default class MainPage extends React.Component {
                  <Col>
                      {modal}
                     <NotificationContainer/>
-                    <SiteBar user={this.state.user}/>
+                    <SiteBar dark={this.state.dark} user={this.state.user}/>
                 </Col>
             </Row>
             <Row className="p-1">

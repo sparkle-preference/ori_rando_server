@@ -6,6 +6,7 @@ from collections import Counter
 
 # web imports
 import logging as log
+from urllib import unquote
 from webapp2_extras.routes import PathPrefixRoute, RedirectRoute as Route
 from test import TestRunner
 from webapp2 import WSGIApplication, RequestHandler, redirect, uri_for
@@ -543,12 +544,19 @@ class PlandoEdit(RequestHandler):
                 template_values['seed_data'] = seed.get_plando_json()
         self.response.write(template.render(path, template_values))
 
-
+class ThemeToggle(RequestHandler):
+    def get(self):
+        target_url = unquote(paramVal(self, "redir")).decode('utf8') or "/"
+        user = User.get()
+        if user:
+            user.dark_theme = not user.dark_theme
+            user.put()
+        self.redirect(target_url)
+    
 class HandleLogin(RequestHandler):
     def get(self):
         user = User.get()
         target_url = paramVal(self, "redir") or "/"
-        print target_url
         if user:
             self.redirect(target_url)
         else:
@@ -559,7 +567,6 @@ class HandleLogout(RequestHandler):
     def get(self):
         user = User.get()
         target_url = paramVal(self, "redir") or "/"
-        print target_url
         if user:
             self.redirect(User.logout_url(target_url))
         else:
@@ -676,6 +683,7 @@ class ReactLanding(RequestHandler):
         user = User.get()
         if user:
             template_values['user'] = user.name
+            template_values['dark'] = user.dark_theme
         self.response
         self.response.write(template.render(path, template_values))
 
@@ -820,6 +828,7 @@ class BingoBoard(RequestHandler):
         user = User.get()
         if user:
             template_values['user'] = user.name
+            template_values['dark'] = user.dark_theme
         self.response.write(template.render(path, template_values))
 
 class BingoCreate(RequestHandler):
@@ -916,9 +925,9 @@ class BingoAddPlayer(RequestHandler):
         res = {}
         game = Game.with_id(game_id)
         if not game:
-            self.response.status = 404
-            return
+            return resp_error(self, 404, "Game not found", "text/plain")
         if player_id in game.player_nums() and not game.params:
+            return resp_error(self, 409, "Player id already in use!", "text/plain")
             self.response.status = 409
             return
         p = game.player(player_id)
@@ -941,9 +950,12 @@ class BingoGetGame(RequestHandler):
         res = {}
         game = Game.with_id(game_id)
         if not game:
-            self.response.status = 404
-            return
+            return resp_error(self, 404, "Game not found", "text/plain")
+            
         res = game.bingo
+        if not res:
+            return resp_error(self, 404, "Game found but had no bingo data...", "text/plain")
+
         res["playerData"] = {}
         for player in game.get_players():
             pid = player.pid()
@@ -957,8 +969,7 @@ class HandleBingoUpdate(RequestHandler):
     def post(self, game_id, player_id):
         game = Game.with_id(game_id)
         if not game:
-            self.response.status = 404
-            return
+            return resp_error(self, 404)
         p = game.player(player_id)
         p.bingo_data = json.loads(self.request.POST["bingoData"])
         p.put()
@@ -1032,7 +1043,7 @@ app = WSGIApplication(routes=[
     Route('/dll/bingo', redirect_to="https://github.com/turntekGodhead/OriDERandomizer/raw/master/Assembly-CSharp.dll"),
     Route('/tracker', redirect_to="https://github.com/turntekGodhead/OriDETracker/raw/master/OriDETracker/bin/Latest.zip"),
     Route('/rename/<name>', handler=UserRename, strict_slash=True, name="user-rename"),
-
+    Route('/theme/toggle', handler=ThemeToggle, name="theme-toggle"),
     # netcode endpoints
     PathPrefixRoute('/netcode/game/<game_id:\d+>/player/<player_id:[^/]+>', [
         Route('/found/<coords>/<kind>/<id:.*>', handler=FoundPickup, name="netcode-player-found-pickup"),
