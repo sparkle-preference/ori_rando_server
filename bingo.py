@@ -234,8 +234,10 @@ class BingoCreate(RequestHandler):
     def get(self):
         self.response.headers['Content-Type'] = 'application/json'
         difficulty = param_val(self, "difficulty") or "normal"
-        skills = int(param_val(self, "skills") or 3)
-        cells = int(param_val(self, "cells") or 4)
+        skills = param_val(self, "skills")
+        cells = param_val(self, "cells")
+        skills = int(skills) if skills and skills != "NaN" else 3
+        cells = int(cells) if cells and cells != "NaN" else 3
         show_info = param_flag(self, "showInfo")
         misc_raw = param_val(self, "misc")
         misc_pickup = Pickup.from_str(misc_raw) if misc_raw and misc_raw != "NO|1" else None
@@ -320,9 +322,9 @@ class AddBingoToGame(RequestHandler):
             'teams':      {},
         }
         game.bingo = res
-        for pkey in game.players:
-            game.remove_player(pkey.id())
         game.put()
+        for p in game.get_players():
+            game.remove_player(p.key.id())
         self.response.write(json.dumps(res))
 
 class BingoAddPlayer(RequestHandler):
