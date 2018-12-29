@@ -45,6 +45,7 @@ class User(ndb.Model):
     color = ndb.StringProperty()
     games = ndb.KeyProperty("Game", repeated=True)
     dark_theme = ndb.BooleanProperty(default=False)
+    teamname = ndb.StringProperty()
 
     @staticmethod
     def login_url(redirect_after):
@@ -82,6 +83,7 @@ class User(ndb.Model):
     def create(app_user):
         user = User(id=app_user.user_id())
         user.name = app_user.email().partition("@")[0]
+        user.teamname = "%s's team" % user.name
         key = user.put()
         for old in Seed.query(Seed.author == user.name).fetch():
             new = Seed(
@@ -222,6 +224,16 @@ class Player(ndb.Model):
             if u and u.name:
                 return u.name
         return "Player %s" % self.pid()
+
+    def teamname(self):
+        if self.user:
+            u = self.user.get()
+            if u:
+                if u.teamname:
+                    return u.teamname
+                elif u.name:
+                    return "%s's team" % u.name
+        return "Player %s's team" % self.pid()
 
     def pid(self):
         return int(self.key.id().partition(".")[2])

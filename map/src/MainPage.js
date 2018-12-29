@@ -2,18 +2,17 @@ import React from 'react';
 import  {DropdownToggle, DropdownMenu, Dropdown, DropdownItem, Nav, NavLink, NavItem, Collapse,  Input, UncontrolledButtonDropdown, Button, 
         Row, FormFeedback, Col, Container, TabContent, TabPane, Modal, ModalHeader, ModalBody, ModalFooter, Media} from 'reactstrap'
 import {NotificationContainer, NotificationManager} from 'react-notifications';
+import {Helmet} from 'react-helmet';
 
 import 'react-notifications/lib/notifications.css';
 import './index.css';
 
 import {getHelpContent, HelpBox} from "./helpbox.js"
-import {get_param, presets, get_preset, get_flag, player_icons, doNetRequest, get_random_loader, PickupSelect} from './common.js';
+import {get_param, presets, get_preset, get_flag, player_icons, doNetRequest, get_random_loader, PickupSelect, Cent} from './common.js';
 import SiteBar from "./SiteBar.js"
 
 const dev = window.document.URL.includes("devshell")
 const keymode_options = ["None", "Shards", "Limitkeys", "Clues", "Free"];
-
-const textStyle = {color: "black", textAlign: "center"}
 
 const variations = {
     ForceTrees: "Force Trees",
@@ -52,7 +51,7 @@ export default class MainPage extends React.Component {
     help = (category, option) => () => this.setState({helpcat: category, helpopt: option, helpParams: getHelpContent(category, option)})
     
     
-    getAdvancedTab = () => {
+    getAdvancedTab = ({inputStyle, menuStyle}) => {
         let [leftCol, rightCol] = [4, 7]
         let pathDiffOptions = ["Easy", "Normal", "Hard"].map(mode => (
             <DropdownItem active={mode===this.state.pathDiff} onClick={()=> this.setState({pathDiff: mode})}>{mode}</DropdownItem>
@@ -89,7 +88,7 @@ export default class MainPage extends React.Component {
                         <Col xs={leftCol} className="text-center pt-1 border">
                             <span class="align-middle">Exp Pool</span>
                         </Col><Col xs={rightCol}>
-                            <Input type="number" value={this.state.expPool} invalid={this.state.expPool < 100} onChange={(e) => this.setState({expPool: parseInt(e.target.value, 10)})}/> 
+                            <Input style={inputStyle} type="number" value={this.state.expPool} invalid={this.state.expPool < 100} onChange={(e) => this.setState({expPool: parseInt(e.target.value, 10)})}/> 
                             <FormFeedback tooltip>Experience Pool must be at least 100</FormFeedback>
                         </Col>
                     </Row>
@@ -97,7 +96,7 @@ export default class MainPage extends React.Component {
                         <Col xs={leftCol} className="text-center pt-1 border">
                             <span class="align-middle">Sense Triggers</span>
                         </Col><Col xs={rightCol}>
-                            <Input type="text" value={this.state.senseData}  onChange={(e) => this.setState({senseData: e.target.value})}/> 
+                            <Input style={inputStyle} type="text" value={this.state.senseData}  onChange={(e) => this.setState({senseData: e.target.value})}/> 
                         </Col>
                     </Row>
                     <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "fillAlg")} className="p-1 justify-content-center">
@@ -106,7 +105,7 @@ export default class MainPage extends React.Component {
                         </Col><Col xs={rightCol}>
                             <UncontrolledButtonDropdown className="w-100">
                                 <DropdownToggle color="primary" caret block> {this.state.fillAlg} </DropdownToggle>
-                                <DropdownMenu>
+                                <DropdownMenu style={menuStyle}>
                                     <DropdownItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "fillAlgClassic")}  active={"Classic" ===this.state.fillAlg} onClick={()=> this.setState({fillAlg: "Classic"})}>Classic</DropdownItem>
                                     <DropdownItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "fillAlgBalanced")} active={"Balanced"===this.state.fillAlg} onClick={()=> this.setState({fillAlg: "Balanced"})}>Balanced</DropdownItem>
                                 </DropdownMenu>
@@ -120,7 +119,7 @@ export default class MainPage extends React.Component {
                         <Col xs={rightCol}>
                             <UncontrolledButtonDropdown className="w-100">
                                 <DropdownToggle color="primary" caret block> {this.state.pathDiff} </DropdownToggle>
-                                <DropdownMenu> {pathDiffOptions} </DropdownMenu>
+                                <DropdownMenu style={menuStyle}> {pathDiffOptions} </DropdownMenu>
                             </UncontrolledButtonDropdown>
                         </Col>
                     </Row>
@@ -128,7 +127,7 @@ export default class MainPage extends React.Component {
                         <Col xs={leftCol} className="text-center pt-1 border">
                             <span class="align-middle">Forced Cell Frequency</span>
                         </Col><Col xs={rightCol}>
-                            <Input type="number" value={this.state.cellFreq} invalid={this.state.cellFreq < 3} onChange={(e) => this.setState({cellFreq: parseInt(e.target.value, 10)})}/> 
+                            <Input style={inputStyle} type="number" value={this.state.cellFreq} invalid={this.state.cellFreq < 3} onChange={(e) => this.setState({cellFreq: parseInt(e.target.value, 10)})}/> 
                             <FormFeedback tooltip>Forced Cell Frequency must be at least 3</FormFeedback>
                         </Col>
                     </Row>
@@ -138,7 +137,7 @@ export default class MainPage extends React.Component {
                             <Col xs={leftCol} className="text-center pt-1 border">
                                 <span class="align-middle">Relic Count</span>
                             </Col><Col xs={rightCol}>
-                                <Input type="number" value={this.state.relicCount} invalid={this.state.relicCount > 11 || this.state.relicCount < 1} onChange={(e) => this.setState({relicCount: parseInt(e.target.value, 10)})}/> 
+                                <Input style={inputStyle} type="number" value={this.state.relicCount} invalid={this.state.relicCount > 11 || this.state.relicCount < 1} onChange={(e) => this.setState({relicCount: parseInt(e.target.value, 10)})}/> 
                                 <FormFeedback tooltip>Relic count must be greater than 0 and less than 12</FormFeedback>
                             </Col>
                         </Row>
@@ -148,7 +147,7 @@ export default class MainPage extends React.Component {
                             <Col xs={leftCol} className="text-center pt-1 border">
                                 <span class="align-middle">Fragment Count</span>
                             </Col><Col xs={rightCol}>
-                                <Input type="number" value={this.state.fragCount} invalid={this.state.fragCount > 60 || this.state.fragCount < 1} onChange={(e) => this.setState({fragCount: parseInt(e.target.value, 10)})}/> 
+                                <Input style={inputStyle} type="number" value={this.state.fragCount} invalid={this.state.fragCount > 60 || this.state.fragCount < 1} onChange={(e) => this.setState({fragCount: parseInt(e.target.value, 10)})}/> 
                                 <FormFeedback tooltip>Frag Count must be between 1 and 60</FormFeedback>
                             </Col>
                         </Row>
@@ -156,7 +155,7 @@ export default class MainPage extends React.Component {
                             <Col xs={leftCol} className="text-center pt-1 border">
                                 <span class="align-middle">Fragments Required</span>
                             </Col><Col xs={rightCol}>
-                                <Input type="number" value={this.state.fragReq} invalid={this.state.fragCount < this.state.fragReq || this.state.fragReq <= 0} onChange={e => this.setState({fragReq: parseInt(e.target.value, 10)})}/> 
+                                <Input style={inputStyle} type="number" value={this.state.fragReq} invalid={this.state.fragCount < this.state.fragReq || this.state.fragReq <= 0} onChange={e => this.setState({fragReq: parseInt(e.target.value, 10)})}/> 
                                 <FormFeedback tooltip>Fragments Required must be between 0 and Fragment Count ({this.state.fragCount})</FormFeedback>
                             </Col>
                         </Row>
@@ -164,7 +163,7 @@ export default class MainPage extends React.Component {
                 </TabPane>
         )
     }
-    getMultiplayerTab = () => {
+    getMultiplayerTab = ({inputStyle, menuStyle}) => {
         let multiplayerButtons = ["Skills", "Teleporters", "Upgrades", "World Events", "Misc"].map(stype => (
             <Col xs="4" key={`share-${stype}`} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("Shared Item Categories", stype)} className="p-2">
                 <Button block outline={!this.state.shared.includes(stype)} onClick={this.onSType(stype)}>Share {stype}</Button>
@@ -183,7 +182,7 @@ export default class MainPage extends React.Component {
                     <Col xs="4" className="text-center pt-1 border">
                         <span class="align-middle">Players</span>
                     </Col><Col xs="4">
-                        <Input type="number" value={this.state.players} disabled={!this.state.tracking} invalid={!playerNumValid} onChange={(e) => this.setState({players: parseInt(e.target.value, 10)})}/> 
+                        <Input style={inputStyle} type="number" value={this.state.players} disabled={!this.state.tracking} invalid={!playerNumValid} onChange={(e) => this.setState({players: parseInt(e.target.value, 10)})}/> 
                         {playerNumFeedback }
                     </Col>
                 </Row>
@@ -193,7 +192,7 @@ export default class MainPage extends React.Component {
                     </Col><Col xs="4">
                         <UncontrolledButtonDropdown className="w-100" >
                             <DropdownToggle disabled={this.state.players < 2} color={this.state.players > 1 ? "primary" : "secondary"} caret block> {this.state.coopGameMode} </DropdownToggle>
-                            <DropdownMenu>
+                            <DropdownMenu style={menuStyle}>
                                 <DropdownItem active={"Race"===this.state.coopGameMode} onClick={()=> this.setState({coopGameMode: "Race"})}>Race</DropdownItem>
                                 <DropdownItem active={"Co-op"===this.state.coopGameMode} onClick={()=> this.setState({coopGameMode: "Co-op"})}>Co-op</DropdownItem>
                                 <DropdownItem active={"SplitShards"===this.state.coopGameMode} disabled={this.state.keyMode !== "Shards"} onClick={()=> this.setState({coopGameMode: "SplitShards"})}>Split Shards</DropdownItem>
@@ -208,7 +207,7 @@ export default class MainPage extends React.Component {
                         </Col><Col onMouseLeave={this.helpEnter("multiplayerOptions", "syncSeedType")} onMouseEnter={this.helpEnter("multiplayerOptions", this.state.coopGenMode)} xs="4">
                             <UncontrolledButtonDropdown className="w-100">
                                 <DropdownToggle disabled={this.state.players < 2} color={this.state.players > 1 ? "primary" : "secondary"} caret block> {this.state.coopGenMode} </DropdownToggle>
-                                <DropdownMenu>
+                                <DropdownMenu style={menuStyle}>
                                     <DropdownItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "Cloned Seeds")}  active={"Cloned Seeds"===this.state.coopGenMode} onClick={()=> this.setState({coopGenMode: "Cloned Seeds"})}>Cloned Seeds</DropdownItem>
                                     <DropdownItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "Seperate Seeds")}  active={"Seperate Seeds"===this.state.coopGenMode} onClick={()=> this.setState({coopGenMode: "Seperate Seeds"})}>Seperate Seeds</DropdownItem>
                                 </DropdownMenu>
@@ -227,7 +226,7 @@ export default class MainPage extends React.Component {
                         <Col xs="4" className="text-center pt-1 border">
                             <span class="align-middle">SyncId</span>
                         </Col><Col xs="4">
-                            <Input type="number" value={this.state.syncId} invalid={!(this.state.syncId === "" || this.state.syncId > 0)} onChange={(e) => this.setState({syncId: parseInt(e.target.value, 10)})}/>
+                            <Input style={inputStyle} type="number" value={this.state.syncId} invalid={!(this.state.syncId === "" || this.state.syncId > 0)} onChange={(e) => this.setState({syncId: parseInt(e.target.value, 10)})}/>
                             <FormFeedback tooltip>syncId must be positive</FormFeedback>
                         </Col>
                     </Row>
@@ -236,7 +235,7 @@ export default class MainPage extends React.Component {
                             <Col xs="4" className="text-center pt-1 border">
                                 <span class="align-middle">Teams</span>
                             </Col><Col xs="4">
-                                <Input type="text" value={this.state.teamStr} invalid={!this.teamStrValid()} onChange={(e) => this.setState({teamStr: e.target.value})}/>
+                                <Input style={inputStyle} type="text" value={this.state.teamStr} invalid={!this.teamStrValid()} onChange={(e) => this.setState({teamStr: e.target.value})}/>
                                 <FormFeedback tooltip>Team format: 1,2|3,4|5,6. Each player must appear once.</FormFeedback>
                             </Col>
                         </Row>
@@ -350,14 +349,15 @@ export default class MainPage extends React.Component {
 
     updateUrl = () => {
         let {paramId, gameId, seedTabExists, seedIsGenerating} = this.state;
-        let url = window.document.URL.split("?")[0];
+        
+        let url = new URL(window.document.URL);
         if(!seedIsGenerating && seedTabExists)
         {
-            url += `?param_id=${paramId}`;
+            url.searchParams.set("param_id", paramId);
             if(gameId && gameId > 0)
-                url += `&game_id=${gameId}`
+                url.searchParams.set("gameId", gameId);
         }
-        window.history.replaceState('',window.document.title, url);
+        window.history.replaceState('',window.document.title, url.href);
     }
     
     seedBuildCallback = ({status, responseText}) => {
@@ -557,11 +557,11 @@ export default class MainPage extends React.Component {
         )
     }
 
-    getQuickstartModal = () => {
+    getQuickstartModal = ({inputStyle}) => {
         return (
                 <Modal size="lg" isOpen={this.state.quickstartOpen} backdrop={"static"} className={"modal-dialog-centered"} toggle={this.closeQuickstart}>
-                  <ModalHeader toggle={this.closeQuickstart} centered>Welcome to the Ori DE Randomizer!</ModalHeader>
-                  <ModalBody>
+                  <ModalHeader style={inputStyle} toggle={this.closeQuickstart} centered>Welcome to the Ori DE Randomizer!</ModalHeader>
+                  <ModalBody style={inputStyle}>
                       <Container fluid>
                       <Row className="p-1">
                         <span>
@@ -591,7 +591,7 @@ export default class MainPage extends React.Component {
                       </Row>
                     </Container>
                   </ModalBody>
-                  <ModalFooter>
+                  <ModalFooter style={inputStyle}>
                     <Button color="secondary" onClick={this.closeQuickstart}>Close</Button>
                   </ModalFooter>
                 </Modal>
@@ -695,49 +695,58 @@ export default class MainPage extends React.Component {
     }
 
     render = () => {
+        let {pathMode, goalModes, keyMode, helpParams, goalModesOpen, seedTabExists, dark, user, helpcat, activeTab, seed, tracking, seedIsGenerating} = this.state;
+        let pageStyle, styles = {inputStyle: {}, menuStyle: {}}
+        if(dark) {
+            pageStyle = 'body { background-color: #333; color: white }';
+            styles.inputStyle = {'backgroundColor': '#333', 'color': 'white'}
+            styles.menuStyle.backgroundColor = "#666"
+        } else {
+           pageStyle = 'body { background-color: white; color: black }';
+        }  
+
         let pathModeOptions = Object.keys(presets).map(mode => (
-            <DropdownItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("logicModes", mode)} className="text-capitalize" active={mode===this.state.pathMode.toLowerCase()} onClick={this.onMode(mode)}>{mode}</DropdownItem>
+            <DropdownItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("logicModes", mode)} className="text-capitalize" active={mode===pathMode.toLowerCase()} onClick={this.onMode(mode)}>{mode}</DropdownItem>
         ))
         let keyModeOptions = keymode_options.map(mode => (
-            <DropdownItem active={mode===this.state.keyMode} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("keyModes", mode)} onClick={this.onKeyMode(mode)}>{mode}</DropdownItem>
+            <DropdownItem active={mode===keyMode} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("keyModes", mode)} onClick={this.onKeyMode(mode)}>{mode}</DropdownItem>
         ))
-        let goalModeOptions = this.state.goalModes.length === 1 ? ["None", "ForceTrees", "WorldTour", "ForceMaps", "WarmthFrags"].map(mode => (
-            <DropdownItem active={mode===this.state.goalModes[0]} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("goalModes", mode)} onClick={this.onGoalMode(mode)}>{variations[mode] || mode}</DropdownItem>
+        let goalModeOptions = goalModes.length === 1 ? ["None", "ForceTrees", "WorldTour", "ForceMaps", "WarmthFrags"].map(mode => (
+            <DropdownItem active={mode===goalModes[0]} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("goalModes", mode)} onClick={this.onGoalMode(mode)}>{variations[mode] || mode}</DropdownItem>
         )) : null
 
-        let helpParams = this.state.helpParams;
-        helpParams.padding = this.state.goalModesOpen ? "pt-5" : ""
+        helpParams.padding = goalModesOpen ? "pt-5" : ""
 
-        let multiplayerTab = this.getMultiplayerTab()
-        let advancedTab = this.getAdvancedTab()
+        let multiplayerTab = this.getMultiplayerTab(styles)
+        let advancedTab = this.getAdvancedTab(styles)
         let seedTab = this.getSeedTab()
         let variationsTab = this.getVariationsTab()
         let pathsTab = this.getPathsTab()
         
-        let seedNav = this.state.seedTabExists ? (
+        let seedNav = seedTabExists ? (
             <NavItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "seedTab")}>
-                <NavLink active={this.state.activeTab === 'seed'} onClick={this.onTab('seed')}>
+                <NavLink active={activeTab === 'seed'} onClick={this.onTab('seed')}>
                     Seed
                 </NavLink>
             </NavItem>
         ) : null;
-        let modal = this.getQuickstartModal();
-        let goalModeMulti = this.state.goalModes.length > 1;
+        let modal = this.getQuickstartModal(styles);
+        let goalModeMulti = goalModes.length > 1;
+
         return (
          <Container className="pl-4 pr-4 pb-4 pt-2 mt-5">
+            <Helmet>
+                <style type="text/css">{pageStyle}</style>
+            </Helmet>
              <Row className="justify-content-center">
                  <Col>
                      {modal}
                     <NotificationContainer/>
-                    <SiteBar dark={this.state.dark} user={this.state.user}/>
+                    <SiteBar dark={dark} user={user}/>
                 </Col>
             </Row>
             <Row className="p-1">
-                <Col>
-                    <span>
-                        <h3 style={textStyle}>Seed Generator 3.0</h3>
-                    </span>
-                </Col>
+                <Cent><h3 >Seed Generator 3.0</h3></Cent>
             </Row>
             <Row className="p-3 border">
                 <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "logicModes")}>
@@ -745,10 +754,10 @@ export default class MainPage extends React.Component {
                         <Col xs="6"  className="text-center pt-1 border">
                             <span className="align-middle">Logic Mode</span>
                         </Col>
-                        <Col xs="6" onMouseLeave={this.helpEnter("general", "logicModes")} onMouseEnter={this.helpEnter("logicModes", this.state.pathMode)}>
+                        <Col xs="6" onMouseLeave={this.helpEnter("general", "logicModes")} onMouseEnter={this.helpEnter("logicModes", pathMode)}>
                             <UncontrolledButtonDropdown className="w-100">
-                                <DropdownToggle color="primary" className="text-capitalize" caret block> {this.state.pathMode} </DropdownToggle>
-                                <DropdownMenu> {pathModeOptions} </DropdownMenu>
+                                <DropdownToggle color="primary" className="text-capitalize" caret block> {pathMode} </DropdownToggle>
+                                <DropdownMenu style={styles.menuStyle}> {pathModeOptions} </DropdownMenu>
                             </UncontrolledButtonDropdown>
                         </Col>
                     </Row>
@@ -758,10 +767,10 @@ export default class MainPage extends React.Component {
                         <Col xs="6"  className="text-center pt-1 border">
                             <span class="align-middle">Key Mode</span>
                         </Col>
-                        <Col xs="6" onMouseEnter={this.helpEnter("keyModes", this.state.keyMode)} onMouseLeave={this.helpEnter("general", "keyModes",(this.state.keyMode === "Clues" && this.state.helpcat === "keyModes") ? 1000 : 250 )}>
+                        <Col xs="6" onMouseEnter={this.helpEnter("keyModes", keyMode)} onMouseLeave={this.helpEnter("general", "keyModes",(keyMode === "Clues" && helpcat === "keyModes") ? 1000 : 250 )}>
                             <UncontrolledButtonDropdown className="w-100">
-                                <DropdownToggle color="primary" caret block> {this.state.keyMode} </DropdownToggle>
-                                <DropdownMenu>
+                                <DropdownToggle color="primary" caret block> {keyMode} </DropdownToggle>
+                                <DropdownMenu style={styles.menuStyle}>
                                     {keyModeOptions}
                                 </DropdownMenu>
                             </UncontrolledButtonDropdown>
@@ -773,12 +782,12 @@ export default class MainPage extends React.Component {
                         <Col xs="6"  className="text-center pt-1 border">
                             <span class="align-middle">Goal Mode</span>
                         </Col>
-                        <Col xs="6" onMouseLeave={this.helpEnter("general", "goalModes")} onMouseEnter={this.helpEnter("goalModes", goalModeMulti ? "Multiple" : this.state.goalModes[0])}>
-                            <Dropdown disabled={goalModeMulti} isOpen={this.state.goalModesOpen} toggle={() => this.setState({goalModesOpen: !this.state.goalModesOpen})} className="w-100">
+                        <Col xs="6" onMouseLeave={this.helpEnter("general", "goalModes")} onMouseEnter={this.helpEnter("goalModes", goalModeMulti ? "Multiple" : goalModes[0])}>
+                            <Dropdown disabled={goalModeMulti} isOpen={goalModesOpen} toggle={() => this.setState({goalModesOpen: !goalModesOpen})} className="w-100">
                                 <DropdownToggle disabled={goalModeMulti} color={goalModeMulti ? "disabled" :"primary"} className="text-capitalize" caret={!goalModeMulti} block> 
-                                  {goalModeMulti ? "Multiple" : (variations[this.state.goalModes[0]] || this.state.goalModes[0])}                                  
+                                  {goalModeMulti ? "Multiple" : (variations[goalModes[0]] || goalModes[0])}                                  
                                 </DropdownToggle>
-                                <DropdownMenu>
+                                <DropdownMenu style={styles.menuStyle}>
                                     {goalModeOptions}
                                 </DropdownMenu>
                             </Dropdown>
@@ -790,22 +799,22 @@ export default class MainPage extends React.Component {
             <Col>
                 <Nav tabs>
                     <NavItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "variations")}>
-                        <NavLink active={this.state.activeTab === 'variations'} onClick={this.onTab('variations')}>
+                        <NavLink active={activeTab === 'variations'} onClick={this.onTab('variations')}>
                         Variations
                         </NavLink>
                     </NavItem>
                     <NavItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "logicPaths")}>
-                        <NavLink active={this.state.activeTab === 'logic paths'} onClick={this.onTab('logic paths')}>
+                        <NavLink active={activeTab === 'logic paths'} onClick={this.onTab('logic paths')}>
                         Logic Paths
                         </NavLink>
                     </NavItem>
                     <NavItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "multiplayer")}>
-                        <NavLink active={this.state.activeTab === 'multiplayer'} onClick={this.onTab('multiplayer')}>
+                        <NavLink active={activeTab === 'multiplayer'} onClick={this.onTab('multiplayer')}>
                         Multiplayer Options
                         </NavLink>
                     </NavItem>
                     <NavItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "advanced")}>
-                        <NavLink active={this.state.activeTab === 'advanced'} onClick={() => { dev && console.log(this.state); this.onTab('advanced')()}}>
+                        <NavLink active={activeTab === 'advanced'} onClick={() => { dev && console.log(this.state); this.onTab('advanced')()}}>
                         Advanced
                         </NavLink>
                     </NavItem>
@@ -817,7 +826,7 @@ export default class MainPage extends React.Component {
                 <Col xs="8">
                     <Row>
                         <Col>
-                            <TabContent className="p-3 border" activeTab={this.state.activeTab}>
+                            <TabContent className="p-3 border" activeTab={activeTab}>
                                 {variationsTab}
                                 {pathsTab}
                                 {multiplayerTab}
@@ -826,25 +835,25 @@ export default class MainPage extends React.Component {
                             </TabContent>
                         </Col>
                     </Row>
-                    <Collapse isOpen={this.state.activeTab !== "seed"}>
+                    <Collapse isOpen={activeTab !== "seed"}>
                         <Row className="align-items-center">
                             <Col xs="6">
                                 <Row className="m-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "seed")}>
                                     <Col xs="5" className="text-center pt-1 border">
                                         <span class="align-middle">Seed</span>
                                     </Col><Col xs="7">
-                                        <Input type="text" value={this.state.seed} onChange={(e) => this.setState({seed: e.target.value})}/>
+                                        <Input style={styles.inputStyle} type="text" value={seed} onChange={(e) => this.setState({seed: e.target.value})}/>
                                     </Col>
                                 </Row><Row className="m-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "webTracking")}>
                                     <Col>
-                                        <Button color="info" block outline={!this.state.tracking} onClick={()=>this.setState({tracking: !this.state.tracking})}>Web Tracking {this.state.tracking ? "Enabled" : "Disabled"}</Button>
+                                        <Button color="info" block outline={!tracking} onClick={()=>this.setState({tracking: !tracking})}>Web Tracking {tracking ? "Enabled" : "Disabled"}</Button>
                                     </Col>
                                 </Row>
                             </Col>
                             <Col>
                                 <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "generate" + this.multi())}>
                                     <Col>
-                                        <Button color="success" disabled={this.state.seedIsGenerating} size="lg" onClick={this.generateSeed} block>Generate Seed</Button>
+                                        <Button color="success" disabled={seedIsGenerating} size="lg" onClick={this.generateSeed} block>Generate Seed</Button>
                                     </Col>
                                 </Row>
                             </Col>
@@ -853,7 +862,7 @@ export default class MainPage extends React.Component {
                 </Col>
                 <Col>
                     <Row>
-                        <HelpBox {...helpParams} />
+                        <HelpBox style={styles.menuStyle} {...helpParams} />
                     </Row>
                 </Col>
             </Row>

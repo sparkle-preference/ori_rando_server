@@ -1,6 +1,6 @@
-import React, {Component, Fragment} from 'react';
+import React, {Component} from 'react';
 import {Container, Row, Col, Collapse, Button, ButtonGroup, Modal, ModalHeader, Popover, PopoverBody,
-        ModalBody, ModalFooter, Input, Card, CardBody, CardFooter, Media} from 'reactstrap';
+        ModalBody, ModalFooter, Input, Card, CardBody, CardFooter, Media, UncontrolledButtonDropdown, DropdownToggle, DropdownMenu, DropdownItem} from 'reactstrap';
 import {NotificationContainer, NotificationManager} from 'react-notifications';
 import {Helmet} from 'react-helmet';
 
@@ -9,6 +9,17 @@ import {Cent, doNetRequest, player_icons, get_random_loader, PickupSelect, get_f
 import SiteBar from "./SiteBar.js";
 
 import 'react-notifications/lib/notifications.css';
+
+const colors = {
+    footerDark: "#292929",
+    cardDark: "#333333",
+    darkComplete: "#1ba06e",
+    darkSubgoal: "#0d4f34",
+    complete: "#ccffcc",
+    subgoal: "#88cc88"
+}
+
+
 
 const nicePartNames = {
         "ActivateTeleporter": {
@@ -236,7 +247,7 @@ const getCardContent = (card, activePlayer, dark) => {
                         help = "AP requirements: Ultra defense: 19, Spirit Light Efficiency: 10, Ultra Stomp: 10"
                     break;
                     case "GetEvent":
-                        text = `Unlock ${infix}event${s+suffix}`
+                        text = `Find ${infix}event${s+suffix}`
                         if(card.method === "count")
                             help = "The events are the 3 dungeon keys and Clean Water, Wind Restored, and Warmth Returned"
                         else
@@ -268,6 +279,7 @@ const getCardContent = (card, activePlayer, dark) => {
             default:
                 break;
         }
+        let i = 1;
         extraLines = optionNames.map(({partName, niceName, fake}) =>
         {
             fake = fake || false
@@ -278,15 +290,14 @@ const getCardContent = (card, activePlayer, dark) => {
                 let lineCompleted = prog.hasOwnProperty("completedParts") && prog.completedParts.includes(partName)
                 if(lineCompleted) {
                     if(prog.completed) 
-                        styles.background = dark ? "#5a5": "#8c8" 
+                        styles.background = dark ?  colors.darkSubgoal: colors.subgoal 
                     else
-                        styles.background = dark ? "#8c8": "#cfc" 
+                        styles.background = dark ? colors.darkComplete : colors.complete 
                 }
             }
-            return <div className="w-100" style={styles}>{niceName}</div>
+            return <div className="w-100" key={`card-line-${i++}`} style={styles}>{niceName}</div>
         })
-        let i = 0;
-        text = [text].concat(extraLines).map(t => (<div className="w-100" key={`card-line-${i++}`}>{t}</div>))
+        text = [(<div className="w-100" key={`card-line-0`}>{text}</div>)].concat(extraLines)
     }
     catch(error)
     {
@@ -299,10 +310,12 @@ const make_icons = players => players.map(p => (<Media key={`playerIcon${p}`} ob
 const BingoCard = ({text, players, tinted, help, dark}) => {
     let className = "px-0 pb-0 justify-content-center text-center align-items-center d-flex " + ((text.length > 1) ? "pt-0 flex-column" : "pt-1")
     let cardStyles = {width: '18vh', height: '18vh', minWidth: '120px', maxWidth: '160px', minHeight: '120px', maxHeight: '160px', flexGrow: 1}
+    let footerStyles = {}
     if(dark)
     {
-        cardStyles.background = '#333'
-        cardStyles.borderColor = '#fff'
+        cardStyles.background = colors.cardDark
+        cardStyles.border = '1px solid rgba(255,255,255,.25)'
+        footerStyles.background = colors.footerDark
     }
     let {helpText, open, toggle, i} = help
     let helpLink = null, popover = null
@@ -318,13 +331,13 @@ const BingoCard = ({text, players, tinted, help, dark}) => {
     }
     
     if(tinted)
-        cardStyles.background = dark ? "#8c8": "#cfc"
+        cardStyles.background = dark ? colors.darkComplete : colors.complete
     return (
         <Card inverse={dark} style={cardStyles}>
-                <CardBody style={{fontSize: "1.5vh",}} className={className}>
-                    <b>{text}</b>
+                <CardBody style={{fontSize: "1.5vh", fontWeight: "bold"}} className={className}>
+                    {text}
                 </CardBody>
-                <CardFooter className="p-0 text-center">
+                <CardFooter style={footerStyles} className="p-0 text-center">
                 {helpLink}
                 {popover}
                 {make_icons(players)}
@@ -370,7 +383,7 @@ class BingoBoard extends Component {
         return {helpOpen: prev.helpOpen}
     })
     render() {
-        let {cards, activePlayer, dark} = this.props
+        let {cards, activePlayer, dark, hiddenPlayers} = this.props
         if(!cards || cards.length < 25) {
             return null
         }
@@ -380,7 +393,7 @@ class BingoBoard extends Component {
             while(row.length < 5) {
                 let card = cards[i];
                 let {text, help, completed} = getCardContent(card, activePlayer, dark);
-                let players = Object.keys(card.progress).filter(p => card.progress[p].completed);
+                let players = Object.keys(card.progress).filter(p => card.progress[p].completed && !hiddenPlayers.includes(p));
                 row.push((<td key={i}><BingoCard dark={dark} tinted={completed} help={{i: i, helpText: help, open: this.state.helpOpen[i], toggle: this.helpToggle(i)}} text={text} players={players} /></td>))
                 i++
             }
@@ -391,31 +404,84 @@ class BingoBoard extends Component {
 
 }
 
-const PlayerList = ({playerData, bingos, activePlayer, onClickName}) => {
-    let players = Object.keys(playerData).map(p => {
-        let number = (bingos[p] && bingos[p].length) || 0
-        let text = (<span>{playerData[p].name} ({number})</span>) 
-        if(activePlayer+"" === p)
-            text = (<b>{text}</b>)
-        return [number, (
-            <Row key={`player-list-${p}`} className="pl-3 text-center pt-1">
-                <Col className="p-0 pl-1" xs="auto">
-                    <Cent>{make_icons([p])}</Cent>
-                </Col>
-                <Col className="p-0 pr-1" xs="auto">
-                    <Button color="link" onClick={onClickName(p)}>{text}</Button>
-                </Col>
-            </Row>
-        )]
-    });
-    players = players.sort((a, b) => b[0] - a[0]).map(p => p[1])
+const PlayerList = ({playerData, bingos, activePlayer, teams, viewOnly, onPlayerListAction, dark}) => {
+    if(!teams)
+        return null
+    let dropdownStyle = {}
+    if(dark)
+        dropdownStyle.backgroundColor = "#666"
+    let players = Object.keys(teams).map(cap => {
+            cap = parseInt(cap, 10)
+            let teammates = teams[cap]
+            let hasTeam = teammates.length > 1
+            if(playerData[cap].hidden && teammates.every(t => playerData[t].hidden))
+                return null
+            let number = (bingos[cap] && bingos[cap].length) || 0
+            let text = `${hasTeam ? playerData[cap].teamname : playerData[cap].name} (${number})`
+            let active = activePlayer === cap
+            let joinButton = viewOnly ? null : ( 
+                <DropdownItem onClick={onPlayerListAction("joinTeam", cap)}>
+                    Join Team
+                </DropdownItem>
+            )
+            if(active)
+                text = (<b>{text}</b>)
+            let rows = [(
+                <Row key={`player-list-${cap}`} className="px-2 text-center pb-2">
+                    <Col className="p-0">
+                    <UncontrolledButtonDropdown className="w-100 px-1">
+                        <Button color="secondary" active={active} block onClick={onPlayerListAction("selectPlayer", cap)}>
+                            <Cent>{make_icons([cap])} {text}</Cent>
+                        </Button>
+                        <DropdownToggle caret color="secondary" />
+                        <DropdownMenu style={dropdownStyle} right>
+                            {joinButton}
+                            <DropdownItem onClick={onPlayerListAction("hidePlayer", cap)}>
+                                Hide Player
+                            </DropdownItem>
+                        </DropdownMenu>
+                        </UncontrolledButtonDropdown>
+                    </Col>
+                </Row>
+            )]
+            if(hasTeam)
+                rows = rows.concat(teammates.map(t => playerData[t].hidden ? null : (
+                    <Row key={`subplayer-list-${t}`} className="px-2 text-center pb-2">
+                        <Col xs={{offset: 2, size: 8}} className="p-0">
+                            <UncontrolledButtonDropdown className="w-100 px-1">
+                                <Button size="sm" color="secondary" active={t === String(activePlayer)} block onClick={onPlayerListAction("selectPlayer", t)}>
+                                    <Cent>{playerData[t].name}</Cent>
+                                </Button>
+                                <DropdownToggle size="sm" caret color="secondary" />
+                                <DropdownMenu style={dropdownStyle} right>
+                                    <DropdownItem onClick={onPlayerListAction("hidePlayer", t)}>
+                                        Hide Player
+                                    </DropdownItem>
+                                </DropdownMenu>
+                            </UncontrolledButtonDropdown>
+                        </Col>
+                    </Row>
+                )))
+
+            return [number, rows]
+        })
+
+    let hiddenButton = Object.keys(playerData).some(p => playerData[p].hidden) ? (
+        <Row className="pb-2">
+            <Button block size="sm" color="link" onClick={onPlayerListAction("showHidden", 0)}>
+                Show all hidden
+            </Button>
+        </Row>
+    ): null
+    
+    players = players.filter(p => p != null).sort((a, b) => b[0] - a[0]).map(p => p[1])
 
     return (
-        <Fragment>
-            <Row className="pl-3
-             text-center pt-1"><h4>Players</h4></Row>
+        <Col style={{maxWidth: '420px'}} className="border border-info">
+            <Row  className="px-2 pb-2"><Cent><h4>Players</h4></Cent></Row>
             {players}
-        </Fragment>
+            {hiddenButton}
+        </Col>
     );
 }
 
@@ -459,18 +525,22 @@ export default class Bingo extends React.Component {
         this.setState({specLink: window.document.location.href.replace("board", "spectate")})
     }
 
-    joinGame = () => {
+    joinGame = (joinTeam) => {
+        joinTeam = joinTeam || false
         let {gameId, seed, activePlayer, haveGame} = this.state;
         if(!haveGame) return;
         let nextPlayer = activePlayer;
         let players = Object.keys(this.state.playerData)
-        while(players.includes("" + nextPlayer))
+        while(players.includes(String(nextPlayer)))
             nextPlayer++;
-
         seed = `Sync${gameId}.${nextPlayer},` + seed
         download("randomizer.dat", seed)
         this.setState({activePlayer: nextPlayer})
-        doNetRequest(`/bingo/game/${gameId}/add/${nextPlayer}`, this.tickCallback)
+        let url = `/bingo/game/${gameId}/add/${nextPlayer}`
+        if(joinTeam) {
+            url += `?joinTeam=${joinTeam}`
+        }
+        doNetRequest(url, this.tickCallback)
     }
     tick = () => {
         let {gameId, haveGame} = this.state;
@@ -487,11 +557,8 @@ export default class Bingo extends React.Component {
             this.setState({fails: this.state.fails + 1})
         } else {
             let res = JSON.parse(responseText)
-            this.updatePlayerProgress(res.playerData)
+            this.updatePlayerProgress(res)
         }
-    }
-    onClickName = (player) => () => {
-        this.setState({activePlayer: player})
     }
     createGame = () => {
         let {isRandoBingo, randoGameId, startSkills, startCells, startMisc, showInfo, difficulty} = this.state;
@@ -516,57 +583,87 @@ export default class Bingo extends React.Component {
             return
         } else {
             let res = JSON.parse(responseText)
-            this.setState({startWith: res.startWith, gameId: res.gameId, createModalOpen: false, creatingGame: false, haveGame: true, fails: 0, dispDiff: res.difficulty || this.state.difficulty,
-                          seed: res.seed, playerData: res.playerData, cards: res.cards.map(card => {return {progress: {}, ...card}})}, this.updateUrl)
+            this.setState({subtitle: res.subtitle, gameId: res.gameId, createModalOpen: false, creatingGame: false, haveGame: true, fails: 0, dispDiff: res.difficulty || this.state.difficulty,
+                          seed: res.seed, playerData: res.playerData, teams: res.teams, cards: res.cards.map(card => {return {progress: {}, ...card}})}, this.updateUrl)
+        }
+    }
+    onPlayerListAction = (action, player) => () =>  {
+        switch(action) {
+            case "hidePlayer":
+                this.setState(prev => {
+                    prev.playerData[player].hidden = true
+                    return {playerData: prev.playerData}
+                })
+                break;
+            case "selectPlayer":
+                this.setState({activePlayer: player})
+                break;
+            case "showHidden":
+                this.setState(prev => {
+                    Object.keys(prev.playerData).forEach(p => prev.playerData[p].hidden = false)
+                    return {playerData: prev.playerData}
+                })
+                break;
+            case "joinTeam":
+                this.joinGame(player)
+                break;
+            default:
+                console.log("Unknown action: " + action)
+                break
         }
     }
 
-    updatePlayerProgress = (playerData) => {
-        let cards = [...this.state.cards];
+    updatePlayerProgress = ({playerData, teams, cards}) => {
         let col = 0, row = 0, board = [[]]
         cards.forEach(card => {
             let {name, type} = card;
             card.progress = {}
-            Object.keys(playerData).forEach(p => {
-                let prog = {'completed': false}
-                if((playerData[p].hasOwnProperty("bingoData") && playerData[p].bingoData.hasOwnProperty(name)))
-                {
-                    let cardData = playerData[p].bingoData[name]
-                    switch(type) {
-                        case "bool":
-                            prog.completed = cardData.value;
-                            break;
-                        case "int":
-                            prog.count = cardData.value;
-                            prog.completed = prog.count >= card.target;
-                            break;
-                        case "multi":
-                            switch(card.method) {
-                                case "and":
-                                    prog.completedParts = card.parts.filter(part => cardData.value[part.name].value).map(part => part.name);
-                                    prog.completed = card.parts.length === prog.completedParts.length;
-                                    break;
-                                case "or":
-                                    prog.completedParts = card.parts.filter(part => cardData.value[part.name].value).map(part => part.name);
-                                    prog.completed = prog.completedParts.length > 0;
-                                    break;
-                                case "count":
-                                    prog.count = cardData.total;
-                                    prog.completed = prog.count >= card.target;
-                                    break;
-                                default:
-                                    break;
-                            }
-                            break;
-                        default:
-                            break;
+            Object.keys(teams).forEach(t => {
+                let team = teams[t]
+                let completed = false
+                team.forEach(p => {
+                    let prog = {'completed': false}
+                    if((playerData[p].hasOwnProperty("bingoData") && playerData[p].bingoData.hasOwnProperty(name)))
+                    {
+                        let cardData = playerData[p].bingoData[name]
+                        switch(type) {
+                            case "bool":
+                                prog.completed = cardData.value || prog.completed;
+                                break;
+                            case "int":
+                                prog.count = cardData.value;
+                                prog.completed = prog.count >= card.target;
+                                break;
+                            case "multi":
+                                switch(card.method) {
+                                    case "and":
+                                        prog.completedParts = card.parts.filter(part => cardData.value[part.name].value).map(part => part.name);
+                                        prog.completed = card.parts.length === prog.completedParts.length;
+                                        break;
+                                    case "or":
+                                        prog.completedParts = card.parts.filter(part => cardData.value[part.name].value).map(part => part.name);
+                                        prog.completed = prog.completedParts.length > 0;
+                                        break;
+                                    case "count":
+                                        prog.count = cardData.total;
+                                        prog.completed = prog.count >= card.target;
+                                        break;
+                                    default:
+                                        break;
+                                }
+                                break;
+                            default:
+                                break;
+                        }
+                    } else {
+                        prog.noData = true
                     }
-                } else {
-                    prog.noData = true
-                }
-                card.progress[p] = prog
+                    card.progress[p] = prog
+                    completed = prog.completed || completed
+                })
+                team.forEach(p => card.progress[p].completed = completed)
             })
-            board[row][col] = Object.keys(card.progress).filter(p => card.progress[p].completed)
+            board[row][col] = Object.keys(teams).filter(p => card.progress.hasOwnProperty(p) && card.progress[p].completed)
             col++
             if(col > 4) {
                 col = 0; row++
@@ -574,7 +671,8 @@ export default class Bingo extends React.Component {
             }
         })
         board.pop()
-        let newState = {playerData: playerData, fails: 0, cards: cards, bingos: bingos(board, Object.keys(playerData))} 
+        Object.keys(playerData).forEach(p => playerData[p].hidden = (this.state.playerData.hasOwnProperty(p) && this.state.playerData[p].hidden) || false)
+        let newState = {teams: teams, playerData: playerData, fails: 0, cards: cards, bingos: bingos(board, Object.keys(teams))}
         if(this.state.loading) {
             newState.loading = false;
             Object.keys(playerData).forEach(p => {
@@ -588,7 +686,7 @@ export default class Bingo extends React.Component {
     toggleCreate = () => this.setState({createModalOpen: !this.state.createModalOpen})
 
     render = () => {
-        let {specLink, viewOnly, dark, activePlayer, playerData, startWith, cards, haveGame, bingos, gameId, user, dispDiff} = this.state
+        let {specLink, viewOnly, dark, activePlayer, playerData, subtitle, cards, haveGame, bingos, gameId, user, dispDiff, teams} = this.state
         
         let pageStyle, inputStyle
         if(dark) {
@@ -599,17 +697,19 @@ export default class Bingo extends React.Component {
            inputStyle = {'backgroundColor': 'white', 'color': 'black'}
         }  
         let headerText = haveGame && dispDiff ? `Bingo Game ${gameId} (${dispDiff})` : "Bingo!"
-        let subheader = (haveGame && startWith !== "") ? (
+        let subheader = (haveGame && subtitle !== "") ? (
             <Row>
                 <Col>
-                    <Cent><h6>{startWith}</h6></Cent>
+                    <Cent><h6>{subtitle}</h6></Cent>
                 </Col>
             </Row>
         ) : null
         let bingoContent = haveGame ? (
             <Row className="align-items-center">
-                <Col><BingoBoard dark={dark} cards={cards} activePlayer={activePlayer}/></Col>
-                <Col><PlayerList playerData={playerData} bingos={bingos} activePlayer={activePlayer} onClickName={this.onClickName}/></Col>
+                <Col>
+                    <BingoBoard dark={dark} cards={cards} activePlayer={activePlayer} hiddenPlayers={Object.keys(playerData).filter(p => playerData[p].hidden || !teams.hasOwnProperty(p))}/>
+                </Col>
+                <PlayerList dark={dark} viewOnly={viewOnly} playerData={playerData} teams={teams} bingos={bingos} activePlayer={activePlayer} onPlayerListAction={this.onPlayerListAction}/>
             </Row>
             ) : null
 
@@ -642,7 +742,7 @@ export default class Bingo extends React.Component {
                 <NotificationContainer/>
                 <SiteBar dark={dark} user={user}/>
                 {this.createModal(inputStyle)}
-                {this.loadingModal()}
+                {this.loadingModal(inputStyle)}
                 <Row className="p-1">
                     <Col>
                         <Cent><h3>{headerText}</h3></Cent>
@@ -653,7 +753,7 @@ export default class Bingo extends React.Component {
                     <Col xs="auto">
                         <Button block color="primary" onClick={this.toggleCreate}>Create New Game</Button>
                     </Col><Col xs="auto">
-                        <Button block onClick={this.joinGame} disabled={!haveGame}>Join Game / Download Seed</Button>
+                        <Button block onClick={() => this.joinGame()} disabled={!haveGame}>Join Game / Download Seed</Button>
                     </Col><Col xs="auto">
                         <Row className="align-items-left py-0 px-1 m-0">
                             <Col xs="auto"><Cent>
@@ -675,10 +775,10 @@ export default class Bingo extends React.Component {
             </Container>
         )
     }
-    loadingModal = () => { return (
+    loadingModal = (style) => { return (
         <Modal size="sm" isOpen={this.state.creatingGame } backdrop={"static"} className={"modal-dialog-centered"}>
-            <ModalHeader centered="true">Please wait...</ModalHeader>
-            <ModalBody>
+            <ModalHeader style={style}><Cent>Please wait...</Cent></ModalHeader>
+            <ModalBody style={style}>
                 <Container fluid>
                     <Row className="p-2 justify-content-center align-items-center">
                         <Col xs="auto" className="align-items-center justify-content-center p-2">{this.state.loader}</Col>
@@ -687,11 +787,11 @@ export default class Bingo extends React.Component {
             </ModalBody>
         </Modal>
     )}
-    createModal = (inputStyle) => { 
+    createModal = (style) => { 
         return (
         <Modal size="lg" isOpen={this.state.createModalOpen} backdrop={"static"} className={"modal-dialog-centered"} toggle={this.toggleCreate}>
-            <ModalHeader style={inputStyle} toggle={this.toggleCreate} centered="true">Bingo options</ModalHeader>
-            <ModalBody style={inputStyle}>
+            <ModalHeader style={style} toggle={this.toggleCreate}><Cent>Bingo options</Cent></ModalHeader>
+            <ModalBody style={style}>
                 <Container fluid>
                     <Row className="p-1">
                         <Col xs="4" className="p1 border">
@@ -723,7 +823,7 @@ export default class Bingo extends React.Component {
                             <Col xs="4" className="text-center p-1 border">
                                 <Cent>Rando Game ID</Cent>
                             </Col><Col xs="4">
-                                <Input style={inputStyle} type="number" value={this.state.randoGameId}  onChange={(e) => this.setState({randoGameId: parseInt(e.target.value, 10)})}/>
+                                <Input style={style} type="number" value={this.state.randoGameId}  onChange={(e) => this.setState({randoGameId: parseInt(e.target.value, 10)})}/>
                             </Col>
                         </Row>
                     </Collapse>
@@ -732,21 +832,21 @@ export default class Bingo extends React.Component {
                             <Col xs="4" className="text-center p-1 border">
                                 <Cent>Random Free Skill Count</Cent>
                             </Col><Col xs="4">
-                                <Input style={inputStyle} type="number" value={this.state.startSkills}  onChange={(e) => this.setState({startSkills: parseInt(e.target.value, 10)})}/>
+                                <Input style={style} type="number" value={this.state.startSkills}  onChange={(e) => this.setState({startSkills: parseInt(e.target.value, 10)})}/>
                             </Col>
                         </Row>
                         <Row className="p-1">
                             <Col xs="4" className="p-1 border">
                                 <Cent>Random Free Cell Count</Cent>
                             </Col><Col xs="4">
-                                <Input style={inputStyle} type="number" value={this.state.startCells} onChange={(e) => this.setState({startCells: parseInt(e.target.value, 10)})}/>
+                                <Input style={style} type="number" value={this.state.startCells} onChange={(e) => this.setState({startCells: parseInt(e.target.value, 10)})}/>
                             </Col>
                         </Row>
                         <Row className="p-1">
                             <Col xs="4" className="text-center p-1 border">
                                 <Cent>Additional Pickups</Cent>
                             </Col><Col xs="8">
-                                <PickupSelect style={inputStyle} value={this.state.startMisc} updater={(code, _) => this.setState({startMisc: code})}/>
+                                <PickupSelect style={style} value={this.state.startMisc} updater={(code, _) => this.setState({startMisc: code})}/>
                             </Col>
                         </Row>
                         <Row className="p-1">
@@ -762,7 +862,7 @@ export default class Bingo extends React.Component {
                     </Collapse>
                 </Container>
             </ModalBody>
-            <ModalFooter style={inputStyle}>
+            <ModalFooter style={style}>
                 <Button color="primary" onClick={this.createGame}>Create Game</Button>
                 <Button color="secondary" onClick={this.toggleCreate}>Cancel</Button>
             </ModalFooter>

@@ -388,24 +388,24 @@ class PickupSelect extends Component {
   }
 }
 
-const loaders = [
-    (<BeatLoader loading />),
-    (<BounceLoader loading />),
-    (<CircleLoader loading />),
-    (<ClipLoader loading />),
-    (<ClimbingBoxLoader loading />),
-    (<DotLoader loading />),
-    (<GridLoader loading />),
-    (<HashLoader loading />),
-    (<MoonLoader loading />),
-    (<PacmanLoader loading />),
-    (<PulseLoader loading />),
-    (<RingLoader loading />),
-    (<RiseLoader loading />),
-    (<RotateLoader loading />),
-    (<FadeLoader loading />),
-    (<ScaleLoader loading />),
-    (<SyncLoader loading />)
+const loaders = (color) => [
+    (<BeatLoader color={color} />),
+    (<BounceLoader color={color} />),
+    (<CircleLoader color={color} />),
+    (<ClipLoader color={color} />),
+    (<ClimbingBoxLoader color={color} />),
+    (<DotLoader color={color} />),
+    (<GridLoader color={color} />),
+    (<HashLoader color={color} />),
+    (<MoonLoader color={color} />),
+    (<PacmanLoader color={color} />),
+    (<PulseLoader color={color} />),
+    (<RingLoader color={color} />),
+    (<RiseLoader color={color} />),
+    (<RotateLoader color={color} />),
+    (<FadeLoader color={color} />),
+    (<ScaleLoader color={color} />),
+    (<SyncLoader color={color} />)
 ]
 
 const Blabel = (props) => {
@@ -421,8 +421,9 @@ const Cent = (props) => {
     
     return (<span {...spanProps} />)
 }
-function get_random_loader() {
-    return loaders[Math.floor(Math.random() * loaders.length)]
+function get_random_loader(color) {
+    color = color || ["#f55", "#5f5", "#55f", "#ff5", "#f5f", "#5ff"][Math.floor(Math.random() * 6)]
+    return loaders(color)[Math.floor(Math.random() * 17)]
 }
 
 function get_param(name) {
