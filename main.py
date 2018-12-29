@@ -21,6 +21,7 @@ from models import Game, Seed, User
 from cache import Cache
 from util import coord_correction_map, all_locs, picks_by_type_generator, param_val, param_flag, resp_error, debug, path
 from reachable import Map, PlayerState
+from pickups import Pickup
 
 # handlers
 from bingo import routes as bingo_routes
