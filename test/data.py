@@ -7,28 +7,28 @@ bingo_data = {
 		"name": "Eiko",
         "teamname": "team big mood"
 	},
-	"2": {
+	"3": {
 		"bingoData": {
 			"ActivateMaps": {
-				"value": 5
+				"value": 0
 			},
 			"GetEvent": {
-				"total": 5,
+				"total": 0,
 				"value": {
 					"Gumon Seal": {
-						"value": true
+						"value": false
 					},
 					"Wind Restored": {
-						"value": true
+						"value": false
 					},
 					"Water Vein": {
-						"value": true
+						"value": false
 					},
 					"Warmth Returned": {
-						"value": true
+						"value": false
 					},
 					"Clean Water": {
-						"value": true
+						"value": false
 					},
 					"Sunstone": {
 						"value": false
@@ -36,13 +36,13 @@ bingo_data = {
 				}
 			},
 			"CompleteEscape": {
-				"total": 1,
+				"total": 0,
 				"value": {
 					"Ginso Tree": {
-						"value": true
+						"value": false
 					},
 					"Mount Horu": {
-						"value": false
+						"value": true
 					},
 					"Forlorn Ruins": {
 						"value": false
@@ -50,43 +50,43 @@ bingo_data = {
 				}
 			},
 			"MapstoneLocs": {
-				"value": 6
+				"value": 0
 			},
 			"OpenKSDoors": {
-				"value": 5
+				"value": 0
 			},
 			"ActivateTeleporter": {
-				"total": 9,
+				"total": 0,
 				"value": {
 					"moonGrotto": {
-						"value": true
+						"value": false
 					},
 					"sunkenGlades": {
-						"value": true
+						"value": false
 					},
 					"ginsoTree": {
-						"value": true
+						"value": false
 					},
 					"mountHoru": {
-						"value": true
+						"value": false
 					},
 					"swamp": {
-						"value": true
+						"value": false
 					},
 					"mangroveFalls": {
-						"value": true
+						"value": false
 					},
 					"sorrowPass": {
-						"value": true
+						"value": false
 					},
 					"forlorn": {
-						"value": true
+						"value": false
 					},
 					"mangroveB": {
 						"value": false
 					},
 					"spiritTree": {
-						"value": true
+						"value": false
 					},
 					"valleyOfTheWind": {
 						"value": false
@@ -97,31 +97,31 @@ bingo_data = {
 				}
 			},
 			"AbilityCells": {
-				"value": 12
+				"value": 0
 			},
 			"OpenEnergyDoors": {
-				"value": 4
+				"value": 0
 			},
 			"VisitTree": {
-				"total": 7,
+				"total": 5,
 				"value": {
 					"Glide": {
-						"value": true
+						"value": false
 					},
 					"Charge Flame": {
-						"value": true
+						"value": false
 					},
 					"Double Jump": {
-						"value": true
+						"value": false
 					},
 					"Dash": {
-						"value": true
+						"value": false
 					},
 					"Wall Jump": {
-						"value": true
+						"value": false
 					},
 					"Stomp": {
-						"value": true
+						"value": false
 					},
 					"Climb": {
 						"value": false
@@ -133,33 +133,33 @@ bingo_data = {
 						"value": false
 					},
 					"Bash": {
-						"value": true
+						"value": false
 					}
 				}
 			},
 			"UnspentKeystones": {
-				"value": 17
+				"value": 0
 			},
 			"TotalPickups": {
-				"value": 129
+				"value": 0
 			},
 			"KillEnemies": {
-				"value": 123
+				"value": 0
 			},
 			"CoreSkip": {
 				"value": false
 			},
 			"HuntEnemies": {
-				"total": 4,
+				"total": 0,
 				"value": {
 					"Upper Ginso Miniboss": {
-						"value": true
+						"value": false
 					},
 					"Lower Ginso Miniboss": {
-						"value": true
+						"value": false
 					},
 					"Lost Grove Fight Room": {
-						"value": true
+						"value": false
 					},
 					"Swamp Rhino Miniboss": {
 						"value": false
@@ -174,42 +174,42 @@ bingo_data = {
 						"value": false
 					},
 					"Grotto Miniboss": {
-						"value": true
+						"value": false
 					}
 				}
 			},
 			"UnderwaterPickups": {
-				"value": 10
+				"value": 0
 			},
 			"EnergyCells": {
-				"value": 9
+				"value": 0
 			},
 			"WilhelmScream": {
 				"value": false
 			},
 			"StompPeg": {
-				"total": 0,
+				"total": 6,
 				"value": {
 					"GroveGrottoUpper": {
-						"value": false
+						"value": true
 					},
 					"SpiderLake": {
-						"value": false
+						"value": true
 					},
 					"BlackrootTeleporter": {
-						"value": false
+						"value": true
 					},
 					"R2": {
-						"value": false
+						"value": true
 					},
 					"HoruFieldsTPAccess": {
-						"value": false
+						"value": true
 					},
 					"SwampPostStomp": {
-						"value": false
+						"value": true
 					},
 					"L4Drain": {
-						"value": false
+						"value": true
 					},
 					"GroveGrottoLower": {
 						"value": false
@@ -229,10 +229,10 @@ bingo_data = {
 				}
 			},
 			"BreakPlants": {
-				"value": 13
+				"value": 0
 			},
 			"CollectMapstones": {
-				"value": 7
+				"value": 12
 			},
 			"CompleteHoruRoom": {
 				"total": 0,
@@ -264,25 +264,25 @@ bingo_data = {
 				}
 			},
 			"HealthCells": {
-				"value": 4
+				"value": 0
 			},
 			"EnterArea": {
-				"total": 5,
+				"total": 0,
 				"value": {
 					"Mount Horu": {
-						"value": true
+						"value": false
 					},
 					"Lost Grove": {
-						"value": true
+						"value": false
 					},
 					"Misty Woods": {
-						"value": true
+						"value": false
 					},
 					"Ginso Tree": {
-						"value": true
+						"value": false
 					},
 					"Sorrow Pass": {
-						"value": true
+						"value": false
 					},
 					"Forlorn Ruins": {
 						"value": false
@@ -290,13 +290,13 @@ bingo_data = {
 				}
 			},
 			"DrainSwamp": {
-				"value": true
+				"value": false
 			},
 			"BreakFloors": {
-				"value": 16
+				"value": 0
 			},
 			"VanillaEventLocs": {
-				"total": 2,
+				"total": 0,
 				"value": {
 					"Gumon Seal": {
 						"value": false
@@ -305,13 +305,13 @@ bingo_data = {
 						"value": false
 					},
 					"Water Vein": {
-						"value": true
+						"value": false
 					},
 					"Warmth Returned": {
 						"value": false
 					},
 					"Clean Water": {
-						"value": true
+						"value": false
 					},
 					"Sunstone": {
 						"value": false
@@ -319,22 +319,22 @@ bingo_data = {
 				}
 			},
 			"BreakWalls": {
-				"value": 6
+				"value": 22
 			},
 			"AbilityCellLocs": {
-				"value": 12
+				"value": 0
 			},
 			"EnergyCellLocs": {
-				"value": 7
+				"value": 0
 			},
 			"HealthCellLocs": {
-				"value": 8
+				"value": 0
 			},
 			"GetItemAtLoc": {
-				"total": 3,
+				"total": 0,
 				"value": {
 					"DoorWarpExp": {
-						"value": true
+						"value": false
 					},
 					"SpiderSacEnergyDoor": {
 						"value": false
@@ -346,13 +346,13 @@ bingo_data = {
 						"value": false
 					},
 					"SorrowHealthCell": {
-						"value": true
+						"value": false
 					},
 					"HoruR3Plant": {
 						"value": false
 					},
 					"LowerBlackrootLaserAbilityCell": {
-						"value": true
+						"value": false
 					},
 					"RightForlornHealthCell": {
 						"value": false
@@ -378,16 +378,16 @@ bingo_data = {
 				"value": 5
 			},
 			"DrownFrog": {
-				"value": true
+				"value": false
 			},
 			"FastStompless": {
 				"value": false
 			},
 			"DieTo": {
-				"total": 4,
+				"total": 0,
 				"value": {
 					"Ginso Escape Fronkey": {
-						"value": true
+						"value": false
 					},
 					"Sunstone Lightning": {
 						"value": false
@@ -399,13 +399,13 @@ bingo_data = {
 						"value": false
 					},
 					"Doorwarp Lava": {
-						"value": true
+						"value": false
 					},
 					"Lost Grove Laser": {
-						"value": true
+						"value": false
 					},
 					"NoobSpikes": {
-						"value": true
+						"value": false
 					},
 					"Stomp Rhino": {
 						"value": false
@@ -416,30 +416,30 @@ bingo_data = {
 				}
 			},
 			"SpendPoints": {
-				"value": 20
+				"value": 0
 			},
 			"GetAbility": {
-				"total": 2,
+				"total": 0,
 				"value": {
 					"Ultra Defense": {
-						"value": true
+						"value": false
 					},
 					"Spirit Light Efficiency": {
 						"value": false
 					},
 					"Ultra Stomp": {
-						"value": true
+						"value": false
 					}
 				}
 			},
 			"GainExperience": {
-				"value": 5055
+				"value": 0
 			}
 		},
 		"name": "CovertMuffin",
         "teamname": "Sneaky Pastries"
 	},
-	"4": {
+	"2": {
 		"bingoData": {
 			"ActivateMaps": {
 				"value": 6
@@ -851,13 +851,13 @@ bingo_data = {
 				"value": 23
 			},
 			"GetAbility": {
-				"total": 1,
+				"total": 3,
 				"value": {
 					"Ultra Defense": {
-						"value": false
+						"value": true
 					},
 					"Spirit Light Efficiency": {
-						"value": false
+						"value": true
 					},
 					"Ultra Stomp": {
 						"value": true
@@ -871,7 +871,7 @@ bingo_data = {
 		"name": "Xemsys",
         "teamname": "StompBros"
 	},
-	"3": {
+	"4": {
 		"bingoData": {
 			"ActivateMaps": {
 				"value": 4
@@ -1303,5 +1303,437 @@ bingo_data = {
 		"name": "poogle",
         "teamname": "NeoPets"
 
+	},
+    "5": {
+		"bingoData": {
+			"ActivateMaps": {
+				"value": 0
+			},
+			"GetEvent": {
+				"total": 0,
+				"value": {
+					"Gumon Seal": {
+						"value": false
+					},
+					"Wind Restored": {
+						"value": false
+					},
+					"Water Vein": {
+						"value": false
+					},
+					"Warmth Returned": {
+						"value": false
+					},
+					"Clean Water": {
+						"value": false
+					},
+					"Sunstone": {
+						"value": false
+					}
+				}
+			},
+			"CompleteEscape": {
+				"total": 0,
+				"value": {
+					"Ginso Tree": {
+						"value": false
+					},
+					"Mount Horu": {
+						"value": true
+					},
+					"Forlorn Ruins": {
+						"value": false
+					}
+				}
+			},
+			"MapstoneLocs": {
+				"value": 0
+			},
+			"OpenKSDoors": {
+				"value": 0
+			},
+			"ActivateTeleporter": {
+				"total": 0,
+				"value": {
+					"moonGrotto": {
+						"value": false
+					},
+					"sunkenGlades": {
+						"value": false
+					},
+					"ginsoTree": {
+						"value": false
+					},
+					"mountHoru": {
+						"value": false
+					},
+					"swamp": {
+						"value": false
+					},
+					"mangroveFalls": {
+						"value": false
+					},
+					"sorrowPass": {
+						"value": false
+					},
+					"forlorn": {
+						"value": false
+					},
+					"mangroveB": {
+						"value": false
+					},
+					"spiritTree": {
+						"value": false
+					},
+					"valleyOfTheWind": {
+						"value": false
+					},
+					"horuFields": {
+						"value": false
+					}
+				}
+			},
+			"AbilityCells": {
+				"value": 0
+			},
+			"OpenEnergyDoors": {
+				"value": 0
+			},
+			"VisitTree": {
+				"total": 5,
+				"value": {
+					"Glide": {
+						"value": false
+					},
+					"Charge Flame": {
+						"value": false
+					},
+					"Double Jump": {
+						"value": false
+					},
+					"Dash": {
+						"value": false
+					},
+					"Wall Jump": {
+						"value": false
+					},
+					"Stomp": {
+						"value": false
+					},
+					"Climb": {
+						"value": false
+					},
+					"Charge Jump": {
+						"value": false
+					},
+					"Grenade": {
+						"value": false
+					},
+					"Bash": {
+						"value": false
+					}
+				}
+			},
+			"UnspentKeystones": {
+				"value": 0
+			},
+			"TotalPickups": {
+				"value": 0
+			},
+			"KillEnemies": {
+				"value": 0
+			},
+			"CoreSkip": {
+				"value": false
+			},
+			"HuntEnemies": {
+				"total": 0,
+				"value": {
+					"Upper Ginso Miniboss": {
+						"value": false
+					},
+					"Lower Ginso Miniboss": {
+						"value": false
+					},
+					"Lost Grove Fight Room": {
+						"value": false
+					},
+					"Swamp Rhino Miniboss": {
+						"value": false
+					},
+					"Mount Horu Miniboss": {
+						"value": false
+					},
+					"Fronkey Fight": {
+						"value": false
+					},
+					"Misty Miniboss": {
+						"value": false
+					},
+					"Grotto Miniboss": {
+						"value": false
+					}
+				}
+			},
+			"UnderwaterPickups": {
+				"value": 0
+			},
+			"EnergyCells": {
+				"value": 0
+			},
+			"WilhelmScream": {
+				"value": false
+			},
+			"StompPeg": {
+				"total": 6,
+				"value": {
+					"GroveGrottoUpper": {
+						"value": true
+					},
+					"SpiderLake": {
+						"value": true
+					},
+					"BlackrootTeleporter": {
+						"value": true
+					},
+					"R2": {
+						"value": true
+					},
+					"HoruFieldsTPAccess": {
+						"value": true
+					},
+					"SwampPostStomp": {
+						"value": true
+					},
+					"L4Drain": {
+						"value": true
+					},
+					"GroveGrottoLower": {
+						"value": false
+					},
+					"L2": {
+						"value": false
+					},
+					"GroveMapstoneTree": {
+						"value": false
+					},
+					"L1": {
+						"value": false
+					},
+					"L4Fire": {
+						"value": false
+					}
+				}
+			},
+			"BreakPlants": {
+				"value": 0
+			},
+			"CollectMapstones": {
+				"value": 12
+			},
+			"CompleteHoruRoom": {
+				"total": 0,
+				"value": {
+					"R4": {
+						"value": false
+					},
+					"R1": {
+						"value": false
+					},
+					"R2": {
+						"value": false
+					},
+					"R3": {
+						"value": false
+					},
+					"L4": {
+						"value": false
+					},
+					"L2": {
+						"value": false
+					},
+					"L3": {
+						"value": false
+					},
+					"L1": {
+						"value": false
+					}
+				}
+			},
+			"HealthCells": {
+				"value": 0
+			},
+			"EnterArea": {
+				"total": 0,
+				"value": {
+					"Mount Horu": {
+						"value": false
+					},
+					"Lost Grove": {
+						"value": false
+					},
+					"Misty Woods": {
+						"value": false
+					},
+					"Ginso Tree": {
+						"value": false
+					},
+					"Sorrow Pass": {
+						"value": false
+					},
+					"Forlorn Ruins": {
+						"value": false
+					}
+				}
+			},
+			"DrainSwamp": {
+				"value": false
+			},
+			"BreakFloors": {
+				"value": 0
+			},
+			"VanillaEventLocs": {
+				"total": 0,
+				"value": {
+					"Gumon Seal": {
+						"value": false
+					},
+					"Wind Restored": {
+						"value": false
+					},
+					"Water Vein": {
+						"value": false
+					},
+					"Warmth Returned": {
+						"value": false
+					},
+					"Clean Water": {
+						"value": false
+					},
+					"Sunstone": {
+						"value": false
+					}
+				}
+			},
+			"BreakWalls": {
+				"value": 22
+			},
+			"AbilityCellLocs": {
+				"value": 0
+			},
+			"EnergyCellLocs": {
+				"value": 0
+			},
+			"HealthCellLocs": {
+				"value": 0
+			},
+			"GetItemAtLoc": {
+				"total": 0,
+				"value": {
+					"DoorWarpExp": {
+						"value": false
+					},
+					"SpiderSacEnergyDoor": {
+						"value": false
+					},
+					"GladesLaser": {
+						"value": false
+					},
+					"SunstonePlant": {
+						"value": false
+					},
+					"SorrowHealthCell": {
+						"value": false
+					},
+					"HoruR3Plant": {
+						"value": false
+					},
+					"LowerBlackrootLaserAbilityCell": {
+						"value": false
+					},
+					"RightForlornHealthCell": {
+						"value": false
+					},
+					"MistyGrenade": {
+						"value": false
+					},
+					"ValleyEntryGrenadeLongSwim": {
+						"value": false
+					},
+					"LeftSorrowGrenade": {
+						"value": false
+					},
+					"LostGroveLongSwim": {
+						"value": false
+					},
+					"ForlornEscapePlant": {
+						"value": false
+					}
+				}
+			},
+			"LightLanterns": {
+				"value": 5
+			},
+			"DrownFrog": {
+				"value": false
+			},
+			"FastStompless": {
+				"value": false
+			},
+			"DieTo": {
+				"total": 0,
+				"value": {
+					"Ginso Escape Fronkey": {
+						"value": false
+					},
+					"Sunstone Lightning": {
+						"value": false
+					},
+					"Horu Fields Acid": {
+						"value": false
+					},
+					"Forlorn Void": {
+						"value": false
+					},
+					"Doorwarp Lava": {
+						"value": false
+					},
+					"Lost Grove Laser": {
+						"value": false
+					},
+					"NoobSpikes": {
+						"value": false
+					},
+					"Stomp Rhino": {
+						"value": false
+					},
+					"Blackroot Teleporter Crushers": {
+						"value": false
+					}
+				}
+			},
+			"SpendPoints": {
+				"value": 0
+			},
+			"GetAbility": {
+				"total": 0,
+				"value": {
+					"Ultra Defense": {
+						"value": false
+					},
+					"Spirit Light Efficiency": {
+						"value": false
+					},
+					"Ultra Stomp": {
+						"value": false
+					}
+				}
+			},
+			"GainExperience": {
+				"value": 0
+			}
+		},
+		"name": "OvertMuffin",
+        "teamname": "Sneaky Pastries"
 	}
 }

@@ -334,7 +334,7 @@ class BingoAddPlayer(RequestHandler):
         game = Game.with_id(game_id)
         if not game:
             return resp_error(self, 404, "Game not found", "text/plain")
-        if player_id in game.player_nums() and not game.params:
+        if player_id in game.player_nums():
             return resp_error(self, 409, "Player id already in use!", "text/plain")
             self.response.status = 409
             return
@@ -349,7 +349,10 @@ class BingoAddPlayer(RequestHandler):
         team = str(param_val(self, "joinTeam") or player_id)
         if team not in game.bingo["teams"]:
             game.bingo["teams"][team] = []
-        game.bingo["teams"][team].append(player_id)
+        if player_id not in game.bingo["teams"][team]:
+            game.bingo["teams"][team].append(player_id)
+        else:
+            log.error("In bingo game %s, team %s already had player %s!", game.key.id(), team, player_id)
         game.put()
 
         res = game.bingo

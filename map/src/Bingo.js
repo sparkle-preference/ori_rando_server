@@ -301,7 +301,7 @@ const getCardContent = (card, activePlayer, dark) => {
     }
     catch(error)
     {
-        console.log(error, card, activePlayer)
+        console.log("getCardContent: ", error, card, activePlayer)
     }
     return {text: text, help: help, completed: prog.completed}
 }
@@ -347,7 +347,7 @@ const BingoCard = ({text, players, tinted, help, dark}) => {
 )}
 
 // board: rows[cols[players]]
-const bingos = (board, players) => {
+const getBingos = (board, players) => {
     let ret = {}
     let dim = board.length
     players.forEach(p => {
@@ -494,20 +494,25 @@ export default class Bingo extends React.Component {
         let dark = get_flag("dark") || url.searchParams.has("dark")
         
         this.state = {
-                      cards: [], haveGame: false, creatingGame: false, createModalOpen: true, playerData: {}, 
+                      cards: [], currentRecord: 0, haveGame: false, creatingGame: false, createModalOpen: true, playerData: {}, 
                       activePlayer: 1, showInfo: false, bingos: {}, user: get_param("user"), loading: true, 
                       dark: dark, specLink: window.document.location.href.replace("board", "spectate"),
                       fails: 0, gameId: gameId, startSkills: 3, startCells: 4, startMisc: "MU|TP/Swamp/TP/Valley",
-                      start_with: "", difficulty: "normal", isRandoBingo: false, randoGameId: -1, viewOnly: viewOnly
+                      start_with: "", difficulty: "normal", isRandoBingo: false, randoGameId: -1, viewOnly: viewOnly,
+                      eventLog: ["Room history"], startTime: (new Date())
                     };
         if(gameId > 0)
         {
             let url = `/bingo/game/${gameId}/fetch`
             doNetRequest(url, this.createCallback)
+            this.log(`loading bingo data for game ${gameId}...`)
             this.state.creatingGame = true
             this.state.createModalOpen = false
             this.state.loader = get_random_loader()
         }
+    }
+    log = (text) => {
+        this.setState(prev => {return {eventLog: prev.eventLog.concat(`${new Date((new Date())-prev.startTime).toISOString().split("T")[1].split('.')[0]}: ${text}`)}})
     }
     componentWillMount() {
         this.tick()
@@ -584,7 +589,7 @@ export default class Bingo extends React.Component {
         } else {
             let res = JSON.parse(responseText)
             this.setState({subtitle: res.subtitle, gameId: res.gameId, createModalOpen: false, creatingGame: false, haveGame: true, fails: 0, dispDiff: res.difficulty || this.state.difficulty,
-                          seed: res.seed, playerData: res.playerData, teams: res.teams, cards: res.cards.map(card => {return {progress: {}, ...card}})}, this.updateUrl)
+                          seed: res.seed, playerData: res.playerData, teams: res.teams, currentRecord: 0, cards: res.cards.map(card => {return {progress: {}, ...card}})}, this.updateUrl)
         }
     }
     onPlayerListAction = (action, player) => () =>  {
@@ -614,13 +619,15 @@ export default class Bingo extends React.Component {
     }
 
     updatePlayerProgress = ({playerData, teams, cards}) => {
+        let {loading, currentRecord} = this.state;
         let col = 0, row = 0, board = [[]]
+        let getName = (t) => teams[t].length > 1 ?  `${playerData[t].teamname}` : `${playerData[t].name}`
+        let teamKeys = Object.keys(teams)
         cards.forEach(card => {
             let {name, type} = card;
             card.progress = {}
-            Object.keys(teams).forEach(t => {
+            teamKeys.forEach(t => {
                 let team = teams[t]
-                let completed = false
                 team.forEach(p => {
                     let prog = {'completed': false}
                     if((playerData[p].hasOwnProperty("bingoData") && playerData[p].bingoData.hasOwnProperty(name)))
@@ -659,11 +666,24 @@ export default class Bingo extends React.Component {
                         prog.noData = true
                     }
                     card.progress[p] = prog
-                    completed = prog.completed || completed
                 })
+                let completed = team.some(p => card.progress[p].completed)
                 team.forEach(p => card.progress[p].completed = completed)
+                if(!loading)
+                try {
+                    let oldCard = this.state.cards[row*5+col]
+                    if(oldCard.progress.hasOwnProperty(t) && oldCard.progress[t].completed !== completed) {
+                        let name = teams[t].length > 1 ?  `${playerData[t].teamname}` : `${playerData[t].name}`
+                        let verb = completed ? "completed" : "lost"
+                        let squareName = `${card.name} (${1+col}, ${1+row})`
+                        this.log(`${name} ${verb} ${squareName}`)
+                    }
+                } catch(error) {
+                    console.log("logging new card data", error, card, this.state.cards, [row*5+col], t)
+                }
+
             })
-            board[row][col] = Object.keys(teams).filter(p => card.progress.hasOwnProperty(p) && card.progress[p].completed)
+            board[row][col] = teamKeys.filter(p => card.progress.hasOwnProperty(p) && card.progress[p].completed)
             col++
             if(col > 4) {
                 col = 0; row++
@@ -672,8 +692,43 @@ export default class Bingo extends React.Component {
         })
         board.pop()
         Object.keys(playerData).forEach(p => playerData[p].hidden = (this.state.playerData.hasOwnProperty(p) && this.state.playerData[p].hidden) || false)
-        let newState = {teams: teams, playerData: playerData, fails: 0, cards: cards, bingos: bingos(board, Object.keys(teams))}
-        if(this.state.loading) {
+        let bingos = getBingos(board, teamKeys)
+        if(!loading)
+            teamKeys.forEach(t => {
+                let oldLines = (this.state.bingos.hasOwnProperty(t)) ? this.state.bingos[t] : []
+                if(oldLines.length !== bingos[t].length) {
+                    let verb, changed, name = getName(t)
+                    if(oldLines.length < bingos[t].length)
+                    {
+                        verb = "completed"
+                        changed = bingos[t].filter(b => !oldLines.includes(b))
+                    }
+                    else
+                    {
+                        verb = "lost"
+                        changed = oldLines.filter(b => !bingos[t].includes(b))
+                    }
+                    if(changed.length > 1) 
+                        changed = `${changed.length} bingos!!! (${changed.join(", ")})`
+                    else
+                        changed = `a bingo! (${changed[0]})`
+                    this.log(`${name} ${verb} ${changed}`)
+                }
+            })
+        let newState = {teams: teams, playerData: playerData, fails: 0, cards: cards, bingos: bingos}
+        if(!loading && teamKeys.some(t => bingos[t].length > currentRecord)) {
+            let newRecord = Math.max(...teamKeys.map(t=>bingos[t].length)) 
+            for(let iter = currentRecord + 1; iter <= newRecord; iter++) {
+                let recordSetters = teamKeys.filter(t => bingos[t].length >= iter)
+                if(recordSetters.length > 1) {
+                    this.log(`Tie for ${iter} bingos reached! ${recordSetters.map(t => getName(t)).join(", ")}`)
+                } else if(recordSetters.length) {
+                    this.log(`${getName(recordSetters[0])} is the first to ${iter} bingos!`)
+                }
+            }
+            newState.currentRecord = newRecord;
+        }
+        if(loading) {
             newState.loading = false;
             Object.keys(playerData).forEach(p => {
                 if(playerData[p].name === this.state.user)
@@ -696,6 +751,13 @@ export default class Bingo extends React.Component {
            pageStyle = 'body { background-color: white; color: black }';
            inputStyle = {'backgroundColor': 'white', 'color': 'black'}
         }  
+        let eventlog = haveGame  ? (
+            <Row className="py-2">
+            <Col>
+                <textarea style={inputStyle} className="w-100" rows={15} disabled value={[...this.state.eventLog].reverse().join("\n")}/>
+            </Col>
+            </Row>
+        ) : null
         let headerText = haveGame && dispDiff ? `Bingo Game ${gameId} (${dispDiff})` : "Bingo!"
         let subheader = (haveGame && subtitle !== "") ? (
             <Row>
@@ -729,6 +791,7 @@ export default class Bingo extends React.Component {
                     </Row>
                     {subheader}
                     {bingoContent}
+                    {eventlog}
                 </Container>
             )
         }
@@ -769,7 +832,8 @@ export default class Bingo extends React.Component {
                     </Col>
                 </Row>
                 {bingoContent}
-                <Row className="align-items-center pt-2">
+                {eventlog}
+                <Row className="align-items-center pt-3">
                     {spectatorLink}
                 </Row>
             </Container>
