@@ -140,7 +140,7 @@ class SiteBar extends Component {
             <NavbarBrand href={"/" + (dark && !user ? "?dark=1" : "")}>Ori Rando</NavbarBrand>
                 <Nav className="ml-auto" navbar>
                 <NavItem className="pl-2 pr-1">
-                    <Button color="primary" href={"/quickstart" + + (dark && !user ? "?dark=1" : "")}>Start Playing</Button>
+                    <Button color="primary" href={"/quickstart" + (dark && !user ? "?dark=1" : "")}>Start Playing</Button>
                 </NavItem>
                 <NavItem className="pl-1 pr-2">
                     <Button color="info" href={"/faq"}>Help</Button>
