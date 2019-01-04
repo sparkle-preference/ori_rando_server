@@ -355,7 +355,7 @@ export default class MainPage extends React.Component {
         {
             url.searchParams.set("param_id", paramId);
             if(gameId && gameId > 0)
-                url.searchParams.set("gameId", gameId);
+                url.searchParams.set("game_id", gameId);
         }
         window.history.replaceState('',window.document.title, url.href);
     }
