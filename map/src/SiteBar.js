@@ -120,7 +120,6 @@ class SiteBar extends Component {
         let page = encodeURIComponent(url.pathname + url.search)
         let xMode = dark ? "Light Mode" : "Dark Mode"
         let logonoff = user ? [
-            (<DropdownItem key="username" disabled style={{color: "black", fontStyle: "italic"}}>(Logged in as {user}) </DropdownItem>),
             (<DropdownItem key="settings" onClick={() => this.setState({settingsOpen: true})}> Rename </DropdownItem>),
             (<DropdownItem key="logout" href={"/logout?redir="+page}>  Logout </DropdownItem>),
         ] : [
@@ -134,6 +133,7 @@ class SiteBar extends Component {
             dropdownStyle.backgroundColor = "#666"
             navClass = "border border-light p-2"
         }
+        let nameorlogin = user ? user : "Login"
         return (
             <Navbar className={navClass} expand="md">
             {settings}
@@ -152,6 +152,9 @@ class SiteBar extends Component {
                     <DropdownMenu style={dropdownStyle} right>
                         <DropdownItem href="/vanilla">
                             Vanilla Seed
+                        </DropdownItem>
+                        <DropdownItem href="/dll/bingo">
+                            Bingo dll (rando beta)
                         </DropdownItem>
                         <DropdownItem href="/dll">
                             Rando dll
@@ -175,20 +178,6 @@ class SiteBar extends Component {
                     </DropdownMenu>
                 </UncontrolledDropdown>
                 <UncontrolledDropdown nav inNavbar>
-                <DropdownToggle nav caret>
-                Bingo
-                </DropdownToggle>
-                <DropdownMenu style={dropdownStyle} right>
-                    <DropdownItem href="/dll/bingo">
-                        Bingo dll (Works with rando)
-                    </DropdownItem>
-                    <DropdownItem href={"/bingo/board" + (dark && !user ? "?dark=1" : "")}>
-                        Start Bingo Game
-                    </DropdownItem>
-                </DropdownMenu>
-                </UncontrolledDropdown>
-                
-                <UncontrolledDropdown nav inNavbar>
                     <DropdownToggle nav caret>
                     Misc
                     </DropdownToggle>
@@ -196,14 +185,22 @@ class SiteBar extends Component {
                     <DropdownItem target="_blank" href="https://goo.gl/csgRUw">
                         Patch Notes
                     </DropdownItem>
+                    <DropdownItem href={"/bingo/board" + (dark && !user ? "?dark=1" : "")}>
+                        Start Bingo Game
+                    </DropdownItem>
+                   </DropdownMenu>
+                </UncontrolledDropdown>
+                <UncontrolledDropdown nav inNavbar>
+                    <DropdownToggle nav caret>
+                    {nameorlogin}
+                    </DropdownToggle>
+                    <DropdownMenu style={dropdownStyle} right>
                     <DropdownItem onClick={this.themeToggle}> 
                         {xMode} 
                     </DropdownItem>
-                     {logonoff}
-
-                   </DropdownMenu>
+                    {logonoff}
+                    </DropdownMenu>
                 </UncontrolledDropdown>
-                    
                 <UncontrolledDropdown nav inNavbar>
                     <DropdownToggle nav caret>
                     Plando

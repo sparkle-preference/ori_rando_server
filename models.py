@@ -4,6 +4,7 @@ from google.appengine.api import users
 import logging as log
 from json import dumps as jsonify
 from datetime import datetime, timedelta
+from calendar import timegm
 from collections import defaultdict
 
 from seedbuilder.seedparams import Placement, Stuff, SeedGenParams
@@ -127,8 +128,7 @@ class BingoCard(ndb.Model):
                 prog.completed = completed
 
         if(prior_value != p_progress.completed):
-            event = BingoEvent(event_type="square", loss = not p_progress.completed, square=self.square, player=pkey, timestamp=datetime.now())
-            print pkey, event
+            event = BingoEvent(event_type="square", loss = not p_progress.completed, square=self.square, player=pkey, timestamp=datetime.utcnow())
             return event
 
 
@@ -138,31 +138,38 @@ class BingoEvent(ndb.Model):
     square = ndb.IntegerProperty() # position in the single-dimension array
     bingo = ndb.StringProperty()
     timestamp = ndb.DateTimeProperty()
+    first = ndb.BooleanProperty()
     player = ndb.KeyProperty("Player")
     def to_json(self, start_time):
         res =  {'loss': self.loss, 'type': self.event_type, 'time': str(self.timestamp-start_time), 'player': _pid(self.player)}
-        if self.square or self.square == 0:
+        if self.event_type == 'square':
             res['square'] = self.square
-        if self.bingo:
+        if self.event_type == 'bingo':
             res['bingo'] = self.bingo
+            if self.first:
+                res['first'] = True
         return res
 
 
 class BingoGameData(ndb.Model):
     board            = ndb.LocalStructuredProperty(BingoCard, repeated=True)
     start_time       = ndb.DateTimeProperty()
+    started          = ndb.BooleanProperty(default=True)
     creator          = ndb.KeyProperty("User")
     teams            = ndb.JsonProperty(repeated=True)
     event_log        = ndb.LocalStructuredProperty(BingoEvent, repeated=True)
     bingo_count      = ndb.IntegerProperty(default=3)
+    current_highest  = ndb.IntegerProperty(default=0)
     difficulty       = ndb.StringProperty()
     subtitle         = ndb.StringProperty()
     required_squares = ndb.IntegerProperty(repeated=True)
     seed             = ndb.TextProperty(compressed=True)
+    teams_allowed    = ndb.BooleanProperty(default=False)
 
     def update(self, player_data, pkey, team, capkey):
         change_squares = set()
         loss_squares = set()
+        win_players = False
         for card in self.board:
             if card.name in player_data:
                 ev = card.update(player_data[card.name], team, pkey)
@@ -180,14 +187,22 @@ class BingoGameData(ndb.Model):
                     lost_squares = len(set(line) & loss_squares)
                     if lost_squares + squares == 5:
                         loss = lost_squares > 0
-                        self.event_log.append(BingoEvent(event_type = "bingo", loss = loss, bingo = bingo, player = capkey, timestamp = datetime.now()))
+                        ev = BingoEvent(event_type = "bingo", loss = loss, bingo = bingo, player = capkey, timestamp = datetime.utcnow())
                         if loss and bingo in team["bingos"]:
                             team["bingos"].remove(bingo)
                         elif bingo not in team["bingos"]:
                             team["bingos"].append(bingo)
+                            if(len(team["bingos"]) > self.current_highest):
+                                ev.first = True
+                                self.current_highest += 1
+
+                        self.event_log.append(ev)
                         if len(team["bingos"]) >= self.bingo_count:
-                            if all([self.board[square].progress(pkey).completed for square in self.required_squares]):
-                                team["win_time"] = str(datetime.now() - self.start_time)
+                            if "place" not in team and all([self.board[square].progress(pkey).completed for square in self.required_squares]):
+                                self.event_log.append(BingoEvent(event_type = "win", loss = False, player = capkey, timestamp = datetime.utcnow()))
+                                team["place"] = len([1 for e in self.event_log if e.event_type == "win"])
+                                win_players = True
+        return win_players
         
 
 class HistoryLine(ndb.Model):
@@ -391,6 +406,7 @@ class Player(ndb.Model):
     last_update = ndb.DateTimeProperty(auto_now=True)
     teammates   = ndb.KeyProperty('Player', repeated=True)
     user        = ndb.KeyProperty(User)
+    can_nag     = ndb.BooleanProperty(default=True)
 
     def name(self):
         if self.user:
@@ -504,7 +520,7 @@ class Game(ndb.Model):
     def next_player(self):
         if self.mode != MultiplayerGameType.SIMUSOLO:
             return False
-        player_nums = self.player_nums
+        player_nums = self.player_nums()
         return max(player_nums)+1
 
     def player_nums(self):
@@ -686,7 +702,7 @@ class Game(ndb.Model):
         else:
             log.error("game mode %s not implemented" % self.mode)
             retcode = 404
-        hl = HistoryLine(pickup_code=pickup.code, timestamp=datetime.now(), pickup_id=str(pickup.id), coords=coords, removed=remove)
+        hl = HistoryLine(pickup_code=pickup.code, timestamp=datetime.utcnow(), pickup_id=str(pickup.id), coords=coords, removed=remove)
         if coords in range(24, 60, 4) and zone in map_coords_by_zone:
             hl.map_coords = map_coords_by_zone[zone]
         finder.history.append(hl)
@@ -765,33 +781,51 @@ class Game(ndb.Model):
 
     def bingo_json(self, initial=False):
         res = {
-            'cards': [c.to_json() for c in self.bingo.board],
+            'cards':  [c.to_json() for c in self.bingo.board],
             'events': [e.to_json(self.bingo.start_time) for e in self.bingo.event_log],
-            'teams': self.bingo.teams[:],
+            'teams': {t["cap"]: t for t in self.bingo.teams},
             'required_squares': self.bingo.required_squares,
             "gameId": self.key.id()
         }
-        for t in res['teams']:
+        for t in res['teams'].values():
             p = self.player(t["cap"])
             t["name"] = p.teamname() if t["teammates"] else p.name()
             t["teammates"] = [{'pid': tm, 'name': self.player(tm).name()} for tm in t["teammates"]]
 
+        if self.bingo.creator:
+            res["creator"] = self.bingo.creator.get().name
+            user = User.get()
+            res["is_owner"] = user and self.bingo.creator == user.key
+
+        if self.bingo.start_time:
+            res['countdown'] = self.bingo.start_time > datetime.utcnow()
+            res['start_time_posix'] = timegm(self.bingo.start_time.timetuple())
+        
         if initial:
             res["difficulty"] = self.bingo.difficulty
             res["bingo_count"] = self.bingo.bingo_count
             res["subtitle"] = self.bingo.subtitle
             res["seed"] = self.bingo.seed
-            if self.bingo.creator:
-                res["creator"] = self.bingo.creator.get().name
-                user = User.get()
-                res["is_owner"] = user and self.bingo.creator == user.key
+            res["teams_allowed"] = self.bingo.teams_allowed
+            if self.params:
+                res["param_id"] = self.params.id()
         return res
-    def bingo_update(self, bingo_data, player_id, need_update):
+
+    def bingo_update(self, bingo_data, player_id):
+        if not self.bingo.start_time:
+            return
+        if self.bingo.difficulty != "hard" and "HuntEnemies" in bingo_data and bingo_data["HuntEnemies"]["value"]["Fronkey Fight"]["value"]:
+            bingo_data["HuntEnemies"]["total"] -= 1
         player = self.player(player_id)
         team = self.bingo_team(player_id)
-        print team, self.bingo.teams
         cap = self.player(team["cap"])
-        self.bingo.update(bingo_data, player.key, team, cap.key)
+        now =  datetime.utcnow() - self.bingo.start_time
+        if self.bingo.update(bingo_data, player.key, team, cap.key):
+            team = self.bingo_team(team["cap"])
+            p_list = [team["cap"]]
+            p_list += team["teammates"]
+            for p in p_list:
+                self.player(p).signal_send("win:Time at %s! %s players finished before you" % (now, team["place"]))
         self.put()
 
     def bingo_team(self, pid, cap_only=True):

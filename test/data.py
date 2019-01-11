@@ -150,7 +150,7 @@ bingo_data = {
 				"value": false
 			},
 			"HuntEnemies": {
-				"total": 0,
+				"total": 2,
 				"value": {
 					"Upper Ginso Miniboss": {
 						"value": false
@@ -165,10 +165,10 @@ bingo_data = {
 						"value": false
 					},
 					"Mount Horu Miniboss": {
-						"value": false
+						"value": true
 					},
 					"Fronkey Fight": {
-						"value": false
+						"value": true
 					},
 					"Misty Miniboss": {
 						"value": false
@@ -225,7 +225,10 @@ bingo_data = {
 					},
 					"L4Fire": {
 						"value": false
-					}
+					},
+                    "SorrowLasersArea": {
+                        "value": false
+                    }
 				}
 			},
 			"BreakPlants": {
@@ -535,7 +538,7 @@ bingo_data = {
 				"value": 6
 			},
 			"VisitTree": {
-				"total": 6,
+				"total": 16,
 				"value": {
 					"Glide": {
 						"value": true
@@ -629,7 +632,7 @@ bingo_data = {
 						"value": true
 					},
 					"BlackrootTeleporter": {
-						"value": false
+						"value": true
 					},
 					"R2": {
 						"value": false
@@ -657,7 +660,10 @@ bingo_data = {
 					},
 					"L4Fire": {
 						"value": false
-					}
+					},
+                    "SorrowLasersArea": {
+                        "value": false
+                    }
 				}
 			},
 			"BreakPlants": {
@@ -676,7 +682,7 @@ bingo_data = {
 						"value": true
 					},
 					"R2": {
-						"value": false
+						"value": true
 					},
 					"R3": {
 						"value": true
@@ -688,7 +694,7 @@ bingo_data = {
 						"value": false
 					},
 					"L3": {
-						"value": false
+						"value": true
 					},
 					"L1": {
 						"value": true
@@ -1061,7 +1067,7 @@ bingo_data = {
 						"value": false
 					},
 					"BlackrootTeleporter": {
-						"value": false
+						"value": true
 					},
 					"R2": {
 						"value": false
@@ -1089,7 +1095,10 @@ bingo_data = {
 					},
 					"L4Fire": {
 						"value": false
-					}
+					},
+                    "SorrowLasersArea": {
+                        "value": false
+                    }
 				}
 			},
 			"BreakPlants": {
@@ -1522,7 +1531,10 @@ bingo_data = {
 					},
 					"L4Fire": {
 						"value": false
-					}
+					},
+                    "SorrowLasersArea": {
+                        "value": false
+                    }
 				}
 			},
 			"BreakPlants": {

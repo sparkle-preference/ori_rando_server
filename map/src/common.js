@@ -8,7 +8,20 @@ import { Badge } from 'reactstrap';
 import CreatableSelect from 'react-select/lib/Creatable';
 import { colors } from 'react-select/lib/theme';
 
-
+function ordinal_suffix(i) {
+    let j = i % 10,
+        k = i % 100;
+    if (j === 1 && k !== 11) {
+        return i + "st";
+    }
+    if (j === 2 && k !== 12) {
+        return i + "nd";
+    }
+    if (j === 3 && k !== 13) {
+        return i + "rd";
+    }
+    return i + "th";
+}
 function name_from_str(pick) {
     if(!pick)
         return ""
@@ -529,5 +542,5 @@ function doNetRequest(url, onRes) {
 
 export {
     player_icons, doNetRequest, get_param, get_flag, get_int, get_list, get_preset, presets, get_seed, logic_paths, get_random_loader, Blabel,
-    pickup_name, stuff_by_type, name_from_str, PickupSelect, Cent
+    pickup_name, stuff_by_type, name_from_str, PickupSelect, Cent, ordinal_suffix
 };

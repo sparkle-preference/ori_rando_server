@@ -77,7 +77,7 @@ class ActiveGames(RequestHandler):
                 flags = params.flag_line()
 
             blink = ""
-            if game.bingo and len(game.bingo) > 0:
+            if game.bingo:
                 blink += " <a href='/bingo/board?game_id=%s'>Bingo board</a>" % gid
             
             body += "<li><a href='%s'>Game #%s</a> <a href='%s'>Map</a>%s %s (Last update: %s ago)</li>" % (game_link, gid, map_link, blink, flags, datetime.now() - game.last_update)
@@ -257,6 +257,10 @@ class SetSeed(RequestHandler):
         lines = param_val(self, "seed").split(",")
         game = Game.with_id(game_id)
         hist = Cache.getHist(game_id)
+        flags = lines[0].split("|")
+        # if "Bingo" in flags:
+            
+
         if not hist:
             Cache.setHist(game_id, player_id, [])
         Cache.setPos(game_id, player_id, 189, -210)
@@ -796,8 +800,6 @@ class Guides(RequestHandler):
             template_values['user'] = user.name
         self.response.write(template.render(path, template_values))
 
-
-
 class GetSettings(RequestHandler):
     def get(self):
         res = {}
@@ -892,6 +894,7 @@ app = WSGIApplication(
     PathPrefixRoute('/netcode/game/<game_id:\d+>/player/<player_id:[^/]+>', [
         Route('/found/<coords>/<kind>/<id:.*>', handler=FoundPickup, name="netcode-player-found-pickup"),
         Route('/tick/<x:[^,]+>,<y>', handler=GetUpdate, name="netcode-player-tick"),
+        Route('/signalCallback/<signal>', handler=SignalCallback,  name="netcode-player-signal-callback"),
         Route('/callback/<signal>', handler=SignalCallback,  name="netcode-player-signal-callback"),
         Route('/setSeed', handler=SetSeed,  name="netcode-player-set-seed"),
     ]),

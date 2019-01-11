@@ -1,6 +1,6 @@
 from random import choice, randint, sample
 from collections import defaultdict, Counter
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 import logging as log
 
@@ -17,15 +17,19 @@ from seedbuilder.vanilla import seedtext as vanilla_seed
 if debug:
     from test.data import bingo_data as test_data
 
-BINGO_LATEST = [0,1,4]
+BINGO_LATEST = [0,1,6]
 def version_check(version):
-    nums = [int(num) for num in version.split(".")]
-    for latest,test in zip(BINGO_LATEST, nums):
-        if latest > test:
-            return False
-        if test > latest:
-            return True
-    return True
+    try:
+        nums = [int(num) for num in version.split(".")]
+        for latest,test in zip(BINGO_LATEST, nums):
+            if latest > test:
+                return False
+            if test > latest:
+                return True
+        return True
+    except Exception as e:
+        log.error("failed version check for version %s: %s", version, e)
+        return False
 
 class BingoGoal(object):
     max_repeats = 1
@@ -389,7 +393,7 @@ class BingoGenerator(object):
             ),
             GoalGroup(
                 name = "HuntEnemies",
-                name_func = namef("Kill", "Miniboss"),
+                name_func = namef("Kill", "Miniboss", "Minibosses"),
                 help_lines = ["If there are multiple enemies, defeating all of them is required"],
                 goals = [
                     BoolGoal(name = "Misty Miniboss", help_lines = ["The 2 jumping purple spitters at the end of Misty"]),
@@ -643,27 +647,23 @@ class BingoCreate(RequestHandler):
         
         game = key.get()
         game.bingo = BingoGameData(
-            board      = BingoGenerator.get_cards(25, False, difficulty),
-            difficulty = difficulty,
-            start_time = datetime.now(),
-            seed       = "\n".join(base),
+            board         = BingoGenerator.get_cards(25, False, difficulty),
+            difficulty    = difficulty,
+            seed          = "\n".join(base),
+            teams_allowed = param_flag(self, "teams"),
+            bingo_count   = int(param_val(self, "lines"))
         )
         user = User.get()
         if user:
             game.bingo.creator = user.key
+        else:
+            game.bingo.start_time = datetime.utcnow()
+
         if show_info:
             game.bingo.subtitle = " | ".join(sw_parts)
         
         
         res = game.bingo_json(True)
-        # {
-        #     'gameId':     key.id(),
-        #     'seed':       "\n".join(base),
-        #     'cards':      BingoGenerator.get_cards(25, False, difficulty),
-        #     'difficulty': difficulty,
-        #     'playerData': {},
-        #     'teams':      {},
-        # }
         self.response.write(json.dumps(res))
         game.put()
  
@@ -685,23 +685,20 @@ class AddBingoToGame(RequestHandler):
         params = game.params.get()
         params.tracking = False
         game.bingo = BingoGameData(
-            board      = BingoGenerator.get_cards(25, True, difficulty),
-            difficulty = difficulty,
-            start_time = datetime.now(),
-            seed       = "Bingo," + params.get_seed(),
-            subtitle   = params.flag_line(),
+            board         = BingoGenerator.get_cards(25, True, difficulty),
+            difficulty    = difficulty,
+            seed          = "Bingo," + params.get_seed(),
+            subtitle      = params.flag_line(),
+            teams_allowed = param_flag(self, "teams"),
+            bingo_count   = int(param_val(self, "lines"))
         )
+        user = User.get()
+        if user:
+            game.bingo.creator = user.key
+        else:
+            game.bingo.start_time = datetime.utcnow()
+
         res = game.bingo_json(True)
-        # res = {
-        #     'gameId':     game_id,
-        #     'seed':       "Bingo," + params.get_seed(),
-        #     'cards':      BingoGenerator.get_cards(25, True, difficulty),
-        #     'difficulty': difficulty,
-        #     'subtitle':   params.flag_line(),
-        #     'playerData': {},
-        #     'teams':      {},
-        # }
-        # game.bingo = res
         self.response.write(json.dumps(res))
         for p in game.get_players():
             game.remove_player(p.key.id())
@@ -736,12 +733,7 @@ class BingoAddPlayer(RequestHandler):
         game = game.put().get()
 
         res = game.bingo_json()
-        
-        # res["playerData"] = {}
-        # for player in game.get_players():
-        #     pid = player.pid()
-        #     res["playerData"][pid] = {'name': player.name(), 'teamname': player.teamname(), 'bingoData': player.bingo_data}
-
+        res['player_download'] = player_id
         self.response.headers['Content-Type'] = 'application/json'
         self.response.write(json.dumps(res))
 
@@ -759,6 +751,26 @@ class BingoGetGame(RequestHandler):
         self.response.headers['Content-Type'] = 'application/json'
         self.response.write(json.dumps(res))
 
+class BingoStartCountdown(RequestHandler):
+    def get(self, game_id):
+        res = {}
+        game = Game.with_id(game_id)
+        if not game:
+            return resp_error(self, 404, "Game not found", "text/plain")
+        if not game.bingo:
+            return resp_error(self, 404, "Game found but had no bingo data...", "text/plain")
+        user = User.get()
+        if not user or game.bingo.creator != user.key:
+            return resp_error(self, 401, "Only the creator can start the game", "text/plain")
+        if game.bingo.start_time:
+            return resp_error(self, 412, "Game has already started!", "text/plain")
+        game.bingo.start_time = datetime.utcnow() + timedelta(seconds=15)
+        game = game.put().get()
+        res = game.bingo_json()
+        self.response.headers['Content-Type'] = 'application/json'
+        self.response.write(json.dumps(res))
+        
+
 class HandleBingoUpdate(RequestHandler):
     def get(self, game_id, player_id):
         if debug:
@@ -767,17 +779,27 @@ class HandleBingoUpdate(RequestHandler):
         game = Game.with_id(game_id)
         if not game:
             return resp_error(self, 404)
+        if int(player_id) not in game.player_nums():
+            return resp_error(self, 412, "player not in game! %s" % game.player_nums())
         p = game.player(player_id)
         bingo_data = json.loads(self.request.POST["bingoData"]) if "bingoData" in self.request.POST  else None
-        need_update = version_check(self.request.POST["version"]) if "version" in self.request.POST else False
+        need_update = (not version_check(self.request.POST["version"])) if "version" in self.request.POST else False
         if debug and player_id in test_data:
             bingo_data = test_data[player_id]['bingoData']
-        game.bingo_update(bingo_data, player_id, need_update)
+        if not game.bingo:
+            return resp_error(self, 404)
+        game.bingo_update(bingo_data, player_id)
+        if need_update and p.can_nag:
+            p.signal_send("msg:@Bingo dll out of date@")
+            p.can_nag = False
+            p.put()
+
 
 routes = [
     Route('/bingo/board', handler = BingoBoard, name = "bingo-board", strict_slash = True),
     Route('/bingo/spectate', handler = BingoBoard, name = "bingo-board-spectate", strict_slash = True),
     Route('/bingo/game/<game_id>/fetch', handler = BingoGetGame, name = "bingo-get-game", strict_slash = True),
+    Route('/bingo/game/<game_id>/start', handler = BingoStartCountdown, name = "bingo-start-game", strict_slash = True),
     Route('/bingo/game/<game_id>/add/<player_id>', handler = BingoAddPlayer, name = "bingo-add-player", strict_slash = True),
     Route('/bingo/new', handler = BingoCreate, name = "bingo-create-game", strict_slash = True),
     Route('/bingo/from_game/<game_id>', handler = AddBingoToGame, name = "add-bingo-to-game", strict_slash = True),
