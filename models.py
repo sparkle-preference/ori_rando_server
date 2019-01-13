@@ -57,6 +57,7 @@ class BingoCard(ndb.Model):
     square = ndb.IntegerProperty()  # position in the single-dimension array
     subgoals = ndb.JsonProperty(repeated=True)
     player_progress = ndb.LocalStructuredProperty(BingoCardProgress, repeated=True)
+    current_owner = ndb.IntegerProperty(repeated=True)
 
     def to_json(self):
         res = {
@@ -68,11 +69,12 @@ class BingoCard(ndb.Model):
             }
         if self.square or self.square == 0:
             res["square"] = self.square
-
         if self.subgoals:
             res["subgoals"] = {subgoal["name"]: subgoal for subgoal in self.subgoals}
         if self.target:
             res["target"] = self.target
+        if self.current_owner:
+            res["owner"] = self.current_owner[0]
         return res
 
 
@@ -165,11 +167,14 @@ class BingoGameData(ndb.Model):
     required_squares = ndb.IntegerProperty(repeated=True)
     seed             = ndb.TextProperty(compressed=True)
     teams_allowed    = ndb.BooleanProperty(default=False)
+    lockout          = ndb.BooleanProperty(default=False)
+    square_count     = ndb.IntegerProperty()
 
     def update(self, player_data, pkey, team, capkey):
         change_squares = set()
         loss_squares = set()
         win_players = False
+        score = 0
         for card in self.board:
             if card.name in player_data:
                 ev = card.update(player_data[card.name], team, pkey)
@@ -178,9 +183,24 @@ class BingoGameData(ndb.Model):
                     change_squares.add(ev.square)
                     if ev.loss:
                         loss_squares.add(ev.square)
+                    if self.lockout:
+                        if ev.loss and team["cap"] in card.current_owner:
+                            card.current_owner.remove(team["cap"])
+                        elif not ev.loss and team["cap"] not in card.current_owner:
+                            card.current_owner.append(team["cap"])
+                        if card.current_owner:
+                            for prog in card.player_progress:
+                                prog.completed = (card.current_owner[0] == _pid(prog.player))
+            if card.progress(capkey).completed:
+                score += 1
             else:
                 log.warning("card %s was not in bingo data for team/player %s", card.name if card else card, team['cap'] if team else team)
-        if change_squares:
+        if self.square_count:
+            if score >= self.square_count and "place" not in team and all([self.board[square].progress(pkey).completed for square in self.required_squares]):
+                self.event_log.append(BingoEvent(event_type = "win", loss = False, player = capkey, timestamp = datetime.utcnow()))
+                team["place"] = len([1 for e in self.event_log if e.event_type == "win"])
+                win_players = True
+        elif change_squares:
             for bingo, line in lines_by_index.items():
                 if set(line) & change_squares:
                     squares = len([square for square in line if self.board[square].progress(pkey).completed])
@@ -195,15 +215,14 @@ class BingoGameData(ndb.Model):
                             if(len(team["bingos"]) > self.current_highest):
                                 ev.first = True
                                 self.current_highest += 1
-
                         self.event_log.append(ev)
                         if len(team["bingos"]) >= self.bingo_count:
                             if "place" not in team and all([self.board[square].progress(pkey).completed for square in self.required_squares]):
                                 self.event_log.append(BingoEvent(event_type = "win", loss = False, player = capkey, timestamp = datetime.utcnow()))
                                 team["place"] = len([1 for e in self.event_log if e.event_type == "win"])
                                 win_players = True
-        return win_players
-        
+            return win_players
+
 
 class HistoryLine(ndb.Model):
     pickup_code = ndb.StringProperty()
@@ -813,6 +832,7 @@ class Game(ndb.Model):
 
     def bingo_update(self, bingo_data, player_id):
         if not self.bingo.start_time:
+            log.debug("game not started")
             return
         if self.bingo.difficulty != "hard" and "HuntEnemies" in bingo_data and bingo_data["HuntEnemies"]["value"]["Fronkey Fight"]["value"]:
             bingo_data["HuntEnemies"]["total"] -= 1

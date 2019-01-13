@@ -241,8 +241,8 @@ export default class Bingo extends React.Component {
         this.state = {
                       cards: [], currentRecord: 0, haveGame: false, creatingGame: false, createModalOpen: true, 
                       activePlayer: 1, showInfo: false, user: get_param("user"), loadingText: "Building game...",
-                      dark: dark, specLink: window.document.location.href.replace("board", "spectate"),
-                      fails: 0, gameId: gameId, startSkills: 3, startCells: 4, startMisc: "MU|TP/Swamp/TP/Valley", 
+                      dark: dark, specLink: window.document.location.href.replace("board", "spectate"), lockout: false, squareCount: 13, 
+                      fails: 0, gameId: gameId, startSkills: 3, startCells: 4, startMisc: "MU|TP/Swamp/TP/Valley", goalMode: "bingos",
                       start_with: "", difficulty: "normal", isRandoBingo: false, randoGameId: -1, viewOnly: viewOnly, buildingPlayer: false,
                       events: [], startTime: (new Date()), countdownActive: false, isOwner: false, targetCount: 3, reqsqrs: [],
                       teamsDisabled: true
@@ -282,9 +282,8 @@ export default class Bingo extends React.Component {
             nextPlayer++;
         this.setState({activePlayer: nextPlayer})
         let url = `/bingo/game/${gameId}/add/${nextPlayer}`
-        if(joinTeam) {
+        if(joinTeam) 
             url += `?joinTeam=${joinTeam}`
-        }
         this.setState({buildingPlayer: true, loadingText: "Joining game..."}, doNetRequest(url, this.tickCallback))
     }
     tick = () => {
@@ -325,7 +324,7 @@ export default class Bingo extends React.Component {
         }
     }
     createGame = () => {
-        let {isRandoBingo, targetCount, reqsqrs, randoGameId, startSkills, startCells, startMisc, showInfo, difficulty, teamsDisabled} = this.state;
+        let {isRandoBingo, lockout, targetCount, goalMode, squareCount, reqsqrs, randoGameId, startSkills, startCells, startMisc, showInfo, difficulty, teamsDisabled} = this.state;
         let url
         if(isRandoBingo)
         {
@@ -335,11 +334,17 @@ export default class Bingo extends React.Component {
             if(showInfo)
                 url += "&showInfo=1"
         }
-        url += `&lines=${targetCount}`
+        if(goalMode === "bingos")
+            url += `&lines=${targetCount}`
+        else if(goalMode === "squares")
+            url += `&squares=${squareCount}`
         if(reqsqrs.length > 0)
             url += `&squares=${reqsqrs.join(",")}`
         if(!teamsDisabled)
             url += "&teams=1"
+        if(lockout)
+            url += "&lockout=1"
+
         doNetRequest(url, this.createCallback)
         this.setState({creatingGame: true, loadingText: "Building game...", createModalOpen: false, loader: get_random_loader()})
     }
@@ -585,7 +590,7 @@ export default class Bingo extends React.Component {
         </Modal>
     )}
     createModal = (style) => { 
-        let {difficulty, isRandoBingo, randoGameId, targetCount, startSkills, startCells, startMisc, showInfo, teamsDisabled} = this.state
+        let {difficulty, isRandoBingo, randoGameId, targetCount, startSkills, startCells, startMisc, showInfo, teamsDisabled, lockout, squareCount, goalMode} = this.state
         return (
         <Modal size="lg" isOpen={this.state.createModalOpen} backdrop={"static"} className={"modal-dialog-centered"} toggle={this.toggleCreate}>
             <ModalHeader style={style} toggle={this.toggleCreate}><Cent>Bingo options</Cent></ModalHeader>
@@ -602,25 +607,58 @@ export default class Bingo extends React.Component {
                             </ButtonGroup>
                         </Col>
                     </Row>
-                    <Row className="p-1">
-                        <Col xs="4" className="p1 border">
-                            <Cent>Bingos to win</Cent>
-                        </Col><Col xs="4">
-                            <Input style={style} type="number" value={targetCount}  onChange={(e) => this.setState({targetCount: parseInt(e.target.value, 10)})}/>
-                        </Col>
-                    </Row>
+
                     <Row className="p-1">
                         <Col xs="4" className="p-1 border">
                             <Cent>Teams?</Cent>
                         </Col>
                         <Col xs="6">
                             <ButtonGroup>
-                                <Button active={!teamsDisabled} outline={teamsDisabled} onClick={() => this.setState({teamsDisabled: false})}>Yes Teams</Button>
-                                <Button active={teamsDisabled} outline={!teamsDisabled} onClick={() => this.setState({teamsDisabled: true})}>No Teams</Button>
+                                <Button active={teamsDisabled} outline={!teamsDisabled} onClick={() => this.setState({teamsDisabled: true})}>Solo</Button>
+                                <Button active={!teamsDisabled} outline={teamsDisabled} onClick={() => this.setState({teamsDisabled: false})}>Teams</Button>
                             </ButtonGroup>
                         </Col>
                     </Row>
-
+                    <Row className="p-1">
+                        <Col xs="4" className="p-1 border">
+                            <Cent>Lockout?</Cent>
+                        </Col>
+                        <Col xs="6">
+                            <ButtonGroup>
+                                <Button active={!lockout} outline={lockout} onClick={() => this.setState({lockout: false})}>Standard</Button>
+                                <Button active={lockout} outline={!lockout} onClick={() => this.setState({lockout: true})}>Lockout</Button>
+                            </ButtonGroup>
+                        </Col>
+                    </Row>
+                    <Row className="p-1">
+                        <Col xs="4" className="p-1 border">
+                            <Cent>Goal Modes</Cent>
+                        </Col>
+                        <Col xs="6">
+                            <ButtonGroup>
+                                <Button active={goalMode === "bingos"} outline={goalMode !== "bingos"} onClick={() => this.setState({goalMode: "bingos"})}>Lines</Button>
+                                <Button active={goalMode === "squares"} outline={goalMode !== "squares"} onClick={() => this.setState({goalMode: "squares"})}>Squares</Button>
+                            </ButtonGroup>
+                        </Col>
+                    </Row>
+                    <Collapse isOpen={goalMode === "squares"}>
+                        <Row className="p-1">
+                            <Col xs="4" className="p1 border">
+                                <Cent>Squares to win</Cent>
+                            </Col><Col xs="4">
+                                <Input style={style} type="number" value={squareCount}  onChange={(e) => this.setState({squareCount: parseInt(e.target.value, 10)})}/>
+                            </Col>
+                        </Row>
+                    </Collapse>
+                    <Collapse isOpen={goalMode === "bingos"}>
+                        <Row className="p-1">
+                            <Col xs="4" className="p1 border">
+                                <Cent>Bingos to win</Cent>
+                            </Col><Col xs="4">
+                                <Input style={style} type="number" value={targetCount}  onChange={(e) => this.setState({targetCount: parseInt(e.target.value, 10)})}/>
+                            </Col>
+                        </Row>
+                    </Collapse>
                     <Row className="p-1">
                         <Col xs="4" className="p-1 border">
                             <Cent>Bingo Type</Cent>

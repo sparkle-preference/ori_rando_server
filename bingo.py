@@ -651,8 +651,12 @@ class BingoCreate(RequestHandler):
             difficulty    = difficulty,
             seed          = "\n".join(base),
             teams_allowed = param_flag(self, "teams"),
-            bingo_count   = int(param_val(self, "lines"))
+            lockout       = param_flag(self, "lockout")
         )
+        if param_flag(self, "lines"):
+            game.bingo.bingo_count  = int(param_val(self, "lines"))
+        if param_flag(self, "squares"):
+            game.bingo.square_count = int(param_val(self, "squares"))
         user = User.get()
         if user:
             game.bingo.creator = user.key
@@ -690,8 +694,12 @@ class AddBingoToGame(RequestHandler):
             seed          = "Bingo," + params.get_seed(),
             subtitle      = params.flag_line(),
             teams_allowed = param_flag(self, "teams"),
-            bingo_count   = int(param_val(self, "lines"))
+            lockout       = param_flag(self, "lockout")
         )
+        if param_flag(self, "lines"):
+            game.bingo.bingo_count  = int(param_val(self, "lines"))
+        if param_flag(self, "squares"):
+            game.bingo.square_count = int(param_val(self, "squares"))
         user = User.get()
         if user:
             game.bingo.creator = user.key
