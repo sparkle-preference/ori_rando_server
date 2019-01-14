@@ -143,12 +143,16 @@ const PlayerList = ({activePlayer, teams, viewOnly, onPlayerListAction, dark, te
     if(dark)
         dropdownStyle.backgroundColor = "#666"
     let players = team_list.map(({hidden, cap, teammates, name, bingos, place, score}) => {
+        
             if(hidden)
                 return null
             place = place || 0
+            score = score || 0
             let hasTeam = teammates.length > 1
             let number = (bingos && bingos.length) || 0
-            let text = `${name} ${number} lines, ((${score}/25)`
+            let text = `${name} | ${number} lines`
+            if(score)
+                text += `, (${score}/25)`
             let badge = place > 0 ? (<Badge color='primary'>{ordinal_suffix(place)}</Badge>) : null
             let active = activePlayer === cap
             let joinButton = viewOnly || teamsDisabled ? null : ( 
@@ -421,7 +425,17 @@ export default class Bingo extends React.Component {
             console.log(`Multiple teams found for player ${pid}! ${teams}`)
         return teams[0]
     }
-    getSquareName = (sq) => this.state.cards[sq].disp_name
+    getSquareName = (sq, withCoords) => {
+        withCoords = withCoords || true
+        if(withCoords)
+        {
+            let col = {0: "A", 1: "B", 2: "C", 3: "D", 4: "E"}[(sq % 5)]
+            let row = Math.floor(sq / 5) + 1
+            
+            return `${this.state.cards[sq].disp_name} (${col}${row})`
+        }
+        return this.state.cards[sq].disp_name
+    }
     render = () => {
         let {specLink, viewOnly, isOwner, dark, activePlayer, teamsDisabled, startTime, subtitle, cards, haveGame, gameId, user, dispDiff, teams, loadingText} = this.state
         let pageStyle, inputStyle
@@ -442,10 +456,10 @@ export default class Bingo extends React.Component {
         let fmt = ({square, first, loss, time, type, player, bingo}) => {
             let cpid = this.getCap(player)
             if (!cpid) return ""
-            let {name, score} = this.state.teams[cpid]
+            let {name} = this.state.teams[cpid]
             switch(type) {
                 case "square":
-                    return  loss ? `${time}: ${name} lost square ${this.getSquareName(square)}!` : `${time}: ${name} completed square ${this.getSquareName(square)} (${score}/25)`
+                    return  loss ? `${time}: ${name} lost square ${this.getSquareName(square)}!` : `${time}: ${name} completed square ${this.getSquareName(square)}`
                 case "bingo":
                     let txt =  loss ? `${time}: ${name} lost bingo ${bingo}!` : `${time}: ${name} got bingo ${bingo}`
                     if(!loss && first)

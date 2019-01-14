@@ -40,7 +40,8 @@ class BingoCardProgress(ndb.Model):
     locked = ndb.BooleanProperty()
     count = ndb.IntegerProperty()
     completed_subgoals = ndb.StringProperty(repeated=True)
-    def completed(self):    return self.completed and not self.locked
+
+    def complete(self):    return self.completed and not self.locked
     def to_json(self):
         return {
             'completed': self.complete(),
