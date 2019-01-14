@@ -142,13 +142,13 @@ const PlayerList = ({activePlayer, teams, viewOnly, onPlayerListAction, dark, te
     let team_list = Object.keys(teams).map(cid => teams[cid])
     if(dark)
         dropdownStyle.backgroundColor = "#666"
-    let players = team_list.map(({hidden, cap, teammates, name, bingos, place}) => {
+    let players = team_list.map(({hidden, cap, teammates, name, bingos, place, score}) => {
             if(hidden)
                 return null
             place = place || 0
             let hasTeam = teammates.length > 1
             let number = (bingos && bingos.length) || 0
-            let text = `${name} (${number} lines)`
+            let text = `${name} ${number} lines, ((${score}/25)`
             let badge = place > 0 ? (<Badge color='primary'>{ordinal_suffix(place)}</Badge>) : null
             let active = activePlayer === cap
             let joinButton = viewOnly || teamsDisabled ? null : ( 
@@ -442,10 +442,10 @@ export default class Bingo extends React.Component {
         let fmt = ({square, first, loss, time, type, player, bingo}) => {
             let cpid = this.getCap(player)
             if (!cpid) return ""
-            let name = this.state.teams[cpid].name
+            let {name, score} = this.state.teams[cpid]
             switch(type) {
                 case "square":
-                    return  loss ? `${time}: ${name} lost square ${this.getSquareName(square)}!` : `${time}: ${name} completed square ${this.getSquareName(square)}`
+                    return  loss ? `${time}: ${name} lost square ${this.getSquareName(square)}!` : `${time}: ${name} completed square ${this.getSquareName(square)} (${score}/25)`
                 case "bingo":
                     let txt =  loss ? `${time}: ${name} lost bingo ${bingo}!` : `${time}: ${name} got bingo ${bingo}`
                     if(!loss && first)

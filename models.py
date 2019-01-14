@@ -9,7 +9,7 @@ from collections import defaultdict
 
 from seedbuilder.seedparams import Placement, Stuff, SeedGenParams
 from enums import MultiplayerGameType, ShareType
-from util import picks_by_coord, get_bit, get_taste, enums_from_strlist, PickLoc
+from util import picks_by_coord, get_bit, get_taste, enums_from_strlist, PickLoc, ord_suffix
 from pickups import Pickup, Skill, Teleporter, Event
 from cache import Cache
 
@@ -37,12 +37,13 @@ lines_by_index = {
 class BingoCardProgress(ndb.Model):
     player = ndb.KeyProperty("Player", required=True)
     completed = ndb.BooleanProperty()
+    locked = ndb.BooleanProperty()
     count = ndb.IntegerProperty()
     completed_subgoals = ndb.StringProperty(repeated=True)
-    
+    def completed(self):    return self.completed and not self.locked
     def to_json(self):
         return {
-            'completed': self.completed,
+            'completed': self.complete(),
             'count': self.count,
             'subgoals': self.completed_subgoals
         }
@@ -129,7 +130,7 @@ class BingoCard(ndb.Model):
             for prog in all_progress:
                 prog.completed = completed
 
-        if(prior_value != p_progress.completed):
+        if prior_value != p_progress.completed:
             event = BingoEvent(event_type="square", loss = not p_progress.completed, square=self.square, player=pkey, timestamp=datetime.utcnow())
             return event
 
@@ -174,7 +175,7 @@ class BingoGameData(ndb.Model):
         change_squares = set()
         loss_squares = set()
         win_players = False
-        score = 0
+        team["score"] = 0
         for card in self.board:
             if card.name in player_data:
                 ev = card.update(player_data[card.name], team, pkey)
@@ -190,20 +191,20 @@ class BingoGameData(ndb.Model):
                             card.current_owner.append(team["cap"])
                         if card.current_owner:
                             for prog in card.player_progress:
-                                prog.completed = (card.current_owner[0] == _pid(prog.player))
-            if card.progress(capkey).completed:
-                score += 1
+                                prog.locked = (card.current_owner[0] == _pid(prog.player))
+            if card.progress(capkey).complete():
+                team["score"] += 1
             else:
                 log.warning("card %s was not in bingo data for team/player %s", card.name if card else card, team['cap'] if team else team)
         if self.square_count:
-            if score >= self.square_count and "place" not in team and all([self.board[square].progress(pkey).completed for square in self.required_squares]):
+            if team["score"] >= self.square_count and "place" not in team and all([self.board[square].progress(pkey).complete() for square in self.required_squares]):
                 self.event_log.append(BingoEvent(event_type = "win", loss = False, player = capkey, timestamp = datetime.utcnow()))
                 team["place"] = len([1 for e in self.event_log if e.event_type == "win"])
                 win_players = True
         elif change_squares:
             for bingo, line in lines_by_index.items():
                 if set(line) & change_squares:
-                    squares = len([square for square in line if self.board[square].progress(pkey).completed])
+                    squares = len([square for square in line if self.board[square].progress(pkey).complete()])
                     lost_squares = len(set(line) & loss_squares)
                     if lost_squares + squares == 5:
                         loss = lost_squares > 0
@@ -217,7 +218,7 @@ class BingoGameData(ndb.Model):
                                 self.current_highest += 1
                         self.event_log.append(ev)
                         if len(team["bingos"]) >= self.bingo_count:
-                            if "place" not in team and all([self.board[square].progress(pkey).completed for square in self.required_squares]):
+                            if "place" not in team and all([self.board[square].progress(pkey).complete() for square in self.required_squares]):
                                 self.event_log.append(BingoEvent(event_type = "win", loss = False, player = capkey, timestamp = datetime.utcnow()))
                                 team["place"] = len([1 for e in self.event_log if e.event_type == "win"])
                                 win_players = True
@@ -845,7 +846,7 @@ class Game(ndb.Model):
             p_list = [team["cap"]]
             p_list += team["teammates"]
             for p in p_list:
-                self.player(p).signal_send("win:Time at %s! %s players finished before you" % (now, team["place"]))
+                self.player(p).signal_send("win:$Finished in %s place at %s!" % (ord_suffix(team["place"]), now))
         self.put()
 
     def bingo_team(self, pid, cap_only=True):
