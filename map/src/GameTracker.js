@@ -405,15 +405,16 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
     getGamedata = () => {
         let onRes = (res) => {
                     this.setState(state => {
-                        let {paths, closed_dungeons, open_world, playerCount} = JSON.parse(res);
-                        let players = state.players;
-                        while(playerCount > Object.keys(players).length)
-                        {
-                            let pid = Object.keys(players).length + 1;
-                            players[pid] = {...EMPTY_PLAYER}
-                            players[pid].name = `Player ${pid}`
-                        }
-                        return {pathMode: get_preset(paths), players: players, retries: 0, modes: paths, closed_dungeons: closed_dungeons, open_world: open_world}
+                        let {paths, closed_dungeons, open_world, players} = JSON.parse(res);
+                        let curr_players = state.players;
+                        players.forEach(({pid, name}) => {
+                            if(!curr_players.hasOwnProperty(pid))
+                            {
+                                curr_players[pid] = {...EMPTY_PLAYER}
+                                curr_players[pid].name = name
+                            }
+                        })
+                        return {pathMode: get_preset(paths), players: curr_players, retries: 0, modes: paths, closed_dungeons: closed_dungeons, open_world: open_world}
                     });
                 }
         doNetRequest(onRes, (s) => this.setState(s), "/tracker/game/"+game_id+"/fetch/gamedata", this.timeout)
@@ -442,7 +443,7 @@ function getSeed(setter, pid, timeout)
 					let retVal = prevState.players;
                     let {seed, name} = JSON.parse(res);
                     retVal[pid].seed = seed;
-                    retVal[pid].name = name;
+                    retVal[pid].name = name || retVal[pid].name;
 					return {players:retVal, retries: 0, timeout: TIMEOUT_START}
 				});
             }
