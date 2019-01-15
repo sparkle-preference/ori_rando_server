@@ -277,8 +277,12 @@ export default class Bingo extends React.Component {
     updateUrl = () => {
         let {gameId, fromGen} = this.state;
         let url = new URL(window.document.URL);
+        let title = "Ori DE Bingo"
         if(gameId && gameId > 0)
+        {
             url.searchParams.set("game_id", gameId)
+            title += `: Game ${gameId}`
+        }
         else
             url.searchParams.delete("game_id")
 
@@ -287,7 +291,8 @@ export default class Bingo extends React.Component {
         else if(!url.searchParams.has("fromGen") && fromGen)
             url.searchParams.set("fromGen", 1)
 
-        window.history.replaceState('',window.document.title, url.href);
+        window.history.replaceState('', title, url.href);
+        window.title = title
         this.setState({specLink: window.document.location.href.replace("board", "spectate")})
     }
     downloadSeedForPlayer = (player) => download("randomizer.dat", `Sync${this.state.gameId}.${player},${this.state.seed}`)

@@ -16,6 +16,12 @@ from cache import Cache
 def _pid(pkey):
     return int(pkey.id().partition(".")[2])
 
+def round_time(t):
+    parts = str(t).split(":")
+    parts[-1] = str(round(float(parts[-1]), 2))
+    return ":".join(parts)
+
+
 pbc = picks_by_coord(extras=True)
 map_coords_by_zone = { "valleyOfTheWind": -4080172, "sorrowPass": -4519716, "sunkenGlades": -840248, "forlornRuins": -8440308, "hollowGrove": 3479880, "mangrove": 4159708, "moonGrotto": 4759608, "mountHoru": 560340, "thornfeltSwamp": 6759868}
 lines_by_index = {
@@ -145,13 +151,14 @@ class BingoEvent(ndb.Model):
     first = ndb.BooleanProperty()
     player = ndb.KeyProperty("Player")
     def to_json(self, start_time):
-        res =  {'loss': self.loss, 'type': self.event_type, 'time': str(self.timestamp-start_time), 'player': _pid(self.player)}
+        res =  {'loss': self.loss, 'type': self.event_type, 'time': round_time(self.timestamp-start_time), 'player': _pid(self.player)}
         if self.event_type == 'square':
             res['square'] = self.square
         if self.event_type == 'bingo':
             res['bingo'] = self.bingo
             if self.first:
                 res['first'] = True
+                res['square'] = self.square
         return res
 
 
@@ -193,10 +200,10 @@ class BingoGameData(ndb.Model):
                         if card.current_owner:
                             for prog in card.player_progress:
                                 prog.locked = (card.current_owner[0] == _pid(prog.player))
-            if card.progress(capkey).complete():
-                team["score"] += 1
             else:
                 log.warning("card %s was not in bingo data for team/player %s", card.name if card else card, team['cap'] if team else team)
+            if card.progress(capkey).complete():
+                team["score"] += 1
         if self.square_count:
             if team["score"] >= self.square_count and "place" not in team and all([self.board[square].progress(pkey).complete() for square in self.required_squares]):
                 self.event_log.append(BingoEvent(event_type = "win", loss = False, player = capkey, timestamp = datetime.utcnow()))
@@ -820,9 +827,10 @@ class Game(ndb.Model):
             res["is_owner"] = user and self.bingo.creator == user.key
 
         if self.bingo.start_time:
-            res['countdown'] = self.bingo.start_time > datetime.utcnow()
+            res['countdown'] = datetime.utcnow() < self.bingo.start_time
             res['start_time_posix'] = timegm(self.bingo.start_time.timetuple())
-        
+  
+
         if initial:
             res["difficulty"] = self.bingo.difficulty
             res["bingo_count"] = self.bingo.bingo_count
@@ -842,7 +850,7 @@ class Game(ndb.Model):
         player = self.player(player_id)
         team = self.bingo_team(player_id)
         cap = self.player(team["cap"])
-        now =  datetime.utcnow() - self.bingo.start_time
+        now = round_time(datetime.utcnow() - self.bingo.start_time)
         if self.bingo.update(bingo_data, player.key, team, cap.key):
             team = self.bingo_team(team["cap"])
             p_list = [team["cap"]]

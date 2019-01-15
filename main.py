@@ -154,6 +154,7 @@ class GetUpdate(RequestHandler):
             return
         p = game.player(player_id)
         Cache.setPos(game_id, player_id, x, y)
+
         self.response.write(p.output())
 
 
@@ -257,9 +258,6 @@ class SetSeed(RequestHandler):
         lines = param_val(self, "seed").split(",")
         game = Game.with_id(game_id)
         hist = Cache.getHist(game_id)
-        flags = lines[0].split("|")
-        # if "Bingo" in flags:
-            
 
         if not hist:
             Cache.setHist(game_id, player_id, [])
