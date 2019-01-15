@@ -149,9 +149,10 @@ export default class RebindingsEditor extends React.Component {
                         </Row>
                         <Row className="p-2 m-2 border">
                             <Col xs="12" className="p-2">
-                                Ori and the Blind Forest supports key remapping through a text file,
+                                Ori and the Blind Forest: DE supports key remapping through a text file,
                                 KeyRebindings.txt. This webpage creates properly formatted versions of 
-                                that file. 
+                                that file, which can be tricky to do manually. 
+                                It is compatible with the base game and with every mod (rando, bingo, etc).
                             </Col>
                             <Col xs="12" className="p-2">
                                 To use: customize your keybindings using the form and click download.
@@ -164,7 +165,7 @@ export default class RebindingsEditor extends React.Component {
                                 you play Ori, you may want other, more specific bindings: ask around on the discord for more info.
                             </Col>
                             <Col xs="12" className="p-2">
-                                <i>The instructions on this page are still being written. If you're confused, don't panic! Join the <a href="/discord" target='_blank' rel='noopener noreferrer'>Ori Discord</a> for help. (Feel free to ping @Eiko with any questions about this website).</i>
+                                <i>Confused? Don't panic! Join the <a href="/discord" target='_blank' rel='noopener noreferrer'>Ori Discord</a> for help. (Feel free to ping @Eiko with any questions about this website).</i>
                             </Col>
                         </Row>
                     </Col>

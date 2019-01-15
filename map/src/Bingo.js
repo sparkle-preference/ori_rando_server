@@ -539,15 +539,15 @@ export default class Bingo extends React.Component {
                 {creatorControls}
                 <Row className="align-items-center pt-1 pb-1">
                     <Col xs="auto">
-                        <Button block color="primary" onClick={this.toggleCreate}>Create New Game</Button>
+                        <Button block onClick={this.toggleCreate}>Create New Game</Button>
                     </Col><Col xs="auto">
-                        <Button block onClick={() => this.joinGame()} disabled={!haveGame}>Join Game / Download Seed</Button>
+                        <Button block color="primary" onClick={() => this.joinGame()} disabled={!haveGame}>Join Game</Button>
                     </Col><Col xs="auto">
                         <Row className="align-items-left py-0 px-1 m-0">
                             <Col xs="auto"><Cent>
                                 Player:
                             </Cent></Col>
-                            <Col xs="5"><Cent>
+                            <Col xs="4"><Cent>
                                 <Input style={inputStyle} type="number" disabled={!haveGame} min="1" value={activePlayer} onChange={(e) => this.setState({activePlayer: parseInt(e.target.value, 10)})}/>
                             </Cent></Col>
                             <Col xs="auto"><Cent>
@@ -592,7 +592,7 @@ export default class Bingo extends React.Component {
                 <Container fluid>
                     <Countdown
                         date={startTime*1000}
-                        precision={3}
+                        precision={2}
                         intervalDelay={2}
                         now={() => (new Date()).getTime()}
                         renderer={({ seconds, milliseconds, completed }) =>
