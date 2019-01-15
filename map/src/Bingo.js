@@ -98,13 +98,13 @@ class BingoBoard extends Component {
         return {helpOpen: prev.helpOpen}
     })
     render() {
-        let {cards, activePlayer, dark, hiddenPlayers} = this.props
+        let {cards, activePlayer, bingos, dark, hiddenPlayers} = this.props
         if(!cards || cards.length < 25) {
             return null
         }
         let rows = [], i = 0;
-        let rowStyle = {height: "20px"}
-        let colStyle = {width: "20px"}
+        let colStyle = (b) => bingos.includes(b) ? {height: "20px", width: "100%", background: dark ? colors.darkComplete : colors.complete} : {height: "20px", width: "100%"}
+        let rowStyle = (b) => bingos.includes(b) ? {width: "20px", height: "100%", background: dark ? colors.darkComplete : colors.complete} : {width: "20px", height: "100%"}
         while(rows.length < 5) {
             let row = []
             while(row.length < 5) {
@@ -114,21 +114,23 @@ class BingoBoard extends Component {
                 row.push((<td key={i}><BingoCard dark={dark} card={card} progress={progress} help={{i: i, open: this.state.helpOpen[i], toggle: this.helpToggle(i)}} players={players} /></td>))
                 i++
             }
-            rows.push((<tr key={`row-${rows.length}`}><td><div style={colStyle}>{rows.length + 1}</div></td>{row}</tr>))
+            let rowNum = rows.length + 1
+            rows.push((<tr key={`row-${rowNum}`}><td style={rowStyle(`Row ${rowNum}`)}><div>{rowNum}</div></td>{row}</tr>))
         }
+
         return (<table>
                     <tbody>
                         <tr style={{textAlign: 'center'}}>
-                            <td><div style={rowStyle}>D1</div></td> 
-                            <td><div style={rowStyle}>A</div></td> 
-                            <td><div style={rowStyle}>B</div></td>
-                            <td><div style={rowStyle}>C</div></td>
-                            <td><div style={rowStyle}>D</div></td>
-                            <td><div style={rowStyle}>E</div></td>
+                            <td><div style={colStyle("A1-E5")}>X1</div></td> 
+                            <td><div style={colStyle("Col A")}>A</div></td> 
+                            <td><div style={colStyle("Col B")}>B</div></td>
+                            <td><div style={colStyle("Col C")}>C</div></td>
+                            <td><div style={colStyle("Col D")}>D</div></td>
+                            <td><div style={colStyle("Col E")}>E</div></td>
                         </tr>
                         {rows}
                         <tr style={{textAlign: 'center'}}>
-                            <td><div style={rowStyle}>D2</div></td> 
+                            <td><div style={colStyle("E1-A5")}>X2</div></td> 
                         </tr>
                     </tbody>
                 </table>);
@@ -163,7 +165,7 @@ const PlayerList = ({activePlayer, teams, viewOnly, onPlayerListAction, dark, te
             if(active)
                 text = (<b>{text}</b>)
             let rows = [(
-                <Row key={`player-list-${cap}`} className="px-2 text-center pb-2">
+                <Row key={`player-list-${cap}`} className="px-1 text-center pb-2">
                     <Col className="p-0">
                     <UncontrolledButtonDropdown className="w-100 px-1">
                         <Button color="secondary" active={active} block onClick={onPlayerListAction("selectPlayer", cap)}>
@@ -226,8 +228,8 @@ const PlayerList = ({activePlayer, teams, viewOnly, onPlayerListAction, dark, te
     players = players.filter(p => p != null).sort((a, b) => b[0] - a[0]).map(p => p[1])
 
     return (
-        <Col style={{maxWidth: '420px'}} className="border border-info">
-            <Row  className="px-2 pb-2"><Cent><h4>Players</h4></Cent></Row>
+        <Col xs="auto" style={{maxWidth: '420px'}} className="border border-info">
+            <Row  className="px-1 pb-2"><Cent><h4>Players</h4></Cent></Row>
             {players}
             {hiddenButton}
         </Col>
@@ -240,20 +242,28 @@ export default class Bingo extends React.Component {
         let url = new URL(window.document.URL);
         let viewOnly = url.href.includes("bingo/spectate")
         let gameId = parseInt(url.searchParams.get("game_id") || -1, 10);
+        let fromGen = url.searchParams.has("fromGen")
         let dark = get_flag("dark") || url.searchParams.has("dark")
         
         this.state = {
-                      cards: [], currentRecord: 0, haveGame: false, creatingGame: false, createModalOpen: true, 
-                      activePlayer: 1, showInfo: false, user: get_param("user"), loadingText: "Building game...",
+                      cards: [], currentRecord: 0, haveGame: false, creatingGame: false, createModalOpen: true, offset: 0,
+                      activePlayer: 1, showInfo: false, user: get_param("user"), loadingText: "Building game...", paramId: -1,
                       dark: dark, specLink: window.document.location.href.replace("board", "spectate"), lockout: false, squareCount: 13, 
                       fails: 0, gameId: gameId, startSkills: 3, startCells: 4, startMisc: "MU|TP/Swamp/TP/Valley", goalMode: "bingos",
                       start_with: "", difficulty: "normal", isRandoBingo: false, randoGameId: -1, viewOnly: viewOnly, buildingPlayer: false,
                       events: [], startTime: (new Date()), countdownActive: false, isOwner: false, targetCount: 3, reqsqrs: [],
-                      teamsDisabled: true
+                      teamsDisabled: true, fromGen: fromGen
                     };
+        
         if(gameId > 0)
         {
-            let url = `/bingo/game/${gameId}/fetch?first=1`
+            if(fromGen)
+            {
+                this.state.isRandoBingo = true
+                this.state.randoGameId = gameId
+                return
+            }
+            let url = `/bingo/game/${gameId}/fetch?first=1&time=${(new Date()).getTime()}`
             doNetRequest(url, this.createCallback)
             this.state.creatingGame = true
             this.state.createModalOpen = false
@@ -265,13 +275,18 @@ export default class Bingo extends React.Component {
         this.interval = setInterval(() => this.tick(), 2000);
   };
     updateUrl = () => {
-        let {gameId} = this.state;
+        let {gameId, fromGen} = this.state;
         let url = new URL(window.document.URL);
         if(gameId && gameId > 0)
             url.searchParams.set("game_id", gameId)
         else
             url.searchParams.delete("game_id")
-        
+
+        if(url.searchParams.has("fromGen") && !fromGen)
+            url.searchParams.delete("fromGen")
+        else if(!url.searchParams.has("fromGen") && fromGen)
+            url.searchParams.set("fromGen", 1)
+
         window.history.replaceState('',window.document.title, url.href);
         this.setState({specLink: window.document.location.href.replace("board", "spectate")})
     }
@@ -317,6 +332,8 @@ export default class Bingo extends React.Component {
                 return;
             }
             let newState = {teams: teams, cards: res.cards, events: res.events, startTime: res.start_time_posix, countdownActive: res.countdown, isOwner: res.is_owner}
+            if(res.offset)
+                newState.offset = res.offset
             if(!res.is_owner)
                 newState.reqsqrs = res.required_squares || this.state.reqsqrs
             if(res.player_download)
@@ -349,7 +366,7 @@ export default class Bingo extends React.Component {
         if(lockout)
             url += "&lockout=1"
 
-        doNetRequest(url, this.createCallback)
+        doNetRequest(url+`&time=${(new Date()).getTime()}`, this.createCallback)
         this.setState({creatingGame: true, loadingText: "Building game...", createModalOpen: false, loader: get_random_loader()})
     }
     createCallback = ({status, responseText}) => {
@@ -360,9 +377,9 @@ export default class Bingo extends React.Component {
             return
         } else {
             let res = JSON.parse(responseText)
-            this.setState({subtitle: res.subtitle, gameId: res.gameId, createModalOpen: false, creatingGame: false, haveGame: true, 
-                          fails: 0, dispDiff: res.difficulty || this.state.difficulty, seed: res.seed, teams: res.teams, 
-                          currentRecord: 0, cards: res.cards, events: res.events, reqsqrs: res.required_squares, targetCount: res.bingo_count, 
+            this.setState({subtitle: res.subtitle, gameId: res.gameId, createModalOpen: false, creatingGame: false, haveGame: true, offset: res.offset || this.state.offset,
+                          fails: 0, dispDiff: res.difficulty || this.state.difficulty, seed: res.seed, teams: res.teams, paramId: res.paramId,
+                          currentRecord: 0, cards: res.cards, events: res.events, reqsqrs: res.required_squares, targetCount: res.bingo_count, fromGen: false,
                           startTime: res.start_time_posix, isOwner: res.is_owner, countdownActive: res.countdown, teamsDisabled: !res.teams_allowed}, this.updateUrl)
         }
     }
@@ -416,7 +433,7 @@ export default class Bingo extends React.Component {
         }
     }
 
-    toggleCreate = () => this.setState({createModalOpen: !this.state.createModalOpen})
+    toggleCreate = () => this.setState({createModalOpen: !this.state.createModalOpen, fromGen: false}, this.updateUrl)
     getCap = (pid) => {
         if(this.state.teams.hasOwnProperty(pid))
             return pid
@@ -437,7 +454,8 @@ export default class Bingo extends React.Component {
         return this.state.cards[sq].disp_name
     }
     render = () => {
-        let {specLink, viewOnly, isOwner, dark, activePlayer, teamsDisabled, startTime, subtitle, cards, haveGame, gameId, user, dispDiff, teams, loadingText} = this.state
+        let {specLink, viewOnly, isOwner, dark, activePlayer, teamsDisabled, startTime, paramId, 
+            subtitle, cards, haveGame, gameId, user, dispDiff, teams, loadingText} = this.state
         let pageStyle, inputStyle
         if(dark) {
             pageStyle = 'body { background-color: #333; color: white }';
@@ -447,9 +465,9 @@ export default class Bingo extends React.Component {
            inputStyle = {'backgroundColor': 'white', 'color': 'black'}
         }
         let creatorControls = isOwner && !startTime ? (
-            <Row>
+            <Row className="align-items-center p-2">
                 <Col xs="4">
-                    <Button block onClick={() => doNetRequest(`/bingo/game/${gameId}/start`, this.tickCallback)} disabled={!!startTime}>Start game</Button>
+                    <Button block onClick={() => doNetRequest(`/bingo/game/${gameId}/start?time=${(new Date()).getTime()}`, this.tickCallback)} disabled={!!startTime}>Start game</Button>
                 </Col>
             </Row>
         ) : null
@@ -464,8 +482,7 @@ export default class Bingo extends React.Component {
                     let txt =  loss ? `${time}: ${name} lost bingo ${bingo}!` : `${time}: ${name} got bingo ${bingo}`
                     if(!loss && first)
                     {
-                        let cnt = this.state.teams[cpid].bingos.length
-                        txt += `\n${name} is the first to ${cnt} bingo${cnt === 1 ? '' : 's'}`
+                        txt += ` (first to ${square} bingo${square === 1 ? '' : 's'}!)`
                     }
                     return txt
                 case "win":
@@ -491,8 +508,8 @@ export default class Bingo extends React.Component {
         ) : null
         let bingoContent = haveGame ? (
             <Row className="align-items-center">
-                <Col>
-                    <BingoBoard dark={dark} cards={cards} activePlayer={activePlayer} hiddenPlayers={Object.keys(teams).filter(p => teams[p].hidden)}/>
+                <Col xs="auto">
+                    <BingoBoard dark={dark} cards={cards} activePlayer={activePlayer} bingos={teams[activePlayer] ? teams[activePlayer].bingos : []} hiddenPlayers={Object.keys(teams).filter(p => teams[p].hidden)}/>
                 </Col>
                     <PlayerList dark={dark} teamsDisabled={teamsDisabled} viewOnly={viewOnly} teams={teams} activePlayer={activePlayer} onPlayerListAction={this.onPlayerListAction}/>
             </Row>
@@ -502,7 +519,7 @@ export default class Bingo extends React.Component {
             if(headerText === "Bingo!")
                 headerText = "Game not found"
             return (
-                <Container className="pl-4 pr-4 pb-4 pt-2 mt-2 w-100">
+                <Container className="px-4 pb-4 pt-2 mt-2 w-100">
                     <Helmet>
                         <style type="text/css">{pageStyle}</style>
                     </Helmet>
@@ -518,10 +535,15 @@ export default class Bingo extends React.Component {
                 </Container>
             )
         }
-        let spectatorLink = haveGame ? (<small> spectator link: {specLink}</small>) : null
+
+        let links = haveGame ? [
+            (<Row className="align-items-center pt-3" key="specLink"><small> spectator link: {specLink}</small></Row>)
+         ] : null
+         if(paramId > 0 && gameId > 0 && haveGame)
+            links.push((<Row key="gameLink"><small><a href={`/?param_id=${paramId}&game_id=${gameId}`}>base seed</a></small></Row>))
 
         return (
-            <Container className="pl-4 pr-4 pb-4 pt-2 mt-2 w-75">
+            <Container className="px-4 pb-4 pt-2 mt-2 mx-4 w-100">
             <Helmet>
                 <style type="text/css">{pageStyle}</style>
             </Helmet>
@@ -537,13 +559,13 @@ export default class Bingo extends React.Component {
                 </Row>
                 {subheader}
                 {creatorControls}
-                <Row className="align-items-center pt-1 pb-1">
+                <Row className="flex-nowrap align-items-center px-1">
                     <Col xs="auto">
                         <Button block onClick={this.toggleCreate}>Create New Game</Button>
                     </Col><Col xs="auto">
                         <Button block color="primary" onClick={() => this.joinGame()} disabled={!haveGame}>Join Game</Button>
                     </Col><Col xs="auto">
-                        <Row className="align-items-left py-0 px-1 m-0">
+                        <Row className="flex-nowrap align-items-left py-0 px-1 m-0">
                             <Col xs="auto"><Cent>
                                 Player:
                             </Cent></Col>
@@ -558,9 +580,7 @@ export default class Bingo extends React.Component {
                 </Row>
                 {bingoContent}
                 {eventlog}
-                <Row className="align-items-center pt-3">
-                    {spectatorLink}
-                </Row>
+                {links}
             </Container>
         )
     }
@@ -577,25 +597,18 @@ export default class Bingo extends React.Component {
         </Modal>
     )}
     countdownModal = (style) => { 
-        let {countdownActive, startTime} = this.state
-        // let d = new Date()
-        // let time = (startTime - (d.getTime())/1000);
-        // if (!isNaN(time) && time >= -2 && time <= 100000) {
-        //     countdownActive = true;
-        // } else {
-        //     countdownActive = false;
-        // }
+        let {countdownActive, startTime, offset} = this.state
         return (
         <Modal size="sm" isOpen={countdownActive} backdrop={"static"} className={"modal-dialog-centered"}>
-            <ModalHeader style={style}><Cent>Game Starting!</Cent></ModalHeader>
+            <ModalHeader style={style}>Game Starting!</ModalHeader>
             <ModalBody style={style}>
                 <Container fluid>
                     <Countdown
                         date={startTime*1000}
                         precision={2}
                         intervalDelay={2}
-                        now={() => (new Date()).getTime()}
-                        renderer={({ seconds, milliseconds, completed }) =>
+                        now={() => (new Date()).getTime() + offset}
+                        renderer={({seconds, milliseconds, completed}) =>
                             completed ? (<Cent><h3>Go!</h3></Cent>) : (<Cent><h3>{seconds}:{milliseconds}</h3></Cent>)
                         }
                     />
@@ -604,7 +617,22 @@ export default class Bingo extends React.Component {
         </Modal>
     )}
     createModal = (style) => { 
-        let {difficulty, isRandoBingo, randoGameId, targetCount, startSkills, startCells, startMisc, showInfo, teamsDisabled, lockout, squareCount, goalMode} = this.state
+        let {difficulty, isRandoBingo, fromGen, randoGameId, targetCount, startSkills, startCells, startMisc, showInfo, teamsDisabled, lockout, squareCount, goalMode} = this.state
+        let randoInput = fromGen ? (
+            <Row className="p-1">
+                <Col xs="4" className="text-center p-1 border">
+                    <Cent>Rando Game ID</Cent>
+                </Col><Col xs="4">
+                    <Input disabled style={style} type="number" value={randoGameId}  onChange={(e) => this.setState({randoGameId: parseInt(e.target.value, 10)})}/>
+                </Col>
+            </Row>
+        ) : (
+            <Row className="p-1">
+                <Col xs="4" className="text-center p-1">
+                    <Button block color="primary" href="/?fromBingo=1">New Bingo Seed</Button>
+                </Col>
+            </Row>
+        )
         return (
         <Modal size="lg" isOpen={this.state.createModalOpen} backdrop={"static"} className={"modal-dialog-centered"} toggle={this.toggleCreate}>
             <ModalHeader style={style} toggle={this.toggleCreate}><Cent>Bingo options</Cent></ModalHeader>
@@ -685,16 +713,7 @@ export default class Bingo extends React.Component {
                         </Col>
                     </Row>
                     <Collapse isOpen={isRandoBingo}>
-                        <Row className="p-1">
-                            <Col xs="12" className="text-center p-1">
-                                <Cent>Make a rando seed {" "} <a href="/" target="_blank">here</a> {" "} with web tracking on, then paste the game id from the url into the box below.</Cent>
-                            </Col>
-                            <Col xs="4" className="text-center p-1 border">
-                                <Cent>Rando Game ID</Cent>
-                            </Col><Col xs="4">
-                                <Input style={style} type="number" value={randoGameId}  onChange={(e) => this.setState({randoGameId: parseInt(e.target.value, 10)})}/>
-                            </Col>
-                        </Row>
+                        {randoInput}
                     </Collapse>
                     <Collapse isOpen={!isRandoBingo}>
                         <Row className="p-1">

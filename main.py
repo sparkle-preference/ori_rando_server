@@ -689,6 +689,9 @@ class MakeSeedWithParams(RequestHandler):
                 resp["gameId"] = game.key.id()
                 if debug and param_flag(self, "test_map_redir"):
                      self.redirect(uri_for("map-render", game_id=resp["gameId"], from_test=1))
+            if param_flag(self, 'bingo'):
+                resp["doBingoRedirect"] = True
+
             self.response.write(json.dumps(resp))
         else:
             self.response.status = 500

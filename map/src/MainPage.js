@@ -31,6 +31,7 @@ const variations = {
     WarmthFrags: "Warmth Frags",
     StrictMapstones: "Strict Mapstones",
     StompTriggers: "Legacy Kuro Behavior",
+    Bingo: "Bingo"
 }
 const cellFreqPresets = (preset) => preset === "casual" ? 20 : (preset === "standard" ? 40 : 256)
 const optional_paths = ['casual-dboost', 'standard-core', 'standard-dboost', 'standard-lure', 'standard-abilities', 'expert-core', 'expert-dboost', 'expert-lure', 'expert-abilities', 'dbash', 'master-core', 'master-dboost', 'master-lure', 'master-abilities', 'gjump', 'glitched', 'timed-level', 'insane']
@@ -54,20 +55,20 @@ export default class MainPage extends React.Component {
     getAdvancedTab = ({inputStyle, menuStyle}) => {
         let [leftCol, rightCol] = [4, 7]
         let pathDiffOptions = ["Easy", "Normal", "Hard"].map(mode => (
-            <DropdownItem active={mode===this.state.pathDiff} onClick={()=> this.setState({pathDiff: mode})}>{mode}</DropdownItem>
+            <DropdownItem key={`pd-${mode}`} active={mode===this.state.pathDiff} onClick={()=> this.setState({pathDiff: mode})}>{mode}</DropdownItem>
         ))
         const starting_pickups = {"Spawn With:": 2, "First Pickup:": 919772, "Second Pickup:": -1560272, "Third Pickup:": 799776, "Fourth Pickup:": -120208}
         let fass_rows = Object.keys(starting_pickups).map(name => {
             let coord = starting_pickups[name];
             return (
-                    <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "preplacement")} className="p-1 justify-content-center">
-                        <Col xs={leftCol} className="text-center pt-1 border">
-                            <span class="align-middle">{name}</span>
-                        </Col><Col xs={rightCol}>
-                            <PickupSelect updater={(code, _) => this.onFass(coord, code)}/> 
-                        </Col>
-                    </Row>
-            )   
+                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "preplacement")} className="p-1 justify-content-center">
+                    <Col xs={leftCol} className="text-center pt-1 border">
+                        <span className="align-middle">{name}</span>
+                    </Col><Col xs={rightCol}>
+                        <PickupSelect updater={(code, _) => this.onFass(coord, code)}/> 
+                    </Col>
+                </Row>
+            )
         })
         let goalCol = (v) => (
             <Col xs="4" onMouseLeave={this.helpEnter("advanced", "goalModes")} onMouseEnter={this.helpEnter("goalModes", v)} className="p-2">
@@ -83,10 +84,11 @@ export default class MainPage extends React.Component {
                     <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "goalModes")} className="p-1 justify-content-center border-bottom">
                         {goalCol("ForceTrees")}
                         {goalCol("ForceMaps")}
+                        {goalCol("Bingo")}
                     </Row>
                     <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "expPool")} className="p-1 justify-content-center">
                         <Col xs={leftCol} className="text-center pt-1 border">
-                            <span class="align-middle">Exp Pool</span>
+                            <span className="align-middle">Exp Pool</span>
                         </Col><Col xs={rightCol}>
                             <Input style={inputStyle} type="number" value={this.state.expPool} invalid={this.state.expPool < 100} onChange={(e) => this.setState({expPool: parseInt(e.target.value, 10)})}/> 
                             <FormFeedback tooltip>Experience Pool must be at least 100</FormFeedback>
@@ -94,14 +96,14 @@ export default class MainPage extends React.Component {
                     </Row>
                     <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "sense")} className="p-1 justify-content-center">
                         <Col xs={leftCol} className="text-center pt-1 border">
-                            <span class="align-middle">Sense Triggers</span>
+                            <span className="align-middle">Sense Triggers</span>
                         </Col><Col xs={rightCol}>
                             <Input style={inputStyle} type="text" value={this.state.senseData}  onChange={(e) => this.setState({senseData: e.target.value})}/> 
                         </Col>
                     </Row>
                     <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "fillAlg")} className="p-1 justify-content-center">
                         <Col xs={leftCol} className="text-center pt-1 border">
-                            <span class="align-middle">Fill Algorithm</span>
+                            <span className="align-middle">Fill Algorithm</span>
                         </Col><Col xs={rightCol}>
                             <UncontrolledButtonDropdown className="w-100">
                                 <DropdownToggle color="primary" caret block> {this.state.fillAlg} </DropdownToggle>
@@ -114,7 +116,7 @@ export default class MainPage extends React.Component {
                     </Row>
                     <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "pathDiff")} className="p-1 justify-content-center">
                         <Col xs={leftCol} className="text-center pt-1 border">
-                            <span class="align-middle">Path Difficulty</span>
+                            <span className="align-middle">Path Difficulty</span>
                         </Col>
                         <Col xs={rightCol}>
                             <UncontrolledButtonDropdown className="w-100">
@@ -125,7 +127,7 @@ export default class MainPage extends React.Component {
                     </Row>
                     <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "cellFreq")} className="p-1 justify-content-center">
                         <Col xs={leftCol} className="text-center pt-1 border">
-                            <span class="align-middle">Forced Cell Frequency</span>
+                            <span className="align-middle">Forced Cell Frequency</span>
                         </Col><Col xs={rightCol}>
                             <Input style={inputStyle} type="number" value={this.state.cellFreq} invalid={this.state.cellFreq < 3} onChange={(e) => this.setState({cellFreq: parseInt(e.target.value, 10)})}/> 
                             <FormFeedback tooltip>Forced Cell Frequency must be at least 3</FormFeedback>
@@ -135,7 +137,7 @@ export default class MainPage extends React.Component {
                     <Collapse isOpen={this.state.variations.includes("WorldTour")}>
                         <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "relicCount")} className="p-1 justify-content-center">
                             <Col xs={leftCol} className="text-center pt-1 border">
-                                <span class="align-middle">Relic Count</span>
+                                <span className="align-middle">Relic Count</span>
                             </Col><Col xs={rightCol}>
                                 <Input style={inputStyle} type="number" value={this.state.relicCount} invalid={this.state.relicCount > 11 || this.state.relicCount < 1} onChange={(e) => this.setState({relicCount: parseInt(e.target.value, 10)})}/> 
                                 <FormFeedback tooltip>Relic count must be greater than 0 and less than 12</FormFeedback>
@@ -145,7 +147,7 @@ export default class MainPage extends React.Component {
                     <Collapse isOpen={this.state.variations.includes("WarmthFrags")}>
                         <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "fragCount")} className="p-1 justify-content-center">
                             <Col xs={leftCol} className="text-center pt-1 border">
-                                <span class="align-middle">Fragment Count</span>
+                                <span className="align-middle">Fragment Count</span>
                             </Col><Col xs={rightCol}>
                                 <Input style={inputStyle} type="number" value={this.state.fragCount} invalid={this.state.fragCount > 60 || this.state.fragCount < 1} onChange={(e) => this.setState({fragCount: parseInt(e.target.value, 10)})}/> 
                                 <FormFeedback tooltip>Frag Count must be between 1 and 60</FormFeedback>
@@ -153,7 +155,7 @@ export default class MainPage extends React.Component {
                         </Row>
                         <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "fragRequired")} className="p-1 justify-content-center">
                             <Col xs={leftCol} className="text-center pt-1 border">
-                                <span class="align-middle">Fragments Required</span>
+                                <span className="align-middle">Fragments Required</span>
                             </Col><Col xs={rightCol}>
                                 <Input style={inputStyle} type="number" value={this.state.fragReq} invalid={this.state.fragCount < this.state.fragReq || this.state.fragReq <= 0} onChange={e => this.setState({fragReq: parseInt(e.target.value, 10)})}/> 
                                 <FormFeedback tooltip>Fragments Required must be between 0 and Fragment Count ({this.state.fragCount})</FormFeedback>
@@ -180,7 +182,7 @@ export default class MainPage extends React.Component {
              <TabPane tabId="multiplayer">
                 <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "playerCount")}  className="p-1 justify-content-center">
                     <Col xs="4" className="text-center pt-1 border">
-                        <span class="align-middle">Players</span>
+                        <span className="align-middle">Players</span>
                     </Col><Col xs="4">
                         <Input style={inputStyle} type="number" value={this.state.players} disabled={!this.state.tracking} invalid={!playerNumValid} onChange={(e) => this.setState({players: parseInt(e.target.value, 10)})}/> 
                         {playerNumFeedback }
@@ -188,7 +190,7 @@ export default class MainPage extends React.Component {
                 </Row>
                 <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "multiGameType")} className="p-1 justify-content-center">
                     <Col xs="4" className="text-center pt-1 border">
-                        <span class="align-middle">Multiplayer Game Type</span>
+                        <span className="align-middle">Multiplayer Game Type</span>
                     </Col><Col xs="4">
                         <UncontrolledButtonDropdown className="w-100" >
                             <DropdownToggle disabled={this.state.players < 2} color={this.state.players > 1 ? "primary" : "secondary"} caret block> {this.state.coopGameMode} </DropdownToggle>
@@ -203,7 +205,7 @@ export default class MainPage extends React.Component {
                 <Collapse isOpen={this.state.players > 1 && this.state.coopGameMode === "Co-op"}>
                     <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "syncSeedType")} className="p-1 justify-content-center">
                         <Col xs="4" className="text-center pt-1 border">
-                            <span class="align-middle">Seed Generation Mode</span>
+                            <span className="align-middle">Seed Generation Mode</span>
                         </Col><Col onMouseLeave={this.helpEnter("multiplayerOptions", "syncSeedType")} onMouseEnter={this.helpEnter("multiplayerOptions", this.state.coopGenMode)} xs="4">
                             <UncontrolledButtonDropdown className="w-100">
                                 <DropdownToggle disabled={this.state.players < 2} color={this.state.players > 1 ? "primary" : "secondary"} caret block> {this.state.coopGenMode} </DropdownToggle>
@@ -224,7 +226,7 @@ export default class MainPage extends React.Component {
                 <Collapse isOpen={this.state.user !== ""}>
                     <Row className="p-1 justify-content-center">
                         <Col xs="4" className="text-center pt-1 border">
-                            <span class="align-middle">SyncId</span>
+                            <span className="align-middle">SyncId</span>
                         </Col><Col xs="4">
                             <Input style={inputStyle} type="number" value={this.state.syncId} invalid={!(this.state.syncId === "" || this.state.syncId > 0)} onChange={(e) => this.setState({syncId: parseInt(e.target.value, 10)})}/>
                             <FormFeedback tooltip>syncId must be positive</FormFeedback>
@@ -233,7 +235,7 @@ export default class MainPage extends React.Component {
                     <Collapse isOpen={this.state.coopGenMode==="Cloned Seeds" && this.state.players > 1 && this.state.coopGameMode === "Co-op"}>
                         <Row className="p-1 justify-content-center">
                             <Col xs="4" className="text-center pt-1 border">
-                                <span class="align-middle">Teams</span>
+                                <span className="align-middle">Teams</span>
                             </Col><Col xs="4">
                                 <Input style={inputStyle} type="text" value={this.state.teamStr} invalid={!this.teamStrValid()} onChange={(e) => this.setState({teamStr: e.target.value})}/>
                                 <FormFeedback tooltip>Team format: 1,2|3,4|5,6. Each player must appear once.</FormFeedback>
@@ -268,7 +270,7 @@ export default class MainPage extends React.Component {
         if(this.state.pathDiff !== "Normal")
             urlParams.push("path_diff="+this.state.pathDiff)
         urlParams.push("gen_mode="+this.state.fillAlg)
-        this.state.variations.forEach(v => urlParams.push("var="+v))
+        this.state.variations.filter(v => v !== "Bingo").forEach(v => urlParams.push("var="+v))
         this.state.paths.forEach(p => urlParams.push("path="+p))
         if(this.state.senseData)
             urlParams.push("sense="+this.state.senseData)
@@ -280,9 +282,11 @@ export default class MainPage extends React.Component {
             urlParams.push("frags_req="+this.state.fragReq)
         }
         if(this.state.variations.includes("WorldTour"))
-        {
             urlParams.push("relics="+this.state.relicCount)
-        }
+
+        if(this.state.variations.includes("Bingo"))
+            urlParams.push("bingo=1")
+
         urlParams.push("players="+this.state.players)
         let fass = []
         Object.keys(this.state.fass).forEach(loc => {
@@ -357,6 +361,9 @@ export default class MainPage extends React.Component {
             if(gameId && gameId > 0)
                 url.searchParams.set("game_id", gameId);
         }
+        if(url.searchParams.has("fromBingo"))
+            url.searchParams.delete("fromBingo")
+
         window.history.replaceState('',window.document.title, url.href);
     }
     
@@ -368,7 +375,18 @@ export default class MainPage extends React.Component {
             return
         } else {
             let res = JSON.parse(responseText)
-            this.helpEnter("general", "seedBuilt" + this.multi())()
+            if(res.doBingoRedirect) {
+                let redir = `/bingo/board?game_id=${res.gameId}&fromGen=1`
+                let opened = window.open(redir)
+                if(!opened)
+                {
+                    window.location.href = redir
+                    return
+                }
+                this.helpEnter("general", "seedBuiltBingo")()
+            }
+            else 
+                this.helpEnter("general", "seedBuilt" + this.multi())()
             this.setState({
                 paramId: res.paramId, seedIsGenerating: false, inputPlayerCount: res.playerCount, 
                 inputFlagLine: res.flagLine, gameId: res.gameId
@@ -377,7 +395,7 @@ export default class MainPage extends React.Component {
     }
     getVariationsTab = () => {
         let variationButtons = Object.keys(variations).filter(x => !["Entrance", "NonProgressMapStones", "BonusPickups", "StompTriggers", 
-                                                                     "ForceTrees", "WorldTour", "ForceMaps", "WarmthFrags"].includes(x)).map(v=> {
+                                                                     "ForceTrees", "WorldTour", "ForceMaps", "WarmthFrags", "Bingo"].includes(x)).map(v=> {
             let name = variations[v];
             return (
             <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("variations", v)} className="p-2">
@@ -459,7 +477,7 @@ export default class MainPage extends React.Component {
             // let {shared, unshared} = raw.join("").split(",").reduce((acc, curr) => (curr.startsWith("mode=") || curr.startsWith("shared=")) ? 
             //         {shared: acc.shared.concat(curr), unshared: acc.unshared} : {shared: acc.shared, unshared: acc.unshared.concat(curr)}, {shared: [], unshared: []})
             
-            // let sharedFlags = shared.length > 0 ? (<Row><Col><span class="align-middle">Sync: {shared.join(", ")}</span></Col></Row>) : null
+            // let sharedFlags = shared.length > 0 ? (<Row><Col><span className="align-middle">Sync: {shared.join(", ")}</span></Col></Row>) : null
             // let flags = unshared.join(", ");
             let flagCols = raw.join("").split(",").map(flag => (<Col xs="auto" className="text-center" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("flags", flag)}><span class="ml-auto mr-auto align-middle">{flag}</span></Col>))
 
@@ -486,7 +504,7 @@ export default class MainPage extends React.Component {
                             <Row className="align-content-center"><Col xs="3">
                                 <Media object style={{width: "25px", height: "25px"}} src={player_icons(p,false)} alt={"Icon for player "+p} />
                             </Col><Col>
-                                <span class="align-middle">Player {p}</span>
+                                <span className="align-middle">Player {p}</span>
                             </Col></Row>
                         </Col>
                         <Col xs="3" className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "downloadButton"+this.multi())}>
@@ -517,7 +535,7 @@ export default class MainPage extends React.Component {
             return (
                 <TabPane tabId='seed'>
                       <Row className="justify-content-center">
-                        <span class="align-middle">
+                        <span className="align-middle">
                             <h5>Seed {seedStr} ready!</h5>
                         </span>
                     </Row>
@@ -616,6 +634,12 @@ export default class MainPage extends React.Component {
                      customSyncId: "", seed: "", fillAlg: "Balanced", shared: ["Skills", "Teleporters", "World Events"], hints: true, helpcat: "", helpopt: "", quickstartOpen: quickstartOpen,
                      syncId: "", expPool: 10000, lastHelp: new Date(), seedIsGenerating: false, cellFreq: cellFreqPresets("standard"), fragCount: 30, fragReq: 20, relicCount: 8, loader: get_random_loader(),
                      paramId: paramId, seedTabExists: seedTabExists, reopenUrl: "", teamStr: "", inputFlagLine: "", fass: {},  goalModesOpen: false, spoilers: true, dark: dark};
+        if(url.searchParams.has("fromBingo")) {
+            this.state.goalModes = ["Bingo"]
+            this.state.variations = ["Bingo", "OpenWorld", "BonusPickups"]
+            this.updateUrl()
+        }
+
     }
         
     closeQuickstart = () => {
@@ -711,7 +735,7 @@ export default class MainPage extends React.Component {
         let keyModeOptions = keymode_options.map(mode => (
             <DropdownItem active={mode===keyMode} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("keyModes", mode)} onClick={this.onKeyMode(mode)}>{mode}</DropdownItem>
         ))
-        let goalModeOptions = goalModes.length === 1 ? ["None", "ForceTrees", "WorldTour", "ForceMaps", "WarmthFrags"].map(mode => (
+        let goalModeOptions = goalModes.length === 1 ? ["None", "ForceTrees", "WorldTour", "ForceMaps", "WarmthFrags", "Bingo"].map(mode => (
             <DropdownItem active={mode===goalModes[0]} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("goalModes", mode)} onClick={this.onGoalMode(mode)}>{variations[mode] || mode}</DropdownItem>
         )) : null
 
@@ -765,7 +789,7 @@ export default class MainPage extends React.Component {
                 <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "keyModes")}>
                     <Row>
                         <Col xs="6"  className="text-center pt-1 border">
-                            <span class="align-middle">Key Mode</span>
+                            <span className="align-middle">Key Mode</span>
                         </Col>
                         <Col xs="6" onMouseEnter={this.helpEnter("keyModes", keyMode)} onMouseLeave={this.helpEnter("general", "keyModes",(keyMode === "Clues" && helpcat === "keyModes") ? 1000 : 250 )}>
                             <UncontrolledButtonDropdown className="w-100">
@@ -780,7 +804,7 @@ export default class MainPage extends React.Component {
                 <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "goalModes")}>
                     <Row>
                         <Col xs="6"  className="text-center pt-1 border">
-                            <span class="align-middle">Goal Mode</span>
+                            <span className="align-middle">Goal Mode</span>
                         </Col>
                         <Col xs="6" onMouseLeave={this.helpEnter("general", "goalModes")} onMouseEnter={this.helpEnter("goalModes", goalModeMulti ? "Multiple" : goalModes[0])}>
                             <Dropdown disabled={goalModeMulti} isOpen={goalModesOpen} toggle={() => this.setState({goalModesOpen: !goalModesOpen})} className="w-100">
@@ -840,7 +864,7 @@ export default class MainPage extends React.Component {
                             <Col xs="6">
                                 <Row className="m-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "seed")}>
                                     <Col xs="5" className="text-center pt-1 border">
-                                        <span class="align-middle">Seed</span>
+                                        <span className="align-middle">Seed</span>
                                     </Col><Col xs="7">
                                         <Input style={styles.inputStyle} type="text" value={seed} onChange={(e) => this.setState({seed: e.target.value})}/>
                                     </Col>

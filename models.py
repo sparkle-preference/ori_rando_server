@@ -216,6 +216,7 @@ class BingoGameData(ndb.Model):
                             team["bingos"].append(bingo)
                             if(len(team["bingos"]) > self.current_highest):
                                 ev.first = True
+                                ev.square = len(team["bingos"]) # i hate this
                                 self.current_highest += 1
                         self.event_log.append(ev)
                         if len(team["bingos"]) >= self.bingo_count:
@@ -829,7 +830,7 @@ class Game(ndb.Model):
             res["seed"] = self.bingo.seed
             res["teams_allowed"] = self.bingo.teams_allowed
             if self.params:
-                res["param_id"] = self.params.id()
+                res["paramId"] = self.params.id()
         return res
 
     def bingo_update(self, bingo_data, player_id):

@@ -1,6 +1,7 @@
 from random import choice, randint, sample
 from collections import defaultdict, Counter
 from datetime import datetime, timedelta
+from calendar import timegm
 import json
 import logging as log
 
@@ -490,7 +491,9 @@ class BingoGenerator(object):
                     ),
                 GoalGroup(
                     name = "GetEvent",
-                    name_func = namef("Find", "event"),
+                    name_func = namef("Find", "key"),
+                    help_lines = ["If you can't find a key and your keymode is clues, consider rushing skill trees",
+                                  "If you can't find a key and your keymode is not clues, consider making your next (and all future) bingo seeds with keymode clues."],
                     goals = [BoolGoal(name) for name in ["Water Vein", "Gumon Seal", "Sunstone"]],
                     methods = [
                         ("or",    r((1, 2), (1, 2), (1, 1))), 
@@ -597,6 +600,7 @@ class BingoBoard(RequestHandler):
 
 class BingoCreate(RequestHandler):
     def get(self):
+        now = datetime.utcnow()
         self.response.headers['Content-Type'] = 'application/json'
         difficulty = param_val(self, "difficulty") or "normal"
         skills = param_val(self, "skills")
@@ -661,20 +665,25 @@ class BingoCreate(RequestHandler):
         if user:
             game.bingo.creator = user.key
         else:
-            game.bingo.start_time = datetime.utcnow()
+            game.bingo.start_time = now
 
         if show_info:
             game.bingo.subtitle = " | ".join(sw_parts)
-        
-        
+
         res = game.bingo_json(True)
+
+        if param_flag(self, "time"):
+            server_now = timegm(now.timetuple()) * 1000
+            client_now = int(param_val(self, "time"))
+            res["offset"] = server_now - client_now
+
         self.response.write(json.dumps(res))
         game.put()
  
 class AddBingoToGame(RequestHandler):
     def get(self, game_id):
+        now = datetime.utcnow()
         self.response.headers['Content-Type'] = 'application/json'
-
         game_id = int(game_id)
         difficulty = param_val(self, "difficulty") or "normal"
         if not game_id or int(game_id) < 1:
@@ -704,9 +713,14 @@ class AddBingoToGame(RequestHandler):
         if user:
             game.bingo.creator = user.key
         else:
-            game.bingo.start_time = datetime.utcnow()
+            game.bingo.start_time = now
 
         res = game.bingo_json(True)
+        if param_flag(self, "time"):
+            server_now = timegm(now.timetuple()) * 1000
+            client_now = int(param_val(self, "time"))
+            res["offset"] = server_now - client_now
+
         self.response.write(json.dumps(res))
         for p in game.get_players():
             game.remove_player(p.key.id())
@@ -747,6 +761,8 @@ class BingoAddPlayer(RequestHandler):
 
 class BingoGetGame(RequestHandler):
     def get(self, game_id):
+        now = datetime.utcnow()
+        first = param_flag(self, "first")
         res = {}
         game = Game.with_id(game_id)
         if not game:
@@ -754,14 +770,18 @@ class BingoGetGame(RequestHandler):
             
         if not game.bingo:
             return resp_error(self, 404, "Game found but had no bingo data...", "text/plain")
-        res = game.bingo_json(param_flag(self, "first"))
-
+        res = game.bingo_json(first)
+        if first and param_flag(self, "time"):
+            server_now = timegm(now.timetuple()) * 1000
+            client_now = int(param_val(self, "time"))
+            res["offset"] = server_now - client_now
         self.response.headers['Content-Type'] = 'application/json'
         self.response.write(json.dumps(res))
 
 class BingoStartCountdown(RequestHandler):
     def get(self, game_id):
         res = {}
+        now = datetime.utcnow()
         game = Game.with_id(game_id)
         if not game:
             return resp_error(self, 404, "Game not found", "text/plain")
@@ -776,8 +796,12 @@ class BingoStartCountdown(RequestHandler):
         game = game.put().get()
         res = game.bingo_json()
         self.response.headers['Content-Type'] = 'application/json'
+        server_now = timegm(now.timetuple()) * 1000
+        client_now = int(param_val(self, "time"))
+        res["offset"] = server_now - client_now
+
         self.response.write(json.dumps(res))
-        
+
 
 class HandleBingoUpdate(RequestHandler):
     def get(self, game_id, player_id):
