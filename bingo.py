@@ -741,7 +741,7 @@ class BingoAddPlayer(RequestHandler):
             return resp_error(self, 409, "Player id already in use!", "text/plain")
         p = game.player(player_id)
         user = User.get()
-        pkey = None
+        pkey = p.key
         if user:
             p.user = user.key
             p.put()
@@ -753,8 +753,8 @@ class BingoAddPlayer(RequestHandler):
         if not team:
             team = {'bingos': [], 'cap': cap_id, 'teammates': []}
             game.bingo.teams += [team]
-        elif pkey != team["cap"] and pkey not in team["teammates"]:
-            team["teammates"].append(pkey)
+        elif player_id != team["cap"] and player_id not in team["teammates"]:
+            team["teammates"].append(player_id)
         else:
             log.error("In bingo game %s, team %s already had player %s!", game.key.id(), team, player_id)
         game = game.put().get()
