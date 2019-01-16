@@ -150,7 +150,7 @@ const PlayerList = ({activePlayer, teams, viewOnly, onPlayerListAction, dark, te
                 return null
             place = place || 0
             score = score || 0
-            let hasTeam = teammates.length > 1
+            let hasTeam = teammates.length > 0
             let number = (bingos && bingos.length) || 0
             let text = `${name} | ${number} lines`
             if(score)

@@ -14,7 +14,11 @@ from pickups import Pickup, Skill, Teleporter, Event
 from cache import Cache
 
 def _pid(pkey):
-    return int(pkey.id().partition(".")[2])
+    try:
+        return int(pkey.id().partition(".")[2])
+    except Exception as e:
+        log.error("invalid pkey %s: %s, returning 1", pkey, e)
+        return 1
 
 def round_time(t):
     parts = str(t).split(":")
@@ -95,7 +99,8 @@ class BingoCard(ndb.Model):
             log.warning("too many playerprogress for player %s" % pkey)
         return p_progress[0]
     
-    def update(self, card_data, team, pkey):
+    def update(self, card_data, team, pid, players):
+        pkey = players[pid].key
         p_progress = self.progress(pkey)
         prior_value = p_progress.completed
         if self.goal_type == "bool":
@@ -119,7 +124,8 @@ class BingoCard(ndb.Model):
 
         if team and team["teammates"]:
             completed = False
-            all_pkeys = team["teammates"] + [team["cap"]]
+            all_pkeys = [players[t].key for t in team["teammates"]]
+            all_pkeys.append(players[team['cap']].key)
             all_progress = [self.progress(p) for p in all_pkeys if p != pkey] + [p_progress]
             if self.goal_type == "bool":
                 completed = any([prog.completed for prog in all_progress])
@@ -180,14 +186,16 @@ class BingoGameData(ndb.Model):
     square_count     = ndb.IntegerProperty()
     teams_shared     = ndb.BooleanProperty(default=False)
 
-    def update(self, player_data, pkey, team, capkey):
+    def update(self, player_data, pid, team, players):
         change_squares = set()
         loss_squares = set()
         win_players = False
+        capkey = players[team["cap"]].key
+        pkey = players[pid].key
         team["score"] = 0
         for card in self.board:
             if card.name in player_data:
-                ev = card.update(player_data[card.name], team, pkey)
+                ev = card.update(player_data[card.name], team, pid, players)
                 if ev:
                     self.event_log.append(ev)
                     change_squares.add(ev.square)
@@ -843,21 +851,22 @@ class Game(ndb.Model):
         return res
 
     def bingo_update(self, bingo_data, player_id):
+        player_id = int(player_id)
         if not self.bingo.start_time:
             log.debug("game not started")
             return
         if self.bingo.difficulty != "hard" and "HuntEnemies" in bingo_data and bingo_data["HuntEnemies"]["value"]["Fronkey Fight"]["value"]:
             bingo_data["HuntEnemies"]["total"] -= 1
-        player = self.player(player_id)
-        team = self.bingo_team(player_id)
-        cap = self.player(team["cap"])
+        players = {p.pid() : p for p in self.get_players()}
+        player = players[player_id]
+        team = self.bingo_team(player_id, cap_only = False)
+        cap = players[team["cap"]]
         now = round_time(datetime.utcnow() - self.bingo.start_time)
-        if self.bingo.update(bingo_data, player.key, team, cap.key):
-            team = self.bingo_team(team["cap"])
+        if self.bingo.update(bingo_data, player_id, team, players):
             p_list = [team["cap"]]
             p_list += team["teammates"]
             for p in p_list:
-                self.player(p).signal_send("win:$Finished in %s place at %s!" % (ord_suffix(team["place"]), now))
+                players[p].signal_send("win:$Finished in %s place at %s!" % (ord_suffix(team["place"]), now))
         self.put()
 
     def bingo_team(self, pid, cap_only=True):
@@ -870,7 +879,8 @@ class Game(ndb.Model):
             res = maybe_team[0]
             p = self.player(res["cap"])
             res["name"] = p.teamname() if res["teammates"] else p.name()
-            res["teammates"] = [{'pid': tm, 'name': self.player(tm).name()} for tm in res["teammates"]]
+            if res["teammates"] and isinstance(res["teammates"][0], (dict)):
+                res["teammates"] = [t['pid'] for t in res["teammates"]]
             return res
         return None
     # def add_bingo_player(self, new_pid, cid)
