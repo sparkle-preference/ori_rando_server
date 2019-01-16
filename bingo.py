@@ -18,7 +18,7 @@ from seedbuilder.vanilla import seedtext as vanilla_seed
 if debug:
     from test.data import bingo_data as test_data
 
-BINGO_LATEST = [0,1,6]
+BINGO_LATEST = [0,1,7]
 def version_check(version):
     try:
         nums = [int(num) for num in version.split(".")]
@@ -693,8 +693,8 @@ class AddBingoToGame(RequestHandler):
             return resp_error(self, 404, "game not found", 'plain/text')
         if not game.params:
             return resp_error(self, 412, "game did not have required seed data", 'plain/text')
-        if game.mode in [MultiplayerGameType.SHARED, MultiplayerGameType.SPLITSHARDS]:
-            return resp_error(self, 412, "Co-op / splitshards bingo are not currently supported", 'plain/text')
+        if game.mode in [MultiplayerGameType.SPLITSHARDS]:
+            return resp_error(self, 412, "splitshards bingo are not currently supported", 'plain/text')
         params = game.params.get()
         params.tracking = False
         game.bingo = BingoGameData(
@@ -733,6 +733,10 @@ class BingoAddPlayer(RequestHandler):
         game = Game.with_id(game_id)
         if not game:
             return resp_error(self, 404, "Game not found", "text/plain")
+        if not game.bingo:
+            return resp_error(self, 404, "Game found but had no bingo data...", "text/plain")
+        if not game.bingo.teams_allowed:
+            return resp_error(self, 412, "Teams are forbidden in this game", "text/plain")
         if player_id in game.player_nums():
             return resp_error(self, 409, "Player id already in use!", "text/plain")
         p = game.player(player_id)
@@ -744,6 +748,7 @@ class BingoAddPlayer(RequestHandler):
             user.games.append(game.key)
             user.put()
         cap_id = int(param_val(self, "joinTeam") or player_id)
+        # game.add_bingo_player(player_id, cap_id)
         team = game.bingo_team(cap_id)
         if not team:
             team = {'bingos': [], 'cap': cap_id, 'teammates': []}
@@ -767,7 +772,6 @@ class BingoGetGame(RequestHandler):
         game = Game.with_id(game_id)
         if not game:
             return resp_error(self, 404, "Game not found", "text/plain")
-            
         if not game.bingo:
             return resp_error(self, 404, "Game found but had no bingo data...", "text/plain")
         res = game.bingo_json(first)

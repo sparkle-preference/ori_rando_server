@@ -178,6 +178,7 @@ class BingoGameData(ndb.Model):
     teams_allowed    = ndb.BooleanProperty(default=False)
     lockout          = ndb.BooleanProperty(default=False)
     square_count     = ndb.IntegerProperty()
+    teams_shared     = ndb.BooleanProperty(default=False)
 
     def update(self, player_data, pkey, team, capkey):
         change_squares = set()
@@ -763,7 +764,7 @@ class Game(ndb.Model):
         game_ids = set([int(game.key.id()) for game in Game.query()])
         while id in game_ids:
             id += 1
-        if id > 1000:
+        if id > 100000:
             Game.clean_old()
         return id
 
@@ -872,3 +873,12 @@ class Game(ndb.Model):
             res["teammates"] = [{'pid': tm, 'name': self.player(tm).name()} for tm in res["teammates"]]
             return res
         return None
+    # def add_bingo_player(self, new_pid, cid)
+    #     team = game.bingo_team(cap_id)
+    #     if not team:
+    #         team = {'bingos': [], 'cap': cap_id, 'teammates': []}
+    #         game.bingo.teams += [team]
+    #     elif pkey != team["cap"] and pkey not in team["teammates"]:
+    #         team["teammates"].append(pkey)
+    #     else:
+    #         log.error("In bingo game %s, team %s already had player %s!", game.key.id(), team, player_id)

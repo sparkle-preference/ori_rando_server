@@ -78,7 +78,10 @@ function pickup_name(code, id) {
                 return "Hint"
         case "WS":
         case "WP":
-            return "Warp to " + id + (code === "WS" ? " and save" : "")
+            if(id.endsWith(",force"))
+                return "Warp (forced) to " + id.slice(0, id.length-6) + (code === "WS" ? " and save" : "")
+            else
+                return "Warp (optional) to " + id + (code === "WS" ? " and save" : "")
         case "NO":
             return "Nothing"
         default:
@@ -159,12 +162,12 @@ const stuff_by_type = {
         { label: "Remove Dash", value: "RB|48", desc: "Removes Dash"},
         { label: "Remove Grenade", value: "RB|49", desc: "Removes Grenade"},
         { label: "Stompnade Hint", value: "RB|81", desc: "Displays a hint showing which Zones contain the Stomp and Grenade skills"},
-        { label: "Polarity Shift", value: "RB|101", desc: "On use: swap your current health and energy. Maximum values for both are ignored."},
-        { label: "Gravity Swap", value: "RB|102", desc: "Toggle: inverts gravity, and drains energy at a rate of 3.5 per minute."},
-        { label: "Extreme Speed", value: "RB|103", desc: "Toggle: massively increases Ori's horizontal speed, and drains energy at a rate of 3.5 per minute."},
+        { label: "Polarity Shift", value: "RB|101", desc: "On use: swap your current health and energy. Maximum values for both are ignored. Can't be used with 0 Energy."},
+        { label: "Gravity Swap", value: "RB|102", desc: "Toggle: inverts gravity, and drains energy at a rate of 4 per minute."},
+        { label: "Extreme Speed", value: "RB|103", desc: "Toggle: massively increases Ori's horizontal speed, and drains energy at a rate of 4 per minute."},
         { label: "Teleport: Last AltR", value: "RB|104", desc: "On use: Pay .5 energy to teleport to your last Alt+R location."},
         { label: "Teleport: Soul Link", value: "RB|105", desc: "On use: Pay .5 energy to teleport to your most recent Soul Link location."},
-        { label: "Respec", value: "RB|106", desc: "On use: Refund all your spent AP."},
+        { label: "Respec", value: "RB|106", desc: "On use: Refund all your spent AP. Only works at a Soul Link."},
         { label: "Level Explosion", value: "RB|107", desc: "On use: Pay 1 energy to create a level-up explosion."},
     ],
 };
@@ -185,6 +188,8 @@ grouped_opts.push({
         { label: "Repeatable", value: "RP" },
         { label: 'Print "Your text here"', value: "SH|Your text here", fake: true },
         { label: 'Warp to 0,0', value: "WP|0,0", fake: true },
+        { label: 'Warp (forced) to 0,0', value: "WP|0,0,force", fake: true },
+        { label: 'Warp (forced) to 0,0 and save', value: "WS|0,0,force", fake: true },
         { label: 'Warp to 0,0 and save', value: "WS|0,0", fake: true },
         { label: '15 Experience', value: "EX|15", fake: true },
     ]
@@ -303,6 +308,14 @@ class PickupSelect extends Component {
       corrected = `SH|${raw.substring(5).trim()}`;
     else if (cleaned.startsWith("message"))
       corrected = `SH|${raw.substring(7).trim()}`;
+    else if(raw.startsWith("WP|") || raw.startsWith("WS|")) {
+        let parts = raw.split(",")
+        if(parts.length === 3 && "force".startsWith(parts[2]))
+        {
+            parts[2] = "force"
+            corrected = parts.join(",")
+        }
+    }
     return corrected;
   };
 
@@ -318,10 +331,7 @@ class PickupSelect extends Component {
   };
   getNewOptionData = raw => {
     let input = this.correct(raw)
-    if (
-      input.includes("|") &&
-      (raw.length === 3 || input.split("|")[1].trim())
-    )
+    if (input.includes("|") && (raw.length === 3 || input.split("|")[1].trim()))
       return {
         value: input,
         label: name_from_str(input),
@@ -354,17 +364,35 @@ class PickupSelect extends Component {
       {
         if (parts.length === 1) 
           if (parts[0] === "")
-            opt.label = (<Fragment>Warp to <b>X</b>,Y</Fragment>)
+            opt.label = (<Fragment>Warp (optional) to <b>X</b>,Y</Fragment>)
           else if (isNaN(parts[0]))
-            opt.label = (<Fragment>Warp to <s>{parts[0]}</s><i> (invalid number)</i></Fragment>)
+            opt.label = (<Fragment>Warp (optional) to <s>{parts[0]}</s><i> (invalid number)</i></Fragment>)
           else
-            opt.label = (<Fragment>Warp to {parts[0]}<b>,Y</b></Fragment>)
+            opt.label = (<Fragment>Warp (optional) to {parts[0]}<b>,Y</b></Fragment>)
         else if(parts.length > 2)
-          opt.label = (<Fragment>Warp to {parts[0]},{parts[1]}<s>,{parts.slice(2).join(",")}</s> <i>(remove extra chars)</i></Fragment>)
+          if(parts.length === 3)
+              if(isNaN(parts[0]) || isNaN(parts[1]))
+              {
+                if(!isNaN(parts[1]))
+                    opt.label = (<Fragment>Warp (optional) to <s>{parts[0]}</s>,{parts[1]},{parts[2]} <i>(invalid number)</i></Fragment>)
+                else if(!isNaN(parts[0]))
+                    opt.label = (<Fragment>Warp (optional) to {parts[0]},<s>{parts[1]}</s>,{parts[2]} <i>(invalid number)</i></Fragment>)
+                else
+                    opt.label = (<Fragment>Warp (optional) to <s>{parts[0]},{parts[1]}</s>,{parts[2]} <i>(invalid numbers)</i></Fragment>)
+              }
+              else if("force".startsWith(parts[2])) {
+                  return false
+              }
+              else
+                opt.label = (<Fragment>Warp (optional) to {parts[0]},{parts[1]}<s>,{parts.slice(2).join(",")}</s> <i>(the only currently supported 3rd parameter is 'force')</i></Fragment>)
+          else
+              opt.label = (<Fragment>Warp (optional) to {parts[0]},{parts[1]}<s>,{parts.slice(2).join(",")}</s> <i>(remove extra chars)</i></Fragment>)
         else if(parts[1] === "")
-            opt.label = (<Fragment>Warp to {parts[0]},<b>Y</b></Fragment>)
+            opt.label = (<Fragment>Warp (optional) to {parts[0]},<b>Y</b></Fragment>)
+        else if(isNaN(parts[1]))
+            opt.label = (<Fragment>Warp (optional) to {parts[0]},<s>{parts[1]}</s> <i>(invalid number)</i></Fragment>)
         else
-          opt.label = (<Fragment>Warp to {parts[0]},<s>{parts[1]}</s><i> (invalid number)</i></Fragment>)
+          opt.label = (<Fragment>Warp (optional) to {parts[0]},<s>{parts[1]}</s><i> (invalid number)</i></Fragment>)
       return true
       }
      }
@@ -520,9 +548,10 @@ function player_icons(id, as_leaflet = true) {
     else if (id === 8) img = '/sprites/ori-multi-2.png';
     else if (id === 9) img = '/sprites/ori-multi-3.png';
     else if (id === 10) img = '/sprites/ori-skul.png';
-    else if (id === 100) img = '/sprites/ori-blorple.png';
-    else if (id === 101) img = '/sprites/ori-hydra.png';
+    else if (id === 100) img = '/sprites/kuro.png';
+    else if (id === 101) img = '/sprites/gumo.png';
     else if (id === 221) img = '/sprites/ori-eiko.png';
+    else if (id === 333) img = '/sprites/ori-blorple.png';
     else if (id === 385) img = '/sprites/ori-poogle.png';
 
     if (!as_leaflet) return img;

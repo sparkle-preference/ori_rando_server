@@ -40,7 +40,7 @@ class CleanUp(RequestHandler):
 class DeleteGame(RequestHandler):
     def get(game_id, self):
         self.response.headers['Content-Type'] = 'text/plain'
-        if int(game_id) < 1000 and not param_flag(self, "override"):
+        if int(game_id) < 10000 and not param_flag(self, "override"):
             self.response.status = 403
             self.response.write("No.")
         game = Game.with_id(game_id)
@@ -254,11 +254,22 @@ class ClearCache(RequestHandler):
 
 
 class SetSeed(RequestHandler):
+    def post(self, game_id, player_id):
+        lines = self.request.POST["seed"].split(",") if "seed" in self.request.POST else []
+        self.handle(game_id, player_id, lines)
+
     def get(self, game_id, player_id):
         lines = param_val(self, "seed").split(",")
+        if "Bingo" in lines[0].split("|"):
+            game = Game.with_id(game_id)
+            if game:
+                p = game.player(player_id)
+                p.signal_send("msg:@Bingo dll required for bingo games!@")
+        self.handle(game_id, player_id, lines)
+
+    def handle(self, game_id, player_id, lines):
         game = Game.with_id(game_id)
         hist = Cache.getHist(game_id)
-
         if not hist:
             Cache.setHist(game_id, player_id, [])
         Cache.setPos(game_id, player_id, 189, -210)
