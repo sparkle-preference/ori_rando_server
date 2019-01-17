@@ -779,7 +779,7 @@ class GetSpoilerFromParams(RequestHandler):
         self.response.headers['Content-Type'] = 'text/plain'
         params = SeedGenParams.with_id(params_id)
         if params:
-            player = int(self.request.GET.get("player", 1))
+            player = int(self.request.GET.get("player_id", 1))
             spoiler = params.get_spoiler(player)
             if param_flag(self, "download"):
                 self.response.headers['Content-Type'] = 'application/x-gzip'
