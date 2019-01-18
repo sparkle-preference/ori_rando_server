@@ -29,7 +29,7 @@ from bingo import routes as bingo_routes
 PLANDO_VER = "0.5.1"
 share_types = [ShareType.EVENT, ShareType.SKILL, ShareType.UPGRADE, ShareType.MISC, ShareType.TELEPORTER]
 
-
+ 
 class CleanUp(RequestHandler):
     def get(self):
         self.response.headers['Content-Type'] = 'text/plain'
@@ -55,6 +55,8 @@ class DeleteGame(RequestHandler):
 
 class ActiveGames(RequestHandler):
     def get(self, hours=12):
+        hours = int(hours)
+        
         self.response.headers['Content-Type'] = 'text/html'
         title = "Games active in the last %s hours" % hours
         body = ""
@@ -886,10 +888,10 @@ app = WSGIApplication(
     Route('/', handler=ReactLanding, name="main-page"),
     Route('/user/settings', handler=GetSettings, name="user-settings-get"),
     Route('/user/settings/update', handler=SetSettings, strict_slash=True, name="user-settings-update"),
-
+    Route('/activeGames/', handler=ActiveGames, strict_slash=True, name="active-games"),
+    Route('/activeGames/<hours:\d+>', handler=ActiveGames, strict_slash=True, name="active-games-hours"),
     ('/rebinds', RebindingsEditor),
     ('/quickstart', ReactLanding),
-    (r'/activeGames/?', ActiveGames),
     (r'/myGames/?', MyGames),
     (r'/clean/?', CleanUp),
     (r'/cache', ShowCache),

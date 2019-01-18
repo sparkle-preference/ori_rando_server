@@ -217,7 +217,7 @@ const PlayerList = ({activePlayer, teams, viewOnly, onPlayerListAction, dark, te
                             // </UncontrolledButtonDropdown>
 
 
-    let hiddenButton = team_list.some(t => t["hidden"]) ? (
+    let hiddenButton = team_list.some(t => t.hidden) ? (
         <Row className="pb-2">
             <Button block size="sm" color="link" onClick={onPlayerListAction("showHidden", 0)}>
                 Show all hidden
@@ -442,7 +442,7 @@ export default class Bingo extends React.Component {
     getCap = (pid) => {
         if(this.state.teams.hasOwnProperty(pid))
             return pid
-        let teams = Object.keys(this.state.teams).filter(cpid => this.state.teams[cpid].teammates.includes(pid))
+        let teams = Object.keys(this.state.teams).filter(cpid => this.state.teams[cpid].teammates.some(t => t['pid'] === pid))
         if(teams.length > 1)
             console.log(`Multiple teams found for player ${pid}! ${teams}`)
         return teams[0]
@@ -470,15 +470,18 @@ export default class Bingo extends React.Component {
            inputStyle = {'backgroundColor': 'white', 'color': 'black'}
         }
         let creatorControls = isOwner && !startTime ? (
-            <Row className="align-items-center p-2">
-                <Col xs="4">
-                    <Button block onClick={() => doNetRequest(`/bingo/game/${gameId}/start?time=${(new Date()).getTime()}`, this.tickCallback)} disabled={!!startTime}>Start game</Button>
+            <Row className="align-items-center justify-content-center p-2">
+                <Col xs="auto">
+                    <Button block onClick={() => doNetRequest(`/bingo/game/${gameId}/start?time=${(new Date()).getTime()}`, this.tickCallback)} color="success" disabled={!!startTime}>Start game</Button>
                 </Col>
             </Row>
         ) : null
         let fmt = ({square, first, loss, time, type, player, bingo}) => {
             let cpid = this.getCap(player)
-            if (!cpid) return ""
+            if (!cpid) 
+            {
+                return ""
+            }
             let {name} = this.state.teams[cpid]
             switch(type) {
                 case "square":
@@ -498,7 +501,7 @@ export default class Bingo extends React.Component {
         }
         let eventlog = haveGame  ? (
             <Row className="justify-content-center py-2">
-            <Col>
+            <Col style={{maxWidth: '1074px'}}>
                 <textarea style={inputStyle} className="w-100" rows={15} disabled value={this.state.events.map(ev => fmt(ev)).reverse().filter(l => l !== "").join("\n")}/>
             </Col>
             </Row>
@@ -511,10 +514,19 @@ export default class Bingo extends React.Component {
                 </Col>
             </Row>
         ) : null
+
+        let hiddenPlayers = []
+        if(teams)
+            Object.keys(teams).forEach(t => {
+                if(teams[t].hidden)
+                    hiddenPlayers.push(t)
+                hiddenPlayers = hiddenPlayers.concat(teams[t].teammates.map(t => t.pid))
+            })
+
         let bingoContent = haveGame ? (
             <Row className="justify-content-center align-items-center">
                 <Col xs="auto">
-                    <BingoBoard dark={dark} cards={cards} activePlayer={activePlayer} bingos={teams[activePlayer] ? teams[activePlayer].bingos : []} hiddenPlayers={Object.keys(teams).filter(p => teams[p].hidden)}/>
+                    <BingoBoard dark={dark} cards={cards} activePlayer={activePlayer} bingos={teams[activePlayer] ? teams[activePlayer].bingos : []} hiddenPlayers={hiddenPlayers}/>
                 </Col>
                     <PlayerList dark={dark} teamsDisabled={teamsDisabled} viewOnly={viewOnly} teams={teams} activePlayer={activePlayer} onPlayerListAction={this.onPlayerListAction}/>
             </Row>
@@ -542,10 +554,10 @@ export default class Bingo extends React.Component {
         }
 
         let links = haveGame ? [
-            (<Row className="align-items-center pt-3" key="specLink"><small> spectator link: {specLink}</small></Row>)
+            (<Row className="justify-content-center pt-3" key="specLink"><Col xs="auto"><small> spectator link: {specLink}</small></Col></Row>)
          ] : null
          if(paramId > 0 && gameId > 0 && haveGame)
-            links.push((<Row key="gameLink"><small><a href={`/?param_id=${paramId}&game_id=${gameId}`}>base seed</a></small></Row>))
+            links.push((<Row className="justify-content-center" key="gameLink"><Col xs="auto"><small><a href={`/?param_id=${paramId}&game_id=${gameId}`}>base seed</a></small></Col></Row>))
 
         return (
             <Container fluid="true" className="pb-4 pt-2 mt-5">
@@ -560,7 +572,7 @@ export default class Bingo extends React.Component {
                 {this.loadingModal(inputStyle, loadingText)}
                 {this.countdownModal(inputStyle)}
                 <Row className="p-1">
-                    <Col>
+                    <Col xs={{size: 8, offset: 2}}>
                         <Cent><h3>{headerText}</h3></Cent>
                     </Col>
                 </Row>
@@ -572,12 +584,12 @@ export default class Bingo extends React.Component {
                     </Col><Col xs="auto">
                         <Button block color="primary" onClick={() => this.joinGame()} disabled={!haveGame}>Join Game</Button>
                     </Col><Col xs="auto">
-                        <Row className="flex-nowrap align-items-left py-0 px-1 m-0">
+                        <Row className="flex-nowrap align-items-left pt-0 pb-2 px-1 m-0">
                             <Col xs="auto"><Cent>
                                 Player:
                             </Cent></Col>
                             <Col xs="4"><Cent>
-                                <Input style={inputStyle} type="number" disabled={!haveGame} min="1" value={activePlayer} onChange={(e) => this.setState({activePlayer: parseInt(e.target.value, 10)})}/>
+                                <Input style={inputStyle} type="number" disabled={!haveGame} min="1" value={activePlayer} onChange={e => this.setState({activePlayer: parseInt(e.target.value, 10)})}/>
                             </Cent></Col>
                             <Col xs="auto"><Cent>
                                 {activePlayer > 0 ? make_icons([activePlayer]) : null}

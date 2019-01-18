@@ -142,6 +142,7 @@ class BingoCard(ndb.Model):
                     completed = any([subgoal["name"] in team_subgoals for subgoal in self.subgoals])
             for prog in all_progress:
                 prog.completed = completed
+            p_progress.completed = completed
 
         if prior_value != p_progress.completed:
             event = BingoEvent(event_type="square", loss = not p_progress.completed, square=self.square, player=pkey, timestamp=datetime.utcnow())
@@ -868,8 +869,26 @@ class Game(ndb.Model):
             for p in p_list:
                 players[p].signal_send("win:$Finished in %s place at %s!" % (ord_suffix(team["place"]), now))
         self.put()
+    
+    def bingo_seed(self, pid):
+        sync_flag = ("Sync%s.%s," % (self.key.id(), pid))
+        if not self.params:
+            return sync_flag + self.bingo.seed
+        else:
+            sync_flag += "Bingo,"
+            params = self.params.get()
+            if params.players == 1:
+                return sync_flag + params.get_seed(1, include_sync=False)
+            else:
+                team = self.bingo_team(pid, cap_only=False, as_list=True)
+                if not team:
+                    log.error("No team found for player %s, returning seed for player 1. This will probably not work!" % pid)
+                    return sync_flag + params.get_seed(1, include_sync=False)
+                p_number = team.index(pid) + 1
+                return sync_flag + params.get_seed(p_number, include_sync=False)
+                
 
-    def bingo_team(self, pid, cap_only=True):
+    def bingo_team(self, pid, cap_only=True, as_list=False):
         maybe_team = [team for team in self.bingo.teams if int(team["cap"]) == int(pid)]
         if not maybe_team and not cap_only:
             maybe_team += [team for team in self.bingo.teams if pid in team["teammates"]]
@@ -877,10 +896,10 @@ class Game(ndb.Model):
             if len(maybe_team) > 1 and cap_only:
                 log.error("Multiple teams found with the same player %s (%s), returning %s", pid, maybe_team, maybe_team[0]["cap"])
             res = maybe_team[0]
+            if as_list:
+                return [res["cap"]] + res["teammates"]
             p = self.player(res["cap"])
             res["name"] = p.teamname() if res["teammates"] else p.name()
-            if res["teammates"] and isinstance(res["teammates"][0], (dict)):
-                res["teammates"] = [t['pid'] for t in res["teammates"]]
             return res
         return None
     # def add_bingo_player(self, new_pid, cid)
