@@ -24,7 +24,7 @@ const colors = {
 
 const make_icons = players => players.map(p => (<Media key={`playerIcon${p}`} object style={{width: "25px", height: "25px"}} src={player_icons(p, false)} alt={"Icon for player "+p} />))
 const BingoCard = ({card, progress, players, help, dark}) => {
-    let cardStyles = {width: '18vh', height: '18vh', minWidth: '120px', maxWidth: '160px', minHeight: '120px', maxHeight: '160px', flexGrow: 1}
+    let cardStyles = {width: '18vh', height: '18vh', minWidth: '120px', maxWidth: '200px', minHeight: '120px', maxHeight: '200px', flexGrow: 1}
     let footerStyles = {}
     if(dark)
     {
@@ -109,7 +109,7 @@ class BingoBoard extends Component {
             let row = []
             while(row.length < 5) {
                 let card = cards[i];
-                let players = Object.keys(card.progress).filter(p => card.progress[p].completed && !hiddenPlayers.includes(p));
+                let players = Object.keys(card.progress).filter(p => card.progress[p].completed && !hiddenPlayers.includes(parseInt(p, 10)));
                 let progress = card.progress.hasOwnProperty(activePlayer) ? card.progress[activePlayer] : {'completed': false, 'count': 0, 'subgoals': []}
                 row.push((<td key={i}><BingoCard dark={dark} card={card} progress={progress} help={{i: i, open: this.state.helpOpen[i], toggle: this.helpToggle(i)}} players={players} /></td>))
                 i++
@@ -528,7 +528,6 @@ export default class Bingo extends React.Component {
                     hiddenPlayers.push(t)
                 hiddenPlayers = hiddenPlayers.concat(teams[t].teammates.map(t => t.pid))
             })
-        console.log(hiddenPlayers)
 
         let bingoContent = haveGame ? (
             <Row className="justify-content-center align-items-center">

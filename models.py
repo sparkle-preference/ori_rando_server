@@ -609,60 +609,68 @@ class Game(ndb.Model):
             log.warning("Skipping sanity check.")
             return
         Cache.doSanCheck(self.key.id())
-        players = self.get_players()
+        allPlayers = self.get_players()
+
         sanFailedSignal = "msg:@Major Error during sanity check. If this persists across multiple alt+l attempts please contact Eiko@"
         inv = defaultdict(lambda: 0)
-        for hl in [hl for player in players for hl in player.history]:
-            pick = hl.pickup()
-            if pick.code == "MU":
-                for c in pick.children:
-                    if c.is_shared(self.shared):
-                        inv[(c.code, c.id)] += -1 if hl.removed else 1
-            elif pick.is_shared(self.shared):
-                inv[(pick.code, pick.id)] += -1 if hl.removed else 1
-        i = 0
-        for key, count in inv.iteritems():
-            pickup = Pickup.n(key[0], key[1])
-            if not stacks(pickup):
-                count = 1
-            elif pickup.max:
-                count = min(count, pickup.max)
-            for player in players:
-                has = player.has_pickup(pickup)
-                if has < count:
-                    if has == 0 and count == 1:
-                        log.error("Player %s should have %s but did not. Fixing..." % (player.key.id(), pickup.name))
-                    else:
+        playerGroups = []
+        if self.bingo:
+            for team in self.bingo.teams:
+                playerGroups.append([p for p in allPlayers if p.pid() in team["teammates"] + [team["cap"]]])
+        else:
+             playerGroups = [allPlayers]
+        for players in playerGroups:
+            for hl in [hl for player in players for hl in player.history]:
+                pick = hl.pickup()
+                if pick.code == "MU":
+                    for c in pick.children:
+                        if c.is_shared(self.shared):
+                            inv[(c.code, c.id)] += -1 if hl.removed else 1
+                elif pick.is_shared(self.shared):
+                    inv[(pick.code, pick.id)] += -1 if hl.removed else 1
+            i = 0
+            for key, count in inv.iteritems():
+                pickup = Pickup.n(key[0], key[1])
+                if not stacks(pickup):
+                    count = 1
+                elif pickup.max:
+                    count = min(count, pickup.max)
+                for player in players:
+                    has = player.has_pickup(pickup)
+                    if has < count:
+                        if has == 0 and count == 1:
+                            log.error("Player %s should have %s but did not. Fixing..." % (player.key.id(), pickup.name))
+                        else:
+                            log.error("Player %s should have had %s of %s but had %s instead. Fixing..." % (player.key.id(), count, pickup.name, has))
+                        while(has < count):
+                            i += 1
+                            last = has
+                            player.give_pickup(pickup, delay_put=True)
+                            has = player.has_pickup(pickup)
+                            if has == last:
+                                log.critical("Aborting sanity check for Player %s: tried and failed to increment %s (at %s, should be %s)" % (player.key.id(), pickup.name, has, count))
+                                return False
+                            if i > 100:
+                                player.signal_send(sanFailedSignal)
+                                log.critical("Aborting sanity check for Player %s after too many iterations." % player.key.id())
+                                return False
+                    elif has > count:
                         log.error("Player %s should have had %s of %s but had %s instead. Fixing..." % (player.key.id(), count, pickup.name, has))
-                    while(has < count):
-                        i += 1
-                        last = has
-                        player.give_pickup(pickup, delay_put=True)
-                        has = player.has_pickup(pickup)
-                        if has == last:
-                            log.critical("Aborting sanity check for Player %s: tried and failed to increment %s (at %s, should be %s)" % (player.key.id(), pickup.name, has, count))
-                            return False
-                        if i > 100:
-                            player.signal_send(sanFailedSignal)
-                            log.critical("Aborting sanity check for Player %s after too many iterations." % player.key.id())
-                            return False
-                elif has > count:
-                    log.error("Player %s should have had %s of %s but had %s instead. Fixing..." % (player.key.id(), count, pickup.name, has))
-                    while(has > count):
-                        i += 1
-                        last = has
-                        player.give_pickup(pickup, remove=True, delay_put=True)
-                        has = player.has_pickup(pickup)
-                        if has == last:
-                            log.critical("Aborting sanity check for Player %s: tried and failed to decrement %s (at %s, should be %s)" % (player.key.id(), pickup.name, has, count))
-                            return False
-                        if i > 100:
-                            player.signal_send(sanFailedSignal)
-                            log.critical("Aborting sanity check for Player %s after too many iterations." % player.key.id())
-                            return False
-        for player in players:
-            player.put()
-        self.rebuild_hist()
+                        while(has > count):
+                            i += 1
+                            last = has
+                            player.give_pickup(pickup, remove=True, delay_put=True)
+                            has = player.has_pickup(pickup)
+                            if has == last:
+                                log.critical("Aborting sanity check for Player %s: tried and failed to decrement %s (at %s, should be %s)" % (player.key.id(), pickup.name, has, count))
+                                return False
+                            if i > 100:
+                                player.signal_send(sanFailedSignal)
+                                log.critical("Aborting sanity check for Player %s after too many iterations." % player.key.id())
+                                return False
+            for player in players:
+                Cache.setHist(self.key.id(), player.pid(), player.history)
+                player.put()
         return True
 
     def rebuild_hist(self):
@@ -875,8 +883,11 @@ class Game(ndb.Model):
         if self.bingo.update(bingo_data, player_id, team, players):
             p_list = [team["cap"]]
             p_list += team["teammates"]
+            send_log = []
             for p in p_list:
-                players[p].signal_send("win:$Finished in %s place at %s!" % (ord_suffix(team["place"]), now))
+                players[int(p)].signal_send("win:$Finished in %s place at %s!" % (ord_suffix(team["place"]), now))
+                send_log.append(p)
+            log.debug("Sent victory message to these players: %s" % send_log)
         self.put()
     
     def bingo_seed(self, pid):

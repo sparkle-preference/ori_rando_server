@@ -93,6 +93,8 @@ class Upgrade(Pickup):
         if id in Upgrade.name_only:
             inst = super(Upgrade, cls).__new__(cls)
             inst.id, inst.share_type, inst.name = id, ShareType.NOT_SHARED, Upgrade.names[id]
+            if id in [81]:
+                inst.share_type = ShareType.MISC
             return inst
         if id not in Upgrade.names:
             return None
