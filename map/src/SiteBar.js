@@ -1,5 +1,5 @@
 import React, {Component} from 'react';
-import {Navbar,  NavbarBrand, Nav,  NavItem, Button, Modal, ModalHeader, ModalBody, ModalFooter, FormFeedback, 
+import {Navbar,  NavbarBrand, Nav,  NavItem, Button, Modal, ModalHeader, ModalBody, ModalFooter, FormFeedback,
         UncontrolledDropdown, DropdownToggle, DropdownMenu, DropdownItem, Container, Row, Col, Input, UncontrolledAlert} from 'reactstrap'
 import {Cent, doNetRequest, get_random_loader} from './common.js';
 const BAD_CHARS = ["@", "/", "\\", "?", "#", "&", "=", '"', "'"]
@@ -10,7 +10,7 @@ class SiteBar extends Component {
         this.state = {user: user, dark: dark, teamName: "", settingsOpen: false, quickstartOpen: false, editName: user, loadedNames: false, saveInProgress: false, loader: get_random_loader(), saveStatus: 0}
     }
     componentDidMount() {
-        if(this.state.user) 
+        if(this.state.user)
             this.getUsedNames()
     }
     getUsedNames = () => {
@@ -21,14 +21,14 @@ class SiteBar extends Component {
         })
     }
     validateName = (usedNames, user, editName) => {
-        if(editName === "") 
+        if(editName === "")
             return {valid: false, feedback: (<FormFeedback tooltip>Name cannot be blank</FormFeedback>)}
         if(editName === user)
             return {valid: true, feedback: null}
         if(usedNames.includes(editName.toLowerCase()))
             return {valid: false, feedback: (<FormFeedback tooltip>Name '{editName}' is already in use!</FormFeedback>)}
         let forbiddenChars = BAD_CHARS.filter(c => editName.includes(c));
-        if(forbiddenChars.length > 0) 
+        if(forbiddenChars.length > 0)
             return {valid: false, feedback: (<FormFeedback tooltip>Invalid symbol(s): {forbiddenChars.join(", ")}</FormFeedback>)}
         return {valid: true, feedback: (<FormFeedback valid tooltip>Name is available and valid</FormFeedback>)}
     }
@@ -39,7 +39,7 @@ class SiteBar extends Component {
                 this.setState({saveStatus: status, user: this.state.editName}, this.getUsedNames)
             else
                 this.setState({saveStatus: status}, this.getUsedNames)
-    
+
         })
     }
     settingsModal = () =>  {
@@ -77,7 +77,7 @@ class SiteBar extends Component {
                             <Col xs="4" className="text-center p-1 border">
                                 <Cent>Display name</Cent>
                             </Col><Col xs="8">
-                                <Input type="text" value={editName} className="w-50" valid={valid} invalid={!valid} onChange={e => this.setState({editName: e.target.value})}/> 
+                                <Input type="text" value={editName} className="w-50" valid={valid} invalid={!valid} onChange={e => this.setState({editName: e.target.value})}/>
                                 {feedback}
                             </Col>
                         </Row>
@@ -85,7 +85,7 @@ class SiteBar extends Component {
                             <Col xs="4" className="text-center p-1 border">
                                 <Cent>Team Name</Cent>
                             </Col><Col xs="8">
-                                <Input type="text" value={teamName} className="w-50" invalid={teamName === undefined || teamName === null || teamName === ""} onChange={e => this.setState({teamName: e.target.value})}/> 
+                                <Input type="text" value={teamName} className="w-50" invalid={teamName === undefined || teamName === null || teamName === ""} onChange={e => this.setState({teamName: e.target.value})}/>
                                 <FormFeedback tooltip>Team name can't be empty</FormFeedback>
                             </Col>
                         </Row>
@@ -108,7 +108,7 @@ class SiteBar extends Component {
         } else {
             if(dark && url.searchParams.has("dark"))
                 url.searchParams.delete("dark")
-            else 
+            else
                 url.searchParams.append("dark", 1)
             window.location.replace(url.href)
         }
@@ -125,7 +125,7 @@ class SiteBar extends Component {
         ] : [
             (<DropdownItem href={"/login?redir="+page}> Login </DropdownItem>)
         ]
-        let myseeds = user ? (<DropdownItem href={"/plando/"+ user}> {user}'s seeds </DropdownItem>) : null 
+        let myseeds = user ? (<DropdownItem href={"/plando/"+ user}> {user}'s seeds </DropdownItem>) : null
         let settings = this.settingsModal()
         let dropdownStyle = {}, navClass = "border border-dark p-2"
         if(dark)
@@ -135,7 +135,7 @@ class SiteBar extends Component {
         }
         let nameorlogin = user ? user : "Login"
         return (
-            <Navbar className={navClass} expand="md">
+            <Navbar style={{maxWidth: '1074px'}} className={navClass} expand="md">
             {settings}
             <NavbarBrand href={"/" + (dark && !user ? "?dark=1" : "")}>Ori Rando</NavbarBrand>
                 <Nav className="ml-auto" navbar>
@@ -195,8 +195,8 @@ class SiteBar extends Component {
                     {nameorlogin}
                     </DropdownToggle>
                     <DropdownMenu style={dropdownStyle} right>
-                    <DropdownItem onClick={this.themeToggle}> 
-                        {xMode} 
+                    <DropdownItem onClick={this.themeToggle}>
+                        {xMode}
                     </DropdownItem>
                     {logonoff}
                     </DropdownMenu>

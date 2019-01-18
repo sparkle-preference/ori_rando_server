@@ -4,8 +4,8 @@ import {Container, Row, Col, Collapse, Button, ButtonGroup, Modal, ModalHeader, 
 import {NotificationContainer, NotificationManager} from 'react-notifications';
 import Countdown from 'react-countdown-now';
 import {Helmet} from 'react-helmet';
-import { confirmAlert } from 'react-confirm-alert'; 
-import 'react-confirm-alert/src/react-confirm-alert.css' 
+import { confirmAlert } from 'react-confirm-alert';
+import 'react-confirm-alert/src/react-confirm-alert.css'
 
 import {download} from './shared_map.js'
 import {Cent, ordinal_suffix, doNetRequest, player_icons, get_random_loader, PickupSelect, get_flag, get_param} from './common.js'
@@ -45,8 +45,8 @@ const BingoCard = ({card, progress, players, help, dark}) => {
         let styles = {};
         if(progress.subgoals && progress.subgoals.includes(subgoal))
         {
-            if(progress.completed) 
-                styles.background = dark ?  colors.darkSubgoal: colors.subgoal 
+            if(progress.completed)
+                styles.background = dark ?  colors.darkSubgoal: colors.subgoal
             else
                 styles.background = dark ? colors.darkComplete : colors.complete
         }
@@ -68,7 +68,7 @@ const BingoCard = ({card, progress, players, help, dark}) => {
             </Popover>
         )
     }
-    
+
     if(progress.completed)
         cardStyles.background = dark ? colors.darkComplete : colors.complete
     return (
@@ -104,7 +104,7 @@ class BingoBoard extends Component {
         }
         let rows = [], i = 0;
         let colStyle = (b) => bingos.includes(b) ? {height: "20px", width: "100%", background: dark ? colors.darkComplete : colors.complete} : {height: "20px", width: "100%"}
-        let rowStyle = (b) => bingos.includes(b) ? {width: "20px", height: "100%", background: dark ? colors.darkComplete : colors.complete} : {width: "20px", height: "100%"}
+        let rowStyle = (b) => bingos.includes(b) ? {width: "20px", height: "100%", textAlign:"center", background: dark ? colors.darkComplete : colors.complete} : {width: "20px", height: "100%", textAlign: "center"}
         while(rows.length < 5) {
             let row = []
             while(row.length < 5) {
@@ -121,8 +121,8 @@ class BingoBoard extends Component {
         return (<table>
                     <tbody>
                         <tr style={{textAlign: 'center'}}>
-                            <td><div style={colStyle("A1-E5")}>X1</div></td> 
-                            <td><div style={colStyle("Col A")}>A</div></td> 
+                            <td><div style={colStyle("A1-E5")}>X1</div></td>
+                            <td><div style={colStyle("Col A")}>A</div></td>
                             <td><div style={colStyle("Col B")}>B</div></td>
                             <td><div style={colStyle("Col C")}>C</div></td>
                             <td><div style={colStyle("Col D")}>D</div></td>
@@ -130,7 +130,7 @@ class BingoBoard extends Component {
                         </tr>
                         {rows}
                         <tr style={{textAlign: 'center'}}>
-                            <td><div style={colStyle("E1-A5")}>X2</div></td> 
+                            <td><div style={colStyle("E1-A5")}>X2</div></td>
                         </tr>
                     </tbody>
                 </table>);
@@ -145,7 +145,7 @@ const PlayerList = ({activePlayer, teams, viewOnly, onPlayerListAction, dark, te
     if(dark)
         dropdownStyle.backgroundColor = "#666"
     let players = team_list.map(({hidden, cap, teammates, name, bingos, place, score}) => {
-        
+
             if(hidden)
                 return null
             place = place || 0
@@ -157,7 +157,7 @@ const PlayerList = ({activePlayer, teams, viewOnly, onPlayerListAction, dark, te
                 text += `, (${score}/25)`
             let badge = place > 0 ? (<Badge color='primary'>{ordinal_suffix(place)}</Badge>) : null
             let active = activePlayer === cap
-            let joinButton = viewOnly || teamsDisabled ? null : ( 
+            let joinButton = viewOnly || teamsDisabled ? null : (
                 <DropdownItem onClick={onPlayerListAction("joinTeam", cap)}>
                     Join Team
                 </DropdownItem>
@@ -224,11 +224,11 @@ const PlayerList = ({activePlayer, teams, viewOnly, onPlayerListAction, dark, te
             </Button>
         </Row>
     ): null
-    
+
     players = players.filter(p => p != null).sort((a, b) => b[0] - a[0]).map(p => p[1])
 
     return (
-        <Col xs="auto" style={{maxWidth: '420px'}} className="border border-info">
+        <Col xs="auto" style={{minWidth: '200px', maxWidth: '420px'}} className="border border-info">
             <Row  className="px-1 pb-2"><Cent><h4>Players</h4></Cent></Row>
             {players}
             {hiddenButton}
@@ -244,17 +244,17 @@ export default class Bingo extends React.Component {
         let gameId = parseInt(url.searchParams.get("game_id") || -1, 10);
         let fromGen = url.searchParams.has("fromGen")
         let dark = get_flag("dark") || url.searchParams.has("dark")
-        
+
         this.state = {
                       cards: [], currentRecord: 0, haveGame: false, creatingGame: false, createModalOpen: true, offset: 0,
                       activePlayer: 1, showInfo: false, user: get_param("user"), loadingText: "Building game...", paramId: -1,
-                      dark: dark, specLink: window.document.location.href.replace("board", "spectate"), lockout: false, squareCount: 13, 
+                      dark: dark, specLink: window.document.location.href.replace("board", "spectate"), lockout: false, squareCount: 13,
                       fails: 0, gameId: gameId, startSkills: 3, startCells: 4, startMisc: "MU|TP/Swamp/TP/Valley", goalMode: "bingos",
                       start_with: "", difficulty: "normal", isRandoBingo: false, randoGameId: -1, viewOnly: viewOnly, buildingPlayer: false,
                       events: [], startTime: (new Date()), countdownActive: false, isOwner: false, targetCount: 3, reqsqrs: [],
                       teamsDisabled: true, fromGen: fromGen
                     };
-        
+
         if(gameId > 0)
         {
             if(fromGen)
@@ -306,7 +306,7 @@ export default class Bingo extends React.Component {
             nextPlayer++;
         this.setState({activePlayer: nextPlayer})
         let url = `/bingo/game/${gameId}/add/${nextPlayer}`
-        if(joinTeam) 
+        if(joinTeam)
             url += `?joinTeam=${joinTeam}`
         this.setState({buildingPlayer: true, loadingText: "Joining game..."}, doNetRequest(url, this.tickCallback))
     }
@@ -426,7 +426,7 @@ export default class Bingo extends React.Component {
                             }
                         ]
                     })
-                // else 
+                // else
                 //     doNetRequest(`/bingo/game/${this.state.gameId}/remove/${cpid}`, this.tickCallback)
                 break;
             case "redownloadSeed":
@@ -453,13 +453,13 @@ export default class Bingo extends React.Component {
         {
             let col = {0: "A", 1: "B", 2: "C", 3: "D", 4: "E"}[(sq % 5)]
             let row = Math.floor(sq / 5) + 1
-            
+
             return `${this.state.cards[sq].disp_name} (${col}${row})`
         }
         return this.state.cards[sq].disp_name
     }
     render = () => {
-        let {specLink, viewOnly, isOwner, dark, activePlayer, teamsDisabled, startTime, paramId, 
+        let {specLink, viewOnly, isOwner, dark, activePlayer, teamsDisabled, startTime, paramId,
             subtitle, cards, haveGame, gameId, user, dispDiff, teams, loadingText} = this.state
         let pageStyle, inputStyle
         if(dark) {
@@ -497,7 +497,7 @@ export default class Bingo extends React.Component {
             }
         }
         let eventlog = haveGame  ? (
-            <Row className="py-2">
+            <Row className="justify-content-center py-2">
             <Col>
                 <textarea style={inputStyle} className="w-100" rows={15} disabled value={this.state.events.map(ev => fmt(ev)).reverse().filter(l => l !== "").join("\n")}/>
             </Col>
@@ -512,7 +512,7 @@ export default class Bingo extends React.Component {
             </Row>
         ) : null
         let bingoContent = haveGame ? (
-            <Row className="align-items-center">
+            <Row className="justify-content-center align-items-center">
                 <Col xs="auto">
                     <BingoBoard dark={dark} cards={cards} activePlayer={activePlayer} bingos={teams[activePlayer] ? teams[activePlayer].bingos : []} hiddenPlayers={Object.keys(teams).filter(p => teams[p].hidden)}/>
                 </Col>
@@ -548,12 +548,14 @@ export default class Bingo extends React.Component {
             links.push((<Row key="gameLink"><small><a href={`/?param_id=${paramId}&game_id=${gameId}`}>base seed</a></small></Row>))
 
         return (
-            <Container className="px-4 pb-4 pt-2 mt-2 mx-4 w-100">
+            <Container fluid="true" className="pb-4 pt-2 mt-5">
             <Helmet>
                 <style type="text/css">{pageStyle}</style>
             </Helmet>
                 <NotificationContainer/>
-                <SiteBar dark={dark} user={user}/>
+                <Container className="">
+                    <SiteBar dark={dark} user={user}/>
+                </Container>
                 {this.createModal(inputStyle)}
                 {this.loadingModal(inputStyle, loadingText)}
                 {this.countdownModal(inputStyle)}
@@ -564,7 +566,7 @@ export default class Bingo extends React.Component {
                 </Row>
                 {subheader}
                 {creatorControls}
-                <Row className="flex-nowrap align-items-center px-1">
+                <Row className="flex-nowrap justify-content-center align-items-center px-1">
                     <Col xs="auto">
                         <Button block onClick={this.toggleCreate}>Create New Game</Button>
                     </Col><Col xs="auto">
@@ -601,7 +603,7 @@ export default class Bingo extends React.Component {
             </ModalBody>
         </Modal>
     )}
-    countdownModal = (style) => { 
+    countdownModal = (style) => {
         let {countdownActive, startTime, offset} = this.state
         return (
         <Modal size="sm" isOpen={countdownActive} backdrop={"static"} className={"modal-dialog-centered"}>
@@ -621,7 +623,7 @@ export default class Bingo extends React.Component {
             </ModalBody>
         </Modal>
     )}
-    createModal = (style) => { 
+    createModal = (style) => {
         let {difficulty, isRandoBingo, fromGen, randoGameId, targetCount, startSkills, startCells, startMisc, showInfo, teamsDisabled, lockout, squareCount, goalMode} = this.state
         let randoInput = fromGen ? (
             <Row className="p-1">
