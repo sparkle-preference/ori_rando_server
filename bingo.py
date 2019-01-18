@@ -421,7 +421,7 @@ class BingoGenerator(object):
                 goals = [
                     BoolGoal(name = "Forlorn Ruins", help_lines = ["Completed once you reach the plant at the end of the escape"]),
                     BoolGoal(name = "Ginso Tree", help_lines = ["Completed once you recieve the pickup at vanilla clean water" if rando else "Completed once you recieve clean water"]),
-                    BoolGoal(name = "Mount Horu", help_lines = ["Completed once you finish the last room of the final escape"]),
+                    BoolGoal(name = "Mount Horu", help_lines = ["Completed once you finish the last room of the final escape. Alt+R once you regain control of Ori!"]),
                 ],
                 methods = [
                         ("or",    r((1, 3), (1, 2), (1, 1))), 
@@ -439,7 +439,7 @@ class BingoGenerator(object):
                     BoolGoal(name = "Stomp Rhino", help_lines = ["The Rhino miniboss past the Stomp tree in Swamp"]),
                     BoolGoal(name = "Horu Fields Acid", help_lines = ["The yellowish liquid in the lower area of the main Horu Fields room"]),
                     BoolGoal(name = "Doorwarp Lava", help_lines = ["The lava at the very bottom of Horu"]),
-                    BoolGoal(name = "Ginso Escape Fronkey", disp_name = "Top Ginso Fronkey", help_lines = ["The fronkey in the second-to-last room of the Ginso Escape"]),
+                    BoolGoal(name = "Ginso Escape Fronkey", disp_name = "Ginso Escape Fronkey", help_lines = ["Any fronkey in the Ginso Escape (you can complete the escape and come back via the teleporter)"]),
                     BoolGoal(name = "Blackroot Teleporter Crushers", disp_name = "BRB TP Crushers", help_lines = ["The crushers below the Blackroot Teleporter"]),
                     BoolGoal(name = "NoobSpikes", disp_name = "Sorrow Spike Maze", help_lines = ["The long spike maze room in upper sorrow with 2 keystones on each side."]),
                 ],
@@ -699,11 +699,16 @@ class AddBingoToGame(RequestHandler):
         game.bingo = BingoGameData(
             board         = BingoGenerator.get_cards(25, True, difficulty),
             difficulty    = difficulty,
-            seed          = "Bingo," + params.get_seed(include_sync=False),
             subtitle      = params.flag_line(),
             teams_allowed = param_flag(self, "teams"),
-            lockout       = param_flag(self, "lockout")
+            lockout       = param_flag(self, "lockout"),
+            teams_shared  = params.players > 1 and params.sync.mode == MultiplayerGameType.SHARED
         )
+
+        if game.bingo.teams_shared and not game.bingo.teams_allowed:
+            log.warning("Teams are required for shared seeds! Overriding invalid config")
+            game.bingo.teams_allowed = True
+
         if param_flag(self, "lines"):
             game.bingo.bingo_count  = int(param_val(self, "lines"))
         if param_flag(self, "squares"):
@@ -728,14 +733,13 @@ class AddBingoToGame(RequestHandler):
 class BingoAddPlayer(RequestHandler):
     def get(self, game_id, player_id):
         player_id = int(player_id)
-        res = {}
         game = Game.with_id(game_id)
         if not game:
-            return resp_error(self, 404, "Game not found", "text/plain")
+            return resp_error(self, 404, "Game %s not found" % game_id, "text/plain")
+        if not game.bingo:
+            return resp_error(self, 404, "Game %s found but had no bingo data..." % game_id, "text/plain")
         if param_flag(self, "joinTeam") and not game.bingo.teams_allowed:
             return resp_error(self, 412, "Teams are forbidden in this game", "text/plain")
-        if not game.bingo:
-            return resp_error(self, 404, "Game found but had no bingo data...", "text/plain")
         if player_id in game.player_nums():
             return resp_error(self, 409, "Player id already in use!", "text/plain")
         p = game.player(player_id)
@@ -746,6 +750,7 @@ class BingoAddPlayer(RequestHandler):
             p.put()
             user.games.append(game.key)
             user.put()
+
         cap_id = int(param_val(self, "joinTeam") or player_id)
 
         # game.add_bingo_player(player_id, cap_id)
@@ -757,12 +762,34 @@ class BingoAddPlayer(RequestHandler):
             team["teammates"].append(player_id)
         else:
             log.error("In bingo game %s, team %s already had player %s!", game.key.id(), team, player_id)
+        seed = game.bingo_seed(player_id)
+        if not seed:
+            return resp_error(self, 412, "Team has maximum number of players allowed!")
         game = game.put().get()
 
         res = game.bingo_json()
-        res['player_download'] = player_id
+        res['player_seed'] = seed
         self.response.headers['Content-Type'] = 'application/json'
         self.response.write(json.dumps(res))
+
+class BingoDownloadSeed(RequestHandler):
+    def get(self, game_id, player_id):
+        player_id = int(player_id)
+        game = Game.with_id(game_id)
+        if not game:
+            return resp_error(self, 404, "Game %s not found" % game_id, "text/plain")
+        if not game.bingo:
+            return resp_error(self, 404, "Game %s found but had no bingo data..." % game_id, "text/plain")
+        seed = game.bingo_seed(player_id)
+        if not seed:
+            return resp_error(self, 412, "No seed found for player %s.%s" % (game_id, player_id), "text/plain")
+
+
+        self.response.headers['Content-Type'] = 'text/plain'
+        if not debug:
+            self.response.headers['Content-Type'] = 'application/x-gzip'
+            self.response.headers['Content-Disposition'] = 'attachment; filename=randomizer.dat'
+        self.response.write(seed)
 
 class BingoGetGame(RequestHandler):
     def get(self, game_id):
@@ -796,6 +823,12 @@ class BingoStartCountdown(RequestHandler):
             return resp_error(self, 401, "Only the creator can start the game", "text/plain")
         if game.bingo.start_time:
             return resp_error(self, 412, "Game has already started!", "text/plain")
+        if game.bingo.teams_shared:
+            p = game.params.get()
+            for team in game.bingo.teams:
+                if p.players != len(team["teammates"]) + 1:
+                    log.error("team %s did not have %s players!", team, p.players)
+                    return resp_error(self, 412, "Not all teams have the correct number of players!", "text/plain")
         game.bingo.start_time = datetime.utcnow() + timedelta(seconds=15)
         game = game.put().get()
         res = game.bingo_json()
@@ -837,8 +870,8 @@ routes = [
     Route('/bingo/game/<game_id>/fetch', handler = BingoGetGame, name = "bingo-get-game", strict_slash = True),
     Route('/bingo/game/<game_id>/start', handler = BingoStartCountdown, name = "bingo-start-game", strict_slash = True),
     Route('/bingo/game/<game_id>/add/<player_id>', handler = BingoAddPlayer, name = "bingo-add-player", strict_slash = True),
+    Route('/bingo/game/<game_id>/seed/<player_id>', handler = BingoDownloadSeed, name = "bingo-download-seed", strict_slash = True),
     Route('/bingo/new', handler = BingoCreate, name = "bingo-create-game", strict_slash = True),
     Route('/bingo/from_game/<game_id>', handler = AddBingoToGame, name = "add-bingo-to-game", strict_slash = True),
     Route('/netcode/game/<game_id:\d+>/player/<player_id:\d+>/bingo', handler = HandleBingoUpdate,  name = "netcode-player-bingo-tick"),
 ]
-

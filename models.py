@@ -209,7 +209,7 @@ class BingoGameData(ndb.Model):
                             card.current_owner.append(team["cap"])
                         if card.current_owner:
                             for prog in card.player_progress:
-                                prog.locked = (card.current_owner[0] == _pid(prog.player))
+                                prog.locked = (card.current_owner[0] != _pid(prog.player))
             else:
                 log.warning("card %s was not in bingo data for team/player %s", card.name if card else card, team['cap'] if team else team)
             if card.progress(capkey).complete():
@@ -716,6 +716,13 @@ class Game(ndb.Model):
                 retcode = max(self.found_pickup(pid, child, coords, remove, False), retcode)
             return retcode
         if self.mode == MultiplayerGameType.SHARED:
+            if self.bingo:
+                team = self.bingo_team(pid, cap_only=False, as_list=True)
+                if team: 
+                    players = [p for p in players if p.pid() in team]
+                    log.debug("Bingo share: players pruned down to %s" % [p.pid() for p in players])
+                else:
+                    log.error("No bingo team found for player %s!" % pid)
             if share:
                 for player in players:
                     player.give_pickup(pickup, remove, coords=coords, finder=pid)
@@ -845,10 +852,12 @@ class Game(ndb.Model):
             res["difficulty"] = self.bingo.difficulty
             res["bingo_count"] = self.bingo.bingo_count
             res["subtitle"] = self.bingo.subtitle
-            res["seed"] = self.bingo.seed
             res["teams_allowed"] = self.bingo.teams_allowed
             if self.params:
                 res["paramId"] = self.params.id()
+                if self.bingo.teams_shared:
+                    params = self.params.get()
+                    res["teamMax"] = params.players
         return res
 
     def bingo_update(self, bingo_data, player_id):
@@ -882,14 +891,18 @@ class Game(ndb.Model):
             else:
                 team = self.bingo_team(pid, cap_only=False, as_list=True)
                 if not team:
-                    log.error("No team found for player %s, returning seed for player 1. This will probably not work!" % pid)
-                    return sync_flag + params.get_seed(1, include_sync=False)
+                    log.error("No team found for player %s" % pid)
+                    return None
                 p_number = team.index(pid) + 1
+                if params.players < p_number:
+                    log.error("player %s can't join team as there is no seed available" % pid)
+                    return None
                 return sync_flag + params.get_seed(p_number, include_sync=False)
                 
 
     def bingo_team(self, pid, cap_only=True, as_list=False):
-        maybe_team = [team for team in self.bingo.teams if int(team["cap"]) == int(pid)]
+        pid = int(pid)
+        maybe_team = [team for team in self.bingo.teams if int(team["cap"]) == pid]
         if not maybe_team and not cap_only:
             maybe_team += [team for team in self.bingo.teams if pid in team["teammates"]]
         if maybe_team:
@@ -902,12 +915,3 @@ class Game(ndb.Model):
             res["name"] = p.teamname() if res["teammates"] else p.name()
             return res
         return None
-    # def add_bingo_player(self, new_pid, cid)
-    #     team = game.bingo_team(cap_id)
-    #     if not team:
-    #         team = {'bingos': [], 'cap': cap_id, 'teammates': []}
-    #         game.bingo.teams += [team]
-    #     elif pkey != team["cap"] and pkey not in team["teammates"]:
-    #         team["teammates"].append(pkey)
-    #     else:
-    #         log.error("In bingo game %s, team %s already had player %s!", game.key.id(), team, player_id)

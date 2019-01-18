@@ -8,7 +8,7 @@ import { confirmAlert } from 'react-confirm-alert';
 import 'react-confirm-alert/src/react-confirm-alert.css'
 
 import {download} from './shared_map.js'
-import {Cent, ordinal_suffix, doNetRequest, player_icons, get_random_loader, PickupSelect, get_flag, get_param} from './common.js'
+import {Cent, ordinal_suffix, doNetRequest, player_icons, get_random_loader, PickupSelect, get_flag, get_param, dev} from './common.js'
 import SiteBar from "./SiteBar.js";
 
 import 'react-notifications/lib/notifications.css';
@@ -137,7 +137,7 @@ class BingoBoard extends Component {
     }
 }
 
-const PlayerList = ({activePlayer, teams, viewOnly, onPlayerListAction, dark, teamsDisabled}) => {
+const PlayerList = ({activePlayer, teams, viewOnly, onPlayerListAction, dark, gameId, teamMax, teamsDisabled}) => {
     if(!teams)
         return null
     let dropdownStyle = {}
@@ -151,13 +151,14 @@ const PlayerList = ({activePlayer, teams, viewOnly, onPlayerListAction, dark, te
             place = place || 0
             score = score || 0
             let hasTeam = teammates.length > 0
+            let canJoin = teamMax === -1 ? true : teammates.length + 1 < teamMax
             let number = (bingos && bingos.length) || 0
             let text = `${name} | ${number} lines`
             if(score)
                 text += `, (${score}/25)`
             let badge = place > 0 ? (<Badge color='primary'>{ordinal_suffix(place)}</Badge>) : null
             let active = activePlayer === cap
-            let joinButton = viewOnly || teamsDisabled ? null : (
+            let joinButton = viewOnly || !canJoin || teamsDisabled ? null : (
                 <DropdownItem onClick={onPlayerListAction("joinTeam", cap)}>
                     Join Team
                 </DropdownItem>
@@ -177,7 +178,7 @@ const PlayerList = ({activePlayer, teams, viewOnly, onPlayerListAction, dark, te
                             <DropdownItem onClick={onPlayerListAction("hidePlayer", cap)}>
                                 Hide Player
                             </DropdownItem>
-                            <DropdownItem onClick={onPlayerListAction("redownloadSeed", cap)}>
+                            <DropdownItem href={`/bingo/game/${gameId}/seed/${cap}`} target="_blank">
                                 Redownload seed
                             </DropdownItem>
                         </DropdownMenu>
@@ -188,14 +189,14 @@ const PlayerList = ({activePlayer, teams, viewOnly, onPlayerListAction, dark, te
             if(hasTeam)
                 rows = rows.concat(teammates.map(({pid, name}) => (
                     <Row key={`subplayer-list-${pid}`} className="px-2 text-center pb-2">
-                        <Col xs={{offset: 2, size: 8}} className="p-0">
+                        <Col xs={{offset: 2, size: 10}} className="p-0">
                             <UncontrolledButtonDropdown className="w-100 px-1">
                                 <Button size="sm" color="secondary" active={pid === activePlayer} block onClick={onPlayerListAction("selectPlayer", pid)}>
-                                    <Cent>{name}</Cent>
+                                    <Cent>{make_icons([pid])}{name}</Cent>
                                 </Button>
                                 <DropdownToggle caret color="secondary" />
                                 <DropdownMenu style={dropdownStyle} right>
-                                    <DropdownItem onClick={onPlayerListAction("redownloadSeed", pid)}>
+                                    <DropdownItem  href={`/bingo/game/${gameId}/seed/${pid}`} target="_blank">
                                         Redownload seed
                                     </DropdownItem>
                                 </DropdownMenu>
@@ -242,17 +243,20 @@ export default class Bingo extends React.Component {
         let url = new URL(window.document.URL);
         let viewOnly = url.href.includes("bingo/spectate")
         let gameId = parseInt(url.searchParams.get("game_id") || -1, 10);
+        if(viewOnly && gameId)
+            gameId = (gameId - 4)/7
         let fromGen = url.searchParams.has("fromGen")
+        let teamMax = parseInt(url.searchParams.get("teamMax") || -1, 10);
         let dark = get_flag("dark") || url.searchParams.has("dark")
 
         this.state = {
-                      cards: [], currentRecord: 0, haveGame: false, creatingGame: false, createModalOpen: true, offset: 0,
-                      activePlayer: 1, showInfo: false, user: get_param("user"), loadingText: "Building game...", paramId: -1,
-                      dark: dark, specLink: window.document.location.href.replace("board", "spectate"), lockout: false, squareCount: 13,
+                      cards: [], currentRecord: 0, haveGame: false, creatingGame: false, createModalOpen: true, offset: 0, lockout: false,
+                      activePlayer: 1, showInfo: false, user: get_param("user"), loadingText: "Building game...", paramId: -1, squareCount: 13,
+                      dark: dark, specLink: window.document.location.href.replace("board", "spectate").replace(gameId, 4 + gameId*7), 
                       fails: 0, gameId: gameId, startSkills: 3, startCells: 4, startMisc: "MU|TP/Swamp/TP/Valley", goalMode: "bingos",
                       start_with: "", difficulty: "normal", isRandoBingo: false, randoGameId: -1, viewOnly: viewOnly, buildingPlayer: false,
                       events: [], startTime: (new Date()), countdownActive: false, isOwner: false, targetCount: 3, reqsqrs: [],
-                      teamsDisabled: true, fromGen: fromGen
+                      teamsDisabled: (teamMax === -1), fromGen: fromGen, teamMax: teamMax
                     };
 
         if(gameId > 0)
@@ -293,16 +297,20 @@ export default class Bingo extends React.Component {
 
         window.history.replaceState('', title, url.href);
         window.title = title
-        this.setState({specLink: window.document.location.href.replace("board", "spectate")})
+        this.setState({specLink: window.document.location.href.replace("board", "spectate").replace(gameId, 4 + gameId*7)})
     }
-    downloadSeedForPlayer = (player) => download("randomizer.dat", `Sync${this.state.gameId}.${player},${this.state.seed}`)
     joinGame = (joinTeam) => {
         joinTeam = joinTeam || false
         let {gameId, activePlayer, haveGame} = this.state;
         if(!haveGame) return;
         let nextPlayer = activePlayer;
-        let players = Object.keys(this.state.teams)
-        while(players.includes(String(nextPlayer)))
+        let players = []
+        Object.keys(this.state.teams).forEach(cap => {
+            let team = this.state.teams[cap];
+            players.push(team.cap);
+            players = players.concat(team.teammates.map(t => t.pid));
+        })
+        while(players.includes(nextPlayer))
             nextPlayer++;
         this.setState({activePlayer: nextPlayer})
         let url = `/bingo/game/${gameId}/add/${nextPlayer}`
@@ -341,9 +349,10 @@ export default class Bingo extends React.Component {
                 newState.offset = res.offset
             if(!res.is_owner)
                 newState.reqsqrs = res.required_squares || this.state.reqsqrs
-            if(res.player_download)
+            if(res.player_seed)
             {
-                this.downloadSeedForPlayer(res.player_download)
+                if(!dev)
+                    download("randomizer.dat", res.player_seed);
                 newState.buildingPlayer = false;
             }
             this.setState(newState, this.updateUrl)
@@ -383,8 +392,8 @@ export default class Bingo extends React.Component {
         } else {
             let res = JSON.parse(responseText)
             this.setState({subtitle: res.subtitle, gameId: res.gameId, createModalOpen: false, creatingGame: false, haveGame: true, offset: res.offset || this.state.offset,
-                          fails: 0, dispDiff: res.difficulty || this.state.difficulty, seed: res.seed, teams: res.teams, paramId: res.paramId,
-                          currentRecord: 0, cards: res.cards, events: res.events, reqsqrs: res.required_squares, targetCount: res.bingo_count, fromGen: false,
+                          fails: 0, dispDiff: res.difficulty || this.state.difficulty, teams: res.teams, paramId: res.paramId,
+                          currentRecord: 0, cards: res.cards, events: res.events, reqsqrs: res.required_squares, targetCount: res.bingo_count, fromGen: false, teamMax: res.teamMax || -1,
                           startTime: res.start_time_posix, isOwner: res.is_owner, countdownActive: res.countdown, teamsDisabled: !res.teams_allowed}, this.updateUrl)
         }
     }
@@ -429,16 +438,13 @@ export default class Bingo extends React.Component {
                 // else
                 //     doNetRequest(`/bingo/game/${this.state.gameId}/remove/${cpid}`, this.tickCallback)
                 break;
-            case "redownloadSeed":
-                this.downloadSeedForPlayer(player)
-            break;
             default:
                 console.log("Unknown action: " + action)
                 break
         }
     }
 
-    toggleCreate = () => this.setState({createModalOpen: !this.state.createModalOpen, fromGen: false}, this.updateUrl)
+    toggleCreate = () => this.setState({createModalOpen: !this.state.createModalOpen, fromGen: false, teamMax: -1}, this.updateUrl)
     getCap = (pid) => {
         if(this.state.teams.hasOwnProperty(pid))
             return pid
@@ -459,7 +465,7 @@ export default class Bingo extends React.Component {
         return this.state.cards[sq].disp_name
     }
     render = () => {
-        let {specLink, viewOnly, isOwner, dark, activePlayer, teamsDisabled, startTime, paramId,
+        let {specLink, viewOnly, isOwner, dark, activePlayer, startTime, paramId,
             subtitle, cards, haveGame, gameId, user, dispDiff, teams, loadingText} = this.state
         let pageStyle, inputStyle
         if(dark) {
@@ -522,13 +528,14 @@ export default class Bingo extends React.Component {
                     hiddenPlayers.push(t)
                 hiddenPlayers = hiddenPlayers.concat(teams[t].teammates.map(t => t.pid))
             })
+        console.log(hiddenPlayers)
 
         let bingoContent = haveGame ? (
             <Row className="justify-content-center align-items-center">
                 <Col xs="auto">
                     <BingoBoard dark={dark} cards={cards} activePlayer={activePlayer} bingos={teams[activePlayer] ? teams[activePlayer].bingos : []} hiddenPlayers={hiddenPlayers}/>
                 </Col>
-                    <PlayerList dark={dark} teamsDisabled={teamsDisabled} viewOnly={viewOnly} teams={teams} activePlayer={activePlayer} onPlayerListAction={this.onPlayerListAction}/>
+                    <PlayerList {...this.state} onPlayerListAction={this.onPlayerListAction}/>
             </Row>
             ) : null
 
@@ -636,7 +643,7 @@ export default class Bingo extends React.Component {
         </Modal>
     )}
     createModal = (style) => {
-        let {difficulty, isRandoBingo, fromGen, randoGameId, targetCount, startSkills, startCells, startMisc, showInfo, teamsDisabled, lockout, squareCount, goalMode} = this.state
+        let {difficulty, isRandoBingo, fromGen, teamMax, randoGameId, targetCount, startSkills, startCells, startMisc, showInfo, teamsDisabled, lockout, squareCount, goalMode} = this.state
         let randoInput = fromGen ? (
             <Row className="p-1">
                 <Col xs="4" className="text-center p-1 border">
@@ -647,8 +654,33 @@ export default class Bingo extends React.Component {
             </Row>
         ) : (
             <Row className="p-1">
-                <Col xs="4" className="text-center p-1">
-                    <Button block color="primary" href="/?fromBingo=1">New Bingo Seed</Button>
+                <Col xs="6" className="text-center p-1">
+                    <Button block color="primary" href="/?fromBingo=1">Create New Bingo Seed</Button>
+                </Col>
+            </Row>
+        )
+        let teamrow = teamMax > 0 ? (
+            <Row className="p-1">
+                <Col xs="4" className="p-1 border">
+                    <Cent><i>Teams of {teamMax} required</i></Cent>
+                </Col>
+                <Col xs="6">
+                    <ButtonGroup>
+                        <Button active={false} outline disabled>Solo</Button>
+                        <Button active disabled>Teams</Button>
+                    </ButtonGroup>
+                </Col>
+            </Row>
+            ) : (
+            <Row className="p-1">
+                <Col xs="4" className="p-1 border">
+                    <Cent>Teams?</Cent>
+                </Col>
+                <Col xs="6">
+                    <ButtonGroup>
+                        <Button active={teamsDisabled}  outline={!teamsDisabled} onClick={() => this.setState({teamsDisabled: true})}>Solo</Button>
+                        <Button active={!teamsDisabled} outline={teamsDisabled} onClick={() => this.setState({teamsDisabled: false})}>Teams</Button>
+                    </ButtonGroup>
                 </Col>
             </Row>
         )
@@ -668,18 +700,7 @@ export default class Bingo extends React.Component {
                             </ButtonGroup>
                         </Col>
                     </Row>
-
-                    <Row className="p-1">
-                        <Col xs="4" className="p-1 border">
-                            <Cent>Teams?</Cent>
-                        </Col>
-                        <Col xs="6">
-                            <ButtonGroup>
-                                <Button active={teamsDisabled} outline={!teamsDisabled} onClick={() => this.setState({teamsDisabled: true})}>Solo</Button>
-                                <Button active={!teamsDisabled} outline={teamsDisabled} onClick={() => this.setState({teamsDisabled: false})}>Teams</Button>
-                            </ButtonGroup>
-                        </Col>
-                    </Row>
+                    {teamrow}
                     <Row className="p-1">
                         <Col xs="4" className="p-1 border">
                             <Cent>Lockout?</Cent>
@@ -770,7 +791,7 @@ export default class Bingo extends React.Component {
                 </Container>
             </ModalBody>
             <ModalFooter style={style}>
-                <Button color="primary" onClick={this.createGame}>Create Game</Button>
+                <Button color="primary" onClick={this.createGame} disabled={!fromGen && isRandoBingo}>Create Game</Button>
                 <Button color="secondary" onClick={this.toggleCreate}>Cancel</Button>
             </ModalFooter>
         </Modal>

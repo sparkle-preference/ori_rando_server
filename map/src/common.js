@@ -571,7 +571,10 @@ function doNetRequest(url, onRes) {
     xmlHttp.send(null);
 }
 
+const dev = window.document.URL.includes("devshell.appspot.com")
+
+
 export {
     player_icons, doNetRequest, get_param, get_flag, get_int, get_list, get_preset, presets, get_seed, logic_paths, get_random_loader, Blabel,
-    pickup_name, stuff_by_type, name_from_str, PickupSelect, Cent, ordinal_suffix
+    pickup_name, stuff_by_type, name_from_str, PickupSelect, Cent, ordinal_suffix, dev
 };

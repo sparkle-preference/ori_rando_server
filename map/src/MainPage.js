@@ -8,10 +8,9 @@ import 'react-notifications/lib/notifications.css';
 import './index.css';
 
 import {getHelpContent, HelpBox} from "./helpbox.js"
-import {get_param, presets, get_preset, get_flag, player_icons, doNetRequest, get_random_loader, PickupSelect, Cent} from './common.js';
+import {get_param, presets, get_preset, get_flag, player_icons, doNetRequest, get_random_loader, PickupSelect, Cent, dev} from './common.js';
 import SiteBar from "./SiteBar.js"
 
-const dev = window.document.URL.includes("devshell")
 const keymode_options = ["None", "Shards", "Limitkeys", "Clues", "Free"];
 
 const variations = {
@@ -377,6 +376,8 @@ export default class MainPage extends React.Component {
             let res = JSON.parse(responseText)
             if(res.doBingoRedirect) {
                 let redir = `/bingo/board?game_id=${res.gameId}&fromGen=1`
+                if(res.flagLine.includes("mode=Shared"))
+                    redir += `&teamMax=${res.playerCount}`
                 let opened = window.open(redir)
                 if(!opened)
                 {
