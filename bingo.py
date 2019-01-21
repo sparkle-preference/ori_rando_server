@@ -836,7 +836,6 @@ class BingoStartCountdown(RequestHandler):
         server_now = timegm(now.timetuple()) * 1000
         client_now = int(param_val(self, "time"))
         res["offset"] = server_now - client_now
-
         self.response.write(json.dumps(res))
 
 

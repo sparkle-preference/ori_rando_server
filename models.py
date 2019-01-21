@@ -612,7 +612,6 @@ class Game(ndb.Model):
         allPlayers = self.get_players()
 
         sanFailedSignal = "msg:@Major Error during sanity check. If this persists across multiple alt+l attempts please contact Eiko@"
-        inv = defaultdict(lambda: 0)
         playerGroups = []
         if self.bingo:
             for team in self.bingo.teams:
@@ -620,6 +619,7 @@ class Game(ndb.Model):
         else:
              playerGroups = [allPlayers]
         for players in playerGroups:
+            inv = defaultdict(lambda: 0)
             for hl in [hl for player in players for hl in player.history]:
                 pick = hl.pickup()
                 if pick.code == "MU":

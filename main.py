@@ -310,8 +310,8 @@ class GetSeenLocs(RequestHandler):
         self.response.headers['Content-Type'] = 'application/json'
         self.response.status = 200
         seenLocs = {}
+        game = Game.with_id(game_id)
         try:
-            game = Game.with_id(game_id)
             hist = Cache.getHist(game_id)
             if not game:
                 self.response.status = 404
@@ -321,8 +321,9 @@ class GetSeenLocs(RequestHandler):
             for player, history_lines in hist.items():
                 seenLocs[player] = [hl.coords for hl in history_lines] + [hl.map_coords for hl in history_lines if hl.map_coords]
             self.response.write(json.dumps(seenLocs))
-        except Exception as e:
-            log.error("error getting seen locations for game %s! Returning partial list" % game_id, e)
+        except AttributeError:
+            log.error("cache invalidated for game %s! Rebuilding..." % game_id)
+            game.rebuild_hist()
             self.response.write(json.dumps(seenLocs))
 
 
@@ -374,19 +375,24 @@ class GetReachable(RequestHandler):
         game = Game.with_id(game_id)
         shared_hist = []
         shared_coords = set()
-        if game and game.mode == MultiplayerGameType.SHARED:
-            shared_hist = [hl for hls in hist.values() for hl in hls if hl.pickup().is_shared(game.shared)]
-            shared_coords = set([hl.coords for hl in shared_hist])
-        for player, personal_hist in hist.items():
-            player_hist = [hl for hl in hist[player] if hl.coords not in shared_coords] + shared_hist
-            state = PlayerState([(h.pickup_code, h.pickup_id, 1, h.removed) for h in player_hist])
-            areas = {}
-            if state.has["KS"] > 8 and "standard-core" in modes:
-                state.has["KS"] += 2 * (state.has["KS"] - 8)
-            for area, reqs in Map.get_reachable_areas(state, modes).items():
-                areas[area] = [{item: count for (item, count) in req.cnt.items()} for req in reqs if len(req.cnt)]
-            reachable_areas[player] = areas
-        self.response.write(json.dumps(reachable_areas))
+        try:
+            if game and game.mode == MultiplayerGameType.SHARED:
+                shared_hist = [hl for hls in hist.values() for hl in hls if hl.pickup().is_shared(game.shared)]
+                shared_coords = set([hl.coords for hl in shared_hist])
+            for player, personal_hist in hist.items():
+                player_hist = [hl for hl in hist[player] if hl.coords not in shared_coords] + shared_hist
+                state = PlayerState([(h.pickup_code, h.pickup_id, 1, h.removed) for h in player_hist])
+                areas = {}
+                if state.has["KS"] > 8 and "standard-core" in modes:
+                    state.has["KS"] += 2 * (state.has["KS"] - 8)
+                for area, reqs in Map.get_reachable_areas(state, modes).items():
+                    areas[area] = [{item: count for (item, count) in req.cnt.items()} for req in reqs if len(req.cnt)]
+                reachable_areas[player] = areas
+            self.response.write(json.dumps(reachable_areas))
+        except AttributeError:
+            log.error("cache invalidated for game %s! Rebuilding..." % game_id)
+            game.rebuild_hist()
+            self.response.write(json.dumps(reachable_areas))
 
 
 class GetPlayerPositions(RequestHandler):
