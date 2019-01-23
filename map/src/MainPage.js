@@ -8,7 +8,7 @@ import 'react-notifications/lib/notifications.css';
 import './index.css';
 
 import {getHelpContent, HelpBox} from "./helpbox.js"
-import {get_param, presets, get_preset, get_flag, player_icons, doNetRequest, get_random_loader, PickupSelect, Cent, dev} from './common.js';
+import {get_param, presets, get_preset, get_flag, player_icons, doNetRequest, get_random_loader, PickupSelect, Cent, dev, gotoUrl} from './common.js';
 import SiteBar from "./SiteBar.js"
 
 const keymode_options = ["None", "Shards", "Limitkeys", "Clues", "Free"];
@@ -378,19 +378,14 @@ export default class MainPage extends React.Component {
                 let redir = `/bingo/board?game_id=${res.gameId}&fromGen=1`
                 if(res.flagLine.includes("mode=Shared"))
                     redir += `&teamMax=${res.playerCount}`
-                let opened = window.open(redir)
-                if(!opened)
-                {
-                    window.location.href = redir
-                    return
-                }
+                gotoUrl(redir, true)
                 this.helpEnter("general", "seedBuiltBingo")()
             }
             else 
                 this.helpEnter("general", "seedBuilt" + this.multi())()
             this.setState({
                 paramId: res.paramId, seedIsGenerating: false, inputPlayerCount: res.playerCount, 
-                inputFlagLine: res.flagLine, gameId: res.gameId
+                inputFlagLine: res.flagLine, gameId: res.gameId, seedIsBingo: res.doBingoRedirect || false
             }, this.updateUrl)
         }
     }
@@ -498,7 +493,14 @@ export default class MainPage extends React.Component {
                     spoilerUrl += "?player_id="+p;
                     downloadSpoilerUrl += "&player_id="+p;
                 }
+                let mainButtonText = "Download Seed"
+                let mainButtonHelp = "downloadButton"+this.multi()
                 seedUrl += "?" + seedParams.join("&")
+                if(this.state.seedIsBingo) {
+                    seedUrl = `/bingo/board?game_id=${this.state.gameId}?fromGen=1`
+                    mainButtonText = `Open Bingo Board`
+                    mainButtonHelp = "openBingoBoard"
+                }
                 return (
                     <Row className="align-content-center p-1 border-bottom">
                         <Col xs="3" className="pt-1 border" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "playerPanel"+this.multi())}>
@@ -508,8 +510,8 @@ export default class MainPage extends React.Component {
                                 <span className="align-middle">Player {p}</span>
                             </Col></Row>
                         </Col>
-                        <Col xs="3" className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "downloadButton"+this.multi())}>
-                            <Button color="primary" block target="_blank" href={seedUrl}>Download Seed</Button>
+                        <Col xs="3" className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", mainButtonHelp)}>
+                            <Button color="primary" block target="_blank" href={seedUrl}>{mainButtonText}</Button>
                         </Col>
                         <Col xs="3" className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", this.state.spoilers ? "spoilerButton" : "noSpoilers")}>
                             <Button color={this.state.spoilers ? "primary" : "secondary"} disabled={!this.state.spoilers} href={spoilerUrl} target="_blank" block >View Spoiler</Button>
@@ -634,7 +636,7 @@ export default class MainPage extends React.Component {
                      paths: presets["standard"], keyMode: "Clues", oldKeyMode: "Clues", pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null), goalModes: ["ForceTrees"],
                      customSyncId: "", seed: "", fillAlg: "Balanced", shared: ["Skills", "Teleporters", "World Events"], hints: true, helpcat: "", helpopt: "", quickstartOpen: quickstartOpen,
                      syncId: "", expPool: 10000, lastHelp: new Date(), seedIsGenerating: false, cellFreq: cellFreqPresets("standard"), fragCount: 30, fragReq: 20, relicCount: 8, loader: get_random_loader(),
-                     paramId: paramId, seedTabExists: seedTabExists, reopenUrl: "", teamStr: "", inputFlagLine: "", fass: {},  goalModesOpen: false, spoilers: true, dark: dark};
+                     paramId: paramId, seedTabExists: seedTabExists, reopenUrl: "", teamStr: "", inputFlagLine: "", fass: {},  goalModesOpen: false, spoilers: true, dark: dark, seedIsBingo: false};
         if(url.searchParams.has("fromBingo")) {
             this.state.goalModes = ["Bingo"]
             this.state.variations = ["Bingo", "OpenWorld", "BonusPickups"]

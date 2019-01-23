@@ -251,12 +251,12 @@ export default class Bingo extends React.Component {
 
         this.state = {
                       cards: [], currentRecord: 0, haveGame: false, creatingGame: false, createModalOpen: true, offset: 0, lockout: false,
-                      activePlayer: 1, showInfo: false, user: get_param("user"), loadingText: "Building game...", paramId: -1, squareCount: 13,
+                      activePlayer: 1, showInfo: false, user: get_param("user"), loadingText: "Loading...", paramId: -1, squareCount: 13,
                       dark: dark, specLink: window.document.location.href.replace("board", "spectate").replace(gameId, 4 + gameId*7), 
                       fails: 0, gameId: gameId, startSkills: 3, startCells: 4, startMisc: "MU|TP/Swamp/TP/Valley", goalMode: "bingos",
                       start_with: "", difficulty: "normal", isRandoBingo: false, randoGameId: -1, viewOnly: viewOnly, buildingPlayer: false,
                       events: [], startTime: (new Date()), countdownActive: false, isOwner: false, targetCount: 3, reqsqrs: [],
-                      teamsDisabled: (teamMax === -1), fromGen: fromGen, teamMax: teamMax
+                      teamsDisabled: (teamMax === -1), fromGen: fromGen, teamMax: teamMax, ticksSinceLastSquare: 0
                     };
 
         if(gameId > 0)
@@ -265,7 +265,6 @@ export default class Bingo extends React.Component {
             {
                 this.state.isRandoBingo = true
                 this.state.randoGameId = gameId
-                return
             }
             let url = `/bingo/game/${gameId}/fetch?first=1&time=${(new Date()).getTime()}`
             doNetRequest(url, this.createCallback)
@@ -279,19 +278,23 @@ export default class Bingo extends React.Component {
         this.interval = setInterval(() => this.tick(), 2000);
   };
     updateUrl = () => {
-        let {gameId, fromGen} = this.state;
+        let {gameId, fromGen, viewOnly} = this.state;
         let url = new URL(window.document.URL);
         let title = "Ori DE Bingo"
-        if(gameId && gameId > 0)
+        if(gameId && gameId > 0 && !viewOnly)
         {
             url.searchParams.set("game_id", gameId)
             title += `: Game ${gameId}`
         }
         else
             url.searchParams.delete("game_id")
-
+        
         if(url.searchParams.has("fromGen") && !fromGen)
+        {
             url.searchParams.delete("fromGen")
+            if(url.searchParams.has("teamMax"))
+                url.searchParams.delete("teamMax")
+        }
         else if(!url.searchParams.has("fromGen") && fromGen)
             url.searchParams.set("fromGen", 1)
 
@@ -319,32 +322,55 @@ export default class Bingo extends React.Component {
         this.setState({buildingPlayer: true, loadingText: "Joining game..."}, doNetRequest(url, this.tickCallback))
     }
     tick = () => {
-        let {gameId, haveGame} = this.state;
-        if(gameId && gameId > 0 && haveGame && this.state.fails < 50)
+        let {fails, gameId, haveGame, ticksSinceLastSquare} = this.state;
+        if(fails > 50)
+            return
+        if(gameId && gameId > 0 && haveGame)
         {
+            if(
+                (ticksSinceLastSquare > 14400 && ticksSinceLastSquare % 60 !== 0) ||
+                (ticksSinceLastSquare > 7200 && ticksSinceLastSquare % 30 !== 0) ||
+                (ticksSinceLastSquare > 3600 && ticksSinceLastSquare % 15 !== 0) ||
+                (ticksSinceLastSquare > 1200 && ticksSinceLastSquare % 5 !== 0)
+            )
+                return
             doNetRequest(`/bingo/game/${gameId}/fetch`, this.tickCallback)
         }
     }
     tickCallback = ({status, responseText}) => {
         if(status !== 200)
         {
-            if((this.state.fails - 1) % 5 === 0)
+            if(this.state.fails < 5 || (this.state.fails - 1) % 5 === 0)
                 NotificationManager.error(`error ${status}: ${responseText}`, "error", 5000)
             this.setState({fails: this.state.fails + 1, buildingPlayer: false})
         } else {
             let res = JSON.parse(responseText)
             let teams = res.teams
+            let ticks = this.state.ticksSinceLastSquare + 1
             Object.keys(teams).forEach(t => {
                 let maybe_old = Object.keys(this.state.teams).filter(old => teams[t].cap === this.state.teams[old].cap)
                 if(maybe_old.length > 0)
+                {
                     teams[t].hidden = this.state.teams[maybe_old[0]].hidden
+                    if(teams[t].score !== this.state.teams[maybe_old[0]].score)
+                        ticks = 0
+                }
             })
             if(res.gameId !== this.state.gameId)
             {
                 console.log("Got pre-switch response. Ignoring it.")
                 return;
             }
-            let newState = {teams: teams, cards: res.cards, events: res.events, startTime: res.start_time_posix, countdownActive: res.countdown, isOwner: res.is_owner}
+            
+            let newState = {teams: teams, events: res.events, startTime: res.start_time_posix, countdownActive: res.countdown, isOwner: res.is_owner, ticksSinceLastSquare: ticks}
+            newState.cards = [...this.state.cards]
+            if(newState.cards.length !== res.cards.length)
+                console.log("error! card array length mismatch")
+            for(let i = 0; i < newState.cards.length; i++) {
+                if(res.cards[i].name !== newState.cards[i].name)
+                    console.log(`card update mismatch! square ${i}, ${res.cards[i].name} was not ${newState.cards[i].name}`)
+                newState.cards[i].progress = res.cards[i].progress
+            }
             if(res.offset)
                 newState.offset = res.offset
             if(!res.is_owner)
@@ -386,13 +412,25 @@ export default class Bingo extends React.Component {
     createCallback = ({status, responseText}) => {
         if(status !== 200)
         {
+            if(this.state.fromGen && status === 404)
+            {
+                this.setState({createModalOpen: true, creatingGame: false})
+                return;
+            }
             NotificationManager.error(`error ${status}: ${responseText}`, "error creating seed", 5000)
             this.setState({createModalOpen: false, haveGame: false, creatingGame: false}, this.updateUrl)
             return
         } else {
             let res = JSON.parse(responseText)
-            this.setState({subtitle: res.subtitle, gameId: res.gameId, createModalOpen: false, creatingGame: false, haveGame: true, offset: res.offset || this.state.offset,
-                          fails: 0, dispDiff: res.difficulty || this.state.difficulty, teams: res.teams, paramId: res.paramId,
+            let {activePlayer, dispDiff, offset, user} = this.state
+            if(user)
+                Object.keys(res.teams).forEach(t => {
+                    let team = res.teams[t]
+                    if(team.name === user || team.teammates.some(tm => tm.name === user))
+                        activePlayer = team.cap
+                })
+            this.setState({subtitle: res.subtitle, gameId: res.gameId, createModalOpen: false, creatingGame: false, haveGame: true, offset: res.offset || offset,
+                          fails: 0, dispDiff: res.difficulty || dispDiff, teams: res.teams, paramId: res.paramId, activePlayer: activePlayer,
                           currentRecord: 0, cards: res.cards, events: res.events, reqsqrs: res.required_squares, targetCount: res.bingo_count, fromGen: false, teamMax: res.teamMax || -1,
                           startTime: res.start_time_posix, isOwner: res.is_owner, countdownActive: res.countdown, teamsDisabled: !res.teams_allowed}, this.updateUrl)
         }
@@ -465,7 +503,7 @@ export default class Bingo extends React.Component {
         return this.state.cards[sq].disp_name
     }
     render = () => {
-        let {specLink, viewOnly, isOwner, dark, activePlayer, startTime, paramId,
+        let {specLink, viewOnly, isOwner, dark, activePlayer, startTime, paramId, teamsDisabled,
             subtitle, cards, haveGame, gameId, user, dispDiff, teams, loadingText} = this.state
         let pageStyle, inputStyle
         if(dark) {
@@ -483,6 +521,8 @@ export default class Bingo extends React.Component {
             </Row>
         ) : null
         let fmt = ({square, first, loss, time, type, player, bingo}) => {
+            if(type.startsWith("misc"))
+                return `${time}: ${type.substr(4)}`
             let cpid = this.getCap(player)
             if (!cpid) 
             {
@@ -564,7 +604,11 @@ export default class Bingo extends React.Component {
          ] : null
          if(paramId > 0 && gameId > 0 && haveGame)
             links.push((<Row className="justify-content-center" key="gameLink"><Col xs="auto"><small><a href={`/?param_id=${paramId}&game_id=${gameId}`}>base seed</a></small></Col></Row>))
-
+        let joinGameButton = teamsDisabled ? (
+            <Button block color="primary" onClick={() => this.joinGame()} disabled={!haveGame}>Join Game</Button>
+        ) : (
+            <Button block color="warning" onClick={() => this.joinGame()} disabled={!haveGame}>Create Team</Button>
+        )
         return (
             <Container fluid="true" className="pb-4 pt-2 mt-5">
             <Helmet>
@@ -588,7 +632,7 @@ export default class Bingo extends React.Component {
                     <Col xs="auto">
                         <Button block onClick={this.toggleCreate}>Create New Game</Button>
                     </Col><Col xs="auto">
-                        <Button block color="primary" onClick={() => this.joinGame()} disabled={!haveGame}>Join Game</Button>
+                        {joinGameButton}
                     </Col><Col xs="auto">
                         <Row className="flex-nowrap align-items-left pt-0 pb-2 px-1 m-0">
                             <Col xs="auto"><Cent>

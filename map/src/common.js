@@ -572,10 +572,26 @@ function doNetRequest(url, onRes) {
     xmlHttp.send(null);
 }
 
+function gotoUrl(url, newWindow) {
+    newWindow = newWindow || false
+    let element = document.createElement('a');
+    element.setAttribute('href', url);
+    if(newWindow)
+    {
+        element.setAttribute('rel', 'noopener noreferrer');
+        element.setAttribute('target', '_blank');
+    }
+    element.style.display = 'none';
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+}
+
+
 const dev = window.document.URL.includes("devshell.appspot.com")
 
 
 export {
     player_icons, doNetRequest, get_param, get_flag, get_int, get_list, get_preset, presets, get_seed, logic_paths, get_random_loader, Blabel,
-    pickup_name, stuff_by_type, name_from_str, PickupSelect, Cent, ordinal_suffix, dev
+    pickup_name, stuff_by_type, name_from_str, PickupSelect, Cent, ordinal_suffix, dev, gotoUrl
 };

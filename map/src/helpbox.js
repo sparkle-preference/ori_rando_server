@@ -182,6 +182,13 @@ const getHelpHelper = (category, option) => {
                         "Warmth Fragments is recommended for players who like exploring and efficiently checking large numbers of pickups in an unstructured manner, and plays well with most Key Modes, including Free."
                     ]
                     break;
+                case "Bingo":
+                    title = "Bingo"
+                    lines = [
+                        "The Bingo Goal mode is a completely different way of playing the Ori Randomizer. Instead of trying to beat the game, players must complete objectives on a randomly-generated bingo card",
+                        "This goal mode requires the Bingo dll (available in the downloads section) and is not recommended for newer players. If you're interested in trying it but unsure how it works, please join the discord and ask about it there!"
+                    ]
+                    break;
                 default:
                     break;
             }
@@ -317,6 +324,14 @@ const getHelpHelper = (category, option) => {
                     } else {
                         lines.push("In single player games, the player number is always 1, and the map icon is always blue.")
                     }
+                break;
+                case "openBingoBoard":
+                    title = "Open Bingo Board"
+                    lines = [
+                        "Click here to open the bingo board creation page (or the bingo board, if it has already been created)",
+                        "Once you create the bingo board, you will be able to download seeds from that page."
+                    ]
+
                 break;
                 case "downloadButton":
                     title = "Download Seed"
@@ -736,6 +751,14 @@ const getHelpHelper = (category, option) => {
                     lines = [
                         "Your seed is ready to download.",
                         "Tip: You can share your seed with anyone by sending them this page's current URL."
+                    ]
+                    break;
+                case "seedBuiltBingo":
+                    title = "Bingo Seed Generation Complete!"
+                    subtitle = ""
+                    lines = [
+                        "The bingo board creation page should open in a new window. If it does not, click the buttons to the left to open it.",
+                        "Once you create the bingo board, you will be able to download seeds from that page."
                     ]
                 break;
                 case "seedBuiltMulti":

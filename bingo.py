@@ -10,7 +10,7 @@ from webapp2_extras.routes import RedirectRoute as Route
 from google.appengine.ext.webapp import template
 
 from enums import MultiplayerGameType
-from models import Game, User, BingoCard, BingoGameData
+from models import Game, User, BingoCard, BingoGameData, BingoEvent
 from pickups import Pickup, Skill, AbilityCell, HealthCell, EnergyCell, Multiple
 from util import param_val, param_flag, resp_error, debug, path
 from seedbuilder.vanilla import seedtext as vanilla_seed
@@ -18,7 +18,7 @@ from seedbuilder.vanilla import seedtext as vanilla_seed
 if debug:
     from test.data import bingo_data as test_data
 
-BINGO_LATEST = [0,1,8]
+BINGO_LATEST = [0,1,10]
 def version_check(version):
     try:
         nums = [int(num) for num in version.split(".")]
@@ -123,10 +123,10 @@ class GoalGroup(BingoGoal):
             plural = count == 2
 
         card.disp_name = self.name_func(infix, plural)
-        subgoals = [subgoal.to_card().to_json() for subgoal in sample(subgoals, count)]
+        subgoals = [subgoal.to_card().to_json(True) for subgoal in sample(subgoals, count)]
         for subgoal in subgoals:
             card.subgoals.append(subgoal)
-            if(subgoal["help_lines"]):
+            if subgoal["help_lines"]:
                 hls.append(subgoal["disp_name"] + ": " + subgoal["help_lines"][0])
         card.help_lines = hls[:]
         return card
@@ -830,6 +830,15 @@ class BingoStartCountdown(RequestHandler):
                     log.error("team %s did not have %s players!", team, p.players)
                     return resp_error(self, 412, "Not all teams have the correct number of players!", "text/plain")
         game.bingo.start_time = datetime.utcnow() + timedelta(seconds=15)
+        startStr = "miscGame %s Starting!" % game_id
+        if game.bingo.lockout:
+            startStr += " lockout mode enabled"
+        if game.bingo.square_count > 0:
+            startStr += " squares to win: %s" % game.bingo.square_count
+        elif game.bingo.bingo_count > 0:
+            startStr += " bingos to win: %s" % game.bingo.bingo_count
+        
+        game.bingo.event_log.append(BingoEvent(event_type=startStr, timestamp=game.bingo.start_time))
         game = game.put().get()
         res = game.bingo_json()
         self.response.headers['Content-Type'] = 'application/json'

@@ -23,7 +23,17 @@ def _pid(pkey):
 def round_time(t):
     parts = str(t).split(":")
     parts[-1] = str(round(float(parts[-1]), 2))
+    if len(parts[-1].partition(".")[0]) < 2:
+        parts[-1] = "0"+parts[-1]
     return ":".join(parts)
+
+# helper function, checks if a pickup stacks
+def stacks(pickup):
+    if pickup.stacks:
+        return True
+    if pickup.code != "RB":
+        return False
+    return pickup.id in [6, 12, 13, 15, 17, 19, 21, 28, 30, 31, 32, 33]
 
 
 pbc = picks_by_coord(extras=True)
@@ -71,20 +81,23 @@ class BingoCard(ndb.Model):
     player_progress = ndb.LocalStructuredProperty(BingoCardProgress, repeated=True)
     current_owner = ndb.IntegerProperty(repeated=True)
 
-    def to_json(self):
+    def to_json(self, initial=False):
         res = {
             "name": self.name,
-            "disp_name": self.disp_name,
-            "help_lines": self.help_lines,
-            "type": self.goal_type,
             "progress": {_pid(pp.player): pp.to_json() for pp in self.player_progress}
             }
-        if self.square or self.square == 0:
-            res["square"] = self.square
-        if self.subgoals:
-            res["subgoals"] = {subgoal["name"]: subgoal for subgoal in self.subgoals}
-        if self.target:
-            res["target"] = self.target
+
+        if initial:
+            res["disp_name"] = self.disp_name
+            res["help_lines"] = self.help_lines
+            res["type"] = self.goal_type
+            if self.square or self.square == 0:
+                res["square"] = self.square
+            if self.subgoals:
+                res["subgoals"] = {subgoal["name"]: subgoal for subgoal in self.subgoals}
+            if self.target:
+                res["target"] = self.target
+
         if self.current_owner:
             res["owner"] = self.current_owner[0]
         return res
@@ -158,6 +171,8 @@ class BingoEvent(ndb.Model):
     first = ndb.BooleanProperty()
     player = ndb.KeyProperty("Player")
     def to_json(self, start_time):
+        if self.event_type.startswith("misc"):
+            return {'type': self.event_type, 'time': round_time(self.timestamp-start_time)}
         res =  {'loss': self.loss, 'type': self.event_type, 'time': round_time(self.timestamp-start_time), 'player': _pid(self.player)}
         if self.event_type == 'square':
             res['square'] = self.square
@@ -507,8 +522,10 @@ class Player(ndb.Model):
                         del self.bonuses[pick_id]
             else:
                 if pick_id in self.bonuses:
-                    if not (pickup.max and self.bonuses[pick_id] >= pickup.max):
-                        self.bonuses[pick_id] += 1
+                    if (not stacks(pickup)) or (pickup.max and self.bonuses[pick_id] >= pickup.max):
+                        log.info("Will not give %s pickup %s, as they already have %s" % (self.name(), pickup.name, self.bonuses[pick_id]))
+                        return
+                    self.bonuses[pick_id] += 1
                 else:
                     self.bonuses[pick_id] = 1
         # bitfields
@@ -595,14 +612,6 @@ class Game(ndb.Model):
         self.put()
 
     def sanity_check(self):
-        # helper function, checks if a pickup stacks
-        def stacks(pickup):
-            if pickup.stacks:
-                return True
-            if pickup.code != "RB":
-                return False
-            return pickup.id in [6, 12, 13, 15, 17, 19, 21, 28, 30, 31, 32, 33]
-
         if self.mode != MultiplayerGameType.SHARED:
             return
         if not Cache.canSanCheck(self.key.id()):
@@ -835,7 +844,7 @@ class Game(ndb.Model):
 
     def bingo_json(self, initial=False):
         res = {
-            'cards':  [c.to_json() for c in self.bingo.board],
+            'cards':  [c.to_json(initial) for c in self.bingo.board],
             'events': [e.to_json(self.bingo.start_time) for e in self.bingo.event_log],
             'teams': {t["cap"]: t for t in self.bingo.teams},
             'required_squares': self.bingo.required_squares,
