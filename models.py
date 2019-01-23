@@ -723,7 +723,6 @@ class Game(ndb.Model):
                 log.error("Duplicate pickup at location %s from player %s" % (coords, pid))
                 return 410
             elif any([h for h in finder.history if h.coords == coords and h.pickup_code == pickup.code and h.pickup_id == pickup.id]):
-                log.debug("Not writing this to history, as an identical HL already exists (death dupe)")
                 return 200
         elif share and dedup and coords in [h.coords for teammate in players for h in teammate.history if teammate.key in finder.teammates]:
                 log.info("Won't grant %s to player %s, as a teammate found it already" % (pickup.name, pid))
@@ -737,7 +736,6 @@ class Game(ndb.Model):
                 team = self.bingo_team(pid, cap_only=False, as_list=True)
                 if team: 
                     players = [p for p in players if p.pid() in team]
-                    log.debug("Bingo share: players pruned down to %s" % [p.pid() for p in players])
                 else:
                     log.error("No bingo team found for player %s!" % pid)
             if share:
