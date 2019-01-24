@@ -33,7 +33,7 @@ def stacks(pickup):
         return True
     if pickup.code != "RB":
         return False
-    return pickup.id in [6, 12, 13, 15, 17, 19, 21, 28, 30, 31, 32, 33]
+    return pickup.id in [6, 10, 12, 13, 15, 17, 19, 21, 28, 30, 31, 32, 33]
 
 
 pbc = picks_by_coord(extras=True)
