@@ -497,7 +497,7 @@ export default class MainPage extends React.Component {
                 let mainButtonHelp = "downloadButton"+this.multi()
                 seedUrl += "?" + seedParams.join("&")
                 if(this.state.seedIsBingo) {
-                    seedUrl = `/bingo/board?game_id=${this.state.gameId}?fromGen=1`
+                    seedUrl = `/bingo/board?game_id=${this.state.gameId}&fromGen=1`
                     mainButtonText = `Open Bingo Board`
                     mainButtonHelp = "openBingoBoard"
                 }
