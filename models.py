@@ -8,7 +8,7 @@ from calendar import timegm
 from collections import defaultdict
 
 from seedbuilder.seedparams import Placement, Stuff, SeedGenParams
-from enums import MultiplayerGameType, ShareType
+from enums import MultiplayerGameType, ShareType, Variation
 from util import picks_by_coord, get_bit, get_taste, enums_from_strlist, PickLoc, ord_suffix
 from pickups import Pickup, Skill, Teleporter, Event
 from cache import Cache
@@ -902,8 +902,9 @@ class Game(ndb.Model):
         if not self.params:
             return sync_flag + self.bingo.seed
         else:
-            sync_flag += "Bingo,"
             params = self.params.get()
+            if Variation.BINGO not in params.variations:
+                sync_flag += "Bingo,"
             if params.players == 1:
                 return sync_flag + params.get_seed(1, include_sync=False)
             else:

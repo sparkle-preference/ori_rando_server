@@ -269,7 +269,7 @@ export default class MainPage extends React.Component {
         if(this.state.pathDiff !== "Normal")
             urlParams.push("path_diff="+this.state.pathDiff)
         urlParams.push("gen_mode="+this.state.fillAlg)
-        this.state.variations.filter(v => v !== "Bingo").forEach(v => urlParams.push("var="+v))
+        this.state.variations.forEach(v => urlParams.push("var="+v))
         this.state.paths.forEach(p => urlParams.push("path="+p))
         if(this.state.senseData)
             urlParams.push("sense="+this.state.senseData)
@@ -343,9 +343,9 @@ export default class MainPage extends React.Component {
             let res = JSON.parse(responseText)
             let metaUpdate = {inputPlayerCount: res["playerCount"], inputFlagLine: res["flagLine"], spoilers: res.spoilers}
             if(res.hasOwnProperty("gameId"))
-            {
                 metaUpdate.gameId = res["gameId"]
-            }
+            if(res.hasOwnProperty("seedIsBingo"))
+                metaUpdate.seedIsBingo = true
             this.setState(metaUpdate, this.updateUrl)
         }
     }
@@ -468,7 +468,8 @@ export default class MainPage extends React.Component {
         }
         else 
         {
-            let raw = this.state.inputFlagLine.split('|');
+            let {inputPlayerCount, gameId, seedIsBingo, paramId, inputFlagLine, spoilers} = this.state
+            let raw = inputFlagLine.split('|');
             let seedStr = raw.pop();
             // let {shared, unshared} = raw.join("").split(",").reduce((acc, curr) => (curr.startsWith("mode=") || curr.startsWith("shared=")) ? 
             //         {shared: acc.shared.concat(curr), unshared: acc.unshared} : {shared: acc.shared, unshared: acc.unshared.concat(curr)}, {shared: [], unshared: []})
@@ -477,17 +478,17 @@ export default class MainPage extends React.Component {
             // let flags = unshared.join(", ");
             let flagCols = raw.join("").split(",").map(flag => (<Col xs="auto" className="text-center" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("flags", flag)}><span class="ml-auto mr-auto align-middle">{flag}</span></Col>))
 
-            let mapUrl = "/tracker/game/"+this.state.gameId+"/map";
+            let mapUrl = "/tracker/game/"+gameId+"/map";
             
-            let playerRows = [...Array(this.state.inputPlayerCount).keys()].map(p => {
+            let playerRows = [...Array(inputPlayerCount).keys()].map(p => {
                 p++;
                 let seedParams = [];
-                if(this.state.gameId > 0)
-                    seedParams.push(`game_id=${this.state.gameId}`)
-                let seedUrl = "/generator/seed/"+this.state.paramId
-                let spoilerUrl = "/generator/spoiler/"+this.state.paramId
+                if(gameId > 0)
+                    seedParams.push(`game_id=${gameId}`)
+                let seedUrl = "/generator/seed/"+paramId
+                let spoilerUrl = "/generator/spoiler/"+paramId
                 let downloadSpoilerUrl = spoilerUrl + "?download=1"
-                if(this.state.inputPlayerCount > 1)
+                if(inputPlayerCount > 1)
                 {
                     seedParams.push("player_id="+p);
                     spoilerUrl += "?player_id="+p;
@@ -496,8 +497,11 @@ export default class MainPage extends React.Component {
                 let mainButtonText = "Download Seed"
                 let mainButtonHelp = "downloadButton"+this.multi()
                 seedUrl += "?" + seedParams.join("&")
-                if(this.state.seedIsBingo) {
-                    seedUrl = `/bingo/board?game_id=${this.state.gameId}&fromGen=1`
+                if(seedIsBingo) {
+                    seedUrl = `/bingo/board?game_id=${gameId}&fromGen=1`
+                    if(inputPlayerCount > 1) {
+                        seedUrl += `&teamMax=${inputPlayerCount}`
+                    }
                     mainButtonText = `Open Bingo Board`
                     mainButtonHelp = "openBingoBoard"
                 }
@@ -514,15 +518,15 @@ export default class MainPage extends React.Component {
                             <Button color="primary" block target="_blank" href={seedUrl}>{mainButtonText}</Button>
                         </Col>
                         <Col xs="3" className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", this.state.spoilers ? "spoilerButton" : "noSpoilers")}>
-                            <Button color={this.state.spoilers ? "primary" : "secondary"} disabled={!this.state.spoilers} href={spoilerUrl} target="_blank" block >View Spoiler</Button>
+                            <Button color={spoilers ? "primary" : "secondary"} disabled={!spoilers} href={spoilerUrl} target="_blank" block >View Spoiler</Button>
                         </Col>
                         <Col xs="3" className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", this.state.spoilers ? "spoilerDownload" : "noSpoilers")}>
-                            <Button color={this.state.spoilers ? "primary" : "secondary"} disabled={!this.state.spoilers} href={downloadSpoilerUrl} target="_blank" block >Save Spoiler</Button>
+                            <Button color={spoilers ? "primary" : "secondary"} disabled={!spoilers} href={downloadSpoilerUrl} target="_blank" block >Save Spoiler</Button>
                         </Col>
                     </Row>
                 )
             })
-            let trackedInfo = this.state.gameId > 0 ? (
+            let trackedInfo = gameId > 0 ? (
                   <Row className="p-1 pt-3 align-items-center border-dark border-top">
                     <Col xs="3" className="text-center" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "tracking")}>
                         Tracking:
@@ -630,7 +634,7 @@ export default class MainPage extends React.Component {
         let dark = get_flag("dark") || url.searchParams.has("dark")
         let seedTabExists = (paramId !== null);
         if(seedTabExists)
-            doNetRequest("/generator/metadata/"+paramId,this.acceptMetadata);
+            doNetRequest(`/generator/metadata/${paramId}`,this.acceptMetadata);
         let activeTab = seedTabExists ? 'seed' : 'variations';
         this.state = {user: user, activeTab: activeTab, coopGenMode: "Cloned Seeds", coopGameMode: "Co-op", players: 1, tracking: true, dllTime: dllTime, variations: ["ForceTrees"], gameId: gameId,
                      paths: presets["standard"], keyMode: "Clues", oldKeyMode: "Clues", pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null), goalModes: ["ForceTrees"],
@@ -712,10 +716,10 @@ export default class MainPage extends React.Component {
             vars = vars.filter(v => !varPaths[this.state.pathMode].includes(v))
         // Then add any variations tied to the new pathmode.
         if(varPaths.hasOwnProperty(mode))
-            varPaths[mode].forEach(v => vars.includes(v) ? null : vars.push(v))        
+            varPaths[mode].forEach(v => vars.includes(v) ? null : vars.push(v))
         let pd = this.state.pathDiff
         if(diffPaths.hasOwnProperty(this.state.pathMode))
-            pd = "Normal"    
+            pd = "Normal"
         if(diffPaths.hasOwnProperty(mode))
             pd = diffPaths[mode]
         this.setState({variations: vars,cellFreq: cellFreqPresets(mode), pathMode: mode, paths: presets[mode], pathDiff: pd})

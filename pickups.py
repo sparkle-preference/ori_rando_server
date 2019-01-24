@@ -94,7 +94,7 @@ class Upgrade(Pickup):
             inst = super(Upgrade, cls).__new__(cls)
             inst.id, inst.share_type, inst.name = id, ShareType.NOT_SHARED, Upgrade.names[id]
             if id in [81]:
-                inst.share_type = ShareType.MISC
+                inst.share_type = ShareType.SKILL
             return inst
         if id not in Upgrade.names:
             return None
@@ -129,6 +129,7 @@ class AbilityCell(Pickup):
 
 class HealthCell(Pickup):
     code = "HC"
+#    share_type = ShareType.MISC
     def __new__(cls, id):
         id = int(id)
         inst = super(HealthCell, cls).__new__(cls)
@@ -137,6 +138,7 @@ class HealthCell(Pickup):
 
 class EnergyCell(Pickup):
     code = "EC"
+#    share_type = ShareType.MISC
     def __new__(cls, id):
         id = int(id)
         inst = super(EnergyCell, cls).__new__(cls)

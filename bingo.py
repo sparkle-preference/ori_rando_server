@@ -742,15 +742,6 @@ class BingoAddPlayer(RequestHandler):
             return resp_error(self, 412, "Teams are forbidden in this game", "text/plain")
         if player_id in game.player_nums():
             return resp_error(self, 409, "Player id already in use!", "text/plain")
-        p = game.player(player_id)
-        user = User.get()
-        pkey = p.key
-        if user:
-            p.user = user.key
-            p.put()
-            user.games.append(game.key)
-            user.put()
-
         cap_id = int(param_val(self, "joinTeam") or player_id)
 
         # game.add_bingo_player(player_id, cap_id)
@@ -765,6 +756,15 @@ class BingoAddPlayer(RequestHandler):
         seed = game.bingo_seed(player_id)
         if not seed:
             return resp_error(self, 412, "Team has maximum number of players allowed!")
+        p = game.player(player_id)
+        user = User.get()
+        pkey = p.key
+        if user:
+            p.user = user.key
+            p.put()
+            user.games.append(game.key)
+            user.put()
+
         game = game.put().get()
 
         res = game.bingo_json()

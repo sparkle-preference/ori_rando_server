@@ -706,7 +706,7 @@ class MakeSeedWithParams(RequestHandler):
                 resp["gameId"] = game.key.id()
                 if debug and param_flag(self, "test_map_redir"):
                      self.redirect(uri_for("map-render", game_id=resp["gameId"], from_test=1))
-            if param_flag(self, 'bingo'):
+            if Variation.BINGO in params.variations:
                 resp["doBingoRedirect"] = True
 
             self.response.write(json.dumps(resp))
@@ -749,6 +749,8 @@ class GetParamMetadata(RequestHandler):
         params = SeedGenParams.with_id(params_id)
         if params:
             resp = {"playerCount": params.players, "flagLine": params.flag_line(), "spoilers": len(params.spoilers[0]) > 100}
+            if Variation.BINGO in params.variations:
+                resp["seedIsBingo"] = True
             self.response.write(json.dumps(resp))
         else:
             self.response.status = 404

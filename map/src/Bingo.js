@@ -280,7 +280,7 @@ export default class Bingo extends React.Component {
     updateUrl = () => {
         let {gameId, fromGen, viewOnly} = this.state;
         let url = new URL(window.document.URL);
-        let title = "Ori DE Bingo"
+        let title = "OriDE Bingo"
         if(gameId && gameId > 0 && !viewOnly)
         {
             url.searchParams.set("game_id", gameId)
@@ -299,7 +299,7 @@ export default class Bingo extends React.Component {
             url.searchParams.set("fromGen", 1)
 
         window.history.replaceState('', title, url.href);
-        window.title = title
+        document.title = title
         this.setState({specLink: window.document.location.href.replace("board", "spectate").replace(gameId, 4 + gameId*7)})
     }
     joinGame = (joinTeam) => {
@@ -340,9 +340,12 @@ export default class Bingo extends React.Component {
     tickCallback = ({status, responseText}) => {
         if(status !== 200)
         {
+            let stateUpdate = {fails: this.state.fails + 1, buildingPlayer: false}
+            if(status === 409)
+                stateUpdate.activePlayer = this.state.activePlayer + 1
             if(this.state.fails < 5 || (this.state.fails - 1) % 5 === 0)
                 NotificationManager.error(`error ${status}: ${responseText}`, "error", 5000)
-            this.setState({fails: this.state.fails + 1, buildingPlayer: false})
+            this.setState(stateUpdate)
         } else {
             let res = JSON.parse(responseText)
             let teams = res.teams
