@@ -329,15 +329,21 @@ class GetSeenLocs(RequestHandler):
 
 class GetSeed(RequestHandler):
     def get(self, game_id, player_id):
+        player_id = int(player_id)
         self.response.headers['Content-Type'] = 'application/json'
         game = Game.with_id(game_id)
         if not game or not game.params:
-            self.response.status = 404
-            self.response.write(json.dumps({}))
-            return
-        player = game.player(player_id)
+            return resp_error(self, 404, json.dumps({"error": "game %s not found!" % game_id}))
+        player = game.player(player_id, False)
+        if not player:
+            return resp_error(self, 404, json.dumps({"error": "game %s does not contain player %s!" % (game_id, player_id)}))
         res = {"seed": {}, 'name': player.name()}
         params = game.params.get()
+        if Variation.BINGO in params.variations:
+            team = game.bingo_team(player_id, cap_only=False, as_list=True)
+            if not team:
+                return resp_error(self, 404, json.dumps({"error": "No team found for player %s!" % player_id}))
+            player_id = team.index(player_id) + 1
         for (coords, code, id, _) in params.get_seed_data(player_id):
             res["seed"][coords] = Pickup.name(code, id)
         self.response.status = 200
@@ -872,7 +878,7 @@ app = WSGIApplication(
         Route('/spoiler/<params_id:\d+>', handler=GetSpoilerFromParams, name="gen-params-get-spoiler", strict_slash=True),
         Route('/json', handler=SeedGenJson, name="gen-params-get-json")
     ]),
-
+    # tracking map endpoints
     PathPrefixRoute('/tracker/game/<game_id:\d+>', [
         Route('/', redirect_to_name="map-render"),
         Route('/map', handler=ShowMap, name='map-render', strict_slash=True),

@@ -33,7 +33,7 @@ def stacks(pickup):
         return True
     if pickup.code != "RB":
         return False
-    return pickup.id in [6, 10, 12, 13, 15, 17, 19, 21, 28, 30, 31, 32, 33]
+    return pickup.id in [6, 9, 12, 13, 15, 17, 19, 21, 28, 30, 31, 32, 33]
 
 
 pbc = picks_by_coord(extras=True)
@@ -554,7 +554,6 @@ class Player(ndb.Model):
 
 
 class Game(ndb.Model):
-    
     # id = Sync ID
     DEFAULT_SHARED = [ShareType.SKILL, ShareType.EVENT, ShareType.TELEPORTER]
 
@@ -606,9 +605,11 @@ class Game(ndb.Model):
         return [p.get() for p in self.players]
 
     def remove_player(self, key):
+        gid,_,pid = key.partition(".")
         key = ndb.Key(Player, key)
         self.players.remove(key)
         key.delete()
+        Cache.removePlayer(gid, pid)
         self.put()
 
     def sanity_check(self):
@@ -695,10 +696,14 @@ class Game(ndb.Model):
             return []
         return [hl for players, hls in hist.items() for hl in hls]
 
-    def player(self, pid):
+    def player(self, pid, create=True):
         full_pid = "%s.%s" % (self.key.id(), pid)
         player = Player.get_by_id(full_pid)
         if not player:
+            if not create:
+                log.warning("Game %s has no player %s, returning None!", self.key.id(), pid)
+                return None
+            log.info("Game %s has no player %s, creating...", self.key.id(), pid)
             if(self.mode == MultiplayerGameType.SHARED and len(self.players)):
                 src = self.players[0].get()
                 player = Player(id=full_pid, skills=src.skills, events=src.events, teleporters=src.teleporters, bonuses=src.bonuses, history=[], signals=[], hints=src.hints)
@@ -904,7 +909,8 @@ class Game(ndb.Model):
         else:
             params = self.params.get()
             if Variation.BINGO not in params.variations:
-                sync_flag += "Bingo,"
+                params.variations.append(Variation.BINGO)
+                params = params.put().get()
             if params.players == 1:
                 return sync_flag + params.get_seed(1, include_sync=False)
             else:
