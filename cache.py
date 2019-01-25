@@ -50,6 +50,10 @@ class Cache(object):
             newHists = Cache.hist[gid]
             del newHists[pid]
             Cache.hist[gid] = newHists
+        if gid in Cache.pos:
+            newPos = Cache.pos[gid]
+            del newPos[pid]
+            Cache.pos[gid] = newPos
 
     @staticmethod
     def getPos(gid):

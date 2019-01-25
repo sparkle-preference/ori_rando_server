@@ -697,20 +697,22 @@ class Game(ndb.Model):
         return [hl for players, hls in hist.items() for hl in hls]
 
     def player(self, pid, create=True):
-        full_pid = "%s.%s" % (self.key.id(), pid)
+        gid = self.key.id()
+        full_pid = "%s.%s" % (gid, pid)
         player = Player.get_by_id(full_pid)
         if not player:
             if not create:
-                log.warning("Game %s has no player %s, returning None!", self.key.id(), pid)
+                log.warning("Game %s has no player %s, returning None!", gid, pid)
                 return None
-            log.info("Game %s has no player %s, creating...", self.key.id(), pid)
+            log.info("Game %s has no player %s, creating...", gid, pid)
             if(self.mode == MultiplayerGameType.SHARED and len(self.players)):
                 src = self.players[0].get()
                 player = Player(id=full_pid, skills=src.skills, events=src.events, teleporters=src.teleporters, bonuses=src.bonuses, history=[], signals=[], hints=src.hints)
             else:
                 player = Player(id=full_pid, skills=0, events=0, teleporters=0, history=[])
             k = player.put()
-            Cache.setHist(self.key.id(), pid, [])
+            Cache.setPos(gid, pid, 189, -210)
+            Cache.setHist(gid, pid, [])
         else:
             k = player.key
         if k not in self.players:

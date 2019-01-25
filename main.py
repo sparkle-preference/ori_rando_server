@@ -274,7 +274,6 @@ class SetSeed(RequestHandler):
         hist = Cache.getHist(game_id)
         if not hist:
             Cache.setHist(game_id, player_id, [])
-        Cache.setPos(game_id, player_id, 189, -210)
         if not game:
             # TODO: this branch is now probably unnecessary.
             # experiment with deleting it.

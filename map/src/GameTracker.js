@@ -388,7 +388,7 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
 						if(!players.hasOwnProperty(id)){
 							players[id] = {...EMPTY_PLAYER};
 						}
-						Object.keys(areas[id]).forEach(area => {                            
+						Object.keys(areas[id]).forEach(area => {
 							players[id].areas = uniq(players[id].areas.concat(area))
 						});
 					})
