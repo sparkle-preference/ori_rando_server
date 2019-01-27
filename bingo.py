@@ -511,7 +511,6 @@ class BingoGenerator(object):
                         BoolGoal(name = "moonGrotto", disp_name = "Grotto"),
                         BoolGoal(name = "mangrove", disp_name = "Blackroot"),
                         BoolGoal(name = "thornfeltSwamp", disp_name = "Swamp"),
-                        BoolGoal(name = "ginsoTree", disp_name = "Ginso"),
                         BoolGoal(name = "valleyOfTheWind", disp_name = "Valley"),
                         BoolGoal(name = "forlornRuins", disp_name = "Forlorn"),
                         BoolGoal(name = "sorrowPass", disp_name = "Sorrow"),
