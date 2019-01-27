@@ -18,7 +18,7 @@ from seedbuilder.vanilla import seedtext as vanilla_seed
 if debug:
     from test.data import bingo_data as test_data
 
-BINGO_LATEST = [0,1,11]
+BINGO_LATEST = [0,1,12]
 def version_check(version):
     try:
         nums = [int(num) for num in version.split(".")]
