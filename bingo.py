@@ -18,7 +18,7 @@ from seedbuilder.vanilla import seedtext as vanilla_seed
 if debug:
     from test.data import bingo_data as test_data
 
-BINGO_LATEST = [0,1,10]
+BINGO_LATEST = [0,1,11]
 def version_check(version):
     try:
         nums = [int(num) for num in version.split(".")]
@@ -501,6 +501,29 @@ class BingoGenerator(object):
                     ],
                     max_repeats = 1
                 ),
+                GoalGroup(
+                    name = "TouchMapstone",
+                    name_func = namef("Touch", "Map altar"),
+                    help_lines = ["To touch a map altar, have Sein enter the slot"],
+                    goals = [
+                        BoolGoal(name = "sunkenGlades", disp_name = "Glades"),
+                        BoolGoal(name = "hollowGrove", disp_name = "Grove"),
+                        BoolGoal(name = "moonGrotto", disp_name = "Grotto"),
+                        BoolGoal(name = "mangrove", disp_name = "Blackroot"),
+                        BoolGoal(name = "thornfeltSwamp", disp_name = "Swamp"),
+                        BoolGoal(name = "ginsoTree", disp_name = "Ginso"),
+                        BoolGoal(name = "valleyOfTheWind", disp_name = "Valley"),
+                        BoolGoal(name = "forlornRuins", disp_name = "Forlorn"),
+                        BoolGoal(name = "sorrowPass", disp_name = "Sorrow"),
+                        BoolGoal(name = "mountHoru", disp_name = "Horu"),
+                    ],
+                methods = [
+                        ("or",    r((1, 3), (1, 2), (1, 1))), 
+                        ("and",   r((1, 2), (2, 3), (3, 4))), 
+                        ("count", r((3, 6), (4, 8), (6, 9 )))
+                    ],
+                max_repeats = 2
+                )
             ]
         else:
             goals += [

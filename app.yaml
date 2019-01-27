@@ -3,17 +3,21 @@ api_version: 1
 threadsafe: true
 instance_class: F2
 automatic_scaling:
+  min_instances: 0
+  max_instances: 4
   min_idle_instances: 0
   max_idle_instances: 1
-  min_pending_latency: 500ms
-  max_pending_latency: 1800ms
-  max_concurrent_requests: 40
+  target_cpu_utilization: .9
+  target_throughput_utilization: .8
+  min_pending_latency: 4000ms
+  max_pending_latency: automatic
+  max_concurrent_requests: 80
 
 
 libraries:
 - name: webapp2
   version: "latest" 
-- name: enum
+- name: enum 
   version: "latest"
 - name: yaml
   version: "latest"

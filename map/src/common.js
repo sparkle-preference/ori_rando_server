@@ -100,7 +100,7 @@ const stuff_by_type = {
         { label: "Charge Jump", value: "SK|8" },
         { label: "Climb", value: "SK|12" },
         { label: "Glide", value: "SK|14" },
-        { label: "Spirit Flame", value: "SK|14" },
+        { label: "Spirit Flame", value: "SK|15" },
         { label: "Dash", value: "SK|50" },
         { label: "Grenade", value: "SK|51" }
     ],
