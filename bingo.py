@@ -1,4 +1,4 @@
-from random import choice, randint, sample
+from random import choice, randint, sample, shuffle
 from collections import defaultdict, Counter
 from datetime import datetime, timedelta
 from calendar import timegm
@@ -18,7 +18,7 @@ from seedbuilder.vanilla import seedtext as vanilla_seed
 if debug:
     from test.data import bingo_data as test_data
 
-BINGO_LATEST = [0,1,12]
+BINGO_LATEST = [0,1,13]
 def version_check(version):
     try:
         nums = [int(num) for num in version.split(".")]
@@ -73,7 +73,6 @@ class IntGoal(BingoGoal):
             goal_type = "int",
             target = self.range_func()
         )
-
 
 class GoalGroup(BingoGoal):
     def __init__(self, name, goals, methods, name_func, help_lines = [],  max_repeats = 1, tags = []):
@@ -268,6 +267,82 @@ class BingoGenerator(object):
                 disp_name = "Kill enemies",
                 help_lines = ["Large swarms count as 3 enemies (the initial swarm and the first split)"],
                 range_func = r((25, 75), (50, 125), (75, 175))
+            ),
+            IntGoal(
+                name = "PickupsInGlades",
+                disp_name = "Collect Pickups In Glades",
+                help_lines = ["You can use the stats feature (alt+5 by default) to see your pickup counts by zone.", "Mapstone turn-ins are not in any zone."],
+                range_func = r((8, 15), (10, 22), (16, 27)),
+                tags = ["pickups_in_zone"]
+            ),
+            IntGoal(
+                name = "PickupsInGrove",
+                disp_name = "Collect Pickups In Grove",
+                help_lines = ["You can use the stats feature (alt+5 by default) to see your pickup counts by zone.", "Mapstone turn-ins are not in any zone."],
+                range_func = r((7, 14), (10, 19), (16, 26)),
+                tags = ["pickups_in_zone"]
+            ),
+            IntGoal(
+                name = "PickupsInGrotto",
+                disp_name = "Collect Pickups In Grotto",
+                help_lines = ["You can use the stats feature (alt+5 by default) to see your pickup counts by zone.", "Mapstone turn-ins are not in any zone."],
+                range_func = r((8, 16), (12, 28), (20, 33)),
+                tags = ["pickups_in_zone"]
+            ),
+            IntGoal(
+                    name = "PickupsInBlackroot",
+                    disp_name = "Collect Pickups In Blackroot",
+                    help_lines = ["You can use the stats feature (alt+5 by default) to see your pickup counts by zone.", "Mapstone turn-ins are not in any zone."],
+                    range_func = r((4, 10), (7, 15), (10, 19)),
+            ),
+            IntGoal(
+                    name = "PickupsInSwamp",
+                    disp_name = "Collect Pickups In Swamp",
+                    help_lines = ["You can use the stats feature (alt+5 by default) to see your pickup counts by zone.", "Mapstone turn-ins are not in any zone."],
+                    range_func = r((4, 10), (7, 16), (11, 20)),
+                    tags = ["pickups_in_zone"]
+            ),
+            IntGoal(
+                    name = "PickupsInGinso",
+                    disp_name = "Collect Pickups In Ginso",
+                    help_lines = ["You can use the stats feature (alt+5 by default) to see your pickup counts by zone.", "Mapstone turn-ins are not in any zone."],
+                    range_func = r((6, 12), (8, 18), (12, 22)),
+                    tags = ["pickups_in_zone"]
+            ),
+            IntGoal(
+                    name = "PickupsInValley",
+                    disp_name = "Collect Pickups In Valley",
+                    help_lines = ["You can use the stats feature (alt+5 by default) to see your pickup counts by zone.", "Mapstone turn-ins are not in any zone."],
+                    range_func = r((4, 9), (7, 14), (11, 18)),
+                    tags = ["pickups_in_zone"]
+            ),
+            IntGoal(
+                    name = "PickupsInMisty",
+                    disp_name = "Collect Pickups In Misty",
+                    help_lines = ["You can use the stats feature (alt+5 by default) to see your pickup counts by zone.", "Mapstone turn-ins are not in any zone."],
+                    range_func = r((4, 8), (6, 13), (10, 16)),
+                    tags = ["pickups_in_zone"]
+            ),
+            IntGoal(
+                    name = "PickupsInForlorn",
+                    disp_name = "Collect Pickups In Forlorn",
+                    help_lines = ["You can use the stats feature (alt+5 by default) to see your pickup counts by zone.", "Mapstone turn-ins are not in any zone."],
+                    range_func = r((3, 6), (5, 10), (10, 11)),
+                    tags = ["pickups_in_zone"]
+            ),
+            IntGoal(
+                    name = "PickupsInSorrow",
+                    disp_name = "Collect Pickups In Sorrow",
+                    help_lines = ["You can use the stats feature (alt+5 by default) to see your pickup counts by zone.", "Mapstone turn-ins are not in any zone."],
+                range_func = r((7, 14), (8, 19), (16, 26)),
+                    tags = ["pickups_in_zone"]
+            ),
+            IntGoal(
+                    name = "PickupsInHoru",
+                    disp_name = "Collect Pickups In Horu",
+                    help_lines = ["You can use the stats feature (alt+5 by default) to see your pickup counts by zone.", "Mapstone turn-ins are not in any zone."],
+                    range_func = r((4, 10), (7, 15), (10, 19)),
+                    tags = ["pickups_in_zone"]
             ),
             GoalGroup(
                 name = "CompleteHoruRoom", 
@@ -582,16 +657,18 @@ class BingoGenerator(object):
                 disp_name = "Drown an amphibian",
                 help_lines = ["The amphibians native to Nibel are fronkeys, red spitters, and green spitters"]
             ))
-
-
-
-
-
+        
         groupSeen = defaultdict(lambda: (1, [], []))
         cards = []
         goals = [goal for goal in goals]
+        pickups_in = randint(1,3)
         while len(cards) < count:
             goal = choice(goals)
+            if "pickups_in_zone" in goal.tags:
+                if pickups_in > 0:
+                    pickups_in -= 1
+                else:
+                    continue
             repeats, banned_subgoals, banned_methods = groupSeen[goal.name]
             if repeats == goal.max_repeats:
                 goals.remove(goal)
@@ -607,6 +684,7 @@ class BingoGenerator(object):
             groupSeen[goal.name] = (repeats+1, banned_subgoals, banned_methods)
             card.square = len(cards)
             cards.append(card)
+        shuffle(cards)
         return cards
 
 # handlers

@@ -275,7 +275,7 @@ export default class Bingo extends React.Component {
     }
     componentWillMount() {
         this.tick()
-        this.interval = setInterval(() => this.tick(), 2000);
+        this.interval = setInterval(() => this.tick(), 5000);
   };
     updateUrl = () => {
         let {gameId, fromGen, viewOnly} = this.state;
