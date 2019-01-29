@@ -55,210 +55,17 @@ lines_by_index = {
 
 
 class BingoCardProgress(ndb.Model):
-    player = ndb.KeyProperty("Player", required=True)
-    completed = ndb.BooleanProperty()
-    locked = ndb.BooleanProperty()
-    count = ndb.IntegerProperty()
+    square = ndb.IntegerProperty()
+    completed = ndb.BooleanProperty(default=False)
+    count = ndb.IntegerProperty(default=0)
     completed_subgoals = ndb.StringProperty(repeated=True)
 
-    def complete(self):    return self.completed and not self.locked
     def to_json(self):
         return {
-            'completed': self.complete(),
+            'completed': self.completed,
             'count': self.count,
             'subgoals': self.completed_subgoals
         }
-
-class BingoCard(ndb.Model):
-    name = ndb.StringProperty()
-    disp_name = ndb.TextProperty()
-    help_lines = ndb.TextProperty(repeated=True)
-    goal_type = ndb.StringProperty()
-    goal_method = ndb.StringProperty()
-    target = ndb.IntegerProperty()
-    square = ndb.IntegerProperty()  # position in the single-dimension array
-    subgoals = ndb.JsonProperty(repeated=True)
-    player_progress = ndb.LocalStructuredProperty(BingoCardProgress, repeated=True)
-    current_owner = ndb.IntegerProperty(repeated=True)
-
-    def to_json(self, initial=False):
-        res = {
-            "name": self.name,
-            "progress": {_pid(pp.player): pp.to_json() for pp in self.player_progress}
-            }
-
-        if initial:
-            res["disp_name"] = self.disp_name
-            res["help_lines"] = self.help_lines
-            res["type"] = self.goal_type
-            if self.square or self.square == 0:
-                res["square"] = self.square
-            if self.subgoals:
-                res["subgoals"] = {subgoal["name"]: subgoal for subgoal in self.subgoals}
-            if self.target:
-                res["target"] = self.target
-
-        if self.current_owner:
-            res["owner"] = self.current_owner[0]
-        return res
-
-
-    def progress(self, pkey):
-        p_progress = [pp for pp in self.player_progress if pp.player == pkey]
-        if not p_progress:
-            p_progress = [BingoCardProgress(player=pkey, completed=False, count=0)]
-            self.player_progress.append(p_progress[0])
-        if len(p_progress) > 1:
-            log.warning("too many playerprogress for player %s" % pkey)
-        return p_progress[0]
-    
-    def update(self, card_data, team, pid, players):
-        pkey = players[pid].key
-        p_progress = self.progress(pkey)
-        prior_value = p_progress.completed
-        if self.goal_type == "bool":
-            p_progress.completed = card_data["value"]
-        elif self.goal_type == "int":
-            p_progress.count = min(int(card_data["value"]), self.target)
-            p_progress.completed = p_progress.count >= self.target
-        elif self.goal_type == "multi":
-            p_progress.count = min(int(card_data["total"]), self.target)
-            p_progress.completed_subgoals = [subgoal["name"] for subgoal in self.subgoals if card_data["value"][subgoal["name"]]["value"]]
-            if self.goal_method == "count":
-                p_progress.completed = p_progress.count >= self.target
-            elif self.goal_method == "and":
-                p_progress.completed = all([subgoal["name"] in p_progress.completed_subgoals for subgoal in self.subgoals])
-            elif self.goal_method == "or":
-                p_progress.completed = any([subgoal["name"] in p_progress.completed_subgoals for subgoal in self.subgoals])
-            else:
-                log.error("invalid method %s" % self.goal_method)
-        else:
-            log.error("invalid goal type %s" % self.goal_type)
-
-        if team and team["teammates"]:
-            completed = False
-            all_pkeys = [players[t].key for t in team["teammates"]]
-            all_pkeys.append(players[team['cap']].key)
-            all_progress = [self.progress(p) for p in all_pkeys if p != pkey] + [p_progress]
-            if self.goal_type == "bool":
-                completed = any([prog.completed for prog in all_progress])
-            elif self.goal_type == "int":
-                completed = max([prog.count for prog in all_progress]) >= self.target
-            elif self.goal_type == "multi":
-                count = max([prog.count for prog in all_progress])
-                team_subgoals = set([subgoal for prog in all_progress for subgoal in prog.completed_subgoals])
-                if self.goal_method == "count":
-                    completed = count >= self.target
-                elif self.goal_method == "and":
-                    completed = all([subgoal["name"] in team_subgoals for subgoal in self.subgoals])
-                elif self.goal_method == "or":
-                    completed = any([subgoal["name"] in team_subgoals for subgoal in self.subgoals])
-            for prog in all_progress:
-                prog.completed = completed
-            p_progress.completed = completed
-
-        if prior_value != p_progress.completed:
-            event = BingoEvent(event_type="square", loss = not p_progress.completed, square=self.square, player=pkey, timestamp=datetime.utcnow())
-            return event
-
-
-class BingoEvent(ndb.Model):
-    loss = ndb.BooleanProperty(default=False)
-    event_type = ndb.StringProperty(default="square")
-    square = ndb.IntegerProperty() # position in the single-dimension array
-    bingo = ndb.StringProperty()
-    timestamp = ndb.DateTimeProperty()
-    first = ndb.BooleanProperty()
-    player = ndb.KeyProperty("Player")
-    def to_json(self, start_time):
-        if self.event_type.startswith("misc"):
-            return {'type': self.event_type, 'time': round_time(self.timestamp-start_time)}
-        res =  {'loss': self.loss, 'type': self.event_type, 'time': round_time(self.timestamp-start_time), 'player': _pid(self.player)}
-        if self.event_type == 'square':
-            res['square'] = self.square
-        if self.event_type == 'bingo':
-            res['bingo'] = self.bingo
-            if self.first:
-                res['first'] = True
-                res['square'] = self.square
-        return res
-
-
-class BingoGameData(ndb.Model):
-    board            = ndb.LocalStructuredProperty(BingoCard, repeated=True)
-    start_time       = ndb.DateTimeProperty()
-    started          = ndb.BooleanProperty(default=True)
-    creator          = ndb.KeyProperty("User")
-    teams            = ndb.JsonProperty(repeated=True)
-    event_log        = ndb.LocalStructuredProperty(BingoEvent, repeated=True)
-    bingo_count      = ndb.IntegerProperty(default=3)
-    current_highest  = ndb.IntegerProperty(default=0)
-    difficulty       = ndb.StringProperty()
-    subtitle         = ndb.StringProperty()
-    required_squares = ndb.IntegerProperty(repeated=True)
-    seed             = ndb.TextProperty(compressed=True)
-    teams_allowed    = ndb.BooleanProperty(default=False)
-    lockout          = ndb.BooleanProperty(default=False)
-    square_count     = ndb.IntegerProperty()
-    teams_shared     = ndb.BooleanProperty(default=False)
-
-    def update(self, player_data, pid, team, players):
-        change_squares = set()
-        loss_squares = set()
-        win_players = False
-        capkey = players[team["cap"]].key
-        pkey = players[pid].key
-        team["score"] = 0
-        for card in self.board:
-            if card.name in player_data:
-                ev = card.update(player_data[card.name], team, pid, players)
-                if ev:
-                    self.event_log.append(ev)
-                    change_squares.add(ev.square)
-                    if ev.loss:
-                        loss_squares.add(ev.square)
-                    if self.lockout:
-                        if ev.loss and team["cap"] in card.current_owner:
-                            card.current_owner.remove(team["cap"])
-                        elif not ev.loss and team["cap"] not in card.current_owner:
-                            card.current_owner.append(team["cap"])
-                        if card.current_owner:
-                            for prog in card.player_progress:
-                                prog.locked = (card.current_owner[0] != _pid(prog.player))
-            else:
-                log.warning("card %s was not in bingo data for team/player %s", card.name if card else card, team['cap'] if team else team)
-            if card.progress(capkey).complete():
-                team["score"] += 1
-        if self.square_count:
-            if team["score"] >= self.square_count and "place" not in team and all([self.board[square].progress(pkey).complete() for square in self.required_squares]):
-                self.event_log.append(BingoEvent(event_type = "win", loss = False, player = capkey, timestamp = datetime.utcnow()))
-                team["place"] = len([1 for e in self.event_log if e.event_type == "win"])
-                win_players = True
-        elif change_squares:
-            for bingo, line in lines_by_index.items():
-                if set(line) & change_squares:
-                    squares = len([square for square in line if self.board[square].progress(pkey).complete()])
-                    lost_squares = len(set(line) & loss_squares)
-                    if lost_squares + squares == 5:
-                        loss = lost_squares > 0
-                        ev = BingoEvent(event_type = "bingo", loss = loss, bingo = bingo, player = capkey, timestamp = datetime.utcnow())
-                        if loss and bingo in team["bingos"]:
-                            team["bingos"].remove(bingo)
-                        elif bingo not in team["bingos"]:
-                            team["bingos"].append(bingo)
-                            if(len(team["bingos"]) > self.current_highest):
-                                ev.first = True
-                                ev.square = len(team["bingos"]) # i hate this
-                                self.current_highest += 1
-                        self.event_log.append(ev)
-                        if len(team["bingos"]) >= self.bingo_count:
-                            if "place" not in team and all([self.board[square].progress(pkey).complete() for square in self.required_squares]):
-                                self.event_log.append(BingoEvent(event_type = "win", loss = False, player = capkey, timestamp = datetime.utcnow()))
-                                team["place"] = len([1 for e in self.event_log if e.event_type == "win"])
-                                win_players = True
-            return win_players
-
-
 class HistoryLine(ndb.Model):
     pickup_code = ndb.StringProperty()
     pickup_id = ndb.StringProperty()
@@ -347,6 +154,461 @@ class User(ndb.Model):
     
     def plando(self, seed_name):
         return Seed.get_by_id("%s:%s" % (self.key.id(), seed_name))
+
+
+
+
+class Player(ndb.Model):
+    # id = gid.pid
+    skills      = ndb.IntegerProperty()
+    events      = ndb.IntegerProperty()
+    bonuses     = ndb.JsonProperty(default={})
+    hints       = ndb.JsonProperty(default={})
+    teleporters = ndb.IntegerProperty()
+    seed        = ndb.TextProperty()
+    signals     = ndb.StringProperty(repeated=True)
+    history     = ndb.LocalStructuredProperty(HistoryLine, repeated=True)
+    last_update = ndb.DateTimeProperty(auto_now=True)
+    teammates   = ndb.KeyProperty('Player', repeated=True)
+    user        = ndb.KeyProperty('User')
+    can_nag     = ndb.BooleanProperty(default=True)
+    bingo_prog  = ndb.LocalStructuredProperty(BingoCardProgress, repeated=True)
+
+    def name(self):
+        if self.user:
+            u = self.user.get()
+            if u and u.name:
+                return u.name
+        return "Player %s" % self.pid()
+
+    def teamname(self):
+        if self.user:
+            u = self.user.get()
+            if u:
+                if u.teamname:
+                    return u.teamname
+                elif u.name:
+                    return "%s's team" % u.name
+        return "Player %s's team" % self.pid()
+
+    def pid(self):
+        return _pid(self.key)
+
+    # post-refactor version of bitfields
+    def output(self):
+        outlines = [str(x) for x in [self.skills, self.events, self.teleporters]]
+        outlines.append(";".join([str(id) + "x%s" % count for (id, count) in self.bonuses.iteritems()]))
+        outlines.append(";".join([str(loc) + ":%s" % finder for (loc, finder) in self.hints.iteritems()]))
+        if self.signals:
+            outlines.append("|".join(self.signals))
+        return ",".join(outlines)
+
+    def signal_send(self, signal):
+        if signal not in self.signals:
+            self.signals.append(signal)
+            self.put()
+
+    def signal_conf(self, signal):
+        if signal in self.signals:
+            self.signals.remove(signal)
+        # basically it is never ok to be spamming ppl, so if we get a message callback
+        # we remove the first message we find if we don't get an exact match.
+        elif signal.startswith("msg:"):
+            for s in self.signals:
+                self.signals.remove(s)
+                if s.startswith("msg:"):
+                    log.warning("No exact match for signal %s, removing %s instead (spam protection)" % (signal, s))
+                    break
+        self.put()
+
+    def give_pickup(self, pickup, remove=False, delay_put=False, coords=None, finder=None):
+        if coords and finder:
+            self.hints[str(coords)] = finder
+        if pickup.code == "RB":
+            # handle upgrade refactor storage
+            pick_id = str(pickup.id)
+            if remove:
+                if pick_id in self.bonuses:
+                    self.bonuses[pick_id] -= 1
+                    if self.bonuses[pick_id] == 0:
+                        del self.bonuses[pick_id]
+            else:
+                if pick_id in self.bonuses:
+                    if (not stacks(pickup)) or (pickup.max and self.bonuses[pick_id] >= pickup.max):
+                        log.info("Will not give %s pickup %s, as they already have %s" % (self.name(), pickup.name, self.bonuses[pick_id]))
+                        return
+                    self.bonuses[pick_id] += 1
+                else:
+                    self.bonuses[pick_id] = 1
+        # bitfields
+        elif pickup.code == "SK":
+            self.skills = pickup.add_to_bitfield(self.skills, remove)
+        elif pickup.code == "TP":
+            self.teleporters = pickup.add_to_bitfield(self.teleporters, remove)
+        elif pickup.code == "EV":
+            self.events = pickup.add_to_bitfield(self.events, remove)
+        if delay_put:
+            return
+        return self.put()
+
+    def has_pickup(self, pickup):
+        if pickup.code == "RB":
+            pick_id = str(pickup.id)
+            return self.bonuses[pick_id] if pick_id in self.bonuses else 0
+        elif pickup.code == "SK":
+            return get_bit(self.skills, pickup.bit)
+        elif pickup.code == "TP":
+            return get_bit(self.teleporters, pickup.bit)
+        elif pickup.code == "EV":
+            return get_bit(self.events, pickup.bit)
+        else:
+            return 0
+
+class BingoTeam(ndb.Model):
+    captain = ndb.KeyProperty(Player)
+    score = ndb.IntegerProperty(default=0)
+    place = ndb.IntegerProperty()
+    bingos = ndb.StringProperty(repeated=True)
+    teammates = ndb.KeyProperty(Player, repeated=True)
+    
+    def name(self, cap=None):
+        cap = cap or self.captain.get()
+        teammates = self.teammates
+        return cap.teamname() if self.teammates else cap.name()
+    
+    def pids(self):
+        return [_pid(key) for key in [self.captain] + self.teammates]
+
+    def to_json(self, players):
+        res = {"cap": _pid(self.captain), "score": self.score, "teammates": [], "bingos": self.bingos}
+        if self.place:
+            res["place"] = self.place
+        res["name"] = self.name(cap = players.get(self.captain))
+        for tm in self.teammates:
+            if tm not in players:
+                log.error("Player %s part of team %s but not in provided players list %s", tm, res["cap"], players)
+                continue
+            res["teammates"].append({'pid': _pid(tm), 'name': players[tm].name()})
+        return res
+
+
+class BingoCard(ndb.Model):
+    name = ndb.StringProperty()
+    disp_name = ndb.TextProperty()
+    help_lines = ndb.TextProperty(repeated=True)
+    goal_type = ndb.StringProperty()
+    goal_method = ndb.StringProperty()
+    target = ndb.IntegerProperty()
+    square = ndb.IntegerProperty()  # position in the single-dimension array
+    subgoals = ndb.JsonProperty(repeated=True)
+    completed_by = ndb.IntegerProperty(repeated=True)
+
+    def to_json(self, players, initial=False): #, progresses
+    
+        res = {
+            "name": self.name,
+            "progress": {p.pid(): p.bingo_prog[self.square].to_json() for p in players},
+            "completed_by": self.completed_by
+        }
+
+        if initial:
+            res["disp_name"] = self.disp_name
+            res["help_lines"] = self.help_lines
+            res["type"] = self.goal_type
+            if self.square or self.square == 0:
+                res["square"] = self.square
+            if self.subgoals:
+                res["subgoals"] = {subgoal["name"]: subgoal for subgoal in self.subgoals}
+            if self.target:
+                res["target"] = self.target
+
+        return res
+
+
+    def progress(self, player):
+        if not player or len(player.bingo_prog) < self.square:
+            return None
+        return player.bingo_prog[self.square]
+    
+    def update(self, card_data, player, teammates, capkey):
+
+        p_progress = self.progress(player)
+        prior_value = _pid(capkey) in self.completed_by
+
+        if self.goal_type == "bool":
+            p_progress.completed = card_data["value"]
+        elif self.goal_type == "int":
+            p_progress.count = min(int(card_data["value"]), self.target)
+            p_progress.completed = p_progress.count >= self.target
+        elif self.goal_type == "multi":
+            p_progress.count = min(int(card_data["total"]), self.target)
+            p_progress.completed_subgoals = [subgoal["name"] for subgoal in self.subgoals if card_data["value"][subgoal["name"]]["value"]]
+            if self.goal_method == "count":
+                p_progress.completed = p_progress.count >= self.target
+            elif self.goal_method == "and":
+                p_progress.completed = all([subgoal["name"] in p_progress.completed_subgoals for subgoal in self.subgoals])
+            elif self.goal_method == "or":
+                p_progress.completed = any([subgoal["name"] in p_progress.completed_subgoals for subgoal in self.subgoals])
+            else:
+                log.error("invalid method %s" % self.goal_method)
+        else:
+            log.error("invalid goal type %s" % self.goal_type)
+        completed = p_progress.completed
+        if teammates and not completed:
+            all_progress = [self.progress(p) for p in teammates]
+            if self.goal_type == "bool":
+                completed = any([prog.completed for prog in all_progress])
+            elif self.goal_type == "int":
+                completed = max([prog.count for prog in all_progress]) >= self.target
+            elif self.goal_type == "multi":
+                count = max([prog.count for prog in all_progress])
+                team_subgoals = set([subgoal for prog in all_progress for subgoal in prog.completed_subgoals])
+                if self.goal_method == "count":
+                    completed = count >= self.target
+                elif self.goal_method == "and":
+                    completed = all([subgoal["name"] in team_subgoals for subgoal in self.subgoals])
+                elif self.goal_method == "or":
+                    completed = any([subgoal["name"] in team_subgoals for subgoal in self.subgoals])
+        if prior_value != completed:
+            event = BingoEvent(event_type="square", loss = not completed, square=self.square, player=capkey, timestamp=datetime.utcnow())
+            return event
+
+
+class BingoEvent(ndb.Model):
+    loss = ndb.BooleanProperty(default=False)
+    event_type = ndb.StringProperty(default="square")
+    square = ndb.IntegerProperty() # position in the single-dimension array
+    bingo = ndb.StringProperty()
+    timestamp = ndb.DateTimeProperty()
+    first = ndb.BooleanProperty()
+    player = ndb.KeyProperty("Player")
+    def to_json(self, start_time):
+        if self.event_type.startswith("misc"):
+            return {'type': self.event_type, 'time': round_time(self.timestamp-start_time)}
+        res =  {'loss': self.loss, 'type': self.event_type, 'time': round_time(self.timestamp-start_time), 'player': _pid(self.player)}
+        if self.event_type == 'square':
+            res['square'] = self.square
+        if self.event_type == 'bingo':
+            res['bingo'] = self.bingo
+            if self.first:
+                res['first'] = True
+                res['square'] = self.square
+        return res
+
+
+
+class BingoGameData(ndb.Model):
+    players          = ndb.KeyProperty("Player", repeated=True)
+    board            = ndb.LocalStructuredProperty(BingoCard, repeated=True)
+    start_time       = ndb.DateTimeProperty()
+    started          = ndb.BooleanProperty(default=True)
+    creator          = ndb.KeyProperty("User")
+    teams            = ndb.LocalStructuredProperty(BingoTeam, repeated=True)
+    event_log        = ndb.LocalStructuredProperty(BingoEvent, repeated=True)
+    bingo_count      = ndb.IntegerProperty(default=3)
+    current_highest  = ndb.IntegerProperty(default=0)
+    difficulty       = ndb.StringProperty()
+    subtitle         = ndb.StringProperty()
+    seed             = ndb.TextProperty(compressed=True)
+    teams_allowed    = ndb.BooleanProperty(default=False)
+    square_count     = ndb.IntegerProperty()
+    teams_shared     = ndb.BooleanProperty(default=False)
+    game             = ndb.KeyProperty("Game")
+
+    @staticmethod
+    def with_id(id):
+        return BingoGameData.get_by_id(int(id))
+
+    def remove_player(self, pid):
+        player = self.player(pid, False)
+        if not player:
+            log.error("Couldn't delete player: player not found")
+            return False
+        team = self.team(pid, False)
+        pkeys_to_delete = [player.key]
+        if team.captain == player.key:
+            pkeys_to_delete += team.teammates
+            self.teams.remove(team)
+        else:
+            team.teammates.remove(player.key)
+
+        game = self.game.get()
+        for k in pkeys_to_delete:
+            game.remove_player(k.id())
+            self.players.remove(k)
+        return self.put()
+
+
+    def get_players(self):
+        return [p.get() for p in self.players]
+
+    def player_nums(self):  return [_pid(k) for k in self.players]
+
+    def player(self, pid, create=False, delay_put=False):
+        gid = self.game.id()
+        full_pid = "%s.%s" % (gid, pid)
+        player = Player.get_by_id(full_pid)
+        if not player:
+            if create:
+                player = self.game.get().player(pid)
+            else:
+                log.warning("Bingo game %s has no player %s, returning None!", gid, pid)
+                return None
+        k = player.key
+        if k not in self.players:
+            self.players.append(k)
+            if not delay_put:
+                self.put()
+        return player
+
+    def init_player(self, pid):
+        p = self.player(pid, True, True)
+        if p.bingo_prog:
+            log.warning("Player %s already had bingo card progress, won't reinit" % pid)
+        else:
+            p.bingo_prog = [BingoCardProgress(square = i) for i in range(25)]
+            p.put()
+        return p
+
+    def get_json(self, initial=False):
+        players = self.get_players()
+        players_by_pkey = {p.key: p for p in players}
+        res = {
+            'cards':  [c.to_json(players, initial) for c in self.board],
+            'events': [e.to_json(self.start_time) for e in self.event_log],
+            'teams': {_pid(t.captain): t.to_json(players_by_pkey) for t in self.teams},
+            "gameId": self.game.id()
+        }
+        if self.creator:
+            res["creator"] = self.creator.get().name
+            user = User.get()
+            res["is_owner"] = user and self.creator == user.key
+
+        if self.start_time:
+            res['countdown'] = datetime.utcnow() < self.start_time
+            res['start_time_posix'] = timegm(self.start_time.timetuple())
+  
+        if initial:
+            res["difficulty"] = self.difficulty
+            res["bingo_count"] = self.bingo_count
+            res["subtitle"] = self.subtitle
+            res["teams_allowed"] = self.teams_allowed
+            game = self.game.get()
+            if game.params:
+                res["paramId"] = game.params.id()
+                if self.teams_shared:
+                    params = game.params.get()
+                    res["teamMax"] = params.players
+        return res
+
+    
+    def get_seed(self, pid):
+        sync_flag = ("Sync%s.%s," % (self.key.id(), pid))
+        game = self.game.get()
+        if not game.params:
+            return sync_flag + self.seed
+        else:
+            params = game.params.get()
+            if Variation.BINGO not in params.variations:
+                params.variations.append(Variation.BINGO)
+                params = params.put().get()
+            if params.players == 1:
+                return sync_flag + params.get_seed(1, include_sync=False)
+            else:
+                team = self.team(pid, cap_only=False)
+                if not team:
+                    log.error("No team found for player %s" % pid)
+                    return None
+                p_number = team.pids().index(pid) + 1
+                if params.players < p_number:
+                    log.error("player %s can't get seed as there is no seed available" % pid)
+                    return None
+                return sync_flag + params.get_seed(p_number, include_sync=False)
+                
+
+    def team(self, pid, cap_only=True):
+        pid = int(pid)
+        maybe_team = [team for team in self.teams if _pid(team.captain) == pid]
+        if not maybe_team and not cap_only:
+            maybe_team += [team for team in self.teams if pid in team.pids()]
+        if maybe_team:
+            if len(maybe_team) > 1 and cap_only:
+                log.error("Multiple teams found with the same player %s (%s), returning %s", pid, maybe_team, maybe_team[0].captain)
+            res = maybe_team[0]
+            return res
+        return None
+
+    def update(self, bingo_data, player_id):
+        player_id = int(player_id)
+        if not self.start_time:
+            log.debug("game not started")
+            return
+        now = datetime.utcnow()
+        change_squares = set()
+        loss_squares = set()
+        win_players = False
+        team = self.team(player_id, cap_only=False)
+        old_score = team.score
+        old_bingos = team.bingos[:]
+        team.score = 0
+        player = self.player(player_id)
+        cpid = _pid(team.captain)
+        teammates = [self.player(pid) for pid in team.pids() if pid != player_id]
+        need_write = False
+        for card in self.board:
+            if card.name in bingo_data:
+                ev = card.update(bingo_data[card.name], player, teammates, team.captain)
+                if ev:
+                    need_write = True
+                    self.event_log.append(ev)
+                    change_squares.add(ev.square)
+                    if ev.loss:
+                        loss_squares.add(ev.square)
+                        if cpid in card.completed_by:
+                            card.completed_by.remove(cpid)
+                    elif cpid not in card.completed_by:
+                        card.completed_by.append(cpid)
+            else:
+                log.warning("card %s was not in bingo data for team/player %s", card.name if card else card, team.captain if team else team)
+            if cpid in card.completed_by:
+                team.score += 1
+        if self.square_count:
+            if team.score >= self.square_count and not team.place:
+                self.event_log.append(BingoEvent(event_type = "win", loss = False, player = team.captain, timestamp = now))
+                team.place = len([t.place for t in self.teams if t.place]) + 1
+                win_players = True
+        elif change_squares:
+            for bingo, line in lines_by_index.items():
+                if set(line) & change_squares:
+                    squares = len([square for square in line if cpid in self.board[square].completed_by])
+                    lost_squares = len(set(line) & loss_squares)
+                    if lost_squares + squares == 5:
+                        loss = lost_squares > 0
+                        ev = BingoEvent(event_type = "bingo", loss = loss, bingo = bingo, player = team.captain, timestamp = now)
+                        if loss and bingo in team.bingos:
+                            team.bingos.remove(bingo)
+                        elif bingo not in team.bingos:
+                            team.bingos.append(bingo)
+                            if(len(team.bingos) > self.current_highest):
+                                ev.first = True
+                                ev.square = len(team.bingos) # i hate this
+                                self.current_highest += 1
+                        self.event_log.append(ev)
+                        if len(team.bingos) >= self.bingo_count:
+                            if not team.place:
+                                self.event_log.append(BingoEvent(event_type = "win", loss = False, player = team.captain, timestamp = now))
+                                team.place = len([t.place for t in self.teams if t.place]) + 1
+                                win_players = True
+        if win_players:
+            p_list = [player] + teammates
+            send_log = []
+            for p in p_list:
+                p.signal_send("win:$Finished in %s place at %s!" % (ord_suffix(team.place), round_time(now - self.start_time)))
+                send_log.append(p)
+            log.debug("Sent victory message to these players: %s" % send_log)
+        player.put()
+        if need_write:
+            self.put()
 
 class Seed(ndb.Model):
     # Seed ids used to be author_name:name but are being migrated to author_id:name
@@ -447,112 +709,6 @@ class Seed(ndb.Model):
         return ["%s|%s" % (",".join(extraFlags + self.flags), self.name)] + ["|".join((str(p.location), s.code, s.id, p.zone)) for p in self.placements for s in p.stuff if int(s.player) == player]
 
 
-class Player(ndb.Model):
-    # id = gid.pid
-    skills      = ndb.IntegerProperty()
-    events      = ndb.IntegerProperty()
-    bonuses     = ndb.JsonProperty(default={})
-    hints       = ndb.JsonProperty(default={})
-    teleporters = ndb.IntegerProperty()
-    seed        = ndb.TextProperty()
-    signals     = ndb.StringProperty(repeated=True)
-    history     = ndb.LocalStructuredProperty(HistoryLine, repeated=True)
-    last_update = ndb.DateTimeProperty(auto_now=True)
-    teammates   = ndb.KeyProperty('Player', repeated=True)
-    user        = ndb.KeyProperty(User)
-    can_nag     = ndb.BooleanProperty(default=True)
-
-    def name(self):
-        if self.user:
-            u = self.user.get()
-            if u and u.name:
-                return u.name
-        return "Player %s" % self.pid()
-
-    def teamname(self):
-        if self.user:
-            u = self.user.get()
-            if u:
-                if u.teamname:
-                    return u.teamname
-                elif u.name:
-                    return "%s's team" % u.name
-        return "Player %s's team" % self.pid()
-
-    def pid(self):
-        return _pid(self.key)
-
-    # post-refactor version of bitfields
-    def output(self):
-        outlines = [str(x) for x in [self.skills, self.events, self.teleporters]]
-        outlines.append(";".join([str(id) + "x%s" % count for (id, count) in self.bonuses.iteritems()]))
-        outlines.append(";".join([str(loc) + ":%s" % finder for (loc, finder) in self.hints.iteritems()]))
-        if self.signals:
-            outlines.append("|".join(self.signals))
-        return ",".join(outlines)
-
-    def signal_send(self, signal):
-        if signal not in self.signals:
-            self.signals.append(signal)
-            self.put()
-
-    def signal_conf(self, signal):
-        if signal in self.signals:
-            self.signals.remove(signal)
-        # basically it is never ok to be spamming ppl, so if we get a message callback
-        # we remove the first message we find if we don't get an exact match.
-        elif signal.startswith("msg:"):
-            for s in self.signals:
-                self.signals.remove(s)
-                if s.startswith("msg:"):
-                    log.warning("No exact match for signal %s, removing %s instead (spam protection)" % (signal, s))
-                    break
-        self.put()
-
-    def give_pickup(self, pickup, remove=False, delay_put=False, coords=None, finder=None):
-        if coords and finder:
-            self.hints[str(coords)] = finder
-        if pickup.code == "RB":
-            # handle upgrade refactor storage
-            pick_id = str(pickup.id)
-            if remove:
-                if pick_id in self.bonuses:
-                    self.bonuses[pick_id] -= 1
-                    if self.bonuses[pick_id] == 0:
-                        del self.bonuses[pick_id]
-            else:
-                if pick_id in self.bonuses:
-                    if (not stacks(pickup)) or (pickup.max and self.bonuses[pick_id] >= pickup.max):
-                        log.info("Will not give %s pickup %s, as they already have %s" % (self.name(), pickup.name, self.bonuses[pick_id]))
-                        return
-                    self.bonuses[pick_id] += 1
-                else:
-                    self.bonuses[pick_id] = 1
-        # bitfields
-        elif pickup.code == "SK":
-            self.skills = pickup.add_to_bitfield(self.skills, remove)
-        elif pickup.code == "TP":
-            self.teleporters = pickup.add_to_bitfield(self.teleporters, remove)
-        elif pickup.code == "EV":
-            self.events = pickup.add_to_bitfield(self.events, remove)
-        if delay_put:
-            return
-        return self.put()
-
-    def has_pickup(self, pickup):
-        if pickup.code == "RB":
-            pick_id = str(pickup.id)
-            return self.bonuses[pick_id] if pick_id in self.bonuses else 0
-        elif pickup.code == "SK":
-            return get_bit(self.skills, pickup.bit)
-        elif pickup.code == "TP":
-            return get_bit(self.teleporters, pickup.bit)
-        elif pickup.code == "EV":
-            return get_bit(self.events, pickup.bit)
-        else:
-            return 0
-
-
 class Game(ndb.Model):
     # id = Sync ID
     DEFAULT_SHARED = [ShareType.SKILL, ShareType.EVENT, ShareType.TELEPORTER]
@@ -571,6 +727,7 @@ class Game(ndb.Model):
     players     = ndb.KeyProperty(Player, repeated=True)
     params      = ndb.KeyProperty(SeedGenParams)
     bingo       = ndb.LocalStructuredProperty(BingoGameData)
+    bingo_data  = ndb.KeyProperty(BingoGameData)
 
     def next_player(self):
         if self.mode != MultiplayerGameType.SIMUSOLO:
@@ -578,8 +735,7 @@ class Game(ndb.Model):
         player_nums = self.player_nums()
         return max(player_nums)+1
 
-    def player_nums(self):
-        return [_pid(k) for k in self.players]        
+    def player_nums(self):  return [_pid(k) for k in self.players]
 
     def summary(self):
         out_lines = ["%s (%s)" % (self.mode, ",".join([s.name for s in self.shared]))]
@@ -623,9 +779,10 @@ class Game(ndb.Model):
 
         sanFailedSignal = "msg:@Major Error during sanity check. If this persists across multiple alt+l attempts please contact Eiko@"
         playerGroups = []
-        if self.bingo:
-            for team in self.bingo.teams:
-                playerGroups.append([p for p in allPlayers if p.pid() in team["teammates"] + [team["cap"]]])
+        if self.bingo_data:
+            bingo = self.bingo_data.get()
+            for team in bingo.teams:
+                playerGroups.append([team.captain] + team.teammates)
         else:
              playerGroups = [allPlayers]
         for players in playerGroups:
@@ -739,10 +896,11 @@ class Game(ndb.Model):
                 retcode = max(self.found_pickup(pid, child, coords, remove, False), retcode)
             return retcode
         if self.mode == MultiplayerGameType.SHARED:
-            if self.bingo:
-                team = self.bingo_team(pid, cap_only=False, as_list=True)
+            if self.bingo_data:
+                bingo = self.bingo_data.get()
+                team = bingo.team(pid, cap_only=False)
                 if team: 
-                    players = [p for p in players if p.pid() in team]
+                    players = [p for p in players if p.pid() in team.pids()]
                 else:
                     log.error("No bingo team found for player %s!" % pid)
             if share:
@@ -802,8 +960,6 @@ class Game(ndb.Model):
         game_ids = set([int(game.key.id()) for game in Game.query()])
         while id in game_ids:
             id += 1
-        if id > 100000:
-            Game.clean_old()
         return id
 
     @staticmethod
@@ -847,98 +1003,3 @@ class Game(ndb.Model):
         log.info("Game.new(%s, %s, %s): Created game %s ", _mode, _shared, id, game)
         return key
 
-    def bingo_json(self, initial=False):
-        res = {
-            'cards':  [c.to_json(initial) for c in self.bingo.board],
-            'events': [e.to_json(self.bingo.start_time) for e in self.bingo.event_log],
-            'teams': {t["cap"]: t for t in self.bingo.teams},
-            'required_squares': self.bingo.required_squares,
-            "gameId": self.key.id()
-        }
-        for t in res['teams'].values():
-            p = self.player(t["cap"])
-            t["name"] = p.teamname() if t["teammates"] else p.name()
-            t["teammates"] = [{'pid': tm, 'name': self.player(tm).name()} for tm in t["teammates"]]
-
-        if self.bingo.creator:
-            res["creator"] = self.bingo.creator.get().name
-            user = User.get()
-            res["is_owner"] = user and self.bingo.creator == user.key
-
-        if self.bingo.start_time:
-            res['countdown'] = datetime.utcnow() < self.bingo.start_time
-            res['start_time_posix'] = timegm(self.bingo.start_time.timetuple())
-  
-
-        if initial:
-            res["difficulty"] = self.bingo.difficulty
-            res["bingo_count"] = self.bingo.bingo_count
-            res["subtitle"] = self.bingo.subtitle
-            res["teams_allowed"] = self.bingo.teams_allowed
-            if self.params:
-                res["paramId"] = self.params.id()
-                if self.bingo.teams_shared:
-                    params = self.params.get()
-                    res["teamMax"] = params.players
-        return res
-
-    def bingo_update(self, bingo_data, player_id):
-        player_id = int(player_id)
-        if not self.bingo.start_time:
-            log.debug("game not started")
-            return
-        if self.bingo.difficulty != "hard" and "HuntEnemies" in bingo_data and bingo_data["HuntEnemies"]["value"]["Fronkey Fight"]["value"]:
-            bingo_data["HuntEnemies"]["total"] -= 1
-        players = {p.pid() : p for p in self.get_players()}
-        player = players[player_id]
-        team = self.bingo_team(player_id, cap_only = False)
-        cap = players[team["cap"]]
-        now = round_time(datetime.utcnow() - self.bingo.start_time)
-        if self.bingo.update(bingo_data, player_id, team, players):
-            p_list = [team["cap"]]
-            p_list += team["teammates"]
-            send_log = []
-            for p in p_list:
-                players[int(p)].signal_send("win:$Finished in %s place at %s!" % (ord_suffix(team["place"]), now))
-                send_log.append(p)
-            log.debug("Sent victory message to these players: %s" % send_log)
-        self.put()
-    
-    def bingo_seed(self, pid):
-        sync_flag = ("Sync%s.%s," % (self.key.id(), pid))
-        if not self.params:
-            return sync_flag + self.bingo.seed
-        else:
-            params = self.params.get()
-            if Variation.BINGO not in params.variations:
-                params.variations.append(Variation.BINGO)
-                params = params.put().get()
-            if params.players == 1:
-                return sync_flag + params.get_seed(1, include_sync=False)
-            else:
-                team = self.bingo_team(pid, cap_only=False, as_list=True)
-                if not team:
-                    log.error("No team found for player %s" % pid)
-                    return None
-                p_number = team.index(pid) + 1
-                if params.players < p_number:
-                    log.error("player %s can't join team as there is no seed available" % pid)
-                    return None
-                return sync_flag + params.get_seed(p_number, include_sync=False)
-                
-
-    def bingo_team(self, pid, cap_only=True, as_list=False):
-        pid = int(pid)
-        maybe_team = [team for team in self.bingo.teams if int(team["cap"]) == pid]
-        if not maybe_team and not cap_only:
-            maybe_team += [team for team in self.bingo.teams if pid in team["teammates"]]
-        if maybe_team:
-            if len(maybe_team) > 1 and cap_only:
-                log.error("Multiple teams found with the same player %s (%s), returning %s", pid, maybe_team, maybe_team[0]["cap"])
-            res = maybe_team[0]
-            if as_list:
-                return [res["cap"]] + res["teammates"]
-            p = self.player(res["cap"])
-            res["name"] = p.teamname() if res["teammates"] else p.name()
-            return res
-        return None

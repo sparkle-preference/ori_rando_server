@@ -98,7 +98,7 @@ class BingoBoard extends Component {
         return {helpOpen: prev.helpOpen}
     })
     render() {
-        let {cards, activePlayer, bingos, dark, hiddenPlayers} = this.props
+        let {cards, activePlayer, bingos, dark, hiddenPlayers, activeTeam} = this.props
         if(!cards || cards.length < 25) {
             return null
         }
@@ -109,8 +109,10 @@ class BingoBoard extends Component {
             let row = []
             while(row.length < 5) {
                 let card = cards[i];
-                let players = Object.keys(card.progress).filter(p => card.progress[p].completed && !hiddenPlayers.includes(parseInt(p, 10)));
+                let players = card.completed_by.filter(p => !hiddenPlayers.includes(parseInt(p, 10)));
                 let progress = card.progress.hasOwnProperty(activePlayer) ? card.progress[activePlayer] : {'completed': false, 'count': 0, 'subgoals': []}
+                // temp bullshit
+                progress.completed = card.completed_by.includes(activePlayer) || card.completed_by.includes(activeTeam)
                 row.push((<td key={i}><BingoCard dark={dark} card={card} progress={progress} help={{i: i, open: this.state.helpOpen[i], toggle: this.helpToggle(i)}} players={players} /></td>))
                 i++
             }
@@ -137,7 +139,7 @@ class BingoBoard extends Component {
     }
 }
 
-const PlayerList = ({activePlayer, teams, viewOnly, onPlayerListAction, dark, gameId, teamMax, teamsDisabled}) => {
+const PlayerList = ({activePlayer, teams, viewOnly, isOwner, onPlayerListAction, dark, gameId, teamMax, teamsDisabled}) => {
     if(!teams)
         return null
     let dropdownStyle = {}
@@ -163,6 +165,12 @@ const PlayerList = ({activePlayer, teams, viewOnly, onPlayerListAction, dark, ga
                     Join Team
                 </DropdownItem>
             )
+            let removeButton = isOwner ? ( 
+                <DropdownItem onClick={onPlayerListAction("deleteTeam", cap)}>
+                    Remove {teamsDisabled ? "Player" : "Team"}
+                </DropdownItem>
+
+            ) : null
             if(active)
                 text = (<b>{text}</b>)
             let rows = [(
@@ -175,6 +183,7 @@ const PlayerList = ({activePlayer, teams, viewOnly, onPlayerListAction, dark, ga
                         <DropdownToggle caret color="secondary" />
                         <DropdownMenu style={dropdownStyle} right>
                             {joinButton}
+                            {removeButton}
                             <DropdownItem onClick={onPlayerListAction("hidePlayer", cap)}>
                                 Hide Player
                             </DropdownItem>
@@ -187,7 +196,13 @@ const PlayerList = ({activePlayer, teams, viewOnly, onPlayerListAction, dark, ga
                 </Row>
             )]
             if(hasTeam)
-                rows = rows.concat(teammates.map(({pid, name}) => (
+                rows = rows.concat(teammates.map(({pid, name}) => {
+                let removePlayer = isOwner ? ( 
+                            <DropdownItem onClick={onPlayerListAction("deleteTeam", pid)}>
+                                Remove Player
+                            </DropdownItem>
+                ) : null
+                    return (
                     <Row key={`subplayer-list-${pid}`} className="px-2 text-center pb-2">
                         <Col xs={{offset: 2, size: 10}} className="p-0">
                             <UncontrolledButtonDropdown className="w-100 px-1">
@@ -196,6 +211,7 @@ const PlayerList = ({activePlayer, teams, viewOnly, onPlayerListAction, dark, ga
                                 </Button>
                                 <DropdownToggle caret color="secondary" />
                                 <DropdownMenu style={dropdownStyle} right>
+                                    {removePlayer}
                                     <DropdownItem  href={`/bingo/game/${gameId}/seed/${pid}`} target="_blank">
                                         Redownload seed
                                     </DropdownItem>
@@ -203,7 +219,7 @@ const PlayerList = ({activePlayer, teams, viewOnly, onPlayerListAction, dark, ga
                             </UncontrolledButtonDropdown>
                         </Col>
                     </Row>
-                )))
+                )}))
             if(place > 0)
                 number += (team_list.length - place) * 12
             return [number, rows]
@@ -250,15 +266,14 @@ export default class Bingo extends React.Component {
         let dark = get_flag("dark") || url.searchParams.has("dark")
 
         this.state = {
-                      cards: [], currentRecord: 0, haveGame: false, creatingGame: false, createModalOpen: true, offset: 0, lockout: false,
+                      cards: [], currentRecord: 0, haveGame: false, creatingGame: false, createModalOpen: true, offset: 0, noTimer: false,
                       activePlayer: 1, showInfo: false, user: get_param("user"), loadingText: "Loading...", paramId: -1, squareCount: 13,
                       dark: dark, specLink: window.document.location.href.replace("board", "spectate").replace(gameId, 4 + gameId*7), 
                       fails: 0, gameId: gameId, startSkills: 3, startCells: 4, startMisc: "MU|TP/Swamp/TP/Valley", goalMode: "bingos",
                       start_with: "", difficulty: "normal", isRandoBingo: false, randoGameId: -1, viewOnly: viewOnly, buildingPlayer: false,
-                      events: [], startTime: (new Date()), countdownActive: false, isOwner: false, targetCount: 3, reqsqrs: [],
+                      events: [], startTime: (new Date()), countdownActive: false, isOwner: false, targetCount: 3,
                       teamsDisabled: (teamMax === -1), fromGen: fromGen, teamMax: teamMax, ticksSinceLastSquare: 0
                     };
-
         if(gameId > 0)
         {
             if(fromGen)
@@ -369,15 +384,14 @@ export default class Bingo extends React.Component {
             newState.cards = [...this.state.cards]
             if(newState.cards.length !== res.cards.length)
                 console.log("error! card array length mismatch")
-            for(let i = 0; i < newState.cards.length; i++) {
+            for(let i = 0; i < res.cards.length; i++) {
                 if(res.cards[i].name !== newState.cards[i].name)
                     console.log(`card update mismatch! square ${i}, ${res.cards[i].name} was not ${newState.cards[i].name}`)
-                newState.cards[i].progress = res.cards[i].progress
+                newState.cards[i].progress = {...res.cards[i].progress}
+                newState.cards[i].completed_by = res.cards[i].completed_by
             }
             if(res.offset)
                 newState.offset = res.offset
-            if(!res.is_owner)
-                newState.reqsqrs = res.required_squares || this.state.reqsqrs
             if(res.player_seed)
             {
                 if(!dev)
@@ -388,7 +402,7 @@ export default class Bingo extends React.Component {
         }
     }
     createGame = () => {
-        let {isRandoBingo, lockout, targetCount, goalMode, squareCount, reqsqrs, randoGameId, startSkills, startCells, startMisc, showInfo, difficulty, teamsDisabled} = this.state;
+        let {isRandoBingo, noTimer, targetCount, goalMode, squareCount, randoGameId, startSkills, startCells, startMisc, showInfo, difficulty, teamsDisabled} = this.state;
         let url
         if(isRandoBingo)
         {
@@ -402,12 +416,10 @@ export default class Bingo extends React.Component {
             url += `&lines=${targetCount}`
         else if(goalMode === "squares")
             url += `&squares=${squareCount}`
-        if(reqsqrs.length > 0)
-            url += `&squares=${reqsqrs.join(",")}`
         if(!teamsDisabled)
             url += "&teams=1"
-        if(lockout)
-            url += "&lockout=1"
+        if(noTimer)
+            url += "&no_timer=1"
 
         doNetRequest(url+`&time=${(new Date()).getTime()}`, this.createCallback)
         this.setState({creatingGame: true, loadingText: "Building game...", createModalOpen: false, loader: get_random_loader()})
@@ -434,7 +446,7 @@ export default class Bingo extends React.Component {
                 })
             this.setState({subtitle: res.subtitle, gameId: res.gameId, createModalOpen: false, creatingGame: false, haveGame: true, offset: res.offset || offset,
                           fails: 0, dispDiff: res.difficulty || dispDiff, teams: res.teams, paramId: res.paramId, activePlayer: activePlayer,
-                          currentRecord: 0, cards: res.cards, events: res.events, reqsqrs: res.required_squares, targetCount: res.bingo_count, fromGen: false, teamMax: res.teamMax || -1,
+                          currentRecord: 0, cards: res.cards, events: res.events, targetCount: res.bingo_count, fromGen: false, teamMax: res.teamMax || -1,
                           startTime: res.start_time_posix, isOwner: res.is_owner, countdownActive: res.countdown, teamsDisabled: !res.teams_allowed}, this.updateUrl)
         }
     }
@@ -463,12 +475,12 @@ export default class Bingo extends React.Component {
             case "deleteTeam":
                 // if(this.state.startTime)
                     confirmAlert({
-                        title: 'Remove player/team?',
+                        title: 'Are you sure?',
                         message: `Really remove ${this.state.teams[cpid].name}?`,
                         buttons: [
                             {
                             label: 'Yeah',
-                            onClick: () => { doNetRequest(`/bingo/game/${this.state.gameId}/remove/${cpid}`, this.tickCallback); }
+                            onClick: () => { doNetRequest(`/bingo/game/${this.state.gameId}/remove/${player}`, this.tickCallback); }
                             },
                             {
                             label: 'Just kidding',
@@ -492,7 +504,7 @@ export default class Bingo extends React.Component {
         let teams = Object.keys(this.state.teams).filter(cpid => this.state.teams[cpid].teammates.some(t => t['pid'] === pid))
         if(teams.length > 1)
             console.log(`Multiple teams found for player ${pid}! ${teams}`)
-        return teams[0]
+        return parseInt(teams[0], 10)
     }
     getSquareName = (sq, withCoords) => {
         withCoords = withCoords || true
@@ -575,7 +587,7 @@ export default class Bingo extends React.Component {
         let bingoContent = haveGame ? (
             <Row className="justify-content-center align-items-center">
                 <Col xs="auto">
-                    <BingoBoard dark={dark} cards={cards} activePlayer={activePlayer} bingos={teams[activePlayer] ? teams[activePlayer].bingos : []} hiddenPlayers={hiddenPlayers}/>
+                    <BingoBoard dark={dark} cards={cards} activePlayer={activePlayer} activeTeam={this.getCap(activePlayer)} bingos={teams[activePlayer] ? teams[activePlayer].bingos : []} hiddenPlayers={hiddenPlayers}/>
                 </Col>
                     <PlayerList {...this.state} onPlayerListAction={this.onPlayerListAction}/>
             </Row>
@@ -681,7 +693,7 @@ export default class Bingo extends React.Component {
                         intervalDelay={2}
                         now={() => (new Date()).getTime() + offset}
                         renderer={({seconds, milliseconds, completed}) =>
-                            completed ? (<Cent><h3>Go!</h3></Cent>) : (<Cent><h3>{seconds}:{milliseconds}</h3></Cent>)
+                            completed ? (<Cent><h3>Go!</h3></Cent>) : (<Cent><h3>{seconds}:{`${milliseconds}`.slice(0, -1)}</h3></Cent>)
                         }
                     />
             </Container>
@@ -689,7 +701,7 @@ export default class Bingo extends React.Component {
         </Modal>
     )}
     createModal = (style) => {
-        let {difficulty, isRandoBingo, fromGen, teamMax, randoGameId, targetCount, startSkills, startCells, startMisc, showInfo, teamsDisabled, lockout, squareCount, goalMode} = this.state
+        let {difficulty, isRandoBingo, fromGen, teamMax, randoGameId, targetCount, startSkills, startCells, startMisc, showInfo, teamsDisabled, noTimer, squareCount, goalMode, user} = this.state
         let randoInput = fromGen ? (
             <Row className="p-1">
                 <Col xs="4" className="text-center p-1 border">
@@ -705,6 +717,19 @@ export default class Bingo extends React.Component {
                 </Col>
             </Row>
         )
+        let timerrow = user ? (
+            <Row className="p-1">
+                <Col xs="4" className="p-1 border">
+                    <Cent>Countdown Timer</Cent>
+                </Col>
+                <Col xs="6">
+                    <ButtonGroup>
+                        <Button active={!noTimer} outline={noTimer} onClick={() => this.setState({noTimer: false})}>Enabled</Button>
+                        <Button active={noTimer} outline={!noTimer} onClick={() => this.setState({noTimer: true})}>Disabled</Button>
+                    </ButtonGroup>
+                </Col>
+            </Row>
+        ) : null
         let teamrow = teamMax > 0 ? (
             <Row className="p-1">
                 <Col xs="4" className="p-1 border">
@@ -747,17 +772,7 @@ export default class Bingo extends React.Component {
                         </Col>
                     </Row>
                     {teamrow}
-                    <Row className="p-1">
-                        <Col xs="4" className="p-1 border">
-                            <Cent>Lockout?</Cent>
-                        </Col>
-                        <Col xs="6">
-                            <ButtonGroup>
-                                <Button active={!lockout} outline={lockout} onClick={() => this.setState({lockout: false})}>Standard</Button>
-                                <Button active={lockout} outline={!lockout} onClick={() => this.setState({lockout: true})}>Lockout</Button>
-                            </ButtonGroup>
-                        </Col>
-                    </Row>
+                    {timerrow}
                     <Row className="p-1">
                         <Col xs="4" className="p-1 border">
                             <Cent>Goal Modes</Cent>

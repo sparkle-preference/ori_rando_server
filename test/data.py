@@ -877,7 +877,7 @@ bingo_data = {
 		"name": "Xemsys",
         "teamname": "StompBros"
 	},
-	"4": {
+	"5": {
 		"bingoData": {
 			"ActivateMaps": {
 				"value": 4
@@ -1020,16 +1020,16 @@ bingo_data = {
 				"value": false
 			},
 			"HuntEnemies": {
-				"total": 2,
+				"total": 4,
 				"value": {
 					"Upper Ginso Miniboss": {
-						"value": false
+						"value": true
 					},
 					"Lower Ginso Miniboss": {
 						"value": true
 					},
 					"Lost Grove Fight Room": {
-						"value": false
+						"value": true
 					},
 					"Swamp Rhino Miniboss": {
 						"value": false
@@ -1313,7 +1313,7 @@ bingo_data = {
         "teamname": "NeoPets"
 
 	},
-    "5": {
+    "4": {
 		"bingoData": {
 			"ActivateMaps": {
 				"value": 0

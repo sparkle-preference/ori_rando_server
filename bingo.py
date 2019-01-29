@@ -10,7 +10,7 @@ from webapp2_extras.routes import RedirectRoute as Route
 from google.appengine.ext.webapp import template
 
 from enums import MultiplayerGameType
-from models import Game, User, BingoCard, BingoGameData, BingoEvent
+from models import Game, User, BingoCard, BingoGameData, BingoEvent, BingoTeam
 from pickups import Pickup, Skill, AbilityCell, HealthCell, EnergyCell, Multiple
 from util import param_val, param_flag, resp_error, debug, path
 from seedbuilder.vanilla import seedtext as vanilla_seed
@@ -122,7 +122,7 @@ class GoalGroup(BingoGoal):
             plural = count == 2
 
         card.disp_name = self.name_func(infix, plural)
-        subgoals = [subgoal.to_card().to_json(True) for subgoal in sample(subgoals, count)]
+        subgoals = [subgoal.to_card().to_json([], True) for subgoal in sample(subgoals, count)]
         for subgoal in subgoals:
             card.subgoals.append(subgoal)
             if subgoal["help_lines"]:
@@ -290,59 +290,60 @@ class BingoGenerator(object):
                 tags = ["pickups_in_zone"]
             ),
             IntGoal(
-                    name = "PickupsInBlackroot",
-                    disp_name = "Collect Pickups In Blackroot",
-                    help_lines = ["You can use the stats feature (alt+5 by default) to see your pickup counts by zone.", "Mapstone turn-ins are not in any zone."],
-                    range_func = r((4, 10), (7, 15), (10, 19)),
+                name = "PickupsInBlackroot",
+                disp_name = "Collect Pickups In Blackroot",
+                help_lines = ["You can use the stats feature (alt+5 by default) to see your pickup counts by zone.", "Mapstone turn-ins are not in any zone."],
+                range_func = r((4, 10), (7, 15), (10, 19)),
+                tags = ["pickups_in_zone"]
             ),
             IntGoal(
-                    name = "PickupsInSwamp",
-                    disp_name = "Collect Pickups In Swamp",
-                    help_lines = ["You can use the stats feature (alt+5 by default) to see your pickup counts by zone.", "Mapstone turn-ins are not in any zone."],
-                    range_func = r((4, 10), (7, 16), (11, 20)),
-                    tags = ["pickups_in_zone"]
+                name = "PickupsInSwamp",
+                disp_name = "Collect Pickups In Swamp",
+                help_lines = ["You can use the stats feature (alt+5 by default) to see your pickup counts by zone.", "Mapstone turn-ins are not in any zone."],
+                range_func = r((4, 10), (7, 16), (11, 20)),
+                tags = ["pickups_in_zone"]
             ),
             IntGoal(
-                    name = "PickupsInGinso",
-                    disp_name = "Collect Pickups In Ginso",
-                    help_lines = ["You can use the stats feature (alt+5 by default) to see your pickup counts by zone.", "Mapstone turn-ins are not in any zone."],
-                    range_func = r((6, 12), (8, 18), (12, 22)),
-                    tags = ["pickups_in_zone"]
+                name = "PickupsInGinso",
+                disp_name = "Collect Pickups In Ginso",
+                help_lines = ["You can use the stats feature (alt+5 by default) to see your pickup counts by zone.", "Mapstone turn-ins are not in any zone."],
+                range_func = r((6, 12), (8, 18), (12, 22)),
+                tags = ["pickups_in_zone"]
             ),
             IntGoal(
-                    name = "PickupsInValley",
-                    disp_name = "Collect Pickups In Valley",
-                    help_lines = ["You can use the stats feature (alt+5 by default) to see your pickup counts by zone.", "Mapstone turn-ins are not in any zone."],
-                    range_func = r((4, 9), (7, 14), (11, 18)),
-                    tags = ["pickups_in_zone"]
+                name = "PickupsInValley",
+                disp_name = "Collect Pickups In Valley",
+                help_lines = ["You can use the stats feature (alt+5 by default) to see your pickup counts by zone.", "Mapstone turn-ins are not in any zone."],
+                range_func = r((4, 9), (7, 14), (11, 18)),
+                tags = ["pickups_in_zone"]
+            ),
+        IntGoal(
+                name = "PickupsInMisty",
+                disp_name = "Collect Pickups In Misty",
+                help_lines = ["You can use the stats feature (alt+5 by default) to see your pickup counts by zone.", "Mapstone turn-ins are not in any zone."],
+                range_func = r((4, 8), (6, 13), (10, 16)),
+                tags = ["pickups_in_zone"]
             ),
             IntGoal(
-                    name = "PickupsInMisty",
-                    disp_name = "Collect Pickups In Misty",
-                    help_lines = ["You can use the stats feature (alt+5 by default) to see your pickup counts by zone.", "Mapstone turn-ins are not in any zone."],
-                    range_func = r((4, 8), (6, 13), (10, 16)),
-                    tags = ["pickups_in_zone"]
+                name = "PickupsInForlorn",
+                disp_name = "Collect Pickups In Forlorn",
+                help_lines = ["You can use the stats feature (alt+5 by default) to see your pickup counts by zone.", "Mapstone turn-ins are not in any zone."],
+                range_func = r((3, 6), (5, 10), (10, 11)),
+                tags = ["pickups_in_zone"]
             ),
             IntGoal(
-                    name = "PickupsInForlorn",
-                    disp_name = "Collect Pickups In Forlorn",
-                    help_lines = ["You can use the stats feature (alt+5 by default) to see your pickup counts by zone.", "Mapstone turn-ins are not in any zone."],
-                    range_func = r((3, 6), (5, 10), (10, 11)),
-                    tags = ["pickups_in_zone"]
-            ),
-            IntGoal(
-                    name = "PickupsInSorrow",
-                    disp_name = "Collect Pickups In Sorrow",
-                    help_lines = ["You can use the stats feature (alt+5 by default) to see your pickup counts by zone.", "Mapstone turn-ins are not in any zone."],
+                name = "PickupsInSorrow",
+                disp_name = "Collect Pickups In Sorrow",
+                help_lines = ["You can use the stats feature (alt+5 by default) to see your pickup counts by zone.", "Mapstone turn-ins are not in any zone."],
                 range_func = r((7, 14), (8, 19), (16, 26)),
-                    tags = ["pickups_in_zone"]
+                tags = ["pickups_in_zone"]
             ),
             IntGoal(
-                    name = "PickupsInHoru",
-                    disp_name = "Collect Pickups In Horu",
-                    help_lines = ["You can use the stats feature (alt+5 by default) to see your pickup counts by zone.", "Mapstone turn-ins are not in any zone."],
-                    range_func = r((4, 10), (7, 15), (10, 19)),
-                    tags = ["pickups_in_zone"]
+                name = "PickupsInHoru",
+                disp_name = "Collect Pickups In Horu",
+                help_lines = ["You can use the stats feature (alt+5 by default) to see your pickup counts by zone.", "Mapstone turn-ins are not in any zone."],
+                range_func = r((4, 10), (7, 15), (10, 19)),
+                tags = ["pickups_in_zone"]
             ),
             GoalGroup(
                 name = "CompleteHoruRoom", 
@@ -479,9 +480,7 @@ class BingoGenerator(object):
                     BoolGoal(name = "Upper Ginso Miniboss", help_lines = ["The elemental below the Ginso tree core"]),
                     BoolGoal(name = "Swamp Rhino Miniboss", disp_name = "Stomp Area Rhino", help_lines = ["The Rhino miniboss past the Stomp tree in Swamp"]),
                     BoolGoal(name = "Mount Horu Miniboss", disp_name = "Horu Final Miniboss",  help_lines = ["The orange jumping spitter enemy that blocks access to the final escape in Horu"])
-                ] + ([
-                    BoolGoal(name = "Fronkey Fight", help_lines = ["The 3 fronkeys fought after collecting Sein (don't alt+R!)"])
-                ] if hard else []),
+                ],
                 methods = [
                         ("or",    r((1, 3), (1, 2), (1, 1))), 
                         ("and",   r((1, 2), (2, 3), (2, 4))), 
@@ -499,8 +498,8 @@ class BingoGenerator(object):
                     BoolGoal(name = "Mount Horu", help_lines = ["Completed once you finish the last room of the final escape. Alt+R once you regain control of Ori!"]),
                 ],
                 methods = [
-                        ("or",    r((1, 3), (1, 2), (1, 1))), 
-                        ("and",   r((1, 1), (1, 2), (2, 3))), 
+                    ("or",    r((1, 3), (1, 2), (1, 1))), 
+                    ("and",   r((1, 1), (1, 2), (2, 3))), 
                 ]
             ),
             GoalGroup(
@@ -682,9 +681,12 @@ class BingoGenerator(object):
                 card.goal_method = card.goal_method.strip('_')
                 banned_subgoals += [subgoal["name"] for subgoal in card.subgoals] 
             groupSeen[goal.name] = (repeats+1, banned_subgoals, banned_methods)
-            card.square = len(cards)
             cards.append(card)
         shuffle(cards)
+        i = 0
+        for card in cards:
+            card.square = i
+            i += 1
         return cards
 
 # handlers
@@ -750,27 +752,29 @@ class BingoCreate(RequestHandler):
             base.insert(1, mu_line)
         
         game = key.get()
-        game.bingo = BingoGameData(
+        bingo = BingoGameData(
+            id            = key.id(),
             board         = BingoGenerator.get_cards(25, False, difficulty),
             difficulty    = difficulty,
-            seed          = "\n".join(base),
             teams_allowed = param_flag(self, "teams"),
-            lockout       = param_flag(self, "lockout")
+            game          = key,
+            seed          = "\n".join(base)
         )
+
         if param_flag(self, "lines"):
-            game.bingo.bingo_count  = int(param_val(self, "lines"))
+            bingo.bingo_count  = int(param_val(self, "lines"))
         if param_flag(self, "squares"):
-            game.bingo.square_count = int(param_val(self, "squares"))
+            bingo.square_count = int(param_val(self, "squares"))
         user = User.get()
         if user:
-            game.bingo.creator = user.key
-        else:
-            game.bingo.start_time = now
+            bingo.creator = user.key
+        if param_flag(self, "no_timer") or not user:
+            bingo.start_time = now
 
         if show_info:
-            game.bingo.subtitle = " | ".join(sw_parts)
+            bingo.subtitle = " | ".join(sw_parts)
 
-        res = game.bingo_json(True)
+        res = bingo.get_json(True)
 
         if param_flag(self, "time"):
             server_now = timegm(now.timetuple()) * 1000
@@ -778,6 +782,8 @@ class BingoCreate(RequestHandler):
             res["offset"] = server_now - client_now
 
         self.response.write(json.dumps(res))
+        bkey = bingo.put()
+        game.bingo_data = bkey
         game.put()
  
 class AddBingoToGame(RequestHandler):
@@ -796,30 +802,31 @@ class AddBingoToGame(RequestHandler):
         if game.mode in [MultiplayerGameType.SPLITSHARDS]:
             return resp_error(self, 412, "splitshards bingo are not currently supported", 'plain/text')
         params = game.params.get()
-        game.bingo = BingoGameData(
+        bingo = BingoGameData(
+            id            = game_id,
             board         = BingoGenerator.get_cards(25, True, difficulty),
             difficulty    = difficulty,
             subtitle      = params.flag_line(),
             teams_allowed = param_flag(self, "teams"),
-            lockout       = param_flag(self, "lockout"),
-            teams_shared  = params.players > 1 and params.sync.mode == MultiplayerGameType.SHARED
+            teams_shared  = params.players > 1 and params.sync.mode == MultiplayerGameType.SHARED,
+            game          = game.key
         )
 
-        if game.bingo.teams_shared and not game.bingo.teams_allowed:
+        if bingo.teams_shared and not bingo.teams_allowed:
             log.warning("Teams are required for shared seeds! Overriding invalid config")
-            game.bingo.teams_allowed = True
+            bingo.teams_allowed = True
 
         if param_flag(self, "lines"):
-            game.bingo.bingo_count  = int(param_val(self, "lines"))
+            bingo.bingo_count  = int(param_val(self, "lines"))
         if param_flag(self, "squares"):
-            game.bingo.square_count = int(param_val(self, "squares"))
+            bingo.square_count = int(param_val(self, "squares"))
         user = User.get()
         if user:
-            game.bingo.creator = user.key
+            bingo.creator = user.key
         else:
-            game.bingo.start_time = now
+            bingo.start_time = now
 
-        res = game.bingo_json(True)
+        res = bingo.get_json(True)
         if param_flag(self, "time"):
             server_now = timegm(now.timetuple()) * 1000
             client_now = int(param_val(self, "time"))
@@ -828,62 +835,76 @@ class AddBingoToGame(RequestHandler):
         self.response.write(json.dumps(res))
         for p in game.get_players():
             game.remove_player(p.key.id())
+        bkey = bingo.put()
+        game.bingo_data = bkey
         game.put()
+
+class BingoRemovePlayer(RequestHandler):
+    def get(self, game_id, player_id):
+        player_id = int(player_id)
+        bingo = BingoGameData.with_id(game_id)
+        if not bingo:
+            return resp_error(self, 404, "Bingo game %s not found" % game_id, "text/plain")
+        user = User.get()
+        if not user or bingo.creator != user.key:
+            return resp_error(self, 401, "Only the creator can remove players", "text/plain")
+        bingo = bingo.remove_player(player_id).get()
+        res = bingo.get_json()
+        self.response.headers['Content-Type'] = 'application/json'
+        self.response.write(json.dumps(res))
+
 
 class BingoAddPlayer(RequestHandler):
     def get(self, game_id, player_id):
         player_id = int(player_id)
-        game = Game.with_id(game_id)
-        if not game:
-            return resp_error(self, 404, "Game %s not found" % game_id, "text/plain")
-        if not game.bingo:
-            return resp_error(self, 404, "Game %s found but had no bingo data..." % game_id, "text/plain")
-        if param_flag(self, "joinTeam") and not game.bingo.teams_allowed:
+        bingo = BingoGameData.with_id(game_id)
+        join_team = param_flag(self, "joinTeam")
+        if not bingo:
+            return resp_error(self, 404, "Bingo game %s not found" % game_id, "text/plain")
+        if join_team and not bingo.teams_allowed:
             return resp_error(self, 412, "Teams are forbidden in this game", "text/plain")
-        if player_id in game.player_nums():
+        if player_id in bingo.player_nums():
             return resp_error(self, 409, "Player id already in use!", "text/plain")
-        cap_id = int(param_val(self, "joinTeam") or player_id)
 
-        # game.add_bingo_player(player_id, cap_id)
-        team = game.bingo_team(cap_id)
-        if not team:
-            team = {'bingos': [], 'cap': cap_id, 'teammates': []}
-            game.bingo.teams += [team]
-        elif player_id != team["cap"] and player_id not in team["teammates"]:
-            team["teammates"].append(player_id)
+        player = bingo.init_player(player_id)
+
+
+
+        if join_team:
+            cap_id = int(param_val(self, "joinTeam"))
+            team = bingo.team(cap_id)
+            if not team:
+                return resp_error(self, 412, "Team %s not found" % cap_id, "text/plain")
+            if player_id in team.pids():
+                return resp_error(self, 412, "%s already in team %s" % (player_id, cap_id), "text/plain")
+            team.teammates.append(player.key)
         else:
-            log.error("In bingo game %s, team %s already had player %s!", game.key.id(), team, player_id)
-        seed = game.bingo_seed(player_id)
+            bingo.teams.append(BingoTeam(captain = player.key, teammates = []))
+        seed = bingo.get_seed(player_id)
         if not seed:
             return resp_error(self, 412, "Team has maximum number of players allowed!")
-        p = game.player(player_id)
         user = User.get()
-        pkey = p.key
+        pkey = player.key
         if user:
-            p.user = user.key
-            p.put()
-            user.games.append(game.key)
+            player.user = user.key
+            player.put()
+            user.games.append(bingo.game)
             user.put()
-
-        game = game.put().get()
-
-        res = game.bingo_json()
+        res = bingo.get_json()
         res['player_seed'] = seed
         self.response.headers['Content-Type'] = 'application/json'
         self.response.write(json.dumps(res))
+        bingo.put()
 
 class BingoDownloadSeed(RequestHandler):
     def get(self, game_id, player_id):
         player_id = int(player_id)
-        game = Game.with_id(game_id)
-        if not game:
-            return resp_error(self, 404, "Game %s not found" % game_id, "text/plain")
-        if not game.bingo:
-            return resp_error(self, 404, "Game %s found but had no bingo data..." % game_id, "text/plain")
-        seed = game.bingo_seed(player_id)
+        bingo = BingoGameData.with_id(game_id)
+        if not bingo:
+            return resp_error(self, 404, "Bingo game %s not found" % game_id, "text/plain")
+        seed = bingo.get_seed(player_id)
         if not seed:
             return resp_error(self, 412, "No seed found for player %s.%s" % (game_id, player_id), "text/plain")
-
 
         self.response.headers['Content-Type'] = 'text/plain'
         if not debug:
@@ -896,13 +917,11 @@ class BingoGetGame(RequestHandler):
         now = datetime.utcnow()
         first = param_flag(self, "first")
         res = {}
-        game = Game.with_id(game_id)
-        if not game:
-            return resp_error(self, 404, "Game not found", "text/plain")
-        if not game.bingo:
-            return resp_error(self, 404, "Game found but had no bingo data...", "text/plain")
-        res = game.bingo_json(first)
-        if first and param_flag(self, "time"):
+        bingo = BingoGameData.with_id(game_id)
+        if not bingo:
+            return resp_error(self, 404, "Bingo game %s not found" % game_id, "text/plain")
+        res = bingo.get_json(first)
+        if param_flag(self, "time"):
             server_now = timegm(now.timetuple()) * 1000
             client_now = int(param_val(self, "time"))
             res["offset"] = server_now - client_now
@@ -913,34 +932,31 @@ class BingoStartCountdown(RequestHandler):
     def get(self, game_id):
         res = {}
         now = datetime.utcnow()
-        game = Game.with_id(game_id)
-        if not game:
-            return resp_error(self, 404, "Game not found", "text/plain")
-        if not game.bingo:
-            return resp_error(self, 404, "Game found but had no bingo data...", "text/plain")
+        bingo = BingoGameData.with_id(game_id)
+        if not bingo:
+            return resp_error(self, 404, "Bingo game %s not found" % game_id, "text/plain")
         user = User.get()
-        if not user or game.bingo.creator != user.key:
+        if not user or bingo.creator != user.key:
             return resp_error(self, 401, "Only the creator can start the game", "text/plain")
-        if game.bingo.start_time:
+        if bingo.start_time:
             return resp_error(self, 412, "Game has already started!", "text/plain")
-        if game.bingo.teams_shared:
-            p = game.params.get()
-            for team in game.bingo.teams:
-                if p.players != len(team["teammates"]) + 1:
+        if bingo.teams_shared:
+            p = bingo.game.get().params.get()
+            for team in bingo.teams:
+                if p.players != len(team.teammates) + 1:
                     log.error("team %s did not have %s players!", team, p.players)
                     return resp_error(self, 412, "Not all teams have the correct number of players!", "text/plain")
-        game.bingo.start_time = datetime.utcnow() + timedelta(seconds=15)
-        startStr = "miscGame %s Starting!" % game_id
-        if game.bingo.lockout:
-            startStr += " lockout mode enabled"
-        if game.bingo.square_count > 0:
-            startStr += " squares to win: %s" % game.bingo.square_count
-        elif game.bingo.bingo_count > 0:
-            startStr += " bingos to win: %s" % game.bingo.bingo_count
+        bingo.start_time = datetime.utcnow() + timedelta(seconds=15)
+        startStr = "miscBingo Game %s started!" % game_id
+        if bingo.square_count > 0:
+            startStr += " squares to win: %s" % bingo.square_count
+        elif bingo.bingo_count > 0:
+            startStr += " bingos to win: %s" % bingo.bingo_count
         
-        game.bingo.event_log.append(BingoEvent(event_type=startStr, timestamp=game.bingo.start_time))
-        game = game.put().get()
-        res = game.bingo_json()
+        bingo.event_log.append(BingoEvent(event_type=startStr, timestamp=bingo.start_time))
+        res = bingo.get_json()
+        bingo.put()
+
         self.response.headers['Content-Type'] = 'application/json'
         server_now = timegm(now.timetuple()) * 1000
         client_now = int(param_val(self, "time"))
@@ -953,19 +969,19 @@ class HandleBingoUpdate(RequestHandler):
         if debug:
             self.post(game_id, player_id)
     def post(self, game_id, player_id):
-        game = Game.with_id(game_id)
-        if not game:
-            return resp_error(self, 404)
-        if int(player_id) not in game.player_nums():
-            return resp_error(self, 412, "player not in game! %s" % game.player_nums())
-        p = game.player(player_id)
+        bingo = BingoGameData.with_id(game_id)
+        if not bingo:
+            return resp_error(self, 404, "Bingo game %s not found" % game_id, "text/plain")
+        if int(player_id) not in bingo.player_nums():
+            return resp_error(self, 412, "player not in game! %s" % bingo.player_nums())
+        p = bingo.player(player_id)
         bingo_data = json.loads(self.request.POST["bingoData"]) if "bingoData" in self.request.POST  else None
-        need_update = (not version_check(self.request.POST["version"])) if "version" in self.request.POST else False
         if debug and player_id in test_data:
             bingo_data = test_data[player_id]['bingoData']
-        if not game.bingo:
-            return resp_error(self, 404)
-        game.bingo_update(bingo_data, player_id)
+        if "HuntEnemies" in bingo_data and bingo_data["HuntEnemies"]["value"]["Fronkey Fight"]["value"]:
+            bingo_data["HuntEnemies"]["total"] -= 1
+        need_update = (not version_check(self.request.POST["version"])) if "version" in self.request.POST else False
+        bingo.update(bingo_data, player_id)
         if need_update and p.can_nag:
             p.signal_send("msg:@Bingo dll out of date@")
             p.can_nag = False
@@ -978,6 +994,7 @@ routes = [
     Route('/bingo/game/<game_id>/fetch', handler = BingoGetGame, name = "bingo-get-game", strict_slash = True),
     Route('/bingo/game/<game_id>/start', handler = BingoStartCountdown, name = "bingo-start-game", strict_slash = True),
     Route('/bingo/game/<game_id>/add/<player_id>', handler = BingoAddPlayer, name = "bingo-add-player", strict_slash = True),
+    Route('/bingo/game/<game_id>/remove/<player_id>', handler = BingoRemovePlayer, name = "bingo-remove-player", strict_slash = True),
     Route('/bingo/game/<game_id>/seed/<player_id>', handler = BingoDownloadSeed, name = "bingo-download-seed", strict_slash = True),
     Route('/bingo/new', handler = BingoCreate, name = "bingo-create-game", strict_slash = True),
     Route('/bingo/from_game/<game_id>', handler = AddBingoToGame, name = "add-bingo-to-game", strict_slash = True),
