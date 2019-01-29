@@ -785,7 +785,8 @@ class Game(ndb.Model):
                 playerGroups.append([team.captain] + team.teammates)
         else:
              playerGroups = [allPlayers]
-        for players in playerGroups:
+        for playerKeys in playerGroups:
+            players = [pkey.get() for pkey in playerKeys]
             inv = defaultdict(lambda: 0)
             for hl in [hl for player in players for hl in player.history]:
                 pick = hl.pickup()

@@ -17,7 +17,7 @@ from google.appengine.ext.webapp import template
 from seedbuilder.seedparams import SeedGenParams
 from seedbuilder.vanilla import seedtext as vanilla_seed
 from enums import MultiplayerGameType, ShareType, Variation
-from models import Game, Seed, User
+from models import Game, Seed, User, BingoGameData
 from cache import Cache
 from util import coord_correction_map, all_locs, picks_by_type_generator, param_val, param_flag, resp_error, debug, path
 from reachable import Map, PlayerState
@@ -339,7 +339,10 @@ class GetSeed(RequestHandler):
         res = {"seed": {}, 'name': player.name()}
         params = game.params.get()
         if Variation.BINGO in params.variations:
-            team = game.bingo_team(player_id, cap_only=False, as_list=True)
+            bingo = BingoGameData.with_id(game_id)
+            if not bingo:
+                return resp_error(self, 404, json.dumps({"error": "no bingo data found for game %s" % game_id}))
+            team = bingo.team(player_id, cap_only=False).pids()
             if not team:
                 return resp_error(self, 404, json.dumps({"error": "No team found for player %s!" % player_id}))
             player_id = team.index(player_id) + 1
