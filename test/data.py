@@ -7,7 +7,7 @@ bingo_data = {
 		"name": "Eiko",
         "teamname": "team big mood"
 	},
-	"3": {
+	"2": {
 		"bingoData": {
 			"ActivateMaps": {
 				"value": 0
@@ -279,7 +279,7 @@ bingo_data = {
 						"value": false
 					},
 					"Misty Woods": {
-						"value": false
+						"value": true
 					},
 					"Ginso Tree": {
 						"value": false
@@ -387,8 +387,11 @@ bingo_data = {
 				"value": false
 			},
 			"DieTo": {
-				"total": 0,
+				"total": 1,
 				"value": {
+					"Right Forlorn Laser": {
+						"value": true
+					},
 					"Ginso Escape Fronkey": {
 						"value": false
 					},
@@ -405,7 +408,7 @@ bingo_data = {
 						"value": false
 					},
 					"Lost Grove Laser": {
-						"value": false
+						"value": true
 					},
 					"NoobSpikes": {
 						"value": false
@@ -442,7 +445,7 @@ bingo_data = {
 		"name": "CovertMuffin",
         "teamname": "Sneaky Pastries"
 	},
-	"2": {
+	"4": {
 		"bingoData": {
 			"ActivateMaps": {
 				"value": 6
@@ -714,13 +717,13 @@ bingo_data = {
 						"value": true
 					},
 					"Misty Woods": {
-						"value": true
+						"value": false
 					},
 					"Ginso Tree": {
 						"value": true
 					},
 					"Sorrow Pass": {
-						"value": false
+						"value": true
 					},
 					"Forlorn Ruins": {
 						"value": true
@@ -830,6 +833,9 @@ bingo_data = {
 					"Sunstone Lightning": {
 						"value": true
 					},
+					"Right Forlorn Laser": {
+						"value": true
+					},
 					"Horu Fields Acid": {
 						"value": false
 					},
@@ -840,7 +846,7 @@ bingo_data = {
 						"value": false
 					},
 					"Lost Grove Laser": {
-						"value": true
+						"value": false
 					},
 					"NoobSpikes": {
 						"value": false
@@ -1259,6 +1265,9 @@ bingo_data = {
 			"DieTo": {
 				"total": 4,
 				"value": {
+					"Right Forlorn Laser": {
+						"value": true
+					},
 					"Ginso Escape Fronkey": {
 						"value": true
 					},
@@ -1313,7 +1322,7 @@ bingo_data = {
         "teamname": "NeoPets"
 
 	},
-    "4": {
+    "3": {
 		"bingoData": {
 			"ActivateMaps": {
 				"value": 0
@@ -1697,6 +1706,9 @@ bingo_data = {
 				"value": {
 					"Ginso Escape Fronkey": {
 						"value": false
+					},
+					"Right Forlorn Laser": {
+						"value": true
 					},
 					"Sunstone Lightning": {
 						"value": false

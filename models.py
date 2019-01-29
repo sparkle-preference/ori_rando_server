@@ -280,13 +280,18 @@ class BingoTeam(ndb.Model):
         return [_pid(key) for key in [self.captain] + self.teammates]
 
     def to_json(self, players):
-        res = {"cap": _pid(self.captain), "score": self.score, "teammates": [], "bingos": self.bingos}
+        cap = players.get(self.captain)
+        if not cap:
+            log.error("Player %s captain of team %s but not in provided players list %s", cap, _pid(self.captain), players)
+            cap = self.captain.get()
+        
+        res = {"cap": {'pid': cap.pid(), 'name': cap.name()}, "score": self.score, "teammates": [], "bingos": self.bingos}
         if self.place:
             res["place"] = self.place
-        res["name"] = self.name(cap = players.get(self.captain))
+        res["name"] = self.name(cap = cap)
         for tm in self.teammates:
             if tm not in players:
-                log.error("Player %s part of team %s but not in provided players list %s", tm, res["cap"], players)
+                log.error("Player %s part of team %s but not in provided players list %s", tm, res["name"], players)
                 continue
             res["teammates"].append({'pid': _pid(tm), 'name': players[tm].name()})
         return res
@@ -334,6 +339,7 @@ class BingoCard(ndb.Model):
 
         p_progress = self.progress(player)
         prior_value = _pid(capkey) in self.completed_by
+        prior_count = p_progress.count
 
         if self.goal_type == "bool":
             p_progress.completed = card_data["value"]
@@ -361,6 +367,7 @@ class BingoCard(ndb.Model):
             elif self.goal_type == "int":
                 completed = max([prog.count for prog in all_progress]) >= self.target
             elif self.goal_type == "multi":
+                all_progress.append(p_progress)
                 count = max([prog.count for prog in all_progress])
                 team_subgoals = set([subgoal for prog in all_progress for subgoal in prog.completed_subgoals])
                 if self.goal_method == "count":

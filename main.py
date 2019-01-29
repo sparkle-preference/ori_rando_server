@@ -79,7 +79,7 @@ class ActiveGames(RequestHandler):
                 flags = params.flag_line()
 
             blink = ""
-            if game.bingo:
+            if game.bingo_data:
                 blink += " <a href='/bingo/board?game_id=%s'>Bingo board</a>" % gid
             
             body += "<li><a href='%s'>Game #%s</a> <a href='%s'>Map</a>%s %s (Last update: %s ago)</li>" % (game_link, gid, map_link, blink, flags, datetime.now() - game.last_update)
@@ -90,12 +90,13 @@ class ActiveGames(RequestHandler):
             out += "<h4>%s</h4></body></html>" % title
         self.response.write(out)
 
+
 class MyGames(RequestHandler):
     def get(self):
         self.response.headers['Content-Type'] = 'text/html'
         user = User.get()
         if not user:
-            return resp_error(self, 401, "You must be logged in to view this page!")
+            return self.redirect(User.login_url('/myGames'))
         
         title = "Games played by %s" % user.name
         body = ""
@@ -110,7 +111,7 @@ class MyGames(RequestHandler):
                 flags = params.flag_line()
 
             blink = ""
-            if len(game.bingo) > 0:
+            if game.bingo_data:
                 blink += " <a href='/bingo/board?game_id=%s'>Bingo board</a>" % gid
             
             body += "<li><a href='%s'>Game #%s</a> <a href='%s'>Map</a>%s %s (Last update: %s ago)</li>" % (game_link, gid, map_link, blink, flags, datetime.now() - game.last_update)

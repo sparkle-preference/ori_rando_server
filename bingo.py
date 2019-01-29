@@ -9,7 +9,7 @@ from webapp2 import RequestHandler, redirect, uri_for
 from webapp2_extras.routes import RedirectRoute as Route
 from google.appengine.ext.webapp import template
 
-from enums import MultiplayerGameType
+from enums import MultiplayerGameType, Variation
 from models import Game, User, BingoCard, BingoGameData, BingoEvent, BingoTeam
 from pickups import Pickup, Skill, AbilityCell, HealthCell, EnergyCell, Multiple
 from util import param_val, param_flag, resp_error, debug, path
@@ -18,7 +18,7 @@ from seedbuilder.vanilla import seedtext as vanilla_seed
 if debug:
     from test.data import bingo_data as test_data
 
-BINGO_LATEST = [0,1,13]
+BINGO_LATEST = [0,1,14]
 def version_check(version):
     try:
         nums = [int(num) for num in version.split(".")]
@@ -139,7 +139,7 @@ def namef(verb, noun, plural_form = None):
 
 class BingoGenerator(object):
     @staticmethod
-    def get_cards(count = 25, rando = False, difficulty = "normal"):
+    def get_cards(count = 25, rando = False, difficulty = "normal", open_world = True):
         easy = difficulty == "easy"
         hard = difficulty == "hard"
 
@@ -184,15 +184,14 @@ class BingoGenerator(object):
                 disp_name = "Open keystone doors",
                 help_lines = [
                     "Keystone doors by zone:", 
-                    "Glades: 3 (First Door, Spirit Caverns Access, Spirit Tree Access)", 
+                    "Glades: 2 (Spirit Caverns Access, Spirit Tree Access)" if open_world else "Glades: 3 (First Door, Spirit Caverns Access, Spirit Tree Access)", 
                     "Grotto: 1 (Double Jump Access)", 
                     "Ginso: 2 (Bash Access, Ginso TP Access)",
                     "Swamp: 1 (Stomp Access)",
                     "Misty: 1 (Atsu's Torch Access)",
                     "Forlorn: 1 (Right Forlorn Access)"
                     "Sorrow: 3 (Questionable KS Door, Tumbleweed Door, Charge Jump Access)",
-                    
-                ] + (["NOTE: In Open Mode, First Door is already open and will not count."] if rando else []),
+                ],
                 range_func = r((2, 4), (4, 8), (7, 11))
             ),
             IntGoal(
@@ -493,9 +492,9 @@ class BingoGenerator(object):
                 name = "CompleteEscape",
                 name_func = namef("Escape", "dungeon"),
                 goals = [
-                    BoolGoal(name = "Forlorn Ruins", help_lines = ["Completed once you reach the plant at the end of the escape"]),
+                    BoolGoal(name = "Forlorn Ruins", help_lines = ["Completed once you reach the plant at the end of the Forlorn escape"]),
                     BoolGoal(name = "Ginso Tree", help_lines = ["Completed once you recieve the pickup at vanilla clean water" if rando else "Completed once you recieve clean water"]),
-                    BoolGoal(name = "Mount Horu", help_lines = ["Completed once you finish the last room of the final escape. Alt+R once you regain control of Ori!"]),
+                    BoolGoal(name = "Mount Horu", help_lines = ["Completed once you finish the last room of the Horu escape. If this is not your last goal, Alt+R once you regain control of Ori!"]),
                 ],
                 methods = [
                     ("or",    r((1, 3), (1, 2), (1, 1))), 
@@ -505,7 +504,7 @@ class BingoGenerator(object):
             GoalGroup(
                 name = "DieTo",
                 name_func = namef("Die to", "thing"),
-                help_lines = ["Saving to avoid losing your pickups is recommended"],
+                help_lines = ["Rekindle when you respawn to avoid accidentally losing progress"],
                 goals = [
                     BoolGoal(name = "Sunstone Lightning", help_lines = ["The Lightning that strikes if you go too far left or right at the very top of Sorrow Pass"]),
                     BoolGoal(name = "Lost Grove Laser", help_lines = ["The laser in the very bottom right room in Lost Grove"]),
@@ -515,7 +514,8 @@ class BingoGenerator(object):
                     BoolGoal(name = "Doorwarp Lava", help_lines = ["The lava at the very bottom of Horu"]),
                     BoolGoal(name = "Ginso Escape Fronkey", disp_name = "Ginso Escape Fronkey", help_lines = ["Any fronkey in the Ginso Escape (you can complete the escape and come back via the teleporter)"]),
                     BoolGoal(name = "Blackroot Teleporter Crushers", disp_name = "BRB TP Crushers", help_lines = ["The crushers below the Blackroot Teleporter"]),
-                    BoolGoal(name = "NoobSpikes", disp_name = "Sorrow Spike Maze", help_lines = ["The long spike maze room in upper sorrow with 2 keystones on each side."]),
+                    BoolGoal(name = "NoobSpikes", disp_name = "Sorrow Spike Maze", help_lines = ["The long spike maze room in upper sorrow with 2 keystones on each side"]),
+                    BoolGoal(name= "Right Forlorn Laser", help_lines = ["The lasers above the HC and rightmost plant in Forlorn"])
                 ],
                 methods = [
                         ("or",    r((1, 2), (1, 2), (1, 1))), 
@@ -754,7 +754,7 @@ class BingoCreate(RequestHandler):
         game = key.get()
         bingo = BingoGameData(
             id            = key.id(),
-            board         = BingoGenerator.get_cards(25, False, difficulty),
+            board         = BingoGenerator.get_cards(25, False, difficulty, True),
             difficulty    = difficulty,
             teams_allowed = param_flag(self, "teams"),
             game          = key,
@@ -804,7 +804,7 @@ class AddBingoToGame(RequestHandler):
         params = game.params.get()
         bingo = BingoGameData(
             id            = game_id,
-            board         = BingoGenerator.get_cards(25, True, difficulty),
+            board         = BingoGenerator.get_cards(25, True, difficulty, Variation.OPEN_WORLD in params.variations),
             difficulty    = difficulty,
             subtitle      = params.flag_line(),
             teams_allowed = param_flag(self, "teams"),
@@ -888,8 +888,9 @@ class BingoAddPlayer(RequestHandler):
         if user:
             player.user = user.key
             player.put()
-            user.games.append(bingo.game)
-            user.put()
+            if bingo.game not in user.games:
+                user.games.append(bingo.game)
+                user.put()
         res = bingo.get_json()
         res['player_seed'] = seed
         self.response.headers['Content-Type'] = 'application/json'
@@ -978,14 +979,52 @@ class HandleBingoUpdate(RequestHandler):
         bingo_data = json.loads(self.request.POST["bingoData"]) if "bingoData" in self.request.POST  else None
         if debug and player_id in test_data:
             bingo_data = test_data[player_id]['bingoData']
-        if "HuntEnemies" in bingo_data and bingo_data["HuntEnemies"]["value"]["Fronkey Fight"]["value"]:
-            bingo_data["HuntEnemies"]["total"] -= 1
         need_update = (not version_check(self.request.POST["version"])) if "version" in self.request.POST else False
         bingo.update(bingo_data, player_id)
         if need_update and p.can_nag:
             p.signal_send("msg:@Bingo dll out of date@")
             p.can_nag = False
             p.put()
+
+class BingoUserboard(RequestHandler):
+    def get(self, name):
+        user = User.get_by_name(name)
+        if not user:
+            return resp_error(self, 404, "User '%s' not found" % name, "text/plain")
+        template_values = {'app': "Bingo", 'title': "%s's Bingo Board" % user.name}
+        template_values['user'] = user.name
+        template_values['dark'] = user.dark_theme
+        self.response.write(template.render(path, template_values))
+
+class UserboardTick(RequestHandler):
+    def get(self, name, gid):
+        cur_gid = int(gid)
+        now = datetime.utcnow()
+        user = User.get_by_name(name)
+        if not user:
+            return resp_error(self, 404, "User '%s' not found" % name, "text/plain")
+        game_keys = user.games[::-1]
+        game_id = None
+        for key in game_keys:
+            game = key.get()
+            if game.bingo_data:
+                game_id = game.key.id()
+                break
+        if not game_id:
+            return resp_error(self, 404, "Could not find any bingo games for user '%s'" % name, "text/plain")
+        first = cur_gid != game_id
+        res = {}
+        bingo = BingoGameData.with_id(game_id)
+        if not bingo:
+            return resp_error(self, 404, "Bingo game %s not found" % game_id, "text/plain")
+        res = bingo.get_json(first)
+        if param_flag(self, "time"):
+            server_now = timegm(now.timetuple()) * 1000
+            client_now = int(param_val(self, "time"))
+            res["offset"] = server_now - client_now
+        self.response.headers['Content-Type'] = 'application/json'
+        self.response.write(json.dumps(res))
+
 
 
 routes = [
@@ -997,6 +1036,8 @@ routes = [
     Route('/bingo/game/<game_id>/remove/<player_id>', handler = BingoRemovePlayer, name = "bingo-remove-player", strict_slash = True),
     Route('/bingo/game/<game_id>/seed/<player_id>', handler = BingoDownloadSeed, name = "bingo-download-seed", strict_slash = True),
     Route('/bingo/new', handler = BingoCreate, name = "bingo-create-game", strict_slash = True),
+    Route('/bingo/userboard/<name>', handler = BingoUserboard, name = "bingo-userboard", strict_slash = True),
+    Route('/bingo/userboard/<name>/fetch/<gid>', handler = UserboardTick, name = "bingo-userboard-tick", strict_slash = True),
     Route('/bingo/from_game/<game_id>', handler = AddBingoToGame, name = "add-bingo-to-game", strict_slash = True),
     Route('/netcode/game/<game_id:\d+>/player/<player_id:\d+>/bingo', handler = HandleBingoUpdate,  name = "netcode-player-bingo-tick"),
 ]
