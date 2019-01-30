@@ -298,7 +298,7 @@ export default class Bingo extends React.Component {
     }
     componentWillMount() {
         this.tick()
-        this.interval = setInterval(() => this.tick(), 5000);
+        this.interval = setInterval(() => this.tick(),  this.state.userBoard ? 15000 : 5000);
   };
     updateUrl = () => {
         let {gameId, fromGen, viewOnly, userBoard} = this.state;
@@ -632,15 +632,15 @@ export default class Bingo extends React.Component {
             if(headerText === "Bingo!")
                 headerText = "Waiting for game data"
             return (
-                <Container className="px-0 pb-0 pt-0 mt-0 w-100">
+                <Container className="p-0 m-0 w-100">
                     <Helmet>
                         <style type="text/css">{pageStyle}</style>
                     </Helmet>
                     <NotificationContainer/>
                     {this.loadingModal(inputStyle, loadingText)}
                     {this.countdownModal(inputStyle)}
-                    <Row>
-                        <Col>
+                    <Row className="p-0 m-0">
+                        <Col className="w-100 p-0 m-0" xs="12">
                             <BingoBoard dark={dark} cards={cards} activePlayer={activePlayer} activeTeam={this.getCap(activePlayer)} bingos={(teams && teams[activePlayer]) ? teams[activePlayer].bingos : []} hiddenPlayers={hiddenPlayers}/>
                         </Col>
                     </Row>
