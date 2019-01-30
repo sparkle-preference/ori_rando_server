@@ -781,8 +781,9 @@ class GetSeedFromParams(RequestHandler):
                     player = game.player(pid)
                     player.user = user.key
                     player.put()
-                    user.games.append(game.key)
-                    user.put()
+                    if game.key not in user.games:
+                        user.games.append(game.key)
+                        user.put()
             else:
                 seed = params.get_seed(pid, verbose_paths=verbose_paths)
             if not debug:
@@ -861,6 +862,16 @@ class SetSettings(RequestHandler):
         else:
             self.response.write("You are not logged in!")
 
+class LastestMap(RequestHandler):
+    def get(self, name):
+        now = datetime.utcnow()
+        user = User.get_by_name(name)
+        if not user:
+            return resp_error(self, 404, "User '%s' not found" % name, "text/plain")
+        if not user.games:
+            return resp_error(self, 404, "Could not find any tracked games for user '%s'" % name, "text/plain")
+        game_key = user.games[-1]
+        return redirect(uri_for('map-render', game_id=game_key.id()))
 
 app = WSGIApplication(
     routes= bingo_routes +
@@ -882,6 +893,8 @@ app = WSGIApplication(
         Route('/json', handler=SeedGenJson, name="gen-params-get-json")
     ]),
     # tracking map endpoints
+    Route('/tracker/spectate/<name>', handler = LastestMap, name = "user-latest-map", strict_slash = True),
+
     PathPrefixRoute('/tracker/game/<game_id:\d+>', [
         Route('/', redirect_to_name="map-render"),
         Route('/map', handler=ShowMap, name='map-render', strict_slash=True),

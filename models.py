@@ -896,7 +896,8 @@ class Game(ndb.Model):
                 return 410
             elif any([h for h in finder.history if h.coords == coords and h.pickup_code == pickup.code and h.pickup_id == pickup.id]):
                 return 200
-        elif share and dedup and coords in [h.coords for teammate in players for h in teammate.history if teammate.key in finder.teammates]:
+        elif share and dedup and len(finder.teammates) < len(players)-1:  # aka you're not teammates with the entire game
+            if coords in [h.coords for teammate in players for h in teammate.history if teammate.key in finder.teammates]:
                 log.info("Won't grant %s to player %s, as a teammate found it already" % (pickup.name, pid))
                 return 410
         if pickup.code == "MU":

@@ -165,14 +165,15 @@ export default class MainPage extends React.Component {
         )
     }
     getMultiplayerTab = ({inputStyle, menuStyle}) => {
+        let {shared, players, tracking, coopGameMode, keyMode, coopGenMode, teamStr, user, dedupShared, syncId} = this.state
         let multiplayerButtons = ["Skills", "Teleporters", "Upgrades", "World Events", "Misc"].map(stype => (
             <Col xs="4" key={`share-${stype}`} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("Shared Item Categories", stype)} className="p-2">
-                <Button block outline={!this.state.shared.includes(stype)} onClick={this.onSType(stype)}>Share {stype}</Button>
+                <Button block outline={!shared.includes(stype)} onClick={this.onSType(stype)}>Share {stype}</Button>
             </Col>
         ))
         
-        let playerNumValid = this.state.tracking && this.state.players > 0;
-        let playerNumFeedback = this.state.tracking ? (this.state.players > 0 ? null : (
+        let playerNumValid = tracking && players > 0;
+        let playerNumFeedback = tracking ? (players > 0 ? null : (
             <FormFeedback tooltip>Need at least one player...</FormFeedback>
         )) : (
             <FormFeedback tooltip>Multiplayer modes require web tracking to be enabled</FormFeedback>
@@ -183,7 +184,7 @@ export default class MainPage extends React.Component {
                     <Col xs="4" className="text-center pt-1 border">
                         <span className="align-middle">Players</span>
                     </Col><Col xs="4">
-                        <Input style={inputStyle} type="number" value={this.state.players} disabled={!this.state.tracking} invalid={!playerNumValid} onChange={(e) => this.setState({players: parseInt(e.target.value, 10)})}/> 
+                        <Input style={inputStyle} type="number" value={players} disabled={!tracking} invalid={!playerNumValid} onChange={(e) => this.setState({players: parseInt(e.target.value, 10)})}/> 
                         {playerNumFeedback }
                     </Col>
                 </Row>
@@ -192,51 +193,51 @@ export default class MainPage extends React.Component {
                         <span className="align-middle">Multiplayer Game Type</span>
                     </Col><Col xs="4">
                         <UncontrolledButtonDropdown className="w-100" >
-                            <DropdownToggle disabled={this.state.players < 2} color={this.state.players > 1 ? "primary" : "secondary"} caret block> {this.state.coopGameMode} </DropdownToggle>
+                            <DropdownToggle disabled={players < 2} color={players > 1 ? "primary" : "secondary"} caret block> {coopGameMode} </DropdownToggle>
                             <DropdownMenu style={menuStyle}>
-                                <DropdownItem active={"Race"===this.state.coopGameMode} onClick={()=> this.setState({coopGameMode: "Race"})}>Race</DropdownItem>
-                                <DropdownItem active={"Co-op"===this.state.coopGameMode} onClick={()=> this.setState({coopGameMode: "Co-op"})}>Co-op</DropdownItem>
-                                <DropdownItem active={"SplitShards"===this.state.coopGameMode} disabled={this.state.keyMode !== "Shards"} onClick={()=> this.setState({coopGameMode: "SplitShards"})}>Split Shards</DropdownItem>
+                                <DropdownItem active={"Race"===coopGameMode} onClick={()=> this.setState({coopGameMode: "Race"})}>Race</DropdownItem>
+                                <DropdownItem active={"Co-op"===coopGameMode} onClick={()=> this.setState({coopGameMode: "Co-op"})}>Co-op</DropdownItem>
+                                <DropdownItem active={"SplitShards"===coopGameMode} disabled={keyMode !== "Shards"} onClick={()=> this.setState({coopGameMode: "SplitShards"})}>Split Shards</DropdownItem>
                             </DropdownMenu>
                         </UncontrolledButtonDropdown>
                     </Col>
                 </Row>
-                <Collapse isOpen={this.state.players > 1 && this.state.coopGameMode === "Co-op"}>
+                <Collapse isOpen={players > 1 && coopGameMode === "Co-op"}>
                     <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "syncSeedType")} className="p-1 justify-content-center">
                         <Col xs="4" className="text-center pt-1 border">
                             <span className="align-middle">Seed Generation Mode</span>
-                        </Col><Col onMouseLeave={this.helpEnter("multiplayerOptions", "syncSeedType")} onMouseEnter={this.helpEnter("multiplayerOptions", this.state.coopGenMode)} xs="4">
+                        </Col><Col onMouseLeave={this.helpEnter("multiplayerOptions", "syncSeedType")} onMouseEnter={this.helpEnter("multiplayerOptions", coopGenMode)} xs="4">
                             <UncontrolledButtonDropdown className="w-100">
-                                <DropdownToggle disabled={this.state.players < 2} color={this.state.players > 1 ? "primary" : "secondary"} caret block> {this.state.coopGenMode} </DropdownToggle>
+                                <DropdownToggle disabled={players < 2} color={players > 1 ? "primary" : "secondary"} caret block> {coopGenMode} </DropdownToggle>
                                 <DropdownMenu style={menuStyle}>
-                                    <DropdownItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "Cloned Seeds")}  active={"Cloned Seeds"===this.state.coopGenMode} onClick={()=> this.setState({coopGenMode: "Cloned Seeds"})}>Cloned Seeds</DropdownItem>
-                                    <DropdownItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "Seperate Seeds")}  active={"Seperate Seeds"===this.state.coopGenMode} onClick={()=> this.setState({coopGenMode: "Seperate Seeds"})}>Seperate Seeds</DropdownItem>
+                                    <DropdownItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "Cloned Seeds")}  active={"Cloned Seeds"===coopGenMode} onClick={()=> this.setState({coopGenMode: "Cloned Seeds"})}>Cloned Seeds</DropdownItem>
+                                    <DropdownItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "Seperate Seeds")}  active={"Seperate Seeds"===coopGenMode} onClick={()=> this.setState({coopGenMode: "Seperate Seeds"})}>Seperate Seeds</DropdownItem>
                                 </DropdownMenu>
                             </UncontrolledButtonDropdown>
                         </Col>
                     </Row>
                     <Row className="p-2">
                         {multiplayerButtons}
-                        <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("Shared Item Categories", "Hints")} className="p-2">
-                            <Button block outline={!this.state.hints} disabled={this.state.coopGenMode!=="Cloned Seeds"} onClick={() => this.setState({hints: !this.state.hints})}>Show Hints</Button>
+                        <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("Shared Item Categories", "Dedup")} className="p-2">
+                            <Button block outline={!dedupShared} active={dedupShared} disabled={coopGenMode!=="Cloned Seeds"} onClick={() => this.setState({dedupShared: !dedupShared})}>Dedup Shared</Button>
                         </Col>
                     </Row>
                 </Collapse>
-                <Collapse isOpen={this.state.user !== ""}>
+                <Collapse isOpen={user !== ""}>
                     <Row className="p-1 justify-content-center">
                         <Col xs="4" className="text-center pt-1 border">
                             <span className="align-middle">SyncId</span>
                         </Col><Col xs="4">
-                            <Input style={inputStyle} type="number" value={this.state.syncId} invalid={!(this.state.syncId === "" || this.state.syncId > 0)} onChange={(e) => this.setState({syncId: parseInt(e.target.value, 10)})}/>
+                            <Input style={inputStyle} type="number" value={syncId} invalid={!(syncId === "" || syncId > 0)} onChange={(e) => this.setState({syncId: parseInt(e.target.value, 10)})}/>
                             <FormFeedback tooltip>syncId must be positive</FormFeedback>
                         </Col>
                     </Row>
-                    <Collapse isOpen={this.state.coopGenMode==="Cloned Seeds" && this.state.players > 1 && this.state.coopGameMode === "Co-op"}>
+                    <Collapse isOpen={coopGenMode==="Cloned Seeds" && players > 1 && coopGameMode === "Co-op" && dedupShared}>
                         <Row className="p-1 justify-content-center">
                             <Col xs="4" className="text-center pt-1 border">
                                 <span className="align-middle">Teams</span>
                             </Col><Col xs="4">
-                                <Input style={inputStyle} type="text" value={this.state.teamStr} invalid={!this.teamStrValid()} onChange={(e) => this.setState({teamStr: e.target.value})}/>
+                                <Input style={inputStyle} type="text" value={teamStr} invalid={!this.teamStrValid()} onChange={(e) => this.setState({teamStr: e.target.value})}/>
                                 <FormFeedback tooltip>Team format: 1,2|3,4|5,6. Each player must appear once.</FormFeedback>
                             </Col>
                         </Row>
@@ -309,9 +310,11 @@ export default class MainPage extends React.Component {
                     this.state.shared.forEach(s => urlParams.push("sync_shared="+f(s)))
                 if(this.state.coopGenMode === "Cloned Seeds" && this.state.hints)
                     urlParams.push("sync_hints=on")
-                if(this.state.teamStr !== "") {
+                if(!this.state.dedupShared) 
+                    urlParams.push("teams="+[...Array(this.state.players).keys()].map(x=>x+1).join(","))
+                else if(this.state.teamStr !== "")
                     urlParams.push("teams="+this.state.teamStr)
-                }
+                
             }
         } else {
             urlParams.push("tracking=Disabled")
@@ -638,7 +641,7 @@ export default class MainPage extends React.Component {
         let activeTab = seedTabExists ? 'seed' : 'variations';
         this.state = {user: user, activeTab: activeTab, coopGenMode: "Cloned Seeds", coopGameMode: "Co-op", players: 1, tracking: true, dllTime: dllTime, variations: ["ForceTrees"], gameId: gameId,
                      paths: presets["standard"], keyMode: "Clues", oldKeyMode: "Clues", pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null), goalModes: ["ForceTrees"],
-                     customSyncId: "", seed: "", fillAlg: "Balanced", shared: ["Skills", "Teleporters", "World Events"], hints: true, helpcat: "", helpopt: "", quickstartOpen: quickstartOpen,
+                     customSyncId: "", seed: "", fillAlg: "Balanced", shared: ["Skills", "Teleporters", "World Events"], hints: true, helpcat: "", helpopt: "", quickstartOpen: quickstartOpen, dedupShared: false,
                      syncId: "", expPool: 10000, lastHelp: new Date(), seedIsGenerating: false, cellFreq: cellFreqPresets("standard"), fragCount: 30, fragReq: 20, relicCount: 8, loader: get_random_loader(),
                      paramId: paramId, seedTabExists: seedTabExists, reopenUrl: "", teamStr: "", inputFlagLine: "", fass: {},  goalModesOpen: false, spoilers: true, dark: dark, seedIsBingo: false};
         if(url.searchParams.has("fromBingo")) {
@@ -742,12 +745,16 @@ export default class MainPage extends React.Component {
         let keyModeOptions = keymode_options.map(mode => (
             <DropdownItem active={mode===keyMode} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("keyModes", mode)} onClick={this.onKeyMode(mode)}>{mode}</DropdownItem>
         ))
-        let goalModeOptions = goalModes.length === 1 ? ["None", "ForceTrees", "WorldTour", "ForceMaps", "WarmthFrags", "Bingo"].map(mode => (
+        let validGoalModes = ["None", "ForceTrees", "WorldTour", "ForceMaps", "WarmthFrags"]
+        if(tracking) 
+            validGoalModes.push("Bingo")
+
+        let goalModeOptions = goalModes.length === 1 ? validGoalModes.map(mode => (
             <DropdownItem active={mode===goalModes[0]} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("goalModes", mode)} onClick={this.onGoalMode(mode)}>{variations[mode] || mode}</DropdownItem>
         )) : null
 
         helpParams.padding = goalModesOpen ? "pt-5" : ""
-
+        let lockTracking = goalModes.includes("Bingo") || this.state.players > 1
         let multiplayerTab = this.getMultiplayerTab(styles)
         let advancedTab = this.getAdvancedTab(styles)
         let seedTab = this.getSeedTab()
@@ -875,9 +882,9 @@ export default class MainPage extends React.Component {
                                     </Col><Col xs="7">
                                         <Input style={styles.inputStyle} type="text" value={seed} onChange={(e) => this.setState({seed: e.target.value})}/>
                                     </Col>
-                                </Row><Row className="m-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "webTracking")}>
+                                </Row><Row className="m-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "webTracking" + (lockTracking ? "-locked" : ""))}>
                                     <Col>
-                                        <Button color="info" block outline={!tracking} onClick={()=>this.setState({tracking: !tracking})}>Web Tracking {tracking ? "Enabled" : "Disabled"}</Button>
+                                        <Button color="info" block outline={!tracking} disabled={lockTracking} onClick={()=>this.setState({tracking: !tracking})}>Web Tracking {tracking ? "Enabled" : "Disabled"}</Button>
                                     </Col>
                                 </Row>
                             </Col>

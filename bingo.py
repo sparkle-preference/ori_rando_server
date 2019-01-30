@@ -1025,7 +1025,22 @@ class UserboardTick(RequestHandler):
         self.response.headers['Content-Type'] = 'application/json'
         self.response.write(json.dumps(res))
 
-
+class BingoUserSpectate(RequestHandler):
+    def get(self, name):
+        now = datetime.utcnow()
+        user = User.get_by_name(name)
+        if not user:
+            return resp_error(self, 404, "User '%s' not found" % name, "text/plain")
+        game_keys = user.games[::-1]
+        game_id = None
+        for key in game_keys:
+            game = key.get()
+            if game.bingo_data:
+                game_id = game.key.id()
+                break
+        if not game_id:
+            return resp_error(self, 404, "Could not find any bingo games for user '%s'" % name, "text/plain")
+        return redirect(uri_for('bingo-board-spectate', game_id=4 + game_id*7))
 
 routes = [
     Route('/bingo/board', handler = BingoBoard, name = "bingo-board", strict_slash = True),
@@ -1036,6 +1051,7 @@ routes = [
     Route('/bingo/game/<game_id>/remove/<player_id>', handler = BingoRemovePlayer, name = "bingo-remove-player", strict_slash = True),
     Route('/bingo/game/<game_id>/seed/<player_id>', handler = BingoDownloadSeed, name = "bingo-download-seed", strict_slash = True),
     Route('/bingo/new', handler = BingoCreate, name = "bingo-create-game", strict_slash = True),
+    Route('/bingo/spectate/<name>', handler = BingoUserSpectate, name = "bingo-user-board", strict_slash = True),
     Route('/bingo/userboard/<name>', handler = BingoUserboard, name = "bingo-userboard", strict_slash = True),
     Route('/bingo/userboard/<name>/fetch/<gid>', handler = UserboardTick, name = "bingo-userboard-tick", strict_slash = True),
     Route('/bingo/from_game/<game_id>', handler = AddBingoToGame, name = "add-bingo-to-game", strict_slash = True),

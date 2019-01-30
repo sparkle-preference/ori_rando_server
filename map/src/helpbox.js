@@ -473,10 +473,8 @@ const getHelpHelper = (category, option) => {
                     title = "Cloned Seeds"
                     subtitle = "Co-op Seed Generation Modes"
                     lines = [
-                        "Cloned Seeds are made by generating a single player seed and then splitting up each shared item between players, while leaving the rest of the items the same for all players.",
-                        "For each item to be shared in the original seed, one player is chosen at random. That player will find that item at its intended location; all other players will find Warmth Returned there instead, letting them and their allies know that a shared item is at that location for some other player. ",
-                        "If hints are enabled below, other players will instead get a message indicating the type of the shared item found at that location, as well as the player who the pickup is for. Check the hints help section for more info and some recommendations.",
-                        "Because Cloned Seeds are mostly identical, they are ideal for co-op games where all players can talk to each other, so that they can coordinate checking different areas and share the locations of shared items for other players. Shards and Clues are both great Dungeon Key Modes for Cloned Seeds.",
+                        "Cloned Seeds are just single-player seeds that have shared items enabled. All items are in the same place, and stacking shared items (such as health regeneration or shards) can be duplicated if multiplayers players collect them.",
+                        "Because Cloned Seeds are mostly identical, they are ideal for co-op games where all players can talk to each other, so that they can coordinate checking different areas. Bingo and Clues are great Goal and Dungeon Key Modes for Cloned Seeds.",
                     ]
                     break;
                 case "Seperate Seeds":
@@ -531,15 +529,23 @@ const getHelpHelper = (category, option) => {
                 case "Upgrades":
                     title = "Share Upgrades"
                     lines = [
-                        "With Share World Events enabled, all permenant upgrades (or bonuses) will be shared between players when found.",
+                        "With Share Upgrades enabled, all permenant upgrades (or bonuses) will be shared between players when found.",
                         "All upgrades besides Mega Health and Mega Energy are considered permenant upgrades, including everything unlocked by the 'More Bonus Pickups' variation.",
-                        "There are more upgrades than there are items in any other shared item category. It is disabled by default because it can make Cloned Seeds tedious to check, even when Hints are enabled."
+                        "Because there are more upgrades than there are items in any other shared item category, this option is not recommended in combination with the Dedup option."
+                    ]
+                    break;
+                case "Dedup":
+                    title = "Dedup Shared"
+                    lines= [
+                        "This option removes extra copies of shared items from the seeds, resulting in a very different kind of cloned seed.",
+                        "For each shared item in the original seed, one player is chosen at random. That player will find that item at its intended location; all other players will find a hint there instead.",
+                        "The hint will specify the shared item category and which player the item is for (eg 'Skill for Player 2', 'World Event for Player 1').",
                     ]
                     break;
                 case "Hints":
                     title = "Hints"
                     lines = [
-                        "A variation for Cloned Seeds, this option adds hints that display when player picks up an item that contains a shared item for one of the other players.",
+                        "A variation for Cloned Seeds, this on-by-default option adds hints when player gets a pickup that contains a shared item for one of the other players in the game.",
                         "Instead of seeing Warmth Returned, players will instead see the share type of the item in question. In games with more than 2 players, the hint will also specify which player has the pickup in their seed.",
                         "Without hints, Cloned Seeds work best with fewer players (more than 3 can lead to a lot of duplicate checking) and fewer overall shared items (shared upgrades not recommended).",
                         "With hints, however, the number of players and shared pickups can both be higher without issue; knowing the pickup type helps distinguish between which shared pickups are important.",
@@ -714,7 +720,16 @@ const getHelpHelper = (category, option) => {
                     lines = [
                         "With Web Tracking enabled, the randomizer will send updates to the server as you play the game. Seeds downloaded with Web Tracking enabled have a special Sync flag, which is used by the server to identify and track that game.",
                         "Web tracking does not collect or store any personal info. The only information the game sends to the server is Ori's current position, and the location and ID of collected pickups.",
-                        "Web tracking is required for the Map tracker to function properly and for all multiplayer modes."
+                        "Web tracking is required for the Bingo Goal Mode, for the Map tracker to function properly, and for all multiplayer modes."
+                    ]
+                break;
+                case "webTracking-locked":
+                    title = "Web Tracking"
+                    lines = [
+                        "With Web Tracking enabled, the randomizer will send updates to the server as you play the game. Seeds downloaded with Web Tracking enabled have a special Sync flag, which is used by the server to identify and track that game.",
+                        "Web tracking does not collect or store any personal info. The only information the game sends to the server is Ori's current position, and the location and ID of collected pickups.",
+                        "Web tracking is required for the Bingo Goal Mode, for the Map tracker to function properly, and for all multiplayer modes.",
+                        (<i>(Because you have selected one or more options that requires Web Tracking, it cannot currently be disabled)</i>)
                     ]
                 break;
                 case "generate":

@@ -139,7 +139,7 @@ class BingoBoard extends Component {
     }
 }
 
-const PlayerList = ({activePlayer, teams, viewOnly, isOwner, onPlayerListAction, dark, gameId, teamMax, teamsDisabled}) => {
+const PlayerList = ({activePlayer, teams, viewOnly, isOwner, onPlayerListAction, userBoard, userBoardParams, dark, gameId, teamMax, teamsDisabled}) => {
     if(!teams)
         return null
     let dropdownStyle = {}
@@ -224,15 +224,6 @@ const PlayerList = ({activePlayer, teams, viewOnly, isOwner, onPlayerListAction,
                 number += (team_list.length - place) * 12
             return [number, rows]
         })
-                            // <UncontrolledButtonDropdown className="w-100 px-1">
-                            //     <DropdownToggle size="sm" caret color="secondary" />
-                            //     <DropdownMenu style={dropdownStyle} right>
-                            //         <DropdownItem onClick={onPlayerListAction("hidePlayer", pid)}>
-                            //             Hide Player
-                            //         </DropdownItem>
-                            //     </DropdownMenu>
-                            // </UncontrolledButtonDropdown>
-
 
     let hiddenButton = team_list.some(t => t.hidden) ? (
         <Row className="pb-2">
@@ -244,8 +235,13 @@ const PlayerList = ({activePlayer, teams, viewOnly, isOwner, onPlayerListAction,
 
     players = players.filter(p => p != null).sort((a, b) => b[0] - a[0]).map(p => p[1])
 
+    let colStyle= {minWidth: '200px', maxWidth: '420px'}
+    if(userBoard) {
+        colStyle = {width: `${userBoardParams.listWidth}px`, height: `${userBoardParams.listHeight}px`}
+    }
+
     return (
-        <Col xs="auto" style={{minWidth: '200px', maxWidth: '420px'}} className="border border-info">
+        <Col xs="auto" style={colStyle} className="border border-info">
             <Row  className="px-1 pb-2"><Cent><h4>Players</h4></Cent></Row>
             {players}
             {hiddenButton}
@@ -259,6 +255,15 @@ export default class Bingo extends React.Component {
         let url = new URL(window.document.URL);
         let viewOnly = url.href.includes("bingo/spectate")
         let userBoard = url.href.includes("bingo/userboard")
+        let userBoardParams = userBoard ? {
+            showBoard: url.searchParams.has("noBoard") || true, 
+            showLog: url.searchParams.has("eventLog") || false,
+            showList: url.searchParams.has("playerList") || false,
+            logWidth: parseInt(url.searchParams.get("logWidth") || 500, 10),
+            logHeight: parseInt(url.searchParams.get("logHeight") || 200, 10),
+            listWidth: parseInt(url.searchParams.get("listWidth") || 300, 10),
+            listHeight: parseInt(url.searchParams.get("listHeight") || 400, 10),
+        } : {}
         let gameId = parseInt(url.searchParams.get("game_id") || -1, 10);
         if(viewOnly && gameId)
             gameId = (gameId - 4)/7
@@ -273,7 +278,7 @@ export default class Bingo extends React.Component {
                       fails: 0, gameId: gameId, startSkills: 3, startCells: 4, startMisc: "MU|TP/Swamp/TP/Valley", goalMode: "bingos",
                       start_with: "", difficulty: "normal", isRandoBingo: false, randoGameId: -1, viewOnly: viewOnly, buildingPlayer: false,
                       events: [], startTime: (new Date()), countdownActive: false, isOwner: false, targetCount: 3, userBoard: userBoard,
-                      teamsDisabled: (teamMax === -1), fromGen: fromGen, teamMax: teamMax, ticksSinceLastSquare: 0
+                      teamsDisabled: (teamMax === -1), fromGen: fromGen, teamMax: teamMax, ticksSinceLastSquare: 0, userBoardParams: userBoardParams
                     };
         if(gameId > 0)
         {
@@ -553,7 +558,7 @@ export default class Bingo extends React.Component {
         return this.state.cards[sq].disp_name
     }
     render = () => {
-        let {specLink, viewOnly, isOwner, dark, activePlayer, startTime, paramId, teamsDisabled,
+        let {specLink, viewOnly, isOwner, dark, activePlayer, startTime, paramId, teamsDisabled, userBoardParams,
             subtitle, cards, haveGame, gameId, user, dispDiff, teams, loadingText, userBoard} = this.state
         let pageStyle, inputStyle
         if(dark) {
@@ -612,17 +617,22 @@ export default class Bingo extends React.Component {
         ) : null
 
         let hiddenPlayers = []
+        let bingos = []
         if(teams)
+        {
             Object.keys(teams).forEach(t => {
                 if(teams[t].hidden)
                     hiddenPlayers.push(t)
                 hiddenPlayers = hiddenPlayers.concat(teams[t].teammates.map(t => t.pid))
             })
+            if(teams[activePlayer])
+                bingos = teams[activePlayer].bingos
+        }
 
         let bingoContent = haveGame ? (
             <Row className="justify-content-center align-items-center">
                 <Col xs="auto">
-                    <BingoBoard dark={dark} cards={cards} activePlayer={activePlayer} activeTeam={this.getCap(activePlayer)} bingos={teams[activePlayer] ? teams[activePlayer].bingos : []} hiddenPlayers={hiddenPlayers}/>
+                    <BingoBoard dark={dark} cards={cards} activePlayer={activePlayer} activeTeam={this.getCap(activePlayer)} bingos={bingos} hiddenPlayers={hiddenPlayers}/>
                 </Col>
                     <PlayerList {...this.state} onPlayerListAction={this.onPlayerListAction}/>
             </Row>
@@ -631,6 +641,38 @@ export default class Bingo extends React.Component {
         if(userBoard) {
             if(headerText === "Bingo!")
                 headerText = "Waiting for game data"
+            let {showBoard, showLog, showList, logWidth, logHeight} = userBoardParams
+            let rows = []
+            let spacer = (<Row className="px-0 pb-0 pt-1 m-0"/>)
+            if(showBoard)
+                rows.push((
+                    <Row className="p-0 m-0">
+                        <Col className="w-100 p-0 m-0" xs="12">
+                            <BingoBoard dark={dark} cards={cards} activePlayer={activePlayer} activeTeam={this.getCap(activePlayer)} bingos={bingos} hiddenPlayers={hiddenPlayers}/>
+                        </Col>
+                    </Row>
+                ))
+            if(showList) {
+                if(rows.length > 0)
+                    rows.push(spacer)
+                rows.push((
+                    <Row className="p-0 pl-1 m-0">
+                        <PlayerList {...this.state} onPlayerListAction={this.onPlayerListAction}/>
+                    </Row>
+                ))
+            }
+            if(showLog) {
+                if(rows.length > 0)
+                    rows.push(spacer)
+                rows.push((
+                    <Row className="p-0 pl-1 m-0">
+                        <Col style={{width: `${logWidth}px`, height: `${logHeight}px`}} className="w-100 p-0 m-0" xs="12">
+                            <textarea style={inputStyle} className="w-100" rows={15} disabled value={this.state.events.map(ev => fmt(ev)).reverse().filter(l => l !== "").join("\n")}/>
+                        </Col>
+                    </Row>
+                ))
+            }
+
             return (
                 <Container className="p-0 m-0 w-100">
                     <Helmet>
@@ -639,11 +681,7 @@ export default class Bingo extends React.Component {
                     <NotificationContainer/>
                     {this.loadingModal(inputStyle, loadingText)}
                     {this.countdownModal(inputStyle)}
-                    <Row className="p-0 m-0">
-                        <Col className="w-100 p-0 m-0" xs="12">
-                            <BingoBoard dark={dark} cards={cards} activePlayer={activePlayer} activeTeam={this.getCap(activePlayer)} bingos={(teams && teams[activePlayer]) ? teams[activePlayer].bingos : []} hiddenPlayers={hiddenPlayers}/>
-                        </Col>
-                    </Row>
+                    {rows}
                 </Container>
             )
         }
