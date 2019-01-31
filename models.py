@@ -336,7 +336,6 @@ class BingoCard(ndb.Model):
         return player.bingo_prog[self.square]
     
     def update(self, card_data, player, teammates, capkey):
-
         p_progress = self.progress(player)
         prior_value = _pid(capkey) in self.completed_by
         prior_count = p_progress.count
@@ -348,7 +347,8 @@ class BingoCard(ndb.Model):
             p_progress.completed = p_progress.count >= self.target
         elif self.goal_type == "multi":
             p_progress.count = min(int(card_data["total"]), self.target)
-            p_progress.completed_subgoals = [subgoal["name"] for subgoal in self.subgoals if card_data["value"][subgoal["name"]]["value"]]
+            card_sgs = card_data["value"]
+            p_progress.completed_subgoals = [subgoal["name"] for subgoal in self.subgoals if subgoal["name"] in card_sgs and card_sgs[subgoal["name"]]["value"]]
             if self.goal_method == "count":
                 p_progress.completed = p_progress.count >= self.target
             elif self.goal_method == "and":

@@ -146,9 +146,10 @@ function getPickupMarkers(state, setSelected) {
 class LogicHelper extends React.Component {
   constructor(props) {
         super(props)
+        let url = new URL(window.document.URL);
     
         this.state = {mousePos: {lat: 0, lng: 0}, seed_in: "", reachable: {...DEFAULT_REACHABLE}, new_areas: {...DEFAULT_REACHABLE}, selected: "", selected_area: "", history: {}, open_world: false,
-                      step: 0, placements: {}, viewport: {center: [0, 0], zoom: 5}, hasSeed: false, highlight_picks: [], logicMode: 'manual', searchStr: "", noMarkers: false, closed_dungeons: false}
+                      step: 0, placements: {}, viewport: {center: [0, 0], zoom: 5}, hasSeed: false, highlight_picks: [], logicMode: 'manual', searchStr: url.searchParams.get("search") || "", noMarkers: false, closed_dungeons: false}
     }
 
      getInventory = () => {
@@ -449,7 +450,7 @@ class LogicHelper extends React.Component {
         let args = Object.keys(reach).filter(key => Array.isArray(reach[key]) ? reach[key].length > 0 : reach[key] > 0 ).map(key => key + "=" + (Array.isArray(reach[key]) ? reach[key].map(i => i.value).join("+") : reach[key]))
         args.unshift("pathmode="+this.state.pathMode.value)
         if(this.state.searchStr) args.push("search="+this.state.searchStr)
-        window.history.replaceState('',window.document.title, window.document.URL.split("?")[0]+"?"+args.join("&"));        
+        window.history.replaceState('',window.document.title, window.document.URL.split("?")[0]+"?"+args.join("&"));
     }
     
     updateManual = (param, val) => this.setState(prevState => {
