@@ -256,7 +256,6 @@ export default class Bingo extends React.Component {
         let viewOnly = url.href.includes("bingo/spectate")
         let userBoard = url.href.includes("bingo/userboard")
         let userBoardParams = userBoard ? {
-            showBoard: url.searchParams.has("noBoard") || true, 
             showLog: url.searchParams.has("eventLog") || false,
             showList: url.searchParams.has("playerList") || false,
             logWidth: parseInt(url.searchParams.get("logWidth") || 500, 10),
@@ -641,33 +640,20 @@ export default class Bingo extends React.Component {
         if(userBoard) {
             if(headerText === "Bingo!")
                 headerText = "Waiting for game data"
-            let {showBoard, showLog, showList, logWidth, logHeight} = userBoardParams
+            let {showLog, showList, logWidth, logHeight} = userBoardParams
             let rows = []
-            let spacer = (<Row className="px-0 pb-0 pt-1 m-0"/>)
-            if(showBoard)
-                rows.push((
-                    <Row className="p-0 m-0">
-                        <Col className="w-100 p-0 m-0" xs="12">
-                            <BingoBoard dark={dark} cards={cards} activePlayer={activePlayer} activeTeam={this.getCap(activePlayer)} bingos={bingos} hiddenPlayers={hiddenPlayers}/>
-                        </Col>
-                    </Row>
-                ))
             if(showList) {
-                if(rows.length > 0)
-                    rows.push(spacer)
                 rows.push((
-                    <Row className="p-0 pl-1 m-0">
+                    <Row className="p-1 m-0">
                         <PlayerList {...this.state} onPlayerListAction={this.onPlayerListAction}/>
                     </Row>
                 ))
             }
             if(showLog) {
-                if(rows.length > 0)
-                    rows.push(spacer)
                 rows.push((
-                    <Row className="p-0 pl-1 m-0">
-                        <Col style={{width: `${logWidth}px`, height: `${logHeight}px`}} className="w-100 p-0 m-0" xs="12">
-                            <textarea style={inputStyle} className="w-100" rows={15} disabled value={this.state.events.map(ev => fmt(ev)).reverse().filter(l => l !== "").join("\n")}/>
+                    <Row className="p-1 m-0">
+                        <Col style={{maxWidth: `${logWidth}px`, maxHeight: `${logHeight}px`}} className="w-100 p-0 m-0" xs="12">
+                        <textarea style={{width: `${logWidth}px`, height: `${logHeight}px`, ...inputStyle}} disabled value={this.state.events.map(ev => fmt(ev)).reverse().filter(l => l !== "").join("\n")}/>
                         </Col>
                     </Row>
                 ))
@@ -681,7 +667,15 @@ export default class Bingo extends React.Component {
                     <NotificationContainer/>
                     {this.loadingModal(inputStyle, loadingText)}
                     {this.countdownModal(inputStyle)}
-                    {rows}
+                    <Row className="flex-nowrap p-0 m-0">
+                        <Col className="p-0 m-0">
+                            <BingoBoard dark={dark} cards={cards} activePlayer={activePlayer} activeTeam={this.getCap(activePlayer)} bingos={bingos} hiddenPlayers={hiddenPlayers}/>
+                        </Col>
+                        <Col>
+                            {rows}
+                        </Col>
+                    </Row>
+
                 </Container>
             )
         }
