@@ -665,8 +665,6 @@ export default class Bingo extends React.Component {
                         <style type="text/css">{pageStyle}</style>
                     </Helmet>
                     <NotificationContainer/>
-                    {this.loadingModal(inputStyle, loadingText)}
-                    {this.countdownModal(inputStyle)}
                     <Row className="flex-nowrap p-0 m-0">
                         <Col className="p-0 m-0">
                             <BingoBoard dark={dark} cards={cards} activePlayer={activePlayer} activeTeam={this.getCap(activePlayer)} bingos={bingos} hiddenPlayers={hiddenPlayers}/>
