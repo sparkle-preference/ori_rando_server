@@ -165,7 +165,7 @@ export default class MainPage extends React.Component {
         )
     }
     getMultiplayerTab = ({inputStyle, menuStyle}) => {
-        let {shared, players, tracking, coopGameMode, keyMode, coopGenMode, teamStr, user, dedupShared, syncId} = this.state
+        let {shared, players, tracking, coopGameMode, keyMode, coopGenMode, teamStr, user, dedupShared} = this.state
         let multiplayerButtons = ["Skills", "Teleporters", "Upgrades", "World Events", "Misc"].map(stype => (
             <Col xs="4" key={`share-${stype}`} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("Shared Item Categories", stype)} className="p-2">
                 <Button block outline={!shared.includes(stype)} onClick={this.onSType(stype)}>Share {stype}</Button>
@@ -223,25 +223,15 @@ export default class MainPage extends React.Component {
                         </Col>
                     </Row>
                 </Collapse>
-                <Collapse isOpen={user !== ""}>
+                <Collapse isOpen={user !== "" && coopGenMode==="Cloned Seeds" && players > 1 && coopGameMode === "Co-op" && dedupShared}>
                     <Row className="p-1 justify-content-center">
                         <Col xs="4" className="text-center pt-1 border">
-                            <span className="align-middle">SyncId</span>
+                            <span className="align-middle">Teams</span>
                         </Col><Col xs="4">
-                            <Input style={inputStyle} type="number" value={syncId} invalid={!(syncId === "" || syncId > 0)} onChange={(e) => this.setState({syncId: parseInt(e.target.value, 10)})}/>
-                            <FormFeedback tooltip>syncId must be positive</FormFeedback>
+                            <Input style={inputStyle} type="text" value={teamStr} invalid={!this.teamStrValid()} onChange={(e) => this.setState({teamStr: e.target.value})}/>
+                            <FormFeedback tooltip>Team format: 1,2|3,4|5,6. Each player must appear once.</FormFeedback>
                         </Col>
                     </Row>
-                    <Collapse isOpen={coopGenMode==="Cloned Seeds" && players > 1 && coopGameMode === "Co-op" && dedupShared}>
-                        <Row className="p-1 justify-content-center">
-                            <Col xs="4" className="text-center pt-1 border">
-                                <span className="align-middle">Teams</span>
-                            </Col><Col xs="4">
-                                <Input style={inputStyle} type="text" value={teamStr} invalid={!this.teamStrValid()} onChange={(e) => this.setState({teamStr: e.target.value})}/>
-                                <FormFeedback tooltip>Team format: 1,2|3,4|5,6. Each player must appear once.</FormFeedback>
-                            </Col>
-                        </Row>
-                    </Collapse>
                 </Collapse>
             </TabPane>
         )
@@ -343,12 +333,11 @@ export default class MainPage extends React.Component {
             NotificationManager.error("Failed to recieve seed metadata", "Seed could not be retrieved!", 5000)
             this.setState({seedTabExists: false, activeTab: 'variations'}, this.updateUrl)
         } else {
-            let res = JSON.parse(responseText)
-            let metaUpdate = {inputPlayerCount: res["playerCount"], inputFlagLine: res["flagLine"], spoilers: res.spoilers}
-            if(res.hasOwnProperty("gameId"))
-                metaUpdate.gameId = res["gameId"]
-            if(res.hasOwnProperty("seedIsBingo"))
-                metaUpdate.seedIsBingo = true
+            let metaUpdate = JSON.parse(responseText)
+            metaUpdate.inputPlayerCount = metaUpdate.players
+            metaUpdate.seedIsBingo = metaUpdate.variations.some(v => v === "Bingo")
+            metaUpdate.goalModes = metaUpdate.variations.filter(v => ["ForceTrees", "WorldTour", "ForceMaps", "WarmthFrags", "Bingo"].includes(v)) || ["None"]
+
             this.setState(metaUpdate, this.updateUrl)
         }
     }
@@ -641,7 +630,7 @@ export default class MainPage extends React.Component {
         let activeTab = seedTabExists ? 'seed' : 'variations';
         this.state = {user: user, activeTab: activeTab, coopGenMode: "Cloned Seeds", coopGameMode: "Co-op", players: 1, tracking: true, dllTime: dllTime, variations: ["ForceTrees"], gameId: gameId,
                      paths: presets["standard"], keyMode: "Clues", oldKeyMode: "Clues", pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null), goalModes: ["ForceTrees"],
-                     customSyncId: "", seed: "", fillAlg: "Balanced", shared: ["Skills", "Teleporters", "World Events", "Upgrades"], hints: true, helpcat: "", helpopt: "", quickstartOpen: quickstartOpen, dedupShared: false,
+                     seed: "", fillAlg: "Balanced", shared: ["Skills", "Teleporters", "World Events", "Upgrades"], hints: true, helpcat: "", helpopt: "", quickstartOpen: quickstartOpen, dedupShared: false,
                      syncId: "", expPool: 10000, lastHelp: new Date(), seedIsGenerating: false, cellFreq: cellFreqPresets("standard"), fragCount: 30, fragReq: 20, relicCount: 8, loader: get_random_loader(),
                      paramId: paramId, seedTabExists: seedTabExists, reopenUrl: "", teamStr: "", inputFlagLine: "", fass: {},  goalModesOpen: false, spoilers: true, dark: dark, seedIsBingo: false};
         if(url.searchParams.has("fromBingo")) {

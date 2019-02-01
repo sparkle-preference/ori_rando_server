@@ -756,13 +756,9 @@ class GetParamMetadata(RequestHandler):
     def get(self, params_id):
         self.response.headers['Content-Type'] = 'application/json'
         params = SeedGenParams.with_id(params_id)
-        if params:
-            resp = {"playerCount": params.players, "flagLine": params.flag_line(), "spoilers": len(params.spoilers[0]) > 100}
-            if Variation.BINGO in params.variations:
-                resp["seedIsBingo"] = True
-            self.response.write(json.dumps(resp))
-        else:
-            self.response.status = 404
+        if not params:
+            return resp_error(self, 404, json.dumps({"error": "No params found"}))
+        self.response.write(json.dumps(params.to_json()))
 
 
 class GetSeedFromParams(RequestHandler):
