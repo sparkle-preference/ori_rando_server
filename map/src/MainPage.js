@@ -641,7 +641,7 @@ export default class MainPage extends React.Component {
         let activeTab = seedTabExists ? 'seed' : 'variations';
         this.state = {user: user, activeTab: activeTab, coopGenMode: "Cloned Seeds", coopGameMode: "Co-op", players: 1, tracking: true, dllTime: dllTime, variations: ["ForceTrees"], gameId: gameId,
                      paths: presets["standard"], keyMode: "Clues", oldKeyMode: "Clues", pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null), goalModes: ["ForceTrees"],
-                     customSyncId: "", seed: "", fillAlg: "Balanced", shared: ["Skills", "Teleporters", "World Events"], hints: true, helpcat: "", helpopt: "", quickstartOpen: quickstartOpen, dedupShared: false,
+                     customSyncId: "", seed: "", fillAlg: "Balanced", shared: ["Skills", "Teleporters", "World Events", "Upgrades"], hints: true, helpcat: "", helpopt: "", quickstartOpen: quickstartOpen, dedupShared: false,
                      syncId: "", expPool: 10000, lastHelp: new Date(), seedIsGenerating: false, cellFreq: cellFreqPresets("standard"), fragCount: 30, fragReq: 20, relicCount: 8, loader: get_random_loader(),
                      paramId: paramId, seedTabExists: seedTabExists, reopenUrl: "", teamStr: "", inputFlagLine: "", fass: {},  goalModesOpen: false, spoilers: true, dark: dark, seedIsBingo: false};
         if(url.searchParams.has("fromBingo")) {

@@ -390,9 +390,17 @@ class BingoEvent(ndb.Model):
     first = ndb.BooleanProperty()
     player = ndb.KeyProperty("Player")
     def to_json(self, start_time):
+        timeStr = ""
+        if start_time:
+            if self.timestamp < start_time:
+                timeStr = "-" + round_time(start_time - self.timestamp)
+            else:
+                timeStr = round_time(self.timestamp-start_time)
+        else:
+            timeStr = str(self.timestamp.time())
         if self.event_type.startswith("misc"):
-            return {'type': self.event_type, 'time': round_time(self.timestamp-start_time)}
-        res =  {'loss': self.loss, 'type': self.event_type, 'time': round_time(self.timestamp-start_time), 'player': _pid(self.player)}
+            return {'type': self.event_type, 'time': timeStr}
+        res =  {'loss': self.loss, 'type': self.event_type, 'time': timeStr, 'player': _pid(self.player)}
         if self.event_type == 'square':
             res['square'] = self.square
         if self.event_type == 'bingo':

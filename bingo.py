@@ -766,13 +766,26 @@ class BingoCreate(RequestHandler):
         if param_flag(self, "squares"):
             bingo.square_count = int(param_val(self, "squares"))
         user = User.get()
+        eventStr = "misc"
         if user:
             bingo.creator = user.key
-        if param_flag(self, "no_timer") or not user:
+        if not user or param_flag(self, "no_timer"):
             bingo.start_time = now
+            eventStr += "Bingo Game %s started!" % key.id()
+        else:
+            eventStr += "Bingo Game %s created!" % key.id()
 
+        if bingo.square_count > 0:
+            eventStr += " squares to win: %s" % bingo.square_count
+        elif bingo.bingo_count > 0:
+            eventStr += " bingos to win: %s" % bingo.bingo_count
         if show_info:
             bingo.subtitle = " | ".join(sw_parts)
+            eventStr += ", starting with: " + ", ".join(sw_parts)
+
+
+        bingo.event_log.append(BingoEvent(event_type=eventStr, timestamp=now))
+
 
         res = bingo.get_json(True)
 
@@ -821,10 +834,21 @@ class AddBingoToGame(RequestHandler):
         if param_flag(self, "squares"):
             bingo.square_count = int(param_val(self, "squares"))
         user = User.get()
+        eventStr = "misc"
         if user:
             bingo.creator = user.key
-        else:
+        if not user or param_flag(self, "no_timer"):
             bingo.start_time = now
+            eventStr += "Bingo Game %s started!" % game_id
+        else:
+            eventStr += "Bingo Game %s created!" % game_id
+        if bingo.square_count > 0:
+            eventStr += " squares to win: %s" % bingo.square_count
+        elif bingo.bingo_count > 0:
+            eventStr += " bingos to win: %s" % bingo.bingo_count
+        bingo.event_log.append(BingoEvent(event_type=eventStr, timestamp=now))
+
+
 
         res = bingo.get_json(True)
         if param_flag(self, "time"):
@@ -867,9 +891,6 @@ class BingoAddPlayer(RequestHandler):
             return resp_error(self, 409, "Player id already in use!", "text/plain")
 
         player = bingo.init_player(player_id)
-
-
-
         if join_team:
             cap_id = int(param_val(self, "joinTeam"))
             team = bingo.team(cap_id)
@@ -948,12 +969,7 @@ class BingoStartCountdown(RequestHandler):
                     log.error("team %s did not have %s players!", team, p.players)
                     return resp_error(self, 412, "Not all teams have the correct number of players!", "text/plain")
         bingo.start_time = datetime.utcnow() + timedelta(seconds=15)
-        startStr = "miscBingo Game %s started!" % game_id
-        if bingo.square_count > 0:
-            startStr += " squares to win: %s" % bingo.square_count
-        elif bingo.bingo_count > 0:
-            startStr += " bingos to win: %s" % bingo.bingo_count
-        
+        startStr = "miscBingo Game %s started!" % game_id        
         bingo.event_log.append(BingoEvent(event_type=startStr, timestamp=bingo.start_time))
         res = bingo.get_json()
         bingo.put()
