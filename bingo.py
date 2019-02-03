@@ -964,7 +964,7 @@ class BingoStartCountdown(RequestHandler):
             return resp_error(self, 412, "Game has already started!", "text/plain")
         if bingo.teams_shared:
             p = bingo.game.get().params.get()
-            if not params.sync.cloned:
+            if not p.sync.cloned:
                 for team in bingo.teams:
                     if p.players != len(team.teammates) + 1:
                         log.error("team %s did not have %s players!", team, p.players)
