@@ -964,10 +964,11 @@ class BingoStartCountdown(RequestHandler):
             return resp_error(self, 412, "Game has already started!", "text/plain")
         if bingo.teams_shared:
             p = bingo.game.get().params.get()
-            for team in bingo.teams:
-                if p.players != len(team.teammates) + 1:
-                    log.error("team %s did not have %s players!", team, p.players)
-                    return resp_error(self, 412, "Not all teams have the correct number of players!", "text/plain")
+            if not params.sync.cloned:
+                for team in bingo.teams:
+                    if p.players != len(team.teammates) + 1:
+                        log.error("team %s did not have %s players!", team, p.players)
+                        return resp_error(self, 412, "Not all teams have the correct number of players!", "text/plain")
         bingo.start_time = datetime.utcnow() + timedelta(seconds=15)
         startStr = "miscBingo Game %s started!" % game_id        
         bingo.event_log.append(BingoEvent(event_type=startStr, timestamp=bingo.start_time))
