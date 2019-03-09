@@ -169,6 +169,7 @@ const stuff_by_type = {
         { label: "Teleport: Soul Link", value: "RB|105", desc: "On use: Pay .5 energy to teleport to your most recent Soul Link location."},
         { label: "Respec", value: "RB|106", desc: "On use: Refund all your spent AP. Only works at a Soul Link."},
         { label: "Level Explosion", value: "RB|107", desc: "On use: Pay 1 energy to create a level-up explosion."},
+        { label: "Timewarp", value: "RB|109", desc: "Toggle: Slows time for everything but Ori, and drains energy at a rate of 4 per minute."},
         { label: "Invincibility", value: "RB|110", desc: "Toggle: Makes Ori Invincible. Costs 1 energy per second, +.5 to activate."},
     ],
 };

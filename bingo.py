@@ -18,7 +18,7 @@ from seedbuilder.vanilla import seedtext as vanilla_seed
 if debug:
     from test.data import bingo_data as test_data
 
-BINGO_LATEST = [0,1,14]
+BINGO_LATEST = [0,2,0]
 def version_check(version):
     try:
         nums = [int(num) for num in version.split(".")]
@@ -469,21 +469,23 @@ class BingoGenerator(object):
             ),
             GoalGroup(
                 name = "HuntEnemies",
-                name_func = namef("Kill", "Miniboss", "Minibosses"),
-                help_lines = ["If there are multiple enemies, defeating all of them is required"],
+                name_func = namef("Open", "Purple Door", "Purple Doors"),
+                help_lines = ["Purple doors are opened by defeating nearby enemies. (R2 has 2 purple doors, but only the second one is counted.)"],
                 goals = [
-                    BoolGoal(name = "Misty Miniboss", help_lines = ["The 2 jumping purple spitters at the end of Misty"]),
-                    BoolGoal(name = "Lost Grove Fight Room", help_lines = ["The room with 2 birds and 2 slimes above the entrance to Lost Grove"]),
-                    BoolGoal(name = "Grotto Miniboss", help_lines = ["The jumping purple spitter in lower left Grotto that protects one of the 2 keystones normally used for the Double Jump tree"]),
-                    BoolGoal(name = "Lower Ginso Miniboss", help_lines = ["The purple spitter enemy below the Bash tree area in Ginso"]),
-                    BoolGoal(name = "Upper Ginso Miniboss", help_lines = ["The elemental below the Ginso tree core"]),
-                    BoolGoal(name = "Swamp Rhino Miniboss", disp_name = "Stomp Area Rhino", help_lines = ["The Rhino miniboss past the Stomp tree in Swamp"]),
-                    BoolGoal(name = "Mount Horu Miniboss", disp_name = "Horu Final Miniboss",  help_lines = ["The orange jumping spitter enemy that blocks access to the final escape in Horu"])
+                    BoolGoal(name = "Misty Miniboss", help_lines = ["Kill the 2 jumping purple spitters at the end of Misty"]),
+                    BoolGoal(name = "Lost Grove Fight Room", help_lines = ["Kill the 2 birds and 2 slimes above the entrance to Lost Grove"]),
+                    BoolGoal(name = "Frog Toss", disp_name = "Lower BRB Frogs", help_lines = ["Kill 2 frogs on either side of the purple door across from the lower lasers."]),
+                    BoolGoal(name = "R2", disp_name = "R2 (Upper)", help_lines = ["Kill 8 elementals in R2"]),
+                    BoolGoal(name = "Grotto Miniboss", help_lines = ["Kill the jumping purple spitter in lower left Grotto that protects one of the 2 keystones normally used for the Double Jump tree"]),
+                    BoolGoal(name = "Lower Ginso Miniboss", help_lines = ["Kill the purple spitter enemy below the Bash tree area in Ginso"]),
+                    BoolGoal(name = "Upper Ginso Miniboss", help_lines = ["Kill the elemental below the Ginso tree core"]),
+                    BoolGoal(name = "Swamp Rhino Miniboss", disp_name = "Stomp Area Rhino", help_lines = ["Kill the rhino miniboss past the Stomp tree in Swamp"]),
+                    BoolGoal(name = "Mount Horu Miniboss", disp_name = "Horu Final Miniboss",  help_lines = ["Kill the orange jumping spitter enemy that blocks access to the final escape in Horu"])
                 ],
                 methods = [
                         ("or",    r((1, 3), (1, 2), (1, 1))), 
                         ("and",   r((1, 2), (2, 3), (2, 4))), 
-                        ("count", r((2, 4), (3, 5), (4, 7)))
+                        ("count", r((2, 4), (3, 6), (5, 9)))
                     ],
                 max_repeats = 2,
                 tags = ["always_list_subgoals"]
