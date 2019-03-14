@@ -335,6 +335,7 @@ export default class MainPage extends React.Component {
         } else {
             let metaUpdate = JSON.parse(responseText)
             metaUpdate.inputPlayerCount = metaUpdate.players
+            if(metaUpdate.hasOwnProperty("gameId"))
             metaUpdate.seedIsBingo = metaUpdate.variations.some(v => v === "Bingo")
             metaUpdate.goalModes = metaUpdate.variations.filter(v => ["ForceTrees", "WorldTour", "ForceMaps", "WarmthFrags", "Bingo"].includes(v)) || ["None"]
 
@@ -377,7 +378,7 @@ export default class MainPage extends React.Component {
                 this.helpEnter("general", "seedBuilt" + this.multi())()
             this.setState({
                 paramId: res.paramId, seedIsGenerating: false, inputPlayerCount: res.playerCount, 
-                inputFlagLine: res.flagLine, gameId: res.gameId, seedIsBingo: res.doBingoRedirect || false
+                flagLine: res.flagLine, gameId: res.gameId, seedIsBingo: res.doBingoRedirect || false
             }, this.updateUrl)
         }
     }
@@ -460,8 +461,8 @@ export default class MainPage extends React.Component {
         }
         else 
         {
-            let {inputPlayerCount, gameId, seedIsBingo, paramId, inputFlagLine, spoilers} = this.state
-            let raw = inputFlagLine.split('|');
+            let {inputPlayerCount, gameId, seedIsBingo, paramId, flagLine, spoilers} = this.state
+            let raw = flagLine.split('|');
             let seedStr = raw.pop();
             // let {shared, unshared} = raw.join("").split(",").reduce((acc, curr) => (curr.startsWith("mode=") || curr.startsWith("shared=")) ? 
             //         {shared: acc.shared.concat(curr), unshared: acc.unshared} : {shared: acc.shared, unshared: acc.unshared.concat(curr)}, {shared: [], unshared: []})
@@ -626,13 +627,19 @@ export default class MainPage extends React.Component {
         let dark = get_flag("dark") || url.searchParams.has("dark")
         let seedTabExists = (paramId !== null);
         if(seedTabExists)
-            doNetRequest(`/generator/metadata/${paramId}`,this.acceptMetadata);
+        {
+            if(gameId > 0)
+                doNetRequest(`/generator/metadata/${paramId}/${gameId}`,this.acceptMetadata);
+            else
+                doNetRequest(`/generator/metadata/${paramId}`,this.acceptMetadata);
+
+        }
         let activeTab = seedTabExists ? 'seed' : 'variations';
         this.state = {user: user, activeTab: activeTab, coopGenMode: "Cloned Seeds", coopGameMode: "Co-op", players: 1, tracking: true, dllTime: dllTime, variations: ["ForceTrees"], gameId: gameId,
                      paths: presets["standard"], keyMode: "Clues", oldKeyMode: "Clues", pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null), goalModes: ["ForceTrees"],
                      seed: "", fillAlg: "Balanced", shared: ["Skills", "Teleporters", "World Events", "Upgrades"], hints: true, helpcat: "", helpopt: "", quickstartOpen: quickstartOpen, dedupShared: false,
                      syncId: "", expPool: 10000, lastHelp: new Date(), seedIsGenerating: false, cellFreq: cellFreqPresets("standard"), fragCount: 30, fragReq: 20, relicCount: 8, loader: get_random_loader(),
-                     paramId: paramId, seedTabExists: seedTabExists, reopenUrl: "", teamStr: "", inputFlagLine: "", fass: {},  goalModesOpen: false, spoilers: true, dark: dark, seedIsBingo: false};
+                     paramId: paramId, seedTabExists: seedTabExists, reopenUrl: "", teamStr: "", flagLine: "", fass: {},  goalModesOpen: false, spoilers: true, dark: dark, seedIsBingo: false};
         if(url.searchParams.has("fromBingo")) {
             this.state.goalModes = ["Bingo"]
             this.state.variations = ["Bingo", "OpenWorld", "BonusPickups"]

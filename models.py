@@ -556,7 +556,6 @@ class BingoGameData(ndb.Model):
     def update(self, bingo_data, player_id):
         player_id = int(player_id)
         if not self.start_time:
-            log.debug("game not started")
             return
         now = datetime.utcnow()
         change_squares = set()

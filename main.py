@@ -753,12 +753,16 @@ class SeedGenJson(RequestHandler):
         self.response.status = 500
 
 class GetParamMetadata(RequestHandler):
-    def get(self, params_id):
+    def get(self, params_id, game_id = None):
         self.response.headers['Content-Type'] = 'application/json'
         params = SeedGenParams.with_id(params_id)
         if not params:
             return resp_error(self, 404, json.dumps({"error": "No params found"}))
-        self.response.write(json.dumps(params.to_json()))
+        res = params.to_json()
+        if params.tracking and not game_id:
+            game = Game.from_params(params)
+            res["gameId"] = game.key.id()
+        self.response.write(json.dumps(res))
 
 
 class GetSeedFromParams(RequestHandler):
@@ -884,6 +888,7 @@ app = WSGIApplication(
     PathPrefixRoute('/generator', [
         Route('/build', handler=MakeSeedWithParams, name="gen-params-build", strict_slash=True),
         Route('/metadata/<params_id:\d+>', handler=GetParamMetadata, name="gen-params-get-metadata", strict_slash=True),
+        Route('/metadata/<params_id:\d+>/<game_id:\d+>', handler=GetParamMetadata, name="gen-params-get-metadata-with-game", strict_slash=True),
         Route('/seed/<params_id:\d+>', handler=GetSeedFromParams, name="gen-params-get-seed", strict_slash=True),
         Route('/spoiler/<params_id:\d+>', handler=GetSpoilerFromParams, name="gen-params-get-spoiler", strict_slash=True),
         Route('/json', handler=SeedGenJson, name="gen-params-get-json")

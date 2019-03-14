@@ -175,7 +175,7 @@ class BingoGenerator(object):
                 ),
             BoolGoal(
                 name = "WilhelmScream",
-                disp_name = "Make Wilhelm Scream",
+                disp_name = "Make Wilhelm scream",
                 help_lines = ["Throw Wilhelm (a green spitter on the top left cliff in the main Valley of the Wind room) off his cliff.", 
                         "Note: Wilhelm does not spawn unless you have the Sunstone."]
             ),
