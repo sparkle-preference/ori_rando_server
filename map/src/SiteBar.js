@@ -153,11 +153,8 @@ class SiteBar extends Component {
                         <DropdownItem href="/vanilla">
                             Vanilla Seed
                         </DropdownItem>
-                        <DropdownItem href="/dll/bingo">
-                            Bingo dll (rando beta)
-                        </DropdownItem>
                         <DropdownItem href="/dll">
-                            Rando dll
+                            Rando dll (3.1)
                         </DropdownItem>
                         <DropdownItem href="/tracker">
                             Rando Tracker

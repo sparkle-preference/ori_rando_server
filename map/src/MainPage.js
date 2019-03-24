@@ -780,7 +780,7 @@ export default class MainPage extends React.Component {
                 </Col>
             </Row>
             <Row className="p-1">
-                <Cent><h3 >Seed Generator 3.0</h3></Cent>
+                <Cent><h3 >Seed Generator 3.1</h3></Cent>
             </Row>
             <Row className="p-3 border">
                 <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "logicModes")}>

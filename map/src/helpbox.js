@@ -2,11 +2,10 @@ import React from 'react';
 import {CardText, CardTitle, Card, CardBody, CardSubtitle} from 'reactstrap';
 
 
-const UntestedWarning = (<CardText className="border m-1 font-weight-bold border-danger">
+const UntestedWarning = (<CardText className="border m-2 p-2 border-danger"><i>
 NOTE: this variation is rarely used and thus is less tested than most.
 In rare cases you may recieve an unfinishable seed. Leaving Web Tracking on is recommended for troubleshooting purposes.
-If you believe you have recieved an unfinishable seed, please inform Eiko, Sigma, or Vulajin 
-in the <a target="_blank"  rel="noopener noreferrer" href="/discord">Ori discord</a>.
+If you believe you have recieved an unfinishable seed, please inform Eiko in the <a target="_blank"  rel="noopener noreferrer" href="/discord">Ori discord</a>.</i>
 </CardText>)
 
 const noneTitle = "Confused?";
@@ -19,8 +18,8 @@ const goalModes = ["ForceTrees", "ForceMaps"]
 const keyModes = ["Shards", "Clues", "Limitkeys", "Free"]
 
 const getHelpContent = (category, option) => {
-    let {lines, title, subtitle, extra} = getHelpHelper(category, option)
-    return {lines: lines.map(l => (<CardText>{l}</CardText>)), title: title, subtitle: subtitle, extras: extra}
+    let {lines, title, subtitle, extras} = getHelpHelper(category, option)
+    return {lines: lines.map(l => (<CardText>{l}</CardText>)), title: title, subtitle: subtitle, extras: extras}
 }
 
 const getHelpHelper = (category, option) => {
@@ -34,7 +33,6 @@ const getHelpHelper = (category, option) => {
             if(vars.includes(option)) {
                 h = getHelpHelper("variations", option)
                 h.lines[h.lines.length-1] = (<div><i>(This variation has been applied to your seed.)</i></div>)
-                console.log(h)
             } else if(presets.includes(option)) {
                 h = getHelpHelper("logicModes", option.toLowerCase())
                 h.lines.pop()
@@ -186,7 +184,7 @@ const getHelpHelper = (category, option) => {
                     title = "Bingo"
                     lines = [
                         "The Bingo Goal mode is a completely different way of playing the Ori Randomizer. Instead of trying to beat the game, players must complete objectives on a randomly-generated bingo card",
-                        "This goal mode requires the Bingo dll (available in the downloads section) and is not recommended for newer players. If you're interested in trying it but unsure how it works, please join the discord and ask about it there!"
+                        "This goal mode is not recommended for newer players due to the game knowledge that tends to be required, and is much easier with 2 monitors. If you're interested in trying it but unsure how it works, please join the discord and ask about it there!"
                     ]
                     break;
                 default:
@@ -515,9 +513,9 @@ const getHelpHelper = (category, option) => {
                     title = "Share Miscellaneous Items"
                     lines = [
                         "With Share Misc enabled, Warmth Fragments and World Tour Relics are shared between players, if they exist.",
-                        "Sharing Relics and Warmth Fragments will greatly reduce the amount of time an average co-op seed will take to complete."                        
+                        "Sharing Relics and Warmth Fragments will greatly reduce the amount of time an average co-op seed will take to complete."
                     ]
-                    extras.push((<CardText className="border font-weight-bold m-1 border-danger">Relic sharing is currently disabled. Relics will not be shared.</CardText>))
+                    extras.push((<CardText className="border font-weight-bold m-2 p-2 border-danger">Relic sharing is currently disabled. Relics will not be shared.</CardText>))
                     break;
                 case "World Events":
                     title = "Share World Events"
@@ -964,13 +962,15 @@ const getHelpHelper = (category, option) => {
     return {lines: lines, title: title, subtitle: subtitle, extras: extras}
 }
 
-const HelpBox = ({title, subtitle, lines, extras, padding, style}) => (
+const HelpBox = ({title, subtitle, lines, extras, padding, style}) => {
+    return (
     <Card className={padding} style={style}><CardBody className={padding}>
         <CardTitle className="text-center">{title}</CardTitle>
             <CardSubtitle className="p-1 text-center">{subtitle}</CardSubtitle>
         {lines}
         {extras}
     </CardBody></Card>
-);
+    )
+};
 
 export {getHelpContent, HelpBox};

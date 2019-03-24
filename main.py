@@ -29,7 +29,6 @@ from bingo import routes as bingo_routes
 PLANDO_VER = "0.5.1"
 share_types = [ShareType.EVENT, ShareType.SKILL, ShareType.UPGRADE, ShareType.MISC, ShareType.TELEPORTER]
 
- 
 class CleanUp(RequestHandler):
     def get(self):
         self.response.headers['Content-Type'] = 'text/plain'
@@ -912,7 +911,6 @@ app = WSGIApplication(
             ]).get_routes())
         ).get_routes())
     ),
-
     # misc / top level endpoints
     Route('/logichelper', handler=LogicHelper, name="logic-helper", strict_slash=True),
     Route('/faq', handler=Guides, name="help-guides", strict_slash=True),
@@ -931,7 +929,7 @@ app = WSGIApplication(
     (r'/logout/?', HandleLogout),
     ('/vanilla', Vanilla),
     Route('/discord', redirect_to="https://discord.gg/TZfue9V"),
-    Route('/dll', redirect_to="https://github.com/sigmasin/OriDERandomizer/raw/3.0/Assembly-CSharp.dll"),
+    Route('/dll', redirect_to="https://github.com/turntekGodhead/OriDERandomizer/raw/master/Assembly-CSharp.dll"),
     Route('/dll/bingo', redirect_to="https://github.com/turntekGodhead/OriDERandomizer/raw/master/Assembly-CSharp.dll"),
     Route('/tracker', redirect_to="https://github.com/turntekGodhead/OriDETracker/raw/master/OriDETracker/bin/Latest.zip"),
     Route('/theme/toggle', handler=ThemeToggle, name="theme-toggle"),
