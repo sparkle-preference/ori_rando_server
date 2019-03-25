@@ -480,8 +480,7 @@ class PlandoBuiler extends React.Component {
             else
                 outLines.push(lineText)
         })
-        this.state.clueOrder.value.forEach(ev => outLines.push(evLines[ev]))
-
+        this.state.clueOrder.value.forEach(ev => evLines.hasOwnProperty(ev) ? outLines.push(evLines[ev]) : null)
         return outLines;
     }
 

@@ -139,7 +139,7 @@ class BingoBoard extends Component {
     }
 }
 
-const PlayerList = ({activePlayer, teams, viewOnly, isOwner, onPlayerListAction, userBoard, userBoardParams, dark, gameId, teamMax, teamsDisabled}) => {
+const PlayerList = ({activePlayer, teams, viewOnly, isOwner, timerTime, onPlayerListAction, userBoard, userBoardParams, dark, gameId, teamMax, teamsDisabled}) => {
     if(!teams)
         return null
     let dropdownStyle = {}
@@ -239,9 +239,10 @@ const PlayerList = ({activePlayer, teams, viewOnly, isOwner, onPlayerListAction,
     if(userBoard) {
         colStyle = {width: `${userBoardParams.listWidth}px`, height: `${userBoardParams.listHeight}px`}
     }
-
+    let timerText = timerTime ? `Time Elapsed: ${timerTime}` : `Time Elapsed: 00.00`
     return (
         <Col xs="auto" style={colStyle} className="border border-info">
+            <Row  className="px-1 pb-2"><Cent><h6>{timerText}</h6></Cent></Row>
             <Row  className="px-1 pb-2"><Cent><h4>Players</h4></Cent></Row>
             {players}
             {hiddenButton}
@@ -268,15 +269,17 @@ export default class Bingo extends React.Component {
             gameId = (gameId - 4)/7
         let fromGen = url.searchParams.has("fromGen")
         let teamMax = parseInt(url.searchParams.get("teamMax") || -1, 10);
+        let seed = url.searchParams.get("seed") || String(Math.floor(Math.random() * 100000));
         let dark = get_flag("dark") || url.searchParams.has("dark")
         let user = get_param("user")
+        let targetCount = fromGen && (teamMax > 1) ? 5 : 3
         this.state = {
                       cards: [], currentRecord: 0, haveGame: false, creatingGame: false, createModalOpen: true, offset: 0, noTimer: false,
-                      activePlayer: 1, showInfo: false, user: user, loadingText: "Loading...", paramId: -1, squareCount: 13,
+                      activePlayer: 1, showInfo: false, user: user, loadingText: "Loading...", paramId: -1, squareCount: 13, seed: seed,
                       dark: dark, specLink: window.document.location.href.replace("board", "spectate").replace(gameId, 4 + gameId*7), 
                       fails: 0, gameId: gameId, startSkills: 3, startCells: 4, startMisc: "MU|TP/Swamp/TP/Valley", goalMode: "bingos",
                       start_with: "", difficulty: "normal", isRandoBingo: false, randoGameId: -1, viewOnly: viewOnly, buildingPlayer: false,
-                      events: [], startTime: (new Date()), countdownActive: false, isOwner: false, targetCount: 3, userBoard: userBoard,
+                      events: [], startTime: (new Date()), countdownActive: false, isOwner: false, targetCount: targetCount, userBoard: userBoard,
                       teamsDisabled: (teamMax === -1), fromGen: fromGen, teamMax: teamMax, ticksSinceLastSquare: 0, userBoardParams: userBoardParams
                     };
         if(gameId > 0)
@@ -303,6 +306,7 @@ export default class Bingo extends React.Component {
     componentWillMount() {
         this.tick()
         this.interval = setInterval(() => this.tick(),  5000);
+        this.timerInterval = setInterval(() => this.updateTimer(), 10);
   };
     updateUrl = () => {
         let {gameId, fromGen, viewOnly, userBoard} = this.state;
@@ -323,6 +327,8 @@ export default class Bingo extends React.Component {
             url.searchParams.delete("fromGen")
             if(url.searchParams.has("teamMax"))
                 url.searchParams.delete("teamMax")
+            if(url.searchParams.has("seed"))
+                url.searchParams.delete("seed")
         }
         else if(!url.searchParams.has("fromGen") && fromGen)
             url.searchParams.set("fromGen", 1)
@@ -424,7 +430,7 @@ export default class Bingo extends React.Component {
         }
     }
     createGame = () => {
-        let {isRandoBingo, noTimer, targetCount, goalMode, squareCount, randoGameId, startSkills, startCells, startMisc, showInfo, difficulty, teamsDisabled} = this.state;
+        let {isRandoBingo, noTimer, targetCount, goalMode, squareCount, randoGameId, startSkills, startCells, startMisc, showInfo, difficulty, teamsDisabled, seed} = this.state;
         let url
         if(isRandoBingo)
         {
@@ -442,6 +448,7 @@ export default class Bingo extends React.Component {
             url += "&teams=1"
         if(noTimer)
             url += "&no_timer=1"
+        url += `&seed=${seed}`
 
         doNetRequest(url+`&time=${(new Date()).getTime()}`, this.createCallback)
         this.setState({creatingGame: true, loadingText: "Building game...", createModalOpen: false, loader: get_random_loader()})
@@ -763,6 +770,22 @@ export default class Bingo extends React.Component {
             </ModalBody>
         </Modal>
     )}
+
+    updateTimer= () => {
+        let {haveGame, creatingGame, startTime, offset, timerTime} = this.state
+        if(creatingGame || !haveGame || !startTime || !offset)
+        {
+            if(timerTime)
+                this.setState({timerTime: null})
+            return
+        }
+        let s = (new Date()).getTime() + offset - startTime*1000;
+        if(s < 0)
+            return
+        let pad = (n, z = 2) => ('00' + n).slice(-z);
+        this.setState({timerTime: pad(s/3.6e6|0) + ':' + pad((s%3.6e6)/6e4 | 0) + ':' + pad((s%6e4)/1000|0) + '.' + pad((s%1000)/10|0)});
+    }
+
     countdownModal = (style) => {
         let {countdownActive, startTime, offset} = this.state
         return (
@@ -776,7 +799,7 @@ export default class Bingo extends React.Component {
                         intervalDelay={2}
                         now={() => (new Date()).getTime() + offset}
                         renderer={({seconds, milliseconds, completed}) =>
-                            completed ? (<Cent><h3>Go!</h3></Cent>) : (<Cent><h3>{seconds}:{`${milliseconds}`.slice(0, -1)}</h3></Cent>)
+                            completed ? (<Cent><h3>Go!</h3></Cent>) : (<Cent><h3>{seconds}{`.${milliseconds}`.slice(0, -1)}</h3></Cent>)
                         }
                     />
             </Container>
@@ -784,7 +807,7 @@ export default class Bingo extends React.Component {
         </Modal>
     )}
     createModal = (style) => {
-        let {difficulty, isRandoBingo, fromGen, teamMax, randoGameId, targetCount, startSkills, startCells, startMisc, showInfo, teamsDisabled, noTimer, squareCount, goalMode, user} = this.state
+        let {difficulty, isRandoBingo, seed, fromGen, teamMax, randoGameId, targetCount, startSkills, startCells, startMisc, showInfo, teamsDisabled, noTimer, squareCount, goalMode, user} = this.state
         let randoInput = fromGen ? (
             <Row className="p-1">
                 <Col xs="4" className="text-center p-1 border">
@@ -865,6 +888,13 @@ export default class Bingo extends React.Component {
                                 <Button active={goalMode === "bingos"} outline={goalMode !== "bingos"} onClick={() => this.setState({goalMode: "bingos"})}>Lines</Button>
                                 <Button active={goalMode === "squares"} outline={goalMode !== "squares"} onClick={() => this.setState({goalMode: "squares"})}>Squares</Button>
                             </ButtonGroup>
+                        </Col>
+                    </Row>
+                    <Row className="p-1">
+                        <Col xs="4" className="p1 border">
+                            <Cent>Seed</Cent>
+                        </Col><Col xs="4">
+                            <Input style={style} type="text" value={seed} onChange={(e) => this.setState({seed: e.target.value})}/>
                         </Col>
                     </Row>
                     <Collapse isOpen={goalMode === "squares"}>

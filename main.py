@@ -26,6 +26,7 @@ from pickups import Pickup
 # handlers
 from bingo import routes as bingo_routes
 
+VERSION = "3.1"
 PLANDO_VER = "0.5.1"
 share_types = [ShareType.EVENT, ShareType.SKILL, ShareType.UPGRADE, ShareType.MISC, ShareType.TELEPORTER]
 
@@ -693,7 +694,7 @@ class LogicHelper(RequestHandler):
 
 class ReactLanding(RequestHandler):
     def get(self):
-        template_values = {'app': "MainPage", 'dll_last_update': "N/A", 'title': "Ori DE Randomizer 3.0"}
+        template_values = {'app': "MainPage", 'dll_last_update': "N/A", 'title': "Ori DE Randomizer %s" % VERSION, 'version': VERSION}
         user = User.get()
         if user:
             template_values['user'] = user.name
@@ -708,7 +709,7 @@ class MakeSeedWithParams(RequestHandler):
         param_key = SeedGenParams.from_url(self.request.GET)
         params = param_key.get()
         if params.generate():
-            resp = {"paramId": param_key.id(), "playerCount": params.players, "flagLine": params.flag_line(), "spoilers": True}
+            resp = {"paramId": param_key.id(), "playerCount": params.players, "flagLine": params.flag_line(), 'seed': params.seed, "spoilers": True}
             if params.tracking:
                 game = Game.from_params(params, self.request.GET.get("game_id"))
                 resp["gameId"] = game.key.id()

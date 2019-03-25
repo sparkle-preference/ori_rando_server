@@ -12,7 +12,7 @@ import {get_param, presets, get_preset, get_flag, player_icons, doNetRequest, ge
 import SiteBar from "./SiteBar.js"
 
 const keymode_options = ["None", "Shards", "Limitkeys", "Clues", "Free"];
-
+const VERSION = get_param("version")
 const variations = {
     ForceTrees: "Force Trees",
     Starved: "Starved",
@@ -335,7 +335,7 @@ export default class MainPage extends React.Component {
         } else {
             let metaUpdate = JSON.parse(responseText)
             metaUpdate.inputPlayerCount = metaUpdate.players
-            if(metaUpdate.hasOwnProperty("gameId"))
+            metaUpdate.inputSeed = metaUpdate.seed
             metaUpdate.seedIsBingo = metaUpdate.variations.some(v => v === "Bingo")
             metaUpdate.goalModes = metaUpdate.variations.filter(v => ["ForceTrees", "WorldTour", "ForceMaps", "WarmthFrags", "Bingo"].includes(v)) || ["None"]
 
@@ -368,7 +368,7 @@ export default class MainPage extends React.Component {
         } else {
             let res = JSON.parse(responseText)
             if(res.doBingoRedirect) {
-                let redir = `/bingo/board?game_id=${res.gameId}&fromGen=1`
+                let redir = `/bingo/board?game_id=${res.gameId}&fromGen=1&seed=${res.seed}`
                 if(res.flagLine.includes("mode=Shared"))
                     redir += `&teamMax=${res.playerCount}`
                 gotoUrl(redir, true)
@@ -377,7 +377,7 @@ export default class MainPage extends React.Component {
             else 
                 this.helpEnter("general", "seedBuilt" + this.multi())()
             this.setState({
-                paramId: res.paramId, seedIsGenerating: false, inputPlayerCount: res.playerCount, 
+                paramId: res.paramId, seedIsGenerating: false, inputPlayerCount: res.playerCount, inputSeed: res.seed,
                 flagLine: res.flagLine, gameId: res.gameId, seedIsBingo: res.doBingoRedirect || false
             }, this.updateUrl)
         }
@@ -461,7 +461,7 @@ export default class MainPage extends React.Component {
         }
         else 
         {
-            let {inputPlayerCount, gameId, seedIsBingo, paramId, flagLine, spoilers} = this.state
+            let {inputPlayerCount, gameId, seedIsBingo, paramId, flagLine, spoilers, inputSeed} = this.state
             let raw = flagLine.split('|');
             let seedStr = raw.pop();
             // let {shared, unshared} = raw.join("").split(",").reduce((acc, curr) => (curr.startsWith("mode=") || curr.startsWith("shared=")) ? 
@@ -491,7 +491,7 @@ export default class MainPage extends React.Component {
                 let mainButtonHelp = "downloadButton"+this.multi()
                 seedUrl += "?" + seedParams.join("&")
                 if(seedIsBingo) {
-                    seedUrl = `/bingo/board?game_id=${gameId}&fromGen=1`
+                    seedUrl = `/bingo/board?game_id=${gameId}&fromGen=1&seed=${inputSeed}`
                     if(inputPlayerCount > 1) {
                         seedUrl += `&teamMax=${inputPlayerCount}`
                     }
@@ -619,7 +619,6 @@ export default class MainPage extends React.Component {
     constructor(props) {
         super(props);
         let user = get_param("user");
-        let dllTime = get_param("dll_last_update")
         let url = new URL(window.document.location.href);
         let paramId = url.searchParams.get("param_id");
         let quickstartOpen = window.document.location.href.includes("/quickstart");
@@ -635,7 +634,7 @@ export default class MainPage extends React.Component {
 
         }
         let activeTab = seedTabExists ? 'seed' : 'variations';
-        this.state = {user: user, activeTab: activeTab, coopGenMode: "Cloned Seeds", coopGameMode: "Co-op", players: 1, tracking: true, dllTime: dllTime, variations: ["ForceTrees"], gameId: gameId,
+        this.state = {user: user, activeTab: activeTab, coopGenMode: "Cloned Seeds", coopGameMode: "Co-op", players: 1, tracking: true, variations: ["ForceTrees"], gameId: gameId,
                      paths: presets["standard"], keyMode: "Clues", oldKeyMode: "Clues", pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null), goalModes: ["ForceTrees"],
                      seed: "", fillAlg: "Balanced", shared: ["Skills", "Teleporters", "World Events", "Upgrades"], hints: true, helpcat: "", helpopt: "", quickstartOpen: quickstartOpen, dedupShared: false,
                      syncId: "", expPool: 10000, lastHelp: new Date(), seedIsGenerating: false, cellFreq: cellFreqPresets("standard"), fragCount: 30, fragReq: 20, relicCount: 8, loader: get_random_loader(),
@@ -780,7 +779,7 @@ export default class MainPage extends React.Component {
                 </Col>
             </Row>
             <Row className="p-1">
-                <Cent><h3 >Seed Generator 3.1</h3></Cent>
+                <Cent><h3 >Seed Generator {VERSION}</h3></Cent>
             </Row>
             <Row className="p-3 border">
                 <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "logicModes")}>

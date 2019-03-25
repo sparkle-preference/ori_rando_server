@@ -1,4 +1,4 @@
-from random import choice, randint, sample, shuffle
+import random
 from collections import defaultdict, Counter
 from datetime import datetime, timedelta
 from calendar import timegm
@@ -48,7 +48,7 @@ class BoolGoal(BingoGoal):
         self.help_lines = help_lines
         self.tags = set(tags)
 
-    def to_card(self, banned = {}):
+    def to_card(self, rand, banned = {}):
         return BingoCard(
             name = self.name,
             disp_name = self.disp_name,
@@ -65,7 +65,7 @@ class IntGoal(BingoGoal):
         self.range_func = range_func
         self.tags = set(tags)
 
-    def to_card(self, banned = {}):
+    def to_card(self, rand, banned = {}):
         return BingoCard(
             name = self.name,
             disp_name = self.disp_name,
@@ -84,14 +84,14 @@ class GoalGroup(BingoGoal):
         self.goals = goals
         self.tags = set(tags)
 
-    def to_card(self, banned = {}):
+    def to_card(self, rand, banned = {}):
         card = BingoCard(
             name = self.name,
             goal_type = "multi",
         )
         hls = self.help_lines[:]
 
-        card.goal_method, countFunc = choice([(m, c) for m, c in self.methods if m not in banned["methods"]])
+        card.goal_method, countFunc = rand.choice([(m, c) for m, c in self.methods if m not in banned["methods"]])
         count = countFunc()
         if card.goal_method.startswith("count"):
             card.disp_name = self.name_func("", count > 1)
@@ -122,7 +122,7 @@ class GoalGroup(BingoGoal):
             plural = count == 2
 
         card.disp_name = self.name_func(infix, plural)
-        subgoals = [subgoal.to_card().to_json([], True) for subgoal in sample(subgoals, count)]
+        subgoals = [subgoal.to_card(rand).to_json([], True) for subgoal in rand.sample(subgoals, count)]
         for subgoal in subgoals:
             card.subgoals.append(subgoal)
             if subgoal["help_lines"]:
@@ -139,7 +139,7 @@ def namef(verb, noun, plural_form = None):
 
 class BingoGenerator(object):
     @staticmethod
-    def get_cards(count = 25, rando = False, difficulty = "normal", open_world = True):
+    def get_cards(rand, count = 25, rando = False, difficulty = "normal", open_world = True):
         easy = difficulty == "easy"
         hard = difficulty == "hard"
 
@@ -149,7 +149,7 @@ class BingoGenerator(object):
             if hard:
                 params = hard_params
             low, high = params
-            return lambda: randint(low, high)*scalar
+            return lambda: rand.randint(low, high)*scalar
         tpGoals = [
             BoolGoal(name = "sunkenGlades", disp_name = "Sunken Glades", tags = ["no_or", "no_singleton"]),
             BoolGoal(name = "moonGrotto", disp_name = "Moon Grotto"),
@@ -662,9 +662,9 @@ class BingoGenerator(object):
         groupSeen = defaultdict(lambda: (1, [], []))
         cards = []
         goals = [goal for goal in goals]
-        pickups_in = randint(1,3)
+        pickups_in = rand.randint(1,3)
         while len(cards) < count:
-            goal = choice(goals)
+            goal = rand.choice(goals)
             if "pickups_in_zone" in goal.tags:
                 if pickups_in > 0:
                     pickups_in -= 1
@@ -675,7 +675,7 @@ class BingoGenerator(object):
                 goals.remove(goal)
             elif repeats > goal:
                 assert "help?" and False
-            card = goal.to_card(banned = {"methods": banned_methods, "goals": banned_subgoals})
+            card = goal.to_card(rand, banned = {"methods": banned_methods, "goals": banned_subgoals})
             if not card:
                 continue
             if card.goal_type == "multi":
@@ -684,7 +684,7 @@ class BingoGenerator(object):
                 banned_subgoals += [subgoal["name"] for subgoal in card.subgoals] 
             groupSeen[goal.name] = (repeats+1, banned_subgoals, banned_methods)
             cards.append(card)
-        shuffle(cards)
+        rand.shuffle(cards)
         i = 0
         for card in cards:
             card.square = i
@@ -716,10 +716,13 @@ class BingoCreate(RequestHandler):
         misc_pickup = Pickup.from_str(misc_raw) if misc_raw and misc_raw != "NO|1" else None
         skill_pool = [Skill(x) for x in [0, 2, 3, 4, 5, 8, 12, 14, 50, 51]]
         cell_pool  = [Multiple.with_pickups([AbilityCell(1), AbilityCell(1)]), HealthCell(1), EnergyCell(1)]
+        seed = param_val(self, "seed")
+        rand = random.Random()
+        rand.seed(seed)
 
-        start_pickups = sample(skill_pool, skills)
+        start_pickups = rand.sample(skill_pool, skills)
         for _ in range(cells):
-            start_pickups.append(choice(cell_pool))
+            start_pickups.append(rand.choice(cell_pool))
         if misc_pickup:
             start_pickups.append(misc_pickup)
         start_with = Multiple.with_pickups(start_pickups)
@@ -756,7 +759,7 @@ class BingoCreate(RequestHandler):
         game = key.get()
         bingo = BingoGameData(
             id            = key.id(),
-            board         = BingoGenerator.get_cards(25, False, difficulty, True),
+            board         = BingoGenerator.get_cards(rand, 25, False, difficulty, True),
             difficulty    = difficulty,
             teams_allowed = param_flag(self, "teams"),
             game          = key,
@@ -803,6 +806,7 @@ class BingoCreate(RequestHandler):
  
 class AddBingoToGame(RequestHandler):
     def get(self, game_id):
+
         now = datetime.utcnow()
         self.response.headers['Content-Type'] = 'application/json'
         game_id = int(game_id)
@@ -817,9 +821,12 @@ class AddBingoToGame(RequestHandler):
         if game.mode in [MultiplayerGameType.SPLITSHARDS]:
             return resp_error(self, 412, "splitshards bingo are not currently supported", 'plain/text')
         params = game.params.get()
+        seed = param_val(self, "seed") or params.seed
+        rand = random.Random()
+        rand.seed(seed)
         bingo = BingoGameData(
             id            = game_id,
-            board         = BingoGenerator.get_cards(25, True, difficulty, Variation.OPEN_WORLD in params.variations),
+            board         = BingoGenerator.get_cards(rand, 25, True, difficulty, Variation.OPEN_WORLD in params.variations),
             difficulty    = difficulty,
             subtitle      = params.flag_line(),
             teams_allowed = param_flag(self, "teams"),
