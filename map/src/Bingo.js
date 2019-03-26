@@ -242,7 +242,7 @@ const PlayerList = ({activePlayer, teams, viewOnly, isOwner, timerTime, onPlayer
     let timerText = timerTime ? `Time Elapsed: ${timerTime}` : `Time Elapsed: 00.00`
     return (
         <Col xs="auto" style={colStyle} className="border border-info">
-            <Row  className="px-1 pb-2"><Cent><h6>{timerText}</h6></Cent></Row>
+            <Row  className="px-1 pb-2"><h6>{timerText}</h6></Row>
             <Row  className="px-1 pb-2"><Cent><h4>Players</h4></Cent></Row>
             {players}
             {hiddenButton}
