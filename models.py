@@ -221,6 +221,19 @@ class Player(ndb.Model):
                     break
         self.put()
 
+    @staticmethod
+    @ndb.transactional(retries=5)
+    def append_history(pkey, hl):
+        p = pkey.get()
+        p.history.append(hl)
+        p.put()
+
+    @staticmethod
+    @ndb.transactional(retries=5)
+    def transaction_pickup(pkey, pickup, remove=False, delay_put=False, coords=None, finder=None):
+        p = pkey.get()
+        p.give_pickup(pickup, remove=remove, coords=coords, finder=finder)
+
     def give_pickup(self, pickup, remove=False, delay_put=False, coords=None, finder=None):
         if coords and finder:
             self.hints[str(coords)] = finder
@@ -540,7 +553,7 @@ class BingoGameData(ndb.Model):
                     log.error("player %s can't get seed as there is no seed available" % pid)
                     return None
                 return sync_flag + params.get_seed(p_number, include_sync=False)
-                
+
 
     def team(self, pid, cap_only=True):
         pid = int(pid)
@@ -789,8 +802,7 @@ class Game(ndb.Model):
             log.warning("Skipping sanity check.")
             return
         Cache.doSanCheck(self.key.id())
-        allPlayers = self.get_players()
-
+        allPlayers = self.players
         sanFailedSignal = "msg:@Major Error during sanity check. If this persists across multiple alt+l attempts please contact Eiko@"
         playerGroups = []
         if self.bingo_data:
@@ -798,7 +810,7 @@ class Game(ndb.Model):
             for team in bingo.teams:
                 playerGroups.append([team.captain] + team.teammates)
         else:
-             playerGroups = [allPlayers]
+            playerGroups = [allPlayers]
         for playerKeys in playerGroups:
             players = [pkey.get() for pkey in playerKeys]
             inv = defaultdict(lambda: 0)
@@ -915,13 +927,13 @@ class Game(ndb.Model):
             if self.bingo_data:
                 bingo = self.bingo_data.get()
                 team = bingo.team(pid, cap_only=False)
-                if team: 
+                if team:
                     players = [p for p in players if p.pid() in team.pids()]
                 else:
                     log.error("No bingo team found for player %s!" % pid)
             if share:
                 for player in players:
-                    player.give_pickup(pickup, remove, coords=coords, finder=pid)
+                    Player.transaction_pickup(player.key, pickup, remove, coords=coords, finder=pid)
             else:
                 retcode = 406
                 if pickup.code == "HN":
@@ -947,8 +959,7 @@ class Game(ndb.Model):
         hl = HistoryLine(pickup_code=pickup.code, timestamp=datetime.utcnow(), pickup_id=str(pickup.id), coords=coords, removed=remove)
         if coords in range(24, 60, 4) and zone in map_coords_by_zone:
             hl.map_coords = map_coords_by_zone[zone]
-        finder.history.append(hl)
-        finder.put()
+        Player.append_history(finder.key, hl)
         self.put()
         Cache.setHist(self.key.id(), pid, finder.history)
         return retcode
