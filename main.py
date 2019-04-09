@@ -343,9 +343,10 @@ class GetSeed(RequestHandler):
             bingo = BingoGameData.with_id(game_id)
             if not bingo:
                 return resp_error(self, 404, json.dumps({"error": "no bingo data found for game %s" % game_id}))
-            team = bingo.team(player_id, cap_only=False).pids()
+            team = bingo.team(player_id, cap_only=False)
             if not team:
                 return resp_error(self, 404, json.dumps({"error": "No team found for player %s!" % player_id}))
+            team = team.pids()
             player_id = team.index(player_id) + 1
         for (coords, code, id, _) in params.get_seed_data(player_id):
             res["seed"][coords] = Pickup.name(code, id)

@@ -222,14 +222,14 @@ class Player(ndb.Model):
         self.put()
 
     @staticmethod
-    @ndb.transactional(retries=5)
+    @ndb.transactional(retries=5, xg=True)
     def append_history(pkey, hl):
         p = pkey.get()
         p.history.append(hl)
         p.put()
 
     @staticmethod
-    @ndb.transactional(retries=5)
+    @ndb.transactional(retries=5, xg=True)
     def transaction_pickup(pkey, pickup, remove=False, delay_put=False, coords=None, finder=None):
         p = pkey.get()
         p.give_pickup(pickup, remove=remove, coords=coords, finder=finder)
