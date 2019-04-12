@@ -460,7 +460,6 @@ class BingoGameData(ndb.Model):
             self.teams.remove(team)
         else:
             team.teammates.remove(player.key)
-
         game = self.game.get()
         for k in pkeys_to_delete:
             game.remove_player(k.id())
@@ -495,7 +494,7 @@ class BingoGameData(ndb.Model):
         if p.bingo_prog:
             log.warning("Player %s already had bingo card progress, won't reinit" % pid)
         else:
-            p.bingo_prog = [BingoCardProgress(square = i) for i in range(25)]
+            p.bingo_prog = [BingoCardProgress(square=i) for i in range(25)]
             p.put()
         return p
 
@@ -792,16 +791,14 @@ class Game(ndb.Model):
         key = ndb.Key(Player, key)
         self.players.remove(key)
         key.delete()
-        Cache.removePlayer(gid, pid)
         self.put()
 
     def sanity_check(self):
         if self.mode != MultiplayerGameType.SHARED:
             return
-        if not Cache.canSanCheck(self.key.id()):
-            log.warning("Skipping sanity check.")
+        if not Cache.sanCheck(self.key.id()):
+            log.info("Skipping sanity check.")
             return
-        Cache.doSanCheck(self.key.id())
         allPlayers = self.players
         sanFailedSignal = "msg:@Major Error during sanity check. If this persists across multiple alt+l attempts please contact Eiko@"
         playerGroups = []

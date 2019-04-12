@@ -8,6 +8,7 @@ import logging as log
 from webapp2 import RequestHandler, redirect, uri_for
 from webapp2_extras.routes import RedirectRoute as Route
 from google.appengine.ext.webapp import template
+from google.appengine.ext.ndb import transactional
 
 from enums import MultiplayerGameType, Variation
 from models import Game, User, BingoCard, BingoGameData, BingoEvent, BingoTeam
@@ -888,6 +889,7 @@ class BingoRemovePlayer(RequestHandler):
 
 
 class BingoAddPlayer(RequestHandler):
+    @transactional(xg=True)
     def get(self, game_id, player_id):
         player_id = int(player_id)
         bingo = BingoGameData.with_id(game_id)

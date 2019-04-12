@@ -243,17 +243,10 @@ class RemovePlayer(RequestHandler):
             self.response.write("player %s not in %s" % (key, game.players))
 
 
-class ShowCache(RequestHandler):
-    def get(self):
-        self.response.headers['Content-Type'] = 'text/plain'
-        self.response.write(str(Cache.pos) + "\n" + str(Cache.hist))
-
-
 class ClearCache(RequestHandler):
     def get(self):
-        Cache.pos = {}
-        Cache.hist = {}
-        self.redirect("/cache")
+        Cache.clear()
+        self.redirect("/")
 
 
 class SetSeed(RequestHandler):
@@ -299,6 +292,7 @@ class ShowMap(RequestHandler):
             game = Game.with_id(game_id)
             pos = Cache.getPos(game_id)
             hist = Cache.getHist(game_id)
+            print game, pos, hist
             if any([x is None for x in [game, pos, hist]]):
                 return redirect(uri_for('tests-map-gid', game_id=game_id, from_test=1))
 
@@ -925,7 +919,6 @@ app = WSGIApplication(
     ('/quickstart', ReactLanding),
     (r'/myGames/?', MyGames),
     (r'/clean/?', CleanUp),
-    (r'/cache', ShowCache),
     (r'/cache/clear', ClearCache),
     (r'/login/?', HandleLogin),
     (r'/logout/?', HandleLogout),

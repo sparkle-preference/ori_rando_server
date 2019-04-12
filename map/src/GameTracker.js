@@ -42,7 +42,12 @@ const PlayerMarkersList = ({map, players}) => {
 	return (<div style={{display: 'none'}}>{items}</div>);
 }
 
-const PlayerUiOpts = ({players, setter}) => {
+const PlayerUiOpts = ({players, setter, follow}) => {
+    let followTog = (id) => () => setter(() => {
+        if (id === follow)
+            return {follow: -1}
+        return {follow: id}
+    })
     let tog = (pid, target) => () => setter((prevState) => {
 			let retVal = prevState.players;
 			retVal[pid][target] = !retVal[pid][target];
@@ -57,6 +62,7 @@ const PlayerUiOpts = ({players, setter}) => {
                 <Col className="p-1"><Button block active={players[id].show_marker} color="primary" outline={!players[id].show_marker} onClick={tog(id, "show_marker")}>Visible</Button></Col>
                 <Col className="p-1"><Button block active={players[id].show_spoiler} color="primary" outline={!players[id].show_spoiler} onClick={tog(id, "show_spoiler")}>Spoilers</Button></Col>
                 <Col className="p-1"><Button block active={players[id].show_sense} color="primary" outline={!players[id].show_sense} onClick={tog(id, "show_sense")}>Sense</Button></Col>
+                <Col className="p-1"><Button block active={id === follow} color="primary" outline={id !== follow} onClick={followTog(id)}>Track</Button></Col>
                 <Col className="p-1"><Button block active={players[id].hide_found} color="primary" outline={!players[id].hide_found} onClick={tog(id, "hide_found")}>Hide found</Button></Col>
                 <Col className="p-1"><Button block active={players[id].hide_unreachable} color="primary" outline={!players[id].hide_unreachable} onClick={tog(id, "hide_unreachable")}>Hide unreachable</Button></Col>
                 <Col className="p-1"><Button block active={players[id].hide_remaining} color="primary" outline={!players[id].hide_remaining} onClick={tog(id, "hide_remaining")}>Hide remaining</Button></Col>
@@ -223,7 +229,7 @@ class GameTracker extends React.Component {
   constructor(props) {
     super(props)
     let modes = presets['standard'];
-    this.state = {mousePos: {lat: 0, lng: 0}, players: {}, retries: 0, check_seen: 1, modes: modes, timeout: TIMEOUT_START, searchStr: "", pickup_display: "all", show_sidebar: true, idle_countdown: 7200,
+    this.state = {mousePos: {lat: 0, lng: 0}, players: {}, follow: -1, retries: 0, check_seen: 1, modes: modes, timeout: TIMEOUT_START, searchStr: "", pickup_display: "all", show_sidebar: true, idle_countdown: 7200,
     bg_update: true, viewport: {center: [0, 0], zoom: 5}, pickups: ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "Ma", "CS"], open_world: false, closed_dungeons: false, pathMode: get_preset(modes), hideOpt: "all", display_logic: false};
   };
 
@@ -240,29 +246,37 @@ class GameTracker extends React.Component {
   	return {retries: this.state.retries+1, check_seen: this.state.timeout, timeout: this.state.timeout+TIMEOUT_INC}
   };
   tick = () => {
-  	if(this.state.retries >= RETRY_MAX) return;
+    let {retries, bg_update, idle_countdown, check_seen, modes, players, follow, viewport} = this.state;
+  	if(retries >= RETRY_MAX) return;
 
   	if(!document.hasFocus()) {
-        if(!this.state.bg_update) return;
-        if(this.state.idle_countdown > 0)
-            this.setState({idle_countdown: this.state.idle_countdown-1})
+        if(!bg_update) return;
+        if(idle_countdown > 0)
+            this.setState({idle_countdown: idle_countdown-1})
         else
-            this.setState({idle_countdown: 7200, bg_update: false})
+            this.setState({idle_countdown: 14400, bg_update: false})
     } 
 
-  	if(this.state.check_seen === 0) {
+  	if(check_seen === 0) {
 	  	this.setState({check_seen: 5});
 		getSeen((p) => this.setState(p), this.timeout);
-		this.getReachable(this.state.modes.join("+"), this.timeout);
-		Object.keys(this.state.players).forEach((id) => {
-			if(Object.keys(this.state.players[id].seed).length < 50)
+		this.getReachable(modes.join("+"), this.timeout);
+		Object.keys(players).forEach((id) => {
+			if(Object.keys(players[id].seed).length < 50)
 				getSeed((p) => this.setState(p), id, this.timeout);
 		})
   	} else
-	  		this.setState({check_seen: this.state.check_seen -1});
-		if(this.state.check_seen < 10)
-			getPlayerPos((p) => this.setState(p), this.timeout);
+        this.setState({check_seen: check_seen -1});
+    if(check_seen < 10)
+    {
+        getPlayerPos((p) => this.setState(p), this.timeout);
+        if(follow > 0 && players.hasOwnProperty(follow)) {
+            let map = this.refs.map.leafletElement;
+            map.flyTo(players[follow].pos, viewport.zoom)
+        }
+    }
   };
+
 
   componentWillUnmount() {
     clearInterval(this.interval);
@@ -300,7 +314,7 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
   render() {
 		let pickup_markers = (this.state.pickup_display !== "none") ? ( <PickupMarkersList markers={getPickupMarkers(this.state)} />) : null;
 		let player_markers = ( <PlayerMarkersList players={this.state.players} />)
-		let player_opts = ( <PlayerUiOpts players={this.state.players} setter={(p) => this.setState(p)} />)
+		let player_opts = ( <PlayerUiOpts players={this.state.players} follow={this.state.follow} setter={(p) => this.setState(p)} />)
 		let show_button = !this.state.show_sidebar ? (<Button size="sm" onClick={() => this.setState({show_sidebar: true})}>Show Sidebar</Button>) : null
         let logic_path_buttons = logic_paths.map(lp => {return (<Col className="pr-0 pb-1" xs="4"><Button block size="sm" outline={!this.state.modes.includes(lp)} onClick={this.onMode(lp)}>{lp}</Button></Col>)});
         let hidetext = {any: "any player", all: "all players"}
