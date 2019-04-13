@@ -116,6 +116,7 @@ class User(ndb.Model):
             return User.create(app_user)
         return user
 
+    @ndb.transactional(retries=5, xg=True)
     def rename(self, desired_name):
         if any([forbidden in desired_name for forbidden in ["@", "/", "\\", "?", "#", "&", "="]]):
             return False
@@ -966,17 +967,27 @@ class Game(ndb.Model):
         Cache.removeGame(self.key.id())
         if self.params:
             self.params.delete()
+        if self.bingo_data:
+            self.bingo_data.delete()
         log.info("Deleting game %s" % self)
         self.key.delete()
+        return self.key
 
     @staticmethod
     def with_id(id):
         return Game.get_by_id(int(id))
 
     @staticmethod
-    def clean_old(timeout_window=timedelta(hours=720)):
+    def clean_old(timeout_window=timedelta(hours=1440)):
         old = [game for game in Game.query(Game.last_update < datetime.now() - timeout_window)]
-        return len([Game.clean_up(game) for game in old])
+        keys = set([Game.clean_up(game) for game in old])
+        for user in User.query().fetch():
+            gameCount = len(user.games)
+            user.games = [g for g in user.games if g not in keys]
+            if len(user.games) < gameCount:
+                print "removed %s games from %s's gamelist" % (gameCount - len(user.games), user.name)
+                user.put()
+        return len(keys)
 
     @staticmethod
     def get_open_gid():
