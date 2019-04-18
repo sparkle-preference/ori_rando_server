@@ -563,6 +563,16 @@ const getHelpHelper = (category, option) => {
                         "To match an entire class of pickups, use the first 2 characters; to match a specific pickup, use the entire pickup code (no |)"
                     ]
                     break;
+                case "customPool":
+                    title = "Custom Item Pool"
+                    lines = [
+                        (<div>This setting allows users to customize the contents of the item pool. Items selected here will be added to the default item pool.</div>),
+                        (<div>Note: the "base" item pool will always contain 12 HCs, 14 ECs, 33 ACs, a keystone for every door, 11 mapstones, and 1 of each world event, dungeon key, and skill. Copies of these items added to the pool will increase their count.</div>),
+                        (<div>Note: custom item pools are incompatible with the Extra Bonus Pickups, Double Skills, and Hard Mode variations</div>),
+                    ]
+                    extras.push((<CardText className="border font-weight-bold m-2 p-2 border-danger">Custom Item Pool is an experimental feature. Use at your own risk!</CardText>))
+
+                    break;
                 case "pathDiff":
                     title = "Path Difficulty"
                     lines = [

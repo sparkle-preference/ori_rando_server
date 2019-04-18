@@ -11,6 +11,7 @@ import {getHelpContent, HelpBox} from "./helpbox.js"
 import {get_param, presets, get_preset, get_flag, player_icons, doNetRequest, get_random_loader, PickupSelect, Cent, dev, gotoUrl} from './common.js';
 import SiteBar from "./SiteBar.js"
 
+const DEFAULT_POOL = "MU|TP/Grove/TP/Swamp/TP/Grotto/TP/Valley/TP/Sorrow/TP/Forlorn/TP/Ginso/TP/Horu/RB/0/RB/0/RB/0/RB/1/RB/1/RB/1/RB/6/RB/6/RB/6/RB/9/RB/10/RB/11/RB/12/RB/13/RB/13/RB/13/RB/15/RB/15/RB/15"
 const keymode_options = ["None", "Shards", "Limitkeys", "Clues", "Free"];
 const VERSION = get_param("version")
 const variations = {
@@ -74,6 +75,8 @@ export default class MainPage extends React.Component {
                 <Button block outline={!this.state.variations.includes(v)} onClick={this.onGoalModeAdvanced(v)}>{variations[v]}</Button>
             </Col>
         )
+
+
         return (
                 <TabPane tabId="advanced">
                     <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "goalModes")} className="p-1 justify-content-center">
@@ -158,6 +161,18 @@ export default class MainPage extends React.Component {
                             </Col><Col xs={rightCol}>
                                 <Input style={inputStyle} type="number" value={this.state.fragReq} invalid={this.state.fragCount < this.state.fragReq || this.state.fragReq <= 0} onChange={e => this.setState({fragReq: parseInt(e.target.value, 10)})}/> 
                                 <FormFeedback tooltip>Fragments Required must be between 0 and Fragment Count ({this.state.fragCount})</FormFeedback>
+                            </Col>
+                        </Row>
+                    </Collapse>
+                    <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "customPool")} className="p-1 justify-content-center">
+                        <Col>
+                            <Button block active={this.state.customPool} outline={!this.state.customPool} onClick={() => this.setState({customPool: !this.state.customPool})}>Custom Pool</Button>
+                        </Col>
+                    </Row>
+                    <Collapse isOpen={this.state.customPool}>
+                        <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "customPool")} className="p-1 justify-content-center">
+                            <Col>
+                                <PickupSelect value={this.state.poolStr} updater={(code, _) => this.setState({poolStr: code})}/> 
                             </Col>
                         </Row>
                     </Collapse>
@@ -282,13 +297,32 @@ export default class MainPage extends React.Component {
         Object.keys(this.state.fass).forEach(loc => {
             if(this.state.fass[loc]) {
                 let item = this.state.fass[loc].replace("|","");
-                if(["AC", "EC", "KS", "HC", "MS"].includes(item.substr(0,2)))
-                    item = item.substr(0,2) // we're sanitizing inputs here i guess
-                fass.push(loc+":"+item); 
+                if(item !== "NO1")
+                {
+                    if(["AC", "EC", "KS", "HC", "MS"].includes(item.substr(0,2)))
+                        item = item.substr(0,2) // we're sanitizing inputs here i guess
+                    fass.push(loc+":"+item); 
+                }
             }
         })
         if(fass.length > 0)
             urlParams.push("fass="+fass.join("|"))
+        if(this.state.customPool)
+        {
+            let pool = {} //{"HC": 12, "EC": 14, "AC": 33, }
+            let code = "";
+
+            this.state.poolStr.slice(3).split("/").forEach(piece => {
+                if(code !== "")
+                {
+                    pool[code+piece] = (pool[code+piece] || 0) + 1;
+                    code = "";
+                } else {
+                    code = piece;
+                }
+            });
+            urlParams.push("item_pool=" + Object.keys(pool).map(item => item + ":" + pool[item]).join("|"));
+        }
         if(this.state.tracking)
         {
             if(this.state.syncId !== "")
@@ -304,7 +338,6 @@ export default class MainPage extends React.Component {
                     urlParams.push("teams="+[...Array(this.state.players).keys()].map(x=>x+1).join(","))
                 else if(this.state.teamStr !== "")
                     urlParams.push("teams="+this.state.teamStr)
-                
             }
         } else {
             urlParams.push("tracking=Disabled")
@@ -634,7 +667,7 @@ export default class MainPage extends React.Component {
 
         }
         let activeTab = seedTabExists ? 'seed' : 'variations';
-        this.state = {user: user, activeTab: activeTab, coopGenMode: "Cloned Seeds", coopGameMode: "Co-op", players: 1, tracking: true, variations: ["ForceTrees"], gameId: gameId,
+        this.state = {user: user, activeTab: activeTab, coopGenMode: "Cloned Seeds", coopGameMode: "Co-op", players: 1, tracking: true, variations: ["ForceTrees"], gameId: gameId, customPool: false, poolStr: DEFAULT_POOL,
                      paths: presets["standard"], keyMode: "Clues", oldKeyMode: "Clues", pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null), goalModes: ["ForceTrees"],
                      seed: "", fillAlg: "Balanced", shared: ["Skills", "Teleporters", "World Events", "Upgrades"], hints: true, helpcat: "", helpopt: "", quickstartOpen: quickstartOpen, dedupShared: false,
                      syncId: "", expPool: 10000, lastHelp: new Date(), seedIsGenerating: false, cellFreq: cellFreqPresets("standard"), fragCount: 30, fragReq: 20, relicCount: 8, loader: get_random_loader(),

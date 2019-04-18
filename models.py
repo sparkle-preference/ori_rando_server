@@ -116,7 +116,6 @@ class User(ndb.Model):
             return User.create(app_user)
         return user
 
-    @ndb.transactional(retries=5, xg=True)
     def rename(self, desired_name):
         if any([forbidden in desired_name for forbidden in ["@", "/", "\\", "?", "#", "&", "="]]):
             return False
@@ -174,6 +173,9 @@ class Player(ndb.Model):
     user        = ndb.KeyProperty('User')
     can_nag     = ndb.BooleanProperty(default=True)
     bingo_prog  = ndb.LocalStructuredProperty(BingoCardProgress, repeated=True)
+
+    def sharetuple(self):
+        return (self.skills, self.events, self.teleporters, len(self.bonuses))
 
     def name(self):
         if self.user:
@@ -796,10 +798,10 @@ class Game(ndb.Model):
 
     def sanity_check(self):
         if self.mode != MultiplayerGameType.SHARED:
-            return
+            return False
         if not Cache.sanCheck(self.key.id()):
-            log.info("Skipping sanity check.")
-            return
+            log.info("Skipping sanity check")
+            return False
         allPlayers = self.players
         sanFailedSignal = "msg:@Major Error during sanity check. If this persists across multiple alt+l attempts please contact Eiko@"
         playerGroups = []
@@ -913,11 +915,13 @@ class Game(ndb.Model):
                 return 410
             elif any([h for h in finder.history if h.coords == coords and h.pickup_code == pickup.code and h.pickup_id == pickup.id]):
                 return 200
-        elif share and dedup and len(finder.teammates) < len(players)-1:  # aka you're not teammates with the entire game
+        elif share and dedup and len(finder.teammates) < len(players) - 1:  # aka you're not teammates with the entire game
             if coords in [h.coords for teammate in players for h in teammate.history if teammate.key in finder.teammates]:
                 log.info("Won't grant %s to player %s, as a teammate found it already" % (pickup.name, pid))
                 return 410
         if pickup.code == "MU":
+            # the game client sends the individual codes too BUT DEDUPING EXISTS
+            # (MAYBE THINGS ARE NOT GOOD)
             for child in pickup.children:
                 retcode = max(self.found_pickup(pid, child, coords, remove, False), retcode)
             return retcode
@@ -929,6 +933,13 @@ class Game(ndb.Model):
                     players = [p for p in players if p.pid() in team.pids()]
                 else:
                     log.error("No bingo team found for player %s!" % pid)
+            ftple = finder.sharetuple()
+            for p in players:
+                ptple = p.sharetuple()
+                if ftple != ptple:
+                    log.error("sharetuple mismatch! %s is not %s, triggering san check" % (ftple, ptple))
+                    self.sanity_check()
+                    break
             if share:
                 for player in players:
                     Player.transaction_pickup(player.key, pickup, remove, coords=coords, finder=pid)
@@ -969,7 +980,7 @@ class Game(ndb.Model):
             self.params.delete()
         if self.bingo_data:
             self.bingo_data.delete()
-        log.info("Deleting game %s" % self)
+        log.info("Deleting game %s" % self.key)
         self.key.delete()
         return self.key
 
