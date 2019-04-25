@@ -40,7 +40,7 @@ const diffPaths = {"glitched": "Hard", "master": "Hard"}
 const disabledPaths = {
                     "Hard": ["standard-dboost", "expert-dboost", "master-dboost"], 
                     "0XP": ["glitched", "standard-abilities", "expert-abilities", "master-abilities", "master-dboost", "timed-level", "insane"], 
-                    "OHKO": ["standard-dboost", "expert-dboost", "master-dboost", "glitched", "master-lure"]
+                    "OHKO": ["casual-boost", "standard-dboost", "expert-dboost", "master-dboost", "glitched", "master-lure"]
                     }
 const revDisabledPaths = {}
 Object.keys(disabledPaths).forEach(v => disabledPaths[v].forEach(path => revDisabledPaths.hasOwnProperty(path) ? revDisabledPaths[path].push(v) : revDisabledPaths[path] = [v]))

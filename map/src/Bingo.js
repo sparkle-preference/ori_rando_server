@@ -13,17 +13,22 @@ import {Cent, ordinal_suffix, doNetRequest, player_icons, get_random_loader, Pic
 import SiteBar from "./SiteBar.js";
 
 
+const iniUrl = new URL(window.document.URL);
+const cardTextSize = iniUrl.searchParams.get("textSize") || "1.5vh"
+const hideFooter = iniUrl.searchParams.has("hideFooter")
 const colors = {
     footerDark: "#292929",
     cardDark: "#333333",
     darkComplete: "#1ba06e",
     darkSubgoal: "#0d4f34",
     complete: "#ccffcc",
-    subgoal: "#88cc88"
+    subgoal: "#88cc88",
+    selected: "#bbffff",
+    selectedDark: "#333377",
 }
 
 const make_icons = players => players.map(p => (<Media key={`playerIcon${p}`} object style={{width: "25px", height: "25px"}} src={player_icons(p, false)} alt={"Icon for player "+p} />))
-const BingoCard = ({card, progress, players, help, dark}) => {
+const BingoCard = ({card, progress, players, help, dark, selected, onSelect}) => {
     let cardStyles = {width: '18vh', height: '18vh', minWidth: '120px', maxWidth: '200px', minHeight: '120px', maxHeight: '200px', flexGrow: 1}
     let footerStyles = {}
     if(dark)
@@ -32,6 +37,8 @@ const BingoCard = ({card, progress, players, help, dark}) => {
         cardStyles.border = '1px solid rgba(255,255,255,.25)'
         footerStyles.background = colors.footerDark
     }
+    if(selected)
+        cardStyles.background = dark ? colors.selectedDark : colors.selected
     let {open, toggle, i} = help
     let {disp_name, help_lines, subgoals, target} = card
     subgoals = subgoals || {}
@@ -71,19 +78,22 @@ const BingoCard = ({card, progress, players, help, dark}) => {
 
     if(progress.completed)
         cardStyles.background = dark ? colors.darkComplete : colors.complete
+    let footer = hideFooter ? null : (
+        <CardFooter style={footerStyles} className="p-0 text-center">
+            {helpLink}
+            {popover}
+            {make_icons(players)}
+        </CardFooter>
+    ) 
     return (
         <Card inverse={dark} style={cardStyles}>
-                <CardBody style={{fontSize: "1.5vh", fontWeight: "bold"}} className={className}>
-                    {text}
-                </CardBody>
-                <CardFooter style={footerStyles} className="p-0 text-center">
-                {helpLink}
-                {popover}
-                {make_icons(players)}
-                </CardFooter>
+            <CardBody onClick={onSelect} style={{fontSize: cardTextSize, fontWeight: "bold"}} className={className}>
+                {text}
+            </CardBody>
+            {footer}
         </Card>
-
-)}
+    )
+}
 
 
 
@@ -91,11 +101,15 @@ class BingoBoard extends Component {
     constructor(props) {
         super(props);
         let {cards} = props
-        this.state = {helpOpen: cards.map(_ => false)}
+        this.state = {helpOpen: cards.map(_ => false), selected: cards.map(_ => false)}
     }
     helpToggle = (cardNum) => () => this.setState(prev => {
         prev.helpOpen[cardNum]  = !prev.helpOpen[cardNum]
         return {helpOpen: prev.helpOpen}
+    })
+    selectToggle = (cardNum) => () => this.setState(prev => {
+        prev.selected[cardNum]  = !prev.selected[cardNum]
+        return {selected: prev.selected}
     })
     render() {
         let {cards, activePlayer, bingos, dark, hiddenPlayers, activeTeam} = this.props
@@ -113,7 +127,7 @@ class BingoBoard extends Component {
                 let progress = card.progress.hasOwnProperty(activePlayer) ? card.progress[activePlayer] : {'completed': false, 'count': 0, 'subgoals': []}
                 // temp bullshit
                 progress.completed = card.completed_by.includes(activePlayer) || card.completed_by.includes(activeTeam)
-                row.push((<td key={i}><BingoCard dark={dark} card={card} progress={progress} help={{i: i, open: this.state.helpOpen[i], toggle: this.helpToggle(i)}} players={players} /></td>))
+                row.push((<td key={i}><BingoCard selected={this.state.selected[i]} onSelect={this.selectToggle(i)} dark={dark} card={card} progress={progress} help={{i: i, open: this.state.helpOpen[i], toggle: this.helpToggle(i)}} players={players} /></td>))
                 i++
             }
             let rowNum = rows.length + 1
@@ -253,24 +267,23 @@ const PlayerList = ({activePlayer, teams, viewOnly, isOwner, timerTime, onPlayer
 export default class Bingo extends React.Component {
     constructor(props) {
         super(props);
-        let url = new URL(window.document.URL);
-        let viewOnly = url.href.includes("bingo/spectate")
-        let userBoard = url.href.includes("bingo/userboard")
+        let viewOnly = iniUrl.href.includes("bingo/spectate")
+        let userBoard = iniUrl.href.includes("bingo/userboard")
         let userBoardParams = userBoard ? {
-            showLog: url.searchParams.has("eventLog") || false,
-            showList: url.searchParams.has("playerList") || false,
-            logWidth: parseInt(url.searchParams.get("logWidth") || 500, 10),
-            logHeight: parseInt(url.searchParams.get("logHeight") || 200, 10),
-            listWidth: parseInt(url.searchParams.get("listWidth") || 300, 10),
-            listHeight: parseInt(url.searchParams.get("listHeight") || 400, 10),
+            showLog: iniUrl.searchParams.has("eventLog") || false,
+            showList: iniUrl.searchParams.has("playerList") || false,
+            logWidth: parseInt(iniUrl.searchParams.get("logWidth") || 500, 10),
+            logHeight: parseInt(iniUrl.searchParams.get("logHeight") || 200, 10),
+            listWidth: parseInt(iniUrl.searchParams.get("listWidth") || 300, 10),
+            listHeight: parseInt(iniUrl.searchParams.get("listHeight") || 400, 10),
         } : {}
-        let gameId = parseInt(url.searchParams.get("game_id") || -1, 10);
+        let gameId = parseInt(iniUrl.searchParams.get("game_id") || -1, 10);
         if(viewOnly && gameId)
             gameId = (gameId - 4)/7
-        let fromGen = url.searchParams.has("fromGen")
-        let teamMax = parseInt(url.searchParams.get("teamMax") || -1, 10);
-        let seed = url.searchParams.get("seed") || String(Math.floor(Math.random() * 100000));
-        let dark = get_flag("dark") || url.searchParams.has("dark")
+        let fromGen = iniUrl.searchParams.has("fromGen")
+        let teamMax = parseInt(iniUrl.searchParams.get("teamMax") || -1, 10);
+        let seed = iniUrl.searchParams.get("seed") || String(Math.floor(Math.random() * 100000));
+        let dark = get_flag("dark") || iniUrl.searchParams.has("dark")
         let user = get_param("user")
         let targetCount = fromGen && (teamMax > 1) ? 5 : 3
         this.state = {
@@ -303,6 +316,7 @@ export default class Bingo extends React.Component {
         }
 
     }
+
     componentWillMount() {
         this.tick()
         this.interval = setInterval(() => this.tick(),  5000);
