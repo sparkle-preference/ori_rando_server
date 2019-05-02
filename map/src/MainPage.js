@@ -31,6 +31,7 @@ const variations = {
     WarmthFrags: "Warmth Frags",
     StrictMapstones: "Strict Mapstones",
     StompTriggers: "Legacy Kuro Behavior",
+    TPStarved: "TPStarved",
     Bingo: "Bingo"
 }
 const cellFreqPresets = (preset) => preset === "casual" ? 20 : (preset === "standard" ? 40 : 256)

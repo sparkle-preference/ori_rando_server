@@ -11,10 +11,10 @@ If you believe you have recieved an unfinishable seed, please inform Eiko in the
 const noneTitle = "Confused?";
 const noneSub = "Mouse over anything to learn more!";
 const noneLines = ["Additional context-specific information will appear here as you interact with the UI."];
-const vars = ["Starved", "NonProgressMapStones", "Hard", "0XP", "Entrance", "BonusPickups", "DoubleSkills", "StrictMapstones", "ClosedDungeons", "OpenWorld", "StompTriggers"]
+const vars = ["Starved", "NonProgressMapStones", "Hard", "0XP", "Entrance", "BonusPickups", "DoubleSkills", "StrictMapstones", "ClosedDungeons", "OpenWorld", "StompTriggers", "TPStarved"]
 const presets = ["Casual", "Standard", "Expert", "Master", "Glitched", "Custom"]
 
-const goalModes = ["ForceTrees", "ForceMaps"]
+const goalModes = ["ForceTrees", "ForceMaps", "Bingo"]
 const keyModes = ["Shards", "Clues", "Limitkeys", "Free"]
 
 const getHelpContent = (category, option) => {
@@ -198,8 +198,15 @@ const getHelpHelper = (category, option) => {
                     title = "Starved"
                     lines = [
                         "The Starved variation reduces the probability that players will be given skill pickups, unless one is needed to proceed. This tends to create more linear seeds, where each skill gives access to the area or areas where the next skill or important item will be found.",
-                        "Note that the Balanced fill algorithm can sometimes interfere with Starved.",
+                        "Note that the Balanced fill algorithm can interfere with Starved.",
                         "Recommended for everyone at least once, and for players who enjoy more linear pathing or constrained situations. "
+                    ]
+                    break;
+                case "TPStarved":
+                    title = "TP-Starved"
+                    lines = [
+                        "The TP-Starved variation is an experimental setting that reduces the probability that players will be given teleporter pickups in the early game, unless one is needed to proceed. This tends to create seeds that open up more slowly, and reduce the frequency of forced early dungeon-teleporter usage.",
+                        "Recommended for people interested in testing a new setting and willing to provide feedback"
                     ]
                     break;
                 case "NonProgressMapStones":
