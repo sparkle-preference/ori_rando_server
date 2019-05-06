@@ -26,7 +26,7 @@ from pickups import Pickup
 # handlers
 from bingo import routes as bingo_routes
 
-VERSION = "3.1"
+VERSION = "3.2"
 PLANDO_VER = "0.5.1"
 share_types = [ShareType.EVENT, ShareType.SKILL, ShareType.UPGRADE, ShareType.MISC, ShareType.TELEPORTER]
 

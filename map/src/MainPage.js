@@ -32,6 +32,7 @@ const variations = {
     StrictMapstones: "Strict Mapstones",
     StompTriggers: "Legacy Kuro Behavior",
     TPStarved: "TPStarved",
+    GoalModeFinish: "Skip Final Escape",
     Bingo: "Bingo"
 }
 const cellFreqPresets = (preset) => preset === "casual" ? 20 : (preset === "standard" ? 40 : 256)
@@ -456,21 +457,21 @@ export default class MainPage extends React.Component {
             </Col>
             )
         ))
-        // Legacy Killplane is incompatible with Open World.
-        variationButtons.push((
-            (
-            <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("variations", "StompTriggers")} className="p-2">
-                <Button block outline={!this.state.variations.includes("StompTriggers")} disabled={(() => {
-                    if(this.state.variations.includes("OpenWorld")) {
-                        if(this.state.variations.includes("StompTriggers"))
-                            this.onVar("StompTriggers")()
-                        return true;
-                    }
-                    return false;
-                })()} onClick={this.onVar("StompTriggers")}>{variations["StompTriggers"]}</Button>
-            </Col>
-            )
-        ))
+        // Legacy Killplane is incompatible with Open World. It also sees no use, so it's being removed from the UI. Deprecation!
+        // variationButtons.push((
+        //     (
+        //     <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("variations", "StompTriggers")} className="p-2">
+        //         <Button block outline={!this.state.variations.includes("StompTriggers")} disabled={(() => {
+        //             if(this.state.variations.includes("OpenWorld")) {
+        //                 if(this.state.variations.includes("StompTriggers"))
+        //                     this.onVar("StompTriggers")()
+        //                 return true;
+        //             }
+        //             return false;
+        //         })()} onClick={this.onVar("StompTriggers")}>{variations["StompTriggers"]}</Button>
+        //     </Col>
+        //     )
+        // ))
         return (
             <TabPane tabId="variations">
                 <Row className="p-2">
@@ -670,7 +671,7 @@ export default class MainPage extends React.Component {
         let activeTab = seedTabExists ? 'seed' : 'variations';
         this.state = {user: user, activeTab: activeTab, coopGenMode: "Cloned Seeds", coopGameMode: "Co-op", players: 1, tracking: true, variations: ["ForceTrees"], gameId: gameId, customPool: false, poolStr: DEFAULT_POOL,
                      paths: presets["standard"], keyMode: "Clues", oldKeyMode: "Clues", pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null), goalModes: ["ForceTrees"],
-                     seed: "", fillAlg: "Balanced", shared: ["Skills", "Teleporters", "World Events", "Upgrades"], hints: true, helpcat: "", helpopt: "", quickstartOpen: quickstartOpen, dedupShared: false,
+                     seed: "", fillAlg: "Balanced", shared: ["Skills", "Teleporters", "World Events", "Upgrades", "Misc"], hints: true, helpcat: "", helpopt: "", quickstartOpen: quickstartOpen, dedupShared: false,
                      syncId: "", expPool: 10000, lastHelp: new Date(), seedIsGenerating: false, cellFreq: cellFreqPresets("standard"), fragCount: 30, fragReq: 20, relicCount: 8, loader: get_random_loader(),
                      paramId: paramId, seedTabExists: seedTabExists, reopenUrl: "", teamStr: "", flagLine: "", fass: {},  goalModesOpen: false, spoilers: true, dark: dark, seedIsBingo: false};
         if(url.searchParams.has("fromBingo")) {

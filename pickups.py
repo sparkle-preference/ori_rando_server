@@ -78,14 +78,21 @@ class Teleporter(Pickup):
 
 class Upgrade(Pickup):
     stacking = set([6, 13, 15, 17, 19, 21])
-    name_only = set([0, 1, 2, 30, 34, 35, 81] + range(40,50))
+    name_only = set([0, 1, 2, 30, 34, 35, 81] + range(40, 50))
     maxes = {17: 3, 19: 3, 21: 3}
-    names = {17: "Water Vein Shard", 19: "Gumon Seal Shard", 21: "Sunstone Shard", 28: "Warmth Fragment", 6: "Attack Upgrade", 13: "Health Regeneration", 2: "Go Home",
+    names = {
+            17: "Water Vein Shard", 19: "Gumon Seal Shard", 21: "Sunstone Shard", 28: "Warmth Fragment", 6: "Attack Upgrade", 13: "Health Regeneration", 2: "Go Home",
             15: "Energy Regeneration", 8: "Explosion Power Upgrade", 9: "Spirit Light Efficiency", 10: "Extra Air Dash", 11: "Charge Dash Efficiency",
             12: "Extra Double Jump", 0: "Mega Health", 1: "Mega Energy", 30: "Bleeding", 31: "Health Drain", 32: "Energy Drain", 33: "Skill Velocity Upgrade",
             101: "Polarity Shift", 102: "Gravity Swap", 103: "Extreme Speed", 104: "Teleport: Last AltR", 105: "Teleport: Soul Link", 106: "Respec", 107: "Level Explosion", 110: "Invincibility",
             81: "Stompnade Hint", 40: "Remove Wall Jump", 41: "Remove Charge Flame", 42: "Remove Double Jump", 43: "Remove Bash", 44: "Remove Stomp", 45: "Remove Glide",
-            46: "Remove Climb", 47: "Remove Charge Jump", 48: "Remove Dash", 49: "Remove Grenade", 34: "Disable Alt+R", 35: "Enable Alt+R", 36: "Underwater Skill Usage", 109: "Timewarp"}
+            46: "Remove Climb", 47: "Remove Charge Jump", 48: "Remove Dash", 49: "Remove Grenade", 34: "Disable Alt+R", 35: "Enable Alt+R", 36: "Underwater Skill Usage", 109: "Timewarp",
+            111: "Wither", 113: "Bash/Stomp Damage",
+            900: "Wall Jump Tree", 901: "Charge Flame Tree", 902: "Double Jump Tree", 903: "Bash Tree Tree", 904: "Stomp Tree Tree", 905: "Glide Tree Tree", 906: "Climb Tree Tree",
+            907: "Charge Jump Tree", 908: "Dash Tree Tree", 909: "Grenade Tree Tree", 911: "Glades Relic", 912: "Grove Relic", 913: "Grotto Relic", 914: "Blackroot Relic",
+            915: "Swamp Relic", 916: "Ginso Relic", 917: "Valley Relic", 918: "Misty Relic", 919: "Forlorn Relic", 920: "Sorrow Relic", 921: "Horu Relic"
+        }
+
     bits = {17: 1, 19: 4, 21: 16, 6: 64, 13: 256, 15: 1024, 8: 4096, 9: 8192, 10: 16384, 11: 32768, 12: 65536}
     code = "RB"
     def __new__(cls, id):
@@ -103,9 +110,9 @@ class Upgrade(Pickup):
         inst.bit = Upgrade.bits[id] if id in Upgrade.bits else -1
         inst.max = Upgrade.maxes[id] if id in Upgrade.maxes else None
         inst.stacks = id in Upgrade.stacking
-        if id in [17, 19, 21]:  # shards are world events
+        if id in [17, 19, 21, 28]:  # shards are world events
             inst.share_type = ShareType.EVENT
-        elif id == 28:  # warmth fragments are misc pickups
+        elif id >= 900:  # warmth fragments are misc pickups
             inst.share_type = ShareType.MISC
         else:
             inst.share_type = ShareType.UPGRADE

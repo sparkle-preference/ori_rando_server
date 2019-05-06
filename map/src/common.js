@@ -171,6 +171,8 @@ const stuff_by_type = {
         { label: "Level Explosion", value: "RB|107", desc: "On use: Pay 1 energy to create a level-up explosion."},
         { label: "Timewarp", value: "RB|109", desc: "Toggle: Slows time for everything but Ori, and drains energy at a rate of 4 per minute."},
         { label: "Invincibility", value: "RB|110", desc: "Toggle: Makes Ori Invincible. Costs 1 energy per second, +.5 to activate."},
+        { label: "Wither", value: "RB|111", desc: "On Use: kills Ori."},
+        { label: "Bash/Stomp Damage", value: "RB|113", desc: "Toggle: makes Stomp and Bash deal no damage."},
     ],
 };
 

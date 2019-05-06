@@ -156,6 +156,7 @@ class BingoGenerator(object):
             BoolGoal(name = "moonGrotto", disp_name = "Moon Grotto"),
             BoolGoal(name = "mangroveFalls", disp_name = "Blackroot Burrows"),
             BoolGoal(name = "valleyOfTheWind", disp_name = "Sorrow Pass"),
+            BoolGoal(name = "sorrowPass", disp_name = "Valley of the Wind"),
             BoolGoal(name = "spiritTree", disp_name = "Hollow Grove"),
             BoolGoal(name = "mangroveB", disp_name = "Lost Grove"),
             BoolGoal(name = "horuFields", disp_name = "Horu Fields"),

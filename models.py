@@ -13,6 +13,45 @@ from util import picks_by_coord, get_bit, get_taste, enums_from_strlist, PickLoc
 from pickups import Pickup, Skill, Teleporter, Event
 from cache import Cache
 
+trees_by_coords = {
+    -3160308: Pickup.n("RB", 900),
+    -560160: Pickup.n("RB", 901),
+    7839588: Pickup.n("RB", 902),
+    5320328: Pickup.n("RB", 903),
+    8599904: Pickup.n("RB", 904),
+    -4600020: Pickup.n("RB", 905),
+    -11880100: Pickup.n("RB", 906),
+    -6959592: Pickup.n("RB", 907),
+    719620: Pickup.n("RB", 908),
+    2919744: Pickup.n("RB", 909),
+}
+
+map_coords_by_zone = {
+    "valleyOfTheWind": -4080172,
+    "sorrowPass": -4519716,
+    "sunkenGlades": -840248,
+    "forlornRuins": -8440308,
+    "hollowGrove": 3479880,
+    "mangrove": 4159708,
+    "moonGrotto": 4759608,
+    "mountHoru": 560340,
+    "thornfeltSwamp": 6759868
+}
+
+relics_by_zone = {
+    "sunkenGlades": Pickup.n("RB", 911),
+    "hollowGrove": Pickup.n("RB", 912),
+    "moonGrotto": Pickup.n("RB", 913),
+    "mangrove": Pickup.n("RB", 914),
+    "thornfeltSwamp": Pickup.n("RB", 915),
+    "ginsoTree": Pickup.n("RB", 916),
+    "valleyOfTheWind": Pickup.n("RB", 917),
+    "mistyWoods": Pickup.n("RB", 918),
+    "forlornRuins": Pickup.n("RB", 919),
+    "sorrowPass": Pickup.n("RB", 920),
+    "mountHoru": Pickup.n("RB", 921)
+}
+
 def _pid(pkey):
     try:
         return int(pkey.id().partition(".")[2])
@@ -37,7 +76,6 @@ def stacks(pickup):
 
 
 pbc = picks_by_coord(extras=True)
-map_coords_by_zone = { "valleyOfTheWind": -4080172, "sorrowPass": -4519716, "sunkenGlades": -840248, "forlornRuins": -8440308, "hollowGrove": 3479880, "mangrove": 4159708, "moonGrotto": 4759608, "mountHoru": 560340, "thornfeltSwamp": 6759868}
 lines_by_index = {
     'Row 1': [0, 1, 2, 3, 4],
     'Row 2': [5, 6, 7, 8, 9],
@@ -80,13 +118,15 @@ class HistoryLine(ndb.Model):
     def print_line(self, start_time=None):
         t = (self.timestamp - start_time) if start_time and self.timestamp else self.timestamp
         if not self.removed:
-            name = ""
+            name = "at "
             if self.coords in pbc:
-                name = pbc[self.coords].area
+                name += pbc[self.coords].area
+            elif self.coords == -1:
+                name = "via manual activation"
             else:
                 log.warning("Unknown coords: %s", self.coords)
-                name = str(self.coords)
-            return "found %s at %s. (%s)" % (self.pickup().name, name, t)
+                name += str(self.coords)
+            return "found %s %s. (%s)" % (self.pickup().name, name, t)
         else:
             return "lost %s! (%s)" % (self.pickup().name, t)
 
@@ -154,9 +194,6 @@ class User(ndb.Model):
     
     def plando(self, seed_name):
         return Seed.get_by_id("%s:%s" % (self.key.id(), seed_name))
-
-
-
 
 class Player(ndb.Model):
     # id = gid.pid
@@ -326,7 +363,6 @@ class BingoCard(ndb.Model):
     completed_by = ndb.IntegerProperty(repeated=True)
 
     def to_json(self, players, initial=False): #, progresses
-    
         res = {
             "name": self.name,
             "progress": {p.pid(): p.bingo_prog[self.square].to_json() for p in players},
@@ -909,6 +945,9 @@ class Game(ndb.Model):
         share = pickup.is_shared(self.shared)
         finder = self.player(pid)
         players = self.get_players()
+        if coords == -1:
+            share = ShareType.MISC in self.shared
+            dedup = False
         if coords in [h.coords for h in finder.history]:
             if share and dedup:
                 log.error("Duplicate pickup at location %s from player %s" % (coords, pid))
@@ -920,8 +959,6 @@ class Game(ndb.Model):
                 log.info("Won't grant %s to player %s, as a teammate found it already" % (pickup.name, pid))
                 return 410
         if pickup.code == "MU":
-            # the game client sends the individual codes too BUT DEDUPING EXISTS
-            # (MAYBE THINGS ARE NOT GOOD)
             for child in pickup.children:
                 retcode = max(self.found_pickup(pid, child, coords, remove, False), retcode)
             return retcode
@@ -940,10 +977,20 @@ class Game(ndb.Model):
                     log.error("sharetuple mismatch! %s is not %s, triggering san check" % (ftple, ptple))
                     self.sanity_check()
                     break
+            shared_misc = False
+            if ShareType.MISC in self.shared:
+                if coords in trees_by_coords:
+                    for player in players:
+                        Player.transaction_pickup(player.key, trees_by_coords[coords], remove)
+                    shared_misc = True
+                if pickup.code == "WT":
+                    for player in players:
+                        Player.transaction_pickup(player.key, relics_by_zone[zone], remove)
+                    shared_misc = True
             if share:
                 for player in players:
                     Player.transaction_pickup(player.key, pickup, remove, coords=coords, finder=pid)
-            else:
+            elif not shared_misc:
                 retcode = 406
                 if pickup.code == "HN":
                     for player in players:

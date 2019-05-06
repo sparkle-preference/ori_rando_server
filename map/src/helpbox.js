@@ -209,6 +209,14 @@ const getHelpHelper = (category, option) => {
                         "Recommended for people interested in testing a new setting and willing to provide feedback"
                     ]
                     break;
+                case "GoalModeFinish":
+                    title = "Skip Final Escape"
+                    lines = [
+                        "The Skip Final Escape variation removes the need for players to complete the Mount Horu final escape.", 
+                        "Upon finishing their selected goal mode (or goal modes, if more than one is picked), players will recieve a special bonus skill, which can be activated at any time to warp to the credits.",
+                        "Note: Bingo already has this functionality built-in."
+                    ]
+                    break;
                 case "NonProgressMapStones":
                     title = "Discrete Mapstones"
                     lines = [
@@ -519,15 +527,14 @@ const getHelpHelper = (category, option) => {
                 case "Misc":
                     title = "Share Miscellaneous Items"
                     lines = [
-                        "With Share Misc enabled, Warmth Fragments and World Tour Relics are shared between players, if they exist.",
-                        "Sharing Relics and Warmth Fragments will greatly reduce the amount of time an average co-op seed will take to complete."
+                        "With Share Misc enabled, tree activation, teleporter activation, and World Tour Relics are shared between players.",
+                        "Sharing teleporters and tree progression will generally reduce the amount of time an average co-op seed will take to complete."
                     ]
-                    extras.push((<CardText className="border font-weight-bold m-2 p-2 border-danger">Relic sharing is currently disabled. Relics will not be shared.</CardText>))
                     break;
                 case "World Events":
                     title = "Share World Events"
                     lines = [
-                        "With Share World Events enabled, the 3 Dungeon Keys (or Shards), Clean Water, Wind Restored, and Warmth Returned will be shared between players when found.",
+                        "With Share World Events enabled, the 3 Dungeon Keys (or Shards), Clean Water, Wind Restored, and Warmth Fragments will be shared between players when found.",
                         "Sharing World Events is recommended for every co-op game varient, though it is less interesting in certain Dungeon Key modes (*cough*limitkeys*cough*)."
                     ]
                     break;
@@ -972,7 +979,6 @@ const getHelpHelper = (category, option) => {
                     break;
             }
             break;
-        case "none":
         default:
             break;
     }
