@@ -17,6 +17,7 @@ import Control from 'react-leaflet-control';
 import {Helmet} from 'react-helmet';
 import Toggle from 'react-bootstrap-toggle';
 
+
 NumericInput.style.input.width = '100%';
 NumericInput.style.input.height = '36px';
 

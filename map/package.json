@@ -57,6 +57,7 @@
     "react-select": "^2.1.1",
     "react-spinners": "^0.4.7",
     "reactstrap": "^5.0.0-beta.3",
+    "source-map-explorer": "^1.8.0",
     "style-loader": "0.19.0",
     "sw-precache-webpack-plugin": "0.11.4",
     "underscore": "^1.8.3",
@@ -67,6 +68,7 @@
     "whatwg-fetch": "2.0.3"
   },
   "scripts": {
+    "analyze": "source-map-explorer --html 'build/static/js/*.js' > tree.html",
     "start": "node scripts/start.js",
     "build": "node scripts/build.js",
     "dev": "node scripts/dev.js",

@@ -1,11 +1,9 @@
 import React from 'react';
 import {Container, Row, Col, Button} from 'reactstrap';
-import {Helmet} from 'react-helmet';
+import {Cent, select_theme} from "./common.js"
 import {download, uniq} from "./shared_map.js"
 import Select, { createFilter } from 'react-select';
 import SiteBar from "./SiteBar.js"
-
-const textStyle = {color: "black", textAlign: "center"}
 
 const keyFilter = createFilter({
   ignoreCase: true,
@@ -68,9 +66,9 @@ const COMPOUND_ACTIONS = {
 
 const KeyRow = ({setter, action, keys}) => (
     <Row>
-    <Col xs="4">{action}:</Col>
+    <Col xs="4"><Cent>{action}:</Cent></Col>
     <Col xs="8">
-        <Select getOptionLabel={opt => opt} isMulti getOptionValue={opt => opt} options={Keys} filterOption={createFilter(keyFilter)} value={keys} onChange={value => setter(action, value)}/>
+        <Select theme={select_theme} getOptionLabel={opt => opt} isMulti getOptionValue={opt => opt} options={Keys} filterOption={createFilter(keyFilter)} value={keys} onChange={value => setter(action, value)}/>
     </Col>
     </Row>
 )
@@ -114,20 +112,17 @@ export default class RebindingsEditor extends React.Component {
     render = () => {
         return (
             <Container className="pl-4 pr-4 pb-4 pt-2 mt-2 w-75">
-                <Helmet>
-                    <style>{'body { background-color: white}'}</style>
-                </Helmet>
                 <SiteBar user={this.state.user}/>
                 <Row className="p-1">
                     <Col>
-                        <span><h3 style={textStyle}>Ori Rebinding Editor</h3></span>
+                        <Cent><h3>Ori Rebinding Editor</h3></Cent>
                     </Col>
                 </Row>
                 <Row>
                     <Col xs="7">
                         <Row className="p-1">
                             <Col>
-                                <span><h5 style={textStyle}>Normal Controls</h5></span>
+                                <Cent><h5>Normal Controls</h5></Cent>
                             </Col>
                         </Row>
                         <KeyRows setter={this.OnKey} bindings={this.state.bindings}/>
@@ -135,7 +130,7 @@ export default class RebindingsEditor extends React.Component {
                     <Col xs="5">
                         <Row className="p-1">
                             <Col>
-                                <span><h5 style={textStyle}>Common Shortcuts</h5></span>
+                                <Cent><h5>Common Shortcuts</h5></Cent>
                             </Col>
                         </Row>
                         <KeyRows setter={this.OnCompound} bindings={this.state.compounds}/>

@@ -717,6 +717,24 @@ class MakeSeedWithParams(RequestHandler):
         else:
             self.response.status = 500
             self.response.write("Failed to build seed!")
+    def post(self):
+        self.response.headers['Content-Type'] = 'application/json'
+        param_key = SeedGenParams.from_json(json.loads(self.request.POST["params"]))
+        params = param_key.get()
+        if params.generate():
+            resp = {"paramId": param_key.id(), "playerCount": params.players, "flagLine": params.flag_line(), 'seed': params.seed, "spoilers": True}
+            if params.tracking:
+                game = Game.from_params(params, self.request.GET.get("game_id"))
+                resp["gameId"] = game.key.id()
+                if debug and param_flag(self, "test_map_redir"):
+                     self.redirect(uri_for("map-render", game_id=resp["gameId"], from_test=1))
+            if Variation.BINGO in params.variations:
+                resp["doBingoRedirect"] = True
+
+            self.response.write(json.dumps(resp))
+        else:
+            self.response.status = 500
+            self.response.write("Failed to build seed!")
 
 
 class SeedGenJson(RequestHandler):
@@ -817,6 +835,7 @@ class RebindingsEditor(RequestHandler):
         user = User.get()
         if user:
             template_values['user'] = user.name
+            template_values['dark'] = user.dark_theme
         self.response.write(template.render(path, template_values))
 
 class Guides(RequestHandler):
@@ -825,6 +844,7 @@ class Guides(RequestHandler):
         user = User.get()
         if user:
             template_values['user'] = user.name
+            template_values['dark'] = user.dark_theme
         self.response.write(template.render(path, template_values))
 
 class GetSettings(RequestHandler):

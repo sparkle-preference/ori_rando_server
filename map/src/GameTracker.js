@@ -57,16 +57,21 @@ const PlayerUiOpts = ({players, setter, follow}) => {
 		return null;
 	const items = Object.keys(players).map((id) => {
 		return (
-			<Row className="pt-2 pb-2">
-                <Col className="p-1"><Blabel color="light">{players[id].name}</Blabel></Col>
-                <Col className="p-1"><Button block active={players[id].show_marker} color="primary" outline={!players[id].show_marker} onClick={tog(id, "show_marker")}>Visible</Button></Col>
-                <Col className="p-1"><Button block active={players[id].show_spoiler} color="primary" outline={!players[id].show_spoiler} onClick={tog(id, "show_spoiler")}>Spoilers</Button></Col>
-                <Col className="p-1"><Button block active={players[id].show_sense} color="primary" outline={!players[id].show_sense} onClick={tog(id, "show_sense")}>Sense</Button></Col>
-                <Col className="p-1"><Button block active={id === follow} color="primary" outline={id !== follow} onClick={followTog(id)}>Track</Button></Col>
-                <Col className="p-1"><Button block active={players[id].hide_found} color="primary" outline={!players[id].hide_found} onClick={tog(id, "hide_found")}>Hide found</Button></Col>
-                <Col className="p-1"><Button block active={players[id].hide_unreachable} color="primary" outline={!players[id].hide_unreachable} onClick={tog(id, "hide_unreachable")}>Hide unreachable</Button></Col>
-                <Col className="p-1"><Button block active={players[id].hide_remaining} color="primary" outline={!players[id].hide_remaining} onClick={tog(id, "hide_remaining")}>Hide remaining</Button></Col>
-            </Row>
+            <Fragment>
+                <Row className="pt-2">
+                    <Col className="p-1"><Blabel color="light">{players[id].name}</Blabel></Col>
+                    <Col className="p-1"><Button block active={players[id].show_marker} color="primary" outline={!players[id].show_marker} onClick={tog(id, "show_marker")}>Visible</Button></Col>
+                    <Col className="p-1"><Button block active={players[id].show_spoiler} color="primary" outline={!players[id].show_spoiler} onClick={tog(id, "show_spoiler")}>Spoilers</Button></Col>
+                    <Col className="p-1"><Button block active={players[id].show_sense} color="primary" outline={!players[id].show_sense} onClick={tog(id, "show_sense")}>Sense</Button></Col>
+                    <Col className="p-1"><Button block active={id === follow} color="primary" outline={id !== follow} onClick={followTog(id)}>Track</Button></Col>
+                </Row>
+                <Row className="pb-2">
+                    <Col className="p-1"><Blabel color="light">Hide</Blabel></Col>
+                    <Col className="p-1"><Button block active={players[id].hide_found} color="primary" outline={!players[id].hide_found} onClick={tog(id, "hide_found")}>found</Button></Col>
+                    <Col className="p-1"><Button block active={players[id].hide_unreachable} color="primary" outline={!players[id].hide_unreachable} onClick={tog(id, "hide_unreachable")}>unreachable</Button></Col>
+                    <Col className="p-1"><Button block active={players[id].hide_remaining} color="primary" outline={!players[id].hide_remaining} onClick={tog(id, "hide_remaining")}>remaining</Button></Col>
+                </Row>
+            </Fragment>
 		);
 	});
 	return items;
@@ -356,7 +361,7 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
                         {hideopts}
                         <Row className="pt-2">
                         <Col xs="4">
-                            <Button color="primary" onClick={this.toggleLogic} >Logic Presets:</Button>
+                            <Button color="primary" onClick={this.toggleLogic} >Logic Modes:</Button>
                         </Col><Col xs="8">
                             <Select styles={select_styles}  options={select_wrap(paths)} onChange={this._onPathModeChange} clearable={false} value={select_wrap(this.state.pathMode)}></Select>
                         </Col>

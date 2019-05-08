@@ -3,7 +3,6 @@ import {Container, Row, Col, Collapse, Button, ButtonGroup, Modal, ModalHeader, 
         ModalBody, ModalFooter, Input, Card, CardBody, CardFooter, Media, UncontrolledButtonDropdown, DropdownToggle, DropdownMenu, DropdownItem} from 'reactstrap';
 import {NotificationContainer, NotificationManager} from 'react-notifications';
 import Countdown from 'react-countdown-now';
-import {Helmet} from 'react-helmet';
 import { confirmAlert } from 'react-confirm-alert';
 import 'react-confirm-alert/src/react-confirm-alert.css'
 import 'react-notifications/lib/notifications.css';
@@ -16,29 +15,17 @@ import SiteBar from "./SiteBar.js";
 const iniUrl = new URL(window.document.URL);
 const cardTextSize = iniUrl.searchParams.get("textSize") || "1.5vh"
 const hideFooter = iniUrl.searchParams.has("hideFooter")
-const colors = {
-    footerDark: "#292929",
-    cardDark: "#333333",
-    darkComplete: "#1ba06e",
-    darkSubgoal: "#0d4f34",
-    complete: "#ccffcc",
-    subgoal: "#88cc88",
-    selected: "#bbffff",
-    selectedDark: "#333377",
-}
+
 
 const make_icons = players => players.map(p => (<Media key={`playerIcon${p}`} object style={{width: "25px", height: "25px"}} src={player_icons(p, false)} alt={"Icon for player "+p} />))
-const BingoCard = ({card, progress, players, help, dark, selected, onSelect}) => {
+const BingoCard = ({card, progress, players, help, dark, selected, onSelect, colors}) => {
     let cardStyles = {width: '18vh', height: '18vh', minWidth: '120px', maxWidth: '200px', minHeight: '120px', maxHeight: '200px', flexGrow: 1}
     let footerStyles = {}
-    if(dark)
-    {
-        cardStyles.background = colors.cardDark
-        cardStyles.border = '1px solid rgba(255,255,255,.25)'
-        footerStyles.background = colors.footerDark
-    }
+    cardStyles.border = '1px solid'
+    cardStyles.borderColor = colors.border
+    // footerStyles.background = colors.footer
     if(selected)
-        cardStyles.background = dark ? colors.selectedDark : colors.selected
+        cardStyles.background = colors.selected
     let {open, toggle, i} = help
     let {disp_name, help_lines, subgoals, target} = card
     subgoals = subgoals || {}
@@ -50,14 +37,15 @@ const BingoCard = ({card, progress, players, help, dark, selected, onSelect}) =>
 
     Object.keys(subgoals).forEach(subgoal => {
         let styles = {};
+        let line = subgoals[subgoal].disp_name
         if(progress.subgoals && progress.subgoals.includes(subgoal))
         {
             if(progress.completed)
-                styles.background = dark ?  colors.darkSubgoal: colors.subgoal
+                line = (<u>{line}</u>)
             else
-                styles.background = dark ? colors.darkComplete : colors.complete
+                styles.background = colors.complete
         }
-        text.push((<div className="w-100" key={`card-line-${j++}`} style={styles}>{subgoals[subgoal].disp_name}</div>))
+        text.push((<div className="w-100" key={`card-line-${j++}`} style={styles}>{line}</div>))
     })
     if(target) {
         text.push((<div className="w-100" key={`card-line-${j++}`}>({progress.count ? `${progress.count}/` : ""}{target})</div>))
@@ -77,7 +65,7 @@ const BingoCard = ({card, progress, players, help, dark, selected, onSelect}) =>
     }
 
     if(progress.completed)
-        cardStyles.background = dark ? colors.darkComplete : colors.complete
+        cardStyles.background = colors.complete
     let footer = hideFooter ? null : (
         <CardFooter style={footerStyles} className="p-0 text-center">
             {helpLink}
@@ -112,13 +100,13 @@ class BingoBoard extends Component {
         return {selected: prev.selected}
     })
     render() {
-        let {cards, activePlayer, bingos, dark, hiddenPlayers, activeTeam} = this.props
+        let {cards, activePlayer, bingos, dark, hiddenPlayers, activeTeam, colors} = this.props
         if(!cards || cards.length < 25) {
             return null
         }
         let rows = [], i = 0;
-        let colStyle = (b) => bingos.includes(b) ? {height: "20px", width: "100%", background: dark ? colors.darkComplete : colors.complete} : {height: "20px", width: "100%"}
-        let rowStyle = (b) => bingos.includes(b) ? {width: "20px", height: "100%", textAlign:"center", background: dark ? colors.darkComplete : colors.complete} : {width: "20px", height: "100%", textAlign: "center"}
+        let colStyle = (b) => bingos.includes(b) ? {height: "20px", width: "100%", background: colors.complete} : {height: "20px", width: "100%"}
+        let rowStyle = (b) => bingos.includes(b) ? {width: "20px", height: "100%", textAlign:"center", background: colors.complete} : {width: "20px", height: "100%", textAlign: "center"}
         while(rows.length < 5) {
             let row = []
             while(row.length < 5) {
@@ -127,7 +115,7 @@ class BingoBoard extends Component {
                 let progress = card.progress.hasOwnProperty(activePlayer) ? card.progress[activePlayer] : {'completed': false, 'count': 0, 'subgoals': []}
                 // temp bullshit
                 progress.completed = card.completed_by.includes(activePlayer) || card.completed_by.includes(activeTeam)
-                row.push((<td key={i}><BingoCard selected={this.state.selected[i]} onSelect={this.selectToggle(i)} dark={dark} card={card} progress={progress} help={{i: i, open: this.state.helpOpen[i], toggle: this.helpToggle(i)}} players={players} /></td>))
+                row.push((<td key={i}><BingoCard colors={colors} selected={this.state.selected[i]} onSelect={this.selectToggle(i)} dark={dark} card={card} progress={progress} help={{i: i, open: this.state.helpOpen[i], toggle: this.helpToggle(i)}} players={players} /></td>))
                 i++
             }
             let rowNum = rows.length + 1
@@ -153,13 +141,10 @@ class BingoBoard extends Component {
     }
 }
 
-const PlayerList = ({activePlayer, teams, viewOnly, isOwner, timerTime, onPlayerListAction, userBoard, userBoardParams, dark, gameId, teamMax, teamsDisabled}) => {
+const PlayerList = ({activePlayer, teams, viewOnly, isOwner, timerTime, onPlayerListAction, userBoard, userBoardParams, gameId, teamMax, teamsDisabled}) => {
     if(!teams)
         return null
-    let dropdownStyle = {}
     let team_list = Object.keys(teams).map(cid => teams[cid])
-    if(dark)
-        dropdownStyle.backgroundColor = "#666"
     let players = team_list.map(({hidden, cap, teammates, name, bingos, place, score}) => {
 
             if(hidden)
@@ -195,7 +180,7 @@ const PlayerList = ({activePlayer, teams, viewOnly, isOwner, timerTime, onPlayer
                             <Cent>{badge}{" "}{make_icons([cap.pid])} {text}</Cent>
                         </Button>
                         <DropdownToggle caret color="secondary" />
-                        <DropdownMenu style={dropdownStyle} right>
+                        <DropdownMenu right>
                             {joinButton}
                             {removeButton}
                             <DropdownItem onClick={onPlayerListAction("hidePlayer", cap.pid)}>
@@ -224,7 +209,7 @@ const PlayerList = ({activePlayer, teams, viewOnly, isOwner, timerTime, onPlayer
                                     <Cent>{make_icons([pid])}{name}</Cent>
                                 </Button>
                                 <DropdownToggle caret color="secondary" />
-                                <DropdownMenu style={dropdownStyle} right>
+                                <DropdownMenu right>
                                     {removePlayer}
                                     <DropdownItem  href={`/bingo/game/${gameId}/seed/${pid}`} target="_blank">
                                         Redownload seed
@@ -277,6 +262,8 @@ export default class Bingo extends React.Component {
             listWidth: parseInt(iniUrl.searchParams.get("listWidth") || 300, 10),
             listHeight: parseInt(iniUrl.searchParams.get("listHeight") || 400, 10),
         } : {}
+
+
         let gameId = parseInt(iniUrl.searchParams.get("game_id") || -1, 10);
         if(viewOnly && gameId)
             gameId = (gameId - 4)/7
@@ -580,14 +567,15 @@ export default class Bingo extends React.Component {
     render = () => {
         let {specLink, viewOnly, isOwner, dark, activePlayer, startTime, paramId, teamsDisabled, userBoardParams,
             subtitle, cards, haveGame, gameId, user, dispDiff, teams, loadingText, userBoard} = this.state
-        let pageStyle, inputStyle
-        if(dark) {
-            pageStyle = 'body { background-color: #333; color: white }';
-            inputStyle = {'backgroundColor': '#333', 'color': 'white'}
-        } else {
-           pageStyle = 'body { background-color: white; color: black }';
-           inputStyle = {'backgroundColor': 'white', 'color': 'black'}
+        let s = getComputedStyle(document.body);
+        let inputStyle = {'borderColor': s.getPropertyValue('--dark'), 'backgroundColor': s.getPropertyValue("background-color"), 'color': s.getPropertyValue("color")}
+
+        let colors = {
+            complete: s.getPropertyValue("--teal"),
+            selected: s.getPropertyValue("--cyan"),
+            border: s.getPropertyValue("--dark")
         }
+
         let creatorControls = isOwner && !startTime ? (
             <Row className="align-items-center justify-content-center p-2">
                 <Col xs="auto">
@@ -608,14 +596,14 @@ export default class Bingo extends React.Component {
                 case "square":
                     return  loss ? `${time}: ${name} lost square ${this.getSquareName(square)}!` : `${time}: ${name} completed square ${this.getSquareName(square)}`
                 case "bingo":
-                    let txt =  loss ? `${time}: ${name} lost bingo ${bingo}!` : `${time}: ${name} got bingo ${bingo}`
+                    let txt =  loss ? `${time}: ${name} lost bingo ${bingo}!` : `${time}: ${name} got bingo ${bingo}!`
                     if(!loss && first)
                     {
                         txt += ` (first to ${square} bingo${square === 1 ? '' : 's'}!)`
                     }
                     return txt
                 case "win":
-                    return `${time}: ${name} finished in ${ordinal_suffix(this.state.teams[cpid].place)} place`
+                    return `${time}: ${name} finished in ${ordinal_suffix(this.state.teams[cpid].place)} place!!!`
                 default:
                     return ""
             }
@@ -652,7 +640,7 @@ export default class Bingo extends React.Component {
         let bingoContent = haveGame ? (
             <Row className="justify-content-center align-items-center">
                 <Col xs="auto">
-                    <BingoBoard dark={dark} cards={cards} activePlayer={activePlayer} activeTeam={this.getCap(activePlayer)} bingos={bingos} hiddenPlayers={hiddenPlayers}/>
+                    <BingoBoard colors={colors} dark={dark} cards={cards} activePlayer={activePlayer} activeTeam={this.getCap(activePlayer)} bingos={bingos} hiddenPlayers={hiddenPlayers}/>
                 </Col>
                     <PlayerList {...this.state} onPlayerListAction={this.onPlayerListAction}/>
             </Row>
@@ -682,13 +670,12 @@ export default class Bingo extends React.Component {
 
             return (
                 <Container className="p-0 m-0 w-100">
-                    <Helmet>
-                        <style type="text/css">{pageStyle}</style>
-                    </Helmet>
                     <NotificationContainer/>
+                    <SiteBar hidden/>
+
                     <Row className="flex-nowrap p-0 m-0">
                         <Col className="p-0 m-0">
-                            <BingoBoard dark={dark} cards={cards} activePlayer={activePlayer} activeTeam={this.getCap(activePlayer)} bingos={bingos} hiddenPlayers={hiddenPlayers}/>
+                            <BingoBoard colors={colors} dark={dark} cards={cards} activePlayer={activePlayer} activeTeam={this.getCap(activePlayer)} bingos={bingos} hiddenPlayers={hiddenPlayers}/>
                         </Col>
                         <Col>
                             {rows}
@@ -703,9 +690,6 @@ export default class Bingo extends React.Component {
                 headerText = "Game not found"
             return (
                 <Container className="px-4 pb-4 pt-2 mt-2 w-100">
-                    <Helmet>
-                        <style type="text/css">{pageStyle}</style>
-                    </Helmet>
                     <NotificationContainer/>
                     <Row className="p-1">
                         <Col>
@@ -730,9 +714,6 @@ export default class Bingo extends React.Component {
         )
         return (
             <Container fluid="true" className="pb-4 pt-2 mt-5">
-            <Helmet>
-                <style type="text/css">{pageStyle}</style>
-            </Helmet>
                 <NotificationContainer/>
                 <Container className="">
                     <SiteBar dark={dark} user={user}/>

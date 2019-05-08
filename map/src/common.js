@@ -6,8 +6,22 @@ import {
 } from 'react-spinners';
 import { Badge } from 'reactstrap';
 import CreatableSelect from 'react-select/lib/Creatable';
-import { colors } from 'react-select/lib/theme';
 
+const select_theme = (theme) => {
+    let style = getComputedStyle(document.body);
+    return ({
+      ...theme,
+      colors: {
+      ...theme.colors,
+      primary: style.getPropertyValue("--success"), // selected
+      primary25: style.getPropertyValue("--info"),  // hover
+      dangerLight: style.getPropertyValue("--warning"), // disabled
+      neutral0: style.getPropertyValue("background-color"), // background
+      neutral10: style.getPropertyValue("--secondary"), // multi background
+      neutral80: style.getPropertyValue("color")
+    },
+    })
+}
 function ordinal_suffix(i) {
     let j = i % 10,
         k = i % 100;
@@ -78,12 +92,18 @@ function pickup_name(code, id) {
                 return "Hint"
         case "WS":
         case "WP":
+            if(id === "*")
+                return "Random warp (repeatable)"
             if(id.endsWith(",force"))
                 return "Warp (forced) to " + id.slice(0, id.length-6) + (code === "WS" ? " and save" : "")
             else
                 return "Warp (optional) to " + id + (code === "WS" ? " and save" : "")
         case "NO":
             return "Nothing"
+        case "BS":
+            if(id === "*")
+                return "Random bonus skill"
+            return code + "|" + id;
         default:
             return code + "|" + id;
     }
@@ -186,20 +206,9 @@ const grouped_opts = Object.keys(stuff_by_type).map(t => {
     all_opts.push(...stuff_by_type[t]);
     return { label: t, options: stuff_by_type[t] };
 });
-grouped_opts.push({
-    label: "Misc",
-    options: [
-        { label: "Repeatable", value: "RP" },
-        { label: 'Print "Your text here"', value: "SH|Your text here", fake: true },
-        { label: 'Warp to 0,0', value: "WP|0,0", fake: true },
-        { label: 'Warp (forced) to 0,0', value: "WP|0,0,force", fake: true },
-        { label: 'Warp (forced) to 0,0 and save', value: "WS|0,0,force", fake: true },
-        { label: 'Warp to 0,0 and save', value: "WS|0,0", fake: true },
-        { label: '15 Experience', value: "EX|15", fake: true },
-    ]
-});
 
 class PickupSelect extends Component {
+  clear = () => this.setState({value: []})
   valFromStr = (input, update = false) => {
     let value = []
     if (input && input.includes("|") && input !== "NO|1") {
@@ -231,25 +240,50 @@ class PickupSelect extends Component {
     if (props.value) 
       value = this.valFromStr(props.value);
     
+    let s = getComputedStyle(document.body);
+
     let styles = props.styles || {
         option: (base, data) => {
           let { isDisabled, isFocused } = data
-          let bgc = isDisabled ? colors.dangerLight : isFocused ? colors.primary25 : 'transparent'
+          let bgc = isDisabled ? s.getPropertyValue("--warning") : isFocused ? s.getPropertyValue("--info") : s.getPropertyValue("background-color")
           return ({
           ...base,
           backgroundColor: bgc,
-          color: 'black',
+          color: s.getPropertyValue("color"),
         })},
       }
+    
+    let options = [...grouped_opts]
+    if(!props.noMisc) {
+        let misc = {
+            label: "Misc",
+            options: [
+                { label: '15 Experience', value: "EX|15", fake: true },
+                { label: "Repeatable", value: "RP" },
+                { label: 'Print "Your text here"', value: "SH|Your text here", fake: true },
+                { label: 'Warp to 0,0', value: "WP|0,0", fake: true },
+                { label: 'Warp (forced) to 0,0', value: "WP|0,0,force", fake: true },
+                { label: 'Warp (forced) to 0,0 and save', value: "WS|0,0,force", fake: true },
+                { label: 'Warp to 0,0 and save', value: "WS|0,0", fake: true },
+            ]
+        }
+        if(props.allowPsuedo) {
+            misc.options.splice(0, 0, {label: "Random Bonus Skill", value: "BS|*"})
+            misc.options.splice(0, 0, {label: "Random Warp", value: "WP|*"})
+        }
+        options.push(misc)
+    }
 
     this.state = {
-      options: grouped_opts,
+      options: options,
       value: value,
+      lastPropVal: props.value,
       menuOpen: false,
       inputValue: "",
       styles: styles, 
       updater: props.updater || console.log
     };
+
   }
   handleInputChange = inputValue => {
     this.setState({ inputValue });
@@ -407,13 +441,21 @@ class PickupSelect extends Component {
     this.cref.select.select.isOptionSelected = (opt, values) => opt.value === "RP" && values.some(v => v.value === "RP")
     this.cref.select.select.selectOption = this.selectOption(this.cref.select.select)
   }
+  componentDidUpdate() {
+      if(this.state.lastPropVal !== this.props.value)
+      {
+        this.setState({lastPropVal: this.props.value, value: this.valFromStr(this.props.value)})
+      }
+  }
   render() {
+
     const { options, value, inputValue, menuOpen, styles } = this.state;
     return (
       <CreatableSelect
         ref={ref => { this.cref = ref; }}
         isOptionDisabled={this.optionDisabled}
-        isClearable
+        isClearable={this.props.isClearable}
+        isDisabled={this.props.isDisabled || this.props.disabled || false}
         isMulti
         onMenuOpen={() => this.setState({ menuOpen: true })}
         onMenuClose={() => this.setState({ menuOpen: false })}
@@ -428,6 +470,7 @@ class PickupSelect extends Component {
         options={options}
         value={value}
         styles={styles}
+        theme={select_theme}
       />
     );
   }
@@ -593,9 +636,10 @@ function gotoUrl(url, newWindow) {
 
 
 const dev = window.document.URL.includes("devshell.appspot.com")
+const randInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 
 
 export {
     player_icons, doNetRequest, get_param, get_flag, get_int, get_list, get_preset, presets, get_seed, logic_paths, get_random_loader, Blabel,
-    pickup_name, stuff_by_type, name_from_str, PickupSelect, Cent, ordinal_suffix, dev, gotoUrl
+    pickup_name, stuff_by_type, name_from_str, PickupSelect, Cent, ordinal_suffix, dev, gotoUrl, select_theme, randInt
 };

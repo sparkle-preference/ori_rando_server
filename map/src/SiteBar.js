@@ -1,12 +1,15 @@
 import React, {Component} from 'react';
 import {Navbar,  NavbarBrand, Nav,  NavItem, Button, Modal, ModalHeader, ModalBody, ModalFooter, FormFeedback,
         UncontrolledDropdown, DropdownToggle, DropdownMenu, DropdownItem, Container, Row, Col, Input, UncontrolledAlert} from 'reactstrap'
-import {Cent, doNetRequest, get_random_loader} from './common.js';
+import {Cent, doNetRequest, get_random_loader, get_param, get_flag} from './common.js';
+
 const BAD_CHARS = ["@", "/", "\\", "?", "#", "&", "=", '"', "'"]
 class SiteBar extends Component {
     constructor(props) {
         super(props);
-        let {user, dark} = props;
+        let url = new URL(window.document.URL);
+        let user = get_param("user");
+        let dark = get_flag("dark") || url.searchParams.has("dark")
         this.state = {user: user, dark: dark, teamName: "", settingsOpen: false, quickstartOpen: false, editName: user, loadedNames: false, saveInProgress: false, loader: get_random_loader(), saveStatus: 0}
     }
     componentDidMount() {
@@ -43,13 +46,12 @@ class SiteBar extends Component {
         })
     }
     settingsModal = () =>  {
-        let {saveInProgress, loadedNames, settingsOpen, loader, usedNames, user, editName, teamName, saveStatus, dark} = this.state
-        let styles = dark ? {'backgroundColor': '#333', 'color': 'white'} : {}
+        let {saveInProgress, loadedNames, settingsOpen, loader, usedNames, user, editName, teamName, saveStatus} = this.state
         if(saveInProgress || !loadedNames)
             return (
                 <Modal size="sm" isOpen={settingsOpen} backdrop={"static"} className={"modal-dialog-centered"}>
-                    <ModalHeader style={styles} centered="true">{loadedNames ? "Saving..." : "Loading Settings..."}</ModalHeader>
-                    <ModalBody style={styles}>
+                    <ModalHeader centered="true">{loadedNames ? "Saving..." : "Loading Settings..."}</ModalHeader>
+                    <ModalBody>
                         <Container fluid>
                             <Row className="p-2 justify-content-center align-items-center">
                                 <Col xs="auto" className="align-items-center justify-content-center p-2">{loader}</Col>
@@ -69,8 +71,8 @@ class SiteBar extends Component {
         }
         return (
             <Modal isOpen={settingsOpen} backdrop={"static"} className={"modal-dialog-centered"} toggle={this.closeModals}>
-                <ModalHeader style={styles} toggle={this.closeModals} centered="true">User settings</ModalHeader>
-                <ModalBody style={styles}>
+                <ModalHeader toggle={this.closeModals} centered="true">User settings</ModalHeader>
+                <ModalBody >
                     {alert}
                     <Container fluid>
                         <Row className="p-1">
@@ -91,7 +93,7 @@ class SiteBar extends Component {
                         </Row>
                     </Container>
                 </ModalBody>
-                <ModalFooter style={styles}>
+                <ModalFooter>
                     <Button disabled={!valid} onClick={this.submitSettings}>Submit</Button>
                 </ModalFooter>
             </Modal>
@@ -115,24 +117,22 @@ class SiteBar extends Component {
     }
 
     render() {
+        if(this.props.hidden)
+            return null
         let {user, dark} = this.state;
         let url = new URL(window.document.URL)
         let page = encodeURIComponent(url.pathname + url.search)
         let xMode = dark ? "Light Mode" : "Dark Mode"
         let logonoff = user ? [
             (<DropdownItem key="settings" onClick={() => this.setState({settingsOpen: true})}> Rename </DropdownItem>),
+            (<DropdownItem key="my games" href={"/myGames"}>  My Games </DropdownItem>),
             (<DropdownItem key="logout" href={"/logout?redir="+page}>  Logout </DropdownItem>),
         ] : [
             (<DropdownItem href={"/login?redir="+page}> Login </DropdownItem>)
         ]
         let myseeds = user ? (<DropdownItem href={"/plando/"+ user}> {user}'s seeds </DropdownItem>) : null
         let settings = this.settingsModal()
-        let dropdownStyle = {}, navClass = "border border-dark p-2"
-        if(dark)
-        {
-            dropdownStyle.backgroundColor = "#666"
-            navClass = "border border-light p-2"
-        }
+        let navClass = "border border-dark p-2"
         let nameorlogin = user ? user : "Login"
         return (
             <Navbar style={{maxWidth: '1074px'}} className={navClass} expand="md">
@@ -149,12 +149,12 @@ class SiteBar extends Component {
                     <DropdownToggle nav caret>
                     Downloads
                     </DropdownToggle>
-                    <DropdownMenu style={dropdownStyle} right>
+                    <DropdownMenu right>
                         <DropdownItem href="/vanilla">
                             Vanilla Seed
                         </DropdownItem>
                         <DropdownItem href="/dll">
-                            Rando dll (3.1)
+                            Rando dll (3.2)
                         </DropdownItem>
                         <DropdownItem href="/tracker">
                             Rando Tracker
@@ -165,7 +165,7 @@ class SiteBar extends Component {
                     <DropdownToggle nav caret>
                         Tools
                     </DropdownToggle>
-                    <DropdownMenu style={dropdownStyle} right>
+                    <DropdownMenu right>
                         <DropdownItem href="/logichelper">
                             Logic Helper
                         </DropdownItem>
@@ -178,7 +178,7 @@ class SiteBar extends Component {
                     <DropdownToggle nav caret>
                     Misc
                     </DropdownToggle>
-                    <DropdownMenu style={dropdownStyle} right>
+                    <DropdownMenu right>
                     <DropdownItem target="_blank" href="https://goo.gl/csgRUw">
                         Patch Notes
                     </DropdownItem>
@@ -191,7 +191,7 @@ class SiteBar extends Component {
                     <DropdownToggle nav caret>
                     {nameorlogin}
                     </DropdownToggle>
-                    <DropdownMenu style={dropdownStyle} right>
+                    <DropdownMenu right>
                     <DropdownItem onClick={this.themeToggle}>
                         {xMode}
                     </DropdownItem>
@@ -202,7 +202,7 @@ class SiteBar extends Component {
                     <DropdownToggle nav caret>
                     Plando
                     </DropdownToggle>
-                    <DropdownMenu style={dropdownStyle} right>
+                    <DropdownMenu right>
                     <DropdownItem href="/plando/newSeed/edit">
                         Open Plando Editor
                     </DropdownItem>

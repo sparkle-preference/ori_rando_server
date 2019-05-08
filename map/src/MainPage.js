@@ -2,19 +2,99 @@ import React from 'react';
 import  {DropdownToggle, DropdownMenu, Dropdown, DropdownItem, Nav, NavLink, NavItem, Collapse,  Input, UncontrolledButtonDropdown, Button, 
         Row, FormFeedback, Col, Container, TabContent, TabPane, Modal, ModalHeader, ModalBody, ModalFooter, Media} from 'reactstrap'
 import {NotificationContainer, NotificationManager} from 'react-notifications';
-import {Helmet} from 'react-helmet';
 
 import 'react-notifications/lib/notifications.css';
 import './index.css';
 
 import {getHelpContent, HelpBox} from "./helpbox.js"
-import {get_param, presets, get_preset, get_flag, player_icons, doNetRequest, get_random_loader, PickupSelect, Cent, dev, gotoUrl} from './common.js';
+import {get_param, presets, get_preset, player_icons, doNetRequest, get_random_loader, PickupSelect, Cent, dev, randInt, gotoUrl} from './common.js';
 import SiteBar from "./SiteBar.js"
 
-const DEFAULT_POOL = "MU|TP/Grove/TP/Swamp/TP/Grotto/TP/Valley/TP/Sorrow/TP/Forlorn/TP/Ginso/TP/Horu/RB/0/RB/0/RB/0/RB/1/RB/1/RB/1/RB/6/RB/6/RB/6/RB/9/RB/10/RB/11/RB/12/RB/13/RB/13/RB/13/RB/15/RB/15/RB/15"
+const DEFAULT_POOLS = {
+    "Standard": [
+        {item: "TP|Grove", count: 1}, 
+        {item: "TP|Swamp", count: 1},
+        {item: "TP|Grotto", count: 1},
+        {item: "TP|Valley", count: 1},
+        {item: "TP|Sorrow", count: 1},
+        {item: "TP|Ginso", count: 1},
+        {item: "TP|Horu", count: 1},
+        {item: "TP|Forlorn", count: 1},
+        {item: "HC|1", count: 12},
+        {item: "EC|1", count: 14, minimum: 3},
+        {item: "AC|1", count: 33},
+        {item: "RB|0", count: 3},
+        {item: "RB|1", count: 3},
+        {item: "RB|6", count: 3},
+        {item: "RB|9", count: 1},
+        {item: "RB|10", count: 1},
+        {item: "RB|11", count: 1},
+        {item: "RB|12", count: 1},
+        {item: "RB|13", count: 3},
+        {item: "RB|15", count: 3},
+    ],
+    "Hard": [
+        {item: "TP|Grove", count: 1}, 
+        {item: "TP|Swamp", count: 1},
+        {item: "TP|Grotto", count: 1},
+        {item: "TP|Valley", count: 1},
+        {item: "TP|Sorrow", count: 1},
+        {item: "TP|Ginso", count: 1},
+        {item: "TP|Horu", count: 1},
+        {item: "TP|Forlorn", count: 1},
+        {item: "EC|1", count: 3, minimum: 3},
+    ],
+    "Competitive": [
+        {item: "TP|Grove", count: 1}, 
+        {item: "TP|Swamp", count: 1},
+        {item: "TP|Grotto", count: 1},
+        {item: "TP|Valley", count: 1},
+        {item: "TP|Sorrow", count: 1},
+        {item: "TP|Forlorn", count: 1},
+        {item: "HC|1", count: 12},
+        {item: "EC|1", count: 14, minimum: 3},
+        {item: "AC|1", count: 33},
+        {item: "RB|0", count: 3},
+        {item: "RB|1", count: 3},
+        {item: "RB|6", count: 3},
+        {item: "RB|9", count: 1},
+        {item: "RB|10", count: 1},
+        {item: "RB|11", count: 1},
+        {item: "RB|12", count: 1},
+        {item: "RB|13", count: 3},
+        {item: "RB|15", count: 3},
+    ],
+    "Extra Bonus": [
+        {item: "TP|Grove", count: 1}, 
+        {item: "TP|Swamp", count: 1},
+        {item: "TP|Grotto", count: 1},
+        {item: "TP|Valley", count: 1},
+        {item: "TP|Sorrow", count: 1},
+        {item: "TP|Ginso", count: 1},
+        {item: "TP|Horu", count: 1},
+        {item: "TP|Forlorn", count: 1},
+        {item: "HC|1", count: 12},
+        {item: "EC|1", count: 14, minimum: 3},
+        {item: "AC|1", count: 33},
+        {item: "RB|0", count: 3},
+        {item: "RB|1", count: 3},
+        {item: "RB|6", count: 5},
+        {item: "RB|9", count: 1},
+        {item: "RB|10", count: 1},
+        {item: "RB|11", count: 1},
+        {item: "RB|12", count: 5},
+        {item: "RB|13", count: 3},
+        {item: "RB|15", count: 3},
+        {item: "RB|31", count: 1},
+        {item: "RB|32", count: 1},
+        {item: "RB|33", count: 3},
+        {item: "BS|*", count: 4},
+        {item: "WP|*", count: 4, upTo: 8},
+    ],
+    }
 const keymode_options = ["None", "Shards", "Limitkeys", "Clues", "Free"];
 const VERSION = get_param("version")
-const variations = {
+const VAR_NAMES = {
     ForceTrees: "Force Trees",
     Starved: "Starved",
     NonProgressMapStones: "Discrete Mapstones",
@@ -53,11 +133,90 @@ export default class MainPage extends React.Component {
     helpLeave = () => clearTimeout(this.state.helpTimeout) 
     help = (category, option) => () => this.setState({helpcat: category, helpopt: option, helpParams: getHelpContent(category, option)})
     
+
+    updateItemCount = (index, newVal, {minimum}) => this.setState(prev => {
+        minimum = minimum || 1
+        prev.selectedPool = "Custom"
+        let x = Math.max(newVal, minimum)
+        prev.itemPool[index].count = x
+        return {itemPool: [...prev.itemPool], selectedPool: "Custom"}
+    })
+    updateItemUpTo = (index, newVal) => this.setState(prev => {
+        prev.itemPool[index].upTo = newVal
+        return {itemPool: [...prev.itemPool], selectedPool: "Custom"}
+    })
+    updatePoolItem = (index, code) => this.setState(prev => {
+        prev.itemPool[index].item = code
+        return {itemPool: [...prev.itemPool], selectedPool: "Custom"}
+    })
+    deletePoolItem = (index) => () => this.setState(prev => {
+        return {itemPool: [...prev.itemPool], selectedPool: "Custom"}
+  })
+    addPoolItem = (code) => this.setState(prev => {
+        prev.itemPool.push({item: code, count: 1})
+        this.refs.tabula.clear()
+        return {itemPool: [...prev.itemPool], selectedPool: "Custom"}
+    }
+)
+
+    getItemPoolTab = ({inputStyle}) => {
+        let itemSelectors = this.state.itemPool.map((row, index) => {
+          let delButton = row.minimum ? null : (<Button onClick={this.deletePoolItem(index)} color="danger">X</Button>)
+          return (<Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "customPool")} className="p-1 justify-content-center">
+            <Col xs="4">
+            <Cent>
+                <Input type="number" className="mr-2" style={inputStyle} value={row.count} onChange={(e) => this.updateItemCount(index, parseInt(e.target.value, 10), row)}/>
+                {" - "}
+                <Input type="number" invalid={row.upTo && row.upTo < row.count} className="ml-2" style={inputStyle} value={row.upTo || row.count} onChange={(e) => this.updateItemUpTo(index, parseInt(e.target.value, 10))}/>
+            </Cent>
+            </Col>
+            <Col xs="7">
+                <PickupSelect value={row.item} isClearable={false} isDisabled={row.minimum && row.minimum > 0} updater={(code, _) => this.updatePoolItem(index, code)} allowPsuedo/>
+            </Col>
+            <Col xs="1">{delButton}</Col>
+          </Row>)
+        })
+        let presetPoolOptions = ["Standard", "Competitive", "Extra Bonus", "Hard"].map(preset => (
+            <DropdownItem key={`pd-${preset}`} active={this.state.selectedPool===preset} onClick={()=> this.setState({selectedPool: preset, itemPool: [...DEFAULT_POOLS[preset]]})}>{preset}</DropdownItem>
+        ))
+
+        return (
+        <TabPane className="p-3 border" tabId="item pool">
+            <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "customPool")} className="p-1 justify-content-center">
+                    <Col xs="4">
+                        <Cent>Pool Preset: </Cent>
+                    </Col>
+                    <Col xs="4">
+                        <UncontrolledButtonDropdown className="w-100">
+                            <DropdownToggle color="primary" caret block> {this.state.selectedPool} </DropdownToggle>
+                            <DropdownMenu> {presetPoolOptions} </DropdownMenu>
+                        </UncontrolledButtonDropdown>
+                    </Col>
+                </Row>
+                {itemSelectors}
+            <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "customPool")} className="p-1 justify-content-center">
+            <Col xs="4">
+                <Cent>
+                    <Input type="number" className="mr-2" style={inputStyle} value={1} disabled/>
+                    {" - "}
+                    <Input type="number" className="ml-2" style={inputStyle} value={1} disabled/>
+                </Cent>
+                </Col>
+                <Col xs="7">
+                    <PickupSelect ref="tabula" value={"NO|1"} updater={(code, _) => this.addPoolItem(code)} allowPsuedo/>
+                </Col>
+                <Col xs="1"></Col>
+            </Row>
+        </TabPane>
+        )
+
+    }
     
     getAdvancedTab = ({inputStyle, menuStyle}) => {
+        let {variations, senseData, fillAlg, expPool, pathDiff, cellFreq, relicCount, fragCount, fragReq} = this.state
         let [leftCol, rightCol] = [4, 7]
         let pathDiffOptions = ["Easy", "Normal", "Hard"].map(mode => (
-            <DropdownItem key={`pd-${mode}`} active={mode===this.state.pathDiff} onClick={()=> this.setState({pathDiff: mode})}>{mode}</DropdownItem>
+            <DropdownItem key={`pd-${mode}`} active={mode===pathDiff} onClick={()=> this.setState({pathDiff: mode})}>{mode}</DropdownItem>
         ))
         const starting_pickups = {"Spawn With:": 2, "First Pickup:": 919772, "Second Pickup:": -1560272, "Third Pickup:": 799776, "Fourth Pickup:": -120208}
         let fass_rows = Object.keys(starting_pickups).map(name => {
@@ -73,112 +232,102 @@ export default class MainPage extends React.Component {
             )
         })
         let goalCol = (v) => (
-            <Col xs="4" onMouseLeave={this.helpEnter("advanced", "goalModes")} onMouseEnter={this.helpEnter("goalModes", v)} className="p-2">
-                <Button block outline={!this.state.variations.includes(v)} onClick={this.onGoalModeAdvanced(v)}>{variations[v]}</Button>
+            <Col xs="6" onMouseLeave={this.helpEnter("advanced", "goalModes")} onMouseEnter={this.helpEnter("goalModes", v)} className="p-2">
+                <Button color="primary" block outline={!variations.includes(v)} onClick={this.onGoalModeAdvanced(v)}>{VAR_NAMES[v]}</Button>
             </Col>
         )
-
-
         return (
-                <TabPane tabId="advanced">
-                    <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "goalModes")} className="p-1 justify-content-center">
-                        {goalCol("WorldTour")}
-                        {goalCol("WarmthFrags")}
-                    </Row>
-                    <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "goalModes")} className="p-1 justify-content-center border-bottom">
-                        {goalCol("ForceTrees")}
-                        {goalCol("ForceMaps")}
-                        {goalCol("Bingo")}
-                    </Row>
-                    <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "expPool")} className="p-1 justify-content-center">
-                        <Col xs={leftCol} className="text-center pt-1 border">
-                            <span className="align-middle">Exp Pool</span>
-                        </Col><Col xs={rightCol}>
-                            <Input style={inputStyle} type="number" value={this.state.expPool} invalid={this.state.expPool < 100} onChange={(e) => this.setState({expPool: parseInt(e.target.value, 10)})}/> 
-                            <FormFeedback tooltip>Experience Pool must be at least 100</FormFeedback>
-                        </Col>
-                    </Row>
-                    <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "sense")} className="p-1 justify-content-center">
-                        <Col xs={leftCol} className="text-center pt-1 border">
-                            <span className="align-middle">Sense Triggers</span>
-                        </Col><Col xs={rightCol}>
-                            <Input style={inputStyle} type="text" value={this.state.senseData}  onChange={(e) => this.setState({senseData: e.target.value})}/> 
-                        </Col>
-                    </Row>
-                    <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "fillAlg")} className="p-1 justify-content-center">
-                        <Col xs={leftCol} className="text-center pt-1 border">
-                            <span className="align-middle">Fill Algorithm</span>
-                        </Col><Col xs={rightCol}>
-                            <UncontrolledButtonDropdown className="w-100">
-                                <DropdownToggle color="primary" caret block> {this.state.fillAlg} </DropdownToggle>
-                                <DropdownMenu style={menuStyle}>
-                                    <DropdownItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "fillAlgClassic")}  active={"Classic" ===this.state.fillAlg} onClick={()=> this.setState({fillAlg: "Classic"})}>Classic</DropdownItem>
-                                    <DropdownItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "fillAlgBalanced")} active={"Balanced"===this.state.fillAlg} onClick={()=> this.setState({fillAlg: "Balanced"})}>Balanced</DropdownItem>
-                                </DropdownMenu>
-                            </UncontrolledButtonDropdown>
-                        </Col>
-                    </Row>
-                    <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "pathDiff")} className="p-1 justify-content-center">
-                        <Col xs={leftCol} className="text-center pt-1 border">
-                            <span className="align-middle">Path Difficulty</span>
-                        </Col>
-                        <Col xs={rightCol}>
-                            <UncontrolledButtonDropdown className="w-100">
-                                <DropdownToggle color="primary" caret block> {this.state.pathDiff} </DropdownToggle>
-                                <DropdownMenu style={menuStyle}> {pathDiffOptions} </DropdownMenu>
-                            </UncontrolledButtonDropdown>
-                        </Col>
-                    </Row>
-                    <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "cellFreq")} className="p-1 justify-content-center">
-                        <Col xs={leftCol} className="text-center pt-1 border">
-                            <span className="align-middle">Forced Cell Frequency</span>
-                        </Col><Col xs={rightCol}>
-                            <Input style={inputStyle} type="number" value={this.state.cellFreq} invalid={this.state.cellFreq < 3} onChange={(e) => this.setState({cellFreq: parseInt(e.target.value, 10)})}/> 
-                            <FormFeedback tooltip>Forced Cell Frequency must be at least 3</FormFeedback>
-                        </Col>
-                    </Row>
-                    {fass_rows}                    
-                    <Collapse isOpen={this.state.variations.includes("WorldTour")}>
-                        <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "relicCount")} className="p-1 justify-content-center">
-                            <Col xs={leftCol} className="text-center pt-1 border">
-                                <span className="align-middle">Relic Count</span>
-                            </Col><Col xs={rightCol}>
-                                <Input style={inputStyle} type="number" value={this.state.relicCount} invalid={this.state.relicCount > 11 || this.state.relicCount < 1} onChange={(e) => this.setState({relicCount: parseInt(e.target.value, 10)})}/> 
-                                <FormFeedback tooltip>Relic count must be greater than 0 and less than 12</FormFeedback>
-                            </Col>
+            <TabPane className="p-3 border" tabId="advanced">
+                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "goalModes")} className="p-1 justify-content-center">
+                    <Col xs={leftCol} className="text-center pt-1 border">
+                        <Cent>Goal Modes</Cent>
+                    </Col>
+                    <Col xs={rightCol}>
+                        <Row>
+                            {goalCol("WorldTour")}
+                            {goalCol("WarmthFrags")}
+                            {goalCol("ForceTrees")}
+                            {goalCol("ForceMaps")}
                         </Row>
-                    </Collapse>
-                    <Collapse isOpen={this.state.variations.includes("WarmthFrags")}>
-                        <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "fragCount")} className="p-1 justify-content-center">
-                            <Col xs={leftCol} className="text-center pt-1 border">
-                                <span className="align-middle">Fragment Count</span>
-                            </Col><Col xs={rightCol}>
-                                <Input style={inputStyle} type="number" value={this.state.fragCount} invalid={this.state.fragCount > 60 || this.state.fragCount < 1} onChange={(e) => this.setState({fragCount: parseInt(e.target.value, 10)})}/> 
-                                <FormFeedback tooltip>Frag Count must be between 1 and 60</FormFeedback>
-                            </Col>
-                        </Row>
-                        <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "fragRequired")} className="p-1 justify-content-center">
-                            <Col xs={leftCol} className="text-center pt-1 border">
-                                <span className="align-middle">Fragments Required</span>
-                            </Col><Col xs={rightCol}>
-                                <Input style={inputStyle} type="number" value={this.state.fragReq} invalid={this.state.fragCount < this.state.fragReq || this.state.fragReq <= 0} onChange={e => this.setState({fragReq: parseInt(e.target.value, 10)})}/> 
-                                <FormFeedback tooltip>Fragments Required must be between 0 and Fragment Count ({this.state.fragCount})</FormFeedback>
-                            </Col>
-                        </Row>
-                    </Collapse>
-                    <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "customPool")} className="p-1 justify-content-center">
-                        <Col>
-                            <Button block active={this.state.customPool} outline={!this.state.customPool} onClick={() => this.setState({customPool: !this.state.customPool})}>Custom Pool</Button>
+                    </Col>
+                </Row>
+                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "expPool")} className="p-1 justify-content-center">
+                    <Col xs={leftCol} className="text-center pt-1 border">
+                        <span className="align-middle">Exp Pool</span>
+                    </Col><Col xs={rightCol}>
+                        <Input style={inputStyle} type="number" value={expPool} invalid={expPool < 100} onChange={(e) => this.setState({expPool: parseInt(e.target.value, 10)})}/> 
+                        <FormFeedback tooltip>Experience Pool must be at least 100</FormFeedback>
+                    </Col>
+                </Row>
+                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "sense")} className="p-1 justify-content-center">
+                    <Col xs={leftCol} className="text-center pt-1 border">
+                        <span className="align-middle">Sense Triggers</span>
+                    </Col><Col xs={rightCol}>
+                        <Input style={inputStyle} type="text" value={senseData}  onChange={(e) => this.setState({senseData: e.target.value})}/> 
+                    </Col>
+                </Row>
+                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "fillAlg")} className="p-1 justify-content-center">
+                    <Col xs={leftCol} className="text-center pt-1 border">
+                        <span className="align-middle">Fill Algorithm</span>
+                    </Col><Col xs={rightCol}>
+                        <UncontrolledButtonDropdown className="w-100">
+                            <DropdownToggle color="primary" caret block> {fillAlg} </DropdownToggle>
+                            <DropdownMenu style={menuStyle}>
+                                <DropdownItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "fillAlgClassic")}  active={"Classic" ===fillAlg} onClick={()=> this.setState({fillAlg: "Classic"})}>Classic</DropdownItem>
+                                <DropdownItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "fillAlgBalanced")} active={"Balanced"===fillAlg} onClick={()=> this.setState({fillAlg: "Balanced"})}>Balanced</DropdownItem>
+                            </DropdownMenu>
+                        </UncontrolledButtonDropdown>
+                    </Col>
+                </Row>
+                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "pathDiff")} className="p-1 justify-content-center">
+                    <Col xs={leftCol} className="text-center pt-1 border">
+                        <span className="align-middle">Path Difficulty</span>
+                    </Col>
+                    <Col xs={rightCol}>
+                        <UncontrolledButtonDropdown className="w-100">
+                            <DropdownToggle color="primary" caret block> {pathDiff} </DropdownToggle>
+                            <DropdownMenu style={menuStyle}> {pathDiffOptions} </DropdownMenu>
+                        </UncontrolledButtonDropdown>
+                    </Col>
+                </Row>
+                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "cellFreq")} className="p-1 justify-content-center">
+                    <Col xs={leftCol} className="text-center pt-1 border">
+                        <span className="align-middle">Forced Cell Frequency</span>
+                    </Col><Col xs={rightCol}>
+                        <Input style={inputStyle} type="number" value={cellFreq} invalid={cellFreq < 3} onChange={(e) => this.setState({cellFreq: parseInt(e.target.value, 10)})}/> 
+                        <FormFeedback tooltip>Forced Cell Frequency must be at least 3</FormFeedback>
+                    </Col>
+                </Row>
+                {fass_rows}
+                <Collapse isOpen={variations.includes("WorldTour")}>
+                    <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "relicCount")} className="p-1 justify-content-center">
+                        <Col xs={leftCol} className="text-center pt-1 border">
+                            <span className="align-middle">Relic Count</span>
+                        </Col><Col xs={rightCol}>
+                            <Input style={inputStyle} type="number" value={relicCount} invalid={relicCount > 11 || relicCount < 1} onChange={(e) => this.setState({relicCount: parseInt(e.target.value, 10)})}/> 
+                            <FormFeedback tooltip>Relic count must be greater than 0 and less than 12</FormFeedback>
                         </Col>
                     </Row>
-                    <Collapse isOpen={this.state.customPool}>
-                        <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "customPool")} className="p-1 justify-content-center">
-                            <Col>
-                                <PickupSelect value={this.state.poolStr} updater={(code, _) => this.setState({poolStr: code})}/> 
-                            </Col>
-                        </Row>
-                    </Collapse>
-                </TabPane>
+                </Collapse>
+                <Collapse isOpen={variations.includes("WarmthFrags")}>
+                    <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "fragCount")} className="p-1 justify-content-center">
+                        <Col xs={leftCol} className="text-center pt-1 border">
+                            <span className="align-middle">Fragment Count</span>
+                        </Col><Col xs={rightCol}>
+                            <Input style={inputStyle} type="number" value={fragCount} invalid={fragCount > 60 || fragCount < 1} onChange={(e) => this.setState({fragCount: parseInt(e.target.value, 10)})}/> 
+                            <FormFeedback tooltip>Frag Count must be between 1 and 60</FormFeedback>
+                        </Col>
+                    </Row>
+                    <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "fragRequired")} className="p-1 justify-content-center">
+                        <Col xs={leftCol} className="text-center pt-1 border">
+                            <span className="align-middle">Fragments Required</span>
+                        </Col><Col xs={rightCol}>
+                            <Input style={inputStyle} type="number" value={fragReq} invalid={fragCount < fragReq || fragReq <= 0} onChange={e => this.setState({fragReq: parseInt(e.target.value, 10)})}/> 
+                            <FormFeedback tooltip>Fragments Required must be between 0 and Fragment Count ({fragCount})</FormFeedback>
+                        </Col>
+                    </Row>
+                </Collapse>
+            </TabPane>
         )
     }
     getMultiplayerTab = ({inputStyle, menuStyle}) => {
@@ -196,7 +345,7 @@ export default class MainPage extends React.Component {
             <FormFeedback tooltip>Multiplayer modes require web tracking to be enabled</FormFeedback>
         )
         return (
-             <TabPane tabId="multiplayer">
+             <TabPane className="p-3 border" tabId="multiplayer">
                 <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "playerCount")}  className="p-1 justify-content-center">
                     <Col xs="4" className="text-center pt-1 border">
                         <span className="align-middle">Players</span>
@@ -256,9 +405,9 @@ export default class MainPage extends React.Component {
     teamStrValid = () => {
         let teamStr = this.state.teamStr;
         if(teamStr === "") return true;
-        let teams = teamStr.split("|");
         let retval = true;
         let players = [...Array(this.state.players).keys()].map(i => i+1)
+        let teams = teamStr.split("|");
         teams.forEach(team => team.split(",").forEach(p => {
             if(isNaN(p)) retval = false;
             else p = parseInt(p,10)
@@ -271,80 +420,65 @@ export default class MainPage extends React.Component {
     
     generateSeed = () => {
         let pMap = {"Race": "None", "None": "Default", "Co-op": "Shared", "World Events": "WorldEvents", "Cloned Seeds": "cloned", "Seperate Seeds": "disjoint"}
+        let url = "/generator/build"
         let f = (p) => pMap.hasOwnProperty(p) ? pMap[p] : p
-        let urlParams = []
-        urlParams.push("key_mode="+f(this.state.keyMode))
+        let json = {
+            "key_mode": f(this.state.keyMode),
+            'gen_mode': this.state.fillAlg,
+            'variations': this.state.variations,
+            'logic_paths': this.state.paths,
+            "exp_pool": this.state.expPool,
+            "cell_freq": this.state.cellFreq,
+        }
         if(this.state.pathDiff !== "Normal")
-            urlParams.push("path_diff="+this.state.pathDiff)
-        urlParams.push("gen_mode="+this.state.fillAlg)
-        this.state.variations.forEach(v => urlParams.push("var="+v))
-        this.state.paths.forEach(p => urlParams.push("path="+p))
+            json.path_diff=this.state.pathDiff
         if(this.state.senseData)
-            urlParams.push("sense="+this.state.senseData)
-        urlParams.push("exp_pool="+this.state.expPool)
-        urlParams.push("cell_freq="+this.state.cellFreq)
+            json.sense=this.state.senseData
         if(this.state.variations.includes("WarmthFrags"))
         {
-            urlParams.push("frags="+this.state.fragCount)
-            urlParams.push("frags_req="+this.state.fragReq)
+            json.frags=this.state.fragCount
+            json.frags_req=this.state.fragReq
         }
         if(this.state.variations.includes("WorldTour"))
-            urlParams.push("relics="+this.state.relicCount)
+            json.relics=this.state.relicCount
 
         if(this.state.variations.includes("Bingo"))
-            urlParams.push("bingo=1")
+            url += "?bingo=1"
 
-        urlParams.push("players="+this.state.players)
-        let fass = []
+        json.players=this.state.players
+        json.fass = []
         Object.keys(this.state.fass).forEach(loc => {
             if(this.state.fass[loc]) {
-                let item = this.state.fass[loc].replace("|","");
-                if(item !== "NO1")
+                if(this.state.fass[loc] !== "NO|1")
                 {
-                    if(["AC", "EC", "KS", "HC", "MS"].includes(item.substr(0,2)))
-                        item = item.substr(0,2) // we're sanitizing inputs here i guess
-                    fass.push(loc+":"+item); 
+                    let item = this.state.fass[loc].split("|");
+                    json.fass.push({loc: loc, code: item[0], id: item[1]})
                 }
             }
         })
-        if(fass.length > 0)
-            urlParams.push("fass="+fass.join("|"))
-        if(this.state.customPool)
-        {
-            let pool = {} //{"HC": 12, "EC": 14, "AC": 33, }
-            let code = "";
-
-            this.state.poolStr.slice(3).split("/").forEach(piece => {
-                if(code !== "")
-                {
-                    pool[code+piece] = (pool[code+piece] || 0) + 1;
-                    code = "";
-                } else {
-                    code = piece;
-                }
-            });
-            urlParams.push("item_pool=" + Object.keys(pool).map(item => item + ":" + pool[item]).join("|"));
-        }
-        if(this.state.tracking)
-        {
-            if(this.state.syncId !== "")
-                urlParams.push("sync_id="+this.state.syncId)
-            if(this.state.players > 1) {
-                urlParams.push("sync_gen="+f(this.state.coopGenMode))
-                urlParams.push("sync_mode="+f(this.state.coopGameMode))
-                if(this.state.coopGameMode === "Co-op")
-                    this.state.shared.forEach(s => urlParams.push("sync_shared="+f(s)))
-                if(this.state.coopGenMode === "Cloned Seeds" && this.state.hints)
-                    urlParams.push("sync_hints=on")
-                if(!this.state.dedupShared) 
-                    urlParams.push("teams="+[...Array(this.state.players).keys()].map(x=>x+1).join(","))
-                else if(this.state.teamStr !== "")
-                    urlParams.push("teams="+this.state.teamStr)
+        json.item_pool = {} //{"HC": 12, "EC": 14, "AC": 33, }
+        this.state.itemPool.forEach(({item, count, upTo}) => {
+            if(upTo) 
+                count = randInt(count, upTo)
+            json.item_pool[item] = count
+        })
+        json.tracking = this.state.tracking
+        if(this.state.tracking && this.state.players > 1) {
+            json.sync_gen=f(this.state.coopGenMode)
+            json.sync_mode=f(this.state.coopGameMode)
+            if(this.state.coopGameMode === "Co-op")
+                json.sync_shared = this.state.shared.map(s => f(s))
+            if(this.state.coopGenMode === "Cloned Seeds" && this.state.hints)
+                json.sync_hints = true
+            if(!this.state.dedupShared)
+                json.teams={1: [...Array(this.state.players).keys()].map(x=>x+1)}
+            else if(this.state.teamStr !== "" && this.teamStrValid()) {
+                let teams = this.state.teamStr.split("|");
+                let i = 1;
+                teams.forEach(team => json.teams[i++] = team.split(",").map(p => parseInt(p, 10)))
             }
-        } else {
-            urlParams.push("tracking=Disabled")
         }
-        let seed = this.state.seed || Math.round(Math.random() * 1000000000);
+        let seed = this.state.seed || randInt(0, 1000000000);
         if(seed === "daily")
         {
             let d = new Date()
@@ -356,24 +490,26 @@ export default class MainPage extends React.Component {
             window.location.href = "/vanilla"
             return
         }
-        urlParams.push("seed=" + seed);
-        let url = "/generator/build?" + urlParams.join("&")
+        json.seed = seed
         this.helpEnter("general", "seedBuilding" + this.multi())()
-        this.setState({seedIsGenerating: true, seedTabExists: true, loader: get_random_loader(), activeTab: "seed"}, () => doNetRequest(url, this.seedBuildCallback))
+        this.setState({seedIsGenerating: true, seedTabExists: true, loader: get_random_loader(), activeTab: "seed"}, () => postGenJson(url, json, this.seedBuildCallback))
     }
     
     acceptMetadata = ({status, responseText}) => {
         if(status !== 200)
         {
             NotificationManager.error("Failed to recieve seed metadata", "Seed could not be retrieved!", 5000)
-            this.setState({seedTabExists: false, activeTab: 'variations'}, this.updateUrl)
+            this.setState({seedIsGenerating: false, seedTabExists: false, activeTab: 'variations'}, this.updateUrl)
         } else {
             let metaUpdate = JSON.parse(responseText)
+            metaUpdate.itemPool = Object.keys(metaUpdate.itemPool).map(i => ({item: i, count: metaUpdate.itemPool[i]}))
+            if(metaUpdate.itemPool.length !== DEFAULT_POOLS.Standard.length)
+                metaUpdate.selectedPool = "Custom"
+            metaUpdate.seedIsGenerating = false
             metaUpdate.inputPlayerCount = metaUpdate.players
             metaUpdate.inputSeed = metaUpdate.seed
             metaUpdate.seedIsBingo = metaUpdate.variations.some(v => v === "Bingo")
             metaUpdate.goalModes = metaUpdate.variations.filter(v => ["ForceTrees", "WorldTour", "ForceMaps", "WarmthFrags", "Bingo"].includes(v)) || ["None"]
-
             this.setState(metaUpdate, this.updateUrl)
         }
     }
@@ -418,62 +554,48 @@ export default class MainPage extends React.Component {
         }
     }
     getVariationsTab = () => {
-        let variationButtons = Object.keys(variations).filter(x => !["Entrance", "NonProgressMapStones", "BonusPickups", "StompTriggers", 
-                                                                     "ForceTrees", "WorldTour", "ForceMaps", "WarmthFrags", "Bingo"].includes(x)).map(v=> {
-            let name = variations[v];
+        let variationButtons = Object.keys(VAR_NAMES).filter(x => !["Entrance", "NonProgressMapStones", "BonusPickups", "StompTriggers", 
+                                                                     "ForceTrees", "WorldTour", "ForceMaps", "WarmthFrags", "Hard", "Bingo"].includes(x)).map(v=> {
+            let name = VAR_NAMES[v];
             return (
             <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("variations", v)} className="p-2">
-                <Button block outline={!this.state.variations.includes(v)} onClick={this.onVar(v)}>{name}</Button>
+                <Button block color="primary" outline={!this.state.variations.includes(v)} onClick={this.onVar(v)}>{name}</Button>
             </Col>
             )
         })
-        // Bonus Pickups is incompatible with Hard.
-        variationButtons.push((
-            (
-            <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("variations", "BonusPickups")} className="p-2">
-                <Button block outline={!this.state.variations.includes("BonusPickups")} disabled={(() => {
-                    if(this.state.variations.includes("Hard")) {
-                        if(this.state.variations.includes("BonusPickups"))
-                            this.onVar("BonusPickups")()
-                        return true;
-                    }
-                    return false;
-                })()} onClick={this.onVar("BonusPickups")}>{variations["BonusPickups"]}</Button>
-            </Col>
-            )
-        ))
         // Discrete Mapstones requires Strict Mapstones.
         variationButtons.push((
             (
             <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("variations", "NonProgressMapStones")} className="p-2">
-                <Button block outline={!this.state.variations.includes("NonProgressMapStones")} disabled={(() => {
+                <Button block color="primary" outline={!this.state.variations.includes("NonProgressMapStones")} disabled={(() => {
                     if(!this.state.variations.includes("StrictMapstones")) {
                         if(this.state.variations.includes("NonProgressMapStones"))
                             this.onVar("NonProgressMapStones")()
                         return true;
                     }
                     return false;
-                })()} onClick={this.onVar("NonProgressMapStones")}>{variations["NonProgressMapStones"]}</Button>
+                })()} onClick={this.onVar("NonProgressMapStones")}>{VAR_NAMES["NonProgressMapStones"]}</Button>
             </Col>
             )
         ))
-        // Legacy Killplane is incompatible with Open World. It also sees no use, so it's being removed from the UI. Deprecation!
-        // variationButtons.push((
-        //     (
-        //     <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("variations", "StompTriggers")} className="p-2">
-        //         <Button block outline={!this.state.variations.includes("StompTriggers")} disabled={(() => {
-        //             if(this.state.variations.includes("OpenWorld")) {
-        //                 if(this.state.variations.includes("StompTriggers"))
-        //                     this.onVar("StompTriggers")()
-        //                 return true;
-        //             }
-        //             return false;
-        //         })()} onClick={this.onVar("StompTriggers")}>{variations["StompTriggers"]}</Button>
-        //     </Col>
-        //     )
-        // ))
+        // Legacy Killplane is incompatible with Open World. 
+        //It also sees no use, so it will be removed soon(tm)
+        variationButtons.push((
+            (
+            <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("variations", "StompTriggers")} className="p-2">
+                <Button block outline={!this.state.variations.includes("StompTriggers")} disabled={(() => {
+                    if(this.state.variations.includes("OpenWorld")) {
+                        if(this.state.variations.includes("StompTriggers"))
+                            this.onVar("StompTriggers")()
+                        return true;
+                    }
+                    return false;
+                })()} onClick={this.onVar("StompTriggers")}>{VAR_NAMES["StompTriggers"]}</Button>
+            </Col>
+            )
+        ))
         return (
-            <TabPane tabId="variations">
+            <TabPane className="p-3 border" tabId="variations">
                 <Row className="p-2">
                     {variationButtons}
                 </Row>
@@ -487,7 +609,7 @@ export default class MainPage extends React.Component {
         if(this.state.seedIsGenerating)
         {
             return (
-                <TabPane tabId='seed' onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "seedBuilding" + this.multi())}>
+                <TabPane className="p-3 border" tabId='seed' onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "seedBuilding" + this.multi())}>
                     <Row className="p-2 justify-content-center align-items-center">
                         <Col xs="auto" className="align-items-center justify-content-center p-2">{this.state.loader}</Col>
                     </Row>
@@ -568,7 +690,7 @@ export default class MainPage extends React.Component {
                   </Row>
               ) : null
             return (
-                <TabPane tabId='seed'>
+                <TabPane className="p-3 border" tabId='seed'>
                       <Row className="justify-content-center">
                         <span className="align-middle">
                             <h5>Seed {seedStr} ready!</h5>
@@ -598,11 +720,11 @@ export default class MainPage extends React.Component {
         </Col>
         )].concat(optional_paths.map(path=> (
             <Col xs="3" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("logicPaths", path)}  className="p-1">
-                <Button block outline={!this.state.paths.includes(path)} disabled={this.pathDisabled(path)} className="text-capitalize" onClick={this.onPath(path)}>{path}</Button>
+                <Button block color="primary" outline={!this.state.paths.includes(path)} disabled={this.pathDisabled(path)} className="text-capitalize" onClick={this.onPath(path)}>{path}</Button>
             </Col>
         )))    
         return (
-            <TabPane tabId="logic paths">
+            <TabPane className="p-3 border" tabId="logic paths">
                 <Row className="p-2">
                     {pathButtons}
                 </Row>
@@ -658,7 +780,6 @@ export default class MainPage extends React.Component {
         let paramId = url.searchParams.get("param_id");
         let quickstartOpen = window.document.location.href.includes("/quickstart");
         let gameId = parseInt(url.searchParams.get("game_id") || -1, 10);
-        let dark = get_flag("dark") || url.searchParams.has("dark")
         let seedTabExists = (paramId !== null);
         if(seedTabExists)
         {
@@ -669,14 +790,16 @@ export default class MainPage extends React.Component {
 
         }
         let activeTab = seedTabExists ? 'seed' : 'variations';
-        this.state = {user: user, activeTab: activeTab, coopGenMode: "Cloned Seeds", coopGameMode: "Co-op", players: 1, tracking: true, variations: ["ForceTrees"], gameId: gameId, customPool: false, poolStr: DEFAULT_POOL,
-                     paths: presets["standard"], keyMode: "Clues", oldKeyMode: "Clues", pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null), goalModes: ["ForceTrees"],
+        this.state = {user: user, activeTab: activeTab, coopGenMode: "Cloned Seeds", coopGameMode: "Co-op", players: 1, tracking: true, variations: ["ForceTrees"], gameId: gameId, itemPool: [...DEFAULT_POOLS["Standard"]],
+                     paths: presets["standard"], keyMode: "Clues", oldKeyMode: "Clues", pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null), goalModes: ["ForceTrees"], selectedPool: "Standard",
                      seed: "", fillAlg: "Balanced", shared: ["Skills", "Teleporters", "World Events", "Upgrades", "Misc"], hints: true, helpcat: "", helpopt: "", quickstartOpen: quickstartOpen, dedupShared: false,
-                     syncId: "", expPool: 10000, lastHelp: new Date(), seedIsGenerating: false, cellFreq: cellFreqPresets("standard"), fragCount: 30, fragReq: 20, relicCount: 8, loader: get_random_loader(),
-                     paramId: paramId, seedTabExists: seedTabExists, reopenUrl: "", teamStr: "", flagLine: "", fass: {},  goalModesOpen: false, spoilers: true, dark: dark, seedIsBingo: false};
+                     expPool: 10000, lastHelp: new Date(), seedIsGenerating: seedTabExists, cellFreq: cellFreqPresets("standard"), fragCount: 30, fragReq: 20, relicCount: 8, loader: get_random_loader(),
+                     paramId: paramId, seedTabExists: seedTabExists, reopenUrl: "", teamStr: "", flagLine: "", fass: {},  goalModesOpen: false, spoilers: true, seedIsBingo: false};
         if(url.searchParams.has("fromBingo")) {
             this.state.goalModes = ["Bingo"]
-            this.state.variations = ["Bingo", "OpenWorld", "BonusPickups"]
+            this.state.variations = ["Bingo", "OpenWorld"]
+            this.state.itemPool = [...DEFAULT_POOLS["Extra Bonus"]]
+            this.state.selectedPool = "Extra Bonus"
             this.updateUrl()
         }
 
@@ -759,15 +882,17 @@ export default class MainPage extends React.Component {
     }
 
     render = () => {
-        let {pathMode, goalModes, keyMode, helpParams, goalModesOpen, seedTabExists, dark, user, helpcat, activeTab, seed, tracking, seedIsGenerating} = this.state;
-        let pageStyle, styles = {inputStyle: {}, menuStyle: {}}
-        if(dark) {
-            pageStyle = 'body { background-color: #333; color: white }';
-            styles.inputStyle = {'backgroundColor': '#333', 'color': 'white'}
-            styles.menuStyle.backgroundColor = "#666"
-        } else {
-           pageStyle = 'body { background-color: white; color: black }';
-        }  
+        let {pathMode, goalModes, keyMode, helpParams, goalModesOpen, seedTabExists, helpcat, activeTab, seed, tracking, seedIsGenerating} = this.state;
+        let s = getComputedStyle(document.body);
+        let styles = {inputStyle: {'borderColor': s.getPropertyValue('--dark'), 'backgroundColor': s.getPropertyValue("background-color"), 'color': s.getPropertyValue("color")}, menuStyle: {}}
+
+        // if(dark) {
+        //     pageStyle = 'body { background-color: #333; color: white }';
+        //     styles.inputStyle = {'backgroundColor': '#333', 'color': 'white'}
+        //     styles.menuStyle.backgroundColor = "#666"
+        // } else {
+        //    pageStyle = 'body { background-color: white; color: black }';
+        // }  
 
         let pathModeOptions = Object.keys(presets).map(mode => (
             <DropdownItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("logicModes", mode)} className="text-capitalize" active={mode===pathMode.toLowerCase()} onClick={this.onMode(mode)}>{mode}</DropdownItem>
@@ -780,13 +905,14 @@ export default class MainPage extends React.Component {
             validGoalModes.push("Bingo")
 
         let goalModeOptions = goalModes.length === 1 ? validGoalModes.map(mode => (
-            <DropdownItem active={mode===goalModes[0]} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("goalModes", mode)} onClick={this.onGoalMode(mode)}>{variations[mode] || mode}</DropdownItem>
+            <DropdownItem active={mode===goalModes[0]} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("goalModes", mode)} onClick={this.onGoalMode(mode)}>{VAR_NAMES[mode] || mode}</DropdownItem>
         )) : null
 
         helpParams.padding = goalModesOpen ? "pt-5" : ""
         let lockTracking = goalModes.includes("Bingo") || this.state.players > 1
         let multiplayerTab = this.getMultiplayerTab(styles)
         let advancedTab = this.getAdvancedTab(styles)
+        let poolTab = this.getItemPoolTab(styles)
         let seedTab = this.getSeedTab()
         let variationsTab = this.getVariationsTab()
         let pathsTab = this.getPathsTab()
@@ -803,14 +929,11 @@ export default class MainPage extends React.Component {
 
         return (
          <Container className="pl-4 pr-4 pb-4 pt-2 mt-5">
-            <Helmet>
-                <style type="text/css">{pageStyle}</style>
-            </Helmet>
              <Row className="justify-content-center">
                  <Col>
                      {modal}
                     <NotificationContainer/>
-                    <SiteBar dark={dark} user={user}/>
+                    <SiteBar/>
                 </Col>
             </Row>
             <Row className="p-1">
@@ -853,7 +976,7 @@ export default class MainPage extends React.Component {
                         <Col xs="6" onMouseLeave={this.helpEnter("general", "goalModes")} onMouseEnter={this.helpEnter("goalModes", goalModeMulti ? "Multiple" : goalModes[0])}>
                             <Dropdown disabled={goalModeMulti} isOpen={goalModesOpen} toggle={() => this.setState({goalModesOpen: !goalModesOpen})} className="w-100">
                                 <DropdownToggle disabled={goalModeMulti} color={goalModeMulti ? "disabled" :"primary"} className="text-capitalize" caret={!goalModeMulti} block> 
-                                  {goalModeMulti ? "Multiple" : (variations[goalModes[0]] || goalModes[0])}                                  
+                                  {goalModeMulti ? "Multiple" : (VAR_NAMES[goalModes[0]] || goalModes[0])}
                                 </DropdownToggle>
                                 <DropdownMenu style={styles.menuStyle}>
                                     {goalModeOptions}
@@ -876,6 +999,11 @@ export default class MainPage extends React.Component {
                         Logic Paths
                         </NavLink>
                     </NavItem>
+                    <NavItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "customPool")}>
+                        <NavLink active={activeTab === 'item pool'} onClick={this.onTab('item pool')}>
+                        Item Pool
+                        </NavLink>
+                    </NavItem>
                     <NavItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "multiplayer")}>
                         <NavLink active={activeTab === 'multiplayer'} onClick={this.onTab('multiplayer')}>
                         Multiplayer Options
@@ -894,9 +1022,10 @@ export default class MainPage extends React.Component {
                 <Col xs="8">
                     <Row>
                         <Col>
-                            <TabContent className="p-3 border" activeTab={activeTab}>
+                            <TabContent activeTab={activeTab}>
                                 {variationsTab}
                                 {pathsTab}
+                                {poolTab}
                                 {multiplayerTab}
                                 {advancedTab}
                                 {seedTab}
@@ -939,3 +1068,15 @@ export default class MainPage extends React.Component {
 
     }
 };
+
+function postGenJson(url, json, callback)  {
+    let xmlHttp = new XMLHttpRequest();
+    xmlHttp.onreadystatechange = () => {
+        if (xmlHttp.readyState === 4) {
+            callback(xmlHttp);
+        }
+    };
+    xmlHttp.open("POST", url, true);
+    xmlHttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+    xmlHttp.send(encodeURI(`params=${JSON.stringify(json)}`));
+}
