@@ -577,16 +577,6 @@ const getHelpHelper = (category, option) => {
                         "To match an entire class of pickups, use the first 2 characters; to match a specific pickup, use the entire pickup code (no |)"
                     ]
                     break;
-                case "customPool":
-                    title = "Custom Item Pool"
-                    lines = [
-                        (<div>This setting allows users to customize the contents of the item pool. Items selected here will be added to the default item pool.</div>),
-                        (<div>Note: the "base" item pool will always contain 12 HCs, 14 ECs, 33 ACs, a keystone for every door, 11 mapstones, and 1 of each world event, dungeon key, and skill. Copies of these items added to the pool will increase their count.</div>),
-                        (<div>Note: custom item pools are incompatible with the Extra Bonus Pickups, Double Skills, and Hard Mode variations</div>),
-                    ]
-                    extras.push((<CardText className="border font-weight-bold m-2 p-2 border-danger">Custom Item Pool is an experimental feature. Use at your own risk!</CardText>))
-
-                    break;
                 case "pathDiff":
                     title = "Path Difficulty"
                     lines = [
@@ -670,6 +660,33 @@ const getHelpHelper = (category, option) => {
                     break;
             }
         break;
+        case "itemPool":
+            subtitle = "Item Pool Editor"
+            switch(option) {
+                case "deleteRow":
+                    title = "Delete"
+                    lines = [
+                        "Use this button to remove all copies of a pickup from the item pool.",
+                        "Note: removing some items from the pool (like health cells) will prevent some logic paths (like damage boost paths) from being chosen."
+                    ]
+                    break
+                case "count":
+                    title = "Count"
+                    lines = [
+                        "This field sets the minimum number of times this row's pickup will be placed in the seed.",
+                    ]
+                    break
+                case "upTo":
+                    title = "Maximum"
+                    lines = [
+                        "This field sets the maximum number of times this row's pickup will be placed in the seed.",
+                    ]
+                    break;
+                default:
+                    break;
+            }
+
+        break;
         case "general":
             subtitle = "General Options"
             switch(option) {
@@ -709,6 +726,13 @@ const getHelpHelper = (category, option) => {
                         "View and download your generated seed here!"
                     ]
                 break;
+                case "customPool":
+                    title = "Item Pool Tab"
+                    lines = [
+                        (<div>The Item Pool tab allows users to customize the contents of the item pool (the set of items placed by the randomizer), either by selecting one of the available Item Pool presets or by manually adding / removing items.</div>),
+                        (<div>Note: the presets in this tab replace the old "Extra Bonus Pickups" and "Hard Mode" variations.</div>),
+                    ]
+                    break;
                 case "variations":
                     title = "Variations"
                     lines = [

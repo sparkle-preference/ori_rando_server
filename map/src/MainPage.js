@@ -7,91 +7,100 @@ import 'react-notifications/lib/notifications.css';
 import './index.css';
 
 import {getHelpContent, HelpBox} from "./helpbox.js"
-import {get_param, presets, get_preset, player_icons, doNetRequest, get_random_loader, PickupSelect, Cent, dev, randInt, gotoUrl} from './common.js';
+import {get_param, presets, name_from_str, get_preset, player_icons, doNetRequest, get_random_loader, PickupSelect, Cent, dev, randInt, gotoUrl} from './common.js';
 import SiteBar from "./SiteBar.js"
 
-const DEFAULT_POOLS = {
-    "Standard": [
-        {item: "TP|Grove", count: 1}, 
-        {item: "TP|Swamp", count: 1},
-        {item: "TP|Grotto", count: 1},
-        {item: "TP|Valley", count: 1},
-        {item: "TP|Sorrow", count: 1},
-        {item: "TP|Ginso", count: 1},
-        {item: "TP|Horu", count: 1},
-        {item: "TP|Forlorn", count: 1},
-        {item: "HC|1", count: 12},
-        {item: "EC|1", count: 14, minimum: 3},
-        {item: "AC|1", count: 33},
-        {item: "RB|0", count: 3},
-        {item: "RB|1", count: 3},
-        {item: "RB|6", count: 3},
-        {item: "RB|9", count: 1},
-        {item: "RB|10", count: 1},
-        {item: "RB|11", count: 1},
-        {item: "RB|12", count: 1},
-        {item: "RB|13", count: 3},
-        {item: "RB|15", count: 3},
-    ],
-    "Hard": [
-        {item: "TP|Grove", count: 1}, 
-        {item: "TP|Swamp", count: 1},
-        {item: "TP|Grotto", count: 1},
-        {item: "TP|Valley", count: 1},
-        {item: "TP|Sorrow", count: 1},
-        {item: "TP|Ginso", count: 1},
-        {item: "TP|Horu", count: 1},
-        {item: "TP|Forlorn", count: 1},
-        {item: "EC|1", count: 3, minimum: 3},
-    ],
-    "Competitive": [
-        {item: "TP|Grove", count: 1}, 
-        {item: "TP|Swamp", count: 1},
-        {item: "TP|Grotto", count: 1},
-        {item: "TP|Valley", count: 1},
-        {item: "TP|Sorrow", count: 1},
-        {item: "TP|Forlorn", count: 1},
-        {item: "HC|1", count: 12},
-        {item: "EC|1", count: 14, minimum: 3},
-        {item: "AC|1", count: 33},
-        {item: "RB|0", count: 3},
-        {item: "RB|1", count: 3},
-        {item: "RB|6", count: 3},
-        {item: "RB|9", count: 1},
-        {item: "RB|10", count: 1},
-        {item: "RB|11", count: 1},
-        {item: "RB|12", count: 1},
-        {item: "RB|13", count: 3},
-        {item: "RB|15", count: 3},
-    ],
-    "Extra Bonus": [
-        {item: "TP|Grove", count: 1}, 
-        {item: "TP|Swamp", count: 1},
-        {item: "TP|Grotto", count: 1},
-        {item: "TP|Valley", count: 1},
-        {item: "TP|Sorrow", count: 1},
-        {item: "TP|Ginso", count: 1},
-        {item: "TP|Horu", count: 1},
-        {item: "TP|Forlorn", count: 1},
-        {item: "HC|1", count: 12},
-        {item: "EC|1", count: 14, minimum: 3},
-        {item: "AC|1", count: 33},
-        {item: "RB|0", count: 3},
-        {item: "RB|1", count: 3},
-        {item: "RB|6", count: 5},
-        {item: "RB|9", count: 1},
-        {item: "RB|10", count: 1},
-        {item: "RB|11", count: 1},
-        {item: "RB|12", count: 5},
-        {item: "RB|13", count: 3},
-        {item: "RB|15", count: 3},
-        {item: "RB|31", count: 1},
-        {item: "RB|32", count: 1},
-        {item: "RB|33", count: 3},
-        {item: "BS|*", count: 4},
-        {item: "WP|*", count: 4, upTo: 8},
-    ],
+const get_pool = (pool_name) => { switch(pool_name) {
+    case "Standard": 
+        return [
+            {item: "TP|Grove", count: 1}, 
+            {item: "TP|Swamp", count: 1},
+            {item: "TP|Grotto", count: 1},
+            {item: "TP|Valley", count: 1},
+            {item: "TP|Sorrow", count: 1},
+            {item: "TP|Ginso", count: 1},
+            {item: "TP|Horu", count: 1},
+            {item: "TP|Forlorn", count: 1},
+            {item: "HC|1", count: 12},
+            {item: "EC|1", count: 14, minimum: 3},
+            {item: "AC|1", count: 33},
+            {item: "RB|0", count: 3},
+            {item: "RB|1", count: 3},
+            {item: "RB|6", count: 3},
+            {item: "RB|9", count: 1},
+            {item: "RB|10", count: 1},
+            {item: "RB|11", count: 1},
+            {item: "RB|12", count: 1},
+            {item: "RB|13", count: 3},
+            {item: "RB|15", count: 3},
+        ];
+    case "Hard": 
+        return [
+            {item: "TP|Grove", count: 1}, 
+            {item: "TP|Swamp", count: 1},
+            {item: "TP|Grotto", count: 1},
+            {item: "TP|Valley", count: 1},
+            {item: "TP|Sorrow", count: 1},
+            {item: "TP|Ginso", count: 1},
+            {item: "TP|Horu", count: 1},
+            {item: "TP|Forlorn", count: 1},
+            {item: "EC|1", count: 3, minimum: 3},
+        ];
+    case "Competitive": 
+        return [
+            {item: "TP|Grove", count: 1}, 
+            {item: "TP|Swamp", count: 1},
+            {item: "TP|Grotto", count: 1},
+            {item: "TP|Valley", count: 1},
+            {item: "TP|Sorrow", count: 1},
+            {item: "TP|Forlorn", count: 1},
+            {item: "HC|1", count: 12},
+            {item: "EC|1", count: 14, minimum: 3},
+            {item: "AC|1", count: 33},
+            {item: "RB|0", count: 3},
+            {item: "RB|1", count: 3},
+            {item: "RB|6", count: 3},
+            {item: "RB|9", count: 1},
+            {item: "RB|10", count: 1},
+            {item: "RB|11", count: 1},
+            {item: "RB|12", count: 1},
+            {item: "RB|13", count: 3},
+            {item: "RB|15", count: 3},
+        ];
+    case "Extra Bonus": 
+        return [
+            {item: "TP|Grove", count: 1}, 
+            {item: "TP|Swamp", count: 1},
+            {item: "TP|Grotto", count: 1},
+            {item: "TP|Valley", count: 1},
+            {item: "TP|Sorrow", count: 1},
+            {item: "TP|Ginso", count: 1},
+            {item: "TP|Horu", count: 1},
+            {item: "TP|Forlorn", count: 1},
+            {item: "HC|1", count: 12},
+            {item: "EC|1", count: 14, minimum: 3},
+            {item: "AC|1", count: 33},
+            {item: "RB|0", count: 3},
+            {item: "RB|1", count: 3},
+            {item: "RB|6", count: 5},
+            {item: "RB|9", count: 1},
+            {item: "RB|10", count: 1},
+            {item: "RB|11", count: 1},
+            {item: "RB|12", count: 5},
+            {item: "RB|13", count: 3},
+            {item: "RB|15", count: 3},
+            {item: "RB|31", count: 1},
+            {item: "RB|32", count: 1},
+            {item: "RB|33", count: 3},
+            {item: "BS|*", count: 4, maximum: 7},
+            {item: "WP|*", count: 4, upTo: 8, maximum: 14},
+        ]
+    default:
+        console.log(`${pool_name} is not a valid pool name! Using the standard pool instead`)
+        return get_pool("Standard")
     }
+
+}
 const keymode_options = ["None", "Shards", "Limitkeys", "Clues", "Free"];
 const VERSION = get_param("version")
 const VAR_NAMES = {
@@ -150,6 +159,7 @@ export default class MainPage extends React.Component {
         return {itemPool: [...prev.itemPool], selectedPool: "Custom"}
     })
     deletePoolItem = (index) => () => this.setState(prev => {
+        prev.itemPool.splice(index, 1)
         return {itemPool: [...prev.itemPool], selectedPool: "Custom"}
   })
     addPoolItem = (code) => this.setState(prev => {
@@ -161,28 +171,30 @@ export default class MainPage extends React.Component {
 
     getItemPoolTab = ({inputStyle}) => {
         let itemSelectors = this.state.itemPool.map((row, index) => {
-          let delButton = row.minimum ? null : (<Button onClick={this.deletePoolItem(index)} color="danger">X</Button>)
-          return (<Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "customPool")} className="p-1 justify-content-center">
+          let delButton = row.minimum ? null : (<Button onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("itemPool", "deleteRow")} onClick={this.deletePoolItem(index)} color="danger">X</Button>)
+          return (<Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "customPool")} className="p-1 justify-content-center">
             <Col xs="4">
             <Cent>
-                <Input type="number" className="mr-2" style={inputStyle} value={row.count} onChange={(e) => this.updateItemCount(index, parseInt(e.target.value, 10), row)}/>
+                <Input  onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("itemPool", "count")} type="number" className="mr-2" style={inputStyle} invalid={row.maximum && row.maximum < row.row} value={row.count} onChange={(e) => this.updateItemCount(index, parseInt(e.target.value, 10), row)}/>
+                <FormFeedback tooltip>Maximum number of {name_from_str(row.item)} allowed is {row.maximum}</FormFeedback>
                 {" - "}
-                <Input type="number" invalid={row.upTo && row.upTo < row.count} className="ml-2" style={inputStyle} value={row.upTo || row.count} onChange={(e) => this.updateItemUpTo(index, parseInt(e.target.value, 10))}/>
+                <Input type="number" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("itemPool", "upTo")}  invalid={row.upTo && (row.upTo < row.count || (row.maximum && row.maximum < row.upTo))} className="ml-2" style={inputStyle} value={row.upTo || row.count} onChange={(e) => this.updateItemUpTo(index, parseInt(e.target.value, 10))}/>
+                <FormFeedback tooltip>{row.upTo < row.count ? `Max count can't be lower than min count(${row.count})` : `Maximum number of ${name_from_str(row.item)} allowed is ${row.maximum}`}</FormFeedback>
             </Cent>
             </Col>
-            <Col xs="7">
+            <Col onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("itemPool", "pickupSelector")} xs="7">
                 <PickupSelect value={row.item} isClearable={false} isDisabled={row.minimum && row.minimum > 0} updater={(code, _) => this.updatePoolItem(index, code)} allowPsuedo/>
             </Col>
             <Col xs="1">{delButton}</Col>
           </Row>)
         })
         let presetPoolOptions = ["Standard", "Competitive", "Extra Bonus", "Hard"].map(preset => (
-            <DropdownItem key={`pd-${preset}`} active={this.state.selectedPool===preset} onClick={()=> this.setState({selectedPool: preset, itemPool: [...DEFAULT_POOLS[preset]]})}>{preset}</DropdownItem>
+            <DropdownItem key={`pd-${preset}`} active={this.state.selectedPool===preset} onClick={()=> this.setState({selectedPool: preset, itemPool: get_pool(preset)})}>{preset}</DropdownItem>
         ))
 
         return (
         <TabPane className="p-3 border" tabId="item pool">
-            <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "customPool")} className="p-1 justify-content-center">
+            <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "customPool")} className="p-1 justify-content-center">
                     <Col xs="4">
                         <Cent>Pool Preset: </Cent>
                     </Col>
@@ -194,7 +206,7 @@ export default class MainPage extends React.Component {
                     </Col>
                 </Row>
                 {itemSelectors}
-            <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "customPool")} className="p-1 justify-content-center">
+            <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "customPool")} className="p-1 justify-content-center">
             <Col xs="4">
                 <Cent>
                     <Input type="number" className="mr-2" style={inputStyle} value={1} disabled/>
@@ -429,6 +441,7 @@ export default class MainPage extends React.Component {
             'logic_paths': this.state.paths,
             "exp_pool": this.state.expPool,
             "cell_freq": this.state.cellFreq,
+            "pool_preset": this.state.selectedPool
         }
         if(this.state.pathDiff !== "Normal")
             json.path_diff=this.state.pathDiff
@@ -457,11 +470,7 @@ export default class MainPage extends React.Component {
             }
         })
         json.item_pool = {} //{"HC": 12, "EC": 14, "AC": 33, }
-        this.state.itemPool.forEach(({item, count, upTo}) => {
-            if(upTo) 
-                count = randInt(count, upTo)
-            json.item_pool[item] = count
-        })
+        this.state.itemPool.forEach(({item, count, upTo}) => { json.item_pool[item] = upTo ? [count, upTo] : [count] })
         json.tracking = this.state.tracking
         if(this.state.tracking && this.state.players > 1) {
             json.sync_gen=f(this.state.coopGenMode)
@@ -502,9 +511,10 @@ export default class MainPage extends React.Component {
             this.setState({seedIsGenerating: false, seedTabExists: false, activeTab: 'variations'}, this.updateUrl)
         } else {
             let metaUpdate = JSON.parse(responseText)
-            metaUpdate.itemPool = Object.keys(metaUpdate.itemPool).map(i => ({item: i, count: metaUpdate.itemPool[i]}))
-            if(metaUpdate.itemPool.length !== DEFAULT_POOLS.Standard.length)
-                metaUpdate.selectedPool = "Custom"
+            if(metaUpdate.selectedPool === "Custom")
+                metaUpdate.itemPool = Object.keys(metaUpdate.itemPool).map(i => ({item: i, count: metaUpdate.itemPool[i]}))
+            else
+                metaUpdate.itemPool = get_pool(metaUpdate.selectedPool) 
             metaUpdate.seedIsGenerating = false
             metaUpdate.inputPlayerCount = metaUpdate.players
             metaUpdate.inputSeed = metaUpdate.seed
@@ -790,7 +800,7 @@ export default class MainPage extends React.Component {
 
         }
         let activeTab = seedTabExists ? 'seed' : 'variations';
-        this.state = {user: user, activeTab: activeTab, coopGenMode: "Cloned Seeds", coopGameMode: "Co-op", players: 1, tracking: true, variations: ["ForceTrees"], gameId: gameId, itemPool: [...DEFAULT_POOLS["Standard"]],
+        this.state = {user: user, activeTab: activeTab, coopGenMode: "Cloned Seeds", coopGameMode: "Co-op", players: 1, tracking: true, variations: ["ForceTrees"], gameId: gameId, itemPool: get_pool("Standard"),
                      paths: presets["standard"], keyMode: "Clues", oldKeyMode: "Clues", pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null), goalModes: ["ForceTrees"], selectedPool: "Standard",
                      seed: "", fillAlg: "Balanced", shared: ["Skills", "Teleporters", "World Events", "Upgrades", "Misc"], hints: true, helpcat: "", helpopt: "", quickstartOpen: quickstartOpen, dedupShared: false,
                      expPool: 10000, lastHelp: new Date(), seedIsGenerating: seedTabExists, cellFreq: cellFreqPresets("standard"), fragCount: 30, fragReq: 20, relicCount: 8, loader: get_random_loader(),
@@ -798,7 +808,7 @@ export default class MainPage extends React.Component {
         if(url.searchParams.has("fromBingo")) {
             this.state.goalModes = ["Bingo"]
             this.state.variations = ["Bingo", "OpenWorld"]
-            this.state.itemPool = [...DEFAULT_POOLS["Extra Bonus"]]
+            this.state.itemPool = get_pool("Extra Bonus")
             this.state.selectedPool = "Extra Bonus"
             this.updateUrl()
         }
@@ -999,7 +1009,7 @@ export default class MainPage extends React.Component {
                         Logic Paths
                         </NavLink>
                     </NavItem>
-                    <NavItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "customPool")}>
+                    <NavItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "customPool")}>
                         <NavLink active={activeTab === 'item pool'} onClick={this.onTab('item pool')}>
                         Item Pool
                         </NavLink>

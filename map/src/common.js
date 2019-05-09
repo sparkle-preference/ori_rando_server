@@ -5,6 +5,7 @@ import {
     PacmanLoader, PulseLoader, RingLoader, RiseLoader, RotateLoader, SyncLoader, FadeLoader, ScaleLoader
 } from 'react-spinners';
 import { Badge } from 'reactstrap';
+//import { components } from 'react-select';
 import CreatableSelect from 'react-select/lib/Creatable';
 
 const select_theme = (theme) => {
@@ -126,7 +127,7 @@ const stuff_by_type = {
     ],
     "Cells/Stones": [
         { label: "Health Cell", value: "HC|1" },
-        { label: "Energy Cell", value: "EC|1" },
+        { label: "Energy Cell", value: "EC|1", min: 3},
         { label: "Ability Cell", value: "AC|1" },
         { label: "Keystone", value: "KS|1" },
         { label: "Mapstone", value: "MS|1" }
@@ -207,6 +208,7 @@ const grouped_opts = Object.keys(stuff_by_type).map(t => {
     return { label: t, options: stuff_by_type[t] };
 });
 
+
 class PickupSelect extends Component {
   clear = () => this.setState({value: []})
   valFromStr = (input, update = false) => {
@@ -268,7 +270,7 @@ class PickupSelect extends Component {
             ]
         }
         if(props.allowPsuedo) {
-            misc.options.splice(0, 0, {label: "Random Bonus Skill", value: "BS|*"})
+            misc.options.splice(0, 0, {label: "Random Bonus Skill", value: "BS|*", desc: "A random bonus skill", max: 6})
             misc.options.splice(0, 0, {label: "Random Warp", value: "WP|*"})
         }
         options.push(misc)
