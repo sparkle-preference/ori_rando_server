@@ -667,6 +667,7 @@ class BingoGameData(ndb.Model):
             team.blackout_place = len([1 for t in self.teams if t.blackout_place]) + 1
             win_players = True
             win_sig = "win:$%s to blackout at %s!"
+            need_write = True
         if win_players:
             p_list = [player] + teammates
             for p in p_list:

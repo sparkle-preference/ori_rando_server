@@ -56,7 +56,6 @@ class DeleteGame(RequestHandler):
 class ActiveGames(RequestHandler):
     def get(self, hours=12):
         hours = int(hours)
-        
         self.response.headers['Content-Type'] = 'text/html'
         title = "Games active in the last %s hours" % hours
         body = ""
