@@ -100,8 +100,11 @@ const get_pool = (pool_name) => { switch(pool_name) {
         console.log(`${pool_name} is not a valid pool name! Using the standard pool instead`)
         return get_pool("Standard")
     }
-
 }
+const CANONICAL_ORDERING = {}
+get_pool("Extra Bonus").forEach(({item}, i) => CANONICAL_ORDERING[item] = i)
+
+const get_canon_index = ({item}) => CANONICAL_ORDERING[item]+1 || 99
 const keymode_options = ["None", "Shards", "Limitkeys", "Clues", "Free"];
 const VERSION = get_param("version")
 const VAR_NAMES = {
@@ -512,8 +515,10 @@ export default class MainPage extends React.Component {
             this.setState({seedIsGenerating: false, seedTabExists: false, activeTab: 'variations'}, this.updateUrl)
         } else {
             let metaUpdate = JSON.parse(responseText)
+            console.log(Object.keys(metaUpdate.itemPool).map(i => ({item: i, count: metaUpdate.itemPool[i][0], upTo: metaUpdate.itemPool[i][1] || metaUpdate.itemPool[i][0]})).sort((a, b) => get_canon_index(a) - get_canon_index(b)))
+
             if(metaUpdate.selectedPool === "Custom")
-                metaUpdate.itemPool = Object.keys(metaUpdate.itemPool).map(i => ({item: i, count: metaUpdate.itemPool[i]}))
+                metaUpdate.itemPool = Object.keys(metaUpdate.itemPool).map(i => ({item: i, count: metaUpdate.itemPool[i][0], upTo: metaUpdate.itemPool[i][1] || metaUpdate.itemPool[i][0]})).sort((a, b) => get_canon_index(a) - get_canon_index(b))
             else
                 metaUpdate.itemPool = get_pool(metaUpdate.selectedPool) 
             metaUpdate.seedIsGenerating = false

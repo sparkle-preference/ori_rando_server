@@ -251,7 +251,7 @@ class GameTracker extends React.Component {
   	return {retries: this.state.retries+1, check_seen: this.state.timeout, timeout: this.state.timeout+TIMEOUT_INC}
   };
   tick = () => {
-    let {retries, bg_update, idle_countdown, check_seen, modes, players, follow, viewport} = this.state;
+    let {retries, bg_update, idle_countdown, check_seen, players, follow, viewport} = this.state;
   	if(retries >= RETRY_MAX) return;
     let update = {}
   	if(!document.hasFocus()) {
@@ -263,7 +263,7 @@ class GameTracker extends React.Component {
     } else {
         update.idle_countdown = 3600
     }
-    if(check_seen == 0) {
+    if(check_seen === 0) {
         this.getUpdate(this.timeout);
         Object.keys(players).forEach((id) => {
             if(Object.keys(players[id].seed).length < 50)

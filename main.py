@@ -77,7 +77,7 @@ class ActiveGames(RequestHandler):
             if game.params:
                 params = game.params.get()
                 flags = params.flag_line()
-                slink = " <a href={/?param_id=%s&game_id=%s}>seed</a>" % (params.key.id(), gid)
+                slink = " <a href=%s>Seed</a>" % uri_for('main-page', game_id=gid, param_id=params.key.id())
             blink = ""
             if game.bingo_data:
                 blink += " <a href='/bingo/board?game_id=%s'>Bingo board</a>" % gid
@@ -96,7 +96,6 @@ class MyGames(RequestHandler):
         user = User.get()
         if not user:
             return self.redirect(User.login_url('/myGames'))
-        
         title = "Games played by %s" % user.name
         body = ""
         games = [key.get() for key in user.games]
@@ -109,7 +108,7 @@ class MyGames(RequestHandler):
             if game.params:
                 params = game.params.get()
                 flags = params.flag_line()
-                slink = " <a href={/?param_id=%s&game_id=%s}>seed</a>" % (params.key.id(), gid)
+                slink = " <a href=%s>Seed</a>" % uri_for('main-page', game_id=gid, param_id=params.key.id())
             blink = ""
             if game.bingo_data:
                 blink += " <a href='/bingo/board?game_id=%s'>Bingo board</a>" % gid
@@ -404,6 +403,7 @@ class GetMapUpdate(RequestHandler):
         game = None
         if not pos:
             log.warning("No position data found for game %s" % game_id)
+            pos = {}
         for p, (x, y) in pos.items():
             players[p] = {"pos": [y, x], "seen": [], "reachable": []}  # bc we use tiling software, this is lat/lng
 
