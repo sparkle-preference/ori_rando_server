@@ -4,6 +4,7 @@ import {Navbar,  NavbarBrand, Nav,  NavItem, Button, Modal, ModalHeader, ModalBo
 import {Cent, doNetRequest, get_random_loader, get_param, get_flag} from './common.js';
 
 const BAD_CHARS = ["@", "/", "\\", "?", "#", "&", "=", '"', "'"]
+const VERSION = get_param("version")
 class SiteBar extends Component {
     constructor(props) {
         super(props);
@@ -154,7 +155,7 @@ class SiteBar extends Component {
                             Vanilla Seed
                         </DropdownItem>
                         <DropdownItem href="/dll">
-                            Rando dll (3.2)
+                            Rando dll ({VERSION})
                         </DropdownItem>
                         <DropdownItem href="/tracker">
                             Rando Tracker

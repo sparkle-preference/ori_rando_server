@@ -92,6 +92,7 @@ const get_pool = (pool_name) => { switch(pool_name) {
             {item: "RB|31", count: 1},
             {item: "RB|32", count: 1},
             {item: "RB|33", count: 3},
+            {item: "RB|36", count: 1},
             {item: "BS|*", count: 4, maximum: 7},
             {item: "WP|*", count: 4, upTo: 8, maximum: 14},
         ]

@@ -168,7 +168,7 @@ class BingoGenerator(object):
             tpGoals += [
                 BoolGoal(name = "swamp", disp_name = "Thornfelt Swamp"),
                 BoolGoal(name = "sorrowPass", disp_name = "Valley of the Wind")
-            ]   
+            ]
         goals = [
             BoolGoal(
                 name = "DrainSwamp",
