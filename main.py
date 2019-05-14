@@ -72,16 +72,16 @@ class ActiveGames(RequestHandler):
             gid = game.key.id()
             game_link = uri_for('game-show-history', game_id=gid)
             map_link = uri_for('map-render', game_id=gid)
+            slink = ""
             flags = ""
             if game.params:
                 params = game.params.get()
                 flags = params.flag_line()
-
+                slink = " <a href={/?param_id=%s&game_id=%s}>seed</a>" % (params.key.id(), gid)
             blink = ""
             if game.bingo_data:
                 blink += " <a href='/bingo/board?game_id=%s'>Bingo board</a>" % gid
-            
-            body += "<li><a href='%s'>Game #%s</a> <a href='%s'>Map</a>%s %s (Last update: %s ago)</li>" % (game_link, gid, map_link, blink, flags, datetime.now() - game.last_update)
+            body += "<li><a href='%s'>Game #%s</a> <a href='%s'>Map</a>%s%s %s (Last update: %s ago)</li>" % (game_link, gid, map_link, slink, blink, flags, datetime.now() - game.last_update)
         out = "<html><head><title>%s - Ori Rando Server</title></head><body>" % title
         if body:
             out += "<h4>%s:</h4><ul>%s</ul></body</html>" % (title, body)
@@ -104,16 +104,16 @@ class MyGames(RequestHandler):
             gid = game.key.id()
             game_link = uri_for('game-show-history', game_id=gid)
             map_link = uri_for('map-render', game_id=gid)
+            slink = ""
             flags = ""
             if game.params:
                 params = game.params.get()
                 flags = params.flag_line()
-
+                slink = " <a href={/?param_id=%s&game_id=%s}>seed</a>" % (params.key.id(), gid)
             blink = ""
             if game.bingo_data:
                 blink += " <a href='/bingo/board?game_id=%s'>Bingo board</a>" % gid
-            
-            body += "<li><a href='%s'>Game #%s</a> <a href='%s'>Map</a>%s %s (Last update: %s ago)</li>" % (game_link, gid, map_link, blink, flags, datetime.now() - game.last_update)
+            body += "<li><a href='%s'>Game #%s</a> <a href='%s'>Map</a>%s%s %s (Last update: %s ago)</li>" % (game_link, gid, map_link, slink, blink, flags, datetime.now() - game.last_update)
         out = "<html><head><title>%s - Ori Rando Server</title></head><body>" % title
         if body:
             out += "<h4>%s:</h4><ul>%s</ul></body</html>" % (title, body)
@@ -374,7 +374,6 @@ class GetReachable(RequestHandler):
             self.response.write(json.dumps(reachable_areas))
             return
         modes = param_val(self, "modes").split(" ")
-        self.response.status = 200
         game = Game.with_id(game_id)
         shared_hist = []
         shared_coords = set()
@@ -397,6 +396,70 @@ class GetReachable(RequestHandler):
             game.rebuild_hist()
             self.response.write(json.dumps(reachable_areas))
 
+class GetMapUpdate(RequestHandler):
+    def get(self, game_id):
+        self.response.headers['Content-Type'] = 'application/json'
+        players = {}
+        pos = Cache.getPos(game_id)
+        game = None
+        if not pos:
+            log.warning("No position data found for game %s" % game_id)
+        for p, (x, y) in pos.items():
+            players[p] = {"pos": [y, x], "seen": [], "reachable": []}  # bc we use tiling software, this is lat/lng
+
+        game_hist = Cache.getHist(game_id)
+        if not game_hist:
+            game = Game.with_id(game_id)
+            if not game:
+                self.response.status = 404
+                self.response.write(json.dumps({"error": "Game not found"}))
+                return
+            game_hist = game.rebuild_hist()
+        for p, history_lines in game_hist.items():
+            if p not in players:
+                log.warning("Previously-unknown player %s appeared in hist for game %s" % (p, game_id))
+                players[p] = {}
+            players[p]["seen"] = [hl.coords for hl in history_lines] + [hl.map_coords for hl in history_lines if hl.map_coords]
+        reach = Cache.getReachable(game_id)
+        modes = tuple(sorted(param_val(self, "modes").split(" ")))
+        need_reach_updates = [p for p in players.keys() if modes not in reach.get(p, {})]
+        if need_reach_updates:
+            if not game:
+                game = Game.with_id(game_id)
+                if not game:
+                    self.response.status = 404
+                    self.response.write(json.dumps({"error": "Game not found"}))
+                    return
+            shared_hists = {}
+            if game.mode == MultiplayerGameType.SHARED:
+                groups = game.get_player_groups(int_ids=True)
+                print groups
+                for group in groups:
+                    g_hist = [hl for p, hls in game_hist.items() for hl in hls if p in group and hl.pickup().is_shared(game.shared)]
+                    group_needs_update = any([p in need_reach_updates for p in group])
+                    for p in group:
+                        if group_needs_update and p not in need_reach_updates:
+                            need_reach_updates.append(p)
+                        shared_hists[p] = g_hist
+            for p in need_reach_updates:
+                hist = []
+                shared_coords = []
+                if p in shared_hists:
+                    hist += shared_hists[p]
+                    shared_coords = set([h.coords for h in hist])
+                hist += [hl for hl in game_hist.get(p, []) if hl.coords not in shared_coords]
+                state = PlayerState([(h.pickup_code, h.pickup_id, 1, h.removed) for h in hist])
+                areas = {}
+                if state.has["KS"] > 8 and "standard-core" in modes:
+                    state.has["KS"] += 2 * (state.has["KS"] - 8)
+                if p not in reach:
+                    reach[p] = {}
+                reach[p][modes] = Map.get_reachable_areas(state, modes, False)
+            Cache.setReachable(game_id, reach)
+        for p in reach:
+            players[p]["reachable"] = reach[p][modes]
+        self.response.write(json.dumps(players))
+        
 
 class GetPlayerPositions(RequestHandler):
     def get(self, game_id):
@@ -919,6 +982,7 @@ app = WSGIApplication(
             Route('/gamedata', handler=GetGameData, name="map-fetch-game-data"),
             Route('/seen', handler=GetSeenLocs, name="map-fetch-seen"),
             Route('/reachable', handler=GetReachable, name="map-fetch-reachable"),
+            Route('/update', handler=GetMapUpdate, name='match-fetch-update'),
 
             ] + list(PathPrefixRoute('/player/<player_id>', [
                 Route('/seed', GetSeed, name="map-fetch-seed"),

@@ -244,7 +244,7 @@ const getHelpHelper = (category, option) => {
                 case "0XP":
                     title = "0 Experience"
                     lines = [
-                        "Inspired by the incredibly unpopular 0 XP speedrunning category, the 0 Experience variation prevents Ori from ever gaining levels or acquiring experience. Experience dropped by enemies will kill Ori on contact!",
+                        "Inspired by the incredibly unpopular 0 XP speedrunning category, the 0 Experience variation prevents Ori from ever gaining levels or acquiring experience. Experience dropped by enemies will do nothing.",
                         "Recommended for anyone who watched a 0 XP run and thought it seemed fun."
                     ]
                     extras.push(UntestedWarning);
@@ -911,7 +911,7 @@ const getHelpHelper = (category, option) => {
                     title = "Expert Damage Boost"
                     lines = [
                         (<div><b>Expert Damage Boost</b> logic paths incorporate damage boosts of up to 6 damage. These could include swimming sequences with underwater pickups or damaging yourself repeatedly across spikes.</div>),
-                        "Examples: getting to the Energy Cell in the main pool of Sunken Glades with 6 health; reaching the lower Swamp access in Moon Grotto using only Dash and 4 health; getting the underwater ability cell in Death Gauntlet with 4 health.",
+                        "Examples: getting to the Energy Cell in the main pool of Sunken Glades with 7 health; reaching the lower Swamp access in Moon Grotto using only Dash and 4 health; getting the underwater ability cell in Death Gauntlet with 4 health.",
                         "These paths are enabled by default in the Expert, Master, and Glitched presets."
                     ]
                     break;

@@ -234,7 +234,7 @@ class GameTracker extends React.Component {
   constructor(props) {
     super(props)
     let modes = presets['standard'];
-    this.state = {mousePos: {lat: 0, lng: 0}, players: {}, follow: -1, retries: 0, check_seen: 1, modes: modes, timeout: TIMEOUT_START, searchStr: "", pickup_display: "all", show_sidebar: true, idle_countdown: 7200,
+    this.state = {mousePos: {lat: 0, lng: 0}, players: {}, follow: -1, retries: 0, check_seen: 1, modes: modes, timeout: TIMEOUT_START, searchStr: "", pickup_display: "all", show_sidebar: true, idle_countdown: 3600,
     bg_update: true, viewport: {center: [0, 0], zoom: 5}, pickups: ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "Ma", "CS"], open_world: false, closed_dungeons: false, pathMode: get_preset(modes), hideOpt: "all", display_logic: false};
   };
 
@@ -253,35 +253,29 @@ class GameTracker extends React.Component {
   tick = () => {
     let {retries, bg_update, idle_countdown, check_seen, modes, players, follow, viewport} = this.state;
   	if(retries >= RETRY_MAX) return;
-
+    let update = {}
   	if(!document.hasFocus()) {
         if(!bg_update) return;
         if(idle_countdown > 0)
             this.setState({idle_countdown: idle_countdown-1})
         else
-            this.setState({idle_countdown: 14400, bg_update: false})
-    } 
-
-  	if(check_seen === 0) {
-	  	this.setState({check_seen: 5});
-		getSeen((p) => this.setState(p), this.timeout);
-		this.getReachable(modes.join("+"), this.timeout);
-		Object.keys(players).forEach((id) => {
-			if(Object.keys(players[id].seed).length < 50)
-				getSeed((p) => this.setState(p), id, this.timeout);
-		})
-  	} else
-        this.setState({check_seen: check_seen -1});
-    if(check_seen < 10)
-    {
-        getPlayerPos((p) => this.setState(p), this.timeout);
-        if(follow > 0 && players.hasOwnProperty(follow)) {
-            let map = this.refs.map.leafletElement;
-            map.flyTo(players[follow].pos, viewport.zoom)
-        }
+            this.setState({idle_countdown: 3600, bg_update: false})
+    } else {
+        update.idle_countdown = 3600
     }
-  };
-
+    if(check_seen == 0) {
+        this.getUpdate(this.timeout);
+        Object.keys(players).forEach((id) => {
+            if(Object.keys(players[id].seed).length < 50)
+                getSeed((p) => this.setState(p), id, this.timeout);
+        })
+    } else 
+        update.check_seen = check_seen - 1
+    if(follow > 0 && players.hasOwnProperty(follow)) {
+        let map = this.refs.map.leafletElement;
+        map.flyTo(players[follow].pos, viewport.zoom)
+    }
+};
 
   componentWillUnmount() {
     clearInterval(this.interval);
@@ -296,7 +290,7 @@ class GameTracker extends React.Component {
 				players[id].areas = []
 			});
 		return {players: players, modes: paths, pathMode: get_preset(paths)}
-		}, () => this.getReachable(this.state.modes.join("+"), this.timeout))
+		}, () => this.getUpdate(this.timeout))
         
   onMode = (m) => () => this.setState(prevState => {
         let modes = prevState.modes;
@@ -309,7 +303,7 @@ class GameTracker extends React.Component {
 		Object.keys(players).forEach(id => {
 				players[id].areas = []
 			});
-		return {players: players, modes: modes, pathMode: get_preset(modes)}}, () => this.getReachable(this.state.modes.join("+"), this.timeout))
+		return {players: players, modes: modes, pathMode: get_preset(modes)}}, () => this.getUpdate(this.timeout))
 		
 toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
 
@@ -398,28 +392,35 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
 			</div>
 		)
 	}
-    getReachable = (modes, timeout) => {
+    getUpdate = (timeout) => {
         let onRes = (res) => {
-            	let areas = JSON.parse(res);
+            	let playerData = JSON.parse(res);
+                if(playerData.error)
+                {
+                    console.log(playerData.error)
+                    this.setState(timeout())
+                }
 				this.setState(prevState => {
 					let players = prevState.players
-					Object.keys(areas).forEach(id => {
-						if(!players.hasOwnProperty(id)){
-							players[id] = {...EMPTY_PLAYER};
+					Object.keys(playerData).forEach(pid => {
+						if(!players.hasOwnProperty(pid)){
+							players[pid] = {...EMPTY_PLAYER};
 						}
-						Object.keys(areas[id]).forEach(area => {
-							players[id].areas = uniq(players[id].areas.concat(area))
-						});
+                        let {reachable, pos, seen} = playerData[pid];
+                        players[pid].seen = seen
+                        players[pid].areas = uniq(players[pid].areas.concat(reachable))
+                        players[pid].pos = pos
+                        
 					})
 					return {players: players, retries: 0, timeout: TIMEOUT_START}
 				})
         }
+        let modes = this.state.modes.join("+")
         if(this.state.closed_dungeons) 
             modes +="+CLOSED_DUNGEON"
         if(this.state.open_world) 
             modes +="+OPEN_WORLD"
-            
-        doNetRequest(onRes, (s) => this.setState(s), "/tracker/game/"+game_id+"/fetch/reachable?modes="+modes, timeout)
+        doNetRequest(onRes, (s) => this.setState(s), "/tracker/game/"+game_id+"/fetch/update?modes="+modes, timeout)
     }
     getGamedata = () => {
         let onRes = (res) => {
@@ -467,42 +468,6 @@ function getSeed(setter, pid, timeout)
 				});
             }
      doNetRequest(onRes, setter, "/tracker/game/"+game_id+"/fetch/player/"+pid+"/seed", timeout)
-}
-
-function getSeen(setter, timeout)
-{
-     var onRes = (res) => {
-            	let seens = JSON.parse(res);
-				setter(prevState => {
-					let players = prevState.players
-					Object.keys(seens).forEach(id => {
-						if(!players.hasOwnProperty(id)){
-							players[id] = {...EMPTY_PLAYER};
-						}
-						players[id].seen = seens[id]
-					})
-					return {players: players, retries: 0, timeout: TIMEOUT_START}
-				})
-    }
-    doNetRequest(onRes, setter, "/tracker/game/"+game_id+"/fetch/seen", timeout)
-}
-
-
-function getPlayerPos(setter, timeout)
-{
-     var onRes = (res) => {
-            	let player_positions = JSON.parse(res);
-				setter(prevState => {
-					let players = prevState.players
-					Object.keys(player_positions).forEach(id => {
-						if(!players.hasOwnProperty(id))
-							players[id] = {...EMPTY_PLAYER};
-						players[id].pos = player_positions[id]
-					})
-					return {players: players, retries: 0, timeout: TIMEOUT_START}
-				})
-    }
-    doNetRequest(onRes, setter, "/tracker/game/"+game_id+"/fetch/pos", timeout)
 }
 
 export default GameTracker;

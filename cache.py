@@ -14,8 +14,28 @@ class Cache(object):
         memcache.set(key="%s.hist" % gid, value=hist_map, time=3600)
 
     @staticmethod
+    def appendHl(gid, pid, hl):
+        hist_map = Cache.getHist(gid) or {}
+        hist_map[int(pid)].append(hl)
+        memcache.set(key="%s.hist" % gid, value=hist_map, time=3600)
+
+    @staticmethod
     def getHist(gid):
         return memcache.get(key="%s.hist" % gid)
+
+    @staticmethod
+    def getReachable(gid):
+        return memcache.get(key="%s.reach" % gid) or {}
+
+    @staticmethod
+    def setReachable(gid, reachable):
+        memcache.set(key="%s.reach" % gid, value=reachable, time=7200)
+
+    @staticmethod
+    def clearReach(gid, pid):
+        reach_map = Cache.getReachable(gid) or {}
+        reach_map[int(pid)] = {}
+        memcache.set(key="%s.reach" % gid, value=reach_map, time=7200)
 
     @staticmethod
     def getPos(gid):

@@ -832,6 +832,18 @@ class Game(ndb.Model):
         self.players.remove(key)
         key.delete()
         self.put()
+        
+    def get_player_groups(self, int_ids=False):
+        player_groups = []
+        if self.bingo_data:
+            bingo = self.bingo_data.get()
+            for team in bingo.teams:
+                player_groups.append([team.captain] + team.teammates)
+        else:
+            player_groups = [self.players]
+        if int_ids:
+            return [[_pid(p)for p in group] for group in player_groups]
+        return player_groups
 
     def sanity_check(self):
         if self.mode != MultiplayerGameType.SHARED:
@@ -841,13 +853,7 @@ class Game(ndb.Model):
             return False
         allPlayers = self.players
         sanFailedSignal = "msg:@Major Error during sanity check. If this persists across multiple alt+l attempts please contact Eiko@"
-        playerGroups = []
-        if self.bingo_data:
-            bingo = self.bingo_data.get()
-            for team in bingo.teams:
-                playerGroups.append([team.captain] + team.teammates)
-        else:
-            playerGroups = [allPlayers]
+        playerGroups = self.get_player_groups()
         for playerKeys in playerGroups:
             players = [pkey.get() for pkey in playerKeys]
             inv = defaultdict(lambda: 0)
@@ -1017,8 +1023,10 @@ class Game(ndb.Model):
         if coords in range(24, 60, 4) and zone in map_coords_by_zone:
             hl.map_coords = map_coords_by_zone[zone]
         Player.append_history(finder.key, hl)
+        if pickup.code in ["AC", "KS", "HC", "EC", "SK", "EV", "TP"] or (pickup.code == "RB" and pickup.id in [17, 19, 21]):
+            Cache.clearReach(self.key.id(), pid)
+        Cache.appendHl(self.key.id(), pid, hl)
         self.put()
-        Cache.setHist(self.key.id(), pid, finder.history)
         return retcode
 
     def clean_up(self):
