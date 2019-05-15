@@ -275,6 +275,7 @@ class GameTracker extends React.Component {
         let map = this.refs.map.leafletElement;
         map.flyTo(players[follow].pos, viewport.zoom)
     }
+    this.setState(update)
 };
 
   componentWillUnmount() {
