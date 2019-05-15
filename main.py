@@ -756,6 +756,8 @@ class ReactLanding(RequestHandler):
         if user:
             template_values['user'] = user.name
             template_values['dark'] = user.dark_theme
+            if user.theme:
+                template_values['theme'] = user.theme
         self.response
         self.response.write(template.render(path, template_values))
 
@@ -898,6 +900,8 @@ class RebindingsEditor(RequestHandler):
         if user:
             template_values['user'] = user.name
             template_values['dark'] = user.dark_theme
+            if user.theme:
+                template_values['theme'] = user.theme
         self.response.write(template.render(path, template_values))
 
 class Guides(RequestHandler):
@@ -907,6 +911,8 @@ class Guides(RequestHandler):
         if user:
             template_values['user'] = user.name
             template_values['dark'] = user.dark_theme
+            if user.theme:
+                template_values['theme'] = user.theme
         self.response.write(template.render(path, template_values))
 
 class GetSettings(RequestHandler):
@@ -949,6 +955,35 @@ class LastestMap(RequestHandler):
             return resp_error(self, 404, "Could not find any tracked games for user '%s'" % name, "text/plain")
         game_key = user.games[-1]
         return redirect(uri_for('map-render', game_id=game_key.id()))
+
+
+class SetPlayerNum(RequestHandler):
+    def get(self, new_num):
+        self.response.headers['Content-Type'] = 'text/plain'
+        user = User.get()
+        if user:
+            if int(new_num) > 0:
+                user.pref_num = int(new_num)
+                user.put()
+                self.response.write("Preferred player number for %s set to %s" % (user.name, new_num))
+                return
+            else:
+                return resp_error(self, 400, "Preferred player number must be >0", "text/plain")
+        else:
+            return resp_error(self, 401, "You are not logged in!", "text/plain")
+
+class SetTheme(RequestHandler):
+    def get(self, new_theme):
+        self.response.headers['Content-Type'] = 'text/plain'
+        user = User.get()
+        if user:
+            user.theme = new_theme
+            user.put()
+            self.response.write("theme for %s set to %s" % (user.name, new_theme))
+            return
+        else:
+            return resp_error(self, 401, "You are not logged in!", "text/plain")
+
 
 app = WSGIApplication(
     routes= bingo_routes +
@@ -996,6 +1031,8 @@ app = WSGIApplication(
     Route('/', handler=ReactLanding, name="main-page"),
     Route('/user/settings', handler=GetSettings, name="user-settings-get"),
     Route('/user/settings/update', handler=SetSettings, strict_slash=True, name="user-settings-update"),
+    Route('/user/settings/number/<new_num:\d+>', handler=SetPlayerNum, strict_slash=True, name="user-set-player-num"),
+    Route('/user/settings/theme/<new_theme>', handler=SetTheme, strict_slash=True, name="user-set-player-theme"),
     Route('/activeGames/', handler=ActiveGames, strict_slash=True, name="active-games"),
     Route('/activeGames/<hours:\d+>', handler=ActiveGames, strict_slash=True, name="active-games-hours"),
     ('/rebinds', RebindingsEditor),

@@ -702,6 +702,10 @@ class BingoBoard(RequestHandler):
         if user:
             template_values['user'] = user.name
             template_values['dark'] = user.dark_theme
+            if user.theme:
+                template_values['theme'] = user.theme
+            if user.pref_num:
+                template_values['pref_num'] = user.pref_num
         self.response.write(template.render(path, template_values))
 
 class BingoCreate(RequestHandler):
@@ -1023,6 +1027,10 @@ class BingoUserboard(RequestHandler):
         template_values = {'app': "Bingo", 'title': "%s's Bingo Board" % user.name}
         template_values['user'] = user.name
         template_values['dark'] = user.dark_theme
+        if user.pref_num:
+            template_values['pref_num'] = user.pref_num
+        if user.theme:
+            template_values['theme'] = user.theme
         self.response.write(template.render(path, template_values))
 
 class UserboardTick(RequestHandler):

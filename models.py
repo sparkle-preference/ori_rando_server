@@ -137,6 +137,8 @@ class User(ndb.Model):
     games = ndb.KeyProperty("Game", repeated=True)
     dark_theme = ndb.BooleanProperty(default=False)
     teamname = ndb.StringProperty()
+    pref_num  = ndb.IntegerProperty()
+    theme  = ndb.StringProperty()
 
     @staticmethod
     def login_url(redirect_after):
