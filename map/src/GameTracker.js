@@ -37,7 +37,7 @@ const PlayerMarker = ({ map, position, icon, name, sense}) => sense ? (
 const PlayerMarkersList = ({map, players}) => {
 	let players_to_show = Object.keys(players).filter(id => players[id].show_marker)
 	const items = players_to_show.map((id) => (
-		<PlayerMarker  key={"player_"+id} map={map} position={players[id].pos} name={players[id].name} icon={player_icons(id)} sense={players[id].show_sense}  />
+		<PlayerMarker  key={"player_"+id} map={map} position={players[id].pos  || [-210, 189]} name={players[id].name} icon={player_icons(id)} sense={players[id].show_sense}  />
 	));
 	return (<div style={{display: 'none'}}>{items}</div>);
 }
