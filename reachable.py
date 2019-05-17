@@ -1,4 +1,4 @@
-from seedbuilder.oriparse import ori_load_url
+from seedbuilder.oriparse import get_areas
 from collections import defaultdict, Counter
 from pickups import Pickup
 
@@ -106,7 +106,7 @@ class Map(object):
 
     @staticmethod
     def build():
-        areas = ori_load_url('http://raw.githubusercontent.com/sigmasin/OriDERandomizer/3.0/seed_gen/areas.ori')["homes"]
+        areas = get_areas()["homes"]
         for name, area_data in areas.iteritems():
             area = Area(name)
             for target, conn_data in area_data["conns"].iteritems():
