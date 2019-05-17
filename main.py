@@ -6,7 +6,7 @@ from collections import Counter
 # web imports
 import logging as log
 from urllib import unquote
-from webapp2_extras.routes import PathPrefixRoute, RedirectRoute as Route
+from webapp2_extras.routes import DomainRoute, PathPrefixRoute, RedirectRoute as Route
 from test import TestRunner
 from webapp2 import WSGIApplication, RequestHandler, redirect, uri_for
 from datetime import datetime, timedelta
@@ -290,7 +290,6 @@ class ShowMap(RequestHandler):
             game = Game.with_id(game_id)
             pos = Cache.getPos(game_id)
             hist = Cache.getHist(game_id)
-            print game, pos, hist
             if any([x is None for x in [game, pos, hist]]):
                 return redirect(uri_for('tests-map-gid', game_id=game_id, from_test=1))
 
@@ -433,7 +432,6 @@ class GetMapUpdate(RequestHandler):
             shared_hists = {}
             if game.mode == MultiplayerGameType.SHARED:
                 groups = game.get_player_groups(int_ids=True)
-                print groups
                 for group in groups:
                     g_hist = [hl for p, hls in game_hist.items() for hl in hls if p in group and hl.pickup().is_shared(game.shared)]
                     group_needs_update = any([p in need_reach_updates for p in group])
@@ -984,10 +982,14 @@ class SetTheme(RequestHandler):
         else:
             return resp_error(self, 401, "You are not logged in!", "text/plain")
 
+class NakedRedirect(RequestHandler):
+    def get(self, path):
+        return redirect(self.request.url.replace("www.", ""))
 
 app = WSGIApplication(
-    routes= bingo_routes +
-    [
+    routes=[
+        DomainRoute('www.orirando.com', [Route('<path:.*>', handler=NakedRedirect)]),
+    ] + bingo_routes + [
     # testing endpoints
     PathPrefixRoute('/tests', [
         Route('/', handler=TestRunner, name='tests-run'),

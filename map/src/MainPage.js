@@ -515,12 +515,15 @@ export default class MainPage extends React.Component {
             this.setState({seedIsGenerating: false, seedTabExists: false, activeTab: 'variations'}, this.updateUrl)
         } else {
             let metaUpdate = JSON.parse(responseText)
-            console.log(Object.keys(metaUpdate.itemPool).map(i => ({item: i, count: metaUpdate.itemPool[i][0], upTo: metaUpdate.itemPool[i][1] || metaUpdate.itemPool[i][0]})).sort((a, b) => get_canon_index(a) - get_canon_index(b)))
-
-            if(metaUpdate.selectedPool === "Custom")
-                metaUpdate.itemPool = Object.keys(metaUpdate.itemPool).map(i => ({item: i, count: metaUpdate.itemPool[i][0], upTo: metaUpdate.itemPool[i][1] || metaUpdate.itemPool[i][0]})).sort((a, b) => get_canon_index(a) - get_canon_index(b))
-            else
-                metaUpdate.itemPool = get_pool(metaUpdate.selectedPool) 
+            if(!metaUpdate.isPlando)
+            {
+                if(metaUpdate.selectedPool === "Custom")
+                    metaUpdate.itemPool = Object.keys(metaUpdate.itemPool).map(i => ({item: i, count: metaUpdate.itemPool[i][0], upTo: metaUpdate.itemPool[i][1] || metaUpdate.itemPool[i][0]})).sort((a, b) => get_canon_index(a) - get_canon_index(b))
+                else
+                    metaUpdate.itemPool = get_pool(metaUpdate.selectedPool) 
+            } else {
+                metaUpdate.itemPool = this.state.itemPool
+            }
             metaUpdate.seedIsGenerating = false
             metaUpdate.inputPlayerCount = metaUpdate.players
             metaUpdate.inputSeed = metaUpdate.seed
