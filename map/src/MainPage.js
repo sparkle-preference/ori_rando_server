@@ -193,7 +193,7 @@ export default class MainPage extends React.Component {
           </Row>)
         })
         let presetPoolOptions = ["Standard", "Competitive", "Extra Bonus", "Hard"].map(preset => (
-            <DropdownItem key={`pd-${preset}`} active={this.state.selectedPool===preset} onClick={()=> this.setState({selectedPool: preset, itemPool: get_pool(preset)})}>{preset}</DropdownItem>
+            <DropdownItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("itemPool", preset)} key={`pd-${preset}`} active={this.state.selectedPool===preset} onClick={()=> this.setState({selectedPool: preset, itemPool: get_pool(preset)})}>{preset}</DropdownItem>
         ))
 
         return (
@@ -202,7 +202,7 @@ export default class MainPage extends React.Component {
                     <Col xs="4">
                         <Cent>Pool Preset: </Cent>
                     </Col>
-                    <Col xs="4">
+                    <Col onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("itemPool", this.state.selectedPool)} xs="4">
                         <UncontrolledButtonDropdown className="w-100">
                             <DropdownToggle color="primary" caret block> {this.state.selectedPool} </DropdownToggle>
                             <DropdownMenu> {presetPoolOptions} </DropdownMenu>

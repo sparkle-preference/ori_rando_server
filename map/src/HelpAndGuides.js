@@ -8,7 +8,7 @@ import SiteBar from "./SiteBar.js"
 const GUIDES = ["install", "gen_seed", "get_tracker", "bonus_pickups", "starter_seeds", "differences", "gotchas"];
 const counts = {
   "standard": { "RB|0": 3, "RB|1": 3, "RB|6": "3/5*", "RB|9": 1, "RB|10": 1, "RB|11": 1, "RB|12": "1/5*", "RB|13": 3, "RB|15": 3, "RB|17": "5**", "RB|19": "5**", "RB|21": "5**"},
-  "bonus": { "RB|31": 1, "RB|32": 1, "RB|33": 3, "RB|36": 1, "RB|6": 5, "RB|12": 5, "RB|101": "*", "RB|102": "*", "RB|103": "*", "RB|104": "**", "RB|105": "**", "RB|106": "*", "RB|107": "*", "RB|109": "*", "RB|110": "*"},
+  "bonus": { "RB|31": 1, "RB|32": 1, "RB|33": 3, "RB|36": 1, "RB|6": 5, "RB|12": 5, "RB|101": "*", "RB|102": "*", "RB|103": "*", "RB|104": "**", "RB|105": "**", "RB|106": "*", "RB|107": "*", "RB|109": "*", "RB|110": "*", "RB|111": "***", "RB|113": "***"},
 }
 const buttonHolder="mt-0 pt-0 pb-0 mb-0 text-center border-none"
 export default class HelpAndGuides extends React.Component {
@@ -59,10 +59,10 @@ export default class HelpAndGuides extends React.Component {
                 <Col className="text-center" xs="1">#</Col>
                 </Row>
                 {normal}
-                <Row className="border-left border-right"><Col className="text-center"><small>*: extra copies of this item are added if the "More Bonus Pickups" Variation is enabled.</small></Col></Row>
+                <Row className="border-left border-right"><Col className="text-center"><small>*: extra copies of this item are added if the "Bonus Pickups" item pool preset is selected.</small></Col></Row>
                 <Row className="border-left border-right border-bottom"><Col className="text-center"><small>**: Only in seeds generated with KeyMode set to Shards.</small></Col></Row>
                 <CardText className="text-center mt-3">
-                <h5>The following items are only present when using the More Bonus Pickups Variation.</h5>
+                <h5>The following items are only present when using the Bonus Pickups item pool preset (or a custom one).</h5>
                 </CardText>
                 <Row className="border">
                 <Col className="text-center" xs="3">Pickup Name</Col>
@@ -70,8 +70,9 @@ export default class HelpAndGuides extends React.Component {
                 <Col className="text-center" xs="1">#</Col>
                 </Row>
                 {bonus}
-                <Row className="border-left border-right"><Col className="text-center"><small>*: 4 bonus skills are chosen at random for each Extra Bonus Pickups seed.</small></Col></Row>
-                <Row className="border-left border-right border-bottom"><Col className="text-center"><small>**: Only one Teleport bonus skill will be in any given Extra Bonus Pickups seed.</small></Col></Row>
+                <Row className="border-left border-right"><Col className="text-center"><small>*: 4 bonus skills are chosen at random in seeds using the Bonus Pickups item pool preset.</small></Col></Row>
+                <Row className="border-left border-right"><Col className="text-center"><small>**: At most 1 Teleport bonus skill will be in seeds using the Bonus Pickups item pool preset.</small></Col></Row>
+                <Row className="border-left border-right border-bottom"><Col className="text-center"><small>***: Rare bonus skills (10% chance of seeing one in seeds using the Bonus Pickups item pool preset)</small></Col></Row>
 
             </Collapse>
             </CardBody>

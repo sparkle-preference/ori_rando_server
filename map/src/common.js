@@ -141,6 +141,7 @@ const stuff_by_type = {
         { label: "Swamp TP", value: "TP|Swamp" },
         { label: "Ginso TP", value: "TP|Ginso" },
         { label: "Horu TP", value: "TP|Horu" },
+        { label: "Blackroot TP", value: "TP|Blackroot" },
     ],
     "Events": [
         { label: "Water Vein", value: "EV|0" },
@@ -168,7 +169,7 @@ const stuff_by_type = {
         { label: "Bleeding", value: "RB|30", desc: "Continuously removes health at a rate of 1 per 60 seconds. Stacks."},
         { label: "Health Drain", value: "RB|31", desc: "Restores health equal to a percentage of damage dealt to enemies."},
         { label: "Energy Drain", value: "RB|32", desc: "Restores energy equal to a percentage of damage dealt to enemies."},
-        { label: "Skill Velocity Upgrade", value: "RB|33", desc: "Increases the velocity of Dash, Bash, Stomp, and Charge Jump. Stacks."},
+        { label: "Skill Velocity Upgrade", value: "RB|33", desc: "Increases the velocity of Dash, Bash, Stomp, and Charge Jump. Stacks. Can be toggled off via an automatically-granted bonus skill."},
         { label: "Disable Alt+R", value: "RB|34", desc: "Disables the Return to Start functionality."},
         { label: "Enable Alt+R", value: "RB|35", desc: "Re-enables the Return to Start functionality."},
         { label: "Underwater Skill Usage", value: "RB|36", desc: "Allows Ori to Dash and throw Grenades while underwater."},
@@ -192,8 +193,8 @@ const stuff_by_type = {
         { label: "Level Explosion", value: "RB|107", desc: "On use: Pay 1 energy to create a level-up explosion."},
         { label: "Timewarp", value: "RB|109", desc: "Toggle: Slows time for everything but Ori, and drains energy at a rate of 4 per minute."},
         { label: "Invincibility", value: "RB|110", desc: "Toggle: Makes Ori Invincible. Costs 1 energy per second, +.5 to activate."},
-        { label: "Wither", value: "RB|111", desc: "On Use: kills Ori."},
-        { label: "Bash/Stomp Damage", value: "RB|113", desc: "Toggle: makes Stomp and Bash deal no damage."},
+        { label: "Wither", value: "RB|111", desc: "On Use: kills Ori (no cost)"},
+        { label: "Bash/Stomp Damage", value: "RB|113", desc: "Toggle: prevents any damage Stomp and Bash would deal to enemies. (no cost)"},
     ],
 };
 

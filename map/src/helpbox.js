@@ -1,6 +1,6 @@
 import React from 'react';
 import {CardText, CardTitle, Card, CardBody, CardSubtitle} from 'reactstrap';
-
+import {dev} from './common.js'
 
 const UntestedWarning = (<CardText className="border m-2 p-2 border-danger"><i>
 NOTE: this variation is rarely used and thus is less tested than most.
@@ -27,6 +27,7 @@ const getHelpHelper = (category, option) => {
     let title = noneTitle;
     let subtitle = noneSub;  
     let extras = [];
+    let match = true;
     switch(category) {
         case "flags":
             let h = {}
@@ -81,7 +82,7 @@ const getHelpHelper = (category, option) => {
             }
             h.subtitle = "Flags"
             return h
-        case "logicModes":    
+        case "logicModes":
             subtitle = "Logic Modes"
             switch(option) {
                 case "casual":
@@ -130,6 +131,7 @@ const getHelpHelper = (category, option) => {
                     ]
                     break;
                 default:
+                    match = false;
                     break;
             }
             lines.push("For more detailed info about Logic Modes, check out the help sections inside the Logic Paths tab")
@@ -188,6 +190,7 @@ const getHelpHelper = (category, option) => {
                     ]
                     break;
                 default:
+                    match = false;
                     break;
             }
             break;
@@ -315,6 +318,7 @@ const getHelpHelper = (category, option) => {
                     ]
                     break;
                 default:
+                    match = false;
                     break;
             }
             break;
@@ -404,6 +408,7 @@ const getHelpHelper = (category, option) => {
                     lines = ["Each flag here represents some setting selected in the seed generation process. Mouse over each one to learn more."]
                 break;
                 default:
+                    match = false;
                 break;
             }
             break;
@@ -448,6 +453,7 @@ const getHelpHelper = (category, option) => {
                     ]
                     break;
                 default:
+                    match = false;
                     break;
             }
             break;
@@ -502,6 +508,7 @@ const getHelpHelper = (category, option) => {
                     ]
                     break;
                 default:
+                    match = false;
                     break;
             }
         break;
@@ -564,6 +571,7 @@ const getHelpHelper = (category, option) => {
                     ]
                     break;
                 default:
+                    match = false;
                     break;
             }
         break;
@@ -657,6 +665,7 @@ const getHelpHelper = (category, option) => {
                     ]
                     break;
                 default:
+                    match = false;
                     break;
             }
         break;
@@ -679,10 +688,67 @@ const getHelpHelper = (category, option) => {
                 case "upTo":
                     title = "Maximum"
                     lines = [
-                        "This field sets the maximum number of times this row's pickup will be placed in the seed.",
+                        "This field sets the maximum number of times this row's pickup will be placed in the seed. Leaving it set to the same number as the minimum results in that number always being chosen.",
+                    ]
+                    break;
+                case "pickupSelector":
+                    title = "Pickup Selector"
+                    lines = [
+                        "Use this box to select or modify an item being placed in the pickup pool. If you place multiple pickups into this box, all of them will be placed in the same location (or locations).",
+                        "For example, if you add '10 experience' to the default 'Ability Cell' row, every Ability Cell pickup will also give 10 experience.",
+                    ]
+                    break;
+                case "pickupSelectorDisabled":
+                    title = "Pickup Selector (locked)"
+                    lines = [
+                        "This item cannot be modified or removed from the pool; at least some number of copies of this item are required for seed generation.",
+                    ]
+                    break;
+                case "Standard":
+                    title = "Standard"
+                    subtitle = "Item Pool Presets"
+                    lines = [
+                        "The Standard item pool preset is the default and recommend item pool preset for most players, especially newer players.",
+                        "It contains every teleporter, a decent selection of bonus pickups, and the default amount of Cells (Health, Energy, and Ability)",
+                    ]
+                    break;
+                case "Hard":
+                    title = "Hard"
+                    subtitle = "Item Pool Presets"
+                    lines = [
+                        "The Hard item pool preset is a preset pool for people who like tedium and getting a lot of pickups with small amounts of Exp.",
+                        "It contains no bonus pickups, no Health cells, and only 4 Energy Cells.",
+                    ]
+                    break;
+                case "Extra Bonus":
+                    title = "Extra Bonus"
+                    subtitle = "Item Pool Presets"
+                    lines = [
+                        "The Extra Bonus item pool preset introduces several new bonus pickups not normally found in the randomizer, including some new activateable skills.",
+                        "It also contains more copies of existing pickups, including 2 more attack upgrades and four more extra double jumps",
+                        "Lastly, it adds several warps, which are pickups that act as permenant 1-way portals to a different place on the map. Use a warp touching the pickup and then pressing AltR.",
+                        "Note: The default bindings for bonus skills are Alt+Q to swap between them, and Alt+Mouse1 to activate them. These bindings can be changed in the RandomizerRebinding.txt file.",
+                        (<div>Check out the <a target="_blank" rel="noopener noreferrer"  href="/faq?g=bonus_pickups">bonus item glossary</a> for more info about the extra bonus items.</div>),
+                        "Recommended for people interested in trying out some cool and probably pretty overpowered pickups."
+                    ]
+                    break;
+                case "Competitive":
+                    title = "Competitive"
+                    subtitle = "Item Pool Presets"
+                    lines = [
+                        "The Competitive item pool preset is a minor variant on the default item pool intended for use in races, particularly races in the Clues keymode.",
+                        "It contains almost all of the items in the Standard item pool, but removes the Horu, Ginso, and Forlorn teleporters",
+                    ]
+                    break;
+                case "Custom":
+                    title = "Custom"
+                    subtitle = "Item Pool Presets"
+                    lines = [
+                        "Custom item pools are user-defined and can contain basically anything. However, they do need to have at least 3 energy cells for seeds to generate successfully",
                     ]
                     break;
                 default:
+                    match = false;
                     break;
             }
 
@@ -832,6 +898,7 @@ const getHelpHelper = (category, option) => {
                     ]
                 break;
                 default:
+                    match = false;
                 break;
             }
             break;
@@ -1000,12 +1067,16 @@ const getHelpHelper = (category, option) => {
                     ]
                     break;
                 default:
+                    match = false
                     break;
             }
             break;
         default:
+            match = false;
             break;
     }
+    if(dev && !match)
+        console.log(`No help text for ${category}, ${option}`)
     return {lines: lines, title: title, subtitle: subtitle, extras: extras}
 }
 
