@@ -5,7 +5,7 @@ from collections import Counter
 
 # web imports
 import logging as log
-from urllib import unquote
+from urllib import unquote, urlopen
 from webapp2_extras.routes import DomainRoute, PathPrefixRoute, RedirectRoute as Route
 from test import TestRunner
 from webapp2 import WSGIApplication, RequestHandler, redirect, uri_for
@@ -986,6 +986,10 @@ class NakedRedirect(RequestHandler):
     def get(self, path):
         return redirect(self.request.url.replace("www.", ""))
 
+class WeeklyPoll(RequestHandler):
+    def get(self):
+        return redirect(urlopen("https://raw.githubusercontent.com/turntekGodhead/ori_rando_server/master/pollurl.txt").read())
+
 app = WSGIApplication(
     routes=[
         DomainRoute('www.orirando.com', [Route('<path:.*>', handler=NakedRedirect)]),
@@ -1028,6 +1032,7 @@ app = WSGIApplication(
         ).get_routes())
     ),
     # misc / top level endpoints
+    Route('/weekly', handler=WeeklyPoll, name="weekly-poll"),
     Route('/logichelper', handler=LogicHelper, name="logic-helper", strict_slash=True),
     Route('/faq', handler=Guides, name="help-guides", strict_slash=True),
     Route('/', handler=ReactLanding, name="main-page"),

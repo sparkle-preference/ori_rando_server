@@ -5,7 +5,6 @@ instance_class: F2
 automatic_scaling:
   target_cpu_utilization: .9
   max_instances: 4
-  idle_timeout: 5m
   max_concurrent_requests: 60
   target_throughput_utilization: .9
   min_idle_instances: 0
