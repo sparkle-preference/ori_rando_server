@@ -737,7 +737,7 @@ const getHelpHelper = (category, option) => {
                     subtitle = "Item Pool Presets"
                     lines = [
                         "The Competitive item pool preset is a minor variant on the default item pool intended for use in races, particularly races in the Clues keymode.",
-                        "It contains almost all of the items in the Standard item pool, but removes the Horu, Ginso, and Forlorn teleporters",
+                        "It contains almost all of the items in the Standard item pool, but removes the Horu and Ginso teleporters",
                     ]
                     break;
                 case "Custom":

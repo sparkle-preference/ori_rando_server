@@ -715,7 +715,7 @@ class Seed(ndb.Model):
         s = Seed(
             id="%s:%s" % (author.key.id(), data["name"]),
                 description = data['desc'],
-                flags = data['flags'],
+                flags = [f.replace(' ', '+') for f in data['flags']],
                 name = data['name'],
                 author_key = author.key,
                 placements = placements,
@@ -736,7 +736,7 @@ class Seed(ndb.Model):
                     players = int(player)
                 plc.stuff.append(Stuff(code=stuff['code'], id=stuff['id'], player=player))
             placements.append(plc)
-        return placements, players 
+        return placements, players
 
     def update(self, data):
         author = self.author_key.get()
@@ -752,7 +752,7 @@ class Seed(ndb.Model):
             placements, players = Seed.get_placements(data['placements']) if 'placements' in data else (self.placements, self.players)
             self.populate(
                 description = data.get('desc', self.description),
-                flags = data.get('flags', self.flags),
+                flags = [f.replace(' ', '+') for f in data.get('flags', self.flags)],
                 name = data.get('name', self.name),
                 author_key = author.key,
                 placements = placements,

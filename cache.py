@@ -16,7 +16,10 @@ class Cache(object):
     @staticmethod
     def appendHl(gid, pid, hl):
         hist_map = Cache.getHist(gid) or {}
-        hist_map[int(pid)].append(hl)
+        if int(pid) not in hist_map:
+            hist_map[int(pid)] = [hl]
+        else:
+            hist_map[int(pid)].append(hl)
         memcache.set(key="%s.hist" % gid, value=hist_map, time=3600)
 
     @staticmethod
