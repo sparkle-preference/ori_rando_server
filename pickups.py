@@ -244,6 +244,7 @@ class Repeatable(Multiple):
 class Relic(Pickup):
     code = "WT"
     int_id = False
+    share_type = ShareType.MISC
     def __new__(cls, id):
         inst = super(Relic, cls).__new__(cls)
         inst.id, inst.bit, inst.name = id, None, "Relic"

@@ -166,7 +166,13 @@ class ShowHistory(RequestHandler):
         if game:
             output = game.summary()
             output += "\nHistory:"
-            for hl, pid in sorted([(h, p.key.id().partition('.')[2]) for p in game.get_players() for h in p.history if h.pickup().is_shared(share_types)], key=lambda x: x[0].timestamp, reverse=True):
+            hls = []
+            if param_flag(self, "verbose"):
+                hls = [(h, p.key.id().partition('.')[2]) for p in game.get_players() for h in p.history]
+            else:
+                hls = [(h, p.key.id().partition('.')[2]) for p in game.get_players() for h in p.history if h.pickup().is_shared(share_types)]
+
+            for hl, pid in sorted(hls, key=lambda x: x[0].timestamp, reverse=True):
                 output += "\n\t\t Player %s %s" % (pid, hl.print_line(game.start_time))
             self.response.status = 200
             self.response.write(output)

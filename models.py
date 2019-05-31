@@ -867,6 +867,10 @@ class Game(ndb.Model):
                             inv[(c.code, c.id)] += -1 if hl.removed else 1
                 elif pick.is_shared(self.shared):
                     inv[(pick.code, pick.id)] += -1 if hl.removed else 1
+                if ShareType.MISC in self.shared:
+                    if hl.coords in trees_by_coords:
+                        tree_pick = trees_by_coords[hl.coords]
+                        inv[(tree_pick.code, tree_pick.id)] += -1 if hl.removed else 1
             i = 0
             for key, count in inv.iteritems():
                 pickup = Pickup.n(key[0], key[1])
@@ -907,8 +911,24 @@ class Game(ndb.Model):
                                 player.signal_send(sanFailedSignal)
                                 log.critical("Aborting sanity check for Player %s after too many iterations." % player.key.id())
                                 return False
+            stuples = [player.sharetuple() for player in players]
+            sk_max = max(tup[0] for tup in stuples)
+            ev_max = max(tup[1] for tup in stuples)
+            tp_max = max(tup[2] for tup in stuples)
+            rb_cnt = max(tup[3] for tup in stuples)
             for player in players:
                 Cache.setHist(self.key.id(), player.pid(), player.history)
+                if player.skills < sk_max:
+                    log.error("lost HL error! Player %s had %s for sks instead of %s" % (player.pid(), player.skills, sk_max))
+                    player.skills = sk_max
+                if player.events < ev_max:
+                    log.error("lost HL error! Player %s had %s for evs instead of %s" % (player.pid(), player.events, ev_max))
+                    player.events = ev_max
+                if player.teleporters < tp_max:
+                    log.error("lost HL error! Player %s had %s for tps instead of %s" % (player.pid(), player.teleporters, tp_max))
+                    player.teleporters = tp_max
+                if len(player.bonuses) < rb_cnt:
+                    log.error("lost HL error! Player %s had incorrect bonus count! Can't fix." % player.pid())
                 player.put()
         return True
 
@@ -993,9 +1013,8 @@ class Game(ndb.Model):
                         Player.transaction_pickup(player.key, trees_by_coords[coords], remove)
                     shared_misc = True
                 if pickup.code == "WT":
-                    for player in players:
-                        Player.transaction_pickup(player.key, relics_by_zone[zone], remove)
-                    shared_misc = True
+                    pickup = relics_by_zone[zone]
+                    share = True
             if share:
                 for player in players:
                     Player.transaction_pickup(player.key, pickup, remove, coords=coords, finder=pid)
