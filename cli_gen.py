@@ -51,6 +51,7 @@ class CLISeedParams(object):
         parser.add_argument("--ohko", help="Enable one-hit-ko mode", action="store_true")
         parser.add_argument("--zeroxp", help="Enable 0xp mode", action="store_true")
         parser.add_argument("--starved", help="Reduces the rate at which skills will appear when not required to advance", action="store_true")
+        parser.add_argument("--tp-starved", help="Reduces the rate at which teleporters will appear early game when not required to advance", action="store_true")
         parser.add_argument("--non-progressive-mapstones", help="Map Stones will retain their behaviour from before v1.2, having their own unique drops", action="store_true")
         parser.add_argument("--force-trees", help="Prevent Ori from entering the final escape room until all skill trees have been visited", action="store_true")
         parser.add_argument("--force-mapstones", help="Prevent Ori from entering the final escape room until all mapstone altars have been activated", action="store_true")
@@ -59,7 +60,7 @@ class CLISeedParams(object):
         parser.add_argument("--open-world", help="Activate open mode on the world map", action="store_true")
         parser.add_argument("--bonus-pickups", help="Adds some extra bonus pickups not balanced for competitive play", action="store_true")
         parser.add_argument("--easy", help="Add an extra copy of double jump, bash, stomp, glide, charge jump, dash, grenade, water, and wind", action="store_true")
-        parser.add_argument("--free-mapstones", help="Don't require a mapstone to be placed when a map monument becomes accessible", action="store_true")
+        parser.add_argument("--strict-mapstones", help="Require a mapstone to be placed when a map monument becomes accessible", action="store_true")
         parser.add_argument("--world-tour", help="Prevent Ori from entering the final escape until collecting one relic from each of the zones in the world. Recommended default: 8", type=int)
         parser.add_argument("--warmth-frags", help="Prevent Ori from entering the final escape until collecting some number of warmth fragments. Recommended default: 40", type=int)
 
@@ -109,8 +110,8 @@ class CLISeedParams(object):
         # variations (help)
         varMap = {
             "zeroxp": "0XP", "non_progressive_mapstones": "NonProgressMapStones", "ohko": "OHKO", "force_trees": "ForceTrees", "starved": "Starved",
-            "force_mapstones": "ForceMapStones", "entrance": "Entrance", "open_world": "OpenWorld", "easy": "DoubleSkills", "free_mapstones": "FreeMapstones",
-            "warmth_frags": "WarmthFrags", "world_tour": "WorldTour", "closed_dungeons": "ClosedDungeons"
+            "force_mapstones": "ForceMapStones", "entrance": "Entrance", "open_world": "OpenWorld", "easy": "DoubleSkills", "strict_mapstones": "StrictMapstones",
+            "warmth_frags": "WarmthFrags", "world_tour": "WorldTour", "closed_dungeons": "ClosedDungeons", "tp_starved": "TPStarved"
         }
         self.variations = []
         for argName, flagStr in varMap.iteritems():
