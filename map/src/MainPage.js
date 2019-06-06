@@ -110,7 +110,6 @@ const VERSION = get_param("version")
 const VAR_NAMES = {
     ForceTrees: "Force Trees",
     Starved: "Starved",
-    NonProgressMapStones: "Discrete Mapstones",
     Hard: "Hard Mode",
     OHKO: "One Hit KO",
     "0XP": "Zero Experience",
@@ -582,37 +581,23 @@ export default class MainPage extends React.Component {
             </Col>
             )
         })
-        // Discrete Mapstones requires Strict Mapstones.
-        variationButtons.push((
-            (
-            <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("variations", "NonProgressMapStones")} className="p-2">
-                <Button block color="primary" outline={!this.state.variations.includes("NonProgressMapStones")} disabled={(() => {
-                    if(!this.state.variations.includes("StrictMapstones")) {
-                        if(this.state.variations.includes("NonProgressMapStones"))
-                            this.onVar("NonProgressMapStones")()
-                        return true;
-                    }
-                    return false;
-                })()} onClick={this.onVar("NonProgressMapStones")}>{VAR_NAMES["NonProgressMapStones"]}</Button>
-            </Col>
-            )
-        ))
+
         // Legacy Killplane is incompatible with Open World. 
         //It also sees no use, so it will be removed soon(tm)
-        variationButtons.push((
-            (
-            <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("variations", "StompTriggers")} className="p-2">
-                <Button block outline={!this.state.variations.includes("StompTriggers")} disabled={(() => {
-                    if(this.state.variations.includes("OpenWorld")) {
-                        if(this.state.variations.includes("StompTriggers"))
-                            this.onVar("StompTriggers")()
-                        return true;
-                    }
-                    return false;
-                })()} onClick={this.onVar("StompTriggers")}>{VAR_NAMES["StompTriggers"]}</Button>
-            </Col>
-            )
-        ))
+        // variationButtons.push((
+        //     (
+        //     <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("variations", "StompTriggers")} className="p-2">
+        //         <Button block outline={!this.state.variations.includes("StompTriggers")} disabled={(() => {
+        //             if(this.state.variations.includes("OpenWorld")) {
+        //                 if(this.state.variations.includes("StompTriggers"))
+        //                     this.onVar("StompTriggers")()
+        //                 return true;
+        //             }
+        //             return false;
+        //         })()} onClick={this.onVar("StompTriggers")}>{VAR_NAMES["StompTriggers"]}</Button>
+        //     </Col>
+        //     )
+        // ))
         return (
             <TabPane className="p-3 border" tabId="variations">
                 <Row className="p-2">
