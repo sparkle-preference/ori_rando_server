@@ -911,11 +911,17 @@ class Game(ndb.Model):
                                 player.signal_send(sanFailedSignal)
                                 log.critical("Aborting sanity check for Player %s after too many iterations." % player.key.id())
                                 return False
-            stuples = [player.sharetuple() for player in players]
+            stuples, bonuses = tuple(zip(*[(player.sharetuple(), player.bonuses) for player in players]))
             sk_max = max(tup[0] for tup in stuples)
             ev_max = max(tup[1] for tup in stuples)
             tp_max = max(tup[2] for tup in stuples)
             rb_cnt = max(tup[3] for tup in stuples)
+            bonus_max = {}
+            for p_bonus in bonuses:
+                for item, cnt in p_bonus.items():
+                    m = max(bonus_max.get(item, 0), cnt)
+                    if m:
+                        bonus_max[item] = m
             for player in players:
                 Cache.setHist(self.key.id(), player.pid(), player.history)
                 if player.skills < sk_max:
@@ -928,7 +934,14 @@ class Game(ndb.Model):
                     log.error("lost HL error! Player %s had %s for tps instead of %s" % (player.pid(), player.teleporters, tp_max))
                     player.teleporters = tp_max
                 if len(player.bonuses) < rb_cnt:
-                    log.error("lost HL error! Player %s had incorrect bonus count! Can't fix." % player.pid())
+                    msglines = ["lost HL error!"]
+                    for item in player.bonuses:
+                        cnt = player.bonuses[item]
+                        mx = bonus_max[item]
+                        if cnt  < mx:
+                            msglines.append("Player %s had %s of %s instead of %s" % (player.pid(), cnt, item, mx))
+                            player.bonuses[item] = mx
+                    log.error("\n".join(msglines))
                 player.put()
         return True
 
