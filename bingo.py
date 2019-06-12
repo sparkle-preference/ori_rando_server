@@ -329,7 +329,7 @@ class BingoGenerator(object):
                 name = "PickupsInForlorn",
                 disp_name = "Collect Pickups In Forlorn",
                 help_lines = ["You can use the stats feature (alt+5 by default) to see your pickup counts by zone.", "Mapstone turn-ins are not in any zone."],
-                range_func = r((3, 6), (5, 10), (10, 11)),
+                range_func = r((3, 6), (5, 9), (8, 10)),
                 tags = ["pickups_in_zone"]
             ),
             IntGoal(
