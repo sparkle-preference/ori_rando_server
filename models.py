@@ -510,7 +510,7 @@ class BingoGameData(ndb.Model):
     def player(self, pid, create=False, delay_put=False):
         gid = self.game.id()
         full_pid = "%s.%s" % (gid, pid)
-        player = Player.get_by_id(full_pid)
+        player = Player.get_by_id(full_pid, parent=self.game)
         if not player:
             if create:
                 player = self.game.get().player(pid)
@@ -564,7 +564,6 @@ class BingoGameData(ndb.Model):
                     res["teamMax"] = params.players
         return res
 
-    
     def get_seed(self, pid):
         sync_flag = ("Sync%s.%s," % (self.key.id(), pid))
         game = self.game.get()
@@ -793,16 +792,18 @@ class Game(ndb.Model):
     bingo_data  = ndb.KeyProperty(BingoGameData)
 
     def history(self, pids=[]):
-        if self.hls:
-            if pids:
-                return [hl for hl in self.hls if hl.player in pids]
-            else:
-                return self.hls
-        else: # legacy branch: supports existing history structure
-            if pids:
-                return [hl for pid in pids for hl in self.player(pid).history]
-            else:
-                return [hl for p in self.get_players() for hl in p.history]
+        if not self.hls:
+             # legacy migration branch
+            for p in self.get_players():
+                pid = p.pid()
+                for hl in p.history:
+                    hl.player = pid
+                    self.hls.append(hl)
+            self.put()
+        if pids:
+            return [hl for hl in self.hls if hl.player in pids]
+        else:
+            return self.hls
     
     def next_player(self):
         if self.mode != MultiplayerGameType.SIMUSOLO:
@@ -828,19 +829,37 @@ class Game(ndb.Model):
                                 names.append("%sx %s" % (cnt, i.name))
                         elif get_bit(bitmap, i.bit):
                             names.append(i.name)
-                out_lines.append("%s: %s" % (field, ", ".join(names)))
-            out_lines.append("upgrades:\n\t\t %s" % ("\n\t\t".join(["%s x%s" % (Pickup.name("RB", k), v) for k, v in src.bonuses.iteritems()])))
+                if names:
+                    out_lines.append("%s: %s" % (field, ", ".join(names)))
+            trees = []
+            relics = []
+            bonuses = []
+            for (name, cnt) in [(Pickup.name("RB", k), v) for k, v in sorted(src.bonuses.iteritems(), lambda (lk, _), (rk, __): int(lk) - int(rk))]:
+                if "Tree" in name:
+                    trees.append(name)
+                elif "Relic" in name:
+                    relics.append(name)
+                else:
+                    bonuses.append((name, cnt))
+            if trees:
+                out_lines.append("trees: %s" % ", ".join(trees))
+            if relics:
+                out_lines.append("relics: %s" % ", ".join(relics))
+            if bonuses:
+                out_lines.append("upgrades:\n\t\t%s" % ("\n\t\t".join(["%s x%s" % b for b in bonuses])))
         return "\n\t" + "\n\t".join(out_lines)
 
     def get_players(self):
         return [p.get() for p in self.players]
 
     def remove_player(self, key):
-        gid,_,pid = key.partition(".")
         key = ndb.Key(Player, key)
-        self.players.remove(key)
+        if key in self.players:
+            self.players.remove(key)
+            self.put()
+        else:
+            log.debug("Can't remove %s from %s" % (key, self.players))
         key.delete()
-        self.put()
         
     def get_player_groups(self, int_ids=False):
         player_groups = []
@@ -954,8 +973,7 @@ class Game(ndb.Model):
 
     def rebuild_hist(self):
         gid = self.key.id()
-        for p in self.players:
-            pid = _pid(p)
+        for pid in [_pid(p) for p in self.players]:
             Cache.setHist(gid, pid, self.history([pid]))
         return Cache.getHist(gid)
     
@@ -965,31 +983,33 @@ class Game(ndb.Model):
             return []
         return [hl for players, hls in hist.items() for hl in hls]
 
-    def player(self, pid, create=True):
+    def player(self, pid, create=True, delay_put=False):
         gid = self.key.id()
         full_pid = "%s.%s" % (gid, pid)
-        player = Player.get_by_id(full_pid)
+        player = Player.get_by_id(full_pid, parent=self.key)
+        k = None
         if not player:
             if not create:
                 log.debug("Game %s has no player %s, will not create", gid, pid)
                 return None
-            log.debug("Game %s has no player %s, creating...", gid, pid)
+            log.debug("Game %s has no player %s (%s) creating...", gid, pid, self.players)
             if(self.mode == MultiplayerGameType.SHARED and len(self.players)):
                 src = self.players[0].get()
                 player = Player(id=full_pid, skills=src.skills, events=src.events, teleporters=src.teleporters, bonuses=src.bonuses, history=[], signals=[], hints=src.hints, parent=self.key)
             else:
                 player = Player(id=full_pid, skills=0, events=0, teleporters=0, history=[], parent=self.key)
             k = player.put()
+#            player = k.get()
             Cache.setPos(gid, pid, 189, -210)
             Cache.setHist(gid, pid, [])
         else:
             k = player.key
         if k not in self.players:
             self.players.append(k)
-            self.put()
+            if not delay_put:
+                self.put()
         return player
 
-    @ndb.transactional(retries=5, xg=True)
     def found_pickup(self, pid, pickup, coords, remove, dedup, zone=""):
         pid = int(pid)
         retcode = 200
@@ -1002,12 +1022,18 @@ class Game(ndb.Model):
             finder = self.player(pid)
         else:
             finder = finder[0]
+
+        if pickup.code == "WT" and zone in relics_by_zone:
+            pickup = relics_by_zone[zone]
+            share = ShareType.MISC in self.shared
+
         if coords == -1:
             share = ShareType.MISC in self.shared
             dedup = False
+
         if coords in [h.coords for h in finder_hist]:
             if share and dedup:
-                log.error("Duplicate pickup at location %s from player %s" % (coords, pid))
+                log.error("Duplicate pickup at location %s from player %s (previous: %s)" % (coords, pid, [h for h in finder_hist if h.coords == coords]))
                 return 410
             elif any([h for h in finder_hist if h.coords == coords and h.pickup_code == pickup.code and h.pickup_id == pickup.id]):
                 return 200
@@ -1015,6 +1041,7 @@ class Game(ndb.Model):
             if coords in [h.coords for h in self.history([teammate.pid() for teammate in players if teammate.key in finder.teammates])]:
                 log.info("Won't grant %s to player %s, as a teammate found it already" % (pickup.name, pid))
                 return 410
+
         if pickup.code == "MU":
             for child in pickup.children:
                 retcode = max(self.found_pickup(pid, child, coords, remove, False), retcode)
@@ -1040,9 +1067,6 @@ class Game(ndb.Model):
                     for player in players:
                         Player.transaction_pickup(player.key, trees_by_coords[coords], remove)
                     shared_misc = True
-                if pickup.code == "WT":
-                    pickup = relics_by_zone[zone]
-                    share = True
             if share:
                 for player in players:
                     Player.transaction_pickup(player.key, pickup, remove, coords=coords, finder=pid)
@@ -1076,11 +1100,12 @@ class Game(ndb.Model):
             Cache.clearReach(self.key.id(), pid)
         return retcode
 
+    @ndb.transactional(retries=5)
     def append_hl(self, hl):
-        self.hls.append(hl)
-        Cache.appendHl(self.key.id(), hl.player, hl)
+        if not any([h for h in self.hls[:-10] if h.coords == hl.coords and h.pickup_code == hl.pickup_code and h.pickup_id == hl.pickup_id]):
+            self.hls.append(hl)
+            Cache.appendHl(self.key.id(), hl.player, hl)
         self.put()
-
 
     def clean_up(self):
         [p.delete() for p in self.players]
@@ -1118,31 +1143,31 @@ class Game(ndb.Model):
         return id
 
     @staticmethod
-    def from_params(params, id=None):
-        id = int(id) if id else Game.get_open_gid()
+    def from_params(params, gid=None):
+        gid = int(gid) if gid else Game.get_open_gid()
         game = Game(
-            id=id, params=params.key, players=[],
+            id=gid, params=params.key, players=[],
             str_shared=[s.value for s in params.sync.shared],
             str_mode=params.sync.mode.value
         )
+        if Variation.BINGO not in params.variations:
+            teams = params.sync.teams
+            if teams:
+                for playerNums in teams.itervalues():
+                    team = [game.player(p, delay_put = True) for p in playerNums]
+                    teamKeys = [p.key for p in team]
+                    for player in team:
+                        tset = set(teamKeys)
+                        tset.remove(player.key)
+                        player.teammates = list(tset)
+                        player.put()
+            else:
+                for i in range(params.players):
+                    player = game.player(i + 1, delay_put = True)
+                    Cache.setPos(gid, i + 1, 189, -210)
         game.put()
-        teams = params.sync.teams
-        if teams:
-            for playerNums in teams.itervalues():
-                team = [game.player(p) for p in playerNums]
-                teamKeys = [p.key for p in team]
-                for player in team:
-                    tset = set(teamKeys)
-                    tset.remove(player.key)
-                    player.teammates = list(tset)
-                    player.put()
-        else:
-            for i in range(params.players):
-                player = game.player(i + 1)
-                player.put()
-                Cache.setPos(id, i + 1, 189, -210)
         game.rebuild_hist()
-        log.info("Game.from_params(%s, %s): Created game %s ", params.key, id, game)
+        log.debug("Game.from_params(%s, %s): Created game %s ", params.key, id, game)
         return game
 
     @staticmethod

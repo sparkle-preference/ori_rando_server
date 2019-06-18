@@ -17,7 +17,7 @@ from google.appengine.ext.webapp import template
 from seedbuilder.seedparams import SeedGenParams
 from seedbuilder.vanilla import seedtext as vanilla_seed
 from enums import MultiplayerGameType, ShareType, Variation
-from models import Game, Seed, User, BingoGameData
+from models import Game, Seed, User, BingoGameData, trees_by_coords
 from cache import Cache
 from util import coord_correction_map, all_locs, picks_by_type_generator, param_val, param_flag, resp_error, debug, path
 from reachable import Map, PlayerState
@@ -143,8 +143,6 @@ class FoundPickup(RequestHandler):
         self.response.status = game.found_pickup(player_id, pickup, coords, remove, dedup, zone)
         self.response.write(self.response.status)
 
-
-# post-refactor. uses different URL (with /), for dll switching
 class GetUpdate(RequestHandler):
     def get(self, game_id, player_id, x, y):
         self.response.headers['Content-Type'] = 'text/plain'
@@ -155,9 +153,7 @@ class GetUpdate(RequestHandler):
             return
         p = game.player(player_id)
         Cache.setPos(game_id, player_id, x, y)
-
         self.response.write(p.output())
-
 
 class ShowHistory(RequestHandler):
     def get(self, game_id):
@@ -397,6 +393,68 @@ class GetReachable(RequestHandler):
             game.rebuild_hist()
             self.response.write(json.dumps(reachable_areas))
 
+
+class ItemTracker(RequestHandler):
+    def get(self, game_id):
+        template_values = {'app': "ItemTracker", 'title': "Game %s" % game_id, 'game_id': game_id}
+        self.response.write(template.render(path, template_values))
+
+
+class GetItemTrackerUpdate(RequestHandler):
+    def get(self, game_id):
+        self.response.headers['Content-Type'] = 'application/json'
+        game_hist = Cache.getHist(game_id)
+        if not game_hist:
+            game = Game.with_id(game_id)
+            if not game:
+                self.response.status = 404
+                self.response.write(json.dumps({"error": "Game not found"}))
+                return
+            game_hist = game.rebuild_hist()
+        data = {
+            'skills': set(),
+            'trees': set(),
+            'events': set(),
+            'shards': {'wv': 0, 'gs': 0, 'ss': 0},
+            'maps': 0,
+            'relics': set(),
+            'teleporters': set()
+        }
+        hls = [hl for hls in game_hist.values() for hl in hls]
+        for hl in hls:
+            if hl.pickup_code == "SK":
+                data['skills'].add(hl.pickup().name)
+            elif hl.pickup_code == "TP":
+                data['teleporters'].add(hl.pickup().name.replace(" teleporter", ""))
+            elif hl.pickup_code == "EV":
+                data['events'].add(hl.pickup().name)
+            elif hl.pickup_code == "RB":
+                bid = int(hl.pickup_id)
+                if bid == 17:
+                    data['shards']['wv'] += 1
+                elif bid == 19:
+                    data['shards']['gs'] += 1
+                elif bid == 21:
+                    data['shards']['ss'] += 1
+                elif bid > 910 and bid < 922:
+                    data['relics'].add(hl.pickup().name.replace(" Relic", ""))
+            if hl.map_coords:
+                data['maps'] += 1
+            elif hl.coords in trees_by_coords:
+                data['trees'].add(trees_by_coords[hl.coords].name.replace(" Tree", ""))
+        if data['shards']['wv'] > 2:
+            data['events'].add("Water Vein")
+        if data['shards']['gs'] > 2:
+            data['events'].add("Gumon Seal")
+        if data['shards']['ss'] > 2:
+            data['events'].add("Sunstone")
+        for thing in ['trees', 'skills', 'events', 'relics', 'teleporters']:
+            data[thing] = list(data[thing])
+        self.response.write(json.dumps(data))
+
+
+
+
 class GetMapUpdate(RequestHandler):
     def get(self, game_id):
         self.response.headers['Content-Type'] = 'application/json'
@@ -404,7 +462,6 @@ class GetMapUpdate(RequestHandler):
         pos = Cache.getPos(game_id)
         game = None
         if not pos:
-            log.warning("No position data found for game %s" % game_id)
             pos = {}
         for p, (x, y) in pos.items():
             players[p] = {"pos": [y, x], "seen": [], "reachable": []}  # bc we use tiling software, this is lat/lng
@@ -419,7 +476,6 @@ class GetMapUpdate(RequestHandler):
             game_hist = game.rebuild_hist()
         for p, history_lines in game_hist.items():
             if p not in players:
-                log.warning("Previously-unknown player %s appeared in hist for game %s" % (p, game_id))
                 players[p] = {}
             players[p]["seen"] = [hl.coords for hl in history_lines] + [hl.map_coords for hl in history_lines if hl.map_coords]
         reach = Cache.getReachable(game_id)
@@ -1020,8 +1076,9 @@ app = WSGIApplication(
     PathPrefixRoute('/tracker/game/<game_id:\d+>', [
         Route('/', redirect_to_name="map-render"),
         Route('/map', handler=ShowMap, name='map-render', strict_slash=True),
-
+        Route('/items', handler=ItemTracker, name='item-tracker', strict_slash=True),
         ] + list(PathPrefixRoute('/fetch', [
+            Route('/items', handler=GetItemTrackerUpdate, name='item-tracker-update'),
             Route('/pos', handler=GetPlayerPositions, name="map-fetch-pos"),
             Route('/gamedata', handler=GetGameData, name="map-fetch-game-data"),
             Route('/seen', handler=GetSeenLocs, name="map-fetch-seen"),
