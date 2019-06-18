@@ -81,7 +81,7 @@ class ActiveGames(RequestHandler):
             blink = ""
             if game.bingo_data:
                 blink += " <a href='/bingo/board?game_id=%s'>Bingo board</a>" % gid
-            body += "<li><a href='%s'>Game #%s</a> <a href='%s'>Map</a>%s%s %s (Last update: %s ago)</li>" % (game_link, gid, map_link, slink, blink, flags, datetime.now() - game.last_update)
+            body += "<li><a href='%s'>Game #%s</a> <a href='/tracker/game/%s/items'>Tracker</a> <a href='%s'>Map</a>%s%s %s (Last update: %s ago)</li>" % (game_link, gid, gid, map_link, slink, blink, flags, datetime.now() - game.last_update)
         out = "<html><head><title>%s - Ori Rando Server</title></head><body>" % title
         if body:
             out += "<h4>%s:</h4><ul>%s</ul></body</html>" % (title, body)
@@ -112,7 +112,7 @@ class MyGames(RequestHandler):
             blink = ""
             if game.bingo_data:
                 blink += " <a href='/bingo/board?game_id=%s'>Bingo board</a>" % gid
-            body += "<li><a href='%s'>Game #%s</a> <a href='%s'>Map</a>%s%s %s (Last update: %s ago)</li>" % (game_link, gid, map_link, slink, blink, flags, datetime.now() - game.last_update)
+            body += "<li><a href='%s'>Game #%s</a> <a href='/tracker/game/%s/items'>Tracker</a> <a href='%s'>Map</a>%s%s %s (Last update: %s ago)</li>" % (game_link, gid, gid, map_link, slink, blink, flags, datetime.now() - game.last_update)
         out = "<html><head><title>%s - Ori Rando Server</title></head><body>" % title
         if body:
             out += "<h4>%s:</h4><ul>%s</ul></body</html>" % (title, body)
