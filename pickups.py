@@ -88,8 +88,8 @@ class Upgrade(Pickup):
             81: "Stompnade Hint", 40: "Remove Wall Jump", 41: "Remove Charge Flame", 42: "Remove Double Jump", 43: "Remove Bash", 44: "Remove Stomp", 45: "Remove Glide",
             46: "Remove Climb", 47: "Remove Charge Jump", 48: "Remove Dash", 49: "Remove Grenade", 34: "Disable Alt+R", 35: "Enable Alt+R", 36: "Underwater Skill Usage", 109: "Timewarp",
             111: "Wither", 113: "Bash/Stomp Damage", 1587: "Credit Warp",
-            900: "Wall Jump Tree", 901: "Charge Flame Tree", 902: "Double Jump Tree", 903: "Bash Tree Tree", 904: "Stomp Tree Tree", 905: "Glide Tree Tree", 906: "Climb Tree Tree",
-            907: "Charge Jump Tree", 908: "Dash Tree Tree", 909: "Grenade Tree Tree", 911: "Glades Relic", 912: "Grove Relic", 913: "Grotto Relic", 914: "Blackroot Relic",
+            900: "Wall Jump Tree", 901: "Charge Flame Tree", 902: "Double Jump Tree", 903: "Bash Tree", 904: "Stomp Tree", 905: "Glide Tree", 906: "Climb Tree",
+            907: "Charge Jump Tree", 908: "Dash Tree", 909: "Grenade Tree", 911: "Glades Relic", 912: "Grove Relic", 913: "Grotto Relic", 914: "Blackroot Relic",
             915: "Swamp Relic", 916: "Ginso Relic", 917: "Valley Relic", 918: "Misty Relic", 919: "Forlorn Relic", 920: "Sorrow Relic", 921: "Horu Relic"
         }
 

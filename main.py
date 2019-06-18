@@ -164,16 +164,13 @@ class ShowHistory(RequestHandler):
         self.response.headers['Content-Type'] = 'text/plain'
         game = Game.with_id(game_id)
         if game:
-            output = game.summary()
+            output = game.summary(int(param_val(self, "p") or 0))
             output += "\nHistory:"
             hls = []
-            if param_flag(self, "verbose"):
-                hls = [(h, p.key.id().partition('.')[2]) for p in game.get_players() for h in p.history]
-            else:
-                hls = [(h, p.key.id().partition('.')[2]) for p in game.get_players() for h in p.history if h.pickup().is_shared(share_types)]
-
-            for hl, pid in sorted(hls, key=lambda x: x[0].timestamp, reverse=True):
-                output += "\n\t\t Player %s %s" % (pid, hl.print_line(game.start_time))
+            pids = [int(pid) for pid in param_val(self, "pids").split("|")] if param_val(self, "pids") else []
+            hls = game.history(pids) if param_flag(self, "verbose") else [h for h in game.history(pids) if h.pickup().is_shared(share_types)]
+            for hl in sorted(hls, key=lambda x: x.timestamp, reverse=True):
+                output += "\n\t\t Player %s %s" % (hl.player, hl.print_line(game.start_time))
             self.response.status = 200
             self.response.write(output)
         else:
@@ -226,8 +223,8 @@ class ListPlayers(RequestHandler):
         game = Game.with_id(game_id)
         outlines = []
         for p in game.get_players():
-            outlines.append("Player %s: %s" % (p.key.id(), p.bitfields))
-            outlines.append("\t\t" + "\n\t\t".join([hl.print_line(game.start_time) for hl in p.history if hl.pickup().is_shared(share_types)]))
+            outlines.append("Player %s: %s" % (p.pid(), p.bitfields))
+            outlines.append("\t\t" + "\n\t\t".join([hl.print_line(game.start_time) for hl in game.history([p.pid()]) if hl.pickup().is_shared(share_types)]))
 
         self.response.headers['Content-Type'] = 'text/plain'
         self.response.status = 200

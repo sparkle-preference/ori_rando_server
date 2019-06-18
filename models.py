@@ -105,6 +105,7 @@ class BingoCardProgress(ndb.Model):
             'subgoals': self.completed_subgoals
         }
 class HistoryLine(ndb.Model):
+    player = ndb.IntegerProperty()
     pickup_code = ndb.StringProperty()
     pickup_id = ndb.StringProperty()
     timestamp = ndb.DateTimeProperty()
@@ -265,13 +266,6 @@ class Player(ndb.Model):
 
     @staticmethod
     @ndb.transactional(retries=5, xg=True)
-    def append_history(pkey, hl):
-        p = pkey.get()
-        p.history.append(hl)
-        p.put()
-
-    @staticmethod
-    @ndb.transactional(retries=5, xg=True)
     def transaction_pickup(pkey, pickup, remove=False, delay_put=False, coords=None, finder=None):
         p = pkey.get()
         p.give_pickup(pickup, remove=remove, coords=coords, finder=finder)
@@ -374,8 +368,8 @@ class BingoCard(ndb.Model):
         if initial:
             res["disp_name"] = self.disp_name
             res["help_lines"] = self.help_lines
-            res["type"] = self.goal_type
             if self.square or self.square == 0:
+                res["type"] = self.goal_type
                 res["square"] = self.square
             if self.subgoals:
                 res["subgoals"] = {subgoal["name"]: subgoal for subgoal in self.subgoals}
@@ -792,11 +786,24 @@ class Game(ndb.Model):
     shared      = property(get_shared, set_shared)
     start_time  = ndb.DateTimeProperty(auto_now_add=True)
     last_update = ndb.DateTimeProperty(auto_now=True)
+    hls         = ndb.LocalStructuredProperty(HistoryLine, repeated=True)
     players     = ndb.KeyProperty(Player, repeated=True)
     params      = ndb.KeyProperty(SeedGenParams)
     bingo       = ndb.LocalStructuredProperty(BingoGameData)
     bingo_data  = ndb.KeyProperty(BingoGameData)
 
+    def history(self, pids=[]):
+        if self.hls:
+            if pids:
+                return [hl for hl in self.hls if hl.player in pids]
+            else:
+                return self.hls
+        else: # legacy branch: supports existing history structure
+            if pids:
+                return [hl for pid in pids for hl in self.player(pid).history]
+            else:
+                return [hl for p in self.get_players() for hl in p.history]
+    
     def next_player(self):
         if self.mode != MultiplayerGameType.SIMUSOLO:
             return False
@@ -805,10 +812,10 @@ class Game(ndb.Model):
 
     def player_nums(self):  return [_pid(k) for k in self.players]
 
-    def summary(self):
+    def summary(self, p=0):
         out_lines = ["%s (%s)" % (self.mode, ",".join([s.name for s in self.shared]))]
         if self.mode in [MultiplayerGameType.SHARED, MultiplayerGameType.SIMUSOLO] and len(self.players):
-            src = self.players[0].get()
+            src = self.players[p].get()
             for (field, cls) in [("skills", Skill), ("teleporters", Teleporter), ("events", Event)]:
                 bitmap = getattr(src, field)
                 names = []
@@ -822,7 +829,7 @@ class Game(ndb.Model):
                         elif get_bit(bitmap, i.bit):
                             names.append(i.name)
                 out_lines.append("%s: %s" % (field, ", ".join(names)))
-            out_lines.append("upgrades: %s" % (",".join(["%sx %s" % (k, v) for k, v in src.bonuses.iteritems()])))
+            out_lines.append("upgrades:\n\t\t %s" % ("\n\t\t".join(["%s x%s" % (Pickup.name("RB", k), v) for k, v in src.bonuses.iteritems()])))
         return "\n\t" + "\n\t".join(out_lines)
 
     def get_players(self):
@@ -859,7 +866,7 @@ class Game(ndb.Model):
         for playerKeys in playerGroups:
             players = [pkey.get() for pkey in playerKeys]
             inv = defaultdict(lambda: 0)
-            for hl in [hl for player in players for hl in player.history]:
+            for hl in self.history([_pid(p) for p in playerKeys]):
                 pick = hl.pickup()
                 if pick.code == "MU":
                     for c in pick.children:
@@ -923,7 +930,7 @@ class Game(ndb.Model):
                     if m:
                         bonus_max[item] = m
             for player in players:
-                Cache.setHist(self.key.id(), player.pid(), player.history)
+                Cache.setHist(self.key.id(), player.pid(), self.history([player.pid()]))
                 if player.skills < sk_max:
                     log.error("lost HL error! Player %s had %s for sks instead of %s" % (player.pid(), player.skills, sk_max))
                     player.skills = sk_max
@@ -947,9 +954,9 @@ class Game(ndb.Model):
 
     def rebuild_hist(self):
         gid = self.key.id()
-        for player in self.get_players():
-            pid = player.pid()
-            Cache.setHist(gid, pid, player.history)
+        for p in self.players:
+            pid = _pid(p)
+            Cache.setHist(gid, pid, self.history([pid]))
         return Cache.getHist(gid)
     
     def get_all_hls(self):
@@ -964,14 +971,14 @@ class Game(ndb.Model):
         player = Player.get_by_id(full_pid)
         if not player:
             if not create:
-                log.warning("Game %s has no player %s, returning None!", gid, pid)
+                log.debug("Game %s has no player %s, will not create", gid, pid)
                 return None
-            log.info("Game %s has no player %s, creating...", gid, pid)
+            log.debug("Game %s has no player %s, creating...", gid, pid)
             if(self.mode == MultiplayerGameType.SHARED and len(self.players)):
                 src = self.players[0].get()
-                player = Player(id=full_pid, skills=src.skills, events=src.events, teleporters=src.teleporters, bonuses=src.bonuses, history=[], signals=[], hints=src.hints)
+                player = Player(id=full_pid, skills=src.skills, events=src.events, teleporters=src.teleporters, bonuses=src.bonuses, history=[], signals=[], hints=src.hints, parent=self.key)
             else:
-                player = Player(id=full_pid, skills=0, events=0, teleporters=0, history=[])
+                player = Player(id=full_pid, skills=0, events=0, teleporters=0, history=[], parent=self.key)
             k = player.put()
             Cache.setPos(gid, pid, 189, -210)
             Cache.setHist(gid, pid, [])
@@ -982,22 +989,30 @@ class Game(ndb.Model):
             self.put()
         return player
 
+    @ndb.transactional(retries=5, xg=True)
     def found_pickup(self, pid, pickup, coords, remove, dedup, zone=""):
+        pid = int(pid)
         retcode = 200
         share = pickup.is_shared(self.shared)
-        finder = self.player(pid)
+        finder_hist = self.history([pid])
         players = self.get_players()
+        finder = [p for p in players if p.pid() == pid]
+        if not finder:
+            log.error("Got pickup from unknown player %s! Creating to avoid crash" % pid)
+            finder = self.player(pid)
+        else:
+            finder = finder[0]
         if coords == -1:
             share = ShareType.MISC in self.shared
             dedup = False
-        if coords in [h.coords for h in finder.history]:
+        if coords in [h.coords for h in finder_hist]:
             if share and dedup:
                 log.error("Duplicate pickup at location %s from player %s" % (coords, pid))
                 return 410
-            elif any([h for h in finder.history if h.coords == coords and h.pickup_code == pickup.code and h.pickup_id == pickup.id]):
+            elif any([h for h in finder_hist if h.coords == coords and h.pickup_code == pickup.code and h.pickup_id == pickup.id]):
                 return 200
         elif share and dedup and len(finder.teammates) < len(players) - 1:  # aka you're not teammates with the entire game
-            if coords in [h.coords for teammate in players for h in teammate.history if teammate.key in finder.teammates]:
+            if coords in [h.coords for h in self.history([teammate.pid() for teammate in players if teammate.key in finder.teammates])]:
                 log.info("Won't grant %s to player %s, as a teammate found it already" % (pickup.name, pid))
                 return 410
         if pickup.code == "MU":
@@ -1042,9 +1057,9 @@ class Game(ndb.Model):
             if pickup.code != "RB" or pickup.id not in [17, 19, 21]:
                 retcode = 406
             else:
-                my_shards = len([h.coords for h in finder.history if h.pickup_code == "RB" and int(h.pickup_id) == pickup.id])
+                my_shards = len([h.coords for h in finder_hist if h.pickup_code == "RB" and int(h.pickup_id) == pickup.id])
                 if my_shards < 3:
-                    shard_locs = [h.coords for player in players for h in player.history if h.pickup_code == "RB" and h.pickup_id in ["17", "19", "21"]]
+                    shard_locs = [h.coords for h in self.history() if h.pickup_code == "RB" and h.pickup_id in ["17", "19", "21"]]
                     if coords in shard_locs:
                         log.info("%s at %s already taken, player %s will not get one." % (pickup.name, coords, pid))
                         return 410
@@ -1053,15 +1068,19 @@ class Game(ndb.Model):
         else:
             log.error("game mode %s not implemented" % self.mode)
             retcode = 404
-        hl = HistoryLine(pickup_code=pickup.code, timestamp=datetime.utcnow(), pickup_id=str(pickup.id), coords=coords, removed=remove)
+        hl = HistoryLine(pickup_code=pickup.code, timestamp=datetime.utcnow(), pickup_id=str(pickup.id), coords=coords, removed=remove, player=pid)
         if coords in range(24, 60, 4) and zone in map_coords_by_zone:
             hl.map_coords = map_coords_by_zone[zone]
-        Player.append_history(finder.key, hl)
+        self.append_hl(hl)
         if pickup.code in ["AC", "KS", "HC", "EC", "SK", "EV", "TP"] or (pickup.code == "RB" and pickup.id in [17, 19, 21]):
             Cache.clearReach(self.key.id(), pid)
-        Cache.appendHl(self.key.id(), pid, hl)
-        self.put()
         return retcode
+
+    def append_hl(self, hl):
+        self.hls.append(hl)
+        Cache.appendHl(self.key.id(), hl.player, hl)
+        self.put()
+
 
     def clean_up(self):
         [p.delete() for p in self.players]
