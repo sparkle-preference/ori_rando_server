@@ -8,6 +8,7 @@ import Select from 'react-select';
 import {Button, Collapse, Container, Row, Col, Input, UncontrolledButtonDropdown, DropdownToggle, DropdownMenu, DropdownItem} from 'reactstrap';
 import Control from 'react-leaflet-control';
 import {Helmet} from 'react-helmet';
+import ItemTracker from './ItemTracker.js'
 
 const paths = Object.keys(presets);
 const game_id = document.getElementsByClassName("game-id")[0].id;
@@ -234,8 +235,12 @@ class GameTracker extends React.Component {
   constructor(props) {
     super(props)
     let modes = presets['standard'];
-    this.state = {mousePos: {lat: 0, lng: 0}, players: {}, follow: -1, retries: 0, check_seen: 1, modes: modes, timeout: TIMEOUT_START, searchStr: "", pickup_display: "all", show_sidebar: true, idle_countdown: 3600,
-    bg_update: true, viewport: {center: [0, 0], zoom: 5}, pickups: ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "Ma", "CS"], open_world: false, closed_dungeons: false, pathMode: get_preset(modes), hideOpt: "all", display_logic: false};
+    this.state = {
+        mousePos: {lat: 0, lng: 0}, players: {}, follow: -1, retries: 0, check_seen: 1, modes: modes, timeout: TIMEOUT_START, searchStr: "", pickup_display: "all", 
+        show_sidebar: true, idle_countdown: 3600, bg_update: true, pickups: ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "Ma", "CS"], show_tracker: true,
+        open_world: false, closed_dungeons: false, pathMode: get_preset(modes), hideOpt: "all", display_logic: false,  viewport: {center: [0, 0], zoom: 5},
+        tracker_data: {events: [], teleporters: [], shards: {gs: 0, ss: 0, wv: 0}, skills: [], maps: 0,relics_found: [], relics: [], trees: []}
+    };
   };
 
   componentDidMount() {
@@ -350,7 +355,12 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
                         <Row>
                         <Col className="p-2"><Blabel  color="light">Options: </Blabel></Col>
                         <Col className="p-2"><Button block onClick={() => this.setState({show_sidebar: false})}>Hide Sidebar</Button></Col>
-                        <Col className="p-2"><Button block outline={!this.state.bg_update} onClick={() => this.setState({bg_update: !this.state.bg_update})}>Always Update</Button></Col>
+                        <Col className="p-2"><Button block color="primary" onClick={() => this.setState({show_tracker: !this.state.show_tracker})}>Toggle Tracker</Button></Col>
+                        </Row>
+                        <Row>
+                            <Collapse className="w-100 h-100" isOpen={this.state.show_tracker}>
+                            <ItemTracker embedded data={this.state.tracker_data}/>
+                            </Collapse>
                         </Row>
                         {player_opts}
                         {hideopts}
@@ -395,25 +405,25 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
 	}
     getUpdate = (timeout) => {
         let onRes = (res) => {
-            	let playerData = JSON.parse(res);
-                if(playerData.error)
+            	let update = JSON.parse(res);
+                if(update.error)
                 {
-                    console.log(playerData.error)
+                    console.log(update.error)
                     this.setState(timeout())
                 }
 				this.setState(prevState => {
 					let players = prevState.players
-					Object.keys(playerData).forEach(pid => {
+					Object.keys(update.players).forEach(pid => {
 						if(!players.hasOwnProperty(pid)){
 							players[pid] = {...EMPTY_PLAYER};
 						}
-                        let {reachable, pos, seen} = playerData[pid];
+                        let {reachable, pos, seen} = update.players[pid];
                         players[pid].seen = seen
                         players[pid].areas = uniq(players[pid].areas.concat(reachable))
                         players[pid].pos = pos
                         
 					})
-					return {players: players, retries: 0, timeout: TIMEOUT_START}
+					return {players: players, tracker_data: update.items, retries: 0, timeout: TIMEOUT_START}
 				})
         }
         let modes = this.state.modes.join("+")

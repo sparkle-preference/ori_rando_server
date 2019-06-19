@@ -262,9 +262,9 @@ class SetSeed(RequestHandler):
 
     def handle(self, game_id, player_id, lines):
         game = Game.with_id(game_id)
-        hist = Cache.getHist(game_id)
+        hist = Cache.get_hist(game_id)
         if not hist:
-            Cache.setHist(game_id, player_id, [])
+            Cache.set_hist(game_id, player_id, [])
         if not game:
             # TODO: this branch is now probably unnecessary.
             # experiment with deleting it.
@@ -287,8 +287,8 @@ class ShowMap(RequestHandler):
         template_values = {'app': "GameTracker", 'title': "Game %s" % game_id, 'game_id': game_id}
         if debug and param_flag(self, "from_test"):
             game = Game.with_id(game_id)
-            pos = Cache.getPos(game_id)
-            hist = Cache.getHist(game_id)
+            pos = Cache.get_pos(game_id)
+            hist = Cache.get_hist(game_id)
             if any([x is None for x in [game, pos, hist]]):
                 return redirect(uri_for('tests-map-gid', game_id=game_id, from_test=1))
 
@@ -302,7 +302,7 @@ class GetSeenLocs(RequestHandler):
         seenLocs = {}
         game = Game.with_id(game_id)
         try:
-            hist = Cache.getHist(game_id)
+            hist = Cache.get_hist(game_id)
             if not game:
                 self.response.status = 404
                 return
@@ -364,7 +364,7 @@ class GetGameData(RequestHandler):
 class GetReachable(RequestHandler):
     def get(self, game_id):
         self.response.headers['Content-Type'] = 'application/json'
-        hist = Cache.getHist(game_id)
+        hist = Cache.get_hist(game_id)
         reachable_areas = {}
         if not hist or not param_val(self, "modes"):
             self.response.status = 404
@@ -403,21 +403,36 @@ class ItemTracker(RequestHandler):
 class GetItemTrackerUpdate(RequestHandler):
     def get(self, game_id):
         self.response.headers['Content-Type'] = 'application/json'
-        game_hist = Cache.getHist(game_id)
-        if not game_hist:
+        items = Cache.get_items(game_id)
+        if not items:
+            game_hist = Cache.get_hist(game_id)
+            if not game_hist:
+                game = Game.with_id(game_id)
+                if not game:
+                    self.response.status = 404
+                    self.response.write(json.dumps({"error": "Game not found"}))
+                    return
+                game_hist = game.rebuild_hist()
+            items = GetItemTrackerUpdate.get_items(game_hist, game_id)
+        self.response.write(json.dumps(items))
+
+    @staticmethod
+    def get_items(game_hist, game_id):
+        log.info("updating tracker data...")
+        relics = Cache.get_relics(game_id)
+        if relics is None:
+            print "Getting relics..."
             game = Game.with_id(game_id)
-            if not game:
-                self.response.status = 404
-                self.response.write(json.dumps({"error": "Game not found"}))
-                return
-            game_hist = game.rebuild_hist()
+            relics = game.relics
+            Cache.set_relics(game_id, relics)
         data = {
             'skills': set(),
             'trees': set(),
             'events': set(),
             'shards': {'wv': 0, 'gs': 0, 'ss': 0},
             'maps': 0,
-            'relics': set(),
+            'relics_found': set(),
+            'relics': relics,
             'teleporters': set()
         }
         hls = [hl for hls in game_hist.values() for hl in hls]
@@ -437,7 +452,7 @@ class GetItemTrackerUpdate(RequestHandler):
                 elif bid == 21:
                     data['shards']['ss'] += 1
                 elif bid > 910 and bid < 922:
-                    data['relics'].add(hl.pickup().name.replace(" Relic", ""))
+                    data['relics_found'].add(hl.pickup().name.replace(" Relic", ""))
             if hl.map_coords:
                 data['maps'] += 1
             elif hl.coords in trees_by_coords:
@@ -448,25 +463,23 @@ class GetItemTrackerUpdate(RequestHandler):
             data['events'].add("Gumon Seal")
         if data['shards']['ss'] > 2:
             data['events'].add("Sunstone")
-        for thing in ['trees', 'skills', 'events', 'relics', 'teleporters']:
+        for thing in ['trees', 'skills', 'events', 'relics_found', 'teleporters']:
             data[thing] = list(data[thing])
-        self.response.write(json.dumps(data))
-
-
-
+        Cache.set_items(game_id, data)
+        return data
 
 class GetMapUpdate(RequestHandler):
     def get(self, game_id):
         self.response.headers['Content-Type'] = 'application/json'
         players = {}
-        pos = Cache.getPos(game_id)
+        pos = Cache.get_pos(game_id)
         game = None
         if not pos:
             pos = {}
         for p, (x, y) in pos.items():
             players[p] = {"pos": [y, x], "seen": [], "reachable": []}  # bc we use tiling software, this is lat/lng
 
-        game_hist = Cache.getHist(game_id)
+        game_hist = Cache.get_hist(game_id)
         if not game_hist:
             game = Game.with_id(game_id)
             if not game:
@@ -478,7 +491,8 @@ class GetMapUpdate(RequestHandler):
             if p not in players:
                 players[p] = {}
             players[p]["seen"] = [hl.coords for hl in history_lines] + [hl.map_coords for hl in history_lines if hl.map_coords]
-        reach = Cache.getReachable(game_id)
+        items = Cache.get_items(game_id) or GetItemTrackerUpdate.get_items(game_hist, game_id)
+        reach = Cache.get_reachable(game_id)
         modes = tuple(sorted(param_val(self, "modes").split(" ")))
         need_reach_updates = [p for p in players.keys() if modes not in reach.get(p, {})]
         if need_reach_updates:
@@ -512,16 +526,16 @@ class GetMapUpdate(RequestHandler):
                 if p not in reach:
                     reach[p] = {}
                 reach[p][modes] = Map.get_reachable_areas(state, modes, False)
-            Cache.setReachable(game_id, reach)
+            Cache.set_reachable(game_id, reach)
         for p in reach:
             players[p]["reachable"] = reach[p][modes]
-        self.response.write(json.dumps(players))
-        
+        self.response.write(json.dumps({"players": players, "items": items}))
+
 
 class GetPlayerPositions(RequestHandler):
     def get(self, game_id):
         self.response.headers['Content-Type'] = 'application/json'
-        pos = Cache.getPos(game_id)
+        pos = Cache.get_pos(game_id)
         if pos:
             self.response.status = 200
             players = {}
@@ -794,7 +808,7 @@ class MapTest(RequestHandler):
         game = Game.with_id(game_id)
         if game:
             game.clean_up()
-        url = "/generator/build?key_mode=Free&gen_mode=Balanced&var=OpenWorld&var=WorldTour&path=casual-core&path=casual-dboost&exp_pool=10000&cell_freq=40&relics=10&players=3&sync_mode=Shared&sync_shared=WorldEvents&sync_shared=Teleporters&sync_shared=WorldEvents&sync_shared=Skills&sync_hints=1&test_map_redir=%s&seed=%s" % (game_id, random.randint(100000,1000000))
+        url = "/generator/build?key_mode=Free&gen_mode=Balanced&var=OpenWorld&var=WorldTour&path=casual-core&path=casual-dboost&exp_pool=10000&cell_freq=40&relics=10&players=3&sync_mode=Shared&sync_shared=WorldEvents&sync_shared=Teleporters&sync_shared=Upgrades&sync_shared=Misc&sync_shared=Skills&test_map_redir=%s&seed=%s" % (game_id, random.randint(100000,1000000))
         self.redirect(url)
 
 class LogicHelper(RequestHandler):

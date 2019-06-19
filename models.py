@@ -787,6 +787,7 @@ class Game(ndb.Model):
     last_update = ndb.DateTimeProperty(auto_now=True)
     hls         = ndb.LocalStructuredProperty(HistoryLine, repeated=True)
     players     = ndb.KeyProperty(Player, repeated=True)
+    relics      = ndb.StringProperty(repeated=True)
     params      = ndb.KeyProperty(SeedGenParams)
     bingo       = ndb.LocalStructuredProperty(BingoGameData)
     bingo_data  = ndb.KeyProperty(BingoGameData)
@@ -876,7 +877,7 @@ class Game(ndb.Model):
     def sanity_check(self):
         if self.mode != MultiplayerGameType.SHARED:
             return False
-        if not Cache.sanCheck(self.key.id()):
+        if not Cache.san_check(self.key.id()):
             log.info("Skipping sanity check")
             return False
         allPlayers = self.players
@@ -949,7 +950,7 @@ class Game(ndb.Model):
                     if m:
                         bonus_max[item] = m
             for player in players:
-                Cache.setHist(self.key.id(), player.pid(), self.history([player.pid()]))
+                Cache.set_hist(self.key.id(), player.pid(), self.history([player.pid()]))
                 if player.skills < sk_max:
                     log.error("lost HL error! Player %s had %s for sks instead of %s" % (player.pid(), player.skills, sk_max))
                     player.skills = sk_max
@@ -974,8 +975,8 @@ class Game(ndb.Model):
     def rebuild_hist(self):
         gid = self.key.id()
         for pid in [_pid(p) for p in self.players]:
-            Cache.setHist(gid, pid, self.history([pid]))
-        return Cache.getHist(gid)
+            Cache.set_hist(gid, pid, self.history([pid]))
+        return Cache.get_hist(gid)
     
     def get_all_hls(self):
         hist = self.rebuild_hist()
@@ -999,9 +1000,8 @@ class Game(ndb.Model):
             else:
                 player = Player(id=full_pid, skills=0, events=0, teleporters=0, history=[], parent=self.key)
             k = player.put()
-#            player = k.get()
-            Cache.setPos(gid, pid, 189, -210)
-            Cache.setHist(gid, pid, [])
+            Cache.set_pos(gid, pid, 189, -210)
+            Cache.set_hist(gid, pid, [])
         else:
             k = player.key
         if k not in self.players:
@@ -1024,6 +1024,7 @@ class Game(ndb.Model):
             finder = finder[0]
 
         if pickup.code == "WT" and zone in relics_by_zone:
+            Cache.clear_items(self.key.id())
             pickup = relics_by_zone[zone]
             share = ShareType.MISC in self.shared
 
@@ -1097,19 +1098,22 @@ class Game(ndb.Model):
             hl.map_coords = map_coords_by_zone[zone]
         self.append_hl(hl)
         if pickup.code in ["AC", "KS", "HC", "EC", "SK", "EV", "TP"] or (pickup.code == "RB" and pickup.id in [17, 19, 21]):
-            Cache.clearReach(self.key.id(), pid)
+            Cache.clear_reach(self.key.id(), pid)
+            Cache.clear_items(self.key.id())
+        elif hl.map_coords or coords in trees_by_coords:
+            Cache.clear_items(self.key.id())
         return retcode
 
     @ndb.transactional(retries=5)
     def append_hl(self, hl):
         if not any([h for h in self.hls[:-10] if h.coords == hl.coords and h.pickup_code == hl.pickup_code and h.pickup_id == hl.pickup_id]):
             self.hls.append(hl)
-            Cache.appendHl(self.key.id(), hl.player, hl)
+            Cache.append_hl(self.key.id(), hl.player, hl)
         self.put()
 
     def clean_up(self):
         [p.delete() for p in self.players]
-        Cache.removeGame(self.key.id())
+        Cache.remove_game(self.key.id())
         if self.params:
             self.params.delete()
         if self.bingo_data:
@@ -1150,6 +1154,8 @@ class Game(ndb.Model):
             str_shared=[s.value for s in params.sync.shared],
             str_mode=params.sync.mode.value
         )
+        if Variation.WORLD_TOUR in params.variations:
+            game.relics = [zone for (_, code, __, zone) in params.get_seed_data() if code == "WT"]
         if Variation.BINGO not in params.variations:
             teams = params.sync.teams
             if teams:
@@ -1164,7 +1170,7 @@ class Game(ndb.Model):
             else:
                 for i in range(params.players):
                     player = game.player(i + 1, delay_put = True)
-                    Cache.setPos(gid, i + 1, 189, -210)
+                    Cache.set_pos(gid, i + 1, 189, -210)
         game.put()
         game.rebuild_hist()
         log.debug("Game.from_params(%s, %s): Created game %s ", params.key, id, game)
