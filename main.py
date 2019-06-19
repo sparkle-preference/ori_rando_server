@@ -152,7 +152,7 @@ class GetUpdate(RequestHandler):
             self.response.write(self.response.status)
             return
         p = game.player(player_id)
-        Cache.setPos(game_id, player_id, x, y)
+        Cache.set_pos(game_id, player_id, x, y)
         self.response.write(p.output())
 
 class ShowHistory(RequestHandler):
