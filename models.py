@@ -116,6 +116,9 @@ class HistoryLine(ndb.Model):
     def pickup(self):
         return Pickup.n(self.pickup_code, self.pickup_id)
 
+    def equals(self, other):
+        return self.player == other.player and self.pickup_code == other.pickup_code and self.pickup_id == other.pickup_id and self.coords == other.coords
+
     def print_line(self, start_time=None):
         t = (self.timestamp - start_time) if start_time and self.timestamp else self.timestamp
         if not self.removed:
@@ -600,6 +603,7 @@ class BingoGameData(ndb.Model):
             return res
         return None
 
+    @ndb.transactional(retries=0, xg=True)
     def update(self, bingo_data, player_id):
         player_id = int(player_id)
         if not self.start_time:
@@ -829,7 +833,7 @@ class Game(ndb.Model):
                             if cnt > 0:
                                 names.append("%sx %s" % (cnt, i.name))
                         elif get_bit(bitmap, i.bit):
-                            names.append(i.name)
+                            names.append(i.name.replace(" teleporter", ""))
                 if names:
                     out_lines.append("%s: %s" % (field, ", ".join(names)))
             trees = []
@@ -837,7 +841,7 @@ class Game(ndb.Model):
             bonuses = []
             for (name, cnt) in [(Pickup.name("RB", k), v) for k, v in sorted(src.bonuses.iteritems(), lambda (lk, _), (rk, __): int(lk) - int(rk))]:
                 if "Tree" in name:
-                    trees.append(name)
+                    trees.append(name.replace(" Tree", ""))
                 elif "Relic" in name:
                     relics.append(name)
                 else:
@@ -1106,7 +1110,7 @@ class Game(ndb.Model):
 
     @ndb.transactional(retries=5)
     def append_hl(self, hl):
-        if not any([h for h in self.hls[:-10] if h.coords == hl.coords and h.pickup_code == hl.pickup_code and h.pickup_id == hl.pickup_id]):
+        if not any([h for h in self.hls[:-20] if h.equals(hl)]):
             self.hls.append(hl)
             Cache.append_hl(self.key.id(), hl.player, hl)
         self.put()

@@ -418,10 +418,8 @@ class GetItemTrackerUpdate(RequestHandler):
 
     @staticmethod
     def get_items(game_hist, game_id):
-        log.info("updating tracker data...")
         relics = Cache.get_relics(game_id)
         if relics is None:
-            print "Getting relics..."
             game = Game.with_id(game_id)
             relics = game.relics
             Cache.set_relics(game_id, relics)
