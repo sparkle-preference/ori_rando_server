@@ -19,14 +19,14 @@ from seedbuilder.vanilla import seedtext as vanilla_seed
 from enums import MultiplayerGameType, ShareType, Variation
 from models import Game, Seed, User, BingoGameData, trees_by_coords
 from cache import Cache
-from util import coord_correction_map, all_locs, picks_by_type_generator, param_val, param_flag, resp_error, debug, path
+from util import coord_correction_map, all_locs, picks_by_type_generator, param_val, param_flag, resp_error, debug, path, VER
 from reachable import Map, PlayerState
 from pickups import Pickup
 
 # handlers
 from bingo import routes as bingo_routes
 
-VERSION = "3.2.2"
+VERSION = "%s.%s.%s" % tuple(VER)
 PLANDO_VER = "0.5.1"
 share_types = [ShareType.EVENT, ShareType.SKILL, ShareType.UPGRADE, ShareType.MISC, ShareType.TELEPORTER]
 

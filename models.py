@@ -184,12 +184,12 @@ class User(ndb.Model):
         key = user.put()
         for old in Seed.query(Seed.author == user.name).fetch():
             new = Seed(
-                id="%s:%s" % (key.id(), old.name), 
-                placements=old.placements, 
-                flags=old.flags, 
-                hidden=old.hidden, 
-                description=old.description, 
-                players=old.players, 
+                id="%s:%s" % (key.id(), old.name),
+                placements=old.placements,
+                flags=old.flags,
+                hidden=old.hidden,
+                description=old.description,
+                players=old.players,
                 author_key=key,
                 name=old.name
             )
@@ -504,7 +504,6 @@ class BingoGameData(ndb.Model):
             self.players.remove(k)
         return self.put()
 
-
     def get_players(self):
         return [p.get() for p in self.players]
 
@@ -603,7 +602,7 @@ class BingoGameData(ndb.Model):
             return res
         return None
 
-    @ndb.transactional(retries=0, xg=True)
+    @ndb.transactional(retries=2, xg=True)
     def update(self, bingo_data, player_id):
         player_id = int(player_id)
         if not self.start_time:
@@ -795,6 +794,7 @@ class Game(ndb.Model):
     params      = ndb.KeyProperty(SeedGenParams)
     bingo       = ndb.LocalStructuredProperty(BingoGameData)
     bingo_data  = ndb.KeyProperty(BingoGameData)
+    dedup       = ndb.BooleanProperty(default=False)
 
     def history(self, pids=[]):
         if not self.hls:
@@ -1042,10 +1042,6 @@ class Game(ndb.Model):
                 return 410
             elif any([h for h in finder_hist if h.coords == coords and h.pickup_code == pickup.code and h.pickup_id == pickup.id]):
                 return 200
-        elif share and dedup and len(finder.teammates) < len(players) - 1:  # aka you're not teammates with the entire game
-            if coords in [h.coords for h in self.history([teammate.pid() for teammate in players if teammate.key in finder.teammates])]:
-                log.info("Won't grant %s to player %s, as a teammate found it already" % (pickup.name, pid))
-                return 410
 
         if pickup.code == "MU":
             for child in pickup.children:
@@ -1059,6 +1055,10 @@ class Game(ndb.Model):
                     players = [p for p in players if p.pid() in team.pids()]
                 else:
                     log.error("No bingo team found for player %s!" % pid)
+            if share and dedup and self.dedup:
+                if coords in [h.coords for h in self.history([teammate.pid() for teammate in players])]:
+                    log.info("Won't grant %s to player %s, as a teammate found it already" % (pickup.name, pid))
+                    return 410
             ftple = finder.sharetuple()
             for p in players:
                 ptple = p.sharetuple()
@@ -1156,7 +1156,8 @@ class Game(ndb.Model):
         game = Game(
             id=gid, params=params.key, players=[],
             str_shared=[s.value for s in params.sync.shared],
-            str_mode=params.sync.mode.value
+            str_mode=params.sync.mode.value,
+            dedup=params.sync.dedup
         )
         if Variation.WORLD_TOUR in params.variations:
             game.relics = [zone for (_, code, __, zone) in params.get_seed_data() if code == "WT"]

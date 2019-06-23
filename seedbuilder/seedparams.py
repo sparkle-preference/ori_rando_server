@@ -38,6 +38,7 @@ class MultiplayerOptions(ndb.Model):
     enabled = ndb.BooleanProperty(default=False)
     cloned = ndb.BooleanProperty(default=True)
     hints = ndb.BooleanProperty(default=True)
+    dedup = ndb.BooleanProperty(default=False)
     teams = ndb.JsonProperty()
 
     @staticmethod
@@ -49,6 +50,7 @@ class MultiplayerOptions(ndb.Model):
             opts.cloned = qparams.get("sync_gen") != "disjoint"
             opts.hints = bool(opts.cloned and qparams.get("sync_hints"))
             opts.shared = enums_from_strlist(ShareType, qparams.getall("sync_shared"))
+            opts.dedup = bool(qparams.get("dedup_shared", False))
             teamsRaw = qparams.get("teams")
             if teamsRaw and opts.mode == MultiplayerGameType.SHARED and opts.cloned:
                 cnt = 1
@@ -67,6 +69,7 @@ class MultiplayerOptions(ndb.Model):
             opts.mode = MultiplayerGameType(json.get("sync_mode", "None"))
             opts.cloned = json.get("sync_gen") != "disjoint"
             opts.hints = bool(opts.cloned and json.get("sync_hints"))
+            opts.dedup = bool(json.get("dedup_shared", False))
             opts.shared = enums_from_strlist(ShareType, json.get("sync_shared", []))
         return opts
 
@@ -286,7 +289,7 @@ class SeedGenParams(ndb.Model):
             "paths": [p.value for p in self.logic_paths],
             "shared": [JSON_SHARE(s) for s in self.sync.shared],
             "teamStr": self.sync.get_team_str(),
-            "dedupShared": self.sync.teams and len(self.sync.teams) != 1,
+            "dedupShared": self.sync.dedup,
             "spoilers": len(self.spoilers[0]) > 100,
             "senseData": self.sense,
             "isPlando": self.is_plando,

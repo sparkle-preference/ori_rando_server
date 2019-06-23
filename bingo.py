@@ -12,18 +12,17 @@ from google.appengine.ext.ndb import transactional
 
 from enums import MultiplayerGameType, Variation
 from models import Game, User, BingoCard, BingoGameData, BingoEvent, BingoTeam
-from pickups import Pickup, Skill, AbilityCell, HealthCell, EnergyCell, Multiple
+from pickups import Pickup, Skill, AbilityCell, HealthCell, EnergyCell, Multiple, VER
 from util import param_val, param_flag, resp_error, debug, path
 from seedbuilder.vanilla import seedtext as vanilla_seed
 
 if debug:
     from test.data import bingo_data as test_data
 
-BINGO_LATEST = [0,3,0]
 def version_check(version):
     try:
         nums = [int(num) for num in version.split(".")]
-        for latest, test in zip(BINGO_LATEST, nums):
+        for latest, test in zip(VER, nums):
             if latest > test:
                 return False
             if test > latest:
@@ -461,10 +460,11 @@ class BingoGenerator(object):
                     BoolGoal(name = "SpiderLake", disp_name = "Spider Lake", help_lines = ["The center post in the Spider Lake area of Grove; opens the underwater path between Grove and Grotto"]),
                     BoolGoal(name = "GroveGrottoUpper", disp_name = "DG Roof (Upper)", help_lines = ["The upper peg in the room connecting the Spider Lake area of Grove to the passageway between Glades and Grotto (Death Gauntlet); blocks a laser."]),
                     BoolGoal(name = "GroveGrottoLower", disp_name = "DG Roof (Lower)", help_lines = ["The lower peg in the room connecting the Spider Lake area of Grove to the passageway between Glades and Grotto (Death Gauntlet); blocks a laser."]),
+                    BoolGoal(name = "ForlornLaserPeg", disp_name = "Right Forlorn Access", help_lines = ["The peg in Forlorn, near the moving lasers; opens the door to the right Forlorn HC and plant."]),
                 ],
                 methods = [
-                        ("or",    r((1, 3), (1, 2), (1, 1))), 
-                        ("and",   r((1, 2), (2, 3), (3, 4))), 
+                        ("or",    r((1, 3), (1, 2), (1, 1))),
+                        ("and",   r((1, 2), (2, 3), (3, 4))),
                         ("count", r((3, 6), (4, 8), (6, 10)))
                     ],
                 max_repeats = 2
@@ -519,12 +519,14 @@ class BingoGenerator(object):
                     BoolGoal(name = "Ginso Escape Fronkey", disp_name = "Ginso Escape Fronkey", help_lines = ["Any fronkey in the Ginso Escape (you can complete the escape and come back via the teleporter)"]),
                     BoolGoal(name = "Blackroot Teleporter Crushers", disp_name = "BRB TP Crushers", help_lines = ["The crushers below the Blackroot Teleporter"]),
                     BoolGoal(name = "NoobSpikes", disp_name = "Sorrow Spike Maze", help_lines = ["The long spike maze room in upper sorrow with 2 keystones on each side"]),
-                    BoolGoal(name= "Right Forlorn Laser", help_lines = ["The lasers above the HC and rightmost plant in Forlorn"])
+                    BoolGoal(name= "Right Forlorn Laser", help_lines = ["The lasers above the HC and rightmost plant in Forlorn"]),
+                    BoolGoal(name= "Misty Vertical Lasers", help_lines = ["The vertical lasers past the 3rd keystone in Misty"])
                 ],
                 methods = [
-                        ("or",    r((1, 2), (1, 2), (1, 1))), 
-                        ("and",   r((1, 1), (1, 2), (2, 3))), 
-                        ("and_",  r((1, 1), (1, 2), (2, 3))), 
+                        ("or",    r((1, 2), (1, 2), (1, 1))),
+                        ("or_",   r((1, 2), (1, 2), (1, 1))),
+                        ("and",   r((1, 1), (1, 2), (2, 3))),
+                        ("and_",  r((1, 1), (1, 2), (2, 3))),
                 ],
                 max_repeats = 3
             )
@@ -1015,7 +1017,7 @@ class HandleBingoUpdate(RequestHandler):
         need_update = (not version_check(self.request.POST["version"])) if "version" in self.request.POST else False
         bingo.update(bingo_data, player_id)
         if need_update and p.can_nag:
-            p.signal_send("msg:@Bingo dll out of date@")
+            p.signal_send("msg:@dll out of date. (orirando.com/dll)@")
             p.can_nag = False
             p.put()
 

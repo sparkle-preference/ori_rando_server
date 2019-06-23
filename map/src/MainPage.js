@@ -404,7 +404,7 @@ export default class MainPage extends React.Component {
                         </Col>
                     </Row>
                 </Collapse>
-                <Collapse isOpen={user !== "" && coopGenMode==="Cloned Seeds" && players > 1 && coopGameMode === "Co-op" && dedupShared}>
+                <Collapse isOpen={false}>
                     <Row className="p-1 justify-content-center">
                         <Col xs="4" className="text-center pt-1 border">
                             <span className="align-middle">Teams</span>
@@ -478,6 +478,7 @@ export default class MainPage extends React.Component {
         if(this.state.tracking && this.state.players > 1) {
             json.sync_gen=f(this.state.coopGenMode)
             json.sync_mode=f(this.state.coopGameMode)
+            json.dedup_shared = this.state.dedupShared
             if(this.state.coopGameMode === "Co-op")
                 json.sync_shared = this.state.shared.map(s => f(s))
             if(this.state.coopGenMode === "Cloned Seeds" && this.state.hints)
@@ -487,6 +488,7 @@ export default class MainPage extends React.Component {
             else if(this.state.teamStr !== "" && this.teamStrValid()) {
                 let teams = this.state.teamStr.split("|");
                 let i = 1;
+                json.teams={}
                 teams.forEach(team => json.teams[i++] = team.split(",").map(p => parseInt(p, 10)))
             }
         }

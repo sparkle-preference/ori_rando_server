@@ -1,8 +1,9 @@
 from math import floor
 from collections import defaultdict, namedtuple
 from seedbuilder.oriparse import get_areas
-import logging as log
 import os
+
+VER = [3, 2, 3]
 
 coord_correction_map = {
     679620: 719620,
