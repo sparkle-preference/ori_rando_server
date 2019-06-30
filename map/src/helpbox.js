@@ -725,11 +725,18 @@ const getHelpHelper = (category, option) => {
                     subtitle = "Item Pool Presets"
                     lines = [
                         "The Extra Bonus item pool preset introduces several new bonus pickups not normally found in the randomizer, including some new activateable skills.",
-                        "It also contains more copies of existing pickups, including 2 more attack upgrades and four more extra double jumps",
+                        "It also contains more copies of existing pickups, including 2 more attack upgrades and four more extra double jumps. Mega Health and Mega Energy pickups are not consumed on pickup.",
                         "Lastly, it adds several warps, which are pickups that act as permenant 1-way portals to a different place on the map. Use a warp touching the pickup and then pressing AltR.",
                         "Note: The default bindings for bonus skills are Alt+Q to swap between them, and Alt+Mouse1 to activate them. These bindings can be changed in the RandomizerRebinding.txt file.",
                         (<div>Check out the <a target="_blank" rel="noopener noreferrer"  href="/faq?g=bonus_pickups">bonus item glossary</a> for more info about the extra bonus items.</div>),
                         "Recommended for people interested in trying out some cool and probably pretty overpowered pickups."
+                    ]
+                    break;
+                case "Bonus Lite":
+                    title = "Bonus Lite"
+                    subtitle = "Item Pool Presets"
+                    lines = [
+                        "The Bonus Lite item pool preset contains everything from the Extra Bonus pickup pool besides the active items and repeatable mega health/energy."
                     ]
                     break;
                 case "Competitive":

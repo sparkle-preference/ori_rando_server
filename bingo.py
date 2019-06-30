@@ -12,8 +12,8 @@ from google.appengine.ext.ndb import transactional
 
 from enums import MultiplayerGameType, Variation
 from models import Game, User, BingoCard, BingoGameData, BingoEvent, BingoTeam
-from pickups import Pickup, Skill, AbilityCell, HealthCell, EnergyCell, Multiple, VER
-from util import param_val, param_flag, resp_error, debug, path
+from pickups import Pickup, Skill, AbilityCell, HealthCell, EnergyCell, Multiple
+from util import param_val, param_flag, resp_error, debug, path, VER
 from seedbuilder.vanilla import seedtext as vanilla_seed
 
 if debug:

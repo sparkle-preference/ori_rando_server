@@ -68,6 +68,8 @@ class MultiplayerOptions(ndb.Model):
         if opts.enabled:
             opts.mode = MultiplayerGameType(json.get("sync_mode", "None"))
             opts.cloned = json.get("sync_gen") != "disjoint"
+            if opts.cloned:
+                opts.teams = {1: range(1, json.get("players", 1) + 1)}
             opts.hints = bool(opts.cloned and json.get("sync_hints"))
             opts.dedup = bool(json.get("dedup_shared", False))
             opts.shared = enums_from_strlist(ShareType, json.get("sync_shared", []))
@@ -221,8 +223,8 @@ class SeedGenParams(ndb.Model):
                     "HC|1": [12],
                     "EC|1": [14],
                     "AC|1": [33],
-                    "RB|0": [3],
-                    "RB|1": [3],
+                    "RP|RB/0": [3],
+                    "RP|RB/1": [3],
                     "RB|6": [5],
                     "RB|9": [1],
                     "RB|10": [1],

@@ -1055,7 +1055,7 @@ class Game(ndb.Model):
                     players = [p for p in players if p.pid() in team.pids()]
                 else:
                     log.error("No bingo team found for player %s!" % pid)
-            if share and dedup and self.dedup:
+            if share and dedup and (self.dedup or (pickup.code == "RB" and pickup.id in [17, 19, 21, 28])):
                 if coords in [h.coords for h in self.history([teammate.pid() for teammate in players])]:
                     log.info("Won't grant %s to player %s, as a teammate found it already" % (pickup.name, pid))
                     return 410

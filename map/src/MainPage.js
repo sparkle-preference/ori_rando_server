@@ -80,8 +80,8 @@ const get_pool = (pool_name) => { switch(pool_name) {
             {item: "HC|1", count: 12},
             {item: "EC|1", count: 14, minimum: 3},
             {item: "AC|1", count: 33},
-            {item: "RB|0", count: 3},
-            {item: "RB|1", count: 3},
+            {item: "RP|RB/0", count: 3},
+            {item: "RP|RB/1", count: 3},
             {item: "RB|6", count: 5},
             {item: "RB|9", count: 1},
             {item: "RB|10", count: 1},
@@ -96,6 +96,34 @@ const get_pool = (pool_name) => { switch(pool_name) {
             {item: "BS|*", count: 4, maximum: 7},
             {item: "WP|*", count: 4, upTo: 8, maximum: 14},
         ]
+    case "Bonus Lite": 
+        return [
+            {item: "TP|Grove", count: 1}, 
+            {item: "TP|Swamp", count: 1},
+            {item: "TP|Grotto", count: 1},
+            {item: "TP|Valley", count: 1},
+            {item: "TP|Sorrow", count: 1},
+            {item: "TP|Ginso", count: 1},
+            {item: "TP|Horu", count: 1},
+            {item: "TP|Forlorn", count: 1},
+            {item: "HC|1", count: 12},
+            {item: "EC|1", count: 14, minimum: 3},
+            {item: "AC|1", count: 33},
+            {item: "RB|0", count: 3},
+            {item: "RB|1", count: 3},
+            {item: "RB|6", count: 5},
+            {item: "RB|9", count: 1},
+            {item: "RB|10", count: 1},
+            {item: "RB|11", count: 1},
+            {item: "RB|12", count: 5},
+            {item: "RB|13", count: 3},
+            {item: "RB|15", count: 3},
+            {item: "RB|31", count: 1},
+            {item: "RB|32", count: 1},
+            {item: "RB|33", count: 3},
+            {item: "RB|36", count: 1},
+            {item: "WP|*", count: 4, upTo: 8, maximum: 14},
+        ]
     default:
         console.log(`${pool_name} is not a valid pool name! Using the standard pool instead`)
         return get_pool("Standard")
@@ -103,7 +131,8 @@ const get_pool = (pool_name) => { switch(pool_name) {
 }
 const CANONICAL_ORDERING = {}
 get_pool("Extra Bonus").forEach(({item}, i) => CANONICAL_ORDERING[item] = i)
-
+CANONICAL_ORDERING["RB|0"] = CANONICAL_ORDERING["RP|RB/0"] 
+CANONICAL_ORDERING["RB|1"] = CANONICAL_ORDERING["RP|RB/1"] 
 const get_canon_index = ({item}) => CANONICAL_ORDERING[item]+1 || 99
 const keymode_options = ["None", "Shards", "Limitkeys", "Clues", "Free"];
 const VERSION = get_param("version")
@@ -191,7 +220,7 @@ export default class MainPage extends React.Component {
             <Col xs="1">{delButton}</Col>
           </Row>)
         })
-        let presetPoolOptions = ["Standard", "Competitive", "Extra Bonus", "Hard"].map(preset => (
+        let presetPoolOptions = ["Standard", "Competitive", "Extra Bonus", "Bonus Lite", "Hard"].map(preset => (
             <DropdownItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("itemPool", preset)} key={`pd-${preset}`} active={this.state.selectedPool===preset} onClick={()=> this.setState({selectedPool: preset, itemPool: get_pool(preset)})}>{preset}</DropdownItem>
         ))
 

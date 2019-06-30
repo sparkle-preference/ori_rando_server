@@ -81,7 +81,7 @@ class ActiveGames(RequestHandler):
             blink = ""
             if game.bingo_data:
                 blink += " <a href='/bingo/board?game_id=%s'>Bingo board</a>" % gid
-            body += "<li><a href='%s'>Game #%s</a> <a href='/tracker/game/%s/items'>Tracker</a> <a href='%s'>Map</a>%s%s %s (Last update: %s ago)</li>" % (game_link, gid, gid, map_link, slink, blink, flags, datetime.now() - game.last_update)
+            body += "<li><a href='%s'>Game #%s</a> <a href='%s'>Map</a>%s%s %s (Last update: %s ago)</li>" % (game_link, gid, map_link, slink, blink, flags, datetime.now() - game.last_update)
         out = "<html><head><title>%s - Ori Rando Server</title></head><body>" % title
         if body:
             out += "<h4>%s:</h4><ul>%s</ul></body</html>" % (title, body)
@@ -112,7 +112,7 @@ class MyGames(RequestHandler):
             blink = ""
             if game.bingo_data:
                 blink += " <a href='/bingo/board?game_id=%s'>Bingo board</a>" % gid
-            body += "<li><a href='%s'>Game #%s</a> <a href='/tracker/game/%s/items'>Tracker</a> <a href='%s'>Map</a>%s%s %s (Last update: %s ago)</li>" % (game_link, gid, gid, map_link, slink, blink, flags, datetime.now() - game.last_update)
+            body += "<li><a href='%s'>Game #%s</a> <a href='%s'>Map</a>%s%s %s (Last update: %s ago)</li>" % (game_link, gid, map_link, slink, blink, flags, datetime.now() - game.last_update)
         out = "<html><head><title>%s - Ori Rando Server</title></head><body>" % title
         if body:
             out += "<h4>%s:</h4><ul>%s</ul></body</html>" % (title, body)
@@ -428,7 +428,7 @@ class GetItemTrackerUpdate(RequestHandler):
             'trees': set(),
             'events': set(),
             'shards': {'wv': 0, 'gs': 0, 'ss': 0},
-            'maps': 0,
+            'maps': set(),
             'relics_found': set(),
             'relics': relics,
             'teleporters': set()
@@ -452,7 +452,7 @@ class GetItemTrackerUpdate(RequestHandler):
                 elif bid > 910 and bid < 922:
                     data['relics_found'].add(hl.pickup().name.replace(" Relic", ""))
             if hl.map_coords:
-                data['maps'] += 1
+                data['maps'].add(hl.map_coords)
             elif hl.coords in trees_by_coords:
                 data['trees'].add(trees_by_coords[hl.coords].name.replace(" Tree", ""))
         if data['shards']['wv'] > 2:
@@ -463,6 +463,7 @@ class GetItemTrackerUpdate(RequestHandler):
             data['events'].add("Sunstone")
         for thing in ['trees', 'skills', 'events', 'relics_found', 'teleporters']:
             data[thing] = list(data[thing])
+        data['maps'] = len(data['maps'])
         Cache.set_items(game_id, data)
         return data
 
@@ -653,7 +654,7 @@ class PlandoView(RequestHandler):
             template_values = {
                 'app': "SeedDisplayPage", 'title': "%s by %s" % (seed_name, author_name),
                 'players': seed.players, 'seed_data': seed.get_plando_json(),
-                'seed_name': seed_name, 'author': author_name, 'authed': authed, 
+                'seed_name': seed_name, 'author': author_name, 'authed': authed, 'version': VERSION,
                 'seed_desc': seed.description, 'game_id': Game.get_open_gid()
             }
             
@@ -674,7 +675,7 @@ class PlandoEdit(RequestHandler):
     def get(self, seed_name):
         user = User.get()
 
-        template_values = {'app': "PlandoBuilder", 'title': "Plandomizer Editor " + PLANDO_VER, 'seed_name': seed_name}
+        template_values = {'app': "PlandoBuilder", 'title': "Plandomizer Editor " + PLANDO_VER, 'seed_name': seed_name, 'version': VERSION}
         if user:
             seed = user.plando(seed_name)
             template_values['authed'] = "True"
@@ -964,7 +965,7 @@ class PicksByTypeGen(RequestHandler):
 
 class RebindingsEditor(RequestHandler):
     def get(self):
-        template_values = {'app': "RebindingsEditor", 'title': "Ori DE Rebindings Editor"}
+        template_values = {'app': "RebindingsEditor", 'title': "Ori DE Rebindings Editor", 'version': VERSION}
         user = User.get()
         if user:
             template_values['user'] = user.name
@@ -975,7 +976,7 @@ class RebindingsEditor(RequestHandler):
 
 class Guides(RequestHandler):
     def get(self):
-        template_values = {'app': "HelpAndGuides", 'title': "Randomizer Help and Guides"}
+        template_values = {'app': "HelpAndGuides", 'title': "Randomizer Help and Guides", 'version': VERSION}
         user = User.get()
         if user:
             template_values['user'] = user.name

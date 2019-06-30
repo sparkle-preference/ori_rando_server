@@ -3,7 +3,7 @@ from collections import defaultdict, namedtuple
 from seedbuilder.oriparse import get_areas
 import os
 
-VER = [3, 2, 3]
+VER = [3, 2, 4]
 
 coord_correction_map = {
     679620: 719620,
