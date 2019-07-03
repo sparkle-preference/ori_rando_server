@@ -153,6 +153,17 @@ class User(ndb.Model):
         return users.create_logout_url(redirect_after)
 
     @staticmethod
+    def prune_games():
+        keys = [k for k in Game.query().iter(keys_only=True)]
+        for user in User.query().fetch():
+            game_count = len(user.games)
+            user.games = [g for g in user.games if g in keys]
+            if len(user.games) < game_count:
+                print "removed %s games from %s's gamelist" % (game_count - len(user.games), user.name)
+                user.put()
+
+
+    @staticmethod
     def get():
         app_user = users.get_current_user()
         if not app_user:
@@ -858,12 +869,12 @@ class Game(ndb.Model):
         return [p.get() for p in self.players]
 
     def remove_player(self, key):
-        key = ndb.Key(Player, key)
+        key = ndb.Key(Player, key, parent=self.key)
         if key in self.players:
             self.players.remove(key)
             self.put()
         else:
-            log.debug("Can't remove %s from %s" % (key, self.players))
+            log.warning("Can't remove %s from %s" % (key, self.players))
         key.delete()
         
     def get_player_groups(self, int_ids=False):
@@ -884,7 +895,6 @@ class Game(ndb.Model):
         if not Cache.san_check(self.key.id()):
             log.info("Skipping sanity check")
             return False
-        allPlayers = self.players
         sanFailedSignal = "msg:@Major Error during sanity check. If this persists across multiple alt+l attempts please contact Eiko@"
         playerGroups = self.get_player_groups()
         for playerKeys in playerGroups:
@@ -1122,7 +1132,7 @@ class Game(ndb.Model):
             self.params.delete()
         if self.bingo_data:
             self.bingo_data.delete()
-        log.info("Deleting game %s" % self.key)
+        log.debug("Deleting game %s" % self.key)
         self.key.delete()
         return self.key
 
@@ -1134,12 +1144,6 @@ class Game(ndb.Model):
     def clean_old(timeout_window=timedelta(hours=1440)):
         old = [game for game in Game.query(Game.last_update < datetime.now() - timeout_window)]
         keys = set([Game.clean_up(game) for game in old])
-        for user in User.query().fetch():
-            gameCount = len(user.games)
-            user.games = [g for g in user.games if g not in keys]
-            if len(user.games) < gameCount:
-                print "removed %s games from %s's gamelist" % (gameCount - len(user.games), user.name)
-                user.put()
         return len(keys)
 
     @staticmethod

@@ -32,9 +32,11 @@ share_types = [ShareType.EVENT, ShareType.SKILL, ShareType.UPGRADE, ShareType.MI
 
 class CleanUp(RequestHandler):
     def get(self):
+        clean_count = Game.clean_old()
+        User.prune_games()
         self.response.headers['Content-Type'] = 'text/plain'
         self.response.status = 200
-        self.response.write("Cleaned up %s games" % Game.clean_old())
+        self.response.write("Cleaned up %s games" % clean_count)
 
 
 class DeleteGame(RequestHandler):

@@ -375,7 +375,7 @@ export default class MainPage extends React.Component {
         )
     }
     getMultiplayerTab = ({inputStyle, menuStyle}) => {
-        let {shared, players, tracking, coopGameMode, keyMode, coopGenMode, teamStr, user, dedupShared} = this.state
+        let {shared, players, tracking, coopGameMode, keyMode, coopGenMode, teamStr, dedupShared} = this.state
         let multiplayerButtons = ["Skills", "Teleporters", "Upgrades", "World Events", "Misc"].map(stype => (
             <Col xs="4" key={`share-${stype}`} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("Shared Item Categories", stype)} className="p-2">
                 <Button block outline={!shared.includes(stype)} onClick={this.onSType(stype)}>Share {stype}</Button>
