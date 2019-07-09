@@ -3,7 +3,7 @@ import React, {Fragment} from 'react';
 import {Map, Tooltip, TileLayer, Marker, ZoomControl, Circle} from 'react-leaflet';
 import Leaflet from 'leaflet';
 import {presets, player_icons, get_preset, logic_paths, Blabel} from './common.js';
-import {picks_by_type, PickupMarkersList, get_icon, getMapCrs, hide_opacity, select_styles, uniq, select_wrap} from './shared_map.js';
+import {picks_by_type, PickupMarkersList, get_icon, getMapCrs, hide_opacity, select_styles, select_wrap} from './shared_map.js';
 import Select from 'react-select';
 import {Button, Collapse, Container, Row, Col, Input, UncontrolledButtonDropdown, DropdownToggle, DropdownMenu, DropdownItem} from 'reactstrap';
 import Control from 'react-leaflet-control';
@@ -64,7 +64,7 @@ const PlayerUiOpts = ({players, setter, follow}) => {
                     <Col className="p-1"><Button block active={players[id].show_marker} color="primary" outline={!players[id].show_marker} onClick={tog(id, "show_marker")}>Visible</Button></Col>
                     <Col className="p-1"><Button block active={players[id].show_spoiler} color="primary" outline={!players[id].show_spoiler} onClick={tog(id, "show_spoiler")}>Spoilers</Button></Col>
                     <Col className="p-1"><Button block active={players[id].show_sense} color="primary" outline={!players[id].show_sense} onClick={tog(id, "show_sense")}>Sense</Button></Col>
-                    <Col className="p-1"><Button block active={id === follow} color="primary" outline={id !== follow} onClick={followTog(id)}>Track</Button></Col>
+                    <Col className="p-1"><Button block active={id === follow} color="primary" outline={id !== follow} onClick={followTog(id)}>Follow</Button></Col>
                 </Row>
                 <Row className="pb-2">
                     <Col className="p-1"><Blabel color="light">Hide</Blabel></Col>
@@ -256,7 +256,7 @@ class GameTracker extends React.Component {
   	return {retries: this.state.retries+1, check_seen: this.state.timeout, timeout: this.state.timeout+TIMEOUT_INC}
   };
   tick = () => {
-    let {retries, bg_update, idle_countdown, check_seen, players, follow, viewport} = this.state;
+    let {retries, bg_update, idle_countdown, check_seen, players, follow} = this.state;
   	if(retries >= RETRY_MAX) return;
     let update = {}
   	if(!document.hasFocus()) {
@@ -278,7 +278,7 @@ class GameTracker extends React.Component {
         update.check_seen = check_seen - 1
     if(follow > 0 && players.hasOwnProperty(follow)) {
         let map = this.refs.map.leafletElement;
-        map.flyTo(players[follow].pos, viewport.zoom)
+        map.panTo(players[follow].pos)
     }
     this.setState(update)
 };
@@ -321,7 +321,7 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
 		let player_markers = ( <PlayerMarkersList players={this.state.players} />)
 		let player_opts = ( <PlayerUiOpts players={this.state.players} follow={this.state.follow} setter={(p) => this.setState(p)} />)
 		let show_button = !this.state.show_sidebar ? (<Button size="sm" onClick={() => this.setState({show_sidebar: true})}>Show Sidebar</Button>) : null
-        let logic_path_buttons = logic_paths.map(lp => {return (<Col className="pr-0 pb-1" xs="4"><Button block size="sm" outline={!this.state.modes.includes(lp)} onClick={this.onMode(lp)}>{lp}</Button></Col>)});
+        let logic_path_buttons = logic_paths.map(lp => {return (<Col className="p-1" xs="4"><Button block size="sm" outline={!this.state.modes.includes(lp)} onClick={this.onMode(lp)}>{lp}</Button></Col>)});
         let hidetext = {any: "any player", all: "all players"}
         let hideopts = Object.keys(this.state.players).length > 1 ? (
             <Row className="pt-2">
@@ -355,7 +355,7 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
                         <Row>
                         <Col className="p-2"><Blabel  color="light">Options: </Blabel></Col>
                         <Col className="p-2"><Button block onClick={() => this.setState({show_sidebar: false})}>Hide Sidebar</Button></Col>
-                        <Col className="p-2"><Button block color="primary" onClick={() => this.setState({show_tracker: !this.state.show_tracker})}>Toggle Tracker</Button></Col>
+                        <Col className="p-2"><Button block color="primary" active={this.state.show_tracker} onClick={() => this.setState({show_tracker: !this.state.show_tracker})}>{`${this.state.show_tracker ? "Hide" : "Show"} Tracker`}</Button></Col>
                         </Row>
                         <Row>
                             <Collapse className="w-100 h-100" isOpen={this.state.show_tracker}>
@@ -372,7 +372,7 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
                         </Col>
                         </Row>
                         <Collapse id="logic-options-wrapper" isOpen={this.state.display_logic}>
-                            <Row className="p-0">
+                            <Row>
                                 {logic_path_buttons}
                             </Row>
                         </Collapse>
@@ -419,7 +419,7 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
 						}
                         let {reachable, pos, seen} = update.players[pid];
                         players[pid].seen = seen
-                        players[pid].areas = uniq(players[pid].areas.concat(reachable))
+                        players[pid].areas = reachable
                         players[pid].pos = pos
                         
 					})

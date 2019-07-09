@@ -650,16 +650,15 @@ class PlandoView(RequestHandler):
         authed = False
         user = User.get()
         seed = Seed.get(author_name, seed_name)
-        if user and user.key == seed.author_key:
-            authed = True
         if seed:
+            if user and user.key == seed.author_key:
+                authed = True
             template_values = {
                 'app': "SeedDisplayPage", 'title': "%s by %s" % (seed_name, author_name),
                 'players': seed.players, 'seed_data': seed.get_plando_json(),
                 'seed_name': seed_name, 'author': author_name, 'authed': authed, 'version': VERSION,
                 'seed_desc': seed.description, 'game_id': Game.get_open_gid()
             }
-            
             hidden = seed.hidden or False
             if not hidden or authed:
                 self.response.status = 200
