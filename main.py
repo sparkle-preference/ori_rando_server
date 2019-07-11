@@ -1133,8 +1133,8 @@ app = WSGIApplication(
     PathPrefixRoute('/netcode/game/<game_id:\d+>/player/<player_id:[^/]+>', [
         Route('/found/<coords>/<kind>/<id:.*>', handler=FoundPickup, name="netcode-player-found-pickup"),
         Route('/tick/<x:[^,]+>,<y>', handler=GetUpdate, name="netcode-player-tick"),
-        Route('/signalCallback/<signal>', handler=SignalCallback,  name="netcode-player-signal-callback"),
-        Route('/callback/<signal>', handler=SignalCallback,  name="netcode-player-signal-callback"),
+        Route('/signalCallback/<signal:.*>', handler=SignalCallback,  name="netcode-player-signal-callback"),
+        Route('/callback/<signal:.*>', handler=SignalCallback,  name="netcode-player-signal-callback"),
         Route('/setSeed', handler=SetSeed,  name="netcode-player-set-seed"),
     ]),
 
