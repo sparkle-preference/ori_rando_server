@@ -2014,16 +2014,16 @@ home: DoubleJumpKeyDoorOpened
 		casual-core ChargeJump WallJump Water
 		casual-core Climb DoubleJump
 		casual-core DoubleJump WallJump
-		casual-dboost Bash Health=4
 		casual-dboost Bash Grenade Health=3
 		casual-dboost Bash Water Health=3
 		casual-dboost Bash WallJump Health=2
-		casual-dboost ChargeJump Health=4
 		casual-dboost ChargeJump WallJump Health=2
 		casual-dboost ChargeJump Water Health=3
 		standard-core ChargeJump WallJump
+		standard-dboost Bash Health=4
 		standard-dboost Bash Ability=3 Energy=1 Health=3
 		standard-dboost Bash Dash Health=3
+		standard-dboost ChargeJump Health=4
 		standard-dboost ChargeJump Ability=3 Energy=1 Health=3
 		standard-dboost ChargeJump Dash Health=3
 		standard-abilities Bash Dash Ability=3
