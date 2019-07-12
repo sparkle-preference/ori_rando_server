@@ -651,12 +651,39 @@ home: GladesLaserArea
 		expert-dboost WallJump Glide
 		expert-abilities Dash Ability=6
 	pickup: GladesLaserGrenade
-		casual-core Grenade Bash WallJump
-		casual-core Grenade Bash Climb
-		expert-core Grenade ChargeJump Water
-		expert-dboost Grenade ChargeJump
-		expert-abilities Grenade Dash Ability=6 Energy=2
-		expert-abilities Grenade Dash DoubleJump Ability=6
+		casual-core Grenade Climb ChargeJump Bash
+		casual-core Grenade WallJump DoubleJump Bash
+		standard-core Grenade Climb Bash
+		standard-core Grenade Climb DoubleJump ChargeJump Glide
+		standard-core Grenade WallJump Bash
+		standard-abilities Grenade Climb DoubleJump Dash ChargeJump Ability=3
+		standard-abilities Grenade WallJump DoubleJump Dash ChargeJump Glide Ability=3
+		expert-core Grenade Climb ChargeJump Water
+		expert-core Grenade WallJump DoubleJump ChargeJump Water
+		expert-core Grenade WallJump DoubleJump ChargeJump Glide
+		expert-dboost Grenade ChargeJump Health=5
+		expert-dboost Grenade ChargeJump Health=4 Ability=3 Energy=1
+		expert-dboost Grenade ChargeJump Health=3 Ability=3 Energy=2
+		expert-dboost Grenade ChargeJump Health=3 Ability=6 Energy=1
+		expert-dboost Grenade ChargeJump Glide Health=3
+		expert-dboost Grenade ChargeJump Bash Health=3
+		expert-dboost Grenade ChargeJump Water Health=3
+		expert-dboost Grenade Climb ChargeJump Health=3
+		expert-dboost Grenade Climb Dash Health=5 Energy=1 Ability=6
+		expert-dboost Grenade Climb Dash Health=3 Energy=2 Ability=6
+		expert-dboost Grenade Climb Dash Glide Health=3 Energy=1 Ability=6
+		expert-dboost Grenade Climb Dash Water Health=3 Energy=1 Ability=6
+		expert-dboost Grenade Climb DoubleJump Dash Health=3 Energy=1 Ability=6
+		expert-dboost Grenade WallJump DoubleJump ChargeJump Health=3
+		expert-dboost Grenade WallJump Dash Health=5 Energy=1 Ability=6
+		expert-dboost Grenade WallJump Dash Health=3 Energy=2 Ability=6
+		expert-dboost Grenade WallJump Dash Glide Health=3 Energy=1 Ability=6
+		expert-dboost Grenade WallJump Dash Water Health=3 Energy=1 Ability=6
+		expert-abilities Grenade Climb Dash ChargeJump Energy=2 Ability=6
+		expert-abilities Grenade Climb Dash ChargeJump Glide Energy=1 Ability=6
+		expert-abilities Grenade WallJump DoubleJump Dash Energy=1 Ability=6
+		master-core Grenade DoubleJump Bash
+		gjump Grenade Climb ChargeJump
 	conn: GladesMain
 	conn: MidSpiritCaverns
 		casual-core WallJump Energy=4
