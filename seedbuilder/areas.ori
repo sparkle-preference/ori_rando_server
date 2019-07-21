@@ -2015,16 +2015,51 @@ home: DoubleJumpKeyDoor
 		expert-core DoubleJump
 home: DoubleJumpKeyDoorOpened
 	-- anchor: physically at the door, with the door opened, ready to advance
-	conn: DoubleJumpArea
+	pickup: DoubleJumpSkillTree
+		-- Can assume floating platform is there.
 		casual-core WallJump
 		casual-core Glide
 		casual-core DoubleJump
 		casual-core Climb Bash Grenade
 		casual-core Climb ChargeJump
-		casual-dboost Climb
-		casual-dboost Bash Grenade
-		casual-dboost ChargeJump
+		casual-dboost Climb Health=3
+		casual-dboost Bash Health=3
+		casual-dboost ChargeJump Health=3
+		standard-dboost Dash Health=3
 		standard-abilities Dash Ability=3
+		expert-core Climb
+		expert-core Bash Grenade
+	pickup: DoubleJumpAreaExp
+		-- Must assume floating platform has been removed.
+		casual-core Bash Climb Grenade
+		casual-core Bash DoubleJump
+		casual-core Bash Glide
+		casual-core Bash WallJump Water
+		casual-core ChargeJump Climb
+		casual-core ChargeJump DoubleJump
+		casual-core ChargeJump Glide
+		casual-core ChargeJump WallJump Water
+		casual-core Climb DoubleJump
+		casual-core DoubleJump WallJump
+		casual-dboost Bash Grenade Health=3
+		casual-dboost Bash Water Health=3
+		casual-dboost Bash WallJump Health=2
+		casual-dboost ChargeJump WallJump Health=2
+		casual-dboost ChargeJump Water Health=3
+		standard-core ChargeJump WallJump
+		standard-dboost Bash Health=4
+		standard-dboost Bash Ability=3 Energy=1 Health=3
+		standard-dboost Bash Dash Health=3
+		standard-dboost ChargeJump Health=4
+		standard-dboost ChargeJump Ability=3 Energy=1 Health=3
+		standard-dboost ChargeJump Dash Health=3
+		standard-abilities Bash Dash Ability=3
+		standard-abilities ChargeJump Dash Ability=3
+		expert-core Bash Climb Water
+		expert-core Bash Grenade
+		expert-dboost Bash Climb Health=2
+		expert-abilities Dash Ability=6 Energy=1
+		master-core DoubleJump
 home: LeftGumoHideout
 	-- anchor: at the lever near the gap Gumo jumps across
 	pickup: LeftGumoHideoutUpperPlant
@@ -2103,15 +2138,6 @@ home: LowerLeftGumoHideout
 	conn: LowerBlackroot
 		glitched Dash
 	conn: GumoHideoutRedirectArea
-home: DoubleJumpArea
-	-- anchor: at the skill tree
-	pickup: DoubleJumpSkillTree
-	pickup: DoubleJumpAreaExp
-		casual-core WallJump DoubleJump
-		casual-core ChargeJump
-		casual-core Bash
-		casual-core Climb DoubleJump
-		master-core DoubleJump
 home: WaterVeinArea
 	-- anchor: at the water vein
 	pickup: GumoHideoutRockfallExp
