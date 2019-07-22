@@ -394,11 +394,14 @@ class SeedGenParams(ndb.Model):
             if self.path_diff != PathDifficulty.NORMAL:
                 flags.append("prefer_path_difficulty=%s" % self.path_diff.value)
             if self.sync.enabled and self.sync.mode is not MultiplayerGameType.SIMUSOLO:
-                flags.append("mode=%s" % self.sync.mode.value)
                 if self.sync.shared:
-                    flags.append("shared=%s" % "+".join(self.sync.shared))
+                    flags.append("share=%s" % "+".join(self.sync.shared))
+                else:
+                    flags.append("mode=%s" % self.sync.mode.value)
             if self.balanced:
                 flags.append("balanced")
+            if self.pool_preset != "Standard":
+                flags.append("pool=%s" % self.pool_preset)
             if self.sense:
                 flags.append("sense=%s" % self.sense.replace(" ", "+"))
         return "%s|%s" % (",".join(flags), self.seed)

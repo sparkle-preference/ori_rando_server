@@ -58,7 +58,11 @@ const getHelpHelper = (category, option) => {
                 h = getHelpHelper("goalModes", "WorldTour")
                 h.lines[0] = h.lines[0].replace(/8/g, relics)
                 h.lines[2] = (<div><i>(Your seed is using this Goal Mode.)</i></div>)
-            } else if(option.startsWith("shared")) {
+            } else if(option.startsWith("pool=")) {
+                let [, poolName] = option.split("=")
+                h = getHelpHelper("itemPool", poolName)
+                h.lines.push((<div><i>(Your seed is using this pool preset.)</i></div>))
+            } else if(option.startsWith("share")) {
                 let sharedCats = option.split("=")[1].split("+").join(", ")
                 h.title = "Shared Item Categories"
                 h.lines = [
@@ -177,7 +181,7 @@ const getHelpHelper = (category, option) => {
                 case "WarmthFrags":
                     title = "Warmth Fragments"
                     lines = [
-                        "The Warmth Fragments Goal Mode scatters a large number of warmth fragments (default 40) across the entire map. Players must collect a certain number of those fragments (default 30) to access the final escape.",
+                        "The Warmth Fragments Goal Mode scatters a large number of warmth fragments (default 30) across the entire map. Players must collect a certain number of those fragments (default 20) to access the final escape.",
                         "The total number of fragments, as well as the number of 'extra' (non-required) fragments, can be configured in the Advanced Tab of the seed generator.",
                         "Warmth Fragments is recommended for players who like exploring and efficiently checking large numbers of pickups in an unstructured manner, and plays well with most Key Modes, including Free."
                     ]
@@ -218,13 +222,6 @@ const getHelpHelper = (category, option) => {
                         "The Skip Final Escape variation removes the need for players to complete the Mount Horu final escape.", 
                         "Upon finishing their selected goal mode (or goal modes, if more than one is picked), players will recieve a special bonus skill, which can be activated at any time to warp to the credits.",
                         "Note: Bingo already has this functionality built-in."
-                    ]
-                    break;
-                case "NonProgressMapStones":
-                    title = "Discrete Mapstones"
-                    lines = [
-                        "The Discrete Mapstone variation changes how mapstones function, making each individual mapstone turn-in have its own pickup. (By default, the mapstone pickups are granted based on the number of mapstones you have turned in, regardless of where).",
-                        "This variation exists primarily for legacy reasons and is not recommended for normal use. It cannot be enabled without the Strict Mapstones variation."
                     ]
                     break;
                 case "Hard":
@@ -279,7 +276,6 @@ const getHelpHelper = (category, option) => {
                     title = "Strict Mapstones"
                     lines = [
                         "The Strict Mapstones variation forces the seed generator to place a mapstone for every reachable mapstone pedistal.",
-                        "Strict Mapstones is required for Discrete Mapstones (since otherwise Discrete Mapstones could softlock players by not providing enough maps).",
                         "This variation represents the pre-3.0 default behavior, and is not generally recommended due to how predictable it makes early game mapstone placements."
                     ]
                     break;
@@ -725,18 +721,21 @@ const getHelpHelper = (category, option) => {
                     subtitle = "Item Pool Presets"
                     lines = [
                         "The Extra Bonus item pool preset introduces several new bonus pickups not normally found in the randomizer, including some new activateable skills.",
-                        "It also contains more copies of existing pickups, including 2 more attack upgrades and four more extra double jumps. Mega Health and Mega Energy pickups are not consumed on pickup.",
-                        "Lastly, it adds several warps, which are pickups that act as permenant 1-way portals to a different place on the map. Use a warp touching the pickup and then pressing AltR.",
+                        "It also contains more copies of existing pickups, including 2 more attack upgrades and 4 more extra double jumps. Mega Health and Mega Energy pickups are not consumed on pickup.",
+                        "Lastly, it adds 4-8 warps, which are pickups that act as permenant 1-way portals to a different place on the map. Use a warp touching the pickup and then pressing AltR.",
                         "Note: The default bindings for bonus skills are Alt+Q to swap between them, and Alt+Mouse1 to activate them. These bindings can be changed in the RandomizerRebinding.txt file.",
                         (<div>Check out the <a target="_blank" rel="noopener noreferrer"  href="/faq?g=bonus_pickups">bonus item glossary</a> for more info about the extra bonus items.</div>),
-                        "Recommended for people interested in trying out some cool and probably pretty overpowered pickups."
+                        "Recommended for people interested in trying out some cool and somewhat overpowered pickups."
                     ]
                     break;
                 case "Bonus Lite":
                     title = "Bonus Lite"
                     subtitle = "Item Pool Presets"
                     lines = [
-                        "The Bonus Lite item pool preset contains everything from the Extra Bonus pickup pool besides the active items and repeatable mega health/energy."
+                        "The Bonus Lite item pool preset contains a few new passive bonus pickups (3 Skill Velocity, and 1 each of Health Drain, Energy Drain, and Underwater Skill Usage)",
+                        "It also contains more copies of existing pickups, including 2 more attack upgrades and 4 more extra double jumps.",
+                        "Lastly, it adds 4-8 warps, which are pickups that act as permenant 1-way portals to a different place on the map. Use a warp by touching the pickup and then pressing AltR.",
+                        (<div>Check out the <a target="_blank" rel="noopener noreferrer"  href="/faq?g=bonus_pickups">bonus item glossary</a> for more info about the extra bonus items.</div>),
                     ]
                     break;
                 case "Competitive":
