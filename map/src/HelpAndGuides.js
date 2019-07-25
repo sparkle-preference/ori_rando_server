@@ -197,7 +197,7 @@ export default class HelpAndGuides extends React.Component {
                     To install the tracker:
                     <ol>
                     <li>
-                        Download the tracker {" "}<a target="_blank" rel="noopener noreferrer" href="/">here</a>.
+                        Download the tracker {" "}<a target="_blank" rel="noopener noreferrer" href="/tracker">here</a>.
                     </li>
                     <li>
                         Extract the files to wherever you would like.
@@ -341,7 +341,7 @@ export default class HelpAndGuides extends React.Component {
                         The purple tree has been changed substantially: see the <a href="https://docs.google.com/document/d/1tprqq7mUJMGcgAA0TM-O5FeOklzz4dOReB0Nru3QlsI#bookmark=cax9k3:1me" target="_blank" rel="noopener noreferrer">patch notes</a> for a full summary.
                     </li>
                     <li>
-                        The UI transparency is increased while performing a "Save Anywhere" glitch.
+                        The UI transparency is increased while performing a "Save Anywhere" glitch. The amount of transparency is configurable in the RandomizerSettings.txt file.
                     </li>
                     </ul>
                 </CardText>
@@ -368,9 +368,6 @@ export default class HelpAndGuides extends React.Component {
                         </li>
                         <li>
                         In the Clues keymode, the borders between zones are not always obvious. Check out <a target="_blank" rel="noopener noreferrer" href="https://i.imgur.com/lHgbqmI.jpg">this map</a> to see exactly which pickup is considered to be in which zone!
-                        </li>
-                        <li>
-                        There is a known softlock that can happen if the Ginso Escape cutscene is not skipped. To avoid it, skip the cutscene as soon as you get the pickup text for the "Clean Water" pickup slot.
                         </li>
                         <li>
                         Do not Alt+R out of any room with a temporary lock (Ginso miniboss 1, Grotto Miniboss, Outer Swamp Spitter puzzle area) with the door still closed. You may softlock if you do.

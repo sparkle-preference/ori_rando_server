@@ -203,7 +203,9 @@ export default class MainPage extends React.Component {
 
     getItemPoolTab = ({inputStyle}) => {
         let itemSelectors = this.state.itemPool.map((row, index) => {
-          let delButton = row.minimum ? null : (<Button onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("itemPool", "deleteRow")} onClick={this.deletePoolItem(index)} color="danger">X</Button>)
+          let disabled = row.minimum && row.minimum > 0
+          let delButton = disabled ? null : (<Button onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("itemPool", "deleteRow")} onClick={this.deletePoolItem(index)} color="danger">X</Button>)
+          
           return (<Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "customPool")} className="p-1 justify-content-center">
             <Col xs="4">
             <Cent>
@@ -214,8 +216,8 @@ export default class MainPage extends React.Component {
                 <FormFeedback tooltip>{row.upTo < row.count ? `Max count can't be lower than min count(${row.count})` : `Maximum number of ${name_from_str(row.item)} allowed is ${row.maximum}`}</FormFeedback>
             </Cent>
             </Col>
-            <Col onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("itemPool", "pickupSelector")} xs="7">
-                <PickupSelect value={row.item} isClearable={false} isDisabled={row.minimum && row.minimum > 0} updater={(code, _) => this.updatePoolItem(index, code)} allowPsuedo/>
+            <Col onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("itemPool", disabled ? "pickupSelectorDisabled" : row.item)} xs="7">
+                <PickupSelect value={row.item} isClearable={false} isDisabled={disabled} updater={(code, _) => this.updatePoolItem(index, code)} allowPsuedo/>
             </Col>
             <Col xs="1">{delButton}</Col>
           </Row>)
@@ -246,7 +248,7 @@ export default class MainPage extends React.Component {
                     <Input type="number" className="ml-2" style={inputStyle} value={1} disabled/>
                 </Cent>
                 </Col>
-                <Col xs="7">
+                <Col xs="7" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("itemPool", "pickupSelector")} >
                     <PickupSelect ref="tabula" value={"NO|1"} updater={(code, _) => this.addPoolItem(code)} allowPsuedo/>
                 </Col>
                 <Col xs="1"></Col>

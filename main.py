@@ -1063,6 +1063,14 @@ class WeeklyPoll(RequestHandler):
     def get(self):
         return redirect('https://forms.gle/UGeN2uBN6kPbeWzt6')
 
+class OpenBookForm(RequestHandler):
+    def get(self):
+        return redirect('https://forms.gle/aCyEjh7YWPLo1YK36')
+
+class OpenBookLeaderboard(RequestHandler):
+    def get(self):
+        return redirect('https://docs.google.com/spreadsheets/d/1X6jJpjJVY_mly--9tnV9EGo5I6I_gJ4Sepkf51S9rQ4/edit?usp=sharing')
+
 app = WSGIApplication(
     routes=[
         DomainRoute('www.orirando.com', [Route('<path:.*>', handler=NakedRedirect)]),
@@ -1107,6 +1115,8 @@ app = WSGIApplication(
     ),
     # misc / top level endpoints
     Route('/weekly', handler=WeeklyPoll, name="weekly-poll"),
+    Route('/openBook/form', handler=OpenBookForm, name="open-book-form"),
+    Route('/openBook/leaderboard', handler=OpenBookLeaderboard, name="open-book-leaderboard"),
     Route('/logichelper', handler=LogicHelper, name="logic-helper", strict_slash=True),
     Route('/faq', handler=Guides, name="help-guides", strict_slash=True),
     Route('/', handler=ReactLanding, name="main-page"),

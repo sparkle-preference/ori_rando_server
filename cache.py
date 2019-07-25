@@ -11,7 +11,7 @@ class Cache(object):
     def set_hist(gid, pid, hist):
         hist_map = Cache.get_hist(gid) or {}
         hist_map[int(pid)] = hist
-        memcache.set(key="%s.hist" % gid, value=hist_map, time=3600)
+        memcache.set(key="%s.hist" % gid, value=hist_map, time=14400)
 
     @staticmethod
     def append_hl(gid, pid, hl):
@@ -20,7 +20,7 @@ class Cache(object):
             hist_map[int(pid)] = [hl]
         else:
             hist_map[int(pid)].append(hl)
-        memcache.set(key="%s.hist" % gid, value=hist_map, time=3600)
+        memcache.set(key="%s.hist" % gid, value=hist_map, time=14400)
 
     @staticmethod
     def get_hist(gid):
@@ -46,7 +46,7 @@ class Cache(object):
 
     @staticmethod
     def set_items(gid, items):
-        memcache.set(key="%s.items" % gid, value=items, time=7200)
+        memcache.set(key="%s.items" % gid, value=items, time=14400)
 
     @staticmethod
     def get_relics(gid):
@@ -54,7 +54,7 @@ class Cache(object):
 
     @staticmethod
     def set_relics(gid, relics):
-        memcache.set(key="%s.relics" % gid, value=relics, time=7200)
+        memcache.set(key="%s.relics" % gid, value=relics, time=14400)
 
     @staticmethod
     def clear_items(gid):

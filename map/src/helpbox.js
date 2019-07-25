@@ -1,6 +1,6 @@
 import React from 'react';
 import {CardText, CardTitle, Card, CardBody, CardSubtitle} from 'reactstrap';
-import {dev} from './common.js'
+import {dev, stuff_by_type} from './common.js'
 
 const UntestedWarning = (<CardText className="border m-2 p-2 border-danger"><i>
 NOTE: this variation is rarely used and thus is less tested than most.
@@ -16,6 +16,22 @@ const presets = ["Casual", "Standard", "Expert", "Master", "Glitched", "Custom"]
 
 const goalModes = ["ForceTrees", "ForceMaps", "Bingo"]
 const keyModes = ["Shards", "Clues", "Limitkeys", "Free"]
+
+const bonuses = {}
+stuff_by_type["Upgrades"].forEach(({label, value, desc}) => bonuses[value]={name: label, desc: [desc]})
+bonuses["RP|RB/0"] = {name: "Repeatable Mega Health", desc: [
+    "Restores health to full, then grants 5 additional temporary health.", 
+    (<div><i><b>Repeatable</b> pickups are not consumed, and can be collected any number of times.</i></div>)
+]}
+bonuses["RP|RB/1"] = {name: "Repeatable Mega Energy", desc: [
+    "Restores energy to full, then grants 5 additional temporary energy.", 
+    (<div><i><b>Repeatable</b> pickups are not consumed, and can be collected any number of times.</i></div>)
+]}
+bonuses["WP|*"] = {name: "Warp", desc: [
+    "A Warp pickup is a permenant 1-way portals to a specific place on the map. Use a warp by touching the pickup and then pressing AltR.",
+    (<div><i>Warps are not consumed, and can be used any number of times.</i></div>)
+ ]}
+bonuses["BS|*"] = {name: "Random Bonus Skill", desc: [(<div>A random bonus skill. Check out the <a target="_blank" rel="noopener noreferrer"  href="/faq?g=bonus_pickups">bonus item glossary</a> for more info on these.</div>)]}
 
 const getHelpContent = (category, option) => {
     let {lines, title, subtitle, extras} = getHelpHelper(category, option)
@@ -687,13 +703,6 @@ const getHelpHelper = (category, option) => {
                         "This field sets the maximum number of times this row's pickup will be placed in the seed. Leaving it set to the same number as the minimum results in that number always being chosen.",
                     ]
                     break;
-                case "pickupSelector":
-                    title = "Pickup Selector"
-                    lines = [
-                        "Use this box to select or modify an item being placed in the pickup pool. If you place multiple pickups into this box, all of them will be placed in the same location (or locations).",
-                        "For example, if you add '10 experience' to the default 'Ability Cell' row, every Ability Cell pickup will also give 10 experience.",
-                    ]
-                    break;
                 case "pickupSelectorDisabled":
                     title = "Pickup Selector (locked)"
                     lines = [
@@ -722,9 +731,9 @@ const getHelpHelper = (category, option) => {
                     lines = [
                         "The Extra Bonus item pool preset introduces several new bonus pickups not normally found in the randomizer, including some new activateable skills.",
                         "It also contains more copies of existing pickups, including 2 more attack upgrades and 4 more extra double jumps. Mega Health and Mega Energy pickups are not consumed on pickup.",
-                        "Lastly, it adds 4-8 warps, which are pickups that act as permenant 1-way portals to a different place on the map. Use a warp touching the pickup and then pressing AltR.",
+                        "Lastly, it adds 4-8 warps, which are pickups that act as permenant 1-way portals to a different place on the map. Use a warp by touching the pickup and then pressing AltR.",
                         "Note: The default bindings for bonus skills are Alt+Q to swap between them, and Alt+Mouse1 to activate them. These bindings can be changed in the RandomizerRebinding.txt file.",
-                        (<div>Check out the <a target="_blank" rel="noopener noreferrer"  href="/faq?g=bonus_pickups">bonus item glossary</a> for more info about the extra bonus items.</div>),
+                        "Mouse over the individual rows to learn more about the bonus pickups!",
                         "Recommended for people interested in trying out some cool and somewhat overpowered pickups."
                     ]
                     break;
@@ -754,7 +763,19 @@ const getHelpHelper = (category, option) => {
                     ]
                     break;
                 default:
-                    match = false;
+                    if(bonuses[option]) {
+                        let {name, desc} = bonuses[option]
+                        title = `${name}`
+                        subtitle = "Item Descriptions"
+                        lines = desc
+                    } else {
+                        title = "Pickup Selector"
+                        lines = [
+                            "Use this box to select or modify an item being placed in the pickup pool. If you place multiple pickups into this box, all of them will be placed in the same location (or locations).",
+                            "For example, if you add '10 experience' to the default 'Ability Cell' row, every Ability Cell pickup will also give 10 experience.",
+                        ]
+                        break;
+                    }
                     break;
             }
 
