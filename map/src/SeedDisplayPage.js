@@ -5,9 +5,9 @@ import {goToCurry, seed_name_regex } from './shared_map.js';
 import { confirmAlert } from 'react-confirm-alert'; 
 import 'react-confirm-alert/src/react-confirm-alert.css' 
 import {Button, Container, Row, Col, Input, Badge} from 'reactstrap';
-import {Helmet} from 'react-helmet';
+import SiteBar from "./SiteBar.js"
 
-const textStyle = {color: "black", textAlign: "center"}
+const textStyle = {textAlign: "center"}
 export default class SeedDisplayPage extends React.Component {
   constructor(props) {
     super(props);
@@ -43,13 +43,12 @@ export default class SeedDisplayPage extends React.Component {
 	render = () => {
 		let url = `/plando/${this.state.seed_name}`;
     	let rename_enabled = (this.state.rename_to !== this.state.seed_name) && (seed_name_regex.test(this.state.rename_to))
-    	let color = rename_enabled ? "primary" : "disabled"
     	let rename_copy = (
 			<Row key="rename/copy" className="p-3 border border-danger border-bottom-0 justify-content-center">
 				<Col xs="4">
-					<Button color={color} block enabled={rename_enabled} onClick={rename_enabled ? goToCurry(`${url}/rename/${this.state.rename_to}`) : () => { alert("Please enter a new name")}}>Rename</Button>
+					<Button color="primary" block disabled={!rename_enabled} onClick={rename_enabled ? goToCurry(`${url}/rename/${this.state.rename_to}`) : () => { alert("Please enter a new name")}}>Rename</Button>
 				</Col><Col xs="4">
-		 			<Button color={color} block enabled={rename_enabled} onClick={rename_enabled ? goToCurry(`${url}/rename/${this.state.rename_to}?cp=1`) : () => { alert("Please enter a new name")}}>Copy</Button>
+		 			<Button color="primary" block disabled={!rename_enabled} onClick={rename_enabled ? goToCurry(`${url}/rename/${this.state.rename_to}?cp=1`) : () => { alert("Please enter a new name")}}>Copy</Button>
 				</Col><Col xs="4">
 					<Input type="text" value={this.state.rename_to} onChange={event => this.setState({rename_to: event.target.value})} />
 				</Col>
@@ -95,10 +94,8 @@ export default class SeedDisplayPage extends React.Component {
 			</Row>
 		) : null
 		return (
-			<Container className="pl-4 pr-4 pb-4 pt-2 mt-5 w-50 border border-dark">
-            <Helmet>
-                <style>{'body { background-color: white}'}</style>
-            </Helmet>
+			<Container className="pl-4 pr-4 pb-4 pt-2 mt-5 w-75 border border-dark">
+                <SiteBar/>
 				<Row className="p-1">
 					<Col>
 						<span><h3 style={textStyle}>{this.state.seed_name} <Badge outline href={"/plando/"+this.state.author} color="dark">by {this.state.author}</Badge> {(this.state.hidden ? " (Hidden)" : "")}</h3></span>

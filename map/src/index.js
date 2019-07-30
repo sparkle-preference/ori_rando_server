@@ -1,20 +1,27 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
-import {get_param, get_flag} from './common.js';
+import {get_param, get_flag, gotoUrl} from './common.js';
 
 const apps = ['ItemTracker', 'MainPage', 'GameTracker', 'PlandoBuilder', 'SeedAnalysis', 'RebindingsEditor', 'LogicHelper', 'SeedDisplayPage', "HelpAndGuides", "Bingo"];
 const dark_apps = ["GameTracker", "PlandoBuilder", "LogicHelper"];
 const VALID_THEMES = ["cerulean", "cosmo", "cyborg", "darkly", "flatly", "journal", "litera", "lumen", "lux", "materia", "minty", "pulse", "sandstone", "simplex", "sketchy", "slate", "solar", "spacelab", "superhero", "united", "yeti"];
 
 (() => {
+    if(localStorage.getItem("rememberMe") && !get_param('user'))
+        return gotoUrl(`/login?redir=${encodeURIComponent(window.document.URL.split(".com")[1])}`)
+    let dark = get_flag("dark") || localStorage.getItem("dark")
+    let theme = get_param("theme") || localStorage.getItem("theme")
+    if(theme && !localStorage.getItem("theme"))
+        localStorage.setItem("theme", theme)
+    if(dark)
+        localStorage.setItem("dark", "true")
+    else
+        localStorage.removeItem("dark")
     apps.forEach(async (app) => {
         if(document.getElementById(app)) {
             let link = document.createElement("link");
             link.type = "text/css";
             link.rel = "stylesheet";
-            let url = new URL(window.document.URL);
-            let dark = get_flag("dark") || url.searchParams.has("dark")
-            let theme = get_param("theme") || url.searchParams.get("theme")
             let css = 'https://maxcdn.bootstrapcdn.com/bootswatch/4.2.1/flatly/bootstrap.min.css'
             if(VALID_THEMES.includes(theme)) {
                 css = `https://maxcdn.bootstrapcdn.com/bootswatch/4.2.1/${theme}/bootstrap.min.css`

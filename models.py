@@ -9,7 +9,7 @@ from collections import defaultdict
 
 from seedbuilder.seedparams import Placement, Stuff, SeedGenParams
 from enums import MultiplayerGameType, ShareType, Variation
-from util import picks_by_coord, get_bit, get_taste, enums_from_strlist, PickLoc, ord_suffix
+from util import picks_by_coord, get_bit, get_taste, enums_from_strlist, ord_suffix
 from pickups import Pickup, Skill, Teleporter, Event
 from cache import Cache
 

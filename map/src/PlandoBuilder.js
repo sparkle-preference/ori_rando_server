@@ -716,7 +716,7 @@ class PlandoBuiler extends React.Component {
         ) : (
             <Button color="success" onClick={this.doFillGen} >Fill</Button>
         )
-        let logic_path_buttons = logic_paths.map(lp => {return (<Col className="pr-0" xs="4"><Button block size="sm" outline={!modes.includes(lp)} onClick={this.onMode(lp)}>{lp}</Button></Col>)});
+        let logic_path_buttons = logic_paths.map(lp => {return (<Col className="pr-0" xs="4"><Button block size="sm" disabled={lp==="casual-core"} outline={!modes.includes(lp)} onClick={this.onMode(lp)}>{lp}</Button></Col>)});
         return (
             <div className="wrapper">
                 <NotificationContainer/>
@@ -745,7 +745,7 @@ class PlandoBuiler extends React.Component {
                         {save_if_auth}
                     </div>
                     <Collapse id="import-wrapper" isOpen={this.state.display_meta}>
-                        <textarea id="seed-name-input" className="form-control" value={this.state.seed_name} onChange={event => this.setState({seed_name: event.target.value})} />
+                        <input id="seed-name-input" type="text" className="form-control" value={this.state.seed_name} onChange={event => this.setState({seed_name: event.target.value})} />
                         <textarea id="seed-desc-input" className="form-control" placeholder="Seed Description" value={this.state.seed_desc} onChange={event => this.setState({seed_desc: event.target.value})} />
                         <Button color="primary" onClick={this.saveSeed} >Save</Button>
                         <Button color="primary" onClick={() => window.open(`/plando/${this.state.user}/${this.state.last_seed_name}/`,'_blank') } >Open Seed Page</Button>

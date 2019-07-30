@@ -543,7 +543,7 @@ function get_list(name, sep) {
 function get_seed() {
     let authed = get_flag("authed")
     let user = get_param("user")
-    let name = get_param("seed_name") || "new seed"
+    let name = get_param("seed_name") || "newSeed"
     let desc = get_param("seed_desc") || ""
     let hidden = get_flag("seed_hidden")
     let seedJson = get_param("seed_data")

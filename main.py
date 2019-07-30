@@ -19,7 +19,7 @@ from seedbuilder.vanilla import seedtext as vanilla_seed
 from enums import MultiplayerGameType, ShareType, Variation
 from models import Game, Seed, User, BingoGameData, trees_by_coords
 from cache import Cache
-from util import coord_correction_map, all_locs, picks_by_type_generator, param_val, param_flag, resp_error, debug, path, VER
+from util import coord_correction_map, all_locs, picks_by_type_generator, param_val, param_flag, resp_error, debug, path, VER, template_vals
 from reachable import Map, PlayerState
 from pickups import Pickup
 
@@ -286,7 +286,8 @@ class SetSeed(RequestHandler):
 
 class ShowMap(RequestHandler):
     def get(self, game_id):
-        template_values = {'app': "GameTracker", 'title': "Game %s" % game_id, 'game_id': game_id}
+        template_values = template_vals("GameTracker", "Game %s" % game_id, User.get())
+        template_values['game_id'] = game_id
         if debug and param_flag(self, "from_test"):
             game = Game.with_id(game_id)
             pos = Cache.get_pos(game_id)
@@ -398,7 +399,8 @@ class GetReachable(RequestHandler):
 
 class ItemTracker(RequestHandler):
     def get(self, game_id):
-        template_values = {'app': "ItemTracker", 'title': "Game %s" % game_id, 'game_id': game_id}
+        template_values = template_vals("ItemTracker", "Game %s" % game_id, User.get())
+        template_values['game_id'] = game_id
         self.response.write(template.render(path, template_values))
 
 
@@ -653,12 +655,10 @@ class PlandoView(RequestHandler):
         if seed:
             if user and user.key == seed.author_key:
                 authed = True
-            template_values = {
-                'app': "SeedDisplayPage", 'title': "%s by %s" % (seed_name, author_name),
-                'players': seed.players, 'seed_data': seed.get_plando_json(),
+            template_values = template_vals("SeedDisplayPage", "%s by %s" % (seed_name, author_name), user)
+            template_values.update({'players': seed.players, 'seed_data': seed.get_plando_json(),
                 'seed_name': seed_name, 'author': author_name, 'authed': authed, 'version': VERSION,
-                'seed_desc': seed.description, 'game_id': Game.get_open_gid()
-            }
+                'seed_desc': seed.description, 'game_id': Game.get_open_gid()})
             hidden = seed.hidden or False
             if not hidden or authed:
                 self.response.status = 200
@@ -675,12 +675,10 @@ class PlandoView(RequestHandler):
 class PlandoEdit(RequestHandler):
     def get(self, seed_name):
         user = User.get()
-
-        template_values = {'app': "PlandoBuilder", 'title': "Plandomizer Editor " + PLANDO_VER, 'seed_name': seed_name, 'version': VERSION}
+        template_values = template_vals("PlandoBuilder", "Plando Editor: %s" % (seed_name), user)
         if user:
             seed = user.plando(seed_name)
             template_values['authed'] = "True"
-            template_values['user'] = user.name
             if seed:
                 template_values['seed_desc'] = seed.description
                 template_values['seed_hidden'] = seed.hidden or False
@@ -813,23 +811,16 @@ class MapTest(RequestHandler):
 
 class LogicHelper(RequestHandler):
     def get(self):
+        template_values = template_vals("LogicHelper", "Logic Helper", User.get())
 
-        template_values = {'app': "LogicHelper", 'title': "Logic Helper!", 'is_spoiler': "True",
-                           'pathmode': param_val(self, 'pathmode'), 'HC': param_val(self, 'HC'),
+        template_values.update({'is_spoiler': "True", 'pathmode': param_val(self, 'pathmode'), 'HC': param_val(self, 'HC'),
                            'EC': param_val(self, 'EC'), 'AC': param_val(self, 'AC'), 'KS': param_val(self, 'KS'),
-                           'skills': param_val(self, 'skills'), 'tps': param_val(self, 'tps'), 'evs': param_val(self, 'evs')}
+                           'skills': param_val(self, 'skills'), 'tps': param_val(self, 'tps'), 'evs': param_val(self, 'evs')})
         self.response.write(template.render(path, template_values))
 
 class ReactLanding(RequestHandler):
     def get(self):
-        template_values = {'app': "MainPage", 'dll_last_update': "N/A", 'title': "Ori DE Randomizer %s" % VERSION, 'version': VERSION}
-        user = User.get()
-        if user:
-            template_values['user'] = user.name
-            template_values['dark'] = user.dark_theme
-            if user.theme:
-                template_values['theme'] = user.theme
-        self.response
+        template_values = template_vals("MainPage", "Ori DE Randomizer %s" % VERSION, User.get())
         self.response.write(template.render(path, template_values))
 
 
@@ -837,39 +828,39 @@ class MakeSeedWithParams(RequestHandler):
     def get(self):
         self.response.headers['Content-Type'] = 'application/json'
         param_key = SeedGenParams.from_url(self.request.GET)
+        if not param_key:
+            return resp_error(self, 500, "Failed to build params!", 'text/plain')
         params = param_key.get()
-        if params.generate():
-            resp = {"paramId": param_key.id(), "playerCount": params.players, "flagLine": params.flag_line(), 'seed': params.seed, "spoilers": True}
-            if params.tracking:
-                game = Game.from_params(params, self.request.GET.get("game_id"))
-                resp["gameId"] = game.key.id()
-                if debug and param_flag(self, "test_map_redir"):
-                     self.redirect(uri_for("map-render", game_id=resp["gameId"], from_test=1))
-            if Variation.BINGO in params.variations:
-                resp["doBingoRedirect"] = True
+        if not params.generate():
+            return resp_error(self, 500, "Failed to generate seed!", 'text/plain')
+        resp = {"paramId": param_key.id(), "playerCount": params.players, "flagLine": params.flag_line(), 'seed': params.seed, "spoilers": True}
+        if params.tracking:
+            game = Game.from_params(params, self.request.GET.get("game_id"))
+            resp["gameId"] = game.key.id()
+            if debug and param_flag(self, "test_map_redir"):
+                    self.redirect(uri_for("map-render", game_id=resp["gameId"], from_test=1))
+        if Variation.BINGO in params.variations:
+            resp["doBingoRedirect"] = True
 
-            self.response.write(json.dumps(resp))
-        else:
-            self.response.status = 500
-            self.response.write("Failed to build seed!")
+        self.response.write(json.dumps(resp))
     def post(self):
         self.response.headers['Content-Type'] = 'application/json'
         param_key = SeedGenParams.from_json(json.loads(self.request.POST["params"]))
         params = param_key.get()
-        if params.generate():
-            resp = {"paramId": param_key.id(), "playerCount": params.players, "flagLine": params.flag_line(), 'seed': params.seed, "spoilers": True}
-            if params.tracking:
-                game = Game.from_params(params, self.request.GET.get("game_id"))
-                resp["gameId"] = game.key.id()
-                if debug and param_flag(self, "test_map_redir"):
-                     self.redirect(uri_for("map-render", game_id=resp["gameId"], from_test=1))
-            if Variation.BINGO in params.variations:
-                resp["doBingoRedirect"] = True
-
-            self.response.write(json.dumps(resp))
-        else:
-            self.response.status = 500
-            self.response.write("Failed to build seed!")
+        if not param_key:
+            return resp_error(self, 500, "Failed to build params!", 'text/plain')
+        params = param_key.get()
+        if not params.generate():
+            return resp_error(self, 500, "Failed to generate seed!", 'text/plain')
+        resp = {"paramId": param_key.id(), "playerCount": params.players, "flagLine": params.flag_line(), 'seed': params.seed, "spoilers": True}
+        if params.tracking:
+            game = Game.from_params(params, self.request.GET.get("game_id"))
+            resp["gameId"] = game.key.id()
+            if debug and param_flag(self, "test_map_redir"):
+                    self.redirect(uri_for("map-render", game_id=resp["gameId"], from_test=1))
+        if Variation.BINGO in params.variations:
+            resp["doBingoRedirect"] = True
+        self.response.write(json.dumps(resp))
 
 
 class SeedGenJson(RequestHandler):
@@ -966,24 +957,12 @@ class PicksByTypeGen(RequestHandler):
 
 class RebindingsEditor(RequestHandler):
     def get(self):
-        template_values = {'app': "RebindingsEditor", 'title': "Ori DE Rebindings Editor", 'version': VERSION}
-        user = User.get()
-        if user:
-            template_values['user'] = user.name
-            template_values['dark'] = user.dark_theme
-            if user.theme:
-                template_values['theme'] = user.theme
+        template_values = template_vals("RebindingsEditor", "Ori DERebindings Editor", User.get())
         self.response.write(template.render(path, template_values))
 
 class Guides(RequestHandler):
     def get(self):
-        template_values = {'app': "HelpAndGuides", 'title': "Randomizer Help and Guides", 'version': VERSION}
-        user = User.get()
-        if user:
-            template_values['user'] = user.name
-            template_values['dark'] = user.dark_theme
-            if user.theme:
-                template_values['theme'] = user.theme
+        template_values = template_vals("HelpAndGuides", "Help and Guides", User.get())
         self.response.write(template.render(path, template_values))
 
 class GetSettings(RequestHandler):

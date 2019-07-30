@@ -35,7 +35,7 @@ bonuses["BS|*"] = {name: "Random Bonus Skill", desc: [(<div>A random bonus skill
 
 const getHelpContent = (category, option) => {
     let {lines, title, subtitle, extras} = getHelpHelper(category, option)
-    return {lines: lines.map(l => (<CardText>{l}</CardText>)), title: title, subtitle: subtitle, extras: extras}
+    return {lines: lines.map((l,i) => (<CardText key={`card-line-${i}`}>{l}</CardText>)), title: title, subtitle: subtitle, extras: extras}
 }
 
 const getHelpHelper = (category, option) => {

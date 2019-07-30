@@ -10,7 +10,7 @@ class SiteBar extends Component {
         super(props);
         let url = new URL(window.document.URL);
         let user = get_param("user");
-        let dark = get_flag("dark") || url.searchParams.has("dark")
+        let dark = get_flag("dark") || url.searchParams.has("dark") || localStorage.getItem('dark')
         this.state = {user: user, dark: dark, teamName: "", settingsOpen: false, quickstartOpen: false, editName: user, loadedNames: false, saveInProgress: false, loader: get_random_loader(), saveStatus: 0}
     }
     componentDidMount() {
@@ -109,11 +109,10 @@ class SiteBar extends Component {
             redirTarget.searchParams.append("redir", page)
             window.location.replace(redirTarget.href)
         } else {
-            if(dark && url.searchParams.has("dark"))
-                url.searchParams.delete("dark")
+            if(dark && localStorage.getItem("dark"))
+                localStorage.removeItem("dark")
             else
-                url.searchParams.append("dark", 1)
-            window.location.replace(url.href)
+                localStorage.setItem("dark", "true")
         }
     }
 
@@ -125,23 +124,23 @@ class SiteBar extends Component {
         let page = encodeURIComponent(url.pathname + url.search)
         let xMode = dark ? "Light Mode" : "Dark Mode"
         let logonoff = user ? [
+            (<DropdownItem key="name" disabled><i>Logged in as ${user}</i></DropdownItem>),
             (<DropdownItem key="settings" onClick={() => this.setState({settingsOpen: true})}> Rename </DropdownItem>),
             (<DropdownItem key="my games" href={"/myGames"}>  My Games </DropdownItem>),
-            (<DropdownItem key="logout" href={"/logout?redir="+page}>  Logout </DropdownItem>),
+            (<DropdownItem key="logout" onClick={() => {localStorage.removeItem("rememberMe")}} href={`/logout?redir=${page}`}>  Logout </DropdownItem>),
         ] : [
-            (<DropdownItem href={"/login?redir="+page}> Login </DropdownItem>)
+            (<DropdownItem key="login" onClick={() => localStorage.setItem("rememberMe", true)} href={`/login?redir=${page}`}> Login </DropdownItem>)
         ]
         let myseeds = user ? (<DropdownItem href={"/plando/"+ user}> {user}'s seeds </DropdownItem>) : null
         let settings = this.settingsModal()
         let navClass = "border border-dark p-2"
-        let nameorlogin = user ? user : "Login"
         return (
             <Navbar style={{maxWidth: '1074px'}} className={navClass} expand="md">
             {settings}
-            <NavbarBrand href={"/" + (dark && !user ? "?dark=1" : "")}>Ori Rando</NavbarBrand>
+            <NavbarBrand href="/">Ori Rando</NavbarBrand>
                 <Nav className="ml-auto" navbar>
                 <NavItem className="pl-2 pr-1">
-                    <Button color="primary" href={"/quickstart" + (dark && !user ? "?dark=1" : "")}>Start Playing</Button>
+                    <Button color="primary" href="/quickstart">Start Playing</Button>
                 </NavItem>
                 <NavItem className="pl-1 pr-2">
                     <Button color="info" href={"/faq"}>Help</Button>
@@ -183,20 +182,26 @@ class SiteBar extends Component {
                     <DropdownItem target="_blank" href="https://goo.gl/csgRUw">
                         Patch Notes
                     </DropdownItem>
-                    <DropdownItem href={"/bingo/board" + (dark && !user ? "?dark=1" : "")}>
-                        Start Bingo Game
+                    <DropdownItem href="/bingo/board">
+                        Vanilla+ Bingo
+                    </DropdownItem>
+                    <DropdownItem href="/weekly">
+                        Weekly Race Poll
+                    </DropdownItem>
+                    <DropdownItem href="/openBook/leaderboard">
+                        Open Book Seed Challenge
                     </DropdownItem>
                    </DropdownMenu>
                 </UncontrolledDropdown>
                 <UncontrolledDropdown nav inNavbar>
                     <DropdownToggle nav caret>
-                    {nameorlogin}
+                        Settings
                     </DropdownToggle>
                     <DropdownMenu right>
+                    {logonoff}
                     <DropdownItem onClick={this.themeToggle}>
                         {xMode}
                     </DropdownItem>
-                    {logonoff}
                     </DropdownMenu>
                 </UncontrolledDropdown>
                 <UncontrolledDropdown nav inNavbar>

@@ -268,7 +268,7 @@ export default class MainPage extends React.Component {
         let fass_rows = Object.keys(starting_pickups).map(name => {
             let coord = starting_pickups[name];
             return (
-                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "preplacement")} className="p-1 justify-content-center">
+                <Row key={`fass-${coord}`} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "preplacement")} className="p-1 justify-content-center">
                     <Col xs={leftCol} className="text-center pt-1 border">
                         <span className="align-middle">{name}</span>
                     </Col><Col xs={rightCol}>
@@ -923,14 +923,6 @@ export default class MainPage extends React.Component {
         let s = getComputedStyle(document.body);
         let styles = {inputStyle: {'borderColor': s.getPropertyValue('--dark'), 'backgroundColor': s.getPropertyValue("background-color"), 'color': s.getPropertyValue("color")}, menuStyle: {}}
 
-        // if(dark) {
-        //     pageStyle = 'body { background-color: #333; color: white }';
-        //     styles.inputStyle = {'backgroundColor': '#333', 'color': 'white'}
-        //     styles.menuStyle.backgroundColor = "#666"
-        // } else {
-        //    pageStyle = 'body { background-color: white; color: black }';
-        // }  
-
         let pathModeOptions = Object.keys(presets).map(mode => (
             <DropdownItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("logicModes", mode)} className="text-capitalize" active={mode===pathMode.toLowerCase()} onClick={this.onMode(mode)}>{mode}</DropdownItem>
         ))
@@ -1027,27 +1019,27 @@ export default class MainPage extends React.Component {
             <Col>
                 <Nav tabs>
                     <NavItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "variations")}>
-                        <NavLink active={activeTab === 'variations'} onClick={this.onTab('variations')}>
+                        <NavLink style={{cursor: "pointer"}} active={activeTab === 'variations'} onClick={this.onTab('variations')}>
                         Variations
                         </NavLink>
                     </NavItem>
                     <NavItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "logicPaths")}>
-                        <NavLink active={activeTab === 'logic paths'} onClick={this.onTab('logic paths')}>
+                        <NavLink style={{cursor: "pointer"}} active={activeTab === 'logic paths'} onClick={this.onTab('logic paths')}>
                         Logic Paths
                         </NavLink>
                     </NavItem>
                     <NavItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "customPool")}>
-                        <NavLink active={activeTab === 'item pool'} onClick={this.onTab('item pool')}>
+                        <NavLink style={{cursor: "pointer"}} active={activeTab === 'item pool'} onClick={this.onTab('item pool')}>
                         Item Pool
                         </NavLink>
                     </NavItem>
                     <NavItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "multiplayer")}>
-                        <NavLink active={activeTab === 'multiplayer'} onClick={this.onTab('multiplayer')}>
+                        <NavLink style={{cursor: "pointer"}} active={activeTab === 'multiplayer'} onClick={this.onTab('multiplayer')}>
                         Multiplayer Options
                         </NavLink>
                     </NavItem>
                     <NavItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "advanced")}>
-                        <NavLink active={activeTab === 'advanced'} onClick={() => { dev && console.log(this.state); this.onTab('advanced')()}}>
+                        <NavLink style={{cursor: "pointer"}} active={activeTab === 'advanced'} onClick={() => { dev && console.log(this.state); this.onTab('advanced')()}}>
                         Advanced
                         </NavLink>
                     </NavItem>
@@ -1095,7 +1087,7 @@ export default class MainPage extends React.Component {
                     </Collapse>
                 </Col>
                 <Col>
-                    <Row>
+                    <Row className="sticky-top">
                         <HelpBox style={styles.menuStyle} {...helpParams} />
                     </Row>
                 </Col>

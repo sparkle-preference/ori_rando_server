@@ -86,7 +86,7 @@ _horu = [
     ("Ancient Sketch", "A drawing of what appears to be the Water Vein."),
     ("\"The Fish Stratagem\"", "A record of many tasty recipes involving fish."),
     ("Flask of Fire", "Full of lava! Maybe the locals drink this stuff?"),
-    ("Anicent Stone", "Primordial rock from deep beneath the forest's surface, brought upwards by the shifting rocks.")
+    ("Ancient Stone", "Primordial rock from deep beneath the forest's surface, brought upwards by the shifting rocks.")
 ]
 
 relics = OrderedDict([

@@ -179,6 +179,16 @@ def picks_by_type_generator():
     return lines
 
 # request helpers
+def template_vals(app, title, user):
+    template_values = {'app': app, 'title': title, 'version': "%s.%s.%s" % tuple(VER)}
+    if user:
+        template_values['user'] = user.name
+        template_values['dark'] = user.dark_theme
+        if user.theme:
+            template_values['theme'] = user.theme
+    return template_values
+
+
 debug = os.environ.get('SERVER_SOFTWARE', '').startswith('Dev')
 path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
 
