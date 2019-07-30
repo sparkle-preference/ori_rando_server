@@ -124,7 +124,7 @@ class SiteBar extends Component {
         let page = encodeURIComponent(url.pathname + url.search)
         let xMode = dark ? "Light Mode" : "Dark Mode"
         let logonoff = user ? [
-            (<DropdownItem key="name" disabled><i>Logged in as ${user}</i></DropdownItem>),
+            (<DropdownItem key="name" disabled><i>Logged in as {user}</i></DropdownItem>),
             (<DropdownItem key="settings" onClick={() => this.setState({settingsOpen: true})}> Rename </DropdownItem>),
             (<DropdownItem key="my games" href={"/myGames"}>  My Games </DropdownItem>),
             (<DropdownItem key="logout" onClick={() => {localStorage.removeItem("rememberMe")}} href={`/logout?redir=${page}`}>  Logout </DropdownItem>),
