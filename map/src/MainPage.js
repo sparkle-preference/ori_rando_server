@@ -658,11 +658,6 @@ export default class MainPage extends React.Component {
             let {inputPlayerCount, gameId, seedIsBingo, paramId, flagLine, spoilers, inputSeed} = this.state
             let raw = flagLine.split('|');
             let seedStr = raw.pop();
-            // let {shared, unshared} = raw.join("").split(",").reduce((acc, curr) => (curr.startsWith("mode=") || curr.startsWith("shared=")) ? 
-            //         {shared: acc.shared.concat(curr), unshared: acc.unshared} : {shared: acc.shared, unshared: acc.unshared.concat(curr)}, {shared: [], unshared: []})
-            
-            // let sharedFlags = shared.length > 0 ? (<Row><Col><span className="align-middle">Sync: {shared.join(", ")}</span></Col></Row>) : null
-            // let flags = unshared.join(", ");
             let flagCols = raw.join("").split(",").map(flag => (<Col xs="auto" className="text-center" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("flags", flag)}><span class="ml-auto mr-auto align-middle">{flag}</span></Col>))
 
             let mapUrl = "/tracker/game/"+gameId+"/map";
@@ -937,7 +932,7 @@ export default class MainPage extends React.Component {
             <DropdownItem active={mode===goalModes[0]} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("goalModes", mode)} onClick={this.onGoalMode(mode)}>{VAR_NAMES[mode] || mode}</DropdownItem>
         )) : null
 
-        helpParams.padding = goalModesOpen ? "pt-5" : ""
+        helpParams.padding = goalModesOpen ? "pt-5 mt-3" : ""
         let lockTracking = goalModes.includes("Bingo") || this.state.players > 1
         let multiplayerTab = this.getMultiplayerTab(styles)
         let advancedTab = this.getAdvancedTab(styles)
@@ -1007,7 +1002,7 @@ export default class MainPage extends React.Component {
                                 <DropdownToggle disabled={goalModeMulti} color={goalModeMulti ? "disabled" :"primary"} className="text-capitalize" caret={!goalModeMulti} block> 
                                   {goalModeMulti ? "Multiple" : (VAR_NAMES[goalModes[0]] || goalModes[0])}
                                 </DropdownToggle>
-                                <DropdownMenu style={styles.menuStyle}>
+                                <DropdownMenu style={{zIndex: 10000, ...styles.menuStyle}}>
                                     {goalModeOptions}
                                 </DropdownMenu>
                             </Dropdown>
