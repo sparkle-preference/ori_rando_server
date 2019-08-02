@@ -955,7 +955,7 @@ class GetAuxSpoilerFromParams(RequestHandler):
         params = SeedGenParams.with_id(params_id)
         if params:
             player = int(self.request.GET.get("player_id", 1))
-            exclude = (param_val(self, "exclude") or "EX|KS|AC|EC|HC|MS").split("|")
+            exclude = (param_val(self, "exclude") or "EX KS AC EC HC MS").split(" ")
             by_zone = param_flag(self, "by_zone")
             spoiler = params.get_aux_spoiler(exclude, by_zone, player)
             if param_flag(self, "download"):
