@@ -3,7 +3,7 @@ from google.appengine.ext import ndb
 import logging as log
 import random
 
-from util import enums_from_strlist
+from util import enums_from_strlist, picks_by_coord
 from enums import (MultiplayerGameType, ShareType, Variation, LogicPath, KeyMode, PathDifficulty, presets)
 from collections import OrderedDict
 from seedbuilder.generator import SeedGenerator
@@ -11,6 +11,8 @@ from seedbuilder.generator import SeedGenerator
 JSON_SHARE = lambda x: x.value if x != ShareType.EVENT else "World Events"
 FLAGLESS_VARS = [Variation.WARMTH_FRAGMENTS, Variation.WORLD_TOUR]
 JSON_GAME_MODE = {MultiplayerGameType.SHARED: "Co-op", MultiplayerGameType.SIMUSOLO: "Race", MultiplayerGameType.SPLITSHARDS: "SplitShards"}
+PBC = picks_by_coord(extras=True)
+
 class Stuff(ndb.Model):
     code = ndb.StringProperty()
     id = ndb.StringProperty()
@@ -368,6 +370,10 @@ class SeedGenParams(ndb.Model):
         if self.is_plando:
             return self.spoilers[0]
         return self.spoilers[self.team_pid(player) - 1]
+
+    def get_aux_spoiler(self, exclude_types, player=1):
+        from models import Pickup
+        return "\n".join(["%-35s %s" % (PBC[int(loc)].area+":", Pickup.name(pcode, pid).replace("Repeatable: ", "").replace("Message: Press AltR to ", "").replace(", Warp to", "")) for loc, pcode, pid, _ in sorted(self.get_seed_data(player), key=lambda n: n[1]+n[2]) if pcode not in exclude_types and pcode+pid not in ["RB81", "EV5"]]) + "\n"
 
     def get_preset(self):
         pathset = set(self.logic_paths)

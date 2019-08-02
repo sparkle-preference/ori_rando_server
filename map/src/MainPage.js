@@ -925,7 +925,7 @@ export default class MainPage extends React.Component {
             <DropdownItem active={mode===keyMode} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("keyModes", mode)} onClick={this.onKeyMode(mode)}>{mode}</DropdownItem>
         ))
         let validGoalModes = ["None", "ForceTrees", "WorldTour", "ForceMaps", "WarmthFrags"]
-        if(tracking) 
+        if(tracking)
             validGoalModes.push("Bingo")
 
         let goalModeOptions = goalModes.length === 1 ? validGoalModes.map(mode => (

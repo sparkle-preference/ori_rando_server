@@ -949,6 +949,24 @@ class GetSpoilerFromParams(RequestHandler):
             self.response.status = 404
             self.response.write("Param %s not found" % params_id)
 
+class GetAuxSpoilerFromParams(RequestHandler):
+    def get(self, params_id):
+        self.response.headers['Content-Type'] = 'text/plain'
+        params = SeedGenParams.with_id(params_id)
+        if params:
+            player = int(self.request.GET.get("player_id", 1))
+            exclude = (param_val(self, "exclude") or "EX|KS|MS|AC|EC|HC|MS").split("|")
+            spoiler = params.get_aux_spoiler(exclude, player)
+            if param_flag(self, "download"):
+                self.response.headers['Content-Type'] = 'application/x-gzip'
+                self.response.headers['Content-Disposition'] = 'attachment; filename=spoiler.txt'
+                spoiler = spoiler.replace("\n", "\r\n")
+            self.response.write(spoiler)
+        else:
+            self.response.status = 404
+            self.response.write("Param %s not found" % params_id)
+
+
 class PicksByTypeGen(RequestHandler):
     def get(self):
         self.response.headers['Content-Type'] = 'application/json'
@@ -1038,18 +1056,6 @@ class NakedRedirect(RequestHandler):
     def get(self, path):
         return redirect(self.request.url.replace("www.", ""))
 
-class WeeklyPoll(RequestHandler):
-    def get(self):
-        return redirect('https://forms.gle/UGeN2uBN6kPbeWzt6')
-
-class OpenBookForm(RequestHandler):
-    def get(self):
-        return redirect('https://forms.gle/aCyEjh7YWPLo1YK36')
-
-class OpenBookLeaderboard(RequestHandler):
-    def get(self):
-        return redirect('https://docs.google.com/spreadsheets/d/1X6jJpjJVY_mly--9tnV9EGo5I6I_gJ4Sepkf51S9rQ4/edit?usp=sharing')
-
 app = WSGIApplication(
     routes=[
         DomainRoute('www.orirando.com', [Route('<path:.*>', handler=NakedRedirect)]),
@@ -1069,6 +1075,7 @@ app = WSGIApplication(
         Route('/metadata/<params_id:\d+>/<game_id:\d+>', handler=GetParamMetadata, name="gen-params-get-metadata-with-game", strict_slash=True),
         Route('/seed/<params_id:\d+>', handler=GetSeedFromParams, name="gen-params-get-seed", strict_slash=True),
         Route('/spoiler/<params_id:\d+>', handler=GetSpoilerFromParams, name="gen-params-get-spoiler", strict_slash=True),
+        Route('/aux_spoiler/<params_id:\d+>', handler=GetAuxSpoilerFromParams, name="gen-params-get-aux-spoiler", strict_slash=True),
         Route('/json', handler=SeedGenJson, name="gen-params-get-json")
     ]),
     # tracking map endpoints
@@ -1093,9 +1100,6 @@ app = WSGIApplication(
         ).get_routes())
     ),
     # misc / top level endpoints
-    Route('/weekly', handler=WeeklyPoll, name="weekly-poll"),
-    Route('/openBook/form', handler=OpenBookForm, name="open-book-form"),
-    Route('/openBook/leaderboard', handler=OpenBookLeaderboard, name="open-book-leaderboard"),
     Route('/logichelper', handler=LogicHelper, name="logic-helper", strict_slash=True),
     Route('/faq', handler=Guides, name="help-guides", strict_slash=True),
     Route('/', handler=ReactLanding, name="main-page"),
@@ -1117,6 +1121,9 @@ app = WSGIApplication(
     Route('/dll', redirect_to="https://github.com/turntekGodhead/OriDERandomizer/raw/master/Assembly-CSharp.dll"),
     Route('/dll/bingo', redirect_to="https://github.com/turntekGodhead/OriDERandomizer/raw/master/Assembly-CSharp.dll"),
     Route('/tracker', redirect_to="https://github.com/turntekGodhead/OriDETracker/raw/master/OriDETracker/bin/Latest.zip"),
+    Route('/weekly', redirect_to='https://forms.gle/UGeN2uBN6kPbeWzt6', name="weekly-poll"),
+    Route('/openBook/form', redirect_to='https://forms.gle/aCyEjh7YWPLo1YK36', name="open-book-form"),
+    Route('/openBook/leaderboard', redirect_to='https://docs.google.com/spreadsheets/d/1X6jJpjJVY_mly--9tnV9EGo5I6I_gJ4Sepkf51S9rQ4/edit?usp=sharing', name="open-book-leaderboard"),
     Route('/theme/toggle', handler=ThemeToggle, name="theme-toggle"),
     # netcode endpoints
     PathPrefixRoute('/netcode/game/<game_id:\d+>/player/<player_id:[^/]+>', [
