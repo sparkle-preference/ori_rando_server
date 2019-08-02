@@ -1039,8 +1039,8 @@ home: DashArea
 		standard-abilities ChargeJump
 		standard-abilities Climb DoubleJump
 		standard-abilities Climb Dash Ability=3
-		expert-core Climb
-		master-core DoubleJump
+		expert-abilities Climb
+		master-abilities DoubleJump
 home: DashPlantAccess
 	-- anchor: on the ledge next to the plant, or within grenade throw range
 	pickup: DashAreaPlant
