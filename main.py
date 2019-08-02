@@ -955,7 +955,7 @@ class GetAuxSpoilerFromParams(RequestHandler):
         params = SeedGenParams.with_id(params_id)
         if params:
             player = int(self.request.GET.get("player_id", 1))
-            exclude = (param_val(self, "exclude") or "EX|KS|MS|AC|EC|HC|MS").split("|")
+            exclude = (param_val(self, "exclude") or "EX|KS|AC|EC|HC|MS").split("|")
             spoiler = params.get_aux_spoiler(exclude, player)
             if param_flag(self, "download"):
                 self.response.headers['Content-Type'] = 'application/x-gzip'
@@ -1123,7 +1123,7 @@ app = WSGIApplication(
     Route('/tracker', redirect_to="https://github.com/turntekGodhead/OriDETracker/raw/master/OriDETracker/bin/Latest.zip"),
     Route('/weekly', redirect_to='https://forms.gle/UGeN2uBN6kPbeWzt6', name="weekly-poll"),
     Route('/openBook/form', redirect_to='https://forms.gle/aCyEjh7YWPLo1YK36', name="open-book-form"),
-    Route('/openBook/leaderboard', redirect_to='https://docs.google.com/spreadsheets/d/1X6jJpjJVY_mly--9tnV9EGo5I6I_gJ4Sepkf51S9rQ4/edit?usp=sharing', name="open-book-leaderboard"),
+    Route('/openBook/leaderboard', redirect_to='https://docs.google.com/spreadsheets/d/1X6jJpjJVY_mly--9tnV9EGo5I6I_gJ4Sepkf51S9rQ4/edit#gid=1488532179&range=A1', name="open-book-leaderboard"),
     Route('/theme/toggle', handler=ThemeToggle, name="theme-toggle"),
     # netcode endpoints
     PathPrefixRoute('/netcode/game/<game_id:\d+>/player/<player_id:[^/]+>', [
