@@ -371,9 +371,24 @@ class SeedGenParams(ndb.Model):
             return self.spoilers[0]
         return self.spoilers[self.team_pid(player) - 1]
 
-    def get_aux_spoiler(self, exclude_types, player=1):
+    def get_aux_spoiler(self, exclude_types, by_zone, player=1):
         from models import Pickup
-        return "\n".join(["%-35s %s" % (PBC[int(loc)].area+":", Pickup.name(pcode, pid).replace("Repeatable: ", "").replace("Message: Press AltR to ", "").replace(", Warp to", "")) for loc, pcode, pid, _ in sorted(self.get_seed_data(player), key=lambda n: n[1]+n[2]) if pcode not in exclude_types and pcode+pid not in ["RB81", "EV5"]]) + "\n"
+        outlines = []
+        seed_data = OrderedDict()
+        for coords, pcode, pid, _ in self.get_seed_data(player):
+            if pcode in exclude_types or pcode + pid in ["RB81", "EV5"]:
+                continue
+            loc = PBC[int(coords)]
+            pickup = Pickup.n(pcode, pid)
+            name = pickup.name.replace("Repeatable: ", "").replace("Message: Press AltR to ", "").replace(", Warp to", "")
+            sect = loc.zone if by_zone else type(Pickup.n(pcode, pid)).__name__
+            if sect not in seed_data:
+                seed_data[sect] = []
+            seed_data[sect].append((loc, name, pcode + pid))
+        for section, group in seed_data.items():
+            outlines += ["", "%s:" % section]
+            outlines += ["\t%-35s %s" % (l.area, n) for (l, n, _) in sorted(group, key=lambda (_, __, key): key)]
+        return "\n".join(outlines[1:])
 
     def get_preset(self):
         pathset = set(self.logic_paths)

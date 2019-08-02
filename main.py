@@ -956,7 +956,8 @@ class GetAuxSpoilerFromParams(RequestHandler):
         if params:
             player = int(self.request.GET.get("player_id", 1))
             exclude = (param_val(self, "exclude") or "EX|KS|AC|EC|HC|MS").split("|")
-            spoiler = params.get_aux_spoiler(exclude, player)
+            by_zone = param_flag(self, "by_zone")
+            spoiler = params.get_aux_spoiler(exclude, by_zone, player)
             if param_flag(self, "download"):
                 self.response.headers['Content-Type'] = 'application/x-gzip'
                 self.response.headers['Content-Disposition'] = 'attachment; filename=spoiler.txt'
