@@ -19,6 +19,7 @@ from seedbuilder.vanilla import seedtext as vanilla_seed
 if debug:
     from test.data import bingo_data as test_data
 
+
 def version_check(version):
     try:
         nums = [int(num) for num in version.split(".")]
@@ -611,7 +612,7 @@ class BingoGenerator(object):
                     help_lines = ["You do not need to turn them in."],
                     range_func = r((3, 5), (3, 7), (5, 9))
                 ),
-                IntGoal( name = "ActivateMaps",
+                IntGoal(name = "ActivateMaps",
                     disp_name = "Activate map altars",
                     help_lines = ["There are map altars in every zone besides Misty and Ginso"],
                     range_func = r((3, 5), (3, 7), (5, 9))

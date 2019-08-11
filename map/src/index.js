@@ -20,6 +20,7 @@ const VALID_THEMES = ["cerulean", "cosmo", "cyborg", "darkly", "flatly", "journa
     apps.forEach(async (app) => {
         if(document.getElementById(app)) {
             let link = document.createElement("link");
+            link.id = "css_switcher"
             link.type = "text/css";
             link.rel = "stylesheet";
             let css = 'https://maxcdn.bootstrapcdn.com/bootswatch/4.2.1/flatly/bootstrap.min.css'

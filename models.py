@@ -622,6 +622,8 @@ class BingoGameData(ndb.Model):
         change_squares = set()
         loss_squares = set()
         win_players = False
+        round_now = round_time(now - self.start_time)
+        place = ""
         win_sig = "win:$Finished in %s place at %s!"
         team = self.team(player_id, cap_only=False)
         team.score = 0
@@ -650,6 +652,7 @@ class BingoGameData(ndb.Model):
             if team.score >= self.square_count and not team.place:
                 self.event_log.append(BingoEvent(event_type = "win", loss = False, player = team.captain, timestamp = now))
                 team.place = len([t.place for t in self.teams if t.place]) + 1
+                place = ord_suffix(team.place)
                 win_players = True
         elif change_squares:
             for bingo, line in lines_by_index.items():
@@ -671,16 +674,18 @@ class BingoGameData(ndb.Model):
                         if len(team.bingos) >= self.bingo_count and not team.place:
                             self.event_log.append(BingoEvent(event_type = "win", loss = False, player = team.captain, timestamp = now))
                             team.place = len([t.place for t in self.teams if t.place]) + 1
+                            place = ord_suffix(team.place)
                             win_players = True
-        if not win_players and team.score == 25 and not team.blackout_place:
+        if team.score == 25 and not team.blackout_place:
             team.blackout_place = len([1 for t in self.teams if t.blackout_place]) + 1
             win_players = True
             win_sig = "win:$%s to blackout at %s!"
+            place = ord_suffix(team.blackout_place)
             need_write = True
         if win_players:
             p_list = [player] + teammates
             for p in p_list:
-                p.signal_send(win_sig % (ord_suffix(team.place), round_time(now - self.start_time)))
+                p.signal_send(win_sig % (place, round_now))
         player.put()
         if need_write:
             self.put()

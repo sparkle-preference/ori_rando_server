@@ -15,7 +15,7 @@ import SiteBar from "./SiteBar.js";
 const iniUrl = new URL(window.document.URL);
 const cardTextSize = iniUrl.searchParams.get("textSize") || "1.5vh"
 const hideFooter = iniUrl.searchParams.has("hideFooter")
-
+const hideLabels = iniUrl.searchParams.has("hideLabels")
 
 const make_icons = players => players.map(p => (<Media key={`playerIcon${p}`} object style={{width: "25px", height: "25px"}} src={player_icons(p, false)} alt={"Icon for player "+p} />))
 const BingoCard = ({card, progress, players, help, dark, selected, onSelect, colors}) => {
@@ -53,9 +53,9 @@ const BingoCard = ({card, progress, players, help, dark, selected, onSelect, col
     let className = "px-0 pb-0 justify-content-center text-center align-items-center d-flex " + ((text.length > 1) ? "pt-0 flex-column" : "pt-1")
 
     if(help_lines && help_lines.length > 0) {
-        let helpText = help_lines.map(l => (<div>{l}</div>))
+        let helpText = help_lines.map((l,i) => (<div key={`help-line-${i}`}>{l}</div>))
         helpLink = (
-            <div className="m-0 p-0 float-left"><Button color="link" className="pl-1 pt-1 pb-0 pr-0 m-0" id={"help-"+i} onClick={toggle}>?</Button></div>
+            <div className="m-0 p-0 float-left"><Button color="link" className="pl-1 pt-1 pb-0 pr-0 m-0" key={"help-"+i} onClick={toggle}>?</Button></div>
             )
         popover = (
             <Popover placement="top" isOpen={open} target={"help-"+i} toggle={toggle}>
@@ -100,13 +100,13 @@ class BingoBoard extends Component {
         return {selected: prev.selected}
     })
     render() {
-        let {cards, activePlayer, bingos, dark, hiddenPlayers, activeTeam, colors} = this.props
+        let {cards, bingos, colors, hiddenPlayers, activePlayer, activeTeam, dark} = this.props
         if(!cards || cards.length < 25) {
             return null
         }
         let rows = [], i = 0;
-        let colStyle = (b) => bingos.includes(b) ? {height: "20px", width: "100%", background: colors.complete} : {height: "20px", width: "100%"}
-        let rowStyle = (b) => bingos.includes(b) ? {width: "20px", height: "100%", textAlign:"center", background: colors.complete} : {width: "20px", height: "100%", textAlign: "center"}
+        let colStyle = (b) => ({height: "22px", textAlign: 'center', background: bingos.includes(b) ? colors.complete : 'inherit'})
+        let rowStyle = (b) => ({textAlign: 'center', visibility: hideLabels ? 'hidden' : 'inherit', width: "22px", background: bingos.includes(b) ? colors.complete : 'inherit'})
         while(rows.length < 5) {
             let row = []
             while(row.length < 5) {
@@ -119,22 +119,30 @@ class BingoBoard extends Component {
                 i++
             }
             let rowNum = rows.length + 1
-            rows.push((<tr key={`row-${rowNum}`}><td style={rowStyle(`Row ${rowNum}`)}><div>{rowNum}</div></td>{row}</tr>))
+            let rowLabel = (<td className={"rounded"} style={rowStyle(`Row ${rowNum}`)}><div>{rowNum}</div></td>)
+            rows.push((<tr key={`row-${rowNum}`}>{rowLabel}{row}{rowLabel}</tr>))
         }
 
         return (<table>
                     <tbody>
-                        <tr style={{textAlign: 'center'}}>
-                            <td><div style={colStyle("A1-E5")}>X1</div></td>
-                            <td><div style={colStyle("Col A")}>A</div></td>
-                            <td><div style={colStyle("Col B")}>B</div></td>
-                            <td><div style={colStyle("Col C")}>C</div></td>
-                            <td><div style={colStyle("Col D")}>D</div></td>
-                            <td><div style={colStyle("Col E")}>E</div></td>
+                        <tr style={{visibility: hideLabels ? 'hidden' : 'inherit'}}>
+                            <td><div className="rounded" style={colStyle("A1-E5")}>X</div></td>
+                            <td><div className="rounded" style={colStyle("Col A")}>A</div></td>
+                            <td><div className="rounded" style={colStyle("Col B")}>B</div></td>
+                            <td><div className="rounded" style={colStyle("Col C")}>C</div></td>
+                            <td><div className="rounded" style={colStyle("Col D")}>D</div></td>
+                            <td><div className="rounded" style={colStyle("Col E")}>E</div></td>
+                            <td><div className="rounded" style={colStyle("E1-A5")}>Y</div></td>
                         </tr>
                         {rows}
-                        <tr style={{textAlign: 'center'}}>
-                            <td><div style={colStyle("E1-A5")}>X2</div></td>
+                        <tr style={{visibility: hideLabels ? 'hidden' : 'inherit', textAlign: 'center'}}>
+                            <td><div className="rounded" style={colStyle("E1-A5")}>Y</div></td>
+                            <td><div className="rounded" style={colStyle("Col A")}>A</div></td>
+                            <td><div className="rounded" style={colStyle("Col B")}>B</div></td>
+                            <td><div className="rounded" style={colStyle("Col C")}>C</div></td>
+                            <td><div className="rounded" style={colStyle("Col D")}>D</div></td>
+                            <td><div className="rounded" style={colStyle("Col E")}>E</div></td>
+                            <td><div className="rounded" style={colStyle("A1-E5")}>X</div></td>
                         </tr>
                     </tbody>
                 </table>);

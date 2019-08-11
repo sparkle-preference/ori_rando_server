@@ -110,9 +110,15 @@ class SiteBar extends Component {
             window.location.replace(redirTarget.href)
         } else {
             if(dark && localStorage.getItem("dark"))
+            {
                 localStorage.removeItem("dark")
-            else
+                document.getElementById("css_switcher").href = 'https://maxcdn.bootstrapcdn.com/bootswatch/4.2.1/flatly/bootstrap.min.css'
+                this.setState({dark: false})
+            } else {
                 localStorage.setItem("dark", "true")
+                document.getElementById("css_switcher").href = 'https://maxcdn.bootstrapcdn.com/bootswatch/4.2.1/darkly/bootstrap.min.css'
+                this.setState({dark: true})
+            }
         }
     }
 
@@ -199,7 +205,7 @@ class SiteBar extends Component {
                     </DropdownToggle>
                     <DropdownMenu right>
                     {logonoff}
-                    <DropdownItem onClick={this.themeToggle}>
+                    <DropdownItem style={{cursor: 'pointer'}} onClick={this.themeToggle}>
                         {xMode}
                     </DropdownItem>
                     </DropdownMenu>
