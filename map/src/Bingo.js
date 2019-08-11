@@ -55,7 +55,7 @@ const BingoCard = ({card, progress, players, help, dark, selected, onSelect, col
     if(help_lines && help_lines.length > 0) {
         let helpText = help_lines.map((l,i) => (<div key={`help-line-${i}`}>{l}</div>))
         helpLink = (
-            <div className="m-0 p-0 float-left"><Button color="link" className="pl-1 pt-1 pb-0 pr-0 m-0" key={"help-"+i} onClick={toggle}>?</Button></div>
+            <div className="m-0 p-0 float-left"><Button color="link" className="pl-1 pt-1 pb-0 pr-0 m-0" id={"help-"+i} key={"help-"+i} onClick={toggle}>?</Button></div>
             )
         popover = (
             <Popover placement="top" isOpen={open} target={"help-"+i} toggle={toggle}>
