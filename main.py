@@ -358,7 +358,7 @@ class GetGameData(RequestHandler):
             return
         params = game.params.get()
         gamedata["paths"] = params.logic_paths
-        gamedata["players"] = [{'pid': p.pid(), 'name': p.name()} for p in game.get_players()]
+        gamedata["players"] = [p.userdata() for p in game.get_players()]
         gamedata["closed_dungeons"] = Variation.CLOSED_DUNGEONS in params.variations
         gamedata["open_world"] = Variation.OPEN_WORLD in params.variations
         self.response.write(json.dumps(gamedata))

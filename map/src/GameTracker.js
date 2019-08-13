@@ -36,9 +36,9 @@ const PlayerMarker = ({ map, position, icon, name, sense}) => sense ? (
 )
 
 const PlayerMarkersList = ({map, players}) => {
-	let players_to_show = Object.keys(players).filter(id => players[id].show_marker)
-	const items = players_to_show.map((id) => (
-		<PlayerMarker  key={"player_"+id} map={map} position={players[id].pos  || [-210, 189]} name={players[id].name} icon={player_icons(id)} sense={players[id].show_sense}  />
+	let players_to_show = Object.keys(players).filter(id => players[id].show_marker).map(id => players[id])
+	const items = players_to_show.map(({id, pos, name, show_sense}) => (
+		<PlayerMarker  key={"player_"+id} map={map} position={pos  || [-210, 189]} name={name} icon={player_icons(id)} sense={show_sense}  />
 	));
 	return (<div style={{display: 'none'}}>{items}</div>);
 }
@@ -416,6 +416,7 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
 					Object.keys(update.players).forEach(pid => {
 						if(!players.hasOwnProperty(pid)){
 							players[pid] = {...EMPTY_PLAYER};
+                            players[pid].id = pid
 						}
                         let {reachable, pos, seen} = update.players[pid];
                         players[pid].seen = seen
@@ -438,10 +439,11 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
                     this.setState(state => {
                         let {paths, closed_dungeons, open_world, players} = JSON.parse(res);
                         let curr_players = state.players;
-                        players.forEach(({pid, name}) => {
+                        players.forEach(({pid, name, ppid}) => {
                             if(!curr_players.hasOwnProperty(pid))
                             {
                                 curr_players[pid] = {...EMPTY_PLAYER}
+                                curr_players[pid].id = ppid || pid
                                 curr_players[pid].name = name
                             }
                         })

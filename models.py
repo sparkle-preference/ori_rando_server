@@ -137,7 +137,6 @@ class HistoryLine(ndb.Model):
 class User(ndb.Model):
     # key = user_id
     name = ndb.StringProperty()
-    preferred_player = ndb.IntegerProperty()
     games = ndb.KeyProperty("Game", repeated=True)
     dark_theme = ndb.BooleanProperty(default=False)
     teamname = ndb.StringProperty()
@@ -237,6 +236,16 @@ class Player(ndb.Model):
             if u and u.name:
                 return u.name
         return "Player %s" % self.pid()
+
+    def userdata(self):
+        name = "Player %s" % self.pid()
+        ppid = self.pid()
+        if self.user:
+            u = self.user.get()
+            if u:
+                name = u.name
+                ppid = u.pref_num
+        return {'name': name, 'ppid': ppid, 'pid': self.pid()}
 
     def teamname(self):
         if self.user:
