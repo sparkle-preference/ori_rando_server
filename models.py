@@ -1170,7 +1170,18 @@ class Game(ndb.Model):
 
     @staticmethod
     def from_params(params, gid=None):
-        gid = int(gid) if gid else Game.get_open_gid()
+        retries = 0
+        while retries < 5:
+            gid = int(gid) if gid else Game.get_open_gid()
+            try:
+                return Game.from_params_transactional(params, gid)
+            finally:
+                retries += 1
+        return Game.from_params_transactional(params, gid)
+
+    @staticmethod
+    @ndb.transactional(retries=0, xg=True)
+    def from_params_transactional(params, gid):
         game = Game(
             id=gid, params=params.key, players=[],
             str_shared=[s.value for s in params.sync.shared],
@@ -1192,12 +1203,13 @@ class Game(ndb.Model):
                         player.put()
             else:
                 for i in range(params.players):
-                    player = game.player(i + 1, delay_put = True)
+                    player = game.player(i + 1)
                     Cache.set_pos(gid, i + 1, 189, -210)
         game.put()
         game.rebuild_hist()
         log.debug("Game.from_params(%s, %s): Created game %s ", params.key, id, game)
         return game
+
 
     @staticmethod
     def new(_mode=None, _shared=None, id=None):
