@@ -144,6 +144,10 @@ class User(ndb.Model):
     theme  = ndb.StringProperty()
 
     @staticmethod
+    def is_admin():
+        return users.is_current_user_admin()
+
+    @staticmethod
     def login_url(redirect_after):
         return users.create_login_url(redirect_after)
 
@@ -215,8 +219,8 @@ class Player(ndb.Model):
     # id = gid.pid
     skills      = ndb.IntegerProperty()
     events      = ndb.IntegerProperty()
-    bonuses     = ndb.JsonProperty(default={})
-    hints       = ndb.JsonProperty(default={})
+    bonuses     = ndb.JsonProperty()
+    hints       = ndb.JsonProperty()
     teleporters = ndb.IntegerProperty()
     seed        = ndb.TextProperty()
     signals     = ndb.StringProperty(repeated=True)
@@ -226,6 +230,19 @@ class Player(ndb.Model):
     user        = ndb.KeyProperty('User')
     can_nag     = ndb.BooleanProperty(default=True)
     bingo_prog  = ndb.LocalStructuredProperty(BingoCardProgress, repeated=True)
+
+    @ndb.transactional(retries=5)
+    def reset(self):
+        self.can_nag = True
+        self.skills = 0
+        self.events = 0
+        self.teleporters = 0
+        self.bonuses = {}
+        self.signals = []
+        self.history = []
+        self.bingo_prog = [BingoCardProgress(square=i) for i in range(25)]
+        self.put()
+        
 
     def sharetuple(self):
         return (self.skills, self.events, self.teleporters, len(self.bonuses))
@@ -501,6 +518,24 @@ class BingoGameData(ndb.Model):
     square_count     = ndb.IntegerProperty()
     teams_shared     = ndb.BooleanProperty(default=False)
     game             = ndb.KeyProperty("Game")
+
+    @ndb.transactional(retries=5, xg=True)
+    def reset(self):
+        self.event_log = self.event_log[0:1]
+        self.current_highest = 0
+        self.started = False
+        if 'start_time' in self._values:
+            del self._values['start_time']
+        for card in self.board:
+            card.completed_by = []
+        for team in self.teams:
+            team.bingos = []
+            team.score = 0
+            if 'place' in team._values:
+                del team._values['place']
+            if 'blackout_place' in team._values:
+                del team._values['blackout_place']
+        self.put()
 
     @staticmethod
     def with_id(id):
@@ -817,9 +852,9 @@ class Game(ndb.Model):
     players     = ndb.KeyProperty(Player, repeated=True)
     relics      = ndb.StringProperty(repeated=True)
     params      = ndb.KeyProperty(SeedGenParams)
-    bingo       = ndb.LocalStructuredProperty(BingoGameData)
     bingo_data  = ndb.KeyProperty(BingoGameData)
     dedup       = ndb.BooleanProperty(default=False)
+    creator     = ndb.KeyProperty("User")
 
     def history(self, pids=[]):
         if not self.hls:
@@ -1024,9 +1059,9 @@ class Game(ndb.Model):
             log.debug("Game %s has no player %s (%s) creating...", gid, pid, self.players)
             if(self.mode == MultiplayerGameType.SHARED and len(self.players)):
                 src = self.players[0].get()
-                player = Player(id=full_pid, skills=src.skills, events=src.events, teleporters=src.teleporters, bonuses=src.bonuses, history=[], signals=[], hints=src.hints, parent=self.key)
+                player = Player(id=full_pid, skills=src.skills, events=src.events, teleporters=src.teleporters, hints={}, bonuses=src.bonuses.copy(), history=[], signals=[], parent=self.key)
             else:
-                player = Player(id=full_pid, skills=0, events=0, teleporters=0, history=[], parent=self.key)
+                player = Player(id=full_pid, skills=0, events=0, teleporters=0, history=[], hints={}, bonuses={}, parent=self.key)
             k = player.put()
             Cache.set_pos(gid, pid, 189, -210)
             Cache.set_hist(gid, pid, [])
@@ -1150,6 +1185,17 @@ class Game(ndb.Model):
         self.key.delete()
         return self.key
 
+    def reset(self):
+        self.hls = []
+        self.start_time = datetime.now()
+        for player in self.get_players():
+            player.reset()
+        if self.bingo_data:
+            self.bingo_data.get().reset()
+        Cache.remove_game(self.key.id())
+        self.rebuild_hist()
+        self.put()
+
     @staticmethod
     def with_id(id):
         return Game.get_by_id(int(id))
@@ -1205,6 +1251,9 @@ class Game(ndb.Model):
                 for i in range(params.players):
                     player = game.player(i + 1)
                     Cache.set_pos(gid, i + 1, 189, -210)
+        user = User.get()
+        if user:
+            game.creator = user.key
         game.put()
         game.rebuild_hist()
         log.debug("Game.from_params(%s, %s): Created game %s ", params.key, id, game)
@@ -1220,7 +1269,10 @@ class Game(ndb.Model):
         mode = MultiplayerGameType.mk(_mode) if _mode else MultiplayerGameType.SIMUSOLO
         id = int(id) if id else Game.get_open_gid()
         game = Game(id=id, players=[], str_shared=[s.value for s in shared], str_mode=mode.value)
+        user = User.get()
+        if user:
+            game.creator = user.key
         key = game.put()
-        log.info("Game.new(%s, %s, %s): Created game %s ", _mode, _shared, id, game)
+        log.debug("Game.new(%s, %s, %s): Created game %s ", _mode, _shared, id, game)
         return key
 

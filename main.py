@@ -1057,6 +1057,20 @@ class NakedRedirect(RequestHandler):
     def get(self, path):
         return redirect(self.request.url.replace("www.", ""))
 
+class ResetGame(RequestHandler):
+    def get(self, game_id):
+        self.response.headers['Content-Type'] = 'text/plain'
+        game = Game.with_id(game_id)
+        if not game:
+            return resp_error(self, 404, "game not found!")
+        user = User.get()
+        if User.is_admin() or (user and user.key == game.creator):
+            game.reset()
+            self.response.write("Game reset successfully")
+        else:
+            return resp_error(self, 401, "Can't restart a game you didn't create...")
+
+
 app = WSGIApplication(
     routes=[
         DomainRoute('www.orirando.com', [Route('<path:.*>', handler=NakedRedirect)]),
@@ -1119,6 +1133,7 @@ app = WSGIApplication(
     (r'/logout/?', HandleLogout),
     ('/vanilla', Vanilla),
     Route('/discord', redirect_to="https://discord.gg/TZfue9V"),
+    Route('/reset/<game_id:\d+>', handler=ResetGame, name="restart-game"),
     Route('/dll', redirect_to="https://github.com/turntekGodhead/OriDERandomizer/raw/master/Assembly-CSharp.dll"),
     Route('/dll/bingo', redirect_to="https://github.com/turntekGodhead/OriDERandomizer/raw/master/Assembly-CSharp.dll"),
     Route('/tracker', redirect_to="https://github.com/turntekGodhead/OriDETracker/raw/master/OriDETracker/bin/Latest.zip"),
