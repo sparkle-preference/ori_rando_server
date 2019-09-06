@@ -19,7 +19,7 @@ from seedbuilder.vanilla import seedtext as vanilla_seed
 from enums import MultiplayerGameType, ShareType, Variation
 from models import Game, Seed, User, BingoGameData, trees_by_coords
 from cache import Cache
-from util import coord_correction_map, all_locs, picks_by_type_generator, param_val, param_flag, resp_error, debug, path, VER, template_vals
+from util import coord_correction_map, all_locs, picks_by_type_generator, param_val, param_flag, resp_error, debug, path, VER, version_check, template_vals
 from reachable import Map, PlayerState
 from pickups import Pickup
 
@@ -250,35 +250,28 @@ class ClearCache(RequestHandler):
 
 class SetSeed(RequestHandler):
     def post(self, game_id, player_id):
-        lines = self.request.POST["seed"].split(",") if "seed" in self.request.POST else []
-        self.handle(game_id, player_id, lines)
-
-    def get(self, game_id, player_id):
-        lines = param_val(self, "seed").split(",")
-        if "Bingo" in lines[0].split("|"):
-            game = Game.with_id(game_id)
-            if game:
-                p = game.player(player_id)
-                p.signal_send("msg:@Bingo dll required for bingo games!@")
-        self.handle(game_id, player_id, lines)
-
-    def handle(self, game_id, player_id, lines):
         game = Game.with_id(game_id)
         hist = Cache.get_hist(game_id)
         if not hist:
             Cache.set_hist(game_id, player_id, [])
-        if not game:
-            # TODO: this branch is now probably unnecessary.
-            # experiment with deleting it.
-            log.error("game was not already created! %s" % game_id)
-            flags = lines[0].split("|")
-            mode_opt = [f[5:] for f in flags if f.lower().startswith("mode=")]
-            shared_opt = [f[7:].split(" ") for f in flags if f.lower().startswith("shared=")]
-            mode = mode_opt[0] if mode_opt else None
-            shared = shared_opt[0] if shared_opt else None
-            Game.new(_mode=mode, _shared=shared, id=game_id)
-        else:
+        if game:
+            p = game.player(player_id)
+            if p.can_nag and "version" in self.request.POST and (not version_check(self.request.POST["version"])):
+                p.signal_send("msg:@dll out of date. (orirando.com/dll)@")
+                p.can_nag = False
+                p.put()
             game.sanity_check()  # cheap if game is short!
+        else:
+            # TODO: this branch is now probably unnecessary.
+            # experimenting with deleting it.
+    #       lines = self.request.POST["seed"].split(",") if "seed" in self.request.POST else []
+            log.error("game was not already created! %s" % game_id)
+            # flags = lines[0].split("|")
+            # mode_opt = [f[5:] for f in flags if f.lower().startswith("mode=")]
+            # shared_opt = [f[7:].split(" ") for f in flags if f.lower().startswith("shared=")]
+            # mode = mode_opt[0] if mode_opt else None
+            # shared = shared_opt[0] if shared_opt else None
+            # Game.new(_mode=mode, _shared=shared, id=game_id)
         self.response.headers['Content-Type'] = 'text/plain'
         self.response.status = 200
         self.response.write("ok")
@@ -1014,16 +1007,15 @@ class SetSettings(RequestHandler):
         else:
             self.response.write("You are not logged in!")
 
-class LastestMap(RequestHandler):
+class LatestMap(RequestHandler):
     def get(self, name):
-        now = datetime.utcnow()
         user = User.get_by_name(name)
         if not user:
             return resp_error(self, 404, "User '%s' not found" % name, "text/plain")
         if not user.games:
             return resp_error(self, 404, "Could not find any tracked games for user '%s'" % name, "text/plain")
         game_key = user.games[-1]
-        return redirect(uri_for('map-render', game_id=game_key.id()))
+        return redirect("%s?%s" % (uri_for('map-render', game_id=game_key.id()), "&".join(["%s=%s" % (k, v) for k, v in self.request.GET.items()])))
 
 
 class SetPlayerNum(RequestHandler):
@@ -1094,7 +1086,7 @@ app = WSGIApplication(
         Route('/json', handler=SeedGenJson, name="gen-params-get-json")
     ]),
     # tracking map endpoints
-    Route('/tracker/spectate/<name>', handler = LastestMap, name = "user-latest-map", strict_slash = True),
+    Route('/tracker/spectate/<name>', handler = LatestMap, name = "user-latest-map", strict_slash = True),
 
     PathPrefixRoute('/tracker/game/<game_id:\d+>', [
         Route('/', redirect_to_name="map-render"),

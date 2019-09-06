@@ -1,9 +1,24 @@
 from math import floor
 from collections import defaultdict, namedtuple
 from seedbuilder.oriparse import get_areas
+import logging as log
 import os
 
-VER = [3, 3, 0]
+VER = [3, 3, 2]
+MIN_VER = [3, 3, 2]
+
+def version_check(version):
+    try:
+        nums = [int(num) for num in version.split(".")]
+        for latest, test in zip(MIN_VER, nums):
+            if latest > test:
+                return False
+            if test > latest:
+                return True
+        return True
+    except Exception as e:
+        log.error("failed version check for version %s: %s", version, e)
+        return False
 
 coord_correction_map = {
     679620: 719620,

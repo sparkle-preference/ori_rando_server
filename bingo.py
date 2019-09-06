@@ -13,25 +13,11 @@ from google.appengine.ext.ndb import transactional
 from enums import MultiplayerGameType, Variation
 from models import Game, User, BingoCard, BingoGameData, BingoEvent, BingoTeam
 from pickups import Pickup, Skill, AbilityCell, HealthCell, EnergyCell, Multiple
-from util import param_val, param_flag, resp_error, debug, path, VER
+from util import param_val, param_flag, resp_error, debug, path, VER, version_check
 from seedbuilder.vanilla import seedtext as vanilla_seed
 
 if debug:
     from test.data import bingo_data as test_data
-
-
-def version_check(version):
-    try:
-        nums = [int(num) for num in version.split(".")]
-        for latest, test in zip(VER, nums):
-            if latest > test:
-                return False
-            if test > latest:
-                return True
-        return True
-    except Exception as e:
-        log.error("failed version check for version %s: %s", version, e)
-        return False
 
 class BingoGoal(object):
     max_repeats = 1
