@@ -10,6 +10,7 @@ from webapp2_extras.routes import RedirectRoute as Route
 from google.appengine.ext.webapp import template
 from google.appengine.ext.ndb import transactional
 
+from cache import Cache
 from enums import MultiplayerGameType, Variation
 from models import Game, User, BingoCard, BingoGameData, BingoEvent, BingoTeam
 from pickups import Pickup, Skill, AbilityCell, HealthCell, EnergyCell, Multiple
@@ -943,15 +944,16 @@ class BingoGetGame(RequestHandler):
     def get(self, game_id):
         now = datetime.utcnow()
         first = param_flag(self, "first")
-        res = {}
-        bingo = BingoGameData.with_id(game_id)
-        if not bingo:
-            return resp_error(self, 404, "Bingo game %s not found" % game_id, "text/plain")
-        res = bingo.get_json(first)
-        if param_flag(self, "time"):
-            server_now = timegm(now.timetuple()) * 1000
-            client_now = int(param_val(self, "time"))
-            res["offset"] = server_now - client_now
+        res = Cache.get_board(game_id)
+        if first or not res:
+            bingo = BingoGameData.with_id(game_id)
+            if not bingo:
+                return resp_error(self, 404, "Bingo game %s not found" % game_id, "text/plain")
+            res = bingo.get_json(first)
+            if param_flag(self, "time"):
+                server_now = timegm(now.timetuple()) * 1000
+                client_now = int(param_val(self, "time"))
+                res["offset"] = server_now - client_now
         self.response.headers['Content-Type'] = 'application/json'
         self.response.write(json.dumps(res))
 
@@ -997,16 +999,10 @@ class HandleBingoUpdate(RequestHandler):
             return resp_error(self, 404, "Bingo game %s not found" % game_id, "text/plain")
         if int(player_id) not in bingo.player_nums():
             return resp_error(self, 412, "player not in game! %s" % bingo.player_nums())
-        p = bingo.player(player_id)
         bingo_data = json.loads(self.request.POST["bingoData"]) if "bingoData" in self.request.POST  else None
         if debug and player_id in test_data:
             bingo_data = test_data[player_id]['bingoData']
-        need_update = (not version_check(self.request.POST["version"])) if "version" in self.request.POST else False
-        bingo.update(bingo_data, player_id)
-        if need_update and p.can_nag:
-            p.signal_send("msg:@dll out of date. (orirando.com/dll)@")
-            p.can_nag = False
-            p.put()
+        bingo.update(bingo_data, player_id, game_id)
 
 class BingoUserboard(RequestHandler):
     def get(self, name):

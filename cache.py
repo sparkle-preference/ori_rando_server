@@ -69,6 +69,14 @@ class Cache(object):
         pos_map = Cache.get_pos(gid) or {}
         pos_map[int(pid)] = (x, y)
         memcache.set(key="%s.pos" % gid, value=pos_map, time=3600)
+    
+    @staticmethod
+    def get_board(gid):
+        return memcache.get(key="%s.board" % gid)
+
+    @staticmethod
+    def set_board(gid, board):
+        return memcache.set(key="%s.board" % gid, value=board, time=3600)
 
     @staticmethod
     def remove_game(gid):

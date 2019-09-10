@@ -4,7 +4,7 @@ import {Navbar,  NavbarBrand, Nav,  NavItem, Button, Modal, ModalHeader, ModalBo
 import {Cent, doNetRequest, get_random_loader, get_param, get_flag} from './common.js';
 
 const BAD_CHARS = ["@", "/", "\\", "?", "#", "&", "=", '"', "'"]
-const VERSION = get_param("version")
+const VERSION = get_param("version");
 class SiteBar extends Component {
     constructor(props) {
         super(props);

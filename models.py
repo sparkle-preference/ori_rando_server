@@ -5,7 +5,7 @@ import logging as log
 from json import dumps as jsonify
 from datetime import datetime, timedelta
 from calendar import timegm
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 
 from seedbuilder.seedparams import Placement, Stuff, SeedGenParams
 from enums import MultiplayerGameType, ShareType, Variation
@@ -590,8 +590,8 @@ class BingoGameData(ndb.Model):
             p.put()
         return p
 
-    def get_json(self, initial=False):
-        players = self.get_players()
+    def get_json(self, initial=False, players=[]):
+        players = players or self.get_players()
         players_by_pkey = {p.key: p for p in players}
         res = {
             'cards':  [c.to_json(players, initial) for c in self.board],
@@ -624,15 +624,26 @@ class BingoGameData(ndb.Model):
     def get_seed(self, pid):
         sync_flag = ("Sync%s.%s," % (self.key.id(), pid))
         game = self.game.get()
+        goals = OrderedDict()
+        goals[""] = []
+        for card in self.board:
+            if card.subgoals:
+                goals[card.name] = [subgoal["name"] for subgoal in card.subgoals] + goals.get(card.name, [])
+            elif card.goal_method == "count":
+                goals[card.name] = goals.get(card.name, []) + ["COUNT"]
+            else:
+                goals[""].append(card.name + ("-%s" % card.target if card.target else ""))
+        print goals
+        goalstr = "Goals" + "/".join(["%s:%s" % (goal, ",".join(set(subgoals))) for (goal, subgoals) in goals.items()]) + "\n"
         if not game.params:
-            return sync_flag + self.seed
+            return sync_flag + self.seed + "\n" + goalstr
         else:
             params = game.params.get()
             if Variation.BINGO not in params.variations:
                 params.variations.append(Variation.BINGO)
                 params = params.put().get()
             if params.players == 1:
-                return sync_flag + params.get_seed(1, include_sync=False)
+                return sync_flag + params.get_seed(1, include_sync=False) + goalstr
             else:
                 team = self.team(pid, cap_only=False)
                 if not team:
@@ -642,7 +653,7 @@ class BingoGameData(ndb.Model):
                 if params.players < p_number:
                     log.error("player %s can't get seed as there is no seed available" % pid)
                     return None
-                return sync_flag + params.get_seed(p_number, include_sync=False)
+                return sync_flag + params.get_seed(p_number, include_sync=False) + goalstr
 
 
     def team(self, pid, cap_only=True):
@@ -658,7 +669,7 @@ class BingoGameData(ndb.Model):
         return None
 
     @ndb.transactional(retries=2, xg=True)
-    def update(self, bingo_data, player_id):
+    def update(self, bingo_data, player_id, game_id):
         player_id = int(player_id)
         if not self.start_time:
             return
@@ -671,9 +682,10 @@ class BingoGameData(ndb.Model):
         win_sig = "win:$Finished in %s place at %s!"
         team = self.team(player_id, cap_only=False)
         team.score = 0
-        player = self.player(player_id)
+        players_by_id = {_pid(p.key): p for p in self.get_players()}
+        player = players_by_id[player_id]
         cpid = _pid(team.captain)
-        teammates = [self.player(pid) for pid in team.pids() if pid != player_id]
+        teammates = [self.players_by_id[pid] for pid in team.pids() if pid != player_id]
         need_write = False
         for card in self.board:
             if card.name in bingo_data:
@@ -733,6 +745,7 @@ class BingoGameData(ndb.Model):
         player.put()
         if need_write:
             self.put()
+        Cache.set_board(game_id, self.get_json(players=players_by_id.values()))
 
 class Seed(ndb.Model):
     # Seed ids used to be author_name:name but are being migrated to author_id:name
