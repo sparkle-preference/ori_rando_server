@@ -109,7 +109,7 @@ const getHelpHelper = (category, option) => {
                     title =  "Casual" 
                     lines = [
                         "Casual is the easiest logic mode, intended and recommended for players who have never done a speedrun of Ori.",
-                        "This difficulty mode generally does not require the use of glitches or skills in unintended ways: the one exception to this is the usage of Stomp to break blue (Charge Flame) walls from the left side.",
+                        "This difficulty mode does not require the use of glitches or creative use of skills.",
                         "Recommended for people who played Ori casually and are looking to try out the randomizer."
                     ]
                     break;
@@ -554,7 +554,8 @@ const getHelpHelper = (category, option) => {
                     title = "Share World Events"
                     lines = [
                         "With Share World Events enabled, the 3 Dungeon Keys (or Shards), Clean Water, Wind Restored, and Warmth Fragments will be shared between players when found.",
-                        "Sharing World Events is recommended for every co-op game varient, though it is less interesting in certain Dungeon Key modes (*cough*limitkeys*cough*)."
+                        "Sharing World Events is recommended for every co-op game varient, though it is less interesting in certain Dungeon Key modes (*cough*limitkeys*cough*).",
+                        "Note: Shards and Warmth Fragments are always deduped as though Dedup Shared were enabled"
                     ]
                     break;
                 case "Upgrades":
@@ -562,15 +563,15 @@ const getHelpHelper = (category, option) => {
                     lines = [
                         "With Share Upgrades enabled, all permenant upgrades (or bonuses) will be shared between players when found.",
                         "All upgrades besides Mega Health and Mega Energy are considered permenant upgrades, including everything unlocked by the 'More Bonus Pickups' variation.",
-                        "Because there are more upgrades than there are items in any other shared item category, this option is not recommended in combination with the Dedup option."
                     ]
                     break;
                 case "Dedup":
                     title = "Dedup Shared"
                     lines= [
-                        "This option removes extra copies of shared items from the seeds, resulting in a very different kind of cloned seed.",
-                        "For each shared item in the original seed, one player is chosen at random. That player will find that item at its intended location; all other players will find a hint there instead.",
-                        "The hint will specify the shared item category and which player the item is for (eg 'Skill for Player 2', 'World Event for Player 1').",
+                        "With Dedup Shared enabled, stackable bonus pickups (Extra Double Jump, Regens, Skill Velocity, etc) will only grant one stack per item location.",
+                        "(Without Dedup Shared, players can gain up to 1 stack per player of any of these items, as long as each player collects their copy).",
+                        "Dedup Shared has no effect on seeds without Share Upgrades enabled. Shards and Warmth Fragments are always deduped."
+,
                     ]
                     break;
                 case "Hints":
