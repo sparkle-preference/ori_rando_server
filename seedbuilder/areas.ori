@@ -715,10 +715,10 @@ home: ChargeFlameAreaStump
 	conn: ChargeFlameSkillTreeChamber
 		casual-core WallJump
 		casual-core Climb
-		casual-core Stomp
 		casual-core ChargeJump
 		casual-core Grenade
 		casual-core ChargeFlame
+		standard-core Stomp
 		expert-abilities Dash Ability=6
 		master-core DoubleJump
 	conn: LowerChargeFlameArea
@@ -733,7 +733,7 @@ home: LowerChargeFlameArea
 	conn: GladesMain
 		casual-core ChargeFlame
 		casual-core Grenade
-		casual-core Stomp
+		standard-core Stomp
 		expert-abilities Dash Ability=6
 	conn: ChargeFlameAreaStump
 		casual-core WallJump
@@ -768,10 +768,10 @@ home: SpiritTreeRefined
 	conn: ValleyEntry
 		casual-core ChargeFlame
 		casual-core Grenade
-		casual-core Stomp WallJump
-		casual-core Stomp Climb
-		casual-core Stomp DoubleJump
-		casual-core Stomp ChargeJump
+		standard-core Stomp WallJump
+		standard-core Stomp Climb
+		standard-core Stomp DoubleJump
+		standard-core Stomp ChargeJump
 		expert-abilities Dash Ability=6
 	conn: SpiderSacArea
 		casual-core ChargeFlame WallJump
@@ -867,9 +867,9 @@ home: SpiderSacArea
 		casual-core Grenade Climb
 		casual-core Grenade ChargeJump
 		casual-core Grenade Bash
-		casual-core Stomp WallJump
-		casual-core Stomp Climb
-		casual-core Stomp ChargeJump
+		standard-core Stomp WallJump
+		standard-core Stomp Climb
+		standard-core Stomp ChargeJump
 		master-core ChargeFlame DoubleJump
 		master-core Grenade DoubleJump
 		master-core Stomp DoubleJump
@@ -1298,9 +1298,9 @@ home: HollowGrove
 		master-core DoubleJump
 	conn: HoruFields
 		casual-core Bash
-		casual-core WallJump Stomp
-		casual-core Climb DoubleJump Stomp
-		casual-core ChargeJump Stomp
+		standard-core WallJump Stomp
+		standard-core Climb DoubleJump Stomp
+		standard-core ChargeJump Stomp
 		standard-abilities Climb Stomp Dash Ability=3
 		expert-core WallJump
 		expert-core ChargeJump
@@ -2583,13 +2583,17 @@ home: HoruInnerDoor
 		expert-core Stomp Bash Grenade Climb
 		master-dboost Stomp ChargeJump WallJump DoubleJump Glide Health=8 Ability=12
 		-- Open
-		casual-core Open ChargeJump WallJump Climb
-		casual-core Open ChargeJump WallJump Glide
-		casual-core Open ChargeJump WallJump DoubleJump
-		casual-core Open ChargeJump Climb Bash
-		casual-core Open Bash Grenade
-		casual-core Open Bash DoubleJump Glide
-		standard-core Open ChargeJump WallJump
+        casual-core Open ChargeJump Bash DoubleJump WallJump
+        casual-core Open ChargeJump Bash DoubleJump Climb
+		casual-core Open ChargeJump Bash Glide WallJump
+		casual-core Open ChargeJump Bash Glide Climb
+		standard-core Open Bash Grenade
+		standard-core Open Bash DoubleJump Glide
+		standard-core Open ChargeJump Bash WallJump
+		standard-core Open ChargeJump Bash Climb
+		standard-core Open ChargeJump WallJump DoubleJump
+		standard-core Open ChargeJump WallJump Glide
+		expert-dboost ChargeJump WallJump Health=5
 		expert-abilities Open Dash WallJump Ability=6
 		expert-abilities Open Dash Climb Ability=6
 		dbash Open Bash
@@ -2606,13 +2610,19 @@ home: HoruInnerDoor
 		expert-core Stomp Bash Grenade Climb
 		master-dboost Stomp ChargeJump WallJump DoubleJump Glide Health=8 Ability=12
 		-- Open
-		casual-core Open ChargeJump WallJump Glide
-		casual-core Open ChargeJump WallJump DoubleJump
-		casual-core Open ChargeJump WallJump Bash
-		casual-core Open ChargeJump Climb Bash
-		casual-core Open Bash Grenade
-		casual-core Open Bash DoubleJump Glide
-		expert-abilities Open Dash Ability=6
+        casual-core Open ChargeJump Bash DoubleJump WallJump
+        casual-core Open ChargeJump Bash DoubleJump Climb
+		casual-core Open ChargeJump Bash Glide WallJump
+		casual-core Open ChargeJump Bash Glide Climb
+		standard-core Open Bash Grenade
+		standard-core Open Bash DoubleJump Glide
+		standard-core Open ChargeJump Bash WallJump
+		standard-core Open ChargeJump Bash Climb
+		standard-core Open ChargeJump WallJump DoubleJump
+		standard-core Open ChargeJump WallJump Glide
+		expert-dboost ChargeJump WallJump Health=5
+		expert-abilities Open Dash WallJump Ability=6
+		expert-abilities Open Dash Climb Ability=6
 		dbash Open Bash
 		master-abilities Open ChargeJump DoubleJump Ability=12
 		gjump Open ChargeJump Climb Grenade
@@ -2652,10 +2662,14 @@ home: HoruInnerDoor
 		expert-core Bash Grenade Climb
 		master-dboost ChargeJump WallJump DoubleJump Glide Health=8 Ability=12
 		-- Open
-		casual-core Open Bash Grenade
-		casual-core Open Bash DoubleJump Glide
-		casual-core Open ChargeJump Climb Bash
-		casual-core Open ChargeJump DoubleJump Glide WallJump
+        casual-core Open ChargeJump Bash DoubleJump WallJump
+        casual-core Open ChargeJump Bash DoubleJump Climb
+		casual-core Open ChargeJump Bash Glide WallJump
+		casual-core Open ChargeJump Bash Glide Climb
+		standard-core Open Bash Grenade
+		standard-core Open Bash DoubleJump Glide
+		standard-core Open ChargeJump Bash WallJump
+		standard-core Open ChargeJump Bash Climb
 		standard-core Open ChargeJump Dash DoubleJump WallJump
 		standard-core Open ChargeJump Dash Glide WallJump
 		expert-abilities Open Dash WallJump Ability=6
@@ -2674,16 +2688,19 @@ home: HoruInnerDoor
 		expert-core Stomp Bash Grenade Climb
 		master-dboost Stomp ChargeJump WallJump DoubleJump Glide Health=8 Ability=12
 		-- Open
-		casual-core Open ChargeJump WallJump Glide
-		casual-core Open ChargeJump WallJump DoubleJump
-		casual-core Open ChargeJump WallJump Bash
-		casual-core Open ChargeJump Climb Bash
-		casual-core Open Bash Grenade WallJump
-		casual-core Open Bash Grenade Climb
-		casual-core Open Bash Grenade DoubleJump
-		casual-core Open Bash Grenade Glide
-		casual-core Open Bash DoubleJump Glide
-		expert-abilities Open Dash Ability=6
+        casual-core Open ChargeJump Bash DoubleJump WallJump
+        casual-core Open ChargeJump Bash DoubleJump Climb
+		casual-core Open ChargeJump Bash Glide WallJump
+		casual-core Open ChargeJump Bash Glide Climb
+		standard-core Open Bash Grenade
+		standard-core Open Bash DoubleJump Glide
+		standard-core Open ChargeJump Bash WallJump
+		standard-core Open ChargeJump Bash Climb
+		standard-core Open ChargeJump WallJump DoubleJump
+		standard-core Open ChargeJump WallJump Glide
+		expert-dboost ChargeJump WallJump Health=5
+		expert-abilities Open Dash WallJump Ability=6
+		expert-abilities Open Dash Climb Ability=6
 		dbash Open Bash
 		master-abilities Open ChargeJump DoubleJump Ability=12
 		gjump Open ChargeJump Climb Grenade
@@ -3507,9 +3524,9 @@ home: ValleyForlornApproach
 		expert-abilities ChargeFlame Dash Ability=3 Mapstone
 		expert-abilities Grenade Dash Ability=3 Mapstone
 	conn: OutsideForlornCliff
-		casual-core Stomp
 		casual-core ChargeJump
 		casual-core Bash
+		standard-core Stomp
 	conn: ValleyStompFloor
 		casual-core ChargeJump
 		master-core Bash

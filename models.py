@@ -9,7 +9,7 @@ from collections import defaultdict, OrderedDict
 
 from seedbuilder.seedparams import Placement, Stuff, SeedGenParams
 from enums import MultiplayerGameType, ShareType, Variation
-from util import picks_by_coord, get_bit, get_taste, enums_from_strlist, ord_suffix
+from util import picks_by_coord, get_bit, get_taste, enums_from_strlist, ord_suffix, debug
 from pickups import Pickup, Skill, Teleporter, Event
 from cache import Cache
 
@@ -144,6 +144,18 @@ class User(ndb.Model):
     theme  = ndb.StringProperty()
 
     @staticmethod
+    def latest_game(username):
+        gid = Cache.get_latest_game(username)
+        if gid:
+            return gid
+        user = User.get_by_name(username)
+        if not user or not user.games:
+            return False
+        gid = int(user.games[-1].id())
+        Cache.set_latest_game(username, gid)
+        return gid
+
+    @staticmethod
     def is_admin():
         return users.is_current_user_admin()
 
@@ -164,7 +176,6 @@ class User(ndb.Model):
             if len(user.games) < game_count:
                 print "removed %s games from %s's gamelist" % (game_count - len(user.games), user.name)
                 user.put()
-
 
     @staticmethod
     def get():
@@ -633,7 +644,6 @@ class BingoGameData(ndb.Model):
                 goals[card.name] = goals.get(card.name, []) + ["COUNT"]
             else:
                 goals[""].append(card.name + ("-%s" % card.target if card.target else ""))
-        print goals
         goalstr = "Goals" + "/".join(["%s:%s" % (goal, ",".join(set(subgoals))) for (goal, subgoals) in goals.items()]) + "\n"
         if not game.params:
             return sync_flag + self.seed + "\n" + goalstr
@@ -668,7 +678,7 @@ class BingoGameData(ndb.Model):
             return res
         return None
 
-    @ndb.transactional(retries=2, xg=True)
+    @ndb.transactional(retries=0, xg=True)
     def update(self, bingo_data, player_id, game_id):
         player_id = int(player_id)
         if not self.start_time:
@@ -1221,28 +1231,30 @@ class Game(ndb.Model):
 
     @staticmethod
     def get_open_gid():
-        id = 1
-        game_ids = set([int(game.key.id()) for game in Game.query()])
-        while id in game_ids:
-            id += 1
-        return id
+        gid = Cache.current_gid()
+        debug = False
+        if gid == 0:
+            if not debug:
+                log.info("Need to grab the list of games to get a free gid, will be slow...")
+            in_use = [int(game.key.id()) for game in Game.query(Game.last_update > datetime.now() - timedelta(hours=24))]
+            if len(in_use) == 0:
+                if not debug:
+                    log.warning("Need to check vs every GID! Will be much slower!")
+                in_use = [int(game.key.id()) for game in Game.query()] + [1]
+            gid = max(in_use)
+        jump = 1
+        gid += jump
+        while Game.with_id(gid) is not None:
+            gid += jump
+            jump += 1
+        Cache.set_gid(gid)
+        return gid
 
     @staticmethod
     def from_params(params, gid=None):
-        retries = 0
-        while retries < 5:
-            gid = int(gid) if gid else Game.get_open_gid()
-            try:
-                return Game.from_params_transactional(params, gid)
-            finally:
-                retries += 1
-        return Game.from_params_transactional(params, gid)
-
-    @staticmethod
-    @ndb.transactional(retries=0, xg=True)
-    def from_params_transactional(params, gid):
         game = Game(
-            id=gid, params=params.key, players=[],
+            id=int(gid or Game.get_open_gid()),
+            params=params.key, players=[],
             str_shared=[s.value for s in params.sync.shared],
             str_mode=params.sync.mode.value,
             dedup=params.sync.dedup
@@ -1274,18 +1286,19 @@ class Game(ndb.Model):
 
 
     @staticmethod
-    def new(_mode=None, _shared=None, id=None):
+    def new(_mode=None, _shared=None, gid=None):
         if isinstance(_shared, (list,)):
             shared = enums_from_strlist(ShareType, _shared)
         else:
             shared = Game.DEFAULT_SHARED
         mode = MultiplayerGameType.mk(_mode) if _mode else MultiplayerGameType.SIMUSOLO
-        id = int(id) if id else Game.get_open_gid()
-        game = Game(id=id, players=[], str_shared=[s.value for s in shared], str_mode=mode.value)
+        gid = int(gid or Game.get_open_gid())
+        game = Game(id=gid, players=[], str_shared=[s.value for s in shared], str_mode=mode.value)
         user = User.get()
         if user:
             game.creator = user.key
         key = game.put()
+        Cache.set_gid(gid)
         log.debug("Game.new(%s, %s, %s): Created game %s ", _mode, _shared, id, game)
         return key
 

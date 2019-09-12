@@ -493,7 +493,7 @@ export default class Bingo extends React.Component {
                     })
                 })
             this.setState({subtitle: res.subtitle, gameId: res.gameId, createModalOpen: false, creatingGame: false, haveGame: true, offset: res.offset || offset,
-                          fails: 0, dispDiff: res.difficulty || dispDiff, teams: res.teams, paramId: res.paramId, activePlayer: activePlayer,
+                          fails: 0, dispDiff: res.difficulty || dispDiff, teams: res.teams, paramId: res.paramId, activePlayer: activePlayer, ticksSinceLastSquare: 0,
                           currentRecord: 0, cards: res.cards, events: res.events, targetCount: res.bingo_count, fromGen: false, teamMax: res.teamMax || -1,
                           startTime: res.start_time_posix, isOwner: res.is_owner, countdownActive: res.countdown, teamsDisabled: !res.teams_allowed}, this.updateUrl)
         }

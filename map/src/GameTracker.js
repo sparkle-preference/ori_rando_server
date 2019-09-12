@@ -11,7 +11,6 @@ import {Helmet} from 'react-helmet';
 import ItemTracker from './ItemTracker.js'
 
 const paths = Object.keys(presets);
-const game_id = document.getElementsByClassName("game-id")[0].id;
 
 const EMPTY_PLAYER = {seed: {}, pos: [-210, 189], seen:[], show_marker: true, hide_found: true, hide_unreachable: true, spoiler: false, hide_remaining: false, sense: false, areas: []}
 
@@ -236,13 +235,11 @@ class GameTracker extends React.Component {
     super(props)
     let modes = presets['standard'];
     let url = new URL(window.document.URL);
-
-
     this.state = {
         mousePos: {lat: 0, lng: 0}, players: {}, follow: url.searchParams.get("follow") || -1, retries: 0, check_seen: 1, modes: modes, timeout: TIMEOUT_START, searchStr: "", pickup_display: "all", 
         show_sidebar: !url.searchParams.has("hideSidebar"), idle_countdown: 3600, bg_update: true, pickups: ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "Ma", "CS"], show_tracker: !url.searchParams.has("hideTracker"),
-        open_world: false, closed_dungeons: false, pathMode: get_preset(modes), hideOpt: "all", display_logic: false,  viewport: {center: [0, 0], zoom: 5},
-        tracker_data: {events: [], teleporters: [], shards: {gs: 0, ss: 0, wv: 0}, skills: [], maps: 0,relics_found: [], relics: [], trees: []}
+        open_world: false, closed_dungeons: false, pathMode: get_preset(modes), hideOpt: "all", display_logic: false,  viewport: {center: [0, 0], zoom: 5}, usermap: url.searchParams.get("usermap") || "",
+        tracker_data: {events: [], teleporters: [], shards: {gs: 0, ss: 0, wv: 0}, skills: [], maps: 0,relics_found: [], relics: [], trees: []}, gameId: document.getElementsByClassName("game-id")[0].id
     };
   };
 
@@ -275,7 +272,7 @@ class GameTracker extends React.Component {
         this.getUpdate(this.timeout);
         Object.keys(players).forEach((id) => {
             if(Object.keys(players[id].seed).length < 50)
-                getSeed((p) => this.setState(p), id, this.timeout);
+                getSeed((p) => this.setState(p), this.state.gameId, id, this.timeout);
         })
     } else 
         update.check_seen = check_seen - 1
@@ -391,7 +388,7 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
 	                <style>{'body { background-color: black}'}</style>
 					<link rel="stylesheet" href="https://unpkg.com/leaflet@1.3.1/dist/leaflet.css" integrity="sha512-Rksm5RenBEKSKFjgI3a41vrjkw4EVPlJ3+OiI65vTjIdo9brlAacEuKOiQ5OFh7cOI1bkDwLqdLw3Zg0cRJAAQ==" crossorigin=""/>
 	            </Helmet>
-		      	<Map ref="map" crs={crs} onMouseMove={(ev) => this.setState({mousePos: ev.latlng})} zoomControl={false} onViewportChanged={this.onViewportChanged} viewport={this.state.viewport}>
+		      	<Map style={{backgroundColor: "#121212"}} ref="map" crs={crs} onMouseMove={(ev) => this.setState({mousePos: ev.latlng})} zoomControl={false} onViewportChanged={this.onViewportChanged} viewport={this.state.viewport}>
 		      	     <ZoomControl position="topright" />
 
 					<TileLayer url=' https://ori-tracker.firebaseapp.com/images/ori-map/{z}/{x}/{y}.png' noWrap='true' />
@@ -417,6 +414,15 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
                     console.log(update.error)
                     this.setState(timeout())
                 }
+                if(update.newGid) {
+                    let o = this.state.gameId
+                    let n = update.newGid
+                    window.document.title = window.document.title.replace(o, n)
+                    window.history.replaceState('',window.document.title, window.document.URL.replace(`game/${o}/`, `game/${n}/`));
+
+                    this.setState({gameId: update.newGid, players: {}}, this.getGamedata)
+                    return
+                }
 				this.setState(prevState => {
 					let players = prevState.players
 					Object.keys(update.players).forEach(pid => {
@@ -430,7 +436,7 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
                         players[pid].pos = pos
                         
 					})
-					return {players: players, tracker_data: update.items, retries: 0, timeout: TIMEOUT_START}
+					return {players: players, tracker_data: update.items, retries: 0, timeout: TIMEOUT_START }
 				})
         }
         let modes = this.state.modes.join("+")
@@ -438,7 +444,9 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
             modes +="+CLOSED_DUNGEON"
         if(this.state.open_world) 
             modes +="+OPEN_WORLD"
-        doNetRequest(onRes, (s) => this.setState(s), "/tracker/game/"+game_id+"/fetch/update?modes="+modes, timeout)
+        if(this.state.usermap)
+            modes += `&usermap=${this.state.usermap}`
+        doNetRequest(onRes, (s) => this.setState(s), `/tracker/game/${this.state.gameId}/fetch/update?modes=${modes}`, timeout)
     }
     getGamedata = () => {
         let onRes = (res) => {
@@ -451,12 +459,20 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
                                 curr_players[pid] = {...EMPTY_PLAYER}
                                 curr_players[pid].id = ppid || pid
                                 curr_players[pid].name = name
+                                if(state.usermap) {
+                                    if(state.usermap === name) {
+                                        state.follow = curr_players[pid].id;
+                                    } else {
+                                        curr_players[pid].show_marker = false
+                                        curr_players[pid].hide_remaining = true
+                                    }
+                                } 
                             }
                         })
                         return {pathMode: get_preset(paths), players: curr_players, retries: 0, modes: paths, closed_dungeons: closed_dungeons, open_world: open_world}
                     });
                 }
-        doNetRequest(onRes, (s) => this.setState(s), "/tracker/game/"+game_id+"/fetch/gamedata", this.timeout)
+        doNetRequest(onRes, (s) => this.setState(s), "/tracker/game/"+this.state.gameId+"/fetch/gamedata", this.timeout)
     }
 };
 
@@ -475,7 +491,7 @@ function doNetRequest(onRes, setter, url, timeout)
     xmlHttp.send(null);
 }
 
-function getSeed(setter, pid, timeout)
+function getSeed(setter, gameId, pid, timeout)
 {
      var onRes = (res) => {
 				setter(prevState => {
@@ -486,7 +502,7 @@ function getSeed(setter, pid, timeout)
 					return {players:retVal, retries: 0, timeout: TIMEOUT_START}
 				});
             }
-     doNetRequest(onRes, setter, "/tracker/game/"+game_id+"/fetch/player/"+pid+"/seed", timeout)
+     doNetRequest(onRes, setter, "/tracker/game/"+gameId+"/fetch/player/"+pid+"/seed", timeout)
 }
 
 export default GameTracker;

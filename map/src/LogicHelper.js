@@ -592,7 +592,7 @@ class LogicHelper extends React.Component {
                     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.3.1/dist/leaflet.css" integrity="sha512-Rksm5RenBEKSKFjgI3a41vrjkw4EVPlJ3+OiI65vTjIdo9brlAacEuKOiQ5OFh7cOI1bkDwLqdLw3Zg0cRJAAQ==" crossorigin=""/>
                 </Helmet>
 
-                <Map ref="map" crs={dev ? getMapCrs(this.state.x, this.state.y, this.state.a, this.state.b): crs} zoomControl={false} onMouseMove={(ev) => this.setState({mousePos: ev.latlng})} onViewportChanged={this.onViewportChanged} viewport={this.state.viewport}>
+                <Map style={{backgroundColor: "#121212"}} ref="map" crs={dev ? getMapCrs(this.state.x, this.state.y, this.state.a, this.state.b): crs} zoomControl={false} onMouseMove={(ev) => this.setState({mousePos: ev.latlng})} onViewportChanged={this.onViewportChanged} viewport={this.state.viewport}>
                     <ZoomControl position="topright" />
                     <Control position="topleft" >
                     <div>

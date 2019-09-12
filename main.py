@@ -38,7 +38,6 @@ class CleanUp(RequestHandler):
         self.response.status = 200
         self.response.write("Cleaned up %s games" % clean_count)
 
-
 class DeleteGame(RequestHandler):
     def get(game_id, self):
         self.response.headers['Content-Type'] = 'text/plain'
@@ -468,12 +467,17 @@ class GetMapUpdate(RequestHandler):
     def get(self, game_id):
         self.response.headers['Content-Type'] = 'application/json'
         players = {}
+        username = param_val(self, "usermap")
+        gid_changed = False
+        if username and User.latest_game(username) != int(game_id):
+            game_id = User.latest_game(username)
+            gid_changed = True
         pos = Cache.get_pos(game_id)
         game = None
         if not pos:
             pos = {}
         for p, (x, y) in pos.items():
-            players[p] = {"pos": [y, x], "seen": [], "reachable": []}  # bc we use tiling software, this is lat/lng
+            players[p] = {"pos": [y, x], "seen": [], "reachable": []}  # bc we use tiling software, this is lat/lng, and thus coords need inverting
 
         game_hist = Cache.get_hist(game_id)
         if not game_hist:
@@ -525,7 +529,10 @@ class GetMapUpdate(RequestHandler):
             Cache.set_reachable(game_id, reach)
         for p in reach:
             players[p]["reachable"] = reach[p][modes]
-        self.response.write(json.dumps({"players": players, "items": items}))
+        res = {"players": players, "items": items}
+        if gid_changed:
+            res["newGid"] = game_id
+        self.response.write(json.dumps(res))
 
 
 class GetPlayerPositions(RequestHandler):
@@ -915,6 +922,7 @@ class GetSeedFromParams(RequestHandler):
                     player.put()
                     if game.key not in user.games:
                         user.games.append(game.key)
+                        Cache.set_latest_game(user.name, game.key.id())
                         user.put()
             else:
                 seed = params.get_seed(pid, verbose_paths=verbose_paths)
@@ -1009,13 +1017,11 @@ class SetSettings(RequestHandler):
 
 class LatestMap(RequestHandler):
     def get(self, name):
-        user = User.get_by_name(name)
-        if not user:
-            return resp_error(self, 404, "User '%s' not found" % name, "text/plain")
-        if not user.games:
-            return resp_error(self, 404, "Could not find any tracked games for user '%s'" % name, "text/plain")
-        game_key = user.games[-1]
-        return redirect("%s?%s" % (uri_for('map-render', game_id=game_key.id()), "&".join(["%s=%s" % (k, v) for k, v in self.request.GET.items()])))
+        latest = User.latest_game(name)
+        if latest:
+            return redirect("%s?%s" % (uri_for('map-render', game_id=latest), "&".join(["usermap=" + name] + ["%s=%s" % (k, v) for k, v in self.request.GET.items()])))
+        else:
+            return resp_error(self, 404, "User not found or had no games on record")
 
 
 class SetPlayerNum(RequestHandler):

@@ -8,6 +8,26 @@ class Cache(object):
         return memcache.add(key="%s.san" % gid, value=True, time=10)
 
     @staticmethod
+    def current_gid():
+        return memcache.get(key="gid_max") or 0
+
+    @staticmethod
+    def get_latest_game(user, bingo=False):
+        if bingo:
+            return memcache.get(key="%s.latest_bingo" % user)
+        return memcache.get(key="%s.latest" % user)
+
+    @staticmethod
+    def set_latest_game(user, gid, bingo=False):
+        if bingo:
+            memcache.set(key="%s.latest_bingo" % user, value=gid, time=604800)
+        memcache.set(key="%s.latest" % user, value=gid, time=604800)
+
+    @staticmethod
+    def set_gid(gid):
+        memcache.set(key="gid_max", value=int(gid))
+
+    @staticmethod
     def set_hist(gid, pid, hist):
         hist_map = Cache.get_hist(gid) or {}
         hist_map[int(pid)] = hist
@@ -84,4 +104,6 @@ class Cache(object):
 
     @staticmethod
     def clear():
+        gid = Cache.current_gid()
         memcache.flush_all()
+        Cache.set_gid(gid)

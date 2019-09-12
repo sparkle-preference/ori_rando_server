@@ -1,6 +1,7 @@
 import random
 from collections import defaultdict, Counter
 from datetime import datetime, timedelta
+from time import sleep
 from calendar import timegm
 import json
 import logging as log
@@ -911,12 +912,12 @@ class BingoAddPlayer(RequestHandler):
         if not seed:
             return resp_error(self, 412, "Team has maximum number of players allowed!")
         user = User.get()
-        pkey = player.key
         if user:
             player.user = user.key
             player.put()
             if bingo.game not in user.games:
                 user.games.append(bingo.game)
+                Cache.set_latest_game(user.name, int(game_id), True)
                 user.put()
         res = bingo.get_json()
         res['player_seed'] = seed
@@ -1002,7 +1003,11 @@ class HandleBingoUpdate(RequestHandler):
         bingo_data = json.loads(self.request.POST["bingoData"]) if "bingoData" in self.request.POST  else None
         if debug and player_id in test_data:
             bingo_data = test_data[player_id]['bingoData']
-        bingo.update(bingo_data, player_id, game_id)
+        try:
+            bingo.update(bingo_data, player_id, game_id)
+        except:
+            sleep(1)
+            bingo.update(bingo_data, player_id, game_id)
 
 class BingoUserboard(RequestHandler):
     def get(self, name):
@@ -1022,18 +1027,20 @@ class UserboardTick(RequestHandler):
     def get(self, name, gid):
         cur_gid = int(gid)
         now = datetime.utcnow()
-        user = User.get_by_name(name)
-        if not user:
-            return resp_error(self, 404, "User '%s' not found" % name, "text/plain")
-        game_keys = user.games[::-1]
-        game_id = None
-        for key in game_keys:
-            game = key.get()
-            if game.bingo_data:
-                game_id = game.key.id()
-                break
+        game_id = Cache.get_latest_game(name, bingo=True)
         if not game_id:
-            return resp_error(self, 404, "Could not find any bingo games for user '%s'" % name, "text/plain")
+            user = User.get_by_name(name)
+            if not user:
+                return resp_error(self, 404, "User '%s' not found" % name, "text/plain")
+            game_keys = user.games[::-1]
+            game_id = None
+            for key in game_keys:
+                game = key.get()
+                if game.bingo_data:
+                    game_id = game.key.id()
+                    break
+            if not game_id:
+                return resp_error(self, 404, "Could not find any bingo games for user '%s'" % name, "text/plain")
         first = cur_gid != game_id
         res = {}
         bingo = BingoGameData.with_id(game_id)
@@ -1049,19 +1056,20 @@ class UserboardTick(RequestHandler):
 
 class BingoUserSpectate(RequestHandler):
     def get(self, name):
-        now = datetime.utcnow()
-        user = User.get_by_name(name)
-        if not user:
-            return resp_error(self, 404, "User '%s' not found" % name, "text/plain")
-        game_keys = user.games[::-1]
-        game_id = None
-        for key in game_keys:
-            game = key.get()
-            if game.bingo_data:
-                game_id = game.key.id()
-                break
+        game_id = Cache.get_latest_game(name, bingo=True)
         if not game_id:
-            return resp_error(self, 404, "Could not find any bingo games for user '%s'" % name, "text/plain")
+            user = User.get_by_name(name)
+            if not user:
+                return resp_error(self, 404, "User '%s' not found" % name, "text/plain")
+            game_keys = user.games[::-1]
+            game_id = None
+            for key in game_keys:
+                game = key.get()
+                if game.bingo_data:
+                    game_id = game.key.id()
+                    break
+            if not game_id:
+                return resp_error(self, 404, "Could not find any bingo games for user '%s'" % name, "text/plain")
         return redirect(uri_for('bingo-board-spectate', game_id=4 + game_id*7))
 
 routes = [
