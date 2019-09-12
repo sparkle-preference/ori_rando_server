@@ -685,7 +685,7 @@ class BingoGameData(ndb.Model):
         players_by_id = {_pid(p.key): p for p in self.get_players()}
         player = players_by_id[player_id]
         cpid = _pid(team.captain)
-        teammates = [self.players_by_id[pid] for pid in team.pids() if pid != player_id]
+        teammates = [players_by_id[pid] for pid in team.pids() if pid != player_id]
         need_write = False
         for card in self.board:
             if card.name in bingo_data:
