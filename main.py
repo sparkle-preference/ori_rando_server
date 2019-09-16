@@ -459,7 +459,7 @@ class GetItemTrackerUpdate(RequestHandler):
             data['events'].add("Sunstone")
         for thing in ['trees', 'skills', 'events', 'relics_found', 'teleporters']:
             data[thing] = list(data[thing])
-        data['maps'] = max([len(mapdata) for mapdata in data['maps'].values()])
+        data['maps'] = max([0] + [len(mapdata) for mapdata in data['maps'].values()])
         Cache.set_items(game_id, data)
         return data
 

@@ -9,7 +9,7 @@ from collections import defaultdict, OrderedDict
 
 from seedbuilder.seedparams import Placement, Stuff, SeedGenParams
 from enums import MultiplayerGameType, ShareType, Variation
-from util import picks_by_coord, get_bit, get_taste, enums_from_strlist, ord_suffix, debug
+from util import picks_by_coord, get_bit, get_taste, enums_from_strlist, ord_suffix
 from pickups import Pickup, Skill, Teleporter, Event
 from cache import Cache
 
@@ -24,6 +24,20 @@ trees_by_coords = {
     -6959592: Pickup.n("RB", 907),
     719620: Pickup.n("RB", 908),
     2919744: Pickup.n("RB", 909),
+}
+
+zone_translate = {
+    "Valley": "valleyOfTheWind",
+    "Sorrow": "sorrowPass",
+    "Glades": "sunkenGlades",
+    "Forlorn": "forlornRuins",
+    "Grove": "hollowGrove",
+    "Blackroot": "mangrove",
+    "Grotto": "moonGrotto",
+    "Horu": "mountHoru",
+    "Swamp": "thornfeltSwamp",
+    "Misty": "mistyWoods",
+    "Ginso": "ginsoTree",
 }
 
 map_coords_by_zone = {
@@ -76,6 +90,7 @@ def stacks(pickup):
 
 
 pbc = picks_by_coord(extras=True)
+
 lines_by_index = {
     'Row 1': [0, 1, 2, 3, 4],
     'Row 2': [5, 6, 7, 8, 9],
@@ -1109,10 +1124,13 @@ class Game(ndb.Model):
         else:
             finder = finder[0]
 
-        if pickup.code == "WT" and zone in relics_by_zone:
-            Cache.clear_items(self.key.id())
-            pickup = relics_by_zone[zone]
-            share = ShareType.MISC in self.shared
+        if pickup.code == "WT":
+            if coords in pbc:
+                zone = zone_translate[pbc[coords].zone]
+            if zone in relics_by_zone:
+                Cache.clear_items(self.key.id())
+                pickup = relics_by_zone[zone]
+                share = ShareType.MISC in self.shared
 
         if coords == -1:
             share = ShareType.MISC in self.shared
