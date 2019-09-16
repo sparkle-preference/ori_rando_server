@@ -1048,9 +1048,8 @@ class Game(ndb.Model):
                     player.teleporters = tp_max
                 if len(player.bonuses) < rb_cnt:
                     msglines = ["lost HL error!"]
-                    for item in player.bonuses:
-                        cnt = player.bonuses[item]
-                        mx = bonus_max[item]
+                    for item, mx in bonus_max.items():
+                        cnt = player.bonuses.get(item, 0)
                         if cnt  < mx:
                             msglines.append("Player %s had %s of %s instead of %s" % (player.pid(), cnt, item, mx))
                             player.bonuses[item] = mx
