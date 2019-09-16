@@ -1,7 +1,7 @@
 # py imports
 import random
 import json
-from collections import Counter
+from collections import Counter, defaultdict
 
 # web imports
 import logging as log
@@ -424,7 +424,7 @@ class GetItemTrackerUpdate(RequestHandler):
             'trees': set(),
             'events': set(),
             'shards': {'wv': 0, 'gs': 0, 'ss': 0},
-            'maps': set(),
+            'maps': defaultdict(lambda: set()),
             'relics_found': set(),
             'relics': relics,
             'teleporters': set()
@@ -448,7 +448,7 @@ class GetItemTrackerUpdate(RequestHandler):
                 elif bid > 910 and bid < 922:
                     data['relics_found'].add(hl.pickup().name.replace(" Relic", ""))
             if hl.map_coords:
-                data['maps'].add(hl.map_coords)
+                data['maps'][hl.player].add(hl.map_coords)
             elif hl.coords in trees_by_coords:
                 data['trees'].add(trees_by_coords[hl.coords].name.replace(" Tree", ""))
         if data['shards']['wv'] > 2:
@@ -459,7 +459,7 @@ class GetItemTrackerUpdate(RequestHandler):
             data['events'].add("Sunstone")
         for thing in ['trees', 'skills', 'events', 'relics_found', 'teleporters']:
             data[thing] = list(data[thing])
-        data['maps'] = len(data['maps'])
+        data['maps'] = max([len(mapdata) for mapdata in data['maps'].values()])
         Cache.set_items(game_id, data)
         return data
 

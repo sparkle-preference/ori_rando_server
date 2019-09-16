@@ -1054,6 +1054,8 @@ class Game(ndb.Model):
                         if cnt  < mx:
                             msglines.append("Player %s had %s of %s instead of %s" % (player.pid(), cnt, item, mx))
                             player.bonuses[item] = mx
+                    if len(player.bonuses) < rb_cnt:
+                        msglines.append("Failed to update bonuses! bonuses: %s, player is %s, calculated maxes are %s" % (bonuses, player.pid(), bonus_max))
                     log.error("\n".join(msglines))
                 player.put()
         return True
@@ -1077,9 +1079,8 @@ class Game(ndb.Model):
         k = None
         if not player:
             if not create:
-                log.debug("Game %s has no player %s, will not create", gid, pid)
+                log.warning("Game %s has no player %s, will not create", gid, pid)
                 return None
-            log.debug("Game %s has no player %s (%s) creating...", gid, pid, self.players)
             if(self.mode == MultiplayerGameType.SHARED and len(self.players)):
                 src = self.players[0].get()
                 player = Player(id=full_pid, skills=src.skills, events=src.events, teleporters=src.teleporters, hints={}, bonuses=src.bonuses.copy(), history=[], signals=[], parent=self.key)
@@ -1281,7 +1282,6 @@ class Game(ndb.Model):
             game.creator = user.key
         game.put()
         game.rebuild_hist()
-        log.debug("Game.from_params(%s, %s): Created game %s ", params.key, id, game)
         return game
 
 
