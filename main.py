@@ -56,6 +56,8 @@ class DeleteGame(RequestHandler):
 
 class ActiveGames(RequestHandler):
     def get(self, hours=12):
+        if not User.is_admin():
+            return resp_error(self, 401, "Access to this page is currently forbidden for non-admin users")
         hours = int(hours)
         self.response.headers['Content-Type'] = 'text/html'
         title = "Games active in the last %s hours" % hours
@@ -240,14 +242,15 @@ class RemovePlayer(RequestHandler):
             self.response.status = 404
             self.response.write("player %s not in %s" % (key, game.players))
 
-
 class ClearCache(RequestHandler):
     def get(self):
         Cache.clear()
         self.redirect("/")
 
-
 class SetSeed(RequestHandler):
+    def get(self, game_id, player_id):
+        return self.post(game_id, player_id)
+
     def post(self, game_id, player_id):
         game = Game.with_id(game_id)
         hist = Cache.get_hist(game_id)
@@ -520,7 +523,6 @@ class GetMapUpdate(RequestHandler):
                     shared_coords = set([h.coords for h in hist])
                 hist += [hl for hl in game_hist.get(p, []) if hl.coords not in shared_coords]
                 state = PlayerState([(h.pickup_code, h.pickup_id, 1, h.removed) for h in hist])
-                areas = {}
                 if state.has["KS"] > 8 and "standard-core" in modes:
                     state.has["KS"] += 2 * (state.has["KS"] - 8)
                 if p not in reach:

@@ -350,7 +350,7 @@ class Player(ndb.Model):
             else:
                 if pick_id in self.bonuses:
                     if (not stacks(pickup)) or (pickup.max and self.bonuses[pick_id] >= pickup.max):
-                        log.info("Will not give %s pickup %s, as they already have %s" % (self.name(), pickup.name, self.bonuses[pick_id]))
+                        log.debug("Will not give %s pickup %s, as they already have %s" % (self.name(), pickup.name, self.bonuses[pick_id]))
                         return
                     self.bonuses[pick_id] += 1
                 else:
@@ -767,10 +767,10 @@ class BingoGameData(ndb.Model):
             p_list = [player] + teammates
             for p in p_list:
                 p.signal_send(win_sig % (place, round_now))
+        Cache.set_board(game_id, self.get_json(players=players_by_id.values()))
         player.put()
         if need_write:
             self.put()
-        Cache.set_board(game_id, self.get_json(players=players_by_id.values()))
 
 class Seed(ndb.Model):
     # Seed ids used to be author_name:name but are being migrated to author_id:name
@@ -980,7 +980,7 @@ class Game(ndb.Model):
         if self.mode != MultiplayerGameType.SHARED:
             return False
         if not Cache.san_check(self.key.id()):
-            log.info("Skipping sanity check")
+            log.debug("Skipping sanity check")
             return False
         sanFailedSignal = "msg:@Major Error during sanity check. If this persists across multiple alt+l attempts please contact Eiko@"
         playerGroups = self.get_player_groups()
@@ -1010,9 +1010,9 @@ class Game(ndb.Model):
                     has = player.has_pickup(pickup)
                     if has < count:
                         if has == 0 and count == 1:
-                            log.error("Player %s should have %s but did not. Fixing..." % (player.key.id(), pickup.name))
+                            log.warning("Player %s should have %s but did not. Fixing..." % (player.key.id(), pickup.name))
                         else:
-                            log.error("Player %s should have had %s of %s but had %s instead. Fixing..." % (player.key.id(), count, pickup.name, has))
+                            log.warning("Player %s should have had %s of %s but had %s instead. Fixing..." % (player.key.id(), count, pickup.name, has))
                         while(has < count):
                             i += 1
                             last = has
@@ -1026,7 +1026,7 @@ class Game(ndb.Model):
                                 log.critical("Aborting sanity check for Player %s after too many iterations." % player.key.id())
                                 return False
                     elif has > count:
-                        log.error("Player %s should have had %s of %s but had %s instead. Fixing..." % (player.key.id(), count, pickup.name, has))
+                        log.warning("Player %s should have had %s of %s but had %s instead. Fixing..." % (player.key.id(), count, pickup.name, has))
                         while(has > count):
                             i += 1
                             last = has
@@ -1138,7 +1138,7 @@ class Game(ndb.Model):
 
         if coords in [h.coords for h in finder_hist]:
             if share and dedup:
-                log.error("Duplicate pickup at location %s from player %s (previous: %s)" % (coords, pid, [h for h in finder_hist if h.coords == coords]))
+                log.info("Ignoring duplicate pickup at location %s from player %s (previous: %s)" % (coords, pid, [h for h in finder_hist if h.coords == coords]))
                 return 410
             elif any([h for h in finder_hist if h.coords == coords and h.pickup_code == pickup.code and h.pickup_id == pickup.id]):
                 return 200
@@ -1157,13 +1157,13 @@ class Game(ndb.Model):
                     log.error("No bingo team found for player %s!" % pid)
             if share and dedup and (self.dedup or (pickup.code == "RB" and pickup.id in [17, 19, 21, 28])):
                 if coords in [h.coords for h in self.history([teammate.pid() for teammate in players])]:
-                    log.info("Won't grant %s to player %s, as a teammate found it already" % (pickup.name, pid))
+                    log.debug("Won't grant %s to player %s, as a teammate found it already" % (pickup.name, pid))
                     return 410
             ftple = finder.sharetuple()
             for p in players:
                 ptple = p.sharetuple()
                 if ftple != ptple:
-                    log.error("sharetuple mismatch! %s is not %s, triggering san check" % (ftple, ptple))
+                    log.warning("sharetuple mismatch! %s is not %s, triggering san check" % (ftple, ptple))
                     self.sanity_check()
                     break
             shared_misc = False
@@ -1190,7 +1190,7 @@ class Game(ndb.Model):
                 if my_shards < 3:
                     shard_locs = [h.coords for h in self.history() if h.pickup_code == "RB" and h.pickup_id in ["17", "19", "21"]]
                     if coords in shard_locs:
-                        log.info("%s at %s already taken, player %s will not get one." % (pickup.name, coords, pid))
+                        log.debug("%s at %s already taken, player %s will not get one." % (pickup.name, coords, pid))
                         return 410
         elif self.mode in [MultiplayerGameType.SIMUSOLO, MultiplayerGameType.BINGO]:
             pass

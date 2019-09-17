@@ -104,6 +104,4 @@ class Cache(object):
 
     @staticmethod
     def clear():
-        gid = Cache.current_gid()
         memcache.flush_all()
-        Cache.set_gid(gid)
