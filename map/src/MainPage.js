@@ -778,7 +778,7 @@ export default class MainPage extends React.Component {
                       <Row>
                           <ol>
                           <li>
-                              Join the Ori <a target='_blank' rel='noopener noreferrer' href="https://discord.gg/jeAnNpT">discord</a>. 
+                              Join the Ori <a target='_blank' rel='noopener noreferrer' href="/discord">discord</a>. 
                               The community is one of the best resources for getting help with learning the randomizer.
                           </li>
                           <li>
