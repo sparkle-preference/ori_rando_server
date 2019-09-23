@@ -56,8 +56,6 @@ class DeleteGame(RequestHandler):
 
 class ActiveGames(RequestHandler):
     def get(self, hours=12):
-        if not User.is_admin():
-            return resp_error(self, 401, "Access to this page is currently forbidden for non-admin users")
         hours = int(hours)
         self.response.headers['Content-Type'] = 'text/html'
         title = "Games active in the last %s hours" % hours
