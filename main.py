@@ -841,6 +841,7 @@ class MakeSeedWithParams(RequestHandler):
                     self.redirect(uri_for("map-render", game_id=resp["gameId"], from_test=1))
         if Variation.BINGO in params.variations:
             resp["doBingoRedirect"] = True
+            resp["bingoLines"] = params.bingo_lines
 
         self.response.write(json.dumps(resp))
     def post(self):
@@ -859,6 +860,7 @@ class MakeSeedWithParams(RequestHandler):
             if debug and param_flag(self, "test_map_redir"):
                     self.redirect(uri_for("map-render", game_id=resp["gameId"], from_test=1))
         if Variation.BINGO in params.variations:
+            resp["bingoLines"] = params.bingo_lines
             resp["doBingoRedirect"] = True
         self.response.write(json.dumps(resp))
 

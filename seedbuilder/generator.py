@@ -1043,7 +1043,8 @@ class SeedGenerator:
             for warp_group in self.random.sample(warp_targets, warps):
                 repeatables.append("RPSH/Press AltR to Warp to %s/WP/%s,%s" % self.random.choice(warp_group))
         if repeatables:
-            for loc, pickup in zip(self.random.sample(repeatable_locs, len(repeatables)), repeatables):
+            true_rep_locs = set(repeatable_locs) - set(self.forcedAssignments.keys())
+            for loc, pickup in zip(self.random.sample(true_rep_locs, len(repeatables)), repeatables):
                 self.forcedAssignments[loc] = pickup
 
     def placeItems(self, depth=0):

@@ -591,6 +591,10 @@ const getHelpHelper = (category, option) => {
         case "advanced":
             subtitle = "Advanced Options"
             switch(option) {
+                case "bingoLines":
+                    title = "Bingo Lines"
+                    lines = ["Set the number of bingo lines to play for. Can also be adjusted on board generation"]
+                    break;
                 case "sense":
                     title = "Sense Triggers"
                     lines = [

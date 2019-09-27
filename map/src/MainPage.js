@@ -261,7 +261,7 @@ export default class MainPage extends React.Component {
     }
     
     getAdvancedTab = ({inputStyle, menuStyle}) => {
-        let {variations, senseData, fillAlg, expPool, pathDiff, cellFreq, relicCount, fragCount, fragReq} = this.state
+        let {variations, senseData, fillAlg, expPool, bingoLines, pathDiff, cellFreq, relicCount, fragCount, fragReq} = this.state
         let [leftCol, rightCol] = [4, 7]
         let pathDiffOptions = ["Easy", "Normal", "Hard"].map(mode => (
             <DropdownItem key={`pd-${mode}`} active={mode===pathDiff} onClick={()=> this.setState({pathDiff: mode})}>{mode}</DropdownItem>
@@ -347,6 +347,16 @@ export default class MainPage extends React.Component {
                     </Col>
                 </Row>
                 {fass_rows}
+                <Collapse isOpen={variations.includes("Bingo")}>
+                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "bingoLines")} className="p-1 justify-content-center">
+                    <Col xs={leftCol} className="text-center pt-1 border">
+                        <span className="align-middle">Bingo Lines</span>
+                    </Col><Col xs={rightCol}>
+                        <Input style={inputStyle} type="number" value={bingoLines} invalid={bingoLines > 12 || bingoLines < 1} onChange={(e) => this.setState({bingoLines: parseInt(e.target.value, 10)})}/> 
+                        <FormFeedback tooltip>Line count must be between 1 and 12</FormFeedback>
+                    </Col>
+                </Row>
+                </Collapse>
                 <Collapse isOpen={variations.includes("WorldTour")}>
                     <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "relicCount")} className="p-1 justify-content-center">
                         <Col xs={leftCol} className="text-center pt-1 border">
@@ -492,7 +502,10 @@ export default class MainPage extends React.Component {
             json.relics=this.state.relicCount
 
         if(this.state.variations.includes("Bingo"))
+        {
             url += "?bingo=1"
+            json.bingo_lines = this.state.bingoLines;
+        }
 
         json.players=this.state.players
         json.fass = []
@@ -592,7 +605,7 @@ export default class MainPage extends React.Component {
         } else {
             let res = JSON.parse(responseText)
             if(res.doBingoRedirect) {
-                let redir = `/bingo/board?game_id=${res.gameId}&fromGen=1&seed=${res.seed}`
+                let redir = `/bingo/board?game_id=${res.gameId}&fromGen=1&seed=${res.seed}&bingoLines=${res.bingoLines || 3}`
                 if(res.flagLine.includes("mode=Shared"))
                     redir += `&teamMax=${res.playerCount}`
                 gotoUrl(redir, true)
@@ -657,7 +670,7 @@ export default class MainPage extends React.Component {
         }
         else 
         {
-            let {inputPlayerCount, gameId, seedIsBingo, paramId, flagLine, spoilers, inputSeed} = this.state
+            let {inputPlayerCount, gameId, seedIsBingo, paramId, flagLine, spoilers, inputSeed, bingoLines} = this.state
             let raw = flagLine.split('|');
             let seedStr = raw.pop();
             let flagCols = raw.join("").split(",").map(flag => (<Col xs="auto" className="text-center" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("flags", flag)}><span class="ml-auto mr-auto align-middle">{flag}</span></Col>))
@@ -682,7 +695,7 @@ export default class MainPage extends React.Component {
                 let mainButtonHelp = "downloadButton"+this.multi()
                 seedUrl += "?" + seedParams.join("&")
                 if(seedIsBingo) {
-                    seedUrl = `/bingo/board?game_id=${gameId}&fromGen=1&seed=${inputSeed}`
+                    seedUrl = `/bingo/board?game_id=${gameId}&fromGen=1&seed=${inputSeed}&bingoLines=${bingoLines}`
                     if(inputPlayerCount > 1) {
                         seedUrl += `&teamMax=${inputPlayerCount}`
                     }
@@ -828,7 +841,7 @@ export default class MainPage extends React.Component {
                      paths: presets["standard"], keyMode: "Clues", oldKeyMode: "Clues", pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null), goalModes: ["ForceTrees"], selectedPool: "Standard",
                      seed: "", fillAlg: "Balanced", shared: ["Skills", "Teleporters", "World Events", "Upgrades", "Misc"], hints: true, helpcat: "", helpopt: "", quickstartOpen: quickstartOpen, dedupShared: false,
                      expPool: 10000, lastHelp: new Date(), seedIsGenerating: seedTabExists, cellFreq: cellFreqPresets("standard"), fragCount: 30, fragReq: 20, relicCount: 8, loader: get_random_loader(),
-                     paramId: paramId, seedTabExists: seedTabExists, reopenUrl: "", teamStr: "", flagLine: "", fass: {},  goalModesOpen: false, spoilers: true, seedIsBingo: false};
+                     paramId: paramId, seedTabExists: seedTabExists, reopenUrl: "", teamStr: "", flagLine: "", fass: {},  goalModesOpen: false, spoilers: true, seedIsBingo: false, bingoLines: 3};
         if(url.searchParams.has("fromBingo")) {
             this.state.goalModes = ["Bingo"]
             this.state.variations = ["Bingo", "OpenWorld"]

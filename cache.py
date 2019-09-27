@@ -96,11 +96,11 @@ class Cache(object):
 
     @staticmethod
     def set_board(gid, board):
-        return memcache.set(key="%s.board" % gid, value=board, time=3600)
+        return memcache.set(key="%s.board" % gid, value=board, time=60)
 
     @staticmethod
     def remove_game(gid):
-        memcache.delete_multi(keys=["hist", "san", "pos", "reach", "items", "relics"], key_prefix="%s." % gid)
+        memcache.delete_multi(keys=["hist", "san", "pos", "reach", "items", "relics", "board"], key_prefix="%s." % gid)
 
     @staticmethod
     def clear():

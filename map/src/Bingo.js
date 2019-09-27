@@ -246,7 +246,7 @@ const PlayerList = ({activePlayer, teams, viewOnly, isOwner, timerTime, onPlayer
     if(userBoard) {
         colStyle = {width: `${userBoardParams.listWidth}px`, height: `${userBoardParams.listHeight}px`}
     }
-    let timerText = timerTime ? `Time Elapsed: ${timerTime}` : `Time Elapsed: 00.00`
+    let timerText = timerTime ? timerTime : `Time Elapsed: 00.00`
     return (
         <Col xs="auto" style={colStyle} className="border border-info">
             <Row  className="px-1 pb-2"><h6>{timerText}</h6></Row>
@@ -280,7 +280,7 @@ export default class Bingo extends React.Component {
         let seed = iniUrl.searchParams.get("seed") || String(Math.floor(Math.random() * 100000));
         let dark = get_flag("dark") || iniUrl.searchParams.has("dark")
         let user = get_param("user")
-        let targetCount = fromGen && (teamMax > 1) ? 5 : 3
+        let targetCount = parseInt(iniUrl.searchParams.get("bingoLines") || (fromGen && (teamMax > 1) ? 5 : 3), 10)
         this.state = {
                       cards: [], currentRecord: 0, haveGame: false, creatingGame: false, createModalOpen: true, offset: 0, noTimer: false,
                       activePlayer: parseInt(get_param("pref_num") || 1, 10), showInfo: false, user: user, loadingText: "Loading...", paramId: -1, squareCount: 13, seed: seed,
@@ -333,11 +333,11 @@ export default class Bingo extends React.Component {
         
         if(url.searchParams.has("fromGen") && !fromGen)
         {
-            url.searchParams.delete("fromGen")
-            if(url.searchParams.has("teamMax"))
-                url.searchParams.delete("teamMax")
-            if(url.searchParams.has("seed"))
-                url.searchParams.delete("seed")
+            url.searchParams.delete("fromGen");
+            ["teamMax", "seed", "bingoLines"].forEach(p => {
+                if(url.searchParams.has(p))
+                    url.searchParams.delete(p)
+            })
         }
         else if(!url.searchParams.has("fromGen") && fromGen)
             url.searchParams.set("fromGen", 1)
@@ -783,14 +783,21 @@ export default class Bingo extends React.Component {
             return
         }
         let s = (new Date()).getTime() + offset - startTime*1000;
+        let prfx = `Time Elapsed: `
         if(s < 0)
-            return
+        {
+            prfx = `Starting in: `
+            s = -s
+        }
         let pad = (n, z = 2) => ('00' + n).slice(-z);
-        this.setState({timerTime: pad(s/3.6e6|0) + ':' + pad((s%3.6e6)/6e4 | 0) + ':' + pad((s%6e4)/1000|0) + '.' + pad((s%1000)/10|0)});
+        this.setState({timerTime: prfx + pad(s/3.6e6|0) + ':' + pad((s%3.6e6)/6e4 | 0) + ':' + pad((s%6e4)/1000|0) + '.' + pad((s%1000)/10|0)});
     }
 
     countdownModal = (style) => {
         let {countdownActive, startTime, offset} = this.state
+        if(!countdownActive)
+            return null
+        let nowfunc = () => (new Date()).getTime() + offset
         return (
         <Modal size="sm" isOpen={countdownActive} backdrop={"static"} className={"modal-dialog-centered"}>
             <ModalHeader style={style}>Game Starting!</ModalHeader>
@@ -800,9 +807,16 @@ export default class Bingo extends React.Component {
                         date={startTime*1000}
                         precision={2}
                         intervalDelay={2}
-                        now={() => (new Date()).getTime() + offset}
-                        renderer={({seconds, milliseconds, completed}) =>
-                            completed ? (<Cent><h3>Go!</h3></Cent>) : (<Cent><h3>{seconds}{`.${milliseconds}`.slice(0, -1)}</h3></Cent>)
+                        now={nowfunc}
+                        renderer={({seconds, milliseconds, completed}) => {
+                            if(completed) {
+                                if(nowfunc() - startTime * 1000 > 2000)
+                                    this.setState({countdownActive: false})
+                                return (<Cent><h3>Go!</h3></Cent>) 
+                            }
+                            return (<Cent><h3>{seconds}{`.${milliseconds}`.slice(0, -1)}</h3></Cent>)
+
+                            }
                         }
                     />
             </Container>

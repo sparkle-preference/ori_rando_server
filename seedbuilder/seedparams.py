@@ -126,6 +126,7 @@ class SeedGenParams(ndb.Model):
     plando_flags = ndb.StringProperty(repeated=True)
     item_pool = ndb.JsonProperty()
     pool_preset = ndb.StringProperty()
+    bingo_lines = ndb.IntegerProperty(default=3)
     do_loc_analysis = False
 
     @staticmethod
@@ -175,7 +176,7 @@ class SeedGenParams(ndb.Model):
         params.sync = MultiplayerOptions.from_json(json)
         params.sense = json.get("sense")
         params.item_pool = json.get("item_pool", {})
-
+        params.bingo_lines = json.get("bingo_lines", 3)
         params.pool_preset = json.get("pool_preset", "Standard")
         params.placements = [Placement(location=fass["loc"], zone="", stuff=[Stuff(code=fass["code"], id=fass["id"], player="")]) for fass in json.get("fass", [])]
         return params.put()
@@ -299,7 +300,8 @@ class SeedGenParams(ndb.Model):
             "senseData": self.sense,
             "isPlando": self.is_plando,
             "itemPool": self.item_pool,
-            "selectedPool": self.pool_preset
+            "selectedPool": self.pool_preset,
+            "bingoLines": self.bingo_lines,
         }
 
 

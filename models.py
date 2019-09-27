@@ -268,7 +268,6 @@ class Player(ndb.Model):
         self.history = []
         self.bingo_prog = [BingoCardProgress(square=i) for i in range(25)]
         self.put()
-        
 
     def sharetuple(self):
         return (self.skills, self.events, self.teleporters, len(self.bonuses))
@@ -1230,6 +1229,7 @@ class Game(ndb.Model):
         self.hls = []
         self.start_time = datetime.now()
         for player in self.get_players():
+            print player
             player.reset()
         if self.bingo_data:
             self.bingo_data.get().reset()
