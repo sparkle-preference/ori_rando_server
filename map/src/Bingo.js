@@ -376,8 +376,10 @@ export default class Bingo extends React.Component {
                 (ticksSinceLastSquare > 7200 && ticksSinceLastSquare % 30 !== 0) ||
                 (ticksSinceLastSquare > 3600 && ticksSinceLastSquare % 15 !== 0) ||
                 (ticksSinceLastSquare > 1200 && ticksSinceLastSquare % 5 !== 0)
-            )
+            ){
+                this.setState({ticksSinceLastSquare: ticksSinceLastSquare+1})
                 return
+            }
             if(userBoard)
                 doNetRequest(`/bingo/userboard/${user}/fetch/${gameId}`, this.tickCallback)
             else

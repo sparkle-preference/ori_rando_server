@@ -1,6 +1,7 @@
 import React from 'react';
 import  {DropdownToggle, DropdownMenu, Dropdown, DropdownItem, Nav, NavLink, NavItem, Collapse,  Input, UncontrolledButtonDropdown, Button, 
-        Row, FormFeedback, Col, Container, TabContent, TabPane, Modal, ModalHeader, ModalBody, ModalFooter, Media} from 'reactstrap'
+        Row, FormFeedback, Col, Container, TabContent, TabPane, Modal, ModalHeader, ModalBody, ModalFooter, Media, ButtonGroup} from 'reactstrap'
+import { FaCog } from 'react-icons/fa';
 import {NotificationContainer, NotificationManager} from 'react-notifications';
 
 import 'react-notifications/lib/notifications.css';
@@ -137,7 +138,9 @@ CANONICAL_ORDERING["RB|0"] = CANONICAL_ORDERING["RP|RB/0"]
 CANONICAL_ORDERING["RB|1"] = CANONICAL_ORDERING["RP|RB/1"] 
 const get_canon_index = ({item}) => CANONICAL_ORDERING[item]+1 || 99
 const keymode_options = ["None", "Shards", "Limitkeys", "Clues", "Free"];
+
 const VERSION = get_param("version")
+
 const VAR_NAMES = {
     ForceTrees: "Force Trees",
     Starved: "Starved",
@@ -260,6 +263,23 @@ export default class MainPage extends React.Component {
 
     }
     
+    spoilerUrl = (paramId, download, multi, p) => {
+        let {active, exclude, byZone} = this.state.auxSpoiler
+        let url;
+        if(active) {
+            url = new URL(`/generator/aux_spoiler/${paramId}`, window.document.URL);
+            url.searchParams.set('exclude', exclude.join(" "));
+            if(byZone)
+                url.searchParams.set('by_zone', 1)
+        } else
+            url = new URL(`/generator/spoiler/${paramId}`, window.document.URL);
+        if(download)
+            url.searchParams.set("download", 1);
+        if(multi)
+            url.searchParams.set("player_id", p);
+        return url.href
+    }
+
     getAdvancedTab = ({inputStyle, menuStyle}) => {
         let {variations, senseData, fillAlg, expPool, bingoLines, pathDiff, cellFreq, relicCount, fragCount, fragReq} = this.state
         let [leftCol, rightCol] = [4, 7]
@@ -481,30 +501,30 @@ export default class MainPage extends React.Component {
         let url = "/generator/build"
         let f = (p) => pMap.hasOwnProperty(p) ? pMap[p] : p
         let json = {
-            "key_mode": f(this.state.keyMode),
-            'gen_mode': this.state.fillAlg,
+            "keyMode": f(this.state.keyMode),
+            'fillAlg': this.state.fillAlg,
             'variations': this.state.variations,
-            'logic_paths': this.state.paths,
-            "exp_pool": this.state.expPool,
-            "cell_freq": this.state.cellFreq,
-            "pool_preset": this.state.selectedPool
+            'paths': this.state.paths,
+            "expPool": this.state.expPool,
+            "cellFreq": this.state.cellFreq,
+            "selectedPool": this.state.selectedPool
         }
         if(this.state.pathDiff !== "Normal")
-            json.path_diff=this.state.pathDiff
+            json.pathDiff=this.state.pathDiff
         if(this.state.senseData)
-            json.sense=this.state.senseData
+            json.senseData=this.state.senseData
         if(this.state.variations.includes("WarmthFrags"))
         {
-            json.frags=this.state.fragCount
-            json.frags_req=this.state.fragReq
+            json.fragCount=this.state.fragCount
+            json.fragReq=this.state.fragReq
         }
         if(this.state.variations.includes("WorldTour"))
-            json.relics=this.state.relicCount
+            json.relicCount=this.state.relicCount
 
         if(this.state.variations.includes("Bingo"))
         {
             url += "?bingo=1"
-            json.bingo_lines = this.state.bingoLines;
+            json.bingoLines = this.state.bingoLines;
         }
 
         json.players=this.state.players
@@ -518,17 +538,17 @@ export default class MainPage extends React.Component {
                 }
             }
         })
-        json.item_pool = {} //{"HC": 12, "EC": 14, "AC": 33, }
-        this.state.itemPool.forEach(({item, count, upTo}) => { json.item_pool[item] = upTo ? [count, upTo] : [count] })
+        json.itemPool = {} //{"HC": 12, "EC": 14, "AC": 33, }
+        this.state.itemPool.forEach(({item, count, upTo}) => { json.itemPool[item] = upTo ? [count, upTo] : [count] })
         json.tracking = this.state.tracking
         if(this.state.tracking && this.state.players > 1) {
-            json.sync_gen=f(this.state.coopGenMode)
-            json.sync_mode=f(this.state.coopGameMode)
-            json.dedup_shared = this.state.dedupShared
+            json.coopGenMode=f(this.state.coopGenMode)
+            json.coopGameMode=f(this.state.coopGameMode)
+            json.dedupShared = this.state.dedupShared
             if(this.state.coopGameMode === "Co-op")
-                json.sync_shared = this.state.shared.map(s => f(s))
+                json.syncShared = this.state.shared.map(s => f(s))
             if(this.state.coopGenMode === "Cloned Seeds" && this.state.hints)
-                json.sync_hints = true
+                json.syncHints = true
             if(!this.state.dedupShared)
                 json.teams={1: [...Array(this.state.players).keys()].map(x=>x+1)}
             else if(this.state.teamStr !== "" && this.teamStrValid()) {
@@ -670,7 +690,8 @@ export default class MainPage extends React.Component {
         }
         else 
         {
-            let {inputPlayerCount, gameId, seedIsBingo, paramId, flagLine, spoilers, inputSeed, bingoLines} = this.state
+            let {inputPlayerCount, gameId, seedIsBingo, paramId, flagLine, spoilers, inputSeed, bingoLines, auxSpoiler} = this.state
+            let spoilerText = auxSpoiler.active ? "Item List" : "View Spoiler"
             let raw = flagLine.split('|');
             let seedStr = raw.pop();
             let flagCols = raw.join("").split(",").map(flag => (<Col xs="auto" className="text-center" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("flags", flag)}><span class="ml-auto mr-auto align-middle">{flag}</span></Col>))
@@ -683,14 +704,11 @@ export default class MainPage extends React.Component {
                 if(gameId > 0)
                     seedParams.push(`game_id=${gameId}`)
                 let seedUrl = "/generator/seed/"+paramId
-                let spoilerUrl = "/generator/spoiler/"+paramId
-                let downloadSpoilerUrl = spoilerUrl + "?download=1"
+                let isMulti = inputPlayerCount > 1
+                let spoilerUrl = this.spoilerUrl(paramId, false, isMulti, p) 
+                let downloadSpoilerUrl = this.spoilerUrl(paramId, true, isMulti, p)
                 if(inputPlayerCount > 1)
-                {
                     seedParams.push("player_id="+p);
-                    spoilerUrl += "?player_id="+p;
-                    downloadSpoilerUrl += "&player_id="+p;
-                }
                 let mainButtonText = "Download Seed"
                 let mainButtonHelp = "downloadButton"+this.multi()
                 seedUrl += "?" + seedParams.join("&")
@@ -702,6 +720,7 @@ export default class MainPage extends React.Component {
                     mainButtonText = `Open Bingo Board`
                     mainButtonHelp = "openBingoBoard"
                 }
+                let spoilerHelp = (button) => this.state.spoilers ? `spoiler${button + (auxSpoiler.active ? "Aux" : "")}` : "noSpoilers"
                 return (
                     <Row className="align-content-center p-1 border-bottom">
                         <Col xs="3" className="pt-1 border" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "playerPanel"+this.multi())}>
@@ -714,10 +733,13 @@ export default class MainPage extends React.Component {
                         <Col xs="3" className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", mainButtonHelp)}>
                             <Button color="primary" block target="_blank" href={seedUrl}>{mainButtonText}</Button>
                         </Col>
-                        <Col xs="3" className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", this.state.spoilers ? "spoilerButton" : "noSpoilers")}>
-                            <Button color={spoilers ? "primary" : "secondary"} disabled={!spoilers} href={spoilerUrl} target="_blank" block >View Spoiler</Button>
+                        <Col xs="3" className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", spoilerHelp("View"))}>
+                            <ButtonGroup>
+                                <Button color={spoilers ? "primary" : "secondary"} disabled={!spoilers} href={spoilerUrl} target="_blank" block >{spoilerText}</Button>
+                                <Button color={spoilers ? "success" : "secondary"} disabled={!spoilers} onClick={() => this.setState({auxModal: true})} target="_blank"><FaCog/></Button>
+                            </ButtonGroup>
                         </Col>
-                        <Col xs="3" className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", this.state.spoilers ? "spoilerDownload" : "noSpoilers")}>
+                        <Col xs="3" className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab",spoilerHelp("Download"))}>
                             <Button color={spoilers ? "primary" : "secondary"} disabled={!spoilers} href={downloadSpoilerUrl} target="_blank" block >Save Spoiler</Button>
                         </Col>
                     </Row>
@@ -779,10 +801,18 @@ export default class MainPage extends React.Component {
         )
     }
 
+    getModal = (modalParams) => {
+        let {quickstartOpen, auxModal} = this.state
+        if(quickstartOpen)
+            return this.getQuickstartModal(modalParams);
+        if(auxModal)
+            return this.getAuxModal(modalParams);
+
+    }
     getQuickstartModal = ({inputStyle}) => {
         return (
-                <Modal size="lg" isOpen={this.state.quickstartOpen} backdrop={"static"} className={"modal-dialog-centered"} toggle={this.closeQuickstart}>
-                  <ModalHeader style={inputStyle} toggle={this.closeQuickstart} centered>Welcome to the Ori DE Randomizer!</ModalHeader>
+                <Modal size="lg" isOpen={this.state.quickstartOpen} backdrop={"static"} className={"modal-dialog-centered"} toggle={this.closeModal}>
+                  <ModalHeader style={inputStyle} toggle={this.closeModal} centered>Welcome to the Ori DE Randomizer!</ModalHeader>
                   <ModalBody style={inputStyle}>
                       <Container fluid>
                       <Row className="p-1">
@@ -814,7 +844,87 @@ export default class MainPage extends React.Component {
                     </Container>
                   </ModalBody>
                   <ModalFooter style={inputStyle}>
-                    <Button color="secondary" onClick={this.closeQuickstart}>Close</Button>
+                    <Button color="secondary" onClick={this.closeModal}>Close</Button>
+                  </ModalFooter>
+                </Modal>
+        )
+    }
+
+    onSpoilerSettings = (newSettings) => this.setState({auxSpoiler: Object.assign(this.state.auxSpoiler, newSettings)})
+    onSpoilerItemType = (itemType) => this.setState(prevState => {
+        let newAux = prevState.auxSpoiler;
+        if(newAux.exclude.includes(itemType))
+            newAux.exclude = newAux.exclude.filter(t => t !== itemType)
+        else
+            newAux.exclude.push(itemType)
+            
+        return {auxSpoiler: newAux}
+    })
+
+    getAuxModal = ({inputStyle}) => {
+        let {auxModal, auxSpoiler} = this.state
+        let itemTypes = ["AC", "EC", "HC", "KS", "MS", "EX"].map(iType => (<Col>
+            <Button outline={!auxSpoiler.exclude.includes(iType)} onClick={() => this.onSpoilerItemType(iType)}>{iType}</Button>
+        </Col>))
+        return (
+                <Modal isOpen={auxModal} backdrop={"static"} className={"modal-dialog-centered"} toggle={this.closeModal}>
+                  <ModalHeader style={inputStyle} toggle={this.closeModal} centered>Spoiler Settings</ModalHeader>
+                  <ModalBody style={inputStyle}>
+                      <Container fluid>
+                      <Row>
+                            <Col xs="4" className="text-center p-1 border">
+                                <Cent>Spoiler Type</Cent>
+                            </Col>
+                            <Col xs="6">
+                                <UncontrolledButtonDropdown nav inNavbar>
+                                    <DropdownToggle color="primary" nav caret>
+                                    {auxSpoiler.active ? "Item List" : "Logic Spoiler"}
+                                    </DropdownToggle>
+                                    <DropdownMenu right>
+                                        <DropdownItem active={!auxSpoiler.active} onClick={() => this.onSpoilerSettings({active: false})}>
+                                            Logic Spoiler
+                                        </DropdownItem>
+                                        <DropdownItem active={auxSpoiler.active} onClick={() => this.onSpoilerSettings({active: true})}>
+                                            Item List
+                                        </DropdownItem>
+                                    </DropdownMenu>
+                                </UncontrolledButtonDropdown>
+                            </Col>
+                        </Row>
+                        <Collapse isOpen={auxSpoiler.active}>
+                        <Row>
+                            <Col xs="4" className="text-center p-1 border">
+                                <Cent>Sort By</Cent>
+                            </Col>
+                            <Col xs="6">
+                                <UncontrolledButtonDropdown nav inNavbar>
+                                    <DropdownToggle color="primary" nav caret>
+                                    {auxSpoiler.byZone ? "Zone" : "Item Type"}
+                                    </DropdownToggle>
+                                    <DropdownMenu right>
+                                        <DropdownItem active={!auxSpoiler.byZone} onClick={() => this.onSpoilerSettings({byZone: false})}>
+                                            Item Type
+                                        </DropdownItem>
+                                        <DropdownItem active={auxSpoiler.byZone} onClick={() => this.onSpoilerSettings({byZone: true})}>
+                                            Zone
+                                        </DropdownItem>
+                                    </DropdownMenu>
+                                </UncontrolledButtonDropdown>
+                            </Col>
+                        </Row>
+                        <Row>
+                            <Col xs="4" className="text-center p-1 border">
+                                <Cent>Exclude</Cent>
+                            </Col>
+                            <Col xs="6">
+                                <Row> {itemTypes} </Row>
+                            </Col>
+                        </Row>
+                        </Collapse>
+                    </Container>
+                  </ModalBody>
+                  <ModalFooter style={inputStyle}>
+                    <Button color="secondary" onClick={this.closeModal}>Close</Button>
                   </ModalFooter>
                 </Modal>
         )
@@ -841,7 +951,8 @@ export default class MainPage extends React.Component {
                      paths: presets["standard"], keyMode: "Clues", oldKeyMode: "Clues", pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null), goalModes: ["ForceTrees"], selectedPool: "Standard",
                      seed: "", fillAlg: "Balanced", shared: ["Skills", "Teleporters", "World Events", "Upgrades", "Misc"], hints: true, helpcat: "", helpopt: "", quickstartOpen: quickstartOpen, dedupShared: false,
                      expPool: 10000, lastHelp: new Date(), seedIsGenerating: seedTabExists, cellFreq: cellFreqPresets("standard"), fragCount: 30, fragReq: 20, relicCount: 8, loader: get_random_loader(),
-                     paramId: paramId, seedTabExists: seedTabExists, reopenUrl: "", teamStr: "", flagLine: "", fass: {},  goalModesOpen: false, spoilers: true, seedIsBingo: false, bingoLines: 3};
+                     paramId: paramId, seedTabExists: seedTabExists, reopenUrl: "", teamStr: "", flagLine: "", fass: {},  goalModesOpen: false, spoilers: true, seedIsBingo: false, bingoLines: 3, 
+                     auxModal: false, auxSpoiler: {active: false, byZone: false, exclude: ["EX","KS", "AC", "EC", "HC", "MS"]}};
         if(url.searchParams.has("fromBingo")) {
             this.state.goalModes = ["Bingo"]
             this.state.variations = ["Bingo", "OpenWorld"]
@@ -852,9 +963,9 @@ export default class MainPage extends React.Component {
 
     }
         
-    closeQuickstart = () => {
+    closeModal = () => {
          window.history.replaceState('',window.document.title, window.document.URL.split("/quickstart")[0]);
-         this.setState({quickstartOpen: false})
+         this.setState({quickstartOpen: false, auxModal: false})
     }
 
     onTab = (tabName) => () => this.setState({activeTab: tabName})
@@ -963,7 +1074,7 @@ export default class MainPage extends React.Component {
                 </NavLink>
             </NavItem>
         ) : null;
-        let modal = this.getQuickstartModal(styles);
+        let modal = this.getModal(styles);
         let goalModeMulti = goalModes.length > 1;
 
         return (

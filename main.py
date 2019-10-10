@@ -1017,6 +1017,30 @@ class SetSettings(RequestHandler):
         else:
             self.response.write("You are not logged in!")
 
+
+class QuickReroll(RequestHandler):
+    def get(self):
+        self.response.headers['Content-Type'] = 'text/plain'
+        user = User.get()
+        if not user:
+            return resp_error(self, 401, "pls fam", 'text/plain')
+        game_key = user.latest_game(key=True)
+        if not game_key:
+            return resp_error(self, 404, "no games found", 'text/plain')
+        game = game_key.get()
+        if not game.params:
+            return resp_error(self, 404,"latest game does not have params", 'text/plain')
+        old_params = game.params.get().to_json()
+        old_params['seed'] = str(random.randint(0, 1000000000))
+        new_params = SeedGenParams.from_json(old_params).get()
+        if not new_params.generate():
+            return resp_error(self, 500, "Failed to generate seed!", 'text/plain')
+        game = Game.from_params(new_params)
+        if Variation.BINGO in new_params.variations:
+            return redirect("/bingo/board?game_id=%s&fromGen=1&seed=%s&bingoLines=%s" % (game.key.id(), new_params.seed, new_params.bingo_lines))
+        return redirect(uri_for('main-page', game_id=game.key.id(), param_id=new_params.key.id()))
+
+
 class LatestMap(RequestHandler):
     def get(self, name):
         latest = User.latest_game(name)
@@ -1132,6 +1156,7 @@ app = WSGIApplication(
     (r'/login/?', HandleLogin),
     (r'/logout/?', HandleLogout),
     ('/vanilla', Vanilla),
+    Route('/reroll', handler=QuickReroll, strict_slash=True, name="reroll-last"),
     Route('/discord', redirect_to="https://discord.gg/TZfue9V"),
     Route('/reset/<game_id:\d+>', handler=ResetGame, name="restart-game"),
     Route('/dll', redirect_to="https://github.com/turntekGodhead/OriDERandomizer/raw/master/Assembly-CSharp.dll"),

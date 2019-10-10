@@ -342,6 +342,10 @@ const getHelpHelper = (category, option) => {
                 multi = true;
                 option = option.slice(0, option.length - 5);
             }
+            let aux = option.endsWith("Aux")
+            if(aux)
+                option = option.replace("Aux","")
+            
             switch(option) {
                 case "playerPanel":
                     title = "Player ID"
@@ -371,7 +375,7 @@ const getHelpHelper = (category, option) => {
                     if(multi)
                         lines.push("Remember to send your fellow players the URL to the current page so they can get their seeds!")
                 break;
-                case "spoilerButton":
+                case "spoilerView":
                     title = "Open Spoiler"
                     lines = [
                         "Click here to open your spoiler in a new tab.",
@@ -423,6 +427,8 @@ const getHelpHelper = (category, option) => {
                     match = false;
                 break;
             }
+            if(aux && match)
+            lines.push("Key Item Spoiler Mode: in this mode, the spoiler lists the locations of important items.")
             break;
         case "keyModes":
             subtitle = "Dungeon Key Modes"

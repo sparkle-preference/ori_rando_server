@@ -68,13 +68,13 @@ class MultiplayerOptions(ndb.Model):
         opts.enabled = json.get("players", 1) > 1
         opts.teams = json.get("teams", {})
         if opts.enabled:
-            opts.mode = MultiplayerGameType(json.get("sync_mode", "None"))
-            opts.cloned = json.get("sync_gen") != "disjoint"
+            opts.mode = MultiplayerGameType(json.get("coopGameMode", "None"))
+            opts.cloned = json.get("coopGenMode") != "disjoint"
             if opts.cloned:
                 opts.teams = {1: range(1, json.get("players", 1) + 1)}
-            opts.hints = bool(opts.cloned and json.get("sync_hints"))
-            opts.dedup = bool(json.get("dedup_shared", False))
-            opts.shared = enums_from_strlist(ShareType, json.get("sync_shared", []))
+            opts.hints = bool(opts.cloned and json.get("syncHints"))
+            opts.dedup = bool(json.get("dedupShared", False))
+            opts.shared = enums_from_strlist(ShareType, json.get("syncShared", []))
         return opts
 
     def get_team_str(self):
@@ -103,7 +103,6 @@ class SeedGenParams(ndb.Model):
     def get_keymode(self): return KeyMode(self.str_keymode)
 
     def set_keymode(self, key_mode):     self.str_keymode = key_mode.value
-
     seed = ndb.StringProperty(required=True)
     variations = property(get_vars, set_vars)
     logic_paths = property(get_paths, set_paths)
@@ -159,25 +158,25 @@ class SeedGenParams(ndb.Model):
             log.error("No seed in %r! returning None" % json)
             return None
         params.variations = enums_from_strlist(Variation, json.get("variations", []))
-        params.logic_paths = enums_from_strlist(LogicPath, json.get("logic_paths", []))
+        params.logic_paths = enums_from_strlist(LogicPath, json.get("paths", []))
         if not params.logic_paths:
             log.error("No logic paths in %r! returning None" % json)
             return None
-        params.key_mode = KeyMode(json.get("key_mode", "Clues"))
-        params.path_diff = PathDifficulty(json.get("path_diff", "Normal"))
-        params.exp_pool = json.get("exp_pool", 10000)
-        params.balanced = json.get("gen_mode") != "Classic"
+        params.key_mode = KeyMode(json.get("keyMode", "Clues"))
+        params.path_diff = PathDifficulty(json.get("pathDiff", "Normal"))
+        params.exp_pool = json.get("expPool", 10000)
+        params.balanced = json.get("fillAlg") != "Classic"
         params.players = json.get("players", 1)
         params.tracking = json.get("tracking")
-        params.frag_count = json.get("frags", 30)
-        params.frag_req = json.get("frags_req", 20)
-        params.relic_count = json.get("relics", 8)
-        params.cell_freq = json.get("cell_freq", 256)
+        params.frag_count = json.get("fragCount", 30)
+        params.frag_req = json.get("fragReq", 20)
+        params.relic_count = json.get("relicCount", 8)
+        params.cell_freq = json.get("cellFreq", 256)
         params.sync = MultiplayerOptions.from_json(json)
         params.sense = json.get("sense")
-        params.item_pool = json.get("item_pool", {})
-        params.bingo_lines = json.get("bingo_lines", 3)
-        params.pool_preset = json.get("pool_preset", "Standard")
+        params.item_pool = json.get("itemPool", {})
+        params.bingo_lines = json.get("bingoLines", 3)
+        params.pool_preset = json.get("selectedPool", "Standard")
         params.placements = [Placement(location=fass["loc"], zone="", stuff=[Stuff(code=fass["code"], id=fass["id"], player="")]) for fass in json.get("fass", [])]
         return params.put()
 
@@ -274,6 +273,7 @@ class SeedGenParams(ndb.Model):
                 stuff = [Stuff(code=item[:2], id=item[2:], player="")]
                 params.placements.append(Placement(location=loc, zone="", stuff=stuff))
         return params.put()
+
     def to_json(self):
         return {
             "players": self.players,
@@ -290,6 +290,7 @@ class SeedGenParams(ndb.Model):
             "fragReq": self.frag_req,
             "relicCount": self.relic_count,
             "hints": self.sync.hints,
+            "tracking": self.tracking,
             "coopGameMode": JSON_GAME_MODE.get(self.sync.mode, "Co-op"),
             "coopGenMode": "Cloned Seeds" if self.sync.cloned else "Seperate Seeds",
             "paths": [p.value for p in self.logic_paths],
@@ -379,7 +380,7 @@ class SeedGenParams(ndb.Model):
         outlines = []
         seed_data = OrderedDict()
         for coords, pcode, pid, _ in self.get_seed_data(player):
-            if pcode in exclude_types or pcode + pid in ["RB81", "EV5"]:
+            if pcode in exclude_types or pcode + pid == "RB81":
                 continue
             loc = PBC[int(coords)]
             pickup = Pickup.n(pcode, pid)
