@@ -35,6 +35,6 @@ See this link to the tutorial on getting started with the [App Engine SDK](http:
 
 ## Related Projects 
 * [OriDE Randomizer](https://github.com/sigmasin/OriDERandomizer)
-* [OriDETracker](https://github.com/david-c-miller/OriDETracker)
+* [OriDETracker](https://github.com/meldontaragon/OriDETracker)
 * [Autosplitter for Ori DE](https://github.com/ShootMe/LiveSplit.OriDE)
 
