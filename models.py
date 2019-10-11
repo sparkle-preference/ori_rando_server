@@ -170,12 +170,6 @@ class User(ndb.Model):
         Cache.set_latest_game(username, gid)
         return gid
 
-    def latest_game(self, key=False):
-        if not self.games:
-            return False
-        return self.games[-1] if key else int(self.games[-1].id())
-
-
     @staticmethod
     def is_admin():
         return users.is_current_user_admin()

@@ -1024,9 +1024,9 @@ class QuickReroll(RequestHandler):
         user = User.get()
         if not user:
             return resp_error(self, 401, "pls fam", 'text/plain')
-        game_key = user.latest_game(key=True)
-        if not game_key:
+        if not user.games:
             return resp_error(self, 404, "no games found", 'text/plain')
+        game_key = user.games[-1]
         game = game_key.get()
         if not game.params:
             return resp_error(self, 404,"latest game does not have params", 'text/plain')
