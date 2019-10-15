@@ -1023,7 +1023,7 @@ class QuickReroll(RequestHandler):
         self.response.headers['Content-Type'] = 'text/plain'
         user = User.get()
         if not user:
-            return resp_error(self, 401, "pls fam", 'text/plain')
+            return self.redirect(User.login_url('/reroll'))
         if not user.games:
             return resp_error(self, 404, "no games found", 'text/plain')
         game_key = user.games[-1]
@@ -1164,7 +1164,7 @@ app = WSGIApplication(
     Route('/tracker', redirect_to="https://github.com/meldontaragon/OriDETracker/releases/latest"),
     Route('/weekly', redirect_to='https://forms.gle/UGeN2uBN6kPbeWzt6', name="weekly-poll"),
     Route('/openBook/form', redirect_to='https://forms.gle/aCyEjh7YWPLo1YK36', name="open-book-form"),
-    Route('/openBook/leaderboard', redirect_to='https://docs.google.com/spreadsheets/d/1X6jJpjJVY_mly--9tnV9EGo5I6I_gJ4Sepkf51S9rQ4/edit#gid=1488532179&range=A1', name="open-book-leaderboard"),
+    Route('/openBook/leaderboard', redirect_to='https://docs.google.com/spreadsheets/d/1X6jJpjJVY_mly--9tnV9EGo5I6I_gJ4Sepkf51S9rQ4/edit#gid=172059369&range=A1:D1', name="open-book-leaderboard"),
     Route('/theme/toggle', handler=ThemeToggle, name="theme-toggle"),
     # netcode endpoints
     PathPrefixRoute('/netcode/game/<game_id:\d+>/player/<player_id:[^/]+>', [

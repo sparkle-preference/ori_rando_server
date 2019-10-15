@@ -741,20 +741,20 @@ const getHelpHelper = (category, option) => {
                     subtitle = "Item Pool Presets"
                     lines = [
                         "The Extra Bonus item pool preset introduces several new bonus pickups not normally found in the randomizer, including some new activateable skills.",
-                        "It also contains more copies of existing pickups, including 2 more attack upgrades and 4 more extra double jumps. Mega Health and Mega Energy pickups are not consumed on pickup.",
+                        "It also contains more copies of existing pickups; 2 more Attack Upgrades for a total of 5, and 2 more Extra Double Jumps for a total 3. Mega Health and Mega Energy pickups are not consumed on pickup.",
                         "Lastly, it adds 4-8 warps, which are pickups that act as permenant 1-way portals to a different place on the map. Use a warp by touching the pickup and then pressing AltR.",
                         "Note: The default bindings for bonus skills are Alt+Q to swap between them, and Alt+Mouse1 to activate them. These bindings can be changed in the RandomizerRebinding.txt file.",
                         "Mouse over the individual rows to learn more about the bonus pickups!",
-                        "Recommended for people interested in trying out some cool and somewhat overpowered pickups."
+                        (<div>Check out the <a target="_blank" rel="noopener noreferrer"  href="/faq?g=bonus_pickups">bonus item glossary</a> for more info about the extra bonus items.</div>),
                     ]
                     break;
                 case "Bonus Lite":
                     title = "Bonus Lite"
                     subtitle = "Item Pool Presets"
                     lines = [
-                        "The Bonus Lite item pool preset contains a few new passive bonus pickups (3 Skill Velocity, and 1 each of Health Drain, Energy Drain, and Underwater Skill Usage)",
-                        "It also contains more copies of existing pickups, including 2 more attack upgrades and 4 more extra double jumps.",
-                        "Lastly, it adds 4-8 warps, which are pickups that act as permenant 1-way portals to a different place on the map. Use a warp by touching the pickup and then pressing AltR.",
+                        "The Bonus Lite item pool preset contains a few new passive bonus pickups (3 Skill Velocity Upgrades, 3 Jump Upgrades, and 1 each of Health Drain, Energy Drain, and Underwater Skill Usage)",
+                        "It also contains more copies of existing pickups; 2 more Attack Upgrades for a total of 5, and 2 more Extra Double Jumps for a total 3.",
+                        "Lastly, it adds 4-8 Warps, which are pickups that act as permenant 1-way portals to a different place on the map. Use a warp by touching the pickup and then pressing AltR.",
                         (<div>Check out the <a target="_blank" rel="noopener noreferrer"  href="/faq?g=bonus_pickups">bonus item glossary</a> for more info about the extra bonus items.</div>),
                     ]
                     break;
