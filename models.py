@@ -423,7 +423,21 @@ class BingoCard(ndb.Model):
     subgoals = ndb.JsonProperty(repeated=True)
     completed_by = ndb.IntegerProperty(repeated=True)
 
-    def to_json(self, players, initial=False): #, progresses
+    def bingothon_json(self, player):
+        name = self.disp_name
+        prog = player.bingo_prog[self.square]
+        if self.goal_method == "count":
+            name += "\n%s/%s" % (prog.count, self.target)
+        elif self.subgoals:
+            for subgoal in self.subgoals:
+                s = "*" if subgoal["name"] in prog.completed_subgoals else ''
+                name += "\n%s%s%s" % (s, subgoal["name"], s)
+        return {
+            "name": name,
+            "completed": prog.completed
+        }
+
+    def to_json(self, players, initial=False):
         res = {
             "name": self.name,
             "progress": {p.pid(): p.bingo_prog[self.square].to_json() for p in players},
@@ -694,6 +708,9 @@ class BingoGameData(ndb.Model):
 
     @ndb.transactional(retries=0, xg=True)
     def update(self, bingo_data, player_id, game_id):
+        if not bingo_data:
+            log.error("no bingo data????")
+            return
         player_id = int(player_id)
         if not self.start_time:
             return

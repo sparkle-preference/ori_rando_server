@@ -1006,7 +1006,7 @@ class HandleBingoUpdate(RequestHandler):
         try:
             bingo.update(bingo_data, player_id, game_id)
         except:
-            sleep(1)
+            sleep(3)
             bingo.update(bingo_data, player_id, game_id)
 
 class BingoUserboard(RequestHandler):
@@ -1072,6 +1072,18 @@ class BingoUserSpectate(RequestHandler):
                 return resp_error(self, 404, "Could not find any bingo games for user '%s'" % name, "text/plain")
         return redirect(uri_for('bingo-board-spectate', game_id=4 + game_id*7))
 
+class GetBingothonJson(RequestHandler):
+    def get(self, game_id, player_id):
+        self.response.headers['Content-Type'] = 'application/json'
+        res = []
+        bingo = BingoGameData.with_id(game_id)
+        p = bingo.player(player_id)
+        if not bingo or not p:
+            return resp_error(self, 404, json.dumps({"error": "bingo game not found"}))
+        for card in bingo.board:
+            res.append(card.bingothon_json(p))
+        self.response.write(json.dumps(res))
+
 routes = [
     Route('/bingo/board', handler = BingoBoard, name = "bingo-board", strict_slash = True),
     Route('/bingo/spectate', handler = BingoBoard, name = "bingo-board-spectate", strict_slash = True),
@@ -1086,4 +1098,5 @@ routes = [
     Route('/bingo/userboard/<name>/fetch/<gid>', handler = UserboardTick, name = "bingo-userboard-tick", strict_slash = True),
     Route('/bingo/from_game/<game_id>', handler = AddBingoToGame, name = "add-bingo-to-game", strict_slash = True),
     Route('/netcode/game/<game_id:\d+>/player/<player_id:\d+>/bingo', handler = HandleBingoUpdate,  name = "netcode-player-bingo-tick"),
+    Route('/bingo/bingothon/<game_id:\d+>/player/<player_id:\d+>', handler = GetBingothonJson,  name = "bingothon-fetch-data"),
 ]
