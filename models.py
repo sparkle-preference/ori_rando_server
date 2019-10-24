@@ -426,7 +426,7 @@ class BingoCard(ndb.Model):
     def bingothon_json(self, player):
         name = self.disp_name
         prog = player.bingo_prog[self.square]
-        if self.goal_method == "count":
+        if self.goal_method == "count" or self.goal_type == "int":
             name += "\n%s/%s" % (prog.count, self.target)
         elif self.subgoals:
             for subgoal in self.subgoals:

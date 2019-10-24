@@ -1077,9 +1077,11 @@ class GetBingothonJson(RequestHandler):
         self.response.headers['Content-Type'] = 'application/json'
         res = []
         bingo = BingoGameData.with_id(game_id)
-        p = bingo.player(player_id)
-        if not bingo or not p:
+        if not bingo:
             return resp_error(self, 404, json.dumps({"error": "bingo game not found"}))
+        p = bingo.player(player_id)
+        if not p:
+            return resp_error(self, 404, json.dumps({"error": "player not found in game"}))
         for card in bingo.board:
             res.append(card.bingothon_json(p))
         self.response.write(json.dumps(res))
