@@ -113,11 +113,11 @@ class BingoBoard extends Component {
         {
             hide = true;
             let discQueue = [].concat(discovery)
+            let nfilter = (j) => !showSquares.includes(j)
             while(discQueue.length > 0) {
                 let i = discQueue.pop()
                 let c = cards[i]
                 if(c.completed_by.includes(activePlayer) || c.completed_by.includes(activeTeam)) {
-                    showSquares.push(i)
                     let neighbors = []
                     if(i % 5 !== 4)
                         neighbors.push(i+1)
@@ -127,7 +127,9 @@ class BingoBoard extends Component {
                         neighbors.push(i-5)
                     if(i < 20)
                         neighbors.push(i+5)
-                    discQueue = discQueue.concat(neighbors.filter(j => !showSquares.includes(j)))
+                    discQueue = discQueue.concat(neighbors.filter(nfilter))
+                    showSquares.push(i)
+                    showSquares = showSquares.concat(neighbors)
                 }
             }
         }
