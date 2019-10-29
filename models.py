@@ -2,6 +2,7 @@ from google.appengine.ext import ndb
 from google.appengine.api import users
 
 import logging as log
+import random
 from json import dumps as jsonify
 from datetime import datetime, timedelta
 from calendar import timegm
@@ -552,11 +553,12 @@ class BingoGameData(ndb.Model):
     current_highest  = ndb.IntegerProperty(default=0)
     difficulty       = ndb.StringProperty()
     subtitle         = ndb.StringProperty()
-    seed             = ndb.TextProperty(compressed=True)
+    seed             = ndb.StringProperty()
     teams_allowed    = ndb.BooleanProperty(default=False)
     square_count     = ndb.IntegerProperty()
     teams_shared     = ndb.BooleanProperty(default=False)
     game             = ndb.KeyProperty("Game")
+    discovery        = ndb.IntegerProperty()
 
     @ndb.transactional(retries=5, xg=True)
     def reset(self):
@@ -652,6 +654,16 @@ class BingoGameData(ndb.Model):
             res["bingo_count"] = self.bingo_count
             res["subtitle"] = self.subtitle
             res["teams_allowed"] = self.teams_allowed
+            if self.discovery:
+                if self.discovery > 25:
+                    self.discovery = 2
+                rand = random.Random()
+                rand.seed(self.seed)
+                noncounts = [card.square for card in self.board if card.goal_method != "count" and card.goal_type != "int"]
+                if len(noncounts) <= self.discovery:
+                    res["discovery"] = rand.sample(noncounts, self.discovery)
+                else:
+                    res["discovery"] = rand.sample(range(25), self.discovery)
             game = self.game.get()
             if game.params:
                 res["paramId"] = game.params.id()
@@ -1316,7 +1328,6 @@ class Game(ndb.Model):
         game.put()
         game.rebuild_hist()
         return game
-
 
     @staticmethod
     def new(_mode=None, _shared=None, gid=None):

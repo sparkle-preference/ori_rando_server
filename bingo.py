@@ -760,9 +760,11 @@ class BingoCreate(RequestHandler):
             difficulty    = difficulty,
             teams_allowed = param_flag(self, "teams"),
             game          = key,
-            seed          = "\n".join(base)
+            seed          = "\n".join(base),
         )
-
+        if param_flag(self, "discCount"):
+            bingo.discovery = int(param_val(self, "discCount"))
+            bingo.seed = seed
         if param_flag(self, "lines"):
             bingo.bingo_count  = int(param_val(self, "lines"))
         if param_flag(self, "squares"):
@@ -828,13 +830,16 @@ class AddBingoToGame(RequestHandler):
             subtitle      = params.flag_line(),
             teams_allowed = param_flag(self, "teams"),
             teams_shared  = params.players > 1 and params.sync.mode == MultiplayerGameType.SHARED,
-            game          = game.key
+            game          = game.key,
         )
 
         if bingo.teams_shared and not bingo.teams_allowed:
             log.warning("Teams are required for shared seeds! Overriding invalid config")
             bingo.teams_allowed = True
 
+        if param_flag(self, "discCount"):
+            bingo.discovery = int(param_val(self, "discCount"))
+            bingo.seed = seed
         if param_flag(self, "lines"):
             bingo.bingo_count  = int(param_val(self, "lines"))
         if param_flag(self, "squares"):

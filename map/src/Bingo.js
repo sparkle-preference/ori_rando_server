@@ -1,4 +1,4 @@
-import React, {Component} from 'react';
+import React, {Component, Fragment} from 'react';
 import {Container, Row, Col, Collapse, Button, ButtonGroup, Modal, ModalHeader, Popover, PopoverBody, Badge,
         ModalBody, ModalFooter, Input, Card, CardBody, CardFooter, Media, UncontrolledButtonDropdown, DropdownToggle, DropdownMenu, DropdownItem} from 'reactstrap';
 import {NotificationContainer, NotificationManager} from 'react-notifications';
@@ -18,12 +18,18 @@ const hideFooter = iniUrl.searchParams.has("hideFooter")
 const hideLabels = iniUrl.searchParams.has("hideLabels")
 
 const make_icons = players => players.map(p => (<Media key={`playerIcon${p}`} object style={{width: "25px", height: "25px"}} src={player_icons(p, false)} alt={"Icon for player "+p} />))
-const BingoCard = ({card, progress, players, help, dark, selected, onSelect, colors}) => {
+const BingoCard = ({card, progress, players, help, dark, selected, onSelect, colors, hide}) => {
     let cardStyles = {width: '18vh', height: '18vh', minWidth: '120px', maxWidth: '200px', minHeight: '120px', maxHeight: '200px', flexGrow: 1}
     let footerStyles = {}
     cardStyles.border = '1px solid'
     cardStyles.borderColor = colors.border
-    // footerStyles.background = colors.footer
+    if(hide)
+        return (
+            <Card inverse={dark} style={cardStyles}>
+                <CardBody className="px-0 pb-0 justify-content-center text-center align-items-center d-flex pt1"/>
+            </Card>
+        )
+
     if(selected)
         cardStyles.background = colors.selected
     let {open, toggle, i} = help
@@ -83,8 +89,6 @@ const BingoCard = ({card, progress, players, help, dark, selected, onSelect, col
     )
 }
 
-
-
 class BingoBoard extends Component {
     constructor(props) {
         super(props);
@@ -100,9 +104,32 @@ class BingoBoard extends Component {
         return {selected: prev.selected}
     })
     render() {
-        let {cards, bingos, colors, hiddenPlayers, activePlayer, activeTeam, dark} = this.props
+        let {cards, bingos, colors, hiddenPlayers, activePlayer, activeTeam, dark, discovery} = this.props
         if(!cards || cards.length < 25) {
             return null
+        }
+        let hide = false, showSquares = [].concat(discovery);
+        if(discovery.length > 0)
+        {
+            hide = true;
+            let discQueue = [].concat(discovery)
+            while(discQueue.length > 0) {
+                let i = discQueue.pop()
+                let c = cards[i]
+                if(c.completed_by.includes(activePlayer) || c.completed_by.includes(activeTeam)) {
+                    showSquares.push(i)
+                    let neighbors = []
+                    if(i % 5 !== 4)
+                        neighbors.push(i+1)
+                    if(i % 5 !== 0)
+                        neighbors.push(i-1)
+                    if(i > 4)
+                        neighbors.push(i-5)
+                    if(i < 20)
+                        neighbors.push(i+5)
+                    discQueue = discQueue.concat(neighbors.filter(j => !showSquares.includes(j)))
+                }
+            }
         }
         let rows = [], i = 0;
         let colStyle = (b) => ({height: "22px", textAlign: 'center', background: bingos.includes(b) ? colors.complete : 'inherit'})
@@ -115,7 +142,7 @@ class BingoBoard extends Component {
                 let progress = card.progress.hasOwnProperty(activePlayer) ? card.progress[activePlayer] : {'completed': false, 'count': 0, 'subgoals': []}
                 // temp bullshit
                 progress.completed = card.completed_by.includes(activePlayer) || card.completed_by.includes(activeTeam)
-                row.push((<td key={i}><BingoCard colors={colors} selected={this.state.selected[i]} onSelect={this.selectToggle(i)} dark={dark} card={card} progress={progress} help={{i: i, open: this.state.helpOpen[i], toggle: this.helpToggle(i)}} players={players} /></td>))
+                row.push((<td key={i}><BingoCard hide={hide && !showSquares.includes(i)} colors={colors} selected={this.state.selected[i]} onSelect={this.selectToggle(i)} dark={dark} card={card} progress={progress} help={{i: i, open: this.state.helpOpen[i], toggle: this.helpToggle(i)}} players={players} /></td>))
                 i++
             }
             let rowNum = rows.length + 1
@@ -282,7 +309,7 @@ export default class Bingo extends React.Component {
         let user = get_param("user")
         let targetCount = parseInt(iniUrl.searchParams.get("bingoLines") || (fromGen && (teamMax > 1) ? 5 : 3), 10)
         this.state = {
-                      cards: [], currentRecord: 0, haveGame: false, creatingGame: false, createModalOpen: true, offset: 0, noTimer: false,
+                      cards: [], currentRecord: 0, haveGame: false, creatingGame: false, createModalOpen: true, offset: 0, noTimer: false, discovery: false, discCount: 2, discSquares: [],
                       activePlayer: parseInt(get_param("pref_num") || 1, 10), showInfo: false, user: user, loadingText: "Loading...", paramId: -1, squareCount: 13, seed: seed,
                       dark: dark, specLink: window.document.location.href.replace("board", "spectate").replace(gameId, 4 + gameId*7), 
                       fails: 0, gameId: gameId, startSkills: 3, startCells: 4, startMisc: "MU|TP/Swamp/TP/Valley", goalMode: "bingos",
@@ -441,7 +468,7 @@ export default class Bingo extends React.Component {
         }
     }
     createGame = () => {
-        let {isRandoBingo, noTimer, targetCount, goalMode, squareCount, randoGameId, startSkills, startCells, startMisc, showInfo, difficulty, teamsDisabled, seed} = this.state;
+        let {isRandoBingo, discovery, discCount, noTimer, targetCount, goalMode, squareCount, randoGameId, startSkills, startCells, startMisc, showInfo, difficulty, teamsDisabled, seed} = this.state;
         let url
         if(isRandoBingo)
         {
@@ -460,6 +487,8 @@ export default class Bingo extends React.Component {
         if(noTimer)
             url += "&no_timer=1"
         url += `&seed=${seed}`
+        if(discovery && discCount > 0)
+            url += `&discCount=${discCount}`
 
         doNetRequest(url+`&time=${(new Date()).getTime()}`, this.createCallback)
         this.setState({creatingGame: true, loadingText: "Building game...", createModalOpen: false, loader: get_random_loader()})
@@ -494,9 +523,10 @@ export default class Bingo extends React.Component {
                        return false
                     })
                 })
+            console.log(res.discovery)
             this.setState({subtitle: res.subtitle, gameId: res.gameId, createModalOpen: false, creatingGame: false, haveGame: true, offset: res.offset || offset,
                           fails: 0, dispDiff: res.difficulty || dispDiff, teams: res.teams, paramId: res.paramId, activePlayer: activePlayer, ticksSinceLastSquare: 0,
-                          currentRecord: 0, cards: res.cards, events: res.events, targetCount: res.bingo_count, fromGen: false, teamMax: res.teamMax || -1,
+                          currentRecord: 0, cards: res.cards, events: res.events, targetCount: res.bingo_count, fromGen: false, teamMax: res.teamMax || -1, discSquares: res.discovery || [],
                           startTime: res.start_time_posix, isOwner: res.is_owner, countdownActive: res.countdown, teamsDisabled: !res.teams_allowed}, this.updateUrl)
         }
     }
@@ -563,20 +593,16 @@ export default class Bingo extends React.Component {
             console.log(`Multiple teams found for player ${pid}! ${teams}`)
         return parseInt(teams[0], 10)
     }
-    getSquareName = (sq, withCoords) => {
-        withCoords = withCoords || true
-        if(withCoords)
-        {
-            let col = {0: "A", 1: "B", 2: "C", 3: "D", 4: "E"}[(sq % 5)]
-            let row = Math.floor(sq / 5) + 1
-
-            return `${this.state.cards[sq].disp_name} (${col}${row})`
-        }
-        return this.state.cards[sq].disp_name
+    getSquareName = (sq) => {
+        let col = {0: "A", 1: "B", 2: "C", 3: "D", 4: "E"}[(sq % 5)]
+        let row = Math.floor(sq / 5) + 1
+        if(this.state.discSquares.length > 0)
+           return  `${col}${row}`
+        return `${this.state.cards[sq].disp_name} (${col}${row})`
     }
     render = () => {
         let {specLink, viewOnly, isOwner, dark, activePlayer, startTime, paramId, teamsDisabled, userBoardParams,
-            subtitle, cards, haveGame, gameId, user, dispDiff, teams, loadingText, userBoard} = this.state
+            subtitle, cards, haveGame, gameId, user, dispDiff, teams, loadingText, userBoard, discSquares} = this.state
         let s = getComputedStyle(document.body);
         let inputStyle = {'borderColor': s.getPropertyValue('--dark'), 'backgroundColor': s.getPropertyValue("background-color"), 'color': s.getPropertyValue("color")}
 
@@ -650,7 +676,7 @@ export default class Bingo extends React.Component {
         let bingoContent = haveGame ? (
             <Row className="justify-content-center align-items-center">
                 <Col xs="auto">
-                    <BingoBoard colors={colors} dark={dark} cards={cards} activePlayer={activePlayer} activeTeam={this.getCap(activePlayer)} bingos={bingos} hiddenPlayers={hiddenPlayers}/>
+                    <BingoBoard colors={colors} discovery={discSquares} dark={dark} cards={cards} activePlayer={activePlayer} activeTeam={this.getCap(activePlayer)} bingos={bingos} hiddenPlayers={hiddenPlayers}/>
                 </Col>
                     <PlayerList {...this.state} onPlayerListAction={this.onPlayerListAction}/>
             </Row>
@@ -685,7 +711,7 @@ export default class Bingo extends React.Component {
 
                     <Row className="flex-nowrap p-0 m-0">
                         <Col className="p-0 m-0">
-                            <BingoBoard colors={colors} dark={dark} cards={cards} activePlayer={activePlayer} activeTeam={this.getCap(activePlayer)} bingos={bingos} hiddenPlayers={hiddenPlayers}/>
+                            <BingoBoard colors={colors} discovery={discSquares} dark={dark} cards={cards} activePlayer={activePlayer} activeTeam={this.getCap(activePlayer)} bingos={bingos} hiddenPlayers={hiddenPlayers}/>
                         </Col>
                         <Col>
                             {rows}
@@ -826,7 +852,8 @@ export default class Bingo extends React.Component {
         </Modal>
     )}
     createModal = (style) => {
-        let {difficulty, isRandoBingo, seed, fromGen, teamMax, randoGameId, targetCount, startSkills, startCells, startMisc, showInfo, teamsDisabled, noTimer, squareCount, goalMode, user} = this.state
+        let {discovery, difficulty, isRandoBingo, seed, fromGen, teamMax, randoGameId, targetCount, startSkills, 
+            discCount, startCells, startMisc, showInfo, teamsDisabled, noTimer, squareCount, goalMode, user} = this.state
         let randoInput = fromGen ? (
             <Row className="p-1">
                 <Col xs="4" className="text-center p-1 border">
@@ -854,6 +881,30 @@ export default class Bingo extends React.Component {
                     </ButtonGroup>
                 </Col>
             </Row>
+        ) : null
+        let discoverrow = user ? (
+            <Fragment>
+            <Row className="p-1">
+                <Col xs="4" className="p-1 border">
+                    <Cent>Discovery Mode</Cent>
+                </Col>
+                <Col xs="6">
+                    <ButtonGroup>
+                        <Button active={discovery} outline={!discovery} onClick={() => this.setState({discovery: true})}>Enabled</Button>
+                        <Button active={!discovery} outline={discovery} onClick={() => this.setState({discovery: false})}>Disabled</Button>
+                    </ButtonGroup>
+                </Col>
+            </Row>
+            <Collapse isOpen={discovery}>
+                <Row className="p-1">
+                    <Col xs="4" className="p1 border">
+                        <Cent>Initial Revealed Squares</Cent>
+                    </Col><Col xs="4">
+                        <Input style={style} type="number" value={discCount} onChange={(e) => this.setState({discCount: parseInt(e.target.value, 10)})}/>
+                    </Col>
+                </Row>
+            </Collapse>
+            </Fragment>
         ) : null
         let teamrow = teamMax > 0 ? (
             <Row className="p-1">
@@ -897,6 +948,7 @@ export default class Bingo extends React.Component {
                         </Col>
                     </Row>
                     {teamrow}
+                    {discoverrow}
                     {timerrow}
                     <Row className="p-1">
                         <Col xs="4" className="p-1 border">
