@@ -311,7 +311,8 @@ export default class Bingo extends React.Component {
         let user = get_param("user")
         let targetCount = parseInt(iniUrl.searchParams.get("bingoLines") || (fromGen && (teamMax > 1) ? 5 : 3), 10)
         this.state = {
-                      cards: [], currentRecord: 0, haveGame: false, creatingGame: false, createModalOpen: true, offset: 0, noTimer: false, discovery: false, discCount: 2, discSquares: [],
+                      cards: [], currentRecord: 0, haveGame: false, creatingGame: false, createModalOpen: true, offset: 0, noTimer: false, 
+                      discovery: iniUrl.searchParams.has("disc"), discCount: parseInt(iniUrl.searchParams.get("disc") || 2, 10), discSquares: [],
                       activePlayer: parseInt(get_param("pref_num") || 1, 10), showInfo: false, user: user, loadingText: "Loading...", paramId: -1, squareCount: 13, seed: seed,
                       dark: dark, specLink: window.document.location.href.replace("board", "spectate").replace(gameId, 4 + gameId*7), 
                       fails: 0, gameId: gameId, startSkills: 3, startCells: 4, startMisc: "MU|TP/Swamp/TP/Valley", goalMode: "bingos",
@@ -363,7 +364,7 @@ export default class Bingo extends React.Component {
         if(url.searchParams.has("fromGen") && !fromGen)
         {
             url.searchParams.delete("fromGen");
-            ["teamMax", "seed", "bingoLines"].forEach(p => {
+            ["teamMax", "seed", "bingoLines", "disc"].forEach(p => {
                 if(url.searchParams.has(p))
                     url.searchParams.delete(p)
             })
@@ -525,7 +526,6 @@ export default class Bingo extends React.Component {
                        return false
                     })
                 })
-            console.log(res.discovery)
             this.setState({subtitle: res.subtitle, gameId: res.gameId, createModalOpen: false, creatingGame: false, haveGame: true, offset: res.offset || offset,
                           fails: 0, dispDiff: res.difficulty || dispDiff, teams: res.teams, paramId: res.paramId, activePlayer: activePlayer, ticksSinceLastSquare: 0,
                           currentRecord: 0, cards: res.cards, events: res.events, targetCount: res.bingo_count, fromGen: false, teamMax: res.teamMax || -1, discSquares: res.discovery || [],

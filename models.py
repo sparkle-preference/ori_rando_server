@@ -659,11 +659,23 @@ class BingoGameData(ndb.Model):
                     self.discovery = 2
                 rand = random.Random()
                 rand.seed(self.seed)
-                noncounts = [card.square for card in self.board if card.goal_method != "count" and card.goal_type != "int"]
-                if len(noncounts) <= self.discovery:
-                    res["discovery"] = rand.sample(noncounts, self.discovery)
-                else:
-                    res["discovery"] = rand.sample(range(25), self.discovery)
+                noncounts = [card.square for card in self.board if card.goal_method not in ["and", "count"] and card.goal_type != "int"]
+                i = 0
+                squares = []
+                while i < 10:
+                    if len(noncounts) >= self.discovery:
+                        squares = rand.sample(noncounts, self.discovery)
+                    else:
+                        squares = rand.sample(range(25), self.discovery)
+                    for s in squares:
+                        if (s % 5 != 4 and s+1 in squares) or (s % 5 != 0 and s-1 in squares) or (s > 4 and s-5 in squares) or (s < 20 and s+5 in squares):
+                            i += 1
+                            break
+                    else:
+                        break
+                print squares, i
+                res["discovery"] = squares
+
             game = self.game.get()
             if game.params:
                 res["paramId"] = game.params.id()

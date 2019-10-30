@@ -1027,17 +1027,21 @@ class QuickReroll(RequestHandler):
         if not user.games:
             return resp_error(self, 404, "no games found", 'text/plain')
         game_key = user.games[-1]
-        game = game_key.get()
-        if not game.params:
+        old_game = game_key.get()
+        if not old_game.params:
             return resp_error(self, 404,"latest game does not have params", 'text/plain')
-        old_params = game.params.get().to_json()
+        old_params = old_game.params.get().to_json()
         old_params['seed'] = str(random.randint(0, 1000000000))
         new_params = SeedGenParams.from_json(old_params).get()
         if not new_params.generate():
             return resp_error(self, 500, "Failed to generate seed!", 'text/plain')
         game = Game.from_params(new_params)
         if Variation.BINGO in new_params.variations:
-            return redirect("/bingo/board?game_id=%s&fromGen=1&seed=%s&bingoLines=%s" % (game.key.id(), new_params.seed, new_params.bingo_lines))
+            url = "/bingo/board?game_id=%s&fromGen=1&seed=%s&bingoLines=%s" % (game.key.id(), new_params.seed, new_params.bingo_lines)
+            b = old_game.bingo_data.get()
+            if b.discovery and b.discovery > 0:
+                url += "&disc=%s" % b.discovery
+            return redirect(url)
         return redirect(uri_for('main-page', game_id=game.key.id(), param_id=new_params.key.id()))
 
 
@@ -1159,8 +1163,8 @@ app = WSGIApplication(
     Route('/reroll', handler=QuickReroll, strict_slash=True, name="reroll-last"),
     Route('/discord', redirect_to="https://discord.gg/TZfue9V"),
     Route('/reset/<game_id:\d+>', handler=ResetGame, name="restart-game"),
-    Route('/dll', redirect_to="https://github.com/turntekGodhead/OriDERandomizer/raw/master/Assembly-CSharp.dll"),
-    Route('/dll/bingo', redirect_to="https://github.com/turntekGodhead/OriDERandomizer/raw/master/Assembly-CSharp.dll"),
+    Route('/dll', redirect_to="https://github.com/sparkle-preference/OriDERandomizer/raw/master/Assembly-CSharp.dll"),
+    Route('/dll/bingo', redirect_to="https://github.com/sparkle-preference/OriDERandomizer/raw/master/Assembly-CSharp.dll"),
     Route('/tracker', redirect_to="https://github.com/meldontaragon/OriDETracker/releases/latest"),
     Route('/weekly', redirect_to='https://forms.gle/UGeN2uBN6kPbeWzt6', name="weekly-poll"),
     Route('/openBook/form', redirect_to='https://forms.gle/aCyEjh7YWPLo1YK36', name="open-book-form"),
