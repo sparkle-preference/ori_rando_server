@@ -1,40 +1,24 @@
 Ori DE Coop Server
 ==================
 
-Repository for Ori DE [coop randomizer server](https://orirando.com) and [plando builder](https://orirando.com/plando/simple)!
+Repository for Ori DE [website](https://orirando.com)
 
 ## Getting Started
 
-This repository contains the UI and backend code for the Ori DE randomizer.  For players, see the [Getting Started documentation](https://orirando.com). Detailed descriptions of the randomizer modes will be displayed on the side when the mode is selected from the pull down menu. Custom options and advanced setting help can be viewed by mousing over an option in the web browser.
+This repository contains the UI and backend code for the Ori DE randomizer website.  New players: check out the [quickstart page](https://orirando.com/quickstart). Help for the various seed generation settings can be found on by mousing over the relevant UI elements.
 
 ## Key Features
 * Seed Generator - Generates randomizer.dat seeds
 * Logic Helper - Simple interface to determine in-logic pickups based on current skills and resources. Manual
 * Online Tracking Map - Web-based live tracker showing current available pickups on the world map by updating to this server 
-* Plandomizer - Tool to allow players to design and share custom logic seeds
-* Bingo
-
-### Web Tracking
-
+* Plandomizer Builder - Tool to allow players to design and share custom logic seeds
+* Bingo - 
 
 ## Development 
 We welcome your contributions!
-This server is build to work with the Google App Engine.
-
-To develop locally, 
-* Install the [Google App Engine SDK](https://cloud.google.com/sdk/docs/) for your OS.
-* Clone [this repository](https://github.com/turntekGodhead/ori_rando_server.git)
-* Setup the simulation environment by running:  
-```
-   ./dev_appserver.py .
-```
-
-First time setup can take a few minutes.  Be patient
-
-See this link to the tutorial on getting started with the [App Engine SDK](http://webapp2.readthedocs.io/en/latest/tutorials/gettingstarted/)
+This server is a hybrid python 2.7 (flask) and react app, and has been built on App Engine using the cloudshell editor. As such, it can be a bit... tricky to set up a local environment for development. If you are interested, contact me (Eiko) in the [Ori Discord](https://orirando.com/discord)
 
 ## Related Projects 
-* [OriDE Randomizer](https://github.com/sigmasin/OriDERandomizer)
+* [OriDE Randomizer](https://github.com/sparkle-preference/OriDERandomizer)
 * [OriDETracker](https://github.com/meldontaragon/OriDETracker)
 * [Autosplitter for Ori DE](https://github.com/ShootMe/LiveSplit.OriDE)
-
