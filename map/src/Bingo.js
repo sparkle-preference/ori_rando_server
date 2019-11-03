@@ -1,4 +1,4 @@
-import React, {Component, Fragment} from 'react';
+import React, {Component} from 'react';
 import {Container, Row, Col, Collapse, Button, ButtonGroup, Modal, ModalHeader, Popover, PopoverBody, Badge,
         ModalBody, ModalFooter, Input, Card, CardBody, CardFooter, Media, UncontrolledButtonDropdown, DropdownToggle, DropdownMenu, DropdownItem} from 'reactstrap';
 import {NotificationContainer, NotificationManager} from 'react-notifications';
@@ -16,6 +16,7 @@ const iniUrl = new URL(window.document.URL);
 const cardTextSize = iniUrl.searchParams.get("textSize") || "1.5vh"
 const hideFooter = iniUrl.searchParams.has("hideFooter")
 const hideLabels = iniUrl.searchParams.has("hideLabels")
+const blindRace = iniUrl.searchParams.has("blindRace")
 
 const make_icons = players => players.map(p => (<Media key={`playerIcon${p}`} object style={{width: "25px", height: "25px"}} src={player_icons(p, false)} alt={"Icon for player "+p} />))
 const BingoCard = ({card, progress, players, help, dark, selected, onSelect, colors, hide}) => {
@@ -72,7 +73,7 @@ const BingoCard = ({card, progress, players, help, dark, selected, onSelect, col
 
     if(progress.completed)
         cardStyles.background = colors.complete
-    let footer = hideFooter ? null : (
+    let footer = (hideFooter || blindRace) ? null : (
         <CardFooter style={footerStyles} className="p-0 text-center">
             {helpLink}
             {popover}
@@ -183,17 +184,19 @@ const PlayerList = ({activePlayer, teams, viewOnly, isOwner, timerTime, onPlayer
         return null
     let team_list = Object.keys(teams).map(cid => teams[cid])
     let players = team_list.map(({hidden, cap, teammates, name, bingos, place, score}) => {
-
             if(hidden)
                 return null
             place = place || 0
             score = score || 0
             let hasTeam = teammates.length > 0
             let canJoin = teamMax === -1 ? true : teammates.length + 1 < teamMax
+            let text = `${name}`
             let number = (bingos && bingos.length) || 0
-            let text = `${name} | ${number} lines`
-            if(score)
-                text += `, (${score}/25)`
+            if(!blindRace) {
+                text += `| ${number} lines`
+                if(score)
+                    text += `, (${score}/25)`
+            }
             let badge = place > 0 ? (<Badge color='primary'>{ordinal_suffix(place)}</Badge>) : null
             let active = activePlayer === cap.pid
             let joinButton = viewOnly || !canJoin || teamsDisabled ? null : (
@@ -361,14 +364,11 @@ export default class Bingo extends React.Component {
         else
             url.searchParams.delete("game_id")
         
-        if(url.searchParams.has("fromGen") && !fromGen)
-        {
-            url.searchParams.delete("fromGen");
-            ["teamMax", "seed", "bingoLines", "disc"].forEach(p => {
+        if(!fromGen)
+            ["fromGen", "teamMax", "seed", "bingoLines", "disc", "blindRace"].forEach(p => {
                 if(url.searchParams.has(p))
                     url.searchParams.delete(p)
             })
-        }
         else if(!url.searchParams.has("fromGen") && fromGen)
             url.searchParams.set("fromGen", 1)
 
@@ -646,7 +646,7 @@ export default class Bingo extends React.Component {
                     return ""
             }
         }
-        let eventlog = haveGame  ? (
+        let eventlog = (haveGame && !blindRace)  ? (
             <Row className="justify-content-center py-2">
             <Col style={{maxWidth: '1074px'}}>
                 <textarea style={inputStyle} className="w-100" rows={15} disabled value={this.state.events.map(ev => fmt(ev)).reverse().filter(l => l !== "").join("\n")}/>
@@ -884,30 +884,6 @@ export default class Bingo extends React.Component {
                 </Col>
             </Row>
         ) : null
-        let discoverrow = user ? (
-            <Fragment>
-            <Row className="p-1">
-                <Col xs="4" className="p-1 border">
-                    <Cent>Discovery Mode</Cent>
-                </Col>
-                <Col xs="6">
-                    <ButtonGroup>
-                        <Button active={discovery} outline={!discovery} onClick={() => this.setState({discovery: true})}>Enabled</Button>
-                        <Button active={!discovery} outline={discovery} onClick={() => this.setState({discovery: false})}>Disabled</Button>
-                    </ButtonGroup>
-                </Col>
-            </Row>
-            <Collapse isOpen={discovery}>
-                <Row className="p-1">
-                    <Col xs="4" className="p1 border">
-                        <Cent>Initial Revealed Squares</Cent>
-                    </Col><Col xs="4">
-                        <Input style={style} type="number" value={discCount} onChange={(e) => this.setState({discCount: parseInt(e.target.value, 10)})}/>
-                    </Col>
-                </Row>
-            </Collapse>
-            </Fragment>
-        ) : null
         let teamrow = teamMax > 0 ? (
             <Row className="p-1">
                 <Col xs="4" className="p-1 border">
@@ -950,7 +926,26 @@ export default class Bingo extends React.Component {
                         </Col>
                     </Row>
                     {teamrow}
-                    {discoverrow}
+                    <Row className="p-1">
+                        <Col xs="4" className="p-1 border">
+                            <Cent>Discovery Mode</Cent>
+                        </Col>
+                        <Col xs="6">
+                            <ButtonGroup>
+                                <Button active={discovery} outline={!discovery} onClick={() => this.setState({discovery: true})}>Enabled</Button>
+                                <Button active={!discovery} outline={discovery} onClick={() => this.setState({discovery: false})}>Disabled</Button>
+                            </ButtonGroup>
+                        </Col>
+                    </Row>
+                    <Collapse isOpen={discovery}>
+                        <Row className="p-1">
+                            <Col xs="4" className="p1 border">
+                                <Cent>Initial Revealed Squares</Cent>
+                            </Col><Col xs="4">
+                                <Input style={style} type="number" value={discCount} onChange={(e) => this.setState({discCount: parseInt(e.target.value, 10)})}/>
+                            </Col>
+                        </Row>
+                    </Collapse>
                     {timerrow}
                     <Row className="p-1">
                         <Col xs="4" className="p-1 border">
