@@ -559,6 +559,7 @@ class BingoGameData(ndb.Model):
     teams_shared     = ndb.BooleanProperty(default=False)
     game             = ndb.KeyProperty("Game")
     discovery        = ndb.IntegerProperty()
+    rand_dat         = ndb.TextProperty(compressed=True)
 
     @ndb.transactional(retries=5, xg=True)
     def reset(self):
@@ -698,7 +699,7 @@ class BingoGameData(ndb.Model):
                 goals[""].append(card.name + ("-%s" % card.target if card.target else ""))
         goalstr = "Goals" + "/".join(["%s:%s" % (goal, ",".join(set(subgoals))) for (goal, subgoals) in goals.items()]) + "\n"
         if not game.params:
-            return sync_flag + self.seed + "\n" + goalstr
+            return sync_flag + self.rand_dat + "\n" + goalstr
         else:
             params = game.params.get()
             if Variation.BINGO not in params.variations:

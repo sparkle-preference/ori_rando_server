@@ -193,7 +193,7 @@ const PlayerList = ({activePlayer, teams, viewOnly, isOwner, timerTime, onPlayer
             let text = `${name}`
             let number = (bingos && bingos.length) || 0
             if(!blindRace) {
-                text += `| ${number} lines`
+                text += ` | ${number} lines`
                 if(score)
                     text += `, (${score}/25)`
             }
@@ -321,7 +321,8 @@ export default class Bingo extends React.Component {
                       fails: 0, gameId: gameId, startSkills: 3, startCells: 4, startMisc: "MU|TP/Swamp/TP/Valley", goalMode: "bingos",
                       start_with: "", difficulty: "normal", isRandoBingo: false, randoGameId: -1, viewOnly: viewOnly, buildingPlayer: false,
                       events: [], startTime: (new Date()), countdownActive: false, isOwner: false, targetCount: targetCount, userBoard: userBoard,
-                      teamsDisabled: (teamMax === -1), fromGen: fromGen, teamMax: teamMax, ticksSinceLastSquare: 0, userBoardParams: userBoardParams
+                      teamsDisabled: (teamMax === -1), fromGen: fromGen, teamMax: teamMax, ticksSinceLastSquare: 0, userBoardParams: userBoardParams,
+                      ticking: false
                     };
         if(gameId > 0)
         {
@@ -347,7 +348,7 @@ export default class Bingo extends React.Component {
 
     componentWillMount() {
         this.tick()
-        this.interval = setInterval(() => this.tick(),  1000);
+        this.interval = setInterval(() => this.tick(), 1000);
         this.timerInterval = setInterval(() => this.updateTimer(), 10);
   };
     updateUrl = () => {
@@ -396,8 +397,8 @@ export default class Bingo extends React.Component {
         this.setState({buildingPlayer: true, loadingText: "Joining game..."}, doNetRequest(url, this.tickCallback))
     }
     tick = () => {
-        let {fails, gameId, haveGame, ticksSinceLastSquare, user, userBoard} = this.state;
-        if(fails > 50)
+        let {fails, gameId, haveGame, ticksSinceLastSquare, user, userBoard, ticking} = this.state;
+        if(ticking || fails > 50)
             return
         if((gameId && gameId > 0 && haveGame) || userBoard)
         {
@@ -419,15 +420,15 @@ export default class Bingo extends React.Component {
     tickCallback = ({status, responseText}) => {
         if(status !== 200)
         {
-            let stateUpdate = {fails: this.state.fails + 1, buildingPlayer: false}
+            let stateUpdate = {fails: this.state.fails + 1, buildingPlayer: false, ticking: false}
             if(status === 409)
                 stateUpdate.activePlayer = this.state.activePlayer + 1
-            if(this.state.fails < 5 || (this.state.fails - 1) % 5 === 0)
+            else if(this.state.fails < 5 || (this.state.fails - 1) % 5 === 0)
                 NotificationManager.error(`error ${status}: ${responseText}`, "error", 5000)
             this.setState(stateUpdate)
         } else {
             let res = JSON.parse(responseText)
-            let newState = {events: res.events, startTime: res.start_time_posix, countdownActive: res.countdown, isOwner: res.is_owner}
+            let newState = {events: res.events, startTime: res.start_time_posix, countdownActive: res.countdown, isOwner: res.is_owner, ticking: false}
             if(res.gameId !== this.state.gameId)
             {
                 if(this.state.userBoard && this.state.user)
@@ -467,6 +468,8 @@ export default class Bingo extends React.Component {
                     download("randomizer.dat", res.player_seed);
                 newState.buildingPlayer = false;
             }
+            if(this.state.fails > 0)
+                newState.fails = this.state.fails - 1
             this.setState(newState, this.updateUrl)
         }
     }

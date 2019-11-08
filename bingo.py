@@ -760,7 +760,7 @@ class BingoCreate(RequestHandler):
             difficulty    = difficulty,
             teams_allowed = param_flag(self, "teams"),
             game          = key,
-            seed          = "\n".join(base),
+            rand_dat     = "\n".join(base),
         )
         if param_flag(self, "discCount"):
             bingo.discovery = int(param_val(self, "discCount"))

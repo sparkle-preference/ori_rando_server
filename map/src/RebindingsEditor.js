@@ -52,7 +52,7 @@ const Keys = [
 const DEFAULT_BINDINGS = {
     "Movement Left": ["A", "LeftArrow"], "Movement Right": ["D", "RightArrow"], "Movement Down": ["S", "DownArrow"], "Movement Up": ["W", "UpArrow"], "Menu Left": ["A", "LeftArrow"], "Menu Right": ["D", "RightArrow"], 
     "Menu Down": ["S", "DownArrow"], "Menu Up": ["W", "UpArrow"], "Menu Previous": ["K", "PageUp"], "Menu Next": ["L", "PageDown"], "Proceed": ["Space", "Return"], "Soul Link": ["E"], "Jump": ["Space"], 
-    "Grab": ["LeftShift", "RightShift"], "Spirit Flame": ["X"], "Bash": ["Mouse1", "C"], "Glide": ["LeftShift", "RightShift"], "Charge Jump": ["UpArrow", "W"], "Select": ["Tab"], "Start": ["Escape"], "Cancel": ["Escape", "Mouse1"], 
+    "Grab": ["LeftShift", "RightShift"], "Spirit Flame": ["Mouse0", "X"], "Bash": ["Mouse1", "C"], "Glide": ["LeftShift", "RightShift"], "Charge Jump": ["UpArrow", "W"], "Select": ["Tab"], "Start": ["Escape"], "Cancel": ["Escape", "Mouse1"], 
     "Grenade": ["R"], "Dash": ["LeftControl", "RightControl"], "Left Stick": ["Alpha7"], "Debug Menu (shhh)": ["Alpha8"], "Zoom In World Map": ["RightShift", "LeftShift"], 
     "Zoom Out World Map": ["RightControl", "LeftControl"], "Copy": ["C"], "Delete": ["Delete"], "Focus": ["F"], "Filter": ["F"], "Legend": ["L"]
 }
