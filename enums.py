@@ -60,6 +60,7 @@ class Variation(StrEnum):
     BINGO = "Bingo"
     TPSTARVED = "TPStarved"
     NO_ESCAPE = "GoalModeFinish"
+    FUCK_WALLS = "WallStarved"
 
 class LogicPath(StrEnum):
     CASUAL_CORE = 'casual-core'

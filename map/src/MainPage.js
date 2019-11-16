@@ -159,7 +159,8 @@ const VAR_NAMES = {
     StompTriggers: "Legacy Kuro Behavior",
     TPStarved: "TPStarved",
     GoalModeFinish: "Skip Final Escape",
-    Bingo: "Bingo"
+    Bingo: "Bingo",
+    WallStarved: "WallStarved",
 }
 const cellFreqPresets = (preset) => preset === "casual" ? 20 : (preset === "standard" ? 40 : 256)
 const optional_paths = ['casual-dboost', 'standard-core', 'standard-dboost', 'standard-lure', 'standard-abilities', 'expert-core', 'expert-dboost', 'expert-lure', 'expert-abilities', 'dbash', 'master-core', 'master-dboost', 'master-lure', 'master-abilities', 'gjump', 'glitched', 'timed-level', 'insane']

@@ -31,7 +31,6 @@ warp_targets = [
     [
         #lost grove
         ("Lost Grove Laser Lever", 499, -505),
-        ("Grandpa's House", 302, -524),
     ],
     [
         # hollow grove
@@ -532,6 +531,8 @@ class SeedGenerator:
                             else:
                                 requirements.append(req)
                                 cost += self.costs[req]
+                                if self.var(Variation.FUCK_WALLS) and req in ["WallJump", "Climb"]:
+                                    cost += self.costs[req] * 3
                     # don't decrease the rate of multi-ability paths, bc we're already pruning them
                     # cost *= max(1, len(requirements) - 1)
                     if len(requirements) <= free_space:
@@ -611,6 +612,9 @@ class SeedGenerator:
             if value <= position:
                 if self.var(Variation.STARVED):
                     if key in self.skillsOutput and recurseCount < 3:
+                        return self.assign_random(locs, recurseCount=recurseCount + 1)
+                if self.var(Variation.FUCK_WALLS):
+                    if key in ["WallJump", "Climb"] and recurseCount < 3 and 252 - locs < 40:
                         return self.assign_random(locs, recurseCount=recurseCount + 1)
                 if self.var(Variation.TPSTARVED):
                     if key.startswith("TP") and recurseCount < 3 and 252 - locs < self.costs.get(key, 0):
