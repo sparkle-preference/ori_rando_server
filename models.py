@@ -423,6 +423,7 @@ class BingoCard(ndb.Model):
     square = ndb.IntegerProperty()  # position in the single-dimension array
     subgoals = ndb.JsonProperty(repeated=True)
     completed_by = ndb.IntegerProperty(repeated=True)
+    early = ndb.BooleanProperty()  # i hate this but w/e
 
     def bingothon_json(self, player):
         name = self.disp_name
@@ -432,7 +433,8 @@ class BingoCard(ndb.Model):
         elif self.subgoals:
             for subgoal in self.subgoals:
                 s = "*" if subgoal["name"] in prog.completed_subgoals else ''
-                name += "\n%s%s%s" % (s, subgoal["name"], s)
+                n = subgoal["disp_name"] if "disp_name" in subgoal else subgoal["name"]
+                name += "\n%s%s%s" % (s, n, s)
         return {
             "name": name,
             "completed": prog.completed
@@ -660,21 +662,20 @@ class BingoGameData(ndb.Model):
                     self.discovery = 2
                 rand = random.Random()
                 rand.seed(self.seed)
-                noncounts = [card.square for card in self.board if card.goal_method not in ["and", "count"] and card.goal_type != "int"]
+                noncounts = [card.square for card in self.board if card.early]
                 i = 0
                 squares = []
                 while i < 10:
                     if len(noncounts) >= self.discovery:
                         squares = rand.sample(noncounts, self.discovery)
                     else:
-                        squares = rand.sample(range(25), self.discovery)
+                        squares = noncounts + rand.sample(range(25), self.discovery - len(noncounts))
                     for s in squares:
                         if (s % 5 != 4 and s+1 in squares) or (s % 5 != 0 and s-1 in squares) or (s > 4 and s-5 in squares) or (s < 20 and s+5 in squares):
                             i += 1
                             break
                     else:
                         break
-                print squares, i
                 res["discovery"] = squares
 
             game = self.game.get()

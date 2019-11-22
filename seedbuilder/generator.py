@@ -24,12 +24,13 @@ warp_targets = [
         ("Gumo's Bridge", 480, -244),
     ],
     [
-        # lower blackroot
+        # blackroot
         ("Lower Blackroot Laser AC", 417, -435),
-        ("Grenade Tree", 76, -370),
+        ("Dash Plant", 310, -230),
     ],
     [
-        #lost grove
+        # blackrooter 
+        ("Grenade Tree", 76, -370),
         ("Lost Grove Laser Lever", 499, -505),
     ],
     [
@@ -52,9 +53,10 @@ warp_targets = [
         ("Spike loop HC", 546, -190),
     ],
     [
-        # lower valley
+        # lower valley / below valley
         ("Valley entry (upper)", -224, -85),
         ("Forlorn entrance", -605, -255),
+        ("Spirit Cavern AC", -219, -176),
     ],
     [
         # upper valley
@@ -531,6 +533,8 @@ class SeedGenerator:
                             else:
                                 requirements.append(req)
                                 cost += self.costs[req]
+                                if self.var(Variation.TPSTARVED) and req.startswith("TP"):
+                                    cost += self.costs[req]
                                 if self.var(Variation.FUCK_WALLS) and req in ["WallJump", "Climb"]:
                                     cost += self.costs[req] * 3
                     # don't decrease the rate of multi-ability paths, bc we're already pruning them

@@ -759,7 +759,7 @@ export default class Bingo extends React.Component {
                 <Container className="">
                     <SiteBar dark={dark} user={user}/>
                 </Container>
-                {this.createModal(inputStyle)}
+                {this.createModal(inputStyle) }
                 {this.loadingModal(inputStyle, loadingText)}
                 {this.countdownModal(inputStyle)}
                 <Row className="p-1">

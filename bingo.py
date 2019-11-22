@@ -43,24 +43,28 @@ class BoolGoal(BingoGoal):
             disp_name = self.disp_name,
             help_lines = self.help_lines[:],
             goal_type = "bool",
+            early = "early" in self.tags
         )
 
 class IntGoal(BingoGoal):
     goalType = "int"
-    def __init__(self, name, disp_name, help_lines, range_func, tags = []):
+    def __init__(self, name, disp_name, help_lines, range_func, early_max = None, tags = []):
         self.name = name
         self.disp_name = disp_name
         self.help_lines = help_lines
         self.range_func = range_func
+        self.early_max = early_max
         self.tags = set(tags)
 
     def to_card(self, rand, banned = {}):
+        t = self.range_func()
         return BingoCard(
             name = self.name,
             disp_name = self.disp_name,
             help_lines = self.help_lines[:],
             goal_type = "int",
-            target = self.range_func()
+            target = t,
+            early = t <= self.early_max,
         )
 
 class GoalGroup(BingoGoal):
@@ -104,11 +108,14 @@ class GoalGroup(BingoGoal):
         plural = False
         if count == 1:
             infix = "this"
+            card.early = "early" in subgoals[0].tags
         elif card.goal_method.startswith("or"):
             infix = "EITHER" if count == 2 else "ANY"
+            card.early = any(["early" in s.tags for s in subgoals])
         elif card.goal_method.startswith("and"):
             infix = "BOTH" if count == 2 else "EACH"
             plural = count == 2
+            card.early = all(["early" in s.tags for s in subgoals])
 
         card.disp_name = self.name_func(infix, plural)
         subgoals = [subgoal.to_card(rand).to_json([], True) for subgoal in rand.sample(subgoals, count)]
@@ -116,6 +123,7 @@ class GoalGroup(BingoGoal):
             card.subgoals.append(subgoal)
             if subgoal["help_lines"]:
                 hls.append(subgoal["disp_name"] + ": " + subgoal["help_lines"][0])
+        
         card.help_lines = hls[:]
         return card
 
@@ -138,14 +146,15 @@ class BingoGenerator(object):
             if hard:
                 params = hard_params
             low, high = params
-            return lambda: rand.randint(low, high)*scalar
+            return lambda: int(round(rand.triangular(low, high, (low+high)/2)))*scalar
+#            return lambda: rand.randint(low, high)*scalar
         tpGoals = [
-            BoolGoal(name = "sunkenGlades", disp_name = "Sunken Glades", tags = ["no_or", "no_singleton"]),
-            BoolGoal(name = "moonGrotto", disp_name = "Moon Grotto"),
-            BoolGoal(name = "mangroveFalls", disp_name = "Blackroot Burrows"),
+            BoolGoal(name = "sunkenGlades", disp_name = "Sunken Glades", tags = ["no_or", "no_singleton", "early"]),
+            BoolGoal(name = "moonGrotto", disp_name = "Moon Grotto", tags = [ "early" ]),
+            BoolGoal(name = "mangroveFalls", disp_name = "Blackroot Burrows", tags = [ "early" ]),
             BoolGoal(name = "valleyOfTheWind", disp_name = "Sorrow Pass"),
             BoolGoal(name = "sorrowPass", disp_name = "Valley of the Wind"),
-            BoolGoal(name = "spiritTree", disp_name = "Hollow Grove"),
+            BoolGoal(name = "spiritTree", disp_name = "Hollow Grove", tags = [ "early" ]),
             BoolGoal(name = "mangroveB", disp_name = "Lost Grove"),
             BoolGoal(name = "horuFields", disp_name = "Horu Fields"),
             BoolGoal(name = "ginsoTree", disp_name = "Ginso Tree"),
@@ -154,7 +163,7 @@ class BingoGenerator(object):
         ]
         if rando:
             tpGoals += [
-                BoolGoal(name = "swamp", disp_name = "Thornfelt Swamp"),
+                BoolGoal(name = "swamp", disp_name = "Thornfelt Swamp", tags = [ "early" ]),
                 BoolGoal(name = "sorrowPass", disp_name = "Valley of the Wind")
             ]
         goals = [
@@ -182,7 +191,8 @@ class BingoGenerator(object):
                     "Forlorn: 1 (Right Forlorn Access)"
                     "Sorrow: 3 (Questionable KS Door, Tumbleweed Door, Charge Jump Access)",
                 ],
-                range_func = r((2, 4), (4, 8), (7, 11))
+                range_func = r((2, 4), (4, 8), (7, 11)),
+                early_max = 3
             ),
             IntGoal(
                 name = "OpenEnergyDoors", 
@@ -201,25 +211,27 @@ class BingoGenerator(object):
                 disp_name = "Break floors or ceilings",
                 help_lines = ["A floor or ceiling is a horizontal barrier that can be broken with a skill or enemy attack.",
                              "Almost half of the game's horizontal barriers are in either Sorrow or Swamp"],
-                range_func = r((4, 10), (8, 24), (20, 42)),
+                range_func = r((4, 10), (8, 24), (20, 42))                
             ),
             IntGoal(
                 name = "BreakWalls",
                 disp_name = "Break walls",
                 help_lines = ["A wall is a vertical barrier that can be broken with a skill."],
-                range_func = r((4, 10), (8, 20), (16, 28))
+                range_func = r((4, 10), (8, 20), (16, 28)),
             ),
             IntGoal(
                 name = "UnspentKeystones",
                 disp_name = "Keystones in inventory",
                 help_lines = ["Keyduping is allowed, and you can spend your keys after completing this goal."],
-                range_func = r((6, 10), (8, 20), (20, 30))
+                range_func = r((6, 10), (8, 20), (20, 30)),
+                early_max = 10
             ),
             IntGoal(
                 name = "BreakPlants",
                 disp_name = "Break plants",
                 help_lines = ["Plants are the large blue bulbs that can only be broken with Charge Flame, Grenade, or Charge Dash"],
-                range_func = r((3, 8), (6, 15), (12, 21))
+                range_func = r((3, 8), (6, 15), (12, 21)),
+                early_max = 9
             ),
             IntGoal(
                 name = "TotalPickups",
@@ -231,7 +243,8 @@ class BingoGenerator(object):
                 name = "UnderwaterPickups",
                 disp_name = "Collect underwater pickups",
                 help_lines = ["Pickups are considered underwater if they are submerged or in an area only reachable by swimming."],
-                range_func = r((2, 6), (4, 10), (8, 16))
+                range_func = r((2, 6), (4, 10), (8, 16)),
+                early_max = 5
             ),
             IntGoal(
                 name = "LightLanterns",
@@ -255,13 +268,14 @@ class BingoGenerator(object):
                 name = "KillEnemies",
                 disp_name = "Kill enemies",
                 help_lines = ["Large swarms count as 3 enemies (the initial swarm and the first split)"],
-                range_func = r((25, 75), (50, 125), (75, 175))
+                range_func = r((25, 75), (50, 125), (75, 175))                
             ),
             IntGoal(
                 name = "PickupsInGlades",
                 disp_name = "Collect Pickups In Glades",
                 help_lines = ["You can use the stats feature (alt+5 by default) to see your pickup counts by zone.", "Mapstone turn-ins are not in any zone."],
                 range_func = r((8, 15), (10, 22), (16, 27)),
+                early_max = 16,
                 tags = ["pickups_in_zone"]
             ),
             IntGoal(
@@ -269,28 +283,31 @@ class BingoGenerator(object):
                 disp_name = "Collect Pickups In Grove",
                 help_lines = ["You can use the stats feature (alt+5 by default) to see your pickup counts by zone.", "Mapstone turn-ins are not in any zone."],
                 range_func = r((7, 14), (10, 19), (16, 26)),
-                tags = ["pickups_in_zone"]
+                tags = ["pickups_in_zone"],
+                early_max = 9
             ),
             IntGoal(
                 name = "PickupsInGrotto",
                 disp_name = "Collect Pickups In Grotto",
                 help_lines = ["You can use the stats feature (alt+5 by default) to see your pickup counts by zone.", "Mapstone turn-ins are not in any zone."],
                 range_func = r((8, 16), (12, 28), (20, 33)),
-                tags = ["pickups_in_zone"]
+                tags = ["pickups_in_zone"],
+                early_max = 12
             ),
             IntGoal(
                 name = "PickupsInBlackroot",
                 disp_name = "Collect Pickups In Blackroot",
                 help_lines = ["You can use the stats feature (alt+5 by default) to see your pickup counts by zone.", "Mapstone turn-ins are not in any zone."],
                 range_func = r((4, 10), (7, 15), (10, 19)),
-                tags = ["pickups_in_zone"]
+                tags = ["pickups_in_zone"],
+                early_max = 8
             ),
             IntGoal(
                 name = "PickupsInSwamp",
                 disp_name = "Collect Pickups In Swamp",
                 help_lines = ["You can use the stats feature (alt+5 by default) to see your pickup counts by zone.", "Mapstone turn-ins are not in any zone."],
                 range_func = r((4, 10), (7, 16), (11, 20)),
-                tags = ["pickups_in_zone"]
+                tags = ["pickups_in_zone"]                
             ),
             IntGoal(
                 name = "PickupsInGinso",
@@ -391,10 +408,10 @@ class BingoGenerator(object):
                 goals = [
                     BoolGoal(name = "LostGroveLongSwim", disp_name = "Lost Grove Swim AC", help_lines = ["The ability cell behind the hidden underwater crushers in Lost Grove"]),
                     BoolGoal(name = "ValleyEntryGrenadeLongSwim", disp_name = "Valley Long Swim", help_lines = ["The energy cell at the end of the grenade-locked swim in Valley entry"]),
-                    BoolGoal(name = "SpiderSacEnergyDoor", disp_name = "Spider Energy Door", help_lines = ["The ability cell behind the energy door in the spidersac area right of the Spirit Tree"]),
+                    BoolGoal(name = "SpiderSacEnergyDoor", disp_name = "Spider Energy Door", help_lines = ["The ability cell behind the energy door in the spidersac area right of the Spirit Tree"], tags = [ "early" ]),
                     BoolGoal(name = "SorrowHealthCell", disp_name = "Sorrow HC", help_lines = ["The health cell in the room above the lowest keystone door in Sorrow"]),
                     BoolGoal(name = "SunstonePlant", disp_name = "Sunstone Plant", help_lines = ["The plant at the top of Sorrow"]),
-                    BoolGoal(name = "GladesLaser", disp_name = "Gladzer EC", help_lines = ["The energy cell in the Glades Laser area, reachable via a hidden 4 energy door in Spirit Caverns"]),
+                    BoolGoal(name = "GladesLaser", disp_name = "Gladzer EC", help_lines = ["The energy cell in the Glades Laser area, reachable via a hidden 4 energy door in Spirit Caverns"],tags = [ "early" ]),
                     BoolGoal(name = "LowerBlackrootLaserAbilityCell", disp_name = "BRB Right Laser AC", help_lines = ["The ability cell to the far right of the lower BRB area, past the very long laser"]),
                     BoolGoal(name = "MistyGrenade", disp_name = "Misty Grenade EX", help_lines = ["The grenade-locked Exp orb near the very end of Misty"]),
                     BoolGoal(name = "LeftSorrowGrenade", disp_name = "Sorrow Grenade EX", help_lines = ["The grenade-locked Exp orb in the far left part of lower Sorrow"]),
@@ -467,15 +484,15 @@ class BingoGenerator(object):
                     BoolGoal(name = "Lost Grove Fight Room", help_lines = ["Kill the 2 birds and 2 slimes above the entrance to Lost Grove"]),
                     BoolGoal(name = "Frog Toss", disp_name = "Lower BRB Frogs", help_lines = ["Kill 2 frogs on either side of the purple door across from the lower lasers."]),
                     BoolGoal(name = "R2", disp_name = "R2 (Upper)", help_lines = ["Kill 8 elementals in R2"]),
-                    BoolGoal(name = "Grotto Miniboss", help_lines = ["Kill the jumping purple spitter in lower left Grotto that protects one of the 2 keystones normally used for the Double Jump tree"]),
+                    BoolGoal(name = "Grotto Miniboss", help_lines = ["Kill the jumping purple spitter in lower left Grotto that protects one of the 2 keystones normally used for the Double Jump tree"], tags = ["early"]),
                     BoolGoal(name = "Lower Ginso Miniboss", help_lines = ["Kill the purple spitter enemy below the Bash tree area in Ginso"]),
                     BoolGoal(name = "Upper Ginso Miniboss", help_lines = ["Kill the elemental below the Ginso tree core"]),
                     BoolGoal(name = "Swamp Rhino Miniboss", disp_name = "Stomp Area Rhino", help_lines = ["Kill the rhino miniboss past the Stomp tree in Swamp"]),
                     BoolGoal(name = "Mount Horu Miniboss", disp_name = "Horu Final Miniboss",  help_lines = ["Kill the orange jumping spitter enemy that blocks access to the final escape in Horu"])
                 ],
                 methods = [
-                        ("or",    r((1, 3), (1, 2), (1, 1))), 
-                        ("and",   r((1, 2), (2, 3), (2, 4))), 
+                        ("or",    r((1, 3), (1, 2), (1, 1))),
+                        ("and",   r((1, 2), (2, 3), (2, 4))),
                         ("count", r((2, 4), (3, 6), (5, 9)))
                     ],
                 max_repeats = 2,
@@ -490,8 +507,8 @@ class BingoGenerator(object):
                     BoolGoal(name = "Mount Horu", help_lines = ["Completed once you finish the last room of the Horu escape. If this is not your last goal, Alt+R once you regain control of Ori!"]),
                 ],
                 methods = [
-                    ("or",    r((1, 3), (1, 2), (1, 1))), 
-                    ("and",   r((1, 1), (1, 2), (2, 3))), 
+                    ("or",    r((1, 3), (1, 2), (1, 1))),
+                    ("and",   r((1, 1), (1, 2), (2, 3))),
                 ]
             ),
             GoalGroup(
@@ -506,7 +523,7 @@ class BingoGenerator(object):
                     BoolGoal(name = "Horu Fields Acid", help_lines = ["The yellowish liquid in the lower area of the main Horu Fields room"]),
                     BoolGoal(name = "Doorwarp Lava", help_lines = ["The lava at the very bottom of Horu"]),
                     BoolGoal(name = "Ginso Escape Fronkey", disp_name = "Ginso Escape Fronkey", help_lines = ["Any fronkey in the Ginso Escape (you can complete the escape and come back via the teleporter)"]),
-                    BoolGoal(name = "Blackroot Teleporter Crushers", disp_name = "BRB TP Crushers", help_lines = ["The crushers below the Blackroot Teleporter"]),
+                    BoolGoal(name = "Blackroot Teleporter Crushers", disp_name = "BRB TP Crushers", help_lines = ["The crushers below the Blackroot Teleporter"], tags = ["early"]),
                     BoolGoal(name = "NoobSpikes", disp_name = "Sorrow Spike Maze", help_lines = ["The long spike maze room in upper sorrow with 2 keystones on each side"]),
                     BoolGoal(name= "Right Forlorn Laser", help_lines = ["The lasers above the HC and rightmost plant in Forlorn"]),
                     BoolGoal(name= "Misty Vertical Lasers", help_lines = ["The vertical lasers past the 3rd keystone in Misty"])
@@ -526,13 +543,15 @@ class BingoGenerator(object):
                     name = "HealthCellLocs",
                     disp_name = "Get pickups from Health Cells",
                     help_lines = ["Collect pickups from this many vanilla health cell locations."],                    
-                    range_func = r((4, 7), (4, 9), (8, 11))
+                    range_func = r((4, 7), (4, 9), (8, 11)),
+                    early_max = 7
                     ),
                 IntGoal(
                     name = "EnergyCellLocs",
                     disp_name = "Get pickups from Energy Cells",
                     help_lines = ["Collect pickups from this many vanilla energy cell locations."],
-                    range_func = r((4, 7), (4, 9), (8, 13))
+                    range_func = r((4, 7), (4, 9), (8, 13)),
+                    early_max = 6
                 ),
                 IntGoal(
                     name = "AbilityCellLocs",
@@ -544,7 +563,8 @@ class BingoGenerator(object):
                     name = "MapstoneLocs",
                     disp_name = "Get pickups from Mapstone Fragments",
                     help_lines = ["Collect pickups from this many vanilla mapstone fragment locations.", "(Mapstone fragments are the small pickups tracked in the top left of the screen)"],
-                    range_func = r((3, 5), (3, 7), (5, 9))
+                    range_func = r((3, 5), (3, 7), (5, 9)),
+                    early_max = 4
                 ),
                 GoalGroup(
                     name = "VanillaEventLocs",
@@ -575,10 +595,10 @@ class BingoGenerator(object):
                     name_func = namef("Touch", "Map altar"),
                     help_lines = ["To touch a map altar, have Sein enter the slot"],
                     goals = [
-                        BoolGoal(name = "sunkenGlades", disp_name = "Glades"),
-                        BoolGoal(name = "hollowGrove", disp_name = "Grove"),
-                        BoolGoal(name = "moonGrotto", disp_name = "Grotto"),
-                        BoolGoal(name = "mangrove", disp_name = "Blackroot"),
+                        BoolGoal(name = "sunkenGlades", disp_name = "Glades", tags = ["early"]),
+                        BoolGoal(name = "hollowGrove", disp_name = "Grove", tags = ["early"]),
+                        BoolGoal(name = "moonGrotto", disp_name = "Grotto", tags = ["early"]),
+                        BoolGoal(name = "mangrove", disp_name = "Blackroot", tags = ["early"]),
                         BoolGoal(name = "thornfeltSwamp", disp_name = "Swamp"),
                         BoolGoal(name = "valleyOfTheWind", disp_name = "Valley"),
                         BoolGoal(name = "forlornRuins", disp_name = "Forlorn"),
@@ -649,7 +669,8 @@ class BingoGenerator(object):
             goals.append(BoolGoal(
                 name = "DrownFrog",
                 disp_name = "Drown an amphibian",
-                help_lines = ["The amphibians native to Nibel are fronkeys, red spitters, and green spitters"]
+                help_lines = ["The amphibians native to Nibel are fronkeys, red spitters, and green spitters"],
+                tags = ["early"]
             ))
         
         groupSeen = defaultdict(lambda: (1, [], []))
