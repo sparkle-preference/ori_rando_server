@@ -136,7 +136,7 @@ def namef(verb, noun, plural_form = None):
 
 class BingoGenerator(object):
     @staticmethod
-    def get_cards(rand, count = 25, rando = False, difficulty = "normal", open_world = True):
+    def get_cards(rand, count = 25, rando = False, difficulty = "normal", open_world = True, discovery = 0):
         easy = difficulty == "easy"
         hard = difficulty == "hard"
 
@@ -146,7 +146,7 @@ class BingoGenerator(object):
             if hard:
                 params = hard_params
             low, high = params
-            return lambda: int(round(rand.triangular(low, high, (low+high)/2)))*scalar
+            return lambda: int(round(rand.triangular(low, high, (low+high) * 3.0 / 5.0)))*scalar
 #            return lambda: rand.randint(low, high)*scalar
         tpGoals = [
             BoolGoal(name = "sunkenGlades", disp_name = "Sunken Glades", tags = ["no_or", "no_singleton", "early"]),
@@ -702,7 +702,7 @@ class BingoGenerator(object):
         i = 0
         for card in cards:
             card.square = i
-            i += 1
+            i += 1                
         return cards
 
 # handlers
@@ -775,16 +775,17 @@ class BingoCreate(RequestHandler):
             base.insert(1, mu_line)
         
         game = key.get()
+        d = int(param_val(self, "discCount") or 0)
         bingo = BingoGameData(
             id            = key.id(),
-            board         = BingoGenerator.get_cards(rand, 25, False, difficulty, True),
+            board         = BingoGenerator.get_cards(rand, 25, False, difficulty, True, d),
             difficulty    = difficulty,
             teams_allowed = param_flag(self, "teams"),
             game          = key,
             rand_dat     = "\n".join(base),
         )
-        if param_flag(self, "discCount"):
-            bingo.discovery = int(param_val(self, "discCount"))
+        if d:
+            bingo.discovery = d
             bingo.seed = seed
         if param_flag(self, "lines"):
             bingo.bingo_count  = int(param_val(self, "lines"))
@@ -844,23 +845,25 @@ class AddBingoToGame(RequestHandler):
         seed = param_val(self, "seed") or params.seed
         rand = random.Random()
         rand.seed(seed)
+
+        d = int(param_val(self, "discCount") or 0)
         bingo = BingoGameData(
             id            = game_id,
-            board         = BingoGenerator.get_cards(rand, 25, True, difficulty, Variation.OPEN_WORLD in params.variations),
+            board         = BingoGenerator.get_cards(rand, 25, True, difficulty, Variation.OPEN_WORLD in params.variations, d),
             difficulty    = difficulty,
             subtitle      = params.flag_line(),
             teams_allowed = param_flag(self, "teams"),
             teams_shared  = params.players > 1 and params.sync.mode == MultiplayerGameType.SHARED,
             game          = game.key,
         )
+        if d:
+            bingo.discovery = d
+            bingo.seed = seed
 
         if bingo.teams_shared and not bingo.teams_allowed:
             log.warning("Teams are required for shared seeds! Overriding invalid config")
             bingo.teams_allowed = True
 
-        if param_flag(self, "discCount"):
-            bingo.discovery = int(param_val(self, "discCount"))
-            bingo.seed = seed
         if param_flag(self, "lines"):
             bingo.bingo_count  = int(param_val(self, "lines"))
         if param_flag(self, "squares"):
