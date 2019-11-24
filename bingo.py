@@ -94,6 +94,7 @@ class GoalGroup(BingoGoal):
                         hls.append(subgoal.disp_name + ":" + subgoal.help_lines[0])
             card.help_lines = hls[:]
             card.target = count
+            card.early = False
             return card
         banned_tags = set()
         if count == 1:
@@ -106,23 +107,24 @@ class GoalGroup(BingoGoal):
             return None
         infix = ""
         plural = False
+        subgoals = [subgoal.to_card(rand) for subgoal in rand.sample(subgoals, count)]
         if count == 1:
             infix = "this"
-            card.early = "early" in subgoals[0].tags
+            card.early = subgoals[0].early
         elif card.goal_method.startswith("or"):
             infix = "EITHER" if count == 2 else "ANY"
-            card.early = any(["early" in s.tags for s in subgoals])
+            card.early = any([s.early for s in subgoals])
         elif card.goal_method.startswith("and"):
             infix = "BOTH" if count == 2 else "EACH"
             plural = count == 2
-            card.early = all(["early" in s.tags for s in subgoals])
-
+            card.early = all([s.early for s in subgoals])
+        
         card.disp_name = self.name_func(infix, plural)
-        subgoals = [subgoal.to_card(rand).to_json([], True) for subgoal in rand.sample(subgoals, count)]
         for subgoal in subgoals:
-            card.subgoals.append(subgoal)
-            if subgoal["help_lines"]:
-                hls.append(subgoal["disp_name"] + ": " + subgoal["help_lines"][0])
+            sjson = subgoal.to_json([], True)
+            card.subgoals.append(sjson)
+            if sjson["help_lines"]:
+                hls.append(sjson["disp_name"] + ": " + sjson["help_lines"][0])
         
         card.help_lines = hls[:]
         return card
@@ -675,9 +677,11 @@ class BingoGenerator(object):
         
         groupSeen = defaultdict(lambda: (1, [], []))
         cards = []
-        goals = [goal for goal in goals]
+#        goals = [goal for goal in goals]
         pickups_in = rand.randint(1,3)
+        patience = 7 * discovery
         while len(cards) < count:
+            goal = None
             goal = rand.choice(goals)
             if "pickups_in_zone" in goal.tags:
                 if pickups_in > 0:
@@ -692,6 +696,13 @@ class BingoGenerator(object):
             card = goal.to_card(rand, banned = {"methods": banned_methods, "goals": banned_subgoals})
             if not card:
                 continue
+            if discovery > 0 and patience > 0:
+                if card.early:
+                    discovery -= 1
+                    patience += 1
+                else:
+                    patience -= 1
+                    continue
             if card.goal_type == "multi":
                 banned_methods.append(card.goal_method)
                 card.goal_method = card.goal_method.strip('_')
