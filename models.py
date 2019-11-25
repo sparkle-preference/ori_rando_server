@@ -10,7 +10,7 @@ from collections import defaultdict, OrderedDict
 
 from seedbuilder.seedparams import Placement, Stuff, SeedGenParams
 from enums import MultiplayerGameType, ShareType, Variation
-from util import picks_by_coord, get_bit, get_taste, enums_from_strlist, ord_suffix
+from util import picks_by_coord, get_bit, get_taste, enums_from_strlist, ord_suffix, debug
 from pickups import Pickup, Skill, Teleporter, Event
 from cache import Cache
 
@@ -1292,8 +1292,7 @@ class Game(ndb.Model):
     @staticmethod
     def get_open_gid():
         gid = Cache.current_gid()
-        debug = False
-        if gid == 0:
+        if gid == -1:
             if not debug:
                 log.info("Need to grab the list of games to get a free gid, will be slow...")
             in_use = [int(game.key.id()) for game in Game.query(Game.last_update > datetime.now() - timedelta(hours=24))]

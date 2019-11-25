@@ -173,7 +173,7 @@ class SeedGenParams(ndb.Model):
         params.relic_count = json.get("relicCount", 8)
         params.cell_freq = json.get("cellFreq", 256)
         params.sync = MultiplayerOptions.from_json(json)
-        params.sense = json.get("sense")
+        params.sense = json.get("senseData")
         params.item_pool = json.get("itemPool", {})
         params.bingo_lines = json.get("bingoLines", 3)
         params.pool_preset = json.get("selectedPool", "Standard")

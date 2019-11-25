@@ -9,7 +9,7 @@ class Cache(object):
 
     @staticmethod
     def current_gid():
-        return memcache.get(key="gid_max") or 0
+        return memcache.get(key="gid_max") or -1
 
     @staticmethod
     def get_latest_game(user, bingo=False):
@@ -105,3 +105,4 @@ class Cache(object):
     @staticmethod
     def clear():
         memcache.flush_all()
+        Cache.set_gid(0)
