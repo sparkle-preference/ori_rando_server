@@ -142,14 +142,15 @@ class BingoGenerator(object):
         easy = difficulty == "easy"
         hard = difficulty == "hard"
 
-        def r(easy_params, params, hard_params, scalar=1):
+        def r(easy_params, params, hard_params, scalar=1, flat=False):
             if easy:
                 params = easy_params
             if hard:
                 params = hard_params
             low, high = params
+            if flat:
+                return lambda: rand.randint(low, high)*scalar
             return lambda: int(round(rand.triangular(low, high, (low+high) * 3.0 / 5.0)))*scalar
-#            return lambda: rand.randint(low, high)*scalar
         tpGoals = [
             BoolGoal(name = "sunkenGlades", disp_name = "Sunken Glades", tags = ["no_or", "no_singleton", "early"]),
             BoolGoal(name = "moonGrotto", disp_name = "Moon Grotto", tags = [ "early" ]),
@@ -368,9 +369,9 @@ class BingoGenerator(object):
                     BoolGoal("R4", help_lines = ["Laser Tumbleweed Puzzle"]),
                 ],
                 methods = [
-                    ("or", r((2, 3), (1, 3), (1, 1))), 
-                    ("and", r((1, 2), (1, 3), (2, 4))), 
-                    ("count", r((1, 3), (2, 4), (3, 7)))
+                    ("or", r((2, 3), (1, 3), (1, 1), flat=True)), 
+                    ("and", r((1, 2), (1, 3), (2, 4), flat=True)), 
+                    ("count", r((1, 3), (2, 4), (3, 7), flat=True))
                 ]
                 ),
             GoalGroup(
@@ -379,9 +380,9 @@ class BingoGenerator(object):
                 help_lines = ["Activate spirit wells by standing on them or unlocking them via pickup"],
                 goals = tpGoals, # defined above for reasons
                 methods = [
-                        ("or", r((1,2), (1,2), (1,1))), 
-                        ("and", r((1, 2), (2, 3), (3, 4))), 
-                        ("count", r((4, 7), (5, 9), (8, 11)))
+                        ("or", r((1,2), (1,2), (1,1), flat=True)), 
+                        ("and", r((1, 2), (2, 3), (3, 4), flat=True)), 
+                        ("count", r((4, 7), (5, 9), (8, 11), flat=True))
                     ],
                 max_repeats = 3
                 ),
@@ -398,8 +399,8 @@ class BingoGenerator(object):
                     BoolGoal("Ginso Tree", help_lines = ["Requires the Water Vein or Ginso TP"], tags = ["no_singleton"])
                 ],
                 methods = [
-                    ("or", r((2, 3), (2, 2), (1, 1))), 
-                    ("and", r((1, 1), (1, 2), (2, 3)))
+                    ("or", r((2, 3), (2, 2), (1, 1), flat=True)), 
+                    ("and", r((1, 1), (1, 2), (2, 3), flat=True))
                 ],
                 max_repeats = 2
                 ),
@@ -423,8 +424,8 @@ class BingoGenerator(object):
                     BoolGoal(name = "ForlornEscapePlant", disp_name = "Forlorn Escape Plant", help_lines = ["The plant in Forlorn Escape (Missable if you start the escape but don't complete it!)"])
                 ],
                 methods = [
-                    ("or", r((2, 3), (1, 2), (1, 1))), 
-                    ("and", r((1, 1), (2, 3), (2, 4)))
+                    ("or", r((2, 3), (1, 2), (1, 1), flat=True)), 
+                    ("and", r((1, 1), (2, 3), (2, 4), flat=True))
                 ],
                 max_repeats = 2
                 ),
@@ -434,9 +435,9 @@ class BingoGenerator(object):
                 help_lines = ["'Tree' refers to a location where a skill is gained in the base game (Kuro's feather counts as a tree). For consistency with the randomizer, Sein / Spirit Flame does not count as a tree."],
                 goals = [BoolGoal(name) for name in ["Wall Jump", "Charge Flame", "Double Jump", "Bash", "Stomp", "Glide", "Climb", "Charge Jump", "Grenade", "Dash"]],
                 methods = [
-                        ("or",    r((1, 3), (1, 2), (1, 1))), 
-                        ("and",   r((1, 2), (2, 3), (3, 4))), 
-                        ("count", r((4, 6), (4, 8), (7, 10)))
+                        ("or",    r((1, 3), (1, 2), (1, 1), flat=True)), 
+                        ("and",   r((1, 2), (2, 3), (3, 4), flat=True)), 
+                        ("count", r((4, 6), (4, 8), (7, 10), flat=True))
                     ],
                 max_repeats = 2
                 ),
@@ -445,8 +446,8 @@ class BingoGenerator(object):
                 name_func = namef("Level up", "ability", plural_form = "abilities"),
                 goals = [BoolGoal(name, help_lines = ["requires %s ability points" % cost]) for name, cost in [("Ultra Defense", 19), ("Spirit Light Efficiency", 10), ("Ultra Stomp", 10)]],
                 methods = [
-                    ("or", r((2, 2), (1, 2), (1, 1))), 
-                    ("and", r((1, 1), (1, 2), (2, 3)))
+                    ("or", r((2, 2), (1, 2), (1, 1), flat=True)), 
+                    ("and", r((1, 1), (1, 2), (2, 3), flat=True))
                 ],
                 max_repeats = 1
                 ),
@@ -471,9 +472,9 @@ class BingoGenerator(object):
                     BoolGoal(name = "ForlornLaserPeg", disp_name = "Right Forlorn Access", help_lines = ["The peg in Forlorn, near the moving lasers; opens the door to the right Forlorn HC and plant."]),
                 ],
                 methods = [
-                        ("or",    r((1, 3), (1, 2), (1, 1))),
-                        ("and",   r((1, 2), (2, 3), (3, 4))),
-                        ("count", r((3, 6), (4, 8), (6, 10)))
+                        ("or",    r((1, 3), (1, 2), (1, 1), flat=True)),
+                        ("and",   r((1, 2), (2, 3), (3, 4), flat=True)),
+                        ("count", r((3, 6), (4, 8), (6, 10), flat=True))
                     ],
                 max_repeats = 2
             ),
@@ -493,9 +494,9 @@ class BingoGenerator(object):
                     BoolGoal(name = "Mount Horu Miniboss", disp_name = "Horu Final Miniboss",  help_lines = ["Kill the orange jumping spitter enemy that blocks access to the final escape in Horu"])
                 ],
                 methods = [
-                        ("or",    r((1, 3), (1, 2), (1, 1))),
-                        ("and",   r((1, 2), (2, 3), (2, 4))),
-                        ("count", r((2, 4), (3, 6), (5, 9)))
+                        ("or",    r((1, 3), (1, 2), (1, 1), flat=True)),
+                        ("and",   r((1, 2), (2, 3), (2, 4), flat=True)),
+                        ("count", r((2, 4), (3, 6), (5, 9), flat=True))
                     ],
                 max_repeats = 2,
                 tags = ["always_list_subgoals"]
@@ -509,8 +510,8 @@ class BingoGenerator(object):
                     BoolGoal(name = "Mount Horu", help_lines = ["Completed once you finish the last room of the Horu escape. If this is not your last goal, Alt+R once you regain control of Ori!"]),
                 ],
                 methods = [
-                    ("or",    r((1, 3), (1, 2), (1, 1))),
-                    ("and",   r((1, 1), (1, 2), (2, 3))),
+                    ("or",    r((1, 3), (1, 2), (1, 1), flat=True)),
+                    ("and",   r((1, 1), (1, 2), (2, 3), flat=True)),
                 ]
             ),
             GoalGroup(
@@ -531,10 +532,10 @@ class BingoGenerator(object):
                     BoolGoal(name= "Misty Vertical Lasers", help_lines = ["The vertical lasers past the 3rd keystone in Misty"])
                 ],
                 methods = [
-                        ("or",    r((1, 2), (1, 2), (1, 1))),
-                        ("or_",   r((1, 2), (1, 2), (1, 1))),
-                        ("and",   r((1, 1), (1, 2), (2, 3))),
-                        ("and_",  r((1, 1), (1, 2), (2, 3))),
+                        ("or",    r((1, 2), (1, 2), (1, 1), flat=True)),
+                        ("or_",   r((1, 2), (1, 2), (1, 1), flat=True)),
+                        ("and",   r((1, 1), (1, 2), (2, 3), flat=True)),
+                        ("and_",  r((1, 1), (1, 2), (2, 3), flat=True)),
                 ],
                 max_repeats = 3
             )
@@ -608,9 +609,9 @@ class BingoGenerator(object):
                         BoolGoal(name = "mountHoru", disp_name = "Horu"),
                     ],
                 methods = [
-                        ("or",    r((1, 3), (1, 2), (1, 1))), 
-                        ("and",   r((1, 2), (2, 3), (3, 4))), 
-                        ("count", r((3, 6), (4, 8), (6, 9 )))
+                        ("or",    r((1, 3), (1, 2), (1, 1), flat=True)), 
+                        ("and",   r((1, 2), (2, 3), (3, 4), flat=True)), 
+                        ("count", r((3, 6), (4, 8), (6, 9), flat=True))
                     ],
                 max_repeats = 2
                 )
@@ -648,8 +649,8 @@ class BingoGenerator(object):
                     help_lines = ["Remember that half the events require one of the other events as a pre-requisite"],
                     goals = [BoolGoal(name) for name in ["Water Vein", "Gumon Seal", "Sunstone", "Clean Water", "Wind Restored", "Warmth Returned"]],
                     methods = [
-                        ("or",    r((1, 3), (1, 2), (1, 1))),
-                        ("and",   r((1, 1), (1, 2), (2, 3))),
+                        ("or",    r((1, 3), (1, 2), (1, 1), flat=True)),
+                        ("and",   r((1, 1), (1, 2), (2, 3), flat=True)),
                     ],
                     max_repeats = 2
                 ),

@@ -156,6 +156,17 @@ class GetUpdate(RequestHandler):
         Cache.set_pos(game_id, player_id, x, y)
         self.response.write(p.output())
 
+    def post(self, game_id, player_id, x, y):
+        self.response.headers['Content-Type'] = 'text/plain'
+        game = Game.with_id(game_id)
+        if not game:
+            self.response.status = 412
+            self.response.write(self.response.status)
+            return
+        p = game.player(player_id)
+        Cache.set_pos(game_id, player_id, x, y)
+        self.response.write(p.output())
+
 class ShowHistory(RequestHandler):
     def get(self, game_id):
         self.response.headers['Content-Type'] = 'text/plain'
