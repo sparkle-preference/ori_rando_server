@@ -1045,15 +1045,18 @@ class Game(ndb.Model):
                 for c in pick.children:
                     if c.is_shared(self.shared):
                         inv[(c.code, c.id)] += 1
-            elif pick.is_shared(self.shared):
+            elif pick.is_shared(self.shared) and pick.code != "WT":
                 inv[(pick.code, pick.id)] +=  1
             if ShareType.MISC in self.shared:
                 if coord in trees_by_coords:
                     tree_pick = trees_by_coords[coord]
                     inv[(tree_pick.code, tree_pick.id)] += 1
                 if pick.code == "WT":
-                    pick = relics_by_zone[zone]
-                    inv[(pick.code, pick.id)] +=  1
+                    if zone in zone_translate and zone_translate[zone] in relics_by_zone:
+                        pick = relics_by_zone[zone_translate[zone]]
+                        inv[(pick.code, pick.id)] +=  1
+                    else:
+                        log.error("Unknown relic zone %s" % zone)
 
         params  = self.params.get()
         groups = []
@@ -1075,7 +1078,6 @@ class Game(ndb.Model):
         for group in groups:
             inv = defaultdict(lambda: 0)
             seen_sets = {player.pid(): player.seen_coords() for player in players if player.pid() in group}
-            print seen_sets
             if self.dedup:
                 seen = set([c for coord_set in seen_sets.values() for c in coord_set])
                 for p in params.placements:
@@ -1103,7 +1105,7 @@ class Game(ndb.Model):
                                         shards.add(coord)
                                 add_pick_to_inv(inv, stuff[0].code, stuff[0].id, coord, p.zone)
             inventories[group] = inv
-        print inventories
+        log.info(inventories)
         return inventories
 
     def get_player_groups(self, int_ids=False):
@@ -1278,7 +1280,6 @@ class Game(ndb.Model):
                     # man just. fuck it?
 #                    log.info("Ignoring duplicate pickup at location %s from player %s" % (coords, pid))
 #                    return 410
-                    log.info("this is how we're doing this i guess")
                     self.sanity_check()
                     return 200
             else:
