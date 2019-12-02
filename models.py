@@ -1070,8 +1070,8 @@ class Game(ndb.Model):
                 groups.append(pids)
         else:
             groups = [tuple([p.pid() for p in players])]
-            if params.sync.cloned:
-                pid_map = {p.pid(): 1 for p in players}
+        if params.sync.cloned:
+            pid_map = {p.pid(): 1 for p in players}
         for group in groups:
             inv = defaultdict(lambda: 0)
             seen_sets = {player.pid(): player.seen_coords() for player in players if player.pid() in group}
@@ -1130,6 +1130,7 @@ class Game(ndb.Model):
         i = 0
         for pids, inv in shared_inventories.items():
             players = [p for p in ps if p.pid() in pids]
+            print "group %s" % pids
             for key, count in inv.iteritems():
                 pickup = Pickup.n(key[0], key[1])
                 if not stacks(pickup):
@@ -1258,7 +1259,7 @@ class Game(ndb.Model):
             finder = self.player(pid)
         else:
             finder = finder[0]
-        finder_seen = bfields_to_coords(finder_bflds) if finder_bflds else finder.seen_coords()
+        finder_seen = finder.seen_coords()
 
         if pickup.code == "WT":
             if coords in pbc:
@@ -1275,15 +1276,18 @@ class Game(ndb.Model):
         if coords in finder_seen:
             if share:
                 if not override:
-                    log.info("Ignoring duplicate pickup at location %s from player %s" % (coords, pid))
-                    return 410
+                    # man just. fuck it?
+#                    log.info("Ignoring duplicate pickup at location %s from player %s" % (coords, pid))
+#                    return 410
+                    log.info("this is how we're doing this i guess")
+                    self.sanity_check()
+                    return 200
             else:
                 return 200
 
         if pickup.code == "MU":
             for child in pickup.children:
-                retcode = max(self.found_pickup(pid, child, coords, remove, False, zone, 
-                ), retcode)
+                retcode = max(self.found_pickup(pid, child, coords, remove, False, zone, finder_bflds), retcode)
             return retcode
         if self.mode == MultiplayerGameType.SHARED:
             if self.bingo_data:
