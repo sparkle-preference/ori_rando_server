@@ -50,9 +50,9 @@ class MultiplayerOptions(ndb.Model):
         if opts.enabled:
             opts.mode = MultiplayerGameType(qparams.get("sync_mode", "None"))
             opts.cloned = qparams.get("sync_gen") != "disjoint"
-            opts.hints = bool(opts.cloned and qparams.get("sync_hints"))
+            if opts.cloned:
+                opts.dedup = bool(qparams.get("dedup_shared", False))
             opts.shared = enums_from_strlist(ShareType, qparams.getall("sync_shared"))
-            opts.dedup = bool(qparams.get("dedup_shared", False))
             teamsRaw = qparams.get("teams")
             if teamsRaw and opts.mode == MultiplayerGameType.SHARED and opts.cloned:
                 cnt = 1
@@ -72,8 +72,8 @@ class MultiplayerOptions(ndb.Model):
             opts.cloned = json.get("coopGenMode") != "disjoint"
             if opts.cloned:
                 opts.teams = {1: range(1, json.get("players", 1) + 1)}
+                opts.dedup = bool(json.get("dedupShared", False))
             opts.hints = bool(opts.cloned and json.get("syncHints"))
-            opts.dedup = bool(json.get("dedupShared", False))
             opts.shared = enums_from_strlist(ShareType, json.get("syncShared", []))
         return opts
 
@@ -364,6 +364,7 @@ class SeedGenParams(ndb.Model):
 
     def get_seed_data(self, player=1):
         player = int(player)
+        print player, self.team_pid(player), self.sync.teams
         if self.sync.mode in [MultiplayerGameType.SIMUSOLO, MultiplayerGameType.SPLITSHARDS]:
             player = 1
         return [(str(p.location), s.code, s.id, p.zone) for p in self.placements for s in p.stuff if int(s.player) == self.team_pid(player)]

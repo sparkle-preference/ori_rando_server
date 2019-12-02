@@ -10,7 +10,7 @@ from collections import defaultdict, OrderedDict
 
 from seedbuilder.seedparams import Placement, Stuff, SeedGenParams
 from enums import MultiplayerGameType, ShareType, Variation
-from util import picks_by_coord, get_bit, get_taste, enums_from_strlist, ord_suffix, debug
+from util import picks_by_coord, get_bit, get_taste, enums_from_strlist, ord_suffix, debug, bfields_to_coords
 from pickups import Pickup, Skill, Teleporter, Event
 from cache import Cache
 
@@ -256,7 +256,33 @@ class Player(ndb.Model):
     teammates   = ndb.KeyProperty('Player', repeated=True)
     user        = ndb.KeyProperty('User')
     can_nag     = ndb.BooleanProperty(default=True)
+    seen_bflds  = ndb.IntegerProperty(repeated=True)
+    have_bflds  = ndb.IntegerProperty(repeated=True)
     bingo_prog  = ndb.LocalStructuredProperty(BingoCardProgress, repeated=True)
+
+    def bitfield_updates(self, post_data):
+        if not self.seen_bflds:
+            self.seen_bflds=8*[0]
+        if not self.have_bflds:
+            self.have_bflds=8*[0]
+        put = False
+        for i in range(8):
+            seen = int(post_data["seen_%s" % i])
+            have = int(post_data["have_%s" % i])
+            if self.seen_bflds[i] != seen:
+                put = True
+                self.seen_bflds[i] = seen
+            if self.have_bflds[i] != have:
+                put = True
+                self.have_bflds[i] = have
+        if put:
+            self.put()
+    
+    def seen_coords(self):
+        return bfields_to_coords(self.seen_bflds)
+
+    def have_coords(self):
+        return bfields_to_coords(self.have_bflds)
 
     @ndb.transactional(retries=5)
     def reset(self):
@@ -267,6 +293,8 @@ class Player(ndb.Model):
         self.bonuses = {}
         self.signals = []
         self.history = []
+        self.seen_bflds = 8 * [0]
+        self.have_bflds = 8 * [0]
         self.bingo_prog = [BingoCardProgress(square=i) for i in range(25)]
         self.put()
 
@@ -306,8 +334,8 @@ class Player(ndb.Model):
     # post-refactor version of bitfields
     def output(self):
         outlines = [str(x) for x in [self.skills, self.events, self.teleporters]]
-        outlines.append(";".join([str(id) + "x%s" % count for (id, count) in self.bonuses.iteritems()]))
-        outlines.append(";".join([str(loc) + ":%s" % finder for (loc, finder) in self.hints.iteritems()]))
+        outlines.append(";".join([ "%sx%s" % (_id, cnt) for (_id, cnt) in self.bonuses.iteritems()]))
+        outlines.append(";".join(["%s:%s" % (loc, finder) for (loc, finder) in self.hints.iteritems()]))
         if self.signals:
             outlines.append("|".join(self.signals))
         return ",".join(outlines)
@@ -540,7 +568,6 @@ class BingoEvent(ndb.Model):
                 res['first'] = True
                 res['square'] = self.square
         return res
-
 
 
 class BingoGameData(ndb.Model):
@@ -1005,7 +1032,80 @@ class Game(ndb.Model):
         else:
             log.warning("Can't remove %s from %s" % (key, self.players))
         key.delete()
-        
+
+    # returns a dict; tuple group pids -> shared inventory
+    def get_shared_inventories(self, players):
+        inventories = {}
+
+        def add_pick_to_inv(inv, code, pid, coord, zone):
+            pick = Pickup.n(code, pid)
+            if not pick:
+                return
+            if pick.code == "MU":
+                for c in pick.children:
+                    if c.is_shared(self.shared):
+                        inv[(c.code, c.id)] += 1
+            elif pick.is_shared(self.shared):
+                inv[(pick.code, pick.id)] +=  1
+            if ShareType.MISC in self.shared:
+                if coord in trees_by_coords:
+                    tree_pick = trees_by_coords[coord]
+                    inv[(tree_pick.code, tree_pick.id)] += 1
+                if pick.code == "WT":
+                    pick = relics_by_zone[zone]
+                    inv[(pick.code, pick.id)] +=  1
+
+        params  = self.params.get()
+        groups = []
+        pid_map = {}
+        if not params:
+            log.error("no placements????")
+            return None
+        if self.bingo_data:
+            bingo = self.bingo_data.get()
+            for team in bingo.teams:
+                pids = tuple([_pid(p) for p in [team.captain] + team.teammates])
+                for pid in pids:
+                    pid_map[pid] = team.pids().index(pid) + 1
+                groups.append(pids)
+        else:
+            groups = [tuple([p.pid() for p in players])]
+            if params.sync.cloned:
+                pid_map = {p.pid(): 1 for p in players}
+        for group in groups:
+            inv = defaultdict(lambda: 0)
+            seen_sets = {player.pid(): player.seen_coords() for player in players if player.pid() in group}
+            print seen_sets
+            if self.dedup:
+                seen = set([c for coord_set in seen_sets.values() for c in coord_set])
+                for p in params.placements:
+                    coord = int(p.location)
+                    if coord in seen:
+                        stuff = [s for s in p.stuff if int(s.player) == 1]
+                        if(len(stuff) != 1):
+                            log.warning("stuff not found in %s", p)
+                        else:
+                            add_pick_to_inv(inv, stuff[0].code, stuff[0].id, coord, p.zone)
+            else:
+                shards = set()
+                for p in params.placements:
+                    coord = int(p.location)
+                    for pid, seen in seen_sets.items():
+                        if coord in seen:
+                            stuff = [s for s in p.stuff if int(s.player) == pid_map.get(pid, pid)]
+                            if(len(stuff) != 1):
+                                log.warning("stuff not found in %s", p)
+                            else:
+                                if params.sync.cloned and stuff[0].code == "RB" and stuff[0].id in ["17", "19", "21", "28"]:
+                                    if coord in shards:
+                                        continue
+                                    else:
+                                        shards.add(coord)
+                                add_pick_to_inv(inv, stuff[0].code, stuff[0].id, coord, p.zone)
+            inventories[group] = inv
+        print inventories
+        return inventories
+
     def get_player_groups(self, int_ids=False):
         player_groups = []
         if self.bingo_data:
@@ -1024,24 +1124,12 @@ class Game(ndb.Model):
         if not Cache.san_check(self.key.id()):
             log.debug("Skipping sanity check")
             return False
+        ps = self.get_players()
         sanFailedSignal = "msg:@Major Error during sanity check. If this persists across multiple alt+l attempts please contact Eiko@"
-        playerGroups = self.get_player_groups()
-        for playerKeys in playerGroups:
-            players = [pkey.get() for pkey in playerKeys]
-            inv = defaultdict(lambda: 0)
-            for hl in self.history([_pid(p) for p in playerKeys]):
-                pick = hl.pickup()
-                if pick.code == "MU":
-                    for c in pick.children:
-                        if c.is_shared(self.shared):
-                            inv[(c.code, c.id)] += -1 if hl.removed else 1
-                elif pick.is_shared(self.shared):
-                    inv[(pick.code, pick.id)] += -1 if hl.removed else 1
-                if ShareType.MISC in self.shared:
-                    if hl.coords in trees_by_coords:
-                        tree_pick = trees_by_coords[hl.coords]
-                        inv[(tree_pick.code, tree_pick.id)] += -1 if hl.removed else 1
-            i = 0
+        shared_inventories = self.get_shared_inventories(ps)
+        i = 0
+        for pids, inv in shared_inventories.items():
+            players = [p for p in ps if p.pid() in pids]
             for key, count in inv.iteritems():
                 pickup = Pickup.n(key[0], key[1])
                 if not stacks(pickup):
@@ -1095,16 +1183,16 @@ class Game(ndb.Model):
             for player in players:
                 Cache.set_hist(self.key.id(), player.pid(), self.history([player.pid()]))
                 if player.skills < sk_max:
-                    log.error("lost HL error! Player %s had %s for sks instead of %s" % (player.pid(), player.skills, sk_max))
+                    log.error("Checksum failure! Player %s had %s for sks instead of %s" % (player.pid(), player.skills, sk_max))
                     player.skills = sk_max
                 if player.events < ev_max:
-                    log.error("lost HL error! Player %s had %s for evs instead of %s" % (player.pid(), player.events, ev_max))
+                    log.error("Checksum failure! Player %s had %s for evs instead of %s" % (player.pid(), player.events, ev_max))
                     player.events = ev_max
                 if player.teleporters < tp_max:
-                    log.error("lost HL error! Player %s had %s for tps instead of %s" % (player.pid(), player.teleporters, tp_max))
+                    log.error("Checksum failure! Player %s had %s for tps instead of %s" % (player.pid(), player.teleporters, tp_max))
                     player.teleporters = tp_max
                 if len(player.bonuses) < rb_cnt:
-                    msglines = ["lost HL error!"]
+                    msglines = ["Checksum failure!"]
                     for item, mx in bonus_max.items():
                         cnt = player.bonuses.get(item, 0)
                         if cnt  < mx:
@@ -1115,6 +1203,12 @@ class Game(ndb.Model):
                     log.error("\n".join(msglines))
                 player.put()
         return True
+    
+    def get_relevant_placements(self, pid):
+        params = self.params.get()
+        for p in params.placements:
+            p
+
 
     def rebuild_hist(self):
         gid = self.key.id()
@@ -1153,11 +1247,10 @@ class Game(ndb.Model):
                 self.put()
         return player
 
-    def found_pickup(self, pid, pickup, coords, remove, dedup, zone=""):
+    def found_pickup(self, pid, pickup, coords, remove, override, zone="", finder_bflds=None):
         pid = int(pid)
         retcode = 200
         share = pickup.is_shared(self.shared)
-        finder_hist = self.history([pid])
         players = self.get_players()
         finder = [p for p in players if p.pid() == pid]
         if not finder:
@@ -1165,6 +1258,7 @@ class Game(ndb.Model):
             finder = self.player(pid)
         else:
             finder = finder[0]
+        finder_seen = bfields_to_coords(finder_bflds) if finder_bflds else finder.seen_coords()
 
         if pickup.code == "WT":
             if coords in pbc:
@@ -1176,18 +1270,20 @@ class Game(ndb.Model):
 
         if coords == -1:
             share = ShareType.MISC in self.shared
-            dedup = False
+            override = True
 
-        if coords in [h.coords for h in finder_hist]:
-            if share and dedup:
-                log.info("Ignoring duplicate pickup at location %s from player %s (previous: %s)" % (coords, pid, [h for h in finder_hist if h.coords == coords]))
-                return 410
-            elif any([h for h in finder_hist if h.coords == coords and h.pickup_code == pickup.code and h.pickup_id == pickup.id]):
+        if coords in finder_seen:
+            if share:
+                if not override:
+                    log.info("Ignoring duplicate pickup at location %s from player %s" % (coords, pid))
+                    return 410
+            else:
                 return 200
 
         if pickup.code == "MU":
             for child in pickup.children:
-                retcode = max(self.found_pickup(pid, child, coords, remove, False), retcode)
+                retcode = max(self.found_pickup(pid, child, coords, remove, False, zone, 
+                ), retcode)
             return retcode
         if self.mode == MultiplayerGameType.SHARED:
             if self.bingo_data:
@@ -1197,8 +1293,8 @@ class Game(ndb.Model):
                     players = [p for p in players if p.pid() in team.pids()]
                 else:
                     log.error("No bingo team found for player %s!" % pid)
-            if share and dedup and (self.dedup or (pickup.code == "RB" and pickup.id in [17, 19, 21, 28])):
-                if (coords, pickup.code, pickup.id) in [(h.coords, h.pickup_code, h.pickup_id) for h in self.history([teammate.pid() for teammate in players])]:
+            if share and (self.dedup or (pickup.code == "RB" and pickup.id in [17, 19, 21, 28])):
+                if coords in [coord for p in players if p.pid() != pid for coord in p.seen_coords()]:
                     log.debug("Won't grant %s to player %s, as a teammate found it already" % (pickup.name, pid))
                     return 410
             ftple = finder.sharetuple()
@@ -1219,25 +1315,19 @@ class Game(ndb.Model):
                     Player.transaction_pickup(player.key, pickup, remove, coords=coords, finder=pid)
             elif not shared_misc:
                 retcode = 406
-                if pickup.code == "HN":
-                    for player in players:
-                        if str(coords) not in player.hints:
-                            player.hints[str(coords)] = 0  # hint 0 means the clue's been found
-                        player.put()
+
         elif self.mode == MultiplayerGameType.SPLITSHARDS:
             if pickup.code != "RB" or pickup.id not in [17, 19, 21]:
                 retcode = 406
             else:
-                my_shards = len([h.coords for h in finder_hist if h.pickup_code == "RB" and int(h.pickup_id) == pickup.id])
-                if my_shards < 3:
-                    shard_locs = [h.coords for h in self.history() if h.pickup_code == "RB" and h.pickup_id in ["17", "19", "21"]]
-                    if coords in shard_locs:
+                if finder.bonuses[str(pickup.id)] < 3:
+                    if coords in [coord for p in players if p.pid() != pid for coord in p.seen_coords()]:
                         log.debug("%s at %s already taken, player %s will not get one." % (pickup.name, coords, pid))
                         return 410
         elif self.mode in [MultiplayerGameType.SIMUSOLO, MultiplayerGameType.BINGO]:
             pass
         else:
-            log.error("game mode %s not implemented" % self.mode)
+            log.error("game mode %s not supported" % self.mode)
             retcode = 404
         hl = HistoryLine(pickup_code=pickup.code, timestamp=datetime.utcnow(), pickup_id=str(pickup.id), coords=coords, removed=remove, player=pid)
         if coords in range(24, 60, 4) and zone in map_coords_by_zone:

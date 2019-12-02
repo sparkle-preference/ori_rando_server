@@ -135,13 +135,12 @@ class FoundPickup(RequestHandler):
             coords = coord_correction_map[coords]
         if coords not in all_locs:
             log.warning("Coord mismatch error! %s not in all_locs or correction map. Sync %s.%s, pickup %s|%s" % (coords, game_id, player_id, kind, id))
-        dedup = not param_flag(self, "override") and not remove and game.mode.is_dedup()
         pickup = Pickup.n(kind, id)
         if not pickup:
             log.error("Couldn't build pickup %s|%s" % (kind, id))
             self.response.status = 406
             return
-        self.response.status = game.found_pickup(player_id, pickup, coords, remove, dedup, zone)
+        self.response.status = game.found_pickup(player_id, pickup, coords, remove, param_flag(self, "override"), zone, [int(self.request.GET.get("s%s"%i, 0)) for i in range(8)])
         self.response.write(self.response.status)
 
 class GetUpdate(RequestHandler):
@@ -156,7 +155,8 @@ class GetUpdate(RequestHandler):
         Cache.set_pos(game_id, player_id, x, y)
         self.response.write(p.output())
 
-    def post(self, game_id, player_id, x, y):
+class PostUpdate(RequestHandler):
+    def post(self, game_id, player_id):
         self.response.headers['Content-Type'] = 'text/plain'
         game = Game.with_id(game_id)
         if not game:
@@ -164,6 +164,9 @@ class GetUpdate(RequestHandler):
             self.response.write(self.response.status)
             return
         p = game.player(player_id)
+        x = self.request.POST["x"]
+        y = self.request.POST["y"]
+        p.bitfield_updates(self.request.POST)
         Cache.set_pos(game_id, player_id, x, y)
         self.response.write(p.output())
 
@@ -1185,6 +1188,7 @@ app = WSGIApplication(
     PathPrefixRoute('/netcode/game/<game_id:\d+>/player/<player_id:[^/]+>', [
         Route('/found/<coords>/<kind>/<id:.*>', handler=FoundPickup, name="netcode-player-found-pickup"),
         Route('/tick/<x:[^,]+>,<y>', handler=GetUpdate, name="netcode-player-tick"),
+        Route('/tick/', handler=PostUpdate, name="netcode-player-post-tick"),
         Route('/signalCallback/<signal:.*>', handler=SignalCallback,  name="netcode-player-signal-callback"),
         Route('/callback/<signal:.*>', handler=SignalCallback,  name="netcode-player-signal-callback"),
         Route('/setSeed', handler=SetSeed,  name="netcode-player-set-seed"),

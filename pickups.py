@@ -110,9 +110,9 @@ class Upgrade(Pickup):
         inst.bit = Upgrade.bits[id] if id in Upgrade.bits else -1
         inst.max = Upgrade.maxes[id] if id in Upgrade.maxes else None
         inst.stacks = id in Upgrade.stacking
-        if id in [17, 19, 21, 28]:  # shards are world events
+        if id in [17, 19, 21, 28]:  # shards and warmth fragments are world events
             inst.share_type = ShareType.EVENT
-        elif id >= 900:  # warmth fragments are misc pickups
+        elif id >= 900:  # trees and relics are misc pickups
             inst.share_type = ShareType.MISC
         else:
             inst.share_type = ShareType.UPGRADE
