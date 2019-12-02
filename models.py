@@ -1130,7 +1130,6 @@ class Game(ndb.Model):
         i = 0
         for pids, inv in shared_inventories.items():
             players = [p for p in ps if p.pid() in pids]
-            print "group %s" % pids
             for key, count in inv.iteritems():
                 pickup = Pickup.n(key[0], key[1])
                 if not stacks(pickup):

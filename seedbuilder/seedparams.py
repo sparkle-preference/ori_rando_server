@@ -364,7 +364,6 @@ class SeedGenParams(ndb.Model):
 
     def get_seed_data(self, player=1):
         player = int(player)
-        print player, self.team_pid(player), self.sync.teams
         if self.sync.mode in [MultiplayerGameType.SIMUSOLO, MultiplayerGameType.SPLITSHARDS]:
             player = 1
         return [(str(p.location), s.code, s.id, p.zone) for p in self.placements for s in p.stuff if int(s.player) == self.team_pid(player)]
