@@ -1085,7 +1085,7 @@ class Game(ndb.Model):
             pid_map = {p.pid(): 1 for p in players}
         for group in groups:
             inv = defaultdict(lambda: 0)
-            seen_sets = {player.pid(): player.seen_coords for player in players if player.pid() in group}
+            seen_sets = {player.pid(): player.seen_coords() for player in players if player.pid() in group}
             if self.dedup:
                 seen = set([c for coord_set in seen_sets.values() for c in coord_set])
                 for p in params.placements:
