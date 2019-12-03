@@ -152,6 +152,12 @@ class GetUpdate(RequestHandler):
             self.response.write(self.response.status)
             return
         p = game.player(player_id)
+        if debug:
+            fake = {"have_%s" % i: self.request.GET.get("s%s"%i, 0) for i in range(8)}
+            for i in range(8):
+                fake["seen_%s" % i] = p.seen_bflds[i]
+            p.bitfield_updates(fake, game_id)
+            game.sanity_check()
         Cache.set_pos(game_id, player_id, x, y)
         self.response.write(p.output())
 
@@ -166,7 +172,7 @@ class PostUpdate(RequestHandler):
         p = game.player(player_id)
         x = self.request.POST["x"]
         y = self.request.POST["y"]
-        p.bitfield_updates(self.request.POST)
+        p.bitfield_updates(self.request.POST, game_id)
         Cache.set_pos(game_id, player_id, x, y)
         self.response.write(p.output())
 
@@ -309,23 +315,14 @@ class GetSeenLocs(RequestHandler):
     def get(self, game_id):
         self.response.headers['Content-Type'] = 'application/json'
         self.response.status = 200
-        seenLocs = {}
-        game = Game.with_id(game_id)
-        try:
-            hist = Cache.get_hist(game_id)
+        coords = Cache.get_have(game_id)
+        if not coords:
+            game = Game.with_id(game_id)
             if not game:
                 self.response.status = 404
                 return
-            if not hist:
-                hist = game.rebuild_hist()
-            for player, history_lines in hist.items():
-                seenLocs[player] = [hl.coords for hl in history_lines] + [hl.map_coords for hl in history_lines if hl.map_coords]
-            self.response.write(json.dumps(seenLocs))
-        except AttributeError:
-            log.error("cache invalidated for game %s! Rebuilding..." % game_id)
-            game.rebuild_hist()
-            self.response.write(json.dumps(seenLocs))
-
+            coords = { p.pid(): p.have_coords() for p in game.get_players() }
+        self.response.write(json.dumps(coords))
 
 class GetSeed(RequestHandler):
     def get(self, game_id, player_id):
@@ -416,24 +413,21 @@ class GetItemTrackerUpdate(RequestHandler):
         self.response.headers['Content-Type'] = 'application/json'
         items = Cache.get_items(game_id)
         if not items:
-            game_hist = Cache.get_hist(game_id)
-            if not game_hist:
-                game = Game.with_id(game_id)
+            coords = Cache.get_have(game_id)
+            game = Game.with_id(game_id)
+            if not coords:
                 if not game:
                     self.response.status = 404
                     self.response.write(json.dumps({"error": "Game not found"}))
                     return
-                game_hist = game.rebuild_hist()
-            items = GetItemTrackerUpdate.get_items(game_hist, game_id)
+                coords = { p.pid(): p.have_coords() for p in game.get_players() }
+                Cache.set_have(game_id, coords)
+            items, _ = GetItemTrackerUpdate.get_items(coords, game)
         self.response.write(json.dumps(items))
 
     @staticmethod
-    def get_items(game_hist, game_id):
-        relics = Cache.get_relics(game_id)
-        if relics is None:
-            game = Game.with_id(game_id)
-            relics = game.relics
-            Cache.set_relics(game_id, relics)
+    def get_items(coords, game):
+        relics = game.relics
         data = {
             'skills': set(),
             'trees': set(),
@@ -444,28 +438,35 @@ class GetItemTrackerUpdate(RequestHandler):
             'relics': relics,
             'teleporters': set()
         }
-        hls = [hl for hls in game_hist.values() for hl in hls]
-        for hl in hls:
-            if hl.pickup_code == "SK":
-                data['skills'].add(hl.pickup().name)
-            elif hl.pickup_code == "TP":
-                data['teleporters'].add(hl.pickup().name.replace(" teleporter", ""))
-            elif hl.pickup_code == "EV":
-                data['events'].add(hl.pickup().name)
-            elif hl.pickup_code == "RB":
-                bid = int(hl.pickup_id)
+        inventories = game.get_inventories(game.get_players(), True, True)
+        group_invs = [v for k,v in inventories.items() if k != "unshared"]
+        if len(group_invs) != 1:
+            # worry about this later!
+            log.warn("this isn't going to work...")
+        inv = group_invs[0]
+        for ((pcode, pid), count) in inv.items():
+            p = Pickup.n(pcode, pid)
+            if not p:
+                log.warn("couldn't build pickup %s|%s" % (pcode, pid))
+                continue
+            if pcode == "SK":
+                data['skills'].add(p.name)
+            elif pcode == "TP":
+                data['teleporters'].add(p.name.replace(" teleporter", ""))
+            elif pcode == "EV":
+                data['events'].add(p.name)
+            elif pcode == "RB":
+                bid = int(pid)
                 if bid == 17:
-                    data['shards']['wv'] += 1
+                    data['shards']['wv'] = count
                 elif bid == 19:
-                    data['shards']['gs'] += 1
+                    data['shards']['gs'] = count
                 elif bid == 21:
-                    data['shards']['ss'] += 1
+                    data['shards']['ss'] = count
                 elif bid > 910 and bid < 922:
-                    data['relics_found'].add(hl.pickup().name.replace(" Relic", ""))
-            if hl.map_coords:
-                data['maps'][hl.player].add(hl.map_coords)
-            elif hl.coords in trees_by_coords:
-                data['trees'].add(trees_by_coords[hl.coords].name.replace(" Tree", ""))
+                    data['relics_found'].add(p.name.replace(" Relic", ""))
+                elif bid >= 900 and bid < 910:
+                    data['trees'].add(p.name.replace(" Tree", ""))
         if data['shards']['wv'] > 2:
             data['events'].add("Water Vein")
         if data['shards']['gs'] > 2:
@@ -474,9 +475,11 @@ class GetItemTrackerUpdate(RequestHandler):
             data['events'].add("Sunstone")
         for thing in ['trees', 'skills', 'events', 'relics_found', 'teleporters']:
             data[thing] = list(data[thing])
-        data['maps'] = max([0] + [len(mapdata) for mapdata in data['maps'].values()])
-        Cache.set_items(game_id, data)
-        return data
+        data['maps'] = max([0] + [len([1 for c in coords if c in range(24, 60, 4)])])
+        if debug:
+            print data
+        Cache.set_items(game.key.id(), data)
+        return data, inventories
 
 class GetMapUpdate(RequestHandler):
     def get(self, game_id):
@@ -488,25 +491,35 @@ class GetMapUpdate(RequestHandler):
             game_id = User.latest_game(username)
             gid_changed = True
         pos = Cache.get_pos(game_id)
+        inventories = None
         game = None
         if not pos:
             pos = {}
         for p, (x, y) in pos.items():
             players[p] = {"pos": [y, x], "seen": [], "reachable": []}  # bc we use tiling software, this is lat/lng, and thus coords need inverting
 
-        game_hist = Cache.get_hist(game_id)
-        if not game_hist:
+        coords = Cache.get_have(game_id)
+        if not coords:
             game = Game.with_id(game_id)
             if not game:
                 self.response.status = 404
                 self.response.write(json.dumps({"error": "Game not found"}))
                 return
-            game_hist = game.rebuild_hist()
-        for p, history_lines in game_hist.items():
+            coords = { p.pid(): p.have_coords() for p in game.get_players() }
+            Cache.set_have(game_id, coords)
+        for p, coords in coords.items():
             if p not in players:
                 players[p] = {}
-            players[p]["seen"] = [hl.coords for hl in history_lines] + [hl.map_coords for hl in history_lines if hl.map_coords]
-        items = Cache.get_items(game_id) or GetItemTrackerUpdate.get_items(game_hist, game_id)
+            players[p]["seen"] = coords
+        items = Cache.get_items(game_id)
+        if not items:
+            if not game:
+                game = Game.with_id(game_id)
+            if not game:
+                self.response.status = 404
+                self.response.write(json.dumps({"error": "Game not found"}))
+                return
+            items, inventories = GetItemTrackerUpdate.get_items(coords, game)
         reach = Cache.get_reachable(game_id)
         modes = tuple(sorted(param_val(self, "modes").split(" ")))
         need_reach_updates = [p for p in players.keys() if modes not in reach.get(p, {})]
@@ -517,24 +530,12 @@ class GetMapUpdate(RequestHandler):
                     self.response.status = 404
                     self.response.write(json.dumps({"error": "Game not found"}))
                     return
-            shared_hists = {}
-            if game.mode == MultiplayerGameType.SHARED:
-                groups = game.get_player_groups(int_ids=True)
-                for group in groups:
-                    g_hist = [hl for p, hls in game_hist.items() for hl in hls if p in group and hl.pickup().is_shared(game.shared)]
-                    group_needs_update = any([p in need_reach_updates for p in group])
-                    for p in group:
-                        if group_needs_update and p not in need_reach_updates:
-                            need_reach_updates.append(p)
-                        shared_hists[p] = g_hist
+            if not inventories:
+                inventories = game.get_inventories(game.get_players(), True, True)
             for p in need_reach_updates:
-                hist = []
-                shared_coords = []
-                if p in shared_hists:
-                    hist += shared_hists[p]
-                    shared_coords = set([h.coords for h in hist])
-                hist += [hl for hl in game_hist.get(p, []) if hl.coords not in shared_coords]
-                state = PlayerState([(h.pickup_code, h.pickup_id, 1, h.removed) for h in hist])
+                inventory = [(pcode, pid, count, False) for ((pcode, pid), count) in inventories["unshared"][p]]
+                inventory  += [(pcode, pid, count, False) for group, inv in inventories.items()  if group != "unshared" and p in group for ((pcode, pid), count) in inv.items()]
+                state = PlayerState(inventory)
                 if state.has["KS"] > 8 and "standard-core" in modes:
                     state.has["KS"] += 2 * (state.has["KS"] - 8)
                 if p not in reach:

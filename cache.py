@@ -55,6 +55,14 @@ class Cache(object):
         memcache.set(key="%s.reach" % gid, value=reachable, time=7200)
 
     @staticmethod
+    def get_have(gid):
+        return memcache.get(key="%s.have" % gid) or {}
+
+    @staticmethod
+    def set_have(gid, have):
+        memcache.set(key="%s.have" % gid, value=have, time=7200)
+
+    @staticmethod
     def clear_reach(gid, pid):
         reach_map = Cache.get_reachable(gid) or {}
         reach_map[int(pid)] = {}
@@ -100,7 +108,7 @@ class Cache(object):
 
     @staticmethod
     def remove_game(gid):
-        memcache.delete_multi(keys=["hist", "san", "pos", "reach", "items", "relics", "board"], key_prefix="%s." % gid)
+        memcache.delete_multi(keys=["have", "hist", "san", "pos", "reach", "items", "relics", "board"], key_prefix="%s." % gid)
 
     @staticmethod
     def clear():

@@ -260,7 +260,7 @@ class Player(ndb.Model):
     have_bflds  = ndb.IntegerProperty(repeated=True)
     bingo_prog  = ndb.LocalStructuredProperty(BingoCardProgress, repeated=True)
 
-    def bitfield_updates(self, post_data):
+    def bitfield_updates(self, post_data, game_id):
         if not self.seen_bflds:
             self.seen_bflds=8*[0]
         if not self.have_bflds:
@@ -276,6 +276,9 @@ class Player(ndb.Model):
                 put = True
                 self.have_bflds[i] = have
         if put:
+            have = Cache.get_have(game_id)
+            have[self.pid()] = self.have_coords()
+            Cache.set_have(game_id, have)
             self.put()
     
     def seen_coords(self):
@@ -1034,18 +1037,23 @@ class Game(ndb.Model):
         key.delete()
 
     # returns a dict; tuple group pids -> shared inventory
-    def get_shared_inventories(self, players):
+    def get_inventories(self, players, include_unshared_prog=False, use_have=False):
         inventories = {}
 
-        def add_pick_to_inv(inv, code, pid, coord, zone):
+        def relevant(p, personal=False):
+            if personal:
+                return not p.is_shared(self.shared) and p.code in ["AC", "KS", "HC", "EC", "SK", "EV", "TP"] or (p.code == "RB" and p.id in [17, 19, 21])
+            return p.is_shared(self.shared)
+
+        def add_pick_to_inv(inv, code, pid, coord, zone, personal=False):
             pick = Pickup.n(code, pid)
             if not pick:
                 return
             if pick.code == "MU":
                 for c in pick.children:
-                    if c.is_shared(self.shared):
+                    if relevant(c, personal):
                         inv[(c.code, c.id)] += 1
-            elif pick.is_shared(self.shared) and pick.code != "WT":
+            elif relevant(pick, personal) and pick.code != "WT":
                 inv[(pick.code, pick.id)] +=  1
             if ShareType.MISC in self.shared:
                 if coord in trees_by_coords:
@@ -1077,7 +1085,7 @@ class Game(ndb.Model):
             pid_map = {p.pid(): 1 for p in players}
         for group in groups:
             inv = defaultdict(lambda: 0)
-            seen_sets = {player.pid(): player.seen_coords() for player in players if player.pid() in group}
+            seen_sets = {player.pid(): player.seen_coords for player in players if player.pid() in group}
             if self.dedup:
                 seen = set([c for coord_set in seen_sets.values() for c in coord_set])
                 for p in params.placements:
@@ -1105,6 +1113,21 @@ class Game(ndb.Model):
                                         shards.add(coord)
                                 add_pick_to_inv(inv, stuff[0].code, stuff[0].id, coord, p.zone)
             inventories[group] = inv
+        if include_unshared_prog:
+            inventories["unshared"] = {}
+            for player in players:
+                pid = player.pid()
+                inv = defaultdict(lambda: 0)
+                seen = player.have_coords() if use_have else player.seen_coords()
+                for p in params.placements:
+                    coord = int(p.location)
+                    if coord in seen:
+                        stuff = [s for s in p.stuff if int(s.player) == pid_map.get(pid, pid)]
+                        if(len(stuff) != 1):
+                            log.warning("stuff not found in %s", p)
+                        else:
+                            add_pick_to_inv(inv, stuff[0].code, stuff[0].id, coord, p.zone, True)
+                inventories["unshared"][pid] = inv
         log.info(inventories)
         return inventories
 
@@ -1128,7 +1151,7 @@ class Game(ndb.Model):
             return False
         ps = self.get_players()
         sanFailedSignal = "msg:@Major Error during sanity check. If this persists across multiple alt+l attempts please contact Eiko@"
-        shared_inventories = self.get_shared_inventories(ps)
+        shared_inventories = self.get_inventories(ps)
         i = 0
         for pids, inv in shared_inventories.items():
             players = [p for p in ps if p.pid() in pids]
