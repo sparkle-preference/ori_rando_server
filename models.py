@@ -1325,7 +1325,8 @@ class Game(ndb.Model):
                 else:
                     log.error("No bingo team found for player %s!" % pid)
             if share and (self.dedup or (pickup.code == "RB" and pickup.id in [17, 19, 21, 28])):
-                if coords in [coord for p in players if p.pid() != pid for coord in p.seen_coords()]:
+                p = self.params.get()
+                if p.sync.cloned and coords in [coord for p in players if p.pid() != pid for coord in p.seen_coords()]:
                     log.debug("Won't grant %s to player %s, as a teammate found it already" % (pickup.name, pid))
                     return 410
             ftple = finder.sharetuple()
