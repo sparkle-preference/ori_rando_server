@@ -155,7 +155,7 @@ class GetUpdate(RequestHandler):
         if debug:
             fake = {"have_%s" % i: self.request.GET.get("s%s"%i, 0) for i in range(8)}
             for i in range(8):
-                fake["seen_%s" % i] = p.seen_bflds[i]
+                fake["seen_%s" % i] = fake["have_%s" % i]
             p.bitfield_updates(fake, game_id)
             game.sanity_check()
         Cache.set_pos(game_id, player_id, x, y)
@@ -411,7 +411,7 @@ class ItemTracker(RequestHandler):
 class GetItemTrackerUpdate(RequestHandler):
     def get(self, game_id):
         self.response.headers['Content-Type'] = 'application/json'
-        items = Cache.get_items(game_id)
+        items, _ = Cache.get_items(game_id)
         if not items:
             coords = Cache.get_have(game_id)
             game = Game.with_id(game_id)
@@ -478,7 +478,7 @@ class GetItemTrackerUpdate(RequestHandler):
         data['maps'] = max([0] + [len([1 for c in coords if c in range(24, 60, 4)])])
         if debug:
             print data
-        Cache.set_items(game.key.id(), data)
+        Cache.set_items(game.key.id(), (data, inventories))
         return data, inventories
 
 class GetMapUpdate(RequestHandler):
@@ -511,7 +511,7 @@ class GetMapUpdate(RequestHandler):
             if p not in players:
                 players[p] = {}
             players[p]["seen"] = coords
-        items = Cache.get_items(game_id)
+        items, inventories = Cache.get_items(game_id)
         if not items:
             if not game:
                 game = Game.with_id(game_id)

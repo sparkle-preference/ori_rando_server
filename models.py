@@ -266,11 +266,13 @@ class Player(ndb.Model):
         if not self.have_bflds:
             self.have_bflds=8*[0]
         put = False
+        seen_diff = 8 * [0]
         for i in range(8):
             seen = int(post_data["seen_%s" % i])
             have = int(post_data["have_%s" % i])
             if self.seen_bflds[i] != seen:
                 put = True
+                seen_diff[i] = seen - self.seen_bflds[i]
                 self.seen_bflds[i] = seen
             if self.have_bflds[i] != have:
                 put = True
@@ -279,6 +281,7 @@ class Player(ndb.Model):
             have = Cache.get_have(game_id)
             have[self.pid()] = self.have_coords()
             Cache.set_have(game_id, have)
+#            print bfields_to_coords(seen_diff)
             self.put()
     
     def seen_coords(self):
@@ -1052,17 +1055,17 @@ class Game(ndb.Model):
             if pick.code == "MU":
                 for c in pick.children:
                     if relevant(c, personal):
-                        inv[(c.code, c.id)] += 1
+                        inv[(c.code, c.id)] =  1 + inv.get((c.code, c.id), 0)
             elif relevant(pick, personal) and pick.code != "WT":
-                inv[(pick.code, pick.id)] +=  1
+                inv[(pick.code, pick.id)] =  1 + inv.get((pick.code, pick.id), 0)
             if ShareType.MISC in self.shared:
                 if coord in trees_by_coords:
                     tree_pick = trees_by_coords[coord]
-                    inv[(tree_pick.code, tree_pick.id)] += 1
+                    inv[(tree_pick.code, tree_pick.id)] = 1
                 if pick.code == "WT":
                     if zone in zone_translate and zone_translate[zone] in relics_by_zone:
                         pick = relics_by_zone[zone_translate[zone]]
-                        inv[(pick.code, pick.id)] +=  1
+                        inv[(pick.code, pick.id)] = 1
                     else:
                         log.error("Unknown relic zone %s" % zone)
 
@@ -1084,7 +1087,7 @@ class Game(ndb.Model):
         if params.sync.cloned:
             pid_map = {p.pid(): 1 for p in players}
         for group in groups:
-            inv = defaultdict(lambda: 0)
+            inv = {}
             seen_sets = {player.pid(): player.seen_coords() for player in players if player.pid() in group}
             if self.dedup:
                 seen = set([c for coord_set in seen_sets.values() for c in coord_set])
@@ -1108,6 +1111,7 @@ class Game(ndb.Model):
                             else:
                                 if params.sync.cloned and stuff[0].code == "RB" and stuff[0].id in ["17", "19", "21", "28"]:
                                     if coord in shards:
+                                        log.debug("Skipping pickup")
                                         continue
                                     else:
                                         shards.add(coord)
@@ -1117,7 +1121,7 @@ class Game(ndb.Model):
             inventories["unshared"] = {}
             for player in players:
                 pid = player.pid()
-                inv = defaultdict(lambda: 0)
+                inv = {}
                 seen = player.have_coords() if use_have else player.seen_coords()
                 for p in params.placements:
                     coord = int(p.location)

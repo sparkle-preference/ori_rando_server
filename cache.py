@@ -70,7 +70,7 @@ class Cache(object):
 
     @staticmethod
     def get_items(gid):
-        return memcache.get(key="%s.items" % gid) or {}
+        return memcache.get(key="%s.items" % gid) or ({}, {})
 
     @staticmethod
     def set_items(gid, items):
