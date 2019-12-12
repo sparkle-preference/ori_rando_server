@@ -1045,7 +1045,7 @@ class Game(ndb.Model):
 
         def relevant(p, personal=False):
             if personal:
-                return not p.is_shared(self.shared) and p.code in ["AC", "KS", "HC", "EC", "SK", "EV", "TP"] or (p.code == "RB" and p.id in [17, 19, 21])
+                return not p.is_shared(self.shared) and (p.code in ["AC", "KS", "HC", "EC", "SK", "EV", "TP"] or (p.code == "RB" and p.id in [17, 19, 21]))
             return p.is_shared(self.shared)
 
         def add_pick_to_inv(inv, code, pid, coord, zone, personal=False):
@@ -1365,10 +1365,7 @@ class Game(ndb.Model):
         if coords in range(24, 60, 4) and zone in map_coords_by_zone:
             hl.map_coords = map_coords_by_zone[zone]
         self.append_hl(hl)
-        if pickup.code in ["AC", "KS", "HC", "EC", "SK", "EV", "TP"] or (pickup.code == "RB" and pickup.id in [17, 19, 21]):
-            Cache.clear_reach(self.key.id(), pid)
-            Cache.clear_items(self.key.id())
-        elif hl.map_coords or coords in trees_by_coords:
+        if hl.map_coords or coords in trees_by_coords:
             Cache.clear_items(self.key.id())
         return retcode
 

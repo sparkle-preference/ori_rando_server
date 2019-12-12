@@ -140,6 +140,10 @@ class FoundPickup(RequestHandler):
             log.error("Couldn't build pickup %s|%s" % (kind, id))
             self.response.status = 406
             return
+        if pickup.code in ["AC", "KS", "HC", "EC", "SK", "EV", "TP"] or (pickup.code == "RB" and pickup.id in [17, 19, 21]):
+            Cache.clear_reach(game_id, player_id)
+            Cache.clear_items(game_id)
+
         self.response.status = game.found_pickup(player_id, pickup, coords, remove, param_flag(self, "override"), zone, [int(self.request.GET.get("s%s"%i, 0)) for i in range(8)])
         self.response.write(self.response.status)
 
@@ -439,7 +443,8 @@ class GetItemTrackerUpdate(RequestHandler):
             'teleporters': set()
         }
         inventories = game.get_inventories(game.get_players(), True, True)
-        group_invs = [v for k,v in inventories.items() if k != "unshared"]
+
+        group_invs = [v for k,v in inventories.items() if k != "unshared"] if game.mode == MultiplayerGameType.SHARED else inventories["unshared"].values()
         if len(group_invs) != 1:
             # worry about this later!
             log.warn("this isn't going to work...")
@@ -533,7 +538,7 @@ class GetMapUpdate(RequestHandler):
             if not inventories:
                 inventories = game.get_inventories(game.get_players(), True, True)
             for p in need_reach_updates:
-                inventory = [(pcode, pid, count, False) for ((pcode, pid), count) in inventories["unshared"][p]]
+                inventory = [(pcode, pid, count, False) for ((pcode, pid), count) in inventories["unshared"][p].items()]
                 inventory  += [(pcode, pid, count, False) for group, inv in inventories.items()  if group != "unshared" and p in group for ((pcode, pid), count) in inv.items()]
                 state = PlayerState(inventory)
                 if state.has["KS"] > 8 and "standard-core" in modes:
