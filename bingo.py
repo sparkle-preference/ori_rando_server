@@ -55,6 +55,9 @@ class IntGoal(BingoGoal):
         self.range_func = range_func
         self.early_max = early_max
         self.tags = set(tags)
+        if self.range_func.min < self.early_max:
+            self.tags.add("early")
+        
 
     def to_card(self, rand, banned = {}):
         t = self.range_func()
@@ -143,14 +146,11 @@ class BingoGenerator(object):
         hard = difficulty == "hard"
 
         def r(easy_params, params, hard_params, scalar=1, flat=False):
-            if easy:
-                params = easy_params
-            if hard:
-                params = hard_params
-            low, high = params
-            if flat:
-                return lambda: rand.randint(low, high)*scalar
-            return lambda: int(round(rand.triangular(low, high, (low+high) * 3.0 / 5.0)))*scalar
+            low, high = easy_params if easy else (hard_params if hard else params)
+            func = (lambda: rand.randint(low, high)*scalar) if flat else (lambda: int(round(rand.triangular(low, high, (low+high) * 3.0 / 5.0)))*scalar)
+            func.min = low
+            return func
+
         tpGoals = [
             BoolGoal(name = "sunkenGlades", disp_name = "Sunken Glades", tags = ["no_or", "no_singleton", "early"]),
             BoolGoal(name = "moonGrotto", disp_name = "Moon Grotto", tags = [ "early" ]),
@@ -682,7 +682,13 @@ class BingoGenerator(object):
         pickups_in = rand.randint(1,3)
         patience = 7 * discovery
         while len(cards) < count:
-            goal = None
+            if discovery > 0:
+                goal = rand.choice([goal for goal in goals if "early" in goal.tags])
+                if isinstance(goal, IntGoal):
+                    # temp = goal.range_func
+                    # i = 
+                    drange = (goal.range_func.min, goal.early_max)
+                    goal.range_func = r(drange, drange, drange)
             goal = rand.choice(goals)
             if "pickups_in_zone" in goal.tags:
                 if pickups_in > 0:
@@ -692,8 +698,6 @@ class BingoGenerator(object):
             repeats, banned_subgoals, banned_methods = groupSeen[goal.name]
             if repeats == goal.max_repeats:
                 goals.remove(goal)
-            elif repeats > goal:
-                assert "help?" and False
             card = goal.to_card(rand, banned = {"methods": banned_methods, "goals": banned_subgoals})
             if not card:
                 continue
