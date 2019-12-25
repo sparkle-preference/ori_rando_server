@@ -4,7 +4,7 @@ from seedbuilder.oriparse import get_areas
 import logging as log
 import os
 
-VER = [3, 4, 1]
+VER = [3, 4, 3]
 MIN_VER = [3, 4, 1]
 
 def version_check(version):
