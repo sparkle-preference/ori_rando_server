@@ -682,14 +682,14 @@ class BingoGenerator(object):
         pickups_in = rand.randint(1,3)
         patience = 7 * discovery
         while len(cards) < count:
-            if discovery > 0:
-                goal = rand.choice([goal for goal in goals if "early" in goal.tags])
-                if isinstance(goal, IntGoal):
-                    # temp = goal.range_func
-                    # i = 
-                    drange = (goal.range_func.min, goal.early_max)
-                    goal.range_func = r(drange, drange, drange)
             goal = rand.choice(goals)
+            if discovery > 0:
+                early_goals = [goal for goal in goals if "early" in goal.tags]
+                if len(early_goals):
+                    goal = rand.choice(early_goals)
+                    if isinstance(goal, IntGoal):
+                        drange = (goal.range_func.min, goal.early_max)
+                        goal.range_func = r(drange, drange, drange)
             if "pickups_in_zone" in goal.tags:
                 if pickups_in > 0:
                     pickups_in -= 1

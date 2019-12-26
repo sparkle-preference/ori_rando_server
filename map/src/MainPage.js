@@ -182,8 +182,7 @@ export default class MainPage extends React.Component {
     
 
     updateItemCount = (index, newVal, {minimum}) => this.setState(prev => {
-        minimum = minimum || 1
-        prev.selectedPool = "Custom"
+        minimum = minimum || 0
         let x = Math.max(newVal, minimum)
         prev.itemPool[index].count = x
         return {itemPool: [...prev.itemPool], selectedPool: "Custom"}

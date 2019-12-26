@@ -599,6 +599,7 @@ function player_icons(id, as_leaflet = true) {
     else if (id === 8) img = '/sprites/ori-multi-2.png';
     else if (id === 9) img = '/sprites/ori-multi-3.png';
     else if (id === 10) img = '/sprites/ori-skul.png';
+    else if (id === 11) img = '/sprites/ori-peach.png';
     else if (id === 100) img = '/sprites/kuro.png';
     else if (id === 101) img = '/sprites/gumo.png';
     else if (id === 102) img = '/sprites/ori-eph.png';
