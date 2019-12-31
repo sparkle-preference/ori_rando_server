@@ -1,3 +1,4 @@
+from __future__ import division, print_function
 from math import floor
 from collections import defaultdict, namedtuple
 from seedbuilder.oriparse import get_areas
@@ -125,7 +126,7 @@ def sign(x):
     return 1 if x >= 0 else -1
 
 def rnd(x):
-    return int(floor((x) / 4.0) * 4.0)
+    return int(floor((x) // 4.0) * 4.0)
 
 def unpack(coord):
     y = coord % (sign(coord) * 10000)
@@ -135,7 +136,7 @@ def unpack(coord):
         y += 10000
     if y < 0:
         coord -= y
-    x = rnd(coord / 10000)
+    x = rnd(coord // 10000)
     return x, y
 
 def is_int(s):
@@ -162,7 +163,7 @@ def picks_by_type(extras=False):
             if secondary_match:
                 crd = secondary_match
             else:
-                print "No secondary match found here!", crd, item, zone, area, x, y
+                print("No secondary match found here!", crd, item, zone, area, x, y)
         line = PickLoc(crd, item, zone, area, x, y)
         picks_by_type[item[0:2]].append(line)
     if extras:

@@ -1042,10 +1042,11 @@ class Game(ndb.Model):
     # returns a dict; tuple group pids -> shared inventory
     def get_inventories(self, players, include_unshared_prog=False, use_have=False):
         inventories = {}
+        print "happen"
 
         def relevant(p, personal=False):
             if personal:
-                return not p.is_shared(self.shared) and (p.code in ["AC", "KS", "HC", "EC", "SK", "EV", "TP"] or (p.code == "RB" and p.id in [17, 19, 21]))
+                return (not p.is_shared(self.shared)) and (p.code in ["AC", "KS", "HC", "EC", "SK", "EV", "TP"] or (p.code == "RB" and p.id in [17, 19, 21]))
             return p.is_shared(self.shared)
 
         def add_pick_to_inv(inv, code, pid, coord, zone, personal=False):
@@ -1056,9 +1057,9 @@ class Game(ndb.Model):
                 for c in pick.children:
                     if relevant(c, personal):
                         inv[(c.code, c.id)] =  1 + inv.get((c.code, c.id), 0)
-            elif relevant(pick, personal) and pick.code != "WT":
+            if relevant(pick, personal):
                 inv[(pick.code, pick.id)] =  1 + inv.get((pick.code, pick.id), 0)
-            if ShareType.MISC in self.shared:
+            if personal or ShareType.MISC in self.shared:
                 if coord in trees_by_coords:
                     tree_pick = trees_by_coords[coord]
                     inv[(tree_pick.code, tree_pick.id)] = 1
@@ -1357,6 +1358,7 @@ class Game(ndb.Model):
                         log.debug("%s at %s already taken, player %s will not get one." % (pickup.name, coords, pid))
                         return 410
         elif self.mode in [MultiplayerGameType.SIMUSOLO, MultiplayerGameType.BINGO]:
+
             pass
         else:
             log.error("game mode %s not supported" % self.mode)
