@@ -159,6 +159,7 @@ class User(ndb.Model):
     pref_num  = ndb.IntegerProperty()
     theme  = ndb.StringProperty()
 
+
     @staticmethod
     def latest_game(username):
         gid = Cache.get_latest_game(username)
@@ -241,6 +242,30 @@ class User(ndb.Model):
     
     def plando(self, seed_name):
         return Seed.get_by_id("%s:%s" % (self.key.id(), seed_name))
+
+class CustomLogic(ndb.Model):
+    # id = userid
+    user = ndb.KeyProperty("User")
+    logic = ndb.PickleProperty()
+    warnings = ndb.TextProperty()
+
+    @staticmethod
+    def read():
+        user = User.get() 
+        if not user:
+            return None, "can't store custom logic while not logged in"
+        cl = CustomLogic.query().filter(CustomLogic.user == user.key).fetch()
+        if len(cl) == 0:
+            return None, "no custom logic for current user"
+        return cl[0].logic, cl[0].warnings
+    
+    @staticmethod
+    def write(logic, warnings):
+        CustomLogic(
+            user = User.get().key,
+            logic = logic,
+            warnings = warnings
+        )
 
 class Player(ndb.Model):
     # id = gid.pid
@@ -445,7 +470,6 @@ class BingoTeam(ndb.Model):
                 continue
             res["teammates"].append({'pid': _pid(tm), 'name': players[tm].name()})
         return res
-
 
 class BingoCard(ndb.Model):
     name = ndb.StringProperty()
@@ -1149,12 +1173,14 @@ class Game(ndb.Model):
         return player_groups
 
     def sanity_check(self):
+        Cache.clear_items(self.key.id())
+        ps = self.get_players()
+        Cache.clear_reach(self.key.id(), [_pid(p) for p in ps])
         if self.mode != MultiplayerGameType.SHARED:
             return False
         if not Cache.san_check(self.key.id()):
             log.debug("Skipping sanity check")
             return False
-        ps = self.get_players()
         sanFailedSignal = "msg:@Major Error during sanity check. If this persists across multiple alt+l attempts please contact Eiko@"
         shared_inventories = self.get_inventories(ps)
         i = 0

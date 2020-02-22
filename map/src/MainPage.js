@@ -10,6 +10,7 @@ import './index.css';
 import {getHelpContent, HelpBox} from "./helpbox.js"
 import {get_param, presets, name_from_str, get_preset, player_icons, doNetRequest, get_random_loader, PickupSelect, Cent, dev, randInt, gotoUrl} from './common.js';
 import SiteBar from "./SiteBar.js"
+import Dropzone from 'react-dropzone'
 
 const get_pool = (pool_name) => { switch(pool_name) {
     case "Standard": 
@@ -141,6 +142,12 @@ const keymode_options = ["None", "Shards", "Limitkeys", "Clues", "Free"];
 
 const VERSION = get_param("version")
 
+const STUPID_KEYS = {
+    "blame": "vulajin",
+    "gdi": "eiko",
+    "dont": "pingme"
+}
+
 const VAR_NAMES = {
     ForceTrees: "Force Trees",
     Starved: "Starved",
@@ -190,7 +197,7 @@ export default class MainPage extends React.Component {
     updateItemUpTo = (index, newVal) => this.setState(prev => {
         prev.itemPool[index].upTo = newVal
         return {itemPool: [...prev.itemPool], selectedPool: "Custom"}
-    })
+ })
     updatePoolItem = (index, code) => this.setState(prev => {
         prev.itemPool[index].item = code
         return {itemPool: [...prev.itemPool], selectedPool: "Custom"}
@@ -206,6 +213,56 @@ export default class MainPage extends React.Component {
     }
 )
 
+    onDragEnter = () => this.setState({dropzoneActive: true});
+
+    onDragLeave = () => this.setState({dropzoneActive: false});
+
+onDrop = (files) => {
+        let file = files.pop();
+        if(file) {
+            let reader = new FileReader();
+            reader.onload = () => {
+                let text = reader.result;
+                window.URL.revokeObjectURL(file.preview);
+                // do whatever you want with the file content
+                console.log(text.split("\n"));
+                uploadReaderLines(text.split("\n"))
+            };
+            reader.onabort = () => console.log('file reading was aborted');
+            reader.onerror = () => console.log('file reading has failed');
+    
+            reader.readAsText(file);            
+        } else {
+            this.setState({dropzoneActive: false})
+        }
+    }
+
+
+    getStupidTab = () => {
+        let {customLogic, stupidWarn, stupidMode} = this.state;
+        if(!stupidMode)
+            return null;
+        return (
+        <TabPane className="p-3 border" tabId="stupid">
+        <Dropzone className="wrapper" disableClick onDrop={this.onDrop} onDragEnter={this.onDragEnter} onDragLeave={this.onDragLeave} >
+            <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("stupid", "seedDrop")} className="p-1 justify-content-center border">
+                <Col xs="12"><Cent>Drag an areas.ori file here to update your custom logic</Cent></Col>
+            </Row>
+            <Row className="p-1 justify-content-center">  
+                <Col xs="12" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("stupid", "warn")} className="p-2">
+                    <Cent>{stupidWarn}</Cent>
+                 </Col>
+            </Row>
+            <Row className="p-1 justify-content-center">
+                <Col xs="12" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("stupid", "toggle")} className="p-2">
+                    <Button color="primary" block outline={!customLogic} onClick={() => this.setState({customLogic: !customLogic})}>{customLogic ? "Disable" : "Enable"} Custom Logic</Button>
+                </Col>
+            </Row>
+        </Dropzone>
+        </TabPane>
+        )
+ 
+    }
     getItemPoolTab = ({inputStyle}) => {
         let itemSelectors = this.state.itemPool.map((row, index) => {
           let disabled = row.minimum && row.minimum > 0
@@ -930,11 +987,14 @@ export default class MainPage extends React.Component {
         )
     }
 
+    
+
     constructor(props) {
         super(props);
         let user = get_param("user");
         let url = new URL(window.document.location.href);
         let paramId = url.searchParams.get("param_id");
+        let stupidWarn = get_param("error_msg")
         let quickstartOpen = window.document.location.href.includes("/quickstart");
         let gameId = parseInt(url.searchParams.get("game_id") || -1, 10);
         let seedTabExists = (paramId !== null);
@@ -946,13 +1006,20 @@ export default class MainPage extends React.Component {
                 doNetRequest(`/generator/metadata/${paramId}`,this.acceptMetadata);
 
         }
+        let stupidMode = false;
+        url.searchParams.forEach((v, k) => {
+            if(STUPID_KEYS.hasOwnProperty(k.toLowerCase()) && v.toLowerCase() === STUPID_KEYS[k.toLowerCase()])
+            stupidMode = true;          
+        })
+
         let activeTab = seedTabExists ? 'seed' : 'variations';
         this.state = {user: user, activeTab: activeTab, coopGenMode: "Cloned Seeds", coopGameMode: "Co-op", players: 1, tracking: true, variations: ["ForceTrees"], gameId: gameId, itemPool: get_pool("Standard"),
                      paths: presets["standard"], keyMode: "Clues", oldKeyMode: "Clues", pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null), goalModes: ["ForceTrees"], selectedPool: "Standard",
                      seed: "", fillAlg: "Balanced", shared: ["Skills", "Teleporters", "World Events", "Upgrades", "Misc"], hints: true, helpcat: "", helpopt: "", quickstartOpen: quickstartOpen, dedupShared: false,
                      expPool: 10000, lastHelp: new Date(), seedIsGenerating: seedTabExists, cellFreq: cellFreqPresets("standard"), fragCount: 30, fragReq: 20, relicCount: 8, loader: get_random_loader(),
                      paramId: paramId, seedTabExists: seedTabExists, reopenUrl: "", teamStr: "", flagLine: "", fass: {},  goalModesOpen: false, spoilers: true, seedIsBingo: false, bingoLines: 3, 
-                     auxModal: false, auxSpoiler: {active: false, byZone: false, exclude: ["EX","KS", "AC", "EC", "HC", "MS"]}};
+                     auxModal: false, auxSpoiler: {active: false, byZone: false, exclude: ["EX","KS", "AC", "EC", "HC", "MS"]}, stupidMode: stupidMode, dropActive: false, customLogic: false, stupidWarn: stupidWarn};
+        
         if(url.searchParams.has("fromBingo")) {
             this.state.goalModes = ["Bingo"]
             this.state.variations = ["Bingo", "OpenWorld"]
@@ -1040,7 +1107,7 @@ export default class MainPage extends React.Component {
     }
 
     render = () => {
-        let {pathMode, goalModes, keyMode, helpParams, goalModesOpen, seedTabExists, helpcat, activeTab, seed, tracking, seedIsGenerating} = this.state;
+        let {stupidMode, pathMode, goalModes, keyMode, helpParams, goalModesOpen, seedTabExists, helpcat, activeTab, seed, tracking, seedIsGenerating} = this.state;
         let s = getComputedStyle(document.body);
         let styles = {inputStyle: {'borderColor': s.getPropertyValue('--dark'), 'backgroundColor': s.getPropertyValue("background-color"), 'color': s.getPropertyValue("color")}, menuStyle: {}}
 
@@ -1064,9 +1131,16 @@ export default class MainPage extends React.Component {
         let advancedTab = this.getAdvancedTab(styles)
         let poolTab = this.getItemPoolTab(styles)
         let seedTab = this.getSeedTab()
+        let badIdeasTab = this.getStupidTab()
         let variationsTab = this.getVariationsTab()
         let pathsTab = this.getPathsTab()
-        
+        let badIdeasNav = stupidMode ? (
+            <NavItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "stupidTab")}>
+                <NavLink active={activeTab === 'stupid'} onClick={this.onTab('stupid')}>
+                    Stupid
+                </NavLink>
+            </NavItem>
+        ) : null;
         let seedNav = seedTabExists ? (
             <NavItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "seedTab")}>
                 <NavLink active={activeTab === 'seed'} onClick={this.onTab('seed')}>
@@ -1164,6 +1238,7 @@ export default class MainPage extends React.Component {
                         Advanced
                         </NavLink>
                     </NavItem>
+                    {badIdeasNav}
                     {seedNav}
                 </Nav>
             </Col>
@@ -1178,6 +1253,7 @@ export default class MainPage extends React.Component {
                                 {poolTab}
                                 {multiplayerTab}
                                 {advancedTab}
+                                {badIdeasTab}
                                 {seedTab}
                             </TabContent>
                         </Col>
@@ -1218,6 +1294,12 @@ export default class MainPage extends React.Component {
 
     }
 };
+function uploadReaderLines(lines)  {
+    let xmlHttp = new XMLHttpRequest();
+    xmlHttp.open("POST", "user/custom_logic/set", true);
+    xmlHttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+    xmlHttp.send(encodeURI(`lines=${JSON.stringify(lines)}`));
+}
 
 function postGenJson(url, json, callback)  {
     let xmlHttp = new XMLHttpRequest();

@@ -17,7 +17,7 @@ from google.appengine.ext.webapp import template
 from seedbuilder.seedparams import SeedGenParams
 from seedbuilder.vanilla import seedtext as vanilla_seed
 from enums import MultiplayerGameType, ShareType, Variation
-from models import Game, Seed, User, BingoGameData, trees_by_coords
+from models import Game, Seed, User, BingoGameData, CustomLogic, trees_by_coords
 from cache import Cache
 from util import coord_correction_map, all_locs, picks_by_type_generator, param_val, param_flag, resp_error, debug, path, VER, version_check, template_vals
 from reachable import Map, PlayerState
@@ -841,6 +841,8 @@ class LogicHelper(RequestHandler):
 class ReactLanding(RequestHandler):
     def get(self):
         template_values = template_vals("MainPage", "Ori DE Randomizer %s" % VERSION, User.get())
+        _, error = CustomLogic.read()
+        template_values.update({"error_msg": error})
         self.response.write(template.render(path, template_values))
 
 
@@ -1118,6 +1120,14 @@ class ResetGame(RequestHandler):
         else:
             return resp_error(self, 401, "Can't restart a game you didn't create...")
 
+class SetCustomLogic(RequestHandler):
+    def post(self):
+        if User.get():
+            CustomLogic.write(["dummy value", "another line"], "fake: " + self.request.POST.get("lines",["<bad>"])[0])
+
+class GetCustomLogic(RequestHandler):
+    def get(self):
+        self.response.out.write(CustomLogic.read())
 
 app = WSGIApplication(
     routes=[
@@ -1129,6 +1139,8 @@ app = WSGIApplication(
         Route('/map', handler=MapTest, name='tests-map', strict_slash=True),
         Route('/map/<game_id:\d+>', handler=MapTest, name='tests-map-gid', strict_slash=True),
     ]),
+    Route('/user/custom_logic/set', handler=SetCustomLogic, name='set-custom-logic'),
+    Route('/user/custom_logic/get', handler=GetCustomLogic, name='get-custom-logic'),
     Route('/tests', redirect_to_name='tests-run'),
     Route('/picksbytype', handler=PicksByTypeGen, name='picks-by-type-gen', strict_slash=True),
 

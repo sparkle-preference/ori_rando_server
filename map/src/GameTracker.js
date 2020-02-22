@@ -256,29 +256,33 @@ class GameTracker extends React.Component {
   	return {retries: this.state.retries+1, check_seen: this.state.timeout, timeout: this.state.timeout+TIMEOUT_INC}
   };
   tick = () => {
-    let {retries, bg_update, idle_countdown, check_seen, players, follow} = this.state;
-  	if(retries >= RETRY_MAX) return;
     let update = {}
-  	if(!document.hasFocus()) {
-        if(!bg_update) return;
-        if(idle_countdown > 0)
-            this.setState({idle_countdown: idle_countdown-1})
-        else
-            this.setState({idle_countdown: 3600, bg_update: false})
-    } else {
-        update.idle_countdown = 3600
-    }
-    if(check_seen === 0) {
-        this.getUpdate(this.timeout);
-        Object.keys(players).forEach((id) => {
-            if(Object.keys(players[id].seed).length < 50)
-                getSeed((p) => this.setState(p), this.state.gameId, id, this.timeout);
-        })
-    } else 
-        update.check_seen = check_seen - 1
-    if(follow > 0 && players.hasOwnProperty(follow)) {
-        let map = this.refs.map.leafletElement;
-        map.panTo(players[follow].pos)
+    try {
+        let {retries, bg_update, idle_countdown, check_seen, players, follow} = this.state;
+        if(retries >= RETRY_MAX) return;
+        if(!document.hasFocus()) {
+            if(!bg_update) return;
+            if(idle_countdown > 0)
+                this.setState({idle_countdown: idle_countdown-1})
+            else
+                this.setState({idle_countdown: 3600, bg_update: false})
+        } else {
+            update.idle_countdown = 3600
+        }
+        if(check_seen === 0) {
+            this.getUpdate(this.timeout);
+            Object.keys(players).forEach((id) => {
+                if(Object.keys(players[id].seed).length < 50)
+                    getSeed((p) => this.setState(p), this.state.gameId, id, this.timeout);
+            })
+        } else 
+            update.check_seen = check_seen - 1
+        if(follow > 0 && players.hasOwnProperty(follow)) {
+            let map = this.refs.map.leafletElement;
+            map.panTo(players[follow].pos)
+        }
+    } catch(error) {
+        console.log(`tick: ${error}`)
     }
     this.setState(update)
 };
@@ -320,6 +324,7 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
  _onPathModeChange = (n) => paths.includes(n.value) ? this.modesChanged(presets[n.value]) : this.setState({pathMode: n.value})
 
   render() {
+    try {
 		let pickup_markers = (this.state.pickup_display !== "none") ? ( <PickupMarkersList markers={getPickupMarkers(this.state)} />) : null;
 		let player_markers = ( <PlayerMarkersList players={this.state.players} />)
 		let player_opts = ( <PlayerUiOpts players={this.state.players} follow={this.state.follow} setter={(p) => this.setState(p)} />)
@@ -405,6 +410,9 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
 			    {sidebar}
 			</div>
 		)
+    } catch(error) {
+        return (<h1>Error: {error} Try Refreshing?</h1>)
+    }
 	}
     getUpdate = (timeout) => {
         let onRes = (res) => {
@@ -478,17 +486,25 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
 
 function doNetRequest(onRes, setter, url, timeout)
 {
-    var xmlHttp = new XMLHttpRequest();
-    xmlHttp.onreadystatechange = function() {
-        if (xmlHttp.readyState === 4) {
-        	 if(xmlHttp.status === 404)
-        	 	setter(timeout())
-        	 else
-	        	 onRes(xmlHttp.responseText);
+    try {
+        var xmlHttp = new XMLHttpRequest();
+        xmlHttp.onreadystatechange = function() {
+            try {
+                if (xmlHttp.readyState === 4) {
+                    if(xmlHttp.status === 404)
+                        setter(timeout())
+                    else
+                        onRes(xmlHttp.responseText);
+                }
+            } catch(err) {
+                console.log(`netCallback: ${err} status ${xmlHttp.statusText}`)
+            }
         }
-	}
-    xmlHttp.open("GET", url, true); // true for asynchronous
-    xmlHttp.send(null);
+        xmlHttp.open("GET", url, true); // true for asynchronous
+        xmlHttp.send(null);
+    } catch(e) {
+        console.log(`doNetRequest: ${e}`)
+    }
 }
 
 function getSeed(setter, gameId, pid, timeout)
