@@ -1175,7 +1175,8 @@ class Game(ndb.Model):
     def sanity_check(self):
         Cache.clear_items(self.key.id())
         ps = self.get_players()
-        Cache.clear_reach(self.key.id(), [_pid(p) for p in ps])
+        for p in ps:
+            Cache.clear_reach(self.key.id(), _pid(p))
         if self.mode != MultiplayerGameType.SHARED:
             return False
         if not Cache.san_check(self.key.id()):
