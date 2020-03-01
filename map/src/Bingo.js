@@ -261,6 +261,8 @@ const PlayerList = ({activePlayer, teams, viewOnly, isOwner, timerTime, onPlayer
                 )}))
             if(place > 0)
                 number += (team_list.length - place) * 12
+            if(userBoard && active)
+                number += 1000
             return [number, rows]
         })
 
