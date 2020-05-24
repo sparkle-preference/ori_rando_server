@@ -423,9 +423,10 @@ export default class Bingo extends React.Component {
         if(status !== 200)
         {
             let stateUpdate = {}
-            if(status === 429)
+            if(status === 429) 
                 stateUpdate.activePlayer = this.state.activePlayer + 1
-            let stateUpdate = {fails: this.state.fails + 1, buildingPlayer: false, ticking: false}
+              else 
+                stateUpdate = {fails: this.state.fails + 1, buildingPlayer: false, ticking: false}
             if(status === 409)
                 stateUpdate.activePlayer = this.state.activePlayer + 1
             else if(this.state.fails < 5 || (this.state.fails - 1) % 5 === 0)
