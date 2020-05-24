@@ -29,6 +29,7 @@ const pickup_icons = {
     "Ma": new Leaflet.Icon({iconUrl: '/sprites/map-stone.png', iconSize: new Leaflet.Point(24, 24)}),
     "EX": new Leaflet.Icon({iconUrl: '/sprites/xp.png', iconSize: new Leaflet.Point(24, 24)}),
     "Pl": new Leaflet.Icon({iconUrl: '/sprites/plant.png', iconSize: new Leaflet.Point(16, 16)}),
+    "TP": new Leaflet.Icon({iconUrl: '/sprites/teleporter.png', iconSize: new Leaflet.Point(32, 32)}),
     "KS": new Leaflet.Icon({iconUrl: '/sprites/keystone.png', iconSize: new Leaflet.Point(24, 24)}),
     "CS": new Leaflet.Icon({iconUrl: '/sprites/WarmthReturned.png', iconSize: new Leaflet.Point(20, 20)}),
     "EVGinsoKey": new Leaflet.Icon({iconUrl: '/sprites/WaterVein.png', iconSize: new Leaflet.Point(24, 24)}),
@@ -115,6 +116,7 @@ function get_icon(pick, color = null) {
     console.log("no icon found for "+ pick.name + "!");
     return blank_icon;
 }
+
 function getMapCrs(x = .0001, y = -.0005, a = 0, b = -.2) {
     let swampTeleporter = point(493.719818, -74.31961);
     let gladesTeleporter = point(109.90181, -257.681549);
@@ -280,4 +282,4 @@ const goToCurry = (url) => () => { window.location.href = url }
 
 export {PickupMarker, PickupMarkersList, download, getStuffType, locs, picks_by_loc, getMapCrs, pickups, distance, get_icon, select_wrap,
         point, picks_by_type, picks_by_zone, zones, stuff_types, areas, picks_by_area, select_styles,
-        is_match, str_ids, hide_opacity, seed_name_regex, uniq, listSwap, goToCurry, base_url};
+        is_match, str_ids, hide_opacity, seed_name_regex, uniq, listSwap, goToCurry, base_url, pickup_icons};

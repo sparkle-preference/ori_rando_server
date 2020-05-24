@@ -618,7 +618,36 @@ class BingoGameData(ndb.Model):
     teams_shared     = ndb.BooleanProperty(default=False)
     game             = ndb.KeyProperty("Game")
     discovery        = ndb.IntegerProperty()
+    disc_squares     = ndb.IntegerProperty(repeated=True)
     rand_dat         = ndb.TextProperty(compressed=True)
+
+    def discovery_squares(self, square_count=2):
+        if self.discovery != square_count:
+            self.discovery = square_count
+        if len(self.disc_squares) > 0:
+            return self.disc_squares
+        if square_count > 25:
+            square_count = 2
+        rand = random.Random()
+        rand.seed(self.seed)
+        noncounts = [card.square for card in self.board if card.early]
+        i = 0
+        squares = []
+        while i < 10:
+            if len(noncounts) >= square_count:
+                squares = rand.sample(noncounts, square_count)
+            else:
+                squares = noncounts + rand.sample(range(25), square_count - len(noncounts))
+            for s in squares:
+                if (s % 5 != 4 and s+1 in squares) or (s % 5 != 0 and s-1 in squares) or (s > 4 and s-5 in squares) or (s < 20 and s+5 in squares):
+                    i += 1
+                    break
+            else:
+                break
+        self.disc_squares = squares
+        self.put()
+        return squares
+    
 
     @ndb.transactional(retries=5, xg=True)
     def reset(self):
@@ -714,26 +743,8 @@ class BingoGameData(ndb.Model):
             res["bingo_count"] = self.bingo_count
             res["subtitle"] = self.subtitle
             res["teams_allowed"] = self.teams_allowed
-            if self.discovery:
-                if self.discovery > 25:
-                    self.discovery = 2
-                rand = random.Random()
-                rand.seed(self.seed)
-                noncounts = [card.square for card in self.board if card.early]
-                i = 0
-                squares = []
-                while i < 10:
-                    if len(noncounts) >= self.discovery:
-                        squares = rand.sample(noncounts, self.discovery)
-                    else:
-                        squares = noncounts + rand.sample(range(25), self.discovery - len(noncounts))
-                    for s in squares:
-                        if (s % 5 != 4 and s+1 in squares) or (s % 5 != 0 and s-1 in squares) or (s > 4 and s-5 in squares) or (s < 20 and s+5 in squares):
-                            i += 1
-                            break
-                    else:
-                        break
-                res["discovery"] = squares
+            if self.discovery or len(self.disc_squares):
+                res["discovery"] = self.discovery_squares()
 
             game = self.game.get()
             if game.params:

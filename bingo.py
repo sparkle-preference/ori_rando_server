@@ -873,8 +873,8 @@ class AddBingoToGame(RequestHandler):
             game          = game.key,
         )
         if d:
-            bingo.discovery = d
             bingo.seed = seed
+            bingo.discovery_squares(d)
 
         if bingo.teams_shared and not bingo.teams_allowed:
             log.warning("Teams are required for shared seeds! Overriding invalid config")
@@ -1120,7 +1120,7 @@ class BingoUserSpectate(RequestHandler):
 class GetBingothonJson(RequestHandler):
     def get(self, game_id, player_id):
         self.response.headers['Content-Type'] = 'application/json'
-        res = []
+        res = {"cards": []}
         bingo = BingoGameData.with_id(game_id)
         if not bingo:
             return resp_error(self, 404, json.dumps({"error": "bingo game not found"}))
@@ -1128,7 +1128,9 @@ class GetBingothonJson(RequestHandler):
         if not p:
             return resp_error(self, 404, json.dumps({"error": "player not found in game"}))
         for card in bingo.board:
-            res.append(card.bingothon_json(p))
+            res["cards"].append(card.bingothon_json(p))
+        if bingo.discovery:
+            res["disc_squares"] = bingo.disc_squares
         self.response.write(json.dumps(res))
 
 routes = [

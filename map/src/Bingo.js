@@ -110,7 +110,7 @@ class BingoBoard extends Component {
             return null
         }
         let hide = false, showSquares = [].concat(discovery);
-        if(discovery.length > 0)
+        if(discovery.length > 0 && !iniUrl.searchParams.has("SHOWALLSQUARES"))
         {
             hide = true;
             let discQueue = [].concat(discovery)
@@ -422,6 +422,9 @@ export default class Bingo extends React.Component {
     tickCallback = ({status, responseText}) => {
         if(status !== 200)
         {
+            let stateUpdate = {}
+            if(status === 429)
+                stateUpdate.activePlayer = this.state.activePlayer + 1
             let stateUpdate = {fails: this.state.fails + 1, buildingPlayer: false, ticking: false}
             if(status === 409)
                 stateUpdate.activePlayer = this.state.activePlayer + 1
