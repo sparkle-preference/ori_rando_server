@@ -1127,12 +1127,14 @@ class ResetAndTransfer(RequestHandler):
         if not game:
             return resp_error(self, 404, "game not found!")
         user = User.get()
-        new_user = User.get_by_name(new_owner)
-        if new_user and (User.is_admin() or (user and user.key == game.creator)):
+        if (User.is_admin() or (user and user.key == game.creator)):
+            new_user = User.get_by_name(new_owner)
+            if not new_user:
+                return resp_error(self, 404, "Couldn't find user %s" % new_owner)
             old_creator = game.creator
             game.creator = new_user.key
             game.reset()
-            self.response.write("Game reset; ownership transferred from %s to %s" % (old_creator, new_user.key))
+            self.response.write("Game reset; ownership transferred from %s to %s" % (old_creator, new_user))
         else:
             return resp_error(self, 401, "Can't restart a game you didn't create...")
 

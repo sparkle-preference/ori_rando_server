@@ -1433,7 +1433,9 @@ class Game(ndb.Model):
         for player in self.get_players():
             player.reset()
         if self.bingo_data:
-            self.bingo_data.get().reset()
+            b_data = self.bingo_data.get()
+            b_data.creator = self.creator
+            b_data.reset()
         Cache.remove_game(self.key.id())
         self.rebuild_hist()
         self.put()
