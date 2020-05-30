@@ -1134,7 +1134,7 @@ class ResetAndTransfer(RequestHandler):
             old_creator = game.creator
             game.creator = new_user.key
             game.reset()
-            self.response.write("Game reset; ownership transferred from %s to %s" % (old_creator, new_user))
+            self.response.write("Game reset; ownership transferred from %s to %s" % (user.name, new_user.name))
         else:
             return resp_error(self, 401, "Can't restart a game you didn't create...")
 
