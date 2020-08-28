@@ -5,7 +5,7 @@ from collections import Counter, defaultdict
 
 # web imports
 import logging as log
-from urllib import unquote
+from urllib2 import unquote, urlopen
 from webapp2_extras.routes import DomainRoute, PathPrefixRoute, RedirectRoute as Route
 from test import TestRunner
 from webapp2 import WSGIApplication, RequestHandler, redirect, uri_for
@@ -1158,6 +1158,36 @@ class WotwTempMap(RequestHandler):
         self.response.write(template.render(path, template_values))
 
 
+def all_releases():
+    return json.loads(urlopen("https://api.github.com/repos/sparkle-preference/OriWotwRandomizerClient/releases").read())
+
+def beta_release():
+    return json.loads(urlopen("https://api.github.com/repos/sparkle-preference/OriWotwRandomizerClient/releases/latest").read())
+
+def stable_release():
+    for r in all_releases():
+        if r["tag_name"].partition("-")[0][-1] == "0":
+            return r
+    return None  # panicworthy honestly
+
+def asset_link(resp, asset_name):
+    return str([ass["browser_download_url"] for ass in resp["assets"] if ass["name"].lower() == asset_name.lower()][0])
+
+class WotwReleases(RequestHandler):
+    def beta_asset(self, asset_name):
+        return redirect(asset_link(beta_release(), asset_name))
+
+    def stable_asset(self, asset_name):
+        return redirect(asset_link(stable_release(), asset_name))
+
+    def beta_ver(self):
+        self.response.headers['Content-Type'] = 'text/plain'
+        return self.response.write(urlopen(asset_link(beta_release(), "VERSION")).read())
+
+    def stable_ver(self):
+        self.response.headers['Content-Type'] = 'text/plain'
+        return self.response.write(urlopen(asset_link(stable_release(), "VERSION")).read())
+ 
 app = WSGIApplication(
     routes=[
         DomainRoute('www.orirando.com', [Route('<path:.*>', handler=NakedRedirect)]),
@@ -1224,14 +1254,23 @@ app = WSGIApplication(
     ('/vanilla', Vanilla),
     Route('/reroll', handler=QuickReroll, strict_slash=True, name="reroll-last"),
     Route('/discord', redirect_to="https://discord.gg/TZfue9V"),
+    Route('/discord/dev', redirect_to="https://discord.gg/Ahwh4Na"),
     Route('/reset/<game_id:\d+>', handler=ResetGame, name="restart-game"),
     Route('/transfer/<game_id:\d+>/<new_owner>', handler=ResetAndTransfer, name="transfer-game"),
     Route('/dll', redirect_to="https://github.com/sparkle-preference/OriDERandomizer/raw/master/Assembly-CSharp.dll"),
     Route('/dll/bingo', redirect_to="https://github.com/sparkle-preference/OriDERandomizer/raw/master/Assembly-CSharp.dll"),
     Route('/tracker', redirect_to="https://github.com/meldontaragon/OriDETracker/releases/latest"),
-    Route('/weekly', redirect_to='https://forms.gle/UGeN2uBN6kPbeWzt6', name="weekly-poll"),
-    Route('/openBook/form', redirect_to='https://forms.gle/aCyEjh7YWPLo1YK36', name="open-book-form"),
-    Route('/openBook/leaderboard', redirect_to='https://docs.google.com/spreadsheets/d/1X6jJpjJVY_mly--9tnV9EGo5I6I_gJ4Sepkf51S9rQ4/edit#gid=172059369&range=A1:D1', name="open-book-leaderboard"),
+    Route('/weekly', redirect_to='https://docs.google.com/forms/d/e/1FAIpQLSew3Fx9ypwkKHuWhEDH-Edb7PtDpi1w0XAjdILK7sRm_EohBw/viewform?usp=pp_url&entry.1986108575=Bonus+Items&entry.1986108575=Teleporters+in+item+pool&entry.1986108575=Items+on+quests&entry.1986108575=Hints+sold+by+NPCs&entry.60604526=spawn+with:+Sword&entry.1306149304=Normal', name="weekly-poll"),
+    Route('/weekly/vote', redirect_to='https://docs.google.com/forms/d/e/1FAIpQLSew3Fx9ypwkKHuWhEDH-Edb7PtDpi1w0XAjdILK7sRm_EohBw/viewform?usp=pp_url&entry.1986108575=Bonus+Items&entry.1986108575=Teleporters+in+item+pool&entry.1986108575=Items+on+quests&entry.1986108575=Hints+sold+by+NPCs&entry.60604526=spawn+with:+Sword&entry.1306149304=Normal', name="weekly-poll"),
+    Route('/weekly/schedule', redirect_to='https://www.when2meet.com/?9643462-TYZwB', name="weekly-schedule"),
+    Route('/wotw/stable', handler=WotwReleases, handler_method="stable_ver", name="wotw-version-stable"),
+    Route('/wotw/stable/<asset_name>', handler=WotwReleases, handler_method="stable_asset", name="wotw-installer-stable"),
+    Route('/wotw/beta', handler=WotwReleases,  handler_method="beta_ver", name="wotw-version-stable"),
+    Route('/wotw/beta/<asset_name>', handler=WotwReleases, handler_method="beta_asset", name="wotw-installer-stable"),
+    Route('/wotw/releases', redirect_to="https://github.com/sparkle-preference/OriWotwRandomizerClient/releases", name="wotw-releases"),
+
+#    Route('/openBook/form', redirect_to='https://forms.gle/aCyEjh7YWPLo1YK36', name="open-book-form"),
+#    Route('/openBook/leaderboard', redirect_to='https://docs.google.com/spreadsheets/d/1X6jJpjJVY_mly--9tnV9EGo5I6I_gJ4Sepkf51S9rQ4/edit#gid=172059369&range=A1:D1', name="open-book-leaderboard"),
     Route('/theme/toggle', handler=ThemeToggle, name="theme-toggle"),
     # netcode endpoints
     PathPrefixRoute('/netcode/game/<game_id:\d+>/player/<player_id:[^/]+>', [

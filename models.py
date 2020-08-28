@@ -1077,7 +1077,6 @@ class Game(ndb.Model):
     # returns a dict; tuple group pids -> shared inventory
     def get_inventories(self, players, include_unshared_prog=False, use_have=False):
         inventories = {}
-        print "happen"
 
         def relevant(p, personal=False):
             if personal:
@@ -1180,14 +1179,14 @@ class Game(ndb.Model):
         else:
             player_groups = [self.players]
         if int_ids:
-            return [[_pid(p)for p in group] for group in player_groups]
+            return [[_pid(p) for p in group] for group in player_groups]
         return player_groups
 
     def sanity_check(self):
         Cache.clear_items(self.key.id())
         ps = self.get_players()
         for p in ps:
-            Cache.clear_reach(self.key.id(), _pid(p))
+            Cache.clear_reach(self.key.id(), _pid(p.key))
         if self.mode != MultiplayerGameType.SHARED:
             return False
         if not Cache.san_check(self.key.id()):
