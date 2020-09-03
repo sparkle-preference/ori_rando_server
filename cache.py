@@ -97,7 +97,15 @@ class Cache(object):
         pos_map = Cache.get_pos(gid) or {}
         pos_map[int(pid)] = (x, y)
         memcache.set(key="%s.pos" % gid, value=pos_map, time=3600)
-    
+
+    @staticmethod
+    def get_git(k):
+        return memcache.get(key="git.%s" % k)
+
+    @staticmethod
+    def set_git(k, val):
+        memcache.set(key="git.%s" % k, value=val, time=3600)
+
     @staticmethod
     def get_board(gid):
         return memcache.get(key="%s.board" % gid)

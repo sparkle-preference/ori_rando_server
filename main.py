@@ -1188,6 +1188,13 @@ class WotwReleases(RequestHandler):
         self.response.headers['Content-Type'] = 'text/plain'
         return self.response.write(urlopen(asset_link(stable_release(), "VERSION")).read())
  
+class WeeklyPollAdminRedir(RequestHandler):
+    def get(self):
+        if User.is_admin():
+            from secrets import weekly_poll_edit_link
+            return redirect(weekly_poll_edit_link)            
+        return redirect(uri_for('weekly-schedule'))
+
 app = WSGIApplication(
     routes=[
         DomainRoute('www.orirando.com', [Route('<path:.*>', handler=NakedRedirect)]),
@@ -1262,7 +1269,8 @@ app = WSGIApplication(
     Route('/tracker', redirect_to="https://github.com/meldontaragon/OriDETracker/releases/latest"),
     Route('/weekly', redirect_to='https://docs.google.com/forms/d/e/1FAIpQLSew3Fx9ypwkKHuWhEDH-Edb7PtDpi1w0XAjdILK7sRm_EohBw/viewform?usp=pp_url&entry.1986108575=Bonus+Items&entry.1986108575=Teleporters+in+item+pool&entry.1986108575=Items+on+quests&entry.1986108575=Hints+sold+by+NPCs&entry.60604526=spawn+with:+Sword&entry.1306149304=Normal', name="weekly-poll"),
     Route('/weekly/vote', redirect_to='https://docs.google.com/forms/d/e/1FAIpQLSew3Fx9ypwkKHuWhEDH-Edb7PtDpi1w0XAjdILK7sRm_EohBw/viewform?usp=pp_url&entry.1986108575=Bonus+Items&entry.1986108575=Teleporters+in+item+pool&entry.1986108575=Items+on+quests&entry.1986108575=Hints+sold+by+NPCs&entry.60604526=spawn+with:+Sword&entry.1306149304=Normal', name="weekly-poll"),
-    Route('/weekly/schedule', redirect_to='https://www.when2meet.com/?9643462-TYZwB', name="weekly-schedule"),
+    Route('/weekly/schedule', redirect_to='https://whenisgood.net/wotw_rando_weekly_times/', name="weekly-schedule"),
+    Route('/weekly/schedule/edit', handler=WeeklyPollAdminRedir, name="weekly-schedule-admin"),
     Route('/wotw/stable', handler=WotwReleases, handler_method="stable_ver", name="wotw-version-stable"),
     Route('/wotw/stable/<asset_name>', handler=WotwReleases, handler_method="stable_asset", name="wotw-installer-stable"),
     Route('/wotw/beta', handler=WotwReleases,  handler_method="beta_ver", name="wotw-version-stable"),
