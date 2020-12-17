@@ -2103,7 +2103,7 @@ home: LowerLeftGumoHideout
 		casual-core Climb
 		casual-core DoubleJump
 		casual-core Bash Grenade
-        casual-core Glide Wind
+		casual-core Glide Wind
 		standard-abilities Dash Ability=3
 		dbash Bash
 	pickup: GumoHideoutRightHangingExp
@@ -2114,7 +2114,7 @@ home: LowerLeftGumoHideout
 		casual-core Bash Grenade
 		casual-core WallJump ChargeJump
 		casual-core Climb ChargeJump
-        casual-core Glide Wind
+		casual-core Glide Wind
 		standard-core WallJump Dash
 		standard-core Climb Dash
 		expert-core DoubleJump
@@ -2584,8 +2584,8 @@ home: HoruInnerDoor
 		expert-core Stomp Bash Grenade Climb
 		master-dboost Stomp ChargeJump WallJump DoubleJump Glide Health=8 Ability=12
 		-- Open
-        casual-core Open ChargeJump Bash DoubleJump WallJump
-        casual-core Open ChargeJump Bash DoubleJump Climb
+		casual-core Open ChargeJump Bash DoubleJump WallJump
+		casual-core Open ChargeJump Bash DoubleJump Climb
 		casual-core Open ChargeJump Bash Glide WallJump
 		casual-core Open ChargeJump Bash Glide Climb
 		standard-core Open Bash Grenade
@@ -2611,8 +2611,8 @@ home: HoruInnerDoor
 		expert-core Stomp Bash Grenade Climb
 		master-dboost Stomp ChargeJump WallJump DoubleJump Glide Health=8 Ability=12
 		-- Open
-        casual-core Open ChargeJump Bash DoubleJump WallJump
-        casual-core Open ChargeJump Bash DoubleJump Climb
+		casual-core Open ChargeJump Bash DoubleJump WallJump
+		casual-core Open ChargeJump Bash DoubleJump Climb
 		casual-core Open ChargeJump Bash Glide WallJump
 		casual-core Open ChargeJump Bash Glide Climb
 		standard-core Open Bash Grenade
@@ -2663,8 +2663,8 @@ home: HoruInnerDoor
 		expert-core Bash Grenade Climb
 		master-dboost ChargeJump WallJump DoubleJump Glide Health=8 Ability=12
 		-- Open
-        casual-core Open ChargeJump Bash DoubleJump WallJump
-        casual-core Open ChargeJump Bash DoubleJump Climb
+		casual-core Open ChargeJump Bash DoubleJump WallJump
+		casual-core Open ChargeJump Bash DoubleJump Climb
 		casual-core Open ChargeJump Bash Glide WallJump
 		casual-core Open ChargeJump Bash Glide Climb
 		standard-core Open Bash Grenade
@@ -2689,8 +2689,8 @@ home: HoruInnerDoor
 		expert-core Stomp Bash Grenade Climb
 		master-dboost Stomp ChargeJump WallJump DoubleJump Glide Health=8 Ability=12
 		-- Open
-        casual-core Open ChargeJump Bash DoubleJump WallJump
-        casual-core Open ChargeJump Bash DoubleJump Climb
+		casual-core Open ChargeJump Bash DoubleJump WallJump
+		casual-core Open ChargeJump Bash DoubleJump Climb
 		casual-core Open ChargeJump Bash Glide WallJump
 		casual-core Open ChargeJump Bash Glide Climb
 		standard-core Open Bash Grenade
