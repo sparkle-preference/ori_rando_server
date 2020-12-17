@@ -2103,6 +2103,7 @@ home: LowerLeftGumoHideout
 		casual-core Climb
 		casual-core DoubleJump
 		casual-core Bash Grenade
+        casual-core Glide Wind
 		standard-abilities Dash Ability=3
 		dbash Bash
 	pickup: GumoHideoutRightHangingExp
@@ -2113,6 +2114,7 @@ home: LowerLeftGumoHideout
 		casual-core Bash Grenade
 		casual-core WallJump ChargeJump
 		casual-core Climb ChargeJump
+        casual-core Glide Wind
 		standard-core WallJump Dash
 		standard-core Climb Dash
 		expert-core DoubleJump
