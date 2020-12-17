@@ -298,7 +298,7 @@ const getHelpHelper = (category, option) => {
                 case "StrictMapstones":
                     title = "Strict Mapstones"
                     lines = [
-                        "The Strict Mapstones variation forces the seed generator to place a mapstone for every reachable mapstone pedistal.",
+                        "The Strict Mapstones variation forces the seed generator to place a mapstone for every reachable mapstone pedestal.",
                         "This variation represents the pre-3.0 default behavior, and is not generally recommended due to how predictable it makes early game mapstone placements."
                     ]
                     break;
