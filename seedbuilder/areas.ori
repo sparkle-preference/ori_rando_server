@@ -1550,7 +1550,6 @@ home: UpperGinsoRedirectArea
 	conn: UpperGinsoTree
 		casual-core Bash
 		casual-core ChargeJump
-		master-abilities DoubleJump Dash Ability=6
 		master-abilities DoubleJump Stomp WallJump Ability=12
 		master-abilities DoubleJump ChargeFlame WallJump Ability=12
 		master-abilities DoubleJump Grenade WallJump Ability=12
