@@ -305,7 +305,7 @@ const getHelpHelper = (category, option) => {
                 case "ClosedDungeons":
                     title = "Closed Dungeons"
                     lines = [
-                        "The Closed Dungeons variation reverts several changes made in version 3.0 that made the dungeons more accessable. These changes were: ",
+                        "The Closed Dungeons variation reverts several changes made in version 3.0 that made the dungeons more accessible. These changes were: ",
                         (<ul>
                             <li>Keystone doors can be opened from both sides</li>
                             <li>Horu and Ginso Teleporters have been added to the item pool</li>
@@ -525,7 +525,7 @@ const getHelpHelper = (category, option) => {
                     title = "Seperate Seeds"
                     subtitle = "Co-op Seed Generation Modes"
                     lines = [
-                        "Seperate Seeds are made by simulataneously generating a seed for each player in the game. Each shared item is only assigned to one player; once it becomes accessable for one player, it will be in the logic for both of them.",
+                        "Seperate Seeds are made by simulataneously generating a seed for each player in the game. Each shared item is only assigned to one player; once it becomes accessible for one player, it will be in the logic for both of them.",
                         "Because the seeds for each player are generated seperately, the progression paths of each player will be different, though they will at certain points rely on each other.",
                         "For Seperate Seeds, player communication is not as important, as no information gained by one player will be relevant to the others (besides informing them of shared pickups they have, which the game does already).",
                         "Seperate Seeds work best when individual shared items don't block progression for other players.",
