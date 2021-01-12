@@ -536,7 +536,7 @@ class SeedGenerator:
                                 if self.var(Variation.TPSTARVED) and req.startswith("TP"):
                                     cost += self.costs[req]
                                 if self.var(Variation.FUCK_WALLS) and req in ["WallJump", "Climb"]:
-                                    cost += self.costs[req] * 3
+                                    cost += self.costs[req] * 7
                     # don't decrease the rate of multi-ability paths, bc we're already pruning them
                     # cost *= max(1, len(requirements) - 1)
                     if len(requirements) <= free_space:
