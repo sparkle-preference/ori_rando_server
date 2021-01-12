@@ -87,7 +87,7 @@ def stacks(pickup):
         return True
     if pickup.code != "RB":
         return False
-    return pickup.id in [6, 9, 12, 13, 15, 17, 19, 21, 28, 30, 31, 32, 33, 37]
+    return pickup.id in [6, 9, 12, 13, 15, 17, 19, 21, 28, 30, 31, 32, 33, 37, 81]
 
 
 pbc = picks_by_coord(extras=True)
@@ -410,6 +410,7 @@ class Player(ndb.Model):
                 if pick_id in self.bonuses:
                     if (not stacks(pickup)) or (pickup.max and self.bonuses[pick_id] >= pickup.max):
                         log.debug("Will not give %s pickup %s, as they already have %s" % (self.name(), pickup.name, self.bonuses[pick_id]))
+                        self.bonuses[pick_id] = 1
                         return
                     self.bonuses[pick_id] += 1
                 else:
