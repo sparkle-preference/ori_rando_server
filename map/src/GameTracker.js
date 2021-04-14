@@ -237,7 +237,7 @@ class GameTracker extends React.Component {
     let url = new URL(window.document.URL);
     this.state = {
         mousePos: {lat: 0, lng: 0}, players: {}, follow: url.searchParams.get("follow") || -1, retries: 0, check_seen: 1, modes: modes, timeout: TIMEOUT_START, searchStr: "", pickup_display: "all", 
-        show_sidebar: !url.searchParams.has("hideSidebar"), idle_countdown: 3600, bg_update: true, pickups: ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "Ma", "CS"], show_tracker: !url.searchParams.has("hideTracker"),
+        show_sidebar: !url.searchParams.has("hideSidebar"), idle_countdown: 10800, bg_update: true, pickups: ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "Ma", "CS"], show_tracker: !url.searchParams.has("hideTracker"),
         open_world: false, closed_dungeons: false, pathMode: get_preset(modes), hideOpt: "all", display_logic: false,  viewport: {center: [0, 0], zoom: 5}, usermap: url.searchParams.get("usermap") || "",
         tracker_data: {events: [], teleporters: [], shards: {gs: 0, ss: 0, wv: 0}, skills: [], maps: 0,relics_found: [], relics: [], trees: []}, gameId: document.getElementsByClassName("game-id")[0].id
     };
@@ -265,9 +265,9 @@ class GameTracker extends React.Component {
             if(idle_countdown > 0)
                 this.setState({idle_countdown: idle_countdown-1})
             else
-                this.setState({idle_countdown: 3600, bg_update: false})
+                this.setState({idle_countdown: 10800, bg_update: false})
         } else {
-            update.idle_countdown = 3600
+            update.idle_countdown = 10800
         }
         if(check_seen === 0) {
             this.getUpdate(this.timeout);
