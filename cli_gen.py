@@ -215,7 +215,7 @@ class CLISeedParams(object):
         self.do_loc_analysis = args.loc_analysis
         self.repeat_count = args.count
 
-        base_seed = hash(self.seed)
+        base_seed = self.seed[:]
         if self.do_analysis:
             key_items = ["WallJump", "ChargeFlame", "DoubleJump", "Bash", "Stomp", "Glide", "Climb", "ChargeJump", "Dash", "Grenade", "GinsoKey", "ForlornKey", "HoruKey", "Water", "Wind", "TPForlorn", "TPGrotto", "TPSorrow", "TPGrove", "TPSwamp", "TPValley", "TPGinso", "TPHoru"]
             info_by_group = defaultdict(defaultgroup)
@@ -258,7 +258,7 @@ class CLISeedParams(object):
         for count in range(0, self.repeat_count):
 
             if self.repeat_count > 1:
-                self.seed = base_seed + count
+                self.seed = "%s_%s" % (base_seed, count)
 
             if self.do_loc_analysis:
                 print(self.seed)
