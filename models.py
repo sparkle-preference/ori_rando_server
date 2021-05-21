@@ -1199,6 +1199,8 @@ class Game(ndb.Model):
         for pids, inv in shared_inventories.items():
             players = [p for p in ps if p.pid() in pids]
             for key, count in inv.iteritems():
+                if key[0] == "WT":
+                    continue # hahahaha fucking christ
                 pickup = Pickup.n(key[0], key[1])
                 if not stacks(pickup):
                     count = 1
