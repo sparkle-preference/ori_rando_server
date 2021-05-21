@@ -99,7 +99,7 @@ class Upgrade(Pickup):
         id = int(id)
         if id in Upgrade.name_only:
             inst = super(Upgrade, cls).__new__(cls)
-            inst.id, inst.share_type, inst.name = id, ShareType.NOT_SHARED, Upgrade.names[id]
+            inst.id, inst.share_type, inst.name, inst.max = id, ShareType.NOT_SHARED, Upgrade.names[id], None
             if id in [81]:
                 inst.share_type = ShareType.SKILL
             return inst

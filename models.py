@@ -1204,7 +1204,7 @@ class Game(ndb.Model):
                 pickup = Pickup.n(key[0], key[1])
                 if not stacks(pickup):
                     count = 1
-                elif hasattr(pickup, "max") && pickup.max:
+                elif pickup.max:
                     count = min(count, pickup.max)
                 for player in players:
                     has = player.has_pickup(pickup)
