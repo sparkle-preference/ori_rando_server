@@ -11,7 +11,7 @@ If you believe you have recieved an unfinishable seed, please inform Eiko in the
 const noneTitle = "Confused?";
 const noneSub = "Mouse over anything to learn more!";
 const noneLines = ["Additional context-specific information will appear here as you interact with the UI."];
-const vars = ["Starved", "NonProgressMapStones", "Hard", "0XP", "Entrance", "BonusPickups", "DoubleSkills", "StrictMapstones", "ClosedDungeons", "OpenWorld", "StompTriggers", "TPStarved", "WallStarved"]
+const vars = ["Starved", "NonProgressMapStones", "Hard", "0XP", "Entrance", "BonusPickups", "DoubleSkills", "StrictMapstones", "ClosedDungeons", "OpenWorld", "StompTriggers", "TPStarved", "WallStarved", "GrenadeStarved"]
 const presets = ["Casual", "Standard", "Expert", "Master", "Glitched", "Custom"]
 
 const goalModes = ["ForceTrees", "ForceMaps", "Bingo"]
@@ -226,17 +226,24 @@ const getHelpHelper = (category, option) => {
                     ]
                     break;
                 case "TPStarved":
-                    title = "TP-Starved"
+                    title = "TPStarved"
                     lines = [
-                        "The TP-Starved variation is an experimental setting that reduces the probability that players will be given teleporter pickups in the early game. It also reduces the probability that teleporter paths are chosen when the seed generator is picking progression paths. This tends to create seeds that open up more slowly, and reduce the frequency of forced early dungeon-teleporter usage.",
-                        "Recommended for people interested in testing a new setting and willing to provide feedback"
+                        "The TPStarved variation is a new setting that reduces the probability that players will be given teleporter pickups in the early game. It also reduces the probability that teleporter paths are chosen when the seed generator is picking progression paths. This tends to create seeds that open up more slowly, and reduce the frequency of forced early dungeon-teleporter usage.",
+                        "Recommended for players who want teleporters in their item pool but would prefer to avoid finding too many of them early on."
                     ]
                     break;
                 case "WallStarved":
-                    title = "Wall-Starved"
+                    title = "WallStarved"
                     lines = [
-                        "The Wall-Starved variation is an experimental setting that reduces the probability that players will be given wall interaction skills (Wall Jump and Climb) in the early game. It also reduces the probability that these pickups are chosen when the seed generator is picking progression paths. This usually forces the seed generator to place powerful skills more early on.",
-                        "Recommended for people interested in testing a new setting and willing to provide feedback"
+                        "The WallStarved variation is a new setting that reduces the probability that players will be given wall interaction skills (Wall Jump and Climb) in the first 40 pickups. It also reduces the probability that these pickups are chosen when the seed generator is picking progression paths. This usually forces the seed generator to place powerful skills more early on.",
+                        "Recommended for players who prefer seeds that are very likely to have powerful skills like Bash and Charge Jump very early on."
+                    ]
+                    break;
+                case "GrenadeStarved":
+                    title = "GrenadeStarved"
+                    lines = [
+                        "The GrenadeStarved variation is a new setting that dramatically reduces the probability that players will find Grenade in the first 60 pickups. It also reduces the probability that grenade is chosen when the seed generator is picking progression paths.",
+                        "Recommended for players looking to reduce the likelihood of seeds where Bash+Grenade is the early-game movement option."
                     ]
                     break;
                 case "GoalModeFinish":

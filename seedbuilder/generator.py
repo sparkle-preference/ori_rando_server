@@ -535,6 +535,8 @@ class SeedGenerator:
                                 cost += self.costs[req]
                                 if self.var(Variation.TPSTARVED) and req.startswith("TP"):
                                     cost += self.costs[req]
+                                if self.var(Variation.FUCK_GRENADE) and req == "Grenade":
+                                    cost += self.costs[req] * 5
                                 if self.var(Variation.FUCK_WALLS) and req in ["WallJump", "Climb"]:
                                     cost += self.costs[req] * 7
                     # don't decrease the rate of multi-ability paths, bc we're already pruning them
@@ -619,6 +621,9 @@ class SeedGenerator:
                         return self.assign_random(locs, recurseCount=recurseCount + 1)
                 if self.var(Variation.FUCK_WALLS):
                     if key in ["WallJump", "Climb"] and recurseCount < 3 and 252 - locs < 40:
+                        return self.assign_random(locs, recurseCount=recurseCount + 1)
+                if self.var(Variation.FUCK_GRENADE):
+                    if key == "Grenade" and recurseCount < 3 and 252 - locs < 60:
                         return self.assign_random(locs, recurseCount=recurseCount + 1)
                 if self.var(Variation.TPSTARVED):
                     if key.startswith("TP") and recurseCount < 3 and 252 - locs < self.costs.get(key, 0):
