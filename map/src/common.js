@@ -185,6 +185,7 @@ const stuff_by_type = {
         { label: "Remove Dash", value: "RB|48", desc: "Removes Dash"},
         { label: "Remove Grenade", value: "RB|49", desc: "Removes Grenade"},
         { label: "Stompnade Hint", value: "RB|81", desc: "Displays a hint showing which Zones contain the Stomp and Grenade skills"},
+        { label: "Enable Frag Sense", value: "RB|1100", desc: "Allows sense to be triggered by mapstone fragments once it's been triggered by a MS turnin."},
         { label: "Polarity Shift", value: "RB|101", desc: "On use: swap your current health and energy. Maximum values for both are ignored. Can't be used with 0 Energy."},
         { label: "Gravity Swap", value: "RB|102", desc: "Toggle: inverts gravity, and drains energy at a rate of 4 per minute."},
         { label: "Extreme Speed", value: "RB|103", desc: "Toggle: massively increases Ori's horizontal speed, and drains energy at a rate of 4 per minute."},

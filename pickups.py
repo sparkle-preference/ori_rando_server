@@ -78,7 +78,7 @@ class Teleporter(Pickup):
 
 class Upgrade(Pickup):
     stacking = set([6, 13, 15, 17, 19, 21])
-    name_only = set([0, 1, 2, 34, 35, 81] + range(40, 50))
+    name_only = set([0, 1, 2, 34, 35, 81, 1100] + range(40, 50))
     maxes = {17: 3, 19: 3, 21: 3}
     names = {
             17: "Water Vein Shard", 19: "Gumon Seal Shard", 21: "Sunstone Shard", 28: "Warmth Fragment", 6: "Attack Upgrade", 13: "Health Regeneration", 2: "Go Home",
@@ -90,7 +90,7 @@ class Upgrade(Pickup):
             111: "Wither", 113: "Bash/Stomp Damage", 1587: "Credit Warp", 37: "Jump Upgrade",
             900: "Wall Jump Tree", 901: "Charge Flame Tree", 902: "Double Jump Tree", 903: "Bash Tree", 904: "Stomp Tree", 905: "Glide Tree", 906: "Climb Tree",
             907: "Charge Jump Tree", 908: "Dash Tree", 909: "Grenade Tree", 911: "Glades Relic", 912: "Grove Relic", 913: "Grotto Relic", 914: "Blackroot Relic",
-            915: "Swamp Relic", 916: "Ginso Relic", 917: "Valley Relic", 918: "Misty Relic", 919: "Forlorn Relic", 920: "Sorrow Relic", 921: "Horu Relic"
+            915: "Swamp Relic", 916: "Ginso Relic", 917: "Valley Relic", 918: "Misty Relic", 919: "Forlorn Relic", 920: "Sorrow Relic", 921: "Horu Relic", 1100: "Enable Frag Sense",
         }
 
     bits = {17: 1, 19: 4, 21: 16, 6: 64, 13: 256, 15: 1024, 8: 4096, 9: 8192, 10: 16384, 11: 32768, 12: 65536}
