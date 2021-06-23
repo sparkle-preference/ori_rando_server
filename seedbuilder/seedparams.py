@@ -204,6 +204,7 @@ class SeedGenParams(ndb.Model):
         params.cell_freq = int(qparams.get("cell_freq", 256))
         params.sync = MultiplayerOptions.from_url(qparams)
         params.sense = qparams.get("sense")
+        params.pool_preset = qparams.get("pool_preset", "Standard").title()
         params.item_pool = {}
         raw_pool = qparams.get("item_pool")
         if raw_pool:
@@ -211,59 +212,34 @@ class SeedGenParams(ndb.Model):
                 item, _, count = itemcnt.partition(":")
                 params.item_pool[item] = int(count)
         else:
-            if Variation.EXTRA_BONUS_PICKUPS in params.variations:
+            if Variation.EXTRA_BONUS_PICKUPS in params.variations or params.pool_preset == "Extra Bonus":
                 params.pool_preset = "Extra Bonus"
-                params.item_pool = {
-                    "TP|Grove": [1],
-                    "TP|Swamp": [1],
-                    "TP|Grotto": [1],
-                    "TP|Valley": [1],
-                    "TP|Sorrow": [1],
-                    "TP|Ginso": [1],
-                    "TP|Horu": [1],
-                    "TP|Forlorn": [1],
-                    "HC|1": [12],
-                    "EC|1": [14],
-                    "AC|1": [33],
-                    "RP|RB/0": [3],
-                    "RP|RB/1": [3],
-                    "RB|6": [5],
-                    "RB|9": [1],
-                    "RB|10": [1],
-                    "RB|11": [1],
-                    "RB|12": [3],
-                    "RB|37": [3],
-                    "RB|13": [3],
-                    "RB|15": [3],
-                    "RB|31": [1],
-                    "RB|32": [1],
-                    "RB|33": [3],
-                    "BS|*": [4],
-                    "WP|*": [4, 8],
+                params.item_pool = { 
+                  "TP|Grove": [1], "TP|Swamp": [1], "TP|Grotto": [1], "TP|Valley": [1], "TP|Sorrow": [1], "TP|Ginso": [1],
+                  "TP|Horu": [1], "TP|Forlorn": [1], "HC|1": [12], "EC|1": [14], "AC|1": [33], "RP|RB/0": [3], "RP|RB/1": [3], 
+                  "RB|6": [5], "RB|9": [1], "RB|10": [1], "RB|11": [1], "RB|12": [3], "RB|37": [3], "RB|13": [3], "RB|15": [3],
+                  "RB|31": [1], "RB|32": [1], "RB|33": [3], "BS|*": [4], "WP|*": [4, 8],
                 }
+            elif params.pool_preset == "Bonus Lite":
+                params.item_pool = {
+                  "TP|Grove": [1], "TP|Swamp": [1], "TP|Grotto": [1], "TP|Valley": [1], "TP|Sorrow": [1], "TP|Ginso": [1],
+                  "TP|Horu": [1], "TP|Forlorn": [1], "HC|1": [12], "EC|1": [14], "AC|1": [33], "RB|0": [3], "RB|1": [3],
+                  "RB|6": [5], "RB|9": [1], "RB|10": [1], "RB|11": [1], "RB|12": [3], "RB|37": [3], "RB|13": [3], "RB|15": [3],
+                   "RB|31": [1], "RB|32": [1], "RB|33": [3], "RB|36": [1], "WP|*": [4,8],                }
+            elif params.pool_preset == "Competitive":
+                params.item_pool = {
+                  "TP|Grove": [1], "TP|Swamp": [1], "TP|Grotto": [1], "TP|Valley": [1], "TP|Sorrow": [1], "TP|Forlorn": [1],
+                  "HC|1": [12], "EC|1": [14], "AC|1": [33], "RB|0": [3], "RB|1": [3], "RB|6": [3],"RB|9": [1], "RB|10": [1],
+                  "RB|11": [1], "RB|12": [1], "RB|13": [3], "RB|15": [3],
+                }
+            elif params.pool_preset == "Hard":
+                params.item_pool = { "TP|Grove": [1],  "TP|Swamp": [1], "TP|Grotto": [1], "TP|Valley": [1], "TP|Sorrow": [1], "EC|1": [3]}
             else:
                 params.pool_preset = "Standard"
-                params.item_pool = {
-                    "TP|Grove": [1],
-                    "TP|Swamp": [1],
-                    "TP|Grotto": [1],
-                    "TP|Valley": [1],
-                    "TP|Sorrow": [1],
-                    "TP|Ginso": [1],
-                    "TP|Horu": [1],
-                    "TP|Forlorn": [1],
-                    "HC|1": [12],
-                    "EC|1": [14],
-                    "AC|1": [33],
-                    "RB|0": [3],
-                    "RB|1": [3],
-                    "RB|6": [3],
-                    "RB|9": [1],
-                    "RB|10": [1],
-                    "RB|11": [1],
-                    "RB|12": [1],
-                    "RB|13": [3],
-                    "RB|15": [3],
+                params.item_pool = { 
+                  "TP|Grove": [1], "TP|Swamp": [1], "TP|Grotto": [1], "TP|Valley": [1], "TP|Sorrow": [1], "TP|Ginso": [1],
+                  "TP|Horu": [1], "TP|Forlorn": [1], "HC|1": [12], "EC|1": [14], "AC|1": [33], "RB|0": [3], "RB|1": [3], "RB|6": [3], 
+                  "RB|9": [1], "RB|10": [1], "RB|11": [1], "RB|12": [1], "RB|13": [3], "RB|15": [3],
                 }
         raw_fass = qparams.get("fass")
         if raw_fass:

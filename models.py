@@ -1168,7 +1168,6 @@ class Game(ndb.Model):
                         else:
                             add_pick_to_inv(inv, stuff[0].code, stuff[0].id, coord, p.zone, True)
                 inventories["unshared"][pid] = inv
-        log.info(inventories)
         return inventories
 
     def get_player_groups(self, int_ids=False):

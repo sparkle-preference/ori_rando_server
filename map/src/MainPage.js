@@ -43,9 +43,6 @@ const get_pool = (pool_name) => { switch(pool_name) {
             {item: "TP|Grotto", count: 1},
             {item: "TP|Valley", count: 1},
             {item: "TP|Sorrow", count: 1},
-            {item: "TP|Ginso", count: 1},
-            {item: "TP|Horu", count: 1},
-            {item: "TP|Forlorn", count: 1},
             {item: "EC|1", count: 3, minimum: 3},
         ];
     case "Competitive": 
