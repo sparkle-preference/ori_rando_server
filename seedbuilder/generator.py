@@ -295,6 +295,7 @@ class SeedGenerator:
         self.areasRemaining = []
         self.connectionQueue = []
         self.assignQueue = []
+        self.sharedAssignQueue = []
         self.spoiler = []
 
     def reset(self):
@@ -414,15 +415,24 @@ class SeedGenerator:
         self.init_fields()
         self.codeToName = OrderedDict([(v, k) for k, v in self.skillsOutput.items() + self.eventsOutput.items() + [("RB17", "WaterVeinShard"), ("RB19", "GumonSealShard"), ("RB21", "SunstoneShard")]])
 
+    def shared_item_split(self, target):
+        for item, player in self.sharedMap.get(target, []):
+            if player == self.playerID:
+                self.assignQueue.append(item)
+                self.unplaced_shared -= 1
+
+            # If the item is intended for player with higher ID, we can just assign the item.
+            # Otherwise, we want to assign it after the paths are generated for this round
+            elif player > self.playerID:
+                self.assign(item)
+                self.spoilerGroup[item].append(item + " from Player " + str(player) + "\n")
+            else:
+                self.sharedAssignQueue.append(item)
+                self.spoilerGroup[item].append(item + " from Player " + str(player) + "\n")
+
     def reach_area(self, target):
         if self.playerID > 1 and target in self.sharedMap:
-            for item, player in self.sharedMap[target]:
-                if player == self.playerID:
-                    self.assignQueue.append(item)
-                    self.unplaced_shared -= 1
-                else:
-                    self.assign(item)
-                    self.spoilerGroup[item].append(item + " from Player " + str(player) + "\n")
+            self.shared_item_split(target)
         if self.areas[target].has_location:
             self.currentAreas.append(target)
         self.areasReached[target] = True
@@ -1253,6 +1263,9 @@ class SeedGenerator:
                     itemsToAssign.append(self.balanceListLeftovers.pop(0))
                 else:
                     itemsToAssign.append(self.assign_random(locs))
+
+            for _ in range(len(self.sharedAssignQueue)):
+                self.assign(self.sharedAssignQueue.pop(0))
 
             # force assign things if using --prefer-path-difficulty
             if self.params.path_diff != PathDifficulty.NORMAL:
