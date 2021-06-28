@@ -52,6 +52,7 @@ class CLISeedParams(object):
         parser.add_argument("--zeroxp", help="Enable 0xp mode", action="store_true")
         parser.add_argument("--starved", help="Reduces the rate at which skills will appear when not required to advance", action="store_true")
         parser.add_argument("--tp-starved", help="Reduces the rate at which teleporters will appear early game when not required to advance", action="store_true")
+        parser.add_argument("--wall-starved", help="Reduces the rate at which WallJump and Climb will appear early game when not required to advance", action="store_true")
         parser.add_argument("--non-progressive-mapstones", help="Map Stones will retain their behaviour from before v1.2, having their own unique drops", action="store_true")
         parser.add_argument("--force-trees", help="Prevent Ori from entering the final escape room until all skill trees have been visited", action="store_true")
         parser.add_argument("--force-mapstones", help="Prevent Ori from entering the final escape room until all mapstone altars have been activated", action="store_true")
@@ -111,7 +112,7 @@ class CLISeedParams(object):
         varMap = {
             "zeroxp": "0XP", "non_progressive_mapstones": "NonProgressMapStones", "ohko": "OHKO", "force_trees": "ForceTrees", "starved": "Starved",
             "force_mapstones": "ForceMapStones", "entrance": "Entrance", "open_world": "OpenWorld", "easy": "DoubleSkills", "strict_mapstones": "StrictMapstones",
-            "warmth_frags": "WarmthFrags", "world_tour": "WorldTour", "closed_dungeons": "ClosedDungeons", "tp_starved": "TPStarved"
+            "warmth_frags": "WarmthFrags", "world_tour": "WorldTour", "closed_dungeons": "ClosedDungeons", "tp_starved": "TPStarved", "wall_starved": "WallStarved"
         }
         self.variations = []
         for argName, flagStr in varMap.iteritems():
