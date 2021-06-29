@@ -5,8 +5,13 @@ import xml.etree.ElementTree as XML
 from collections import OrderedDict, defaultdict, Counter
 from operator import mul
 from enums import KeyMode, PathDifficulty, ShareType, Variation, MultiplayerGameType
+from hashlib import sha256
 from seedbuilder.oriparse import get_areas
 from seedbuilder.relics import relics
+
+def stable_string_hash(s):
+    """fuckin' INFURIATING that this is necessary but so it goes!!!"""
+    return int(sha256(s).hexdigest(), 16)
 
 longform_to_code = {"Health": ["HC"], "Energy": ["EC"], "Ability": ["AC"], "Keystone": ["KS"], "Mapstone": ["MS"], "Free": []}
 key_to_shards = {"GinsoKey": ["WaterVeinShard"] * 5, "ForlornKey": ["GumonSealShard"] * 5, "HoruKey": ["SunstoneShard"] * 5}
@@ -944,7 +949,7 @@ class SeedGenerator:
 
         self.sharedList = []
         self.random = random.Random()
-        self.random.seed(self.params.seed)
+        self.random.seed(stable_string_hash(self.params.seed))
         self.preplaced = {k: self.codeToName.get(v, v) for k, v in preplaced.iteritems()}
         self.do_multi = self.params.sync.enabled and self.params.sync.mode == MultiplayerGameType.SHARED
 
