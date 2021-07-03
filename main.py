@@ -1321,6 +1321,8 @@ app = WSGIApplication(
         Route('/general', redirect_to='https://docs.google.com/document/d/1LmRucZIQcRltyuHcvy4yzOLnXO043lksatPzJs-_j_g/'),
         Route('/runnerguide', redirect_to='https://docs.google.com/document/d/1EfU4zy6Lbxyycpe0Fszl0R2VDr_6p07wS2zSgHoZSag/'),
         Route('/tipsandtricks', redirect_to='https://docs.google.com/document/d/1E5QhT0c3cZRwhVRQapNPUMluGsQ46p5_SUDm_glFeOc/'),
+        Route('/runnersignup', redirect_to='https://docs.google.com/forms/d/e/1FAIpQLSdQ78-UEbfEhFYto2xLx_1zbK6PDgLfjAgqmV8Xon80tTHfpQ/viewform'),
+        Route('/volunteersignup', redirect_to='https://docs.google.com/forms/d/e/1FAIpQLSdduWEMO9FbCIdRLWEB82r5yBdwn8AW8B4_26m4YaprvCymeA/viewform?usp=sf_link'),
         Route('/obslayout', handler=TourneyLayout),
     ]),
 
