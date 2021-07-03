@@ -19,7 +19,7 @@ from seedbuilder.vanilla import seedtext as vanilla_seed
 from enums import MultiplayerGameType, ShareType, Variation
 from models import Game, Seed, User, BingoGameData, CustomLogic, trees_by_coords
 from cache import Cache
-from util import coord_correction_map, all_locs, picks_by_type_generator, param_val, param_flag, resp_error, debug, path, VER, version_check, template_vals
+from util import coord_correction_map, all_locs, picks_by_type_generator, param_val, param_flag, resp_error, debug, path, VER, version_check, template_vals, layout_json, whitelist_ok
 from reachable import Map, PlayerState
 from pickups import Pickup
 
@@ -77,6 +77,8 @@ class ActiveGames(RequestHandler):
             flags = ""
             if game.params:
                 params = game.params.get()
+                if Variation.RACE in params.variations and not whitelist_ok(s):
+                    continue
                 flags = params.flag_line()
                 slink = " <a href=%s>Seed</a>" % uri_for('main-page', game_id=gid, param_id=params.key.id())
             blink = ""
@@ -185,6 +187,8 @@ class ShowHistory(RequestHandler):
         self.response.headers['Content-Type'] = 'text/plain'
         game = Game.with_id(game_id)
         if game:
+            if (Variation.RACE in game.params.get().variations) and not template_values["race_wl"]:
+                return resp_error(self, 401, "Access forbidden")
             output = game.summary(int(param_val(self, "p") or 0))
             output += "\nHistory:"
             hls = []
@@ -303,7 +307,7 @@ class SetSeed(RequestHandler):
 
 class ShowMap(RequestHandler):
     def get(self, game_id):
-        template_values = template_vals("GameTracker", "Game %s" % game_id, User.get())
+        template_values = template_vals(self, "GameTracker", "Game %s" % game_id, User.get())
         template_values['game_id'] = game_id
         if debug and param_flag(self, "from_test"):
             game = Game.with_id(game_id)
@@ -311,6 +315,9 @@ class ShowMap(RequestHandler):
             hist = Cache.get_hist(game_id)
             if any([x is None for x in [game, pos, hist]]):
                 return redirect(uri_for('tests-map-gid', game_id=game_id, from_test=1))
+        game = Game.with_id(game_id)
+        if game and (Variation.RACE in game.params.get().variations) and not template_values["race_wl"]:
+            return resp_error(self, 401, "Access forbidden")
 
         self.response.write(template.render(path, template_values))
 
@@ -407,7 +414,11 @@ class GetReachable(RequestHandler):
 
 class ItemTracker(RequestHandler):
     def get(self, game_id):
-        template_values = template_vals("ItemTracker", "Game %s" % game_id, User.get())
+        game = Game.with_id(game_id)
+
+        template_values = template_vals(self, "ItemTracker", "Game %s" % game_id, User.get())
+        if game and Variation.RACE in game.params.get().variations and not template_values["race_wl"]:
+            return resp_error(self, 401, "Access forbidden")
         template_values['game_id'] = game_id
         self.response.write(template.render(path, template_values))
 
@@ -675,7 +686,7 @@ class PlandoView(RequestHandler):
         if seed:
             if user and user.key == seed.author_key:
                 authed = True
-            template_values = template_vals("SeedDisplayPage", "%s by %s" % (seed_name, author_name), user)
+            template_values = template_vals(self, "SeedDisplayPage", "%s by %s" % (seed_name, author_name), user)
             template_values.update({'players': seed.players, 'seed_data': seed.get_plando_json(),
                 'seed_name': seed_name, 'author': author_name, 'authed': authed, 
                 'seed_desc': seed.description, 'game_id': Game.get_open_gid()})
@@ -695,7 +706,7 @@ class PlandoView(RequestHandler):
 class PlandoEdit(RequestHandler):
     def get(self, seed_name):
         user = User.get()
-        template_values = template_vals("PlandoBuilder", "Plando Editor: %s" % (seed_name), user)
+        template_values = template_vals(self, "PlandoBuilder", "Plando Editor: %s" % (seed_name), user)
         if user:
             seed = user.plando(seed_name)
             template_values['authed'] = "True"
@@ -831,7 +842,7 @@ class MapTest(RequestHandler):
 
 class LogicHelper(RequestHandler):
     def get(self):
-        template_values = template_vals("LogicHelper", "Logic Helper", User.get())
+        template_values = template_vals(self, "LogicHelper", "Logic Helper", User.get())
 
         template_values.update({'is_spoiler': "True", 'pathmode': param_val(self, 'pathmode'), 'HC': param_val(self, 'HC'),
                            'EC': param_val(self, 'EC'), 'AC': param_val(self, 'AC'), 'KS': param_val(self, 'KS'),
@@ -840,7 +851,7 @@ class LogicHelper(RequestHandler):
 
 class ReactLanding(RequestHandler):
     def get(self):
-        template_values = template_vals("MainPage", "Ori DE Randomizer %s" % VERSION, User.get())
+        template_values = template_vals(self, "MainPage", "Ori DE Randomizer %s" % VERSION, User.get())
         _, error = CustomLogic.read()
         template_values.update({"error_msg": error})
         self.response.write(template.render(path, template_values))
@@ -1001,12 +1012,12 @@ class PicksByTypeGen(RequestHandler):
 
 class RebindingsEditor(RequestHandler):
     def get(self):
-        template_values = template_vals("RebindingsEditor", "Ori DERebindings Editor", User.get())
+        template_values = template_vals(self, "RebindingsEditor", "Ori DERebindings Editor", User.get())
         self.response.write(template.render(path, template_values))
 
 class Guides(RequestHandler):
     def get(self):
-        template_values = template_vals("HelpAndGuides", "Help and Guides", User.get())
+        template_values = template_vals(self, "HelpAndGuides", "Help and Guides", User.get())
         self.response.write(template.render(path, template_values))
 
 class GetSettings(RequestHandler):
@@ -1150,7 +1161,7 @@ class GetCustomLogic(RequestHandler):
 
 class WotwTempMap(RequestHandler):
     def get(self):
-        template_values = template_vals("WotwMap", "Wotw Map", User.get())
+        template_values = template_vals(self, "WotwMap", "Wotw Map", User.get())
 
         template_values.update({'is_spoiler': "True", 'pathmode': param_val(self, 'pathmode'), 'HC': param_val(self, 'HC'),
                            'EC': param_val(self, 'EC'), 'AC': param_val(self, 'AC'), 'KS': param_val(self, 'KS'),
@@ -1192,8 +1203,14 @@ class WeeklyPollAdminRedir(RequestHandler):
     def get(self):
         if User.is_admin():
             from secrets import weekly_poll_edit_link
-            return redirect(weekly_poll_edit_link)            
+            return redirect(weekly_poll_edit_link)
         return redirect(uri_for('weekly-schedule'))
+
+class TourneyLayout(RequestHandler):
+    def get(self):
+        self.response.headers['Content-Type'] = 'application/x-gzip'
+        self.response.headers['Content-Disposition'] = 'attachment; filename=OriRando_RaceLayout.json'
+        self.response.write(layout_json)
 
 app = WSGIApplication(
     routes=[
@@ -1297,6 +1314,14 @@ app = WSGIApplication(
         Route('/players', handler=ListPlayers, strict_slash=True, name="game-list-players"),
         Route('/player/(\w+)/remove', handler=RemovePlayer, strict_slash=True, name="game-remove-player"),
         Route('/', redirect_to_name="game-show-history"),
+    ]),
+
+    # tourney links
+    PathPrefixRoute('/2021tourney', [
+        Route('/general', redirect_to='https://docs.google.com/document/d/1LmRucZIQcRltyuHcvy4yzOLnXO043lksatPzJs-_j_g/'),
+        Route('/runnerguide', redirect_to='https://docs.google.com/document/d/1EfU4zy6Lbxyycpe0Fszl0R2VDr_6p07wS2zSgHoZSag/'),
+        Route('/tipsandtricks', redirect_to='https://docs.google.com/document/d/1E5QhT0c3cZRwhVRQapNPUMluGsQ46p5_SUDm_glFeOc/'),
+        Route('/obslayout', handler=TourneyLayout),
     ]),
 
     # plando endpoints

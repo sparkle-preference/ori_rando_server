@@ -11,7 +11,7 @@ If you believe you have recieved an unfinishable seed, please inform Eiko in the
 const noneTitle = "Confused?";
 const noneSub = "Mouse over anything to learn more!";
 const noneLines = ["Additional context-specific information will appear here as you interact with the UI."];
-const vars = ["Starved", "NonProgressMapStones", "Hard", "0XP", "Entrance", "BonusPickups", "DoubleSkills", "StrictMapstones", "ClosedDungeons", "OpenWorld", "StompTriggers", "TPStarved", "WallStarved", "GrenadeStarved"]
+const vars = ["Starved", "NonProgressMapStones", "Hard", "0XP", "Entrance", "BonusPickups", "DoubleSkills", "StrictMapstones", "ClosedDungeons", "OpenWorld", "StompTriggers", "TPStarved", "WallStarved", "GrenadeStarved", "Race"]
 const presets = ["Casual", "Standard", "Expert", "Master", "Glitched", "Custom"]
 
 const goalModes = ["ForceTrees", "ForceMaps", "Bingo"]
@@ -246,6 +246,12 @@ const getHelpHelper = (category, option) => {
                         "Recommended for players looking to reduce the likelihood of seeds where Bash+Grenade is the early-game movement option."
                     ]
                     break;
+                case "Race":
+                    title = "Race"
+                    lines = [
+                        "Race flag for tourney races."
+                    ]
+                    break;
                 case "GoalModeFinish":
                     title = "Skip Final Escape"
                     lines = [
@@ -425,6 +431,10 @@ const getHelpHelper = (category, option) => {
                         "The tracking map can also be used as a visual spoiler, or as a coordination tool between multiple players in co-op games.",
                         "Using the tracking map is recommended for players with multiple monitors, especially those learning a new logic mode."
                     ]
+                break;
+                case "gameId":
+                    title = "Game Id"
+                    lines = ["Input this into the restreaming script for the player this is for to configure their tracking map"]
                 break;
                 case "histLink":
                     title = "Game Log"

@@ -62,6 +62,7 @@ class Variation(StrEnum):
     NO_ESCAPE = "GoalModeFinish"
     FUCK_WALLS = "WallStarved"
     FUCK_GRENADE = "GrenadeStarved"
+    RACE = "Race"
 
 class LogicPath(StrEnum):
     CASUAL_CORE = 'casual-core'

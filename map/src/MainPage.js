@@ -165,7 +165,7 @@ const VAR_NAMES = {
     GoalModeFinish: "Skip Final Escape",
     Bingo: "Bingo",
     WallStarved: "WallStarved",
-    GrenadeStarved: "GrenadeStarved"
+    GrenadeStarved: "GrenadeStarved",
 }
 const cellFreqPresets = (preset) => preset === "casual" ? 20 : (preset === "standard" ? 40 : 256)
 const optional_paths = ['casual-dboost', 'standard-core', 'standard-dboost', 'standard-lure', 'standard-abilities', 'expert-core', 'expert-dboost', 'expert-lure', 'expert-abilities', 'dbash', 'master-core', 'master-dboost', 'master-lure', 'master-abilities', 'gjump', 'glitched', 'timed-level', 'insane']
@@ -749,8 +749,12 @@ onDrop = (files) => {
             let spoilerText = auxSpoiler.active ? "Item List" : "View Spoiler"
             let raw = flagLine.split('|');
             let seedStr = raw.pop();
-            let flagCols = raw.join("").split(",").map(flag => (<Col xs="auto" className="text-center" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("flags", flag)}><span class="ml-auto mr-auto align-middle">{flag}</span></Col>))
-
+            let flags = raw.join("").split(",");
+            let flagCols = flags.map(flag => (<Col xs="auto" className="text-center" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("flags", flag)}><span class="ml-auto mr-auto align-middle">{flag}</span></Col>))
+            let is_race = flags.includes("Race");
+            if(is_race && !get_param("race_wl")) {
+                return null;
+            }
             let mapUrl = "/tracker/game/"+gameId+"/map";
             
             let playerRows = [...Array(inputPlayerCount).keys()].map(p => {
@@ -800,10 +804,19 @@ onDrop = (files) => {
                     </Row>
                 )
             })
-            let trackedInfo = gameId > 0 ? (
+            let trackedInfo = gameId > 0 ? is_race ? (
+                  <Row className="p-1 pt-3 align-items-center border-dark border-top">
+                    <Col xs="6" className="text-center" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "tracking")}>
+                        Tracking:
+                    </Col>
+                    <Col xs="6" className="text-center" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "gameId")}>
+                        {gameId}
+                    </Col>
+                  </Row>
+              )  : (
                   <Row className="p-1 pt-3 align-items-center border-dark border-top">
                     <Col xs="3" className="text-center" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "tracking")}>
-                        Tracking:
+                        Game Id:
                     </Col>
                     <Col xs="4">
                         <Button color="primary" block onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "mapLink")} href={mapUrl} target="_blank">Open Map</Button>
@@ -985,14 +998,15 @@ onDrop = (files) => {
         )
     }
 
-    
-
     constructor(props) {
         super(props);
         let user = get_param("user");
         let url = new URL(window.document.location.href);
         let paramId = url.searchParams.get("param_id");
-        let stupidWarn = get_param("error_msg")
+        let stupidWarn = get_param("error_msg");
+        if(get_param("race_wl") != null) {
+            VAR_NAMES["Race"] = "Race"
+        }
         let quickstartOpen = window.document.location.href.includes("/quickstart");
         let gameId = parseInt(url.searchParams.get("game_id") || -1, 10);
         let seedTabExists = (paramId !== null);
