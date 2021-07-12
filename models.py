@@ -1424,7 +1424,6 @@ class Game(ndb.Model):
             self.params.delete()
         if self.bingo_data:
             self.bingo_data.delete()
-        log.debug("Deleting game %s" % self.key)
         self.key.delete()
         return self.key
 
@@ -1447,9 +1446,15 @@ class Game(ndb.Model):
 
     @staticmethod
     def clean_old(timeout_window=timedelta(hours=1440)):
-        old = [game for game in Game.query(Game.last_update < datetime.now() - timeout_window)]
-        keys = set([Game.clean_up(game) for game in old])
-        return len(keys)
+        start_time = datetime.now()
+        i = 0
+        for game in Game.query(Game.last_update < datetime.now() - timeout_window):
+            i+=1
+            game.clean_up()
+            if datetime.now() - start_time > timedelta(seconds = 59):
+                log.warning("stopping early because we're running out of time")
+                return i, False
+        return i, True
 
     @staticmethod
     def get_open_gid():
