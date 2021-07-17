@@ -188,6 +188,7 @@ class PostUpdate(RequestHandler):
 class ShowHistory(RequestHandler):
     def get(self, game_id):
         self.response.headers['Content-Type'] = 'text/plain'
+        template_values = template_vals(self, "History", "Game %s" % game_id, User.get())
         game = Game.with_id(game_id)
         if game:
             if (Variation.RACE in game.params.get().variations) and not template_values["race_wl"]:
@@ -427,7 +428,7 @@ class ItemTracker(RequestHandler):
 
 
 class GetItemTrackerUpdate(RequestHandler):
-    def get(self, game_id):
+    def get(self, game_id, player_id=1):
         self.response.headers['Content-Type'] = 'application/json'
         items, _ = Cache.get_items(game_id)
         if not items:
@@ -440,11 +441,12 @@ class GetItemTrackerUpdate(RequestHandler):
                     return
                 coords = { p.pid(): p.have_coords() for p in game.get_players() }
                 Cache.set_have(game_id, coords)
-            items, _ = GetItemTrackerUpdate.get_items(coords, game)
+            items, _ = GetItemTrackerUpdate.get_items(coords[player_id], game)
         self.response.write(json.dumps(items))
 
     @staticmethod
     def get_items(coords, game):
+        
         relics = game.relics
         data = {
             'skills': set(),
@@ -494,11 +496,14 @@ class GetItemTrackerUpdate(RequestHandler):
             data['events'].add("Sunstone")
         for thing in ['trees', 'skills', 'events', 'relics_found', 'teleporters']:
             data[thing] = list(data[thing])
-        data['maps'] = max([0] + [len([1 for c in coords if c in range(24, 60, 4)])])
-        if debug:
-            print data
+        data['maps'] = len([1 for c in coords if c in range(24, 60, 4)])
         Cache.set_items(game.key.id(), (data, inventories))
         return data, inventories
+
+#class SetSpiritFlame(RequestHandler):
+#    get(self, game_id, value):
+
+
 
 class GetMapUpdate(RequestHandler):
     def get(self, game_id):
@@ -1326,8 +1331,16 @@ app = WSGIApplication(
         Route('/tipsandtricks', redirect_to='https://docs.google.com/document/d/1E5QhT0c3cZRwhVRQapNPUMluGsQ46p5_SUDm_glFeOc/'),
         Route('/runnersignup', redirect_to='https://docs.google.com/forms/d/e/1FAIpQLSdQ78-UEbfEhFYto2xLx_1zbK6PDgLfjAgqmV8Xon80tTHfpQ/viewform'),
         Route('/volunteersignup', redirect_to='https://docs.google.com/forms/d/e/1FAIpQLSdduWEMO9FbCIdRLWEB82r5yBdwn8AW8B4_26m4YaprvCymeA/viewform?usp=sf_link'),
+        Route('/restreamerguide', redirect_to='https://docs.google.com/document/d/1p378vWvDXlHo-1J9GTRpsEmIyZ5NiPJy9ZzXjDP8VFE/'),
+        Route('/restreamerchecklist', redirect_to='https://drive.google.com/file/d/16z3z6EVO_kCYbFQFDiDPSJQbptv5EJ5x/view'),
+        Route('/commentaryguide', redirect_to='https://docs.google.com/document/d/1LoChjkOAgr1MGQ3prhjXjnRpAVFy6Rbb4UEHOIozKJs/edit#'),
+        Route('/truckguide', redirect_to='https://docs.google.com/document/d/1iDFkJOz8Bkugb2fvkjcRuNCbCveJX3-02sAVnUj4dM0/edit#'),
+        Route('/preliminarystandings', redirect_to='https://docs.google.com/spreadsheets/d/1zQlF-8kDjSF1U8hA-NJl1ySAZMjNLpRBSeJOL9waqxE/'),
         Route('/obslayout', handler=TourneyLayout),
     ]),
+
+    Route('/trickglossary', redirect_to='https://docs.google.com/document/d/1vjDiXz8UPiIOtUVKPlgzjBn9lrCE4y95EwPt0WnQF_U/edit'),
+    Route('/trickrepo', redirect_to='https://www.youtube.com/channel/UCowq0m-wHdwi0vpG3jY1hFA'),
 
     # plando endpoints
     Route('/plando/reachable', PlandoReachable, strict_slash=True, name="plando-reachable"),
