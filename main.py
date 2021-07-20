@@ -145,7 +145,9 @@ class FoundPickup(RequestHandler):
             log.error("Couldn't build pickup %s|%s" % (kind, id))
             self.response.status = 406
             return
-        if pickup.code in ["AC", "KS", "HC", "EC", "SK", "EV", "TP"] or (pickup.code == "RB" and pickup.id in [17, 19, 21]):
+        if Variation.RACE in game.variations:
+            Cache.clear_items(game_id)
+        elif pickup.code in ["AC", "KS", "HC", "EC", "SK", "EV", "TP"] or (pickup.code == "RB" and pickup.id in [17, 19, 21]):
             Cache.clear_reach(game_id, player_id)
             Cache.clear_items(game_id)
 
