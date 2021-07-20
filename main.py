@@ -1336,6 +1336,7 @@ app = WSGIApplication(
         Route('/commentaryguide', redirect_to='https://docs.google.com/document/d/1LoChjkOAgr1MGQ3prhjXjnRpAVFy6Rbb4UEHOIozKJs/edit#'),
         Route('/truckguide', redirect_to='https://docs.google.com/document/d/1iDFkJOz8Bkugb2fvkjcRuNCbCveJX3-02sAVnUj4dM0/edit#'),
         Route('/preliminarystandings', redirect_to='https://docs.google.com/spreadsheets/d/1xeiQb1pf7zwY9YS7OTRrlHBhG8Zy6M6Qh4Rbq9OMuuo'),
+        Route('/vods', redirect_to='https://docs.google.com/spreadsheets/d/16cs0Q1RNLgmvmd5E7dhPAEWVJ7M4NpskMBgau3RupEQ/'),
         Route('/obslayout', handler=TourneyLayout),
     ]),
 
