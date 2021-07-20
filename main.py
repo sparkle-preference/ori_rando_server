@@ -145,13 +145,13 @@ class FoundPickup(RequestHandler):
             log.error("Couldn't build pickup %s|%s" % (kind, id))
             self.response.status = 406
             return
+
+        self.response.status = game.found_pickup(player_id, pickup, coords, remove, param_flag(self, "override"), zone, [int(self.request.GET.get("s%s"%i, 0)) for i in range(8)])
         if game.is_race:
             Cache.clear_items(game_id)
         elif pickup.code in ["AC", "KS", "HC", "EC", "SK", "EV", "TP"] or (pickup.code == "RB" and pickup.id in [17, 19, 21]):
             Cache.clear_reach(game_id, player_id)
             Cache.clear_items(game_id)
-
-        self.response.status = game.found_pickup(player_id, pickup, coords, remove, param_flag(self, "override"), zone, [int(self.request.GET.get("s%s"%i, 0)) for i in range(8)])
         self.response.write(self.response.status)
 
 class GetUpdate(RequestHandler):
