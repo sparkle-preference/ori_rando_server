@@ -69,12 +69,12 @@ class Cache(object):
         memcache.set(key="%s.reach" % gid, value=reach_map, time=7200)
 
     @staticmethod
-    def get_items(gid):
-        return memcache.get(key="%s.items" % gid) or ({}, {})
+    def get_items(gid, pid):
+        return memcache.get(key="%s.%s.items" % (gid, pid)) or ({}, {})
 
     @staticmethod
-    def set_items(gid, items, is_race=False):
-        memcache.set(key="%s.items" % gid, value=items, time=30 if is_race else 14400)
+    def set_items(gid, pid, items, is_race=False):
+        memcache.set(key="%s.%s.items" % (gid, pid), value=items, time=30 if is_race else 14400)
 
     @staticmethod
     def get_relics(gid):
@@ -85,8 +85,8 @@ class Cache(object):
         memcache.set(key="%s.relics" % gid, value=relics, time=14400)
 
     @staticmethod
-    def clear_items(gid):
-        Cache.set_items(gid, {})
+    def clear_items(gid, pid=1):
+        Cache.set_items(gid, pid, {})
 
     @staticmethod
     def get_pos(gid):

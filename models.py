@@ -1004,7 +1004,7 @@ class Game(ndb.Model):
     bingo_data  = ndb.KeyProperty(BingoGameData)
     dedup       = ndb.BooleanProperty(default=False)
     creator     = ndb.KeyProperty("User")
-
+    is_race     = ndb.BooleanProperty(default=False)
     def history(self, pids=[]):
         if not self.hls:
              # legacy migration branch
@@ -1485,6 +1485,7 @@ class Game(ndb.Model):
             str_mode=params.sync.mode.value,
             dedup=params.sync.dedup
         )
+        game.is_race = Variation.RACE in params.variations
         if Variation.WORLD_TOUR in params.variations:
             game.relics = [zone for (_, code, __, zone) in params.get_seed_data() if code == "WT"]
         if Variation.BINGO not in params.variations:

@@ -8,7 +8,7 @@ import Select from 'react-select';
 import {Button, Collapse, Container, Row, Col, Input, UncontrolledButtonDropdown, DropdownToggle, DropdownMenu, DropdownItem} from 'reactstrap';
 import Control from 'react-leaflet-control';
 import {Helmet} from 'react-helmet';
-import ItemTracker from './ItemTracker.js'
+// import ItemTracker from './ItemTracker.js'
 
 const paths = Object.keys(presets);
 
@@ -239,7 +239,7 @@ class GameTracker extends React.Component {
         mousePos: {lat: 0, lng: 0}, players: {}, follow: url.searchParams.get("follow") || -1, retries: 0, check_seen: 1, modes: modes, timeout: TIMEOUT_START, searchStr: "", pickup_display: "all", 
         show_sidebar: !url.searchParams.has("hideSidebar"), idle_countdown: 10800, bg_update: true, pickups: ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "Ma", "CS"], show_tracker: !url.searchParams.has("hideTracker"),
         open_world: false, closed_dungeons: false, pathMode: get_preset(modes), hideOpt: "all", display_logic: false,  viewport: {center: [0, 0], zoom: 5}, usermap: url.searchParams.get("usermap") || "",
-        tracker_data: {events: [], teleporters: [], shards: {gs: 0, ss: 0, wv: 0}, skills: [], maps: 0,relics_found: [], relics: [], trees: []}, gameId: document.getElementsByClassName("game-id")[0].id
+        /*tracker_data: {events: [], teleporters: [], shards: {gs: 0, ss: 0, wv: 0}, skills: [], maps: 0,relics_found: [], relics: [], trees: []},*/ gameId: document.getElementsByClassName("game-id")[0].id
     };
   };
 
@@ -365,11 +365,11 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
                         <Col className="p-2"><Button block onClick={() => this.setState({show_sidebar: false})}>Hide Sidebar</Button></Col>
                         <Col className="p-2"><Button block color="primary" active={this.state.show_tracker} onClick={() => this.setState({show_tracker: !this.state.show_tracker})}>{`${this.state.show_tracker ? "Hide" : "Show"} Tracker`}</Button></Col>
                         </Row>
-                        <Row>
+                        {/*<Row>
                             <Collapse className="w-100 h-100" isOpen={this.state.show_tracker}>
                             <ItemTracker embedded data={this.state.tracker_data}/>
                             </Collapse>
-                        </Row>
+                        </Row>*/}
                         {player_opts}
                         {hideopts}
                         <Row className="pt-2">
@@ -444,7 +444,7 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
                         players[pid].pos = pos
                         
 					})
-					return {players: players, tracker_data: update.items, retries: 0, timeout: TIMEOUT_START }
+					return {players: players, /*tracker_data: update.items, */retries: 0, timeout: TIMEOUT_START }
 				})
         }
         let modes = this.state.modes.join("+")

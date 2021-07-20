@@ -3,6 +3,7 @@ import {doNetRequest} from './common.js';
 import {Helmet} from 'react-helmet';
 
 const game_id = document.getElementsByClassName("game-id")[0].id;
+const player_id = document.getElementsByClassName("player-id")[0].id;
 const imageMap = {
     '/sprites/tracker/Bash.png': (data) => data.skills.includes("Bash"),
     '/sprites/tracker/ChargeFlame.png': (data) => data.skills.includes("Charge Flame"),
@@ -84,7 +85,7 @@ export default class ItemTracker extends React.Component {
     };
 
     getUpdate = () => {
-        doNetRequest(`/tracker/game/${game_id}/fetch/items`, ({response}) => this.setState({ data: JSON.parse(response) }))
+        doNetRequest(`/tracker/game/${game_id}/fetch/items/${player_id}`, ({response}) => this.setState({ data: JSON.parse(response) }))
     }
 
 	render = () => {

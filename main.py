@@ -145,7 +145,7 @@ class FoundPickup(RequestHandler):
             log.error("Couldn't build pickup %s|%s" % (kind, id))
             self.response.status = 406
             return
-        if Variation.RACE in game.variations:
+        if game.is_race:
             Cache.clear_items(game_id)
         elif pickup.code in ["AC", "KS", "HC", "EC", "SK", "EV", "TP"] or (pickup.code == "RB" and pickup.id in [17, 19, 21]):
             Cache.clear_reach(game_id, player_id)
@@ -419,20 +419,22 @@ class GetReachable(RequestHandler):
 
 
 class ItemTracker(RequestHandler):
-    def get(self, game_id):
+    def get(self, game_id, player_id=1):
         game = Game.with_id(game_id)
 
         template_values = template_vals(self, "ItemTracker", "Game %s" % game_id, User.get())
         if game and Variation.RACE in game.params.get().variations and not template_values["race_wl"]:
             return resp_error(self, 401, "Access forbidden")
         template_values['game_id'] = game_id
+        template_values['player_id'] = player_id
         self.response.write(template.render(path, template_values))
 
 
 class GetItemTrackerUpdate(RequestHandler):
     def get(self, game_id, player_id=1):
+        pid = int(player_id)
         self.response.headers['Content-Type'] = 'application/json'
-        items, _ = Cache.get_items(game_id)
+        items, _ = Cache.get_items(game_id, pid)
         if not items:
             coords = Cache.get_have(game_id)
             game = Game.with_id(game_id)
@@ -443,12 +445,12 @@ class GetItemTrackerUpdate(RequestHandler):
                     return
                 coords = { p.pid(): p.have_coords() for p in game.get_players() }
                 Cache.set_have(game_id, coords)
-            items, _ = GetItemTrackerUpdate.get_items(coords[player_id], game)
+            print(coords)
+            items, _ = GetItemTrackerUpdate.get_items(coords[pid], game, pid)
         self.response.write(json.dumps(items))
 
     @staticmethod
-    def get_items(coords, game):
-        
+    def get_items(coords, game, player=1):
         relics = game.relics
         data = {
             'skills': set(),
@@ -461,12 +463,8 @@ class GetItemTrackerUpdate(RequestHandler):
             'teleporters': set()
         }
         inventories = game.get_inventories(game.get_players(), True, True)
-
-        group_invs = [v for k,v in inventories.items() if k != "unshared"] if game.mode == MultiplayerGameType.SHARED else inventories["unshared"].values()
-        if len(group_invs) != 1:
-            # worry about this later!
-            log.warn("this isn't going to work...")
-        inv = group_invs[0]
+        
+        inv = [v for k,v in inventories.items() if k != "unshared"][0] if game.mode == MultiplayerGameType.SHARED else inventories["unshared"][player]
         for ((pcode, pid), count) in inv.items():
             p = Pickup.n(pcode, pid)
             if not p:
@@ -499,7 +497,7 @@ class GetItemTrackerUpdate(RequestHandler):
         for thing in ['trees', 'skills', 'events', 'relics_found', 'teleporters']:
             data[thing] = list(data[thing])
         data['maps'] = len([1 for c in coords if c in range(24, 60, 4)])
-        Cache.set_items(game.key.id(), (data, inventories), Variation.RACE in game.variations)
+        Cache.set_items(game.key.id(), player, (data, inventories), game.is_race)
         return data, inventories
 
 #class SetSpiritFlame(RequestHandler):
@@ -537,15 +535,15 @@ class GetMapUpdate(RequestHandler):
             if p not in players:
                 players[p] = {}
             players[p]["seen"] = coords
-        items, inventories = Cache.get_items(game_id)
-        if not items:
-            if not game:
-                game = Game.with_id(game_id)
-            if not game:
-                self.response.status = 404
-                self.response.write(json.dumps({"error": "Game not found"}))
-                return
-            items, inventories = GetItemTrackerUpdate.get_items(coords, game)
+        # items, inventories = Cache.get_items(game_id)
+        # if not items:
+        #     if not game:
+        #         game = Game.with_id(game_id)
+        #     if not game:
+        #         self.response.status = 404
+        #         self.response.write(json.dumps({"error": "Game not found"}))
+        #         return
+        #     items, inventories = GetItemTrackerUpdate.get_items(coords, game)
         reach = Cache.get_reachable(game_id)
         modes = tuple(sorted(param_val(self, "modes").split(" ")))
         need_reach_updates = [p for p in players.keys() if modes not in reach.get(p, {})]
@@ -570,7 +568,7 @@ class GetMapUpdate(RequestHandler):
             Cache.set_reachable(game_id, reach)
         for p in reach:
             players[p]["reachable"] = reach[p][modes]
-        res = {"players": players, "items": items}
+        res = {"players": players} # , "items": items
         if gid_changed:
             res["newGid"] = game_id
         self.response.write(json.dumps(res))
@@ -1254,8 +1252,9 @@ app = WSGIApplication(
         Route('/', redirect_to_name="map-render"),
         Route('/map', handler=ShowMap, name='map-render', strict_slash=True),
         Route('/items', handler=ItemTracker, name='item-tracker', strict_slash=True),
+        Route('/items/<player_id:\d+>', handler=ItemTracker, name='item-tracker', strict_slash=True),
         ] + list(PathPrefixRoute('/fetch', [
-            Route('/items', handler=GetItemTrackerUpdate, name='item-tracker-update'),
+            Route('/items/<player_id:\d+>', handler=GetItemTrackerUpdate, name='item-tracker-update'),
             Route('/pos', handler=GetPlayerPositions, name="map-fetch-pos"),
             Route('/gamedata', handler=GetGameData, name="map-fetch-game-data"),
             Route('/seen', handler=GetSeenLocs, name="map-fetch-seen"),
