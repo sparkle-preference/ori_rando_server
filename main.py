@@ -954,8 +954,8 @@ class GetSeedFromParams(RequestHandler):
         params = SeedGenParams.with_id(params_id)
         if params:
             pid = int(self.request.GET.get("player_id", 1))
-            if params.tracking:
-                game_id = self.request.GET.get("game_id")
+            game_id = self.request.GET.get("game_id")
+            if params.tracking and game_id:
                 seed = params.get_seed(pid, game_id, verbose_paths)
                 game = Game.with_id(game_id)
                 user = User.get()
@@ -1252,7 +1252,7 @@ app = WSGIApplication(
         Route('/', redirect_to_name="map-render"),
         Route('/map', handler=ShowMap, name='map-render', strict_slash=True),
         Route('/items', handler=ItemTracker, name='item-tracker', strict_slash=True),
-        Route('/items/<player_id:\d+>', handler=ItemTracker, name='item-tracker', strict_slash=True),
+        Route('/<player_id:\d+>/items', handler=ItemTracker, name='item-tracker', strict_slash=True),
         ] + list(PathPrefixRoute('/fetch', [
             Route('/items/<player_id:\d+>', handler=GetItemTrackerUpdate, name='item-tracker-update'),
             Route('/pos', handler=GetPlayerPositions, name="map-fetch-pos"),

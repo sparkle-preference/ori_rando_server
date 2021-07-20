@@ -8,7 +8,7 @@ import 'react-notifications/lib/notifications.css';
 import './index.css';
 
 import {getHelpContent, HelpBox} from "./helpbox.js"
-import {get_param, presets, name_from_str, get_preset, player_icons, doNetRequest, get_random_loader, PickupSelect, Cent, dev, randInt, gotoUrl} from './common.js';
+import {get_param, get_flag, presets, name_from_str, get_preset, player_icons, doNetRequest, get_random_loader, PickupSelect, Cent, dev, randInt, gotoUrl} from './common.js';
 import SiteBar from "./SiteBar.js"
 import Dropzone from 'react-dropzone'
 
@@ -752,7 +752,7 @@ onDrop = (files) => {
             let flags = raw.join("").split(",");
             let flagCols = flags.map(flag => (<Col xs="auto" className="text-center" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("flags", flag)}><span class="ml-auto mr-auto align-middle">{flag}</span></Col>))
             let is_race = flags.includes("Race");
-            if(is_race && !get_param("race_wl")) {
+            if(is_race && !get_flag("race_wl")) {
                 return null;
             }
             let mapUrl = "/tracker/game/"+gameId+"/map";
@@ -806,10 +806,13 @@ onDrop = (files) => {
             })
             let trackedInfo = gameId > 0 ? is_race ? (
                   <Row className="p-1 pt-3 align-items-center border-dark border-top">
-                    <Col xs="6" className="text-center" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "tracking")}>
-                        Tracking:
+                    <Col xs="4" className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "downloadButton")}>
+                        <Button color="primary" block target="_blank" href={"/generator/seed/"+paramId}>Untracked</Button>
                     </Col>
-                    <Col xs="6" className="text-center" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "gameId")}>
+                    <Col xs="4">
+                        <Button color="primary" block onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "histLink")} href={"/game/"+this.state.gameId+"/history?sec="+(new URL(window.document.URL)).searchParams.get("sec")} target="_blank">View Game History</Button>
+                    </Col>
+                    <Col xs="4" className="text-center" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "gameId")}>
                         {gameId}
                     </Col>
                   </Row>
@@ -1004,9 +1007,7 @@ onDrop = (files) => {
         let url = new URL(window.document.location.href);
         let paramId = url.searchParams.get("param_id");
         let stupidWarn = get_param("error_msg");
-        if(get_param("race_wl") != null) {
-            VAR_NAMES["Race"] = "Race"
-        }
+        if(get_flag("race_wl")) VAR_NAMES["Race"] = "Race"
         let quickstartOpen = window.document.location.href.includes("/quickstart");
         let gameId = parseInt(url.searchParams.get("game_id") || -1, 10);
         let seedTabExists = (paramId !== null);
@@ -1055,7 +1056,16 @@ onDrop = (files) => {
     })
     onPath = (p) => () => this.setState({paths: this.state.paths.includes(p) ? this.state.paths.filter(x => x !== p) : this.state.paths.concat(p)}, () => this.setState(p => {return {pathMode: get_preset(p.paths)}}))
     onSType = (s) => () => this.state.shared.includes(s) ? this.setState({shared: this.state.shared.filter(x => x !== s)}) : this.setState({shared: this.state.shared.concat(s)})    
-    onVar = (v) => () =>  this.state.variations.includes(v) ? this.setState({variations: this.state.variations.filter(x => x !== v)}) : this.setState({variations: this.state.variations.concat(v)})
+    onVar = (v) => () => {
+        if(this.state.variations.includes(v)) {
+            this.setState({variations: this.state.variations.filter(x => x !== v)})
+        } else {
+            if(v === "Race")
+                this.setState({variations: this.state.variations.concat(v), players: 2, coopGameMode: "Race", selectedPool: "Competitive", itemPool: get_pool("Competitive")})
+            else 
+                this.setState({variations: this.state.variations.concat(v)})
+        }
+    }
     pathDisabled = (path) => {
         if(revDisabledPaths.hasOwnProperty(path))
             if(revDisabledPaths[path].some(v => this.state.variations.includes(v)))
