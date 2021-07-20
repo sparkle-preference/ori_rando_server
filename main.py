@@ -499,7 +499,7 @@ class GetItemTrackerUpdate(RequestHandler):
         for thing in ['trees', 'skills', 'events', 'relics_found', 'teleporters']:
             data[thing] = list(data[thing])
         data['maps'] = len([1 for c in coords if c in range(24, 60, 4)])
-        Cache.set_items(game.key.id(), (data, inventories))
+        Cache.set_items(game.key.id(), (data, inventories), Variation.RACE in game.variations)
         return data, inventories
 
 #class SetSpiritFlame(RequestHandler):

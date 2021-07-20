@@ -73,8 +73,8 @@ class Cache(object):
         return memcache.get(key="%s.items" % gid) or ({}, {})
 
     @staticmethod
-    def set_items(gid, items):
-        memcache.set(key="%s.items" % gid, value=items, time=14400)
+    def set_items(gid, items, is_race=False):
+        memcache.set(key="%s.items" % gid, value=items, time=30 if is_race else 14400)
 
     @staticmethod
     def get_relics(gid):
