@@ -455,7 +455,7 @@ class GetItemTrackerUpdate(RequestHandler):
             'trees': set(),
             'events': set(),
             'shards': {'wv': 0, 'gs': 0, 'ss': 0},
-            'maps': defaultdict(lambda: set()),
+            'maps': 0,
             'relics_found': set(),
             'relics': relics,
             'teleporters': set()
