@@ -80,7 +80,7 @@ class ActiveGames(RequestHandler):
             flags = ""
             if game.params:
                 params = game.params.get()
-                if Variation.RACE in params.variations and not whitelist_ok(s):
+                if Variation.RACE in params.variations and not whitelist_ok(self):
                     continue
                 flags = params.flag_line()
                 slink = " <a href=%s>Seed</a>" % uri_for('main-page', game_id=gid, param_id=params.key.id())
@@ -445,7 +445,6 @@ class GetItemTrackerUpdate(RequestHandler):
                     return
                 coords = { p.pid(): p.have_coords() for p in game.get_players() }
                 Cache.set_have(game_id, coords)
-            print(coords)
             items, _ = GetItemTrackerUpdate.get_items(coords[pid], game, pid)
         self.response.write(json.dumps(items))
 
