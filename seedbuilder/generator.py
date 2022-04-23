@@ -93,6 +93,30 @@ warp_targets = [
     ]
 ]
 
+doors_inner = [
+    ("GinsoInnerDoor", 522, 1),
+    ("ForlornInnerDoor", -717, -408),
+    ("HoruInnerDoor", 68, 169),
+    ("L1InnerDoor", -24, 369),
+    ("L2InnerDoor", -13, 301),
+    ("L3InnerDoor", -28, 244),
+    ("L4InnerDoor", -12, 188),
+    ("R2InnerDoor", 163, 266),
+    ("R3InnerDoor", 171, 218),
+    ("R4InnerDoor", 144, 151)
+]
+doors_outer = [
+    ("GinsoOuterDoor", 527, -43),
+    ("ForlornOuterDoor", -668, -246),
+    ("HoruOuterDoor", -78, 2),
+    ("L1OuterDoor", 20, 371),
+    ("L2OuterDoor", 13, 293),
+    ("L3OuterDoor", 18, 248),
+    ("L4OuterDoor", 14, 191),
+    ("R2OuterDoor", 128, 288),
+    ("R3OuterDoor", 126, 245),
+    ("R4OuterDoor", 126, 196)
+]
 
 def ordhash(s):
     return reduce(mul, [ord(c) for c in s])
@@ -307,6 +331,7 @@ class SeedGenerator:
         self.assignQueue = []
         self.sharedAssignQueue = []
         self.spoiler = []
+        self.entrance_spoiler = ""
 
     def reset(self):
         """A full reset. Resets internal state completely (besides pRNG
@@ -870,22 +895,47 @@ class SeedGenerator:
         connection2 = Connection(door2.name, door1.name, self)
         connection2.add_requirements(requirements, 1)
         self.areas[door2.name].add_connection(connection2)
-        return str(door1.get_key()) + "|EN|" + str(door2.x) + "|" + str(door2.y) + "\n" + str(door2.get_key()) + "|EN|" + str(door1.x) + "|" + str(door1.y) + "\n"
+        dat_string = str(door1.get_key()) + "|EN|" + str(door2.x) + "|" + str(door2.y) + "\n" + str(door2.get_key()) + "|EN|" + str(door1.x) + "|" + str(door1.y) + "\n"
+        spoiler_string = str("    {} <-> {}\n".format(door1.name, door2.name))
+        return dat_string, spoiler_string
 
     def randomize_entrances(self):
-        tree = XML.parse("seedbuilder/doors.xml")
-        root = tree.getroot()
+        doors = doors_inner + doors_outer
 
+        # Remove all previous connections
+        for door_name, x, y in doors:
+            area = self.areas[door_name]
+            connections = area.get_connections()[:]
+            for connection in connections:
+                if ("OuterDoor" in connection.target) or ("InnerDoor" in connection.target):
+                    area.remove_connection(connection)
+                    #print("Removed connection to {} from area {}".format(connection.target, door_name))
+        
+        # Okay, according to old XML, door groups are...
         outerDoors = [[], [], [], [], [], [], [], [], [], [], [], [], []]
         innerDoors = [[], [], [], [], [], [], [], [], [], [], [], [], []]
+        innerDoors[1] = [Door("HoruInnerDoor", 68, 169)]
+        innerDoors[3] = [Door("L1InnerDoor", -24, 369)]
+        innerDoors[4] = [Door("L2InnerDoor", -13, 301)]
+        innerDoors[5] = [Door("L3InnerDoor", -28, 244)]
+        innerDoors[6] = [Door("L4InnerDoor", -12, 188)]
+        innerDoors[7] = [Door("R1InnerDoor", 153, 413)]
+        innerDoors[8] = [Door("R2InnerDoor", 163, 266)]
+        innerDoors[9] = [Door("R3InnerDoor", 171, 218)]
+        innerDoors[10] = [Door("R4InnerDoor", 144, 151)]
+        innerDoors[12] = [Door("GinsoInnerDoor", 522, 1), Door("ForlornInnerDoor", -717, -408), Door("HoruEscapeInnerDoor", -242, 489)]
+        outerDoors[0] = [Door("GinsoOuterDoor", 527, -43), Door("ForlornOuterDoor", -668, -246), Door("HoruOuterDoor", -78, 2)]
+        outerDoors[1] = [Door("L1OuterDoor", 20, 371)]
+        outerDoors[2] = [Door("R1OuterDoor", 125, 382)]
+        outerDoors[4] = [Door("L2OuterDoor", 13, 293)]
+        outerDoors[5] = [Door("L3OuterDoor", 18, 248)]
+        outerDoors[6] = [Door("L4OuterDoor", 14, 191)]
+        outerDoors[8] = [Door("R2OuterDoor", 128, 288)]
+        outerDoors[9] = [Door("R3OuterDoor", 126, 245)]
+        outerDoors[10] = [Door("R4OuterDoor", 126, 196)]
+        outerDoors[12] = [Door("HoruEscapeOuterDoor", 18, 100)]
 
-        for child in root:
-            inner = child.find("Inner")
-            innerDoors[int(inner.find("Group").text)].append(Door(child.attrib["name"] + "InnerDoor", int(inner.find("X").text), int(inner.find("Y").text)))
-
-            outer = child.find("Outer")
-            outerDoors[int(outer.find("Group").text)].append(Door(child.attrib["name"] + "OuterDoor", int(outer.find("X").text), int(outer.find("Y").text)))
-
+        # So we shuffle the 3 in world outer doors, and the ginso/forlorn/escape doors.
         self.random.shuffle(outerDoors[0])
         self.random.shuffle(innerDoors[12])
 
@@ -898,44 +948,56 @@ class SeedGenerator:
         lastDoors.append(innerDoors[12].pop(0))
         lastDoors.append(innerDoors[12].pop(0))
 
+        self.entrance_spoiler = "Entrances: {\n"
         doorStr = ""
 
         # activeGroups = [0, 1, 2]
         # targets = [3, 4, 5, 6, 7, 8, 9, 10, 12]
         # for now, make R1 vanilla
 
-        doorStr += self.connect_doors(outerDoors[2].pop(0), innerDoors[7].pop(0))
+        dat_s, spoiler_s = self.connect_doors(outerDoors[2].pop(0), innerDoors[7].pop(0))
+        doorStr += dat_s
+        self.entrance_spoiler += spoiler_s
 
         activeGroups = [0, 1, 8]
         targets = [3, 4, 5, 6, 8, 9, 10, 12]
 
         self.random.shuffle(targets)
-
+        # Below comes... 4 5 6 9 10 1 (11 becomes 1).
+        # So we select an horu outer door for entry into horu.
         horuEntryGroup = self.random.randint(4, 9)
         if horuEntryGroup >= 7:
             horuEntryGroup += 2
         if horuEntryGroup == 11:
             horuEntryGroup = 1
             if self.random.random() > 0.5:
-                doorStr += self.connect_doors(
-                    firstDoors[0], innerDoors[1].pop(0))
+                # We connect one of our first doors to HoruInner
+                dat_s, spoiler_s = self.connect_doors(firstDoors[0], innerDoors[1].pop(0))
+                doorStr += dat_s
+                self.entrance_spoiler += spoiler_s
+                # We add the other first door back to outer doors[0]
                 outerDoors[0].append(firstDoors[1])
             else:
-                doorStr += self.connect_doors(
-                    firstDoors[0], outerDoors[1].pop(0))
+                # We connect one of our first doors to L1Outer
+                dat_s, spoiler_s = self.connect_doors(firstDoors[0], outerDoors[1].pop(0))
+                doorStr += dat_s
+                self.entrance_spoiler += spoiler_s
+                # We add the other first door back, and also add in HoruInner
                 outerDoors[0].append(firstDoors[1])
                 outerDoors[0].append(innerDoors[1].pop(0))
         else:
-            requirements = ["Free"]
-            if firstDoors[1].name == "GinsoDoorOuter":
-                requirements = ["GinsoKey"]
-            if firstDoors[1].name == "ForlornDoorOuter":
-                requirements = ["ForlornKey"]
-            doorStr += self.connect_doors(
-                firstDoors[0], outerDoors[horuEntryGroup].pop(0), requirements)
-            doorStr += self.connect_doors(firstDoors[1], innerDoors[horuEntryGroup - 1].pop(0))
+            # We connect one of our first doors to an outer door inside horu.
+            dat_s, spoiler_s = self.connect_doors(
+                firstDoors[0], outerDoors[horuEntryGroup].pop(0))
+            doorStr += dat_s
+            self.entrance_spoiler += spoiler_s
+            # We connect our other first door to a horu inner door.
+            dat_s, spoiler_s = self.connect_doors(firstDoors[1], innerDoors[horuEntryGroup - 1].pop(0))
+            doorStr += dat_s
+            self.entrance_spoiler += spoiler_s
             targets.remove(horuEntryGroup - 1)
 
+        # While we still have targets...
         while len(targets) > 0:
             index = self.random.randrange(len(activeGroups))
             group = activeGroups[index]
@@ -954,21 +1016,25 @@ class SeedGenerator:
             if (target == 6 and 10 not in targets) or (target == 10 and 6 not in targets):
                 activeGroups.append(12)
 
-            doorStr += self.connect_doors(
-                outerDoors[group].pop(0), innerDoors[target].pop(0))
+            dat_s, spoiler_s = self.connect_doors(outerDoors[group].pop(0), innerDoors[target].pop(0))
+            doorStr += dat_s
+            self.entrance_spoiler += spoiler_s
 
         lastDoorIndex = 0
 
         for group in range(13):
             if innerDoors[group]:
-                doorStr += self.connect_doors(
-                    innerDoors[group].pop(0), lastDoors[lastDoorIndex])
+                dat_s, spoiler_s = self.connect_doors(innerDoors[group].pop(0), lastDoors[lastDoorIndex])
+                doorStr += dat_s
+                self.entrance_spoiler += spoiler_s
                 lastDoorIndex += 1
             if outerDoors[group]:
-                doorStr += self.connect_doors(
-                    outerDoors[group].pop(0), lastDoors[lastDoorIndex])
+                dat_s, spoiler_s = self.connect_doors(outerDoors[group].pop(0), lastDoors[lastDoorIndex])
+                doorStr += dat_s
+                self.entrance_spoiler += spoiler_s
                 lastDoorIndex += 1
 
+        self.entrance_spoiler += "}\n"
         return doorStr
 
     def setSeedAndPlaceItems(self, params, preplaced={}, retries=10, verbose_paths=False):
@@ -1108,8 +1174,7 @@ class SeedGenerator:
         keystoneCount = 0
         mapstoneCount = 0
 
-        self.form_areas(self.var(Variation.KEYS_ONLY_FOR_DOORS
-        ))
+        self.form_areas(self.var(Variation.KEYS_ONLY_FOR_DOORS))
 
         if self.params.do_loc_analysis:
             self.params.locationAnalysisCopy = {}
@@ -1461,6 +1526,8 @@ class SeedGenerator:
             spoilerStr += currentGroupSpoiler
 
             spoilerStr += "}\n"
+
+        spoilerStr += self.entrance_spoiler
 
         return spoilerStr
 
