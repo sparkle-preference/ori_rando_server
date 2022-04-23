@@ -48,27 +48,38 @@ class CLISeedParams(object):
         Free: The dungeon keys are given to the player upon picking up the first Energy Cell.
         """, type=str)
         # variations
-        parser.add_argument("--hard", help="Enable hard mode", action="store_true")
         parser.add_argument("--ohko", help="Enable one-hit-ko mode", action="store_true")
-        parser.add_argument("--zeroxp", help="Enable 0xp mode", action="store_true")
+        parser.add_argument("--zeroxp", help="Enable 0xp mode", action="store_true")       
         parser.add_argument("--starved", help="Reduces the rate at which skills will appear when not required to advance", action="store_true")
         parser.add_argument("--tp-starved", help="Reduces the rate at which teleporters will appear early game when not required to advance", action="store_true")
         parser.add_argument("--wall-starved", help="Reduces the rate at which WallJump and Climb will appear early game when not required to advance", action="store_true")
+        parser.add_argument("--grenade-starved", help="Reduces the rate at which Grenade will appear early and when not required to advance", action="store_true")
+        parser.add_argument("--strict-mapstones", help="Require a mapstone to be placed when a map monument becomes accessible", action="store_true")
         parser.add_argument("--non-progressive-mapstones", help="Map Stones will retain their behaviour from before v1.2, having their own unique drops", action="store_true")
+        # goal modes
         parser.add_argument("--force-trees", help="Prevent Ori from entering the final escape room until all skill trees have been visited", action="store_true")
         parser.add_argument("--force-mapstones", help="Prevent Ori from entering the final escape room until all mapstone altars have been activated", action="store_true")
+        parser.add_argument("--world-tour", help="Prevent Ori from entering the final escape until collecting one relic from each of the zones in the world. Recommended default: 8", type=int)
+        parser.add_argument("--warmth-frags", help="Prevent Ori from entering the final escape until collecting some number of warmth fragments. Recommended default: 40", type=int)
         parser.add_argument("--entrance", help="Randomize entrances", action="store_true")
         parser.add_argument("--closed-dungeons", help="deactivate open mode within dungeons", action="store_true")
         parser.add_argument("--open-world", help="Activate open mode on the world map", action="store_true")
-        parser.add_argument("--bonus-pickups", help="Adds some extra bonus pickups not balanced for competitive play", action="store_true")
         parser.add_argument("--easy", help="Add an extra copy of double jump, bash, stomp, glide, charge jump, dash, grenade, water, and wind", action="store_true")
-        parser.add_argument("--strict-mapstones", help="Require a mapstone to be placed when a map monument becomes accessible", action="store_true")
-        parser.add_argument("--world-tour", help="Prevent Ori from entering the final escape until collecting one relic from each of the zones in the world. Recommended default: 8", type=int)
-        parser.add_argument("--warmth-frags", help="Prevent Ori from entering the final escape until collecting some number of warmth fragments. Recommended default: 40", type=int)
         parser.add_argument("--keys-only-for-doors", help="Keys are only logically used for opening doors. They do not gate pickups within the dungeons otherwise.", action="store_true")
         parser.add_argument("--warps-instead-of-tps", help="Replace up to X teleporters with warps to those areas.", type=int)
         parser.add_argument("--in-logic-warps", help="Warps will be in logic, so going to the warp's target is expected.", action="store_true")
-        parser.add_argument("--add-warps", help="Add X random warps.", type=int)
+        parser.add_argument("--warp-count", help="Ensure you get X random warps.", type=int)
+        parser.add_argument("--start", help="Sets start location, e.g. random or glades.", type=str, default="Glades")
+        parser.add_argument("--starting-health", help="Sets starting health to X, note: X=5 would give you 2 HC at spawn.", type=int)
+        parser.add_argument("--starting-energy", help="Sets starting energy to X, note: X=5 would give you 4-5 EC at spawn.", type=int)
+        parser.add_argument("--starting-skills", help="Sets how many skills we start with.", type=str)
+        parser.add_argument("--goal-mode-finish", help="Skips the final escape when goal modes are done.", action="store_true")
+        parser.add_argument("--no-tps", help="Removes teleporters from the item pool.", action="store_true")      
+        # item pools.
+        parser.add_argument("--competitive", help="Competitive item pool, which is standard without Ginso and Horu teleporters.", action="store_true")
+        parser.add_argument("--bonus-lite", help='Bonus Lite item pool, which is extra bonus without bonus skills.', action="store_true")
+        parser.add_argument("--bonus-pickups", help="Adds some extra bonus pickups not balanced for competitive play", action="store_true")
+        parser.add_argument("--hard", help="Enable hard mode", action="store_true")
         # misc
         parser.add_argument("--verbose-paths", help="print every logic path in the flagline for debug purposes", action="store_true")
         parser.add_argument("--exp-pool", help="Size of the experience pool (default 10000)", type=int, default=10000)
@@ -117,7 +128,9 @@ class CLISeedParams(object):
             "zeroxp": "0XP", "non_progressive_mapstones": "NonProgressMapStones", "ohko": "OHKO", "force_trees": "ForceTrees", "starved": "Starved",
             "force_mapstones": "ForceMaps", "entrance": "Entrance", "open_world": "OpenWorld", "easy": "DoubleSkills", "strict_mapstones": "StrictMapstones",
             "warmth_frags": "WarmthFrags", "world_tour": "WorldTour", "closed_dungeons": "ClosedDungeons", "tp_starved": "TPStarved", "wall_starved": "WallStarved",
-            "keys_only_for_doors": "KeysOnlyForDoors", "warps_instead_of_tps": "WarpsInsteadOfTPs", "in_logic_warps": "InLogicWarps", "add_warps": "AddWarps"
+            "keys_only_for_doors": "KeysOnlyForDoors", "warps_instead_of_tps": "WarpsInsteadOfTPs", "in_logic_warps": "InLogicWarps", "warp_count": "WarpCount",
+            "starting_health": "StartingHealth", "starting_energy": "StartingEnergy", "starting_skills": "StartingSkills", "grenade_starved": "GrenadeStarved",
+            "goal_mode_finish": "GoalModeFinish", "no_tps": "NoTPs", "competitive": "Competitive", "bonus_lite": "BonusLite", "hard": "Hard", "bonus_pickups": "BonusPickups"
         }
         self.variations = []
         for argName, flagStr in varMap.items():
@@ -134,8 +147,15 @@ class CLISeedParams(object):
             self.frag_extra = args.extra_frags
         if Variation.WARPS_INSTEAD_OF_TPS in self.variations:
             self.warps_instead_of_tps = args.warps_instead_of_tps
-        if Variation.ADD_WARPS in self.variations:
-            self.add_warps = args.add_warps
+        if Variation.WARP_COUNT in self.variations:
+            self.warp_count = args.warp_count
+        self.start = args.start
+        if Variation.STARTING_HEALTH in self.variations:
+            self.starting_health = args.starting_health
+        if Variation.STARTING_ENERGY in self.variations:
+            self.starting_energy = args.starting_energy
+        if Variation.STARTING_SKILLS in self.variations:
+            self.starting_skills = args.starting_skills
         #misc
         self.exp_pool = args.exp_pool
         if args.prefer_path_difficulty:
@@ -171,14 +191,81 @@ class CLISeedParams(object):
                 "RB|9": [1],
                 "RB|10": [1],
                 "RB|11": [1],
-                "RB|12": [5],
+                "RB|12": [3],
+                "RB|37": [3],
                 "RB|13": [3],
                 "RB|15": [3],
                 "RB|31": [1],
                 "RB|32": [1],
                 "RB|33": [3],
+                "RB|36": [1],
                 "BS|*": [4],
                 "WP|*": [4, 8],
+            }
+        elif Variation.BONUS_LITE in self.variations:
+            self.pool_preset = "Bonus Lite"
+            self.item_pool = {
+                "TP|Grove": [1],
+                "TP|Swamp": [1],
+                "TP|Grotto": [1],
+                "TP|Valley": [1],
+                "TP|Sorrow": [1],
+                "TP|Ginso": [1],
+                "TP|Horu": [1],
+                "TP|Forlorn": [1],
+                "HC|1": [12],
+                "EC|1": [14],
+                "AC|1": [33],
+                "RB|0": [3],
+                "RB|1": [3],
+                "RB|6": [5],
+                "RB|9": [1],
+                "RB|10": [1],
+                "RB|11": [1],
+                "RB|12": [3],
+                "RB|37": [3],
+                "RB|13": [3],
+                "RB|15": [3],
+                "RB|31": [1],
+                "RB|32": [1],
+                "RB|33": [3],
+                "RB|36": [1],
+                "WP|*": [4, 8],
+            }
+        elif Variation.COMPETITIVE in self.variations:
+            self.pool_preset = "Competitive"
+            self.item_pool = {
+                "TP|Grove": [1],
+                "TP|Swamp": [1],
+                "TP|Grotto": [1],
+                "TP|Valley": [1],
+                "TP|Sorrow": [1],
+                "TP|Forlorn": [1],
+                "HC|1": [12],
+                "EC|1": [14],
+                "AC|1": [33],
+                "RB|0": [3],
+                "RB|1": [3],
+                "RB|6": [3],
+                "RB|9": [1],
+                "RB|10": [1],
+                "RB|11": [1],
+                "RB|12": [1],
+                "RB|13": [3],
+                "RB|15": [3],
+            }
+        elif Variation.HARDMODE in self.variations:
+            self.pool_preset = "Hard"
+            self.item_pool = {
+                "TP|Grove": [1],
+                "TP|Swamp": [1],
+                "TP|Grotto": [1],
+                "TP|Valley": [1],
+                "TP|Sorrow": [1],
+                "TP|Ginso": [1],
+                "TP|Horu": [1],
+                "TP|Forlorn": [1],
+                "EC|1": [3],
             }
         else:
             self.pool_preset = "Standard"
@@ -294,8 +381,12 @@ class CLISeedParams(object):
                 seed, spoiler = tuple(player_raw)
                 if self.tracking:
                     seed = "Sync%s.%s," % (self.sync_id, player) + seed
-                seedfile = "randomizer_%s.dat" % player
-                spoilerfile = "spoiler_%s.txt" % player
+                if args.output_number != "0":
+                    seedfile = "randomizer" + args.output_number + "_%s.dat" % player
+                    spoilerfile = "spoiler" + args.output_number + "_%s.txt" % player                    
+                else:
+                    seedfile = "randomizer_%s.dat" % player
+                    spoilerfile = "spoiler_%s.txt" % player
                 if self.players == 1:
                     if args.output_number != "0":
                         seedfile = "randomizer" + args.output_number + ".dat"
@@ -407,7 +498,7 @@ class CLISeedParams(object):
             flags.append(self.get_preset())
         flags.append(self.key_mode)
         if Variation.WARMTH_FRAGMENTS in self.variations:
-            flags.append("Frags/%s/%s" % (self.frag_count, self.frag_extra))
+            flags.append("Frags/%s/%s" % (self.frag_count - self.frag_extra, self.frag_count))
         if Variation.WORLD_TOUR in self.variations:
             flags.append("WorldTour=%s" % self.relic_count)
         flags += [v.value for v in self.variations if v not in FLAGLESS_VARS]

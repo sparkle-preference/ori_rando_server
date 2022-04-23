@@ -311,7 +311,7 @@ loc: MistyGrenade -671 -39 EX200 5 Misty
 loc: MistyKeystone2 -1043 -8 KS 1 Misty
 loc: MistyAbilityCell -1075 -2 AC 1 Misty
 loc: GumonSeal -720 -24 EVForlornKey 3 Misty
-
+loc: SpiritTreeExp -168 -104 EX100 1 Grove
 
 -- area definitions and connections
 home: TeleporterNetwork
@@ -334,6 +334,8 @@ home: TeleporterNetwork
 		casual TPForlorn
 	conn: HoruTeleporter
 		casual TPHoru HoruKey
+	conn: BlackrootGrottoConnection
+		casual TPBlackroot
 home: SunkenGladesRunaway
 	-- anchor: the beginning of the game
 	pickup: FirstPickup
@@ -777,6 +779,15 @@ home: SpiritTreeRefined
 		expert Dash WallJump
 		expert Dash Climb
 		master Bash Glide DoubleJump
+	pickup: SpiritTreeExp
+		casual ChargeJump
+		casual BashGrenade
+		standard Lure Bash ChargeFlame
+		standard Lure Bash Stomp WallJump
+		standard Lure Bash Stomp Climb
+		standard Lure Bash Stomp DoubleJump
+		expert Lure RocketJump Energy=1
+		master TripleJump
 	conn: ChargeFlameSkillTreeChamber
 	conn: ChargeFlameAreaStump
 	conn: ValleyEntry

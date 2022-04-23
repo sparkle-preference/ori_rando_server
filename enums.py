@@ -66,7 +66,13 @@ class Variation(StrEnum):
     KEYS_ONLY_FOR_DOORS = "KeysOnlyForDoors"
     WARPS_INSTEAD_OF_TPS = "WarpsInsteadOfTPs"
     IN_LOGIC_WARPS = "InLogicWarps"
-    ADD_WARPS = "AddWarps"
+    WARP_COUNT = "WarpCount"
+    STARTING_HEALTH = "StartingHealth"
+    STARTING_ENERGY = "StartingEnergy"
+    STARTING_SKILLS = "StartingSkills"
+    NO_TPS = "NoTPs"
+    COMPETITIVE = "Competitive"
+    BONUS_LITE = "BonusLite"
 
 class LogicPath(StrEnum):
     CASUAL_CORE = 'casual-core'

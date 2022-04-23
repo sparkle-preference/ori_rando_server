@@ -148,6 +148,7 @@ _REQS = [
     "TPForlorn",
     "TPSorrow",
     "TPHoru",
+    "TPBlackroot",
     "Health",
     "Energy",
     "Ability",
