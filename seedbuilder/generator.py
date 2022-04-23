@@ -8,10 +8,11 @@ from enums import KeyMode, PathDifficulty, ShareType, Variation, MultiplayerGame
 from hashlib import sha256
 from seedbuilder.oriparse import get_areas
 from seedbuilder.relics import relics
+from functools import reduce
 
 def stable_string_hash(s):
     """fuckin' INFURIATING that this is necessary but so it goes!!!"""
-    return int(sha256(s).hexdigest(), 16)
+    return int(sha256(s.encode(encoding='UTF-8')).hexdigest(), 16)
 
 longform_to_code = {"Health": ["HC"], "Energy": ["EC"], "Ability": ["AC"], "Keystone": ["KS"], "Mapstone": ["MS"], "Free": []}
 key_to_shards = {"GinsoKey": ["WaterVeinShard"] * 5, "ForlornKey": ["GumonSealShard"] * 5, "HoruKey": ["SunstoneShard"] * 5}
@@ -327,7 +328,7 @@ class SeedGenerator:
                 ("TPValley", 1), ("TPGinso", 1), ("TPHoru", 1),
             ]))
         else:
-            for item, counts in sorted(self.params.item_pool.items(), key=lambda x: x[0]):
+            for item, counts in sorted(list(self.params.item_pool.items()), key=lambda x: x[0]):
                 item = item.replace("|", "")
                 if item in ["HC1", "AC1", "EC1", "KS1", "MS1"]:
                     item = item[0:2]
@@ -401,7 +402,7 @@ class SeedGenerator:
             dungeonLocs = {"GinsoKey": {5480952, 5320328}, "ForlornKey": {-7320236}, "HoruKey": set()}
             names = {-3160308: "SKWallJump", -560160: "SKChargeFlame", 2919744: "SKDash", 719620: "SKGrenade", 7839588: "SKDoubleJump", 5320328: "SKBash", 8599904: "SKStomp", -4600020: "SKGlide",
                     -6959592: "SKChargeJump", -11880100: "SKClimb", 5480952: "EVWater", 4999752: "EVGinsoKey", -7320236: "EVWind", -7200024: "EVForlornKey", -5599400: "EVHoruKey"}
-            for key in self.random.sample(dungeonLocs.keys(), 3):
+            for key in self.random.sample(list(dungeonLocs.keys()), 3):
                 loc = self.random.choice([l for l in self.limitKeysPool if l not in dungeonLocs[key]])
                 self.limitKeysPool.remove(loc)
                 for key_to_update in ["GinsoKey", "ForlornKey"]:
@@ -418,7 +419,7 @@ class SeedGenerator:
 
     def __init__(self):
         self.init_fields()
-        self.codeToName = OrderedDict([(v, k) for k, v in self.skillsOutput.items() + self.eventsOutput.items() + [("RB17", "WaterVeinShard"), ("RB19", "GumonSealShard"), ("RB21", "SunstoneShard")]])
+        self.codeToName = OrderedDict([(v, k) for k, v in list(self.skillsOutput.items()) + list(self.eventsOutput.items()) + [("RB17", "WaterVeinShard"), ("RB19", "GumonSealShard"), ("RB21", "SunstoneShard")]])
 
     def shared_item_split(self, target):
         for item, player in self.sharedMap.get(target, []):
@@ -574,7 +575,7 @@ class SeedGenerator:
                 path_selected = abilities_to_open[path]
                 break
         # if a connection will open with a subset of skills in the selected path, use that instead
-        subsetCheck = abilities_to_open.keys()
+        subsetCheck = list(abilities_to_open.keys())
         self.random.shuffle(subsetCheck)
         for path in subsetCheck:
             isSubset = abilities_to_open[path][0] < path_selected[0]
@@ -789,7 +790,7 @@ class SeedGenerator:
         # sorry for this - only intended to last as long as 3.0 beta lasts
         meta = get_areas()
         logic_paths = [lp.value for lp in self.params.logic_paths]
-        for loc_name, loc_info in meta["locs"].iteritems():
+        for loc_name, loc_info in meta["locs"].items():
             area = Area(loc_name)
             self.areasRemaining.append(loc_name)
             self.areas[loc_name] = area
@@ -814,12 +815,12 @@ class SeedGenerator:
                     self.params.locationAnalysis[zoneKey] = self.params.itemsToAnalyze.copy()
                     self.params.locationAnalysis[zoneKey]["Zone"] = loc.zone
 
-        for home_name, home_info in meta["homes"].iteritems():
+        for home_name, home_info in meta["homes"].items():
             area = Area(home_name)
             self.areasRemaining.append(home_name)
             self.areas[home_name] = area
 
-            for conn_target_name, conn_info in home_info["conns"].iteritems():
+            for conn_target_name, conn_info in home_info["conns"].items():
                 connection = Connection(home_name, conn_target_name, self)
 
                 # can't actually be used yet but this is roughly how this will be implemented
@@ -950,7 +951,7 @@ class SeedGenerator:
         self.sharedList = []
         self.random = random.Random()
         self.random.seed(stable_string_hash(self.params.seed))
-        self.preplaced = {k: self.codeToName.get(v, v) for k, v in preplaced.iteritems()}
+        self.preplaced = {k: self.codeToName.get(v, v) for k, v in preplaced.items()}
         self.do_multi = self.params.sync.enabled and self.params.sync.mode == MultiplayerGameType.SHARED
 
         if self.var(Variation.WORLD_TOUR):
@@ -1007,12 +1008,12 @@ class SeedGenerator:
                             Nonzero Costs:%s,
                             Partial Seed: %s""",
                             self.locations(),
-                            {k: v for k, v in self.itemPool.iteritems() if v > 0},
+                            {k: v for k, v in self.itemPool.items() if v > 0},
                             [x for x in self.areasReached],
                             [x for x in self.areasRemaining],
-                            {k: v for k, v in self.inventory.iteritems() if v != 0},
+                            {k: v for k, v in self.inventory.items() if v != 0},
                             self.forcedAssignments,
-                            {k: v for k, v in self.costs.iteritems() if v != 0},
+                            {k: v for k, v in self.costs.items() if v != 0},
                             self.outputStr)
                 return None
             return self.placeItemsMulti(retries)
