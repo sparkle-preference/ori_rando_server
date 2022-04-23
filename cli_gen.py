@@ -64,7 +64,7 @@ class CLISeedParams(object):
         parser.add_argument("--strict-mapstones", help="Require a mapstone to be placed when a map monument becomes accessible", action="store_true")
         parser.add_argument("--world-tour", help="Prevent Ori from entering the final escape until collecting one relic from each of the zones in the world. Recommended default: 8", type=int)
         parser.add_argument("--warmth-frags", help="Prevent Ori from entering the final escape until collecting some number of warmth fragments. Recommended default: 40", type=int)
-
+        parser.add_argument("--keys-only-for-doors", help="Keys are only logically used for opening doors. They do not gate pickups within the dungeons otherwise.", action="store_true")
         # misc
         parser.add_argument("--verbose-paths", help="print every logic path in the flagline for debug purposes", action="store_true")
         parser.add_argument("--exp-pool", help="Size of the experience pool (default 10000)", type=int, default=10000)
@@ -112,7 +112,8 @@ class CLISeedParams(object):
         varMap = {
             "zeroxp": "0XP", "non_progressive_mapstones": "NonProgressMapStones", "ohko": "OHKO", "force_trees": "ForceTrees", "starved": "Starved",
             "force_mapstones": "ForceMapStones", "entrance": "Entrance", "open_world": "OpenWorld", "easy": "DoubleSkills", "strict_mapstones": "StrictMapstones",
-            "warmth_frags": "WarmthFrags", "world_tour": "WorldTour", "closed_dungeons": "ClosedDungeons", "tp_starved": "TPStarved", "wall_starved": "WallStarved"
+            "warmth_frags": "WarmthFrags", "world_tour": "WorldTour", "closed_dungeons": "ClosedDungeons", "tp_starved": "TPStarved", "wall_starved": "WallStarved",
+            "keys_only_for_doors": "KeysOnlyForDoors"
         }
         self.variations = []
         for argName, flagStr in varMap.items():

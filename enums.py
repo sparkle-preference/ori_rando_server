@@ -63,6 +63,7 @@ class Variation(StrEnum):
     FUCK_WALLS = "WallStarved"
     FUCK_GRENADE = "GrenadeStarved"
     RACE = "Race"
+    KEYS_ONLY_FOR_DOORS = "KeysOnlyForDoors"
 
 class LogicPath(StrEnum):
     CASUAL_CORE = 'casual-core'

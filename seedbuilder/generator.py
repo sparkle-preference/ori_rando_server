@@ -6,7 +6,7 @@ from collections import OrderedDict, defaultdict, Counter
 from operator import mul
 from enums import KeyMode, PathDifficulty, ShareType, Variation, MultiplayerGameType
 from hashlib import sha256
-from seedbuilder.oriparse import get_areas
+from seedbuilder.oriparse import get_areas, get_path_tags_from_pathsets
 from seedbuilder.relics import relics
 from functools import reduce
 
@@ -237,14 +237,18 @@ class Door:
 class SeedGenerator:
     seedDifficultyMap = OrderedDict({"Dash": 2, "Bash": 2, "Glide": 3, "DoubleJump": 2, "ChargeJump": 1})
 
-    # in order: 10 skills, then WV, Water, GS, Wind, Sunstone
     difficultyMap = OrderedDict({
-        'casual-core': 1, 'casual-dboost': 1,
-        'standard-core': 2, 'standard-dboost': 2, 'standard-lure': 2, 'standard-abilities': 2,
-        'expert-core': 3, 'expert-dboost': 3, 'expert-lure': 3, 'expert-abilities': 3, 'dbash': 3,
-        'master-core': 4, 'master-dboost': 4, 'master-lure': 4, 'master-abilities': 4, 'gjump': 4,
-        'glitched': 5, 'timed-level': 5, 'insane': 7
+        "casual": 1, "standard": 2, "expert": 3, "master": 4, "glitched": 5, "timed-level": 5, "insane": 7
     })
+
+    def get_difficulty(self, path_tags):
+        for difficulty in ["insane", "glitched", "timed-level", "master", "expert", "standard"]:
+            for path_tag in path_tags:
+                if path_tag.startswith(difficulty):
+                    return self.difficultyMap[difficulty]
+        return self.difficultyMap["casual"]
+
+    # in order: 10 skills, then WV, Water, GS, Wind, Sunstone    
     skillsOutput = OrderedDict({
         "WallJump": "SK3", "ChargeFlame": "SK2", "Dash": "SK50", "Stomp": "SK4", "DoubleJump": "SK5",
         "Glide": "SK14", "Bash": "SK0", "Climb": "SK12", "Grenade": "SK51", "ChargeJump": "SK8"
@@ -782,7 +786,7 @@ class SeedGenerator:
                 break
         del locationsToAssign[i]
 
-    def form_areas(self):
+    def form_areas(self, keysOnlyForDoors=False):
         if self.params.do_loc_analysis:
             self.params.locationAnalysis["FinalEscape EVWarmth (-240 512)"] = self.params.itemsToAnalyze.copy()
             self.params.locationAnalysis["FinalEscape EVWarmth (-240 512)"]["Zone"] = "Horu"
@@ -790,6 +794,7 @@ class SeedGenerator:
         # sorry for this - only intended to last as long as 3.0 beta lasts
         meta = get_areas()
         logic_paths = [lp.value for lp in self.params.logic_paths]
+        logic_path_tags = get_path_tags_from_pathsets(logic_paths)
         for loc_name, loc_info in meta["locs"].items():
             area = Area(loc_name)
             self.areasRemaining.append(loc_name)
@@ -831,8 +836,30 @@ class SeedGenerator:
                 if not conn_info["paths"]:
                     connection.add_requirements(["Free"], 1)
                 for path in conn_info["paths"]:
-                    if path[0] in logic_paths:
-                        connection.add_requirements(list(path[1:]), self.difficultyMap[path[0]])
+                    valid = True
+                    path_tags = path[0]
+                    for path_tag in path_tags:
+                        if path_tag not in logic_path_tags:
+                            valid = False
+                            break
+                    if valid:
+                        if keysOnlyForDoors:
+                            # Okay, this is essentially Free keymode but with requirements
+                            # for the keys to be placed in their doors, but aren't given freely.
+                            altered_path = list(path)
+                            if "GinsoKey" in path:
+                                if (conn_target_name != "GinsoOuterDoor") or ("InnerDoor" in home_name):
+                                    altered_path.remove("GinsoKey")
+                            if "ForlornKey" in path:
+                                if conn_target_name != "ForlornOuterDoor" or ("InnerDoor" in home_name):
+                                    altered_path.remove("ForlornKey")
+                            if "HoruKey" in path:
+                                if conn_target_name != "HoruOuterDoor" or ("InnerDoor" in home_name):
+                                    altered_path.remove("HoruKey")
+                            connection.add_requirements(list(altered_path[1:]), self.get_difficulty(path_tags))
+                        else:
+                            connection.add_requirements(list(path[1:]), self.get_difficulty(path_tags))
+                        
                 if connection.get_requirements():
                     area.add_connection(connection)
 
@@ -1081,7 +1108,8 @@ class SeedGenerator:
         keystoneCount = 0
         mapstoneCount = 0
 
-        self.form_areas()
+        self.form_areas(self.var(Variation.KEYS_ONLY_FOR_DOORS
+        ))
 
         if self.params.do_loc_analysis:
             self.params.locationAnalysisCopy = {}
