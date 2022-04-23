@@ -93,6 +93,98 @@ warp_targets = [
     ]
 ]
 
+# Grouped by subarea to limit 
+# (warpName, x, y, area from TP name, logicLocation, logicCost).
+warp_targets2 = [
+    [
+        # inner swamp
+        #("Stomp Miniboss", 915, -115, "Swamp", None, None), Swapped out for the CJ pickup because it is less work.
+        ("Stomp Tree Roof", 917, -70, "Swamp", "StompAreaRoofExpWarp", 41),
+        ("Swamp Swim", 790, -195, "Swamp", "SwampWaterWarp", 41),
+        ("Inner Swamp EC", 720, -95, "Swamp", "InnerSwampSkyArea", 41),
+    ],
+    [
+        # gumo's hideout
+        ("Above Grotto Crushers", 580, -345, "Grotto", "AboveGrottoCrushersWarp", 41),
+        ("Grotto Energy Vault", 513, -440, "Grotto", "GrottoEnergyVaultWarp", 41),
+        ("Water Vein", 506, -246, "Grotto", "WaterVeinArea", 41), 
+    ],
+    [
+        # blackroot
+        # ("Lower Blackroot Laser AC", 417, -435)
+        ("Dash Plant", 310, -230, "Blackroot", "DashPlantAccess", 41),
+        ("Right of Grenade Area", 258, -382, "Blackroot", "GrenadeAreaAccess", 41),
+        ("Lost Grove Laser Lever", 499, -505, "Blackroot", "LostGroveLaserLeverWarp", 53),
+    ],
+    [
+        # hollow grove
+        ("Above Cflame Tree EX", -13, -96, "Grove", "AboveChargeFlameTreeExpWarp", 41),
+        ("Spidersack Energy Door", 70, -110, "Grove", "SpiderSacEnergyDoorWarp", 41),
+        ("Death Gauntlet Roof", 328, -176, "Grove", "DeathGauntletRoof", 41),
+        #("Spider Lake Roof Spikes", 194, -100), # This is a bad idea.
+        
+    ],
+    [
+        # hollow grover
+        # ("Horu Fields Plant", 127, 20), Replaced with below
+        ("Horu Fields Push Block", 77, 11, "Grove", "HoruFieldsPushBlock", 41),
+        #("Horu Fields AC", 170, -35)
+        ("Kuro CS AC", 330, -63, "Grove", "HollowGroveTreeAbilityCellWarp", 41),
+        ("Butter Cell Floor", 380, -143, "Grove", "GroveWaterStompAbilityCellWarp", 41),
+    ],
+    [
+        # outer swamp
+        ("Outer Swamp HC", 585, -68, "Swamp", "OuterSwampHealthCellWarp", 41), 
+        ("Outer Swamp AC", 505, -108, "Swamp", "OuterSwampMortarAbilityCellLedge", 41),
+        #("Spike loop HC", 546, -190, "Grotto"), # FIXME Just do the logic for this.
+        ("Triforce AC", 646, -127, "Swamp", "SwampDrainlessArea", 41),
+    ],
+    [
+        # lower valley / below valley
+        ("Valley entry (upper)", -224, -85, "Valley", "ValleyEntryTree", 53),
+        ("Forlorn entrance", -605, -255, "Valley" ,"OutsideForlorn", 53),
+        ("Three Bird AC", -354, -98, "Valley", "VallleyThreeBirdACWarp", 53)
+    ],
+    [
+        # upper valley
+        ("Wilhelm EX", -570, 156, "Valley", "WilhelmExpWarp", 53),
+        ("Stompless AC", -358, 65, "Valley", "ValleyRightFastStomplessCellWarp", 53),
+        # misty ? // Combined because how many misty ones will we get anyway?
+        #("Misty First Keystone", -1050, 32),
+        ("Misty Entrance", -578, -25, "Misty", "MistyEntrance", 53)
+    ],
+    [
+        # sorrow
+        ("Sunstone Plant", -500, 587, "Sorrow", "SunstoneArea", 59),
+        ("Sorrow Mapstone", -432, 322, "Sorrow", "SorrowMapstoneWarp", 59),
+        ("Tumbleweed Keystone Door", -595, 385, "Sorrow", "LeftSorrowTumbleweedDoorWarp", 59),
+    ],
+    [
+        # ginso - consider keystone door softlocks.
+        ("Ginso Escape", 510, 910, "Ginso", "GinsoEscape", 61),
+        ("Upper Ginso EC", 539, 434, "Ginso", "UpperGinsoEnergyCellWarp", 61),
+        ("Lower Ginso Keystones", 520, 274, "Ginso", "GinsoMiniBossDoor", 61),
+    ],
+    [
+        # horu
+        ("Horu Escape Access", 69, 96, "Horu", "HoruBasement", 71),
+        ("Horu R1 Mapstone", 155, 362, "Horu", "HoruR1MapstoneSecret", 71),
+        ("Horu R4 Cutscene Rock", 254, 188, "Horu", "HoruR4CutsceneTrigger", 71),
+    ],
+    [
+        # forlorn - consider keystone door softlocks.
+        ("Forlorn HC", -610, -312, "Forlorn", "RightForlorn", 67),
+        ("Forlorn Orb", -747, -407, "Forlorn", "ForlornOrbPossession", 67),
+        ("Forlorn Plant", -820, -265, "Forlorn", "ForlornOrbPossession", 67),
+    ],
+    [
+        # glades
+        ("Spirit Cavern AC", -219, -176, "Glades", "SpiritCavernsACWarp", 41),
+        ("Above Gladeser", -162, -175, "Glades", "GladesLaserArea", 41),
+        ("Glades Loop Keystone", -241, -211, "Glades", "UpperLeftGlades", 41),
+    ]
+]
+
 doors_inner = [
     ("GinsoInnerDoor", 522, 1),
     ("ForlornInnerDoor", -717, -408),
@@ -332,6 +424,7 @@ class SeedGenerator:
         self.sharedAssignQueue = []
         self.spoiler = []
         self.entrance_spoiler = ""
+        self.warps = {}
 
     def reset(self):
         """A full reset. Resets internal state completely (besides pRNG
@@ -405,6 +498,41 @@ class SeedGenerator:
             self.itemPool["TPGinso"] = 0
             self.itemPool["TPHoru"] = 0
 
+        # FIXME When we don't start in glades, add glades tp and remove other tp if applicable, before we process warps.
+        # FIXME If Variation is closed dungeons, umm, check that we don't start in them, maybe? Can't start at the tp anyway.
+
+        # FIXME if we are using in-logic-warps maybe just ignore closed dungeons. Maybe complain to d#?
+        # Make it so we only give up to 1 warp in each subarea.
+        self.unused_warps = []
+        for warp_group in warp_targets2:
+            self.unused_warps.append(self.random.choice(warp_group))
+            
+        # Warps. format (warpName, x, y, area from TP name, logicLocation, logicCost).
+        if self.var(Variation.WARPS_INSTEAD_OF_TPS):
+            tps = []
+            for item in self.itemPool:
+                if item.startswith("TP"):
+                    tps.append(item)
+            for tp in self.random.sample(tps, min(self.params.warps_instead_of_tps, len(tps))):
+                print("Removing tp: " + tp)
+                tp_name = tp[2:]
+                warps_in_area = []
+                for warp in self.unused_warps:
+                    if warp[3] == tp_name:
+                        warps_in_area.append(warp)
+                if len(warps_in_area) > 0:
+                    warp = self.random.choice(warps_in_area)
+                    self.itemPool[tp] -= 1
+                    self.add_warp(warp)
+
+        if self.var(Variation.ADD_WARPS):
+            self.itemPool["WP*"] = self.itemPool.get("WP*", 0) + self.params.add_warps
+        if self.itemPool.get("WP*", 0) > 0:
+            for warp in self.random.sample(self.unused_warps, min(len(self.unused_warps), self.itemPool.get("WP*", 0))):
+                print("Adding warp.")
+                self.add_warp(warp)
+            self.itemPool.pop("WP*")
+
         if self.params.key_mode == KeyMode.SHARDS:
             shard_count = 5
             if self.params.sync.mode == MultiplayerGameType.SPLITSHARDS:
@@ -449,6 +577,37 @@ class SeedGenerator:
     def __init__(self):
         self.init_fields()
         self.codeToName = OrderedDict([(v, k) for k, v in list(self.skillsOutput.items()) + list(self.eventsOutput.items()) + [("RB17", "WaterVeinShard"), ("RB19", "GumonSealShard"), ("RB21", "SunstoneShard")]])
+
+    def add_warp(self, warp):
+        name, x, y, area, logic_location, logic_cost = warp
+        self.unused_warps.remove(warp)
+        warp_id = "Warp" + str(len(self.warps))
+        self.warps[warp_id] = warp
+        self.itemPool[warp_id] = 1
+        self.costs[warp_id] = logic_cost
+        self.inventory[warp_id] = 0
+        #if self.var(Variation.IN_LOGIC_WARPS):
+            #connection = Connection("TeleporterNetwork", logic_location, self)
+            #connection.add_requirements([warp_id], 0)
+            #self.areas["TeleporterNetwork"].add_connection(connection)
+            #print("Added connect to {}".format(logic_location))
+
+    def create_warp_paths(self):
+        if self.var(Variation.IN_LOGIC_WARPS):
+            for warp_id in self.warps:
+                name, x, y, area, logic_location, logic_cost = self.warps[warp_id]
+                connection = Connection("TeleporterNetwork", logic_location, self)
+                requirements = [warp_id]
+                if not self.var(Variation.KEYS_ONLY_FOR_DOORS):
+                    if area == "Ginso":
+                        requirements.append("GinsoKey")
+                    if area == "Horu":
+                        requirements.append("HoruKey")
+                    if area == "Forlorn":
+                        requirements.append("ForlornKey")
+                connection.add_requirements(requirements, 0)
+                self.areas["TeleporterNetwork"].add_connection(connection)
+                print("Added connect to {}".format(logic_location))
 
     def shared_item_split(self, target):
         for item, player in self.sharedMap.get(target, []):
@@ -578,7 +737,7 @@ class SeedGenerator:
                             else:
                                 requirements.append(req)
                                 cost += self.costs[req]
-                                if self.var(Variation.TPSTARVED) and req.startswith("TP"):
+                                if self.var(Variation.TPSTARVED) and (req.startswith("TP") or req.startswith("Warp")):
                                     cost += self.costs[req]
                                 if self.var(Variation.FUCK_GRENADE) and req == "Grenade":
                                     cost += self.costs[req] * 5
@@ -780,7 +939,10 @@ class SeedGenerator:
 
     def get_assignment(self, loc, item, zone):
         pickup = ""
-        if item[2:]:
+        if item.startswith("Warp"):
+            name, x, y, area, logic_location, logic_cost = self.warps[item]
+            pickup = "TW|Warp to " + name + "," + str(x) + ',' + str(y)
+        elif item[2:]:
             pickup = "%s|%s" % (item[:2], item[2:])
         else:
             pickup = "%s|1" % item[:2]
@@ -1175,7 +1337,7 @@ class SeedGenerator:
         mapstoneCount = 0
 
         self.form_areas(self.var(Variation.KEYS_ONLY_FOR_DOORS))
-
+        self.create_warp_paths()
         if self.params.do_loc_analysis:
             self.params.locationAnalysisCopy = {}
             for location in self.params.locationAnalysis:
@@ -1503,6 +1665,12 @@ class SeedGenerator:
                 if key[:2] == "TP":
                     for instance in self.spoilerGroup[key]:
                         currentGroupSpoiler += "    " + instance
+
+            for warp_id in self.warps.keys():
+                if warp_id in self.spoilerGroup:
+                    for instance in self.spoilerGroup[warp_id]:
+                        name, x, y, area, logic_location, logic_cost = self.warps[warp_id]
+                        currentGroupSpoiler += "    " + instance.replace(warp_id, "Warp to {}".format(name))
 
             for instance in self.spoilerGroup["MS"]:
                 currentGroupSpoiler += "    " + instance

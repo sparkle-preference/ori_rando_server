@@ -603,6 +603,15 @@ home: LowerSpiritCaverns
 		casual Bash Energy=4
 	conn: SpiritCavernsDoor
 		casual Open
+home: SpiritCavernsACWarp
+	pickup: SpiritCavernsAbilityCell
+		casual Free
+	pickup: SpiritCavernsKeystone1
+		casual Free
+	pickup: SpiritCavernsKeystone2
+		casual Free
+	conn: LowerSpiritCaverns
+		casual Free
 home: MidSpiritCaverns
 	-- anchor: on the ledge across from the 4-energy gladeser door
 	conn: LowerSpiritCaverns
@@ -797,6 +806,11 @@ home: SpiritTreeRefined
 		master ChargeFlame DoubleJump
 		master Grenade DoubleJump
 		master ChargeDash DoubleJump
+home: AboveChargeFlameTreeExpWarp
+	pickup: AboveChargeFlameTreeExp
+		casual Free
+	conn: SpiritTreeRefined
+		casual Free
 home: SpiderSacTetherArea
 	-- anchor: on the rock just below where the spider sac is attached
 	pickup: SpiderSacHealthCell
@@ -833,6 +847,13 @@ home: SpiderSacTetherArea
 		casual Grenade
 		expert ChargeDash ChargeJump
 		expert ChargeDash Bash Grenade
+home: SpiderSacEnergyDoorWarp
+	-- anchor: Inside the SpiderSac 4 energy door.
+	pickup: SpiderSacEnergyDoor
+		casual Free
+	conn: SpiderSacArea
+		-- FIXME Is this strictly an Open thing like opening keystone doors from both sides?
+		casual Energy=4
 home: SpiderSacArea
 	-- anchor: just to the right of the blue wall
 	pickup: AboveChargeFlameTreeExp
@@ -992,13 +1013,8 @@ home: BlackrootDarknessRoom
 home: DashArea
 	-- anchor: dash tree *after* lifting darkness
 	pickup: DashSkillTree
-	pickup: DashAreaMapstone
-		casual Dash
-		expert WallJump
-		expert Climb
-		expert Bash Grenade
-		expert ChargeJump
-		expert DoubleJump
+	conn: DashAreaMapstoneAccess
+		casual Free
 	conn: DashPlantAccess
 		casual ChargeJump Climb
 		casual ChargeJump WallJump
@@ -1046,12 +1062,22 @@ home: DashArea
 		standard Climb AirDash
 		expert Climb
 		master DoubleJump
+home: DashAreaMapstoneAccess
+	pickup: DashAreaMapstone
+		casual Dash
+		expert WallJump
+		expert Climb
+		expert Bash Grenade
+		expert ChargeJump
+		expert DoubleJump
 home: DashPlantAccess
 	-- anchor: on the ledge next to the plant, or within grenade throw range
 	pickup: DashAreaPlant
 		casual ChargeFlame
 		casual Grenade
 		expert ChargeDash
+	conn: DashAreaMapstoneAccess
+		casual Free
 home: RazielNoArea
 	-- anchor: on the ledge right before the boulder chase
 	pickup: RazielNo
@@ -1224,10 +1250,77 @@ home: LostGroveExit
 		casual ChargeJump
 		casual DoubleJump
 	pickup: LostGroveTeleporter
-		casual WallJump
-		casual Climb
-		casual Bash Grenade
-		casual ChargeJump
+		-- assume the blue grenade floor still exists
+		-- Either Dash or Grenade locked.
+		casual BashGrenade
+		casual Grenade WallJump DoubleJump Glide
+		casual Grenade Climb DoubleJump Glide
+		casual Dash WallJump
+		casual Dash Climb
+		casual Dash ChargeJump
+		standard Grenade Glide WallJump Health=3
+		standard Grenade Glide Climb Health=3
+		standard Grenade DoubleJump WallJump Health=3
+		standard Grenade DoubleJump Climb Health=3
+		standard Grenade Glide ChargeJump Health=3
+		standard Grenade DoubleJump ChargeJump Health=3
+		expert Grenade ChargeJump Health=5
+		master GrenadeJump
+		master Grenade DoubleJump Health=3
+		master Grenade TripleJump
+		master Dash DoubleJump
+	conn: LostGrove
+		-- assume the blue grenade floor still exists
+		-- Either Dash or Grenade locked.
+		casual BashGrenade
+		casual Grenade WallJump DoubleJump Glide
+		casual Grenade Climb DoubleJump Glide
+		casual Dash WallJump
+		casual Dash Climb
+		casual Dash ChargeJump
+		standard Grenade Glide WallJump Health=3
+		standard Grenade Glide Climb Health=3
+		standard Grenade DoubleJump WallJump Health=3
+		standard Grenade DoubleJump Climb Health=3
+		standard Grenade Glide ChargeJump Health=3
+		standard Grenade DoubleJump ChargeJump Health=3
+		expert Grenade ChargeJump Health=5
+		expert Dash DoubleJump
+		master GrenadeJump
+		master Grenade DoubleJump Health=3
+		master Grenade TripleJump
+home: LostGroveLaserLeverWarp
+	-- anchor on the lever (at 499, -505)
+	conn: LostGroveExit
+		-- assume the blue grenade floor has been destroyed
+		casual WallJump DoubleJump
+		casual Climb ChargeJump
+		casual ChargeJump DoubleJump
+		casual BashGrenade
+		expert ChargeJump
+	conn: LostGrove
+		-- assume the blue grenade floor still exists
+		casual BashGrenade
+		casual Grenade WallJump DoubleJump Glide
+		casual Grenade Climb DoubleJump Glide
+		standard Grenade AirDash WallJump Health=3
+		standard Grenade AirDash Climb Health=3
+		standard Grenade AirDash ChargeJump Health=3
+		standard Grenade AirDash Glide WallJump
+		standard Grenade AirDash Glide Climb
+		standard Grenade AirDash DoubleJump WallJump
+		standard Grenade AirDash DoubleJump Climb
+		standard Grenade Glide WallJump Health=3
+		standard Grenade Glide Climb Health=3
+		standard Grenade DoubleJump WallJump Health=3
+		standard Grenade DoubleJump Climb Health=3
+		standard Grenade Glide ChargeJump Health=3
+		standard Grenade DoubleJump ChargeJump Health=3
+		expert Grenade ChargeJump Health=5
+		master Grenade AirDash DoubleJump
+		master GrenadeJump
+		master Grenade DoubleJump Health=3
+		master Grenade TripleJump	
 home: HollowGrove
 	-- anchor: in the kuro CS tree, below the plant and above iceless area
 	pickup: HollowGroveMapstone
@@ -1237,6 +1330,7 @@ home: HollowGrove
 		expert Bash Health=6
 		expert Stomp Health=5
 		master Lure Health=5
+		-- below is broken, is UltraDefense path.
 		master Lure
 		glitched Bash
 	pickup: HoruFieldsHealthCell
@@ -1327,6 +1421,20 @@ home: HollowGrove
 		master Lure DoubleJump
 		master Lure WallJump Glide
 		master Lure ChargeDash
+home: GroveWaterStompAbilityCellWarp
+	pickup: GroveWaterStompAbilityCell
+		casual Water Stomp
+		casual Water Climb ChargeJump
+		expert DoubleBash Water
+		expert DoubleBash Health=6
+		expert Stomp Health=5
+		expert Climb ChargeJump Health=5
+home: HollowGroveTreeAbilityCellWarp
+	-- anchor: at the AC (at 330, -63)
+	pickup: HollowGroveTreeAbilityCell
+		casual Free
+	conn: HollowGrove
+		casual Free
 home: SwampTeleporter
 	-- anchor: on the swamp teleporter
 	conn: TeleporterNetwork
@@ -1412,6 +1520,11 @@ home: OuterSwampLowerArea
 		casual ChargeJump
 		casual Glide Wind
 		casual DoubleJump
+home: OuterSwampHealthCellWarp
+	pickup: OuterSwampHealthCell
+		casual Free
+	conn: OuterSwampLowerArea
+		casual Free
 home: OuterSwampMortarAbilityCellLedge
 	-- anchor: on the ability cell ledge
 	pickup: OuterSwampMortarAbilityCell
@@ -1576,7 +1689,7 @@ home: UpperGinsoRedirectArea
 		standard Glide Health=4
 		standard ChargeJump Health=4
 home: UpperGinsoTree
-	--anchor: Near the flower just before the Upper Ginso keystone area, this is the flower AFTER the keydupe flower
+	--anchor: Near the flower just before the Upper Ginso keystone area, this is the flower AFTER the keydupe flower (at 530, 471)
 	-- for KS-lock protection, all pickups in this area require the ginso key
 	pickup: UpperGinsoLowerKeystone
 		casual GinsoKey Bash DoubleJump
@@ -1627,6 +1740,16 @@ home: UpperGinsoTree
 		expert ChargeJump ChargeFlame
 		expert ChargeJump AirDash
 		master Bash
+home: UpperGinsoEnergyCellWarp
+	-- anchor: Next to the UpperGinsoEnergyCell (at 539, 434) with the ceiling intact.
+	pickup: UpperGinsoEnergyCell
+		casual GinsoKey
+	conn: UpperGinsoTree
+		casual ChargeJump
+		standard WallJump Bash
+		standard Climb Bash
+		standard DoubleJump Bash
+		expert DoubleBash
 home: UpperGinsoDoorClosed
 	conn: UpperGinsoDoorOpened
 		casual Keystone=4
@@ -2016,6 +2139,14 @@ home: GumoHideout
 		casual Climb ChargeJump
 		casual Glide Wind
 		expert DoubleBash
+home: AboveGrottoCrushersWarp
+	-- anchor: above the grotto crushers on the path to double jump tree (at 580, -345)
+	conn: GumoHideout
+		casual Free
+	pickup: GumoHideoutEnergyCell
+		casual Free
+	pickup: GumoHideoutCrusherExp
+		casual Free
 home: DoubleJumpKeyDoor
 	-- anchor: logically at the door, physically at the map...doors are weird
 	conn: DoubleJumpKeyDoorOpened
@@ -2152,7 +2283,7 @@ home: LowerLeftGumoHideout
 		glitched Dash
 	conn: GumoHideoutRedirectArea
 home: WaterVeinArea
-	-- anchor: at the water vein
+	-- anchor: at the water vein (at 506, -246)
 	pickup: GumoHideoutRockfallExp
 	pickup: WaterVein
 	conn: LeftGumoHideout
@@ -2218,6 +2349,27 @@ home: GumoHideoutRedirectEnergyVault
 		casual Climb DoubleJump
 		casual ChargeJump
 		casual Bash Grenade
+home: GrottoEnergyVaultWarp
+	-- anchor: at GumoHideoutRedirectEnergyCell (at 513, -440)
+	pickup: GumoHideoutRedirectEnergyCell
+		casual Free
+	pickup: GumoHideoutRedirectExp
+		casual Free
+	conn: GumoHideoutRedirectArea
+		casual Climb ChargeJump Glide
+		casual Climb ChargeJump DoubleJump
+		casual Stomp WallJump Glide
+		casual Stomp WallJump DoubleJump
+		casual Stomp Glide ChargeJump Health=3
+		casual Stomp DoubleJump ChargeJump Health=3
+		casual Stomp Glide ChargeJump Health=3
+		standard Stomp WallJump
+		standard Climb ChargeJump
+		standard Stomp ChargeJump Health=3
+		expert ChargeDash WallJump Energy=1
+		expert ChargeFlame WallJump
+		expert ChargeDash ChargeJump Energy=1 Health=3
+		expert ChargeFlame ChargeJump Energy=2 Health=3
 home: SwampEntryArea
 	-- anchor: on the island with the energy crystal
 	pickup: SwampEntranceSwim
@@ -2354,6 +2506,13 @@ home: SwampKeyDoorOpened
 home: SwampDrainlessArea
 	-- anchor: in the triforce nook next to the ability cell
 	pickup: SwampEntranceAbilityCell
+		casual Free
+	conn: UpperGrotto
+		casual ChargeJump
+	conn: OuterSwampLowerArea
+		casual ChargeJump
+	conn: Swamp
+		casual ChargeJump
 home: InnerSwampAboveDrainArea
 	-- anchor: in the drain room, on the spike ledge, with the drain intact
 	conn: InnerSwampDrainBroken
@@ -2401,6 +2560,20 @@ home: InnerSwampSkyArea
 	pickup: InnerSwampEnergyCell
 	conn: Swamp
 	conn: SwampKeyDoorPlatform
+home: SwampWaterWarp
+	--anchor: in the InnerSwampSwimRightKeystone area, right of the spike pit (at 790, -195)
+	pickup: InnerSwampSwimRightKeystone
+		casual ChargeJump
+		casual Climb
+		casual WallJump
+		casual BashGrenade
+		standard Lure Bash
+		expert DoubleJump
+		expert ChargeDash Energy=1
+	pickup: InnerSwampSwimMapstone
+		expert Health=7
+	conn: Swamp
+		casual Water
 home: SwampWater
 	-- anchor: logically in the water, close to any underwater pickup
 	pickup: InnerSwampHiddenSwimExp
@@ -2456,6 +2629,12 @@ home: RightSwamp
 		master Grenade DoubleJump Stomp Health=4
 		master Grenade DoubleJump Health=5
 		master Water GrenadeJump
+home: StompAreaRoofExpWarp
+	pickup: StompAreaRoofExp
+		casual Free
+	conn: RightSwamp
+		casual Stomp
+		casual Climb ChargeJump
 home: HoruFields
 	-- anchor: just left of the baneling wall
 	conn: HoruFieldsPushBlock
@@ -2519,6 +2698,7 @@ home: HoruFieldsPushBlock
 	pickup: HoruFieldsAbilityCell
 		casual WallJump DoubleJump Glide
 		casual WallJump DoubleJump Bash
+		-- below is questionable FIXME
 		casual Climb ChargeJump
 		expert WallJump Bash Health=5
 		master Bash
@@ -3066,6 +3246,43 @@ home: HoruR1MapstoneSecret
 		master GrenadeJump Glide Health=5
 		master GrenadeJump Glide Health=4 UltraDefense
 		master GrenadeJump Health=9
+	conn: R1
+		casual Climb ChargeJump Glide Bash
+		casual WallJump ChargeJump Glide Bash
+		casual Climb DoubleJump Bash
+		casual WallJump DoubleJump Bash
+		standard ChargeJump Glide DoubleJump WallJump
+		standard ChargeJump Glide DoubleJump Climb
+		standard DoubleJump AirDash WallJump
+		standard DoubleJump AirDash Climb
+		expert DoubleJump Dash
+		expert Bash DoubleJump
+		expert BashGrenade
+		expert DoubleJump Glide WallJump
+		expert DoubleJump Glide Climb
+		expert Bash ChargeJump Glide
+		expert ChargeJump Glide DoubleJump
+		expert ChargeJump DoubleJump Health=5
+		expert ChargeJump Glide Health=5
+		expert ChargeJump Bash Health=5
+		master DoubleBash Glide
+		master DoubleBash ChargeJump
+		master DoubleBash Dash
+		master TripleJump
+		master ChargeJump Health=9
+	pickup: HoruR1HangingExp
+		casual Climb ChargeJump Glide
+		casual Climb ChargeJump DoubleJump
+		casual DoubleJump Climb Glide
+		casual DoubleJump WallJump Glide
+		standard DoubleJump Climb
+		standard DoubleJump WallJump
+		expert DoubleJump
+		expert ChargeJump Health=5
+		expert BashGrenade
+		master DoubleBash Glide
+		master DoubleBash ChargeJump
+		master DoubleBash Dash
 home: HoruR1CutsceneTrigger
 	-- anchor: at the end of the room, where Ori needs to stand to activate the cutscene
 	pickup: HoruR1
@@ -3307,6 +3524,21 @@ home: HoruR4CutsceneTrigger
 		master Health=11
 		master Health=9 UltraDefense
 		master TripleJump
+	pickup: HoruR4LaserExp
+		casual Bash Grenade
+		casual ChargeJump
+		casual WallJump DoubleJump
+		casual Climb DoubleJump
+		expert DoubleJump
+		expert DoubleBash
+	conn: HoruR4PuzzleEntrance
+		casual Free
+	conn: R4
+		casual Free
+	conn: HoruR4StompHideout
+		casual Stomp
+		casual Climb ChargeJump
+		standard Free
 home: HoruEscapeOuterDoor
 	conn: HoruEscapeInnerDoor
 	conn: HoruBasement
@@ -3516,6 +3748,11 @@ home: ValleyStomplessApproach
 		expert Dash Climb DoubleJump Energy=2
 		master WallJump TripleJump Health=3
 	conn: ValleyRight
+home: ValleyRightFastStomplessCellWarp
+	pickup: ValleyRightFastStomplessCell
+		casual Free
+	conn: ValleyStomplessApproach
+		casual Free
 home: ValleyStompless
 -- anchored at the fast stompless aim position, rocks intact
 	-- no killplane path
@@ -3675,6 +3912,28 @@ home: ValleyThreeBirdLever
 		expert Health=5
 		expert DoubleBash
 	conn: ValleyStompFloor
+home: VallleyThreeBirdACWarp
+	pickup: ValleyThreeBirdAbilityCell
+		casual Free
+	conn: ValleyEntry
+		casual OpenWorld
+	conn: ValleyThreeBirdLever
+		casual Bash
+		casual Glide Wind
+		casual DoubleJump Glide
+		casual Climb ChargeJump Glide
+		standard DoubleJump AirDash
+		standard ChargeJump DoubleJump Climb
+		standard ChargeJump DoubleJump WallJump Health=4
+		expert RocketJump
+		master TripleJump
+		master GrenadeJump
+	conn: ValleyStompFloor
+		casual Glide
+		casual DoubleJump
+		casual Bash
+		standard AirDash
+		standard Health=4
 home: ValleyStompFloor
 -- anchored above the floor leading to forlorn
 	conn: ValleyForlornApproach
@@ -4018,17 +4277,11 @@ home: WilhelmLedge
 		master ChargeJump Health=4 UltraDefense
 		master WallJump TripleJump
 	pickup: KuroPerchExp
+		-- These assume that you can break the rocks, then get back here, then go down.
 		casual Stomp
+		casual OpenWorld
 		standard Climb ChargeJump
 		standard Lure HoruKey
-		expert ChargeJump WallJump Glide
-		expert ChargeJump WallJump DoubleJump
-		expert ChargeJump Bash
-		expert ChargeJump WallJump AirDash
-		master ChargeJump Glide
-		master ChargeJump DoubleJump
-		master ChargeJump AirDash
-		master Bash
 		glitched ChargeJump
 	conn: SorrowBashLedge
 		casual Bash
@@ -4048,20 +4301,16 @@ home: WilhelmLedge
 		expert ChargeDash
 		master TripleJump
 	conn: ValleyMain
+		-- FIXME Someone create OpenWorld paths here.
 		casual Stomp
 		standard Lure HoruKey
 		standard Climb ChargeJump
-		expert ChargeJump Bash Grenade
-		-- these commented paths hinge on the kill plane not existing
-		-- expert-core ChargeJump WallJump Glide
-		-- expert-core ChargeJump WallJump DoubleJump
-		-- expert-core ChargeJump Bash
-		-- expert-abilities ChargeJump WallJump Dash Ability=3
-		-- master-core ChargeJump Glide
-		-- master-core ChargeJump DoubleJump
-		master ChargeJump AirDash
-		master Bash
 		glitched ChargeJump
+home: WilhelmExpWarp
+	pickup: WilhelmExp
+		casual Free
+	conn: WilhelmLedge
+		casual Free
 home: SorrowBashLedge
 -- anchored on the 
 	conn: LowerSorrow
@@ -4204,6 +4453,17 @@ home: SorrowMapstoneArea
 		standard Lure Mapstone
 	conn: HoruInnerEntrance
 		glitched Dash
+	conn: LowerSorrow
+		casual Stomp
+		casual Climb ChargeJump
+		casual Bash
+		standard Lure Free
+home: SorrowMapstoneWarp
+-- anchored next to the mapstone.
+	pickup: SorrowMapstone
+		casual Free
+	conn: SorrowMapstoneArea
+		casual Free
 home: LeftSorrowLowerDoor
 -- anchored at LowerSorrow, after the door has been opened
 	conn: LeftSorrow
@@ -4286,8 +4546,8 @@ home: LeftSorrowKeystones
 		expert ChargeJump Climb DoubleJump Health=5
 		master Bash
 		master ChargeJump TripleJump Health=4 UltraDefense
-	conn: LeftSorrowMiddleDoor
-		casual Keystone=4
+	conn: LeftSorrowMiddleDoorClosed
+		casual Free
 	conn: MiddleSorrow
 		standard Bash Dash DoubleJump Climb
 		standard Bash Dash DoubleJump WallJump
@@ -4298,7 +4558,17 @@ home: LeftSorrowKeystones
 		master ChargeJump Stomp AirDash Climb
 		master ChargeJump Stomp ChargeDash WallJump
 		master ChargeJump Stomp TripleJump Climb
-home: LeftSorrowMiddleDoor
+	conn: LeftSorrow
+		casual Glide
+		standard AirDash
+		standard DoubleJump
+		standard BashGrenade
+		standard Climb ChargeJump
+		expert Health=5
+home: LeftSorrowMiddleDoorClosed
+	conn: LeftSorrowMiddleDoorOpen
+		casual Keystone=4
+home: LeftSorrowMiddleDoorOpen
 -- anchored at the top of the keystone section
 	conn: MiddleSorrow
 		casual Glide Bash Stomp WallJump
@@ -4313,6 +4583,74 @@ home: LeftSorrowMiddleDoor
 		master Bash ChargeDash ChargeJump Climb
 		master Bash Climb ChargeJump TripleJump Health=4 UltraDefense
 		glitched Dash
+	conn: LeftSorrowKeystones
+		casual Stomp DoubleJump
+		casual Climb ChargeJump DoubleJump
+		standard Stomp BashGrenade
+		standard Climb ChargeJump
+		standard Stomp AirDash Climb
+		standard Stomp AirDash WallJump
+		expert Stomp Dash Climb
+		expert Stomp Dash WallJump
+		expert Stomp ChargeDash Energy=1
+		expert Stomp Health=5
+		expert BashGrenade ChargeJump
+home: LeftSorrowTumbleweedDoorWarp
+-- anchored at the left side of the keystone door, door closed (at -595, 385)
+	conn: LeftSorrowMiddleDoorClosed
+		casual Free
+	pickup: LeftSorrowEnergyCell
+		casual Glide
+		casual BashGrenade WallJump
+		casual BashGrenade Climb
+		casual BashGrenade DoubleJump
+		casual WallJump DoubleJump
+		casual Climb DoubleJump
+		casual ChargeJump DoubleJump
+		standard BashGrenade
+		standard AirDash WallJump
+		standard AirDash Climb
+		standard AirDash ChargeJump
+		expert AirDash DoubleJump
+	pickup: LeftSorrowKeystone1
+		-- bottom keystone
+		casual Glide
+		expert DoubleJump WallJump
+		expert DoubleJump Climb
+		expert AirDash Climb Health=5
+		expert AirDash WallJump Health=5
+		expert BashGrenade Climb Health=5
+		expert BashGrenade WallJump Health=5
+	pickup: LeftSorrowKeystone2
+		-- for casual/standard these paths assume you also get both keystone3 and keystone4.
+		casual Glide
+		standard DoubleJump WallJump
+		standard DoubleJump Climb
+		standard AirDash WallJump
+		standard AirDash Climb
+		expert BashGrenade Climb
+		expert BashGrenade WallJump
+	pickup: LeftSorrowKeystone3
+		casual Glide
+		casual DoubleJump
+		-- Below is expert so in standard people don't need to do 2 trips here for suicide jumps.
+		expert Free
+	pickup: LeftSorrowKeystone4
+		-- top keystone
+		casual Glide
+		casual ChargeJump
+		casual BashGrenade
+		casual DoubleJump
+		standard Free
+	conn: LeftSorrowKeystones
+		-- Health=5 so you can get all the keystones on the way down.
+		casual Glide
+		expert DoubleJump WallJump
+		expert DoubleJump Climb
+		expert AirDash Climb Health=5
+		expert AirDash WallJump Health=5
+		expert BashGrenade Climb Health=5
+		expert BashGrenade WallJump Health=5
 home: MiddleSorrow
 -- anchored above the breakable floor in the main shaft
 -- floor is broken if going up, not if coming down from the teleporter
@@ -4571,6 +4909,18 @@ home: MistyEntrance
 		expert ChargeDash Energy=4
 		master Bash
 		master GrenadeJump Health=4
+	conn: ValleyTeleporter
+		casual Glide Wind OpenWorld
+		casual ChargeJump Glide DoubleJump WallJump OpenWorld
+		casual ChargeJump Glide DoubleJump Climb OpenWorld
+		standard BashGrenade DoubleJump WallJump OpenWorld
+		standard BashGrenade DoubleJump Climb OpenWorld
+		standard BashGrenade AirDash WallJump OpenWorld
+		standard BashGrenade AirDash Climb OpenWorld
+		expert BashGrenade AirDash OpenWorld
+		expert BashGrenade DoubleJump OpenWorld
+	conn: LowerValley
+		casual OpenWorld
 home: MistyPostFeatherTutorial
 	-- anchor point: right of the first keystone before the scene transition
 	pickup: MistyFrogNookExp

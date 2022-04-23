@@ -444,7 +444,8 @@ def ori_load(lines, verbose=False):
 
     for home in contents["homes"].keys():
         if home not in connected:
-            _parsewarn(0, "home `%s` is not connected from any home!" % home)
+            if not home.endswith("Warp"):
+                _parsewarn(0, "home `%s` is not connected from any home!" % home)
 
     # The existence of paths to homes that don't otherwise exist.
     for area in contents["homes"].keys():
@@ -523,7 +524,7 @@ if __name__ == "__main__":
     import sys
     fn = sys.argv[1]
     ori_load_file(fn, True)
-    contents = ori_load_file(fn, True)
+    #contents = ori_load_file(fn, True)
     #check_for_reverse_connections(contents)
     pp = pprint.PrettyPrinter(indent=4)
     #pp.pprint(contents)

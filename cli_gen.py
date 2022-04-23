@@ -36,6 +36,7 @@ class CLISeedParams(object):
     def from_cli(self):
         parser = argparse.ArgumentParser()
         parser.add_argument("--output-dir", help="directory to put the seeds in", type=str, default=".")
+        parser.add_argument("--output-number", help="number to be placed in randomizer0.dat", type=str, default="0")
         parser.add_argument("--preset", help="Choose a preset group of paths for the generator to use")
         parser.add_argument("--custom-logic", help="Customize paths that the generator will use, comma-separated: %s" % ", ".join(vals(LogicPath)))
         parser.add_argument("--seed", help="Seed value (default 'test')", type=str, default="test")
@@ -65,6 +66,9 @@ class CLISeedParams(object):
         parser.add_argument("--world-tour", help="Prevent Ori from entering the final escape until collecting one relic from each of the zones in the world. Recommended default: 8", type=int)
         parser.add_argument("--warmth-frags", help="Prevent Ori from entering the final escape until collecting some number of warmth fragments. Recommended default: 40", type=int)
         parser.add_argument("--keys-only-for-doors", help="Keys are only logically used for opening doors. They do not gate pickups within the dungeons otherwise.", action="store_true")
+        parser.add_argument("--warps-instead-of-tps", help="Replace up to X teleporters with warps to those areas.", type=int)
+        parser.add_argument("--in-logic-warps", help="Warps will be in logic, so going to the warp's target is expected.", action="store_true")
+        parser.add_argument("--add-warps", help="Add X random warps.", type=int)
         # misc
         parser.add_argument("--verbose-paths", help="print every logic path in the flagline for debug purposes", action="store_true")
         parser.add_argument("--exp-pool", help="Size of the experience pool (default 10000)", type=int, default=10000)
@@ -111,9 +115,9 @@ class CLISeedParams(object):
         # variations (help)
         varMap = {
             "zeroxp": "0XP", "non_progressive_mapstones": "NonProgressMapStones", "ohko": "OHKO", "force_trees": "ForceTrees", "starved": "Starved",
-            "force_mapstones": "ForceMapStones", "entrance": "Entrance", "open_world": "OpenWorld", "easy": "DoubleSkills", "strict_mapstones": "StrictMapstones",
+            "force_mapstones": "ForceMaps", "entrance": "Entrance", "open_world": "OpenWorld", "easy": "DoubleSkills", "strict_mapstones": "StrictMapstones",
             "warmth_frags": "WarmthFrags", "world_tour": "WorldTour", "closed_dungeons": "ClosedDungeons", "tp_starved": "TPStarved", "wall_starved": "WallStarved",
-            "keys_only_for_doors": "KeysOnlyForDoors"
+            "keys_only_for_doors": "KeysOnlyForDoors", "warps_instead_of_tps": "WarpsInsteadOfTPs", "in_logic_warps": "InLogicWarps", "add_warps": "AddWarps"
         }
         self.variations = []
         for argName, flagStr in varMap.items():
@@ -128,6 +132,10 @@ class CLISeedParams(object):
         if Variation.WARMTH_FRAGMENTS in self.variations:
             self.frag_count = args.warmth_frags
             self.frag_extra = args.extra_frags
+        if Variation.WARPS_INSTEAD_OF_TPS in self.variations:
+            self.warps_instead_of_tps = args.warps_instead_of_tps
+        if Variation.ADD_WARPS in self.variations:
+            self.add_warps = args.add_warps
         #misc
         self.exp_pool = args.exp_pool
         if args.prefer_path_difficulty:
@@ -142,6 +150,7 @@ class CLISeedParams(object):
         self.players = args.players
         self.tracking = args.tracking or False
         self.sync = CLIMultiOptions()
+        
         if Variation.EXTRA_BONUS_PICKUPS in self.variations:
             self.pool_preset = "Extra Bonus"
             self.item_pool = {
@@ -288,8 +297,12 @@ class CLISeedParams(object):
                 seedfile = "randomizer_%s.dat" % player
                 spoilerfile = "spoiler_%s.txt" % player
                 if self.players == 1:
-                    seedfile = "randomizer" + str(count) + ".dat"
-                    spoilerfile = "spoiler" + str(count) + ".txt"
+                    if args.output_number != "0":
+                        seedfile = "randomizer" + args.output_number + ".dat"
+                        spoilerfile = "spoiler" + args.output_number + ".txt"
+                    else:
+                        seedfile = "randomizer" + str(count) + ".dat"
+                        spoilerfile = "spoiler" + str(count) + ".txt"
 
                 if not self.do_analysis and not self.do_loc_analysis:
                     with open(args.output_dir+"/"+seedfile, 'w') as f:
