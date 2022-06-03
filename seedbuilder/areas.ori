@@ -2287,7 +2287,7 @@ home: Swamp 718 -134
 		casual-core Water
 		master-dboost Health=15
 		master-dboost Health=7 Ability=12
-home: SwampKeyDoorPlatform 776 -129
+home: SwampKeyDoorPlatform 757 -135
 	-- anchor: right next to the key door
 	pickup: InnerSwampStompExp
 		casual-core Stomp Water
@@ -2298,16 +2298,20 @@ home: SwampKeyDoorPlatform 776 -129
 		expert-abilities ChargeJump Dash Ability=3 Water
 		master-lure Bash Health=3
 		master-lure Bash Water
-	conn: SwampKeyDoorOpened
-		casual-core Keystone=2
+	conn: SwampKeyDoorClosed
 	conn: InnerSwampSkyArea
 		casual-core Wind Glide
 		standard-core ChargeJump Climb Glide
 		standard-core ChargeJump Climb DoubleJump
 		dbash Bash
 		gjump ChargeJump Climb Grenade
+home: SwampKeyDoorClosed 792 -129
+	-- anchor: at the key door, either side, door closed
+	conn: SwampKeyDoorOpened
+		casual-core Keystone=2
 home: SwampKeyDoorOpened 804 -130
 	-- anchor: at the key door after opening it
+	conn: SwampKeyDoorPlatform
 	conn: RightSwamp
 		casual-core WallJump DoubleJump Bash
 		casual-core Climb ChargeJump Bash
@@ -2444,6 +2448,40 @@ home: RightSwamp 867 -89
 		master-dboost Grenade DoubleJump Stomp Health=4
 		master-dboost Grenade DoubleJump Health=5
 		gjump Grenade Water Climb ChargeJump
+	conn: SwampKeyDoorClosed
+		-- down the right side with the rhino
+		casual-core Open Water DoubleJump Bash Stomp
+		casual-core Open Water DoubleJump Stomp ChargeJump
+		casual-core Open WallJump DoubleJump Bash Stomp
+		casual-core Open WallJump DoubleJump Stomp ChargeJump
+		casual-core Open WallJump Bash Stomp Glide
+		casual-core Open WallJump Stomp Glide ChargeJump
+		casual-core Open DoubleJump Bash Stomp Climb
+		casual-core Open DoubleJump Stomp Climb ChargeJump
+		casual-core Open Bash Stomp Glide Climb
+		standard-core Open Water Bash Stomp
+		standard-core Open Water Stomp ChargeJump
+		expert-dboost Open Climb DoubleJump Stomp Dash Ability=3 Health=3 -- updash from left wall *updash
+		expert-abilities Open Stomp Dash Ability=6 Energy=1 -- refresh airdash on walls *rjump=1
+		expert-dboost Open WallJump DoubleJump Stomp Health=3
+		master-dboost Open DoubleJump Stomp Health=3
+		-- up and around the left side over the spikes
+		casual-core Open Water Bash Glide Grenade
+		casual-core Open Glide Climb ChargeJump
+		casual-dboost Open Water ChargeJump Health=3
+		casual-dboost Open WallJump DoubleJump ChargeJump Health=3
+		casual-dboost Open DoubleJump Climb ChargeJump Health=3
+		standard-core Open Water Bash Grenade
+		standard-core Open DoubleJump Bash Grenade -- refresh double jump on walls
+		standard-core Open Bash Dash Grenade Ability=3 -- refresh airdash on walls *airdash
+		standard-dboost Open Bash Grenade Health=3
+		expert-core Open Bash Grenade -- throw grenade then jump after it
+		expert-abilities Open Dash Ability=6 Energy=2 -- refresh airdash on walls *rjump=1 *cdash=1 *airdash
+		expert-dboost Open ChargeJump Health=4
+		dbash Open Bash
+		master-dboost Open ChargeJump Health=3
+		master-dboost DoubleJump Ability=12 Health=4 -- 1.5 from brambles, 0.5 from mortar, 1.5 from brambles
+		gjump Open Grenade Climb ChargeJump
 home: HoruFields 171 -20
 	-- anchor: just left of the baneling wall
 	conn: HoruFieldsPushBlock
