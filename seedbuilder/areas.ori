@@ -2282,7 +2282,7 @@ home: Swamp 718 -134
 		casual-core Bash Grenade
 		casual-core ChargeJump
 		casual-dboost Free
-		standard-core Dash
+		standard-core Dash -- *dashglide
 	conn: SwampWater
 		casual-core Water
 		master-dboost Health=15
@@ -2305,6 +2305,14 @@ home: SwampKeyDoorPlatform 757 -135
 		standard-core ChargeJump Climb DoubleJump
 		dbash Bash
 		gjump ChargeJump Climb Grenade
+	conn: Swamp
+		casual-core Water
+		casual-core DoubleJump
+		casual-core Glide
+		casual-core Bash Grenade
+		casual-core ChargeJump
+		casual-dboost Health=3
+		standard-core Dash -- *dashglide
 home: SwampKeyDoorClosed 792 -129
 	-- anchor: at the key door, either side, door closed
 	conn: SwampKeyDoorOpened
