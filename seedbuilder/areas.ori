@@ -2425,6 +2425,8 @@ home: RightSwamp 867 -89
 	pickup: StompAreaRoofExp
 		casual-core ChargeJump
 		dbash Bash
+		-- insane ChargeFlame DoubleJump Stomp Grenade Ability=12 Health=4 -- preplace grenade, then jump to the left and redirect mortar shot into grenade
+		-- insane ChargeFlame DoubleJump Stomp Glide Dash Ability=12 Health=6 -- redirect with cflame and stall with stomp several times
 	pickup: StompAreaGrenadeExp
 		casual-core Grenade Water Bash Stomp
 		casual-core Grenade Water Bash Glide
