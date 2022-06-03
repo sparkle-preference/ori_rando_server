@@ -2420,7 +2420,7 @@ home: RightSwamp 867 -89
 		casual-core Bash
 		standard-core Climb ChargeJump
 		expert-core ChargeFlame
-		expert-abilities Dash Ability=6 Energy=1
+		expert-abilities Dash Ability=6 Energy=1 -- *cdash=1
 		master-core Grenade
 	pickup: StompAreaRoofExp
 		casual-core ChargeJump
@@ -2428,27 +2428,27 @@ home: RightSwamp 867 -89
 		-- insane ChargeFlame DoubleJump Stomp Grenade Ability=12 Health=4 -- preplace grenade, then jump to the left and redirect mortar shot into grenade
 		-- insane ChargeFlame DoubleJump Stomp Glide Dash Ability=12 Health=6 -- redirect with cflame and stall with stomp several times
 	pickup: StompAreaGrenadeExp
-		casual-core Grenade Water Bash Stomp
+		casual-core Grenade Water Bash Stomp -- adjust: too tight for casual
 		casual-core Grenade Water Bash Glide
-		casual-core Grenade Water ChargeJump Stomp
+		casual-core Grenade Water ChargeJump Stomp -- adjust: too tight for casual
 		casual-core Grenade Water ChargeJump Climb Glide
 		casual-dboost Grenade Water ChargeJump
-		standard-core Grenade Water Bash DoubleJump
-		standard-dboost Grenade Water Bash Health=3
-		expert-abilities Grenade Water Dash Ability=6 Energy=3
-		expert-abilities Grenade Water Stomp Dash Ability=6
-		expert-dboost Grenade Water Climb DoubleJump Stomp Dash Ability=3 Health=3
+		standard-core Grenade Water Bash DoubleJump -- adjust: fairly easy without doublejump
+		standard-dboost Grenade Water Bash Health=3 -- adjust: fairly easy without dboost
+		expert-abilities Grenade Water Dash Ability=6 Energy=3 -- *rjump=1 *cdash=1
+		expert-abilities Grenade Water Stomp Dash Ability=6 -- *rjump=1
+		expert-dboost Grenade Water Climb DoubleJump Stomp Dash Ability=3 Health=3 -- *airdash
 		expert-dboost Grenade Water WallJump DoubleJump Stomp Health=3
 		expert-dboost Grenade Bash Health=3
 		expert-dboost Grenade ChargeJump Health=4
-		expert-dboost Grenade Dash Ability=6 Health=4 Energy=3
-		expert-dboost Grenade Climb DoubleJump Stomp Dash Ability=3 Health=4
+		expert-dboost Grenade Dash Ability=6 Health=4 Energy=3 -- *rjump=1 *cdash=1
+		expert-dboost Grenade Climb DoubleJump Stomp Dash Ability=3 Health=4 -- *updash
 		expert-dboost Grenade WallJump DoubleJump Stomp Health=4
-		dbash Grenade Water Bash
+		dbash Grenade Water Bash -- adjust: doesn't require dbash
 		master-dboost Grenade Water DoubleJump Stomp Health=5
 		master-dboost Grenade Water DoubleJump Ability=12 Health=5
 		master-dboost Grenade DoubleJump Stomp Health=4
-		master-dboost Grenade DoubleJump Health=5
+		master-dboost Grenade DoubleJump Health=5 -- assumption: can Alt+R and enter from ks door
 		gjump Grenade Water Climb ChargeJump
 	conn: SwampKeyDoorClosed
 		-- down the right side with the rhino
