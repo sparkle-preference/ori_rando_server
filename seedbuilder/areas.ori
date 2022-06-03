@@ -2273,7 +2273,7 @@ home: Swamp 718 -134
 		master-dboost WallJump Dash Health=7 Ability=12
 		master-dboost Climb Dash Health=7 Ability=12
 	conn: SwampDrainlessArea
-		casual-core Stomp
+		casual-core Stomp -- adjust: that doesn't work
 		expert-core ChargeJump Climb
 	conn: SwampKeyDoorPlatform
 		casual-core Water
@@ -2354,6 +2354,10 @@ home: SwampKeyDoorOpened 804 -130
 home: SwampDrainlessArea 649 -126
 	-- anchor: in the triforce nook next to the ability cell
 	pickup: SwampEntranceAbilityCell
+	conn: Swamp
+		casual-core ChargeJump
+	conn: SwampEntryArea
+		casual-core ChargeJump
 home: InnerSwampAboveDrainArea 605 -146
 	-- anchor: in the drain room, on the spike ledge, with the drain intact
 	conn: InnerSwampDrainBroken
@@ -2401,7 +2405,7 @@ home: InnerSwampSkyArea 726 -95
 	pickup: InnerSwampEnergyCell
 	conn: Swamp
 	conn: SwampKeyDoorPlatform
-home: SwampWater 728 -174
+home: SwampWater 728 -174 -- *submerged
 	-- anchor: logically in the water, close to any underwater pickup
 	pickup: InnerSwampHiddenSwimExp
 	pickup: InnerSwampSwimLeftKeystone
