@@ -1104,6 +1104,17 @@ home: GrenadeAreaAccess 259 -381
 		standard-core Bash Grenade
 		expert-abilities Dash Ability=3
 		dbash Bash
+	conn: RazielNoArea
+		-- needs to be able to open the timed gate as well
+		casual-core WallJump DoubleJump ChargeJump Dash
+		standard-core Climb ChargeJump Dash
+		standard-core Bash Climb Glide ChargeJump Grenade
+		standard-abilities WallJump DoubleJump ChargeJump
+		standard-abilities Climb ChargeJump
+		standard-abilities WallJump Glide ChargeJump
+		-- standard-abilities Climb Glide ChargeJump Health=3 -- needs rekindle and dboost
+		expert-core Climb ChargeJump
+		expert-core Bash ChargeJump Grenade -- 3 grenades barely makes it up to the laser
 home: GrenadeArea 195 -385
 	-- anchor: just past the laser
 	pickup: GrenadeSkillTree
@@ -1141,6 +1152,16 @@ home: GrenadeArea 195 -385
 		standard-core Bash Grenade
 		expert-abilities Dash Grenade Ability=6
 		master-core ChargeJump Grenade
+	conn: GrenadeAreaAccess
+		casual-core Dash
+		expert-core Bash Grenade
+		dbash WallJump Bash -- use bird or baneling
+		dbash DoubleJump Bash -- use bird or baneling
+		dbash Bash Climb -- use bird or baneling
+		dbash Bash ChargeJump -- use bird or baneling
+		gjump Climb ChargeJump Grenade
+		glitched Free
+	-- conn: RazielNoArea dbash baneling
 home: LowerBlackroot 281 -387
 	-- anchor: just past the spike pit, directly below the ability cell
 	pickup: LowerBlackrootAbilityCell
