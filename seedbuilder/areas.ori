@@ -1402,7 +1402,7 @@ home: OuterSwampLowerArea 528 -113
 		casual-core Climb
 		casual-core Bash
 		casual-core ChargeJump
-		casual-core Glide Wind
+		casual-core Glide Wind -- adjust: there is no wind in this area
 		casual-core DoubleJump
 home: OuterSwampMortarAbilityCellLedge 505 -106
 	-- anchor: on the ability cell ledge
@@ -1815,11 +1815,13 @@ home: MoonGrottoAboveTeleporter 448 -148
 		expert-core ChargeFlame
 	conn: MoonGrottoSwampAccessArea
 		casual-core ChargeJump DoubleJump
+		casual-core Glide ChargeJump
 		casual-core Bash
-		casual-dboost DoubleJump
+		casual-dboost DoubleJump -- adjust: spikes deal 3 damage, augmented dboost is not casual
+		standard-core DoubleJump Glide
 		standard-dboost ChargeJump Health=3
-		expert-dboost Dash Health=4
-		expert-abilities Dash Ability=6
+		expert-dboost Dash Health=4 -- *dashglide
+		expert-abilities Dash Ability=6 -- *cdash=1 *dashglide
 		gjump ChargeJump Climb Grenade
 	conn: MoonGrotto
 	conn: DeathGauntletRoof
@@ -1934,6 +1936,20 @@ home: MoonGrottoSwampAccessArea 549 -158
 		expert-lure WallJump ChargeFlame
 		expert-lure Climb ChargeFlame
 		master-lure DoubleJump Grenade
+	conn: MoonGrottoAboveTeleporter
+		casual-core DoubleJump ChargeJump
+		casual-core Glide ChargeJump
+		casual-core Bash
+		standard-core DoubleJump Glide
+		standard-dboost DoubleJump Health=3
+		standard-dboost ChargeJump Health=3 -- *augmented
+		standard-dboost Dash Health=4 -- *dashglide
+		expert-core DoubleJump
+		expert-dboost Dash Health=3 -- *dashglide *augmented
+		expert-abilities Dash Ability=6 Energy=1 -- *cdash=1 *dashglide
+		master-core Dash -- *dashglide *dashramp
+		master-dboost Health=3 -- *augmented 2 from projectile, heal 1, swing spider, 1 from spider
+		gjump ChargeJump Climb Grenade
 home: SideFallCell 462 -298
 	-- anchor: at the ability cell midway down the fall
 	pickup: GrottoHideoutFallAbilityCell
@@ -2264,10 +2280,10 @@ home: Swamp 718 -134
 		expert-abilities Water Climb Grenade Stomp Dash Ability=3
 		expert-abilities Water Climb Dash Ability=6
 		master-core Water DoubleJump
-		master-lure Water Bash
+		master-lure Water Bash -- *dbash
 		master-dboost Climb ChargeJump Health=7 Ability=12
 		master-dboost DoubleJump Health=7 Ability=12
-		master-dboost Bash Health=7 Ability=12
+		master-dboost Bash Health=7 Ability=12 -- *dbash *lure
 		master-dboost WallJump Glide Stomp ChargeFlame Health=7 Ability=12
 		master-dboost WallJump Glide Stomp Grenade Health=7 Ability=12
 		master-dboost WallJump Dash Health=7 Ability=12
@@ -2287,6 +2303,12 @@ home: Swamp 718 -134
 		casual-core Water
 		master-dboost Health=15
 		master-dboost Health=7 Ability=12
+	conn: MoonGrottoSwampAccessArea
+		casual-core Water ChargeFlame WallJump DoubleJump Stomp
+		casual-core Water ChargeFlame Climb DoubleJump Stomp
+		casual-core Water DoubleJump Bash Stomp Grenade
+		casual-core Water Bash Stomp Glide Grenade
+		standard-dboost Water Bash Stomp Grenade Health=4
 home: SwampKeyDoorPlatform 757 -135
 	-- anchor: right next to the key door
 	pickup: InnerSwampStompExp
@@ -2351,6 +2373,7 @@ home: SwampKeyDoorOpened 804 -130
 		master-dboost DoubleJump Health=7
 		master-abilities DoubleJump Dash Ability=6 Energy=2
 		gjump Climb ChargeJump Grenade
+		-- unverified: conn: SwampEntryArea dbash Bash -- does the mortar projetile despawn?
 home: SwampDrainlessArea 649 -126
 	-- anchor: in the triforce nook next to the ability cell
 	pickup: SwampEntranceAbilityCell
