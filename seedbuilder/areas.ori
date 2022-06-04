@@ -2232,20 +2232,52 @@ home: GumoHideoutRedirectArea 458 -406
 	conn: GumoHideoutRedirectEnergyVault
 		casual-core Energy=4
 		glitched Free
+	conn: GumoHideout
+		casual-core WallJump DoubleJump
+		casual-core WallJump Bash
+		casual-core WallJump Glide
+		casual-core WallJump ChargeJump
+		casual-core DoubleJump Climb
+		casual-core Bash Grenade
+		casual-core Glide Climb
+		casual-core Climb ChargeJump
+		casual-core Climb Bash
+		standard-core WallJump Dash -- *dashglide
+		standard-core Climb Dash -- *dashglide
+		expert-core WallJump -- respawn iframes
+		expert-core Climb -- respawn iframes
+		master-core DoubleJump
 home: GumoHideoutRedirectEnergyVault 490 -453
 	-- anchor: beyond the energy door or otherwise able to bypass the laser
 	pickup: GumoHideoutRedirectEnergyCell
-		casual-core WallJump
+		casual-core WallJump -- adjust: a bit tight for casual
 		casual-core Climb Glide
 		casual-core Climb DoubleJump
 		casual-core ChargeJump
 		casual-core Bash Grenade
+		standard-core Bash
+		standard-dboost Climb Health=3
+		master-core DoubleJump
 	pickup: GumoHideoutRedirectExp
-		casual-core WallJump
+		casual-core WallJump -- adjust: a bit tight for casual
 		casual-core Climb Glide
 		casual-core Climb DoubleJump
 		casual-core ChargeJump
 		casual-core Bash Grenade
+		standard-core Bash
+		standard-dboost Climb Health=3
+		master-core DoubleJump
+	conn: GumoHideoutRedirectArea
+		casual-core WallJump DoubleJump
+		casual-core WallJump Glide
+		casual-core DoubleJump Climb
+		casual-core Glide Climb
+		standard-core WallJump
+		standard-core Bash Grenade
+		standard-core Climb ChargeJump
+		standard-dboost Climb Health=3
+		dbash Bash
+		master-core DoubleJump
 home: SwampEntryArea 593 -125
 	-- anchor: on the island with the energy crystal
 	pickup: SwampEntranceSwim
