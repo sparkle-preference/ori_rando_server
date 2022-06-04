@@ -1321,7 +1321,7 @@ home: HollowGrove 336 -91
 		master-lure DoubleJump
 		master-lure WallJump Glide
 		master-lure Dash Ability=6
-home: SwampTeleporter 496 -77
+home: SwampTeleporter 497 -72
 	-- anchor: on the swamp teleporter
 	conn: HollowGrove
 	conn: OuterSwampMortarAbilityCellLedge
@@ -1341,6 +1341,7 @@ home: OuterSwampUpperArea 639 -51
 		casual-core DoubleJump
 		standard-core Free
 	conn: OuterSwampLowerArea
+	conn: HollowGrove
 home: OuterSwampAbilityCellNook 663 -81
 	-- anchor: on the ledge near the ability cell
 	pickup: OuterSwampAbilityCell
@@ -1419,6 +1420,7 @@ home: OuterSwampMortarPlantAccess 522 -101
 home: GinsoOuterDoor 527 -39
 	-- anchor: just outside the ginso door, unlocked
 	conn: GinsoInnerDoor
+	conn: OuterSwampUpperArea
 home: GinsoInnerDoor 522 5
 	-- anchor: Just inside the Ginso tree door after putting in the water vein
 	conn: LowerGinsoTree
@@ -1429,6 +1431,7 @@ home: GinsoInnerDoor 522 5
 		master-core DoubleJump
 		master-abilities Dash WallJump Ability=6
 		master-abilities Dash Climb Ability=6
+	conn: GinsoOuterDoor
 home: LowerGinsoTree 510 103
 	-- anchor: At the top of the second room near the flower
 	pickup: LowerGinsoHiddenExp
