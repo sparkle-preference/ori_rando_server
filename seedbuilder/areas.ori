@@ -2645,6 +2645,21 @@ home: HoruFieldsPushBlock 70 9
 		master-abilities WallJump DoubleJump Ability=12
 	conn: HollowGrove
 		master-lure Bash
+	conn: HoruOuterDoor
+		casual-core WallJump Glide
+		casual-core Glide Climb
+		casual-core Glide ChargeJump
+		casual-core Bash Glide Grenade
+		casual-core DoubleJump Bash Grenade
+		standard-core Bash Grenade
+		standard-core DoubleJump Dash -- *dashglide
+		expert-core WallJump Dash -- *dashglide
+		expert-core Climb Dash -- *dashglide
+		expert-core ChargeJump Dash -- *dashglide
+		expert-abilities Dash Ability=6 Energy=2 -- *cdash=2
+		dbash Bash
+		master-core DoubleJump Ability=12 -- *triplejump
+		gjump Climb ChargeJump Grenade
 home: HoruOuterDoor -78 1
 	conn: HoruInnerDoor
 		casual-core HoruKey
@@ -3260,6 +3275,7 @@ home: HoruR4CutsceneTrigger 224 195
 		master-abilities DoubleJump Ability=12
 home: HoruEscapeOuterDoor 19 104
 	conn: HoruEscapeInnerDoor
+	conn: HoruBasement
 home: HoruEscapeInnerDoor -188 447
 home: ValleyEntry -178 -113
 -- anchored just left of the charge flame wall to valley
