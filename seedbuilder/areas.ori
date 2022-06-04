@@ -1169,7 +1169,8 @@ home: LowerBlackroot 281 -387
 		casual-core Bash Grenade
 		expert-dboost DoubleJump Health=5
 		expert-abilities Dash Ability=6
-		master-core DoubleJump
+		master-core DoubleJump -- adjust: does not seem possible without a dboost, even with iframes
+		master-lure Bash -- bring frog up then use its projectile
 	pickup: LowerBlackrootLaserAbilityCell
 		casual-core Dash Bash Grenade
 		standard-core Dash DoubleJump
@@ -1207,6 +1208,23 @@ home: LowerBlackroot 281 -387
 		casual-core ChargeJump Grenade
 		casual-core Bash Grenade
 		expert-core DoubleJump Grenade
+	conn: GrenadeAreaAccess
+		casual-core WallJump DoubleJump
+		casual-core WallJump Bash Grenade
+		casual-core DoubleJump Climb
+		casual-core Bash Climb Grenade
+		casual-dboost WallJump
+		casual-dboost Climb
+		casual-dboost ChargeJump
+		standard-core Bash Grenade
+		standard-abilities WallJump Dash Ability=3 -- *airdash
+		standard-abilities Climb Dash Ability=3 -- *airdash
+		expert-abilities Dash Ability=6 Energy=1 -- *airdash *rjump
+		dbash WallJump Bash
+		dbash Bash Climb
+		master-core DoubleJump
+		master-lure Bash -- *dbash bring frog up, then use its projectile
+		gjump Climb ChargeJump Grenade
 home: LostGrove 425 -537
 	-- anchor: on the ground just right of the lake, door is closed
 	pickup: LostGroveLongSwim
