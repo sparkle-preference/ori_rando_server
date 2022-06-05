@@ -854,7 +854,12 @@ home: SpiderSacArea 94 -127
 	conn: SpiderWaterArea
 		casual-core DoubleJump
 		casual-core Glide
+		standard-core Climb ChargeJump
+		standard-core Bash Grenade -- throw grenade then fall after it
+		expert-core WallJump Bash -- redirect spider shot down then fall after it
+		expert-core Bash Climb -- redirect spider shot down then fall after it
 		expert-abilities Dash Ability=3
+		master-lure ChargeFlame Bash -- lure and split the swarm then bash off small one
 	conn: SpiderSacEnergyNook
 		casual-core DoubleJump
 		casual-core Glide
@@ -876,6 +881,16 @@ home: SpiderSacArea 94 -127
 home: SpiderSacEnergyNook 66 -153
 	-- anchor: in the nook where the energy cell is
 	pickup: SpiderSacEnergyCell
+	conn: SpiderSacArea
+		expert-abilities Dash Ability=6 Energy=1 -- *rjump=1
+		standard-core Climb ChargeJump
+		dbash Bash
+	conn: SpiderWaterArea
+		standard-core DoubleJump Bash
+		standard-core Bash Glide
+		standard-core Climb ChargeJump
+		standard-core Bash Grenade
+		dbash Bash
 	conn: ChargeFlameAreaPlantAccess
 		master-abilities ChargeFlame Ability=3
 home: SpiderWaterArea 152 -143
@@ -4186,6 +4201,7 @@ home: SorrowMapstoneArea -432 301
 		casual-core Stomp Mapstone
 		casual-core Bash Mapstone
 		standard-lure Mapstone
+	conn: LowerSorrow
 	conn: HoruInnerDoor
 		glitched Dash
 home: LeftSorrowLowerDoor -591 262
