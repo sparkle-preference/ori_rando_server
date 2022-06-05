@@ -4571,6 +4571,13 @@ home: MistyEntrance -708 -22
 		expert-abilities Dash Ability=6 Energy=4
 		master-core Bash
 		gjump Climb ChargeJump Grenade Health=4
+	conn: LowerValley
+		casual-core DoubleJump
+		casual-core ChargeJump
+		casual-core Bash Grenade
+		standard-lure Bash
+		expert-abilities Dash Ability=6 Energy=1 -- *rjump=1
+		master-lure Stomp -- stomp on bird
 home: MistyPostFeatherTutorial -1049 25
 	-- anchor point: right of the first keystone before the scene transition
 	pickup: MistyFrogNookExp
@@ -4807,6 +4814,11 @@ home: MistyOrbRoom -849 -49
 		casual-core Bash Grenade
 		casual-core ChargeJump
 		master-core DoubleJump
+	conn: MistyEntrance
+		casual-core WallJump
+		casual-core Climb
+		casual-core DoubleJump
+		casual-core Bash
 home: MistyPreKeystone2 -983 -32
 	pickup: MistyKeystone2
 	pickup: MistyAbilityCell
