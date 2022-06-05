@@ -1251,14 +1251,16 @@ home: LostGrove 425 -537
 		casual-core Grenade Bash DoubleJump Climb
 		casual-dboost Grenade ChargeJump DoubleJump WallJump
 		casual-dboost Grenade ChargeJump DoubleJump Climb
-		expert-core Grenade Bash WallJump
-		expert-core Grenade Bash Climb
+		standard-dboost Bash Climb ChargeJump Grenade Health=3
+		expert-core Grenade Bash WallJump -- bounce grenade on upper bouncepad then catch it
+		expert-core Grenade Bash Climb -- bounce grenade on upper bouncepad then catch it
 		expert-core Grenade Glide ChargeJump Climb
 		expert-dboost Grenade ChargeJump WallJump Health=7
 		expert-dboost Grenade ChargeJump Climb Health=7
 		expert-dboost Grenade Dash ChargeJump WallJump
 		expert-dboost Grenade Glide ChargeJump WallJump
 		expert-abilities Grenade Dash ChargeJump Climb Ability=3
+		master-core Bash Grenade -- bounce grenade on upper bouncepad then catch it
 		master-abilities Grenade DoubleJump WallJump Ability=12
 		master-abilities Grenade DoubleJump Climb Ability=12
 		gjump Grenade ChargeJump Climb
@@ -1852,9 +1854,9 @@ home: MoonGrottoAboveTeleporter 448 -148
 	pickup: LeftGrottoTeleporterExp
 		casual-core WallJump DoubleJump
 		casual-core Climb DoubleJump ChargeJump
-		expert-core Grenade Bash
+		standard-core Bash Grenade
+		standard-dboost ChargeJump Health=4
 		expert-core Climb ChargeJump
-		expert-dboost ChargeJump Health=4
 		expert-dboost WallJump Glide Health=4
 		expert-dboost Climb Glide Health=4
 		expert-dboost DoubleJump Glide Health=4
