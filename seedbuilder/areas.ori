@@ -4141,16 +4141,20 @@ home: LowerSorrow -488 255
 		master-dboost ChargeJump Health=10 Ability=12
 	-- backtrack connection for leaving from TP
 	conn: WilhelmLedge
+		casual-core Wind Glide
 		casual-core Glide DoubleJump
-		expert-core Glide Dash
-		expert-core Dash DoubleJump
+		expert-core Glide Dash -- adjust: missing airdash
+		expert-core Dash DoubleJump -- adjust: missing airdash
 		expert-dboost Glide Health=5
-		expert-dboost DoubleJump Health=5
-		expert-abilities Dash Energy=2 Ability=6
-		expert-abilities Dash Stomp Ability=6
-		expert-abilities Dash Bash Ability=6
+		expert-dboost DoubleJump Health=5 -- adjust: does not work if rocks are broken
+		expert-abilities Dash Energy=2 Ability=6 -- *cdash=2
+		expert-abilities Dash Stomp Ability=6 -- *cdash=2 *stompcancel=1
+		expert-abilities Dash Bash Ability=6 -- *cdash=1
 		dbash Bash
+		master-core Bash Grenade -- throw grenade then fall after it
 		master-dboost Glide Health=4 Ability=12
+		master-dboost DoubleJump Stomp Health=3 -- augmented dboost with bird, then bounce
+		master-dboost Glide Health=3 -- augmented dboost with bird
 		master-abilities DoubleJump Ability=12
 	conn: SorrowMainShaftKeystoneArea
 		casual-core Glide
