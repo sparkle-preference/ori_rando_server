@@ -489,7 +489,7 @@ home: DeathGauntletDoorOpened 296 -203
 		casual-core Water
 		expert-dboost Health=5
 		master-dboost Health=4
-home: DeathGauntletMoat 318 -216
+home: DeathGauntletMoat 318 -216 -- *submerged
 	-- anchor: in the death gauntlet water
 	pickup: DeathGauntletSwimEnergyDoor
 		casual-core Energy=4
@@ -4686,7 +4686,7 @@ home: MistyPreClimb -1169 -101
 	conn: RightForlorn
 		glitched Dash
 home: MistyPostClimb -1057 -112
-	--anchor point: after leaving the climb tree, and to the left of the baneline
+	--anchor point: after leaving the climb tree, and to the left of the baneling
 	conn: MistySpikeCave
 		casual-core WallJump Climb DoubleJump
 		standard-core Climb ChargeJump
@@ -4699,9 +4699,15 @@ home: MistySpikeCave -982 -86
 	conn: MistyKeystone3Ledge
 		casual-core WallJump Climb DoubleJump
 		standard-core Bash Glide DoubleJump
+		standard-core Climb ChargeJump
+		standard-core WallJump ChargeJump
 		expert-core DoubleJump
+		expert-abilities Climb Dash Ability=6 Energy=1 -- *cdash=1 dash over the thrid platform before 4th appears
+		expert-abilities WallJump Dash Ability=6 Energy=1 -- *cdash=1 dash over the thrid platform before 4th appears
+		expert-abilities DoubleJump Dash Ability=3 -- *airdash refresh on walls
 		master-core Bash
 		master-dboost ChargeJump Health=4
+		master-abilities Dash Ability=3 -- *dashglide *airdash refresh on walls, do full sequence
 home: MistyKeystone3Ledge -915 -48
 	--anchor point: on the keystone ledge
 	pickup: MistyKeystone3
