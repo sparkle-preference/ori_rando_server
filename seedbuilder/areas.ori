@@ -1384,9 +1384,10 @@ home: OuterSwampUpperArea 639 -51
 home: OuterSwampAbilityCellNook 663 -81
 	-- anchor: on the ledge near the ability cell
 	pickup: OuterSwampAbilityCell
+	conn: OuterSwampLowerArea
 	conn: InnerSwampSkyArea
 		glitched Dash
-home: OuterSwampLowerArea 528 -113
+home: OuterSwampLowerArea 651 -99
 	-- anchor: on the ground among the mortar worms
 	pickup: OuterSwampStompExp
 		casual-core WallJump
@@ -1418,7 +1419,8 @@ home: OuterSwampLowerArea 528 -113
 		-- I still don't understand why people think this jump is hard
 		expert-core WallJump
 		expert-core Climb
-		expert-abilities Dash Ability=6
+		expert-abilities Dash Ability=6 -- *rjump=1
+		dbash Bash
 	conn: OuterSwampAbilityCellNook
 		casual-core Bash Grenade
 		casual-core Glide Wind
@@ -1442,7 +1444,7 @@ home: OuterSwampLowerArea 528 -113
 		casual-core Climb
 		casual-core Bash
 		casual-core ChargeJump
-		casual-core Glide Wind -- adjust: there is no wind in this area
+		casual-core Glide Wind
 		casual-core DoubleJump
 home: OuterSwampMortarAbilityCellLedge 505 -106
 	-- anchor: on the ability cell ledge
@@ -1946,6 +1948,12 @@ home: MoonGrottoBelowTeleporter 491 -201
 		standard-abilities Dash Ability=3 ChargeFlame
 		standard-abilities Dash Ability=3 Grenade
 		expert-abilities Dash Ability=6
+	conn: MoonGrotto
+		casual-core WallJump
+		casual-core Climb
+		casual-core ChargeJump
+		expert-abilities Dash Ability=6 Energy=1 -- *rjump=1
+		master-core DoubleJump
 home: MoonGrottoSwampAccessArea 549 -158
 	-- anchor: atop the breakable log platform, directly below the xp
 	pickup: GrottoSwampDrainAccessExp
@@ -2943,7 +2951,7 @@ home: L1OuterDoor 20 375
 	conn: HoruInnerDoor
 home: L1InnerDoor -24 372
 	conn: L1
-home: L1 -85 380
+home: L1 -35 371
 	pickup: HoruL1
 		casual-core Bash DoubleJump Stomp
 		casual-core Glide Bash WallJump Stomp
@@ -2970,9 +2978,9 @@ home: L2OuterDoor 15 297
 	-- TODO: fix this connection for entrance
 	conn: HoruInnerDoor
 		casual-core Stomp
-home: L2InnerDoor -12 305
+home: L2InnerDoor -9 303
 	conn: L2
-home: L2 -29 281
+home: L2 -17 304
 	pickup: HoruL2
 		casual-core Stomp ChargeJump
 		casual-core Stomp WallJump DoubleJump
@@ -2993,7 +3001,7 @@ home: L3OuterDoor 19 254
 		casual-core Stomp
 home: L3InnerDoor -33 247
 	conn: L3
-home: L3 -169 341
+home: L3 -44 247
 	pickup: HoruL3
 		casual-core Stomp DoubleJump Bash
 		casual-core Bash Glide WallJump Stomp
@@ -3170,7 +3178,7 @@ home: R3OuterDoor 128 248
 		casual-core Stomp
 home: R3InnerDoor 172 223
 	conn: R3
-home: R3 206 223
+home: R3 178 222
 	conn: HoruR3ElevatorLever
 		casual-core WallJump DoubleJump
 		casual-core ChargeJump Climb
