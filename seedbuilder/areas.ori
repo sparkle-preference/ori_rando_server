@@ -3400,6 +3400,7 @@ home: ValleyEntryTree -215 -82
 	-- test connection with door removed
 	conn: ValleyPostStompDoor
 		casual-core OpenWorld
+	conn: ValleyEntry
 home: ValleyEntryTreePlantAccess -183 -87
 	pickup: ValleyEntryTreePlant
 		casual-core ChargeFlame
