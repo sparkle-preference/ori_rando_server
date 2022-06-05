@@ -4568,6 +4568,7 @@ home: MistyEntrance -708 -22
 		casual-core Bash Glide Climb
 		casual-core DoubleJump Bash Glide
 		standard-core Bash Glide
+		standard-dboost DoubleJump ChargeJump Health=4
 		standard-abilities DoubleJump Glide Climb ChargeJump Dash Ability=3
 		standard-abilities DoubleJump Glide WallJump ChargeJump Dash Ability=3
 		expert-core DoubleJump Glide Climb ChargeJump
@@ -4576,7 +4577,7 @@ home: MistyEntrance -708 -22
 		expert-abilities DoubleJump Glide ChargeJump Dash Ability=3
 		expert-abilities Dash Ability=6 Energy=4
 		master-core Bash
-		gjump Climb ChargeJump Grenade Health=4
+		gjump Climb ChargeJump Grenade
 	conn: LowerValley
 		casual-core DoubleJump
 		casual-core ChargeJump
@@ -4608,21 +4609,22 @@ home: MistyPostKeystone1 -1028 16
 		expert-core Glide
 		expert-dboost Health=9
 		expert-dboost DoubleJump Health=4
-		expert-dboost Dash Ability=3 Health=4
+		expert-dboost Dash Ability=3 Health=4 -- *airdash
+		expert-lure DoubleJump Bash Dash Ability=3
 		master-core Bash
-		master-abilities DoubleJump Dash Ability=6
+		master-abilities DoubleJump Dash Ability=6 -- *cdash=1
 		master-abilities DoubleJump Ability=12
 		master-dboost Ability=12 Health=4
-		master-dboost Health=6
-		-- 2hp from bird, 3hp from spikes, you can get around the last bend without damage
+		master-dboost Health=6 -- 2hp from bird, 3hp from spikes, you can get around the last bend without damage
 home: MistyPreMortarCorridor -1058 5
 	-- anchor point: right of the slime pre mortar corridor atop the wall
 	pickup: MistyMortarCorridorUpperExp
 		casual-core Bash Glide
 		standard-core Bash Grenade
+		expert-core DoubleJump Dash -- *dashglide
 		expert-dboost Bash Health=4
 		expert-dboost ChargeJump Health=4
-		expert-abilities Dash Ability=6
+		expert-abilities Dash Ability=6 -- *airdash *rjump=1
 		master-core Bash
 		master-abilities DoubleJump Ability=12
 		gjump Climb ChargeJump Grenade
