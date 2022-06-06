@@ -383,7 +383,7 @@ home: SunkenGladesRunaway 185 -217
 		casual-core TPForlorn
 	conn: HoruTeleporter
 		casual-core TPHoru HoruKey
-home: GladesMain -31 -218
+home: GladesMain -32 -218
 	-- anchor: just beyond the first keystone door in Glades
 	pickup: FourthHealthCell
 	pickup: GladesMapKeystone
@@ -1785,7 +1785,7 @@ home: GinsoEscape 524 588
 		master-dboost WallJump DoubleJump Ability=12 Health=6
 		master-dboost Climb DoubleJump Ability=12 Health=10
 		insane DoubleJump Ability=12 Health=12
-home: GinsoEscapeComplete 530 948
+home: GinsoEscapeComplete 530 948 -- *meta
 -- this is a meta area to factor the ginso escape pickups which have identical requirements
 	pickup: GinsoEscapeSpiderExp
 	pickup: GinsoEscapeJumpPadExp
@@ -3437,7 +3437,7 @@ home: ValleyPostStompDoor -339 -79
 		casual-core OpenWorld ChargeJump
 		casual-core OpenWorld Bash
 		standard-core OpenWorld Dash
-home: ValleyTeleporter -438 -4
+home: ValleyTeleporter -432 2
 -- anchored on the valley TP, kill plane is active
 	conn: ValleyPostStompDoor
 		casual-core Bash
@@ -3495,6 +3495,15 @@ home: ValleyRight -306 -20
 		casual-core Bash Grenade Climb
 		casual-core Glide Wind
 		expert-abilities WallJump Dash Ability=6
+	conn: ValleyTeleporter
+		casual-core Bash DoubleJump
+		standard-core DoubleJump Glide ChargeJump
+		standard-core Bash Glide
+		standard-core Glide Climb ChargeJump
+		expert-core Bash
+		standard-dboost DoubleJump ChargeJump Health=4
+		standard-dboost Glide ChargeJump Health=4
+		gjump Climb ChargeJump Grenade
 home: ValleyStomplessApproach -346 32
 -- anchored left of the bird stomp cell
 	pickup: ValleyRightBirdStompCell
