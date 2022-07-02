@@ -1295,12 +1295,14 @@ home: HollowGrove 336 -91
 	pickup: HollowGroveMapstone
 	pickup: GroveWaterStompAbilityCell
 		casual-core Water Stomp
-		expert-lure Bash Water
-		expert-dboost Bash Health=6
+		expert-lure Bash Water -- bash fronkey to peg
+		expert-dboost Bash Health=6 -- *lure bash fronkey to peg
 		expert-dboost Stomp Health=5
-		master-lure Health=5
-		master-lure Ability=12
-		glitched Bash
+		master-lure Water -- *adjust: what is required to not take damage from fronkey?
+		master-lure Health=5 -- make fronkey jump from bounce pad, make ori land on top of peg
+		master-lure Ability=12 Health=3 -- make fronkey jump from bounce pad, make ori land on top of peg
+		glitched Water Bash -- probably intended as buttercell clip?
+		glitched Bash Health=2 -- probably intended as buttercell clip?
 	pickup: HoruFieldsHealthCell
 		casual-core Stomp
 		standard-lure Free
