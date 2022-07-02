@@ -322,37 +322,37 @@ home: SunkenGladesRunaway 185 -217
 	pickup: GladesKeystone2
 	pickup: GladesGrenadePool
 		casual-core Grenade Water
-		expert-dboost Grenade Health=6
-		expert-dboost Grenade Stomp Health=5
-		master-dboost Grenade Health=5
+		expert-dboost Grenade Health=6 -- *altr
+		expert-dboost Grenade Stomp Health=5 -- *altr
+		master-dboost Grenade Health=5 -- *altr
 	pickup: GladesGrenadeTree
 		casual-core Grenade ChargeJump
 		casual-core Grenade Bash
 		standard-core Grenade WallJump DoubleJump
-		standard-core Grenade Glide Wind WallJump
-		standard-core Grenade Glide Wind Climb
-		expert-abilities Grenade Dash Ability=6
-		glitched Grenade
+		standard-core Grenade Glide Wind WallJump -- wind to the right of spawn
+		standard-core Grenade Glide Wind Climb -- wind to the right of spawn
+		expert-abilities Grenade Dash Ability=6 -- *rjump=1
+		glitched Grenade -- glitch swing with grenade
 	pickup: GladesMainPool
 		casual-core Water
-		expert-dboost Bash Health=3
-		expert-dboost Stomp Health=3
-		expert-dboost Health=4
-		master-dboost Health=3
+		expert-dboost Bash Health=3 -- *altr
+		expert-dboost Stomp Health=3 -- *altr
+		expert-dboost Health=4 -- *altr
+		master-dboost Health=3 -- *altr
 	pickup: GladesMainPoolDeep
 		casual-core Water
-		expert-dboost Health=7
+		expert-dboost Health=7 -- *altr
 	pickup: FronkeyWalkRoof
 		casual-core ChargeJump
 		casual-core Glide Wind
 		casual-core Bash Grenade
-		standard-lure Bash
-		expert-abilities Dash Ability=6
+		standard-lure Bash -- *sein *lure fronkey from left of spawn
+		expert-abilities Dash Ability=6 -- *sein *rjump=1 *lure fronkey from left of spawn
 	conn: GladesMain
 		casual-core Keystone=2
 		casual-core OpenWorld
 	conn: LowerChargeFlameArea
-		glitched Grenade
+		glitched Grenade -- glitch swing with grenade
 	conn: BlackrootDarknessRoom
 		casual-core WallJump
 		casual-core Climb
@@ -364,7 +364,7 @@ home: SunkenGladesRunaway 185 -217
 		casual-core Grenade Bash
 		casual-dboost WallJump
 		casual-dboost Climb
-		standard-lure Bash
+		standard-lure Bash -- *sein *lure fronkey from left of spawn
 		master-core DoubleJump
 	conn: SpiritTreeRefined
 		casual-core TPGrove
@@ -396,28 +396,28 @@ home: GladesMain -32 -218
 		casual-core ChargeJump
 		standard-core WallJump DoubleJump
 		expert-core Climb DoubleJump
-		expert-core Bash
-		expert-abilities Dash Ability=6
+		expert-core Bash -- *lure bash off fronkey at apex of its jump
+		expert-abilities Dash Ability=6 -- *lure *rjump=1
 		dbash Bash
-		master-core DoubleJump
-	conn: LeftGlades
+		master-core DoubleJump -- refresh dj on lower overhang on the left, then at higher one
+	conn: LeftGlades -- *sein
 	conn: SpiritCavernsDoor
 	conn: GladesLaserArea
 		casual-core ChargeJump Climb
 		casual-core ChargeJump WallJump DoubleJump
-		casual-core Bash DoubleJump Glide
-		casual-core Bash DoubleJump WallJump
-		casual-core Bash DoubleJump Climb
+		casual-core Bash DoubleJump Glide -- adjust: not casual
+		casual-core Bash DoubleJump WallJump -- adjust: not casual
+		casual-core Bash DoubleJump Climb -- adjust: not casual
 		casual-core Bash Grenade Climb
 		casual-core Bash Grenade WallJump
-		expert-core Bash WallJump
-		expert-core Bash Climb
-		expert-abilities Dash Ability=6
+		expert-core Bash WallJump -- adjust: how without dbash or lure?
+		expert-core Bash Climb -- adjust: how without dbash or lure (even worse than with wj)?
+		expert-abilities Dash Ability=6 -- *rjump=1
 		dbash Bash
 	conn: LowerChargeFlameArea
 		casual-core Grenade
 		casual-core ChargeFlame
-		expert-abilities Dash Ability=6
+		expert-abilities Dash Ability=6 -- *cdash=1
 home: GladesMainAttic -57 -169
 	-- anchor: on the ledge above the FourthHealthCell
 	pickup: AboveFourthHealth
@@ -431,7 +431,7 @@ home: LeftGlades -184 -238
 	pickup: WallJumpAreaExp
 		casual-core ChargeJump
 		casual-core Bash Grenade
-		master-lure Bash
+		master-lure Bash -- fronkey from above, force shorthop in the bottom right by running away
 	pickup: WallJumpAreaEnergyCell
 		casual-core WallJump
 		casual-core ChargeJump
@@ -439,7 +439,7 @@ home: LeftGlades -184 -238
 		casual-core Bash Grenade
 		master-core DoubleJump
 		master-lure Bash
-	conn: GladesMain
+	conn: GladesMain -- *sein
 	conn: UpperLeftGlades
 		casual-core WallJump
 		casual-core Climb
@@ -457,14 +457,14 @@ home: UpperLeftGlades -283 -222
 		expert-core Bash
 		expert-core DoubleJump
 	pickup: LeftGladesKeystone
-	pickup: LeftGladesMapstone
+	pickup: LeftGladesMapstone -- *sein
 	conn: LeftGlades
 home: DeathGauntletDoor 287 -203
 	-- anchor: on the ledge with the 4-energy door closed (either side)
 	conn: DeathGauntletDoorOpened
 		casual-core Energy=4
 		glitched Energy=3
-		timed-level Energy=2
+		timed-level Energy=2 -- *lure *sein fronkey from left of spawn
 home: DeathGauntletDoorOpened 296 -203
 	-- anchor: on the ledge with the 4-energy door opened
 	conn: SunkenGladesRunaway
@@ -483,8 +483,8 @@ home: DeathGauntletDoorOpened 296 -203
 		expert-dboost WallJump Health=3
 		expert-dboost Climb Health=3
 		expert-dboost Bash Health=3
-		expert-abilities Dash Ability=6 Energy=1
-		master-core DoubleJump
+		expert-abilities Dash Ability=6 Energy=1 -- *rjump=1
+		master-core DoubleJump -- adjust: how does this work without taking damage?
 	conn: DeathGauntletMoat
 		casual-core Water
 		expert-dboost Health=5
@@ -496,30 +496,42 @@ home: DeathGauntletMoat 318 -216 -- *submerged
 home: DeathGauntlet 368 -191
 	-- anchor: on the death gauntlet ledge next to the fronkey
 	pickup: DeathGauntletExp
-		casual-core WallJump
-		casual-core Climb
+		casual-core WallJump -- *sein
+		casual-core Climb -- *sein
 		casual-core Bash Grenade
-		casual-core ChargeJump
-		casual-core DoubleJump
+		casual-core ChargeJump -- *sein
+		casual-core DoubleJump -- *sein
 		standard-lure Bash
+		expert-abilities Dash Ability=6 Energy=1 -- *rjump=1
 	pickup: DeathGauntletStompSwim
 		casual-core Stomp Water
 		standard-lure Water
-		expert-dboost Health=3
+		expert-dboost Health=3 -- *lure *altr
 	pickup: DeathGauntletEnergyCell
-		casual-core WallJump
-		casual-core Climb
+		casual-core WallJump -- *sein
+		casual-core Climb -- *sein
 		casual-core Bash Grenade
 		casual-core ChargeJump
-		casual-core DoubleJump
+		casual-core DoubleJump -- *sein adjust: requires jumping off left crusher, probably not obvious enough for casual
+		master-lure Bash -- *dbash use fronkey
 	conn: DeathGauntletMoat
 		casual-core Water
 		expert-dboost Health=4
 		master-dboost Health=3
 	conn: DeathGauntletDoor
+		casual-core WallJump Glide
 		casual-core DoubleJump
-		casual-core Glide
+		casual-core Bash Glide
+		casual-core Glide ChargeJump
+		casual-core Climb Glide
 		casual-core Climb ChargeJump
+		standard-core Bash Grenade
+		standard-core Glide Dash -- *dashglide
+		standard-abilities WallJump Dash Ability=3 -- *airdash
+		standard-abilities Bash Dash Ability=3 -- *airdash
+		standard-abilities Climb Dash Ability=3 -- *airdash
+		standard-abilities ChargeJump Dash Ability=3 -- *airdash
+		expert-abilities Dash Ability=6 Energy=1 -- *rjump=1 *airdash
 	conn: DeathGauntletRoof
 		casual-core ChargeJump
 	conn: DeathGauntletRoofPlantAccess
@@ -529,15 +541,15 @@ home: DeathGauntlet 368 -191
 		expert-core ChargeFlame Bash Climb
 		expert-core ChargeFlame Bash Grenade
 		master-core ChargeFlame DoubleJump
-		master-abilities ChargeFlame Ability=3
+		master-abilities ChargeFlame Ability=3 -- *cflameburn
 	conn: MoonGrotto
 		casual-core WallJump
 		casual-core Climb
 		casual-core Bash Grenade
 		casual-core ChargeJump
-		casual-core DoubleJump
-		master-lure Bash
-		master-lure Dash Ability=6 Energy=1
+		casual-core DoubleJump -- *sein adjust: requires jumping off left crusher, probably not obvious enough for casual
+		master-lure Bash -- use fronkey
+		master-lure Dash Ability=6 Energy=1 -- *rjump=1 use slime, rhino or fronkey
 	conn: MoonGrottoAboveTeleporter
 		master-lure Bash
 home: DeathGauntletRoof 328 -178
@@ -552,7 +564,7 @@ home: DeathGauntletRoofPlantAccess 339 -177
 	pickup: DeathGauntletRoofPlant
 		casual-core ChargeFlame
 		casual-core Grenade
-		expert-abilities Dash Ability=6
+		expert-abilities Dash Ability=6 -- *cdash=1
 home: SpiritCavernsDoor -168 -216
 	-- anchor: logically within reach of the door from either adjacent area
 	conn: SpiritCavernsDoorOpened
@@ -565,7 +577,7 @@ home: SpiritCavernsDoorOpened -184 -215
 		casual-core ChargeJump
 		casual-core Bash Grenade
 		standard-lure Bash
-		expert-abilities Dash Ability=6
+		expert-abilities Dash Ability=6 -- *lure *rjump=1
 		master-core DoubleJump
 	conn: GladesMain
 home: LowerSpiritCaverns -190 -180
@@ -577,23 +589,22 @@ home: LowerSpiritCaverns -190 -180
 		casual-core ChargeJump
 		casual-core Bash
 		casual-core DoubleJump
-		expert-abilities Dash Ability=6
-		master-core Free
+		expert-abilities Dash Ability=6 -- *dashglide *cdash=1
+		master-core Free -- *microledge
 	pickup: SpiritCavernsAbilityCell
 		casual-core ChargeJump
-		casual-core Bash
+		casual-core Bash -- adjust: a bit tight for casual
 		standard-core WallJump DoubleJump
 		expert-core Climb DoubleJump
-		expert-abilities Dash Ability=6
-		master-abilities DoubleJump Ability=12
+		expert-abilities Dash Ability=6 -- *lure adjust: requires open KS or energy door
+		master-abilities DoubleJump Ability=12 -- adjust: possible with just dj
 	conn: MidSpiritCaverns
 		casual-core WallJump
 		casual-core Climb
 		casual-core ChargeJump
 		casual-core Bash Grenade
 		casual-core Bash DoubleJump
-		expert-core Bash Dash
-		dbash Bash
+		expert-core Bash -- bash projectile up then bash again
 		master-core DoubleJump
 	conn: GladesLaserArea
 		casual-core Bash Energy=4
@@ -618,16 +629,16 @@ home: UpperSpiritCaverns -195 -147
 		casual-core WallJump
 		casual-core DoubleJump Climb
 		casual-core Glide Climb
-		casual-dboost ChargeJump
-		casual-dboost Bash
-		standard-core ChargeJump
-		standard-core Bash
-		master-core Climb
+		casual-dboost ChargeJump Health=2
+		casual-dboost Bash Health=2 -- *altr adjust: is that supposed to be in casual?
+		standard-core ChargeJump -- *altr
+		standard-core Bash -- *altr
+		master-core Climb -- *microledge
 		master-core DoubleJump
 	pickup: SpiritCavernsTopRightKeystone
 	conn: MidSpiritCaverns
 	conn: SpiritTreeDoor
-		casual-core Free
+		casual-core Free -- getting up the wall is handled in the next connection
 home: SpiritTreeDoor -183 -131
 	-- anchor: logically, in either adjacent area to the door
 	conn: SpiritTreeDoorOpened
@@ -638,6 +649,7 @@ home: SpiritTreeDoorOpened -171 -130
 		casual-core WallJump
 		casual-core Climb
 		casual-core Bash
+		casual-core DoubleJump ChargeJump
 		casual-dboost ChargeJump
 		master-core DoubleJump
 	conn: UpperSpiritCaverns
@@ -648,23 +660,23 @@ home: GladesLaserArea -168 -175
 		casual-core ChargeJump
 		casual-core Bash Grenade
 		standard-lure Bash
-		expert-dboost WallJump Glide
-		expert-abilities Dash Ability=6
+		expert-dboost WallJump Glide Health=2
+		expert-abilities Dash Ability=6 -- *lure *rjump=1
 	pickup: GladesLaserGrenade
 		casual-core Grenade Climb ChargeJump Bash
 		casual-core Grenade WallJump DoubleJump Bash
 		standard-core Grenade Climb Bash
 		standard-core Grenade Climb DoubleJump ChargeJump Glide
 		standard-core Grenade WallJump Bash
-		standard-abilities Grenade Climb DoubleJump Dash ChargeJump Ability=3
-		standard-abilities Grenade WallJump DoubleJump Dash ChargeJump Glide Ability=3
+		standard-abilities Grenade Climb DoubleJump Dash ChargeJump Ability=3 -- *airdash
+		standard-abilities Grenade WallJump DoubleJump Dash ChargeJump Glide Ability=3 -- *airdash
 		expert-core Grenade Climb ChargeJump Water
 		expert-core Grenade WallJump DoubleJump ChargeJump Water
 		expert-core Grenade WallJump DoubleJump ChargeJump Glide
 		expert-dboost Grenade ChargeJump Health=5
-		expert-dboost Grenade ChargeJump Health=4 Ability=3 Energy=1
-		expert-dboost Grenade ChargeJump Health=3 Ability=3 Energy=2
-		expert-dboost Grenade ChargeJump Health=3 Ability=6 Energy=1
+		expert-dboost Grenade ChargeJump Health=4 Ability=3 Energy=1 -- *regroup=1
+		expert-dboost Grenade ChargeJump Health=3 Ability=3 Energy=2 -- *regroup=2
+		expert-dboost Grenade ChargeJump Health=3 Ability=6 Energy=1 -- *ultrasoullink=1
 		expert-dboost Grenade ChargeJump Glide Health=3
 		expert-dboost Grenade ChargeJump Bash Health=3
 		expert-dboost Grenade ChargeJump Water Health=3
