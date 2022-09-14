@@ -289,7 +289,7 @@ class Connection:
         minReq = []
         for i in range(0, len(self.requirements)):
             score = 0
-            items = {"EC": 0, "HC": 0, "AC": 0}
+            items = {"EC": 0, "HC": 0, "AC": 0, "SunstoneShard": 0, "WaterVeinShard": 0, "GumonSealShard": 0}
             for req_part in self.requirements[i]:
                 if req_part in items:
                     items[req_part] += 1
@@ -391,7 +391,7 @@ class SeedGenerator:
             "SunstoneShard": 5, "TPForlorn": 67, "TPGrotto": 41,
             "TPSorrow": 59, "TPGrove": 41, "TPSwamp": 41, "TPValley": 53,
             "TPGinso": 61, "TPHoru": 71, "Open": 0, "OpenWorld": 1, "Relic": 1,
-            "TPGlades": 41, "TPBlackroot": 53
+            "TPGlades": 90, "TPBlackroot": 53
         })
         self.inventory = OrderedDict([
             ("EX1", 0), ("EX*", 0), ("KS", 0), ("MS", 0), ("AC", 0), ("EC", 0),
@@ -507,263 +507,273 @@ class SeedGenerator:
         logic_path_tags = get_path_tags_from_pathsets(logic_paths)
         difficulty = self.get_difficulty(logic_path_tags)
 
-        # FIXME currently all equally frequent.
-        # have horu, ginso, sorrow and blackroot as write ins only.
-        # FIXME On repeats after failed generation this will tend bias towards places that generate easier.
-        # FIXME Closed dungeons will make some impossible, so remove them if so.
-        known_start_locations = ["Random", "Glades", "Grove", "Swamp", "Grotto", "Forlorn", "Valley", "Horu", "Ginso", "Sorrow", "Blackroot"]
-        if self.params.start not in known_start_locations:
-            print("Error - unknown start location: " + self.params.start)
-            exit(1)
-        if self.params.start in ["Horu", "Ginso"]:
-            if self.var(Variation.CLOSED_DUNGEONS):
-                print("Error - can't start in dungeons with closed dungeons.")
+        if self.playerID == 1:
+            # FIXME currently all equally frequent.
+            # have horu, ginso, sorrow and blackroot as write ins only.
+            # FIXME On repeats after failed generation this will tend bias towards places that generate easier.
+            # FIXME Closed dungeons will make some impossible, so remove them if so.
+            known_start_locations = ["Random", "RandomWithGlades", "Glades", "Grove", "Swamp", "Grotto", "Forlorn", "Valley", "Horu", "Ginso", "Sorrow", "Blackroot"]
+            if self.params.start not in known_start_locations:
+                print("Error - unknown start location: " + self.params.start)
                 exit(1)
-        self.start = self.params.start
-        if self.params.start == "Random":
-            possible_start_locations = ["Glades", "Grove", "Swamp", "Grotto", "Forlorn"]
-            if self.var(Variation.OPEN_WORLD):
-                possible_start_locations.append("Valley")
-            self.start = self.random.choice(possible_start_locations)
-            #print("Chose start: " + self.start)
-        
-        # start: {difficulty (int): [health, energy, skills_min, skills_max]}
-        spawn_defaults = {
-            "Glades": {
-                1: [3, 1, 0, 0], # Casual
-                2: [3, 1, 0, 0], # Standard
-                3: [3, 1, 0, 0], # Expert
-                4: [3, 1, 0, 0], # Master
-                5: [3, 1, 0, 0], # Glitched / timed-level
-                7: [3, 1, 0, 0], # Insane
-            },
-            "Grove": {
-                1: [3, 1, 1, 1], # Casual
-                2: [3, 1, 1, 1], # Standard
-                3: [3, 1, 1, 0], # Expert
-                4: [3, 1, 0, 0], # Master
-                5: [3, 1, 0, 0], # Glitched / timed-level
-                7: [3, 1, 0, 0], # Insane
-            },
-            "Swamp": {
-                1: [4, 2, 1, 0], # Casual
-                2: [3, 2, 1, 0], # Standard
-                3: [3, 1, 1, 0], # Expert
-                4: [3, 1, 0, 0], # Master
-                5: [3, 1, 0, 0], # Glitched / timed-level
-                7: [3, 1, 0, 0], # Insane
-            },
-            "Grotto": {
-                1: [4, 2, 1, 0], # Casual
-                2: [3, 2, 1, 0], # Standard
-                3: [3, 1, 0, 0], # Expert
-                4: [3, 1, 0, 0], # Master
-                5: [3, 1, 0, 0], # Glitched / timed-level
-                7: [3, 1, 0, 0], # Insane
-            },
-            "Forlorn": {
-                1: [5, 3, 2, 0], # Casual
-                2: [4, 2, 1, 0], # Standard
-                3: [4, 2, 1, 0], # Expert
-                4: [3, 2, 1, 0], # Master
-                5: [3, 1, 0, 0], # Glitched / timed-level
-                7: [3, 1, 0, 0], # Insane
-            },
-            "Valley": {
-                1: [5, 3, 2, 0], # Casual
-                2: [4, 2, 2, 0], # Standard
-                3: [4, 2, 1, 0], # Expert
-                4: [3, 2, 1, 0], # Master
-                5: [3, 1, 0, 0], # Glitched / timed-level
-                7: [3, 1, 0, 0], # Insane
-            },
-            "Horu": {
-                1: [5, 3, 3, 0], # Casual
-                2: [4, 2, 3, 0], # Standard
-                3: [4, 2, 2, 0], # Expert
-                4: [4, 2, 2, 0], # Master
-                5: [3, 1, 0, 0], # Glitched / timed-level
-                7: [3, 1, 0, 0], # Insane
-            },
-            "Ginso": {
-                1: [5, 3, 2, 0], # Casual
-                2: [4, 2, 2, 0], # Standard
-                3: [4, 2, 1, 0], # Expert
-                4: [3, 2, 1, 0], # Master
-                5: [3, 1, 0, 0], # Glitched / timed-level
-                7: [3, 1, 0, 0], # Insane
-            },
-            "Sorrow": {
-                1: [6, 3, 3, 0], # Casual
-                2: [5, 2, 3, 0], # Standard
-                3: [5, 2, 2, 0], # Expert
-                4: [4, 2, 2, 0], # Master
-                5: [3, 1, 0, 0], # Glitched / timed-level
-                7: [3, 1, 0, 0], # Insane
-            },
-            "Blackroot": {
-                1: [4, 2, 2, 0], # Casual
-                2: [4, 2, 2, 0], # Standard
-                3: [3, 1, 2, 0], # Expert
-                4: [3, 1, 2, 0], # Master
-                5: [3, 1, 0, 0], # Glitched / timed-level
-                7: [3, 1, 0, 0], # Insane
-            },
-        }
+            if self.params.start in ["Horu", "Ginso"]:
+                if self.var(Variation.CLOSED_DUNGEONS):
+                    print("Error - can't start in dungeons with closed dungeons.")
+                    exit(1)
+            self.start = self.params.start
+            if self.params.start == "Random":
+                possible_start_locations = ["Grove", "Swamp", "Grotto", "Forlorn"]
+                if self.var(Variation.OPEN_WORLD):
+                    possible_start_locations.append("Valley")
+                self.start = self.random.choice(possible_start_locations)
+                #print("Chose start: " + self.start)
+            if self.params.start == "RandomWithGlades":
+                possible_start_locations = ["Glades", "Grove", "Swamp", "Grotto", "Forlorn"]
+                if self.var(Variation.OPEN_WORLD):
+                    possible_start_locations.append("Valley")
+                self.start = self.random.choice(possible_start_locations)
+                #print("Chose start: " + self.start)
+			
+            
+            # start: {difficulty (int): [health, energy, skills_min, skills_max]}
+            spawn_defaults = {
+                "Glades": {
+                    1: [3, 1, 0, 0], # Casual
+                    2: [3, 1, 0, 0], # Standard
+                    3: [3, 1, 0, 0], # Expert
+                    4: [3, 1, 0, 0], # Master
+                    5: [3, 1, 0, 0], # Glitched / timed-level
+                    7: [3, 1, 0, 0], # Insane
+                },
+                "Grove": {
+                    1: [3, 1, 1, 1], # Casual
+                    2: [3, 1, 1, 1], # Standard
+                    3: [3, 1, 1, 0], # Expert
+                    4: [3, 1, 0, 0], # Master
+                    5: [3, 1, 0, 0], # Glitched / timed-level
+                    7: [3, 1, 0, 0], # Insane
+                },
+                "Swamp": {
+                    1: [4, 2, 1, 0], # Casual
+                    2: [3, 2, 1, 0], # Standard
+                    3: [3, 1, 1, 0], # Expert
+                    4: [3, 1, 0, 0], # Master
+                    5: [3, 1, 0, 0], # Glitched / timed-level
+                    7: [3, 1, 0, 0], # Insane
+                },
+                "Grotto": {
+                    1: [4, 2, 1, 0], # Casual
+                    2: [3, 2, 1, 0], # Standard
+                    3: [3, 1, 0, 0], # Expert
+                    4: [3, 1, 0, 0], # Master
+                    5: [3, 1, 0, 0], # Glitched / timed-level
+                    7: [3, 1, 0, 0], # Insane
+                },
+                "Forlorn": {
+                    1: [5, 3, 2, 0], # Casual
+                    2: [4, 2, 1, 0], # Standard
+                    3: [4, 2, 1, 0], # Expert
+                    4: [3, 2, 1, 0], # Master
+                    5: [3, 1, 0, 0], # Glitched / timed-level
+                    7: [3, 1, 0, 0], # Insane
+                },
+                "Valley": {
+                    1: [5, 3, 2, 0], # Casual
+                    2: [4, 2, 2, 0], # Standard
+                    3: [4, 2, 1, 0], # Expert
+                    4: [3, 2, 1, 0], # Master
+                    5: [3, 1, 0, 0], # Glitched / timed-level
+                    7: [3, 1, 0, 0], # Insane
+                },
+                "Horu": {
+                    1: [5, 3, 3, 0], # Casual
+                    2: [4, 2, 3, 0], # Standard
+                    3: [4, 2, 2, 0], # Expert
+                    4: [4, 2, 2, 0], # Master
+                    5: [3, 1, 0, 0], # Glitched / timed-level
+                    7: [3, 1, 0, 0], # Insane
+                },
+                "Ginso": {
+                    1: [5, 3, 2, 0], # Casual
+                    2: [4, 2, 2, 0], # Standard
+                    3: [4, 2, 1, 0], # Expert
+                    4: [3, 2, 1, 0], # Master
+                    5: [3, 1, 0, 0], # Glitched / timed-level
+                    7: [3, 1, 0, 0], # Insane
+                },
+                "Sorrow": {
+                    1: [6, 3, 3, 0], # Casual
+                    2: [5, 2, 3, 0], # Standard
+                    3: [5, 2, 2, 0], # Expert
+                    4: [4, 2, 2, 0], # Master
+                    5: [3, 1, 0, 0], # Glitched / timed-level
+                    7: [3, 1, 0, 0], # Insane
+                },
+                "Blackroot": {
+                    1: [4, 2, 2, 0], # Casual
+                    2: [4, 2, 2, 0], # Standard
+                    3: [3, 1, 2, 0], # Expert
+                    4: [3, 1, 2, 0], # Master
+                    5: [3, 1, 0, 0], # Glitched / timed-level
+                    7: [3, 1, 0, 0], # Insane
+                },
+            }
 
-        self.starting_skills = []
+            self.starting_skills = []
 
 
-        possible_skills = ["WallJump", "ChargeFlame", "Dash", "Stomp", "DoubleJump", "Glide", "Bash", "Climb", "Grenade", "ChargeJump", "Water"]#, "Wind", "Warmth"]
-        possible_skills_forced = ["WallJump", "ChargeFlame", "Dash", "Stomp", "DoubleJump", "Glide", "Bash", "Climb", "Grenade", "ChargeJump", "Water", "Wind", "Warmth"]
-        skills_that_definitely_do_something = {
-            "Glades": ["WallJump", "Bash", "Climb", "ChargeJump", "Water"],
-            "Grove": ["ChargeFlame", "Stomp", "Grenade", "ChargeJump"],
-            "Swamp": ["WallJump", "ChargeFlame", "Dash", "Bash", "Climb", "Grenade", "ChargeJump", "Water"],
-            "Grotto": ["WallJump", "ChargeFlame", "Dash", "DoubleJump", "Glide", "Climb", "Grenade", "ChargeJump", "Water"],
-            "Forlorn": ["ChargeFlame", "Bash", "Grenade", "ChargeJump"],
-            "Valley": ["WallJump", "ChargeFlame", "DoubleJump", "Glide", "Bash", "Climb", "Grenade", "ChargeJump"],
-            "Horu": [],
-            "Ginso": ["Stomp", "DoubleJump", "Bash", "ChargeJump"],
-            "Sorrow": [],
-            "Blackroot": ["WallJump", "ChargeFlame", "Dash", "Stomp", "DoubleJump", "Glide", "Bash", "Climb", "Grenade", "ChargeJump", "Water"],
-        }
-        self.starting_health, self.starting_energy, skills_min, skills_max = spawn_defaults[self.start][difficulty]
-        # FIXME Check if starved exists, then just set the defaults to 3/1?
-        if self.var(Variation.STARTING_HEALTH):
-            print("Starting health: " + str(self.params.starting_health))
-            self.starting_health = max(self.params.starting_health, 3)
-        if self.var(Variation.STARTING_ENERGY):
-            print("Starting energy: " + str(self.params.starting_energy))
-            self.starting_energy = max(self.params.starting_energy, 1)
-        if self.var(Variation.STARTING_SKILLS):
-            print("Starting skills: " + str(self.params.starting_skills))
-            try:
-                skills_min = int(self.params.starting_skills)
-            except:
-                given_skills = self.params.starting_skills.split(',')
-                print(given_skills)
-                for skill in given_skills:
-                    if skill not in possible_skills_forced:
-                        print("Unknown Skill: " + str(skill))
-                        exit(1)
-                self.starting_skills = given_skills
-                
-        if skills_min > 1:
-            possible_skills.append("Wind")
-            possible_skills.append("Warmth")
-        # Weigh skills.
-        remaining_skills = possible_skills[:]
-        weights = []
-        for skill in possible_skills:
-            if skill == "Warmth":
-                cost = 75
-            else:
-                cost = self.costs[skill]
-            if skill in ["Wind", "Water"]:
-                cost *= 1.5
-            if skill in ["WallJump", "Climb"] and self.var(Variation.FUCK_WALLS): 
-                cost *= 5
-            if skill == "Grenade" and self.var(Variation.FUCK_GRENADE):
-                cost *= 5
-            weight = 1 / cost
-            weights.append(weight)
-        
-        if len(self.starting_skills) == 0 and skills_min > 0:
-            # Select a starting skill.
-            while skills_min > 0 and len(remaining_skills) > 0:
-                skill = self.random.choices(remaining_skills, weights=weights, k=1)[0]
-                index = remaining_skills.index(skill)
-                remaining_skills.pop(index)
-                weights.pop(index)
-                skills_min -= 1
-                self.starting_skills.append(skill)
-        
-        spawn_things = []
-        if self.starting_health > 3:
-            for _ in range(self.starting_health - 3):
-                spawn_things.append("HC/1")
-        energy_cells = self.starting_energy
-        if self.start == "Glades":
-            # FIXME this will change if we randomise the first EC.
-            energy_cells -= 1
-            self.inventory["EC"] = 1
-        for _ in range(energy_cells):
-            spawn_things.append("EC/1")
-        if (self.start == "Ginso"):
-            for _ in range(4):
-                spawn_things.append("KS/1")
-            if (not self.var(Variation.KEYS_ONLY_FOR_DOORS)) and (self.params.key_mode != KeyMode.FREE):
-                if self.params.key_mode == KeyMode.SHARDS:
-                    for _ in range(5):
-                        spawn_things.append("RB/17")
+            possible_skills = ["WallJump", "ChargeFlame", "Dash", "Stomp", "DoubleJump", "Glide", "Bash", "Climb", "Grenade", "ChargeJump", "Water"]#, "Wind", "Warmth"]
+            possible_skills_forced = ["WallJump", "ChargeFlame", "Dash", "Stomp", "DoubleJump", "Glide", "Bash", "Climb", "Grenade", "ChargeJump", "Water", "Wind", "Warmth"]
+            skills_that_definitely_do_something = {
+                "Glades": ["WallJump", "Bash", "Climb", "ChargeJump", "Water"],
+                "Grove": ["ChargeFlame", "Stomp", "Grenade", "ChargeJump"],
+                "Swamp": ["WallJump", "ChargeFlame", "Dash", "Bash", "Climb", "Grenade", "ChargeJump", "Water"],
+                "Grotto": ["WallJump", "ChargeFlame", "Dash", "DoubleJump", "Glide", "Climb", "Grenade", "ChargeJump", "Water"],
+                "Forlorn": ["ChargeFlame", "Bash", "Grenade", "ChargeJump"],
+                "Valley": ["WallJump", "ChargeFlame", "DoubleJump", "Glide", "Bash", "Climb", "Grenade", "ChargeJump"],
+                "Horu": [],
+                "Ginso": ["Stomp", "DoubleJump", "Bash", "ChargeJump"],
+                "Sorrow": [],
+                "Blackroot": ["WallJump", "ChargeFlame", "Dash", "Stomp", "DoubleJump", "Glide", "Bash", "Climb", "Grenade", "ChargeJump", "Water"],
+            }
+            self.starting_health, self.starting_energy, skills_min, skills_max = spawn_defaults[self.start][difficulty]
+            # FIXME Check if starved exists, then just set the defaults to 3/1?
+            if self.var(Variation.STARTING_HEALTH):
+                print("Starting health: " + str(self.params.starting_health))
+                self.starting_health = max(self.params.starting_health, 3)
+            if self.var(Variation.STARTING_ENERGY):
+                print("Starting energy: " + str(self.params.starting_energy))
+                self.starting_energy = max(self.params.starting_energy, 1)
+            if self.var(Variation.STARTING_SKILLS):
+                print("Starting skills: " + str(self.params.starting_skills))
+                try:
+                    skills_min = int(self.params.starting_skills)
+                except:
+                    given_skills = self.params.starting_skills.split(',')
+                    print(given_skills)
+                    for skill in given_skills:
+                        if skill not in possible_skills_forced:
+                            print("Unknown Skill: " + str(skill))
+                            exit(1)
+                    self.starting_skills = given_skills
+                    
+            if skills_min > 1:
+                possible_skills.append("Wind")
+                possible_skills.append("Warmth")
+            # Weigh skills.
+            remaining_skills = possible_skills[:]
+            weights = []
+            for skill in possible_skills:
+                if skill == "Warmth":
+                    cost = 75
                 else:
-                    spawn_things.append("EV/0")
-        if (self.start == "Forlorn"):
-            if (not self.var(Variation.KEYS_ONLY_FOR_DOORS)) and (self.params.key_mode != KeyMode.FREE):
-                if self.params.key_mode == KeyMode.SHARDS:
-                    for _ in range(5):
-                        spawn_things.append("RB/19")
+                    cost = self.costs[skill]
+                if skill in ["Wind", "Water"]:
+                    cost *= 1.5
+                if skill in ["WallJump", "Climb"] and self.var(Variation.FUCK_WALLS): 
+                    cost *= 5
+                if skill == "Grenade" and self.var(Variation.FUCK_GRENADE):
+                    cost *= 5
+                weight = 1 / cost
+                weights.append(weight)
+            
+            if len(self.starting_skills) == 0 and skills_min > 0:
+                # Select a starting skill.
+                while skills_min > 0 and len(remaining_skills) > 0:
+                    skill = self.random.choices(remaining_skills, weights=weights, k=1)[0]
+                    index = remaining_skills.index(skill)
+                    remaining_skills.pop(index)
+                    weights.pop(index)
+                    skills_min -= 1
+                    self.starting_skills.append(skill)
+            
+            self.spawn_things = []
+            if self.starting_health > 3:
+                for _ in range(self.starting_health - 3):
+                    self.spawn_things.append("HC/1")
+            energy_cells = self.starting_energy
+            if self.start == "Glades":
+                # FIXME this will change if we randomise the first EC.
+                energy_cells -= 1
+                self.inventory["EC"] = 1
+            for _ in range(energy_cells):
+                self.spawn_things.append("EC/1")
+            if (self.start == "Ginso"):
+                for _ in range(4):
+                    self.spawn_things.append("KS/1")
+                if (not self.var(Variation.KEYS_ONLY_FOR_DOORS)) and (self.params.key_mode != KeyMode.FREE):
+                    if self.params.key_mode == KeyMode.SHARDS:
+                        for _ in range(5):
+                            self.spawn_things.append("RB/17")
+                    else:
+                        self.spawn_things.append("EV/0")
+            if (self.start == "Forlorn"):
+                if (not self.var(Variation.KEYS_ONLY_FOR_DOORS)) and (self.params.key_mode != KeyMode.FREE):
+                    if self.params.key_mode == KeyMode.SHARDS:
+                        for _ in range(5):
+                            self.spawn_things.append("RB/19")
+                    else:
+                        self.spawn_things.append("EV/2")
+                self.spawn_things.append("NB/-914,-298")
+            if (self.start == "Horu"):
+                if (not self.var(Variation.KEYS_ONLY_FOR_DOORS)) and (self.params.key_mode != KeyMode.FREE):
+                    if self.params.key_mode == KeyMode.SHARDS:
+                        for _ in range(5):
+                            self.spawn_things.append("RB/21")
+                    else:
+                        self.spawn_things.append("EV/4")
+            if (self.start != "Glades"):
+                self.spawn_things.append("SK/" + self.skillsOutput["SpiritFlame"][2:])
+            for skill in self.starting_skills:
+                if skill in self.skillsOutput:
+                    self.spawn_things.append("SK/" + self.skillsOutput[skill][2:])
                 else:
-                    spawn_things.append("EV/2")
-            spawn_things.append("NB/-914,-298")
-        if (self.start == "Horu"):
-            if (not self.var(Variation.KEYS_ONLY_FOR_DOORS)) and (self.params.key_mode != KeyMode.FREE):
-                if self.params.key_mode == KeyMode.SHARDS:
-                    for _ in range(5):
-                        spawn_things.append("RB/21")
-                else:
-                    spawn_things.append("EV/4")
-        if (self.start != "Glades"):
-            spawn_things.append("SK/" + self.skillsOutput["SpiritFlame"][2:])
-        for skill in self.starting_skills:
-            if skill in self.skillsOutput:
-                spawn_things.append("SK/" + self.skillsOutput[skill][2:])
-            else:
-                spawn_things.append("EV/" + self.eventsOutput[skill][2:])
-        
-        if self.params.key_mode == KeyMode.FREE:
-            spawn_things.append("EV/0/EV/2/EV/4")
-        
-        spawn_spots = {
-            "Grove": (-159, -114),
-            "Swamp": (491, -73),
-            "Grotto": (519, -174), 
-            "Forlorn": (-914, -298),
-            "Valley": (-430, 0), 
-            "Horu": (88, 142),  
-            "Ginso": (570, 539),
-            "Sorrow": (-594, 496), 
-            "Blackroot": (381, -297), 
-        }
-        self.spawn_logic_areas = {
-            "Grove": "SpiritTreeRefined", 
-            "Swamp": "SwampTeleporter", 
-            "Grotto": "MoonGrotto", 
-            "Forlorn": "ForlornTeleporter", 
-            "Valley": "ValleyTeleporter", 
-            "Horu": "HoruTeleporter", 
-            "Ginso": "GinsoTeleporter", 
-            "Sorrow": "SorrowTeleporter", 
-            "Blackroot": "BlackrootGrottoConnection", 
-        }
+                    self.spawn_things.append("EV/" + self.eventsOutput[skill][2:])
+            
+            if self.params.key_mode == KeyMode.FREE:
+                self.spawn_things.append("EV/0/EV/2/EV/4")
+            
+            spawn_spots = {
+                "Grove": (-159, -114),
+                "Swamp": (491, -73),
+                "Grotto": (519, -174), 
+                "Forlorn": (-914, -298),
+                "Valley": (-430, 0), 
+                "Horu": (88, 142),  
+                "Ginso": (570, 539),
+                "Sorrow": (-594, 496), 
+                "Blackroot": (381, -297), 
+            }
+            self.spawn_logic_areas = {
+                "Glades": "SunkenGladesRunaway",
+                "Grove": "SpiritTreeRefined", 
+                "Swamp": "SwampTeleporter", 
+                "Grotto": "MoonGrotto", 
+                "Forlorn": "ForlornTeleporter", 
+                "Valley": "ValleyTeleporter", 
+                "Horu": "HoruTeleporter", 
+                "Ginso": "GinsoTeleporter", 
+                "Sorrow": "SorrowTeleporter", 
+                "Blackroot": "BlackrootGrottoConnection", 
+            }
 
         if self.start != "Glades":
             self.itemPool["TPGlades"] = 1
-            spawn_things.append("TP/" + self.start)
-            # The Warp Save should be last in the line because of the *save*
-            spawn_things.append("WS/" + str(spawn_spots[self.start][0]) + "," + str(spawn_spots[self.start][1]) + ",force")
+            if self.playerID == 1:
+                self.spawn_things.append("TP/" + self.start)
+                # The Warp Save should be last in the line because of the *save*
+                self.spawn_things.append("WS/" + str(spawn_spots[self.start][0]) + "," + str(spawn_spots[self.start][1]) + ",force")
         
-        if len(spawn_things) > 0:
+        if len(self.spawn_things) > 0:
             if 2 in self.forcedAssignments:
                 current_assignment = self.forcedAssignments[2]
                 if current_assignment[0:2] not in ["MU", "RP"]:
                     self.forcedAssignments[2] = "MU" + current_assignment[:2] + "/" + current_assignment[2:]
-                for item in spawn_things:
+                for item in self.spawn_things:
                     self.forcedAssignments[2] += "/" + item
             else:
-                self.forcedAssignments[2] = "MU" + spawn_things[0]
-                for item in spawn_things[1:]:
+                self.forcedAssignments[2] = "MU" + self.spawn_things[0]
+                for item in self.spawn_things[1:]:
                     self.forcedAssignments[2] += "/" + item
 
 
@@ -1222,7 +1232,7 @@ class SeedGenerator:
         pickup = ""
         if item.startswith("Warp"):
             name, x, y, area, logic_location, logic_cost = self.warps[item]
-            pickup = "TW|Warp to " + name + "," + str(x) + ',' + str(y)
+            pickup = "TW|Warp to " + name + "," + str(x) + ',' + str(y) + ',' + logic_location
         elif item[2:]:
             pickup = "%s|%s" % (item[:2], item[2:])
         else:
@@ -1713,17 +1723,40 @@ class SeedGenerator:
         self.mapQueue = OrderedDict()
         spoilerPath = []
 
-        if self.start == "Glades":
-            self.reach_area("SunkenGladesRunaway")
-            if self.var(Variation.OPEN_WORLD):
-                self.reach_area("GladesMain")
-        else:
-            self.reach_area(self.spawn_logic_areas[self.start])
+        #if self.start == "Glades":
+        #    self.reach_area("SunkenGladesRunaway")
+        #    if self.var(Variation.OPEN_WORLD):
+        #        self.reach_area("GladesMain")
+        #else:
+        #    self.reach_area(self.spawn_logic_areas[self.start])
         
         if self.var(Variation.OPEN_WORLD):
-            for connection in list(self.areas["SunkenGladesRunaway"].connections):
-                if connection.target == "GladesMain":
-                    self.areas["SunkenGladesRunaway"].remove_connection(connection)
+            #for connection in list(self.areas["SunkenGladesRunaway"].connections):
+            #    if connection.target == "GladesMain":
+            #        self.areas["SunkenGladesRunaway"].remove_connection(connection)
+            # We remove the keystone connection, and create a new connection that is free.
+            for connection in list(self.areas["GladesFirstKeyDoor"].connections):
+                if connection.target == "GladesFirstKeyDoorOpened":
+                    self.areas["GladesFirstKeyDoor"].remove_connection(connection)
+            connection = Connection("GladesFirstKeyDoor", "GladesFirstKeyDoorOpened", self)
+            connection.add_requirements([], 0)
+            self.areas["GladesFirstKeyDoor"].add_connection(connection)
+
+        if self.var(Variation.KEYS_ONLY_FOR_DOORS) and self.params.key_mode == KeyMode.SHARDS:
+            for connection in list(self.areas["TeleporterNetwork"].connections):
+                if connection.target in ["HoruTeleporter", "GinsoTeleporter", "ForlornTeleporter"]:
+                    self.areas["TeleporterNetwork"].remove_connection(connection)
+            connection = Connection("TeleporterNetwork", "HoruTeleporter", self)
+            connection.add_requirements(["TPHoru", "SunstoneShard", "SunstoneShard"], 0)
+            self.areas["TeleporterNetwork"].add_connection(connection)
+            connection = Connection("TeleporterNetwork", "GinsoTeleporter", self)
+            connection.add_requirements(["TPGinso", "WaterVeinShard", "WaterVeinShard"], 0)
+            self.areas["TeleporterNetwork"].add_connection(connection)
+            connection = Connection("TeleporterNetwork", "ForlornTeleporter", self)
+            connection.add_requirements(["TPForlorn", "GumonSealShard", "GumonSealShard"], 0)
+            self.areas["TeleporterNetwork"].add_connection(connection)
+
+        self.reach_area(self.spawn_logic_areas[self.start])
 
         self.itemPool["EX*"] = self.locations() - sum([v for v in self.itemPool.values()]) - self.unplaced_shared + 1  # add 1 for warmth returned (:
         self.expSlots = self.itemPool["EX*"]

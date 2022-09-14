@@ -38,6 +38,7 @@ def get_path_tags(parts):
             
     return tags
 
+
 _DIFFICULTIES_IGNORING_TAGS = [
     "glitched",
     "timed-level",
@@ -59,16 +60,16 @@ _PATH_TAGS_FROM_PATHSET = {
     "standard-core": ["standardCore", "standardBashGrenade"],
     "standard-dboost": ["standardDamageBoost"],
     "standard-lure": ["standardLure"],
-    "standard-abilities": ["standardAbilities", "standardAirDash"],
+    "standard-abilities": ["standardAbilities", "standardAirDash", "standardRekindle"],
     "expert-core": ["expertCore", "expertBashGrenade"],
     "expert-dboost": ["expertDamageBoost"],
     "expert-lure": ["expertLure"],
-    "expert-abilities": ["expertAbilities", "expertChargeDash", "expertRocketJump", "expertAirDash"],
+    "expert-abilities": ["expertAbilities", "expertChargeDash", "expertRocketJump", "expertAirDash", "expertRekindle"],
     "dbash": ["expertDoubleBash"],
     "master-core": ["masterCore", "masterDoubleBash", "masterBashGrenade"],
     "master-dboost": ["masterDamageBoost"],
     "master-lure": ["masterLure"],
-    "master-abilities": ["masterAbilities", "masterChargeFlameBurn", "masterChargeDash", "masterRocketJump", "masterAirDash", "masterTripleJump", "masterUltraDefense"],
+    "master-abilities": ["masterAbilities", "masterChargeFlameBurn", "masterChargeDash", "masterRocketJump", "masterAirDash", "masterTripleJump", "masterUltraDefense", "masterRekindle"],
     "gjump": ["masterGrenadeJump"],
     "glitched": ["glitched"],
     "timed-level": ["timed-level"],
@@ -94,7 +95,8 @@ _TAGS = [
     "AirDash",
     "TripleJump",
     "UltraDefense",
-    "BashGrenade"
+    "BashGrenade",
+    "Rekindle"
 ]
 
 _TAGS_SKILLS = {
@@ -107,7 +109,8 @@ _TAGS_SKILLS = {
     "AirDash": ["Dash"],
     "TripleJump": ["DoubleJump"],
     "UltraDefense": [],
-    "BashGrenade": ["Bash", "Grenade"]
+    "BashGrenade": ["Bash", "Grenade"],
+    "Rekindle": []
 }
 
 _TAGS_ABILITY = {
@@ -120,7 +123,8 @@ _TAGS_ABILITY = {
     "AirDash": 3,
     "TripleJump": 12,
     "UltraDefense": 12,
-    "BashGrenade": 0
+    "BashGrenade": 0,
+    "Rekindle": 0
 }
 
 _REQS = [
