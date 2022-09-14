@@ -3165,6 +3165,7 @@ home: L4
 	conn: L4InnerDoor
 	conn: HoruL4LavaChasePeg
 		casual Bash
+		master GrenadeJump
 	conn: HoruL4CutscenePeg
 		expert Free
 home: HoruL4LavaChasePeg
