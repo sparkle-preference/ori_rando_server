@@ -601,9 +601,14 @@ function player_icons(id, as_leaflet = true) {
     else if (id === 9) img = '/sprites/ori-multi-3.png';
     else if (id === 10) img = '/sprites/ori-skul.png';
     else if (id === 11) img = '/sprites/ori-peach.png';
+    else if (id === 12) img = '/sprites/ori-orange.png';
+    else if (id === 13) img = '/sprites/ori-arctic.png';
+    else if (id === 14) img = '/sprites/ori-paum.png';
+    else if (id === 15) img = '/sprites/ori-pika.png';
     else if (id === 100) img = '/sprites/kuro.png';
     else if (id === 101) img = '/sprites/gumo.png';
     else if (id === 102) img = '/sprites/ori-eph.png';
+    else if (id === 103) img = '/sprites/boulder_smol.png';
     else if (id === 221) img = '/sprites/ori-eiko.png';
     else if (id === 333) img = '/sprites/ori-blorple.png';
     else if (id === 385) img = '/sprites/ori-poogle.png';

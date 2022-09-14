@@ -11,6 +11,7 @@ from test import TestRunner
 from webapp2 import WSGIApplication, RequestHandler, redirect, uri_for
 from datetime import datetime, timedelta
 from google.appengine.ext import ndb
+from google.appengine.api import urlfetch
 from google.appengine.ext.webapp import template
 
 # project imports
@@ -201,7 +202,7 @@ class ShowHistory(RequestHandler):
             pids = [int(pid) for pid in param_val(self, "pids").split("|")] if param_val(self, "pids") else []
             hls = game.history(pids) if param_flag(self, "verbose") else [h for h in game.history(pids) if h.pickup().is_shared(share_types)]
             for hl in sorted(hls, key=lambda x: x.timestamp, reverse=True):
-                output += "\n\t\t Player %s %s" % (hl.player, hl.print_line(game.start_time))
+                output += "\n\t\t%s Player %s %s" % ((hl.player-1)*"\t\t\t\t", hl.player, hl.print_line(game.start_time))
             self.response.status = 200
             self.response.write(output)
         else:
@@ -1286,11 +1287,11 @@ app = WSGIApplication(
     ('/vanilla', Vanilla),
     Route('/reroll', handler=QuickReroll, strict_slash=True, name="reroll-last"),
     Route('/discord', redirect_to="https://discord.gg/TZfue9V"),
-    Route('/discord/dev', redirect_to="https://discord.gg/Ahwh4Na"),
+    Route('/discord/dev', redirect_to="https://discord.gg/sfUr8ra5P7"),
     Route('/reset/<game_id:\d+>', handler=ResetGame, name="restart-game"),
     Route('/transfer/<game_id:\d+>/<new_owner>', handler=ResetAndTransfer, name="transfer-game"),
     Route('/dll', redirect_to="https://github.com/sparkle-preference/OriDERandomizer/raw/master/Assembly-CSharp.dll"),
-    Route('/dll/bingo', redirect_to="https://github.com/sparkle-preference/OriDERandomizer/raw/master/Assembly-CSharp.dll"),
+    Route('/dll/beta', redirect_to="https://github.com/sparkle-preference/OriDERandomizer/raw/4.0/Assembly-CSharp.dll"),
     Route('/tracker', redirect_to="https://github.com/meldontaragon/OriDETracker/releases/latest"),
     Route('/weekly', redirect_to='https://docs.google.com/forms/d/e/1FAIpQLSew3Fx9ypwkKHuWhEDH-Edb7PtDpi1w0XAjdILK7sRm_EohBw/viewform?usp=pp_url&entry.1986108575=Bonus+Items&entry.1986108575=Teleporters+in+item+pool&entry.1986108575=Items+on+quests&entry.1986108575=Hints+sold+by+NPCs&entry.60604526=spawn+with:+Sword&entry.1306149304=Normal', name="weekly-poll"),
     Route('/weekly/vote', redirect_to='https://docs.google.com/forms/d/e/1FAIpQLSew3Fx9ypwkKHuWhEDH-Edb7PtDpi1w0XAjdILK7sRm_EohBw/viewform?usp=pp_url&entry.1986108575=Bonus+Items&entry.1986108575=Teleporters+in+item+pool&entry.1986108575=Items+on+quests&entry.1986108575=Hints+sold+by+NPCs&entry.60604526=spawn+with:+Sword&entry.1306149304=Normal', name="weekly-poll"),
@@ -1338,16 +1339,19 @@ app = WSGIApplication(
         Route('/preliminarystandings', redirect_to='https://docs.google.com/spreadsheets/d/1xeiQb1pf7zwY9YS7OTRrlHBhG8Zy6M6Qh4Rbq9OMuuo'),
         Route('/vods', redirect_to='https://docs.google.com/spreadsheets/d/16cs0Q1RNLgmvmd5E7dhPAEWVJ7M4NpskMBgau3RupEQ/'),
         Route('/obslayout', handler=TourneyLayout),
+        Route('/seedprefs', redirect_to='https://docs.google.com/forms/d/e/1FAIpQLScSRsjV6AFUyJQUjn_7EmO7qoEBKkOboy6wapPVoHb4gSFRoA/viewform?usp=pp_url&entry.1476829546=No&entry.1252857494=No&entry.1688839863=No&entry.471087235=No&entry.804542867=No&entry.1664745973=No'),
+        Route('/seedprefs/edit', redirect_to='https://docs.google.com/forms/d/e/1FAIpQLScSRsjV6AFUyJQUjn_7EmO7qoEBKkOboy6wapPVoHb4gSFRoA/viewform'),
+        Route('/seedprefs/details', redirect_to='https://docs.google.com/document/d/16lnSTtVqFpiXEOjabtn25laGwJ0Szf4Mn7UOgd82gN0/'),
+
     ]),
 
-    Route('/trickglossary', redirect_to='https://docs.google.com/document/d/1vjDiXz8UPiIOtUVKPlgzjBn9lrCE4y95EwPt0WnQF_U/edit'),
+    Route('/trickglossary', redirect_to='https://docs.google.com/document/d/1vjDiXz8UPiIOtUVKPlgzjBn9lrCE4y95EwPt0WnQF_U/'),
     Route('/trickrepo', redirect_to='https://www.youtube.com/channel/UCowq0m-wHdwi0vpG3jY1hFA'),
 
     # plando endpoints
     Route('/plando/reachable', PlandoReachable, strict_slash=True, name="plando-reachable"),
     Route('/plando/fillgen', PlandoFillGen, strict_slash=True, name="plando-fillgen"),
     Route('/plandos', AllAuthors, strict_slash=True, name="plando-view-all"),
-
     PathPrefixRoute('/plando/<seed_name:[^ ?=/]+>', [
         Route('/upload', PlandoUpload, strict_slash=True, name="plando-upload"),
         Route('/edit', PlandoEdit, strict_slash=True, name="plando-edit"),
