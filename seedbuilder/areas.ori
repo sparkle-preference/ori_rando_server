@@ -2872,6 +2872,7 @@ home: L4InnerDoor
 home: L4
 	conn: HoruL4LavaChasePeg
 		casual-core Bash
+		gjump ChargeJump Climb Grenade
 	conn: HoruL4CutscenePeg
 		expert-core Free
 home: HoruL4LavaChasePeg
