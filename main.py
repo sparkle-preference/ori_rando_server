@@ -1291,7 +1291,7 @@ app = WSGIApplication(
     Route('/reset/<game_id:\d+>', handler=ResetGame, name="restart-game"),
     Route('/transfer/<game_id:\d+>/<new_owner>', handler=ResetAndTransfer, name="transfer-game"),
     Route('/dll', redirect_to="https://github.com/sparkle-preference/OriDERandomizer/raw/master/Assembly-CSharp.dll"),
-    Route('/dll/beta', redirect_to="https://github.com/sparkle-preference/OriDERandomizer/raw/4.0/Assembly-CSharp.dll"),
+    Route('/dll/beta', redirect_to="https://github.com/sparkle-preference/OriDERandomizer/raw/master/Assembly-CSharp.dll"),
     Route('/tracker', redirect_to="https://github.com/meldontaragon/OriDETracker/releases/latest"),
     Route('/weekly', redirect_to='https://docs.google.com/forms/d/e/1FAIpQLSew3Fx9ypwkKHuWhEDH-Edb7PtDpi1w0XAjdILK7sRm_EohBw/viewform?usp=pp_url&entry.1986108575=Bonus+Items&entry.1986108575=Teleporters+in+item+pool&entry.1986108575=Items+on+quests&entry.1986108575=Hints+sold+by+NPCs&entry.60604526=spawn+with:+Sword&entry.1306149304=Normal', name="weekly-poll"),
     Route('/weekly/vote', redirect_to='https://docs.google.com/forms/d/e/1FAIpQLSew3Fx9ypwkKHuWhEDH-Edb7PtDpi1w0XAjdILK7sRm_EohBw/viewform?usp=pp_url&entry.1986108575=Bonus+Items&entry.1986108575=Teleporters+in+item+pool&entry.1986108575=Items+on+quests&entry.1986108575=Hints+sold+by+NPCs&entry.60604526=spawn+with:+Sword&entry.1306149304=Normal', name="weekly-poll"),

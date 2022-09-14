@@ -11,9 +11,8 @@ If you believe you have recieved an unfinishable seed, please inform Eiko in the
 const noneTitle = "Confused?";
 const noneSub = "Mouse over anything to learn more!";
 const noneLines = ["Additional context-specific information will appear here as you interact with the UI."];
-const vars = ["Starved", "NonProgressMapStones", "Hard", "0XP", "Entrance", "BonusPickups", "DoubleSkills", "StrictMapstones", "ClosedDungeons", "OpenWorld", "StompTriggers", "TPStarved", "WallStarved", "GrenadeStarved", "Race"]
+const vars = ["Starved", "NonProgressMapStones", "Hard", "0XP", "Entrance", "BonusPickups", "DoubleSkills", "StrictMapstones", "ClosedDungeons", "OpenWorld", "StompTriggers", "TPStarved", "WallStarved", "GrenadeStarved", "Race", "InLogicWarps"]
 const presets = ["Casual", "Standard", "Expert", "Master", "Glitched", "Custom"]
-
 const goalModes = ["ForceTrees", "ForceMaps", "Bingo"]
 const keyModes = ["Shards", "Clues", "Limitkeys", "Free"]
 
@@ -284,6 +283,13 @@ const getHelpHelper = (category, option) => {
                         "Recommended for anyone who watched a 0 XP run and thought it seemed fun."
                     ]
                     extras.push(UntestedWarning);
+                    break;
+                case "InLogicWarps":
+                    title = "In-Logic Warps"
+                    lines = [
+                        "Following warps is considered in-logic!",
+                        "Beware! This might be terrible." // FIXME: uh. come on. 
+                    ]
                     break;
                 case "Entrance":
                     title = "Entrance Shuffle"

@@ -551,6 +551,61 @@ function get_seed() {
     let seedJson = get_param("seed_data")
     return { seedJson: seedJson, user: user, authed: authed, seed_name: name, seed_desc: desc, hidden: hidden }
 }
+    // health, energy, skills: 3, 1, 0 by default
+const spawn_defaults = {
+    "Glades": {
+    },
+    "Grove": {
+        "Casual": [3, 1, 1], 
+        "Standard": [3, 1, 1], 
+        "Expert": [3, 1, 1], 
+    },
+    "Swamp": {
+        "Casual": [4, 2, 1], 
+        "Standard": [3, 2, 1], 
+        "Expert": [3, 1, 1], 
+    },
+    "Grotto": {
+        "Casual": [4, 2, 1],
+        "Standard": [3, 2, 1],
+    },
+    "Forlorn": {
+        "Casual": [5, 3, 2],
+        "Standard": [4, 2, 1],
+        "Expert": [4, 2, 1],
+        "Master": [3, 2, 1],
+    },
+    "Valley": {
+        "Casual": [5, 3, 2],
+        "Standard": [4, 2, 2],
+        "Expert": [4, 2, 1],
+        "Master": [3, 2, 1],
+    },
+    "Horu": {
+        "Casual": [5, 3, 3],
+        "Standard": [4, 2, 3],
+        "Expert": [4, 2, 2],
+        "Master": [4, 2, 2],
+    },
+    "Ginso": {
+        "Casual": [5, 3, 2],
+        "Standard": [4, 2, 2],
+        "Expert": [4, 2, 1],
+        "Master": [3, 2, 1],
+    },
+    "Sorrow": {
+        "Casual": [6, 3, 3],
+        "Standard": [5, 2, 3],
+        "Expert": [5, 2, 2],
+        "Master": [4, 2, 2],
+    },
+    "Blackroot": {
+        "Casual": [4, 2, 2],
+        "Standard": [4, 2, 2],
+        "Expert": [3, 1, 2],
+        "Master": [3, 1, 2],
+    },
+}
 
 const presets = {
     casual: ['casual-core', 'casual-dboost'],
@@ -652,5 +707,5 @@ const randInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 
 export {
     player_icons, doNetRequest, get_param, get_flag, get_int, get_list, get_preset, presets, get_seed, logic_paths, get_random_loader, Blabel,
-    pickup_name, stuff_by_type, name_from_str, PickupSelect, Cent, ordinal_suffix, dev, gotoUrl, select_theme, randInt
+    pickup_name, stuff_by_type, name_from_str, PickupSelect, Cent, ordinal_suffix, dev, gotoUrl, select_theme, randInt, spawn_defaults
 };

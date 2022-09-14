@@ -126,6 +126,10 @@ class SeedGenParams(ndb.Model):
     item_pool = ndb.JsonProperty()
     pool_preset = ndb.StringProperty()
     bingo_lines = ndb.IntegerProperty(default=3)
+    start = ndb.StringProperty(default="Glades")
+    starting_health = ndb.IntegerProperty(default=3)
+    starting_energy = ndb.IntegerProperty(default=1)
+    starting_skills = ndb.IntegerProperty(default=0)
     do_loc_analysis = False
 
     @staticmethod
@@ -179,6 +183,10 @@ class SeedGenParams(ndb.Model):
         params.bingo_lines = json.get("bingoLines", 3)
         params.pool_preset = json.get("selectedPool", "Standard")
         params.placements = [Placement(location=fass["loc"], zone="", stuff=[Stuff(code=fass["code"], id=fass["id"], player="")]) for fass in json.get("fass", [])]
+        params.starting_energy = json.get("spawnECs", 1)
+        params.starting_health = json.get("spawnHCs", 3)
+        params.starting_skills = json.get("spawnSKs", 0)
+        params.start = json.get("spawn", "Glades")
         return params.put()
 
     @staticmethod
@@ -207,6 +215,10 @@ class SeedGenParams(ndb.Model):
         params.sense = qparams.get("sense")
         params.pool_preset = qparams.get("pool_preset", "Standard").title()
         params.item_pool = {}
+        params.start = qparams.get("spawn", "Glades")
+        params.starting_energy = int(qparams.get("spawnECs", 1))
+        params.starting_health = int(qparams.get("spawnHCs", 3))
+        params.starting_skills = int(qparams.get("spawnSKs", 0))
         raw_pool = qparams.get("item_pool")
         if raw_pool:
             for itemcnt in raw_pool.split("|"):
@@ -276,6 +288,10 @@ class SeedGenParams(ndb.Model):
             "dedupShared": self.sync.dedup,
             "spoilers": len(self.spoilers[0]) > 100,
             "senseData": self.sense,
+            "spawn": self.start,
+            "spawnECs": self.starting_energy,
+            "spawnHCs": self.starting_health,
+            "spawnSKs": self.starting_skills,
             "isPlando": self.is_plando,
             "itemPool": self.item_pool,
             "selectedPool": self.pool_preset,
