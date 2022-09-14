@@ -1176,6 +1176,10 @@ class WotwTempMap(RequestHandler):
                            'skills': param_val(self, 'skills'), 'tps': param_val(self, 'tps'), 'evs': param_val(self, 'evs')})
         self.response.write(template.render(path, template_values))
 
+class GetAreas(RequestHandler):
+    def get(self):
+        self.response.headers['Content-Type'] = 'text/plain'
+        self.response.write(Cache.get_areas())
 
 def all_releases():
     return json.loads(urlopen("https://api.github.com/repos/sparkle-preference/OriWotwRandomizerClient/releases").read())
@@ -1307,6 +1311,7 @@ app = WSGIApplication(
 #    Route('/openBook/leaderboard', redirect_to='https://docs.google.com/spreadsheets/d/1X6jJpjJVY_mly--9tnV9EGo5I6I_gJ4Sepkf51S9rQ4/edit#gid=172059369&range=A1:D1', name="open-book-leaderboard"),
     Route('/theme/toggle', handler=ThemeToggle, name="theme-toggle"),
     # netcode endpoints
+    Route('/netcode/areas', handler=GetAreas, name="areas-raw"),
     PathPrefixRoute('/netcode/game/<game_id:\d+>/player/<player_id:[^/]+>', [
         Route('/found/<coords>/<kind>/<id:.*>', handler=FoundPickup, name="netcode-player-found-pickup"),
         Route('/tick/<x:[^,]+>,<y>', handler=GetUpdate, name="netcode-player-tick"),
