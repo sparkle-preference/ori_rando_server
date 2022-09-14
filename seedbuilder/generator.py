@@ -429,6 +429,8 @@ class SeedGenerator:
         self.entrance_spoiler = ""
         self.warps = {}
         self.start = None
+        self.starting_health = 3
+        self.starting_energy = 1
 
     def reset(self):
         """A full reset. Resets internal state completely (besides pRNG
@@ -555,8 +557,8 @@ class SeedGenerator:
             if self.params.start == "Random":
                 self.starting_health, self.starting_energy, skills_min = spawn_defaults[self.start][difficulty]
             elif self.start != "Glades":
-                    self.starting_health = max(self.params.starting_health, 3)
-                    self.starting_energy = max(self.params.starting_energy, 1)
+                    self.starting_health = max(self.params.starting_health, self.starting_health)
+                    self.starting_energy = max(self.params.starting_energy, self.starting_energy)
                     skills_min = int(self.params.starting_skills)
             if skills_min > 0:
                 if skills_min > 1:

@@ -1,6 +1,7 @@
-from seedbuilder.oriparse import get_areas
+from seedbuilder.oriparse import get_areas, get_pathset_from_tag
 from collections import defaultdict, Counter
 from pickups import Pickup
+import re
 
 class PlayerState(object):
     name_from_id = {
@@ -116,7 +117,7 @@ class Map(object):
                 if conn_data["type"] == "pickup" and target not in Map.areas:
                     Map.areas[target] = Area(target)
                 for path in conn_data["paths"]:
-                    conn.add_requirements(path[1:], path[0])
+                    conn.add_requirements(path[1:], get_pathset_from_tag(path[0]))
                 area.conns.append(conn)
             Map.areas[area.name] = area
 
@@ -160,3 +161,17 @@ class Map(object):
             return {area: list(Map.reached_with[area]) for area in (list(reachable_areas) + ms_areas)}
         else:
             return list(reachable_areas) + ms_areas
+
+abilities_pattern = re.compile(r'(ChargeDash|TripleJump|)')
+
+trans_map = {
+    "expertChargeDash": "expert-abilities",
+
+    "masterChargeDash": "master-abilities",
+    "masterUltraDefense": "master-"
+}
+def translate_to_old(new_ver): 
+    return ""
+convert_pattern = re.compile(r'(?<!^)(?=[A-Z])')
+def cc_to_old_fmat(cc_str):
+    return convert_pattern.sub('-', cc_str).lower()

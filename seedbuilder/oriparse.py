@@ -75,6 +75,7 @@ _PATH_TAGS_FROM_PATHSET = {
     "timed-level": ["timed-level"],
     "insane": ["insane"]
 }
+PATHSETS_BY_REVERSE_DIFF =     ["insane", "timed-level", "glitched", "gjump", "master-abilities", "master-lure", "master-dboost", "master-core", "dbash", "expert-abilities", "expert-lure", "expert-dboost", "expert-core", "standard-abilities", "standard-lure", "standard-dboost", "standard-core", "casual-dboost", "casual-core"]
 
 def get_path_tags_from_pathsets(pathsets):
     path_tags = []
@@ -83,7 +84,17 @@ def get_path_tags_from_pathsets(pathsets):
             if path_tag not in path_tags:
                 path_tags.append(path_tag)
     return path_tags
-
+# hacky and bad; fix later
+def hardest_pathset_from_tags(tags):
+    pathsets = list(set([get_pathset_from_tag(tag) for tag in tags]))
+    for pset in PATHSETS_BY_REVERSE_DIFF:
+        if pset in pathsets:
+            return pset
+    return pathsets[0]
+def get_pathset_from_tag(tag):
+    for pset, tags in _PATH_TAGS_FROM_PATHSET.items():
+        if tag in tags:
+            return pset
 # DamageBoost and Abilities are implicit tags.
 _TAGS = [
     "Lure",
