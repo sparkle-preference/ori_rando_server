@@ -1793,16 +1793,24 @@ home: MoonGrottoAboveTeleporter
 	pickup: LeftGrottoTeleporterExp
 		casual-core WallJump DoubleJump
 		casual-core Climb DoubleJump ChargeJump
+		standard-abilities DoubleJump Dash Ability=3
 		expert-core Grenade Bash
 		expert-core Climb ChargeJump
+		expert-core DoubleJump Dash
 		expert-dboost ChargeJump Health=4
 		expert-dboost WallJump Glide Health=4
 		expert-dboost Climb Glide Health=4
 		expert-dboost DoubleJump Glide Health=4
 		expert-dboost WallJump Health=7
 		expert-dboost Climb Health=7
+		expert-dboost Climb DoubleJump Health=4
+		expert-dboost Climb Dash Ability=3 Health=4
+		expert-dboost WallJump Dash Ability=3 Health=4
+		expert-dboost Dash Ability=6 Health=4
 		master-lure Bash
 		master-dboost DoubleJump Health=4
+		master-abilities DoubleJump Ability=12
+		master-abilities Dash Ability=6
 	conn: UpperGrotto
 		casual-core WallJump
 		casual-core Climb DoubleJump
@@ -1840,6 +1848,52 @@ home: MoonGrotto
 		expert-core Energy=2 Climb Glide
 		expert-dboost Energy=2 Climb DoubleJump
 		expert-abilities Energy=2 Dash Ability=6
+	pickup: BelowGrottoTeleporterHealthCell
+		casual-core DoubleJump Bash WallJump
+		casual-core DoubleJump Bash Climb
+		casual-core ChargeJump DoubleJump
+		casual-core ChargeJump Glide WallJump
+		casual-core ChargeJump Glide Climb
+		standard-core ChargeJump Glide
+		standard-core Bash Glide WallJump
+		standard-core Bash Grenade
+		standard-dboost ChargeJump Health=3
+		standard-dboost Bash DoubleJump Health=3
+		standard-abilities Bash Dash Ability=3 WallJump
+		standard-abilities Bash Dash Ability=3 Climb
+		standard-abilities ChargeJump Dash Ability=3
+		expert-core DoubleJump Bash
+		expert-dboost WallJump Bash Health=6
+		expert-dboost Dash Ability=6 Health=3
+		expert-dboost Bash Glide Health=6
+		expert-abilities Dash Ability=6 WallJump
+		expert-abilities Dash Ability=6 Climb    
+		expert-abilities Dash Ability=3 Bash
+		master-core Bash ChargeJump
+		master-core Bash Glide
+		master-dboost Bash Health=4	
+		master-abilities DoubleJump WallJump Ability=12
+	pickup: BelowGrottoTeleporterPlant
+		casual-core DoubleJump ChargeFlame
+		casual-core DoubleJump Grenade
+		casual-core ChargeJump Glide ChargeFlame
+		casual-core ChargeJump Glide Grenade
+		standard-core WallJump Glide ChargeFlame
+		standard-core WallJump Glide Grenade
+		standard-core Bash Grenade
+		standard-dboost Glide ChargeFlame Health=4
+		standard-dboost Glide Grenade Health=4
+		standard-dboost ChargeJump ChargeFlame Health=3
+		standard-dboost ChargeJump Grenade Health=3
+		standard-abilities Dash Ability=3 ChargeFlame
+		standard-abilities Dash Ability=3 Grenade
+		expert-dboost WallJump ChargeFlame Health=6
+		expert-dboost WallJump Grenade Health=6
+		expert-abilities Dash Ability=6
+		master-core Glide ChargeFlame
+		master-core Glide Grenade
+		master-core Bash ChargeFlame ChargeJump
+		master-dboost Bash ChargeFlame Health=4
 	conn: MoonGrottoAboveTeleporter
 		casual-core WallJump
 		casual-core Climb
@@ -1862,11 +1916,6 @@ home: MoonGrotto
 		standard-core Dash
 		expert-core WallJump
 		master-lure Bash
-	conn: MoonGrottoBelowTeleporter
-		casual-core DoubleJump
-		casual-core ChargeJump Glide
-		standard-dboost Glide Health=4
-		standard-abilities Dash Ability=3
 home: Iceless
 	-- anchor: at the iceless xp
 	pickup: IcelessExp
@@ -1877,31 +1926,6 @@ home: Iceless
 		standard-core Bash Grenade
 		standard-dboost Health=4
 		gjump ChargeJump Climb Grenade
-home: MoonGrottoBelowTeleporter
-	-- anchor: just right of the "teeth"
-	pickup: BelowGrottoTeleporterHealthCell
-		casual-core DoubleJump Bash WallJump
-		casual-core DoubleJump Bash Climb
-		casual-core ChargeJump DoubleJump
-		casual-core ChargeJump Glide
-		standard-dboost ChargeJump Health=3
-		standard-dboost DoubleJump Bash Health=3
-		standard-dboost WallJump Bash Health=3
-		expert-dboost Bash Health=5
-		expert-abilities WallJump Dash Ability=6
-		expert-abilities Climb Dash Ability=6
-		expert-abilities ChargeJump Dash Ability=6
-		master-abilities DoubleJump WallJump Ability=12
-	pickup: BelowGrottoTeleporterPlant
-		casual-core DoubleJump ChargeFlame
-		casual-core Glide ChargeFlame
-		casual-core DoubleJump Grenade
-		casual-core Glide Grenade
-		standard-dboost ChargeFlame Health=4
-		standard-dboost Grenade Health=4
-		standard-abilities Dash Ability=3 ChargeFlame
-		standard-abilities Dash Ability=3 Grenade
-		expert-abilities Dash Ability=6
 home: MoonGrottoSwampAccessArea
 	-- anchor: atop the breakable log platform, directly below the xp
 	pickup: GrottoSwampDrainAccessExp
