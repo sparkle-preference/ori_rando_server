@@ -578,16 +578,23 @@ class SeedGenerator:
                         cost *= 5
                     if skill == "Grenade" and self.var(Variation.FUCK_GRENADE):
                         cost *= 5
-                    weight = 1 / cost
+                    weight = 1.0 / cost
                     weights.append(weight)
                 
                 if len(self.starting_skills) == 0 and skills_min > 0:
                     # Select a starting skill.
                     while skills_min > 0 and len(remaining_skills) > 0:
-                        skill = self.random.choice(remaining_skills) #choices(self.random, remaining_skills, weights=weights, k=1)[0]
-                        index = remaining_skills.index(skill)
+                        stopping_point = self.random.random() * sum(weights)
+                        current_sum = 0
+                        index = 0
+                        while index < len(remaining_skills) - 1:
+                            current_sum += weights[index]
+                            if stopping_point <= current_sum:
+                                break
+                            index += 1
+                        skill = remaining_skills[index]
                         remaining_skills.pop(index)
-#                        weights.pop(index)
+                        weights.pop(index)
                         skills_min -= 1
                         self.starting_skills.append(skill)
             
