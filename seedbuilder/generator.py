@@ -428,7 +428,7 @@ class SeedGenerator:
         self.spoiler = []
         self.entrance_spoiler = ""
         self.warps = {}
-        self.start = None
+        self.start = "Glades"
         self.starting_health = 3
         self.starting_energy = 1
 
