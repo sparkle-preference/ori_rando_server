@@ -524,12 +524,10 @@ class SeedGenerator:
                 if self.var(Variation.CLOSED_DUNGEONS):
                     log.error("can't start in dungeons with closed dungeons.")
                     exit(1)
-            if self.params.start == "Random":
+            elif self.params.start == "Random":
                 possible_start_locations = ["Grove", "Swamp", "Grotto", "Forlorn", "Glades"] + (["Valley"] if self.var(Variation.OPEN_WORLD) else [])
                 self.start = self.random.choice(possible_start_locations)
- 
-                #log.debug("Chose start: " + self.start)
-            if not self.start:
+            else:
                 self.start = self.params.start
             
             # start: {difficulty (int): [health, energy, skills_min, skills_max]}
@@ -1505,7 +1503,9 @@ class SeedGenerator:
                         return None
                     return self.placeItemsMulti(retries)
                 placements.append(placement)
-
+        if self.params.spawn != self.start:
+            self.params.spawn = self.start
+            self.params.put()
         return placements
 
     def locations(self):

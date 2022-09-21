@@ -127,6 +127,7 @@ class SeedGenParams(ndb.Model):
     pool_preset = ndb.StringProperty()
     bingo_lines = ndb.IntegerProperty(default=3)
     start = ndb.StringProperty(default="Glades")
+    spawn = ndb.StringProperty(default="Glades")
     starting_health = ndb.IntegerProperty(default=3)
     starting_energy = ndb.IntegerProperty(default=1)
     starting_skills = ndb.IntegerProperty(default=0)

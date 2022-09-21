@@ -397,6 +397,7 @@ class GetReachable(RequestHandler):
             return
         modes = param_val(self, "modes").split(" ")
         game = Game.with_id(game_id)
+        spawn = game.params.get().spawn or "Glades"
         shared_hist = []
         shared_coords = set()
         try:
@@ -409,7 +410,7 @@ class GetReachable(RequestHandler):
                 areas = {}
                 if state.has["KS"] > 8 and "standard-core" in modes:
                     state.has["KS"] += 2 * (state.has["KS"] - 8)
-                for area, reqs in Map.get_reachable_areas(state, modes).items():
+                for area, reqs in Map.get_reachable_areas(state, modes, spawn).items():
                     areas[area] = [{item: count for (item, count) in req.cnt.items()} for req in reqs if len(req.cnt)]
                 reachable_areas[player] = areas
             self.response.write(json.dumps(reachable_areas))
@@ -535,15 +536,6 @@ class GetMapUpdate(RequestHandler):
             if p not in players:
                 players[p] = {}
             players[p]["seen"] = coords
-        # items, inventories = Cache.get_items(game_id)
-        # if not items:
-        #     if not game:
-        #         game = Game.with_id(game_id)
-        #     if not game:
-        #         self.response.status = 404
-        #         self.response.write(json.dumps({"error": "Game not found"}))
-        #         return
-        #     items, inventories = GetItemTrackerUpdate.get_items(coords, game)
         reach = Cache.get_reachable(game_id)
         modes = tuple(sorted(param_val(self, "modes").split(" ")))
         need_reach_updates = [p for p in players.keys() if modes not in reach.get(p, {})]
@@ -556,6 +548,7 @@ class GetMapUpdate(RequestHandler):
                     return
             if not inventories:
                 inventories = game.get_inventories(game.get_players(), True, True)
+            spawn = game.params.get().spawn or "Glades"
             for p in need_reach_updates:
                 inventory = [(pcode, pid, count, False) for ((pcode, pid), count) in inventories["unshared"][p].items()]
                 inventory  += [(pcode, pid, count, False) for group, inv in inventories.items()  if group != "unshared" and p in group for ((pcode, pid), count) in inv.items()]
@@ -564,7 +557,7 @@ class GetMapUpdate(RequestHandler):
                     state.has["KS"] += 2 * (state.has["KS"] - 8)
                 if p not in reach:
                     reach[p] = {}
-                reach[p][modes] = Map.get_reachable_areas(state, modes, False)
+                reach[p][modes] = Map.get_reachable_areas(state, modes, spawn, False)
             Cache.set_reachable(game_id, reach)
         for p in reach:
             players[p]["reachable"] = reach[p][modes]

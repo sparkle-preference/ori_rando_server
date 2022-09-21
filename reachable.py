@@ -2,13 +2,27 @@ from seedbuilder.oriparse import get_areas, hardest_pathset_from_tags
 from collections import defaultdict, Counter
 from pickups import Pickup
 
+initial_area_by_spawn = {
+    "Glades": "SunkenGladesRunaway",
+    "Grove": "SpiritTreeRefined",
+    "Swamp": "SwampTeleporter",
+    "Grotto": "MoonGrotto",
+    "Forlorn": "ForlornTeleporter",
+    "Valley": "ValleyTeleporter",
+    "Horu": "HoruTeleporter",
+    "Ginso": "GinsoTeleporter",
+    "Sorrow": "SorrowTeleporter",
+    "Blackroot": "BlackrootGrottoConnection",
+}
+
 class PlayerState(object):
     name_from_id = {
         ("SK", 0): 'Bash', ("SK", 2): 'ChargeFlame', ("SK", 3): 'WallJump', ("SK", 4): 'Stomp', ("SK", 5): 'DoubleJump',
         ("SK", 8): 'ChargeJump', ("SK", 12): 'Climb', ("SK", 14): 'Glide', ("SK", 50): 'Dash', ("SK", 51): 'Grenade',
         ("EV", 0): 'GinsoKey', ("EV", 1): 'Water', ("EV", 2): 'ForlornKey', ("EV", 3): 'Wind', ("EV", 4): 'HoruKey',
         ("TP", "Swamp"): 'TPSwamp', ("TP", "Grove"): 'TPGrove', ("TP", "Valley"): 'TPValley', ("TP", "Horu"): 'TPHoru',
-        ("TP", "Ginso"): 'TPGinso', ("TP", "Grotto"): 'TPGrotto', ("TP", "Forlorn"): 'TPForlorn', ("TP", "Sorrow"): 'TPSorrow'
+        ("TP", "Ginso"): 'TPGinso', ("TP", "Grotto"): 'TPGrotto', ("TP", "Forlorn"): 'TPForlorn',
+        ("TP", "Sorrow"): 'TPSorrow', ("TP", "Blackroot"): 'TPBlackroot', ("TP", "Glades"): 'TPGlades', 
     }
 
     def add_to_inventory(self, pickup, removed, count):
@@ -121,11 +135,12 @@ class Map(object):
             Map.areas[area.name] = area
 
     @staticmethod
-    def get_reachable_areas(state, modes, need_reached_with=True):
+    def get_reachable_areas(state, modes, spawn="Glades", need_reached_with=True):
         if not Map.areas:
             Map.build()
         Map.reached_with = defaultdict(lambda: set())
-        unchecked_areas = {"SunkenGladesRunaway"}
+        unchecked_areas = { initial_area_by_spawn[spawn] if spawn in initial_area_by_spawn else "SunkenGladesRunaway" }
+        reachable_areas = set()
         if "CLOSED_DUNGEON" not in modes:
             state.has["Open"] = 1
         else:
@@ -133,7 +148,6 @@ class Map(object):
             state.has["TPHoru"] = 0
         if "OPEN_WORLD" in modes:
             state.has["OpenWorld"] = 1
-        reachable_areas = {"SunkenGladesFirstEC"}
         needs_ks_check = set()
         while len(unchecked_areas) > 0:
             curr = unchecked_areas.pop()
@@ -156,6 +170,8 @@ class Map(object):
         if mapstone_cnt == 8 and state.has["MS"] < 9:
             mapstone_cnt -= 1
         ms_areas = ["MS%s" % i for i in range(1, mapstone_cnt + 1)]
+        if "FronkeyFight" in reachable_areas:
+            reachable_areas.add("SunkenGladesFirstEC") 
         if need_reached_with:
             return {area: list(Map.reached_with[area]) for area in (list(reachable_areas) + ms_areas)}
         else:

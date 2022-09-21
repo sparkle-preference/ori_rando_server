@@ -316,10 +316,10 @@ class Player(ndb.Model):
             self.put()
     
     def seen_coords(self):
-        return bfields_to_coords(self.seen_bflds)
+        return bfields_to_coords(self.seen_bflds) + [2]
 
     def have_coords(self):
-        return bfields_to_coords(self.have_bflds)
+        return bfields_to_coords(self.have_bflds) + [2]
 
     @ndb.transactional(retries=5)
     def reset(self):
@@ -1011,6 +1011,7 @@ class Game(ndb.Model):
     dedup       = ndb.BooleanProperty(default=False)
     creator     = ndb.KeyProperty("User")
     is_race     = ndb.BooleanProperty(default=False)
+    spawn       = ndb.StringProperty(default="Glades")
     def history(self, pids=[]):
         if not self.hls:
              # legacy migration branch

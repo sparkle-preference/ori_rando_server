@@ -65,7 +65,7 @@ class Event(Pickup):
         return inst
 
 class Teleporter(Pickup):
-    bits = {"Grove": 1, "Swamp": 2, "Grotto": 4, "Valley": 8, "Forlorn": 16, "Sorrow": 32, "Ginso": 64, "Horu": 128, "Blackroot": 256}
+    bits = {"Grove": 1, "Swamp": 2, "Grotto": 4, "Valley": 8, "Forlorn": 16, "Sorrow": 32, "Ginso": 64, "Horu": 128, "Blackroot": 256, "Glades": 512}
     code = "TP"
     share_type = ShareType.TELEPORTER
     int_id = False
