@@ -288,9 +288,8 @@ const getHelpHelper = (category, option) => {
                     title = "In-Logic Bonus Warps"
                     lines = [
                         "Using Bonus Warps is considered in-logic, and may be required to beat the seed!",
-                        "Note that this Variation does nothing if there aren't any Bonus Warps in the item pool",
-                        "Recommended for players who want to use ",
-                        "Beware! This might be terrible." // FIXME: uh. come on. 
+                        "Note that this Variation does nothing if there aren't any Bonus Warps in the item pool.",
+                        "Recommended for experienced players who want to experience unpredictable progression paths.",
                     ]
                     break;
                 case "Entrance":

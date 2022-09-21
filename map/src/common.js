@@ -274,7 +274,7 @@ class PickupSelect extends Component {
         }
         if(props.allowPsuedo) {
             misc.options.splice(0, 0, {label: "Random Bonus Skill", value: "BS|*", desc: "A random bonus skill", max: 6})
-            misc.options.splice(0, 0, {label: "Random Warp", value: "WP|*"})
+            misc.options.splice(0, 0, {label: "Random Bonus Warp", value: "WP|*"})
         }
         options.push(misc)
     }
