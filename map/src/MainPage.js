@@ -1181,7 +1181,7 @@ onDrop = (files) => {
             <DropdownItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("logicModes", mode)} className="text-capitalize" active={mode===pathMode.toLowerCase()} onClick={this.onMode(mode)}>{mode}</DropdownItem>
         ))
         let spawnOptions = SPAWN_OPTS.map(loc => (
-            <DropdownItem active={loc===spawn} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("spawnLocs", spawn)} onClick={this.onSpawnLoc(loc)}>{loc}</DropdownItem>
+            <DropdownItem active={loc===spawn} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "spawnLoc")} onClick={this.onSpawnLoc(loc)}>{loc}</DropdownItem>
         ))
 
         let keyModeOptions = keymode_options.map(mode => (
@@ -1285,7 +1285,7 @@ onDrop = (files) => {
                         <Col xs="6"  className="text-center pt-1 border mt-2">
                             <span className="align-middle">Spawn</span>
                         </Col>
-                        <Col xs="6" className="mt-2" onMouseLeave={this.helpEnter("general", "spawnLoc")} onMouseEnter={this.helpEnter("spawnLoc", spawn)}>
+                        <Col xs="6" className="mt-2" onMouseLeave={this.helpEnter("general", "spawnLoc")} onMouseEnter={this.helpEnter("general", "spawnLoc")}>
                             <UncontrolledButtonDropdown className="w-100">
                                 <DropdownToggle color="primary" className="text-capitalize" caret block> {spawn} </DropdownToggle>
                                 <DropdownMenu style={styles.menuStyle}> {spawnOptions} </DropdownMenu>

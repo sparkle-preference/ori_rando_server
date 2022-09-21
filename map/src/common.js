@@ -94,7 +94,7 @@ function pickup_name(code, id) {
         case "WS":
         case "WP":
             if(id === "*")
-                return "Random warp (repeatable)"
+                return "Random Bonus Warp"
             if(id.endsWith(",force"))
                 return "Warp (forced) to " + id.slice(0, id.length-6) + (code === "WS" ? " and save" : "")
             else
@@ -701,7 +701,7 @@ function gotoUrl(url, newWindow) {
 }
 
 
-const dev = window.document.URL.includes("devshell.appspot.com")
+const dev = window.document.URL.includes("cloudshell.dev")
 const randInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 
 
