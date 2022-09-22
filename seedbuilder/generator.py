@@ -365,6 +365,29 @@ class SeedGenerator:
                     return self.difficultyMap[difficulty]
         return self.difficultyMap["casual"]
 
+    def choice(self, things, weights):
+        return self.choices(things, weights, 1)[0]
+
+    def choices(self, things, weights, N):
+        return self.choices_rec(list(things), list(weights), N)
+
+    def choices_rec(self, things, weights, N):
+        if len(things) != len(weights):
+            return []
+        if N >= len(things):
+            return things
+        if N == 0:
+            return [] 
+        stop = self.random.random() * sum(weights)
+        curr = 0
+        i = -1
+        while curr < stop:
+            i += 1
+            curr += weights[i]
+        weights.pop(i)
+        choice = things.pop(i)
+        return [choice] + self.choices_rec(things, weights, N-1)
+
     # in order: 10 skills, then WV, Water, GS, Wind, Sunstone    
     skillsOutput = OrderedDict({
         "WallJump": "SK3", "ChargeFlame": "SK2", "Dash": "SK50", "Stomp": "SK4", "DoubleJump": "SK5",
@@ -374,6 +397,16 @@ class SeedGenerator:
         "GinsoKey": "EV0", "Water": "EV1", "ForlornKey": "EV2", "Wind": "EV3", "HoruKey": "EV4", "Warmth": "EV5",
         "WaterVeinShard": "RB17", "GumonSealShard": "RB19", "SunstoneShard": "RB21"
     })
+
+    def toOutput(self, item, asMultiPart=False):
+        if asMultiPart:
+            raw = self.toOutput(item)
+            return "%s/%s" % (raw[0:2], raw[2:])
+        if item in self.skillsOutput:
+            return self.skillsOutput[item]
+        if item in self.eventsOutput:
+            return self.eventsOutput[item]
+        return item
 
     def var(self, v):
         return v in self.params.variations
@@ -512,12 +545,22 @@ class SeedGenerator:
         difficulty = self.get_difficulty(logic_path_tags)
 
         if self.playerID == 1:
-            # FIXME currently all equally frequent.
             # have horu, ginso, sorrow and blackroot as write ins only.
             # FIXME On repeats after failed generation this will tend bias towards places that generate easier.
-            # FIXME Closed dungeons will make some impossible, so remove them if so.
-            known_start_locations = ["Random", "Glades", "Grove", "Swamp", "Grotto", "Forlorn", "Valley", "Horu", "Ginso", "Sorrow", "Blackroot"]
-            if not self.params.start or self.params.start not in known_start_locations:
+            start_weights = OrderedDict([
+                ("Random", 0),
+                ("Glades", 1.0),
+                ("Grove", 2.0),
+                ("Swamp", 2.0),
+                ("Grotto", 2.0),
+                ("Forlorn", 1.5),
+                ("Valley", 0),
+                ("Horu", 0.1),
+                ("Ginso", 0.1),
+                ("Sorrow", 0.25),
+                ("Blackroot", 0.5)
+            ])
+            if not self.params.start or self.params.start not in start_weights:
                 log.warning("Unknown start location. Switching to Glades")
                 self.start = "Glades"
             elif self.params.start in ["Horu", "Ginso"]:
@@ -525,13 +568,15 @@ class SeedGenerator:
                     log.error("can't start in dungeons with closed dungeons.")
                     exit(1)
             elif self.params.start == "Random":
-                possible_start_locations = ["Grove", "Swamp", "Grotto", "Forlorn", "Glades"] + (["Valley"] if self.var(Variation.OPEN_WORLD) else [])
-                self.start = self.random.choice(possible_start_locations)
+                if self.var(Variation.OPEN_WORLD):
+                    start_weights["Valley"] = 2.0
+                if self.var(Variation.CLOSED_DUNGEONS):
+                    start_weights["Horu"] = 0
+                    start_weights["Ginso"] = 0
+                self.start = self.choice(start_weights.keys(), start_weights.values())
             else:
                 self.start = self.params.start
-            
-            # start: {difficulty (int): [health, energy, skills_min, skills_max]}
-
+        
 
             self.starting_skills = []
 
@@ -550,20 +595,19 @@ class SeedGenerator:
                 "Sorrow": [],
                 "Blackroot": ["WallJump", "ChargeFlame", "Dash", "Stomp", "DoubleJump", "Glide", "Bash", "Climb", "Grenade", "ChargeJump", "Water"],
             }
-            skills_min = 0
+            start_skills = 0
             # FIXME Check if starved exists, then just set the defaults to 3/1?
             if self.params.start == "Random":
-                self.starting_health, self.starting_energy, skills_min = spawn_defaults[self.start][difficulty]
+                self.starting_health, self.starting_energy, start_skills = spawn_defaults[self.start][difficulty]
             elif self.start != "Glades":
                     self.starting_health = max(self.params.starting_health, self.starting_health)
                     self.starting_energy = max(self.params.starting_energy, self.starting_energy)
-                    skills_min = int(self.params.starting_skills)
-            if skills_min > 0:
-                if skills_min > 1:
+                    start_skills = int(self.params.starting_skills)
+            if start_skills > 0:
+                if start_skills > 1:
                     possible_skills.append("Wind")
                     possible_skills.append("Warmth")
                 # Weigh skills. FIXME: it would be good to have weights
-                remaining_skills = possible_skills[:]
                 weights = []
                 for skill in possible_skills:
                     if skill == "Warmth":
@@ -579,22 +623,8 @@ class SeedGenerator:
                     weight = 1.0 / cost
                     weights.append(weight)
                 
-                if len(self.starting_skills) == 0 and skills_min > 0:
-                    # Select a starting skill.
-                    while skills_min > 0 and len(remaining_skills) > 0:
-                        stopping_point = self.random.random() * sum(weights)
-                        current_sum = 0
-                        index = 0
-                        while index < len(remaining_skills) - 1:
-                            current_sum += weights[index]
-                            if stopping_point <= current_sum:
-                                break
-                            index += 1
-                        skill = remaining_skills[index]
-                        remaining_skills.pop(index)
-                        weights.pop(index)
-                        skills_min -= 1
-                        self.starting_skills.append(skill)
+                if start_skills > 0:
+                    self.starting_skills = self.choices(possible_skills, weights, start_skills)
             
             self.spawn_things = []
             #print(self.starting_skills, self.starting_health, self.starting_energy)
@@ -633,13 +663,9 @@ class SeedGenerator:
                     else:
                         self.spawn_things.append("EV/4")
             if (self.start != "Glades"):
-                self.spawn_things.append("SK/" + self.skillsOutput["SpiritFlame"][2:])
+                self.spawn_things.append(self.toOutput("SpiritFlame", True))
             for skill in self.starting_skills:
-                if skill in self.skillsOutput:
-                    self.spawn_things.append("SK/" + self.skillsOutput[skill][2:])
-                else:
-                    self.spawn_things.append("EV/" + self.eventsOutput[skill][2:])
-            
+                self.spawn_things.append(self.toOutput(skill, True))
             if self.params.key_mode == KeyMode.FREE:
                 self.spawn_things.append("EV/0/EV/2/EV/4")
             
@@ -678,13 +704,10 @@ class SeedGenerator:
             if 2 in self.forcedAssignments:
                 current_assignment = self.forcedAssignments[2]
                 if current_assignment[0:2] not in ["MU", "RP"]:
-                    self.forcedAssignments[2] = "MU" + current_assignment[:2] + "/" + current_assignment[2:]
-                for item in self.spawn_things:
-                    self.forcedAssignments[2] += "/" + item
+                    self.forcedAssignments[2] = "MU" + self.toOutput(current_assignment, True)
+                self.forcedAssignments[2] += "/" + "/".join(self.spawn_things) 
             else:
-                self.forcedAssignments[2] = "MU" + self.spawn_things[0]
-                for item in self.spawn_things[1:]:
-                    self.forcedAssignments[2] += "/" + item
+                self.forcedAssignments[2] = "MU" + "/".join(self.spawn_things)
 
 
         # FIXME Are we giving the correct number of ECs for non-glades starts?
@@ -990,10 +1013,7 @@ class SeedGenerator:
 
     def cloned_item(self, item, player):
         name = self.codeToName.get(item, item)  # TODO: get upgrade names lol
-        if item in self.skillsOutput:
-            item = self.skillsOutput[item]
-        if item in self.eventsOutput:
-            item = self.eventsOutput[item]
+        item = self.toOutput(item)
         if not self.params.sync.hints:
             return "EV5"
         hint_text = {"SK": "Skill", "TP": "Teleporter", "RB": "Upgrade", "EV": "World Event"}.get(item[:2], "?Unknown?")

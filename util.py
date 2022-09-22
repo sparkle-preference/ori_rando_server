@@ -8,8 +8,8 @@ import bisect as _bisect
 import logging as log
 import os
 
-VER = [4, 0, 3]
-MIN_VER = [4, 0, 3]
+VER = [4, 0, 4]
+MIN_VER = [4, 0, 4]
 
 def version_check(version):
     try:
