@@ -628,6 +628,28 @@ const getHelpHelper = (category, option) => {
         case "advanced":
             subtitle = "Advanced Options"
             switch(option) {
+                case "spawnHCs":
+                    title = "Starting Health"
+                    lines = ["Change the amount of health you spawn with."]
+                    break;
+                case "spawnECs":
+                    title = "Starting Energy"
+                    lines = ["Change the amount of Energy you spawn with."]
+                    break;
+                case "spawnSkills":
+                    title = "Random Starting Skills"
+                    lines = ["Spawn with this many random skills."]
+                    break;
+                case "spawnWeights":
+                    title = "Spawn Weights"
+                    lines = [
+                        "Change the weights used for selecting the spawn in random spawn. Changing a weight to 0 makes it impossible to spawn there.",
+                        "Note: Any provided value for Horu or Ginso will be ignored if the Closed Dungeons Variation is selected.",
+                        "Note: Any provided value for Valley will be divided by 10 unless the Open Worlds Variation is selected.",
+                        "Note: these values only are meaningful relative to each other; doubling all of them would have no effect."
+                    ]
+                    break;
+
                 case "bingoLines":
                     title = "Bingo Lines"
                     lines = ["Set the number of bingo lines to play for. Can also be adjusted on board generation"]

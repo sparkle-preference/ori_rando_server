@@ -138,7 +138,7 @@ const get_canon_index = ({item}) => CANONICAL_ORDERING[item]+1 || 99
 const keymode_options = ["None", "Shards", "Limitkeys", "Clues", "Free"];
 
 const VERSION = get_param("version")
-
+const SPAWN_TPS = ["Glades", "Grove", "Swamp", "Grotto", "Forlorn", "Valley", "Horu", "Ginso", "Sorrow", "Blackroot"]
 const STUPID_KEYS = {
     "blame": "vulajin",
     "gdi": "eiko",
@@ -338,8 +338,21 @@ onDrop = (files) => {
     }
 
     getAdvancedTab = ({inputStyle, menuStyle}) => {
-        let {variations, senseData, fillAlg, spawnSKs, spawnECs, spawnHCs, expPool, bingoLines, pathDiff, cellFreq, relicCount, fragCount, fragReq, advancedSpawnTouched} = this.state
+        let {variations, senseData, fillAlg, spawnSKs, spawnECs, spawnHCs, expPool, bingoLines, pathDiff, cellFreq, relicCount, fragCount, fragReq, spawnWeights, advancedSpawnTouched, spawn} = this.state
         let [leftCol, rightCol] = [4, 7]
+        let weightSelectors = spawnWeights.map((weight, index) => (
+            <Col xs="4" className="text-center pt-1 border">
+                    <Col onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "spawnWeights")}><Cent>{SPAWN_TPS[index]}</Cent></Col>
+                    <Col onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "spawnWeights")}>
+                        <Input style={inputStyle} type="number" value={weight} invalid={weight < 0} onChange={(e) => {
+                            let sw = [...spawnWeights]
+                            sw[index] = parseInt(e.target.value, 10)
+                            this.setState({spawnWeights: sw})
+                        }}/> 
+                        <FormFeedback tooltip>Weights can't be less than 0</FormFeedback>
+                    </Col>
+            </Col>
+        ))
         let pathDiffOptions = ["Easy", "Normal", "Hard"].map(mode => (
             <DropdownItem key={`pd-${mode}`} active={mode===pathDiff} onClick={()=> this.setState({pathDiff: mode})}>{mode}</DropdownItem>
         ))
@@ -389,27 +402,6 @@ onDrop = (files) => {
                         <span className="align-middle">Sense Triggers</span>
                     </Col><Col xs={rightCol}>
                         <Input style={inputStyle} type="text" value={senseData}  onChange={(e) => this.setState({senseData: e.target.value})}/> 
-                    </Col>
-                </Row>
-                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "spawnSkills")} className="p-1 justify-content-center">
-                    <Col xs={leftCol} className="text-center pt-1 border">
-                        <span className="align-middle">Random Starting Skills</span>
-                    </Col><Col xs={rightCol}>
-                        <Input style={inputStyle} type="text" value={spawnSKs} onChange={(e) => this.setState({spawnSKs: parseInt(e.target.value,10)})}/> 
-                    </Col>
-                </Row>
-                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "spawnHCs")} className="p-1 justify-content-center">
-                    <Col xs={leftCol} className="text-center pt-1 border">
-                        <span className="align-middle">Random Starting Health</span>
-                    </Col><Col xs={rightCol}>
-                        <Input style={inputStyle} type="text" value={spawnHCs} onChange={(e) => this.setState({spawnHCs: parseInt(e.target.value,10)})}/> 
-                    </Col>
-                </Row>
-                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "spawnSkills")} className="p-1 justify-content-center">
-                    <Col xs={leftCol} className="text-center pt-1 border">
-                        <span className="align-middle">Random Starting Energy</span>
-                    </Col><Col xs={rightCol}>
-                        <Input style={inputStyle} type="text" value={spawnECs} onChange={(e) => this.setState({spawnECs: parseInt(e.target.value,10)})}/> 
                     </Col>
                 </Row>
                 <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "fillAlg")} className="p-1 justify-content-center">
@@ -483,6 +475,38 @@ onDrop = (files) => {
                         </Col>
                     </Row>
                 </Collapse>
+                <Collapse isOpen={spawn !== "Random" && spawn !== "Glades"}>
+                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "spawnSkills")} className="p-1 justify-content-center">
+                    <Col xs={leftCol} className="text-center pt-1 border">
+                        <span className="align-middle">Randomized Starting Skills</span>
+                    </Col><Col xs={rightCol}>
+                        <Input style={inputStyle} type="text" value={spawnSKs} invalid={spawnSKs < 0 || spawnSKs > 10 } onChange={(e) => this.setState({spawnSKs: parseInt(e.target.value,10)})}/> 
+                        <FormFeedback tooltip>Can't spawn with less than 0 or more than 10 skills</FormFeedback>
+                    </Col>
+                </Row>
+                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "spawnHCs")} className="p-1 justify-content-center">
+                    <Col xs={leftCol} className="text-center pt-1 border">
+                        <span className="align-middle">Starting Health</span>
+                    </Col><Col xs={rightCol}>
+                        <Input style={inputStyle} type="text" value={spawnHCs} invalid={spawnHCs < 3} onChange={(e) => this.setState({spawnHCs: parseInt(e.target.value,10)})}/> 
+                        <FormFeedback tooltip>Can't spawn with fewer than 3 Health</FormFeedback>
+                    </Col>
+                </Row>
+                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "spawnECs")} className="p-1 justify-content-center">
+                    <Col xs={leftCol} className="text-center pt-1 border">
+                        <span className="align-middle">Starting Energy</span>
+                    </Col><Col xs={rightCol}>
+                        <Input style={inputStyle} type="text" value={spawnECs} invalid={spawnHCs < 1} onChange={(e) => this.setState({spawnECs: parseInt(e.target.value,10)})}/> 
+                        <FormFeedback tooltip>Can't spawn with fewer than 1 Energy</FormFeedback>
+                    </Col>
+                </Row>
+                </Collapse>
+                <Collapse isOpen={spawn === "Random"}>
+                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "spawnWeights")} className="p-1 justify-content-center">
+                    {weightSelectors}
+                </Row>
+                </Collapse>
+
             </TabPane>
         )
     }
@@ -604,14 +628,20 @@ onDrop = (files) => {
             url += "?bingo=1"
             json.bingoLines = this.state.bingoLines;
         }
-        if(this.state.startingSkills !== 0) 
-            json.spawnSKs = this.state.spawnSKs;
-        if(this.state.spawnECs !== 1) 
-            json.spawnECs = this.state.spawnECs;
-        if(this.state.spawnHCs !== 3) 
-            json.spawnHCs = this.state.spawnHCs;
-        if(this.state.spawn !== "Glades") 
+        if(this.state.spawn !== "Glades") {
             json.spawn = this.state.spawn;
+            if(this.state.spawn !== "Random") {
+                if(this.state.startingSkills !== 0) 
+                    json.spawnSKs = this.state.spawnSKs;
+                if(this.state.spawnECs !== 1) 
+                    json.spawnECs = this.state.spawnECs;
+                if(this.state.spawnHCs !== 3) 
+                    json.spawnHCs = this.state.spawnHCs;
+                 // FIXME: when we allow setting random skills and health for random or glades spawns, fix this
+            } else {
+                json.spawnWeights = this.state.spawnWeights
+            }
+        }
         json.players=this.state.players
         json.fass = []
         Object.keys(this.state.fass).forEach(loc => {
@@ -1061,7 +1091,7 @@ onDrop = (files) => {
                      paths: presets["standard"], keyMode: "Clues", oldKeyMode: "Clues", spawn: "Glades", advancedSpawnTouched: false, spawnHCs: 3, spawnECs: 0, spawnSKs: 0, pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null), goalModes: ["ForceTrees"], selectedPool: "Standard",
                      seed: "", fillAlg: "Balanced", shared: ["Skills", "Teleporters", "World Events", "Upgrades", "Misc"], hints: true, helpcat: "", helpopt: "", quickstartOpen: quickstartOpen, dedupShared: false,
                      expPool: 10000, lastHelp: new Date(), seedIsGenerating: seedTabExists, cellFreq: cellFreqPresets("standard"), fragCount: 30, fragReq: 20, relicCount: 8, loader: get_random_loader(),
-                     paramId: paramId, seedTabExists: seedTabExists, reopenUrl: "", teamStr: "", flagLine: "", fass: {},  goalModesOpen: false, spoilers: true, seedIsBingo: false, bingoLines: 3, 
+                     paramId: paramId, seedTabExists: seedTabExists, reopenUrl: "", teamStr: "", flagLine: "", fass: {},  goalModesOpen: false, spoilers: true, spawnWeights: [1.0,2.0,2.0,2.0,1.5,2.0,0.1,0.1,0.25,0.5], seedIsBingo: false, bingoLines: 3, 
                      auxModal: false, auxSpoiler: {active: false, byZone: false, exclude: ["EX","KS", "AC", "EC", "HC", "MS"]}, stupidMode: stupidMode, dropActive: false, customLogic: false, stupidWarn: stupidWarn};
         
         if(url.searchParams.has("fromBingo")) {

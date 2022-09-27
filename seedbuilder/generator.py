@@ -461,7 +461,6 @@ class SeedGenerator:
         self.spoiler = []
         self.entrance_spoiler = ""
         self.warps = {}
-        self.start = "Glades"
         self.starting_health = 3
         self.starting_energy = 1
 
@@ -545,7 +544,7 @@ class SeedGenerator:
         difficulty = self.get_difficulty(logic_path_tags)
 
         if self.playerID == 1:
-            # have horu, ginso, sorrow and blackroot as write ins only.
+            self.start = "Glades"
             # FIXME On repeats after failed generation this will tend bias towards places that generate easier.
             start_weights = OrderedDict([
                 ("Random", 0),
@@ -560,6 +559,10 @@ class SeedGenerator:
                 ("Sorrow", 0.25),
                 ("Blackroot", 0.5)
             ])
+            if len(self.params.spawn_weights) > 9:
+                for i,k in enumerate(list(start_weights.keys())[1:]):
+                    start_weights[k] = self.params.spawn_weights[i]
+                    print(k, start_weights[k])
             if not self.params.start or self.params.start not in start_weights:
                 log.warning("Unknown start location. Switching to Glades")
                 self.start = "Glades"
@@ -568,8 +571,8 @@ class SeedGenerator:
                     log.error("can't start in dungeons with closed dungeons.")
                     exit(1)
             elif self.params.start == "Random":
-                if self.var(Variation.OPEN_WORLD):
-                    start_weights["Valley"] = 2.0
+                if not self.var(Variation.OPEN_WORLD):
+                    start_weights["Valley"] /= 10.0
                 if self.var(Variation.CLOSED_DUNGEONS):
                     start_weights["Horu"] = 0
                     start_weights["Ginso"] = 0

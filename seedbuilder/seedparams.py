@@ -131,6 +131,7 @@ class SeedGenParams(ndb.Model):
     starting_health = ndb.IntegerProperty(default=3)
     starting_energy = ndb.IntegerProperty(default=1)
     starting_skills = ndb.IntegerProperty(default=0)
+    spawn_weights = ndb.FloatProperty(repeated=True)    
     do_loc_analysis = False
 
     @staticmethod
@@ -188,6 +189,7 @@ class SeedGenParams(ndb.Model):
         params.starting_health = json.get("spawnHCs", 3)
         params.starting_skills = json.get("spawnSKs", 0)
         params.start = json.get("spawn", "Glades")
+        params.spawn_weights = json.get("spawnWeights", [])
         return params.put()
 
     @staticmethod
@@ -297,6 +299,7 @@ class SeedGenParams(ndb.Model):
             "itemPool": self.item_pool,
             "selectedPool": self.pool_preset,
             "bingoLines": self.bingo_lines,
+            "spawnWeights": self.spawn_weights
         }
 
 
