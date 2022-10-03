@@ -8,7 +8,7 @@ import 'react-notifications/lib/notifications.css';
 import './index.css';
 
 import {getHelpContent, HelpBox} from "./helpbox.js"
-import {get_param, get_flag, presets, name_from_str, get_preset, player_icons, doNetRequest, get_random_loader, PickupSelect, Cent, dev, randInt, gotoUrl} from './common.js';
+import {get_param, spawn_defaults, get_flag, presets, name_from_str, get_preset, player_icons, doNetRequest, get_random_loader, PickupSelect, Cent, dev, randInt, gotoUrl} from './common.js';
 import SiteBar from "./SiteBar.js"
 import Dropzone from 'react-dropzone'
 
@@ -138,7 +138,7 @@ const get_canon_index = ({item}) => CANONICAL_ORDERING[item]+1 || 99
 const keymode_options = ["None", "Shards", "Limitkeys", "Clues", "Free"];
 
 const VERSION = get_param("version")
-
+const SPAWN_TPS = ["Glades", "Grove", "Swamp", "Grotto", "Forlorn", "Valley", "Horu", "Ginso", "Sorrow", "Blackroot"]
 const STUPID_KEYS = {
     "blame": "vulajin",
     "gdi": "eiko",
@@ -166,9 +166,11 @@ const VAR_NAMES = {
     Bingo: "Bingo",
     WallStarved: "WallStarved",
     GrenadeStarved: "GrenadeStarved",
+    InLogicWarps: "In-Logic Warps"
 }
+const SPAWN_OPTS = ["Random", "Glades", "Grove", "Swamp", "Grotto", "Forlorn", "Valley", "Horu", "Ginso", "Sorrow", "Blackroot"]
 const cellFreqPresets = (preset) => preset === "casual" ? 20 : (preset === "standard" ? 40 : 256)
-const optional_paths = ['casual-dboost', 'standard-core', 'standard-dboost', 'standard-lure', 'standard-abilities', 'expert-core', 'expert-dboost', 'expert-lure', 'expert-abilities', 'dbash', 'master-core', 'master-dboost', 'master-lure', 'master-abilities', 'gjump', 'glitched', 'timed-level', 'insane']
+const optionalPaths = ['casual-dboost', 'standard-core', 'standard-dboost', 'standard-lure', 'standard-abilities', 'expert-core', 'expert-dboost', 'expert-lure', 'expert-abilities', 'dbash', 'master-core', 'master-dboost', 'master-lure', 'master-abilities', 'gjump', 'glitched', 'timed-level', 'insane']
 const varPaths = {"master": ["Starved"]}
 const diffPaths = {"glitched": "Hard", "master": "Hard"}
 const disabledPaths = {
@@ -336,8 +338,21 @@ onDrop = (files) => {
     }
 
     getAdvancedTab = ({inputStyle, menuStyle}) => {
-        let {variations, senseData, fillAlg, expPool, bingoLines, pathDiff, cellFreq, relicCount, fragCount, fragReq} = this.state
+        let {variations, senseData, fillAlg, spawnSKs, spawnECs, spawnHCs, expPool, bingoLines, pathDiff, cellFreq, relicCount, fragCount, fragReq, spawnWeights, advancedSpawnTouched, spawn} = this.state
         let [leftCol, rightCol] = [4, 7]
+        let weightSelectors = spawnWeights.map((weight, index) => (
+            <Col xs="4" className="text-center pt-1 border">
+                    <Col onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "spawnWeights")}><Cent>{SPAWN_TPS[index]}</Cent></Col>
+                    <Col onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "spawnWeights")}>
+                        <Input style={inputStyle} type="number" value={weight} invalid={weight < 0} onChange={(e) => {
+                            let sw = [...spawnWeights]
+                            sw[index] = parseInt(e.target.value, 10)
+                            this.setState({spawnWeights: sw})
+                        }}/> 
+                        <FormFeedback tooltip>Weights can't be less than 0</FormFeedback>
+                    </Col>
+            </Col>
+        ))
         let pathDiffOptions = ["Easy", "Normal", "Hard"].map(mode => (
             <DropdownItem key={`pd-${mode}`} active={mode===pathDiff} onClick={()=> this.setState({pathDiff: mode})}>{mode}</DropdownItem>
         ))
@@ -460,6 +475,38 @@ onDrop = (files) => {
                         </Col>
                     </Row>
                 </Collapse>
+                <Collapse isOpen={spawn !== "Random" && spawn !== "Glades"}>
+                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "spawnSkills")} className="p-1 justify-content-center">
+                    <Col xs={leftCol} className="text-center pt-1 border">
+                        <span className="align-middle">Randomized Starting Skills</span>
+                    </Col><Col xs={rightCol}>
+                        <Input style={inputStyle} type="text" value={spawnSKs} invalid={spawnSKs < 0 || spawnSKs > 10 } onChange={(e) => this.setState({spawnSKs: parseInt(e.target.value,10)})}/> 
+                        <FormFeedback tooltip>Can't spawn with less than 0 or more than 10 skills</FormFeedback>
+                    </Col>
+                </Row>
+                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "spawnHCs")} className="p-1 justify-content-center">
+                    <Col xs={leftCol} className="text-center pt-1 border">
+                        <span className="align-middle">Starting Health</span>
+                    </Col><Col xs={rightCol}>
+                        <Input style={inputStyle} type="text" value={spawnHCs} invalid={spawnHCs < 3} onChange={(e) => this.setState({spawnHCs: parseInt(e.target.value,10)})}/> 
+                        <FormFeedback tooltip>Can't spawn with fewer than 3 Health</FormFeedback>
+                    </Col>
+                </Row>
+                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "spawnECs")} className="p-1 justify-content-center">
+                    <Col xs={leftCol} className="text-center pt-1 border">
+                        <span className="align-middle">Starting Energy</span>
+                    </Col><Col xs={rightCol}>
+                        <Input style={inputStyle} type="text" value={spawnECs} invalid={spawnHCs < 1} onChange={(e) => this.setState({spawnECs: parseInt(e.target.value,10)})}/> 
+                        <FormFeedback tooltip>Can't spawn with fewer than 1 Energy</FormFeedback>
+                    </Col>
+                </Row>
+                </Collapse>
+                <Collapse isOpen={spawn === "Random"}>
+                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "spawnWeights")} className="p-1 justify-content-center">
+                    {weightSelectors}
+                </Row>
+                </Collapse>
+
             </TabPane>
         )
     }
@@ -581,7 +628,20 @@ onDrop = (files) => {
             url += "?bingo=1"
             json.bingoLines = this.state.bingoLines;
         }
-
+        if(this.state.spawn !== "Glades") {
+            json.spawn = this.state.spawn;
+            if(this.state.spawn !== "Random") {
+                if(this.state.startingSkills !== 0) 
+                    json.spawnSKs = this.state.spawnSKs;
+                if(this.state.spawnECs !== 1) 
+                    json.spawnECs = this.state.spawnECs;
+                if(this.state.spawnHCs !== 3) 
+                    json.spawnHCs = this.state.spawnHCs;
+                 // FIXME: when we allow setting random skills and health for random or glades spawns, fix this
+            } else {
+                json.spawnWeights = this.state.spawnWeights
+            }
+        }
         json.players=this.state.players
         json.fass = []
         Object.keys(this.state.fass).forEach(loc => {
@@ -651,6 +711,7 @@ onDrop = (files) => {
             metaUpdate.inputSeed = metaUpdate.seed
             metaUpdate.seedIsBingo = metaUpdate.variations.some(v => v === "Bingo")
             metaUpdate.goalModes = metaUpdate.variations.filter(v => ["ForceTrees", "WorldTour", "ForceMaps", "WarmthFrags", "Bingo"].includes(v)) || ["None"]
+            console.log(metaUpdate)
             this.setState(metaUpdate, this.updateUrl)
         }
     }
@@ -858,7 +919,7 @@ onDrop = (files) => {
         <Col xs="3" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("logicPaths",  "casual-core")}  className="p-1">
                 <Button block disabled={true} className="text-capitalize">Casual-Core</Button>
         </Col>
-        )].concat(optional_paths.map(path=> (
+        )].concat(optionalPaths.map(path=> (
             <Col xs="3" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("logicPaths", path)}  className="p-1">
                 <Button block color="primary" outline={!this.state.paths.includes(path)} disabled={this.pathDisabled(path)} className="text-capitalize" onClick={this.onPath(path)}>{path}</Button>
             </Col>
@@ -1027,10 +1088,10 @@ onDrop = (files) => {
 
         let activeTab = seedTabExists ? 'seed' : 'variations';
         this.state = {user: user, activeTab: activeTab, coopGenMode: "Cloned Seeds", coopGameMode: "Co-op", players: 1, tracking: true, variations: ["ForceTrees"], gameId: gameId, itemPool: get_pool("Standard"),
-                     paths: presets["standard"], keyMode: "Clues", oldKeyMode: "Clues", pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null), goalModes: ["ForceTrees"], selectedPool: "Standard",
+                     paths: presets["standard"], keyMode: "Clues", oldKeyMode: "Clues", spawn: "Glades", advancedSpawnTouched: false, spawnHCs: 3, spawnECs: 0, spawnSKs: 0, pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null), goalModes: ["ForceTrees"], selectedPool: "Standard",
                      seed: "", fillAlg: "Balanced", shared: ["Skills", "Teleporters", "World Events", "Upgrades", "Misc"], hints: true, helpcat: "", helpopt: "", quickstartOpen: quickstartOpen, dedupShared: false,
                      expPool: 10000, lastHelp: new Date(), seedIsGenerating: seedTabExists, cellFreq: cellFreqPresets("standard"), fragCount: 30, fragReq: 20, relicCount: 8, loader: get_random_loader(),
-                     paramId: paramId, seedTabExists: seedTabExists, reopenUrl: "", teamStr: "", flagLine: "", fass: {},  goalModesOpen: false, spoilers: true, seedIsBingo: false, bingoLines: 3, 
+                     paramId: paramId, seedTabExists: seedTabExists, reopenUrl: "", teamStr: "", flagLine: "", fass: {},  goalModesOpen: false, spoilers: true, spawnWeights: [1.0,2.0,2.0,2.0,1.5,2.0,0.1,0.1,0.25,0.5], seedIsBingo: false, bingoLines: 3, 
                      auxModal: false, auxSpoiler: {active: false, byZone: false, exclude: ["EX","KS", "AC", "EC", "HC", "MS"]}, stupidMode: stupidMode, dropActive: false, customLogic: false, stupidWarn: stupidWarn};
         
         if(url.searchParams.has("fromBingo")) {
@@ -1078,6 +1139,19 @@ onDrop = (files) => {
     }
     onKeyMode = (mode) => () => this.setState({keyMode: mode})
 
+    onSpawnLoc = (loc) => () => this.setState(prev => {
+        if(loc === "Random" || prev.advancedSpawnTouched) // on your own, nerds!
+            return {spawn: loc}
+ 
+        let [hp, energy, skills] = [3, 1, 0] // defaults
+        if(spawn_defaults[loc].hasOwnProperty(this.state.pathMode)) 
+            [hp, energy, skills] = spawn_defaults[loc][this.state.pathMode]
+        else {
+            console.log(this.state.pathMode, loc, spawn_defaults[loc], spawn_defaults.hasOwnProperty(loc), spawn_defaults[loc].hasOwnProperty(this.state.pathMode));
+        }
+        return {spawn: loc, spawnHCs: hp, spawnECs: energy, spawnSKs: skills}
+    });
+    
     onGoalModeAdvanced = (mode) => () => {
         let goalModes = this.state.goalModes.filter(v => v !== "None");
         if(goalModes.includes(mode))
@@ -1129,13 +1203,17 @@ onDrop = (files) => {
     }
 
     render = () => {
-        let {stupidMode, pathMode, goalModes, keyMode, helpParams, goalModesOpen, seedTabExists, helpcat, activeTab, seed, tracking, seedIsGenerating} = this.state;
+        let {stupidMode, spawn, pathMode, goalModes, keyMode, helpParams, goalModesOpen, seedTabExists, helpcat, activeTab, seed, tracking, seedIsGenerating} = this.state;
         let s = getComputedStyle(document.body);
         let styles = {inputStyle: {'borderColor': s.getPropertyValue('--dark'), 'backgroundColor': s.getPropertyValue("background-color"), 'color': s.getPropertyValue("color")}, menuStyle: {}}
 
         let pathModeOptions = Object.keys(presets).map(mode => (
             <DropdownItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("logicModes", mode)} className="text-capitalize" active={mode===pathMode.toLowerCase()} onClick={this.onMode(mode)}>{mode}</DropdownItem>
         ))
+        let spawnOptions = SPAWN_OPTS.map(loc => (
+            <DropdownItem active={loc===spawn} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "spawnLoc")} onClick={this.onSpawnLoc(loc)}>{loc}</DropdownItem>
+        ))
+
         let keyModeOptions = keymode_options.map(mode => (
             <DropdownItem active={mode===keyMode} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("keyModes", mode)} onClick={this.onKeyMode(mode)}>{mode}</DropdownItem>
         ))
@@ -1174,7 +1252,7 @@ onDrop = (files) => {
         let goalModeMulti = goalModes.length > 1;
 
         return (
-         <Container className="pl-4 pr-4 pb-4 pt-2 mt-5">
+         <Container className="pl-2 pr-2 pb-4 pt-2 mt-5">
              <Row className="justify-content-center">
                  <Col>
                      {modal}
@@ -1228,6 +1306,20 @@ onDrop = (files) => {
                                     {goalModeOptions}
                                 </DropdownMenu>
                             </Dropdown>
+                        </Col>
+                    </Row>
+                </Col>
+                <Col xs="4"></Col>
+                <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "spawnLoc")}>
+                    <Row>
+                        <Col xs="6"  className="text-center pt-1 border mt-2">
+                            <span className="align-middle">Spawn</span>
+                        </Col>
+                        <Col xs="6" className="mt-2" onMouseLeave={this.helpEnter("general", "spawnLoc")} onMouseEnter={this.helpEnter("general", "spawnLoc")}>
+                            <UncontrolledButtonDropdown className="w-100">
+                                <DropdownToggle color="primary" className="text-capitalize" caret block> {spawn} </DropdownToggle>
+                                <DropdownMenu style={styles.menuStyle}> {spawnOptions} </DropdownMenu>
+                            </UncontrolledButtonDropdown>
                         </Col>
                     </Row>
                 </Col>

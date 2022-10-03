@@ -2,11 +2,14 @@ from __future__ import division, print_function
 from math import floor
 from collections import defaultdict, namedtuple
 from seedbuilder.oriparse import get_areas
+import itertools as _itertools
+import operator
+import bisect as _bisect
 import logging as log
 import os
 
-VER = [3, 5, 2]
-MIN_VER = [3, 5, 1]
+VER = [4, 0, 4]
+MIN_VER = [4, 0, 4]
 
 def version_check(version):
     try:
@@ -88,6 +91,90 @@ all_locs = set([2, 2999808, 5280264, -4159572, 4479832, 4559492, 919772, -336028
                 4680612, -11880100, -4440152, -3520100, 7199904, -2200148, 7559600, -10839992, 5040476, -8160268, 4319676, 5160384, 5239456, -2400212, 2599880, 3519820, -9120036, 3639880, -6119656,
                 3039696, 1240020, -5159700, -4359680, -5400104, -5959772, 5439640, -8440352, 3639888, -2480208, 399844, -560160, 4359656, -4799416, 8719856, -6039640, -5479948, 5519856, 6199596,
                 -4600256, -2840236, 5799932, -600244, 5360432, -1639664, -199724, -919624, -959848,  1720288,  2160192,  2640380,  3040304, -2399488, -5599400, -7200024, -7320236,  4999752, 5480952, -1])
+
+
+spawn_defaults = {
+    "Glades": {
+        1: [3, 1, 0], # Casual
+        2: [3, 1, 0], # Standard
+        3: [3, 1, 0], # Expert
+        4: [3, 1, 0], # Master
+        5: [3, 1, 0], # Glitched / timed-level
+        7: [3, 1, 0], # Insane
+    },
+    "Grove": {
+        1: [3, 1, 1], # Casual
+        2: [3, 1, 1], # Standard
+        3: [3, 1, 1], # Expert
+        4: [3, 1, 0], # Master
+        5: [3, 1, 0], # Glitched / timed-level
+        7: [3, 1, 0], # Insane
+    },
+    "Swamp": {
+        1: [4, 2, 1], # Casual
+        2: [3, 2, 1], # Standard
+        3: [3, 1, 1], # Expert
+        4: [3, 1, 0], # Master
+        5: [3, 1, 0], # Glitched / timed-level
+        7: [3, 1, 0], # Insane
+    },
+    "Grotto": {
+        1: [4, 2, 1], # Casual
+        2: [3, 2, 1], # Standard
+        3: [3, 1, 0], # Expert
+        4: [3, 1, 0], # Master
+        5: [3, 1, 0], # Glitched / timed-level
+        7: [3, 1, 0], # Insane
+    },
+    "Forlorn": {
+        1: [5, 3, 2], # Casual
+        2: [4, 2, 1], # Standard
+        3: [4, 2, 1], # Expert
+        4: [3, 2, 1], # Master
+        5: [3, 1, 0], # Glitched / timed-level
+        7: [3, 1, 0], # Insane
+    },
+    "Valley": {
+        1: [5, 3, 2], # Casual
+        2: [4, 2, 2], # Standard
+        3: [4, 2, 1], # Expert
+        4: [3, 2, 1], # Master
+        5: [3, 1, 0], # Glitched / timed-level
+        7: [3, 1, 0], # Insane
+    },
+    "Horu": {
+        1: [5, 3, 3], # Casual
+        2: [4, 2, 3], # Standard
+        3: [4, 2, 2], # Expert
+        4: [4, 2, 2], # Master
+        5: [3, 1, 0], # Glitched / timed-level
+        7: [3, 1, 0], # Insane
+    },
+    "Ginso": {
+        1: [5, 3, 2], # Casual
+        2: [4, 2, 2], # Standard
+        3: [4, 2, 1], # Expert
+        4: [3, 2, 1], # Master
+        5: [3, 1, 0], # Glitched / timed-level
+        7: [3, 1, 0], # Insane
+    },
+    "Sorrow": {
+        1: [6, 3, 3], # Casual
+        2: [5, 2, 3], # Standard
+        3: [5, 2, 2], # Expert
+        4: [4, 2, 2], # Master
+        5: [3, 1, 0], # Glitched / timed-level
+        7: [3, 1, 0], # Insane
+    },
+    "Blackroot": {
+        1: [4, 2, 2], # Casual
+        2: [4, 2, 2], # Standard
+        3: [3, 1, 2], # Expert
+        4: [3, 1, 2], # Master
+        5: [3, 1, 0], # Glitched / timed-level
+        7: [3, 1, 0], # Insane
+    },
+}
 
 
 def get_bit(bits_int, bit):
@@ -246,9 +333,46 @@ coords_in_order = [ -10120036,  -10440008,  -10759968,  -10760004,  -10839992,  
                 ]
 
 def bfields_to_coords(bfields):
-    i = 0
     flat_bits = [b for bfield in bfields for b in int_to_bits(bfield, 32)[::-1]]
     return [ c for b,c in zip(flat_bits, coords_in_order) if b ]
+
+
+def accumulate(iterable, func=operator.add):
+    'Return running totals'
+    # accumulate([1,2,3,4,5]) --> 1 3 6 10 15
+    # accumulate([1,2,3,4,5], operator.mul) --> 1 2 6 24 120
+    it = iter(iterable)
+    try:
+        total = next(it)
+    except StopIteration:
+        return
+    yield total
+    for element in it:
+        total = func(total, element)
+        yield total
+
+
+def choices(random, population, weights=None, cum_weights=None, k=1):
+    """Return a k sized list of population elements chosen with replacement.
+    If the relative weights or cumulative weights are not specified,
+    the selections are made with equal probability.
+    """
+    if cum_weights is None:
+        if weights is None:
+            _int = int
+            total = len(population)
+            return [population[_int(random.random() * total)] for i in range(k)]
+        cum_weights = list(accumulate(weights))
+    elif weights is not None:
+        raise TypeError('Cannot specify both weights and cumulative weights')
+    if len(cum_weights) != len(population):
+        raise ValueError('The number of weights does not match the population')
+    bisect = _bisect.bisect
+    total = cum_weights[-1]
+    hi = len(cum_weights) - 1
+    return [population[bisect(cum_weights, random.random() * total, 0, hi)]
+            for i in range(k)]
+
 
 
 layout_json = """

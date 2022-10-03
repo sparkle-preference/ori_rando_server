@@ -155,6 +155,7 @@ class User(ndb.Model):
     name = ndb.StringProperty()
     games = ndb.KeyProperty("Game", repeated=True)
     dark_theme = ndb.BooleanProperty(default=False)
+    email = ndb.StringProperty()
     teamname = ndb.StringProperty()
     pref_num  = ndb.IntegerProperty()
     theme  = ndb.StringProperty()
@@ -202,6 +203,10 @@ class User(ndb.Model):
         user = User.get_by_id(app_user.user_id())
         if not user:
             return User.create(app_user)
+        if not user.email:
+            user.email = app_user.email()
+            user.put()
+            user = User.get_by_id(app_user.user_id())
         return user
 
     def rename(self, desired_name):
@@ -221,7 +226,8 @@ class User(ndb.Model):
     @staticmethod
     def create(app_user):
         user = User(id=app_user.user_id())
-        user.name = app_user.email().partition("@")[0]
+        user.email = app_user.email()
+        user.name = user.email.partition("@")[0]
         user.teamname = "%s's team" % user.name
         key = user.put()
         for old in Seed.query(Seed.author == user.name).fetch():
@@ -310,10 +316,10 @@ class Player(ndb.Model):
             self.put()
     
     def seen_coords(self):
-        return bfields_to_coords(self.seen_bflds)
+        return bfields_to_coords(self.seen_bflds) + [2]
 
     def have_coords(self):
-        return bfields_to_coords(self.have_bflds)
+        return bfields_to_coords(self.have_bflds) + [2]
 
     @ndb.transactional(retries=5)
     def reset(self):
@@ -1005,6 +1011,7 @@ class Game(ndb.Model):
     dedup       = ndb.BooleanProperty(default=False)
     creator     = ndb.KeyProperty("User")
     is_race     = ndb.BooleanProperty(default=False)
+    spawn       = ndb.StringProperty(default="Glades")
     def history(self, pids=[]):
         if not self.hls:
              # legacy migration branch

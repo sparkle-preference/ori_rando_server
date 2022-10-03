@@ -115,6 +115,15 @@ class Cache(object):
         return memcache.set(key="%s.board" % gid, value=board, time=60)
 
     @staticmethod
+    def get_areas():
+        areas = memcache.get(key="CURRENT_LOGIC")
+        if not areas:
+            with open("seedbuilder/areas.ori", 'r') as f:
+                areas = f.read()
+            memcache.set(key="CURRENT_LOGIC", value=areas, time=3600)
+        return areas
+
+    @staticmethod
     def remove_game(gid):
         memcache.delete_multi(keys=["have", "hist", "san", "pos", "reach", "items", "relics", "board"], key_prefix="%s." % gid)
 

@@ -11,9 +11,8 @@ If you believe you have recieved an unfinishable seed, please inform Eiko in the
 const noneTitle = "Confused?";
 const noneSub = "Mouse over anything to learn more!";
 const noneLines = ["Additional context-specific information will appear here as you interact with the UI."];
-const vars = ["Starved", "NonProgressMapStones", "Hard", "0XP", "Entrance", "BonusPickups", "DoubleSkills", "StrictMapstones", "ClosedDungeons", "OpenWorld", "StompTriggers", "TPStarved", "WallStarved", "GrenadeStarved", "Race"]
+const vars = ["Starved", "NonProgressMapStones", "Hard", "0XP", "Entrance", "BonusPickups", "DoubleSkills", "StrictMapstones", "ClosedDungeons", "OpenWorld", "StompTriggers", "TPStarved", "WallStarved", "GrenadeStarved", "Race", "InLogicWarps"]
 const presets = ["Casual", "Standard", "Expert", "Master", "Glitched", "Custom"]
-
 const goalModes = ["ForceTrees", "ForceMaps", "Bingo"]
 const keyModes = ["Shards", "Clues", "Limitkeys", "Free"]
 
@@ -28,8 +27,8 @@ bonuses["RP|RB/1"] = {name: "Repeatable Mega Energy", desc: [
     (<div><i><b>Repeatable</b> pickups are not consumed, and can be collected any number of times.</i></div>)
 ]}
 bonuses["WP|*"] = {name: "Warp", desc: [
-    "A Warp pickup is a permenant 1-way portals to a specific place on the map. Use a warp by touching the pickup and then pressing AltR.",
-    (<div><i>Warps are not consumed, and can be used any number of times.</i></div>)
+    "A Warp pickup lets you teleport to a specific location on the map.",
+    (<div><i>Once collected, you can use a warp by opening your teleport menu and selecting it.</i></div>)
  ]}
 bonuses["BS|*"] = {name: "Random Bonus Skill", desc: [(<div>A random bonus skill. Check out the <a target="_blank" rel="noopener noreferrer"  href="/faq?g=bonus_pickups">bonus item glossary</a> for more info on these.</div>)]}
 
@@ -284,6 +283,14 @@ const getHelpHelper = (category, option) => {
                         "Recommended for anyone who watched a 0 XP run and thought it seemed fun."
                     ]
                     extras.push(UntestedWarning);
+                    break;
+                case "InLogicWarps":
+                    title = "In-Logic Bonus Warps"
+                    lines = [
+                        "Using Bonus Warps is considered in-logic, and may be required to beat the seed!",
+                        "Note that this Variation does nothing if there aren't any Bonus Warps in the item pool.",
+                        "Recommended for experienced players who want to experience unpredictable progression paths.",
+                    ]
                     break;
                 case "Entrance":
                     title = "Entrance Shuffle"
@@ -621,6 +628,28 @@ const getHelpHelper = (category, option) => {
         case "advanced":
             subtitle = "Advanced Options"
             switch(option) {
+                case "spawnHCs":
+                    title = "Starting Health"
+                    lines = ["Change the amount of health you spawn with."]
+                    break;
+                case "spawnECs":
+                    title = "Starting Energy"
+                    lines = ["Change the amount of Energy you spawn with."]
+                    break;
+                case "spawnSkills":
+                    title = "Random Starting Skills"
+                    lines = ["Spawn with this many random skills."]
+                    break;
+                case "spawnWeights":
+                    title = "Spawn Weights"
+                    lines = [
+                        "Change the weights used for selecting the spawn in random spawn. Changing a weight to 0 makes it impossible to spawn there.",
+                        "Note: Any provided value for Horu or Ginso will be ignored if the Closed Dungeons Variation is selected.",
+                        "Note: Any provided value for Valley will be divided by 10 unless the Open Worlds Variation is selected.",
+                        "Note: these values only are meaningful relative to each other; doubling all of them would have no effect."
+                    ]
+                    break;
+
                 case "bingoLines":
                     title = "Bingo Lines"
                     lines = ["Set the number of bingo lines to play for. Can also be adjusted on board generation"]
@@ -766,7 +795,7 @@ const getHelpHelper = (category, option) => {
                     lines = [
                         "The Extra Bonus item pool preset introduces several new bonus pickups not normally found in the randomizer, including some new activateable skills.",
                         "It also contains more copies of existing pickups; 2 more Attack Upgrades for a total of 5, and 2 more Extra Double Jumps for a total 3. Mega Health and Mega Energy pickups are not consumed on pickup.",
-                        "Lastly, it adds 4-8 warps, which are pickups that act as permenant 1-way portals to a different place on the map. Use a warp by touching the pickup and then pressing AltR.",
+                        "Lastly, it adds 4-8 warps, which are pickups that let you teleport to specific locations on the map. Once collected, you can use a warp by opening your teleport menu and selecting it.",
                         "Note: The default bindings for bonus skills are Alt+Q to swap between them, and Alt+Mouse1 to activate them. These bindings can be changed in the RandomizerRebinding.txt file.",
                         "Mouse over the individual rows to learn more about the bonus pickups!",
                         (<div>Check out the <a target="_blank" rel="noopener noreferrer"  href="/faq?g=bonus_pickups">bonus item glossary</a> for more info about the extra bonus items.</div>),
@@ -778,7 +807,7 @@ const getHelpHelper = (category, option) => {
                     lines = [
                         "The Bonus Lite item pool preset contains a few new passive bonus pickups (3 Skill Velocity Upgrades, 3 Jump Upgrades, and 1 each of Health Drain, Energy Drain, and Underwater Skill Usage)",
                         "It also contains more copies of existing pickups; 2 more Attack Upgrades for a total of 5, and 2 more Extra Double Jumps for a total 3.",
-                        "Lastly, it adds 4-8 Warps, which are pickups that act as permenant 1-way portals to a different place on the map. Use a warp by touching the pickup and then pressing AltR.",
+                        "Lastly, it adds 4-8 Warps, which are pickups that let you teleport to specific locations on the map. Once collected, you can use a warp by opening your teleport menu and selecting it.",
                         (<div>Check out the <a target="_blank" rel="noopener noreferrer"  href="/faq?g=bonus_pickups">bonus item glossary</a> for more info about the extra bonus items.</div>),
                     ]
                     break;
@@ -834,7 +863,16 @@ const getHelpHelper = (category, option) => {
                         "Mouse over a goal mode in the dropdown to learn more about it."
                     ]
                     break;
-                case "advanced":
+                case "spawnLoc":
+                    title = "Spawn Location"
+                    lines = [
+                        "NEW: You can change where you start the game using the Spawn Location dropdown!",
+                        "Select a Zone to start at the teleporter for that Zone.", 
+                        "Select Random to spawn in a randomly chosen Zone.",
+                        "Note: Some spawn locations are not compatible with some settings and will cause generator errors."
+                    ]
+                    break;
+                    case "advanced":
                     title = "Advanced Options"
                     lines = [
                         "The Advanced Options tab contains a variety of settings for power users, including the ability to modify parameters for the World Tour and Warmth Fragments modes, and force seeds to start with specific pickups.",

@@ -63,6 +63,16 @@ class Variation(StrEnum):
     FUCK_WALLS = "WallStarved"
     FUCK_GRENADE = "GrenadeStarved"
     RACE = "Race"
+    KEYS_ONLY_FOR_DOORS = "KeysOnlyForDoors"
+    WARPS_INSTEAD_OF_TPS = "WarpsInsteadOfTPs"
+    IN_LOGIC_WARPS = "InLogicWarps"
+    WARP_COUNT = "WarpCount"
+    STARTING_HEALTH = "StartingHealth"
+    STARTING_ENERGY = "StartingEnergy"
+    STARTING_SKILLS = "StartingSkills"
+    NO_TPS = "NoTPs"
+    COMPETITIVE = "Competitive"
+    BONUS_LITE = "BonusLite"
 
 class LogicPath(StrEnum):
     CASUAL_CORE = 'casual-core'

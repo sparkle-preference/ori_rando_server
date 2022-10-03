@@ -185,7 +185,7 @@ class SiteBar extends Component {
                     Misc
                     </DropdownToggle>
                     <DropdownMenu right>
-                    <DropdownItem target="_blank" href="https://goo.gl/csgRUw">
+                    <DropdownItem target="_blank" href="https://docs.google.com/document/d/1781ALoPPN1k_yo5rfoapjTIiX3iyihXPty_pVVG26LQ?usp=sharing">
                         Patch Notes
                     </DropdownItem>
                     <DropdownItem href="/bingo/board">

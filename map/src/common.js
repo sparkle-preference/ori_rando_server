@@ -94,7 +94,7 @@ function pickup_name(code, id) {
         case "WS":
         case "WP":
             if(id === "*")
-                return "Random warp (repeatable)"
+                return "Random Bonus Warp"
             if(id.endsWith(",force"))
                 return "Warp (forced) to " + id.slice(0, id.length-6) + (code === "WS" ? " and save" : "")
             else
@@ -274,7 +274,7 @@ class PickupSelect extends Component {
         }
         if(props.allowPsuedo) {
             misc.options.splice(0, 0, {label: "Random Bonus Skill", value: "BS|*", desc: "A random bonus skill", max: 6})
-            misc.options.splice(0, 0, {label: "Random Warp", value: "WP|*"})
+            misc.options.splice(0, 0, {label: "Random Bonus Warp", value: "WP|*"})
         }
         options.push(misc)
     }
@@ -551,6 +551,61 @@ function get_seed() {
     let seedJson = get_param("seed_data")
     return { seedJson: seedJson, user: user, authed: authed, seed_name: name, seed_desc: desc, hidden: hidden }
 }
+    // health, energy, skills: 3, 1, 0 by default
+const spawn_defaults = {
+    "Glades": {
+    },
+    "Grove": {
+        "Casual": [3, 1, 1], 
+        "Standard": [3, 1, 1], 
+        "Expert": [3, 1, 1], 
+    },
+    "Swamp": {
+        "Casual": [4, 2, 1], 
+        "Standard": [3, 2, 1], 
+        "Expert": [3, 1, 1], 
+    },
+    "Grotto": {
+        "Casual": [4, 2, 1],
+        "Standard": [3, 2, 1],
+    },
+    "Forlorn": {
+        "Casual": [5, 3, 2],
+        "Standard": [4, 2, 1],
+        "Expert": [4, 2, 1],
+        "Master": [3, 2, 1],
+    },
+    "Valley": {
+        "Casual": [5, 3, 2],
+        "Standard": [4, 2, 2],
+        "Expert": [4, 2, 1],
+        "Master": [3, 2, 1],
+    },
+    "Horu": {
+        "Casual": [5, 3, 3],
+        "Standard": [4, 2, 3],
+        "Expert": [4, 2, 2],
+        "Master": [4, 2, 2],
+    },
+    "Ginso": {
+        "Casual": [5, 3, 2],
+        "Standard": [4, 2, 2],
+        "Expert": [4, 2, 1],
+        "Master": [3, 2, 1],
+    },
+    "Sorrow": {
+        "Casual": [6, 3, 3],
+        "Standard": [5, 2, 3],
+        "Expert": [5, 2, 2],
+        "Master": [4, 2, 2],
+    },
+    "Blackroot": {
+        "Casual": [4, 2, 2],
+        "Standard": [4, 2, 2],
+        "Expert": [3, 1, 2],
+        "Master": [3, 1, 2],
+    },
+}
 
 const presets = {
     casual: ['casual-core', 'casual-dboost'],
@@ -601,9 +656,14 @@ function player_icons(id, as_leaflet = true) {
     else if (id === 9) img = '/sprites/ori-multi-3.png';
     else if (id === 10) img = '/sprites/ori-skul.png';
     else if (id === 11) img = '/sprites/ori-peach.png';
+    else if (id === 12) img = '/sprites/ori-orange.png';
+    else if (id === 13) img = '/sprites/ori-arctic.png';
+    else if (id === 14) img = '/sprites/ori-paum.png';
+    else if (id === 15) img = '/sprites/ori-pika.png';
     else if (id === 100) img = '/sprites/kuro.png';
     else if (id === 101) img = '/sprites/gumo.png';
     else if (id === 102) img = '/sprites/ori-eph.png';
+    else if (id === 103) img = '/sprites/boulder_smol.png';
     else if (id === 221) img = '/sprites/ori-eiko.png';
     else if (id === 333) img = '/sprites/ori-blorple.png';
     else if (id === 385) img = '/sprites/ori-poogle.png';
@@ -641,11 +701,11 @@ function gotoUrl(url, newWindow) {
 }
 
 
-const dev = window.document.URL.includes("devshell.appspot.com")
+const dev = window.document.URL.includes("cloudshell.dev")
 const randInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 
 
 export {
     player_icons, doNetRequest, get_param, get_flag, get_int, get_list, get_preset, presets, get_seed, logic_paths, get_random_loader, Blabel,
-    pickup_name, stuff_by_type, name_from_str, PickupSelect, Cent, ordinal_suffix, dev, gotoUrl, select_theme, randInt
+    pickup_name, stuff_by_type, name_from_str, PickupSelect, Cent, ordinal_suffix, dev, gotoUrl, select_theme, randInt, spawn_defaults
 };
