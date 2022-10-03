@@ -566,6 +566,7 @@ home: DeathGauntlet 368 -191
 		casual DoubleJump -- *sein adjust: requires jumping off left crusher, probably not obvious enough for casual
 		master Lure Bash -- use fronkey
 		master Lure ChargeDash Energy=1 -- *rjump=1 use slime, rhino or fronkey
+		master AirDash -- Dash glide from crusher to upper level, microledge on right wall to get atop crusher
 	conn: MoonGrottoAboveTeleporter
 		master Lure Bash
 home: DeathGauntletRoof 328 -178
@@ -686,6 +687,7 @@ home: GladesLaserArea -168 -175
 		casual Bash Grenade
 		standard Lure Bash
 		expert WallJump Glide Health=2
+		expert Stomp
 		expert ChargeDash -- *lure *rjump=1
 	pickup: GladesLaserGrenade
 		casual Grenade Climb ChargeJump Bash
