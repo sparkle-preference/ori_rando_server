@@ -314,7 +314,7 @@ loc: GumonSeal -720 -24 EVForlornKey 3 Misty
 loc: SpiritTreeExp -168 -104 EX100 1 Grove
 
 -- area definitions and connections
-home: TeleporterNetwork
+home: TeleporterNetwork -3 -597
 	conn: SunkenGladesRunaway
 		casual TPGlades
 	conn: SpiritTreeRefined
@@ -388,11 +388,11 @@ home: SunkenGladesRunaway 185 -217
 		standard Lure Bash -- *sein fronkey from left of spawn
 		master DoubleJump
 	conn: TeleporterNetwork
-home: GladesFirstKeyDoor
+home: GladesFirstKeyDoor -24 -217
 	conn: GladesFirstKeyDoorOpened
 		casual Keystone=2
 		casual OpenWorld
-home: GladesFirstKeyDoorOpened
+home: GladesFirstKeyDoorOpened -28 -223
 	conn: GladesMain
 		casual Free
 	conn: SunkenGladesRunaway
@@ -626,7 +626,7 @@ home: LowerSpiritCaverns -190 -180
 		casual Bash Energy=4
 	conn: SpiritCavernsDoor
 		casual Open
-home: SpiritCavernsACWarp
+home: SpiritCavernsACWarp -219 -173
 	pickup: SpiritCavernsAbilityCell
 		casual Free
 	pickup: SpiritCavernsKeystone1
@@ -839,7 +839,7 @@ home: SpiritTreeRefined -93 -118
 		master ChargeFlame DoubleJump
 		master Grenade DoubleJump
 		master ChargeDash DoubleJump
-home: AboveChargeFlameTreeExpWarp
+home: AboveChargeFlameTreeExpWarp -9 -91
 	pickup: AboveChargeFlameTreeExp
 		casual Free
 	conn: SpiritTreeRefined
@@ -880,7 +880,7 @@ home: SpiderSacTetherArea 122 -91
 		casual Grenade
 		expert ChargeDash ChargeJump
 		expert ChargeDash Bash Grenade
-home: SpiderSacEnergyDoorWarp
+home: SpiderSacEnergyDoorWarp 72 -104
 	-- anchor: Inside the SpiderSac 4 energy door.
 	pickup: SpiderSacEnergyDoor
 		casual Free
@@ -1112,7 +1112,7 @@ home: DashArea 267 -253
 		standard Climb AirDash
 		expert Climb Rekindle
 		master DoubleJump Rekindle
-home: DashAreaMapstoneAccess
+home: DashAreaMapstoneAccess 307 -253
 	pickup: DashAreaMapstone
 		casual Dash
 		expert WallJump
@@ -1380,7 +1380,7 @@ home: LostGroveExit 421 -499
 		master GrenadeJump
 		master Grenade DoubleJump Health=3
 		master Grenade TripleJump
-home: LostGroveLaserLeverWarp
+home: LostGroveLaserLeverWarp 502 -502
 	-- anchor on the lever (at 499, -505)
 	conn: LostGroveExit
 		-- assume the blue grenade floor has been destroyed
@@ -1514,7 +1514,7 @@ home: HollowGrove 336 -91
 		master Lure DoubleJump
 		master Lure WallJump Glide
 		master Lure ChargeDash
-home: GroveWaterStompAbilityCellWarp
+home: GroveWaterStompAbilityCellWarp 368 -139
 	pickup: GroveWaterStompAbilityCell
 		casual Water Stomp
 		casual Water Climb ChargeJump
@@ -1522,7 +1522,7 @@ home: GroveWaterStompAbilityCellWarp
 		expert DoubleBash Health=6
 		expert Stomp Health=5
 		expert Climb ChargeJump Health=5
-home: HollowGroveTreeAbilityCellWarp
+home: HollowGroveTreeAbilityCellWarp 341 -59
 	-- anchor: at the AC (at 330, -63)
 	pickup: HollowGroveTreeAbilityCell
 		casual Free
@@ -1616,7 +1616,7 @@ home: OuterSwampLowerArea 651 -99
 		casual ChargeJump
 		casual Glide Wind
 		casual DoubleJump
-home: OuterSwampHealthCellWarp
+home: OuterSwampHealthCellWarp 588 -65
 	pickup: OuterSwampHealthCell
 		casual Free
 	conn: OuterSwampLowerArea
@@ -1836,7 +1836,7 @@ home: UpperGinsoTree 526 475
 		expert ChargeJump ChargeFlame
 		expert ChargeJump AirDash
 		master Bash
-home: UpperGinsoEnergyCellWarp
+home: UpperGinsoEnergyCellWarp 541 434
 	-- anchor: Next to the UpperGinsoEnergyCell (at 539, 434) with the ceiling intact.
 	pickup: UpperGinsoEnergyCell
 		casual GinsoKey
@@ -2261,7 +2261,7 @@ home: GumoHideout 500 -382
 		casual Climb ChargeJump
 		casual Glide Wind
 		expert DoubleBash
-home: AboveGrottoCrushersWarp
+home: AboveGrottoCrushersWarp 576 -343
 	-- anchor: above the grotto crushers on the path to double jump tree (at 580, -345)
 	conn: GumoHideout
 		casual Free
@@ -2496,7 +2496,7 @@ home: GumoHideoutRedirectEnergyVault 490 -453
 		standard Climb Health=3
 		expert DoubleBash
 		master DoubleJump
-home: GrottoEnergyVaultWarp
+home: GrottoEnergyVaultWarp 510 -440
 	-- anchor: at GumoHideoutRedirectEnergyCell (at 513, -440)
 	pickup: GumoHideoutRedirectEnergyCell
 		casual Free
@@ -2728,7 +2728,7 @@ home: InnerSwampSkyArea 726 -95
 	pickup: InnerSwampEnergyCell
 	conn: Swamp
 	conn: SwampKeyDoorPlatform
-home: SwampWaterWarp
+home: SwampWaterWarp 789 -193
 	--anchor: in the InnerSwampSwimRightKeystone area, right of the spike pit (at 790, -195)
 	pickup: InnerSwampSwimRightKeystone
 		casual ChargeJump
@@ -2833,7 +2833,7 @@ home: RightSwamp 867 -89
 		master Open ChargeJump Health=3
 		master Open DoubleJump Ability=12 Health=4 -- 1.5 from brambles, 0.5 from mortar, 1.5 from brambles
 		master Open GrenadeJump
-home: StompAreaRoofExpWarp
+home: StompAreaRoofExpWarp 904 -68
 	pickup: StompAreaRoofExp
 		casual Free
 	conn: RightSwamp
@@ -2925,7 +2925,7 @@ home: HoruFieldsPushBlock 70 9
 		expert DoubleBash
 		master TripleJump
 		master GrenadeJump
-home: HorufieldsHoruDoor
+home: HorufieldsHoruDoor -67 5
 	-- physically outside the main horu door in horu fields, sunstone not placed in.
 	conn: HoruOuterDoor
 		casual HoruKey
@@ -2952,7 +2952,7 @@ home: HoruInnerDoor 70 170
 	-- Actual logic should go in Inner/OuterEntrances instead.
 	conn: HoruInnerEntrance
 	conn: HoruOuterDoor
-home: HoruInnerEntrance
+home: HoruInnerEntrance 66 192
 	-- anchor: inside the main door of Horu.
 	conn: HoruInnerDoor
 	pickup: HoruLavaDrainedLeftExp
@@ -3216,7 +3216,7 @@ home: L1OuterEntrance 20 375
 	conn: HoruInnerEntrance
 		casual Bash Glide
 		casual ChargeJump Glide
-home: L1OuterDoor
+home: L1OuterDoor 19 370
 	-- In main Horu room Inner/OuterDoors are only used for Entrance randomiser logic.
 	-- Actual logic should go in Inner/OuterEntrances instead.
 	conn: L1OuterEntrance
@@ -3270,12 +3270,12 @@ home: L2OuterEntrance 15 297
 		standard Open AirDash
 		expert Open DoubleJump
 		expert Open ChargeJump
-home: L2OuterDoor
+home: L2OuterDoor 13 293
 	-- In main Horu room Inner/OuterDoors are only used for Entrance randomiser logic.
 	-- Actual logic should go in Inner/OuterEntrances instead.
 	conn: L2OuterEntrance
 	conn: L2InnerDoor
-home: L2InnerDoor
+home: L2InnerDoor -11 298
 	conn: L2
 	conn: L2OuterDoor
 home: L2 -17 304
@@ -3293,7 +3293,7 @@ home: L2 -17 304
 		master Stomp DoubleJump Glide
 		master Stomp DoubleJump AirDash
 		master Stomp TripleJump
-home: L3OuterEntrance
+home: L3OuterEntrance 29 256
 	conn: L3OuterDoor
 	-- TODO: fix this connection for entrance
 	conn: HoruInnerEntrance
@@ -3356,7 +3356,7 @@ home: L3 -44 247
 		master ChargeJump TripleJump Stomp UltraDefense Health=3
 		master ChargeJump TripleJump ChargeFlame UltraDefense Health=3
 		master GrenadeJump
-home: L4OuterEntrance
+home: L4OuterEntrance 24 198
 	conn: L4OuterDoor
 	pickup: HoruLavaDrainedLeftExp
 	-- TODO: fix this connection for entrance
@@ -3402,7 +3402,7 @@ home: HoruL4CutscenePeg -89 156
 		expert AirDash Stomp
 		expert ChargeDash Energy=2
 		master Dash Stomp
-home: R1OuterEntrance
+home: R1OuterEntrance 118 386
 	conn: R1OuterDoor
 	-- Assume the wall is still intact.
 	conn: L1OuterEntrance
@@ -3527,7 +3527,7 @@ home: HoruR1CutsceneTrigger 267 382
 		master Climb Health=4 UltraDefense
 	conn: LowerGinsoTree
 		glitched Dash
-home: R2OuterEntrance
+home: R2OuterEntrance 119 294
 	conn: R2OuterDoor
 	-- TODO: fix this connection for entrance
 	conn: R3OuterEntrance
@@ -3583,7 +3583,7 @@ home: R2 166 271
 		expert Stomp ChargeJump
 		expert Stomp Bash Grenade
 		master Stomp DoubleJump
-home: R3OuterEntrance
+home: R3OuterEntrance 120 250
 	conn: R3OuterDoor
 	-- TODO: fix this connection for entrance
 	conn: HoruInnerEntrance
@@ -3648,7 +3648,7 @@ home: HoruR3CutsceneTrigger 301 308
 	-- anchor: at the top of the next before pushing the rock
 	pickup: HoruR3
 	conn: HoruR3PlantCove
-home: R4OuterEntrance
+home: R4OuterEntrance 115 201
 	conn: R4OuterDoor
 	pickup: HoruLavaDrainedRightExp
 		casual DoubleJump
@@ -3978,7 +3978,7 @@ home: ValleyStomplessApproach -346 32
 		expert ChargeDash Climb DoubleJump Energy=2
 		master WallJump TripleJump Health=3
 	conn: ValleyRight
-home: ValleyRightFastStomplessCellWarp
+home: ValleyRightFastStomplessCellWarp -350 68
 	pickup: ValleyRightFastStomplessCell
 		casual Free
 	conn: ValleyStomplessApproach
@@ -4142,7 +4142,7 @@ home: ValleyThreeBirdLever -392 -98
 		expert Health=5
 		expert DoubleBash
 	conn: ValleyStompFloor
-home: VallleyThreeBirdACWarp
+home: VallleyThreeBirdACWarp -346 -94
 	pickup: ValleyThreeBirdAbilityCell
 		casual Free
 	conn: ValleyEntry
@@ -4554,7 +4554,7 @@ home: WilhelmLedge -539 131
 		master ChargeJump AirDash
 		master Bash
 		glitched ChargeJump
-home: WilhelmExpWarp
+home: WilhelmExpWarp -568 161
 	pickup: WilhelmExp
 		casual Free
 	conn: WilhelmLedge
@@ -4711,7 +4711,7 @@ home: SorrowMapstoneArea -432 301
 		casual Climb ChargeJump
 		casual Bash
 		standard Lure Free
-home: SorrowMapstoneWarp
+home: SorrowMapstoneWarp -429 323
 -- anchored next to the mapstone.
 	pickup: SorrowMapstone
 		casual Free
@@ -4818,10 +4818,10 @@ home: LeftSorrowKeystones -631 329
 		standard BashGrenade
 		standard Climb ChargeJump
 		expert Health=5
-home: LeftSorrowMiddleDoorClosed -596 386
+home: LeftSorrowMiddleDoorClosed -591 385
 	conn: LeftSorrowMiddleDoorOpen
 		casual Keystone=4
-home: LeftSorrowMiddleDoorOpen
+home: LeftSorrowMiddleDoorOpen -584 386
 -- anchored at the top of the keystone section
 	conn: MiddleSorrow
 		casual Glide Bash Stomp WallJump
@@ -4848,7 +4848,7 @@ home: LeftSorrowMiddleDoorOpen
 		expert Stomp ChargeDash Energy=1
 		expert Stomp Health=5
 		expert BashGrenade ChargeJump
-home: LeftSorrowTumbleweedDoorWarp
+home: LeftSorrowTumbleweedDoorWarp -598 386
 -- anchored at the left side of the keystone door, door closed (at -595, 385)
 	conn: LeftSorrowMiddleDoorClosed
 		casual Free
