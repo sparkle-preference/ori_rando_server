@@ -1160,15 +1160,6 @@ class GetCustomLogic(RequestHandler):
     def get(self):
         self.response.out.write(CustomLogic.read())
 
-class WotwTempMap(RequestHandler):
-    def get(self):
-        template_values = template_vals(self, "WotwMap", "Wotw Map", User.get())
-
-        template_values.update({'is_spoiler': "True", 'pathmode': param_val(self, 'pathmode'), 'HC': param_val(self, 'HC'),
-                           'EC': param_val(self, 'EC'), 'AC': param_val(self, 'AC'), 'KS': param_val(self, 'KS'),
-                           'skills': param_val(self, 'skills'), 'tps': param_val(self, 'tps'), 'evs': param_val(self, 'evs')})
-        self.response.write(template.render(path, template_values))
-
 class GetAreas(RequestHandler):
     def get(self):
         self.response.headers['Content-Type'] = 'text/plain'
@@ -1227,7 +1218,6 @@ app = WSGIApplication(
         Route('/map', handler=MapTest, name='tests-map', strict_slash=True),
         Route('/map/<game_id:\d+>', handler=MapTest, name='tests-map-gid', strict_slash=True),
     ]),
-    Route('/wotwMap', handler=WotwTempMap),
     Route('/user/custom_logic/set', handler=SetCustomLogic, name='set-custom-logic'),
     Route('/user/custom_logic/get', handler=GetCustomLogic, name='get-custom-logic'),
     Route('/tests', redirect_to_name='tests-run'),
