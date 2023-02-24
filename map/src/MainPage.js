@@ -346,7 +346,7 @@ onDrop = (files) => {
                     <Col onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "spawnWeights")}>
                         <Input style={inputStyle} type="number" value={weight} invalid={weight < 0} onChange={(e) => {
                             let sw = [...spawnWeights]
-                            sw[index] = parseInt(e.target.value, 10)
+                            sw[index] = parseFloat(e.target.value, 10)
                             this.setState({spawnWeights: sw})
                         }}/> 
                         <FormFeedback tooltip>Weights can't be less than 0</FormFeedback>

@@ -562,7 +562,7 @@ class SeedGenerator:
             if len(self.params.spawn_weights) > 9:
                 for i,k in enumerate(list(start_weights.keys())[1:]):
                     start_weights[k] = self.params.spawn_weights[i]
-                    print(k, start_weights[k])
+#                   print(k, start_weights[k])
             if not self.params.start or self.params.start not in start_weights:
                 log.warning("Unknown start location. Switching to Glades")
                 self.start = "Glades"
