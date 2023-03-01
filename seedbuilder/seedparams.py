@@ -3,7 +3,7 @@ from google.appengine.ext import ndb
 import logging as log
 import random
 
-from util import enums_from_strlist, picks_by_coord
+from util import enums_from_strlist, picks_by_coord, spawn
 from enums import (MultiplayerGameType, ShareType, Variation, LogicPath, KeyMode, PathDifficulty, presets)
 from collections import OrderedDict
 from seedbuilder.generator import SeedGenerator

@@ -10,7 +10,6 @@ import os
 
 VER = [4, 0, 4]
 MIN_VER = [4, 0, 4]
-
 def version_check(version):
     try:
         nums = [int(num) for num in version.split(".")]
@@ -268,6 +267,8 @@ def picks_by_coord(extras=False):
     for pickgroup in pbt.values():
         for pick in pickgroup:
             pbc[pick.coords] = pick
+    if extras:  # dumb dumb dumb BAD
+        pbc[2] = PickLoc(2, "SPAWN", "Glades", "FirstPickup", 189, -210)
     return pbc
 
 def picks_by_type_generator():
