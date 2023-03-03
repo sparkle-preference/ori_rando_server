@@ -196,6 +196,8 @@ export default class MainPage extends React.Component {
     })
     updateItemUpTo = (index, newVal) => this.setState(prev => {
         prev.itemPool[index].upTo = newVal
+        if(newVal < prev.itemPool[index].count)
+            prev.itemPool[index].count = newVal
         return {itemPool: [...prev.itemPool], selectedPool: "Custom"}
  })
     updatePoolItem = (index, code) => this.setState(prev => {
@@ -338,7 +340,7 @@ onDrop = (files) => {
     }
 
     getAdvancedTab = ({inputStyle, menuStyle}) => {
-        let {variations, senseData, fillAlg, spawnSKs, spawnECs, spawnHCs, expPool, bingoLines, pathDiff, cellFreq, relicCount, fragCount, fragReq, spawnWeights, advancedSpawnTouched, spawn} = this.state
+        let {variations, senseData, fillAlg, spawnSKs, spawnECs, spawnHCs, expPool, bingoLines, pathDiff, cellFreq, relicCount, fragCount, fragReq, spawnWeights, spawn} = this.state
         let [leftCol, rightCol] = [4, 7]
         let weightSelectors = spawnWeights.map((weight, index) => (
             <Col xs="4" className="text-center pt-1 border">
@@ -401,7 +403,7 @@ onDrop = (files) => {
                     <Col xs={leftCol} className="text-center pt-1 border">
                         <span className="align-middle">Sense Triggers</span>
                     </Col><Col xs={rightCol}>
-                        <Input style={inputStyle} type="text" value={senseData}  onChange={(e) => this.setState({senseData: e.target.value})}/> 
+                        <Input style={inputStyle} type="text" value={senseData} onChange={(e) => this.setState({senseData: e.target.value})}/> 
                     </Col>
                 </Row>
                 <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "fillAlg")} className="p-1 justify-content-center">
@@ -811,7 +813,7 @@ onDrop = (files) => {
             let raw = flagLine.split('|');
             let seedStr = raw.pop();
             let flags = raw.join("").split(",");
-            let flagCols = flags.map(flag => (<Col xs="auto" className="text-center" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("flags", flag)}><span class="ml-auto mr-auto align-middle">{flag}</span></Col>))
+            let flagCols = flags.map(flag => (<Col xs="auto" className="text-center" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("flags", flag)}><span className="ml-auto mr-auto align-middle">{flag}</span></Col>))
             let is_race = flags.includes("Race");
             if(is_race && !get_flag("race_wl")) {
                 return null;
@@ -1146,9 +1148,8 @@ onDrop = (files) => {
         let [hp, energy, skills] = [3, 1, 0] // defaults
         if(spawn_defaults[loc].hasOwnProperty(this.state.pathMode)) 
             [hp, energy, skills] = spawn_defaults[loc][this.state.pathMode]
-        else {
+        else 
             console.log(this.state.pathMode, loc, spawn_defaults[loc], spawn_defaults.hasOwnProperty(loc), spawn_defaults[loc].hasOwnProperty(this.state.pathMode));
-        }
         return {spawn: loc, spawnHCs: hp, spawnECs: energy, spawnSKs: skills}
     });
     

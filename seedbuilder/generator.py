@@ -464,7 +464,7 @@ class SeedGenerator:
         self.starting_health = 3
         self.starting_energy = 1
 
-    def reset(self):
+    def reset(self, worried=False):
         """A full reset. Resets internal state completely (besides pRNG
         advancement), then sets initial values according to params."""
         self.init_fields()
@@ -566,10 +566,9 @@ class SeedGenerator:
             if not self.params.start or self.params.start not in start_weights:
                 log.warning("Unknown start location. Switching to Glades")
                 self.start = "Glades"
-            elif self.params.start in ["Horu", "Ginso"]:
-                if self.var(Variation.CLOSED_DUNGEONS):
-                    log.error("can't start in dungeons with closed dungeons.")
-                    exit(1)
+            elif self.params.start in ["Horu", "Ginso"] and self.var(Variation.CLOSED_DUNGEONS):
+                log.error("can't start in dungeons with closed dungeons.")
+                exit(1)
             elif self.params.start == "Random":
                 if not self.var(Variation.OPEN_WORLD):
                     start_weights["Valley"] /= 10.0
@@ -585,17 +584,17 @@ class SeedGenerator:
 
 
             possible_skills = ["WallJump", "ChargeFlame", "Dash", "Stomp", "DoubleJump", "Glide", "Bash", "Climb", "Grenade", "ChargeJump", "Water"]#, "Wind", "Warmth"]
-            possible_skills_forced = ["WallJump", "ChargeFlame", "Dash", "Stomp", "DoubleJump", "Glide", "Bash", "Climb", "Grenade", "ChargeJump", "Water", "Wind", "Warmth"]
-            skills_that_definitely_do_something = {
+            # possible_skills_forced = ["WallJump", "ChargeFlame", "Dash", "Stomp", "DoubleJump", "Glide", "Bash", "Climb", "Grenade", "ChargeJump", "Water", "Wind", "Warmth"]
+            try_force = {
                 "Glades": ["WallJump", "Bash", "Climb", "ChargeJump", "Water"],
                 "Grove": ["ChargeFlame", "Stomp", "Grenade", "ChargeJump"],
                 "Swamp": ["WallJump", "ChargeFlame", "Dash", "Bash", "Climb", "Grenade", "ChargeJump", "Water"],
                 "Grotto": ["WallJump", "ChargeFlame", "Dash", "DoubleJump", "Glide", "Climb", "Grenade", "ChargeJump", "Water"],
                 "Forlorn": ["ChargeFlame", "Bash", "Grenade", "ChargeJump"],
                 "Valley": ["WallJump", "ChargeFlame", "DoubleJump", "Glide", "Bash", "Climb", "Grenade", "ChargeJump"],
-                "Horu": [],
+                "Horu": ["WallJump", "Climb", "Bash"],
                 "Ginso": ["Stomp", "DoubleJump", "Bash", "ChargeJump"],
-                "Sorrow": [],
+                "Sorrow": ["ChargeJump", "Bash", "Glide", "Climb", "Stomp"],
                 "Blackroot": ["WallJump", "ChargeFlame", "Dash", "Stomp", "DoubleJump", "Glide", "Bash", "Climb", "Grenade", "ChargeJump", "Water"],
             }
             start_skills = 0
@@ -623,6 +622,9 @@ class SeedGenerator:
                         cost *= 5
                     if skill == "Grenade" and self.var(Variation.FUCK_GRENADE):
                         cost *= 5
+                    if worried and self.start in try_force and skill in try_force[self.start]: 
+                        # if we're worried, overweight useful skills
+                        cost = 1
                     weight = 1.0 / cost
                     weights.append(weight)
                 
@@ -1465,16 +1467,19 @@ class SeedGenerator:
                 #      self.sharedList.append("Relic")
         return self.placeItemsMulti(retries)
 
-    def placeItemsMulti(self, retries=125):
+    def placeItemsMulti(self, retries):
         placements = []
         self.sharedMap = {}
         self.sharedCounts = Counter()
         self.split_locs = {}
         self.playerID = 1
 
-        placement = self.placeItems(0)
+        placement = self.placeItems(0, retries < 7)
         if not placement:
             if retries > 0:
+                if self.params.start != "Glades" and retries < 4:
+                    log.info("Failed to generate with %s spawn and %s starting skills, adding another" % (self.params.start, self.params.starting_skills))
+                    self.params.starting_skills += 1
                 retries -= 1
             else:
                 log.error("""Seed not completeable with these params and placements.
@@ -1517,7 +1522,7 @@ class SeedGenerator:
                         outlines.append(line)
                 placements.append(("\n".join(outlines) + "\n", spoiler))
             else:
-                placement = self.placeItems(0)
+                placement = self.placeItems(0, retries < 5)
                 if not placement:
                     if retries > 0:
                         retries -= 1
@@ -1557,8 +1562,8 @@ class SeedGenerator:
             for loc, pickup in zip(self.random.sample(true_rep_locs, len(repeatables)), repeatables):
                 self.forcedAssignments[loc] = pickup
 
-    def placeItems(self, depth=0):
-        self.reset()
+    def placeItems(self, depth=0, worried=False):
+        self.reset(worried)
         keystoneCount = 0
         mapstoneCount = 0
 
@@ -1738,7 +1743,7 @@ class SeedGenerator:
                         self.sharedCounts = Counter()
                     if depth > self.playerCount * self.playerCount:
                         return
-                    return self.placeItems(depth + 1)
+                    return self.placeItems(depth + 1, worried)
 
             # pick what we're going to put in our accessible space
             itemsToAssign = []
@@ -1751,7 +1756,7 @@ class SeedGenerator:
                         self.sharedCounts = Counter()
                     if depth > self.playerCount * self.playerCount:
                         return
-                    return self.placeItems(depth + 1)
+                    return self.placeItems(depth + 1, worried)
                 locationsToAssign.append(self.reservedLocations.pop(0))
                 locationsToAssign.append(self.reservedLocations.pop(0))
             for i in range(0, len(locationsToAssign)):
