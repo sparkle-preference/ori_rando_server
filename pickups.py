@@ -28,7 +28,7 @@ class Pickup(object):
     @classmethod
     def name(cls, code, id):
         for subcls in Pickup.subclasses():
-            if code == subcls.code and subcls(id):
+            if id and code == subcls.code and subcls(id):
                 return subcls(id).name
         return "%s|%s" % (code, id)
     def add_to_bitfield(self, bits_int, remove=False):

@@ -288,6 +288,7 @@ def template_vals(s, app, title, user):
     if user:
         template_values['user'] = user.name
         template_values['dark'] = user.dark_theme
+        template_values['verbose'] = user.verbose
         if user.theme:
             template_values['theme'] = user.theme
     return template_values

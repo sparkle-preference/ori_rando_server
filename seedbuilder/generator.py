@@ -5,6 +5,7 @@ import xml.etree.ElementTree as XML
 from collections import OrderedDict, defaultdict, Counter
 from operator import mul
 from enums import KeyMode, PathDifficulty, ShareType, Variation, MultiplayerGameType
+from pickups import Pickup
 from util import spawn_defaults, choices
 from hashlib import sha256
 from seedbuilder.oriparse import get_areas, get_path_tags_from_pathsets
@@ -461,6 +462,7 @@ class SeedGenerator:
         self.spoiler = []
         self.entrance_spoiler = ""
         self.warps = {}
+        self.padding = 0
         self.starting_health = 3
         self.starting_energy = 1
 
@@ -1124,13 +1126,15 @@ class SeedGenerator:
                     self.expSlots += 1
         # if mapstones are progressive, set a special location
 
-        if has_cost and not hist_written:
-            if at_mapstone:
-                self.spoilerGroup[item].append(item + " from MapStone " + str(self.mapstonesAssigned) + "\n")
-            else:
-                self.spoilerGroup[item].append(item + " from " + location.to_string() + "\n")
 
         fixed_item = self.adjust_item(item, zone)
+        if (has_cost or self.params.verbose_spoiler) and not hist_written:
+            pname = "Warp to " + self.warps[fixed_item][0] if fixed_item in self.warps else Pickup.name(fixed_item[:2], fixed_item[2:] or "1")
+            self.padding = max(self.padding, len(pname))
+            if at_mapstone:
+                self.spoilerGroup[fixed_item].append(pname + "!PDPLC!-from MapStone " + str(self.mapstonesAssigned) + "\n")
+            else:
+                self.spoilerGroup[fixed_item].append(pname + "!PDPLC!-from " + location.to_string() + "\n")
         assignment = self.get_assignment(loc, fixed_item, zone)
 
         if item in self.eventsOutput:
@@ -1880,6 +1884,9 @@ class SeedGenerator:
         return multi_items
 
     def form_spoiler(self):
+        def pad(instance):
+          name, _, loc = instance.partition("!PDPLC!-")
+          return name + (2+self.padding - len(name))*" " + loc
         i = 0
         groupDepth = -1 if 2 in self.preplaced else 0
         spoilerStr = ""
@@ -1901,45 +1908,35 @@ class SeedGenerator:
 
             if spoilerPath:
                 currentGroupSpoiler += ("    " + str(sets_forced) + " forced pickup set" + ("" if sets_forced == 1 else "s") + ": " + str(spoilerPath) + "\n")
-
             for skill in self.skillsOutput:
-                if skill in self.spoilerGroup:
-                    for instance in self.spoilerGroup[skill]:
-                        currentGroupSpoiler += "    " + instance
+                code = self.skillsOutput[skill]
+                if code in self.spoilerGroup:
+                    for instance in self.spoilerGroup[code]:
+                        currentGroupSpoiler += "    " + pad(instance)
                     if skill in self.seedDifficultyMap:
                         self.seedDifficulty += groupDepth * self.seedDifficultyMap[skill]
 
             for event in self.eventsOutput:
-                if event in self.spoilerGroup:
-                    for instance in self.spoilerGroup[event]:
-                        currentGroupSpoiler += "    " + instance
+                code = self.eventsOutput[event]
+                if code in self.spoilerGroup:
+                    for instance in self.spoilerGroup[code]:
+                        currentGroupSpoiler += "    " + pad(instance)
 
             for key in self.spoilerGroup:
                 if key[:2] == "TP":
                     for instance in self.spoilerGroup[key]:
-                        currentGroupSpoiler += "    " + instance
+                        currentGroupSpoiler += "    " + pad(instance)
 
             for warp_id in self.warps.keys():
                 if warp_id in self.spoilerGroup:
                     for instance in self.spoilerGroup[warp_id]:
-                        name, x, y, area, logic_location, logic_cost = self.warps[warp_id]
-                        currentGroupSpoiler += "    " + instance.replace(warp_id, "Warp to {}".format(name))
+                        currentGroupSpoiler += "    " + pad(instance)
 
-            for instance in self.spoilerGroup["MS"]:
-                currentGroupSpoiler += "    " + instance
-
-            for instance in self.spoilerGroup["KS"]:
-                currentGroupSpoiler += "    " + instance
-
-            for instance in self.spoilerGroup["HC"]:
-                currentGroupSpoiler += "    " + instance
-
-            for instance in self.spoilerGroup["EC"]:
-                currentGroupSpoiler += "    " + instance
-
-            for instance in self.spoilerGroup["AC"]:
-                currentGroupSpoiler += "    " + instance
-
+            for pickup_type in ["RB", "MS", "KS", "HC", "EC", "AC", "EX"]:
+                for key in self.spoilerGroup:
+                    if key[:2] == pickup_type:
+                        for instance in self.spoilerGroup[key]:
+                            currentGroupSpoiler += "    " + pad(instance)
             self.currentAreas.sort()
 
             spoilerStr += str(groupDepth) + ": " + str(self.currentAreas) + " {\n"

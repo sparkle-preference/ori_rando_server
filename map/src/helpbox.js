@@ -288,8 +288,8 @@ const getHelpHelper = (category, option) => {
                     title = "In-Logic Bonus Warps"
                     lines = [
                         "Using Bonus Warps is considered in-logic, and may be required to beat the seed!",
-                        "Note that this Variation does nothing if there aren't any Bonus Warps in the item pool.",
-                        "Recommended for experienced players who want to experience unpredictable progression paths.",
+                        "Selecting this variation will automatically add 4-8 warps to the current item pool, if it doesn't already contain some.",
+                        "Recommended for experienced players who want to experience strange and unusual progression paths.",
                     ]
                     break;
                 case "Entrance":
@@ -633,9 +633,9 @@ const getHelpHelper = (category, option) => {
                     lines = ["Change the amount of health you spawn with."]
                     break;
                 case "spawnECs":
-                    title = "Starting Energy"
-                    lines = ["Change the amount of Energy you spawn with."]
-                    break;
+                title = "Starting Energy"
+                lines = ["Change the amount of Energy you spawn with."]
+                break;
                 case "spawnSkills":
                     title = "Random Starting Skills"
                     lines = ["Spawn with this many random skills."]
@@ -649,7 +649,10 @@ const getHelpHelper = (category, option) => {
                         "Note: these values only are meaningful relative to each other; doubling all of them would have no effect."
                     ]
                     break;
-
+                case "verbose":
+                    title = "Verbose Spoilers"
+                    lines = ["Show all pickups in spoilers (by default, Experience and Bonus pickups are filtered out)."]
+                    break;    
                 case "bingoLines":
                     title = "Bingo Lines"
                     lines = ["Set the number of bingo lines to play for. Can also be adjusted on board generation"]

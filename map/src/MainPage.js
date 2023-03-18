@@ -340,7 +340,7 @@ onDrop = (files) => {
     }
 
     getAdvancedTab = ({inputStyle, menuStyle}) => {
-        let {variations, senseData, fillAlg, spawnSKs, spawnECs, spawnHCs, expPool, bingoLines, pathDiff, cellFreq, relicCount, fragCount, fragReq, spawnWeights, spawn} = this.state
+        let {variations, senseData, fillAlg, spawnSKs, spawnECs, spawnHCs, expPool, bingoLines, pathDiff, cellFreq, relicCount, fragCount, fragReq, spawnWeights, spawn, verboseSpoiler} = this.state
         let [leftCol, rightCol] = [4, 7]
         let weightSelectors = spawnWeights.map((weight, index) => (
             <Col xs="4" className="text-center pt-1 border">
@@ -404,6 +404,13 @@ onDrop = (files) => {
                         <span className="align-middle">Sense Triggers</span>
                     </Col><Col xs={rightCol}>
                         <Input style={inputStyle} type="text" value={senseData} onChange={(e) => this.setState({senseData: e.target.value})}/> 
+                    </Col>
+                </Row>
+                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "verbose")} className="p-1 justify-content-center">
+                    <Col xs={leftCol} className="text-center pt-1 border">
+                        <span className="align-middle">Verbose Spoiler</span>
+                    </Col><Col xs={rightCol}>
+                        <Button color="primary" block outline={!verboseSpoiler} onClick={() => this.setState({verboseSpoiler: !verboseSpoiler})}>{verboseSpoiler ? "Enabled" : "Disabled"}</Button>
                     </Col>
                 </Row>
                 <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "fillAlg")} className="p-1 justify-content-center">
@@ -611,7 +618,8 @@ onDrop = (files) => {
             'paths': this.state.paths,
             "expPool": this.state.expPool,
             "cellFreq": this.state.cellFreq,
-            "selectedPool": this.state.selectedPool
+            "selectedPool": this.state.selectedPool,
+            "verboseSpoiler": this.state.verboseSpoiler
         }
         if(this.state.pathDiff !== "Normal")
             json.pathDiff=this.state.pathDiff
@@ -1094,7 +1102,7 @@ onDrop = (files) => {
                      seed: "", fillAlg: "Balanced", shared: ["Skills", "Teleporters", "World Events", "Upgrades", "Misc"], hints: true, helpcat: "", helpopt: "", quickstartOpen: quickstartOpen, dedupShared: false,
                      expPool: 10000, lastHelp: new Date(), seedIsGenerating: seedTabExists, cellFreq: cellFreqPresets("standard"), fragCount: 30, fragReq: 20, relicCount: 8, loader: get_random_loader(),
                      paramId: paramId, seedTabExists: seedTabExists, reopenUrl: "", teamStr: "", flagLine: "", fass: {},  goalModesOpen: false, spoilers: true, spawnWeights: [1.0,2.0,2.0,2.0,1.5,2.0,0.1,0.1,0.25,0.5], seedIsBingo: false, bingoLines: 3, 
-                     auxModal: false, auxSpoiler: {active: false, byZone: false, exclude: ["EX","KS", "AC", "EC", "HC", "MS"]}, stupidMode: stupidMode, dropActive: false, customLogic: false, stupidWarn: stupidWarn};
+                     auxModal: false, auxSpoiler: {active: false, byZone: false, exclude: ["EX","KS", "AC", "EC", "HC", "MS"]}, stupidMode: stupidMode, dropActive: false, customLogic: false, stupidWarn: stupidWarn, verboseSpoiler: get_param("verbose") === "True"};
         
         if(url.searchParams.has("fromBingo")) {
             this.state.goalModes = ["Bingo"]
@@ -1125,8 +1133,13 @@ onDrop = (files) => {
         } else {
             if(v === "Race")
                 this.setState({variations: this.state.variations.concat(v), players: 2, coopGameMode: "Race", selectedPool: "Competitive", itemPool: get_pool("Competitive")})
-            else 
-                this.setState({variations: this.state.variations.concat(v)})
+            else {
+                if(!this.state.itemPool.some(({item}) => item === "WP|*")) this.setState(prev => {
+                    prev.itemPool.push({item: "WP|*", count: 4, upTo: 8, maximum: 14})
+                    return {itemPool: [...prev.itemPool], variations: prev.variations.concat(v), selectedPool: "Custom"}
+                });
+                else this.setState({variations: this.state.variations.concat(v)});
+            }
         }
     }
     pathDisabled = (path) => {

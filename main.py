@@ -1115,6 +1115,18 @@ class SetTheme(RequestHandler):
         else:
             return resp_error(self, 401, "You are not logged in!", "text/plain")
 
+class ToggleVerbose(RequestHandler):
+    def get(self):
+        self.response.headers['Content-Type'] = 'text/plain'
+        user = User.get()
+        if user:
+            user.verbose = not user.verbose
+            user.put()
+            self.response.write("verbose seed spoilers set to %s" % user.verbose)
+            return
+        else:
+            return resp_error(self, 401, "You are not logged in!", "text/plain")
+
 class NakedRedirect(RequestHandler):
     def get(self, path):
         return redirect(self.request.url.replace("www.", ""))
@@ -1262,6 +1274,7 @@ app = WSGIApplication(
     Route('/user/settings/update', handler=SetSettings, strict_slash=True, name="user-settings-update"),
     Route('/user/settings/number/<new_num:\d+>', handler=SetPlayerNum, strict_slash=True, name="user-set-player-num"),
     Route('/user/settings/theme/<new_theme>', handler=SetTheme, strict_slash=True, name="user-set-player-theme"),
+    Route('/user/settings/verbose', handler=ToggleVerbose, strict_slash=True, name="user-toggle-verbose"),
     Route('/activeGames/', handler=ActiveGames, strict_slash=True, name="active-games"),
     Route('/activeGames/<hours:\d+>', handler=ActiveGames, strict_slash=True, name="active-games-hours"),
     ('/rebinds', RebindingsEditor),

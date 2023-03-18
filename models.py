@@ -162,6 +162,7 @@ class User(ndb.Model):
     teamname = ndb.StringProperty()
     pref_num  = ndb.IntegerProperty()
     theme  = ndb.StringProperty()
+    verbose = ndb.BooleanProperty(default=False)
 
 
     @staticmethod
