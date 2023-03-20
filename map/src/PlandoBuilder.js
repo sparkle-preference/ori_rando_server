@@ -169,11 +169,13 @@ function get_manual_reach() {
 class PlandoBuiler extends React.Component {
   constructor(props) {
     super(props)
+    let {seed_name, seed_desc, user, hidden} = get_seed();
 
     this.state = {seed_in: "", reachable: {...DEFAULT_REACHABLE}, new_areas: {...DEFAULT_REACHABLE}, placements: {1: {...DEFAULT_DATA}}, player: 1, saving: false,
                   fill_opts: {HC: 13, EC: 15, AC: 34, KS: 40, MS: 9, EX: 300, ex_pool: 10000, dynamic: false, dumb: false}, viewport: {center: [0, 0], zoom: 5}, searchStr: "", clueOrder: CLUE_ORDERS[0],
-                  flags: ['hide_unreachable', 'hide_softlockable'], seedFlags: select_wrap(["ForceTrees"]), share_types: select_wrap(["keys"]), coop_mode: {label: "Solo", value: "None"},
-                  pickups: ["EX", "Ma", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "CS"], display_fill: false, display_import: false, display_logic: false, display_coop: false, display_meta: false}
+                  flags: ['hide_unreachable', 'hide_softlockable'], seedFlags: select_wrap(["ForceTrees"]), hidden: hidden, share_types: select_wrap(["keys"]), coop_mode: {label: "Solo", value: "None"},
+                  pickups: ["EX", "Ma", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "CS"], display_fill: false, display_import: false, display_logic: false, display_coop: false, display_meta: false,
+                seed_name: seed_name, last_seed_name: seed_name, seed_desc: seed_desc, user: user};
     }
 
 
@@ -217,12 +219,11 @@ class PlandoBuiler extends React.Component {
         }, 100);
         if(this.state.authed)
         {
-            let {seedJson, seed_name, seed_desc, user} = get_seed()
-            this.setState({seed_name: seed_name, last_seed_name: seed_name, seed_desc: seed_desc, user: user})
+            let {seedJson} = get_seed();
             if(seedJson)
-                this.parseSavedSeed(seedJson)
-        }
-        this.updateReachable()
+                this.parseSavedSeed(seedJson);
+        } else
+            this.updateReachable();
     };
 
     onSelectZone = (newZone, pan=true) => {this.selectPickup(this.state.lastSelected[newZone.value], pan)};
@@ -378,11 +379,8 @@ class PlandoBuiler extends React.Component {
         let retVal = {}
         retVal.placements = placements;
         if(newClueOrder.length === 3) 
-            retVal.clueOrder = {value: newClueOrder, label: mkClueOrderLabel(newClueOrder)}
+            retVal.clueOrder = {value: newClueOrder, label: mkClueOrderLabel(newClueOrder)};
         this.setState(retVal, () => this.updateReachable());
-        this.setState({placements: placements}, () => this.updateReachable());
-
-
     }
 
     parseFlagLine = (flagLine) => {
@@ -394,7 +392,7 @@ class PlandoBuiler extends React.Component {
         if(this.state.seed_name) // don't overwrite name on upload
             seed_name = this.state.seed_name
         flags.split(",").forEach((flag) => {
-            if(SEED_FLAGS.includes(flag) && !seedFlags.includes(flag))
+            if(!seedFlags.includes(flag))
                 seedFlags.push(flag)
             else if(flag.startsWith("mode="))
             {
@@ -495,6 +493,7 @@ class PlandoBuiler extends React.Component {
         data.sharedMode = this.state.coop_mode.value
         data.shareTypes = this.state.share_types.map(f => f.value)
         data.flags = this.state.seedFlags.map(f => f.value);
+        data.hidden = this.state.hidden;
         data.placements = [];
         let locs = Object.keys(picks_by_loc);
         let players = Object.keys(this.state.placements);
@@ -575,11 +574,10 @@ class PlandoBuiler extends React.Component {
         {
             if(this.state.last_seed_name !== this.state.seed_name)
             {
-                let new_url = window.document.URL.replace(this.state.last_seed_name, this.state.seed_name);
-                window.history.replaceState('',window.document.title, new_url);
+                let [url, title] = [window.document.URL, window.document.title].map(s => s.replace(this.state.last_seed_name, this.state.seed_name))
+                window.history.replaceState('',title, url);
                 this.setState({last_seed_name: this.state.seed_name})
             }
-            this.toggleMeta()
             NotificationManager.success("Seed saved", "Success!", 2500);
         }
         else if(statusCode === 404)
@@ -698,7 +696,7 @@ class PlandoBuiler extends React.Component {
 
 
     render() {
-        let {clueOrder, modes, searchStr, seedFlags, authed} = this.state;
+        let {clueOrder, modes, searchStr, seedFlags, authed, hidden} = this.state;
         let page = encodeURIComponent(window.document.URL.split(".com")[1])
         const pickup_markers = ( <PickupMarkersList markers={getPickupMarkers(this.state, this.selectPickupCurry, searchStr)} />)
         const zone_opts = zones.map(zone => ({label: zone, value: zone}))
@@ -747,8 +745,11 @@ class PlandoBuiler extends React.Component {
                     <Collapse id="import-wrapper" isOpen={this.state.display_meta}>
                         <input id="seed-name-input" type="text" className="form-control" value={this.state.seed_name} onChange={event => this.setState({seed_name: event.target.value})} />
                         <textarea id="seed-desc-input" className="form-control" placeholder="Seed Description" value={this.state.seed_desc} onChange={event => this.setState({seed_desc: event.target.value})} />
-                        <Button color="primary" onClick={this.saveSeed} >Save</Button>
-                        <Button color="primary" onClick={() => window.open(`/plando/${this.state.user}/${this.state.last_seed_name}/`,'_blank') } >Open Seed Page</Button>
+                        <Button color="primary" style={{paddingLeft: ".2rem"}} onClick={this.saveSeed} >Save</Button>
+                        <Button color="primary" style={{paddingLeft: ".2rem"}} onClick={() => window.open(`/plando/${this.state.user}/${this.state.last_seed_name}/`,'_blank') } >Open Seed Page</Button>
+                        <Button color="primary" outline={hidden} onClick={() => this.setState({hidden: !hidden})}>
+                            {hidden ? "Hidden" : "Visible"}
+                        </Button>
                     </Collapse>
                     <Collapse id="import-wrapper" isOpen={this.state.display_import}>
                         <textarea id="import-seed-area" className="form-control" placeholder="Paste Seed Here" value={this.state.seed_in} onChange={event => {this.parseUploadedSeed(event.target.value) ; this.toggleImport() }} />
@@ -813,8 +814,8 @@ class PlandoBuiler extends React.Component {
                         </CheckboxGroup>
                     <hr style={{ backgroundColor: 'grey', height: 2 }}/>
                         <div id="search-wrapper">
-                            <label for="search">Search</label>
-                            <input id="search" class="form-control" value={this.state.searchStr} onChange={(event) => this.setState({searchStr: event.target.value})} type="text" />
+                            <label htmlFor="search">Search</label>
+                            <input id="search" className="form-control" value={this.state.searchStr} onChange={(event) => this.setState({searchStr: event.target.value})} type="text" />
                         </div>
                     </div>
                     <hr style={{ backgroundColor: 'grey', height: 2 }}/>

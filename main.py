@@ -668,7 +668,6 @@ class PlandoUpload(RequestHandler):
             return
         seed_data = json.loads(self.request.POST["seed"])
         old_name = seed_data["oldName"]
-        name = seed_data["name"]
         old_seed = user.plando(old_name)
         if old_seed:
             res = old_seed.update(seed_data)

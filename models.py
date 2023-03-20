@@ -196,7 +196,7 @@ class User(ndb.Model):
             game_count = len(user.games)
             user.games = [g for g in user.games if g in keys]
             if len(user.games) < game_count:
-                print "removed %s games from %s's gamelist" % (game_count - len(user.games), user.name)
+                print("removed %s games from %s's gamelist" % (game_count - len(user.games), user.name))
                 user.put()
 
     @staticmethod
