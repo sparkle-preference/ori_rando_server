@@ -7,7 +7,7 @@ class Pickup(object):
     @staticmethod
     def subclasses():
         return [Skill, Event, Teleporter, Upgrade, Experience, AbilityCell, HealthCell, EnergyCell, Keystone, 
-                Mapstone, Message, Hint, Relic, Multiple, Repeatable, Warp, WarpSave, Nothing]
+                Mapstone, Message, Hint, Relic, Multiple, Repeatable, Warp, WarpSave, Nothing, TPWarp]
     stacks = False
     has_children = False
     int_id = True
@@ -229,7 +229,7 @@ class Multiple(Pickup):
             self.id += "/%s/%s" % (child.code, child.id)
             self.children.append(child)
     def is_shared(self, share_types):
-        return any([c.is_shared(share_types) for c in self.children])
+        return False # if you have a multipickup you have its children, so...
 
 class Repeatable(Multiple):
     code = "RP"
@@ -272,4 +272,12 @@ class WarpSave(Pickup):
     def __new__(cls, id):
         inst = super(WarpSave, cls).__new__(cls)
         inst.id, inst.bit, inst.name = id, None, "Warp to " + id + " and save"
+        return inst
+
+class TPWarp(Pickup):
+    code = "TW"
+    int_id = False
+    def __new__(cls, id):
+        inst = super(TPWarp, cls).__new__(cls)
+        inst.id, inst.bit, inst.name = id, None, id.split(",")[0]
         return inst

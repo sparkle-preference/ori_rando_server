@@ -1261,6 +1261,7 @@ class Game(ndb.Model):
                             player.give_pickup(pickup, delay_put=True)
                             has = player.has_pickup(pickup)
                             if has == last:
+                                player.signal_send(sanFailedSignal)
                                 log.critical("Aborting sanity check for Player %s: tried and failed to increment %s (at %s, should be %s)" % (player.key.id(), pickup.name, has, count))
                                 return False
                             if i > 100:
