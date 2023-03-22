@@ -11,6 +11,7 @@ from seedbuilder.generator import SeedGenerator
 JSON_SHARE = lambda x: x.value if x != ShareType.EVENT else "World Events"
 FLAGLESS_VARS = [Variation.WARMTH_FRAGMENTS, Variation.WORLD_TOUR]
 JSON_GAME_MODE = {MultiplayerGameType.SHARED: "Co-op", MultiplayerGameType.SIMUSOLO: "Race", MultiplayerGameType.SPLITSHARDS: "SplitShards"}
+JSON_MODE_GAME = {v:k for k,v in JSON_GAME_MODE.items()}
 PBC = picks_by_coord(extras=True)
 
 class Stuff(ndb.Model):
@@ -68,7 +69,8 @@ class MultiplayerOptions(ndb.Model):
         opts.enabled = json.get("players", 1) > 1
         opts.teams = json.get("teams", {})
         if opts.enabled:
-            opts.mode = MultiplayerGameType(json.get("coopGameMode", "None"))
+            jsonMode = json.get("coopGameMode", "None")
+            opts.mode = JSON_MODE_GAME[jsonMode] if jsonMode in JSON_MODE_GAME else MultiplayerGameType(jsonMode)
             opts.cloned = json.get("coopGenMode") != "disjoint"
             if opts.cloned:
                 opts.teams = {1: range(1, json.get("players", 1) + 1)}

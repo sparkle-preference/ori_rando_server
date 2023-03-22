@@ -1089,6 +1089,8 @@ onDrop = (files) => {
             else
                 doNetRequest(`/generator/metadata/${paramId}`,this.acceptMetadata);
 
+        } else {
+
         }
         let stupidMode = false;
         url.searchParams.forEach((v, k) => {
@@ -1217,7 +1219,7 @@ onDrop = (files) => {
     }
 
     render = () => {
-        let {stupidMode, spawn, pathMode, goalModes, keyMode, helpParams, goalModesOpen, seedTabExists, helpcat, activeTab, seed, tracking, seedIsGenerating} = this.state;
+        let {stupidMode, spawn, pathMode, goalModes, keyMode, helpParams, goalModesOpen, seedTabExists, helpcat, activeTab, seed, tracking, seedIsGenerating, user} = this.state;
         let s = getComputedStyle(document.body);
         let styles = {inputStyle: {'borderColor': s.getPropertyValue('--dark'), 'backgroundColor': s.getPropertyValue("background-color"), 'color': s.getPropertyValue("color")}, menuStyle: {}}
 
@@ -1227,6 +1229,8 @@ onDrop = (files) => {
         let spawnOptions = SPAWN_OPTS.map(loc => (
             <DropdownItem active={loc===spawn} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "spawnLoc")} onClick={this.onSpawnLoc(loc)}>{loc}</DropdownItem>
         ))
+
+        let rerollButton = user ? (<Button color="info" href="/reroll">Reroll Last Seed</Button>) : <Button color="info" outline disabled>Reroll Last Seed</Button>;
 
         let keyModeOptions = keymode_options.map(mode => (
             <DropdownItem active={mode===keyMode} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("keyModes", mode)} onClick={this.onKeyMode(mode)}>{mode}</DropdownItem>
@@ -1323,7 +1327,9 @@ onDrop = (files) => {
                         </Col>
                     </Row>
                 </Col>
-                <Col xs="4"></Col>
+                <Col xs="4" className="text-center pt-1 mt-1"onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", user ? "reroll" : "rerollDisabled")}>
+                    {rerollButton}
+                </Col>
                 <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "spawnLoc")}>
                     <Row>
                         <Col xs="6"  className="text-center pt-1 border mt-2">

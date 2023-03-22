@@ -850,14 +850,27 @@ const getHelpHelper = (category, option) => {
         case "general":
             subtitle = "General Options"
             switch(option) {
-                case "logicModes":
-                    title = "Logic Modes"
+                case "reroll":
+                    title = "Reroll Last Seed"
                     lines = [
-                        "Logic modes are sets of logic paths tailored for specific play experiences. Changing the logic mode will have a major impact on seed difficulty.", 
-                        "New players should start out with the Casual logic mode unless they are already familiar with the basics of Ori speedrunning.",
-                        "Mouse over a logic mode in the dropdown to learn more about it."
+                        "Generates a brand-new seed with the same options and settings selected in the last seed you played while logged into the site."
                     ]
                     break;
+                case "rerollDisabled":
+                    title = "Reroll Last Seed"
+                    lines = [
+                        "Generates a brand-new seed with the same options and settings selected in the last seed you played while logged into the site.",
+                        "(You need to be logged in to use this button)"
+                    ]
+                    break;
+                case "logicModes":
+                title = "Logic Modes"
+                lines = [
+                    "Logic modes are sets of logic paths tailored for specific play experiences. Changing the logic mode will have a major impact on seed difficulty.", 
+                    "New players should start out with the Casual logic mode unless they are already familiar with the basics of Ori speedrunning.",
+                    "Mouse over a logic mode in the dropdown to learn more about it."
+                ]
+                break;
                 case "goalModes":
                     title = "Goal Modes"
                     lines = [
