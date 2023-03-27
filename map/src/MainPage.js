@@ -1136,7 +1136,7 @@ onDrop = (files) => {
             if(v === "Race")
                 this.setState({variations: this.state.variations.concat(v), players: 2, coopGameMode: "Race", selectedPool: "Competitive", itemPool: get_pool("Competitive")})
             else {
-                if(v === "In-Logic Warps" && !this.state.itemPool.some(({item}) => item === "WP|*")) this.setState(prev => {
+                if(v === "InLogicWarps" && !this.state.itemPool.some(({item}) => item === "WP|*")) this.setState(prev => {
                     prev.itemPool.push({item: "WP|*", count: 4, upTo: 8, maximum: 14})
                     return {itemPool: [...prev.itemPool], variations: prev.variations.concat(v), selectedPool: "Custom"}
                 });
