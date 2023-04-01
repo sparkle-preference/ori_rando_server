@@ -277,6 +277,7 @@ class WarpSave(Pickup):
 class TPWarp(Pickup):
     code = "TW"
     int_id = False
+    share_type = ShareType.TELEPORTER
     def __new__(cls, id):
         inst = super(TPWarp, cls).__new__(cls)
         inst.id, inst.bit, inst.name = id, None, id.split(",")[0]

@@ -815,6 +815,8 @@ class SeedGenerator:
         self.warps[warp_id] = warp
         self.itemPool[warp_id] = 1
         self.costs[warp_id] = logic_cost
+        if self.do_multi and ShareType.TELEPORTER in self.params.sync.shared:
+            self.sharedList += [warp_id]
         self.inventory[warp_id] = 0
         #if self.var(Variation.IN_LOGIC_WARPS):
             #connection = Connection("TeleporterNetwork", logic_location, self)
@@ -850,10 +852,10 @@ class SeedGenerator:
             # Otherwise, we want to assign it after the paths are generated for this round
             elif player > self.playerID:
                 self.assign(item)
-                self.spoilerGroup[item].append(item + " from Player " + str(player) + "\n")
+                self.append_spoiler(self.adjust_item(item, None), "Player %s" % player)
             else:
                 self.sharedAssignQueue.append(item)
-                self.spoilerGroup[item].append(item + " from Player " + str(player) + "\n")
+                self.append_spoiler(self.adjust_item(item, None), "Player %s" % player)
 
     def reach_area(self, target):
         if self.playerID > 1 and target in self.sharedMap:
@@ -1121,7 +1123,7 @@ class SeedGenerator:
                 self.sharedMap[location.area].append((item, player))
                 if player != self.playerID:
                     self.sharedCounts[player] += 1
-                    self.spoilerGroup[item].append("%s from Player %s\n" % (item, player))
+                    self.append_spoiler(self.adjust_item(item, zone), "Player %s" % player)
                     item = "EX*"
                     self.expSlots += 1
         # if mapstones are progressive, set a special location
@@ -1129,12 +1131,7 @@ class SeedGenerator:
 
         fixed_item = self.adjust_item(item, zone)
         if (has_cost or self.params.verbose_spoiler) and not hist_written:
-            pname = "Warp to " + self.warps[fixed_item][0] if fixed_item in self.warps else Pickup.name(fixed_item[:2], fixed_item[2:] or "1")
-            self.padding = max(self.padding, len(pname))
-            if at_mapstone:
-                self.spoilerGroup[fixed_item].append(pname + "!PDPLC!-from MapStone " + str(self.mapstonesAssigned) + "\n")
-            else:
-                self.spoilerGroup[fixed_item].append(pname + "!PDPLC!-from " + location.to_string() + "\n")
+            self.append_spoiler(fixed_item, "Mapstone %s" % self.mapstonesAssigned if at_mapstone else location.to_string())
         assignment = self.get_assignment(loc, fixed_item, zone)
 
         if item in self.eventsOutput:
@@ -1151,6 +1148,12 @@ class SeedGenerator:
             if item in self.params.locationAnalysisCopy[key]:
                 self.params.locationAnalysisCopy[key][item] += 1
                 self.params.locationAnalysisCopy[location.zone][item] += 1
+
+    def append_spoiler(self, fixed_item, location_name):
+        pname = "Warp to " + self.warps[fixed_item][0] if fixed_item in self.warps else Pickup.name(fixed_item[:2], fixed_item[2:] or "1")
+        self.padding = max(self.padding, len(pname))
+        self.spoilerGroup[fixed_item].append(pname + "!PDPLC!-from " + location_name + "\n")
+
 
     def adjust_item(self, item, zone):
         if item in self.skillsOutput:
@@ -1635,10 +1638,11 @@ class SeedGenerator:
                     # it breaks shards names.
                     #name = self.codeToName.get(multi_item, multi_item)
                     #self.spoilerGroup[name].append(name + " preplaced at Spawn\n")
-                    self.spoilerGroup[multi_item].append(multi_item + " preplaced at Spawn\n")
+                    if not multi_item.startswith("WS"): # avoid dumb padding thing
+                        self.append_spoiler(self.adjust_item(multi_item, "Glades"), "Spawn")
             else:
                 name = self.codeToName.get(item, item)
-                self.spoilerGroup[name].append(name + " preplaced at Spawn\n")
+                self.append_spoiler(self.adjust_item(name, "Glades"), "Spawn")
             del self.forcedAssignments[2]
             ass = self.get_assignment(2, self.adjust_item(item, "Glades"), "Glades")
             self.outputStr += ass 

@@ -408,7 +408,7 @@ class Player(ndb.Model):
     def give_pickup(self, pickup, remove=False, delay_put=False, coords=None, finder=None):
         if coords and finder:
             self.hints[str(coords)] = finder
-        if pickup.code == "RB":
+        if pickup.code in ["RB", "TW"]:
             # handle upgrade refactor storage
             pick_id = str(pickup.id)
             if remove:
@@ -437,7 +437,7 @@ class Player(ndb.Model):
         return self.put()
 
     def has_pickup(self, pickup):
-        if pickup.code == "RB":
+        if pickup.code in ["RB", "TW"]:
             pick_id = str(pickup.id)
             return self.bonuses[pick_id] if pick_id in self.bonuses else 0
         elif pickup.code == "SK":
@@ -1091,7 +1091,7 @@ class Game(ndb.Model):
             trees = []
             relics = []
             bonuses = []
-            for (name, cnt) in [(Pickup.name("RB", k), v) for k, v in sorted(src.bonuses.iteritems(), lambda (lk, _), (rk, __): int(lk) - int(rk))]:
+            for (name, cnt) in [(Pickup.name("RB" if isnumeric(k) else "TW", k), v) for k, v in sorted(src.bonuses.iteritems(), lambda (lk, _), (rk, __): int(lk) - int(rk))]:
                 if "Tree" in name:
                     trees.append(name.replace(" Tree", ""))
                 elif "Relic" in name:
@@ -1276,6 +1276,7 @@ class Game(ndb.Model):
                             player.give_pickup(pickup, remove=True, delay_put=True)
                             has = player.has_pickup(pickup)
                             if has == last:
+                                player.signal_send(sanFailedSignal)
                                 log.critical("Aborting sanity check for Player %s: tried and failed to decrement %s (at %s, should be %s)" % (player.key.id(), pickup.name, has, count))
                                 return False
                             if i > 100:

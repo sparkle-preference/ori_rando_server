@@ -76,7 +76,7 @@ class MultiplayerOptions(ndb.Model):
                 opts.teams = {1: range(1, json.get("players", 1) + 1)}
                 opts.dedup = bool(json.get("dedupShared", False))
             opts.hints = bool(opts.cloned and json.get("syncHints"))
-            opts.shared = enums_from_strlist(ShareType, json.get("syncShared", []))
+            opts.shared = enums_from_strlist( ShareType, [a.replace(" ", "") for a in json.get("syncShared", json.get("shared", []))]) #shit fuck ass jank shit
         return opts
 
     def get_team_str(self):
