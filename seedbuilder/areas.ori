@@ -945,13 +945,13 @@ home: SpiderSacEnergyNook 66 -153
 	conn: SpiderSacArea
 		expert-abilities Dash Ability=6 Energy=1 -- *rjump=1
 		standard-core Climb ChargeJump
-		dbash Bash
+		expert DoubleBash
 	conn: SpiderWaterArea
 		standard-core DoubleJump Bash
 		standard-core Bash Glide
 		standard-core Climb ChargeJump
 		standard-core Bash Grenade
-		dbash Bash
+		expert DoubleBash
 	conn: ChargeFlameAreaPlantAccess
 		master ChargeFlameBurn
 home: SpiderWaterArea 152 -143
@@ -1238,11 +1238,11 @@ home: GrenadeArea 195 -385
 		master ChargeJump Grenade
   conn: GrenadeAreaAccess
 		-- casual Dash -- FIXME needs wall interaction
-		expert-core Bash Grenade
-		dbash WallJump Bash -- use bird or baneling
-		dbash DoubleJump Bash -- use bird or baneling
-		dbash Bash Climb -- use bird or baneling
-		dbash Bash ChargeJump -- use bird or baneling
+		expert DoubleBash Grenade
+		expert DoubleBash WallJump -- use bird or baneling
+		expert DoubleBash DoubleJump -- use bird or baneling
+		expert DoubleBash Climb -- use bird or baneling
+		expert DoubleBash ChargeJump -- use bird or baneling
 		gjump Climb ChargeJump Grenade
 		glitched Free
 	-- conn: RazielNoArea dbash baneling
