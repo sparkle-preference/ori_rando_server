@@ -5,6 +5,7 @@ import xml.etree.ElementTree as XML
 from collections import OrderedDict, defaultdict, Counter
 from operator import mul
 from enums import KeyMode, PathDifficulty, ShareType, Variation, MultiplayerGameType
+from pickups import Pickup
 from util import spawn_defaults, choices
 from hashlib import sha256
 from seedbuilder.oriparse import get_areas, get_path_tags_from_pathsets
@@ -461,10 +462,11 @@ class SeedGenerator:
         self.spoiler = []
         self.entrance_spoiler = ""
         self.warps = {}
+        self.padding = 0
         self.starting_health = 3
         self.starting_energy = 1
 
-    def reset(self):
+    def reset(self, worried=False):
         """A full reset. Resets internal state completely (besides pRNG
         advancement), then sets initial values according to params."""
         self.init_fields()
@@ -562,14 +564,13 @@ class SeedGenerator:
             if len(self.params.spawn_weights) > 9:
                 for i,k in enumerate(list(start_weights.keys())[1:]):
                     start_weights[k] = self.params.spawn_weights[i]
-                    print(k, start_weights[k])
+#                   print(k, start_weights[k])
             if not self.params.start or self.params.start not in start_weights:
                 log.warning("Unknown start location. Switching to Glades")
                 self.start = "Glades"
-            elif self.params.start in ["Horu", "Ginso"]:
-                if self.var(Variation.CLOSED_DUNGEONS):
-                    log.error("can't start in dungeons with closed dungeons.")
-                    exit(1)
+            elif self.params.start in ["Horu", "Ginso"] and self.var(Variation.CLOSED_DUNGEONS):
+                log.error("can't start in dungeons with closed dungeons.")
+                exit(1)
             elif self.params.start == "Random":
                 if not self.var(Variation.OPEN_WORLD):
                     start_weights["Valley"] /= 10.0
@@ -585,17 +586,17 @@ class SeedGenerator:
 
 
             possible_skills = ["WallJump", "ChargeFlame", "Dash", "Stomp", "DoubleJump", "Glide", "Bash", "Climb", "Grenade", "ChargeJump", "Water"]#, "Wind", "Warmth"]
-            possible_skills_forced = ["WallJump", "ChargeFlame", "Dash", "Stomp", "DoubleJump", "Glide", "Bash", "Climb", "Grenade", "ChargeJump", "Water", "Wind", "Warmth"]
-            skills_that_definitely_do_something = {
+            # possible_skills_forced = ["WallJump", "ChargeFlame", "Dash", "Stomp", "DoubleJump", "Glide", "Bash", "Climb", "Grenade", "ChargeJump", "Water", "Wind", "Warmth"]
+            try_force = {
                 "Glades": ["WallJump", "Bash", "Climb", "ChargeJump", "Water"],
                 "Grove": ["ChargeFlame", "Stomp", "Grenade", "ChargeJump"],
                 "Swamp": ["WallJump", "ChargeFlame", "Dash", "Bash", "Climb", "Grenade", "ChargeJump", "Water"],
                 "Grotto": ["WallJump", "ChargeFlame", "Dash", "DoubleJump", "Glide", "Climb", "Grenade", "ChargeJump", "Water"],
                 "Forlorn": ["ChargeFlame", "Bash", "Grenade", "ChargeJump"],
                 "Valley": ["WallJump", "ChargeFlame", "DoubleJump", "Glide", "Bash", "Climb", "Grenade", "ChargeJump"],
-                "Horu": [],
+                "Horu": ["WallJump", "Climb", "Bash"],
                 "Ginso": ["Stomp", "DoubleJump", "Bash", "ChargeJump"],
-                "Sorrow": [],
+                "Sorrow": ["ChargeJump", "Bash", "Glide", "Climb", "Stomp"],
                 "Blackroot": ["WallJump", "ChargeFlame", "Dash", "Stomp", "DoubleJump", "Glide", "Bash", "Climb", "Grenade", "ChargeJump", "Water"],
             }
             start_skills = 0
@@ -623,6 +624,9 @@ class SeedGenerator:
                         cost *= 5
                     if skill == "Grenade" and self.var(Variation.FUCK_GRENADE):
                         cost *= 5
+                    if worried and self.start in try_force and skill in try_force[self.start]: 
+                        # if we're worried, overweight useful skills
+                        cost = 1
                     weight = 1.0 / cost
                     weights.append(weight)
                 
@@ -811,6 +815,8 @@ class SeedGenerator:
         self.warps[warp_id] = warp
         self.itemPool[warp_id] = 1
         self.costs[warp_id] = logic_cost
+        if self.do_multi and ShareType.TELEPORTER in self.params.sync.shared:
+            self.sharedList += [warp_id]
         self.inventory[warp_id] = 0
         #if self.var(Variation.IN_LOGIC_WARPS):
             #connection = Connection("TeleporterNetwork", logic_location, self)
@@ -846,10 +852,10 @@ class SeedGenerator:
             # Otherwise, we want to assign it after the paths are generated for this round
             elif player > self.playerID:
                 self.assign(item)
-                self.spoilerGroup[item].append(item + " from Player " + str(player) + "\n")
+                self.append_spoiler(self.adjust_item(item, None), "Player %s" % player)
             else:
                 self.sharedAssignQueue.append(item)
-                self.spoilerGroup[item].append(item + " from Player " + str(player) + "\n")
+                self.append_spoiler(self.adjust_item(item, None), "Player %s" % player)
 
     def reach_area(self, target):
         if self.playerID > 1 and target in self.sharedMap:
@@ -1117,18 +1123,15 @@ class SeedGenerator:
                 self.sharedMap[location.area].append((item, player))
                 if player != self.playerID:
                     self.sharedCounts[player] += 1
-                    self.spoilerGroup[item].append("%s from Player %s\n" % (item, player))
+                    self.append_spoiler(self.adjust_item(item, zone), "Player %s" % player)
                     item = "EX*"
                     self.expSlots += 1
         # if mapstones are progressive, set a special location
 
-        if has_cost and not hist_written:
-            if at_mapstone:
-                self.spoilerGroup[item].append(item + " from MapStone " + str(self.mapstonesAssigned) + "\n")
-            else:
-                self.spoilerGroup[item].append(item + " from " + location.to_string() + "\n")
 
         fixed_item = self.adjust_item(item, zone)
+        if (has_cost or self.params.verbose_spoiler) and not hist_written:
+            self.append_spoiler(fixed_item, "Mapstone %s" % self.mapstonesAssigned if at_mapstone else location.to_string())
         assignment = self.get_assignment(loc, fixed_item, zone)
 
         if item in self.eventsOutput:
@@ -1145,6 +1148,12 @@ class SeedGenerator:
             if item in self.params.locationAnalysisCopy[key]:
                 self.params.locationAnalysisCopy[key][item] += 1
                 self.params.locationAnalysisCopy[location.zone][item] += 1
+
+    def append_spoiler(self, fixed_item, location_name):
+        pname = "Warp to " + self.warps[fixed_item][0] if fixed_item in self.warps else Pickup.name(fixed_item[:2], fixed_item[2:] or "1")
+        self.padding = max(self.padding, len(pname))
+        self.spoilerGroup[fixed_item].append(pname + "!PDPLC!-from " + location_name + "\n")
+
 
     def adjust_item(self, item, zone):
         if item in self.skillsOutput:
@@ -1465,16 +1474,19 @@ class SeedGenerator:
                 #      self.sharedList.append("Relic")
         return self.placeItemsMulti(retries)
 
-    def placeItemsMulti(self, retries=125):
+    def placeItemsMulti(self, retries):
         placements = []
         self.sharedMap = {}
         self.sharedCounts = Counter()
         self.split_locs = {}
         self.playerID = 1
 
-        placement = self.placeItems(0)
+        placement = self.placeItems(0, retries < 7)
         if not placement:
             if retries > 0:
+                if self.params.start != "Glades" and retries < 4:
+                    log.info("Failed to generate with %s spawn and %s starting skills, adding another" % (self.params.start, self.params.starting_skills))
+                    self.params.starting_skills += 1
                 retries -= 1
             else:
                 log.error("""Seed not completeable with these params and placements.
@@ -1517,7 +1529,7 @@ class SeedGenerator:
                         outlines.append(line)
                 placements.append(("\n".join(outlines) + "\n", spoiler))
             else:
-                placement = self.placeItems(0)
+                placement = self.placeItems(0, retries < 5)
                 if not placement:
                     if retries > 0:
                         retries -= 1
@@ -1557,8 +1569,8 @@ class SeedGenerator:
             for loc, pickup in zip(self.random.sample(true_rep_locs, len(repeatables)), repeatables):
                 self.forcedAssignments[loc] = pickup
 
-    def placeItems(self, depth=0):
-        self.reset()
+    def placeItems(self, depth=0, worried=False):
+        self.reset(worried)
         keystoneCount = 0
         mapstoneCount = 0
 
@@ -1626,10 +1638,11 @@ class SeedGenerator:
                     # it breaks shards names.
                     #name = self.codeToName.get(multi_item, multi_item)
                     #self.spoilerGroup[name].append(name + " preplaced at Spawn\n")
-                    self.spoilerGroup[multi_item].append(multi_item + " preplaced at Spawn\n")
+                    if not multi_item.startswith("WS"): # avoid dumb padding thing
+                        self.append_spoiler(self.adjust_item(multi_item, "Glades"), "Spawn")
             else:
                 name = self.codeToName.get(item, item)
-                self.spoilerGroup[name].append(name + " preplaced at Spawn\n")
+                self.append_spoiler(self.adjust_item(name, "Glades"), "Spawn")
             del self.forcedAssignments[2]
             ass = self.get_assignment(2, self.adjust_item(item, "Glades"), "Glades")
             self.outputStr += ass 
@@ -1738,7 +1751,7 @@ class SeedGenerator:
                         self.sharedCounts = Counter()
                     if depth > self.playerCount * self.playerCount:
                         return
-                    return self.placeItems(depth + 1)
+                    return self.placeItems(depth + 1, worried)
 
             # pick what we're going to put in our accessible space
             itemsToAssign = []
@@ -1751,7 +1764,7 @@ class SeedGenerator:
                         self.sharedCounts = Counter()
                     if depth > self.playerCount * self.playerCount:
                         return
-                    return self.placeItems(depth + 1)
+                    return self.placeItems(depth + 1, worried)
                 locationsToAssign.append(self.reservedLocations.pop(0))
                 locationsToAssign.append(self.reservedLocations.pop(0))
             for i in range(0, len(locationsToAssign)):
@@ -1875,6 +1888,9 @@ class SeedGenerator:
         return multi_items
 
     def form_spoiler(self):
+        def pad(instance):
+          name, _, loc = instance.partition("!PDPLC!-")
+          return name + (2+self.padding - len(name))*" " + loc
         i = 0
         groupDepth = -1 if 2 in self.preplaced else 0
         spoilerStr = ""
@@ -1896,45 +1912,35 @@ class SeedGenerator:
 
             if spoilerPath:
                 currentGroupSpoiler += ("    " + str(sets_forced) + " forced pickup set" + ("" if sets_forced == 1 else "s") + ": " + str(spoilerPath) + "\n")
-
             for skill in self.skillsOutput:
-                if skill in self.spoilerGroup:
-                    for instance in self.spoilerGroup[skill]:
-                        currentGroupSpoiler += "    " + instance
+                code = self.skillsOutput[skill]
+                if code in self.spoilerGroup:
+                    for instance in self.spoilerGroup[code]:
+                        currentGroupSpoiler += "    " + pad(instance)
                     if skill in self.seedDifficultyMap:
                         self.seedDifficulty += groupDepth * self.seedDifficultyMap[skill]
 
             for event in self.eventsOutput:
-                if event in self.spoilerGroup:
-                    for instance in self.spoilerGroup[event]:
-                        currentGroupSpoiler += "    " + instance
+                code = self.eventsOutput[event]
+                if code in self.spoilerGroup:
+                    for instance in self.spoilerGroup[code]:
+                        currentGroupSpoiler += "    " + pad(instance)
 
             for key in self.spoilerGroup:
                 if key[:2] == "TP":
                     for instance in self.spoilerGroup[key]:
-                        currentGroupSpoiler += "    " + instance
+                        currentGroupSpoiler += "    " + pad(instance)
 
             for warp_id in self.warps.keys():
                 if warp_id in self.spoilerGroup:
                     for instance in self.spoilerGroup[warp_id]:
-                        name, x, y, area, logic_location, logic_cost = self.warps[warp_id]
-                        currentGroupSpoiler += "    " + instance.replace(warp_id, "Warp to {}".format(name))
+                        currentGroupSpoiler += "    " + pad(instance)
 
-            for instance in self.spoilerGroup["MS"]:
-                currentGroupSpoiler += "    " + instance
-
-            for instance in self.spoilerGroup["KS"]:
-                currentGroupSpoiler += "    " + instance
-
-            for instance in self.spoilerGroup["HC"]:
-                currentGroupSpoiler += "    " + instance
-
-            for instance in self.spoilerGroup["EC"]:
-                currentGroupSpoiler += "    " + instance
-
-            for instance in self.spoilerGroup["AC"]:
-                currentGroupSpoiler += "    " + instance
-
+            for pickup_type in ["RB", "MS", "KS", "HC", "EC", "AC", "EX"]:
+                for key in self.spoilerGroup:
+                    if key[:2] == pickup_type:
+                        for instance in self.spoilerGroup[key]:
+                            currentGroupSpoiler += "    " + pad(instance)
             self.currentAreas.sort()
 
             spoilerStr += str(groupDepth) + ": " + str(self.currentAreas) + " {\n"

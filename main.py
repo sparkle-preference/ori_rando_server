@@ -668,7 +668,6 @@ class PlandoUpload(RequestHandler):
             return
         seed_data = json.loads(self.request.POST["seed"])
         old_name = seed_data["oldName"]
-        name = seed_data["name"]
         old_seed = user.plando(old_name)
         if old_seed:
             res = old_seed.update(seed_data)
@@ -1115,6 +1114,18 @@ class SetTheme(RequestHandler):
         else:
             return resp_error(self, 401, "You are not logged in!", "text/plain")
 
+class ToggleVerbose(RequestHandler):
+    def get(self):
+        self.response.headers['Content-Type'] = 'text/plain'
+        user = User.get()
+        if user:
+            user.verbose = not user.verbose
+            user.put()
+            self.response.write("verbose seed spoilers set to %s" % user.verbose)
+            return
+        else:
+            return resp_error(self, 401, "You are not logged in!", "text/plain")
+
 class NakedRedirect(RequestHandler):
     def get(self, path):
         return redirect(self.request.url.replace("www.", ""))
@@ -1159,15 +1170,6 @@ class SetCustomLogic(RequestHandler):
 class GetCustomLogic(RequestHandler):
     def get(self):
         self.response.out.write(CustomLogic.read())
-
-class WotwTempMap(RequestHandler):
-    def get(self):
-        template_values = template_vals(self, "WotwMap", "Wotw Map", User.get())
-
-        template_values.update({'is_spoiler': "True", 'pathmode': param_val(self, 'pathmode'), 'HC': param_val(self, 'HC'),
-                           'EC': param_val(self, 'EC'), 'AC': param_val(self, 'AC'), 'KS': param_val(self, 'KS'),
-                           'skills': param_val(self, 'skills'), 'tps': param_val(self, 'tps'), 'evs': param_val(self, 'evs')})
-        self.response.write(template.render(path, template_values))
 
 class GetAreas(RequestHandler):
     def get(self):
@@ -1227,7 +1229,6 @@ app = WSGIApplication(
         Route('/map', handler=MapTest, name='tests-map', strict_slash=True),
         Route('/map/<game_id:\d+>', handler=MapTest, name='tests-map-gid', strict_slash=True),
     ]),
-    Route('/wotwMap', handler=WotwTempMap),
     Route('/user/custom_logic/set', handler=SetCustomLogic, name='set-custom-logic'),
     Route('/user/custom_logic/get', handler=GetCustomLogic, name='get-custom-logic'),
     Route('/tests', redirect_to_name='tests-run'),
@@ -1272,6 +1273,7 @@ app = WSGIApplication(
     Route('/user/settings/update', handler=SetSettings, strict_slash=True, name="user-settings-update"),
     Route('/user/settings/number/<new_num:\d+>', handler=SetPlayerNum, strict_slash=True, name="user-set-player-num"),
     Route('/user/settings/theme/<new_theme>', handler=SetTheme, strict_slash=True, name="user-set-player-theme"),
+    Route('/user/settings/verbose', handler=ToggleVerbose, strict_slash=True, name="user-toggle-verbose"),
     Route('/activeGames/', handler=ActiveGames, strict_slash=True, name="active-games"),
     Route('/activeGames/<hours:\d+>', handler=ActiveGames, strict_slash=True, name="active-games-hours"),
     ('/rebinds', RebindingsEditor),

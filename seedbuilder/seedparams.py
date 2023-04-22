@@ -11,6 +11,7 @@ from seedbuilder.generator import SeedGenerator
 JSON_SHARE = lambda x: x.value if x != ShareType.EVENT else "World Events"
 FLAGLESS_VARS = [Variation.WARMTH_FRAGMENTS, Variation.WORLD_TOUR]
 JSON_GAME_MODE = {MultiplayerGameType.SHARED: "Co-op", MultiplayerGameType.SIMUSOLO: "Race", MultiplayerGameType.SPLITSHARDS: "SplitShards"}
+JSON_MODE_GAME = {v:k for k,v in JSON_GAME_MODE.items()}
 PBC = picks_by_coord(extras=True)
 
 class Stuff(ndb.Model):
@@ -68,13 +69,14 @@ class MultiplayerOptions(ndb.Model):
         opts.enabled = json.get("players", 1) > 1
         opts.teams = json.get("teams", {})
         if opts.enabled:
-            opts.mode = MultiplayerGameType(json.get("coopGameMode", "None"))
+            jsonMode = json.get("coopGameMode", "None")
+            opts.mode = JSON_MODE_GAME[jsonMode] if jsonMode in JSON_MODE_GAME else MultiplayerGameType(jsonMode)
             opts.cloned = json.get("coopGenMode") != "disjoint"
             if opts.cloned:
                 opts.teams = {1: range(1, json.get("players", 1) + 1)}
                 opts.dedup = bool(json.get("dedupShared", False))
             opts.hints = bool(opts.cloned and json.get("syncHints"))
-            opts.shared = enums_from_strlist(ShareType, json.get("syncShared", []))
+            opts.shared = enums_from_strlist( ShareType, [a.replace(" ", "") for a in json.get("syncShared", json.get("shared", []))]) #shit fuck ass jank shit
         return opts
 
     def get_team_str(self):
@@ -131,7 +133,8 @@ class SeedGenParams(ndb.Model):
     starting_health = ndb.IntegerProperty(default=3)
     starting_energy = ndb.IntegerProperty(default=1)
     starting_skills = ndb.IntegerProperty(default=0)
-    spawn_weights = ndb.FloatProperty(repeated=True)    
+    spawn_weights = ndb.FloatProperty(repeated=True)
+    verbose_spoiler = ndb.BooleanProperty(default=False)
     do_loc_analysis = False
 
     @staticmethod
@@ -190,6 +193,7 @@ class SeedGenParams(ndb.Model):
         params.starting_skills = json.get("spawnSKs", 0)
         params.start = json.get("spawn", "Glades")
         params.spawn_weights = json.get("spawnWeights", [])
+        params.verbose_spoiler = json.get("verboseSpoiler", False)
         return params.put()
 
     @staticmethod
@@ -222,6 +226,7 @@ class SeedGenParams(ndb.Model):
         params.starting_energy = int(qparams.get("spawnECs", 1))
         params.starting_health = int(qparams.get("spawnHCs", 3))
         params.starting_skills = int(qparams.get("spawnSKs", 0))
+        params.verbose_spoiler = qparams.get("verboseSpoiler", "") == "true" 
         raw_pool = qparams.get("item_pool")
         if raw_pool:
             for itemcnt in raw_pool.split("|"):
@@ -299,7 +304,8 @@ class SeedGenParams(ndb.Model):
             "itemPool": self.item_pool,
             "selectedPool": self.pool_preset,
             "bingoLines": self.bingo_lines,
-            "spawnWeights": self.spawn_weights
+            "spawnWeights": self.spawn_weights,
+            "verboseSpoiler": self.verbose_spoiler,
         }
 
 

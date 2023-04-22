@@ -807,6 +807,7 @@ class BingoCreate(RequestHandler):
             bingo.bingo_count  = int(param_val(self, "lines"))
         if param_flag(self, "squares"):
             bingo.square_count = int(param_val(self, "squares"))
+            bingo.lockout      = bool(int(param_val(self, "lockout")))
         user = User.get()
         eventStr = "misc"
         if user:
@@ -819,6 +820,8 @@ class BingoCreate(RequestHandler):
 
         if bingo.square_count > 0:
             eventStr += " squares to win: %s" % bingo.square_count
+            if bingo.lockout:
+                eventStr += ", lockout"
         elif bingo.bingo_count > 0:
             eventStr += " bingos to win: %s" % bingo.bingo_count
         if show_info:
@@ -884,6 +887,7 @@ class AddBingoToGame(RequestHandler):
             bingo.bingo_count  = int(param_val(self, "lines"))
         if param_flag(self, "squares"):
             bingo.square_count = int(param_val(self, "squares"))
+            bingo.lockout      = bool(int(param_val(self, "lockout")))
         user = User.get()
         eventStr = "misc"
         if user:
@@ -895,6 +899,8 @@ class AddBingoToGame(RequestHandler):
             eventStr += "Bingo Game %s created!" % game_id
         if bingo.square_count > 0:
             eventStr += " squares to win: %s" % bingo.square_count
+            if bingo.lockout:
+                eventStr += ", lockout"
         elif bingo.bingo_count > 0:
             eventStr += " bingos to win: %s" % bingo.bingo_count
         bingo.event_log.append(BingoEvent(event_type=eventStr, timestamp=now))

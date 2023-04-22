@@ -1,4 +1,5 @@
 from google.appengine.ext import ndb
+from google.appengine.ext.ndb.model import ModelKey
 from google.appengine.api import users
 
 import logging as log
@@ -7,6 +8,7 @@ from json import dumps as jsonify
 from datetime import datetime, timedelta
 from calendar import timegm
 from collections import defaultdict, OrderedDict
+from typing import List, Dict, Optional
 
 from seedbuilder.seedparams import Placement, Stuff, SeedGenParams
 from enums import MultiplayerGameType, ShareType, Variation
@@ -68,6 +70,7 @@ relics_by_zone = {
 }
 
 def _pid(pkey):
+    # type: (ModelKey) -> int
     try:
         return int(pkey.id().partition(".")[2])
     except Exception as e:
@@ -159,6 +162,7 @@ class User(ndb.Model):
     teamname = ndb.StringProperty()
     pref_num  = ndb.IntegerProperty()
     theme  = ndb.StringProperty()
+    verbose = ndb.BooleanProperty(default=False)
 
 
     @staticmethod
@@ -192,7 +196,7 @@ class User(ndb.Model):
             game_count = len(user.games)
             user.games = [g for g in user.games if g in keys]
             if len(user.games) < game_count:
-                print "removed %s games from %s's gamelist" % (game_count - len(user.games), user.name)
+                print("removed %s games from %s's gamelist" % (game_count - len(user.games), user.name))
                 user.put()
 
     @staticmethod
@@ -404,7 +408,7 @@ class Player(ndb.Model):
     def give_pickup(self, pickup, remove=False, delay_put=False, coords=None, finder=None):
         if coords and finder:
             self.hints[str(coords)] = finder
-        if pickup.code == "RB":
+        if pickup.code in ["RB", "TW"]:
             # handle upgrade refactor storage
             pick_id = str(pickup.id)
             if remove:
@@ -433,7 +437,7 @@ class Player(ndb.Model):
         return self.put()
 
     def has_pickup(self, pickup):
-        if pickup.code == "RB":
+        if pickup.code in ["RB", "TW"]:
             pick_id = str(pickup.id)
             return self.bonuses[pick_id] if pick_id in self.bonuses else 0
         elif pickup.code == "SK":
@@ -488,6 +492,7 @@ class BingoCard(ndb.Model):
     square = ndb.IntegerProperty()  # position in the single-dimension array
     subgoals = ndb.JsonProperty(repeated=True)
     completed_by = ndb.IntegerProperty(repeated=True)
+    owner = ndb.IntegerProperty(default=0)
     early = ndb.BooleanProperty()  # i hate this but w/e
 
     def bingothon_json(self, player):
@@ -509,7 +514,8 @@ class BingoCard(ndb.Model):
         res = {
             "name": self.name,
             "progress": {p.pid(): p.bingo_prog[self.square].to_json() for p in players},
-            "completed_by": self.completed_by
+            "completed_by": self.completed_by,
+            "owner": self.owner
         }
 
         if initial:
@@ -527,11 +533,13 @@ class BingoCard(ndb.Model):
 
 
     def progress(self, player):
+        # type: (Player) -> Optional[BingoCardProgress]
         if not player or len(player.bingo_prog) < self.square:
             return None
         return player.bingo_prog[self.square]
     
     def update(self, card_data, player, teammates, capkey):
+        # type: (dict, Player, List[Player], int) -> Optional['BingoEvent']
         p_progress = self.progress(player)
         prior_value = _pid(capkey) in self.completed_by
         prior_count = p_progress.count
@@ -604,6 +612,8 @@ class BingoEvent(ndb.Model):
             if self.first:
                 res['first'] = True
                 res['square'] = self.square
+        if self.event_type == 'owner':
+            res['square'] = self.square
         return res
 
 
@@ -625,6 +635,7 @@ class BingoGameData(ndb.Model):
     teams_shared     = ndb.BooleanProperty(default=False)
     game             = ndb.KeyProperty("Game")
     discovery        = ndb.IntegerProperty()
+    lockout          = ndb.BooleanProperty(default=False)
     disc_squares     = ndb.IntegerProperty(repeated=True)
     rand_dat         = ndb.TextProperty(compressed=True)
 
@@ -676,6 +687,7 @@ class BingoGameData(ndb.Model):
 
     @staticmethod
     def with_id(id):
+        # type: (int) -> 'BingoGameData'
         return BingoGameData.get_by_id(int(id))
 
     def remove_player(self, pid):
@@ -697,11 +709,13 @@ class BingoGameData(ndb.Model):
         return self.put()
 
     def get_players(self):
+        # type: () -> List[Player]
         return [p.get() for p in self.players]
 
     def player_nums(self):  return [_pid(k) for k in self.players]
 
     def player(self, pid, create=False, delay_put=False):
+        # type: (int, bool, bool) -> Optional[Player]
         gid = self.game.id()
         full_pid = "%s.%s" % (gid, pid)
         player = Player.get_by_id(full_pid, parent=self.game)
@@ -748,6 +762,7 @@ class BingoGameData(ndb.Model):
         if initial:
             res["difficulty"] = self.difficulty
             res["bingo_count"] = self.bingo_count
+            res["lockout"] = self.lockout
             res["subtitle"] = self.subtitle
             res["teams_allowed"] = self.teams_allowed
             if self.discovery or len(self.disc_squares):
@@ -796,6 +811,7 @@ class BingoGameData(ndb.Model):
 
 
     def team(self, pid, cap_only=True):
+        # type: (int, bool) -> Optional[BingoTeam]
         pid = int(pid)
         maybe_team = [team for team in self.teams if _pid(team.captain) == pid]
         if not maybe_team and not cap_only:
@@ -824,12 +840,12 @@ class BingoGameData(ndb.Model):
         win_sig = "win:$Finished in %s place at %s!"
         team = self.team(player_id, cap_only=False)
         team.score = 0
-        players_by_id = {_pid(p.key): p for p in self.get_players()}
+        players_by_id = {_pid(p.key): p for p in self.get_players()}  # type: Dict[int, Player]
         player = players_by_id[player_id]
         cpid = _pid(team.captain)
         teammates = [players_by_id[pid] for pid in team.pids() if pid != player_id]
         need_write = False
-        for card in self.board:
+        for card in self.board:  # type: BingoCard
             if card.name in bingo_data:
                 ev = card.update(bingo_data[card.name], player, teammates, team.captain)
                 if ev:
@@ -842,10 +858,30 @@ class BingoGameData(ndb.Model):
                             card.completed_by.remove(cpid)
                     elif cpid not in card.completed_by:
                         card.completed_by.append(cpid)
+
+                    if self.lockout:
+                        if not ev.loss and not card.owner:
+                            card.owner = cpid
+                            self.event_log.append(BingoEvent(loss=False, event_type="owner", square=ev.square, player=team.captain, timestamp=datetime.utcnow()))
+                        elif ev.loss and card.owner == cpid:
+                            card.owner = 0
+                            self.event_log.append(BingoEvent(loss=True, event_type="owner", square=ev.square, player=team.captain, timestamp=datetime.utcnow()))
+                            if len(card.completed_by):
+                                new_id = card.completed_by[0]
+                                new_team = self.team(new_id, cap_only=False)
+                                new_owner = new_team.captain if new_team else None  # type: Optional[ModelKey]
+                                if new_owner is None:
+                                    log.error("Card is completed by player %d without team?!", new_id)
+                                else:
+                                    card.owner = _pid(new_owner)
+                                    self.event_log.append(BingoEvent(loss=False, event_type="owner", square=ev.square, player=new_owner, timestamp=datetime.utcnow()))
             else:
                 log.warning("card %s was not in bingo data for team/player %s", card.name if card else card, team.captain if team else team)
-            if cpid in card.completed_by:
+            if not self.lockout and cpid in card.completed_by:
                 team.score += 1
+            if self.lockout and cpid == card.owner:
+                team.score += 1
+
         if self.square_count:
             if team.score >= self.square_count and not team.place:
                 self.event_log.append(BingoEvent(event_type = "win", loss = False, player = team.captain, timestamp = now))
@@ -1055,7 +1091,7 @@ class Game(ndb.Model):
             trees = []
             relics = []
             bonuses = []
-            for (name, cnt) in [(Pickup.name("RB", k), v) for k, v in sorted(src.bonuses.iteritems(), lambda (lk, _), (rk, __): int(lk) - int(rk))]:
+            for (name, cnt) in [(Pickup.name("RB" if isnumeric(k) else "TW", k), v) for k, v in sorted(src.bonuses.iteritems(), lambda (lk, _), (rk, __): int(lk) - int(rk))]:
                 if "Tree" in name:
                     trees.append(name.replace(" Tree", ""))
                 elif "Relic" in name:
@@ -1225,6 +1261,7 @@ class Game(ndb.Model):
                             player.give_pickup(pickup, delay_put=True)
                             has = player.has_pickup(pickup)
                             if has == last:
+                                player.signal_send(sanFailedSignal)
                                 log.critical("Aborting sanity check for Player %s: tried and failed to increment %s (at %s, should be %s)" % (player.key.id(), pickup.name, has, count))
                                 return False
                             if i > 100:
@@ -1239,6 +1276,7 @@ class Game(ndb.Model):
                             player.give_pickup(pickup, remove=True, delay_put=True)
                             has = player.has_pickup(pickup)
                             if has == last:
+                                player.signal_send(sanFailedSignal)
                                 log.critical("Aborting sanity check for Player %s: tried and failed to decrement %s (at %s, should be %s)" % (player.key.id(), pickup.name, has, count))
                                 return False
                             if i > 100:

@@ -8,9 +8,8 @@ import bisect as _bisect
 import logging as log
 import os
 
-VER = [4, 0, 4]
+VER = [4, 0, 5]
 MIN_VER = [4, 0, 4]
-
 def version_check(version):
     try:
         nums = [int(num) for num in version.split(".")]
@@ -268,6 +267,8 @@ def picks_by_coord(extras=False):
     for pickgroup in pbt.values():
         for pick in pickgroup:
             pbc[pick.coords] = pick
+    if extras:  # dumb dumb dumb BAD
+        pbc[2] = PickLoc(2, "SPAWN", "Glades", "FirstPickup", 189, -210)
     return pbc
 
 def picks_by_type_generator():
@@ -287,6 +288,7 @@ def template_vals(s, app, title, user):
     if user:
         template_values['user'] = user.name
         template_values['dark'] = user.dark_theme
+        template_values['verbose'] = user.verbose
         if user.theme:
             template_values['theme'] = user.theme
     return template_values

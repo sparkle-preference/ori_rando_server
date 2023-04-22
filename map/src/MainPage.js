@@ -196,6 +196,8 @@ export default class MainPage extends React.Component {
     })
     updateItemUpTo = (index, newVal) => this.setState(prev => {
         prev.itemPool[index].upTo = newVal
+        if(newVal < prev.itemPool[index].count)
+            prev.itemPool[index].count = newVal
         return {itemPool: [...prev.itemPool], selectedPool: "Custom"}
  })
     updatePoolItem = (index, code) => this.setState(prev => {
@@ -338,7 +340,7 @@ onDrop = (files) => {
     }
 
     getAdvancedTab = ({inputStyle, menuStyle}) => {
-        let {variations, senseData, fillAlg, spawnSKs, spawnECs, spawnHCs, expPool, bingoLines, pathDiff, cellFreq, relicCount, fragCount, fragReq, spawnWeights, advancedSpawnTouched, spawn} = this.state
+        let {variations, senseData, fillAlg, spawnSKs, spawnECs, spawnHCs, expPool, bingoLines, pathDiff, cellFreq, relicCount, fragCount, fragReq, spawnWeights, spawn, verboseSpoiler} = this.state
         let [leftCol, rightCol] = [4, 7]
         let weightSelectors = spawnWeights.map((weight, index) => (
             <Col xs="4" className="text-center pt-1 border">
@@ -346,7 +348,7 @@ onDrop = (files) => {
                     <Col onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "spawnWeights")}>
                         <Input style={inputStyle} type="number" value={weight} invalid={weight < 0} onChange={(e) => {
                             let sw = [...spawnWeights]
-                            sw[index] = parseInt(e.target.value, 10)
+                            sw[index] = parseFloat(e.target.value, 10)
                             this.setState({spawnWeights: sw})
                         }}/> 
                         <FormFeedback tooltip>Weights can't be less than 0</FormFeedback>
@@ -401,7 +403,14 @@ onDrop = (files) => {
                     <Col xs={leftCol} className="text-center pt-1 border">
                         <span className="align-middle">Sense Triggers</span>
                     </Col><Col xs={rightCol}>
-                        <Input style={inputStyle} type="text" value={senseData}  onChange={(e) => this.setState({senseData: e.target.value})}/> 
+                        <Input style={inputStyle} type="text" value={senseData} onChange={(e) => this.setState({senseData: e.target.value})}/> 
+                    </Col>
+                </Row>
+                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "verbose")} className="p-1 justify-content-center">
+                    <Col xs={leftCol} className="text-center pt-1 border">
+                        <span className="align-middle">Verbose Spoiler</span>
+                    </Col><Col xs={rightCol}>
+                        <Button color="primary" block outline={!verboseSpoiler} onClick={() => this.setState({verboseSpoiler: !verboseSpoiler})}>{verboseSpoiler ? "Enabled" : "Disabled"}</Button>
                     </Col>
                 </Row>
                 <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "fillAlg")} className="p-1 justify-content-center">
@@ -609,7 +618,8 @@ onDrop = (files) => {
             'paths': this.state.paths,
             "expPool": this.state.expPool,
             "cellFreq": this.state.cellFreq,
-            "selectedPool": this.state.selectedPool
+            "selectedPool": this.state.selectedPool,
+            "verboseSpoiler": this.state.verboseSpoiler
         }
         if(this.state.pathDiff !== "Normal")
             json.pathDiff=this.state.pathDiff
@@ -811,7 +821,7 @@ onDrop = (files) => {
             let raw = flagLine.split('|');
             let seedStr = raw.pop();
             let flags = raw.join("").split(",");
-            let flagCols = flags.map(flag => (<Col xs="auto" className="text-center" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("flags", flag)}><span class="ml-auto mr-auto align-middle">{flag}</span></Col>))
+            let flagCols = flags.map(flag => (<Col xs="auto" className="text-center" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("flags", flag)}><span className="ml-auto mr-auto align-middle">{flag}</span></Col>))
             let is_race = flags.includes("Race");
             if(is_race && !get_flag("race_wl")) {
                 return null;
@@ -1079,6 +1089,8 @@ onDrop = (files) => {
             else
                 doNetRequest(`/generator/metadata/${paramId}`,this.acceptMetadata);
 
+        } else {
+
         }
         let stupidMode = false;
         url.searchParams.forEach((v, k) => {
@@ -1092,7 +1104,7 @@ onDrop = (files) => {
                      seed: "", fillAlg: "Balanced", shared: ["Skills", "Teleporters", "World Events", "Upgrades", "Misc"], hints: true, helpcat: "", helpopt: "", quickstartOpen: quickstartOpen, dedupShared: false,
                      expPool: 10000, lastHelp: new Date(), seedIsGenerating: seedTabExists, cellFreq: cellFreqPresets("standard"), fragCount: 30, fragReq: 20, relicCount: 8, loader: get_random_loader(),
                      paramId: paramId, seedTabExists: seedTabExists, reopenUrl: "", teamStr: "", flagLine: "", fass: {},  goalModesOpen: false, spoilers: true, spawnWeights: [1.0,2.0,2.0,2.0,1.5,2.0,0.1,0.1,0.25,0.5], seedIsBingo: false, bingoLines: 3, 
-                     auxModal: false, auxSpoiler: {active: false, byZone: false, exclude: ["EX","KS", "AC", "EC", "HC", "MS"]}, stupidMode: stupidMode, dropActive: false, customLogic: false, stupidWarn: stupidWarn};
+                     auxModal: false, auxSpoiler: {active: false, byZone: false, exclude: ["EX","KS", "AC", "EC", "HC", "MS"]}, stupidMode: stupidMode, dropActive: false, customLogic: false, stupidWarn: stupidWarn, verboseSpoiler: get_param("verbose") === "True"};
         
         if(url.searchParams.has("fromBingo")) {
             this.state.goalModes = ["Bingo"]
@@ -1123,8 +1135,13 @@ onDrop = (files) => {
         } else {
             if(v === "Race")
                 this.setState({variations: this.state.variations.concat(v), players: 2, coopGameMode: "Race", selectedPool: "Competitive", itemPool: get_pool("Competitive")})
-            else 
-                this.setState({variations: this.state.variations.concat(v)})
+            else {
+                if(v === "InLogicWarps" && !this.state.itemPool.some(({item}) => item === "WP|*")) this.setState(prev => {
+                    prev.itemPool.push({item: "WP|*", count: 4, upTo: 8, maximum: 14})
+                    return {itemPool: [...prev.itemPool], variations: prev.variations.concat(v), selectedPool: "Custom"}
+                });
+                else this.setState({variations: this.state.variations.concat(v)});
+            }
         }
     }
     pathDisabled = (path) => {
@@ -1146,9 +1163,8 @@ onDrop = (files) => {
         let [hp, energy, skills] = [3, 1, 0] // defaults
         if(spawn_defaults[loc].hasOwnProperty(this.state.pathMode)) 
             [hp, energy, skills] = spawn_defaults[loc][this.state.pathMode]
-        else {
+        else 
             console.log(this.state.pathMode, loc, spawn_defaults[loc], spawn_defaults.hasOwnProperty(loc), spawn_defaults[loc].hasOwnProperty(this.state.pathMode));
-        }
         return {spawn: loc, spawnHCs: hp, spawnECs: energy, spawnSKs: skills}
     });
     
@@ -1203,7 +1219,7 @@ onDrop = (files) => {
     }
 
     render = () => {
-        let {stupidMode, spawn, pathMode, goalModes, keyMode, helpParams, goalModesOpen, seedTabExists, helpcat, activeTab, seed, tracking, seedIsGenerating} = this.state;
+        let {stupidMode, spawn, pathMode, goalModes, keyMode, helpParams, goalModesOpen, seedTabExists, helpcat, activeTab, seed, tracking, seedIsGenerating, user} = this.state;
         let s = getComputedStyle(document.body);
         let styles = {inputStyle: {'borderColor': s.getPropertyValue('--dark'), 'backgroundColor': s.getPropertyValue("background-color"), 'color': s.getPropertyValue("color")}, menuStyle: {}}
 
@@ -1213,6 +1229,8 @@ onDrop = (files) => {
         let spawnOptions = SPAWN_OPTS.map(loc => (
             <DropdownItem active={loc===spawn} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "spawnLoc")} onClick={this.onSpawnLoc(loc)}>{loc}</DropdownItem>
         ))
+
+        let rerollButton = user ? (<Button color="info" href="/reroll">Reroll Last Seed</Button>) : <Button color="info" outline disabled>Reroll Last Seed</Button>;
 
         let keyModeOptions = keymode_options.map(mode => (
             <DropdownItem active={mode===keyMode} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("keyModes", mode)} onClick={this.onKeyMode(mode)}>{mode}</DropdownItem>
@@ -1309,7 +1327,9 @@ onDrop = (files) => {
                         </Col>
                     </Row>
                 </Col>
-                <Col xs="4"></Col>
+                <Col xs="4" className="text-center pt-1 mt-1"onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", user ? "reroll" : "rerollDisabled")}>
+                    {rerollButton}
+                </Col>
                 <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "spawnLoc")}>
                     <Row>
                         <Col xs="6"  className="text-center pt-1 border mt-2">

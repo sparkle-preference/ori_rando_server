@@ -288,8 +288,8 @@ const getHelpHelper = (category, option) => {
                     title = "In-Logic Bonus Warps"
                     lines = [
                         "Using Bonus Warps is considered in-logic, and may be required to beat the seed!",
-                        "Note that this Variation does nothing if there aren't any Bonus Warps in the item pool.",
-                        "Recommended for experienced players who want to experience unpredictable progression paths.",
+                        "Selecting this variation will automatically add 4-8 warps to the current item pool, if it doesn't already contain some.",
+                        "Recommended for experienced players who want to experience strange and unusual progression paths.",
                     ]
                     break;
                 case "Entrance":
@@ -633,9 +633,9 @@ const getHelpHelper = (category, option) => {
                     lines = ["Change the amount of health you spawn with."]
                     break;
                 case "spawnECs":
-                    title = "Starting Energy"
-                    lines = ["Change the amount of Energy you spawn with."]
-                    break;
+                title = "Starting Energy"
+                lines = ["Change the amount of Energy you spawn with."]
+                break;
                 case "spawnSkills":
                     title = "Random Starting Skills"
                     lines = ["Spawn with this many random skills."]
@@ -649,7 +649,10 @@ const getHelpHelper = (category, option) => {
                         "Note: these values only are meaningful relative to each other; doubling all of them would have no effect."
                     ]
                     break;
-
+                case "verbose":
+                    title = "Verbose Spoilers"
+                    lines = ["Show all pickups in spoilers (by default, Experience and Bonus pickups are filtered out)."]
+                    break;    
                 case "bingoLines":
                     title = "Bingo Lines"
                     lines = ["Set the number of bingo lines to play for. Can also be adjusted on board generation"]
@@ -847,14 +850,27 @@ const getHelpHelper = (category, option) => {
         case "general":
             subtitle = "General Options"
             switch(option) {
-                case "logicModes":
-                    title = "Logic Modes"
+                case "reroll":
+                    title = "Reroll Last Seed"
                     lines = [
-                        "Logic modes are sets of logic paths tailored for specific play experiences. Changing the logic mode will have a major impact on seed difficulty.", 
-                        "New players should start out with the Casual logic mode unless they are already familiar with the basics of Ori speedrunning.",
-                        "Mouse over a logic mode in the dropdown to learn more about it."
+                        "Generates a brand-new seed with the same options and settings selected in the last seed you played while logged into the site."
                     ]
                     break;
+                case "rerollDisabled":
+                    title = "Reroll Last Seed"
+                    lines = [
+                        "Generates a brand-new seed with the same options and settings selected in the last seed you played while logged into the site.",
+                        "(You need to be logged in to use this button)"
+                    ]
+                    break;
+                case "logicModes":
+                title = "Logic Modes"
+                lines = [
+                    "Logic modes are sets of logic paths tailored for specific play experiences. Changing the logic mode will have a major impact on seed difficulty.", 
+                    "New players should start out with the Casual logic mode unless they are already familiar with the basics of Ori speedrunning.",
+                    "Mouse over a logic mode in the dropdown to learn more about it."
+                ]
+                break;
                 case "goalModes":
                     title = "Goal Modes"
                     lines = [
