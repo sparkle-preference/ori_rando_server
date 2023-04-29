@@ -24,11 +24,11 @@
 --		 -- anchor point: describe where the anchor point is
 --		 pickup: PickupWithinThisArea1
 --		 pickup: PickupWithinThisArea2
---			 casual-core RequiredSkill RequiredEvent
+--			 casual RequiredSkill RequiredEvent
 --		 conn: DifferentAreaName
---			 standard-lure RequiredSkill
---			 expert-dboost Health=5
---			 master-core Free
+--			 standard Lure RequiredSkill
+--			 expert Health=5
+--			 master Free
 --
 -- Pickups should be referenced with "pickup:" and the name given must be of a
 -- pickup specified earlier in the file. If the pickup is freely accessible
@@ -676,7 +676,7 @@ home: SpiritTreeDoorOpened -171 -130
 		casual Climb
 		casual Bash
 		casual ChargeJump Health=3
-    casual DoubleJump ChargeJump
+		casual DoubleJump ChargeJump
 		master DoubleJump
 	conn: UpperSpiritCaverns
 home: GladesLaserArea -168 -175
@@ -943,14 +943,14 @@ home: SpiderSacEnergyNook 66 -153
 	-- anchor: in the nook where the energy cell is
 	pickup: SpiderSacEnergyCell
 	conn: SpiderSacArea
-		expert-abilities Dash Ability=6 Energy=1 -- *rjump=1
-		standard-core Climb ChargeJump
+		expert ChargeDash Energy=1 -- *rjump=1
+		standard Climb ChargeJump
 		expert DoubleBash
 	conn: SpiderWaterArea
-		standard-core DoubleJump Bash
-		standard-core Bash Glide
-		standard-core Climb ChargeJump
-		standard-core Bash Grenade
+		standard DoubleJump Bash
+		standard Bash Glide
+		standard Climb ChargeJump
+		standard Bash Grenade
 		expert DoubleBash
 	conn: ChargeFlameAreaPlantAccess
 		master ChargeFlameBurn
@@ -1073,7 +1073,7 @@ home: DashArea 267 -253
 		casual Bash Grenade
 		standard WallJump DoubleJump AirDash
 		standard Climb DoubleJump AirDash
-		-- these expert-core paths allow you to throw a grenade or cflame the
+		-- these expert paths allow you to throw a grenade or cflame the
 		-- plant from a distance
 		expert DoubleJump Grenade
 		expert ChargeJump Grenade
@@ -1102,7 +1102,7 @@ home: DashArea 267 -253
 		glitched Free
 		insane Free
 	conn: RazielNoArea
-		-- FIXME These are parsed incorrectly. standard-abilities paths.
+		-- FIXME These are parsed incorrectly. standard paths.
 		casual Dash WallJump
 		casual Dash ChargeJump
 		casual Dash Bash Grenade
@@ -1302,8 +1302,8 @@ home: LowerBlackroot 281 -387
 		casual ChargeJump
 		standard Bash Grenade
 		standard WallJump AirDash
-		standard-abilities Climb AirDash
-		expert-abilities AirDash ChargeDash Energy=1 -- *rjump=1
+		standard Climb AirDash
+		expert AirDash ChargeDash Energy=1 -- *rjump=1
 		expert WallJump DoubleBash
 		expert DoubleBash Climb
 		master DoubleJump
@@ -2145,7 +2145,7 @@ home: MoonGrottoBelowTeleporter 491 -201
 		casual Climb
 		casual ChargeJump
 		expert ChargeDash Energy=1 -- *rjump=1
-		master-core DoubleJump
+		master DoubleJump
 home: MoonGrottoSwampAccessArea 549 -158
 	-- anchor: atop the breakable log platform, directly below the xp
 	pickup: GrottoSwampDrainAccessExp
@@ -2453,20 +2453,20 @@ home: GumoHideoutRedirectArea 458 -406
 		casual Energy=4
 		glitched Free
 	conn: GumoHideout
-		casual-core WallJump DoubleJump
-		casual-core WallJump Bash
-		casual-core WallJump Glide
-		casual-core WallJump ChargeJump
-		casual-core DoubleJump Climb
-		casual-core Bash Grenade
-		casual-core Glide Climb
-		casual-core Climb ChargeJump
-		casual-core Climb Bash
-		standard-core WallJump Dash -- *dashglide
-		standard-core Climb Dash -- *dashglide
-		expert-core WallJump -- respawn iframes
-		expert-core Climb -- respawn iframes
-		master-core DoubleJump
+		casual WallJump DoubleJump
+		casual WallJump Bash
+		casual WallJump Glide
+		casual WallJump ChargeJump
+		casual DoubleJump Climb
+		casual Bash Grenade
+		casual Glide Climb
+		casual Climb ChargeJump
+		casual Climb Bash
+		standard WallJump Dash -- *dashglide
+		standard Climb Dash -- *dashglide
+		expert WallJump -- respawn iframes
+		expert Climb -- respawn iframes
+		master DoubleJump
 home: GumoHideoutRedirectEnergyVault 490 -453
 	-- anchor: beyond the energy door or otherwise able to bypass the laser
 	pickup: GumoHideoutRedirectEnergyCell
@@ -2635,7 +2635,7 @@ home: SwampKeyDoorPlatform 757 -135
 home: SwampKeyDoorClosed 792 -129
 	-- anchor: at the key door, either side, door closed
 	conn: SwampKeyDoorOpened
-		casual-core Keystone=2
+		casual Keystone=2
 home: SwampKeyDoorOpened 804 -130
 	-- anchor: at the key door after opening it
 	conn: SwampKeyDoorPlatform
@@ -2676,7 +2676,7 @@ home: SwampDrainlessArea 649 -126
 	pickup: SwampEntranceAbilityCell
 		casual Free
    conn: SwampEntryArea
-		casual-core ChargeJump
+		casual ChargeJump
 	conn: UpperGrotto
 		casual ChargeJump
 	conn: OuterSwampLowerArea
@@ -2776,8 +2776,8 @@ home: RightSwamp 867 -89
 	pickup: StompAreaRoofExp
 		casual ChargeJump
 		expert DoubleBash
-    -- insane ChargeFlame DoubleJump Stomp Grenade Ability=12 Health=4 -- preplace grenade, then jump to the left and redirect mortar shot into grenade
-		-- insane ChargeFlame DoubleJump Stomp Glide Dash Ability=12 Health=6 -- redirect with cflame and stall with stomp several times
+    -- insane ChargeFlame TripleJump UltraDefense Stomp Grenade Health=4 -- preplace grenade, then jump to the left and redirect mortar shot into grenade
+		-- insane ChargeFlame TripleJump UltraDefense Stomp Glide Dash Health=6 -- redirect with cflame and stall with stomp several times
 	pickup: StompAreaGrenadeExp
 		casual Grenade Water Bash Stomp -- adjust: too tight for casual
 		casual Grenade Water Bash Glide
@@ -2814,8 +2814,8 @@ home: RightSwamp 867 -89
 		casual Open Bash Stomp Glide Climb
 		standard Open Water Bash Stomp
 		standard Open Water Stomp ChargeJump
-		expert Open Climb DoubleJump Stomp Dash Ability=3 Health=3 -- updash from left wall *updash
-		expert Open Stomp Dash Ability=6 Energy=1 -- refresh airdash on walls *rjump=1
+		expert Open Climb DoubleJump Stomp AirDash Health=3 -- updash from left wall *updash
+		expert Open Stomp ChargeDash Energy=1 -- refresh airdash on walls *rjump=1
 		expert Open WallJump DoubleJump Stomp Health=3
 		master Open DoubleJump Stomp Health=3
 		-- up and around the left side over the spikes
@@ -2826,14 +2826,14 @@ home: RightSwamp 867 -89
 		casual Open DoubleJump Climb ChargeJump Health=3
 		standard Open Water Bash Grenade
 		standard Open DoubleJump Bash Grenade -- refresh double jump on walls
-		standard Open Bash Dash Grenade Ability=3 -- refresh airdash on walls *airdash
+		standard Open Bash AirDash Grenade -- refresh airdash on walls *airdash
 		standard Open Bash Grenade Health=3
 		expert Open Bash Grenade -- throw grenade then jump after it
-		expert Open Dash Ability=6 Energy=2 -- refresh airdash on walls *rjump=1 *cdash=1 *airdash
+		expert Open ChargeDash Energy=2 -- refresh airdash on walls *rjump=1 *cdash=1 *airdash
 		expert Open ChargeJump Health=4
 		expert Open DoubleBash
 		master Open ChargeJump Health=3
-		master Open DoubleJump Ability=12 Health=4 -- 1.5 from brambles, 0.5 from mortar, 1.5 from brambles
+		master Open TripleJump UltraDefense Health=4 -- 1.5 from brambles, 0.5 from mortar, 1.5 from brambles
 		master Open GrenadeJump
 home: StompAreaRoofExpWarp 904 -68
 	pickup: StompAreaRoofExp
@@ -4501,7 +4501,7 @@ home: WilhelmLedge -539 131
 		casual Bash Grenade Climb
 		casual Bash Grenade WallJump DoubleJump
 		standard Lure Bash WallJump
-		-- a similar standard-lure to the one above, but requiring more careful bird manip
+		-- a similar standard lure to the one above, but requiring more careful bird manip
 		expert Bash Climb
 		expert Bash Grenade
 		expert ChargeJump Health=5
@@ -4547,12 +4547,12 @@ home: WilhelmLedge -539 131
 		standard Climb ChargeJump
 		expert ChargeJump Bash Grenade
 		-- these commented paths hinge on the kill plane not existing
-		-- expert-core ChargeJump WallJump Glide
-		-- expert-core ChargeJump WallJump DoubleJump
-		-- expert-core ChargeJump Bash
-		-- expert-abilities ChargeJump WallJump Dash Ability=3
-		-- master-core ChargeJump Glide
-		-- master-core ChargeJump DoubleJump
+		-- expert ChargeJump WallJump Glide
+		-- expert ChargeJump WallJump DoubleJump
+		-- expert ChargeJump Bash
+		-- expert ChargeJump WallJump AirDash
+		-- master ChargeJump Glide
+		-- master ChargeJump DoubleJump
 		master ChargeJump AirDash
 		master Bash
 		glitched ChargeJump
