@@ -1075,7 +1075,8 @@ class QuickReroll(RequestHandler):
             if b.discovery and b.discovery > 0:
                 url += "&disc=%s" % b.discovery
             return redirect(url)
-        return redirect(uri_for('main-page', game_id=game.key.id(), param_id=new_params.key.id()))
+        # Add GET parameters manually to have param_id before game_id (uri_for sorts them)
+        return redirect("%s?param_id=%s&game_id=%s" % (uri_for('main-page'), new_params.key.id(), game.key.id()))
 
 
 class LatestMap(RequestHandler):
