@@ -1090,14 +1090,19 @@ class Game(ndb.Model):
                     out_lines.append("%s: %s" % (field, ", ".join(names)))
             trees = []
             relics = []
+            warps = []
             bonuses = []
-            for (name, cnt) in [(Pickup.name("RB" if isnumeric(k) else "TW", k), v) for k, v in sorted(src.bonuses.iteritems(), lambda (lk, _), (rk, __): int(lk) - int(rk))]:
+            for (name, cnt) in [(Pickup.name("RB" if k.isnumeric() else "TW", k), v) for k, v in src.bonuses.iteritems()]:
                 if "Tree" in name:
                     trees.append(name.replace(" Tree", ""))
+                elif "Warp to" in name:
+                    warps.append(name.replace("Warp to ", ""))
                 elif "Relic" in name:
                     relics.append(name)
                 else:
                     bonuses.append((name, cnt))
+            if warps:
+                out_lines.append("warps: %s" % ", ".join(warps))
             if trees:
                 out_lines.append("trees: %s" % ", ".join(trees))
             if relics:
