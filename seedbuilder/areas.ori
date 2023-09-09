@@ -3907,7 +3907,7 @@ home: ValleyThreeBirdLever
 		casual Bash
 		casual Climb ChargeJump Glide
 		casual Climb ChargeJump DoubleJump
-		standard Dash DoubleJump
+		expert Dash DoubleJump
 		expert ChargeDash
 		master GrenadeJump
 		master TripleJump
