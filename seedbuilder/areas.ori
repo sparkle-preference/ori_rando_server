@@ -2499,6 +2499,7 @@ home: SwampKeyDoorOpened
 		casual Climb Bash Grenade
 		standard Climb DoubleJump Bash
 		standard Bash Grenade
+		standard WallJump Glide Bash
 		standard Climb ChargeJump Glide
 		standard WallJump ChargeJump Glide
 		standard Climb ChargeJump Health=3
@@ -2566,6 +2567,7 @@ home: InnerSwampDrainBroken
 		casual Water Climb Bash Grenade
 		casual Water Climb Glide Health=3
 		standard Water Climb DoubleJump
+		standard Water WallJump Health=3
 		standard Water WallJump AirDash
 		standard Water Climb AirDash
 		expert Water DoubleJump
