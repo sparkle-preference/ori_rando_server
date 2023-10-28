@@ -1504,6 +1504,32 @@ home: OuterSwampLowerArea
 		master Bash
 		master DoubleJump Glide
 		master TripleJump
+	pickup: OuterSwampMortarPlant
+		-- ChargeFlame paths
+		casual WallJump Glide ChargeFlame
+		casual WallJump DoubleJump ChargeFlame
+		casual Climb Glide ChargeFlame
+		casual Climb DoubleJump ChargeFlame
+		casual ChargeJump ChargeFlame
+		casual Bash ChargeFlame
+		standard DoubleJump ChargeFlame
+		standard Glide Wind ChargeFlame
+		standard WallJump AirDash ChargeFlame
+		standard Climb AirDash ChargeFlame
+		-- Grenade paths
+		casual WallJump Glide Grenade
+		casual WallJump DoubleJump Grenade
+		casual Climb Glide Grenade
+		casual Climb DoubleJump Grenade
+		casual ChargeJump Grenade
+		casual Bash Grenade
+		standard WallJump Grenade
+		standard Climb Grenade
+		standard ChargeJump Grenade
+		standard Glide Wind Grenade
+		standard DoubleJump Grenade
+		-- ChargeDash paths
+		expert ChargeDash Energy=2
 	conn: OuterSwampMortarAbilityCellLedge
 		casual Bash
 		expert ChargeDash
@@ -1524,11 +1550,6 @@ home: OuterSwampLowerArea
 		standard Bash
 		standard WallJump
 		standard Climb
-	conn: OuterSwampMortarPlantAccess
-		casual WallJump DoubleJump
-		casual Climb DoubleJump
-		casual Bash
-		casual ChargeJump
 	conn: SwampEntryArea
 		casual WallJump
 		casual Climb
@@ -1551,15 +1572,9 @@ home: OuterSwampHealthCellWarp
 home: OuterSwampMortarAbilityCellLedge
 	-- anchor: on the ability cell ledge
 	pickup: OuterSwampMortarAbilityCell
-	conn: OuterSwampMortarPlantAccess
+	pickup: OuterSwampMortarPlant
 		expert ChargeFlame
 	conn: UpperGrotto
-home: OuterSwampMortarPlantAccess
-	-- anchor: within logical access of the plant
-	pickup: OuterSwampMortarPlant
-		casual ChargeFlame
-		casual Grenade
-		expert ChargeDash
 home: GinsoOuterDoor
 	-- anchor: just outside the ginso door, unlocked
 	conn: GinsoInnerDoor
