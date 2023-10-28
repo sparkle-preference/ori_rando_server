@@ -1965,16 +1965,16 @@ home: MoonGrottoAboveTeleporter
 	pickup: LeftGrottoTeleporterExp
 		casual WallJump DoubleJump
 		casual Climb DoubleJump ChargeJump
+		standard Climb DoubleJump Glide
+		standard ChargeJump Health=4
 		expert Grenade Bash
 		expert Climb ChargeJump
-		expert ChargeJump Health=4
 		expert WallJump Glide Health=4
 		expert Climb Glide Health=4
-		expert DoubleJump Glide Health=4
+		expert DoubleJump Health=4
 		expert WallJump Health=7
 		expert Climb Health=7
 		master Lure Bash
-		master DoubleJump Health=4
 	conn: UpperGrotto
 		casual WallJump
 		casual Climb DoubleJump
