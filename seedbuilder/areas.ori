@@ -3497,21 +3497,15 @@ home: R4
 		master Bash
 		master TripleJump
 	conn: HoruR4StompHideout
-		casual ChargeFlame ChargeJump
-		casual ChargeFlame Bash Grenade
-		casual Stomp ChargeJump
-		casual Stomp Bash Grenade
-		casual ChargeJump WallJump
-		casual ChargeJump Climb
-		casual Bash Grenade WallJump
-		casual Bash Grenade Climb
-		standard ChargeJump
+		casual ChargeJump Stomp
+		casual Bash Grenade WallJump Stomp
+		casual Bash Grenade Climb Stomp
+		standard ChargeJump ChargeFlame
+		standard ChargeJump WallJump
+		standard ChargeJump Climb
 		standard Bash Grenade
-		expert Bash ChargeFlame
-		expert Bash Stomp
-		expert Bash ChargeDash
-		expert Bash Health=6
-		expert DoubleBash
+		expert ChargeJump
+		expert Bash
 home: HoruR4StompHideout
 	--anchor: under the breakable floor, next to the exp orb
 	pickup: HoruR4StompExp
