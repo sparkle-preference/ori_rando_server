@@ -4876,10 +4876,10 @@ home: SorrowTeleporter
 -- anchored on the sorrow teleporter (wall intact)
 	conn: TeleporterNetwork
 	conn: BelowSunstoneArea
-		casual ChargeJump Climb DoubleJump
+		casual ChargeJump Climb DoubleJump Glide
+		standard ChargeJump Climb DoubleJump
 		standard ChargeJump Climb Glide
-		standard ChargeJump Climb Bash
-		master GrenadeJump
+		standard ChargeJump Climb AirDash
 		expert ChargeJump Climb Health=5
 		expert Stomp Bash Grenade Health=5
 		expert ChargeJump WallJump Glide Health=5
@@ -4891,6 +4891,7 @@ home: SorrowTeleporter
 		master ChargeJump WallJump Glide Health=4 UltraDefense
 		master ChargeJump WallJump ChargeDash Health=4 UltraDefense
 		master WallJump TripleJump Stomp Health=4 UltraDefense
+		master GrenadeJump
 	conn: AboveChargeJumpArea
 		casual ChargeJump Climb Stomp
 		standard ChargeJump Climb
