@@ -33,6 +33,9 @@ class CLISeedParams(object):
     def __init__(self):
         pass
 
+    def put(self):
+        pass # this is stupid as fuck but it does work.
+
     def from_cli(self):
         parser = argparse.ArgumentParser()
         parser.add_argument("--output-dir", help="directory to put the seeds in", type=str, default=".")
@@ -73,6 +76,8 @@ class CLISeedParams(object):
         parser.add_argument("--starting-health", help="Sets starting health to X, note: X=5 would give you 2 HC at spawn.", type=int)
         parser.add_argument("--starting-energy", help="Sets starting energy to X, note: X=5 would give you 4-5 EC at spawn.", type=int)
         parser.add_argument("--starting-skills", help="Sets how many skills we start with.", type=str)
+        parser.add_argument("--spawn-weights", help="For random spawn, set custom weights for starting teleporters. Format: Glades=.5,Swamp=1.0,Sorrow=2.0")
+
         parser.add_argument("--goal-mode-finish", help="Skips the final escape when goal modes are done.", action="store_true")
         parser.add_argument("--no-tps", help="Removes teleporters from the item pool.", action="store_true")      
         # item pools.
@@ -88,6 +93,7 @@ class CLISeedParams(object):
         parser.add_argument("--prefer-path-difficulty", help="Increase the chances of putting items in more convenient (easy) or less convenient (hard) locations", choices=["easy", "hard"])
         parser.add_argument("--balanced", help="Reduce the value of newly discovered locations for progression placements", action="store_true")
         parser.add_argument("--force-cells", help="Force health and energy cells to appear every N pickups, if they don't randomly", type=int, default=256)
+        parser.add_argument("--verbose-spoiler", help="show everything in the spoiler", action="store_true")
         # anal TODO: IMPL
         parser.add_argument("--analysis", help="Report stats on the skill order for all seeds generated", action="store_true")
         parser.add_argument("--loc-analysis", help="Report stats on where skills are placed over multiple seeds", action="store_true")
@@ -150,6 +156,8 @@ class CLISeedParams(object):
         if Variation.WARP_COUNT in self.variations:
             self.warp_count = args.warp_count
         self.start = args.start
+        self.spawn = self.start if self.start != "Random" else ""
+
         if Variation.STARTING_HEALTH in self.variations:
             self.starting_health = args.starting_health
         if Variation.STARTING_ENERGY in self.variations:
@@ -165,6 +173,29 @@ class CLISeedParams(object):
                 self.path_diff = PathDifficulty.HARD
         else:
             self.path_diff = PathDifficulty.NORMAL
+        if args.spawn_weights:
+            spawn_weights = OrderedDict([
+                ("Glades", 1.0),
+                ("Grove", 2.0),
+                ("Swamp", 2.0),
+                ("Grotto", 2.0),
+                ("Forlorn", 1.5),
+                ("Valley", 2),
+                ("Horu", 0.1),
+                ("Ginso", 0.1),
+                ("Sorrow", 0.25),
+                ("Blackroot", 0.5)
+            ])
+            for pair in args.spawn_weights.split(","):
+                try:
+                    zone, _, rawWeight = pair.partition("=")
+                    spawn_weights[zone] = float(rawWeight)
+                except Exception as e:
+                    print("Bad spawn weight argument '%s' will be ignored" % pair)
+            self.spawn_weights = list(spawn_weights.values())
+            print (self.spawn_weights)
+        else:
+            self.spawn_weights = []
         self.balanced = args.balanced or False
         self.cell_freq = args.force_cells
         self.players = args.players
@@ -308,6 +339,7 @@ class CLISeedParams(object):
                         self.sync.teams[cnt] = [int(p) for p in team.split(",")]
                         cnt += 1
 
+        self.verbose_spoiler = args.verbose_spoiler
         # todo: respect these LMAO
         self.do_analysis = args.analysis
         self.do_loc_analysis = args.loc_analysis
