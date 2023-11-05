@@ -555,7 +555,7 @@ class SeedGenerator:
                 ("Swamp", 2.0),
                 ("Grotto", 2.0),
                 ("Forlorn", 1.5),
-                ("Valley", 0),
+                ("Valley", 2),
                 ("Horu", 0.1),
                 ("Ginso", 0.1),
                 ("Sorrow", 0.25),
