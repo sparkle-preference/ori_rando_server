@@ -1564,7 +1564,7 @@ home: GinsoOuterDoor 527 -42
 	-- anchor: just outside the ginso door, unlocked
 	conn: GinsoInnerDoor
 	conn: OuterSwampUpperArea
-home: GinsoInnerDoor 526 2
+home: GinsoInnerDoor 522 1
 	-- anchor: Just inside the Ginso tree door after putting in the water vein
 	conn: LowerGinsoTree
 		casual WallJump DoubleJump
@@ -1589,6 +1589,7 @@ home: LowerGinsoTree 510 100
 		casual ChargeFlame
 		casual Grenade
 		expert ChargeDash
+	conn: GinsoInnerDoor
 	conn: GinsoMiniBossDoor
 		casual WallJump DoubleJump
 		casual WallJump Glide
@@ -1601,15 +1602,18 @@ home: LowerGinsoTree 510 100
 		standard WallJump Health=3
 		standard Climb Health=3
 		standard ChargeJump Health=3
+		standard Bash Grenade Health=3
 		standard WallJump AirDash
 		standard Climb AirDash
 		standard ChargeJump AirDash
+		standard Bash Grenade AirDash
 		expert WallJump
+		expert Bash Grenade
 		master DoubleJump
 		master Bash
 	conn: R4InnerDoor
 		glitched Dash
-home: GinsoMiniBossDoor 544 243
+home: GinsoMiniBossDoor 547 247
 	-- anchor: Just past the Ginso Mini Boss Door which unlocks after mini boss defeat
 	pickup: LowerGinsoKeystone1 
 		casual DoubleJump
@@ -1628,21 +1632,25 @@ home: GinsoMiniBossDoor 544 243
 		casual Climb
 		casual ChargeJump
 		casual Bash Grenade
-		master DoubleJump
+		expert Free
 	pickup: LowerGinsoKeystone4
 		casual WallJump
 		casual Climb
 		casual ChargeJump
 		casual Bash Grenade
-		master DoubleJump
+		expert Free
 	conn: BashTreeDoorClosed
-		casual Free
-home: BashTreeDoorClosed 538 308
-	--anchor: Immediately adjacent to the first Ginso keystone door (unopened)
+		casual WallJump
+		casual Climb
+		casual ChargeJump
+		casual Bash Grenade
+		expert Free
+home: BashTreeDoorClosed 541 310
+	--anchor: Immediately left adjacent to the first Ginso keystone door (unopened)
 	conn: BashTreeDoorOpened
 		casual Keystone=4
-home: BashTreeDoorOpened 548 309
-	--anchor: Immediately adjacent to the first Ginso keystone door (opened)
+home: BashTreeDoorOpened 547 311
+	--anchor: Immediately right adjacent to the first Ginso keystone door (opened)
 	-- for KS-lock protection, the backtrack requires the ginso key
 	conn: GinsoMiniBossDoor
 		casual Open GinsoKey
@@ -1651,8 +1659,8 @@ home: BashTreeDoorOpened 548 309
 		casual Climb
 		casual ChargeJump
 		casual Bash Grenade
-		master DoubleJump
-home: BashTree 521 326
+		expert Free
+home: BashTree 521 329
 	--anchor: The Bash Tree Itself
 	-- for KS-lock protection, all pickups in this area require the ginso key
 	pickup: BashSkillTree
@@ -1665,9 +1673,13 @@ home: BashTree 521 326
 	conn: BashTreeDoorClosed
 		casual Open
 	conn: UpperGinsoRedirectArea
-		casual Bash
-		casual ChargeJump Dash DoubleJump
+		casual Bash Grenade
+		casual Bash ChargeJump
+		casual Bash WallJump
+		casual Bash Climb
+		casual Bash DoubleJump
 		casual ChargeJump DoubleJump Glide
+		standard ChargeJump Dash DoubleJump
 		standard ChargeJump Health=4
 		expert ChargeJump Health=3
 		expert ChargeJump ChargeDash
@@ -1675,27 +1687,33 @@ home: BashTree 521 326
 		master DoubleJump WallJump
 		master DoubleJump Climb
 		master TripleJump
-home: UpperGinsoRedirectArea 526 385
+home: UpperGinsoRedirectArea 521 388
 	-- located at the first redirect area on top of where the UpperGinsoRedirectLowerExp is found
 	-- for KS-lock protection, all pickups in this area require the ginso key
 	pickup: UpperGinsoRedirectLowerExp
 		casual GinsoKey Stomp
 		casual GinsoKey Bash
-		standard GinsoKey ChargeJump Climb
+		casual GinsoKey ChargeJump Climb
 		expert GinsoKey ChargeFlame
 		expert GinsoKey ChargeJump AirDash
 		master GinsoKey Grenade
 	pickup: UpperGinsoRedirectUpperExp
-		casual GinsoKey Stomp
 		casual GinsoKey Bash
-		expert GinsoKey ChargeFlame
-		expert GinsoKey Climb ChargeJump
+		casual GinsoKey ChargeJump Stomp
+		standard GinsoKey ChargeJump Climb
+		expert GinsoKey ChargeJump ChargeFlame
 		expert GinsoKey ChargeJump AirDash
+		master GinsoKey ChargeJump Grenade
+		master GinsoKey TripleJump ChargeFlame
+		master GinsoKey TripleJump Grenade
 	pickup: BashAreaExp
 		expert GinsoKey ChargeDash
 	conn: UpperGinsoTree
-		casual Bash
+		casual Bash WallJump
+		casual Bash Climb
+		casual Bash Grenade
 		casual ChargeJump
+		expert Bash
 		master TripleJump Stomp WallJump
 		master TripleJump ChargeFlame WallJump
 		master TripleJump Grenade WallJump
@@ -1704,14 +1722,16 @@ home: UpperGinsoRedirectArea 526 385
 		master TripleJump Grenade Climb
 	conn: BashTree
 		casual Bash
-		casual DoubleJump
+		casual DoubleJump Glide
+		casual ChargeJump Glide
 		standard AirDash
 		standard Dash Health=4
 		standard WallJump Health=4
 		standard Climb Health=4
+		standard DoubleJump Health=4
 		standard Glide Health=4
 		standard ChargeJump Health=4
-home: UpperGinsoTree 528 468
+home: UpperGinsoTree 532 472
 	--anchor: Near the flower just before the Upper Ginso keystone area, this is the flower AFTER the keydupe flower (at 530, 471)
 	-- for KS-lock protection, all pickups in this area require the ginso key
 	pickup: UpperGinsoLowerKeystone
@@ -1720,7 +1740,7 @@ home: UpperGinsoTree 528 468
 		standard GinsoKey Bash Health=3
 		standard GinsoKey DoubleJump Health=3
 		standard GinsoKey ChargeJump Health=3
-		standard GinsoKey ChargeJump AirDash
+		standard GinsoKey AirDash Health=3
 		expert GinsoKey Health=5
 		expert GinsoKey ChargeDash
 	pickup: UpperGinsoRightKeystone
@@ -1735,12 +1755,14 @@ home: UpperGinsoTree 528 468
 		master GinsoKey TripleJump UltraDefense Health=3
 	pickup: UpperGinsoUpperRightKeystone
 		casual GinsoKey Bash DoubleJump
+		casual GinsoKey Bash Glide
 		standard GinsoKey Bash
 		standard GinsoKey ChargeJump DoubleJump
 		standard GinsoKey ChargeJump Health=3
 		master GinsoKey TripleJump UltraDefense Health=5
 	pickup: UpperGinsoUpperLeftKeystone
 		casual GinsoKey Bash DoubleJump
+		casual GinsoKey Bash Glide
 		standard GinsoKey Bash
 		standard GinsoKey ChargeJump DoubleJump
 		standard GinsoKey ChargeJump Glide
@@ -1751,7 +1773,7 @@ home: UpperGinsoTree 528 468
 		--with the exception of bash and cjump, all of these routes involve getting stuck in the energy cell area
 		casual GinsoKey Stomp
 		casual GinsoKey Bash
-		standard GinsoKey ChargeJump Climb
+		casual GinsoKey ChargeJump Climb
 		expert GinsoKey ChargeJump Dash
 		expert GinsoKey ChargeFlame
 	conn: UpperGinsoDoorClosed
@@ -1759,10 +1781,11 @@ home: UpperGinsoTree 528 468
 	conn: UpperGinsoRedirectArea
 		casual Stomp
 		casual ChargeJump Bash
-		standard Climb ChargeJump
+		casual Climb ChargeJump
 		expert ChargeJump ChargeFlame
 		expert ChargeJump AirDash
 		master Bash
+		master ChargeJump Grenade
 home: UpperGinsoEnergyCellWarp 540 435
 	-- anchor: Next to the UpperGinsoEnergyCell (at 539, 434) with the ceiling intact.
 	pickup: UpperGinsoEnergyCell
@@ -1773,11 +1796,12 @@ home: UpperGinsoEnergyCellWarp 540 435
 		standard Climb Bash
 		standard DoubleJump Bash
 		expert DoubleBash
-home: UpperGinsoDoorClosed 513 511
+home: UpperGinsoDoorClosed 515 514
+	--anchor: Immediately left adjacent to the upper ginso keystone door (opened)
 	conn: UpperGinsoDoorOpened
 		casual Keystone=4
-home: UpperGinsoDoorOpened 524 512
-	--anchor: Immediately adjacent to the upper ginso keystone door (opened)
+home: UpperGinsoDoorOpened 526 515
+	--anchor: Immediately right adjacent to the upper ginso keystone door (opened), next to the flower
 	conn: GinsoTeleporter
 		-- paths from UpperGinsoTree to GinsoTeleporter, with the door open
 		casual Bash DoubleJump
