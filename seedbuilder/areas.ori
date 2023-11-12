@@ -1713,7 +1713,7 @@ home: UpperGinsoRedirectArea 521 388
 		casual Bash Climb
 		casual Bash Grenade
 		casual ChargeJump
-		expert Bash
+		expert DoubleBash
 		master TripleJump Stomp WallJump
 		master TripleJump ChargeFlame WallJump
 		master TripleJump Grenade WallJump
@@ -1777,7 +1777,12 @@ home: UpperGinsoTree 532 472
 		expert GinsoKey ChargeJump Dash
 		expert GinsoKey ChargeFlame
 	conn: UpperGinsoDoorClosed
-		casual Free
+		casual GinsoKey Bash DoubleJump
+		casual GinsoKey Bash Glide
+		standard GinsoKey Bash
+		standard GinsoKey ChargeJump DoubleJump Health=3
+		expert GinsoKey ChargeJump Health=5
+		master GinsoKey TripleJump UltraDefense Health=5
 	conn: UpperGinsoRedirectArea
 		casual Stomp
 		casual ChargeJump Bash
@@ -1795,6 +1800,9 @@ home: UpperGinsoEnergyCellWarp 540 435
 		standard WallJump Bash
 		standard Climb Bash
 		standard DoubleJump Bash
+		standard WallJump DoubleJump Stomp
+		standard Climb DoubleJump Stomp
+		standard WallJump Glide Stomp Health=3
 		expert DoubleBash
 home: UpperGinsoDoorClosed 515 514
 	--anchor: Immediately left adjacent to the upper ginso keystone door (opened)
@@ -1816,7 +1824,7 @@ home: UpperGinsoDoorOpened 526 515
 		casual Open Glide
 		casual Open Health=3
 		standard Open AirDash
-home: GinsoTeleporter 565 535
+home: GinsoTeleporter 567 538
 	--anchor: Ginso Teleporter
 	conn: TeleporterNetwork
 	conn: TopGinsoTree
@@ -1828,6 +1836,7 @@ home: GinsoTeleporter 565 535
 		casual GinsoKey ChargeJump Climb
 		standard GinsoKey WallJump DoubleJump ChargeFlame
 		standard GinsoKey WallJump DoubleJump Grenade
+		standard GinsoKey Bash Grenade
 		expert GinsoKey WallJump DoubleJump Stomp
 		expert GinsoKey ChargeJump
 		master GinsoKey TripleJump ChargeFlame
@@ -1835,13 +1844,14 @@ home: GinsoTeleporter 565 535
 		master GinsoKey TripleJump Stomp
 	conn: UpperGinsoDoorClosed
 		casual Open
-home: TopGinsoTree 520 558
+home: TopGinsoTree 524 560
 	-- anchor: in front of the core
 	pickup: TopGinsoLeftLowerExp
 		casual DoubleJump WallJump
 		casual DoubleJump Climb
 		casual Bash DoubleJump
 		casual Bash Glide
+		casual Bash Grenade
 		casual ChargeJump DoubleJump
 		casual ChargeJump Glide
 		standard Bash
