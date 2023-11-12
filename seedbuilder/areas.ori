@@ -1063,14 +1063,6 @@ home: DashAreaDarknessWithoutOrb 255 -252
 		expert Bash Grenade
 		expert ChargeJump
 		expert DoubleJump
-	conn: DashAreaLeverWithoutOrb
-		casual WallJump
-		casual Climb
-		casual Bash Grenade
-		casual ChargeJump DoubleJump
-		casual ChargeJump Glide
-		standard ChargeJump
-		expert DoubleJump
 	conn: DashPlantAccess
 		casual ChargeJump Climb
 		casual ChargeJump WallJump
@@ -1084,16 +1076,7 @@ home: DashAreaDarknessWithoutOrb 255 -252
 		master DoubleJump Dash
 		master Bash
 		master TripleJump
-home: DashAreaLeverWithoutOrb 286 -230
-	-- anchor: at the lever that activates the Orb Pedestal in the Dash Tree room,
-	-- with possession of the orb
-	pickup: DashAreaPlant
-		standard Grenade Glide
-	conn: DashPlantAccess	
-		standard WallJump DoubleJump AirDash
-		standard Climb DoubleJump AirDash
-		standard WallJump Glide
-		standard Climb DoubleJump Glide
+
 home: DashAreaDarknessWithOrb 250 -252
 	-- anchor: dash area before the darkness has been lifted, but with possession
 	-- of the orb
