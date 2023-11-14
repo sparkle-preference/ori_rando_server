@@ -1009,65 +1009,141 @@ home: BlackrootDarknessRoom 139 -247
 	pickup: DashAreaOrbRoomExp
 		casual WallJump
 		casual Climb
-		casual Bash
-		casual ChargeJump
-		casual DoubleJump
+		casual Bash Grenade DoubleJump
+		casual Bash Grenade Glide
+		casual ChargeJump DoubleJump
+		casual ChargeJump Glide
+		standard Bash Grenade
+		standard ChargeJump
+		standard DoubleJump
 	pickup: DashAreaAbilityCell
 		casual WallJump
 		casual Climb
-		casual Bash
-		casual ChargeJump
-		casual DoubleJump
+		casual Bash Grenade DoubleJump
+		casual Bash Grenade Glide
+		casual ChargeJump DoubleJump
+		casual ChargeJump Glide
+		standard Bash Grenade
+		standard ChargeJump
+		standard DoubleJump
 	pickup: DashAreaRoofExp
 		casual WallJump
 		casual Climb
 		casual Bash Grenade
-		casual ChargeJump
+		casual ChargeJump DoubleJump
+		casual ChargeJump Glide
+		standard ChargeJump
 		master DoubleJump
 		master Bash
-	conn: DashArea
+	conn: DashAreaDarknessWithOrb
 		casual WallJump
 		casual Climb
-		casual Bash Grenade
-		casual ChargeJump
-		expert DoubleJump
-		master Bash
-home: DashArea 271 -251
-	-- anchor: dash tree *after* lifting darkness
-	pickup: DashSkillTree
-	conn: DashAreaMapstoneAccess
-		casual Free
-	conn: DashPlantAccess
-		casual ChargeJump Climb
-		casual ChargeJump WallJump
-		casual Glide WallJump
-		casual Bash Grenade
-		standard WallJump DoubleJump AirDash
-		standard Climb DoubleJump AirDash
-		-- these expert-core paths allow you to throw a grenade or cflame the
-		-- plant from a distance
-		expert DoubleJump Grenade
-		expert ChargeJump Grenade
-		expert Glide Grenade
-		expert ChargeJump ChargeFlame
-		expert WallJump ChargeDash Energy=2
-		expert Climb ChargeDash Energy=2
-		expert WallJump ChargeFlame ChargeDash
-		expert Climb ChargeFlame ChargeDash
-		expert Grenade AirDash
-		master DoubleJump Glide
-		master DoubleJump Dash
-		master Bash
+		casual Bash Grenade DoubleJump
+		casual Bash Grenade Glide
+		casual ChargeJump DoubleJump
+		casual ChargeJump Glide
+		standard Bash Grenade
+		standard ChargeJump
+		standard DoubleJump
+home: DashAreaDarknessWithoutOrb 255 -252
+	-- anchor: dash area before the darkness has been lifted, but without possession
+	-- of the orb
+	pickup: DashAreaPlant
+		-- these paths collect the plant without actually accessing the ledge and
+		-- don't require access to the lever
+		standard Grenade ChargeJump
+		expert ChargeFlame ChargeJump
 		-- these paths require charge flame burn
 		master WallJump ChargeFlameBurn
 		master Climb ChargeFlameBurn
 		master DoubleJump ChargeFlameBurn
+	pickup: DashAreaMapstone
+		standard Dash
+		expert WallJump
+		expert Climb
+		expert Bash Grenade
+		expert ChargeJump
+		expert DoubleJump
+	conn: DashPlantAccess
+		casual ChargeJump Climb
+		casual ChargeJump WallJump
+		casual Bash Grenade
+		master Bash
 		master TripleJump
+home: DashAreaDarknessWithOrb 250 -252
+	-- anchor: dash area before the darkness has been lifted, but with possession
+	-- of the orb
+	pickup: DashAreaPlant
+		-- these paths collect the plant without actually accessing the ledge and
+		-- don't require access to the lever
+		standard Grenade ChargeJump
+		standard Grenade DoubleJump Glide
+		standard Grenade DoubleJump AirDash
+		expert Grenade DoubleJump
+		expert Grenade Glide
+		expert Grenade AirDash
+		expert ChargeFlame ChargeJump
+		-- these paths require charge flame burn
+		master WallJump ChargeFlameBurn
+		master Climb ChargeFlameBurn
+		master DoubleJump ChargeFlameBurn
+	pickup: DashAreaMapstone
+		standard Dash
+		expert WallJump
+		expert Climb
+		expert Bash Grenade
+		expert ChargeJump
+		expert DoubleJump
+	conn: DashAreaLever
+		casual WallJump
+		casual Climb
+		casual Bash Grenade
+		casual ChargeJump DoubleJump
+		casual ChargeJump Glide
+		standard ChargeJump
+		expert DoubleJump
+	conn: DashPlantAccess
+		casual ChargeJump Climb
+		casual ChargeJump WallJump
+		casual Bash Grenade
+		expert WallJump ChargeDash Energy=2
+		expert Climb ChargeDash Energy=2
+		expert WallJump ChargeFlame ChargeDash
+		expert Climb ChargeFlame ChargeDash
+		master DoubleJump Glide
+		master DoubleJump Dash
+		master Bash
+		master TripleJump
+home: DashAreaLever 285 -230
+	-- anchor: at the lever that activates the Orb Pedestal in the Dash Tree room,
+	-- with possession of the orb
+	pickup: DashAreaPlant
+		standard Grenade Glide
+	conn: DashPlantAccess	
+		standard WallJump DoubleJump AirDash
+		standard Climb DoubleJump AirDash
+		standard WallJump Glide
+		standard Climb DoubleJump Glide
+	conn: DashArea
+		casual Free
+home: DashPlantAccess 303 -232
+	-- anchor: on the ledge next to the plant, or within grenade throw range
+	pickup: DashAreaPlant
+		casual ChargeFlame
+		casual Grenade
+		expert ChargeDash
+	conn: DashAreaDarknessWithoutOrb
+		casual Free
+home: DashArea 271 -251
+	-- anchor: dash tree *after* lifting darkness
+	pickup: DashSkillTree
+	pickup: DashAreaMapstone
+		casual Dash
 	conn: GrenadeAreaAccess
 		casual Stomp ChargeJump
 		casual Stomp Grenade Bash
 		casual Stomp Dash
-		standard ChargeJump Climb
+		casual ChargeJump Climb
 		expert Stomp
 		master Bash
 		glitched Free
@@ -1085,22 +1161,6 @@ home: DashArea 271 -251
 		standard Climb AirDash
 		expert Climb Rekindle
 		master DoubleJump Rekindle
-home: DashAreaMapstoneAccess 356 -255
-	pickup: DashAreaMapstone
-		casual Dash
-		expert WallJump
-		expert Climb
-		expert Bash Grenade
-		expert ChargeJump
-		expert DoubleJump
-home: DashPlantAccess 303 -232
-	-- anchor: on the ledge next to the plant, or within grenade throw range
-	pickup: DashAreaPlant
-		casual ChargeFlame
-		casual Grenade
-		expert ChargeDash
-	conn: DashAreaMapstoneAccess
-		casual Free
 home: RazielNoArea 290 -301
 	-- anchor: on the ledge right before the boulder chase
 	pickup: RazielNo
