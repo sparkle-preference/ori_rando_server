@@ -1571,7 +1571,8 @@ home: GinsoInnerDoor 522 1
 		casual DoubleJump Climb
 		casual ChargeJump Glide
 		casual ChargeJump DoubleJump
-		casual Bash Grenade
+		casual Bash Grenade Glide
+		casual Bash Grenade DoubleJump
 		master DoubleJump
 		master ChargeDash WallJump Energy=2
 		master ChargeDash Climb Energy=2
