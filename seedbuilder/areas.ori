@@ -791,7 +791,7 @@ home: SpiritTreeRefined -93 -118
 		master Bash Glide DoubleJump
 	pickup: SpiritTreeExp
 		casual ChargeJump
-		casual BashGrenade
+		casual Bash Grenade
 		standard Lure Bash ChargeFlame
 		standard Lure Bash Stomp WallJump
 		standard Lure Bash Stomp Climb
@@ -1567,36 +1567,36 @@ home: GinsoOuterDoor 527 -42
 home: GinsoInnerDoor 522 1
 	-- anchor: Just inside the Ginso tree door after putting in the water vein
 	conn: LowerGinsoTree
-		casual WallJump DoubleJump
-		casual Climb DoubleJump
+		casual DoubleJump WallJump
+		casual DoubleJump Climb
 		casual ChargeJump
 		casual Bash Grenade
 		master DoubleJump
-		master ChargeDash WallJump
-		master ChargeDash Climb
+		master ChargeDash WallJump Energy=2
+		master ChargeDash Climb Energy=2
 	conn: GinsoOuterDoor
 home: LowerGinsoTree 510 100
 	-- anchor: At the top of the second room near the flower
 	pickup: LowerGinsoHiddenExp
-		casual ChargeJump
-		casual Bash Grenade
 		casual WallJump DoubleJump
 		casual Climb DoubleJump
+		casual ChargeJump
+		casual Bash Grenade
 		master DoubleJump
-		master ChargeDash Climb
-		master ChargeDash WallJump
+		master ChargeDash Climb Energy=1
+		master ChargeDash WallJump Energy=1
 	pickup: LowerGinsoPlant
 		casual ChargeFlame
 		casual Grenade
-		expert ChargeDash
+		expert ChargeDash Energy=1
 	conn: GinsoInnerDoor
 	conn: GinsoMiniBossDoor
 		casual WallJump DoubleJump
 		casual WallJump Glide
 		casual Climb DoubleJump
 		casual Climb Glide
-		casual ChargeJump Glide
 		casual ChargeJump DoubleJump
+		casual ChargeJump Glide
 		casual Bash Grenade DoubleJump
 		casual Bash Grenade Glide
 		standard WallJump Health=3
@@ -1673,16 +1673,17 @@ home: BashTree 521 329
 	conn: BashTreeDoorClosed
 		casual Open
 	conn: UpperGinsoRedirectArea
-		casual Bash Grenade
-		casual Bash ChargeJump
 		casual Bash WallJump
 		casual Bash Climb
 		casual Bash DoubleJump
+		casual Bash ChargeJump
+		casual Bash Grenade
 		casual ChargeJump DoubleJump Glide
 		standard ChargeJump Dash DoubleJump
 		standard ChargeJump Health=4
+		standard Lure Bash
 		expert ChargeJump Health=3
-		expert ChargeJump ChargeDash
+		expert ChargeJump ChargeDash Energy=1
 		master DoubleJump Dash
 		master DoubleJump WallJump
 		master DoubleJump Climb
@@ -1707,24 +1708,26 @@ home: UpperGinsoRedirectArea 521 388
 		master GinsoKey TripleJump ChargeFlame
 		master GinsoKey TripleJump Grenade
 	pickup: BashAreaExp
-		expert GinsoKey ChargeDash
+		expert GinsoKey Lure RocketJump Energy=1
 	conn: UpperGinsoTree
 		casual Bash WallJump
 		casual Bash Climb
 		casual Bash Grenade
 		casual ChargeJump
 		expert DoubleBash
-		master TripleJump Stomp WallJump
-		master TripleJump ChargeFlame WallJump
-		master TripleJump Grenade WallJump
-		master TripleJump Stomp Climb
-		master TripleJump ChargeFlame Climb
-		master TripleJump Grenade Climb
+		master TripleJump WallJump Stomp
+		master TripleJump WallJump ChargeFlame
+		master TripleJump WallJump Grenade
+		master TripleJump Climb Stomp
+		master TripleJump Climb ChargeFlame
+		master TripleJump Climb Grenade
 	conn: BashTree
 		casual Bash
 		casual DoubleJump Glide
 		casual ChargeJump Glide
 		standard AirDash
+		standard Dash DoubleJump
+		standard Dash Glide
 		standard Dash Health=4
 		standard WallJump Health=4
 		standard Climb Health=4
@@ -1741,8 +1744,12 @@ home: UpperGinsoTree 532 472
 		standard GinsoKey DoubleJump Health=3
 		standard GinsoKey ChargeJump Health=3
 		standard GinsoKey AirDash Health=3
+		standard GinsoKey Bash Grenade
 		expert GinsoKey Health=5
-		expert GinsoKey ChargeDash
+		expert GinsoKey ChargeDash Energy=1
+		master GinsoKey TripleJump Bash
+		master GinsoKey TripleJump Glide
+		master GinsoKey TripleJump ChargeJump
 	pickup: UpperGinsoRightKeystone
 		casual GinsoKey Bash DoubleJump
 		casual GinsoKey Bash Glide
@@ -1774,8 +1781,9 @@ home: UpperGinsoTree 532 472
 		casual GinsoKey Stomp
 		casual GinsoKey Bash
 		casual GinsoKey ChargeJump Climb
-		expert GinsoKey ChargeJump Dash
+		expert GinsoKey ChargeJump AirDash
 		expert GinsoKey ChargeFlame
+		master GinsoKey Grenade
 	conn: UpperGinsoDoorClosed
 		casual GinsoKey Bash DoubleJump
 		casual GinsoKey Bash Glide
@@ -1786,10 +1794,10 @@ home: UpperGinsoTree 532 472
 	conn: UpperGinsoRedirectArea
 		casual Stomp
 		casual ChargeJump Bash
-		casual Climb ChargeJump
+		casual ChargeJump Climb
 		expert ChargeJump ChargeFlame
 		expert ChargeJump AirDash
-		master Bash
+		master DoubleBash
 		master ChargeJump Grenade
 home: UpperGinsoEnergyCellWarp 540 435
 	-- anchor: Next to the UpperGinsoEnergyCell (at 539, 434) with the ceiling intact.
@@ -1815,9 +1823,9 @@ home: UpperGinsoDoorOpened 526 515
 		casual Bash DoubleJump
 		casual Bash Glide
 		standard Bash
-		expert ChargeJump DoubleJump Health=3
+		standard ChargeJump DoubleJump Health=3
 		expert ChargeJump Health=5
-		master WallJump TripleJump Health=5 UltraDefense
+		master TripleJump UltraDefense Health=5
 	conn: UpperGinsoTree
 		casual Open Bash
 		casual Open DoubleJump
@@ -1830,8 +1838,8 @@ home: GinsoTeleporter 567 538
 	conn: TopGinsoTree
 		-- kill the elemental and progress up
 		-- GinsoKey required for KS lock protection
-		casual GinsoKey Bash WallJump DoubleJump
-		casual GinsoKey Bash Climb DoubleJump
+		casual GinsoKey Bash DoubleJump WallJump
+		casual GinsoKey Bash DoubleJump Climb
 		casual GinsoKey ChargeJump WallJump
 		casual GinsoKey ChargeJump Climb
 		standard GinsoKey WallJump DoubleJump ChargeFlame
@@ -1857,17 +1865,17 @@ home: TopGinsoTree 524 560
 		standard Bash
 		standard ChargeJump Health=3
 		standard DoubleJump Health=3
-		expert ChargeDash
+		expert RocketJump Energy=1
 		expert Health=5
 		master DoubleJump
 	pickup: TopGinsoLeftUpperExp
 		casual Bash
 		casual ChargeJump
-		standard Dash WallJump DoubleJump Health=3
-		standard Dash Climb DoubleJump Health=3
-		standard WallJump DoubleJump Glide Health=3
-		standard Climb DoubleJump Glide Health=3
-		expert ChargeDash
+		standard DoubleJump Dash WallJump Health=3
+		standard DoubleJump Dash Climb Health=3
+		standard DoubleJump Glide WallJump Health=3
+		standard DoubleJump Glide Climb Health=3
+		expert RocketJump Energy=1
 		master TripleJump
 		master DoubleJump Glide Health=3
 		master DoubleJump Dash Health=3
@@ -1876,11 +1884,11 @@ home: TopGinsoTree 524 560
 		casual Bash Grenade
 		casual ChargeJump ChargeFlame
 		casual ChargeJump Grenade
-		standard DoubleJump WallJump Grenade Health=3
-		standard DoubleJump Climb Grenade Health=3
-		expert DoubleJump WallJump ChargeFlame Health=3
-		expert DoubleJump Climb ChargeFlame Health=3
-		expert ChargeDash
+		standard DoubleJump Grenade WallJump Health=3
+		standard DoubleJump Grenade Climb Health=3
+		expert DoubleJump ChargeFlame WallJump Health=3
+		expert DoubleJump ChargeFlame Climb Health=3
+		expert RocketJump Energy=2
 		master TripleJump ChargeFlame
 		master TripleJump Grenade
 		master DoubleJump ChargeFlame Health=3
@@ -1889,34 +1897,42 @@ home: TopGinsoTree 524 560
 		casual Bash Grenade
 		casual Bash ChargeJump
 		casual Bash DoubleJump
+		casual Bash Glide WallJump
+		casual Bash Glide Climb
 		standard Bash
 		standard Stomp ChargeJump
-		standard Stomp Dash WallJump DoubleJump Health=3
-		standard Stomp Dash Climb DoubleJump Health=3
-		standard Stomp WallJump DoubleJump Glide Health=3
-		standard Stomp Climb DoubleJump Glide Health=3
-		expert Stomp ChargeDash
+		standard Stomp DoubleJump Dash WallJump Health=3
+		standard Stomp DoubleJump Dash Climb Health=3
+		standard Stomp DoubleJump Glide WallJump Health=3
+		standard Stomp DoubleJump Glide Climb Health=3
+		expert Stomp RocketJump Energy=1
 		master Stomp TripleJump
 		master Stomp DoubleJump Glide Health=3
 		master Stomp DoubleJump Dash Health=3
-home: GinsoEscape 518 626
-	--gonna need to go over a lot of these paths for binning into difficulties, some can be quite a pain
+home: GinsoEscape 524 584
+	--anchor: on top of the core after destroying both sets of brambles
 	conn: GinsoEscapeComplete
+	-- the escape sequence must be started before possible entry
 		casual Bash DoubleJump WallJump
 		casual Bash DoubleJump Climb
+		casual Bash Glide WallJump
 		standard Bash Climb
 		standard Bash WallJump
+		standard ChargeJump Climb DoubleJump Health=3
+		standard ChargeJump Climb Glide Health=3
 		expert ChargeJump Climb DoubleJump
 		expert ChargeJump WallJump Health=9
+		expert ChargeJump WallJump DoubleJump Health=7
 		expert ChargeJump Climb Health=3
-		expert ChargeJump DoubleJump ChargeDash Health=3
+		expert ChargeJump DoubleJump RocketJump Health=3 Energy=1
 		expert DoubleBash
 		master ChargeJump DoubleJump Health=7
 		master WallJump TripleJump UltraDefense Health=6
 		master Climb TripleJump UltraDefense Health=10
 		insane TripleJump UltraDefense Health=12
-home: GinsoEscapeComplete 530 948
--- this is a meta area to factor the ginso escape pickups which have identical requirements
+home: GinsoEscapeComplete 528 948
+	-- anchor: at the final bashable lantern before finishing the escape
+	-- this is a meta area to factor the ginso escape pickups which have identical requirements
 	pickup: GinsoEscapeSpiderExp
 	pickup: GinsoEscapeJumpPadExp
 	pickup: GinsoEscapeProjectileExp
@@ -3621,6 +3637,7 @@ home: ValleyEntry -181 -115
 		casual ChargeJump ChargeFlame
 		casual ChargeJump Grenade
 		casual Bash Grenade
+		standard Grenade
 		expert WallJump ChargeFlame
 		expert Grenade
 		expert ChargeDash Energy=2
