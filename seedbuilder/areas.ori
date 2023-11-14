@@ -1604,7 +1604,6 @@ home: LowerGinsoTree 510 100
 		casual Bash Grenade DoubleJump
 		casual Bash Grenade Glide
 		standard WallJump Health=3
-		expert Climb Health=3
 		standard ChargeJump Health=3
 		standard Bash Grenade Health=3
 		standard WallJump AirDash
@@ -1613,6 +1612,7 @@ home: LowerGinsoTree 510 100
 		standard Bash Grenade AirDash
 		expert WallJump
 		expert Bash Grenade
+		expert Climb Health=3
 		master DoubleJump
 		master Bash
 	conn: R4InnerDoor
@@ -1632,25 +1632,21 @@ home: GinsoMiniBossDoor 547 247
 		standard ChargeJump Health=3
 		standard AirDash
 	pickup: LowerGinsoKeystone3
-		casual WallJump
+		casual WallJump Health=3
 		casual Climb Health=3
 		casual ChargeJump
 		casual Bash Grenade
 		expert Health=3
 		master Free
 	pickup: LowerGinsoKeystone4
-		casual WallJump
+		casual WallJump Health=3
 		casual Climb Health=3
 		casual ChargeJump
 		casual Bash Grenade
 		expert Health=3
 		master Free
 	conn: BashTreeDoorClosed
-		casual WallJump
-		casual Climb
-		casual ChargeJump
-		casual Bash Grenade
-		expert Free
+		casual Free
 home: BashTreeDoorClosed 541 310
 	--anchor: Immediately left adjacent to the first Ginso keystone door (unopened)
 	conn: BashTreeDoorOpened
@@ -1705,8 +1701,12 @@ home: UpperGinsoRedirectArea 521 388
 		expert GinsoKey ChargeJump AirDash
 		master GinsoKey Grenade
 	pickup: UpperGinsoRedirectUpperExp
-		standard GinsoKey Bash
 		casual GinsoKey ChargeJump Stomp
+		casual GinsoKey Bash WallJump
+		casual GinsoKey Bash Climb
+		casual GinsoKey Bash DoubleJump
+		casual GinsoKey Bash Grenade
+		standard GinsoKey Bash
 		standard GinsoKey ChargeJump Climb
 		expert GinsoKey ChargeJump ChargeFlame
 		expert GinsoKey ChargeJump AirDash
@@ -1791,12 +1791,7 @@ home: UpperGinsoTree 532 472
 		expert GinsoKey ChargeFlame
 		master GinsoKey Grenade
 	conn: UpperGinsoDoorClosed
-		casual GinsoKey Bash DoubleJump
-		casual GinsoKey Bash Glide
-		standard GinsoKey Bash
-		standard GinsoKey ChargeJump DoubleJump Health=3
-		expert GinsoKey ChargeJump Health=5
-		master GinsoKey TripleJump UltraDefense Health=5
+		casual Free
 	conn: UpperGinsoRedirectArea
 		casual Stomp
 		casual ChargeJump Bash
