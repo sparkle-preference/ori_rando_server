@@ -1633,14 +1633,14 @@ home: GinsoMiniBossDoor 547 247
 		standard AirDash
 	pickup: LowerGinsoKeystone3
 		casual WallJump
-		casual Climb
+		casual Climb Health=3
 		casual ChargeJump
 		casual Bash Grenade
 		expert Health=3
 		master Free
 	pickup: LowerGinsoKeystone4
 		casual WallJump
-		casual Climb
+		casual Climb Health=3
 		casual ChargeJump
 		casual Bash Grenade
 		expert Health=3
