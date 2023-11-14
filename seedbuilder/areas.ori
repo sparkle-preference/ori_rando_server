@@ -1569,7 +1569,8 @@ home: GinsoInnerDoor 522 1
 	conn: LowerGinsoTree
 		casual DoubleJump WallJump
 		casual DoubleJump Climb
-		casual ChargeJump
+		casual ChargeJump Glide
+		casual ChargeJump DoubleJump
 		casual Bash Grenade
 		master DoubleJump
 		master ChargeDash WallJump Energy=2
