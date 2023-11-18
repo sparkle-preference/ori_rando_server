@@ -807,7 +807,7 @@ home: SpiritTreeRefined -93 -118
 		standard Stomp Climb
 		standard Stomp DoubleJump
 		standard Stomp ChargeJump
-		expert ChargeDash Energy=1
+		expert ChargeDash
 	conn: SpiderSacArea
 		casual ChargeFlame WallJump
 		casual ChargeFlame ChargeJump
@@ -3619,14 +3619,14 @@ home: HoruEscapeOuterDoor 20 98
 	conn: HoruBasement
 home: HoruEscapeInnerDoor -188 447
 	conn: HoruEscapeOuterDoor
-home: ValleyEntry -181 -114
+home: ValleyEntry -181 -115
 -- anchored just left of the charge flame wall to valley
 	pickup: ValleyEntryAbilityCell
 	pickup: ValleyThreeBirdAbilityCell
 		casual ChargeJump OpenWorld
 		casual Glide Wind OpenWorld
 		casual Bash OpenWorld
-		expert RocketJump OpenWorld Energy=1
+		expert ChargeDash OpenWorld
 	conn: ValleyEntryTree
 		casual WallJump
 		casual Bash Climb
@@ -3634,20 +3634,21 @@ home: ValleyEntry -181 -114
 		casual ChargeJump Climb
 		standard Lure Bash
 		expert ChargeJump Health=4
-		expert RocketJump Energy=1
+		expert ChargeDash
 	conn: ValleyEntryTreePlantAccess
 		casual ChargeJump ChargeFlame
 		casual ChargeJump Grenade
 		casual Bash Grenade
 		standard Grenade
 		expert WallJump ChargeFlame
-		expert RocketJump Energy=2
+		expert Grenade
+		expert ChargeDash Energy=2
 	conn: ValleyPostStompDoor
 		casual Stomp WallJump DoubleJump
 		casual Stomp WallJump Bash
 		casual Stomp WallJump ChargeJump
-		casual Stomp Climb DoubleJump
 		casual Stomp Climb ChargeJump
+		casual Stomp Climb DoubleJump
 		expert Lure Bash WallJump
 		expert Lure Bash Climb ChargeJump
 		expert Lure Bash Climb DoubleJump
@@ -3656,8 +3657,8 @@ home: ValleyEntry -181 -114
 		casual WallJump DoubleJump OpenWorld
 		casual WallJump Bash OpenWorld
 		casual WallJump ChargeJump OpenWorld
-		casual Climb DoubleJump OpenWorld
 		casual Climb ChargeJump OpenWorld
+		casual Climb DoubleJump OpenWorld
 		expert ChargeJump Health=4 OpenWorld
 	conn: ValleyThreeBirdLever
 		casual Glide Wind OpenWorld
@@ -3665,7 +3666,7 @@ home: ValleyEntry -181 -114
 		casual Climb ChargeJump Glide OpenWorld
 		casual Climb ChargeJump DoubleJump OpenWorld
 		standard Dash DoubleJump ChargeJump OpenWorld
-		expert ChargeDash OpenWorld Energy=1
+		expert ChargeDash OpenWorld
 		master GrenadeJump OpenWorld
 	conn: ValleyStompFloor
 		casual Bash OpenWorld
@@ -3678,12 +3679,12 @@ home: ValleyEntry -181 -114
 		standard Dash DoubleJump OpenWorld
 		standard ChargeJump AirDash OpenWorld
 		standard Health=4 OpenWorld
-		expert ChargeDash OpenWorld Energy=1
+		expert ChargeDash OpenWorld
 	conn: SpiritTreeRefined
 		casual ChargeFlame
 		casual Grenade
-		expert ChargeDash Energy=1
-home: ValleyEntryTree -232 -85
+		expert ChargeDash
+home: ValleyEntryTree -228 -84
 -- anchored on the 100 exp on the valley entry tree
 	pickup: ValleyEntryTreeExp
 	pickup: ValleyEntryGrenadeLongSwim
@@ -3691,29 +3692,26 @@ home: ValleyEntryTree -232 -85
 		master Grenade Health=14
 		master Grenade Bash Health=13
 		master Grenade Health=7 UltraDefense
-	conn: ValleyEntry
 	conn: ValleyEntryTreePlantAccess
 		casual ChargeJump Climb
 		casual ChargeJump DoubleJump
 		casual Bash
 		casual Glide
-		standard Grenade
-		expert ChargeDash Energy=1
+		expert Grenade
+		expert ChargeDash
 	-- test connection with door removed
 	conn: ValleyPostStompDoor
 		casual OpenWorld
-home: ValleyEntryTreePlantAccess -185 -88
+home: ValleyEntryTreePlantAccess -187 -86
 	pickup: ValleyEntryTreePlant
 		casual ChargeFlame
 		casual Grenade
-		expert ChargeDash Energy=1
-home: ValleyPostStompDoor -338 -81
+		expert ChargeDash
+home: ValleyPostStompDoor -338 -82
 -- anchored left of the stomp post door
 	pickup: ValleyRightSwimExp
 		casual Water
-		standard Health=4
-		expert Health=3
-		master Health=2
+		expert Health=4
 	conn: ValleyRight
 		casual Bash WallJump
 		casual Bash Climb
@@ -3949,7 +3947,7 @@ home: LowerValleyPlantApproach -477 -66
 		casual ChargeFlame
 		casual Grenade
 		expert ChargeDash
-home: ValleyThreeBirdLever -393 -101
+home: ValleyThreeBirdLever -391 -102
 -- anchored on the lever to return to valley entry
 	pickup: ValleyMainFACS
 		casual Climb ChargeJump
@@ -3962,9 +3960,8 @@ home: ValleyThreeBirdLever -393 -101
 		casual Bash
 		casual Climb ChargeJump Glide
 		casual Climb ChargeJump DoubleJump
-		standard Dash DoubleJump Glide
 		expert Dash DoubleJump
-		expert ChargeDash Energy=1
+		expert ChargeDash
 		master GrenadeJump
 		master TripleJump
 	conn: ValleyEntry
@@ -3991,7 +3988,7 @@ home: ValleyThreeBirdLever -393 -101
 		expert Health=5
 		expert DoubleBash
 	conn: ValleyStompFloor
-home: ValleyThreeBirdACWarp -353 -93
+home: VallleyThreeBirdACWarp -349 -93
 	pickup: ValleyThreeBirdAbilityCell
 		casual Free
 	conn: ValleyEntry
@@ -4004,7 +4001,7 @@ home: ValleyThreeBirdACWarp -353 -93
 		standard DoubleJump AirDash
 		standard ChargeJump DoubleJump Climb
 		standard ChargeJump DoubleJump WallJump Health=4
-		expert RocketJump Energy=1
+		expert RocketJump
 		master TripleJump
 		master GrenadeJump
 	conn: ValleyStompFloor
@@ -4013,18 +4010,16 @@ home: ValleyThreeBirdACWarp -353 -93
 		casual Bash
 		standard AirDash
 		standard Health=4
-home: ValleyStompFloor -454 -124
--- anchored above the floor leading to forlorn, next to the energy crystal
+home: ValleyStompFloor -452 -125
+-- anchored above the floor leading to forlorn
 	conn: ValleyForlornApproach
 		casual Stomp
-		casual Climb ChargeJump
+		standard Climb ChargeJump
 		expert Lure Bash
 	conn: ValleyThreeBirdLever
 		casual Bash
 		casual ChargeJump Climb
 		casual ChargeJump WallJump DoubleJump
-		expert RocketJump Energy=1
-		master ChargeJump TripleJump
 	conn: ValleyEntry
 		casual Bash OpenWorld
 		casual ChargeJump DoubleJump OpenWorld
@@ -4032,9 +4027,9 @@ home: ValleyStompFloor -454 -124
 		standard ChargeJump Health=4 OpenWorld
 		expert ChargeJump Health=3 OpenWorld
 		expert DoubleJump Health=3 OpenWorld
-		expert RocketJump OpenWorld Energy=1
-home: ValleyForlornApproach -449 -143
--- anchored below the floor leading to forlorn, above the green wall
+		expert ChargeDash OpenWorld
+home: ValleyForlornApproach -451 -136
+-- anchored below the floor leading to forlorn
 	pickup: ValleyForlornApproachMapstone
 	pickup: ValleyForlornApproachGrenade
 		casual Grenade
@@ -4044,19 +4039,19 @@ home: ValleyForlornApproach -449 -143
 		expert ChargeFlame DoubleJump Mapstone
 		expert Grenade ChargeJump Mapstone
 		expert Grenade DoubleJump Mapstone
-		expert AirDash ChargeFlame Mapstone
-		expert AirDash Grenade Mapstone
+		expert ChargeFlame AirDash Mapstone
+		expert Grenade AirDash Mapstone
 	conn: OutsideForlornCliff
 		casual ChargeJump
 		casual Bash
 		standard Stomp
-		expert RocketJump Energy=1
 	conn: ValleyStompFloor
+		-- was casual ChargeJump
+		expert ChargeJump
 		casual ChargeJump DoubleJump
 		casual ChargeJump WallJump
 		casual ChargeJump Climb
 		casual ChargeJump Bash Grenade
-		standard ChargeJump
 		master Bash
 home: OutsideForlornCliff -521 -234
 -- anchored on the branch right of the cliff exp
@@ -4065,51 +4060,46 @@ home: OutsideForlornCliff -521 -234
 		casual Climb
 		casual DoubleJump
 		casual Glide
+		casual Dash
 		casual ChargeJump
 		casual Bash
-		standard Dash
 	conn: ValleyForlornApproach
-		standard Stomp Bash WallJump
-		standard Stomp Bash Climb DoubleJump
-		standard Stomp Bash ChargeJump
-		standard Stomp Bash Grenade
+		casual Stomp Bash WallJump
+		casual Stomp Bash Climb DoubleJump
+		casual Stomp Bash ChargeJump
+		casual Stomp Bash Grenade
 		expert Stomp ChargeFlame WallJump
 		expert Stomp ChargeFlame Climb DoubleJump
 		expert Stomp ChargeFlame ChargeJump
 		master Bash
 	conn: OutsideForlorn
-home: OutsideForlorn -605 -255
--- anchor: left of the pit outside the forlorn door entance
+home: OutsideForlorn -626 -254
+-- anchored at the forlorn door
 	pickup: OutsideForlornTreeExp
 		casual WallJump
 		casual Climb
 		casual ChargeJump
 		casual Bash Grenade
 		master Bash
-		master DoubleJump
 	pickup: OutsideForlornWaterExp
 		casual Water
-		standard Stomp Health=2
-		standard ChargeFlame Health=2
-		expert ChargeJump Bash Grenade Health=2
-		expert ChargeDash Health=2
 		expert Health=4
+		expert Stomp Health=2
 		master UltraDefense Health=2
 	conn: OutsideForlornCliff
-		casual ChargeJump WallJump
-		casual ChargeJump Climb
-		casual Bash Glide WallJump
-		casual Bash Glide Climb
+		casual WallJump ChargeJump
+		casual Climb ChargeJump
+		casual Bash Glide
 		casual Bash DoubleJump
-		standard Bash Grenade
-		expert RocketJump Energy=1
+		casual Bash Grenade
+		expert ChargeDash
 		expert DoubleBash
 		master ChargeJump DoubleJump
 	conn: ForlornOuterDoor
 		casual ForlornKey
 	conn: RightForlorn
 		glitched Free
-home: ForlornOuterDoor -663 -246
+home: ForlornOuterDoor -664 -249
 	conn: ForlornInnerDoor
 	conn: OutsideForlorn
 home: ForlornInnerDoor -716 -407
