@@ -108,6 +108,7 @@ class CLISeedParams(object):
         parser.add_argument("--teams", help="Cloned seeds only: define teams. Format: 1|2,3,4|5,6. Each player must appear once", type=str)
         parser.add_argument("--hints", help="Cloned seeds only: display a hint with the item category on a shared location instead of 'Warmth Returned'", action="store_true")
         parser.add_argument("--do-reachability-analysis", help="Analyze how many locations are opened by various progression items in various inventory states", action="store_true")
+        parser.add_argument("--areas-ori-path", help="Path to areas.ori. Will search next to generator if omitted.", type=str)
         args = parser.parse_args()
 
         """
@@ -122,6 +123,7 @@ class CLISeedParams(object):
         cell_freq = ndb.IntegerProperty(default=256)
         """
         self.seed = args.seed
+        self.areas_ori_path = args.areas_ori_path or ""
         if args.preset:
             self.logic_paths = presets[args.preset.capitalize()]
         elif args.custom_logic:

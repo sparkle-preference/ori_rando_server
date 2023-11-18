@@ -174,9 +174,12 @@ _REQS = [
     "OpenWorld"
 ]
 
-def get_areas(verbose=False):
-    dir_path = path.dirname(path.realpath(__file__))
-    return ori_load_file("%s/areas.ori" % dir_path, verbose)
+def get_areas(areas_ori_path="", verbose=False):
+    if areas_ori_path == "":
+        dir_path = path.dirname(path.realpath(__file__))
+        return ori_load_file("%s/areas.ori" % dir_path, verbose)
+    else:
+        return ori_load_file(areas_ori_path, verbose)
 
 def ori_load_file(fn, verbose=False):
     with open(fn, 'r') as f:
