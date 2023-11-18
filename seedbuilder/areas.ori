@@ -1677,7 +1677,6 @@ home: BashTree 521 329
 	conn: UpperGinsoRedirectArea
 		casual Bash WallJump
 		casual Bash Climb
-		casual Bash DoubleJump
 		casual Bash ChargeJump
 		casual Bash Grenade
 		casual ChargeJump DoubleJump Glide
