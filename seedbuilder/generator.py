@@ -1212,7 +1212,7 @@ class SeedGenerator:
             self.params.locationAnalysis["FinalEscape EVWarmth (-240 512)"]["Zone"] = "Horu"
 
         # sorry for this - only intended to last as long as 3.0 beta lasts
-        meta = get_areas()
+        meta = get_areas(self.params.areas_ori_path)
         logic_paths = [lp.value for lp in self.params.logic_paths]
         logic_path_tags = get_path_tags_from_pathsets(logic_paths)
         for loc_name, loc_info in meta["locs"].items():
