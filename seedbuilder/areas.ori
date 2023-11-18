@@ -1751,6 +1751,7 @@ home: UpperGinsoTree 532 472
 		standard GinsoKey ChargeJump Health=3
 		standard GinsoKey AirDash Health=3
 		standard GinsoKey Bash Grenade
+		expert GinsoKey ChargeJump AirDash
 		expert GinsoKey Health=5
 		expert GinsoKey ChargeDash Energy=1
 		master GinsoKey TripleJump Bash
