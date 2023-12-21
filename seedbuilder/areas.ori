@@ -1479,79 +1479,90 @@ home: OuterSwampUpperArea 637 -54
 		casual DoubleJump
 		standard Free
 	conn: OuterSwampLowerArea
+	conn: OuterSwampSwarmLedge
+		standard Free
 	conn: SwampTeleporter
 home: OuterSwampAbilityCellNook 692 -83
 	-- anchor: on the ledge near the ability cell
 	pickup: OuterSwampAbilityCell
 	conn: InnerSwampSkyArea
 		glitched Dash
-home: OuterSwampLowerArea 528 -120
+home: OuterSwampLowerArea 650 -100
 	-- anchor: on the ground among the mortar worms
-	pickup: OuterSwampStompExp
+	conn: OuterSwampSwarmLedge
 		casual WallJump
 		casual Climb
 		casual Bash
 		casual ChargeJump
 		casual DoubleJump
 		casual Glide Wind
-		expert ChargeDash
-	pickup: OuterSwampHealthCell
-		casual WallJump DoubleJump
-		casual ChargeJump
-		casual Bash Grenade
-		standard Climb DoubleJump
-		expert ChargeDash
-		master Bash
-		master DoubleJump Glide
-		master TripleJump
-	conn: OuterSwampMortarAbilityCellLedge
-		casual Bash
-		expert ChargeDash
-		master WallJump TripleJump
-	conn: OuterSwampUpperArea
-		casual WallJump DoubleJump
-		casual Climb DoubleJump
-		casual ChargeJump
-		casual Bash Grenade
-		casual Glide Wind
-		-- I still don't understand why people think this jump is hard
-		expert WallJump
-		expert Climb
-		expert ChargeDash
+		expert ChargeDash Energy=1
 	conn: OuterSwampAbilityCellNook
 		casual Bash Grenade
 		casual Glide Wind
 		standard Bash
 		standard WallJump
 		standard Climb
+	conn: OuterSwampUpperArea
+		casual WallJump DoubleJump
+		casual Climb DoubleJump
+		casual ChargeJump
+		casual Bash Grenade
+		casual Glide Wind
+		expert WallJump
+		expert Climb
+		expert ChargeDash Energy=1
+home: OuterSwampSwarmLedge 600 -90
+	-- anchor: where the swarm spawns
+	pickup: OuterSwampStompExp
+		casual Water
+		standard Free
+	pickup: OuterSwampHealthCell
+		casual WallJump DoubleJump
+		casual ChargeJump
+		casual Bash Grenade
+		standard Climb DoubleJump Glide
+		expert Climb DoubleJump
+		expert ChargeDash Energy=1
+		master Bash
+		master DoubleJump Glide
+		master TripleJump
+	pickup: OuterSwampMortarPlant
+		standard Grenade
 	conn: OuterSwampMortarPlantAccess
 		casual WallJump DoubleJump
 		casual Climb DoubleJump
+		casual WallJump Glide
+		casual Climb Glide
 		casual Bash
 		casual ChargeJump
-	conn: SwampEntryArea
-		casual WallJump
-		casual Climb
-		casual Bash
+		standard DoubleJump
+		standard Glide
+		standard AirDash
+		expert Dash
+	conn: OuterSwampMortarAbilityCellLedge
+		-- these paths assume that you solve the puzzle
 		casual ChargeJump
-		casual Glide Wind
-		casual DoubleJump
+		casual Bash DoubleJump
+		casual Bash Grenade
+		standard Bash
+		expert ChargeDash Energy=1
+		master WallJump TripleJump
 	conn: UpperGrotto
 		casual WallJump
 		casual Climb
 		casual Bash
 		casual ChargeJump
-		casual Glide Wind
-		casual DoubleJump
+		expert Free
+	conn: OuterSwampLowerArea
+	conn: SwampEntryArea
 home: OuterSwampHealthCellWarp 588 -66
 	pickup: OuterSwampHealthCell
-		casual Free
-	conn: OuterSwampLowerArea
-		casual Free
-home: OuterSwampMortarAbilityCellLedge 496 -109
+	conn: OuterSwampSwarmLedge
+home: OuterSwampMortarAbilityCellLedge 507 -109
 	-- anchor: on the ability cell ledge
 	pickup: OuterSwampMortarAbilityCell
-	conn: OuterSwampMortarPlantAccess
+	pickup: OuterSwampMortarPlant
 		expert ChargeFlame
 	conn: UpperGrotto
 home: OuterSwampMortarPlantAccess 522 -101
@@ -1900,13 +1911,11 @@ home: UpperGrotto 433 -122
 		expert Climb ChargeDash
 		master Bash
 		master DoubleJump Glide
-	conn: OuterSwampMortarAbilityCellLedge
-		casual ChargeJump
 	conn: MoonGrottoStompPlantAccess
 		casual Stomp
 		standard Climb ChargeJump
 		master Bash
-	conn: OuterSwampLowerArea
+	conn: OuterSwampSwarmLedge
 		casual WallJump
 		casual Climb
 		casual Bash Grenade
