@@ -4430,6 +4430,7 @@ home: LowerSorrow -484 248
 	-- backtrack connection for leaving from TP
 	conn: WilhelmLedge
 		casual Glide DoubleJump
+		casual Glide Wind
 		expert Glide Dash
 		expert Dash DoubleJump
 		expert Glide Health=5
