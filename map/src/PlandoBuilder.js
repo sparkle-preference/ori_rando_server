@@ -25,7 +25,6 @@ const relevantCodes = ["HC", "AC", "EC", "KS", "MS", "TP", "RB", "EV", "SK"];
 const DUNGEON_KEYS = ["EV|0", "EV|2", "EV|4"]
 const DEFAULT_DATA = {
     '-280256': {label: "Energy Cell", value: "EC|1"},
-    '-1680104': {label: "100 Experience", value: "EX|100"},
     '-12320248': {label: "Nothing", value: "NO|1"}
 }
 
@@ -56,7 +55,7 @@ const modes_by_key = {"Shared": "Shared", "None": "Solo", "Split": "Shards Race"
 const COOP_MODES = Object.keys(modes_by_key).map((k) => { return {label: modes_by_key[k], value: k} });
 const SHARE_TYPES = ["WorldEvents", "Misc", "Upgrades", "Teleporters", "Skills"]
 const crs = getMapCrs();
-const DANGEROUS = [-280256, -1680104, -12320248]
+const DANGEROUS = [-280256, -12320248]
 const paths = Object.keys(presets);
 
 const dev = window.document.URL.includes("devshell")
