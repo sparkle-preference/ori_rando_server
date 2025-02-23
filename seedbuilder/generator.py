@@ -1736,7 +1736,7 @@ class SeedGenerator:
                     itemsToAssign.append(self.assign("KS"))
                 elif self.inventory["MS"] < mapstoneCount:
                     itemsToAssign.append(self.assign("MS"))
-                elif self.inventory["HC"] * self.params.cell_freq < (252 - locs) and self.itemPool["HC"] > 0:
+                elif (self.inventory["HC"] - 3) * self.params.cell_freq < (252 - locs) and self.itemPool["HC"] > 0:
                     itemsToAssign.append(self.assign("HC"))
                 elif self.inventory["EC"] * self.params.cell_freq < (252 - locs) and self.itemPool["EC"] > 0:
                     itemsToAssign.append(self.assign("EC"))
