@@ -967,7 +967,7 @@ class SeedGenerator:
                             if self.itemPool.get(req, 0) == 0:
                                 requirements = []
                                 continue
-                            if req in ["HC", "EC", "WaterVeinShard", "GumonSealShard", "SunstoneShard"]:
+                            if req in ["HC", "EC", "AC", "WaterVeinShard", "GumonSealShard", "SunstoneShard"]:
                                 cnts[req] += 1
                                 if cnts[req] > self.inventory[req]:
                                     requirements.append(req)
