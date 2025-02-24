@@ -961,7 +961,7 @@ class SeedGenerator:
                             # if the item isn't in your itemPool (due to co-op or an unprocessed forced assignment), skip it
                             if self.itemPool.get(req, 0) == 0:
                                 requirements = []
-                                continue
+                                break
                             if req in ["HC", "EC", "AC", "WaterVeinShard", "GumonSealShard", "SunstoneShard"]:
                                 cnts[req] += 1
                                 if cnts[req] > self.inventory[req]:
