@@ -4214,7 +4214,7 @@ home: ForlornTeleporter -912 -302
 		expert ForlornKey ChargeDash WallJump
 		master Lure ForlornKey Bash
 	conn: ForlornOrbPossession
-		casual ForlornKey Open
+		casual Open
 	conn: ForlornMapArea
 		casual WallJump
 		casual Climb
@@ -4229,8 +4229,11 @@ home: ForlornPlantAccess -823 -267
 		casual Grenade
 		expert ChargeDash
 home: ForlornKeyDoor -805 -309
+	conn: ForlornKeyDoorOpened
+		casual Keystone=4
+home: ForlornKeyDoorOpened -805 -309
 	conn: ForlornLaserRoom
-		casual ForlornKey Keystone=4
+		casual ForlornKey
 home: ForlornLaserRoom -793 -309
 	-- anchored past the Forlorn key door
 	-- this path assumes the bridge exists
