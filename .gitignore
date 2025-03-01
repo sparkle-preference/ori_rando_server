@@ -1,3 +1,4 @@
 *.pyc
 *.tern-project
 /lib
+/.venv
