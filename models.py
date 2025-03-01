@@ -303,8 +303,8 @@ class Player(ndb.Model):
         put = False
         seen_diff = 8 * [0]
         for i in range(8):
-            seen = int(post_data["seen_%s" % i])
-            have = int(post_data["have_%s" % i])
+            seen = int(post_data.get("seen_%s" % i, 0))
+            have = int(post_data.get("have_%s" % i))
             if self.seen_bflds[i] != seen:
                 put = True
                 seen_diff[i] = seen - self.seen_bflds[i]
@@ -316,7 +316,6 @@ class Player(ndb.Model):
             have = Cache.get_have(game_id)
             have[self.pid()] = self.have_coords()
             Cache.set_have(game_id, have)
-#            print bfields_to_coords(seen_diff)
             self.put()
     
     def seen_coords(self):
@@ -375,8 +374,8 @@ class Player(ndb.Model):
     # post-refactor version of bitfields
     def output(self):
         outlines = [str(x) for x in [self.skills, self.events, self.teleporters]]
-        outlines.append(";".join([ "%sx%s" % (_id, cnt) for (_id, cnt) in self.bonuses.iteritems()]))
-        outlines.append(";".join(["%s:%s" % (loc, finder) for (loc, finder) in self.hints.iteritems()]))
+        outlines.append(";".join([ "%sx%s" % (_id, cnt) for (_id, cnt) in self.bonuses.items()]))
+        outlines.append(";".join(["%s:%s" % (loc, finder) for (loc, finder) in self.hints.items()]))
         if self.signals:
             outlines.append("|".join(self.signals))
         return ",".join(outlines)
@@ -1077,7 +1076,7 @@ class Game(ndb.Model):
             for (field, cls) in [("skills", Skill), ("teleporters", Teleporter), ("events", Event)]:
                 bitmap = getattr(src, field)
                 names = []
-                for id, bit in cls.bits.iteritems():
+                for id, bit in cls.bits.items():
                     i = cls(id)
                     if i:
                         if i.stacks:
@@ -1092,7 +1091,7 @@ class Game(ndb.Model):
             relics = []
             warps = []
             bonuses = []
-            for (name, cnt) in [(Pickup.name("RB" if k.isnumeric() else "TW", k), v) for k, v in src.bonuses.iteritems()]:
+            for (name, cnt) in [(Pickup.name("RB" if k.isnumeric() else "TW", k), v) for k, v in src.bonuses.items()]:
                 if "Tree" in name:
                     trees.append(name.replace(" Tree", ""))
                 elif "Warp to" in name:
@@ -1245,7 +1244,7 @@ class Game(ndb.Model):
         i = 0
         for pids, inv in shared_inventories.items():
             players = [p for p in ps if p.pid() in pids]
-            for key, count in inv.iteritems():
+            for key, count in inv.items():
                 if key[0] == "WT":
                     continue # hahahaha fucking christ
                 pickup = Pickup.n(key[0], key[1])

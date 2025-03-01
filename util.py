@@ -1,4 +1,5 @@
 from __future__ import division, print_function
+from flask import request, url_for
 from math import floor
 from collections import defaultdict, namedtuple
 from seedbuilder.oriparse import get_areas
@@ -44,7 +45,6 @@ extra_PBT = [
     PickLoc(52, 'Mapstone 8', 'Mapstone', 'MS8', 0, 52),
     PickLoc(56, 'Mapstone 9', 'Mapstone', 'MS9', 0, 56),
     PickLoc(-280256, "EC", "Glades", "SunkenGladesFirstEC", -28, -256),
-    PickLoc(-1680104, "EX100", "Grove", "UnsafeSpiritTree100Ex", -168, -104),
     PickLoc(-2399488, "EVWarmth", "Horu", "FinalEscape", -240, 512),
     PickLoc(-12320248, "Plant", "Forlorn", "ForlornEscapePlant", -1232, -248),
     PickLoc(2, "SPAWN", "Glades", "FirstPickup", 189, -210),
@@ -238,7 +238,7 @@ def picks_by_type(extras=False):
 
     picks_by_type = defaultdict(lambda: [])
     all_locs_unpacked = {unpack(loc): loc for loc in all_locs}
-    for area, loc_info in locs.iteritems():
+    for area, loc_info in locs.items():
         x = loc_info["x"]
         y = loc_info["y"]
         item = loc_info["item"]
@@ -283,8 +283,8 @@ def picks_by_type_generator():
     return lines
 
 # request helpers
-def template_vals(s, app, title, user):
-    template_values = {'app': app, 'title': title, 'version': "%s.%s.%s" % tuple(VER), 'race_wl': whitelist_ok(s)}
+def template_vals(app, title, user):
+    template_values = {'app': app, 'title': title, 'version': "%s.%s.%s" % tuple(VER), 'race_wl': whitelist_ok()}
     if user:
         template_values['user'] = user.name
         template_values['dark'] = user.dark_theme
@@ -293,25 +293,40 @@ def template_vals(s, app, title, user):
             template_values['theme'] = user.theme
     return template_values
 
-def whitelist_ok(s):
+def whitelist_ok():
     from secrets import whitelist_secret
-    return param_val(s, "sec") == whitelist_secret
+    return param_val("sec") == whitelist_secret
 
+def game_list_html(games):
+    body = ""
+    for game in sorted(games, key=lambda x: x.last_update, reverse=True):
+        gid = game.key.id()
+        game_link = url_for('game_history', game_id=gid)
+        map_link = uri_for('tracking_map', game_id=gid)
+        slink = ""
+        flags = ""
+        if game.params:
+            params = game.params.get()
+            if Variation.RACE in params.variations and not whitelist_ok(self):
+                continue
+            flags = params.flag_line()
+            slink = " <a href=%s>Seed</a>" % url_for('main_page', game_id=gid, param_id=params.key.id())
+        blink = ""
+        if game.bingo_data:
+            blink += " <a href='/bingo/board?game_id=%s'>Bingo board</a>" % gid
+        body += "<li><a href='%s'>Game #%s</a> <a href='%s'>Map</a>%s%s %s (Last update: %s ago)</li>" % (game_link, gid, map_link, slink, blink, flags, datetime.now() - game.last_update)
+    return body
 
-debug = os.environ.get('SERVER_SOFTWARE', '').startswith('Dev')
+def debug():
+    return '127.0.0.1' in request.url_root 
 path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
+template_root = os.path.join(os.path.dirname(__file__), 'map/build/templates/')
 
-def param_val(s, f):
-    return s.request.get(f, None)
+def param_val(f):
+    return request.args.get(f, None)
 
-def param_flag(s, f):
-    return param_val(s, f) is not None
-
-def resp_error(handler, code=400, response=None, altRespType=None):
-    handler.response.status = code
-    if altRespType:
-        handler.response.headers['Content-Type'] = altRespType
-    handler.response.write(response)
+def param_flag(f):
+    return param_val(f) is not None
 
 coords_in_order = [ -10120036,  -10440008,  -10759968,  -10760004,  -10839992,  -11040068,  -11880100,  -120208,  -12320248,  -1560188,  -1560272,  -160096,  
                     -1639664,  -1680104,  -1680140,  -1800088,  -1800156,  -1840196,  -1840228,  -1919808,  -199724,  -2080116,  -2160176,  -2200148,  -2200184, 

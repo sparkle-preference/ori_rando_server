@@ -342,12 +342,12 @@ class SeedGenParams(ndb.Model):
             log.error("seed count mismatch!, %s != %s or %s", player, self.players, len(self.sync.teams))
             return False
         self.spoilers = spoilers
-        self.placements = placemap.values()
+        self.placements = list(placemap.values())
         self.put()
         return True
 
     def teams_inv(self):  # generates {pid: tid}
-        return {pid: tid for tid, pids in self.sync.teams.iteritems() for pid in pids}
+        return {pid: tid for tid, pids in self.sync.teams.items() for pid in pids}
 
     def team_pid(self, pid):  # given pid, get team or return pid if no teams exist (REMINDER: TEAMS ARE CLONED ONLY)
         return int(self.teams_inv()[pid]) if (self.sync.teams and self.sync.cloned) else pid
@@ -394,12 +394,12 @@ class SeedGenParams(ndb.Model):
             seed_data[sect].append((loc, name, pcode + pid))
         for section, group in seed_data.items():
             outlines += ["", "%s:" % section]
-            outlines += ["\t%-35s %s" % (l.area, n) for (l, n, _) in sorted(group, key=lambda (_, __, key): key)]
+            outlines += ["\t%-35s %s" % (l.area, n) for (l, n, _) in sorted(group, key=lambda grpline: grpline[2])]
         return "\n".join(outlines[1:])
 
     def get_preset(self):
         pathset = set(self.logic_paths)
-        for name, lps in presets.iteritems():
+        for name, lps in presets.items():
             if lps == pathset:
                 return name
         return "Custom"

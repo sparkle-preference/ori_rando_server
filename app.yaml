@@ -1,6 +1,6 @@
-runtime: python27
-api_version: 1
-threadsafe: true
+runtime: python312
+app_engine_apis: true
+
 instance_class: F2
 automatic_scaling:
   target_cpu_utilization: .7
@@ -10,14 +10,6 @@ automatic_scaling:
   min_idle_instances: 0
   max_idle_instances: 0
 
-
-libraries:
-- name: webapp2
-  version: "latest" 
-- name: enum 
-  version: "latest"
-- name: yaml
-  version: "latest"
 
 handlers:
 - url: /sprites
@@ -37,7 +29,8 @@ handlers:
   application_readable: true
 
 - url: /netcode/.*
-  script: main.app
+  script: auto
+  secure: never
 
 - url: /.*
   script: main.app
