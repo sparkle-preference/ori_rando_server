@@ -121,9 +121,9 @@ class Map(object):
     @staticmethod
     def build():
         areas = get_areas()["homes"]
-        for name, area_data in areas.iteritems():
+        for name, area_data in areas.items():
             area = Area(name)
-            for target, conn_data in area_data["conns"].iteritems():
+            for target, conn_data in area_data["conns"].items():
                 conn = Connection(target)
                 if not conn_data["paths"]:
                     conn.add_requirements([], "casual-core")
@@ -154,13 +154,13 @@ class Map(object):
             reachable_areas.add(curr)
             needs_ks_check.add(curr)
             reachable = Map.areas[curr].get_reachable(state, modes)
-            for k, v in reachable.iteritems():
+            for k, v in reachable.items():
                 Map.reached_with[k] |= set(v)
             unchecked_areas |= set([r for r in reachable.keys() if r not in reachable_areas])
             while len(unchecked_areas) < len(needs_ks_check):
                 curr = needs_ks_check.pop()
                 reachable = Map.areas[curr].get_reachable(state, modes, True)
-                for k, v in reachable.iteritems():
+                for k, v in reachable.items():
                     Map.reached_with[k] |= set(v)
                 unchecked_areas |= set([r for r in reachable.keys() if r not in reachable_areas])
 

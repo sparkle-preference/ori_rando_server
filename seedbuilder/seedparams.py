@@ -53,7 +53,7 @@ class MultiplayerOptions(ndb.Model):
             opts.cloned = qparams.get("sync_gen") != "disjoint"
             if opts.cloned:
                 opts.dedup = bool(qparams.get("dedup_shared", False))
-            opts.shared = enums_from_strlist(ShareType, qparams.getall("sync_shared"))
+            opts.shared = enums_from_strlist(ShareType, qparams.getlist("sync_shared"))
             teamsRaw = qparams.get("teams")
             if teamsRaw and opts.mode == MultiplayerGameType.SHARED and opts.cloned:
                 cnt = 1
@@ -136,6 +136,7 @@ class SeedGenParams(ndb.Model):
     spawn_weights = ndb.FloatProperty(repeated=True)
     verbose_spoiler = ndb.BooleanProperty(default=False)
     do_loc_analysis = False
+    areas_ori_path = ""
 
     @staticmethod
     def from_plando(plando, tracking=True):
@@ -203,8 +204,8 @@ class SeedGenParams(ndb.Model):
         if not params.seed:
             log.error("No seed in %r! returning None" % qparams)
             return None
-        params.variations = enums_from_strlist(Variation, qparams.getall("var"))
-        params.logic_paths = enums_from_strlist(LogicPath, qparams.getall("path"))
+        params.variations = enums_from_strlist(Variation, qparams.getlist("var"))
+        params.logic_paths = enums_from_strlist(LogicPath, qparams.getlist("path"))
         if not params.logic_paths:
             log.error("No logic paths in %r! returning None" % qparams)
             return None

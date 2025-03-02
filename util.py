@@ -3,14 +3,16 @@ from flask import request, url_for
 from math import floor
 from collections import defaultdict, namedtuple
 from seedbuilder.oriparse import get_areas
+from enums import Variation
+from datetime import datetime
 import itertools as _itertools
 import operator
 import bisect as _bisect
 import logging as log
 import os
 
-VER = [4, 0, 7]
-MIN_VER = [4, 0, 7]
+VER = [4, 1, 0]
+MIN_VER = [4, 1, 0]
 def version_check(version):
     try:
         nums = [int(num) for num in version.split(".")]
@@ -23,6 +25,14 @@ def version_check(version):
     except Exception as e:
         log.error("failed version check for version %s: %s", version, e)
         return False
+
+def clone_entity(e, **extra_args):
+    klass = e.__class__
+    props = dict((v._code_name, v.__get__(e, klass)) for v in klass._properties.values() if
+                 type(v) != ndb.ComputedProperty)
+    props.update(extra_args)
+    return klass(**props)
+
 
 coord_correction_map = {
     679620: 719620,
@@ -301,8 +311,8 @@ def game_list_html(games):
     body = ""
     for game in sorted(games, key=lambda x: x.last_update, reverse=True):
         gid = game.key.id()
-        game_link = url_for('game_history', game_id=gid)
-        map_link = uri_for('tracking_map', game_id=gid)
+        game_link = url_for('game_show_history', game_id=gid)
+        map_link = url_for('tracker_show_map', game_id=gid)
         slink = ""
         flags = ""
         if game.params:

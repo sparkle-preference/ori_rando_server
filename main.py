@@ -2,24 +2,27 @@
 import random
 import json
 from collections import Counter, defaultdict
+from time import sleep
+from calendar import timegm
+from datetime import datetime, timedelta
 
 # web imports
 import logging as log
 from urllib.request import urlopen
 from urllib.parse import unquote
 from flask import Flask, render_template, request, make_response, url_for, redirect
-
-from datetime import datetime, timedelta
 from google.appengine.ext import ndb
+from google.appengine.ext.ndb import transactional
 from google.appengine.api import urlfetch
 
 # project imports
 from seedbuilder.seedparams import SeedGenParams
 from seedbuilder.vanilla import seedtext as vanilla_seed
 from enums import MultiplayerGameType, ShareType, Variation
-from models import Game, Seed, User, BingoGameData, CustomLogic, trees_by_coords
+from models import Game, Seed, User, BingoGameData, BingoEvent, BingoTeam, CustomLogic, trees_by_coords
+from bingo import BingoGenerator
 from cache import Cache
-from util import coord_correction_map, all_locs, picks_by_type_generator, param_val, param_flag, debug, template_root, VER, game_list_html, version_check, template_vals, layout_json, whitelist_ok
+from util import coord_correction_map, clone_entity, all_locs, picks_by_type_generator, param_val, param_flag, debug, template_root, VER, game_list_html, version_check, template_vals, layout_json, whitelist_ok
 from reachable import Map, PlayerState
 from pickups import Pickup
 
@@ -31,8 +34,6 @@ path='index.html'
 
 app = Flask(__name__)
 app.wsgi_app = wrap_wsgi_app(app.wsgi_app)
-
-
 
 VERSION = "%s.%s.%s" % tuple(VER)
 PLANDO_VER = "0.5.1"
@@ -46,7 +47,7 @@ def make_resp(body, status=200, mimeType = 'text/html'):
 	return make_response((body, status, {'Content-Type': mimeType}))
 
 def json_resp(jsonstr, status=200):
-    return make_resp(json.dumps(jsonstr), status, mimeType = "application/json")
+    return make_resp(jsonstr if isinstance(jsonstr, str) else json.dumps(jsonstr), status, mimeType = "application/json")
 
 def code_resp(code):
     return text_resp(str(code), code)
@@ -64,23 +65,7 @@ def clean_up():
     else:
         return text_resp("Cleaned up %s games before timeout" % clean_count)
 
-
-@app.route('/game/<game_id>/delete/')
-def delete_game(game_id):
-    if int(game_id) < 10000 and not param_flag(self, "override"):
-        return text_resp("No", 403)
-    game = Game.with_id(game_id)
-    if game:
-        game.clean_up()
-        return text_resp("All according to daijobu")
-    else:
-        self.response.status = 401
-        return text_resp("The game... was already dead...", 401)
-
 @app.route('/activeGames/')
-def active_games_default():
-    return active_games(12)
-
 @app.route('/activeGames/<hours>/')
 def active_games(hours=12):
     hours = int(hours)
@@ -102,6 +87,8 @@ def active_games(hours=12):
         out += "<h4>%s</h4></body></html>" % title
     return make_resp(out)
 
+
+@app.route('/quickstart')
 @app.route('/')
 def main_page():
     template_values = template_vals("MainPage", "Ori DE Randomizer %s" % VERSION, User.get())
@@ -196,8 +183,94 @@ def netcode_tick_post(game_id, player_id):
     Cache.set_pos(game_id, player_id, x, y)
     return text_resp(p.output())
 
+@app.route('/netcode/game/<game_id>/player/<player_id>/callback/<signal>')
+def netcode_signal_callback(game_id, player_id, signal):
+    game = Game.with_id(game_id)
+    if not game:
+        return code_resp(412)
+    p = game.player(player_id)
+    p.signal_conf(signal)
+    return text_resp("cleared")
+
+@app.route('/netcode/game/<game_id>/player/<player_id>/setSeed', methods=['POST'])
+@app.route('/netcode/game/<game_id>/player/<player_id>/connect', methods=['POST'])
+def netcode_connect(game_id, player_id):
+    game = Game.with_id(game_id)
+    hist = Cache.get_hist(game_id)
+    if not hist:
+        Cache.set_hist(game_id, player_id, [])
+    if game:
+        p = game.player(player_id)
+        vers = request.form.get("version")
+        if p.can_nag and vers and (not version_check(vers)):
+            p.signal_send("msg:@dll out of date. (orirando.com/dll)@")
+            p.can_nag = False
+            p.put()
+        game.sanity_check()  # cheap if game is short!
+    else:
+        # we no longer support uploading seeds
+        log.error("game was not already created! %s" % game_id)
+    return text_resp("ok")
+
+@app.route('/netcode/areas')
+def netcode_get_areas_dot_ori():
+    return text_resp(Cache.get_areas())
+
+@app.route('/game/<game_id>/delete/')
+def game_delete(game_id):
+    if int(game_id) < 10000 and not param_flag(self, "override"):
+        return text_resp("No", 403)
+    game = Game.with_id(game_id)
+    if game:
+        game.clean_up()
+        return text_resp("All according to daijobu")
+    else:
+        return text_resp("The game... was already dead...", 401)
+
+@app.route('/game/<game_id>')
+@app.route('/game/<game_id>/history/')
+def game_show_history(game_id):
+    template_values = template_vals("History", "Game %s" % game_id, User.get())
+    game = Game.with_id(game_id)
+    if game:
+        if (Variation.RACE in game.params.get().variations) and not template_values["race_wl"]:
+            return text_code("Access forbidden", 401)
+        output = game.summary(int(param_val("p") or 0))
+        output += "\nHistory:"
+        hls = []
+        pids = [int(pid) for pid in param_val("pids").split("|")] if param_val("pids") else []
+        hls = game.history(pids) if param_flag("verbose") else [h for h in game.history(pids) if h.pickup().is_shared(share_types)]
+        for hl in sorted(hls, key=lambda x: x.timestamp, reverse=True):
+            output += "\n\t\t%s Player %s %s" % ((hl.player-1)*"\t\t\t\t", hl.player, hl.print_line(game.start_time))
+        return text_resp(output)
+    else:
+        return text_resp("Game %s not found!" % game_id, 404)
+
+@app.route('/game/<game_id>/players/')
+def game_list_players(game_id):
+        game = Game.with_id(game_id)
+        if not game:
+            return text_resp("Game %s not found!" % game_id, 404)
+        out_lines = []
+        for p in game.get_players():
+            out_lines.append("Player %s: %s" % (p.pid(), p.bitfields))
+            out_lines.append("\t\t" + "\n\t\t".join([hl.print_line(game.start_time) for hl in game.history([p.pid()]) if hl.pickup().is_shared(share_types)]))
+        return text_resp("\n".join(out_lines))
+
+@app.route('/game/<game_id>/player/<pid>/remove/')
+def game_remove_player(game_id, pid):
+    key = ".".join([game_id, pid])
+    game = Game.with_id(game_id)
+    if not game:
+        return text_resp("Game %s not found!" % game_id, 404)
+    if key in [p.id() for p in game.players]:
+        game.remove_player(key)
+        return redirect(url_for("game_list_players", game_id=game_id))
+    else:
+        return text_resp("player %s not in %s for" % (key, game.players), 404)
+
 @app.route("/generator/build", methods=['GET', 'POST'])
-def make_seed_from_params():
+def gen_seed_from_params():
     param_key = SeedGenParams.from_json(json.loads(request.form.get('params'))) if request.method == 'POST' else SeedGenParams.from_url(request.args)
     if not param_key:
         return text_resp("Failed to build params!", 500)
@@ -216,8 +289,34 @@ def make_seed_from_params():
 
     return json_resp(resp)
 
+@app.route('/generator/json')
+def gen_seed_from_url():
+    param_key = SeedGenParams.from_url(request.args)
+    verbose_paths = param_val("verbose_paths") is not None
+    if param_key:
+        params = param_key.get()
+        if params.generate(preplaced={}):
+            players = []
+            resp = {}
+            if params.tracking:
+                game = Game.from_params(params, param_val("game_id"))
+                key = game.key
+                resp["map_url"] = url_for("tracker_show_map", game_id=key.id())
+                resp["history_url"] = url_for("game_show_history", game_id=key.id())
+            for p in range(1, params.players + 1):
+                if params.tracking:
+                    seed = params.get_seed(p, key.id(), verbose_paths)
+                else:
+                    seed = params.get_seed(p, verbose_paths=verbose_paths)
+                spoiler = params.get_spoiler(p).replace("\n", "\r\n")
+                players.append({"seed": seed, "spoiler": spoiler, "spoiler_url": url_for('get_spoiler_from_params', params_id=param_key.id(), player=p)})
+            resp["players"] = players
+            return json_resp(resp)
+    log.error("param gen failed")
+    return json_resp({"error": "param gen failed"}, 500)
+
 @app.route('/generator/seed/<params_id>')
-def get_seed_from_params(params_id):
+def load_seed_from_params(params_id):
     verbose_paths = param_flag("verbose_paths")
     params = SeedGenParams.with_id(params_id)
     if params:
@@ -285,1075 +384,1003 @@ def get_param_metadata(param_id, game_id):
         res["gameId"] = game.key.id()
     return json_resp(res)
 
-@app.route('/game/<game_id>/history/')
-def show_game_history(game_id):
-    template_values = template_vals("History", "Game %s" % game_id, User.get())
+@app.route('/cache/clear')
+def clear_cache():
+    Cache.clear()
+    text_resp("cache cleared!")
+
+@app.route('/vanilla')
+def vanilla_seed():
+    return text_download(vanilla_seed, "randomizer.dat")
+
+@app.route('/picksbytype')
+def picks_by_type():
+    return json_resp(picks_by_type_generator())
+
+@app.route('/tracker/game/<game_id>/')
+@app.route('/tracker/game/<game_id>/map')
+def tracker_show_map(game_id):
+    template_values = template_vals("GameTracker", "Game %s" % game_id, User.get())
+    template_values['game_id'] = game_id
+    # if debug() and param_flag("from_test"):
+    #     game = Game.with_id(game_id)
+    #     pos = Cache.get_pos(game_id)
+    #     hist = Cache.get_hist(game_id)
+    #     if any([x is None for x in [game, pos, hist]]):
+    #         return redirect(url_for('tests_map_gid', game_id=game_id, from_test=1))
     game = Game.with_id(game_id)
-    if game:
-        if (Variation.RACE in game.params.get().variations) and not template_values["race_wl"]:
-            return text_code("Access forbidden", 401)
-        output = game.summary(int(param_val("p") or 0))
-        output += "\nHistory:"
-        hls = []
-        pids = [int(pid) for pid in param_val("pids").split("|")] if param_val("pids") else []
-        hls = game.history(pids) if param_flag("verbose") else [h for h in game.history(pids) if h.pickup().is_shared(share_types)]
-        for hl in sorted(hls, key=lambda x: x.timestamp, reverse=True):
-            output += "\n\t\t%s Player %s %s" % ((hl.player-1)*"\t\t\t\t", hl.player, hl.print_line(game.start_time))
-        text_resp(output)
+    if game and (Variation.RACE in game.params.get().variations) and not template_values["race_wl"]:
+        return text_resp("Access forbidden", 401)
+    return render_template(path, **template_values)
+
+@app.route('/tracker/game/<game_id>/fetch/gamedata')
+def tracker_fetch_gamedata(game_id):
+    gamedata = {}
+    game = Game.with_id(game_id)
+    if not game or not game.params:
+        return json_resp({"error": "Game %s not found!" % game_id}, 404)
+    params = game.params.get()
+    gamedata["paths"] = params.logic_paths
+    gamedata["players"] = [p.userdata() for p in game.get_players()]
+    gamedata["closed_dungeons"] = Variation.CLOSED_DUNGEONS in params.variations
+    gamedata["open_world"] = Variation.OPEN_WORLD in params.variations
+    return json_resp(gamedata)
+
+@app.route('/tracker/game/<game_id>/fetch/update')
+def tracker_update_map(game_id):
+    players = {}
+    username = param_val("usermap")
+    gid_changed = False
+    if username and User.latest_game(username) != int(game_id):
+        game_id = User.latest_game(username)
+        gid_changed = True
+    pos = Cache.get_pos(game_id)
+    inventories = None
+    game = None
+    if not pos:
+        pos = {}
+    for p, (x, y) in pos.items():
+        players[p] = {"pos": [y, x], "seen": [], "reachable": []}  # bc we use tiling software, this is lat/lng, and thus coords need inverting
+
+    coords = Cache.get_have(game_id)
+    if not coords:
+        game = Game.with_id(game_id)
+        if not game:
+            return json_resp({"error": "Game %s not found" % game_id}, 404)
+        coords = { p.pid(): p.have_coords() for p in game.get_players() }
+        Cache.set_have(game_id, coords)
+    for p, coords in coords.items():
+        if p not in players:
+            players[p] = {}
+        players[p]["seen"] = coords
+    reach = Cache.get_reachable(game_id)
+    modes = tuple(sorted(param_val("modes").split(" ")))
+    need_reach_updates = [p for p in players.keys() if modes not in reach.get(p, {})]
+    if need_reach_updates:
+        if not game:
+            game = Game.with_id(game_id)
+            if not game:
+                return json_resp({"error": "Game %s not found" % game_id}, 404)
+        if not inventories:
+            inventories = game.get_inventories(game.get_players(), True, True)
+        spawn = game.params.get().spawn or "Glades"
+        for p in need_reach_updates:
+            inventory = [(pcode, pid, count, False) for ((pcode, pid), count) in inventories["unshared"][p].items()]
+            inventory  += [(pcode, pid, count, False) for group, inv in inventories.items()  if group != "unshared" and p in group for ((pcode, pid), count) in inv.items()]
+            state = PlayerState(inventory)
+            if state.has["KS"] > 8 and "standard-core" in modes:
+                state.has["KS"] += 2 * (state.has["KS"] - 8)
+            if p not in reach:
+                reach[p] = {}
+            reach[p][modes] = Map.get_reachable_areas(state, modes, spawn, False)
+        Cache.set_reachable(game_id, reach)
+    for p in reach:
+        players[p]["reachable"] = reach[p][modes]
+    res = {"players": players} # , "items": items
+    if gid_changed:
+        res["newGid"] = game_id
+    return json_resp(res)
+
+@app.route('/tracker/game/<game_id>/fetch/seen')
+def tracker_get_seen(game_id):
+    coords = Cache.get_have(game_id)
+    if not coords:
+        game = Game.with_id(game_id)
+        if not game:
+            return code_resp(404)
+        return json_resp({ p.pid(): p.have_coords() for p in game.get_players() })
+
+
+@app.route('/tracker/game/<game_id>/fetch/pos')
+def tracker_get_positions(game_id):
+    pos = Cache.get_pos(game_id)
+    if pos:
+        players = {}
+        for p, (x, y) in pos.items():
+            players[p] = [y, x]  # bc we use tiling software, this is lat/lng
+        return json_resp(players)
     else:
-        text_resp("Game %s not found!" % game_id, 404)
+        return code_resp(404)
 
 
+@app.route('/tracker/game/<game_id>/fetch/reachable')
+def tracker_get_reachable(game_id):
+    hist = Cache.get_hist(game_id)
+    reachable_areas = {}
+    if not hist or not param_val("modes"):
+        return json_resp({}, 404)
+    modes = param_val("modes").split(" ")
+    game = Game.with_id(game_id)
+    spawn = game.params.get().spawn or "Glades"
+    shared_hist = []
+    shared_coords = set()
+    try:
+        if game and game.mode == MultiplayerGameType.SHARED:
+            shared_hist = [hl for hls in hist.values() for hl in hls if hl.pickup().is_shared(game.shared)]
+            shared_coords = set([hl.coords for hl in shared_hist])
+        for player, personal_hist in hist.items():
+            player_hist = [hl for hl in hist[player] if hl.coords not in shared_coords] + shared_hist
+            state = PlayerState([(h.pickup_code, h.pickup_id, 1, h.removed) for h in player_hist])
+            areas = {}
+            if state.has["KS"] > 8 and "standard-core" in modes:
+                state.has["KS"] += 2 * (state.has["KS"] - 8)
+            for area, reqs in Map.get_reachable_areas(state, modes, spawn).items():
+                areas[area] = [{item: count for (item, count) in req.cnt.items()} for req in reqs if len(req.cnt)]
+            reachable_areas[player] = areas
+        return json_resp(reachable_areas)
+    except AttributeError:
+        log.error("cache invalidated for game %s! Rebuilding..." % game_id)
+        game.rebuild_hist()
+        return json_resp(reachable_areas)
 
-# class Vanilla(RequestHandler):
-#     def get(self):
-#         self.response.headers['Content-Type'] = 'application/x-gzip'
-#         self.response.headers['Content-Disposition'] = 'attachment; filename=randomizer.dat'
-#         self.response.write(vanilla_seed)
+@app.route('/tracker/game/<game_id>/fetch/items/<player_id>')
+def tracker_get_items_update(game_id, player_id):
+    pid = int(player_id)
+    items, _ = Cache.get_items(game_id, pid)
+    if not items:
+        coords = Cache.get_have(game_id)
+        game = Game.with_id(game_id)
+        if not coords:
+            if not game:
+                return json_resp({"error": "Game %s not found" % game_id}, 404)
+            coords = { p.pid(): p.have_coords() for p in game.get_players() }
+            Cache.set_have(game_id, coords)
+        items, _ = _get_item_tracker_items(coords[pid], game, pid)
+    return json_resp(items)
 
-
-# class SignalCallback(RequestHandler):
-#     def get(self, game_id, player_id, signal):
-#         self.response.headers['Content-Type'] = 'text/plain'
-#         game = Game.with_id(game_id)
-#         if not game:
-#             self.response.status = 412
-#             self.response.write(self.response.status)
-#             return
-#         p = game.player(player_id)
-#         p.signal_conf(signal)
-#         self.response.status = 200
-#         self.response.write("cleared")
-
-
-# class HistPrompt(RequestHandler):
-#     def get(self, game_id):
-#         return redirect("/game/%s/history" % game_id)
-
-
-# class SignalSend(RequestHandler):
-#     def get(self, game_id, player_id, signal):
-#         self.response.headers['Content-Type'] = 'text/plain'
-#         game = Game.with_id(game_id)
-#         if not game:
-#             self.response.status = 412
-#             self.response.write(self.response.status)
-#             return
-#         p = game.player(player_id)
-#         p.signal_send(signal)
-#         self.response.status = 200
-#         self.response.write("sent")
-
-
-# class ListPlayers(RequestHandler):
-#     def get(self, game_id):
-#         game = Game.with_id(game_id)
-#         outlines = []
-#         for p in game.get_players():
-#             outlines.append("Player %s: %s" % (p.pid(), p.bitfields))
-#             outlines.append("\t\t" + "\n\t\t".join([hl.print_line(game.start_time) for hl in game.history([p.pid()]) if hl.pickup().is_shared(share_types)]))
-
-#         self.response.headers['Content-Type'] = 'text/plain'
-#         self.response.status = 200
-#         self.response.write("\n".join(outlines))
-
-
-# class RemovePlayer(RequestHandler):
-#     def get(self, game_id, pid):
-#         key = ".".join([game_id, pid])
-#         game = Game.with_id(game_id)
-#         if key in [p.id() for p in game.players]:
-#             game.remove_player(key)
-#             return redirect("game/%s/players" % game_id)
-#         else:
-#             self.response.headers['Content-Type'] = 'text/plain'
-#             self.response.status = 404
-#             self.response.write("player %s not in %s" % (key, game.players))
-
-# class ClearCache(RequestHandler):
-#     def get(self):
-#         Cache.clear()
-#         self.redirect("/")
-
-# class SetSeed(RequestHandler):
-#     def get(self, game_id, player_id):
-#         return self.post(game_id, player_id)
-
-#     def post(self, game_id, player_id):
-#         game = Game.with_id(game_id)
-#         hist = Cache.get_hist(game_id)
-#         if not hist:
-#             Cache.set_hist(game_id, player_id, [])
-#         if game:
-#             p = game.player(player_id)
-#             if p.can_nag and "version" in self.request.POST and (not version_check(self.request.POST["version"])):
-#                 p.signal_send("msg:@dll out of date. (orirando.com/dll)@")
-#                 p.can_nag = False
-#                 p.put()
-#             game.sanity_check()  # cheap if game is short!
-#         else:
-#             # TODO: this branch is now probably unnecessary.
-#             # experimenting with deleting it.
-#     #       lines = self.request.POST["seed"].split(",") if "seed" in self.request.POST else []
-#             log.error("game was not already created! %s" % game_id)
-#             # flags = lines[0].split("|")
-#             # mode_opt = [f[5:] for f in flags if f.lower().startswith("mode=")]
-#             # shared_opt = [f[7:].split(" ") for f in flags if f.lower().startswith("shared=")]
-#             # mode = mode_opt[0] if mode_opt else None
-#             # shared = shared_opt[0] if shared_opt else None
-#             # Game.new(_mode=mode, _shared=shared, id=game_id)
-#         self.response.headers['Content-Type'] = 'text/plain'
-#         self.response.status = 200
-#         self.response.write("ok")
-
-
-# class ShowMap(RequestHandler):
-#     def get(self, game_id):
-#         template_values = template_vals(self, "GameTracker", "Game %s" % game_id, User.get())
-#         template_values['game_id'] = game_id
-#         if debug() and param_flag("from_test"):
-#             game = Game.with_id(game_id)
-#             pos = Cache.get_pos(game_id)
-#             hist = Cache.get_hist(game_id)
-#             if any([x is None for x in [game, pos, hist]]):
-#                 return redirect(uri_for('tests-map-gid', game_id=game_id, from_test=1))
-#         game = Game.with_id(game_id)
-#         if game and (Variation.RACE in game.params.get().variations) and not template_values["race_wl"]:
-#             return resp_error(self, 401, "Access forbidden")
-
-#         self.response.write(template.render(path, template_values))
-
-
-# class GetSeenLocs(RequestHandler):
-#     def get(self, game_id):
-#         self.response.headers['Content-Type'] = 'application/json'
-#         self.response.status = 200
-#         coords = Cache.get_have(game_id)
-#         if not coords:
-#             game = Game.with_id(game_id)
-#             if not game:
-#                 self.response.status = 404
-#                 return
-#             coords = { p.pid(): p.have_coords() for p in game.get_players() }
-#         self.response.write(json.dumps(coords))
-
-# class GetSeed(RequestHandler):
-#     def get(self, game_id, player_id):
-#         player_id = int(player_id)
-#         self.response.headers['Content-Type'] = 'application/json'
-#         game = Game.with_id(game_id)
-#         if not game or not game.params:
-#             return resp_error(self, 404, json.dumps({"error": "game %s not found!" % game_id}))
-#         player = game.player(player_id, False)
-#         if not player:
-#             return resp_error(self, 404, json.dumps({"error": "game %s does not contain player %s!" % (game_id, player_id)}))
-#         res = {"seed": {}, 'name': player.name()}
-#         params = game.params.get()
-#         if Variation.BINGO in params.variations:
-#             bingo = BingoGameData.with_id(game_id)
-#             if not bingo:
-#                 return resp_error(self, 404, json.dumps({"error": "no bingo data found for game %s" % game_id}))
-#             team = bingo.team(player_id, cap_only=False)
-#             if not team:
-#                 return resp_error(self, 404, json.dumps({"error": "No team found for player %s!" % player_id}))
-#             team = team.pids()
-#             player_id = team.index(player_id) + 1
-#         for (coords, code, id, _) in params.get_seed_data(player_id):
-#             res["seed"][coords] = Pickup.name(code, id)
-#         self.response.status = 200
-#         self.response.write(json.dumps(res))
-
-
-# class GetGameData(RequestHandler):
-#     def get(self, game_id):
-#         self.response.headers['Content-Type'] = 'application/json'
-#         gamedata = {}
-#         game = Game.with_id(game_id)
-#         if not game or not game.params:
-#             self.response.write(json.dumps({"error": "Game not found!"}))
-#             self.response.status = 404
-#             return
-#         params = game.params.get()
-#         gamedata["paths"] = params.logic_paths
-#         gamedata["players"] = [p.userdata() for p in game.get_players()]
-#         gamedata["closed_dungeons"] = Variation.CLOSED_DUNGEONS in params.variations
-#         gamedata["open_world"] = Variation.OPEN_WORLD in params.variations
-#         self.response.write(json.dumps(gamedata))
-
-
-# class GetReachable(RequestHandler):
-#     def get(self, game_id):
-#         self.response.headers['Content-Type'] = 'application/json'
-#         hist = Cache.get_hist(game_id)
-#         reachable_areas = {}
-#         if not hist or not param_val("modes"):
-#             self.response.status = 404
-#             self.response.write(json.dumps(reachable_areas))
-#             return
-#         modes = param_val("modes").split(" ")
-#         game = Game.with_id(game_id)
-#         spawn = game.params.get().spawn or "Glades"
-#         shared_hist = []
-#         shared_coords = set()
-#         try:
-#             if game and game.mode == MultiplayerGameType.SHARED:
-#                 shared_hist = [hl for hls in hist.values() for hl in hls if hl.pickup().is_shared(game.shared)]
-#                 shared_coords = set([hl.coords for hl in shared_hist])
-#             for player, personal_hist in hist.items():
-#                 player_hist = [hl for hl in hist[player] if hl.coords not in shared_coords] + shared_hist
-#                 state = PlayerState([(h.pickup_code, h.pickup_id, 1, h.removed) for h in player_hist])
-#                 areas = {}
-#                 if state.has["KS"] > 8 and "standard-core" in modes:
-#                     state.has["KS"] += 2 * (state.has["KS"] - 8)
-#                 for area, reqs in Map.get_reachable_areas(state, modes, spawn).items():
-#                     areas[area] = [{item: count for (item, count) in req.cnt.items()} for req in reqs if len(req.cnt)]
-#                 reachable_areas[player] = areas
-#             self.response.write(json.dumps(reachable_areas))
-#         except AttributeError:
-#             log.error("cache invalidated for game %s! Rebuilding..." % game_id)
-#             game.rebuild_hist()
-#             self.response.write(json.dumps(reachable_areas))
-
-
-# class ItemTracker(RequestHandler):
-#     def get(self, game_id, player_id=1):
-#         game = Game.with_id(game_id)
-
-#         template_values = template_vals(self, "ItemTracker", "Game %s" % game_id, User.get())
-#         if game and Variation.RACE in game.params.get().variations and not template_values["race_wl"]:
-#             return resp_error(self, 401, "Access forbidden")
-#         template_values['game_id'] = game_id
-#         template_values['player_id'] = player_id
-#         self.response.write(template.render(path, template_values))
-
-
-# class GetItemTrackerUpdate(RequestHandler):
-#     def get(self, game_id, player_id=1):
-#         pid = int(player_id)
-#         self.response.headers['Content-Type'] = 'application/json'
-#         items, _ = Cache.get_items(game_id, pid)
-#         if not items:
-#             coords = Cache.get_have(game_id)
-#             game = Game.with_id(game_id)
-#             if not coords:
-#                 if not game:
-#                     self.response.status = 404
-#                     self.response.write(json.dumps({"error": "Game not found"}))
-#                     return
-#                 coords = { p.pid(): p.have_coords() for p in game.get_players() }
-#                 Cache.set_have(game_id, coords)
-#             items, _ = GetItemTrackerUpdate.get_items(coords[pid], game, pid)
-#         self.response.write(json.dumps(items))
-
-#     @staticmethod
-#     def get_items(coords, game, player=1):
-#         relics = game.relics
-#         data = {
-#             'skills': set(),
-#             'trees': set(),
-#             'events': set(),
-#             'shards': {'wv': 0, 'gs': 0, 'ss': 0},
-#             'maps': 0,
-#             'relics_found': set(),
-#             'relics': relics,
-#             'teleporters': set()
-#         }
-#         inventories = game.get_inventories(game.get_players(), True, True)
-        
-#         inv = [v for k,v in inventories.items() if k != "unshared"][0] if game.mode == MultiplayerGameType.SHARED else inventories["unshared"][player]
-#         for ((pcode, pid), count) in inv.items():
-#             p = Pickup.n(pcode, pid)
-#             if not p:
-#                 log.warn("couldn't build pickup %s|%s" % (pcode, pid))
-#                 continue
-#             if pcode == "SK":
-#                 data['skills'].add(p.name)
-#             elif pcode == "TP":
-#                 data['teleporters'].add(p.name.replace(" teleporter", ""))
-#             elif pcode == "EV":
-#                 data['events'].add(p.name)
-#             elif pcode == "RB":
-#                 bid = int(pid)
-#                 if bid == 17:
-#                     data['shards']['wv'] = count
-#                 elif bid == 19:
-#                     data['shards']['gs'] = count
-#                 elif bid == 21:
-#                     data['shards']['ss'] = count
-#                 elif bid > 910 and bid < 922:
-#                     data['relics_found'].add(p.name.replace(" Relic", ""))
-#                 elif bid >= 900 and bid < 910:
-#                     data['trees'].add(p.name.replace(" Tree", ""))
-#         if data['shards']['wv'] > 2:
-#             data['events'].add("Water Vein")
-#         if data['shards']['gs'] > 2:
-#             data['events'].add("Gumon Seal")
-#         if data['shards']['ss'] > 2:
-#             data['events'].add("Sunstone")
-#         for thing in ['trees', 'skills', 'events', 'relics_found', 'teleporters']:
-#             data[thing] = list(data[thing])
-#         data['maps'] = len([1 for c in coords if c in range(24, 60, 4)])
-#         Cache.set_items(game.key.id(), player, (data, inventories), game.is_race)
-#         return data, inventories
-
-# #class SetSpiritFlame(RequestHandler):
-# #    get(self, game_id, value):
-
-
-
-# class GetMapUpdate(RequestHandler):
-#     def get(self, game_id):
-#         self.response.headers['Content-Type'] = 'application/json'
-#         players = {}
-#         username = param_val("usermap")
-#         gid_changed = False
-#         if username and User.latest_game(username) != int(game_id):
-#             game_id = User.latest_game(username)
-#             gid_changed = True
-#         pos = Cache.get_pos(game_id)
-#         inventories = None
-#         game = None
-#         if not pos:
-#             pos = {}
-#         for p, (x, y) in pos.items():
-#             players[p] = {"pos": [y, x], "seen": [], "reachable": []}  # bc we use tiling software, this is lat/lng, and thus coords need inverting
-
-#         coords = Cache.get_have(game_id)
-#         if not coords:
-#             game = Game.with_id(game_id)
-#             if not game:
-#                 self.response.status = 404
-#                 self.response.write(json.dumps({"error": "Game not found"}))
-#                 return
-#             coords = { p.pid(): p.have_coords() for p in game.get_players() }
-#             Cache.set_have(game_id, coords)
-#         for p, coords in coords.items():
-#             if p not in players:
-#                 players[p] = {}
-#             players[p]["seen"] = coords
-#         reach = Cache.get_reachable(game_id)
-#         modes = tuple(sorted(param_val("modes").split(" ")))
-#         need_reach_updates = [p for p in players.keys() if modes not in reach.get(p, {})]
-#         if need_reach_updates:
-#             if not game:
-#                 game = Game.with_id(game_id)
-#                 if not game:
-#                     self.response.status = 404
-#                     self.response.write(json.dumps({"error": "Game not found"}))
-#                     return
-#             if not inventories:
-#                 inventories = game.get_inventories(game.get_players(), True, True)
-#             spawn = game.params.get().spawn or "Glades"
-#             for p in need_reach_updates:
-#                 inventory = [(pcode, pid, count, False) for ((pcode, pid), count) in inventories["unshared"][p].items()]
-#                 inventory  += [(pcode, pid, count, False) for group, inv in inventories.items()  if group != "unshared" and p in group for ((pcode, pid), count) in inv.items()]
-#                 state = PlayerState(inventory)
-#                 if state.has["KS"] > 8 and "standard-core" in modes:
-#                     state.has["KS"] += 2 * (state.has["KS"] - 8)
-#                 if p not in reach:
-#                     reach[p] = {}
-#                 reach[p][modes] = Map.get_reachable_areas(state, modes, spawn, False)
-#             Cache.set_reachable(game_id, reach)
-#         for p in reach:
-#             players[p]["reachable"] = reach[p][modes]
-#         res = {"players": players} # , "items": items
-#         if gid_changed:
-#             res["newGid"] = game_id
-#         self.response.write(json.dumps(res))
-
-
-# class GetPlayerPositions(RequestHandler):
-#     def get(self, game_id):
-#         self.response.headers['Content-Type'] = 'application/json'
-#         pos = Cache.get_pos(game_id)
-#         if pos:
-#             self.response.status = 200
-#             players = {}
-#             for p, (x, y) in pos.items():
-#                 players[p] = [y, x]  # bc we use tiling software, this is lat/lng
-#             self.response.write(json.dumps(players))
-#         else:
-#             self.response.status = 404
-
-
-# class PlandoReachable(RequestHandler):
-#     def post(self):
-#         modes = json.loads(self.request.POST["modes"])
-#         codes = []
-#         for item, count in json.loads(self.request.POST["inventory"]).iteritems():
-#             codes.append(tuple(item.split("|") + [count, False]))
-#         self.response.headers['Content-Type'] = 'application/json'
-#         self.response.status = 200
-#         areas = {}
-#         for area, reqs in Map.get_reachable_areas(PlayerState(codes), modes).items():
-#             areas[area] = [{item: count for (item, count) in req.cnt.items()} for req in reqs if len(req.cnt)]
-
-#         self.response.write(json.dumps(areas))
-
-
-# def clone_entity(e, **extra_args):
-#     klass = e.__class__
-#     props = dict((v._code_name, v.__get__(e, klass)) for v in klass._properties.itervalues() if
-#                  type(v) != ndb.ComputedProperty)
-#     props.update(extra_args)
-#     return klass(**props)
-
-
-# class PlandoRename(RequestHandler):
-#     def get(self, seed_name, new_name):
-#         user = User.get()
-#         if not user:
-#             log.error("Error: unauthenticated rename attempt")
-#             self.response.status = 401
-#             return
-#         old_seed = user.plando(seed_name)
-#         if not old_seed:
-#             log.error("couldn't find old seed when trying to rename!")
-#             self.response.status = 404
-#             return
-#         new_seed = clone_entity(old_seed, id="%s:%s" % (user.key.id(), new_name), name=new_name)
-#         if new_seed.put():
-#             if not param_flag("cp"):
-#                 old_seed.key.delete()
-#             self.redirect(uri_for("plando-view", author_name=user.name, seed_name=new_name))
-#         else:
-#             log.error("Failed to rename seed")
-#             self.response.status = 500
-
-
-# class PlandoDelete(RequestHandler):
-#     def get(self, seed_name):
-#         user = User.get()
-#         if not user:
-#             log.error("Error: unauthenticated delete attempt")
-#             self.response.status = 401
-#             return
-#         seed = user.plando(seed_name)
-#         if not seed:
-#             log.error("couldn't find seed when trying to delete!")
-#             self.response.status = 404
-#             return
-#         seed.key.delete()
-#         self.redirect(uri_for("plando-author-index", author_name=user.name))
-
-
-# class PlandoToggleHide(RequestHandler):
-#     def get(self, seed_name):
-#         user = User.get()
-#         if not user:
-#             log.error("Error: unauthenticated hide attempt")
-#             self.response.status = 401
-#             return
-#         seed = user.plando(seed_name)
-#         if not seed:
-#             log.error("couldn't find seed when trying to hide!")
-#             self.response.status = 404
-#             return
-#         seed.hidden = not (seed.hidden or False)
-#         seed.put()
-#         self.redirect(uri_for("plando-view", author_name=user.name, seed_name=seed_name))
-
-
-# class PlandoUpload(RequestHandler):
-#     def post(self, seed_name):
-#         user = User.get()
-#         if not user:
-#             log.error("Error: unauthenticated upload attempt")
-#             self.response.status = 401
-#             return
-#         seed_data = json.loads(self.request.POST["seed"])
-#         old_name = seed_data["oldName"]
-#         old_seed = user.plando(old_name)
-#         if old_seed:
-#             res = old_seed.update(seed_data)
-#         else:
-#             res = Seed.new(seed_data)
-#         self.response.headers['Content-Type'] = 'text/plain'
-#         self.response.status = 200
-#         self.response.write(res)
-
-
-# class PlandoView(RequestHandler):
-#     def get(self, author_name, seed_name):
-#         authed = False
-#         user = User.get()
-#         seed = Seed.get(author_name, seed_name)
-#         if seed:
-#             if user and user.key == seed.author_key:
-#                 authed = True
-#             template_values = template_vals(self, "SeedDisplayPage", "%s by %s" % (seed_name, author_name), user)
-#             template_values.update({'players': seed.players, 'seed_data': seed.get_plando_json(),
-#                 'seed_name': seed_name, 'author': author_name, 'authed': authed, 
-#                 'seed_desc': seed.description, 'game_id': Game.get_open_gid()})
-#             hidden = seed.hidden or False
-#             if not hidden or authed:
-#                 self.response.status = 200
-#                 self.response.headers['Content-Type'] = 'text/html'
-#                 if hidden:
-#                     template_values['seed_hidden'] = True
-#                 self.response.write(template.render(path, template_values))
-#                 return
-#         self.response.status = 404
-#         self.response.headers['Content-Type'] = 'text/plain'
-#         self.response.write("seed not found")
-
-
-# class PlandoEdit(RequestHandler):
-#     def get(self, seed_name):
-#         user = User.get()
-#         template_values = template_vals(self, "PlandoBuilder", "Plando Editor: %s" % (seed_name), user)
-#         if user:
-#             seed = user.plando(seed_name)
-#             template_values['authed'] = "True"
-#             if seed:
-#                 template_values['seed_desc'] = seed.description
-#                 template_values['seed_hidden'] = seed.hidden or False
-#                 template_values['seed_data'] = seed.get_plando_json()
-#         self.response.write(template.render(path, template_values))
-
-# class ThemeToggle(RequestHandler):
-#     def get(self):
-#         target_url = unquote(param_val("redir")).decode('utf8') or "/"
-#         user = User.get()
-#         if user:
-#             user.dark_theme = not user.dark_theme
-#             user.put()
-#         self.redirect(target_url)
+# why is it like this??
+def _get_item_tracker_items(coords, game, player=1):
+    relics = game.relics
+    data = {
+        'skills': set(),
+        'trees': set(),
+        'events': set(),
+        'shards': {'wv': 0, 'gs': 0, 'ss': 0},
+        'maps': 0,
+        'relics_found': set(),
+        'relics': relics,
+        'teleporters': set()
+    }
+    inventories = game.get_inventories(game.get_players(), True, True)
     
-# class HandleLogin(RequestHandler):
-#     def get(self):
-#         user = User.get()
-#         target_url = param_val("redir") or "/"
-#         if user:
-#             self.redirect(target_url)
-#         else:
-#             self.redirect(User.login_url(target_url))
+    inv = [v for k,v in inventories.items() if k != "unshared"][0] if game.mode == MultiplayerGameType.SHARED else inventories["unshared"][player]
+    for ((pcode, pid), count) in inv.items():
+        p = Pickup.n(pcode, pid)
+        if not p:
+            log.warn("couldn't build pickup %s|%s" % (pcode, pid))
+            continue
+        if pcode == "SK":
+            data['skills'].add(p.name)
+        elif pcode == "TP":
+            data['teleporters'].add(p.name.replace(" teleporter", ""))
+        elif pcode == "EV":
+            data['events'].add(p.name)
+        elif pcode == "RB":
+            bid = int(pid)
+            if bid == 17:
+                data['shards']['wv'] = count
+            elif bid == 19:
+                data['shards']['gs'] = count
+            elif bid == 21:
+                data['shards']['ss'] = count
+            elif bid > 910 and bid < 922:
+                data['relics_found'].add(p.name.replace(" Relic", ""))
+            elif bid >= 900 and bid < 910:
+                data['trees'].add(p.name.replace(" Tree", ""))
+    if data['shards']['wv'] > 2:
+        data['events'].add("Water Vein")
+    if data['shards']['gs'] > 2:
+        data['events'].add("Gumon Seal")
+    if data['shards']['ss'] > 2:
+        data['events'].add("Sunstone")
+    for thing in ['trees', 'skills', 'events', 'relics_found', 'teleporters']:
+        data[thing] = list(data[thing])
+    data['maps'] = len([1 for c in coords if c in range(24, 60, 4)])
+    Cache.set_items(game.key.id(), player, (data, inventories), game.is_race)
+    return data, inventories
 
 
-# class HandleLogout(RequestHandler):
-#     def get(self):
-#         user = User.get()
-#         target_url = param_val("redir") or "/"
-#         if user:
-#             self.redirect(User.logout_url(target_url))
-#         else:
-#             self.redirect(target_url)
+@app.route('/tracker/game/<game_id>/fetch/player/<player_id>/seed')
+def tracker_fetch_seed(game_id, player_id):
+    player_id = int(player_id)
+    game = Game.with_id(game_id)
+    if not game or not game.params:
+        return json_resp({"error": "game %s not found!" % game_id}, 404)
+    player = game.player(player_id, False)
+    if not player:
+        return json_resp({"error": "game %s does not contain player %s!" % (game_id, player_id, 404)})
+    res = {"seed": {}, 'name': player.name()}
+    params = game.params.get()
+    if Variation.BINGO in params.variations:
+        bingo = BingoGameData.with_id(game_id)
+        if not bingo:
+            return json_resp({"error": "no bingo data found for game %s" % game_id}, 404)
+        team = bingo.team(player_id, cap_only=False)
+        if not team:
+            return json_resp({"error": "No team found for player %s!" % player_id}, 404)
+        team = team.pids()
+        player_id = team.index(player_id) + 1
+    for (coords, code, id, _) in params.get_seed_data(player_id):
+        res["seed"][coords] = Pickup.name(code, id)
+    return json_resp(res)
 
-# class PlandoFillGen(RequestHandler):
-#     def get(self):
-#         self.response.headers['Content-Type'] = 'text/plain'
-#         qparams = self.request.GET
-#         forced_assignments = dict([(int(a), b) for (a, b) in ([tuple(fass.split(":")) for fass in qparams['fass'].split("|")] if "fass" in qparams else [])])
-#         param_key = SeedGenParams.from_url(qparams)
-#         params = param_key.get()
-#         if params.generate(preplaced=forced_assignments):
-#             self.response.write(params.get_seed(1))
-#         else:
-#             self.response.status = 422
+@app.route('/tracker/game/<game_id>/items')
+@app.route('/tracker/game/<game_id>/<player_id>/items')
+def tracker_item_tracker(game_id, player_id=1):
+    game = Game.with_id(game_id)
+    template_values = template_vals("ItemTracker", "Game %s" % game_id, User.get())
+    if game and Variation.RACE in game.params.get().variations and not template_values["race_wl"]:
+        return text_code("Access forbidden", 401)
+    template_values['game_id'] = game_id
+    template_values['player_id'] = player_id
+    return render_template(path, **template_values)
 
-# class PlandoDownload(RequestHandler):
-#     def get(self, author_name, seed_name):
-#         seed = Seed.get(author_name, seed_name)
-#         if seed:
-#             if seed.hidden:
-#                 user = User.get()
-#                 if not user or user.key != seed.author_key:
-#                     self.response.status = 404
-#                     self.response.headers['Content-Type'] = 'text/plain'
-#                     self.response.write("seed not found")
-#                     return
-#             params = SeedGenParams.from_plando(seed, param_flag("tracking"))
-#             url = uri_for("main-page", param_id=params.key.id())
-#             if params.tracking:
-#                 game = Game.from_params(params, param_val("game_id"))
-#                 url += "&game_id=%s" % game.key.id()
-#             self.redirect(url)
-#         else:
-#             self.response.status = 404
-#             self.response.headers['Content-Type'] = 'text/plain'
-#             self.response.write("seed not found")
+@app.route('/user/settings')
+def user_get_settings():
+    res = {}
+    res["names"] = [user.name.lower() for user in User.query().fetch()]
+    user = User.get()
+    if user:
+        res["teamname"] = user.teamname or "%s's team" % user.name
+        res["theme"] = "dark" if user.dark_theme else "light"
+    return json_resp(res)
 
-# class AllAuthors(RequestHandler):
-#     def get(self):
-#         self.response.headers['Content-Type'] = 'text/html'
-#         seeds = Seed.query(Seed.hidden != True)
-#         out = '<html><head><title>All Plando Authors</title></head><body><h5>All Seeds</h5><ul style="list-style-type:none;padding:5px">'
-#         authors = Counter([seed.author_key.get().name if seed.author_key else seed.author for seed in seeds])
-#         for author, cnt in authors.most_common():
-#             if cnt > 0:
-#                 url = "/plando/%s" % author
-#                 out += '<li style="padding:2px"><a href="%s">%s</a> (%s plandos)</li>' % (url, author, cnt)
-#         out += "</ul></body></html>"
-#         self.response.write(out)
+@app.route('/user/settings/update')
+def user_set_settings():
+    user = User.get()
+    if user:
+        name = param_val("name")
+        teamname = param_val("teamname")
+        if name and name != user.name:
+            if user.rename(name):
+                return text_resp("Rename successful!")
+            else:
+                return text_resp("Rename failed!")
+        if teamname and teamname != user.teamname:
+            user.teamname = teamname
+            user.put()
+    else:
+        return text_resp("You are not logged in!")
+
+@app.route('/user/settings/number/<new_num>') 
+def user_set_number(new_num):
+    user = User.get()
+    if user:
+        if int(new_num) > 0:
+            user.pref_num = int(new_num)
+            user.put()
+            return resp_text("Preferred player number for %s set to %s" % (user.name, new_num))
+        else:
+            return resp_text("Preferred player number must be >0", 400)
+    else:
+        return resp_text("You are not logged in!", 401)
+
+@app.route('/user/settings/theme/<new_theme>')
+def user_set_theme(new_theme):
+    user = User.get()
+    if user:
+        user.theme = new_theme
+        user.put()
+        return resp_text("theme for %s set to %s" % (user.name, new_theme))
+    else:
+        return resp_text("You are not logged in!", 401)
+
+@app.route('/theme/toggle')
+def user_toggle_darkmode():
+    target_url = unquote(param_val("redir")).decode('utf8') or "/"
+    user = User.get()
+    if user:
+        user.dark_theme = not user.dark_theme
+        user.put()
+    self.redirect(target_url)
+
+@app.route('/user/settings/verbose') # ToggleVerbose,
+def user_toggle_verbose():
+    user = User.get()
+    if user:
+        user.verbose = not user.verbose
+        user.put()
+        return text_resp("verbose seed spoilers set to %s" % user.verbose)
+    else:
+        return resp_text("You are not logged in!", 401)
+
+@app.route('/tracker/spectate/<name>') # LatestMap
+def get_map_by_name(name):
+    latest = User.latest_game(name)
+    if latest:
+        return redirect("%s?%s" % (url_for('tracker_show_map', game_id=latest), "&".join(["usermap=" + name] + ["%s=%s" % (k, v) for k, v in request.args.items()])))
+    else:
+        return resp_error(self, 404, "User not found or had no games on record")
+
+@app.route('/logichelper') #  LogicHelper
+def logic_helper():
+        template_values = template_vals("LogicHelper", "Logic Helper", User.get())
+        template_values.update({'is_spoiler': "True", 'pathmode': param_val('pathmode'), 'HC': param_val('HC'),
+                           'EC': param_val('EC'), 'AC': param_val('AC'), 'KS': param_val('KS'),
+                           'skills': param_val('skills'), 'tps': param_val('tps'), 'evs': param_val('evs')})
+        return render_template(path, **template_values)
 
 
-# class AuthorIndex(RequestHandler):
-#     def get(self, author_name):
-#         self.response.headers['Content-Type'] = 'text/html'
-#         owner = False
-#         user = User.get()
-#         author = User.get_by_name(author_name)
-#         if author:
-#             author_name = author.name
-#             owner = user and user.key.id() == author.key.id()
-#             query = Seed.query(Seed.author_key == author.key)
-#             if not owner:
-#                 query = query.filter(Seed.hidden != True)
-#         else:
-#             query = Seed.query(Seed.author == author_name).filter(Seed.hidden != True)
+@app.route('/faq') #  Guides
+def faqs_guides():
+    template_values = template_vals("HelpAndGuides", "Help and Guides", User.get())
+    return render_template(path, **template_values)
+
+
+@app.route('/rebinds') # RebindingsEditor
+def rebinding_tool():
+    template_values = template_vals("RebindingsEditor", "Ori DERebindings Editor", User.get())
+    return render_template(path, **template_values)
+
+@app.route('/reroll')
+def reroll_seed():
+    user = User.get()
+    if not user:
+        return redirect(User.login_url('/reroll'))
+    if not user.games:
+        return text_resp( "no games found", 404)
+    game_key = user.games[-1]
+    old_game = game_key.get()
+    if not old_game.params:
+        return text_resp("latest game does not have params", 404)
+    old_params = old_game.params.get().to_json()
+    old_params['seed'] = str(random.randint(0, 1000000000))
+    new_params = SeedGenParams.from_json(old_params).get()
+    if not new_params.generate():
+        return text_resp( "Failed to generate seed!", 500)
+    game = Game.from_params(new_params)
+    if Variation.BINGO in new_params.variations:
+        url = "/bingo/board?game_id=%s&fromGen=1&seed=%s&bingoLines=%s" % (game.key.id(), new_params.seed, new_params.bingo_lines)
+        b = old_game.bingo_data.get()
+        if b.discovery and b.discovery > 0:
+            url += "&disc=%s" % b.discovery
+        return redirect(url)
+    return redirect("%s?param_id=%s&game_id=%s" % (url_for('main_page'), new_params.key.id(), game.key.id()))
+
+@app.route('/discord')
+def discord_redirect():
+    return redirect("https://discord.gg/TZfue9V")
+
+@app.route('/discord/dev')
+def dev_discord_redirect():
+    return redirect("https://discord.gg/sfUr8ra5P7")
+
+@app.route('/reset/<game_id>') # handler=ResetGame
+def reset_game(game_id):
+    game = Game.with_id(game_id)
+    if not game:
+        return text_resp("Game %s not found!" % game_id, 404)
+    user = User.get()
+    if User.is_admin() or (user and user.key == game.creator):
+        game.reset()
+        return text_resp("Game reset successfully")
+    else:
+        return text_resp("Can't restart a game you didn't create...", 401)
+
+@app.route('/transfer/<game_id>/<player_id>') # ResetAndTransfer
+def reset_and_transfer_game(game_id, player_id):
+    game = Game.with_id(game_id)
+    if not game:
+        return text_resp("Game %s not found!" % game_id, 404)
+        user = User.get()
+        if (User.is_admin() or (user and user.key == game.creator)):
+            new_user = User.get_by_name(new_owner)
+            if not new_user:
+                 return text_resp("Couldn't find user %s" % new_owner, 404)
+            old_creator = game.creator
+            game.creator = new_user.key
+            game.reset()
+            return text_resp("Game reset; ownership transferred from %s to %s" % (user.name, new_user.name))
+        else:
+            return text_resp("Can't restart a game you didn't create...", 401)
+
+@app.route('/plando/<seed_name>/upload', methods=['POST'])   #PlandoUpload
+def plando_upload(seed_name): 
+    user = User.get()
+    if not user:
+        log.error("Error: unauthenticated upload attempt")
+        return code_resp(401)
+    seed_data = json.loads(request.form.get("seed"))
+    old_name = seed_data["oldName"]
+    old_seed = user.plando(old_name)
+    if old_seed:
+        res = old_seed.update(seed_data)
+    else:
+        res = Seed.new(seed_data)
+    return text_resp(str(res))
+
+@app.route('/plando/<seed_name>/edit')   #PlandoEdit
+def plando_edit(seed_name):
+    user = User.get()
+    template_values = template_vals("PlandoBuilder", "Plando Editor: %s" % (seed_name), user)
+    if user:
+        seed = user.plando(seed_name)
+        template_values['authed'] = "True"
+        if seed:
+            template_values['seed_desc'] = seed.description
+            template_values['seed_hidden'] = seed.hidden or False
+            template_values['seed_data'] = seed.get_plando_json()
+    return render_template(path, **template_values)
+
+@app.route('/plando/<seed_name>/delete')   #PlandoDelete
+def plando_delete(seed_name):
+    user = User.get()
+    if not user:
+        log.error("Error: unauthenticated delete attempt")
+        return code_resp(401)
+        seed = user.plando(seed_name)
+        if not seed:
+            log.error("couldn't find seed %s when trying to delete!" % seed_name)
+            return code_resp(404)
+        seed.key.delete()
+        return redirect(url_for("plando_author_index", author_name=user.name))
+
+@app.route('/plando/<seed_name>/rename/<new_name>')   #PlandoRename
+def plando_rename(seed_name, new_name):
+    user = User.get()
+    if not user:
+        return text_resp("Error: unauthenticated rename attempt", 401)
+    old_seed = user.plando(seed_name)
+    if not old_seed:
+        return text_resp("couldn't find old seed when trying to rename!", 404)
+    new_seed = clone_entity(old_seed, id="%s:%s" % (user.key.id(), new_name), name=new_name)
+    if new_seed.put():
+        if not param_flag("cp"):
+            old_seed.key.delete()
+        return redirect(url_for("plando_view", author_name=user.name, seed_name=new_name))
+    else:
+        return text_resp("Failed to rename seed", 500)
+
+@app.route('/plando/<seed_name>/hideToggle')   #PlandoToggleHide
+def plando_toggle_hide(seed_name):
+    user = User.get()
+    if not user:
+        log.error("Error: unauthenticated hide attempt")
+        return code_resp(401)
+    seed = user.plando(seed_name)
+    if not seed:
+        log.error("couldn't find seed when trying to hide!")
+        return code_resp(404)
+    seed.hidden = not (seed.hidden or False)
+    seed.put()
+    return redirect(url_for("plando_view", author_name=user.name, seed_name=seed_name))
+
+@app.route('/plando/<author_name>/<seed_name>/download') # PlandoDownload
+def plando_download(author_name, seed_name):
+    seed = Seed.get(author_name, seed_name)
+    if seed:
+        if seed.hidden:
+            user = User.get()
+            if not user or user.key != seed.author_key:
+                return code_resp("seed %s (by user %s) not found" % (seed_name, author_name), 404)
+        params = SeedGenParams.from_plando(seed, param_flag("tracking"))
+        url = url_for("main_page", param_id=params.key.id())
+        if params.tracking:
+            game = Game.from_params(params, param_val("game_id"))
+            url += "&game_id=%s" % game.key.id()
+        self.redirect(url)
+    else:
+        return code_resp("seed %s (by user %s) not found" % (seed_name, author_name), 404)
+
+
+@app.route('/plando/<author_name>/<seed_name>/') # PlandoView,
+def plando_view(author_name, seed_name):
+    authed = False
+    user = User.get()
+    seed = Seed.get(author_name, seed_name)
+    if seed:
+        if user and user.key == seed.author_key:
+            authed = True
+        template_values = template_vals("SeedDisplayPage", "%s by %s" % (seed_name, author_name), user)
+        template_values.update({'players': seed.players, 'seed_data': seed.get_plando_json(),
+            'seed_name': seed_name, 'author': author_name, 'authed': authed, 
+            'seed_desc': seed.description, 'game_id': Game.get_open_gid()})
+        hidden = seed.hidden or False
+        if not hidden or authed:
+            if hidden:
+                template_values['seed_hidden'] = True
+            return render_template(path, **template_values)
+    return code_resp("seed %s (by user %s) not found" % (seed_name, author_name), 404)
+
+@app.route('/plando/reachable', methods=['POST']) #PlandoReachable
+def plando_reachable():
+    modes = json.loads(request.form.get("modes"))
+    codes = []
+    for item, count in json.loads(request.form.get("inventory")).items():
+        codes.append(tuple(item.split("|") + [count, False]))
+    areas = {}
+    for area, reqs in Map.get_reachable_areas(PlayerState(codes), modes).items():
+        areas[area] = [{item: count for (item, count) in req.cnt.items()} for req in reqs if len(req.cnt)]
+    return json_resp(areas)
+
+@app.route('/plando/fillgen') #PlandoFillGen
+def plando_fillgen():
+    qparams = request.args
+    print((qparams.get('fass') or "").split("|"))
+    forced_assignments = dict([(int(a), b) for (a, b) in ([tuple(fass.split(":")) for fass in (qparams.get('fass') or "").split("|") if fass])])
+    param_key = SeedGenParams.from_url(qparams)
+    params = param_key.get()
+    if params.generate(preplaced=forced_assignments):
+        return text_resp(params.get_seed(1))
+    else:
+        return code_resp(422)
+
+@app.route('/plandos')      #AllAuthors
+def plando_index():
+    seeds = Seed.query(Seed.hidden != True)
+    out = '<html><head><title>All Plando Authors</title></head><body><h5>All Seeds</h5><ul style="list-style-type:none;padding:5px">'
+    authors = Counter([seed.author_key.get().name if seed.author_key else seed.author for seed in seeds])
+    for author, cnt in authors.most_common():
+        if cnt > 0:
+            url = "/plando/%s" % author
+            out += '<li style="padding:2px"><a href="%s">%s</a> (%s plandos)</li>' % (url, author, cnt)
+    out += "</ul></body></html>"
+    return make_resp(out)
+
+@app.route('/plando/<author_name>')
+def plando_author_index(author_name):
+    owner = False
+    user = User.get()
+    author = User.get_by_name(author_name)
+    if author:
+        author_name = author.name
+        owner = user and user.key.id() == author.key.id()
+        query = Seed.query(Seed.author_key == author.key)
+        if not owner:
+            query = query.filter(Seed.hidden != True)
+    else:
+        query = Seed.query(Seed.author == author_name).filter(Seed.hidden != True)        
+    seeds = query.fetch()
+    if len(seeds):
+        out = '<html><head><title>Seeds by %s</title></head><body><div>Seeds by %s:</div><ul style="list-style-type:none;padding:5px">' % (author_name, author_name)
+        for seed in seeds:
+            url = url_for("plando_view", author_name=author_name, seed_name=seed.name)
+            flags = ",".join(seed.flags)
+            out += '<li style="padding:2px"><a href="%s">%s</a>: %s (%s players, %s)' % (url, seed.name, seed.description.partition("\n")[0], seed.players, flags)
+            if owner:
+                out += ' <a href="%s">Edit</a>' % url_for("plando_edit", seed_name=seed.name)
+                if seed.hidden:
+                    out += " (hidden)"
+            out += "</li>"
+        out += "</ul></body></html>"
+        make_resp(out)
+    else:
+        if owner:
+            make_resp("<html><body>You haven't made any seeds yet! <a href='%s'>Start a new seed</a></body></html>" % uri_for('plando-edit', seed_name="newSeed"))
+        else:
+            make_resp('<html><body>No seeds by user %s</body></html>' % author_name)
+
+@app.route('/dll')                 
+def dll():
+    return redirect("https://github.com/sparkle-preference/OriDERandomizer/raw/master/Assembly-CSharp.dll")
+
+@app.route('/dll/beta')            
+def dll_beta():
+    return redirect("https://github.com/sparkle-preference/OriDERandomizer/raw/master/Assembly-CSharp.dll")
+@app.route('/tracker')             
+def tracker():
+    return redirect("https://github.com/meldontaragon/OriDETracker/releases/latest")
+
+@app.route('/trickglossary')       
+def trickglossary():
+    return redirect('https://docs.google.com/document/d/1vjDiXz8UPiIOtUVKPlgzjBn9lrCE4y95EwPt0WnQF_U/')
+
+@app.route('/trickrepo')           
+def trickrepo():
+    return redirect('https://www.youtube.com/channel/UCowq0m-wHdwi0vpG3jY1hFA')
+
+
+@app.route('/bingo/board') #BingoBoard =     
+@app.route('/bingo/spectate') #BingoBoard =     
+def bingo_board():
+    template_values = {'app': "Bingo", 'title': "OriDE Bingo"}
+    user = User.get()
+    if user:
+        template_values['user'] = user.name
+        template_values['dark'] = user.dark_theme
+        if user.theme:
+            template_values['theme'] = user.theme
+        if user.pref_num:
+            template_values['pref_num'] = user.pref_num
+    return render_template(path, **template_values)
+
+@app.route('/bingo/game/<game_id>/fetch') #BingoGetGame =     
+def bingo_get_game(game_id):
+    now = datetime.utcnow()
+    first = param_flag("first")
+    res = Cache.get_board(game_id)
+    if first or not res:
+        bingo = BingoGameData.with_id(game_id)
+        if not bingo:
+            return text_resp("Bingo game %s not found" % game_id, 404)
+        res = bingo.get_json(first)
+        if param_flag("time"):
+            server_now = timegm(now.timetuple()) * 1000
+            client_now = int(param_val("time"))
+            res["offset"] = server_now - client_now
+    return json_resp(res)
+
+@app.route('/bingo/game/<game_id>/start') #BingoStartCountdown =     
+def bingo_start_game(game_id):
+    res = {}
+    now = datetime.utcnow()
+    bingo = BingoGameData.with_id(game_id)
+    if not bingo:
+        return text_resp("Bingo game %s not found" % game_id, 404)
+    user = User.get()
+    if not user or bingo.creator != user.key:
+        return text_resp("Only the creator can start the game", 401)
+    if bingo.start_time:
+        return text_resp("Game has already started!", 412)
+    if bingo.teams_shared:
+        p = bingo.game.get().params.get()
+        if not p.sync.cloned:
+            for team in bingo.teams:
+                if p.players != len(team.teammates) + 1:
+                    log.error("team %s did not have %s players!", team, p.players)
+                    return text_resp("Not all teams have the correct number of players!", 412)
+    bingo.start_time = datetime.utcnow() + timedelta(seconds=15)
+    startStr = "miscBingo Game %s started!" % game_id        
+    bingo.event_log.append(BingoEvent(event_type=startStr, timestamp=bingo.start_time))
+    res = bingo.get_json()
+    bingo.put()
+
+    server_now = timegm(now.timetuple()) * 1000
+    client_now = int(param_val("time"))
+    res["offset"] = server_now - client_now
+    return json_resp(res)
+
+@app.route('/bingo/game/<game_id>/add/<player_id>') #BingoAddPlayer =     
+@transactional(xg=True)
+def bingo_add_player(game_id, player_id):
+    player_id = int(player_id)
+    bingo = BingoGameData.with_id(game_id)
+    join_team = param_flag("joinTeam")
+    if not bingo:
+        return text_resp("Bingo game %s not found" % game_id, 404)
+    if join_team and not bingo.teams_allowed:
+        return text_resp("Teams are forbidden in this game", 412)
+    if player_id in bingo.player_nums():
+        return text_resp("Player id already in use!", 409)
+
+    player = bingo.init_player(player_id)
+    if join_team:
+        cap_id = int(param_val("joinTeam"))
+        team = bingo.team(cap_id)
+        if not team:
+            return text_resp("Team %s not found" % cap_id, 412)
+        if player_id in team.pids():
+            return text_resp("%s already in team %s" % (player_id, cap_id), 412)
+        team.teammates.append(player.key)
+    else:
+        bingo.teams.append(BingoTeam(captain = player.key, teammates = []))
+    seed = bingo.get_seed(player_id)
+    if not seed:
+        return text_resp( "Team has maximum number of players allowed!", 412)
+    user = User.get()
+    if user:
+        player.user = user.key
+        player.put()
+        if bingo.game not in user.games:
+            user.games.append(bingo.game)
+            Cache.set_latest_game(user.name, int(game_id), True)
+            user.put()
+    res = bingo.get_json()
+    res['player_seed'] = seed
+    bingo.put()
+    return json_resp(res)
+
+
+@app.route('/bingo/game/<game_id>/remove/<player_id>') #BingoRemovePlayer =     
+def bingo_remove_player(game_id, player_id):
+    player_id = int(player_id)
+    bingo = BingoGameData.with_id(game_id)
+    if not bingo:
+        return text_resp("Bingo game %s not found" % game_id, 404)
+    user = User.get()
+    if not user or bingo.creator != user.key:
+        return text_resp("Only the creator can remove players", 401)
+    bingo = bingo.remove_player(player_id).get()
+    res = bingo.get_json()
+    return json_resp(res)
+
+@app.route('/bingo/game/<game_id>/seed/<player_id>') #BingoDownloadSeed =     
+def bingo_download_seed(game_id, player_id):
+    player_id = int(player_id)
+    bingo = BingoGameData.with_id(game_id)
+    if not bingo:
+        return text_resp("Bingo game %s not found" % game_id, 404)
+    seed = bingo.get_seed(player_id)
+    if not seed:
+        return text_resp("No seed found for player %s.%s" % (game_id, player_id), 412)
+
+    if not debug:
+        return text_download(seed, 'randomizer.dat')
+    return text_resp(seed)
+
+@app.route('/bingo/new') #BingoCreate =     
+def bingo_create_game():
+        now = datetime.utcnow()
+        difficulty = param_val("difficulty") or "normal"
+        skills = param_val("skills")
+        cells = param_val("cells")
+        skills = int(skills) if skills and skills != "NaN" else 3
+        cells = int(cells) if cells and cells != "NaN" else 3
+        show_info = param_flag("showInfo")
+        misc_raw = param_val("misc")
+        misc_pickup = Pickup.from_str(misc_raw) if misc_raw and misc_raw != "NO|1" else None
+        skill_pool = [Skill(x) for x in [0, 2, 3, 4, 5, 8, 12, 14, 50, 51]]
+        cell_pool  = [Multiple.with_pickups([AbilityCell(1), AbilityCell(1)]), HealthCell(1), EnergyCell(1)]
+        seed = param_val("seed")
+        rand = random.Random()
+        rand.seed(seed)
+
+        start_pickups = rand.sample(skill_pool, skills)
+        for _ in range(cells):
+            start_pickups.append(rand.choice(cell_pool))
+        if misc_pickup:
+            start_pickups.append(misc_pickup)
+        start_with = Multiple.with_pickups(start_pickups)
+        key = Game.new(_mode = "Bingo", _shared = [])
+        if show_info and start_with:
+            tps = []
+            skills = []
+            misc = []
+            cells = Counter()
+            for pick in start_with.children:
+                if pick.code == "TP":
+                    tps.append(pick.name[:-11])
+                elif pick.code == "SK":
+                    skills.append(pick.name)
+                elif pick.code in ["HC", "EC", "AC"]:
+                    cells[pick.code]+=1
+                else:
+                    misc.append(pick.name)
+            sw_parts = []
+            if skills:
+                sw_parts.append("Skills: " + ", ".join(skills))
+            if tps:
+                sw_parts.append("TPs: " + ", ".join(tps))
+            if cells:
+                sw_parts.append("Cells: " + ", ".join([cell if amount == 1 else "%s %ss" % (amount, cell) for cell,amount in cells.items()]))
+            if misc:
+                sw_parts.append(", ".join(misc))
+        base = vanilla_seed.split("\n")
+        base[0] = "OpenWorld,Bingo|Bingo Game %s" % key.id()
+        if start_with:
+            mu_line = "2|MU|%s|Glades" % start_with.id
+            base.insert(1, mu_line)
         
-#         seeds = query.fetch()
-#         if len(seeds):
-#             out = '<html><head><title>Seeds by %s</title></head><body><div>Seeds by %s:</div><ul style="list-style-type:none;padding:5px">' % (author_name, author_name)
-#             for seed in seeds:
-#                 url = uri_for("plando-view", author_name=author_name, seed_name=seed.name)
-#                 flags = ",".join(seed.flags)
-#                 out += '<li style="padding:2px"><a href="%s">%s</a>: %s (%s players, %s)' % (url, seed.name, seed.description.partition("\n")[0], seed.players, flags)
-#                 if owner:
-#                     out += ' <a href="%s">Edit</a>' % uri_for("plando-edit", seed_name=seed.name)
-#                     if seed.hidden:
-#                         out += " (hidden)"
-#                 out += "</li>"
-#             out += "</ul></body></html>"
-#             self.response.write(out)
-#         else:
-#             if owner:
-#                 self.response.write(
-#                     "<html><body>You haven't made any seeds yet! <a href='%s'>Start a new seed</a></body></html>" % uri_for('plando-edit', seed_name="newSeed"))
-#             else:
-#                 self.response.write('<html><body>No seeds by user %s</body></html>' % author_name)
+        game = key.get()
+        d = int(param_val("discCount") or 0)
+        bingo = BingoGameData(
+            id            = key.id(),
+            board         = BingoGenerator.get_cards(rand, 25, False, difficulty, True, d),
+            difficulty    = difficulty,
+            teams_allowed = param_flag("teams"),
+            game          = key,
+            rand_dat     = "\n".join(base),
+        )
+        if d:
+            bingo.discovery = d
+            bingo.seed = seed
+        if param_flag("lines"):
+            bingo.bingo_count  = int(param_val("lines"))
+        if param_flag("squares"):
+            bingo.square_count = int(param_val("squares"))
+            bingo.lockout      = bool(int(param_val("lockout")))
+        user = User.get()
+        eventStr = "misc"
+        if user:
+            bingo.creator = user.key
+        if not user or param_flag("no_timer"):
+            bingo.start_time = now
+            eventStr += "Bingo Game %s started!" % key.id()
+        else:
+            eventStr += "Bingo Game %s created!" % key.id()
 
+        if bingo.square_count > 0:
+            eventStr += " squares to win: %s" % bingo.square_count
+            if bingo.lockout:
+                eventStr += ", lockout"
+        elif bingo.bingo_count > 0:
+            eventStr += " bingos to win: %s" % bingo.bingo_count
+        if show_info:
+            bingo.subtitle = " | ".join(sw_parts)
+            eventStr += ", starting with: " + ", ".join(sw_parts)
+        bingo.event_log.append(BingoEvent(event_type=eventStr, timestamp=now))
+        res = bingo.get_json(True)
 
-# class MapTest(RequestHandler):
-#     def get(self, game_id=101):
-#         if not debug():
-#             self.redirect("/")
-#         game_id = int(game_id)
-#         game = Game.with_id(game_id)
-#         if game:
-#             game.clean_up()
-#         url = "/generator/build?key_mode=Free&gen_mode=Balanced&var=OpenWorld&var=WorldTour&path=casual-core&path=casual-dboost&exp_pool=10000&cell_freq=40&relics=10&players=3&sync_mode=Shared&sync_shared=WorldEvents&sync_shared=Teleporters&sync_shared=Upgrades&sync_shared=Misc&sync_shared=Skills&test_map_redir=%s&seed=%s" % (game_id, random.randint(100000,1000000))
-#         self.redirect(url)
+        if param_flag("time"):
+            server_now = timegm(now.timetuple()) * 1000
+            client_now = int(param_val("time"))
+            res["offset"] = server_now - client_now
 
-# class LogicHelper(RequestHandler):
-#     def get(self):
-#         template_values = template_vals(self, "LogicHelper", "Logic Helper", User.get())
+        bkey = bingo.put()
+        game.bingo_data = bkey
+        game.put()
+        return json_resp(res)
 
-#         template_values.update({'is_spoiler': "True", 'pathmode': param_val('pathmode'), 'HC': param_val('HC'),
-#                            'EC': param_val('EC'), 'AC': param_val('AC'), 'KS': param_val('KS'),
-#                            'skills': param_val('skills'), 'tps': param_val('tps'), 'evs': param_val('evs')})
-#         self.response.write(template.render(path, template_values))
+@app.route('/bingo/spectate/<name>') #BingoUserSpectate =     
+def bingo_user_board(name):
+    game_id = Cache.get_latest_game(name, bingo=True)
+    if not game_id:
+        user = User.get_by_name(name)
+        if not user:
+            return text_resp("User '%s' not found" % name, 404)
+        game_keys = user.games[::-1]
+        game_id = None
+        for key in game_keys:
+            game = key.get()
+            if game.bingo_data:
+                game_id = game.key.id()
+                break
+        if not game_id:
+            return text_resp("Could not find any bingo games for user '%s'" % name, 404)
+    return redirect(url_for('bingo_board_spectate', game_id=4 + game_id*7))
 
-# class ReactLanding(RequestHandler):
-#     def get(self):
-#         template_values = template_vals(self, "MainPage", "Ori DE Randomizer %s" % VERSION, User.get())
-#         _, error = CustomLogic.read()
-#         template_values.update({"error_msg": error})
-#         self.response.write(template.render(path, template_values))
+@app.route('/bingo/userboard/<name>') #BingoUserboard =     
+def bingo_userboard(name):
+    user = User.get_by_name(name)
+    if not user:
+        return text_resp("User '%s' not found" % name, 404)
+    template_values = {'app': "Bingo", 'title': "%s's Bingo Board" % user.name}
+    template_values['user'] = user.name
+    template_values['dark'] = user.dark_theme
+    if user.pref_num:
+        template_values['pref_num'] = user.pref_num
+    if user.theme:
+        template_values['theme'] = user.theme
+    return render_template(path, **template_values)
 
+@app.route('/bingo/userboard/<name>/fetch/<game_id>') #UserboardTick =     
+def bingo_userboard_tick(name, game_id):
+    cur_gid = int(gid)
+    now = datetime.utcnow()
+    game_id = Cache.get_latest_game(name, bingo=True)
+    if not game_id:
+        user = User.get_by_name(name)
+        if not user:
+            return text_resp("User '%s' not found" % name, 404)
+        game_keys = user.games[::-1]
+        game_id = None
+        for key in game_keys:
+            game = key.get()
+            if game.bingo_data:
+                game_id = game.key.id()
+                break
+        if not game_id:
+            return text_resp("Could not find any bingo games for user '%s'" % name, 404)
+    first = cur_gid != game_id
+    res = {}
+    bingo = BingoGameData.with_id(game_id)
+    if not bingo:
+        return text_resp("Bingo game %s not found" % game_id, 404)
+    res = bingo.get_json(first)
+    if param_flag("time"):
+        server_now = timegm(now.timetuple()) * 1000
+        client_now = int(param_val("time"))
+        res["offset"] = server_now - client_now
+    return json_resp(res)
 
+@app.route('/bingo/from_game/<game_id>') #AddBingoToGame =     
+def add_bingo_to_game(game_id):
+        now = datetime.utcnow()
+        game_id = int(game_id)
+        difficulty = param_val("difficulty") or "normal"
+        if not game_id or int(game_id) < 1:
+            return text_resp("please provide a valid game id", 404)
+        game = Game.with_id(game_id)
+        if not game:
+            return text_resp("game not found", 404)
+        if not game.params:
+            return text_resp("game did not have required seed data", 412)
+        if game.mode in [MultiplayerGameType.SPLITSHARDS]:
+            return text_resp("splitshards bingo are not currently supported", 412)
+        params = game.params.get()
+        seed = param_val("seed") or params.seed
+        rand = random.Random()
+        rand.seed(seed)
 
-# class SeedGenJson(RequestHandler):
-#     def get(self):
-#         self.response.headers['Content-Type'] = 'application/json'
-#         param_key = SeedGenParams.from_url(self.request.GET)
-#         verbose_paths = param_val("verbose_paths") is not None
-#         if param_key:
-#             params = param_key.get()
-#             if params.generate(preplaced={}):
-#                 players = []
-#                 resp = {}
-#                 if params.tracking:
-#                     game = Game.from_params(params, param_val("game_id"))
-#                     key = game.key
-#                     resp["map_url"] = uri_for("map-render", game_id=key.id())
-#                     resp["history_url"] = uri_for("game-show-history", game_id=key.id())
-#                 for p in range(1, params.players + 1):
-#                     if params.tracking:
-#                         seed = params.get_seed(p, key.id(), verbose_paths)
-#                     else:
-#                         seed = params.get_seed(p, verbose_paths=verbose_paths)
-#                     spoiler = params.get_spoiler(p).replace("\n", "\r\n")
-#                     players.append({"seed": seed, "spoiler": spoiler, "spoiler_url": uri_for('gen-params-get-spoiler', params_id=param_key.id(), player=p)})
-#                 resp["players"] = players
-#                 self.response.write(json.dumps(resp))
-#                 return
-#         log.error("param gen failed")
-#         self.response.status = 500
+        d = int(param_val("discCount") or 0)
+        bingo = BingoGameData(
+            id            = game_id,
+            board         = BingoGenerator.get_cards(rand, 25, True, difficulty, Variation.OPEN_WORLD in params.variations, d),
+            difficulty    = difficulty,
+            subtitle      = params.flag_line(),
+            teams_allowed = param_flag("teams"),
+            teams_shared  = params.players > 1 and params.sync.mode == MultiplayerGameType.SHARED,
+            game          = game.key,
+        )
+        if d:
+            bingo.seed = seed
+            bingo.discovery_squares(d)
 
-# class GetParamMetadata(RequestHandler):
-#     def get(self, params_id, game_id = None):
-#         self.response.headers['Content-Type'] = 'application/json'
-#         params = SeedGenParams.with_id(params_id)
-#         if not params:
-#             return resp_error(self, 404, json.dumps({"error": "No params found"}))
-#         res = params.to_json()
-#         if params.tracking and not game_id:
-#             game = Game.from_params(params)
-#             res["gameId"] = game.key.id()
-#         self.response.write(json.dumps(res))
+        if bingo.teams_shared and not bingo.teams_allowed:
+            log.warning("Teams are required for shared seeds! Overriding invalid config")
+            bingo.teams_allowed = True
 
+        if param_flag("lines"):
+            bingo.bingo_count  = int(param_val("lines"))
+        if param_flag("squares"):
+            bingo.square_count = int(param_val("squares"))
+            bingo.lockout      = bool(int(param_val("lockout")))
+        user = User.get()
+        eventStr = "misc"
+        if user:
+            bingo.creator = user.key
+        if not user or param_flag("no_timer"):
+            bingo.start_time = now
+            eventStr += "Bingo Game %s started!" % game_id
+        else:
+            eventStr += "Bingo Game %s created!" % game_id
+        if bingo.square_count and bingo.square_count > 0:
+            eventStr += " squares to win: %s" % bingo.square_count
+            if bingo.lockout:
+                eventStr += ", lockout"
+        elif bingo.bingo_count > 0:
+            eventStr += " bingos to win: %s" % bingo.bingo_count
+        bingo.event_log.append(BingoEvent(event_type=eventStr, timestamp=now))
+        res = bingo.get_json(True)
+        if param_flag("time"):
+            server_now = timegm(now.timetuple()) * 1000
+            client_now = int(param_val("time"))
+            res["offset"] = server_now - client_now
 
-# class PicksByTypeGen(RequestHandler):
-#     def get(self):
-#         self.response.headers['Content-Type'] = 'application/json'
-#         self.response.write(picks_by_type_generator())
-#         return
+        for p in game.get_players():
+            game.remove_player(p.key.id())
+        bkey = bingo.put()
+        game.bingo_data = bkey
+        game.put()
+        return json_resp(json_dumps(res))
 
-# class RebindingsEditor(RequestHandler):
-#     def get(self):
-#         template_values = template_vals(self, "RebindingsEditor", "Ori DERebindings Editor", User.get())
-#         self.response.write(template.render(path, template_values))
+@app.route('/netcode/game/<game_id>/player/<player_id>/bingo', methods=['POST']) #HandleBingoUpdate    
+def netcode_player_bingo_tick(game_id, player_id):
+    bingo = BingoGameData.with_id(game_id)
+    if not bingo:
+        return text_resp("Bingo game %s not found" % game_id, 404)
+    if int(player_id) not in bingo.player_nums():
+        return resp_error(self, 412, "player not in game! %s" % bingo.player_nums())
+    bingo_data = json.loads(self.request.POST["bingoData"]) if "bingoData" in self.request.POST  else None
+    if debug and player_id in test_data:
+        bingo_data = test_data[player_id]['bingoData']
+    try:
+        bingo.update(bingo_data, player_id, game_id)
+    except:
+        sleep(3)
+        bingo.update(bingo_data, player_id, game_id)
 
-# class Guides(RequestHandler):
-#     def get(self):
-#         template_values = template_vals(self, "HelpAndGuides", "Help and Guides", User.get())
-#         self.response.write(template.render(path, template_values))
-
-# class GetSettings(RequestHandler):
-#     def get(self):
-#         res = {}
-#         res["names"] = [user.name.lower() for user in User.query().fetch()]
-#         user = User.get()
-#         if user:
-#             res["teamname"] = user.teamname or "%s's team" % user.name
-#             res["theme"] = "dark" if user.dark_theme else "light"
-#         self.response.headers['Content-Type'] = 'application/json'
-#         self.response.write(json.dumps(res))
-
-
-# class SetSettings(RequestHandler):
-#     def get(self):
-#         self.response.headers['Content-Type'] = 'text/plain'
-#         user = User.get()
-#         if user:
-#             name = param_val("name")
-#             teamname = param_val("teamname")
-#             if name and name != user.name:
-#                 if user.rename(name):
-#                     self.response.write("Rename successful!")
-#                 else:
-#                     self.response.write("Rename failed!")
-#             if teamname and teamname != user.teamname:
-#                 user.teamname = teamname
-#                 user.put()
-#         else:
-#             self.response.write("You are not logged in!")
-
-
-# class QuickReroll(RequestHandler):
-#     def get(self):
-#         self.response.headers['Content-Type'] = 'text/plain'
-#         user = User.get()
-#         if not user:
-#             return self.redirect(User.login_url('/reroll'))
-#         if not user.games:
-#             return resp_error(self, 404, "no games found", 'text/plain')
-#         game_key = user.games[-1]
-#         old_game = game_key.get()
-#         if not old_game.params:
-#             return resp_error(self, 404,"latest game does not have params", 'text/plain')
-#         old_params = old_game.params.get().to_json()
-#         old_params['seed'] = str(random.randint(0, 1000000000))
-#         new_params = SeedGenParams.from_json(old_params).get()
-#         if not new_params.generate():
-#             return resp_error(self, 500, "Failed to generate seed!", 'text/plain')
-#         game = Game.from_params(new_params)
-#         if Variation.BINGO in new_params.variations:
-#             url = "/bingo/board?game_id=%s&fromGen=1&seed=%s&bingoLines=%s" % (game.key.id(), new_params.seed, new_params.bingo_lines)
-#             b = old_game.bingo_data.get()
-#             if b.discovery and b.discovery > 0:
-#                 url += "&disc=%s" % b.discovery
-#             return redirect(url)
-#         # Add GET parameters manually to have param_id before game_id (uri_for sorts them)
-#         return redirect("%s?param_id=%s&game_id=%s" % (uri_for('main-page'), new_params.key.id(), game.key.id()))
-
-
-# class LatestMap(RequestHandler):
-#     def get(self, name):
-#         latest = User.latest_game(name)
-#         if latest:
-#             return redirect("%s?%s" % (uri_for('map-render', game_id=latest), "&".join(["usermap=" + name] + ["%s=%s" % (k, v) for k, v in self.request.GET.items()])))
-#         else:
-#             return resp_error(self, 404, "User not found or had no games on record")
-
-
-# class SetPlayerNum(RequestHandler):
-#     def get(self, new_num):
-#         self.response.headers['Content-Type'] = 'text/plain'
-#         user = User.get()
-#         if user:
-#             if int(new_num) > 0:
-#                 user.pref_num = int(new_num)
-#                 user.put()
-#                 self.response.write("Preferred player number for %s set to %s" % (user.name, new_num))
-#                 return
-#             else:
-#                 return resp_error(self, 400, "Preferred player number must be >0", "text/plain")
-#         else:
-#             return resp_error(self, 401, "You are not logged in!", "text/plain")
-
-# class SetTheme(RequestHandler):
-#     def get(self, new_theme):
-#         self.response.headers['Content-Type'] = 'text/plain'
-#         user = User.get()
-#         if user:
-#             user.theme = new_theme
-#             user.put()
-#             self.response.write("theme for %s set to %s" % (user.name, new_theme))
-#             return
-#         else:
-#             return resp_error(self, 401, "You are not logged in!", "text/plain")
-
-# class ToggleVerbose(RequestHandler):
-#     def get(self):
-#         self.response.headers['Content-Type'] = 'text/plain'
-#         user = User.get()
-#         if user:
-#             user.verbose = not user.verbose
-#             user.put()
-#             self.response.write("verbose seed spoilers set to %s" % user.verbose)
-#             return
-#         else:
-#             return resp_error(self, 401, "You are not logged in!", "text/plain")
-
-# class NakedRedirect(RequestHandler):
-#     def get(self, path):
-#         return redirect(self.request.url.replace("www.", ""))
-
-# class ResetGame(RequestHandler):
-#     def get(self, game_id):
-#         self.response.headers['Content-Type'] = 'text/plain'
-#         game = Game.with_id(game_id)
-#         if not game:
-#             return resp_error(self, 404, "game not found!")
-#         user = User.get()
-#         if User.is_admin() or (user and user.key == game.creator):
-#             game.reset()
-#             self.response.write("Game reset successfully")
-#         else:
-#             return resp_error(self, 401, "Can't restart a game you didn't create...")
-
-# class ResetAndTransfer(RequestHandler):
-#     def get(self, game_id, new_owner):
-#         self.response.headers['Content-Type'] = 'text/plain'
-#         game = Game.with_id(game_id)
-#         if not game:
-#             return resp_error(self, 404, "game not found!")
-#         user = User.get()
-#         if (User.is_admin() or (user and user.key == game.creator)):
-#             new_user = User.get_by_name(new_owner)
-#             if not new_user:
-#                 return resp_error(self, 404, "Couldn't find user %s" % new_owner)
-#             old_creator = game.creator
-#             game.creator = new_user.key
-#             game.reset()
-#             self.response.write("Game reset; ownership transferred from %s to %s" % (user.name, new_user.name))
-#         else:
-#             return resp_error(self, 401, "Can't restart a game you didn't create...")
-
-
-# class SetCustomLogic(RequestHandler):
-#     def post(self):
-#         if User.get():
-#             CustomLogic.write(["dummy value", "another line"], "fake: " + self.request.POST.get("lines",["<bad>"])[0])
-
-# class GetCustomLogic(RequestHandler):
-#     def get(self):
-#         self.response.out.write(CustomLogic.read())
-
-# class GetAreas(RequestHandler):
-#     def get(self):
-#         self.response.headers['Content-Type'] = 'text/plain'
-#         self.response.write(Cache.get_areas())
-
-# def all_releases():
-#     return json.loads(urlopen("https://api.github.com/repos/sparkle-preference/OriWotwRandomizerClient/releases").read())
-
-# def beta_release():
-#     return json.loads(urlopen("https://api.github.com/repos/sparkle-preference/OriWotwRandomizerClient/releases/latest").read())
-
-# def stable_release():
-#     for r in all_releases():
-#         if r["tag_name"].partition("-")[0][-1] == "0":
-#             return r
-#     return None  # panicworthy honestly
-
-# def asset_link(resp, asset_name):
-#     return str([ass["browser_download_url"] for ass in resp["assets"] if ass["name"].lower() == asset_name.lower()][0])
-
-# class WotwReleases(RequestHandler):
-#     def beta_asset(self, asset_name):
-#         return redirect(asset_link(beta_release(), asset_name))
-
-#     def stable_asset(self, asset_name):
-#         return redirect(asset_link(stable_release(), asset_name))
-
-#     def beta_ver(self):
-#         self.response.headers['Content-Type'] = 'text/plain'
-#         return self.response.write(urlopen(asset_link(beta_release(), "VERSION")).read())
-
-#     def stable_ver(self):
-#         self.response.headers['Content-Type'] = 'text/plain'
-#         return self.response.write(urlopen(asset_link(stable_release(), "VERSION")).read())
- 
-# class WeeklyPollAdminRedir(RequestHandler):
-#     def get(self):
-#         if User.is_admin():
-#             from secrets import weekly_poll_edit_link
-#             return redirect(weekly_poll_edit_link)
-#         return redirect(uri_for('weekly-schedule'))
-
-# class TourneyLayout(RequestHandler):
-#     def get(self):
-#         self.response.headers['Content-Type'] = 'application/x-gzip'
-#         self.response.headers['Content-Disposition'] = 'attachment; filename=OriRando_RaceLayout.json'
-#         self.response.write(layout_json)
-
-# app = WSGIApplication(
-#     routes=[
-#         DomainRoute('www.orirando.com', [Route('<path:.*>', handler=NakedRedirect)]),
-#     ] + bingo_routes + [
-#     # testing endpoints
-#     PathPrefixRoute('/tests', [
-#         Route('/', handler=TestRunner, name='tests-run'),
-#         Route('/map', handler=MapTest, name='tests-map', strict_slash=True),
-#         Route('/map/<game_id:\d+>', handler=MapTest, name='tests-map-gid', strict_slash=True),
-#     ]),
-#     Route('/user/custom_logic/set', handler=SetCustomLogic, name='set-custom-logic'),
-#     Route('/user/custom_logic/get', handler=GetCustomLogic, name='get-custom-logic'),
-#     Route('/tests', redirect_to_name='tests-run'),
-#     Route('/picksbytype', handler=PicksByTypeGen, name='picks-by-type-gen', strict_slash=True),
-
-#     PathPrefixRoute('/generator', [
-#         Route('/build', handler=MakeSeedWithParams, name="gen-params-build", strict_slash=True),
-#         Route('/metadata/<params_id:\d+>', handler=GetParamMetadata, name="gen-params-get-metadata", strict_slash=True),
-#         Route('/metadata/<params_id:\d+>/<game_id:\d+>', handler=GetParamMetadata, name="gen-params-get-metadata-with-game", strict_slash=True),
-#         Route('/seed/<params_id:\d+>', handler=GetSeedFromParams, name="gen-params-get-seed", strict_slash=True),
-#         Route('/spoiler/<params_id:\d+>', handler=GetSpoilerFromParams, name="gen-params-get-spoiler", strict_slash=True),
-#         Route('/aux_spoiler/<params_id:\d+>', handler=GetAuxSpoilerFromParams, name="gen-params-get-aux-spoiler", strict_slash=True),
-#         Route('/json', handler=SeedGenJson, name="gen-params-get-json")
-#     ]),
-#     # tracking map endpoints
-#     Route('/tracker/spectate/<name>', handler = LatestMap, name = "user-latest-map", strict_slash = True),
-
-#     PathPrefixRoute('/tracker/game/<game_id:\d+>', [
-#         Route('/', redirect_to_name="map-render"),
-#         Route('/map', handler=ShowMap, name='map-render', strict_slash=True),
-#         Route('/items', handler=ItemTracker, name='item-tracker', strict_slash=True),
-#         Route('/<player_id:\d+>/items', handler=ItemTracker, name='item-tracker', strict_slash=True),
-#         ] + list(PathPrefixRoute('/fetch', [
-#             Route('/items/<player_id:\d+>', handler=GetItemTrackerUpdate, name='item-tracker-update'),
-#             Route('/pos', handler=GetPlayerPositions, name="map-fetch-pos"),
-#             Route('/gamedata', handler=GetGameData, name="map-fetch-game-data"),
-#             Route('/seen', handler=GetSeenLocs, name="map-fetch-seen"),
-#             Route('/reachable', handler=GetReachable, name="map-fetch-reachable"),
-#             Route('/update', handler=GetMapUpdate, name='match-fetch-update'),
-
-#             ] + list(PathPrefixRoute('/player/<player_id>', [
-#                 Route('/seed', GetSeed, name="map-fetch-seed"),
-#                 Route('/setSeed', SetSeed, name="map-set-seed"),
-#             ]).get_routes())
-#         ).get_routes())
-#     ),
-#     # misc / top level endpoints
-#     Route('/logichelper', handler=LogicHelper, name="logic-helper", strict_slash=True),
-#     Route('/faq', handler=Guides, name="help-guides", strict_slash=True),
-#     Route('/', handler=ReactLanding, name="main-page"),
-#     Route('/user/settings', handler=GetSettings, name="user-settings-get"),
-#     Route('/user/settings/update', handler=SetSettings, strict_slash=True, name="user-settings-update"),
-#     Route('/user/settings/number/<new_num:\d+>', handler=SetPlayerNum, strict_slash=True, name="user-set-player-num"),
-#     Route('/user/settings/theme/<new_theme>', handler=SetTheme, strict_slash=True, name="user-set-player-theme"),
-#     Route('/user/settings/verbose', handler=ToggleVerbose, strict_slash=True, name="user-toggle-verbose"),
-#     Route('/activeGames/', handler=ActiveGames, strict_slash=True, name="active-games"),
-#     Route('/activeGames/<hours:\d+>', handler=ActiveGames, strict_slash=True, name="active-games-hours"),
-#     ('/rebinds', RebindingsEditor),
-#     ('/quickstart', ReactLanding),
-#     (r'/myGames/?', MyGames),
-#     (r'/clean/?', CleanUp),
-#     (r'/cache/clear', ClearCache),
-#     (r'/login/?', HandleLogin),
-#     (r'/logout/?', HandleLogout),
-#     ('/vanilla', Vanilla),
-#     Route('/reroll', handler=QuickReroll, strict_slash=True, name="reroll-last"),
-#     Route('/discord', redirect_to="https://discord.gg/TZfue9V"),
-#     Route('/discord/dev', redirect_to="https://discord.gg/sfUr8ra5P7"),
-#     Route('/reset/<game_id:\d+>', handler=ResetGame, name="restart-game"),
-#     Route('/transfer/<game_id:\d+>/<new_owner>', handler=ResetAndTransfer, name="transfer-game"),
-#     Route('/dll', redirect_to="https://github.com/sparkle-preference/OriDERandomizer/raw/master/Assembly-CSharp.dll"),
-#     Route('/dll/beta', redirect_to="https://github.com/sparkle-preference/OriDERandomizer/raw/master/Assembly-CSharp.dll"),
-#     Route('/tracker', redirect_to="https://github.com/meldontaragon/OriDETracker/releases/latest"),
-#     Route('/weekly', redirect_to='https://docs.google.com/forms/d/e/1FAIpQLSew3Fx9ypwkKHuWhEDH-Edb7PtDpi1w0XAjdILK7sRm_EohBw/viewform?usp=pp_url&entry.1986108575=Bonus+Items&entry.1986108575=Teleporters+in+item+pool&entry.1986108575=Items+on+quests&entry.1986108575=Hints+sold+by+NPCs&entry.60604526=spawn+with:+Sword&entry.1306149304=Normal', name="weekly-poll"),
-#     Route('/weekly/vote', redirect_to='https://docs.google.com/forms/d/e/1FAIpQLSew3Fx9ypwkKHuWhEDH-Edb7PtDpi1w0XAjdILK7sRm_EohBw/viewform?usp=pp_url&entry.1986108575=Bonus+Items&entry.1986108575=Teleporters+in+item+pool&entry.1986108575=Items+on+quests&entry.1986108575=Hints+sold+by+NPCs&entry.60604526=spawn+with:+Sword&entry.1306149304=Normal', name="weekly-poll"),
-#     Route('/weekly/schedule', redirect_to='https://whenisgood.net/wotw_rando_weekly_times/', name="weekly-schedule"),
-#     Route('/weekly/schedule/edit', handler=WeeklyPollAdminRedir, name="weekly-schedule-admin"),
-#     Route('/wotw/stable', handler=WotwReleases, handler_method="stable_ver", name="wotw-version-stable"),
-#     Route('/wotw/stable/<asset_name>', handler=WotwReleases, handler_method="stable_asset", name="wotw-installer-stable"),
-#     Route('/wotw/beta', handler=WotwReleases,  handler_method="beta_ver", name="wotw-version-stable"),
-#     Route('/wotw/beta/<asset_name>', handler=WotwReleases, handler_method="beta_asset", name="wotw-installer-stable"),
-#     Route('/wotw/releases', redirect_to="https://github.com/sparkle-preference/OriWotwRandomizerClient/releases", name="wotw-releases"),
-
-# #    Route('/openBook/form', redirect_to='https://forms.gle/aCyEjh7YWPLo1YK36', name="open-book-form"),
-# #    Route('/openBook/leaderboard', redirect_to='https://docs.google.com/spreadsheets/d/1X6jJpjJVY_mly--9tnV9EGo5I6I_gJ4Sepkf51S9rQ4/edit#gid=172059369&range=A1:D1', name="open-book-leaderboard"),
-#     Route('/theme/toggle', handler=ThemeToggle, name="theme-toggle"),
-#     # netcode endpoints
-#     Route('/netcode/areas', handler=GetAreas, name="areas-raw"),
-#     PathPrefixRoute('/netcode/game/<game_id:\d+>/player/<player_id:[^/]+>', [
-#         Route('/found/<coords>/<kind>/<id:.*>', handler=FoundPickup, name="netcode-player-found-pickup"),
-#         Route('/tick/<x:[^,]+>,<y>', handler=GetUpdate, name="netcode-player-tick"),
-#         Route('/tick/', handler=PostUpdate, name="netcode-player-post-tick"),
-#         Route('/signalCallback/<signal:.*>', handler=SignalCallback,  name="netcode-player-signal-callback"),
-#         Route('/callback/<signal:.*>', handler=SignalCallback,  name="netcode-player-signal-callback"),
-#         Route('/setSeed', handler=SetSeed,  name="netcode-player-set-seed"),
-#     ]),
-
-#     # game endpoints
-#     PathPrefixRoute('/game/<game_id:\d+>', [
-#         Route('/delete', handler=DeleteGame, strict_slash=True, name="game-delete"),
-#         Route('/history', handler=ShowHistory, strict_slash=True, name="game-show-history"),
-#         Route('/players', handler=ListPlayers, strict_slash=True, name="game-list-players"),
-#         Route('/player/(\w+)/remove', handler=RemovePlayer, strict_slash=True, name="game-remove-player"),
-#         Route('/', redirect_to_name="game-show-history"),
-#     ]),
-
-#     # tourney links
-#     PathPrefixRoute('/2021tourney', [
-#         Route('/general', redirect_to='https://docs.google.com/document/d/1LmRucZIQcRltyuHcvy4yzOLnXO043lksatPzJs-_j_g/'),
-#         Route('/runnerguide', redirect_to='https://docs.google.com/document/d/1EfU4zy6Lbxyycpe0Fszl0R2VDr_6p07wS2zSgHoZSag/'),
-#         Route('/tipsandtricks', redirect_to='https://docs.google.com/document/d/1E5QhT0c3cZRwhVRQapNPUMluGsQ46p5_SUDm_glFeOc/'),
-#         Route('/runnersignup', redirect_to='https://docs.google.com/forms/d/e/1FAIpQLSdQ78-UEbfEhFYto2xLx_1zbK6PDgLfjAgqmV8Xon80tTHfpQ/viewform'),
-#         Route('/volunteersignup', redirect_to='https://docs.google.com/forms/d/e/1FAIpQLSdduWEMO9FbCIdRLWEB82r5yBdwn8AW8B4_26m4YaprvCymeA/viewform?usp=sf_link'),
-#         Route('/restreamerguide', redirect_to='https://docs.google.com/document/d/1p378vWvDXlHo-1J9GTRpsEmIyZ5NiPJy9ZzXjDP8VFE/'),
-#         Route('/restreamerchecklist', redirect_to='https://drive.google.com/file/d/16z3z6EVO_kCYbFQFDiDPSJQbptv5EJ5x/view'),
-#         Route('/commentaryguide', redirect_to='https://docs.google.com/document/d/1LoChjkOAgr1MGQ3prhjXjnRpAVFy6Rbb4UEHOIozKJs/edit#'),
-#         Route('/truckguide', redirect_to='https://docs.google.com/document/d/1iDFkJOz8Bkugb2fvkjcRuNCbCveJX3-02sAVnUj4dM0/edit#'),
-#         Route('/preliminarystandings', redirect_to='https://docs.google.com/spreadsheets/d/1xeiQb1pf7zwY9YS7OTRrlHBhG8Zy6M6Qh4Rbq9OMuuo'),
-#         Route('/vods', redirect_to='https://docs.google.com/spreadsheets/d/16cs0Q1RNLgmvmd5E7dhPAEWVJ7M4NpskMBgau3RupEQ/'),
-#         Route('/obslayout', handler=TourneyLayout),
-#         Route('/seedprefs', redirect_to='https://docs.google.com/forms/d/e/1FAIpQLScSRsjV6AFUyJQUjn_7EmO7qoEBKkOboy6wapPVoHb4gSFRoA/viewform?usp=pp_url&entry.1476829546=No&entry.1252857494=No&entry.1688839863=No&entry.471087235=No&entry.804542867=No&entry.1664745973=No'),
-#         Route('/seedprefs/edit', redirect_to='https://docs.google.com/forms/d/e/1FAIpQLScSRsjV6AFUyJQUjn_7EmO7qoEBKkOboy6wapPVoHb4gSFRoA/viewform'),
-#         Route('/seedprefs/details', redirect_to='https://docs.google.com/document/d/16lnSTtVqFpiXEOjabtn25laGwJ0Szf4Mn7UOgd82gN0/'),
-
-#     ]),
-
-#     Route('/trickglossary', redirect_to='https://docs.google.com/document/d/1vjDiXz8UPiIOtUVKPlgzjBn9lrCE4y95EwPt0WnQF_U/'),
-#     Route('/trickrepo', redirect_to='https://www.youtube.com/channel/UCowq0m-wHdwi0vpG3jY1hFA'),
-
-#     # plando endpoints
-#     Route('/plando/reachable', PlandoReachable, strict_slash=True, name="plando-reachable"),
-#     Route('/plando/fillgen', PlandoFillGen, strict_slash=True, name="plando-fillgen"),
-#     Route('/plandos', AllAuthors, strict_slash=True, name="plando-view-all"),
-#     PathPrefixRoute('/plando/<seed_name:[^ ?=/]+>', [
-#         Route('/upload', PlandoUpload, strict_slash=True, name="plando-upload"),
-#         Route('/edit', PlandoEdit, strict_slash=True, name="plando-edit"),
-#         Route('/delete', PlandoDelete, strict_slash=True, name="plando-delete"),
-#         Route('/rename/<new_name:[^ ?=/]+>', PlandoRename, strict_slash=True, name="plando-rename"),
-#         Route('/hideToggle', PlandoToggleHide, strict_slash=True, name="plando-toggle-hide"),
-#     ]),
-#     Route('/plando/<author_name:[^ ?=/]+>', AuthorIndex, strict_slash=True, name="plando-author-index"),
-
-#     PathPrefixRoute('/plando/<author_name:[^ ?=/]+>/<seed_name:[^ ?=/]+>', [
-#         Route('/download', PlandoDownload, strict_slash=True, name="plando-download"),
-#         Route('/', PlandoView, strict_slash=True, name="plando-view"),
-#     ]),
-# ], debug()=debug())
+@app.route('/bingo/bingothon/<game_id>/player/<player_id>') #GetBingothonJson    
+def bingothon_fetch_data(game_id, player_id):
+    res = {"cards": []}
+    bingo = BingoGameData.with_id(game_id)
+    if not bingo:
+        return json_resp({"error": "bingo game not found"}, 404)
+    p = bingo.player(player_id)
+    if not p:
+        return json_resp({"error": "player not found in game"}, 404)
+    for card in bingo.board:
+        res["cards"].append(card.bingothon_json(p))
+    if bingo.discovery:
+        res["disc_squares"] = bingo.disc_squares
+    return json_resp(res)
