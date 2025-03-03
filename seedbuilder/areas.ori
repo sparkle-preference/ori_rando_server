@@ -1950,16 +1950,24 @@ home: MoonGrottoAboveTeleporter 443 -150
 	pickup: LeftGrottoTeleporterExp
 		casual WallJump DoubleJump
 		casual Climb DoubleJump ChargeJump
+		standard DoubleJump AirDash
+		standard Climb Glide Health=4
+		standard Climb DoubleJump Health=4
+		standard DoubleJump Glide Health=4
+		standard Climb AirDash Health=4
+		standard WallJump AirDash Health=4
 		expert Grenade Bash
 		expert Climb ChargeJump
+		expert DoubleJump Dash
 		expert ChargeJump Health=4
 		expert WallJump Glide Health=4
-		expert Climb Glide Health=4
-		expert DoubleJump Glide Health=4
+		expert DoubleJump Health=4
 		expert WallJump Health=7
 		expert Climb Health=7
+		expert ChargeDash Health=4
 		master Lure Bash
-		master DoubleJump Health=4
+		master TripleJump
+		master ChargeDash
 	conn: UpperGrotto
 		casual WallJump
 		casual Climb DoubleJump
@@ -1981,8 +1989,10 @@ home: MoonGrottoAboveTeleporter 443 -150
 	conn: MoonGrotto
 	conn: DeathGauntletRoof
 		master Lure Bash
-	conn: MoonGrottoBelowTeleporter
+	pickup: BelowGrottoTeleporterHealthCell
 		master Lure Bash
+	pickup: BelowGrottoTeleporterPlant
+		master Lure Bash ChargeFlame
 home: MoonGrotto 517 -177
 	-- anchor: on the teleporter
 	conn: TeleporterNetwork
@@ -1998,6 +2008,49 @@ home: MoonGrotto 517 -177
 		expert Energy=2 Climb Glide
 		expert Energy=2 Climb DoubleJump Health=3
 		expert Energy=2 ChargeDash
+	pickup: BelowGrottoTeleporterHealthCell
+		casual DoubleJump Bash WallJump
+		casual DoubleJump Bash Climb
+		casual ChargeJump DoubleJump
+		casual ChargeJump Glide WallJump
+		casual ChargeJump Glide Climb
+		standard ChargeJump Glide
+		standard Bash WallJump Glide
+		standard Bash Grenade
+		standard ChargeJump Health=3
+		standard Bash DoubleJump Health=3
+		standard Bash AirDash WallJump
+		standard Bash AirDash Climb
+		standard ChargeJump AirDash
+		expert DoubleJump Bash
+		expert WallJump Bash Health=6
+		expert ChargeDash Health=3
+		expert Lure Bash Glide Health=6
+		expert ChargeDash WallJump
+		expert ChargeDash Climb
+		expert AirDash Bash
+		master Bash ChargeJump
+		master Bash Glide
+		master WallJump TripleJump
+	pickup: BelowGrottoTeleporterPlant
+		casual DoubleJump ChargeFlame
+		casual DoubleJump Grenade
+		casual ChargeJump Glide ChargeFlame
+		casual ChargeJump Glide Grenade
+		standard WallJump Glide ChargeFlame
+		standard WallJump Glide Grenade
+		standard Bash Grenade
+		standard Glide ChargeFlame Health=4
+		standard Glide Grenade Health=4
+		standard ChargeJump ChargeFlame Health=3
+		standard ChargeJump Grenade Health=3
+		standard AirDash ChargeFlame
+		standard AirDash Grenade
+		expert WallJump ChargeFlame Health=6
+		expert WallJump Grenade Health=6
+		expert ChargeDash
+		master Glide ChargeFlame
+		master Glide Grenade
 	conn: MoonGrottoAboveTeleporter
 		casual WallJump
 		casual Climb
@@ -2024,11 +2077,6 @@ home: MoonGrotto 517 -177
 		standard Dash
 		expert WallJump
 		master Lure Bash
-	conn: MoonGrottoBelowTeleporter
-		casual DoubleJump
-		casual ChargeJump Glide
-		standard Glide Health=4
-		standard AirDash
 home: Iceless 359 -108
 	-- anchor: at the iceless xp
 	pickup: IcelessExp
@@ -2039,31 +2087,6 @@ home: Iceless 359 -108
 		standard Bash Grenade
 		standard Health=4
 		master GrenadeJump
-home: MoonGrottoBelowTeleporter 491 -203
-	-- anchor: just right of the "teeth"
-	pickup: BelowGrottoTeleporterHealthCell
-		casual DoubleJump Bash WallJump
-		casual DoubleJump Bash Climb
-		casual ChargeJump DoubleJump
-		casual ChargeJump Glide
-		standard ChargeJump Health=3
-		standard DoubleJump Bash Health=3
-		standard WallJump Bash Health=3
-		expert Bash Health=5
-		expert WallJump ChargeDash
-		expert Climb ChargeDash
-		expert ChargeJump ChargeDash
-		master TripleJump WallJump
-	pickup: BelowGrottoTeleporterPlant
-		casual DoubleJump ChargeFlame
-		casual Glide ChargeFlame
-		casual DoubleJump Grenade
-		casual Glide Grenade
-		standard ChargeFlame Health=4
-		standard Grenade Health=4
-		standard AirDash ChargeFlame
-		standard AirDash Grenade
-		expert ChargeDash
 home: MoonGrottoSwampAccessArea 545 -154
 	-- anchor: atop the breakable log platform, directly below the xp
 	pickup: GrottoSwampDrainAccessExp
