@@ -1542,7 +1542,8 @@ home: OuterSwampSwarmLedge 600 -90
 		expert Dash
 	conn: OuterSwampMortarAbilityCellLedge
 		-- these paths assume that you solve the puzzle
-		casual ChargeJump
+		casual ChargeJump DoubleJump
+		standard ChargeJump
 		casual Bash DoubleJump
 		casual Bash Grenade
 		standard Bash
