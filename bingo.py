@@ -438,7 +438,7 @@ class BingoGenerator(object):
             GoalGroup(
                 name = "GetAbility", 
                 name_func = namef("Level up", "ability", plural_form = "abilities"),
-                goals = [BoolGoal(name, help_lines = ["requires %s ability points" % cost]) for name, cost in [("Ultra Defense", 19), ("Spirit Light Efficiency", 10), ("Ultra Stomp", 10)]],
+                goals = [BoolGoal(name, help_lines = ["in the %s ability tree. requires %s ability points" % (color, cost)]) for name, cost, color in [("Ultra Defense", 19, "Blue"), ("Spirit Potency", 10, "Purple"), ("Ultra Stomp", 10, "Red")]],
                 methods = [
                     ("or", r((2, 2), (1, 2), (1, 1), flat=True)), 
                     ("and", r((1, 1), (1, 2), (2, 3), flat=True))
