@@ -1461,7 +1461,7 @@ class SeedGenerator:
                     self.sharedList += ["GinsoKey", "ForlornKey", "HoruKey"]
                 self.sharedList += ["Water", "Wind", "Warmth"]
             if ShareType.TELEPORTER in shared:
-                self.sharedList += ["TPForlorn", "TPGrotto", "TPSorrow", "TPGrove", "TPSwamp", "TPValley", "TPGinso", "TPHoru"]
+                self.sharedList += ["TPForlorn", "TPGrotto", "TPSorrow", "TPGrove", "TPSwamp", "TPValley", "TPGinso", "TPHoru", "TPBlackroot", "TPGlades"]
             if ShareType.UPGRADE in self.params.sync.shared:
                 self.sharedList += ["RB6", "RB8", "RB9", "RB10", "RB11", "RB12", "RB13", "RB15"]
                 if self.var(Variation.EXTRA_BONUS_PICKUPS):
