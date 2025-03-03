@@ -35,7 +35,7 @@ class BoolGoal(BingoGoal):
         return BingoCard(
             name = self.name,
             disp_name = self.disp_name,
-            help_lines = self.help_lines[:],
+            help_lines = [str(l) for l in self.help_lines],
             goal_type = "bool",
             early = "early" in self.tags
         )

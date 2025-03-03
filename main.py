@@ -34,6 +34,7 @@ path='index.html'
 
 app = Flask(__name__)
 app.wsgi_app = wrap_wsgi_app(app.wsgi_app)
+# app.url_map.strict_slashes = False
 
 VERSION = "%s.%s.%s" % tuple(VER)
 PLANDO_VER = "0.5.1"
@@ -129,7 +130,9 @@ def logout():
     else:
         return redirect(target_url)
 
-@app.route('/netcode/game/<game_id>/player/<player_id>/found/<coords>/<kind>/<id>')
+
+@app.route('/netcode/game/<int:game_id>/player/<int:player_id>/found/<coords>/<kind>/<path:id>/')
+@app.route('/netcode/game/<int:game_id>/player/<int:player_id>/found/<coords>/<kind>/<path:id>')
 def netcode_found_pickup(game_id, player_id, coords, kind, id):
     status = 200
     game = Game.with_id(game_id)
@@ -155,7 +158,7 @@ def netcode_found_pickup(game_id, player_id, coords, kind, id):
     return code_resp(status)
 
 # do we even use this anymore? i think only for testing.........
-@app.route('/netcode/game/<game_id>/player/<player_id>/tick/<xycoords>', methods=['GET'])
+@app.route('/netcode/game/<int:game_id>/player/<int:player_id>/tick/<xycoords>', methods=['GET'])
 def netcode_tick_get(game_id, player_id, xycoords):
     x,_,y = xycoords.partition(",")
     game = Game.with_id(game_id)
@@ -171,7 +174,8 @@ def netcode_tick_get(game_id, player_id, xycoords):
     Cache.set_pos(game_id, player_id, x, y)
     return text_resp(p.output())
 
-@app.route('/netcode/game/<game_id>/player/<player_id>/tick', methods = ['POST'])
+@app.route('/netcode/game/<int:game_id>/player/<int:player_id>/tick/', methods = ['POST'])
+@app.route('/netcode/game/<int:game_id>/player/<int:player_id>/tick', methods = ['POST'])
 def netcode_tick_post(game_id, player_id):
     game = Game.with_id(game_id)
     if not game:
@@ -183,7 +187,7 @@ def netcode_tick_post(game_id, player_id):
     Cache.set_pos(game_id, player_id, x, y)
     return text_resp(p.output())
 
-@app.route('/netcode/game/<game_id>/player/<player_id>/callback/<signal>')
+@app.route('/netcode/game/<int:game_id>/player/<int:player_id>/callback/<path:signal>')
 def netcode_signal_callback(game_id, player_id, signal):
     game = Game.with_id(game_id)
     if not game:
@@ -192,8 +196,8 @@ def netcode_signal_callback(game_id, player_id, signal):
     p.signal_conf(signal)
     return text_resp("cleared")
 
-@app.route('/netcode/game/<game_id>/player/<player_id>/setSeed', methods=['POST'])
-@app.route('/netcode/game/<game_id>/player/<player_id>/connect', methods=['POST'])
+@app.route('/netcode/game/<int:game_id>/player/<int:player_id>/setSeed', methods=['POST'])
+@app.route('/netcode/game/<int:game_id>/player/<int:player_id>/connect', methods=['POST'])
 def netcode_connect(game_id, player_id):
     game = Game.with_id(game_id)
     hist = Cache.get_hist(game_id)
@@ -216,9 +220,9 @@ def netcode_connect(game_id, player_id):
 def netcode_get_areas_dot_ori():
     return text_resp(Cache.get_areas())
 
-@app.route('/game/<game_id>/delete/')
+@app.route('/game/<int:game_id>/delete/')
 def game_delete(game_id):
-    if int(game_id) < 10000 and not param_flag(self, "override"):
+    if int(game_id) < 10000 and not param_flag("override"):
         return text_resp("No", 403)
     game = Game.with_id(game_id)
     if game:
@@ -227,8 +231,8 @@ def game_delete(game_id):
     else:
         return text_resp("The game... was already dead...", 401)
 
-@app.route('/game/<game_id>')
-@app.route('/game/<game_id>/history/')
+@app.route('/game/<int:game_id>')
+@app.route('/game/<int:game_id>/history/')
 def game_show_history(game_id):
     template_values = template_vals("History", "Game %s" % game_id, User.get())
     game = Game.with_id(game_id)
@@ -246,7 +250,7 @@ def game_show_history(game_id):
     else:
         return text_resp("Game %s not found!" % game_id, 404)
 
-@app.route('/game/<game_id>/players/')
+@app.route('/game/<int:game_id>/players/')
 def game_list_players(game_id):
         game = Game.with_id(game_id)
         if not game:
@@ -257,7 +261,7 @@ def game_list_players(game_id):
             out_lines.append("\t\t" + "\n\t\t".join([hl.print_line(game.start_time) for hl in game.history([p.pid()]) if hl.pickup().is_shared(share_types)]))
         return text_resp("\n".join(out_lines))
 
-@app.route('/game/<game_id>/player/<pid>/remove/')
+@app.route('/game/<int:game_id>/player/<pid>/remove/')
 def game_remove_player(game_id, pid):
     key = ".".join([game_id, pid])
     game = Game.with_id(game_id)
@@ -373,7 +377,7 @@ def get_aux_spoiler_from_params(params_id):
 def get_metadata_no_gid(param_id):
     return get_param_metadata(param_id, None)
 
-@app.route('/generator/metadata/<param_id>/<game_id>')
+@app.route('/generator/metadata/<param_id>/<int:game_id>')
 def get_param_metadata(param_id, game_id):
     params = SeedGenParams.with_id(param_id)
     if not params:
@@ -387,7 +391,7 @@ def get_param_metadata(param_id, game_id):
 @app.route('/cache/clear')
 def clear_cache():
     Cache.clear()
-    text_resp("cache cleared!")
+    return text_resp("cache cleared!")
 
 @app.route('/vanilla')
 def vanilla_seed():
@@ -397,8 +401,8 @@ def vanilla_seed():
 def picks_by_type():
     return json_resp(picks_by_type_generator())
 
-@app.route('/tracker/game/<game_id>/')
-@app.route('/tracker/game/<game_id>/map')
+@app.route('/tracker/game/<int:game_id>/')
+@app.route('/tracker/game/<int:game_id>/map')
 def tracker_show_map(game_id):
     template_values = template_vals("GameTracker", "Game %s" % game_id, User.get())
     template_values['game_id'] = game_id
@@ -413,7 +417,7 @@ def tracker_show_map(game_id):
         return text_resp("Access forbidden", 401)
     return render_template(path, **template_values)
 
-@app.route('/tracker/game/<game_id>/fetch/gamedata')
+@app.route('/tracker/game/<int:game_id>/fetch/gamedata')
 def tracker_fetch_gamedata(game_id):
     gamedata = {}
     game = Game.with_id(game_id)
@@ -426,7 +430,7 @@ def tracker_fetch_gamedata(game_id):
     gamedata["open_world"] = Variation.OPEN_WORLD in params.variations
     return json_resp(gamedata)
 
-@app.route('/tracker/game/<game_id>/fetch/update')
+@app.route('/tracker/game/<int:game_id>/fetch/update')
 def tracker_update_map(game_id):
     players = {}
     username = param_val("usermap")
@@ -481,7 +485,7 @@ def tracker_update_map(game_id):
         res["newGid"] = game_id
     return json_resp(res)
 
-@app.route('/tracker/game/<game_id>/fetch/seen')
+@app.route('/tracker/game/<int:game_id>/fetch/seen')
 def tracker_get_seen(game_id):
     coords = Cache.get_have(game_id)
     if not coords:
@@ -491,7 +495,7 @@ def tracker_get_seen(game_id):
         return json_resp({ p.pid(): p.have_coords() for p in game.get_players() })
 
 
-@app.route('/tracker/game/<game_id>/fetch/pos')
+@app.route('/tracker/game/<int:game_id>/fetch/pos')
 def tracker_get_positions(game_id):
     pos = Cache.get_pos(game_id)
     if pos:
@@ -503,7 +507,7 @@ def tracker_get_positions(game_id):
         return code_resp(404)
 
 
-@app.route('/tracker/game/<game_id>/fetch/reachable')
+@app.route('/tracker/game/<int:game_id>/fetch/reachable')
 def tracker_get_reachable(game_id):
     hist = Cache.get_hist(game_id)
     reachable_areas = {}
@@ -533,10 +537,9 @@ def tracker_get_reachable(game_id):
         game.rebuild_hist()
         return json_resp(reachable_areas)
 
-@app.route('/tracker/game/<game_id>/fetch/items/<player_id>')
+@app.route('/tracker/game/<int:game_id>/fetch/items/<int:player_id>')
 def tracker_get_items_update(game_id, player_id):
-    pid = int(player_id)
-    items, _ = Cache.get_items(game_id, pid)
+    items, _ = Cache.get_items(game_id, player_id)
     if not items:
         coords = Cache.get_have(game_id)
         game = Game.with_id(game_id)
@@ -545,7 +548,7 @@ def tracker_get_items_update(game_id, player_id):
                 return json_resp({"error": "Game %s not found" % game_id}, 404)
             coords = { p.pid(): p.have_coords() for p in game.get_players() }
             Cache.set_have(game_id, coords)
-        items, _ = _get_item_tracker_items(coords[pid], game, pid)
+        items, _ = _get_item_tracker_items(coords[pid], game, player_id)
     return json_resp(items)
 
 # why is it like this??
@@ -600,9 +603,8 @@ def _get_item_tracker_items(coords, game, player=1):
     return data, inventories
 
 
-@app.route('/tracker/game/<game_id>/fetch/player/<player_id>/seed')
+@app.route('/tracker/game/<int:game_id>/fetch/player/<int:player_id>/seed')
 def tracker_fetch_seed(game_id, player_id):
-    player_id = int(player_id)
     game = Game.with_id(game_id)
     if not game or not game.params:
         return json_resp({"error": "game %s not found!" % game_id}, 404)
@@ -624,8 +626,8 @@ def tracker_fetch_seed(game_id, player_id):
         res["seed"][coords] = Pickup.name(code, id)
     return json_resp(res)
 
-@app.route('/tracker/game/<game_id>/items')
-@app.route('/tracker/game/<game_id>/<player_id>/items')
+@app.route('/tracker/game/<int:game_id>/items')
+@app.route('/tracker/game/<int:game_id>/<int:player_id>/items')
 def tracker_item_tracker(game_id, player_id=1):
     game = Game.with_id(game_id)
     template_values = template_vals("ItemTracker", "Game %s" % game_id, User.get())
@@ -692,7 +694,7 @@ def user_toggle_darkmode():
     if user:
         user.dark_theme = not user.dark_theme
         user.put()
-    self.redirect(target_url)
+    return redirect(target_url)
 
 @app.route('/user/settings/verbose') # ToggleVerbose,
 def user_toggle_verbose():
@@ -710,7 +712,7 @@ def get_map_by_name(name):
     if latest:
         return redirect("%s?%s" % (url_for('tracker_show_map', game_id=latest), "&".join(["usermap=" + name] + ["%s=%s" % (k, v) for k, v in request.args.items()])))
     else:
-        return resp_error(self, 404, "User not found or had no games on record")
+        return text_resp("User not found or had no games on record", 404)
 
 @app.route('/logichelper') #  LogicHelper
 def logic_helper():
@@ -719,7 +721,6 @@ def logic_helper():
                            'EC': param_val('EC'), 'AC': param_val('AC'), 'KS': param_val('KS'),
                            'skills': param_val('skills'), 'tps': param_val('tps'), 'evs': param_val('evs')})
         return render_template(path, **template_values)
-
 
 @app.route('/faq') #  Guides
 def faqs_guides():
@@ -765,7 +766,7 @@ def discord_redirect():
 def dev_discord_redirect():
     return redirect("https://discord.gg/sfUr8ra5P7")
 
-@app.route('/reset/<game_id>') # handler=ResetGame
+@app.route('/reset/<int:game_id>') # handler=ResetGame
 def reset_game(game_id):
     game = Game.with_id(game_id)
     if not game:
@@ -777,7 +778,7 @@ def reset_game(game_id):
     else:
         return text_resp("Can't restart a game you didn't create...", 401)
 
-@app.route('/transfer/<game_id>/<player_id>') # ResetAndTransfer
+@app.route('/transfer/<int:game_id>/<int:player_id>') # ResetAndTransfer
 def reset_and_transfer_game(game_id, player_id):
     game = Game.with_id(game_id)
     if not game:
@@ -828,12 +829,12 @@ def plando_delete(seed_name):
     if not user:
         log.error("Error: unauthenticated delete attempt")
         return code_resp(401)
-        seed = user.plando(seed_name)
-        if not seed:
-            log.error("couldn't find seed %s when trying to delete!" % seed_name)
-            return code_resp(404)
-        seed.key.delete()
-        return redirect(url_for("plando_author_index", author_name=user.name))
+    seed = user.plando(seed_name)
+    if not seed:
+        log.error("couldn't find seed %s when trying to delete!" % seed_name)
+        return code_resp(404)
+    seed.key.delete()
+    return redirect(url_for("plando_author_index", author_name=user.name))
 
 @app.route('/plando/<seed_name>/rename/<new_name>')   #PlandoRename
 def plando_rename(seed_name, new_name):
@@ -872,15 +873,15 @@ def plando_download(author_name, seed_name):
         if seed.hidden:
             user = User.get()
             if not user or user.key != seed.author_key:
-                return code_resp("seed %s (by user %s) not found" % (seed_name, author_name), 404)
+                return text_resp("seed %s (by user %s) not found" % (seed_name, author_name), 404)
         params = SeedGenParams.from_plando(seed, param_flag("tracking"))
         url = url_for("main_page", param_id=params.key.id())
         if params.tracking:
             game = Game.from_params(params, param_val("game_id"))
             url += "&game_id=%s" % game.key.id()
-        self.redirect(url)
+        return redirect(url)
     else:
-        return code_resp("seed %s (by user %s) not found" % (seed_name, author_name), 404)
+        return text_resp("seed %s (by user %s) not found" % (seed_name, author_name), 404)
 
 
 @app.route('/plando/<author_name>/<seed_name>/') # PlandoView,
@@ -900,7 +901,7 @@ def plando_view(author_name, seed_name):
             if hidden:
                 template_values['seed_hidden'] = True
             return render_template(path, **template_values)
-    return code_resp("seed %s (by user %s) not found" % (seed_name, author_name), 404)
+    return text_resp("seed %s (by user %s) not found" % (seed_name, author_name), 404)
 
 @app.route('/plando/reachable', methods=['POST']) #PlandoReachable
 def plando_reachable():
@@ -916,7 +917,6 @@ def plando_reachable():
 @app.route('/plando/fillgen') #PlandoFillGen
 def plando_fillgen():
     qparams = request.args
-    print((qparams.get('fass') or "").split("|"))
     forced_assignments = dict([(int(a), b) for (a, b) in ([tuple(fass.split(":")) for fass in (qparams.get('fass') or "").split("|") if fass])])
     param_key = SeedGenParams.from_url(qparams)
     params = param_key.get()
@@ -963,12 +963,12 @@ def plando_author_index(author_name):
                     out += " (hidden)"
             out += "</li>"
         out += "</ul></body></html>"
-        make_resp(out)
+        return make_resp(out)
     else:
         if owner:
-            make_resp("<html><body>You haven't made any seeds yet! <a href='%s'>Start a new seed</a></body></html>" % uri_for('plando-edit', seed_name="newSeed"))
+            return make_resp("<html><body>You haven't made any seeds yet! <a href='%s'>Start a new seed</a></body></html>" % url_for('plando_edit', seed_name="newSeed"))
         else:
-            make_resp('<html><body>No seeds by user %s</body></html>' % author_name)
+            return make_resp('<html><body>No seeds by user %s</body></html>' % author_name)
 
 @app.route('/dll')                 
 def dll():
@@ -1004,7 +1004,7 @@ def bingo_board():
             template_values['pref_num'] = user.pref_num
     return render_template(path, **template_values)
 
-@app.route('/bingo/game/<game_id>/fetch') #BingoGetGame =     
+@app.route('/bingo/game/<int:game_id>/fetch') #BingoGetGame =     
 def bingo_get_game(game_id):
     now = datetime.utcnow()
     first = param_flag("first")
@@ -1020,7 +1020,7 @@ def bingo_get_game(game_id):
             res["offset"] = server_now - client_now
     return json_resp(res)
 
-@app.route('/bingo/game/<game_id>/start') #BingoStartCountdown =     
+@app.route('/bingo/game/<int:game_id>/start') #BingoStartCountdown =     
 def bingo_start_game(game_id):
     res = {}
     now = datetime.utcnow()
@@ -1050,10 +1050,9 @@ def bingo_start_game(game_id):
     res["offset"] = server_now - client_now
     return json_resp(res)
 
-@app.route('/bingo/game/<game_id>/add/<player_id>') #BingoAddPlayer =     
+@app.route('/bingo/game/<int:game_id>/add/<int:player_id>') #BingoAddPlayer =     
 @transactional(xg=True)
 def bingo_add_player(game_id, player_id):
-    player_id = int(player_id)
     bingo = BingoGameData.with_id(game_id)
     join_team = param_flag("joinTeam")
     if not bingo:
@@ -1091,9 +1090,8 @@ def bingo_add_player(game_id, player_id):
     return json_resp(res)
 
 
-@app.route('/bingo/game/<game_id>/remove/<player_id>') #BingoRemovePlayer =     
+@app.route('/bingo/game/<int:game_id>/remove/<int:player_id>') #BingoRemovePlayer =     
 def bingo_remove_player(game_id, player_id):
-    player_id = int(player_id)
     bingo = BingoGameData.with_id(game_id)
     if not bingo:
         return text_resp("Bingo game %s not found" % game_id, 404)
@@ -1104,9 +1102,8 @@ def bingo_remove_player(game_id, player_id):
     res = bingo.get_json()
     return json_resp(res)
 
-@app.route('/bingo/game/<game_id>/seed/<player_id>') #BingoDownloadSeed =     
+@app.route('/bingo/game/<int:game_id>/seed/<int:player_id>') #BingoDownloadSeed =     
 def bingo_download_seed(game_id, player_id):
-    player_id = int(player_id)
     bingo = BingoGameData.with_id(game_id)
     if not bingo:
         return text_resp("Bingo game %s not found" % game_id, 404)
@@ -1253,7 +1250,7 @@ def bingo_userboard(name):
         template_values['theme'] = user.theme
     return render_template(path, **template_values)
 
-@app.route('/bingo/userboard/<name>/fetch/<game_id>') #UserboardTick =     
+@app.route('/bingo/userboard/<name>/fetch/<int:game_id>') #UserboardTick =     
 def bingo_userboard_tick(name, game_id):
     cur_gid = int(gid)
     now = datetime.utcnow()
@@ -1283,7 +1280,7 @@ def bingo_userboard_tick(name, game_id):
         res["offset"] = server_now - client_now
     return json_resp(res)
 
-@app.route('/bingo/from_game/<game_id>') #AddBingoToGame =     
+@app.route('/bingo/from_game/<int:game_id>') #AddBingoToGame =     
 def add_bingo_to_game(game_id):
         now = datetime.utcnow()
         game_id = int(game_id)
@@ -1352,25 +1349,27 @@ def add_bingo_to_game(game_id):
         bkey = bingo.put()
         game.bingo_data = bkey
         game.put()
-        return json_resp(json_dumps(res))
+        print(res)
+        return json_resp(json.dumps(res))
 
-@app.route('/netcode/game/<game_id>/player/<player_id>/bingo', methods=['POST']) #HandleBingoUpdate    
+@app.route('/netcode/game/<int:game_id>/player/<int:player_id>/bingo', methods=['POST']) #HandleBingoUpdate    
 def netcode_player_bingo_tick(game_id, player_id):
     bingo = BingoGameData.with_id(game_id)
     if not bingo:
         return text_resp("Bingo game %s not found" % game_id, 404)
     if int(player_id) not in bingo.player_nums():
-        return resp_error(self, 412, "player not in game! %s" % bingo.player_nums())
-    bingo_data = json.loads(self.request.POST["bingoData"]) if "bingoData" in self.request.POST  else None
-    if debug and player_id in test_data:
-        bingo_data = test_data[player_id]['bingoData']
+        return resp_error(412, "player not in game! %s" % bingo.player_nums())
+    bingo_data = json.loads(request.form.get("bingoData")) if request.form.get("bingoData") else None
+    # if debug and player_id in test_data:
+    #     bingo_data = test_data[player_id]['bingoData']
     try:
         bingo.update(bingo_data, player_id, game_id)
     except:
         sleep(3)
         bingo.update(bingo_data, player_id, game_id)
+    return code_resp(200)
 
-@app.route('/bingo/bingothon/<game_id>/player/<player_id>') #GetBingothonJson    
+@app.route('/bingo/bingothon/<int:game_id>/player/<int:player_id>') #GetBingothonJson    
 def bingothon_fetch_data(game_id, player_id):
     res = {"cards": []}
     bingo = BingoGameData.with_id(game_id)

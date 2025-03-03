@@ -11,8 +11,8 @@ import bisect as _bisect
 import logging as log
 import os
 
-VER = [4, 1, 0]
-MIN_VER = [4, 1, 0]
+VER = [4, 0, 10]
+MIN_VER = [4, 0, 10]
 def version_check(version):
     try:
         nums = [int(num) for num in version.split(".")]

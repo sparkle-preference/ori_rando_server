@@ -73,7 +73,7 @@ class MultiplayerOptions(ndb.Model):
             opts.mode = JSON_MODE_GAME[jsonMode] if jsonMode in JSON_MODE_GAME else MultiplayerGameType(jsonMode)
             opts.cloned = json.get("coopGenMode") != "disjoint"
             if opts.cloned:
-                opts.teams = {1: range(1, json.get("players", 1) + 1)}
+                opts.teams = {1: list(range(1, json.get("players", 1) + 1))}
                 opts.dedup = bool(json.get("dedupShared", False))
             opts.hints = bool(opts.cloned and json.get("syncHints"))
             opts.shared = enums_from_strlist( ShareType, [a.replace(" ", "") for a in json.get("syncShared", json.get("shared", []))]) #shit fuck ass jank shit

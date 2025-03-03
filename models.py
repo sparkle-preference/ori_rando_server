@@ -374,7 +374,14 @@ class Player(ndb.Model):
     # post-refactor version of bitfields
     def output(self):
         outlines = [str(x) for x in [self.skills, self.events, self.teleporters]]
-        outlines.append(";".join([ "%sx%s" % (_id, cnt) for (_id, cnt) in self.bonuses.items()]))
+        bonuses = []
+        for (_id, cnt) in self.bonuses.items():
+            if _id.startswith("Warp to"):
+                parts = _id.split(",")
+                bonuses.append("%s_%sx1" % (parts[1], parts[2]))
+            else:
+                bonuses.append("%sx%s" % (_id, cnt))
+        outlines.append(";".join(bonuses))
         outlines.append(";".join(["%s:%s" % (loc, finder) for (loc, finder) in self.hints.items()]))
         if self.signals:
             outlines.append("|".join(self.signals))
@@ -519,7 +526,7 @@ class BingoCard(ndb.Model):
 
         if initial:
             res["disp_name"] = self.disp_name
-            res["help_lines"] = self.help_lines
+            res["help_lines"] = [s for s in self.help_lines]
             if self.square or self.square == 0:
                 res["type"] = self.goal_type
                 res["square"] = self.square
@@ -549,7 +556,7 @@ class BingoCard(ndb.Model):
             p_progress.count = min(int(card_data["value"]), self.target)
             p_progress.completed = p_progress.count >= self.target
         elif self.goal_type == "multi":
-            p_progress.count = min(int(card_data["total"]), self.target)
+            p_progress.count = min(int(card_data["total"]), self.target or 0)
             card_sgs = card_data["value"]
             p_progress.completed_subgoals = [subgoal["name"] for subgoal in self.subgoals if subgoal["name"] in card_sgs and card_sgs[subgoal["name"]]["value"]]
             if self.goal_method == "count":
@@ -642,7 +649,7 @@ class BingoGameData(ndb.Model):
         if self.discovery != square_count:
             self.discovery = square_count
         if len(self.disc_squares) > 0:
-            return self.disc_squares
+            return self.disc_squares[:]
         if square_count > 25:
             square_count = 2
         rand = random.Random()
@@ -661,7 +668,7 @@ class BingoGameData(ndb.Model):
                     break
             else:
                 break
-        self.disc_squares = squares
+        self.disc_squares = squares[:]
         self.put()
         return squares
     
@@ -1540,7 +1547,7 @@ class Game(ndb.Model):
         if Variation.BINGO not in params.variations:
             teams = params.sync.teams
             if teams:
-                for playerNums in teams.itervalues():
+                for playerNums in teams.values():
                     team = [game.player(p, delay_put = True) for p in playerNums]
                     teamKeys = [p.key for p in team]
                     for player in team:

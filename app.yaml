@@ -14,7 +14,6 @@ automatic_scaling:
 handlers:
 - url: /sprites
   static_dir: sprites
-  application_readable: true
 
 - url: /favicon\.ico
   static_files: favicon.ico
@@ -22,26 +21,14 @@ handlers:
 
 - url: /map
   static_dir: map
-  application_readable: true
 
 - url: /static
   static_dir: map/build/static
-  application_readable: true
 
 - url: /netcode/.*
   script: auto
   secure: never
 
 - url: /.*
-  script: main.app
+  script: auto
   secure: always
-
-skip_files:
-- ^(.*/)?map/node_modules/.*$
-- ^(.*/)?map/src/.*$
-- ^(.*/)?#.*#$
-- ^(.*/)?.*~$
-- ^(.*/)?.*\.py[co]$
-- ^(.*/)?.*/RCS/.*$
-- ^(.*/)?\..*$
-- ^(.*/)?.*\.bak$

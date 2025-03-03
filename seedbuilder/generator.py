@@ -1555,7 +1555,7 @@ class SeedGenerator:
 
     def place_repeatables(self):
         repeatables = []
-        for item, count in self.itemPool.items():
+        for item, count in [(i,c)  for (i,c) in self.itemPool.items()]:
             if item.startswith("RP"):
                 repeatables += count * [item]
                 del self.itemPool[item]
@@ -1565,7 +1565,7 @@ class SeedGenerator:
             for warp_group in self.random.sample(warp_targets, warps):
                 repeatables.append("RPSH/Press AltR to Warp to %s/WP/%s,%s" % self.random.choice(warp_group))
         if repeatables:
-            true_rep_locs = set(repeatable_locs) - set(self.forcedAssignments.keys())
+            true_rep_locs = list(set(repeatable_locs) - set(self.forcedAssignments.keys()))
             for loc, pickup in zip(self.random.sample(true_rep_locs, len(repeatables)), repeatables):
                 self.forcedAssignments[loc] = pickup
 
