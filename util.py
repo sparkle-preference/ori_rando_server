@@ -3,7 +3,7 @@ from flask import request, url_for
 from math import floor
 from collections import defaultdict, namedtuple
 from seedbuilder.oriparse import get_areas
-from enums import Variation
+from enums import Variation, LogicPath
 from datetime import datetime
 import itertools as _itertools
 import operator
@@ -735,3 +735,34 @@ layout_json = """
     ]
 }
 """
+
+def get_preset_from_paths(presets, logic_paths):
+    pathset = set(logic_paths)
+    for name, lps in presets.items():
+        if lps == pathset:
+            return name
+    path_masks = {
+        LogicPath.CASUAL_CORE: 1 << 0,
+        LogicPath.CASUAL_DBOOST: 1 << 1,
+        LogicPath.STANDARD_CORE: 1 << 2,
+        LogicPath.STANDARD_DBOOST: 1 << 3,
+        LogicPath.STANDARD_LURE: 1 << 4,
+        LogicPath.STANDARD_ABILITIES: 1 << 5,
+        LogicPath.EXPERT_CORE: 1 << 6,
+        LogicPath.EXPERT_DBOOST: 1 << 7,          
+        LogicPath.EXPERT_LURE: 1 << 8,
+        LogicPath.EXPERT_ABILITIES: 1 << 9,
+        LogicPath.DBASH: 1 << 10,
+        LogicPath.MASTER_CORE: 1 << 11,
+        LogicPath.MASTER_DBOOST: 1 << 12,
+        LogicPath.MASTER_LURE: 1 << 13,
+        LogicPath.MASTER_ABILITIES: 1 << 14,
+        LogicPath.GJUMP: 1 << 15,
+        LogicPath.GLITCHED: 1 << 16,
+        LogicPath.TIMED_LEVEL: 1 << 17,
+        LogicPath.INSANE: 1 << 18,
+    }
+    path_mask = 0
+    for path in logic_paths:
+        path_mask |= path_masks[path]
+    return "Custom" + str(path_mask)

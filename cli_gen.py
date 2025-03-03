@@ -5,7 +5,7 @@ import re
 import pickle
 from collections import OrderedDict, defaultdict, Counter
 
-from util import enums_from_strlist
+from util import enums_from_strlist, get_preset_from_paths
 from enums import MultiplayerGameType, ShareType, Variation, LogicPath, KeyMode, PathDifficulty, presets
 from seedbuilder.generator import SeedGenerator
 
@@ -517,43 +517,12 @@ class CLISeedParams(object):
 
                 output.write(line + "\n")
 
-    def get_preset(self):
-        pathset = set(self.logic_paths)
-        for name, lps in presets.items():
-            if lps == pathset:
-                return name
-        pathMaskDict = {
-            LogicPath.CASUAL_CORE: 1 << 0,
-            LogicPath.CASUAL_DBOOST: 1 << 1,
-            LogicPath.STANDARD_CORE: 1 << 2,
-            LogicPath.STANDARD_DBOOST: 1 << 3,
-            LogicPath.STANDARD_LURE: 1 << 4,
-            LogicPath.STANDARD_ABILITIES: 1 << 5,
-            LogicPath.EXPERT_CORE: 1 << 6,
-            LogicPath.EXPERT_DBOOST: 1 << 7,          
-            LogicPath.EXPERT_LURE: 1 << 8,
-            LogicPath.EXPERT_ABILITIES: 1 << 9,
-            LogicPath.DBASH: 1 << 10,
-            LogicPath.MASTER_CORE: 1 << 11,
-            LogicPath.MASTER_DBOOST: 1 << 12,
-            LogicPath.MASTER_LURE: 1 << 13,
-            LogicPath.MASTER_ABILITIES: 1 << 14,
-            LogicPath.GJUMP: 1 << 15,
-            LogicPath.GLITCHED: 1 << 16,
-            LogicPath.TIMED_LEVEL: 1 << 17,
-            LogicPath.INSANE: 1 << 18,
-        }
-        pathMask = 0
-        for path in self.logic_paths:
-            pathMask |= pathMaskDict[path]
-        return "Custom" + str(pathMask)
-
     def flag_line(self, verbose_paths=False):
         flags = []
         if verbose_paths:
             flags.append("lps=%s" % "+".join([lp.capitalize() for lp in self.logic_paths]))
         else:
-            flags.append(self.get_preset())
+            flags.append(get_preset_from_paths(presets, self.logic_paths))
         flags.append(self.key_mode)
         if Variation.WARMTH_FRAGMENTS in self.variations:
             flags.append("Frags/%s/%s" % (self.frag_count - self.frag_extra, self.frag_count))
