@@ -1,5 +1,4 @@
 from __future__ import division, print_function
-from flask import request, url_for
 from math import floor
 from collections import defaultdict, namedtuple
 from seedbuilder.oriparse import get_areas
@@ -10,6 +9,12 @@ import operator
 import bisect as _bisect
 import logging as log
 import os
+
+try:
+    from flask import request, url_for
+    flask_imported = True
+except ImportError:
+    flask_imported = False
 
 VER = [4, 0, 10]
 MIN_VER = [4, 0, 10]
@@ -308,6 +313,9 @@ def whitelist_ok():
     return param_val("sec") == whitelist_secret
 
 def game_list_html(games):
+    if not flask_imported:
+        print("HELLO??????")
+        return "CRITICAL WEBSITE ERROR"
     body = ""
     for game in sorted(games, key=lambda x: x.last_update, reverse=True):
         gid = game.key.id()
@@ -328,11 +336,15 @@ def game_list_html(games):
     return body
 
 def debug():
+    if not flask_imported:
+        return False
     return '127.0.0.1' in request.url_root 
 path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
 template_root = os.path.join(os.path.dirname(__file__), 'map/build/templates/')
 
 def param_val(f):
+    if not flask_imported:
+        return None
     return request.args.get(f, None)
 
 def param_flag(f):
