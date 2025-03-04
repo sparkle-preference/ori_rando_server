@@ -1,6 +1,6 @@
 import React from 'react';
 import  {DropdownToggle, DropdownMenu, Dropdown, DropdownItem, Nav, NavLink, NavItem, Collapse,  Input, UncontrolledButtonDropdown, Button, 
-        Row, FormFeedback, Col, Container, TabContent, TabPane, Modal, ModalHeader, ModalBody, ModalFooter, Media, ButtonGroup} from 'reactstrap'
+        Row, FormFeedback, Col, Container, TabContent, TabPane, Modal, ModalHeader, ModalBody, ModalFooter, Media, ButtonGroup} from 'reactstrap';
 import { FaCog } from 'react-icons/fa';
 import {NotificationContainer, NotificationManager} from 'react-notifications';
 
@@ -154,7 +154,6 @@ const VAR_NAMES = {
     OHKO: "One Hit KO",
     "0XP": "Zero Experience",
     ForceMaps: "Force Maps",
-    Entrance: "Entrance Shuffle",
     BonusPickups: "More Bonus Pickups",
     ClosedDungeons: "Closed Dungeons",
     OpenWorld: "Open World",
@@ -168,7 +167,8 @@ const VAR_NAMES = {
     Bingo: "Bingo",
     WallStarved: "WallStarved",
     GrenadeStarved: "GrenadeStarved",
-    InLogicWarps: "In-Logic Warps"
+    InLogicWarps: "In-Logic Warps",
+    Entrance: "Entrance Shuffle",
 }
 const SPAWN_OPTS = ["Random", "Glades", "Grove", "Swamp", "Grotto", "Forlorn", "Valley", "Horu", "Ginso", "Sorrow", "Blackroot"]
 const cellFreqPresets = (preset) => preset === "casual" ? 20 : (preset === "standard" ? 40 : 256)
@@ -768,8 +768,11 @@ onDrop = (files) => {
         }
     }
     getVariationsTab = () => {
-        let variationButtons = Object.keys(VAR_NAMES).filter(x => !["Entrance", "NonProgressMapStones", "BonusPickups", "StompTriggers", 
-                                                                     "ForceTrees", "WorldTour", "ForceMaps", "WarmthFrags", "Hard", "Bingo"].includes(x)).map(v=> {
+        let filteredVars = ["NonProgressMapStones", "BonusPickups", "ForceTrees", "WorldTour", "ForceMaps", "WarmthFrags", "Hard", "Bingo"];
+        if(!this.state.stupidMode) {
+            filteredVars.concat("StompTriggers", "StrictMapstones")
+        }
+        let variationButtons = Object.keys(VAR_NAMES).filter(x => !filteredVars.includes(x)).map(v=> {
             let name = VAR_NAMES[v];
             return (
             <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("variations", v)} className="p-2">
@@ -778,22 +781,6 @@ onDrop = (files) => {
             )
         })
 
-        // Legacy Killplane is incompatible with Open World. 
-        //It also sees no use, so it will be removed soon(tm)
-        // variationButtons.push((
-        //     (
-        //     <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("variations", "StompTriggers")} className="p-2">
-        //         <Button block outline={!this.state.variations.includes("StompTriggers")} disabled={(() => {
-        //             if(this.state.variations.includes("OpenWorld")) {
-        //                 if(this.state.variations.includes("StompTriggers"))
-        //                     this.onVar("StompTriggers")()
-        //                 return true;
-        //             }
-        //             return false;
-        //         })()} onClick={this.onVar("StompTriggers")}>{VAR_NAMES["StompTriggers"]}</Button>
-        //     </Col>
-        //     )
-        // ))
         return (
             <TabPane className="p-3 border" tabId="variations">
                 <Row className="p-2">
@@ -1237,12 +1224,9 @@ onDrop = (files) => {
         let keyModeOptions = keymode_options.map(mode => (
             <DropdownItem active={mode===keyMode} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("keyModes", mode)} onClick={this.onKeyMode(mode)}>{mode}</DropdownItem>
         ))
-        let validGoalModes = ["None", "ForceTrees", "WorldTour", "ForceMaps", "WarmthFrags"]
-        if(tracking)
-            validGoalModes.push("Bingo")
-
+        let validGoalModes = ["None", "ForceTrees", "WorldTour", "ForceMaps", "WarmthFrags", "Bingo"]
         let goalModeOptions = goalModes.length === 1 ? validGoalModes.map(mode => (
-            <DropdownItem active={mode===goalModes[0]} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("goalModes", mode)} onClick={this.onGoalMode(mode)}>{VAR_NAMES[mode] || mode}</DropdownItem>
+            <DropdownItem active={mode===goalModes[0]} disabled={mode==="Bingo" && !tracking} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("goalModes", mode)} onClick={this.onGoalMode(mode)}>{VAR_NAMES[mode] || mode}{mode==="Bingo" && !tracking ? '(Needs tracking!)' : ''}</DropdownItem>
         )) : null
 
         helpParams.padding = goalModesOpen ? "pt-5 mt-3" : ""

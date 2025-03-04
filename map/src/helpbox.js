@@ -150,6 +150,13 @@ const getHelpHelper = (category, option) => {
                     ]
                     break;
                 default:
+                    if(option.startsWith("custom")) {
+                        title = "Custom"
+                        lines = [ 
+                            "Custom is the Logic Mode for any user-specified set of logic paths.",
+                        ]
+                        break;                            
+                    } 
                     match = false;
                     break;
             }
@@ -298,6 +305,10 @@ const getHelpHelper = (category, option) => {
                         "The Entrance Shuffle variation remaps each door (the dungeon entrances and the 8 Horu side rooms) in the game to go to another door instead.",
                         "Recommended for anyone who likes being confused, or is interested in spending more time in Horu than usually necessary."
                     ]
+                    extras.push((<CardText className="border m-2 p-2 border-danger"><i>
+                        NOTE: The logic map straight up does not work this mode! It assumes doors go where they are supposed to go. Beware its lies...</i>
+                        </CardText>)
+                        )
                     break;
                 case "BonusPickups":
                     title = "More Bonus Pickups"
