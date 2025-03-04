@@ -770,7 +770,7 @@ onDrop = (files) => {
     getVariationsTab = () => {
         let filteredVars = ["NonProgressMapStones", "BonusPickups", "ForceTrees", "WorldTour", "ForceMaps", "WarmthFrags", "Hard", "Bingo"];
         if(!this.state.stupidMode) {
-            filteredVars.concat("StompTriggers", "StrictMapstones")
+            filteredVars = filteredVars.concat("StompTriggers", "StrictMapstones")
         }
         let variationButtons = Object.keys(VAR_NAMES).filter(x => !filteredVars.includes(x)).map(v=> {
             let name = VAR_NAMES[v];
