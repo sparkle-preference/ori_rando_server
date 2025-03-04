@@ -5,7 +5,7 @@ import re
 import pickle
 from collections import OrderedDict, defaultdict, Counter
 
-from util import enums_from_strlist
+from util import enums_from_strlist, get_preset_from_paths
 from enums import MultiplayerGameType, ShareType, Variation, LogicPath, KeyMode, PathDifficulty, presets
 from seedbuilder.generator import SeedGenerator
 
@@ -517,19 +517,12 @@ class CLISeedParams(object):
 
                 output.write(line + "\n")
 
-    def get_preset(self):
-        pathset = set(self.logic_paths)
-        for name, lps in presets.items():
-            if lps == pathset:
-                return name
-        return "Custom"
-
     def flag_line(self, verbose_paths=False):
         flags = []
         if verbose_paths:
             flags.append("lps=%s" % "+".join([lp.capitalize() for lp in self.logic_paths]))
         else:
-            flags.append(self.get_preset())
+            flags.append(get_preset_from_paths(presets, self.logic_paths))
         flags.append(self.key_mode)
         if Variation.WARMTH_FRAGMENTS in self.variations:
             flags.append("Frags/%s/%s" % (self.frag_count - self.frag_extra, self.frag_count))

@@ -3,7 +3,7 @@ from google.appengine.ext import ndb
 import logging as log
 import random
 
-from util import enums_from_strlist, picks_by_coord
+from util import enums_from_strlist, picks_by_coord, get_preset_from_paths
 from enums import (MultiplayerGameType, ShareType, Variation, LogicPath, KeyMode, PathDifficulty, presets)
 from collections import OrderedDict
 from seedbuilder.generator import SeedGenerator
@@ -281,7 +281,7 @@ class SeedGenParams(ndb.Model):
             "fillAlg": "Balanced" if self.balanced else "Classic",
             "expPool": self.exp_pool,
             "keyMode": self.key_mode.value,
-            "pathMode": self.get_preset(),
+            "pathMode": get_preset_from_paths(presets, self.logic_paths),
             "pathDiff": self.path_diff.value,
             "cellFreq": self.cell_freq,
             "fragCount": self.frag_count,
@@ -398,13 +398,6 @@ class SeedGenParams(ndb.Model):
             outlines += ["\t%-35s %s" % (l.area, n) for (l, n, _) in sorted(group, key=lambda grpline: grpline[2])]
         return "\n".join(outlines[1:])
 
-    def get_preset(self):
-        pathset = set(self.logic_paths)
-        for name, lps in presets.items():
-            if lps == pathset:
-                return name
-        return "Custom"
-
     def flag_line(self, verbose_paths=False):
         flags = []
         if self.is_plando:
@@ -413,7 +406,7 @@ class SeedGenParams(ndb.Model):
             if verbose_paths:
                 flags.append("lps=%s" % "+".join([lp.capitalize() for lp in self.logic_paths]))
             else:
-                flags.append(self.get_preset())
+                flags.append(get_preset_from_paths(presets, self.logic_paths))
             flags.append(self.key_mode)
             if Variation.WARMTH_FRAGMENTS in self.variations:
                 flags.append("Frags/%s/%s" % (self.frag_req, self.frag_count))
