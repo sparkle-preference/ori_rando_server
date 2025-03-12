@@ -384,7 +384,7 @@ class SeedGenParams(ndb.Model):
         outlines = []
         seed_data = OrderedDict()
         for coords, pcode, pid, _ in self.get_seed_data(player):
-            if pcode in exclude_types or pcode + pid == "RB81":
+            if pcode == "EN" or pcode in exclude_types or pcode + pid == "RB81":
                 continue
             loc = PBC[int(coords)]
             pickup = Pickup.n(pcode, pid)

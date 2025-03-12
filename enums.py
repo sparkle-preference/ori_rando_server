@@ -73,6 +73,8 @@ class Variation(StrEnum):
     NO_TPS = "NoTPs"
     COMPETITIVE = "Competitive"
     BONUS_LITE = "BonusLite"
+    CLUE_LOCKED_TPS = "ClueLockedTPs"
+    ZONE_LOCKED_TPS = "ZoneLockedTPs"
 
 class LogicPath(StrEnum):
     CASUAL_CORE = 'casual-core'

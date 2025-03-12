@@ -394,7 +394,7 @@ def clear_cache():
     return text_resp("cache cleared!")
 
 @app.route('/vanilla')
-def vanilla_seed():
+def get_vanilla_seed():
     return text_download(vanilla_seed, "randomizer.dat")
 
 @app.route('/picksbytype')
