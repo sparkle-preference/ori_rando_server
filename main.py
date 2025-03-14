@@ -70,7 +70,8 @@ def text_download(text, filename, status=200):
 @app.route('/clean/')
 def clean_up():
     log.info("starting clean...")
-    clean_count, did_finish = Game.clean_old()
+    clean_count, did_finish = Game.clean_old(param_flag("log_prog"))
+    ndb.get_context().clear_cache()
     if did_finish:
         log.info("Cleaned up %s games" % clean_count)
         User.prune_games()

@@ -1501,15 +1501,22 @@ class Game(ndb.Model):
         return Game.get_by_id(int(id))
 
     @staticmethod
-    def clean_old(timeout_window=timedelta(hours=1440)):
+    def clean_old(log_prog = False, timeout_window=timedelta(hours=1440)):
         start_time = datetime.now()
         i = 0
-        for game in Game.query(Game.last_update < datetime.now() - timeout_window):
+        for game in Game.query(Game.last_update < datetime.now() - timeout_window).fetch(500):
             i+=1
             game.clean_up()
             if datetime.now() - start_time > timedelta(seconds = 30):
                 log.warning("stopping early because we're running out of time")
+                if log_prog:
+                    log.warning("%s remaining" % Game.query(Game.last_update < datetime.now() - timeout_window).count())
                 return i, False
+        if i == 500:
+            log.warning("stopping after hitting 500 targets")
+            if log_prog:
+                log.warning("%s remaining" % Game.query(Game.last_update < datetime.now() - timeout_window).count())
+            return i, False
         return i, True
 
     @staticmethod

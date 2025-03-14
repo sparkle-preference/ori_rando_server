@@ -1,2 +1,3 @@
 Flask>=2.2.2
 appengine-python-standard
+google-cloud-logging
