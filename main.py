@@ -14,6 +14,7 @@ from flask import Flask, render_template, request, make_response, url_for, redir
 from google.appengine.ext import ndb
 from google.appengine.ext.ndb import transactional
 from google.appengine.api import urlfetch
+import google.cloud.logging
 
 # project imports
 from seedbuilder.seedparams import SeedGenParams
@@ -35,6 +36,15 @@ path='index.html'
 app = Flask(__name__)
 app.wsgi_app = wrap_wsgi_app(app.wsgi_app)
 # app.url_map.strict_slashes = False
+
+# Logging setup:
+client = google.cloud.logging.Client()
+
+# Retrieves a Cloud Logging handler based on the environment
+# you're running in and integrates the handler with the
+# Python logging module. By default this captures all logs
+# at INFO level and higher
+client.setup_logging()
 
 VERSION = "%s.%s.%s" % tuple(VER)
 PLANDO_VER = "0.5.1"
