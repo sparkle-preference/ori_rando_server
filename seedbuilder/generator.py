@@ -715,7 +715,7 @@ class SeedGenerator:
                 current_assignment = self.forcedAssignments[2]
                 if current_assignment[0:2] not in ["MU", "RP"]:
                     self.forcedAssignments[2] = "MU" + self.toOutput(current_assignment, True)
-                self.forcedAssignments[2] += "/" + "/".join(self.spawn_things) 
+                self.forcedAssignments[2] += "/" + "/".join(self.spawn_things)
             else:
                 self.forcedAssignments[2] = "MU" + "/".join(self.spawn_things)
 
@@ -1581,9 +1581,8 @@ class SeedGenerator:
             relicSpoiler = self.spoilerGroup["Relic"]
 
         self.place_repeatables()
-        # handle the fixed pickups: first energy cell, the glitchy 100 orb at spirit tree, and the forlorn escape plant
-        # FIXME Make the EC1 do something.
-        for loc, item, zone in [(-280256, "EC1", "Glades"), (-12320248, "RB81", "Forlorn")]:
+        # handle the fixed pickup: the forlorn escape plant
+        for loc, item, zone in [(-12320248, "RB81", "Forlorn")]:
             if loc in self.forcedAssignments:
                 item = self.forcedAssignments[loc]
                 del self.forcedAssignments[loc]  # don't count these ones
@@ -1592,10 +1591,19 @@ class SeedGenerator:
             ass = self.get_assignment(loc, self.adjust_item(item, zone), zone)
             self.outputStr += ass
 
+        # grant a single energy cell on spawn so we can randomize the first energy cell
+        if 2 in self.forcedAssignments:
+            current_assignment = self.forcedAssignments[2]
+            if current_assignment[0:2] not in ["MU", "RP"]:
+                self.forcedAssignments[2] = "MU" + self.toOutput(current_assignment, True)
+            self.forcedAssignments[2] += "/EC/1"
+        else:
+            self.forcedAssignments[2] = "EC1"
+
         if 2 in self.forcedAssignments:
             item = self.forcedAssignments[2]
             self.assign(item)
-            if item[0:2] in ["MU", "RP"] and item not in self.itemPool:                
+            if item[0:2] in ["MU", "RP"] and item not in self.itemPool:
                 for multi_item in self.get_multi_items(item):
                     # below should not be needed as get_multi_items() already does it, and repeating
                     # it breaks shards names.
@@ -1736,9 +1744,12 @@ class SeedGenerator:
                     itemsToAssign.append(self.assign("KS"))
                 elif self.inventory["MS"] < mapstoneCount:
                     itemsToAssign.append(self.assign("MS"))
-                elif (self.inventory["HC"] - 3) * self.params.cell_freq < (252 - locs) and self.itemPool["HC"] > 0:
+                elif (self.inventory["HC"] - 2) * self.params.cell_freq < (252 - locs) and self.itemPool["HC"] > 0:
+                    # Subtract starting health cells from this count or else forcing doesn't work
+                    # Then add one because we want to compare "how many pickups should it take to get the next health" to the number we've placed
                     itemsToAssign.append(self.assign("HC"))
                 elif self.inventory["EC"] * self.params.cell_freq < (252 - locs) and self.itemPool["EC"] > 0:
+                    # *Don't* add one because we don't want the first forced EC at the start to count against the forcing frequency
                     itemsToAssign.append(self.assign("EC"))
                 elif self.itemPool.get("RB28", 0) > 0 and self.itemPool["RB28"] >= locs:
                     itemsToAssign.append(self.assign("RB28"))
@@ -1900,6 +1911,8 @@ class SeedGenerator:
             for pickup_type in ["RB", "MS", "KS", "HC", "EC", "AC", "EX"]:
                 for key in self.spoilerGroup:
                     if key[:2] == pickup_type:
+                        if key in ["RB17", "RB19", "RB21"]:
+                            continue # shards are RB17/19/21, they've already been printed above
                         for instance in self.spoilerGroup[key]:
                             currentGroupSpoiler += "    " + pad(instance)
             self.currentAreas.sort()
