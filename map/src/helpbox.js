@@ -20,17 +20,17 @@ const bonuses = {}
 stuff_by_type["Upgrades"].forEach(({label, value, desc}) => bonuses[value]={name: label, desc: [desc]})
 bonuses["RP|RB/0"] = {name: "Repeatable Mega Health", desc: [
     "Restores health to full, then grants 5 additional temporary health.", 
-    (<div><i><b>Repeatable</b> pickups are not consumed, and can be collected any number of times.</i></div>)
+    (<span><i><b>Repeatable</b> pickups are not consumed, and can be collected any number of times.</i></span>)
 ]}
 bonuses["RP|RB/1"] = {name: "Repeatable Mega Energy", desc: [
     "Restores energy to full, then grants 5 additional temporary energy.", 
-    (<div><i><b>Repeatable</b> pickups are not consumed, and can be collected any number of times.</i></div>)
+    (<span><i><b>Repeatable</b> pickups are not consumed, and can be collected any number of times.</i></span>)
 ]}
 bonuses["WP|*"] = {name: "Warp", desc: [
     "A Warp pickup lets you teleport to a specific location on the map.",
-    (<div><i>Once collected, you can use a warp by opening your teleport menu and selecting it.</i></div>)
+    (<span><i>Once collected, you can use a warp by opening your teleport menu and selecting it.</i></span>)
  ]}
-bonuses["BS|*"] = {name: "Random Bonus Skill", desc: [(<div>A random bonus skill. Check out the <a target="_blank" rel="noopener noreferrer"  href="/faq?g=bonus_pickups">bonus item glossary</a> for more info on these.</div>)]}
+bonuses["BS|*"] = {name: "Random Bonus Skill", desc: [(<span>A random bonus skill. Check out the <a target="_blank" rel="noopener noreferrer"  href="/faq?g=bonus_pickups">bonus item glossary</a> for more info on these.</span>)]}
 
 const getHelpContent = (category, option) => {
     let {lines, title, subtitle, extras} = getHelpHelper(category, option)
@@ -48,35 +48,35 @@ const getHelpHelper = (category, option) => {
             let h = {}
             if(vars.includes(option)) {
                 h = getHelpHelper("variations", option)
-                h.lines[h.lines.length-1] = (<div><i>(This variation has been applied to your seed.)</i></div>)
+                h.lines[h.lines.length-1] = (<span><i>(This variation has been applied to your seed.)</i></span>)
             } else if(presets.includes(option)) {
                 h = getHelpHelper("logicModes", option.toLowerCase())
                 h.lines.pop()
                 h.lines = h.lines.filter(l => l.startsWith && !l.startsWith("Recommended"))
                 if(option !== "Custom")
-                    h.lines.push((<div><i>(Your seed is using this Logic Mode.)</i></div>))
+                    h.lines.push((<span><i>(Your seed is using this Logic Mode.)</i></span>))
             } else if(keyModes.includes(option)) {
                 h = getHelpHelper("keyModes", option)
-                h.lines[h.lines.length-1] = (<div><i>(Your seed is using this Key Mode.)</i></div>)
+                h.lines[h.lines.length-1] = (<span><i>(Your seed is using this Key Mode.)</i></span>)
             } else if(goalModes.includes(option)) {
                 h = getHelpHelper("goalModes", option)
-                h.lines[h.lines.length-1] = (<div><i>(Your seed is using this Goal Mode.)</i></div>)
+                h.lines[h.lines.length-1] = (<span><i>(Your seed is using this Goal Mode.)</i></span>)
             } else if(option.startsWith("Frags")) {
                 let [, required, total] = option.split("/")
                 h.title = "Warmth Fragments"
                 h.lines = [
                     "The Warmth Fragments Goal Mode scatters " + total + " warmth fragments across the entire map. You must collect " + required + " of them to access the final escape.",
-                    (<div><i>(Your seed is using this Goal Mode.)</i></div>)
+                    (<span><i>(Your seed is using this Goal Mode.)</i></span>)
                 ]
             } else if(option.startsWith("WorldTour")) {
                 let [, relics] = option.split("=")
                 h = getHelpHelper("goalModes", "WorldTour")
                 h.lines[0] = h.lines[0].replace(/8/g, relics)
-                h.lines[2] = (<div><i>(Your seed is using this Goal Mode.)</i></div>)
+                h.lines[2] = (<span><i>(Your seed is using this Goal Mode.)</i></span>)
             } else if(option.startsWith("pool=")) {
                 let [, poolName] = option.split("=")
                 h = getHelpHelper("itemPool", poolName)
-                h.lines.push((<div><i>(Your seed is using this pool preset.)</i></div>))
+                h.lines.push((<span><i>(Your seed is using this pool preset.)</i></span>))
             } else if(option.startsWith("share")) {
                 let sharedCats = option.split("=")[1].split("+").join(", ")
                 h.title = "Shared Item Categories"
@@ -91,13 +91,13 @@ const getHelpHelper = (category, option) => {
                      h.lines = ["A Co-op game creates different seeds for each player in the game. Items in the selected Shared Item Categories will be shared between players when found."]
                 else if(mode.toLowerCase() === "none")
                      h.lines = ["A Race creates 1 copy of the generated seed for each player, each with a different player ID. This creates a map that can be used to watch all the players racing at once!"]
-                h.lines.push((<div><i>(Your seeds are using this Multiplayer Mode.)</i></div>))
+                h.lines.push((<span><i>(Your seeds are using this Multiplayer Mode.)</i></span>))
             } else if(option === "balanced") {
                 h = getHelpHelper("advanced", "fillAlgBalanced")
-                h.lines.push((<div><i>(Your seed was generated using this fill algorithm)</i></div>))
+                h.lines.push((<span><i>(Your seed was generated using this fill algorithm)</i></span>))
             } else if(option.startsWith("prefer_path_difficulty")) {
                 h = getHelpHelper("advanced", "pathDiff")
-                h.lines[2] = ((<div><i>(Your seed has path difficulty set to {option.split('=')[1]})</i></div>))
+                h.lines[2] = ((<span><i>(Your seed has path difficulty set to {option.split('=')[1]})</i></span>))
             }
             h.subtitle = "Flags"
             return h
@@ -130,7 +130,7 @@ const getHelpHelper = (category, option) => {
                     title = "Master"
                     lines = [
                         "Master is even more difficult than Expert, and is only recommended for players looking to push the game (and their sanity) to the limit.",
-                        (<div>Master seeds frequently require several extremely difficult and obscure tricks, including iceless, some very long double bash chains, and some <i>truly awful</i> lures. <b>Not for the feint of heart.</b></div>), 
+                        (<span>Master seeds frequently require several extremely difficult and obscure tricks, including iceless, some very long double bash chains, and some <i>truly awful</i> lures. <b>Not for the feint of heart.</b></span>), 
                         "Selecting this logic mode will set the path difficulty to Hard and enable the Starved variation."
                     ]
                     break;
@@ -487,7 +487,7 @@ const getHelpHelper = (category, option) => {
                     title = "Clues"
                     lines = [
                         "In Clues, the dungeon keys are placed randomly throughout the map. Every 3 skill trees you visit, the game will tell you which zone you can find one of the keys in. You can check your currently unlocked hints (as well as tree, mapstone, and overall progress) by pressing alt+p.",
-                        (<div>Note: A map of the Zones is available <a target="_blank" rel="noopener noreferrer" href="https://i.imgur.com/lHgbqmI.jpg">here</a>.</div>),
+                        (<span>Note: A map of the Zones is available <a target="_blank" rel="noopener noreferrer" href="https://i.imgur.com/lHgbqmI.jpg">here</a>.</span>),
                         "Recommended for: newer players, players who like exploring, but don't want to check every pickup"
                     ]
                     break;
@@ -741,9 +741,11 @@ const getHelpHelper = (category, option) => {
                 case "preplacement":
                     title = "Forced Item Placement"
                     lines = [
-                        "You can use these fields to control what the first several pickups of your seed will be!",
-                        "Note that some item combinations (like 4 mapstones in standard logic) can result in an uncompleteable seed.",
-                        "This feature is primarily intended for generating seeds to practice specific skill combinations, like Bash+Grenade or Grenade Jumps"
+                        "You can use these fields to control specific placements in your seed!",
+                        "Select the item location in the left box and the item to place there in the right box. (You can place multiple items at one location this way!)",
+                        "You can add more item locations to prepplace by editing either box in the bottom row.",
+                        "Note: some placements (like 4 mapstones in the first 4 pickups) will cause seed generation to always fail.",
+                        "Note: The 'Spawn' location is a special location that is granted at the beginning of every seed. You can use it to generate seeds to practice specific skill combinations, like Bash+Grenade or Grenade+Climb+Charge Jump."
                     ]
                     break;
                 case "cellFreq":
@@ -812,7 +814,7 @@ const getHelpHelper = (category, option) => {
                         "Lastly, it adds 4-8 warps, which are pickups that let you teleport to specific locations on the map. Once collected, you can use a warp by opening your teleport menu and selecting it.",
                         "Note: The default bindings for bonus skills are Alt+Q to swap between them, and Alt+Mouse1 to activate them. These bindings can be changed in the RandomizerRebinding.txt file.",
                         "Mouse over the individual rows to learn more about the bonus pickups!",
-                        (<div>Check out the <a target="_blank" rel="noopener noreferrer"  href="/faq?g=bonus_pickups">bonus item glossary</a> for more info about the extra bonus items.</div>),
+                        (<span>Check out the <a target="_blank" rel="noopener noreferrer"  href="/faq?g=bonus_pickups">bonus item glossary</a> for more info about the extra bonus items.</span>),
                     ]
                     break;
                 case "Bonus Lite":
@@ -822,7 +824,7 @@ const getHelpHelper = (category, option) => {
                         "The Bonus Lite item pool preset contains a few new passive bonus pickups (3 Skill Velocity Upgrades, 3 Jump Upgrades, and 1 each of Health Drain, Energy Drain, and Underwater Skill Usage)",
                         "It also contains more copies of existing pickups; 2 more Attack Upgrades for a total of 5, and 2 more Extra Double Jumps for a total 3.",
                         "Lastly, it adds 4-8 Warps, which are pickups that let you teleport to specific locations on the map. Once collected, you can use a warp by opening your teleport menu and selecting it.",
-                        (<div>Check out the <a target="_blank" rel="noopener noreferrer"  href="/faq?g=bonus_pickups">bonus item glossary</a> for more info about the extra bonus items.</div>),
+                        (<span>Check out the <a target="_blank" rel="noopener noreferrer"  href="/faq?g=bonus_pickups">bonus item glossary</a> for more info about the extra bonus items.</span>),
                     ]
                     break;
                 case "Competitive":
@@ -922,8 +924,8 @@ const getHelpHelper = (category, option) => {
                 case "customPool":
                     title = "Item Pool Tab"
                     lines = [
-                        (<div>The Item Pool tab allows users to customize the contents of the item pool (the set of items placed by the randomizer), either by selecting one of the available Item Pool presets or by manually adding / removing items.</div>),
-                        (<div>Note: the presets in this tab replace the old "Extra Bonus Pickups" and "Hard Mode" variations.</div>),
+                        "The Item Pool tab allows users to customize the contents of the item pool (the set of items placed by the randomizer), either by selecting one of the available Item Pool presets or by manually adding / removing items.",
+                        "Note: the presets in this tab replace the old \"Extra Bonus Pickups\" and \"Hard Mode\" variations.",
                     ]
                     break;
                 case "variations":
@@ -1035,51 +1037,51 @@ const getHelpHelper = (category, option) => {
                 case "casual-core":
                     title = "Casual Core"
                     lines = [
-                        (<div><b>Casual Core</b> logic paths are the basis of the casual preset and the randomizer logic as a whole. All of the intended mechanics taught by a casual playthrough are included, including bashing off of your thrown grenades and performing wall charge jumps.</div>),
+                        (<span><b>Casual Core</b> logic paths are the basis of the casual preset and the randomizer logic as a whole. All of the intended mechanics taught by a casual playthrough are included, including bashing off of your thrown grenades and performing wall charge jumps.</span>),
                         "A small number of non-casual behaviors are also included, such as using Stomp to break some vertical barriers.",
-                        (<div><b>Casual Core</b> paths are enabled by default in all logic presets, and cannot be disabled.</div>)
+                        (<span><b>Casual Core</b> paths are enabled by default in all logic presets, and cannot be disabled.</span>)
                     ]
                     break;
                 case "casual-dboost":
                     title = "Casual Damage Boost"
                     lines = [
-                        (<div><b>Casual Damage Boost</b> paths are the simplest type of damage boost. These paths may require you to take up to 2 damage. You won't be required to collect any underwater pickups, but you may be required to briefly swim through dirty water or cross a spike pit.</div>),
+                        (<span><b>Casual Damage Boost</b> paths are the simplest type of damage boost. These paths may require you to take up to 2 damage. You won't be required to collect any underwater pickups, but you may be required to briefly swim through dirty water or cross a spike pit.</span>),
                         "Examples: boosting once on the spike wall near the Grenade tree to get the XP orb with only Charge Jump; using Climb instead of Wall Jump to reach the Double Jump tree; collecting the top-left keystone in Spirit Caverns without wall interaction.",
-                        (<div><b>Casual Damage Boost</b> paths are generally very straightforward to perform, though they can be a little tricky if you're still at 3 HP.</div>),
+                        (<span><b>Casual Damage Boost</b> paths are generally very straightforward to perform, though they can be a little tricky if you're still at 3 HP.</span>),
                         "These paths are enabled by default in all logic presets, and are incompatible with the OHKO variation."
                     ]
                     break;
                 case "standard-core":
                     title = "Standard Core"
                     lines = [
-                        (<div><b>Standard Core</b> logic paths are the basis of the standard preset. These paths represent the tricks, tech, and knowledge that one might learn from doing speedruns of Ori DE.</div>),
+                        (<span><b>Standard Core</b> logic paths are the basis of the standard preset. These paths represent the tricks, tech, and knowledge that one might learn from doing speedruns of Ori DE.</span>),
                         "Tech that might be required includes bash glides, dash glides, and using wall charge jumps to break floors/ceilings. Some slightly precise jumps may also be required, such as reaching the Spirit Caverns ability cell using Double Jump and Wall Jump.",
-                        (<div><b>Standard Core</b> paths don't require a high level of execution, nor do they require a high degree of area-specific knowledge, but they do require a higher degree of overall game knowledge than Casual paths.</div>),
+                        (<span><b>Standard Core</b> paths don't require a high level of execution, nor do they require a high degree of area-specific knowledge, but they do require a higher degree of overall game knowledge than Casual paths.</span>),
                         "These paths are enabled by default in all logic presets except Casual."
                     ]
                     break;
                 case "standard-lure":
                     title = "Standard Lure"
                     lines = [
-                        (<div><b>Standard Lure</b> logic paths represent manipulating enemies to cross distances or drawing their projectiles in a particular way to help you reach pickups or locations that would otherwise not be accessible.</div>),
-                        (<div>Examples: performing the all skills "fronkey walk" to bash up to the XP orb right of the start; using the baneling near the Horu Fields entrance to break the floor to get the health cell.</div>),
-                        (<div><b>Standard Lure</b> paths may require some minor area-specific knowledge, but are generally not difficult to perform.</div>),
+                        (<span><b>Standard Lure</b> logic paths represent manipulating enemies to cross distances or drawing their projectiles in a particular way to help you reach pickups or locations that would otherwise not be accessible.</span>),
+                        (<span>Examples: performing the all skills "fronkey walk" to bash up to the XP orb right of the start; using the baneling near the Horu Fields entrance to break the floor to get the health cell.</span>),
+                        (<span><b>Standard Lure</b> paths may require some minor area-specific knowledge, but are generally not difficult to perform.</span>),
                         "These paths are enabled by default in all logic presets except Casual."
                     ]
                     break;
                 case "standard-dboost":
                     title = "Standard Damage Boost"
                     lines = [
-                        (<div><b>Standard Damage Boost</b> logic paths incorporate damage boosts of up to 3 damage, plus a few more difficult 1-2 damage boost paths. Underwater pickups are still not required, nor is any damage boosting in Misty Woods.</div>),
+                        (<span><b>Standard Damage Boost</b> logic paths incorporate damage boosts of up to 3 damage, plus a few more difficult 1-2 damage boost paths. Underwater pickups are still not required, nor is any damage boosting in Misty Woods.</span>),
                         "Examples: collecting Ginso Tree keystones without Double Jump or Bash; collecting the health cell behind the 2-energy door in Moon Grotto with only Wall Jump; crossing the moat in death gauntlet with only Wall Jump or Climb.",
-                        (<div><b>Standard Damage Boost</b> paths usually are not especially tricky to do, but may require some confidence jumping onto spikes that deal a lot of damage.</div>),
+                        (<span><b>Standard Damage Boost</b> paths usually are not especially tricky to do, but may require some confidence jumping onto spikes that deal a lot of damage.</span>),
                         "These paths are enabled by default in all logic presets except Casual, and are incompatible with the OHKO variation."
                     ]
                     break;
                 case "standard-abilities":
                     title = "Standard Abilities"
                     lines = [
-                        (<div><b>Standard Abilities</b> logic paths incorporate use of the Air Dash ability. At least three ability cells will be provided before you're expected to make use of Air Dash.</div>),
+                        (<span><b>Standard Abilities</b> logic paths incorporate use of the Air Dash ability. At least three ability cells will be provided before you're expected to make use of Air Dash.</span>),
                         "Examples: collecting Ginso Tree keystones without taking damage; accessing the area below the Moon Grotto teleporter.",
                         "These paths are enabled by default in all logic presets except Casual, and are incompatible with the 0 XP variation."
                     ]
@@ -1087,7 +1089,7 @@ const getHelpHelper = (category, option) => {
                 case "expert-core":
                     title = "Expert Core"
                     lines = [
-                        (<div><b>Expert Core</b> logic paths are the basis of the expert preset. These paths either require a notable amount of area-specific knowledge or a higher degree of execution than standard paths.</div>),
+                        (<span><b>Expert Core</b> logic paths are the basis of the expert preset. These paths either require a notable amount of area-specific knowledge or a higher degree of execution than standard paths.</span>),
                         "Examples: juggling a frog up Sorrow Pass to get access to the Sunstone; passing through the crushing blocks in Blackroot without Dash; reaching the plant in Valley entry with only Wall Jump and Charge Flame.",
                         "These paths are enabled by default in the Expert, Master, and Glitched presets."
                     ]
@@ -1095,16 +1097,16 @@ const getHelpHelper = (category, option) => {
                 case "expert-lure":
                     title = "Expert Lure"
                     lines = [
-                        (<div><b>Expert Lure</b> logic paths represent more difficult enemy lures possibly involving multiple enemies or complex combinations of bash angles and other movement techniques.</div>),
-                        (<div>Examples: performing the "Sorrow Bash" trick to enter Sorrow Pass using chained bashes on the birds at the top of Valley; bashing the frog near the upper Swamp entrance to use his projectiles to break your way in.</div>),
-                        (<div><b>Expert Lure</b> paths require a fair bit of practice for most runners. Don't be afraid to ask for help on the Ori discord!</div>),
+                        (<span><b>Expert Lure</b> logic paths represent more difficult enemy lures possibly involving multiple enemies or complex combinations of bash angles and other movement techniques.</span>),
+                        (<span>Examples: performing the "Sorrow Bash" trick to enter Sorrow Pass using chained bashes on the birds at the top of Valley; bashing the frog near the upper Swamp entrance to use his projectiles to break your way in.</span>),
+                        (<span><b>Expert Lure</b> paths require a fair bit of practice for most runners. Don't be afraid to ask for help on the Ori discord!</span>),
                         "These paths are enabled by default in the Expert, Master, and Glitched presets."
                     ]
                     break;
                 case "expert-dboost":
                     title = "Expert Damage Boost"
                     lines = [
-                        (<div><b>Expert Damage Boost</b> logic paths incorporate damage boosts of up to 6 damage. These could include swimming sequences with underwater pickups or damaging yourself repeatedly across spikes.</div>),
+                        (<span><b>Expert Damage Boost</b> logic paths incorporate damage boosts of up to 6 damage. These could include swimming sequences with underwater pickups or damaging yourself repeatedly across spikes.</span>),
                         "Examples: getting to the Energy Cell in the main pool of Sunken Glades with 7 health; reaching the lower Swamp access in Moon Grotto using only Dash and 4 health; getting the underwater ability cell in Death Gauntlet with 4 health.",
                         "These paths are enabled by default in the Expert, Master, and Glitched presets."
                     ]
@@ -1112,7 +1114,7 @@ const getHelpHelper = (category, option) => {
                 case "expert-abilities":
                     title = "Expert Abilities"
                     lines = [
-                        (<div><b>Expert Abilities</b> logic paths incorporate use of the Charge Dash ability. These paths may also implicitly assume use of Air Dash. Six ability cells will be provided for these paths.</div>),
+                        (<span><b>Expert Abilities</b> logic paths incorporate use of the Charge Dash ability. These paths may also implicitly assume use of Air Dash. Six ability cells will be provided for these paths.</span>),
                         "Charge Dash can be expected to be used to break plants or cross long distances without losing height. You may also be expected to perform Rocket Jumps by quickly canceling an upwards Charge Dash with a jump input.",
                         "These paths are enabled by default in the Expert, Master, and Glitched presets."
                     ]
@@ -1120,25 +1122,25 @@ const getHelpHelper = (category, option) => {
                 case "dbash":
                     title = "Double Bash"
                     lines = [
-                        (<div><b>Double Bash</b> logic paths require performing one or more double bashes. Incredibly long sequences of double bashes are not included, but you may be expected to do up to five or six in a row.</div>),
+                        (<span><b>Double Bash</b> logic paths require performing one or more double bashes. Incredibly long sequences of double bashes are not included, but you may be expected to do up to five or six in a row.</span>),
                         "Examples: reaching the pickups above the water in the Spider Coves area with only Bash; navigating Horu Fields with only Bash; you get the idea.",
-                        (<div>The randomizer has support for "free double bashes", which you can configure in RandomizerKeybindings.txt. This allows you to hold a specified button while releasing one Bash to get an automatic double bash.</div>),
-                        (<div><b>Double Bash</b> paths are enabled by default in the Expert, Master, and Glitched presets.</div>)
+                        (<span>The randomizer has support for "free double bashes", which you can configure in RandomizerKeybindings.txt. This allows you to hold a specified button while releasing one Bash to get an automatic double bash.</span>),
+                        (<span><b>Double Bash</b> paths are enabled by default in the Expert, Master, and Glitched presets.</span>)
                     ]
                     break;
                 case "master-core":
                     title = "Master Core"
                     lines = [
-                        (<div><b>Master Core</b> logic paths are the basis of the master preset. These paths require deep, thorough knowledge of the intricacies of each area of the game, as well as the ability to execute difficult strategies.</div>),
-                        (<div>Examples: double bashing a spider shot from the bottom of Blackroot Burrows to break the floor to enter lower Blackroot; performing the "iceless" jump to reach the experience orb above the Hollow Grove map.</div>),
-                        (<div><b>Master Core</b> paths may also require you to perform "double jump wall climbing", repeatedly jumping into and then turning away from a single wall to refresh your jumps to continue scaling it.</div>),
+                        (<span><b>Master Core</b> logic paths are the basis of the master preset. These paths require deep, thorough knowledge of the intricacies of each area of the game, as well as the ability to execute difficult strategies.</span>),
+                        (<span>Examples: double bashing a spider shot from the bottom of Blackroot Burrows to break the floor to enter lower Blackroot; performing the "iceless" jump to reach the experience orb above the Hollow Grove map.</span>),
+                        (<span><b>Master Core</b> paths may also require you to perform "double jump wall climbing", repeatedly jumping into and then turning away from a single wall to refresh your jumps to continue scaling it.</span>),
                         "These paths are only enabled by default in the Master preset."
                     ]
                     break;
                 case "master-lure":
                     title = "Master Lure"
                     lines = [
-                        (<div><b>Master Lure</b> logic paths represent the most difficult enemy lures, involving avoiding damaging environmental obstacles or maneuvering enemies through tight quarters.</div>),
+                        (<span><b>Master Lure</b> logic paths represent the most difficult enemy lures, involving avoiding damaging environmental obstacles or maneuvering enemies through tight quarters.</span>),
                         "Examples: kiting a fronkey down to the Wall Jump tree area to Bash off of him to reach the pickups there; using a fronkey to break both barriers to reach the underwater cell in the main area of Hollow Grove.",
                         "These paths are only enabled by default in the Master preset."
                     ]
@@ -1146,7 +1148,7 @@ const getHelpHelper = (category, option) => {
                 case "master-dboost":
                     title = "Master Damage Boost"
                     lines = [
-                        (<div><b>Master Damage Boost</b> logic paths incorporate damage boosts of any amount. In addition, these paths may require the Ultra Defense ability. Twelve ability cells will be provided before Ultra Defense is expected.</div>),
+                        (<span><b>Master Damage Boost</b> logic paths incorporate damage boosts of any amount. In addition, these paths may require the Ultra Defense ability. Twelve ability cells will be provided before Ultra Defense is expected.</span>),
                         "Examples: collecting all of the underwater pickups in Swamp with 7 health and Ultra Defense; getting from the Swamp keystone door to the Stomp tree with only Wall Jump and 12 health.",
                         "These paths are only enabled by default in the Master preset."
                     ]
@@ -1154,7 +1156,7 @@ const getHelpHelper = (category, option) => {
                 case "master-abilities":
                     title = "Master Abilities"
                     lines = [
-                        (<div><b>Master Abilities</b> logic paths incorporate use of the Triple Jump ability. These paths may also implicitly assume use of Air Dash and Charge Dash. Twelve ability cells will be provided for these paths.</div>),
+                        (<span><b>Master Abilities</b> logic paths incorporate use of the Triple Jump ability. These paths may also implicitly assume use of Air Dash and Charge Dash. Twelve ability cells will be provided for these paths.</span>),
                         "Examples: crossing Horu Fields with only Wall Jump, Double Jump, Dash, and the Triple Jump ability; reaching the ability cell in the outer Swamp mortar area with only Wall Jump, Double Jump, and the Triple Jump ability.",
                         "These paths are only enabled by default in the Master preset."
                     ]
@@ -1162,7 +1164,7 @@ const getHelpHelper = (category, option) => {
                 case "gjump":
                     title = "Grenade Jump"
                     lines = [
-                        (<div><b>Grenade Jump</b> logic paths incorporate use of grenade jumps, a trick in which you press Grenade one frame before performing a wall Charge Jump. These paths all require Climb, Charge Jump, and Grenade.</div>),
+                        (<span><b>Grenade Jump</b> logic paths incorporate use of grenade jumps, a trick in which you press Grenade one frame before performing a wall Charge Jump. These paths all require Climb, Charge Jump, and Grenade.</span>),
                         "Examples: crossing Horu Fields with grenade jumps; navigating the right side of Lost Grove without Bash; ascending from the Valley entrance to the main area of Valley (with some combination of Double Jump and damage boosts).",
                         "These paths are only enabled by default in the Master preset."
                     ]
@@ -1170,25 +1172,25 @@ const getHelpHelper = (category, option) => {
                 case "glitched":
                     title = "Glitched"
                     lines = [
-                        (<div><b>Glitched</b> logic paths incorporate the tricks which are disallowed by the common randomizer ruleset: clips, out of bounds, teleport anywhere, and warp displacement.</div>),
+                        (<span><b>Glitched</b> logic paths incorporate the tricks which are disallowed by the common randomizer ruleset: clips, out of bounds, teleport anywhere, and warp displacement.</span>),
                         "Examples: Terra clipping from the Ginso Tree to Horu; warp displacing using the Swamp teleporter to reach the outer Swamp mortar ability cell; using the Blackroot boulder to clip into Moon Grotto.",
-                        (<div>WARNING: many <b>Glitched</b> paths require spending ability points or other one-time tricks. Backing up your save early and often is heavily recommended.</div>),
+                        (<span>WARNING: many <b>Glitched</b> paths require spending ability points or other one-time tricks. Backing up your save early and often is heavily recommended.</span>),
                         "These paths are only enabled by default in the Glitched preset."
                     ]
                     break;
                 case "timed-level":
                     title = "Timed Level"
                     lines = [
-                        (<div><b>Timed Level</b> logic paths represent leveling up at specific places to obtain health and energy refills or damage otherwise unreachable enemies. These can require luck, careful planning, or a lot of farming.</div>),
-                        (<div>Examples: the all skills "fronkey walk", using a timed level on a fronkey to enter death gauntlet with only 2 energy; leveling on the frog at the grenade basketball puzzle in Blackroot to kill the other frog to reach an ability cell.</div>),
+                        (<span><b>Timed Level</b> logic paths represent leveling up at specific places to obtain health and energy refills or damage otherwise unreachable enemies. These can require luck, careful planning, or a lot of farming.</span>),
+                        (<span>Examples: the all skills "fronkey walk", using a timed level on a fronkey to enter death gauntlet with only 2 energy; leveling on the frog at the grenade basketball puzzle in Blackroot to kill the other frog to reach an ability cell.</span>),
                         "These paths are only enabled by default in the Glitched preset."
                     ]
                     break;
                 case "insane":
                     title = "Insane"
                     lines = [
-                        (<div><b>Insane</b> logic paths should not exist. They are a sign of the depths of depravity to which the randomizer developers have sunk.</div>),
-                        (<div>Examples: completing the Ginso escape with nothing but Double Jump and Triple Jump; accessing the right Valley "bird stomp cell" by double bashing a baneling from lower Valley.</div>),
+                        (<span><b>Insane</b> logic paths should not exist. They are a sign of the depths of depravity to which the randomizer developers have sunk.</span>),
+                        (<span>Examples: completing the Ginso escape with nothing but Double Jump and Triple Jump; accessing the right Valley "bird stomp cell" by double bashing a baneling from lower Valley.</span>),
                         "WARNING: seriously, if you turn these on, you will regret it. Some of these might take you an hour just to execute once. They're HARD.",
                         "These paths are not enabled by default in any mode. We don't hate you that much."
                     ]

@@ -16,8 +16,8 @@ try:
 except ImportError:
     flask_imported = False
 
-VER = [4, 0, 10]
-MIN_VER = [4, 0, 10]
+VER = [4, 0, 13]
+MIN_VER = [4, 0, 12]
 def version_check(version):
     try:
         nums = [int(num) for num in version.split(".")]
@@ -317,7 +317,7 @@ def game_list_html(games):
         print("HELLO??????")
         return "CRITICAL WEBSITE ERROR"
     body = ""
-    for game in sorted(games, key=lambda x: x.last_update, reverse=True):
+    for game in sorted([g for g in games if g], key=lambda x: x.last_update, reverse=True):
         gid = game.key.id()
         game_link = url_for('game_show_history', game_id=gid)
         map_link = url_for('tracker_show_map', game_id=gid)
@@ -325,7 +325,7 @@ def game_list_html(games):
         flags = ""
         if game.params:
             params = game.params.get()
-            if Variation.RACE in params.variations and not whitelist_ok(self):
+            if Variation.RACE in params.variations and not whitelist_ok():
                 continue
             flags = params.flag_line()
             slink = " <a href=%s>Seed</a>" % url_for('main_page', game_id=gid, param_id=params.key.id())

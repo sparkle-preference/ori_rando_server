@@ -121,6 +121,7 @@ class SeedGenParams(ndb.Model):
     relic_count = ndb.IntegerProperty(default=8)
     cell_freq = ndb.IntegerProperty(default=256)
     placements = ndb.LocalStructuredProperty(Placement, repeated=True, compressed=True)
+    preplaced_coords = ndb.IntegerProperty(repeated=True)
     spoilers = ndb.TextProperty(repeated=True, compressed=True)
     sense = ndb.StringProperty()
     is_plando = ndb.BooleanProperty(default=False)
@@ -189,6 +190,7 @@ class SeedGenParams(ndb.Model):
         params.bingo_lines = json.get("bingoLines", 3)
         params.pool_preset = json.get("selectedPool", "Standard")
         params.placements = [Placement(location=fass["loc"], zone="", stuff=[Stuff(code=fass["code"], id=fass["id"], player="")]) for fass in json.get("fass", [])]
+        params.preplaced_coords = [int(fass["loc"]) for fass in json.get("fass", [])]
         params.starting_energy = json.get("spawnECs", 1)
         params.starting_health = json.get("spawnHCs", 3)
         params.starting_skills = json.get("spawnSKs", 0)
@@ -266,13 +268,15 @@ class SeedGenParams(ndb.Model):
         raw_fass = qparams.get("fass")
         if raw_fass:
             params.placements = []
+            params.preplaced_coords = []
             for fass in raw_fass.split("|"):
                 loc, _, item = fass.partition(":")
                 stuff = [Stuff(code=item[:2], id=item[2:], player="")]
                 params.placements.append(Placement(location=loc, zone="", stuff=stuff))
+                params.preplaced_coords.append(int(loc))
         return params.put()
 
-    def to_json(self):
+    def to_json(self):        
         return {
             "players": self.players,
             "flagLine": self.flag_line(),
@@ -307,6 +311,7 @@ class SeedGenParams(ndb.Model):
             "bingoLines": self.bingo_lines,
             "spawnWeights": self.spawn_weights,
             "verboseSpoiler": self.verbose_spoiler,
+            "fass": [{'loc': p.location, 'item': "%s|%s" % (p.stuff[0].code, p.stuff[0].id)} for p in self.placements if int(p.location) in self.preplaced_coords]
         }
 
 

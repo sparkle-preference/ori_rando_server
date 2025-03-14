@@ -59,11 +59,14 @@ def text_download(text, filename, status=200):
 
 @app.route('/clean/')
 def clean_up():
+    log.info("starting clean...")
     clean_count, did_finish = Game.clean_old()
     if did_finish:
+        log.info("Cleaned up %s games" % clean_count)
         User.prune_games()
-        return text_repp("Cleaned up %s games" % clean_count)
+        return text_resp("Cleaned up %s games" % clean_count)
     else:
+        log.info("Cleaned up %s games before timeout" % clean_count)
         return text_resp("Cleaned up %s games before timeout" % clean_count)
 
 @app.route('/activeGames/')
@@ -1111,9 +1114,10 @@ def bingo_download_seed(game_id, player_id):
     if not seed:
         return text_resp("No seed found for player %s.%s" % (game_id, player_id), 412)
 
-    if not debug:
+    if not debug():
         return text_download(seed, 'randomizer.dat')
-    return text_resp(seed)
+    else:
+        return text_resp(seed)
 
 @app.route('/bingo/new') #BingoCreate =     
 def bingo_create_game():
@@ -1236,7 +1240,7 @@ def bingo_user_board(name):
             return text_resp("Could not find any bingo games for user '%s'" % name, 404)
     return redirect(url_for('bingo_board_spectate', game_id=4 + game_id*7))
 
-@app.route('/bingo/userboard/<name>') #BingoUserboard =     
+@app.route('/bingo/userboard/<name>/') #BingoUserboard =     
 def bingo_userboard(name):
     user = User.get_by_name(name)
     if not user:
@@ -1250,9 +1254,9 @@ def bingo_userboard(name):
         template_values['theme'] = user.theme
     return render_template(path, **template_values)
 
-@app.route('/bingo/userboard/<name>/fetch/<int:game_id>') #UserboardTick =     
+@app.route('/bingo/userboard/<name>/fetch/<game_id>') #UserboardTick =     
 def bingo_userboard_tick(name, game_id):
-    cur_gid = int(gid)
+    cur_gid = int(game_id)
     now = datetime.utcnow()
     game_id = Cache.get_latest_game(name, bingo=True)
     if not game_id:

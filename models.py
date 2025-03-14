@@ -1507,7 +1507,7 @@ class Game(ndb.Model):
         for game in Game.query(Game.last_update < datetime.now() - timeout_window):
             i+=1
             game.clean_up()
-            if datetime.now() - start_time > timedelta(seconds = 59):
+            if datetime.now() - start_time > timedelta(seconds = 30):
                 log.warning("stopping early because we're running out of time")
                 return i, False
         return i, True

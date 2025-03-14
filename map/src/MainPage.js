@@ -7,11 +7,19 @@ import {NotificationContainer, NotificationManager} from 'react-notifications';
 import 'react-notifications/lib/notifications.css';
 import './index.css';
 
-import {getHelpContent, HelpBox} from "./helpbox.js"
-import {get_param, spawn_defaults, get_flag, presets, name_from_str, get_preset, player_icons, doNetRequest, get_random_loader, PickupSelect, Cent, dev, randInt, gotoUrl} from './common.js';
-import SiteBar from "./SiteBar.js"
+import {getHelpContent, HelpBox} from "./helpbox.js";
+import {get_param, spawn_defaults, get_flag, presets, select_theme, name_from_str, get_preset, player_icons, doNetRequest, get_random_loader, PickupSelect, Cent, dev, randInt, gotoUrl} from './common.js';
+import SiteBar from "./SiteBar.js";
+import Select from 'react-select';
 import Dropzone from 'react-dropzone'
+import {picks_by_zone} from './shared_map'
 
+
+const zonesInOrder = ['Glades', 'Blackroot', 'Grove', 'Grotto', 'Ginso', 'Swamp', 'Valley', 'Misty', 'Forlorn', 'Sorrow', 'Horu'];
+const locOptions = [{'label': 'Spawn With', 'value': 2}];
+zonesInOrder.forEach(zone =>  picks_by_zone[zone].forEach(p => locOptions.push({'label': `${p.area} ${p.name} (${zone})`, 'value': p.loc})));
+picks_by_zone['Mapstone'].forEach(p => locOptions.push({'label': p.name, 'value': p.loc}));
+const locOptionFromCoords = (coords) => locOptions.find(l => l.value === coords);
 const get_pool = (pool_name) => { switch(pool_name) {
     case "Standard": 
         return [
@@ -128,7 +136,7 @@ const get_pool = (pool_name) => { switch(pool_name) {
             {item: "WP|*", count: 4, upTo: 8, maximum: 14},
         ]
     default:
-        console.log(`${pool_name} is not a valid pool name! Using the standard pool instead`)
+        dev && console.log(`${pool_name} is not a valid pool name! Using the standard pool instead`)
         return get_pool("Standard")
     }
 }
@@ -198,8 +206,6 @@ export default class MainPage extends React.Component {
     })
     updateItemUpTo = (index, newVal) => this.setState(prev => {
         prev.itemPool[index].upTo = newVal
-        if(newVal < prev.itemPool[index].count)
-            prev.itemPool[index].count = newVal
         return {itemPool: [...prev.itemPool], selectedPool: "Custom"}
  })
     updatePoolItem = (index, code) => this.setState(prev => {
@@ -229,7 +235,7 @@ onDrop = (files) => {
                 let text = reader.result;
                 window.URL.revokeObjectURL(file.preview);
                 // do whatever you want with the file content
-                console.log(text.split("\n"));
+                dev && console.log(text.split("\n"));
                 uploadReaderLines(text.split("\n"))
             };
             reader.onabort = () => console.log('file reading was aborted');
@@ -272,14 +278,14 @@ onDrop = (files) => {
           let disabled = row.minimum && row.minimum > 0
           let delButton = disabled ? null : (<Button onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("itemPool", "deleteRow")} onClick={this.deletePoolItem(index)} color="danger">X</Button>)
           
-          return (<Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "customPool")} className="p-1 justify-content-center">
+          return (<Row key={`pool-row-${index}`} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "customPool")} className="p-1 justify-content-center">
             <Col xs="4">
             <Cent>
                 <Input  onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("itemPool", "count")} type="number" className="mr-2" style={inputStyle} invalid={row.maximum && row.maximum < row.row} value={row.count} onChange={(e) => this.updateItemCount(index, parseInt(e.target.value, 10), row)}/>
-                <FormFeedback tooltip>Maximum number of {name_from_str(row.item)} allowed is {row.maximum}</FormFeedback>
+                <FormFeedback tooltip="true">Maximum number of {name_from_str(row.item)} allowed is {row.maximum}</FormFeedback>
                 {" - "}
                 <Input type="number" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("itemPool", "upTo")}  invalid={row.upTo && (row.upTo < row.count || (row.maximum && row.maximum < row.upTo))} className="ml-2" style={inputStyle} value={row.upTo || row.count} onChange={(e) => this.updateItemUpTo(index, parseInt(e.target.value, 10))}/>
-                <FormFeedback tooltip>{row.upTo < row.count ? `Max count can't be lower than min count(${row.count})` : `Maximum number of ${name_from_str(row.item)} allowed is ${row.maximum}`}</FormFeedback>
+                <FormFeedback tooltip="true">{row.upTo < row.count ? `Max count can't be lower than min count(${row.count})` : `Maximum number of ${name_from_str(row.item)} allowed is ${row.maximum}`}</FormFeedback>
             </Cent>
             </Col>
             <Col onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("itemPool", disabled ? "pickupSelectorDisabled" : row.item)} xs="7">
@@ -342,10 +348,11 @@ onDrop = (files) => {
     }
 
     getAdvancedTab = ({inputStyle, menuStyle}) => {
-        let {variations, senseData, fillAlg, spawnSKs, spawnECs, spawnHCs, expPool, bingoLines, pathDiff, cellFreq, relicCount, fragCount, fragReq, spawnWeights, spawn, verboseSpoiler} = this.state
+        let {variations, senseData, fillAlg, spawnSKs, spawnECs, spawnHCs, expPool, bingoLines, pathDiff, cellFreq, 
+            relicCount, fragCount, fragReq, spawnWeights, spawn, verboseSpoiler, fassList} = this.state
         let [leftCol, rightCol] = [4, 7]
         let weightSelectors = spawnWeights.map((weight, index) => (
-            <Col xs="4" className="text-center pt-1 border">
+            <Col xs="4" key={`weight-selector-${index}`} className="text-center pt-1 border">
                     <Col onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "spawnWeights")}><Cent>{SPAWN_TPS[index]}</Cent></Col>
                     <Col onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "spawnWeights")}>
                         <Input style={inputStyle} type="number" value={weight} invalid={weight < 0} onChange={(e) => {
@@ -353,26 +360,32 @@ onDrop = (files) => {
                             sw[index] = parseFloat(e.target.value, 10)
                             this.setState({spawnWeights: sw})
                         }}/> 
-                        <FormFeedback tooltip>Weights can't be less than 0</FormFeedback>
+                        <FormFeedback tooltip="true">Weights can't be less than 0</FormFeedback>
                     </Col>
             </Col>
         ))
         let pathDiffOptions = ["Easy", "Normal", "Hard"].map(mode => (
             <DropdownItem key={`pd-${mode}`} active={mode===pathDiff} onClick={()=> this.setState({pathDiff: mode})}>{mode}</DropdownItem>
         ))
-        const starting_pickups = {"Spawn With:": 2, "First Pickup:": 919772, "Second Pickup:": -1560272, "Third Pickup:": 799776, "Fourth Pickup:": -120208}
-        let fass_rows = Object.keys(starting_pickups).map(name => {
-            let coord = starting_pickups[name];
-            return (
-                <Row key={`fass-${coord}`} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "preplacement")} className="p-1 justify-content-center">
-                    <Col xs={leftCol} className="text-center pt-1 border">
-                        <span className="align-middle">{name}</span>
-                    </Col><Col xs={rightCol}>
-                        <PickupSelect updater={(code, _) => this.onFass(coord, code)}/> 
+        const fassUsed = new Set(fassList.map(({loc}) => loc.value));
+        let fass_rows = fassList.map(({loc, item}, i) => (
+            <Row key={`fass-arbitrary-${i}`} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "preplacement")} className="p-1 justify-content-center">
+                    <Col xs={leftCol+1}>
+                        <Select theme={select_theme} className="align-middle" options={locOptions.filter(l => l.value === loc.value || !fassUsed.has(l.value))} value={loc} onChange={(newLoc) => this.onFassList(i, {loc: newLoc})}></Select>
+                    </Col><Col xs={rightCol-1}>
+                        <PickupSelect value={item} updater={(code, _) => this.onFassList(i, {item: code})}/>
                     </Col>
-                </Row>
-            )
-        })
+            </Row>
+        ));
+        fass_rows.push((
+            <Row key={`fass-arbitrary-next`} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "preplacement")} className="p-1 justify-content-center">
+                    <Col xs={leftCol+1}>
+                    <Select theme={select_theme} className="align-middle" options={locOptions.filter(l => !fassUsed.has(l.value))} value={{label: 'Add new Placement:', value: -1}} onChange={(newLoc) => this.addToFassList({loc: newLoc, item: "NO|1"})}></Select>
+                    </Col><Col xs={rightCol-1}>
+                        <PickupSelect ref="fassTabula" value={"NO|1"} updater={(code, _) => this.addToFassList({item: code})}/>
+                    </Col>
+            </Row>
+        ))
         let goalCol = (v) => (
             <Col xs="6" onMouseLeave={this.helpEnter("advanced", "goalModes")} onMouseEnter={this.helpEnter("goalModes", v)} className="p-2">
                 <Button color="primary" block outline={!variations.includes(v)} onClick={this.onGoalModeAdvanced(v)}>{VAR_NAMES[v]}</Button>
@@ -398,14 +411,14 @@ onDrop = (files) => {
                         <span className="align-middle">Exp Pool</span>
                     </Col><Col xs={rightCol}>
                         <Input style={inputStyle} type="number" value={expPool} invalid={expPool < 100} onChange={(e) => this.setState({expPool: parseInt(e.target.value, 10)})}/> 
-                        <FormFeedback tooltip>Experience Pool must be at least 100</FormFeedback>
+                        <FormFeedback tooltip="true">Experience Pool must be at least 100</FormFeedback>
                     </Col>
                 </Row>
                 <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "sense")} className="p-1 justify-content-center">
                     <Col xs={leftCol} className="text-center pt-1 border">
                         <span className="align-middle">Sense Triggers</span>
                     </Col><Col xs={rightCol}>
-                        <Input style={inputStyle} type="text" value={senseData} onChange={(e) => this.setState({senseData: e.target.value})}/> 
+                        <Input style={inputStyle} type="text" value={senseData || ""} onChange={(e) => this.setState({senseData: e.target.value})}/> 
                     </Col>
                 </Row>
                 <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "verbose")} className="p-1 justify-content-center">
@@ -444,7 +457,7 @@ onDrop = (files) => {
                         <span className="align-middle">Forced Cell Frequency</span>
                     </Col><Col xs={rightCol}>
                         <Input style={inputStyle} type="number" value={cellFreq} invalid={cellFreq < 3} onChange={(e) => this.setState({cellFreq: parseInt(e.target.value, 10)})}/> 
-                        <FormFeedback tooltip>Forced Cell Frequency must be at least 3</FormFeedback>
+                        <FormFeedback tooltip="true">Forced Cell Frequency must be at least 3</FormFeedback>
                     </Col>
                 </Row>
                 {fass_rows}
@@ -454,7 +467,7 @@ onDrop = (files) => {
                         <span className="align-middle">Bingo Lines</span>
                     </Col><Col xs={rightCol}>
                         <Input style={inputStyle} type="number" value={bingoLines} invalid={bingoLines > 12 || bingoLines < 1} onChange={(e) => this.setState({bingoLines: parseInt(e.target.value, 10)})}/> 
-                        <FormFeedback tooltip>Line count must be between 1 and 12</FormFeedback>
+                        <FormFeedback tooltip="true">Line count must be between 1 and 12</FormFeedback>
                     </Col>
                 </Row>
                 </Collapse>
@@ -464,7 +477,7 @@ onDrop = (files) => {
                             <span className="align-middle">Relic Count</span>
                         </Col><Col xs={rightCol}>
                             <Input style={inputStyle} type="number" value={relicCount} invalid={relicCount > 11 || relicCount < 1} onChange={(e) => this.setState({relicCount: parseInt(e.target.value, 10)})}/> 
-                            <FormFeedback tooltip>Relic count must be greater than 0 and less than 12</FormFeedback>
+                            <FormFeedback tooltip="true">Relic count must be greater than 0 and less than 12</FormFeedback>
                         </Col>
                     </Row>
                 </Collapse>
@@ -474,7 +487,7 @@ onDrop = (files) => {
                             <span className="align-middle">Fragment Count</span>
                         </Col><Col xs={rightCol}>
                             <Input style={inputStyle} type="number" value={fragCount} invalid={fragCount > 60 || fragCount < 1} onChange={(e) => this.setState({fragCount: parseInt(e.target.value, 10)})}/> 
-                            <FormFeedback tooltip>Frag Count must be between 1 and 60</FormFeedback>
+                            <FormFeedback tooltip="true">Frag Count must be between 1 and 60</FormFeedback>
                         </Col>
                     </Row>
                     <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "fragRequired")} className="p-1 justify-content-center">
@@ -482,7 +495,7 @@ onDrop = (files) => {
                             <span className="align-middle">Fragments Required</span>
                         </Col><Col xs={rightCol}>
                             <Input style={inputStyle} type="number" value={fragReq} invalid={fragCount < fragReq || fragReq <= 0} onChange={e => this.setState({fragReq: parseInt(e.target.value, 10)})}/> 
-                            <FormFeedback tooltip>Fragments Required must be between 0 and Fragment Count ({fragCount})</FormFeedback>
+                            <FormFeedback tooltip="true">Fragments Required must be between 0 and Fragment Count ({fragCount})</FormFeedback>
                         </Col>
                     </Row>
                 </Collapse>
@@ -492,7 +505,7 @@ onDrop = (files) => {
                         <span className="align-middle">Randomized Starting Skills</span>
                     </Col><Col xs={rightCol}>
                         <Input style={inputStyle} type="text" value={spawnSKs} invalid={spawnSKs < 0 || spawnSKs > 10 } onChange={(e) => this.setState({spawnSKs: parseInt(e.target.value,10)})}/> 
-                        <FormFeedback tooltip>Can't spawn with less than 0 or more than 10 skills</FormFeedback>
+                        <FormFeedback tooltip="true">Can't spawn with less than 0 or more than 10 skills</FormFeedback>
                     </Col>
                 </Row>
                 <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "spawnHCs")} className="p-1 justify-content-center">
@@ -500,7 +513,7 @@ onDrop = (files) => {
                         <span className="align-middle">Starting Health</span>
                     </Col><Col xs={rightCol}>
                         <Input style={inputStyle} type="text" value={spawnHCs} invalid={spawnHCs < 3} onChange={(e) => this.setState({spawnHCs: parseInt(e.target.value,10)})}/> 
-                        <FormFeedback tooltip>Can't spawn with fewer than 3 Health</FormFeedback>
+                        <FormFeedback tooltip="true">Can't spawn with fewer than 3 Health</FormFeedback>
                     </Col>
                 </Row>
                 <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "spawnECs")} className="p-1 justify-content-center">
@@ -508,7 +521,7 @@ onDrop = (files) => {
                         <span className="align-middle">Starting Energy</span>
                     </Col><Col xs={rightCol}>
                         <Input style={inputStyle} type="text" value={spawnECs} invalid={spawnHCs < 1} onChange={(e) => this.setState({spawnECs: parseInt(e.target.value,10)})}/> 
-                        <FormFeedback tooltip>Can't spawn with fewer than 1 Energy</FormFeedback>
+                        <FormFeedback tooltip="true">Can't spawn with fewer than 1 Energy</FormFeedback>
                     </Col>
                 </Row>
                 </Collapse>
@@ -531,9 +544,9 @@ onDrop = (files) => {
         
         let playerNumValid = tracking && players > 0;
         let playerNumFeedback = tracking ? (players > 0 ? null : (
-            <FormFeedback tooltip>Need at least one player...</FormFeedback>
+            <FormFeedback tooltip="true">Need at least one player...</FormFeedback>
         )) : (
-            <FormFeedback tooltip>Multiplayer modes require web tracking to be enabled</FormFeedback>
+            <FormFeedback tooltip="true">Multiplayer modes require web tracking to be enabled</FormFeedback>
         )
         return (
              <TabPane className="p-3 border" tabId="multiplayer">
@@ -586,7 +599,7 @@ onDrop = (files) => {
                             <span className="align-middle">Teams</span>
                         </Col><Col xs="4">
                             <Input style={inputStyle} type="text" value={teamStr} invalid={!this.teamStrValid()} onChange={(e) => this.setState({teamStr: e.target.value})}/>
-                            <FormFeedback tooltip>Team format: 1,2|3,4|5,6. Each player must appear once.</FormFeedback>
+                            <FormFeedback tooltip="true">Team format: 1,2|3,4|5,6. Each player must appear once.</FormFeedback>
                         </Col>
                     </Row>
                 </Collapse>
@@ -656,15 +669,12 @@ onDrop = (files) => {
         }
         json.players=this.state.players
         json.fass = []
-        Object.keys(this.state.fass).forEach(loc => {
-            if(this.state.fass[loc]) {
-                if(this.state.fass[loc] !== "NO|1")
-                {
-                    let item = this.state.fass[loc].split("|");
-                    json.fass.push({loc: loc, code: item[0], id: item[1]})
+        this.state.fassList.forEach(fassEntry => {
+                if(fassEntry.item !== "NO|1") {
+                    let item = fassEntry.item.split("|");
+                    json.fass.push({loc: fassEntry.loc.value.toString(), code: item[0], id: item[1]})
                 }
-            }
-        })
+        });
         json.itemPool = {} //{"HC": 12, "EC": 14, "AC": 33, }
         this.state.itemPool.forEach(({item, count, upTo}) => { json.itemPool[item] = upTo ? [count, upTo] : [count] })
         json.tracking = this.state.tracking
@@ -723,7 +733,11 @@ onDrop = (files) => {
             metaUpdate.inputSeed = metaUpdate.seed
             metaUpdate.seedIsBingo = metaUpdate.variations.some(v => v === "Bingo")
             metaUpdate.goalModes = metaUpdate.variations.filter(v => ["ForceTrees", "WorldTour", "ForceMaps", "WarmthFrags", "Bingo"].includes(v)) || ["None"]
-            console.log(metaUpdate)
+            if(metaUpdate.fass && metaUpdate.fass.length > 0) {
+                metaUpdate.fassList = metaUpdate.fass.map(({loc, item}) => ({loc: locOptionFromCoords(parseInt(loc, 10)), item: item}))
+                metaUpdate.fass = undefined;
+            }
+            dev && console.log(metaUpdate)
             this.setState(metaUpdate, this.updateUrl)
         }
     }
@@ -754,7 +768,7 @@ onDrop = (files) => {
             let res = JSON.parse(responseText)
             if(res.doBingoRedirect) {
                 let redir = `/bingo/board?game_id=${res.gameId}&fromGen=1&seed=${res.seed}&bingoLines=${res.bingoLines || 3}`
-                if(res.flagLine.includes("mode=Shared"))
+                if(res.flagLine.includes("share="))
                     redir += `&teamMax=${res.playerCount}`
                 gotoUrl(redir, true)
                 this.helpEnter("general", "seedBuiltBingo")()
@@ -775,7 +789,7 @@ onDrop = (files) => {
         let variationButtons = Object.keys(VAR_NAMES).filter(x => !filteredVars.includes(x)).map(v=> {
             let name = VAR_NAMES[v];
             return (
-            <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("variations", v)} className="p-2">
+            <Col key={`var-button-${v}`} xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("variations", v)} className="p-2">
                 <Button block color="primary" outline={!this.state.variations.includes(v)} onClick={this.onVar(v)}>{name}</Button>
             </Col>
             )
@@ -810,7 +824,7 @@ onDrop = (files) => {
             let raw = flagLine.split('|');
             let seedStr = raw.pop();
             let flags = raw.join("").split(",");
-            let flagCols = flags.map(flag => (<Col xs="auto" className="text-center" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("flags", flag)}><span className="ml-auto mr-auto align-middle">{flag}</span></Col>))
+            let flagCols = flags.map(flag => (<Col key={`flag-${flag}`} xs="auto" className="text-center" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("flags", flag)}><span className="ml-auto mr-auto align-middle">{flag}</span></Col>))
             let is_race = flags.includes("Race");
             if(is_race && !get_flag("race_wl")) {
                 return null;
@@ -841,7 +855,7 @@ onDrop = (files) => {
                 }
                 let spoilerHelp = (button) => this.state.spoilers ? `spoiler${button + (auxSpoiler.active ? "Aux" : "")}` : "noSpoilers"
                 return (
-                    <Row className="align-content-center p-1 border-bottom">
+                    <Row key={`player-${p}`} className="align-content-center p-1 border-bottom">
                         <Col xs="3" className="pt-1 border" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "playerPanel"+this.multi())}>
                             <Row className="align-content-center"><Col xs="3">
                                 <Media object style={{width: "25px", height: "25px"}} src={player_icons(p,false)} alt={"Icon for player "+p} />
@@ -915,11 +929,11 @@ onDrop = (files) => {
 
     getPathsTab = () => {
         let pathButtons = [(
-        <Col xs="3" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("logicPaths",  "casual-core")}  className="p-1">
+        <Col xs="3" key="path-button-casual-core" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("logicPaths",  "casual-core")}  className="p-1">
                 <Button block disabled={true} className="text-capitalize">Casual-Core</Button>
         </Col>
         )].concat(optionalPaths.map(path=> (
-            <Col xs="3" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("logicPaths", path)}  className="p-1">
+            <Col xs="3" key={`path-button-${path}`} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("logicPaths", path)}  className="p-1">
                 <Button block color="primary" outline={!this.state.paths.includes(path)} disabled={this.pathDisabled(path)} className="text-capitalize" onClick={this.onPath(path)}>{path}</Button>
             </Col>
         )))    
@@ -995,7 +1009,7 @@ onDrop = (files) => {
     getAuxModal = ({inputStyle}) => {
         let {auxModal, auxSpoiler} = this.state
         let itemTypes = ["AC", "EC", "HC", "KS", "MS", "EX"].map(iType => (<Col>
-            <Button outline={!auxSpoiler.exclude.includes(iType)} onClick={() => this.onSpoilerItemType(iType)}>{iType}</Button>
+            <Button key={`asif-${iType}`} outline={!auxSpoiler.exclude.includes(iType)} onClick={() => this.onSpoilerItemType(iType)}>{iType}</Button>
         </Col>))
         return (
                 <Modal isOpen={auxModal} backdrop={"static"} className={"modal-dialog-centered"} toggle={this.closeModal}>
@@ -1088,12 +1102,19 @@ onDrop = (files) => {
         })
 
         let activeTab = seedTabExists ? 'seed' : 'variations';
-        this.state = {user: user, activeTab: activeTab, coopGenMode: "Cloned Seeds", coopGameMode: "Co-op", players: 1, tracking: true, variations: ["ForceTrees"], gameId: gameId, itemPool: get_pool("Standard"),
-                     paths: presets["standard"], keyMode: "Clues", oldKeyMode: "Clues", spawn: "Glades", advancedSpawnTouched: false, spawnHCs: 3, spawnECs: 0, spawnSKs: 0, pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null), goalModes: ["ForceTrees"], selectedPool: "Standard",
-                     seed: "", fillAlg: "Balanced", shared: ["Skills", "Teleporters", "World Events", "Upgrades", "Misc"], hints: true, helpcat: "", helpopt: "", quickstartOpen: quickstartOpen, dedupShared: false,
-                     expPool: 10000, lastHelp: new Date(), seedIsGenerating: seedTabExists, cellFreq: cellFreqPresets("standard"), fragCount: 30, fragReq: 20, relicCount: 8, loader: get_random_loader(),
-                     paramId: paramId, seedTabExists: seedTabExists, reopenUrl: "", teamStr: "", flagLine: "", fass: {},  goalModesOpen: false, spoilers: true, spawnWeights: [1.0,2.0,2.0,2.0,1.5,2.0,0.1,0.1,0.25,0.5], seedIsBingo: false, bingoLines: 3, 
-                     auxModal: false, auxSpoiler: {active: false, byZone: false, exclude: ["EX","KS", "AC", "EC", "HC", "MS"]}, stupidMode: stupidMode, dropActive: false, customLogic: false, stupidWarn: stupidWarn, verboseSpoiler: get_param("verbose") === "True"};
+        const fassListDefault = [2, 919772, -1560272, 799776, -120208].map(coords => ({loc: locOptions.find(l => l.value === coords), item: "NO|1"}));
+        this.state = {user: user, activeTab: activeTab, coopGenMode: "Cloned Seeds", coopGameMode: "Co-op", players: 1, dropActive: false, 
+                        tracking: true, variations: ["ForceTrees"], gameId: gameId, itemPool: get_pool("Standard"), dedupShared: false, 
+                        paths: presets["standard"], keyMode: "Clues", oldKeyMode: "Clues", spawn: "Glades", advancedSpawnTouched: false, 
+                        spawnHCs: 3, spawnECs: 0, spawnSKs: 0, pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null), 
+                        goalModes: ["ForceTrees"], selectedPool: "Standard", seed: "", fillAlg: "Balanced", quickstartOpen: quickstartOpen, 
+                        shared: ["Skills", "Teleporters", "World Events", "Upgrades", "Misc"], hints: true, helpcat: "", helpopt: "", 
+                        expPool: 10000, lastHelp: new Date(), seedIsGenerating: seedTabExists, cellFreq: cellFreqPresets("standard"),
+                        fragCount: 30, fragReq: 20, relicCount: 8, loader: get_random_loader(), paramId: paramId, seedTabExists: seedTabExists, 
+                        reopenUrl: "", teamStr: "", flagLine: "", fassList: [...fassListDefault], goalModesOpen: false, 
+                        spoilers: true, spawnWeights: [1.0,2.0,2.0,2.0,1.5,2.0,0.1,0.1,0.25,0.5], seedIsBingo: false, bingoLines: 3, 
+                        auxModal: false, auxSpoiler: {active: false, byZone: false, exclude: ["EX","KS", "AC", "EC", "HC", "MS"]}, 
+                        stupidMode: stupidMode, customLogic: false, stupidWarn: stupidWarn, verboseSpoiler: get_param("verbose") === "True"};
         
         if(url.searchParams.has("fromBingo")) {
             this.state.goalModes = ["Bingo"]
@@ -1102,7 +1123,6 @@ onDrop = (files) => {
             this.state.selectedPool = "Extra Bonus"
             this.updateUrl()
         }
-
     }
         
     closeModal = () => {
@@ -1111,11 +1131,23 @@ onDrop = (files) => {
     }
 
     onTab = (tabName) => () => this.setState({activeTab: tabName})
-    onFass = (l, i) => this.setState(prevState => {
-        let new_fass = prevState.fass;
-        new_fass[l] = i;
-        return {fass: new_fass}
-    })
+    onFassList = (index, update) => this.setState(prevState => {
+        let fassList = [...prevState.fassList];
+        Object.assign(fassList[index], update);
+        return {fassList: fassList};
+    });
+    addToFassList = ({loc, item}) => this.setState(prevState => {
+        let fassList = [...prevState.fassList];
+        let newLoc = loc;
+        if(!newLoc) {
+            const usedCoords = new Set(fassList.map(fass => fass.value));
+            newLoc = locOptions.find(loc => !usedCoords.has(loc.value));
+            if(!newLoc) return {};    
+        }
+        fassList.push({loc: newLoc, item: item});
+        this.refs.fassTabula.clear();
+        return {fassList: fassList};
+    });
     onPath = (p) => () => this.setState({paths: this.state.paths.includes(p) ? this.state.paths.filter(x => x !== p) : this.state.paths.concat(p)}, () => this.setState(p => {return {pathMode: get_preset(p.paths)}}))
     onSType = (s) => () => this.state.shared.includes(s) ? this.setState({shared: this.state.shared.filter(x => x !== s)}) : this.setState({shared: this.state.shared.concat(s)})    
     onVar = (v) => () => {
@@ -1153,7 +1185,7 @@ onDrop = (files) => {
         if(spawn_defaults[loc].hasOwnProperty(this.state.pathMode)) 
             [hp, energy, skills] = spawn_defaults[loc][this.state.pathMode]
         else 
-            console.log(this.state.pathMode, loc, spawn_defaults[loc], spawn_defaults.hasOwnProperty(loc), spawn_defaults[loc].hasOwnProperty(this.state.pathMode));
+            dev && console.log(this.state.pathMode, loc, spawn_defaults[loc], spawn_defaults.hasOwnProperty(loc), spawn_defaults[loc].hasOwnProperty(this.state.pathMode));
         return {spawn: loc, spawnHCs: hp, spawnECs: energy, spawnSKs: skills}
     });
     
@@ -1183,11 +1215,11 @@ onDrop = (files) => {
         if(vars.includes(oldMode))
             vars = vars.filter(v => v !== oldMode);
         else
-            console.log("vars did not include previous goalMode?");
+            dev && console.log("vars did not include previous goalMode?");
         if(mode !== "None" && !vars.includes(mode))
             vars = vars.concat(mode)
         else
-            console.log("vars already included goalMode?")
+            dev && console.log("vars already included goalMode?")
         this.setState({goalModes: [mode], variations: vars})
     }
     multi = () => this.state.players > 1 ? "Multi" : ""
@@ -1213,20 +1245,20 @@ onDrop = (files) => {
         let styles = {inputStyle: {'borderColor': s.getPropertyValue('--dark'), 'backgroundColor': s.getPropertyValue("background-color"), 'color': s.getPropertyValue("color")}, menuStyle: {}}
 
         let pathModeOptions = Object.keys(presets).map(mode => (
-            <DropdownItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("logicModes", mode)} className="text-capitalize" active={mode===pathMode.toLowerCase()} onClick={this.onMode(mode)}>{mode}</DropdownItem>
+            <DropdownItem key={`pathmode-${mode}`} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("logicModes", mode)} className="text-capitalize" active={mode===pathMode.toLowerCase()} onClick={this.onMode(mode)}>{mode}</DropdownItem>
         ))
         let spawnOptions = SPAWN_OPTS.map(loc => (
-            <DropdownItem active={loc===spawn} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "spawnLoc")} onClick={this.onSpawnLoc(loc)}>{loc}</DropdownItem>
+            <DropdownItem key={`spawn-${loc}`} active={loc===spawn} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "spawnLoc")} onClick={this.onSpawnLoc(loc)}>{loc}</DropdownItem>
         ))
 
         let rerollButton = user ? (<Button color="info" href="/reroll">Reroll Last Seed</Button>) : <Button color="info" outline disabled>Reroll Last Seed</Button>;
 
         let keyModeOptions = keymode_options.map(mode => (
-            <DropdownItem active={mode===keyMode} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("keyModes", mode)} onClick={this.onKeyMode(mode)}>{mode}</DropdownItem>
+            <DropdownItem key={`keymode-${mode}`} active={mode===keyMode} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("keyModes", mode)} onClick={this.onKeyMode(mode)}>{mode}</DropdownItem>
         ))
         let validGoalModes = ["None", "ForceTrees", "WorldTour", "ForceMaps", "WarmthFrags", "Bingo"]
         let goalModeOptions = goalModes.length === 1 ? validGoalModes.map(mode => (
-            <DropdownItem active={mode===goalModes[0]} disabled={mode==="Bingo" && !tracking} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("goalModes", mode)} onClick={this.onGoalMode(mode)}>{VAR_NAMES[mode] || mode}{mode==="Bingo" && !tracking ? '(Needs tracking!)' : ''}</DropdownItem>
+            <DropdownItem key={`goalmode-${mode}`} active={mode===goalModes[0]} disabled={mode==="Bingo" && !tracking} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("goalModes", mode)} onClick={this.onGoalMode(mode)}>{VAR_NAMES[mode] || mode}{mode==="Bingo" && !tracking ? '(Needs tracking!)' : ''}</DropdownItem>
         )) : null
 
         helpParams.padding = goalModesOpen ? "pt-5 mt-3" : ""
