@@ -60,6 +60,7 @@
 
 -- all pickups in the game
 loc: FirstPickup 92 -227 EX15 0 Glades
+loc: FirstEnergyCell -27 -256 EC 0 Glades
 loc: FronkeyFight -154 -271 EX15 0 Glades
 loc: GladesKeystone1 83 -222 KS 0 Glades
 loc: GladesKeystone2 -11 -206 KS 0 Glades
@@ -339,6 +340,7 @@ home: TeleporterNetwork 19 -2
 home: SunkenGladesRunaway 184 -220
 	-- anchor: the beginning of the game
 	pickup: FirstPickup
+	pickup: FirstEnergyCell
 	pickup: FronkeyFight
 	pickup: GladesKeystone1
 	pickup: GladesKeystone2
