@@ -1823,7 +1823,7 @@ class SeedGenerator:
                         self.split_locs = {}
                         self.sharedMap = {}
                         self.sharedCounts = Counter()
-                    if depth > self.playerCount * self.playerCount + self.params.keysanity * 10:
+                    if depth > self.playerCount * self.playerCount:
                         return
                     return self.placeItems(depth + 1, worried)
 
@@ -1836,7 +1836,7 @@ class SeedGenerator:
                         self.split_locs = {}
                         self.sharedMap = {}
                         self.sharedCounts = Counter()
-                    if depth > self.playerCount * self.playerCount + self.params.keysanity * 10:
+                    if depth > self.playerCount * self.playerCount:
                         return
                     return self.placeItems(depth + 1, worried)
                 locationsToAssign.append(self.reservedLocations.pop(0))
