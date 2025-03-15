@@ -37,14 +37,34 @@ app = Flask(__name__)
 app.wsgi_app = wrap_wsgi_app(app.wsgi_app)
 # app.url_map.strict_slashes = False
 
-# Logging setup:
-client = google.cloud.logging.Client()
+if debug():
+    root_logger = log.getLogger()
+    for handler in root_logger.handlers:
+        root_logger.removeHandler(handler)
 
-# Retrieves a Cloud Logging handler based on the environment
-# you're running in and integrates the handler with the
-# Python logging module. By default this captures all logs
-# at INFO level and higher
-client.setup_logging()
+    # create console handler and set level to debug
+    import sys
+    console_handle = log.StreamHandler(sys.stdout)
+    console_handle.setLevel(log.INFO)
+
+    # create formatter
+    formatter = log.Formatter("%(name)-5s - %(levelname)-8s - %(message)s")
+    console_handle.setFormatter(formatter)
+
+    # now add new handler to logger
+    root_logger.addHandler(console_handle)
+    root_logger.setLevel(log.INFO)
+    log.info("set up dev logging to console!")
+else:
+    print("trying to setup prod log")
+    #Logging setup:
+    client = google.cloud.logging.Client()
+
+    # Retrieves a Cloud Logging handler based on the environment
+    # you're running in and integrates the handler with the
+    # Python logging module. By default this captures all logs
+    # at INFO level and higher
+    client.setup_logging()
 
 VERSION = "%s.%s.%s" % tuple(VER)
 PLANDO_VER = "0.5.1"
