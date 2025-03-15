@@ -19,9 +19,9 @@ def stable_string_hash(s):
 longform_to_code = {"Health": ["HC"], "Energy": ["EC"], "Ability": ["AC"], "Keystone": ["KS"], "Mapstone": ["MS"], "Free": []}
 key_to_shards = {"GinsoKey": ["WaterVeinShard"] * 5, "ForlornKey": ["GumonSealShard"] * 5, "HoruKey": ["SunstoneShard"] * 5}
 keysanity_map = {
-    "GladesPoolKeys": ["RB300"] * 2, "LowerSpiritCavernsKeys": ["RB301"] * 2, "GrottoKeys": ["RB302"] * 2, "SwampKeys": ["RB303"] * 2,
-    "UpperSpiritCavernsKeys": ["RB304"] * 4, "LowerGinsoKeys": ["RB305"] * 4, "UpperGinsoKeys": ["RB306"] * 4, "MistyKeys": ["RB307"] * 4,
-    "ForlornKeys": ["RB308"] * 4, "LowerSorrowKeys": ["RB309"] * 4, "MidSorrowKeys": ["RB310"] * 4, "UpperSorrowKeys": ["RB311"] * 4
+    "GladesPoolKeys": ["Glades Pool Keystone"] * 2, "LowerSpiritCavernsKeys": ["Lower Spirit Caverns Keystone"] * 2, "GrottoKeys": ["Grotto Keystone"] * 2, "SwampKeys": ["Swamp Keystone"] * 2,
+    "UpperSpiritCavernsKeys": ["Upper Spirit Caverns Keystone"] * 4, "LowerGinsoKeys": ["Lower Ginso Keystone"] * 4, "UpperGinsoKeys": ["Upper Ginso Keystone"] * 4, "MistyKeys": ["Misty Keystone"] * 4,
+    "ForlornKeys": ["Forlorn Keystone"] * 4, "LowerSorrowKeys": ["Lower Sorrow Keystone"] * 4, "MidSorrowKeys": ["Mid Sorrow Keystone"] * 4, "UpperSorrowKeys": ["Upper Sorrow Keystone"] * 4
 }
 warp_targets = [
     [
@@ -452,9 +452,12 @@ class SeedGenerator:
             "TPSorrow": 59, "TPGrove": 41, "TPSwamp": 41, "TPValley": 53,
             "TPGinso": 61, "TPHoru": 71, "Open": 0, "OpenWorld": 1, "Relic": 1,
             "TPGlades": 90, "TPBlackroot": 53, "Keysanity": 1,
-            "RB300": 0, "RB301": 0, "RB302": 0, "RB303": 0,
-            "RB304": 0, "RB305": 0, "RB306": 0, "RB307": 0,
-            "RB308": 0, "RB309": 0, "RB310": 0, "RB311": 0
+            "Glades Pool Keystone": 0, "Lower Spirit Caverns Keystone": 0,
+            "Grotto Keystone": 0, "Swamp Keystone": 0,
+            "Upper Spirit Caverns Keystone": 0, "Lower Ginso Keystone": 0,
+            "Upper Ginso Keystone": 0, "Misty Keystone": 0,
+            "Forlorn Keystone": 0, "Lower Sorrow Keystone": 0,
+            "Mid Sorrow Keystone": 0, "Upper Sorrow Keystone": 0,
         })
         self.inventory = OrderedDict([
             ("EX1", 0), ("EX*", 0), ("KS", 0), ("MS", 0), ("AC", 0), ("EC", 0),
@@ -513,21 +516,30 @@ class SeedGenerator:
         if self.params.keysanity:
             self.itemPool.update(OrderedDict([
                 ("KS", 0),
-                ("RB300", 2), ("RB301", 2), ("RB302", 2), ("RB303", 2),
-                ("RB304", 4), ("RB305", 4), ("RB306", 4), ("RB307", 4),
-                ("RB308", 4), ("RB309", 4), ("RB310", 4), ("RB311", 4)
+                ("Glades Pool Keystone", 2), ("Lower Spirit Caverns Keystone", 2),
+                ("Grotto Keystone", 2), ("Swamp Keystone", 2),
+                ("Upper Spirit Caverns Keystone", 4), ("Lower Ginso Keystone", 4),
+                ("Upper Ginso Keystone", 4), ("Misty Keystone", 4),
+                ("Forlorn Keystone", 4), ("Lower Sorrow Keystone", 4),
+                ("Mid Sorrow Keystone", 4), ("Upper Sorrow Keystone", 4)
             ]))
             self.inventory.update(OrderedDict([
                 ("Keysanity", 1),
-                ("RB300", 0), ("RB301", 0), ("RB302", 0), ("RB303", 0),
-                ("RB304", 0), ("RB305", 0), ("RB306", 0), ("RB307", 0), 
-                ("RB308", 0), ("RB309", 0), ("RB310", 0), ("RB311", 0)
+                ("Glades Pool Keystone", 0), ("Lower Spirit Caverns Keystone", 0),
+                ("Grotto Keystone", 0), ("Swamp Keystone", 0),
+                ("Upper Spirit Caverns Keystone", 0), ("Lower Ginso Keystone", 0),
+                ("Upper Ginso Keystone", 0), ("Misty Keystone", 0),
+                ("Forlorn Keystone", 0), ("Lower Sorrow Keystone", 0),
+                ("Mid Sorrow Keystone", 0), ("Upper Sorrow Keystone", 0)
             ]))
             self.costs.update(OrderedDict([
                 ("Keysanity", 0),
-                ("RB300", 2), ("RB301", 2), ("RB302", 2), ("RB303", 2),
-                ("RB304", 4), ("RB305", 4), ("RB306", 4), ("RB307", 4), 
-                ("RB308", 4), ("RB309", 4), ("RB310", 4), ("RB311", 4)
+                ("Glades Pool Keystone", 2), ("Lower Spirit Caverns Keystone", 2),
+                ("Grotto Keystone", 2), ("Swamp Keystone", 2),
+                ("Upper Spirit Caverns Keystone", 4), ("Lower Ginso Keystone", 4),
+                ("Upper Ginso Keystone", 4), ("Misty Keystone", 4),
+                ("Forlorn Keystone", 4), ("Lower Sorrow Keystone", 4),
+                ("Mid Sorrow Keystone", 4), ("Upper Sorrow Keystone", 4)
             ]))
 
         if not self.params.item_pool:
@@ -1011,9 +1023,12 @@ class SeedGenerator:
                                 requirements = []
                                 continue
                             if req in ["HC", "EC", "WaterVeinShard", "GumonSealShard", "SunstoneShard",
-                                "RB300", "RB301", "RB302", "RB303",
-                                "RB304", "RB305", "RB306", "RB307"
-                                "RB308", "RB309", "RB310", "RB311"]:
+                                "Glades Pool Keystone", "Lower Spirit Caverns Keystone",
+                                "Grotto Keystone", "Swamp Keystone",
+                                "Upper Spirit Caverns Keystone", "Lower Ginso Keystone",
+                                "Upper Ginso Keystone", "Misty Keystone",
+                                "Forlorn Keystone", "Lower Sorrow Keystone",
+                                "Mid Sorrow Keystone", "Upper Sorrow Keystone"]:
                                 cnts[req] += 1
                                 if cnts[req] > self.inventory[req]:
                                     requirements.append(req)
