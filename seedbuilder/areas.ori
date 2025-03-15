@@ -392,6 +392,7 @@ home: GladesFirstKeyDoor -15 -215
 	conn: GladesFirstKeyDoorOpened
 		casual Keystone=2
 		casual OpenWorld
+		casual Keysanity GladesPoolKeys
 home: GladesFirstKeyDoorOpened 79 -221
 	conn: GladesMain
 		casual Free
@@ -573,6 +574,7 @@ home: SpiritCavernsDoor -11 -222
 	-- anchor: logically within reach of the door from either adjacent area
 	conn: SpiritCavernsDoorOpened
 		casual Keystone=2
+		casual Keysanity LowerSpiritCavernsKeys
 home: SpiritCavernsDoorOpened -197 -208
 	-- anchor: same as SpiritCavernsDoor, but the door is open
 	conn: LowerSpiritCaverns
@@ -657,6 +659,7 @@ home: SpiritTreeDoor -183 -132
 	-- anchor: logically, in either adjacent area to the door
 	conn: SpiritTreeDoorOpened
 		casual Keystone=4
+		casual Keysanity UpperSpiritCavernsKeys
 home: SpiritTreeDoorOpened -172 -134
 	-- anchor: same as SpiritTreeDoor, but the door is open
 	conn: SpiritTreeRefined
@@ -1641,6 +1644,7 @@ home: BashTreeDoorClosed 538 308
 	--anchor: Immediately adjacent to the first Ginso keystone door (unopened)
 	conn: BashTreeDoorOpened
 		casual Keystone=4
+		casual Keysanity LowerGinsoKeys
 home: BashTreeDoorOpened 548 309
 	--anchor: Immediately adjacent to the first Ginso keystone door (opened)
 	-- for KS-lock protection, the backtrack requires the ginso key
@@ -1776,6 +1780,7 @@ home: UpperGinsoEnergyCellWarp 540 435
 home: UpperGinsoDoorClosed 513 511
 	conn: UpperGinsoDoorOpened
 		casual Keystone=4
+		casual Keysanity UpperGinsoKeys
 home: UpperGinsoDoorOpened 524 512
 	--anchor: Immediately adjacent to the upper ginso keystone door (opened)
 	conn: GinsoTeleporter
@@ -2147,6 +2152,7 @@ home: GumoHideout 482 -386
 		expert DoubleJump
 	conn: DoubleJumpKeyDoor
 		casual Keystone=2
+		casual Keysanity GrottoKeys
 	conn: LeftGumoHideout
 		casual WallJump DoubleJump
 		casual WallJump ChargeJump
@@ -2485,6 +2491,7 @@ home: SwampKeyDoorPlatform 783 -131
 		master Lure Bash Water
 	conn: SwampKeyDoorOpened
 		casual Keystone=2
+		casual Keysanity SwampKeys
 	conn: InnerSwampSkyArea
 		casual Wind Glide
 		standard ChargeJump Climb Glide
@@ -4231,6 +4238,7 @@ home: ForlornPlantAccess -823 -267
 home: ForlornKeyDoor -805 -309
 	conn: ForlornLaserRoom
 		casual ForlornKey Keystone=4
+		casual Keysanity ForlornKeys
 home: ForlornLaserRoom -793 -309
 	-- anchored past the Forlorn key door
 	-- this path assumes the bridge exists
@@ -4458,6 +4466,7 @@ home: LowerSorrow -484 248
 		expert DoubleBash
 	conn: LeftSorrowLowerDoor
 		casual Keystone=4
+		casual Keysanity LowerSorrowKeys
 	conn: LeftSorrow
 		casual Glide Bash
 		casual Glide ChargeJump
@@ -4609,6 +4618,7 @@ home: LeftSorrowKeystones -623 328
 home: LeftSorrowMiddleDoorClosed -600 300
 	conn: LeftSorrowMiddleDoorOpen
 		casual Keystone=4
+		casual Keysanity MidSorrowKeys
 home: LeftSorrowMiddleDoorOpen -587 385
 -- anchored at the top of the keystone section
 	conn: MiddleSorrow
@@ -4778,6 +4788,7 @@ home: ChargeJumpDoor -599 412
 -- anchored on either side of the door
 	conn: ChargeJumpDoorOpen
 		casual Keystone=4
+		casual Keysanity UpperSorrowKeys
 home: ChargeJumpDoorOpen -609 416
 -- anchored at the start of the spike cave, after the door has been opened
 	conn: ChargeJumpArea
@@ -5183,6 +5194,7 @@ home: MistyBeforeMiniBoss -798 -54
 	--anchor point: before the bang zoom
 	conn: MistyOrbRoom
 		casual Keystone=4
+		casual Keysanity MistyKeys
 		--if the player is here, it's assumed they have a way to kill the 
 		--miniboss that isn't just spirit flame
 home: MistyOrbRoom -849 -49

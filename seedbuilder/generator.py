@@ -18,6 +18,11 @@ def stable_string_hash(s):
 
 longform_to_code = {"Health": ["HC"], "Energy": ["EC"], "Ability": ["AC"], "Keystone": ["KS"], "Mapstone": ["MS"], "Free": []}
 key_to_shards = {"GinsoKey": ["WaterVeinShard"] * 5, "ForlornKey": ["GumonSealShard"] * 5, "HoruKey": ["SunstoneShard"] * 5}
+keysanity_map = {
+    "GladesPoolKeys": ["RB300"] * 2, "LowerSpiritCavernsKeys": ["RB301"] * 2, "GrottoKeys": ["RB302"] * 2, "SwampKeys": ["RB303"] * 2,
+    "UpperSpiritCavernsKeys": ["RB304"] * 4, "LowerGinsoKeys": ["RB305"] * 4, "UpperGinsoKeys": ["RB306"] * 4, "MistyKeys": ["RB307"] * 4,
+    "ForlornKeys": ["RB308"] * 4, "LowerSorrowKeys": ["RB309"] * 4, "MidSorrowKeys": ["RB310"] * 4, "UpperSorrowKeys": ["RB311"] * 4
+}
 warp_targets = [
     [
         # inner swamp
@@ -263,8 +268,10 @@ class Connection:
             the list of the things that req indicates are required"""
             if req_part in longform_to_code:
                 return longform_to_code[req_part]
-            if req_part in key_to_shards and self.sg.params.key_mode == KeyMode.SHARDS:
+            if self.sg.params.key_mode == KeyMode.SHARDS and req_part in key_to_shards:
                 return key_to_shards[req_part]
+            if req_part in keysanity_map:
+                return keysanity_map[req_part]
             if '=' not in req_part:
                 return [req_part]
             item, _, count = req_part.partition("=")
@@ -273,6 +280,7 @@ class Connection:
                 return count * longform_to_code[item]
             return count * [item]
         translated_req = []
+
         for part in req:
             translated_req += translate(part)
 
@@ -398,6 +406,21 @@ class SeedGenerator:
         "GinsoKey": "EV0", "Water": "EV1", "ForlornKey": "EV2", "Wind": "EV3", "HoruKey": "EV4", "Warmth": "EV5",
         "WaterVeinShard": "RB17", "GumonSealShard": "RB19", "SunstoneShard": "RB21"
     })
+    keysanityOutput = OrderedDict({
+        "Glades Pool Keystone": "RB300",
+        "Lower Spirit Caverns Keystone": "RB301",
+        "Grotto Keystone": "RB302",
+        "Swamp Keystone": "RB303",
+        "Upper Spirit Caverns Keystone": "RB304",
+        "Lower Ginso Keystone": "RB305",
+        "Upper Ginso Keystone": "RB306",
+        "Misty Keystone": "RB307",
+        "Forlorn Keystone": "RB308",
+        "Lower Sorrow Keystone": "RB309",
+        "Mid Sorrow Keystone": "RB310",
+        "Upper Sorrow Keystone": "RB311",
+    })
+
 
     def toOutput(self, item, asMultiPart=False):
         if asMultiPart:
@@ -407,6 +430,8 @@ class SeedGenerator:
             return self.skillsOutput[item]
         if item in self.eventsOutput:
             return self.eventsOutput[item]
+        if item in self.keysanityOutput:
+            return self.keysanityOutput[item]
         return item
 
     def var(self, v):
@@ -426,7 +451,10 @@ class SeedGenerator:
             "SunstoneShard": 5, "TPForlorn": 67, "TPGrotto": 41,
             "TPSorrow": 59, "TPGrove": 41, "TPSwamp": 41, "TPValley": 53,
             "TPGinso": 61, "TPHoru": 71, "Open": 0, "OpenWorld": 1, "Relic": 1,
-            "TPGlades": 90, "TPBlackroot": 53
+            "TPGlades": 90, "TPBlackroot": 53, "Keysanity": 1,
+            "RB300": 0, "RB301": 0, "RB302": 0, "RB303": 0,
+            "RB304": 0, "RB305": 0, "RB306": 0, "RB307": 0,
+            "RB308": 0, "RB309": 0, "RB310": 0, "RB311": 0
         })
         self.inventory = OrderedDict([
             ("EX1", 0), ("EX*", 0), ("KS", 0), ("MS", 0), ("AC", 0), ("EC", 0),
@@ -440,7 +468,7 @@ class SeedGenerator:
             ("SunstoneShard", 0), ("TPForlorn", 0), ("TPGrotto", 0),
             ("TPSorrow", 0), ("TPGrove", 0), ("TPSwamp", 0), ("TPValley", 0),
             ("TPGinso", 0), ("TPHoru", 0), ("Open", 0), ("OpenWorld", 0), ("Relic", 0),
-            ("TPGlades", 0)
+            ("TPGlades", 0), ("Keysanity", 0)
         ])
 
         self.mapstonesSeen = 1
@@ -481,6 +509,26 @@ class SeedGenerator:
             ("Wind", 1), ("Warmth", 1), ("WaterVeinShard", 0), ("EC", 0), ("HC", 0), ("AC", 0),
             ("GumonSealShard", 0), ("SunstoneShard", 0), ("Open", 0), ("OpenWorld", 0), ("Relic", 0)
         ])
+
+        if self.params.keysanity:
+            self.itemPool.update(OrderedDict([
+                ("KS", 0),
+                ("RB300", 2), ("RB301", 2), ("RB302", 2), ("RB303", 2),
+                ("RB304", 4), ("RB305", 4), ("RB306", 4), ("RB307", 4),
+                ("RB308", 4), ("RB309", 4), ("RB310", 4), ("RB311", 4)
+            ]))
+            self.inventory.update(OrderedDict([
+                ("Keysanity", 1),
+                ("RB300", 0), ("RB301", 0), ("RB302", 0), ("RB303", 0),
+                ("RB304", 0), ("RB305", 0), ("RB306", 0), ("RB307", 0), 
+                ("RB308", 0), ("RB309", 0), ("RB310", 0), ("RB311", 0)
+            ]))
+            self.costs.update(OrderedDict([
+                ("Keysanity", 0),
+                ("RB300", 2), ("RB301", 2), ("RB302", 2), ("RB303", 2),
+                ("RB304", 4), ("RB305", 4), ("RB306", 4), ("RB307", 4), 
+                ("RB308", 4), ("RB309", 4), ("RB310", 4), ("RB311", 4)
+            ]))
 
         if not self.params.item_pool:
             self.itemPool.update(OrderedDict([
@@ -806,7 +854,7 @@ class SeedGenerator:
 
     def __init__(self):
         self.init_fields()
-        self.codeToName = OrderedDict([(v, k) for k, v in list(self.skillsOutput.items()) + list(self.eventsOutput.items()) + [("RB17", "WaterVeinShard"), ("RB19", "GumonSealShard"), ("RB21", "SunstoneShard")]])
+        self.codeToName = OrderedDict([(v, k) for k, v in list(self.skillsOutput.items()) + list(self.eventsOutput.items()) + list(self.keysanityOutput.items()) + [("RB17", "WaterVeinShard"), ("RB19", "GumonSealShard"), ("RB21", "SunstoneShard")]])
 
     def add_warp(self, warp):
         name, x, y, area, logic_location, logic_cost = warp
@@ -880,7 +928,7 @@ class SeedGenerator:
                         if len(self.areas[connection.target].locations) > 0:
                             self.areas[connection.target].difficulty += self.areas[area].difficulty
                     if connection.keys > 0:
-                        if area not in self.doorQueue.keys():
+                        if area not in self.doorQueue.keys():                            
                             self.doorQueue[area] = connection
                             keystoneCount += connection.keys
                     elif connection.mapstone and self.var(Variation.STRICT_MAPSTONES):
@@ -962,7 +1010,10 @@ class SeedGenerator:
                             if self.itemPool.get(req, 0) == 0:
                                 requirements = []
                                 continue
-                            if req in ["HC", "EC", "WaterVeinShard", "GumonSealShard", "SunstoneShard"]:
+                            if req in ["HC", "EC", "WaterVeinShard", "GumonSealShard", "SunstoneShard",
+                                "RB300", "RB301", "RB302", "RB303",
+                                "RB304", "RB305", "RB306", "RB307"
+                                "RB308", "RB309", "RB310", "RB311"]:
                                 cnts[req] += 1
                                 if cnts[req] > self.inventory[req]:
                                     requirements.append(req)
@@ -1071,7 +1122,10 @@ class SeedGenerator:
         else:
             if not preplaced:
                 self.itemPool[item] = max(self.itemPool.get(item, 0) - 1, 0)
-            if item in ["KS", "EC", "HC", "AC", "WaterVeinShard", "GumonSealShard", "SunstoneShard"]:
+            if item in ["KS", "EC", "HC", "AC", "WaterVeinShard", "GumonSealShard", "SunstoneShard", 
+                "RB300", "RB301", "RB302", "RB303",
+                "RB304", "RB305", "RB306", "RB307"
+                "RB308", "RB309", "RB310", "RB311"]:
                 if self.costs[item] > 0:
                     self.costs[item] -= 1
             elif item == "RB28":
@@ -1160,6 +1214,8 @@ class SeedGenerator:
             item = self.skillsOutput[item]
         elif item in self.eventsOutput:
             item = self.eventsOutput[item]
+        elif item in self.keysanityOutput:
+            item = self.keysanityOutput[item]
         elif item == "Relic":
             relic = self.choose_relic_for_zone(zone)
             item = "WT#" + relic[0] + "#\\n" + relic[1]
@@ -1279,9 +1335,12 @@ class SeedGenerator:
                             connection.add_requirements(list(altered_path[1:]), self.get_difficulty(path_tags))
                         else:
                             connection.add_requirements(list(path[1:]), self.get_difficulty(path_tags))
-                        
+
                 if connection.get_requirements():
                     area.add_connection(connection)
+
+                if self.params.keysanity:
+                    connection.keys = 0
 
     def connect_doors(self, door1, door2, requirements=["Free"]):
         connection1 = Connection(door1.name, door2.name, self)
@@ -1749,7 +1808,7 @@ class SeedGenerator:
                         self.split_locs = {}
                         self.sharedMap = {}
                         self.sharedCounts = Counter()
-                    if depth > self.playerCount * self.playerCount:
+                    if depth > self.playerCount * self.playerCount + self.params.keysanity * 10:
                         return
                     return self.placeItems(depth + 1, worried)
 
@@ -1762,7 +1821,7 @@ class SeedGenerator:
                         self.split_locs = {}
                         self.sharedMap = {}
                         self.sharedCounts = Counter()
-                    if depth > self.playerCount * self.playerCount:
+                    if depth > self.playerCount * self.playerCount + self.params.keysanity * 10:
                         return
                     return self.placeItems(depth + 1, worried)
                 locationsToAssign.append(self.reservedLocations.pop(0))
@@ -1925,6 +1984,14 @@ class SeedGenerator:
                 if code in self.spoilerGroup:
                     for instance in self.spoilerGroup[code]:
                         currentGroupSpoiler += "    " + pad(instance)
+
+            '''
+            for keystone in self.keysanityOutput:
+                code = self.keysanityOutput[keystone]
+                if code in self.spoilerGroup:
+                    for instance in self.spoilerGroup[code]:
+                        currentGroupSpoiler += "    " + pad(instance)
+            '''
 
             for key in self.spoilerGroup:
                 if key[:2] == "TP":
