@@ -406,6 +406,21 @@ class SeedGenerator:
         "GinsoKey": "EV0", "Water": "EV1", "ForlornKey": "EV2", "Wind": "EV3", "HoruKey": "EV4", "Warmth": "EV5",
         "WaterVeinShard": "RB17", "GumonSealShard": "RB19", "SunstoneShard": "RB21"
     })
+    keysanityOutput = OrderedDict({
+        "GladesPoolKeys": "RB300",
+        "LowerSpiritCavernsKeys": "RB301",
+        "GrottoKeys": "RB302",
+        "SwampKeys": "RB303",
+        "UpperSpiritCavernsKeys": "RB304",
+        "LowerGinsoKeys": "RB305",
+        "UpperGinsoKeys": "RB306",
+        "MistyKeys": "RB307",
+        "ForlornKeys": "RB308",
+        "LowerSorrowKeys": "RB309",
+        "MidSorrowKeys": "RB310",
+        "UpperSorrowKeys": "RB311",
+    })
+
 
     def toOutput(self, item, asMultiPart=False):
         if asMultiPart:
@@ -415,6 +430,8 @@ class SeedGenerator:
             return self.skillsOutput[item]
         if item in self.eventsOutput:
             return self.eventsOutput[item]
+        if item in self.keysanityOutput:
+            return self.keysanityOutput[item]
         return item
 
     def var(self, v):
@@ -837,7 +854,7 @@ class SeedGenerator:
 
     def __init__(self):
         self.init_fields()
-        self.codeToName = OrderedDict([(v, k) for k, v in list(self.skillsOutput.items()) + list(self.eventsOutput.items()) + [("RB17", "WaterVeinShard"), ("RB19", "GumonSealShard"), ("RB21", "SunstoneShard")]])
+        self.codeToName = OrderedDict([(v, k) for k, v in list(self.skillsOutput.items()) + list(self.eventsOutput.items()) + list(self.keysanityOutput.items()) + [("RB17", "WaterVeinShard"), ("RB19", "GumonSealShard"), ("RB21", "SunstoneShard")]])
 
     def add_warp(self, warp):
         name, x, y, area, logic_location, logic_cost = warp
@@ -993,7 +1010,10 @@ class SeedGenerator:
                             if self.itemPool.get(req, 0) == 0:
                                 requirements = []
                                 continue
-                            if req in ["HC", "EC", "WaterVeinShard", "GumonSealShard", "SunstoneShard"]:
+                            if req in ["HC", "EC", "WaterVeinShard", "GumonSealShard", "SunstoneShard",
+                                "RB300", "RB301", "RB302", "RB303",
+                                "RB304", "RB305", "RB306", "RB307"
+                                "RB308", "RB309", "RB310", "RB311"]:
                                 cnts[req] += 1
                                 if cnts[req] > self.inventory[req]:
                                     requirements.append(req)
@@ -1102,7 +1122,10 @@ class SeedGenerator:
         else:
             if not preplaced:
                 self.itemPool[item] = max(self.itemPool.get(item, 0) - 1, 0)
-            if item in ["KS", "EC", "HC", "AC", "WaterVeinShard", "GumonSealShard", "SunstoneShard", "RB300"]:
+            if item in ["KS", "EC", "HC", "AC", "WaterVeinShard", "GumonSealShard", "SunstoneShard", 
+                "RB300", "RB301", "RB302", "RB303",
+                "RB304", "RB305", "RB306", "RB307"
+                "RB308", "RB309", "RB310", "RB311"]:
                 if self.costs[item] > 0:
                     self.costs[item] -= 1
             elif item == "RB28":
@@ -1191,6 +1214,8 @@ class SeedGenerator:
             item = self.skillsOutput[item]
         elif item in self.eventsOutput:
             item = self.eventsOutput[item]
+        elif item in self.keysanityOutput:
+            item = self.keysanityOutput[item]
         elif item == "Relic":
             relic = self.choose_relic_for_zone(zone)
             item = "WT#" + relic[0] + "#\\n" + relic[1]
@@ -1959,6 +1984,14 @@ class SeedGenerator:
                 if code in self.spoilerGroup:
                     for instance in self.spoilerGroup[code]:
                         currentGroupSpoiler += "    " + pad(instance)
+
+            '''
+            for keystone in self.keysanityOutput:
+                code = self.keysanityOutput[keystone]
+                if code in self.spoilerGroup:
+                    for instance in self.spoilerGroup[code]:
+                        currentGroupSpoiler += "    " + pad(instance)
+            '''
 
             for key in self.spoilerGroup:
                 if key[:2] == "TP":
