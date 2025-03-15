@@ -109,6 +109,7 @@ class CLISeedParams(object):
         parser.add_argument("--hints", help="Cloned seeds only: display a hint with the item category on a shared location instead of 'Warmth Returned'", action="store_true")
         parser.add_argument("--do-reachability-analysis", help="Analyze how many locations are opened by various progression items in various inventory states", action="store_true")
         parser.add_argument("--areas-ori-path", help="Path to areas.ori. Will search next to generator if omitted.", type=str)
+        parser.add_argument("--keysanity", help="Keysanity mode: keys only belong to one door", action="store_true")
         args = parser.parse_args()
 
         """
@@ -202,6 +203,7 @@ class CLISeedParams(object):
         self.cell_freq = args.force_cells
         self.players = args.players
         self.tracking = args.tracking or False
+        self.keysanity = args.keysanity or False
         self.sync = CLIMultiOptions()
         
         if Variation.EXTRA_BONUS_PICKUPS in self.variations:
@@ -537,6 +539,8 @@ class CLISeedParams(object):
                 flags.append("shared=%s" % "+".join(self.sync.shared))
         if self.balanced:
             flags.append("balanced")
+        if self.keysanity:
+            flags.append("keysanity")
         return "%s|%s" % (",".join(flags), self.seed)
 
 
