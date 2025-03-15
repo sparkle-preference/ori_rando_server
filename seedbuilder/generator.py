@@ -407,18 +407,18 @@ class SeedGenerator:
         "WaterVeinShard": "RB17", "GumonSealShard": "RB19", "SunstoneShard": "RB21"
     })
     keysanityOutput = OrderedDict({
-        "GladesPoolKeys": "RB300",
-        "LowerSpiritCavernsKeys": "RB301",
-        "GrottoKeys": "RB302",
-        "SwampKeys": "RB303",
-        "UpperSpiritCavernsKeys": "RB304",
-        "LowerGinsoKeys": "RB305",
-        "UpperGinsoKeys": "RB306",
-        "MistyKeys": "RB307",
-        "ForlornKeys": "RB308",
-        "LowerSorrowKeys": "RB309",
-        "MidSorrowKeys": "RB310",
-        "UpperSorrowKeys": "RB311",
+        "Glades Pool Keystone": "RB300",
+        "Lower Spirit Caverns Keystone": "RB301",
+        "Grotto Keystone": "RB302",
+        "Swamp Keystone": "RB303",
+        "Upper Spirit Caverns Keystone": "RB304",
+        "Lower Ginso Keystone": "RB305",
+        "Upper Ginso Keystone": "RB306",
+        "Misty Keystone": "RB307",
+        "Forlorn Keystone": "RB308",
+        "Lower Sorrow Keystone": "RB309",
+        "Mid Sorrow Keystone": "RB310",
+        "Upper Sorrow Keystone": "RB311",
     })
 
 
