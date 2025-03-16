@@ -500,6 +500,7 @@ class BingoCard(ndb.Model):
     completed_by = ndb.IntegerProperty(repeated=True)
     owner = ndb.IntegerProperty(default=0)
     early = ndb.BooleanProperty()  # i hate this but w/e
+    meta = ndb.BooleanProperty(default=False)
 
     def bingothon_json(self, player):
         name = self.disp_name
@@ -550,7 +551,7 @@ class BingoCard(ndb.Model):
         prior_value = _pid(capkey) in self.completed_by
         prior_count = p_progress.count
 
-        if self.goal_type == "bool":
+        if self.goal_type in ["bool"]:
             p_progress.completed = card_data["value"]
         elif self.goal_type == "int":
             p_progress.count = min(int(card_data["value"]), self.target)
@@ -851,42 +852,62 @@ class BingoGameData(ndb.Model):
         cpid = _pid(team.captain)
         teammates = [players_by_id[pid] for pid in team.pids() if pid != player_id]
         need_write = False
+        meta_cards = []
+        
+        def handle_event(ev):
+            self.event_log.append(ev)
+            change_squares.add(ev.square)
+            if ev.loss:
+                loss_squares.add(ev.square)
+                if cpid in card.completed_by:
+                    card.completed_by.remove(cpid)
+            elif cpid not in card.completed_by:
+                card.completed_by.append(cpid)
+            if self.lockout:
+                if not ev.loss and not card.owner:
+                    card.owner = cpid
+                    self.event_log.append(BingoEvent(loss=False, event_type="owner", square=ev.square, player=team.captain, timestamp=datetime.utcnow()))
+                elif ev.loss and card.owner == cpid:
+                    card.owner = 0
+                    self.event_log.append(BingoEvent(loss=True, event_type="owner", square=ev.square, player=team.captain, timestamp=datetime.utcnow()))
+                    if len(card.completed_by):
+                        new_id = card.completed_by[0]
+                        new_team = self.team(new_id, cap_only=False)
+                        new_owner = new_team.captain if new_team else None  # type: Optional[ModelKey]
+                        if new_owner is None:
+                            log.error("Card is completed by player %d without team?!", new_id)
+                        else:
+                            card.owner = _pid(new_owner)
+                            self.event_log.append(BingoEvent(loss=False, event_type="owner", square=ev.square, player=new_owner, timestamp=datetime.utcnow()))
+
         for card in self.board:  # type: BingoCard
+            if card.meta:
+                meta_cards.append(card)
+                continue
             if card.name in bingo_data:
                 ev = card.update(bingo_data[card.name], player, teammates, team.captain)
                 if ev:
                     need_write = True
-                    self.event_log.append(ev)
-                    change_squares.add(ev.square)
-                    if ev.loss:
-                        loss_squares.add(ev.square)
-                        if cpid in card.completed_by:
-                            card.completed_by.remove(cpid)
-                    elif cpid not in card.completed_by:
-                        card.completed_by.append(cpid)
+                    handle_event(ev)
 
-                    if self.lockout:
-                        if not ev.loss and not card.owner:
-                            card.owner = cpid
-                            self.event_log.append(BingoEvent(loss=False, event_type="owner", square=ev.square, player=team.captain, timestamp=datetime.utcnow()))
-                        elif ev.loss and card.owner == cpid:
-                            card.owner = 0
-                            self.event_log.append(BingoEvent(loss=True, event_type="owner", square=ev.square, player=team.captain, timestamp=datetime.utcnow()))
-                            if len(card.completed_by):
-                                new_id = card.completed_by[0]
-                                new_team = self.team(new_id, cap_only=False)
-                                new_owner = new_team.captain if new_team else None  # type: Optional[ModelKey]
-                                if new_owner is None:
-                                    log.error("Card is completed by player %d without team?!", new_id)
-                                else:
-                                    card.owner = _pid(new_owner)
-                                    self.event_log.append(BingoEvent(loss=False, event_type="owner", square=ev.square, player=new_owner, timestamp=datetime.utcnow()))
             else:
                 log.warning("card %s was not in bingo data for team/player %s", card.name if card else card, team.captain if team else team)
-            if not self.lockout and cpid in card.completed_by:
+            if (cpid == card.owner) if self.lockout else (cpid in card.completed_by):
                 team.score += 1
-            if self.lockout and cpid == card.owner:
-                team.score += 1
+        if meta_cards:
+            meta_data={}
+            cards_data = {str(i) : {"value":  (cpid == card.owner) if self.lockout else (cpid in self.board[i].completed_by)} for i in range(25)}
+            meta_data["VertSym"] = {"value": all([cards_data[str(i + left)]["value"] == cards_data[str(i + right)]["value"]
+                                     for i in range(0, 25, 5) for (left, right) in [(0, 4), (1,3)]])}
+            meta_data["Activate Squares"] = {"value": cards_data, "total": len([0 for p in cards_data.values() if p["value"]])}
+            for card in meta_cards:
+                if card.name in meta_data:
+                    ev = card.update(meta_data[card.name], player, teammates, team.captain)
+                    if ev:
+                        need_write = True
+                        handle_event(ev)
+                    if (cpid == card.owner) if self.lockout else (cpid in card.completed_by):
+                        team.score += 1
 
         if self.square_count:
             if team.score >= self.square_count and not team.place:

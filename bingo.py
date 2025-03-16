@@ -37,7 +37,8 @@ class BoolGoal(BingoGoal):
             disp_name = self.disp_name,
             help_lines = [str(l) for l in self.help_lines],
             goal_type = "bool",
-            early = "early" in self.tags
+            early = "early" in self.tags,
+            meta = "meta" in self.tags
         )
 
 class IntGoal(BingoGoal):
@@ -78,6 +79,7 @@ class GoalGroup(BingoGoal):
         card = BingoCard(
             name = self.name,
             goal_type = "multi",
+            meta = "meta" in self.tags
         )
         hls = self.help_lines[:]
 
@@ -135,7 +137,7 @@ def namef(verb, noun, plural_form = None):
 
 class BingoGenerator(object):
     @staticmethod
-    def get_cards(rand, count = 25, rando = False, difficulty = "normal", open_world = True, discovery = 0):
+    def get_cards(rand, count = 25, rando = False, difficulty = "normal", open_world = True, discovery = 0, meta = False):
         easy = difficulty == "easy"
         hard = difficulty == "hard"
 
@@ -669,21 +671,60 @@ class BingoGenerator(object):
                 help_lines = ["The amphibians native to Nibel are fronkeys, red spitters, and green spitters"],
                 tags = ["early"]
             ))
-        
+        if meta:
+            goals += [
+            BoolGoal("VertSym",
+            disp_name= "Vertically symmetric board",
+            help_lines = [
+                "Your bingo board is vertically symmetric if for every completed square in columns A and B, the same squares in columns D and E are completed.", 
+                "You can regain and lose this square based on changes to your bingo board."
+                ],
+            tags=["early", "meta"]
+            ),
+            GoalGroup(
+                    name = "Activate Squares",
+                    name_func = namef("Activate", "square"),
+                    help_lines = ["To activate a square, achieve the goal specified on that square square"],
+                    goals = [ BoolGoal(str(5*row-5+col_ind), col+str(row)) for row in range(1,6) for (col_ind,col) in enumerate(["A","B","C","D","E"]) if col != "C"],
+                    methods = [
+                        ("or",    r((1, 3), (2, 2), (1, 1), flat=True)), 
+                        ("or_",   r((1, 3), (1, 3), (1, 1), flat=True)), 
+                        ("and",   r((1, 2), (2, 2), (2, 3), flat=True)), 
+                        ("and_",  r((1, 2), (1, 3), (2, 3), flat=True)), 
+                    ],
+                    max_repeats = 4,
+                    tags = ["meta"]
+                ),
+            ]
         groupSeen = defaultdict(lambda: (1, [], []))
         cards = []
 #        goals = [goal for goal in goals]
-        pickups_in = rand.randint(1,3)
+        pickups_in = rand.randint(2,4)
         patience = 7 * discovery
+        meta_count = rand.randint(2,4) if meta else 0
+        is_disc = discovery > 0
         while len(cards) < count:
-            goal = rand.choice(goals)
-            if discovery > 0:
+            goal = None
+            if meta_count > 0:
+                meta_goals = [goal for goal in goals if "meta" in goal.tags]
+                log.warning("want %s meta goals, have %s possible" % (meta_count, len(meta_goals)))
+                if len(meta_goals):
+                    goal = rand.choice(meta_goals)
+                    meta_count -= 1
+                else:
+                    log.error("Not enough meta goals! D:")
+                    meta_count = 0
+                    continue
+
+            elif discovery > 0:
                 early_goals = [goal for goal in goals if "early" in goal.tags]
                 if len(early_goals):
                     goal = rand.choice(early_goals)
                     if isinstance(goal, IntGoal):
                         drange = (goal.range_func.min, goal.early_max)
                         goal.range_func = r(drange, drange, drange)
+            else:
+                goal = rand.choice(goals)
             if "pickups_in_zone" in goal.tags:
                 if pickups_in > 0:
                     pickups_in -= 1
@@ -709,6 +750,30 @@ class BingoGenerator(object):
             groupSeen[goal.name] = (repeats+1, banned_subgoals, banned_methods)
             cards.append(card)
         rand.shuffle(cards)
+        if is_disc:
+            edges = [0,1,2,3,4,5,9,10,14,15,19,20,21,22,23,24]
+            centers  = [6,8,16,18, 7,11,14, 17, 12]
+            early_on_edge = [i for i, card in enumerate(cards) if card.early and i in edges]
+            late_centers = [i for i, card in enumerate(cards) if not card.early and i in centers]
+            rand.shuffle(early_on_edge)
+            rand.shuffle(late_centers)
+            while late_centers and early_on_edge:
+                late = late_centers.pop()
+                early = early_on_edge.pop()
+                cards[late], cards[early] = cards[early], cards[late]
+        if meta:
+            center_line = [2,7,12,17,22]
+            non_center_metas = [i for i, card in enumerate(cards) if card.meta and i not in center_line]
+            non_meta_centers = [i for i in center_line if not cards[i].meta]
+            rand.shuffle(non_center_metas)
+            rand.shuffle(non_meta_centers)
+            while non_center_metas:
+                if not non_meta_centers:
+                    log.error("Ran out of room trying to put meta goals in center???")
+                meta = non_center_metas.pop()
+                center = non_meta_centers.pop()
+                cards[meta], cards[center] = cards[center], cards[meta]
+
         i = 0
         for card in cards:
             card.square = i

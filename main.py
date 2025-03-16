@@ -1027,15 +1027,10 @@ def trickrepo():
 @app.route('/bingo/board') #BingoBoard =     
 @app.route('/bingo/spectate') #BingoBoard =     
 def bingo_board():
-    template_values = {'app': "Bingo", 'title': "OriDE Bingo"}
     user = User.get()
-    if user:
-        template_values['user'] = user.name
-        template_values['dark'] = user.dark_theme
-        if user.theme:
-            template_values['theme'] = user.theme
-        if user.pref_num:
-            template_values['pref_num'] = user.pref_num
+    template_values = template_vals("Bingo", "OriDE Bingo", user)
+    if user and user.pref_num:
+        template_values['pref_num'] = user.pref_num
     return render_template(path, **template_values)
 
 @app.route('/bingo/game/<int:game_id>/fetch') #BingoGetGame =     
@@ -1207,7 +1202,7 @@ def bingo_create_game():
         d = int(param_val("discCount") or 0)
         bingo = BingoGameData(
             id            = key.id(),
-            board         = BingoGenerator.get_cards(rand, 25, False, difficulty, True, d),
+            board         = BingoGenerator.get_cards(rand, 25, False, difficulty, True, d, param_flag("meta")),
             difficulty    = difficulty,
             teams_allowed = param_flag("teams"),
             game          = key,
@@ -1337,7 +1332,7 @@ def add_bingo_to_game(game_id):
         d = int(param_val("discCount") or 0)
         bingo = BingoGameData(
             id            = game_id,
-            board         = BingoGenerator.get_cards(rand, 25, True, difficulty, Variation.OPEN_WORLD in params.variations, d),
+            board         = BingoGenerator.get_cards(rand, 25, True, difficulty, Variation.OPEN_WORLD in params.variations, d, param_flag("meta")),
             difficulty    = difficulty,
             subtitle      = params.flag_line(),
             teams_allowed = param_flag("teams"),
@@ -1384,7 +1379,6 @@ def add_bingo_to_game(game_id):
         bkey = bingo.put()
         game.bingo_data = bkey
         game.put()
-        print(res)
         return json_resp(json.dumps(res))
 
 @app.route('/netcode/game/<int:game_id>/player/<int:player_id>/bingo', methods=['POST']) #HandleBingoUpdate    

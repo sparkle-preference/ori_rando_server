@@ -295,6 +295,7 @@ const PlayerList = ({activePlayer, teams, viewOnly, isOwner, timerTime, onPlayer
 }
 
 export default class Bingo extends React.Component {
+    admin = false;
     constructor(props) {
         super(props);
         let viewOnly = iniUrl.href.includes("bingo/spectate")
@@ -311,12 +312,13 @@ export default class Bingo extends React.Component {
 
         let gameId = parseInt(iniUrl.searchParams.get("game_id") || -1, 10);
         if(viewOnly && gameId)
-            gameId = (gameId - 4)/7
-        let fromGen = iniUrl.searchParams.has("fromGen")
+            gameId = (gameId - 4)/7;
+        let fromGen = iniUrl.searchParams.has("fromGen");
         let teamMax = parseInt(iniUrl.searchParams.get("teamMax") || -1, 10);
         let seed = iniUrl.searchParams.get("seed") || String(Math.floor(Math.random() * 100000));
-        let dark = get_flag("dark") || iniUrl.searchParams.has("dark")
-        let user = get_param("user")
+        let dark = get_flag("dark") || iniUrl.searchParams.has("dark");
+        let user = get_param("user");
+        this.admin = get_flag("admin") || iniUrl.searchParams.has("enableMetaOverride");
         let targetCount = parseInt(iniUrl.searchParams.get("bingoLines") || (fromGen && (teamMax > 1) ? 5 : 3), 10)
         this.state = {
                       cards: [], currentRecord: 0, haveGame: false, creatingGame: false, createModalOpen: true, offset: 0, noTimer: false, 
@@ -324,15 +326,13 @@ export default class Bingo extends React.Component {
                       activePlayer: parseInt(get_param("pref_num") || 1, 10), showInfo: false, user: user, loadingText: "Loading...", paramId: -1, squareCount: 13, seed: seed,
                       dark: dark, specLink: window.document.location.href.replace("board", "spectate").replace(gameId, 4 + gameId*7), 
                       fails: 0, gameId: gameId, startSkills: 3, startCells: 4, startMisc: "MU|TP/Swamp/TP/Valley", goalMode: "bingos",
-                      start_with: "", difficulty: "normal", isRandoBingo: false, randoGameId: -1, viewOnly: viewOnly, buildingPlayer: false,
+                      start_with: "", difficulty: "normal", isRandoBingo: false, randoGameId: -1, viewOnly: viewOnly, buildingPlayer: false, meta: this.admin,
                       events: [], startTime: (new Date()), countdownActive: false, isOwner: false, targetCount: targetCount, userBoard: userBoard,
                       teamsDisabled: (teamMax === -1), fromGen: fromGen, teamMax: teamMax, ticksSinceLastSquare: 0, userBoardParams: userBoardParams,
                       ticking: false
                     };
-        if(gameId > 0)
-        {
-            if(fromGen)
-            {
+        if(gameId > 0) {
+            if(fromGen) {
                 this.state.isRandoBingo = true
                 this.state.randoGameId = gameId
             }
@@ -484,10 +484,10 @@ export default class Bingo extends React.Component {
         }
     }
     createGame = () => {
-        let {isRandoBingo, discovery, discCount, noTimer, targetCount, goalMode, lockout, squareCount, randoGameId, startSkills, startCells, startMisc, showInfo, difficulty, teamsDisabled, seed} = this.state;
+        let {isRandoBingo, discovery, discCount, noTimer, targetCount, goalMode, lockout, squareCount, randoGameId, 
+            startSkills, startCells, startMisc, showInfo, difficulty, teamsDisabled, seed, meta} = this.state;
         let url
-        if(isRandoBingo)
-        {
+        if(isRandoBingo) {
             url = `/bingo/from_game/${randoGameId}?difficulty=${difficulty}`
         } else {
             url = `/bingo/new?skills=${startSkills}&cells=${startCells}&misc=${startMisc}&difficulty=${difficulty}`
@@ -502,9 +502,11 @@ export default class Bingo extends React.Component {
             url += "&teams=1"
         if(noTimer)
             url += "&no_timer=1"
-        url += `&seed=${seed}`
         if(discovery && discCount > 0)
             url += `&discCount=${discCount}`
+        if(meta)
+            url += `&meta=1`
+        url += `&seed=${seed}`
 
         doNetRequest(url+`&time=${(new Date()).getTime()}`, this.createCallback)
         this.setState({creatingGame: true, loadingText: "Building game...", createModalOpen: false, loader: get_random_loader()})
@@ -870,7 +872,7 @@ export default class Bingo extends React.Component {
         </Modal>
     )}
     createModal = (style) => {
-        let {discovery, difficulty, isRandoBingo, seed, fromGen, teamMax, randoGameId, targetCount, startSkills, 
+        let {discovery, difficulty, isRandoBingo, seed, fromGen, teamMax, randoGameId, targetCount, startSkills, meta,
             discCount, startCells, startMisc, showInfo, teamsDisabled, noTimer, squareCount, goalMode, lockout, user} = this.state
         let randoInput = fromGen ? (
             <Row className="p-1">
@@ -925,6 +927,19 @@ export default class Bingo extends React.Component {
                 </Col>
             </Row>
         )
+        let metaRow = this.admin ? (
+            <Row className="p-1">
+            <Col xs="4" className="p-1 border">
+                <Cent>Meta Bingo</Cent>
+            </Col>
+            <Col xs="6">
+                <ButtonGroup>
+                    <Button active={meta} outline={!meta} onClick={() => this.setState({meta: true})}>Enabled</Button>
+                    <Button active={!meta} outline={meta} onClick={() => this.setState({meta: false})}>Disabled</Button>
+                </ButtonGroup>
+            </Col>
+        </Row>
+) : null;
         return (
         <Modal size="lg" isOpen={this.state.createModalOpen} backdrop={"static"} className={"modal-dialog-centered"} toggle={this.toggleCreate}>
             <ModalHeader style={style} toggle={this.toggleCreate}><Cent>Bingo options</Cent></ModalHeader>
@@ -942,6 +957,7 @@ export default class Bingo extends React.Component {
                         </Col>
                     </Row>
                     {teamrow}
+                    {metaRow}
                     <Row className="p-1">
                         <Col xs="4" className="p-1 border">
                             <Cent>Discovery Mode</Cent>
