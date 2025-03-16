@@ -40,7 +40,7 @@ class MultiplayerOptions(ndb.Model):
     shared = property(get_shared, set_shared)
     enabled = ndb.BooleanProperty(default=False)
     cloned = ndb.BooleanProperty(default=True)
-    hints = ndb.BooleanProperty(default=True)
+    hints = ndb.BooleanProperty()
     dedup = ndb.BooleanProperty(default=False)
     teams = ndb.JsonProperty()
 
@@ -75,7 +75,6 @@ class MultiplayerOptions(ndb.Model):
             if opts.cloned:
                 opts.teams = {1: list(range(1, json.get("players", 1) + 1))}
                 opts.dedup = bool(json.get("dedupShared", False))
-            opts.hints = bool(opts.cloned and json.get("syncHints"))
             opts.shared = enums_from_strlist( ShareType, [a.replace(" ", "") for a in json.get("syncShared", json.get("shared", []))]) #shit fuck ass jank shit
         return opts
 
@@ -291,7 +290,6 @@ class SeedGenParams(ndb.Model):
             "fragCount": self.frag_count,
             "fragReq": self.frag_req,
             "relicCount": self.relic_count,
-            "hints": self.sync.hints,
             "tracking": self.tracking,
             "coopGameMode": JSON_GAME_MODE.get(self.sync.mode, "Co-op"),
             "coopGenMode": "Cloned Seeds" if self.sync.cloned else "Seperate Seeds",

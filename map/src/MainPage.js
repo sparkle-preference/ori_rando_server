@@ -535,7 +535,7 @@ onDrop = (files) => {
         )
     }
     getMultiplayerTab = ({inputStyle, menuStyle}) => {
-        let {shared, players, tracking, coopGameMode, keyMode, coopGenMode, teamStr, dedupShared} = this.state
+        let {shared, players, tracking, coopGameMode, keyMode, coopGenMode, dedupShared} = this.state
         let multiplayerButtons = ["Skills", "Teleporters", "Upgrades", "World Events", "Misc"].map(stype => (
             <Col xs="4" key={`share-${stype}`} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("Shared Item Categories", stype)} className="p-2">
                 <Button block outline={!shared.includes(stype)} onClick={this.onSType(stype)}>Share {stype}</Button>
@@ -593,34 +593,10 @@ onDrop = (files) => {
                         </Col>
                     </Row>
                 </Collapse>
-                <Collapse isOpen={false}>
-                    <Row className="p-1 justify-content-center">
-                        <Col xs="4" className="text-center pt-1 border">
-                            <span className="align-middle">Teams</span>
-                        </Col><Col xs="4">
-                            <Input style={inputStyle} type="text" value={teamStr} invalid={!this.teamStrValid()} onChange={(e) => this.setState({teamStr: e.target.value})}/>
-                            <FormFeedback tooltip="true">Team format: 1,2|3,4|5,6. Each player must appear once.</FormFeedback>
-                        </Col>
-                    </Row>
-                </Collapse>
             </TabPane>
         )
     }
-    teamStrValid = () => {
-        let teamStr = this.state.teamStr;
-        if(teamStr === "") return true;
-        let retval = true;
-        let players = [...Array(this.state.players).keys()].map(i => i+1)
-        let teams = teamStr.split("|");
-        teams.forEach(team => team.split(",").forEach(p => {
-            if(isNaN(p)) retval = false;
-            else p = parseInt(p,10)
-            if(p > this.state.players) retval = false;
-            if(players[p-1] !== p) retval = false;
-            players[p-1] = 0;
-        }))
-        return retval && players.reduce((a,b)=>a+b,0) === 0
-    }
+    
     
     generateSeed = () => {
         let pMap = {"Race": "None", "None": "Default", "Co-op": "Shared", "World Events": "WorldEvents", "Cloned Seeds": "cloned", "Seperate Seeds": "disjoint"}
@@ -684,16 +660,8 @@ onDrop = (files) => {
             json.dedupShared = this.state.dedupShared
             if(this.state.coopGameMode === "Co-op")
                 json.syncShared = this.state.shared.map(s => f(s))
-            if(this.state.coopGenMode === "Cloned Seeds" && this.state.hints)
-                json.syncHints = true
             if(!this.state.dedupShared)
                 json.teams={1: [...Array(this.state.players).keys()].map(x=>x+1)}
-            else if(this.state.teamStr !== "" && this.teamStrValid()) {
-                let teams = this.state.teamStr.split("|");
-                let i = 1;
-                json.teams={}
-                teams.forEach(team => json.teams[i++] = team.split(",").map(p => parseInt(p, 10)))
-            }
         }
         let seed = this.state.seed || randInt(0, 1000000000);
         if(seed === "daily")
@@ -1103,15 +1071,16 @@ onDrop = (files) => {
 
         let activeTab = seedTabExists ? 'seed' : 'variations';
         const fassListDefault = [2, 919772, -1560272, 799776, -120208].map(coords => ({loc: locOptions.find(l => l.value === coords), item: "NO|1"}));
+        
         this.state = {user: user, activeTab: activeTab, coopGenMode: "Cloned Seeds", coopGameMode: "Co-op", players: 1, dropActive: false, 
                         tracking: true, variations: ["ForceTrees"], gameId: gameId, itemPool: get_pool("Standard"), dedupShared: false, 
                         paths: presets["standard"], keyMode: "Clues", oldKeyMode: "Clues", spawn: "Glades", advancedSpawnTouched: false, 
                         spawnHCs: 3, spawnECs: 0, spawnSKs: 0, pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null), 
                         goalModes: ["ForceTrees"], selectedPool: "Standard", seed: "", fillAlg: "Balanced", quickstartOpen: quickstartOpen, 
-                        shared: ["Skills", "Teleporters", "World Events", "Upgrades", "Misc"], hints: true, helpcat: "", helpopt: "", 
+                        shared: ["Skills", "Teleporters", "World Events", "Upgrades", "Misc"], helpcat: "", helpopt: "", 
                         expPool: 10000, lastHelp: new Date(), seedIsGenerating: seedTabExists, cellFreq: cellFreqPresets("standard"),
                         fragCount: 30, fragReq: 20, relicCount: 8, loader: get_random_loader(), paramId: paramId, seedTabExists: seedTabExists, 
-                        reopenUrl: "", teamStr: "", flagLine: "", fassList: [...fassListDefault], goalModesOpen: false, 
+                        reopenUrl: "", flagLine: "", fassList: [...fassListDefault], goalModesOpen: false, 
                         spoilers: true, spawnWeights: [1.0,2.0,2.0,2.0,1.5,2.0,0.1,0.1,0.25,0.5], seedIsBingo: false, bingoLines: 3, 
                         auxModal: false, auxSpoiler: {active: false, byZone: false, exclude: ["EX","KS", "AC", "EC", "HC", "MS"]}, 
                         stupidMode: stupidMode, customLogic: false, stupidWarn: stupidWarn, verboseSpoiler: get_param("verbose") === "True"};

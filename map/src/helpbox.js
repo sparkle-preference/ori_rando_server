@@ -618,17 +618,7 @@ const getHelpHelper = (category, option) => {
                     lines= [
                         "With Dedup Shared enabled, stackable bonus pickups (Extra Double Jump, Regens, Skill Velocity, etc) will only grant one stack per item location.",
                         "(Without Dedup Shared, players can gain up to 1 stack per player of any of these items, as long as each player collects their copy).",
-                        "Dedup Shared has no effect on seeds without Share Upgrades enabled. Shards and Warmth Fragments are always deduped."
-,
-                    ]
-                    break;
-                case "Hints":
-                    title = "Hints"
-                    lines = [
-                        "A variation for Cloned Seeds, this on-by-default option adds hints when player gets a pickup that contains a shared item for one of the other players in the game.",
-                        "Instead of seeing Warmth Returned, players will instead see the share type of the item in question. In games with more than 2 players, the hint will also specify which player has the pickup in their seed.",
-                        "Without hints, Cloned Seeds work best with fewer players (more than 3 can lead to a lot of duplicate checking) and fewer overall shared items (shared upgrades not recommended).",
-                        "With hints, however, the number of players and shared pickups can both be higher without issue; knowing the pickup type helps distinguish between which shared pickups are important.",
+                        "Dedup Shared has no effect on seeds without Share Upgrades enabled. Shards and Warmth Fragments are always deduped.",
                     ]
                     break;
                 default:

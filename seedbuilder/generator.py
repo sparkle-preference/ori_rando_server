@@ -1020,26 +1020,6 @@ class SeedGenerator:
         self.balanceListLeftovers.append(location[0])
         return location[1]
 
-    def cloned_item(self, item, player):
-        name = self.codeToName.get(item, item)  # TODO: get upgrade names lol
-        item = self.toOutput(item)
-        if not self.params.sync.hints:
-            return "EV5"
-        hint_text = {"SK": "Skill", "TP": "Teleporter", "RB": "Upgrade", "EV": "World Event"}.get(item[:2], "?Unknown?")
-        if item in ["RB17", "RB19", "RB21"]:
-            name = "a " + name  # grammar
-            hint_text = "Shard"
-        elif item == "RB28":
-            name = "a Warmth Fragment"
-            hint_text = "Warmth Fragment"
-        elif item == "Relic":
-            name = "a Relic"
-            hint_text = "Relic"
-
-        owner = ("Team " if self.params.sync.teams else "Player ") + str(player)
-        msg = "HN%s-%s-%s" % (name, hint_text, owner)
-        return msg
-
     def assign_random(self, locs, recurseCount=0):
         value = self.random.random()
         position = 0.0
@@ -1109,23 +1089,14 @@ class SeedGenerator:
         # if this is the first player of a paired seed, construct the map
         if self.playerCount > 1 and self.playerID == 1 and item in self.sharedList:
             player = self.random.randint(1, self.playerCount)
-            if self.params.sync.cloned:
-                # handle cloned seed placement
-                adjusted_item = self.adjust_item(item, zone)
-                self.split_locs[loc] = (player, adjusted_item)
-                self.spoilerGroup[item].append("%s from Player %s at %s\n" % (item, player, location.to_string()))
-                hist_written = True
-                if player != self.playerID:
-                    item = self.cloned_item(item, player=player)
-            else:
-                if location.area not in self.sharedMap:
-                    self.sharedMap[location.area] = []
-                self.sharedMap[location.area].append((item, player))
-                if player != self.playerID:
-                    self.sharedCounts[player] += 1
-                    self.append_spoiler(self.adjust_item(item, zone), "Player %s" % player)
-                    item = "EX*"
-                    self.expSlots += 1
+            if location.area not in self.sharedMap:
+                self.sharedMap[location.area] = []
+            self.sharedMap[location.area].append((item, player))
+            if player != self.playerID:
+                self.sharedCounts[player] += 1
+                self.append_spoiler(self.adjust_item(item, zone), "Player %s" % player)
+                item = "EX*"
+                self.expSlots += 1
         # if mapstones are progressive, set a special location
 
 
@@ -1478,7 +1449,6 @@ class SeedGenerator:
         placements = []
         self.sharedMap = {}
         self.sharedCounts = Counter()
-        self.split_locs = {}
         self.playerID = 1
 
         placement = self.placeItems(0, retries < 7)
@@ -1515,19 +1485,7 @@ class SeedGenerator:
         while self.playerID < self.playerCount:
             self.playerID += 1
             if self.params.sync.cloned:
-                outlines = [lines[0]]
-                for line in lines[1:-1]:
-                    loc, _, _, zone = tuple(line.split("|"))
-                    if int(loc) in self.split_locs:
-                        player, split_item = self.split_locs[int(loc)]
-                        if self.playerID != player:  # theirs
-                            hint = self.cloned_item(split_item, player)
-                            outlines.append("|".join([loc, hint[:2], hint[2:], zone]))
-                        else:  # ours
-                            outlines.append("|".join([loc, split_item[:2], split_item[2:], zone]))
-                    else:
-                        outlines.append(line)
-                placements.append(("\n".join(outlines) + "\n", spoiler))
+                placements.append(("\n".join(lines[:]), spoiler))
             else:
                 placement = self.placeItems(0, retries < 5)
                 if not placement:
@@ -1746,7 +1704,6 @@ class SeedGenerator:
                 if not self.assignQueue:
                     # we've painted ourselves into a corner, try again
                     if self.playerID == 1:
-                        self.split_locs = {}
                         self.sharedMap = {}
                         self.sharedCounts = Counter()
                     if depth > self.playerCount * self.playerCount:
@@ -1759,7 +1716,6 @@ class SeedGenerator:
                 # we've painted ourselves into a corner, try again
                 if not self.reservedLocations:
                     if self.playerID == 1:
-                        self.split_locs = {}
                         self.sharedMap = {}
                         self.sharedCounts = Counter()
                     if depth > self.playerCount * self.playerCount:
