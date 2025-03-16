@@ -16,7 +16,7 @@ try:
 except ImportError:
     flask_imported = False
 
-VER = [4, 0, 13]
+VER = [4, 0, 14]
 MIN_VER = [4, 0, 12]
 def version_check(version):
     try:

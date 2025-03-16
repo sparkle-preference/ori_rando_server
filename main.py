@@ -723,7 +723,7 @@ def user_set_theme(new_theme):
 
 @app.route('/theme/toggle')
 def user_toggle_darkmode():
-    target_url = unquote(param_val("redir")).decode('utf8') or "/"
+    target_url = unquote(param_val("redir")) or "/"
     user = User.get()
     if user:
         user.dark_theme = not user.dark_theme
@@ -1013,7 +1013,7 @@ def dll_beta():
     return redirect("https://github.com/sparkle-preference/OriDERandomizer/raw/master/Assembly-CSharp.dll")
 @app.route('/tracker')             
 def tracker():
-    return redirect("https://github.com/meldontaragon/OriDETracker/releases/latest")
+    return redirect("https://github.com/jeflefou/OriDETracker/releases/tag/v3.3.2")
 
 @app.route('/trickglossary')       
 def trickglossary():
