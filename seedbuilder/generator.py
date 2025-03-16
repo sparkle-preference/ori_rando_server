@@ -412,6 +412,9 @@ class SeedGenerator:
     def var(self, v):
         return v in self.params.variations
 
+    def next_ms_loc(self):
+        return 20 + 4 * (1 + self.mapstonesAssigned)
+
     def init_fields(self):
         """Part one of a reset. All initialization that doesn't
         require reading from params goes here."""
@@ -921,9 +924,11 @@ class SeedGenerator:
                 location.difficulty += self.areas[area].difficulty
             if self.forcedAssignments:
                 reachable_forced_ass_locs = [l for l in currentLocations if l.get_key() in self.forcedAssignments]
+                if self.next_ms_loc() in self.forcedAssignments and any(l.orig == "MapStone" for l in currentLocations):
+                    reachable_forced_ass_locs.append(next(l for l in currentLocations if l.orig == "MapStone"))
                 for loc in reachable_forced_ass_locs:
                     currentLocations.remove(loc)
-                    key = loc.get_key()
+                    key = loc.get_key() if loc.orig != "MapStone" else self.next_ms_loc()
                     if key in self.forceAssignedLocs:
                         continue
                     self.forceAssignedLocs.add(key)
@@ -1076,14 +1081,14 @@ class SeedGenerator:
     def assign_to_location(self, item, location):
         zone = location.zone
         hist_written = False
-        at_mapstone = not self.var(Variation.DISCRETE_MAPSTONES) and location.orig == "MapStone"
+        at_mapstone = location.orig == "MapStone"
         has_cost = item in self.costs.keys()
 
         loc = location.get_key()
 
         if at_mapstone:
+            loc = self.next_ms_loc()
             self.mapstonesAssigned += 1
-            loc = 20 + self.mapstonesAssigned * 4
             zone = "Mapstone"
 
         # if this is the first player of a paired seed, construct the map
