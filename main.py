@@ -25,7 +25,7 @@ from bingo import BingoGenerator
 from cache import Cache
 from util import coord_correction_map, clone_entity, all_locs, picks_by_type_generator, param_val, param_flag, debug, template_root, VER, game_list_html, version_check, template_vals, layout_json, whitelist_ok
 from reachable import Map, PlayerState
-from pickups import Pickup
+from pickups import Pickup, Skill, AbilityCell, HealthCell, EnergyCell, Multiple
 
 # handlers
 # from bingo import routes as bingo_routes
@@ -36,6 +36,7 @@ path='index.html'
 app = Flask(__name__)
 app.wsgi_app = wrap_wsgi_app(app.wsgi_app)
 # app.url_map.strict_slashes = False
+
 
 if debug():
     root_logger = log.getLogger()
@@ -86,6 +87,10 @@ def code_resp(code):
 def text_download(text, filename, status=200):
     return make_response(text, status, {'Content-Type': 'application/x-gzip', 'Content-Disposition': 'attachment; filename=%s' % filename})
 
+
+@app.errorhandler(500)
+def server_error(err):
+    return text_resp("backend website error: %s! If you keep seeing this message, consider reaching out to Eiko in the dev discord (orirando.com/discord/dev)" % err)
 
 @app.route('/clean/')
 def clean_up():
@@ -1227,7 +1232,7 @@ def bingo_create_game():
         else:
             eventStr += "Bingo Game %s created!" % key.id()
 
-        if bingo.square_count > 0:
+        if bingo.square_count and bingo.square_count > 0:
             eventStr += " squares to win: %s" % bingo.square_count
             if bingo.lockout:
                 eventStr += ", lockout"
