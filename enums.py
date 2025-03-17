@@ -25,11 +25,9 @@ class StrEnum(str, Enum):
 
 class MultiplayerGameType(StrEnum):
     SHARED = "Shared"
+    MULTIWORLD = "Multiworld"
     SPLITSHARDS = "SplitShards"
     SIMUSOLO = "None"
-    BINGO = "Bingo"
-
-    def is_dedup(self): return self in [MultiplayerGameType.SHARED]
 
 class ShareType(StrEnum):
     NOT_SHARED = "Unshareable"
