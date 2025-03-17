@@ -8,7 +8,6 @@ import logging as log
 from cache import Cache
 from enums import MultiplayerGameType, Variation
 from models import Game, User, BingoCard, BingoGameData, BingoEvent, BingoTeam
-from pickups import Pickup, Skill, AbilityCell, HealthCell, EnergyCell, Multiple
 from util import param_val, param_flag, debug, path, VER, version_check
 from seedbuilder.vanilla import seedtext as vanilla_seed
 
@@ -698,7 +697,7 @@ class BingoGenerator(object):
                     goals = [ BoolGoal("SQUARE_PLACEHOLDER_%s" % i) for i in range(20)],
                     methods = [
                         ("or",    r((1, 3), (2, 2), (1, 1), flat=True)), 
-                        ("or_",   r((1, 3), (1, 3), (1, 1), flat=True)), 
+                        ("or_",   r((1, 3), (1, 2), (1, 1), flat=True)), 
                         ("and",   r((1, 2), (2, 2), (2, 3), flat=True)), 
                         ("and_",  r((1, 2), (1, 3), (2, 3), flat=True)), 
                     ],
@@ -758,7 +757,7 @@ class BingoGenerator(object):
                 banned_methods.append(card.goal_method)
                 card.goal_method = card.goal_method.strip('_')
                 banned_subgoals += [subgoal["name"] for subgoal in card.subgoals]
-            if "symmetry" in cardgoal.tags and not no_symmetry:
+            if "symmetry" in goal.tags and not no_symmetry:
                 no_symmetry = rand.randint(0,8)<3 # hehe less than 3 
             groupSeen[goal.name] = (repeats+1, banned_subgoals, banned_methods)
             cards.append(card)
