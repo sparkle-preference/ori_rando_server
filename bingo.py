@@ -717,7 +717,6 @@ class BingoGenerator(object):
             goal = None
             if meta_count > 0:
                 meta_goals = [goal for goal in goals if "meta" in goal.tags and not (no_symmetry and "symmetry" in goal.tags)]
-                log.warning("want %s meta goals, have %s possible" % (meta_count, len(meta_goals)))
                 if len(meta_goals):
                     goal = rand.choice(meta_goals)
                     meta_count -= 1
