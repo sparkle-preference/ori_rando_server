@@ -700,7 +700,9 @@ onDrop = (files) => {
             metaUpdate.inputPlayerCount = metaUpdate.players
             metaUpdate.inputSeed = metaUpdate.seed
             metaUpdate.seedIsBingo = metaUpdate.variations.some(v => v === "Bingo")
-            metaUpdate.goalModes = metaUpdate.variations.filter(v => ["ForceTrees", "WorldTour", "ForceMaps", "WarmthFrags", "Bingo"].includes(v)) || ["None"]
+            metaUpdate.goalModes = metaUpdate.variations.filter(v => ["ForceTrees", "WorldTour", "ForceMaps", "WarmthFrags", "Bingo"].includes(v))
+            if(metaUpdate.goalModes.length === 0)
+                metaUpdate.goalModes = ["None"]
             if(metaUpdate.fass && metaUpdate.fass.length > 0) {
                 metaUpdate.fassList = metaUpdate.fass.map(({loc, item}) => ({loc: locOptionFromCoords(parseInt(loc, 10)), item: item}))
                 metaUpdate.fass = undefined;
