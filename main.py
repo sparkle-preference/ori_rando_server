@@ -1200,13 +1200,15 @@ def bingo_create_game():
         
         game = key.get()
         d = int(param_val("discCount") or 0)
+        lockout = bool(int(param_val("lockout") or 0))
         bingo = BingoGameData(
             id            = key.id(),
-            board         = BingoGenerator.get_cards(rand, 25, False, difficulty, True, d, param_flag("meta")),
+            board         = BingoGenerator.get_cards(rand, 25, False, difficulty, True, d, param_flag("meta"), lockout),
             difficulty    = difficulty,
             teams_allowed = param_flag("teams"),
             game          = key,
-            rand_dat     = "\n".join(base),
+            rand_dat      = "\n".join(base),
+            lockout       = lockout
         )
         if d:
             bingo.discovery = d
@@ -1215,7 +1217,6 @@ def bingo_create_game():
             bingo.bingo_count  = int(param_val("lines"))
         if param_flag("squares"):
             bingo.square_count = int(param_val("squares"))
-            bingo.lockout      = bool(int(param_val("lockout")))
         user = User.get()
         eventStr = "misc"
         if user:
@@ -1330,14 +1331,16 @@ def add_bingo_to_game(game_id):
         rand.seed(seed)
 
         d = int(param_val("discCount") or 0)
+        lockout = bool(int(param_val("lockout") or 0))
         bingo = BingoGameData(
             id            = game_id,
-            board         = BingoGenerator.get_cards(rand, 25, True, difficulty, Variation.OPEN_WORLD in params.variations, d, param_flag("meta")),
+            board         = BingoGenerator.get_cards(rand, 25, True, difficulty, Variation.OPEN_WORLD in params.variations, d, param_flag("meta"), lockout),
             difficulty    = difficulty,
             subtitle      = params.flag_line(),
             teams_allowed = param_flag("teams"),
             teams_shared  = params.players > 1 and params.sync.mode == MultiplayerGameType.SHARED,
             game          = game.key,
+            lockout       = lockout
         )
         if d:
             bingo.seed = seed
@@ -1351,7 +1354,6 @@ def add_bingo_to_game(game_id):
             bingo.bingo_count  = int(param_val("lines"))
         if param_flag("squares"):
             bingo.square_count = int(param_val("squares"))
-            bingo.lockout      = bool(int(param_val("lockout")))
         user = User.get()
         eventStr = "misc"
         if user:

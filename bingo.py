@@ -137,7 +137,7 @@ def namef(verb, noun, plural_form = None):
 
 class BingoGenerator(object):
     @staticmethod
-    def get_cards(rand, count = 25, rando = False, difficulty = "normal", open_world = True, discovery = 0, meta = False):
+    def get_cards(rand, count = 25, rando = False, difficulty = "normal", open_world = True, discovery = 0, meta = False, lockout = False):
         easy = difficulty == "easy"
         hard = difficulty == "hard"
 
@@ -672,20 +672,30 @@ class BingoGenerator(object):
                 tags = ["early"]
             ))
         if meta:
-            goals += [
-            BoolGoal("VertSym",
-            disp_name= "Vertically symmetric board",
-            help_lines = [
-                "Your bingo board is vertically symmetric if for every completed square in columns A and B, the same squares in columns D and E are completed.", 
-                "You can regain and lose this square based on changes to your bingo board."
-                ],
-            tags=["early", "meta"]
-            ),
-            GoalGroup(
+            if not lockout:
+                goals += [
+                    BoolGoal("VertSym",
+                    disp_name= "Vertically symmetric board",
+                    help_lines = [
+                        "Your bingo board is vertically symmetric if for every completed square in columns A and B, the same squares in columns D and E are completed.", 
+                        "You can regain and lose this square based on changes to your bingo board."
+                        ],
+                    tags=["early", "meta", "symmetry"]
+                    ),
+                    BoolGoal("HorizSym",
+                    disp_name= "Horizontally symmetric board",
+                    help_lines = [
+                        "Your bingo board is horizontally symmetric if for every completed square in rows 1 and 2, the same squares in row 4 and 5 are completed.", 
+                        "You can regain and lose this square based on changes to your bingo board."
+                        ],
+                    tags=["early", "meta", "symmetry"]
+                    ),
+                ]
+            goals.append(GoalGroup(
                     name = "Activate Squares",
                     name_func = namef("Activate", "square"),
-                    help_lines = ["To activate a square, achieve the goal specified on that square square"],
-                    goals = [ BoolGoal(str(5*row-5+col_ind), col+str(row)) for row in range(1,6) for (col_ind,col) in enumerate(["A","B","C","D","E"]) if col != "C"],
+                    help_lines = ["To activate a square, complete the goal specified on that square."],
+                    goals = [ BoolGoal("SQUARE_PLACEHOLDER_%s" % i) for i in range(20)],
                     methods = [
                         ("or",    r((1, 3), (2, 2), (1, 1), flat=True)), 
                         ("or_",   r((1, 3), (1, 3), (1, 1), flat=True)), 
@@ -695,18 +705,19 @@ class BingoGenerator(object):
                     max_repeats = 4,
                     tags = ["meta"]
                 ),
-            ]
+            )
         groupSeen = defaultdict(lambda: (1, [], []))
         cards = []
 #        goals = [goal for goal in goals]
         pickups_in = rand.randint(2,4)
         patience = 7 * discovery
-        meta_count = rand.randint(2,4) if meta else 0
+        meta_count = rand.randint(2,5) if meta else 0
+        no_symmetry = False
         is_disc = discovery > 0
         while len(cards) < count:
             goal = None
             if meta_count > 0:
-                meta_goals = [goal for goal in goals if "meta" in goal.tags]
+                meta_goals = [goal for goal in goals if "meta" in goal.tags and not (no_symmetry and "symmetry" in goal.tags)]
                 log.warning("want %s meta goals, have %s possible" % (meta_count, len(meta_goals)))
                 if len(meta_goals):
                     goal = rand.choice(meta_goals)
@@ -746,13 +757,15 @@ class BingoGenerator(object):
             if card.goal_type == "multi":
                 banned_methods.append(card.goal_method)
                 card.goal_method = card.goal_method.strip('_')
-                banned_subgoals += [subgoal["name"] for subgoal in card.subgoals] 
+                banned_subgoals += [subgoal["name"] for subgoal in card.subgoals]
+            if "symmetry" in cardgoal.tags and not no_symmetry:
+                no_symmetry = rand.randint(0,8)<3 # hehe less than 3 
             groupSeen[goal.name] = (repeats+1, banned_subgoals, banned_methods)
             cards.append(card)
         rand.shuffle(cards)
         if is_disc:
             edges = [0,1,2,3,4,5,9,10,14,15,19,20,21,22,23,24]
-            centers  = [6,8,16,18, 7,11,14, 17, 12]
+            centers  = [6,8,16,18, 7,11, 13, 17, 12]
             early_on_edge = [i for i, card in enumerate(cards) if card.early and i in edges]
             late_centers = [i for i, card in enumerate(cards) if not card.early and i in centers]
             rand.shuffle(early_on_edge)
@@ -762,21 +775,43 @@ class BingoGenerator(object):
                 early = early_on_edge.pop()
                 cards[late], cards[early] = cards[early], cards[late]
         if meta:
-            center_line = [2,7,12,17,22]
-            non_center_metas = [i for i, card in enumerate(cards) if card.meta and i not in center_line]
-            non_meta_centers = [i for i in center_line if not cards[i].meta]
-            rand.shuffle(non_center_metas)
-            rand.shuffle(non_meta_centers)
-            while non_center_metas:
-                if not non_meta_centers:
-                    log.error("Ran out of room trying to put meta goals in center???")
-                meta = non_center_metas.pop()
-                center = non_meta_centers.pop()
-                cards[meta], cards[center] = cards[center], cards[meta]
+            # bullshit to put meta cards in places that aren't stupid for them
+            metas_by_name = defaultdict(lambda: [])
+            for index, card in enumerate(cards):
+                if card.meta:
+                    metas_by_name[card.name].append(index)
+            # vertical symmetry must be in column C
+            if "HorizSym" in metas_by_name and "VertSym" in metas_by_name:
+                center_guy = random.choice(["HorizSym", "VertSym"])
+                center_i = metas_by_name[center_guy][0]
+                cards[center_i], cards[12] = cards[12], cards[center_i]
+                del metas_by_name[center_guy]
+            if "VertSym" in metas_by_name:
+                col_c = list(range(2,23,5))
+                v_sym = metas_by_name["VertSym"][0]
+                if v_sym not in col_c:
+                    i = rand.choice(col_c)
+                    cards[v_sym], cards[i] = cards[i], cards[v_sym] 
+            if "HorizSym" in metas_by_name:
+                row_3 = list(range(10,15))
+                hor_sym = metas_by_name["HorizSym"][0]
+                if hor_sym not in row_3:
+                    i = rand.choice(row_3)
+                    cards[hor_sym], cards[i] = cards[i], cards[hor_sym]
+            if "Activate Squares" in metas_by_name:
+                non_metas = set([i for i, card in enumerate(cards) if not card.meta])
+                subgoals_json = [BoolGoal(str(5*row+col), col_name+str(row+1)).to_card(rand).to_json([], True) # a subgoal that targets exactly 1 square
+                                for row in range(5) for (col,col_name) in enumerate(["A","B","C","D","E"]) # cartesian product - all squares 
+                                if 5*row+col in non_metas] # i wanted to just have the non_metas definition here but it'd recalc every time...
 
-        i = 0
-        for card in cards:
+                rand.shuffle(subgoals_json)
+                cards_to_update = metas_by_name["Activate Squares"]
+                while cards_to_update:
+                    c = cards[cards_to_update.pop()]
+                    c.subgoals = [subgoals_json.pop() for _ in c.subgoals]
+
+
+        for i, card in enumerate(cards):
             card.square = i
-            i += 1                
         return cards
 

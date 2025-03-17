@@ -896,15 +896,29 @@ class BingoGameData(ndb.Model):
                 team.score += 1
         if meta_cards:
             meta_data={}
+            square_update = False
             cards_data = {str(i) : {"value":  (cpid == card.owner) if self.lockout else (cpid in self.board[i].completed_by)} for i in range(25)}
-            meta_data["VertSym"] = {"value": all([cards_data[str(i + left)]["value"] == cards_data[str(i + right)]["value"]
-                                     for i in range(0, 25, 5) for (left, right) in [(0, 4), (1,3)]])}
             meta_data["Activate Squares"] = {"value": cards_data, "total": len([0 for p in cards_data.values() if p["value"]])}
             for card in meta_cards:
                 if card.name in meta_data:
                     ev = card.update(meta_data[card.name], player, teammates, team.captain)
                     if ev:
-                        need_write = True
+                        need_write = square_update = True
+                        handle_event(ev)
+                    if (cpid == card.owner) if self.lockout else (cpid in card.completed_by):
+                        team.score += 1
+            if square_update:
+                cards_data = {str(i) : {"value":  (cpid == card.owner) if self.lockout else (cpid in self.board[i].completed_by)} for i in range(25)}
+            meta_data={}
+            meta_data["VertSym"] = {"value": all([cards_data[str(i + left)]["value"] == cards_data[str(i + right)]["value"]
+                                     for i in range(0, 25, 5) for (left, right) in [(0, 4), (1,3)]])}
+            meta_data["HorizSym"] = {"value": all([cards_data[str(i + top)]["value"] == cards_data[str(i + bot)]["value"]
+                                     for i in range(5) for (top, bot) in [(0, 20), (5,15)]])}
+            for card in meta_cards:
+                if card.name in meta_data:
+                    ev = card.update(meta_data[card.name], player, teammates, team.captain)
+                    if ev:
+                        need_write = square_update = True
                         handle_event(ev)
                     if (cpid == card.owner) if self.lockout else (cpid in card.completed_by):
                         team.score += 1
