@@ -223,7 +223,7 @@ class Area:
         self.difficulty = 1
         self.has_location = False
 
-    def add_connection(self, connection):
+    def add_connection(self, connection): # string -> None
         self.connections.append(connection)
 
     def get_connections(self):
@@ -461,7 +461,6 @@ class SeedGenerator:
         self.areasRemaining = []
         self.connectionQueue = []
         self.assignQueue = []
-        self.sharedAssignQueue = []
         self.spoiler = []
         self.entrance_spoiler = ""
         self.warps = {}
@@ -548,167 +547,165 @@ class SeedGenerator:
         logic_path_tags = get_path_tags_from_pathsets(logic_paths)
         difficulty = self.get_difficulty(logic_path_tags)
 
-        if self.playerID == 1:
-            self.start = "Glades"
-            # FIXME On repeats after failed generation this will tend bias towards places that generate easier.
-            start_weights = OrderedDict([
-                ("Random", 0),
-                ("Glades", 1.0),
-                ("Grove", 2.0),
-                ("Swamp", 2.0),
-                ("Grotto", 2.0),
-                ("Forlorn", 1.5),
-                ("Valley", 2),
-                ("Horu", 0.1),
-                ("Ginso", 0.1),
-                ("Sorrow", 0.25),
-                ("Blackroot", 0.5)
-            ])
-            if len(self.params.spawn_weights) > 9:
-                for i,k in enumerate(list(start_weights.keys())[1:]):
-                    start_weights[k] = self.params.spawn_weights[i]
+        self.start = "Glades"
+        # FIXME On repeats after failed generation this will tend bias towards places that generate easier.
+        start_weights = OrderedDict([
+            ("Random", 0),
+            ("Glades", 1.0),
+            ("Grove", 2.0),
+            ("Swamp", 2.0),
+            ("Grotto", 2.0),
+            ("Forlorn", 1.5),
+            ("Valley", 2),
+            ("Horu", 0.1),
+            ("Ginso", 0.1),
+            ("Sorrow", 0.25),
+            ("Blackroot", 0.5)
+        ])
+        if len(self.params.spawn_weights) > 9:
+            for i,k in enumerate(list(start_weights.keys())[1:]):
+                start_weights[k] = self.params.spawn_weights[i]
 #                   print(k, start_weights[k])
-            if not self.params.start or self.params.start not in start_weights:
-                log.warning("Unknown start location. Switching to Glades")
-                self.start = "Glades"
-            elif self.params.start in ["Horu", "Ginso"] and self.var(Variation.CLOSED_DUNGEONS):
-                log.error("can't start in dungeons with closed dungeons.")
-                exit(1)
-            elif self.params.start == "Random":
-                if not self.var(Variation.OPEN_WORLD):
-                    start_weights["Valley"] /= 10.0
-                if self.var(Variation.CLOSED_DUNGEONS):
-                    start_weights["Horu"] = 0
-                    start_weights["Ginso"] = 0
-                self.start = self.choice(start_weights.keys(), start_weights.values())
-            else:
-                self.start = self.params.start
-        
+        if not self.params.start or self.params.start not in start_weights:
+            log.warning("Unknown start location. Switching to Glades")
+            self.start = "Glades"
+        elif self.params.start in ["Horu", "Ginso"] and self.var(Variation.CLOSED_DUNGEONS):
+            log.error("can't start in dungeons with closed dungeons.")
+            exit(1)
+        elif self.params.start == "Random":
+            if not self.var(Variation.OPEN_WORLD):
+                start_weights["Valley"] /= 10.0
+            if self.var(Variation.CLOSED_DUNGEONS):
+                start_weights["Horu"] = 0
+                start_weights["Ginso"] = 0
+            self.start = self.choice(start_weights.keys(), start_weights.values())
+        else:
+            self.start = self.params.start
+    
 
-            self.starting_skills = []
+        self.starting_skills = []
 
 
-            possible_skills = ["WallJump", "ChargeFlame", "Dash", "Stomp", "DoubleJump", "Glide", "Bash", "Climb", "Grenade", "ChargeJump", "Water"]#, "Wind", "Warmth"]
-            # possible_skills_forced = ["WallJump", "ChargeFlame", "Dash", "Stomp", "DoubleJump", "Glide", "Bash", "Climb", "Grenade", "ChargeJump", "Water", "Wind", "Warmth"]
-            try_force = {
-                "Glades": ["WallJump", "Bash", "Climb", "ChargeJump", "Water"],
-                "Grove": ["ChargeFlame", "Stomp", "Grenade", "ChargeJump"],
-                "Swamp": ["WallJump", "ChargeFlame", "Dash", "Bash", "Climb", "Grenade", "ChargeJump", "Water"],
-                "Grotto": ["WallJump", "ChargeFlame", "Dash", "DoubleJump", "Glide", "Climb", "Grenade", "ChargeJump", "Water"],
-                "Forlorn": ["ChargeFlame", "Bash", "Grenade", "ChargeJump"],
-                "Valley": ["WallJump", "ChargeFlame", "DoubleJump", "Glide", "Bash", "Climb", "Grenade", "ChargeJump"],
-                "Horu": ["WallJump", "Climb", "Bash"],
-                "Ginso": ["Stomp", "DoubleJump", "Bash", "ChargeJump"],
-                "Sorrow": ["ChargeJump", "Bash", "Glide", "Climb", "Stomp"],
-                "Blackroot": ["WallJump", "ChargeFlame", "Dash", "Stomp", "DoubleJump", "Glide", "Bash", "Climb", "Grenade", "ChargeJump", "Water"],
-            }
-            start_skills = 0
-            # FIXME Check if starved exists, then just set the defaults to 3/1?
-            if self.params.start == "Random":
-                self.starting_health, self.starting_energy, start_skills = spawn_defaults[self.start][difficulty]
-            elif self.start != "Glades":
-                    self.starting_health = max(self.params.starting_health, self.starting_health)
-                    self.starting_energy = max(self.params.starting_energy, self.starting_energy)
-                    start_skills = int(self.params.starting_skills)
+        possible_skills = ["WallJump", "ChargeFlame", "Dash", "Stomp", "DoubleJump", "Glide", "Bash", "Climb", "Grenade", "ChargeJump", "Water"]#, "Wind", "Warmth"]
+        # possible_skills_forced = ["WallJump", "ChargeFlame", "Dash", "Stomp", "DoubleJump", "Glide", "Bash", "Climb", "Grenade", "ChargeJump", "Water", "Wind", "Warmth"]
+        try_force = {
+            "Glades": ["WallJump", "Bash", "Climb", "ChargeJump", "Water"],
+            "Grove": ["ChargeFlame", "Stomp", "Grenade", "ChargeJump"],
+            "Swamp": ["WallJump", "ChargeFlame", "Dash", "Bash", "Climb", "Grenade", "ChargeJump", "Water"],
+            "Grotto": ["WallJump", "ChargeFlame", "Dash", "DoubleJump", "Glide", "Climb", "Grenade", "ChargeJump", "Water"],
+            "Forlorn": ["ChargeFlame", "Bash", "Grenade", "ChargeJump"],
+            "Valley": ["WallJump", "ChargeFlame", "DoubleJump", "Glide", "Bash", "Climb", "Grenade", "ChargeJump"],
+            "Horu": ["WallJump", "Climb", "Bash"],
+            "Ginso": ["Stomp", "DoubleJump", "Bash", "ChargeJump"],
+            "Sorrow": ["ChargeJump", "Bash", "Glide", "Climb", "Stomp"],
+            "Blackroot": ["WallJump", "ChargeFlame", "Dash", "Stomp", "DoubleJump", "Glide", "Bash", "Climb", "Grenade", "ChargeJump", "Water"],
+        }
+        start_skills = 0
+        # FIXME Check if starved exists, then just set the defaults to 3/1?
+        if self.params.start == "Random":
+            self.starting_health, self.starting_energy, start_skills = spawn_defaults[self.start][difficulty]
+        elif self.start != "Glades":
+                self.starting_health = max(self.params.starting_health, self.starting_health)
+                self.starting_energy = max(self.params.starting_energy, self.starting_energy)
+                start_skills = int(self.params.starting_skills)
+        if start_skills > 0:
+            if start_skills > 1:
+                possible_skills.append("Wind")
+                possible_skills.append("Warmth")
+            # Weigh skills. FIXME: it would be good to have weights
+            weights = []
+            for skill in possible_skills:
+                if skill == "Warmth":
+                    cost = 75
+                else:
+                    cost = self.costs[skill]
+                if skill in ["Wind", "Water"]:
+                    cost *= 1.5
+                if skill in ["WallJump", "Climb"] and self.var(Variation.FUCK_WALLS): 
+                    cost *= 5
+                if skill == "Grenade" and self.var(Variation.FUCK_GRENADE):
+                    cost *= 5
+                if worried and self.start in try_force and skill in try_force[self.start]: 
+                    # if we're worried, overweight useful skills
+                    cost = 1
+                weight = 1.0 / cost
+                weights.append(weight)
+            
             if start_skills > 0:
-                if start_skills > 1:
-                    possible_skills.append("Wind")
-                    possible_skills.append("Warmth")
-                # Weigh skills. FIXME: it would be good to have weights
-                weights = []
-                for skill in possible_skills:
-                    if skill == "Warmth":
-                        cost = 75
-                    else:
-                        cost = self.costs[skill]
-                    if skill in ["Wind", "Water"]:
-                        cost *= 1.5
-                    if skill in ["WallJump", "Climb"] and self.var(Variation.FUCK_WALLS): 
-                        cost *= 5
-                    if skill == "Grenade" and self.var(Variation.FUCK_GRENADE):
-                        cost *= 5
-                    if worried and self.start in try_force and skill in try_force[self.start]: 
-                        # if we're worried, overweight useful skills
-                        cost = 1
-                    weight = 1.0 / cost
-                    weights.append(weight)
-                
-                if start_skills > 0:
-                    self.starting_skills = self.choices(possible_skills, weights, start_skills)
-            
-            self.spawn_things = []
-            #print(self.starting_skills, self.starting_health, self.starting_energy)
-            if self.starting_health > 3:
-                for _ in range(self.starting_health - 3):
-                    self.spawn_things.append("HC/1")
-            energy_cells = self.starting_energy
-            if self.start == "Glades":
-                # FIXME this will change if we randomise the first EC.
-                energy_cells -= 1
-                self.inventory["EC"] = 1
-            for _ in range(energy_cells):
-                self.spawn_things.append("EC/1")
-            if (self.start == "Ginso"):
-                for _ in range(4):
-                    self.spawn_things.append("KS/1")
-                if (not self.var(Variation.KEYS_ONLY_FOR_DOORS)) and (self.params.key_mode != KeyMode.FREE):
-                    if self.params.key_mode == KeyMode.SHARDS:
-                        for _ in range(5):
-                            self.spawn_things.append("RB/17")
-                    else:
-                        self.spawn_things.append("EV/0")
-            if (self.start == "Forlorn"):
-                if (not self.var(Variation.KEYS_ONLY_FOR_DOORS)) and (self.params.key_mode != KeyMode.FREE):
-                    if self.params.key_mode == KeyMode.SHARDS:
-                        for _ in range(5):
-                            self.spawn_things.append("RB/19")
-                    else:
-                        self.spawn_things.append("EV/2")
-                self.spawn_things.append("NB/-914,-298")
-            if (self.start == "Horu"):
-                if (not self.var(Variation.KEYS_ONLY_FOR_DOORS)) and (self.params.key_mode != KeyMode.FREE):
-                    if self.params.key_mode == KeyMode.SHARDS:
-                        for _ in range(5):
-                            self.spawn_things.append("RB/21")
-                    else:
-                        self.spawn_things.append("EV/4")
-            if (self.start != "Glades"):
-                self.spawn_things.append(self.toOutput("SpiritFlame", True))
-            for skill in self.starting_skills:
-                self.spawn_things.append(self.toOutput(skill, True))
-            if self.params.key_mode == KeyMode.FREE:
-                self.spawn_things.append("EV/0/EV/2/EV/4")
-            
-            spawn_spots = {
-                "Grove": (-159, -114),
-                "Swamp": (491, -73),
-                "Grotto": (519, -174), 
-                "Forlorn": (-914, -298),
-                "Valley": (-430, 0), 
-                "Horu": (88, 142),  
-                "Ginso": (570, 539),
-                "Sorrow": (-594, 496), 
-                "Blackroot": (381, -297), 
-            }
-            self.spawn_logic_areas = {
-                "Glades": "SunkenGladesRunaway",
-                "Grove": "SpiritTreeRefined", 
-                "Swamp": "SwampTeleporter", 
-                "Grotto": "MoonGrotto", 
-                "Forlorn": "ForlornTeleporter", 
-                "Valley": "ValleyTeleporter", 
-                "Horu": "HoruTeleporter", 
-                "Ginso": "GinsoTeleporter", 
-                "Sorrow": "SorrowTeleporter", 
-                "Blackroot": "BlackrootGrottoConnection", 
-            }
+                self.starting_skills = self.choices(possible_skills, weights, start_skills)
+        
+        self.spawn_things = []
+        #print(self.starting_skills, self.starting_health, self.starting_energy)
+        if self.starting_health > 3:
+            for _ in range(self.starting_health - 3):
+                self.spawn_things.append("HC/1")
+        energy_cells = self.starting_energy
+        if self.start == "Glades":
+            # FIXME this will change if we randomise the first EC.
+            energy_cells -= 1
+            self.inventory["EC"] = 1
+        for _ in range(energy_cells):
+            self.spawn_things.append("EC/1")
+        if (self.start == "Ginso"):
+            for _ in range(4):
+                self.spawn_things.append("KS/1")
+            if (not self.var(Variation.KEYS_ONLY_FOR_DOORS)) and (self.params.key_mode != KeyMode.FREE):
+                if self.params.key_mode == KeyMode.SHARDS:
+                    for _ in range(5):
+                        self.spawn_things.append("RB/17")
+                else:
+                    self.spawn_things.append("EV/0")
+        if (self.start == "Forlorn"):
+            if (not self.var(Variation.KEYS_ONLY_FOR_DOORS)) and (self.params.key_mode != KeyMode.FREE):
+                if self.params.key_mode == KeyMode.SHARDS:
+                    for _ in range(5):
+                        self.spawn_things.append("RB/19")
+                else:
+                    self.spawn_things.append("EV/2")
+            self.spawn_things.append("NB/-914,-298")
+        if (self.start == "Horu"):
+            if (not self.var(Variation.KEYS_ONLY_FOR_DOORS)) and (self.params.key_mode != KeyMode.FREE):
+                if self.params.key_mode == KeyMode.SHARDS:
+                    for _ in range(5):
+                        self.spawn_things.append("RB/21")
+                else:
+                    self.spawn_things.append("EV/4")
+        if (self.start != "Glades"):
+            self.spawn_things.append(self.toOutput("SpiritFlame", True))
+        for skill in self.starting_skills:
+            self.spawn_things.append(self.toOutput(skill, True))
+        if self.params.key_mode == KeyMode.FREE:
+            self.spawn_things.append("EV/0/EV/2/EV/4")
+        
+        spawn_spots = {
+            "Grove": (-159, -114),
+            "Swamp": (491, -73),
+            "Grotto": (519, -174), 
+            "Forlorn": (-914, -298),
+            "Valley": (-430, 0), 
+            "Horu": (88, 142),  
+            "Ginso": (570, 539),
+            "Sorrow": (-594, 496), 
+            "Blackroot": (381, -297), 
+        }
+        self.spawn_logic_areas = {
+            "Glades": "SunkenGladesRunaway",
+            "Grove": "SpiritTreeRefined", 
+            "Swamp": "SwampTeleporter", 
+            "Grotto": "MoonGrotto", 
+            "Forlorn": "ForlornTeleporter", 
+            "Valley": "ValleyTeleporter", 
+            "Horu": "HoruTeleporter", 
+            "Ginso": "GinsoTeleporter", 
+            "Sorrow": "SorrowTeleporter", 
+            "Blackroot": "BlackrootGrottoConnection", 
+        }
 
         if self.start != "Glades":
             self.itemPool["TPGlades"] = 1
-            if self.playerID == 1:
-                self.spawn_things.append("TP/" + self.start)
-                # The Warp Save should be last in the line because of the *save*
-                self.spawn_things.append("WS/" + str(spawn_spots[self.start][0]) + "," + str(spawn_spots[self.start][1]) + ",force")
+            self.spawn_things.append("TP/" + self.start)
+            # The Warp Save should be last in the line because of the *save*
+            self.spawn_things.append("WS/" + str(spawn_spots[self.start][0]) + "," + str(spawn_spots[self.start][1]) + ",force")
         
         if len(self.spawn_things) > 0:
             if 2 in self.forcedAssignments:
@@ -800,12 +797,6 @@ class SeedGenerator:
                         dungeonLocs[key_to_update] |= dungeonLocs[key]
                 self.forcedAssignments[loc] = key
 
-        # paired setup for subsequent players
-        self.unplaced_shared = 0
-        if self.playerID > 1:
-            for item in self.sharedList:
-                self.itemPool[item] = 0
-            self.unplaced_shared = self.sharedCounts[self.playerID]
 
     def __init__(self):
         self.init_fields()
@@ -818,7 +809,7 @@ class SeedGenerator:
         self.warps[warp_id] = warp
         self.itemPool[warp_id] = 1
         self.costs[warp_id] = logic_cost
-        if self.do_multi and ShareType.TELEPORTER in self.params.sync.shared:
+        if self.is_cloned and ShareType.TELEPORTER in self.params.sync.shared:
             self.sharedList += [warp_id]
         self.inventory[warp_id] = 0
         #if self.var(Variation.IN_LOGIC_WARPS):
@@ -845,24 +836,8 @@ class SeedGenerator:
                 self.areas["TeleporterNetwork"].add_connection(connection)
                 #log.debug("Added connect to {}".format(logic_location))
 
-    def shared_item_split(self, target):
-        for item, player in self.sharedMap.get(target, []):
-            if player == self.playerID:
-                self.assignQueue.append(item)
-                self.unplaced_shared -= 1
-
-            # If the item is intended for player with higher ID, we can just assign the item.
-            # Otherwise, we want to assign it after the paths are generated for this round
-            elif player > self.playerID:
-                self.assign(item)
-                self.append_spoiler(self.adjust_item(item, None), "Player %s" % player)
-            else:
-                self.sharedAssignQueue.append(item)
-                self.append_spoiler(self.adjust_item(item, None), "Player %s" % player)
 
     def reach_area(self, target):
-        if self.playerID > 1 and target in self.sharedMap:
-            self.shared_item_split(target)
         if self.areas[target].has_location:
             self.currentAreas.append(target)
         self.areasReached[target] = True
@@ -1091,17 +1066,6 @@ class SeedGenerator:
             self.mapstonesAssigned += 1
             zone = "Mapstone"
 
-        # if this is the first player of a paired seed, construct the map
-        if self.playerCount > 1 and self.playerID == 1 and item in self.sharedList:
-            player = self.random.randint(1, self.playerCount)
-            if location.area not in self.sharedMap:
-                self.sharedMap[location.area] = []
-            self.sharedMap[location.area].append((item, player))
-            if player != self.playerID:
-                self.sharedCounts[player] += 1
-                self.append_spoiler(self.adjust_item(item, zone), "Player %s" % player)
-                item = "EX*"
-                self.expSlots += 1
         # if mapstones are progressive, set a special location
 
 
@@ -1416,13 +1380,13 @@ class SeedGenerator:
         self.random = random.Random()
         self.random.seed(stable_string_hash(self.params.seed))
         self.preplaced = {k: self.codeToName.get(v, v) for k, v in preplaced.items()}
-        self.do_multi = self.params.sync.enabled and self.params.sync.mode == MultiplayerGameType.SHARED
+        self.is_cloned = self.params.sync.enabled and self.params.sync.mode == MultiplayerGameType.SHARED
 
         if self.var(Variation.WORLD_TOUR):
             self.relicZones = self.random.sample(["Glades", "Grove", "Grotto", "Blackroot", "Swamp", "Ginso", "Valley", "Misty", "Forlorn", "Sorrow", "Horu"], self.params.relic_count)
 
         self.playerCount = 1
-        if self.do_multi:
+        if self.is_cloned:
             if self.params.sync.cloned and self.params.sync.teams:
                 self.playerCount = len(self.params.sync.teams)
             else:
@@ -1452,8 +1416,6 @@ class SeedGenerator:
 
     def placeItemsMulti(self, retries):
         placements = []
-        self.sharedMap = {}
-        self.sharedCounts = Counter()
         self.playerID = 1
 
         placement = self.placeItems(0, retries < 7)
@@ -1487,20 +1449,10 @@ class SeedGenerator:
         if self.params.sync.cloned:
             lines = placement[0].split("\n")
             spoiler = placement[1]
-        while self.playerID < self.playerCount:
-            self.playerID += 1
-            if self.params.sync.cloned:
+        if self.params.sync.cloned:
+            while self.playerID < self.playerCount:
+                self.playerID += 1
                 placements.append(("\n".join(lines[:]), spoiler))
-            else:
-                placement = self.placeItems(0, retries < 5)
-                if not placement:
-                    if retries > 0:
-                        retries -= 1
-                    else:
-                        log.error("Coop seed not completeable with these params and placements")
-                        return None
-                    return self.placeItemsMulti(retries)
-                placements.append(placement)
         if self.params.spawn != self.start:
             self.params.spawn = self.start
             self.params.put()
@@ -1514,7 +1466,7 @@ class SeedGenerator:
     def items(self, include_balanced=True):
         """Number of items left to place"""
         balanced = len(self.balanceListLeftovers) if include_balanced else 0
-        return sum([v for v in self.itemPool.values()]) + balanced + self.unplaced_shared
+        return sum([v for v in self.itemPool.values()]) + balanced 
 
     def place_repeatables(self):
         repeatables = []
@@ -1669,7 +1621,7 @@ class SeedGenerator:
 
         self.reach_area(self.spawn_logic_areas[self.start])
 
-        self.itemPool["EX*"] = self.locations() - sum([v for v in self.itemPool.values()]) - self.unplaced_shared + 1  # add 1 for warmth returned (:
+        self.itemPool["EX*"] = self.locations() - sum([v for v in self.itemPool.values()]) - 1  # add 1 for warmth returned (:
         self.expSlots = self.itemPool["EX*"]
         locs = self.locations()
         while locs > 0:
@@ -1707,25 +1659,15 @@ class SeedGenerator:
                             break
                         locationsToAssign.append(self.get_location_from_balance_list())
                 if not self.assignQueue:
-                    # we've painted ourselves into a corner, try again
-                    if self.playerID == 1:
-                        self.sharedMap = {}
-                        self.sharedCounts = Counter()
-                    if depth > self.playerCount * self.playerCount:
-                        return
-                    return self.placeItems(depth + 1, worried)
+                    # we've painted ourselves into a corner, try again from multi
+                    return
 
             # pick what we're going to put in our accessible space
             itemsToAssign = []
             if len(locationsToAssign) < len(self.assignQueue) + max(keystoneCount - self.inventory["KS"], 0) + max(mapstoneCount - self.inventory["MS"], 0):
                 # we've painted ourselves into a corner, try again
                 if not self.reservedLocations:
-                    if self.playerID == 1:
-                        self.sharedMap = {}
-                        self.sharedCounts = Counter()
-                    if depth > self.playerCount * self.playerCount:
-                        return
-                    return self.placeItems(depth + 1, worried)
+                    return
                 locationsToAssign.append(self.reservedLocations.pop(0))
                 locationsToAssign.append(self.reservedLocations.pop(0))
             for i in range(0, len(locationsToAssign)):
@@ -1746,9 +1688,6 @@ class SeedGenerator:
                     itemsToAssign.append(self.balanceListLeftovers.pop(0))
                 else:
                     itemsToAssign.append(self.assign_random(locs))
-
-            for _ in range(len(self.sharedAssignQueue)):
-                self.assign(self.sharedAssignQueue.pop(0))
 
             # force assign things if using --prefer-path-difficulty
             if self.params.path_diff != PathDifficulty.NORMAL:
