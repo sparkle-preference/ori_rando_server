@@ -90,7 +90,11 @@ def text_download(text, filename, status=200):
 
 @app.errorhandler(500)
 def server_error(err):
-    return text_resp("backend website error: %s! If you keep seeing this message, consider reaching out to Eiko in the dev discord (orirando.com/discord/dev)" % err)
+    return make_resp("""
+    <html><title>Server Error</title>
+    <body><h3>Backend Server Error</h3>
+    <div>If this keeps happening, consider reaching out to Eiko in the <a target="_blank" href="https://orirando.com/discord/dev">dev discord</a>.</div>
+    <div style="padding-top: 2rem;">%s</div></body></html>""" % err)
 
 @app.route('/clean/')
 def clean_up():
