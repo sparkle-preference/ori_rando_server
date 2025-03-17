@@ -809,8 +809,6 @@ class SeedGenerator:
         self.warps[warp_id] = warp
         self.itemPool[warp_id] = 1
         self.costs[warp_id] = logic_cost
-        if self.is_cloned and ShareType.TELEPORTER in self.params.sync.shared:
-            self.sharedList += [warp_id]
         self.inventory[warp_id] = 0
         #if self.var(Variation.IN_LOGIC_WARPS):
             #connection = Connection("TeleporterNetwork", logic_location, self)
@@ -1376,7 +1374,6 @@ class SeedGenerator:
         self.verbose_paths = verbose_paths
         self.params = params
 
-        self.sharedList = []
         self.random = random.Random()
         self.random.seed(stable_string_hash(self.params.seed))
         self.preplaced = {k: self.codeToName.get(v, v) for k, v in preplaced.items()}
@@ -1391,27 +1388,6 @@ class SeedGenerator:
                 self.playerCount = len(self.params.sync.teams)
             else:
                 self.playerCount = self.params.players
-            shared = self.params.sync.shared
-            if ShareType.SKILL in shared:
-                self.sharedList += ["WallJump", "ChargeFlame", "Dash", "Stomp", "DoubleJump", "Glide", "Bash", "Climb", "Grenade", "ChargeJump"]
-            if ShareType.EVENT in shared:
-                if self.params.key_mode == KeyMode.SHARDS:
-                    self.sharedList += ["WaterVeinShard", "GumonSealShard", "SunstoneShard"]
-                else:
-                    self.sharedList += ["GinsoKey", "ForlornKey", "HoruKey"]
-                self.sharedList += ["Water", "Wind", "Warmth"]
-            if ShareType.TELEPORTER in shared:
-                self.sharedList += ["TPForlorn", "TPGrotto", "TPSorrow", "TPGrove", "TPSwamp", "TPValley", "TPGinso", "TPHoru", "TPBlackroot", "TPGlades"]
-            if ShareType.UPGRADE in self.params.sync.shared:
-                self.sharedList += ["RB6", "RB8", "RB9", "RB10", "RB11", "RB12", "RB13", "RB15"]
-                if self.var(Variation.EXTRA_BONUS_PICKUPS):
-                    self.sharedList += ["RB31", "RB32", "RB33", "RB101", "RB102", "RB103", "RB104", "RB105", "RB106", "RB107", "RB36"]
-            if ShareType.MISC in shared:
-                if self.var(Variation.WARMTH_FRAGMENTS):
-                    self.sharedList.append("RB28")
-                # TODO: figure out relic sharing
-                # if self.var(Variation.WORLD_TOUR):
-                #      self.sharedList.append("Relic")
         return self.placeItemsMulti(retries)
 
     def placeItemsMulti(self, retries):
@@ -1621,7 +1597,7 @@ class SeedGenerator:
 
         self.reach_area(self.spawn_logic_areas[self.start])
 
-        self.itemPool["EX*"] = self.locations() - sum([v for v in self.itemPool.values()]) - 1  # add 1 for warmth returned (:
+        self.itemPool["EX*"] = self.locations() - sum([v for v in self.itemPool.values()]) + 1  # add 1 for warmth returned (:
         self.expSlots = self.itemPool["EX*"]
         locs = self.locations()
         while locs > 0:
