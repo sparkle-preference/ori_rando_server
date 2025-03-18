@@ -191,6 +191,9 @@ spawn_defaults = {
 }
 
 
+def bfield_checksum(bfdstrs):
+    return sum(hash(i) for i in bfdstrs)
+
 def get_bit(bits_int, bit):
     return int_to_bits(bits_int, log_2[bit] + 1)[-(1 + log_2[bit])]
 
