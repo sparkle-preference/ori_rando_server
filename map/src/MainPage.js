@@ -567,6 +567,7 @@ onDrop = (files) => {
                             <DropdownMenu style={menuStyle}>
                                 <DropdownItem active={"Race"===coopGameMode} onClick={()=> this.setState({coopGameMode: "Race"})}>Race</DropdownItem>
                                 <DropdownItem active={"Co-op"===coopGameMode} onClick={()=> this.setState({coopGameMode: "Co-op"})}>Co-op</DropdownItem>
+                                <DropdownItem active={"Multiworld"===coopGameMode} onClick={()=> this.setState({coopGameMode: "Multiworld"})}>Co-op</DropdownItem>
                                 <DropdownItem active={"SplitShards"===coopGameMode} disabled={keyMode !== "Shards"} onClick={()=> this.setState({coopGameMode: "SplitShards"})}>Split Shards</DropdownItem>
                             </DropdownMenu>
                         </UncontrolledButtonDropdown>
@@ -581,7 +582,6 @@ onDrop = (files) => {
                                 <DropdownToggle disabled={players < 2} color={players > 1 ? "primary" : "secondary"} caret block> {coopGenMode} </DropdownToggle>
                                 <DropdownMenu style={menuStyle}>
                                     <DropdownItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "Cloned Seeds")}  active={"Cloned Seeds"===coopGenMode} onClick={()=> this.setState({coopGenMode: "Cloned Seeds"})}>Cloned Seeds</DropdownItem>
-                                    <DropdownItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "Seperate Seeds")}  active={"Seperate Seeds"===coopGenMode} onClick={()=> this.setState({coopGenMode: "Seperate Seeds"})}>Seperate Seeds</DropdownItem>
                                 </DropdownMenu>
                             </UncontrolledButtonDropdown>
                         </Col>
@@ -589,7 +589,7 @@ onDrop = (files) => {
                     <Row className="p-2">
                         {multiplayerButtons}
                         <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("Shared Item Categories", "Dedup")} className="p-2">
-                            <Button block outline={!dedupShared} active={dedupShared} disabled={coopGenMode!=="Cloned Seeds"} onClick={() => this.setState({dedupShared: !dedupShared})}>Dedup Shared</Button>
+                            <Button block outline={!dedupShared} active={dedupShared} onClick={() => this.setState({dedupShared: !dedupShared})}>Dedup Shared</Button>
                         </Col>
                     </Row>
                 </Collapse>

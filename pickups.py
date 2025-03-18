@@ -7,7 +7,7 @@ class Pickup(object):
     @staticmethod
     def subclasses():
         return [Skill, Event, Teleporter, Upgrade, Experience, AbilityCell, HealthCell, EnergyCell, Keystone, 
-                Mapstone, Message, Hint, Relic, Multiple, Repeatable, Warp, WarpSave, Nothing, TPWarp]
+                Mapstone, Message, Hint, Relic, Multiple, Repeatable, Warp, WarpSave, Nothing, TPWarp, MultiworldItem]
     stacks = False
     has_children = False
     int_id = True
@@ -281,4 +281,14 @@ class TPWarp(Pickup):
     def __new__(cls, id):
         inst = super(TPWarp, cls).__new__(cls)
         inst.id, inst.bit, inst.name = id, None, id.split(",")[0]
+        return inst
+
+class MultiworldItem(Pickup):
+    # tuple id: (player_number, slot_number, pickup_name)
+    code = "MW"
+    int_id = False
+    share_type = ShareType.NOT_SHARED
+    def __new__(cls, id):
+        inst = super(MultiworldItem, cls).__new__(cls)
+        inst.id, inst.bit, inst.name = id, None, "Player %s's %s" % (id[0], id[2])
         return inst

@@ -10,7 +10,7 @@ from seedbuilder.generator import SeedGenerator
 
 JSON_SHARE = lambda x: x.value if x != ShareType.EVENT else "World Events"
 FLAGLESS_VARS = [Variation.WARMTH_FRAGMENTS, Variation.WORLD_TOUR]
-JSON_GAME_MODE = {MultiplayerGameType.SHARED: "Co-op", MultiplayerGameType.SIMUSOLO: "Race", MultiplayerGameType.SPLITSHARDS: "SplitShards"}
+JSON_GAME_MODE = {MultiplayerGameType.SHARED: "Co-op", MultiplayerGameType.SIMUSOLO: "Race", MultiplayerGameType.SPLITSHARDS: "SplitShards", MultiplayerGameType.MULTIWORLD: "Multiworld"}
 JSON_MODE_GAME = {v:k for k,v in JSON_GAME_MODE.items()}
 PBC = picks_by_coord(extras=True)
 
@@ -71,7 +71,7 @@ class MultiplayerOptions(ndb.Model):
         if opts.enabled:
             jsonMode = json.get("coopGameMode", "None")
             opts.mode = JSON_MODE_GAME[jsonMode] if jsonMode in JSON_MODE_GAME else MultiplayerGameType(jsonMode)
-            opts.cloned = json.get("coopGenMode") != "disjoint"
+            opts.cloned = opts.mode == MultiplayerGameType.SHARED
             if opts.cloned:
                 opts.teams = {1: list(range(1, json.get("players", 1) + 1))}
                 opts.dedup = bool(json.get("dedupShared", False))
@@ -358,7 +358,7 @@ class SeedGenParams(ndb.Model):
 
     def get_seed(self, player=1, game_id=None, verbose_paths=False, include_sync = True):
         flags = self.flag_line(verbose_paths)
-        if self.players > 1 and self.sync.mode == MultiplayerGameType.SHARED:
+        if self.players > 1 and self.sync.mode in [MultiplayerGameType.SHARED, MultiplayerGameType.MULTIWORLD]:
             flags += "/%s" % player
         if self.tracking and include_sync:
             if not game_id:

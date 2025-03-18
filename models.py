@@ -293,7 +293,19 @@ class Player(ndb.Model):
     can_nag     = ndb.BooleanProperty(default=True)
     seen_bflds  = ndb.IntegerProperty(repeated=True)
     have_bflds  = ndb.IntegerProperty(repeated=True)
+    slot_bflds  = ndb.IntegerProperty(repeated=True)
     bingo_prog  = ndb.LocalStructuredProperty(BingoCardProgress, repeated=True)
+
+    def slot_found(self, slot):
+        if slot > 255 or slot < 0:
+            log.error("Invalid slot %s"%slot)
+        if self.slot_check(slot):
+            return False # Don't need to write, already have it 
+        self.slot_bflds[slot//32] |= 1 << slot%32
+        return True
+        
+    def slot_check(self, slot):
+        return (self.slot_bflds[slot//32]>>slot%32)%2
 
     def bitfield_updates(self, post_data, game_id):
         if not self.seen_bflds:
@@ -301,13 +313,11 @@ class Player(ndb.Model):
         if not self.have_bflds:
             self.have_bflds=8*[0]
         put = False
-        seen_diff = 8 * [0]
         for i in range(8):
             seen = int(post_data.get("seen_%s" % i, 0))
             have = int(post_data.get("have_%s" % i))
             if self.seen_bflds[i] != seen:
                 put = True
-                seen_diff[i] = seen - self.seen_bflds[i]
                 self.seen_bflds[i] = seen
             if self.have_bflds[i] != have:
                 put = True
@@ -335,6 +345,7 @@ class Player(ndb.Model):
         self.history = []
         self.seen_bflds = 8 * [0]
         self.have_bflds = 8 * [0]
+        self.slot_bflds = 8 * [0]
         self.bingo_prog = [BingoCardProgress(square=i) for i in range(25)]
         self.put()
 
@@ -1064,6 +1075,11 @@ class Seed(ndb.Model):
     def to_lines(self, player=1, extraFlags=[]):
         return ["%s|%s" % (",".join(extraFlags + self.flags), self.name)] + ["|".join((str(p.location), s.code, s.id, p.zone)) for p in self.placements for s in p.stuff if int(s.player) == player]
 
+class MultiworldPlayerSlotData(ndb.Model):
+    player = ndb.KeyProperty(Player)
+    slots_bitfield = ndb.IntegerProperty(repeated=True)
+    # this is stupid! I don't care
+
 
 class Game(ndb.Model):
     # id = Sync ID
@@ -1428,7 +1444,7 @@ class Game(ndb.Model):
                 pickup = relics_by_zone[zone]
                 share = ShareType.MISC in self.shared
 
-        if coords == -1:
+        if coords == -1000:
             share = ShareType.MISC in self.shared
             override = True
 
@@ -1488,7 +1504,6 @@ class Game(ndb.Model):
                         log.debug("%s at %s already taken, player %s will not get one." % (pickup.name, coords, pid))
                         return 410
         elif self.mode in [MultiplayerGameType.SIMUSOLO, MultiplayerGameType.BINGO]:
-
             pass
         else:
             log.error("game mode %s not supported" % self.mode)

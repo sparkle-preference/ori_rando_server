@@ -375,6 +375,7 @@ def bfields_to_coords(bfields):
     flat_bits = [b for bfield in bfields for b in int_to_bits(bfield, 32)[::-1]]
     return [ c for b,c in zip(flat_bits, coords_in_order) if b ]
 
+def bfields_to_blist(bfields)
 
 def accumulate(iterable, func=operator.add):
     'Return running totals'

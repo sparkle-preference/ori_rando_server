@@ -216,7 +216,7 @@ def ordhash(s):
     return reduce(mul, [ord(c) for c in s])
 
 class Area:
-    def __init__(self, name, p=1):
+    def __init__(self, name, p):
         self.name = name+"|%s"%p
         self.connections = []
         self.locations = []
@@ -249,7 +249,7 @@ class Area:
 
 class Connection:
 
-    def __init__(self, home, target, sg, p=1):
+    def __init__(self, home, target, sg, p):
         self.home = home+"|%s"%p
         self.target = target+"|%s"%p
         self.keys = 0
@@ -430,7 +430,7 @@ class SeedGenerator:
         self.balanceListLeftovers = []
         self.seedDifficulty = 0
 
-        self.outputStr = ""
+        self.seeds_text = defaultdict(lambda: "")
 
         self.areas = OrderedDict()
 
@@ -453,7 +453,7 @@ class SeedGenerator:
         self.expRemaining = self.params.exp_pool
         self.forcedAssignments = self.preplaced.copy()
         self.forceAssignedLocs = set()
-
+        self.mw_slots = {p: [] for p in self.multi_ps()}
         self.costs = OrderedDict({"%s|%s"%(k,p): v for k,v in [
             ("Free",  0), ("MS",  0), ("KS",  2), ("AC",  12), ("EC",  6), ("HC",  12), ("WallJump",  13),
             ("ChargeFlame",  13), ("DoubleJump",  13), ("Bash",  28), ("Stomp",  13),
@@ -481,7 +481,7 @@ class SeedGenerator:
         ] for p in self.multi_ps()})
 
         self.mapstonesSeen = 1
-        self.eventList = []
+        self.event_lists = defaultdict(list)
 
         self.itemPool = OrderedDict({"%s|%s"%(k,p): v for k,v in [
             ("EX1", 1), ("KS", 40), ("MS", 11), ("WallJump", 1), ("ChargeFlame", 1),
@@ -616,7 +616,6 @@ class SeedGenerator:
             if start_skills > 1:
                 possible_skills.append("Wind")
                 possible_skills.append("Warmth")
-            # Weigh skills. FIXME: it would be good to have weights
             weights = []
             for skill in possible_skills:
                 if skill == "Warmth":
@@ -1006,9 +1005,12 @@ class SeedGenerator:
 
     def get_location_from_balance_list(self):
         target = int(pow(self.random.random(), 1.0 / self.balanceLevel) * len(self.balanceList))
-        location = self.balanceList.pop(target)
-        self.balanceListLeftovers.append(location[0])
-        return location[1]
+        item, location, ass = self.balanceList.pop(target)
+        if self.is_multi and ass.startswith("MW"):
+            [player,slot, *_] = ass[:3].split(",")
+            self.mw_slots[int(player)][int(slot)] = (None, None, None)
+        self.balanceListLeftovers.append(item)
+        return location
 
     def assign_random(self, locs, recurseCount=0):
         value = self.random.random()
@@ -1024,13 +1026,13 @@ class SeedGenerator:
                     if key in self.skillsOutput and recurseCount < 3:
                         return self.assign_random(locs, recurseCount=recurseCount + 1)
                 if self.var(Variation.FUCK_WALLS):
-                    if any(key.startswith(wi) for wi in ["WallJump", "Climb"]) and recurseCount < 3 and 252 - locs < 40:
+                    if any(key.startswith(wi) for wi in ["WallJump", "Climb"]) and recurseCount < 3 and self.slot_count() - locs < 40:
                         return self.assign_random(locs, recurseCount=recurseCount + 1)
                 if self.var(Variation.FUCK_GRENADE):
-                    if key.startswith("Grenade") and recurseCount < 3 and 252 - locs < 60:
+                    if key.startswith("Grenade") and recurseCount < 3 and self.slot_count() - locs < 60:
                         return self.assign_random(locs, recurseCount=recurseCount + 1)
                 if self.var(Variation.TPSTARVED):
-                    if key.startswith("TP") and recurseCount < 3 and 252 - locs < self.costs.get(key, 0):
+                    if key.startswith("TP") and recurseCount < 3 and self.slot_count() - locs < self.costs.get(key, 0):
                         return self.assign_random(locs, recurseCount=recurseCount + 1)
                 return self.assign(key)
 
@@ -1082,14 +1084,14 @@ class SeedGenerator:
         fixed_item = self.adjust_item(item, zone)
         if (has_cost or self.params.verbose_spoiler) and not hist_written:
             self.append_spoiler(fixed_item, "Player %s's Mapstone %s" % (location.player, self.mapstonesAssigned[location.player]) if at_mapstone else location.to_string())
-        assignment = self.get_assignment(loc, fixed_item, zone)
+        assignment = self.get_assignment(loc, location.player, fixed_item, zone)
 
-        if item in self.eventsOutput:
-            self.eventList.append(assignment)
+        if any(item.startswith(evo) for evo in self.eventsOutput):
+            self.event_lists[location.player].append(assignment)
         elif self.params.balanced and not has_cost and location.orig != "MapStone" and loc not in self.forceAssignedLocs:
             self.balanceList.append((fixed_item, location, assignment))
         else:
-            self.outputStr += assignment
+            self.seeds_text[location.player] += assignment
 
         if self.params.do_loc_analysis:
             key = location.to_string()
@@ -1099,10 +1101,12 @@ class SeedGenerator:
                 self.params.locationAnalysisCopy[key][item] += 1
                 self.params.locationAnalysisCopy[location.zone][item] += 1
 
+    def fixed_item_name(self, fixed_item):
+        return "Warp to " + self.warps[fixed_item][0] if fixed_item in self.warps else Pickup.name(fixed_item[:2], fixed_item[2:] or "1")
+
     def append_spoiler(self, fixed_item, location_name):
         fixed_item, _, player = fixed_item.partition("|")
-        pname = "Player %s's " % player
-        pname += "Warp to " + self.warps[fixed_item][0] if fixed_item in self.warps else Pickup.name(fixed_item[:2], fixed_item[2:] or "1")
+        pname = "Player %s's %s" % (player, self.fixed_item_name(fixed_item))
         self.padding = max(self.padding, len(pname))
         self.spoilerGroup[fixed_item].append(pname + "!PDPLC!-from " + location_name + "\n")
 
@@ -1121,11 +1125,10 @@ class SeedGenerator:
             self.expRemaining -= value
             self.expSlots -= 1
             item = "EX%s" % value
-        return item+"|%s"%player
+        return item+("|%s"%player if player else "") # bad bad wrong evil
 
-    def get_assignment(self, loc, item, zone):
-        # TODO(multi): assignment and routing
-        item,_,player = item.partition("|")
+    def get_assignment(self, loc, player, item, zone):
+        item,_,owner = item.partition("|")
         pickup = ""
         if item.startswith("Warp"):
             name, x, y, area, logic_location, logic_cost = self.warps[item]
@@ -1134,6 +1137,10 @@ class SeedGenerator:
             pickup = "%s|%s" % (item[:2], item[2:])
         else:
             pickup = "%s|1" % item[:2]
+        owner = int(owner)
+        if player != owner:
+            slot = self.place_in_slot(owner, pickup, player, zone)
+            pickup = "MW|%s,%s,%s" % (owner, slot, self.fixed_item_name(item))
         return "%s|%s|%s\n" % (loc, pickup, zone)
 
     def get_random_exp_value(self):
@@ -1405,23 +1412,24 @@ class SeedGenerator:
         if self.var(Variation.WORLD_TOUR):
             self.relicZones = self.random.sample(["Glades", "Grove", "Grotto", "Blackroot", "Swamp", "Ginso", "Valley", "Misty", "Forlorn", "Sorrow", "Horu"], self.params.relic_count)
 
-        self.is_cloned = False # self.params.sync.enabled and self.params.sync.mode == MultiplayerGameType.SHARED
-        self.is_multi = True # self.params.sync.enabled and self.params.sync.mode == MultiplayerGameType.MULTIWORLD # TODO(multi): use actual game type
+        self.is_cloned = self.params.sync.enabled and self.params.sync.mode == MultiplayerGameType.SHARED
+        self.is_multi = self.params.sync.enabled and self.params.sync.mode == MultiplayerGameType.MULTIWORLD
 
         self.player_count = 1
-        if self.params.sync.cloned and self.params.sync.teams:
+        if self.is_cloned and self.params.sync.teams:
             self.player_count = len(self.params.sync.teams)
 
         elif self.is_cloned or self.is_multi:
             self.player_count = self.params.players
+        self.seed_count = (self.player_count if self.is_multi else 1)
         return self.placeItemsMulti(retries)
 
     def placeItemsMulti(self, retries):
         placements = []
         self.playerID = 1
 
-        placement = self.placeItems(0, retries < 7)
-        if not placement:
+        spoiler = self.placeItems(0, retries < 7)
+        if not spoiler:
             if retries > 0:
                 if self.params.start != "Glades" and retries < 4:
                     log.info("Failed to generate with %s spawn and %s starting skills, adding another" % (self.params.start, self.params.starting_skills))
@@ -1436,7 +1444,7 @@ class SeedGenerator:
                             Inventory: %s,
                             Forced Assignments: %s,
                             Nonzero Costs:%s,
-                            Partial Seed: %s""",
+                            Partial Seeds: %s""",
                             self.locations(),
                             {k: v for k, v in self.itemPool.items() if v > 0},
                             [x for x in self.areasReached],
@@ -1444,22 +1452,27 @@ class SeedGenerator:
                             {k: v for k, v in self.inventory.items() if v != 0},
                             self.forcedAssignments,
                             {k: v for k, v in self.costs.items() if v != 0},
-                            self.outputStr)
+                            "\n".join(["player %s:\n%s" % p for p in self.seeds_text.items()]))
                 return None
             return self.placeItemsMulti(retries)
-        placements.append(placement)
-        if self.params.sync.cloned or self.is_multi: #TODO(multi): fix this lol
-            print("got here: %s, %s" %(self.playerID, self.player_count))
-            lines = placement[0].split("\n")
-            spoiler = placement[1]
+        
+        if self.is_cloned:
             while self.playerID < self.player_count:
                 self.playerID += 1
-                placements.append(("\n".join(lines[:]), spoiler))
+                placements.append((self.seeds_text[0], spoiler))
+        else:
+            for p in self.multi_ps():
+                placements.append((self.seeds_text[p], spoiler))
+
         if self.params.spawn != self.start:
             self.params.spawn = self.start
             self.params.put()
         return placements
 
+
+    def slot_count(self):
+            return 255 * self.seed_count
+    
     def locations(self):
         """Number of remaining locations that can have items in them"""
         remaining_fass = len(self.forcedAssignments) - len(self.forceAssignedLocs)
@@ -1487,12 +1500,18 @@ class SeedGenerator:
                 self.forcedAssignments[loc] = pickup
 
     def multi_ps(self):
-        return (range(1, self.player_count + 1) if self.is_multi else [1])
+        return range(1, self.seed_count + 1)
+
     def random_player(self):
         return self.random.choice(list(self.multi_ps()))
 
+    def place_in_slot(self, player, item, source, zone):
+        self.mw_slots[player].append((item, source, zone))
+        return len(self.mw_slots[player])-1
+
     def placeItems(self, depth=0, worried=False):
         self.reset(worried)
+        relicSpoiler = ""
         keystoneCount = defaultdict(lambda: 0)
         mapstoneCount = defaultdict(lambda: 0)
 
@@ -1506,12 +1525,15 @@ class SeedGenerator:
                     self.params.locationAnalysisCopy[location][item] = self.params.locationAnalysis[location][item]
 
         # flags line
-        self.outputStr += (self.params.flag_line(self.verbose_paths) + "\n")
+        for p in self.multi_ps():
+            self.seeds_text[p] += (self.params.flag_line(self.verbose_paths) + "\n")
 
         self.spoilerGroup = defaultdict(list)
 
-        if self.var(Variation.ENTRANCE_SHUFFLE):
-            self.outputStr += self.randomize_entrances()
+
+        for p in self.multi_ps():
+            if self.var(Variation.ENTRANCE_SHUFFLE):
+                self.seeds_text[p] += self.randomize_entrances()  # TODO(multi): figure out entrances
 
         if self.var(Variation.WORLD_TOUR):
             locations_by_zone = OrderedDict({zone: [] for zone in self.relicZones})
@@ -1548,26 +1570,29 @@ class SeedGenerator:
                 del self.forcedAssignments[loc]  # don't count these ones
             if item not in ["EX100", "EC1", "RB81"] and item not in self.itemPool:
                 log.warning("Preplaced item %s was not in pool. Translation may be necessary." % item)
-            ass = self.get_assignment(loc, self.adjust_item(item, zone), zone)
-            self.outputStr += ass
+            for p in self.multi_ps():
+                ass = self.get_assignment(loc, p, self.adjust_item(item, zone)+"|%s"%p, zone)
+                self.seeds_text[p] += ass
 
         if 2 in self.forcedAssignments:
-            item = self.forcedAssignments[2]
-            self.assign(item)
-            if item[0:2] in ["MU", "RP"] and item not in self.itemPool:                
-                for multi_item in self.get_multi_items(item):
-                    # below should not be needed as get_multi_items() already does it, and repeating
-                    # it breaks shards names.
-                    #name = self.codeToName.get(multi_item, multi_item)
-                    #self.spoilerGroup[name].append(name + " preplaced at Spawn\n")
-                    if not multi_item.startswith("WS"): # avoid dumb padding thing
-                        self.append_spoiler(self.adjust_item(multi_item, "Glades"), "Spawn")
-            else:
-                name = self.codeToName.get(item, item)
-                self.append_spoiler(self.adjust_item(name, "Glades"), "Spawn")
-            del self.forcedAssignments[2]
-            ass = self.get_assignment(2, self.adjust_item(item, "Glades"), "Glades")
-            self.outputStr += ass 
+            raw_item = self.forcedAssignments[2]
+            for p in self.multi_ps():
+                item = raw_item+"|%s"%p
+                self.assign(item)
+                if item[0:2] in ["MU", "RP"] and item not in self.itemPool:                
+                    for multi_item in self.get_multi_items(item):
+                        # below should not be needed as get_multi_items() already does it, and repeating
+                        # it breaks shards names.
+                        #name = self.codeToName.get(multi_item, multi_item)
+                        #self.spoilerGroup[name].append(name + " preplaced at Spawn\n")
+                        if not multi_item.startswith("WS"): # avoid dumb padding thing
+                            self.append_spoiler(self.adjust_item(multi_item, "Glades"), "Spawn")
+                else:
+                    name = self.codeToName.get(item, item)
+                    self.append_spoiler(self.adjust_item(name, "Glades"), "Spawn")
+                del self.forcedAssignments[2]
+                ass = self.get_assignment(2, p, self.adjust_item(item, "Glades"), "Glades")
+                self.seeds_text[p] += ass
 
         if len(self.spoilerGroup):
             self.spoiler.append((["Spawn"], [], self.spoilerGroup))
@@ -1588,7 +1613,7 @@ class SeedGenerator:
 
         self.skillCount = 10
         if self.is_multi:
-            self.skillCount *= self.player_count
+            self.skillCount *= self.seed_count
         self.mapstonesAssigned = defaultdict(lambda: 0)
 
         self.doorQueue = defaultdict(OrderedDict)
@@ -1695,10 +1720,10 @@ class SeedGenerator:
                     elif self.inventory["MS|%s"%p] < mapstoneCount[p]:
                         itemsToAssign.append(self.assign("MS|%s"%p))
                         break
-                    elif self.inventory["HC|%s"%p] * self.params.cell_freq < (252*self.player_count - locs) and self.itemPool["HC|%s"%p] > 0:
+                    elif self.inventory["HC|%s"%p] * self.params.cell_freq < (self.slot_count() - locs) and self.itemPool["HC|%s"%p] > 0:
                         itemsToAssign.append(self.assign("HC|%s"%p))
                         break
-                    elif self.inventory["EC|%s"%p] * self.params.cell_freq < (252*self.player_count - locs) and self.itemPool["EC|%s"%p] > 0:
+                    elif self.inventory["EC|%s"%p] * self.params.cell_freq < (self.slot_count() - locs) and self.itemPool["EC|%s"%p] > 0:
                         itemsToAssign.append(self.assign("EC|%s"%p))
                         break
                     elif self.itemPool.get("RB28|%s"%p, 0) > 0 and self.itemPool["RB28|%s"%p] >= locs:
@@ -1755,8 +1780,8 @@ class SeedGenerator:
             spoilerPath = []
 
         if self.params.balanced:
-            for item in self.balanceList:
-                self.outputStr += item[2]
+            for (_, loc, item) in self.balanceList:
+                self.seeds_text[loc.player] += item
 
         # place the last item on the final escape
         balanced = self.params.balanced
@@ -1773,12 +1798,17 @@ class SeedGenerator:
                     self.assign_to_location(item, Location(-240, 512, 'FinalEscape', 'EVWarmth', 0, 'Horu', p))
                 else:
                     log.warning("%s: No item found for warmth returned! Placing EXP", self.params.flag_line())
-                    self.assign_to_location("EX*", Location(-240, 512, 'FinalEscape', 'EVWarmth', 0, 'Horu', p))
+                    self.assign_to_location("EX*|%s"%p, Location(-240, 512, 'FinalEscape', 'EVWarmth', 0, 'Horu', p))
         self.params.balanced = balanced
 
-        self.random.shuffle(self.eventList)
-        for event in self.eventList:
-            self.outputStr += event
+        for p in self.multi_ps():
+            self.random.shuffle(self.event_lists[p])
+            for event in self.event_lists[p]:
+                self.seeds_text[p] += event
+            for (i, (item, source, zone)) in enumerate(self.mw_slots[p]):
+                if item:
+                    self.seeds_text[p] += "-%s|%s|%s:%s\n" % (slot,item,source,zone)
+
 
         if len(self.balanceListLeftovers) > 0:
             log.warning("%s: Balance list was not empty! %s", self.params.flag_line(), self.balanceListLeftovers)
@@ -1786,8 +1816,7 @@ class SeedGenerator:
         if len(self.spoilerGroup):
             self.spoiler.append((self.currentAreas, spoilerPath, self.spoilerGroup))
 
-        spoilerStr = self.form_spoiler()
-        spoilerStr = self.params.flag_line(self.verbose_paths) + "\n" + "Difficulty Rating: " + str(self.seedDifficulty) + "\n" + spoilerStr
+        spoilerStr = self.params.flag_line(self.verbose_paths) + "\n" + "Difficulty Rating: " + str(self.seedDifficulty/self.seed_count) + "\n" + self.form_spoiler()
 
         if self.var(Variation.WORLD_TOUR):
             spoilerStr += "Relics: {\n"
@@ -1798,7 +1827,7 @@ class SeedGenerator:
         if self.params.do_loc_analysis:
             self.params.locationAnalysis = self.params.locationAnalysisCopy
 
-        return (self.outputStr, spoilerStr)
+        return spoilerStr
 
     def get_multi_items(self, multi_item):
         multi_parts = multi_item[2:].split("/")
