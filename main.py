@@ -147,8 +147,9 @@ def my_games():
     if not user:
         return redirect(User.login_url('/myGames'))
     title = "Games played by %s" % user.name
-    games = [key.get() for key in user.games]
-    body = game_list_html(games)
+    title, game_futures = ("Games played by %s" % user.name, [key.get_async() for key in user.games]) if param_flag("all") else (
+                           "Last 10 games played by %s" % user.name,[key.get_async() for key in user.games[:10]])
+    body = game_list_html([gf.get_result() for gf in game_futures])
     if body:
         out = "<h4>%s:</h4><ul>%s</ul></body</html>" % (title, body)
     else:
