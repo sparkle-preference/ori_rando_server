@@ -296,14 +296,28 @@ class Player(ndb.Model):
     slot_bflds  = ndb.IntegerProperty(repeated=True)
     bingo_prog  = ndb.LocalStructuredProperty(BingoCardProgress, repeated=True)
 
+    @ndb.transactional(retries=10)
     def slot_found(self, slot):
         if slot > 255 or slot < 0:
             log.error("Invalid slot %s"%slot)
-        if self.slot_check(slot):
-            return False # Don't need to write, already have it 
+        if not self.slot_bflds:
+            self.slot_bflds = [0]*8
+        elif self.slot_check(slot):
+            return False # Didn't need to write, already had it 
         self.slot_bflds[slot//32] |= 1 << slot%32
+        Cache.set_slots(self.idpts(), self.slots_bflds)
+        self.put()
         return True
-        
+
+    @ndb.transactional(retries=25)
+    def batch_slots(self, slots):
+        slot_bflds = [0]*8
+        for slot in slots:
+            slot_bflds[slot//32] |= 1 << slot%32
+        if slot_bflds != self.slot_bflds:
+            Cache.set_slots(self.idpts(), self.slots_bflds)
+            self.put()
+
     def slot_check(self, slot):
         return (self.slot_bflds[slot//32]>>slot%32)%2
 
@@ -383,7 +397,7 @@ class Player(ndb.Model):
         return _pid(self.key)
 
     # post-refactor version of bitfields
-    def output(self):
+    def output(self, is_multi = False):
         outlines = [str(x) for x in [self.skills, self.events, self.teleporters]]
         bonuses = []
         for (_id, cnt) in self.bonuses.items():

@@ -115,12 +115,12 @@ class Cache(object):
         return memcache.set(key="%s.board" % gid, value=board, time=60)
 
     @staticmethod
-    def get_slots(gid, pid):
-        return memcache.get(key="%s.%s.items" % (gid, pid)) or ({}, {})
+    def get_slots(gpid):
+        return memcache.get(key="%s.%s.slots" % (gpid[0], gpid[1]))
 
     @staticmethod
-    def set_slots(gid, pid, items):
-        memcache.set(key="%s.%s.items" % (gid, pid), value=items, time=3600)
+    def set_slots(gpid, slots):
+        memcache.set(key="%s.%s.slots" % (gpid[0], gpid[1]), value=slots, time=3600)
 
     @staticmethod
     def get_areas():
