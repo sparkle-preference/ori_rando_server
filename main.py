@@ -231,7 +231,6 @@ def netcode_tick_post(game_id, player_id):
         cached_output = Cache.get_output((game_id, player_id))
         if cached_output:
             return text_resp(cached_output)
-    log.info("not using cache for %s.%s" % (game_id, player_id)) #TODO: remove once this looks like it's fine
     game = Game.with_id(game_id)
     if not game:
         return code_resp(412)
