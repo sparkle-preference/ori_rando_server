@@ -12,7 +12,7 @@ from typing import List, Dict, Optional
 
 from seedbuilder.seedparams import Placement, Stuff, SeedGenParams
 from enums import MultiplayerGameType, ShareType, Variation
-from util import picks_by_coord, get_bit, get_taste, enums_from_strlist, ord_suffix, debug, bfields_to_coords
+from util import picks_by_coord, get_bit, get_taste, enums_from_strlist, ord_suffix, debug, bfields_to_coords, bfield_checksum
 from pickups import Pickup, Skill, Teleporter, Event
 from cache import Cache
 
@@ -341,6 +341,7 @@ class Player(ndb.Model):
             have[self.pid()] = self.have_coords()
             Cache.set_have(game_id, have)
             self.put()
+        Cache.set_seen_checksum(self.idpts(), bfield_checksum(post_data.get("seen_%s" % i, 0) for i in range(8)))
     
     def seen_coords(self):
         return bfields_to_coords(self.seen_bflds) + [2]
@@ -396,6 +397,14 @@ class Player(ndb.Model):
     def pid(self):
         return _pid(self.key)
 
+    def idpts(self):
+        try:
+            gid,_,pid = self.key.id().partition(".")
+            return int(gid),int(pid)
+        except Exception as e:
+            log.error("invalid pkey %s: %s, returning 0,0", pkey, e)
+            return 0,0
+
     # post-refactor version of bitfields
     def output(self, is_multi = False):
         outlines = [str(x) for x in [self.skills, self.events, self.teleporters]]
@@ -410,7 +419,9 @@ class Player(ndb.Model):
         outlines.append(";".join(["%s:%s" % (loc, finder) for (loc, finder) in self.hints.items()]))
         if self.signals:
             outlines.append("|".join(self.signals))
-        return ",".join(outlines)
+        out = ",".join(outlines)
+        Cache.set_output(self.idpts(), out)
+        return out
 
     def signal_send(self, signal):
         if signal not in self.signals:

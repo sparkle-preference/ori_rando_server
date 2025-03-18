@@ -23,7 +23,7 @@ from enums import MultiplayerGameType, ShareType, Variation
 from models import Game, Seed, User, BingoGameData, BingoEvent, BingoTeam, CustomLogic, trees_by_coords
 from bingo import BingoGenerator
 from cache import Cache
-from util import coord_correction_map, clone_entity, all_locs, picks_by_type_generator, param_val, param_flag, debug, template_root, VER, game_list_html, version_check, template_vals, layout_json, whitelist_ok
+from util import coord_correction_map, clone_entity, all_locs, picks_by_type_generator, param_val, param_flag, debug, template_root, VER, game_list_html, version_check, template_vals, layout_json, whitelist_ok, bfield_checksum
 from reachable import Map, PlayerState
 from pickups import Pickup, Skill, AbilityCell, HealthCell, EnergyCell, Multiple
 
@@ -213,6 +213,11 @@ def netcode_tick_get(game_id, player_id, xycoords):
         fake = {"have_%s" % i: (param_val("s%s"%i) or 0) for i in range(8)}
         for i in range(8):
             fake["seen_%s" % i] = fake["have_%s" % i]
+        if Cache.get_seen_checksum((game_id, player_id)) == bfield_checksum(fake.get("seen_%s" % i, 0) for i in range(8)):
+            cached_output = Cache.get_output((game_id, player_id))
+            if cached_output:
+                log.info("got output from cache")
+                return text_resp(cached_output)
         p.bitfield_updates(fake, game_id)
         game.sanity_check()
     Cache.set_pos(game_id, player_id, x, y)
@@ -221,6 +226,12 @@ def netcode_tick_get(game_id, player_id, xycoords):
 @app.route('/netcode/game/<int:game_id>/player/<int:player_id>/tick/', methods = ['POST'])
 @app.route('/netcode/game/<int:game_id>/player/<int:player_id>/tick', methods = ['POST'])
 def netcode_tick_post(game_id, player_id):
+    if Cache.get_seen_checksum((game_id, player_id)) == bfield_checksum(request.form.get("seen_%s" % i, 0) for i in range(8)):
+        # checksum and output caching should happen in sync, but it doesn't hurt to check
+        cached_output = Cache.get_output((game_id, player_id))
+        if cached_output:
+            return text_resp(cached_output)
+    log.info("not using cache for %s.%s" % (game_id, player_id)) #TODO: remove once this looks like it's fine
     game = Game.with_id(game_id)
     if not game:
         return code_resp(412)
