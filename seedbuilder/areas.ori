@@ -1968,6 +1968,7 @@ home: MoonGrottoAboveTeleporter 443 -150
 		standard DoubleJump Glide Health=4
 		standard Climb AirDash Health=4
 		standard WallJump AirDash Health=4
+		standard ChargeJump Health=4
 		expert Grenade Bash
 		expert Climb ChargeJump
 		expert DoubleJump Dash
@@ -2086,8 +2087,11 @@ home: MoonGrotto 517 -177
 		casual Glide
 		casual Climb ChargeJump
 		casual Bash Grenade
+		standard WallJump
+		standard Climb
+		standard ChargeJump
 		standard Dash
-		expert WallJump
+		expert Free
 		master Lure Bash
 home: Iceless 359 -108
 	-- anchor: at the iceless xp
