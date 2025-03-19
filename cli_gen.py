@@ -10,9 +10,9 @@ from enums import MultiplayerGameType, ShareType, Variation, LogicPath, KeyMode,
 from seedbuilder.generator import SeedGenerator
 
 FLAGLESS_VARS = [Variation.WARMTH_FRAGMENTS, Variation.WORLD_TOUR]
-first_line_pattern = re.compile("(\d+): (\[[^]]+\])")
-forced_pickup_pattern = re.compile(".*forced pickup.*\[([^]]+)\]")
-normal_line_pattern = re.compile(" *(\w+) from (\w+)")
+first_line_pattern = re.compile(r"(\d+): (\[[^]]+\])")
+forced_pickup_pattern = re.compile(r".*forced pickup.*\[([^]]+)\]")
+normal_line_pattern = re.compile(r" *(\w+) from (\w+)")
 
 def vals(enumType):
     return [v.value for v in list(enumType.__members__.values())]
