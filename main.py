@@ -291,7 +291,7 @@ def game_show_history(game_id):
     template_values = template_vals("History", "Game %s" % game_id, User.get())
     game = Game.with_id(game_id)
     if game:
-        if (Variation.RACE in game.params.get().variations) and not template_values["race_wl"]:
+        if (game.params and Variation.RACE in game.params.get().variations) and not template_values["race_wl"]:
             return text_code("Access forbidden", 401)
         output = game.summary(int(param_val("p") or 0))
         output += "\nHistory:"
