@@ -4419,7 +4419,6 @@ home: LowerSorrow -484 248
 		casual ChargeJump DoubleJump Climb
 		standard Dash DoubleJump WallJump
 		standard Dash DoubleJump Climb
-		master GrenadeJump
 		expert Climb ChargeJump Health=5
 		expert Climb DoubleJump Health=5
 		expert WallJump DoubleJump Health=5
@@ -4430,6 +4429,7 @@ home: LowerSorrow -484 248
 		master Climb ChargeJump
 		master WallJump TripleJump
 		master Climb TripleJump
+		master GrenadeJump
 	pickup: SorrowHiddenKeystone
 		casual Glide
 		casual Bash ChargeJump DoubleJump WallJump
@@ -4437,11 +4437,11 @@ home: LowerSorrow -484 248
 		standard Bash Dash DoubleJump WallJump
 		standard Bash Dash DoubleJump Climb
 		expert Bash ChargeJump WallJump
-		master GrenadeJump
 		expert Bash WallJump Health=5
 		expert Bash Climb Health=5
 		expert ChargeDash
 		expert DoubleBash
+		master GrenadeJump
 	pickup: SorrowHealthCell
 		casual Glide Bash ChargeJump
 		standard Bash ChargeJump WallJump
@@ -4472,15 +4472,21 @@ home: LowerSorrow -484 248
 	-- backtrack connection for leaving from TP
 	conn: WilhelmLedge
 		casual Glide DoubleJump
-		expert Glide Dash
-		expert Dash DoubleJump
+		casual Glide Wind
+		standard Glide AirDash
+		standard BashGrenade DoubleJump
+		standard BashGrenade Glide
+		standard BashGrenade AirDash
 		expert Glide Health=5
 		expert DoubleJump Health=5
 		expert ChargeDash Energy=2
 		expert ChargeDash Stomp
 		expert ChargeDash Bash
+		expert BashGrenade Health=5
 		expert DoubleBash
+		master AirDash DoubleJump
 		master Glide Health=4 UltraDefense
+		master DoubleJump Health=4 UltraDefense
 		master TripleJump
 	conn: SorrowMainShaftKeystoneArea
 		casual Glide
