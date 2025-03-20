@@ -329,10 +329,13 @@ def game_list_html(games):
         flags = ""
         if game.params:
             params = game.params.get()
-            if Variation.RACE in params.variations and not whitelist_ok():
-                continue
-            flags = params.flag_line()
-            slink = " <a href=%s>Seed</a>" % url_for('main_page', game_id=gid, param_id=params.key.id())
+            if params:
+                if Variation.RACE in params.variations and not whitelist_ok():
+                    continue
+                flags = params.flag_line()
+                slink = " <a href=%s>Seed</a>" % url_for('main_page', game_id=gid, param_id=params.key.id())
+            else:
+                slink = " (Seed not found)"
         blink = ""
         if game.bingo_data:
             blink += " <a href='/bingo/board?game_id=%s'>Bingo board</a>" % gid
