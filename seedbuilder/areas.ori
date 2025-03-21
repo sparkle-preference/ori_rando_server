@@ -3644,8 +3644,9 @@ home: ValleyEntry -181 -115
 		expert Lure Bash WallJump
 		expert Lure Bash Climb ChargeJump
 		expert Lure Bash Climb DoubleJump
-		expert Bash ChargeJump Health=4
+		expert Lure Bash ChargeJump Health=4
 		expert Stomp ChargeJump Health=4
+		expert Lure DoubleBash
 		casual WallJump DoubleJump OpenWorld
 		casual WallJump Bash OpenWorld
 		casual WallJump ChargeJump OpenWorld
@@ -3776,6 +3777,8 @@ home: ValleyRight -307 -24
 -- no point in connecting to ValleyTeleporter, it's a dead end
 	-- just catching a path that didn't make sense from ValleyTeleporter
 	conn: ValleyPostStompDoor
+		casual Bash Health=2
+		casual Glide
 		expert DoubleJump Health=4
 		master Health=7
 		master Health=5 UltraDefense
@@ -3787,6 +3790,8 @@ home: ValleyRight -307 -24
 		casual Bash Grenade Climb
 		casual Glide Wind
 		expert WallJump ChargeDash
+		-- bringing the frog from the teleporter
+		master Lure DoubleBash
 home: ValleyStomplessApproach -350 29
 -- anchored left of the bird stomp cell
 	pickup: ValleyRightBirdStompCell
