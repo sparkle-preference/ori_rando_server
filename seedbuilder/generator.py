@@ -432,7 +432,7 @@ class SeedGenerator:
             "TPGlades": 90, "TPBlackroot": 53
         })
         self.inventory = OrderedDict([
-            ("EX1", 0), ("EX*", 0), ("KS", 0), ("MS", 0), ("AC", 0), ("EC", 1),
+            ("EX1", 0), ("EX*", 0), ("KS", 0), ("MS", 0), ("AC", 0), ("EC", 0),
             ("HC", 3), ("WallJump", 0), ("ChargeFlame", 0), ("Dash", 0),
             ("Stomp", 0), ("DoubleJump", 0), ("Glide", 0), ("Bash", 0),
             ("Climb", 0), ("Grenade", 0), ("ChargeJump", 0), ("GinsoKey", 0),
@@ -607,9 +607,9 @@ class SeedGenerator:
             if self.params.start == "Random":
                 self.starting_health, self.starting_energy, start_skills = spawn_defaults[self.start][difficulty]
             elif self.start != "Glades":
-                    self.starting_health = max(self.params.starting_health, self.starting_health)
-                    self.starting_energy = max(self.params.starting_energy, self.starting_energy)
-                    start_skills = int(self.params.starting_skills)
+                self.starting_health = max(self.params.starting_health, self.starting_health)
+                self.starting_energy = max(self.params.starting_energy, self.starting_energy)
+                start_skills = int(self.params.starting_skills)
             if start_skills > 0:
                 if start_skills > 1:
                     possible_skills.append("Wind")
@@ -641,9 +641,8 @@ class SeedGenerator:
             if self.starting_health > self.inventory["HC"]:
                 for _ in range(self.starting_health - self.inventory["HC"]):
                     self.spawn_things.append("HC/1")
-            if self.starting_energy > self.inventory["EC"]:
-                for _ in range(self.starting_energy - self.inventory["EC"]):
-                    self.spawn_things.append("EC/1")
+            for _ in range(self.starting_energy):
+                self.spawn_things.append("EC/1")
             if (self.start == "Ginso"):
                 for _ in range(4):
                     self.spawn_things.append("KS/1")
@@ -1587,15 +1586,6 @@ class SeedGenerator:
                 log.warning("Preplaced item %s was not in pool. Translation may be necessary." % item)
             ass = self.get_assignment(loc, self.adjust_item(item, zone), zone)
             self.outputStr += ass
-
-        # grant a single energy cell on spawn so we can randomize the first energy cell
-        if 2 in self.forcedAssignments:
-            current_assignment = self.forcedAssignments[2]
-            if current_assignment[0:2] not in ["MU", "RP"]:
-                self.forcedAssignments[2] = "MU" + self.toOutput(current_assignment, True)
-            self.forcedAssignments[2] += "/EC/1"
-        else:
-            self.forcedAssignments[2] = "EC1"
 
         if 2 in self.forcedAssignments:
             item = self.forcedAssignments[2]
