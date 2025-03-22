@@ -1546,6 +1546,7 @@ class SeedGenerator:
         self.outputStr += (self.params.flag_line(self.verbose_paths) + "\n")
 
         self.spoilerGroup = defaultdict(list)
+        self.relicSpoiler = []
 
         if self.var(Variation.ENTRANCE_SHUFFLE):
             self.outputStr += self.randomize_entrances()
@@ -1574,7 +1575,7 @@ class SeedGenerator:
                     relic_loc = next_loc
                 self.relic_assign(relic_loc)
             # Capture relic spoilers before the spoiler group is overwritten
-            relicSpoiler = self.spoilerGroup["Relic"]
+            self.relicSpoiler = [(item, instance) for item in self.spoilerGroup.keys() if item[:2] == "WT" for instance in self.spoilerGroup[item]]
 
         self.place_repeatables()
         # handle the fixed pickup: the forlorn escape plant
@@ -1834,12 +1835,6 @@ class SeedGenerator:
         spoilerStr = self.form_spoiler()
         spoilerStr = self.params.flag_line(self.verbose_paths) + "\n" + "Difficulty Rating: " + str(self.seedDifficulty) + "\n" + spoilerStr
 
-        if self.var(Variation.WORLD_TOUR):
-            spoilerStr += "Relics: {\n"
-            for instance in relicSpoiler:
-                spoilerStr += "    " + instance
-            spoilerStr += "}\n"
-
         if self.params.do_loc_analysis:
             self.params.locationAnalysis = self.params.locationAnalysisCopy
 
@@ -1916,6 +1911,22 @@ class SeedGenerator:
             spoilerStr += str(groupDepth) + ": " + str(self.currentAreas) + " {\n"
 
             spoilerStr += currentGroupSpoiler
+
+            spoilerStr += "}\n"
+
+        if self.relicSpoiler:
+            spoilerStr += "Relics: {\n"
+
+            relics = []
+            relic_padding = 0
+            for item, instance in self.relicSpoiler:
+                _, _, loc = instance.partition("!PDPLC!-")
+                relic_name = item.partition("\\n")[0][3:-1]
+                relics.append((relic_name, loc))
+                relic_padding = max(relic_padding, len(relic_name))
+
+            for relic, loc in relics:
+                spoilerStr += "    " + relic + (2 + relic_padding - len(relic))*" " + loc
 
             spoilerStr += "}\n"
 
