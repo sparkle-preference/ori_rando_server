@@ -432,7 +432,7 @@ class SeedGenerator:
             "TPGlades": 90, "TPBlackroot": 53
         })
         self.inventory = OrderedDict([
-            ("EX1", 0), ("EX*", 0), ("KS", 0), ("MS", 0), ("AC", 0), ("EC", 0),
+            ("EX1", 0), ("EX*", 0), ("KS", 0), ("MS", 0), ("AC", 0), ("EC", 1),
             ("HC", 3), ("WallJump", 0), ("ChargeFlame", 0), ("Dash", 0),
             ("Stomp", 0), ("DoubleJump", 0), ("Glide", 0), ("Bash", 0),
             ("Climb", 0), ("Grenade", 0), ("ChargeJump", 0), ("GinsoKey", 0),
@@ -638,16 +638,12 @@ class SeedGenerator:
             
             self.spawn_things = []
             #print(self.starting_skills, self.starting_health, self.starting_energy)
-            if self.starting_health > 3:
-                for _ in range(self.starting_health - 3):
+            if self.starting_health > self.inventory["HC"]:
+                for _ in range(self.starting_health - self.inventory["HC"]):
                     self.spawn_things.append("HC/1")
-            energy_cells = self.starting_energy
-            if self.start == "Glades":
-                # FIXME this will change if we randomise the first EC.
-                energy_cells -= 1
-                self.inventory["EC"] = 1
-            for _ in range(energy_cells):
-                self.spawn_things.append("EC/1")
+            if self.starting_energy > self.inventory["EC"]:
+                for _ in range(self.starting_energy - self.inventory["EC"]):
+                    self.spawn_things.append("EC/1")
             if (self.start == "Ginso"):
                 for _ in range(4):
                     self.spawn_things.append("KS/1")
