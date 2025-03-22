@@ -579,31 +579,31 @@ const getHelpHelper = (category, option) => {
                 case "Teleporters":
                     title = "Share Teleporters"
                     lines = [
-                        "With Share Teleporters enabled, teleporter unlock pickups for one player will also unlock those teleporters for all other players.",
-                        "Shared teleporters will be taken into account by the logic, so it is important to keep in mind what teleporters your allies have found.",
-                        "Note: this does not share teleporters activated manually by players, just the pickups that unlock them automatically."
+                        "With Share Teleporters enabled, when any player activates a teleporter (either via pickup or by walking over it), the game will unlock those teleporters for all other players.",
+                        "Note: shared teleporters will be taken into account by the logic, so it is important to keep in mind what teleporters your allies have found.",
+                        "Note: teleporters without associated pickups (Horu Fields, Lost Grove) cannot be shared by manual activation. (This is fine! They are kind of useless teleporters to share.)"
                     ]
                     break;
                 case "Skills":
                     title = "Share Skills"
                     lines = [
                         "With Share Skills enabled, skills will be shared between players when found.",
-                        "Skill sharing is great for Cloned Seeds, but can be frustrating in Seperate Seeds, particularly with more players, as it can lead to situations where 1 player needs to find a skill before the others can do anything."
+                        "Skill sharing tends to make seeds go much faster, and makes it easier for players to split up and explore separate parts of the map."
                     ]
                     break;
                 case "Misc":
                     title = "Share Miscellaneous Items"
                     lines = [
-                        "With Share Misc enabled, tree activation, teleporter activation, and World Tour Relics are shared between players.",
-                        "Sharing teleporters and tree progression will generally reduce the amount of time an average co-op seed will take to complete."
+                        "With Share Misc enabled, tree activation and World Tour Relics are shared between players.",
+                        "Sharing tree / relic progression tends to generally reduce the amount of time an average co-op seed will take to complete."
                     ]
                     break;
                 case "World Events":
                     title = "Share World Events"
                     lines = [
-                        "With Share World Events enabled, the 3 Dungeon Keys (or Shards), Clean Water, Wind Restored, and Warmth Fragments will be shared between players when found.",
+                        "With Share World Events enabled, the 3 Dungeon Keys (or shards thereof), Clean Water, Wind Restored, and Warmth Fragments will be shared between players when found.",
                         "Sharing World Events is recommended for every co-op game varient, though it is less interesting in certain Dungeon Key modes (*cough*limitkeys*cough*).",
-                        "Note: Shards and Warmth Fragments are always deduped as though Dedup Shared were enabled"
+                        "Note: Shards and Warmth Fragments are always deduped as though Dedup Shared were enabled."
                     ]
                     break;
                 case "Upgrades":
@@ -617,8 +617,9 @@ const getHelpHelper = (category, option) => {
                     title = "Dedup Shared"
                     lines= [
                         "With Dedup Shared enabled, stackable bonus pickups (Extra Double Jump, Regens, Skill Velocity, etc) will only grant one stack per item location.",
-                        "(Without Dedup Shared, players can gain up to 1 stack per player of any of these items, as long as each player collects their copy).",
-                        "Dedup Shared has no effect on seeds without Share Upgrades enabled. Shards and Warmth Fragments are always deduped.",
+                        "(By default, players can gain up to 1 stack per player of any of these items, as long as each player collects their copy).",
+                        "Dedup Shared has no effect on seeds without Share Upgrades enabled, because Shards and Warmth Fragments are always deduped.",
+                        "Note: this is both a very fun and very silly option to leave disabled with the bonus lite item pool."
                     ]
                     break;
                 default:

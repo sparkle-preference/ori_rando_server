@@ -131,7 +131,6 @@ class Cache(object):
     def set_output(gpid, outstr):
         memcache.set(key="%s.%s.output" % gpid, value=outstr, time=360)
 
-
     @staticmethod
     def get_seen_checksum(gpid):
         return memcache.get(key="%s.%s.seenhash" % gpid)
@@ -139,6 +138,10 @@ class Cache(object):
     @staticmethod
     def set_seen_checksum(gpid, seen_checksum):
         memcache.set(key="%s.%s.seenhash" % gpid, value=seen_checksum, time=360)
+
+    @staticmethod
+    def clear_seen_checksum(gpid):
+        memcache.delete(key="%s.%s.seenhash" % gpid)
 
     @staticmethod
     def remove_game(gid):

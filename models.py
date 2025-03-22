@@ -12,7 +12,7 @@ from typing import List, Dict, Optional
 
 from seedbuilder.seedparams import Placement, Stuff, SeedGenParams
 from enums import MultiplayerGameType, ShareType, Variation
-from util import picks_by_coord, get_bit, get_taste, enums_from_strlist, ord_suffix, debug, bfields_to_coords, bfield_checksum
+from util import picks_by_coord, get_bit, get_taste, enums_from_strlist, ord_suffix, debug, bfields_to_coords, bfield_checksum, unpack
 from pickups import Pickup, Skill, Teleporter, Event
 from cache import Cache
 
@@ -144,11 +144,11 @@ class HistoryLine(ndb.Model):
             name = "at "
             if self.coords in pbc:
                 name += pbc[self.coords].area
-            elif self.coords == -1:
+            elif abs(self.coords) == 1:
                 name = "via manual activation"
             else:
                 log.warning("Unknown coords: %s", self.coords)
-                name += str(self.coords)
+                name += "unknown coordset %s (%s, %s)" % (self.coords, unpack(self.coords))
             return "found %s %s. (%s)" % (self.pickup().name, name, t)
         else:
             return "lost %s! (%s)" % (self.pickup().name, t)
@@ -1286,7 +1286,9 @@ class Game(ndb.Model):
         Cache.clear_items(self.key.id())
         ps = self.get_players()
         for p in ps:
-            Cache.clear_reach(self.key.id(), _pid(p.key))
+            Cache.clear_reach(*p.idpts())
+            Cache.clear_seen_checksum(p.idpts())    
+
         if self.mode != MultiplayerGameType.SHARED:
             return False
         if not Cache.san_check(self.key.id()):
@@ -1439,10 +1441,9 @@ class Game(ndb.Model):
                 pickup = relics_by_zone[zone]
                 share = ShareType.MISC in self.shared
 
-        if coords == -1:
-            share = ShareType.MISC in self.shared
-            override = True
-
+        if abs(coords) == 1 and pickup.code == "TP":
+            share = ShareType.TELEPORTER in self.shared
+            override = True # fuck no it actually should work like this. lol.
         if coords in finder_seen:
             if share:
                 if not override:
@@ -1478,18 +1479,18 @@ class Game(ndb.Model):
                     log.warning("sharetuple mismatch! %s is not %s, triggering san check" % (ftple, ptple))
                     self.sanity_check()
                     break
-            shared_misc = False
-            if ShareType.MISC in self.shared:
-                if coords in trees_by_coords:
-                    for player in players:
-                        Player.transaction_pickup(player.key, trees_by_coords[coords], remove)
-                    shared_misc = True
+            shared_tree = False
+            if ShareType.MISC in self.shared and coords in trees_by_coords:
+                for player in players:
+                    Cache.clear_seen_checksum(player.idpts())
+                    Player.transaction_pickup(player.key, trees_by_coords[coords], remove)
+                shared_tree = True
             if share:
                 for player in players:
+                    Cache.clear_seen_checksum(player.idpts())
                     Player.transaction_pickup(player.key, pickup, remove, coords=coords, finder=pid)
-            elif not shared_misc:
+            elif not shared_tree:
                 retcode = 406
-
         elif self.mode == MultiplayerGameType.SPLITSHARDS:
             if pickup.code != "RB" or pickup.id not in [17, 19, 21]:
                 retcode = 406
@@ -1499,7 +1500,6 @@ class Game(ndb.Model):
                         log.debug("%s at %s already taken, player %s will not get one." % (pickup.name, coords, pid))
                         return 410
         elif self.mode in [MultiplayerGameType.SIMUSOLO, MultiplayerGameType.BINGO]:
-
             pass
         else:
             log.error("game mode %s not supported" % self.mode)
