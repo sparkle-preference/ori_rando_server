@@ -171,7 +171,20 @@ _REQS = [
     "Mapstone",
     "Free",
     "Open",
-    "OpenWorld"
+    "OpenWorld",
+    "Keysanity",
+    "GladesPoolKeys",
+    "LowerSpiritCavernsKeys",
+    "GrottoKeys",
+    "SwampKeys",
+    "UpperSpiritCavernsKeys",
+    "LowerGinsoKeys",
+    "UpperGinsoKeys",
+    "MistyKeys",
+    "ForlornKeys",
+    "LowerSorrowKeys",
+    "MidSorrowKeys",
+    "UpperSorrowKeys"
 ]
 
 def get_areas(areas_ori_path="", verbose=False):
