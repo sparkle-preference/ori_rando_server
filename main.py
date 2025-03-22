@@ -63,9 +63,8 @@ else:
 
     # Retrieves a Cloud Logging handler based on the environment
     # you're running in and integrates the handler with the
-    # Python logging module. By default this captures all logs
-    # at INFO level and higher
-    client.setup_logging()
+    # Python logging module. 
+    client.setup_logging(log_level=log.DEBUG)
 
 VERSION = "%s.%s.%s" % tuple(VER)
 PLANDO_VER = "0.5.1"
@@ -226,10 +225,13 @@ def netcode_tick_get(game_id, player_id, xycoords):
 @app.route('/netcode/game/<int:game_id>/player/<int:player_id>/tick/', methods = ['POST'])
 @app.route('/netcode/game/<int:game_id>/player/<int:player_id>/tick', methods = ['POST'])
 def netcode_tick_post(game_id, player_id):
+    x = request.form.get("x")
+    y = request.form.get("y")
     if Cache.get_seen_checksum((game_id, player_id)) == bfield_checksum(request.form.get("seen_%s" % i, 0) for i in range(8)):
         # checksum and output caching should happen in sync, but it doesn't hurt to check
         cached_output = Cache.get_output((game_id, player_id))
         if cached_output:
+            Cache.set_pos(game_id, player_id, x, y)
             return text_resp(cached_output)
     game = Game.with_id(game_id)
     if not game:

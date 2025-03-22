@@ -15,9 +15,14 @@ try:
     flask_imported = True
 except ImportError:
     flask_imported = False
+try: 
+    from google.appengine.ext import ndb
+    ndb_imported = True
+except ImportError:
+    ndb_imported = False
 
-VER = [4, 0, 14]
-MIN_VER = [4, 0, 12]
+VER = [4, 0, 15]
+MIN_VER = [4, 0, 15]
 def version_check(version):
     try:
         nums = [int(num) for num in version.split(".")]
@@ -33,8 +38,12 @@ def version_check(version):
 
 def clone_entity(e, **extra_args):
     klass = e.__class__
-    props = dict((v._code_name, v.__get__(e, klass)) for v in klass._properties.values() if
+    if ndb_imported:
+        props = dict((v._code_name, v.__get__(e, klass)) for v in klass._properties.values() if
                  type(v) != ndb.ComputedProperty)
+    else:
+        log.error("clone_entity called but ndb was not imported??? Trying my best...........")
+        props = dict((v._code_name, v.__get__(e, klass)) for v in klass._properties.values())
     props.update(extra_args)
     return klass(**props)
 
