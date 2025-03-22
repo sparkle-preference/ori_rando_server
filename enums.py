@@ -75,6 +75,7 @@ class Variation(StrEnum):
     BONUS_LITE = "BonusLite"
     CLUE_LOCKED_TPS = "ClueLockedTPs"
     ZONE_LOCKED_TPS = "ZoneLockedTPs"
+    KEYSANITY = "Keysanity"
 
 class LogicPath(StrEnum):
     CASUAL_CORE = 'casual-core'

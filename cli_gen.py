@@ -109,6 +109,7 @@ class CLISeedParams(object):
         parser.add_argument("--hints", help="Cloned seeds only: display a hint with the item category on a shared location instead of 'Warmth Returned'", action="store_true")
         parser.add_argument("--do-reachability-analysis", help="Analyze how many locations are opened by various progression items in various inventory states", action="store_true")
         parser.add_argument("--areas-ori-path", help="Path to areas.ori. Will search next to generator if omitted.", type=str)
+        parser.add_argument("--keysanity", help="Keysanity mode: keys only belong to one door", type=str)
         args = parser.parse_args()
 
         """
@@ -133,7 +134,7 @@ class CLISeedParams(object):
         self.key_mode = KeyMode.mk(args.keymode) or KeyMode.NONE
         # variations (help)
         varMap = {
-            "zeroxp": "0XP", "non_progressive_mapstones": "NonProgressMapStones", "ohko": "OHKO", "force_trees": "ForceTrees", "starved": "Starved",
+            "zeroxp": "0XP", "non_progressive_mapstones": "NonProgressMapStones", "ohko": "OHKO", "force_trees": "ForceTrees", "starved": "Starved", "keysanity": "Keysanity",
             "force_mapstones": "ForceMaps", "entrance": "Entrance", "open_world": "OpenWorld", "easy": "DoubleSkills", "strict_mapstones": "StrictMapstones",
             "warmth_frags": "WarmthFrags", "world_tour": "WorldTour", "closed_dungeons": "ClosedDungeons", "tp_starved": "TPStarved", "wall_starved": "WallStarved",
             "keys_only_for_doors": "KeysOnlyForDoors", "warps_instead_of_tps": "WarpsInsteadOfTPs", "in_logic_warps": "InLogicWarps", "warp_count": "WarpCount",

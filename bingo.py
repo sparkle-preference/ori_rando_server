@@ -136,7 +136,7 @@ def namef(verb, noun, plural_form = None):
 
 class BingoGenerator(object):
     @staticmethod
-    def get_cards(rand, count = 25, rando = False, difficulty = "normal", open_world = True, discovery = 0, meta = False, lockout = False):
+    def get_cards(rand, count = 25, rando = False, difficulty = "normal", open_world = True, discovery = 0, meta = False, lockout = False, keysanity = False):
         easy = difficulty == "easy"
         hard = difficulty == "hard"
 
@@ -189,7 +189,7 @@ class BingoGenerator(object):
                     "Forlorn: 1 (Right Forlorn Access)"
                     "Sorrow: 3 (Questionable KS Door, Tumbleweed Door, Charge Jump Access)",
                 ],
-                range_func = r((2, 4), (4, 8), (7, 11)),
+                range_func = r((2, 4), (4, 8), (7, 11)) if not keysanity else r((1,3), (2,5), (7,11)),
                 early_max = 3
             ),
             IntGoal(
@@ -216,13 +216,6 @@ class BingoGenerator(object):
                 disp_name = "Break walls",
                 help_lines = ["A wall is a vertical barrier that can be broken with a skill."],
                 range_func = r((4, 10), (8, 20), (16, 28)),
-            ),
-            IntGoal(
-                name = "UnspentKeystones",
-                disp_name = "Keystones in inventory",
-                help_lines = ["Keyduping is allowed, and you can spend your keys after completing this goal."],
-                range_func = r((6, 10), (8, 20), (20, 30)),
-                early_max = 10
             ),
             IntGoal(
                 name = "BreakPlants",
@@ -535,6 +528,14 @@ class BingoGenerator(object):
                 max_repeats = 3
             )
         ]
+        if not keysanity:
+            goals.append(IntGoal(
+                name = "UnspentKeystones",
+                disp_name = "Keystones in inventory",
+                help_lines = ["Keyduping is allowed, and you can spend your keys after completing this goal."],
+                range_func = r((6, 10), (8, 20), (20, 30)),
+                early_max = 10
+            ))
         if rando:
             goals += [
                 IntGoal(

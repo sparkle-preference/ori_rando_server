@@ -1223,7 +1223,7 @@ def bingo_create_game():
         lockout = bool(int(param_val("lockout") or 0))
         bingo = BingoGameData(
             id            = key.id(),
-            board         = BingoGenerator.get_cards(rand, 25, False, difficulty, True, d, param_flag("meta"), lockout),
+            board         = BingoGenerator.get_cards(rand, 25, False, difficulty, True, d, param_flag("meta"), lockout, False),
             difficulty    = difficulty,
             teams_allowed = param_flag("teams"),
             game          = key,
@@ -1354,7 +1354,7 @@ def add_bingo_to_game(game_id):
         lockout = bool(int(param_val("lockout") or 0))
         bingo = BingoGameData(
             id            = game_id,
-            board         = BingoGenerator.get_cards(rand, 25, True, difficulty, Variation.OPEN_WORLD in params.variations, d, param_flag("meta"), lockout),
+            board         = BingoGenerator.get_cards(rand, 25, True, difficulty, Variation.OPEN_WORLD in params.variations, d, param_flag("meta"), lockout, Variation.KEYSANITY in params.variations),
             difficulty    = difficulty,
             subtitle      = params.flag_line(),
             teams_allowed = param_flag("teams"),

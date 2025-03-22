@@ -11,7 +11,7 @@ If you believe you have recieved an unfinishable seed, please inform Eiko in the
 const noneTitle = "Confused?";
 const noneSub = "Mouse over anything to learn more!";
 const noneLines = ["Additional context-specific information will appear here as you interact with the UI."];
-const vars = ["Starved", "NonProgressMapStones", "Hard", "0XP", "Entrance", "BonusPickups", "DoubleSkills", "StrictMapstones", "ClosedDungeons", "OpenWorld", "StompTriggers", "TPStarved", "WallStarved", "GrenadeStarved", "Race", "InLogicWarps"]
+const vars = ["Starved", "NonProgressMapStones", "Hard", "0XP", "Entrance", "BonusPickups", "DoubleSkills", "StrictMapstones", "ClosedDungeons", "OpenWorld", "StompTriggers", "TPStarved", "WallStarved", "GrenadeStarved", "Race", "InLogicWarps", "Keysanity"]
 const presets = ["Casual", "Standard", "Expert", "Master", "Glitched", "Custom"]
 const goalModes = ["ForceTrees", "ForceMaps", "Bingo"]
 const keyModes = ["Shards", "Clues", "Limitkeys", "Free"]
@@ -365,6 +365,16 @@ const getHelpHelper = (category, option) => {
                         "The Legacy Kuro Behavior variation reverts to the vanilla and pre-3.0 randomizer behavior for the Kuro kill plane in Valley and the Kuro cutscene in Hollow Grove. Both of these will only exist once you've acquired the Stomp skill.",
                         "This variation will be overridden if you select Open World, which removes the killplane and cutscene completely.",
                         "This variation exists primarily for legacy reasons and is not recommended for normal use."
+                    ]
+                    break;
+                case "Keysanity":
+                    title = "Keysanity"
+                    lines = [
+                        "Inspired by the ALTTP setting of the same name, Keysanity removes keystones from the item pool and replaces them with door-specific keystones for each door!",
+                        "Interacting with a keystone door will give you a zone hint for each uncollected keystone for that door. Happy hunting!",
+                        "In this mode, keyduping is not possible, keystone doors tend to be a pretty big obstacle, and seeds tend to take a lot longer to complete.",
+                        "However, it is not possible to even theoretically softlock yourself by spending keystones incorrectly. So there is that.",
+                        "Recommended for players who want to spend less time in Spirit Caverns. At any cost."
                     ]
                     break;
                 default:

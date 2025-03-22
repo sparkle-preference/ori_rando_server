@@ -177,6 +177,7 @@ const VAR_NAMES = {
     GrenadeStarved: "GrenadeStarved",
     InLogicWarps: "In-Logic Warps",
     Entrance: "Entrance Shuffle",
+    Keysanity: "Keysanity",
 }
 const SPAWN_OPTS = ["Random", "Glades", "Grove", "Swamp", "Grotto", "Forlorn", "Valley", "Horu", "Ginso", "Sorrow", "Blackroot"]
 const cellFreqPresets = (preset) => preset === "casual" ? 20 : (preset === "standard" ? 40 : 256)
