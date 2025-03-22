@@ -3688,23 +3688,28 @@ home: ValleyTeleporter -438 -4
 -- anchored on the valley TP, kill plane is active
 	conn: TeleporterNetwork
 	conn: ValleyPostStompDoor
-		casual Bash
+		casual Bash Health=2
+		casual Bash Water
 		casual Glide
 		expert ChargeDash Energy=3
-		expert ChargeDash DoubleJump
-		master DoubleJump
+		expert ChargeDash DoubleJump Energy=1
+		master TripleJump Health=4
 	conn: ValleyRight
 		casual Bash
 		casual Climb ChargeJump Glide
-		casual WallJump DoubleJump Glide
-		casual Climb DoubleJump Glide
-		expert WallJump DoubleJump Health=4
-		expert Climb DoubleJump Health=4
+		standard WallJump DoubleJump Glide Health=4
+		standard Climb DoubleJump Glide Health=4
+		standard WallJump DoubleJump Glide AirDash
+		standard Climb DoubleJump Glide AirDash
+		expert DoubleJump Health=4
 		expert WallJump Glide Health=4
 		expert Climb Glide Health=4
+		expert AirDash WallJump Health=4
+		expert AirDash Climb Health=4
+		expert ChargeDash Energy=2
 		master GrenadeJump
-		expert ChargeDash
-		master TripleJump
+		master TripleJump Health=3
+		master ChargeJump Health=7
 	-- no killplane paths
 	conn: MistyEntrance
 		casual Glide OpenWorld
@@ -3714,7 +3719,8 @@ home: ValleyTeleporter -438 -4
 		expert Bash ChargeJump DoubleJump OpenWorld
 		expert Dash ChargeJump DoubleJump OpenWorld
 		expert AirDash DoubleJump OpenWorld
-		expert ChargeDash OpenWorld
+		expert ChargeDash Energy=2 OpenWorld
+		master Bash OpenWorld
 	conn: LowerValley
 		casual OpenWorld
 	conn: LowerValleyPlantApproach
@@ -3729,14 +3735,18 @@ home: ValleyTeleporter -438 -4
 		master Lure Bash WallJump OpenWorld
 home: ValleyRight -307 -24
 -- anchored below the bird stomp cell
--- no point in connecting to ValleyTeleporter, it's a dead end
-	-- just catching a path that didn't make sense from ValleyTeleporter
 	conn: ValleyPostStompDoor
 		casual Bash Health=2
+		casual Bash Water
 		casual Glide
+		standard Bash Grenade
+		standard AirDash DoubleJump
 		expert DoubleJump Health=4
+		expert AirDash Health=2
+		expert ChargeDash Energy=3
 		master Health=7
 		master Health=5 UltraDefense
+		master TripleJump
 	conn: ValleyStomplessApproach
 		casual WallJump DoubleJump
 		casual WallJump Bash
@@ -3747,6 +3757,35 @@ home: ValleyRight -307 -24
 		expert WallJump ChargeDash
 		-- bringing the frog from the teleporter
 		master Lure DoubleBash
+	conn: ValleyTeleporter
+		casual Bash DoubleJump
+		casual Bash Glide
+		casual Climb ChargeJump Glide
+		standard Bash
+		standard AirDash DoubleJump Health=4
+		standard AirDash WallJump Health=4
+		standard AirDash Glide Health=4
+		standard AirDash ChargeJump Health=4
+		standard Climb ChargeJump Health=4
+		standard DoubleJump Glide WallJump Health=4
+		standard DoubleJump Glide Climb Health=4
+		expert DoubleJump Health=4
+		expert AirDash WallJump Health=4
+		expert AirDash Climb Health=4
+		expert WallJump Glide Health=4
+		expert Climb Glide Health=4
+		expert ChargeJump Health=7
+		expert ChargeDash Energy=3
+		expert ChargeDash Climb Energy=2
+		expert ChargeDash WallJump Energy=2
+		expert ChargeDash DoubleJump Energy=2
+		expert ChargeDash ChargeJump Energy=2
+		master WallJump Health=5
+		master Climb Health=5
+		master WallJump UltraDefense Health=3
+		master Climb UltraDefense Health=3
+		master TripleJump Health=3
+		master GrenadeJump
 home: ValleyStomplessApproach -350 29
 -- anchored left of the bird stomp cell
 	pickup: ValleyRightBirdStompCell
