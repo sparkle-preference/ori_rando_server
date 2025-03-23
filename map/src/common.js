@@ -719,23 +719,26 @@ const cyrb128 = (str) => {
   h2 = Math.imul(h4 ^ (h2 >>> 22), 2869860233);
   h3 = Math.imul(h1 ^ (h3 >>> 17), 951274213);
   h4 = Math.imul(h2 ^ (h4 >>> 19), 2716044179);
-  h1 ^= (h2 ^ h3 ^ h4), h2 ^= h1, h3 ^= h1, h4 ^= h1;
+  h1 ^= (h2 ^ h3 ^ h4); h2 ^= h1; h3 ^= h1; h4 ^= h1;
   return [h1>>>0, h2>>>0, h3>>>0, h4>>>0];
 }
 
 
-const prng = (strIn) => {
+const sfc32 = (a, b, c, d) => {
   return () => {
-    let a = cyrb128(strIn)[0];
-    a |= 0;
-    a = a + 0x9e3779b9 | 0;
-    let t = a ^ a >>> 16;
-    t = Math.imul(t, 0x21f0aaad);
-    t = t ^ t >>> 15;
-    t = Math.imul(t, 0x735a2d97);
-    return ((t = t ^ t >>> 15) >>> 0) / 4294967296;
-   }
- }
+    a |= 0; b |= 0; c |= 0; d |= 0;
+    let t = (a + b | 0) + d | 0;
+    d = d + 1 | 0;
+    a = b ^ (b >>> 9);
+    b = c + (c << 3) | 0;
+    c = ((c << 21) | (c >>> 11));
+    c = c + t | 0;
+    return (t >>> 0) / 4294967296;
+  }
+}
+
+
+const prng = (strIn) => sfc32(...cyrb128(strIn));
  
 
 export {
