@@ -156,21 +156,21 @@ const STUPID_KEYS = {
 }
 
 const VAR_NAMES = {
-    // variations that are variations
-    OHKO: "One Hit KO",
-    "0XP": "Zero Experience",
-    OpenWorld: "Open World",
-    DoubleSkills: "Extra Copies",
-    GoalModeFinish: "Skip Final Escape",
-    InLogicWarps: "In-Logic Warps",
-    Entrance: "Entrance Shuffle",
-    Keysanity: "Keysanity",
-
     // variations that are hungry
     Starved: "Starved",
     TPStarved: "TPStarved",
     WallStarved: "WallStarved",
     GrenadeStarved: "GrenadeStarved",
+
+    // variations that are variations
+    DoubleSkills: "Extra Copies",
+    GoalModeFinish: "Skip Final Escape",
+    OpenWorld: "Open World",
+    InLogicWarps: "In-Logic Warps",
+    Keysanity: "Keysanity",
+    Entrance: "Entrance Shuffle",
+    OHKO: "One Hit KO",
+    "0XP": "Zero Experience",
 
     // item pools that are secretly variations
     Hard: "Hard Mode",
@@ -403,6 +403,13 @@ onDrop = (files) => {
                 <Button color="primary" block outline={!this.hasVar(v)} onClick={this.onGoalModeAdvanced(v)}>{VAR_NAMES[v]}</Button>
             </Col>
         )
+        let legacyVars = ["StompTriggers", "StrictMapstones", "ClosedDungeons"].map(v=> {
+            let name = VAR_NAMES[v];
+            return (
+            <Col key={`var-button-${v}`} xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("variations", v)} className="p-2">
+                <Button block color="primary" outline={!this.hasVar(v)} onClick={this.onVar(v)}>{name}</Button>
+            </Col>
+            )});
         return (
             <TabPane className="p-3 border" tabId="advanced">
                 <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "goalModes")} className="p-1 justify-content-center">
@@ -542,7 +549,13 @@ onDrop = (files) => {
                     {weightSelectors}
                 </Row>
                 </Collapse>
-
+                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "legacyFlags")} className="p-1 justify-content-center">
+                    <Col xs={leftCol} className="text-center pt-1 border">
+                        <span className="align-middle">Legacy Flags</span>
+                    </Col><Col xs={rightCol}>
+                        {legacyVars}
+                    </Col>
+                </Row>
             </TabPane>
         )
     }
@@ -767,10 +780,8 @@ onDrop = (files) => {
         }
     }
     getVariationsTab = () => {
-        let filteredVars = ["NonProgressMapStones", "BonusPickups", "ForceTrees", "WorldTour", "ForceMaps", "WarmthFrags", "Hard", "Bingo"];
-        if(!this.state.stupidMode) {
-            filteredVars = filteredVars.concat("StompTriggers", "StrictMapstones")
-        }
+        let filteredVars = ["NonProgressMapStones", "BonusPickups", "ForceTrees", "WorldTour", "ForceMaps", "WarmthFrags", 
+                            "Hard", "Bingo", "StompTriggers", "StrictMapstones", "ClosedDungeons"];
         let variationButtons = Object.keys(VAR_NAMES).filter(x => !filteredVars.includes(x)).map(v=> {
             let name = VAR_NAMES[v];
             return (
@@ -1105,13 +1116,12 @@ onDrop = (files) => {
         const pathDiffRoll = rng();
         switch(true) {
             case (pathDiffRoll < .05 || (pathDiffRoll < .7 && isMasterOrGlitched)):
-                newState.pathDiff = "hard";
+                newState.pathDiff = "Hard";
                 break;
             case (pathDiffRoll < .9):
-                newState.pathDiff = "normal";
                 break;
             default:
-                newState.pathDiff = "easy";
+                newState.pathDiff = "Easy";
         }
         if(isMasterOrGlitched && rng() < .7 && !hasVar("Starved"))
             newState.variations.push("Starved");

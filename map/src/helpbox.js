@@ -651,6 +651,11 @@ const getHelpHelper = (category, option) => {
         case "advanced":
             subtitle = "Advanced Options"
             switch(option) {
+                case "legacyFlags":
+                    title = "Legacy Flags"
+                    lines = ["These flags revert various changes made by the randomizer over time.",
+                            "None of them are recommended, but if for some reason you want them, they are here."]
+                    break;
                 case "spawnHCs":
                     title = "Starting Health"
                     lines = ["Change the amount of health you spawn with."]

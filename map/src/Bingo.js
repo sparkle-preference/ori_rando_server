@@ -863,7 +863,6 @@ export default class Bingo extends React.Component {
                                 return (<Cent><h3>Go!</h3></Cent>) 
                             }
                             return (<Cent><h3>{seconds}{`.${milliseconds}`.slice(0, -1)}</h3></Cent>)
-
                             }
                         }
                     />
@@ -927,7 +926,7 @@ export default class Bingo extends React.Component {
                 </Col>
             </Row>
         )
-        let metaRow = this.admin ? (
+        let metaRow = (
             <Row className="p-1">
             <Col xs="4" className="p-1 border">
                 <Cent>Meta Bingo</Cent>
@@ -938,8 +937,7 @@ export default class Bingo extends React.Component {
                     <Button active={!meta} outline={meta} onClick={() => this.setState({meta: false})}>Disabled</Button>
                 </ButtonGroup>
             </Col>
-        </Row>
-) : null;
+        </Row>);
         return (
         <Modal size="lg" isOpen={this.state.createModalOpen} backdrop={"static"} className={"modal-dialog-centered"} toggle={this.toggleCreate}>
             <ModalHeader style={style} toggle={this.toggleCreate}><Cent>Bingo options</Cent></ModalHeader>
