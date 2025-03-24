@@ -168,6 +168,7 @@ const VAR_NAMES = {
     OpenWorld: "Open World",
     InLogicWarps: "In-Logic Warps",
     Keysanity: "Keysanity",
+    Enhanced: "Enhanced",
     Entrance: "Entrance Shuffle",
     OHKO: "One Hit KO",
     "0XP": "Zero Experience",
@@ -202,6 +203,7 @@ const VAR_WEIGHTS = {
     InLogicWarps: .25, // these last ones should be lower after april 1st
     Entrance: .25,
     Keysanity: .5,     // this one especially. hahaha holy shit.
+    Enhanced: .5,
 }
 
 
@@ -1288,7 +1290,7 @@ onDrop = (files) => {
         const fassListDefault = [2, 919772, -1560272, 799776, -120208].map(coords => ({loc: locOptions.find(l => l.value === coords), item: "NO|1"}));
         
         this.state = {user: user, activeTab: activeTab, coopGenMode: "Cloned Seeds", coopGameMode: "Co-op", players: 1, dropActive: false, 
-                        tracking: true, variations: ["ForceTrees"], gameId: gameId, itemPool: getPool("Standard"), dedupShared: false, 
+                        tracking: true, variations: ["ForceTrees", "Enhanced"], gameId: gameId, itemPool: getPool("Standard"), dedupShared: false, 
                         paths: presets["standard"], keyMode: "Clues", oldKeyMode: "Clues", spawn: "Glades", advancedSpawnTouched: false, 
                         spawnHCs: 3, spawnECs: 0, spawnSKs: 0, pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null), 
                         goalModes: ["ForceTrees"], selectedPool: "Standard", seed: "", fillAlg: "Balanced", quickstartOpen: quickstartOpen, 
@@ -1303,8 +1305,8 @@ onDrop = (files) => {
         if(url.searchParams.has("fromBingo")) {
             this.state.goalModes = ["Bingo"]
             this.state.variations = ["Bingo", "OpenWorld"]
-            this.state.itemPool = getPool("Extra Bonus")
-            this.state.selectedPool = "Extra Bonus"
+            this.state.itemPool = getPool("Bonus Lite")
+            this.state.selectedPool = "Bonus Lite"
             this.updateUrl()
         }
     }

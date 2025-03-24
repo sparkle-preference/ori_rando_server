@@ -11,7 +11,7 @@ If you believe you have recieved an unfinishable seed, please inform Eiko in the
 const noneTitle = "Confused?";
 const noneSub = "Mouse over anything to learn more!";
 const noneLines = ["Additional context-specific information will appear here as you interact with the UI."];
-const vars = ["Starved", "NonProgressMapStones", "Hard", "0XP", "Entrance", "BonusPickups", "DoubleSkills", "StrictMapstones", "ClosedDungeons", "OpenWorld", "StompTriggers", "TPStarved", "WallStarved", "GrenadeStarved", "Race", "InLogicWarps", "Keysanity", "GoalModeFinish", "OHKO"];
+const vars = ["Starved", "NonProgressMapStones", "Hard", "0XP", "Entrance", "BonusPickups", "DoubleSkills", "StrictMapstones", "ClosedDungeons", "OpenWorld", "StompTriggers", "TPStarved", "WallStarved", "GrenadeStarved", "Race", "InLogicWarps", "Keysanity", "GoalModeFinish", "OHKO", "Enhanced"];
 const presets = ["Casual", "Standard", "Expert", "Master", "Glitched", "Custom"];
 const goalModes = ["ForceTrees", "ForceMaps", "Bingo"];
 const keyModes = ["Shards", "Clues", "Limitkeys", "Free"];
@@ -48,7 +48,8 @@ const getHelpHelper = (category, option) => {
             let h = {}
             if(vars.includes(option)) {
                 h = getHelpHelper("variations", option)
-                h.lines[h.lines.length-1] = (<span><i>(This variation has been applied to your seed.)</i></span>)
+                h.lines = h.lines.filter(l => !l.startsWith("Recommended"))
+                h.lines.push((<span><i>(This variation has been applied to your seed.)</i></span>))
             } else if(presets.includes(option.replace('*','')) || option.startsWith("Custom")) {
                 h = getHelpHelper("logicModes", option.toLowerCase())
                 h.lines.pop()
@@ -68,6 +69,9 @@ const getHelpHelper = (category, option) => {
                     "The Warmth Fragments Goal Mode scatters " + total + " warmth fragments across the entire map. You must collect " + required + " of them to access the final escape.",
                     (<span><i>(Your seed is using this Goal Mode.)</i></span>)
                 ]
+            } else if(option.startsWith("sense=")) {
+                h.title = "Sense Triggers";
+                h.lines = ["Sense will detect these kinds of items instead of the default items."]; 
             } else if(option.startsWith("WorldTour")) {
                 let [, relics] = option.split("=")
                 h = getHelpHelper("goalModes", "WorldTour")
@@ -235,6 +239,12 @@ const getHelpHelper = (category, option) => {
         case "variations":
             subtitle = "Variations"
             switch(option) {
+                case "Enhanced":
+                    title = "Enhanced";
+                    lines = [
+                        "Vulajin and Roryrai say that this variation \"enhances\" the randomizer. :)"
+                    ];
+                    break;
                 case "Starved":
                     title = "Starved"
                     lines = [
