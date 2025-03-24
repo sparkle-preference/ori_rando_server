@@ -913,7 +913,7 @@ onDrop = (files) => {
                             Flags:
                         </Col>
                         <Col xs="9 border-left">
-                            <Row className="justify-content-start">
+                            <Row className="justify-content-start flag-row">
                             {flagCols}
                             </Row>
                         </Col>
@@ -1096,6 +1096,8 @@ onDrop = (files) => {
 
         if(rng() < .2) // 20% of the time, sense is instead inverted sense; you sense everything that's not a skill or event
             newState.senseData = "EX+AC+HC+EC+KS+RB+MS+TW";
+        else
+            newState.senseData = ""; // clear it so it doesn't stay inverted when spam clicking the button
 
         if(hasVar("WarmthFrags")) {
             newState.fragReq = prandInt(3, 6)*5; // between 15 and 30, increments of 5
