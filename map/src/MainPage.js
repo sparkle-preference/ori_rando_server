@@ -8,11 +8,11 @@ import 'react-notifications/lib/notifications.css';
 import './index.css';
 
 import {getHelpContent, HelpBox} from "./helpbox.js";
-import {get_param, spawn_defaults, get_flag, presets, select_theme, name_from_str, get_preset, player_icons, doNetRequest, get_random_loader, PickupSelect, Cent, dev, randInt, gotoUrl} from './common.js';
+import {get_param, spawn_defaults, get_flag, presets, select_theme, name_from_str, get_preset, player_icons, doNetRequest, get_random_loader, PickupSelect, Cent, dev, randInt, gotoUrl, prng} from './common.js';
 import SiteBar from "./SiteBar.js";
 import Select from 'react-select';
-import Dropzone from 'react-dropzone'
-import {picks_by_zone} from './shared_map'
+import Dropzone from 'react-dropzone';
+import {picks_by_zone} from './shared_map';
 
 
 const zonesInOrder = ['Glades', 'Blackroot', 'Grove', 'Grotto', 'Ginso', 'Swamp', 'Valley', 'Misty', 'Forlorn', 'Sorrow', 'Horu'];
@@ -20,7 +20,7 @@ const locOptions = [{'label': 'Spawn With', 'value': 2}];
 zonesInOrder.forEach(zone =>  picks_by_zone[zone].forEach(p => locOptions.push({'label': `${p.area} ${p.name} (${zone})`, 'value': p.loc})));
 picks_by_zone['Mapstone'].forEach(p => locOptions.push({'label': p.name, 'value': p.loc}));
 const locOptionFromCoords = (coords) => locOptions.find(l => l.value === coords);
-const get_pool = (pool_name) => { switch(pool_name) {
+const getPool = (pool_name) => { switch(pool_name) {
     case "Standard": 
         return [
             {item: "TP|Grove", count: 1}, 
@@ -137,11 +137,11 @@ const get_pool = (pool_name) => { switch(pool_name) {
         ]
     default:
         dev && console.log(`${pool_name} is not a valid pool name! Using the standard pool instead`)
-        return get_pool("Standard")
+        return getPool("Standard")
     }
 }
 const CANONICAL_ORDERING = {}
-get_pool("Extra Bonus").forEach(({item}, i) => CANONICAL_ORDERING[item] = i)
+getPool("Extra Bonus").forEach(({item}, i) => CANONICAL_ORDERING[item] = i)
 CANONICAL_ORDERING["RB|0"] = CANONICAL_ORDERING["RP|RB/0"] 
 CANONICAL_ORDERING["RB|1"] = CANONICAL_ORDERING["RP|RB/1"] 
 const get_canon_index = ({item}) => CANONICAL_ORDERING[item]+1 || 99
@@ -156,36 +156,61 @@ const STUPID_KEYS = {
 }
 
 const VAR_NAMES = {
-    ForceTrees: "Force Trees",
-    Starved: "Starved",
-    Hard: "Hard Mode",
+    // variations that are variations
     OHKO: "One Hit KO",
     "0XP": "Zero Experience",
-    ForceMaps: "Force Maps",
-    BonusPickups: "More Bonus Pickups",
-    ClosedDungeons: "Closed Dungeons",
     OpenWorld: "Open World",
-    WorldTour: "World Tour",
     DoubleSkills: "Extra Copies",
-    WarmthFrags: "Warmth Frags",
-    StrictMapstones: "Strict Mapstones",
-    StompTriggers: "Legacy Kuro Behavior",
-    TPStarved: "TPStarved",
     GoalModeFinish: "Skip Final Escape",
-    Bingo: "Bingo",
-    WallStarved: "WallStarved",
-    GrenadeStarved: "GrenadeStarved",
     InLogicWarps: "In-Logic Warps",
     Entrance: "Entrance Shuffle",
     Keysanity: "Keysanity",
+
+    // variations that are hungry
+    Starved: "Starved",
+    TPStarved: "TPStarved",
+    WallStarved: "WallStarved",
+    GrenadeStarved: "GrenadeStarved",
+
+    // item pools that are secretly variations
+    Hard: "Hard Mode",
+    BonusPickups: "More Bonus Pickups",
+
+    // goal modes are secretly variations
+    ForceMaps: "Force Maps",
+    ForceTrees: "Force Trees",
+    WarmthFrags: "Warmth Frags",
+    WorldTour: "World Tour",
+    Bingo: "Bingo",
+
+    // variations that are stupid legacy bullshit
+    StrictMapstones: "Strict Mapstones",
+    StompTriggers: "Legacy Kuro Behavior",
+    ClosedDungeons: "Closed Dungeons",
 }
+
+const VAR_WEIGHTS = {
+    Starved: .1,
+    OHKO: .005,
+    "0XP": .01,
+    OpenWorld: .25,
+    DoubleSkills: .1,
+    TPStarved: .2,
+    GoalModeFinish: .1,
+    WallStarved: .2,
+    GrenadeStarved: .2,
+    InLogicWarps: .25, // these last ones should be lower after april 1st
+    Entrance: .25,
+    Keysanity: .5,     // this one especially. hahaha holy shit.
+}
+
+
 const SPAWN_OPTS = ["Random", "Glades", "Grove", "Swamp", "Grotto", "Forlorn", "Valley", "Horu", "Ginso", "Sorrow", "Blackroot"]
 const cellFreqPresets = (preset) => preset === "casual" ? 20 : (preset === "standard" ? 40 : 256)
 const optionalPaths = ['casual-dboost', 'standard-core', 'standard-dboost', 'standard-lure', 'standard-abilities', 'expert-core', 'expert-dboost', 'expert-lure', 'expert-abilities', 'dbash', 'master-core', 'master-dboost', 'master-lure', 'master-abilities', 'gjump', 'glitched', 'timed-level', 'insane']
 const varPaths = {"master": ["Starved"]}
 const diffPaths = {"glitched": "Hard", "master": "Hard"}
 const disabledPaths = {
-                    "Hard": ["standard-dboost", "expert-dboost", "master-dboost"], 
                     "0XP": ["glitched", "standard-abilities", "expert-abilities", "master-abilities", "master-dboost", "timed-level", "insane"], 
                     "OHKO": ["casual-dboost", "standard-dboost", "expert-dboost", "master-dboost", "glitched", "master-lure"]
                     }
@@ -295,24 +320,10 @@ onDrop = (files) => {
             <Col xs="1">{delButton}</Col>
           </Row>)
         })
-        let presetPoolOptions = ["Standard", "Competitive", "Extra Bonus", "Bonus Lite", "Hard"].map(preset => (
-            <DropdownItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("itemPool", preset)} key={`pd-${preset}`} active={this.state.selectedPool===preset} onClick={()=> this.setState({selectedPool: preset, itemPool: get_pool(preset)})}>{preset}</DropdownItem>
-        ))
 
         return (
         <TabPane className="p-3 border" tabId="item pool">
-            <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "customPool")} className="p-1 justify-content-center">
-                    <Col xs="4">
-                        <Cent>Pool Preset: </Cent>
-                    </Col>
-                    <Col onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("itemPool", this.state.selectedPool)} xs="4">
-                        <UncontrolledButtonDropdown className="w-100">
-                            <DropdownToggle color="primary" caret block> {this.state.selectedPool} </DropdownToggle>
-                            <DropdownMenu> {presetPoolOptions} </DropdownMenu>
-                        </UncontrolledButtonDropdown>
-                    </Col>
-                </Row>
-                {itemSelectors}
+            {itemSelectors}
             <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "customPool")} className="p-1 justify-content-center">
             <Col xs="4">
                 <Cent>
@@ -349,7 +360,7 @@ onDrop = (files) => {
     }
 
     getAdvancedTab = ({inputStyle, menuStyle}) => {
-        let {variations, senseData, fillAlg, spawnSKs, spawnECs, spawnHCs, expPool, bingoLines, pathDiff, cellFreq, 
+        let {senseData, fillAlg, spawnSKs, spawnECs, spawnHCs, expPool, bingoLines, pathDiff, cellFreq, 
             relicCount, fragCount, fragReq, spawnWeights, spawn, verboseSpoiler, fassList} = this.state
         let [leftCol, rightCol] = [4, 7]
         let weightSelectors = spawnWeights.map((weight, index) => (
@@ -389,7 +400,7 @@ onDrop = (files) => {
         ))
         let goalCol = (v) => (
             <Col xs="6" onMouseLeave={this.helpEnter("advanced", "goalModes")} onMouseEnter={this.helpEnter("goalModes", v)} className="p-2">
-                <Button color="primary" block outline={!variations.includes(v)} onClick={this.onGoalModeAdvanced(v)}>{VAR_NAMES[v]}</Button>
+                <Button color="primary" block outline={!this.hasVar(v)} onClick={this.onGoalModeAdvanced(v)}>{VAR_NAMES[v]}</Button>
             </Col>
         )
         return (
@@ -462,7 +473,7 @@ onDrop = (files) => {
                     </Col>
                 </Row>
                 {fass_rows}
-                <Collapse isOpen={variations.includes("Bingo")}>
+                <Collapse isOpen={this.hasVar("Bingo")}>
                 <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "bingoLines")} className="p-1 justify-content-center">
                     <Col xs={leftCol} className="text-center pt-1 border">
                         <span className="align-middle">Bingo Lines</span>
@@ -472,7 +483,7 @@ onDrop = (files) => {
                     </Col>
                 </Row>
                 </Collapse>
-                <Collapse isOpen={variations.includes("WorldTour")}>
+                <Collapse isOpen={this.hasVar("WorldTour")}>
                     <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "relicCount")} className="p-1 justify-content-center">
                         <Col xs={leftCol} className="text-center pt-1 border">
                             <span className="align-middle">Relic Count</span>
@@ -482,7 +493,7 @@ onDrop = (files) => {
                         </Col>
                     </Row>
                 </Collapse>
-                <Collapse isOpen={variations.includes("WarmthFrags")}>
+                <Collapse isOpen={this.hasVar("WarmthFrags")}>
                     <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "fragCount")} className="p-1 justify-content-center">
                         <Col xs={leftCol} className="text-center pt-1 border">
                             <span className="align-middle">Fragment Count</span>
@@ -617,15 +628,15 @@ onDrop = (files) => {
             json.pathDiff=this.state.pathDiff
         if(this.state.senseData)
             json.senseData=this.state.senseData
-        if(this.state.variations.includes("WarmthFrags"))
+        if(this.hasVar("WarmthFrags"))
         {
             json.fragCount=this.state.fragCount
             json.fragReq=this.state.fragReq
         }
-        if(this.state.variations.includes("WorldTour"))
+        if(this.hasVar("WorldTour"))
             json.relicCount=this.state.relicCount
 
-        if(this.state.variations.includes("Bingo"))
+        if(this.hasVar("Bingo"))
         {
             url += "?bingo=1"
             json.bingoLines = this.state.bingoLines;
@@ -652,7 +663,7 @@ onDrop = (files) => {
                     json.fass.push({loc: fassEntry.loc.value.toString(), code: item[0], id: item[1]})
                 }
         });
-        json.itemPool = {} //{"HC": 12, "EC": 14, "AC": 33, }
+        json.itemPool = {} //{"HC": 12, "EC": 15, "AC": 33, }
         this.state.itemPool.forEach(({item, count, upTo}) => { json.itemPool[item] = upTo ? [count, upTo] : [count] })
         json.tracking = this.state.tracking
         if(this.state.tracking && this.state.players > 1) {
@@ -693,7 +704,7 @@ onDrop = (files) => {
                 if(metaUpdate.selectedPool === "Custom")
                     metaUpdate.itemPool = Object.keys(metaUpdate.itemPool).map(i => ({item: i, count: metaUpdate.itemPool[i][0], upTo: metaUpdate.itemPool[i][1] || metaUpdate.itemPool[i][0]})).sort((a, b) => get_canon_index(a) - get_canon_index(b))
                 else
-                    metaUpdate.itemPool = get_pool(metaUpdate.selectedPool) 
+                    metaUpdate.itemPool = getPool(metaUpdate.selectedPool) 
             } else {
                 metaUpdate.itemPool = this.state.itemPool
             }
@@ -741,6 +752,9 @@ onDrop = (files) => {
                 let redir = `/bingo/board?game_id=${res.gameId}&fromGen=1&seed=${res.seed}&bingoLines=${res.bingoLines || 3}`
                 if(res.flagLine.includes("share="))
                     redir += `&teamMax=${res.playerCount}`
+                if(this.state.randomizedWith === this.state.seed) 
+                    redir += `&randomSettings=1`;
+                
                 gotoUrl(redir, true)
                 this.helpEnter("general", "seedBuiltBingo")()
             }
@@ -761,7 +775,7 @@ onDrop = (files) => {
             let name = VAR_NAMES[v];
             return (
             <Col key={`var-button-${v}`} xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("variations", v)} className="p-2">
-                <Button block color="primary" outline={!this.state.variations.includes(v)} onClick={this.onVar(v)}>{name}</Button>
+                <Button block color="primary" outline={!this.hasVar(v)} onClick={this.onVar(v)}>{name}</Button>
             </Col>
             )
         })
@@ -915,6 +929,194 @@ onDrop = (files) => {
                 </Row>
             </TabPane>
         )
+    }
+
+    randomize = () => {
+        let {seed} = this.state;
+        seed = seed || Math.random().toString();
+        const hasVar = (v) => newState.variations.includes(v);
+        const rng = prng(seed);
+        const newState = {randomizedWith: seed};
+        const prandInt = (min, max) => Math.floor(rng() * (max - min + 1)) + min;
+        const prandPop = (ls) => ls.splice(prandInt(0, ls.length - 1),1)[0]
+
+        // randomize goal modes
+
+        // bingo 10% of the time, something else the rest
+        if(rng() < .10) {
+            newState.goalModes = ["Bingo"];
+        } else {
+            const goalModeCountRoll = rng();
+            let goalModeCount = 0;
+            switch(true) {
+                // Goal mode count randomization! 
+                // 0 modes 10% of the time; 1 mode 73% of the time; 2 modes 12% of the time;  3 modes 5% of the time 
+                case (goalModeCountRoll < .1):
+                    break;
+                case (goalModeCountRoll < .83):
+                    goalModeCount = 1;
+                    break;
+                case (goalModeCountRoll < .95):
+                    goalModeCount = 2;
+                    break;
+                default:
+                    goalModeCount = 3;
+                    break;    
+            }
+            newState.goalModes = [];
+            // only 35% of the time is forcemaps even an option. Because it's not good.
+            let goalModeValidChoices = rng() > .35 ? ["ForceTrees", "WorldTour", "WarmthFrags"] : ["ForceTrees", "WorldTour", "WarmthFrags", "ForceMaps"];
+            while(goalModeCount-- > 0) 
+                newState.goalModes.push(prandPop(goalModeValidChoices));
+        }
+        // done with goal modes - copy them to variations
+        newState.variations = [].concat(newState.goalModes);
+
+        // randomize key modes
+        const keyModeRoll = rng();
+        switch(true) {
+            case (keyModeRoll < .01): // 1% None
+                newState.keyMode = "None";
+                break;
+            case (keyModeRoll < .09): // 9% Limitkeys
+                newState.keyMode = "Limitkeys";
+                break;
+            case (keyModeRoll  < .2): // 10% Free
+                newState.keyMode = "Free";
+                break;
+            case (keyModeRoll  < .6): // 40% Clues
+                newState.keyMode = "Clues";
+                break;
+            default:                  // 40% Shards
+                newState.keyMode = "Shards";
+                break;                        
+        }
+        const logicPathRoll = rng(); // randomize logic path preset
+        switch(true) {
+            case (logicPathRoll < .01): // 1% glitched
+                newState.pathMode = "glitched";
+                break;
+            case (logicPathRoll < .09): // 9% master
+                newState.pathMode = "master";
+                break;
+            case (logicPathRoll  < .2): // 10% casual
+                newState.pathMode = "casual";
+                break;
+            case (logicPathRoll  < .6): // 50% standard
+                newState.pathMode = "standard";
+                break;
+            default:                    // 30% expert
+                newState.pathMode = "expert";
+                break;
+        }
+        newState.paths = presets[newState.pathMode];
+
+        // Randomize variations - each is an independant roll with probability defined in VAR_WEIGHTS
+        Object.keys(VAR_WEIGHTS).map(key => (rng() < VAR_WEIGHTS[key]) && newState.variations.push(key));
+
+        // Bingo precludes 0xp
+        if(hasVar("0XP") && hasVar("Bingo")) {
+            newState.variations = newState.variations.filter(v => v !== "0XP");
+        }
+
+        // If a variation has banned paths, remove them (and put an asterisk on the pathMode string)
+        Object.keys(disabledPaths).filter(v => hasVar(v)).forEach(badVar => {
+            newState.paths = newState.paths.filter(path => !disabledPaths[badVar].includes(path));
+            newState.pathMode += "*";
+        });
+
+        // Randomize item pool
+        const itemPoolRoll = rng()
+        switch(true) {
+            // itemPoolRandomization
+            case (itemPoolRoll < .04):  // hard 4%
+                newState.selectedPool = "Hard";
+                break;
+            case (itemPoolRoll < .20):  // competitive 16%
+                newState.selectedPool = "Competitive";
+                break;
+            case (itemPoolRoll < .60): // standard 40%
+                newState.selectedPool = "Standard";
+                break;
+            case (itemPoolRoll < .90): // bonus lite 30%
+                newState.selectedPool = "Bonus Lite";
+                break;
+            default: // bonus 10%
+                newState.selectedPool = "Extra Bonus";
+                break;
+        }
+        newState.itemPool = getPool(newState.selectedPool)
+
+        // manually add warps to the pool if InLogicWarps was selected and there aren't any after randomize the item pool
+        if(hasVar("InLogicWarps") && ! newState.itemPool.some(({item}) => item === "WP|*")) 
+                newState.itemPool.push({item: "WP|*", count: 6, upTo: 10, maximum: 14})
+
+        // Randomize spawn location
+        const spawnRoll = rng()
+        switch(true) {
+            case (spawnRoll < .4):  // Random 40%
+                newState.spawn = "Random";
+                break;
+            case (spawnRoll < .8):  // Glades 40%
+                newState.spawn = "Glades";
+                break;
+            case (spawnRoll < .85): // Blackroot 5%
+                newState.spawn = "Blackroot";
+                break;
+            case (spawnRoll < .9):  // Ginso 5%
+                newState.spawn = "Ginso";
+                break;
+            case (spawnRoll < .95): // Forlorn 5%
+                newState.spawn = "Forlorn";
+                break;
+            default:                // Horu 5%
+                newState.spawn = "Horu";
+                break;
+        }
+        if(newState.spawn !== "Random") {
+            [newState.spawnHCs, newState.spawnECs, newState.spawnSkills] = [3, 1, 0]; // defaults
+            if(spawn_defaults[newState.spawn].hasOwnProperty(newState.pathMode)) 
+                [newState.spawnHCs, newState.spawnECs, newState.spawnSkills] = spawn_defaults[newState.spawn][newState.pathMode];    
+        }
+
+        // advanced tab bullshit START
+
+        if(rng() < .2) // 20% of the time, sense is instead inverted sense; you sense everything that's not a skill or event
+            newState.senseData = "EX+AC+HC+EC+KS+RB+MS+TW";
+
+        if(hasVar("WarmthFrags")) {
+            newState.fragReq = prandInt(3, 6)*5; // between 15 and 30, increments of 5
+            if(rng() < .05)  // 5% of the time, you are getting every frag
+                newState.fragCount = newState.fragReq;
+            else
+                newState.fragCount = (newState.fragReq * (5 + prandInt(1,3))) / 5 ; // otherwise, there are 20%|40%|60% extra frags (pp up numbers)
+        }
+
+        if(hasVar("WorldTour"))
+            newState.relicCount = prandInt(6,11);
+        
+        if(rng() < .5) // 50% of the time, randomize the exp pool (between 10k and 15k)
+            newState.expPool = prandInt(20, 30) * 5000;
+
+        if(rng() < .1) // 10% of the time, set some very stupidly low FCF
+            newState.cellFreq = prandInt(3, 15);
+        
+        const isMasterOrGlitched = newState.pathMode.startsWith("master") || newState.pathMode.startsWith("glitched");
+        const pathDiffRoll = rng();
+        switch(true) {
+            case (pathDiffRoll < .05 || (pathDiffRoll < .7 && isMasterOrGlitched)):
+                newState.pathDiff = "hard";
+                break;
+            case (pathDiffRoll < .9):
+                newState.pathDiff = "normal";
+                break;
+            default:
+                newState.pathDiff = "easy";
+        }
+        if(isMasterOrGlitched && rng() < .7 && !hasVar("Starved"))
+            newState.variations.push("Starved");
+
+        this.setState(newState);
     }
 
     getModal = (modalParams) => {
@@ -1076,7 +1278,7 @@ onDrop = (files) => {
         const fassListDefault = [2, 919772, -1560272, 799776, -120208].map(coords => ({loc: locOptions.find(l => l.value === coords), item: "NO|1"}));
         
         this.state = {user: user, activeTab: activeTab, coopGenMode: "Cloned Seeds", coopGameMode: "Co-op", players: 1, dropActive: false, 
-                        tracking: true, variations: ["ForceTrees"], gameId: gameId, itemPool: get_pool("Standard"), dedupShared: false, 
+                        tracking: true, variations: ["ForceTrees"], gameId: gameId, itemPool: getPool("Standard"), dedupShared: false, 
                         paths: presets["standard"], keyMode: "Clues", oldKeyMode: "Clues", spawn: "Glades", advancedSpawnTouched: false, 
                         spawnHCs: 3, spawnECs: 0, spawnSKs: 0, pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null), 
                         goalModes: ["ForceTrees"], selectedPool: "Standard", seed: "", fillAlg: "Balanced", quickstartOpen: quickstartOpen, 
@@ -1091,7 +1293,7 @@ onDrop = (files) => {
         if(url.searchParams.has("fromBingo")) {
             this.state.goalModes = ["Bingo"]
             this.state.variations = ["Bingo", "OpenWorld"]
-            this.state.itemPool = get_pool("Extra Bonus")
+            this.state.itemPool = getPool("Extra Bonus")
             this.state.selectedPool = "Extra Bonus"
             this.updateUrl()
         }
@@ -1120,10 +1322,11 @@ onDrop = (files) => {
         this.refs.fassTabula.clear();
         return {fassList: fassList};
     });
+    hasVar = (v) => this.state.variations.includes(v);
     onPath = (p) => () => this.setState({paths: this.state.paths.includes(p) ? this.state.paths.filter(x => x !== p) : this.state.paths.concat(p)}, () => this.setState(p => {return {pathMode: get_preset(p.paths)}}))
     onSType = (s) => () => this.state.shared.includes(s) ? this.setState({shared: this.state.shared.filter(x => x !== s)}) : this.setState({shared: this.state.shared.concat(s)})    
     onVar = (v) => () => {
-        if(this.state.variations.includes(v)) {
+        if(this.hasVar(v)) {
             this.setState({variations: this.state.variations.filter(x => x !== v)})
         } else {
             if(v === "Race")
@@ -1139,7 +1342,7 @@ onDrop = (files) => {
     }
     pathDisabled = (path) => {
         if(revDisabledPaths.hasOwnProperty(path))
-            if(revDisabledPaths[path].some(v => this.state.variations.includes(v)))
+            if(revDisabledPaths[path].some(v => this.hasVar(v)))
             {
                 if(this.state.paths.includes(path))
                     this.onPath(path)()
@@ -1212,7 +1415,7 @@ onDrop = (files) => {
     }
 
     render = () => {
-        let {stupidMode, spawn, pathMode, goalModes, keyMode, helpParams, goalModesOpen, seedTabExists, helpcat, activeTab, seed, tracking, seedIsGenerating, user} = this.state;
+        let {randomizedWith, stupidMode, spawn, pathMode, goalModes, keyMode, helpParams, goalModesOpen, seedTabExists, helpcat, activeTab, seed, tracking, seedIsGenerating, user} = this.state;
         let s = getComputedStyle(document.body);
         let styles = {inputStyle: {'borderColor': s.getPropertyValue('--dark'), 'backgroundColor': s.getPropertyValue("background-color"), 'color': s.getPropertyValue("color")}, menuStyle: {}}
 
@@ -1223,15 +1426,18 @@ onDrop = (files) => {
             <DropdownItem key={`spawn-${loc}`} active={loc===spawn} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "spawnLoc")} onClick={this.onSpawnLoc(loc)}>{loc}</DropdownItem>
         ))
 
-        let rerollButton = user ? (<Button color="info" href="/reroll">Reroll Last Seed</Button>) : <Button color="info" outline disabled>Reroll Last Seed</Button>;
-
+        const rerollButton = user ? (<Button className="w-100" color="info" href="/reroll">Reroll Last Seed</Button>) : <Button className="w-100" color="info" outline disabled>(Can't Reroll!)</Button>;
+        const canRandomize = seed !== randomizedWith;
+        const randomizeButton = canRandomize ? 
+        (<Button className="w-100" color="danger" onClick={this.randomize}>Randomize!</Button>) :
+        (<Button className="w-100" disabled block>Randomize</Button>);
         let keyModeOptions = keymode_options.map(mode => (
             <DropdownItem key={`keymode-${mode}`} active={mode===keyMode} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("keyModes", mode)} onClick={this.onKeyMode(mode)}>{mode}</DropdownItem>
         ))
-        let validGoalModes = ["None", "ForceTrees", "WorldTour", "ForceMaps", "WarmthFrags", "Bingo"]
-        let goalModeOptions = goalModes.length === 1 ? validGoalModes.map(mode => (
+        let validGoalModes = ["None", "ForceTrees", "WorldTour", "ForceMaps", "WarmthFrags", "Bingo"];
+        let goalModeOptions = goalModes.length <= 1 ? validGoalModes.map(mode => (
             <DropdownItem key={`goalmode-${mode}`} active={mode===goalModes[0]} disabled={mode==="Bingo" && !tracking} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("goalModes", mode)} onClick={this.onGoalMode(mode)}>{VAR_NAMES[mode] || mode}{mode==="Bingo" && !tracking ? '(Needs tracking!)' : ''}</DropdownItem>
-        )) : null
+        )) : [];
 
         helpParams.padding = goalModesOpen ? "pt-5 mt-3" : ""
         let lockTracking = goalModes.includes("Bingo") || this.state.players > 1
@@ -1258,6 +1464,9 @@ onDrop = (files) => {
         ) : null;
         let modal = this.getModal(styles);
         let goalModeMulti = goalModes.length > 1;
+        let presetPoolOptions = ["Standard", "Competitive", "Extra Bonus", "Bonus Lite", "Hard"].map(preset => (
+            <DropdownItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("itemPool", preset)} key={`pd-${preset}`} active={this.state.selectedPool===preset} onClick={()=> this.setState({selectedPool: preset, itemPool: getPool(preset)})}>{preset}</DropdownItem>
+        ))
 
         return (
          <Container className="pl-2 pr-2 pb-4 pt-2 mt-5">
@@ -1274,10 +1483,10 @@ onDrop = (files) => {
             <Row className="p-3 border">
                 <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "logicModes")}>
                     <Row>
-                        <Col xs="6"  className="text-center pt-1 border">
+                        <Col xs="5"  className="text-center pt-1 border">
                             <span className="align-middle">Logic Mode</span>
                         </Col>
-                        <Col xs="6" onMouseLeave={this.helpEnter("general", "logicModes")} onMouseEnter={this.helpEnter("logicModes", pathMode)}>
+                        <Col xs="7" onMouseLeave={this.helpEnter("general", "logicModes")} onMouseEnter={this.helpEnter("logicModes", pathMode)}>
                             <UncontrolledButtonDropdown className="w-100">
                                 <DropdownToggle color="primary" className="text-capitalize" caret block> {pathMode} </DropdownToggle>
                                 <DropdownMenu style={styles.menuStyle}> {pathModeOptions} </DropdownMenu>
@@ -1287,10 +1496,10 @@ onDrop = (files) => {
                 </Col>
                 <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "keyModes")}>
                     <Row>
-                        <Col xs="6"  className="text-center pt-1 border">
+                        <Col xs="5"  className="text-center pt-1 border">
                             <span className="align-middle">Key Mode</span>
                         </Col>
-                        <Col xs="6" onMouseEnter={this.helpEnter("keyModes", keyMode)} onMouseLeave={this.helpEnter("general", "keyModes",(keyMode === "Clues" && helpcat === "keyModes") ? 1000 : 250 )}>
+                        <Col xs="7" onMouseEnter={this.helpEnter("keyModes", keyMode)} onMouseLeave={this.helpEnter("general", "keyModes",(keyMode === "Clues" && helpcat === "keyModes") ? 1000 : 250 )}>
                             <UncontrolledButtonDropdown className="w-100">
                                 <DropdownToggle color="primary" caret block> {keyMode} </DropdownToggle>
                                 <DropdownMenu style={styles.menuStyle}>
@@ -1302,13 +1511,13 @@ onDrop = (files) => {
                 </Col>
                 <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "goalModes")}>
                     <Row>
-                        <Col xs="6"  className="text-center pt-1 border">
+                        <Col xs="5"  className="text-center pt-1 border">
                             <span className="align-middle">Goal Mode</span>
                         </Col>
-                        <Col xs="6" onMouseLeave={this.helpEnter("general", "goalModes")} onMouseEnter={this.helpEnter("goalModes", goalModeMulti ? "Multiple" : goalModes[0])}>
+                        <Col xs="7" onMouseLeave={this.helpEnter("general", "goalModes")} onMouseEnter={this.helpEnter("goalModes", goalModeMulti ? "Multiple" : goalModes[0])}>
                             <Dropdown disabled={goalModeMulti} isOpen={goalModesOpen} toggle={() => this.setState({goalModesOpen: !goalModesOpen})} className="w-100">
                                 <DropdownToggle disabled={goalModeMulti} color={goalModeMulti ? "disabled" :"primary"} className="text-capitalize" caret={!goalModeMulti} block> 
-                                  {goalModeMulti ? "Multiple" : (VAR_NAMES[goalModes[0]] || goalModes[0])}
+                                  {goalModeMulti ? ("Multi:" + (goalModes || []).map(gm => gm.split('').filter(c => c === c.toUpperCase()).join('')).join("+")) : (goalModes.length > 0 ? (VAR_NAMES[goalModes[0]] || goalModes[0]) : "None")}
                                 </DropdownToggle>
                                 <DropdownMenu style={{zIndex: 10000, ...styles.menuStyle}}>
                                     {goalModeOptions}
@@ -1317,19 +1526,39 @@ onDrop = (files) => {
                         </Col>
                     </Row>
                 </Col>
-                <Col xs="4" className="text-center pt-1 mt-1"onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", user ? "reroll" : "rerollDisabled")}>
-                    {rerollButton}
+                <Col xs="4">
+                    <Row>
+                        <Col xs="5"  className="text-center pt-1 border mt-2" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "itemPoolPreset")}>
+                            <span className="align-middle">Item Pool</span>
+                        </Col>
+                        <Col xs="7" className="mt-2" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("itemPool", this.state.selectedPool)}>
+                            <UncontrolledButtonDropdown className="w-100">
+                                <DropdownToggle color="primary" caret block> {this.state.selectedPool} </DropdownToggle>
+                                <DropdownMenu> {presetPoolOptions} </DropdownMenu>
+                            </UncontrolledButtonDropdown>
+                        </Col>
+                    </Row>
                 </Col>
                 <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "spawnLoc")}>
                     <Row>
-                        <Col xs="6"  className="text-center pt-1 border mt-2">
+                        <Col xs="5"  className="text-center pt-1 border mt-2">
                             <span className="align-middle">Spawn</span>
                         </Col>
-                        <Col xs="6" className="mt-2" onMouseLeave={this.helpEnter("general", "spawnLoc")} onMouseEnter={this.helpEnter("general", "spawnLoc")}>
+                        <Col xs="7" className="mt-2" onMouseLeave={this.helpEnter("general", "spawnLoc")} onMouseEnter={this.helpEnter("general", "spawnLoc")}>
                             <UncontrolledButtonDropdown className="w-100">
                                 <DropdownToggle color="primary" className="text-capitalize" caret block> {spawn} </DropdownToggle>
                                 <DropdownMenu style={styles.menuStyle}> {spawnOptions} </DropdownMenu>
                             </UncontrolledButtonDropdown>
+                        </Col>
+                    </Row>
+                </Col>
+                <Col xs="4">
+                    <Row>
+                        <Col xs="5"  className="mt-2" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", canRandomize ? "randomize" : "randomizeDisabled")}>
+                            {randomizeButton}
+                        </Col>
+                        <Col xs="7"  className="mt-2" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", user ? "reroll" : "rerollDisabled")}>
+                            {rerollButton}
                         </Col>
                     </Row>
                 </Col>
@@ -1349,7 +1578,7 @@ onDrop = (files) => {
                     </NavItem>
                     <NavItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "customPool")}>
                         <NavLink style={{cursor: "pointer"}} active={activeTab === 'item pool'} onClick={this.onTab('item pool')}>
-                        Item Pool
+                        Customize Items
                         </NavLink>
                     </NavItem>
                     <NavItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "multiplayer")}>

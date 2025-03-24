@@ -11,10 +11,10 @@ If you believe you have recieved an unfinishable seed, please inform Eiko in the
 const noneTitle = "Confused?";
 const noneSub = "Mouse over anything to learn more!";
 const noneLines = ["Additional context-specific information will appear here as you interact with the UI."];
-const vars = ["Starved", "NonProgressMapStones", "Hard", "0XP", "Entrance", "BonusPickups", "DoubleSkills", "StrictMapstones", "ClosedDungeons", "OpenWorld", "StompTriggers", "TPStarved", "WallStarved", "GrenadeStarved", "Race", "InLogicWarps", "Keysanity"]
-const presets = ["Casual", "Standard", "Expert", "Master", "Glitched", "Custom"]
-const goalModes = ["ForceTrees", "ForceMaps", "Bingo"]
-const keyModes = ["Shards", "Clues", "Limitkeys", "Free"]
+const vars = ["Starved", "NonProgressMapStones", "Hard", "0XP", "Entrance", "BonusPickups", "DoubleSkills", "StrictMapstones", "ClosedDungeons", "OpenWorld", "StompTriggers", "TPStarved", "WallStarved", "GrenadeStarved", "Race", "InLogicWarps", "Keysanity", "GoalModeFinish", "OHKO"];
+const presets = ["Casual", "Standard", "Expert", "Master", "Glitched", "Custom"];
+const goalModes = ["ForceTrees", "ForceMaps", "Bingo"];
+const keyModes = ["Shards", "Clues", "Limitkeys", "Free"];
 
 const bonuses = {}
 stuff_by_type["Upgrades"].forEach(({label, value, desc}) => bonuses[value]={name: label, desc: [desc]})
@@ -33,8 +33,8 @@ bonuses["WP|*"] = {name: "Warp", desc: [
 bonuses["BS|*"] = {name: "Random Bonus Skill", desc: [(<span>A random bonus skill. Check out the <a target="_blank" rel="noopener noreferrer"  href="/faq?g=bonus_pickups">bonus item glossary</a> for more info on these.</span>)]}
 
 const getHelpContent = (category, option) => {
-    let {lines, title, subtitle, extras} = getHelpHelper(category, option)
-    return {lines: lines.map((l,i) => (<CardText key={`card-line-${i}`}>{l}</CardText>)), title: title, subtitle: subtitle, extras: extras}
+    let {lines, title, subtitle, extras} = getHelpHelper(category, option);
+    return {lines: lines.map((l,i) => (<CardText key={`card-line-${i}`}>{l}</CardText>)), title: title, subtitle: subtitle, extras: extras};
 }
 
 const getHelpHelper = (category, option) => {
@@ -49,7 +49,7 @@ const getHelpHelper = (category, option) => {
             if(vars.includes(option)) {
                 h = getHelpHelper("variations", option)
                 h.lines[h.lines.length-1] = (<span><i>(This variation has been applied to your seed.)</i></span>)
-            } else if(presets.includes(option)) {
+            } else if(presets.includes(option.replace('*','')) || option.startsWith("Custom")) {
                 h = getHelpHelper("logicModes", option.toLowerCase())
                 h.lines.pop()
                 h.lines = h.lines.filter(l => l.startsWith && !l.startsWith("Recommended"))
@@ -76,7 +76,11 @@ const getHelpHelper = (category, option) => {
             } else if(option.startsWith("pool=")) {
                 let [, poolName] = option.split("=")
                 h = getHelpHelper("itemPool", poolName)
-                h.lines.push((<span><i>(Your seed is using this pool preset.)</i></span>))
+                if(poolName.toLowerCase() !== "custom")
+                    h.lines.push((<span><i>(Your seed is using this item pool preset.)</i></span>));
+                else
+                    h.lines.push((<span><i>(Your seed is a custom item pool.)</i></span>))
+
             } else if(option.startsWith("share")) {
                 let sharedCats = option.split("=")[1].split("+").join(", ")
                 h.title = "Shared Item Categories"
@@ -98,12 +102,17 @@ const getHelpHelper = (category, option) => {
             } else if(option.startsWith("prefer_path_difficulty")) {
                 h = getHelpHelper("advanced", "pathDiff")
                 h.lines[2] = ((<span><i>(Your seed has path difficulty set to {option.split('=')[1]})</i></span>))
+            } else {
+                match = false;
+                break;
             }
             h.subtitle = "Flags"
             return h
         case "logicModes":
             subtitle = "Logic Modes"
-            switch(option) {
+            let modifiedMode = option.includes('*');
+            option = option.replace('*', '');
+            switch(option.toLowerCase()) {
                 case "casual":
                     title =  "Casual" 
                     lines = [
@@ -131,7 +140,7 @@ const getHelpHelper = (category, option) => {
                     lines = [
                         "Master is even more difficult than Expert, and is only recommended for players looking to push the game (and their sanity) to the limit.",
                         (<span>Master seeds frequently require several extremely difficult and obscure tricks, including iceless, some very long double bash chains, and some <i>truly awful</i> lures. <b>Not for the feint of heart.</b></span>), 
-                        "Selecting this logic mode will set the path difficulty to Hard and enable the Starved variation."
+                        "Selecting this logic mode via the dropdown will set the path difficulty to Hard and enable the Starved variation; the \"Randomize!\" button will not necessarily do this."
                     ]
                     break;
                 case "glitched":
@@ -140,7 +149,7 @@ const getHelpHelper = (category, option) => {
                         "Glitched is a logic mode designed for those familiar with Ori's numerous glitches. It includes every logic path that Expert does, and adds new ones requiring knowledge of the game's various out-of-bounds tricks and other unsafe paths.",
                         "This logic mode also contains paths that require timed level-ups, farming for ability points, and various tricks that potentially softlock your save file (or the game) if done incorrectly. Back up your saves!",
                         "Recommended only for those familiar with (at minimium) one of Ori's OOB-heavy categories, such as Reverse Event Order or All Dungeons.",
-                        "Selecting this logic mode will set the path difficulty to Hard.",
+                        "Selecting this logic mode will set the path difficulty to Hard; the \"Randomize!\" button will not necessarily do this.",
                     ]
                     break;
                 case "custom":
@@ -150,7 +159,7 @@ const getHelpHelper = (category, option) => {
                     ]
                     break;
                 default:
-                    if(option.startsWith("custom")) {
+                    if(option.toLowerCase().startsWith("custom")) {
                         title = "Custom"
                         lines = [ 
                             "Custom is the Logic Mode for any user-specified set of logic paths.",
@@ -160,7 +169,10 @@ const getHelpHelper = (category, option) => {
                     match = false;
                     break;
             }
-            lines.push("For more detailed info about Logic Modes, check out the help sections inside the Logic Paths tab")
+            if(modifiedMode)
+                lines.push("Note: Some some logic paths have been removed from this preset because they conflict with 1 or more variations.")
+            if(match) 
+                lines.push("For more detailed info about Logic Modes, check out the help sections inside the Logic Paths tab")
             break;
         case "goalModes":
             subtitle = "Goal Modes"
@@ -831,16 +843,17 @@ const getHelpHelper = (category, option) => {
                     title = "Competitive"
                     subtitle = "Item Pool Presets"
                     lines = [
-                        "The Competitive item pool preset is a minor variant on the default item pool intended for use in races, particularly races in the Clues keymode.",
+                        "The Competitive item pool preset is a minor variant on the default item pool that was requested by players who dislike the variance that the Horu and Ginso teleporters at to Clues/ForceTrees seeds, especially in a race setting.",
                         "It contains almost all of the items in the Standard item pool, but removes the Horu and Ginso teleporters",
+                        "This pool is only really recommended for people who are racing Clues/Forcetrees seeds and want to reduce seed variance."
                     ]
                     break;
                 case "Custom":
                     title = "Custom"
                     subtitle = "Item Pool Presets"
                     lines = [
-                        "Custom item pools are user-defined and can contain basically anything. However, they do need to have at least 3 energy cells for seeds to generate successfully",
-                    ]
+                        "Custom item pools are user-defined and can contain basically anything. However, they do need to have at least 4 energy cells for seeds to generate successfully",
+                    ];
                     break;
                 default:
                     if(bonuses[option]) {
@@ -863,6 +876,23 @@ const getHelpHelper = (category, option) => {
         case "general":
             subtitle = "General Options"
             switch(option) {
+                case "randomize":
+                    title = "Randomizer Randomizer";
+                    lines = [
+                        "Tired of deciding what options to play with? Click this button to randomize the randomizer!",
+                        "Randomizer randomization will give you a random logic preset, random keymode, random goal mode(s), random item pool, random variations, a random spawn setting (which could itself be Random Spawn), and will also randomize some behaviors in the advanced tab.",
+                        "Note: the randomizer randomizer is seeded based your input seed string (the value in the bottom left textbox), if provided. Putting the same text in that box will result in the same settings.",
+                        (<span><i>Some settings are more likely than others. The rando devs are not responsible for any bad times that may result from clicking this button. Please randomize responsibly.</i></span>)
+                    ];
+                    break;
+                    case "randomizeDisabled":
+                        title = "Randomizer Randomizer (Disabled)";
+                        lines = [
+                            "You have already randomized the randomizer with the current input seed string, and so this button is disabled because the result would be the same.",
+                            "To re-randomize, delete or change the value in your seed input (bottom left textbox), then click this button."
+                        ];
+                        break;
+    
                 case "reroll":
                     title = "Reroll Last Seed"
                     lines = [
@@ -921,11 +951,20 @@ const getHelpHelper = (category, option) => {
                         "View and download your generated seed here!"
                     ]
                 break;
-                case "customPool":
-                    title = "Item Pool Tab"
+                case "itemPoolPreset":
+                    title = "Item Pool Presets";
                     lines = [
-                        "The Item Pool tab allows users to customize the contents of the item pool (the set of items placed by the randomizer), either by selecting one of the available Item Pool presets or by manually adding / removing items.",
-                        "Note: the presets in this tab replace the old \"Extra Bonus Pickups\" and \"Hard Mode\" variations.",
+                        "This option lets you select an Item Pool preset for your seed to use.",
+                        "These presets change what items are placed in your seed, and can have a pretty big impact on your seed experience.",
+                        "Hover over the individual options to learn more about each preset!",
+                        "If you want more precise control over your item pool, check out the Customize Items tab below."
+                    ];
+                    break;
+                case "customPool":
+                    title = "Customize Items Tab"
+                    lines = [
+                        "The Customize Items tab allows users to further customize the contents of their item pool (the set of items placed by the randomizer) by manually adding / removing items.",
+                        "Note: selecting item pool presets has been moved to the main options above; you can find it below the Logic Mode selector, on the left."
                     ]
                     break;
                 case "variations":
@@ -1204,7 +1243,7 @@ const getHelpHelper = (category, option) => {
             match = false;
             break;
     }
-    if(dev && !match)
+    if(!match && dev)
         console.log(`No help text for ${category}, ${option}`)
     return {lines: lines, title: title, subtitle: subtitle, extras: extras}
 }

@@ -701,7 +701,7 @@ function gotoUrl(url, newWindow) {
 }
 
 
-const dev = window.document.URL.includes("cloudshell.dev")
+const dev = window.document.URL.includes("cloudshell.dev");
 const randInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 
 
