@@ -1626,14 +1626,14 @@ class SeedGenerator:
 
         self.place_repeatables()
         # handle the fixed pickup: the forlorn escape plant
-        for loc, item, zone in [(-12320248, "RB81", "Forlorn")]:
-            if loc in self.forcedAssignments:
-                item = self.forcedAssignments[loc]
-                del self.forcedAssignments[loc]  # don't count these ones
-            if item not in ["EX100", "EC1", "RB81"] and item not in self.itemPool:
-                log.warning("Preplaced item %s was not in pool. Translation may be necessary." % item)
-            ass = self.get_assignment(loc, self.adjust_item(item, zone), zone)
-            self.outputStr += ass
+        loc, item, zone = (-12320248, "EX100", "Forlorn")
+        if loc in self.forcedAssignments:
+            item = self.forcedAssignments[loc]
+            del self.forcedAssignments[loc]  # don't count these ones
+        if item != "EX100" and item not in self.itemPool:
+            log.warning("Preplaced item %s was not in pool. Translation may be necessary." % item)
+        ass = self.get_assignment(loc, self.adjust_item(item, zone), zone)
+        self.outputStr += ass
 
         if 2 in self.forcedAssignments:
             item = self.forcedAssignments[2]
