@@ -1078,18 +1078,17 @@ home: DashArea 271 -251
 		glitched Free
 		insane Free
 	conn: RazielNoArea
-		-- FIXME These are parsed incorrectly. standard-abilities paths.
 		casual Dash WallJump
 		casual Dash ChargeJump
 		casual Dash Bash Grenade
 		casual Dash Climb DoubleJump
 		standard Bash Grenade
-		standard WallJump Rekindle
-		standard ChargeJump Rekindle
-		standard Climb DoubleJump Rekindle
+		standard WallJump
+		standard ChargeJump
+		standard Climb DoubleJump
 		standard Climb AirDash
-		expert Climb Rekindle
-		master DoubleJump Rekindle
+		expert Climb
+		master DoubleJump
 home: DashAreaMapstoneAccess 356 -255
 	pickup: DashAreaMapstone
 		casual Dash
