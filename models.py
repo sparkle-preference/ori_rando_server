@@ -662,7 +662,7 @@ class BingoGameData(ndb.Model):
             self.discovery = square_count
         if len(self.disc_squares) > 0:
             return self.disc_squares[:]
-        if square_count > 25:
+        if square_count > 25 or square_count < 1:
             square_count = 2
         rand = random.Random()
         rand.seed(self.seed)
@@ -674,6 +674,10 @@ class BingoGameData(ndb.Model):
                 squares = rand.sample(noncounts, square_count)
             else:
                 squares = noncounts + rand.sample(range(25), square_count - len(noncounts))
+            if all("Sym" in self.board[card].name for card in squares): # girl noooooo
+                i += 1
+                continue
+            # todo - i think this code might be useless?
             for s in squares:
                 if (s % 5 != 4 and s+1 in squares) or (s % 5 != 0 and s-1 in squares) or (s > 4 and s-5 in squares) or (s < 20 and s+5 in squares):
                     i += 1

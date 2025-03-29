@@ -708,24 +708,25 @@ class BingoGenerator(object):
             )
         groupSeen = defaultdict(lambda: (1, [], []))
         cards = []
-#        goals = [goal for goal in goals]
         pickups_in = rand.randint(2,4)
         patience = 7 * discovery
-        meta_count = rand.randint(2,5) if meta else 0
-        no_symmetry = False
+        meta_count = int(round(rand.triangular(2, 5, 2.75))) if meta else 0
         is_disc = discovery > 0
+        if meta and is_disc:
+            discovery += 2
         while len(cards) < count:
             goal = None
             if meta_count > 0:
-                meta_goals = [goal for goal in goals if "meta" in goal.tags and not (no_symmetry and "symmetry" in goal.tags)]
+                meta_goals = [goal for goal in goals if "meta" in goal.tags]
                 if len(meta_goals):
                     goal = rand.choice(meta_goals)
                     meta_count -= 1
+                    if meta_count == 0:
+                        goals = [g for g in goals if not "meta" in g.tags] # when we're done, clean up - code does not support >5 metas
                 else:
                     log.error("Not enough meta goals! D:")
                     meta_count = 0
                     continue
-
             elif discovery > 0:
                 early_goals = [goal for goal in goals if "early" in goal.tags]
                 if len(early_goals):
@@ -733,7 +734,7 @@ class BingoGenerator(object):
                     if isinstance(goal, IntGoal):
                         drange = (goal.range_func.min, goal.early_max)
                         goal.range_func = r(drange, drange, drange)
-            else:
+            if not goal:
                 goal = rand.choice(goals)
             if "pickups_in_zone" in goal.tags:
                 if pickups_in > 0:
@@ -741,7 +742,7 @@ class BingoGenerator(object):
                 else:
                     continue
             repeats, banned_subgoals, banned_methods = groupSeen[goal.name]
-            if repeats == goal.max_repeats:
+            if repeats == goal.max_repeats and goal in goals: # dumb check but otherwise last meta as activate squares goes fucky wucky
                 goals.remove(goal)
             card = goal.to_card(rand, banned = {"methods": banned_methods, "goals": banned_subgoals})
             if not card:
@@ -757,8 +758,9 @@ class BingoGenerator(object):
                 banned_methods.append(card.goal_method)
                 card.goal_method = card.goal_method.strip('_')
                 banned_subgoals += [subgoal["name"] for subgoal in card.subgoals]
-            if "symmetry" in goal.tags and not no_symmetry:
-                no_symmetry = rand.randint(0,8)<3 # hehe less than 3 
+            if "symmetry" in goal.tags and rand.random()<.8:
+                 # (you can have both at most 20% of the time. bc it kinda sucks.) 
+                goals = [goal for goal in goals if not "symmetry" in goal.tags]
             groupSeen[goal.name] = (repeats+1, banned_subgoals, banned_methods)
             cards.append(card)
         rand.shuffle(cards)
@@ -779,37 +781,41 @@ class BingoGenerator(object):
             for index, card in enumerate(cards):
                 if card.meta:
                     metas_by_name[card.name].append(index)
-            # vertical symmetry must be in column C
+            # symmetry needs very specific rules. If you have both 1 must be in the center.
             if "HorizSym" in metas_by_name and "VertSym" in metas_by_name:
                 center_guy = random.choice(["HorizSym", "VertSym"])
                 center_i = metas_by_name[center_guy][0]
-                cards[center_i], cards[12] = cards[12], cards[center_i]
+                if center_i != 12:
+                    cards[center_i], cards[12] = cards[12], cards[center_i]
+                    if cards[center_i].meta:
+                        displaced_meta = cards[center_i]
+                        metas_by_name[displaced_meta.name] = [i for i in metas_by_name[displaced_meta.name] if i != 12] + [center_i]
                 del metas_by_name[center_guy]
+            # vertical symmetry must be in column c (so it can't see itself)
             if "VertSym" in metas_by_name:
-                col_c = list(range(2,23,5))
-                v_sym = metas_by_name["VertSym"][0]
+                col_c = [i for i in range(2,23,5) if not cards[i].meta] # if this is empty than we don't need to swap because there are max 5 meta cards
+                v_sym = list(metas_by_name["VertSym"])[0]
                 if v_sym not in col_c:
                     i = rand.choice(col_c)
                     cards[v_sym], cards[i] = cards[i], cards[v_sym] 
+            # horizontal symmetry must be in row 3 (so it can't see itself)
             if "HorizSym" in metas_by_name:
-                row_3 = list(range(10,15))
-                hor_sym = metas_by_name["HorizSym"][0]
-                if hor_sym not in row_3:
+                row_3 = [i for i in range(10,15) if not cards[i].meta] # if this is empty than we don't need to swap because there are max 5 meta cards
+                h_sym = list(metas_by_name["HorizSym"])[0]
+                if h_sym not in row_3:
                     i = rand.choice(row_3)
-                    cards[hor_sym], cards[i] = cards[i], cards[hor_sym]
+                    cards[h_sym], cards[i] = cards[i], cards[h_sym]
+            # activate squares needs to target non-meta squares
             if "Activate Squares" in metas_by_name:
                 non_metas = set([i for i, card in enumerate(cards) if not card.meta])
                 subgoals_json = [BoolGoal(str(5*row+col), col_name+str(row+1)).to_card(rand).to_json([], True) # a subgoal that targets exactly 1 square
                                 for row in range(5) for (col,col_name) in enumerate(["A","B","C","D","E"]) # cartesian product - all squares 
                                 if 5*row+col in non_metas] # i wanted to just have the non_metas definition here but it'd recalc every time...
-
                 rand.shuffle(subgoals_json)
-                cards_to_update = metas_by_name["Activate Squares"]
+                cards_to_update = list(metas_by_name["Activate Squares"])
                 while cards_to_update:
                     c = cards[cards_to_update.pop()]
                     c.subgoals = [subgoals_json.pop() for _ in c.subgoals]
-
-
         for i, card in enumerate(cards):
             card.square = i
         return cards

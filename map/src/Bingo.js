@@ -295,7 +295,6 @@ const PlayerList = ({activePlayer, teams, viewOnly, isOwner, timerTime, onPlayer
 }
 
 export default class Bingo extends React.Component {
-    admin = false;
     constructor(props) {
         super(props);
         let viewOnly = iniUrl.href.includes("bingo/spectate")
@@ -318,15 +317,14 @@ export default class Bingo extends React.Component {
         let seed = iniUrl.searchParams.get("seed") || String(Math.floor(Math.random() * 100000));
         let dark = get_flag("dark") || iniUrl.searchParams.has("dark");
         let user = get_param("user");
-        this.admin = get_flag("admin") || iniUrl.searchParams.has("enableMetaOverride");
-        let targetCount = parseInt(iniUrl.searchParams.get("bingoLines") || (fromGen && (teamMax > 1) ? 5 : 3), 10)
+        let targetCount = parseInt(iniUrl.searchParams.get("bingoLines") || 0, 10) || (fromGen && (teamMax > 1) ? 5 : 3)
         this.state = {
                       cards: [], currentRecord: 0, haveGame: false, creatingGame: false, createModalOpen: true, offset: 0, noTimer: false, 
                       discovery: iniUrl.searchParams.has("disc"), discCount: parseInt(iniUrl.searchParams.get("disc") || 2, 10), discSquares: [], lockout: false,
                       activePlayer: parseInt(get_param("pref_num") || 1, 10), showInfo: false, user: user, loadingText: "Loading...", paramId: -1, squareCount: 13, seed: seed,
                       dark: dark, specLink: window.document.location.href.replace("board", "spectate").replace(gameId, 4 + gameId*7), 
                       fails: 0, gameId: gameId, startSkills: 3, startCells: 4, startMisc: "MU|TP/Swamp/TP/Valley", goalMode: "bingos",
-                      start_with: "", difficulty: "normal", isRandoBingo: false, randoGameId: -1, viewOnly: viewOnly, buildingPlayer: false, meta: this.admin,
+                      start_with: "", difficulty: "normal", isRandoBingo: false, randoGameId: -1, viewOnly: viewOnly, buildingPlayer: false, meta: true,
                       events: [], startTime: (new Date()), countdownActive: false, isOwner: false, targetCount: targetCount, userBoard: userBoard,
                       teamsDisabled: (teamMax === -1), fromGen: fromGen, teamMax: teamMax, ticksSinceLastSquare: 0, userBoardParams: userBoardParams,
                       ticking: false

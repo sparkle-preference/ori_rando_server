@@ -1352,6 +1352,34 @@ def add_bingo_to_game(game_id):
 
         d = int(param_val("discCount") or 0)
         lockout = bool(int(param_val("lockout") or 0))
+        if False: # this is like having test code
+            metacnt = 0
+            symcnt = 0
+            for i in range(500):
+                iseed = seed+str(i)
+                rand.seed(iseed)
+                cards = BingoGenerator.get_cards(rand, 25, True, difficulty, Variation.OPEN_WORLD in params.variations, d, param_flag("meta"), lockout, Variation.KEYSANITY in params.variations)
+                try:
+                    assert(all([card.square in range(2,23,5) for card in cards if card.name == "VertSym"]))
+                except:
+                    log.error("seed %s: VertSym: %s", iseed, [(card.square, card.square in range(2,23,5)) for card in cards if card.name == "VertSym"])
+                try:
+                    assert(all([card.square in range(10,15) for card in cards if card.name == "HorizSym"]))
+                except:
+                    log.error("seed %s: HorizSym: %s", iseed, [(card.square, card.square in range(10,15)) for card in cards if card.name == "HorizSym"])
+                try:
+                    assert(all([(len(sg['name']) <3) for card in cards if card.name == "Activate Squares" for sg in card.subgoals ]))
+                except:
+                    log.error("seed %s: Activate Squares: %s", iseed, [((sg['name'])) for card in cards if card.name == "Activate Squares" for sg in card.subgoals])
+                try:
+                    assert(len([c for c in cards if c.meta]) <= 5)
+                except:
+                    log.error("seed %s:total count: %s", iseed, len([c for c in cards if c.meta]))
+                metacnt += len([c for c in cards if c.meta])
+                symcnt += len([c for c in cards if "Sym" in c.name])
+            
+            log.info("meta density: %s, sym density: %s",float(metacnt)/500.0, float(symcnt)/500.0)            
+
         bingo = BingoGameData(
             id            = game_id,
             board         = BingoGenerator.get_cards(rand, 25, True, difficulty, Variation.OPEN_WORLD in params.variations, d, param_flag("meta"), lockout, Variation.KEYSANITY in params.variations),
