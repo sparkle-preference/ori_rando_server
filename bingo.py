@@ -708,6 +708,7 @@ class BingoGenerator(object):
             )
         groupSeen = defaultdict(lambda: (1, [], []))
         cards = []
+        goals = [goal for goal in goals]
         pickups_in = rand.randint(2,4)
         patience = 7 * discovery
         meta_count = int(round(rand.triangular(2, 5, 2.75))) if meta else 0
