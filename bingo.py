@@ -795,14 +795,14 @@ class BingoGenerator(object):
             # vertical symmetry must be in column c (so it can't see itself)
             if "VertSym" in metas_by_name:
                 col_c = [i for i in range(2,23,5) if not cards[i].meta] # if this is empty than we don't need to swap because there are max 5 meta cards
-                v_sym = list(metas_by_name["VertSym"])[0]
+                v_sym = metas_by_name["VertSym"][0]
                 if v_sym not in col_c:
                     i = rand.choice(col_c)
                     cards[v_sym], cards[i] = cards[i], cards[v_sym] 
             # horizontal symmetry must be in row 3 (so it can't see itself)
             if "HorizSym" in metas_by_name:
                 row_3 = [i for i in range(10,15) if not cards[i].meta] # if this is empty than we don't need to swap because there are max 5 meta cards
-                h_sym = list(metas_by_name["HorizSym"])[0]
+                h_sym = metas_by_name["HorizSym"][0]
                 if h_sym not in row_3:
                     i = rand.choice(row_3)
                     cards[h_sym], cards[i] = cards[i], cards[h_sym]
@@ -813,7 +813,7 @@ class BingoGenerator(object):
                                 for row in range(5) for (col,col_name) in enumerate(["A","B","C","D","E"]) # cartesian product - all squares 
                                 if 5*row+col in non_metas] # i wanted to just have the non_metas definition here but it'd recalc every time...
                 rand.shuffle(subgoals_json)
-                cards_to_update = list(metas_by_name["Activate Squares"])
+                cards_to_update = metas_by_name["Activate Squares"]
                 while cards_to_update:
                     c = cards[cards_to_update.pop()]
                     c.subgoals = [subgoals_json.pop() for _ in c.subgoals]
