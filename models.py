@@ -656,6 +656,7 @@ class BingoGameData(ndb.Model):
     lockout          = ndb.BooleanProperty(default=False)
     disc_squares     = ndb.IntegerProperty(repeated=True)
     rand_dat         = ndb.TextProperty(compressed=True)
+    meta             = ndb.BooleanProperty(default=False)
 
     def discovery_squares(self, square_count=2):
         if self.discovery != square_count:
@@ -760,6 +761,8 @@ class BingoGameData(ndb.Model):
             log.warning("Player %s already had bingo card progress, won't reinit" % pid)
         else:
             p.bingo_prog = [BingoCardProgress(square=i) for i in range(25)]
+            if self.meta:
+                pass
             p.put()
         return p
 
@@ -846,18 +849,18 @@ class BingoGameData(ndb.Model):
         return None
 
     @ndb.transactional(retries=0, xg=True)
-    def update(self, bingo_data, player_id, game_id):
-        if not bingo_data:
+    def update(self, bingo_data, player_id, game_id, meta_init = False):
+        if not bingo_data and not meta_init:
             log.error("no bingo data????")
             return
         player_id = int(player_id)
-        if not self.start_time:
+        if not self.start_time and not meta_init:
             return
         now = datetime.utcnow()
         change_squares = set()
         loss_squares = set()
         win_players = False
-        round_now = round_time(now - self.start_time)
+        round_now = round_time(now - self.start_time) if not meta_init else "00:00"
         place = ""
         win_sig = "win:$Finished in %s place at %s!"
         team = self.team(player_id, cap_only=False)
@@ -905,7 +908,7 @@ class BingoGameData(ndb.Model):
                     need_write = True
                     handle_event(ev)
 
-            else:
+            elif not meta_init:
                 log.warning("card %s was not in bingo data for team/player %s", card.name if card else card, team.captain if team else team)
             if (cpid == card.owner) if self.lockout else (cpid in card.completed_by):
                 team.score += 1
@@ -937,7 +940,6 @@ class BingoGameData(ndb.Model):
                         handle_event(ev)
                     if (cpid == card.owner) if self.lockout else (cpid in card.completed_by):
                         team.score += 1
-
         if self.square_count:
             if team.score >= self.square_count and not team.place:
                 self.event_log.append(BingoEvent(event_type = "win", loss = False, player = team.captain, timestamp = now))
