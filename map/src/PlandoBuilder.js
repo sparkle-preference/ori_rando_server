@@ -21,12 +21,18 @@ import Toggle from 'react-bootstrap-toggle';
 NumericInput.style.input.width = '100%';
 NumericInput.style.input.height = '36px';
 
-const relevantCodes = ["HC", "AC", "EC", "KS", "MS", "TP", "RB", "EV", "SK"];
+const relevantCodes = ["HC", "AC", "EC", "KS", "MS", "TP", "RB", "EV", "SK", "TW"];
 const DUNGEON_KEYS = ["EV|0", "EV|2", "EV|4"]
 const DEFAULT_DATA = {
-    '-280256': {label: "Energy Cell", value: "EC|1"},
-    '-12320248': {label: "Nothing", value: "NO|1"}
+    '-12320248': {label: "100 Experience", value: "EX|100"}
 }
+
+const FORMAT_LINES = `Message format:
+\\n: linebreak
+*blue text*
+$green text$
+#orange text#
+@red text@`;
 
 const DEFAULT_REACHABLE = {'SunkenGladesRunaway': [["Free"]]};
 const DEFAULT_VIEWPORT = {
@@ -55,7 +61,7 @@ const modes_by_key = {"Shared": "Shared", "None": "Solo", "Split": "Shards Race"
 const COOP_MODES = Object.keys(modes_by_key).map((k) => { return {label: modes_by_key[k], value: k} });
 const SHARE_TYPES = ["WorldEvents", "Misc", "Upgrades", "Teleporters", "Skills"]
 const crs = getMapCrs();
-const DANGEROUS = [-280256, -12320248]
+const DANGEROUS = [-12320248]
 const paths = Object.keys(presets);
 
 const dev = window.document.URL.includes("devshell")
@@ -68,6 +74,8 @@ function getPickupMarkers(state, setSelected, searchStr) {
     let hide_unreachable = flags.includes("hide_unreachable")
     let skip_danger = flags.includes("hide_softlockable")
     let skip_assigned = flags.includes("hide_assigned")
+    let show_loc_names = flags.includes("show_loc_names")
+    let playerCount = Object.keys(placements).length
     let markers = []
     pickupTypes.forEach((pre) => {
         picks_by_type[pre].forEach((pick) => {
@@ -78,8 +86,7 @@ function getPickupMarkers(state, setSelected, searchStr) {
                         show = false;
             if(skip_assigned && placements[state.player].hasOwnProperty(pick.loc))
                         show = false;
-            if(show)
-            {
+            if(show) {
                 let highlight = searchStr ? false : true;
                 let rows = null;
                 if(pick.name === "MapStone") {
@@ -91,7 +98,7 @@ function getPickupMarkers(state, setSelected, searchStr) {
                                 highlight = true
                             return (
                                 <td style={{color:'black'}}>
-                                ({pid}) {placements[pid][ms.loc].label}
+                                {(playerCount === 1 ? '' : `(${pid}) `)}{placements[pid][ms.loc].label}
                                 </td>
                             )
                         });
@@ -105,10 +112,13 @@ function getPickupMarkers(state, setSelected, searchStr) {
                       rows = Object.keys(placements).map((pid) => {
                         if(!highlight && searchStr && placements[pid][pick.loc] && is_match(placements[pid][pick.loc], searchStr))
                             highlight = true
+                         let lineText = placements[pid][pick.loc] ? placements[pid][pick.loc].label : "";
+                         if(playerCount > 1)
+                            lineText = `${pid}: ` + lineText;
+                         if(show_loc_names)
+                            lineText = `(${pick.area}${pick.name}) ` + lineText;
                           return (
-                            <tr><td style={{color:'black'}}>
-                                  {pid}: {placements[pid][pick.loc] ? placements[pid][pick.loc].label : ""}
-                            </td></tr>
+                            <tr><td style={{color:'black'}}>{lineText}</td></tr>
                           )
                       });
                 }
@@ -172,7 +182,7 @@ class PlandoBuiler extends React.Component {
 
     this.state = {seed_in: "", reachable: {...DEFAULT_REACHABLE}, new_areas: {...DEFAULT_REACHABLE}, placements: {1: {...DEFAULT_DATA}}, player: 1, saving: false,
                   fill_opts: {HC: 13, EC: 15, AC: 34, KS: 40, MS: 9, EX: 300, ex_pool: 10000, dynamic: false, dumb: false}, viewport: {center: [0, 0], zoom: 5}, searchStr: "", clueOrder: CLUE_ORDERS[0],
-                  flags: ['hide_unreachable', 'hide_softlockable'], seedFlags: select_wrap(["ForceTrees"]), hidden: hidden, share_types: select_wrap(["keys"]), coop_mode: {label: "Solo", value: "None"},
+                  flags: ['hide_unreachable', 'hide_softlockable'], seedFlags: [], hidden: hidden, share_types: select_wrap(["keys"]), coop_mode: {label: "Solo", value: "None"},
                   pickups: ["EX", "Ma", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "CS"], display_fill: false, display_import: false, display_logic: false, display_coop: false, display_meta: false,
                 seed_name: seed_name, last_seed_name: seed_name, seed_desc: seed_desc, user: user};
     }
@@ -207,7 +217,7 @@ class PlandoBuiler extends React.Component {
         lastSelected['Glades'] = pickup
     
         this.setState({mousePos: {lat: 0, lng: 0}, zone: zone, pickup: pickup, modes: modes, lastSelected: lastSelected, logicMode: logicMode, pathMode: pathmode,
-                      manual_reach: manual_reach, stuff: {value: "NO|1", label: "Nothing"}, authed: get_flag("authed")})
+                      manual_reach: manual_reach, stuff: {value: "", label: ""}, authed: get_flag("authed")}, () => this.updateReachable())
     
     };
 
@@ -284,6 +294,7 @@ class PlandoBuiler extends React.Component {
 
 
     place = (s) => {
+        if(s.value === "") return;
         if(s.value.length < 4 || s.value[2] !== "|") {
             NotificationManager.warning("Pickup should be in the form XX|Y", "Invalid Pickup!", 1000);
             this.setState({stuff: s});
@@ -320,8 +331,7 @@ class PlandoBuiler extends React.Component {
         for (let i = 1, len = lines.length; i < len; i++) {
             let line = lines[i].split("|")
             let loc = parseInt(line[0], 10);
-            if(currplc.hasOwnProperty(loc) && currplc[loc].value !== "NO|1")
-            {
+            if(currplc.hasOwnProperty(loc)) {
                 newplc[loc] = currplc[loc];
                 continue;
             }
@@ -334,6 +344,7 @@ class PlandoBuiler extends React.Component {
             }
             let name = pickup_name(code, id);
             let stuff = {label: name, value:code+"|"+id};
+            if(code === "TW") console.log(stuff)
             newplc[loc] = stuff;
             if(loc === this.state.pickup.value.loc)
                 this.setState({stuff: stuff});
@@ -411,8 +422,7 @@ class PlandoBuiler extends React.Component {
         let flags = this.state.seedFlags.map(f => f.value)
         if(this.state.coop_mode.value !== "None")
         {
-            if(this.state.coop_mode.value === "Shared")
-            {
+            if(this.state.coop_mode.value === "Shared") {
                 let stypes = this.state.share_types.map(f => f.value)
                 if(stypes.length)
                     flags.push("shared="+stypes.join("+"))
@@ -537,7 +547,7 @@ class PlandoBuiler extends React.Component {
           Object.keys(this.state.reachable).forEach((area) => {
               if(picks_by_area.hasOwnProperty(area))
                   picks_by_area[area].forEach((pick) => {
-                      if(this.state.placements[this.state.player] && this.state.placements[this.state.player].hasOwnProperty(pick.loc)) 
+                      if(this.state.placements[this.state.player] && this.state.placements[this.state.player].hasOwnProperty(pick.loc))
                           codes.push(pick.loc+":"+this.state.placements[1][pick.loc].value.replace("|",""));
                   });
           });
@@ -561,6 +571,7 @@ class PlandoBuiler extends React.Component {
         let url = `/plando/fillgen?${urlParams.join("&")}`;
         xmlHttp.open("GET", url, true);
         xmlHttp.send(null);
+        NotificationManager.info("Generating Seed", "Generating seed based on current placements...", 5000);
     }
 
 
@@ -604,7 +615,7 @@ class PlandoBuiler extends React.Component {
         let reachableAreas = Object.keys(this.state.reachable)
         
         // if we've seen every area we can reach in our last iteration, halt
-        if(reachableAreas.every(area => lastPass.includes(area)))
+        if(reachableAreas.every(area => lastPass.includes(area))) 
             return
 
           let reachableStuff = {};
@@ -639,12 +650,12 @@ class PlandoBuiler extends React.Component {
               });
               recursive = false
           }
-            let modes = [...this.state.modes]
-            let flags = this.state.seedFlags.map(f => f.value)
-            if(flags.includes("ClosedDungeon")) 
-                modes.push("CLOSED_DUNGEON")
+            let modes = [...this.state.modes];
+            let flags = this.state.seedFlags.map(f => f.value);
+            if(flags.includes("ClosedDungeon"))
+                modes.push("CLOSED_DUNGEON");
             if(flags.includes("OpenWorld")) 
-                modes.push("OPEN_WORLD")
+                modes.push("OPEN_WORLD");
 
 
             getReachable((s, c) => this.setState(s, c), reachableStuff, modes, recursive ? () => this.updateReachable(reachableAreas) : () => null);
@@ -695,7 +706,7 @@ class PlandoBuiler extends React.Component {
 
 
     render() {
-        let {clueOrder, modes, searchStr, seedFlags, authed, hidden} = this.state;
+        let {clueOrder, modes, searchStr, seedFlags, authed, hidden, flags} = this.state;
         let page = encodeURIComponent(window.document.URL.split(".com")[1])
         const pickup_markers = ( <PickupMarkersList markers={getPickupMarkers(this.state, this.selectPickupCurry, searchStr)} />)
         const zone_opts = zones.map(zone => ({label: zone, value: zone}))
@@ -714,6 +725,11 @@ class PlandoBuiler extends React.Component {
             <Button color="success" onClick={this.doFillGen} >Fill</Button>
         )
         let logic_path_buttons = logic_paths.map(lp => {return (<Col className="pr-0" xs="4"><Button block size="sm" disabled={lp==="casual-core"} outline={!modes.includes(lp)} onClick={this.onMode(lp)}>{lp}</Button></Col>)});
+        let formattingLegend = flags.includes('show_message_legend') ? (
+            <Control position="bottomleft" ><div style={{padding: ".2rem", background: 'black', border: 'double 1px white'}}>
+                {FORMAT_LINES.split("\n").map(l => (<div>{l}</div>))}
+            </div></Control>    
+        ) : null;
         return (
             <div className="wrapper">
                 <NotificationContainer/>
@@ -729,7 +745,9 @@ class PlandoBuiler extends React.Component {
                     <div>
                         <Button size="sm" color="disabled">{Math.round(this.state.mousePos.lng)},{Math.round(this.state.mousePos.lat)}</Button>
                     </div>
-                    </Control>    
+                    </Control>
+                    {formattingLegend}
+
                     <TileLayer url=' https://ori-tracker.firebaseapp.com/images/ori-map/{z}/{x}/{y}.png' noWrap='true'  />
                     {pickup_markers}
                 </Map>
@@ -757,7 +775,7 @@ class PlandoBuiler extends React.Component {
                     <div id="pickup-controls">
                         <div className="pickup-wrapper">
                             <span className="label">Seed Flags: </span>
-                            <Creatable styles={select_styles} options={select_wrap(SEED_FLAGS)} onChange={this.onFlags} isMulti={true} value={this.state.seedFlags} label={this.state.seedFlags}/>
+                            <Creatable styles={select_styles} isValidNewOption={(x) => x.trim() && !([",", "\n", "|", ";"].some(c => x.includes(c)))} options={select_wrap(SEED_FLAGS)} onChange={this.onFlags} isMulti={true} value={this.state.seedFlags} label={this.state.seedFlags}/>
                         </div>
                         {clue_order_picker}
                     </div>
@@ -807,9 +825,13 @@ class PlandoBuiler extends React.Component {
                     <hr style={{ backgroundColor: 'grey', height: 2 }}/>
                     <div id="display-controls">
                         <CheckboxGroup id="display-flags" checkboxDepth={6} name="flags" value={this.state.flags} onChange={this.flagsChanged}>
-                            <label className="form-check-label"><Checkbox value="hide_unreachable" />Hide Unreachable</label>
-                            <label className="form-check-label"><Checkbox value="hide_assigned" />Hide Assigned</label>
-                            <label className="form-check-label"><Checkbox value="hide_softlockable" />Hide Dangerous</label>
+                                <label className="form-check-label"><Checkbox value="hide_unreachable" />Hide Unreachable</label>
+                                <label className="form-check-label"><Checkbox value="hide_assigned" />Hide Assigned</label>
+                                <label className="form-check-label"><Checkbox value="hide_softlockable" />Hide Dangerous</label>
+                            </CheckboxGroup>
+                            <CheckboxGroup id="helptext-flags" checkboxDepth={6} name="flags" value={this.state.flags} onChange={this.flagsChanged}>
+                                <label className="form-check-label"><Checkbox value="show_loc_names" />Show Loc Names</label>
+                                <label className="form-check-label pl-2"><Checkbox value="show_message_legend" />Show Styleguide</label>
                         </CheckboxGroup>
                     <hr style={{ backgroundColor: 'grey', height: 2 }}/>
                         <div id="search-wrapper">
@@ -915,7 +937,6 @@ function getReachable(setter, inventory, modes, callback)
                             if(!reachable.hasOwnProperty(area))
                                 reachable[area] = new_reachables[area];
                             reachable[area] = reachable[area].concat(new_reachables[area]);
-
                         });
                         return {reachable: reachable}
                     }, callback)

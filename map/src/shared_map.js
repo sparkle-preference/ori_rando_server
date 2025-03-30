@@ -204,13 +204,12 @@ const getStuffType = (stuff) => {
 
 
 let request = new XMLHttpRequest()
-request.open('GET', '/picksbytype', false)
+request.open('GET', '/pickupandlocinfo', false)
 request.send(null)
-if (request.status !== 200) alert("critical error! picks_by_type could not generate")
+if (request.status !== 200) alert("critical error! pickupandlocinfo could not generate")
 
 
-const picks_by_type = JSON.parse(request.responseText);
-
+const {picks_by_type, str_ids} = JSON.parse(request.responseText);
 const pickups = [];
 const picks_by_loc = {};
 const locs = [];
@@ -253,7 +252,6 @@ function uniq(array) {
     return array.filter(item => seen.includes(item) ? false : (seen.push(item) && true));
 }
  
-const str_ids = ["TP", "NO", "SH", "WT", "MU", "HN", "WP", "RP", "WS"];
 const hide_opacity = .2;
 const seed_name_regex = new RegExp("^[^ ?=/]+$");
 const select_styles = {
