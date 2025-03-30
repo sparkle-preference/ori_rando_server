@@ -15,7 +15,6 @@ export default class HelpAndGuides extends React.Component {
     getGlossaryCardContent = () => {
         let normal = []
         let bonus = []
-//      let plandoOnly = []
         stuff_by_type["Upgrades"].forEach(upgrade_data => {
         let {label, value, desc} = upgrade_data;
         if(counts["standard"].hasOwnProperty(value)) {

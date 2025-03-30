@@ -8,9 +8,14 @@ class Pickup(object):
     def subclasses():
         return [Skill, Event, Teleporter, Upgrade, Experience, AbilityCell, HealthCell, EnergyCell, Keystone, 
                 Mapstone, Message, Hint, Relic, Multiple, Repeatable, Warp, WarpSave, Nothing, TPWarp]
+    @staticmethod
+    def strtypes():
+        return [s.code for s in Pickup.subclasses() if not s.int_id]
+
     stacks = False
     has_children = False
     int_id = True
+
     share_type = ShareType.NOT_SHARED
     def __eq__(self, other):
         return isinstance(other, Pickup) and self.id == other.id and self.code == other.code
@@ -84,13 +89,22 @@ class Upgrade(Pickup):
             17: "Water Vein Shard", 19: "Gumon Seal Shard", 21: "Sunstone Shard", 28: "Warmth Fragment", 6: "Attack Upgrade", 13: "Health Regeneration", 2: "Go Home",
             15: "Energy Regeneration", 8: "Explosion Power Upgrade", 9: "Spirit Light Efficiency", 10: "Extra Air Dash", 11: "Charge Dash Efficiency",
             12: "Extra Double Jump", 0: "Mega Health", 1: "Mega Energy", 30: "Bleeding", 31: "Health Drain", 32: "Energy Drain", 33: "Skill Velocity Upgrade",
-            101: "Polarity Shift", 102: "Gravity Swap", 103: "Extreme Speed", 104: "Teleport: Last AltR", 105: "Teleport: Soul Link", 106: "Respec", 107: "Level Explosion", 110: "Invincibility",
             81: "Stompnade Hint", 40: "Remove Wall Jump", 41: "Remove Charge Flame", 42: "Remove Double Jump", 43: "Remove Bash", 44: "Remove Stomp", 45: "Remove Glide",
-            46: "Remove Climb", 47: "Remove Charge Jump", 48: "Remove Dash", 49: "Remove Grenade", 34: "Disable Alt+R", 35: "Enable Alt+R", 36: "Underwater Skill Usage", 109: "Timewarp",
-            111: "Wither", 113: "Bash/Stomp Damage", 1587: "Credit Warp", 37: "Jump Upgrade",
-            300: "Glades Pool Keystone", 301: "Lower Spirit Caverns Keystone", 302: "Grotto Keystone", 303: "Swamp Keystone", 304: "Upper Spirit Caverns Keystone", 
-            305: "Lower Ginso Keystone", 306: "Upper Ginso Keystone", 307: "Misty Keystone", 308: "Forlorn Keystone", 309: "Lower Sorrow Keystone", 
-            310: "Mid Sorrow Keystone", 311: "Upper Sorrow Keystone",
+            46: "Remove Climb", 47: "Remove Charge Jump", 48: "Remove Dash", 49: "Remove Grenade", 34: "Disable Alt+R", 35: "Enable Alt+R", 36: "Underwater Skill Usage", 37: "Jump Upgrade",
+            101: "Polarity Shift", 102: "Gravity Swap", 103: "Extreme Speed", 104: "Teleport: Last AltR", 105: "Teleport: Soul Link", 106: "Respec", 
+            107: "Level Explosion", 110: "Invincibility", 109: "Timewarp", 111: "Wither", 113: "Bash/Stomp Damage", 1587: "Credit Warp", 
+            200: "Quick Flame", 201: "Spark Flame", 202: "Charge Flame Burn", 203: "Split Flame", 204: "Ultra Light Burst", 205: "Cinder Flame",
+            206: "Ultra Stomp", 207: "Rapid Flame", 208: "Charge Flame Blast", 209: "Ultra Split Flame", 210: "Spirit Magnet", 211: "Map Markers",
+            212: "Life Efficiency", 213: "Ultra Spirit Magnet", 214: "Energy Efficiency", 215: "Spirit Efficiency", 216: "Spirit Potency",
+            217: "Life Regen (Ability)", 218: "Energy Regen (Ability", 219: "Sense", 220: "Rekindle", 221: "Regroup", 222: "Charge Flame Efficiency",
+            223: "Air Dash", 224: "Ultra Soul Link", 225: "Charge Dash", 226: "Water Breath", 227: "Soul Link Efficiency", 228: "Triple Jump", 229: "Ultra Defense",
+            230: "Remove Quick Flame", 231: "Remove Spark Flame", 232: "Remove Charge Flame Burn", 233: "Remove Split Flame", 234: "Remove Ultra Light Burst",
+            235: "Remove Cinder Flame", 236: "Remove Ultra Stomp", 237: "Remove Rapid Flame", 238: "Remove Charge Flame Blast", 239: "Remove Ultra Split Flame",
+            240: "Remove Spirit Magnet", 241: "Remove Map Markers", 242: "Remove Life Efficiency", 243: "Remove Ultra Spirit Magnet",
+            244: "Remove Energy Efficiency", 245: "Remove Spirit Efficiency", 246: "Remove Spirit Potency", 247: "Remove Life Regen (Ability)",
+            248: "Remove Energy Regen (Ability)", 249: "Remove Sense", 250: "Remove Rekindle", 251: "Remove Regroup", 252: "Remove Charge Flame Efficiency",
+            253: "Remove Air Dash", 254: "Remove Ultra Soul Link", 255: "Remove Charge Dash", 256: "Remove Water Breath", 257: "Remove Soul Link Efficiency",
+            258: "Remove Triple Jump", 259: "Remove Ultra Defense",
             900: "Wall Jump Tree", 901: "Charge Flame Tree", 902: "Double Jump Tree", 903: "Bash Tree", 904: "Stomp Tree", 905: "Glide Tree", 906: "Climb Tree",
             907: "Charge Jump Tree", 908: "Dash Tree", 909: "Grenade Tree", 911: "Glades Relic", 912: "Grove Relic", 913: "Grotto Relic", 914: "Blackroot Relic",
             915: "Swamp Relic", 916: "Ginso Relic", 917: "Valley Relic", 918: "Misty Relic", 919: "Forlorn Relic", 920: "Sorrow Relic", 921: "Horu Relic", 1100: "Enable Frag Sense",

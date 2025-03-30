@@ -453,9 +453,9 @@ def clear_cache():
 def get_vanilla_seed():
     return text_download(vanilla_seed, "randomizer.dat")
 
-@app.route('/picksbytype')
+@app.route('/pickupandlocinfo')
 def picks_by_type():
-    return json_resp(picks_by_type_generator())
+    return json_resp({'picks_by_type': picks_by_type_generator(), 'str_ids': Pickup.strtypes()})
 
 @app.route('/tracker/game/<int:game_id>/')
 @app.route('/tracker/game/<int:game_id>/map')

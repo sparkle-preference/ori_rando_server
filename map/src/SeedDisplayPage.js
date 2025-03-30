@@ -67,7 +67,7 @@ export default class SeedDisplayPage extends React.Component {
 					<Button block onClick={this.updateDesc}>Update</Button>
 				</Col>
                 <Col xs="8">
-					<Input type="textarea" value={this.state.seed_desc} onChange={e => this.setState({seed_desc: e.target.value})}/>
+					<Input type="textarea" rows={this.state.seed_desc.split("\n").length + 2} value={this.state.seed_desc} onChange={e => this.setState({seed_desc: e.target.value})}/>
 				</Col>
                 </Row>
 
@@ -89,7 +89,8 @@ export default class SeedDisplayPage extends React.Component {
 				<Col xs="2" className="text-right">
 					<span style={textStyle}>Summary: </span>
 				</Col><Col xs="10">
-					<span style={textStyle}>{this.state.seed_desc}</span>
+					{this.state.seed_desc.split("\n").map((line, i) => (<div className={`desc-line-${i}`} style={{textAlign: 'left'}}>{line}</div>))}
+					
 				</Col>
 			</Row>
 		) : null

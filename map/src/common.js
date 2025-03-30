@@ -47,7 +47,7 @@ function name_from_str(pick) {
 function pickup_name(code, id) {
     let upgrade_names = {};
     stuff_by_type["Upgrades"].forEach(s => {
-        upgrade_names[s.value.substr(3)] = s.label;
+        upgrade_names[s.value.substring(3)] = s.label;
     });
     let names = {
         "SK": { 0: "Bash", 2: "Charge Flame", 3: "Wall Jump", 4: "Stomp", 5: "Double Jump", 8: "Charge Jump", 12: "Climb", 14: "Glide", 15: "Spirit Flame", 50: "Dash", 51: "Grenade" },
@@ -105,6 +105,9 @@ function pickup_name(code, id) {
             if(id === "*")
                 return "Random bonus skill"
             return code + "|" + id;
+        case "TW":
+          const subparts = id.split(",");
+          return `${subparts[0]} (${subparts[1]}, ${subparts[2]})`;
         default:
             return code + "|" + id;
     }
@@ -197,7 +200,67 @@ const stuff_by_type = {
         { label: "Invincibility", value: "RB|110", desc: "Toggle: Makes Ori Invincible. Costs 1 energy per second, +.5 to activate."},
         { label: "Wither", value: "RB|111", desc: "On Use: kills Ori (no cost)"},
         { label: "Bash/Stomp Damage", value: "RB|113", desc: "Toggle: prevents any damage Stomp and Bash would deal to enemies. (no cost)"},
-    ],
+        {label: "Quick Flame", value: "RB|200"}, 
+        {label: "Spark Flame", value: "RB|201"}, 
+        {label: "Charge Flame Burn", value: "RB|202"}, 
+        {label: "Split Flame", value: "RB|203"}, 
+        {label: "Ultra Light Burst", value: "RB|204"}, 
+        {label: "Cinder Flame", value: "RB|205"}, 
+        {label: "Ultra Stomp", value: "RB|206"}, 
+        {label: "Rapid Flame", value: "RB|207"}, 
+        {label: "Charge Flame Blast", value: "RB|208"}, 
+        {label: "Ultra Split Flame", value: "RB|209"}, 
+        {label: "Spirit Magnet", value: "RB|210"}, 
+        {label: "Map Markers", value: "RB|211"}, 
+        {label: "Life Efficiency", value: "RB|212"}, 
+        {label: "Ultra Spirit Magnet", value: "RB|213"}, 
+        {label: "Energy Efficiency", value: "RB|214"}, 
+        {label: "Spirit Efficiency", value: "RB|215"}, 
+        {label: "Spirit Potency", value: "RB|216"}, 
+        {label: "Life Regen (Ability)", value: "RB|217"}, 
+        {label: "Energy Regen (Ability", value: "RB|218"}, 
+        {label: "Sense", value: "RB|219"}, 
+        {label: "Rekindle", value: "RB|220"}, 
+        {label: "Regroup", value: "RB|221"}, 
+        {label: "Charge Flame Efficiency", value: "RB|222"}, 
+        {label: "Air Dash", value: "RB|223"}, 
+        {label: "Ultra Soul Link", value: "RB|224"}, 
+        {label: "Charge Dash", value: "RB|225"}, 
+        {label: "Water Breath", value: "RB|226"}, 
+        {label: "Soul Link Efficiency", value: "RB|227"}, 
+        {label: "Triple Jump", value: "RB|228"}, 
+        {label: "Ultra Defense", value: "RB|229"}, 
+        {label: "Remove Quick Flame", value: "RB|230"}, 
+        {label: "Remove Spark Flame", value: "RB|231"}, 
+        {label: "Remove Charge Flame Burn", value: "RB|232"}, 
+        {label: "Remove Split Flame", value: "RB|233"}, 
+        {label: "Remove Ultra Light Burst", value: "RB|234"}, 
+        {label: "Remove Cinder Flame", value: "RB|235"}, 
+        {label: "Remove Ultra Stomp", value: "RB|236"}, 
+        {label: "Remove Rapid Flame", value: "RB|237"}, 
+        {label: "Remove Charge Flame Blast", value: "RB|238"}, 
+        {label: "Remove Ultra Split Flame", value: "RB|239"}, 
+        {label: "Remove Spirit Magnet", value: "RB|240"}, 
+        {label: "Remove Map Markers", value: "RB|241"}, 
+        {label: "Remove Life Efficiency", value: "RB|242"}, 
+        {label: "Remove Ultra Spirit Magnet", value: "RB|243"}, 
+        {label: "Remove Energy Efficiency", value: "RB|244"}, 
+        {label: "Remove Spirit Efficiency", value: "RB|245"}, 
+        {label: "Remove Spirit Potency", value: "RB|246"}, 
+        {label: "Remove Life Regen (Ability)", value: "RB|247"}, 
+        {label: "Remove Energy Regen (Ability)", value: "RB|248"}, 
+        {label: "Remove Sense", value: "RB|249"}, 
+        {label: "Remove Rekindle", value: "RB|250"}, 
+        {label: "Remove Regroup", value: "RB|251"}, 
+        {label: "Remove Charge Flame Efficiency", value: "RB|252"}, 
+        {label: "Remove Air Dash", value: "RB|253"}, 
+        {label: "Remove Ultra Soul Link", value: "RB|254"}, 
+        {label: "Remove Charge Dash", value: "RB|255"}, 
+        {label: "Remove Water Breath", value: "RB|256"}, 
+        {label: "Remove Soul Link Efficiency", value: "RB|257"}, 
+        {label: "Remove Triple Jump", value: "RB|258"}, 
+        {label: "Remove Ultra Defense", value: "RB|259"},         
+      ],
 };
 
 const compareOption = (inputValue, option) => {

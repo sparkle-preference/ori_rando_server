@@ -299,15 +299,9 @@ def picks_by_coord(extras=False):
     return pbc
 
 def picks_by_type_generator():
-    lines = "{\n"
-    pbt = picks_by_type(extras=True)
-    for key in sorted(pbt.keys()):
-        lines += '"%s": [\n' % key
-        for item in sorted(pbt[key], key=lambda x: str(x.coords)):
-            lines += """\t{"loc": %s, "name": "%s", "zone": "%s", "area": "%s", "x": %s, "y": %s}, \n""" % item
-        lines = lines[:-3] + '\n], '
-    lines = lines[:-2] + "\n}"
-    return lines
+    return {
+        code: [{"loc": l, "name": n, "zone": z, "area": a, "x": int(x), "y": int(y)} for (l,n,z,a,x,y) in 
+                sorted(pickups, key=lambda x: str(x.coords))] for (code, pickups) in picks_by_type(extras=True).items()}
 
 # request helpers
 def template_vals(app, title, user):
