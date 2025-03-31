@@ -1491,8 +1491,11 @@ onDrop = (files) => {
                     <SiteBar/>
                 </Col>
             </Row>
-            <Row className="p-1">
-                <Cent><h3 >Seed Generator {VERSION}</h3></Cent>
+            <Row className="pt-1">
+                <Cent><h3>Seed Generator {VERSION}</h3></Cent>
+            </Row>
+            <Row className="pb-1">
+                <Cent><a target="blank" href="/patchnotes/4.1.x">(changelog)</a></Cent>
             </Row>
             <Row className="p-3 border">
                 <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "logicModes")}>

@@ -1487,3 +1487,18 @@ def version_json():
         "minimum": "%s.%s.%s" % tuple(MIN_VER),
         "beta": "%s.%s.%s" % tuple(BETA_VER),
     })
+
+
+    
+@app.route('/patchnotes/3.x')
+def v3_patchnotes_redir():
+    return redirect("https://docs.google.com/document/d/1tprqq7mUJMGcgAA0TM-O5FeOklzz4dOReB0Nru3QlsI")
+
+@app.route('/patchnotes/4.0.x')
+def v4_0_patchnotes_redir():
+    return redirect("https://docs.google.com/document/d/1781ALoPPN1k_yo5rfoapjTIiX3iyihXPty_pVVG26LQ")
+
+@app.route('/patchnotes')
+@app.route('/patchnotes/4.1.x')
+def v4_1_patchnotes_redir():
+    return redirect("https://docs.google.com/document/d/16xmoy3ooM9275vdY6BPeS5wmnplzSxR2YEzCapZy4Wc")

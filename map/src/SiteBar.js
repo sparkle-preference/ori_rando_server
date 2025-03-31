@@ -185,17 +185,17 @@ class SiteBar extends Component {
                     Misc
                     </DropdownToggle>
                     <DropdownMenu right>
-                    <DropdownItem target="_blank" href="https://docs.google.com/document/d/1781ALoPPN1k_yo5rfoapjTIiX3iyihXPty_pVVG26LQ?usp=sharing">
-                        Patch Notes
+                    <DropdownItem target="_blank" href="/patchnotes/4.1.x">
+                        (Latest!) Patch Notes (4.1.x)
+                    </DropdownItem>
+                    <DropdownItem target="_blank" href="/patchnotes/4.0.x">
+                        Patch Notes (4.0.x)
+                    </DropdownItem>
+                    <DropdownItem target="_blank" href="/patchnotes/3.x">
+                        (Very old!) Patch Notes (3.0)
                     </DropdownItem>
                     <DropdownItem href="/bingo/board">
                         Vanilla+ Bingo
-                    </DropdownItem>
-                    <DropdownItem href="/weekly">
-                        Weekly Race Poll
-                    </DropdownItem>
-                    <DropdownItem href="/openBook/leaderboard">
-                        Open Book Seed Challenge
                     </DropdownItem>
                    </DropdownMenu>
                 </UncontrolledDropdown>
