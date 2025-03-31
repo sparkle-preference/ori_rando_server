@@ -870,6 +870,7 @@ def plando_upload(seed_name):
 def plando_edit(seed_name):
     user = User.get()
     template_values = template_vals("PlandoBuilder", "Plando Editor: %s" % (seed_name), user)
+    template_values['seed_name'] = seed_name
     if user:
         seed = user.plando(seed_name)
         template_values['authed'] = "True"
