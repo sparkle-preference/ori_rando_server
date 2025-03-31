@@ -23,7 +23,7 @@ from enums import MultiplayerGameType, ShareType, Variation
 from models import Game, Seed, User, BingoGameData, BingoEvent, BingoTeam, CustomLogic, trees_by_coords
 from bingo import BingoGenerator
 from cache import Cache
-from util import coord_correction_map, clone_entity, all_locs, picks_by_type_generator, param_val, param_flag, debug, template_root, VER, game_list_html, version_check, template_vals, layout_json, whitelist_ok, bfield_checksum
+from util import coord_correction_map, clone_entity, all_locs, picks_by_type_generator, param_val, param_flag, debug, template_root, VER, MIN_VER, BETA_VER, game_list_html, version_check, template_vals, layout_json, whitelist_ok, bfield_checksum
 from reachable import Map, PlayerState
 from pickups import Pickup, Skill, AbilityCell, HealthCell, EnergyCell, Multiple
 
@@ -1465,3 +1465,25 @@ def bingothon_fetch_data(game_id, player_id):
     if bingo.discovery:
         res["disc_squares"] = bingo.disc_squares
     return json_resp(res)
+
+@app.route('/version/latest')
+def version_txt():
+    return text_resp("%s.%s.%s" % tuple(VER))
+
+@app.route('/version/minimum')
+def min_version_txt():
+    return text_resp("%s.%s.%s" % tuple(MIN_VER))
+
+@app.route('/version/beta')
+def beta_version_txt():
+    return text_resp("%s.%s.%s" % tuple(BETA_VER))
+
+
+@app.route('/version')
+@app.route('/version/json')
+def version_json():
+    return json_resp({
+        "latest": "%s.%s.%s" % tuple(VER),
+        "minimum": "%s.%s.%s" % tuple(MIN_VER),
+        "beta": "%s.%s.%s" % tuple(BETA_VER),
+    })
