@@ -18,6 +18,12 @@ def stable_string_hash(s):
 
 longform_to_code = {"Health": ["HC"], "Energy": ["EC"], "Ability": ["AC"], "Keystone": ["KS"], "Mapstone": ["MS"], "Free": []}
 key_to_shards = {"GinsoKey": ["WaterVeinShard"] * 5, "ForlornKey": ["GumonSealShard"] * 5, "HoruKey": ["SunstoneShard"] * 5}
+keysanity_map = {
+    "GladesPoolKeys": ["Glades Pool Keystone"] * 2, "LowerSpiritCavernsKeys": ["Lower Spirit Caverns Keystone"] * 2, "GrottoKeys": ["Grotto Keystone"] * 2,
+    "SwampKeys": ["Swamp Keystone"] * 2, "UpperSpiritCavernsKeys": ["Upper Spirit Caverns Keystone"] * 4, "LowerGinsoKeys": ["Lower Ginso Keystone"] * 4, 
+    "UpperGinsoKeys": ["Upper Ginso Keystone"] * 4, "MistyKeys": ["Misty Keystone"] * 4, "ForlornKeys": ["Forlorn Keystone"] * 4, 
+    "LowerSorrowKeys": ["Lower Sorrow Keystone"] * 4, "MidSorrowKeys": ["Mid Sorrow Keystone"] * 4, "UpperSorrowKeys": ["Upper Sorrow Keystone"] * 4
+}
 warp_targets = [
     [
         # inner swamp
@@ -263,8 +269,10 @@ class Connection:
             the list of the things that req indicates are required"""
             if req_part in longform_to_code:
                 return longform_to_code[req_part]
-            if req_part in key_to_shards and self.sg.params.key_mode == KeyMode.SHARDS:
+            if self.sg.params.key_mode == KeyMode.SHARDS and req_part in key_to_shards:
                 return key_to_shards[req_part]
+            if req_part in keysanity_map:
+                return keysanity_map[req_part]
             if '=' not in req_part:
                 return [req_part]
             item, _, count = req_part.partition("=")
@@ -398,6 +406,20 @@ class SeedGenerator:
         "GinsoKey": "EV0", "Water": "EV1", "ForlornKey": "EV2", "Wind": "EV3", "HoruKey": "EV4", "Warmth": "EV5",
         "WaterVeinShard": "RB17", "GumonSealShard": "RB19", "SunstoneShard": "RB21"
     })
+    keysanityOutput = OrderedDict({
+        "Glades Pool Keystone": "RB300",
+        "Lower Spirit Caverns Keystone": "RB301",
+        "Grotto Keystone": "RB302",
+        "Swamp Keystone": "RB303",
+        "Upper Spirit Caverns Keystone": "RB304",
+        "Lower Ginso Keystone": "RB305",
+        "Upper Ginso Keystone": "RB306",
+        "Misty Keystone": "RB307",
+        "Forlorn Keystone": "RB308",
+        "Lower Sorrow Keystone": "RB309",
+        "Mid Sorrow Keystone": "RB310",
+        "Upper Sorrow Keystone": "RB311",
+    })
 
     def toOutput(self, item, asMultiPart=False):
         if asMultiPart:
@@ -407,6 +429,8 @@ class SeedGenerator:
             return self.skillsOutput[item]
         if item in self.eventsOutput:
             return self.eventsOutput[item]
+        if item in self.keysanityOutput:
+            return self.keysanityOutput[item]
         return item
 
     def var(self, v):
@@ -420,17 +444,18 @@ class SeedGenerator:
         require reading from params goes here."""
         self.limitKeysPool = [-3160308, -560160, 2919744, 719620, 7839588, 5320328, 8599904, -4600020, -6959592, -11880100, 5480952, 4999752, -7320236, -7200024, -5599400]
 
-        self.costs = OrderedDict({
-            "Free": 0, "MS": 0, "KS": 2, "AC": 12, "EC": 6, "HC": 12, "WallJump": 13,
-            "ChargeFlame": 13, "DoubleJump": 13, "Bash": 28, "Stomp": 13,
-            "Glide": 13, "Climb": 13, "ChargeJump": 28, "Dash": 13,
-            "Grenade": 13, "GinsoKey": 12, "ForlornKey": 12, "HoruKey": 12,
-            "Water": 31, "Wind": 31, "WaterVeinShard": 5, "GumonSealShard": 5,
-            "SunstoneShard": 5, "TPForlorn": 67, "TPGrotto": 41,
-            "TPSorrow": 59, "TPGrove": 41, "TPSwamp": 41, "TPValley": 53,
-            "TPGinso": 61, "TPHoru": 71, "Open": 0, "OpenWorld": 1, "Relic": 1,
-            "TPGlades": 90, "TPBlackroot": 53
-        })
+        self.costs = OrderedDict([
+            ("Free",  0), ("MS",  0), ("KS",  2), ("AC",  12), ("EC",  6), ("HC",  12), ("WallJump",  13),
+            ("ChargeFlame",  13), ("DoubleJump",  13), ("Bash",  28), ("Stomp",  13),
+            ("Glide",  13), ("Climb",  13), ("ChargeJump",  28), ("Dash",  13),
+            ("Grenade",  13), ("GinsoKey",  12), ("ForlornKey",  12), ("HoruKey",  12),
+            ("Water",  31), ("Wind",  31), ("WaterVeinShard",  5), ("GumonSealShard",  5),
+            ("SunstoneShard",  5), ("TPForlorn",  67), ("TPGrotto",  41),
+            ("TPSorrow",  59), ("TPGrove",  41), ("TPSwamp",  41), ("TPValley",  53),
+            ("TPGinso",  61), ("TPHoru",  71), ("Open",  0), ("OpenWorld",  1), ("Relic",  1),
+            ("TPGlades",  90), ("TPBlackroot",  53), ("Keysanity", 1)] + 
+            [(keysanity_key, 0) for keysanity_key in self.keysanityOutput])
+
         self.inventory = OrderedDict([
             ("EX1", 0), ("EX*", 0), ("KS", 0), ("MS", 0), ("AC", 0), ("EC", 0),
             ("HC", 3), ("WallJump", 0), ("ChargeFlame", 0), ("Dash", 0),
@@ -443,7 +468,7 @@ class SeedGenerator:
             ("SunstoneShard", 0), ("TPForlorn", 0), ("TPGrotto", 0),
             ("TPSorrow", 0), ("TPGrove", 0), ("TPSwamp", 0), ("TPValley", 0),
             ("TPGinso", 0), ("TPHoru", 0), ("Open", 0), ("OpenWorld", 0), ("Relic", 0),
-            ("TPGlades", 0)
+            ("TPGlades", 0), ("Keysanity", 0)
         ])
 
         self.mapstonesSeen = 1
@@ -541,6 +566,18 @@ class SeedGenerator:
             self.itemPool["TPGinso"] = 0
             self.itemPool["TPHoru"] = 0
 
+        if self.var(Variation.KEYSANITY):
+            # :3
+            pool_and_costs_update = OrderedDict(Counter(keysanity_keystone for keysanity_keystones in keysanity_map.values() for keysanity_keystone in keysanity_keystones))
+            self.itemPool.update(OrderedDict(Counter(keysanity_keystone for keysanity_keystones in keysanity_map.values() for keysanity_keystone in keysanity_keystones)))
+            self.costs.update(OrderedDict(Counter(keysanity_keystone for keysanity_keystones in keysanity_map.values() for keysanity_keystone in keysanity_keystones)))
+            self.itemPool["KS"] = 0
+            self.costs["Keysanity"] = 0
+
+            self.inventory.update(OrderedDict((keysanity_ks_name, 0) for keysanity_ks_name in self.keysanityOutput))
+            self.inventory["Keysanity"] = 1
+            
+
         # FIXME When we don't start in glades, add glades tp and remove other tp if applicable, before we process warps.
         # FIXME If Variation is closed dungeons, umm, check that we don't start in them, maybe? Can't start at the tp anyway.
 
@@ -607,9 +644,9 @@ class SeedGenerator:
             if self.params.start == "Random":
                 self.starting_health, self.starting_energy, start_skills = spawn_defaults[self.start][difficulty]
             elif self.start != "Glades":
-                    self.starting_health = max(self.params.starting_health, self.starting_health)
-                    self.starting_energy = max(self.params.starting_energy, self.starting_energy)
-                    start_skills = int(self.params.starting_skills)
+                self.starting_health = max(self.params.starting_health, self.starting_health)
+                self.starting_energy = max(self.params.starting_energy, self.starting_energy)
+                start_skills = int(self.params.starting_skills)
             if start_skills > 0:
                 if start_skills > 1:
                     possible_skills.append("Wind")
@@ -638,15 +675,10 @@ class SeedGenerator:
             
             self.spawn_things = []
             #print(self.starting_skills, self.starting_health, self.starting_energy)
-            if self.starting_health > 3:
-                for _ in range(self.starting_health - 3):
+            if self.starting_health > self.inventory["HC"]:
+                for _ in range(self.starting_health - self.inventory["HC"]):
                     self.spawn_things.append("HC/1")
-            energy_cells = self.starting_energy
-            if self.start == "Glades":
-                # FIXME this will change if we randomise the first EC.
-                energy_cells -= 1
-                self.inventory["EC"] = 1
-            for _ in range(energy_cells):
+            for _ in range(self.starting_energy):
                 self.spawn_things.append("EC/1")
             if (self.start == "Ginso"):
                 for _ in range(4):
@@ -715,7 +747,7 @@ class SeedGenerator:
                 current_assignment = self.forcedAssignments[2]
                 if current_assignment[0:2] not in ["MU", "RP"]:
                     self.forcedAssignments[2] = "MU" + self.toOutput(current_assignment, True)
-                self.forcedAssignments[2] += "/" + "/".join(self.spawn_things) 
+                self.forcedAssignments[2] += "/" + "/".join(self.spawn_things)
             else:
                 self.forcedAssignments[2] = "MU" + "/".join(self.spawn_things)
 
@@ -809,7 +841,8 @@ class SeedGenerator:
 
     def __init__(self):
         self.init_fields()
-        self.codeToName = OrderedDict([(v, k) for k, v in list(self.skillsOutput.items()) + list(self.eventsOutput.items()) + [("RB17", "WaterVeinShard"), ("RB19", "GumonSealShard"), ("RB21", "SunstoneShard")]])
+        self.codeToName = OrderedDict([(v, k) for k, v in list(self.skillsOutput.items()) + list(self.eventsOutput.items()) + 
+            list(self.keysanityOutput.items()) + [("RB17", "WaterVeinShard"), ("RB19", "GumonSealShard"), ("RB21", "SunstoneShard")]])
 
     def add_warp(self, warp):
         name, x, y, area, logic_location, logic_cost = warp
@@ -943,6 +976,8 @@ class SeedGenerator:
             self.reservedLocations.append(locations.pop(self.random.randrange(len(locations))))
             self.reservedLocations.append(locations.pop(self.random.randrange(len(locations))))
         return locations, forced_placement
+    
+    countable_reqs = set(["HC", "EC", "AC", "WaterVeinShard", "GumonSealShard", "SunstoneShard"] + [keysanity_ks_name for keysanity_ks_name in keysanityOutput])
 
     def prepare_path(self, free_space):
         abilities_to_open = OrderedDict()
@@ -966,8 +1001,8 @@ class SeedGenerator:
                             # if the item isn't in your itemPool (due to co-op or an unprocessed forced assignment), skip it
                             if self.itemPool.get(req, 0) == 0:
                                 requirements = []
-                                continue
-                            if req in ["HC", "EC", "WaterVeinShard", "GumonSealShard", "SunstoneShard"]:
+                                break
+                            if req in self.countable_reqs:
                                 cnts[req] += 1
                                 if cnts[req] > self.inventory[req]:
                                     requirements.append(req)
@@ -1048,6 +1083,9 @@ class SeedGenerator:
                     if key.startswith("TP") and recurseCount < 3 and 252 - locs < self.costs.get(key, 0):
                         return self.assign_random(locs, recurseCount=recurseCount + 1)
                 return self.assign(key)
+    
+    costs_to_decrement_by_one = set(["KS", "EC", "HC", "AC", "WaterVeinShard", "GumonSealShard", "SunstoneShard"] + 
+                                    [keysanity_ks_itemcode for keysanity_ks_itemcode in keysanityOutput.values()])
 
     def assign(self, item, preplaced=False):
         if item[0:2] in ["MU", "RP"] and item not in self.itemPool:
@@ -1056,7 +1094,7 @@ class SeedGenerator:
         else:
             if not preplaced:
                 self.itemPool[item] = max(self.itemPool.get(item, 0) - 1, 0)
-            if item in ["KS", "EC", "HC", "AC", "WaterVeinShard", "GumonSealShard", "SunstoneShard"]:
+            if item in self.costs_to_decrement_by_one:
                 if self.costs[item] > 0:
                     self.costs[item] -= 1
             elif item == "RB28":
@@ -1136,6 +1174,8 @@ class SeedGenerator:
             item = self.skillsOutput[item]
         elif item in self.eventsOutput:
             item = self.eventsOutput[item]
+        elif item in self.keysanityOutput:
+            item = self.keysanityOutput[item]
         elif item == "Relic":
             relic = self.choose_relic_for_zone(zone)
             item = "WT#" + relic[0] + "#\\n" + relic[1]
@@ -1258,6 +1298,9 @@ class SeedGenerator:
                         
                 if connection.get_requirements():
                     area.add_connection(connection)
+
+                if self.var(Variation.KEYSANITY):
+                    connection.keys = 0
 
     def connect_doors(self, door1, door2, requirements=["Free"]):
         connection1 = Connection(door1.name, door2.name, self)
@@ -1550,6 +1593,7 @@ class SeedGenerator:
         self.outputStr += (self.params.flag_line(self.verbose_paths) + "\n")
 
         self.spoilerGroup = defaultdict(list)
+        self.relicSpoiler = []
 
         if self.var(Variation.ENTRANCE_SHUFFLE):
             self.outputStr += self.randomize_entrances()
@@ -1578,24 +1622,23 @@ class SeedGenerator:
                     relic_loc = next_loc
                 self.relic_assign(relic_loc)
             # Capture relic spoilers before the spoiler group is overwritten
-            relicSpoiler = self.spoilerGroup["Relic"]
+            self.relicSpoiler = [(item, instance) for item in self.spoilerGroup.keys() if item[:2] == "WT" for instance in self.spoilerGroup[item]]
 
         self.place_repeatables()
-        # handle the fixed pickups: first energy cell, the glitchy 100 orb at spirit tree, and the forlorn escape plant
-        # FIXME Make the EC1 do something.
-        for loc, item, zone in [(-280256, "EC1", "Glades"), (-12320248, "RB81", "Forlorn")]:
-            if loc in self.forcedAssignments:
-                item = self.forcedAssignments[loc]
-                del self.forcedAssignments[loc]  # don't count these ones
-            if item not in ["EX100", "EC1", "RB81"] and item not in self.itemPool:
-                log.warning("Preplaced item %s was not in pool. Translation may be necessary." % item)
-            ass = self.get_assignment(loc, self.adjust_item(item, zone), zone)
-            self.outputStr += ass
+        # handle the fixed pickup: the forlorn escape plant
+        loc, item, zone = (-12320248, "EX100", "Forlorn")
+        if loc in self.forcedAssignments:
+            item = self.forcedAssignments[loc]
+            del self.forcedAssignments[loc]  # don't count these ones
+        if item != "EX100" and item not in self.itemPool:
+            log.warning("Preplaced item %s was not in pool. Translation may be necessary." % item)
+        ass = self.get_assignment(loc, self.adjust_item(item, zone), zone)
+        self.outputStr += ass
 
         if 2 in self.forcedAssignments:
             item = self.forcedAssignments[2]
             self.assign(item)
-            if item[0:2] in ["MU", "RP"] and item not in self.itemPool:                
+            if item[0:2] in ["MU", "RP"] and item not in self.itemPool:
                 for multi_item in self.get_multi_items(item):
                     # below should not be needed as get_multi_items() already does it, and repeating
                     # it breaks shards names.
@@ -1736,9 +1779,12 @@ class SeedGenerator:
                     itemsToAssign.append(self.assign("KS"))
                 elif self.inventory["MS"] < mapstoneCount:
                     itemsToAssign.append(self.assign("MS"))
-                elif self.inventory["HC"] * self.params.cell_freq < (252 - locs) and self.itemPool["HC"] > 0:
+                elif (self.inventory["HC"] - 2) * self.params.cell_freq < (252 - locs) and self.itemPool["HC"] > 0:
+                    # Subtract starting health cells from this count or else forcing doesn't work
+                    # Then add one because we want to compare "how many pickups should it take to get the next health" to the number we've placed
                     itemsToAssign.append(self.assign("HC"))
                 elif self.inventory["EC"] * self.params.cell_freq < (252 - locs) and self.itemPool["EC"] > 0:
+                    # *Don't* add one because we don't want the first forced EC at the start to count against the forcing frequency
                     itemsToAssign.append(self.assign("EC"))
                 elif self.itemPool.get("RB28", 0) > 0 and self.itemPool["RB28"] >= locs:
                     itemsToAssign.append(self.assign("RB28"))
@@ -1827,12 +1873,6 @@ class SeedGenerator:
         spoilerStr = self.form_spoiler()
         spoilerStr = self.params.flag_line(self.verbose_paths) + "\n" + "Difficulty Rating: " + str(self.seedDifficulty) + "\n" + spoilerStr
 
-        if self.var(Variation.WORLD_TOUR):
-            spoilerStr += "Relics: {\n"
-            for instance in relicSpoiler:
-                spoilerStr += "    " + instance
-            spoilerStr += "}\n"
-
         if self.params.do_loc_analysis:
             self.params.locationAnalysis = self.params.locationAnalysisCopy
 
@@ -1900,6 +1940,8 @@ class SeedGenerator:
             for pickup_type in ["RB", "MS", "KS", "HC", "EC", "AC", "EX"]:
                 for key in self.spoilerGroup:
                     if key[:2] == pickup_type:
+                        if key in ["RB17", "RB19", "RB21"]:
+                            continue # shards are RB17/19/21, they've already been printed above
                         for instance in self.spoilerGroup[key]:
                             currentGroupSpoiler += "    " + pad(instance)
             self.currentAreas.sort()
@@ -1907,6 +1949,22 @@ class SeedGenerator:
             spoilerStr += str(groupDepth) + ": " + str(self.currentAreas) + " {\n"
 
             spoilerStr += currentGroupSpoiler
+
+            spoilerStr += "}\n"
+
+        if self.relicSpoiler:
+            spoilerStr += "Relics: {\n"
+
+            relics = []
+            relic_padding = 0
+            for item, instance in self.relicSpoiler:
+                _, _, loc = instance.partition("!PDPLC!-")
+                relic_name = item.partition("\\n")[0][3:-1]
+                relics.append((relic_name, loc))
+                relic_padding = max(relic_padding, len(relic_name))
+
+            for relic, loc in relics:
+                spoilerStr += "    " + relic + (2 + relic_padding - len(relic))*" " + loc
 
             spoilerStr += "}\n"
 

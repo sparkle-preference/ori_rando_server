@@ -656,13 +656,14 @@ class BingoGameData(ndb.Model):
     lockout          = ndb.BooleanProperty(default=False)
     disc_squares     = ndb.IntegerProperty(repeated=True)
     rand_dat         = ndb.TextProperty(compressed=True)
+    meta             = ndb.BooleanProperty(default=False)
 
     def discovery_squares(self, square_count=2):
         if self.discovery != square_count:
             self.discovery = square_count
         if len(self.disc_squares) > 0:
             return self.disc_squares[:]
-        if square_count > 25:
+        if square_count > 25 or square_count < 1:
             square_count = 2
         rand = random.Random()
         rand.seed(self.seed)
@@ -674,6 +675,10 @@ class BingoGameData(ndb.Model):
                 squares = rand.sample(noncounts, square_count)
             else:
                 squares = noncounts + rand.sample(range(25), square_count - len(noncounts))
+            if all("Sym" in self.board[card].name for card in squares): # girl noooooo
+                i += 1
+                continue
+            # todo - i think this code might be useless?
             for s in squares:
                 if (s % 5 != 4 and s+1 in squares) or (s % 5 != 0 and s-1 in squares) or (s > 4 and s-5 in squares) or (s < 20 and s+5 in squares):
                     i += 1
@@ -756,6 +761,8 @@ class BingoGameData(ndb.Model):
             log.warning("Player %s already had bingo card progress, won't reinit" % pid)
         else:
             p.bingo_prog = [BingoCardProgress(square=i) for i in range(25)]
+            if self.meta:
+                pass
             p.put()
         return p
 
@@ -842,18 +849,18 @@ class BingoGameData(ndb.Model):
         return None
 
     @ndb.transactional(retries=0, xg=True)
-    def update(self, bingo_data, player_id, game_id):
-        if not bingo_data:
+    def update(self, bingo_data, player_id, game_id, meta_init = False):
+        if not bingo_data and not meta_init:
             log.error("no bingo data????")
             return
         player_id = int(player_id)
-        if not self.start_time:
+        if not self.start_time and not meta_init:
             return
         now = datetime.utcnow()
         change_squares = set()
         loss_squares = set()
         win_players = False
-        round_now = round_time(now - self.start_time)
+        round_now = round_time(now - self.start_time) if not meta_init else "00:00"
         place = ""
         win_sig = "win:$Finished in %s place at %s!"
         team = self.team(player_id, cap_only=False)
@@ -901,7 +908,7 @@ class BingoGameData(ndb.Model):
                     need_write = True
                     handle_event(ev)
 
-            else:
+            elif not meta_init:
                 log.warning("card %s was not in bingo data for team/player %s", card.name if card else card, team.captain if team else team)
             if (cpid == card.owner) if self.lockout else (cpid in card.completed_by):
                 team.score += 1
@@ -933,7 +940,6 @@ class BingoGameData(ndb.Model):
                         handle_event(ev)
                     if (cpid == card.owner) if self.lockout else (cpid in card.completed_by):
                         team.score += 1
-
         if self.square_count:
             if team.score >= self.square_count and not team.place:
                 self.event_log.append(BingoEvent(event_type = "win", loss = False, player = team.captain, timestamp = now))

@@ -1137,6 +1137,9 @@ def bingo_add_player(game_id, player_id):
             Cache.set_latest_game(user.name, int(game_id), True)
             user.put()
     res = bingo.get_json()
+    if bingo.meta:
+        bingo.update({}, player_id, game_id, True)
+        res = Cache.get_board(game_id)
     res['player_seed'] = seed
     bingo.put()
     return json_resp(res)
@@ -1224,14 +1227,16 @@ def bingo_create_game():
         game = key.get()
         d = int(param_val("discCount") or 0)
         lockout = bool(int(param_val("lockout") or 0))
+        meta = param_flag("meta")
         bingo = BingoGameData(
             id            = key.id(),
-            board         = BingoGenerator.get_cards(rand, 25, False, difficulty, True, d, param_flag("meta"), lockout),
+            board         = BingoGenerator.get_cards(rand, 25, False, difficulty, True, d, meta, lockout, False),
             difficulty    = difficulty,
             teams_allowed = param_flag("teams"),
             game          = key,
             rand_dat      = "\n".join(base),
-            lockout       = lockout
+            lockout       = lockout,
+            meta          = meta
         )
         if d:
             bingo.discovery = d
@@ -1355,15 +1360,38 @@ def add_bingo_to_game(game_id):
 
         d = int(param_val("discCount") or 0)
         lockout = bool(int(param_val("lockout") or 0))
+        meta = param_flag("meta")
+        if False: # this is like having test code
+            metacnt = 0
+            symcnt = 0
+            for i in range(500):
+                iseed = seed+str(i)
+                rand.seed(iseed)
+                cards = BingoGenerator.get_cards(rand, 25, True, difficulty, Variation.OPEN_WORLD in params.variations, d, meta, lockout, Variation.KEYSANITY in params.variations)
+
+                if not all([card.square in range(2,23,5) for card in cards if card.name == "VertSym"]):
+                    log.error("seed %s: VertSym: %s", iseed, [(card.square, card.square in range(2,23,5)) for card in cards if card.name == "VertSym"])
+                if not all([card.square in range(10,15) for card in cards if card.name == "HorizSym"]):
+                    log.error("seed %s: HorizSym: %s", iseed, [(card.square, card.square in range(10,15)) for card in cards if card.name == "HorizSym"])
+                if not all([(len(sg['name']) <3) for card in cards if card.name == "Activate Squares" for sg in card.subgoals ]):
+                    log.error("seed %s: Activate Squares: %s", iseed, [((sg['name'])) for card in cards if card.name == "Activate Squares" for sg in card.subgoals])
+                if not len([c for c in cards if c.meta]) <= 5:
+                    log.error("seed %s:total count: %s", iseed, len([c for c in cards if c.meta]))
+                metacnt += len([c for c in cards if c.meta])
+                symcnt += len([c for c in cards if "Sym" in c.name])
+            
+            log.info("meta density: %s, sym density: %s",float(metacnt)/500.0, float(symcnt)/500.0)            
+
         bingo = BingoGameData(
             id            = game_id,
-            board         = BingoGenerator.get_cards(rand, 25, True, difficulty, Variation.OPEN_WORLD in params.variations, d, param_flag("meta"), lockout),
+            board         = BingoGenerator.get_cards(rand, 25, True, difficulty, Variation.OPEN_WORLD in params.variations, d, meta, lockout, Variation.KEYSANITY in params.variations),
             difficulty    = difficulty,
             subtitle      = params.flag_line(),
             teams_allowed = param_flag("teams"),
             teams_shared  = params.players > 1 and params.sync.mode == MultiplayerGameType.SHARED,
             game          = game.key,
-            lockout       = lockout
+            lockout       = lockout,
+            meta          = meta
         )
         if d:
             bingo.seed = seed

@@ -10,9 +10,9 @@ from enums import MultiplayerGameType, ShareType, Variation, LogicPath, KeyMode,
 from seedbuilder.generator import SeedGenerator
 
 FLAGLESS_VARS = [Variation.WARMTH_FRAGMENTS, Variation.WORLD_TOUR]
-first_line_pattern = re.compile("(\d+): (\[[^]]+\])")
-forced_pickup_pattern = re.compile(".*forced pickup.*\[([^]]+)\]")
-normal_line_pattern = re.compile(" *(\w+) from (\w+)")
+first_line_pattern = re.compile(r"(\d+): (\[[^]]+\])")
+forced_pickup_pattern = re.compile(r".*forced pickup.*\[([^]]+)\]")
+normal_line_pattern = re.compile(r" *(\w+) from (\w+)")
 
 def vals(enumType):
     return [v.value for v in list(enumType.__members__.values())]
@@ -109,6 +109,7 @@ class CLISeedParams(object):
         parser.add_argument("--hints", help="Cloned seeds only: display a hint with the item category on a shared location instead of 'Warmth Returned'", action="store_true")
         parser.add_argument("--do-reachability-analysis", help="Analyze how many locations are opened by various progression items in various inventory states", action="store_true")
         parser.add_argument("--areas-ori-path", help="Path to areas.ori. Will search next to generator if omitted.", type=str)
+        parser.add_argument("--keysanity", help="Keysanity mode: keys only belong to one door", type=str)
         args = parser.parse_args()
 
         """
@@ -133,7 +134,7 @@ class CLISeedParams(object):
         self.key_mode = KeyMode.mk(args.keymode) or KeyMode.NONE
         # variations (help)
         varMap = {
-            "zeroxp": "0XP", "non_progressive_mapstones": "NonProgressMapStones", "ohko": "OHKO", "force_trees": "ForceTrees", "starved": "Starved",
+            "zeroxp": "0XP", "non_progressive_mapstones": "NonProgressMapStones", "ohko": "OHKO", "force_trees": "ForceTrees", "starved": "Starved", "keysanity": "Keysanity",
             "force_mapstones": "ForceMaps", "entrance": "Entrance", "open_world": "OpenWorld", "easy": "DoubleSkills", "strict_mapstones": "StrictMapstones",
             "warmth_frags": "WarmthFrags", "world_tour": "WorldTour", "closed_dungeons": "ClosedDungeons", "tp_starved": "TPStarved", "wall_starved": "WallStarved",
             "keys_only_for_doors": "KeysOnlyForDoors", "warps_instead_of_tps": "WarpsInsteadOfTPs", "in_logic_warps": "InLogicWarps", "warp_count": "WarpCount",
@@ -215,8 +216,9 @@ class CLISeedParams(object):
                 "TP|Ginso": [1],
                 "TP|Horu": [1],
                 "TP|Forlorn": [1],
+                "TP|Blackroot": [1],
                 "HC|1": [12],
-                "EC|1": [14],
+                "EC|1": [15],
                 "AC|1": [33],
                 "RB|0": [3],
                 "RB|1": [3],
@@ -246,8 +248,9 @@ class CLISeedParams(object):
                 "TP|Ginso": [1],
                 "TP|Horu": [1],
                 "TP|Forlorn": [1],
+                "TP|Blackroot": [1],
                 "HC|1": [12],
-                "EC|1": [14],
+                "EC|1": [15],
                 "AC|1": [33],
                 "RB|0": [3],
                 "RB|1": [3],
@@ -275,7 +278,7 @@ class CLISeedParams(object):
                 "TP|Sorrow": [1],
                 "TP|Forlorn": [1],
                 "HC|1": [12],
-                "EC|1": [14],
+                "EC|1": [15],
                 "AC|1": [33],
                 "RB|0": [3],
                 "RB|1": [3],
@@ -298,7 +301,7 @@ class CLISeedParams(object):
                 "TP|Ginso": [1],
                 "TP|Horu": [1],
                 "TP|Forlorn": [1],
-                "EC|1": [3],
+                "EC|1": [4],
             }
         else:
             self.pool_preset = "Standard"
@@ -312,7 +315,7 @@ class CLISeedParams(object):
                 "TP|Horu": [1],
                 "TP|Forlorn": [1],
                 "HC|1": [12],
-                "EC|1": [14],
+                "EC|1": [15],
                 "AC|1": [33],
                 "RB|0": [3],
                 "RB|1": [3],
