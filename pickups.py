@@ -136,7 +136,7 @@ class Upgrade(Pickup):
             inst.share_type = ShareType.EVENT
         elif id >= 900:  # trees and relics are misc pickups
             inst.share_type = ShareType.MISC
-        elif 200 <= id and 311 <= id:
+        elif 200 <= id and 311 >= id:
             inst.share_type = ShareType.NOT_SHARED
         else:
             inst.share_type = ShareType.UPGRADE
