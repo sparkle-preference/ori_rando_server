@@ -1110,11 +1110,20 @@ onDrop = (files) => {
         if(hasVar("WorldTour"))
             newState.relicCount = prandInt(6,11);
         
-        if(rng() < .5) // 50% of the time, randomize the exp pool (between 10k and 15k)
-            newState.expPool = prandInt(20, 30) * 5000;
+        const poolRoll = rng();
+        if(poolRoll < .5) // 50% of the time, randomize the exp pool (between 10k and 15k)
+            newState.expPool = prandInt(20, 30) * 500;
+        else if(poolRoll < .01)      // 1% of the time, do 10x that (because it IS funny)
+            newState.expPool *= 10;
+        else if(poolRoll < .06) // 5% of the time,  remove 2000 (to allow for the occasional sad pool)
+            newState.expPool -= 2000;
+        else
+            newState.expPool = 10000; // And also! put it back! If you aren't fucking with it!! come ON girlie....
 
         if(rng() < .1) // 10% of the time, set some very stupidly low FCF
             newState.cellFreq = prandInt(3, 15);
+        else
+            newState.cellFreq = cellFreqPresets(newState.pathMode); // put it baaack....
         
         const isMasterOrGlitched = newState.pathMode.startsWith("master") || newState.pathMode.startsWith("glitched");
         const pathDiffRoll = rng();
@@ -1123,6 +1132,7 @@ onDrop = (files) => {
                 newState.pathDiff = "Hard";
                 break;
             case (pathDiffRoll < .9):
+                newState.pathDiff = "Normal"
                 break;
             default:
                 newState.pathDiff = "Easy";

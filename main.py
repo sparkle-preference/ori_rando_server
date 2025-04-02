@@ -1092,15 +1092,16 @@ def bingo_start_game(game_id):
                     log.error("team %s did not have %s players!", team, p.players)
                     return text_resp("Not all teams have the correct number of players!", 412)
     bingo.start_time = datetime.utcnow() + timedelta(seconds=15)
-    startStr = "miscBingo Game %s started!" % game_id        
+    startStr = "miscBingo Game %s started!" % game_id
     bingo.event_log.append(BingoEvent(event_type=startStr, timestamp=bingo.start_time))
     res = bingo.get_json()
-    bingo.put()
 
     server_now = timegm(now.timetuple()) * 1000
     client_now = int(param_val("time"))
     res["offset"] = server_now - client_now
-    return json_resp(res)
+    jsonres = json_resp(res)
+    bingo.put()
+    return jsonres
 
 @app.route('/bingo/game/<int:game_id>/add/<int:player_id>') #BingoAddPlayer =     
 @transactional(xg=True)
