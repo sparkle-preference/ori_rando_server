@@ -68,7 +68,6 @@ class CLISeedParams(object):
         parser.add_argument("--closed-dungeons", help="deactivate open mode within dungeons", action="store_true")
         parser.add_argument("--open-world", help="Activate open mode on the world map", action="store_true")
         parser.add_argument("--easy", help="Add an extra copy of double jump, bash, stomp, glide, charge jump, dash, grenade, water, and wind", action="store_true")
-        parser.add_argument("--keys-only-for-doors", help="Keys are only logically used for opening doors. They do not gate pickups within the dungeons otherwise.", action="store_true")
         parser.add_argument("--warps-instead-of-tps", help="Replace up to X teleporters with warps to those areas.", type=int)
         parser.add_argument("--in-logic-warps", help="Warps will be in logic, so going to the warp's target is expected.", action="store_true")
         parser.add_argument("--warp-count", help="Ensure you get X random warps.", type=int)
