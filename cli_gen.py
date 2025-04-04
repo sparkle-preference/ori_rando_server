@@ -137,9 +137,9 @@ class CLISeedParams(object):
             "zeroxp": "0XP", "non_progressive_mapstones": "NonProgressMapStones", "ohko": "OHKO", "force_trees": "ForceTrees", "starved": "Starved", "keysanity": "Keysanity",
             "force_mapstones": "ForceMaps", "entrance": "Entrance", "open_world": "OpenWorld", "easy": "DoubleSkills", "strict_mapstones": "StrictMapstones",
             "warmth_frags": "WarmthFrags", "world_tour": "WorldTour", "closed_dungeons": "ClosedDungeons", "tp_starved": "TPStarved", "wall_starved": "WallStarved",
-            "keys_only_for_doors": "KeysOnlyForDoors", "warps_instead_of_tps": "WarpsInsteadOfTPs", "in_logic_warps": "InLogicWarps", "warp_count": "WarpCount",
-            "starting_health": "StartingHealth", "starting_energy": "StartingEnergy", "starting_skills": "StartingSkills", "grenade_starved": "GrenadeStarved",
-            "goal_mode_finish": "GoalModeFinish", "no_tps": "NoTPs", "competitive": "Competitive", "bonus_lite": "BonusLite", "hard": "Hard", "bonus_pickups": "BonusPickups"
+            "warps_instead_of_tps": "WarpsInsteadOfTPs", "in_logic_warps": "InLogicWarps", "warp_count": "WarpCount", "starting_health": "StartingHealth",
+            "starting_energy": "StartingEnergy", "starting_skills": "StartingSkills", "grenade_starved": "GrenadeStarved", "goal_mode_finish": "GoalModeFinish",
+            "no_tps": "NoTPs", "competitive": "Competitive", "bonus_lite": "BonusLite", "hard": "Hard", "bonus_pickups": "BonusPickups"
         }
         self.variations = []
         for argName, flagStr in varMap.items():

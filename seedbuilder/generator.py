@@ -686,14 +686,14 @@ class SeedGenerator:
                         self.spawn_things.append("RB/306")
                     else:
                         self.spawn_things.append("KS/1")
-                if (not self.var(Variation.KEYS_ONLY_FOR_DOORS)) and (self.params.key_mode != KeyMode.FREE):
+                if (not self.var(Variation.ENTRANCE_SHUFFLE)) and (self.params.key_mode != KeyMode.FREE):
                     if self.params.key_mode == KeyMode.SHARDS:
                         for _ in range(5):
                             self.spawn_things.append("RB/17")
                     else:
                         self.spawn_things.append("EV/0")
             if (self.start == "Forlorn"):
-                if (not self.var(Variation.KEYS_ONLY_FOR_DOORS)) and (self.params.key_mode != KeyMode.FREE):
+                if (not self.var(Variation.ENTRANCE_SHUFFLE)) and (self.params.key_mode != KeyMode.FREE):
                     if self.params.key_mode == KeyMode.SHARDS:
                         for _ in range(5):
                             self.spawn_things.append("RB/19")
@@ -701,7 +701,7 @@ class SeedGenerator:
                         self.spawn_things.append("EV/2")
                 self.spawn_things.append("NB/-914,-298")
             if (self.start == "Horu"):
-                if (not self.var(Variation.KEYS_ONLY_FOR_DOORS)) and (self.params.key_mode != KeyMode.FREE):
+                if (not self.var(Variation.ENTRANCE_SHUFFLE)) and (self.params.key_mode != KeyMode.FREE):
                     if self.params.key_mode == KeyMode.SHARDS:
                         for _ in range(5):
                             self.spawn_things.append("RB/21")
@@ -869,7 +869,7 @@ class SeedGenerator:
                 name, x, y, area, logic_location, logic_cost = self.warps[warp_id]
                 connection = Connection("TeleporterNetwork", logic_location, self)
                 requirements = [warp_id]
-                if not self.var(Variation.KEYS_ONLY_FOR_DOORS):
+                if not self.var(Variation.ENTRANCE_SHUFFLE):
                     # Consider keystone softlocks.
                     #if area == "Ginso":
                     #    requirements.append("GinsoKey")
@@ -1499,7 +1499,7 @@ class SeedGenerator:
         keystoneCount = 0
         mapstoneCount = 0
 
-        self.form_areas(self.var(Variation.KEYS_ONLY_FOR_DOORS))
+        self.form_areas(self.var(Variation.ENTRANCE_SHUFFLE))
         self.create_warp_paths()
         if self.params.do_loc_analysis:
             self.params.locationAnalysisCopy = {}
@@ -1615,7 +1615,7 @@ class SeedGenerator:
             connection.add_requirements([], 0)
             self.areas["GladesFirstKeyDoor"].add_connection(connection)
 
-        if self.var(Variation.KEYS_ONLY_FOR_DOORS) and self.params.key_mode == KeyMode.SHARDS:
+        if self.var(Variation.ENTRANCE_SHUFFLE) and self.params.key_mode == KeyMode.SHARDS:
             for connection in list(self.areas["TeleporterNetwork"].connections):
                 if connection.target in ["HoruTeleporter", "GinsoTeleporter", "ForlornTeleporter"]:
                     self.areas["TeleporterNetwork"].remove_connection(connection)
