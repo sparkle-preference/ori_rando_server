@@ -29,6 +29,8 @@ trees_by_coords = {
     2919744: Pickup.n("RB", 909),
 }
 
+dedup_bonus_ids = [17, 19, 21, 28] + list(range(300, 312))
+
 zone_translate = {
     "Valley": "valleyOfTheWind",
     "Sorrow": "sorrowPass",
@@ -90,7 +92,7 @@ def stacks(pickup):
         return True
     if pickup.code != "RB":
         return False
-    return pickup.id in [6, 9, 12, 13, 15, 17, 19, 21, 28, 30, 31, 32, 33, 37, 81]
+    return pickup.id in ([6, 9, 12, 13, 15, 17, 19, 21, 28, 30, 31, 32, 33, 37, 81] + list(range(300, 312)))
 
 
 pbc = picks_by_coord(extras=True)
@@ -1187,7 +1189,7 @@ class Game(ndb.Model):
 
         def relevant(p, personal=False):
             if personal:
-                return (not p.is_shared(self.shared)) and (p.code in ["AC", "KS", "HC", "EC", "SK", "EV", "TP"] or (p.code == "RB" and p.id in [17, 19, 21]))
+                return (not p.is_shared(self.shared)) and (p.code in ["AC", "KS", "HC", "EC", "SK", "EV", "TP"] or (p.code == "RB" and p.id in dedup_bonus_ids))
             return p.is_shared(self.shared)
 
         def add_pick_to_inv(inv, code, pid, coord, zone, personal=False):
@@ -1251,7 +1253,7 @@ class Game(ndb.Model):
                             if(len(stuff) != 1):
                                 log.warning("stuff not found in %s", p)
                             else:
-                                if params.sync.cloned and stuff[0].code == "RB" and stuff[0].id in ["17", "19", "21", "28"]:
+                                if params.sync.cloned and stuff[0].code == "RB" and int(stuff[0].id) in dedup_bonus_ids:
                                     if coord in shards:
                                         log.debug("Skipping pickup")
                                         continue
@@ -1473,7 +1475,7 @@ class Game(ndb.Model):
                     players = [p for p in players if p.pid() in team.pids()]
                 else:
                     log.error("No bingo team found for player %s!" % pid)
-            if share and (self.dedup or (pickup.code == "RB" and pickup.id in [17, 19, 21, 28])):
+            if share and (self.dedup or (pickup.code == "RB" and pickup.id in dedup_bonus_ids)):
                 p = self.params.get()
                 if p.sync.cloned and coords in [coord for p in players if p.pid() != pid for coord in p.seen_coords()]:
                     log.debug("Won't grant %s to player %s, as a teammate found it already" % (pickup.name, pid))

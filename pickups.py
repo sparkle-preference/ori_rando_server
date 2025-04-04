@@ -97,7 +97,6 @@ class Upgrade(Pickup):
             206: "Ultra Stomp", 207: "Rapid Flame", 208: "Charge Flame Blast", 209: "Ultra Split Flame", 210: "Spirit Magnet", 211: "Map Markers",
             212: "Life Efficiency", 213: "Ultra Spirit Magnet", 214: "Energy Efficiency", 215: "Spirit Efficiency", 216: "Spirit Potency",
             217: "Life Regen (Ability)", 218: "Energy Regen (Ability", 219: "Sense", 220: "Rekindle", 221: "Regroup", 222: "Charge Flame Efficiency",
-
             223: "Air Dash", 224: "Ultra Soul Link", 225: "Charge Dash", 226: "Water Breath", 227: "Soul Link Efficiency", 228: "Triple Jump", 229: "Ultra Defense",
             230: "Remove Quick Flame", 231: "Remove Spark Flame", 232: "Remove Charge Flame Burn", 233: "Remove Split Flame", 234: "Remove Ultra Light Burst",
             235: "Remove Cinder Flame", 236: "Remove Ultra Stomp", 237: "Remove Rapid Flame", 238: "Remove Charge Flame Blast", 239: "Remove Ultra Split Flame",
@@ -109,7 +108,8 @@ class Upgrade(Pickup):
             300: "Glades Pool Keystone", 301: "Lower Spirit Caverns Keystone", 302: "Grotto Keystone", 303: "Swamp Keystone", 304: "Upper Spirit Caverns Keystone", 
             305: "Lower Ginso Keystone", 306: "Upper Ginso Keystone", 307: "Misty Keystone", 308: "Forlorn Keystone", 309: "Lower Sorrow Keystone", 
             310: "Mid Sorrow Keystone", 311: "Upper Sorrow Keystone",
-
+            410: "Enhanced Spirit Flame", 411: "Enhanced Wall Jump", 412: "Enhanced Charge Flame", 413: "Enhanced Double Jump", 414: "Enhanced Bash", 415: "Enhanced Stomp", 
+            416: "Enhanced Glide", 417: "Enhanced Climb", 418: "Enhanced Charge Jump", 419: "Enhanced Dash", 420: "Enhanced Grenade", 422: "Enhanced Clean Water", 
             900: "Wall Jump Tree", 901: "Charge Flame Tree", 902: "Double Jump Tree", 903: "Bash Tree", 904: "Stomp Tree", 905: "Glide Tree", 906: "Climb Tree",
             907: "Charge Jump Tree", 908: "Dash Tree", 909: "Grenade Tree", 911: "Glades Relic", 912: "Grove Relic", 913: "Grotto Relic", 914: "Blackroot Relic",
             915: "Swamp Relic", 916: "Ginso Relic", 917: "Valley Relic", 918: "Misty Relic", 919: "Forlorn Relic", 920: "Sorrow Relic", 921: "Horu Relic", 1100: "Enable Frag Sense",
@@ -136,7 +136,9 @@ class Upgrade(Pickup):
             inst.share_type = ShareType.EVENT
         elif id >= 900:  # trees and relics are misc pickups
             inst.share_type = ShareType.MISC
-        elif 200 <= id and 311 >= id:
+        elif id >= 300 and id <= 311: # keysanity keys are misc pickups
+            inst.share_type = ShareType.MISC
+        elif "Remove " in inst.name:  # why would these be shared. that'd be terrible
             inst.share_type = ShareType.NOT_SHARED
         else:
             inst.share_type = ShareType.UPGRADE
