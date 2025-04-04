@@ -242,7 +242,9 @@ const getHelpHelper = (category, option) => {
                 case "Enhanced":
                     title = "Enhanced";
                     lines = [
-                        "Vulajin and Roryrai say that this variation \"enhances\" the randomizer. :)"
+                        "Enhanced Mode gives you enhanced versions of all of the skills, and Clean Water, when you collect them. Enhanced skills have powerful and fun new behaviors that might drastically change how you play! In addition, Sein is back and she has things to say, some of which may actually be useful!",
+                        "Enhanced Mode was originally released as an April Fools mode for the 10th Oriversary, but is available for play any time you like.",
+                        "Note: Enhanced skills automatically give you a bonus skill which you can use to toggle enhanced effects off/on, just in case!"
                     ];
                     break;
                 case "Starved":
@@ -626,7 +628,7 @@ const getHelpHelper = (category, option) => {
                 case "Misc":
                     title = "Share Miscellaneous Items"
                     lines = [
-                        "With Share Misc enabled, tree activation and World Tour Relics are shared between players.",
+                        "With Share Misc enabled, Tree activation, World Tour Relics, and Keysanity keystones are shared between players.",
                         "Sharing tree / relic progression tends to generally reduce the amount of time an average co-op seed will take to complete."
                     ]
                     break;
@@ -650,7 +652,7 @@ const getHelpHelper = (category, option) => {
                     lines= [
                         "With Dedup Shared enabled, stackable bonus pickups (Extra Double Jump, Regens, Skill Velocity, etc) will only grant one stack per item location.",
                         "(By default, players can gain up to 1 stack per player of any of these items, as long as each player collects their copy).",
-                        "Dedup Shared has no effect on seeds without Share Upgrades enabled, because Shards and Warmth Fragments are always deduped.",
+                        "Dedup Shared has no effect on seeds without Share Upgrades enabled, because Shards, Warmth Fragments, and Keysanity keys are always deduped.",
                         "Note: this is both a very fun and very silly option to leave disabled with the bonus lite item pool."
                     ]
                     break;
