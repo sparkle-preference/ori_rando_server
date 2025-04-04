@@ -1441,7 +1441,7 @@ def netcode_player_bingo_tick(game_id, player_id):
     if not bingo:
         return text_resp("Bingo game %s not found" % game_id, 404)
     if int(player_id) not in bingo.player_nums():
-        return resp_error(412, "player not in game! %s" % bingo.player_nums())
+        return text_resp("player not in game! %s" % bingo.player_nums(), 412)
     bingo_data = json.loads(request.form.get("bingoData")) if request.form.get("bingoData") else None
     # if debug and player_id in test_data:
     #     bingo_data = test_data[player_id]['bingoData']
