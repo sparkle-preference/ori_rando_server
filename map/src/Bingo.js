@@ -322,7 +322,7 @@ export default class Bingo extends React.Component {
                       cards: [], currentRecord: 0, haveGame: false, creatingGame: false, createModalOpen: true, offset: 0, noTimer: false, 
                       discovery: iniUrl.searchParams.has("disc"), discCount: parseInt(iniUrl.searchParams.get("disc") || 2, 10), discSquares: [], lockout: false,
                       activePlayer: parseInt(get_param("pref_num") || 1, 10), showInfo: false, user: user, loadingText: "Loading...", paramId: -1, squareCount: 13, seed: seed,
-                      dark: dark, specLink: window.document.location.href.replace("board", "spectate").replace(gameId, 4 + gameId*7), 
+                      dark: dark, specLink: window.document.location.href.replace("board", "spectate").replace(gameId, 4 + gameId*7), testIters: 0,
                       fails: 0, gameId: gameId, startSkills: 3, startCells: 4, startMisc: "MU|TP/Swamp/TP/Valley", goalMode: "bingos",
                       start_with: "", difficulty: "normal", isRandoBingo: false, randoGameId: -1, viewOnly: viewOnly, buildingPlayer: false, meta: false,
                       events: [], startTime: (new Date()), countdownActive: false, isOwner: false, targetCount: targetCount, userBoard: userBoard,
@@ -483,7 +483,7 @@ export default class Bingo extends React.Component {
     }
     createGame = () => {
         let {isRandoBingo, discovery, discCount, noTimer, targetCount, goalMode, lockout, squareCount, randoGameId, 
-            startSkills, startCells, startMisc, showInfo, difficulty, teamsDisabled, seed, meta} = this.state;
+            startSkills, startCells, startMisc, showInfo, difficulty, teamsDisabled, seed, meta, testIters} = this.state;
         let url
         if(isRandoBingo) {
             url = `/bingo/from_game/${randoGameId}?difficulty=${difficulty}`
@@ -499,11 +499,13 @@ export default class Bingo extends React.Component {
         if(!teamsDisabled)
             url += "&teams=1"
         if(noTimer)
-            url += "&no_timer=1"
+            url += "&noTimer=1"
         if(discovery && discCount > 0)
             url += `&discCount=${discCount}`
         if(meta)
             url += `&meta=1`
+        if(testIters)
+            url += `&testIters=${testIters}`
         url += `&seed=${seed}`
 
         doNetRequest(url+`&time=${(new Date()).getTime()}`, this.createCallback)
@@ -512,37 +514,42 @@ export default class Bingo extends React.Component {
     createCallback = ({status, responseText}) => {
         if(status !== 200)
         {
-            if(this.state.fromGen && status === 404)
-            {
+            if(this.state.fromGen && (status === 404 || responseText.includes("test retry"))) {
                 this.setState({createModalOpen: true, creatingGame: false})
                 return;
             }
-            NotificationManager.error(`error ${status}: ${responseText}`, "error creating seed", 5000)
-            this.setState({createModalOpen: false, haveGame: false, creatingGame: false}, this.updateUrl)
+                NotificationManager.error(`error ${status}: ${responseText}`, "error creating bingo game", 5000);
+                this.setState({createModalOpen: false, haveGame: false, creatingGame: false}, this.updateUrl);
             return
         } else {
-            let res = JSON.parse(responseText)
-            let {activePlayer, dispDiff, offset, user} = this.state
-            if(user)
-                Object.keys(res.teams).some(t => {
-                    let team = res.teams[t]
-                    if(team.cap.name === user)
-                    {
-                        activePlayer = team.cap.pid
-                        return true
-                    }
-                    return team.teammates.some(tm => {
-                       if(tm.name === user) {
-                           activePlayer = tm.pid
-                           return true
-                       }
-                       return false
+            try {
+                let res = JSON.parse(responseText)
+                let {activePlayer, dispDiff, offset, user} = this.state
+                if(user)
+                    Object.keys(res.teams).some(t => {
+                        let team = res.teams[t]
+                        if(team.cap.name === user)
+                        {
+                            activePlayer = team.cap.pid
+                            return true
+                        }
+                        return team.teammates.some(tm => {
+                           if(tm.name === user) {
+                               activePlayer = tm.pid
+                               return true
+                           }
+                           return false
+                        })
                     })
-                })
-            this.setState({subtitle: res.subtitle, gameId: res.gameId, createModalOpen: false, creatingGame: false, haveGame: true, offset: res.offset || offset,
-                          fails: 0, dispDiff: res.difficulty || dispDiff, teams: res.teams, paramId: res.paramId, activePlayer: activePlayer, ticksSinceLastSquare: 0,
-                          currentRecord: 0, cards: res.cards, events: res.events, targetCount: res.bingo_count, fromGen: false, teamMax: res.teamMax || -1, discSquares: res.discovery || [],
-                          lockout: res.lockout || false, startTime: res.start_time_posix, isOwner: res.is_owner, countdownActive: res.countdown, teamsDisabled: !res.teams_allowed}, this.updateUrl)
+                this.setState({subtitle: res.subtitle, gameId: res.gameId, createModalOpen: false, creatingGame: false, haveGame: true, offset: res.offset || offset,
+                              fails: 0, dispDiff: res.difficulty || dispDiff, teams: res.teams, paramId: res.paramId, activePlayer: activePlayer, ticksSinceLastSquare: 0,
+                              currentRecord: 0, cards: res.cards, events: res.events, targetCount: res.bingo_count, fromGen: false, teamMax: res.teamMax || -1, discSquares: res.discovery || [],
+                              lockout: res.lockout || false, startTime: res.start_time_posix, isOwner: res.is_owner, countdownActive: res.countdown, teamsDisabled: !res.teams_allowed}, this.updateUrl);
+            } catch (e) {
+                NotificationManager.error(`error encountered when attempting to initiate response`, "error", 5000);
+                console.log("failed to handle callback properly: ", e, status, responseText);
+                this.setState({createModalOpen: true, haveGame: false, creatingGame: false});
+            }
         }
     }
     onPlayerListAction = (action, player, name) => () => {
@@ -869,7 +876,7 @@ export default class Bingo extends React.Component {
         </Modal>
     )}
     createModal = (style) => {
-        let {discovery, difficulty, isRandoBingo, seed, fromGen, teamMax, randoGameId, targetCount, startSkills, meta,
+        let {discovery, difficulty, isRandoBingo, seed, fromGen, teamMax, randoGameId, targetCount, startSkills, meta, testIters,
             discCount, startCells, startMisc, showInfo, teamsDisabled, noTimer, squareCount, goalMode, lockout, user} = this.state
         let randoInput = fromGen ? (
             <Row className="p-1">
@@ -936,11 +943,26 @@ export default class Bingo extends React.Component {
                 </ButtonGroup>
             </Col>
         </Row>);
+        let testItersRow = dev ? (
+            <Row className="p-1">
+                <Col xs="4" className="p-1 border">
+                    <Cent>Run {testIters} tests</Cent>
+                </Col>
+                <Col xs="6">
+                <ButtonGroup>
+                    {[0, 250, 500, 1000].map(i => (
+                    <Button active={testIters !== i} outline={testIters === i} onClick={() => this.setState({testIters: i})}>{i}</Button>
+                    ))}
+                </ButtonGroup>
+                </Col>
+            </Row>
+        ) : null;
         return (
         <Modal size="lg" isOpen={this.state.createModalOpen} backdrop={"static"} className={"modal-dialog-centered"} toggle={this.toggleCreate}>
             <ModalHeader style={style} toggle={this.toggleCreate}><Cent>Bingo options</Cent></ModalHeader>
             <ModalBody style={style}>
                 <Container fluid>
+                    {testItersRow}
                     <Row className="p-1">
                         <Col xs="4" className="p1 border">
                             <Cent>Difficulty</Cent>

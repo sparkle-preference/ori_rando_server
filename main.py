@@ -93,7 +93,7 @@ def server_error(err):
     <html><title>Server Error</title>
     <body><h3>Backend Server Error</h3>
     <div>If this keeps happening, consider reaching out to Eiko in the <a target="_blank" href="https://orirando.com/discord/dev">dev discord</a>.</div>
-    <div style="padding-top: 2rem;">%s</div></body></html>""" % err)
+    <div style="padding-top: 2rem;">%s</div></body></html>""" % err, 500)
 
 @app.route('/clean/')
 def clean_up():
@@ -1254,7 +1254,7 @@ def bingo_create_game():
         eventStr = "misc"
         if user:
             bingo.creator = user.key
-        if not user or param_flag("no_timer"):
+        if not user or param_flag("noTimer"):
             bingo.start_time = now
             eventStr += "Bingo Game %s started!" % key.id()
         else:
@@ -1366,10 +1366,18 @@ def add_bingo_to_game(game_id):
         d = int(param_val("discCount") or 0)
         lockout = bool(int(param_val("lockout") or 0))
         meta = param_flag("meta")
-        if False: # this is like having test code
+        test_iters = int(param_val("testIters") or 0)
+        if test_iters: # this is like having test code
+            edges = [0,1,2,3,4,5,9,10,14,15,19,20,21,22,23,24]
             metacnt = 0
             symcnt = 0
-            for i in range(500):
+            actvcnt = 0
+            edgesymcnt = 0
+            doublesymcnt = 0
+            edgedisccnt = 0
+            symdisccnt = 0
+            
+            for i in range(test_iters):
                 iseed = seed+str(i)
                 rand.seed(iseed)
                 cards = BingoGenerator.get_cards(rand, 25, True, difficulty, Variation.OPEN_WORLD in params.variations, d, meta, lockout, Variation.KEYSANITY in params.variations)
@@ -1383,9 +1391,31 @@ def add_bingo_to_game(game_id):
                 if not len([c for c in cards if c.meta]) <= 5:
                     log.error("seed %s:total count: %s", iseed, len([c for c in cards if c.meta]))
                 metacnt += len([c for c in cards if c.meta])
-                symcnt += len([c for c in cards if "Sym" in c.name])
-            
-            log.info("meta density: %s, sym density: %s",float(metacnt)/500.0, float(symcnt)/500.0)            
+                actvcnt += len([c for c in cards if c.name == "Activate Squares"])
+                syms = [c for c in cards if "Sym" in c.name]
+                symcnt += len(syms)
+                edgesymcnt += len([c for c in syms if c.square in edges])
+                doublesymcnt += (1 if len(syms) == 2 else 0)
+                if d:
+                    bingo = BingoGameData(
+                        id            = game_id,
+                        board         = cards,
+                        difficulty    = difficulty,
+                        subtitle      = params.flag_line(),
+                        teams_allowed = param_flag("teams"),
+                        teams_shared  = params.players > 1 and params.sync.mode == MultiplayerGameType.SHARED,
+                        game          = game.key,
+                        lockout       = lockout,
+                        meta          = meta,
+                        seed          = iseed
+                    )
+                    discsquares = bingo.discovery_squares(d)
+                    symdisccnt += len([c for c in syms if c.square in discsquares])
+                    edgedisccnt += len([s for s in discsquares if s in edges])
+            log.info('-------------')
+            for name, num in [("meta squares", metacnt), ("square cards", actvcnt), ("symmetry squares", symcnt), ("symmetry squares on edges", edgesymcnt), ("boards with both symmetry squares", doublesymcnt), ("discovery squares on the edge", edgedisccnt), ("symmetry discovery squares", symdisccnt)]:
+                log.info("%s %3d/%s = %s", (name+":").ljust(36), num, test_iters, float(num)/float(test_iters))
+            return text_resp("test retry", 420)
 
         bingo = BingoGameData(
             id            = game_id,
@@ -1414,7 +1444,7 @@ def add_bingo_to_game(game_id):
         eventStr = "misc"
         if user:
             bingo.creator = user.key
-        if not user or param_flag("no_timer"):
+        if not user or param_flag("noTimer"):
             bingo.start_time = now
             eventStr += "Bingo Game %s started!" % game_id
         else:
