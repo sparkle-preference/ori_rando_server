@@ -391,8 +391,14 @@ class SeedGenParams(ndb.Model):
                 continue
             loc = PBC[int(coords)]
             pickup = Pickup.n(pcode, pid)
-            name = pickup.name.replace("Repeatable: ", "").replace("Message: Press AltR to ", "").replace(", Warp to", "")
-            sect = loc.zone if by_zone else type(Pickup.n(pcode, pid)).__name__
+            if pickup:
+                name = pickup.name.replace("Repeatable: ", "").replace("Message: Press AltR to ", "").replace(", Warp to", "")
+                sect = loc.zone if by_zone else type(Pickup.n(pcode, pid)).__name__
+            else:
+                log.warn("couldn't make a pickup out of %s|%s", pcode, pid)
+                name = "%s|%s" %(pcode, pid)
+                sect = loc.zone if by_zone else "Unknown"
+
             if sect not in seed_data:
                 seed_data[sect] = []
             seed_data[sect].append((loc, name, pcode + pid))
