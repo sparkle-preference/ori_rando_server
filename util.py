@@ -21,9 +21,9 @@ try:
 except ImportError:
     ndb_imported = False
 
-VER = [4, 1, 1]
-MIN_VER = [4, 1, 1]
-BETA_VER = [4, 1, 1]
+VER = [4, 1, 2]
+MIN_VER = [4, 1, 2]
+BETA_VER = [4, 1, 2]
 
 def version_check(version):
     try:
