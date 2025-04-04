@@ -1327,129 +1327,45 @@ class SeedGenerator:
                 if ("OuterDoor" in connection.target) or ("InnerDoor" in connection.target):
                     area.remove_connection(connection)
                     #log.debug("Removed connection to {} from area {}".format(connection.target, door_name))
+
+
+        dungeonOuterDoors = [Door("GinsoOuterDoor", 527, -43), Door("ForlornOuterDoor", -668, -246), Door("HoruOuterDoor", -78, 2)]
+
+        oneWayLobbyDoors = [Door("HoruEscapeOuterDoor", 18, 100), Door("R1OuterDoor", 125, 382)]
+
+        twoWayLobbyDoors = [Door("HoruInnerDoor", 68, 169), Door("L1OuterDoor", 20, 371), Door("L2OuterDoor", 13, 293), Door("L3OuterDoor", 18, 248),
+                            Door("L4OuterDoor", 14, 191), Door("R2OuterDoor", 128, 288), Door("R3OuterDoor", 126, 245), Door("R4OuterDoor", 126, 196)]
         
-        # Okay, according to old XML, door groups are...
-        outerDoors = [[], [], [], [], [], [], [], [], [], [], [], [], []]
-        innerDoors = [[], [], [], [], [], [], [], [], [], [], [], [], []]
-        innerDoors[1] = [Door("HoruInnerDoor", 68, 169)]
-        innerDoors[3] = [Door("L1InnerDoor", -24, 369)]
-        innerDoors[4] = [Door("L2InnerDoor", -13, 301)]
-        innerDoors[5] = [Door("L3InnerDoor", -28, 244)]
-        innerDoors[6] = [Door("L4InnerDoor", -12, 188)]
-        innerDoors[7] = [Door("R1InnerDoor", 153, 413)]
-        innerDoors[8] = [Door("R2InnerDoor", 163, 266)]
-        innerDoors[9] = [Door("R3InnerDoor", 171, 218)]
-        innerDoors[10] = [Door("R4InnerDoor", 144, 151)]
-        innerDoors[12] = [Door("GinsoInnerDoor", 522, 1), Door("ForlornInnerDoor", -717, -408), Door("HoruEscapeInnerDoor", -242, 489)]
-        outerDoors[0] = [Door("GinsoOuterDoor", 527, -43), Door("ForlornOuterDoor", -668, -246), Door("HoruOuterDoor", -78, 2)]
-        outerDoors[1] = [Door("L1OuterDoor", 20, 371)]
-        outerDoors[2] = [Door("R1OuterDoor", 125, 382)]
-        outerDoors[4] = [Door("L2OuterDoor", 13, 293)]
-        outerDoors[5] = [Door("L3OuterDoor", 18, 248)]
-        outerDoors[6] = [Door("L4OuterDoor", 14, 191)]
-        outerDoors[8] = [Door("R2OuterDoor", 128, 288)]
-        outerDoors[9] = [Door("R3OuterDoor", 126, 245)]
-        outerDoors[10] = [Door("R4OuterDoor", 126, 196)]
-        outerDoors[12] = [Door("HoruEscapeOuterDoor", 18, 100)]
-
-        # So we shuffle the 3 in world outer doors, and the ginso/forlorn/escape doors.
-        self.random.shuffle(outerDoors[0])
-        self.random.shuffle(innerDoors[12])
-
-        firstDoors = []
-        lastDoors = []
-
-        firstDoors.append(outerDoors[0].pop(0))
-        firstDoors.append(outerDoors[0].pop(0))
-
-        lastDoors.append(innerDoors[12].pop(0))
-        lastDoors.append(innerDoors[12].pop(0))
+        deadEndDoors = [Door("GinsoInnerDoor", 522, 1), Door("ForlornInnerDoor", -717, -408), Door("HoruEscapeInnerDoor", -242, 489),
+                        Door("L1InnerDoor", -24, 369), Door("L2InnerDoor", -13, 301), Door("L3InnerDoor", -28, 244), Door("L4InnerDoor", -12, 188),
+                        Door("R1InnerDoor", 153, 413), Door("R2InnerDoor", 163, 266), Door("R3InnerDoor", 171, 218), Door("R4InnerDoor", 144, 151)]
 
         self.entrance_spoiler = "Entrances: {\n"
         doorStr = ""
 
-        # activeGroups = [0, 1, 2]
-        # targets = [3, 4, 5, 6, 7, 8, 9, 10, 12]
-        # for now, make R1 vanilla
-
-        dat_s, spoiler_s = self.connect_doors(outerDoors[2].pop(0), innerDoors[7].pop(0))
+        # R1 cutscene softlocks so leave it vanilla for now
+        R1Outer = oneWayLobbyDoors.pop(1)
+        R1Inner = deadEndDoors.pop(7)
+        dat_s, spoiler_s = self.connect_doors(R1Outer, R1Inner)
         doorStr += dat_s
         self.entrance_spoiler += spoiler_s
 
-        activeGroups = [0, 1, 8]
-        targets = [3, 4, 5, 6, 8, 9, 10, 12]
+        # Pick one of the outer dungeon doors, link that door to any door other than final escape or R1 outer in the Horu lobby.
+        outerIdx, outerDoor = self.random.choice(list(enumerate(dungeonOuterDoors)))
+        lobbyIdx, lobbyDoor = self.random.choice(list(enumerate(twoWayLobbyDoors)))
+        dungeonOuterDoors.pop(outerIdx)
+        twoWayLobbyDoors.pop(lobbyIdx)
+        dat_s, spoiler_s = self.connect_doors(outerDoor, lobbyDoor)
+        doorStr += dat_s
+        self.entrance_spoiler += spoiler_s
 
-        self.random.shuffle(targets)
-        # Below comes... 4 5 6 9 10 1 (11 becomes 1).
-        # So we select an horu outer door for entry into horu.
-        horuEntryGroup = self.random.randint(4, 9)
-        if horuEntryGroup >= 7:
-            horuEntryGroup += 2
-        if horuEntryGroup == 11:
-            horuEntryGroup = 1
-            if self.random.random() > 0.5:
-                # We connect one of our first doors to HoruInner
-                dat_s, spoiler_s = self.connect_doors(firstDoors[0], innerDoors[1].pop(0))
-                doorStr += dat_s
-                self.entrance_spoiler += spoiler_s
-                # We add the other first door back to outer doors[0]
-                outerDoors[0].append(firstDoors[1])
-            else:
-                # We connect one of our first doors to L1Outer
-                dat_s, spoiler_s = self.connect_doors(firstDoors[0], outerDoors[1].pop(0))
-                doorStr += dat_s
-                self.entrance_spoiler += spoiler_s
-                # We add the other first door back, and also add in HoruInner
-                outerDoors[0].append(firstDoors[1])
-                outerDoors[0].append(innerDoors[1].pop(0))
-        else:
-            # We connect one of our first doors to an outer door inside horu.
-            dat_s, spoiler_s = self.connect_doors(
-                firstDoors[0], outerDoors[horuEntryGroup].pop(0))
+        # For the rest of the doors, link all non dead ends to dead ends.
+        nonDeadEndDoors = dungeonOuterDoors + oneWayLobbyDoors + twoWayLobbyDoors
+        self.random.shuffle(deadEndDoors)
+        for i in range(len(deadEndDoors)):
+            dat_s, spoiler_s = self.connect_doors(nonDeadEndDoors[i], deadEndDoors[i])
             doorStr += dat_s
             self.entrance_spoiler += spoiler_s
-            # We connect our other first door to a horu inner door.
-            dat_s, spoiler_s = self.connect_doors(firstDoors[1], innerDoors[horuEntryGroup - 1].pop(0))
-            doorStr += dat_s
-            self.entrance_spoiler += spoiler_s
-            targets.remove(horuEntryGroup - 1)
-
-        # While we still have targets...
-        while len(targets) > 0:
-            index = self.random.randrange(len(activeGroups))
-            group = activeGroups[index]
-            if not outerDoors[group]:
-                del activeGroups[index]
-                continue
-
-            target = targets[0]
-            if not innerDoors[target]:
-                del targets[0]
-                continue
-
-            if target < 12:
-                activeGroups.append(target + 1)
-
-            if (target == 6 and 10 not in targets) or (target == 10 and 6 not in targets):
-                activeGroups.append(12)
-
-            dat_s, spoiler_s = self.connect_doors(outerDoors[group].pop(0), innerDoors[target].pop(0))
-            doorStr += dat_s
-            self.entrance_spoiler += spoiler_s
-
-        lastDoorIndex = 0
-
-        for group in range(13):
-            if innerDoors[group]:
-                dat_s, spoiler_s = self.connect_doors(innerDoors[group].pop(0), lastDoors[lastDoorIndex])
-                doorStr += dat_s
-                self.entrance_spoiler += spoiler_s
-                lastDoorIndex += 1
-            if outerDoors[group]:
-                dat_s, spoiler_s = self.connect_doors(outerDoors[group].pop(0), lastDoors[lastDoorIndex])
-                doorStr += dat_s
-                self.entrance_spoiler += spoiler_s
-                lastDoorIndex += 1
 
         self.entrance_spoiler += "}\n"
         return doorStr
