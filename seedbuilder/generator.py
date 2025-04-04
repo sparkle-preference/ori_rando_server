@@ -203,7 +203,8 @@ doors_inner = [
     ("L4InnerDoor", -12, 188),
     ("R2InnerDoor", 163, 266),
     ("R3InnerDoor", 171, 218),
-    ("R4InnerDoor", 144, 151)
+    ("R4InnerDoor", 144, 151),
+    ("HoruEscapeInnerDoor", -242, 489)
 ]
 doors_outer = [
     ("GinsoOuterDoor", 527, -43),
@@ -215,7 +216,8 @@ doors_outer = [
     ("L4OuterDoor", 14, 191),
     ("R2OuterDoor", 128, 288),
     ("R3OuterDoor", 126, 245),
-    ("R4OuterDoor", 126, 196)
+    ("R4OuterDoor", 126, 196),
+    ("HoruEscapeOuterDoor", 18, 100)
 ]
 
 def ordhash(s):
@@ -1344,6 +1346,7 @@ class SeedGenerator:
         doorStr = ""
 
         # R1 cutscene softlocks so leave it vanilla for now
+        # Remember to add R1 back to doors_inner and doors_outer if you fix the softlock
         R1Outer = oneWayLobbyDoors.pop(1)
         R1Inner = deadEndDoors.pop(7)
         dat_s, spoiler_s = self.connect_doors(R1Outer, R1Inner)
