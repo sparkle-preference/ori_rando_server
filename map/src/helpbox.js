@@ -368,7 +368,7 @@ const getHelpHelper = (category, option) => {
                             <li>The second Ginso miniboss room has both lower doors opened by default, allowing TP access to most of the dungeon. (The lowest two pickups are blocked by the first miniboss)</li>
                         </ul>),
                         "Enabling this variation will disable all of the above!",
-                        "This variation exists primarily for legacy reasons and is not recommended for normal use"
+                        "This variation exists primarily for legacy reasons and is not recommended for normal use."
                     ]
                     break;
                 case "OpenWorld":

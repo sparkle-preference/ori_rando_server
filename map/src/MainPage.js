@@ -551,11 +551,13 @@ onDrop = (files) => {
                     {weightSelectors}
                 </Row>
                 </Collapse>
-                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "legacyFlags")} className="p-1 justify-content-center">
-                    <Col xs={leftCol} className="text-center pt-1 border">
+                <Row className="p-1 justify-content-center">
+                    <Col onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "legacyFlags")} xs={leftCol} className="text-center pt-1 border">
                         <span className="align-middle">Legacy Flags</span>
                     </Col><Col xs={rightCol}>
+                    <Row>
                         {legacyVars}
+                    </Row>
                     </Col>
                 </Row>
             </TabPane>
