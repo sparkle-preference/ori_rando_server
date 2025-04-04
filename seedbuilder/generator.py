@@ -682,7 +682,10 @@ class SeedGenerator:
                 self.spawn_things.append("EC/1")
             if (self.start == "Ginso"):
                 for _ in range(4):
-                    self.spawn_things.append("KS/1")
+                    if self.var(Variation.KEYSANITY):
+                        self.spawn_things.append("RB/306")
+                    else:
+                        self.spawn_things.append("KS/1")
                 if (not self.var(Variation.KEYS_ONLY_FOR_DOORS)) and (self.params.key_mode != KeyMode.FREE):
                     if self.params.key_mode == KeyMode.SHARDS:
                         for _ in range(5):
