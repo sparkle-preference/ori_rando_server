@@ -710,13 +710,17 @@ def user_set_settings():
         name = param_val("name")
         teamname = param_val("teamname")
         if name and name != user.name:
-            if user.rename(name):
-                return text_resp("Rename successful!")
-            else:
+            if not user.rename(name):
                 return text_resp("Rename failed!")
         if teamname and teamname != user.teamname:
             user.teamname = teamname
             user.put()
+        if name or teamname:
+            return text_resp("Rename successful!")
+        else:
+            return text_resp("No settings changed")
+        
+
     else:
         return text_resp("You are not logged in!")
 
