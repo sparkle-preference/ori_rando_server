@@ -661,8 +661,7 @@ class BingoGameData(ndb.Model):
     meta             = ndb.BooleanProperty(default=False)
 
     def discovery_squares(self, square_count=2):
-        if self.discovery != square_count:
-            self.discovery = square_count
+        self.discovery = square_count
         if len(self.disc_squares) > 0:
             return self.disc_squares[:]
         if square_count > 25 or square_count < 1:
@@ -688,7 +687,6 @@ class BingoGameData(ndb.Model):
             else:
                 break
         self.disc_squares = squares[:]
-        self.put()
         return squares
     
 

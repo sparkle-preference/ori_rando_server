@@ -752,7 +752,7 @@ class BingoGenerator(object):
                 if card.early:
                     discovery -= 1
                     patience += 1
-                else:
+                elif "meta" not in goal.tags:
                     patience -= 1
                     continue
             if card.goal_type == "multi":
@@ -796,8 +796,7 @@ class BingoGenerator(object):
             if "VertSym" in metas_by_name:
                 col_c = [i for i in range(2,23,5) if not cards[i].meta] # if this is empty than we don't need to swap because there are max 5 meta cards
                 if is_disc and len([i for i in col_c if i not in [2, 22]]): # discovery optimization: only put it in the center 3
-                    col_c.remove(2)
-                    col_c.remove(22)
+                    [col_c.remove(i) for i in [2, 22] if i in col_c]
                 v_sym = metas_by_name["VertSym"][0]
                 if v_sym not in col_c:
                     i = rand.choice(col_c)
@@ -808,8 +807,7 @@ class BingoGenerator(object):
                 h_sym = metas_by_name["HorizSym"][0]
                 if h_sym not in row_3:
                     if is_disc and len([i for i in row_3 if i not in [10, 14]]): # discovery optimization: only put it in the center 3
-                        row_3.remove(10)
-                        row_3.remove(14)
+                        [row_3.remove(i) for i in [10, 14] if i in row_3]
                     i = rand.choice(row_3)
                     cards[h_sym], cards[i] = cards[i], cards[h_sym]
             # activate squares needs to target non-meta squares
