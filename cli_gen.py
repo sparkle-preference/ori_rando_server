@@ -68,7 +68,6 @@ class CLISeedParams(object):
         parser.add_argument("--closed-dungeons", help="deactivate open mode within dungeons", action="store_true")
         parser.add_argument("--open-world", help="Activate open mode on the world map", action="store_true")
         parser.add_argument("--easy", help="Add an extra copy of double jump, bash, stomp, glide, charge jump, dash, grenade, water, and wind", action="store_true")
-        parser.add_argument("--keys-only-for-doors", help="Keys are only logically used for opening doors. They do not gate pickups within the dungeons otherwise.", action="store_true")
         parser.add_argument("--warps-instead-of-tps", help="Replace up to X teleporters with warps to those areas.", type=int)
         parser.add_argument("--in-logic-warps", help="Warps will be in logic, so going to the warp's target is expected.", action="store_true")
         parser.add_argument("--warp-count", help="Ensure you get X random warps.", type=int)
@@ -137,9 +136,9 @@ class CLISeedParams(object):
             "zeroxp": "0XP", "non_progressive_mapstones": "NonProgressMapStones", "ohko": "OHKO", "force_trees": "ForceTrees", "starved": "Starved", "keysanity": "Keysanity",
             "force_mapstones": "ForceMaps", "entrance": "Entrance", "open_world": "OpenWorld", "easy": "DoubleSkills", "strict_mapstones": "StrictMapstones",
             "warmth_frags": "WarmthFrags", "world_tour": "WorldTour", "closed_dungeons": "ClosedDungeons", "tp_starved": "TPStarved", "wall_starved": "WallStarved",
-            "keys_only_for_doors": "KeysOnlyForDoors", "warps_instead_of_tps": "WarpsInsteadOfTPs", "in_logic_warps": "InLogicWarps", "warp_count": "WarpCount",
-            "starting_health": "StartingHealth", "starting_energy": "StartingEnergy", "starting_skills": "StartingSkills", "grenade_starved": "GrenadeStarved",
-            "goal_mode_finish": "GoalModeFinish", "no_tps": "NoTPs", "competitive": "Competitive", "bonus_lite": "BonusLite", "hard": "Hard", "bonus_pickups": "BonusPickups"
+            "warps_instead_of_tps": "WarpsInsteadOfTPs", "in_logic_warps": "InLogicWarps", "warp_count": "WarpCount", "starting_health": "StartingHealth",
+            "starting_energy": "StartingEnergy", "starting_skills": "StartingSkills", "grenade_starved": "GrenadeStarved", "goal_mode_finish": "GoalModeFinish",
+            "no_tps": "NoTPs", "competitive": "Competitive", "bonus_lite": "BonusLite", "hard": "Hard", "bonus_pickups": "BonusPickups"
         }
         self.variations = []
         for argName, flagStr in varMap.items():
