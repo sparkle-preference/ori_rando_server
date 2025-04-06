@@ -147,7 +147,7 @@ def my_games():
         return redirect(User.login_url('/myGames'))
     title = "Games played by %s" % user.name
     title, game_futures = ("Games played by %s" % user.name, [key.get_async() for key in user.games]) if param_flag("all") else (
-                           "Last 10 games played by %s" % user.name,[key.get_async() for key in user.games[:10]])
+                           "Last 10 games played by %s" % user.name,[key.get_async() for key in user.games[-10:]])
     body = game_list_html([gf.get_result() for gf in game_futures])
     if body:
         out = "<h4>%s:</h4><ul>%s</ul></body</html>" % (title, body)
@@ -799,7 +799,7 @@ def reroll_seed():
     if not user:
         return redirect(User.login_url('/reroll'))
     if not user.games:
-        return text_resp( "no games found", 404)
+        return text_resp("no games found", 404)
     game_key = user.games[-1]
     old_game = game_key.get()
     if not old_game.params:
