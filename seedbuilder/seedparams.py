@@ -333,6 +333,9 @@ class SeedGenParams(ndb.Model):
             spoilers.append(spoiler)
             for line in seed.split("\n")[1:-1]:
                 loc, stuff_code, stuff_id, zone = tuple(line.split("|"))
+                if stuff_code == "EN":
+                    stuff_id = stuff_id + "|" + zone
+                    zone = None
                 stuff = Stuff(code=stuff_code, id=stuff_id, player=str(player))
                 if loc not in placemap:
                     placemap[loc] = Placement(location=loc, zone=zone, stuff=[stuff])
@@ -373,7 +376,7 @@ class SeedGenParams(ndb.Model):
         player = int(player)
         if self.sync.mode in [MultiplayerGameType.SIMUSOLO, MultiplayerGameType.SPLITSHARDS]:
             player = 1
-        return [(str(p.location), s.code, s.id, p.zone) for p in self.placements for s in p.stuff if int(s.player) == self.team_pid(player)]
+        return [(str(p.location), s.code, s.id, p.zone) if p.zone else (str(p.location), s.code, s.id) for p in self.placements for s in p.stuff if int(s.player) == self.team_pid(player)]
 
     def get_spoiler(self, player=1):
         if self.sync.mode in [MultiplayerGameType.SIMUSOLO, MultiplayerGameType.SPLITSHARDS]:
