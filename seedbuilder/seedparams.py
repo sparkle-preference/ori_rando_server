@@ -352,7 +352,7 @@ class SeedGenParams(ndb.Model):
             for line in seed.split("\n")[1:-1]:
                 loc, stuff_code, stuff_id, zone = tuple(line.split("|"))
                 if stuff_code == "EN":
-                    stuff_id = stuff_id + "|" + zone
+                    stuff_id = f"{stuff_id}|{zone}"
                     zone = None
                 stuff = Stuff(code=stuff_code, id=stuff_id, player=str(player))
                 if loc not in placemap:
@@ -361,10 +361,10 @@ class SeedGenParams(ndb.Model):
                     placemap[loc].stuff.append(stuff)
         if self.sync.mode in [MultiplayerGameType.SIMUSOLO, MultiplayerGameType.SPLITSHARDS]:
             if player != 1:
-                log.error("seed count mismatch! Should only be 1 seed for this mode and instead found  %s", player)
+                log.error(f"seed count mismatch! Should only be 1 seed for this mode and instead found {player}")
                 return False
         elif player != self.players and player != len(self.sync.teams):
-            log.error("seed count mismatch!, %s != %s or %s", player, self.players, len(self.sync.teams))
+            log.error(f"seed count mismatch!, {players} != {self.players} or {len(self.sync.teams)}")
             return False
         self.spoilers = spoilers
         self.placements = list(placemap.values())
@@ -380,21 +380,21 @@ class SeedGenParams(ndb.Model):
     def get_seed(self, player=1, game_id=None, verbose_paths=False, include_sync = True):
         flags = self.flag_line(verbose_paths)
         if self.players > 1 and self.sync.mode == MultiplayerGameType.SHARED:
-            flags += "/%s" % player
+            flags += f"/{player}"
         if self.tracking and include_sync:
             if not game_id:
-                log.warning("Trying to get a tracked seed with no gameId! paramId %s", self.key.id())
+                log.warning(f"Trying to get a tracked seed with no gameId! paramId {self.key.id()}")
             else:
-                flags = "Sync%s.%s," % (game_id, player) + flags
+                flags = f"Sync{game_id}.{player},{flags}"
         outlines = [flags]
-        outlines += ["|".join(line) for line in self.get_seed_data(player)]
+        outlines += ["|".join(p for p in line if p) for line in self.get_seed_data(player, no_door_zone = True)]
         return "\n".join(outlines) + "\n"
 
-    def get_seed_data(self, player=1):
+    def get_seed_data(self, player=1, no_door_zone = True):
         player = int(player)
         if self.sync.mode in [MultiplayerGameType.SIMUSOLO, MultiplayerGameType.SPLITSHARDS]:
             player = 1
-        return [(str(p.location), s.code, s.id, p.zone) if p.zone else (str(p.location), s.code, s.id) for p in self.placements for s in p.stuff if int(s.player) == self.team_pid(player)]
+        return [(str(p.location), s.code, s.id, p.zone) for p in self.placements for s in p.stuff if int(s.player) == self.team_pid(player)]
 
     def get_spoiler(self, player=1):
         if self.sync.mode in [MultiplayerGameType.SIMUSOLO, MultiplayerGameType.SPLITSHARDS]:
