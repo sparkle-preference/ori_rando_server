@@ -575,6 +575,9 @@ class SeedGenerator:
             self.costs.update(OrderedDict(Counter(keysanity_keystone for keysanity_keystones in keysanity_map.values() for keysanity_keystone in keysanity_keystones)))
             self.itemPool["KS"] = 0
             self.costs["Keysanity"] = 0
+            if self.var(Variation.OPEN_WORLD):
+                self.itemPool["Glades Pool Keystone"] = 0
+                self.costs["Glades Pool Keystone"] = 0
 
             self.inventory.update(OrderedDict((keysanity_ks_name, 0) for keysanity_ks_name in self.keysanityOutput))
             self.inventory["Keysanity"] = 1
