@@ -10,9 +10,15 @@ class SiteBar extends Component {
         super(props);
         let url = new URL(window.document.URL);
         let user = get_param("user");
+        let hasClickedMisc = localStorage.getItem("orirando-hasClickedMiscSincePatch") ==! null;
+        // int(localStorage.getItem(`orirando-${VERSION}-visit`))
+        // if(int(localStorage.getItem(`${VERSION}-visit`))) {
+
+        // }
         let dark = get_flag("dark") || url.searchParams.has("dark") || localStorage.getItem('dark')
-        this.state = {user: user, dark: dark, teamName: "", settingsOpen: false, quickstartOpen: false, editName: user, loadedNames: false, saveInProgress: false, loader: get_random_loader(), saveStatus: 0}
+        this.state = {hasClickedMisc, user, dark, teamName: "", settingsOpen: false, quickstartOpen: false, editName: user, loadedNames: false, saveInProgress: false, loader: get_random_loader(), saveStatus: 0}
     }
+
     componentDidMount() {
         if(this.state.user)
             this.getUsedNames()
@@ -125,7 +131,7 @@ class SiteBar extends Component {
     render() {
         if(this.props.hidden)
             return null
-        let {user, dark} = this.state;
+        let {user, dark, hasClickedMisc} = this.state;
         let url = new URL(window.document.URL)
         let page = encodeURIComponent(url.pathname + url.search)
         let xMode = dark ? "Light Mode" : "Dark Mode"
@@ -140,6 +146,7 @@ class SiteBar extends Component {
         let myseeds = user ? (<DropdownItem href={"/plando/"+ user}> {user}'s seeds </DropdownItem>) : null
         let settings = this.settingsModal()
         let navClass = "border border-dark p-2"
+        let maybeNew = hasClickedMisc ? "" : "(New!)";
         return (
             <Navbar style={{maxWidth: '1074px'}} className={navClass} expand="md">
             {settings}
@@ -181,10 +188,16 @@ class SiteBar extends Component {
                     </DropdownMenu>
                 </UncontrolledDropdown>
                 <UncontrolledDropdown nav inNavbar>
-                    <DropdownToggle nav caret>
-                    Misc
+                    <DropdownToggle onClick={() => localStorage.setItem("orirando-hasClickedMiscSincePatch", "1")} nav caret>
+                    Misc {maybeNew}
                     </DropdownToggle>
                     <DropdownMenu right>
+                    <DropdownItem target="_blank" href="/league/rules">
+                        {maybeNew} Ori Rando League
+                    </DropdownItem>
+                    <DropdownItem target="_blank" href="trickglossary">
+                        {maybeNew} Trick Glossary
+                    </DropdownItem>
                     <DropdownItem target="_blank" href="/patchnotes/4.1.x">
                         (Latest!) Patch Notes (4.1.x)
                     </DropdownItem>

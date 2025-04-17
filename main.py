@@ -1042,6 +1042,10 @@ def dll_beta():
 def tracker():
     return redirect("https://github.com/jeflefou/OriDETracker/releases/tag/v3.3.2")
 
+@app.route('/league/rules')
+def league_rules():
+    return redirect("https://docs.google.com/document/d/1TDmDPb-zDFQ6gxw_RN-b4S9UxcDQu0ySuXfuWefLZ9c/edit?tab=t.0")
+
 @app.route('/trickglossary')       
 def trickglossary():
     return redirect('https://docs.google.com/document/d/1vjDiXz8UPiIOtUVKPlgzjBn9lrCE4y95EwPt0WnQF_U/')
