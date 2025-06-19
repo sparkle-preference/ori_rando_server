@@ -583,7 +583,7 @@ function get_random_loader(color) {
 }
 
 function get_param(name) {
-    let retVal = document.getElementsByClassName(name)[0].id
+    let retVal = document.getElementById("templateData").dataset[name];
     return (retVal !== "" && retVal !== "None") ? retVal : null
 }
 
