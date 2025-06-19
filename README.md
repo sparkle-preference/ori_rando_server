@@ -11,7 +11,7 @@ This repository contains the UI and backend code for the Ori DE randomizer websi
 * Logic Helper - Simple interface to determine in-logic pickups based on current skills and resources. Manual
 * Online Tracking Map - Web-based live tracker showing current available pickups on the world map by updating to this server 
 * Plandomizer Builder - Tool to allow players to design and share custom logic seeds
-* Bingo - Provides multiplayer bingo tracking.
+* Bingo - Provides multiplayer bingo tracking
 
 ## Development 
 We welcome your contributions!
@@ -44,7 +44,7 @@ cd map # If you're not already in the directory
 npm start
 ```
 
-This works best with the dev server running on port 8080 (see below)
+This works best with the dev server running on port 8080 (see below).
 
 ### Component install
 Once installed, use the Google Cloud SDK CLI to install the Python App Engine and Cloud Datastore Emulator components.
@@ -62,13 +62,13 @@ Run the dev server with
 ```sh
 ./run_dev_server.sh
 ```
-By default this uses port `8080` and binds to `127.0.0.1`; If you'd like to use a different port or bind you can set the `APP_PORT` and `APP_HOST` environment variables
+By default this uses port `8080` and binds to `127.0.0.1`; If you'd like to use a different port or bind you can set the `APP_PORT` and `APP_HOST` environment variables.
 
 ```sh
 APP_PORT="5432" APP_HOST="0.0.0.0" ./run_dev_server.sh
 ```
 
-For additional help, you can contact me (Eiko) in the [Ori Randomizer Discord](https://orirando.com/discord)
+For additional help, you can contact me (Eiko) in the [Ori Randomizer Discord](https://orirando.com/discord).
 
 
 ## Related Projects 
