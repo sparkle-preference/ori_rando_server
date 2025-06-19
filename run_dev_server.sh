@@ -12,4 +12,4 @@ if [ -z "${CLOUDSDK_PYTHON}" ]; then
     fi
 fi
 
-${CLOUDSDK_PYTHON} "$GCLOUD_CLI_ROOT/bin/dev_appserver.py" app.yaml --port "${APP_PORT:-"8080"}" --host "${APP_HOST:-"127.0.0.1"}" --enable_host_checking=false --support_datastore_emulator=False
+${CLOUDSDK_PYTHON} "$GCLOUD_CLI_ROOT/bin/dev_appserver.py" app.yaml --port "${APP_PORT:-"8080"}" --host "${APP_HOST:-"127.0.0.1"}" --enable_host_checking=false
