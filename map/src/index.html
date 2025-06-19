@@ -1,3 +1,4 @@
+<!--This is not the version that gets served for local development; see index.dev.html-->
 
 <!doctype html>
 <html lang="en">
@@ -11,7 +12,9 @@
     <noscript>
       You need to enable JavaScript to run this app.
     </noscript>
-    <div class='stretch' id="{{app}}"></div>
+    <div class='stretch' id="root" data-app="{{app}}"></div>
+    <!--This is not the version that gets served for local development; see index.dev.html-->
+
     <div id="templateData"
       data-game-id="{{game_id}}"
       data-player-id="{{player_id}}"
@@ -43,6 +46,6 @@
       data-race_wl="{{race_wl}}"
       data-verbose="{{verbose}}"
       data-admin="{{admin}}"></div>
-      
+      <script type="module" src="../src/index.js"></script>
   </body>
 </html>
