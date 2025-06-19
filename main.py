@@ -32,8 +32,7 @@ from pickups import Pickup, Skill, AbilityCell, HealthCell, EnergyCell, Multiple
 from google.appengine.api import wrap_wsgi_app
 
 path='index.html'
-
-app = Flask(__name__)
+app = Flask(__name__, template_folder=template_root)
 app.wsgi_app = wrap_wsgi_app(app.wsgi_app)
 # app.url_map.strict_slashes = False
 

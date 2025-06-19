@@ -347,11 +347,12 @@ def game_list_html(games):
         body += "<li><a href='%s'>Game #%s</a> <a href='%s'>Map</a>%s%s %s (Last update: %s ago)</li>" % (game_link, gid, map_link, slink, blink, flags, datetime.now() - game.last_update)
     return body
 
-is_debug = "GAE_PARTITION" in os.environ and os.environ["GAE_PARTITION"] == 'dev'
+is_debug = "GAE_PARTITION" not in os.environ or os.environ["GAE_PARTITION"] == 'dev'
 def debug():
     return is_debug
+
 path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
-template_root = os.path.join(os.path.dirname(__file__), 'map/build/templates/')
+template_root = os.path.join(os.path.dirname(__file__), 'map/build/')
 
 def param_val(f):
     if not flask_imported:
