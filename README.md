@@ -44,6 +44,8 @@ cd map # If you're not already in the directory
 npm start
 ```
 
+This works best with the dev server running on port 8080 (see below)
+
 ### Component install
 Once installed, use the Google Cloud SDK CLI to install the Python App Engine and Cloud Datastore Emulator components.
 ```sh
