@@ -239,7 +239,7 @@ class GameTracker extends React.Component {
         mousePos: {lat: 0, lng: 0}, players: {}, follow: url.searchParams.get("follow") || -1, retries: 0, check_seen: 1, modes: modes, timeout: TIMEOUT_START, searchStr: "", pickup_display: "all", 
         show_sidebar: !url.searchParams.has("hideSidebar"), idle_countdown: 10800, bg_update: true, pickups: ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "Ma", "CS"], show_tracker: !url.searchParams.has("hideTracker"),
         open_world: false, closed_dungeons: false, pathMode: get_preset(modes), hideOpt: "all", display_logic: false,  viewport: {center: [0, 0], zoom: 5}, usermap: url.searchParams.get("usermap") || "",
-        /*tracker_data: {events: [], teleporters: [], shards: {gs: 0, ss: 0, wv: 0}, skills: [], maps: 0,relics_found: [], relics: [], trees: []},*/ gameId: get_param("game-id")
+        /*tracker_data: {events: [], teleporters: [], shards: {gs: 0, ss: 0, wv: 0}, skills: [], maps: 0,relics_found: [], relics: [], trees: []},*/ gameId: get_param("game_id")
     };
   };
 
