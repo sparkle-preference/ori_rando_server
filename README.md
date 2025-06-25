@@ -30,22 +30,6 @@ You'll also need Java 8 or higher; we recommend [Temurin 21](https://adoptium.ne
 #### Google Cloud SDK
 Google cloud provides [official install instructions here](https://cloud.google.com/sdk/docs/install-sdk), but your package manager may have a pre-packaged version available via `google-cloud-sdk`. Please note that the `snap` install of the sdk is missing the App Engine extensions required for this use case.
 
-### Building the frontend
-The frontend is built as a standalone react application. To build the application for first launch 
-```sh
-cd map
-npm install
-npm run build
-```
-
-To start the react dev server, run
-```sh
-cd map # If you're not already in the directory
-npm start
-```
-
-This works best with the dev server running on port 8080 (see below).
-
 ### Component install
 Once installed, use the Google Cloud SDK CLI to install the Python App Engine and Cloud Datastore Emulator components.
 ```sh
