@@ -9,8 +9,6 @@ if [ "${NO_BUILD_REACT_APP}" != "1" ]; then
     cd ../
 fi
 
-
-
 if [ -z "${GCLOUD_CLI_ROOT}" ]; then
     GCLOUD_CLI_ROOT="$(gcloud info --format="value(installation.sdk_root)")"
 fi
