@@ -51,6 +51,11 @@ By default this uses port `8080` and binds to `127.0.0.1`; If you'd like to use 
 ```sh
 APP_PORT="5432" APP_HOST="0.0.0.0" ./run_dev_server.sh
 ```
+#### Other Dev Server Options
+- `GCLOUD_CLI_ROOT`: sets the path to the Gcloud CLI
+- `CLOUDSDK_PYTHON`: Sets the path to the python executable to use
+- `NO_WATCH_REACT_APP`: Don't watch for changes in the React App after initial build
+- `NO_BUILD_REACT_APP`: Don't build the React app; implies `NO_WATCH_REACT_APP`
 
 For additional help, you can contact me (Eiko) in the [Ori Randomizer Discord](https://orirando.com/discord).
 
