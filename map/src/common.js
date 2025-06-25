@@ -589,7 +589,7 @@ function get_param(name) {
 
 function get_flag(name) {
     let p = get_param(name);
-    return p !== null && !p.toLowerCase().includes("false")
+    return p != null && !p.toLowerCase().includes("false")
 }
 
 function get_int(name, orElse) {
