@@ -3,9 +3,14 @@
     "private": true,
     "version": "0.0.0",
     "source": "src/index.html",
+    "targets":{
+        "default":{
+            "publicUrl": "/static"
+        }
+    },
     "scripts": {
-        "start": "parcel",
-        "build": "parcel build"
+        "build": "parcel build",
+        "watch": "parcel watch"
     },
     "dependencies": {
         "bootstrap": "^4.3.1",

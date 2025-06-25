@@ -1,6 +1,6 @@
-if [ ! -f "map/dist/index.html" -o "${FORCE_BUILD_REACT_APP}" -eq "1"]; then
+if [ "${NO_WATCH_REACT_APP}" != "1" ]; then
     cd map
-    npm run build
+    npm run watch &
     cd ../
 fi
 
