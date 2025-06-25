@@ -1,3 +1,10 @@
+if [ ! -f "map/dist/index.html" -o "${FORCE_BUILD_REACT_APP}" -eq "1"]; then
+    cd map
+    npm run build
+    cd ../
+fi
+
+
 if [ -z "${GCLOUD_CLI_ROOT}" ]; then
     GCLOUD_CLI_ROOT="$(gcloud info --format="value(installation.sdk_root)")"
 fi

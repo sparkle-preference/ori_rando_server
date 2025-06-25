@@ -4,13 +4,14 @@
     "version": "0.0.0",
     "source": "src/index.html",
     "scripts": {
-        "start": "parcel src/index.dev.html",
+        "start": "parcel",
         "build": "parcel build"
     },
     "dependencies": {
         "bootstrap": "^4.3.1",
         "chalk": "1.1.3",
         "he": "^1.2.0",
+        "http-proxy-middleware": "^3.0.5",
         "leaflet": "^1.9.4",
         "react": "^16.0.0",
         "react-bootstrap-toggle": "^2.3.1",
@@ -38,7 +39,9 @@
     "devDependencies": {
         "@types/react": "^19.0.0",
         "@types/react-dom": "^19.0.0",
+        "connect-injector": "^0.4.4",
         "events": "^3.3.0",
+        "mustache": "^4.2.0",
         "parcel": "^2.14.0",
         "parcel-reporter-static-files-copy": "^1.5.3"
     }
