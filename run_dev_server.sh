@@ -13,6 +13,10 @@ if [ -z "${GCLOUD_CLI_ROOT}" ]; then
     GCLOUD_CLI_ROOT="$(gcloud info --format="value(installation.sdk_root)")"
 fi
 
+if [ -z "${GOOGLE_CLOUD_PROJECT}" ]; then
+    GOOGLE_CLOUD_PROJECT="$(gcloud config get project)"
+fi
+
 if [ -z "${CLOUDSDK_PYTHON}" ]; then
     which pyenv > /dev/null 2>&1
     if [ $? -eq 0 ]; then 

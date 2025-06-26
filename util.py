@@ -16,7 +16,7 @@ try:
 except ImportError:
     flask_imported = False
 try: 
-    from google.appengine.ext import ndb
+    from google.cloud import ndb
     ndb_imported = True
 except ImportError:
     ndb_imported = False
