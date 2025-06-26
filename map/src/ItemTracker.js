@@ -1,9 +1,9 @@
 import React from 'react';
-import {doNetRequest} from './common.js';
+import {doNetRequest, get_param} from './common.js';
 import {Helmet} from 'react-helmet';
 
-const game_id = document.getElementsByClassName("game-id")[0].id;
-const player_id = document.getElementsByClassName("player-id")[0].id;
+const game_id = get_param("game_id");
+const player_id = get_param("player_id");
 const imageMap = {
     '/sprites/tracker/Bash.png': (data) => data.skills.includes("Bash"),
     '/sprites/tracker/ChargeFlame.png': (data) => data.skills.includes("Charge Flame"),

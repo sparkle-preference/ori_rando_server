@@ -351,8 +351,8 @@ is_debug = "GAE_PARTITION" not in os.environ or os.environ["GAE_PARTITION"] == '
 def debug():
     return is_debug
 
-path = os.path.join(os.path.dirname(__file__), 'map/build/index.html')
-template_root = os.path.join(os.path.dirname(__file__), 'map/build/')
+path = os.path.join(os.path.dirname(__file__), 'map/dist/index.html')
+template_root = os.path.join(os.path.dirname(__file__), 'map/dist/')
 
 def param_val(f):
     if not flask_imported:

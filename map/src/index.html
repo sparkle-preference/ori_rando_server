@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <link rel="icon" href="/favicon.ico">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>{{title}}</title>
+  </head>
+  <body>
+    <noscript>
+      You need to enable JavaScript to run this app.
+    </noscript>
+    <div class='stretch' id="root" data-app="{{app}}"></div>
+    <!--This is not the version that gets served for local development; see index.dev.html-->
+
+    <div id="templateData"
+      data-game_id="{{game_id}}"
+      data-player_id="{{player_id}}"
+      data-spoiler="{{is_spoiler}}"
+      data-pathmode="{{pathmode}}"
+      data-logic_modes="{{logic_modes}}"
+      data-HC="{{HC}}"
+      data-EC="{{EC}}"
+      data-AC="{{AC}}"
+      data-KS="{{KS}}"
+      data-MS="{{MS}}"
+      data-SK="{{skills}}"
+      data-TP="{{tps}}"
+      data-EV="{{evs}}"
+      data-authed="{{authed}}"
+      data-user="{{user}}"
+      data-dark="{{dark}}"
+      data-theme="{{theme}}"
+      data-author="{{author}}"
+      data-seed_data="{{seed_data}}"
+      data-players="{{players}}"
+      data-login_url="{{login_url}}"
+      data-seed_name="{{seed_name}}"
+      data-seed_desc="{{seed_desc}}"
+      data-seed_hidden="{{seed_hidden}}"
+      data-error_msg="{{error_msg}}"
+      data-version="{{version}}"
+      data-pref_num="{{pref_num}}"
+      data-race_wl="{{race_wl}}"
+      data-verbose="{{verbose}}"
+      data-admin="{{admin}}"></div>
+      <script type="module" src="../src/index.js"></script>
+  </body>
+</html>

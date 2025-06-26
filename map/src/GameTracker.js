@@ -2,7 +2,7 @@ import './index.css';
 import React, {Fragment} from 'react';
 import {Map, Tooltip, TileLayer, Marker, ZoomControl, Circle} from 'react-leaflet';
 import Leaflet from 'leaflet';
-import {presets, player_icons, get_preset, logic_paths, Blabel, dev} from './common.js';
+import {presets, player_icons, get_preset, logic_paths, Blabel, dev, get_param} from './common.js';
 import {picks_by_type, PickupMarkersList, get_icon, getMapCrs, hide_opacity, select_styles, select_wrap} from './shared_map.js';
 import Select from 'react-select';
 import {Button, Collapse, Container, Row, Col, Input, UncontrolledButtonDropdown, DropdownToggle, DropdownMenu, DropdownItem} from 'reactstrap';
@@ -239,7 +239,7 @@ class GameTracker extends React.Component {
         mousePos: {lat: 0, lng: 0}, players: {}, follow: url.searchParams.get("follow") || -1, retries: 0, check_seen: 1, modes: modes, timeout: TIMEOUT_START, searchStr: "", pickup_display: "all", 
         show_sidebar: !url.searchParams.has("hideSidebar"), idle_countdown: 10800, bg_update: true, pickups: ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "Ma", "CS"], show_tracker: !url.searchParams.has("hideTracker"),
         open_world: false, closed_dungeons: false, pathMode: get_preset(modes), hideOpt: "all", display_logic: false,  viewport: {center: [0, 0], zoom: 5}, usermap: url.searchParams.get("usermap") || "",
-        /*tracker_data: {events: [], teleporters: [], shards: {gs: 0, ss: 0, wv: 0}, skills: [], maps: 0,relics_found: [], relics: [], trees: []},*/ gameId: document.getElementsByClassName("game-id")[0].id
+        /*tracker_data: {events: [], teleporters: [], shards: {gs: 0, ss: 0, wv: 0}, skills: [], maps: 0,relics_found: [], relics: [], trees: []},*/ gameId: get_param("game_id")
     };
   };
 

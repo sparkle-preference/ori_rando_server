@@ -23,7 +23,7 @@ handlers:
   static_dir: map
 
 - url: /static
-  static_dir: map/build/static
+  static_dir: map/dist
 
 - url: /netcode/.*
   script: auto

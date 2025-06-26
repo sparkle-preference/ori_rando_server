@@ -14,7 +14,7 @@ export default class SeedDisplayPage extends React.Component {
     let {seedJson, authed, seed_name, hidden, seed_desc} = get_seed();
     let seedData = JSON.parse(he.decode(seedJson))
     let author = get_param("author")
-    let gid = get_param("game-id")
+    let gid = get_param("game_id")
     let complain_message = get_param("error_msg")
     
 	if(complain_message)

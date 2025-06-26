@@ -1,3 +1,14 @@
+if [ "${NO_BUILD_REACT_APP}" != "1" ]; then
+    cd map
+    if [ "${NO_WATCH_REACT_APP}" == "1" ]; then
+        npm run build
+    else
+        # Parcel is almost always faster than appengine
+        npm run watch &
+    fi
+    cd ../
+fi
+
 if [ -z "${GCLOUD_CLI_ROOT}" ]; then
     GCLOUD_CLI_ROOT="$(gcloud info --format="value(installation.sdk_root)")"
 fi
