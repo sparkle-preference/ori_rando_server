@@ -11,8 +11,8 @@ import logging as log
 from urllib.request import urlopen
 from urllib.parse import unquote
 from flask import Flask, render_template, request, make_response, url_for, redirect
-from google.appengine.ext import ndb
-from google.appengine.ext.ndb import transactional
+from google.cloud import ndb
+from google.cloud.ndb import transactional
 from google.appengine.api import urlfetch
 import google.cloud.logging
 
@@ -20,7 +20,7 @@ import google.cloud.logging
 from seedbuilder.seedparams import SeedGenParams
 from seedbuilder.vanilla import seedtext as vanilla_seed
 from enums import MultiplayerGameType, ShareType, Variation
-from models import Game, Seed, User, BingoGameData, BingoEvent, BingoTeam, CustomLogic, trees_by_coords
+from models import ndb_wsgi_middleware, Game, Seed, User, BingoGameData, BingoEvent, BingoTeam, CustomLogic, trees_by_coords
 from bingo import BingoGenerator
 from cache import Cache
 from util import coord_correction_map, clone_entity, all_locs, picks_by_type_generator, param_val, param_flag, debug, template_root, VER, MIN_VER, BETA_VER, game_list_html, version_check, template_vals, layout_json, whitelist_ok, bfield_checksum
@@ -35,6 +35,8 @@ path='index.html'
 app = Flask(__name__, template_folder=template_root)
 app.wsgi_app = wrap_wsgi_app(app.wsgi_app)
 # app.url_map.strict_slashes = False
+app.wsgi_app = ndb_wsgi_middleware(app.wsgi_app)
+
 
 
 if debug():

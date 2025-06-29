@@ -1,5 +1,5 @@
-from google.appengine.ext import ndb
-from google.appengine.ext.ndb.model import ModelKey
+from google.cloud import ndb
+from google.cloud.ndb.model import ModelKey
 from google.appengine.api import users
 
 import logging as log
@@ -15,6 +15,15 @@ from enums import MultiplayerGameType, ShareType, Variation
 from util import picks_by_coord, get_bit, get_taste, enums_from_strlist, ord_suffix, debug, bfields_to_coords, bfield_checksum, unpack
 from pickups import Pickup, Skill, Teleporter, Event
 from cache import Cache
+
+client = ndb.Client()
+
+def ndb_wsgi_middleware(wsgi_app):
+    def middleware(environ, start_response):
+        with client.context():
+            return wsgi_app(environ, start_response)
+
+    return middleware
 
 trees_by_coords = {
     -3160308: Pickup.n("RB", 900),
