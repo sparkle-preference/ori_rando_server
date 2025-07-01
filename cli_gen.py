@@ -108,7 +108,7 @@ class CLISeedParams(object):
         parser.add_argument("--hints", help="Cloned seeds only: display a hint with the item category on a shared location instead of 'Warmth Returned'", action="store_true")
         parser.add_argument("--do-reachability-analysis", help="Analyze how many locations are opened by various progression items in various inventory states", action="store_true")
         parser.add_argument("--areas-ori-path", help="Path to areas.ori. Will search next to generator if omitted.", type=str)
-        parser.add_argument("--keysanity", help="Keysanity mode: keys only belong to one door", type=str)
+        parser.add_argument("--keysanity", help="Keysanity mode: keys only belong to one door", action="store_true")
         args = parser.parse_args()
 
         """
