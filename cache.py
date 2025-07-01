@@ -1,153 +1,163 @@
-from google.appengine.api import memcache
+import time
+import heapq
+from cachetools import TLRUCache, Cache as CacheToolsCache
 
-class Cache(object):
+
+DEFAULT_TIME = 604800
+class TLRUCacheWithCustomExpiry(TLRUCache):
+    
+    def __init__(self, maxsize, timer=time.monotonic, getsizeof=None):
+        ttu = lambda: DEFAULT_TIME
+        super().__init__(maxsize, ttu, timer, getsizeof)
+    
+    def add(self, key, value, time=DEFAULT_TIME):
+        with self.timer as timer:
+            expires = timer + time
+            if timer >= expires:
+                return  # skip expired items
+            self.expire(timer)
+            CacheToolsCache.cache_setitem(self, key, value)
+        # removing an existing item would break the heap structure, so
+        # only mark it as removed for now
+        try:
+            self.__getitem(key).removed = True
+        except KeyError:
+            pass
+        self.__items[key] = item = TLRUCache._Item(key, expires)
+        heapq.heappush(self.__order, item)
+    
+    def get(self, key):
+        if self.__contains__(key):
+            return self[key]
+        else:
+            return None
+
+
+class PythonCache(object):
     """Used to interact with memcache"""
 
-    @staticmethod
-    def san_check(gid):
-        return memcache.add(key="%s.san" % gid, value=True, time=10)
+    def __init__(self):
+        self.cache = TLRUCacheWithCustomExpiry(2048)
+        self.gid_max = None
+    
+    def san_check(self, gid):
+        return self.cache.add(key="%s.san" % gid, value=True, time=10)
 
-    @staticmethod
-    def current_gid():
-        return memcache.get(key="gid_max") or -1
+    def current_gid(self):
+        return self.gid_max or -1
 
-    @staticmethod
-    def get_latest_game(user, bingo=False):
+    def get_latest_game(self, user, bingo=False):
         if bingo:
-            return memcache.get(key="%s.latest_bingo" % user)
-        return memcache.get(key="%s.latest" % user)
+            return self.cache.get(key="%s.latest_bingo" % user)
+        return self.cache.get(key="%s.latest" % user)
 
-    @staticmethod
-    def set_latest_game(user, gid, bingo=False):
+    def set_latest_game(self, user, gid, bingo=False):
         if bingo:
-            memcache.set(key="%s.latest_bingo" % user, value=gid, time=604800)
-        memcache.set(key="%s.latest" % user, value=gid, time=604800)
+            self.cache.set(key="%s.latest_bingo" % user, value=gid, time=604800)
+        self.cache.set(key="%s.latest" % user, value=gid, time=604800)
 
-    @staticmethod
-    def set_gid(gid):
-        memcache.set(key="gid_max", value=int(gid))
+    def set_gid(self, gid):
+        self.gid_max = int(gid)
 
-    @staticmethod
-    def set_hist(gid, pid, hist):
-        hist_map = Cache.get_hist(gid) or {}
+    def set_hist(self, gid, pid, hist):
+        hist_map = self.get_hist(gid) or {}
         hist_map[int(pid)] = hist
-        memcache.set(key="%s.hist" % gid, value=hist_map, time=14400)
+        self.cache.set(key="%s.hist" % gid, value=hist_map, time=14400)
 
-    @staticmethod
-    def append_hl(gid, pid, hl):
-        hist_map = Cache.get_hist(gid) or {}
+    def append_hl(self, gid, pid, hl):
+        hist_map = self.get_hist(gid) or {}
         if int(pid) not in hist_map:
             hist_map[int(pid)] = [hl]
         else:
             hist_map[int(pid)].append(hl)
-        memcache.set(key="%s.hist" % gid, value=hist_map, time=14400)
+        self.cache.set(key="%s.hist" % gid, value=hist_map, time=14400)
 
-    @staticmethod
-    def get_hist(gid):
-        return memcache.get(key="%s.hist" % gid)
+    def get_hist(self, gid):
+        return self.cache.get(key="%s.hist" % gid)
 
-    @staticmethod
-    def get_reachable(gid):
-        return memcache.get(key="%s.reach" % gid) or {}
+    def get_reachable(self, gid):
+        return self.cache.get(key="%s.reach" % gid) or {}
 
-    @staticmethod
-    def set_reachable(gid, reachable):
-        memcache.set(key="%s.reach" % gid, value=reachable, time=7200)
+    def set_reachable(self, gid, reachable):
+        self.cache.set(key="%s.reach" % gid, value=reachable, time=7200)
 
-    @staticmethod
-    def get_have(gid):
-        return memcache.get(key="%s.have" % gid) or {}
+    def get_have(self, gid):
+        return self.cache.get(key="%s.have" % gid) or {}
 
-    @staticmethod
-    def set_have(gid, have):
-        memcache.set(key="%s.have" % gid, value=have, time=7200)
+    def set_have(self, gid, have):
+        self.cache.set(key="%s.have" % gid, value=have, time=7200)
 
-    @staticmethod
-    def clear_reach(gid, pid):
-        reach_map = Cache.get_reachable(gid) or {}
+    def clear_reach(self, gid, pid):
+        reach_map = self.get_reachable(gid) or {}
         reach_map[int(pid)] = {}
-        memcache.set(key="%s.reach" % gid, value=reach_map, time=7200)
+        self.cache.set(key="%s.reach" % gid, value=reach_map, time=7200)
 
-    @staticmethod
-    def get_items(gid, pid):
-        return memcache.get(key="%s.%s.items" % (gid, pid)) or ({}, {})
+    def get_items(self, gid, pid):
+        return self.cache.get(key="%s.%s.items" % (gid, pid)) or ({}, {})
 
-    @staticmethod
-    def set_items(gid, pid, items, is_race=False):
-        memcache.set(key="%s.%s.items" % (gid, pid), value=items, time=10 if is_race else 14400)
+    def set_items(self, gid, pid, items, is_race=False):
+        self.cache.set(key="%s.%s.items" % (gid, pid), value=items, time=10 if is_race else 14400)
 
-    @staticmethod
-    def get_relics(gid):
-        return memcache.get(key="%s.relics" % gid) or None
+    def get_relics(self, gid):
+        return self.cache.get(key="%s.relics" % gid) or None
 
-    @staticmethod
-    def set_relics(gid, relics):
-        memcache.set(key="%s.relics" % gid, value=relics, time=14400)
+    def set_relics(self, gid, relics):
+        self.cache.set(key="%s.relics" % gid, value=relics, time=14400)
 
-    @staticmethod
-    def clear_items(gid, pid=1):
-        Cache.set_items(gid, pid, {})
+    def clear_items(self, gid, pid=1):
+        self.cache.set(self, gid, {})
 
-    @staticmethod
-    def get_pos(gid):
-        return memcache.get(key="%s.pos" % gid)
+    def get_pos(self, gid):
+        return self.cache.get(key="%s.pos" % gid)
 
-    @staticmethod
-    def set_pos(gid, pid, x, y):
-        pos_map = Cache.get_pos(gid) or {}
+    def set_pos(self, gid, pid, x, y):
+        pos_map = self.cache.get_pos(self, gid) or {}
         pos_map[int(pid)] = (x, y)
-        memcache.set(key="%s.pos" % gid, value=pos_map, time=3600)
+        self.cache.set(key="%s.pos" % gid, value=pos_map, time=3600)
 
-    @staticmethod
-    def get_git(k):
-        return memcache.get(key="git.%s" % k)
+    def get_git(self, k):
+        return self.cache.get(key="git.%s" % k)
 
-    @staticmethod
-    def set_git(k, val):
-        memcache.set(key="git.%s" % k, value=val, time=3600)
+    def set_git(self, k, val):
+        self.cache.set(key="git.%s" % k, value=val, time=3600)
 
-    @staticmethod
-    def get_board(gid):
-        return memcache.get(key="%s.board" % gid)
+    def get_board(self, gid):
+        return self.cache.get(key="%s.board" % gid)
 
-    @staticmethod
-    def set_board(gid, board):
-        return memcache.set(key="%s.board" % gid, value=board, time=60)
+    def set_board(self, gid, board):
+        return self.cache.set(key="%s.board" % gid, value=board, time=60)
 
-    @staticmethod
-    def get_areas():
-        areas = memcache.get(key="CURRENT_LOGIC")
+    def get_areas(self):
+        areas = self.cache.get(key="CURRENT_LOGIC")
         if not areas:
             with open("seedbuilder/areas.ori", 'r') as f:
                 areas = f.read()
-            memcache.set(key="CURRENT_LOGIC", value=areas, time=3600)
+            self.cache.set(key="CURRENT_LOGIC", value=areas, time=3600)
         return areas
 
-    @staticmethod
-    def get_output(gpid):
-        return memcache.get(key="%s.%s.output" % gpid)
+    def get_output(self, gpid):
+        return self.cache.get(key="%s.%s.output" % gpid)
 
-    @staticmethod
-    def set_output(gpid, outstr):
-        memcache.set(key="%s.%s.output" % gpid, value=outstr, time=360)
+    def set_output(self, gpid, outstr):
+        self.cache.set(key="%s.%s.output" % gpid, value=outstr, time=360)
 
-    @staticmethod
-    def get_seen_checksum(gpid):
-        return memcache.get(key="%s.%s.seenhash" % gpid)
+    def get_seen_checksum(self, gpid):
+        return self.cache.get(key="%s.%s.seenhash" % gpid)
 
-    @staticmethod
-    def set_seen_checksum(gpid, seen_checksum):
-        memcache.set(key="%s.%s.seenhash" % gpid, value=seen_checksum, time=360)
+    def set_seen_checksum(self, gpid, seen_checksum):
+        self.cache.set(key="%s.%s.seenhash" % gpid, value=seen_checksum, time=360)
 
-    @staticmethod
-    def clear_seen_checksum(gpid):
-        memcache.delete(key="%s.%s.seenhash" % gpid)
+    def clear_seen_checksum(self, gpid):
+        del self.cache["%s.%s.seenhash" % gpid]
 
-    @staticmethod
-    def remove_game(gid):
-        memcache.delete_multi(keys=["have", "hist", "san", "pos", "reach", "items", "relics", "board"], key_prefix="%s." % gid)
+    def remove_game(self, gid):
+        for key in ["have", "hist", "san", "pos", "reach", "items", "relics", "board"]:
+            del self.cache[f"{gid}.{key}"]
 
-    @staticmethod
-    def clear():
-        memcache.flush_all()
-        Cache.set_gid(0)
+    def clear(self):
+        self.cache.clear()
+        self.set_gid(0)
+
+# DI the actual cache impl we want
+Cache = PythonCache()
+

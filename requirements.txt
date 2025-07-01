@@ -2,3 +2,4 @@ Flask>=2.2.2
 appengine-python-standard
 google-cloud-logging
 google-cloud-ndb
+cachetools==5.5.2

@@ -1,8 +1,6 @@
 *.pyc
 *.tern-project
-/lib
 /.venv
 .gcloudignore
 appengine_config.py
 secrets.py
-/libs
