@@ -3,3 +3,4 @@ appengine-python-standard
 google-cloud-logging
 google-cloud-ndb
 cachetools==5.5.2
+pymemcache==4.0.0
