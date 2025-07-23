@@ -59,14 +59,14 @@ const xml_name_to_code = {
 }
 
 function get_manual_reach() {
-    let HC = get_int("HC", 0);
-    let EC = get_int("EC", 0);
-    let AC = get_int("AC", 0);
-    let KS = get_int("KS", 0);
-    let MS = get_int("MS", 0);
-    let skills = get_list("SK"," ").map(skill => { let parts = skill.split("|"); return {label: pickup_name(parts[0], parts[1]), value: skill}; });
-    let evs = get_list("EV"," ").map(event => { let parts = event.split("|"); return {label: pickup_name(parts[0], parts[1]), value: event}; });
-    let tps  = get_list("TP"," ").map(tp => {return {label: tp.substr(3) + " TP", value: tp}; });
+    let HC = get_int("hc", 0);
+    let EC = get_int("ec", 0);
+    let AC = get_int("ac", 0);
+    let KS = get_int("ks", 0);
+    let MS = get_int("ms", 0);
+    let skills = get_list("sk"," ").map(skill => { let parts = skill.split("|"); return {label: pickup_name(parts[0], parts[1]), value: skill}; });
+    let evs = get_list("ev"," ").map(event => { let parts = event.split("|"); return {label: pickup_name(parts[0], parts[1]), value: event}; });
+    let tps  = get_list("tp"," ").map(tp => {return {label: tp.substr(3) + " TP", value: tp}; });
     return {HC: HC, EC: EC, AC: AC, KS: KS, MS: MS, skills: skills, tps: tps, evs: evs};
 }
 
