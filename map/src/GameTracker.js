@@ -236,7 +236,7 @@ class GameTracker extends React.Component {
     let modes = presets['standard'];
     let url = new URL(window.document.URL);
     this.state = {
-        mousePos: {lat: 0, lng: 0}, players: {}, follow: url.searchParams.get("follow") || -1, retries: 0, check_seen: 1, modes: modes, timeout: TIMEOUT_START, searchStr: "", pickup_display: "all", 
+        mousePos: {lat: 0, lng: 0}, players: {}, follow: url.searchParams.get("follow") || -1, retries: 0, check_seen: 1, modes: modes, timeout: TIMEOUT_START, searchStr: "", pickup_display: "all", seed_req_wait: false,
         show_sidebar: !url.searchParams.has("hideSidebar"), idle_countdown: 10800, bg_update: true, pickups: ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "Ma", "CS"], show_tracker: !url.searchParams.has("hideTracker"),
         open_world: false, closed_dungeons: false, pathMode: get_preset(modes), hideOpt: "all", display_logic: false,  viewport: {center: [0, 0], zoom: 5}, usermap: url.searchParams.get("usermap") || "",
         /*tracker_data: {events: [], teleporters: [], shards: {gs: 0, ss: 0, wv: 0}, skills: [], maps: 0,relics_found: [], relics: [], trees: []},*/ gameId: get_param("game_id")
@@ -253,12 +253,12 @@ class GameTracker extends React.Component {
   };
 
   timeout = () => {
-  	return {retries: this.state.retries+1, check_seen: this.state.timeout, timeout: this.state.timeout+TIMEOUT_INC}
+  	return {retries: this.state.retries+1, check_seen: this.state.timeout, timeout: this.state.timeout+TIMEOUT_INC, seed_req_wait: false}
   };
   tick = () => {
     let update = {}
     try {
-        let {retries, bg_update, idle_countdown, check_seen, players, follow} = this.state;
+        let {retries, bg_update, idle_countdown, check_seen, players, follow, seed_req_wait} = this.state;
         if(retries >= RETRY_MAX) return;
         if(!document.hasFocus()) {
             if(!bg_update) return;
@@ -271,20 +271,23 @@ class GameTracker extends React.Component {
         }
         if(check_seen === 0) {
             this.getUpdate(this.timeout);
-            Object.keys(players).forEach((id) => {
+            if(!seed_req_wait) {
+                Object.keys(players).forEach((id) => {
                 if(Object.keys(players[id].seed).length < 50)
                     getSeed((p) => this.setState(p), this.state.gameId, id, this.timeout);
-            })
+                    update.seed_req_wait = true;
+                });
+            }
         } else 
             update.check_seen = check_seen - 1
         if(follow > 0 && players.hasOwnProperty(follow)) {
             let map = this.refs.map.leafletElement;
-            map.panTo(players[follow].pos)
+            map.panTo(players[follow].pos);
         }
     } catch(error) {
-        console.log(`tick: ${error}`)
+        console.log(`tick: ${error}`);
     }
-    this.setState(update)
+    this.setState(update);
 };
 
   componentWillUnmount() {
@@ -492,7 +495,7 @@ function doNetRequest(onRes, setter, url, timeout)
             try {
                 if (xmlHttp.readyState === 4) {
                     if(xmlHttp.status === 404)
-                        setter(timeout())
+                        setter(timeout());
                     else
                         onRes(xmlHttp.responseText);
                 }
@@ -504,6 +507,7 @@ function doNetRequest(onRes, setter, url, timeout)
         xmlHttp.send(null);
     } catch(e) {
         console.log(`doNetRequest: ${e}`)
+        setter(timeout()); // should prevent fuckery with seed_req_wait?
     }
 }
 
@@ -515,10 +519,10 @@ function getSeed(setter, gameId, pid, timeout)
                     let {seed, name} = JSON.parse(res);
                     retVal[pid].seed = seed;
                     retVal[pid].name = name || retVal[pid].name;
-					return {players:retVal, retries: 0, timeout: TIMEOUT_START}
+					return {players:retVal, retries: 0, timeout: TIMEOUT_START, seed_req_wait: false};
 				});
             }
-     doNetRequest(onRes, setter, "/tracker/game/"+gameId+"/fetch/player/"+pid+"/seed", timeout)
+     doNetRequest(onRes, setter, "/tracker/game/"+gameId+"/fetch/player/"+pid+"/seed", timeout);
 }
 
 export default GameTracker;
