@@ -31,7 +31,7 @@ const VALID_THEMES = ["cerulean", "cosmo", "cyborg", "darkly", "flatly", "journa
 
 (async () => {
     if(localStorage.getItem("rememberMe") && !get_param('user'))
-        return gotoUrl(`/login?redir=${encodeURIComponent(window.document.URL.split(".com")[1])}`);
+        return gotoUrl(`/login?redir=${window.location.pathname}`);
     let dark = get_param("dark") != null ? get_flag("dark") : localStorage.getItem("dark");
     let theme = get_param("theme") || localStorage.getItem("theme");
     if(theme && !localStorage.getItem("theme")){
