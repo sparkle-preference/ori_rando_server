@@ -300,4 +300,3 @@ else:
     else:
         raise EnvironmentError(err_msg)
 
-Cache = MemcachedCache("localhost", 11211)
