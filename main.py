@@ -10,22 +10,24 @@ from datetime import datetime, timedelta
 import logging as log
 from urllib.request import urlopen
 from urllib.parse import unquote
-from flask import Flask, render_template, request, make_response, url_for, redirect
+from flask import Flask, render_template, request, make_response, url_for, redirect, g
 from google.cloud import ndb
 from google.cloud.ndb import transactional
 from google.appengine.api import urlfetch
 import google.cloud.logging
+from flask_oidc import OpenIDConnect
 
 # project imports
 from seedbuilder.seedparams import SeedGenParams
 from seedbuilder.vanilla import seedtext as vanilla_seed
 from enums import MultiplayerGameType, ShareType, Variation
-from models import ndb_wsgi_middleware, Game, Seed, User, BingoGameData, BingoEvent, BingoTeam, CustomLogic, trees_by_coords
+from models import ndb_wsgi_middleware, Game, Seed, User, BingoGameData, BingoEvent, BingoTeam, CustomLogic, trees_by_coords, LegacyUser
 from bingo import BingoGenerator
 from cache import Cache
 from util import coord_correction_map, clone_entity, all_locs, picks_by_type_generator, param_val, param_flag, debug, template_root, VER, MIN_VER, BETA_VER, game_list_html, version_check, template_vals, layout_json, whitelist_ok, bfield_checksum
 from reachable import Map, PlayerState
 from pickups import Pickup, Skill, AbilityCell, HealthCell, EnergyCell, Multiple
+import secrets
 
 # handlers
 # from bingo import routes as bingo_routes
@@ -36,8 +38,10 @@ app = Flask(__name__, template_folder=template_root)
 app.wsgi_app = wrap_wsgi_app(app.wsgi_app)
 # app.url_map.strict_slashes = False
 app.wsgi_app = ndb_wsgi_middleware(app.wsgi_app)
+app.config["OIDC_CLIENT_SECRETS"] = "client_secret.json"
 
-
+oidc = OpenIDConnect(app)
+app.secret_key = secrets.app_secret_key
 
 if debug():
     root_logger = log.getLogger()
@@ -96,6 +100,33 @@ def server_error(err):
     <div>If this keeps happening, consider reaching out to Eiko in the <a target="_blank" href="https://orirando.com/discord/dev">dev discord</a>.</div>
     <div style="padding-top: 2rem;">%s</div></body></html>""" % err, 500)
 
+@app.route('/test')
+def user_test():
+    if g.oidc_user.logged_in:
+        for user in User.query(User.email == g.oidc_user.email):
+            user.key.delete()
+        log.info("MATCHING" + str(User.query(User.email == g.oidc_user.email).count()))
+
+        bingos = [str(bingo.key) for bingo in BingoGameData.query(BingoGameData.legacy_creator == ndb.Key("User", "100595625574941572248")).fetch()]
+
+        return json_resp({
+            "profile": g.oidc_user.profile,
+            "id": g.oidc_user.unique_id,
+            "email": g.oidc_user.email,
+            "bingos": bingos
+        })
+    else:
+        return 'Not logged in'
+
+    
+
+@app.route('/test_logout')
+def user_test_logout():
+    if g.oidc_user.logged_in:
+        return oidc.logout("/test")
+    else:
+        return 'Not logged in'
+
 @app.route('/clean/')
 def clean_up():
     log.info("starting clean...")
@@ -135,17 +166,17 @@ def active_games(hours=12):
 @app.route('/quickstart')
 @app.route('/')
 def main_page():
+    log.info(User.get())
     template_values = template_vals("MainPage", "Ori DE Randomizer %s" % VERSION, User.get())
-    _, error = CustomLogic.read()
-    template_values.update({"error_msg": error})
+    # _, error = CustomLogic.read()
+    # template_values.update({"error_msg": error})
     return render_template(path, **template_values)
 
 
 @app.route('/myGames')
+@oidc.require_login
 def my_games():
     user = User.get()
-    if not user:
-        return redirect(User.login_url('/myGames'))
     title = "Games played by %s" % user.name
     title, game_futures = ("Games played by %s" % user.name, [key.get_async() for key in user.games]) if param_flag("all") else (
                            "Last 10 games played by %s" % user.name,[key.get_async() for key in user.games[-10:]])
@@ -157,20 +188,17 @@ def my_games():
     return make_resp(out)
 
 @app.route('/login')
+@oidc.require_login
 def login():
-    user = User.get()
     target_url = param_val("redir") or "/"
-    if user:
-        return redirect(target_url)
-    else:
-        return redirect(User.login_url(target_url))
+    return redirect(target_url)
 
 @app.route('/logout')
 def logout():
     user = User.get()
     target_url = param_val("redir") or "/"
     if user:
-        return redirect(User.logout_url(target_url))
+        return oidc.logout(target_url)
     else:
         return redirect(target_url)
 
@@ -795,10 +823,9 @@ def rebinding_tool():
     return render_template(path, **template_values)
 
 @app.route('/reroll')
+@oidc.require_login
 def reroll_seed():
     user = User.get()
-    if not user:
-        return redirect(User.login_url('/reroll'))
     if not user.games:
         return text_resp("no games found", 404)
     game_key = user.games[-1]

@@ -2,6 +2,7 @@ from google.cloud import ndb
 from google.cloud.ndb.model import ModelKey
 from google.appengine.api import users
 
+
 import logging as log
 import random
 from json import dumps as jsonify
@@ -9,6 +10,7 @@ from datetime import datetime, timedelta
 from calendar import timegm
 from collections import defaultdict, OrderedDict
 from typing import List, Dict, Optional
+from flask import g
 
 from seedbuilder.seedparams import Placement, Stuff, SeedGenParams
 from enums import MultiplayerGameType, ShareType, Variation
@@ -165,6 +167,9 @@ class HistoryLine(ndb.Model):
             return "lost %s! (%s)" % (self.pickup().name, t)
 
 class User(ndb.Model):
+    @classmethod
+    def _get_kind(cls):
+        return 'User2'
     # key = user_id
     name = ndb.StringProperty()
     games = ndb.KeyProperty("Game", repeated=True)
@@ -190,15 +195,8 @@ class User(ndb.Model):
 
     @staticmethod
     def is_admin():
-        return users.is_current_user_admin()
-
-    @staticmethod
-    def login_url(redirect_after):
-        return users.create_login_url(redirect_after)
-
-    @staticmethod
-    def logout_url(redirect_after):
-        return users.create_logout_url(redirect_after)
+        # TODO: Fix before merge
+        return False
 
     @staticmethod
     def prune_games():
@@ -212,16 +210,18 @@ class User(ndb.Model):
 
     @staticmethod
     def get():
-        app_user = users.get_current_user()
-        if not app_user:
+        app_user = g.oidc_user
+        if not app_user.logged_in:
             return None
-        user = User.get_by_id(app_user.user_id())
+        user = User.get_by_id(app_user.unique_id)
         if not user:
-            return User.create(app_user)
-        if not user.email:
-            user.email = app_user.email()
-            user.put()
-            user = User.get_by_id(app_user.user_id())
+            legacy_user_query = LegacyUser.query(LegacyUser.email == app_user.email).fetch()
+            if len(legacy_user_query) == 1:
+                user = User.migrate(app_user, legacy_user_query[0])
+            elif len(legacy_user_query) == 0:
+                user = User.create(app_user)
+            else:
+                log.error("Users with same email detected: " + ",".join(lu.id for lu in legacy_user_query))
         return user
 
     def rename(self, desired_name):
@@ -240,33 +240,77 @@ class User(ndb.Model):
 
     @staticmethod
     def create(app_user):
-        user = User(id=app_user.user_id())
-        user.email = app_user.email()
-        user.name = user.email.partition("@")[0]
+        user = User(id=app_user.unique_id)
+        user.email = app_user.email.lower()
+        if app_user.name:
+            user.name = app_user.name
+        else:
+            user.name = app_user.email.split("@")[0]
         user.teamname = "%s's team" % user.name
+        return user
+    
+    @staticmethod
+    def migrate(app_user, old_user):
+        log.info(old_user)
+        user = User(id=app_user.unique_id)
+        user.email = app_user.email.lower()
+        
+        if old_user.name:
+            user.name = old_user.name
+        else:
+            user.name = old_user
+        user.teamname = old_user.teamname
+        user.dark_theme = old_user.dark_theme
+        user.games = old_user.games
+        user.pref_num = old_user.pref_num
+        user.theme = old_user.theme
+        user.verbose = old_user.verbose
         key = user.put()
-        for old in Seed.query(Seed.author == user.name).fetch():
-            new = Seed(
-                id="%s:%s" % (key.id(), old.name),
-                placements=old.placements,
-                flags=old.flags,
-                hidden=old.hidden,
-                description=old.description,
-                players=old.players,
-                author_key=key,
-                name=old.name
-            )
-            new = new.put()
-            old.key.delete()
-            log.info("Seed conversion: %s -> %s", old.key, new)
+        for game in user.games:
+            if game.user is not None:
+                log.warning(f"Trying to migrate already migrated Game {game.key}")
+                continue
+            game.user = key
+            game.put()
+        for player in Player.query(Player.legacy_user == old_user.key).fetch():
+            if player.user is not None:
+                log.warning(f"Trying to migrate already migrated Player {player.key}")
+                continue
+            player.user = key
+            player.put()
+        log.info("old_user "+ str(old_user))
+        log.info([str(bingo.key) for bingo in BingoGameData.query(BingoGameData.legacy_creator == ndb.Key("User", "100595625574941572248")).fetch()])
+        for bingo in BingoGameData.query(BingoGameData.legacy_creator == old_user.key).fetch():
+            if bingo.creator is not None:
+                log.warning(f"Trying to migrate already migrated Bingo {bingo.key}")
+                continue
+            bingo.creator = key
+            bingo.put()
+            
         return user
     
     def plando(self, seed_name):
         return Seed.get_by_id("%s:%s" % (self.key.id(), seed_name))
 
+class LegacyUser(ndb.Model):
+    @classmethod
+    def _get_kind(cls):
+        return 'User'
+    
+    # key = user_id
+    name = ndb.StringProperty()
+    games = ndb.KeyProperty("Game", repeated=True)
+    dark_theme = ndb.BooleanProperty(default=False)
+    email = ndb.StringProperty()
+    teamname = ndb.StringProperty()
+    pref_num  = ndb.IntegerProperty()
+    theme  = ndb.StringProperty()
+    verbose = ndb.BooleanProperty(default=False)
+
+
 class CustomLogic(ndb.Model):
     # id = userid
-    user = ndb.KeyProperty("User")
+    user = ndb.KeyProperty(User)
     logic = ndb.PickleProperty()
     warnings = ndb.TextProperty()
 
@@ -299,8 +343,9 @@ class Player(ndb.Model):
     signals     = ndb.StringProperty(repeated=True)
     history     = ndb.LocalStructuredProperty(HistoryLine, repeated=True)
     last_update = ndb.DateTimeProperty(auto_now=True)
-    teammates   = ndb.KeyProperty('Player', repeated=True)
-    user        = ndb.KeyProperty('User')
+    teammates   = ndb.KeyProperty("Player", repeated=True)
+    user        = ndb.KeyProperty(User)
+    legacy_user = ndb.KeyProperty(LegacyUser)
     can_nag     = ndb.BooleanProperty(default=True)
     seen_bflds  = ndb.IntegerProperty(repeated=True)
     have_bflds  = ndb.IntegerProperty(repeated=True)
@@ -621,7 +666,7 @@ class BingoEvent(ndb.Model):
     bingo = ndb.StringProperty()
     timestamp = ndb.DateTimeProperty()
     first = ndb.BooleanProperty()
-    player = ndb.KeyProperty("Player")
+    player = ndb.KeyProperty(Player)
     def to_json(self, start_time):
         timeStr = ""
         if start_time:
@@ -647,11 +692,12 @@ class BingoEvent(ndb.Model):
 
 
 class BingoGameData(ndb.Model):
-    players          = ndb.KeyProperty("Player", repeated=True)
+    players          = ndb.KeyProperty(Player, repeated=True)
     board            = ndb.LocalStructuredProperty(BingoCard, repeated=True)
     start_time       = ndb.DateTimeProperty()
     started          = ndb.BooleanProperty(default=True)
-    creator          = ndb.KeyProperty("User")
+    creator          = ndb.KeyProperty("User2", User)
+    legacy_creator   = ndb.KeyProperty("User", LegacyUser)
     teams            = ndb.LocalStructuredProperty(BingoTeam, repeated=True)
     event_log        = ndb.LocalStructuredProperty(BingoEvent, repeated=True)
     bingo_count      = ndb.IntegerProperty(default=3)
@@ -999,7 +1045,8 @@ class Seed(ndb.Model):
     hidden = ndb.BooleanProperty(default=False)
     description = ndb.TextProperty()
     players = ndb.IntegerProperty(default=1)
-    author_key = ndb.KeyProperty(User)
+    author_key = ndb.KeyProperty("User2", User)
+    legacy_author_key = ndb.KeyProperty("User", LegacyUser)
     author = ndb.StringProperty()  # deprecated: will remove after migration is complete
     name = ndb.StringProperty()
 
@@ -1102,19 +1149,20 @@ class Game(ndb.Model):
     def set_mode(self, mode):      self.str_mode = mode.value
     def get_shared(self):          return [ShareType.mk(st) for st in self.str_shared if ShareType.mk(st)]
     def set_shared(self, shared):  self.str_shared = [s.value for s in shared]
-    mode        = property(get_mode, set_mode)
-    shared      = property(get_shared, set_shared)
-    start_time  = ndb.DateTimeProperty(auto_now_add=True)
-    last_update = ndb.DateTimeProperty(auto_now=True)
-    hls         = ndb.LocalStructuredProperty(HistoryLine, repeated=True)
-    players     = ndb.KeyProperty(Player, repeated=True)
-    relics      = ndb.StringProperty(repeated=True)
-    params      = ndb.KeyProperty(SeedGenParams)
-    bingo_data  = ndb.KeyProperty(BingoGameData)
-    dedup       = ndb.BooleanProperty(default=False)
-    creator     = ndb.KeyProperty("User")
-    is_race     = ndb.BooleanProperty(default=False)
-    spawn       = ndb.StringProperty(default="Glades")
+    mode           = property(get_mode, set_mode)
+    shared         = property(get_shared, set_shared)
+    start_time     = ndb.DateTimeProperty(auto_now_add=True)
+    last_update    = ndb.DateTimeProperty(auto_now=True)
+    hls            = ndb.LocalStructuredProperty(HistoryLine, repeated=True)
+    players        = ndb.KeyProperty(Player, repeated=True)
+    relics         = ndb.StringProperty(repeated=True)
+    params         = ndb.KeyProperty(SeedGenParams)
+    bingo_data     = ndb.KeyProperty(BingoGameData)
+    dedup          = ndb.BooleanProperty(default=False)
+    creator        = ndb.KeyProperty("User2", User)
+    legacy_creator = ndb.KeyProperty("User", LegacyUser)
+    is_race        = ndb.BooleanProperty(default=False)
+    spawn          = ndb.StringProperty(default="Glades")
     def history(self, pids=[]):
         if not self.hls:
              # legacy migration branch
