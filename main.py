@@ -100,33 +100,6 @@ def server_error(err):
     <div>If this keeps happening, consider reaching out to Eiko in the <a target="_blank" href="https://orirando.com/discord/dev">dev discord</a>.</div>
     <div style="padding-top: 2rem;">%s</div></body></html>""" % err, 500)
 
-@app.route('/test')
-def user_test():
-    if g.oidc_user.logged_in:
-        for user in User.query(User.email == g.oidc_user.email):
-            user.key.delete()
-        log.info("MATCHING" + str(User.query(User.email == g.oidc_user.email).count()))
-
-        bingos = [str(bingo.key) for bingo in BingoGameData.query(BingoGameData.legacy_creator == ndb.Key("User", "100595625574941572248")).fetch()]
-
-        return json_resp({
-            "profile": g.oidc_user.profile,
-            "id": g.oidc_user.unique_id,
-            "email": g.oidc_user.email,
-            "bingos": bingos
-        })
-    else:
-        return 'Not logged in'
-
-    
-
-@app.route('/test_logout')
-def user_test_logout():
-    if g.oidc_user.logged_in:
-        return oidc.logout("/test")
-    else:
-        return 'Not logged in'
-
 @app.route('/clean/')
 def clean_up():
     log.info("starting clean...")
