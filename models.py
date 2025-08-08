@@ -266,21 +266,20 @@ class User(ndb.Model):
         user.theme = old_user.theme
         user.verbose = old_user.verbose
         key = user.put()
-        for game in user.games:
-            if game.user is not None:
+        for gkey in user.games:
+            game = gkey.get()
+            if game.creator is not None:
                 log.warning(f"Trying to migrate already migrated Game {game.key}")
                 continue
-            game.user = key
+            game.creator = key
             game.put()
-        for player in Player.query(Player.legacy_user == old_user.key).fetch():
+        for player in Player.query(Player.legacy_user == old_user.key):
             if player.user is not None:
                 log.warning(f"Trying to migrate already migrated Player {player.key}")
                 continue
             player.user = key
             player.put()
-        log.info("old_user "+ str(old_user))
-        log.info([str(bingo.key) for bingo in BingoGameData.query(BingoGameData.legacy_creator == ndb.Key("User", "100595625574941572248")).fetch()])
-        for bingo in BingoGameData.query(BingoGameData.legacy_creator == old_user.key).fetch():
+        for bingo in BingoGameData.query(BingoGameData.legacy_creator == old_user.key):
             if bingo.creator is not None:
                 log.warning(f"Trying to migrate already migrated Bingo {bingo.key}")
                 continue

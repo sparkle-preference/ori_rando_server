@@ -139,7 +139,6 @@ def active_games(hours=12):
 @app.route('/quickstart')
 @app.route('/')
 def main_page():
-    log.info(User.get())
     template_values = template_vals("MainPage", "Ori DE Randomizer %s" % VERSION, User.get())
     # _, error = CustomLogic.read()
     # template_values.update({"error_msg": error})

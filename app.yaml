@@ -11,6 +11,9 @@ automatic_scaling:
   max_idle_instances: 0
 
 
+env_variables:
+  MEMCACHED_HOST: "APPENGINE"
+
 handlers:
 - url: /sprites
   static_dir: sprites

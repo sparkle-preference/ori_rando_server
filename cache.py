@@ -138,7 +138,7 @@ class TLRUCacheWithCustomExpiry(TLRUCache):
         ttu = lambda: DEFAULT_TIME
         super().__init__(maxsize, ttu, timer, getsizeof)
     
-    def add(self, key, value, time=DEFAULT_TIME):
+    def set(self, key, value, time=DEFAULT_TIME):
         with self.timer as timer:
             expires = timer + time
             if timer >= expires:
@@ -239,7 +239,7 @@ class PythonCache(object):
         return self.cache.get(key="%s.pos" % gid)
 
     def set_pos(self, gid, pid, x, y):
-        pos_map = self.cache.get_pos(self, gid) or {}
+        pos_map = self.get_pos(gid) or {}
         pos_map[int(pid)] = (x, y)
         self.cache.set(key="%s.pos" % gid, value=pos_map, time=3600)
 
