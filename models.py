@@ -287,6 +287,9 @@ class User(ndb.Model):
             bingo.put()
         
         for seed in Seed.query(Seed.legacy_author_key == old_user.key):
+            if seed.key.id().split(":")[0] != old_user.key.id():
+                log.warning(f"Trying to migrate already migrated Plando {seed.key}")
+                continue
             new_seed = Seed(
                     id="%s:%s" % (key.id(), seed.name),
                     placements = seed.placements,
