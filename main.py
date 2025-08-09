@@ -986,11 +986,23 @@ def plando_fillgen():
     else:
         return code_resp(422)
 
+def count_plandos(seeds):
+    for seed in seeds:
+        if seed.author_key:
+            author = seed.author_key.get()
+            if author:
+                yield author.name
+                continue
+        if seed.legacy_author_key:
+            author = seed.legacy_author_key.get()
+            if author:
+                yield author.name
+                continue
+        yield seed.author
 @app.route('/plandos')      #AllAuthors
 def plando_index():
-    seeds = Seed.query(Seed.hidden != True)
     out = '<html><head><title>All Plando Authors</title></head><body><h5>All Seeds</h5><ul style="list-style-type:none;padding:5px">'
-    authors = Counter([seed.author_key.get().name if seed.author_key else seed.author for seed in seeds])
+    authors = Counter(count_plandos(Seed.query(Seed.hidden != True)))
     for author, cnt in authors.most_common():
         if cnt > 0:
             url = "/plando/%s" % author
@@ -1010,7 +1022,11 @@ def plando_author_index(author_name):
         if not owner:
             query = query.filter(Seed.hidden != True)
     else:
-        query = Seed.query(Seed.author == author_name).filter(Seed.hidden != True)        
+        legacy_author = LegacyUser.query(LegacyUser.name == author_name).get()
+        if legacy_author:
+            query = Seed.query(Seed.legacy_author_key == legacy_author.key).filter(Seed.hidden != True)
+        else: 
+            query = Seed.query(Seed.author == author_name).filter(Seed.hidden != True)        
     seeds = query.fetch()
     if len(seeds):
         out = '<html><head><title>Seeds by %s</title></head><body><div>Seeds by %s:</div><ul style="list-style-type:none;padding:5px">' % (author_name, author_name)
