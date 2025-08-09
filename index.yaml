@@ -8,3 +8,8 @@ indexes:
   properties:
   - name: author_key
   - name: hidden
+
+- kind: Seed
+  properties:
+  - name: author_key2
+  - name: hidden

@@ -43,6 +43,8 @@ app.config["OIDC_CLIENT_SECRETS"] = "client_secret.json"
 oidc = OpenIDConnect(app)
 app.secret_key = secrets.app_secret_key
 
+headOpt = lambda l: l[0] if(len(l) == 1) else None 
+
 if debug():
     root_logger = log.getLogger()
     for handler in root_logger.handlers:
@@ -111,6 +113,129 @@ def clean_up():
     else:
         log.info("Cleaned up %s games before timeout" % clean_count)
         return text_resp("Cleaned up %s games before timeout" % clean_count)
+
+CLAIMED = {
+    "UntestedBrokenPossibleAmazement": "Cereberon",
+    "OriDetonatedNibel": "StorybookGumon",
+    "OriTurnedIntoABomb": "StorybookGumon",
+    "Pain": "StorybookGumon",
+    "PowerSkillRush": "StorybookGumon",
+}
+
+#@app.route('/userGamesMigrate')
+#@app.route('/plandoMigrate')
+
+# the below are migration functions that we hope to remove eventually but I'm keeping them around for now
+
+def fix_game_associations():
+    game_id_seen = set()
+    for user in User.query():
+        legacy_users = LegacyUser.query(LegacyUser.name == user.name).fetch()
+        if not len(legacy_users):
+            print(f"No legacy user for {user.name}???")
+            continue
+        legacy_user = legacy_users[0]
+        # i = 0
+        # for game in Game.query(Game.legacy_creator == legacy_user.key):
+        #     if game.creator != user.key:
+        #         if game.key in game_id_seen:
+        #             print(f"Wuhoh: {game.key}")
+        #         game_id_seen.add(game.key)
+        #         game.creator = user.key
+        #         game.put()
+        #         i += 1
+        #         print(f"game {game.key} given back to {user.name}")
+        # print(f"gave {i} games back to {user.name}")
+        for seed in Seed.query(Seed.legacy_author_key == legacy_user.key):
+            if seed.author_key != user.key:
+                new_seed = Seed(
+                        id=f"{user.key.id()}:{seed.name}",
+                        placements = seed.placements,
+                        flags = seed.flags,
+                        hidden = seed.hidden,
+                        description = seed.description,
+                        players = seed.players,
+                        author_key = user.key,
+                        legacy_author_key = legacy_user.key,
+                        author = seed.author,
+                        name = seed.name
+                    )
+                if new_seed.put():
+                    seed.key.delete()
+                    print(f"seed {seed.name} was reassigned to {user.name}'s new account")
+                else:
+                    print("error saving new seed")
+
+    return text_resp("done")
+def runplandomigration():
+    reassign_plandos_to_legacy_users_by_name()
+    return text_resp("Done")
+
+
+def fix_plando_authorname_cases():
+    uncased = {}
+    for user in LegacyUser.query():
+        uncased[user.name.lower()] = user
+    for seed in Seed.query():
+        if seed.author:
+            if seed.author_key:
+                user = seed.author_key.get()
+                if user.name != seed.author:
+                    print(f"{user.name} != {seed.author}, fixing")
+                    seed.author = user.name
+                    seed.put()
+            elif seed.legacy_author_key:
+                user = seed.legacy_author_key.get()
+                if not user:
+                    if seed.author in uncased:
+                        print(f"{seed.author} != {uncased[seed.author].name}, fixing..")
+                        seed.author = uncased[seed.author].name
+                        seed.put()
+                        continue
+                    print(f"???? {seed.legacy_author_key}, {seed.name}, {seed.key}, {seed.author}")
+                    continue
+                if user.name != seed.author:
+                    print(f"{user.name} != {seed.author}, maybe fix?")
+
+def reassign_plandos_to_legacy_users_by_name():
+    for seed in Seed.query():
+        if not seed.author_key and seed.author:
+            user = headOpt(User.query(User.name == seed.author).fetch())
+            legacy_user = headOpt(LegacyUser.query(LegacyUser.name == seed.author).fetch())
+            if user:
+                new_seed = Seed(
+                        id=f"{user.key.id()}:{seed.name}",
+                        placements = seed.placements,
+                        flags = seed.flags,
+                        hidden = seed.hidden,
+                        description = seed.description,
+                        players = seed.players,
+                        author_key = user.key,
+                        legacy_author_key = legacy_user.key if legacy_user else None,
+                        author = seed.author,
+                        name = seed.name
+                    )
+                if new_seed.put():
+                    seed.key.delete()
+                    print(f"seed {seed.name} was reassigned to {user.name}'s new account")
+                else:
+                    print("error saving new seed")
+            elif legacy_user:
+                if seed.legacy_author_key != legacy_user.key:
+                    new_seed = Seed(
+                            id=f"{legacy_user.key.id()}:{seed.name}",
+                            placements = seed.placements,
+                            flags = seed.flags,
+                            hidden = seed.hidden,
+                            description = seed.description,
+                            players = seed.players,
+                            legacy_author_key = legacy_user.key,
+                            author = seed.author,
+                            name = seed.name
+                        )
+                    if new_seed.put():
+                        seed.key.delete()
+                        print(f"seed {new_seed.name} given to {seed.legacy_author_key} ({legacy_user.name}'s legacy account)")
 
 @app.route('/activeGames/')
 @app.route('/activeGames/<hours>/')
@@ -991,6 +1116,10 @@ def count_plandos(seed):
     if seed.legacy_author_key:
         return seed.legacy_author_key
     return seed.author
+
+PLANDO_DISCLAIMER = """<div><i>
+(If one or more of your plandos are missing, please reach out to @Eiko or @Skyedelaciel in the <a target="_blank" href="/discord">Ori Discord</a> - we have the data, we just don't know whose seeds are whose for a small number of users)
+</i></div>"""
 @app.route('/plandos')      #AllAuthors
 def plando_index():
     out = '<html><head><title>All Plando Authors</title></head><body><h5>All Seeds</h5><ul style="list-style-type:none;padding:5px">'
@@ -1001,7 +1130,7 @@ def plando_index():
                 author = author.get().name
             url = "/plando/%s" % author
             out += '<li style="padding:2px"><a href="%s">%s</a> (%s plandos)</li>' % (url, author, cnt)
-    out += "</ul></body></html>"
+    out += f"</ul>{PLANDO_DISCLAIMER}</body></html>"
     return make_resp(out)
 
 @app.route('/plando/<author_name>')
@@ -1013,14 +1142,14 @@ def plando_author_index(author_name):
         author_name = author.name
         owner = user and user.key.id() == author.key.id()
         query = Seed.query(Seed.author_key == author.key)
-        if not owner:
-            query = query.filter(Seed.hidden != True)
+        # if not owner:
+        #     query = query.filter(Seed.hidden != True)
     else:
         legacy_author = LegacyUser.query(LegacyUser.name == author_name).get()
         if legacy_author:
-            query = Seed.query(Seed.legacy_author_key == legacy_author.key).filter(Seed.hidden != True)
+            query = Seed.query(Seed.legacy_author_key == legacy_author.key, Seed.hidden != True)
         else: 
-            query = Seed.query(Seed.author == author_name).filter(Seed.hidden != True)        
+            query = Seed.query(Seed.author == author_name, Seed.hidden != True)
     seeds = query.fetch()
     if len(seeds):
         out = '<html><head><title>Seeds by %s</title></head><body><div>Seeds by %s:</div><ul style="list-style-type:none;padding:5px">' % (author_name, author_name)
@@ -1033,13 +1162,13 @@ def plando_author_index(author_name):
                 if seed.hidden:
                     out += " (hidden)"
             out += "</li>"
-        out += "</ul></body></html>"
+        out += f"</ul>{PLANDO_DISCLAIMER}</body></html>"
         return make_resp(out)
     else:
         if owner:
-            return make_resp("<html><body>You haven't made any seeds yet! <a href='%s'>Start a new seed</a></body></html>" % url_for('plando_edit', seed_name="newSeed"))
+            return make_resp(f"<html><body>You haven't made any seeds yet! <a href='{url_for('plando_edit', seed_name="newSeed")}'>Start a new seed</a></body>{PLANDO_DISCLAIMER}</html>")
         else:
-            return make_resp('<html><body>No seeds by user %s</body></html>' % author_name)
+            return make_resp(f"<html><body>No seeds by user {author_name}</body>{PLANDO_DISCLAIMER}</html>")
 
 @app.route('/dll')                 
 def dll():

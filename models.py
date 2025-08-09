@@ -256,7 +256,6 @@ class User(ndb.Model):
     def migrate(app_user, old_user):
         user = User(id=app_user.unique_id)
         user.email = app_user.email.lower()
-        
         if old_user.name:
             user.name = old_user.name
         else:
@@ -268,45 +267,59 @@ class User(ndb.Model):
         user.theme = old_user.theme
         user.verbose = old_user.verbose
         key = user.put()
-        for gkey in user.games:
-            game = gkey.get()
-            if game.creator is not None:
-                log.warning(f"Trying to migrate already migrated Game {game.key}")
-                continue
-            game.creator = key
-            game.put()
-        for player in Player.query(Player.legacy_user == old_user.key):
-            if player.user is not None:
-                log.warning(f"Trying to migrate already migrated Player {player.key}")
-                continue
-            player.user = key
-            player.put()
-        for bingo in BingoGameData.query(BingoGameData.legacy_creator == old_user.key):
-            if bingo.creator is not None:
-                log.warning(f"Trying to migrate already migrated Bingo {bingo.key}")
-                continue
-            bingo.creator = key
-            bingo.put()
-        
         for seed in Seed.query(Seed.legacy_author_key == old_user.key):
-            if seed.key.id().split(":")[0] != old_user.key.id():
-                log.warning(f"Trying to migrate already migrated Plando {seed.key}")
-                continue
-            new_seed = Seed(
-                    id="%s:%s" % (key.id(), seed.name),
-                    placements = seed.placements,
-                    flags = seed.flags,
-                    hidden = seed.hidden,
-                    description = seed.description,
-                    players = seed.players,
-                    author_key = key,
-                    legacy_author_key = old_user.key,
-                    author = seed.author,
-                    name = seed.name
-                    )
-            new_seed.put()
-            seed.key.delete()
-
+            try:
+                if seed.key.id().split(":")[0] == key.id():
+                    log.warning(f"Trying to migrate already migrated Plando {seed.key}")
+                    continue
+                new_seed = Seed(
+                        id=f"{key.id()}:{seed.name}",
+                        placements = seed.placements,
+                        flags = seed.flags,
+                        hidden = seed.hidden,
+                        description = seed.description,
+                        players = seed.players,
+                        author_key = key,
+                        legacy_author_key = old_user.key,
+                        author = seed.author,
+                        name = seed.name
+                        )
+                new_seed.put()
+                seed.key.delete()
+            except Exception as e:
+                log.error(f"Error migrating plando {seed.name} for user {user.name}")
+        for gkey in user.games:
+            try:
+                game = gkey.get()
+                if not game:
+                    continue
+                # You can have a game on your gameslist without being the creator
+                # have to check the see if the old game was one you rolled
+                if game.legacy_creator != old_user.key:
+                    continue
+                game.creator = key
+                game.put()
+            except Exception as e:
+                log.error(f"Error migrating game {gkey} for user {user.name}")
+        for player in Player.query(Player.legacy_user == old_user.key):
+            try:
+                if player.user is not None:
+                    log.warning(f"Trying to migrate already migrated Player {player.key}")
+                    continue
+                player.user = key
+                player.put()
+            except Exception as e:
+                log.error(f"Error migrating player {player.key} for user {user.name}")
+        for bingo in BingoGameData.query(BingoGameData.legacy_creator == old_user.key):
+            try:
+                if bingo.creator is not None:
+                    log.warning(f"Trying to migrate already migrated Bingo {bingo.key}")
+                    continue
+                bingo.creator = key
+                bingo.put()
+            except Exception as e:
+                log.error(f"Error migrating bingo game data {bingo.key} for user {user.name}")
+        
         return user
     
     def plando(self, seed_name):
