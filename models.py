@@ -285,7 +285,23 @@ class User(ndb.Model):
                 continue
             bingo.creator = key
             bingo.put()
-            
+        
+        for seed in Seed.query(Seed.legacy_author_key == old_user.key):
+            new_seed = Seed(
+                    id="%s:%s" % (key.id(), seed.name),
+                    placements = seed.placements,
+                    flags = seed.flags,
+                    hidden = seed.hidden,
+                    description = seed.description,
+                    players = seed.players,
+                    author_key = key,
+                    legacy_author_key = old_user.key,
+                    author = seed.author,
+                    name = seed.name
+                    )
+            new_seed.put()
+            seed.key.delete()
+
         return user
     
     def plando(self, seed_name):
@@ -1044,8 +1060,8 @@ class Seed(ndb.Model):
     hidden = ndb.BooleanProperty(default=False)
     description = ndb.TextProperty()
     players = ndb.IntegerProperty(default=1)
-    author_key = ndb.KeyProperty("User2", User)
-    legacy_author_key = ndb.KeyProperty("User", LegacyUser)
+    author_key = ndb.KeyProperty("author_key2", User)
+    legacy_author_key = ndb.KeyProperty("author_key", LegacyUser)
     author = ndb.StringProperty()  # deprecated: will remove after migration is complete
     name = ndb.StringProperty()
 
