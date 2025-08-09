@@ -179,6 +179,7 @@ class User(ndb.Model):
     pref_num  = ndb.IntegerProperty()
     theme  = ndb.StringProperty()
     verbose = ndb.BooleanProperty(default=False)
+    admin = ndb.BooleanProperty(default = False, indexed= False)
 
 
     @staticmethod
@@ -195,7 +196,9 @@ class User(ndb.Model):
 
     @staticmethod
     def is_admin():
-        # TODO: Fix before merge
+        user = User.get()
+        if user:
+            return user.is_admin
         return False
 
     @staticmethod
@@ -251,7 +254,6 @@ class User(ndb.Model):
     
     @staticmethod
     def migrate(app_user, old_user):
-        log.info(old_user)
         user = User(id=app_user.unique_id)
         user.email = app_user.email.lower()
         
