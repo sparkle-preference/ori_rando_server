@@ -91,7 +91,6 @@ def code_resp(code):
 def text_download(text, filename, status=200):
     return make_response(text, status, {'Content-Type': 'application/x-gzip', 'Content-Disposition': 'attachment; filename=%s' % filename})
 
-
 @app.errorhandler(500)
 def server_error(err):
     return make_resp("""
@@ -989,15 +988,11 @@ def plando_fillgen():
 def count_plandos(seeds):
     for seed in seeds:
         if seed.author_key:
-            author = seed.author_key.get()
-            if author:
-                yield author.name
-                continue
+            yield seed.author_key
+            continue
         if seed.legacy_author_key:
-            author = seed.legacy_author_key.get()
-            if author:
-                yield author.name
-                continue
+            yield seed.legacy_author_key
+            continue
         yield seed.author
 @app.route('/plandos')      #AllAuthors
 def plando_index():
@@ -1005,6 +1000,8 @@ def plando_index():
     authors = Counter(count_plandos(Seed.query(Seed.hidden != True)))
     for author, cnt in authors.most_common():
         if cnt > 0:
+            if not isinstance(author, str):
+                author = author.get().name
             url = "/plando/%s" % author
             out += '<li style="padding:2px"><a href="%s">%s</a> (%s plandos)</li>' % (url, author, cnt)
     out += "</ul></body></html>"
