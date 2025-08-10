@@ -985,19 +985,16 @@ def plando_fillgen():
     else:
         return code_resp(422)
 
-def count_plandos(seeds):
-    for seed in seeds:
-        if seed.author_key:
-            yield seed.author_key
-            continue
-        if seed.legacy_author_key:
-            yield seed.legacy_author_key
-            continue
-        yield seed.author
+def count_plandos(seed):
+    if seed.author_key:
+        return seed.author_key
+    if seed.legacy_author_key:
+        return seed.legacy_author_key
+    return seed.author
 @app.route('/plandos')      #AllAuthors
 def plando_index():
     out = '<html><head><title>All Plando Authors</title></head><body><h5>All Seeds</h5><ul style="list-style-type:none;padding:5px">'
-    authors = Counter(count_plandos(Seed.query(Seed.hidden != True)))
+    authors = Counter(count_plandos(seed) for seed in Seed.query(Seed.hidden != True))
     for author, cnt in authors.most_common():
         if cnt > 0:
             if not isinstance(author, str):
