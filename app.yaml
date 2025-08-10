@@ -10,6 +10,7 @@ automatic_scaling:
   min_idle_instances: 0
   max_idle_instances: 0
 
+entrypoint: gunicorn --timeout 120 -b :$PORT -w 2 main:app
 
 env_variables:
   MEMCACHED_HOST: "APPENGINE"

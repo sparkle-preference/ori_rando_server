@@ -43,8 +43,6 @@ app.config["OIDC_CLIENT_SECRETS"] = "client_secret.json"
 oidc = OpenIDConnect(app)
 app.secret_key = secrets.app_secret_key
 
-headOpt = lambda l: l[0] if(len(l) == 1) else None 
-
 if debug():
     root_logger = log.getLogger()
     for handler in root_logger.handlers:
@@ -114,6 +112,8 @@ def clean_up():
         log.info("Cleaned up %s games before timeout" % clean_count)
         return text_resp("Cleaned up %s games before timeout" % clean_count)
 
+
+# update as we get more info lol
 CLAIMED = {
     "UntestedBrokenPossibleAmazement": "Cereberon",
     "OriDetonatedNibel": "StorybookGumon",
@@ -123,7 +123,17 @@ CLAIMED = {
 }
 
 #@app.route('/userGamesMigrate')
+
+#rerwite every seed to the db one by one bc i hate my wallet (/want this to be done)
 #@app.route('/plandoMigrate')
+def moveSeeds():
+    for seed in Seed.query():
+        try:
+            print(f"migrating seed: {seed.name}")
+            seed.put()
+        except Exception as e:
+            print(f"failed to migrate {seed.name}: {e}")
+    return text_resp("done")
 
 # the below are migration functions that we hope to remove eventually but I'm keeping them around for now
 
@@ -200,8 +210,8 @@ def fix_plando_authorname_cases():
 def reassign_plandos_to_legacy_users_by_name():
     for seed in Seed.query():
         if not seed.author_key and seed.author:
-            user = headOpt(User.query(User.name == seed.author).fetch())
-            legacy_user = headOpt(LegacyUser.query(LegacyUser.name == seed.author).fetch())
+            user = User.get_by_name(seed.author)
+            legacy_user = LegacyUser.get_by_name(seed.author)
             if user:
                 new_seed = Seed(
                         id=f"{user.key.id()}:{seed.name}",
@@ -1123,7 +1133,7 @@ PLANDO_DISCLAIMER = """<div><i>
 @app.route('/plandos')      #AllAuthors
 def plando_index():
     out = '<html><head><title>All Plando Authors</title></head><body><h5>All Seeds</h5><ul style="list-style-type:none;padding:5px">'
-    authors = Counter(count_plandos(seed) for seed in Seed.query(Seed.hidden != True))
+    authors = Counter(count_plandos(seed) for seed in Seed.query(Seed.hidden != True, projection=[Seed.author, Seed.author_key, Seed.legacy_author_key]))
     for author, cnt in authors.most_common():
         if cnt > 0:
             if not isinstance(author, str):
@@ -1135,30 +1145,31 @@ def plando_index():
 
 @app.route('/plando/<author_name>')
 def plando_author_index(author_name):
+    start_at = int(param_val("offset") or 0)
     owner = False
     user = User.get()
     author = User.get_by_name(author_name)
+    proj = [Seed.name, Seed.description, Seed.players, Seed.flagline]
     if author:
         author_name = author.name
         owner = user and user.key.id() == author.key.id()
-        query = Seed.query(Seed.author_key == author.key)
-        # if not owner:
-        #     query = query.filter(Seed.hidden != True)
+        query = Seed.query(Seed.author_key == author.key, projection=proj)
+        if not owner:
+            query = query.filter(Seed.hidden != True)
     else:
-        legacy_author = LegacyUser.query(LegacyUser.name == author_name).get()
+        legacy_author = LegacyUser.get_by_name(author_name)
         if legacy_author:
-            query = Seed.query(Seed.legacy_author_key == legacy_author.key, Seed.hidden != True)
+            query = Seed.query(Seed.legacy_author_key == legacy_author.key, Seed.hidden != True, projection=proj)
         else: 
-            query = Seed.query(Seed.author == author_name, Seed.hidden != True)
-    seeds = query.fetch()
+            query = Seed.query(Seed.author == author_name, Seed.hidden != True, projection=proj)
+    seeds = query.fetch(limit=int(param_val("limit") or 1), offset=start_at) if start_at else query.fetch()
     if len(seeds):
         out = '<html><head><title>Seeds by %s</title></head><body><div>Seeds by %s:</div><ul style="list-style-type:none;padding:5px">' % (author_name, author_name)
-        for seed in seeds:
+        for seed in sorted(seeds, key=lambda s: s.name):
             url = url_for("plando_view", author_name=author_name, seed_name=seed.name)
-            flags = ",".join(seed.flags)
-            out += '<li style="padding:2px"><a href="%s">%s</a>: %s (%s players, %s)' % (url, seed.name, seed.description.partition("\n")[0], seed.players, flags)
+            out += f'<li style="padding:2px"><a href="{url}">{seed.name}</a>: {seed.description.partition("\n")[0]} ({seed.players} players, {seed.flagline})'
             if owner:
-                out += ' <a href="%s">Edit</a>' % url_for("plando_edit", seed_name=seed.name)
+                out += f' <a href="{url_for("plando_edit", seed_name=seed.name)}">Edit</a>'
                 if seed.hidden:
                     out += " (hidden)"
             out += "</li>"

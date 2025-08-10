@@ -13,3 +13,40 @@ indexes:
   properties:
   - name: author_key2
   - name: hidden
+
+- kind: Seed
+  properties:
+  - name: hidden
+  - name: author
+  - name: author_key 
+  - name: author_key2
+
+# it sucks so bad that we need these 3 imo but. hell. fucking whatever.
+- kind: Seed
+  properties:
+  - name: author_key2
+  - name: hidden
+  - name: description
+  - name: flagline
+  - name: name
+  - name: players
+
+# userpages for non-migrated users :clowngirl:
+- kind: Seed
+  properties:
+  - name: author_key
+  - name: hidden
+  - name: description
+  - name: flagline
+  - name: name
+  - name: players
+
+# userpages when it's just a username bc we don't have an account?? :clowngirl: :clowngirl: :clowngirl:
+- kind: Seed
+  properties:
+  - name: author
+  - name: hidden
+  - name: description
+  - name: flagline
+  - name: name
+  - name: players

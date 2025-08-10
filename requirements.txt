@@ -5,3 +5,4 @@ google-cloud-ndb
 cachetools==5.5.2
 pymemcache==4.0.0
 Flask-OIDC==2.4.0
+gunicorn>=23.0.0

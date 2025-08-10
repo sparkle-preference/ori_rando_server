@@ -239,7 +239,7 @@ class User(ndb.Model):
 
     @staticmethod
     def get_by_name(name):
-        return User.query().filter(User.name == name).get()
+        return User.query(User.name == name).get()
 
     @staticmethod
     def create(app_user):
@@ -323,7 +323,7 @@ class User(ndb.Model):
         return user
     
     def plando(self, seed_name):
-        return Seed.get_by_id("%s:%s" % (self.key.id(), seed_name))
+        return Seed.get_by_id(f"{self.key.id()}:{seed_name}")
 
 class LegacyUser(ndb.Model):
     @classmethod
@@ -340,6 +340,12 @@ class LegacyUser(ndb.Model):
     theme  = ndb.StringProperty()
     verbose = ndb.BooleanProperty(default=False)
 
+    def plando(self, seed_name):
+        return Seed.get_by_id(f"{self.key.id()}:{seed_name}")
+
+    @staticmethod
+    def get_by_name(name):
+        return LegacyUser.query(LegacyUser.name == name).get()
 
 class CustomLogic(ndb.Model):
     # id = userid
@@ -1075,8 +1081,9 @@ class Seed(ndb.Model):
     # Seed ids used to be author_name:name but are being migrated to author_id:name
     placements = ndb.LocalStructuredProperty(Placement, repeated=True)
     flags = ndb.StringProperty(repeated=True)
+    flagline = ndb.ComputedProperty(lambda self: ", ".join(sorted(self.flags)))
     hidden = ndb.BooleanProperty(default=False)
-    description = ndb.TextProperty()
+    description = ndb.StringProperty()
     players = ndb.IntegerProperty(default=1)
     author_key = ndb.KeyProperty("author_key2", User)
     legacy_author_key = ndb.KeyProperty("author_key", LegacyUser)
@@ -1088,8 +1095,11 @@ class Seed(ndb.Model):
         author = User.get_by_name(author_name)
         if author:
             return author.plando(seed_name)
-        log.warning("No user found for %s, looking for old-style seed instead...", author_name)
-        return Seed.get_by_id("%s:%s" % (author_name, seed_name))
+        legacy_author = LegacyUser.get_by_name(author_name)
+        if legacy_author:
+            return legacy_author.plando(seed_name)
+        log.warning("No user found for %s, doing a query instead...", author_name)
+        return Seed.query(Seed.author == author_name, Seed.name == seed_name).get()
 
     def mode(self):
         mode_opt = [MultiplayerGameType.mk(f[5:]) for f in self.flags if f.lower().startswith("mode=")]
@@ -1153,6 +1163,7 @@ class Seed(ndb.Model):
                 players = players,
                 hidden = data.get('hidden', self.hidden),
             )
+            
             return self.put()
 
     def flag_line(self):
