@@ -1153,9 +1153,10 @@ def plando_author_index(author_name):
     if author:
         author_name = author.name
         owner = user and user.key.id() == author.key.id()
-        query = Seed.query(Seed.author_key == author.key, projection=proj)
-        if not owner:
-            query = query.filter(Seed.hidden != True)
+        if owner:
+            query = Seed.query(Seed.author_key == author.key, projection=[Seed.hidden, *proj])
+        else:
+            query = Seed.query(Seed.author_key == author.key, Seed.hidden != True, projection=proj)
     else:
         legacy_author = LegacyUser.get_by_name(author_name)
         if legacy_author:
