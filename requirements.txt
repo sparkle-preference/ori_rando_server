@@ -1,8 +1,8 @@
 Flask>=2.2.2
-appengine-python-standard
-google-cloud-logging
-google-cloud-ndb
+google-cloud-logging==3.12.1
+google-cloud-ndb==2.3.4
 cachetools==5.5.2
 pymemcache==4.0.0
 Flask-OIDC==2.4.0
 gunicorn>=23.0.0
+requests==2.32.4
