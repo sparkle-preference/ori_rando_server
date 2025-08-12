@@ -293,21 +293,6 @@ def my_games():
         out = "<h4>%s</h4></body></html>" % title
     return make_resp(out)
 
-@app.route('/login')
-@oidc.require_login
-def login():
-    target_url = param_val("redir") or "/"
-    return redirect(target_url)
-
-@app.route('/logout')
-def logout():
-    user = User.get()
-    target_url = param_val("redir") or "/"
-    if user:
-        return oidc.logout(target_url)
-    else:
-        return redirect(target_url)
-
 
 @app.route('/netcode/game/<int:game_id>/player/<int:player_id>/found/<coords>/<kind>/<path:id>/')
 @app.route('/netcode/game/<int:game_id>/player/<int:player_id>/found/<coords>/<kind>/<path:id>')

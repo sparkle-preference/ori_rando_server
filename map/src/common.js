@@ -763,6 +763,14 @@ function gotoUrl(url, newWindow) {
     document.body.removeChild(element);
 }
 
+function loginLogoutUrl(isLogin) {
+    let url = new URL(window.document.URL);
+    let page = encodeURIComponent(url.pathname + url.search);
+
+    let endpoint = isLogin ? 'login' : 'logout';
+    return `/${endpoint}?next=${page}`;
+}
+
 
 const dev = window.document.URL.includes("cloudshell.dev");
 const randInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
@@ -806,5 +814,5 @@ const prng = (strIn) => sfc32(...cyrb128(strIn));
 
 export {
     player_icons, doNetRequest, prng, get_param, get_flag, get_int, get_list, get_preset, presets, get_seed, logic_paths, get_random_loader, Blabel,
-    pickup_name, stuff_by_type, name_from_str, PickupSelect, Cent, ordinal_suffix, dev, gotoUrl, select_theme, randInt, spawn_defaults
+    pickup_name, stuff_by_type, name_from_str, PickupSelect, Cent, ordinal_suffix, dev, gotoUrl, loginLogoutUrl, select_theme, randInt, spawn_defaults
 };

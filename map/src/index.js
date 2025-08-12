@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
-import {get_param, get_flag, gotoUrl} from './common.js';
+import {get_param, get_flag, gotoUrl, loginLogoutUrl} from './common.js';
 
 import ItemTracker from './ItemTracker';
 import MainPage from './MainPage';
@@ -30,8 +30,9 @@ const dark_apps = ["GameTracker", "PlandoBuilder", "LogicHelper"];
 const VALID_THEMES = ["cerulean", "cosmo", "cyborg", "darkly", "flatly", "journal", "litera", "lumen", "lux", "materia", "minty", "pulse", "sandstone", "simplex", "sketchy", "slate", "solar", "spacelab", "superhero", "united", "yeti"];
 
 (async () => {
-    if(localStorage.getItem("rememberMe") && !get_param('user'))
-        return gotoUrl(`/login?redir=${window.location.pathname}`);
+    if(localStorage.getItem("rememberMe") && !get_param('user')) {
+        return gotoUrl(loginLogoutUrl(true));
+    }
     let dark = get_param("dark") != null ? get_flag("dark") : localStorage.getItem("dark");
     let theme = get_param("theme") || localStorage.getItem("theme");
     if(theme && !localStorage.getItem("theme")){

@@ -1,7 +1,7 @@
 import React, {Component} from 'react';
 import {Navbar,  NavbarBrand, Nav,  NavItem, Button, Modal, ModalHeader, ModalBody, ModalFooter, FormFeedback,
         UncontrolledDropdown, DropdownToggle, DropdownMenu, DropdownItem, Container, Row, Col, Input, UncontrolledAlert} from 'reactstrap'
-import {Cent, doNetRequest, get_random_loader, get_param, get_flag} from './common.js';
+import {Cent, doNetRequest, get_random_loader, get_param, get_flag, loginLogoutUrl} from './common.js';
 
 const BAD_CHARS = ["@", "/", "\\", "?", "#", "&", "=", '"', "'"]
 const VERSION = get_param("version");
@@ -132,16 +132,14 @@ class SiteBar extends Component {
         if(this.props.hidden)
             return null
         let {user, dark, hasClickedMisc} = this.state;
-        let url = new URL(window.document.URL)
-        let page = encodeURIComponent(url.pathname + url.search)
         let xMode = dark ? "Light Mode" : "Dark Mode"
         let logonoff = user ? [
             (<DropdownItem key="name" disabled><i>Logged in as {user}</i></DropdownItem>),
             (<DropdownItem key="settings" onClick={() => this.setState({settingsOpen: true})}> Rename </DropdownItem>),
             (<DropdownItem key="my games" href={"/myGames"}>  My Games </DropdownItem>),
-            (<DropdownItem key="logout" onClick={() => {localStorage.removeItem("rememberMe")}} href={`/logout?redir=${page}`}>  Logout </DropdownItem>),
+            (<DropdownItem key="logout" onClick={() => {localStorage.removeItem("rememberMe")}} href={loginLogoutUrl(false)}>  Logout </DropdownItem>),
         ] : [
-            (<DropdownItem key="login" onClick={() => localStorage.setItem("rememberMe", true)} href={`/login?redir=${page}`}> Login </DropdownItem>)
+            (<DropdownItem key="login" onClick={() => localStorage.setItem("rememberMe", true)} href={loginLogoutUrl(true)}> Login </DropdownItem>)
         ]
         let myseeds = user ? (<DropdownItem href={"/plando/"+ user}> {user}'s seeds </DropdownItem>) : null
         let settings = this.settingsModal()

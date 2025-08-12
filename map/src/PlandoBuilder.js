@@ -6,7 +6,7 @@ import Leaflet from 'leaflet';
 import {NotificationContainer, NotificationManager} from 'react-notifications';
 import 'react-notifications/lib/notifications.css';
 import {Checkbox, CheckboxGroup} from 'react-checkbox-group';
-import {get_param, get_flag, get_int, get_list, get_seed, presets, get_preset, logic_paths, pickup_name, PickupSelect, stuff_by_type} from './common.js';
+import {get_param, get_flag, get_int, get_list, get_seed, presets, get_preset, logic_paths, pickup_name, PickupSelect, stuff_by_type, loginLogoutUrl} from './common.js';
 import {download, picks_by_type, picks_by_loc, picks_by_zone, picks_by_area, zones, PickupMarkersList, get_icon, 
         getMapCrs, hide_opacity, select_wrap, is_match, str_ids, select_styles} from './shared_map.js';
 import NumericInput from 'react-numeric-input';
@@ -707,7 +707,6 @@ class PlandoBuiler extends React.Component {
 
     render() {
         let {clueOrder, modes, searchStr, seedFlags, authed, hidden, flags} = this.state;
-        let page = encodeURIComponent(window.document.URL.split(".com")[1])
         const pickup_markers = ( <PickupMarkersList markers={getPickupMarkers(this.state, this.selectPickupCurry, searchStr)} />)
         const zone_opts = zones.map(zone => ({label: zone, value: zone}))
         const pickups_opts = picks_by_zone[this.state.zone].map(pick => ({label: pick.name+"("+pick.x + "," + pick.y +")",value: pick}) )
@@ -717,7 +716,7 @@ class PlandoBuiler extends React.Component {
                 <Select styles={select_styles} options={CLUE_ORDERS} onChange={(n) => this.setState({clueOrder: n})} clearable={false} value={clueOrder}/>
             </div>
         ) : null
-        let alert = authed ? null : (<Alert color="danger">Please <a href={`/login?redir=${page}`}>login</a> to enable saving.</Alert>)
+        let alert = authed ? null : (<Alert color="danger">Please <a href={loginLogoutUrl(true)}>login</a> to enable saving.</Alert>)
         let save_if_auth = authed ? ( <Button color="primary" onClick={this.toggleMeta} >Meta/Save</Button> ) : (<Button color="disabled">Meta/Save</Button>)
         let fill_button = this.state.fill_opts.dumb ? (
             <Button color="warning" onClick={this.doFill} >Fill (Dumb)</Button>
