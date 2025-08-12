@@ -318,7 +318,7 @@ def template_vals(app, title, user):
     return template_values
 
 def whitelist_ok():
-    from secrets import whitelist_secret
+    from app_secrets import whitelist_secret
     return param_val("sec") == whitelist_secret
 
 def game_list_html(games):
