@@ -41,6 +41,16 @@ If installed via `apt` run
 sudo apt-get update && sudo apt-get install google-cloud-cli-app-engine-python google-cloud-cli-datastore-emulator
 ```
 
+### OIDC
+You're also going to need to setup OIDC login.
+One option is to start a mock auth server ([oidc-provider-mock](https://github.com/geigerzaehler/oidc-provider-mock)) by running
+```shell
+pipx run oidc-provider-mock
+```
+The provided `client_secret.json` is already setup for that.
+
+Alternatively you can use any other OIDC provider by changing `client_secret.json`.
+
 ### Dev Server
 Run the dev server with
 ```sh
@@ -58,6 +68,13 @@ APP_PORT="5432" APP_HOST="0.0.0.0" ./run_dev_server.sh
 - `NO_BUILD_REACT_APP`: Don't build the React app; implies `NO_WATCH_REACT_APP`
 
 For additional help, you can contact me (Eiko) in the [Ori Randomizer Discord](https://orirando.com/discord).
+
+
+## Deploying
+
+If you want to deploy the website in production you need to:
+- Setup a (non-mock) OIDC provider in `client_secret.json`
+- Create new secrets for use in `secrets.py`
 
 
 ## Related Projects 
