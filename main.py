@@ -33,6 +33,7 @@ import app_secrets
 
 path='index.html'
 app = Flask(__name__, template_folder=template_root, static_folder=template_root, static_url_path='/static')
+app.debug = debug()
 # app.url_map.strict_slashes = False
 app.wsgi_app = ndb_wsgi_middleware(app.wsgi_app)
 app.config["OIDC_CLIENT_SECRETS"] = "client_secret.json"
