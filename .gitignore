@@ -3,5 +3,5 @@
 /.venv
 .gcloudignore
 appengine_config.py
-secrets.py
+app_secrets.py
 client_secret.json

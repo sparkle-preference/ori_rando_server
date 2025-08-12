@@ -1,6 +1,7 @@
 import sys
 from os import path
 from collections import OrderedDict
+import requests
 import pprint
 
 def _parsefatal(line, msg):
@@ -201,16 +202,8 @@ def ori_load_file(fn, verbose=False):
     return ori_load(lines, verbose)
 
 def ori_load_url(url, verbose=False):
-    try:
-        # use urlfetch if we have it to avoid webgen warning spam
-        from google.appengine.api import urlfetch
-        result = urlfetch.fetch(url)
-        lines = result.content.split("\n")
-    except ImportError:
-        # cli_gen uses urllib2 instead
-        import urllib2
-        response = urllib2.urlopen(url)
-        lines = response.read().split("\n")
+    result = requests.get(url)
+    lines = result.text.split("\n")
 
     return ori_load(lines, verbose)
 

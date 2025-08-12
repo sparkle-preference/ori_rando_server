@@ -1,0 +1,24 @@
+services:
+  flask:
+    image: python:3.12-slim
+    environment:
+      MEMCACHED_HOST: "memcached"
+      GOOGLE_CLOUD_PROJECT: "${GOOGLE_CLOUD_PROJECT:-orirandov3}"
+    ports:
+      - "8080:5000"
+    working_dir: "/app"
+    volumes:
+      - ./:/app
+      - ${APPDATA:-~/.config}/gcloud/application_default_credentials.json:/root/.config/gcloud/application_default_credentials.json
+    entrypoint: "sh .internal_run_dev.sh"
+  react:
+    image: node:24
+    ports:
+      - "1234:1234"
+    working_dir: "/app"
+    volumes:
+      - ./map:/app
+    entrypoint: "sh run_dev.sh"
+  memcached:
+    image: memcached:latest
+    
