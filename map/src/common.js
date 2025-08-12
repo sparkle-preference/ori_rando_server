@@ -765,7 +765,7 @@ function gotoUrl(url, newWindow) {
 
 function loginLogoutUrl(isLogin) {
     let url = new URL(window.document.URL);
-    let page = encodeURIComponent(url.pathname + url.search);
+    let page = encodeURIComponent(url.pathname + url.search + url.hash);
 
     let endpoint = isLogin ? 'login' : 'logout';
     return `/${endpoint}?next=${page}`;
