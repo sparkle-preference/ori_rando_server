@@ -317,26 +317,8 @@ def template_vals(app, title, user):
             template_values['theme'] = user.theme
     return template_values
 
-def build_testing_secrets():
-    if debug():
-        print("Missing app secrets; generating new ones")
-        app_secrets_folder_path = os.path.join(os.path.dirname(__file__), "app_secrets")
-        os.makedirs(app_secrets_folder_path, exist_ok=True)
-        with open(os.path.join(app_secrets_folder_path, "__init__.py"), "w") as file:
-            file.write("""
-whitelist_secret = "PLACEHOLDER_DEV_SECRET"
-#Insecure Dev Secret Key. do not use in production
-app_secret_key = b'INSECURE_DEV_SECRET_KEY'
-                        """)
-    else:
-        raise ImportError("Missing App Secrets in Production")
+whitelist_secret = os.getenv("WHITELIST_SECRET")
 def whitelist_ok():
-    try:
-        from app_secrets import whitelist_secret
-    except ImportError:
-        build_testing_secrets()
-        from app_secrets import whitelist_secret
-
     return param_val("sec") == whitelist_secret
 
 def game_list_html(games):
