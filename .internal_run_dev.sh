@@ -1,4 +1,4 @@
-if [ ! -e /tmp/pipcache ] || [ cmp -s "requirements.txt" "/tml/pipcache" ]; then
+if [ ! -e /tmp/pipcache ] || cmp -s "requirements.txt" "/tml/pipcache"; then
     cp requirements.txt /tmp/pipcache
     pip install -r requirements.txt
 fi
