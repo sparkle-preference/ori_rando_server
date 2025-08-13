@@ -15,47 +15,32 @@ This repository contains the UI and backend code for the Ori DE randomizer websi
 
 ## Development 
 We welcome your contributions!
-This server is a hybrid [Flask](https://flask.palletsprojects.com/) and [React](https://react.dev/) app, and runs on [Google App Engine](https://cloud.google.com/appengine?hl=en).
+This server is a hybrid [Flask](https://flask.palletsprojects.com/) and [React](https://react.dev/) app, and runs on [Google Cloud Run](https://cloud.google.com/run).
 
 ### Prerequisites
-#### Python
-Make sure you have [Python 3.12](https://www.python.org/downloads/). We recommend [pyenv](https://github.com/pyenv/pyenv) to manage your python installations.
-
-#### Javascript
-Make sure you have [Node 22 or higher](https://nodejs.org/en/download).
-
-#### Java
-You'll also need Java 8 or higher; we recommend [Temurin 21](https://adoptium.net/temurin/releases/?os=any&arch=any&version=21).
-
-#### Google Cloud SDK
-Google cloud provides [official install instructions here](https://cloud.google.com/sdk/docs/install-sdk), but your package manager may have a pre-packaged version available via `google-cloud-sdk`. Please note that the `snap` install of the sdk is missing the App Engine extensions required for this use case.
-
-### Component install
-Once installed, use the Google Cloud SDK CLI to install the Python App Engine and Cloud Datastore Emulator components.
-```sh
-gcloud components install app-engine-python cloud-datastore-emulator
-```
-
-If installed via `apt` run
-```sh
-sudo apt-get update && sudo apt-get install google-cloud-cli-app-engine-python google-cloud-cli-datastore-emulator
-```
-
+#### Docker
+You'll need a version of the [Docker Runtime](https://docs.docker.com/engine/), as well as a version of [Docker Compose](https://docs.docker.com/compose/).
+You can get both by installing [Docker Desktop](https://docs.docker.com/desktop/), which is free for personal use.
 ### Dev Server
 Run the dev server with
 ```sh
-./run_dev_server.sh
+docker compose up
 ```
-By default this uses port `8080` and binds to `127.0.0.1`; If you'd like to use a different port or bind you can set the `APP_PORT` and `APP_HOST` environment variables.
+This will expose two services
+- The server itself will begin serving at http://localhost:8080
+- A Databse explorer will be available at http://localhost:8081
 
-```sh
-APP_PORT="5432" APP_HOST="0.0.0.0" ./run_dev_server.sh
-```
 #### Other Dev Server Options
-- `GCLOUD_CLI_ROOT`: sets the path to the Gcloud CLI
-- `CLOUDSDK_PYTHON`: Sets the path to the python executable to use
-- `NO_WATCH_REACT_APP`: Don't watch for changes in the React App after initial build
-- `NO_BUILD_REACT_APP`: Don't build the React app; implies `NO_WATCH_REACT_APP`
+- `MEMCACHED_HOST`: Sets the hostname of the memcached service to use. Default `memcached`.
+- `MEMCACHED_PORT`: Sets the port of the memcached service to use. Default `11211`.
+- `GOOGLE_CLOUD_PROJECT`: Sets the name of the google cloud project to use with Datastore. Default `orirandov3`.
+- `DATASTORE_EMULATOR_HOST`: Sets the location of the datastore emulator to use. Tries to use production Datastore if left empty. Default `datastore:8000`.
+- `OIDC_ENABLED`: Enables or disables actual credential checking. Default `False`.
+- `OIDC_TESTING_EMAIL`: Email of the mock account generated for testing. Default `testing@example.com`.
+- `OIDC_TESTING_ID`: User ID of the mock account generated for testing. Default `123454321234543212345`.
+- `WHITELIST_SECRET`: Secret used for races. Default `PLACEHOLDER_DEV_SECRET`
+- `APP_SECRET_KEY`: Flask's secret key, used to save user login sessions. Default `INSECURE_DEV_SECRET_KEY`.
+- `NO_WATCH_REACT_APP`: Don't watch for changes in the React App after initial build. If you'd like to not build the React app at all, avoid running the `react` service in `docker-compose.yml`.
 
 For additional help, you can contact me (Eiko) in the [Ori Randomizer Discord](https://orirando.com/discord).
 

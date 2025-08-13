@@ -3,5 +3,8 @@ if [ ! -e /tmp/started ]; then
     rm node_modules/.package_lock.json
     npm i
 fi
-
-npm run watch
+if [ "${NO_WATCH_REACT_APP:-"0"}" == "1" ]; then
+    npm run build
+else
+    npm run watch
+fi
