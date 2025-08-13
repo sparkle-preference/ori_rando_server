@@ -317,8 +317,8 @@ def template_vals(app, title, user):
             template_values['theme'] = user.theme
     return template_values
 
+whitelist_secret = os.getenv("WHITELIST_SECRET")
 def whitelist_ok():
-    from secrets import whitelist_secret
     return param_val("sec") == whitelist_secret
 
 def game_list_html(games):
@@ -347,7 +347,7 @@ def game_list_html(games):
         body += "<li><a href='%s'>Game #%s</a> <a href='%s'>Map</a>%s%s %s (Last update: %s ago)</li>" % (game_link, gid, map_link, slink, blink, flags, datetime.now() - game.last_update)
     return body
 
-is_debug = "GAE_PARTITION" in os.environ and os.environ["GAE_PARTITION"] == 'dev'
+is_debug = "K_REVISION" not in os.environ or os.environ["K_REVISION"].startswith('dev')
 def debug():
     return is_debug
 

@@ -707,29 +707,29 @@ const get_preset = (paths) => {
 
 function player_icons(id, as_leaflet = true) {
     id = parseInt(id, 10);
-    let img = '/sprites/ori-white.png';
-    if (id === 1) img = '/sprites/ori-blue.png';
-    else if (id === 2) img = '/sprites/ori-red.png';
-    else if (id === 3) img = '/sprites/ori-green.png';
-    else if (id === 4) img = '/sprites/ori-cyan.png';
-    else if (id === 5) img = '/sprites/ori-yellow.png';
-    else if (id === 6) img = '/sprites/ori-magenta.png';
-    else if (id === 7) img = '/sprites/ori-multi-1.png';
-    else if (id === 8) img = '/sprites/ori-multi-2.png';
-    else if (id === 9) img = '/sprites/ori-multi-3.png';
-    else if (id === 10) img = '/sprites/ori-skul.png';
-    else if (id === 11) img = '/sprites/ori-peach.png';
-    else if (id === 12) img = '/sprites/ori-orange.png';
-    else if (id === 13) img = '/sprites/ori-arctic.png';
-    else if (id === 14) img = '/sprites/ori-paum.png';
-    else if (id === 15) img = '/sprites/ori-pika.png';
-    else if (id === 100) img = '/sprites/kuro.png';
-    else if (id === 101) img = '/sprites/gumo.png';
-    else if (id === 102) img = '/sprites/ori-eph.png';
-    else if (id === 103) img = '/sprites/boulder_smol.png';
-    else if (id === 221) img = '/sprites/ori-eiko.png';
-    else if (id === 333) img = '/sprites/ori-blorple.png';
-    else if (id === 385) img = '/sprites/ori-poogle.png';
+    let img = '/static/sprites/ori-white.png';
+    if (id === 1) img = '/static/sprites/ori-blue.png';
+    else if (id === 2) img = '/static/sprites/ori-red.png';
+    else if (id === 3) img = '/static/sprites/ori-green.png';
+    else if (id === 4) img = '/static/sprites/ori-cyan.png';
+    else if (id === 5) img = '/static/sprites/ori-yellow.png';
+    else if (id === 6) img = '/static/sprites/ori-magenta.png';
+    else if (id === 7) img = '/static/sprites/ori-multi-1.png';
+    else if (id === 8) img = '/static/sprites/ori-multi-2.png';
+    else if (id === 9) img = '/static/sprites/ori-multi-3.png';
+    else if (id === 10) img = '/static/sprites/ori-skul.png';
+    else if (id === 11) img = '/static/sprites/ori-peach.png';
+    else if (id === 12) img = '/static/sprites/ori-orange.png';
+    else if (id === 13) img = '/static/sprites/ori-arctic.png';
+    else if (id === 14) img = '/static/sprites/ori-paum.png';
+    else if (id === 15) img = '/static/sprites/ori-pika.png';
+    else if (id === 100) img = '/static/sprites/kuro.png';
+    else if (id === 101) img = '/static/sprites/gumo.png';
+    else if (id === 102) img = '/static/sprites/ori-eph.png';
+    else if (id === 103) img = '/static/sprites/boulder_smol.png';
+    else if (id === 221) img = '/static/sprites/ori-eiko.png';
+    else if (id === 333) img = '/static/sprites/ori-blorple.png';
+    else if (id === 385) img = '/static/sprites/ori-poogle.png';
 
     if (!as_leaflet) return img;
 

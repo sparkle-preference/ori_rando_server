@@ -1,0 +1,55 @@
+services:
+  flask:
+    image: python:3.12-slim
+    environment:
+      K_REVISION: "dev" 
+      MEMCACHED_HOST: "${MEMCACHED_HOST:-memcached}"
+      MEMCACHED_PORT: "${MEMCACHED_PORT:-11211}"
+      GOOGLE_CLOUD_PROJECT: "${GOOGLE_CLOUD_PROJECT:-orirandov3}"
+      #Set this to empty to use production datastore. You'll probably have to link your account creds (see volumes section)
+      DATASTORE_EMULATOR_HOST: ${DATASTORE_EMULATOR_HOST-datastore:8000}
+      DATASTORE_PROJECT_ID: "${GOOGLE_CLOUD_PROJECT:-orirandov3}"
+      OIDC_ENABLED: "${OIDC_ENABLED:-False}"
+      OIDC_TESTING_EMAIL: "${OIDC_TESTING_EMAIL:-testing@example.com}"
+      OIDC_TESTING_ID: "${OIDC_TESTING_ID:-123454321234543212345}"
+      WHITELIST_SECRET: "${WHITELIST_SECRET:-PLACEHOLDER_DEV_SECRET}"
+      APP_SECRET_KEY: "${APP_SECRET_KEY:-INSECURE_DEV_SECRET_KEY}"
+
+    ports:
+      - "${PORT:-8080}:5000"
+    working_dir: "/app"
+    volumes:
+      - ./:/app
+      # Uncomment
+      # - ${APPDATA:-~/.config}/gcloud/application_default_credentials.json:/root/.config/gcloud/application_default_credentials.json
+    entrypoint: "sh .internal_run_dev.sh"
+  react:
+    image: node:24
+    environment:
+      - NO_WATCH_REACT_APP:${NO_WATCH_REACT_APP:-0}
+    ports:
+      - "${HMR_PORT:-1234}:1234"
+    working_dir: "/app"
+    volumes:
+      - ./map:/app
+    entrypoint: "sh run_dev.sh"
+  memcached:
+    image: memcached:latest
+  datastore:
+    image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
+    expose:
+      - 8000
+    command: "gcloud beta emulators datastore start --project=${GOOGLE_CLOUD_PROJECT:-orirandov3} --host-port 0.0.0.0:8000 --data-dir /data"
+    volumes:
+      - "datastore:/data"
+  datastore_admin:
+    image: "ghcr.io/remko/dsadmin:latest"
+    depends_on:
+      - datastore
+    ports:
+      - "${DATASTORE_PORT:-8081}:8080"
+    environment:
+      DATASTORE_PROJECT_ID: "${GOOGLE_CLOUD_PROJECT:-orirandov3}"
+      DATASTORE_EMULATOR_HOST: "datastore:8000"
+volumes:
+  datastore:

@@ -118,7 +118,7 @@ function getPickupMarkers(state, setSelected, searchStr) {
                          if(show_loc_names)
                             lineText = `(${pick.area}${pick.name}) ` + lineText;
                           return (
-                            <tr><td style={{color:'black'}}>{lineText}</td></tr>
+                            <tr key={pid}><td style={{color:'black'}}>{lineText}</td></tr>
                           )
                       });
                 }
@@ -723,10 +723,10 @@ class PlandoBuiler extends React.Component {
         ) : (
             <Button color="success" onClick={this.doFillGen} >Fill</Button>
         )
-        let logic_path_buttons = logic_paths.map(lp => {return (<Col className="pr-0" xs="4"><Button block size="sm" disabled={lp==="casual-core"} outline={!modes.includes(lp)} onClick={this.onMode(lp)}>{lp}</Button></Col>)});
+        let logic_path_buttons = logic_paths.map(lp => {return (<Col key={lp} className="pr-0" xs="4"><Button block size="sm" disabled={lp==="casual-core"} outline={!modes.includes(lp)} onClick={this.onMode(lp)}>{lp}</Button></Col>)});
         let formattingLegend = flags.includes('show_message_legend') ? (
             <Control position="bottomleft" ><div style={{padding: ".2rem", background: 'black', border: 'double 1px white'}}>
-                {FORMAT_LINES.split("\n").map(l => (<div>{l}</div>))}
+                {FORMAT_LINES.split("\n").map(l => (<div key={l}>{l}</div>))}
             </div></Control>    
         ) : null;
         return (

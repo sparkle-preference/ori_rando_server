@@ -13,35 +13,31 @@ from urllib.parse import unquote
 from flask import Flask, render_template, request, make_response, url_for, redirect, g
 from google.cloud import ndb
 from google.cloud.ndb import transactional
-from google.appengine.api import urlfetch
 import google.cloud.logging
-from flask_oidc import OpenIDConnect
 
 # project imports
+from oidc import make_oidc
 from seedbuilder.seedparams import SeedGenParams
 from seedbuilder.vanilla import seedtext as vanilla_seed
 from enums import MultiplayerGameType, ShareType, Variation
 from models import ndb_wsgi_middleware, Game, Seed, User, BingoGameData, BingoEvent, BingoTeam, CustomLogic, trees_by_coords, LegacyUser
 from bingo import BingoGenerator
 from cache import Cache
-from util import coord_correction_map, clone_entity, all_locs, picks_by_type_generator, param_val, param_flag, debug, template_root, VER, MIN_VER, BETA_VER, game_list_html, version_check, template_vals, layout_json, whitelist_ok, bfield_checksum
+from util import coord_correction_map, clone_entity, all_locs, picks_by_type_generator, param_val, param_flag, debug, template_root, VER, MIN_VER, BETA_VER, game_list_html, version_check, template_vals, layout_json, bfield_checksum
 from reachable import Map, PlayerState
 from pickups import Pickup, Skill, AbilityCell, HealthCell, EnergyCell, Multiple
-import secrets
 
 # handlers
 # from bingo import routes as bingo_routes
-from google.appengine.api import wrap_wsgi_app
 
 path='index.html'
-app = Flask(__name__, template_folder=template_root)
-app.wsgi_app = wrap_wsgi_app(app.wsgi_app)
+app = Flask(__name__, template_folder=template_root, static_folder=template_root, static_url_path='/static')
+app.debug = debug()
 # app.url_map.strict_slashes = False
 app.wsgi_app = ndb_wsgi_middleware(app.wsgi_app)
-app.config["OIDC_CLIENT_SECRETS"] = "client_secret.json"
 
-oidc = OpenIDConnect(app)
-app.secret_key = secrets.app_secret_key
+
+oidc = make_oidc(app)
 
 if debug():
     root_logger = log.getLogger()

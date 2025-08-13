@@ -1,6 +1,5 @@
 from google.cloud import ndb
 from google.cloud.ndb.model import ModelKey
-from google.appengine.api import users
 
 
 import logging as log
