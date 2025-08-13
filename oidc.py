@@ -1,16 +1,10 @@
 import os
 
-from util import build_testing_secrets, debug
+from util import debug
 from flask_oidc import OpenIDConnect
 
-try:
-    import app_secrets
-except ImportError:
-    build_testing_secrets()
-    import app_secrets
-
 def make_oidc(app):
-    app.config["OIDC_CLIENT_SECRETS"] = os.getenv("OIDC_CLIENT_SECRETS", "app_secrets/client_secret.json")
+    app.config["OIDC_CLIENT_SECRETS"] = os.getenv("OIDC_CLIENT_SECRETS", "oauth/client_secret.json")
     if debug():
         app.config["OIDC_ENABLED"] = os.getenv("OIDC_ENABLED", "False") == "True"
         app.config["OIDC_TESTING_PROFILE"] = {
@@ -18,7 +12,7 @@ def make_oidc(app):
             "sub": os.getenv("OIDC_USER_ID", "123454321234543212345")
         }
         
-    app.secret_key = app_secrets.app_secret_key
+    app.secret_key = os.getenv("APP_SECRET_KEY")
     oidc = OpenIDConnect(app)
     oidc.oauth.oidc.authorize_params = {'access_type': 'offline', 'prompt': 'consent'}
     return oidc
