@@ -3,8 +3,10 @@ services:
     image: python:3.12-slim
     environment:
       K_REVISION: "dev" 
-      MEMCACHED_HOST: "memcached"
+      MEMCACHED_HOST: "${MEMCACHED_HOST:-memcached}"
+      MEMCACHED_PORT: "${MEMCACHED_PORT:-11211}"
       GOOGLE_CLOUD_PROJECT: "${GOOGLE_CLOUD_PROJECT:-orirandov3}"
+      #Set this to empty to use production datastore. You'll probably have to link your account creds (see volumes section)
       DATASTORE_EMULATOR_HOST: ${DATASTORE_EMULATOR_HOST-datastore:8000}
       DATASTORE_PROJECT_ID: "${GOOGLE_CLOUD_PROJECT:-orirandov3}"
       OIDC_ENABLED: "${OIDC_ENABLED:-False}"
@@ -18,10 +20,13 @@ services:
     working_dir: "/app"
     volumes:
       - ./:/app
-      - ${APPDATA:-~/.config}/gcloud/application_default_credentials.json:/root/.config/gcloud/application_default_credentials.json
+      # Uncomment
+      # - ${APPDATA:-~/.config}/gcloud/application_default_credentials.json:/root/.config/gcloud/application_default_credentials.json
     entrypoint: "sh .internal_run_dev.sh"
   react:
     image: node:24
+    environment:
+      - NO_WATCH_REACT_APP:${NO_WATCH_REACT_APP}
     ports:
       - "1234:1234"
     working_dir: "/app"
