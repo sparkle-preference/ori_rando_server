@@ -10,8 +10,6 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-ENV OIDC_CLIENT_SECRETS="./app_secrets/client_secret.json"
-
 COPY ./requirements.txt ./requirements.txt
 
 RUN pip install --root-user-action ignore -r requirements.txt && rm requirements.txt
