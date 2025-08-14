@@ -16,6 +16,7 @@ from google.cloud.ndb import transactional
 from google.appengine.api import urlfetch
 import google.cloud.logging
 from flask_oidc import OpenIDConnect
+from flask_oidc.views import auth_routes
 
 # project imports
 from seedbuilder.seedparams import SeedGenParams
@@ -39,8 +40,12 @@ app.wsgi_app = wrap_wsgi_app(app.wsgi_app)
 # app.url_map.strict_slashes = False
 app.wsgi_app = ndb_wsgi_middleware(app.wsgi_app)
 app.config["OIDC_CLIENT_SECRETS"] = "client_secret.json"
+app.config["OIDC_RESOURCE_SERVER_ONLY"] = True  # Don't validate OIDC token on every request
 
 oidc = OpenIDConnect(app)
+# Register Flask-OIDC auth routes, because it doesn't happen automatically when OIDC_RESOURCE_SERVER_ONLY is set
+app.register_blueprint(auth_routes)
+
 app.secret_key = secrets.app_secret_key
 
 if debug():
