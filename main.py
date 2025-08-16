@@ -9,8 +9,8 @@ from datetime import datetime, timedelta
 # web imports
 import logging as log
 from urllib.request import urlopen
-from urllib.parse import unquote
-from flask import Flask, render_template, request, make_response, url_for, redirect, g
+from urllib.parse import unquote, quote_plus
+from flask import Flask, render_template, request, make_response, url_for, redirect, g, Response
 from google.cloud import ndb
 from google.cloud.ndb import transactional
 from google.appengine.api import urlfetch
@@ -246,6 +246,15 @@ def reassign_plandos_to_legacy_users_by_name():
                     if new_seed.put():
                         seed.key.delete()
                         print(f"seed {new_seed.name} given to {seed.legacy_author_key} ({legacy_user.name}'s legacy account)")
+
+
+@app.after_request
+def fix_logout_redirect(response: Response):
+    if response.location == '/logout?reason=expired':
+        response.location += '&next=' + quote_plus(request.full_path)
+
+    return response
+
 
 @app.route('/activeGames/')
 @app.route('/activeGames/<hours>/')
