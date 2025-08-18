@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 import logging as log
 from urllib.request import urlopen
 from urllib.parse import unquote, quote_plus
-from flask import Flask, render_template, request, make_response, url_for, redirect, g, Response
+from flask import Flask, render_template, request, make_response, url_for, redirect, g, Response, get_flashed_messages
 from google.cloud import ndb
 from google.cloud.ndb import transactional
 from google.appengine.api import urlfetch
@@ -253,6 +253,15 @@ def fix_logout_redirect(response: Response):
     if response.location == '/logout?reason=expired':
         response.location += '&next=' + quote_plus(request.full_path)
 
+    return response
+
+
+@app.after_request
+def delete_flashes(response):
+    """Flask-OIDC `flash()`es some messages, but we never read them.
+    Delete them here, so they don't accumulate in the session cookie.
+    """
+    get_flashed_messages()
     return response
 
 
