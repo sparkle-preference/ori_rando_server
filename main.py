@@ -41,6 +41,8 @@ app.wsgi_app = ndb_wsgi_middleware(app.wsgi_app)
 app.config["OIDC_CLIENT_SECRETS"] = "client_secret.json"
 
 oidc = OpenIDConnect(app)
+oidc.oauth.oidc.authorize_params = {'access_type': 'offline'}
+
 app.secret_key = secrets.app_secret_key
 
 if debug():
@@ -125,7 +127,6 @@ CLAIMED = {
 #@app.route('/userGamesMigrate')
 
 #rerwite every seed to the db one by one bc i hate my wallet (/want this to be done)
-#@app.route('/plandoMigrate')
 def moveSeeds():
     for seed in Seed.query():
         try:
@@ -177,6 +178,9 @@ def fix_game_associations():
                     print("error saving new seed")
 
     return text_resp("done")
+
+
+# @app.route('/plandoMigrate')
 def runplandomigration():
     reassign_plandos_to_legacy_users_by_name()
     return text_resp("Done")
@@ -209,7 +213,7 @@ def fix_plando_authorname_cases():
 
 def reassign_plandos_to_legacy_users_by_name():
     for seed in Seed.query():
-        if not seed.author_key and seed.author:
+        if seed.author and not seed.author_key:
             user = User.get_by_name(seed.author)
             legacy_user = LegacyUser.get_by_name(seed.author)
             if user:
@@ -225,8 +229,7 @@ def reassign_plandos_to_legacy_users_by_name():
                         author = seed.author,
                         name = seed.name
                     )
-                if new_seed.put():
-                    seed.key.delete()
+                if new_seed.put() and new_seed.key.id() != seed.key.id():
                     print(f"seed {seed.name} was reassigned to {user.name}'s new account")
                 else:
                     print("error saving new seed")
