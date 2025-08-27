@@ -41,7 +41,7 @@ app.wsgi_app = ndb_wsgi_middleware(app.wsgi_app)
 app.config["OIDC_CLIENT_SECRETS"] = "client_secret.json"
 
 oidc = OpenIDConnect(app)
-oidc.oauth.oidc.authorize_params = {'access_type': 'offline'}
+oidc.oauth.oidc.authorize_params = {'access_type': 'offline', 'prompt': 'consent'}
 
 app.secret_key = secrets.app_secret_key
 
