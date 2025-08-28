@@ -14,16 +14,22 @@ class MemcachedCache(object):
     def __init__(self, host, port):
         self.memcache = Client((host, port), serde=serde.pickle_serde)
 
+    def memcache_get(self, key):
+        try:
+            return self.memcache.get(key=key)
+        except KeyError:
+            return None
+
     def san_check(self, gid):
         return self.memcache.add(key="%s.san" % gid, value=True, expire=10)
 
     def current_gid(self):
-        return self.memcache.get(key="gid_max") or -1
+        return self.memcache_get(key="gid_max") or -1
 
     def get_latest_game(self, user, bingo=False):
         if bingo:
-            return self.memcache.get(key="%s.latest_bingo" % user)
-        return self.memcache.get(key="%s.latest" % user)
+            return self.memcache_get(key="%s.latest_bingo" % user)
+        return self.memcache_get(key="%s.latest" % user)
 
     def set_latest_game(self, user, gid, bingo=False):
         if bingo:
@@ -47,16 +53,16 @@ class MemcachedCache(object):
         self.memcache.set(key="%s.hist" % gid, value=hist_map, expire=14400)
 
     def get_hist(self, gid):
-        return self.memcache.get(key="%s.hist" % gid)
+        return self.memcache_get(key="%s.hist" % gid)
 
     def get_reachable(self, gid):
-        return self.memcache.get(key="%s.reach" % gid) or {}
+        return self.memcache_get(key="%s.reach" % gid) or {}
 
     def set_reachable(self, gid, reachable):
         self.memcache.set(key="%s.reach" % gid, value=reachable, expire=7200)
 
     def get_have(self, gid):
-        return self.memcache.get(key="%s.have" % gid) or {}
+        return self.memcache_get(key="%s.have" % gid) or {}
 
     def set_have(self, gid, have):
         self.memcache.set(key="%s.have" % gid, value=have, expire=7200)
@@ -67,13 +73,13 @@ class MemcachedCache(object):
         self.memcache.set(key="%s.reach" % gid, value=reach_map, expire=7200)
 
     def get_items(self, gid, pid):
-        return self.memcache.get(key="%s.%s.items" % (gid, pid)) or ({}, {})
+        return self.memcache_get(key="%s.%s.items" % (gid, pid)) or ({}, {})
 
     def set_items(self, gid, pid, items, is_race=False):
         self.memcache.set(key="%s.%s.items" % (gid, pid), value=items, expire=10 if is_race else 14400)
 
     def get_relics(self, gid):
-        return self.memcache.get(key="%s.relics" % gid) or None
+        return self.memcache_get(key="%s.relics" % gid) or None
 
     def set_relics(self, gid, relics):
         self.memcache.set(key="%s.relics" % gid, value=relics, expire=14400)
@@ -82,7 +88,7 @@ class MemcachedCache(object):
         self.set_items(gid, pid, {})
 
     def get_pos(self, gid):
-        return self.memcache.get(key="%s.pos" % gid)
+        return self.memcache_get(key="%s.pos" % gid)
 
     def set_pos(self, gid, pid, x, y):
         pos_map = self.get_pos(gid) or {}
@@ -90,19 +96,19 @@ class MemcachedCache(object):
         self.memcache.set(key="%s.pos" % gid, value=pos_map, expire=3600)
 
     def get_git(self, k):
-        return self.memcache.get(key="git.%s" % k)
+        return self.memcache_get(key="git.%s" % k)
 
     def set_git(self, k, val):
         self.memcache.set(key="git.%s" % k, value=val, expire=3600)
 
     def get_board(self, gid):
-        return self.memcache.get(key="%s.board" % gid)
+        return self.memcache_get(key="%s.board" % gid)
 
     def set_board(self, gid, board):
         return self.memcache.set(key="%s.board" % gid, value=board, expire=60)
 
     def get_areas(self):
-        areas = self.memcache.get(key="CURRENT_LOGIC")
+        areas = self.memcache_get(key="CURRENT_LOGIC")
         if not areas:
             with open("seedbuilder/areas.ori", 'r') as f:
                 areas = f.read()
@@ -110,13 +116,13 @@ class MemcachedCache(object):
         return areas
 
     def get_output(self, gpid):
-        return self.memcache.get(key="%s.%s.output" % gpid)
+        return self.memcache_get(key="%s.%s.output" % gpid)
 
     def set_output(self, gpid, outstr):
         self.memcache.set(key="%s.%s.output" % gpid, value=outstr, expire=360)
 
     def get_seen_checksum(self, gpid):
-        return self.memcache.get(key="%s.%s.seenhash" % gpid)
+        return self.memcache_get(key="%s.%s.seenhash" % gpid)
 
     def set_seen_checksum(self, gpid, seen_checksum):
         self.memcache.set(key="%s.%s.seenhash" % gpid, value=seen_checksum, expire=360)
