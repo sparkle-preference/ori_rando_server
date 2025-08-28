@@ -1507,7 +1507,7 @@ onDrop = (files) => {
                 <Cent><h3>Seed Generator {VERSION}</h3></Cent>
             </Row>
             <Row className="p-0">
-                <Cent>PSA: As of 8/27/2025, <a href="/dll">v4.1.5 of the dll</a> is required for all web features.</Cent>
+                <Cent><h6>PSA: As of 8/27/2025, Older DLLs (v4.1.4 and earlier) will NO LONGER connect to the website properly. Please update to <a style={{paddingLeft: .2 +"rem"}} target="_blank" href="/dll">{VERSION}</a></h6></Cent>
             </Row>
             <Row className="pb-1">
                 <Cent><a target="blank" href="/patchnotes/4.1.x">(changelog)</a></Cent>
