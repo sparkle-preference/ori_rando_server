@@ -1138,7 +1138,10 @@ def plando_index():
     for author, cnt in authors.most_common():
         if cnt > 0:
             if not isinstance(author, str):
-                author = author.get().name
+                if author.get():
+                    author = author.get().name
+                else:
+                    author = str(author.id() if author.id() else author)
             url = "/plando/%s" % author
             out += '<li style="padding:2px"><a href="%s">%s</a> (%s plandos)</li>' % (url, author, cnt)
     out += f"</ul>{PLANDO_DISCLAIMER}</body></html>"
