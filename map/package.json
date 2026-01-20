@@ -23,7 +23,7 @@
         "react-checkbox-group": "^4.0.1",
         "react-confirm-alert": "^2.0.2",
         "react-countdown-now": "^1.1.0",
-        "react-dev-utils": "^5.0.0",
+        "react-dev-utils": "^12.0.1",
         "react-dom": "^16.3.0",
         "react-dropdown": "^1.4.0",
         "react-dropzone": "^4.2.13",
