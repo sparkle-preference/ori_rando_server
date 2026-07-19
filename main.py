@@ -1272,6 +1272,9 @@ def bingo_start_game(game_id):
     startStr = "miscBingo Game %s started!" % game_id
     bingo.event_log.append(BingoEvent(event_type=startStr, timestamp=bingo.start_time))
     res = bingo.get_json()
+    # cache before the per-client offset is added, so all viewers see the
+    # countdown on their next poll instead of after the 60s board TTL
+    Cache.set_board(game_id, dict(res))
 
     server_now = timegm(now.timetuple()) * 1000
     client_now = int(param_val("time"))
@@ -1317,7 +1320,12 @@ def bingo_add_player(game_id, player_id):
     res = bingo.get_json()
     if bingo.meta:
         bingo.update({}, player_id, game_id, True)
-        res = Cache.get_board(game_id)
+        res = dict(Cache.get_board(game_id) or res)
+    else:
+        # push the new roster into the board cache immediately, or every viewer
+        # (including the joiner's own next poll) sees the stale pre-join board
+        # for up to 60s. Shallow copy so player_seed below stays per-response.
+        Cache.set_board(game_id, dict(res))
     res['player_seed'] = seed
     bingo.put()
     return json_resp(res)
@@ -1333,6 +1341,7 @@ def bingo_remove_player(game_id, player_id):
         return text_resp("Only the creator can remove players", 401)
     bingo = bingo.remove_player(player_id).get()
     res = bingo.get_json()
+    Cache.set_board(game_id, dict(res))
     return json_resp(res)
 
 @app.route('/bingo/game/<int:game_id>/seed/<int:player_id>') #BingoDownloadSeed =     

@@ -129,6 +129,11 @@ class BingoCardProgress(ndb.Model):
     completed = ndb.BooleanProperty(default=False)
     count = ndb.IntegerProperty(default=0)
     completed_subgoals = ndb.StringProperty(repeated=True)
+    # a regression (posted progress un-completing a square) is only applied after a
+    # second consecutive update from this player confirms it; guards against
+    # stale/out-of-order POSTs causing goal flicker. Real death-rollbacks confirm
+    # within one client post cycle.
+    pending_loss = ndb.BooleanProperty(default=False)
 
     def to_json(self):
         return {
@@ -660,6 +665,7 @@ class BingoCard(ndb.Model):
         p_progress = self.progress(player)
         prior_value = _pid(capkey) in self.completed_by
         prior_count = p_progress.count
+        prior_completed = p_progress.completed
 
         if self.goal_type in ["bool"]:
             p_progress.completed = card_data["value"]
@@ -698,8 +704,20 @@ class BingoCard(ndb.Model):
                 elif self.goal_method == "or":
                     completed = any([subgoal["name"] in team_subgoals for subgoal in self.subgoals])
         if prior_value != completed:
-            event = BingoEvent(event_type="square", loss = not completed, square=self.square, player=capkey, timestamp=datetime.utcnow())
-            return event
+            if completed:
+                p_progress.pending_loss = False
+                return BingoEvent(event_type="square", loss=False, square=self.square, player=capkey, timestamp=datetime.utcnow())
+            # Regression. Only the player whose own posted data regressed may
+            # stage/confirm the loss — a teammate's interleaved update reflecting
+            # our stored (possibly stale) state must not fast-track it.
+            own_regression = prior_completed and not p_progress.completed
+            if own_regression and p_progress.pending_loss:
+                p_progress.pending_loss = False
+                return BingoEvent(event_type="square", loss=True, square=self.square, player=capkey, timestamp=datetime.utcnow())
+            if own_regression:
+                p_progress.pending_loss = True
+            return None
+        p_progress.pending_loss = False
 
 
 class BingoEvent(ndb.Model):
