@@ -4,20 +4,25 @@ import os
 from cachetools import TLRUCache, Cache as CacheToolsCache
 
 from util import debug
-from pymemcache.client.base import Client
+from pymemcache.client.base import PooledClient
 from pymemcache import serde
 
 
 class MemcachedCache(object):
     """Used to interact with memcache"""
-    
+
     def __init__(self, host, port):
-        self.memcache = Client((host, port), serde=serde.pickle_serde)
+        # PooledClient because gunicorn runs 1 worker x 8 threads (see Dockerfile) and
+        # the plain Client shares one socket across threads — interleaved commands
+        # desync the protocol (the historical MemcacheUnknownError with another
+        # response's bytes in it). ignore_exc turns get-side failures into misses.
+        self.memcache = PooledClient((host, port), serde=serde.pickle_serde,
+                                     max_pool_size=16, ignore_exc=True)
 
     def memcache_get(self, key):
         try:
             return self.memcache.get(key=key)
-        except KeyError:
+        except Exception:
             return None
 
     def san_check(self, gid):
