@@ -497,6 +497,9 @@ class Player(ndb.Model):
         if signal not in self.signals:
             self.signals.append(signal)
             self.put()
+            # bust the tick output cache, or an idle player (unchanged bitfields)
+            # hits the cached fast path forever and never sees the signal
+            Cache.clear_seen_checksum(self.idpts())
 
     def signal_conf(self, signal):
         if signal in self.signals:
@@ -510,6 +513,7 @@ class Player(ndb.Model):
                     log.warning("No exact match for signal %s, removing %s instead (spam protection)" % (signal, s))
                     break
         self.put()
+        Cache.clear_seen_checksum(self.idpts())
 
     @staticmethod
     @ndb.transactional(retries=5, xg=True)

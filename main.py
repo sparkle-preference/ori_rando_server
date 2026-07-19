@@ -1233,6 +1233,12 @@ def bingo_get_game(game_id):
             return text_resp("Bingo game %s not found" % game_id, 404)
         res = bingo.get_json(first)
         netperf("board_miss", t0, gid=game_id, first=bool(first))
+        if not first:
+            # repopulate on miss: pre-start lobbies otherwise recompute for every
+            # 1 Hz spectator poll (update() only writes this cache after start_time).
+            # NB: cached before the offset block below, and only for non-first
+            # fetches, matching what update() already caches.
+            Cache.set_board(game_id, res)
         if param_flag("time"):
             server_now = timegm(now.timetuple()) * 1000
             client_now = int(param_val("time"))
