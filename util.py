@@ -23,9 +23,9 @@ try:
 except ImportError:
     ndb_imported = False
 
-VER = [4, 1, 6]
+VER = [4, 1, 7]
 MIN_VER = [4, 1, 6]
-BETA_VER = [4, 1, 6]
+BETA_VER = [4, 1, 7]
 
 # Phase 0 instrumentation: stable, grep-able perf log lines ("NETPERF <what> ms=<dur> tag=<revision:pid> k=v ...").
 # tag identifies the Cloud Run revision + worker process, to detect cross-process cache misses.
