@@ -2,7 +2,7 @@
 import random
 import json
 from collections import Counter, defaultdict
-from time import sleep
+from time import sleep, monotonic
 from calendar import timegm
 from datetime import datetime, timedelta
 
@@ -23,7 +23,7 @@ from enums import MultiplayerGameType, ShareType, Variation
 from models import ndb_wsgi_middleware, Game, Seed, User, BingoGameData, BingoEvent, BingoTeam, CustomLogic, trees_by_coords, LegacyUser
 from bingo import BingoGenerator
 from cache import Cache
-from util import coord_correction_map, clone_entity, all_locs, picks_by_type_generator, param_val, param_flag, debug, template_root, VER, MIN_VER, BETA_VER, game_list_html, version_check, template_vals, layout_json, bfield_checksum
+from util import coord_correction_map, clone_entity, all_locs, picks_by_type_generator, param_val, param_flag, debug, template_root, VER, MIN_VER, BETA_VER, game_list_html, version_check, template_vals, layout_json, bfield_checksum, netperf
 from reachable import Map, PlayerState
 from pickups import Pickup, Skill, AbilityCell, HealthCell, EnergyCell, Multiple
 
@@ -328,7 +328,9 @@ def netcode_found_pickup(game_id, player_id, coords, kind, id):
     if not pickup:
         log.error("Couldn't build pickup %s|%s" % (kind, id))
         return code_resp(406)
+    t0 = monotonic()
     status = game.found_pickup(player_id, pickup, coords, remove, param_flag("override"), zone, [int(param_val("s%s"%i) or 0) for i in range(8)])
+    netperf("found_pickup", t0, gid=game_id, pid=player_id, coords=coords, kind=kind, status=status)
     if game.is_race:
         Cache.clear_items(game_id)
     elif pickup.code in ["AC", "KS", "HC", "EC", "SK", "EV", "TP"] or (pickup.code == "RB" and pickup.id in [17, 19, 21]):
@@ -1225,10 +1227,12 @@ def bingo_get_game(game_id):
     first = param_flag("first")
     res = Cache.get_board(game_id)
     if first or not res:
+        t0 = monotonic()
         bingo = BingoGameData.with_id(game_id)
         if not bingo:
             return text_resp("Bingo game %s not found" % game_id, 404)
         res = bingo.get_json(first)
+        netperf("board_miss", t0, gid=game_id, first=bool(first))
         if param_flag("time"):
             server_now = timegm(now.timetuple()) * 1000
             client_now = int(param_val("time"))
@@ -1638,11 +1642,20 @@ def netcode_player_bingo_tick(game_id, player_id):
     bingo_data = json.loads(request.form.get("bingoData")) if request.form.get("bingoData") else None
     # if debug and player_id in test_data:
     #     bingo_data = test_data[player_id]['bingoData']
+    t0 = monotonic()
+    evlog_len = len(bingo.event_log)
     try:
         bingo.update(bingo_data, player_id, game_id)
-    except:
+        netperf("bingo_update", t0, gid=game_id, pid=player_id, evlog=evlog_len, retried=0)
+    except Exception as e:
+        log.warning("NETPERF bingo_update_err gid=%s pid=%s err=%s: %s", game_id, player_id, type(e).__name__, e)
         sleep(3)
-        bingo.update(bingo_data, player_id, game_id)
+        try:
+            bingo.update(bingo_data, player_id, game_id)
+            netperf("bingo_update", t0, gid=game_id, pid=player_id, evlog=evlog_len, retried=1)
+        except Exception as e2:
+            log.error("NETPERF bingo_update_fail gid=%s pid=%s err=%s: %s", game_id, player_id, type(e2).__name__, e2)
+            raise
     return code_resp(200)
 
 @app.route('/bingo/bingothon/<int:game_id>/player/<int:player_id>') #GetBingothonJson    

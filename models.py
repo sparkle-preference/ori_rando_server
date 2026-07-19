@@ -13,7 +13,8 @@ from flask import g
 
 from seedbuilder.seedparams import Placement, Stuff, SeedGenParams
 from enums import MultiplayerGameType, ShareType, Variation
-from util import picks_by_coord, get_bit, get_taste, enums_from_strlist, ord_suffix, debug, bfields_to_coords, bfield_checksum, unpack
+from util import picks_by_coord, get_bit, get_taste, enums_from_strlist, ord_suffix, debug, bfields_to_coords, bfield_checksum, unpack, netperf
+from time import monotonic
 from pickups import Pickup, Skill, Teleporter, Event
 from cache import Cache
 
@@ -1401,6 +1402,7 @@ class Game(ndb.Model):
             log.debug("Skipping sanity check")
             return False
         sanFailedSignal = "msg:@Major Error during sanity check. If this persists across multiple alt+l attempts please contact Eiko@"
+        san_t0 = monotonic()
         shared_inventories = self.get_inventories(ps)
         i = 0
         for pids, inv in shared_inventories.items():
@@ -1481,6 +1483,7 @@ class Game(ndb.Model):
                         msglines.append("Failed to update bonuses! bonuses: %s, player is %s, calculated maxes are %s" % (bonuses, player.pid(), bonus_max))
                     log.error("\n".join(msglines))
                 player.put()
+        netperf("sanity_check", san_t0, gid=self.key.id(), players=len(ps), fixes=i)
         return True
     
     def get_relevant_placements(self, pid):

@@ -9,6 +9,7 @@ import operator
 import bisect as _bisect
 import logging as log
 import os
+from time import monotonic
 
 try:
     from flask import request, url_for
@@ -24,6 +25,14 @@ except ImportError:
 VER = [4, 1, 6]
 MIN_VER = [4, 1, 6]
 BETA_VER = [4, 1, 6]
+
+# Phase 0 instrumentation: stable, grep-able perf log lines ("NETPERF <what> ms=<dur> tag=<revision:pid> k=v ...").
+# tag identifies the Cloud Run revision + worker process, to detect cross-process cache misses.
+NETPERF_TAG = "%s:%s" % (os.environ.get("K_REVISION", "local"), os.getpid())
+
+def netperf(what, t0, **kw):
+    extras = " ".join("%s=%s" % (k, v) for k, v in sorted(kw.items()))
+    log.info("NETPERF %s ms=%d tag=%s %s", what, int((monotonic() - t0) * 1000), NETPERF_TAG, extras)
 
 def version_check(version):
     try:
