@@ -10,6 +10,7 @@ import bisect as _bisect
 import logging as log
 import os
 from time import monotonic
+from zlib import crc32
 
 try:
     from flask import request, url_for
@@ -212,7 +213,11 @@ spawn_defaults = {
 
 
 def bfield_checksum(bfdstrs):
-    return sum(hash(i) for i in bfdstrs)
+    # crc32 is stable across processes/instances; hash() is randomized per interpreter
+    # (PYTHONHASHSEED), which made checksums written by one Cloud Run instance
+    # unmatchable by another. Note: gunicorn workers fork from one master and share
+    # a seed, which is why the old version still worked single-instance.
+    return crc32(",".join(str(i) for i in bfdstrs).encode())
 
 def get_bit(bits_int, bit):
     return int_to_bits(bits_int, log_2[bit] + 1)[-(1 + log_2[bit])]
