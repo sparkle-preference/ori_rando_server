@@ -1694,10 +1694,14 @@ def netcode_player_bingo_tick(game_id, player_id):
         log.warning("NETPERF bingo_update_err gid=%s pid=%s err=%s: %s", game_id, player_id, type(e).__name__, e)
         # Re-fetch before retrying: the failed transaction rolled back the datastore
         # but NOT the in-memory entity, which update() already mutated (event_log
-        # appends, card state). Retrying on the stale object double-applies events.
+        # appends, card state). CRITICAL: use_cache=False — the ndb context cache
+        # would hand back that same mutated object, making the retry see its own
+        # uncommitted changes as prior state → no event, need_write stays False,
+        # the BingoGameData put is skipped, and the gain is published to the board
+        # cache but never persisted. Next poster reverts it: the E2 flicker in 133486.
         # No sleep — the contention window is sub-second, and on a second failure the
         # client re-POSTs its full (durable) state within a few ticks anyway.
-        bingo = BingoGameData.with_id(game_id)
+        bingo = BingoGameData.get_by_id(int(game_id), use_cache=False)
         try:
             bingo.update(bingo_data, player_id, game_id)
             publish()
