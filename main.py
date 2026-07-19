@@ -980,20 +980,22 @@ def reset_game(game_id):
 
 @app.route('/transfer/<int:game_id>/<int:player_id>') # ResetAndTransfer
 def reset_and_transfer_game(game_id, player_id):
+    # Was dead code (mis-indented under the not-found return, with new_owner undefined);
+    # rebuilt 2026-07-19: transfers ownership to the user attached to player <player_id>.
     game = Game.with_id(game_id)
     if not game:
         return text_resp("Game %s not found!" % game_id, 404)
-        user = User.get()
-        if (User.is_admin() or (user and user.key == game.creator)):
-            new_user = User.get_by_name(new_owner)
-            if not new_user:
-                 return text_resp("Couldn't find user %s" % new_owner, 404)
-            old_creator = game.creator
-            game.creator = new_user.key
-            game.reset()
-            return text_resp("Game reset; ownership transferred from %s to %s" % (user.name, new_user.name))
-        else:
-            return text_resp("Can't restart a game you didn't create...", 401)
+    user = User.get()
+    if not (User.is_admin() or (user and user.key == game.creator)):
+        return text_resp("Can't restart a game you didn't create...", 401)
+    p = game.player(player_id)
+    new_user = p.user.get() if p and p.user else None
+    if not new_user:
+        return text_resp("Couldn't find a user attached to player %s" % player_id, 404)
+    game.creator = new_user.key
+    game.put()
+    game.reset()
+    return text_resp("Game reset; ownership transferred from %s to %s" % (user.name if user else "admin", new_user.name))
 
 @app.route('/plando/<seed_name>/upload', methods=['POST'])   #PlandoUpload
 def plando_upload(seed_name): 
