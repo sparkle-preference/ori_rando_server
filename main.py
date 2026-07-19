@@ -79,8 +79,20 @@ def text_resp(body, status=200):
 def make_resp(body, status=200, mimeType = 'text/html'):
 	return make_response((body, status, {'Content-Type': mimeType}))
 
+def _json_default(o):
+    # google-cloud-ndb wraps structured-property values in _BaseValue in place when
+    # an entity is put(); a board json computed after a put in the same request
+    # (e.g. bingo_add_player puts the new Player first) carries these wrappers, and
+    # caching then spreads them to every viewer (game 133486 incident, 2026-07-19).
+    # b_val holds the plain primitive.
+    from google.cloud.ndb.model import _BaseValue
+    if isinstance(o, _BaseValue):
+        return o.b_val
+    log.warning("json_resp: coercing non-serializable %s to str", type(o).__name__)
+    return str(o)
+
 def json_resp(jsonstr, status=200):
-    return make_resp(jsonstr if isinstance(jsonstr, str) else json.dumps(jsonstr), status, mimeType = "application/json")
+    return make_resp(jsonstr if isinstance(jsonstr, str) else json.dumps(jsonstr, default=_json_default), status, mimeType = "application/json")
 
 def code_resp(code):
     return text_resp(str(code), code)
