@@ -707,15 +707,18 @@ class BingoCard(ndb.Model):
             if completed:
                 p_progress.pending_loss = False
                 return BingoEvent(event_type="square", loss=False, square=self.square, player=capkey, timestamp=datetime.utcnow())
-            # Regression. Only the player whose own posted data regressed may
-            # stage/confirm the loss — a teammate's interleaved update reflecting
-            # our stored (possibly stale) state must not fast-track it.
-            own_regression = prior_completed and not p_progress.completed
-            if own_regression and p_progress.pending_loss:
-                p_progress.pending_loss = False
-                return BingoEvent(event_type="square", loss=True, square=self.square, player=capkey, timestamp=datetime.utcnow())
-            if own_regression:
-                p_progress.pending_loss = True
+            # Regression. Only the player whose own data is down may stage/confirm
+            # the loss — a teammate's interleaved update reflecting our stored
+            # (possibly stale) state must not fast-track it. Staging requires the
+            # transition (was completed, now isn't); confirming only requires the
+            # pending flag plus still-down data, since our stored `completed` was
+            # already overwritten to False by the staging update.
+            if not p_progress.completed:
+                if p_progress.pending_loss:
+                    p_progress.pending_loss = False
+                    return BingoEvent(event_type="square", loss=True, square=self.square, player=capkey, timestamp=datetime.utcnow())
+                if prior_completed:
+                    p_progress.pending_loss = True
             return None
         p_progress.pending_loss = False
 
@@ -1094,7 +1097,12 @@ class BingoGameData(ndb.Model):
             p_list = [player] + teammates
             for p in p_list:
                 p.signal_send(win_sig % (place, round_now))
-        Cache.set_board(game_id, self.get_json(players=players_by_id.values()))
+        # Stash the board for the CALLER to publish after the transaction commits.
+        # Writing the cache here published uncommitted state: a doomed concurrent
+        # attempt (computed without the other player's just-committed progress)
+        # would overwrite the cache before aborting — the source of the goal
+        # flicker seen in games 133478/133482.
+        self._board_json = self.get_json(players=players_by_id.values())
         player.put()
         if need_write:
             self.put()

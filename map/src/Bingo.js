@@ -436,7 +436,9 @@ export default class Bingo extends React.Component {
             this.setState(stateUpdate)
         } else {
             let res = JSON.parse(responseText)
-            let newState = {events: res.events, startTime: res.start_time_posix, countdownActive: res.countdown, isOwner: res.is_owner, ticking: false}
+            // cached boards have is_owner stripped (it's viewer-specific); keep our
+            // value from the initial fetch so the start button doesn't vanish
+            let newState = {events: res.events, startTime: res.start_time_posix, countdownActive: res.countdown, isOwner: res.hasOwnProperty('is_owner') ? res.is_owner : this.state.isOwner, ticking: false}
             if(res.gameId !== this.state.gameId)
             {
                 if(this.state.userBoard && this.state.user)

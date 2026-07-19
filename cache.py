@@ -110,6 +110,9 @@ class MemcachedCache(object):
         return self.memcache_get(key="%s.board" % gid)
 
     def set_board(self, gid, board):
+        # is_owner is viewer-specific and must never be served from cache;
+        # clients keep their value from the initial (cache-bypassing) fetch
+        board.pop("is_owner", None)
         return self.memcache.set(key="%s.board" % gid, value=board, expire=60)
 
     def get_areas(self):
@@ -264,6 +267,7 @@ class PythonCache(object):
         return self.cache.get(key="%s.board" % gid)
 
     def set_board(self, gid, board):
+        board.pop("is_owner", None)  # viewer-specific, never cache (see MemcachedCache)
         return self.cache.set(key="%s.board" % gid, value=board, time=60)
 
     def get_areas(self):

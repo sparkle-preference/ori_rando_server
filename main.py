@@ -1240,9 +1240,8 @@ def bingo_get_game(game_id):
         if not first:
             # repopulate on miss: pre-start lobbies otherwise recompute for every
             # 1 Hz spectator poll (update() only writes this cache after start_time).
-            # NB: cached before the offset block below, and only for non-first
-            # fetches, matching what update() already caches.
-            Cache.set_board(game_id, res)
+            # Copy: set_board strips is_owner, and offset is added to res below.
+            Cache.set_board(game_id, dict(res))
         if param_flag("time"):
             server_now = timegm(now.timetuple()) * 1000
             client_now = int(param_val("time"))
@@ -1320,7 +1319,10 @@ def bingo_add_player(game_id, player_id):
     res = bingo.get_json()
     if bingo.meta:
         bingo.update({}, player_id, game_id, True)
-        res = dict(Cache.get_board(game_id) or res)
+        board = getattr(bingo, "_board_json", None)
+        if board is not None:
+            Cache.set_board(game_id, board)  # NB: strips is_owner from board
+            res = dict(board)
     else:
         # push the new roster into the board cache immediately, or every viewer
         # (including the joiner's own next poll) sees the stale pre-join board
@@ -1680,6 +1682,12 @@ def netcode_player_bingo_tick(game_id, player_id):
         except Exception as e2:
             log.error("NETPERF bingo_update_fail gid=%s pid=%s err=%s: %s", game_id, player_id, type(e2).__name__, e2)
             return code_resp(503)
+    # Publish the board only after the transaction committed — publishing inside
+    # update() let doomed concurrent attempts overwrite the cache with state that
+    # was about to be rolled back (goal flicker).
+    board = getattr(bingo, "_board_json", None)
+    if board is not None:
+        Cache.set_board(game_id, board)
     return code_resp(200)
 
 @app.route('/bingo/bingothon/<int:game_id>/player/<int:player_id>') #GetBingothonJson    
