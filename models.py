@@ -687,6 +687,16 @@ class BingoCard(ndb.Model):
         else:
             log.error("invalid goal type %s" % self.goal_type)
         completed = p_progress.completed
+        if self.meta:
+            # Meta squares (VertSym/HorizSym/Activate Squares) are derived from the
+            # team's CURRENT board state — the same inputs for every member — so the
+            # poster's freshly computed value is authoritative. Consulting stored
+            # teammate snapshots let never-posting players (ghost slots from double
+            # joins) freeze a stale pre-start `true` forever (game 133486, C2). No
+            # debounce either: the underlying squares are already debounced.
+            if prior_value != completed:
+                return BingoEvent(event_type="square", loss=not completed, square=self.square, player=capkey, timestamp=datetime.utcnow())
+            return None
         if teammates and not completed:
             all_progress = [self.progress(p) for p in teammates]
             if self.goal_type == "bool":
