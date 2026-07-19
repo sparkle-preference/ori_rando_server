@@ -351,7 +351,8 @@ export default class Bingo extends React.Component {
 
     componentWillMount() {
         this.tick()
-        this.interval = setInterval(() => this.tick(), 1000);
+        // small per-client jitter so viewers don't poll in lockstep
+        this.interval = setInterval(() => this.tick(), 1000 + Math.floor(Math.random() * 250));
         this.timerInterval = setInterval(() => this.updateTimer(), 10);
   };
     updateUrl = () => {
@@ -401,7 +402,9 @@ export default class Bingo extends React.Component {
     }
     tick = () => {
         let {fails, gameId, haveGame, ticksSinceLastSquare, user, userBoard, ticking} = this.state;
-        if(ticking || fails > 50)
+        // ticking holds the fetch start time; treat it as stale after 10s so a
+        // dropped callback can't permanently stall polling
+        if((ticking && Date.now() - ticking < 10000) || fails > 50)
             return
         if((gameId && gameId > 0 && haveGame) || userBoard)
         {
@@ -414,17 +417,15 @@ export default class Bingo extends React.Component {
                 this.setState({ticksSinceLastSquare: ticksSinceLastSquare+1})
                 return
             }
-            if(userBoard)
-                doNetRequest(`/bingo/userboard/${user}/fetch/${gameId}`, this.tickCallback)
-            else
-                doNetRequest(`/bingo/game/${gameId}/fetch`, this.tickCallback)
+            const url = userBoard ? `/bingo/userboard/${user}/fetch/${gameId}` : `/bingo/game/${gameId}/fetch`
+            this.setState({ticking: Date.now()}, () => doNetRequest(url, this.tickCallback))
         }
     }
     tickCallback = ({status, responseText}) => {
         if(status !== 200)
         {
-            let stateUpdate = {}
-            if(status === 429) 
+            let stateUpdate = {ticking: false}
+            if(status === 429)
                 stateUpdate.activePlayer = this.state.activePlayer + 1
               else 
                 stateUpdate = {fails: this.state.fails + 1, buildingPlayer: false, ticking: false}
