@@ -687,6 +687,9 @@ def tracker_get_seen(game_id):
         if not game:
             return code_resp(404)
         return json_resp({ p.pid(): p.have_coords() for p in game.get_players() })
+        coords = { p.pid(): p.have_coords() for p in game.get_players() }
+        Cache.set_have(game_id, coords)
+    return json_resp(coords)
 
 
 @app.route('/tracker/game/<int:game_id>/fetch/pos')
@@ -742,7 +745,7 @@ def tracker_get_items_update(game_id, player_id):
                 return json_resp({"error": "Game %s not found" % game_id}, 404)
             coords = { p.pid(): p.have_coords() for p in game.get_players() }
             Cache.set_have(game_id, coords)
-        items, _ = _get_item_tracker_items(coords[pid], game, player_id)
+        items, _ = _get_item_tracker_items(coords.get(player_id, []), game, player_id)
     return json_resp(items)
 
 # why is it like this??
@@ -1655,13 +1658,18 @@ def netcode_player_bingo_tick(game_id, player_id):
         netperf("bingo_update", t0, gid=game_id, pid=player_id, evlog=evlog_len, retried=0)
     except Exception as e:
         log.warning("NETPERF bingo_update_err gid=%s pid=%s err=%s: %s", game_id, player_id, type(e).__name__, e)
-        sleep(3)
+        # Re-fetch before retrying: the failed transaction rolled back the datastore
+        # but NOT the in-memory entity, which update() already mutated (event_log
+        # appends, card state). Retrying on the stale object double-applies events.
+        # No sleep — the contention window is sub-second, and on a second failure the
+        # client re-POSTs its full (durable) state within a few ticks anyway.
+        bingo = BingoGameData.with_id(game_id)
         try:
             bingo.update(bingo_data, player_id, game_id)
             netperf("bingo_update", t0, gid=game_id, pid=player_id, evlog=evlog_len, retried=1)
         except Exception as e2:
             log.error("NETPERF bingo_update_fail gid=%s pid=%s err=%s: %s", game_id, player_id, type(e2).__name__, e2)
-            raise
+            return code_resp(503)
     return code_resp(200)
 
 @app.route('/bingo/bingothon/<int:game_id>/player/<int:player_id>') #GetBingothonJson    
