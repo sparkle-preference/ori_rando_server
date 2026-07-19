@@ -1677,8 +1677,18 @@ def netcode_player_bingo_tick(game_id, player_id):
     #     bingo_data = test_data[player_id]['bingoData']
     t0 = monotonic()
     evlog_len = len(bingo.event_log)
+    def publish():
+        # Publish the board only after the transaction committed — publishing inside
+        # update() let doomed concurrent attempts overwrite the cache with state that
+        # was about to be rolled back (goal flicker). Publish IMMEDIATELY after commit
+        # (before logging) to minimize the window in which another thread's newer
+        # commit+publish could be overwritten by our older board.
+        board = getattr(bingo, "_board_json", None)
+        if board is not None:
+            Cache.set_board(game_id, board)
     try:
         bingo.update(bingo_data, player_id, game_id)
+        publish()
         netperf("bingo_update", t0, gid=game_id, pid=player_id, evlog=evlog_len, retried=0)
     except Exception as e:
         log.warning("NETPERF bingo_update_err gid=%s pid=%s err=%s: %s", game_id, player_id, type(e).__name__, e)
@@ -1690,16 +1700,11 @@ def netcode_player_bingo_tick(game_id, player_id):
         bingo = BingoGameData.with_id(game_id)
         try:
             bingo.update(bingo_data, player_id, game_id)
+            publish()
             netperf("bingo_update", t0, gid=game_id, pid=player_id, evlog=evlog_len, retried=1)
         except Exception as e2:
             log.error("NETPERF bingo_update_fail gid=%s pid=%s err=%s: %s", game_id, player_id, type(e2).__name__, e2)
             return code_resp(503)
-    # Publish the board only after the transaction committed — publishing inside
-    # update() let doomed concurrent attempts overwrite the cache with state that
-    # was about to be rolled back (goal flicker).
-    board = getattr(bingo, "_board_json", None)
-    if board is not None:
-        Cache.set_board(game_id, board)
     return code_resp(200)
 
 @app.route('/bingo/bingothon/<int:game_id>/player/<int:player_id>') #GetBingothonJson    
