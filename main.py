@@ -686,7 +686,6 @@ def tracker_get_seen(game_id):
         game = Game.with_id(game_id)
         if not game:
             return code_resp(404)
-        return json_resp({ p.pid(): p.have_coords() for p in game.get_players() })
         coords = { p.pid(): p.have_coords() for p in game.get_players() }
         Cache.set_have(game_id, coords)
     return json_resp(coords)
