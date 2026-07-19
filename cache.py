@@ -239,7 +239,7 @@ class PythonCache(object):
         self.cache.set(key="%s.relics" % gid, value=relics, time=14400)
 
     def clear_items(self, gid, pid=1):
-        self.cache.set(self, gid, {})
+        self.set_items(gid, pid, {})
 
     def get_pos(self, gid):
         return self.cache.get(key="%s.pos" % gid)
