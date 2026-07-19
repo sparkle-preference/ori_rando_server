@@ -869,11 +869,11 @@ def user_set_number(new_num):
         if int(new_num) > 0:
             user.pref_num = int(new_num)
             user.put()
-            return resp_text("Preferred player number for %s set to %s" % (user.name, new_num))
+            return text_resp("Preferred player number for %s set to %s" % (user.name, new_num))
         else:
-            return resp_text("Preferred player number must be >0", 400)
+            return text_resp("Preferred player number must be >0", 400)
     else:
-        return resp_text("You are not logged in!", 401)
+        return text_resp("You are not logged in!", 401)
 
 @app.route('/user/settings/theme/<new_theme>')
 def user_set_theme(new_theme):
@@ -881,9 +881,9 @@ def user_set_theme(new_theme):
     if user:
         user.theme = new_theme
         user.put()
-        return resp_text("theme for %s set to %s" % (user.name, new_theme))
+        return text_resp("theme for %s set to %s" % (user.name, new_theme))
     else:
-        return resp_text("You are not logged in!", 401)
+        return text_resp("You are not logged in!", 401)
 
 @app.route('/theme/toggle')
 def user_toggle_darkmode():
@@ -902,7 +902,7 @@ def user_toggle_verbose():
         user.put()
         return text_resp("verbose seed spoilers set to %s" % user.verbose)
     else:
-        return resp_text("You are not logged in!", 401)
+        return text_resp("You are not logged in!", 401)
 
 @app.route('/tracker/spectate/<name>') # LatestMap
 def get_map_by_name(name):
