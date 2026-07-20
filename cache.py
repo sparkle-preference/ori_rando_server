@@ -28,6 +28,12 @@ class MemcachedCache(object):
     def san_check(self, gid):
         return self.memcache.add(key="%s.san" % gid, value=True, expire=10)
 
+    def second_strike(self, gid):
+        # True only when called twice within the window: first call plants the
+        # flag (add succeeds) and returns False; a repeat within 30s finds it.
+        # Used to gate sanity_check on persistent (not transient) desyncs.
+        return not self.memcache.add(key="%s.strike" % gid, value=True, expire=30)
+
     def current_gid(self):
         return self.memcache_get(key="gid_max") or -1
 
@@ -184,6 +190,9 @@ class PythonCache(object):
     
     def san_check(self, gid):
         return self.cache.add(key="%s.san" % gid, value=True, time=10)
+
+    def second_strike(self, gid):
+        return not self.cache.add(key="%s.strike" % gid, value=True, time=30)
 
     def current_gid(self):
         return self.gid_max or -1

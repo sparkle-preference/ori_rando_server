@@ -13,7 +13,7 @@ from flask import g
 
 from seedbuilder.seedparams import Placement, Stuff, SeedGenParams
 from enums import MultiplayerGameType, ShareType, Variation
-from util import picks_by_coord, get_bit, get_taste, enums_from_strlist, ord_suffix, debug, bfields_to_coords, bfield_checksum, unpack, netperf
+from util import picks_by_coord, get_bit, get_taste, enums_from_strlist, ord_suffix, debug, bfields_to_coords, bfield_checksum, unpack, netperf, BATCH_GRANTS
 from time import monotonic
 from pickups import Pickup, Skill, Teleporter, Event
 from cache import Cache
@@ -525,6 +525,20 @@ class Player(ndb.Model):
     def transaction_pickup(pkey, pickup, remove=False, delay_put=False, coords=None, finder=None):
         p = pkey.get()
         p.give_pickup(pickup, remove=remove, coords=coords, finder=finder)
+
+    @staticmethod
+    @ndb.transactional(retries=5, xg=True)
+    def transaction_pickup_batch(pkeys, grants):
+        # BATCH_GRANTS: grant every pickup to every player in ONE
+        # transaction — all Players share the Game entity group, so this is a
+        # single-group txn with one get_multi and one put_multi, replacing N
+        # sequential transactions (2N RPCs and N contention windows).
+        # grants: list of (pickup, remove, coords, finder)
+        players = [p for p in ndb.get_multi(pkeys) if p is not None]
+        for p in players:
+            for (pickup, remove, coords, finder) in grants:
+                p.give_pickup(pickup, remove=remove, coords=coords, finder=finder, delay_put=True)
+        ndb.put_multi(players)
 
     def give_pickup(self, pickup, remove=False, delay_put=False, coords=None, finder=None):
         if coords and finder:
@@ -1599,7 +1613,10 @@ class Game(ndb.Model):
                     # man just. fuck it?
 #                    log.info("Ignoring duplicate pickup at location %s from player %s" % (coords, pid))
 #                    return 410
-                    self.sanity_check()
+                    # BATCH_GRANTS: a lone duplicate is usually a client resend, not a
+                    # desync — only run the (expensive) sanity check on a second strike.
+                    if not BATCH_GRANTS or Cache.second_strike(self.key.id()):
+                        self.sanity_check()
                     return 200
             else:
                 return 200
@@ -1626,20 +1643,31 @@ class Game(ndb.Model):
                 ptple = p.sharetuple()
                 if ftple != ptple:
                     log.warning("sharetuple mismatch! %s is not %s, triggering san check" % (ftple, ptple))
-                    self.sanity_check()
+                    # BATCH_GRANTS: transient mismatches are expected while a grant
+                    # propagates; only sanity-check when the mismatch persists.
+                    if not BATCH_GRANTS or Cache.second_strike(self.key.id()):
+                        self.sanity_check()
                     break
+            grants = []
             shared_tree = False
             if ShareType.MISC in self.shared and coords in trees_by_coords:
-                for player in players:
-                    Cache.clear_seen_checksum(player.idpts())
-                    Player.transaction_pickup(player.key, trees_by_coords[coords], remove)
+                grants.append((trees_by_coords[coords], remove, None, None))
                 shared_tree = True
             if share:
-                for player in players:
-                    Cache.clear_seen_checksum(player.idpts())
-                    Player.transaction_pickup(player.key, pickup, remove, coords=coords, finder=pid)
+                grants.append((pickup, remove, coords, pid))
             elif not shared_tree:
                 retcode = 406
+            if grants:
+                if BATCH_GRANTS:
+                    Player.transaction_pickup_batch([p.key for p in players], grants)
+                    # clear AFTER commit so a failed txn can't leave stale-cleared caches
+                    for player in players:
+                        Cache.clear_seen_checksum(player.idpts())
+                else:
+                    for (g_pickup, g_remove, g_coords, g_finder) in grants:
+                        for player in players:
+                            Cache.clear_seen_checksum(player.idpts())
+                            Player.transaction_pickup(player.key, g_pickup, g_remove, coords=g_coords, finder=g_finder)
         elif self.mode == MultiplayerGameType.SPLITSHARDS:
             if pickup.code != "RB" or pickup.id not in [17, 19, 21]:
                 retcode = 406

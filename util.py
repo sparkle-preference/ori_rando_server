@@ -27,7 +27,10 @@ VER = [4, 1, 7]
 MIN_VER = [4, 1, 6]
 BETA_VER = [4, 1, 7]
 
-# Phase 0 instrumentation: stable, grep-able perf log lines ("NETPERF <what> ms=<dur> tag=<revision:pid> k=v ...").
+# Feature flags for netcode rework (graceful fallback: unset/0 = legacy behavior)
+BATCH_GRANTS = os.environ.get("BATCH_GRANTS", "0") not in ("", "0", "false", "False")
+
+# Perf instrumentation: stable, grep-able log lines ("NETPERF <what> ms=<dur> tag=<revision:pid> k=v ...").
 # tag identifies the Cloud Run revision + worker process, to detect cross-process cache misses.
 NETPERF_TAG = "%s:%s" % (os.environ.get("K_REVISION", "local"), os.getpid())
 

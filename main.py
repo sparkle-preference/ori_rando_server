@@ -23,7 +23,7 @@ from enums import MultiplayerGameType, ShareType, Variation
 from models import ndb_wsgi_middleware, Game, Seed, User, BingoGameData, BingoEvent, BingoTeam, CustomLogic, trees_by_coords, LegacyUser
 from bingo import BingoGenerator
 from cache import Cache
-from util import coord_correction_map, clone_entity, all_locs, picks_by_type_generator, param_val, param_flag, debug, template_root, VER, MIN_VER, BETA_VER, game_list_html, version_check, template_vals, layout_json, bfield_checksum, netperf
+from util import coord_correction_map, clone_entity, all_locs, picks_by_type_generator, param_val, param_flag, debug, template_root, VER, MIN_VER, BETA_VER, game_list_html, version_check, template_vals, layout_json, bfield_checksum, netperf, NETPERF_TAG, BATCH_GRANTS
 from reachable import Map, PlayerState
 from pickups import Pickup, Skill, AbilityCell, HealthCell, EnergyCell, Multiple
 
@@ -1725,6 +1725,14 @@ def bingothon_fetch_data(game_id, player_id):
     if bingo.discovery:
         res["disc_squares"] = bingo.disc_squares
     return json_resp(res)
+
+@app.route('/flags')  # temporary: verify feature-flag status per revision
+def flag_status():
+    flags = {"BATCH_GRANTS": BATCH_GRANTS}
+    rows = "".join("<tr><td style='padding:4px 12px'>%s</td><td style='padding:4px 12px'><b>%s</b></td></tr>"
+                   % (name, "ON" if val else "off") for name, val in flags.items())
+    return make_resp("<html><body><h3>Feature flags</h3><table border=1>%s</table><p>serving: %s</p></body></html>"
+                     % (rows, NETPERF_TAG))
 
 @app.route('/version/latest')
 def version_txt():
