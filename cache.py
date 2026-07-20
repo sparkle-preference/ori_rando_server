@@ -26,13 +26,16 @@ class MemcachedCache(object):
             return None
 
     def san_check(self, gid):
-        return self.memcache.add(key="%s.san" % gid, value=True, expire=10)
+        # noreply=False is required: with pymemcache's default noreply, add()
+        # always returns True, so this rate limit silently never limited anything
+        return self.memcache.add(key="%s.san" % gid, value=True, expire=10, noreply=False)
 
     def second_strike(self, gid):
         # True only when called twice within the window: first call plants the
         # flag (add succeeds) and returns False; a repeat within 30s finds it.
         # Used to gate sanity_check on persistent (not transient) desyncs.
-        return not self.memcache.add(key="%s.strike" % gid, value=True, expire=30)
+        # noreply=False for the same reason as san_check above.
+        return not self.memcache.add(key="%s.strike" % gid, value=True, expire=30, noreply=False)
 
     def current_gid(self):
         return self.memcache_get(key="gid_max") or -1
@@ -153,31 +156,40 @@ class MemcachedCache(object):
 
 DEFAULT_TIME = 604800
 class TLRUCacheWithCustomExpiry(TLRUCache):
-    
+    """Dev-only in-process stand-in for memcached with per-item TTLs.
+
+    (Rewritten 2026-07-20: the previous version hand-copied TLRUCache internals,
+    but name mangling and a zero-arg ttu meant it raised on every set. Prod is
+    unaffected — MemcachedCache is used whenever MEMCACHED_HOST is set.)
+    """
+
     def __init__(self, maxsize, timer=time.monotonic, getsizeof=None):
-        ttu = lambda: DEFAULT_TIME
-        super().__init__(maxsize, ttu, timer, getsizeof)
-    
+        super().__init__(maxsize, ttu=self._ttu, timer=timer, getsizeof=getsizeof)
+        self._next_ttl = DEFAULT_TIME
+
+    def _ttu(self, _key, _value, now):
+        return now + self._next_ttl
+
+    def add(self, key, value, time=DEFAULT_TIME):
+        # memcached add semantics: store only if absent; True if stored
+        if key in self:
+            return False
+        self.set(key, value, time=time)
+        return True
+
     def set(self, key, value, time=DEFAULT_TIME):
-        with self.timer as timer:
-            expires = timer + time
-            if timer >= expires:
-                return  # skip expired items
-            self.expire(timer)
-            CacheToolsCache.cache_setitem(self, key, value)
-        # removing an existing item would break the heap structure, so
-        # only mark it as removed for now
+        # route the per-call TTL to _ttu via instance state; dev-server only,
+        # so the non-thread-safety of this handoff is acceptable
+        self._next_ttl = time
         try:
-            self.__getitem(key).removed = True
-        except KeyError:
-            pass
-        self.__items[key] = item = TLRUCache._Item(key, expires)
-        heapq.heappush(self.__order, item)
-    
+            self[key] = value
+        finally:
+            self._next_ttl = DEFAULT_TIME
+
     def get(self, key):
-        if self.__contains__(key):
+        try:
             return self[key]
-        else:
+        except KeyError:
             return None
 
 
