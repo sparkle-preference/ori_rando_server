@@ -186,10 +186,10 @@ class BingoGenerator(object):
                     "Ginso: 2 (Bash Access, Ginso TP Access)",
                     "Swamp: 1 (Stomp Access)",
                     "Misty: 1 (Atsu's Torch Access)",
-                    "Forlorn: 1 (Right Forlorn Access)"
+                    "Forlorn: 1 (Right Forlorn Access)",
                     "Sorrow: 3 (Questionable KS Door, Tumbleweed Door, Charge Jump Access)",
                 ],
-                range_func = r((2, 4), (4, 8), (7, 11)) if not keysanity else r((1,3), (2,5), (7,11)),
+                range_func = r((2, 4), (4, 8), (7, 11)) if not open_world else r((1,3), (2,5), (7,11)),
                 early_max = 3
             ),
             IntGoal(
