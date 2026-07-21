@@ -18,7 +18,13 @@ from time import monotonic
 from pickups import Pickup, Skill, Teleporter, Event
 from cache import Cache
 
-client = ndb.Client()
+try:
+    client = ndb.Client()
+except Exception as e:
+    # no default credentials (e.g. unit tests, which provide their own client
+    # and context). In prod the Cloud Run service account always supplies ADC.
+    log.warning("ndb.Client() unavailable at import (%s); requests will fail unless a context is provided elsewhere", e)
+    client = None
 
 def ndb_wsgi_middleware(wsgi_app):
     def middleware(environ, start_response):

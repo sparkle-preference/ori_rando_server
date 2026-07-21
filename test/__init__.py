@@ -1,15 +1,7 @@
-import unittest
-import webapp2
-import StringIO
-from seedgentest import SeedGenTests
-
-class TestRunner(webapp2.RequestHandler):
-	def get(self):
-		self.response.headers['Content-Type'] = 'text/plain'
-		suite = unittest.TestLoader().loadTestsFromTestCase(SeedGenTests)
-		stream = StringIO.StringIO()
-		res = unittest.TextTestRunner(verbosity=2, stream=stream).run(suite)
-		out = stream.getvalue()
-		stream.close()
-		self.response.status = 200 if res.wasSuccessful() else 500
-		self.response.out.write(out)
+# Test package.
+#
+# Run the netcode/cache unit tests from the repo root with:
+#   python3 -m unittest test.netcode_test -v
+#
+# (The old webapp2-based TestRunner handler and seedgentest.py date from the
+# python2/GAE era; seedgentest.py does not currently run on python3.)

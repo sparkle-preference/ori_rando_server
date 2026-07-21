@@ -49,6 +49,18 @@ def netperf(what, t0, **kw):
     extras = " ".join("%s=%s" % (k, v) for k, v in sorted(kw.items()))
     log.info("NETPERF %s ms=%d tag=%s %s", what, int((monotonic() - t0) * 1000), NETPERF_TAG, extras)
 
+def json_default(o):
+    # google-cloud-ndb wraps structured-property values in _BaseValue in place when
+    # an entity is put(); a board json computed after a put in the same request
+    # carries these wrappers, and caching spreads them to every viewer.
+    # b_val holds the plain primitive. Used as json.dumps(default=...).
+    if ndb_imported:
+        from google.cloud.ndb.model import _BaseValue
+        if isinstance(o, _BaseValue):
+            return o.b_val
+    log.warning("json_default: coercing non-serializable %s to str", type(o).__name__)
+    return str(o)
+
 def version_check(version):
     try:
         nums = [int(num) for num in version.split(".")]

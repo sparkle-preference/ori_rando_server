@@ -23,7 +23,7 @@ from enums import MultiplayerGameType, ShareType, Variation
 from models import ndb_wsgi_middleware, Game, Seed, User, BingoGameData, BingoEvent, BingoTeam, CustomLogic, trees_by_coords, LegacyUser
 from bingo import BingoGenerator
 from cache import Cache
-from util import coord_correction_map, clone_entity, all_locs, picks_by_type_generator, param_val, param_flag, debug, template_root, VER, MIN_VER, BETA_VER, game_list_html, version_check, template_vals, layout_json, bfield_checksum, netperf, NETPERF_TAG, BATCH_GRANTS, HIST_ON_PLAYER, SPLIT_CACHE
+from util import coord_correction_map, clone_entity, all_locs, picks_by_type_generator, param_val, param_flag, debug, template_root, VER, MIN_VER, BETA_VER, game_list_html, version_check, template_vals, layout_json, bfield_checksum, netperf, NETPERF_TAG, json_default, BATCH_GRANTS, HIST_ON_PLAYER, SPLIT_CACHE
 from reachable import Map, PlayerState
 from pickups import Pickup, Skill, AbilityCell, HealthCell, EnergyCell, Multiple
 
@@ -79,20 +79,8 @@ def text_resp(body, status=200):
 def make_resp(body, status=200, mimeType = 'text/html'):
 	return make_response((body, status, {'Content-Type': mimeType}))
 
-def _json_default(o):
-    # google-cloud-ndb wraps structured-property values in _BaseValue in place when
-    # an entity is put(); a board json computed after a put in the same request
-    # (e.g. bingo_add_player puts the new Player first) carries these wrappers, and
-    # caching then spreads them to every viewer (game 133486 incident, 2026-07-19).
-    # b_val holds the plain primitive.
-    from google.cloud.ndb.model import _BaseValue
-    if isinstance(o, _BaseValue):
-        return o.b_val
-    log.warning("json_resp: coercing non-serializable %s to str", type(o).__name__)
-    return str(o)
-
 def json_resp(jsonstr, status=200):
-    return make_resp(jsonstr if isinstance(jsonstr, str) else json.dumps(jsonstr, default=_json_default), status, mimeType = "application/json")
+    return make_resp(jsonstr if isinstance(jsonstr, str) else json.dumps(jsonstr, default=json_default), status, mimeType = "application/json")
 
 def code_resp(code):
     return text_resp(str(code), code)
