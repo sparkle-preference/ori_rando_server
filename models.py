@@ -13,7 +13,7 @@ from flask import g
 
 from seedbuilder.seedparams import Placement, Stuff, SeedGenParams
 from enums import MultiplayerGameType, ShareType, Variation
-from util import picks_by_coord, get_bit, get_taste, enums_from_strlist, ord_suffix, debug, bfields_to_coords, bfield_checksum, unpack, netperf, BATCH_GRANTS
+from util import picks_by_coord, get_bit, get_taste, enums_from_strlist, ord_suffix, debug, bfields_to_coords, bfield_checksum, unpack, netperf, BATCH_GRANTS, HIST_ON_PLAYER
 from time import monotonic
 from pickups import Pickup, Skill, Teleporter, Event
 from cache import Cache
@@ -413,9 +413,9 @@ class Player(ndb.Model):
                 put = True
                 self.have_bflds[i] = have
         if put:
-            have = Cache.get_have(game_id)
-            have[self.pid()] = self.have_coords()
-            Cache.set_have(game_id, have)
+            # set_have has merge semantics — pass only our own entry (the old
+            # read-modify-write here raced with other players' updates)
+            Cache.set_have(game_id, {self.pid(): self.have_coords()})
             self.put()
         Cache.set_seen_checksum(self.idpts(), bfield_checksum(post_data.get("seen_%s" % i, 0) for i in range(8)))
     
@@ -525,6 +525,20 @@ class Player(ndb.Model):
     def transaction_pickup(pkey, pickup, remove=False, delay_put=False, coords=None, finder=None):
         p = pkey.get()
         p.give_pickup(pickup, remove=remove, coords=coords, finder=finder)
+
+    @staticmethod
+    @ndb.transactional(retries=5, xg=True)
+    def append_hl_txn(pkey, hl):
+        # HIST_ON_PLAYER: history lines live on the finder's own Player entity, so
+        # concurrent finders no longer contend on the shared Game entity. Returns
+        # True if the line was appended (False = dedup skip), so the caller knows
+        # whether to update the hist cache.
+        p = pkey.get()
+        if any([h for h in p.history[:-20] if h.equals(hl)]):
+            return False
+        p.history.append(hl)
+        p.put()
+        return True
 
     @staticmethod
     @ndb.transactional(retries=5, xg=True)
@@ -1262,6 +1276,20 @@ class Game(ndb.Model):
     is_race        = ndb.BooleanProperty(default=False)
     spawn          = ndb.StringProperty(default="Glades")
     def history(self, pids=[]):
+        if HIST_ON_PLAYER:
+            # merge legacy Game-entity lines (frozen once the flag is on) with
+            # per-player lines; no read-time migration/put
+            res = list(self.hls)
+            for p in self.get_players():
+                pid = p.pid()
+                for hl in p.history:
+                    if not hl.player:
+                        hl.player = pid
+                    res.append(hl)
+            if pids:
+                res = [hl for hl in res if hl.player in pids]
+            res.sort(key=lambda hl: hl.timestamp or datetime.min)
+            return res
         if not self.hls:
              # legacy migration branch
             for p in self.get_players():
@@ -1684,7 +1712,12 @@ class Game(ndb.Model):
         hl = HistoryLine(pickup_code=pickup.code, timestamp=datetime.utcnow(), pickup_id=str(pickup.id), coords=coords, removed=remove, player=pid)
         if coords in range(24, 60, 4) and zone in map_coords_by_zone:
             hl.map_coords = map_coords_by_zone[zone]
-        self.append_hl(hl)
+        if HIST_ON_PLAYER:
+            # write the line to the finder's own entity — no shared-entity contention
+            if Player.append_hl_txn(finder.key, hl):
+                Cache.append_hl(self.key.id(), hl.player, hl)
+        else:
+            self.append_hl(hl)
         if hl.map_coords or coords in trees_by_coords:
             Cache.clear_items(self.key.id())
         return retcode

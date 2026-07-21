@@ -28,7 +28,18 @@ MIN_VER = [4, 1, 6]
 BETA_VER = [4, 1, 7]
 
 # Feature flags for netcode rework (graceful fallback: unset/0 = legacy behavior)
-BATCH_GRANTS = os.environ.get("BATCH_GRANTS", "0") not in ("", "0", "false", "False")
+def _flag(name):
+    return os.environ.get(name, "0") not in ("", "0", "false", "False")
+BATCH_GRANTS = _flag("BATCH_GRANTS")
+# store new history lines on the finder's Player entity instead of the shared Game
+# entity — Game.hls appends were the found_pickup floor cost (every concurrent
+# finder contends on the one Game entity)
+HIST_ON_PLAYER = _flag("HIST_ON_PLAYER")
+# store the per-game hist/pos/have/reach caches under per-player keys instead of
+# one map per game — the whole-map read-modify-write pattern loses concurrent
+# writes (threads overwrite each other), the long-suspected source of transient
+# tracker wrongness
+SPLIT_CACHE = _flag("SPLIT_CACHE")
 
 # Perf instrumentation: stable, grep-able log lines ("NETPERF <what> ms=<dur> tag=<revision:pid> k=v ...").
 # tag identifies the Cloud Run revision + worker process, to detect cross-process cache misses.

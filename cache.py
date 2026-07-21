@@ -3,7 +3,7 @@ import heapq
 import os
 from cachetools import TLRUCache, Cache as CacheToolsCache
 
-from util import debug
+from util import debug, SPLIT_CACHE
 from pymemcache.client.base import PooledClient
 from pymemcache import serde
 
@@ -53,12 +53,49 @@ class MemcachedCache(object):
     def set_gid(self, gid):
         self.memcache.set(key="gid_max", value=int(gid))
 
+    # --- SPLIT_CACHE helpers: per-player keys ({gid}.{pid}.{suffix}) plus a pid
+    # registry ({gid}.pids) so map-shaped readers know which keys to gather.
+    # Registration is lazy and self-healing: a lost registry update is repaired by
+    # that player's next write (~1/s), unlike the legacy whole-map RMW where a
+    # lost update silently discarded another player's data.
+    def _pids(self, gid):
+        return [int(p) for p in (self.memcache_get(key="%s.pids" % gid) or [])]
+
+    def _register_pid(self, gid, pid):
+        pids = set(self._pids(gid))
+        if int(pid) not in pids:
+            pids.add(int(pid))
+            self.memcache.set(key="%s.pids" % gid, value=sorted(pids), expire=604800)
+
+    def _map_get(self, gid, suffix):
+        pids = self._pids(gid)
+        if not pids:
+            return {}
+        keymap = {"%s.%s.%s" % (gid, p, suffix): p for p in pids}
+        try:
+            got = self.memcache.get_many(list(keymap.keys()))
+        except Exception:
+            return {}
+        return {keymap[k]: v for k, v in got.items()}
+
     def set_hist(self, gid, pid, hist):
+        if SPLIT_CACHE:
+            self._register_pid(gid, pid)
+            self.memcache.set(key="%s.%s.hist" % (gid, pid), value=hist, expire=14400)
+            return
         hist_map = self.get_hist(gid) or {}
         hist_map[int(pid)] = hist
         self.memcache.set(key="%s.hist" % gid, value=hist_map, expire=14400)
 
     def append_hl(self, gid, pid, hl):
+        if SPLIT_CACHE:
+            # RMW on a single player's key: the only concurrent writers are that
+            # player's own requests plus the (rate-limited) sanity check
+            self._register_pid(gid, pid)
+            hist = self.memcache_get(key="%s.%s.hist" % (gid, pid)) or []
+            hist.append(hl)
+            self.memcache.set(key="%s.%s.hist" % (gid, pid), value=hist, expire=14400)
+            return
         hist_map = self.get_hist(gid) or {}
         if int(pid) not in hist_map:
             hist_map[int(pid)] = [hl]
@@ -67,21 +104,47 @@ class MemcachedCache(object):
         self.memcache.set(key="%s.hist" % gid, value=hist_map, expire=14400)
 
     def get_hist(self, gid):
+        if SPLIT_CACHE:
+            return self._map_get(gid, "hist")
         return self.memcache_get(key="%s.hist" % gid)
 
     def get_reachable(self, gid):
+        if SPLIT_CACHE:
+            return self._map_get(gid, "reach")
         return self.memcache_get(key="%s.reach" % gid) or {}
 
     def set_reachable(self, gid, reachable):
-        self.memcache.set(key="%s.reach" % gid, value=reachable, expire=7200)
+        # merge semantics: only the given players are written. Callers may pass a
+        # subset (e.g. just-recomputed players) without clobbering the others.
+        if SPLIT_CACHE:
+            for pid, val in reachable.items():
+                self._register_pid(gid, pid)
+                self.memcache.set(key="%s.%s.reach" % (gid, pid), value=val, expire=7200)
+            return
+        reach_map = self.get_reachable(gid) or {}
+        reach_map.update({int(p): v for p, v in reachable.items()})
+        self.memcache.set(key="%s.reach" % gid, value=reach_map, expire=7200)
 
     def get_have(self, gid):
+        if SPLIT_CACHE:
+            return self._map_get(gid, "have")
         return self.memcache_get(key="%s.have" % gid) or {}
 
     def set_have(self, gid, have):
-        self.memcache.set(key="%s.have" % gid, value=have, expire=7200)
+        # merge semantics, as set_reachable
+        if SPLIT_CACHE:
+            for pid, val in have.items():
+                self._register_pid(gid, pid)
+                self.memcache.set(key="%s.%s.have" % (gid, pid), value=val, expire=7200)
+            return
+        have_map = self.get_have(gid) or {}
+        have_map.update({int(p): v for p, v in have.items()})
+        self.memcache.set(key="%s.have" % gid, value=have_map, expire=7200)
 
     def clear_reach(self, gid, pid):
+        if SPLIT_CACHE:
+            self.memcache.set(key="%s.%s.reach" % (gid, pid), value={}, expire=7200)
+            return
         reach_map = self.get_reachable(gid) or {}
         reach_map[int(pid)] = {}
         self.memcache.set(key="%s.reach" % gid, value=reach_map, expire=7200)
@@ -102,9 +165,15 @@ class MemcachedCache(object):
         self.set_items(gid, pid, {})
 
     def get_pos(self, gid):
+        if SPLIT_CACHE:
+            return self._map_get(gid, "pos")
         return self.memcache_get(key="%s.pos" % gid)
 
     def set_pos(self, gid, pid, x, y):
+        if SPLIT_CACHE:
+            self._register_pid(gid, pid)
+            self.memcache.set(key="%s.%s.pos" % (gid, pid), value=(x, y), expire=3600)
+            return
         pos_map = self.get_pos(gid) or {}
         pos_map[int(pid)] = (x, y)
         self.memcache.set(key="%s.pos" % gid, value=pos_map, expire=3600)
@@ -149,6 +218,10 @@ class MemcachedCache(object):
 
     def remove_game(self, gid):
         self.memcache.delete_multi(keys=["have", "hist", "san", "pos", "reach", "items", "relics", "board"], key_prefix="%s." % gid)
+        if SPLIT_CACHE:
+            per_player = ["%s.%s" % (p, suffix) for p in self._pids(gid)
+                          for suffix in ("have", "hist", "pos", "reach", "items", "output", "seenhash")]
+            self.memcache.delete_multi(keys=per_player + ["pids", "strike"], key_prefix="%s." % gid)
 
     def clear(self):
         self.memcache.flush_all()
@@ -242,13 +315,20 @@ class PythonCache(object):
         return self.cache.get(key="%s.reach" % gid) or {}
 
     def set_reachable(self, gid, reachable):
-        self.cache.set(key="%s.reach" % gid, value=reachable, time=7200)
+        # merge semantics to match MemcachedCache — callers may pass subsets.
+        # (dev cache keeps map storage; SPLIT_CACHE only changes prod layout)
+        reach_map = self.get_reachable(gid) or {}
+        reach_map.update({int(p): v for p, v in reachable.items()})
+        self.cache.set(key="%s.reach" % gid, value=reach_map, time=7200)
 
     def get_have(self, gid):
         return self.cache.get(key="%s.have" % gid) or {}
 
     def set_have(self, gid, have):
-        self.cache.set(key="%s.have" % gid, value=have, time=7200)
+        # merge semantics, as set_reachable
+        have_map = self.get_have(gid) or {}
+        have_map.update({int(p): v for p, v in have.items()})
+        self.cache.set(key="%s.have" % gid, value=have_map, time=7200)
 
     def clear_reach(self, gid, pid):
         reach_map = self.get_reachable(gid) or {}
