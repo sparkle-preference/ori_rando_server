@@ -57,7 +57,7 @@ const FLAG_CASEFIX = {};
 
 SEED_FLAGS.forEach(flag => FLAG_CASEFIX[flag.toLowerCase()] = flag);
 
-const modes_by_key = {"Shared": "Shared", "None": "Solo", "Split": "Shards Race"}
+const modes_by_key = {"Shared": "Shared", "None": "Solo", "SplitShards": "Shards Race"}
 const COOP_MODES = Object.keys(modes_by_key).map((k) => { return {label: modes_by_key[k], value: k} });
 const SHARE_TYPES = ["WorldEvents", "Misc", "Upgrades", "Teleporters", "Skills"]
 const crs = getMapCrs();
@@ -182,7 +182,7 @@ class PlandoBuiler extends React.Component {
 
     this.state = {seed_in: "", reachable: {...DEFAULT_REACHABLE}, new_areas: {...DEFAULT_REACHABLE}, placements: {1: {...DEFAULT_DATA}}, player: 1, saving: false,
                   fill_opts: {HC: 13, EC: 15, AC: 34, KS: 40, MS: 9, EX: 300, ex_pool: 10000, dynamic: false, dumb: false}, viewport: {center: [0, 0], zoom: 5}, searchStr: "", clueOrder: CLUE_ORDERS[0],
-                  flags: ['hide_unreachable', 'hide_softlockable'], seedFlags: [], hidden: hidden, share_types: select_wrap(["keys"]), coop_mode: {label: "Solo", value: "None"},
+                  flags: ['hide_unreachable', 'hide_softlockable'], seedFlags: [], hidden: hidden, share_types: select_wrap(["Skills", "WorldEvents", "Teleporters"]), coop_mode: {label: "Solo", value: "None"},
                   pickups: ["EX", "Ma", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "CS"], display_fill: false, display_import: false, display_logic: false, display_coop: false, display_meta: false,
                 seed_name: seed_name, last_seed_name: seed_name, seed_desc: seed_desc, user: user};
     }
@@ -402,23 +402,26 @@ class PlandoBuiler extends React.Component {
         if(this.state.seed_name) // don't overwrite name on upload
             seed_name = this.state.seed_name
         flags.split(",").forEach((flag) => {
-            if(!seedFlags.includes(flag))
-                seedFlags.push(flag)
-            else if(flag.startsWith("mode="))
+            if(/^Sync\d+\.\d+$/.test(flag)) // tracking header from an imported tracked seed, not a real flag
+                return
+            if(flag.startsWith("mode="))
             {
                 let k=flag.substring(5)
-                coop_mode={label: modes_by_key[k], value: k}
+                coop_mode={label: modes_by_key[k] || k, value: k}
+                display_coop = true
             }
             else if(flag.startsWith("shared="))
             {
                 display_coop = true
                 share_types=select_wrap(flag.substring(7).split("+").filter((id) => SHARE_TYPES.includes(id)))
             }
+            else if(!seedFlags.includes(flag))
+                seedFlags.push(flag)
         });
         this.setState({seedFlags: select_wrap(seedFlags), share_types: share_types, coop_mode: coop_mode, display_coop: display_coop, seed_name: seed_name})
     }
 
-    buildFlagLine = () => {
+    buildFlags = () => {
         let flags = this.state.seedFlags.map(f => f.value)
         if(this.state.coop_mode.value !== "None")
         {
@@ -429,8 +432,10 @@ class PlandoBuiler extends React.Component {
             }
             flags.push("mode="+this.state.coop_mode.value)
         }
-        return flags.join(",") + "|" + this.state.seed_name
+        return flags
     }
+
+    buildFlagLine = () => this.buildFlags().join(",") + "|" + this.state.seed_name
 
 
     doFill  = () => {
@@ -501,7 +506,9 @@ class PlandoBuiler extends React.Component {
         data.desc = this.state.seed_desc
         data.sharedMode = this.state.coop_mode.value
         data.shareTypes = this.state.share_types.map(f => f.value)
-        data.flags = this.state.seedFlags.map(f => f.value);
+        // mode=/shared= flags must be included here: the server persists only data.flags,
+        // and Seed.mode()/Seed.shared() parse them back out of Seed.flags on download
+        data.flags = this.buildFlags();
         data.hidden = this.state.hidden;
         data.placements = [];
         let locs = Object.keys(picks_by_loc);

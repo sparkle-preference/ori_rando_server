@@ -151,8 +151,15 @@ class SeedGenParams(ndb.Model):
             spoilers = [plando.description]
             )
         params.sync = MultiplayerOptions()
-        if plando.mode():
-            params.sync.mode = plando.mode()
+        params.sync.enabled = plando.players > 1
+        mode = plando.mode()
+        if mode is None and plando.players > 1:
+            # Plandos saved by older builder versions never persisted their mode= flag.
+            # Without this fallback, sync.mode defaults to SIMUSOLO and get_seed_data()
+            # coerces every player to 1, serving player 1's seed to the whole lobby.
+            mode = MultiplayerGameType.SHARED
+        if mode:
+            params.sync.mode = mode
         params.sync.shared = plando.shared()
         for flag in plando.flags:
             if flag.capitalize() in presets:
@@ -364,7 +371,7 @@ class SeedGenParams(ndb.Model):
                 log.error(f"seed count mismatch! Should only be 1 seed for this mode and instead found {player}")
                 return False
         elif player != self.players and player != len(self.sync.teams):
-            log.error(f"seed count mismatch!, {players} != {self.players} or {len(self.sync.teams)}")
+            log.error(f"seed count mismatch!, {player} != {self.players} or {len(self.sync.teams)}")
             return False
         self.spoilers = spoilers
         self.placements = list(placemap.values())
