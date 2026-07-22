@@ -222,10 +222,20 @@ main {
 
 .coop-select-wrapper {
   width: 100%;
-  height: 36px;
+  /* min-height, not height: a multi-select with many chips wraps taller than 36px,
+     and a fixed height made it overlap the buttons below */
+  min-height: 36px;
   margin-bottom: 4px;
   display: flex;
   align-content: center;
+}
+
+#entrance-controls {
+  margin-top: 10px;
+}
+
+#entrance-controls .entrance-row {
+  padding: 2px 0;
 }
 
 .coop-select-wrapper .label {

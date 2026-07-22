@@ -72,7 +72,13 @@ const VALID_VARS = ["0XP", "NonProgressMapStones", "NoAltR", "ForceMaps", "Force
                     "Race", "WarpsInsteadOfTPs", "InLogicWarps", "WarpCount", "StartingHealth", "StartingEnergy", "StartingSkills", "NoTPs",
                     "Competitive", "BonusLite", "ClueLockedTPs", "ZoneLockedTPs", "Keysanity", "Enhanced", "Bingo"]
 const VALID_KEYMODES = ["Shards", "Clues", "Limitkeys", "Free"];
-const SEED_FLAGS = VALID_VARS.concat(VALID_KEYMODES);
+// plando flag usage counts from prod Datastore, 2026-07-22 (WorldTour=N counted as WorldTour, Frags/x/y as WarmthFrags).
+// static by design — re-run the count and update if usage shifts a lot
+const FLAG_FREQ = {"ForceTrees": 132, "Clues": 89, "OpenWorld": 42, "0XP": 33, "Shards": 32, "Keysanity": 20, "NoExtraExp": 19,
+                   "WorldTour": 17, "Starved": 15, "ForceMaps": 13, "BonusPickups": 8, "ClosedDungeons": 8, "WarmthFrags": 5,
+                   "Race": 4, "Hard": 3, "Enhanced": 2, "Entrance": 2, "Free": 2, "InLogicWarps": 2, "Limitkeys": 2,
+                   "NoAltR": 2, "OHKO": 2, "StompTriggers": 2};
+const SEED_FLAGS = VALID_VARS.concat(VALID_KEYMODES).sort((a, b) => (FLAG_FREQ[b] || 0) - (FLAG_FREQ[a] || 0));
 const FLAG_CASEFIX = {};
 
 SEED_FLAGS.forEach(flag => FLAG_CASEFIX[flag.toLowerCase()] = flag);
@@ -701,13 +707,14 @@ class PlandoBuiler extends React.Component {
             return
 
           let reachableStuff = {};
-          if(this.state.logicMode === "auto" && this.state.player === 1)
+          if(this.state.logicMode === "auto")
           {
+              let plc = this.state.placements[this.state.player];
               reachableAreas.forEach((area) => {
                   if(picks_by_area.hasOwnProperty(area))
                       picks_by_area[area].forEach((pick) => {
-                      if(this.state.placements[1] && this.state.placements[1].hasOwnProperty(pick.loc)) {
-                          let code = this.state.placements[1][pick.loc].value;
+                      if(plc && plc.hasOwnProperty(pick.loc)) {
+                          let code = plc[pick.loc].value;
                           if(!["SH", "NO", "EX"].includes(code.substr(0,2)))
                               if(reachableStuff.hasOwnProperty(code))
                                 reachableStuff[code] += 1;
@@ -773,16 +780,16 @@ class PlandoBuiler extends React.Component {
             let newPlc = prevState.placements;
             let players = Object.keys(newPlc).length;
             newPlc[players+1] = {...DEFAULT_DATA}
-            return {placements: newPlc, player: players+1}
-        })
+            return {placements: newPlc, player: players+1, reachable: {...DEFAULT_REACHABLE}}
+        }, () => this.updateReachable())
     }
     dupePlayer = () => {
         this.setState(prevState => {
             let newPlc = prevState.placements;
             let players = Object.keys(newPlc).length;
             newPlc[players+1] = {...newPlc[prevState.player]}
-            return {placements: newPlc, player: players+1}
-        })
+            return {placements: newPlc, player: players+1, reachable: {...DEFAULT_REACHABLE}}
+        }, () => this.updateReachable())
     }
     removePlayer = () => {
         if(Object.keys(this.state.placements).length > 1)
@@ -795,8 +802,8 @@ class PlandoBuiler extends React.Component {
                     if(pid > to_delete)
                         newPlc[pid-1] = prevState.placements[pid]
                 });
-                return {placements: newPlc, player: 1}
-            })
+                return {placements: newPlc, player: 1, reachable: {...DEFAULT_REACHABLE}}
+            }, () => this.updateReachable())
     }
     
     resetReachable = () => this.setState({reachable: {...DEFAULT_REACHABLE}})
@@ -948,10 +955,9 @@ class PlandoBuiler extends React.Component {
                               size="xs"
                               onstyle="primary"
                               offstyle="secondary"
-                              active={this.state.logicMode === "auto" && Object.keys(this.state.placements).length === 1}
-                              disabled={Object.keys(this.state.placements).length > 1}
+                              active={this.state.logicMode === "auto"}
                             />
-                            <Collapse id="manual-controls" isOpen={this.state.logicMode === "manual" || this.state.player > 1}>
+                            <Collapse id="manual-controls" isOpen={this.state.logicMode === "manual"}>
                                 <div className="manual-wrapper">
                                     <span className="label">Health Cells:</span>
                                     <NumericInput min={0} value={this.state.manual_reach.HC} onChange={(n) => this.updateManual("HC",n)}></NumericInput>
@@ -998,7 +1004,7 @@ class PlandoBuiler extends React.Component {
                         <div className="basic-coop-options">
                             <Button color="primary" onClick={this.toggleCoop}>Multiplayer Controls</Button>
                             <span className="label">Player: </span>
-                            <Select styles={select_styles}  options={select_wrap(Object.keys(this.state.placements))} onChange={(n) => this.setState({player: n.value})} clearable={false} value={select_wrap(this.state.player)} label={this.state.player}></Select>
+                            <Select styles={select_styles}  options={select_wrap(Object.keys(this.state.placements))} onChange={(n) => this.setState({player: n.value, reachable: {...DEFAULT_REACHABLE}}, () => this.updateReachable())} clearable={false} value={select_wrap(this.state.player)} label={this.state.player}></Select>
                         </div>
                         <Collapse id="coop-wrapper" isOpen={this.state.display_coop}>
                              <div className="coop-select-wrapper">
@@ -1033,7 +1039,7 @@ class PlandoBuiler extends React.Component {
                             </div>
                             <div>
                                 {Object.keys(this.state.entrances).map(loc => (
-                                    <div key={`entrance-${loc}`}>
+                                    <div className="entrance-row" key={`entrance-${loc}`}>
                                         <Button size="sm" color="danger" outline title="Remove this direction" onClick={this.removeEntrance(loc)}>&times;</Button>
                                         <span> {door_name_by_key(loc)} &rarr; {door_name_by_target(this.state.entrances[loc])}</span>
                                     </div>
