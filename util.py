@@ -67,21 +67,16 @@ def is_mw_manifest_loc(coords):
     except (TypeError, ValueError):
         return False
 
-def seed_sync_mismatch(seed_field, game_id, player_id):
-    """Detect a wrong randomizer.dat at connect time. The client's setSeed
-    upload joins seed lines with commas after swapping line 1's commas to
-    pipes, so the first comma-segment is the entire first line; if it carries
-    a Sync id, it must match the URL's game.player. Returns the mismatched
-    sync id, or None when it matches / can't be checked."""
+def seed_sync_id(seed_field):
+    """Extract the Sync id ("<gid>.<pid>") from a setSeed upload, or None.
+    The client joins seed lines with commas after swapping line 1's commas to
+    pipes, so the first comma-segment is the entire first line."""
     if not seed_field:
         return None
     first = seed_field.split(",", 1)[0]
     if not first.startswith("Sync"):
         return None
-    sync_id = first[4:].split("|", 1)[0]
-    if sync_id != "%s.%s" % (game_id, player_id):
-        return sync_id
-    return None
+    return first[4:].split("|", 1)[0]
 
 def json_default(o):
     # google-cloud-ndb wraps structured-property values in _BaseValue in place when

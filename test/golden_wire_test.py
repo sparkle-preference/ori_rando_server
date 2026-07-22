@@ -285,26 +285,24 @@ class TestSlotMarking(NdbTestCase):
         self.assertEqual(p.put_count, 0)
 
 
-class TestSeedSyncMismatch(unittest.TestCase):
-    """The setSeed upload check: line 1's commas become pipes client-side and
-    lines are joined with commas, so segment 0 is the whole first line."""
+class TestSeedSyncId(unittest.TestCase):
+    """The setSeed upload parse: line 1's commas become pipes client-side and
+    lines are joined with commas, so segment 0 is the whole first line. The
+    caller (netcode_connect) warns on game mismatch in every mode, and on
+    player mismatch only in multiworld (teammates sharing one .dat in cloned
+    games is normal and harmless)."""
 
     def _upload(self, first_line, rest=("2|EC|1|Glades", "919772|EX|15|Glades")):
         return ",".join([first_line.replace(",", "|")] + list(rest))
 
-    def test_matching_sync_passes(self):
+    def test_extracts_sync_id(self):
         up = self._upload("Sync133.2,Standard,Clues|somename")
-        self.assertIsNone(util.seed_sync_mismatch(up, 133, 2))
-
-    def test_wrong_game_or_player_caught(self):
-        up = self._upload("Sync133.2,Standard,Clues|somename")
-        self.assertEqual(util.seed_sync_mismatch(up, 134, 2), "133.2")
-        self.assertEqual(util.seed_sync_mismatch(up, 133, 1), "133.2")
+        self.assertEqual(util.seed_sync_id(up), "133.2")
 
     def test_untracked_and_empty_seeds_skip(self):
-        self.assertIsNone(util.seed_sync_mismatch(self._upload("Standard,Clues|x"), 1, 1))
-        self.assertIsNone(util.seed_sync_mismatch("", 1, 1))
-        self.assertIsNone(util.seed_sync_mismatch(None, 1, 1))
+        self.assertIsNone(util.seed_sync_id(self._upload("Standard,Clues|x")))
+        self.assertIsNone(util.seed_sync_id(""))
+        self.assertIsNone(util.seed_sync_id(None))
 
 
 class TestDevCacheParity(unittest.TestCase):

@@ -22,7 +22,7 @@ from enums import MultiplayerGameType, ShareType, Variation
 from models import ndb_wsgi_middleware, Game, Seed, User, BingoGameData, BingoEvent, BingoTeam, CustomLogic, trees_by_coords, LegacyUser, bingo_lock
 from bingo import BingoGenerator
 from cache import Cache
-from util import coord_correction_map, clone_entity, all_locs, picks_by_type_generator, param_val, param_flag, debug, template_root, VER, MIN_VER, BETA_VER, game_list_html, version_check, template_vals, layout_json, bfield_checksum, netperf, NETPERF_TAG, json_default, seed_sync_mismatch, is_mw_manifest_loc, BATCH_GRANTS, HIST_ON_PLAYER, SPLIT_CACHE, BINGO_V2, MULTIWORLD
+from util import coord_correction_map, clone_entity, all_locs, picks_by_type_generator, param_val, param_flag, debug, template_root, VER, MIN_VER, BETA_VER, game_list_html, version_check, template_vals, layout_json, bfield_checksum, netperf, NETPERF_TAG, json_default, seed_sync_id, is_mw_manifest_loc, BATCH_GRANTS, HIST_ON_PLAYER, SPLIT_CACHE, BINGO_V2, MULTIWORLD
 from reachable import Map, PlayerState
 from pickups import Pickup, Skill, AbilityCell, HealthCell, EnergyCell, Multiple
 
@@ -403,10 +403,18 @@ def netcode_connect(game_id, player_id):
             p.signal_send("msg:@dll out of date. (orirando.com/dll)@")
             p.can_nag = False
             p.put()
-        mismatch = seed_sync_mismatch(request.form.get("seed"), game_id, player_id)
-        if mismatch:
-            log.warning("seed sync mismatch: %s.%s uploaded a seed for %s", game_id, player_id, mismatch)
-            p.signal_send("msg:@Warning: your loaded seed belongs to game %s but you are connected as %s.%s. Wrong randomizer.dat?@" % (mismatch, game_id, player_id))
+        uploaded_sync = seed_sync_id(request.form.get("seed"))
+        if uploaded_sync:
+            up_gid, _, up_pid = uploaded_sync.partition(".")
+            if up_gid != str(game_id):
+                # wrong game: stale randomizer.dat, warn in every mode
+                log.warning("seed sync mismatch: %s.%s uploaded a seed for %s", game_id, player_id, uploaded_sync)
+                p.signal_send("msg:@Warning: your loaded seed belongs to game %s but you are connected to game %s. Wrong randomizer.dat?@" % (up_gid, game_id))
+            elif up_pid != str(player_id) and game.mode == MultiplayerGameType.MULTIWORLD:
+                # wrong player only matters in multiworld (wrong world's slot
+                # manifest); teammates sharing one .dat in cloned games is fine
+                log.warning("seed player mismatch: %s.%s uploaded player %s's seed", game_id, player_id, up_pid)
+                p.signal_send("msg:@Warning: you loaded Player %s's seed but connected as Player %s. In multiworld you need your own randomizer.dat!@" % (up_pid, player_id))
         game.sanity_check()  # cheap if game is short!
     else:
         # we no longer support uploading seeds
