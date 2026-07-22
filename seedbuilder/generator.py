@@ -1417,24 +1417,24 @@ class SeedGenerator:
                     if self.var(Variation.KEYSANITY):
                         connection.keys = 0
 
-    def connect_doors(self, door1, door2, requirements=["Free"]):
-        # entrance shuffle is single-world only (multiworld rejects it)
-        connection1 = Connection(door1.name, door2.name, self, 1)
+    def connect_doors(self, door1, door2, requirements=["Free"], p=1):
+        connection1 = Connection(door1.name, door2.name, self, p)
         connection1.add_requirements(requirements, 1)
-        self.get_area(door1.name, 1).add_connection(connection1)
-        connection2 = Connection(door2.name, door1.name, self, 1)
+        self.get_area(door1.name, p).add_connection(connection1)
+        connection2 = Connection(door2.name, door1.name, self, p)
         connection2.add_requirements(requirements, 1)
-        self.get_area(door2.name, 1).add_connection(connection2)
+        self.get_area(door2.name, p).add_connection(connection2)
         dat_string = str(door1.get_key()) + "|EN|" + str(door2.x) + "|" + str(door2.y) + "\n" + str(door2.get_key()) + "|EN|" + str(door1.x) + "|" + str(door1.y) + "\n"
         spoiler_string = str("    {} <-> {}\n".format(door1.name, door2.name))
         return dat_string, spoiler_string
 
-    def randomize_entrances(self):
+    def randomize_entrances(self, p=1):
+        # each world gets its own independent shuffle (decision 2026-07-22)
         doors = doors_inner + doors_outer
 
         # Remove all previous connections
         for door_name, x, y in doors:
-            area = self.get_area(door_name, 1)
+            area = self.get_area(door_name, p)
             connections = area.get_connections()[:]
             for connection in connections:
                 if ("OuterDoor" in connection.target) or ("InnerDoor" in connection.target):
@@ -1453,14 +1453,15 @@ class SeedGenerator:
                         Door("L1InnerDoor", -24, 369), Door("L2InnerDoor", -13, 301), Door("L3InnerDoor", -28, 244), Door("L4InnerDoor", -12, 188),
                         Door("R1InnerDoor", 153, 413), Door("R2InnerDoor", 163, 266), Door("R3InnerDoor", 171, 218), Door("R4InnerDoor", 144, 151)]
 
-        self.entrance_spoiler = "Entrances: {\n"
+        header = "Entrances: {\n" if self.solo() else "Player %s's Entrances: {\n" % p
+        self.entrance_spoiler += header
         doorStr = ""
 
         # R1 cutscene softlocks so leave it vanilla for now
         # Remember to add R1 back to doors_inner and doors_outer if you fix the softlock
         R1Outer = oneWayLobbyDoors.pop(1)
         R1Inner = deadEndDoors.pop(7)
-        dat_s, spoiler_s = self.connect_doors(R1Outer, R1Inner)
+        dat_s, spoiler_s = self.connect_doors(R1Outer, R1Inner, p=p)
         doorStr += dat_s
         self.entrance_spoiler += spoiler_s
 
@@ -1469,7 +1470,7 @@ class SeedGenerator:
         lobbyIdx, lobbyDoor = self.random.choice(list(enumerate(twoWayLobbyDoors)))
         dungeonOuterDoors.pop(outerIdx)
         twoWayLobbyDoors.pop(lobbyIdx)
-        dat_s, spoiler_s = self.connect_doors(outerDoor, lobbyDoor)
+        dat_s, spoiler_s = self.connect_doors(outerDoor, lobbyDoor, p=p)
         doorStr += dat_s
         self.entrance_spoiler += spoiler_s
 
@@ -1477,7 +1478,7 @@ class SeedGenerator:
         nonDeadEndDoors = dungeonOuterDoors + oneWayLobbyDoors + twoWayLobbyDoors
         self.random.shuffle(deadEndDoors)
         for i in range(len(deadEndDoors)):
-            dat_s, spoiler_s = self.connect_doors(nonDeadEndDoors[i], deadEndDoors[i])
+            dat_s, spoiler_s = self.connect_doors(nonDeadEndDoors[i], deadEndDoors[i], p=p)
             doorStr += dat_s
             self.entrance_spoiler += spoiler_s
 
@@ -1485,18 +1486,17 @@ class SeedGenerator:
         return doorStr
 
     # variations/modes multiworld can't handle yet; validated before generating
-    MW_UNSUPPORTED_VARIATIONS = [Variation.ENTRANCE_SHUFFLE, Variation.WORLD_TOUR,
-                                 Variation.WARPS_INSTEAD_OF_TPS, Variation.WARP_COUNT,
+    MW_UNSUPPORTED_VARIATIONS = [Variation.WARPS_INSTEAD_OF_TPS, Variation.WARP_COUNT,
                                  Variation.IN_LOGIC_WARPS]
 
     def mw_unsupported(self, preplaced):
         problems = [v.value for v in self.MW_UNSUPPORTED_VARIATIONS if self.var(v)]
         if self.params.key_mode == KeyMode.LIMITKEYS:
-            problems.append("Limitkeys")  # forced-assignment locs are ambiguous across worlds
+            # coming with the player-aware forcedAssignments rework
+            # (decision 2026-07-22: cross-world keys, stricter exclusion sets)
+            problems.append("Limitkeys")
         if preplaced:
             problems.append("preplacement/plando")
-        if self.params.start not in ("Glades", None, ""):
-            problems.append("spawn=%s" % self.params.start)
         if self.params.item_pool:
             for pool_item in self.params.item_pool:
                 if pool_item.replace("|", "")[0:2] in ["RP", "WP"]:
@@ -1519,9 +1519,6 @@ class SeedGenerator:
             log.error("SplitShards generation was removed (2026-07).")
             return None
 
-        if self.var(Variation.WORLD_TOUR):
-            self.relicZones = self.random.sample(["Glades", "Grove", "Grotto", "Blackroot", "Swamp", "Ginso", "Valley", "Misty", "Forlorn", "Sorrow", "Horu"], self.params.relic_count)
-
         # seed_count: how many distinct worlds we generate. clone_count: how
         # many copies of the (single) world cloned coop hands out.
         self.seed_count = self.params.players if self.is_multi else 1
@@ -1533,6 +1530,12 @@ class SeedGenerator:
             if problems:
                 log.error("Can't generate a multiworld seed with: %s", ", ".join(problems))
                 return None
+
+        if self.var(Variation.WORLD_TOUR):
+            # each world samples its own relic zones (decision 2026-07-22);
+            # relics are world-local -- they never cross as MW items
+            self.relicZones = {p: self.random.sample(["Glades", "Grove", "Grotto", "Blackroot", "Swamp", "Ginso", "Valley", "Misty", "Forlorn", "Sorrow", "Horu"], self.params.relic_count)
+                               for p in self.multi_ps()}
         return self.placeItemsMulti(retries)
 
     def placeItemsMulti(self, retries):
@@ -1647,32 +1650,36 @@ class SeedGenerator:
         self.spoilerGroup = defaultdict(list)
         self.relicSpoiler = []
 
-        if self.var(Variation.ENTRANCE_SHUFFLE):  # single-world only
-            self.seeds_text[1] += self.randomize_entrances()
+        if self.var(Variation.ENTRANCE_SHUFFLE):
+            for p in self.multi_ps():
+                self.seeds_text[p] += self.randomize_entrances(p)
 
         if self.var(Variation.WORLD_TOUR):
-            locations_by_zone = OrderedDict({zone: [] for zone in self.relicZones})
-            for area in self.areas.values():
-                for location in area.locations:
-                    if location.zone in locations_by_zone:
-                        locations_by_zone[location.zone].append(location)
-
-            for locations in locations_by_zone.values():
-                self.random.shuffle(locations)
-
-                relic_loc = None
-
-                while not relic_loc and len(locations):
-                    next_loc = locations.pop()
-                    # Can't put a relic on a map turn-in
-                    if next_loc.orig == "MapStone":
+            for p in self.multi_ps():
+                locations_by_zone = OrderedDict({zone: [] for zone in self.relicZones[p]})
+                for area in self.areas.values():
+                    if area.player != p:
                         continue
-                    # Can't put a relic on a reserved preplacement location
-                    # TODO: re-impl relics via preplacement
-                    if next_loc.get_key() in self.forcedAssignments:
-                        continue
-                    relic_loc = next_loc
-                self.relic_assign(relic_loc)
+                    for location in area.locations:
+                        if location.zone in locations_by_zone:
+                            locations_by_zone[location.zone].append(location)
+
+                for locations in locations_by_zone.values():
+                    self.random.shuffle(locations)
+
+                    relic_loc = None
+
+                    while not relic_loc and len(locations):
+                        next_loc = locations.pop()
+                        # Can't put a relic on a map turn-in
+                        if next_loc.orig == "MapStone":
+                            continue
+                        # Can't put a relic on a reserved preplacement location
+                        # TODO: re-impl relics via preplacement
+                        if next_loc.get_key() in self.forcedAssignments:
+                            continue
+                        relic_loc = next_loc
+                    self.relic_assign(relic_loc)
             # Capture relic spoilers before the spoiler group is overwritten
             self.relicSpoiler = [(item, instance) for item in self.spoilerGroup.keys() if item[:2] == "WT" for instance in self.spoilerGroup[item]]
 

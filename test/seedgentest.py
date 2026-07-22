@@ -264,7 +264,7 @@ class MultiworldGenTests(unittest.TestCase):
                          "multiworld seed output changed for an existing seed string -- see comment above")
 
     def test_rejects_unsupported_combos(self):
-        for extra in (["--entrance"], ["--keymode", "LimitKeys"], ["--world-tour", "8"]):
+        for extra in (["--keymode", "LimitKeys"], ["--warp-count", "4"]):
             outdir = tempfile.mkdtemp(prefix="seedgentest_mwrej_")
             try:
                 old_argv = sys.argv
@@ -277,6 +277,94 @@ class MultiworldGenTests(unittest.TestCase):
                                  "multiworld should reject %s" % extra)
             finally:
                 shutil.rmtree(outdir, ignore_errors=True)
+
+
+def check_mw_invariants(tc, seeds):
+    """Shared multiworld sanity: parseable lines, MW pickups and manifests
+    correspond 1:1, nobody holds their own MW pickup."""
+    pointed = Counter()
+    for p, lines in seeds.items():
+        bad = [l for l in lines[1:] if l and not PICKUP_LINE.match(l)]
+        tc.assertEqual(bad, [], "malformed lines for player %s: %s" % (p, bad[:5]))
+        placements, _ = parse_seed(lines)
+        for loc, (code, id, zone) in placements.items():
+            if code != "MW":
+                continue
+            owner, slot, name = id.split(",", 2)
+            tc.assertNotEqual(int(owner), p)
+            pointed[(int(owner), int(slot))] += 1
+    manifest_keys = set()
+    for p, lines in seeds.items():
+        _, manifest = parse_seed(lines)
+        for slot, (finder, icode, iid, zone) in manifest.items():
+            manifest_keys.add((p, slot))
+            tc.assertNotEqual(finder, p)
+    tc.assertEqual(set(pointed.keys()), manifest_keys)
+    tc.assertEqual({k: v for k, v in pointed.items() if v != 1}, {})
+
+
+class MultiworldOptionsTests(unittest.TestCase):
+    """The option combos enabled for multiworld (2026-07-22 decisions):
+    world tour (independent zones, world-local relics), entrance shuffle
+    (independent per world), and shared non-Glades spawns."""
+
+    PLAYERS = 2
+
+    def _gen(self, extra):
+        outdir = tempfile.mkdtemp(prefix="seedgentest_mwopt_")
+        self.addCleanup(shutil.rmtree, outdir, ignore_errors=True)
+        old_argv = sys.argv
+        sys.argv = ["cli_gen", "--output-dir", outdir, "--preset", "standard",
+                    "--open-world", "--force-trees", "--balanced", "--seed", "mwtest",
+                    "--players", str(self.PLAYERS), "--share-mode", "multiworld"] + extra
+        try:
+            CLISeedParams().from_cli()
+        finally:
+            sys.argv = old_argv
+        seeds = {}
+        for p in range(1, self.PLAYERS + 1):
+            path = os.path.join(outdir, "randomizer_%s.dat" % p)
+            self.assertTrue(os.path.exists(path), "no seed for player %s with %s" % (p, extra))
+            with open(path) as f:
+                seeds[p] = f.read().splitlines()
+        return seeds
+
+    def test_world_tour(self):
+        seeds = self._gen(["--world-tour", "6"])
+        check_mw_invariants(self, seeds)
+        for p, lines in seeds.items():
+            placements, manifest = parse_seed(lines)
+            relics = [1 for (code, id, zone) in placements.values() if code == "WT"]
+            self.assertEqual(len(relics), 6, "player %s should have 6 relics in their world" % p)
+            # world-local: relics never cross as MW items
+            crossed = [1 for (f, code, id, zone) in manifest.values() if code == "WT"]
+            self.assertEqual(crossed, [], "relics must not cross worlds")
+
+    def test_entrance_shuffle(self):
+        seeds = self._gen(["--entrance"])
+        check_mw_invariants(self, seeds)
+        en_maps = {}
+        for p, lines in seeds.items():
+            # EN lines parse as loc|EN|x|y
+            en_maps[p] = sorted(l for l in lines if l.split("|")[1:2] == ["EN"])
+            # R1 pair + dungeon-outer/lobby pair + 10 dead-end pairs = 12 pairs
+            self.assertEqual(len(en_maps[p]), 24, "12 door pairs = 24 EN lines")
+        self.assertNotEqual(en_maps[1], en_maps[2],
+                            "independent shuffles should differ (if this seed string "
+                            "coincidentally matches, change the seed, don't delete the test)")
+
+    def test_shared_nonglades_spawn(self):
+        seeds = self._gen(["--start", "Grotto", "--starting-health", "3",
+                           "--starting-energy", "1", "--starting-skills", "1"])
+        check_mw_invariants(self, seeds)
+        spawn_lines = set()
+        for p, lines in seeds.items():
+            placements, _ = parse_seed(lines)
+            self.assertIn(2, placements, "player %s has no spawn line" % p)
+            code, id, zone = placements[2]
+            self.assertIn("TP/Grotto", id)
+            spawn_lines.add((code, id, zone))
+        self.assertEqual(len(spawn_lines), 1, "every player gets the same spawn package")
 
 
 if __name__ == "__main__":
