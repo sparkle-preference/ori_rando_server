@@ -94,7 +94,7 @@ const DOORS = [
     ["GinsoOuterDoor", 527, -43], ["ForlornOuterDoor", -668, -246], ["HoruOuterDoor", -78, 2],
     ["L1OuterDoor", 20, 371], ["L2OuterDoor", 13, 293], ["L3OuterDoor", 18, 248], ["L4OuterDoor", 14, 191],
     ["R2OuterDoor", 128, 288], ["R3OuterDoor", 126, 245], ["R4OuterDoor", 126, 196], ["HoruEscapeOuterDoor", 18, 100],
-    ["R1OuterDoor", 125, 382],
+    ["R1OuterDoor", 125, 382], ["R1InnerDoor", 153, 413],
 ]
 // must match Door.get_key() in seedbuilder/generator.py
 const door_key = (x, y) => Math.floor(x / 4) * 4 * 10000 + Math.floor(y / 4) * 4
@@ -109,6 +109,11 @@ DOORS.forEach(([name, x, y]) => {
 })
 const door_name_by_key = (k) => doors_by_key[k] ? doors_by_key[k].name : `door@${k}`
 const door_name_by_target = (t) => doors_by_coords[t] ? doors_by_coords[t].name : `(${String(t).replace("|", ", ")})`
+// R1's exit cutscene softlocks unless it drops you at R1 Inner, so that connection is mandatory
+const R1_OUTER_KEY = doors_by_name["R1OuterDoor"].key
+const R1_INNER_TARGET = "153|413"
+const R1_RULE = "R1 Outer must lead to R1 Inner: the exit cutscene softlocks anywhere else"
+const COORD_RE = /^\s*-?\d+\s*,\s*-?\d+\s*$/
 const crs = getMapCrs();
 const DANGEROUS = [-12320248]
 const paths = Object.keys(presets);
@@ -413,6 +418,7 @@ class PlandoBuiler extends React.Component {
                 this.setState({stuff: stuff});
         }
         this.parseFlagLine(lines[0])
+        this.enforceR1(newEntrances)
         this.setState(prevState => {
                 let retVal = {}
                 retVal.placements = prevState.placements;
@@ -457,6 +463,7 @@ class PlandoBuiler extends React.Component {
             })
         })
         this.parseFlagLine(seedData['flagline'])
+        this.enforceR1(newEntrances)
         let retVal = {}
         retVal.placements = placements;
         retVal.entrances = newEntrances;
@@ -758,12 +765,37 @@ class PlandoBuiler extends React.Component {
     toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
     toggleCoop = () => {this.setState({display_coop: !this.state.display_coop})};
     toggleEntrances = () => {this.setState({display_entrances: !this.state.display_entrances})};
+    // mutates the passed entrances dict: R1 Outer's target is corrected if a
+    // hand-edited seed pointed it anywhere but R1 Inner (cutscene softlock)
+    enforceR1 = (entrances) => {
+        if(entrances.hasOwnProperty(R1_OUTER_KEY) && entrances[R1_OUTER_KEY] !== R1_INNER_TARGET) {
+            entrances[R1_OUTER_KEY] = R1_INNER_TARGET
+            NotificationManager.warning(R1_RULE + " (corrected)", "Entrances", 5000)
+        }
+    };
     addEntrance = () => this.setState(prevState => {
         let from = doors_by_name[prevState.entrance_from.value]
         let to = doors_by_name[prevState.entrance_to.value]
-        if(!from || !to || from.name === to.name)
+        // typed "x,y" target: warp anywhere, one-way (there's no door there to come back from)
+        let coordTarget = !to && COORD_RE.test(prevState.entrance_to.value || "")
+        if(!from || (!to && !coordTarget) || (to && from.name === to.name))
             return {}
+        if(from.name === "R1OuterDoor" && (!to || to.name !== "R1InnerDoor")) {
+            NotificationManager.warning(R1_RULE, "Entrances", 5000)
+            return {}
+        }
         let entrances = {...prevState.entrances}
+        if(coordTarget) {
+            let [x, y] = prevState.entrance_to.value.split(",").map(s => parseInt(s.trim(), 10))
+            entrances[from.key] = `${x}|${y}`
+            return {entrances: entrances}
+        }
+        if(to.name === "R1OuterDoor" && from.name !== "R1InnerDoor") {
+            // can't create the return direction without breaking the R1 rule; go one-way
+            NotificationManager.info("Added one-way only: R1 Outer's own exit must stay R1 Inner", "Entrances", 5000)
+            entrances[from.key] = `${to.x}|${to.y}`
+            return {entrances: entrances}
+        }
         // two-way by default; remove one direction afterwards for a one-way connection
         entrances[from.key] = `${to.x}|${to.y}`
         entrances[to.key] = `${from.x}|${from.y}`
@@ -1031,7 +1063,9 @@ class PlandoBuiler extends React.Component {
                             </div>
                             <div className="coop-select-wrapper">
                                 <span className="label">To: </span>
-                                <Select styles={select_styles} options={select_wrap(DOORS.map(d => d[0]))} onChange={(n) => this.setState({entrance_to: n})} clearable={false} value={this.state.entrance_to}></Select>
+                                <Creatable styles={select_styles} options={select_wrap(DOORS.map(d => d[0]))} onChange={(n) => this.setState({entrance_to: n})}
+                                    isValidNewOption={(inp) => COORD_RE.test(inp)} formatCreateLabel={(inp) => `Warp target: ${inp} (one-way)`}
+                                    clearable={false} value={this.state.entrance_to}></Creatable>
                             </div>
                             <div>
                                 <Button color="primary" onClick={this.addEntrance}>Connect (both ways)</Button>
