@@ -238,7 +238,7 @@ class PlandoBuiler extends React.Component {
                   fill_opts: {HC: 13, EC: 15, AC: 34, KS: 40, MS: 9, EX: 300, ex_pool: 10000, dynamic: false, dumb: false}, viewport: {center: [0, 0], zoom: 5}, searchStr: "", clueOrder: CLUE_ORDERS[0],
                   flags: ['hide_unreachable', 'hide_softlockable'], seedFlags: [], hidden: hidden, share_types: select_wrap(["Skills", "WorldEvents", "Teleporters"]), coop_mode: {label: "Solo", value: "None"},
                   pickups: ["EX", "Ma", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "CS"], display_fill: false, display_import: false, display_logic: false, display_coop: false, display_meta: false,
-                  entrances: {}, display_entrances: false, entrance_from: {value: "", label: ""}, entrance_to: {value: "", label: ""},
+                  entrances: {1: {}}, display_entrances: false, entrance_from: {value: "", label: ""}, entrance_to: {value: "", label: ""},
                 seed_name: seed_name, last_seed_name: seed_name, seed_desc: seed_desc, user: user};
     }
 
@@ -423,8 +423,11 @@ class PlandoBuiler extends React.Component {
                 let retVal = {}
                 retVal.placements = prevState.placements;
                 retVal.placements[prevState.player] = newplc
-                if(Object.keys(newEntrances).length > 0)
-                    retVal.entrances = newEntrances
+                if(Object.keys(newEntrances).length > 0) {
+                    // imported EN lines belong to the player being edited, like placements
+                    retVal.entrances = {...prevState.entrances}
+                    retVal.entrances[prevState.player] = newEntrances
+                }
                 if(newClueOrder.length === 3)
                     retVal.clueOrder = {value: newClueOrder, label: mkClueOrderLabel(newClueOrder)}
                 return retVal
@@ -444,7 +447,10 @@ class PlandoBuiler extends React.Component {
             placement['stuff'].forEach(stuff => {
                 let code = stuff['code']
                 if(code === "EN") {
-                    newEntrances[loc] = stuff['id']
+                    let p = stuff['player']
+                    if(!newEntrances.hasOwnProperty(p))
+                        newEntrances[p] = {}
+                    newEntrances[p][loc] = stuff['id']
                     return
                 }
                 let id = str_ids.includes(code) ? stuff['id'] : parseInt(stuff['id'], 10);
@@ -463,7 +469,7 @@ class PlandoBuiler extends React.Component {
             })
         })
         this.parseFlagLine(seedData['flagline'])
-        this.enforceR1(newEntrances)
+        Object.values(newEntrances).forEach(set => this.enforceR1(set))
         let retVal = {}
         retVal.placements = placements;
         retVal.entrances = newEntrances;
@@ -575,7 +581,8 @@ class PlandoBuiler extends React.Component {
                 outLines.push(lineText)
         })
         this.state.clueOrder.value.forEach(ev => evLines.hasOwnProperty(ev) ? outLines.push(evLines[ev]) : null)
-        Object.keys(this.state.entrances).forEach(loc => outLines.push(loc + "|EN|" + this.state.entrances[loc]))
+        let ent = this.curEntrances()
+        Object.keys(ent).forEach(loc => outLines.push(loc + "|EN|" + ent[loc]))
         return outLines;
     }
 
@@ -617,11 +624,18 @@ class PlandoBuiler extends React.Component {
             }
         })
         this.state.clueOrder.value.forEach(ev => evStuff.hasOwnProperty(ev) && data.placements.push(evStuff[ev]))
-        // entrance shuffle placements: one per door, replicated for every player so
-        // each player's downloaded seed carries the full EN| set
-        Object.keys(this.state.entrances).forEach(loc => {
-            data.placements.push({loc: String(loc), zone: "", stuff: players.map(player => ({player: player, code: "EN", id: this.state.entrances[loc]}))})
+        // entrance shuffle placements, per player: one placement per door, holding each
+        // player's own target for that door (players without a mapping get no entry)
+        let enStuff = {}
+        players.forEach(player => {
+            let ent = this.state.entrances[player] || {}
+            Object.keys(ent).forEach(loc => {
+                if(!enStuff.hasOwnProperty(loc))
+                    enStuff[loc] = []
+                enStuff[loc].push({player: player, code: "EN", id: ent[loc]})
+            })
         })
+        Object.keys(enStuff).forEach(loc => data.placements.push({loc: String(loc), zone: "", stuff: enStuff[loc]}))
 
         return data;
     }
@@ -765,6 +779,9 @@ class PlandoBuiler extends React.Component {
     toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
     toggleCoop = () => {this.setState({display_coop: !this.state.display_coop})};
     toggleEntrances = () => {this.setState({display_entrances: !this.state.display_entrances})};
+    // entrances are per-player: {player: {doorKey: "x|y"}}. The panel edits the
+    // player currently selected in Multiplayer Controls.
+    curEntrances = () => this.state.entrances[this.state.player] || {};
     // mutates the passed entrances dict: R1 Outer's target is corrected if a
     // hand-edited seed pointed it anywhere but R1 Inner (cutscene softlock)
     enforceR1 = (entrances) => {
@@ -785,25 +802,29 @@ class PlandoBuiler extends React.Component {
             return {}
         }
         let entrances = {...prevState.entrances}
+        let mine = {...(entrances[prevState.player] || {})}
+        entrances[prevState.player] = mine
         if(coordTarget) {
             let [x, y] = prevState.entrance_to.value.split(",").map(s => parseInt(s.trim(), 10))
-            entrances[from.key] = `${x}|${y}`
+            mine[from.key] = `${x}|${y}`
             return {entrances: entrances}
         }
         if(to.name === "R1OuterDoor" && from.name !== "R1InnerDoor") {
             // can't create the return direction without breaking the R1 rule; go one-way
             NotificationManager.info("Added one-way only: R1 Outer's own exit must stay R1 Inner", "Entrances", 5000)
-            entrances[from.key] = `${to.x}|${to.y}`
+            mine[from.key] = `${to.x}|${to.y}`
             return {entrances: entrances}
         }
         // two-way by default; remove one direction afterwards for a one-way connection
-        entrances[from.key] = `${to.x}|${to.y}`
-        entrances[to.key] = `${from.x}|${from.y}`
+        mine[from.key] = `${to.x}|${to.y}`
+        mine[to.key] = `${from.x}|${from.y}`
         return {entrances: entrances}
     });
     removeEntrance = (loc) => () => this.setState(prevState => {
         let entrances = {...prevState.entrances}
-        delete entrances[loc]
+        let mine = {...(entrances[prevState.player] || {})}
+        delete mine[loc]
+        entrances[prevState.player] = mine
         return {entrances: entrances}
     });
     toggleMeta = () => {this.setState({display_meta: !this.state.display_meta})};
@@ -812,7 +833,9 @@ class PlandoBuiler extends React.Component {
             let newPlc = prevState.placements;
             let players = Object.keys(newPlc).length;
             newPlc[players+1] = {...DEFAULT_DATA}
-            return {placements: newPlc, player: players+1, reachable: {...DEFAULT_REACHABLE}}
+            let newEnt = {...prevState.entrances}
+            newEnt[players+1] = {}
+            return {placements: newPlc, player: players+1, reachable: {...DEFAULT_REACHABLE}, entrances: newEnt}
         }, () => this.updateReachable())
     }
     dupePlayer = () => {
@@ -820,21 +843,28 @@ class PlandoBuiler extends React.Component {
             let newPlc = prevState.placements;
             let players = Object.keys(newPlc).length;
             newPlc[players+1] = {...newPlc[prevState.player]}
-            return {placements: newPlc, player: players+1, reachable: {...DEFAULT_REACHABLE}}
+            let newEnt = {...prevState.entrances}
+            newEnt[players+1] = {...(prevState.entrances[prevState.player] || {})}
+            return {placements: newPlc, player: players+1, reachable: {...DEFAULT_REACHABLE}, entrances: newEnt}
         }, () => this.updateReachable())
     }
     removePlayer = () => {
         if(Object.keys(this.state.placements).length > 1)
             this.setState(prevState => {
                 let newPlc = {};
+                let newEnt = {};
                 let to_delete = prevState.player;
                 Object.keys(prevState.placements).forEach((pid) => {
-                    if(pid < to_delete)
+                    if(pid < to_delete) {
                         newPlc[pid] = prevState.placements[pid]
-                    if(pid > to_delete)
+                        newEnt[pid] = prevState.entrances[pid] || {}
+                    }
+                    if(pid > to_delete) {
                         newPlc[pid-1] = prevState.placements[pid]
+                        newEnt[pid-1] = prevState.entrances[pid] || {}
+                    }
                 });
-                return {placements: newPlc, player: 1, reachable: {...DEFAULT_REACHABLE}}
+                return {placements: newPlc, player: 1, reachable: {...DEFAULT_REACHABLE}, entrances: newEnt}
             }, () => this.updateReachable())
     }
     
@@ -1055,7 +1085,7 @@ class PlandoBuiler extends React.Component {
                         </Collapse>
                     </div>
                     <div id="entrance-controls">
-                        <Button color="primary" onClick={this.toggleEntrances}>Entrances ({Object.keys(this.state.entrances).length})</Button>
+                        <Button color="primary" onClick={this.toggleEntrances}>Entrances ({Object.keys(this.state.placements).length > 1 ? `P${this.state.player}: ` : ""}{Object.keys(this.curEntrances()).length})</Button>
                         <Collapse id="entrance-wrapper" isOpen={this.state.display_entrances}>
                             <div className="coop-select-wrapper">
                                 <span className="label">From: </span>
@@ -1069,13 +1099,13 @@ class PlandoBuiler extends React.Component {
                             </div>
                             <div>
                                 <Button color="primary" onClick={this.addEntrance}>Connect (both ways)</Button>
-                                <Button color="secondary" onClick={() => this.setState({entrances: {}})} active={Object.keys(this.state.entrances).length > 0}>Clear All</Button>
+                                <Button color="secondary" title="Clears this player's entrances" onClick={() => this.setState(prev => ({entrances: {...prev.entrances, [prev.player]: {}}}))} active={Object.keys(this.curEntrances()).length > 0}>Clear All</Button>
                             </div>
                             <div>
-                                {Object.keys(this.state.entrances).map(loc => (
+                                {Object.keys(this.curEntrances()).map(loc => (
                                     <div className="entrance-row" key={`entrance-${loc}`}>
                                         <Button size="sm" color="danger" outline title="Remove this direction" onClick={this.removeEntrance(loc)}>&times;</Button>
-                                        <span> {door_name_by_key(loc)} &rarr; {door_name_by_target(this.state.entrances[loc])}</span>
+                                        <span> {door_name_by_key(loc)} &rarr; {door_name_by_target(this.curEntrances()[loc])}</span>
                                     </div>
                                 ))}
                             </div>
