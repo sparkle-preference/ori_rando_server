@@ -264,7 +264,7 @@ class MultiworldGenTests(unittest.TestCase):
                          "multiworld seed output changed for an existing seed string -- see comment above")
 
     def test_rejects_unsupported_combos(self):
-        for extra in (["--keymode", "LimitKeys"], ["--warp-count", "4"]):
+        for extra in (["--warps-instead-of-tps", "3"], ["--warp-count", "4"]):
             outdir = tempfile.mkdtemp(prefix="seedgentest_mwrej_")
             try:
                 old_argv = sys.argv
@@ -357,14 +357,51 @@ class MultiworldOptionsTests(unittest.TestCase):
         seeds = self._gen(["--start", "Grotto", "--starting-health", "3",
                            "--starting-energy", "1", "--starting-skills", "1"])
         check_mw_invariants(self, seeds)
-        spawn_lines = set()
         for p, lines in seeds.items():
             placements, _ = parse_seed(lines)
             self.assertIn(2, placements, "player %s has no spawn line" % p)
             code, id, zone = placements[2]
-            self.assertIn("TP/Grotto", id)
-            spawn_lines.add((code, id, zone))
-        self.assertEqual(len(spawn_lines), 1, "every player gets the same spawn package")
+            self.assertIn("TP/Grotto", id, "named starts are shared by every world")
+
+    def test_random_spawns_roll_per_world(self):
+        seeds = self._gen(["--start", "Random"])
+        check_mw_invariants(self, seeds)
+        spawn_ids = {}
+        for p, lines in seeds.items():
+            placements, _ = parse_seed(lines)
+            self.assertIn(2, placements, "player %s has no spawn line" % p)
+            spawn_ids[p] = placements[2][1]
+        # independent rolls: with this seed string the worlds land in
+        # different spots (deterministic; if a future canary bump makes them
+        # coincide, change the seed string here rather than weakening this)
+        self.assertGreater(len(set(spawn_ids.values())), 1,
+                           "random spawns should differ per world: %s" % spawn_ids)
+
+    def test_limitkeys_cross_world(self):
+        seeds = self._gen(["--keymode", "LimitKeys"])
+        check_mw_invariants(self, seeds)
+        limit_pool = {-3160308, -560160, 2919744, 719620, 7839588, 5320328, 8599904,
+                      -4600020, -6959592, -11880100, 5480952, 4999752, -7320236,
+                      -7200024, -5599400}
+        dungeon_locked = {5480952, 5320328, -7320236}
+        key_events = {"0": "GinsoKey", "2": "ForlornKey", "4": "HoruKey"}
+        received = {p: Counter() for p in seeds}
+        for p, lines in seeds.items():
+            placements, manifest = parse_seed(lines)
+            for loc, (code, id, zone) in placements.items():
+                is_key = (code == "EV" and id in key_events) or \
+                         (code == "MW" and any(n in id for n in ["Water Vein", "Gumon Seal", "Sunstone"]))
+                if is_key:
+                    self.assertIn(loc, limit_pool, "dungeon key off the limitkeys locs (player %s loc %s)" % (p, loc))
+                    self.assertNotIn(loc, dungeon_locked, "dungeon key at a dungeon-locked loc: deadlock risk")
+                if code == "EV" and id in key_events:
+                    received[p][id] += 1
+            for slot, (finder, icode, iid, zone) in manifest.items():
+                if icode == "EV" and iid in key_events:
+                    received[p][iid] += 1
+        for p, counts in received.items():
+            self.assertEqual(counts, Counter({"0": 1, "2": 1, "4": 1}),
+                             "player %s must receive exactly one of each dungeon key: %s" % (p, counts))
 
 
 if __name__ == "__main__":

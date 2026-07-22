@@ -579,7 +579,11 @@ class SeedGenerator:
         advancement), then sets initial values according to params."""
         self.init_fields()
         self.expRemaining = self.params.exp_pool
-        self.forcedAssignments = self.preplaced.copy()
+        # forcedAssignments is keyed (player, loc): the same coordinate exists
+        # in every world. Plando preplacement is world 1 (solo-only for now).
+        # Values may carry an owner tag ("GinsoKey|3") for cross-world forced
+        # items; untagged values belong to the world they're placed in.
+        self.forcedAssignments = {(1, loc): v for loc, v in self.preplaced.items()}
         self.forceAssignedLocs = set()
         self.itemPool = OrderedDict([(tag(k, p), v) for p in self.multi_ps() for k, v in [
             ("EX1", 1), ("KS", 40), ("MS", 11), ("WallJump", 1), ("ChargeFlame", 1),
@@ -664,69 +668,102 @@ class SeedGenerator:
         logic_path_tags = get_path_tags_from_pathsets(logic_paths)
         difficulty = self.get_difficulty(logic_path_tags)
 
-        if self.playerID == 1:
-            self.start = "Glades"
-            # FIXME On repeats after failed generation this will tend bias towards places that generate easier.
-            start_weights = OrderedDict([
-                ("Random", 0),
-                ("Glades", 1.0),
-                ("Grove", 2.0),
-                ("Swamp", 2.0),
-                ("Grotto", 2.0),
-                ("Forlorn", 1.5),
-                ("Valley", 2),
-                ("Horu", 0.1),
-                ("Ginso", 0.1),
-                ("Sorrow", 0.25),
-                ("Blackroot", 0.5)
-            ])
-            if len(self.params.spawn_weights) > 9:
-                for i,k in enumerate(list(start_weights.keys())[1:]):
-                    start_weights[k] = self.params.spawn_weights[i]
-#                   print(k, start_weights[k])
+        # FIXME On repeats after failed generation this will tend bias towards places that generate easier.
+        start_weights = OrderedDict([
+            ("Random", 0),
+            ("Glades", 1.0),
+            ("Grove", 2.0),
+            ("Swamp", 2.0),
+            ("Grotto", 2.0),
+            ("Forlorn", 1.5),
+            ("Valley", 2),
+            ("Horu", 0.1),
+            ("Ginso", 0.1),
+            ("Sorrow", 0.25),
+            ("Blackroot", 0.5)
+        ])
+        if len(self.params.spawn_weights) > 9:
+            for i,k in enumerate(list(start_weights.keys())[1:]):
+                start_weights[k] = self.params.spawn_weights[i]
+#               print(k, start_weights[k])
+        spawn_spots = {
+            "Grove": (-159, -114),
+            "Swamp": (491, -73),
+            "Grotto": (519, -174),
+            "Forlorn": (-914, -298),
+            "Valley": (-430, 0),
+            "Horu": (88, 142),
+            "Ginso": (570, 539),
+            "Sorrow": (-594, 496),
+            "Blackroot": (381, -297),
+        }
+        self.spawn_logic_areas = {
+            "Glades": "SunkenGladesRunaway",
+            "Grove": "SpiritTreeRefined",
+            "Swamp": "SwampTeleporter",
+            "Grotto": "MoonGrotto",
+            "Forlorn": "ForlornTeleporter",
+            "Valley": "ValleyTeleporter",
+            "Horu": "HoruTeleporter",
+            "Ginso": "GinsoTeleporter",
+            "Sorrow": "SorrowTeleporter",
+            "Blackroot": "BlackrootGrottoConnection",
+        }
+
+        # start locations: a named start is shared by every world; "Random"
+        # rolls independently per world (multiworlds aren't races -- decision
+        # 2026-07-22). self.starts is authoritative; self.start keeps the solo
+        # semantics ("Random" resolves to the chosen spot) for params.spawn.
+        if self.params.start in ["Horu", "Ginso"] and self.var(Variation.CLOSED_DUNGEONS):
+            log.error("can't start in dungeons with closed dungeons.")
+            exit(1)
+        if self.params.start == "Random":
+            if not self.var(Variation.OPEN_WORLD):
+                start_weights["Valley"] /= 10.0
+            if self.var(Variation.CLOSED_DUNGEONS):
+                start_weights["Horu"] = 0
+                start_weights["Ginso"] = 0
+        self.starts = {}
+        for p in self.multi_ps():
             if not self.params.start or self.params.start not in start_weights:
-                log.warning("Unknown start location. Switching to Glades")
-                self.start = "Glades"
-            elif self.params.start in ["Horu", "Ginso"] and self.var(Variation.CLOSED_DUNGEONS):
-                log.error("can't start in dungeons with closed dungeons.")
-                exit(1)
+                if p == 1:
+                    log.warning("Unknown start location. Switching to Glades")
+                self.starts[p] = "Glades"
             elif self.params.start == "Random":
-                if not self.var(Variation.OPEN_WORLD):
-                    start_weights["Valley"] /= 10.0
-                if self.var(Variation.CLOSED_DUNGEONS):
-                    start_weights["Horu"] = 0
-                    start_weights["Ginso"] = 0
-                self.start = self.choice(start_weights.keys(), start_weights.values())
+                self.starts[p] = self.choice(start_weights.keys(), start_weights.values())
             else:
-                self.start = self.params.start
-        
+                self.starts[p] = self.params.start
+        self.start = self.starts[1] if (self.solo() or self.params.start != "Random") else "Random"
 
-            self.starting_skills = []
+        possible_skills_base = ["WallJump", "ChargeFlame", "Dash", "Stomp", "DoubleJump", "Glide", "Bash", "Climb", "Grenade", "ChargeJump", "Water"]#, "Wind", "Warmth"]
+        try_force = {
+            "Glades": ["WallJump", "Bash", "Climb", "ChargeJump", "Water"],
+            "Grove": ["ChargeFlame", "Stomp", "Grenade", "ChargeJump"],
+            "Swamp": ["WallJump", "ChargeFlame", "Dash", "Bash", "Climb", "Grenade", "ChargeJump", "Water"],
+            "Grotto": ["WallJump", "ChargeFlame", "Dash", "DoubleJump", "Glide", "Climb", "Grenade", "ChargeJump", "Water"],
+            "Forlorn": ["ChargeFlame", "Bash", "Grenade", "ChargeJump"],
+            "Valley": ["WallJump", "ChargeFlame", "DoubleJump", "Glide", "Bash", "Climb", "Grenade", "ChargeJump"],
+            "Horu": ["WallJump", "Climb", "Bash"],
+            "Ginso": ["Stomp", "DoubleJump", "Bash", "ChargeJump"],
+            "Sorrow": ["ChargeJump", "Bash", "Glide", "Climb", "Stomp"],
+            "Blackroot": ["WallJump", "ChargeFlame", "Dash", "Stomp", "DoubleJump", "Glide", "Bash", "Climb", "Grenade", "ChargeJump", "Water"],
+        }
 
-
-            possible_skills = ["WallJump", "ChargeFlame", "Dash", "Stomp", "DoubleJump", "Glide", "Bash", "Climb", "Grenade", "ChargeJump", "Water"]#, "Wind", "Warmth"]
-            # possible_skills_forced = ["WallJump", "ChargeFlame", "Dash", "Stomp", "DoubleJump", "Glide", "Bash", "Climb", "Grenade", "ChargeJump", "Water", "Wind", "Warmth"]
-            try_force = {
-                "Glades": ["WallJump", "Bash", "Climb", "ChargeJump", "Water"],
-                "Grove": ["ChargeFlame", "Stomp", "Grenade", "ChargeJump"],
-                "Swamp": ["WallJump", "ChargeFlame", "Dash", "Bash", "Climb", "Grenade", "ChargeJump", "Water"],
-                "Grotto": ["WallJump", "ChargeFlame", "Dash", "DoubleJump", "Glide", "Climb", "Grenade", "ChargeJump", "Water"],
-                "Forlorn": ["ChargeFlame", "Bash", "Grenade", "ChargeJump"],
-                "Valley": ["WallJump", "ChargeFlame", "DoubleJump", "Glide", "Bash", "Climb", "Grenade", "ChargeJump"],
-                "Horu": ["WallJump", "Climb", "Bash"],
-                "Ginso": ["Stomp", "DoubleJump", "Bash", "ChargeJump"],
-                "Sorrow": ["ChargeJump", "Bash", "Glide", "Climb", "Stomp"],
-                "Blackroot": ["WallJump", "ChargeFlame", "Dash", "Stomp", "DoubleJump", "Glide", "Bash", "Climb", "Grenade", "ChargeJump", "Water"],
-            }
+        self.spawn_things = {}
+        for p in self.multi_ps():
+            start = self.starts[p]
+            starting_health, starting_energy = self.starting_health, self.starting_energy
+            starting_skills = []
             start_skills = 0
             # FIXME Check if starved exists, then just set the defaults to 3/1?
             if self.params.start == "Random":
-                self.starting_health, self.starting_energy, start_skills = spawn_defaults[self.start][difficulty]
-            elif self.start != "Glades":
-                self.starting_health = max(self.params.starting_health, self.starting_health)
-                self.starting_energy = max(self.params.starting_energy, self.starting_energy)
+                starting_health, starting_energy, start_skills = spawn_defaults[start][difficulty]
+            elif start != "Glades":
+                starting_health = max(self.params.starting_health, starting_health)
+                starting_energy = max(self.params.starting_energy, starting_energy)
                 start_skills = int(self.params.starting_skills)
             if start_skills > 0:
+                possible_skills = list(possible_skills_base)
                 if start_skills > 1:
                     possible_skills.append("Wind")
                     possible_skills.append("Warmth")
@@ -739,100 +776,76 @@ class SeedGenerator:
                         cost = self.costs[tag(skill, 1)]  # same for every player
                     if skill in ["Wind", "Water"]:
                         cost *= 1.5
-                    if skill in ["WallJump", "Climb"] and self.var(Variation.FUCK_WALLS): 
+                    if skill in ["WallJump", "Climb"] and self.var(Variation.FUCK_WALLS):
                         cost *= 5
                     if skill == "Grenade" and self.var(Variation.FUCK_GRENADE):
                         cost *= 5
-                    if worried and self.start in try_force and skill in try_force[self.start]: 
+                    if worried and start in try_force and skill in try_force[start]:
                         # if we're worried, overweight useful skills
                         cost = 1
                     weight = 1.0 / cost
                     weights.append(weight)
-                
-                if start_skills > 0:
-                    self.starting_skills = self.choices(possible_skills, weights, start_skills)
-            
-            self.spawn_things = []
-            #print(self.starting_skills, self.starting_health, self.starting_energy)
-            base_hc = self.inventory[tag("HC", 1)]  # same for every player
-            if self.starting_health > base_hc:
-                for _ in range(self.starting_health - base_hc):
-                    self.spawn_things.append("HC/1")
-            for _ in range(self.starting_energy):
-                self.spawn_things.append("EC/1")
-            if (self.start == "Ginso"):
+
+                starting_skills = self.choices(possible_skills, weights, start_skills)
+
+            things = []
+            base_hc = self.inventory[tag("HC", p)]
+            if starting_health > base_hc:
+                for _ in range(starting_health - base_hc):
+                    things.append("HC/1")
+            for _ in range(starting_energy):
+                things.append("EC/1")
+            if (start == "Ginso"):
                 for _ in range(4):
                     if self.var(Variation.KEYSANITY):
-                        self.spawn_things.append("RB/306")
+                        things.append("RB/306")
                     else:
-                        self.spawn_things.append("KS/1")
+                        things.append("KS/1")
                 if (not self.var(Variation.ENTRANCE_SHUFFLE)) and (self.params.key_mode != KeyMode.FREE):
                     if self.params.key_mode == KeyMode.SHARDS:
                         for _ in range(5):
-                            self.spawn_things.append("RB/17")
+                            things.append("RB/17")
                     else:
-                        self.spawn_things.append("EV/0")
-            if (self.start == "Forlorn"):
+                        things.append("EV/0")
+            if (start == "Forlorn"):
                 if (not self.var(Variation.ENTRANCE_SHUFFLE)) and (self.params.key_mode != KeyMode.FREE):
                     if self.params.key_mode == KeyMode.SHARDS:
                         for _ in range(5):
-                            self.spawn_things.append("RB/19")
+                            things.append("RB/19")
                     else:
-                        self.spawn_things.append("EV/2")
-                self.spawn_things.append("NB/-914,-298")
-            if (self.start == "Horu"):
+                        things.append("EV/2")
+                things.append("NB/-914,-298")
+            if (start == "Horu"):
                 if (not self.var(Variation.ENTRANCE_SHUFFLE)) and (self.params.key_mode != KeyMode.FREE):
                     if self.params.key_mode == KeyMode.SHARDS:
                         for _ in range(5):
-                            self.spawn_things.append("RB/21")
+                            things.append("RB/21")
                     else:
-                        self.spawn_things.append("EV/4")
-            if (self.start != "Glades"):
-                self.spawn_things.append(self.toOutput("SpiritFlame", True))
-            for skill in self.starting_skills:
-                self.spawn_things.append(self.toOutput(skill, True))
+                        things.append("EV/4")
+            if (start != "Glades"):
+                things.append(self.toOutput("SpiritFlame", True))
+            for skill in starting_skills:
+                things.append(self.toOutput(skill, True))
             if self.params.key_mode == KeyMode.FREE:
-                self.spawn_things.append("EV/0/EV/2/EV/4")
-            
-            spawn_spots = {
-                "Grove": (-159, -114),
-                "Swamp": (491, -73),
-                "Grotto": (519, -174), 
-                "Forlorn": (-914, -298),
-                "Valley": (-430, 0), 
-                "Horu": (88, 142),  
-                "Ginso": (570, 539),
-                "Sorrow": (-594, 496), 
-                "Blackroot": (381, -297), 
-            }
-            self.spawn_logic_areas = {
-                "Glades": "SunkenGladesRunaway",
-                "Grove": "SpiritTreeRefined", 
-                "Swamp": "SwampTeleporter", 
-                "Grotto": "MoonGrotto", 
-                "Forlorn": "ForlornTeleporter", 
-                "Valley": "ValleyTeleporter", 
-                "Horu": "HoruTeleporter", 
-                "Ginso": "GinsoTeleporter", 
-                "Sorrow": "SorrowTeleporter", 
-                "Blackroot": "BlackrootGrottoConnection", 
-            }
+                things.append("EV/0/EV/2/EV/4")
 
-        if self.start != "Glades":
-            for p in self.multi_ps():
+            if start != "Glades":
                 self.itemPool[tag("TPGlades", p)] = 1
-            self.spawn_things.append("TP/" + self.start)
-            # The Warp Save should be last in the line because of the *save*
-            self.spawn_things.append("WS/" + str(spawn_spots[self.start][0]) + "," + str(spawn_spots[self.start][1]) + ",force")
-        
-        if len(self.spawn_things) > 0:
-            if 2 in self.forcedAssignments:
-                current_assignment = self.forcedAssignments[2]
-                if current_assignment[0:2] not in ["MU", "RP"]:
-                    self.forcedAssignments[2] = "MU" + self.toOutput(current_assignment, True)
-                self.forcedAssignments[2] += "/" + "/".join(self.spawn_things)
-            else:
-                self.forcedAssignments[2] = "MU" + "/".join(self.spawn_things)
+                things.append("TP/" + start)
+                # The Warp Save should be last in the line because of the *save*
+                things.append("WS/" + str(spawn_spots[start][0]) + "," + str(spawn_spots[start][1]) + ",force")
+            self.spawn_things[p] = things
+
+        for p in self.multi_ps():
+            things = self.spawn_things[p]
+            if len(things) > 0:
+                if (p, 2) in self.forcedAssignments:
+                    current_assignment = self.forcedAssignments[(p, 2)]
+                    if current_assignment[0:2] not in ["MU", "RP"]:
+                        self.forcedAssignments[(p, 2)] = "MU" + self.toOutput(current_assignment, True)
+                    self.forcedAssignments[(p, 2)] += "/" + "/".join(things)
+                else:
+                    self.forcedAssignments[(p, 2)] = "MU" + "/".join(things)
 
 
         # FIXME Are we giving the correct number of ECs for non-glades starts?
@@ -911,13 +924,32 @@ class SeedGenerator:
             dungeonLocs = {"GinsoKey": {5480952, 5320328}, "ForlornKey": {-7320236}, "HoruKey": set()}
             names = {-3160308: "SKWallJump", -560160: "SKChargeFlame", 2919744: "SKDash", 719620: "SKGrenade", 7839588: "SKDoubleJump", 5320328: "SKBash", 8599904: "SKStomp", -4600020: "SKGlide",
                     -6959592: "SKChargeJump", -11880100: "SKClimb", 5480952: "EVWater", 4999752: "EVGinsoKey", -7320236: "EVWind", -7200024: "EVForlornKey", -5599400: "EVHoruKey"}
-            for key in self.random.sample(list(dungeonLocs.keys()), 3):
-                loc = self.random.choice([l for l in self.limitKeysPool if l not in dungeonLocs[key]])
-                self.limitKeysPool.remove(loc)
-                for key_to_update in ["GinsoKey", "ForlornKey"]:
-                    if loc in dungeonLocs[key_to_update]:
-                        dungeonLocs[key_to_update] |= dungeonLocs[key]
-                self.forcedAssignments[loc] = key
+            key_order = self.random.sample(list(dungeonLocs.keys()), 3)
+            if self.solo():
+                for key in key_order:
+                    loc = self.random.choice([l for l in self.limitKeysPool if l not in dungeonLocs[key]])
+                    self.limitKeysPool.remove(loc)
+                    for key_to_update in ["GinsoKey", "ForlornKey"]:
+                        if loc in dungeonLocs[key_to_update]:
+                            dungeonLocs[key_to_update] |= dungeonLocs[key]
+                    self.forcedAssignments[(1, loc)] = key
+            else:
+                # cross-world limitkeys (decision 2026-07-22): each world's
+                # trees/events hold keys, but the owners are a permutation of
+                # the players per key type -- "someone's tree has your Gumon
+                # Seal". Deadlock cycles between worlds are prevented by a
+                # stricter exclusion than solo: no dungeon key, whoever owns
+                # it, ever sits at a dungeon-locked location. That makes every
+                # dungeon key reachable without entering any dungeon, so no
+                # ordering of key finds can wedge.
+                all_dungeon_locked = set().union(*dungeonLocs.values())
+                pools = {w: list(self.limitKeysPool) for w in self.multi_ps()}
+                for key in key_order:
+                    owners = self.random.sample(list(self.multi_ps()), self.seed_count)
+                    for w in self.multi_ps():
+                        loc = self.random.choice([l for l in pools[w] if l not in all_dungeon_locked])
+                        pools[w].remove(loc)
+                        self.forcedAssignments[(w, loc)] = tag(key, owners[w - 1])
 
     def __init__(self):
         self.init_fields()
@@ -1034,13 +1066,13 @@ class SeedGenerator:
             for location in currentLocations:
                 location.difficulty += self.areas[area].difficulty
             if self.forcedAssignments:
-                reachable_forced_ass_locs = [l for l in currentLocations if l.get_key() in self.forcedAssignments]
+                reachable_forced_ass_locs = [l for l in currentLocations if (l.player, l.get_key()) in self.forcedAssignments]
                 reachable_forced_ass_locs += [l for l in currentLocations if l.orig == "MapStone"
-                                              and self.next_ms_loc(l.player) in self.forcedAssignments
+                                              and (l.player, self.next_ms_loc(l.player)) in self.forcedAssignments
                                               and l not in reachable_forced_ass_locs]
                 for loc in reachable_forced_ass_locs:
                     currentLocations.remove(loc)
-                    key = loc.get_key() if loc.orig != "MapStone" else self.next_ms_loc(loc.player)
+                    key = (loc.player, loc.get_key() if loc.orig != "MapStone" else self.next_ms_loc(loc.player))
                     if key in self.forceAssignedLocs:
                         continue
                     self.forceAssignedLocs.add(key)
@@ -1192,10 +1224,11 @@ class SeedGenerator:
             self.inventory[item] = 1 + self.inventory.get(item, 0)
         return item
 
-    # for use in limitkeys mode (untagged item from forcedAssignments; the
-    # location's world claims it)
+    # forced assignments: untagged items belong to the location's world;
+    # tagged ones (cross-world limitkeys) keep their owner
     def force_assign(self, item, location):
-        item = tag(item, location.player)
+        if "|" not in item:
+            item = tag(item, location.player)
         self.assign(item, True)
         self.assign_to_location(item, location)
 
@@ -1217,6 +1250,7 @@ class SeedGenerator:
             loc = self.next_ms_loc(location.player)
             self.mapstonesAssigned[location.player] += 1
             zone = "Mapstone"
+        fass_key = (location.player, loc)
 
         fixed_item = self.adjust_item(item, zone)
         if (has_cost or self.params.verbose_spoiler) and not hist_written:
@@ -1231,7 +1265,7 @@ class SeedGenerator:
 
         if base_of(item) in self.eventsOutput:
             self.event_lists[location.player].append(assignment)
-        elif self.params.balanced and not has_cost and location.orig != "MapStone" and loc not in self.forceAssignedLocs:
+        elif self.params.balanced and not has_cost and location.orig != "MapStone" and fass_key not in self.forceAssignedLocs:
             self.balanceList.append((fixed_item, location, assignment, mw_ref))
         else:
             self.seeds_text[location.player] += assignment
@@ -1491,14 +1525,13 @@ class SeedGenerator:
 
     def mw_unsupported(self, preplaced):
         problems = [v.value for v in self.MW_UNSUPPORTED_VARIATIONS if self.var(v)]
-        if self.params.key_mode == KeyMode.LIMITKEYS:
-            # coming with the player-aware forcedAssignments rework
-            # (decision 2026-07-22: cross-world keys, stricter exclusion sets)
-            problems.append("Limitkeys")
         if preplaced:
             problems.append("preplacement/plando")
         if self.params.item_pool:
             for pool_item in self.params.item_pool:
+                # WP needs per-world warp registries; RP is infrastructurally
+                # fine but rides along until the warp batch makes bonus pools
+                # fully usable
                 if pool_item.replace("|", "")[0:2] in ["RP", "WP"]:
                     problems.append("pool item %s" % pool_item)
         return problems
@@ -1612,22 +1645,25 @@ class SeedGenerator:
         return sum([v for v in self.itemPool.values()]) + balanced
 
     def place_repeatables(self):
-        repeatables = []
+        # repeatables are world-local: player p's RP pool entries land at
+        # random repeatable locations in p's own world
+        repeatables = defaultdict(list)
         for item, count in [(i,c)  for (i,c) in self.itemPool.items()]:
             if item.startswith("RP"):
-                # forcedAssignments values are untagged; the claiming world's
-                # force_assign re-tags them
-                repeatables += count * [base_of(item)]
+                base, owner = untag(item)
+                repeatables[owner] += count * [base]
                 del self.itemPool[item]
         if self.itemPool.get("WP*", 0) > 0:
             warps = min(self.itemPool["WP*"], 14)
             del self.itemPool["WP*"]
             for warp_group in self.random.sample(warp_targets, warps):
-                repeatables.append("RPSH/Press AltR to Warp to %s/WP/%s,%s" % self.random.choice(warp_group))
-        if repeatables:
-            true_rep_locs = list(set(repeatable_locs) - set(self.forcedAssignments.keys()))
-            for loc, pickup in zip(self.random.sample(true_rep_locs, len(repeatables)), repeatables):
-                self.forcedAssignments[loc] = pickup
+                repeatables[1].append("RPSH/Press AltR to Warp to %s/WP/%s,%s" % self.random.choice(warp_group))
+        for p, reps in repeatables.items():
+            if reps:
+                forced_here = set(loc for (pp, loc) in self.forcedAssignments if pp == p)
+                true_rep_locs = list(set(repeatable_locs) - forced_here)
+                for loc, pickup in zip(self.random.sample(true_rep_locs, len(reps)), reps):
+                    self.forcedAssignments[(p, loc)] = pickup
 
     def placeItems(self, depth=0, worried=False):
         self.reset(worried)
@@ -1676,7 +1712,7 @@ class SeedGenerator:
                             continue
                         # Can't put a relic on a reserved preplacement location
                         # TODO: re-impl relics via preplacement
-                        if next_loc.get_key() in self.forcedAssignments:
+                        if (next_loc.player, next_loc.get_key()) in self.forcedAssignments:
                             continue
                         relic_loc = next_loc
                     self.relic_assign(relic_loc)
@@ -1685,49 +1721,53 @@ class SeedGenerator:
 
         self.place_repeatables()
         # handle the fixed pickup: the forlorn escape plant (one per world)
-        loc, item, zone = (-12320248, "EX100", "Forlorn")
-        if loc in self.forcedAssignments:
-            item = self.forcedAssignments[loc]
-            del self.forcedAssignments[loc]  # don't count these ones
         for p in self.multi_ps():
+            loc, item, zone = (-12320248, "EX100", "Forlorn")
+            if (p, loc) in self.forcedAssignments:
+                item = self.forcedAssignments[(p, loc)]
+                del self.forcedAssignments[(p, loc)]  # don't count these ones
             if item != "EX100" and tag(item, p) not in self.itemPool:
                 log.warning("Preplaced item %s was not in pool. Translation may be necessary." % item)
             ass, _ = self.get_assignment(loc, p, self.adjust_item(tag(item, p), zone), zone)
             self.seeds_text[p] += ass
 
-        if 2 in self.forcedAssignments:
-            raw_item = self.forcedAssignments[2]
-            del self.forcedAssignments[2]
-            for p in self.multi_ps():
-                item = tag(raw_item, p)
-                self.assign(item)
-                if raw_item[0:2] in ["MU", "RP"] and item not in self.itemPool:
-                    for multi_item in self.get_multi_items(raw_item):
-                        # below should not be needed as get_multi_items() already does it, and repeating
-                        # it breaks shards names.
-                        #name = self.codeToName.get(multi_item, multi_item)
-                        #self.spoilerGroup[name].append(name + " preplaced at Spawn\n")
-                        if not multi_item.startswith("WS"): # avoid dumb padding thing
-                            self.append_spoiler(self.adjust_item(tag(multi_item, p), "Glades"), "Spawn")
-                else:
-                    name = self.codeToName.get(raw_item, raw_item)
-                    self.append_spoiler(self.adjust_item(tag(name, p), "Glades"), "Spawn")
-                ass, _ = self.get_assignment(2, p, self.adjust_item(item, "Glades"), "Glades")
-                self.seeds_text[p] += ass
+        for p in self.multi_ps():
+            if (p, 2) not in self.forcedAssignments:
+                continue
+            raw_item = self.forcedAssignments[(p, 2)]
+            del self.forcedAssignments[(p, 2)]
+            item = tag(raw_item, p)
+            self.assign(item)
+            if raw_item[0:2] in ["MU", "RP"] and item not in self.itemPool:
+                for multi_item in self.get_multi_items(raw_item):
+                    # below should not be needed as get_multi_items() already does it, and repeating
+                    # it breaks shards names.
+                    #name = self.codeToName.get(multi_item, multi_item)
+                    #self.spoilerGroup[name].append(name + " preplaced at Spawn\n")
+                    if not multi_item.startswith("WS"): # avoid dumb padding thing
+                        self.append_spoiler(self.adjust_item(tag(multi_item, p), "Glades"), "Spawn")
+            else:
+                name = self.codeToName.get(raw_item, raw_item)
+                self.append_spoiler(self.adjust_item(tag(name, p), "Glades"), "Spawn")
+            ass, _ = self.get_assignment(2, p, self.adjust_item(item, "Glades"), "Glades")
+            self.seeds_text[p] += ass
 
         if len(self.spoilerGroup):
             self.spoiler.append((["Spawn"], [], self.spoilerGroup))
             self.spoilerGroup = defaultdict(list)
 
-        # preplacement bookkeeping (single-world only; multiworld rejects plando)
-        for loc, v in self.forcedAssignments.items():
+        # forced-assignment pool bookkeeping. Values tagged with an owner
+        # (cross-world limitkeys) decrement that owner's pool entry; untagged
+        # values belong to the world they sit in.
+        for (p, loc), v in self.forcedAssignments.items():
             if v[0:2] in ["MU", "RP"]:
                 for item in self.get_multi_items(v):
-                    if tag(item, 1) in self.itemPool:
-                        self.itemPool[tag(item, 1)] -= 1
+                    if tag(item, p) in self.itemPool:
+                        self.itemPool[tag(item, p)] -= 1
                     self.spoilerGroup[item].append(item + " preplaced at %s \n" % all_locations[loc].to_string() if loc in all_locations else loc)
-            if tag(v, 1) in self.itemPool:
-                self.itemPool[tag(v, 1)] -= 1
+            tagged_v = v if "|" in v else tag(v, p)
+            if tagged_v in self.itemPool:
+                self.itemPool[tagged_v] -= 1
 
         locationsToAssign = []
         self.connectionQueue = []
@@ -1763,7 +1803,7 @@ class SeedGenerator:
                 connection.add_requirements(["TPForlorn", "GumonSealShard", "GumonSealShard"], 0)
                 self.get_area("TeleporterNetwork", p).add_connection(connection)
 
-            self.reach_area(tag(self.spawn_logic_areas[self.start], p))
+            self.reach_area(tag(self.spawn_logic_areas[self.starts[p]], p))
 
         # every remaining location gets EXP; each world's final escape adds one
         # more item slot (warmth returned)
