@@ -10,7 +10,7 @@ import tempfile
 import unittest
 from collections import Counter
 
-from cli_gen import CLISeedParams
+from cli_gen import CLISeedParams, CLIMultiOptions
 
 PICKUP_LINE = re.compile(r"^-?\d+\|\w+\|[^|]*\|[\w ]*")
 # multiworld slot manifests live at pseudo-locations -2..-257
@@ -267,6 +267,45 @@ class MultiworldGenTests(unittest.TestCase):
 
     # (the variation rejection list is empty now -- only plando preplacement
     # remains unsupported, and that isn't reachable from the CLI)
+
+
+class SeedModeProblemTests(unittest.TestCase):
+    """Web-facing creation gate: removed modes get clear messages; Multiworld
+    creation is behind the MULTIWORLD env flag and requires tracking."""
+
+    def _params(self, mode, enabled=True, cloned=True, tracking=True):
+        import util
+        from enums import MultiplayerGameType
+        p = CLISeedParams()
+        p.sync = CLIMultiOptions(mode=MultiplayerGameType.mk(mode), enabled=enabled, cloned=cloned)
+        p.tracking = tracking
+        return p
+
+    def _check(self, flag_value, params):
+        import util
+        from seedbuilder import seedparams
+        orig = util.MULTIWORLD
+        util.MULTIWORLD = flag_value
+        try:
+            return seedparams.seed_mode_problem(params)
+        finally:
+            util.MULTIWORLD = orig
+
+    def test_multiworld_gated_by_flag(self):
+        self.assertIsNotNone(self._check(False, self._params("Multiworld")))
+        self.assertIsNone(self._check(True, self._params("Multiworld")))
+
+    def test_multiworld_requires_tracking(self):
+        self.assertIn("tracking", self._check(True, self._params("Multiworld", tracking=False)))
+
+    def test_removed_modes_get_messages(self):
+        self.assertIn("SplitShards", self._check(True, self._params("SplitShards")))
+        self.assertIn("Seperate Seeds", self._check(True, self._params("Shared", cloned=False)))
+
+    def test_supported_modes_pass(self):
+        self.assertIsNone(self._check(False, self._params("Shared", cloned=True)))
+        self.assertIsNone(self._check(False, self._params("None")))
+        self.assertIsNone(self._check(False, self._params("Shared", enabled=False)))
 
 
 def check_mw_invariants(tc, seeds):

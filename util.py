@@ -45,6 +45,10 @@ SPLIT_CACHE = _flag("SPLIT_CACHE")
 # BingoGameData entity. REQUIRES single-instance deployment (gunicorn threads
 # in one process — see Dockerfile); revisit before any horizontal scaling.
 BINGO_V2 = _flag("BINGO_V2")
+# allow creating Multiworld games/seeds. The gameplay code paths (generator,
+# found_pickup, tick slots field) are mode-gated and always present; this
+# flag only controls whether the mode can be requested at seed creation.
+MULTIWORLD = _flag("MULTIWORLD")
 
 # Perf instrumentation: stable, grep-able log lines ("NETPERF <what> ms=<dur> tag=<revision:pid> k=v ...").
 # tag identifies the Cloud Run revision + worker process, to detect cross-process cache misses.
@@ -53,6 +57,15 @@ NETPERF_TAG = "%s:%s" % (os.environ.get("K_REVISION", "local"), os.getpid())
 def netperf(what, t0, **kw):
     extras = " ".join("%s=%s" % (k, v) for k, v in sorted(kw.items()))
     log.info("NETPERF %s ms=%d tag=%s %s", what, int((monotonic() - t0) * 1000), NETPERF_TAG, extras)
+
+def is_mw_manifest_loc(coords):
+    """Multiworld slot manifests live at pseudo-locations -2..-257 in the
+    owner's seed; display/tracker surfaces that resolve real coordinates
+    should skip them."""
+    try:
+        return -257 <= int(coords) <= -2
+    except (TypeError, ValueError):
+        return False
 
 def seed_sync_mismatch(seed_field, game_id, player_id):
     """Detect a wrong randomizer.dat at connect time. The client's setSeed
