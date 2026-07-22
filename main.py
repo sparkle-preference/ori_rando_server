@@ -12,7 +12,6 @@ from urllib.request import urlopen
 from urllib.parse import unquote, quote_plus
 from flask import Flask, render_template, request, make_response, url_for, redirect, g, Response, get_flashed_messages
 from google.cloud import ndb
-from google.cloud.ndb import transactional
 import google.cloud.logging
 
 # project imports
@@ -20,10 +19,10 @@ from oidc import make_oidc
 from seedbuilder.seedparams import SeedGenParams
 from seedbuilder.vanilla import seedtext as vanilla_seed
 from enums import MultiplayerGameType, ShareType, Variation
-from models import ndb_wsgi_middleware, Game, Seed, User, BingoGameData, BingoEvent, BingoTeam, CustomLogic, trees_by_coords, LegacyUser
+from models import ndb_wsgi_middleware, Game, Seed, User, BingoGameData, BingoEvent, BingoTeam, CustomLogic, trees_by_coords, LegacyUser, bingo_lock
 from bingo import BingoGenerator
 from cache import Cache
-from util import coord_correction_map, clone_entity, all_locs, picks_by_type_generator, param_val, param_flag, debug, template_root, VER, MIN_VER, BETA_VER, game_list_html, version_check, template_vals, layout_json, bfield_checksum, netperf, NETPERF_TAG, json_default, BATCH_GRANTS, HIST_ON_PLAYER, SPLIT_CACHE
+from util import coord_correction_map, clone_entity, all_locs, picks_by_type_generator, param_val, param_flag, debug, template_root, VER, MIN_VER, BETA_VER, game_list_html, version_check, template_vals, layout_json, bfield_checksum, netperf, NETPERF_TAG, json_default, BATCH_GRANTS, HIST_ON_PLAYER, SPLIT_CACHE, BINGO_V2
 from reachable import Map, PlayerState
 from pickups import Pickup, Skill, AbilityCell, HealthCell, EnergyCell, Multiple
 
@@ -1250,8 +1249,14 @@ def bingo_get_game(game_id):
             res["offset"] = server_now - client_now
     return json_resp(res)
 
-@app.route('/bingo/game/<int:game_id>/start') #BingoStartCountdown =     
+@app.route('/bingo/game/<int:game_id>/start') #BingoStartCountdown =
 def bingo_start_game(game_id):
+    if BINGO_V2:
+        with bingo_lock(game_id):
+            return _bingo_start_game_inner(game_id)
+    return _bingo_start_game_inner(game_id)
+
+def _bingo_start_game_inner(game_id):
     res = {}
     now = datetime.utcnow()
     bingo = BingoGameData.with_id(game_id)
@@ -1284,9 +1289,17 @@ def bingo_start_game(game_id):
     bingo.put()
     return jsonres
 
-@app.route('/bingo/game/<int:game_id>/add/<int:player_id>') #BingoAddPlayer =     
-@transactional(xg=True)
+@app.route('/bingo/game/<int:game_id>/add/<int:player_id>') #BingoAddPlayer =
 def bingo_add_player(game_id, player_id):
+    # BINGO_V2: all writers of a game's BingoGameData serialize on the same
+    # per-game lock; a plain-put update can't swallow a concurrent join.
+    # Legacy: the original whole-route transaction, via the call API.
+    if BINGO_V2:
+        with bingo_lock(game_id):
+            return _bingo_add_player_inner(game_id, player_id)
+    return ndb.transaction(lambda: _bingo_add_player_inner(game_id, player_id), xg=True)
+
+def _bingo_add_player_inner(game_id, player_id):
     bingo = BingoGameData.with_id(game_id)
     join_team = param_flag("joinTeam")
     if not bingo:
@@ -1320,7 +1333,10 @@ def bingo_add_player(game_id, player_id):
             user.put()
     res = bingo.get_json()
     if bingo.meta:
-        bingo.update({}, player_id, game_id, True)
+        if BINGO_V2:
+            bingo.update_v2({}, player_id, game_id, True)  # lock held by caller
+        else:
+            bingo.update({}, player_id, game_id, True)
         board = getattr(bingo, "_board_json", None)
         if board is not None:
             Cache.set_board(game_id, board)  # NB: strips is_owner from board
@@ -1335,8 +1351,14 @@ def bingo_add_player(game_id, player_id):
     return json_resp(res)
 
 
-@app.route('/bingo/game/<int:game_id>/remove/<int:player_id>') #BingoRemovePlayer =     
+@app.route('/bingo/game/<int:game_id>/remove/<int:player_id>') #BingoRemovePlayer =
 def bingo_remove_player(game_id, player_id):
+    if BINGO_V2:
+        with bingo_lock(game_id):
+            return _bingo_remove_player_inner(game_id, player_id)
+    return _bingo_remove_player_inner(game_id, player_id)
+
+def _bingo_remove_player_inner(game_id, player_id):
     bingo = BingoGameData.with_id(game_id)
     if not bingo:
         return text_resp("Bingo game %s not found" % game_id, 404)
@@ -1676,6 +1698,21 @@ def netcode_player_bingo_tick(game_id, player_id):
         board = getattr(bingo, "_board_json", None)
         if board is not None:
             Cache.set_board(game_id, board)
+    if BINGO_V2:
+        try:
+            with bingo_lock(game_id):
+                # fresh read under the lock; the pre-checks above used an
+                # unlocked (possibly stale) read, which is fine for 404/412s
+                bingo = BingoGameData.get_by_id(int(game_id), use_cache=False)
+                bingo.update_v2(bingo_data, player_id, game_id)
+                # publish inside the lock: ordering is trivially correct because
+                # no other writer of this game can run concurrently
+                publish()
+            netperf("bingo_update", t0, gid=game_id, pid=player_id, evlog=evlog_len, v2=1)
+            return code_resp(200)
+        except Exception as e:
+            log.error("NETPERF bingo_update_fail gid=%s pid=%s v2=1 err=%s: %s", game_id, player_id, type(e).__name__, e)
+            return code_resp(503)
     try:
         bingo.update(bingo_data, player_id, game_id)
         publish()
@@ -1718,7 +1755,7 @@ def bingothon_fetch_data(game_id, player_id):
 
 @app.route('/flags')  # temporary: verify feature-flag status per revision
 def flag_status():
-    flags = {"BATCH_GRANTS": BATCH_GRANTS, "HIST_ON_PLAYER": HIST_ON_PLAYER, "SPLIT_CACHE": SPLIT_CACHE}
+    flags = {"BATCH_GRANTS": BATCH_GRANTS, "HIST_ON_PLAYER": HIST_ON_PLAYER, "SPLIT_CACHE": SPLIT_CACHE, "BINGO_V2": BINGO_V2}
     rows = "".join("<tr><td style='padding:4px 12px'>%s</td><td style='padding:4px 12px'><b>%s</b></td></tr>"
                    % (name, "ON" if val else "off") for name, val in flags.items())
     return make_resp("<html><body><h3>Feature flags</h3><table border=1>%s</table><p>serving: %s</p></body></html>"

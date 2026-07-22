@@ -40,6 +40,11 @@ HIST_ON_PLAYER = _flag("HIST_ON_PLAYER")
 # writes (threads overwrite each other), the long-suspected source of transient
 # tracker wrongness
 SPLIT_CACHE = _flag("SPLIT_CACHE")
+# serialize bingo updates through a per-game in-process lock (plain puts, no
+# transactions, no retries) instead of contended transactions on the shared
+# BingoGameData entity. REQUIRES single-instance deployment (gunicorn threads
+# in one process — see Dockerfile); revisit before any horizontal scaling.
+BINGO_V2 = _flag("BINGO_V2")
 
 # Perf instrumentation: stable, grep-able log lines ("NETPERF <what> ms=<dur> tag=<revision:pid> k=v ...").
 # tag identifies the Cloud Run revision + worker process, to detect cross-process cache misses.

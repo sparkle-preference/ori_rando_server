@@ -342,5 +342,63 @@ class TestBingoDebounce(NdbTestCase):
         self.assertFalse(ev.loss)
 
 
+class TestBingoV2(NdbTestCase):
+    def test_lock_identity(self):
+        self.assertIs(models.bingo_lock(5), models.bingo_lock(5))
+        self.assertIsNot(models.bingo_lock(5), models.bingo_lock(6))
+        with models.bingo_lock(5):
+            pass  # acquirable and releasable
+
+    def _stub_puts(self, *entities):
+        for e in entities:
+            e.put = lambda *a, **k: None
+
+    def test_event_log_cap_preserves_misc_markers(self):
+        bgd = BingoGameData(id="55")
+        markers = [BingoEvent(event_type="miscBingo Game 55 created!"),
+                   BingoEvent(event_type="miscBingo Game 55 started!")]
+        bgd.event_log = markers + [BingoEvent(event_type="square") for _ in range(600)]
+        bgd._update_inner = lambda *a, **k: None
+        bgd.update_v2({}, 1, 55)
+        self.assertEqual(len(bgd.event_log), 402)
+        self.assertTrue(bgd.event_log[0].event_type.startswith("misc"))
+        self.assertTrue(bgd.event_log[1].event_type.startswith("misc"))
+        # under the cap: untouched
+        bgd.event_log = markers + [BingoEvent(event_type="square") for _ in range(10)]
+        bgd.update_v2({}, 1, 55)
+        self.assertEqual(len(bgd.event_log), 12)
+
+    def test_update_v2_full_flow_in_memory(self):
+        """The whole non-transactional update path: a posted goal completion
+        lands as an event, completed_by membership, score, and a board stash."""
+        from models import BingoGameData, BingoTeam
+        card = BingoCard(name="TestGoal", goal_type="int", target=3, square=0)
+        filler = [BingoCard(name="Filler%s" % i, goal_type="int", target=99, square=i)
+                  for i in range(1, 25)]
+        p1 = Player(id="55.1", bingo_prog=[BingoCardProgress(square=i) for i in range(25)])
+        bgd = BingoGameData(id="55")
+        bgd.board = [card] + filler
+        bgd.teams = [BingoTeam(captain=p1.key, teammates=[])]
+        bgd.bingo_count = 99  # out of reach: no win/signal path in this test
+        bgd.start_time = datetime(2026, 7, 20, 12, 0, 0)
+        bgd.game = ndb.Key("Game", 55)
+        bgd.get_players = lambda: [p1]
+        self._stub_puts(p1, bgd)
+
+        bgd.update_v2({"TestGoal": {"value": 5}}, 1, 55)
+
+        self.assertIn(1, card.completed_by)
+        square_events = [e for e in bgd.event_log if e.event_type == "square"]
+        self.assertEqual(len(square_events), 1)
+        self.assertFalse(square_events[0].loss)
+        self.assertEqual(bgd.teams[0].score, 1)
+        board = getattr(bgd, "_board_json", None)
+        self.assertIsNotNone(board)
+        self.assertEqual(board["cards"][0]["completed_by"], [1])
+        # idempotent re-post: no duplicate events, state stable
+        bgd.update_v2({"TestGoal": {"value": 5}}, 1, 55)
+        self.assertEqual(len([e for e in bgd.event_log if e.event_type == "square"]), 1)
+
+
 if __name__ == "__main__":
     unittest.main()

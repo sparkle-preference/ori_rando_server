@@ -13,10 +13,19 @@ from flask import g
 
 from seedbuilder.seedparams import Placement, Stuff, SeedGenParams
 from enums import MultiplayerGameType, ShareType, Variation
-from util import picks_by_coord, get_bit, get_taste, enums_from_strlist, ord_suffix, debug, bfields_to_coords, bfield_checksum, unpack, netperf, BATCH_GRANTS, HIST_ON_PLAYER
+from util import picks_by_coord, get_bit, get_taste, enums_from_strlist, ord_suffix, debug, bfields_to_coords, bfield_checksum, unpack, netperf, BATCH_GRANTS, HIST_ON_PLAYER, BINGO_V2
+import threading
 from time import monotonic
 from pickups import Pickup, Skill, Teleporter, Event
 from cache import Cache
+
+# Per-game locks for BINGO_V2: serialize all writers of a game's BingoGameData
+# within this (single) process. dict.setdefault is atomic under the GIL, so two
+# threads racing to create a game's lock still converge on one object.
+_bingo_locks = {}
+
+def bingo_lock(gid):
+    return _bingo_locks.setdefault(int(gid), threading.Lock())
 
 try:
     client = ndb.Client()
@@ -1013,6 +1022,26 @@ class BingoGameData(ndb.Model):
 
     @ndb.transactional(retries=0, xg=True)
     def update(self, bingo_data, player_id, game_id, meta_init = False):
+        # legacy path: the whole update in one contended transaction
+        return self._update_inner(bingo_data, player_id, game_id, meta_init)
+
+    def update_v2(self, bingo_data, player_id, game_id, meta_init = False):
+        # BINGO_V2 path: caller MUST hold bingo_lock(game_id). Serialization via
+        # the lock replaces the transaction — plain puts cannot conflict because
+        # every writer of this entity holds the same lock (see the bingo routes).
+        # No aborts means no retries, no doomed-attempt cache publishing, and no
+        # stale-object re-fetch dance.
+        if len(self.event_log) > 500:
+            # cap the event log (legacy grows without bound): keep the newest 400
+            # plus any misc marker events (game created / game started) from the
+            # pruned range, so the game's framing entries survive
+            keep_misc = [e for e in self.event_log[:-400] if e.event_type.startswith("misc")]
+            pruned = len(self.event_log) - 400 - len(keep_misc)
+            self.event_log = keep_misc + self.event_log[-400:]
+            log.info("NETPERF evlog_prune gid=%s pruned=%s kept=%s", game_id, pruned, len(self.event_log))
+        return self._update_inner(bingo_data, player_id, game_id, meta_init)
+
+    def _update_inner(self, bingo_data, player_id, game_id, meta_init = False):
         if not bingo_data and not meta_init:
             log.error("no bingo data????")
             return
