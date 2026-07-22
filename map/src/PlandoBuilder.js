@@ -23,6 +23,22 @@ NumericInput.style.input.height = '36px';
 
 const relevantCodes = ["HC", "AC", "EC", "KS", "MS", "TP", "RB", "EV", "SK", "TW"];
 const DUNGEON_KEYS = ["EV|0", "EV|2", "EV|4"]
+// returns "EV|n" if this pickup is a dungeon key, or is a multipickup containing exactly
+// one dungeon key (the client treats such multipickups as that key for clue purposes)
+const clue_key_in = (code, id) => {
+    if(code === "EV")
+        return (parseInt(id, 10) % 2 === 0) ? `EV|${id}` : null
+    if(code !== "MU" && code !== "RP")
+        return null
+    let parts = String(id).split("/")
+    let keys = []
+    while(parts.length > 1) {
+        let c = parts.shift(), i = parts.shift()
+        if(c === "EV" && parseInt(i, 10) % 2 === 0)
+            keys.push(`EV|${i}`)
+    }
+    return keys.length === 1 ? keys[0] : null
+}
 const DEFAULT_DATA = {
     '-12320248': {label: "100 Experience", value: "EX|100"}
 }
@@ -50,7 +66,11 @@ const CLUE_ORDERS = [
      ["EV|4", "EV|0", "EV|2"],
 ].map(clueOrder => {return {label: mkClueOrderLabel(clueOrder), value: clueOrder}})
 
-const VALID_VARS = ["0XP", "NonProgressMapStones", "NoAltR", "ForceMaps", "ForceTrees", "Hard", "WorldTour", "OpenWorld", "ClosedDungeons", "OHKO", "Starved", "BonusPickups", "NoExtraExp"]
+const VALID_VARS = ["0XP", "NonProgressMapStones", "NoAltR", "ForceMaps", "ForceTrees", "Hard", "WorldTour", "OpenWorld", "ClosedDungeons", "OHKO", "Starved", "BonusPickups", "NoExtraExp", "Entrance",
+                    // sync'd with the Variation enum (enums.py), 2026-07-22
+                    "WarmthFrags", "DoubleSkills", "StrictMapstones", "StompTriggers", "TPStarved", "GoalModeFinish", "WallStarved", "GrenadeStarved",
+                    "Race", "WarpsInsteadOfTPs", "InLogicWarps", "WarpCount", "StartingHealth", "StartingEnergy", "StartingSkills", "NoTPs",
+                    "Competitive", "BonusLite", "ClueLockedTPs", "ZoneLockedTPs", "Keysanity", "Enhanced", "Bingo"]
 const VALID_KEYMODES = ["Shards", "Clues", "Limitkeys", "Free"];
 const SEED_FLAGS = VALID_VARS.concat(VALID_KEYMODES);
 const FLAG_CASEFIX = {};
@@ -60,6 +80,29 @@ SEED_FLAGS.forEach(flag => FLAG_CASEFIX[flag.toLowerCase()] = flag);
 const modes_by_key = {"Shared": "Shared", "None": "Solo", "SplitShards": "Shards Race"}
 const COOP_MODES = Object.keys(modes_by_key).map((k) => { return {label: modes_by_key[k], value: k} });
 const SHARE_TYPES = ["WorldEvents", "Misc", "Upgrades", "Teleporters", "Skills"]
+// entrance shuffle doors, mirroring doors_inner/doors_outer (+R1OuterDoor) in seedbuilder/generator.py
+const DOORS = [
+    ["GinsoInnerDoor", 522, 1], ["ForlornInnerDoor", -717, -408], ["HoruInnerDoor", 68, 169],
+    ["L1InnerDoor", -24, 369], ["L2InnerDoor", -13, 301], ["L3InnerDoor", -28, 244], ["L4InnerDoor", -12, 188],
+    ["R2InnerDoor", 163, 266], ["R3InnerDoor", 171, 218], ["R4InnerDoor", 144, 151], ["HoruEscapeInnerDoor", -242, 489],
+    ["GinsoOuterDoor", 527, -43], ["ForlornOuterDoor", -668, -246], ["HoruOuterDoor", -78, 2],
+    ["L1OuterDoor", 20, 371], ["L2OuterDoor", 13, 293], ["L3OuterDoor", 18, 248], ["L4OuterDoor", 14, 191],
+    ["R2OuterDoor", 128, 288], ["R3OuterDoor", 126, 245], ["R4OuterDoor", 126, 196], ["HoruEscapeOuterDoor", 18, 100],
+    ["R1OuterDoor", 125, 382],
+]
+// must match Door.get_key() in seedbuilder/generator.py
+const door_key = (x, y) => Math.floor(x / 4) * 4 * 10000 + Math.floor(y / 4) * 4
+const doors_by_name = {}
+const doors_by_key = {}
+const doors_by_coords = {}
+DOORS.forEach(([name, x, y]) => {
+    let d = {name: name, x: x, y: y, key: door_key(x, y)}
+    doors_by_name[name] = d
+    doors_by_key[d.key] = d
+    doors_by_coords[`${x}|${y}`] = d
+})
+const door_name_by_key = (k) => doors_by_key[k] ? doors_by_key[k].name : `door@${k}`
+const door_name_by_target = (t) => doors_by_coords[t] ? doors_by_coords[t].name : `(${String(t).replace("|", ", ")})`
 const crs = getMapCrs();
 const DANGEROUS = [-12320248]
 const paths = Object.keys(presets);
@@ -184,6 +227,7 @@ class PlandoBuiler extends React.Component {
                   fill_opts: {HC: 13, EC: 15, AC: 34, KS: 40, MS: 9, EX: 300, ex_pool: 10000, dynamic: false, dumb: false}, viewport: {center: [0, 0], zoom: 5}, searchStr: "", clueOrder: CLUE_ORDERS[0],
                   flags: ['hide_unreachable', 'hide_softlockable'], seedFlags: [], hidden: hidden, share_types: select_wrap(["Skills", "WorldEvents", "Teleporters"]), coop_mode: {label: "Solo", value: "None"},
                   pickups: ["EX", "Ma", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "CS"], display_fill: false, display_import: false, display_logic: false, display_coop: false, display_meta: false,
+                  entrances: {}, display_entrances: false, entrance_from: {value: "", label: ""}, entrance_to: {value: "", label: ""},
                 seed_name: seed_name, last_seed_name: seed_name, seed_desc: seed_desc, user: user};
     }
 
@@ -279,7 +323,8 @@ class PlandoBuiler extends React.Component {
                 }
         }
         if(!newStuff || !newStuff.hasOwnProperty("value")) {
-            this.setState({pickup: pick, zone: pick.value.zone, lastSelected: last, viewport: viewport}, () => this.place(this.state.stuff));
+            // empty location: just select it. Don't define a placement here until the user actually enters something.
+            this.setState({pickup: pick, zone: pick.value.zone, lastSelected: last, viewport: viewport, stuff: {value: "NO|1", label: "Nothing"}});
         } else {
             this.setState({pickup: pick, zone: pick.value.zone, lastSelected: last, viewport: viewport, stuff: newStuff}, () => this.refs.pickupSelect.valFromStr(newStuff.value, true));
         }
@@ -311,6 +356,11 @@ class PlandoBuiler extends React.Component {
         let r = relevantCodes.includes(this.state.stuff.value.substr(0,2)) ? {...DEFAULT_REACHABLE} : this.state.reachable;
         this.setState(prevState => {
             let plc = prevState.placements;
+            if(s.value === "NO|1") {
+                // clearing the selector removes the placement entirely instead of storing an explicit "nothing"
+                delete plc[prevState.player][prevState.pickup.value.loc];
+                return {placements: plc, stuff: s, reachable: r};
+            }
             // i hate this i hate this i hate this
             if((s.value.substr(0,2) === "EX") && !s.label.endsWith("Experience"))
             {
@@ -327,10 +377,16 @@ class PlandoBuiler extends React.Component {
         let lines = seedText.split("\n")
         let newplc = {}
         let newClueOrder = []
+        let newEntrances = {}
         let currplc = this.state.placements[this.state.player]
         for (let i = 1, len = lines.length; i < len; i++) {
             let line = lines[i].split("|")
             let loc = parseInt(line[0], 10);
+            if(line[1] === "EN") {
+                // entrance shuffle line: loc|EN|x|y (loc = door key, x|y = target door coords)
+                newEntrances[loc] = line[2] + "|" + line[3]
+                continue;
+            }
             if(currplc.hasOwnProperty(loc)) {
                 newplc[loc] = currplc[loc];
                 continue;
@@ -339,8 +395,9 @@ class PlandoBuiler extends React.Component {
             let id = str_ids.includes(code) ? line[2] : parseInt(line[2], 10);
             if(code === "EX" && this.state.seedFlags.some(f => f.value === "NoExtraExp"))
                 id = 0
-            if(code === "EV" && id % 2 === 0){
-                newClueOrder.push(`${code}|${id}`)
+            let clueKey = clue_key_in(code, id);
+            if(clueKey){
+                newClueOrder.push(clueKey)
             }
             let name = pickup_name(code, id);
             let stuff = {label: name, value:code+"|"+id};
@@ -354,7 +411,9 @@ class PlandoBuiler extends React.Component {
                 let retVal = {}
                 retVal.placements = prevState.placements;
                 retVal.placements[prevState.player] = newplc
-                if(newClueOrder.length === 3) 
+                if(Object.keys(newEntrances).length > 0)
+                    retVal.entrances = newEntrances
+                if(newClueOrder.length === 3)
                     retVal.clueOrder = {value: newClueOrder, label: mkClueOrderLabel(newClueOrder)}
                 return retVal
             }, () => this.updateReachable());
@@ -367,13 +426,19 @@ class PlandoBuiler extends React.Component {
         let newClueOrder = []
         let seedData = JSON.parse(he.decode(seedJson))
         let placements = {}
+        let newEntrances = {}
         seedData['placements'].forEach(placement => {
             let loc = parseInt(placement['loc'], 10);
             placement['stuff'].forEach(stuff => {
                 let code = stuff['code']
+                if(code === "EN") {
+                    newEntrances[loc] = stuff['id']
+                    return
+                }
                 let id = str_ids.includes(code) ? stuff['id'] : parseInt(stuff['id'], 10);
-                if(code === "EV" && id % 2 === 0){
-                    newClueOrder.push(`${code}|${id}`)
+                let clueKey = clue_key_in(code, id);
+                if(clueKey){
+                    newClueOrder.push(clueKey)
                 }
                 let name = pickup_name(code, id);
                 let stuff_obj = {label: name, value: code+"|"+id};
@@ -388,7 +453,8 @@ class PlandoBuiler extends React.Component {
         this.parseFlagLine(seedData['flagline'])
         let retVal = {}
         retVal.placements = placements;
-        if(newClueOrder.length === 3) 
+        retVal.entrances = newEntrances;
+        if(newClueOrder.length === 3)
             retVal.clueOrder = {value: newClueOrder, label: mkClueOrderLabel(newClueOrder)};
         this.setState(retVal, () => this.updateReachable());
     }
@@ -488,12 +554,15 @@ class PlandoBuiler extends React.Component {
         let evLines = {};
         locs.forEach((loc) => {
             let lineText = loc+"|"+playerPlacements[loc].value+"|"+picks_by_loc[loc].zone;
-            if(DUNGEON_KEYS.includes(playerPlacements[loc].value))
-                evLines[playerPlacements[loc].value] = (lineText)
+            let [vcode, vid] = playerPlacements[loc].value.split("|");
+            let clueKey = clue_key_in(vcode, vid);
+            if(clueKey && !evLines.hasOwnProperty(clueKey))
+                evLines[clueKey] = (lineText)
             else
                 outLines.push(lineText)
         })
         this.state.clueOrder.value.forEach(ev => evLines.hasOwnProperty(ev) ? outLines.push(evLines[ev]) : null)
+        Object.keys(this.state.entrances).forEach(loc => outLines.push(loc + "|EN|" + this.state.entrances[loc]))
         return outLines;
     }
 
@@ -520,8 +589,9 @@ class PlandoBuiler extends React.Component {
             let stuff = players_at_loc.map(player => {
                 let rawId = this.state.placements[player][loc].value
                 let [code, id] = rawId.split("|");
-                if(DUNGEON_KEYS.includes(rawId)) {
-                    keyName = rawId;
+                let clueKey = clue_key_in(code, id);
+                if(clueKey) {
+                    keyName = clueKey;
                 }
                 return {player: player, code: code, id: id};
             })
@@ -534,6 +604,11 @@ class PlandoBuiler extends React.Component {
             }
         })
         this.state.clueOrder.value.forEach(ev => evStuff.hasOwnProperty(ev) && data.placements.push(evStuff[ev]))
+        // entrance shuffle placements: one per door, replicated for every player so
+        // each player's downloaded seed carries the full EN| set
+        Object.keys(this.state.entrances).forEach(loc => {
+            data.placements.push({loc: String(loc), zone: "", stuff: players.map(player => ({player: player, code: "EN", id: this.state.entrances[loc]}))})
+        })
 
         return data;
     }
@@ -675,6 +750,23 @@ class PlandoBuiler extends React.Component {
     };
     toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
     toggleCoop = () => {this.setState({display_coop: !this.state.display_coop})};
+    toggleEntrances = () => {this.setState({display_entrances: !this.state.display_entrances})};
+    addEntrance = () => this.setState(prevState => {
+        let from = doors_by_name[prevState.entrance_from.value]
+        let to = doors_by_name[prevState.entrance_to.value]
+        if(!from || !to || from.name === to.name)
+            return {}
+        let entrances = {...prevState.entrances}
+        // two-way by default; remove one direction afterwards for a one-way connection
+        entrances[from.key] = `${to.x}|${to.y}`
+        entrances[to.key] = `${from.x}|${from.y}`
+        return {entrances: entrances}
+    });
+    removeEntrance = (loc) => () => this.setState(prevState => {
+        let entrances = {...prevState.entrances}
+        delete entrances[loc]
+        return {entrances: entrances}
+    });
     toggleMeta = () => {this.setState({display_meta: !this.state.display_meta})};
     addPlayer = () => {
         this.setState(prevState => {
@@ -921,6 +1013,31 @@ class PlandoBuiler extends React.Component {
                                 <Button color="primary" onClick={this.addPlayer}>Add Player</Button>
                                 <Button color="primary" onClick={this.dupePlayer}>Duplicate</Button>
                                 <Button color="secondary" onClick={this.removePlayer} active={Object.keys(this.state.placements).length > 1}>Remove Player</Button>
+                            </div>
+                        </Collapse>
+                    </div>
+                    <div id="entrance-controls">
+                        <Button color="primary" onClick={this.toggleEntrances}>Entrances ({Object.keys(this.state.entrances).length})</Button>
+                        <Collapse id="entrance-wrapper" isOpen={this.state.display_entrances}>
+                            <div className="coop-select-wrapper">
+                                <span className="label">From: </span>
+                                <Select styles={select_styles} options={select_wrap(DOORS.map(d => d[0]))} onChange={(n) => this.setState({entrance_from: n})} clearable={false} value={this.state.entrance_from}></Select>
+                            </div>
+                            <div className="coop-select-wrapper">
+                                <span className="label">To: </span>
+                                <Select styles={select_styles} options={select_wrap(DOORS.map(d => d[0]))} onChange={(n) => this.setState({entrance_to: n})} clearable={false} value={this.state.entrance_to}></Select>
+                            </div>
+                            <div>
+                                <Button color="primary" onClick={this.addEntrance}>Connect (both ways)</Button>
+                                <Button color="secondary" onClick={() => this.setState({entrances: {}})} active={Object.keys(this.state.entrances).length > 0}>Clear All</Button>
+                            </div>
+                            <div>
+                                {Object.keys(this.state.entrances).map(loc => (
+                                    <div key={`entrance-${loc}`}>
+                                        <Button size="sm" color="danger" outline title="Remove this direction" onClick={this.removeEntrance(loc)}>&times;</Button>
+                                        <span> {door_name_by_key(loc)} &rarr; {door_name_by_target(this.state.entrances[loc])}</span>
+                                    </div>
+                                ))}
                             </div>
                         </Collapse>
                     </div>

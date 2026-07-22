@@ -5,7 +5,7 @@ import {
     PacmanLoader, PulseLoader, RingLoader, RiseLoader, RotateLoader, SyncLoader, FadeLoader, ScaleLoader
 } from 'react-spinners';
 import { Badge } from 'reactstrap';
-//import { components } from 'react-select';
+import { components } from 'react-select';
 import CreatableSelect from 'react-select/lib/Creatable';
 
 const select_theme = (theme) => {
@@ -84,6 +84,8 @@ function pickup_name(code, id) {
         case "SH":
             return 'Print "' + id + '"';
         case "WT":
+            if(id === "*")
+                return "Random Relic"
             return "Relic: " + id;
         case "HN":
             let hintParts = id.split('-');
@@ -94,7 +96,7 @@ function pickup_name(code, id) {
         case "WS":
         case "WP":
             if(id === "*")
-                return "Random Bonus Warp"
+                return "Random Warp"
             if(id.endsWith(",force"))
                 return "Warp (forced) to " + id.slice(0, id.length-6) + (code === "WS" ? " and save" : "")
             else
@@ -275,6 +277,31 @@ const grouped_opts = Object.keys(stuff_by_type).map(t => {
 });
 
 
+// Chip label: click to load the chip back into the input for editing (fixes un-editable SH|text pickups)
+const EditableMultiValueLabel = props => (
+    <div style={{cursor: "text"}} title="Click to edit"
+         onMouseDown={e => e.stopPropagation()}
+         onClick={e => { e.preventDefault(); e.stopPropagation(); props.selectProps.editChip(props.data); }}>
+        <components.MultiValueLabel {...props} />
+    </div>
+);
+
+// Chip container: native drag-and-drop to reorder multipickup entries.
+// Drop target index = the dragged chip's final position.
+const DraggableMultiValue = props => {
+    const idx = props.selectProps.value.indexOf(props.data);
+    return (
+        <div draggable
+             style={{display: "inline-flex", cursor: "grab"}} title="Drag to reorder"
+             onMouseDown={e => e.stopPropagation()}
+             onDragStart={e => { e.stopPropagation(); e.dataTransfer.effectAllowed = "move"; props.selectProps.onChipDragStart(idx); }}
+             onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }}
+             onDrop={e => { e.preventDefault(); e.stopPropagation(); props.selectProps.onChipDrop(idx); }}>
+            <components.MultiValue {...props} />
+        </div>
+    );
+};
+
 class PickupSelect extends Component {
   clear = () => this.setState({value: []})
   valFromStr = (input, update = false) => {
@@ -328,6 +355,8 @@ class PickupSelect extends Component {
             options: [
                 { label: '15 Experience', value: "EX|15", fake: true },
                 { label: "Repeatable", value: "RP" },
+                { label: "Random Relic", value: "WT|*" },
+                { label: "Random Warp", value: "WP|*" },
                 { label: 'Print "Your text here"', value: "SH|Your text here", fake: true },
                 { label: 'Warp to 0,0', value: "WP|0,0", fake: true },
                 { label: 'Warp (forced) to 0,0', value: "WP|0,0,force", fake: true },
@@ -337,7 +366,6 @@ class PickupSelect extends Component {
         }
         if(props.allowPsuedo) {
             misc.options.splice(0, 0, {label: "Random Bonus Skill", value: "BS|*", desc: "A random bonus skill", max: 6})
-            misc.options.splice(0, 0, {label: "Random Bonus Warp", value: "WP|*"})
         }
         options.push(misc)
     }
@@ -348,12 +376,43 @@ class PickupSelect extends Component {
       lastPropVal: props.value,
       menuOpen: false,
       inputValue: "",
-      styles: styles, 
+      editIdx: null,
+      styles: styles,
       updater: props.updater || console.log
     };
+    this.dragIdx = null;
 
   }
-  handleInputChange = inputValue => {
+
+  // load an existing chip's raw value into the input so it can be edited;
+  // the chip stays put and is replaced in place when the edit is confirmed
+  editChip = chip => {
+    let val = chip.value;
+    while (val.endsWith("|") && val.length > 3) // strip duplicate-disambiguation padding
+      val = val.slice(0, -1);
+    this.setState(prev => ({ editIdx: prev.value.indexOf(chip), inputValue: val, menuOpen: true }), () => {
+      const sel = this.cref && this.cref.select && this.cref.select.select;
+      if (sel && sel.focus) sel.focus();
+    });
+  };
+
+  onChipDragStart = idx => { this.dragIdx = idx; };
+  onChipDrop = idx => {
+    const from = this.dragIdx;
+    this.dragIdx = null;
+    if (from === null || from === idx) return;
+    this.setState(prev => {
+      let value = [...prev.value];
+      const [moved] = value.splice(from, 1);
+      value.splice(idx, 0, moved);
+      return { value: value, editIdx: null };
+    }, this.updatePickup);
+  };
+  handleInputChange = (inputValue, actionMeta) => {
+    // react-select clears the input on blur/menu-close; keep the user's
+    // half-typed text instead so tabbing out doesn't destroy it
+    if (actionMeta && (actionMeta.action === "input-blur" || actionMeta.action === "menu-close"))
+      return;
     this.setState({ inputValue });
   };
 
@@ -362,10 +421,18 @@ class PickupSelect extends Component {
     if (last && last.fake && actionMeta.action === "select-option") {
       let val = last.value
       while (val.endsWith("|") && val.length > 3)
-        val = val.slice(0, -1)      
+        val = val.slice(0, -1)
       this.setState({ inputValue: val, menuOpen: true }, this.updatePickup);
+    } else if (actionMeta.action === "select-option" && this.state.editIdx !== null) {
+      // mid-edit: the picked option replaces the chip being edited instead of appending
+      this.setState(prev => {
+        let value = [...prev.value];
+        if (prev.editIdx >= 0 && prev.editIdx < value.length)
+          value[prev.editIdx] = last;
+        return { value: value, editIdx: null };
+      }, this.updatePickup);
     } else {
-      this.setState({ value: newValue }, this.updatePickup);
+      this.setState({ value: newValue, editIdx: null }, this.updatePickup);
     }
   };
   updatePickup = () => {
@@ -404,7 +471,14 @@ class PickupSelect extends Component {
     option = this.correct(option);
     if (option.includes("|")) {
       let opt = { value: option, label: name_from_str(option) };
-      this.setState(prev => ({ value: prev.value.concat([opt]) }), this.updatePickup);
+      this.setState(prev => {
+        let value = [...prev.value];
+        if (prev.editIdx !== null && prev.editIdx >= 0 && prev.editIdx < value.length)
+          value[prev.editIdx] = opt; // confirm edit: replace in place
+        else
+          value = value.concat([opt]);
+        return { value: value, editIdx: null };
+      }, this.updatePickup);
     }
   };
   correct = raw => {
@@ -526,7 +600,11 @@ class PickupSelect extends Component {
         isDisabled={this.props.isDisabled || this.props.disabled || false}
         isMulti
         onMenuOpen={() => this.setState({ menuOpen: true })}
-        onMenuClose={() => this.setState({ menuOpen: false })}
+        onMenuClose={() => this.setState({ menuOpen: false, editIdx: null })}
+        components={{ MultiValue: DraggableMultiValue, MultiValueLabel: EditableMultiValueLabel }}
+        editChip={this.editChip}
+        onChipDragStart={this.onChipDragStart}
+        onChipDrop={this.onChipDrop}
         menuIsOpen={menuOpen}
         inputValue={inputValue}
         filterOption={this.filterFunc}

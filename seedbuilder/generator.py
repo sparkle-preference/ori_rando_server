@@ -849,8 +849,19 @@ class SeedGenerator:
 
     def __init__(self):
         self.init_fields()
-        self.codeToName = OrderedDict([(v, k) for k, v in list(self.skillsOutput.items()) + list(self.eventsOutput.items()) + 
+        self.codeToName = OrderedDict([(v, k) for k, v in list(self.skillsOutput.items()) + list(self.eventsOutput.items()) +
             list(self.keysanityOutput.items()) + [("RB17", "WaterVeinShard"), ("RB19", "GumonSealShard"), ("RB21", "SunstoneShard")]])
+        self.codeToName["WT*"] = "Relic"  # random relic preplacement (WT|*): resolved per-zone by adjust_item
+
+    # resolve a WP|* (random warp) preplacement into a concrete warp pickup
+    def random_warp_id(self):
+        if not getattr(self, "unused_warps", None):
+            self.unused_warps = [self.random.choice(group) for group in warp_targets2]
+        warp = self.random.choice(self.unused_warps)
+        self.unused_warps.remove(warp)
+        warp_id = "Warp" + str(len(self.warps))
+        self.warps[warp_id] = warp
+        return warp_id
 
     def add_warp(self, warp):
         name, x, y, area, logic_location, logic_cost = warp
@@ -953,6 +964,8 @@ class SeedGenerator:
         return (found, keystoneCount, mapstoneCount)
 
     def choose_relic_for_zone(self, zone):
+        if zone not in relics:  # e.g. a WT|* preplaced on a mapstone; pick any zone's relic
+            zone = self.random.choice(list(relics.keys()))
         self.random.shuffle(relics[zone])
         return relics[zone][0]
 
@@ -1187,6 +1200,16 @@ class SeedGenerator:
         elif item == "Relic":
             relic = self.choose_relic_for_zone(zone)
             item = "WT#" + relic[0] + "#\\n" + relic[1]
+        elif item == "WP*":
+            item = self.random_warp_id()
+        elif item[0:2] in ["MU", "RP"]:
+            # resolve starred pickups inside preplaced multipickups
+            while "WT/*" in item:
+                relic = self.choose_relic_for_zone(zone)
+                item = item.replace("WT/*", "WT/#%s#\\n%s" % (relic[0], relic[1]), 1)
+            while "WP/*" in item:
+                name, x, y, area, logic_location, logic_cost = self.warps[self.random_warp_id()]
+                item = item.replace("WP/*", "TW/Warp to %s,%s,%s,%s" % (name, x, y, logic_location), 1)
         elif item == "EX*":
             value = self.get_random_exp_value()
             self.expRemaining -= value
