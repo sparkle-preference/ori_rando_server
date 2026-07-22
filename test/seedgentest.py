@@ -253,7 +253,9 @@ class MultiworldGenTests(unittest.TestCase):
 
     # same deal as SeedGenTests.SOLO_CANARY: a change here means regenerated
     # multiworld seeds differ; bump deliberately, never blindly.
-    MW_CANARY = "dcf12ab71e68927fa54c7ed8b13fb92361af2ba172ee2b4f560cd8efb28dffe2"
+    # (bumped 2026-07-22: per-world warp candidate draws shifted the MW RNG
+    # stream; MW was unreleased, no user warning owed. Solo canary unmoved.)
+    MW_CANARY = "4fc083624e327d61b5f5f64694b68a8a9ae9cd7a56aeac2811959aec2c9e0057"
 
     def test_mw_output_canary(self):
         import hashlib
@@ -263,20 +265,8 @@ class MultiworldGenTests(unittest.TestCase):
         self.assertEqual(h.hexdigest(), self.MW_CANARY,
                          "multiworld seed output changed for an existing seed string -- see comment above")
 
-    def test_rejects_unsupported_combos(self):
-        for extra in (["--warps-instead-of-tps", "3"], ["--warp-count", "4"]):
-            outdir = tempfile.mkdtemp(prefix="seedgentest_mwrej_")
-            try:
-                old_argv = sys.argv
-                sys.argv = self.ARGS + ["--output-dir", outdir] + extra
-                try:
-                    CLISeedParams().from_cli()
-                finally:
-                    sys.argv = old_argv
-                self.assertFalse(os.path.exists(os.path.join(outdir, "randomizer_1.dat")),
-                                 "multiworld should reject %s" % extra)
-            finally:
-                shutil.rmtree(outdir, ignore_errors=True)
+    # (the variation rejection list is empty now -- only plando preplacement
+    # remains unsupported, and that isn't reachable from the CLI)
 
 
 def check_mw_invariants(tc, seeds):
@@ -376,6 +366,48 @@ class MultiworldOptionsTests(unittest.TestCase):
         # coincide, change the seed string here rather than weakening this)
         self.assertGreater(len(set(spawn_ids.values())), 1,
                            "random spawns should differ per world: %s" % spawn_ids)
+
+    def _warps_received(self, seeds):
+        """-> {player: number of TW (warp) pickups they receive}."""
+        received = {p: 0 for p in seeds}
+        for p, lines in seeds.items():
+            placements, manifest = parse_seed(lines)
+            for (code, id, zone) in placements.values():
+                if code == "TW":
+                    received[p] += 1
+            for (finder, icode, iid, zone) in manifest.values():
+                if icode == "TW":
+                    received[p] += 1
+        return received
+
+    def test_warp_count(self):
+        for extra in ([], ["--in-logic-warps"]):
+            seeds = self._gen(["--warp-count", "4"] + extra)
+            check_mw_invariants(self, seeds)
+            for p, count in self._warps_received(seeds).items():
+                self.assertEqual(count, 4, "player %s should receive exactly 4 warps (%s)" % (p, extra))
+
+    def test_warps_instead_of_tps(self):
+        seeds = self._gen(["--warps-instead-of-tps", "3"])
+        check_mw_invariants(self, seeds)
+        warps = self._warps_received(seeds)
+        for p, lines in seeds.items():
+            placements, manifest = parse_seed(lines)
+            tps = sum(1 for (code, id, zone) in placements.values() if code == "TP")
+            tps += sum(1 for (f, icode, iid, zone) in manifest.values() if icode == "TP")
+            # a TP leaves the pool only when a warp in its area was available,
+            # so warps+TPs is conserved at the standard pool's 8 TPs per world
+            self.assertEqual(tps + warps[p], 8,
+                             "player %s: TPs (%s) + warps (%s) != 8" % (p, tps, warps[p]))
+
+    def test_bonus_pickups_pool(self):
+        # Extra Bonus pool: BS|* resolves per world, WP|* becomes warps
+        seeds = self._gen(["--bonus-pickups"])
+        check_mw_invariants(self, seeds)
+        warps = self._warps_received(seeds)
+        counts = set(warps.values())
+        self.assertEqual(len(counts), 1, "WP* count is drawn once, same for every world: %s" % warps)
+        self.assertTrue(4 <= counts.pop() <= 8, "WP|* pool is [4,8]: %s" % warps)
 
     def test_limitkeys_cross_world(self):
         seeds = self._gen(["--keymode", "LimitKeys"])

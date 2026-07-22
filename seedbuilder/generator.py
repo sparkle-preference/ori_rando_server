@@ -569,7 +569,9 @@ class SeedGenerator:
         self.assignQueue = []
         self.spoiler = []
         self.entrance_spoiler = ""
-        self.warps = {}
+        self.warps = {}            # warp_id -> warp tuple (ids globally unique)
+        self.warp_owner = {}       # warp_id -> player whose world it belongs to
+        self.warps_per_world = Counter()
         self.padding = 0
         self.starting_health = 3
         self.starting_energy = 1
@@ -851,52 +853,55 @@ class SeedGenerator:
         # FIXME Are we giving the correct number of ECs for non-glades starts?
         # FIXME Test altering preplaced things at spawn, but can't add things at spawn currently anyway.
 
-        # Make it so we only give up to 1 warp in each subarea.
-        self.unused_warps = []
-        for warp_group in warp_targets2:
-            self.unused_warps.append(self.random.choice(warp_group))
-            
-        # Warps. format (warpName, x, y, area from TP name, logicLocation, logicCost).
-        # (warp variations are single-world only; multiworld rejects them at validation)
-        if self.var(Variation.WARPS_INSTEAD_OF_TPS):
-            tps = []
-            for item in self.itemPool:
-                if item.startswith("TP"):
-                    tps.append(item)
-            # Calculate number of warps to add.
-            possible_warps_to_add = self.params.warps_instead_of_tps
-            if len(tps) < possible_warps_to_add:
-                possible_warps_to_add = len(tps)
-            if self.var(Variation.WARP_COUNT):
-                if self.params.warp_count > possible_warps_to_add:
-                    possible_warps_to_add = self.params.warp_count
-            for tp in self.random.sample(tps, possible_warps_to_add):
-                #log.debug("Removing tp: " + tp)
-                tp_name = base_of(tp)[2:]
-                warps_in_area = []
-                for warp in self.unused_warps:
-                    if warp[3] == tp_name:
-                        warps_in_area.append(warp)
-                if len(warps_in_area) > 0:
-                    warp = self.random.choice(warps_in_area)
-                    self.itemPool[tp] -= 1
-                    self.add_warp(warp)
+        # Make it so we only give up to 1 warp in each subarea (per world:
+        # every world draws its own warp candidates).
+        self.unused_warps = {p: [] for p in self.multi_ps()}
+        for p in self.multi_ps():
+            for warp_group in warp_targets2:
+                self.unused_warps[p].append(self.random.choice(warp_group))
 
-        # So we've currently added len(self.warps) warps. ("WP*" entries were
-        # tagged "|1" by the pool setup above; warps are single-world only.)
-        wp_star = tag("WP*", 1)
-        if self.var(Variation.WARP_COUNT):
-            remaining_warps = self.params.warp_count - len(self.warps)
-            if remaining_warps > 0:
-                self.itemPool[wp_star] = remaining_warps
-            else:
-                if wp_star in self.itemPool:
-                    del self.itemPool[wp_star]
-        if self.itemPool.get(wp_star, 0) > 0:
-            for warp in self.random.sample(self.unused_warps, min(len(self.unused_warps), self.itemPool.get(wp_star, 0))):
-                #log.debug("Adding warp.")
-                self.add_warp(warp)
-            self.itemPool.pop(wp_star)
+        # Warps. format (warpName, x, y, area from TP name, logicLocation, logicCost).
+        # Warp ids are globally unique ("Warp0", "Warp1", ...); ownership lives
+        # in the tagged pool/cost/inventory keys and self.warp_owner.
+        if self.var(Variation.WARPS_INSTEAD_OF_TPS):
+            for p in self.multi_ps():
+                tps = []
+                for item in self.itemPool:
+                    if item.startswith("TP") and untag(item)[1] == p:
+                        tps.append(item)
+                # Calculate number of warps to add.
+                possible_warps_to_add = self.params.warps_instead_of_tps
+                if len(tps) < possible_warps_to_add:
+                    possible_warps_to_add = len(tps)
+                if self.var(Variation.WARP_COUNT):
+                    if self.params.warp_count > possible_warps_to_add:
+                        possible_warps_to_add = self.params.warp_count
+                for tp in self.random.sample(tps, possible_warps_to_add):
+                    #log.debug("Removing tp: " + tp)
+                    tp_name = base_of(tp)[2:]
+                    warps_in_area = []
+                    for warp in self.unused_warps[p]:
+                        if warp[3] == tp_name:
+                            warps_in_area.append(warp)
+                    if len(warps_in_area) > 0:
+                        warp = self.random.choice(warps_in_area)
+                        self.itemPool[tp] -= 1
+                        self.add_warp(warp, p)
+
+        for p in self.multi_ps():
+            wp_star = tag("WP*", p)
+            if self.var(Variation.WARP_COUNT):
+                remaining_warps = self.params.warp_count - self.warps_per_world[p]
+                if remaining_warps > 0:
+                    self.itemPool[wp_star] = remaining_warps
+                else:
+                    if wp_star in self.itemPool:
+                        del self.itemPool[wp_star]
+            if self.itemPool.get(wp_star, 0) > 0:
+                for warp in self.random.sample(self.unused_warps[p], min(len(self.unused_warps[p]), self.itemPool.get(wp_star, 0))):
+                    #log.debug("Adding warp.")
+                    self.add_warp(warp, p)
+                self.itemPool.pop(wp_star)
 
         if self.var(Variation.NO_TPS):
             for item in self.itemPool:
@@ -958,31 +963,34 @@ class SeedGenerator:
         self.codeToName["WT*"] = "Relic"  # random relic preplacement (WT|*): resolved per-zone by adjust_item
 
     # resolve a WP|* (random warp) preplacement into a concrete warp pickup
-    def random_warp_id(self):
+    def random_warp_id(self, p=1):
         if not getattr(self, "unused_warps", None):
-            self.unused_warps = [self.random.choice(group) for group in warp_targets2]
-        warp = self.random.choice(self.unused_warps)
-        self.unused_warps.remove(warp)
+            self.unused_warps = {pp: [self.random.choice(group) for group in warp_targets2] for pp in self.multi_ps()}
+        warp = self.random.choice(self.unused_warps[p])
+        self.unused_warps[p].remove(warp)
         warp_id = "Warp" + str(len(self.warps))
         self.warps[warp_id] = warp
+        self.warp_owner[warp_id] = p
+        self.warps_per_world[p] += 1
         return warp_id
 
-    def add_warp(self, warp):
-        # single-world only (multiworld rejects warp variations at validation),
-        # so warp pool/cost/inventory entries are tagged for player 1
+    def add_warp(self, warp, p):
         name, x, y, area, logic_location, logic_cost = warp
-        self.unused_warps.remove(warp)
+        self.unused_warps[p].remove(warp)
         warp_id = "Warp" + str(len(self.warps))
         self.warps[warp_id] = warp
-        self.itemPool[tag(warp_id, 1)] = 1
-        self.costs[tag(warp_id, 1)] = logic_cost
-        self.inventory[tag(warp_id, 1)] = 0
+        self.warp_owner[warp_id] = p
+        self.warps_per_world[p] += 1
+        self.itemPool[tag(warp_id, p)] = 1
+        self.costs[tag(warp_id, p)] = logic_cost
+        self.inventory[tag(warp_id, p)] = 0
 
     def create_warp_paths(self):
         if self.var(Variation.IN_LOGIC_WARPS):
             for warp_id in self.warps:
                 name, x, y, area, logic_location, logic_cost = self.warps[warp_id]
-                connection = Connection("TeleporterNetwork", logic_location, self, 1)
+                p = self.warp_owner[warp_id]
+                connection = Connection("TeleporterNetwork", logic_location, self, p)
                 requirements = [warp_id]
                 if not self.var(Variation.ENTRANCE_SHUFFLE):
                     # Consider keystone softlocks.
@@ -993,7 +1001,7 @@ class SeedGenerator:
                     #if area == "Forlorn":
                     #    requirements.append("ForlornKey")
                 connection.add_requirements(requirements, 0)
-                self.get_area("TeleporterNetwork", 1).add_connection(connection)
+                self.get_area("TeleporterNetwork", p).add_connection(connection)
                 #log.debug("Added connect to {}".format(logic_location))
 
     def get_area(self, area_name, p):
@@ -1302,14 +1310,14 @@ class SeedGenerator:
             relic = self.choose_relic_for_zone(zone)
             item = "WT#" + relic[0] + "#\\n" + relic[1]
         elif item == "WP*":
-            item = self.random_warp_id()
+            item = self.random_warp_id(player)
         elif item[0:2] in ["MU", "RP"]:
             # resolve starred pickups inside preplaced multipickups
             while "WT/*" in item:
                 relic = self.choose_relic_for_zone(zone)
                 item = item.replace("WT/*", "WT/#%s#\\n%s" % (relic[0], relic[1]), 1)
             while "WP/*" in item:
-                name, x, y, area, logic_location, logic_cost = self.warps[self.random_warp_id()]
+                name, x, y, area, logic_location, logic_cost = self.warps[self.random_warp_id(player)]
                 item = item.replace("WP/*", "TW/Warp to %s,%s,%s,%s" % (name, x, y, logic_location), 1)
         elif item == "EX*":
             value = self.get_random_exp_value()
@@ -1519,21 +1527,12 @@ class SeedGenerator:
         self.entrance_spoiler += "}\n"
         return doorStr
 
-    # variations/modes multiworld can't handle yet; validated before generating
-    MW_UNSUPPORTED_VARIATIONS = [Variation.WARPS_INSTEAD_OF_TPS, Variation.WARP_COUNT,
-                                 Variation.IN_LOGIC_WARPS]
-
     def mw_unsupported(self, preplaced):
-        problems = [v.value for v in self.MW_UNSUPPORTED_VARIATIONS if self.var(v)]
+        # multiworld handles every variation now; plando preplacement is the
+        # one remaining project (N-world authoring + cross-links in the builder)
+        problems = []
         if preplaced:
             problems.append("preplacement/plando")
-        if self.params.item_pool:
-            for pool_item in self.params.item_pool:
-                # WP needs per-world warp registries; RP is infrastructurally
-                # fine but rides along until the warp batch makes bonus pools
-                # fully usable
-                if pool_item.replace("|", "")[0:2] in ["RP", "WP"]:
-                    problems.append("pool item %s" % pool_item)
         return problems
 
     def setSeedAndPlaceItems(self, params, preplaced={}, retries=10, verbose_paths=False):
