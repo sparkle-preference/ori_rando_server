@@ -10,7 +10,7 @@ from seedbuilder.generator import SeedGenerator
 
 JSON_SHARE = lambda x: x.value if x != ShareType.EVENT else "World Events"
 FLAGLESS_VARS = [Variation.WARMTH_FRAGMENTS, Variation.WORLD_TOUR]
-JSON_GAME_MODE = {MultiplayerGameType.SHARED: "Co-op", MultiplayerGameType.SIMUSOLO: "Race", MultiplayerGameType.SPLITSHARDS: "SplitShards"}
+JSON_GAME_MODE = {MultiplayerGameType.SHARED: "Co-op", MultiplayerGameType.SIMUSOLO: "Race", MultiplayerGameType.MULTIWORLD: "Multiworld", MultiplayerGameType.SPLITSHARDS: "SplitShards"}
 JSON_MODE_GAME = {v:k for k,v in JSON_GAME_MODE.items()}
 PBC = picks_by_coord(extras=True)
 
@@ -386,7 +386,7 @@ class SeedGenParams(ndb.Model):
 
     def get_seed(self, player=1, game_id=None, verbose_paths=False, include_sync = True):
         flags = self.flag_line(verbose_paths)
-        if self.players > 1 and self.sync.mode == MultiplayerGameType.SHARED:
+        if self.players > 1 and self.sync.mode in [MultiplayerGameType.SHARED, MultiplayerGameType.MULTIWORLD]:
             flags += f"/{player}"
         if self.tracking and include_sync:
             if not game_id:
