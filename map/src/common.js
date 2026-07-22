@@ -288,11 +288,14 @@ const EditableMultiValueLabel = props => (
 
 // Chip container: native drag-and-drop to reorder multipickup entries.
 // Drop target index = the dragged chip's final position.
+// The chip currently loaded into the input for editing gets dimmed + dashed outline.
 const DraggableMultiValue = props => {
     const idx = props.selectProps.value.indexOf(props.data);
+    const editing = props.selectProps.editingIdx === idx;
     return (
         <div draggable
-             style={{display: "inline-flex", cursor: "grab"}} title="Drag to reorder"
+             style={{display: "inline-flex", cursor: "grab", opacity: editing ? 0.45 : undefined, outline: editing ? "2px dashed #888" : undefined}}
+             title={editing ? "Editing: confirm in the text box to replace this" : "Drag to reorder"}
              onMouseDown={e => e.stopPropagation()}
              onDragStart={e => { e.stopPropagation(); e.dataTransfer.effectAllowed = "move"; props.selectProps.onChipDragStart(idx); }}
              onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }}
@@ -424,11 +427,14 @@ class PickupSelect extends Component {
         val = val.slice(0, -1)
       this.setState({ inputValue: val, menuOpen: true }, this.updatePickup);
     } else if (actionMeta.action === "select-option" && this.state.editIdx !== null) {
-      // mid-edit: the picked option replaces the chip being edited instead of appending
+      // mid-edit: the picked option replaces the chip being edited instead of appending.
+      // capture the index NOW: react-select fires onMenuClose (which clears editIdx)
+      // before onChange, so inside the batched updater prev.editIdx is already null
+      const idx = this.state.editIdx;
       this.setState(prev => {
         let value = [...prev.value];
-        if (prev.editIdx >= 0 && prev.editIdx < value.length)
-          value[prev.editIdx] = last;
+        if (idx >= 0 && idx < value.length)
+          value[idx] = last;
         return { value: value, editIdx: null };
       }, this.updatePickup);
     } else {
@@ -471,10 +477,11 @@ class PickupSelect extends Component {
     option = this.correct(option);
     if (option.includes("|")) {
       let opt = { value: option, label: name_from_str(option) };
+      const idx = this.state.editIdx; // capture before onMenuClose can clear it
       this.setState(prev => {
         let value = [...prev.value];
-        if (prev.editIdx !== null && prev.editIdx >= 0 && prev.editIdx < value.length)
-          value[prev.editIdx] = opt; // confirm edit: replace in place
+        if (idx !== null && idx >= 0 && idx < value.length)
+          value[idx] = opt; // confirm edit: replace in place
         else
           value = value.concat([opt]);
         return { value: value, editIdx: null };
@@ -602,6 +609,7 @@ class PickupSelect extends Component {
         onMenuOpen={() => this.setState({ menuOpen: true })}
         onMenuClose={() => this.setState({ menuOpen: false, editIdx: null })}
         components={{ MultiValue: DraggableMultiValue, MultiValueLabel: EditableMultiValueLabel }}
+        editingIdx={this.state.editIdx}
         editChip={this.editChip}
         onChipDragStart={this.onChipDragStart}
         onChipDrop={this.onChipDrop}
