@@ -342,6 +342,69 @@ class TestBingoDebounce(NdbTestCase):
         self.assertFalse(ev.loss)
 
 
+class TestMultiworldFoundPickup(NdbTestCase):
+    """Game.found_pickup in MULTIWORLD mode: an MW find flips the owner's
+    slot bit and busts their tick cache; own-world finds are server-passive;
+    nothing ever fans out."""
+
+    def setUp(self):
+        super(TestMultiworldFoundPickup, self).setUp()
+        self._txn = Player.mark_slot_txn
+        self._hop = models.HIST_ON_PLAYER
+        models.HIST_ON_PLAYER = False
+
+    def tearDown(self):
+        Player.mark_slot_txn = self._txn
+        models.HIST_ON_PLAYER = self._hop
+        super(TestMultiworldFoundPickup, self).tearDown()
+
+    def _game(self):
+        finder = Player(id="77.1", skills=0, events=0, teleporters=0, bonuses={}, hints={})
+        owner = Player(id="77.2", skills=0, events=0, teleporters=0, bonuses={}, hints={})
+        for p in (finder, owner):
+            p.put = lambda *a, **k: None
+        g = Game(id="77", str_mode="Multiworld", str_shared=["Skills", "WorldEvents"])
+        g.get_players = lambda: [finder, owner]
+        g.hist = []
+        g.append_hl = g.hist.append  # bypass the transactional history write
+        by_key = {p.key: p for p in (finder, owner)}
+        Player.mark_slot_txn = staticmethod(lambda pkey, slot: by_key[pkey].mark_slot(slot))
+        return g, finder, owner
+
+    def test_mw_find_flips_owner_slot_and_busts_cache(self):
+        from cache import Cache
+        g, finder, owner = self._game()
+        Cache.set_seen_checksum(owner.idpts(), 999)
+        pickup = Pickup.n("MW", "2,17,Bash")
+        status = g.found_pickup(1, pickup, 555, False, False, "Glades")
+        self.assertEqual(status, 200)
+        self.assertTrue(owner.slot_check(17))
+        self.assertIsNone(Cache.get_seen_checksum(owner.idpts()))
+        self.assertEqual(finder.skills, 0)  # the finder gets nothing granted
+        self.assertEqual(owner.skills, 0)   # ...and neither does the owner (client-side grant)
+        self.assertEqual(len(g.hist), 1)    # but history remembers
+        self.assertEqual(g.hist[0].pickup_code, "MW")
+
+    def test_repeat_find_is_idempotent(self):
+        from cache import Cache
+        g, finder, owner = self._game()
+        pickup = Pickup.n("MW", "2,17,Bash")
+        g.found_pickup(1, pickup, 555, False, False, "Glades")
+        Cache.set_seen_checksum(owner.idpts(), 123)  # owner ticked since
+        g.found_pickup(1, pickup, 555, False, False, "Glades")
+        self.assertTrue(owner.slot_check(17))
+        # no re-flip: the owner's rearmed cache survives the duplicate
+        self.assertEqual(Cache.get_seen_checksum(owner.idpts()), 123)
+
+    def test_own_world_find_is_server_passive(self):
+        g, finder, owner = self._game()
+        status = g.found_pickup(1, Pickup.n("SK", "0"), 999, False, False, "Glades")
+        self.assertEqual(status, 200)
+        self.assertEqual(finder.skills, 0)  # no server-side grant in MW
+        self.assertEqual(owner.skills, 0)
+        self.assertEqual(len(g.hist), 1)
+
+
 class TestBingoV2(NdbTestCase):
     def test_lock_identity(self):
         self.assertIs(models.bingo_lock(5), models.bingo_lock(5))

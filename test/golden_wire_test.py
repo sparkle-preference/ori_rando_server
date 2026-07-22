@@ -232,6 +232,81 @@ class TestBitfieldUpdates(NdbTestCase):
                          util.bfield_checksum(post.get("seen_%s" % i, 0) for i in range(8)))
 
 
+class TestMultiworldSlotsField(NdbTestCase):
+    """The multiworld tick extension (2026-07-22): in MW games only, the
+    signals field is ALWAYS present (possibly empty) and the owner's slot
+    bitfields ride at fixed index 6 as 8 ";"-joined 32-bit ints. Legacy
+    games keep the conditional-signals 5/6-field format bit for bit."""
+
+    def test_empty_player_seven_fields(self):
+        p = make_player(931, 1)
+        out = p.output(include_slots=True)
+        fields = out.split(",")
+        self.assertEqual(len(fields), 7)
+        self.assertEqual(fields[5], "")  # signals: present but empty
+        self.assertEqual(fields[6], "0;0;0;0;0;0;0;0")
+
+    def test_signals_and_slots_coexist(self):
+        p = make_player(932, 1, signals=["win:gg"])
+        p.slot_bflds = [5, 0, 0, 0, 0, 0, 0, 1 << 31]
+        fields = p.output(include_slots=True).split(",")
+        self.assertEqual(fields[5], "win:gg")
+        self.assertEqual(fields[6], "5;0;0;0;0;0;0;%s" % (1 << 31))
+
+    def test_legacy_output_ignores_slot_bits(self):
+        # a non-MW game must never grow the extra fields, even if slot bits
+        # somehow exist on the entity
+        p = make_player(933, 1)
+        p.slot_bflds = [1] * 8
+        self.assertEqual(p.output(), "0,0,0,,")
+
+    def test_slots_field_has_no_commas(self):
+        p = make_player(934, 1)
+        p.slot_bflds = [2**32 - 1] * 8
+        fields = p.output(include_slots=True).split(",")
+        self.assertEqual(len(fields), 7)  # big values must not add fields
+
+
+class TestSlotMarking(NdbTestCase):
+    def test_mark_check_idempotent(self):
+        p = make_player(941, 1)
+        self.assertFalse(p.slot_check(17))
+        self.assertTrue(p.mark_slot(17))
+        self.assertTrue(p.slot_check(17))
+        self.assertFalse(p.mark_slot(17))  # already set: caller skips cache bust
+        self.assertEqual(p.put_count, 1)
+        self.assertTrue(p.mark_slot(255))
+        self.assertFalse(p.slot_check(254))
+
+    def test_out_of_range_rejected(self):
+        p = make_player(942, 1)
+        self.assertFalse(p.mark_slot(256))
+        self.assertFalse(p.mark_slot(-1))
+        self.assertEqual(p.put_count, 0)
+
+
+class TestSeedSyncMismatch(unittest.TestCase):
+    """The setSeed upload check: line 1's commas become pipes client-side and
+    lines are joined with commas, so segment 0 is the whole first line."""
+
+    def _upload(self, first_line, rest=("2|EC|1|Glades", "919772|EX|15|Glades")):
+        return ",".join([first_line.replace(",", "|")] + list(rest))
+
+    def test_matching_sync_passes(self):
+        up = self._upload("Sync133.2,Standard,Clues|somename")
+        self.assertIsNone(util.seed_sync_mismatch(up, 133, 2))
+
+    def test_wrong_game_or_player_caught(self):
+        up = self._upload("Sync133.2,Standard,Clues|somename")
+        self.assertEqual(util.seed_sync_mismatch(up, 134, 2), "133.2")
+        self.assertEqual(util.seed_sync_mismatch(up, 133, 1), "133.2")
+
+    def test_untracked_and_empty_seeds_skip(self):
+        self.assertIsNone(util.seed_sync_mismatch(self._upload("Standard,Clues|x"), 1, 1))
+        self.assertIsNone(util.seed_sync_mismatch("", 1, 1))
+        self.assertIsNone(util.seed_sync_mismatch(None, 1, 1))
+
+
 class TestDevCacheParity(unittest.TestCase):
     def test_clear_seen_checksum_tolerates_missing_key(self):
         pc = cache_mod.PythonCache()

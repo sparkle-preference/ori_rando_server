@@ -54,6 +54,22 @@ def netperf(what, t0, **kw):
     extras = " ".join("%s=%s" % (k, v) for k, v in sorted(kw.items()))
     log.info("NETPERF %s ms=%d tag=%s %s", what, int((monotonic() - t0) * 1000), NETPERF_TAG, extras)
 
+def seed_sync_mismatch(seed_field, game_id, player_id):
+    """Detect a wrong randomizer.dat at connect time. The client's setSeed
+    upload joins seed lines with commas after swapping line 1's commas to
+    pipes, so the first comma-segment is the entire first line; if it carries
+    a Sync id, it must match the URL's game.player. Returns the mismatched
+    sync id, or None when it matches / can't be checked."""
+    if not seed_field:
+        return None
+    first = seed_field.split(",", 1)[0]
+    if not first.startswith("Sync"):
+        return None
+    sync_id = first[4:].split("|", 1)[0]
+    if sync_id != "%s.%s" % (game_id, player_id):
+        return sync_id
+    return None
+
 def json_default(o):
     # google-cloud-ndb wraps structured-property values in _BaseValue in place when
     # an entity is put(); a board json computed after a put in the same request

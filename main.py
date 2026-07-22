@@ -22,7 +22,7 @@ from enums import MultiplayerGameType, ShareType, Variation
 from models import ndb_wsgi_middleware, Game, Seed, User, BingoGameData, BingoEvent, BingoTeam, CustomLogic, trees_by_coords, LegacyUser, bingo_lock
 from bingo import BingoGenerator
 from cache import Cache
-from util import coord_correction_map, clone_entity, all_locs, picks_by_type_generator, param_val, param_flag, debug, template_root, VER, MIN_VER, BETA_VER, game_list_html, version_check, template_vals, layout_json, bfield_checksum, netperf, NETPERF_TAG, json_default, BATCH_GRANTS, HIST_ON_PLAYER, SPLIT_CACHE, BINGO_V2
+from util import coord_correction_map, clone_entity, all_locs, picks_by_type_generator, param_val, param_flag, debug, template_root, VER, MIN_VER, BETA_VER, game_list_html, version_check, template_vals, layout_json, bfield_checksum, netperf, NETPERF_TAG, json_default, seed_sync_mismatch, BATCH_GRANTS, HIST_ON_PLAYER, SPLIT_CACHE, BINGO_V2
 from reachable import Map, PlayerState
 from pickups import Pickup, Skill, AbilityCell, HealthCell, EnergyCell, Multiple
 
@@ -357,7 +357,7 @@ def netcode_tick_get(game_id, player_id, xycoords):
         p.bitfield_updates(fake, game_id)
         game.sanity_check()
     Cache.set_pos(game_id, player_id, x, y)
-    return text_resp(p.output())
+    return text_resp(p.output(include_slots=(game.mode == MultiplayerGameType.MULTIWORLD)))
 
 @app.route('/netcode/game/<int:game_id>/player/<int:player_id>/tick/', methods = ['POST'])
 @app.route('/netcode/game/<int:game_id>/player/<int:player_id>/tick', methods = ['POST'])
@@ -378,7 +378,7 @@ def netcode_tick_post(game_id, player_id):
     y = request.form.get("y")
     p.bitfield_updates(request.form, game_id)
     Cache.set_pos(game_id, player_id, x, y)
-    return text_resp(p.output())
+    return text_resp(p.output(include_slots=(game.mode == MultiplayerGameType.MULTIWORLD)))
 
 @app.route('/netcode/game/<int:game_id>/player/<int:player_id>/callback/<path:signal>')
 def netcode_signal_callback(game_id, player_id, signal):
@@ -403,6 +403,10 @@ def netcode_connect(game_id, player_id):
             p.signal_send("msg:@dll out of date. (orirando.com/dll)@")
             p.can_nag = False
             p.put()
+        mismatch = seed_sync_mismatch(request.form.get("seed"), game_id, player_id)
+        if mismatch:
+            log.warning("seed sync mismatch: %s.%s uploaded a seed for %s", game_id, player_id, mismatch)
+            p.signal_send("msg:@Warning: your loaded seed belongs to game %s but you are connected as %s.%s. Wrong randomizer.dat?@" % (mismatch, game_id, player_id))
         game.sanity_check()  # cheap if game is short!
     else:
         # we no longer support uploading seeds
