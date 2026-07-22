@@ -354,6 +354,7 @@ class TestBingoV2(NdbTestCase):
             e.put = lambda *a, **k: None
 
     def test_event_log_cap_preserves_misc_markers(self):
+        from models import BingoEvent, BingoGameData
         bgd = BingoGameData(id="55")
         markers = [BingoEvent(event_type="miscBingo Game 55 created!"),
                    BingoEvent(event_type="miscBingo Game 55 started!")]
