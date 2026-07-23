@@ -92,7 +92,10 @@ class MultiplayerOptions(ndb.Model):
         if opts.enabled:
             jsonMode = json.get("coopGameMode", "None")
             opts.mode = JSON_MODE_GAME[jsonMode] if jsonMode in JSON_MODE_GAME else MultiplayerGameType(jsonMode)
-            opts.cloned = json.get("coopGenMode") != "disjoint"
+            # cloned/teams are SHARED-mode concepts; multiworld players each
+            # have their own world (a stray teams={1: everyone} here made
+            # every player download player 1's seed -- game 133746)
+            opts.cloned = json.get("coopGenMode") != "disjoint" and opts.mode != MultiplayerGameType.MULTIWORLD
             if opts.cloned:
                 opts.teams = {1: list(range(1, json.get("players", 1) + 1))}
                 opts.dedup = bool(json.get("dedupShared", False))
@@ -403,6 +406,11 @@ class SeedGenParams(ndb.Model):
         return {pid: tid for tid, pids in self.sync.teams.items() for pid in pids}
 
     def team_pid(self, pid):  # given pid, get team or return pid if no teams exist (REMINDER: TEAMS ARE CLONED ONLY)
+        # multiworld guard: params created via the web before the from_json
+        # fix carry a bogus teams={1: everyone}; every player must keep their
+        # own pid or they all get player 1's seed
+        if self.sync.mode == MultiplayerGameType.MULTIWORLD:
+            return pid
         return int(self.teams_inv()[pid]) if (self.sync.teams and self.sync.cloned) else pid
 
     def get_seed(self, player=1, game_id=None, verbose_paths=False, include_sync = True):

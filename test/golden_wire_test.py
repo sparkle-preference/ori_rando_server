@@ -305,6 +305,57 @@ class TestSeedSyncId(unittest.TestCase):
         self.assertIsNone(util.seed_sync_id(None))
 
 
+class TestMultiworldSeedServing(NdbTestCase):
+    """Regression: game 133746 (first live MW game) served every player
+    player 1's seed. Web-created params carried cloned=True and
+    teams={1: everyone} -- SHARED-mode concepts -- and team_pid collapsed
+    every pid to 1. The CLI tests never caught it because CLIMultiOptions
+    defaults cloned=False; this test goes through the web json path."""
+
+    def _mw_json(self, players=3):
+        return {"players": players, "coopGameMode": "Multiworld",
+                "coopGenMode": "cloned", "dedupShared": False, "syncShared": []}
+
+    def test_web_created_mw_params_are_not_cloned(self):
+        from seedbuilder.seedparams import MultiplayerOptions
+        opts = MultiplayerOptions.from_json(self._mw_json())
+        self.assertFalse(opts.cloned)
+        self.assertFalse(opts.teams)
+
+    def test_team_pid_guard_survives_bogus_teams(self):
+        # params stored before the from_json fix still carry the bad teams
+        from seedbuilder.seedparams import MultiplayerOptions, SeedGenParams
+        opts = MultiplayerOptions()
+        opts.enabled = True
+        opts.mode = __import__("enums").MultiplayerGameType.MULTIWORLD
+        opts.cloned = True
+        opts.teams = {1: [1, 2, 3]}
+        params = SeedGenParams(seed="test", players=3, sync=opts)
+        for pid in (1, 2, 3):
+            self.assertEqual(params.team_pid(pid), pid)
+
+    def test_get_seed_data_serves_each_player_their_world(self):
+        from seedbuilder.seedparams import MultiplayerOptions, SeedGenParams, Placement, Stuff
+        opts = MultiplayerOptions()
+        opts.enabled = True
+        opts.mode = __import__("enums").MultiplayerGameType.MULTIWORLD
+        opts.cloned = True  # worst case: pre-fix stored params
+        opts.teams = {1: [1, 2]}
+        params = SeedGenParams(seed="test", players=2, sync=opts, placements=[
+            Placement(location="100", zone="Glades", stuff=[
+                Stuff(code="SK", id="0", player="1"),
+                Stuff(code="EC", id="1", player="2"),
+            ]),
+            Placement(location="-2", zone="Glades", stuff=[
+                Stuff(code="MW", id="2,SK,50", player="1"),
+            ]),
+        ])
+        p1 = params.get_seed_data(1)
+        p2 = params.get_seed_data(2)
+        self.assertEqual([(l, c, i) for (l, c, i, z) in p1], [("100", "SK", "0"), ("-2", "MW", "2,SK,50")])
+        self.assertEqual([(l, c, i) for (l, c, i, z) in p2], [("100", "EC", "1")])
+
+
 class TestDevCacheParity(unittest.TestCase):
     def test_clear_seen_checksum_tolerates_missing_key(self):
         pc = cache_mod.PythonCache()
