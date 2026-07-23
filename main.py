@@ -497,7 +497,7 @@ def gen_seed_from_params():
     if not param_key:
         return text_resp("Failed to build params!", 500)
     params = param_key.get()
-    problem = seed_mode_problem(params, mw_override=param_flag("mw"))
+    problem = seed_mode_problem(params)
     if problem:
         return text_resp(problem, 409)
     if not params.generate():
@@ -520,7 +520,7 @@ def gen_seed_from_url():
     verbose_paths = param_val("verbose_paths") is not None
     if param_key:
         params = param_key.get()
-        problem = seed_mode_problem(params, mw_override=param_flag("mw"))
+        problem = seed_mode_problem(params)
         if problem:
             return json_resp({"error": problem}, 409)
         if params.generate(preplaced={}):

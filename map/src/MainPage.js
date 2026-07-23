@@ -596,7 +596,7 @@ onDrop = (files) => {
                             <DropdownMenu style={menuStyle}>
                                 <DropdownItem active={"Race"===coopGameMode} onClick={()=> this.setState({coopGameMode: "Race"})}>Race</DropdownItem>
                                 <DropdownItem active={"Co-op"===coopGameMode} onClick={()=> this.setState({coopGameMode: "Co-op"})}>Co-op</DropdownItem>
-                                <DropdownItem active={"Multiworld"===coopGameMode} onClick={()=> this.setState({coopGameMode: "Multiworld"})}>Multiworld</DropdownItem>}
+                                <DropdownItem active={"Multiworld"===coopGameMode} onClick={()=> this.setState({coopGameMode: "Multiworld"})}>Multiworld</DropdownItem>
                             </DropdownMenu>
                         </UncontrolledButtonDropdown>
                     </Col>
@@ -657,10 +657,6 @@ onDrop = (files) => {
             url += "?bingo=1"
             json.bingoLines = this.state.bingoLines;
         }
-        if(this.state.tracking && this.state.players > 1 && this.state.coopGameMode === "Multiworld")
-            // mw=1 lets testers roll multiworld seeds while the server-side
-            // MULTIWORLD flag is still off
-            url += (url.includes("?") ? "&" : "?") + "mw=1"
         if(this.state.spawn !== "Glades") {
             json.spawn = this.state.spawn;
             if(this.state.spawn !== "Random") {
