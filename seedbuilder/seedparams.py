@@ -9,8 +9,27 @@ from collections import OrderedDict
 from seedbuilder.generator import SeedGenerator
 
 JSON_SHARE = lambda x: x.value if x != ShareType.EVENT else "World Events"
+
+def seed_mode_problem(params):
+    """User-facing reason a seed request's multiplayer mode can't be built,
+    or None. Removed modes get a clear message instead of a generation 500;
+    Multiworld creation is feature-flagged (the gameplay paths are always
+    present but unreachable without games of this mode)."""
+    from util import MULTIWORLD
+    if not params.sync.enabled:
+        return None
+    if params.sync.mode == MultiplayerGameType.MULTIWORLD:
+        if not MULTIWORLD:
+            return "Multiworld seeds aren't available yet."
+        if not params.tracking:
+            return "Multiworld requires tracking (it's netcode all the way down)."
+    if params.sync.mode == MultiplayerGameType.SPLITSHARDS:
+        return "SplitShards was removed (2026-07). Consider Multiworld with Shards keymode."
+    if params.sync.mode == MultiplayerGameType.SHARED and not params.sync.cloned:
+        return "Seperate Seeds generation was removed (2026-07). Use Cloned Seeds or Multiworld."
+    return None
 FLAGLESS_VARS = [Variation.WARMTH_FRAGMENTS, Variation.WORLD_TOUR]
-JSON_GAME_MODE = {MultiplayerGameType.SHARED: "Co-op", MultiplayerGameType.SIMUSOLO: "Race", MultiplayerGameType.SPLITSHARDS: "SplitShards"}
+JSON_GAME_MODE = {MultiplayerGameType.SHARED: "Co-op", MultiplayerGameType.SIMUSOLO: "Race", MultiplayerGameType.MULTIWORLD: "Multiworld", MultiplayerGameType.SPLITSHARDS: "SplitShards"}
 JSON_MODE_GAME = {v:k for k,v in JSON_GAME_MODE.items()}
 PBC = picks_by_coord(extras=True)
 
@@ -313,7 +332,7 @@ class SeedGenParams(ndb.Model):
             "relicCount": self.relic_count,
             "tracking": self.tracking,
             "coopGameMode": JSON_GAME_MODE.get(self.sync.mode, "Co-op"),
-            "coopGenMode": "Cloned Seeds" if self.sync.cloned else "Seperate Seeds",
+            "coopGenMode": "Cloned Seeds" if (self.sync.cloned or self.sync.mode == MultiplayerGameType.MULTIWORLD) else "Seperate Seeds",
             "paths": [p.value for p in self.logic_paths],
             "shared": [JSON_SHARE(s) for s in self.sync.shared],
             "teamStr": self.sync.get_team_str(),
@@ -386,7 +405,7 @@ class SeedGenParams(ndb.Model):
 
     def get_seed(self, player=1, game_id=None, verbose_paths=False, include_sync = True):
         flags = self.flag_line(verbose_paths)
-        if self.players > 1 and self.sync.mode == MultiplayerGameType.SHARED:
+        if self.players > 1 and self.sync.mode in [MultiplayerGameType.SHARED, MultiplayerGameType.MULTIWORLD]:
             flags += f"/{player}"
         if self.tracking and include_sync:
             if not game_id:
@@ -412,11 +431,14 @@ class SeedGenParams(ndb.Model):
 
     def get_aux_spoiler(self, exclude_types, by_zone, player=1):
         from models import Pickup
+        from util import is_mw_manifest_loc
         outlines = []
         seed_data = OrderedDict()
         for coords, pcode, pid, _ in self.get_seed_data(player):
             if pcode == "EN" or pcode in exclude_types or pcode + pid == "RB81":
                 continue
+            if is_mw_manifest_loc(coords):
+                continue  # slot manifests aren't map locations
             loc = PBC[int(coords)]
             pickup = Pickup.n(pcode, pid)
             if pickup:

@@ -392,11 +392,14 @@ class PythonCache(object):
         self.cache.set(key="%s.%s.seenhash" % gpid, value=seen_checksum, time=360)
 
     def clear_seen_checksum(self, gpid):
-        del self.cache["%s.%s.seenhash" % gpid]
+        # tolerate missing keys, like memcached delete (a bare del raised
+        # KeyError whenever no checksum was armed, e.g. signal_send on a
+        # player who hadn't ticked yet -- dev-only crash)
+        self.cache.pop("%s.%s.seenhash" % gpid, None)
 
     def remove_game(self, gid):
         for key in ["have", "hist", "san", "pos", "reach", "items", "relics", "board"]:
-            del self.cache[f"{gid}.{key}"]
+            self.cache.pop(f"{gid}.{key}", None)
 
     def clear(self):
         self.cache.clear()

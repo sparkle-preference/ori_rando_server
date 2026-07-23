@@ -408,6 +408,9 @@ class Player(ndb.Model):
     can_nag     = ndb.BooleanProperty(default=True)
     seen_bflds  = ndb.IntegerProperty(repeated=True)
     have_bflds  = ndb.IntegerProperty(repeated=True)
+    # multiworld: which of this player's item slots other players have found
+    # (8x32 bits; slot semantics live in the player's own seed manifest)
+    slot_bflds  = ndb.IntegerProperty(repeated=True)
     bingo_prog  = ndb.LocalStructuredProperty(BingoCardProgress, repeated=True)
 
     def bitfield_updates(self, post_data, game_id):
@@ -440,6 +443,31 @@ class Player(ndb.Model):
     def have_coords(self):
         return bfields_to_coords(self.have_bflds) + [2]
 
+    # --- multiworld slots ---
+    def mark_slot(self, slot):
+        """Set a slot bit. Returns True if it was newly set (caller busts the
+        owner's tick cache), False if already set or out of range."""
+        if slot < 0 or slot > 255:
+            log.error("invalid multiworld slot %s for %s", slot, self.key.id())
+            return False
+        if not self.slot_bflds:
+            self.slot_bflds = 8 * [0]
+        if self.slot_check(slot):
+            return False
+        self.slot_bflds[slot // 32] |= 1 << (slot % 32)
+        self.put()
+        return True
+
+    def slot_check(self, slot):
+        if not self.slot_bflds:
+            return False
+        return bool((self.slot_bflds[slot // 32] >> (slot % 32)) & 1)
+
+    @staticmethod
+    @ndb.transactional(retries=5)
+    def mark_slot_txn(pkey, slot):
+        return pkey.get().mark_slot(slot)
+
     @ndb.transactional(retries=5)
     def reset(self):
         self.can_nag = True
@@ -451,6 +479,7 @@ class Player(ndb.Model):
         self.history = []
         self.seen_bflds = 8 * [0]
         self.have_bflds = 8 * [0]
+        self.slot_bflds = 8 * [0]
         self.bingo_prog = [BingoCardProgress(square=i) for i in range(25)]
         self.put()
 
@@ -496,7 +525,7 @@ class Player(ndb.Model):
             return 0,0
 
     # post-refactor version of bitfields
-    def output(self):
+    def output(self, include_slots=False):
         outlines = [str(x) for x in [self.skills, self.events, self.teleporters]]
         bonuses = []
         for (_id, cnt) in self.bonuses.items():
@@ -507,7 +536,14 @@ class Player(ndb.Model):
                 bonuses.append("%sx%s" % (_id, cnt))
         outlines.append(";".join(bonuses))
         outlines.append(";".join(["%s:%s" % (loc, finder) for (loc, finder) in self.hints.items()]))
-        if self.signals:
+        if include_slots:
+            # multiworld games only (new clients by definition): the signals
+            # field is ALWAYS present -- possibly empty -- so the slot
+            # bitfields land at a fixed index 6. Legacy games keep the
+            # conditional-signals format below untouched.
+            outlines.append("|".join(self.signals))
+            outlines.append(";".join(str(b) for b in (self.slot_bflds or 8 * [0])))
+        elif self.signals:
             outlines.append("|".join(self.signals))
         out = ",".join(outlines)
         Cache.set_output(self.idpts(), out)
@@ -1670,6 +1706,10 @@ class Game(ndb.Model):
         if abs(coords) == 1 and pickup.code == "TP":
             share = ShareType.TELEPORTER in self.shared
             override = True # fuck no it actually should work like this. lol.
+        if self.mode == MultiplayerGameType.MULTIWORLD:
+            # nothing fans out in multiworld: cross-world grants happen via
+            # slot-bitfield flips, own-world pickups are client-local
+            share = False
         if coords in finder_seen:
             if share:
                 if not override:
@@ -1739,6 +1779,20 @@ class Game(ndb.Model):
                     if coords in [coord for p in players if p.pid() != pid for coord in p.seen_coords()]:
                         log.debug("%s at %s already taken, player %s will not get one." % (pickup.name, coords, pid))
                         return 410
+        elif self.mode == MultiplayerGameType.MULTIWORLD:
+            if pickup.code == "MW":
+                owner = next((p for p in players if p.pid() == pickup.owner), None)
+                if not owner:
+                    # the owner hasn't connected yet: create their Player so
+                    # the find is durable, not dropped
+                    owner = self.player(pickup.owner)
+                if Player.mark_slot_txn(owner.key, pickup.slot):
+                    # bust the owner's tick cache, or an idle owner (unchanged
+                    # bitfields) never sees the flip -- same failure mode as
+                    # the dropped win signals (see signal_send)
+                    Cache.clear_seen_checksum(owner.idpts())
+            # own-world pickups need no server-side action: the finder's
+            # client granted itself already, and seen/have bits arrive by tick
         elif self.mode in [MultiplayerGameType.SIMUSOLO, MultiplayerGameType.BINGO]:
             pass
         else:

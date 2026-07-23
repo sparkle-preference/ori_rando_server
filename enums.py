@@ -25,7 +25,8 @@ class StrEnum(str, Enum):
 
 class MultiplayerGameType(StrEnum):
     SHARED = "Shared"
-    SPLITSHARDS = "SplitShards"
+    MULTIWORLD = "Multiworld"
+    SPLITSHARDS = "SplitShards"  # deprecated: no longer creatable, kept so old datastore entities load
     SIMUSOLO = "None"
     BINGO = "Bingo"
 

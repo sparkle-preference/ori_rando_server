@@ -596,7 +596,9 @@ onDrop = (files) => {
                             <DropdownMenu style={menuStyle}>
                                 <DropdownItem active={"Race"===coopGameMode} onClick={()=> this.setState({coopGameMode: "Race"})}>Race</DropdownItem>
                                 <DropdownItem active={"Co-op"===coopGameMode} onClick={()=> this.setState({coopGameMode: "Co-op"})}>Co-op</DropdownItem>
-                                <DropdownItem active={"SplitShards"===coopGameMode} disabled={keyMode !== "Shards"} onClick={()=> this.setState({coopGameMode: "SplitShards"})}>Split Shards</DropdownItem>
+                                {/* beta gate: visit /?mw to see Multiworld until the server flag goes public; drop the condition at launch */}
+                                {("Multiworld"===coopGameMode || (new URL(window.document.URL)).searchParams.has("mw")) &&
+                                <DropdownItem active={"Multiworld"===coopGameMode} onClick={()=> this.setState({coopGameMode: "Multiworld"})}>Multiworld</DropdownItem>}
                             </DropdownMenu>
                         </UncontrolledButtonDropdown>
                     </Col>
@@ -610,7 +612,6 @@ onDrop = (files) => {
                                 <DropdownToggle disabled={players < 2} color={players > 1 ? "primary" : "secondary"} caret block> {coopGenMode} </DropdownToggle>
                                 <DropdownMenu style={menuStyle}>
                                     <DropdownItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "Cloned Seeds")}  active={"Cloned Seeds"===coopGenMode} onClick={()=> this.setState({coopGenMode: "Cloned Seeds"})}>Cloned Seeds</DropdownItem>
-                                    <DropdownItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "Seperate Seeds")}  active={"Seperate Seeds"===coopGenMode} onClick={()=> this.setState({coopGenMode: "Seperate Seeds"})}>Seperate Seeds</DropdownItem>
                                 </DropdownMenu>
                             </UncontrolledButtonDropdown>
                         </Col>
@@ -760,7 +761,9 @@ onDrop = (files) => {
     seedBuildCallback = ({status, responseText}) => {
         if(status !== 200)
         {
-            NotificationManager.error("Failed to generate seed!", "Seed generation failure!", 5000)
+            // 409s carry a human-readable reason (removed modes, multiworld flag off)
+            let reason = (status === 409 && responseText) ? responseText : "Failed to generate seed!"
+            NotificationManager.error(reason, "Seed generation failure!", 5000)
             this.setState({seedIsGenerating: false, seedTabExists: false, activeTab: 'variations'}, this.updateUrl)
             return
         } else {

@@ -223,9 +223,40 @@ doors_outer = [
 def ordhash(s):
     return reduce(mul, [ord(c) for c in s])
 
+
+class MultiworldSlotOverflow(Exception):
+    """A player needed more than MAX_SLOTS cross-world item slots."""
+
+# --- the tagged universe ---
+# Multiworld generation runs ONE placement pass over every player's world at
+# once: each area, location, item, and logic requirement is tagged with the
+# world it belongs to ("Bash|2", "GladesMain|3"). Single-world games are just
+# the 1-player case (everything tagged "|1"), so there is one code path.
+
+def tag(name, p):
+    return "%s|%s" % (name, p)
+
+def untag(name):
+    """-> (base, player). Only ever called on tagged strings."""
+    base, _, p = name.rpartition("|")
+    return base, int(p)
+
+def base_of(name):
+    return name.rpartition("|")[0]
+
+def display_name(name, solo):
+    """Human form of a maybe-tagged name: base when solo, "P2's base" when
+    multi. Names without a player tag (e.g. "Spawn") pass through."""
+    base, _, p = name.rpartition("|")
+    if not base or not p.isdigit():
+        return name
+    return base if solo else "P%s's %s" % (p, base)
+
+
 class Area:
-    def __init__(self, name):
-        self.name = name
+    def __init__(self, name, p):
+        self.name = tag(name, p)
+        self.player = p
         self.connections = []
         self.locations = []
         self.difficulty = 1
@@ -256,9 +287,10 @@ class Area:
 
 class Connection:
 
-    def __init__(self, home, target, sg):
-        self.home = home
-        self.target = target
+    def __init__(self, home, target, sg, p):
+        self.home = tag(home, p)
+        self.target = tag(target, p)
+        self.player = p
         self.keys = 0
         self.mapstone = False
         self.requirements = []
@@ -284,13 +316,13 @@ class Connection:
             return count * [item]
         translated_req = []
         for part in req:
-            translated_req += translate(part)
+            translated_req += [tag(tp, self.player) for tp in translate(part)]
 
         self.requirements.append(translated_req)
         self.difficulties.append(difficulty)
         if not self.keys:
-            self.keys = translated_req.count("KS")
-        self.mapstone = "MS" in translated_req
+            self.keys = translated_req.count(tag("KS", self.player))
+        self.mapstone = tag("MS", self.player) in translated_req
 
     def get_requirements(self):
         return self.requirements
@@ -303,13 +335,14 @@ class Connection:
             score = 0
             items = {"EC": 0, "HC": 0, "AC": 0, "SunstoneShard": 0, "WaterVeinShard": 0, "GumonSealShard": 0}
             for req_part in self.requirements[i]:
-                if req_part in items:
-                    items[req_part] += 1
-                    if self.sg.inventory[req_part] < items[req_part]:
+                base = base_of(req_part)
+                if base in items:
+                    items[base] += 1
+                    if self.sg.inventory[req_part] < items[base]:
                         score += self.sg.costs[req_part]
-                elif req_part == "MS":
-                    if self.sg.inventory["MS"] < self.sg.mapstonesSeen:
-                        score += self.sg.costs["MS"]
+                elif base == "MS":
+                    if self.sg.inventory[req_part] < self.sg.mapstonesSeen[self.player]:
+                        score += self.sg.costs[req_part]
                 else:
                     score += self.sg.costs.get(req_part, 0)
             if score < minReqScore:
@@ -326,11 +359,12 @@ forbidden_repeatable_locs = set([-7680144, -9120036, -10440008, -10759968, -1560
 class Location:
     factor = 4.0
 
-    def __init__(self, x, y, area, orig, difficulty, zone):
+    def __init__(self, x, y, area, orig, difficulty, zone, p):
         self.x = int(math.floor((x) / self.factor) * self.factor)
         self.y = int(math.floor((y) / self.factor) * self.factor)
         self.orig = orig
-        self.area = area
+        self.area = area  # tagged area name (callers pass Area.name or tag explicitly)
+        self.player = p
         self.difficulty = difficulty
         self.zone = zone
         key = self.get_key()
@@ -345,8 +379,10 @@ class Location:
 
     def __str__(self): return self.to_string()
 
-    def to_string(self):
-        return self.area + " " + self.orig + " (" + str(self.x) + " " + str(self.y) + ")"
+    def to_string(self, solo=True):
+        area = base_of(self.area) if "|" in self.area else self.area
+        prefix = "" if solo else "Player %s's " % self.player
+        return prefix + area + " " + self.orig + " (" + str(self.x) + " " + str(self.y) + ")"
 
 
 class Door:
@@ -424,6 +460,7 @@ class SeedGenerator:
     })
 
     def toOutput(self, item, asMultiPart=False):
+        item = base_of(item) if "|" in item else item
         if asMultiPart:
             raw = self.toOutput(item)
             return "%s/%s" % (raw[0:2], raw[2:])
@@ -438,15 +475,54 @@ class SeedGenerator:
     def var(self, v):
         return v in self.params.variations
 
-    def next_ms_loc(self):
-        return 20 + 4 * (1 + self.mapstonesAssigned)
+    # --- multiworld helpers ---
+    def multi_ps(self):
+        return range(1, self.seed_count + 1)
+
+    def random_player(self):
+        if self.seed_count == 1:
+            return 1  # don't burn pRNG state in single-world games
+        return self.random.choice(list(self.multi_ps()))
+
+    def solo(self):
+        return self.seed_count == 1
+
+    def total_locs(self):
+        """The single-world '252 locations' constant, scaled."""
+        return 252 * self.seed_count
+
+    MAX_SLOTS = 256  # 8x32-bit slot bitfields on the Player entity: wire format
+
+    def place_in_slot(self, owner, pickup, finder, zone):
+        """Allocate a slot on owner for an item found in finder's world.
+        Returns the slot number. Reuses slots freed by balance-list churn."""
+        if self.mw_free_slots[owner]:
+            slot = self.mw_free_slots[owner].pop()
+            self.mw_slots[owner][slot] = (pickup, finder, zone)
+            return slot
+        self.mw_slots[owner].append((pickup, finder, zone))
+        slot = len(self.mw_slots[owner]) - 1
+        if slot >= self.MAX_SLOTS:
+            # structurally near-impossible (a world only has ~252 locations),
+            # but this is wire format: fail generation rather than overflow
+            raise MultiworldSlotOverflow("player %s needs > %s multiworld slots" % (owner, self.MAX_SLOTS))
+        return slot
+
+    def free_slot(self, owner, slot):
+        self.mw_slots[owner][slot] = None
+        self.mw_free_slots[owner].append(slot)
+
+    def next_ms_loc(self, p):
+        return 20 + 4 * (1 + self.mapstonesAssigned[p])
 
     def init_fields(self):
         """Part one of a reset. All initialization that doesn't
         require reading from params goes here."""
+        # seed_count is set in setSeedAndPlaceItems; __init__ runs before it
+        self.seed_count = getattr(self, "seed_count", 1)
         self.limitKeysPool = [-3160308, -560160, 2919744, 719620, 7839588, 5320328, 8599904, -4600020, -6959592, -11880100, 5480952, 4999752, -7320236, -7200024, -5599400]
 
-        self.costs = OrderedDict([
+        self.costs = OrderedDict([(tag(k, p), v) for p in self.multi_ps() for k, v in [
             ("Free",  0), ("MS",  0), ("KS",  2), ("AC",  12), ("EC",  6), ("HC",  12), ("WallJump",  13),
             ("ChargeFlame",  13), ("DoubleJump",  13), ("Bash",  28), ("Stomp",  13),
             ("Glide",  13), ("Climb",  13), ("ChargeJump",  28), ("Dash",  13),
@@ -455,10 +531,10 @@ class SeedGenerator:
             ("SunstoneShard",  5), ("TPForlorn",  67), ("TPGrotto",  41),
             ("TPSorrow",  59), ("TPGrove",  41), ("TPSwamp",  41), ("TPValley",  53),
             ("TPGinso",  61), ("TPHoru",  71), ("Open",  0), ("OpenWorld",  1), ("Relic",  1),
-            ("TPGlades",  90), ("TPBlackroot",  53), ("Keysanity", 1)] + 
-            [(keysanity_key, 0) for keysanity_key in self.keysanityOutput])
+            ("TPGlades",  90), ("TPBlackroot",  53), ("Keysanity", 1)] +
+            [(keysanity_key, 0) for keysanity_key in self.keysanityOutput]])
 
-        self.inventory = OrderedDict([
+        self.inventory = OrderedDict([(tag(k, p), v) for p in self.multi_ps() for k, v in [
             ("EX1", 0), ("EX*", 0), ("KS", 0), ("MS", 0), ("AC", 0), ("EC", 0),
             ("HC", 3), ("WallJump", 0), ("ChargeFlame", 0), ("Dash", 0),
             ("Stomp", 0), ("DoubleJump", 0), ("Glide", 0), ("Bash", 0),
@@ -471,15 +547,18 @@ class SeedGenerator:
             ("TPSorrow", 0), ("TPGrove", 0), ("TPSwamp", 0), ("TPValley", 0),
             ("TPGinso", 0), ("TPHoru", 0), ("Open", 0), ("OpenWorld", 0), ("Relic", 0),
             ("TPGlades", 0), ("Keysanity", 0)
-        ])
+        ]])
 
-        self.mapstonesSeen = 1
+        self.mapstonesSeen = {p: 1 for p in self.multi_ps()}
+        self.mapstonesAssigned = defaultdict(lambda: 0)
         self.balanceLevel = 0
         self.balanceList = []
         self.balanceListLeftovers = []
         self.seedDifficulty = 0
-        self.outputStr = ""
-        self.eventList = []
+        self.seeds_text = defaultdict(str)
+        self.event_lists = defaultdict(list)
+        self.mw_slots = {p: [] for p in self.multi_ps()}
+        self.mw_free_slots = {p: [] for p in self.multi_ps()}
 
         self.areas = OrderedDict()
 
@@ -488,10 +567,11 @@ class SeedGenerator:
         self.areasRemaining = []
         self.connectionQueue = []
         self.assignQueue = []
-        self.sharedAssignQueue = []
         self.spoiler = []
         self.entrance_spoiler = ""
-        self.warps = {}
+        self.warps = {}            # warp_id -> warp tuple (ids globally unique)
+        self.warp_owner = {}       # warp_id -> player whose world it belongs to
+        self.warps_per_world = Counter()
         self.padding = 0
         self.starting_health = 3
         self.starting_energy = 1
@@ -501,24 +581,28 @@ class SeedGenerator:
         advancement), then sets initial values according to params."""
         self.init_fields()
         self.expRemaining = self.params.exp_pool
-        self.forcedAssignments = self.preplaced.copy()
+        # forcedAssignments is keyed (player, loc): the same coordinate exists
+        # in every world. Plando preplacement is world 1 (solo-only for now).
+        # Values may carry an owner tag ("GinsoKey|3") for cross-world forced
+        # items; untagged values belong to the world they're placed in.
+        self.forcedAssignments = {(1, loc): v for loc, v in self.preplaced.items()}
         self.forceAssignedLocs = set()
-        self.itemPool = OrderedDict([
+        self.itemPool = OrderedDict([(tag(k, p), v) for p in self.multi_ps() for k, v in [
             ("EX1", 1), ("KS", 40), ("MS", 11), ("WallJump", 1), ("ChargeFlame", 1),
             ("Dash", 1), ("Stomp", 1), ("DoubleJump", 1), ("Glide", 1),
             ("Bash", 1), ("Climb", 1), ("Grenade", 1), ("ChargeJump", 1),
             ("GinsoKey", 1), ("ForlornKey", 1), ("HoruKey", 1), ("Water", 1),
             ("Wind", 1), ("Warmth", 1), ("WaterVeinShard", 0), ("EC", 0), ("HC", 0), ("AC", 0),
             ("GumonSealShard", 0), ("SunstoneShard", 0), ("Open", 0), ("OpenWorld", 0), ("Relic", 0)
-        ])
+        ]])
 
         if not self.params.item_pool:
-            self.itemPool.update(OrderedDict([
+            self.itemPool.update(OrderedDict([(tag(k, p), v) for p in self.multi_ps() for k, v in [
                 ("RB0", 3), ("RB1", 3), ("RB6", 3), ("RB8", 0), ("RB9", 1), ("RB10", 1),
                 ("RB11", 1), ("RB12", 1), ("RB13", 3), ("RB15", 3), ("TPForlorn", 1),
                 ("TPGrotto", 1), ("TPSorrow", 1), ("TPGrove", 1), ("TPSwamp", 1),
                 ("TPValley", 1), ("TPGinso", 1), ("TPHoru", 1),
-            ]))
+            ]]))
         else:
             for item, counts in sorted(list(self.params.item_pool.items()), key=lambda x: x[0]):
                 item = item.replace("|", "")
@@ -526,61 +610,57 @@ class SeedGenerator:
                     item = item[0:2]
                 fixed_item = self.codeToName.get(item, item)
                 count = self.random.randint(*counts) if len(counts) == 2 else counts[0]
-                self.itemPool[fixed_item] = self.itemPool.get(fixed_item, 0) + count
+                for p in self.multi_ps():
+                    i = tag(fixed_item, p)
+                    self.itemPool[i] = self.itemPool.get(i, 0) + count
 
-        if self.var(Variation.DOUBLE_SKILL):
-            self.itemPool["DoubleJump"] += 1
-            self.itemPool["Bash"] += 1
-            self.itemPool["Stomp"] += 1
-            self.itemPool["Glide"] += 1
-            self.itemPool["ChargeJump"] += 1
-            self.itemPool["Dash"] += 1
-            self.itemPool["Grenade"] += 1
-            self.itemPool["Water"] += 1
-            self.itemPool["Wind"] += 1
-        if "BS*" in self.itemPool:
-            drain_skills = ["RB102", "RB103", "RB109", "RB110"]
-            for bonus_skill in self.random.sample(["RB101", "DrainSkill", "DrainSkill", "DrainSkill", "WarpSkill", "RB106", "RB107"], min(self.itemPool["BS*"], 7)):
-                if bonus_skill == "DrainSkill":
-                    if len(drain_skills) == 2 and self.random.random() < .5:  # third drain skill, if chosen, has a 50/50 chance to be wither or bash/stomp damage
-                        bonus_skill = self.random.choice(["RB111", "RB113"])
-                    else:
-                        bonus_skill = self.random.choice(drain_skills)
-                        if bonus_skill in ["RB110", "RB109"] and self.random.random() < .25:  # reroll timewarp and invincibility once 1/4 times
+        for p in self.multi_ps():
+            if self.var(Variation.DOUBLE_SKILL):
+                for doubled in ["DoubleJump", "Bash", "Stomp", "Glide", "ChargeJump", "Dash", "Grenade", "Water", "Wind"]:
+                    self.itemPool[tag(doubled, p)] += 1
+            if tag("BS*", p) in self.itemPool:
+                drain_skills = ["RB102", "RB103", "RB109", "RB110"]
+                for bonus_skill in self.random.sample(["RB101", "DrainSkill", "DrainSkill", "DrainSkill", "WarpSkill", "RB106", "RB107"], min(self.itemPool[tag("BS*", p)], 7)):
+                    if bonus_skill == "DrainSkill":
+                        if len(drain_skills) == 2 and self.random.random() < .5:  # third drain skill, if chosen, has a 50/50 chance to be wither or bash/stomp damage
+                            bonus_skill = self.random.choice(["RB111", "RB113"])
+                        else:
                             bonus_skill = self.random.choice(drain_skills)
-                        drain_skills.remove(bonus_skill)
-                if bonus_skill == "WarpSkill":
-                    bonus_skill = self.random.choice(["RB104", "RB105"])
-                self.itemPool[bonus_skill] = 1
-            del self.itemPool["BS*"]
+                            if bonus_skill in ["RB110", "RB109"] and self.random.random() < .25:  # reroll timewarp and invincibility once 1/4 times
+                                bonus_skill = self.random.choice(drain_skills)
+                            drain_skills.remove(bonus_skill)
+                    if bonus_skill == "WarpSkill":
+                        bonus_skill = self.random.choice(["RB104", "RB105"])
+                    self.itemPool[tag(bonus_skill, p)] = 1
+                del self.itemPool[tag("BS*", p)]
 
-        if not self.var(Variation.STRICT_MAPSTONES):
-            self.costs["MS"] = 11
+            if not self.var(Variation.STRICT_MAPSTONES):
+                self.costs[tag("MS", p)] = 11
 
-        if self.var(Variation.OPEN_WORLD):
-            self.inventory["OpenWorld"] = 1
-            self.costs["OpenWorld"] = 0
-            self.itemPool["KS"] -= 2
-
-        if self.var(Variation.CLOSED_DUNGEONS):
-            self.inventory["Open"] = 0
-            self.costs["Open"] = 1
-            self.itemPool["TPGinso"] = 0
-            self.itemPool["TPHoru"] = 0
-
-        if self.var(Variation.KEYSANITY):
-            # :3
-            pool_and_costs_update = OrderedDict(Counter(keysanity_keystone for keysanity_keystones in keysanity_map.values() for keysanity_keystone in keysanity_keystones))
-            self.itemPool.update(OrderedDict(Counter(keysanity_keystone for keysanity_keystones in keysanity_map.values() for keysanity_keystone in keysanity_keystones)))
-            self.costs.update(OrderedDict(Counter(keysanity_keystone for keysanity_keystones in keysanity_map.values() for keysanity_keystone in keysanity_keystones)))
-            self.itemPool["KS"] = 0
-            self.costs["Keysanity"] = 0
             if self.var(Variation.OPEN_WORLD):
-                self.itemPool["Glades Pool Keystone"] = 0
-                self.costs["Glades Pool Keystone"] = 0
+                self.inventory[tag("OpenWorld", p)] = 1
+                self.costs[tag("OpenWorld", p)] = 0
+                self.itemPool[tag("KS", p)] -= 2
 
-            self.inventory.update(OrderedDict((keysanity_ks_name, 0) for keysanity_ks_name in self.keysanityOutput))
-            self.inventory["Keysanity"] = 1
+            if self.var(Variation.CLOSED_DUNGEONS):
+                self.inventory[tag("Open", p)] = 0
+                self.costs[tag("Open", p)] = 1
+                self.itemPool[tag("TPGinso", p)] = 0
+                self.itemPool[tag("TPHoru", p)] = 0
+
+            if self.var(Variation.KEYSANITY):
+                # :3
+                keysanity_counts = Counter(keysanity_keystone for keysanity_keystones in keysanity_map.values() for keysanity_keystone in keysanity_keystones)
+                self.itemPool.update(OrderedDict((tag(k, p), v) for k, v in keysanity_counts.items()))
+                self.costs.update(OrderedDict((tag(k, p), v) for k, v in keysanity_counts.items()))
+                self.itemPool[tag("KS", p)] = 0
+                self.costs[tag("Keysanity", p)] = 0
+                if self.var(Variation.OPEN_WORLD):
+                    self.itemPool[tag("Glades Pool Keystone", p)] = 0
+                    self.costs[tag("Glades Pool Keystone", p)] = 0
+
+                self.inventory.update(OrderedDict((tag(keysanity_ks_name, p), 0) for keysanity_ks_name in self.keysanityOutput))
+                self.inventory[tag("Keysanity", p)] = 1
             
 
         # FIXME When we don't start in glades, add glades tp and remove other tp if applicable, before we process warps.
@@ -590,69 +670,102 @@ class SeedGenerator:
         logic_path_tags = get_path_tags_from_pathsets(logic_paths)
         difficulty = self.get_difficulty(logic_path_tags)
 
-        if self.playerID == 1:
-            self.start = "Glades"
-            # FIXME On repeats after failed generation this will tend bias towards places that generate easier.
-            start_weights = OrderedDict([
-                ("Random", 0),
-                ("Glades", 1.0),
-                ("Grove", 2.0),
-                ("Swamp", 2.0),
-                ("Grotto", 2.0),
-                ("Forlorn", 1.5),
-                ("Valley", 2),
-                ("Horu", 0.1),
-                ("Ginso", 0.1),
-                ("Sorrow", 0.25),
-                ("Blackroot", 0.5)
-            ])
-            if len(self.params.spawn_weights) > 9:
-                for i,k in enumerate(list(start_weights.keys())[1:]):
-                    start_weights[k] = self.params.spawn_weights[i]
-#                   print(k, start_weights[k])
+        # FIXME On repeats after failed generation this will tend bias towards places that generate easier.
+        start_weights = OrderedDict([
+            ("Random", 0),
+            ("Glades", 1.0),
+            ("Grove", 2.0),
+            ("Swamp", 2.0),
+            ("Grotto", 2.0),
+            ("Forlorn", 1.5),
+            ("Valley", 2),
+            ("Horu", 0.1),
+            ("Ginso", 0.1),
+            ("Sorrow", 0.25),
+            ("Blackroot", 0.5)
+        ])
+        if len(self.params.spawn_weights) > 9:
+            for i,k in enumerate(list(start_weights.keys())[1:]):
+                start_weights[k] = self.params.spawn_weights[i]
+#               print(k, start_weights[k])
+        spawn_spots = {
+            "Grove": (-159, -114),
+            "Swamp": (491, -73),
+            "Grotto": (519, -174),
+            "Forlorn": (-914, -298),
+            "Valley": (-430, 0),
+            "Horu": (88, 142),
+            "Ginso": (570, 539),
+            "Sorrow": (-594, 496),
+            "Blackroot": (381, -297),
+        }
+        self.spawn_logic_areas = {
+            "Glades": "SunkenGladesRunaway",
+            "Grove": "SpiritTreeRefined",
+            "Swamp": "SwampTeleporter",
+            "Grotto": "MoonGrotto",
+            "Forlorn": "ForlornTeleporter",
+            "Valley": "ValleyTeleporter",
+            "Horu": "HoruTeleporter",
+            "Ginso": "GinsoTeleporter",
+            "Sorrow": "SorrowTeleporter",
+            "Blackroot": "BlackrootGrottoConnection",
+        }
+
+        # start locations: a named start is shared by every world; "Random"
+        # rolls independently per world (multiworlds aren't races -- decision
+        # 2026-07-22). self.starts is authoritative; self.start keeps the solo
+        # semantics ("Random" resolves to the chosen spot) for params.spawn.
+        if self.params.start in ["Horu", "Ginso"] and self.var(Variation.CLOSED_DUNGEONS):
+            log.error("can't start in dungeons with closed dungeons.")
+            exit(1)
+        if self.params.start == "Random":
+            if not self.var(Variation.OPEN_WORLD):
+                start_weights["Valley"] /= 10.0
+            if self.var(Variation.CLOSED_DUNGEONS):
+                start_weights["Horu"] = 0
+                start_weights["Ginso"] = 0
+        self.starts = {}
+        for p in self.multi_ps():
             if not self.params.start or self.params.start not in start_weights:
-                log.warning("Unknown start location. Switching to Glades")
-                self.start = "Glades"
-            elif self.params.start in ["Horu", "Ginso"] and self.var(Variation.CLOSED_DUNGEONS):
-                log.error("can't start in dungeons with closed dungeons.")
-                exit(1)
+                if p == 1:
+                    log.warning("Unknown start location. Switching to Glades")
+                self.starts[p] = "Glades"
             elif self.params.start == "Random":
-                if not self.var(Variation.OPEN_WORLD):
-                    start_weights["Valley"] /= 10.0
-                if self.var(Variation.CLOSED_DUNGEONS):
-                    start_weights["Horu"] = 0
-                    start_weights["Ginso"] = 0
-                self.start = self.choice(start_weights.keys(), start_weights.values())
+                self.starts[p] = self.choice(start_weights.keys(), start_weights.values())
             else:
-                self.start = self.params.start
-        
+                self.starts[p] = self.params.start
+        self.start = self.starts[1] if (self.solo() or self.params.start != "Random") else "Random"
 
-            self.starting_skills = []
+        possible_skills_base = ["WallJump", "ChargeFlame", "Dash", "Stomp", "DoubleJump", "Glide", "Bash", "Climb", "Grenade", "ChargeJump", "Water"]#, "Wind", "Warmth"]
+        try_force = {
+            "Glades": ["WallJump", "Bash", "Climb", "ChargeJump", "Water"],
+            "Grove": ["ChargeFlame", "Stomp", "Grenade", "ChargeJump"],
+            "Swamp": ["WallJump", "ChargeFlame", "Dash", "Bash", "Climb", "Grenade", "ChargeJump", "Water"],
+            "Grotto": ["WallJump", "ChargeFlame", "Dash", "DoubleJump", "Glide", "Climb", "Grenade", "ChargeJump", "Water"],
+            "Forlorn": ["ChargeFlame", "Bash", "Grenade", "ChargeJump"],
+            "Valley": ["WallJump", "ChargeFlame", "DoubleJump", "Glide", "Bash", "Climb", "Grenade", "ChargeJump"],
+            "Horu": ["WallJump", "Climb", "Bash"],
+            "Ginso": ["Stomp", "DoubleJump", "Bash", "ChargeJump"],
+            "Sorrow": ["ChargeJump", "Bash", "Glide", "Climb", "Stomp"],
+            "Blackroot": ["WallJump", "ChargeFlame", "Dash", "Stomp", "DoubleJump", "Glide", "Bash", "Climb", "Grenade", "ChargeJump", "Water"],
+        }
 
-
-            possible_skills = ["WallJump", "ChargeFlame", "Dash", "Stomp", "DoubleJump", "Glide", "Bash", "Climb", "Grenade", "ChargeJump", "Water"]#, "Wind", "Warmth"]
-            # possible_skills_forced = ["WallJump", "ChargeFlame", "Dash", "Stomp", "DoubleJump", "Glide", "Bash", "Climb", "Grenade", "ChargeJump", "Water", "Wind", "Warmth"]
-            try_force = {
-                "Glades": ["WallJump", "Bash", "Climb", "ChargeJump", "Water"],
-                "Grove": ["ChargeFlame", "Stomp", "Grenade", "ChargeJump"],
-                "Swamp": ["WallJump", "ChargeFlame", "Dash", "Bash", "Climb", "Grenade", "ChargeJump", "Water"],
-                "Grotto": ["WallJump", "ChargeFlame", "Dash", "DoubleJump", "Glide", "Climb", "Grenade", "ChargeJump", "Water"],
-                "Forlorn": ["ChargeFlame", "Bash", "Grenade", "ChargeJump"],
-                "Valley": ["WallJump", "ChargeFlame", "DoubleJump", "Glide", "Bash", "Climb", "Grenade", "ChargeJump"],
-                "Horu": ["WallJump", "Climb", "Bash"],
-                "Ginso": ["Stomp", "DoubleJump", "Bash", "ChargeJump"],
-                "Sorrow": ["ChargeJump", "Bash", "Glide", "Climb", "Stomp"],
-                "Blackroot": ["WallJump", "ChargeFlame", "Dash", "Stomp", "DoubleJump", "Glide", "Bash", "Climb", "Grenade", "ChargeJump", "Water"],
-            }
+        self.spawn_things = {}
+        for p in self.multi_ps():
+            start = self.starts[p]
+            starting_health, starting_energy = self.starting_health, self.starting_energy
+            starting_skills = []
             start_skills = 0
             # FIXME Check if starved exists, then just set the defaults to 3/1?
             if self.params.start == "Random":
-                self.starting_health, self.starting_energy, start_skills = spawn_defaults[self.start][difficulty]
-            elif self.start != "Glades":
-                self.starting_health = max(self.params.starting_health, self.starting_health)
-                self.starting_energy = max(self.params.starting_energy, self.starting_energy)
+                starting_health, starting_energy, start_skills = spawn_defaults[start][difficulty]
+            elif start != "Glades":
+                starting_health = max(self.params.starting_health, starting_health)
+                starting_energy = max(self.params.starting_energy, starting_energy)
                 start_skills = int(self.params.starting_skills)
             if start_skills > 0:
+                possible_skills = list(possible_skills_base)
                 if start_skills > 1:
                     possible_skills.append("Wind")
                     possible_skills.append("Warmth")
@@ -662,150 +775,133 @@ class SeedGenerator:
                     if skill == "Warmth":
                         cost = 75
                     else:
-                        cost = self.costs[skill]
+                        cost = self.costs[tag(skill, 1)]  # same for every player
                     if skill in ["Wind", "Water"]:
                         cost *= 1.5
-                    if skill in ["WallJump", "Climb"] and self.var(Variation.FUCK_WALLS): 
+                    if skill in ["WallJump", "Climb"] and self.var(Variation.FUCK_WALLS):
                         cost *= 5
                     if skill == "Grenade" and self.var(Variation.FUCK_GRENADE):
                         cost *= 5
-                    if worried and self.start in try_force and skill in try_force[self.start]: 
+                    if worried and start in try_force and skill in try_force[start]:
                         # if we're worried, overweight useful skills
                         cost = 1
                     weight = 1.0 / cost
                     weights.append(weight)
-                
-                if start_skills > 0:
-                    self.starting_skills = self.choices(possible_skills, weights, start_skills)
-            
-            self.spawn_things = []
-            #print(self.starting_skills, self.starting_health, self.starting_energy)
-            if self.starting_health > self.inventory["HC"]:
-                for _ in range(self.starting_health - self.inventory["HC"]):
-                    self.spawn_things.append("HC/1")
-            for _ in range(self.starting_energy):
-                self.spawn_things.append("EC/1")
-            if (self.start == "Ginso"):
+
+                starting_skills = self.choices(possible_skills, weights, start_skills)
+
+            things = []
+            base_hc = self.inventory[tag("HC", p)]
+            if starting_health > base_hc:
+                for _ in range(starting_health - base_hc):
+                    things.append("HC/1")
+            for _ in range(starting_energy):
+                things.append("EC/1")
+            if (start == "Ginso"):
                 for _ in range(4):
                     if self.var(Variation.KEYSANITY):
-                        self.spawn_things.append("RB/306")
+                        things.append("RB/306")
                     else:
-                        self.spawn_things.append("KS/1")
+                        things.append("KS/1")
                 if (not self.var(Variation.ENTRANCE_SHUFFLE)) and (self.params.key_mode != KeyMode.FREE):
                     if self.params.key_mode == KeyMode.SHARDS:
                         for _ in range(5):
-                            self.spawn_things.append("RB/17")
+                            things.append("RB/17")
                     else:
-                        self.spawn_things.append("EV/0")
-            if (self.start == "Forlorn"):
+                        things.append("EV/0")
+            if (start == "Forlorn"):
                 if (not self.var(Variation.ENTRANCE_SHUFFLE)) and (self.params.key_mode != KeyMode.FREE):
                     if self.params.key_mode == KeyMode.SHARDS:
                         for _ in range(5):
-                            self.spawn_things.append("RB/19")
+                            things.append("RB/19")
                     else:
-                        self.spawn_things.append("EV/2")
-                self.spawn_things.append("NB/-914,-298")
-            if (self.start == "Horu"):
+                        things.append("EV/2")
+                things.append("NB/-914,-298")
+            if (start == "Horu"):
                 if (not self.var(Variation.ENTRANCE_SHUFFLE)) and (self.params.key_mode != KeyMode.FREE):
                     if self.params.key_mode == KeyMode.SHARDS:
                         for _ in range(5):
-                            self.spawn_things.append("RB/21")
+                            things.append("RB/21")
                     else:
-                        self.spawn_things.append("EV/4")
-            if (self.start != "Glades"):
-                self.spawn_things.append(self.toOutput("SpiritFlame", True))
-            for skill in self.starting_skills:
-                self.spawn_things.append(self.toOutput(skill, True))
+                        things.append("EV/4")
+            if (start != "Glades"):
+                things.append(self.toOutput("SpiritFlame", True))
+            for skill in starting_skills:
+                things.append(self.toOutput(skill, True))
             if self.params.key_mode == KeyMode.FREE:
-                self.spawn_things.append("EV/0/EV/2/EV/4")
-            
-            spawn_spots = {
-                "Grove": (-159, -114),
-                "Swamp": (491, -73),
-                "Grotto": (519, -174), 
-                "Forlorn": (-914, -298),
-                "Valley": (-430, 0), 
-                "Horu": (88, 142),  
-                "Ginso": (570, 539),
-                "Sorrow": (-594, 496), 
-                "Blackroot": (381, -297), 
-            }
-            self.spawn_logic_areas = {
-                "Glades": "SunkenGladesRunaway",
-                "Grove": "SpiritTreeRefined", 
-                "Swamp": "SwampTeleporter", 
-                "Grotto": "MoonGrotto", 
-                "Forlorn": "ForlornTeleporter", 
-                "Valley": "ValleyTeleporter", 
-                "Horu": "HoruTeleporter", 
-                "Ginso": "GinsoTeleporter", 
-                "Sorrow": "SorrowTeleporter", 
-                "Blackroot": "BlackrootGrottoConnection", 
-            }
+                things.append("EV/0/EV/2/EV/4")
 
-        if self.start != "Glades":
-            self.itemPool["TPGlades"] = 1
-            if self.playerID == 1:
-                self.spawn_things.append("TP/" + self.start)
+            if start != "Glades":
+                self.itemPool[tag("TPGlades", p)] = 1
+                things.append("TP/" + start)
                 # The Warp Save should be last in the line because of the *save*
-                self.spawn_things.append("WS/" + str(spawn_spots[self.start][0]) + "," + str(spawn_spots[self.start][1]) + ",force")
-        
-        if len(self.spawn_things) > 0:
-            if 2 in self.forcedAssignments:
-                current_assignment = self.forcedAssignments[2]
-                if current_assignment[0:2] not in ["MU", "RP"]:
-                    self.forcedAssignments[2] = "MU" + self.toOutput(current_assignment, True)
-                self.forcedAssignments[2] += "/" + "/".join(self.spawn_things)
-            else:
-                self.forcedAssignments[2] = "MU" + "/".join(self.spawn_things)
+                things.append("WS/" + str(spawn_spots[start][0]) + "," + str(spawn_spots[start][1]) + ",force")
+            self.spawn_things[p] = things
+
+        for p in self.multi_ps():
+            things = self.spawn_things[p]
+            if len(things) > 0:
+                if (p, 2) in self.forcedAssignments:
+                    current_assignment = self.forcedAssignments[(p, 2)]
+                    if current_assignment[0:2] not in ["MU", "RP"]:
+                        self.forcedAssignments[(p, 2)] = "MU" + self.toOutput(current_assignment, True)
+                    self.forcedAssignments[(p, 2)] += "/" + "/".join(things)
+                else:
+                    self.forcedAssignments[(p, 2)] = "MU" + "/".join(things)
 
 
         # FIXME Are we giving the correct number of ECs for non-glades starts?
         # FIXME Test altering preplaced things at spawn, but can't add things at spawn currently anyway.
 
-        # Make it so we only give up to 1 warp in each subarea.
-        self.unused_warps = []
-        for warp_group in warp_targets2:
-            self.unused_warps.append(self.random.choice(warp_group))
-            
-        # Warps. format (warpName, x, y, area from TP name, logicLocation, logicCost).
-        if self.var(Variation.WARPS_INSTEAD_OF_TPS):
-            tps = []
-            for item in self.itemPool:
-                if item.startswith("TP"):
-                    tps.append(item)
-            # Calculate number of warps to add.
-            possible_warps_to_add = self.params.warps_instead_of_tps
-            if len(tps) < possible_warps_to_add:
-                possible_warps_to_add = len(tps)
-            if self.var(Variation.WARP_COUNT):
-                if self.params.warp_count > possible_warps_to_add:
-                    possible_warps_to_add = self.params.warp_count
-            for tp in self.random.sample(tps, possible_warps_to_add):
-                #log.debug("Removing tp: " + tp)
-                tp_name = tp[2:]
-                warps_in_area = []
-                for warp in self.unused_warps:
-                    if warp[3] == tp_name:
-                        warps_in_area.append(warp)
-                if len(warps_in_area) > 0:
-                    warp = self.random.choice(warps_in_area)
-                    self.itemPool[tp] -= 1
-                    self.add_warp(warp)
+        # Make it so we only give up to 1 warp in each subarea (per world:
+        # every world draws its own warp candidates).
+        self.unused_warps = {p: [] for p in self.multi_ps()}
+        for p in self.multi_ps():
+            for warp_group in warp_targets2:
+                self.unused_warps[p].append(self.random.choice(warp_group))
 
-        # So we've currently added len(self.warps) warps.
-        if self.var(Variation.WARP_COUNT):
-            remaining_warps = self.params.warp_count - len(self.warps)
-            if remaining_warps > 0:
-                self.itemPool["WP*"] = remaining_warps
-            else:
-                if "WP*" in self.itemPool:
-                    del self.itemPool["WP*"]
-        if self.itemPool.get("WP*", 0) > 0:
-            for warp in self.random.sample(self.unused_warps, min(len(self.unused_warps), self.itemPool.get("WP*", 0))):
-                #log.debug("Adding warp.")
-                self.add_warp(warp)
-            self.itemPool.pop("WP*")
+        # Warps. format (warpName, x, y, area from TP name, logicLocation, logicCost).
+        # Warp ids are globally unique ("Warp0", "Warp1", ...); ownership lives
+        # in the tagged pool/cost/inventory keys and self.warp_owner.
+        if self.var(Variation.WARPS_INSTEAD_OF_TPS):
+            for p in self.multi_ps():
+                tps = []
+                for item in self.itemPool:
+                    if item.startswith("TP") and untag(item)[1] == p:
+                        tps.append(item)
+                # Calculate number of warps to add.
+                possible_warps_to_add = self.params.warps_instead_of_tps
+                if len(tps) < possible_warps_to_add:
+                    possible_warps_to_add = len(tps)
+                if self.var(Variation.WARP_COUNT):
+                    if self.params.warp_count > possible_warps_to_add:
+                        possible_warps_to_add = self.params.warp_count
+                for tp in self.random.sample(tps, possible_warps_to_add):
+                    #log.debug("Removing tp: " + tp)
+                    tp_name = base_of(tp)[2:]
+                    warps_in_area = []
+                    for warp in self.unused_warps[p]:
+                        if warp[3] == tp_name:
+                            warps_in_area.append(warp)
+                    if len(warps_in_area) > 0:
+                        warp = self.random.choice(warps_in_area)
+                        self.itemPool[tp] -= 1
+                        self.add_warp(warp, p)
+
+        for p in self.multi_ps():
+            wp_star = tag("WP*", p)
+            if self.var(Variation.WARP_COUNT):
+                remaining_warps = self.params.warp_count - self.warps_per_world[p]
+                if remaining_warps > 0:
+                    self.itemPool[wp_star] = remaining_warps
+                else:
+                    if wp_star in self.itemPool:
+                        del self.itemPool[wp_star]
+            if self.itemPool.get(wp_star, 0) > 0:
+                for warp in self.random.sample(self.unused_warps[p], min(len(self.unused_warps[p]), self.itemPool.get(wp_star, 0))):
+                    #log.debug("Adding warp.")
+                    self.add_warp(warp, p)
+                self.itemPool.pop(wp_star)
 
         if self.var(Variation.NO_TPS):
             for item in self.itemPool:
@@ -813,39 +909,52 @@ class SeedGenerator:
                     self.itemPool[item] = 0
 
         if self.params.key_mode == KeyMode.SHARDS:
+            # (SplitShards' inflated shard count is gone with the mode itself)
             shard_count = 5
-            if self.params.sync.mode == MultiplayerGameType.SPLITSHARDS:
-                shard_count = 2 + 3 * self.params.players
-            for shard in ["WaterVeinShard", "GumonSealShard", "SunstoneShard"]:
-                self.itemPool[shard] = shard_count
-                self.costs[shard] = shard_count
-            for key in ["GinsoKey", "HoruKey", "ForlornKey"]:
-                self.itemPool[key] = 0
+            for p in self.multi_ps():
+                for shard in ["WaterVeinShard", "GumonSealShard", "SunstoneShard"]:
+                    self.itemPool[tag(shard, p)] = shard_count
+                    self.costs[tag(shard, p)] = shard_count
+                for key in ["GinsoKey", "HoruKey", "ForlornKey"]:
+                    self.itemPool[tag(key, p)] = 0
 
         if self.var(Variation.WARMTH_FRAGMENTS):
-            self.costs["RB28"] = 3 * self.params.frag_count
-            self.inventory["RB28"] = 0
-            self.itemPool["RB28"] = self.params.frag_count
-            self.itemPool["Warmth"] = 0
+            for p in self.multi_ps():
+                self.costs[tag("RB28", p)] = 3 * self.params.frag_count
+                self.inventory[tag("RB28", p)] = 0
+                self.itemPool[tag("RB28", p)] = self.params.frag_count
+                self.itemPool[tag("Warmth", p)] = 0
 
         if self.params.key_mode == KeyMode.LIMITKEYS:
             dungeonLocs = {"GinsoKey": {5480952, 5320328}, "ForlornKey": {-7320236}, "HoruKey": set()}
             names = {-3160308: "SKWallJump", -560160: "SKChargeFlame", 2919744: "SKDash", 719620: "SKGrenade", 7839588: "SKDoubleJump", 5320328: "SKBash", 8599904: "SKStomp", -4600020: "SKGlide",
                     -6959592: "SKChargeJump", -11880100: "SKClimb", 5480952: "EVWater", 4999752: "EVGinsoKey", -7320236: "EVWind", -7200024: "EVForlornKey", -5599400: "EVHoruKey"}
-            for key in self.random.sample(list(dungeonLocs.keys()), 3):
-                loc = self.random.choice([l for l in self.limitKeysPool if l not in dungeonLocs[key]])
-                self.limitKeysPool.remove(loc)
-                for key_to_update in ["GinsoKey", "ForlornKey"]:
-                    if loc in dungeonLocs[key_to_update]:
-                        dungeonLocs[key_to_update] |= dungeonLocs[key]
-                self.forcedAssignments[loc] = key
-
-        # paired setup for subsequent players
-        self.unplaced_shared = 0
-        if self.playerID > 1:
-            for item in self.sharedList:
-                self.itemPool[item] = 0
-            self.unplaced_shared = self.sharedCounts[self.playerID]
+            key_order = self.random.sample(list(dungeonLocs.keys()), 3)
+            if self.solo():
+                for key in key_order:
+                    loc = self.random.choice([l for l in self.limitKeysPool if l not in dungeonLocs[key]])
+                    self.limitKeysPool.remove(loc)
+                    for key_to_update in ["GinsoKey", "ForlornKey"]:
+                        if loc in dungeonLocs[key_to_update]:
+                            dungeonLocs[key_to_update] |= dungeonLocs[key]
+                    self.forcedAssignments[(1, loc)] = key
+            else:
+                # cross-world limitkeys (decision 2026-07-22): each world's
+                # trees/events hold keys, but the owners are a permutation of
+                # the players per key type -- "someone's tree has your Gumon
+                # Seal". Deadlock cycles between worlds are prevented by a
+                # stricter exclusion than solo: no dungeon key, whoever owns
+                # it, ever sits at a dungeon-locked location. That makes every
+                # dungeon key reachable without entering any dungeon, so no
+                # ordering of key finds can wedge.
+                all_dungeon_locked = set().union(*dungeonLocs.values())
+                pools = {w: list(self.limitKeysPool) for w in self.multi_ps()}
+                for key in key_order:
+                    owners = self.random.sample(list(self.multi_ps()), self.seed_count)
+                    for w in self.multi_ps():
+                        loc = self.random.choice([l for l in pools[w] if l not in all_dungeon_locked])
+                        pools[w].remove(loc)
+                        self.forcedAssignments[(w, loc)] = tag(key, owners[w - 1])
 
     def __init__(self):
         self.init_fields()
@@ -854,36 +963,34 @@ class SeedGenerator:
         self.codeToName["WT*"] = "Relic"  # random relic preplacement (WT|*): resolved per-zone by adjust_item
 
     # resolve a WP|* (random warp) preplacement into a concrete warp pickup
-    def random_warp_id(self):
+    def random_warp_id(self, p=1):
         if not getattr(self, "unused_warps", None):
-            self.unused_warps = [self.random.choice(group) for group in warp_targets2]
-        warp = self.random.choice(self.unused_warps)
-        self.unused_warps.remove(warp)
+            self.unused_warps = {pp: [self.random.choice(group) for group in warp_targets2] for pp in self.multi_ps()}
+        warp = self.random.choice(self.unused_warps[p])
+        self.unused_warps[p].remove(warp)
         warp_id = "Warp" + str(len(self.warps))
         self.warps[warp_id] = warp
+        self.warp_owner[warp_id] = p
+        self.warps_per_world[p] += 1
         return warp_id
 
-    def add_warp(self, warp):
+    def add_warp(self, warp, p):
         name, x, y, area, logic_location, logic_cost = warp
-        self.unused_warps.remove(warp)
+        self.unused_warps[p].remove(warp)
         warp_id = "Warp" + str(len(self.warps))
         self.warps[warp_id] = warp
-        self.itemPool[warp_id] = 1
-        self.costs[warp_id] = logic_cost
-        if self.do_multi and ShareType.TELEPORTER in self.params.sync.shared:
-            self.sharedList += [warp_id]
-        self.inventory[warp_id] = 0
-        #if self.var(Variation.IN_LOGIC_WARPS):
-            #connection = Connection("TeleporterNetwork", logic_location, self)
-            #connection.add_requirements([warp_id], 0)
-            #self.areas["TeleporterNetwork"].add_connection(connection)
-            #log.debug("Added connect to {}".format(logic_location))
+        self.warp_owner[warp_id] = p
+        self.warps_per_world[p] += 1
+        self.itemPool[tag(warp_id, p)] = 1
+        self.costs[tag(warp_id, p)] = logic_cost
+        self.inventory[tag(warp_id, p)] = 0
 
     def create_warp_paths(self):
         if self.var(Variation.IN_LOGIC_WARPS):
             for warp_id in self.warps:
                 name, x, y, area, logic_location, logic_cost = self.warps[warp_id]
-                connection = Connection("TeleporterNetwork", logic_location, self)
+                p = self.warp_owner[warp_id]
+                connection = Connection("TeleporterNetwork", logic_location, self, p)
                 requirements = [warp_id]
                 if not self.var(Variation.ENTRANCE_SHUFFLE):
                     # Consider keystone softlocks.
@@ -894,69 +1001,59 @@ class SeedGenerator:
                     #if area == "Forlorn":
                     #    requirements.append("ForlornKey")
                 connection.add_requirements(requirements, 0)
-                self.areas["TeleporterNetwork"].add_connection(connection)
+                self.get_area("TeleporterNetwork", p).add_connection(connection)
                 #log.debug("Added connect to {}".format(logic_location))
 
-    def shared_item_split(self, target):
-        for item, player in self.sharedMap.get(target, []):
-            if player == self.playerID:
-                self.assignQueue.append(item)
-                self.unplaced_shared -= 1
-
-            # If the item is intended for player with higher ID, we can just assign the item.
-            # Otherwise, we want to assign it after the paths are generated for this round
-            elif player > self.playerID:
-                self.assign(item)
-                self.append_spoiler(self.adjust_item(item, None), "Player %s" % player)
-            else:
-                self.sharedAssignQueue.append(item)
-                self.append_spoiler(self.adjust_item(item, None), "Player %s" % player)
+    def get_area(self, area_name, p):
+        """Fetch an area by base name + player (or by an already-tagged name)."""
+        if "|" not in area_name:
+            area_name = tag(area_name, p)
+        return self.areas[area_name]
 
     def reach_area(self, target):
-        if self.playerID > 1 and target in self.sharedMap:
-            self.shared_item_split(target)
         if self.areas[target].has_location:
             self.currentAreas.append(target)
         self.areasReached[target] = True
 
     def open_free_connections(self):
         found = False
-        keystoneCount = 0
-        mapstoneCount = 0
+        keystoneCount = defaultdict(lambda: 0)
+        mapstoneCount = defaultdict(lambda: 0)
         # python 3 wont allow concurrent changes
         # list(areasReached.keys()) is a copy of the original list
         for area in list(self.areasReached.keys()):
             for connection in self.areas[area].get_connections():
                 cost = connection.cost()
                 reached = connection.target in self.areasReached
+                p = connection.player
                 if cost[0] <= 0:
                     if not reached:
                         self.areas[connection.target].difficulty = cost[2]
                         if len(self.areas[connection.target].locations) > 0:
                             self.areas[connection.target].difficulty += self.areas[area].difficulty
                     if connection.keys > 0:
-                        if area not in self.doorQueue.keys():
-                            self.doorQueue[area] = connection
-                            keystoneCount += connection.keys
+                        if area not in self.doorQueue[p].keys():
+                            self.doorQueue[p][area] = connection
+                            keystoneCount[p] += connection.keys
                     elif connection.mapstone and self.var(Variation.STRICT_MAPSTONES):
                         if not reached:
                             visitMap = True
-                            for mp in self.mapQueue.keys():
-                                if mp == area or self.mapQueue[mp].target == connection.target:
+                            for mp in self.mapQueue[p].keys():
+                                if mp == area or self.mapQueue[p][mp].target == connection.target:
                                     visitMap = False
                             if visitMap:
-                                self.mapQueue[area] = connection
-                                mapstoneCount += 1
+                                self.mapQueue[p][area] = connection
+                                mapstoneCount[p] += 1
                     else:
                         if not reached:
                             self.seedDifficulty += cost[2] * cost[2]
                             self.reach_area(connection.target)
                             if connection.mapstone and not self.var(Variation.STRICT_MAPSTONES):
-                                self.mapstonesSeen += 1
-                                if self.mapstonesSeen >= 9:
-                                    self.mapstonesSeen = 11
-                                if self.mapstonesSeen == 8:
-                                    self.mapstonesSeen = 9
+                                self.mapstonesSeen[p] += 1
+                                if self.mapstonesSeen[p] >= 9:
+                                    self.mapstonesSeen[p] = 11
+                                if self.mapstonesSeen[p] == 8:
+                                    self.mapstonesSeen[p] = 9
                         if connection.target in self.areasRemaining:
                             self.areasRemaining.remove(connection.target)
                         self.connectionQueue.append((area, connection))
@@ -977,12 +1074,13 @@ class SeedGenerator:
             for location in currentLocations:
                 location.difficulty += self.areas[area].difficulty
             if self.forcedAssignments:
-                reachable_forced_ass_locs = [l for l in currentLocations if l.get_key() in self.forcedAssignments]
-                if self.next_ms_loc() in self.forcedAssignments and any(l.orig == "MapStone" for l in currentLocations):
-                    reachable_forced_ass_locs.append(next(l for l in currentLocations if l.orig == "MapStone"))
+                reachable_forced_ass_locs = [l for l in currentLocations if (l.player, l.get_key()) in self.forcedAssignments]
+                reachable_forced_ass_locs += [l for l in currentLocations if l.orig == "MapStone"
+                                              and (l.player, self.next_ms_loc(l.player)) in self.forcedAssignments
+                                              and l not in reachable_forced_ass_locs]
                 for loc in reachable_forced_ass_locs:
                     currentLocations.remove(loc)
-                    key = loc.get_key() if loc.orig != "MapStone" else self.next_ms_loc()
+                    key = (loc.player, loc.get_key() if loc.orig != "MapStone" else self.next_ms_loc(loc.player))
                     if key in self.forceAssignedLocs:
                         continue
                     self.forceAssignedLocs.add(key)
@@ -1019,11 +1117,12 @@ class SeedGenerator:
                             log.warning(req, req_set, str(connection), connection.target)
                             continue
                         if self.costs[req] > 0:
-                            # if the item isn't in your itemPool (due to co-op or an unprocessed forced assignment), skip it
+                            # if the item isn't in your itemPool (due to an unprocessed forced assignment), skip it
                             if self.itemPool.get(req, 0) == 0:
                                 requirements = []
                                 break
-                            if req in self.countable_reqs:
+                            base = base_of(req)
+                            if base in self.countable_reqs:
                                 cnts[req] += 1
                                 if cnts[req] > self.inventory[req]:
                                     requirements.append(req)
@@ -1031,11 +1130,11 @@ class SeedGenerator:
                             else:
                                 requirements.append(req)
                                 cost += self.costs[req]
-                                if self.var(Variation.TPSTARVED) and (req.startswith("TP") or req.startswith("Warp")):
+                                if self.var(Variation.TPSTARVED) and (base.startswith("TP") or base.startswith("Warp")):
                                     cost += self.costs[req]
-                                if self.var(Variation.FUCK_GRENADE) and req == "Grenade":
+                                if self.var(Variation.FUCK_GRENADE) and base == "Grenade":
                                     cost += self.costs[req] * 5
-                                if self.var(Variation.FUCK_WALLS) and req in ["WallJump", "Climb"]:
+                                if self.var(Variation.FUCK_WALLS) and base in ["WallJump", "Climb"]:
                                     cost += self.costs[req] * 7
                     # don't decrease the rate of multi-ability paths, bc we're already pruning them
                     # cost *= max(1, len(requirements) - 1)
@@ -1077,9 +1176,13 @@ class SeedGenerator:
 
     def get_location_from_balance_list(self):
         target = int(pow(self.random.random(), 1.0 / self.balanceLevel) * len(self.balanceList))
-        location = self.balanceList.pop(target)
-        self.balanceListLeftovers.append(location[0])
-        return location[1]
+        item, location, assignment, mw_ref = self.balanceList.pop(target)
+        if mw_ref:
+            # the stashed assignment string is discarded; free its slot so the
+            # owner's manifest doesn't accumulate dead entries
+            self.free_slot(*mw_ref)
+        self.balanceListLeftovers.append(item)
+        return location
 
     def assign_random(self, locs, recurseCount=0):
         value = self.random.random()
@@ -1087,21 +1190,22 @@ class SeedGenerator:
         denom = float(sum(self.itemPool.values()))
         if denom == 0.0:
             log.warning("%s: itemPool was empty! locations: %s, balanced items: %s", self.params.flag_line(), self.locations(), self.items() - self.items(False))
-            return self.assign("EX*")
+            return self.assign(tag("EX*", self.random_player()))
         for key in self.itemPool.keys():
             position += self.itemPool[key] / denom
             if value <= position:
+                base = base_of(key)
                 if self.var(Variation.STARVED):
-                    if key in self.skillsOutput and recurseCount < 3:
+                    if base in self.skillsOutput and recurseCount < 3:
                         return self.assign_random(locs, recurseCount=recurseCount + 1)
                 if self.var(Variation.FUCK_WALLS):
-                    if key in ["WallJump", "Climb"] and recurseCount < 3 and 252 - locs < 40:
+                    if base in ["WallJump", "Climb"] and recurseCount < 3 and self.total_locs() - locs < 40:
                         return self.assign_random(locs, recurseCount=recurseCount + 1)
                 if self.var(Variation.FUCK_GRENADE):
-                    if key == "Grenade" and recurseCount < 3 and 252 - locs < 60:
+                    if base == "Grenade" and recurseCount < 3 and self.total_locs() - locs < 60:
                         return self.assign_random(locs, recurseCount=recurseCount + 1)
                 if self.var(Variation.TPSTARVED):
-                    if key.startswith("TP") and recurseCount < 3 and 252 - locs < self.costs.get(key, 0):
+                    if base.startswith("TP") and recurseCount < 3 and self.total_locs() - locs < self.costs.get(key, 0):
                         return self.assign_random(locs, recurseCount=recurseCount + 1)
                 return self.assign(key)
     
@@ -1109,16 +1213,18 @@ class SeedGenerator:
                                     [keysanity_ks_itemcode for keysanity_ks_itemcode in keysanityOutput.values()])
 
     def assign(self, item, preplaced=False):
-        if item[0:2] in ["MU", "RP"] and item not in self.itemPool:
-            for multi_item in self.get_multi_items(item):
-                self.assign(multi_item, preplaced)
+        """item must be tagged with its owner ("Bash|2")."""
+        base, owner = untag(item)
+        if base[0:2] in ["MU", "RP"] and item not in self.itemPool:
+            for multi_item in self.get_multi_items(base):
+                self.assign(tag(multi_item, owner), preplaced)
         else:
             if not preplaced:
                 self.itemPool[item] = max(self.itemPool.get(item, 0) - 1, 0)
-            if item in self.costs_to_decrement_by_one:
+            if base in self.costs_to_decrement_by_one:
                 if self.costs[item] > 0:
                     self.costs[item] -= 1
-            elif item == "RB28":
+            elif base == "RB28":
                 if self.costs[item] > 0:
                     self.costs[item] -= min(3, self.costs[item])
             elif item in self.costs and self.itemPool.get(item, 0) == 0:
@@ -1126,8 +1232,11 @@ class SeedGenerator:
             self.inventory[item] = 1 + self.inventory.get(item, 0)
         return item
 
-    # for use in limitkeys mode
+    # forced assignments: untagged items belong to the location's world;
+    # tagged ones (cross-world limitkeys) keep their owner
     def force_assign(self, item, location):
+        if "|" not in item:
+            item = tag(item, location.player)
         self.assign(item, True)
         self.assign_to_location(item, location)
 
@@ -1146,51 +1255,51 @@ class SeedGenerator:
         loc = location.get_key()
 
         if at_mapstone:
-            loc = self.next_ms_loc()
-            self.mapstonesAssigned += 1
+            loc = self.next_ms_loc(location.player)
+            self.mapstonesAssigned[location.player] += 1
             zone = "Mapstone"
-
-        # if this is the first player of a paired seed, construct the map
-        if self.playerCount > 1 and self.playerID == 1 and item in self.sharedList:
-            player = self.random.randint(1, self.playerCount)
-            if location.area not in self.sharedMap:
-                self.sharedMap[location.area] = []
-            self.sharedMap[location.area].append((item, player))
-            if player != self.playerID:
-                self.sharedCounts[player] += 1
-                self.append_spoiler(self.adjust_item(item, zone), "Player %s" % player)
-                item = "EX*"
-                self.expSlots += 1
-        # if mapstones are progressive, set a special location
-
+        fass_key = (location.player, loc)
 
         fixed_item = self.adjust_item(item, zone)
         if (has_cost or self.params.verbose_spoiler) and not hist_written:
-            self.append_spoiler(fixed_item, "Mapstone %s" % self.mapstonesAssigned if at_mapstone else location.to_string())
-        assignment = self.get_assignment(loc, fixed_item, zone)
+            if at_mapstone:
+                ms_name = "Mapstone %s" % self.mapstonesAssigned[location.player]
+                if not self.solo():
+                    ms_name = "Player %s's %s" % (location.player, ms_name)
+                self.append_spoiler(fixed_item, ms_name)
+            else:
+                self.append_spoiler(fixed_item, location.to_string(self.solo()))
+        assignment, mw_ref = self.get_assignment(loc, location.player, fixed_item, zone)
 
-        if item in self.eventsOutput:
-            self.eventList.append(assignment)
-        elif self.params.balanced and not has_cost and location.orig != "MapStone" and loc not in self.forceAssignedLocs:
-            self.balanceList.append((fixed_item, location, assignment))
+        if base_of(item) in self.eventsOutput:
+            self.event_lists[location.player].append(assignment)
+        elif self.params.balanced and not has_cost and location.orig != "MapStone" and fass_key not in self.forceAssignedLocs:
+            self.balanceList.append((fixed_item, location, assignment, mw_ref))
         else:
-            self.outputStr += assignment
+            self.seeds_text[location.player] += assignment
 
         if self.params.do_loc_analysis:
             key = location.to_string()
             if location.orig == "MapStone":
-                key = "MapStone " + str(self.mapstonesAssigned)
-            if item in self.params.locationAnalysisCopy[key]:
-                self.params.locationAnalysisCopy[key][item] += 1
-                self.params.locationAnalysisCopy[location.zone][item] += 1
+                key = "MapStone " + str(self.mapstonesAssigned[location.player])
+            item_base = base_of(item)
+            if item_base in self.params.locationAnalysisCopy[key]:
+                self.params.locationAnalysisCopy[key][item_base] += 1
+                self.params.locationAnalysisCopy[location.zone][item_base] += 1
 
     def append_spoiler(self, fixed_item, location_name):
-        pname = "Warp to " + self.warps[fixed_item][0] if fixed_item in self.warps else Pickup.name(fixed_item[:2], fixed_item[2:] or "1")
+        base, player = untag(fixed_item)
+        pname = "Warp to " + self.warps[base][0] if base in self.warps else Pickup.name(base[:2], base[2:] or "1")
+        if not self.solo():
+            pname = "Player %s's %s" % (player, pname)
         self.padding = max(self.padding, len(pname))
-        self.spoilerGroup[fixed_item].append(pname + "!PDPLC!-from " + location_name + "\n")
+        # spoilerGroup is keyed by untagged codes so form_spoiler's per-type
+        # ordering keeps working; player attribution lives in the entry text
+        self.spoilerGroup[base].append(pname + "!PDPLC!-from " + location_name + "\n")
 
 
     def adjust_item(self, item, zone):
+        item, player = untag(item)
         if item in self.skillsOutput:
             item = self.skillsOutput[item]
         elif item in self.eventsOutput:
@@ -1201,38 +1310,53 @@ class SeedGenerator:
             relic = self.choose_relic_for_zone(zone)
             item = "WT#" + relic[0] + "#\\n" + relic[1]
         elif item == "WP*":
-            item = self.random_warp_id()
+            item = self.random_warp_id(player)
         elif item[0:2] in ["MU", "RP"]:
             # resolve starred pickups inside preplaced multipickups
             while "WT/*" in item:
                 relic = self.choose_relic_for_zone(zone)
                 item = item.replace("WT/*", "WT/#%s#\\n%s" % (relic[0], relic[1]), 1)
             while "WP/*" in item:
-                name, x, y, area, logic_location, logic_cost = self.warps[self.random_warp_id()]
+                name, x, y, area, logic_location, logic_cost = self.warps[self.random_warp_id(player)]
                 item = item.replace("WP/*", "TW/Warp to %s,%s,%s,%s" % (name, x, y, logic_location), 1)
         elif item == "EX*":
             value = self.get_random_exp_value()
             self.expRemaining -= value
             self.expSlots -= 1
             item = "EX%s" % value
-        return item
+        return tag(item, player)
 
-    def get_assignment(self, loc, item, zone):
+    def mw_display_name(self, base_item):
+        if base_item.startswith("Warp"):
+            return "Warp to " + self.warps[base_item][0]
+        return Pickup.name(base_item[:2], base_item[2:] or "1")
+
+    def get_assignment(self, loc, player, item, zone):
+        """item is tagged with its owner; player is the world the location is
+        in. Returns (seed line, mw_ref) where mw_ref is (owner, slot) when the
+        item landed in someone else's world, else None."""
+        base, owner = untag(item)
+        mw_ref = None
         pickup = ""
-        if item.startswith("Warp"):
-            name, x, y, area, logic_location, logic_cost = self.warps[item]
+        if base.startswith("Warp"):
+            name, x, y, area, logic_location, logic_cost = self.warps[base]
             pickup = "TW|Warp to " + name + "," + str(x) + ',' + str(y) + ',' + logic_location
-        elif item[2:]:
-            pickup = "%s|%s" % (item[:2], item[2:])
+        elif base[2:]:
+            pickup = "%s|%s" % (base[:2], base[2:])
         else:
-            pickup = "%s|1" % item[:2]
-        return "%s|%s|%s\n" % (loc, pickup, zone)
+            pickup = "%s|1" % base[:2]
+        if owner != player:
+            slot = self.place_in_slot(owner, pickup, player, zone)
+            pickup = "MW|%s,%s,%s" % (owner, slot, self.mw_display_name(base))
+            mw_ref = (owner, slot)
+        return ("%s|%s|%s\n" % (loc, pickup, zone), mw_ref)
 
     def get_random_exp_value(self):
         minExp = self.random.randint(2, 9)
         if self.expSlots <= 1:
             return max(self.expRemaining, minExp)
-        return int(max(self.expRemaining * (self.inventory["EX*"] + self.expSlots / 4) * self.random.uniform(0.0, 2.0) / (self.expSlots * (self.expSlots + self.inventory["EX*"])), minExp))
+        rand_exp_found = sum(self.inventory[tag("EX*", p)] for p in self.multi_ps())
+        return int(max(self.expRemaining * (rand_exp_found + self.expSlots / 4) * self.random.uniform(0.0, 2.0) / (self.expSlots * (self.expSlots + rand_exp_found)), minExp))
 
     def preferred_difficulty_assign(self, item, locationsToAssign):
         total = 0.0
@@ -1262,94 +1386,97 @@ class SeedGenerator:
         meta = get_areas(self.params.areas_ori_path)
         logic_paths = [lp.value for lp in self.params.logic_paths]
         logic_path_tags = get_path_tags_from_pathsets(logic_paths)
-        for loc_name, loc_info in meta["locs"].items():
-            area = Area(loc_name)
-            self.areasRemaining.append(loc_name)
-            self.areas[loc_name] = area
+        for p in self.multi_ps():
+            for loc_name, loc_info in meta["locs"].items():
+                area = Area(loc_name, p)
+                self.areasRemaining.append(area.name)
+                self.areas[area.name] = area
 
-            loc = Location(
-                int(loc_info["x"]),
-                int(loc_info["y"]),
-                loc_name,
-                loc_info["item"],
-                int(loc_info["difficulty"]),
-                loc_info["zone"]
-            )
-            area.add_location(loc)
+                loc = Location(
+                    int(loc_info["x"]),
+                    int(loc_info["y"]),
+                    area.name,
+                    loc_info["item"],
+                    int(loc_info["difficulty"]),
+                    loc_info["zone"],
+                    p
+                )
+                area.add_location(loc)
 
-            if self.params.do_loc_analysis:
-                key = loc.to_string()
-                if key not in self.params.locationAnalysis:
-                    self.params.locationAnalysis[key] = self.params.itemsToAnalyze.copy()
-                    self.params.locationAnalysis[key]["Zone"] = loc.zone
-                zoneKey = loc.zone
-                if zoneKey not in self.params.locationAnalysis:
-                    self.params.locationAnalysis[zoneKey] = self.params.itemsToAnalyze.copy()
-                    self.params.locationAnalysis[zoneKey]["Zone"] = loc.zone
+                if self.params.do_loc_analysis:
+                    key = loc.to_string()
+                    if key not in self.params.locationAnalysis:
+                        self.params.locationAnalysis[key] = self.params.itemsToAnalyze.copy()
+                        self.params.locationAnalysis[key]["Zone"] = loc.zone
+                    zoneKey = loc.zone
+                    if zoneKey not in self.params.locationAnalysis:
+                        self.params.locationAnalysis[zoneKey] = self.params.itemsToAnalyze.copy()
+                        self.params.locationAnalysis[zoneKey]["Zone"] = loc.zone
 
-        for home_name, home_info in meta["homes"].items():
-            area = Area(home_name)
-            self.areasRemaining.append(home_name)
-            self.areas[home_name] = area
+            for home_name, home_info in meta["homes"].items():
+                area = Area(home_name, p)
+                self.areasRemaining.append(area.name)
+                self.areas[area.name] = area
 
-            for conn_target_name, conn_info in home_info["conns"].items():
-                connection = Connection(home_name, conn_target_name, self)
+                for conn_target_name, conn_info in home_info["conns"].items():
+                    connection = Connection(home_name, conn_target_name, self, p)
 
-                # can't actually be used yet but this is roughly how this will be implemented
-                # entranceConnection = True if "entrance" in conn_info else False
-                # if self.var(Variation.ENTRANCE_SHUFFLE) and entranceConnection:
-                #   continue
+                    # can't actually be used yet but this is roughly how this will be implemented
+                    # entranceConnection = True if "entrance" in conn_info else False
+                    # if self.var(Variation.ENTRANCE_SHUFFLE) and entranceConnection:
+                    #   continue
 
-                if not conn_info["paths"]:
-                    connection.add_requirements(["Free"], 1)
-                for path in conn_info["paths"]:
-                    valid = True
-                    path_tags = path[0]
-                    for path_tag in path_tags:
-                        if path_tag not in logic_path_tags:
-                            valid = False
-                            break
-                    if valid:
-                        if keysOnlyForDoors:
-                            # Okay, this is essentially Free keymode but with requirements
-                            # for the keys to be placed in their doors, but aren't given freely.
-                            altered_path = list(path)
-                            if "GinsoKey" in path:
-                                if (conn_target_name != "GinsoOuterDoor") or ("InnerDoor" in home_name):
-                                    altered_path.remove("GinsoKey")
-                            if "ForlornKey" in path:
-                                if conn_target_name != "ForlornOuterDoor" or ("InnerDoor" in home_name):
-                                    altered_path.remove("ForlornKey")
-                            if "HoruKey" in path:
-                                if conn_target_name != "HoruOuterDoor" or ("InnerDoor" in home_name):
-                                    altered_path.remove("HoruKey")
-                            connection.add_requirements(list(altered_path[1:]), self.get_difficulty(path_tags))
-                        else:
-                            connection.add_requirements(list(path[1:]), self.get_difficulty(path_tags))
-                        
-                if connection.get_requirements():
-                    area.add_connection(connection)
+                    if not conn_info["paths"]:
+                        connection.add_requirements(["Free"], 1)
+                    for path in conn_info["paths"]:
+                        valid = True
+                        path_tags = path[0]
+                        for path_tag in path_tags:
+                            if path_tag not in logic_path_tags:
+                                valid = False
+                                break
+                        if valid:
+                            if keysOnlyForDoors:
+                                # Okay, this is essentially Free keymode but with requirements
+                                # for the keys to be placed in their doors, but aren't given freely.
+                                altered_path = list(path)
+                                if "GinsoKey" in path:
+                                    if (conn_target_name != "GinsoOuterDoor") or ("InnerDoor" in home_name):
+                                        altered_path.remove("GinsoKey")
+                                if "ForlornKey" in path:
+                                    if conn_target_name != "ForlornOuterDoor" or ("InnerDoor" in home_name):
+                                        altered_path.remove("ForlornKey")
+                                if "HoruKey" in path:
+                                    if conn_target_name != "HoruOuterDoor" or ("InnerDoor" in home_name):
+                                        altered_path.remove("HoruKey")
+                                connection.add_requirements(list(altered_path[1:]), self.get_difficulty(path_tags))
+                            else:
+                                connection.add_requirements(list(path[1:]), self.get_difficulty(path_tags))
 
-                if self.var(Variation.KEYSANITY):
-                    connection.keys = 0
+                    if connection.get_requirements():
+                        area.add_connection(connection)
 
-    def connect_doors(self, door1, door2, requirements=["Free"]):
-        connection1 = Connection(door1.name, door2.name, self)
+                    if self.var(Variation.KEYSANITY):
+                        connection.keys = 0
+
+    def connect_doors(self, door1, door2, requirements=["Free"], p=1):
+        connection1 = Connection(door1.name, door2.name, self, p)
         connection1.add_requirements(requirements, 1)
-        self.areas[door1.name].add_connection(connection1)
-        connection2 = Connection(door2.name, door1.name, self)
+        self.get_area(door1.name, p).add_connection(connection1)
+        connection2 = Connection(door2.name, door1.name, self, p)
         connection2.add_requirements(requirements, 1)
-        self.areas[door2.name].add_connection(connection2)
+        self.get_area(door2.name, p).add_connection(connection2)
         dat_string = str(door1.get_key()) + "|EN|" + str(door2.x) + "|" + str(door2.y) + "\n" + str(door2.get_key()) + "|EN|" + str(door1.x) + "|" + str(door1.y) + "\n"
         spoiler_string = str("    {} <-> {}\n".format(door1.name, door2.name))
         return dat_string, spoiler_string
 
-    def randomize_entrances(self):
+    def randomize_entrances(self, p=1):
+        # each world gets its own independent shuffle (decision 2026-07-22)
         doors = doors_inner + doors_outer
 
         # Remove all previous connections
         for door_name, x, y in doors:
-            area = self.areas[door_name]
+            area = self.get_area(door_name, p)
             connections = area.get_connections()[:]
             for connection in connections:
                 if ("OuterDoor" in connection.target) or ("InnerDoor" in connection.target):
@@ -1368,14 +1495,15 @@ class SeedGenerator:
                         Door("L1InnerDoor", -24, 369), Door("L2InnerDoor", -13, 301), Door("L3InnerDoor", -28, 244), Door("L4InnerDoor", -12, 188),
                         Door("R1InnerDoor", 153, 413), Door("R2InnerDoor", 163, 266), Door("R3InnerDoor", 171, 218), Door("R4InnerDoor", 144, 151)]
 
-        self.entrance_spoiler = "Entrances: {\n"
+        header = "Entrances: {\n" if self.solo() else "Player %s's Entrances: {\n" % p
+        self.entrance_spoiler += header
         doorStr = ""
 
         # R1 cutscene softlocks so leave it vanilla for now
         # Remember to add R1 back to doors_inner and doors_outer if you fix the softlock
         R1Outer = oneWayLobbyDoors.pop(1)
         R1Inner = deadEndDoors.pop(7)
-        dat_s, spoiler_s = self.connect_doors(R1Outer, R1Inner)
+        dat_s, spoiler_s = self.connect_doors(R1Outer, R1Inner, p=p)
         doorStr += dat_s
         self.entrance_spoiler += spoiler_s
 
@@ -1384,7 +1512,7 @@ class SeedGenerator:
         lobbyIdx, lobbyDoor = self.random.choice(list(enumerate(twoWayLobbyDoors)))
         dungeonOuterDoors.pop(outerIdx)
         twoWayLobbyDoors.pop(lobbyIdx)
-        dat_s, spoiler_s = self.connect_doors(outerDoor, lobbyDoor)
+        dat_s, spoiler_s = self.connect_doors(outerDoor, lobbyDoor, p=p)
         doorStr += dat_s
         self.entrance_spoiler += spoiler_s
 
@@ -1392,63 +1520,66 @@ class SeedGenerator:
         nonDeadEndDoors = dungeonOuterDoors + oneWayLobbyDoors + twoWayLobbyDoors
         self.random.shuffle(deadEndDoors)
         for i in range(len(deadEndDoors)):
-            dat_s, spoiler_s = self.connect_doors(nonDeadEndDoors[i], deadEndDoors[i])
+            dat_s, spoiler_s = self.connect_doors(nonDeadEndDoors[i], deadEndDoors[i], p=p)
             doorStr += dat_s
             self.entrance_spoiler += spoiler_s
 
         self.entrance_spoiler += "}\n"
         return doorStr
 
+    def mw_unsupported(self, preplaced):
+        # multiworld handles every variation now; plando preplacement is the
+        # one remaining project (N-world authoring + cross-links in the builder)
+        problems = []
+        if preplaced:
+            problems.append("preplacement/plando")
+        return problems
+
     def setSeedAndPlaceItems(self, params, preplaced={}, retries=10, verbose_paths=False):
         self.verbose_paths = verbose_paths
         self.params = params
 
-        self.sharedList = []
         self.random = random.Random()
         self.random.seed(stable_string_hash(self.params.seed))
         self.preplaced = {k: self.codeToName.get(v, v) for k, v in preplaced.items()}
-        self.do_multi = self.params.sync.enabled and self.params.sync.mode == MultiplayerGameType.SHARED
+        self.is_cloned = self.params.sync.enabled and self.params.sync.mode == MultiplayerGameType.SHARED
+        self.is_multi = self.params.sync.enabled and self.params.sync.mode == MultiplayerGameType.MULTIWORLD
+        if self.params.sync.enabled and self.params.sync.mode == MultiplayerGameType.SHARED and not self.params.sync.cloned:
+            log.error("Seperate Seeds generation was removed (2026-07); use Cloned Seeds or Multiworld.")
+            return None
+        if self.params.sync.enabled and self.params.sync.mode == MultiplayerGameType.SPLITSHARDS:
+            log.error("SplitShards generation was removed (2026-07).")
+            return None
+
+        # seed_count: how many distinct worlds we generate. clone_count: how
+        # many copies of the (single) world cloned coop hands out.
+        self.seed_count = self.params.players if self.is_multi else 1
+        self.clone_count = 1
+        if self.is_cloned:
+            self.clone_count = len(self.params.sync.teams) if self.params.sync.teams else self.params.players
+        if self.is_multi:
+            problems = self.mw_unsupported(preplaced)
+            if problems:
+                log.error("Can't generate a multiworld seed with: %s", ", ".join(problems))
+                return None
 
         if self.var(Variation.WORLD_TOUR):
-            self.relicZones = self.random.sample(["Glades", "Grove", "Grotto", "Blackroot", "Swamp", "Ginso", "Valley", "Misty", "Forlorn", "Sorrow", "Horu"], self.params.relic_count)
-
-        self.playerCount = 1
-        if self.do_multi:
-            if self.params.sync.cloned and self.params.sync.teams:
-                self.playerCount = len(self.params.sync.teams)
-            else:
-                self.playerCount = self.params.players
-            shared = self.params.sync.shared
-            if ShareType.SKILL in shared:
-                self.sharedList += ["WallJump", "ChargeFlame", "Dash", "Stomp", "DoubleJump", "Glide", "Bash", "Climb", "Grenade", "ChargeJump"]
-            if ShareType.EVENT in shared:
-                if self.params.key_mode == KeyMode.SHARDS:
-                    self.sharedList += ["WaterVeinShard", "GumonSealShard", "SunstoneShard"]
-                else:
-                    self.sharedList += ["GinsoKey", "ForlornKey", "HoruKey"]
-                self.sharedList += ["Water", "Wind", "Warmth"]
-            if ShareType.TELEPORTER in shared:
-                self.sharedList += ["TPForlorn", "TPGrotto", "TPSorrow", "TPGrove", "TPSwamp", "TPValley", "TPGinso", "TPHoru", "TPBlackroot", "TPGlades"]
-            if ShareType.UPGRADE in self.params.sync.shared:
-                self.sharedList += ["RB6", "RB8", "RB9", "RB10", "RB11", "RB12", "RB13", "RB15"]
-                if self.var(Variation.EXTRA_BONUS_PICKUPS):
-                    self.sharedList += ["RB31", "RB32", "RB33", "RB101", "RB102", "RB103", "RB104", "RB105", "RB106", "RB107", "RB36"]
-            if ShareType.MISC in shared:
-                if self.var(Variation.WARMTH_FRAGMENTS):
-                    self.sharedList.append("RB28")
-                # TODO: figure out relic sharing
-                # if self.var(Variation.WORLD_TOUR):
-                #      self.sharedList.append("Relic")
+            # each world samples its own relic zones (decision 2026-07-22);
+            # relics are world-local -- they never cross as MW items
+            self.relicZones = {p: self.random.sample(["Glades", "Grove", "Grotto", "Blackroot", "Swamp", "Ginso", "Valley", "Misty", "Forlorn", "Sorrow", "Horu"], self.params.relic_count)
+                               for p in self.multi_ps()}
         return self.placeItemsMulti(retries)
 
     def placeItemsMulti(self, retries):
         placements = []
-        self.sharedMap = {}
-        self.sharedCounts = Counter()
         self.playerID = 1
 
-        placement = self.placeItems(0, retries < 7)
-        if not placement:
+        try:
+            spoiler = self.placeItems(0, retries < 7)
+        except MultiworldSlotOverflow as e:
+            log.warning("%s (retrying)", e)
+            spoiler = None
+        if not spoiler:
             if retries > 0:
                 if self.params.start != "Glades" and retries < 4:
                     log.info("Failed to generate with %s spawn and %s starting skills, adding another" % (self.params.start, self.params.starting_skills))
@@ -1463,7 +1594,7 @@ class SeedGenerator:
                             Inventory: %s,
                             Forced Assignments: %s,
                             Nonzero Costs:%s,
-                            Partial Seed: %s""",
+                            Partial Seeds: %s""",
                             self.locations(),
                             {k: v for k, v in self.itemPool.items() if v > 0},
                             [x for x in self.areasReached],
@@ -1471,31 +1602,36 @@ class SeedGenerator:
                             {k: v for k, v in self.inventory.items() if v != 0},
                             self.forcedAssignments,
                             {k: v for k, v in self.costs.items() if v != 0},
-                            self.outputStr)
+                            "\n".join("player %s:\n%s" % kv for kv in self.seeds_text.items()))
                 return None
             return self.placeItemsMulti(retries)
-        placements.append(placement)
-        if self.params.sync.cloned:
-            lines = placement[0].split("\n")
-            spoiler = placement[1]
-        while self.playerID < self.playerCount:
-            self.playerID += 1
-            if self.params.sync.cloned:
-                placements.append(("\n".join(lines[:]), spoiler))
-            else:
-                placement = self.placeItems(0, retries < 5)
-                if not placement:
-                    if retries > 0:
-                        retries -= 1
-                    else:
-                        log.error("Coop seed not completeable with these params and placements")
-                        return None
-                    return self.placeItemsMulti(retries)
-                placements.append(placement)
+
+        if self.is_multi:
+            for p in self.multi_ps():
+                self.seeds_text[p] += self.mw_manifest(p)
+                placements.append((self.seeds_text[p], spoiler))
+        else:
+            for _ in range(self.clone_count):
+                placements.append((self.seeds_text[1], spoiler))
         if self.params.spawn != self.start:
             self.params.spawn = self.start
             self.params.put()
         return placements
+
+    def mw_manifest(self, p):
+        """Seed lines describing what fills each of p's multiworld slots, so
+        their client can self-grant on slot-bitfield updates. Line shape:
+        -(slot+2)|MW|<finder>,<code>,<id>|<zone> -- locs -2..-257 are free
+        (-1 and 2 are real pseudo-locations), and 4 pipe-fields to parse like
+        any other seed line."""
+        lines = ""
+        for slot, entry in enumerate(self.mw_slots[p]):
+            if entry is None:
+                continue  # slot freed by balance churn and never reused
+            pickup, finder, zone = entry
+            code, _, id = pickup.partition("|")
+            lines += "%s|MW|%s,%s,%s|%s\n" % (-(slot + 2), finder, code, id, zone)
+        return lines
 
     def locations(self):
         """Number of remaining locations that can have items in them"""
@@ -1505,28 +1641,33 @@ class SeedGenerator:
     def items(self, include_balanced=True):
         """Number of items left to place"""
         balanced = len(self.balanceListLeftovers) if include_balanced else 0
-        return sum([v for v in self.itemPool.values()]) + balanced + self.unplaced_shared
+        return sum([v for v in self.itemPool.values()]) + balanced
 
     def place_repeatables(self):
-        repeatables = []
+        # repeatables are world-local: player p's RP pool entries land at
+        # random repeatable locations in p's own world
+        repeatables = defaultdict(list)
         for item, count in [(i,c)  for (i,c) in self.itemPool.items()]:
             if item.startswith("RP"):
-                repeatables += count * [item]
+                base, owner = untag(item)
+                repeatables[owner] += count * [base]
                 del self.itemPool[item]
         if self.itemPool.get("WP*", 0) > 0:
             warps = min(self.itemPool["WP*"], 14)
             del self.itemPool["WP*"]
             for warp_group in self.random.sample(warp_targets, warps):
-                repeatables.append("RPSH/Press AltR to Warp to %s/WP/%s,%s" % self.random.choice(warp_group))
-        if repeatables:
-            true_rep_locs = list(set(repeatable_locs) - set(self.forcedAssignments.keys()))
-            for loc, pickup in zip(self.random.sample(true_rep_locs, len(repeatables)), repeatables):
-                self.forcedAssignments[loc] = pickup
+                repeatables[1].append("RPSH/Press AltR to Warp to %s/WP/%s,%s" % self.random.choice(warp_group))
+        for p, reps in repeatables.items():
+            if reps:
+                forced_here = set(loc for (pp, loc) in self.forcedAssignments if pp == p)
+                true_rep_locs = list(set(repeatable_locs) - forced_here)
+                for loc, pickup in zip(self.random.sample(true_rep_locs, len(reps)), reps):
+                    self.forcedAssignments[(p, loc)] = pickup
 
     def placeItems(self, depth=0, worried=False):
         self.reset(worried)
-        keystoneCount = 0
-        mapstoneCount = 0
+        keystoneCount = defaultdict(lambda: 0)
+        mapstoneCount = defaultdict(lambda: 0)
 
         self.form_areas(self.var(Variation.ENTRANCE_SHUFFLE))
         self.create_warp_paths()
@@ -1538,145 +1679,154 @@ class SeedGenerator:
                     self.params.locationAnalysisCopy[location][item] = self.params.locationAnalysis[location][item]
 
         # flags line
-        self.outputStr += (self.params.flag_line(self.verbose_paths) + "\n")
+        for p in self.multi_ps():
+            self.seeds_text[p] += (self.params.flag_line(self.verbose_paths) + "\n")
 
         self.spoilerGroup = defaultdict(list)
         self.relicSpoiler = []
 
         if self.var(Variation.ENTRANCE_SHUFFLE):
-            self.outputStr += self.randomize_entrances()
+            for p in self.multi_ps():
+                self.seeds_text[p] += self.randomize_entrances(p)
 
         if self.var(Variation.WORLD_TOUR):
-            locations_by_zone = OrderedDict({zone: [] for zone in self.relicZones})
-            for area in self.areas.values():
-                for location in area.locations:
-                    if location.zone in locations_by_zone:
-                        locations_by_zone[location.zone].append(location)
-
-            for locations in locations_by_zone.values():
-                self.random.shuffle(locations)
-
-                relic_loc = None
-
-                while not relic_loc and len(locations):
-                    next_loc = locations.pop()
-                    # Can't put a relic on a map turn-in
-                    if next_loc.orig == "MapStone":
+            for p in self.multi_ps():
+                locations_by_zone = OrderedDict({zone: [] for zone in self.relicZones[p]})
+                for area in self.areas.values():
+                    if area.player != p:
                         continue
-                    # Can't put a relic on a reserved preplacement location
-                    # TODO: re-impl relics via preplacement
-                    if next_loc.get_key() in self.forcedAssignments:
-                        continue
-                    relic_loc = next_loc
-                self.relic_assign(relic_loc)
+                    for location in area.locations:
+                        if location.zone in locations_by_zone:
+                            locations_by_zone[location.zone].append(location)
+
+                for locations in locations_by_zone.values():
+                    self.random.shuffle(locations)
+
+                    relic_loc = None
+
+                    while not relic_loc and len(locations):
+                        next_loc = locations.pop()
+                        # Can't put a relic on a map turn-in
+                        if next_loc.orig == "MapStone":
+                            continue
+                        # Can't put a relic on a reserved preplacement location
+                        # TODO: re-impl relics via preplacement
+                        if (next_loc.player, next_loc.get_key()) in self.forcedAssignments:
+                            continue
+                        relic_loc = next_loc
+                    self.relic_assign(relic_loc)
             # Capture relic spoilers before the spoiler group is overwritten
             self.relicSpoiler = [(item, instance) for item in self.spoilerGroup.keys() if item[:2] == "WT" for instance in self.spoilerGroup[item]]
 
         self.place_repeatables()
-        # handle the fixed pickup: the forlorn escape plant
-        loc, item, zone = (-12320248, "EX100", "Forlorn")
-        if loc in self.forcedAssignments:
-            item = self.forcedAssignments[loc]
-            del self.forcedAssignments[loc]  # don't count these ones
-        if item != "EX100" and item not in self.itemPool:
-            log.warning("Preplaced item %s was not in pool. Translation may be necessary." % item)
-        ass = self.get_assignment(loc, self.adjust_item(item, zone), zone)
-        self.outputStr += ass
+        # handle the fixed pickup: the forlorn escape plant (one per world)
+        for p in self.multi_ps():
+            loc, item, zone = (-12320248, "EX100", "Forlorn")
+            if (p, loc) in self.forcedAssignments:
+                item = self.forcedAssignments[(p, loc)]
+                del self.forcedAssignments[(p, loc)]  # don't count these ones
+            if item != "EX100" and tag(item, p) not in self.itemPool:
+                log.warning("Preplaced item %s was not in pool. Translation may be necessary." % item)
+            ass, _ = self.get_assignment(loc, p, self.adjust_item(tag(item, p), zone), zone)
+            self.seeds_text[p] += ass
 
-        if 2 in self.forcedAssignments:
-            item = self.forcedAssignments[2]
+        for p in self.multi_ps():
+            if (p, 2) not in self.forcedAssignments:
+                continue
+            raw_item = self.forcedAssignments[(p, 2)]
+            del self.forcedAssignments[(p, 2)]
+            item = tag(raw_item, p)
             self.assign(item)
-            if item[0:2] in ["MU", "RP"] and item not in self.itemPool:
-                for multi_item in self.get_multi_items(item):
+            if raw_item[0:2] in ["MU", "RP"] and item not in self.itemPool:
+                for multi_item in self.get_multi_items(raw_item):
                     # below should not be needed as get_multi_items() already does it, and repeating
                     # it breaks shards names.
                     #name = self.codeToName.get(multi_item, multi_item)
                     #self.spoilerGroup[name].append(name + " preplaced at Spawn\n")
                     if not multi_item.startswith("WS"): # avoid dumb padding thing
-                        self.append_spoiler(self.adjust_item(multi_item, "Glades"), "Spawn")
+                        self.append_spoiler(self.adjust_item(tag(multi_item, p), "Glades"), "Spawn")
             else:
-                name = self.codeToName.get(item, item)
-                self.append_spoiler(self.adjust_item(name, "Glades"), "Spawn")
-            del self.forcedAssignments[2]
-            ass = self.get_assignment(2, self.adjust_item(item, "Glades"), "Glades")
-            self.outputStr += ass 
+                name = self.codeToName.get(raw_item, raw_item)
+                self.append_spoiler(self.adjust_item(tag(name, p), "Glades"), "Spawn")
+            ass, _ = self.get_assignment(2, p, self.adjust_item(item, "Glades"), "Glades")
+            self.seeds_text[p] += ass
 
         if len(self.spoilerGroup):
             self.spoiler.append((["Spawn"], [], self.spoilerGroup))
             self.spoilerGroup = defaultdict(list)
 
-        for loc, v in self.forcedAssignments.items():
+        # forced-assignment pool bookkeeping. Values tagged with an owner
+        # (cross-world limitkeys) decrement that owner's pool entry; untagged
+        # values belong to the world they sit in.
+        for (p, loc), v in self.forcedAssignments.items():
             if v[0:2] in ["MU", "RP"]:
                 for item in self.get_multi_items(v):
-                    if item in self.itemPool:
-                        self.itemPool[item] -= 1
+                    if tag(item, p) in self.itemPool:
+                        self.itemPool[tag(item, p)] -= 1
                     self.spoilerGroup[item].append(item + " preplaced at %s \n" % all_locations[loc].to_string() if loc in all_locations else loc)
-            if v in self.itemPool:
-                self.itemPool[v] -= 1
-        
+            tagged_v = v if "|" in v else tag(v, p)
+            if tagged_v in self.itemPool:
+                self.itemPool[tagged_v] -= 1
+
         locationsToAssign = []
         self.connectionQueue = []
         self.reservedLocations = []
 
-        self.skillCount = 10
-        self.mapstonesAssigned = 0
+        self.skillCount = 10 * self.seed_count
 
-        self.doorQueue = OrderedDict()
-        self.mapQueue = OrderedDict()
+        self.doorQueue = defaultdict(OrderedDict)
+        self.mapQueue = defaultdict(OrderedDict)
         spoilerPath = []
 
-        #if self.start == "Glades":
-        #    self.reach_area("SunkenGladesRunaway")
-        #    if self.var(Variation.OPEN_WORLD):
-        #        self.reach_area("GladesMain")
-        #else:
-        #    self.reach_area(self.spawn_logic_areas[self.start])
-        
-        if self.var(Variation.OPEN_WORLD):
-            #for connection in list(self.areas["SunkenGladesRunaway"].connections):
-            #    if connection.target == "GladesMain":
-            #        self.areas["SunkenGladesRunaway"].remove_connection(connection)
-            # We remove the keystone connection, and create a new connection that is free.
-            for connection in list(self.areas["GladesFirstKeyDoor"].connections):
-                if connection.target == "GladesFirstKeyDoorOpened":
-                    self.areas["GladesFirstKeyDoor"].remove_connection(connection)
-            connection = Connection("GladesFirstKeyDoor", "GladesFirstKeyDoorOpened", self)
-            connection.add_requirements([], 0)
-            self.areas["GladesFirstKeyDoor"].add_connection(connection)
+        for p in self.multi_ps():
+            if self.var(Variation.OPEN_WORLD):
+                # We remove the keystone connection, and create a new connection that is free.
+                for connection in list(self.get_area("GladesFirstKeyDoor", p).connections):
+                    if connection.target == tag("GladesFirstKeyDoorOpened", p):
+                        self.get_area("GladesFirstKeyDoor", p).remove_connection(connection)
+                connection = Connection("GladesFirstKeyDoor", "GladesFirstKeyDoorOpened", self, p)
+                connection.add_requirements([], 0)
+                self.get_area("GladesFirstKeyDoor", p).add_connection(connection)
 
-        if self.var(Variation.ENTRANCE_SHUFFLE) and self.params.key_mode == KeyMode.SHARDS:
-            for connection in list(self.areas["TeleporterNetwork"].connections):
-                if connection.target in ["HoruTeleporter", "GinsoTeleporter", "ForlornTeleporter"]:
-                    self.areas["TeleporterNetwork"].remove_connection(connection)
-            connection = Connection("TeleporterNetwork", "HoruTeleporter", self)
-            connection.add_requirements(["TPHoru", "SunstoneShard", "SunstoneShard"], 0)
-            self.areas["TeleporterNetwork"].add_connection(connection)
-            connection = Connection("TeleporterNetwork", "GinsoTeleporter", self)
-            connection.add_requirements(["TPGinso", "WaterVeinShard", "WaterVeinShard"], 0)
-            self.areas["TeleporterNetwork"].add_connection(connection)
-            connection = Connection("TeleporterNetwork", "ForlornTeleporter", self)
-            connection.add_requirements(["TPForlorn", "GumonSealShard", "GumonSealShard"], 0)
-            self.areas["TeleporterNetwork"].add_connection(connection)
+            if self.var(Variation.ENTRANCE_SHUFFLE) and self.params.key_mode == KeyMode.SHARDS:
+                for connection in list(self.get_area("TeleporterNetwork", p).connections):
+                    if base_of(connection.target) in ["HoruTeleporter", "GinsoTeleporter", "ForlornTeleporter"]:
+                        self.get_area("TeleporterNetwork", p).remove_connection(connection)
+                connection = Connection("TeleporterNetwork", "HoruTeleporter", self, p)
+                connection.add_requirements(["TPHoru", "SunstoneShard", "SunstoneShard"], 0)
+                self.get_area("TeleporterNetwork", p).add_connection(connection)
+                connection = Connection("TeleporterNetwork", "GinsoTeleporter", self, p)
+                connection.add_requirements(["TPGinso", "WaterVeinShard", "WaterVeinShard"], 0)
+                self.get_area("TeleporterNetwork", p).add_connection(connection)
+                connection = Connection("TeleporterNetwork", "ForlornTeleporter", self, p)
+                connection.add_requirements(["TPForlorn", "GumonSealShard", "GumonSealShard"], 0)
+                self.get_area("TeleporterNetwork", p).add_connection(connection)
 
-        self.reach_area(self.spawn_logic_areas[self.start])
+            self.reach_area(tag(self.spawn_logic_areas[self.starts[p]], p))
 
-        self.itemPool["EX*"] = self.locations() - sum([v for v in self.itemPool.values()]) - self.unplaced_shared + 1  # add 1 for warmth returned (:
-        self.expSlots = self.itemPool["EX*"]
+        # every remaining location gets EXP; each world's final escape adds one
+        # more item slot (warmth returned)
+        self.expSlots = self.locations() - sum([v for v in self.itemPool.values()]) + self.seed_count
+        for p in self.multi_ps():
+            self.itemPool.setdefault(tag("EX*", p), 0)
+        for _ in range(self.expSlots):
+            self.itemPool[tag("EX*", self.random_player())] += 1
         locs = self.locations()
         while locs > 0:
-            if locs != self.items() - 1:
+            if locs != self.items() - self.seed_count:  # each world's final escape holds one extra item
                 log.warning("Item (%s) /Location (%s) desync!", self.items(), self.locations())
             self.balanceLevel += 1
             # open all paths that we can already access
             opening = True
             while opening:
                 (opening, keys, mapstones) = self.open_free_connections()
-                keystoneCount += keys
-                mapstoneCount += mapstones
-                if mapstoneCount >= 9:
-                    mapstoneCount = 11
-                if mapstoneCount == 8:
-                    mapstoneCount = 9
+                for p in self.multi_ps():
+                    keystoneCount[p] += keys[p]
+                    mapstoneCount[p] += mapstones[p]
+                    if mapstoneCount[p] >= 9:
+                        mapstoneCount[p] = 11
+                    if mapstoneCount[p] == 8:
+                        mapstoneCount[p] = 9
                 for connection in self.connectionQueue:
                     self.areas[connection[0]].remove_connection(connection[1])
                 self.connectionQueue = []
@@ -1687,7 +1837,9 @@ class SeedGenerator:
             # consider -- work on stronger anti-key-lock logic so that we don't
             # have to give keys out right away (this opens up the potential of
             # using keys in the wrong place, will need to be careful)
-            if not (self.doorQueue and self.inventory["KS"] >= keystoneCount) and not (self.mapQueue and self.inventory["MS"] >= mapstoneCount) and not reset_loop and len(locationsToAssign) == 0:
+            if (not any(self.doorQueue[p] and self.inventory[tag("KS", p)] >= keystoneCount[p] for p in self.multi_ps())
+                    and not any(self.mapQueue[p] and self.inventory[tag("MS", p)] >= mapstoneCount[p] for p in self.multi_ps())
+                    and not reset_loop and len(locationsToAssign) == 0):
                 if self.reservedLocations:
                     locationsToAssign.append(self.reservedLocations.pop(0))
                     locationsToAssign.append(self.reservedLocations.pop(0))
@@ -1699,22 +1851,18 @@ class SeedGenerator:
                         locationsToAssign.append(self.get_location_from_balance_list())
                 if not self.assignQueue:
                     # we've painted ourselves into a corner, try again
-                    if self.playerID == 1:
-                        self.sharedMap = {}
-                        self.sharedCounts = Counter()
-                    if depth > self.playerCount * self.playerCount:
+                    if depth > max(self.seed_count * self.seed_count, 1):
                         return
                     return self.placeItems(depth + 1, worried)
 
             # pick what we're going to put in our accessible space
             itemsToAssign = []
-            if len(locationsToAssign) < len(self.assignQueue) + max(keystoneCount - self.inventory["KS"], 0) + max(mapstoneCount - self.inventory["MS"], 0):
+            ks_deficit = sum(max(keystoneCount[p] - self.inventory[tag("KS", p)], 0) for p in self.multi_ps())
+            ms_deficit = sum(max(mapstoneCount[p] - self.inventory[tag("MS", p)], 0) for p in self.multi_ps())
+            if len(locationsToAssign) < len(self.assignQueue) + ks_deficit + ms_deficit:
                 # we've painted ourselves into a corner, try again
                 if not self.reservedLocations:
-                    if self.playerID == 1:
-                        self.sharedMap = {}
-                        self.sharedCounts = Counter()
-                    if depth > self.playerCount * self.playerCount:
+                    if depth > max(self.seed_count * self.seed_count, 1):
                         return
                     return self.placeItems(depth + 1, worried)
                 locationsToAssign.append(self.reservedLocations.pop(0))
@@ -1723,31 +1871,38 @@ class SeedGenerator:
                 locs = self.locations()
                 if self.assignQueue:
                     itemsToAssign.append(self.assign(self.assignQueue.pop(0)))
-                elif self.inventory["KS"] < keystoneCount:
-                    itemsToAssign.append(self.assign("KS"))
-                elif self.inventory["MS"] < mapstoneCount:
-                    itemsToAssign.append(self.assign("MS"))
-                elif (self.inventory["HC"] - 2) * self.params.cell_freq < (252 - locs) and self.itemPool["HC"] > 0:
-                    # Subtract starting health cells from this count or else forcing doesn't work
-                    # Then add one because we want to compare "how many pickups should it take to get the next health" to the number we've placed
-                    itemsToAssign.append(self.assign("HC"))
-                elif self.inventory["EC"] * self.params.cell_freq < (252 - locs) and self.itemPool["EC"] > 0:
-                    # *Don't* add one because we don't want the first forced EC at the start to count against the forcing frequency
-                    itemsToAssign.append(self.assign("EC"))
-                elif self.itemPool.get("RB28", 0) > 0 and self.itemPool["RB28"] >= locs:
-                    itemsToAssign.append(self.assign("RB28"))
-                elif self.balanceListLeftovers and self.items(include_balanced=False) < 2:
-                    itemsToAssign.append(self.balanceListLeftovers.pop(0))
-                else:
-                    itemsToAssign.append(self.assign_random(locs))
-
-            for _ in range(len(self.sharedAssignQueue)):
-                self.assign(self.sharedAssignQueue.pop(0))
+                    continue
+                for p in self.multi_ps():
+                    if self.inventory[tag("KS", p)] < keystoneCount[p]:
+                        itemsToAssign.append(self.assign(tag("KS", p)))
+                        break
+                    elif self.inventory[tag("MS", p)] < mapstoneCount[p]:
+                        itemsToAssign.append(self.assign(tag("MS", p)))
+                        break
+                    elif (self.inventory[tag("HC", p)] - 2) * self.params.cell_freq < (self.total_locs() - locs) and self.itemPool[tag("HC", p)] > 0:
+                        # Subtract starting health cells from this count or else forcing doesn't work
+                        # Then add one because we want to compare "how many pickups should it take to get the next health" to the number we've placed
+                        itemsToAssign.append(self.assign(tag("HC", p)))
+                        break
+                    elif self.inventory[tag("EC", p)] * self.params.cell_freq < (self.total_locs() - locs) and self.itemPool[tag("EC", p)] > 0:
+                        # *Don't* add one because we don't want the first forced EC at the start to count against the forcing frequency
+                        itemsToAssign.append(self.assign(tag("EC", p)))
+                        break
+                    elif self.itemPool.get(tag("RB28", p), 0) > 0 and self.itemPool[tag("RB28", p)] >= locs:
+                        itemsToAssign.append(self.assign(tag("RB28", p)))
+                        break
+                else:  # no per-world forcing fired; place something random
+                    # drain balance leftovers as the pool runs dry (each world's
+                    # final escape will absorb one more item after this loop)
+                    if self.balanceListLeftovers and self.items(include_balanced=False) < 1 + self.seed_count:
+                        itemsToAssign.append(self.balanceListLeftovers.pop(0))
+                    else:
+                        itemsToAssign.append(self.assign_random(locs))
 
             # force assign things if using --prefer-path-difficulty
             if self.params.path_diff != PathDifficulty.NORMAL:
                 for item in list(itemsToAssign):
-                    if item in self.skillsOutput or item in self.eventsOutput:
+                    if base_of(item) in self.skillsOutput or base_of(item) in self.eventsOutput:
                         self.preferred_difficulty_assign(item, locationsToAssign)
                         itemsToAssign.remove(item)
 
@@ -1759,58 +1914,64 @@ class SeedGenerator:
             self.spoiler.append((self.currentAreas, spoilerPath, self.spoilerGroup))
 
             # open all reachable doors (for the next iteration)
-            if self.inventory["KS"] >= keystoneCount:
-                for area in self.doorQueue.keys():
-                    if self.doorQueue[area].target not in self.areasReached:
-                        difficulty = self.doorQueue[area].cost()[2]
-                        self.seedDifficulty += difficulty * difficulty
-                    self.reach_area(self.doorQueue[area].target)
-                    if self.doorQueue[area].target in self.areasRemaining:
-                        self.areasRemaining.remove(self.doorQueue[area].target)
-                    self.areas[area].remove_connection(self.doorQueue[area])
+            for p in self.multi_ps():
+                if self.inventory[tag("KS", p)] >= keystoneCount[p]:
+                    for area in self.doorQueue[p].keys():
+                        if self.doorQueue[p][area].target not in self.areasReached:
+                            difficulty = self.doorQueue[p][area].cost()[2]
+                            self.seedDifficulty += difficulty * difficulty
+                        self.reach_area(self.doorQueue[p][area].target)
+                        if self.doorQueue[p][area].target in self.areasRemaining:
+                            self.areasRemaining.remove(self.doorQueue[p][area].target)
+                        self.areas[area].remove_connection(self.doorQueue[p][area])
 
-            if self.inventory["MS"] >= mapstoneCount:
-                for area in self.mapQueue.keys():
-                    if self.mapQueue[area].target not in self.areasReached:
-                        difficulty = self.mapQueue[area].cost()[2]
-                        self.seedDifficulty += difficulty * difficulty
-                    self.reach_area(self.mapQueue[area].target)
-                    if self.mapQueue[area].target in self.areasRemaining:
-                        self.areasRemaining.remove(self.mapQueue[area].target)
-                    self.areas[area].remove_connection(self.mapQueue[area])
+                if self.inventory[tag("MS", p)] >= mapstoneCount[p]:
+                    for area in self.mapQueue[p].keys():
+                        if self.mapQueue[p][area].target not in self.areasReached:
+                            difficulty = self.mapQueue[p][area].cost()[2]
+                            self.seedDifficulty += difficulty * difficulty
+                        self.reach_area(self.mapQueue[p][area].target)
+                        if self.mapQueue[p][area].target in self.areasRemaining:
+                            self.areasRemaining.remove(self.mapQueue[p][area].target)
+                        self.areas[area].remove_connection(self.mapQueue[p][area])
 
             locationsToAssign = []
             self.spoilerGroup = defaultdict(list)
             self.currentAreas = []
 
-            self.doorQueue = OrderedDict()
-            self.mapQueue = OrderedDict()
+            self.doorQueue = defaultdict(OrderedDict)
+            self.mapQueue = defaultdict(OrderedDict)
             spoilerPath = []
 
         if self.params.balanced:
-            for item in self.balanceList:
-                self.outputStr += item[2]
+            for (_, loc, assignment, _) in self.balanceList:
+                self.seeds_text[loc.player] += assignment
 
-        # place the last item on the final escape
+        # place the last item on each world's final escape
         balanced = self.params.balanced
         self.params.balanced = False
-        for item in self.itemPool:
-            if self.itemPool[item] > 0:
-                self.assign_to_location(item, Location(-240, 512, 'FinalEscape', 'EVWarmth', 0, 'Horu'))
-                break
-        else:  # In python, the else clause of a for loop triggers if the loop completed without breaking, e.g. we found nothing in the item pool
-            if len(self.balanceListLeftovers) > 0:
-                item = self.balanceListLeftovers.pop(0)
-                log.info("Empty item pool: placing %s from balanceListLeftovers onto warmth returned.", item)
-                self.assign_to_location(item, Location(-240, 512, 'FinalEscape', 'EVWarmth', 0, 'Horu'))
-            else:
-                log.warning("%s: No item found for warmth returned! Placing EXP", self.params.flag_line())
-                self.assign_to_location("EX*", Location(-240, 512, 'FinalEscape', 'EVWarmth', 0, 'Horu'))
+        for p in self.multi_ps():
+            for item in self.itemPool:
+                if self.itemPool[item] > 0:
+                    # decrement, or every world's finale gets a copy of the
+                    # same item while other leftovers are dropped
+                    self.itemPool[item] -= 1
+                    self.assign_to_location(item, Location(-240, 512, 'FinalEscape', 'EVWarmth', 0, 'Horu', p))
+                    break
+            else:  # In python, the else clause of a for loop triggers if the loop completed without breaking, e.g. we found nothing in the item pool
+                if len(self.balanceListLeftovers) > 0:
+                    item = self.balanceListLeftovers.pop(0)
+                    log.info("Empty item pool: placing %s from balanceListLeftovers onto warmth returned.", item)
+                    self.assign_to_location(item, Location(-240, 512, 'FinalEscape', 'EVWarmth', 0, 'Horu', p))
+                else:
+                    log.warning("%s: No item found for warmth returned! Placing EXP", self.params.flag_line())
+                    self.assign_to_location(tag("EX*", p), Location(-240, 512, 'FinalEscape', 'EVWarmth', 0, 'Horu', p))
         self.params.balanced = balanced
 
-        self.random.shuffle(self.eventList)
-        for event in self.eventList:
-            self.outputStr += event
+        for p in self.multi_ps():
+            self.random.shuffle(self.event_lists[p])
+            for event in self.event_lists[p]:
+                self.seeds_text[p] += event
 
         if len(self.balanceListLeftovers) > 0:
             log.warning("%s: Balance list was not empty! %s", self.params.flag_line(), self.balanceListLeftovers)
@@ -1819,12 +1980,12 @@ class SeedGenerator:
             self.spoiler.append((self.currentAreas, spoilerPath, self.spoilerGroup))
 
         spoilerStr = self.form_spoiler()
-        spoilerStr = self.params.flag_line(self.verbose_paths) + "\n" + "Difficulty Rating: " + str(self.seedDifficulty) + "\n" + spoilerStr
+        spoilerStr = self.params.flag_line(self.verbose_paths) + "\n" + "Difficulty Rating: " + str(self.seedDifficulty // self.seed_count) + "\n" + spoilerStr
 
         if self.params.do_loc_analysis:
             self.params.locationAnalysis = self.params.locationAnalysisCopy
 
-        return (self.outputStr, spoilerStr)
+        return spoilerStr
 
     def get_multi_items(self, multi_item):
         multi_parts = multi_item[2:].split("/")
@@ -1860,7 +2021,8 @@ class SeedGenerator:
             currentGroupSpoiler = ""
 
             if spoilerPath:
-                currentGroupSpoiler += ("    " + str(sets_forced) + " forced pickup set" + ("" if sets_forced == 1 else "s") + ": " + str(spoilerPath) + "\n")
+                shown_path = [display_name(r, self.solo()) for r in spoilerPath]
+                currentGroupSpoiler += ("    " + str(sets_forced) + " forced pickup set" + ("" if sets_forced == 1 else "s") + ": " + str(shown_path) + "\n")
             for skill in self.skillsOutput:
                 code = self.skillsOutput[skill]
                 if code in self.spoilerGroup:
@@ -1894,7 +2056,8 @@ class SeedGenerator:
                             currentGroupSpoiler += "    " + pad(instance)
             self.currentAreas.sort()
 
-            spoilerStr += str(groupDepth) + ": " + str(self.currentAreas) + " {\n"
+            shown_areas = [display_name(a, self.solo()) for a in self.currentAreas]
+            spoilerStr += str(groupDepth) + ": " + str(shown_areas) + " {\n"
 
             spoilerStr += currentGroupSpoiler
 
@@ -1924,9 +2087,9 @@ class SeedGenerator:
         self.params = params
         self.preplaced = {}
         self.playerID = 1
-        self.mapQueue = {}
+        self.mapQueue = defaultdict(OrderedDict)
         self.reservedLocations = []
-        self.doorQueue = {}
+        self.doorQueue = defaultdict(OrderedDict)
         self.random = random.Random()
         #items = ["WallJump", "Dash", "ChargeFlame", "DoubleJump", "Bash", "Stomp", "Grenade", "Glide", "Climb", "ChargeJump"]
         items = ["Glide", "Stomp", "DoubleJump", "ChargeFlame", "WallJump"]
@@ -1946,33 +2109,33 @@ class SeedGenerator:
             self.reset()
             for item2 in fill_items:
                 if item2 not in items:
-                    self.inventory[item2] = 1
-                    self.costs[item2] = 0
+                    self.inventory[tag(item2, 1)] = 1
+                    self.costs[tag(item2, 1)] = 0
             score = 0
             for item2 in items:
                 print(item + " " + item2)
-                self.inventory["KS"] = 40
-                self.inventory["MS"] = 11
-                self.inventory["AC"] = 33
-                self.inventory["EC"] = 15
-                self.inventory["HC"] = 15
-                self.costs["KS"] = 0
-                self.costs["MS"] = 0
-                self.costs["AC"] = 0
-                self.costs["EC"] = 0
-                self.costs["HC"] = 0
+                self.inventory[tag("KS", 1)] = 40
+                self.inventory[tag("MS", 1)] = 11
+                self.inventory[tag("AC", 1)] = 33
+                self.inventory[tag("EC", 1)] = 15
+                self.inventory[tag("HC", 1)] = 15
+                self.costs[tag("KS", 1)] = 0
+                self.costs[tag("MS", 1)] = 0
+                self.costs[tag("AC", 1)] = 0
+                self.costs[tag("EC", 1)] = 0
+                self.costs[tag("HC", 1)] = 0
                 self.form_areas()
                 self.reservedLocations = []
-                self.inventory[item2] = 1
-                self.costs[item2] = 0
-                self.inventory[item] = 0
-                self.costs[item] = 1
-                self.reach_area("SunkenGladesRunaway")
+                self.inventory[tag(item2, 1)] = 1
+                self.costs[tag(item2, 1)] = 0
+                self.inventory[tag(item, 1)] = 0
+                self.costs[tag(item, 1)] = 1
+                self.reach_area(tag("SunkenGladesRunaway", 1))
                 if self.var(Variation.OPEN_WORLD):
-                    self.reach_area("GladesMain")
-                    for connection in list(self.areas["SunkenGladesRunaway"].connections):
-                        if connection.target == "GladesMain":
-                            self.areas["SunkenGladesRunaway"].remove_connection(connection)
+                    self.reach_area(tag("GladesMain", 1))
+                    for connection in list(self.get_area("SunkenGladesRunaway", 1).connections):
+                        if connection.target == tag("GladesMain", 1):
+                            self.get_area("SunkenGladesRunaway", 1).remove_connection(connection)
                 locations = 1
                 while locations > 0:
                     opening = True

@@ -6,8 +6,8 @@ from util import add_single, inc_stackable
 class Pickup(object):
     @staticmethod
     def subclasses():
-        return [Skill, Event, Teleporter, Upgrade, Experience, AbilityCell, HealthCell, EnergyCell, Keystone, 
-                Mapstone, Message, Hint, Relic, Multiple, Repeatable, Warp, WarpSave, Nothing, TPWarp]
+        return [Skill, Event, Teleporter, Upgrade, Experience, AbilityCell, HealthCell, EnergyCell, Keystone,
+                Mapstone, Message, Hint, Relic, Multiple, Repeatable, Warp, WarpSave, Nothing, TPWarp, MultiworldItem]
     @staticmethod
     def strtypes():
         return [s.code for s in Pickup.subclasses() if not s.int_id]
@@ -307,4 +307,25 @@ class TPWarp(Pickup):
     def __new__(cls, id):
         inst = super(TPWarp, cls).__new__(cls)
         inst.id, inst.bit, inst.name = id, None, id.split(",")[0]
+        return inst
+
+class MultiworldItem(Pickup):
+    # Another player's item, sitting in the finder's world. In seed files:
+    #   finder's world:  <loc>|MW|<owner>,<slot>,<display name>|<zone>
+    #   owner's manifest: -(slot+2)|MW|<finder>,<code>,<id>|<zone>
+    # (manifest locs -2..-257: -1 and 2 are real pseudo-locations.)
+    # This class parses the finder shape, which is what /found posts carry.
+    # Never fanned out by SHARED-mode grant logic (the owner gets the real
+    # item through the slot-bitfield reconciliation path instead).
+    code = "MW"
+    int_id = False
+    share_type = ShareType.NOT_SHARED
+    def __new__(cls, id):
+        parts = id.split(",", 2)
+        if len(parts) != 3 or not parts[0].isdigit() or not parts[1].isdigit():
+            return None
+        inst = super(MultiworldItem, cls).__new__(cls)
+        inst.id, inst.bit = id, None
+        inst.owner, inst.slot = int(parts[0]), int(parts[1])
+        inst.name = "Player %s's %s" % (inst.owner, parts[2])
         return inst
