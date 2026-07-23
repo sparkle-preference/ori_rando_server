@@ -14,10 +14,6 @@ from flask import g
 from seedbuilder.seedparams import Placement, Stuff, SeedGenParams
 from enums import MultiplayerGameType, ShareType, Variation
 from util import picks_by_coord, get_bit, get_taste, enums_from_strlist, ord_suffix, debug, bfields_to_coords, bfield_checksum, unpack, netperf, is_mw_manifest_loc, BATCH_GRANTS, HIST_ON_PLAYER, BINGO_V2
-
-# the FinalEscape/Warmth-Returned location key: reaching it = finishing.
-# (Location(-240, 512).get_key() == -240 * 10000 + 512)
-MW_FINISH_COORDS = -2399488
 import threading
 from time import monotonic
 from pickups import Pickup, Skill, Teleporter, Event
@@ -1748,8 +1744,13 @@ class Game(ndb.Model):
             override = True # fuck no it actually should work like this. lol.
         if self.mode == MultiplayerGameType.MULTIWORLD:
             # nothing fans out in multiworld: cross-world grants happen via
-            # slot-bitfield flips, own-world pickups are client-local
+            # slot-bitfield flips, own-world pickups are client-local.
             share = False
+            # no seen-coords dedup either: the finder's 1Hz tick can deliver
+            # the seen bit BEFORE the found POST arrives, and the early return
+            # below would silently drop the slot flip (all MW handling is
+            # idempotent, so reprocessing is free)
+            finder_seen = []
         if coords in finder_seen:
             if share:
                 if not override:
@@ -1832,11 +1833,10 @@ class Game(ndb.Model):
                     # the dropped win signals (see signal_send)
                     Cache.clear_seen_checksum(owner.idpts())
             # own-world pickups need no server-side action: the finder's
-            # client granted itself already, and seen/have bits arrive by tick
-            if coords == MW_FINISH_COORDS:
-                # the finisher's world is done: release everything still
-                # sitting in it to its owners
-                self.mw_release(pid)
+            # client granted itself already, and seen/have bits arrive by tick.
+            # (release-on-finish is triggered by the /complete route at the
+            # credits, not by any pickup: warmth returned is granted at the
+            # START of the final escape, which is too early)
         elif self.mode in [MultiplayerGameType.SIMUSOLO, MultiplayerGameType.BINGO]:
             pass
         else:

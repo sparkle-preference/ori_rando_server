@@ -434,15 +434,17 @@ class TestMultiworldFoundPickup(NdbTestCase):
         self.assertEqual(again, 0)
         self.assertEqual(len([s for s in owner.signals if s.startswith("msg:")]), 1)
 
-    def test_finish_triggers_release(self):
+    def test_mw_find_processes_even_when_coords_already_seen(self):
+        """Regression (game 133746, player 3's missing release): the finder's
+        1Hz tick can deliver the seen bit for a location BEFORE its found POST
+        arrives, and the seen-coords dedup was silently dropping the whole MW
+        branch -- slot flips included. MW skips that dedup (idempotent)."""
         g, finder, owner = self._game()
-        calls = []
-        g.mw_release = lambda pid, params=None: calls.append(pid)
-        g.found_pickup(1, Pickup.n("EV", "5"), models.MW_FINISH_COORDS, False, False, "Horu")
-        self.assertEqual(calls, [1])
-        # a normal find does not release
-        g.found_pickup(1, Pickup.n("SK", "0"), 999, False, False, "Glades")
-        self.assertEqual(calls, [1])
+        finder.seen_coords = lambda: [555, 2]  # tick got there first
+        pickup = Pickup.n("MW", "2,17,Bash")
+        status = g.found_pickup(1, pickup, 555, False, False, "Glades")
+        self.assertEqual(status, 200)
+        self.assertTrue(owner.slot_check(17), "slot flip must survive the seen-race")
 
 
 class TestBingoV2(NdbTestCase):

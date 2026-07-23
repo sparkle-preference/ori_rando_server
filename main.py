@@ -380,6 +380,19 @@ def netcode_tick_post(game_id, player_id):
     Cache.set_pos(game_id, player_id, x, y)
     return text_resp(p.output(include_slots=(game.mode == MultiplayerGameType.MULTIWORLD)))
 
+@app.route('/netcode/game/<int:game_id>/player/<int:player_id>/complete')
+def netcode_game_complete(game_id, player_id):
+    """The client's credits-roll ping (fire and forget). In multiworld this
+    releases everything left in the finisher's world to its owners."""
+    game = Game.with_id(game_id)
+    if not game:
+        return code_resp(412)
+    if game.mode == MultiplayerGameType.MULTIWORLD:
+        t0 = monotonic()
+        released = game.mw_release(player_id)
+        netperf("mw_release", t0, gid=game_id, pid=player_id, released=released)
+    return text_resp("ok")
+
 @app.route('/netcode/game/<int:game_id>/player/<int:player_id>/callback/<path:signal>')
 def netcode_signal_callback(game_id, player_id, signal):
     game = Game.with_id(game_id)
