@@ -350,11 +350,13 @@ class TestMultiworldFoundPickup(NdbTestCase):
     def setUp(self):
         super(TestMultiworldFoundPickup, self).setUp()
         self._txn = Player.mark_slot_txn
+        self._btxn = Player.mark_slots_txn
         self._hop = models.HIST_ON_PLAYER
         models.HIST_ON_PLAYER = False
 
     def tearDown(self):
         Player.mark_slot_txn = self._txn
+        Player.mark_slots_txn = self._btxn
         models.HIST_ON_PLAYER = self._hop
         super(TestMultiworldFoundPickup, self).tearDown()
 
@@ -365,10 +367,13 @@ class TestMultiworldFoundPickup(NdbTestCase):
             p.put = lambda *a, **k: None
         g = Game(id="77", str_mode="Multiworld", str_shared=["Skills", "WorldEvents"])
         g.get_players = lambda: [finder, owner]
+        g.player = lambda pid, create=True, delay_put=False: {1: finder, 2: owner}[pid]
         g.hist = []
         g.append_hl = g.hist.append  # bypass the transactional history write
         by_key = {p.key: p for p in (finder, owner)}
         Player.mark_slot_txn = staticmethod(lambda pkey, slot: by_key[pkey].mark_slot(slot))
+        Player.mark_slots_txn = staticmethod(
+            lambda pkey, slots: sum(1 for s in slots if by_key[pkey].mark_slot(s)))
         return g, finder, owner
 
     def test_mw_find_flips_owner_slot_and_busts_cache(self):
@@ -403,6 +408,41 @@ class TestMultiworldFoundPickup(NdbTestCase):
         self.assertEqual(finder.skills, 0)  # no server-side grant in MW
         self.assertEqual(owner.skills, 0)
         self.assertEqual(len(g.hist), 1)
+
+    class _FakeParams(object):
+        """Finisher's world holds two of P2's items, one manifest line (P1's
+        own slot, must be ignored), and an own-world pickup."""
+        def get_seed_data(self, pid):
+            assert pid == 1
+            return [("100", "MW", "2,3,Keystone", "Glades"),
+                    ("200", "MW", "2,7,Bash", "Grove"),
+                    ("-2", "MW", "2,SK,50", "Grotto"),
+                    ("300", "SK", "0", "Glades")]
+
+    def test_release_grants_unfound_items_to_owners(self):
+        from cache import Cache
+        g, finder, owner = self._game()
+        owner.mark_slot(3)  # already found earlier: not re-released
+        Cache.set_seen_checksum(owner.idpts(), 55)
+        released = g.mw_release(1, params=self._FakeParams())
+        self.assertEqual(released, 1)  # only slot 7 was new
+        self.assertTrue(owner.slot_check(7))
+        self.assertIsNone(Cache.get_seen_checksum(owner.idpts()))
+        self.assertTrue(any(s.startswith("msg:") for s in owner.signals))
+        # releasing again: nothing new, no duplicate signal spam
+        again = g.mw_release(1, params=self._FakeParams())
+        self.assertEqual(again, 0)
+        self.assertEqual(len([s for s in owner.signals if s.startswith("msg:")]), 1)
+
+    def test_finish_triggers_release(self):
+        g, finder, owner = self._game()
+        calls = []
+        g.mw_release = lambda pid, params=None: calls.append(pid)
+        g.found_pickup(1, Pickup.n("EV", "5"), models.MW_FINISH_COORDS, False, False, "Horu")
+        self.assertEqual(calls, [1])
+        # a normal find does not release
+        g.found_pickup(1, Pickup.n("SK", "0"), 999, False, False, "Glades")
+        self.assertEqual(calls, [1])
 
 
 class TestBingoV2(NdbTestCase):

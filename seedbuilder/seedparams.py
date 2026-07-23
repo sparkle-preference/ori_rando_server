@@ -375,6 +375,7 @@ class SeedGenParams(ndb.Model):
         spoilers = []
         if not raw:
             return False
+        from util import is_mw_manifest_loc
         player = 0
         for player_raw in raw:
             player += 1
@@ -386,10 +387,15 @@ class SeedGenParams(ndb.Model):
                     stuff_id = f"{stuff_id}|{zone}"
                     zone = None
                 stuff = Stuff(code=stuff_code, id=stuff_id, player=str(player))
-                if loc not in placemap:
-                    placemap[loc] = Placement(location=loc, zone=zone, stuff=[stuff])
+                # real locations share one Placement across players (same spot,
+                # same zone in every world), but multiworld manifest pseudo-locs
+                # describe *different slots per player* -- merging them stored
+                # player 1's zone for everyone (the game-133746 wrong-zone bug)
+                key = (loc, player) if is_mw_manifest_loc(loc) else loc
+                if key not in placemap:
+                    placemap[key] = Placement(location=loc, zone=zone, stuff=[stuff])
                 else:
-                    placemap[loc].stuff.append(stuff)
+                    placemap[key].stuff.append(stuff)
         if self.sync.mode in [MultiplayerGameType.SIMUSOLO, MultiplayerGameType.SPLITSHARDS]:
             if player != 1:
                 log.error(f"seed count mismatch! Should only be 1 seed for this mode and instead found {player}")

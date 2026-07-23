@@ -334,6 +334,55 @@ class TestMultiworldSeedServing(NdbTestCase):
         for pid in (1, 2, 3):
             self.assertEqual(params.team_pid(pid), pid)
 
+    def test_generate_stores_manifest_zones_per_player(self):
+        """Regression (game 133746): placements merge by location across
+        players, but manifest pseudo-locs mean different slots per player --
+        merging stored player 1's zone for everyone's manifests, so grant
+        messages and clues showed the wrong zone ~2/3 of the time."""
+        from seedbuilder.seedparams import MultiplayerOptions, SeedGenParams
+        from enums import MultiplayerGameType, presets
+        from util import is_mw_manifest_loc
+        from enums import Variation
+        opts = MultiplayerOptions()
+        opts.enabled = True
+        opts.mode = MultiplayerGameType.MULTIWORLD
+        params = SeedGenParams(seed="zonetest", players=2, sync=opts)
+        params.logic_paths = presets["Standard"]
+        params.variations = [Variation.OPEN_WORLD, Variation.FORCE_TREES]
+        # the standard web pool: the UI always sends one (the legacy pool=None
+        # default has no cells and cannot complete a multiworld -- noted edge)
+        params.item_pool = {"TP|Grove": [1], "TP|Swamp": [1], "TP|Grotto": [1], "TP|Valley": [1],
+                            "TP|Sorrow": [1], "TP|Ginso": [1], "TP|Horu": [1], "TP|Forlorn": [1],
+                            "HC|1": [12], "EC|1": [15], "AC|1": [33], "RB|0": [3], "RB|1": [3],
+                            "RB|6": [3], "RB|9": [1], "RB|10": [1], "RB|11": [1], "RB|12": [1],
+                            "RB|13": [3], "RB|15": [3]}
+        params.put = lambda *a, **k: None
+        self.assertTrue(params.generate())
+
+        # manifest placements must be single-player
+        for pl in params.placements:
+            if is_mw_manifest_loc(pl.location):
+                self.assertEqual(len(set(s.player for s in pl.stuff)), 1,
+                                 "manifest loc %s merged across players" % pl.location)
+
+        # and every manifest zone must match the finder-world line's zone
+        truth = {}
+        for p in (1, 2):
+            for (loc, code, id, zone) in params.get_seed_data(p):
+                if code == "MW" and not is_mw_manifest_loc(loc):
+                    owner, slot, name = id.split(",", 2)
+                    truth[(int(owner), int(slot))] = (zone, p)
+        checked = 0
+        for p in (1, 2):
+            for (loc, code, id, zone) in params.get_seed_data(p):
+                if code == "MW" and is_mw_manifest_loc(loc):
+                    slot = -int(loc) - 2
+                    finder = int(id.split(",", 1)[0])
+                    self.assertEqual(truth.get((p, slot)), (zone, finder),
+                                     "manifest zone mismatch for player %s slot %s" % (p, slot))
+                    checked += 1
+        self.assertGreater(checked, 0, "no manifests generated; test is vacuous")
+
     def test_get_seed_data_serves_each_player_their_world(self):
         from seedbuilder.seedparams import MultiplayerOptions, SeedGenParams, Placement, Stuff
         opts = MultiplayerOptions()

@@ -13,7 +13,11 @@ from flask import g
 
 from seedbuilder.seedparams import Placement, Stuff, SeedGenParams
 from enums import MultiplayerGameType, ShareType, Variation
-from util import picks_by_coord, get_bit, get_taste, enums_from_strlist, ord_suffix, debug, bfields_to_coords, bfield_checksum, unpack, netperf, BATCH_GRANTS, HIST_ON_PLAYER, BINGO_V2
+from util import picks_by_coord, get_bit, get_taste, enums_from_strlist, ord_suffix, debug, bfields_to_coords, bfield_checksum, unpack, netperf, is_mw_manifest_loc, BATCH_GRANTS, HIST_ON_PLAYER, BINGO_V2
+
+# the FinalEscape/Warmth-Returned location key: reaching it = finishing.
+# (Location(-240, 512).get_key() == -240 * 10000 + 512)
+MW_FINISH_COORDS = -2399488
 import threading
 from time import monotonic
 from pickups import Pickup, Skill, Teleporter, Event
@@ -467,6 +471,13 @@ class Player(ndb.Model):
     @ndb.transactional(retries=5)
     def mark_slot_txn(pkey, slot):
         return pkey.get().mark_slot(slot)
+
+    @staticmethod
+    @ndb.transactional(retries=5)
+    def mark_slots_txn(pkey, slots):
+        """Batch slot marking (multiworld release). Returns newly-set count."""
+        p = pkey.get()
+        return sum(1 for s in slots if p.mark_slot(s))
 
     @ndb.transactional(retries=5)
     def reset(self):
@@ -1644,6 +1655,35 @@ class Game(ndb.Model):
         for p in params.placements:
             p
 
+    def mw_release(self, finisher_pid, params=None):
+        """Multiworld release: when a player finishes, every item still
+        sitting in their world that belongs to someone else is granted to its
+        owner (their world is done being explored). Idempotent."""
+        params = params or self.params.get()
+        by_owner = defaultdict(list)
+        for (loc, code, id, zone) in params.get_seed_data(finisher_pid):
+            if code != "MW" or is_mw_manifest_loc(loc):
+                continue  # manifests are our own slots, not the world's contents
+            try:
+                owner, slot, _ = id.split(",", 2)
+                owner, slot = int(owner), int(slot)
+            except ValueError:
+                log.warning("unparseable MW placement %s in game %s", id, self.key.id())
+                continue
+            if owner != finisher_pid:
+                by_owner[owner].append(slot)
+        released = 0
+        for owner_pid, slots in by_owner.items():
+            owner = self.player(owner_pid)
+            newly = Player.mark_slots_txn(owner.key, slots)
+            if newly:
+                released += newly
+                Cache.clear_seen_checksum(owner.idpts())
+                owner_fresh = self.player(owner_pid)
+                owner_fresh.signal_send("msg:@Player %s finished! %s items from their world released to you@" % (finisher_pid, newly))
+        log.info("mw_release: game %s player %s released %s items", self.key.id(), finisher_pid, released)
+        return released
+
 
     def rebuild_hist(self):
         gid = self.key.id()
@@ -1793,6 +1833,10 @@ class Game(ndb.Model):
                     Cache.clear_seen_checksum(owner.idpts())
             # own-world pickups need no server-side action: the finder's
             # client granted itself already, and seen/have bits arrive by tick
+            if coords == MW_FINISH_COORDS:
+                # the finisher's world is done: release everything still
+                # sitting in it to its owners
+                self.mw_release(pid)
         elif self.mode in [MultiplayerGameType.SIMUSOLO, MultiplayerGameType.BINGO]:
             pass
         else:
