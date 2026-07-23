@@ -295,6 +295,18 @@ class SeedModeProblemTests(unittest.TestCase):
         self.assertIsNotNone(self._check(False, self._params("Multiworld")))
         self.assertIsNone(self._check(True, self._params("Multiworld")))
 
+    def test_mw_override_bypasses_flag(self):
+        import util
+        from seedbuilder import seedparams
+        orig = util.MULTIWORLD
+        util.MULTIWORLD = False
+        try:
+            self.assertIsNone(seedparams.seed_mode_problem(self._params("Multiworld"), mw_override=True))
+            # the override doesn't bypass the tracking requirement
+            self.assertIsNotNone(seedparams.seed_mode_problem(self._params("Multiworld", tracking=False), mw_override=True))
+        finally:
+            util.MULTIWORLD = orig
+
     def test_multiworld_requires_tracking(self):
         self.assertIn("tracking", self._check(True, self._params("Multiworld", tracking=False)))
 

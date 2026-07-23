@@ -10,16 +10,18 @@ from seedbuilder.generator import SeedGenerator
 
 JSON_SHARE = lambda x: x.value if x != ShareType.EVENT else "World Events"
 
-def seed_mode_problem(params):
+def seed_mode_problem(params, mw_override=False):
     """User-facing reason a seed request's multiplayer mode can't be built,
     or None. Removed modes get a clear message instead of a generation 500;
     Multiworld creation is feature-flagged (the gameplay paths are always
-    present but unreachable without games of this mode)."""
+    present but unreachable without games of this mode). mw_override (the
+    mw=1 query param) bypasses the flag for testing -- it's a soft gate
+    against confusion, not a security boundary."""
     from util import MULTIWORLD
     if not params.sync.enabled:
         return None
     if params.sync.mode == MultiplayerGameType.MULTIWORLD:
-        if not MULTIWORLD:
+        if not (MULTIWORLD or mw_override):
             return "Multiworld seeds aren't available yet."
         if not params.tracking:
             return "Multiworld requires tracking (it's netcode all the way down)."
