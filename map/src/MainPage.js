@@ -596,8 +596,6 @@ onDrop = (files) => {
                             <DropdownMenu style={menuStyle}>
                                 <DropdownItem active={"Race"===coopGameMode} onClick={()=> this.setState({coopGameMode: "Race"})}>Race</DropdownItem>
                                 <DropdownItem active={"Co-op"===coopGameMode} onClick={()=> this.setState({coopGameMode: "Co-op"})}>Co-op</DropdownItem>
-                                {/* beta gate: visit /?mw to see Multiworld until the server flag goes public; drop the condition at launch */}
-                                {("Multiworld"===coopGameMode || (new URL(window.document.URL)).searchParams.has("mw")) &&
                                 <DropdownItem active={"Multiworld"===coopGameMode} onClick={()=> this.setState({coopGameMode: "Multiworld"})}>Multiworld</DropdownItem>}
                             </DropdownMenu>
                         </UncontrolledButtonDropdown>
