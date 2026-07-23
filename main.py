@@ -321,7 +321,7 @@ def netcode_found_pickup(game_id, player_id, coords, kind, id):
     coords = int(coords)
     if coords in coord_correction_map:
         coords = coord_correction_map[coords]
-    if coords not in all_locs:
+    if coords not in all_locs and abs(coords) != 1:  # +1 is the client's TP-activation pseudo-coord
         log.warning("Coord mismatch error! %s not in all_locs or correction map. Sync %s.%s, pickup %s|%s" % (coords, game_id, player_id, kind, id))
     pickup = Pickup.n(kind, id)
     if not pickup:
