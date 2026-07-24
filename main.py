@@ -558,6 +558,11 @@ def load_seed_from_params(params_id):
                 player = game.player(pid)
                 player.user = user.key
                 player.put()
+                if game.mode == MultiplayerGameType.MULTIWORLD:
+                    # names ride the tick output: rebuild it for everyone
+                    Cache.clear_names(int(game_id))
+                    for p in game.player_nums():
+                        Cache.clear_seen_checksum((int(game_id), p))
                 if game.key not in user.games:
                     user.games.append(game.key)
                     Cache.set_latest_game(user.name, game.key.id())

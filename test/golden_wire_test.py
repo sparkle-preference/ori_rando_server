@@ -233,18 +233,20 @@ class TestBitfieldUpdates(NdbTestCase):
 
 
 class TestMultiworldSlotsField(NdbTestCase):
-    """The multiworld tick extension (2026-07-22): in MW games only, the
-    signals field is ALWAYS present (possibly empty) and the owner's slot
-    bitfields ride at fixed index 6 as 8 ";"-joined 32-bit ints. Legacy
-    games keep the conditional-signals 5/6-field format bit for bit."""
+    """The multiworld tick extension (2026-07-22, names added 2026-07-23):
+    in MW games only, the signals field is ALWAYS present (possibly empty),
+    the owner's slot bitfields ride at fixed index 6 as 8 ";"-joined 32-bit
+    ints, and player names at index 7 as ";"-joined "{pid}.{name}" pairs.
+    Legacy games keep the conditional-signals 5/6-field format bit for bit."""
 
-    def test_empty_player_seven_fields(self):
+    def test_empty_player_eight_fields(self):
         p = make_player(931, 1)
         out = p.output(include_slots=True)
         fields = out.split(",")
-        self.assertEqual(len(fields), 7)
+        self.assertEqual(len(fields), 8)
         self.assertEqual(fields[5], "")  # signals: present but empty
         self.assertEqual(fields[6], "0;0;0;0;0;0;0;0")
+        self.assertEqual(fields[7], "")  # names: no parent game here
 
     def test_signals_and_slots_coexist(self):
         p = make_player(932, 1, signals=["win:gg"])
@@ -264,7 +266,21 @@ class TestMultiworldSlotsField(NdbTestCase):
         p = make_player(934, 1)
         p.slot_bflds = [2**32 - 1] * 8
         fields = p.output(include_slots=True).split(",")
-        self.assertEqual(len(fields), 7)  # big values must not add fields
+        self.assertEqual(len(fields), 8)  # big values must not add fields
+
+    def test_names_field_serves_from_cache(self):
+        p = make_player(935, 1)
+        Cache.set_names(935, "1.Eiko;2.Player 2")
+        fields = p.output(include_slots=True).split(",")
+        self.assertEqual(fields[7], "1.Eiko;2.Player 2")
+
+    def test_wire_name_strips_format_chars(self):
+        # ,|; would break the tick/signal formats; $#*@ are message color chars
+        p = make_player(936, 3)
+        p.name = lambda: "E,v|i;l$N#a*m@e  \n"
+        self.assertEqual(p.wire_name(), "EvilName")
+        p.name = lambda: ",,|$"
+        self.assertEqual(p.wire_name(), "Player 3")  # nothing left: fall back
 
 
 class TestSlotMarking(NdbTestCase):

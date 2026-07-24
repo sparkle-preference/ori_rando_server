@@ -14,6 +14,7 @@ from flask import g
 from seedbuilder.seedparams import Placement, Stuff, SeedGenParams
 from enums import MultiplayerGameType, ShareType, Variation
 from util import picks_by_coord, get_bit, get_taste, enums_from_strlist, ord_suffix, debug, bfields_to_coords, bfield_checksum, unpack, netperf, is_mw_manifest_loc, BATCH_GRANTS, HIST_ON_PLAYER, BINGO_V2
+import re
 import threading
 from time import monotonic
 from pickups import Pickup, Skill, Teleporter, Event
@@ -504,6 +505,25 @@ class Player(ndb.Model):
                 return u.name
         return "Player %s" % self.pid()
 
+    def wire_name(self):
+        """Name as safe to embed in the tick wire format and signal text:
+        no field separators, no message color characters."""
+        clean = re.sub(r"[^A-Za-z0-9 _.'-]", "", self.name()).strip()[:20]
+        return clean or "Player %s" % self.pid()
+
+    def mw_names_field(self):
+        """Tick field 7 (multiworld): ;-joined pid.name pairs for the game."""
+        gid = self.idpts()[0]
+        names = Cache.get_names(gid)
+        if names is None:
+            parent = self.key.parent()
+            game = parent.get() if parent else None
+            if not game:
+                return ""
+            names = ";".join("%s.%s" % (p.pid(), p.wire_name()) for p in game.get_players())
+            Cache.set_names(gid, names)
+        return names
+
     def userdata(self):
         name = "Player %s" % self.pid()
         ppid = self.pid()
@@ -550,10 +570,11 @@ class Player(ndb.Model):
         if include_slots:
             # multiworld games only (new clients by definition): the signals
             # field is ALWAYS present -- possibly empty -- so the slot
-            # bitfields land at a fixed index 6. Legacy games keep the
-            # conditional-signals format below untouched.
+            # bitfields land at a fixed index 6, player names at 7. Legacy
+            # games keep the conditional-signals format below untouched.
             outlines.append("|".join(self.signals))
             outlines.append(";".join(str(b) for b in (self.slot_bflds or 8 * [0])))
+            outlines.append(self.mw_names_field())
         elif self.signals:
             outlines.append("|".join(self.signals))
         out = ",".join(outlines)
@@ -1675,6 +1696,7 @@ class Game(ndb.Model):
                 by_owner[owner].append(slot)
         netperf("mw_release_prep", t0, gid=self.key.id(), pid=finisher_pid, owners=len(by_owner))
         released = 0
+        finisher_name = self.player(finisher_pid).wire_name()
         for owner_pid, slots in by_owner.items():
             t_owner = monotonic()
             owner = self.player(owner_pid)
@@ -1683,7 +1705,7 @@ class Game(ndb.Model):
                 released += newly
                 Cache.clear_seen_checksum(owner.idpts())
                 owner_fresh = self.player(owner_pid)
-                owner_fresh.signal_send("msg:@Player %s finished! %s items from their world released to you@" % (finisher_pid, newly))
+                owner_fresh.signal_send("msg:@%s finished! %s items from their world released to you@" % (finisher_name, newly))
             netperf("mw_release_owner", t_owner, gid=self.key.id(), owner=owner_pid, slots=len(slots), newly=newly)
         log.info("mw_release: game %s player %s released %s items", self.key.id(), finisher_pid, released)
         return released

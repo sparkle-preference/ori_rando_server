@@ -207,6 +207,15 @@ class MemcachedCache(object):
     def set_output(self, gpid, outstr):
         self.memcache.set(key="%s.%s.output" % gpid, value=outstr, expire=360)
 
+    def get_names(self, gid):
+        return self.memcache_get(key="%s.names" % gid)
+
+    def set_names(self, gid, names):
+        self.memcache.set(key="%s.names" % gid, value=names, expire=3600)
+
+    def clear_names(self, gid):
+        self.memcache.delete(key="%s.names" % gid)
+
     def get_seen_checksum(self, gpid):
         return self.memcache_get(key="%s.%s.seenhash" % gpid)
 
@@ -217,7 +226,7 @@ class MemcachedCache(object):
         self.memcache.delete(key="%s.%s.seenhash" % gpid)
 
     def remove_game(self, gid):
-        self.memcache.delete_multi(keys=["have", "hist", "san", "pos", "reach", "items", "relics", "board"], key_prefix="%s." % gid)
+        self.memcache.delete_multi(keys=["have", "hist", "san", "pos", "reach", "items", "relics", "board", "names"], key_prefix="%s." % gid)
         if SPLIT_CACHE:
             per_player = ["%s.%s" % (p, suffix) for p in self._pids(gid)
                           for suffix in ("have", "hist", "pos", "reach", "items", "output", "seenhash")]
@@ -384,6 +393,15 @@ class PythonCache(object):
 
     def set_output(self, gpid, outstr):
         self.cache.set(key="%s.%s.output" % gpid, value=outstr, time=360)
+
+    def get_names(self, gid):
+        return self.cache.get(key="%s.names" % gid)
+
+    def set_names(self, gid, names):
+        self.cache.set(key="%s.names" % gid, value=names, time=3600)
+
+    def clear_names(self, gid):
+        self.cache.pop("%s.names" % gid, None)
 
     def get_seen_checksum(self, gpid):
         return self.cache.get(key="%s.%s.seenhash" % gpid)
