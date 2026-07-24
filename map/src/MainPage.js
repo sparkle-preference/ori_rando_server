@@ -572,15 +572,17 @@ onDrop = (files) => {
         )
     }
     getMultiplayerTab = ({inputStyle, menuStyle}) => {
-        let {shared, players, tracking, coopGameMode, keyMode, coopGenMode, dedupShared, antiBkBias} = this.state
-        let shareButtons = (stypes) => stypes.map(stype => (
+        let {shared, mwShared, players, tracking, coopGameMode, keyMode, coopGenMode, dedupShared, antiBkBias} = this.state
+        let shareButtons = (stypes, current, toggle) => stypes.map(stype => (
             <Col xs="4" key={`share-${stype}`} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("Shared Item Categories", stype)} className="p-2">
-                <Button block outline={!shared.includes(stype)} onClick={this.onSType(stype)}>Share {stype}</Button>
+                <Button block outline={!current.includes(stype)} onClick={toggle(stype)}>Share {stype}</Button>
             </Col>
         ))
-        let multiplayerButtons = shareButtons(["Skills", "Teleporters", "Upgrades", "World Events", "Misc"])
-        // no Misc for multiworld: trees/relics/keysanity keys stay per-world
-        let mwShareButtons = shareButtons(["Skills", "Teleporters", "Upgrades", "World Events"])
+        let multiplayerButtons = shareButtons(["Skills", "Teleporters", "Upgrades", "World Events", "Misc"], shared, this.onSType)
+        // multiworld selections are stored separately (default none; shared
+        // singletons are a spicier choice there), and no Misc: trees/relics/
+        // keysanity keys stay per-world
+        let mwShareButtons = shareButtons(["Skills", "Teleporters", "Upgrades", "World Events"], mwShared, this.onMWSType)
         
         let playerNumValid = tracking && players > 0;
         let playerNumFeedback = tracking ? (players > 0 ? null : (
@@ -613,18 +615,6 @@ onDrop = (files) => {
                     </Col>
                 </Row>
                 <Collapse isOpen={players > 1 && coopGameMode === "Co-op"}>
-                    <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "syncSeedType")} className="p-1 justify-content-center">
-                        <Col xs="4" className="text-center pt-1 border">
-                            <span className="align-middle">Seed Generation Mode</span>
-                        </Col><Col onMouseLeave={this.helpEnter("multiplayerOptions", "syncSeedType")} onMouseEnter={this.helpEnter("multiplayerOptions", coopGenMode)} xs="4">
-                            <UncontrolledButtonDropdown className="w-100">
-                                <DropdownToggle disabled={players < 2} color={players > 1 ? "primary" : "secondary"} caret block> {coopGenMode} </DropdownToggle>
-                                <DropdownMenu style={menuStyle}>
-                                    <DropdownItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "Cloned Seeds")}  active={"Cloned Seeds"===coopGenMode} onClick={()=> this.setState({coopGenMode: "Cloned Seeds"})}>Cloned Seeds</DropdownItem>
-                                </DropdownMenu>
-                            </UncontrolledButtonDropdown>
-                        </Col>
-                    </Row>
                     <Row className="p-2">
                         {multiplayerButtons}
                         <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("Shared Item Categories", "Dedup")} className="p-2">
@@ -716,7 +706,7 @@ onDrop = (files) => {
             if(this.state.coopGameMode === "Co-op")
                 json.syncShared = this.state.shared.map(s => f(s))
             if(this.isMultiworld())
-                json.syncShared = this.state.shared.filter(s => s !== "Misc").map(s => f(s))
+                json.syncShared = this.state.mwShared.map(s => f(s))
             if(!this.state.dedupShared)
                 json.teams={1: [...Array(this.state.players).keys()].map(x=>x+1)}
         }
@@ -763,6 +753,11 @@ onDrop = (files) => {
             if(metaUpdate.fass && metaUpdate.fass.length > 0) {
                 metaUpdate.fassList = metaUpdate.fass.map(({loc, item}) => ({loc: locOptionFromCoords(parseInt(loc, 10)), item: item}))
                 metaUpdate.fass = undefined;
+            }
+            if(metaUpdate.coopGameMode === "Multiworld") {
+                // multiworld share selections live in their own state slot
+                metaUpdate.mwShared = metaUpdate.shared || []
+                delete metaUpdate.shared
             }
             dev && console.log(metaUpdate)
             this.setState(metaUpdate, this.updateUrl)
@@ -1333,12 +1328,12 @@ onDrop = (files) => {
         let activeTab = seedTabExists ? 'seed' : 'variations';
         const fassListDefault = [2, 919772, -1560272, 799776, -120208].map(coords => ({loc: locOptions.find(l => l.value === coords), item: "NO|1"}));
         
-        this.state = {user: user, activeTab: activeTab, coopGenMode: "Cloned Seeds", coopGameMode: "Co-op", players: 1, antiBkBias: 0, dropActive: false,
+        this.state = {user: user, activeTab: activeTab, coopGenMode: "Cloned Seeds", coopGameMode: "Multiworld", players: 1, antiBkBias: 0, dropActive: false,
                         tracking: true, variations: ["ForceTrees"], gameId: gameId, itemPool: getPool("Standard"), dedupShared: false, 
                         paths: presets["standard"], keyMode: "Clues", oldKeyMode: "Clues", spawn: "Glades", advancedSpawnTouched: false, 
                         spawnHCs: 3, spawnECs: 0, spawnSKs: 0, pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null), 
                         goalModes: ["ForceTrees"], selectedPool: "Standard", seed: "", fillAlg: "Balanced", quickstartOpen: quickstartOpen, 
-                        shared: ["Skills", "Teleporters", "World Events", "Upgrades", "Misc"], helpcat: "", helpopt: "", 
+                        shared: ["Skills", "Teleporters", "World Events", "Upgrades", "Misc"], mwShared: [], helpcat: "", helpopt: "",
                         expPool: 10000, lastHelp: new Date(), seedIsGenerating: seedTabExists, cellFreq: cellFreqPresets("standard"),
                         fragCount: 30, fragReq: 20, relicCount: 8, loader: get_random_loader(), paramId: paramId, seedTabExists: seedTabExists, 
                         reopenUrl: "", flagLine: "", fassList: [...fassListDefault], goalModesOpen: false, 
@@ -1381,7 +1376,8 @@ onDrop = (files) => {
     hasVar = (v) => this.state.variations.includes(v);
     isMultiworld = () => this.state.tracking && this.state.players > 1 && this.state.coopGameMode === "Multiworld";
     onPath = (p) => () => this.setState({paths: this.state.paths.includes(p) ? this.state.paths.filter(x => x !== p) : this.state.paths.concat(p)}, () => this.setState(p => {return {pathMode: get_preset(p.paths)}}))
-    onSType = (s) => () => this.state.shared.includes(s) ? this.setState({shared: this.state.shared.filter(x => x !== s)}) : this.setState({shared: this.state.shared.concat(s)})    
+    onSType = (s) => () => this.state.shared.includes(s) ? this.setState({shared: this.state.shared.filter(x => x !== s)}) : this.setState({shared: this.state.shared.concat(s)})
+    onMWSType = (s) => () => this.state.mwShared.includes(s) ? this.setState({mwShared: this.state.mwShared.filter(x => x !== s)}) : this.setState({mwShared: this.state.mwShared.concat(s)})    
     onVar = (v) => () => {
         if(this.hasVar(v)) {
             this.setState({variations: this.state.variations.filter(x => x !== v)})
