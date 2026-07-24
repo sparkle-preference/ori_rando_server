@@ -579,7 +579,19 @@ const getHelpHelper = (category, option) => {
                         "These options specify which kind of multiplayer game is generated.",
                         "A Co-op game creates different seeds for each player in the game (see the help for Seed Generation Modes for more info). Items in the selected Shared Item Categories will be shared between players when found.",
                         "A Race creates 1 copy of the generated seed for each player, each with a different player ID. This creates a map that can be used to watch all the players racing at once!",
-                        "One player should generate the game and share the generated link or distribute the seeds to ensure all players are using the same seed.", 
+                        "A Multiworld game gives every player their own world, with everyone's items shuffled across all of them. Mouse over the mode to learn more!",
+                        "One player should generate the game and share the generated link or distribute the seeds to ensure all players are using the same seed.",
+                    ]
+                    break;
+                case "Multiworld":
+                    title = "Multiworld"
+                    subtitle = "Multiplayer Game Types"
+                    lines = [
+                        "In a Multiworld game, each player gets their own world with their own logic, but the items hidden in it are shuffled across every player's world: that Energy Cell in Hollow Grove might be yours, or it might belong to Player 3.",
+                        "When you find another player's item, it is sent to them instantly (the pickup will tell you whose it was). Everything you need to finish your game exists somewhere, but some of it will be found by your allies in their worlds.",
+                        "When a player finishes, every unfound item left in their world is automatically released to its owner, so nobody is stuck waiting on a fully-explored world.",
+                        "Note: Multiworld games require web tracking, and each player must download their own seed file. Double-check your player number before you start!",
+                        "See also the Multiworld Balance Bias setting below, which controls how evenly the generator spreads progression between worlds.",
                     ]
                     break;
                 case "Cloned Seeds":

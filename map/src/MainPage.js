@@ -604,7 +604,7 @@ onDrop = (files) => {
                             <DropdownMenu style={menuStyle}>
                                 <DropdownItem active={"Race"===coopGameMode} onClick={()=> this.setState({coopGameMode: "Race"})}>Race</DropdownItem>
                                 <DropdownItem active={"Co-op"===coopGameMode} onClick={()=> this.setState({coopGameMode: "Co-op"})}>Co-op</DropdownItem>
-                                <DropdownItem active={"Multiworld"===coopGameMode} onClick={()=> this.setState({coopGameMode: "Multiworld"})}>Multiworld</DropdownItem>
+                                <DropdownItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "Multiworld")} active={"Multiworld"===coopGameMode} onClick={()=> this.setState({coopGameMode: "Multiworld"})}>Multiworld</DropdownItem>
                             </DropdownMenu>
                         </UncontrolledButtonDropdown>
                     </Col>
