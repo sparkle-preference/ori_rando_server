@@ -500,7 +500,9 @@ class SeedGenParams(ndb.Model):
             if self.sync.enabled and self.sync.mode is not MultiplayerGameType.SIMUSOLO:
                 if self.sync.shared:
                     flags.append("share=%s" % "+".join(self.sync.shared))
-                else:
+                # the client reads its SyncMode from mode=; multiworld must
+                # always carry it, shared categories or not
+                if not self.sync.shared or self.sync.mode == MultiplayerGameType.MULTIWORLD:
                     flags.append("mode=%s" % self.sync.mode.value)
             if self.balanced:
                 flags.append("balanced")

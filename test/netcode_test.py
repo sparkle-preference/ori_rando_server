@@ -344,28 +344,33 @@ class TestBingoDebounce(NdbTestCase):
 
 class TestMultiworldFoundPickup(NdbTestCase):
     """Game.found_pickup in MULTIWORLD mode: an MW find flips the owner's
-    slot bit and busts their tick cache; own-world finds are server-passive;
-    nothing ever fans out."""
+    slot bit and busts their tick cache; own-world finds are server-passive.
+    Shared categories (mw shared singletons, 2026-07-23) fan out to every
+    player; MW pickups, TW warps and EV5 never do."""
 
     def setUp(self):
         super(TestMultiworldFoundPickup, self).setUp()
         self._txn = Player.mark_slot_txn
         self._btxn = Player.mark_slots_txn
+        self._ptxn = Player.transaction_pickup
+        self._pbtxn = Player.transaction_pickup_batch
         self._hop = models.HIST_ON_PLAYER
         models.HIST_ON_PLAYER = False
 
     def tearDown(self):
         Player.mark_slot_txn = self._txn
         Player.mark_slots_txn = self._btxn
+        Player.transaction_pickup = self._ptxn
+        Player.transaction_pickup_batch = self._pbtxn
         models.HIST_ON_PLAYER = self._hop
         super(TestMultiworldFoundPickup, self).tearDown()
 
-    def _game(self):
+    def _game(self, shared=None):
         finder = Player(id="77.1", skills=0, events=0, teleporters=0, bonuses={}, hints={})
         owner = Player(id="77.2", skills=0, events=0, teleporters=0, bonuses={}, hints={})
         for p in (finder, owner):
             p.put = lambda *a, **k: None
-        g = Game(id="77", str_mode="Multiworld", str_shared=["Skills", "WorldEvents"])
+        g = Game(id="77", str_mode="Multiworld", str_shared=shared or [])
         g.get_players = lambda: [finder, owner]
         g.player = lambda pid, create=True, delay_put=False: {1: finder, 2: owner}[pid]
         g.hist = []
@@ -374,6 +379,12 @@ class TestMultiworldFoundPickup(NdbTestCase):
         Player.mark_slot_txn = staticmethod(lambda pkey, slot: by_key[pkey].mark_slot(slot))
         Player.mark_slots_txn = staticmethod(
             lambda pkey, slots: sum(1 for s in slots if by_key[pkey].mark_slot(s)))
+        Player.transaction_pickup = staticmethod(
+            lambda pkey, pickup, remove=False, delay_put=False, coords=None, finder=None:
+                by_key[pkey].give_pickup(pickup, remove, delay_put=True))
+        Player.transaction_pickup_batch = staticmethod(
+            lambda pkeys, grants: [by_key[k].give_pickup(g_[0], g_[1], delay_put=True)
+                                   for k in pkeys for g_ in grants])
         return g, finder, owner
 
     def test_mw_find_flips_owner_slot_and_busts_cache(self):
@@ -445,6 +456,34 @@ class TestMultiworldFoundPickup(NdbTestCase):
         status = g.found_pickup(1, pickup, 555, False, False, "Glades")
         self.assertEqual(status, 200)
         self.assertTrue(owner.slot_check(17), "slot flip must survive the seen-race")
+
+    def test_shared_singleton_fans_out(self):
+        g, finder, owner = self._game(shared=["Skills", "WorldEvents"])
+        status = g.found_pickup(1, Pickup.n("SK", "0"), 999, False, False, "Glades")
+        self.assertEqual(status, 200)
+        self.assertNotEqual(finder.skills, 0)  # finder's server entity converges
+        self.assertEqual(owner.skills, finder.skills)
+        status = g.found_pickup(2, Pickup.n("EV", "0"), 888, False, False, "Ginso")
+        self.assertEqual(status, 200)
+        self.assertEqual(owner.events, finder.events)
+        self.assertNotEqual(finder.events, 0)
+
+    def test_unshared_category_stays_local(self):
+        g, finder, owner = self._game(shared=["Skills"])
+        g.found_pickup(1, Pickup.n("EV", "0"), 888, False, False, "Ginso")
+        self.assertEqual(finder.events, 0)  # WorldEvents not shared: server-passive
+        self.assertEqual(owner.events, 0)
+
+    def test_shared_never_touches_warmth_warps_or_mw(self):
+        g, finder, owner = self._game(shared=["Skills", "WorldEvents", "Teleporters"])
+        g.found_pickup(1, Pickup.n("EV", "5"), 777, False, False, "Horu")
+        self.assertEqual(finder.events, 0)  # each world's finale stays its own
+        self.assertEqual(owner.events, 0)
+        g.found_pickup(1, Pickup.n("TW", "Warp to Sorrow,-600,400,SorrowWarp"), 666, False, False, "Sorrow")
+        self.assertEqual(owner.bonuses, {})  # warps are world-local
+        g.found_pickup(1, Pickup.n("MW", "2,17,Bash"), 555, False, False, "Glades")
+        self.assertTrue(owner.slot_check(17))
+        self.assertEqual(owner.skills, 0)  # slot flip, not a grant
 
 
 class TestBingoV2(NdbTestCase):

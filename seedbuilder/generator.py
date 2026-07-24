@@ -552,6 +552,7 @@ class SeedGenerator:
         self.mapstonesSeen = {p: 1 for p in self.multi_ps()}
         self.mapstonesAssigned = defaultdict(lambda: 0)
         self.locs_by_player = defaultdict(lambda: 0)
+        self.shared_pool_bases = set()
         self.balanceLevel = 0
         self.balanceList = []
         self.balanceListLeftovers = []
@@ -662,7 +663,18 @@ class SeedGenerator:
 
                 self.inventory.update(OrderedDict((tag(keysanity_ks_name, p), 0) for keysanity_ks_name in self.keysanityOutput))
                 self.inventory[tag("Keysanity", p)] = 1
-            
+
+
+        # multiworld shared categories: one copy total (found -> everyone's).
+        # Collapse the per-world pool entries down to world 1's.
+        if getattr(self, "is_multi", False) and self.params.sync.shared:
+            shared_types = set(self.params.sync.shared)
+            for tagged in list(self.itemPool.keys()):
+                base, p = untag(tagged)
+                if base in self.shared_pool_bases or self.base_share_type(base) in shared_types:
+                    self.shared_pool_bases.add(base)
+                    if p != 1:
+                        del self.itemPool[tagged]
 
         # FIXME When we don't start in glades, add glades tp and remove other tp if applicable, before we process warps.
         # FIXME If Variation is closed dungeons, umm, check that we don't start in them, maybe? Can't start at the tp anyway.
@@ -1100,6 +1112,34 @@ class SeedGenerator:
     
     countable_reqs = set(["HC", "EC", "AC", "WaterVeinShard", "GumonSealShard", "SunstoneShard"] + [keysanity_ks_name for keysanity_ks_name in keysanityOutput])
 
+    def base_share_type(self, base):
+        """Runtime ShareType of a pool item base, matching the server's
+        pickups.py taxonomy exactly (the netcode fans shared finds out by that
+        taxonomy, so any mismatch strands or duplicates items). Warps are
+        world-local by construction; Warmth is each world's finale trigger."""
+        if base.startswith("Warp") or base == "Warmth":
+            return None
+        code_id = self.skillsOutput.get(base) or self.eventsOutput.get(base)
+        if code_id is None:
+            if base.startswith("TP"):
+                return ShareType.TELEPORTER
+            if base.startswith("RB") and base[2:].isdigit():
+                code_id = base
+            else:
+                return None
+        pickup = Pickup.n(code_id[:2], code_id[2:])
+        return pickup.share_type if pickup else None
+
+    def pool_key(self, item):
+        """Shared items keep one pool entry, tagged world 1."""
+        base, _ = untag(item)
+        return tag(base, 1) if base in self.shared_pool_bases else item
+
+    def is_shared_base(self, base):
+        """Accepts both pool names ("WallJump") and adjusted output codes
+        ("SK3"): assign_to_location runs items through adjust_item first."""
+        return base in self.shared_pool_bases or self.codeToName.get(base, base) in self.shared_pool_bases
+
     def anti_bk_boost(self, p):
         """Multiworld balance: weight multiplier (<=1.0) for progression that
         benefits player p. Players ahead of the most check-starved world get
@@ -1136,7 +1176,7 @@ class SeedGenerator:
                             continue
                         if self.costs[req] > 0:
                             # if the item isn't in your itemPool (due to an unprocessed forced assignment), skip it
-                            if self.itemPool.get(req, 0) == 0:
+                            if self.itemPool.get(self.pool_key(req), 0) == 0:
                                 requirements = []
                                 break
                             base = base_of(req)
@@ -1188,7 +1228,7 @@ class SeedGenerator:
                     path_selected = abilities_to_open[path]
         if path_selected:
             for req in path_selected[1]:
-                if self.itemPool.get(req, 0) > 0:
+                if self.itemPool.get(self.pool_key(req), 0) > 0:
                     self.assignQueue.append(req)
             return path_selected[1]
         return None
@@ -1207,8 +1247,9 @@ class SeedGenerator:
         value = self.random.random()
         position = 0.0
         # anti_bk_bias: progression draws are weighted toward the worlds with
-        # the fewest reachable checks (weights stay 1.0 when the bias is off)
-        pool_weight = lambda key: self.itemPool[key] * (self.anti_bk_boost(untag(key)[1]) if self.is_progression(key) else 1.0)
+        # the fewest reachable checks (weights stay 1.0 when the bias is off;
+        # shared singletons benefit every world, so they stay neutral too)
+        pool_weight = lambda key: self.itemPool[key] * (self.anti_bk_boost(untag(key)[1]) if self.is_progression(key) and base_of(key) not in self.shared_pool_bases else 1.0)
         denom = float(sum(pool_weight(key) for key in self.itemPool.keys()))
         if denom == 0.0:
             log.warning("%s: itemPool was empty! locations: %s, balanced items: %s", self.params.flag_line(), self.locations(), self.items() - self.items(False))
@@ -1237,6 +1278,8 @@ class SeedGenerator:
     def assign(self, item, preplaced=False):
         """item must be tagged with its owner ("Bash|2")."""
         base, owner = untag(item)
+        if base in self.shared_pool_bases:
+            return self.assign_shared(base, preplaced)
         if base[0:2] in ["MU", "RP"] and item not in self.itemPool:
             for multi_item in self.get_multi_items(base):
                 self.assign(tag(multi_item, owner), preplaced)
@@ -1252,6 +1295,25 @@ class SeedGenerator:
             elif item in self.costs and self.itemPool.get(item, 0) == 0:
                 self.costs[item] = 0
             self.inventory[item] = 1 + self.inventory.get(item, 0)
+        return item
+
+    def assign_shared(self, base, preplaced=False):
+        """A shared singleton: one pool copy (tagged world 1), but every
+        world's inventory and costs update -- finding it grants everyone."""
+        item = tag(base, 1)
+        if not preplaced:
+            self.itemPool[item] = max(self.itemPool.get(item, 0) - 1, 0)
+        for p in self.multi_ps():
+            it = tag(base, p)
+            if base in self.costs_to_decrement_by_one:
+                if self.costs[it] > 0:
+                    self.costs[it] -= 1
+            elif base == "RB28":
+                if self.costs[it] > 0:
+                    self.costs[it] -= min(3, self.costs[it])
+            elif it in self.costs and self.itemPool.get(item, 0) == 0:
+                self.costs[it] = 0
+            self.inventory[it] = 1 + self.inventory.get(it, 0)
         return item
 
     # forced assignments: untagged items belong to the location's world;
@@ -1313,7 +1375,7 @@ class SeedGenerator:
         base, player = untag(fixed_item)
         pname = "Warp to " + self.warps[base][0] if base in self.warps else Pickup.name(base[:2], base[2:] or "1")
         if not self.solo():
-            pname = "Player %s's %s" % (player, pname)
+            pname = "Shared %s" % pname if self.is_shared_base(base) else "Player %s's %s" % (player, pname)
         self.padding = max(self.padding, len(pname))
         # spoilerGroup is keyed by untagged codes so form_spoiler's per-type
         # ordering keeps working; player attribution lives in the entry text
@@ -1358,6 +1420,8 @@ class SeedGenerator:
         in. Returns (seed line, mw_ref) where mw_ref is (owner, slot) when the
         item landed in someone else's world, else None."""
         base, owner = untag(item)
+        if self.is_shared_base(base):
+            owner = player  # shared singletons are local lines; the netcode fans them out
         mw_ref = None
         pickup = ""
         if base.startswith("Warp"):
@@ -1786,7 +1850,7 @@ class SeedGenerator:
                     if tag(item, p) in self.itemPool:
                         self.itemPool[tag(item, p)] -= 1
                     self.spoilerGroup[item].append(item + " preplaced at %s \n" % all_locations[loc].to_string() if loc in all_locations else loc)
-            tagged_v = v if "|" in v else tag(v, p)
+            tagged_v = self.pool_key(v if "|" in v else tag(v, p))
             if tagged_v in self.itemPool:
                 self.itemPool[tagged_v] -= 1
 

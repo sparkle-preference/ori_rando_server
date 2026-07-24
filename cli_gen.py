@@ -102,7 +102,7 @@ class CLISeedParams(object):
         parser.add_argument("--players", help="Player count for paired randomizer", type=int, default=1)
         parser.add_argument("--tracking", help="Place a sync ID in a seed for tracking purposes", action="store_true")
         parser.add_argument("--sync-id", help="Team identifier number for paired randomizer", type=int)
-        parser.add_argument("--shared-items", help="What will be shared by sync, comma-separated: skills,worldevents,misc,teleporters,upgrades", default="skills,worldevents")
+        parser.add_argument("--shared-items", help="What will be shared by sync, comma-separated: skills,worldevents,misc,teleporters,upgrades. Defaults to skills,worldevents (multiworld: nothing shared unless set)", default=None)
         parser.add_argument("--share-mode", help="How the server will handle shared pickups, one of: shared,swap,split,none", default="shared")
         parser.add_argument("--cloned", help="Make a split cloned seed instead of seperate seeds", action="store_true")
         parser.add_argument("--teams", help="Cloned seeds only: define teams. Format: 1|2,3,4|5,6. Each player must appear once", type=str)
@@ -334,7 +334,12 @@ class CLISeedParams(object):
         if self.players > 1:
             self.sync.enabled = True
             self.sync.mode = MultiplayerGameType.mk(args.share_mode) or MultiplayerGameType.SIMUSOLO
-            self.sync.shared = enums_from_strlist(ShareType, args.shared_items.split(","))
+            raw_shared = args.shared_items
+            if raw_shared is None:
+                # multiworld shares nothing by default; shared categories there
+                # mean singleton items, not the co-op everyone-syncs default
+                raw_shared = "" if self.sync.mode == MultiplayerGameType.MULTIWORLD else "skills,worldevents"
+            self.sync.shared = enums_from_strlist(ShareType, raw_shared.split(","))
             self.sync.cloned = args.cloned or False
             if self.sync.cloned:
                 self.sync.hints = args.hints or False
@@ -538,7 +543,7 @@ class CLISeedParams(object):
         if self.sync.enabled:
             flags.append("mode=%s" % self.sync.mode.value)
             if self.sync.shared:
-                flags.append("shared=%s" % "+".join(self.sync.shared))
+                flags.append("shared=%s" % "+".join([s.value for s in self.sync.shared]))
         if self.balanced:
             flags.append("balanced")
         if self.anti_bk_bias:

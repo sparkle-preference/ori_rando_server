@@ -255,7 +255,10 @@ class MultiworldGenTests(unittest.TestCase):
     # multiworld seeds differ; bump deliberately, never blindly.
     # (bumped 2026-07-22: per-world warp candidate draws shifted the MW RNG
     # stream; MW was unreleased, no user warning owed. Solo canary unmoved.)
-    MW_CANARY = "4fc083624e327d61b5f5f64694b68a8a9ae9cd7a56aeac2811959aec2c9e0057"
+    # (bumped 2026-07-23: CLI MW no longer defaults to shared=Skills+WorldEvents,
+    # dropping the inert shared= flag from line 0. Placement bodies verified
+    # bit-identical: re-inserting the old flag reproduces the prior hash.)
+    MW_CANARY = "2f1a60e9baeb71e6ec2ec82e3c40aaaf9b1840c6cbf0614ef2c53121147dbe18"
 
     def test_mw_output_canary(self):
         import hashlib
@@ -285,6 +288,92 @@ class MultiworldBiasTests(MultiworldGenTests):
         moved = any(parse_seed(self.seeds[p])[0] != parse_seed(unbiased[p])[0]
                     for p in range(1, self.PLAYERS + 1))
         self.assertTrue(moved, "anti_bk_bias=1.0 produced identical placements to 0.0")
+
+
+class MultiworldSharedGenTests(unittest.TestCase):
+    """mw shared singletons: shared-category items are generated once across
+    all worlds (the netcode grants finds to everyone); per-world items and
+    each world's finale trigger (EV5) are untouched."""
+
+    PLAYERS = 3
+    ARGS = MultiworldGenTests.ARGS + ["--shared-items", "skills,teleporters,worldevents,upgrades"]
+
+    @classmethod
+    def setUpClass(cls):
+        cls.out = tempfile.mkdtemp(prefix="seedgentest_mwshared_")
+        old_argv = sys.argv
+        sys.argv = cls.ARGS + ["--output-dir", cls.out]
+        try:
+            CLISeedParams().from_cli()
+        finally:
+            sys.argv = old_argv
+        cls.seeds = {}
+        for p in range(1, cls.PLAYERS + 1):
+            path = os.path.join(cls.out, "randomizer_%s.dat" % p)
+            assert os.path.exists(path), "no seed for player %s" % p
+            with open(path) as f:
+                cls.seeds[p] = f.read().splitlines()
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.out, ignore_errors=True)
+
+    def _all_placements(self):
+        world, manifests = [], []
+        for p, lines in self.seeds.items():
+            placements, manifest = parse_seed(lines)
+            for loc, (code, id, zone) in placements.items():
+                world.append((p, loc, code, id))
+            for slot, (finder, icode, iid, zone) in manifest.items():
+                manifests.append((p, slot, icode, iid))
+        return world, manifests
+
+    def test_flags_carry_mode_and_shares(self):
+        self.assertIn("mode=Multiworld", self.seeds[1][0])
+        self.assertIn("shared=", self.seeds[1][0])
+
+    def test_shared_categories_are_singletons(self):
+        world, manifests = self._all_placements()
+        counts = Counter((code, id) for (p, loc, code, id) in world
+                         if code in ("SK", "TP", "EV"))
+        for (p, slot, icode, iid) in manifests:
+            if icode in ("SK", "TP", "EV"):
+                counts[(icode, iid)] += 1
+        for (code, id), cnt in sorted(counts.items()):
+            expected = self.PLAYERS if (code, id) == ("EV", "5") else 1
+            self.assertEqual(cnt, expected,
+                             "%s|%s appears %s times (expected %s)" % (code, id, cnt, expected))
+
+    def test_shared_items_never_ride_manifests(self):
+        _, manifests = self._all_placements()
+        for (p, slot, icode, iid) in manifests:
+            self.assertNotIn(icode, ("SK", "TP"),
+                             "shared %s|%s in player %s manifest" % (icode, iid, p))
+            if icode == "EV":
+                self.assertEqual(iid, "5", "shared event in player %s manifest" % p)
+            if icode == "RB":
+                # only the NOT_SHARED name_only upgrades stay per-world
+                self.assertIn(iid, ("0", "1"),
+                              "shared RB|%s in player %s manifest" % (iid, p))
+
+    def test_shared_upgrade_totals_match_one_pool(self):
+        world, manifests = self._all_placements()
+        rb = Counter(id for (p, loc, code, id) in world if code == "RB")
+        for (p, slot, icode, iid) in manifests:
+            if icode == "RB":
+                rb[iid] += 1
+        # CLI default pool: shareable upgrades collapse to one copy total
+        self.assertEqual(rb.get("6", 0), 3)   # Attack Upgrade: UPGRADE type
+        self.assertEqual(rb.get("9", 0), 1)   # Spirit Light Efficiency
+        # name_only upgrades are NOT_SHARED at runtime -- generator parity
+        self.assertEqual(rb.get("0", 0), 3 * self.PLAYERS)  # Mega Health
+
+    def test_per_world_items_stay_per_world(self):
+        world, manifests = self._all_placements()
+        ks = sum(1 for (p, loc, code, id) in world if code == "KS")
+        ks += sum(1 for (p, slot, icode, iid) in manifests if icode == "KS")
+        # 40 per world minus 2 for OpenWorld, times three worlds
+        self.assertEqual(ks, self.PLAYERS * 38)
 
 
 class AntiBkBoostTests(unittest.TestCase):

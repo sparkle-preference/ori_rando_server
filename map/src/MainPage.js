@@ -573,11 +573,14 @@ onDrop = (files) => {
     }
     getMultiplayerTab = ({inputStyle, menuStyle}) => {
         let {shared, players, tracking, coopGameMode, keyMode, coopGenMode, dedupShared, antiBkBias} = this.state
-        let multiplayerButtons = ["Skills", "Teleporters", "Upgrades", "World Events", "Misc"].map(stype => (
+        let shareButtons = (stypes) => stypes.map(stype => (
             <Col xs="4" key={`share-${stype}`} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("Shared Item Categories", stype)} className="p-2">
                 <Button block outline={!shared.includes(stype)} onClick={this.onSType(stype)}>Share {stype}</Button>
             </Col>
         ))
+        let multiplayerButtons = shareButtons(["Skills", "Teleporters", "Upgrades", "World Events", "Misc"])
+        // no Misc for multiworld: trees/relics/keysanity keys stay per-world
+        let mwShareButtons = shareButtons(["Skills", "Teleporters", "Upgrades", "World Events"])
         
         let playerNumValid = tracking && players > 0;
         let playerNumFeedback = tracking ? (players > 0 ? null : (
@@ -637,6 +640,9 @@ onDrop = (files) => {
                             <Input style={inputStyle} type="number" step="0.1" min="0" max="1" value={antiBkBias} invalid={!(antiBkBias >= 0 && antiBkBias <= 1)} onChange={(e) => this.setState({antiBkBias: parseFloat(e.target.value)})}/>
                             <FormFeedback tooltip="true">Balance Bias is a value between 0.0 and 1.0</FormFeedback>
                         </Col>
+                    </Row>
+                    <Row className="p-2">
+                        {mwShareButtons}
                     </Row>
                 </Collapse>
             </TabPane>
@@ -709,6 +715,8 @@ onDrop = (files) => {
                 json.antiBkBias = this.state.antiBkBias || 0
             if(this.state.coopGameMode === "Co-op")
                 json.syncShared = this.state.shared.map(s => f(s))
+            if(this.isMultiworld())
+                json.syncShared = this.state.shared.filter(s => s !== "Misc").map(s => f(s))
             if(!this.state.dedupShared)
                 json.teams={1: [...Array(this.state.players).keys()].map(x=>x+1)}
         }

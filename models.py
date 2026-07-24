@@ -1773,14 +1773,17 @@ class Game(ndb.Model):
             share = ShareType.TELEPORTER in self.shared
             override = True # fuck no it actually should work like this. lol.
         if self.mode == MultiplayerGameType.MULTIWORLD:
-            # nothing fans out in multiworld: cross-world grants happen via
-            # slot-bitfield flips, own-world pickups are client-local.
-            share = False
-            # no seen-coords dedup either: the finder's 1Hz tick can deliver
-            # the seen bit BEFORE the found POST arrives, and the early return
-            # below would silently drop the slot flip (all MW handling is
-            # idempotent, so reprocessing is free)
-            finder_seen = []
+            # shared-category singletons fan out (see the mode branch below);
+            # everything else is client-local or a slot flip. TW warps are
+            # world-local by construction; EV5 is each world's finale trigger.
+            if pickup.code in ["MW", "TW"] or (pickup.code == "EV" and int(pickup.id) == 5):
+                share = False
+            if pickup.code == "MW":
+                # no seen-coords dedup: the finder's 1Hz tick can deliver the
+                # seen bit BEFORE the found POST arrives, and the early return
+                # below would silently drop the slot flip (slot handling is
+                # idempotent, so reprocessing is free)
+                finder_seen = []
         if coords in finder_seen:
             if share:
                 if not override:
@@ -1862,6 +1865,18 @@ class Game(ndb.Model):
                     # bitfields) never sees the flip -- same failure mode as
                     # the dropped win signals (see signal_send)
                     Cache.clear_seen_checksum(owner.idpts())
+            elif share:
+                # shared singleton: grant every world. The finder's client
+                # already granted itself; its server entity converges here too.
+                if BATCH_GRANTS:
+                    Player.transaction_pickup_batch([p.key for p in players], [(pickup, remove, coords, pid)])
+                else:
+                    for player in players:
+                        Player.transaction_pickup(player.key, pickup, remove, coords=coords, finder=pid)
+                Cache.clear_items(self.key.id())
+                for player in players:
+                    Cache.clear_seen_checksum(player.idpts())
+                    Cache.clear_reach(*player.idpts())
             # own-world pickups need no server-side action: the finder's
             # client granted itself already, and seen/have bits arrive by tick.
             # (release-on-finish is triggered by the /complete route at the

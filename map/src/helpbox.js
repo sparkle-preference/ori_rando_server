@@ -590,6 +590,7 @@ const getHelpHelper = (category, option) => {
                         "In a Multiworld game, each player gets their own world with their own logic, but the items hidden in it are shuffled across every player's world: that Energy Cell in Hollow Grove might be yours, or it might belong to Player 3.",
                         "When you find another player's item, it is sent to them instantly (the pickup will tell you whose it was). Everything you need to finish your game exists somewhere, but some of it will be found by your allies in their worlds.",
                         "When a player finishes, every unfound item left in their world is automatically released to its owner, so nobody is stuck waiting on a fully-explored world.",
+                        "Shared Item Categories work differently here than in Co-op: a shared category's items are generated once across ALL worlds (one Bash total, one Sunstone total...), and whoever finds one grants it to everyone. This mimics the old Seperate Seeds mode. If sharing World Events, consider the Shards or Free key modes, since dungeon key clues can't see into other players' worlds.",
                         "Note: Multiworld games require web tracking, and each player must download their own seed file. Double-check your player number before you start!",
                         "See also the Multiworld Balance Bias setting below, which controls how evenly the generator spreads progression between worlds.",
                     ]
