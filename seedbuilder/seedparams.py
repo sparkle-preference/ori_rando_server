@@ -25,6 +25,9 @@ def seed_mode_problem(params, mw_override=False):
             return "Multiworld seeds aren't available yet."
         if not params.tracking:
             return "Multiworld requires tracking (it's netcode all the way down)."
+        # getattr: CLI params objects don't carry placement fields
+        if getattr(params, "placements", None) or getattr(params, "spawn_placement", None):
+            return "Multiworld doesn't support forced item placements (plando) yet."
     if params.sync.mode == MultiplayerGameType.SPLITSHARDS:
         return "SplitShards was removed (2026-07). Consider Multiworld with Shards keymode."
     if params.sync.mode == MultiplayerGameType.SHARED and not params.sync.cloned:

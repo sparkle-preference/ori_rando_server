@@ -310,6 +310,14 @@ class SeedModeProblemTests(unittest.TestCase):
     def test_multiworld_requires_tracking(self):
         self.assertIn("tracking", self._check(True, self._params("Multiworld", tracking=False)))
 
+    def test_multiworld_rejects_preplacement(self):
+        # game 133787 postgame: MW + fass took the generic 500 path; must 409 clearly
+        p = self._params("Multiworld")
+        p.placements = ["something"]
+        self.assertIn("plando", self._check(True, p))
+        p.placements = []
+        self.assertIsNone(self._check(True, p))
+
     def test_removed_modes_get_messages(self):
         self.assertIn("SplitShards", self._check(True, self._params("SplitShards")))
         self.assertIn("Seperate Seeds", self._check(True, self._params("Shared", cloned=False)))

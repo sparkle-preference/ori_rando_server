@@ -382,7 +382,15 @@ onDrop = (files) => {
             <DropdownItem key={`pd-${mode}`} active={mode===pathDiff} onClick={()=> this.setState({pathDiff: mode})}>{mode}</DropdownItem>
         ))
         const fassUsed = new Set(fassList.map(({loc}) => loc.value));
-        let fass_rows = fassList.map(({loc, item}, i) => (
+        let fass_rows = this.isMultiworld() ? [(
+            <Row key={`fass-mw-off`} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "preplacement")} className="p-1 justify-content-center">
+                    <Col xs={leftCol} className="text-center pt-1 border">
+                        <Cent>Preplacement</Cent>
+                    </Col><Col xs={rightCol} className="pt-1">
+                        <Cent>Not available in Multiworld games (yet)</Cent>
+                    </Col>
+            </Row>
+        )] : fassList.map(({loc, item}, i) => (
             <Row key={`fass-arbitrary-${i}`} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "preplacement")} className="p-1 justify-content-center">
                     <Col xs={leftCol+1}>
                         <Select theme={select_theme} className="align-middle" options={locOptions.filter(l => l.value === loc.value || !fassUsed.has(l.value))} value={loc} onChange={(newLoc) => this.onFassList(i, {loc: newLoc})}></Select>
@@ -391,7 +399,7 @@ onDrop = (files) => {
                     </Col>
             </Row>
         ));
-        fass_rows.push((
+        if(!this.isMultiworld()) fass_rows.push((
             <Row key={`fass-arbitrary-next`} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "preplacement")} className="p-1 justify-content-center">
                     <Col xs={leftCol+1}>
                     <Select theme={select_theme} className="align-middle" options={locOptions.filter(l => !fassUsed.has(l.value))} value={{label: 'Add new Placement:', value: -1}} onChange={(newLoc) => this.addToFassList({loc: newLoc, item: "NO|1"})}></Select>
@@ -673,12 +681,13 @@ onDrop = (files) => {
         }
         json.players=this.state.players
         json.fass = []
-        this.state.fassList.forEach(fassEntry => {
-                if(fassEntry.item !== "NO|1") {
-                    let item = fassEntry.item.split("|");
-                    json.fass.push({loc: fassEntry.loc.value.toString(), code: item[0], id: item[1]})
-                }
-        });
+        if(!this.isMultiworld()) // multiworld can't preplace; stale rows would 409 the build
+            this.state.fassList.forEach(fassEntry => {
+                    if(fassEntry.item !== "NO|1") {
+                        let item = fassEntry.item.split("|");
+                        json.fass.push({loc: fassEntry.loc.value.toString(), code: item[0], id: item[1]})
+                    }
+            });
         json.itemPool = {} //{"HC": 12, "EC": 15, "AC": 33, }
         this.state.itemPool.forEach(({item, count, upTo}) => { json.itemPool[item] = upTo ? [count, upTo] : [count] })
         json.tracking = this.state.tracking
@@ -1350,6 +1359,7 @@ onDrop = (files) => {
         return {fassList: fassList};
     });
     hasVar = (v) => this.state.variations.includes(v);
+    isMultiworld = () => this.state.tracking && this.state.players > 1 && this.state.coopGameMode === "Multiworld";
     onPath = (p) => () => this.setState({paths: this.state.paths.includes(p) ? this.state.paths.filter(x => x !== p) : this.state.paths.concat(p)}, () => this.setState(p => {return {pathMode: get_preset(p.paths)}}))
     onSType = (s) => () => this.state.shared.includes(s) ? this.setState({shared: this.state.shared.filter(x => x !== s)}) : this.setState({shared: this.state.shared.concat(s)})    
     onVar = (v) => () => {
