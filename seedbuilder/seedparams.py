@@ -25,9 +25,16 @@ def seed_mode_problem(params, mw_override=False):
             return "Multiworld seeds aren't available yet."
         if not params.tracking:
             return "Multiworld requires tracking (it's netcode all the way down)."
-        # getattr: CLI params objects don't carry placement fields
-        if getattr(params, "placements", None) or getattr(params, "spawn_placement", None):
-            return "Multiworld doesn't support forced item placements (plando) yet."
+        # preplacement is supported; just sanity-check the player references
+        # (getattr: CLI params objects don't carry placement fields)
+        for placement in getattr(params, "placements", None) or []:
+            s = placement.stuff[0]
+            for ref in (s.player, getattr(s, "owner", None)):
+                try:
+                    if ref and not (1 <= int(ref) <= params.players):
+                        return "Preplacement references player %s, but this game only has %s players." % (ref, params.players)
+                except ValueError:
+                    return "Preplacement references invalid player %r." % ref
     if params.sync.mode == MultiplayerGameType.SPLITSHARDS:
         return "SplitShards was removed (2026-07). Consider Multiworld with Shards keymode."
     if params.sync.mode == MultiplayerGameType.SHARED and not params.sync.cloned:
@@ -42,6 +49,9 @@ class Stuff(ndb.Model):
     code = ndb.StringProperty()
     id = ndb.StringProperty()
     player = ndb.StringProperty()
+    # multiworld preplacement: whose item this is, when it isn't the world
+    # it's placed in (player = the world holding the location)
+    owner = ndb.StringProperty()
 
 class Placement(ndb.Model):
     location = ndb.StringProperty()
@@ -147,6 +157,9 @@ class SeedGenParams(ndb.Model):
     relic_count = ndb.IntegerProperty(default=8)
     cell_freq = ndb.IntegerProperty(default=256)
     anti_bk_bias = ndb.FloatProperty(default=0.0)
+    # the fass list as the UI sent it, kept verbatim for rerolls (the legacy
+    # reconstruction from placements can't carry world/owner)
+    fass_json = ndb.JsonProperty()
     placements = ndb.LocalStructuredProperty(Placement, repeated=True, compressed=True)
     spawn_placement = ndb.LocalStructuredProperty(Placement)
     preplaced_coords = ndb.IntegerProperty(repeated=True)
@@ -227,15 +240,19 @@ class SeedGenParams(ndb.Model):
         params.pool_preset = json.get("selectedPool", "Standard")
         params.placements = []
         params.preplaced_coords = []
+        params.fass_json = json.get("fass", []) or None
         for fass in json.get("fass", []):
             if "item" in fass: # this is stupid af but it's a faster way to handle the json mismatch than the other fixes available
                 pcode, _, pid = fass["item"].partition("|")
             else:
                 pcode, pid  = fass["code"], fass["id"]
-            params.placements.append(Placement(location=fass["loc"], zone="", stuff=[Stuff(code=pcode, id=pid, player="")]))
-            if fass["loc"] == "2": # this has to be special-cased because some seedgen options will put extra bullshit here and that breaks rerolls!
-                params.spawn_placement = Placement(location=fass["loc"], zone="", stuff=[Stuff(code=pcode, id=pid, player="")])
-            else:
+            world = str(fass.get("world", 1) or 1)
+            # spawn items are granted at that world's start, never cross-world
+            owner = world if fass["loc"] == "2" else str(fass.get("owner", world) or world)
+            params.placements.append(Placement(location=fass["loc"], zone="", stuff=[Stuff(code=pcode, id=pid, player=world, owner=owner)]))
+            if fass["loc"] == "2" and world == "1": # this has to be special-cased because some seedgen options will put extra bullshit here and that breaks rerolls!
+                params.spawn_placement = Placement(location=fass["loc"], zone="", stuff=[Stuff(code=pcode, id=pid, player=world)])
+            elif fass["loc"] != "2":
                 params.preplaced_coords.append(int(fass["loc"]))
         params.starting_energy = json.get("spawnECs", 1)
         params.starting_health = json.get("spawnHCs", 3)
@@ -361,10 +378,13 @@ class SeedGenParams(ndb.Model):
             "spawnWeights": self.spawn_weights,
             "verboseSpoiler": self.verbose_spoiler,
             "antiBkBias": self.anti_bk_bias,
-            # stars i fucking hate this. anyways. forced assignments are:
-            "fass": [{"loc": p.location, "item":  f"{p.stuff[0].code}|{p.stuff[0].id}"} for p in self.placements # placements on preplaced_coords
+            # stars i fucking hate this. anyways. forced assignments are: the
+            # verbatim fass_json when we have it (world/owner survive), else
+            # the legacy reconstruction:
+            "fass": self.fass_json if self.fass_json else (
+                    [{"loc": p.location, "item":  f"{p.stuff[0].code}|{p.stuff[0].id}"} for p in self.placements # placements on preplaced_coords
                             if int(p.location) in self.preplaced_coords] + (
-                        [{"loc": "2", "item": f"{self.spawn_placement.stuff[0].code}|{self.spawn_placement.stuff[0].id}"}] if (self.spawn_placement) else [])
+                        [{"loc": "2", "item": f"{self.spawn_placement.stuff[0].code}|{self.spawn_placement.stuff[0].id}"}] if (self.spawn_placement) else []))
                         # and then specifically also the spawn_placement at 2, because we can't rely on self.placements[2] because NEW THINGS GET ADDED by seedgen (sometimes)
         }
 
@@ -374,7 +394,11 @@ class SeedGenParams(ndb.Model):
             preplaced = {}
             for placement in self.placements:
                 s = placement.stuff[0]
-                preplaced[int(placement.location)] = s.code + s.id
+                world = int(s.player) if s.player else 1
+                value = s.code + s.id
+                if s.owner and s.owner != s.player:
+                    value = "%s|%s" % (value, s.owner)  # cross-world: owner rides the tag
+                preplaced[(world, int(placement.location))] = value
             self.placements = []
         sg = SeedGenerator()
         raw = sg.setSeedAndPlaceItems(self, preplaced=preplaced)

@@ -92,6 +92,7 @@ class CLISeedParams(object):
         parser.add_argument("--prefer-path-difficulty", help="Increase the chances of putting items in more convenient (easy) or less convenient (hard) locations", choices=["easy", "hard"])
         parser.add_argument("--balanced", help="Reduce the value of newly discovered locations for progression placements", action="store_true")
         parser.add_argument("--anti-bk-bias", help="Multiworld only: 0.0-1.0, bias progression toward the world with the fewest reachable checks", type=float, default=0.0)
+        parser.add_argument("--fass", help="Forced assignments, |-separated: [world.]loc:item[@owner], e.g. '919772:SK0|2.-280256:EV0@3'", type=str, default=None)
         parser.add_argument("--force-cells", help="Force health and energy cells to appear every N pickups, if they don't randomly", type=int, default=256)
         parser.add_argument("--verbose-spoiler", help="show everything in the spoiler", action="store_true")
         # anal TODO: IMPL
@@ -410,7 +411,15 @@ class CLISeedParams(object):
                 sg.do_reachability_analysis(self)
                 return
 
-            raw = sg.setSeedAndPlaceItems(self, preplaced={})
+            preplaced = {}
+            for fass in (args.fass or "").split("|"):
+                if not fass:
+                    continue
+                rawloc, _, item = fass.partition(":")
+                world, _, loc = rawloc.rpartition(".")
+                item, _, owner = item.partition("@")
+                preplaced[(int(world or 1), int(loc))] = "%s|%s" % (item, owner) if owner else item
+            raw = sg.setSeedAndPlaceItems(self, preplaced=preplaced)
             seeds = []
             spoilers = []
             if not raw:

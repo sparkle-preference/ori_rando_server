@@ -20,6 +20,7 @@ const locOptions = [{'label': 'Spawn With', 'value': 2}];
 zonesInOrder.forEach(zone =>  picks_by_zone[zone].forEach(p => locOptions.push({'label': `${p.area} ${p.name} (${zone})`, 'value': p.loc})));
 picks_by_zone['Mapstone'].forEach(p => locOptions.push({'label': p.name, 'value': p.loc}));
 const locOptionFromCoords = (coords) => locOptions.find(l => l.value === coords);
+const fassDefaultsFor = (world) => [2, 919772, -1560272, 799776, -120208].map(coords => ({loc: locOptionFromCoords(coords), item: "NO|1", world: world, owner: world}));
 const getPool = (pool_name) => { switch(pool_name) {
     case "Standard": 
         return [
@@ -381,25 +382,46 @@ onDrop = (files) => {
         let pathDiffOptions = ["Easy", "Normal", "Hard"].map(mode => (
             <DropdownItem key={`pd-${mode}`} active={mode===pathDiff} onClick={()=> this.setState({pathDiff: mode})}>{mode}</DropdownItem>
         ))
-        const fassUsed = new Set(fassList.map(({loc}) => loc.value));
-        let fass_rows = this.isMultiworld() ? [(
-            <Row key={`fass-mw-off`} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "preplacement")} className="p-1 justify-content-center">
-                    <Col xs={leftCol} className="text-center pt-1 border">
-                        <Cent>Preplacement</Cent>
-                    </Col><Col xs={rightCol} className="pt-1">
-                        <Cent>Not available in Multiworld games (yet)</Cent>
-                    </Col>
-            </Row>
-        )] : fassList.map(({loc, item}, i) => (
+        const isMW = this.isMultiworld()
+        const fassWorld = isMW ? this.state.fassWorld : 1
+        const players = this.state.players
+        const fassUsed = new Set(fassList.filter(f => (f.world || 1) === fassWorld).map(({loc}) => loc.value));
+        const ownerDropdown = (i, loc, world, owner) => (
+            <Col xs="2">
+                <UncontrolledButtonDropdown className="w-100">
+                    <DropdownToggle caret block color="primary" disabled={loc.value === 2}> {`P${loc.value === 2 ? world : (owner || world)}`} </DropdownToggle>
+                    <DropdownMenu style={menuStyle}>
+                        {[...Array(players).keys()].map(x => x+1).map(o => (
+                            <DropdownItem key={`fass-owner-${i}-${o}`} active={o === (owner || world)} onClick={() => this.onFassList(i, {owner: o})}>{`P${o}'s item`}</DropdownItem>
+                        ))}
+                    </DropdownMenu>
+                </UncontrolledButtonDropdown>
+            </Col>
+        )
+        let fass_rows = fassList.map(({loc, item, world, owner}, i) => ((world || 1) !== fassWorld) ? null : (
             <Row key={`fass-arbitrary-${i}`} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "preplacement")} className="p-1 justify-content-center">
-                    <Col xs={leftCol+1}>
+                    <Col xs={isMW ? leftCol : leftCol+1}>
                         <Select theme={select_theme} className="align-middle" options={locOptions.filter(l => l.value === loc.value || !fassUsed.has(l.value))} value={loc} onChange={(newLoc) => this.onFassList(i, {loc: newLoc})}></Select>
                     </Col><Col xs={rightCol-1}>
                         <PickupSelect value={item} updater={(code, _) => this.onFassList(i, {item: code})}/>
                     </Col>
+                    {isMW ? ownerDropdown(i, loc, world || 1, owner) : null}
             </Row>
-        ));
-        if(!this.isMultiworld()) fass_rows.push((
+        )).filter(r => r);
+        if(isMW) fass_rows.unshift((
+            <Row key={`fass-world-tabs`} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "preplacement")} className="p-1 justify-content-center">
+                    <Col xs={leftCol} className="text-center pt-1 border">
+                        <Cent>Preplacement World</Cent>
+                    </Col><Col xs={rightCol}>
+                        <ButtonGroup className="w-100">
+                            {[...Array(players).keys()].map(x => x+1).map(w => (
+                                <Button key={`fass-world-${w}`} color="primary" outline={fassWorld !== w} onClick={() => this.onFassWorld(w)}>{`P${w}'s world`}</Button>
+                            ))}
+                        </ButtonGroup>
+                    </Col>
+            </Row>
+        ))
+        fass_rows.push((
             <Row key={`fass-arbitrary-next`} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "preplacement")} className="p-1 justify-content-center">
                     <Col xs={leftCol+1}>
                     <Select theme={select_theme} className="align-middle" options={locOptions.filter(l => !fassUsed.has(l.value))} value={{label: 'Add new Placement:', value: -1}} onChange={(newLoc) => this.addToFassList({loc: newLoc, item: "NO|1"})}></Select>
@@ -687,13 +709,14 @@ onDrop = (files) => {
         }
         json.players=this.state.players
         json.fass = []
-        if(!this.isMultiworld()) // multiworld can't preplace; stale rows would 409 the build
-            this.state.fassList.forEach(fassEntry => {
-                    if(fassEntry.item !== "NO|1") {
-                        let item = fassEntry.item.split("|");
-                        json.fass.push({loc: fassEntry.loc.value.toString(), code: item[0], id: item[1]})
-                    }
-            });
+        this.state.fassList.forEach(fassEntry => {
+                let world = fassEntry.world || 1
+                let owner = fassEntry.owner || world
+                // drop rows referencing players that no longer exist
+                if(fassEntry.item !== "NO|1" && world <= this.state.players && owner <= this.state.players) {
+                    json.fass.push({loc: fassEntry.loc.value.toString(), item: fassEntry.item, world: world, owner: owner})
+                }
+        });
         json.itemPool = {} //{"HC": 12, "EC": 15, "AC": 33, }
         this.state.itemPool.forEach(({item, count, upTo}) => { json.itemPool[item] = upTo ? [count, upTo] : [count] })
         json.tracking = this.state.tracking
@@ -751,7 +774,9 @@ onDrop = (files) => {
             if(metaUpdate.goalModes.length === 0)
                 metaUpdate.goalModes = ["None"]
             if(metaUpdate.fass && metaUpdate.fass.length > 0) {
-                metaUpdate.fassList = metaUpdate.fass.map(({loc, item}) => ({loc: locOptionFromCoords(parseInt(loc, 10)), item: item}))
+                metaUpdate.fassList = metaUpdate.fass.map(({loc, item, code, id, world, owner}) => (
+                    {loc: locOptionFromCoords(parseInt(loc, 10)), item: item || `${code}|${id}`, world: world || 1, owner: owner || world || 1}))
+                metaUpdate.fassWorld = 1
                 metaUpdate.fass = undefined;
             }
             if(metaUpdate.coopGameMode === "Multiworld") {
@@ -1326,8 +1351,7 @@ onDrop = (files) => {
         })
 
         let activeTab = seedTabExists ? 'seed' : 'variations';
-        const fassListDefault = [2, 919772, -1560272, 799776, -120208].map(coords => ({loc: locOptions.find(l => l.value === coords), item: "NO|1"}));
-        
+
         this.state = {user: user, activeTab: activeTab, coopGenMode: "Cloned Seeds", coopGameMode: "Multiworld", players: 1, antiBkBias: 0, dropActive: false,
                         tracking: true, variations: ["ForceTrees"], gameId: gameId, itemPool: getPool("Standard"), dedupShared: false, 
                         paths: presets["standard"], keyMode: "Clues", oldKeyMode: "Clues", spawn: "Glades", advancedSpawnTouched: false, 
@@ -1336,7 +1360,7 @@ onDrop = (files) => {
                         shared: ["Skills", "Teleporters", "World Events", "Upgrades", "Misc"], mwShared: [], helpcat: "", helpopt: "",
                         expPool: 10000, lastHelp: new Date(), seedIsGenerating: seedTabExists, cellFreq: cellFreqPresets("standard"),
                         fragCount: 30, fragReq: 20, relicCount: 8, loader: get_random_loader(), paramId: paramId, seedTabExists: seedTabExists, 
-                        reopenUrl: "", flagLine: "", fassList: [...fassListDefault], goalModesOpen: false, 
+                        reopenUrl: "", flagLine: "", fassList: fassDefaultsFor(1), fassWorld: 1, goalModesOpen: false, 
                         spoilers: true, spawnWeights: [1.0,2.0,2.0,2.0,1.5,2.0,0.1,0.1,0.25,0.5], seedIsBingo: false, bingoLines: 3, 
                         auxModal: false, auxSpoiler: {active: false, byZone: false, exclude: ["EX","KS", "AC", "EC", "HC", "MS"]}, 
                         stupidMode: stupidMode, customLogic: false, stupidWarn: stupidWarn, verboseSpoiler: get_param("verbose") === "True"};
@@ -1363,15 +1387,23 @@ onDrop = (files) => {
     });
     addToFassList = ({loc, item}) => this.setState(prevState => {
         let fassList = [...prevState.fassList];
+        let world = this.isMultiworld() ? prevState.fassWorld : 1;
         let newLoc = loc;
         if(!newLoc) {
-            const usedCoords = new Set(fassList.map(fass => fass.value));
+            const usedCoords = new Set(fassList.filter(fass => (fass.world || 1) === world).map(fass => fass.value));
             newLoc = locOptions.find(loc => !usedCoords.has(loc.value));
-            if(!newLoc) return {};    
+            if(!newLoc) return {};
         }
-        fassList.push({loc: newLoc, item: item});
+        fassList.push({loc: newLoc, item: item, world: world, owner: world});
         this.refs.fassTabula.clear();
         return {fassList: fassList};
+    });
+    onFassWorld = (w) => this.setState(prevState => {
+        let update = {fassWorld: w};
+        // first visit to a world's tab: offer the usual suggestion rows
+        if(!prevState.fassList.some(f => (f.world || 1) === w))
+            update.fassList = prevState.fassList.concat(fassDefaultsFor(w));
+        return update;
     });
     hasVar = (v) => this.state.variations.includes(v);
     isMultiworld = () => this.state.tracking && this.state.players > 1 && this.state.coopGameMode === "Multiworld";

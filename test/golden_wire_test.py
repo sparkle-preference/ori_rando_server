@@ -399,6 +399,42 @@ class TestMultiworldSeedServing(NdbTestCase):
                     checked += 1
         self.assertGreater(checked, 0, "no manifests generated; test is vacuous")
 
+    def test_generate_honors_mw_preplacement(self):
+        """The web fass path: placements carry world (Stuff.player) and owner
+        (Stuff.owner); cross-world ones become MW pickups + manifest entries."""
+        from seedbuilder.seedparams import MultiplayerOptions, SeedGenParams, Placement, Stuff
+        from enums import MultiplayerGameType, presets, Variation
+        opts = MultiplayerOptions()
+        opts.enabled = True
+        opts.mode = MultiplayerGameType.MULTIWORLD
+        params = SeedGenParams(seed="fasstest", players=2, sync=opts)
+        params.logic_paths = presets["Standard"]
+        params.variations = [Variation.OPEN_WORLD, Variation.FORCE_TREES]
+        params.item_pool = {"TP|Grove": [1], "TP|Swamp": [1], "TP|Grotto": [1], "TP|Valley": [1],
+                            "TP|Sorrow": [1], "TP|Ginso": [1], "TP|Horu": [1], "TP|Forlorn": [1],
+                            "HC|1": [12], "EC|1": [15], "AC|1": [33], "RB|0": [3], "RB|1": [3],
+                            "RB|6": [3], "RB|9": [1], "RB|10": [1], "RB|11": [1], "RB|12": [1],
+                            "RB|13": [3], "RB|15": [3]}
+        params.placements = [
+            # P1's Bash hidden in P2's world; an own-world Ability Cell for P1
+            Placement(location="919772", zone="", stuff=[Stuff(code="SK", id="0", player="2", owner="1")]),
+            Placement(location="-280256", zone="", stuff=[Stuff(code="AC", id="1", player="1", owner="1")]),
+        ]
+        params.put = lambda *a, **k: None
+        self.assertTrue(params.generate())
+
+        p1 = {loc: (code, id) for (loc, code, id, zone) in params.get_seed_data(1)}
+        p2 = {loc: (code, id) for (loc, code, id, zone) in params.get_seed_data(2)}
+        self.assertEqual(p1["-280256"], ("AC", "1"))
+        code, id = p2["919772"]
+        self.assertEqual(code, "MW")
+        owner, slot, name = id.split(",", 2)
+        self.assertEqual(int(owner), 1)
+        mcode, mid = p1[str(-(int(slot) + 2))]
+        self.assertEqual(mcode, "MW")
+        finder, icode, iid = mid.split(",", 2)
+        self.assertEqual((int(finder), icode, iid), (2, "SK", "0"))
+
     def test_get_seed_data_serves_each_player_their_world(self):
         from seedbuilder.seedparams import MultiplayerOptions, SeedGenParams, Placement, Stuff
         opts = MultiplayerOptions()

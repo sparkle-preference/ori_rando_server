@@ -584,10 +584,9 @@ class SeedGenerator:
         self.init_fields()
         self.expRemaining = self.params.exp_pool
         # forcedAssignments is keyed (player, loc): the same coordinate exists
-        # in every world. Plando preplacement is world 1 (solo-only for now).
-        # Values may carry an owner tag ("GinsoKey|3") for cross-world forced
-        # items; untagged values belong to the world they're placed in.
-        self.forcedAssignments = {(1, loc): v for loc, v in self.preplaced.items()}
+        # in every world. Values may carry an owner tag ("GinsoKey|3") for
+        # cross-world items; untagged values belong to the world they sit in.
+        self.forcedAssignments = dict(self.preplaced)
         self.forceAssignedLocs = set()
         self.itemPool = OrderedDict([(tag(k, p), v) for p in self.multi_ps() for k, v in [
             ("EX1", 1), ("KS", 40), ("MS", 11), ("WallJump", 1), ("ChargeFlame", 1),
@@ -1613,21 +1612,21 @@ class SeedGenerator:
         self.entrance_spoiler += "}\n"
         return doorStr
 
-    def mw_unsupported(self, preplaced):
-        # multiworld handles every variation now; plando preplacement is the
-        # one remaining project (N-world authoring + cross-links in the builder)
-        problems = []
-        if preplaced:
-            problems.append("preplacement/plando")
-        return problems
-
     def setSeedAndPlaceItems(self, params, preplaced={}, retries=10, verbose_paths=False):
         self.verbose_paths = verbose_paths
         self.params = params
 
         self.random = random.Random()
         self.random.seed(stable_string_hash(self.params.seed))
-        self.preplaced = {k: self.codeToName.get(v, v) for k, v in preplaced.items()}
+        # keys are (world, loc); plain-loc keys (solo callers, plando) mean
+        # world 1. Values may carry an owner tag ("SK0|3") for cross-world
+        # placements; only the base translates through codeToName.
+        self.preplaced = {}
+        for k, v in preplaced.items():
+            world, loc = k if isinstance(k, tuple) else (1, k)
+            base, _, owner = v.partition("|")
+            base = self.codeToName.get(base, base)
+            self.preplaced[(world, loc)] = "%s|%s" % (base, owner) if owner else base
         self.is_cloned = self.params.sync.enabled and self.params.sync.mode == MultiplayerGameType.SHARED
         self.is_multi = self.params.sync.enabled and self.params.sync.mode == MultiplayerGameType.MULTIWORLD
         if self.params.sync.enabled and self.params.sync.mode == MultiplayerGameType.SHARED and not self.params.sync.cloned:
@@ -1643,12 +1642,6 @@ class SeedGenerator:
         self.clone_count = 1
         if self.is_cloned:
             self.clone_count = len(self.params.sync.teams) if self.params.sync.teams else self.params.players
-        if self.is_multi:
-            problems = self.mw_unsupported(preplaced)
-            if problems:
-                log.error("Can't generate a multiworld seed with: %s", ", ".join(problems))
-                return None
-
         if self.var(Variation.WORLD_TOUR):
             # each world samples its own relic zones (decision 2026-07-22);
             # relics are world-local -- they never cross as MW items
@@ -1842,15 +1835,18 @@ class SeedGenerator:
             self.spoilerGroup = defaultdict(list)
 
         # forced-assignment pool bookkeeping. Values tagged with an owner
-        # (cross-world limitkeys) decrement that owner's pool entry; untagged
+        # (cross-world items) decrement that owner's pool entry; untagged
         # values belong to the world they sit in.
         for (p, loc), v in self.forcedAssignments.items():
-            if v[0:2] in ["MU", "RP"]:
-                for item in self.get_multi_items(v):
-                    if tag(item, p) in self.itemPool:
-                        self.itemPool[tag(item, p)] -= 1
+            base_v, _, owner_v = v.partition("|")
+            fass_p = int(owner_v) if owner_v else p
+            if base_v[0:2] in ["MU", "RP"]:
+                for item in self.get_multi_items(base_v):
+                    key = self.pool_key(tag(item, fass_p))
+                    if key in self.itemPool:
+                        self.itemPool[key] -= 1
                     self.spoilerGroup[item].append(item + " preplaced at %s \n" % all_locations[loc].to_string() if loc in all_locations else loc)
-            tagged_v = self.pool_key(v if "|" in v else tag(v, p))
+            tagged_v = self.pool_key(tag(base_v, fass_p))
             if tagged_v in self.itemPool:
                 self.itemPool[tagged_v] -= 1
 

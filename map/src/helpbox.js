@@ -813,7 +813,8 @@ const getHelpHelper = (category, option) => {
                         "Select the item location in the left box and the item to place there in the right box. (You can place multiple items at one location this way!)",
                         "You can add more item locations to prepplace by editing either box in the bottom row.",
                         "Note: some placements (like 4 mapstones in the first 4 pickups) will cause seed generation to always fail.",
-                        "Note: The 'Spawn' location is a special location that is granted at the beginning of every seed. You can use it to generate seeds to practice specific skill combinations, like Bash+Grenade or Grenade+Climb+Charge Jump."
+                        "Note: The 'Spawn' location is a special location that is granted at the beginning of every seed. You can use it to generate seeds to practice specific skill combinations, like Bash+Grenade or Grenade+Climb+Charge Jump.",
+                        "In Multiworld games, pick which player's world the location is in with the buttons above the placement rows, and whose item it is with the dropdown on the right. Placing another player's item creates a real cross-world pickup: when found, it is sent to its owner. (Spawn items always belong to the world they start in.)",
                     ]
                     break;
                 case "cellFreq":

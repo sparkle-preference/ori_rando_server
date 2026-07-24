@@ -376,6 +376,65 @@ class MultiworldSharedGenTests(unittest.TestCase):
         self.assertEqual(ks, self.PLAYERS * 38)
 
 
+class MultiworldPreplacementTests(unittest.TestCase):
+    """MW fass: own-world placements are plain lines, cross-world ones become
+    MW pickups with a manifest entry in the owner's seed, and the owner's pool
+    copy is consumed either way."""
+
+    PLAYERS = 3
+    # P1's Bash at their own 919772; P3's GinsoKey hidden in P2's -280256
+    ARGS = MultiworldGenTests.ARGS + ["--fass", "919772:SK0|2.-280256:EV0@3"]
+
+    @classmethod
+    def setUpClass(cls):
+        cls.out = tempfile.mkdtemp(prefix="seedgentest_mwfass_")
+        old_argv = sys.argv
+        sys.argv = cls.ARGS + ["--output-dir", cls.out]
+        try:
+            CLISeedParams().from_cli()
+        finally:
+            sys.argv = old_argv
+        cls.seeds = {}
+        for p in range(1, cls.PLAYERS + 1):
+            path = os.path.join(cls.out, "randomizer_%s.dat" % p)
+            assert os.path.exists(path), "no seed for player %s" % p
+            with open(path) as f:
+                cls.seeds[p] = f.read().splitlines()
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.out, ignore_errors=True)
+
+    def test_own_world_preplacement_is_a_plain_line(self):
+        placements, _ = parse_seed(self.seeds[1])
+        code, id, zone = placements[919772]
+        self.assertEqual((code, id), ("SK", "0"))
+
+    def test_cross_world_preplacement_rides_the_manifest(self):
+        placements, _ = parse_seed(self.seeds[2])
+        code, id, zone = placements[-280256]
+        self.assertEqual(code, "MW")
+        owner, slot, name = id.split(",", 2)
+        self.assertEqual(int(owner), 3)
+        _, manifest = parse_seed(self.seeds[3])
+        finder, icode, iid, mzone = manifest[int(slot)]
+        self.assertEqual((finder, icode, iid), (2, "EV", "0"))
+
+    def test_pool_copies_are_consumed(self):
+        # each preplaced item replaces its owner's pool copy: exactly one
+        # Bash for P1 and one GinsoKey for P3 exist anywhere
+        def count_for(owner, icode, iid):
+            n = 0
+            for p, lines in self.seeds.items():
+                placements, manifest = parse_seed(lines)
+                if p == owner:
+                    n += sum(1 for (c, i, z) in placements.values() if (c, i) == (icode, iid))
+                    n += sum(1 for (f, c, i, z) in manifest.values() if (c, i) == (icode, iid))
+            return n
+        self.assertEqual(count_for(1, "SK", "0"), 1)
+        self.assertEqual(count_for(3, "EV", "0"), 1)
+
+
 class AntiBkBoostTests(unittest.TestCase):
     """Shape of the multiworld starvation weight multiplier."""
 
@@ -445,11 +504,14 @@ class SeedModeProblemTests(unittest.TestCase):
     def test_multiworld_requires_tracking(self):
         self.assertIn("tracking", self._check(True, self._params("Multiworld", tracking=False)))
 
-    def test_multiworld_rejects_preplacement(self):
-        # game 133787 postgame: MW + fass took the generic 500 path; must 409 clearly
+    def test_multiworld_preplacement_validates_player_refs(self):
+        from seedbuilder.seedparams import Placement, Stuff
         p = self._params("Multiworld")
-        p.placements = ["something"]
-        self.assertIn("plando", self._check(True, p))
+        p.players = 3
+        p.placements = [Placement(location="919772", zone="", stuff=[Stuff(code="SK", id="0", player="2", owner="3")])]
+        self.assertIsNone(self._check(True, p))  # in range: allowed now
+        p.placements = [Placement(location="919772", zone="", stuff=[Stuff(code="SK", id="0", player="2", owner="7")])]
+        self.assertIn("player 7", self._check(True, p))
         p.placements = []
         self.assertIsNone(self._check(True, p))
 
