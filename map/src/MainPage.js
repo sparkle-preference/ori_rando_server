@@ -603,12 +603,12 @@ onDrop = (files) => {
                 <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "multiGameType")} className="p-1 justify-content-center">
                     <Col xs="4" className="text-center pt-1 border">
                         <span className="align-middle">Multiplayer Game Type</span>
-                    </Col><Col xs="4">
+                    </Col><Col onMouseLeave={this.helpEnter("multiplayerOptions", "multiGameType")} onMouseEnter={this.helpEnter("multiplayerOptions", coopGameMode)} xs="4">
                         <UncontrolledButtonDropdown className="w-100" >
                             <DropdownToggle disabled={players < 2} color={players > 1 ? "primary" : "secondary"} caret block> {coopGameMode} </DropdownToggle>
                             <DropdownMenu style={menuStyle}>
-                                <DropdownItem active={"Race"===coopGameMode} onClick={()=> this.setState({coopGameMode: "Race"})}>Race</DropdownItem>
-                                <DropdownItem active={"Co-op"===coopGameMode} onClick={()=> this.setState({coopGameMode: "Co-op"})}>Co-op</DropdownItem>
+                                <DropdownItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "Race")} active={"Race"===coopGameMode} onClick={()=> this.setState({coopGameMode: "Race"})}>Race</DropdownItem>
+                                <DropdownItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "Co-op")} active={"Co-op"===coopGameMode} onClick={()=> this.setState({coopGameMode: "Co-op"})}>Co-op</DropdownItem>
                                 <DropdownItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "Multiworld")} active={"Multiworld"===coopGameMode} onClick={()=> this.setState({coopGameMode: "Multiworld"})}>Multiworld</DropdownItem>
                             </DropdownMenu>
                         </UncontrolledButtonDropdown>

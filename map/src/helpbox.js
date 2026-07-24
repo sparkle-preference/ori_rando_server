@@ -558,8 +558,7 @@ const getHelpHelper = (category, option) => {
                     title = "Player Count"
                     lines = [
                         "The number of players in the multiplayer game.",
-                        "For a coop game, set this to the number of players in the game. Note that games with more people will have less relevant pickups for each individual player.",
-                        "For a split shards game, set this to the number of players in the game.",
+                        "For a coop or multiworld game, set this to the number of players in the game. Note that games with more people will have less relevant pickups for each individual player.",
                         "For a tracked race, set the mode to Race and this to the number of people in the race to give them each their own tracked icon on the map."
                     ]
                     break;
@@ -581,6 +580,23 @@ const getHelpHelper = (category, option) => {
                         "A Race creates 1 copy of the generated seed for each player, each with a different player ID. This creates a map that can be used to watch all the players racing at once!",
                         "A Multiworld game gives every player their own world, with everyone's items shuffled across all of them. Mouse over the mode to learn more!",
                         "One player should generate the game and share the generated link or distribute the seeds to ensure all players are using the same seed.",
+                    ]
+                    break;
+                case "Race":
+                    title = "Race"
+                    subtitle = "Multiplayer Game Types"
+                    lines = [
+                        "A Race creates 1 copy of the generated seed for each player, each with a different player ID. This creates a map that can be used to watch all the players racing at once!",
+                        "One player should generate the game and share the generated link or distribute the seeds to ensure all players are using the same seed.",
+                    ]
+                    break;
+                case "Co-op":
+                    title = "Co-op"
+                    subtitle = "Multiplayer Game Types"
+                    lines = [
+                        "In a Co-op game, every player gets a copy of the same seed, and the item categories selected below are shared: when any player finds a shared item, all players receive it.",
+                        "Because the seeds are identical, Co-op works best when players can talk to each other and coordinate checking different areas. Bingo and Clues are great Goal and Dungeon Key Modes for Co-op.",
+                        "Note: stacking shared items (such as health regeneration or shards) can be duplicated if multiple players collect them; enable Dedup Shared to prevent this.",
                     ]
                     break;
                 case "Multiworld":
@@ -1288,15 +1304,36 @@ const getHelpHelper = (category, option) => {
     return {lines: lines, title: title, subtitle: subtitle, extras: extras}
 }
 
-const HelpBox = ({title, subtitle, lines, extras, padding, style}) => {
-    return (
-    <Card className={padding} style={style}><CardBody className={padding}>
-        <CardTitle className="text-center">{title}</CardTitle>
-            <CardSubtitle className="p-1 text-center">{subtitle}</CardSubtitle>
-        {lines}
-        {extras}
-    </CardBody></Card>
-    )
-};
+// The box's height ratchets: it grows to fit longer help texts but never
+// shrinks back. A shrink reflows the page under the cursor, which changes the
+// hover target mid-hover and causes scroll-jumping/flickering feedback loops.
+class HelpBox extends React.Component {
+    measure = (el) => {
+        this.el = el
+        this.applyRatchet()
+    }
+    componentDidUpdate() {
+        this.applyRatchet()
+    }
+    applyRatchet = () => {
+        if(!this.el) return
+        HelpBox.minHeight = Math.max(HelpBox.minHeight, this.el.offsetHeight)
+        this.el.style.minHeight = HelpBox.minHeight + "px"
+    }
+    render() {
+        const {title, subtitle, lines, extras, padding, style} = this.props
+        return (
+        <div ref={this.measure} style={{transition: "min-height 0.15s ease-out"}}>
+            <Card className={padding} style={style}><CardBody className={padding}>
+                <CardTitle className="text-center">{title}</CardTitle>
+                    <CardSubtitle className="p-1 text-center">{subtitle}</CardSubtitle>
+                {lines}
+                {extras}
+            </CardBody></Card>
+        </div>
+        )
+    }
+}
+HelpBox.minHeight = 0
 
 export {getHelpContent, HelpBox};
