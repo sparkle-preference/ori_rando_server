@@ -413,11 +413,14 @@ onDrop = (files) => {
                     <Col xs={leftCol} className="text-center pt-1 border">
                         <Cent>Preplacement World</Cent>
                     </Col><Col xs={rightCol}>
-                        <ButtonGroup className="w-100">
-                            {[...Array(players).keys()].map(x => x+1).map(w => (
-                                <Button key={`fass-world-${w}`} color="primary" outline={fassWorld !== w} onClick={() => this.onFassWorld(w)}>{`P${w}'s world`}</Button>
-                            ))}
-                        </ButtonGroup>
+                        <UncontrolledButtonDropdown className="w-100">
+                            <DropdownToggle color="primary" caret block>{`P${fassWorld}'s world`}</DropdownToggle>
+                            <DropdownMenu style={menuStyle}>
+                                {[...Array(players).keys()].map(x => x+1).map(w => (
+                                    <DropdownItem key={`fass-world-${w}`} active={fassWorld === w} onClick={() => this.onFassWorld(w)}>{`P${w}'s world`}</DropdownItem>
+                                ))}
+                            </DropdownMenu>
+                        </UncontrolledButtonDropdown>
                     </Col>
             </Row>
         ))
