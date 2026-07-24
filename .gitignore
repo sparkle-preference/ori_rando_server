@@ -1,6 +1,7 @@
 *.pyc
 *.tern-project
 /.venv
+/.venv312
 .gcloudignore
 appengine_config.py
 oauth
