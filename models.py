@@ -444,7 +444,7 @@ class Player(ndb.Model):
         return bfields_to_coords(self.have_bflds) + [2]
 
     # --- multiworld slots ---
-    def mark_slot(self, slot):
+    def mark_slot(self, slot, delay_put=False):
         """Set a slot bit. Returns True if it was newly set (caller busts the
         owner's tick cache), False if already set or out of range."""
         if slot < 0 or slot > 255:
@@ -455,7 +455,8 @@ class Player(ndb.Model):
         if self.slot_check(slot):
             return False
         self.slot_bflds[slot // 32] |= 1 << (slot % 32)
-        self.put()
+        if not delay_put:
+            self.put()
         return True
 
     def slot_check(self, slot):
@@ -473,7 +474,10 @@ class Player(ndb.Model):
     def mark_slots_txn(pkey, slots):
         """Batch slot marking (multiworld release). Returns newly-set count."""
         p = pkey.get()
-        return sum(1 for s in slots if p.mark_slot(s))
+        newly = sum(1 for s in slots if p.mark_slot(s, delay_put=True))
+        if newly:
+            p.put()
+        return newly
 
     @ndb.transactional(retries=5)
     def reset(self):
@@ -1655,6 +1659,7 @@ class Game(ndb.Model):
         """Multiworld release: when a player finishes, every item still
         sitting in their world that belongs to someone else is granted to its
         owner (their world is done being explored). Idempotent."""
+        t0 = monotonic()
         params = params or self.params.get()
         by_owner = defaultdict(list)
         for (loc, code, id, zone) in params.get_seed_data(finisher_pid):
@@ -1668,8 +1673,10 @@ class Game(ndb.Model):
                 continue
             if owner != finisher_pid:
                 by_owner[owner].append(slot)
+        netperf("mw_release_prep", t0, gid=self.key.id(), pid=finisher_pid, owners=len(by_owner))
         released = 0
         for owner_pid, slots in by_owner.items():
+            t_owner = monotonic()
             owner = self.player(owner_pid)
             newly = Player.mark_slots_txn(owner.key, slots)
             if newly:
@@ -1677,6 +1684,7 @@ class Game(ndb.Model):
                 Cache.clear_seen_checksum(owner.idpts())
                 owner_fresh = self.player(owner_pid)
                 owner_fresh.signal_send("msg:@Player %s finished! %s items from their world released to you@" % (finisher_pid, newly))
+            netperf("mw_release_owner", t_owner, gid=self.key.id(), owner=owner_pid, slots=len(slots), newly=newly)
         log.info("mw_release: game %s player %s released %s items", self.key.id(), finisher_pid, released)
         return released
 
