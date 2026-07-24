@@ -15,6 +15,7 @@ from google.cloud import ndb
 import google.cloud.logging
 
 # project imports
+import netcode
 from oidc import make_oidc
 from seedbuilder.seedparams import SeedGenParams, seed_mode_problem
 from seedbuilder.vanilla import seedtext as vanilla_seed
@@ -309,130 +310,42 @@ def my_games():
     return make_resp(out)
 
 
+# Client-netcode routes are thin HTTP adapters over the transport-neutral
+# session layer in netcode.py: parse transport params, delegate, wrap
+# (status, body) — nothing else. New netcode behavior belongs in netcode.py.
 @app.route('/netcode/game/<int:game_id>/player/<int:player_id>/found/<coords>/<kind>/<path:id>/')
 @app.route('/netcode/game/<int:game_id>/player/<int:player_id>/found/<coords>/<kind>/<path:id>')
 def netcode_found_pickup(game_id, player_id, coords, kind, id):
-    status = 200
-    game = Game.with_id(game_id)
-    if not game:
-        return code_resp(412)
-    remove = param_flag("remove")
-    zone = param_val("zone")
-    coords = int(coords)
-    if coords in coord_correction_map:
-        coords = coord_correction_map[coords]
-    if coords not in all_locs and abs(coords) != 1:  # +1 is the client's TP-activation pseudo-coord
-        log.warning("Coord mismatch error! %s not in all_locs or correction map. Sync %s.%s, pickup %s|%s" % (coords, game_id, player_id, kind, id))
-    pickup = Pickup.n(kind, id)
-    if not pickup:
-        log.error("Couldn't build pickup %s|%s" % (kind, id))
-        return code_resp(406)
-    t0 = monotonic()
-    status = game.found_pickup(player_id, pickup, coords, remove, param_flag("override"), zone, [int(param_val("s%s"%i) or 0) for i in range(8)])
-    netperf("found_pickup", t0, gid=game_id, pid=player_id, coords=coords, kind=kind, status=status)
-    if game.is_race:
-        Cache.clear_items(game_id)
-    elif pickup.code in ["AC", "KS", "HC", "EC", "SK", "EV", "TP"] or (pickup.code == "RB" and pickup.id in [17, 19, 21]):
-        Cache.clear_reach(game_id, player_id)
-        Cache.clear_items(game_id)
-    return code_resp(status)
+    status, body = netcode.found_pickup(game_id, player_id, coords, kind, id, request.args)
+    return text_resp(body, status)
 
 # do we even use this anymore? i think only for testing.........
 @app.route('/netcode/game/<int:game_id>/player/<int:player_id>/tick/<xycoords>', methods=['GET'])
 def netcode_tick_get(game_id, player_id, xycoords):
-    x,_,y = xycoords.partition(",")
-    game = Game.with_id(game_id)
-    if not game:
-        return code_resp(412)
-    p = game.player(player_id)
-    if debug():
-        fake = {"have_%s" % i: (param_val("s%s"%i) or 0) for i in range(8)}
-        for i in range(8):
-            fake["seen_%s" % i] = fake["have_%s" % i]
-        if Cache.get_seen_checksum((game_id, player_id)) == bfield_checksum(fake.get("seen_%s" % i, 0) for i in range(8)):
-            cached_output = Cache.get_output((game_id, player_id))
-            if cached_output:
-                log.info("got output from cache")
-                return text_resp(cached_output)
-        p.bitfield_updates(fake, game_id)
-        game.sanity_check()
-    Cache.set_pos(game_id, player_id, x, y)
-    return text_resp(p.output(include_slots=(game.mode == MultiplayerGameType.MULTIWORLD)))
+    status, body = netcode.tick_debug(game_id, player_id, xycoords, request.args)
+    return text_resp(body, status)
 
 @app.route('/netcode/game/<int:game_id>/player/<int:player_id>/tick/', methods = ['POST'])
 @app.route('/netcode/game/<int:game_id>/player/<int:player_id>/tick', methods = ['POST'])
 def netcode_tick_post(game_id, player_id):
-    x = request.form.get("x")
-    y = request.form.get("y")
-    if Cache.get_seen_checksum((game_id, player_id)) == bfield_checksum(request.form.get("seen_%s" % i, 0) for i in range(8)):
-        # checksum and output caching should happen in sync, but it doesn't hurt to check
-        cached_output = Cache.get_output((game_id, player_id))
-        if cached_output:
-            Cache.set_pos(game_id, player_id, x, y)
-            return text_resp(cached_output)
-    game = Game.with_id(game_id)
-    if not game:
-        return code_resp(412)
-    p = game.player(player_id)
-    x = request.form.get("x")
-    y = request.form.get("y")
-    p.bitfield_updates(request.form, game_id)
-    Cache.set_pos(game_id, player_id, x, y)
-    return text_resp(p.output(include_slots=(game.mode == MultiplayerGameType.MULTIWORLD)))
+    status, body = netcode.tick(game_id, player_id, request.form)
+    return text_resp(body, status)
 
 @app.route('/netcode/game/<int:game_id>/player/<int:player_id>/complete')
 def netcode_game_complete(game_id, player_id):
-    """The client's credits-roll ping (fire and forget). In multiworld this
-    releases everything left in the finisher's world to its owners."""
-    game = Game.with_id(game_id)
-    if not game:
-        return code_resp(412)
-    if game.mode == MultiplayerGameType.MULTIWORLD:
-        t0 = monotonic()
-        released = game.mw_release(player_id)
-        netperf("mw_release", t0, gid=game_id, pid=player_id, released=released)
-    return text_resp("ok")
+    status, body = netcode.game_complete(game_id, player_id)
+    return text_resp(body, status)
 
 @app.route('/netcode/game/<int:game_id>/player/<int:player_id>/callback/<path:signal>')
 def netcode_signal_callback(game_id, player_id, signal):
-    game = Game.with_id(game_id)
-    if not game:
-        return code_resp(412)
-    p = game.player(player_id)
-    p.signal_conf(signal)
-    return text_resp("cleared")
+    status, body = netcode.signal_callback(game_id, player_id, signal)
+    return text_resp(body, status)
 
 @app.route('/netcode/game/<int:game_id>/player/<int:player_id>/setSeed', methods=['POST'])
 @app.route('/netcode/game/<int:game_id>/player/<int:player_id>/connect', methods=['POST'])
 def netcode_connect(game_id, player_id):
-    game = Game.with_id(game_id)
-    hist = Cache.get_hist(game_id)
-    if not hist:
-        Cache.set_hist(game_id, player_id, [])
-    if game:
-        p = game.player(player_id)
-        vers = request.form.get("version")
-        if p.can_nag and vers and (not version_check(vers)):
-            p.signal_send("msg:@dll out of date. (orirando.com/dll)@")
-            p.can_nag = False
-            p.put()
-        uploaded_sync = seed_sync_id(request.form.get("seed"))
-        if uploaded_sync:
-            up_gid, _, up_pid = uploaded_sync.partition(".")
-            if up_gid != str(game_id):
-                # wrong game: stale randomizer.dat, warn in every mode
-                log.warning("seed sync mismatch: %s.%s uploaded a seed for %s", game_id, player_id, uploaded_sync)
-                p.signal_send("msg:@Warning: your loaded seed belongs to game %s but you are connected to game %s. Wrong randomizer.dat?@" % (up_gid, game_id))
-            elif up_pid != str(player_id) and game.mode == MultiplayerGameType.MULTIWORLD:
-                # wrong player only matters in multiworld (wrong world's slot
-                # manifest); teammates sharing one .dat in cloned games is fine
-                log.warning("seed player mismatch: %s.%s uploaded player %s's seed", game_id, player_id, up_pid)
-                p.signal_send("msg:@Warning: you loaded Player %s's seed but connected as Player %s. In multiworld you need your own randomizer.dat!@" % (up_pid, player_id))
-        game.sanity_check()  # cheap if game is short!
-    else:
-        # we no longer support uploading seeds
-        log.error("game was not already created! %s" % game_id)
-    return text_resp("ok")
+    status, body = netcode.connect(game_id, player_id, request.form)
+    return text_resp(body, status)
 
 @app.route('/netcode/areas')
 def netcode_get_areas_dot_ori():
@@ -1715,66 +1628,10 @@ def add_bingo_to_game(game_id):
         game.put()
         return json_resp(json.dumps(res))
 
-@app.route('/netcode/game/<int:game_id>/player/<int:player_id>/bingo', methods=['POST']) #HandleBingoUpdate    
+@app.route('/netcode/game/<int:game_id>/player/<int:player_id>/bingo', methods=['POST']) #HandleBingoUpdate
 def netcode_player_bingo_tick(game_id, player_id):
-    bingo = BingoGameData.with_id(game_id)
-    if not bingo:
-        return text_resp("Bingo game %s not found" % game_id, 404)
-    if int(player_id) not in bingo.player_nums():
-        return text_resp("player not in game! %s" % bingo.player_nums(), 412)
-    bingo_data = json.loads(request.form.get("bingoData")) if request.form.get("bingoData") else None
-    # if debug and player_id in test_data:
-    #     bingo_data = test_data[player_id]['bingoData']
-    t0 = monotonic()
-    evlog_len = len(bingo.event_log)
-    def publish():
-        # Publish the board only after the transaction committed — publishing inside
-        # update() let doomed concurrent attempts overwrite the cache with state that
-        # was about to be rolled back (goal flicker). Publish IMMEDIATELY after commit
-        # (before logging) to minimize the window in which another thread's newer
-        # commit+publish could be overwritten by our older board.
-        board = getattr(bingo, "_board_json", None)
-        if board is not None:
-            Cache.set_board(game_id, board)
-    if BINGO_V2:
-        try:
-            with bingo_lock(game_id):
-                # fresh read under the lock; the pre-checks above used an
-                # unlocked (possibly stale) read, which is fine for 404/412s
-                bingo = BingoGameData.get_by_id(int(game_id), use_cache=False)
-                bingo.update_v2(bingo_data, player_id, game_id)
-                # publish inside the lock: ordering is trivially correct because
-                # no other writer of this game can run concurrently
-                publish()
-            netperf("bingo_update", t0, gid=game_id, pid=player_id, evlog=evlog_len, v2=1)
-            return code_resp(200)
-        except Exception as e:
-            log.error("NETPERF bingo_update_fail gid=%s pid=%s v2=1 err=%s: %s", game_id, player_id, type(e).__name__, e)
-            return code_resp(503)
-    try:
-        bingo.update(bingo_data, player_id, game_id)
-        publish()
-        netperf("bingo_update", t0, gid=game_id, pid=player_id, evlog=evlog_len, retried=0)
-    except Exception as e:
-        log.warning("NETPERF bingo_update_err gid=%s pid=%s err=%s: %s", game_id, player_id, type(e).__name__, e)
-        # Re-fetch before retrying: the failed transaction rolled back the datastore
-        # but NOT the in-memory entity, which update() already mutated (event_log
-        # appends, card state). CRITICAL: use_cache=False — the ndb context cache
-        # would hand back that same mutated object, making the retry see its own
-        # uncommitted changes as prior state → no event, need_write stays False,
-        # the BingoGameData put is skipped, and the gain is published to the board
-        # cache but never persisted. Next poster reverts it: the E2 flicker in 133486.
-        # No sleep — the contention window is sub-second, and on a second failure the
-        # client re-POSTs its full (durable) state within a few ticks anyway.
-        bingo = BingoGameData.get_by_id(int(game_id), use_cache=False)
-        try:
-            bingo.update(bingo_data, player_id, game_id)
-            publish()
-            netperf("bingo_update", t0, gid=game_id, pid=player_id, evlog=evlog_len, retried=1)
-        except Exception as e2:
-            log.error("NETPERF bingo_update_fail gid=%s pid=%s err=%s: %s", game_id, player_id, type(e2).__name__, e2)
-            return code_resp(503)
-    return code_resp(200)
+    status, body = netcode.bingo_update(game_id, player_id, request.form)
+    return text_resp(body, status)
 
 @app.route('/bingo/bingothon/<int:game_id>/player/<int:player_id>') #GetBingothonJson    
 def bingothon_fetch_data(game_id, player_id):
