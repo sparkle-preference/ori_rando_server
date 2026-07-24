@@ -146,6 +146,7 @@ class SeedGenParams(ndb.Model):
     frag_req = ndb.IntegerProperty(default=20)
     relic_count = ndb.IntegerProperty(default=8)
     cell_freq = ndb.IntegerProperty(default=256)
+    anti_bk_bias = ndb.FloatProperty(default=0.0)
     placements = ndb.LocalStructuredProperty(Placement, repeated=True, compressed=True)
     spawn_placement = ndb.LocalStructuredProperty(Placement)
     preplaced_coords = ndb.IntegerProperty(repeated=True)
@@ -218,6 +219,7 @@ class SeedGenParams(ndb.Model):
         params.frag_req = json.get("fragReq", 20)
         params.relic_count = json.get("relicCount", 8)
         params.cell_freq = json.get("cellFreq", 256)
+        params.anti_bk_bias = min(1.0, max(0.0, float(json.get("antiBkBias", 0) or 0)))
         params.sync = MultiplayerOptions.from_json(json)
         params.sense = json.get("senseData")
         params.item_pool = json.get("itemPool", {})
@@ -265,6 +267,7 @@ class SeedGenParams(ndb.Model):
         params.frag_req = int(qparams.get("frags_req", 20))
         params.relic_count = int(qparams.get("relics", 8))
         params.cell_freq = int(qparams.get("cell_freq", 256))
+        params.anti_bk_bias = min(1.0, max(0.0, float(qparams.get("anti_bk_bias", 0) or 0)))
         params.sync = MultiplayerOptions.from_url(qparams)
         params.sense = qparams.get("sense")
         params.pool_preset = qparams.get("pool_preset", "Standard").title()
@@ -357,6 +360,7 @@ class SeedGenParams(ndb.Model):
             "bingoLines": self.bingo_lines,
             "spawnWeights": self.spawn_weights,
             "verboseSpoiler": self.verbose_spoiler,
+            "antiBkBias": self.anti_bk_bias,
             # stars i fucking hate this. anyways. forced assignments are:
             "fass": [{"loc": p.location, "item":  f"{p.stuff[0].code}|{p.stuff[0].id}"} for p in self.placements # placements on preplaced_coords
                             if int(p.location) in self.preplaced_coords] + (
@@ -500,6 +504,8 @@ class SeedGenParams(ndb.Model):
                     flags.append("mode=%s" % self.sync.mode.value)
             if self.balanced:
                 flags.append("balanced")
+            if self.anti_bk_bias:
+                flags.append("anti_bk_bias=%g" % self.anti_bk_bias)
             if self.pool_preset != "Standard":
                 flags.append("pool=%s" % self.pool_preset)
             if self.sense:

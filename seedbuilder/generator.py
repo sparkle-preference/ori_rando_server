@@ -551,6 +551,7 @@ class SeedGenerator:
 
         self.mapstonesSeen = {p: 1 for p in self.multi_ps()}
         self.mapstonesAssigned = defaultdict(lambda: 0)
+        self.locs_by_player = defaultdict(lambda: 0)
         self.balanceLevel = 0
         self.balanceList = []
         self.balanceListLeftovers = []
@@ -1086,6 +1087,7 @@ class SeedGenerator:
                     self.forceAssignedLocs.add(key)
                     self.force_assign(self.forcedAssignments[key], loc)
                     forced_placement = True
+            self.locs_by_player[self.areas[area].player] += len(currentLocations)
             locations.extend(currentLocations)
             self.areas[area].clear_locations()
         if self.reservedLocations:
@@ -1097,6 +1099,22 @@ class SeedGenerator:
         return locations, forced_placement
     
     countable_reqs = set(["HC", "EC", "AC", "WaterVeinShard", "GumonSealShard", "SunstoneShard"] + [keysanity_ks_name for keysanity_ks_name in keysanityOutput])
+
+    def anti_bk_boost(self, p):
+        """Multiworld balance: weight multiplier (<=1.0) for progression that
+        benefits player p. Players ahead of the most check-starved world get
+        downweighted; the strength scales with params.anti_bk_bias (0..1)."""
+        bias = getattr(self.params, "anti_bk_bias", 0.0) or 0.0
+        if not bias or not getattr(self, "is_multi", False):
+            return 1.0
+        lmin = min(self.locs_by_player[q] for q in self.multi_ps())
+        # +8 softens early-game extremes; exponent 10 makes 1.0 heavy-handed
+        # (a world with 2x the min's checks is weighted ~200x down)
+        return ((lmin + 8.0) / (self.locs_by_player[p] + 8.0)) ** (10.0 * bias)
+
+    def is_progression(self, item):
+        base = base_of(item)
+        return base in self.skillsOutput or base in self.eventsOutput or base.startswith("TP")
 
     def prepare_path(self, free_space):
         abilities_to_open = OrderedDict()
@@ -1141,17 +1159,18 @@ class SeedGenerator:
                     if len(requirements) <= free_space:
                         for req in requirements:
                             if req not in abilities_to_open:
-                                abilities_to_open[req] = (cost, requirements)
+                                abilities_to_open[req] = (cost, requirements, connection.player)
                             elif abilities_to_open[req][0] > cost:
-                                abilities_to_open[req] = (cost, requirements)
-        # pick a random path weighted by cost
+                                abilities_to_open[req] = (cost, requirements, connection.player)
+        # pick a random path weighted by cost (and by world starvation, if biased)
+        weight = lambda path: 1.0 / abilities_to_open[path][0] * self.anti_bk_boost(abilities_to_open[path][2])
         for path in abilities_to_open:
-            totalCost += 1.0 / abilities_to_open[path][0]
+            totalCost += weight(path)
         position = 0
         target = self.random.random() * totalCost
         path_selected = None
         for path in abilities_to_open:
-            position += 1.0 / abilities_to_open[path][0]
+            position += weight(path)
             if target <= position:
                 path_selected = abilities_to_open[path]
                 break
@@ -1187,12 +1206,15 @@ class SeedGenerator:
     def assign_random(self, locs, recurseCount=0):
         value = self.random.random()
         position = 0.0
-        denom = float(sum(self.itemPool.values()))
+        # anti_bk_bias: progression draws are weighted toward the worlds with
+        # the fewest reachable checks (weights stay 1.0 when the bias is off)
+        pool_weight = lambda key: self.itemPool[key] * (self.anti_bk_boost(untag(key)[1]) if self.is_progression(key) else 1.0)
+        denom = float(sum(pool_weight(key) for key in self.itemPool.keys()))
         if denom == 0.0:
             log.warning("%s: itemPool was empty! locations: %s, balanced items: %s", self.params.flag_line(), self.locations(), self.items() - self.items(False))
             return self.assign(tag("EX*", self.random_player()))
         for key in self.itemPool.keys():
-            position += self.itemPool[key] / denom
+            position += pool_weight(key) / denom
             if value <= position:
                 base = base_of(key)
                 if self.var(Variation.STARVED):

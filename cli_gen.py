@@ -91,6 +91,7 @@ class CLISeedParams(object):
         --warmth-frags 40 --extra-frags 10 will place 40 total frags, 30 of which will be required to finish""", type=int, default=10)
         parser.add_argument("--prefer-path-difficulty", help="Increase the chances of putting items in more convenient (easy) or less convenient (hard) locations", choices=["easy", "hard"])
         parser.add_argument("--balanced", help="Reduce the value of newly discovered locations for progression placements", action="store_true")
+        parser.add_argument("--anti-bk-bias", help="Multiworld only: 0.0-1.0, bias progression toward the world with the fewest reachable checks", type=float, default=0.0)
         parser.add_argument("--force-cells", help="Force health and energy cells to appear every N pickups, if they don't randomly", type=int, default=256)
         parser.add_argument("--verbose-spoiler", help="show everything in the spoiler", action="store_true")
         # anal TODO: IMPL
@@ -199,6 +200,7 @@ class CLISeedParams(object):
         else:
             self.spawn_weights = []
         self.balanced = args.balanced or False
+        self.anti_bk_bias = min(1.0, max(0.0, args.anti_bk_bias or 0.0))
         self.cell_freq = args.force_cells
         self.players = args.players
         self.tracking = args.tracking or False
@@ -539,6 +541,8 @@ class CLISeedParams(object):
                 flags.append("shared=%s" % "+".join(self.sync.shared))
         if self.balanced:
             flags.append("balanced")
+        if self.anti_bk_bias:
+            flags.append("anti_bk_bias=%g" % self.anti_bk_bias)
         return "%s|%s" % (",".join(flags), self.seed)
 
 

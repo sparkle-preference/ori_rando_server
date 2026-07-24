@@ -572,7 +572,7 @@ onDrop = (files) => {
         )
     }
     getMultiplayerTab = ({inputStyle, menuStyle}) => {
-        let {shared, players, tracking, coopGameMode, keyMode, coopGenMode, dedupShared} = this.state
+        let {shared, players, tracking, coopGameMode, keyMode, coopGenMode, dedupShared, antiBkBias} = this.state
         let multiplayerButtons = ["Skills", "Teleporters", "Upgrades", "World Events", "Misc"].map(stype => (
             <Col xs="4" key={`share-${stype}`} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("Shared Item Categories", stype)} className="p-2">
                 <Button block outline={!shared.includes(stype)} onClick={this.onSType(stype)}>Share {stype}</Button>
@@ -629,11 +629,21 @@ onDrop = (files) => {
                         </Col>
                     </Row>
                 </Collapse>
+                <Collapse isOpen={this.isMultiworld()}>
+                    <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "antiBkBias")} className="p-1 justify-content-center">
+                        <Col xs="4" className="text-center pt-1 border">
+                            <span className="align-middle">Multiworld Balance Bias</span>
+                        </Col><Col xs="4">
+                            <Input style={inputStyle} type="number" step="0.1" min="0" max="1" value={antiBkBias} invalid={!(antiBkBias >= 0 && antiBkBias <= 1)} onChange={(e) => this.setState({antiBkBias: parseFloat(e.target.value)})}/>
+                            <FormFeedback tooltip="true">Balance Bias is a value between 0.0 and 1.0</FormFeedback>
+                        </Col>
+                    </Row>
+                </Collapse>
             </TabPane>
         )
     }
-    
-    
+
+
     generateSeed = () => {
         let pMap = {"Race": "None", "None": "Default", "Co-op": "Shared", "World Events": "WorldEvents", "Cloned Seeds": "cloned", "Seperate Seeds": "disjoint"}
         let url = "/generator/build"
@@ -695,6 +705,8 @@ onDrop = (files) => {
             json.coopGenMode=f(this.state.coopGenMode)
             json.coopGameMode=f(this.state.coopGameMode)
             json.dedupShared = this.state.dedupShared
+            if(this.isMultiworld())
+                json.antiBkBias = this.state.antiBkBias || 0
             if(this.state.coopGameMode === "Co-op")
                 json.syncShared = this.state.shared.map(s => f(s))
             if(!this.state.dedupShared)
@@ -1313,7 +1325,7 @@ onDrop = (files) => {
         let activeTab = seedTabExists ? 'seed' : 'variations';
         const fassListDefault = [2, 919772, -1560272, 799776, -120208].map(coords => ({loc: locOptions.find(l => l.value === coords), item: "NO|1"}));
         
-        this.state = {user: user, activeTab: activeTab, coopGenMode: "Cloned Seeds", coopGameMode: "Co-op", players: 1, dropActive: false, 
+        this.state = {user: user, activeTab: activeTab, coopGenMode: "Cloned Seeds", coopGameMode: "Co-op", players: 1, antiBkBias: 0, dropActive: false,
                         tracking: true, variations: ["ForceTrees"], gameId: gameId, itemPool: getPool("Standard"), dedupShared: false, 
                         paths: presets["standard"], keyMode: "Clues", oldKeyMode: "Clues", spawn: "Glades", advancedSpawnTouched: false, 
                         spawnHCs: 3, spawnECs: 0, spawnSKs: 0, pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null), 

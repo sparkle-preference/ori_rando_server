@@ -269,6 +269,52 @@ class MultiworldGenTests(unittest.TestCase):
     # remains unsupported, and that isn't reachable from the CLI)
 
 
+class MultiworldBiasTests(MultiworldGenTests):
+    """All multiworld invariants again, at full anti_bk_bias."""
+
+    ARGS = MultiworldGenTests.ARGS + ["--anti-bk-bias", "1.0"]
+
+    def test_mw_output_canary(self):
+        # no canary here; instead prove the knob moves placements, not just flags
+        out2 = tempfile.mkdtemp(prefix="seedgentest_mwbias0_")
+        try:
+            unbiased = MultiworldGenTests._generate_mw(out2)
+        finally:
+            shutil.rmtree(out2, ignore_errors=True)
+        self.assertIn("anti_bk_bias=1", self.seeds[1][0])
+        moved = any(parse_seed(self.seeds[p])[0] != parse_seed(unbiased[p])[0]
+                    for p in range(1, self.PLAYERS + 1))
+        self.assertTrue(moved, "anti_bk_bias=1.0 produced identical placements to 0.0")
+
+
+class AntiBkBoostTests(unittest.TestCase):
+    """Shape of the multiworld starvation weight multiplier."""
+
+    def _sg(self, bias, counts):
+        from seedbuilder.generator import SeedGenerator
+        sg = SeedGenerator()
+        sg.seed_count = len(counts)
+        sg.is_multi = True
+        sg.params = CLISeedParams()
+        sg.params.anti_bk_bias = bias
+        for p, c in counts.items():
+            sg.locs_by_player[p] = c
+        return sg
+
+    def test_boost_shape(self):
+        sg = self._sg(1.0, {1: 20, 2: 40, 3: 100})
+        self.assertEqual(sg.anti_bk_boost(1), 1.0)  # most starved keeps full weight
+        self.assertLess(sg.anti_bk_boost(2), 0.05)
+        self.assertLess(sg.anti_bk_boost(3), sg.anti_bk_boost(2))
+
+    def test_boost_off_is_exactly_one(self):
+        sg = self._sg(0.0, {1: 20, 2: 400})
+        self.assertEqual(sg.anti_bk_boost(2), 1.0)
+        solo = self._sg(1.0, {1: 20})
+        solo.is_multi = False
+        self.assertEqual(solo.anti_bk_boost(1), 1.0)
+
+
 class SeedModeProblemTests(unittest.TestCase):
     """Web-facing creation gate: removed modes get clear messages; Multiworld
     creation is behind the MULTIWORLD env flag and requires tracking."""

@@ -590,6 +590,15 @@ const getHelpHelper = (category, option) => {
                         "Because Cloned Seeds are mostly identical, they are ideal for co-op games where all players can talk to each other, so that they can coordinate checking different areas. Bingo and Clues are great Goal and Dungeon Key Modes for Cloned Seeds.",
                     ]
                     break;
+                case "antiBkBias":
+                    title = "Multiworld Balance Bias"
+                    lines = [
+                        "Controls how hard the generator works to keep every player's world supplied with reachable checks.",
+                        "At 0.0 (the default), progression is placed with no regard for world balance: it is possible for one player to have very little to do for long stretches while other players hunt down their items.",
+                        "At 1.0, the generator heavily biases progression placement towards whichever world currently has the fewest reachable checks, so all worlds tend to open up at a similar pace.",
+                        "Higher values mean fewer long waits, but also a more predictable, less spiky game. Try 0.5 for a middle ground.",
+                    ]
+                    break;
                 case "Seperate Seeds":
                     title = "Seperate Seeds"
                     subtitle = "Co-op Seed Generation Modes"
