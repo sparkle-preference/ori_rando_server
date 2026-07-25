@@ -1238,6 +1238,13 @@ class BingoGameData(ndb.Model):
             p_list = [player] + teammates
             for p in p_list:
                 p.signal_send(win_sig % (place, round_now))
+            # Stash for the caller to re-bust AFTER this update fully lands.
+            # signal_send busts the tick checksum itself, but a 1 Hz tick that
+            # read this player just before the signal was put can finish after
+            # the bust and re-arm the fast path with signal-less output; a
+            # finished player's bitfields never change again, so the win sits
+            # undelivered until alt+l (game 133908, pid 221: 16s stall).
+            self._signal_pids = [p.idpts() for p in p_list]
         # Stash the board for the CALLER to publish after the transaction commits.
         # Writing the cache here published uncommitted state: a doomed concurrent
         # attempt (computed without the other player's just-committed progress)

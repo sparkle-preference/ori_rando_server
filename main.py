@@ -622,8 +622,12 @@ def tracker_update_map(game_id):
         # merge semantics: write back only the recomputed players, so this slow
         # compute can't clobber other players' entries written meanwhile
         Cache.set_reachable(game_id, {p: reach[p] for p in need_reach_updates})
-    for p in reach:
-        players[p]["reachable"] = reach[p][modes]
+    # iterate the rendered players, not the cache: the merge-semantics writeback
+    # above never removes entries, so reach can carry pids (or mode sets) that
+    # players/need_reach_updates knows nothing about
+    for p in players:
+        if modes in reach.get(p, {}):
+            players[p]["reachable"] = reach[p][modes]
     res = {"players": players} # , "items": items
     if gid_changed:
         res["newGid"] = game_id

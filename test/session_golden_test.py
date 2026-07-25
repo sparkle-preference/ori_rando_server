@@ -253,6 +253,7 @@ class FakeBingo(object):
             raise RuntimeError("contention!")
         self.updates.append((bingo_data, int(player_id), int(game_id)))
         self._board_json = {"updated_by": int(player_id)}
+        self._signal_pids = [(int(game_id), int(player_id))]
 
     update = _update
     update_v2 = _update
@@ -324,6 +325,26 @@ class TestBingoUpdate(NdbTestCase):
         self.refetched = FakeBingo(fail_times=1)
         self.assertEqual(netcode.bingo_update(1257, 1, {"bingoData": '{"sq": 1}'}),
                          (503, "503"))
+
+    def test_v2_win_rebusts_tick_checksum_after_update(self):
+        # regression: a tick that read the winner pre-signal can re-arm the
+        # fast path after signal_send's bust; the route must bust again once
+        # the update has fully landed (game 133908: 16s win-signal stall)
+        netcode.BINGO_V2 = True
+        self.bingo = FakeBingo()
+        self.refetched = FakeBingo()
+        Cache.set_seen_checksum((1258, 1), 4242)  # the racing tick's re-arm
+        self.assertEqual(netcode.bingo_update(1258, 1, {"bingoData": '{"sq": 1}'}),
+                         (200, "200"))
+        self.assertIsNone(Cache.get_seen_checksum((1258, 1)))
+
+    def test_legacy_win_rebusts_tick_checksum_after_update(self):
+        netcode.BINGO_V2 = False
+        self.bingo = FakeBingo()
+        Cache.set_seen_checksum((1259, 2), 4242)
+        self.assertEqual(netcode.bingo_update(1259, 2, {"bingoData": '{"sq": 1}'}),
+                         (200, "200"))
+        self.assertIsNone(Cache.get_seen_checksum((1259, 2)))
 
 
 if __name__ == "__main__":

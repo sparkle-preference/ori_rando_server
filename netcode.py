@@ -173,6 +173,10 @@ def bingo_update(game_id, player_id, payload):
                 # no other writer of this game can run concurrently
                 publish()
             netperf("bingo_update", t0, gid=game_id, pid=player_id, evlog=evlog_len, v2=1)
+            # late re-bust: a tick that read the winner pre-signal can re-arm
+            # the fast path after signal_send's own bust (see _update_inner)
+            for idpts in getattr(bingo, "_signal_pids", []):
+                Cache.clear_seen_checksum(idpts)
             return _code(200)
         except Exception as e:
             log.error("NETPERF bingo_update_fail gid=%s pid=%s v2=1 err=%s: %s", game_id, player_id, type(e).__name__, e)
@@ -200,4 +204,6 @@ def bingo_update(game_id, player_id, payload):
         except Exception as e2:
             log.error("NETPERF bingo_update_fail gid=%s pid=%s err=%s: %s", game_id, player_id, type(e2).__name__, e2)
             return _code(503)
+    for idpts in getattr(bingo, "_signal_pids", []):
+        Cache.clear_seen_checksum(idpts)
     return _code(200)

@@ -544,6 +544,33 @@ class TestBingoV2(NdbTestCase):
         bgd.update_v2({"TestGoal": {"value": 5}}, 1, 55)
         self.assertEqual(len([e for e in bgd.event_log if e.event_type == "square"]), 1)
 
+    def test_winning_update_signals_and_stashes_rebust_pids(self):
+        """A win must (a) queue the win signal, (b) stash _signal_pids so the
+        route can re-bust the tick checksum after the update lands -- the
+        signal_send-time bust alone can be re-armed by an in-flight tick that
+        read the winner pre-signal (game 133908: 16s wait for 2nd place)."""
+        from models import BingoGameData, BingoTeam
+        card = BingoCard(name="TestGoal", goal_type="int", target=3, square=0)
+        filler = [BingoCard(name="Filler%s" % i, goal_type="int", target=99, square=i)
+                  for i in range(1, 25)]
+        p1 = Player(id="56.1", bingo_prog=[BingoCardProgress(square=i) for i in range(25)])
+        bgd = BingoGameData(id="56")
+        bgd.board = [card] + filler
+        bgd.teams = [BingoTeam(captain=p1.key, teammates=[])]
+        bgd.square_count = 1
+        bgd.start_time = datetime(2026, 7, 20, 12, 0, 0)
+        bgd.game = ndb.Key("Game", 56)
+        bgd.get_players = lambda: [p1]
+        self._stub_puts(p1, bgd)
+
+        bgd.update_v2({"TestGoal": {"value": 5}}, 1, 56)
+
+        self.assertEqual(bgd.teams[0].place, 1)
+        self.assertEqual(len([e for e in bgd.event_log if e.event_type == "win"]), 1)
+        self.assertEqual(len(p1.signals), 1)
+        self.assertTrue(p1.signals[0].startswith("win:$Finished in 1st place"))
+        self.assertEqual(bgd._signal_pids, [(56, 1)])
+
 
 if __name__ == "__main__":
     unittest.main()

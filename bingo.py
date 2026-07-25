@@ -674,18 +674,23 @@ class BingoGenerator(object):
         if meta:
             if not lockout:
                 goals += [
+                    # internal names are historical and baked into board layout
+                    # rules + saved games: VertSym mirrors across the vertical
+                    # axis (left-right, lives in column C), HorizSym across the
+                    # horizontal axis (top-bottom, lives in row 3). Display
+                    # names describe the mirroring direction instead.
                     BoolGoal("VertSym",
-                    disp_name= "Vertically symmetric board",
+                    disp_name= "Horizontally symmetric board",
                     help_lines = [
-                        "Your bingo board is vertically symmetric if for every completed square in columns A and B, the same squares in columns D and E are completed.", 
+                        "Your bingo board is horizontally symmetric if for every completed square in columns A and B, the same squares in columns D and E are completed.",
                         "You can regain and lose this square based on changes to your bingo board."
                         ],
                     tags=["early", "meta", "symmetry"]
                     ),
                     BoolGoal("HorizSym",
-                    disp_name= "Horizontally symmetric board",
+                    disp_name= "Vertically symmetric board",
                     help_lines = [
-                        "Your bingo board is horizontally symmetric if for every completed square in rows 1 and 2, the same squares in row 4 and 5 are completed.", 
+                        "Your bingo board is vertically symmetric if for every completed square in rows 1 and 2, the same squares in row 4 and 5 are completed.",
                         "You can regain and lose this square based on changes to your bingo board."
                         ],
                     tags=["early", "meta", "symmetry"]
