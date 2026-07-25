@@ -558,8 +558,6 @@ const getHelpHelper = (category, option) => {
                     title = "Player Count"
                     lines = [
                         "The number of players in the multiplayer game.",
-                        "For a coop or multiworld game, set this to the number of players in the game. Note that games with more people will have less relevant pickups for each individual player.",
-                        "For a tracked race, set the mode to Race and this to the number of people in the race to give them each their own tracked icon on the map."
                     ]
                     break;
                 case "syncSeedType":
@@ -568,7 +566,6 @@ const getHelpHelper = (category, option) => {
                         "These options change how the randomizer builds co-op seeds.",
                         "Since some pickups in multiplayer seeds are shared, the seeds each player gets will be missing some of the shared pickups, to be granted when an ally finds it instead.",
                         "Cloned Seeds are made by generating one seed and then splitting up each shared item between players, while leaving the rest of the item the same for all players.",
-                        "Seperate Seeds generate completely different seeds for each player, with the shared items distributed randomly between all players.",
                         "Mouse over the modes to learn more about them!"
                     ]
                     break;
@@ -576,9 +573,9 @@ const getHelpHelper = (category, option) => {
                     title = "Multiplayer Game Type"
                     lines = [
                         "These options specify which kind of multiplayer game is generated.",
+                        "A Multiworld game gives every player their own world, with everyone's items shuffled across all of them. Mouse over the mode to learn more!",
                         "A Co-op game creates different seeds for each player in the game (see the help for Seed Generation Modes for more info). Items in the selected Shared Item Categories will be shared between players when found.",
                         "A Race creates 1 copy of the generated seed for each player, each with a different player ID. This creates a map that can be used to watch all the players racing at once!",
-                        "A Multiworld game gives every player their own world, with everyone's items shuffled across all of them. Mouse over the mode to learn more!",
                         "One player should generate the game and share the generated link or distribute the seeds to ensure all players are using the same seed.",
                     ]
                     break;
@@ -596,7 +593,7 @@ const getHelpHelper = (category, option) => {
                     lines = [
                         "In a Co-op game, every player gets a copy of the same seed, and the item categories selected below are shared: when any player finds a shared item, all players receive it.",
                         "Because the seeds are identical, Co-op works best when players can talk to each other and coordinate checking different areas. Bingo and Clues are great Goal and Dungeon Key Modes for Co-op.",
-                        "Note: stacking shared items (such as health regeneration or shards) can be duplicated if multiple players collect them; enable Dedup Shared to prevent this.",
+                        "Note: stacking shared items (Regeneration, Shards, Extra Double Jumps...) can be duplicated if multiple players collect them; enable Dedup Shared if this is not desired.",
                     ]
                     break;
                 case "Multiworld":
@@ -606,16 +603,14 @@ const getHelpHelper = (category, option) => {
                         "In a Multiworld game, each player gets their own world with their own logic, but the items hidden in it are shuffled across every player's world: that Energy Cell in Hollow Grove might be yours, or it might belong to Player 3.",
                         "When you find another player's item, it is sent to them instantly (the pickup will tell you whose it was). Everything you need to finish your game exists somewhere, but some of it will be found by your allies in their worlds.",
                         "When a player finishes, every unfound item left in their world is automatically released to its owner, so nobody is stuck waiting on a fully-explored world.",
-                        "Shared Item Categories work differently here than in Co-op: a shared category's items are generated once across ALL worlds (one Bash total, one Sunstone total...), and whoever finds one grants it to everyone. This mimics the old Seperate Seeds mode. If sharing World Events, consider the Shards or Free key modes, since dungeon key clues can't see into other players' worlds.",
-                        "Note: Multiworld games require web tracking, and each player must download their own seed file. Double-check your player number before you start!",
-                        "See also the Multiworld Balance Bias setting below, which controls how evenly the generator spreads progression between worlds.",
+                        "Shared Item Categories work differently here than in Co-op: a shared category's items are generated once across ALL worlds (one Bash total, one Sunstone total...), and whoever finds one grants it to everyone. This mimics the old Seperate Seeds mode.",
                     ]
                     break;
                 case "Cloned Seeds":
                     title = "Cloned Seeds"
                     subtitle = "Co-op Seed Generation Modes"
                     lines = [
-                        "Cloned Seeds are just single-player seeds that have shared items enabled. All items are in the same place, and stacking shared items (such as health regeneration or shards) can be duplicated if multiplayers players collect them.",
+                        "Cloned Seeds are just single-player seeds that have shared items enabled. All items are in the same place, and stacking shared items (Regeneration, Shards, Extra Double Jumps...) can be duplicated if multiple players collect them.",
                         "Because Cloned Seeds are mostly identical, they are ideal for co-op games where all players can talk to each other, so that they can coordinate checking different areas. Bingo and Clues are great Goal and Dungeon Key Modes for Cloned Seeds.",
                     ]
                     break;
