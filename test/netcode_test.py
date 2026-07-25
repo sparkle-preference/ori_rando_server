@@ -251,10 +251,24 @@ class TestHistoryMerge(NdbTestCase):
         self.assertEqual(len(g.history([1])), 2)
         self.assertEqual([x.coords for x in g.history([2])], [100])
 
-    def test_legacy_path_unchanged_when_hls_present(self):
+    def test_reader_merges_regardless_of_flag(self):
+        # CHANGED 2026-07-25 (CHUNKED_LOGS): this used to assert [100] -- the
+        # legacy reader returned Game.hls alone and hid Player.history. That
+        # made a flag flip lossy: lines written while HIST_ON_PLAYER was on
+        # disappeared from the tracker the moment it was turned off. Readers now
+        # merge every layout unconditionally; only writes follow the flags.
         models.HIST_ON_PLAYER = False
         g = self._game()
-        self.assertEqual([x.coords for x in g.history()], [100])
+        self.assertEqual([x.coords for x in g.history()], [100, 300, 200])
+
+    def test_duplicate_lines_across_layouts_collapse(self):
+        # guards the one unsafe merge shape: the pre-2018 read-time migration
+        # copied Player.history into Game.hls without clearing the source
+        models.HIST_ON_PLAYER = False
+        g = self._game()
+        g.hls = list(g.hls) + [HistoryLine(pickup_code="EC", pickup_id="1", coords=300,
+                                           player=1, timestamp=datetime(2026, 7, 20, 12, 0, 10))]
+        self.assertEqual([x.coords for x in g.history()], [100, 300, 200])
 
 
 class TestBingoDebounce(NdbTestCase):
@@ -570,6 +584,250 @@ class TestBingoV2(NdbTestCase):
         self.assertEqual(len(p1.signals), 1)
         self.assertTrue(p1.signals[0].startswith("win:$Finished in 1st place"))
         self.assertEqual(bgd._signal_pids, [(56, 1)])
+
+
+class TestChunkedHistory(NdbTestCase):
+    """CHUNKED_LOGS: history lines append into fixed-size child entities while
+    constant-size dedup state rides on the Player. The dedup decision must stay
+    bit-identical to the legacy scan of `history[:-20]` -- that scan is what
+    stops a client replaying old pickups from duplicating the game's history."""
+
+    def _line(self, coords, code="EX", pid=1, id="100"):
+        return HistoryLine(player=pid, pickup_code=code, pickup_id=id, coords=coords,
+                           timestamp=datetime(2026, 7, 25, 12, 0, 0))
+
+    def _chunked_append(self, p, chunks, hl):
+        """Drive the append exactly as append_hl_chunked_txn does, minus the RPCs."""
+        n = p.hist_chunk or 0
+        while len(chunks) <= n:
+            chunks.append(models.HistoryChunk())
+        return Player.hl_chunk_append(p, chunks[n], hl)
+
+    def _legacy_append(self, hls, hl):
+        if any([h for h in hls[:-models.HIST_TAIL] if h.equals(hl)]):
+            return False
+        hls.append(hl)
+        return True
+
+    def test_chunks_fill_and_seal_at_size(self):
+        p, chunks = Player(id="80.1"), []
+        for i in range(models.HIST_CHUNK_SIZE * 2 + 5):
+            self.assertTrue(self._chunked_append(p, chunks, self._line(1000 + i)))
+        self.assertEqual(len(chunks), 3)
+        self.assertEqual(len(chunks[0].lines), models.HIST_CHUNK_SIZE)
+        self.assertEqual(len(chunks[1].lines), models.HIST_CHUNK_SIZE)
+        self.assertEqual(len(chunks[2].lines), 5)
+        self.assertEqual(p.hist_chunk, 2)
+
+    def test_dedup_state_stays_constant_size(self):
+        """The whole point: what rides on the hot Player entity must not grow
+        with the game. hist_tail is capped; hist_seen is bounded by the number
+        of distinct pickups, not by how many lines were logged."""
+        p, chunks = Player(id="81.1"), []
+        for i in range(300):
+            self._chunked_append(p, chunks, self._line(1000 + (i % 40)))
+        self.assertEqual(len(p.hist_tail), models.HIST_TAIL)
+        self.assertLessEqual(len(p.hist_seen), 40)
+
+    def test_dedup_matches_legacy_decision_for_decision(self):
+        # a nasty sequence: fresh finds, immediate repeats (inside the tail
+        # window, legal), and an alt+L-style replay of the whole run so far
+        coords = [1000 + i for i in range(40)]
+        seq = [self._line(c) for c in coords]
+        seq += [self._line(coords[-1])]                      # immediate repeat
+        seq += [self._line(c) for c in coords]               # full replay
+        seq += [self._line(c) for c in coords[:5]]           # partial replay
+        seq += [self._line(9999, code="SK", id="0")]         # something new
+
+        p, chunks, legacy = Player(id="82.1"), [], []
+        for hl in seq:
+            self.assertEqual(self._chunked_append(p, chunks, hl),
+                             self._legacy_append(legacy, hl),
+                             "divergence at coords=%s" % hl.coords)
+        stored = [hl for c in chunks for hl in c.lines]
+        self.assertEqual([h.coords for h in stored], [h.coords for h in legacy])
+
+    def test_replay_of_old_pickup_is_skipped(self):
+        p, chunks = Player(id="83.1"), []
+        first = self._line(1234)
+        self.assertTrue(self._chunked_append(p, chunks, first))
+        for i in range(models.HIST_TAIL + 5):  # push it out of the tail window
+            self._chunked_append(p, chunks, self._line(2000 + i))
+        self.assertFalse(self._chunked_append(p, chunks, self._line(1234)))
+
+    def test_repeat_inside_tail_window_is_kept(self):
+        # matches legacy: a duplicate whose original is still within the last 20
+        # lines is appended (rollback re-collection shows up in history)
+        p, chunks = Player(id="84.1"), []
+        self._chunked_append(p, chunks, self._line(1234))
+        self._chunked_append(p, chunks, self._line(1235))
+        self.assertTrue(self._chunked_append(p, chunks, self._line(1234)))
+
+    def test_distinct_pickups_at_same_coords_are_distinct(self):
+        p, chunks = Player(id="85.1"), []
+        self.assertTrue(self._chunked_append(p, chunks, self._line(1234, code="EX", id="100")))
+        for i in range(models.HIST_TAIL + 2):
+            self._chunked_append(p, chunks, self._line(3000 + i))
+        self.assertTrue(self._chunked_append(p, chunks, self._line(1234, code="SK", id="0")))
+
+
+class TestHistoryWriteDispatch(NdbTestCase):
+    """Which of the three history layouts a pickup writes to is flag-driven:
+    CHUNKED_LOGS > HIST_ON_PLAYER > legacy Game.hls."""
+
+    def setUp(self):
+        super(TestHistoryWriteDispatch, self).setUp()
+        self._flags = (models.CHUNKED_LOGS, models.HIST_ON_PLAYER)
+        self._chunked, self._on_player = Player.append_hl_chunked_txn, Player.append_hl_txn
+        self.calls = []
+        Player.append_hl_chunked_txn = staticmethod(
+            lambda pkey, hl: self.calls.append(("chunked", hl.coords)) or True)
+        Player.append_hl_txn = staticmethod(
+            lambda pkey, hl: self.calls.append(("on_player", hl.coords)) or True)
+
+    def tearDown(self):
+        models.CHUNKED_LOGS, models.HIST_ON_PLAYER = self._flags
+        Player.append_hl_chunked_txn, Player.append_hl_txn = self._chunked, self._on_player
+        super(TestHistoryWriteDispatch, self).tearDown()
+
+    def _game(self):
+        p = Player(id="88.1", skills=0, events=0, teleporters=0, bonuses={}, hints={})
+        p.put = lambda *a, **k: None
+        g = Game(id="88", str_mode="Bingo")
+        g.get_players = lambda: [p]
+        g.player = lambda pid, create=True, delay_put=False: p
+        g.hls = []
+        return g
+
+    def _find(self, g):
+        g.found_pickup(1, Pickup.n("EX", "100"), 3000, False, False, "Glades")
+
+    def test_chunked_wins_when_both_flags_set(self):
+        models.CHUNKED_LOGS, models.HIST_ON_PLAYER = True, True
+        g = self._game()
+        self._find(g)
+        self.assertEqual(self.calls, [("chunked", 3000)])
+        self.assertEqual(g.hls, [])
+
+    def test_falls_back_to_player_history(self):
+        models.CHUNKED_LOGS, models.HIST_ON_PLAYER = False, True
+        g = self._game()
+        self._find(g)
+        self.assertEqual(self.calls, [("on_player", 3000)])
+
+    def test_falls_back_to_game_hls(self):
+        models.CHUNKED_LOGS, models.HIST_ON_PLAYER = False, False
+        g = self._game()
+        g.append_hl = g.hls.append  # bypass the transactional write
+        self._find(g)
+        self.assertEqual(self.calls, [])
+        self.assertEqual([hl.coords for hl in g.hls], [3000])
+
+
+class TestEvlogArchive(NdbTestCase):
+    """CHUNKED_LOGS: the bingo event log's overflow is archived into child
+    entities instead of being dropped at the 400 cap. The entity keeps the feed
+    tail -- get_json renders it on every update, so it must stay small."""
+
+    class _RecordingChunk(object):
+        made = []
+
+        def __init__(self, key=None, events=None):
+            self.key, self.events, self.put_count = key, events, 0
+            TestEvlogArchive._RecordingChunk.made.append(self)
+
+        def put(self):
+            self.put_count += 1
+
+        @staticmethod
+        def key_for(bingo_key, gid, n):
+            return ("chunk", gid, n)
+
+    def setUp(self):
+        super(TestEvlogArchive, self).setUp()
+        self._chunk_cls = models.BingoEventChunk
+        self._flag = models.CHUNKED_LOGS
+        TestEvlogArchive._RecordingChunk.made = []
+        models.BingoEventChunk = TestEvlogArchive._RecordingChunk
+        models.CHUNKED_LOGS = True
+
+    def tearDown(self):
+        models.BingoEventChunk = self._chunk_cls
+        models.CHUNKED_LOGS = self._flag
+        super(TestEvlogArchive, self).tearDown()
+
+    def _game(self, squares, markers=2):
+        from models import BingoEvent, BingoGameData
+        bgd = BingoGameData(id="60")
+        bgd.event_log = ([BingoEvent(event_type="miscBingo Game 60 created!")] * markers +
+                         [BingoEvent(event_type="square", square=i) for i in range(squares)])
+        bgd.put = lambda *a, **k: None
+        return bgd
+
+    def test_under_threshold_is_a_noop(self):
+        bgd = self._game(models.EVLOG_KEEP + models.EVLOG_ARCHIVE - 5)
+        before = len(bgd.event_log)
+        self.assertEqual(bgd.archive_evlog(60), 0)
+        self.assertEqual(len(bgd.event_log), before)
+        self.assertEqual(bgd.ev_chunk, 0)
+        self.assertEqual(TestEvlogArchive._RecordingChunk.made, [])
+
+    def test_overflow_archives_and_keeps_feed_tail(self):
+        bgd = self._game(300)
+        archived = bgd.archive_evlog(60)
+        self.assertEqual(archived, 300 - models.EVLOG_KEEP)
+        # the entity keeps exactly the feed tail plus the framing markers
+        self.assertEqual(len(bgd.event_log), models.EVLOG_KEEP + 2)
+        self.assertTrue(all(e.event_type.startswith("misc") for e in bgd.event_log[:2]))
+        chunk = TestEvlogArchive._RecordingChunk.made[0]
+        self.assertEqual(len(chunk.events), 300 - models.EVLOG_KEEP)
+        self.assertEqual(chunk.put_count, 1)
+        self.assertEqual(bgd.ev_chunk, 1)  # advanced, so the next archive can't clobber
+
+    def test_nothing_is_lost_across_repeated_archives(self):
+        from models import BingoEvent
+        bgd = self._game(0, markers=0)
+        seen = 0
+        for batch in range(6):
+            bgd.event_log += [BingoEvent(event_type="square", square=seen + i) for i in range(60)]
+            seen += 60
+            bgd.archive_evlog(60)
+        archived = [e for c in TestEvlogArchive._RecordingChunk.made for e in c.events]
+        self.assertEqual(len(archived) + len(bgd.event_log), seen)
+        self.assertEqual([e.square for e in archived + list(bgd.event_log)], list(range(seen)))
+        self.assertLessEqual(len(bgd.event_log), models.EVLOG_KEEP + models.EVLOG_ARCHIVE)
+
+    def test_update_v2_archives_instead_of_pruning_when_flagged(self):
+        bgd = self._game(600)
+        bgd._update_inner = lambda *a, **k: None
+        bgd.update_v2({}, 1, 60)
+        self.assertEqual(len(bgd.event_log), models.EVLOG_KEEP + 2)
+        self.assertTrue(TestEvlogArchive._RecordingChunk.made)
+
+
+class TestVersionTracking(NdbTestCase):
+    """The client sends its dll version on every tick (>= 4.1.10). Recording it
+    is the capability-negotiation hook for the websocket migration."""
+
+    def test_first_report_records_and_asks_for_a_put(self):
+        p = Player(id="90.1")
+        self.assertTrue(p.note_version("4.1.10", 90))
+        self.assertEqual(p.dll_version, "4.1.10")
+
+    def test_unchanged_version_is_free(self):
+        p = Player(id="91.1", dll_version="4.1.10")
+        self.assertFalse(p.note_version("4.1.10", 91))
+
+    def test_missing_version_is_ignored(self):
+        p = Player(id="92.1", dll_version="4.1.10")
+        self.assertFalse(p.note_version(None, 92))
+        self.assertFalse(p.note_version("", 92))
+        self.assertEqual(p.dll_version, "4.1.10")
+
+    def test_upgrade_is_recorded(self):
+        p = Player(id="93.1", dll_version="4.1.9")
+        self.assertTrue(p.note_version("4.1.10", 93))
+        self.assertEqual(p.dll_version, "4.1.10")
 
 
 if __name__ == "__main__":

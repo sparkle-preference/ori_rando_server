@@ -64,6 +64,10 @@ def tick(game_id, player_id, payload):
     if not game:
         return _code(412)
     p = game.player(player_id)
+    # slow path only: the fast path above serves cache and never sees a Player,
+    # so version tracking costs nothing on the ~1 Hz steady-state tick
+    if p.note_version(payload.get("version"), game_id):
+        p.put()
     p.bitfield_updates(payload, game_id)
     Cache.set_pos(game_id, player_id, x, y)
     return 200, p.output(include_slots=(game.mode == MultiplayerGameType.MULTIWORLD))
@@ -121,9 +125,12 @@ def connect(game_id, player_id, payload):
     if game:
         p = game.player(player_id)
         vers = payload.get("version")
+        needs_put = p.note_version(vers, game_id)
         if p.can_nag and vers and (not version_check(vers)):
             p.signal_send("msg:@dll out of date. (orirando.com/dll)@")
             p.can_nag = False
+            needs_put = True
+        if needs_put:
             p.put()
         uploaded_sync = seed_sync_id(payload.get("seed"))
         if uploaded_sync:

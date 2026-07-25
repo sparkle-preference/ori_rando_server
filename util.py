@@ -45,6 +45,14 @@ SPLIT_CACHE = _flag("SPLIT_CACHE")
 # BingoGameData entity. REQUIRES single-instance deployment (gunicorn threads
 # in one process — see Dockerfile); revisit before any horizontal scaling.
 BINGO_V2 = _flag("BINGO_V2")
+# shard both append-only growths off the hot entities: history lines into
+# HistoryChunk children (Player keeps only constant-size dedup state) and the
+# bingo event log into BingoEventChunk archives (the entity keeps the feed tail).
+# Gates WRITES only — readers merge every layout unconditionally, so flipping
+# this off never hides lines already written. Covers both because they share one
+# failure mode and one clean signal each: found_pickup ms answers for history
+# alone, bingo_update's evlog= field shows the log's on-entity size directly.
+CHUNKED_LOGS = _flag("CHUNKED_LOGS")
 # allow creating Multiworld games/seeds. The gameplay code paths (generator,
 # found_pickup, tick slots field) are mode-gated and always present; this
 # flag only controls whether the mode can be requested at seed creation.

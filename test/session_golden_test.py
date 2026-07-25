@@ -155,6 +155,24 @@ class TestTick(SessionTestCase):
         # pos is stored as posted (strings) — display consumers parse it
         self.assertEqual(Cache.get_pos(1212), {1: ("10", "-20")})
 
+    def test_slow_path_records_dll_version(self):
+        p = make_player(1214, 1)
+        self.game = FakeGame(players={1: p})
+        Cache.set_seen_checksum((1214, 1), 999999)
+        netcode.tick(1214, 1, self._payload(version="4.1.10"))
+        self.assertEqual(p.dll_version, "4.1.10")
+        puts = p.put_count
+        netcode.tick(1214, 1, self._payload(version="4.1.10"))
+        self.assertEqual(p.put_count, puts)  # unchanged version costs no write
+
+    def test_fast_path_never_touches_the_player(self):
+        # version tracking must not drag a datastore read onto the 1 Hz tick
+        Game.with_id = staticmethod(lambda gid: self.fail("fast path hit the datastore"))
+        payload = self._payload(version="4.1.10")
+        Cache.set_seen_checksum((1215, 1), util.bfield_checksum(payload["seen_%s" % i] for i in range(8)))
+        Cache.set_output((1215, 1), "0,0,0,,")
+        self.assertEqual(netcode.tick(1215, 1, payload), (200, "0,0,0,,"))
+
     def test_checksum_miss_returns_fresh_output(self):
         p = make_player(1213, 1, skills=1793)
         self.game = FakeGame(players={1: p})
