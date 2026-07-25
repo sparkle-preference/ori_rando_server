@@ -767,7 +767,8 @@ export default class Bingo extends React.Component {
             )
         }
         let links = haveGame ? [
-            (<Row className="justify-content-center pt-3" key="specLink"><Col xs="auto"><small> spectator link: {specLink}</small></Col></Row>)
+            (<Row className="justify-content-center pt-3" key="specLink"><Col xs="auto"><small> spectator link: {specLink}</small></Col></Row>),
+            (<Row className="justify-content-center" key="userboardLink"><Col xs="auto"><small>streaming? <a target="_blank" rel="noopener noreferrer" href="/faq?g=bingo_userboard">set up a userboard</a></small></Col></Row>)
          ] : null
          if(paramId > 0 && gameId > 0 && haveGame)
             links.push((<Row className="justify-content-center" key="gameLink"><Col xs="auto"><small><a href={`/?param_id=${paramId}&game_id=${gameId}`}>base seed</a></small></Col></Row>))

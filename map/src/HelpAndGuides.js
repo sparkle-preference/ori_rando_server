@@ -5,7 +5,17 @@ import {Helmet} from 'react-helmet';
 import {get_param, stuff_by_type} from "./common.js"
 import SiteBar from "./SiteBar.js"
 
-const GUIDES = ["install", "gen_seed", "get_tracker", "bonus_pickups", "starter_seeds", "differences", "gotchas"];
+const GUIDES = ["install", "gen_seed", "get_tracker", "bonus_pickups", "starter_seeds", "differences", "gotchas", "bingo_userboard"];
+// userboard url params, as read by Bingo.js's constructor
+const USERBOARD_PARAMS = [
+  ["playerList", "off", "Show the player list (scores, teams, timer) beside the board."],
+  ["eventLog", "off", "Show the event log: a running feed of squares gained, lost, and bingos completed."],
+  ["listWidth", "300", "Width of the player list, in pixels. Only matters with playerList on."],
+  ["listHeight", "400", "Height of the player list, in pixels. Only matters with playerList on."],
+  ["logWidth", "500", "Width of the event log, in pixels. Only matters with eventLog on."],
+  ["logHeight", "200", "Height of the event log, in pixels. Only matters with eventLog on."],
+  ["dark", "your profile setting", "Force the dark theme on, whatever your profile says."],
+];
 const counts = {
   "standard": { "RB|0": 3, "RB|1": 3, "RB|6": "3/5*", "RB|9": 1, "RB|10": 1, "RB|11": 1, "RB|12": "1/5*", "RB|13": 3, "RB|15": 3, "RB|17": "5**", "RB|19": "5**", "RB|21": "5**"},
   "bonus": { "RB|31": 1, "RB|32": 1, "RB|33": 3, "RB|36": 1, "RB|6": 5, "RB|12": 5, "RB|101": "*", "RB|102": "*", "RB|103": "*", "RB|104": "**", "RB|105": "**", "RB|106": "*", "RB|107": "*", "RB|109": "*", "RB|110": "*", "RB|111": "***", "RB|113": "***"},
@@ -350,6 +360,111 @@ export default class HelpAndGuides extends React.Component {
         )
     }
 
+    getUserboardCardContent = () => {
+        let user = this.state.user || "YourName"
+        let paramRows = USERBOARD_PARAMS.map(([name, def, desc]) => (
+            <Row className="border" key={name}>
+                <Col className="align-self-center text-center" xs="3"><code>{name}</code></Col>
+                <Col className="border-left border-right" xs="6"><small>{desc}</small></Col>
+                <Col className="text-center align-self-center" xs="3"><small>{def}</small></Col>
+            </Row>
+        ))
+        return (
+            <Card className="w-100 mt-2" id="bingo_userboard">
+            <CardBody>
+                <div className={buttonHolder}>
+                <Button color="primary" active={this.state.open["bingo_userboard"]} onClick={this.toggleOpen("bingo_userboard")}>
+                    Bingo Userboard (for streaming)
+                </Button>
+                </div>
+                <Collapse isOpen={this.state.open["bingo_userboard"]}>
+                <CardText>
+                    The <b>userboard</b> is a stripped-down view of your bingo board, built to be dropped straight into a streaming layout.
+                    No site header, no buttons, no padding &mdash; just the board (and, if you ask for them, a player list and an event log).
+                </CardText>
+                <CardText>
+                    The useful part: <b>a userboard link is permanent.</b> It always shows whatever bingo game you most recently joined, so you can
+                    add it to OBS once and never touch it again. Start a new game tomorrow and the same source picks it up on its own.
+                </CardText>
+                <CardText className="border p-2">
+                    Your userboard link is:{" "}<a target="_blank" rel="noopener noreferrer" href={`/bingo/userboard/${user}/`}><code>{`orirando.com/bingo/userboard/${user}/`}</code></a>
+                    {!this.state.user ? (<div><small><i>(You're not logged in, so that's a placeholder &mdash; swap in your site username.)</i></small></div>) : null}
+                </CardText>
+                <CardText>
+                    To add it to OBS:
+                    <ol>
+                    <li>Add a <b>Browser</b> source to your scene.</li>
+                    <li>Paste your userboard link into the URL field.</li>
+                    <li>Set the width and height. The board alone is roughly 700&times;700; add room to the right if you turn on the panels below.</li>
+                    <li>That's it. It refreshes about once a second while a game is running.</li>
+                    </ol>
+                </CardText>
+                <CardText className="text-center mt-3">
+                <h5>URL options</h5>
+                </CardText>
+                <CardText>
+                    Everything is off by default. Add options to the end of your link with <code>?</code> before the first one and <code>&amp;</code> between the rest.
+                </CardText>
+                <Row className="border">
+                    <Col className="text-center" xs="3">Option</Col>
+                    <Col className="border-left border-right text-center" xs="6">What it does</Col>
+                    <Col className="text-center" xs="3">Default</Col>
+                </Row>
+                {paramRows}
+                <CardText className="mt-3">
+                    Examples:
+                    <ul>
+                    <li>
+                        Board plus a player list:{" "}
+                        <code>{`/bingo/userboard/${user}/?playerList`}</code>
+                    </li>
+                    <li>
+                        Board, player list, and a wide short event log:{" "}
+                        <code>{`/bingo/userboard/${user}/?playerList&eventLog&logWidth=700&logHeight=120`}</code>
+                    </li>
+                    <li>
+                        Narrow player list for a vertical layout:{" "}
+                        <code>{`/bingo/userboard/${user}/?playerList&listWidth=180&listHeight=600`}</code>
+                    </li>
+                    </ul>
+                </CardText>
+                <CardText className="text-center mt-3">
+                <h5>Common questions</h5>
+                </CardText>
+                <CardText>
+                    <ul>
+                    <li>
+                        <b>I added an option and nothing changed.</b> The options are read once when the page loads. Refresh the browser source
+                        (in OBS: right click the source &rarr; Refresh, or reopen its properties and hit OK) after editing the URL.
+                    </li>
+                    <li>
+                        <b>How do I turn an option back off?</b> Delete it from the URL. Writing <code>eventLog=false</code> will <i>not</i> work &mdash;
+                        the page only checks whether the option is present, so any value at all (even "false") turns it on.
+                    </li>
+                    <li>
+                        <b>Which player is highlighted?</b> The one matching the preferred player number on your{" "}<a href="/">profile</a>. That player
+                        also sorts to the top of the player list.
+                    </li>
+                    <li>
+                        <b>Can I point it at one specific game?</b> Not with a userboard link &mdash; it always follows your latest bingo game by design.
+                        For a fixed game, use the spectator link from that game's board page instead.
+                    </li>
+                    <li>
+                        <b>It says it can't find any bingo games.</b> The link uses your site username and only finds games you've actually joined.
+                        Join the game first, then the userboard will pick it up.
+                    </li>
+                    <li>
+                        <b>Can I restyle it?</b> Light/dark follows your profile (or <code>dark</code> above). Beyond that, OBS browser sources accept
+                        custom CSS, which works fine here &mdash; the board is ordinary HTML.
+                    </li>
+                    </ul>
+                </CardText>
+                </Collapse>
+            </CardBody>
+            </Card>
+        )
+    }
+
     getGotchasCardContent = () => {
         return (
             <Card className="w-100 mt-2" id="gotchas">
@@ -447,6 +562,7 @@ export default class HelpAndGuides extends React.Component {
         {this.getGenSeedCardContent()}
         {this.getStarterSeedsCardContent()}
         {this.getTrackerCardContent()}
+        {this.getUserboardCardContent()}
         {this.getGotchasCardContent()}
         {this.getDifferencesCardContent()}
         {this.getGlossaryCardContent()}
