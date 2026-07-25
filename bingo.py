@@ -683,6 +683,7 @@ class BingoGenerator(object):
                     disp_name= "Horizontally symmetric board",
                     help_lines = [
                         "Your bingo board is horizontally symmetric if for every completed square in columns A and B, the same squares in columns D and E are completed.",
+                        "For example, \"W\" is horizontally (but not vertically) symmetric.", 
                         "You can regain and lose this square based on changes to your bingo board."
                         ],
                     tags=["early", "meta", "symmetry"]
@@ -691,6 +692,7 @@ class BingoGenerator(object):
                     disp_name= "Vertically symmetric board",
                     help_lines = [
                         "Your bingo board is vertically symmetric if for every completed square in rows 1 and 2, the same squares in row 4 and 5 are completed.",
+                        "For example, \"B\" is vertically (but not horizontally) symmetric.", 
                         "You can regain and lose this square based on changes to your bingo board."
                         ],
                     tags=["early", "meta", "symmetry"]
