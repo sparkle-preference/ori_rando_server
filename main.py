@@ -11,6 +11,7 @@ import logging as log
 from urllib.request import urlopen
 from urllib.parse import unquote, quote_plus
 from flask import Flask, render_template, request, make_response, url_for, redirect, g, Response, get_flashed_messages
+from werkzeug.middleware.proxy_fix import ProxyFix
 from google.cloud import ndb
 import google.cloud.logging
 
@@ -35,6 +36,9 @@ app = Flask(__name__, template_folder=template_root, static_folder=template_root
 app.debug = debug()
 # app.url_map.strict_slashes = False
 app.wsgi_app = ndb_wsgi_middleware(app.wsgi_app)
+# Google Frontend terminates TLS, so without this every redirect Flask builds
+# comes out http://. Must stay outermost. x_for off: nothing reads remote_addr.
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 
 oidc = make_oidc(app)
@@ -251,6 +255,15 @@ def fix_logout_redirect(response: Response):
     if response.location == '/logout?reason=expired':
         response.location += '&next=' + quote_plus(request.full_path)
 
+    return response
+
+
+@app.after_request
+def hsts_header(response):
+    # never add includeSubDomains: bfnc.orirando.com serves the dll over plain
+    # http and the dll has no TLS support
+    if request.is_secure:
+        response.headers.setdefault("Strict-Transport-Security", "max-age=31536000")
     return response
 
 
