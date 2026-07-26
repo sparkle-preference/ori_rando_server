@@ -15,6 +15,9 @@ const USERBOARD_PARAMS = [
   ["logWidth", "500", "Width of the event log, in pixels. Only matters with eventLog on."],
   ["logHeight", "200", "Height of the event log, in pixels. Only matters with eventLog on."],
   ["dark", "your profile setting", "Force the dark theme on, whatever your profile says."],
+  ["textSize*", "1.5vh", "Bingo goal text size. Increase slowly - anything above 1.8vh can easily overflow."],
+  ["hideFooter*", "off", "Hide the square footers that show which players have completed that square."],
+  ["hideLabels*", "off", "hide the row, column, and diagonal labels that normally surround the board."]
 ];
 const counts = {
   "standard": { "RB|0": 3, "RB|1": 3, "RB|6": "3/5*", "RB|9": 1, "RB|10": 1, "RB|11": 1, "RB|12": "1/5*", "RB|13": 3, "RB|15": 3, "RB|17": "5**", "RB|19": "5**", "RB|21": "5**"},
@@ -380,23 +383,22 @@ export default class HelpAndGuides extends React.Component {
                 <Collapse isOpen={this.state.open["bingo_userboard"]}>
                 <CardText>
                     The <b>userboard</b> is a stripped-down view of your bingo board, built to be dropped straight into a streaming layout.
-                    No site header, no buttons, no padding &mdash; just the board (and, if you ask for them, a player list and an event log).
+                    It removes the header, buttons, and padding, displaying the board by default (the player list and event log can be added back in; see below for more info).
                 </CardText>
                 <CardText>
-                    The useful part: <b>a userboard link is permanent.</b> It always shows whatever bingo game you most recently joined, so you can
-                    add it to OBS once and never touch it again. Start a new game tomorrow and the same source picks it up on its own.
+                    Userboards automatically show the last bingo game you most recently joined and update live when you join new games.
                 </CardText>
                 <CardText className="border p-2">
                     Your userboard link is:{" "}<a target="_blank" rel="noopener noreferrer" href={`/bingo/userboard/${user}/`}><code>{`orirando.com/bingo/userboard/${user}/`}</code></a>
-                    {!this.state.user ? (<div><small><i>(You're not logged in, so that's a placeholder &mdash; swap in your site username.)</i></small></div>) : null}
+                    {!this.state.user ? (<div><small><i>(Userboards only work while logged in - the above link is a placeholder.)</i></small></div>) : null}
                 </CardText>
                 <CardText>
                     To add it to OBS:
                     <ol>
                     <li>Add a <b>Browser</b> source to your scene.</li>
                     <li>Paste your userboard link into the URL field.</li>
-                    <li>Set the width and height. The board alone is roughly 700&times;700; add room to the right if you turn on the panels below.</li>
-                    <li>That's it. It refreshes about once a second while a game is running.</li>
+                    <li>Set the width and height. The board alone is roughly 700&times;700 - add more space for the player list and/or event log if necessary.</li>
+                    <li>(Optional) add url params below as desired to customize.</li>
                     </ol>
                 </CardText>
                 <CardText className="text-center mt-3">
@@ -411,6 +413,9 @@ export default class HelpAndGuides extends React.Component {
                     <Col className="text-center" xs="3">Default</Col>
                 </Row>
                 {paramRows}
+                <CardText className="mt-3"><div><small><i>(textSize, hideLabels, and hideFooter work on the normal bingo page too.)</i></small></div>
+                </CardText>
+
                 <CardText className="mt-3">
                     Examples:
                     <ul>
@@ -484,10 +489,10 @@ export default class HelpAndGuides extends React.Component {
                         In the Clues keymode, the borders between zones are not always obvious. Check out <a target="_blank" rel="noopener noreferrer" href="https://i.imgur.com/lHgbqmI.jpg">this map</a> to see exactly which pickup is considered to be in which zone!
                         </li>
                         <li>
-                        Do not Alt+R out of any room with a temporary lock (Ginso miniboss 1, Grotto Miniboss, Outer Swamp Spitter puzzle area) with the door still closed. You may softlock if you do.
+                        Do not Warp out of any room with a temporary lock (Ginso miniboss 1, Grotto Miniboss, Outer Swamp Spitter puzzle area) with the door still closed. You may softlock if you do.
                         </li>
                         <li>
-                        Do not Alt+R out of the fronkey fight after Sein unless you have already picked up the exp orb below Sein. You may softlock if you do.
+                        Do not Warp out of the fronkey fight after Sein unless you have already picked up the exp orb below Sein. You may softlock if you do.
                         </li>
                     </ul>
                 </CardText>
