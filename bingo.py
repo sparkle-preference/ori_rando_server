@@ -129,6 +129,48 @@ class GoalGroup(BingoGoal):
 
 
 
+def journey_key(frm, to):
+    # must match BingoController.JourneyKey in the client
+    return "%s-%s" % (frm, to)
+
+class JourneyGoal(BingoGoal):
+    """One card, one ordered pair of spirit wells -- no composing, no counts.
+
+    Picking (X, Y) also bans every other journey out of X and the return trip, by
+    extending the banned-subgoal list get_cards threads through the group.
+    """
+    goalType = "multi"
+    def __init__(self, pairs, disp_names, max_repeats = 3, tags = ["journey"]):
+        self.name = "Journey"
+        self.pairs = pairs
+        self.disp_names = disp_names
+        self.max_repeats = max_repeats
+        self.tags = set(tags)
+        self.help_lines = [
+            "Travel from the first spirit well to the second without touching any other spirit well on the way.",
+            "Teleporting breaks the journey (including alt+R). Start over from either end."
+        ]
+
+    def to_card(self, rand, banned = {}):
+        banned_goals = banned.get("goals", [])
+        avail = [pair for pair in self.pairs if journey_key(*pair) not in banned_goals]
+        if not avail:
+            return None
+        frm, to = rand.choice(avail)
+        banned_goals.extend([journey_key(f, t) for f, t in self.pairs if f == frm or (f, t) == (to, frm)])
+        card = BingoCard(
+            name = self.name,
+            disp_name = "Journey from the %s to the %s spirit wells" % (self.disp_names[frm], self.disp_names[to]),
+            help_lines = [str(l) for l in self.help_lines],
+            goal_type = "multi",
+            early = False
+        )
+        card.goal_method = "and"
+        subgoal = BoolGoal(journey_key(frm, to),
+                           disp_name = "%s to %s" % (self.disp_names[frm], self.disp_names[to])).to_card(rand)
+        card.subgoals.append(subgoal.to_json([], True))
+        return card
+
 def namef(verb, noun, plural_form = None):
     if not plural_form:
         plural_form = noun + "s"
@@ -164,6 +206,12 @@ class BingoGenerator(object):
                 BoolGoal(name = "swamp", disp_name = "Thornfelt Swamp", tags = [ "early" ]),
                 BoolGoal(name = "sorrowPass", disp_name = "Valley of the Wind")
             ]
+        # journeys are drawn from whatever wells this seed actually has; adjacent
+        # pairs are a free square anywhere but easy
+        tp_disp = {goal.name: goal.disp_name for goal in tpGoals}
+        easy_only_journeys = [{"sunkenGlades", "mangroveFalls"}, {"sunkenGlades", "spiritTree"}, {"swamp", "moonGrotto"}]
+        journey_pairs = [(frm, to) for frm in tp_disp for to in tp_disp
+                         if frm != to and (easy or {frm, to} not in easy_only_journeys)]
         goals = [
             BoolGoal(
                 name = "DrainSwamp",
@@ -374,6 +422,7 @@ class BingoGenerator(object):
                     ],
                 max_repeats = 3
                 ),
+            JourneyGoal(journey_pairs, tp_disp),
             GoalGroup(
                 name = "EnterArea",
                 name_func = namef("Enter", "area"),
