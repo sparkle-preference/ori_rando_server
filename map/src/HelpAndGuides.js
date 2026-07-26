@@ -383,7 +383,7 @@ export default class HelpAndGuides extends React.Component {
                 <Collapse isOpen={this.state.open["bingo_userboard"]}>
                 <CardText>
                     The <b>userboard</b> is a stripped-down view of your bingo board, built to be dropped straight into a streaming layout.
-                    It removes the header, buttons, and padding, displaying the board by default (the player list and event log can be added back in; see below for more info).
+                    It removes the header, buttons, and padding, displaying just the board by default (the player list and event log can be added back in; see below for more info).
                 </CardText>
                 <CardText>
                     Userboards automatically show the last bingo game you most recently joined and update live when you join new games.
