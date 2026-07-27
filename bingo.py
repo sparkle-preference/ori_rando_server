@@ -147,8 +147,8 @@ class JourneyGoal(BingoGoal):
         self.max_repeats = max_repeats
         self.tags = set(tags)
         self.help_lines = [
-            "Travel from the first spirit well to the second without touching any other spirit well on the way.",
-            "Teleporting breaks the journey (including alt+R). Start over from either end."
+            "Travel from the first spirit well to the second without touching any other spirit well or teleporting/warping.",
+            "This goal will update to show that it's in-progress."
         ]
 
     def to_card(self, rand, banned = {}):
