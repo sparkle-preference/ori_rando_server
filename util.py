@@ -57,6 +57,15 @@ CHUNKED_LOGS = _flag("CHUNKED_LOGS")
 # found_pickup, tick slots field) are mode-gated and always present; this
 # flag only controls whether the mode can be requested at seed creation.
 MULTIWORLD = _flag("MULTIWORLD")
+# register the websocket route (/netcode/game/../player/../ws) and serve tick
+# frames over it. Off = the route 404s and every client stays on http polling
+# (the dll treats a route that never connects as "no websocket here").
+WEBSOCKETS = _flag("WEBSOCKETS")
+# every open socket pins one gunicorn thread (Dockerfile --threads) for its
+# whole lifetime. Reject new sockets past this count — with a healthy gap
+# below the thread count — so they can't starve the http side of the shared
+# pool; rejected clients just keep polling and re-probe on reconnect backoff.
+WS_CONN_LIMIT = int(os.environ.get("WS_CONN_LIMIT", "48"))
 
 # Perf instrumentation: stable, grep-able log lines ("NETPERF <what> ms=<dur> tag=<revision:pid> k=v ...").
 # tag identifies the Cloud Run revision + worker process, to detect cross-process cache misses.

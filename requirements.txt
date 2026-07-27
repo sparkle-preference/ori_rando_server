@@ -6,3 +6,5 @@ pymemcache==4.0.0
 Flask-OIDC==2.4.0
 gunicorn>=23.0.0
 requests==2.32.4
+flask-sock==0.7.0
+simple-websocket==1.1.0

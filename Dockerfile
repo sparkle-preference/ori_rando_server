@@ -20,5 +20,8 @@ COPY ./seedbuilder/*.py ./seedbuilder/
 
 COPY *.py ./
 
-CMD exec gunicorn --bind :$PORT --workers 1 --preload --threads 8 --timeout 0 main:app
+# --threads sizes BOTH http concurrency and the websocket connection budget:
+# every open socket pins one thread for its lifetime (see ws.py). Keep
+# util.WS_CONN_LIMIT comfortably below this so http always has headroom.
+CMD exec gunicorn --bind :$PORT --workers 1 --preload --threads 64 --timeout 0 main:app
 
