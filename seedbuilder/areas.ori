@@ -4992,6 +4992,8 @@ home: SorrowTeleporter -593 491
 		expert ChargeJump WallJump AirDash Health=5
 		master Stomp Bash Climb
 		master Stomp Bash WallJump
+		master Stomp Bash DoubleJump
+		master Stomp Bash Grenade
 		master ChargeJump Bash
 		master ChargeJump Climb Health=4 UltraDefense
 		master ChargeJump WallJump Glide Health=4 UltraDefense
@@ -5004,7 +5006,10 @@ home: SorrowTeleporter -593 491
 		expert ChargeJump WallJump DoubleJump Glide Bash Grenade
 		expert ChargeJump AirDash WallJump DoubleJump
 		expert ChargeJump WallJump DoubleJump Glide Health=5
-		master Stomp Bash
+		master WallJump Stomp Bash
+		master Climb Stomp Bash
+		master DoubleJump Stomp Bash
+		master Grenade Stomp Bash
 		master ChargeJump Bash
 home: BelowSunstoneArea -499 476
 -- anchored above the 2 lasers in the main shaft, floor intact
