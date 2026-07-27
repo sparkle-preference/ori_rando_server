@@ -3222,21 +3222,28 @@ home: L4 -85 162
 	conn: HoruL4LavaChasePeg
 		casual Bash
 		master GrenadeJump
+	conn: HoruL4Basement
+		casual Bash Stomp
+		master GrenadeJump Stomp
 	conn: HoruL4CutscenePeg
 		expert Free
 home: HoruL4LavaChasePeg -180 187
 	pickup: HoruL4ChaseExp
 		casual Free
-	conn: HoruL4CutscenePeg
+	conn: HoruL4Basement
 		casual Bash Stomp ChargeJump
 		casual Bash Stomp Grenade
 		standard Bash Stomp WallJump DoubleJump
 		expert Bash Stomp Climb DoubleJump
 		expert Bash Stomp ChargeDash Energy=2
 		master Bash Stomp DoubleJump
-home: HoruL4CutscenePeg -85 150
-	pickup: HoruL4
-		casual Stomp
+home: HoruL4Basement -30 160
+	conn: HoruL4CutscenePeg
+		casual WallJump
+		casual ChargeJump
+		standard Bash Grenade
+		standard Climb
+		expert DoubleJump
 	pickup: HoruL4LowerExp
 		casual WallJump Stomp
 		casual Bash Grenade Stomp
@@ -3246,9 +3253,17 @@ home: HoruL4CutscenePeg -85 150
 		expert Bash Grenade
 		expert ChargeJump Climb
 		expert Glide
-		expert AirDash Stomp
+		expert AirDash
+home: HoruL4CutscenePeg -90 155
+	conn: HoruL4Basement
+		casual WallJump
+		casual Bash Grenade
+		casual ChargeJump
+		standard Climb
+		expert DoubleJump
 		expert ChargeDash Energy=2
-		master Dash Stomp
+	pickup: HoruL4
+		casual Stomp
 home: R1OuterEntrance 89 338
 	conn: R1OuterDoor
 	-- Assume the wall is still intact.
