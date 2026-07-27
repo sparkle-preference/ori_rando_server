@@ -52,8 +52,13 @@ const BingoCard = ({card, progress, players, locked, help, dark, selected, onSel
             else
                 styles.background = colors.complete
         }
+        else if(progress.in_progress)
+            line = (<i>{line}</i>)
         text.push((<div className="w-100" key={`card-line-${j++}`} style={styles}>{line}</div>))
     })
+    // journey cards only: you're standing at the origin, so this one is live
+    if(progress.in_progress && !progress.completed)
+        text.push((<div className="w-100" key={`card-line-${j++}`}><i>in progress</i></div>))
     if(target) {
         text.push((<div className="w-100" key={`card-line-${j++}`}>({progress.count ? `${progress.count}/` : ""}{target})</div>))
     }

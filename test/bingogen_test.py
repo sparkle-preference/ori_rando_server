@@ -48,7 +48,11 @@ class TestJourneyGeneration(unittest.TestCase):
         self.assertEqual(card.goal_method, "and")  # no counts, no composing
         self.assertEqual(len(card.subgoals), 1)
         self.assertFalse(card.early)
-        self.assertTrue(card.disp_name.startswith("Journey from the "))
+        # the pair lives in the subgoal, not the title -- the board renders both and
+        # spelling it out twice made these the longest cards on the board
+        self.assertEqual(card.disp_name, "Journey between spirit wells")
+        self.assertNotIn(":", card.disp_name)  # Bingo.js appends it
+        self.assertIn("→", card.subgoals[0]["disp_name"])
 
     def test_picking_a_pair_bans_that_origin_and_the_return_trip(self):
         goal = make_goal()
@@ -104,6 +108,51 @@ class TestEasyOnlyPairs(unittest.TestCase):
         pairs = self._pairs(easy=False)
         self.assertIn(("sunkenGlades", "mountHoru"), pairs)
         self.assertIn(("swamp", "forlorn"), pairs)
+
+
+class TestJourneyInProgress(unittest.TestCase):
+    """A journey card is 'live' when the player is standing at its origin well.
+    Driven by LastTouchedTeleporter, which no card is named for."""
+
+    class FakeProgress(object):
+        def __init__(self, completed=False):
+            self.completed = completed
+
+        def to_json(self):
+            return {"completed": self.completed, "count": 0, "subgoals": []}
+
+    class FakePlayer(object):
+        def __init__(self, last_tp, completed=False):
+            self.bingo_last_tp = last_tp
+            self.bingo_prog = [TestJourneyInProgress.FakeProgress(completed)]
+
+    def _card(self):
+        from models import BingoCard
+        card = BingoCard(name="Journey", square=0)
+        card.subgoals = [{"name": journey_key("swamp", "forlorn"), "disp_name": "Thornfelt Swamp → Forlorn Ruins"}]
+        return card
+
+    def test_live_at_the_origin(self):
+        self.assertTrue(self._card().prog_json(self.FakePlayer("swamp"))["in_progress"])
+
+    def test_not_live_elsewhere_or_nowhere(self):
+        card = self._card()
+        self.assertFalse(card.prog_json(self.FakePlayer("moonGrotto"))["in_progress"])
+        self.assertFalse(card.prog_json(self.FakePlayer(""))["in_progress"])
+        self.assertFalse(card.prog_json(self.FakePlayer(None))["in_progress"])
+
+    def test_not_live_at_the_destination(self):
+        # arriving completes the card; it should not read as still in progress
+        self.assertFalse(self._card().prog_json(self.FakePlayer("forlorn"))["in_progress"])
+
+    def test_completed_cards_are_never_in_progress(self):
+        # re-touching the origin after finishing must not un-finish the display
+        self.assertFalse(self._card().prog_json(self.FakePlayer("swamp", completed=True))["in_progress"])
+
+    def test_non_journey_cards_omit_the_flag(self):
+        from models import BingoCard
+        card = BingoCard(name="ActivateTeleporter", square=0)
+        self.assertNotIn("in_progress", card.prog_json(self.FakePlayer("swamp")))
 
 
 class TestBoardGeneration(unittest.TestCase):

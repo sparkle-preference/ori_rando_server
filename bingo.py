@@ -160,14 +160,14 @@ class JourneyGoal(BingoGoal):
         banned_goals.extend([journey_key(f, t) for f, t in self.pairs if f == frm or (f, t) == (to, frm)])
         card = BingoCard(
             name = self.name,
-            disp_name = "Journey from the %s to the %s spirit wells" % (self.disp_names[frm], self.disp_names[to]),
+            disp_name = "Journey between spirit wells",  # the board appends the ":"
             help_lines = [str(l) for l in self.help_lines],
             goal_type = "multi",
             early = False
         )
         card.goal_method = "and"
         subgoal = BoolGoal(journey_key(frm, to),
-                           disp_name = "%s to %s" % (self.disp_names[frm], self.disp_names[to])).to_card(rand)
+                           disp_name = "%s → %s" % (self.disp_names[frm], self.disp_names[to])).to_card(rand)
         card.subgoals.append(subgoal.to_json([], True))
         return card
 

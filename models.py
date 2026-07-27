@@ -440,6 +440,9 @@ class Player(ndb.Model):
     hist_chunk  = ndb.IntegerProperty(default=0)
     hist_tail   = ndb.IntegerProperty(repeated=True)
     hist_seen   = ndb.IntegerProperty(repeated=True)
+    # last spirit well this player touched on foot; no goal tracks it, journey
+    # cards use it to show whether they are live right now
+    bingo_last_tp = ndb.StringProperty()
     # dll version, refreshed from the tick (client >= 4.1.10 sends it every tick).
     # The capability-negotiation hook for the websocket migration: it tells us
     # what the live fleet is actually running, per game and per player.
@@ -821,7 +824,7 @@ class BingoCard(ndb.Model):
     def to_json(self, players, initial=False):
         res = {
             "name": self.name,
-            "progress": {p.pid(): p.bingo_prog[self.square].to_json() for p in players},
+            "progress": {p.pid(): self.prog_json(p) for p in players},
             "completed_by": self.completed_by,
             "owner": self.owner
         }
@@ -839,6 +842,20 @@ class BingoCard(ndb.Model):
 
         return res
 
+
+    def journey_origin(self):
+        """Origin well of a journey card, or None. Subgoal keys are 'origin-destination'."""
+        if self.name != "Journey" or not self.subgoals:
+            return None
+        return self.subgoals[0]["name"].partition("-")[0]
+
+    def prog_json(self, player):
+        res = player.bingo_prog[self.square].to_json()
+        origin = self.journey_origin()
+        if origin:
+            # standing at the origin with nothing touched since: the card is live
+            res["in_progress"] = player.bingo_last_tp == origin and not res["completed"]
+        return res
 
     def progress(self, player):
         # type: (Player) -> Optional[BingoCardProgress]
@@ -1258,6 +1275,8 @@ class BingoGameData(ndb.Model):
         team.score = 0
         players_by_id = {_pid(p.key): p for p in self.get_players()}  # type: Dict[int, Player]
         player = players_by_id[player_id]
+        # no card is named for it; journey cards read it via prog_json
+        player.bingo_last_tp = ((bingo_data or {}).get("LastTouchedTeleporter") or {}).get("value") or ""
         cpid = _pid(team.captain)
         teammates = [players_by_id[pid] for pid in team.pids() if pid != player_id]
         need_write = False
