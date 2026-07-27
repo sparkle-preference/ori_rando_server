@@ -3238,12 +3238,6 @@ home: HoruL4LavaChasePeg -180 187
 		expert Bash Stomp ChargeDash Energy=2
 		master Bash Stomp DoubleJump
 home: HoruL4Basement -30 160
-	conn: HoruL4CutscenePeg
-		casual WallJump
-		casual ChargeJump
-		standard Bash Grenade
-		standard Climb
-		expert DoubleJump
 	pickup: HoruL4LowerExp
 		casual WallJump Stomp
 		casual Bash Grenade Stomp
@@ -3254,7 +3248,15 @@ home: HoruL4Basement -30 160
 		expert ChargeJump Climb
 		expert Glide
 		expert AirDash
+	conn: HoruL4CutscenePeg
+		casual WallJump
+		casual ChargeJump
+		standard Bash Grenade
+		standard Climb
+		expert DoubleJump
 home: HoruL4CutscenePeg -90 155
+	pickup: HoruL4
+		casual Stomp
 	conn: HoruL4Basement
 		casual WallJump
 		casual Bash Grenade
@@ -3262,8 +3264,6 @@ home: HoruL4CutscenePeg -90 155
 		standard Climb
 		expert DoubleJump
 		expert ChargeDash Energy=2
-	pickup: HoruL4
-		casual Stomp
 home: R1OuterEntrance 89 338
 	conn: R1OuterDoor
 	-- Assume the wall is still intact.
