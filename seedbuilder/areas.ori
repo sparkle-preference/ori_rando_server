@@ -3222,21 +3222,22 @@ home: L4 -85 162
 	conn: HoruL4LavaChasePeg
 		casual Bash
 		master GrenadeJump
+	conn: HoruL4Basement
+		casual Bash Stomp
+		master GrenadeJump Stomp
 	conn: HoruL4CutscenePeg
 		expert Free
 home: HoruL4LavaChasePeg -180 187
 	pickup: HoruL4ChaseExp
 		casual Free
-	conn: HoruL4CutscenePeg
+	conn: HoruL4Basement
 		casual Bash Stomp ChargeJump
 		casual Bash Stomp Grenade
 		standard Bash Stomp WallJump DoubleJump
 		expert Bash Stomp Climb DoubleJump
 		expert Bash Stomp ChargeDash Energy=2
 		master Bash Stomp DoubleJump
-home: HoruL4CutscenePeg -85 150
-	pickup: HoruL4
-		casual Stomp
+home: HoruL4Basement -30 160
 	pickup: HoruL4LowerExp
 		casual WallJump Stomp
 		casual Bash Grenade Stomp
@@ -3246,9 +3247,23 @@ home: HoruL4CutscenePeg -85 150
 		expert Bash Grenade
 		expert ChargeJump Climb
 		expert Glide
-		expert AirDash Stomp
+		expert AirDash
+	conn: HoruL4CutscenePeg
+		casual WallJump
+		casual ChargeJump
+		standard Bash Grenade
+		standard Climb
+		expert DoubleJump
+home: HoruL4CutscenePeg -90 155
+	pickup: HoruL4
+		casual Stomp
+	conn: HoruL4Basement
+		casual WallJump
+		casual Bash Grenade
+		casual ChargeJump
+		standard Climb
+		expert DoubleJump
 		expert ChargeDash Energy=2
-		master Dash Stomp
 home: R1OuterEntrance 89 338
 	conn: R1OuterDoor
 	-- Assume the wall is still intact.
@@ -4977,6 +4992,8 @@ home: SorrowTeleporter -593 491
 		expert ChargeJump WallJump AirDash Health=5
 		master Stomp Bash Climb
 		master Stomp Bash WallJump
+		master Stomp Bash DoubleJump
+		master Stomp Bash Grenade
 		master ChargeJump Bash
 		master ChargeJump Climb Health=4 UltraDefense
 		master ChargeJump WallJump Glide Health=4 UltraDefense
@@ -4989,7 +5006,10 @@ home: SorrowTeleporter -593 491
 		expert ChargeJump WallJump DoubleJump Glide Bash Grenade
 		expert ChargeJump AirDash WallJump DoubleJump
 		expert ChargeJump WallJump DoubleJump Glide Health=5
-		master Stomp Bash
+		master WallJump Stomp Bash
+		master Climb Stomp Bash
+		master DoubleJump Stomp Bash
+		master Grenade Stomp Bash
 		master ChargeJump Bash
 home: BelowSunstoneArea -499 476
 -- anchored above the 2 lasers in the main shaft, floor intact
