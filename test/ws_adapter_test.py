@@ -78,6 +78,94 @@ class HandleFrameTests(unittest.TestCase):
         self.assertFalse(close)
 
 
+class RecordingStub(object):
+    """save/restore stub for any netcode handler; returns (status, body)."""
+
+    def __init__(self, status=200, body="ok"):
+        self.status = status
+        self.body = body
+        self.calls = []
+
+    def __call__(self, *args):
+        self.calls.append(args)
+        return self.status, self.body
+
+
+class ChannelFrameTests(unittest.TestCase):
+    """The v2 frame vocabulary (found/bingo/conf/seed/complete). Server-side
+    only until the next dll crack; old clients never send these."""
+
+    def setUp(self):
+        self._saved = {name: getattr(netcode, name) for name in
+                       ("found_pickup", "bingo_update", "signal_callback", "connect", "game_complete")}
+
+    def tearDown(self):
+        for name, fn in self._saved.items():
+            setattr(netcode, name, fn)
+
+    def test_found_frame_parses_and_acks_with_token(self):
+        stub = netcode.found_pickup = RecordingStub(200, "200")
+        frame = "found:17|zone=sunkenGlades&remove|919772|RB|12"
+        reply, close = ws.handle_frame(3, 4, frame)
+        self.assertEqual(reply, "foundack:17|200")
+        self.assertFalse(close)
+        (gid, pid, coords, kind, id_, payload), = stub.calls
+        self.assertEqual((gid, pid, coords, kind, id_), (3, 4, "919772", "RB", "12"))
+        self.assertEqual(payload["zone"], "sunkenGlades")
+        self.assertIn("remove", payload)  # flag-by-presence survives
+
+    def test_found_id_parses_greedily(self):
+        # TW ids carry commas and can carry pipes-adjacent chars; id is last
+        stub = netcode.found_pickup = RecordingStub(200, "200")
+        ws.handle_frame(3, 4, "found:1||919772|TW|Warp to Stomp Tree Roof,917,-70")
+        self.assertEqual(stub.calls[0][4], "Warp to Stomp Tree Roof,917,-70")
+        self.assertEqual(stub.calls[0][5], {})
+
+    def test_found_status_rides_the_ack(self):
+        netcode.found_pickup = RecordingStub(410, "410")
+        reply, close = ws.handle_frame(3, 4, "found:9||1|TP|Glades")
+        self.assertEqual(reply, "foundack:9|410")
+        self.assertFalse(close)  # per-pickup problems never kill the transport
+
+    def test_found_malformed_errs_without_dispatch(self):
+        stub = netcode.found_pickup = RecordingStub()
+        reply, close = ws.handle_frame(3, 4, "found:no-pipes-here")
+        self.assertEqual(reply, "err:found:malformed")
+        self.assertFalse(close)
+        self.assertEqual(stub.calls, [])
+
+    def test_bingo_frame_always_acks(self):
+        stub = netcode.bingo_update = RecordingStub(200, "200")
+        reply, close = ws.handle_frame(3, 4, "bingo:bingoData=%7B%22a%22%3A1%7D&version=4.2.4")
+        self.assertEqual(reply, "bingoack:200")
+        self.assertEqual(stub.calls[0][2]["bingoData"], '{"a":1}')
+
+    def test_bingo_failure_acks_status(self):
+        netcode.bingo_update = RecordingStub(503, "503")
+        reply, close = ws.handle_frame(3, 4, "bingo:bingoData=x")
+        self.assertEqual(reply, "bingoack:503")
+        self.assertFalse(close)
+
+    def test_conf_dispatches_silently(self):
+        stub = netcode.signal_callback = RecordingStub(200, "cleared")
+        reply, close = ws.handle_frame(3, 4, "conf:win:$Finished in 1st place!")
+        self.assertIsNone(reply)
+        # the signal keeps its own colons intact
+        self.assertEqual(stub.calls[0][2], "win:$Finished in 1st place!")
+
+    def test_seed_dispatches_silently(self):
+        stub = netcode.connect = RecordingStub(200, "ok")
+        reply, close = ws.handle_frame(3, 4, "seed:seed=Sync3.4%2CStandard%7C123&version=4.2.4")
+        self.assertIsNone(reply)
+        self.assertEqual(stub.calls[0][2]["seed"], "Sync3.4,Standard|123")
+
+    def test_complete_dispatches_silently(self):
+        stub = netcode.game_complete = RecordingStub(200, "ok")
+        reply, close = ws.handle_frame(3, 4, "complete:")
+        self.assertIsNone(reply)
+        self.assertEqual(stub.calls, [(3, 4)])
+
+
 class FakeConn(object):
     """Scripted socket: receive() pops frames, then simulates a client close."""
 

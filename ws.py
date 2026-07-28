@@ -1,13 +1,33 @@
 """Websocket adapter over the transport-neutral session layer (netcode.py).
 
-v1 protocol: text frames of the form "kind:body". The client sends
-"tick:<form-encoded tick payload>" at ~1 Hz; the server replies
-"tick:<tick body>" with the body byte-identical to the /tick/ http
-response (frozen by golden_wire_test/session_golden_test). Unknown kinds
-get "err:<kind>" and the connection stays up (a newer server talking to
-an older dll must not kill the socket). A tick that fails (dead game:
-412) sends "err:tick:<status>" and closes — the client's http fallback
-takes over and surfaces the error UX the same way it always has.
+Protocol: text frames of the form "kind:body". Unknown kinds get
+"err:<kind>" and the connection stays up (a newer server talking to an
+older dll must not kill the socket; a newer dll talking to an older
+server sees its frames err'd and falls back to http per channel).
+
+Client -> server frames (bodies use the same form-encoding request.form
+would parse; every reply body is byte-identical to the corresponding
+http response, frozen by golden_wire_test/session_golden_test):
+
+  tick:<qs>                            -> tick:<body>   (v1; a failing
+      tick sends err:tick:<status> and closes — the http fallback takes
+      over and surfaces the error UX)
+  found:<token>|<qs>|<coords>|<kind>|<id>  -> foundack:<token>|<status>
+      (id goes LAST and is parsed greedily: TW ids contain slashes and
+      commas. token is client-chosen, echoed verbatim — the client's
+      pickup queue correlates acks and keeps its retry/Gone/NotAcceptable
+      semantics; qs carries zone= and flag-by-presence remove/override.)
+  bingo:<qs>                           -> bingoack:<status>
+      (bingoData=<json>&version=..; always acked because the http client
+      fast-retries on failure — non-200 lets it keep doing that.)
+  conf:<signal>                        -> no reply (http client ignores
+      the /callback/ response entirely)
+  seed:<qs>                            -> no reply (setSeed; http client
+      fires and forgets)
+  complete:                            -> no reply (fire and forget)
+
+Server -> client: tick:<body> frames, either as tick replies or pushed
+unsolicited (WS_PUSH) — the client treats both identically.
 
 handle_frame is pure (frame in, reply out) for tests; run_connection owns
 the socket loop, the per-frame ndb context, and the connection gauge.
@@ -118,16 +138,43 @@ def _push_one(gpid, ndb_client):
         log.exception("ws push failed for %s.%s", gpid[0], gpid[1])
 
 
+def _qs(body):
+    # match request.form's parsing: scalar values, blanks kept (flag-by-
+    # presence args like "remove" arrive as bare keys with empty values)
+    return {k: v[0] for k, v in parse_qs(body, keep_blank_values=True).items()}
+
+
 def handle_frame(game_id, player_id, frame):
     """One frame in, (reply_or_None, close_after) out."""
     kind, sep, body = frame.partition(":")
-    if kind == "tick" and sep:
-        # match request.form's parsing: scalar values, blanks kept
-        payload = {k: v[0] for k, v in parse_qs(body, keep_blank_values=True).items()}
-        status, out = netcode.tick(game_id, player_id, payload)
+    if not sep:
+        # a prefix-less frame has no kind at all
+        log.warning("ws: unknown frame kind %r from %s.%s", kind, game_id, player_id)
+        return "err:%s" % kind, False
+    if kind == "tick":
+        status, out = netcode.tick(game_id, player_id, _qs(body))
         if status != 200:
             return "err:tick:%s" % status, True
         return "tick:%s" % out, False
+    if kind == "found":
+        parts = body.split("|", 4)
+        if len(parts) != 5:
+            return "err:found:malformed", False
+        token, qs, coords, pickup_kind, pickup_id = parts
+        status, _ = netcode.found_pickup(game_id, player_id, coords, pickup_kind, pickup_id, _qs(qs))
+        return "foundack:%s|%s" % (token, status), False
+    if kind == "bingo":
+        status, _ = netcode.bingo_update(game_id, player_id, _qs(body))
+        return "bingoack:%s" % status, False
+    if kind == "conf":
+        netcode.signal_callback(game_id, player_id, body)
+        return None, False
+    if kind == "seed":
+        netcode.connect(game_id, player_id, _qs(body))
+        return None, False
+    if kind == "complete":
+        netcode.game_complete(game_id, player_id)
+        return None, False
     log.warning("ws: unknown frame kind %r from %s.%s", kind, game_id, player_id)
     return "err:%s" % kind, False
 
