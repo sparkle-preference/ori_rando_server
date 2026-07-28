@@ -3,6 +3,7 @@ import heapq
 import os
 from cachetools import TLRUCache, Cache as CacheToolsCache
 
+import push
 from util import debug, SPLIT_CACHE
 from pymemcache.client.base import PooledClient
 from pymemcache import serde
@@ -224,6 +225,9 @@ class MemcachedCache(object):
 
     def clear_seen_checksum(self, gpid):
         self.memcache.delete(key="%s.%s.seenhash" % gpid)
+        # a busted checksum means this player's next tick output changed;
+        # the ws layer (if push is on) sends them that tick right now
+        push.notify(gpid)
 
     def remove_game(self, gid):
         self.memcache.delete_multi(keys=["have", "hist", "san", "pos", "reach", "items", "relics", "board", "names"], key_prefix="%s." % gid)
@@ -414,6 +418,7 @@ class PythonCache(object):
         # KeyError whenever no checksum was armed, e.g. signal_send on a
         # player who hadn't ticked yet -- dev-only crash)
         self.cache.pop("%s.%s.seenhash" % gpid, None)
+        push.notify(gpid)  # see MemcachedCache.clear_seen_checksum
 
     def remove_game(self, gid):
         for key in ["have", "hist", "san", "pos", "reach", "items", "relics", "board"]:

@@ -18,17 +18,104 @@ Capacity model: one gunicorn thread per open socket (see Dockerfile
 "NETPERF ws_conn_reject" line whenever the limit turns a client away.
 """
 import logging as log
+from queue import Queue, Empty
+from threading import Lock, Thread
+from time import monotonic
 from urllib.parse import parse_qs
-from threading import Lock
 
 from google.cloud import ndb
 from simple_websocket import ConnectionClosed
 
 import netcode
-from util import WS_CONN_LIMIT, NETPERF_TAG
+import push
+from util import WS_CONN_LIMIT, NETPERF_TAG, netperf
 
 _conns_lock = Lock()
 _conns = 0
+
+# live sockets by (game_id, player_id). Each entry carries a send lock:
+# the connection's own thread sends tick replies and the pusher thread
+# sends pushed frames, and simple_websocket's send() is not thread-safe.
+# Last connection wins on duplicate ids (reconnects, dual-boxing).
+_socks_lock = Lock()
+_socks = {}
+
+
+def _register(gpid, conn):
+    with _socks_lock:
+        entry = (conn, Lock())
+        _socks[gpid] = entry
+        return entry[1]
+
+
+def _unregister(gpid, conn):
+    with _socks_lock:
+        entry = _socks.get(gpid)
+        if entry is not None and entry[0] is conn:
+            del _socks[gpid]
+
+
+# --- push (WS_PUSH): send a fresh tick frame the moment a player's tick
+# cache is busted, instead of waiting for their next 1 Hz tick. Best-effort
+# by design — the client's own tick remains the reliable delivery path, so
+# anything lost here arrives at most one tick later.
+
+_push_queue = Queue()
+_push_started = False
+
+
+def enable_push():
+    """Wire cache-bust notifications to a pusher thread. Called once at
+    startup when WEBSOCKETS and WS_PUSH are both set."""
+    global _push_started
+    if _push_started:
+        return
+    _push_started = True
+    Thread(target=_pusher, daemon=True, name="ws-push").start()
+    push.set_handler(_notify)
+
+
+def _notify(gpid):
+    # runs on request threads for every checksum bust in every game —
+    # only pay the queue hop when the player actually has a socket
+    with _socks_lock:
+        if gpid not in _socks:
+            return
+    _push_queue.put(gpid)
+
+
+def _pusher():
+    from models import client as ndb_client
+    while True:
+        batch = {_push_queue.get()}
+        try:
+            while True:
+                batch.add(_push_queue.get_nowait())
+        except Empty:
+            pass
+        for gpid in batch:
+            _push_one(gpid, ndb_client)
+
+
+def _push_one(gpid, ndb_client):
+    with _socks_lock:
+        entry = _socks.get(gpid)
+    if entry is None:
+        return
+    conn, send_lock = entry
+    t0 = monotonic()
+    try:
+        with ndb_client.context():
+            body = netcode.tick_output(*gpid)
+        if body is None:
+            return
+        with send_lock:
+            conn.send("tick:" + body)
+        netperf("ws_push", t0, gid=gpid[0], pid=gpid[1])
+    except ConnectionClosed:
+        pass  # run_connection's finally cleans up the registry
+    except Exception:
+        log.exception("ws push failed for %s.%s", gpid[0], gpid[1])
 
 
 def handle_frame(game_id, player_id, frame):
@@ -55,6 +142,8 @@ def run_connection(conn, game_id, player_id):
         _conns += 1
         gauge = _conns
     log.info("NETPERF ws_conns tag=%s n=%s ev=connect gid=%s pid=%s", NETPERF_TAG, gauge, game_id, player_id)
+    gpid = (game_id, player_id)
+    send_lock = _register(gpid, conn)
     try:
         while True:
             frame = conn.receive()
@@ -75,12 +164,14 @@ def run_connection(conn, game_id, player_id):
                 log.exception("ws: frame handler failed for %s.%s", game_id, player_id)
                 continue
             if reply is not None:
-                conn.send(reply)
+                with send_lock:
+                    conn.send(reply)
             if close:
                 break
     except ConnectionClosed:
         pass
     finally:
+        _unregister(gpid, conn)
         with _conns_lock:
             _conns -= 1
             gauge = _conns

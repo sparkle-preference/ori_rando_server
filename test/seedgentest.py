@@ -80,8 +80,10 @@ class SeedGenTests(unittest.TestCase):
     # but it means users re-generating an old seed get a DIFFERENT seed.
     # Bump the hash AND make sure the user-facing "seeds generated before
     # version X differ" warning gets updated. Do not "fix" this test blindly.
-    # (Last bumped: 2026-07-22, the multiworld tagged-universe port.)
-    SOLO_CANARY = "70b63fae1c1cf13dbb138910074825dab6bd26b2a8a70885c4eedbcf0704c73b"
+    # (Last bumped: 2026-07-28 for 4.2.3's impossible-path fixes (#83) —
+    # verified by diffing generated seeds across the PR: same items, ~9
+    # placements shuffled, exactly what a logic-path change produces.)
+    SOLO_CANARY = "da8d5a061a509de4a2e960fc7b320365534cac662aa2bcf9b827f777928de7da"
 
     def test_solo_output_canary(self):
         import hashlib
@@ -258,7 +260,9 @@ class MultiworldGenTests(unittest.TestCase):
     # (bumped 2026-07-23: CLI MW no longer defaults to shared=Skills+WorldEvents,
     # dropping the inert shared= flag from line 0. Placement bodies verified
     # bit-identical: re-inserting the old flag reproduces the prior hash.)
-    MW_CANARY = "2f1a60e9baeb71e6ec2ec82e3c40aaaf9b1840c6cbf0614ef2c53121147dbe18"
+    # (bumped 2026-07-28: 4.2.3 impossible-path fixes (#83), placements
+    # legitimately shuffled -- see SOLO_CANARY note.)
+    MW_CANARY = "053c4264e17b73f7e1515965775356053a7f8817b0be28558200f72e4590abf3"
 
     def test_mw_output_canary(self):
         import hashlib

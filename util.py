@@ -66,6 +66,12 @@ WEBSOCKETS = _flag("WEBSOCKETS")
 # below the thread count — so they can't starve the http side of the shared
 # pool; rejected clients just keep polling and re-probe on reconnect backoff.
 WS_CONN_LIMIT = int(os.environ.get("WS_CONN_LIMIT", "48"))
+# push a fresh tick frame to a connected socket the moment the server busts
+# that player's tick cache (grants, signals, slot flips) instead of waiting
+# for the client's next 1 Hz tick. Server-only: the client already treats
+# any tick frame as a tick response, and the 1 Hz tick stays the reliable
+# delivery path (a lost push costs nothing). Requires WEBSOCKETS.
+WS_PUSH = _flag("WS_PUSH")
 
 # Perf instrumentation: stable, grep-able log lines ("NETPERF <what> ms=<dur> tag=<revision:pid> k=v ...").
 # tag identifies the Cloud Run revision + worker process, to detect cross-process cache misses.

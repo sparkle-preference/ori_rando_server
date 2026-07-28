@@ -73,6 +73,17 @@ def tick(game_id, player_id, payload):
     return 200, p.output(include_slots=(game.mode == MultiplayerGameType.MULTIWORLD))
 
 
+def tick_output(game_id, player_id):
+    """Fresh tick body for a websocket push frame — byte-identical to what
+    /tick/ would return for this player, minus the client-payload processing
+    (position, bitfield updates, version) only a real tick carries."""
+    game = Game.with_id(game_id)
+    if not game:
+        return None
+    p = game.player(player_id)
+    return p.output(include_slots=(game.mode == MultiplayerGameType.MULTIWORLD))
+
+
 # testing-only GET variant (see the route comment in main.py)
 def tick_debug(game_id, player_id, xycoords, payload):
     x, _, y = xycoords.partition(",")
