@@ -80,19 +80,32 @@ def _unregister(gpid, conn):
 # by design — the client's own tick remains the reliable delivery path, so
 # anything lost here arrives at most one tick later.
 
-_push_queue = Queue()
-_push_started = False
+# bounded: if the pusher ever wedges, drop pushes (best-effort) instead
+# of growing forever
+_push_queue = Queue(maxsize=1000)
+_push_thread = None
+_push_thread_lock = Lock()
 
 
 def enable_push():
-    """Wire cache-bust notifications to a pusher thread. Called once at
-    startup when WEBSOCKETS and WS_PUSH are both set."""
-    global _push_started
-    if _push_started:
-        return
-    _push_started = True
-    Thread(target=_pusher, daemon=True, name="ws-push").start()
+    """Wire cache-bust notifications up. Called at startup when WEBSOCKETS
+    and WS_PUSH are both set. The pusher thread is NOT started here: with
+    gunicorn --preload this code runs in the master process and threads do
+    not survive the fork into the worker (game 134236: WS_PUSH on, sockets
+    up, zero pushes, zero errors). The thread starts lazily in whichever
+    process actually notifies."""
     push.set_handler(_notify)
+
+
+def _ensure_pusher():
+    global _push_thread
+    if _push_thread is not None and _push_thread.is_alive():
+        return
+    with _push_thread_lock:
+        if _push_thread is None or not _push_thread.is_alive():
+            _push_thread = Thread(target=_pusher, daemon=True, name="ws-push")
+            _push_thread.start()
+            log.info("NETPERF ws_push_thread tag=%s ev=start", NETPERF_TAG)
 
 
 def _notify(gpid):
@@ -101,7 +114,11 @@ def _notify(gpid):
     with _socks_lock:
         if gpid not in _socks:
             return
-    _push_queue.put(gpid)
+    _ensure_pusher()
+    try:
+        _push_queue.put_nowait(gpid)
+    except Exception:
+        log.warning("ws: push queue full, dropping push for %s.%s", gpid[0], gpid[1])
 
 
 def _pusher():

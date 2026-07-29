@@ -81,9 +81,19 @@ class FakeNdbClient(object):
 
 
 class RegistryTests(unittest.TestCase):
+    def setUp(self):
+        # keep the real pusher thread out of unit tests: it would race the
+        # queue assertions (and hit real ndb). _notify must still ASK for it.
+        self._real_ensure = ws._ensure_pusher
+        self.ensure_calls = []
+        ws._ensure_pusher = lambda: self.ensure_calls.append(1)
+
     def tearDown(self):
+        ws._ensure_pusher = self._real_ensure
         with ws._socks_lock:
             ws._socks.clear()
+        while not ws._push_queue.empty():
+            ws._push_queue.get_nowait()
 
     def test_register_unregister(self):
         conn = FakeConn()
@@ -107,6 +117,35 @@ class RegistryTests(unittest.TestCase):
         ws._register((1, 2), FakeConn())
         ws._notify((1, 2))
         self.assertEqual(ws._push_queue.get_nowait(), (1, 2))
+
+    def test_notify_lazily_ensures_the_pusher_thread(self):
+        # the preload-fork lesson (game 134236): the thread must be started
+        # by the process that notifies, not the gunicorn master at import
+        ws._register((1, 2), FakeConn())
+        ws._notify((1, 2))
+        self.assertEqual(self.ensure_calls, [1])
+
+    def test_notify_without_socket_skips_thread_start(self):
+        ws._notify((1, 2))
+        self.assertEqual(self.ensure_calls, [])
+
+    def test_ensure_pusher_starts_and_reuses(self):
+        import threading
+        stop = threading.Event()
+        real_pusher, real_thread = ws._pusher, ws._push_thread
+        ws._pusher = stop.wait
+        ws._ensure_pusher = self._real_ensure  # use the real one here
+        try:
+            ws._push_thread = None
+            ws._ensure_pusher()
+            t1 = ws._push_thread
+            self.assertTrue(t1.is_alive())
+            ws._ensure_pusher()
+            self.assertIs(ws._push_thread, t1)  # alive thread is reused
+        finally:
+            stop.set()
+            ws._pusher = real_pusher
+            ws._push_thread = real_thread
 
 
 class StubTickOutput(object):
