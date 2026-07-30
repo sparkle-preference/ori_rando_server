@@ -39,6 +39,10 @@ LOC_TABLE = {loc["name"]: loc for loc in LOCATIONS}
 # except the bonus grab-bag is progression
 PROGRESSION_CATEGORIES = {"skills", "events", "teleporters", "cells", "stones"}
 
+# Warmth Returned is a no-op troll pickup (game-end triggers are positional;
+# no logic path requires it) -- exportable, but never progression
+FILLER_OVERRIDES = {"Warmth Returned"}
+
 MAPSTONE_TURNIN_NAMES = ["MS%d" % n for n in range(1, 10)]
 
 
@@ -232,6 +236,7 @@ class OriDEWorld(World):
         category = ITEM_TABLE[name]["category"]
         classification = (ItemClassification.progression
                           if category in PROGRESSION_CATEGORIES
+                          and name not in FILLER_OVERRIDES
                           else ItemClassification.filler)
         return OriDEItem(name, classification, self.item_name_to_id[name], self.player)
 
