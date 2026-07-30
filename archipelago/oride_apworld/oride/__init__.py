@@ -87,6 +87,13 @@ class OriDEWorld(World):
             if name not in ITEM_TABLE:
                 raise Exception("%s (%s): unknown exported item %r" %
                                 (self.player_name, GAME_NAME, name))
+        if "Keystone" in self.exported:
+            # generic KS are consumable: the per-door thresholds these rules
+            # compile to are only sound while the generator's own cumulative
+            # supply invariant places them locally. Zone keystones (keysanity)
+            # export fine -- one key type per door, thresholds exact.
+            raise Exception("%s (%s): generic Keystones cannot be exported to "
+                            "the AP pool" % (self.player_name, GAME_NAME))
         self.compiler = RuleCompiler(cfg, logger.warning)
 
     def create_regions(self):
@@ -101,7 +108,8 @@ class OriDEWorld(World):
 
         reserved = set(self.reserved)
         placed = set()
-        pedestal_regions = []
+        pedestal_accesses = {}  # pedestal -> [(region, rule)]
+        pickup_accesses = {}  # location -> [(home, needs)]
         overrides = {(o["home"], o["target"]): o
                      for o in self.cfg.get("graph_overrides", [])}
 
@@ -123,9 +131,27 @@ class OriDEWorld(World):
                     continue
                 # pickup node
                 if conn.get("item") == "MapStone":
-                    pedestal_regions.append(regions[home])
+                    pedestal_accesses.setdefault(target, []).append(
+                        (regions[home], make_rule(needs, player)))
                     continue
+                pickup_accesses.setdefault(target, []).append((home, needs))
+
+        for target, accesses in pickup_accesses.items():
+            if len(accesses) == 1:
+                home, needs = accesses[0]
                 self._attach_location(regions[home], target, needs, placed)
+                continue
+            if target not in reserved | set(self.local_progression):
+                continue
+            # multiple approach regions: OR them via a node region
+            node = Region(target, player, self.multiworld)
+            self.multiworld.regions.append(node)
+            for home, needs in accesses:
+                if not needs:
+                    continue  # approach dead under this seed's logic
+                regions[home].connect(node, "%s -> %s" % (home, target),
+                                      make_rule(needs, player))
+            self._attach_location(node, target, None, placed)
 
         # locations orirando fills but areas.ori doesn't model (escapes,
         # first EC): the yaml supplies their region + requirements
@@ -133,11 +159,11 @@ class OriDEWorld(World):
             needs = self.compiler.compile_paths(extra.get("paths", [{"tags": [], "reqs": []}]))
             self._attach_location(regions[extra["region"]], name, needs, placed)
 
-        # mapstone turn-ins: MSn needs n Mapstones and n reachable pedestals
+        # mapstone turn-ins: MSn needs bump(n) Mapstones and n usable pedestals
         for n, name in enumerate(MAPSTONE_TURNIN_NAMES, start=1):
             if name not in set(self.reserved) | set(self.local_progression):
                 continue
-            rule = self._mapstone_rule(n, pedestal_regions)
+            rule = self._mapstone_rule(n, pedestal_accesses)
             self._attach_location(regions[spawn], name, None, placed, rule=rule)
 
         missing = (reserved | set(self.local_progression)) - placed
@@ -179,14 +205,22 @@ class OriDEWorld(World):
         region.locations.append(loc)
         placed.add(name)
 
-    def _mapstone_rule(self, n, pedestal_regions):
+    # the engines reserve the pool's +2 slack: 8th turn-in wants 9 stones,
+    # 9th wants 11 (reachable.py:167-171, generator.py:1908-1911)
+    MAPSTONE_BUMPS = {8: 9, 9: 11}
+
+    def _mapstone_rule(self, n, pedestal_accesses):
         player = self.player
+        stones = self.MAPSTONE_BUMPS.get(n, n)
         def rule(state):
-            if not state.has("Mapstone", player, n):
+            if not state.has("Mapstone", player, stones):
                 return False
-            reachable = sum(1 for region in pedestal_regions
-                            if state.can_reach_region(region.name, player))
-            return reachable >= n
+            usable = sum(
+                1 for accesses in pedestal_accesses.values()
+                if any(state.can_reach_region(region.name, player)
+                       and (approach is None or approach(state))
+                       for region, approach in accesses))
+            return usable >= n
         return rule
 
     def create_items(self):
