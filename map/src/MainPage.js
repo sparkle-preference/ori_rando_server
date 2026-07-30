@@ -19,7 +19,22 @@ const zonesInOrder = ['Glades', 'Blackroot', 'Grove', 'Grotto', 'Ginso', 'Swamp'
 const locOptions = [{'label': 'Spawn With', 'value': 2}];
 zonesInOrder.forEach(zone =>  picks_by_zone[zone].forEach(p => locOptions.push({'label': `${p.area} ${p.name} (${zone})`, 'value': p.loc})));
 picks_by_zone['Mapstone'].forEach(p => locOptions.push({'label': p.name, 'value': p.loc}));
+// Buried pseudo-locations: seedgen keeps these items out of the pool until N
+// locations are reachable (loc key = BURIED_LOC_BASE + N)
+const BURIED_LOC_BASE = 20000000;
+[50, 100, 150, 200].forEach(depth => locOptions.push(
+    {'label': `Buried${String(depth).padStart(3, "0")} (held back until ${depth} locations are reachable)`, 'value': BURIED_LOC_BASE + depth}));
 const locOptionFromCoords = (coords) => locOptions.find(l => l.value === coords);
+// multipickup <-> part codes ("SK|3"), for merging burials into an existing row
+const pickupToParts = (item) => {
+    if(!item || item === "NO|1") return [];
+    if(!item.startsWith("MU|")) return [item];
+    let segs = item.substring(3).split("/");
+    let parts = [];
+    while(segs.length > 1) parts.push(`${segs.shift()}|${segs.shift()}`);
+    return parts;
+}
+const partsToPickup = (parts) => parts.length === 0 ? "NO|1" : (parts.length === 1 ? parts[0] : "MU|" + parts.map(p => p.replace(/\|/g, "/")).join("/"));
 const fassDefaultsFor = (world) => [2, 919772, -1560272, 799776, -120208].map(coords => ({loc: locOptionFromCoords(coords), item: "NO|1", world: world, owner: world}));
 const getPool = (pool_name) => { switch(pool_name) {
     case "Standard": 
@@ -515,6 +530,18 @@ onDrop = (files) => {
                     </Col>
                 </Row>
                 {fass_rows}
+                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "buriedPresets")} className="p-1 justify-content-center">
+                    <Col xs={leftCol} className="text-center pt-1 border">
+                        <Cent>Bury Items (like the old Starved flags)</Cent>
+                    </Col><Col xs="2">
+                        <Button color="primary" block outline onClick={this.buryItems([{depth: 50, items: ["SK|3", "SK|12"]}])}>Walls</Button>
+                    </Col><Col xs="2">
+                        <Button color="primary" block outline onClick={this.buryItems([{depth: 50, items: ["SK|51"]}])}>Grenade</Button>
+                    </Col><Col xs="3">
+                        <Button color="primary" block outline onClick={this.buryItems([{depth: 50, items: ["TP|Grove", "TP|Swamp", "TP|Grotto", "TP|Valley"]},
+                                                                                      {depth: 100, items: ["TP|Forlorn", "TP|Sorrow", "TP|Ginso", "TP|Horu"]}])}>Teleporters</Button>
+                    </Col>
+                </Row>
                 <Collapse isOpen={this.hasVar("Bingo")}>
                 <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "bingoLines")} className="p-1 justify-content-center">
                     <Col xs={leftCol} className="text-center pt-1 border">
@@ -1399,6 +1426,24 @@ onDrop = (files) => {
         }
         fassList.push({loc: newLoc, item: item, world: world, owner: world});
         this.refs.fassTabula.clear();
+        return {fassList: fassList};
+    });
+    // merge items into the Buried row(s) at the given depths for the current
+    // world, creating rows as needed (items already buried there are skipped)
+    buryItems = (groups) => () => this.setState(prevState => {
+        const world = this.isMultiworld() ? prevState.fassWorld : 1;
+        let fassList = [...prevState.fassList];
+        groups.forEach(({depth, items}) => {
+            const loc = locOptionFromCoords(BURIED_LOC_BASE + depth);
+            const idx = fassList.findIndex(f => (f.world || 1) === world && f.loc.value === loc.value);
+            if(idx > -1) {
+                let parts = pickupToParts(fassList[idx].item);
+                items.forEach(i => parts.includes(i) || parts.push(i));
+                fassList[idx] = {...fassList[idx], item: partsToPickup(parts)};
+            } else {
+                fassList.push({loc: loc, item: partsToPickup(items), world: world, owner: world});
+            }
+        });
         return {fassList: fassList};
     });
     onFassWorld = (w) => this.setState(prevState => {

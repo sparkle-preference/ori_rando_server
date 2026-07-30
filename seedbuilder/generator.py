@@ -356,6 +356,11 @@ all_locations = {}
 repeatable_locs = set()
 forbidden_repeatable_locs = set([-7680144, -9120036, -10440008, -10759968, -1560272])
 
+# Buried pseudo-locations: a preplacement at key BURIED_LOC_BASE + N means
+# "keep these items out of the pool until N locations are reachable". Real
+# location keys are x*10000+y with |x| well under 2000, so 20M+ is free.
+BURIED_LOC_BASE = 20000000
+
 class Location:
     factor = 4.0
 
@@ -556,6 +561,7 @@ class SeedGenerator:
         self.balanceLevel = 0
         self.balanceList = []
         self.balanceListLeftovers = []
+        self.buried = []           # (depth, tagged item) not yet in the pool
         self.seedDifficulty = 0
         self.seeds_text = defaultdict(str)
         self.event_lists = defaultdict(list)
@@ -1672,6 +1678,7 @@ class SeedGenerator:
                             AreasRemaining: %s,
                             Inventory: %s,
                             Forced Assignments: %s,
+                            Buried: %s,
                             Nonzero Costs:%s,
                             Partial Seeds: %s""",
                             self.locations(),
@@ -1680,6 +1687,7 @@ class SeedGenerator:
                             [x for x in self.areasRemaining],
                             {k: v for k, v in self.inventory.items() if v != 0},
                             self.forcedAssignments,
+                            self.buried,
                             {k: v for k, v in self.costs.items() if v != 0},
                             "\n".join("player %s:\n%s" % kv for kv in self.seeds_text.items()))
                 return None
@@ -1720,7 +1728,19 @@ class SeedGenerator:
     def items(self, include_balanced=True):
         """Number of items left to place"""
         balanced = len(self.balanceListLeftovers) if include_balanced else 0
-        return sum([v for v in self.itemPool.values()]) + balanced
+        return sum([v for v in self.itemPool.values()]) + balanced + len(self.buried)
+
+    def unearth_buried(self):
+        """Return buried items to the pool once enough locations are
+        reachable. Depths past the whole map release on the final batch."""
+        reached = self.total_locs() - self.locations()
+        still_buried = []
+        for depth, item in self.buried:
+            if reached >= min(depth, self.total_locs()):
+                self.itemPool[item] = self.itemPool.get(item, 0) + 1
+            else:
+                still_buried.append((depth, item))
+        self.buried = still_buried
 
     def place_repeatables(self):
         # repeatables are world-local: player p's RP pool entries land at
@@ -1834,6 +1854,23 @@ class SeedGenerator:
             self.spoiler.append((["Spawn"], [], self.spoilerGroup))
             self.spoilerGroup = defaultdict(list)
 
+        # buried pseudo-locations: pull their items out of the pool now
+        # (invisible to random fill and to path forcing); unearth_buried
+        # returns them once enough locations are reachable. Multipickups
+        # bury each of their parts at the row's depth.
+        for key in [k for k in self.forcedAssignments if k[1] >= BURIED_LOC_BASE]:
+            p, loc = key
+            depth = loc - BURIED_LOC_BASE
+            v = self.forcedAssignments.pop(key)
+            base_v, _, owner_v = v.partition("|")
+            fass_p = int(owner_v) if owner_v else p
+            parts = self.get_multi_items(base_v) if base_v[0:2] in ["MU", "RP"] else [base_v]
+            for item in parts:
+                pool_k = self.pool_key(tag(item, fass_p))
+                if self.itemPool.get(pool_k, 0) > 0:
+                    self.itemPool[pool_k] -= 1
+                self.buried.append((depth, pool_k))
+
         # forced-assignment pool bookkeeping. Values tagged with an owner
         # (cross-world items) decrement that owner's pool entry; untagged
         # values belong to the world they sit in.
@@ -1888,7 +1925,7 @@ class SeedGenerator:
 
         # every remaining location gets EXP; each world's final escape adds one
         # more item slot (warmth returned)
-        self.expSlots = self.locations() - sum([v for v in self.itemPool.values()]) + self.seed_count
+        self.expSlots = self.locations() - sum([v for v in self.itemPool.values()]) - len(self.buried) + self.seed_count
         for p in self.multi_ps():
             self.itemPool.setdefault(tag("EX*", p), 0)
         for _ in range(self.expSlots):
@@ -1914,6 +1951,8 @@ class SeedGenerator:
                 self.connectionQueue = []
             reset_loop = False
             locationsToAssign, reset_loop = self.get_all_accessible_locations()
+            if self.buried:
+                self.unearth_buried()
 
             # if there aren't any doors to open, it's time to get a new skill
             # consider -- work on stronger anti-key-lock logic so that we don't

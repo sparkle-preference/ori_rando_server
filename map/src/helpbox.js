@@ -259,21 +259,24 @@ const getHelpHelper = (category, option) => {
                     title = "TPStarved"
                     lines = [
                         "The TPStarved variation is a new setting that reduces the probability that players will be given teleporter pickups in the early game. It also reduces the probability that teleporter paths are chosen when the seed generator is picking progression paths. This tends to create seeds that open up more slowly, and reduce the frequency of forced early dungeon-teleporter usage.",
-                        "Recommended for players who want teleporters in their item pool but would prefer to avoid finding too many of them early on."
+                        "Recommended for players who want teleporters in their item pool but would prefer to avoid finding too many of them early on.",
+                        "See also the Buried placements in the Advanced tab: a customizable version of this effect with a hard guarantee instead of lowered probabilities."
                     ]
                     break;
                 case "WallStarved":
                     title = "WallStarved"
                     lines = [
                         "The WallStarved variation is a new setting that reduces the probability that players will be given wall interaction skills (Wall Jump and Climb) in the first 40 pickups. It also reduces the probability that these pickups are chosen when the seed generator is picking progression paths. This usually forces the seed generator to place powerful skills more early on.",
-                        "Recommended for players who prefer seeds that are very likely to have powerful skills like Bash and Charge Jump very early on."
+                        "Recommended for players who prefer seeds that are very likely to have powerful skills like Bash and Charge Jump very early on.",
+                        "See also the Buried placements in the Advanced tab: a customizable version of this effect with a hard guarantee instead of lowered probabilities."
                     ]
                     break;
                 case "GrenadeStarved":
                     title = "GrenadeStarved"
                     lines = [
                         "The GrenadeStarved variation is a new setting that dramatically reduces the probability that players will find Grenade in the first 60 pickups. It also reduces the probability that grenade is chosen when the seed generator is picking progression paths.",
-                        "Recommended for players looking to reduce the likelihood of seeds where Bash+Grenade is the early-game movement option."
+                        "Recommended for players looking to reduce the likelihood of seeds where Bash+Grenade is the early-game movement option.",
+                        "See also the Buried placements in the Advanced tab: a customizable version of this effect with a hard guarantee instead of lowered probabilities."
                     ]
                     break;
                 case "Race":
@@ -810,6 +813,18 @@ const getHelpHelper = (category, option) => {
                         "Note: some placements (like 4 mapstones in the first 4 pickups) will cause seed generation to always fail.",
                         "Note: The 'Spawn' location is a special location that is granted at the beginning of every seed. You can use it to generate seeds to practice specific skill combinations, like Bash+Grenade or Grenade+Climb+Charge Jump.",
                         "In Multiworld games, pick which player's world the location is in with the buttons above the placement rows, and whose item it is with the dropdown on the right. Placing another player's item creates a real cross-world pickup: when found, it is sent to its owner. (Spawn items always belong to the world they start in.)",
+                        "NEW: The 'Buried' pseudo-locations at the bottom of the location list delay items instead of placing them: items placed at Buried050 stay out of the item pool until at least 50 locations are reachable, and only then get placed somewhere (Buried100, 150, and 200 work the same way, deeper). Add several items to one Buried row to bury each of them past that depth.",
+                        "Note: burying items the seed generator needs for progression (or burying too many items too deep) can make generation fail, just like impossible forced placements.",
+                        "Note: the Balanced fill algorithm can relocate items to earlier locations after they unbury. For the strictest burial, use the Classic fill algorithm (which fails to generate somewhat more often).",
+                    ]
+                    break;
+                case "buriedPresets":
+                    title = "Bury Items"
+                    lines = [
+                        "These buttons recreate the WallStarved, GrenadeStarved, and TPStarved variations using Buried placements, so you can see how burial works (and then tweak it!):",
+                        "Walls buries Wall Jump and Climb until 50 locations are reachable. Grenade buries Grenade until 50. Teleporters buries the Grove, Swamp, Grotto, and Valley teleporters until 50, and the Forlorn, Sorrow, Ginso, and Horu teleporters until 100.",
+                        "Each click just edits the placement rows above: you can change the depths, add or remove items, or bury anything else the same way by hand.",
+                        "Unlike the old flags (which only lowered probabilities), burial is a hard guarantee: a buried item cannot enter the seed before its depth. The flags still exist and can be combined with burial if you want both.",
                     ]
                     break;
                 case "cellFreq":

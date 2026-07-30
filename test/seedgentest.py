@@ -439,6 +439,81 @@ class MultiworldPreplacementTests(unittest.TestCase):
         self.assertEqual(count_for(3, "EV", "0"), 1)
 
 
+class BuriedPlacementTests(unittest.TestCase):
+    """Buried pseudo-locations: a fass at loc 20000000+N keeps its items out
+    of the pool until N locations are reachable. Classic fill here (balanced
+    swaps relocate items after assignment, which is a documented caveat)."""
+
+    BURIED = 20000000
+
+    def _gen_with_records(self, extra, seedfiles=("randomizer0.dat",)):
+        """Generate and also record (tagged item, reachable-loc-count) at
+        every assignment. -> (records, {seedfile: lines})"""
+        from seedbuilder.generator import SeedGenerator
+        outdir = tempfile.mkdtemp(prefix="seedgentest_buried_")
+        self.addCleanup(shutil.rmtree, outdir, ignore_errors=True)
+        records = []
+        orig = SeedGenerator.assign_to_location
+        def spy(sg, item, location):
+            records.append((item, sg.total_locs() - sg.locations()))
+            return orig(sg, item, location)
+        old_argv = sys.argv
+        sys.argv = ["cli_gen", "--output-dir", outdir, "--preset", "standard",
+                    "--open-world", "--force-trees", "--seed", "buriedtest3"] + extra
+        SeedGenerator.assign_to_location = spy
+        try:
+            CLISeedParams().from_cli()
+        finally:
+            SeedGenerator.assign_to_location = orig
+            sys.argv = old_argv
+        seeds = {}
+        for sf in seedfiles:
+            path = os.path.join(outdir, sf)
+            self.assertTrue(os.path.exists(path), "no seed produced (%s)" % sf)
+            with open(path) as f:
+                seeds[sf] = f.read().splitlines()
+        return records, seeds
+
+    def _depths(self, records, tagged):
+        depths = [d for (i, d) in records if i == tagged]
+        self.assertTrue(depths, "%s was never assigned" % tagged)
+        return depths
+
+    def test_buried_item_stays_buried(self):
+        records, seeds = self._gen_with_records(["--fass", "%s:SK51" % (self.BURIED + 150)])
+        self.assertGreaterEqual(min(self._depths(records, "Grenade|1")), 150)
+        placements, _ = parse_seed(seeds["randomizer0.dat"])
+        grenades = [1 for (c, i, z) in placements.values() if (c, i) == ("SK", "51")]
+        self.assertEqual(len(grenades), 1, "buried Grenade should still be placed exactly once")
+
+    def test_control_seed_places_grenade_early(self):
+        # same seed string, no burial: proves the assertion above can fail
+        records, _ = self._gen_with_records([])
+        self.assertLess(min(self._depths(records, "Grenade|1")), 150)
+
+    def test_multipickup_buries_each_part(self):
+        records, _ = self._gen_with_records(["--fass", "%s:MUSK/3/SK/12" % (self.BURIED + 100)])
+        self.assertGreaterEqual(min(self._depths(records, "WallJump|1")), 100)
+        self.assertGreaterEqual(min(self._depths(records, "Climb|1")), 100)
+
+    def test_multiworld_buried_with_owner(self):
+        # balanced like the MW canon args; the invariant is assignment-time
+        records, seeds = self._gen_with_records(
+            ["--balanced", "--players", "2", "--share-mode", "multiworld",
+             "--fass", "%s:SK51@2" % (self.BURIED + 100)],
+            seedfiles=("randomizer_1.dat", "randomizer_2.dat"))
+        self.assertGreaterEqual(min(self._depths(records, "Grenade|2")), 100)
+        check_mw_invariants(self, {1: seeds["randomizer_1.dat"], 2: seeds["randomizer_2.dat"]})
+        # P2's pool copy was consumed: exactly one Grenade for P2 anywhere
+        n = 0
+        for p, sf in ((1, "randomizer_1.dat"), (2, "randomizer_2.dat")):
+            placements, manifest = parse_seed(seeds[sf])
+            if p == 2:
+                n += sum(1 for (c, i, z) in placements.values() if (c, i) == ("SK", "51"))
+            n += sum(1 for (f, c, i, z) in manifest.values() if p == 2 and (c, i) == ("SK", "51"))
+        self.assertEqual(n, 1)
+
+
 class AntiBkBoostTests(unittest.TestCase):
     """Shape of the multiworld starvation weight multiplier."""
 

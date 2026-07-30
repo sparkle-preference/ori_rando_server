@@ -92,7 +92,8 @@ class CLISeedParams(object):
         parser.add_argument("--prefer-path-difficulty", help="Increase the chances of putting items in more convenient (easy) or less convenient (hard) locations", choices=["easy", "hard"])
         parser.add_argument("--balanced", help="Reduce the value of newly discovered locations for progression placements", action="store_true")
         parser.add_argument("--anti-bk-bias", help="Multiworld only: 0.0-1.0, bias progression toward the world with the fewest reachable checks", type=float, default=0.0)
-        parser.add_argument("--fass", help="Forced assignments, |-separated: [world.]loc:item[@owner], e.g. '919772:SK0|2.-280256:EV0@3'", type=str, default=None)
+        parser.add_argument("--fass", help="""Forced assignments, |-separated: [world.]loc:item[@owner], e.g. '919772:SK0|2.-280256:EV0@3'.
+        loc 20000000+N is the BuriedN pseudo-location: the item stays out of the pool until N locations are reachable""", type=str, default=None)
         parser.add_argument("--force-cells", help="Force health and energy cells to appear every N pickups, if they don't randomly", type=int, default=256)
         parser.add_argument("--verbose-spoiler", help="show everything in the spoiler", action="store_true")
         # anal TODO: IMPL
