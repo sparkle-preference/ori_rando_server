@@ -18,7 +18,7 @@ from worlds.AutoWorld import WebWorld, World
 from .options import OriDEOptions
 from .rules import RuleCompiler, make_rule
 
-GAME_NAME = "Ori DE Randomizer"
+GAME_NAME = "Ori DE Rando"  # pre-release working name; safe to change until first public apworld release
 
 logger = logging.getLogger("oride")
 
