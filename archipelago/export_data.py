@@ -16,7 +16,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from pickups import Pickup, Skill, Event, Teleporter, Upgrade
 from seedbuilder.oriparse import get_areas
-from util import coords_in_order, picks_by_coord
+from util import coords_in_order, picks_by_coord, picks_by_type
 
 BASE_ID = 524288  # 2**19; deliberately not c-ostic's 262144
 
@@ -55,9 +55,13 @@ def build_items():
 
 def build_locations():
     pbc = picks_by_coord(extras=True)
+    # extra_PBT entries shadow areas.ori names in picks_by_coord (e.g.
+    # SunkenGladesFirstEC vs areas.ori's FirstEnergyCell); the graph speaks
+    # areas.ori, so the datapackage must prefer those names
+    ori_names = {p.coords: p for group in picks_by_type(extras=False).values() for p in group}
     locations = []
     for i, coord in enumerate(coords_in_order):
-        pick = pbc[coord]
+        pick = ori_names.get(coord, pbc[coord])
         locations.append({
             "ap_id": BASE_ID + i,
             "name": pick.area,
@@ -79,6 +83,9 @@ def build_graph():
             paths = [{"tags": path[0], "reqs": list(path[1:])} for path in conn.get("paths", [])]
             entry = {"type": conn["type"], "paths": paths}
             if conn["type"] == "pickup":
+                loc_info = areas["locs"].get(target)
+                if loc_info:
+                    entry["item"] = loc_info["item"]
                 if target not in known_locs:
                     # unfillable node (mapstone pedestals etc.) -- logic-only
                     entry["unfillable"] = True

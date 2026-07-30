@@ -3,6 +3,7 @@
   "AboveChargeFlameTreeExpWarp": {
    "AboveChargeFlameTreeExp": {
     "coord": -160096,
+    "item": "EX100",
     "paths": [
      {
       "reqs": [
@@ -32,6 +33,7 @@
   "AboveChargeJumpArea": {
    "AboveChargeJumpAbilityCell": {
     "coord": -6479528,
+    "item": "AC",
     "paths": [
      {
       "reqs": [
@@ -320,6 +322,7 @@
    },
    "GumoHideoutCrusherExp": {
     "coord": 5719620,
+    "item": "EX100",
     "paths": [
      {
       "reqs": [
@@ -334,6 +337,7 @@
    },
    "GumoHideoutEnergyCell": {
     "coord": 5439640,
+    "item": "EC",
     "paths": [
      {
       "reqs": [
@@ -350,6 +354,7 @@
   "BashTree": {
    "BashAreaExp": {
     "coord": 5160336,
+    "item": "EX100",
     "paths": [
      {
       "reqs": [
@@ -396,6 +401,7 @@
    },
    "BashSkillTree": {
     "coord": 5320328,
+    "item": "SKBash",
     "paths": [
      {
       "reqs": [
@@ -791,6 +797,7 @@
    },
    "DashAreaAbilityCell": {
     "coord": 1799708,
+    "item": "AC",
     "paths": [
      {
       "reqs": [
@@ -837,6 +844,7 @@
    },
    "DashAreaOrbRoomExp": {
     "coord": 1519708,
+    "item": "EX100",
     "paths": [
      {
       "reqs": [
@@ -883,6 +891,7 @@
    },
    "DashAreaRoofExp": {
     "coord": 1959768,
+    "item": "EX100",
     "paths": [
      {
       "reqs": [
@@ -940,6 +949,7 @@
   "BlackrootGrottoConnection": {
    "BlackrootBoulderExp": {
     "coord": 4319676,
+    "item": "EX100",
     "paths": [
      {
       "reqs": [
@@ -961,6 +971,7 @@
     "type": "pickup"
    },
    "BlackrootMap": {
+    "item": "MapStone",
     "paths": [
      {
       "reqs": [
@@ -1026,6 +1037,7 @@
    },
    "BlackrootTeleporterHealthCell": {
     "coord": 3919688,
+    "item": "HC",
     "paths": [],
     "type": "pickup"
    },
@@ -1100,6 +1112,7 @@
   "ChargeFlameAreaPlantAccess": {
    "ChargeFlameAreaPlant": {
     "coord": 399844,
+    "item": "Plant",
     "paths": [
      {
       "reqs": [
@@ -1251,6 +1264,7 @@
    },
    "ChargeFlameSkillTree": {
     "coord": -560160,
+    "item": "SKChargeFlame",
     "paths": [],
     "type": "pickup"
    },
@@ -1370,6 +1384,7 @@
    },
    "ChargeJumpSkillTree": {
     "coord": -6959592,
+    "item": "SKChargeJump",
     "paths": [],
     "type": "pickup"
    }
@@ -1583,6 +1598,7 @@
    },
    "UpperSorrowFarLeftKeystone": {
     "coord": -5919556,
+    "item": "KS",
     "paths": [
      {
       "reqs": [
@@ -1610,6 +1626,7 @@
    },
    "UpperSorrowFarRightKeystone": {
     "coord": -4159572,
+    "item": "KS",
     "paths": [
      {
       "reqs": [
@@ -1624,6 +1641,7 @@
    },
    "UpperSorrowLeftKeystone": {
     "coord": -5159576,
+    "item": "KS",
     "paths": [
      {
       "reqs": [
@@ -1638,6 +1656,7 @@
    },
    "UpperSorrowRightKeystone": {
     "coord": -4559584,
+    "item": "KS",
     "paths": [
      {
       "reqs": [
@@ -1652,6 +1671,7 @@
    },
    "UpperSorrowSpikeExp": {
     "coord": -5479592,
+    "item": "EX100",
     "paths": [
      {
       "reqs": [
@@ -1937,6 +1957,7 @@
    },
    "DashSkillTree": {
     "coord": 2919744,
+    "item": "SKDash",
     "paths": [],
     "type": "pickup"
    },
@@ -2121,6 +2142,7 @@
   "DashAreaMapstoneAccess": {
    "DashAreaMapstone": {
     "coord": 3439744,
+    "item": "MS",
     "paths": [
      {
       "reqs": [
@@ -2191,6 +2213,7 @@
    },
    "DashAreaPlant": {
     "coord": 3119768,
+    "item": "Plant",
     "paths": [
      {
       "reqs": [
@@ -2254,6 +2277,7 @@
    },
    "DeathGauntletEnergyCell": {
     "coord": 4199828,
+    "item": "EC",
     "paths": [
      {
       "reqs": [
@@ -2301,6 +2325,7 @@
    },
    "DeathGauntletExp": {
     "coord": 2999808,
+    "item": "EX100",
     "paths": [
      {
       "reqs": [
@@ -2471,6 +2496,7 @@
    },
    "DeathGauntletStompSwim": {
     "coord": 3559792,
+    "item": "EX200",
     "paths": [
      {
       "reqs": [
@@ -2799,6 +2825,7 @@
   "DeathGauntletMoat": {
    "DeathGauntletSwimEnergyDoor": {
     "coord": 3359784,
+    "item": "AC",
     "paths": [
      {
       "reqs": [
@@ -2836,6 +2863,7 @@
    },
    "DeathGauntletRoofHealthCell": {
     "coord": 3199820,
+    "item": "HC",
     "paths": [],
     "type": "pickup"
    },
@@ -2847,6 +2875,7 @@
   "DeathGauntletRoofPlantAccess": {
    "DeathGauntletRoofPlant": {
     "coord": 3399820,
+    "item": "Plant",
     "paths": [
      {
       "reqs": [
@@ -2928,6 +2957,7 @@
   "DoubleJumpKeyDoorOpened": {
    "DoubleJumpAreaExp": {
     "coord": 7559600,
+    "item": "EX100",
     "paths": [
      {
       "reqs": [
@@ -3215,6 +3245,7 @@
    },
    "DoubleJumpSkillTree": {
     "coord": 7839588,
+    "item": "SKDoubleJump",
     "paths": [
      {
       "reqs": [
@@ -3328,6 +3359,7 @@
   "ForlornGravityRoom": {
    "ForlornHiddenSpiderExp": {
     "coord": -8440352,
+    "item": "EX100",
     "paths": [
      {
       "reqs": [
@@ -3478,6 +3510,7 @@
    },
    "ForlornKeystone1": {
     "coord": -8600356,
+    "item": "KS",
     "paths": [
      {
       "reqs": [
@@ -3522,6 +3555,7 @@
    },
    "ForlornKeystone2": {
     "coord": -8920328,
+    "item": "KS",
     "paths": [
      {
       "reqs": [
@@ -3690,6 +3724,7 @@
   "ForlornInnerDoor": {
    "ForlornEntranceExp": {
     "coord": -7040392,
+    "item": "EX200",
     "paths": [
      {
       "reqs": [
@@ -4135,6 +4170,7 @@
   "ForlornLaserRoom": {
    "ForlornEscape": {
     "coord": -7320236,
+    "item": "EVWind",
     "paths": [
      {
       "reqs": [
@@ -4355,6 +4391,7 @@
    },
    "ForlornKeystone4": {
     "coord": -8720256,
+    "item": "KS",
     "paths": [
      {
       "reqs": [
@@ -4423,6 +4460,7 @@
     "type": "pickup"
    },
    "ForlornMap": {
+    "item": "MapStone",
     "paths": [
      {
       "reqs": [
@@ -4627,6 +4665,7 @@
   "ForlornOrbPossession": {
    "ForlornHiddenSpiderExp": {
     "coord": -8440352,
+    "item": "EX100",
     "paths": [
      {
       "reqs": [
@@ -4781,6 +4820,7 @@
    },
    "ForlornKeystone1": {
     "coord": -8600356,
+    "item": "KS",
     "paths": [
      {
       "reqs": [
@@ -4795,6 +4835,7 @@
    },
    "ForlornKeystone2": {
     "coord": -8920328,
+    "item": "KS",
     "paths": [
      {
       "reqs": [
@@ -4809,6 +4850,7 @@
    },
    "ForlornKeystone3": {
     "coord": -8880252,
+    "item": "KS",
     "paths": [
      {
       "reqs": [
@@ -4823,6 +4865,7 @@
    },
    "ForlornKeystone4": {
     "coord": -8720256,
+    "item": "KS",
     "paths": [
      {
       "reqs": [
@@ -4866,6 +4909,7 @@
   "ForlornPlantAccess": {
    "ForlornPlant": {
     "coord": -8160268,
+    "item": "Plant",
     "paths": [
      {
       "reqs": [
@@ -5082,6 +5126,7 @@
    },
    "ForlornKeystone3": {
     "coord": -8880252,
+    "item": "KS",
     "paths": [
      {
       "reqs": [
@@ -5386,26 +5431,31 @@
   "GinsoEscapeComplete": {
    "GinsoEscapeExit": {
     "coord": 5480952,
+    "item": "EVWater",
     "paths": [],
     "type": "pickup"
    },
    "GinsoEscapeHangingExp": {
     "coord": 5160864,
+    "item": "EX100",
     "paths": [],
     "type": "pickup"
    },
    "GinsoEscapeJumpPadExp": {
     "coord": 5360732,
+    "item": "EX100",
     "paths": [],
     "type": "pickup"
    },
    "GinsoEscapeProjectileExp": {
     "coord": 5320824,
+    "item": "EX100",
     "paths": [],
     "type": "pickup"
    },
    "GinsoEscapeSpiderExp": {
     "coord": 5320660,
+    "item": "EX200",
     "paths": [],
     "type": "pickup"
    },
@@ -5504,6 +5554,7 @@
    },
    "LowerGinsoKeystone1": {
     "coord": 5280264,
+    "item": "KS",
     "paths": [
      {
       "reqs": [
@@ -5552,6 +5603,7 @@
    },
    "LowerGinsoKeystone2": {
     "coord": 5400276,
+    "item": "KS",
     "paths": [
      {
       "reqs": [
@@ -5601,6 +5653,7 @@
    },
    "LowerGinsoKeystone3": {
     "coord": 5080304,
+    "item": "KS",
     "paths": [
      {
       "reqs": [
@@ -5648,6 +5701,7 @@
    },
    "LowerGinsoKeystone4": {
     "coord": 5280296,
+    "item": "KS",
     "paths": [
      {
       "reqs": [
@@ -5908,6 +5962,7 @@
   "GladesLaserArea": {
    "GladesLaser": {
     "coord": -1560188,
+    "item": "EC",
     "paths": [
      {
       "reqs": [
@@ -5966,6 +6021,7 @@
    },
    "GladesLaserGrenade": {
     "coord": -1680140,
+    "item": "AC",
     "paths": [
      {
       "reqs": [
@@ -6513,6 +6569,7 @@
   "GladesMain": {
    "FourthHealthCell": {
     "coord": -800192,
+    "item": "HC",
     "paths": [],
     "type": "pickup"
    },
@@ -6730,6 +6787,7 @@
     "type": "conn"
    },
    "GladesMap": {
+    "item": "MapStone",
     "paths": [
      {
       "reqs": [
@@ -6745,6 +6803,7 @@
    },
    "GladesMapKeystone": {
     "coord": -600244,
+    "item": "KS",
     "paths": [],
     "type": "pickup"
    },
@@ -6790,6 +6849,7 @@
   "GladesMainAttic": {
    "AboveFourthHealth": {
     "coord": -480168,
+    "item": "AC",
     "paths": [],
     "type": "pickup"
    },
@@ -6814,6 +6874,7 @@
   "GrenadeArea": {
    "GrenadeAreaAbilityCell": {
     "coord": 2519668,
+    "item": "AC",
     "paths": [
      {
       "reqs": [
@@ -6868,6 +6929,7 @@
    },
    "GrenadeAreaExp": {
     "coord": 2239640,
+    "item": "EX100",
     "paths": [
      {
       "reqs": [
@@ -6985,6 +7047,7 @@
    },
    "GrenadeSkillTree": {
     "coord": 719620,
+    "item": "SKGrenade",
     "paths": [
      {
       "reqs": [
@@ -7391,6 +7454,7 @@
    },
    "GumoHideoutRedirectEnergyCell": {
     "coord": 5119556,
+    "item": "EC",
     "paths": [
      {
       "reqs": [
@@ -7405,6 +7469,7 @@
    },
    "GumoHideoutRedirectExp": {
     "coord": 5039560,
+    "item": "EX200",
     "paths": [
      {
       "reqs": [
@@ -7421,6 +7486,7 @@
   "GroveWaterStompAbilityCellWarp": {
    "GroveWaterStompAbilityCell": {
     "coord": 3519820,
+    "item": "AC",
     "paths": [
      {
       "reqs": [
@@ -7508,6 +7574,7 @@
    },
    "GumoHideoutCrusherExp": {
     "coord": 5719620,
+    "item": "EX100",
     "paths": [
      {
       "reqs": [
@@ -7555,6 +7622,7 @@
    },
    "GumoHideoutCrusherKeystone": {
     "coord": 5879616,
+    "item": "KS",
     "paths": [
      {
       "reqs": [
@@ -7604,6 +7672,7 @@
    },
    "GumoHideoutEnergyCell": {
     "coord": 5439640,
+    "item": "EC",
     "paths": [
      {
       "reqs": [
@@ -7670,6 +7739,7 @@
     "type": "pickup"
    },
    "GumoHideoutMap": {
+    "item": "MapStone",
     "paths": [
      {
       "reqs": [
@@ -7685,6 +7755,7 @@
    },
    "GumoHideoutMapstone": {
     "coord": 5119584,
+    "item": "MS",
     "paths": [
      {
       "reqs": [
@@ -7769,6 +7840,7 @@
    },
    "GumoHideoutMiniboss": {
     "coord": 6199596,
+    "item": "KS",
     "paths": [
      {
       "reqs": [
@@ -7824,6 +7896,7 @@
    },
    "GumoHideoutRightHangingExp": {
     "coord": 4959628,
+    "item": "EX15",
     "paths": [
      {
       "reqs": [
@@ -8007,6 +8080,7 @@
   "GumoHideoutRedirectArea": {
    "GumoHideoutRedirectAbilityCell": {
     "coord": 4479568,
+    "item": "AC",
     "paths": [
      {
       "reqs": [
@@ -8104,6 +8178,7 @@
    },
    "GumoHideoutRedirectPlant": {
     "coord": 4919600,
+    "item": "Plant",
     "paths": [
      {
       "reqs": [
@@ -8215,6 +8290,7 @@
   "GumoHideoutRedirectEnergyVault": {
    "GumoHideoutRedirectEnergyCell": {
     "coord": 5119556,
+    "item": "EC",
     "paths": [
      {
       "reqs": [
@@ -8264,6 +8340,7 @@
    },
    "GumoHideoutRedirectExp": {
     "coord": 5039560,
+    "item": "EX200",
     "paths": [
      {
       "reqs": [
@@ -8315,6 +8392,7 @@
   "HollowGrove": {
    "GroveWaterStompAbilityCell": {
     "coord": 3519820,
+    "item": "AC",
     "paths": [
      {
       "reqs": [
@@ -8384,6 +8462,7 @@
     "type": "pickup"
    },
    "HollowGroveMap": {
+    "item": "MapStone",
     "paths": [
      {
       "reqs": [
@@ -8399,6 +8478,7 @@
    },
    "HollowGroveMapPlant": {
     "coord": 3639880,
+    "item": "Plant",
     "paths": [
      {
       "reqs": [
@@ -8430,11 +8510,13 @@
    },
    "HollowGroveMapstone": {
     "coord": 2999904,
+    "item": "MS",
     "paths": [],
     "type": "pickup"
    },
    "HollowGroveTreeAbilityCell": {
     "coord": 3319936,
+    "item": "AC",
     "paths": [
      {
       "reqs": [
@@ -8544,6 +8626,7 @@
    },
    "HollowGroveTreePlant": {
     "coord": 3279920,
+    "item": "Plant",
     "paths": [
      {
       "reqs": [
@@ -8661,6 +8744,7 @@
    },
    "HoruFieldsHealthCell": {
     "coord": 1599920,
+    "item": "HC",
     "paths": [
      {
       "reqs": [
@@ -8979,6 +9063,7 @@
    },
    "SwampTeleporterAbilityCell": {
     "coord": 4079964,
+    "item": "AC",
     "paths": [
      {
       "reqs": [
@@ -9152,6 +9237,7 @@
    },
    "HollowGroveTreeAbilityCell": {
     "coord": 3319936,
+    "item": "AC",
     "paths": [
      {
       "reqs": [
@@ -9168,6 +9254,7 @@
   "HoruBasement": {
    "DoorWarpExp": {
     "coord": 1040112,
+    "item": "EX200",
     "paths": [
      {
       "reqs": [
@@ -9578,6 +9665,7 @@
    },
    "HoruFieldsAbilityCell": {
     "coord": 1759964,
+    "item": "AC",
     "paths": [
      {
       "reqs": [
@@ -9651,6 +9739,7 @@
    },
    "HoruFieldsEnergyCell": {
     "coord": 1720000,
+    "item": "EC",
     "paths": [
      {
       "reqs": [
@@ -9735,6 +9824,7 @@
    },
    "HoruFieldsHiddenExp": {
     "coord": 959960,
+    "item": "EX200",
     "paths": [
      {
       "reqs": [
@@ -9775,6 +9865,7 @@
    },
    "HoruFieldsPlant": {
     "coord": 1240020,
+    "item": "Plant",
     "paths": [
      {
       "reqs": [
@@ -10025,6 +10116,7 @@
    },
    "HoruLavaDrainedLeftExp": {
     "coord": 120164,
+    "item": "EX200",
     "paths": [
      {
       "reqs": [
@@ -10100,6 +10192,7 @@
    },
    "HoruLavaDrainedRightExp": {
     "coord": 1280164,
+    "item": "EX200",
     "paths": [
      {
       "reqs": [
@@ -12153,6 +12246,7 @@
    },
    "HoruL4LowerExp": {
     "coord": -319852,
+    "item": "EX200",
     "paths": [
      {
       "reqs": [
@@ -12241,6 +12335,7 @@
   "HoruL4CutscenePeg": {
    "HoruL4": {
     "coord": -959848,
+    "item": "CS",
     "paths": [
      {
       "reqs": [
@@ -12382,6 +12477,7 @@
    },
    "HoruL4ChaseExp": {
     "coord": -1919808,
+    "item": "EX200",
     "paths": [
      {
       "reqs": [
@@ -12397,6 +12493,7 @@
   },
   "HoruMapLedge": {
    "HoruMap": {
+    "item": "MapStone",
     "paths": [
      {
       "reqs": [
@@ -12424,11 +12521,13 @@
   "HoruR1CutsceneTrigger": {
    "HoruR1": {
     "coord": 2640380,
+    "item": "CS",
     "paths": [],
     "type": "pickup"
    },
    "HoruR1EnergyCell": {
     "coord": 2480400,
+    "item": "EC",
     "paths": [
      {
       "reqs": [
@@ -12811,6 +12910,7 @@
    },
    "HoruR1HangingExp": {
     "coord": 1920384,
+    "item": "EX100",
     "paths": [
      {
       "reqs": [
@@ -12928,6 +13028,7 @@
    },
    "HoruR1Mapstone": {
     "coord": 1480360,
+    "item": "MS",
     "paths": [],
     "type": "pickup"
    },
@@ -13168,6 +13269,7 @@
   "HoruR3CutsceneTrigger": {
    "HoruR3": {
     "coord": 3040304,
+    "item": "CS",
     "paths": [],
     "type": "pickup"
    },
@@ -13315,6 +13417,7 @@
   "HoruR3PlantCove": {
    "HoruR3Plant": {
     "coord": 3160244,
+    "item": "Plant",
     "paths": [
      {
       "reqs": [
@@ -13348,11 +13451,13 @@
   "HoruR4CutsceneTrigger": {
    "HoruR4": {
     "coord": 2160192,
+    "item": "CS",
     "paths": [],
     "type": "pickup"
    },
    "HoruR4DrainedExp": {
     "coord": 1600136,
+    "item": "EX200",
     "paths": [
      {
       "reqs": [
@@ -13490,6 +13595,7 @@
    },
    "HoruR4LaserExp": {
     "coord": 2520192,
+    "item": "EX200",
     "paths": [
      {
       "reqs": [
@@ -13649,6 +13755,7 @@
    },
    "HoruR4LaserExp": {
     "coord": 2520192,
+    "item": "EX200",
     "paths": [
      {
       "reqs": [
@@ -13865,6 +13972,7 @@
    },
    "HoruR4StompExp": {
     "coord": 1880164,
+    "item": "EX200",
     "paths": [],
     "type": "pickup"
    }
@@ -13937,6 +14045,7 @@
    },
    "HoruTeleporterExp": {
     "coord": 960128,
+    "item": "EX200",
     "paths": [],
     "type": "pickup"
    },
@@ -14103,6 +14212,7 @@
    },
    "IcelessExp": {
     "coord": 3639888,
+    "item": "EX100",
     "paths": [],
     "type": "pickup"
    },
@@ -14191,6 +14301,7 @@
   "InnerSwampDrainBroken": {
    "InnerSwampDrainExp": {
     "coord": 6359836,
+    "item": "EX100",
     "paths": [
      {
       "reqs": [
@@ -14497,6 +14608,7 @@
   "InnerSwampSkyArea": {
    "InnerSwampEnergyCell": {
     "coord": 7199904,
+    "item": "EC",
     "paths": [],
     "type": "pickup"
    },
@@ -14512,6 +14624,7 @@
   "L1": {
    "HoruL1": {
     "coord": -919624,
+    "item": "CS",
     "paths": [
      {
       "reqs": [
@@ -14925,6 +15038,7 @@
   "L2": {
    "HoruL2": {
     "coord": -199724,
+    "item": "CS",
     "paths": [
      {
       "reqs": [
@@ -15273,6 +15387,7 @@
   "L3": {
    "HoruL3": {
     "coord": -1639664,
+    "item": "CS",
     "paths": [
      {
       "reqs": [
@@ -15928,6 +16043,7 @@
    },
    "HoruLavaDrainedLeftExp": {
     "coord": 120164,
+    "item": "EX200",
     "paths": [],
     "type": "pickup"
    },
@@ -15943,6 +16059,7 @@
    },
    "LeftGladesHiddenExp": {
     "coord": -2840236,
+    "item": "EX15",
     "paths": [],
     "type": "pickup"
    },
@@ -16002,6 +16119,7 @@
    },
    "WallJumpAreaEnergyCell": {
     "coord": -3360288,
+    "item": "EC",
     "paths": [
      {
       "reqs": [
@@ -16057,6 +16175,7 @@
    },
    "WallJumpAreaExp": {
     "coord": -2480280,
+    "item": "EX200",
     "paths": [
      {
       "reqs": [
@@ -16088,6 +16207,7 @@
    },
    "WallJumpSkillTree": {
     "coord": -3160308,
+    "item": "SKWallJump",
     "paths": [],
     "type": "pickup"
    }
@@ -16095,6 +16215,7 @@
   "LeftGumoHideout": {
    "FarLeftGumoHideoutExp": {
     "coord": 3279644,
+    "item": "EX100",
     "paths": [
      {
       "reqs": [
@@ -16171,6 +16292,7 @@
    },
    "LeftGumoHideoutUpperPlant": {
     "coord": 4359656,
+    "item": "Plant",
     "paths": [
      {
       "reqs": [
@@ -16361,6 +16483,7 @@
   "LeftSorrow": {
    "LeftSorrowAbilityCell": {
     "coord": -6719712,
+    "item": "AC",
     "paths": [
      {
       "reqs": [
@@ -16497,6 +16620,7 @@
    },
    "LeftSorrowGrenade": {
     "coord": -6799732,
+    "item": "EX200",
     "paths": [
      {
       "reqs": [
@@ -16657,6 +16781,7 @@
    },
    "LeftSorrowPlant": {
     "coord": -6319752,
+    "item": "Plant",
     "paths": [
      {
       "reqs": [
@@ -16766,6 +16891,7 @@
    },
    "LeftSorrowEnergyCell": {
     "coord": -6279608,
+    "item": "EC",
     "paths": [
      {
       "reqs": [
@@ -16812,6 +16938,7 @@
    },
    "LeftSorrowKeystone1": {
     "coord": -6079672,
+    "item": "KS",
     "paths": [
      {
       "reqs": [
@@ -16877,6 +17004,7 @@
    },
    "LeftSorrowKeystone2": {
     "coord": -6119656,
+    "item": "KS",
     "paths": [
      {
       "reqs": [
@@ -16926,6 +17054,7 @@
    },
    "LeftSorrowKeystone3": {
     "coord": -6039640,
+    "item": "KS",
     "paths": [
      {
       "reqs": [
@@ -16971,6 +17100,7 @@
    },
    "LeftSorrowKeystone4": {
     "coord": -6159632,
+    "item": "KS",
     "paths": [
      {
       "reqs": [
@@ -17517,6 +17647,7 @@
   "LeftSorrowTumbleweedDoorWarp": {
    "LeftSorrowEnergyCell": {
     "coord": -6279608,
+    "item": "EC",
     "paths": [
      {
       "reqs": [
@@ -17637,6 +17768,7 @@
    },
    "LeftSorrowKeystone1": {
     "coord": -6079672,
+    "item": "KS",
     "paths": [
      {
       "reqs": [
@@ -17717,6 +17849,7 @@
    },
    "LeftSorrowKeystone2": {
     "coord": -6119656,
+    "item": "KS",
     "paths": [
      {
       "reqs": [
@@ -17789,6 +17922,7 @@
    },
    "LeftSorrowKeystone3": {
     "coord": -6039640,
+    "item": "KS",
     "paths": [
      {
       "reqs": [
@@ -17819,6 +17953,7 @@
    },
    "LeftSorrowKeystone4": {
     "coord": -6159632,
+    "item": "KS",
     "paths": [
      {
       "reqs": [
@@ -18132,6 +18267,7 @@
    },
    "LostGroveLongSwim": {
     "coord": 5239456,
+    "item": "AC",
     "paths": [
      {
       "reqs": [
@@ -18344,11 +18480,13 @@
    },
    "LostGroveAbilityCell": {
     "coord": 4559492,
+    "item": "AC",
     "paths": [],
     "type": "pickup"
    },
    "LostGroveHiddenExp": {
     "coord": 4599508,
+    "item": "EX100",
     "paths": [
      {
       "reqs": [
@@ -18396,6 +18534,7 @@
    },
    "LostGroveTeleporter": {
     "coord": 3039472,
+    "item": "EX100",
     "paths": [
      {
       "reqs": [
@@ -18918,6 +19057,7 @@
    },
    "LowerBlackrootAbilityCell": {
     "coord": 2759624,
+    "item": "AC",
     "paths": [
      {
       "reqs": [
@@ -18967,6 +19107,7 @@
    },
    "LowerBlackrootGrenadeThrow": {
     "coord": 2079568,
+    "item": "AC",
     "paths": [
      {
       "reqs": [
@@ -19044,6 +19185,7 @@
    },
    "LowerBlackrootLaserAbilityCell": {
     "coord": 3879576,
+    "item": "AC",
     "paths": [
      {
       "reqs": [
@@ -19155,6 +19297,7 @@
    },
    "LowerBlackrootLaserExp": {
     "coord": 3359580,
+    "item": "EX100",
     "paths": [
      {
       "reqs": [
@@ -19243,6 +19386,7 @@
   "LowerChargeFlameArea": {
    "ChargeFlameAreaExp": {
     "coord": 39804,
+    "item": "EX100",
     "paths": [],
     "type": "pickup"
    },
@@ -19523,6 +19667,7 @@
    },
    "LowerGinsoHiddenExp": {
     "coord": 5200140,
+    "item": "EX100",
     "paths": [
      {
       "reqs": [
@@ -19592,6 +19737,7 @@
    },
    "LowerGinsoPlant": {
     "coord": 5400100,
+    "item": "Plant",
     "paths": [
      {
       "reqs": [
@@ -19642,6 +19788,7 @@
    },
    "GumoHideoutLeftHangingExp": {
     "coord": 4639628,
+    "item": "EX15",
     "paths": [],
     "type": "pickup"
    },
@@ -19651,6 +19798,7 @@
    },
    "GumoHideoutRightHangingExp": {
     "coord": 4959628,
+    "item": "EX15",
     "paths": [
      {
       "reqs": [
@@ -19763,6 +19911,7 @@
    },
    "LeftGumoHideoutExp": {
     "coord": 4039612,
+    "item": "EX100",
     "paths": [
      {
       "reqs": [
@@ -19821,6 +19970,7 @@
    },
    "LeftGumoHideoutHealthCell": {
     "coord": 3919624,
+    "item": "HC",
     "paths": [
      {
       "reqs": [
@@ -19889,6 +20039,7 @@
    },
    "LeftGumoHideoutLowerPlant": {
     "coord": 4439632,
+    "item": "Plant",
     "paths": [
      {
       "reqs": [
@@ -19920,6 +20071,7 @@
    },
    "LeftGumoHideoutSwim": {
     "coord": 3959588,
+    "item": "EX100",
     "paths": [
      {
       "reqs": [
@@ -20133,11 +20285,13 @@
    },
    "SorrowEntranceAbilityCell": {
     "coord": -5119796,
+    "item": "AC",
     "paths": [],
     "type": "pickup"
    },
    "SorrowHealthCell": {
     "coord": -6119704,
+    "item": "HC",
     "paths": [
      {
       "reqs": [
@@ -20288,6 +20442,7 @@
    },
    "SorrowHiddenKeystone": {
     "coord": -5159700,
+    "item": "KS",
     "paths": [
      {
       "reqs": [
@@ -20402,6 +20557,7 @@
    },
    "SorrowLowerLeftKeystone": {
     "coord": -5959772,
+    "item": "KS",
     "paths": [
      {
       "reqs": [
@@ -20636,6 +20792,7 @@
    },
    "SorrowSpikeKeystone": {
     "coord": -5039728,
+    "item": "KS",
     "paths": [
      {
       "reqs": [
@@ -21110,6 +21267,7 @@
    },
    "SpiritCavernsAbilityCell": {
     "coord": -2160176,
+    "item": "AC",
     "paths": [
      {
       "reqs": [
@@ -21181,11 +21339,13 @@
    },
    "SpiritCavernsKeystone1": {
     "coord": -1840196,
+    "item": "KS",
     "paths": [],
     "type": "pickup"
    },
    "SpiritCavernsKeystone2": {
     "coord": -2200184,
+    "item": "KS",
     "paths": [
      {
       "reqs": [
@@ -21251,6 +21411,7 @@
   "LowerValley": {
    "KuroPerchExp": {
     "coord": -5479948,
+    "item": "EX200",
     "paths": [
      {
       "reqs": [
@@ -21303,11 +21464,13 @@
    },
    "LowerValleyExp": {
     "coord": -5400104,
+    "item": "EX100",
     "paths": [],
     "type": "pickup"
    },
    "LowerValleyMapstone": {
     "coord": -5640092,
+    "item": "MS",
     "paths": [
      {
       "reqs": [
@@ -21692,6 +21855,7 @@
   "LowerValleyPlantApproach": {
    "ValleyMainPlant": {
     "coord": -4680068,
+    "item": "Plant",
     "paths": [
      {
       "reqs": [
@@ -22114,6 +22278,7 @@
    },
    "MistyGrenade": {
     "coord": -6720040,
+    "item": "EX200",
     "paths": [
      {
       "reqs": [
@@ -22258,6 +22423,7 @@
    },
    "MistyEntranceStompExp": {
     "coord": -6800032,
+    "item": "EX100",
     "paths": [
      {
       "reqs": [
@@ -22309,6 +22475,7 @@
    },
    "MistyEntranceTreeExp": {
     "coord": -8240012,
+    "item": "EX100",
     "paths": [
      {
       "reqs": [
@@ -22643,6 +22810,7 @@
   "MistyKeystone3Ledge": {
    "MistyKeystone3": {
     "coord": -9120036,
+    "item": "KS",
     "paths": [],
     "type": "pickup"
    },
@@ -22821,6 +22989,7 @@
    },
    "MistyKeystone4": {
     "coord": -7680144,
+    "item": "KS",
     "paths": [],
     "type": "pickup"
    }
@@ -22909,6 +23078,7 @@
    },
    "MistyPostClimbAboveSpikePit": {
     "coord": -7960144,
+    "item": "EX200",
     "paths": [
      {
       "reqs": [
@@ -22954,6 +23124,7 @@
   "MistyOrbRoom": {
    "GumonSeal": {
     "coord": -7200024,
+    "item": "EVForlornKey",
     "paths": [
      {
       "reqs": [
@@ -23100,6 +23271,7 @@
   "MistyPostFeatherTutorial": {
    "MistyFrogNookExp": {
     "coord": -9799980,
+    "item": "EX100",
     "paths": [
      {
       "reqs": [
@@ -23213,6 +23385,7 @@
    },
    "MistyKeystone1": {
     "coord": -10759968,
+    "item": "KS",
     "paths": [],
     "type": "pickup"
    },
@@ -23370,6 +23543,7 @@
    },
    "MistyPostClimbSpikeCave": {
     "coord": -8400124,
+    "item": "EX100",
     "paths": [
      {
       "reqs": [
@@ -23492,6 +23666,7 @@
   "MistyPreClimb": {
    "ClimbSkillTree": {
     "coord": -11880100,
+    "item": "SKClimb",
     "paths": [],
     "type": "pickup"
    },
@@ -23600,6 +23775,7 @@
   "MistyPreKeystone2": {
    "MistyAbilityCell": {
     "coord": -10760004,
+    "item": "AC",
     "paths": [
      {
       "reqs": [
@@ -23641,6 +23817,7 @@
    },
    "MistyKeystone2": {
     "coord": -10440008,
+    "item": "KS",
     "paths": [],
     "type": "pickup"
    }
@@ -23753,6 +23930,7 @@
   "MistyPreMortarCorridor": {
    "MistyMortarCorridorHiddenExp": {
     "coord": -10120036,
+    "item": "EX100",
     "paths": [
      {
       "reqs": [
@@ -23879,6 +24057,7 @@
    },
    "MistyMortarCorridorUpperExp": {
     "coord": -10839992,
+    "item": "EX100",
     "paths": [
      {
       "reqs": [
@@ -24044,6 +24223,7 @@
   "MistyPrePlantLedge": {
    "MistyPlant": {
     "coord": -11040068,
+    "item": "Plant",
     "paths": [
      {
       "reqs": [
@@ -24214,6 +24394,7 @@
   "MoonGrotto": {
    "BelowGrottoTeleporterHealthCell": {
     "coord": 5399808,
+    "item": "HC",
     "paths": [
      {
       "reqs": [
@@ -24447,6 +24628,7 @@
    },
    "BelowGrottoTeleporterPlant": {
     "coord": 5399780,
+    "item": "Plant",
     "paths": [
      {
       "reqs": [
@@ -24673,6 +24855,7 @@
    },
    "GrottoEnergyDoorHealthCell": {
     "coord": 4239780,
+    "item": "HC",
     "paths": [
      {
       "reqs": [
@@ -24760,6 +24943,7 @@
    },
    "GrottoEnergyDoorSwim": {
     "coord": 4199724,
+    "item": "EX100",
     "paths": [
      {
       "reqs": [
@@ -24788,6 +24972,7 @@
    },
    "GumoHideoutRightHangingExp": {
     "coord": 4959628,
+    "item": "EX15",
     "paths": [
      {
       "reqs": [
@@ -24959,6 +25144,7 @@
   "MoonGrottoAboveTeleporter": {
    "AboveGrottoTeleporterExp": {
     "coord": 4759860,
+    "item": "EX100",
     "paths": [
      {
       "reqs": [
@@ -25025,6 +25211,7 @@
    },
    "BelowGrottoTeleporterHealthCell": {
     "coord": 5399808,
+    "item": "HC",
     "paths": [
      {
       "reqs": [
@@ -25039,6 +25226,7 @@
    },
    "BelowGrottoTeleporterPlant": {
     "coord": 5399780,
+    "item": "Plant",
     "paths": [
      {
       "reqs": [
@@ -25067,6 +25255,7 @@
    },
    "LeftGrottoTeleporterExp": {
     "coord": 4479832,
+    "item": "EX200",
     "paths": [
      {
       "reqs": [
@@ -25429,6 +25618,7 @@
   "MoonGrottoStompPlantAccess": {
    "MoonGrottoStompPlant": {
     "coord": 4319860,
+    "item": "Plant",
     "paths": [
      {
       "reqs": [
@@ -25462,6 +25652,7 @@
   "MoonGrottoSwampAccessArea": {
    "GrottoSwampDrainAccessExp": {
     "coord": 5519856,
+    "item": "EX100",
     "paths": [
      {
       "reqs": [
@@ -25522,6 +25713,7 @@
    },
    "GrottoSwampDrainAccessPlant": {
     "coord": 5359824,
+    "item": "Plant",
     "paths": [
      {
       "reqs": [
@@ -25752,6 +25944,7 @@
    },
    "OuterSwampAbilityCell": {
     "coord": 6999916,
+    "item": "AC",
     "paths": [],
     "type": "pickup"
    }
@@ -25759,6 +25952,7 @@
   "OuterSwampHealthCellWarp": {
    "OuterSwampHealthCell": {
     "coord": 5799932,
+    "item": "HC",
     "paths": [],
     "type": "pickup"
    },
@@ -25958,11 +26152,13 @@
   "OuterSwampMortarAbilityCellLedge": {
    "OuterSwampMortarAbilityCell": {
     "coord": 4999892,
+    "item": "AC",
     "paths": [],
     "type": "pickup"
    },
    "OuterSwampMortarPlant": {
     "coord": 5119900,
+    "item": "Plant",
     "paths": [
      {
       "reqs": [
@@ -25983,6 +26179,7 @@
   "OuterSwampMortarPlantAccess": {
    "OuterSwampMortarPlant": {
     "coord": 5119900,
+    "item": "Plant",
     "paths": [
      {
       "reqs": [
@@ -26016,6 +26213,7 @@
   "OuterSwampSwarmLedge": {
    "OuterSwampHealthCell": {
     "coord": 5799932,
+    "item": "HC",
     "paths": [
      {
       "reqs": [
@@ -26175,6 +26373,7 @@
    },
    "OuterSwampMortarPlant": {
     "coord": 5119900,
+    "item": "Plant",
     "paths": [
      {
       "reqs": [
@@ -26279,6 +26478,7 @@
    },
    "OuterSwampStompExp": {
     "coord": 6159900,
+    "item": "EX100",
     "paths": [
      {
       "reqs": [
@@ -26394,6 +26594,7 @@
    },
    "OuterSwampGrenadeExp": {
     "coord": 6639952,
+    "item": "EX200",
     "paths": [
      {
       "reqs": [
@@ -26548,6 +26749,7 @@
    },
    "OutsideForlornTreeExp": {
     "coord": -4600256,
+    "item": "EX100",
     "paths": [
      {
       "reqs": [
@@ -26595,6 +26797,7 @@
    },
    "OutsideForlornWaterExp": {
     "coord": -5160280,
+    "item": "EX100",
     "paths": [
      {
       "reqs": [
@@ -26655,6 +26858,7 @@
    },
    "OutsideForlornCliffExp": {
     "coord": -5400236,
+    "item": "EX200",
     "paths": [
      {
       "reqs": [
@@ -26804,6 +27008,7 @@
   "R1": {
    "HoruR1HangingExp": {
     "coord": 1920384,
+    "item": "EX100",
     "paths": [
      {
       "reqs": [
@@ -27122,6 +27327,7 @@
   "R2": {
    "HoruR2": {
     "coord": 1720288,
+    "item": "CS",
     "paths": [
      {
       "reqs": [
@@ -27848,6 +28054,7 @@
   "R4": {
    "HoruR4DrainedExp": {
     "coord": 1600136,
+    "item": "EX200",
     "paths": [
      {
       "reqs": [
@@ -28072,6 +28279,7 @@
    },
    "HoruLavaDrainedRightExp": {
     "coord": 1280164,
+    "item": "EX200",
     "paths": [
      {
       "reqs": [
@@ -28309,6 +28517,7 @@
    },
    "RazielNo": {
     "coord": 3039696,
+    "item": "EX100",
     "paths": [],
     "type": "pickup"
    }
@@ -28316,11 +28525,13 @@
   "RightForlorn": {
    "RightForlornHealthCell": {
     "coord": -6280316,
+    "item": "HC",
     "paths": [],
     "type": "pickup"
    },
    "RightForlornPlant": {
     "coord": -6080316,
+    "item": "Plant",
     "paths": [
      {
       "reqs": [
@@ -28354,6 +28565,7 @@
   "RightSwamp": {
    "StompAreaExp": {
     "coord": 8839900,
+    "item": "EX100",
     "paths": [
      {
       "reqs": [
@@ -28411,6 +28623,7 @@
    },
    "StompAreaGrenadeExp": {
     "coord": 8719856,
+    "item": "EX200",
     "paths": [
      {
       "reqs": [
@@ -28676,6 +28889,7 @@
    },
    "StompAreaRoofExp": {
     "coord": 9119928,
+    "item": "EX200",
     "paths": [
      {
       "reqs": [
@@ -28698,6 +28912,7 @@
    },
    "StompSkillTree": {
     "coord": 8599904,
+    "item": "SKStomp",
     "paths": [],
     "type": "pickup"
    }
@@ -28705,6 +28920,7 @@
   "SideFallCell": {
    "GrottoHideoutFallAbilityCell": {
     "coord": 4479704,
+    "item": "AC",
     "paths": [],
     "type": "pickup"
    },
@@ -28714,6 +28930,7 @@
    },
    "GumoHideoutRightHangingExp": {
     "coord": 4959628,
+    "item": "EX15",
     "paths": [],
     "type": "pickup"
    },
@@ -28834,6 +29051,7 @@
    },
    "SorrowMainShaftKeystone": {
     "coord": -4879680,
+    "item": "KS",
     "paths": [],
     "type": "pickup"
    }
@@ -28891,6 +29109,7 @@
     "type": "conn"
    },
    "SorrowMap": {
+    "item": "MapStone",
     "paths": [
      {
       "reqs": [
@@ -28924,6 +29143,7 @@
    },
    "SorrowMapstone": {
     "coord": -4359680,
+    "item": "MS",
     "paths": [
      {
       "reqs": [
@@ -28959,6 +29179,7 @@
   "SorrowMapstoneWarp": {
    "SorrowMapstone": {
     "coord": -4359680,
+    "item": "MS",
     "paths": [
      {
       "reqs": [
@@ -29307,6 +29528,7 @@
   "SpiderSacArea": {
    "AboveChargeFlameTreeExp": {
     "coord": -160096,
+    "item": "EX100",
     "paths": [
      {
       "reqs": [
@@ -29652,6 +29874,7 @@
    },
    "SpiderSacEnergyDoor": {
     "coord": 639888,
+    "item": "AC",
     "paths": [
      {
       "reqs": [
@@ -29682,6 +29905,7 @@
    },
    "SpiderSacEnergyCell": {
     "coord": 599844,
+    "item": "EC",
     "paths": [],
     "type": "pickup"
    }
@@ -29689,6 +29913,7 @@
   "SpiderSacTetherArea": {
    "SpiderSacEnergyDoor": {
     "coord": 639888,
+    "item": "AC",
     "paths": [
      {
       "reqs": [
@@ -29769,6 +29994,7 @@
    },
    "SpiderSacGrenadeDoor": {
     "coord": 919908,
+    "item": "AC",
     "paths": [
      {
       "reqs": [
@@ -29823,6 +30049,7 @@
    },
    "SpiderSacHealthCell": {
     "coord": 1479880,
+    "item": "HC",
     "paths": [
      {
       "reqs": [
@@ -30096,6 +30323,7 @@
    },
    "GroveAboveSpiderWaterEnergyCell": {
     "coord": 2719900,
+    "item": "EC",
     "paths": [
      {
       "reqs": [
@@ -30156,6 +30384,7 @@
    },
    "GroveAboveSpiderWaterExp": {
     "coord": 1719892,
+    "item": "EX200",
     "paths": [
      {
       "reqs": [
@@ -30249,6 +30478,7 @@
    },
    "GroveAboveSpiderWaterHealthCell": {
     "coord": 2599880,
+    "item": "HC",
     "paths": [
      {
       "reqs": [
@@ -30346,6 +30576,7 @@
    },
    "GroveSpiderWaterSwim": {
     "coord": 1839836,
+    "item": "EX100",
     "paths": [
      {
       "reqs": [
@@ -30683,6 +30914,7 @@
    },
    "SpiritCavernsAbilityCell": {
     "coord": -2160176,
+    "item": "AC",
     "paths": [
      {
       "reqs": [
@@ -30697,6 +30929,7 @@
    },
    "SpiritCavernsKeystone1": {
     "coord": -1840196,
+    "item": "KS",
     "paths": [
      {
       "reqs": [
@@ -30711,6 +30944,7 @@
    },
    "SpiritCavernsKeystone2": {
     "coord": -2200184,
+    "item": "KS",
     "paths": [
      {
       "reqs": [
@@ -30896,6 +31130,7 @@
   "SpiritTreeRefined": {
    "AboveChargeFlameTreeExp": {
     "coord": -160096,
+    "item": "EX100",
     "paths": [
      {
       "reqs": [
@@ -31230,6 +31465,7 @@
    },
    "SpiritTreeExp": {
     "coord": -1680104,
+    "item": "EX100",
     "paths": [
      {
       "reqs": [
@@ -31406,6 +31642,7 @@
    },
    "StompAreaRoofExp": {
     "coord": 9119928,
+    "item": "EX200",
     "paths": [
      {
       "reqs": [
@@ -31523,22 +31760,26 @@
     "type": "conn"
    },
    "FirstEnergyCell": {
+    "coord": -280256,
+    "item": "EC",
     "paths": [],
-    "type": "pickup",
-    "unfillable": true
+    "type": "pickup"
    },
    "FirstPickup": {
     "coord": 919772,
+    "item": "EX15",
     "paths": [],
     "type": "pickup"
    },
    "FronkeyFight": {
     "coord": -1560272,
+    "item": "EX15",
     "paths": [],
     "type": "pickup"
    },
    "FronkeyWalkRoof": {
     "coord": 2559800,
+    "item": "EX200",
     "paths": [
      {
       "reqs": [
@@ -31601,6 +31842,7 @@
    },
    "GladesGrenadePool": {
     "coord": 559720,
+    "item": "EX200",
     "paths": [
      {
       "reqs": [
@@ -31644,6 +31886,7 @@
    },
    "GladesGrenadeTree": {
     "coord": 799804,
+    "item": "AC",
     "paths": [
      {
       "reqs": [
@@ -31718,16 +31961,19 @@
    },
    "GladesKeystone1": {
     "coord": 799776,
+    "item": "KS",
     "paths": [],
     "type": "pickup"
    },
    "GladesKeystone2": {
     "coord": -120208,
+    "item": "KS",
     "paths": [],
     "type": "pickup"
    },
    "GladesMainPool": {
     "coord": 39756,
+    "item": "EX100",
     "paths": [
      {
       "reqs": [
@@ -31776,6 +32022,7 @@
    },
    "GladesMainPoolDeep": {
     "coord": -400240,
+    "item": "EC",
     "paths": [
      {
       "reqs": [
@@ -31843,11 +32090,13 @@
    },
    "Sunstone": {
     "coord": -5599400,
+    "item": "EVHoruKey",
     "paths": [],
     "type": "pickup"
    },
    "SunstonePlant": {
     "coord": -4799416,
+    "item": "Plant",
     "paths": [
      {
       "reqs": [
@@ -31903,6 +32152,7 @@
   "Swamp": {
    "InnerSwampDrainExp": {
     "coord": 6359836,
+    "item": "EX100",
     "paths": [
      {
       "reqs": [
@@ -32299,6 +32549,7 @@
     "type": "conn"
    },
    "SwampMap": {
+    "item": "MapStone",
     "paths": [
      {
       "reqs": [
@@ -32373,6 +32624,7 @@
    },
    "SwampEntranceAbilityCell": {
     "coord": 6399872,
+    "item": "AC",
     "paths": [
      {
       "reqs": [
@@ -32548,6 +32800,7 @@
    },
    "SwampEntrancePlant": {
     "coord": 6279880,
+    "item": "Plant",
     "paths": [
      {
       "reqs": [
@@ -32655,6 +32908,7 @@
    },
    "SwampEntranceSwim": {
     "coord": 5919864,
+    "item": "EX200",
     "paths": [
      {
       "reqs": [
@@ -33052,6 +33306,7 @@
    },
    "InnerSwampStompExp": {
     "coord": 7679852,
+    "item": "EX100",
     "paths": [
      {
       "reqs": [
@@ -33187,21 +33442,25 @@
   "SwampWater": {
    "InnerSwampHiddenSwimExp": {
     "coord": 7599824,
+    "item": "EX100",
     "paths": [],
     "type": "pickup"
    },
    "InnerSwampSwimLeftKeystone": {
     "coord": 6839792,
+    "item": "KS",
     "paths": [],
     "type": "pickup"
    },
    "InnerSwampSwimMapstone": {
     "coord": 7959788,
+    "item": "MS",
     "paths": [],
     "type": "pickup"
    },
    "InnerSwampSwimRightKeystone": {
     "coord": 7639816,
+    "item": "KS",
     "paths": [
      {
       "reqs": [
@@ -33326,6 +33585,7 @@
   "SwampWaterWarp": {
    "InnerSwampSwimMapstone": {
     "coord": 7959788,
+    "item": "MS",
     "paths": [
      {
       "reqs": [
@@ -33340,6 +33600,7 @@
    },
    "InnerSwampSwimRightKeystone": {
     "coord": 7639816,
+    "item": "KS",
     "paths": [
      {
       "reqs": [
@@ -33692,6 +33953,7 @@
    },
    "TopGinsoLeftLowerExp": {
     "coord": 4560564,
+    "item": "EX100",
     "paths": [
      {
       "reqs": [
@@ -33803,6 +34065,7 @@
    },
    "TopGinsoLeftUpperExp": {
     "coord": 4680612,
+    "item": "EX100",
     "paths": [
      {
       "reqs": [
@@ -33907,6 +34170,7 @@
    },
    "TopGinsoRightPlant": {
     "coord": 6080608,
+    "item": "Plant",
     "paths": [
      {
       "reqs": [
@@ -34184,6 +34448,7 @@
   "UpperGinsoEnergyCellWarp": {
    "UpperGinsoEnergyCell": {
     "coord": 5360432,
+    "item": "EC",
     "paths": [
      {
       "reqs": [
@@ -34248,6 +34513,7 @@
   "UpperGinsoRedirectArea": {
    "BashAreaExp": {
     "coord": 5160336,
+    "item": "EX100",
     "paths": [
      {
       "reqs": [
@@ -34339,6 +34605,7 @@
    },
    "UpperGinsoRedirectLowerExp": {
     "coord": 5160384,
+    "item": "EX100",
     "paths": [
      {
       "reqs": [
@@ -34402,6 +34669,7 @@
    },
    "UpperGinsoRedirectUpperExp": {
     "coord": 5280404,
+    "item": "EX100",
     "paths": [
      {
       "reqs": [
@@ -34558,6 +34826,7 @@
    },
    "UpperGinsoEnergyCell": {
     "coord": 5360432,
+    "item": "EC",
     "paths": [
      {
       "reqs": [
@@ -34611,6 +34880,7 @@
    },
    "UpperGinsoLowerKeystone": {
     "coord": 5040476,
+    "item": "KS",
     "paths": [
      {
       "reqs": [
@@ -34755,6 +35025,7 @@
    },
    "UpperGinsoRightKeystone": {
     "coord": 5320488,
+    "item": "KS",
     "paths": [
      {
       "reqs": [
@@ -34855,6 +35126,7 @@
    },
    "UpperGinsoUpperLeftKeystone": {
     "coord": 5080496,
+    "item": "KS",
     "paths": [
      {
       "reqs": [
@@ -34934,6 +35206,7 @@
    },
    "UpperGinsoUpperRightKeystone": {
     "coord": 5280500,
+    "item": "KS",
     "paths": [
      {
       "reqs": [
@@ -34994,6 +35267,7 @@
   "UpperGrotto": {
    "GrottoLasersRoofExp": {
     "coord": 4319892,
+    "item": "EX100",
     "paths": [
      {
       "reqs": [
@@ -35314,6 +35588,7 @@
    },
    "LeftGladesExp": {
     "coord": -2480208,
+    "item": "EX15",
     "paths": [
      {
       "reqs": [
@@ -35369,11 +35644,13 @@
    },
    "LeftGladesKeystone": {
     "coord": -2400212,
+    "item": "KS",
     "paths": [],
     "type": "pickup"
    },
    "LeftGladesMapstone": {
     "coord": -1840228,
+    "item": "MS",
     "paths": [],
     "type": "pickup"
    }
@@ -35427,6 +35704,7 @@
    },
    "UpperSorrowFarLeftKeystone": {
     "coord": -5919556,
+    "item": "KS",
     "paths": [
      {
       "reqs": [
@@ -35567,6 +35845,7 @@
    },
    "UpperSorrowFarRightKeystone": {
     "coord": -4159572,
+    "item": "KS",
     "paths": [
      {
       "reqs": [
@@ -35634,6 +35913,7 @@
    },
    "UpperSorrowLeftKeystone": {
     "coord": -5159576,
+    "item": "KS",
     "paths": [
      {
       "reqs": [
@@ -35697,6 +35977,7 @@
    },
    "UpperSorrowRightKeystone": {
     "coord": -4559584,
+    "item": "KS",
     "paths": [
      {
       "reqs": [
@@ -35786,6 +36067,7 @@
    },
    "UpperSorrowSpikeExp": {
     "coord": -5479592,
+    "item": "EX100",
     "paths": [
      {
       "reqs": [
@@ -35908,6 +36190,7 @@
    },
    "SpiritCavernsTopLeftKeystone": {
     "coord": -2200148,
+    "item": "KS",
     "paths": [
      {
       "reqs": [
@@ -35990,6 +36273,7 @@
    },
    "SpiritCavernsTopRightKeystone": {
     "coord": -1800156,
+    "item": "KS",
     "paths": [],
     "type": "pickup"
    },
@@ -36040,6 +36324,7 @@
    },
    "ValleyEntryAbilityCell": {
     "coord": -2080116,
+    "item": "AC",
     "paths": [],
     "type": "pickup"
    },
@@ -36458,6 +36743,7 @@
    },
    "ValleyThreeBirdAbilityCell": {
     "coord": -3520100,
+    "item": "AC",
     "paths": [
      {
       "reqs": [
@@ -36582,6 +36868,7 @@
   "ValleyEntryTree": {
    "ValleyEntryGrenadeLongSwim": {
     "coord": -3200164,
+    "item": "EC",
     "paths": [
      {
       "reqs": [
@@ -36627,6 +36914,7 @@
    },
    "ValleyEntryTreeExp": {
     "coord": -2240084,
+    "item": "EX100",
     "paths": [],
     "type": "pickup"
    },
@@ -36703,6 +36991,7 @@
   "ValleyEntryTreePlantAccess": {
    "ValleyEntryTreePlant": {
     "coord": -1800088,
+    "item": "Plant",
     "paths": [
      {
       "reqs": [
@@ -36765,6 +37054,7 @@
    },
    "ValleyForlornApproachGrenade": {
     "coord": -4600188,
+    "item": "AC",
     "paths": [
      {
       "reqs": [
@@ -36779,10 +37069,12 @@
    },
    "ValleyForlornApproachMapstone": {
     "coord": -4440152,
+    "item": "MS",
     "paths": [],
     "type": "pickup"
    },
    "ValleyMap": {
+    "item": "MapStone",
     "paths": [
      {
       "reqs": [
@@ -36921,11 +37213,13 @@
   "ValleyMain": {
    "GlideSkillFeather": {
     "coord": -4600020,
+    "item": "SKGlide",
     "paths": [],
     "type": "pickup"
    },
    "KuroPerchExp": {
     "coord": -5479948,
+    "item": "EX200",
     "paths": [
      {
       "reqs": [
@@ -37299,6 +37593,7 @@
    },
    "ValleyRightSwimExp": {
     "coord": -3600088,
+    "item": "EX100",
     "paths": [
      {
       "reqs": [
@@ -37810,6 +38105,7 @@
   "ValleyRightFastStomplessCellWarp": {
    "ValleyRightFastStomplessCell": {
     "coord": -3559936,
+    "item": "AC",
     "paths": [
      {
       "reqs": [
@@ -37977,6 +38273,7 @@
   "ValleyStompless": {
    "KuroPerchExp": {
     "coord": -5479948,
+    "item": "EX200",
     "paths": [
      {
       "reqs": [
@@ -38254,6 +38551,7 @@
    },
    "ValleyRightBirdStompCell": {
     "coord": -2919980,
+    "item": "AC",
     "paths": [
      {
       "reqs": [
@@ -38304,6 +38602,7 @@
    },
    "ValleyRightExp": {
     "coord": -4199936,
+    "item": "EX100",
     "paths": [
      {
       "reqs": [
@@ -38352,6 +38651,7 @@
    },
    "ValleyRightFastStomplessCell": {
     "coord": -3559936,
+    "item": "AC",
     "paths": [
      {
       "reqs": [
@@ -39095,6 +39395,7 @@
    },
    "ValleyMainFACS": {
     "coord": -4160080,
+    "item": "AC",
     "paths": [
      {
       "reqs": [
@@ -39160,6 +39461,7 @@
    },
    "ValleyThreeBirdAbilityCell": {
     "coord": -3520100,
+    "item": "AC",
     "paths": [
      {
       "reqs": [
@@ -39301,6 +39603,7 @@
    },
    "ValleyThreeBirdAbilityCell": {
     "coord": -3520100,
+    "item": "AC",
     "paths": [
      {
       "reqs": [
@@ -39421,11 +39724,13 @@
    },
    "GumoHideoutLeftHangingExp": {
     "coord": 4639628,
+    "item": "EX15",
     "paths": [],
     "type": "pickup"
    },
    "GumoHideoutRockfallExp": {
     "coord": 5639752,
+    "item": "EX100",
     "paths": [],
     "type": "pickup"
    },
@@ -39580,6 +39885,7 @@
    },
    "WaterVein": {
     "coord": 4999752,
+    "item": "EVGinsoKey",
     "paths": [],
     "type": "pickup"
    }
@@ -39587,6 +39893,7 @@
   "WilhelmExpWarp": {
    "WilhelmExp": {
     "coord": -5719844,
+    "item": "EX200",
     "paths": [
      {
       "reqs": [
@@ -39616,6 +39923,7 @@
   "WilhelmLedge": {
    "KuroPerchExp": {
     "coord": -5479948,
+    "item": "EX200",
     "paths": [
      {
       "reqs": [
@@ -39957,6 +40265,7 @@
    },
    "WilhelmExp": {
     "coord": -5719844,
+    "item": "EX200",
     "paths": [
      {
       "reqs": [
