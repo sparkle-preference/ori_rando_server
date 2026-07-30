@@ -1,0 +1,429 @@
+[
+ {
+  "ap_id": 524288,
+  "category": "skills",
+  "code": "SK",
+  "id": "0",
+  "name": "Bash"
+ },
+ {
+  "ap_id": 524289,
+  "category": "skills",
+  "code": "SK",
+  "id": "2",
+  "name": "Charge Flame"
+ },
+ {
+  "ap_id": 524290,
+  "category": "skills",
+  "code": "SK",
+  "id": "3",
+  "name": "Wall Jump"
+ },
+ {
+  "ap_id": 524291,
+  "category": "skills",
+  "code": "SK",
+  "id": "4",
+  "name": "Stomp"
+ },
+ {
+  "ap_id": 524292,
+  "category": "skills",
+  "code": "SK",
+  "id": "5",
+  "name": "Double Jump"
+ },
+ {
+  "ap_id": 524293,
+  "category": "skills",
+  "code": "SK",
+  "id": "8",
+  "name": "Charge Jump"
+ },
+ {
+  "ap_id": 524294,
+  "category": "skills",
+  "code": "SK",
+  "id": "12",
+  "name": "Climb"
+ },
+ {
+  "ap_id": 524295,
+  "category": "skills",
+  "code": "SK",
+  "id": "14",
+  "name": "Glide"
+ },
+ {
+  "ap_id": 524296,
+  "category": "skills",
+  "code": "SK",
+  "id": "50",
+  "name": "Dash"
+ },
+ {
+  "ap_id": 524297,
+  "category": "skills",
+  "code": "SK",
+  "id": "51",
+  "name": "Grenade"
+ },
+ {
+  "ap_id": 524298,
+  "category": "skills",
+  "code": "SK",
+  "id": "15",
+  "name": "Spirit Flame"
+ },
+ {
+  "ap_id": 524299,
+  "category": "events",
+  "code": "EV",
+  "id": "0",
+  "name": "Water Vein"
+ },
+ {
+  "ap_id": 524300,
+  "category": "events",
+  "code": "EV",
+  "id": "1",
+  "name": "Clean Water"
+ },
+ {
+  "ap_id": 524301,
+  "category": "events",
+  "code": "EV",
+  "id": "2",
+  "name": "Gumon Seal"
+ },
+ {
+  "ap_id": 524302,
+  "category": "events",
+  "code": "EV",
+  "id": "3",
+  "name": "Wind Restored"
+ },
+ {
+  "ap_id": 524303,
+  "category": "events",
+  "code": "EV",
+  "id": "4",
+  "name": "Sunstone"
+ },
+ {
+  "ap_id": 524304,
+  "category": "events",
+  "code": "EV",
+  "id": "5",
+  "name": "Warmth Returned"
+ },
+ {
+  "ap_id": 524305,
+  "category": "teleporters",
+  "code": "TP",
+  "id": "Grove",
+  "name": "Grove teleporter"
+ },
+ {
+  "ap_id": 524306,
+  "category": "teleporters",
+  "code": "TP",
+  "id": "Swamp",
+  "name": "Swamp teleporter"
+ },
+ {
+  "ap_id": 524307,
+  "category": "teleporters",
+  "code": "TP",
+  "id": "Grotto",
+  "name": "Grotto teleporter"
+ },
+ {
+  "ap_id": 524308,
+  "category": "teleporters",
+  "code": "TP",
+  "id": "Valley",
+  "name": "Valley teleporter"
+ },
+ {
+  "ap_id": 524309,
+  "category": "teleporters",
+  "code": "TP",
+  "id": "Forlorn",
+  "name": "Forlorn teleporter"
+ },
+ {
+  "ap_id": 524310,
+  "category": "teleporters",
+  "code": "TP",
+  "id": "Sorrow",
+  "name": "Sorrow teleporter"
+ },
+ {
+  "ap_id": 524311,
+  "category": "teleporters",
+  "code": "TP",
+  "id": "Ginso",
+  "name": "Ginso teleporter"
+ },
+ {
+  "ap_id": 524312,
+  "category": "teleporters",
+  "code": "TP",
+  "id": "Horu",
+  "name": "Horu teleporter"
+ },
+ {
+  "ap_id": 524313,
+  "category": "teleporters",
+  "code": "TP",
+  "id": "Blackroot",
+  "name": "Blackroot teleporter"
+ },
+ {
+  "ap_id": 524314,
+  "category": "teleporters",
+  "code": "TP",
+  "id": "Glades",
+  "name": "Glades teleporter"
+ },
+ {
+  "ap_id": 524315,
+  "category": "cells",
+  "code": "HC",
+  "id": "1",
+  "name": "Health Cell"
+ },
+ {
+  "ap_id": 524316,
+  "category": "cells",
+  "code": "EC",
+  "id": "1",
+  "name": "Energy Cell"
+ },
+ {
+  "ap_id": 524317,
+  "category": "cells",
+  "code": "AC",
+  "id": "1",
+  "name": "Ability Cell"
+ },
+ {
+  "ap_id": 524318,
+  "category": "stones",
+  "code": "KS",
+  "id": "1",
+  "name": "Keystone"
+ },
+ {
+  "ap_id": 524319,
+  "category": "stones",
+  "code": "MS",
+  "id": "1",
+  "name": "Mapstone"
+ },
+ {
+  "ap_id": 524320,
+  "category": "events",
+  "code": "RB",
+  "id": "17",
+  "name": "Water Vein Shard"
+ },
+ {
+  "ap_id": 524321,
+  "category": "events",
+  "code": "RB",
+  "id": "19",
+  "name": "Gumon Seal Shard"
+ },
+ {
+  "ap_id": 524322,
+  "category": "events",
+  "code": "RB",
+  "id": "21",
+  "name": "Sunstone Shard"
+ },
+ {
+  "ap_id": 524323,
+  "category": "events",
+  "code": "RB",
+  "id": "28",
+  "name": "Warmth Fragment"
+ },
+ {
+  "ap_id": 524324,
+  "category": "stones",
+  "code": "RB",
+  "id": "300",
+  "name": "Glades Pool Keystone"
+ },
+ {
+  "ap_id": 524325,
+  "category": "stones",
+  "code": "RB",
+  "id": "301",
+  "name": "Lower Spirit Caverns Keystone"
+ },
+ {
+  "ap_id": 524326,
+  "category": "stones",
+  "code": "RB",
+  "id": "302",
+  "name": "Grotto Keystone"
+ },
+ {
+  "ap_id": 524327,
+  "category": "stones",
+  "code": "RB",
+  "id": "303",
+  "name": "Swamp Keystone"
+ },
+ {
+  "ap_id": 524328,
+  "category": "stones",
+  "code": "RB",
+  "id": "304",
+  "name": "Upper Spirit Caverns Keystone"
+ },
+ {
+  "ap_id": 524329,
+  "category": "stones",
+  "code": "RB",
+  "id": "305",
+  "name": "Lower Ginso Keystone"
+ },
+ {
+  "ap_id": 524330,
+  "category": "stones",
+  "code": "RB",
+  "id": "306",
+  "name": "Upper Ginso Keystone"
+ },
+ {
+  "ap_id": 524331,
+  "category": "stones",
+  "code": "RB",
+  "id": "307",
+  "name": "Misty Keystone"
+ },
+ {
+  "ap_id": 524332,
+  "category": "stones",
+  "code": "RB",
+  "id": "308",
+  "name": "Forlorn Keystone"
+ },
+ {
+  "ap_id": 524333,
+  "category": "stones",
+  "code": "RB",
+  "id": "309",
+  "name": "Lower Sorrow Keystone"
+ },
+ {
+  "ap_id": 524334,
+  "category": "stones",
+  "code": "RB",
+  "id": "310",
+  "name": "Mid Sorrow Keystone"
+ },
+ {
+  "ap_id": 524335,
+  "category": "stones",
+  "code": "RB",
+  "id": "311",
+  "name": "Upper Sorrow Keystone"
+ },
+ {
+  "ap_id": 524336,
+  "category": "bonus",
+  "code": "RB",
+  "id": "6",
+  "name": "Attack Upgrade"
+ },
+ {
+  "ap_id": 524337,
+  "category": "bonus",
+  "code": "RB",
+  "id": "13",
+  "name": "Health Regeneration"
+ },
+ {
+  "ap_id": 524338,
+  "category": "bonus",
+  "code": "RB",
+  "id": "15",
+  "name": "Energy Regeneration"
+ },
+ {
+  "ap_id": 524339,
+  "category": "bonus",
+  "code": "RB",
+  "id": "8",
+  "name": "Explosion Power Upgrade"
+ },
+ {
+  "ap_id": 524340,
+  "category": "bonus",
+  "code": "RB",
+  "id": "9",
+  "name": "Spirit Light Efficiency"
+ },
+ {
+  "ap_id": 524341,
+  "category": "bonus",
+  "code": "RB",
+  "id": "10",
+  "name": "Extra Air Dash"
+ },
+ {
+  "ap_id": 524342,
+  "category": "bonus",
+  "code": "RB",
+  "id": "11",
+  "name": "Charge Dash Efficiency"
+ },
+ {
+  "ap_id": 524343,
+  "category": "bonus",
+  "code": "RB",
+  "id": "12",
+  "name": "Extra Double Jump"
+ },
+ {
+  "ap_id": 524344,
+  "category": "bonus",
+  "code": "RB",
+  "id": "0",
+  "name": "Mega Health"
+ },
+ {
+  "ap_id": 524345,
+  "category": "bonus",
+  "code": "RB",
+  "id": "1",
+  "name": "Mega Energy"
+ },
+ {
+  "ap_id": 524346,
+  "category": "bonus",
+  "code": "RB",
+  "id": "33",
+  "name": "Skill Velocity Upgrade"
+ },
+ {
+  "ap_id": 524347,
+  "category": "bonus",
+  "code": "RB",
+  "id": "36",
+  "name": "Underwater Skill Usage"
+ },
+ {
+  "ap_id": 524348,
+  "category": "bonus",
+  "code": "RB",
+  "id": "37",
+  "name": "Jump Upgrade"
+ }
+]
