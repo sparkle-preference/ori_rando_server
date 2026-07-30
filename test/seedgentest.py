@@ -696,5 +696,213 @@ class MultiworldOptionsTests(unittest.TestCase):
                              "player %s must receive exactly one of each dungeon key: %s" % (p, counts))
 
 
+def parse_ap_seed(lines, players):
+    """Classify a converted AP-mode seed's lines by wire shape:
+    -> (plain, native_mw, reserved, native_manifest, ap_manifest) where
+    plain is {loc: (code, id, zone)}, native_mw/reserved are
+    {loc: (owner, slot, name, zone)} split on owner <=/> players, and the
+    manifests are {slot: (finder, code, id, zone)} split on finder."""
+    plain, native_mw, reserved = {}, {}, {}
+    native_manifest, ap_manifest = {}, {}
+    for line in lines[1:]:
+        if not line:
+            continue
+        loc, code, id, zone = line.split("|", 3)
+        loc = int(loc)
+        if loc in MANIFEST_LOC_RANGE:
+            finder, icode, iid = id.split(",", 2)
+            entry = (int(finder), icode, iid, zone)
+            target = ap_manifest if int(finder) > players else native_manifest
+            target[-loc - 2] = entry
+        elif code == "MW":
+            owner, slot, name = id.split(",", 2)
+            entry = (int(owner), int(slot), name, zone)
+            target = reserved if int(owner) > players else native_mw
+            target[loc] = entry
+        else:
+            plain[loc] = (code, id, zone)
+    return plain, native_mw, reserved, native_manifest, ap_manifest
+
+
+def generate_ap(outdir, players, ap_export, seed="apgen2"):
+    """cli_gen an AP-mode casual seed; -> ({player: seed lines}, {player: yaml text})."""
+    old_argv = sys.argv
+    sys.argv = ["cli_gen", "--output-dir", outdir, "--preset", "casual",
+                "--balanced", "--seed", seed, "--players", str(players),
+                "--share-mode", "multiworld", "--ap-export", ap_export]
+    try:
+        CLISeedParams().from_cli()
+    finally:
+        sys.argv = old_argv
+    seeds, yamls = {}, {}
+    for p in range(1, players + 1):
+        datfile = "randomizer_%s.dat" % p if players > 1 else "randomizer0.dat"
+        path = os.path.join(outdir, datfile)
+        assert os.path.exists(path), "no seed for player %s" % p
+        with open(path) as f:
+            seeds[p] = f.read().splitlines()
+        ypath = os.path.join(outdir, "ap_world_%s.yaml" % p)
+        assert os.path.exists(ypath), "no AP yaml for player %s" % p
+        with open(ypath) as f:
+            yamls[p] = f.read()
+    return seeds, yamls
+
+
+class ApModeGenTests(unittest.TestCase):
+    """The Archipelago conversion pass (archipelago/convert.py): a normal
+    multiworld seed converted so exported-category items become AP slots.
+    Non-AP output staying byte-identical is proven by the SOLO/MW canaries
+    above, which this feature must never move."""
+
+    PLAYERS = 2
+    EXPORT = "skills,teleporters,events"
+
+    @classmethod
+    def setUpClass(cls):
+        cls.out = tempfile.mkdtemp(prefix="seedgentest_ap_")
+        cls.seeds, cls.yamls = generate_ap(cls.out, cls.PLAYERS, cls.EXPORT)
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.out, ignore_errors=True)
+
+    def test_line_shapes(self):
+        for p, lines in self.seeds.items():
+            self.assertIn("mode=Multiworld", lines[0])
+            bad = [l for l in lines[1:] if l and not PICKUP_LINE.match(l)]
+            self.assertEqual(bad, [], "malformed lines for player %s: %s" % (p, bad[:5]))
+
+    def test_reserved_lines_wellformed(self):
+        """Converted locations hold MW placeholders owned by the world's own
+        shadow (K+p), slots dense 0..n-1, v1 display names."""
+        for p, lines in self.seeds.items():
+            _, _, reserved, _, _ = parse_ap_seed(lines, self.PLAYERS)
+            self.assertGreater(len(reserved), 0)
+            slots = []
+            for loc, (owner, slot, name, zone) in reserved.items():
+                self.assertEqual(owner, self.PLAYERS + p,
+                                 "reserved line at %s owned by %s, not this world's shadow" % (loc, owner))
+                self.assertEqual(name, "AP Item #%s" % (slot + 1))
+                slots.append(slot)
+            self.assertEqual(sorted(slots), list(range(len(slots))),
+                             "player %s reserved slots not dense" % p)
+
+    def test_exported_balances_reserved(self):
+        """AP requires items contributed == locations contributed per world."""
+        for p, lines in self.seeds.items():
+            _, _, reserved, _, ap_manifest = parse_ap_seed(lines, self.PLAYERS)
+            self.assertEqual(len(ap_manifest), len(reserved),
+                             "player %s: %s exported != %s reserved" %
+                             (p, len(ap_manifest), len(reserved)))
+            for slot, (finder, icode, iid, zone) in ap_manifest.items():
+                self.assertEqual(finder, self.PLAYERS + p,
+                                 "AP manifest entry with finder %s in world %s" % (finder, p))
+
+    def test_ap_manifest_slots_extend_native(self):
+        """AP manifest entries share the 0..255 slot space with native MW
+        slots: they continue after them, dense, no collisions."""
+        for p, lines in self.seeds.items():
+            _, _, _, native_manifest, ap_manifest = parse_ap_seed(lines, self.PLAYERS)
+            ap_slots = sorted(ap_manifest)
+            self.assertTrue(ap_slots, "player %s exports nothing" % p)
+            self.assertLess(ap_slots[-1], 256)
+            self.assertEqual(ap_slots, list(range(ap_slots[0], ap_slots[0] + len(ap_slots))),
+                             "player %s AP slots not contiguous" % p)
+            if native_manifest:
+                self.assertGreater(ap_slots[0], max(native_manifest),
+                                   "player %s AP slots collide with native slots" % p)
+
+    def test_native_crossrefs_still_resolve(self):
+        """The native MW fabric under the conversion is still 1:1."""
+        pointed = Counter()
+        native_keys = set()
+        for p, lines in self.seeds.items():
+            _, native_mw, _, native_manifest, _ = parse_ap_seed(lines, self.PLAYERS)
+            for loc, (owner, slot, name, zone) in native_mw.items():
+                self.assertNotEqual(owner, p)
+                pointed[(owner, slot)] += 1
+            for slot, (finder, icode, iid, zone) in native_manifest.items():
+                native_keys.add((p, slot))
+                self.assertNotEqual(finder, p)
+        self.assertEqual(set(pointed.keys()), native_keys,
+                         "native MW pickups and manifests must correspond 1:1")
+        self.assertEqual({k: v for k, v in pointed.items() if v != 1}, {})
+
+    def test_exported_categories_only(self):
+        """Only the requested categories leave; generic keystones never do."""
+        for p, lines in self.seeds.items():
+            _, _, _, _, ap_manifest = parse_ap_seed(lines, self.PLAYERS)
+            codes = set(icode for (finder, icode, iid, zone) in ap_manifest.values())
+            self.assertTrue(codes <= {"SK", "TP", "EV"},
+                            "player %s exported unexpected codes %s" % (p, codes))
+
+    def test_yaml_config_sound(self):
+        """The emitted yaml balances, pins local progression, and never
+        exports a generic Keystone."""
+        from archipelago.convert import build_ap_config, ap_variations
+        from archipelago.yaml_emit import parse_seed as yaml_parse
+        from enums import presets
+        for p, lines in self.seeds.items():
+            _, placements = yaml_parse(lines)
+            config = build_ap_config(
+                placements, players=self.PLAYERS, world=p,
+                logic_paths=[lp.value for lp in presets["Casual"]],
+                key_mode="Default", spawn_zone="Glades",
+                variations=ap_variations([]))
+            self.assertEqual(sum(config["exported_items"].values()),
+                             len(config["reserved_locations"]))
+            self.assertNotIn("Keystone", config["exported_items"])
+            self.assertIn("Keystone", config["local_progression"].values())
+            self.assertIn("name: Ori%s" % p, self.yamls[p])
+            self.assertIn("game: Ori DE Rando", self.yamls[p])
+
+    def test_determinism(self):
+        out2 = tempfile.mkdtemp(prefix="seedgentest_ap2_")
+        try:
+            seeds2, yamls2 = generate_ap(out2, self.PLAYERS, self.EXPORT)
+            self.assertEqual(self.seeds, seeds2, "AP seeds not deterministic")
+            self.assertEqual(self.yamls, yamls2, "AP yamls not deterministic")
+        finally:
+            shutil.rmtree(out2, ignore_errors=True)
+
+
+class ApModeSoloTests(unittest.TestCase):
+    """K=1 AP mode: no cross-world landings, so no balancing reverts --
+    every exportable item converts, counts match by construction."""
+
+    def _gen(self, ap_export):
+        outdir = tempfile.mkdtemp(prefix="seedgentest_apsolo_")
+        self.addCleanup(shutil.rmtree, outdir, ignore_errors=True)
+        seeds, yamls = generate_ap(outdir, 1, ap_export)
+        return seeds[1], yamls[1]
+
+    def test_solo_conversion_is_total(self):
+        lines, _ = self._gen("skills,teleporters,events")
+        plain, native_mw, reserved, native_manifest, ap_manifest = parse_ap_seed(lines, 1)
+        self.assertEqual(native_mw, {}, "solo seeds have no native MW pickups")
+        self.assertEqual(native_manifest, {})
+        # zero reverts: nothing of an exported category is left in place
+        left_behind = {loc: v for loc, v in plain.items()
+                       if loc != 2 and v[0] in ("SK", "TP", "EV")}
+        self.assertEqual(left_behind, {})
+        self.assertEqual(len(ap_manifest), len(reserved))
+        self.assertEqual(sorted(ap_manifest), list(range(len(ap_manifest))),
+                         "solo AP manifest slots start dense at 0")
+        for loc, (owner, slot, name, zone) in reserved.items():
+            self.assertEqual(owner, 2)  # K + 1
+
+    def test_stones_export_never_includes_generic_keystones(self):
+        lines, _ = self._gen("stones,cells")
+        plain, _, reserved, _, ap_manifest = parse_ap_seed(lines, 1)
+        exported_codes = Counter(icode for (f, icode, iid, z) in ap_manifest.values())
+        self.assertNotIn("KS", exported_codes, "generic Keystone exported")
+        self.assertGreater(exported_codes["MS"], 0, "stones should export mapstones")
+        self.assertGreater(exported_codes["HC"] + exported_codes["EC"] + exported_codes["AC"], 0)
+        # keystones all stayed put
+        ks = sum(1 for (code, id, zone) in plain.values() if code == "KS")
+        self.assertEqual(ks, 40, "casual closed-world seeds place 40 keystones")
+        self.assertEqual(len(ap_manifest), len(reserved))
+
+
 if __name__ == "__main__":
     unittest.main()

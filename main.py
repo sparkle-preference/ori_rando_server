@@ -529,6 +529,15 @@ def get_spoiler_from_params(params_id):
     else:
         return text_resp("Param %s not found" % params_id, 404)
 
+@app.route('/generator/apyaml/<params_id>/<int:world_id>')
+def get_apyaml_from_params(params_id, world_id):
+    params = SeedGenParams.with_id(params_id)
+    if not params or not params.ap_mode:
+        return text_resp("No Archipelago params %s found" % params_id, 404)
+    if world_id < 1 or world_id > params.players:
+        return text_resp("Param %s has no world %s" % (params_id, world_id), 404)
+    return text_download(params.to_ap_yaml(world_id), 'ap_world_%s.yaml' % world_id)
+
 @app.route('/generator/aux_spoiler/<params_id>')
 def get_aux_spoiler_from_params(params_id):
     params = SeedGenParams.with_id(params_id)

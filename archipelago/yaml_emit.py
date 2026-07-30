@@ -68,10 +68,37 @@ def keymode_to_ap(key_mode):
     return "events"  # Default/Clues/LimitKeys all place keys as EV items
 
 
+def make_config(exported, reserved, local, logic_paths, key_mode="events",
+                spawn="SunkenGladesRunaway", variations=None,
+                params_id=0, world=1):
+    """Classified placements + generation options -> orirando yaml blob.
+    exported: {item name: count}; reserved: [location name]; local:
+    {location name: item name}. Shared by the file-based prototype path
+    below and archipelago.convert.build_ap_config (converted seeds)."""
+    return {
+        "params_id": params_id,
+        "world": world,
+        "spawn": spawn,
+        "pathsets": get_path_tags_from_pathsets(list(logic_paths)),
+        "variations": dict(variations or {}),
+        "key_mode": keymode_to_ap(key_mode),
+        "exported_items": dict(sorted(exported.items())),
+        "reserved_locations": sorted(reserved),
+        "local_progression": dict(sorted(local.items())),
+        "extra_locations": EXTRA_LOCATIONS,
+        "goal": {"region": GOAL_REGION},
+    }
+
+
 def build_config(seed_lines, logic_paths, key_mode="events",
                  spawn="SunkenGladesRunaway", variations=None,
                  params_id=0, world=1):
-    """Seed text lines + generation options -> orirando yaml blob."""
+    """Seed text lines + generation options -> orirando yaml blob.
+
+    The prototype classifier for UNCONVERTED solo seeds: pretends the
+    SK/TP/EV categories were exported. Kept for the file-based CLI below
+    (difftest depends on it); AP-mode seeds go through
+    archipelago.convert.build_ap_config instead."""
     _, placements = parse_seed(seed_lines)
     exported = Counter()
     reserved = []
@@ -91,19 +118,9 @@ def build_config(seed_lines, logic_paths, key_mode="events",
             continue
         else:
             raise ValueError("unhandled pickup %s|%s at %s" % (code, pid, name))
-    return {
-        "params_id": params_id,
-        "world": world,
-        "spawn": spawn,
-        "pathsets": get_path_tags_from_pathsets(list(logic_paths)),
-        "variations": dict(variations or {}),
-        "key_mode": keymode_to_ap(key_mode),
-        "exported_items": dict(sorted(exported.items())),
-        "reserved_locations": sorted(reserved),
-        "local_progression": dict(sorted(local.items())),
-        "extra_locations": EXTRA_LOCATIONS,
-        "goal": {"region": GOAL_REGION},
-    }
+    return make_config(exported, reserved, local, logic_paths,
+                       key_mode=key_mode, spawn=spawn, variations=variations,
+                       params_id=params_id, world=world)
 
 
 _PLAIN = re.compile(r"^[A-Za-z_][A-Za-z0-9_\- ]*[A-Za-z0-9_\-]$")

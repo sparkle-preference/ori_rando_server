@@ -35,6 +35,23 @@ def seed_mode_problem(params, mw_override=False):
                         return "Preplacement references player %s, but this game only has %s players." % (ref, params.players)
                 except ValueError:
                     return "Preplacement references invalid player %r." % ref
+    if getattr(params, "ap_mode", False):
+        # AP mode is a multiworld conversion pass (K=1 skips this branch:
+        # sync is disabled there and there's nothing to gate)
+        if params.sync.mode != MultiplayerGameType.MULTIWORLD:
+            return "Archipelago seeds with multiple players use Multiworld mode."
+        # a shared singleton is generated once for everyone; exporting it
+        # would hand ONE copy to the AP pool while every world's logic
+        # expects the netcode fan-out
+        share_to_ap = {"Skills": "skills", "Teleporters": "teleporters", "WorldEvents": "events"}
+        exported = set(getattr(params, "ap_export", None) or [])
+        if not exported:
+            from archipelago.convert import DEFAULT_EXPORT
+            exported = set(DEFAULT_EXPORT)
+        clash = sorted(set(share_to_ap[s.value] for s in params.sync.shared
+                           if share_to_ap.get(s.value) in exported))
+        if clash:
+            return "Archipelago export and shared categories overlap: %s." % ", ".join(clash)
     if params.sync.mode == MultiplayerGameType.SPLITSHARDS:
         return "SplitShards was removed (2026-07). Consider Multiworld with Shards keymode."
     if params.sync.mode == MultiplayerGameType.SHARED and not params.sync.cloned:
@@ -177,6 +194,11 @@ class SeedGenParams(ndb.Model):
     starting_skills = ndb.IntegerProperty(default=0)
     spawn_weights = ndb.FloatProperty(repeated=True)
     verbose_spoiler = ndb.BooleanProperty(default=False)
+    # Archipelago mode: multiworld generation + the AP conversion pass
+    # (archipelago/convert.py). ap_export = category names handed to the AP
+    # pool; empty means the default set.
+    ap_mode = ndb.BooleanProperty(default=False)
+    ap_export = ndb.StringProperty(repeated=True)
     do_loc_analysis = False
     areas_ori_path = ""
 
@@ -260,6 +282,14 @@ class SeedGenParams(ndb.Model):
         params.start = json.get("spawn", "Glades")
         params.spawn_weights = json.get("spawnWeights", [])
         params.verbose_spoiler = json.get("verboseSpoiler", False)
+        params.ap_export = [str(c) for c in json.get("apExport", [])]
+        params.ap_mode = bool(json.get("apMode")) or bool(params.ap_export)
+        if params.ap_mode:
+            from archipelago.convert import EXPORTABLE_CATEGORIES
+            bad = [c for c in params.ap_export if c not in EXPORTABLE_CATEGORIES]
+            if bad:
+                log.error("Unknown AP export categories %r! returning None", bad)
+                return None
         return params.put()
 
     @staticmethod
@@ -341,6 +371,14 @@ class SeedGenParams(ndb.Model):
                     params.spawn_placement = Placement(location=loc, zone="", stuff=stuff)
                 else:
                     params.preplaced_coords.append(int(loc))
+        params.ap_export = qparams.getlist("ap_export")
+        params.ap_mode = bool(qparams.get("ap_mode")) or bool(params.ap_export)
+        if params.ap_mode:
+            from archipelago.convert import EXPORTABLE_CATEGORIES
+            bad = [c for c in params.ap_export if c not in EXPORTABLE_CATEGORIES]
+            if bad:
+                log.error("Unknown AP export categories %r! returning None", bad)
+                return None
         return params.put()
 
     def to_json(self):
@@ -378,6 +416,8 @@ class SeedGenParams(ndb.Model):
             "spawnWeights": self.spawn_weights,
             "verboseSpoiler": self.verbose_spoiler,
             "antiBkBias": self.anti_bk_bias,
+            "apMode": self.ap_mode,
+            "apExport": list(self.ap_export),
             # stars i fucking hate this. anyways. forced assignments are: the
             # verbatim fass_json when we have it (world/owner survive), else
             # the legacy reconstruction:
@@ -406,6 +446,16 @@ class SeedGenParams(ndb.Model):
         spoilers = []
         if not raw:
             return False
+        if self.ap_mode:
+            if self.sync.enabled and self.sync.mode != MultiplayerGameType.MULTIWORLD:
+                log.error("AP mode requires Multiworld generation (got %s)", self.sync.mode)
+                return False
+            from archipelago.convert import ap_convert, DEFAULT_EXPORT
+            keep = set(k if isinstance(k, tuple) else (1, k) for k in preplaced)
+            converted, _ = ap_convert([pr[0] for pr in raw],
+                                      list(self.ap_export) or list(DEFAULT_EXPORT),
+                                      keep_locs=keep)
+            raw = [(converted[i], raw[i][1]) for i in range(len(raw))]
         from util import is_mw_manifest_loc
         player = 0
         for player_raw in raw:
@@ -503,6 +553,23 @@ class SeedGenParams(ndb.Model):
             outlines += ["", "%s:" % section]
             outlines += ["\t%-35s %s" % (l.area, n) for (l, n, _) in sorted(group, key=lambda grpline: grpline[2])]
         return "\n".join(outlines[1:])
+
+    def to_ap_yaml(self, world=1):
+        """Paired Archipelago yaml for one world of an AP-mode seed, derived
+        from the stored (already-converted) placements. None if this isn't
+        an AP params."""
+        if not self.ap_mode:
+            return None
+        from archipelago.convert import build_ap_config, ap_variations
+        from archipelago.yaml_emit import emit_yaml
+        config = build_ap_config(
+            self.get_seed_data(world), players=self.players, world=int(world),
+            logic_paths=[lp.value for lp in self.logic_paths],
+            key_mode=self.key_mode.value,
+            spawn_zone=self.spawn or self.start or "Glades",
+            variations=ap_variations(self.variations),
+            params_id=self.key.id() if self.key else 0)
+        return emit_yaml(config, "Ori%s" % int(world))
 
     def flag_line(self, verbose_paths=False):
         flags = []

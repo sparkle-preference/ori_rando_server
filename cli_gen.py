@@ -111,6 +111,10 @@ class CLISeedParams(object):
         parser.add_argument("--do-reachability-analysis", help="Analyze how many locations are opened by various progression items in various inventory states", action="store_true")
         parser.add_argument("--areas-ori-path", help="Path to areas.ori. Will search next to generator if omitted.", type=str)
         parser.add_argument("--keysanity", help="Keysanity mode: keys only belong to one door", action="store_true")
+        # archipelago
+        parser.add_argument("--ap-export", help="""Archipelago mode: comma-separated item categories exported to the AP pool
+        (any of: skills,teleporters,events,cells,stones). Converts the rolled multiworld seed (multiplayer requires
+        --share-mode multiworld) and writes a paired ap_world_<n>.yaml next to each .dat""", type=str, default=None)
         args = parser.parse_args()
 
         """
@@ -351,6 +355,25 @@ class CLISeedParams(object):
                         self.sync.teams[cnt] = [int(p) for p in team.split(",")]
                         cnt += 1
 
+        self.ap_mode = bool(args.ap_export)
+        self.ap_export = []
+        if self.ap_mode:
+            from archipelago.convert import EXPORTABLE_CATEGORIES
+            self.ap_export = [c.strip().lower() for c in args.ap_export.split(",") if c.strip()]
+            bad = [c for c in self.ap_export if c not in EXPORTABLE_CATEGORIES]
+            if bad:
+                parser.error("unknown --ap-export categories: %s (valid: %s)" % (
+                    ",".join(bad), ",".join(EXPORTABLE_CATEGORIES)))
+            if self.players > 1 and self.sync.mode != MultiplayerGameType.MULTIWORLD:
+                parser.error("--ap-export needs --share-mode multiworld when --players > 1")
+            share_to_ap = {"Skills": "skills", "Teleporters": "teleporters", "WorldEvents": "events"}
+            clash = sorted(set(share_to_ap[s.value] for s in self.sync.shared
+                               if share_to_ap.get(s.value) in self.ap_export))
+            if clash:
+                parser.error("--ap-export and --shared-items overlap: %s" % ",".join(clash))
+            if self.start == "Random":
+                parser.error("--ap-export doesn't support --start Random yet (per-world spawns)")
+
         self.verbose_spoiler = args.verbose_spoiler
         # todo: respect these LMAO
         self.do_analysis = args.analysis
@@ -427,6 +450,22 @@ class CLISeedParams(object):
                     if self.do_loc_analysis:
                         continue
                     return
+            if self.ap_mode:
+                from archipelago.convert import ap_convert, build_ap_config, ap_variations
+                from archipelago.yaml_emit import emit_yaml, parse_seed
+                converted, ap_info = ap_convert([pr[0] for pr in raw], self.ap_export,
+                                                keep_locs=set(preplaced.keys()))
+                raw = [(converted[i], raw[i][1]) for i in range(len(raw))]
+                if not self.do_analysis and not self.do_loc_analysis:
+                    for p, text in enumerate(converted, start=1):
+                        _, placements = parse_seed(text.splitlines())
+                        config = build_ap_config(
+                            placements, players=self.players, world=p,
+                            logic_paths=[lp.value for lp in self.logic_paths],
+                            key_mode=self.key_mode.value, spawn_zone=self.start,
+                            variations=ap_variations(self.variations))
+                        with open(args.output_dir + "/ap_world_%s.yaml" % p, 'w', newline="\n") as f:
+                            f.write(emit_yaml(config, "Ori%s" % p))
             player = 0
             for player_raw in raw:
                 player += 1
