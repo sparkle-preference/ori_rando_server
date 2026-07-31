@@ -549,6 +549,8 @@ class SeedGenerator:
             ("TPGlades", 0), ("Keysanity", 0)
         ]])
 
+        self.ap_ks_pin = False
+        self.ap_doors_counted = set()
         self.mapstonesSeen = {p: 1 for p in self.multi_ps()}
         self.mapstonesAssigned = defaultdict(lambda: 0)
         self.locs_by_player = defaultdict(lambda: 0)
@@ -1046,7 +1048,16 @@ class SeedGenerator:
                     if connection.keys > 0:
                         if area not in self.doorQueue[p].keys():
                             self.doorQueue[p][area] = connection
-                            keystoneCount[p] += connection.keys
+                            if self.ap_ks_pin:
+                                # deferred hosting keeps doors shut across
+                                # rounds; count each door's demand once (the
+                                # actual cumulative invariant) or it inflates
+                                door_id = (area, connection.target)
+                                if door_id not in self.ap_doors_counted:
+                                    self.ap_doors_counted.add(door_id)
+                                    keystoneCount[p] += connection.keys
+                            else:
+                                keystoneCount[p] += connection.keys
                     elif connection.mapstone and self.var(Variation.STRICT_MAPSTONES):
                         if not reached:
                             visitMap = True
@@ -1242,13 +1253,16 @@ class SeedGenerator:
         self.balanceListLeftovers.append(item)
         return location
 
-    def assign_random(self, locs, recurseCount=0):
+    def assign_random(self, locs, recurseCount=0, ks_blocked=frozenset()):
         value = self.random.random()
         position = 0.0
         # anti_bk_bias: progression draws are weighted toward the worlds with
         # the fewest reachable checks (weights stay 1.0 when the bias is off;
-        # shared singletons benefit every world, so they stay neutral too)
-        pool_weight = lambda key: self.itemPool[key] * (self.anti_bk_boost(untag(key)[1]) if self.is_progression(key) and base_of(key) not in self.shared_pool_bases else 1.0)
+        # shared singletons benefit every world, so they stay neutral too).
+        # ks_blocked (AP mode): worlds whose keystones have no same-world spot
+        # this round -- their KS draws are suppressed
+        pool_weight = lambda key: 0.0 if (ks_blocked and base_of(key) == "KS" and untag(key)[1] in ks_blocked) \
+            else self.itemPool[key] * (self.anti_bk_boost(untag(key)[1]) if self.is_progression(key) and base_of(key) not in self.shared_pool_bases else 1.0)
         denom = float(sum(pool_weight(key) for key in self.itemPool.keys()))
         if denom == 0.0:
             log.warning("%s: itemPool was empty! locations: %s, balanced items: %s", self.params.flag_line(), self.locations(), self.items() - self.items(False))
@@ -1259,20 +1273,52 @@ class SeedGenerator:
                 base = base_of(key)
                 if self.var(Variation.STARVED):
                     if base in self.skillsOutput and recurseCount < 3:
-                        return self.assign_random(locs, recurseCount=recurseCount + 1)
+                        return self.assign_random(locs, recurseCount=recurseCount + 1, ks_blocked=ks_blocked)
                 if self.var(Variation.FUCK_WALLS):
                     if base in ["WallJump", "Climb"] and recurseCount < 3 and self.total_locs() - locs < 40:
-                        return self.assign_random(locs, recurseCount=recurseCount + 1)
+                        return self.assign_random(locs, recurseCount=recurseCount + 1, ks_blocked=ks_blocked)
                 if self.var(Variation.FUCK_GRENADE):
                     if base == "Grenade" and recurseCount < 3 and self.total_locs() - locs < 60:
-                        return self.assign_random(locs, recurseCount=recurseCount + 1)
+                        return self.assign_random(locs, recurseCount=recurseCount + 1, ks_blocked=ks_blocked)
                 if self.var(Variation.TPSTARVED):
                     if base.startswith("TP") and recurseCount < 3 and self.total_locs() - locs < self.costs.get(key, 0):
-                        return self.assign_random(locs, recurseCount=recurseCount + 1)
+                        return self.assign_random(locs, recurseCount=recurseCount + 1, ks_blocked=ks_blocked)
                 return self.assign(key)
     
     costs_to_decrement_by_one = set(["KS", "EC", "HC", "AC", "WaterVeinShard", "GumonSealShard", "SunstoneShard"] + 
                                     [keysanity_ks_itemcode for keysanity_ks_itemcode in keysanityOutput.values()])
+
+    def ap_fix_ks_pairing(self, itemsToAssign, locationsToAssign):
+        """AP mode: rearrange the shuffled item list so every generic
+        keystone lands in its owner's world. In-place keystones stay,
+        displaced ones take the earliest free same-world slot, everything
+        else keeps its shuffled order. No pRNG; complete whenever each
+        world can host its keystones (False otherwise)."""
+        n = len(locationsToAssign)
+        result = [None] * n
+        moved_ks = []
+        others = []
+        for i in range(n):
+            item = itemsToAssign[i]
+            base, owner = untag(item)
+            if base != "KS":
+                others.append(item)
+            elif locationsToAssign[i].player == owner:
+                result[i] = item
+            else:
+                moved_ks.append(item)
+        free = [i for i in range(n) if result[i] is None]
+        for item in moved_ks:
+            owner = untag(item)[1]
+            slot = next((i for i in free if locationsToAssign[i].player == owner), None)
+            if slot is None:
+                return False
+            free.remove(slot)
+            result[slot] = item
+        for i, item in zip(free, others):
+            result[i] = item
+        itemsToAssign[:] = result
+        return True
 
     def assign(self, item, preplaced=False):
         """item must be tagged with its owner ("Bash|2")."""
@@ -1747,6 +1793,10 @@ class SeedGenerator:
         self.reset(worried)
         keystoneCount = defaultdict(lambda: 0)
         mapstoneCount = defaultdict(lambda: 0)
+        # AP mode: generic keystones may not cross worlds (a native cross-world
+        # KS is invisible to AP logic, and exporting one is unsound)
+        ap_ks_pin = getattr(self.params, "ap_mode", False) and self.seed_count > 1
+        self.ap_ks_pin = ap_ks_pin
 
         self.form_areas(self.var(Variation.ENTRANCE_SHUFFLE))
         self.create_warp_paths()
@@ -1941,7 +1991,22 @@ class SeedGenerator:
             itemsToAssign = []
             ks_deficit = sum(max(keystoneCount[p] - self.inventory[tag("KS", p)], 0) for p in self.multi_ps())
             ms_deficit = sum(max(mapstoneCount[p] - self.inventory[tag("MS", p)], 0) for p in self.multi_ps())
-            if len(locationsToAssign) < len(self.assignQueue) + ks_deficit + ms_deficit:
+            need = len(self.assignQueue) + ks_deficit + ms_deficit
+            if ap_ks_pin:
+                # keystones their owner's world can't host this round defer
+                # instead of demanding space -- but an empty round against a
+                # real need must still corner
+                q_ks = Counter(untag(it)[1] for it in self.assignQueue if base_of(it) == "KS")
+                blocked = 0
+                for p in self.multi_ps():
+                    want = q_ks[p] + max(keystoneCount[p] - self.inventory[tag("KS", p)], 0)
+                    cap = sum(1 for l in locationsToAssign if l.player == p)
+                    blocked += max(want - cap, 0)
+                cornered = (len(locationsToAssign) < need - blocked
+                            or (not locationsToAssign and need > 0))
+            else:
+                cornered = len(locationsToAssign) < need
+            if cornered:
                 # we've painted ourselves into a corner, try again
                 if not self.reservedLocations:
                     if depth > max(self.seed_count * self.seed_count, 1):
@@ -1952,10 +2017,32 @@ class SeedGenerator:
             for i in range(0, len(locationsToAssign)):
                 locs = self.locations()
                 if self.assignQueue:
-                    itemsToAssign.append(self.assign(self.assignQueue.pop(0)))
-                    continue
+                    qi = 0
+                    if ap_ks_pin:
+                        # skip queued keystones their owner's world can't host
+                        # this round; they stay queued for a later one
+                        while qi < len(self.assignQueue):
+                            base, qp = untag(self.assignQueue[qi])
+                            if base == "KS":
+                                cap = sum(1 for l in locationsToAssign if l.player == qp)
+                                held = sum(1 for it in itemsToAssign if it == tag("KS", qp))
+                                if held >= cap:
+                                    qi += 1
+                                    continue
+                            break
+                    if qi < len(self.assignQueue):
+                        itemsToAssign.append(self.assign(self.assignQueue.pop(qi)))
+                        continue
+                    # the whole queue is unhostable keystones; fall through
                 for p in self.multi_ps():
                     if self.inventory[tag("KS", p)] < keystoneCount[p]:
+                        if ap_ks_pin:
+                            # only force a KS its owner's world can host this
+                            # round; otherwise defer (the door stays shut)
+                            cap = sum(1 for l in locationsToAssign if l.player == p)
+                            held = sum(1 for it in itemsToAssign if it == tag("KS", p))
+                            if held >= cap:
+                                continue
                         itemsToAssign.append(self.assign(tag("KS", p)))
                         break
                     elif self.inventory[tag("MS", p)] < mapstoneCount[p]:
@@ -1979,7 +2066,13 @@ class SeedGenerator:
                     if self.balanceListLeftovers and self.items(include_balanced=False) < 1 + self.seed_count:
                         itemsToAssign.append(self.balanceListLeftovers.pop(0))
                     else:
-                        itemsToAssign.append(self.assign_random(locs))
+                        blocked = frozenset()
+                        if ap_ks_pin:
+                            blocked = frozenset(
+                                p for p in self.multi_ps()
+                                if sum(1 for it in itemsToAssign if it == tag("KS", p)) >=
+                                sum(1 for l in locationsToAssign if l.player == p))
+                        itemsToAssign.append(self.assign_random(locs, ks_blocked=blocked))
 
             # force assign things if using --prefer-path-difficulty
             if self.params.path_diff != PathDifficulty.NORMAL:
@@ -1990,6 +2083,11 @@ class SeedGenerator:
 
             # shuffle the items around and put them somewhere
             self.random.shuffle(itemsToAssign)
+            if ap_ks_pin and not self.ap_fix_ks_pairing(itemsToAssign, locationsToAssign):
+                # a keystone has no accessible spot in its owner's world
+                if depth > max(self.seed_count * self.seed_count, 1):
+                    return
+                return self.placeItems(depth + 1, worried)
             for i in range(0, len(locationsToAssign)):
                 self.assign_to_location(itemsToAssign[i], locationsToAssign[i])
 
@@ -2035,6 +2133,8 @@ class SeedGenerator:
         for p in self.multi_ps():
             for item in self.itemPool:
                 if self.itemPool[item] > 0:
+                    if ap_ks_pin and base_of(item) == "KS" and untag(item)[1] != p:
+                        continue  # AP mode: keystones stay in their owner's world
                     # decrement, or every world's finale gets a copy of the
                     # same item while other leftovers are dropped
                     self.itemPool[item] -= 1
@@ -2049,6 +2149,14 @@ class SeedGenerator:
                     log.warning("%s: No item found for warmth returned! Placing EXP", self.params.flag_line())
                     self.assign_to_location(tag("EX*", p), Location(-240, 512, 'FinalEscape', 'EVWarmth', 0, 'Horu', p))
         self.params.balanced = balanced
+
+        if ap_ks_pin:
+            stranded = {k: v for k, v in self.itemPool.items() if v > 0 and base_of(k) == "KS"}
+            if stranded:
+                # every finale went to another item; dropping a KS would break
+                # the per-world 40-keystone accounting, so regenerate instead
+                log.info("AP mode: keystones stranded after finale placement (%s), retrying", stranded)
+                return
 
         for p in self.multi_ps():
             self.random.shuffle(self.event_lists[p])

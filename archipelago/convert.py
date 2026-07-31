@@ -1,24 +1,34 @@
 """Archipelago game-mode conversion pass over rendered multiworld seeds.
 
-AP mode = a normal K-world multiworld seed, generated completely unchanged,
-then converted before the seed text is parsed/stored: every placed instance
-of an exported category becomes an AP slot. Its location line is rewritten
-to an MW placeholder owned by the world's AP shadow player (pid K+world,
-netcode-only), and the item itself moves to the AP pool via a manifest
-entry appended to its owner's seed. See prior_notes/ARCHIPELAGO_NOTES.md
-"Generator AP game mode" for the full design.
+AP mode = a normal K-world multiworld seed, generated unchanged (except the
+AP-only keystone pin in the generator), then converted before the seed text
+is parsed/stored. Converted placements become AP slots: the host location
+line is rewritten to an MW placeholder owned by the host world's AP shadow
+player (pid K+world, netcode-only), and the item moves to the AP pool via a
+manifest entry appended to its owner's seed. See
+prior_notes/ARCHIPELAGO_NOTES.md "Generator AP game mode" for the design.
+
+What converts:
+- Same-world placements of the user-selected export categories.
+- EVERY cross-landed progression item, regardless of selection: a native MW
+  manifest line is invisible to its owner's AP logic, so any logic-relevant
+  item left native under-models the world and breaks accessibility (the
+  E2E-discovered Misty Ability Cell case).
+- Cross-landed EX, exported under the nearest denomination (50/100/200
+  experience); the manifest entry keeps the true value, so exact in-game
+  amounts survive (the bridge maps by slot, not name).
+Generic keystones never convert AND never cross (the generator pins them to
+their owner's world in AP mode); bonus RBs, warps and relics may stay native
+cross-world -- invisible to AP logic and harmless.
 
 Per-world balance: AP requires exported-count == reserved-count per slot.
-Cross-world landings skew this. Balancing prefers PADDING: additionally
-convert a cross-world cell/bonus pickup owned by the over-slot world and
-located in an over-export world (+1 export for the owner, +1 slot for the
-holder -- both deficits move toward zero, and only threshold-counted or
-filler items are added to the pool). Only when no pad exists does it fall
-back to REVERTING a conversion (leaving the item as an ordinary native MW
-pickup): reverting a singleton progression item (a skill/TP/event) makes
-it invisible to its owner's AP logic and can render regions unreachable
-(the E2E-discovered Wall Jump case), so that is a logged last resort.
-Deficits sum to zero across worlds, so balancing always terminates.
+Cross-world drift skews this, so conversion REVERTS cross-landed EX
+conversions (revert = back to a native MW line, harmless for filler) until
+every deficit is zero. Progression conversions are mandatory and never
+reverted. A single revert strictly reduces total imbalance exactly when its
+host world over-reserves and its owner world over-exports; deficits sum to
+zero and cross EX is plentiful, so balancing effectively always succeeds --
+if no such revert exists the conversion fails cleanly.
 """
 import json
 import os
@@ -42,25 +52,13 @@ BANNED_EXPORTS = {("KS", "1")}
 
 MAX_SLOTS = 256  # 8x32-bit slot bitfields on the Player entity: wire format
 
-# balancing reverts eat the boring categories first, keeping skills/TPs in AP
-REVERT_RANK = {"cells": 0, "stones": 1, "events": 2, "teleporters": 3, "skills": 4}
-
-# non-exported placed progression gets pinned in the yaml so AP reachability
-# mirrors the seed; everything else is invisible to AP
+# everything the apworld's logic can see. Placed instances pin local when
+# same-world and un-selected, export otherwise; nothing progression may ride
+# a native manifest.
 LOCAL_CODES = {"KS", "MS", "HC", "EC", "AC", "SK", "TP", "EV"}
 LOCAL_RB_IDS = {"17", "19", "21", "28"} | {str(n) for n in range(300, 312)}
 
-# mapstone turn-in pseudo-locations (coords 20+4n, names MS1..MS9). Their AP
-# rule counts the world's Mapstone items, and in K>1 games part of that
-# supply rides native manifests (invisible to AP logic, see build_ap_config)
-# -- so a converted turn-in could be unreachable-by-construction, which
-# accessibility:full rejects. K>1 never converts them; K=1 supply is fully
-# visible, so its turn-ins convert like anything else.
-MS_TURNIN_COORDS = frozenset(range(24, 57, 4))
-MS_TURNIN_NAMES = frozenset("MS%d" % n for n in range(1, 10))
-# the engines reserve the pool's +2 slack: 8th turn-in wants 9 stones, 9th
-# wants 11 (mirrors the apworld's MAPSTONE_BUMPS)
-MAPSTONE_BUMPS = {8: 9, 9: 11}
+EX_DENOMS = (50, 100, 200)
 
 # seed spawn zone -> areas.ori region the run actually starts in
 SPAWN_REGIONS = {
@@ -77,6 +75,15 @@ SPAWN_REGIONS = {
 
 class ApConversionError(Exception):
     """AP conversion or yaml derivation can't produce a sound result."""
+
+
+def is_progression(code, pid):
+    return code in LOCAL_CODES or (code == "RB" and pid in LOCAL_RB_IDS)
+
+
+def nearest_ex_denom(value):
+    """True EX value -> datapackage denomination (ties round down)."""
+    return min(EX_DENOMS, key=lambda d: (abs(d - int(value)), d))
 
 
 def export_code_ids(categories):
@@ -150,7 +157,8 @@ def ap_convert(texts, categories, keep_locs=frozenset()):
         fields.append(f)
         manifests.append(m)
 
-    # every placed instance of an exported category, wherever it landed
+    # candidates: same-world placements of the selected categories, every
+    # cross-landed progression item, and cross-landed EX (balancing currency)
     candidates = []
     for v in range(1, players + 1):
         for idx, parts in enumerate(fields[v - 1]):
@@ -162,10 +170,6 @@ def ap_convert(texts, categories, keep_locs=frozenset()):
                 continue
             if loc == SPAWN_COORD or _is_manifest_loc(loc):
                 continue
-            if players > 1 and loc in MS_TURNIN_COORDS:
-                continue  # K>1: turn-in reachability isn't AP-modelable
-            if (v, loc) in keep_locs:
-                continue  # forced assignments stay local placements
             code, pid, zone = parts[1], parts[2], parts[3]
             if code == "MW":
                 owner_s, slot_s, _ = pid.split(",", 2)
@@ -179,43 +183,52 @@ def ap_convert(texts, categories, keep_locs=frozenset()):
                         "world %s MW line at %s points at missing manifest slot "
                         "%s of world %s" % (v, loc, slot, owner))
                 _, icode, iid = fields[owner - 1][m_idx][2].split(",", 2)
-                if (icode, iid) in export_ids:
-                    candidates.append({
-                        "v": v, "loc": loc, "line": idx, "owner": owner,
-                        "code": icode, "id": iid, "zone": zone,
-                        "kind": "cross", "manifest_line": m_idx})
+                if icode == "KS":
+                    raise ApConversionError(
+                        "world %s keystone crossed into world %s at %s "
+                        "(the AP keystone pin failed)" % (owner, v, loc))
+                if not is_progression(icode, iid) and icode != "EX":
+                    continue  # filler may ride the native MW fabric
+                if (v, loc) in keep_locs:
+                    if is_progression(icode, iid):
+                        raise ApConversionError(
+                            "forced cross-world %s|%s at %s of world %s: AP "
+                            "mode can't model it natively or convert it" %
+                            (icode, iid, loc, v))
+                    continue  # forced cross-world filler stays native
+                candidates.append({
+                    "v": v, "loc": loc, "line": idx, "owner": owner,
+                    "code": icode, "id": iid, "zone": zone,
+                    "kind": "cross", "manifest_line": m_idx})
+            elif (v, loc) in keep_locs:
+                continue  # forced assignments stay local placements
             elif (code, pid) in export_ids:
                 candidates.append({
                     "v": v, "loc": loc, "line": idx, "owner": v,
                     "code": code, "id": pid, "zone": zone, "kind": "local"})
     candidates.sort(key=lambda c: (c["v"], c["loc"]))
 
-    # balance: deficit>0 = world hosts more AP slots than it contributes.
-    # Revert cross-world conversions until every deficit is zero (each revert
-    # moves one unit off the location world and one onto the owner world;
-    # deficits sum to zero, so this terminates).
+    # balance: deficit>0 = world hosts more AP slots than it exports.
+    # Revert cross-landed EX until every deficit is zero.
     deficit = {p: 0 for p in range(1, players + 1)}
     for c in candidates:
         deficit[c["v"]] += 1
         deficit[c["owner"]] -= 1
     reverted = []
-    while True:
-        over = [p for p in deficit if deficit[p] > 0]
-        if not over:
-            break
-        v = min(over)
-        pool = [c for c in candidates if c["kind"] == "cross" and c["v"] == v]
-        if not pool:
+    ex_pool = sorted((c for c in candidates
+                      if c["kind"] == "cross" and c["code"] == "EX"),
+                     key=lambda c: (c["owner"], c["v"], c["loc"]))
+    while any(deficit[p] for p in deficit):
+        c = next((c for c in ex_pool
+                  if deficit[c["v"]] > 0 and deficit[c["owner"]] < 0), None)
+        if c is None:
             raise ApConversionError(
-                "world %s deficit %s with no cross-world conversions to revert"
-                % (v, deficit[v]))  # unreachable: deficit>0 implies inflow>0
-        c = min(pool, key=lambda c: (
-            0 if deficit[c["owner"]] < 0 else 1,
-            REVERT_RANK[ITEM_BY_CODE_ID[(c["code"], c["id"])]["category"]],
-            c["owner"], c["loc"]))
+                "can't balance AP export with EX reverts: deficits %s" %
+                {p: d for p, d in sorted(deficit.items()) if d})
+        ex_pool.remove(c)
         candidates.remove(c)
         reverted.append(c)
-        deficit[v] -= 1
+        deficit[c["v"]] -= 1
         deficit[c["owner"]] += 1
 
     reserved = {p: [c for c in candidates if c["v"] == p]
@@ -223,32 +236,35 @@ def ap_convert(texts, categories, keep_locs=frozenset()):
     exported = {p: [c for c in candidates if c["owner"] == p]
                 for p in range(1, players + 1)}
 
-    # AP manifest slots share the 0..255 space with native MW slots: continue
-    # after the world's highest ORIGINALLY-used native slot (conversion frees
-    # native slots but never reuses them, so this can't collide). The
-    # reserved side lives in the shadow player's fresh slot space (0..n-1).
-    ap_base = {}
+    # AP manifest entries share the 0..255 slot space with native MW slots.
+    # Conversion drops most native entries, freeing their slots; nothing
+    # references a dropped slot, so exports fill the gaps in ascending order
+    # (the generator itself reuses freed slots the same way). The reserved
+    # side lives in the shadow player's fresh slot space (0..n-1).
+    drops = [set() for _ in range(players)]
+    for c in candidates:
+        if c["kind"] == "cross":
+            drops[c["owner"] - 1].add(c["manifest_line"])
+    ap_slots = {}
     for p in range(1, players + 1):
-        native = manifests[p - 1].keys()
-        ap_base[p] = (max(native) + 1) if native else 0
         if len(reserved[p]) > MAX_SLOTS:
             raise ApConversionError(
                 "world %s reserves %s AP slots (max %s)" %
                 (p, len(reserved[p]), MAX_SLOTS))
-        if ap_base[p] + len(exported[p]) > MAX_SLOTS:
+        kept = {slot for slot, line in manifests[p - 1].items()
+                if line not in drops[p - 1]}
+        free = [s for s in range(MAX_SLOTS) if s not in kept]
+        if len(exported[p]) > len(free):
             raise ApConversionError(
-                "world %s manifest needs %s slots after %s native (max %s)" %
-                (p, len(exported[p]), ap_base[p], MAX_SLOTS))
+                "world %s manifest needs %s slots with %s native kept (max %s)" %
+                (p, len(exported[p]), len(kept), MAX_SLOTS))
+        ap_slots[p] = free[:len(exported[p])]
 
     rewrites = [{} for _ in range(players)]
-    drops = [set() for _ in range(players)]
     for p in range(1, players + 1):
         for i, c in enumerate(reserved[p]):
             rewrites[p - 1][c["line"]] = "%s|MW|%s,%s,AP Item #%s|%s" % (
                 c["loc"], players + p, i, i + 1, c["zone"])
-    for c in candidates:
-        if c["kind"] == "cross":
-            drops[c["owner"] - 1].add(c["manifest_line"])
 
     new_texts = []
     for p in range(1, players + 1):
@@ -259,16 +275,16 @@ def ap_convert(texts, categories, keep_locs=frozenset()):
             out.append(rewrites[p - 1].get(idx, line))
         for i2, c in enumerate(exported[p]):
             out.append("%s|MW|%s,%s,%s|%s" % (
-                -(ap_base[p] + i2 + 2), players + p, c["code"], c["id"], c["zone"]))
+                -(ap_slots[p][i2] + 2), players + p, c["code"], c["id"], c["zone"]))
         new_texts.append("\n".join(out) + "\n")
 
     info = {
         "players": players,
         "categories": sorted(set(categories)),
-        "ap_base": ap_base,
+        "ap_slots": ap_slots,
         "reserved": {p: [(c["loc"], i) for i, c in enumerate(reserved[p])]
                      for p in reserved},
-        "exported": {p: [(c["code"], c["id"], ap_base[p] + i2)
+        "exported": {p: [(c["code"], c["id"], ap_slots[p][i2])
                          for i2, c in enumerate(exported[p])]
                      for p in exported},
         "reverted": [(c["v"], c["loc"], c["owner"], c["code"], c["id"])
@@ -284,12 +300,11 @@ def build_ap_config(placements, players, world, logic_paths, key_mode,
     placements: [(loc, code, id, zone)] including manifest pseudo-locs.
     Classification is by wire shape: shadow-owned MW lines are the reserved
     slots, shadow-finder manifest entries are the exported items, plain
-    progression lines pin local_progression. Native MW lines (this world's
-    location holding another real player's item, e.g. balancing reverts) and
-    native manifest entries (this world's items landed in other worlds,
-    arriving by netcode) are invisible to AP: their delivery timing is
-    unknowable to AP logic, and omitting them is strictly sound -- rules
-    just never rely on them. K=1 has neither.
+    progression lines pin local_progression. The only things still riding
+    the native MW fabric are filler (reverted EX, bonus RBs, warps):
+    invisible to AP, and omitting filler is sound -- rules never rely on
+    it. A progression item on a native manifest means the conversion pass
+    failed, so yaml derivation fails with it. K=1 has no native MW lines.
     """
     exported = {}
     reserved = []
@@ -303,8 +318,15 @@ def build_ap_config(placements, players, world, logic_paths, key_mode,
                 raise ApConversionError("non-MW line at manifest loc %s" % loc)
             finder_s, icode, iid = pid.split(",", 2)
             if int(finder_s) > players:  # exported to the AP pool
-                name = ITEM_NAMES[(icode, iid)]
+                if icode == "EX":
+                    name = ITEM_NAMES[("EX", str(nearest_ex_denom(iid)))]
+                else:
+                    name = ITEM_NAMES[(icode, iid)]
                 exported[name] = exported.get(name, 0) + 1
+            elif is_progression(icode, iid):
+                raise ApConversionError(
+                    "world %s progression %s|%s rides a native manifest "
+                    "(unconverted cross-world progression)" % (world, icode, iid))
             continue
         if code == "MW":
             owner = int(pid.split(",", 1)[0])
@@ -327,24 +349,6 @@ def build_ap_config(placements, players, world, logic_paths, key_mode,
             local[loc_name] = ITEM_NAMES[(code, pid)]
         # anything else (EX, bonus RBs, warps, relics, entrances) is
         # invisible to AP
-    # In K>1 games part of this world's Mapstone supply landed in other
-    # worlds and rides native manifests -- invisible above, so turn-ins
-    # whose threshold exceeds the AP-visible supply are unreachable by
-    # construction. Drop their local pins: losing an available item is
-    # strictly stricter, therefore sound (the seed still delivers it by
-    # netcode). Supply counts pins at regular locations plus this world's
-    # exported Mapstones; pins AT turn-ins are excluded (they only become
-    # collectable through a turn-in themselves). K=1 supply is fully
-    # visible and the AP sweep models progressive turn-in collection
-    # exactly (difftest-proven), so it keeps every pin.
-    if players > 1:
-        ms_available = exported.get("Mapstone", 0) + sum(
-            1 for name, item in local.items()
-            if item == "Mapstone" and name not in MS_TURNIN_NAMES)
-        for n in range(1, 10):
-            name = "MS%d" % n
-            if name in local and MAPSTONE_BUMPS.get(n, n) > ms_available:
-                del local[name]
     if sum(exported.values()) != len(reserved):
         raise ApConversionError(
             "world %s: %s exported != %s reserved (unbalanced conversion?)" %

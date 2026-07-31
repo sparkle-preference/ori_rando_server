@@ -751,11 +751,17 @@ def generate_ap(outdir, players, ap_export, seed="apgen2"):
 class ApModeGenTests(unittest.TestCase):
     """The Archipelago conversion pass (archipelago/convert.py): a normal
     multiworld seed converted so exported-category items become AP slots.
-    Non-AP output staying byte-identical is proven by the SOLO/MW canaries
-    above, which this feature must never move."""
+    v3 invariants: ALL cross-landed progression converts (native manifests
+    carry only filler), cross-landed EX converts as balancing currency, and
+    generic keystones never leave their owner's world. Non-AP output staying
+    byte-identical is proven by the SOLO/MW canaries above, which this
+    feature must never move."""
 
     PLAYERS = 2
     EXPORT = "skills,teleporters,events"
+    # the apworld's logic universe: nothing from it may ride native manifests
+    PROGRESSION_CODES = {"SK", "TP", "EV", "HC", "EC", "AC", "KS", "MS"}
+    PROGRESSION_RB_IDS = {"17", "19", "21", "28"} | {str(n) for n in range(300, 312)}
 
     @classmethod
     def setUpClass(cls):
@@ -798,19 +804,21 @@ class ApModeGenTests(unittest.TestCase):
                 self.assertEqual(finder, self.PLAYERS + p,
                                  "AP manifest entry with finder %s in world %s" % (finder, p))
 
-    def test_ap_manifest_slots_extend_native(self):
-        """AP manifest entries share the 0..255 slot space with native MW
-        slots: they continue after them, dense, no collisions."""
+    def test_ap_manifest_slots_share_space(self):
+        """AP manifest entries share the 0..255 slot space with surviving
+        native MW slots: no collisions, everything in range, and exports
+        fill the free slots from the bottom (deterministic)."""
         for p, lines in self.seeds.items():
             _, _, _, native_manifest, ap_manifest = parse_ap_seed(lines, self.PLAYERS)
             ap_slots = sorted(ap_manifest)
             self.assertTrue(ap_slots, "player %s exports nothing" % p)
             self.assertLess(ap_slots[-1], 256)
-            self.assertEqual(ap_slots, list(range(ap_slots[0], ap_slots[0] + len(ap_slots))),
-                             "player %s AP slots not contiguous" % p)
-            if native_manifest:
-                self.assertGreater(ap_slots[0], max(native_manifest),
-                                   "player %s AP slots collide with native slots" % p)
+            native_slots = set(native_manifest)
+            self.assertEqual(native_slots & set(ap_slots), set(),
+                             "player %s AP slots collide with native slots" % p)
+            free = [s for s in range(256) if s not in native_slots]
+            self.assertEqual(ap_slots, free[:len(ap_slots)],
+                             "player %s AP slots not lowest-free-first" % p)
 
     def test_native_crossrefs_still_resolve(self):
         """The native MW fabric under the conversion is still 1:1."""
@@ -828,17 +836,51 @@ class ApModeGenTests(unittest.TestCase):
                          "native MW pickups and manifests must correspond 1:1")
         self.assertEqual({k: v for k, v in pointed.items() if v != 1}, {})
 
-    def test_exported_categories_only(self):
-        """Only the requested categories leave; generic keystones never do."""
+    def test_exported_codes(self):
+        """Exports = selected categories + cross-landed progression + EX
+        balancing currency; never generic keystones."""
         for p, lines in self.seeds.items():
             _, _, _, _, ap_manifest = parse_ap_seed(lines, self.PLAYERS)
             codes = set(icode for (finder, icode, iid, zone) in ap_manifest.values())
-            self.assertTrue(codes <= {"SK", "TP", "EV"},
+            self.assertTrue(codes <= {"SK", "TP", "EV", "HC", "EC", "AC", "MS", "RB", "EX"},
                             "player %s exported unexpected codes %s" % (p, codes))
+            self.assertNotIn("KS", codes, "player %s exported generic keystones" % p)
+
+    def test_selected_categories_fully_converted(self):
+        """Every placed SK/TP/EV became an AP slot: none remain as plain
+        lines (same-world convert as selected; cross-landed as progression)."""
+        for p, lines in self.seeds.items():
+            plain, _, _, _, _ = parse_ap_seed(lines, self.PLAYERS)
+            left = {loc: v for loc, v in plain.items()
+                    if loc != 2 and v[0] in ("SK", "TP", "EV")}
+            self.assertEqual(left, {}, "player %s kept selected-category items" % p)
+
+    def test_native_manifests_carry_only_filler(self):
+        """v3: every cross-landed progression item was exported, so native
+        manifests hold nothing the apworld's logic can see."""
+        for p, lines in self.seeds.items():
+            _, _, _, native_manifest, _ = parse_ap_seed(lines, self.PLAYERS)
+            bad = [(slot, icode, iid) for slot, (f, icode, iid, z) in native_manifest.items()
+                   if icode in self.PROGRESSION_CODES
+                   or (icode == "RB" and iid in self.PROGRESSION_RB_IDS)]
+            self.assertEqual(bad, [],
+                             "player %s native manifest carries progression: %s" % (p, bad))
+
+    def test_keystones_never_cross_worlds(self):
+        """The AP-mode generator constraint: all 40 keystones are plain lines
+        in their owner's world; none ride the MW fabric in either direction."""
+        for p, lines in self.seeds.items():
+            plain, _, _, native_manifest, ap_manifest = parse_ap_seed(lines, self.PLAYERS)
+            ks = sum(1 for (code, id, zone) in plain.values() if code == "KS")
+            self.assertEqual(ks, 40, "player %s has %s local keystones, not 40" % (p, ks))
+            for manifest in (native_manifest, ap_manifest):
+                self.assertEqual([e for e in manifest.values() if e[1] == "KS"], [],
+                                 "player %s manifest carries a keystone" % p)
 
     def test_yaml_config_sound(self):
-        """The emitted yaml balances, pins local progression, and never
-        exports a generic Keystone."""
+        """The emitted yaml balances, pins local progression, and models the
+        FULL keystone pool as local pins (per-world door thresholds need all
+        40; under-modeling was the v2 K=2 accessibility failure)."""
         from archipelago.convert import build_ap_config, ap_variations
         from archipelago.yaml_emit import parse_seed as yaml_parse
         from enums import presets
@@ -852,7 +894,10 @@ class ApModeGenTests(unittest.TestCase):
             self.assertEqual(sum(config["exported_items"].values()),
                              len(config["reserved_locations"]))
             self.assertNotIn("Keystone", config["exported_items"])
-            self.assertIn("Keystone", config["local_progression"].values())
+            ks_pins = sum(1 for item in config["local_progression"].values()
+                          if item == "Keystone")
+            self.assertEqual(ks_pins, 40,
+                             "player %s yaml pins %s keystones, not the full pool" % (p, ks_pins))
             self.assertIn("name: Ori%s" % p, self.yamls[p])
             self.assertIn("game: Ori DE Rando", self.yamls[p])
 

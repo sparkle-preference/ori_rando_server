@@ -79,7 +79,9 @@ def make_config(exported, reserved, local, logic_paths, key_mode="events",
         "params_id": params_id,
         "world": world,
         "spawn": spawn,
-        "pathsets": get_path_tags_from_pathsets(list(logic_paths)),
+        # sorted: logic_paths arrives in hash order, and the tags are a set
+        # to the apworld -- identical params must yield identical yaml
+        "pathsets": sorted(get_path_tags_from_pathsets(list(logic_paths))),
         "variations": dict(variations or {}),
         "key_mode": keymode_to_ap(key_mode),
         "exported_items": dict(sorted(exported.items())),

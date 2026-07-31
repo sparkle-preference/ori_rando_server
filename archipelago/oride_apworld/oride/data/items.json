@@ -425,5 +425,26 @@
   "code": "RB",
   "id": "37",
   "name": "Jump Upgrade"
+ },
+ {
+  "ap_id": 524349,
+  "category": "bonus",
+  "code": "EX",
+  "id": "50",
+  "name": "50 experience"
+ },
+ {
+  "ap_id": 524350,
+  "category": "bonus",
+  "code": "EX",
+  "id": "100",
+  "name": "100 experience"
+ },
+ {
+  "ap_id": 524351,
+  "category": "bonus",
+  "code": "EX",
+  "id": "200",
+  "name": "200 experience"
  }
 ]

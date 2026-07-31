@@ -32,7 +32,10 @@ ITEM_ORDER = (
     [("KS", 1, "stones"), ("MS", 1, "stones")] +
     [("RB", rb, "events") for rb in (17, 19, 21, 28)] +      # shards + warmth frags
     [("RB", rb, "stones") for rb in range(300, 312)] +       # keysanity area keys
-    [("RB", rb, "bonus") for rb in (6, 13, 15, 8, 9, 10, 11, 12, 0, 1, 33, 36, 37)]
+    [("RB", rb, "bonus") for rb in (6, 13, 15, 8, 9, 10, 11, 12, 0, 1, 33, 36, 37)] +
+    # spirit light balancing currency: cross-world EX converts under the
+    # nearest of these denominations (the manifest keeps the true value)
+    [("EX", ex, "bonus") for ex in (50, 100, 200)]
 )
 
 
