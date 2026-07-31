@@ -254,6 +254,135 @@ class TestConnect(SessionTestCase):
         self.assertEqual(p.signals, [])
 
 
+class FakeApGame(object):
+    """A Game whose params carry (or lack) the ap_mode marker."""
+
+    def __init__(self, ap_mode=True, players=2, has_params=True):
+        class _Params(object):
+            pass
+
+        class _ParamsKey(object):
+            def __init__(self, p):
+                self._p = p
+
+            def get(self):
+                return self._p
+        self.params = None
+        if has_params:
+            p = _Params()
+            p.ap_mode = ap_mode
+            p.players = players
+            self.params = _ParamsKey(p)
+
+
+class TestApRoutes(SessionTestCase):
+    """ap/connect | ap/status | ap/disconnect: ARCHIPELAGO gating, AP-mode
+    validation, and APLink storage semantics. APLink datastore ops are
+    stubbed at get_by_id/put (in-memory store), netcode_test style."""
+
+    def setUp(self):
+        super(TestApRoutes, self).setUp()
+        from ap_models import APLink
+        self._flag = netcode.ARCHIPELAGO
+        netcode.ARCHIPELAGO = True
+        self.links = {}
+
+        def fake_put(link, *a, **k):
+            self.links[link.key.id()] = link
+            return link.key
+        APLink.put = fake_put
+        APLink.get_by_id = staticmethod(lambda gid: self.links.get(int(gid)))
+
+    def tearDown(self):
+        from ap_models import APLink
+        netcode.ARCHIPELAGO = self._flag
+        del APLink.put          # restore the inherited ndb methods
+        del APLink.get_by_id
+        super(TestApRoutes, self).tearDown()
+
+    def test_flag_off_is_404_everywhere(self):
+        netcode.ARCHIPELAGO = False
+        self.game = FakeApGame()
+        self.assertEqual(netcode.ap_connect(1301, {"host": "h", "port": "38281"})[0], 404)
+        self.assertEqual(netcode.ap_status(1301)[0], 404)
+        self.assertEqual(netcode.ap_disconnect(1301)[0], 404)
+        self.assertEqual(self.links, {})
+
+    def test_connect_no_game_is_404(self):
+        self.assertEqual(netcode.ap_connect(1302, {"host": "h", "port": "1"}),
+                         (404, "Game 1302 not found"))
+
+    def test_connect_non_ap_game_is_409(self):
+        self.game = FakeApGame(ap_mode=False)
+        status, body = netcode.ap_connect(1303, {"host": "h", "port": "1"})
+        self.assertEqual((status, body), (409, "Game 1303 is not an Archipelago game"))
+        self.game = FakeApGame(has_params=False)
+        self.assertEqual(netcode.ap_connect(1303, {"host": "h", "port": "1"})[0], 409)
+        self.assertEqual(self.links, {})
+
+    def test_connect_validates_host_and_port(self):
+        self.game = FakeApGame()
+        self.assertEqual(netcode.ap_connect(1304, {"port": "38281"})[0], 400)
+        self.assertEqual(netcode.ap_connect(1304, {"host": "ap.example"})[0], 400)
+        self.assertEqual(netcode.ap_connect(1304, {"host": "ap.example", "port": "nope"})[0], 400)
+        self.assertEqual(netcode.ap_connect(1304, {"host": "ap.example", "port": "0"})[0], 400)
+        self.assertEqual(self.links, {})
+
+    def test_connect_stores_link_with_world_defaults(self):
+        self.game = FakeApGame(players=3)
+        self.assertEqual(netcode.ap_connect(1305, {"host": "ap.example", "port": "38281",
+                                                   "password": "hunter2"}), (200, "ok"))
+        link = self.links[1305]
+        self.assertEqual(link.host, "ap.example")
+        self.assertEqual(link.port, 38281)
+        self.assertEqual(link.password, "hunter2")
+        self.assertEqual(link.slot_names, ["Ori1", "Ori2", "Ori3"])
+        self.assertEqual(link.recv_index, [0, 0, 0])
+        self.assertTrue(link.enabled)
+        self.assertEqual(link.status, "pending")
+
+    def test_reconnect_keeps_recv_progress(self):
+        self.game = FakeApGame()
+        netcode.ap_connect(1306, {"host": "old", "port": "1"})
+        self.links[1306].recv_index = [5, 2]
+        self.links[1306].enabled = False
+        netcode.ap_connect(1306, {"host": "new", "port": "2"})
+        link = self.links[1306]
+        self.assertEqual(link.host, "new")
+        self.assertEqual(link.recv_index, [5, 2])  # applied progress is durable
+        self.assertTrue(link.enabled)
+        self.assertIsNone(link.password)  # no password posted: cleared
+
+    def test_status_serves_link_json(self):
+        import json
+        self.game = FakeApGame()
+        netcode.ap_connect(1307, {"host": "ap.example", "port": "38281"})
+        status, body = netcode.ap_status(1307)
+        self.assertEqual(status, 200)
+        rep = json.loads(body)
+        self.assertEqual(rep["status"], "pending")
+        self.assertEqual(rep["host"], "ap.example")
+        self.assertEqual(rep["slots"], ["Ori1", "Ori2"])
+        self.assertEqual(rep["recv_index"], [0, 0])
+        self.assertTrue(rep["enabled"])
+
+    def test_status_without_link_is_404(self):
+        self.assertEqual(netcode.ap_status(1308),
+                         (404, "No Archipelago link for game 1308"))
+
+    def test_disconnect_disables_and_keeps_link(self):
+        self.game = FakeApGame()
+        netcode.ap_connect(1309, {"host": "ap.example", "port": "38281"})
+        self.assertEqual(netcode.ap_disconnect(1309), (200, "ok"))
+        link = self.links[1309]
+        self.assertFalse(link.enabled)
+        self.assertEqual(link.status, "disconnected")
+        self.assertEqual(link.recv_index, [0, 0])  # progress survives disconnect
+
+    def test_disconnect_without_link_is_404(self):
+        self.assertEqual(netcode.ap_disconnect(1310)[0], 404)
+
+
 class FakeBingo(object):
     def __init__(self, pids=(1, 2), fail_times=0):
         self._pids = list(pids)

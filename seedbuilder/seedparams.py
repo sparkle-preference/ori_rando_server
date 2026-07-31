@@ -562,6 +562,7 @@ class SeedGenParams(ndb.Model):
             return None
         from archipelago.convert import build_ap_config, ap_variations
         from archipelago.yaml_emit import emit_yaml
+        from ap_models import ap_slot_name
         config = build_ap_config(
             self.get_seed_data(world), players=self.players, world=int(world),
             logic_paths=[lp.value for lp in self.logic_paths],
@@ -569,7 +570,7 @@ class SeedGenParams(ndb.Model):
             spawn_zone=self.spawn or self.start or "Glades",
             variations=ap_variations(self.variations),
             params_id=self.key.id() if self.key else 0)
-        return emit_yaml(config, "Ori%s" % int(world))
+        return emit_yaml(config, ap_slot_name(world))
 
     def flag_line(self, verbose_paths=False):
         flags = []

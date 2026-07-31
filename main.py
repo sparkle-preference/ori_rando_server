@@ -24,7 +24,7 @@ from enums import MultiplayerGameType, ShareType, Variation
 from models import ndb_wsgi_middleware, Game, Seed, User, BingoGameData, BingoEvent, BingoTeam, CustomLogic, trees_by_coords, LegacyUser, bingo_lock
 from bingo import BingoGenerator
 from cache import Cache
-from util import coord_correction_map, clone_entity, all_locs, picks_by_type_generator, param_val, param_flag, debug, template_root, VER, MIN_VER, BETA_VER, game_list_html, version_check, template_vals, layout_json, bfield_checksum, netperf, NETPERF_TAG, json_default, seed_sync_id, is_mw_manifest_loc, BATCH_GRANTS, HIST_ON_PLAYER, SPLIT_CACHE, BINGO_V2, CHUNKED_LOGS, MULTIWORLD, WEBSOCKETS, WS_PUSH
+from util import coord_correction_map, clone_entity, all_locs, picks_by_type_generator, param_val, param_flag, debug, template_root, VER, MIN_VER, BETA_VER, game_list_html, version_check, template_vals, layout_json, bfield_checksum, netperf, NETPERF_TAG, json_default, seed_sync_id, is_mw_manifest_loc, BATCH_GRANTS, HIST_ON_PLAYER, SPLIT_CACHE, BINGO_V2, CHUNKED_LOGS, MULTIWORLD, WEBSOCKETS, WS_PUSH, ARCHIPELAGO
 from reachable import Map, PlayerState
 from pickups import Pickup, Skill, AbilityCell, HealthCell, EnergyCell, Multiple
 
@@ -363,6 +363,23 @@ def netcode_connect(game_id, player_id):
 @app.route('/netcode/areas')
 def netcode_get_areas_dot_ori():
     return text_resp(Cache.get_areas())
+
+# Archipelago link management (flag-gated in the session layer: with
+# ARCHIPELAGO unset every route 404s)
+@app.route('/netcode/game/<int:game_id>/ap/connect', methods=['POST'])
+def netcode_ap_connect(game_id):
+    status, body = netcode.ap_connect(game_id, request.form)
+    return text_resp(body, status)
+
+@app.route('/netcode/game/<int:game_id>/ap/status')
+def netcode_ap_status(game_id):
+    status, body = netcode.ap_status(game_id)
+    return json_resp(body, status) if status == 200 else text_resp(body, status)
+
+@app.route('/netcode/game/<int:game_id>/ap/disconnect', methods=['POST'])
+def netcode_ap_disconnect(game_id):
+    status, body = netcode.ap_disconnect(game_id)
+    return text_resp(body, status)
 
 # websocket transport (flag-gated: unset = route 404s, clients poll http).
 # The route body lives in ws.py; each connection pins a gunicorn thread
@@ -1691,7 +1708,7 @@ def bingothon_fetch_data(game_id, player_id):
 
 @app.route('/flags')  # temporary: verify feature-flag status per revision
 def flag_status():
-    flags = {"BATCH_GRANTS": BATCH_GRANTS, "HIST_ON_PLAYER": HIST_ON_PLAYER, "SPLIT_CACHE": SPLIT_CACHE, "BINGO_V2": BINGO_V2, "CHUNKED_LOGS": CHUNKED_LOGS, "MULTIWORLD": MULTIWORLD, "WEBSOCKETS": WEBSOCKETS, "WS_PUSH": WS_PUSH}
+    flags = {"BATCH_GRANTS": BATCH_GRANTS, "HIST_ON_PLAYER": HIST_ON_PLAYER, "SPLIT_CACHE": SPLIT_CACHE, "BINGO_V2": BINGO_V2, "CHUNKED_LOGS": CHUNKED_LOGS, "MULTIWORLD": MULTIWORLD, "WEBSOCKETS": WEBSOCKETS, "WS_PUSH": WS_PUSH, "ARCHIPELAGO": ARCHIPELAGO}
     rows = "".join("<tr><td style='padding:4px 12px'>%s</td><td style='padding:4px 12px'><b>%s</b></td></tr>"
                    % (name, "ON" if val else "off") for name, val in flags.items())
     return make_resp("<html><body><h3>Feature flags</h3><table border=1>%s</table><p>serving: %s</p></body></html>"

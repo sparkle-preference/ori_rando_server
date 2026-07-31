@@ -282,6 +282,15 @@ class TestMultiworldSlotsField(NdbTestCase):
         p.name = lambda: ",,|$"
         self.assertEqual(p.wire_name(), "Player 3")  # nothing left: fall back
 
+    def test_nickname_overrides_name_on_the_wire(self):
+        # AP shadow players (pid K+w) carry a fixed nickname so the names
+        # field renders '<K+w>.Archipelago'; unset nickname changes nothing
+        p = make_player(937, 3)
+        self.assertEqual(p.name(), "Player 3")
+        p.nickname = "Archipelago"
+        self.assertEqual(p.name(), "Archipelago")
+        self.assertEqual(p.wire_name(), "Archipelago")
+
 
 class TestSlotMarking(NdbTestCase):
     def test_mark_check_idempotent(self):

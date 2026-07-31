@@ -447,6 +447,9 @@ class Player(ndb.Model):
     # The capability-negotiation hook for the websocket migration: it tells us
     # what the live fleet is actually running, per game and per player.
     dll_version = ndb.StringProperty()
+    # fixed display name; overrides the user-derived one. Set on AP shadow
+    # players (pid K+w) so the tick names field renders '<K+w>.Archipelago'.
+    nickname    = ndb.StringProperty()
 
     def note_version(self, vers, game_id=None):
         """Record the client's reported dll version. Returns True if it changed
@@ -544,6 +547,8 @@ class Player(ndb.Model):
         return (self.skills, self.events, self.teleporters, len(self.bonuses))
 
     def name(self):
+        if self.nickname:
+            return self.nickname
         if self.user:
             u = self.user.get()
             if u and u.name:
@@ -1849,6 +1854,10 @@ class Game(ndb.Model):
         owner (their world is done being explored). Idempotent."""
         t0 = monotonic()
         params = params or self.params.get()
+        # AP mode: slots owned by shadow players (pid > K) are the bridge's
+        # outbox; releasing a world must never force-check them (whether the
+        # AP room releases on goal is the room's policy, not ori's)
+        ap_worlds = int(params.players) if getattr(params, "ap_mode", False) else None
         by_owner = defaultdict(list)
         for (loc, code, id, zone) in params.get_seed_data(finisher_pid):
             if code != "MW" or is_mw_manifest_loc(loc):
@@ -1858,6 +1867,8 @@ class Game(ndb.Model):
                 owner, slot = int(owner), int(slot)
             except ValueError:
                 log.warning("unparseable MW placement %s in game %s", id, self.key.id())
+                continue
+            if ap_worlds and owner > ap_worlds:
                 continue
             if owner != finisher_pid:
                 by_owner[owner].append(slot)
@@ -1889,6 +1900,19 @@ class Game(ndb.Model):
         if not hist:
             return []
         return [hl for players, hls in hist.items() for hl in hls]
+
+    def create_ap_shadows(self, params):
+        """AP-mode games: shadow players K+1..2K, one per world. Their slot
+        bitfields are the AP bridge's durable outbox (found_pickup flips bit i
+        on shadow K+v when world v checks reserved slot i); no client ever
+        connects as one. Idempotent."""
+        k = int(params.players)
+        for w in range(1, k + 1):
+            shadow = self.player(k + w)
+            if shadow.nickname != "Archipelago":
+                shadow.nickname = "Archipelago"
+                shadow.put()
+        Cache.clear_names(self.key.id())
 
     def player(self, pid, create=True, delay_put=False):
         gid = self.key.id()
@@ -2171,6 +2195,8 @@ class Game(ndb.Model):
                 for i in range(params.players):
                     player = game.player(i + 1)
                     Cache.set_pos(gid, i + 1, 189, -210)
+        if getattr(params, "ap_mode", False):
+            game.create_ap_shadows(params)
         user = User.get()
         if user:
             game.creator = user.key
