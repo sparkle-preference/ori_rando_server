@@ -548,6 +548,8 @@ def get_spoiler_from_params(params_id):
 
 @app.route('/generator/apyaml/<params_id>/<int:world_id>')
 def get_apyaml_from_params(params_id, world_id):
+    if not ARCHIPELAGO:
+        return text_resp("Archipelago support is not enabled", 404)
     params = SeedGenParams.with_id(params_id)
     if not params or not params.ap_mode:
         return text_resp("No Archipelago params %s found" % params_id, 404)

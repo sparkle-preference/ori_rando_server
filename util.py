@@ -404,7 +404,8 @@ def picks_by_type_generator():
 
 # request helpers
 def template_vals(app, title, user):
-    template_values = {'app': app, 'title': title, 'version': "%s.%s.%s" % tuple(VER), 'race_wl': whitelist_ok(), 'admin': user.is_admin() if user else False
+    template_values = {'app': app, 'title': title, 'version': "%s.%s.%s" % tuple(VER), 'race_wl': whitelist_ok(), 'admin': user.is_admin() if user else False,
+                       'ap_flag': ARCHIPELAGO
 }
     if user:
         template_values['user'] = user.name

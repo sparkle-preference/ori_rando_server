@@ -447,6 +447,30 @@ const getHelpHelper = (category, option) => {
                     if(multi)
                         lines.push("Remember to send your fellow players the URL to the current page so they can get their seeds!")
                 break;
+                case "apYaml":
+                    title = "AP YAML"
+                    lines = [
+                        "Click here to download this world's Archipelago YAML file.",
+                        "The Archipelago session host needs one YAML per world: collect them all (along with the YAMLs for any other games) to generate the session.",
+                        "Players still play from their seed file; the YAML is only used for session generation."
+                    ]
+                break;
+                case "apConnect":
+                    title = "Archipelago Room"
+                    lines = [
+                        "Enter the host and port of your Archipelago room (shown on the room page as something like archipelago.gg:38281), plus the room password if it has one, then hit Connect.",
+                        "The rando server joins the room on behalf of every world in this game and stays connected while players play; items flow both ways automatically.",
+                        "Disconnect stops the bridge. Progress is remembered: reconnecting picks up where it left off (use Disconnect then Connect to move to a new room address)."
+                    ]
+                break;
+                case "apStatus":
+                    title = "Archipelago Status"
+                    lines = [
+                        "The bridge's view of the Archipelago room: connection status, the room address, and per-world progress.",
+                        "Each world row shows its Archipelago slot name, how many items the room has sent it so far, and whether it has finished its goal.",
+                        "If the connection fails, the most recent error shows up here. The display refreshes every few seconds."
+                    ]
+                break;
                 case "spoilerView":
                     title = "Open Spoiler"
                     lines = [
@@ -623,6 +647,15 @@ const getHelpHelper = (category, option) => {
                         "Higher values mean fewer long waits, but also a more predictable, less spiky game. Try 0.5 for a middle ground.",
                     ]
                     break;
+                case "apMode":
+                    title = "Archipelago"
+                    lines = [
+                        "Archipelago mode makes this Multiworld game part of an Archipelago session (archipelago.gg), a multi-game multiworld where every player can be playing a different randomized game.",
+                        "Items in the selected Export Categories are handed to the Archipelago item pool: they can be found by any game in the session, and the locations that held them will contain other games' items instead. Everything else stays a normal Ori Multiworld.",
+                        "The Seed tab will have an AP YAML download for each world; the session host needs all of them to generate the Archipelago session.",
+                        "Note: a category cannot be both Shared and Exported; selecting one will deselect the other.",
+                    ]
+                    break;
                 case "Seperate Seeds":
                     title = "Seperate Seeds"
                     subtitle = "Co-op Seed Generation Modes"
@@ -687,6 +720,50 @@ const getHelpHelper = (category, option) => {
                         "(By default, players can gain up to 1 stack per player of any of these items, as long as each player collects their copy).",
                         "Dedup Shared has no effect on seeds without Share Upgrades enabled, because Shards, Warmth Fragments, and Keysanity keys are always deduped.",
                         "Note: this is both a very fun and very silly option to leave disabled with the bonus lite item pool."
+                    ]
+                    break;
+                default:
+                    match = false;
+                    break;
+            }
+        break;
+
+        case "AP Export Categories":
+            subtitle = "Archipelago Export Categories"
+            switch(option) {
+                case "skills":
+                    title = "Export Skills"
+                    lines = [
+                        "With Export Skills enabled, every world's skills are handed to the Archipelago item pool: any game in the session can find your Bash, and the locations that held skills will contain other games' items instead.",
+                        "Exporting skills is the classic Archipelago experience, and is enabled by default."
+                    ]
+                    break;
+                case "teleporters":
+                    title = "Export Teleporters"
+                    lines = [
+                        "With Export Teleporters enabled, teleporter pickups are handed to the Archipelago item pool: any game in the session can find them, and the locations that held them will contain other games' items instead.",
+                        "Exporting teleporters is enabled by default."
+                    ]
+                    break;
+                case "events":
+                    title = "Export World Events"
+                    lines = [
+                        "With Export World Events enabled, the 3 Dungeon Keys (or shards thereof), Clean Water, Wind Restored, and Warmth Fragments are handed to the Archipelago item pool: any game in the session can find them, and the locations that held them will contain other games' items instead.",
+                        "Exporting world events is enabled by default."
+                    ]
+                    break;
+                case "cells":
+                    title = "Export Cells"
+                    lines = [
+                        "With Export Cells enabled, Health, Energy, and Ability Cells are handed to the Archipelago item pool: any game in the session can find them, and the locations that held them will contain other games' items instead.",
+                        "This is a lot of items! Expect to receive most of your capacity from your fellow players."
+                    ]
+                    break;
+                case "stones":
+                    title = "Export Stones"
+                    lines = [
+                        "With Export Stones enabled, Mapstones (and Keysanity zone keys, if Keysanity is on) are handed to the Archipelago item pool: any game in the session can find them, and the locations that held them will contain other games' items instead.",
+                        "Note: regular Keystones are never exported; door currency stays in your own world."
                     ]
                     break;
                 default:

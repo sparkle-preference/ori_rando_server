@@ -493,6 +493,21 @@ class SeedModeProblemTests(unittest.TestCase):
         self.assertIsNotNone(self._check(False, self._params("Multiworld")))
         self.assertIsNone(self._check(True, self._params("Multiworld")))
 
+    def test_ap_mode_gated_by_flag(self):
+        import util
+        p = self._params("Multiworld")
+        p.ap_mode = True
+        p.ap_export = ["skills"]
+        p.sync.shared = []
+        orig = util.ARCHIPELAGO
+        try:
+            util.ARCHIPELAGO = False
+            self.assertIn("Archipelago", self._check(True, p))
+            util.ARCHIPELAGO = True
+            self.assertIsNone(self._check(True, p))
+        finally:
+            util.ARCHIPELAGO = orig
+
     def test_mw_override_bypasses_flag(self):
         import util
         from seedbuilder import seedparams

@@ -17,9 +17,11 @@ def seed_mode_problem(params, mw_override=False):
     present but unreachable without games of this mode). mw_override (the
     mw=1 query param) bypasses the flag for testing -- it's a soft gate
     against confusion, not a security boundary."""
-    from util import MULTIWORLD
+    from util import MULTIWORLD, ARCHIPELAGO
     if not params.sync.enabled:
         return None
+    if getattr(params, "ap_mode", False) and not ARCHIPELAGO:
+        return "Archipelago seeds aren't available yet."
     if params.sync.mode == MultiplayerGameType.MULTIWORLD:
         if not (MULTIWORLD or mw_override):
             return "Multiworld seeds aren't available yet."
