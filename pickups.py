@@ -105,9 +105,12 @@ class Upgrade(Pickup):
             248: "Remove Energy Regen (Ability)", 249: "Remove Sense", 250: "Remove Rekindle", 251: "Remove Regroup", 252: "Remove Charge Flame Efficiency",
             253: "Remove Air Dash", 254: "Remove Ultra Soul Link", 255: "Remove Charge Dash", 256: "Remove Water Breath", 257: "Remove Soul Link Efficiency",
             258: "Remove Triple Jump", 259: "Remove Ultra Defense",
-            300: "Glades Pool Keystone", 301: "Lower Spirit Caverns Keystone", 302: "Grotto Keystone", 303: "Swamp Keystone", 304: "Upper Spirit Caverns Keystone", 
-            305: "Lower Ginso Keystone", 306: "Upper Ginso Keystone", 307: "Misty Keystone", 308: "Forlorn Keystone", 309: "Lower Sorrow Keystone", 
+            300: "Glades Pool Keystone", 301: "Lower Spirit Caverns Keystone", 302: "Grotto Keystone", 303: "Swamp Keystone", 304: "Upper Spirit Caverns Keystone",
+            305: "Lower Ginso Keystone", 306: "Upper Ginso Keystone", 307: "Misty Keystone", 308: "Forlorn Keystone", 309: "Lower Sorrow Keystone",
             310: "Mid Sorrow Keystone", 311: "Upper Sorrow Keystone",
+            313: "Glades Pool Door Hint", 314: "Lower Spirit Caverns Door Hint", 315: "Grotto Door Hint", 316: "Swamp Door Hint", 317: "Upper Spirit Caverns Door Hint",
+            318: "Lower Ginso Door Hint", 319: "Upper Ginso Door Hint", 320: "Misty Door Hint", 321: "Forlorn Door Hint", 322: "Lower Sorrow Door Hint",
+            323: "Mid Sorrow Door Hint", 324: "Upper Sorrow Door Hint",
             410: "Enhanced Spirit Flame", 411: "Enhanced Wall Jump", 412: "Enhanced Charge Flame", 413: "Enhanced Double Jump", 414: "Enhanced Bash", 415: "Enhanced Stomp", 
             416: "Enhanced Glide", 417: "Enhanced Climb", 418: "Enhanced Charge Jump", 419: "Enhanced Dash", 420: "Enhanced Grenade", 422: "Enhanced Clean Water", 
             900: "Wall Jump Tree", 901: "Charge Flame Tree", 902: "Double Jump Tree", 903: "Bash Tree", 904: "Stomp Tree", 905: "Glide Tree", 906: "Climb Tree",
@@ -136,7 +139,7 @@ class Upgrade(Pickup):
             inst.share_type = ShareType.EVENT
         elif id >= 900:  # trees and relics are misc pickups
             inst.share_type = ShareType.MISC
-        elif id >= 300 and id <= 311: # keysanity keys are misc pickups
+        elif id >= 300 and id <= 324: # keysanity keys + door hints are misc pickups
             inst.share_type = ShareType.MISC
         elif "Remove " in inst.name:  # why would these be shared. that'd be terrible
             inst.share_type = ShareType.NOT_SHARED
