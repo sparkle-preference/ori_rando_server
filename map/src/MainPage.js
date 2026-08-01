@@ -36,6 +36,10 @@ const pickupToParts = (item) => {
 }
 const partsToPickup = (parts) => parts.length === 0 ? "NO|1" : (parts.length === 1 ? parts[0] : "MU|" + parts.map(p => p.replace(/\|/g, "/")).join("/"));
 const fassDefaultsFor = (world) => [2, 919772, -1560272, 799776, -120208].map(coords => ({loc: locOptionFromCoords(coords), item: "NO|1", world: world, owner: world}));
+const apDefaultExport = ["skills", "teleporters", "events"];
+// mw share name for each ap export category that can clash with it (shared
+// singletons can't also go to the AP pool)
+const apShareNames = {"skills": "Skills", "teleporters": "Teleporters", "events": "World Events"};
 const getPool = (pool_name) => { switch(pool_name) {
     case "Standard": 
         return [
@@ -624,7 +628,7 @@ onDrop = (files) => {
         )
     }
     getMultiplayerTab = ({inputStyle, menuStyle}) => {
-        let {shared, mwShared, players, tracking, coopGameMode, keyMode, coopGenMode, dedupShared, antiBkBias} = this.state
+        let {shared, mwShared, players, tracking, coopGameMode, keyMode, coopGenMode, dedupShared, antiBkBias, apMode, apExport} = this.state
         let shareButtons = (stypes, current, toggle) => stypes.map(stype => (
             <Col xs="4" key={`share-${stype}`} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("Shared Item Categories", stype)} className="p-2">
                 <Button block outline={!current.includes(stype)} onClick={toggle(stype)}>Share {stype}</Button>
@@ -635,7 +639,15 @@ onDrop = (files) => {
         // singletons are a spicier choice there), and no Misc: trees/relics/
         // keysanity keys stay per-world
         let mwShareButtons = shareButtons(["Skills", "Teleporters", "Upgrades", "World Events"], mwShared, this.onMWSType)
-        
+        let apFlag = get_flag("ap_flag")
+        // ap export categories are server-side names; no Keystones (generic
+        // keys never export; 'stones' covers Mapstones + keysanity zone keys)
+        let apExportButtons = [["skills", "Skills"], ["teleporters", "Teleporters"], ["events", "World Events"], ["cells", "Cells"], ["stones", "Stones"]].map(([cat, label]) => (
+            <Col xs="4" key={`ap-export-${cat}`} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("AP Export Categories", cat)} className="p-2">
+                <Button block outline={!apExport.includes(cat)} onClick={this.onApExport(cat)}>Export {label}</Button>
+            </Col>
+        ))
+
         let playerNumValid = tracking && players > 0;
         let playerNumFeedback = tracking ? (players > 0 ? null : (
             <FormFeedback tooltip="true">Need at least one player...</FormFeedback>
@@ -686,6 +698,20 @@ onDrop = (files) => {
                     <Row className="p-2">
                         {mwShareButtons}
                     </Row>
+                    {apFlag && (
+                        <Row className="p-2">
+                            <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "apMode")} className="p-2">
+                                <Button block outline={!apMode} active={apMode} onClick={this.onApMode}>Archipelago</Button>
+                            </Col>
+                        </Row>
+                    )}
+                    {apFlag && (
+                        <Collapse isOpen={apMode}>
+                            <Row className="p-2">
+                                {apExportButtons}
+                            </Row>
+                        </Collapse>
+                    )}
                 </Collapse>
             </TabPane>
         )
@@ -695,6 +721,11 @@ onDrop = (files) => {
     generateSeed = () => {
         let pMap = {"Race": "None", "None": "Default", "Co-op": "Shared", "World Events": "WorldEvents", "Cloned Seeds": "cloned", "Seperate Seeds": "disjoint"}
         let url = "/generator/build"
+        if(this.isMultiworld() && this.state.apMode && this.state.apExport.length === 0) {
+            NotificationManager.error("Select at least one Archipelago export category", "Cannot generate seed!", 5000)
+            this.setState({activeTab: 'multiplayer'})
+            return
+        }
         let f = (p) => pMap.hasOwnProperty(p) ? pMap[p] : p
         let json = {
             "keyMode": f(this.state.keyMode),
@@ -760,6 +791,10 @@ onDrop = (files) => {
                 json.syncShared = this.state.shared.map(s => f(s))
             if(this.isMultiworld())
                 json.syncShared = this.state.mwShared.map(s => f(s))
+            if(this.isMultiworld() && this.state.apMode) {
+                json.apMode = true
+                json.apExport = this.state.apExport
+            }
             if(!this.state.dedupShared)
                 json.teams={1: [...Array(this.state.players).keys()].map(x=>x+1)}
         }
@@ -814,6 +849,10 @@ onDrop = (files) => {
                 metaUpdate.mwShared = metaUpdate.shared || []
                 delete metaUpdate.shared
             }
+            // apMode/apExport rehydrate by name; empty export = server default
+            if(!metaUpdate.apExport || metaUpdate.apExport.length === 0)
+                metaUpdate.apExport = [...apDefaultExport]
+            metaUpdate.inputApMode = metaUpdate.apMode || false
             dev && console.log(metaUpdate)
             this.setState(metaUpdate, this.updateUrl)
         }
@@ -859,7 +898,8 @@ onDrop = (files) => {
                 this.helpEnter("general", "seedBuilt" + this.multi())()
             this.setState({
                 paramId: res.paramId, seedIsGenerating: false, inputPlayerCount: res.playerCount, inputSeed: res.seed,
-                flagLine: res.flagLine, gameId: res.gameId, seedIsBingo: res.doBingoRedirect || false
+                flagLine: res.flagLine, gameId: res.gameId, seedIsBingo: res.doBingoRedirect || false,
+                inputApMode: this.isMultiworld() && this.state.apMode
             }, this.updateUrl)
         }
     }
@@ -899,7 +939,7 @@ onDrop = (files) => {
         }
         else 
         {
-            let {inputPlayerCount, gameId, seedIsBingo, paramId, flagLine, spoilers, inputSeed, bingoLines, auxSpoiler} = this.state
+            let {inputPlayerCount, gameId, seedIsBingo, paramId, flagLine, spoilers, inputSeed, bingoLines, auxSpoiler, inputApMode} = this.state
             let spoilerText = auxSpoiler.active ? "Item List" : "View Spoiler"
             let raw = flagLine.split('|');
             let seedStr = raw.pop();
@@ -946,13 +986,18 @@ onDrop = (files) => {
                         <Col xs="3" className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", mainButtonHelp)}>
                             <Button color="primary" block target="_blank" href={seedUrl}>{mainButtonText}</Button>
                         </Col>
-                        <Col xs="3" className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", spoilerHelp("View"))}>
+                        {inputApMode && get_flag("ap_flag") ? (
+                        <Col xs="2" className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "apYaml")}>
+                            <Button color="primary" block target="_blank" href={"/generator/apyaml/"+paramId+"/"+p}>AP YAML</Button>
+                        </Col>
+                        ) : null}
+                        <Col xs={inputApMode && get_flag("ap_flag") ? "2" : "3"} className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", spoilerHelp("View"))}>
                             <ButtonGroup>
                                 <Button color={spoilers ? "primary" : "secondary"} disabled={!spoilers} href={spoilerUrl} target="_blank" block >{spoilerText}</Button>
                                 <Button color={spoilers ? "success" : "secondary"} disabled={!spoilers} onClick={() => this.setState({auxModal: true})} target="_blank"><FaCog/></Button>
                             </ButtonGroup>
                         </Col>
-                        <Col xs="3" className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab",spoilerHelp("Download"))}>
+                        <Col xs={inputApMode && get_flag("ap_flag") ? "2" : "3"} className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab",spoilerHelp("Download"))}>
                             <Button color={spoilers ? "primary" : "secondary"} disabled={!spoilers} href={downloadSpoilerUrl} target="_blank" block >Save Spoiler</Button>
                         </Col>
                     </Row>
@@ -1002,9 +1047,186 @@ onDrop = (files) => {
                       </Row>
                     {playerRows}
                     {trackedInfo}
+                    {this.getApPanel()}
                 </TabPane>
                 )
         }
+    }
+
+    // --- Archipelago room panel (seed tab, AP-mode games only) ---
+    apPanelVisible = () => {
+        let {seedTabExists, seedIsGenerating, activeTab, gameId, inputApMode, apHidden} = this.state
+        return get_flag("ap_flag") && !apHidden && gameId > 0 && inputApMode && seedTabExists && !seedIsGenerating && activeTab === "seed"
+    }
+
+    startApPoll = () => {
+        if(this.apPollTimer) return
+        this.fetchApStatus()
+        this.apPollTimer = setInterval(this.fetchApStatus, 5000)
+    }
+
+    stopApPoll = () => {
+        if(!this.apPollTimer) return
+        clearInterval(this.apPollTimer)
+        this.apPollTimer = null
+    }
+
+    fetchApStatus = () => {
+        let {gameId} = this.state
+        if(!(gameId > 0)) return
+        doNetRequest(`/netcode/game/${gameId}/ap/status?time=${(new Date()).getTime()}`, (res) => this.apStatusCallback(gameId, res))
+    }
+
+    apStatusCallback = (gameId, {status, responseText}) => {
+        if(gameId !== this.state.gameId) return // stale response from a previous game
+        if(status === 200) {
+            let report = JSON.parse(responseText)
+            let update = {apStatus: report, apNoLink: false, apPollFailed: false}
+            // one-time prefill so reconnecting is a single click
+            if(!this.apPrefilled && report.host && this.state.apHost === "" && this.state.apPort === "") {
+                update.apHost = report.host
+                update.apPort = String(report.port)
+            }
+            this.apPrefilled = true
+            this.setState(update)
+        } else if(status === 404) {
+            if(responseText && responseText.includes("not enabled"))
+                this.setState({apHidden: true}) // server-side ARCHIPELAGO flag is off
+            else
+                this.setState({apStatus: null, apNoLink: true, apPollFailed: false}) // no link yet; connect creates one
+        } else {
+            this.setState({apPollFailed: true})
+        }
+    }
+
+    onApConnect = () => {
+        let {gameId, apHost, apPort, apPassword} = this.state
+        this.setState({apConnectPending: true}, () => postNetForm(`/netcode/game/${gameId}/ap/connect`,
+            {host: apHost.trim(), port: apPort.trim(), password: apPassword}, this.apConnectCallback))
+    }
+
+    apConnectCallback = ({status, responseText}) => {
+        this.setState({apConnectPending: false})
+        if(status === 200) {
+            this.fetchApStatus()
+            return
+        }
+        if(status === 404 && responseText && responseText.includes("not enabled")) {
+            this.setState({apHidden: true})
+            return
+        }
+        if(status === 409) // server says non-AP game; drop the panel
+            this.setState({apHidden: true})
+        NotificationManager.error(responseText || "Connection request failed", "Archipelago", 5000)
+    }
+
+    onApDisconnect = () => {
+        let {gameId} = this.state
+        this.setState({apConnectPending: true}, () => postNetForm(`/netcode/game/${gameId}/ap/disconnect`, {}, this.apDisconnectCallback))
+    }
+
+    apDisconnectCallback = ({status, responseText}) => {
+        this.setState({apConnectPending: false})
+        if(status === 200)
+            this.fetchApStatus()
+        else if(status === 404 && responseText && responseText.includes("not enabled"))
+            this.setState({apHidden: true})
+        else
+            NotificationManager.error(responseText || "Disconnect request failed", "Archipelago", 5000)
+    }
+
+    getApPanel = () => {
+        let {gameId, inputApMode, apHidden, apHost, apPort, apPassword, apConnectPending, apStatus, apNoLink, apPollFailed} = this.state
+        if(!(get_flag("ap_flag") && !apHidden && gameId > 0 && inputApMode))
+            return null
+        let portNum = parseInt(apPort, 10)
+        let portValid = portNum > 0 && portNum < 65536
+        let canConnect = apHost.trim() !== "" && portValid && !apConnectPending
+        let canDisconnect = !apConnectPending && !!(apStatus && apStatus.enabled)
+        let statusColor = {connected: "text-success", pending: "text-warning", reconnecting: "text-warning", refused: "text-danger"}[apStatus ? apStatus.status : ""] || "text-muted"
+        let lastActStr = ""
+        if(apStatus && apStatus.last_activity) {
+            // naive utc isoformat from the server
+            let iso = /(Z|[+-]\d\d:?\d\d)$/.test(apStatus.last_activity) ? apStatus.last_activity : apStatus.last_activity + "Z"
+            let d = new Date(iso)
+            if(!isNaN(d.getTime()))
+                lastActStr = "Last activity: " + d.toLocaleString()
+        }
+        let worldRows = apStatus ? apStatus.slots.map((slot, i) => (
+            <Row key={`ap-world-${i}`} className="p-1 align-items-center border-bottom">
+                <Col xs="1">
+                    <Media object style={{width: "25px", height: "25px"}} src={player_icons(i + 1, false)} alt={"Icon for player " + (i + 1)} />
+                </Col>
+                <Col xs="4">
+                    <span className="align-middle">Player {i + 1} ({slot})</span>
+                </Col>
+                <Col xs="4">
+                    <span className="align-middle">{apStatus.recv_index[i] || 0} items received</span>
+                </Col>
+                <Col xs="3">
+                    <span className="align-middle text-success">{apStatus.goal_worlds.includes(i + 1) ? "Goal complete!" : ""}</span>
+                </Col>
+            </Row>
+        )) : null
+        return (
+            <Row className="p-1 pt-3 align-items-center border-dark border-top">
+                <Col>
+                    <Row className="p-1 justify-content-center">
+                        <Col xs="auto"><h5>Archipelago Room</h5></Col>
+                    </Row>
+                    <Row className="p-1 align-items-center" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "apConnect")}>
+                        <Col xs="3" className="pl-1 pr-1">
+                            <Input type="text" placeholder="archipelago.gg" value={apHost} onChange={(e) => this.setState({apHost: e.target.value})}/>
+                        </Col>
+                        <Col xs="2" className="pl-1 pr-1">
+                            <Input type="text" placeholder="38281" value={apPort} invalid={apPort !== "" && !portValid} onChange={(e) => this.setState({apPort: e.target.value})}/>
+                        </Col>
+                        <Col xs="3" className="pl-1 pr-1">
+                            <Input type="password" autoComplete="off" placeholder="password (optional)" value={apPassword} onChange={(e) => this.setState({apPassword: e.target.value})}/>
+                        </Col>
+                        <Col xs="2" className="pl-1 pr-1">
+                            <Button color="primary" block disabled={!canConnect} onClick={this.onApConnect}>Connect</Button>
+                        </Col>
+                        <Col xs="2" className="pl-1 pr-1">
+                            <Button color="danger" outline block disabled={!canDisconnect} onClick={this.onApDisconnect}>Disconnect</Button>
+                        </Col>
+                    </Row>
+                    {apNoLink ? (
+                        <Row className="p-1">
+                            <Col className="text-center text-muted">Not connected to an Archipelago room yet.</Col>
+                        </Row>
+                    ) : null}
+                    {apStatus ? (
+                        <Row className="p-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "apStatus")}>
+                            <Col>
+                                <Row className="p-1 align-items-center">
+                                    <Col xs="4">
+                                        <span className="align-middle">Status: <span className={statusColor}>{apStatus.status}</span></span>
+                                    </Col>
+                                    <Col xs="4">
+                                        <span className="align-middle">Room: {apStatus.host}:{apStatus.port}</span>
+                                    </Col>
+                                    <Col xs="4" className="text-right">
+                                        <small className="text-muted">{lastActStr}</small>
+                                    </Col>
+                                </Row>
+                                {worldRows}
+                                {apStatus.last_error ? (
+                                    <Row className="p-1">
+                                        <Col className="text-danger">Last error: {apStatus.last_error}</Col>
+                                    </Row>
+                                ) : null}
+                            </Col>
+                        </Row>
+                    ) : null}
+                    {apPollFailed ? (
+                        <Row className="p-1">
+                            <Col className="text-center text-warning">Status check failed; retrying...</Col>
+                        </Row>
+                    ) : null}
+                </Col>
+            </Row>
+        )
     }
 
     getPathsTab = () => {
@@ -1388,6 +1610,8 @@ onDrop = (files) => {
                         spawnHCs: 3, spawnECs: 0, spawnSKs: 0, pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null), 
                         goalModes: ["ForceTrees"], selectedPool: "Standard", seed: "", fillAlg: "Balanced", quickstartOpen: quickstartOpen, 
                         shared: ["Skills", "Teleporters", "World Events", "Upgrades", "Misc"], mwShared: [], helpcat: "", helpopt: "",
+                        apMode: false, apExport: [...apDefaultExport], inputApMode: false,
+                        apHost: "", apPort: "", apPassword: "", apConnectPending: false, apStatus: null, apNoLink: false, apHidden: false, apPollFailed: false,
                         expPool: 10000, lastHelp: new Date(), seedIsGenerating: seedTabExists, cellFreq: cellFreqPresets("standard"),
                         fragCount: 30, fragReq: 20, relicCount: 8, loader: get_random_loader(), paramId: paramId, seedTabExists: seedTabExists, 
                         reopenUrl: "", flagLine: "", fassList: fassDefaultsFor(1), fassWorld: 1, goalModesOpen: false, 
@@ -1402,6 +1626,30 @@ onDrop = (files) => {
             this.state.selectedPool = "Bonus Lite"
             this.updateUrl()
         }
+        this.apPollTimer = null
+        this.apPrefilled = false
+    }
+
+    componentDidMount() {
+        if(this.apPanelVisible())
+            this.startApPoll()
+    }
+
+    componentDidUpdate(prevProps, prevState) {
+        if(prevState.gameId !== this.state.gameId) {
+            // new game: any polled link state belongs to the old one
+            this.apPrefilled = false
+            this.stopApPoll() // re-armed below with an immediate fetch
+            this.setState({apStatus: null, apNoLink: false, apHidden: false, apPollFailed: false})
+        }
+        if(this.apPanelVisible())
+            this.startApPoll()
+        else
+            this.stopApPoll()
+    }
+
+    componentWillUnmount() {
+        this.stopApPoll()
     }
         
     closeModal = () => {
@@ -1457,7 +1705,15 @@ onDrop = (files) => {
     isMultiworld = () => this.state.tracking && this.state.players > 1 && this.state.coopGameMode === "Multiworld";
     onPath = (p) => () => this.setState({paths: this.state.paths.includes(p) ? this.state.paths.filter(x => x !== p) : this.state.paths.concat(p)}, () => this.setState(p => {return {pathMode: get_preset(p.paths)}}))
     onSType = (s) => () => this.state.shared.includes(s) ? this.setState({shared: this.state.shared.filter(x => x !== s)}) : this.setState({shared: this.state.shared.concat(s)})
-    onMWSType = (s) => () => this.state.mwShared.includes(s) ? this.setState({mwShared: this.state.mwShared.filter(x => x !== s)}) : this.setState({mwShared: this.state.mwShared.concat(s)})    
+    // a category can't be both mw-shared and ap-exported; the newest click wins
+    onMWSType = (s) => () => this.setState(prev => prev.mwShared.includes(s)
+        ? {mwShared: prev.mwShared.filter(x => x !== s)}
+        : {mwShared: prev.mwShared.concat(s), apExport: prev.apMode ? prev.apExport.filter(c => apShareNames[c] !== s) : prev.apExport})
+    onApMode = () => this.setState(prev => prev.apMode ? {apMode: false}
+        : {apMode: true, mwShared: prev.mwShared.filter(s => !prev.apExport.map(c => apShareNames[c]).includes(s))})
+    onApExport = (cat) => () => this.setState(prev => prev.apExport.includes(cat)
+        ? {apExport: prev.apExport.filter(x => x !== cat)}
+        : {apExport: prev.apExport.concat(cat), mwShared: prev.mwShared.filter(s => s !== apShareNames[cat])})
     onVar = (v) => () => {
         if(this.hasVar(v)) {
             this.setState({variations: this.state.variations.filter(x => x !== v)})
@@ -1803,4 +2059,16 @@ function postGenJson(url, json, callback)  {
     xmlHttp.open("POST", url, true);
     xmlHttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
     xmlHttp.send(encodeURI(`params=${JSON.stringify(json)}`));
+}
+
+function postNetForm(url, fields, callback)  {
+    let xmlHttp = new XMLHttpRequest();
+    xmlHttp.onreadystatechange = () => {
+        if (xmlHttp.readyState === 4) {
+            callback(xmlHttp);
+        }
+    };
+    xmlHttp.open("POST", url, true);
+    xmlHttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+    xmlHttp.send(Object.keys(fields).map(k => `${k}=${encodeURIComponent(fields[k])}`).join("&"));
 }

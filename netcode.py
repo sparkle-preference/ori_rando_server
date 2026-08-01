@@ -14,11 +14,13 @@ import json
 import logging as log
 from time import monotonic
 
+from ap_models import APLink
+from archipelago import ap_bridge
 from cache import Cache
 from enums import MultiplayerGameType
 from models import Game, BingoGameData, bingo_lock
 from pickups import Pickup
-from util import all_locs, bfield_checksum, coord_correction_map, debug, netperf, seed_sync_id, version_check, BINGO_V2
+from util import all_locs, bfield_checksum, coord_correction_map, debug, netperf, seed_sync_id, version_check, ARCHIPELAGO, BINGO_V2
 
 
 def _code(status):
@@ -52,6 +54,10 @@ def found_pickup(game_id, player_id, coords, kind, id, payload):
 
 
 def tick(game_id, player_id, payload):
+    if ARCHIPELAGO:
+        # bridge self-heal rides the 1 Hz tick (memoized: a dict lookup for
+        # any game without a live AP link)
+        ap_bridge.heal(game_id)
     x = payload.get("x")
     y = payload.get("y")
     if Cache.get_seen_checksum((game_id, player_id)) == bfield_checksum(payload.get("seen_%s" % i, 0) for i in range(8)):
@@ -116,6 +122,71 @@ def game_complete(game_id, player_id):
         t0 = monotonic()
         released = game.mw_release(player_id)
         netperf("mw_release", t0, gid=game_id, pid=player_id, released=released)
+        if ARCHIPELAGO:
+            # AP-mode world done: durable goal mark + StatusUpdate on its
+            # room socket (no-op for games without an AP link)
+            ap_bridge.notify_goal(game_id, player_id)
+    return 200, "ok"
+
+
+# --- Archipelago link management (ARCHIPELAGO flag; AP-mode games only) ---
+
+def ap_connect(game_id, payload):
+    """POST ap/connect {host, port, password}: store/refresh the game's
+    APLink. Reconnects keep the per-world recv indexes (durable progress);
+    only the room coordinates and enablement change."""
+    if not ARCHIPELAGO:
+        return 404, "Archipelago support is not enabled"
+    game = Game.with_id(game_id)
+    if not game:
+        return 404, "Game %s not found" % game_id
+    params = game.params.get() if game.params else None
+    if not params or not getattr(params, "ap_mode", False):
+        return 409, "Game %s is not an Archipelago game" % game_id
+    host = (payload.get("host") or "").strip()
+    try:
+        port = int(payload.get("port"))
+    except (TypeError, ValueError):
+        port = 0
+    if not host or not (0 < port < 65536):
+        return 400, "host and port are required"
+    link = APLink.with_id(game_id) or APLink.make(game_id, params.players)
+    link.host = host
+    link.port = port
+    link.password = payload.get("password") or None
+    link.enabled = True
+    link.status = "pending"
+    link.last_error = None
+    link.put()
+    # lazy-start the room bridge (ws.py WS_PUSH pattern: request-path start
+    # only; gunicorn --preload silently kills import-time threads)
+    ap_bridge.ensure(game_id, link=link)
+    return 200, "ok"
+
+
+def ap_status(game_id):
+    """GET ap/status: the stored APLink as JSON."""
+    if not ARCHIPELAGO:
+        return 404, "Archipelago support is not enabled"
+    link = APLink.with_id(game_id)
+    if not link:
+        return 404, "No Archipelago link for game %s" % game_id
+    ap_bridge.heal(game_id)  # checking status re-arms dead bridge threads
+    return 200, json.dumps(link.report())
+
+
+def ap_disconnect(game_id):
+    """POST ap/disconnect: stop bridging. The link and its recv indexes stay
+    stored; a later connect resumes where the bridge left off."""
+    if not ARCHIPELAGO:
+        return 404, "Archipelago support is not enabled"
+    link = APLink.with_id(game_id)
+    if not link:
+        return 404, "No Archipelago link for game %s" % game_id
+    link.enabled = False
+    link.status = "disconnected"
+    link.put()
+    ap_bridge.stop(game_id)
     return 200, "ok"
 
 

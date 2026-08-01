@@ -1,0 +1,1538 @@
+[
+ {
+  "ap_id": 524288,
+  "coord": -10120036,
+  "name": "MistyMortarCorridorHiddenExp",
+  "zone": "Misty"
+ },
+ {
+  "ap_id": 524289,
+  "coord": -10440008,
+  "name": "MistyKeystone2",
+  "zone": "Misty"
+ },
+ {
+  "ap_id": 524290,
+  "coord": -10759968,
+  "name": "MistyKeystone1",
+  "zone": "Misty"
+ },
+ {
+  "ap_id": 524291,
+  "coord": -10760004,
+  "name": "MistyAbilityCell",
+  "zone": "Misty"
+ },
+ {
+  "ap_id": 524292,
+  "coord": -10839992,
+  "name": "MistyMortarCorridorUpperExp",
+  "zone": "Misty"
+ },
+ {
+  "ap_id": 524293,
+  "coord": -11040068,
+  "name": "MistyPlant",
+  "zone": "Misty"
+ },
+ {
+  "ap_id": 524294,
+  "coord": -11880100,
+  "name": "ClimbSkillTree",
+  "zone": "Misty"
+ },
+ {
+  "ap_id": 524295,
+  "coord": -120208,
+  "name": "GladesKeystone2",
+  "zone": "Glades"
+ },
+ {
+  "ap_id": 524296,
+  "coord": -12320248,
+  "name": "ForlornEscapePlant",
+  "zone": "Forlorn"
+ },
+ {
+  "ap_id": 524297,
+  "coord": -1560188,
+  "name": "GladesLaser",
+  "zone": "Glades"
+ },
+ {
+  "ap_id": 524298,
+  "coord": -1560272,
+  "name": "FronkeyFight",
+  "zone": "Glades"
+ },
+ {
+  "ap_id": 524299,
+  "coord": -160096,
+  "name": "AboveChargeFlameTreeExp",
+  "zone": "Grove"
+ },
+ {
+  "ap_id": 524300,
+  "coord": -1639664,
+  "name": "HoruL3",
+  "zone": "Horu"
+ },
+ {
+  "ap_id": 524301,
+  "coord": -1680104,
+  "name": "SpiritTreeExp",
+  "zone": "Grove"
+ },
+ {
+  "ap_id": 524302,
+  "coord": -1680140,
+  "name": "GladesLaserGrenade",
+  "zone": "Glades"
+ },
+ {
+  "ap_id": 524303,
+  "coord": -1800088,
+  "name": "ValleyEntryTreePlant",
+  "zone": "Valley"
+ },
+ {
+  "ap_id": 524304,
+  "coord": -1800156,
+  "name": "SpiritCavernsTopRightKeystone",
+  "zone": "Glades"
+ },
+ {
+  "ap_id": 524305,
+  "coord": -1840196,
+  "name": "SpiritCavernsKeystone1",
+  "zone": "Glades"
+ },
+ {
+  "ap_id": 524306,
+  "coord": -1840228,
+  "name": "LeftGladesMapstone",
+  "zone": "Glades"
+ },
+ {
+  "ap_id": 524307,
+  "coord": -1919808,
+  "name": "HoruL4ChaseExp",
+  "zone": "Horu"
+ },
+ {
+  "ap_id": 524308,
+  "coord": -199724,
+  "name": "HoruL2",
+  "zone": "Horu"
+ },
+ {
+  "ap_id": 524309,
+  "coord": -2080116,
+  "name": "ValleyEntryAbilityCell",
+  "zone": "Valley"
+ },
+ {
+  "ap_id": 524310,
+  "coord": -2160176,
+  "name": "SpiritCavernsAbilityCell",
+  "zone": "Glades"
+ },
+ {
+  "ap_id": 524311,
+  "coord": -2200148,
+  "name": "SpiritCavernsTopLeftKeystone",
+  "zone": "Glades"
+ },
+ {
+  "ap_id": 524312,
+  "coord": -2200184,
+  "name": "SpiritCavernsKeystone2",
+  "zone": "Glades"
+ },
+ {
+  "ap_id": 524313,
+  "coord": -2240084,
+  "name": "ValleyEntryTreeExp",
+  "zone": "Valley"
+ },
+ {
+  "ap_id": 524314,
+  "coord": -2399488,
+  "name": "FinalEscape",
+  "zone": "Horu"
+ },
+ {
+  "ap_id": 524315,
+  "coord": -2400212,
+  "name": "LeftGladesKeystone",
+  "zone": "Glades"
+ },
+ {
+  "ap_id": 524316,
+  "coord": -2480208,
+  "name": "LeftGladesExp",
+  "zone": "Glades"
+ },
+ {
+  "ap_id": 524317,
+  "coord": -2480280,
+  "name": "WallJumpAreaExp",
+  "zone": "Glades"
+ },
+ {
+  "ap_id": 524318,
+  "coord": -280256,
+  "name": "FirstEnergyCell",
+  "zone": "Glades"
+ },
+ {
+  "ap_id": 524319,
+  "coord": -2840236,
+  "name": "LeftGladesHiddenExp",
+  "zone": "Glades"
+ },
+ {
+  "ap_id": 524320,
+  "coord": -2919980,
+  "name": "ValleyRightBirdStompCell",
+  "zone": "Valley"
+ },
+ {
+  "ap_id": 524321,
+  "coord": -3160308,
+  "name": "WallJumpSkillTree",
+  "zone": "Glades"
+ },
+ {
+  "ap_id": 524322,
+  "coord": -319852,
+  "name": "HoruL4LowerExp",
+  "zone": "Horu"
+ },
+ {
+  "ap_id": 524323,
+  "coord": -3200164,
+  "name": "ValleyEntryGrenadeLongSwim",
+  "zone": "Valley"
+ },
+ {
+  "ap_id": 524324,
+  "coord": -3360288,
+  "name": "WallJumpAreaEnergyCell",
+  "zone": "Glades"
+ },
+ {
+  "ap_id": 524325,
+  "coord": -3520100,
+  "name": "ValleyThreeBirdAbilityCell",
+  "zone": "Valley"
+ },
+ {
+  "ap_id": 524326,
+  "coord": -3559936,
+  "name": "ValleyRightFastStomplessCell",
+  "zone": "Valley"
+ },
+ {
+  "ap_id": 524327,
+  "coord": -3600088,
+  "name": "ValleyRightSwimExp",
+  "zone": "Valley"
+ },
+ {
+  "ap_id": 524328,
+  "coord": -400240,
+  "name": "GladesMainPoolDeep",
+  "zone": "Glades"
+ },
+ {
+  "ap_id": 524329,
+  "coord": -4159572,
+  "name": "UpperSorrowFarRightKeystone",
+  "zone": "Sorrow"
+ },
+ {
+  "ap_id": 524330,
+  "coord": -4160080,
+  "name": "ValleyMainFACS",
+  "zone": "Valley"
+ },
+ {
+  "ap_id": 524331,
+  "coord": -4199936,
+  "name": "ValleyRightExp",
+  "zone": "Valley"
+ },
+ {
+  "ap_id": 524332,
+  "coord": -4359680,
+  "name": "SorrowMapstone",
+  "zone": "Sorrow"
+ },
+ {
+  "ap_id": 524333,
+  "coord": -4440152,
+  "name": "ValleyForlornApproachMapstone",
+  "zone": "Valley"
+ },
+ {
+  "ap_id": 524334,
+  "coord": -4559584,
+  "name": "UpperSorrowRightKeystone",
+  "zone": "Sorrow"
+ },
+ {
+  "ap_id": 524335,
+  "coord": -4600020,
+  "name": "GlideSkillFeather",
+  "zone": "Valley"
+ },
+ {
+  "ap_id": 524336,
+  "coord": -4600188,
+  "name": "ValleyForlornApproachGrenade",
+  "zone": "Valley"
+ },
+ {
+  "ap_id": 524337,
+  "coord": -4600256,
+  "name": "OutsideForlornTreeExp",
+  "zone": "Valley"
+ },
+ {
+  "ap_id": 524338,
+  "coord": -4680068,
+  "name": "ValleyMainPlant",
+  "zone": "Valley"
+ },
+ {
+  "ap_id": 524339,
+  "coord": -4799416,
+  "name": "SunstonePlant",
+  "zone": "Sorrow"
+ },
+ {
+  "ap_id": 524340,
+  "coord": -480168,
+  "name": "AboveFourthHealth",
+  "zone": "Glades"
+ },
+ {
+  "ap_id": 524341,
+  "coord": -4879680,
+  "name": "SorrowMainShaftKeystone",
+  "zone": "Sorrow"
+ },
+ {
+  "ap_id": 524342,
+  "coord": -5039728,
+  "name": "SorrowSpikeKeystone",
+  "zone": "Sorrow"
+ },
+ {
+  "ap_id": 524343,
+  "coord": -5119796,
+  "name": "SorrowEntranceAbilityCell",
+  "zone": "Sorrow"
+ },
+ {
+  "ap_id": 524344,
+  "coord": -5159576,
+  "name": "UpperSorrowLeftKeystone",
+  "zone": "Sorrow"
+ },
+ {
+  "ap_id": 524345,
+  "coord": -5159700,
+  "name": "SorrowHiddenKeystone",
+  "zone": "Sorrow"
+ },
+ {
+  "ap_id": 524346,
+  "coord": -5160280,
+  "name": "OutsideForlornWaterExp",
+  "zone": "Valley"
+ },
+ {
+  "ap_id": 524347,
+  "coord": -5400104,
+  "name": "LowerValleyExp",
+  "zone": "Valley"
+ },
+ {
+  "ap_id": 524348,
+  "coord": -5400236,
+  "name": "OutsideForlornCliffExp",
+  "zone": "Valley"
+ },
+ {
+  "ap_id": 524349,
+  "coord": -5479592,
+  "name": "UpperSorrowSpikeExp",
+  "zone": "Sorrow"
+ },
+ {
+  "ap_id": 524350,
+  "coord": -5479948,
+  "name": "KuroPerchExp",
+  "zone": "Sorrow"
+ },
+ {
+  "ap_id": 524351,
+  "coord": -5599400,
+  "name": "Sunstone",
+  "zone": "Sorrow"
+ },
+ {
+  "ap_id": 524352,
+  "coord": -560160,
+  "name": "ChargeFlameSkillTree",
+  "zone": "Grove"
+ },
+ {
+  "ap_id": 524353,
+  "coord": -5640092,
+  "name": "LowerValleyMapstone",
+  "zone": "Valley"
+ },
+ {
+  "ap_id": 524354,
+  "coord": -5719844,
+  "name": "WilhelmExp",
+  "zone": "Sorrow"
+ },
+ {
+  "ap_id": 524355,
+  "coord": -5919556,
+  "name": "UpperSorrowFarLeftKeystone",
+  "zone": "Sorrow"
+ },
+ {
+  "ap_id": 524356,
+  "coord": -5959772,
+  "name": "SorrowLowerLeftKeystone",
+  "zone": "Sorrow"
+ },
+ {
+  "ap_id": 524357,
+  "coord": -600244,
+  "name": "GladesMapKeystone",
+  "zone": "Glades"
+ },
+ {
+  "ap_id": 524358,
+  "coord": -6039640,
+  "name": "LeftSorrowKeystone3",
+  "zone": "Sorrow"
+ },
+ {
+  "ap_id": 524359,
+  "coord": -6079672,
+  "name": "LeftSorrowKeystone1",
+  "zone": "Sorrow"
+ },
+ {
+  "ap_id": 524360,
+  "coord": -6080316,
+  "name": "RightForlornPlant",
+  "zone": "Forlorn"
+ },
+ {
+  "ap_id": 524361,
+  "coord": -6119656,
+  "name": "LeftSorrowKeystone2",
+  "zone": "Sorrow"
+ },
+ {
+  "ap_id": 524362,
+  "coord": -6119704,
+  "name": "SorrowHealthCell",
+  "zone": "Sorrow"
+ },
+ {
+  "ap_id": 524363,
+  "coord": -6159632,
+  "name": "LeftSorrowKeystone4",
+  "zone": "Sorrow"
+ },
+ {
+  "ap_id": 524364,
+  "coord": -6279608,
+  "name": "LeftSorrowEnergyCell",
+  "zone": "Sorrow"
+ },
+ {
+  "ap_id": 524365,
+  "coord": -6280316,
+  "name": "RightForlornHealthCell",
+  "zone": "Forlorn"
+ },
+ {
+  "ap_id": 524366,
+  "coord": -6319752,
+  "name": "LeftSorrowPlant",
+  "zone": "Sorrow"
+ },
+ {
+  "ap_id": 524367,
+  "coord": -6479528,
+  "name": "AboveChargeJumpAbilityCell",
+  "zone": "Sorrow"
+ },
+ {
+  "ap_id": 524368,
+  "coord": -6719712,
+  "name": "LeftSorrowAbilityCell",
+  "zone": "Sorrow"
+ },
+ {
+  "ap_id": 524369,
+  "coord": -6720040,
+  "name": "MistyGrenade",
+  "zone": "Misty"
+ },
+ {
+  "ap_id": 524370,
+  "coord": -6799732,
+  "name": "LeftSorrowGrenade",
+  "zone": "Sorrow"
+ },
+ {
+  "ap_id": 524371,
+  "coord": -6800032,
+  "name": "MistyEntranceStompExp",
+  "zone": "Misty"
+ },
+ {
+  "ap_id": 524372,
+  "coord": -6959592,
+  "name": "ChargeJumpSkillTree",
+  "zone": "Sorrow"
+ },
+ {
+  "ap_id": 524373,
+  "coord": -7040392,
+  "name": "ForlornEntranceExp",
+  "zone": "Forlorn"
+ },
+ {
+  "ap_id": 524374,
+  "coord": -7200024,
+  "name": "GumonSeal",
+  "zone": "Misty"
+ },
+ {
+  "ap_id": 524375,
+  "coord": -7320236,
+  "name": "ForlornEscape",
+  "zone": "Forlorn"
+ },
+ {
+  "ap_id": 524376,
+  "coord": -7680144,
+  "name": "MistyKeystone4",
+  "zone": "Misty"
+ },
+ {
+  "ap_id": 524377,
+  "coord": -7960144,
+  "name": "MistyPostClimbAboveSpikePit",
+  "zone": "Misty"
+ },
+ {
+  "ap_id": 524378,
+  "coord": -800192,
+  "name": "FourthHealthCell",
+  "zone": "Glades"
+ },
+ {
+  "ap_id": 524379,
+  "coord": -8160268,
+  "name": "ForlornPlant",
+  "zone": "Forlorn"
+ },
+ {
+  "ap_id": 524380,
+  "coord": -8240012,
+  "name": "MistyEntranceTreeExp",
+  "zone": "Misty"
+ },
+ {
+  "ap_id": 524381,
+  "coord": -8400124,
+  "name": "MistyPostClimbSpikeCave",
+  "zone": "Misty"
+ },
+ {
+  "ap_id": 524382,
+  "coord": -8440352,
+  "name": "ForlornHiddenSpiderExp",
+  "zone": "Forlorn"
+ },
+ {
+  "ap_id": 524383,
+  "coord": -8600356,
+  "name": "ForlornKeystone1",
+  "zone": "Forlorn"
+ },
+ {
+  "ap_id": 524384,
+  "coord": -8720256,
+  "name": "ForlornKeystone4",
+  "zone": "Forlorn"
+ },
+ {
+  "ap_id": 524385,
+  "coord": -8880252,
+  "name": "ForlornKeystone3",
+  "zone": "Forlorn"
+ },
+ {
+  "ap_id": 524386,
+  "coord": -8920328,
+  "name": "ForlornKeystone2",
+  "zone": "Forlorn"
+ },
+ {
+  "ap_id": 524387,
+  "coord": -9120036,
+  "name": "MistyKeystone3",
+  "zone": "Misty"
+ },
+ {
+  "ap_id": 524388,
+  "coord": -919624,
+  "name": "HoruL1",
+  "zone": "Horu"
+ },
+ {
+  "ap_id": 524389,
+  "coord": -959848,
+  "name": "HoruL4",
+  "zone": "Horu"
+ },
+ {
+  "ap_id": 524390,
+  "coord": -9799980,
+  "name": "MistyFrogNookExp",
+  "zone": "Misty"
+ },
+ {
+  "ap_id": 524391,
+  "coord": 1040112,
+  "name": "DoorWarpExp",
+  "zone": "Horu"
+ },
+ {
+  "ap_id": 524392,
+  "coord": 120164,
+  "name": "HoruLavaDrainedLeftExp",
+  "zone": "Horu"
+ },
+ {
+  "ap_id": 524393,
+  "coord": 1240020,
+  "name": "HoruFieldsPlant",
+  "zone": "Grove"
+ },
+ {
+  "ap_id": 524394,
+  "coord": 1280164,
+  "name": "HoruLavaDrainedRightExp",
+  "zone": "Horu"
+ },
+ {
+  "ap_id": 524395,
+  "coord": 1479880,
+  "name": "SpiderSacHealthCell",
+  "zone": "Grove"
+ },
+ {
+  "ap_id": 524396,
+  "coord": 1480360,
+  "name": "HoruR1Mapstone",
+  "zone": "Horu"
+ },
+ {
+  "ap_id": 524397,
+  "coord": 1519708,
+  "name": "DashAreaOrbRoomExp",
+  "zone": "Blackroot"
+ },
+ {
+  "ap_id": 524398,
+  "coord": 1599920,
+  "name": "HoruFieldsHealthCell",
+  "zone": "Grove"
+ },
+ {
+  "ap_id": 524399,
+  "coord": 1600136,
+  "name": "HoruR4DrainedExp",
+  "zone": "Horu"
+ },
+ {
+  "ap_id": 524400,
+  "coord": 1719892,
+  "name": "GroveAboveSpiderWaterExp",
+  "zone": "Grove"
+ },
+ {
+  "ap_id": 524401,
+  "coord": 1720000,
+  "name": "HoruFieldsEnergyCell",
+  "zone": "Grove"
+ },
+ {
+  "ap_id": 524402,
+  "coord": 1720288,
+  "name": "HoruR2",
+  "zone": "Horu"
+ },
+ {
+  "ap_id": 524403,
+  "coord": 1759964,
+  "name": "HoruFieldsAbilityCell",
+  "zone": "Grove"
+ },
+ {
+  "ap_id": 524404,
+  "coord": 1799708,
+  "name": "DashAreaAbilityCell",
+  "zone": "Blackroot"
+ },
+ {
+  "ap_id": 524405,
+  "coord": 1839836,
+  "name": "GroveSpiderWaterSwim",
+  "zone": "Grove"
+ },
+ {
+  "ap_id": 524406,
+  "coord": 1880164,
+  "name": "HoruR4StompExp",
+  "zone": "Horu"
+ },
+ {
+  "ap_id": 524407,
+  "coord": 1920384,
+  "name": "HoruR1HangingExp",
+  "zone": "Horu"
+ },
+ {
+  "ap_id": 524408,
+  "coord": 1959768,
+  "name": "DashAreaRoofExp",
+  "zone": "Blackroot"
+ },
+ {
+  "ap_id": 524409,
+  "coord": 2079568,
+  "name": "LowerBlackrootGrenadeThrow",
+  "zone": "Blackroot"
+ },
+ {
+  "ap_id": 524410,
+  "coord": 2160192,
+  "name": "HoruR4",
+  "zone": "Horu"
+ },
+ {
+  "ap_id": 524411,
+  "coord": 2239640,
+  "name": "GrenadeAreaExp",
+  "zone": "Blackroot"
+ },
+ {
+  "ap_id": 524412,
+  "coord": 24,
+  "name": "MS1",
+  "zone": "Mapstone"
+ },
+ {
+  "ap_id": 524413,
+  "coord": 2480400,
+  "name": "HoruR1EnergyCell",
+  "zone": "Horu"
+ },
+ {
+  "ap_id": 524414,
+  "coord": 2519668,
+  "name": "GrenadeAreaAbilityCell",
+  "zone": "Blackroot"
+ },
+ {
+  "ap_id": 524415,
+  "coord": 2520192,
+  "name": "HoruR4LaserExp",
+  "zone": "Horu"
+ },
+ {
+  "ap_id": 524416,
+  "coord": 2559800,
+  "name": "FronkeyWalkRoof",
+  "zone": "Glades"
+ },
+ {
+  "ap_id": 524417,
+  "coord": 2599880,
+  "name": "GroveAboveSpiderWaterHealthCell",
+  "zone": "Grove"
+ },
+ {
+  "ap_id": 524418,
+  "coord": 2640380,
+  "name": "HoruR1",
+  "zone": "Horu"
+ },
+ {
+  "ap_id": 524419,
+  "coord": 2719900,
+  "name": "GroveAboveSpiderWaterEnergyCell",
+  "zone": "Grove"
+ },
+ {
+  "ap_id": 524420,
+  "coord": 2759624,
+  "name": "LowerBlackrootAbilityCell",
+  "zone": "Blackroot"
+ },
+ {
+  "ap_id": 524421,
+  "coord": 28,
+  "name": "MS2",
+  "zone": "Mapstone"
+ },
+ {
+  "ap_id": 524422,
+  "coord": 2919744,
+  "name": "DashSkillTree",
+  "zone": "Blackroot"
+ },
+ {
+  "ap_id": 524423,
+  "coord": 2999808,
+  "name": "DeathGauntletExp",
+  "zone": "Grove"
+ },
+ {
+  "ap_id": 524424,
+  "coord": 2999904,
+  "name": "HollowGroveMapstone",
+  "zone": "Grove"
+ },
+ {
+  "ap_id": 524425,
+  "coord": 3039472,
+  "name": "LostGroveTeleporter",
+  "zone": "Blackroot"
+ },
+ {
+  "ap_id": 524426,
+  "coord": 3039696,
+  "name": "RazielNo",
+  "zone": "Blackroot"
+ },
+ {
+  "ap_id": 524427,
+  "coord": 3040304,
+  "name": "HoruR3",
+  "zone": "Horu"
+ },
+ {
+  "ap_id": 524428,
+  "coord": 3119768,
+  "name": "DashAreaPlant",
+  "zone": "Blackroot"
+ },
+ {
+  "ap_id": 524429,
+  "coord": 3160244,
+  "name": "HoruR3Plant",
+  "zone": "Horu"
+ },
+ {
+  "ap_id": 524430,
+  "coord": 3199820,
+  "name": "DeathGauntletRoofHealthCell",
+  "zone": "Grove"
+ },
+ {
+  "ap_id": 524431,
+  "coord": 32,
+  "name": "MS3",
+  "zone": "Mapstone"
+ },
+ {
+  "ap_id": 524432,
+  "coord": 3279644,
+  "name": "FarLeftGumoHideoutExp",
+  "zone": "Grotto"
+ },
+ {
+  "ap_id": 524433,
+  "coord": 3279920,
+  "name": "HollowGroveTreePlant",
+  "zone": "Grove"
+ },
+ {
+  "ap_id": 524434,
+  "coord": 3319936,
+  "name": "HollowGroveTreeAbilityCell",
+  "zone": "Grove"
+ },
+ {
+  "ap_id": 524435,
+  "coord": 3359580,
+  "name": "LowerBlackrootLaserExp",
+  "zone": "Blackroot"
+ },
+ {
+  "ap_id": 524436,
+  "coord": 3359784,
+  "name": "DeathGauntletSwimEnergyDoor",
+  "zone": "Grove"
+ },
+ {
+  "ap_id": 524437,
+  "coord": 3399820,
+  "name": "DeathGauntletRoofPlant",
+  "zone": "Grove"
+ },
+ {
+  "ap_id": 524438,
+  "coord": 3439744,
+  "name": "DashAreaMapstone",
+  "zone": "Blackroot"
+ },
+ {
+  "ap_id": 524439,
+  "coord": 3519820,
+  "name": "GroveWaterStompAbilityCell",
+  "zone": "Grove"
+ },
+ {
+  "ap_id": 524440,
+  "coord": 3559792,
+  "name": "DeathGauntletStompSwim",
+  "zone": "Grotto"
+ },
+ {
+  "ap_id": 524441,
+  "coord": 36,
+  "name": "MS4",
+  "zone": "Mapstone"
+ },
+ {
+  "ap_id": 524442,
+  "coord": 3639880,
+  "name": "HollowGroveMapPlant",
+  "zone": "Grove"
+ },
+ {
+  "ap_id": 524443,
+  "coord": 3639888,
+  "name": "IcelessExp",
+  "zone": "Grove"
+ },
+ {
+  "ap_id": 524444,
+  "coord": 3879576,
+  "name": "LowerBlackrootLaserAbilityCell",
+  "zone": "Blackroot"
+ },
+ {
+  "ap_id": 524445,
+  "coord": 3919624,
+  "name": "LeftGumoHideoutHealthCell",
+  "zone": "Grotto"
+ },
+ {
+  "ap_id": 524446,
+  "coord": 3919688,
+  "name": "BlackrootTeleporterHealthCell",
+  "zone": "Blackroot"
+ },
+ {
+  "ap_id": 524447,
+  "coord": 3959588,
+  "name": "LeftGumoHideoutSwim",
+  "zone": "Grotto"
+ },
+ {
+  "ap_id": 524448,
+  "coord": 39756,
+  "name": "GladesMainPool",
+  "zone": "Glades"
+ },
+ {
+  "ap_id": 524449,
+  "coord": 39804,
+  "name": "ChargeFlameAreaExp",
+  "zone": "Glades"
+ },
+ {
+  "ap_id": 524450,
+  "coord": 399844,
+  "name": "ChargeFlameAreaPlant",
+  "zone": "Grove"
+ },
+ {
+  "ap_id": 524451,
+  "coord": 40,
+  "name": "MS5",
+  "zone": "Mapstone"
+ },
+ {
+  "ap_id": 524452,
+  "coord": 4039612,
+  "name": "LeftGumoHideoutExp",
+  "zone": "Grotto"
+ },
+ {
+  "ap_id": 524453,
+  "coord": 4079964,
+  "name": "SwampTeleporterAbilityCell",
+  "zone": "Swamp"
+ },
+ {
+  "ap_id": 524454,
+  "coord": 4199724,
+  "name": "GrottoEnergyDoorSwim",
+  "zone": "Grotto"
+ },
+ {
+  "ap_id": 524455,
+  "coord": 4199828,
+  "name": "DeathGauntletEnergyCell",
+  "zone": "Grotto"
+ },
+ {
+  "ap_id": 524456,
+  "coord": 4239780,
+  "name": "GrottoEnergyDoorHealthCell",
+  "zone": "Grotto"
+ },
+ {
+  "ap_id": 524457,
+  "coord": 4319676,
+  "name": "BlackrootBoulderExp",
+  "zone": "Blackroot"
+ },
+ {
+  "ap_id": 524458,
+  "coord": 4319860,
+  "name": "MoonGrottoStompPlant",
+  "zone": "Grotto"
+ },
+ {
+  "ap_id": 524459,
+  "coord": 4319892,
+  "name": "GrottoLasersRoofExp",
+  "zone": "Grotto"
+ },
+ {
+  "ap_id": 524460,
+  "coord": 4359656,
+  "name": "LeftGumoHideoutUpperPlant",
+  "zone": "Grotto"
+ },
+ {
+  "ap_id": 524461,
+  "coord": 44,
+  "name": "MS6",
+  "zone": "Mapstone"
+ },
+ {
+  "ap_id": 524462,
+  "coord": 4439632,
+  "name": "LeftGumoHideoutLowerPlant",
+  "zone": "Grotto"
+ },
+ {
+  "ap_id": 524463,
+  "coord": 4479568,
+  "name": "GumoHideoutRedirectAbilityCell",
+  "zone": "Grotto"
+ },
+ {
+  "ap_id": 524464,
+  "coord": 4479704,
+  "name": "GrottoHideoutFallAbilityCell",
+  "zone": "Grotto"
+ },
+ {
+  "ap_id": 524465,
+  "coord": 4479832,
+  "name": "LeftGrottoTeleporterExp",
+  "zone": "Grotto"
+ },
+ {
+  "ap_id": 524466,
+  "coord": 4559492,
+  "name": "LostGroveAbilityCell",
+  "zone": "Blackroot"
+ },
+ {
+  "ap_id": 524467,
+  "coord": 4560564,
+  "name": "TopGinsoLeftLowerExp",
+  "zone": "Ginso"
+ },
+ {
+  "ap_id": 524468,
+  "coord": 4599508,
+  "name": "LostGroveHiddenExp",
+  "zone": "Blackroot"
+ },
+ {
+  "ap_id": 524469,
+  "coord": 4639628,
+  "name": "GumoHideoutLeftHangingExp",
+  "zone": "Grotto"
+ },
+ {
+  "ap_id": 524470,
+  "coord": 4680612,
+  "name": "TopGinsoLeftUpperExp",
+  "zone": "Ginso"
+ },
+ {
+  "ap_id": 524471,
+  "coord": 4759860,
+  "name": "AboveGrottoTeleporterExp",
+  "zone": "Grotto"
+ },
+ {
+  "ap_id": 524472,
+  "coord": 48,
+  "name": "MS7",
+  "zone": "Mapstone"
+ },
+ {
+  "ap_id": 524473,
+  "coord": 4919600,
+  "name": "GumoHideoutRedirectPlant",
+  "zone": "Grotto"
+ },
+ {
+  "ap_id": 524474,
+  "coord": 4959628,
+  "name": "GumoHideoutRightHangingExp",
+  "zone": "Grotto"
+ },
+ {
+  "ap_id": 524475,
+  "coord": 4999752,
+  "name": "WaterVein",
+  "zone": "Grotto"
+ },
+ {
+  "ap_id": 524476,
+  "coord": 4999892,
+  "name": "OuterSwampMortarAbilityCell",
+  "zone": "Swamp"
+ },
+ {
+  "ap_id": 524477,
+  "coord": 5039560,
+  "name": "GumoHideoutRedirectExp",
+  "zone": "Grotto"
+ },
+ {
+  "ap_id": 524478,
+  "coord": 5040476,
+  "name": "UpperGinsoLowerKeystone",
+  "zone": "Ginso"
+ },
+ {
+  "ap_id": 524479,
+  "coord": 5080304,
+  "name": "LowerGinsoKeystone3",
+  "zone": "Ginso"
+ },
+ {
+  "ap_id": 524480,
+  "coord": 5080496,
+  "name": "UpperGinsoUpperLeftKeystone",
+  "zone": "Ginso"
+ },
+ {
+  "ap_id": 524481,
+  "coord": 5119556,
+  "name": "GumoHideoutRedirectEnergyCell",
+  "zone": "Grotto"
+ },
+ {
+  "ap_id": 524482,
+  "coord": 5119584,
+  "name": "GumoHideoutMapstone",
+  "zone": "Grotto"
+ },
+ {
+  "ap_id": 524483,
+  "coord": 5119900,
+  "name": "OuterSwampMortarPlant",
+  "zone": "Swamp"
+ },
+ {
+  "ap_id": 524484,
+  "coord": 5160336,
+  "name": "BashAreaExp",
+  "zone": "Ginso"
+ },
+ {
+  "ap_id": 524485,
+  "coord": 5160384,
+  "name": "UpperGinsoRedirectLowerExp",
+  "zone": "Ginso"
+ },
+ {
+  "ap_id": 524486,
+  "coord": 5160864,
+  "name": "GinsoEscapeHangingExp",
+  "zone": "Ginso"
+ },
+ {
+  "ap_id": 524487,
+  "coord": 52,
+  "name": "MS8",
+  "zone": "Mapstone"
+ },
+ {
+  "ap_id": 524488,
+  "coord": 5200140,
+  "name": "LowerGinsoHiddenExp",
+  "zone": "Ginso"
+ },
+ {
+  "ap_id": 524489,
+  "coord": 5239456,
+  "name": "LostGroveLongSwim",
+  "zone": "Blackroot"
+ },
+ {
+  "ap_id": 524490,
+  "coord": 5280264,
+  "name": "LowerGinsoKeystone1",
+  "zone": "Ginso"
+ },
+ {
+  "ap_id": 524491,
+  "coord": 5280296,
+  "name": "LowerGinsoKeystone4",
+  "zone": "Ginso"
+ },
+ {
+  "ap_id": 524492,
+  "coord": 5280404,
+  "name": "UpperGinsoRedirectUpperExp",
+  "zone": "Ginso"
+ },
+ {
+  "ap_id": 524493,
+  "coord": 5280500,
+  "name": "UpperGinsoUpperRightKeystone",
+  "zone": "Ginso"
+ },
+ {
+  "ap_id": 524494,
+  "coord": 5320328,
+  "name": "BashSkillTree",
+  "zone": "Ginso"
+ },
+ {
+  "ap_id": 524495,
+  "coord": 5320488,
+  "name": "UpperGinsoRightKeystone",
+  "zone": "Ginso"
+ },
+ {
+  "ap_id": 524496,
+  "coord": 5320660,
+  "name": "GinsoEscapeSpiderExp",
+  "zone": "Ginso"
+ },
+ {
+  "ap_id": 524497,
+  "coord": 5320824,
+  "name": "GinsoEscapeProjectileExp",
+  "zone": "Ginso"
+ },
+ {
+  "ap_id": 524498,
+  "coord": 5359824,
+  "name": "GrottoSwampDrainAccessPlant",
+  "zone": "Grotto"
+ },
+ {
+  "ap_id": 524499,
+  "coord": 5360432,
+  "name": "UpperGinsoEnergyCell",
+  "zone": "Ginso"
+ },
+ {
+  "ap_id": 524500,
+  "coord": 5360732,
+  "name": "GinsoEscapeJumpPadExp",
+  "zone": "Ginso"
+ },
+ {
+  "ap_id": 524501,
+  "coord": 5399780,
+  "name": "BelowGrottoTeleporterPlant",
+  "zone": "Grotto"
+ },
+ {
+  "ap_id": 524502,
+  "coord": 5399808,
+  "name": "BelowGrottoTeleporterHealthCell",
+  "zone": "Grotto"
+ },
+ {
+  "ap_id": 524503,
+  "coord": 5400100,
+  "name": "LowerGinsoPlant",
+  "zone": "Ginso"
+ },
+ {
+  "ap_id": 524504,
+  "coord": 5400276,
+  "name": "LowerGinsoKeystone2",
+  "zone": "Ginso"
+ },
+ {
+  "ap_id": 524505,
+  "coord": 5439640,
+  "name": "GumoHideoutEnergyCell",
+  "zone": "Grotto"
+ },
+ {
+  "ap_id": 524506,
+  "coord": 5480952,
+  "name": "GinsoEscapeExit",
+  "zone": "Ginso"
+ },
+ {
+  "ap_id": 524507,
+  "coord": 5519856,
+  "name": "GrottoSwampDrainAccessExp",
+  "zone": "Grotto"
+ },
+ {
+  "ap_id": 524508,
+  "coord": 559720,
+  "name": "GladesGrenadePool",
+  "zone": "Glades"
+ },
+ {
+  "ap_id": 524509,
+  "coord": 56,
+  "name": "MS9",
+  "zone": "Mapstone"
+ },
+ {
+  "ap_id": 524510,
+  "coord": 5639752,
+  "name": "GumoHideoutRockfallExp",
+  "zone": "Grotto"
+ },
+ {
+  "ap_id": 524511,
+  "coord": 5719620,
+  "name": "GumoHideoutCrusherExp",
+  "zone": "Grotto"
+ },
+ {
+  "ap_id": 524512,
+  "coord": 5799932,
+  "name": "OuterSwampHealthCell",
+  "zone": "Swamp"
+ },
+ {
+  "ap_id": 524513,
+  "coord": 5879616,
+  "name": "GumoHideoutCrusherKeystone",
+  "zone": "Grotto"
+ },
+ {
+  "ap_id": 524514,
+  "coord": 5919864,
+  "name": "SwampEntranceSwim",
+  "zone": "Swamp"
+ },
+ {
+  "ap_id": 524515,
+  "coord": 599844,
+  "name": "SpiderSacEnergyCell",
+  "zone": "Grove"
+ },
+ {
+  "ap_id": 524516,
+  "coord": 6080608,
+  "name": "TopGinsoRightPlant",
+  "zone": "Ginso"
+ },
+ {
+  "ap_id": 524517,
+  "coord": 6159900,
+  "name": "OuterSwampStompExp",
+  "zone": "Swamp"
+ },
+ {
+  "ap_id": 524518,
+  "coord": 6199596,
+  "name": "GumoHideoutMiniboss",
+  "zone": "Grotto"
+ },
+ {
+  "ap_id": 524519,
+  "coord": 6279880,
+  "name": "SwampEntrancePlant",
+  "zone": "Swamp"
+ },
+ {
+  "ap_id": 524520,
+  "coord": 6359836,
+  "name": "InnerSwampDrainExp",
+  "zone": "Swamp"
+ },
+ {
+  "ap_id": 524521,
+  "coord": 639888,
+  "name": "SpiderSacEnergyDoor",
+  "zone": "Grove"
+ },
+ {
+  "ap_id": 524522,
+  "coord": 6399872,
+  "name": "SwampEntranceAbilityCell",
+  "zone": "Swamp"
+ },
+ {
+  "ap_id": 524523,
+  "coord": 6639952,
+  "name": "OuterSwampGrenadeExp",
+  "zone": "Swamp"
+ },
+ {
+  "ap_id": 524524,
+  "coord": 6839792,
+  "name": "InnerSwampSwimLeftKeystone",
+  "zone": "Swamp"
+ },
+ {
+  "ap_id": 524525,
+  "coord": 6999916,
+  "name": "OuterSwampAbilityCell",
+  "zone": "Swamp"
+ },
+ {
+  "ap_id": 524526,
+  "coord": 719620,
+  "name": "GrenadeSkillTree",
+  "zone": "Blackroot"
+ },
+ {
+  "ap_id": 524527,
+  "coord": 7199904,
+  "name": "InnerSwampEnergyCell",
+  "zone": "Swamp"
+ },
+ {
+  "ap_id": 524528,
+  "coord": 7559600,
+  "name": "DoubleJumpAreaExp",
+  "zone": "Grotto"
+ },
+ {
+  "ap_id": 524529,
+  "coord": 7599824,
+  "name": "InnerSwampHiddenSwimExp",
+  "zone": "Swamp"
+ },
+ {
+  "ap_id": 524530,
+  "coord": 7639816,
+  "name": "InnerSwampSwimRightKeystone",
+  "zone": "Swamp"
+ },
+ {
+  "ap_id": 524531,
+  "coord": 7679852,
+  "name": "InnerSwampStompExp",
+  "zone": "Swamp"
+ },
+ {
+  "ap_id": 524532,
+  "coord": 7839588,
+  "name": "DoubleJumpSkillTree",
+  "zone": "Grotto"
+ },
+ {
+  "ap_id": 524533,
+  "coord": 7959788,
+  "name": "InnerSwampSwimMapstone",
+  "zone": "Swamp"
+ },
+ {
+  "ap_id": 524534,
+  "coord": 799776,
+  "name": "GladesKeystone1",
+  "zone": "Glades"
+ },
+ {
+  "ap_id": 524535,
+  "coord": 799804,
+  "name": "GladesGrenadeTree",
+  "zone": "Glades"
+ },
+ {
+  "ap_id": 524536,
+  "coord": 8599904,
+  "name": "StompSkillTree",
+  "zone": "Swamp"
+ },
+ {
+  "ap_id": 524537,
+  "coord": 8719856,
+  "name": "StompAreaGrenadeExp",
+  "zone": "Swamp"
+ },
+ {
+  "ap_id": 524538,
+  "coord": 8839900,
+  "name": "StompAreaExp",
+  "zone": "Swamp"
+ },
+ {
+  "ap_id": 524539,
+  "coord": 9119928,
+  "name": "StompAreaRoofExp",
+  "zone": "Swamp"
+ },
+ {
+  "ap_id": 524540,
+  "coord": 919772,
+  "name": "FirstPickup",
+  "zone": "Glades"
+ },
+ {
+  "ap_id": 524541,
+  "coord": 919908,
+  "name": "SpiderSacGrenadeDoor",
+  "zone": "Grove"
+ },
+ {
+  "ap_id": 524542,
+  "coord": 959960,
+  "name": "HoruFieldsHiddenExp",
+  "zone": "Grove"
+ },
+ {
+  "ap_id": 524543,
+  "coord": 960128,
+  "name": "HoruTeleporterExp",
+  "zone": "Horu"
+ }
+]

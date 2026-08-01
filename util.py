@@ -72,6 +72,11 @@ WS_CONN_LIMIT = int(os.environ.get("WS_CONN_LIMIT", "48"))
 # any tick frame as a tick response, and the 1 Hz tick stays the reliable
 # delivery path (a lost push costs nothing). Requires WEBSOCKETS.
 WS_PUSH = _flag("WS_PUSH")
+# serve the Archipelago link routes (ap/connect, ap/status, ap/disconnect)
+# for AP-mode games. Off = the routes 404 and no bridge state can be created;
+# the AP gameplay data (shadow players, reserved slots) is mode-gated and
+# always present, MULTIWORLD-style.
+ARCHIPELAGO = _flag("ARCHIPELAGO")
 
 # Perf instrumentation: stable, grep-able log lines ("NETPERF <what> ms=<dur> tag=<revision:pid> k=v ...").
 # tag identifies the Cloud Run revision + worker process, to detect cross-process cache misses.
@@ -399,7 +404,8 @@ def picks_by_type_generator():
 
 # request helpers
 def template_vals(app, title, user):
-    template_values = {'app': app, 'title': title, 'version': "%s.%s.%s" % tuple(VER), 'race_wl': whitelist_ok(), 'admin': user.is_admin() if user else False
+    template_values = {'app': app, 'title': title, 'version': "%s.%s.%s" % tuple(VER), 'race_wl': whitelist_ok(), 'admin': user.is_admin() if user else False,
+                       'ap_flag': ARCHIPELAGO
 }
     if user:
         template_values['user'] = user.name

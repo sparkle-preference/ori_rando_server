@@ -18,6 +18,7 @@ from google.cloud.ndb.model import _BaseValue
 import cache as cache_mod
 import models
 import util
+from enums import MultiplayerGameType
 from models import BingoCard, BingoCardProgress, Game, HistoryLine, Player
 from pickups import Pickup
 
@@ -379,17 +380,20 @@ class TestMultiworldFoundPickup(NdbTestCase):
         models.HIST_ON_PLAYER = self._hop
         super(TestMultiworldFoundPickup, self).tearDown()
 
-    def _game(self, shared=None):
+    def _game(self, shared=None, extra_pids=()):
         finder = Player(id="77.1", skills=0, events=0, teleporters=0, bonuses={}, hints={})
         owner = Player(id="77.2", skills=0, events=0, teleporters=0, bonuses={}, hints={})
-        for p in (finder, owner):
+        players = {1: finder, 2: owner}
+        for pid in extra_pids:
+            players[pid] = Player(id="77.%s" % pid, skills=0, events=0, teleporters=0, bonuses={}, hints={})
+        for p in players.values():
             p.put = lambda *a, **k: None
         g = Game(id="77", str_mode="Multiworld", str_shared=shared or [])
-        g.get_players = lambda: [finder, owner]
-        g.player = lambda pid, create=True, delay_put=False: {1: finder, 2: owner}[pid]
+        g.get_players = lambda: list(players.values())
+        g.player = lambda pid, create=True, delay_put=False: players[pid]
         g.hist = []
         g.append_hl = g.hist.append  # bypass the transactional history write
-        by_key = {p.key: p for p in (finder, owner)}
+        by_key = {p.key: p for p in players.values()}
         Player.mark_slot_txn = staticmethod(lambda pkey, slot: by_key[pkey].mark_slot(slot))
         Player.mark_slots_txn = staticmethod(
             lambda pkey, slots: sum(1 for s in slots if by_key[pkey].mark_slot(s)))
@@ -459,6 +463,43 @@ class TestMultiworldFoundPickup(NdbTestCase):
         self.assertEqual(again, 0)
         self.assertEqual(len([s for s in owner.signals if s.startswith("msg:")]), 1)
 
+    class _FakeApParams(object):
+        """AP-mode: finisher's world holds one of P2's items plus two
+        AP-reserved slots owned by the world's shadow (K+1 = 3)."""
+        players = 2
+        ap_mode = True
+
+        def get_seed_data(self, pid):
+            assert pid == 1
+            return [("100", "MW", "2,3,Keystone", "Glades"),
+                    ("400", "MW", "3,0,AP Item #1", "Grove"),
+                    ("450", "MW", "3,1,AP Item #2", "Grove"),
+                    ("-2", "MW", "4,SK,50", "Grotto"),
+                    ("300", "SK", "0", "Glades")]
+
+    def test_release_skips_ap_shadow_slots(self):
+        """ori must never force-check AP slots: whether the room releases on
+        goal is the AP room's policy. (self.player(3) would KeyError here if
+        the shadow-owned lines slipped through.)"""
+        g, finder, owner = self._game()
+        released = g.mw_release(1, params=self._FakeApParams())
+        self.assertEqual(released, 1)  # P2's slot 3 only
+        self.assertTrue(owner.slot_check(3))
+        self.assertFalse(owner.slot_check(0))
+        self.assertFalse(owner.slot_check(1))
+
+    class _FakeParams3(object):
+        """Non-AP params (no ap_mode attr) whose finisher world holds an item
+        for player 3 -- the shadow skip must be AP-gated, not pid-gated."""
+        def get_seed_data(self, pid):
+            return [("400", "MW", "3,5,Bash", "Grove")]
+
+    def test_release_shadow_skip_is_ap_gated(self):
+        g, finder, owner = self._game(extra_pids=(3,))
+        released = g.mw_release(1, params=self._FakeParams3())
+        self.assertEqual(released, 1)
+        self.assertTrue(g.player(3).slot_check(5))
+
     def test_mw_find_processes_even_when_coords_already_seen(self):
         """Regression (game 133746, player 3's missing release): the finder's
         1Hz tick can deliver the seen bit for a location BEFORE its found POST
@@ -498,6 +539,139 @@ class TestMultiworldFoundPickup(NdbTestCase):
         g.found_pickup(1, Pickup.n("MW", "2,17,Bash"), 555, False, False, "Glades")
         self.assertTrue(owner.slot_check(17))
         self.assertEqual(owner.skills, 0)  # slot flip, not a grant
+
+
+class TestApShadowPlayers(NdbTestCase):
+    """AP-mode game creation (Game.from_params): shadow players K+1..2K exist
+    from birth as the bridge's durable outbox, and the tick names field
+    renders them '<K+w>.Archipelago'. Datastore ops are stubbed at
+    Player.get_by_id / put (an in-memory store), session-test style."""
+
+    class _ApParams(object):
+        players = 2
+        ap_mode = True
+        key = None
+        variations = []
+
+        class sync(object):
+            shared = []
+            mode = MultiplayerGameType.MULTIWORLD
+            dedup = False
+            teams = None
+
+    def setUp(self):
+        super(TestApShadowPlayers, self).setUp()
+        self._pput = Player.put
+        self._gput = Game.put
+        self._uget = models.User.__dict__["get"]
+        self._rebuild = Game.rebuild_hist
+        self.store = {}
+
+        def fake_get_by_id(pid, parent=None):
+            return self.store.get(pid)
+
+        def fake_put(p, *a, **k):
+            self.store[p.key.id()] = p
+            return p.key
+        Player.get_by_id = staticmethod(fake_get_by_id)
+        Player.put = fake_put
+        Game.put = lambda g, *a, **k: g.key
+        models.User.get = staticmethod(lambda: None)
+        Game.rebuild_hist = lambda g: None
+
+    def tearDown(self):
+        del Player.get_by_id  # restore the inherited ndb classmethod
+        Player.put = self._pput
+        Game.put = self._gput
+        models.User.get = self._uget
+        Game.rebuild_hist = self._rebuild
+        super(TestApShadowPlayers, self).tearDown()
+
+    def _patch_key_get(self, game):
+        """Route ndb.Key.get through the in-memory store (mw_names_field
+        resolves the parent game and its player keys)."""
+        orig = ndb.Key.get
+
+        def fake_key_get(k, *a, **kw):
+            if k == game.key:
+                return game
+            return self.store.get(k.id())
+        ndb.Key.get = fake_key_get
+        self.addCleanup(lambda: setattr(ndb.Key, "get", orig))
+
+    def test_from_params_creates_shadows(self):
+        game = Game.from_params(self._ApParams(), gid=70)
+        self.assertEqual(game.player_nums(), [1, 2, 3, 4])
+        for w in (3, 4):
+            self.assertEqual(self.store["70.%s" % w].nickname, "Archipelago")
+        for w in (1, 2):
+            self.assertIsNone(self.store["70.%s" % w].nickname)
+
+    def test_names_field_renders_shadow_pairs(self):
+        from cache import Cache
+        game = Game.from_params(self._ApParams(), gid=71)
+        self._patch_key_get(game)
+        shadow = self.store["71.3"]
+        names = shadow.mw_names_field()
+        self.assertEqual(names, "1.Player 1;2.Player 2;3.Archipelago;4.Archipelago")
+        # the tick output serves the same field at index 7
+        fields = self.store["71.1"].output(include_slots=True).split(",")
+        self.assertEqual(fields[7], names)
+        self.assertEqual(Cache.get_names(71), names)
+
+    def test_creation_invalidates_stale_names(self):
+        from cache import Cache
+        Cache.set_names(72, "stale")
+        Game.from_params(self._ApParams(), gid=72)
+        self.assertIsNone(Cache.get_names(72))
+
+    def test_shadow_creation_is_idempotent(self):
+        game = Game.from_params(self._ApParams(), gid=73)
+        n = len(self.store)
+        game.create_ap_shadows(self._ApParams())
+        self.assertEqual(len(self.store), n)
+        self.assertEqual(game.player_nums(), [1, 2, 3, 4])
+
+    def test_non_ap_games_get_no_shadows(self):
+        params = self._ApParams()
+        params.ap_mode = False
+        game = Game.from_params(params, gid=74)
+        self.assertEqual(game.player_nums(), [1, 2])
+
+
+class TestAPLink(NdbTestCase):
+    """The bridge's durable connection record (ap_models.APLink)."""
+
+    def test_make_defaults(self):
+        from ap_models import APLink
+        link = APLink.make(44, 3)
+        self.assertEqual(link.key.id(), 44)
+        self.assertEqual(link.slot_names, ["Ori1", "Ori2", "Ori3"])
+        self.assertEqual(link.recv_index, [0, 0, 0])
+        self.assertFalse(link.enabled)
+        self.assertEqual(link.status, "disconnected")
+
+    def test_slot_names_follow_the_yaml_convention(self):
+        # to_ap_yaml and APLink.make both go through ap_slot_name: the name in
+        # the emitted yaml and the name the bridge connects with must agree
+        from ap_models import ap_slot_name
+        self.assertEqual(ap_slot_name(1), "Ori1")
+        self.assertEqual(ap_slot_name("3"), "Ori3")
+
+    def test_report_shape(self):
+        from ap_models import APLink
+        link = APLink.make(45, 1)
+        link.host, link.port = "ap.example", 38281
+        link.enabled, link.status = True, "pending"
+        rep = link.report()
+        self.assertEqual(rep["host"], "ap.example")
+        self.assertEqual(rep["port"], 38281)
+        self.assertEqual(rep["slots"], ["Ori1"])
+        self.assertEqual(rep["recv_index"], [0])
+        self.assertTrue(rep["enabled"])
+        self.assertEqual(rep["status"], "pending")
+        self.assertIsNone(rep["last_error"])
+        self.assertIsNone(rep["last_activity"])  # auto_now lands at put
 
 
 class TestBingoV2(NdbTestCase):
