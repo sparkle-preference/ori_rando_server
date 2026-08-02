@@ -24,7 +24,9 @@ http response, frozen by golden_wire_test/session_golden_test):
       the /callback/ response entirely)
   seed:<qs>                            -> no reply (setSeed; http client
       fires and forgets)
-  complete:                            -> no reply (fire and forget)
+  complete:                            -> completeack:<status>
+      (acked since 2026-08-01: clients resend until heard, because a lost
+      complete strands multiworld releases. game_complete is idempotent.)
 
 Server -> client: tick:<body> frames, either as tick replies or pushed
 unsolicited (WS_PUSH) — the client treats both identically.
@@ -190,8 +192,10 @@ def handle_frame(game_id, player_id, frame):
         netcode.connect(game_id, player_id, _qs(body))
         return None, False
     if kind == "complete":
-        netcode.game_complete(game_id, player_id)
-        return None, False
+        # acked so the client can resend-until-heard: a lost complete used
+        # to strand multiworld releases (game 134478)
+        status, _ = netcode.game_complete(game_id, player_id)
+        return "completeack:%s" % status, False
     log.warning("ws: unknown frame kind %r from %s.%s", kind, game_id, player_id)
     return "err:%s" % kind, False
 

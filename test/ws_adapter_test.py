@@ -159,11 +159,19 @@ class ChannelFrameTests(unittest.TestCase):
         self.assertIsNone(reply)
         self.assertEqual(stub.calls[0][2]["seed"], "Sync3.4,Standard|123")
 
-    def test_complete_dispatches_silently(self):
+    def test_complete_acks_with_status(self):
+        # acked so clients can resend until heard (134478's stranded release)
         stub = netcode.game_complete = RecordingStub(200, "ok")
         reply, close = ws.handle_frame(3, 4, "complete:")
-        self.assertIsNone(reply)
+        self.assertEqual(reply, "completeack:200")
+        self.assertFalse(close)
         self.assertEqual(stub.calls, [(3, 4)])
+
+    def test_complete_ack_carries_dead_game_status(self):
+        netcode.game_complete = RecordingStub(412, "412")
+        reply, close = ws.handle_frame(3, 4, "complete:")
+        self.assertEqual(reply, "completeack:412")
+        self.assertFalse(close)  # any ack stops the client's retries
 
 
 class FakeConn(object):

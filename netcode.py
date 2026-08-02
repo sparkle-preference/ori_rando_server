@@ -113,19 +113,24 @@ def tick_debug(game_id, player_id, xycoords, payload):
 
 
 def game_complete(game_id, player_id):
-    """The client's credits-roll ping (fire and forget). In multiworld this
-    releases everything left in the finisher's world to its owners."""
+    """The client's credits-roll ping. In multiworld this releases everything
+    left in the finisher's world to its owners. Logged unconditionally —
+    game 134478's lost release was invisible because non-arrival left no
+    trace; now absence-of-line = client never sent, definitively. Idempotent
+    (a re-released world yields released=0), so clients retry freely."""
+    t0 = monotonic()
     game = Game.with_id(game_id)
     if not game:
+        netperf("game_complete", t0, gid=game_id, pid=player_id, status=412)
         return _code(412)
     if game.mode == MultiplayerGameType.MULTIWORLD:
-        t0 = monotonic()
         released = game.mw_release(player_id)
         netperf("mw_release", t0, gid=game_id, pid=player_id, released=released)
         if ARCHIPELAGO:
             # AP-mode world done: durable goal mark + StatusUpdate on its
             # room socket (no-op for games without an AP link)
             ap_bridge.notify_goal(game_id, player_id)
+    netperf("game_complete", t0, gid=game_id, pid=player_id, mode=game.mode.name, status=200)
     return 200, "ok"
 
 
