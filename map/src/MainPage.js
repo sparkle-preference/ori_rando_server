@@ -8,7 +8,7 @@ import 'react-notifications/lib/notifications.css';
 import './index.css';
 
 import {getHelpContent, HelpBox} from "./helpbox.js";
-import {get_param, spawn_defaults, get_flag, presets, select_theme, name_from_str, get_preset, player_icons, doNetRequest, get_random_loader, PickupSelect, Cent, dev, randInt, gotoUrl, prng} from './common.js';
+import {get_param, spawn_defaults, get_flag, ap_enabled, presets, select_theme, name_from_str, get_preset, player_icons, doNetRequest, get_random_loader, PickupSelect, Cent, dev, randInt, gotoUrl, prng} from './common.js';
 import SiteBar from "./SiteBar.js";
 import Select from 'react-select';
 import Dropzone from 'react-dropzone';
@@ -639,7 +639,7 @@ onDrop = (files) => {
         // singletons are a spicier choice there), and no Misc: trees/relics/
         // keysanity keys stay per-world
         let mwShareButtons = shareButtons(["Skills", "Teleporters", "Upgrades", "World Events"], mwShared, this.onMWSType)
-        let apFlag = get_flag("ap_flag")
+        let apFlag = ap_enabled()
         // ap export categories are server-side names; no Keystones (generic
         // keys never export; 'stones' covers Mapstones + keysanity zone keys)
         let apExportButtons = [["skills", "Skills"], ["teleporters", "Teleporters"], ["events", "World Events"], ["cells", "Cells"], ["stones", "Stones"]].map(([cat, label]) => (
@@ -986,18 +986,18 @@ onDrop = (files) => {
                         <Col xs="3" className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", mainButtonHelp)}>
                             <Button color="primary" block target="_blank" href={seedUrl}>{mainButtonText}</Button>
                         </Col>
-                        {inputApMode && get_flag("ap_flag") ? (
+                        {inputApMode && ap_enabled() ? (
                         <Col xs="2" className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "apYaml")}>
                             <Button color="primary" block target="_blank" href={"/generator/apyaml/"+paramId+"/"+p}>AP YAML</Button>
                         </Col>
                         ) : null}
-                        <Col xs={inputApMode && get_flag("ap_flag") ? "2" : "3"} className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", spoilerHelp("View"))}>
+                        <Col xs={inputApMode && ap_enabled() ? "2" : "3"} className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", spoilerHelp("View"))}>
                             <ButtonGroup>
                                 <Button color={spoilers ? "primary" : "secondary"} disabled={!spoilers} href={spoilerUrl} target="_blank" block >{spoilerText}</Button>
                                 <Button color={spoilers ? "success" : "secondary"} disabled={!spoilers} onClick={() => this.setState({auxModal: true})} target="_blank"><FaCog/></Button>
                             </ButtonGroup>
                         </Col>
-                        <Col xs={inputApMode && get_flag("ap_flag") ? "2" : "3"} className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab",spoilerHelp("Download"))}>
+                        <Col xs={inputApMode && ap_enabled() ? "2" : "3"} className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab",spoilerHelp("Download"))}>
                             <Button color={spoilers ? "primary" : "secondary"} disabled={!spoilers} href={downloadSpoilerUrl} target="_blank" block >Save Spoiler</Button>
                         </Col>
                     </Row>
@@ -1056,7 +1056,7 @@ onDrop = (files) => {
     // --- Archipelago room panel (seed tab, AP-mode games only) ---
     apPanelVisible = () => {
         let {seedTabExists, seedIsGenerating, activeTab, gameId, inputApMode, apHidden} = this.state
-        return get_flag("ap_flag") && !apHidden && gameId > 0 && inputApMode && seedTabExists && !seedIsGenerating && activeTab === "seed"
+        return ap_enabled() && !apHidden && gameId > 0 && inputApMode && seedTabExists && !seedIsGenerating && activeTab === "seed"
     }
 
     startApPoll = () => {
@@ -1137,7 +1137,7 @@ onDrop = (files) => {
 
     getApPanel = () => {
         let {gameId, inputApMode, apHidden, apHost, apPort, apPassword, apConnectPending, apStatus, apNoLink, apPollFailed} = this.state
-        if(!(get_flag("ap_flag") && !apHidden && gameId > 0 && inputApMode))
+        if(!(ap_enabled() && !apHidden && gameId > 0 && inputApMode))
             return null
         let portNum = parseInt(apPort, 10)
         let portValid = portNum > 0 && portNum < 65536
