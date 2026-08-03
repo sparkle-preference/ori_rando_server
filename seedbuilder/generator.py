@@ -1159,17 +1159,92 @@ class SeedGenerator:
         ("SK3"): assign_to_location runs items through adjust_item first."""
         return base in self.shared_pool_bases or self.codeToName.get(base, base) in self.shared_pool_bases
 
+    def anti_bk_val(self):
+        """params.anti_bk_bias when it applies to this seed, else 0.0."""
+        bias = getattr(self.params, "anti_bk_bias", 0.0) or 0.0
+        return bias if bias and getattr(self, "is_multi", False) else 0.0
+
     def anti_bk_boost(self, p):
         """Multiworld balance: weight multiplier (<=1.0) for progression that
         benefits player p. Players ahead of the most check-starved world get
         downweighted; the strength scales with params.anti_bk_bias (0..1)."""
-        bias = getattr(self.params, "anti_bk_bias", 0.0) or 0.0
-        if not bias or not getattr(self, "is_multi", False):
+        bias = self.anti_bk_val()
+        if not bias:
             return 1.0
         lmin = min(self.locs_by_player[q] for q in self.multi_ps())
         # +8 softens early-game extremes; exponent 10 makes 1.0 heavy-handed
         # (a world with 2x the min's checks is weighted ~200x down)
         return ((lmin + 8.0) / (self.locs_by_player[p] + 8.0)) ** (10.0 * bias)
+
+    # a world with this many checks in logic is no longer "opening": its
+    # progression stops preferring home slots
+    ANTI_BK_LOCAL_CHECKS = 15
+
+    def anti_bk_home(self, item):
+        """The world whose opening this item should stay inside, or None.
+        Progression owned by a world still under ANTI_BK_LOCAL_CHECKS checks
+        in logic qualifies while the bias is on; shared singletons benefit
+        every world from anywhere, so they never do."""
+        if not item or not self.anti_bk_val():
+            return None
+        if not self.is_progression(item) or base_of(item) in self.shared_pool_bases:
+            return None
+        owner = untag(item)[1]
+        return owner if self.locs_by_player[owner] < self.ANTI_BK_LOCAL_CHECKS else None
+
+    def anti_bk_hostless(self, itemsToAssign, locationsToAssign):
+        """Opening worlds that can't host their own progression this round:
+        no home slots at all, or every home slot already spoken for by a
+        pinned keystone or another opening item picked earlier this round."""
+        if not self.anti_bk_val():
+            return frozenset()
+        claims = Counter()
+        for it in itemsToAssign:
+            if not it:
+                continue
+            if self.ap_ks_pin and base_of(it) == "KS":
+                claims[untag(it)[1]] += 1
+            else:
+                home = self.anti_bk_home(it)
+                if home is not None:
+                    claims[home] += 1
+        slots = Counter(l.player for l in locationsToAssign)
+        return frozenset(p for p in self.multi_ps()
+                         if self.locs_by_player[p] < self.ANTI_BK_LOCAL_CHECKS
+                         and slots[p] <= claims[p])
+
+    def ap_ks_cap(self, p, claim_items, locationsToAssign):
+        """AP mode: slots world p can still offer its pinned keystones this
+        round -- its location count minus home slots owed to opening
+        progression (anti_bk_home claims outrank generic keystones)."""
+        cap = sum(1 for l in locationsToAssign if l.player == p)
+        return cap - sum(1 for it in claim_items if it and self.anti_bk_home(it) == p)
+
+    def anti_bk_localize(self, itemsToAssign, locationsToAssign):
+        """Multiworld balance, placement side: while a world is still opening,
+        its progression prefers slots in that world, so each player's first
+        unlocks are findable without waiting on another world's finds. Each
+        eligible item localizes with probability = anti_bk_bias."""
+        bias = self.anti_bk_val()
+        if not bias:
+            return
+        n = min(len(itemsToAssign), len(locationsToAssign))
+        for i in range(n):
+            home = self.anti_bk_home(itemsToAssign[i])
+            if home is None or locationsToAssign[i].player == home:
+                continue
+            if bias < 1.0 and self.random.random() > bias:
+                continue
+            for j in range(n):
+                if j == i or locationsToAssign[j].player != home:
+                    continue
+                other = itemsToAssign[j]
+                if other and self.ap_ks_pin and base_of(other) == "KS":
+                    continue  # keystones are pinned home in AP mode
+                if self.anti_bk_home(other) == home:
+                    continue  # don't displace progression that's already home
+                itemsToAssign[i], itemsToAssign[j] = itemsToAssign[j], itemsToAssign[i]
+                break
 
     def is_progression(self, item):
         base = base_of(item)
@@ -1252,8 +1327,14 @@ class SeedGenerator:
             return path_selected[1]
         return None
 
-    def get_location_from_balance_list(self):
-        target = int(pow(self.random.random(), 1.0 / self.balanceLevel) * len(self.balanceList))
+    def get_location_from_balance_list(self, prefer_player=None):
+        pool = list(range(len(self.balanceList)))
+        if prefer_player is not None:
+            bias = self.anti_bk_val()
+            homes = [i for i in pool if self.balanceList[i][1].player == prefer_player]
+            if homes and (bias >= 1.0 or self.random.random() <= bias):
+                pool = homes
+        target = pool[int(pow(self.random.random(), 1.0 / self.balanceLevel) * len(pool))]
         item, location, assignment, mw_ref = self.balanceList.pop(target)
         if mw_ref:
             # the stashed assignment string is discarded; free its slot so the
@@ -1262,16 +1343,21 @@ class SeedGenerator:
         self.balanceListLeftovers.append(item)
         return location
 
-    def assign_random(self, locs, recurseCount=0, ks_blocked=frozenset()):
+    def assign_random(self, locs, recurseCount=0, ks_blocked=frozenset(), opening_hostless=frozenset()):
         value = self.random.random()
         position = 0.0
         # anti_bk_bias: progression draws are weighted toward the worlds with
         # the fewest reachable checks (weights stay 1.0 when the bias is off;
         # shared singletons benefit every world, so they stay neutral too).
+        # opening_hostless: opening worlds with no slot in this round --
+        # drawing their unlocks now could only place them in someone else's
+        # world, so they get suppressed instead (see anti_bk_localize)
         # ks_blocked (AP mode): worlds whose keystones have no same-world spot
         # this round -- their KS draws are suppressed
+        bias = self.anti_bk_val()
+        prog_weight = lambda p: self.anti_bk_boost(p) * ((1.0 - bias) if p in opening_hostless else 1.0)
         pool_weight = lambda key: 0.0 if (ks_blocked and base_of(key) == "KS" and untag(key)[1] in ks_blocked) \
-            else self.itemPool[key] * (self.anti_bk_boost(untag(key)[1]) if self.is_progression(key) and base_of(key) not in self.shared_pool_bases else 1.0)
+            else self.itemPool[key] * (prog_weight(untag(key)[1]) if self.is_progression(key) and base_of(key) not in self.shared_pool_bases else 1.0)
         denom = float(sum(pool_weight(key) for key in self.itemPool.keys()))
         if denom == 0.0:
             log.warning("%s: itemPool was empty! locations: %s, balanced items: %s", self.params.flag_line(), self.locations(), self.items() - self.items(False))
@@ -1282,16 +1368,16 @@ class SeedGenerator:
                 base = base_of(key)
                 if self.var(Variation.STARVED):
                     if base in self.skillsOutput and recurseCount < 3:
-                        return self.assign_random(locs, recurseCount=recurseCount + 1, ks_blocked=ks_blocked)
+                        return self.assign_random(locs, recurseCount=recurseCount + 1, ks_blocked=ks_blocked, opening_hostless=opening_hostless)
                 if self.var(Variation.FUCK_WALLS):
                     if base in ["WallJump", "Climb"] and recurseCount < 3 and self.total_locs() - locs < 40:
-                        return self.assign_random(locs, recurseCount=recurseCount + 1, ks_blocked=ks_blocked)
+                        return self.assign_random(locs, recurseCount=recurseCount + 1, ks_blocked=ks_blocked, opening_hostless=opening_hostless)
                 if self.var(Variation.FUCK_GRENADE):
                     if base == "Grenade" and recurseCount < 3 and self.total_locs() - locs < 60:
-                        return self.assign_random(locs, recurseCount=recurseCount + 1, ks_blocked=ks_blocked)
+                        return self.assign_random(locs, recurseCount=recurseCount + 1, ks_blocked=ks_blocked, opening_hostless=opening_hostless)
                 if self.var(Variation.TPSTARVED):
                     if base.startswith("TP") and recurseCount < 3 and self.total_locs() - locs < self.costs.get(key, 0):
-                        return self.assign_random(locs, recurseCount=recurseCount + 1, ks_blocked=ks_blocked)
+                        return self.assign_random(locs, recurseCount=recurseCount + 1, ks_blocked=ks_blocked, opening_hostless=opening_hostless)
                 return self.assign(key)
     
     costs_to_decrement_by_one = set(["KS", "EC", "HC", "AC", "WaterVeinShard", "GumonSealShard", "SunstoneShard"] + 
@@ -1499,23 +1585,30 @@ class SeedGenerator:
         return int(max(self.expRemaining * (rand_exp_found + self.expSlots / 4) * self.random.uniform(0.0, 2.0) / (self.expSlots * (self.expSlots + rand_exp_found)), minExp))
 
     def preferred_difficulty_assign(self, item, locationsToAssign):
+        candidates = locationsToAssign
+        home = self.anti_bk_home(item)
+        if home is not None:
+            bias = self.anti_bk_val()
+            homes = [loc for loc in locationsToAssign if loc.player == home]
+            if homes and (bias >= 1.0 or self.random.random() <= bias):
+                candidates = homes
         total = 0.0
-        for loc in locationsToAssign:
+        for loc in candidates:
             if self.params.path_diff == PathDifficulty.EASY:
                 total += (20 - loc.difficulty) * (20 - loc.difficulty)
             else:
                 total += (loc.difficulty * loc.difficulty)
         value = self.random.random()
         position = 0.0
-        for i in range(0, len(locationsToAssign)):
+        for i in range(0, len(candidates)):
             if self.params.path_diff == PathDifficulty.EASY:
-                position += (20 - locationsToAssign[i].difficulty) * (20 - locationsToAssign[i].difficulty) / total
+                position += (20 - candidates[i].difficulty) * (20 - candidates[i].difficulty) / total
             else:
-                position += locationsToAssign[i].difficulty * locationsToAssign[i].difficulty / total
+                position += candidates[i].difficulty * candidates[i].difficulty / total
             if value <= position:
-                self.assign_to_location(item, locationsToAssign[i])
+                self.assign_to_location(item, candidates[i])
                 break
-        del locationsToAssign[i]
+        locationsToAssign.remove(candidates[i])
 
     def form_areas(self, keysOnlyForDoors=False):
         if self.params.do_loc_analysis:
@@ -2022,7 +2115,9 @@ class SeedGenerator:
                     for item in self.assignQueue:
                         if len(self.balanceList) == 0:
                             break
-                        locationsToAssign.append(self.get_location_from_balance_list())
+                        # forced progression for a still-opening world steals
+                        # back one of that world's own filled slots
+                        locationsToAssign.append(self.get_location_from_balance_list(self.anti_bk_home(item)))
                 if not self.assignQueue:
                     # we've painted ourselves into a corner, try again
                     if depth > max(self.seed_count * self.seed_count, 1):
@@ -2042,7 +2137,7 @@ class SeedGenerator:
                 blocked = 0
                 for p in self.multi_ps():
                     want = q_ks[p] + max(keystoneCount[p] - self.inventory[tag("KS", p)], 0)
-                    cap = sum(1 for l in locationsToAssign if l.player == p)
+                    cap = self.ap_ks_cap(p, itemsToAssign + self.assignQueue, locationsToAssign)
                     blocked += max(want - cap, 0)
                 cornered = (len(locationsToAssign) < need - blocked
                             or (not locationsToAssign and need > 0))
@@ -2066,7 +2161,7 @@ class SeedGenerator:
                         while qi < len(self.assignQueue):
                             base, qp = untag(self.assignQueue[qi])
                             if base == "KS":
-                                cap = sum(1 for l in locationsToAssign if l.player == qp)
+                                cap = self.ap_ks_cap(qp, itemsToAssign + self.assignQueue, locationsToAssign)
                                 held = sum(1 for it in itemsToAssign if it == tag("KS", qp))
                                 if held >= cap:
                                     qi += 1
@@ -2081,7 +2176,7 @@ class SeedGenerator:
                         if ap_ks_pin:
                             # only force a KS its owner's world can host this
                             # round; otherwise defer (the door stays shut)
-                            cap = sum(1 for l in locationsToAssign if l.player == p)
+                            cap = self.ap_ks_cap(p, itemsToAssign + self.assignQueue, locationsToAssign)
                             held = sum(1 for it in itemsToAssign if it == tag("KS", p))
                             if held >= cap:
                                 continue
@@ -2113,8 +2208,9 @@ class SeedGenerator:
                             blocked = frozenset(
                                 p for p in self.multi_ps()
                                 if sum(1 for it in itemsToAssign if it == tag("KS", p)) >=
-                                sum(1 for l in locationsToAssign if l.player == p))
-                        itemsToAssign.append(self.assign_random(locs, ks_blocked=blocked))
+                                self.ap_ks_cap(p, itemsToAssign + self.assignQueue, locationsToAssign))
+                        itemsToAssign.append(self.assign_random(locs, ks_blocked=blocked,
+                                                                opening_hostless=self.anti_bk_hostless(itemsToAssign, locationsToAssign)))
 
             # force assign things if using --prefer-path-difficulty
             if self.params.path_diff != PathDifficulty.NORMAL:
@@ -2130,6 +2226,7 @@ class SeedGenerator:
                 if depth > max(self.seed_count * self.seed_count, 1):
                     return
                 return self.placeItems(depth + 1, worried)
+            self.anti_bk_localize(itemsToAssign, locationsToAssign)
             for i in range(0, len(locationsToAssign)):
                 self.assign_to_location(itemsToAssign[i], locationsToAssign[i])
 

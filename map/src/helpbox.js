@@ -631,6 +631,7 @@ const getHelpHelper = (category, option) => {
                         "When you find another player's item, it is sent to them instantly (the pickup will tell you whose it was). Everything you need to finish your game exists somewhere, but some of it will be found by your allies in their worlds.",
                         "When a player finishes, every unfound item left in their world is automatically released to its owner, so nobody is stuck waiting on a fully-explored world.",
                         "Shared Item Categories work differently here than in Co-op: a shared category's items are generated once across ALL worlds (one Bash total, one Sunstone total...), and whoever finds one grants it to everyone. This mimics the old Seperate Seeds mode.",
+                        "Recommended settings for 3+ players: keep Open World on and avoid Random Spawn. Closed or remote starts multiply across worlds -- with several tiny openings, most players begin the game waiting on someone else's finds. Raising the Balance Bias below helps a lot, but it can't fully rescue that combination.",
                     ]
                     break;
                 case "Cloned Seeds":
@@ -647,6 +648,7 @@ const getHelpHelper = (category, option) => {
                         "Controls how hard the generator works to keep every player's world supplied with reachable checks.",
                         "At 0.0 (the default), progression is placed with no regard for world balance: it is possible for one player to have very little to do for long stretches while other players hunt down their items.",
                         "At 1.0, the generator heavily biases progression placement towards whichever world currently has the fewest reachable checks, so all worlds tend to open up at a similar pace.",
+                        "It also keeps openings local: until a world has around 15 checks in logic, that world's own progression is placed inside it whenever possible. At 1.0 everyone's first few unlocks play like a solo seed, instead of the whole lobby waiting on whoever holds the first key.",
                         "Higher values mean fewer long waits, but also a more predictable, less spiky game. Try 0.5 for a middle ground.",
                     ]
                     break;

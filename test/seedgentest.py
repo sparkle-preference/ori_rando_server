@@ -3,6 +3,7 @@
 Run from the repo root:  python3 -m unittest test.seedgentest -v
 """
 import os
+import random
 import re
 import shutil
 import sys
@@ -555,6 +556,163 @@ class AntiBkBoostTests(unittest.TestCase):
         solo = self._sg(1.0, {1: 20})
         solo.is_multi = False
         self.assertEqual(solo.anti_bk_boost(1), 1.0)
+
+
+class AntiBkLocalizeTests(unittest.TestCase):
+    """Placement-side balance: an opening world's progression prefers home
+    slots in the round's item/location pairing (anti_bk_localize)."""
+
+    def _sg(self, bias, counts, pin=False, shared=()):
+        from seedbuilder.generator import SeedGenerator
+        sg = SeedGenerator()
+        sg.seed_count = len(counts)
+        sg.is_multi = True
+        sg.params = CLISeedParams()
+        sg.params.anti_bk_bias = bias
+        sg.ap_ks_pin = pin
+        sg.shared_pool_bases = set(shared)
+        sg.random = random.Random(7)
+        for p, c in counts.items():
+            sg.locs_by_player[p] = c
+        return sg
+
+    def _loc(self, p):
+        from seedbuilder.generator import Location
+        return Location(0, 0, "Test", "Test", 1, "Glades", p)
+
+    def test_opening_progression_localizes(self):
+        sg = self._sg(1.0, {1: 5, 2: 30})
+        items = ["Bash|1", "EX*|2"]
+        locs = [self._loc(2), self._loc(1)]
+        sg.anti_bk_localize(items, locs)
+        self.assertEqual(items, ["EX*|2", "Bash|1"])
+
+    def test_localize_cascades(self):
+        # both worlds opening; everyone ends up home
+        sg = self._sg(1.0, {1: 5, 2: 5})
+        items = ["Bash|1", "EX*|1", "Glide|2"]
+        locs = [self._loc(2), self._loc(1), self._loc(1)]
+        sg.anti_bk_localize(items, locs)
+        self.assertEqual(items, ["Glide|2", "Bash|1", "EX*|1"])
+
+    def test_threshold_ends_localization(self):
+        sg = self._sg(1.0, {1: 15, 2: 30})  # world 1 hit ANTI_BK_LOCAL_CHECKS
+        items = ["Bash|1", "EX*|2"]
+        locs = [self._loc(2), self._loc(1)]
+        sg.anti_bk_localize(items, locs)
+        self.assertEqual(items, ["Bash|1", "EX*|2"])
+
+    def test_bias_zero_is_inert(self):
+        sg = self._sg(0.0, {1: 5, 2: 30})
+        items = ["Bash|1", "EX*|2"]
+        locs = [self._loc(2), self._loc(1)]
+        state = sg.random.getstate()
+        sg.anti_bk_localize(items, locs)
+        self.assertEqual(items, ["Bash|1", "EX*|2"])
+        self.assertEqual(sg.random.getstate(), state, "bias=0 must not draw pRNG")
+
+    def test_ap_pinned_keystones_stay(self):
+        sg = self._sg(1.0, {1: 5, 2: 30}, pin=True)
+        items = ["Bash|1", "KS|1"]
+        locs = [self._loc(2), self._loc(1)]
+        sg.anti_bk_localize(items, locs)
+        self.assertEqual(items, ["Bash|1", "KS|1"])
+        # without the pin a keystone is junk and gets displaced
+        sg = self._sg(1.0, {1: 5, 2: 30})
+        sg.anti_bk_localize(items, locs)
+        self.assertEqual(items, ["KS|1", "Bash|1"])
+
+    def test_shared_progression_is_neutral(self):
+        sg = self._sg(1.0, {1: 5, 2: 30}, shared=("Bash",))
+        items = ["Bash|1", "EX*|2"]
+        locs = [self._loc(2), self._loc(1)]
+        sg.anti_bk_localize(items, locs)
+        self.assertEqual(items, ["Bash|1", "EX*|2"])
+
+    def test_home_progression_is_not_robbed(self):
+        sg = self._sg(1.0, {1: 5, 2: 30})
+        items = ["Glide|1", "Bash|1"]
+        locs = [self._loc(2), self._loc(1)]
+        sg.anti_bk_localize(items, locs)
+        self.assertEqual(items, ["Glide|1", "Bash|1"])
+
+    def test_balance_pop_prefers_home(self):
+        sg = self._sg(1.0, {1: 5, 2: 30})
+        sg.balanceLevel = 3
+        home = self._loc(1)
+        sg.balanceList = [("EX*|2", self._loc(2), "a", None),
+                          ("EX*|2", home, "a", None),
+                          ("EX*|2", self._loc(2), "a", None)]
+        got = sg.get_location_from_balance_list(prefer_player=1)
+        self.assertIs(got, home)
+        self.assertEqual(len(sg.balanceList), 2)
+        self.assertEqual(sg.balanceListLeftovers, ["EX*|2"])
+
+
+class MultiworldLocalizeGenTests(unittest.TestCase):
+    """Full-bias generation without open world: closed openings are exactly
+    where localization matters. Invariants must hold, and progression assigned
+    while its owner is still opening must land in the owner's world."""
+
+    PLAYERS = 3
+    BASE = ["cli_gen", "--preset", "standard", "--force-trees", "--balanced",
+            "--seed", "mwlocaltest", "--players", str(PLAYERS), "--share-mode", "multiworld"]
+
+    @classmethod
+    def _gen(cls, bias):
+        """-> (records, seeds): records = (owner, host world) for every
+        progression item assigned while its owner was under the opening
+        threshold. reset() clears them so retries don't leave stale rows."""
+        from seedbuilder.generator import SeedGenerator, untag
+        outdir = tempfile.mkdtemp(prefix="seedgentest_mwlocal_")
+        records = []
+        orig_assign = SeedGenerator.assign_to_location
+        orig_reset = SeedGenerator.reset
+        def assign_spy(sg, item, location):
+            if item and sg.is_progression(item):
+                owner = untag(item)[1]
+                if sg.locs_by_player[owner] < sg.ANTI_BK_LOCAL_CHECKS:
+                    records.append((owner, location.player))
+            return orig_assign(sg, item, location)
+        def reset_spy(sg, worried=False):
+            records.clear()
+            return orig_reset(sg, worried)
+        old_argv = sys.argv
+        sys.argv = cls.BASE + ["--output-dir", outdir, "--anti-bk-bias", str(bias)]
+        SeedGenerator.assign_to_location = assign_spy
+        SeedGenerator.reset = reset_spy
+        try:
+            CLISeedParams().from_cli()
+        finally:
+            SeedGenerator.assign_to_location = orig_assign
+            SeedGenerator.reset = orig_reset
+            sys.argv = old_argv
+        seeds = {}
+        try:
+            for p in range(1, cls.PLAYERS + 1):
+                with open(os.path.join(outdir, "randomizer_%s.dat" % p)) as f:
+                    seeds[p] = f.read().splitlines()
+        finally:
+            shutil.rmtree(outdir, ignore_errors=True)
+        return list(records), seeds
+
+    @classmethod
+    def setUpClass(cls):
+        cls.brecords, cls.biased = cls._gen(1.0)
+        cls.urecords, cls.unbiased = cls._gen(0.0)
+
+    def test_invariants_hold_at_full_bias(self):
+        check_mw_invariants(self, self.biased)
+
+    def test_opening_progression_stays_home(self):
+        self.assertGreater(len(self.brecords), 0, "no opening-phase progression was placed at all")
+        stray_b = [(o, h) for (o, h) in self.brecords if o != h]
+        stray_u = [(o, h) for (o, h) in self.urecords if o != h]
+        self.assertEqual(stray_b, [],
+                         "bias 1.0 let opening progression leave home (of %s placements)" % len(self.brecords))
+        # control: without the knob this seed scatters opening progression,
+        # so the assertion above is not vacuous
+        self.assertGreater(len(stray_u), 0, "control run kept everything home; metric proves nothing")
 
 
 class SeedModeProblemTests(unittest.TestCase):
