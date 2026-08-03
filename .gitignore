@@ -6,3 +6,5 @@
 appengine_config.py
 oauth
 .env
+*.apworld
+/archipelago/dist
