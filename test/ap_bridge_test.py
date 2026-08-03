@@ -529,6 +529,39 @@ class TestBridgeLoopBackoff(SessionTestCase):
                          ["connected", "reconnecting"])
 
 
+class TestPreflight(unittest.TestCase):
+    """An unroutable room must fail in seconds with an address in the message,
+    not hold the thread for the OS SYN ladder."""
+
+    def test_unreachable_port_fails_fast_and_names_the_room(self):
+        import socket as socket_mod
+        from time import monotonic
+        # a closed port on loopback refuses immediately; the point is that the
+        # error carries host:port and arrives via OSError
+        free = socket_mod.socket()
+        free.bind(("127.0.0.1", 0))
+        port = free.getsockname()[1]
+        free.close()
+        start = monotonic()
+        with self.assertRaises(OSError) as caught:
+            ap_bridge._preflight("127.0.0.1", port)
+        self.assertLess(monotonic() - start, ap_bridge.CONNECT_TIMEOUT + 5)
+        self.assertIn("127.0.0.1:%s" % port, str(caught.exception))
+        self.assertIn("orirando", str(caught.exception))
+
+    def test_open_socket_preflights_before_dialing(self):
+        calls = []
+        saved = ap_bridge._preflight
+        ap_bridge._preflight = lambda host, port: calls.append((host, port))
+        try:
+            # preflight passes, then the ws dial fails: both schemes attempted
+            with self.assertRaises(Exception):
+                ap_bridge._open_socket("127.0.0.1", 1, None)
+        finally:
+            ap_bridge._preflight = saved
+        self.assertEqual(calls, [("127.0.0.1", 1)])
+
+
 class TestLinkRetarget(unittest.TestCase):
     """ap/connect with new room coordinates must cycle live sessions: the
     15s link recheck compares (host, port, password) and ends the session."""

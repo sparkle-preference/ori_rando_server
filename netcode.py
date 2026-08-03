@@ -10,6 +10,7 @@ HTTP: text_resp(body, status).
 This module must stay importable without main.py (no Flask, no OIDC/logging
 setup) so route-level golden tests can drive the full handler bodies.
 """
+import ipaddress
 import json
 import logging as log
 from time import monotonic
@@ -146,6 +147,19 @@ def game_complete(game_id, player_id):
 
 # --- Archipelago link management (ARCHIPELAGO flag; AP-mode games only) ---
 
+def _host_is_local(host):
+    """Loopback/LAN addresses resolve to the server itself, never the user's
+    machine -- the bridge dials out from orirando, not from their browser."""
+    name = host.strip().lower()
+    if name in ("localhost", "localhost.localdomain") or name.endswith(".local"):
+        return True
+    try:
+        address = ipaddress.ip_address(name)
+    except ValueError:
+        return False
+    return address.is_loopback or address.is_private or address.is_link_local
+
+
 def ap_connect(game_id, payload):
     """POST ap/connect {host, port, password}: store/refresh the game's
     APLink. Reconnects keep the per-world recv indexes (durable progress);
@@ -165,13 +179,22 @@ def ap_connect(game_id, payload):
         port = 0
     if not host or not (0 < port < 65536):
         return 400, "host and port are required"
+    if _host_is_local(host):
+        return 400, ("%s is only reachable from your own machine, and the room "
+                     "is dialed from our servers. Use an archipelago.gg room, "
+                     "or your public address with the port forwarded." % host)
     link = APLink.with_id(game_id) or APLink.make(game_id, params.players)
+    password = payload.get("password") or None
+    retarget = (link.host, link.port, link.password) != (host, port, password)
     link.host = host
     link.port = port
-    link.password = payload.get("password") or None
+    link.password = password
     link.enabled = True
     link.status = "pending"
-    link.last_error = None
+    if retarget:
+        # keep the last failure visible while someone retries the same room;
+        # a different room's errors start clean
+        link.last_error = None
     link.put()
     # lazy-start the room bridge (ws.py WS_PUSH pattern: request-path start
     # only; gunicorn --preload silently kills import-time threads)

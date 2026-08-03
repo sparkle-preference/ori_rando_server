@@ -463,6 +463,7 @@ const getHelpHelper = (category, option) => {
                     lines = [
                         "Enter the host and port of your Archipelago room (shown on the room page as something like archipelago.gg:38281), plus the room password if it has one, then hit Connect.",
                         "The rando server joins the room on behalf of every world in this game and stays connected while players play; items flow both ways automatically.",
+                        "Because we dial the room from our servers, it has to be reachable from the internet: an archipelago.gg room always works, but a room hosted on your own PC needs its port forwarded (localhost and LAN addresses can't work).",
                         "Disconnect stops the bridge. Progress is remembered: reconnecting picks up where it left off (use Disconnect then Connect to move to a new room address)."
                     ]
                 break;

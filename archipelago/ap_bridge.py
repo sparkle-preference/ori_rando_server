@@ -34,6 +34,7 @@ index mismatch -> Sync; Connected/RoomUpdate carry checked_locations.
 import json
 import logging as log
 import os
+import socket
 import threading
 from time import monotonic
 
@@ -54,6 +55,9 @@ POLL_SECS = 2.0          # shadow-outbox poll cadence
 RECV_TIMEOUT = 1.0
 LINK_RECHECK_SECS = 15.0  # re-read APLink (disable/goal from other processes)
 HANDSHAKE_TIMEOUT = 20.0
+CONNECT_TIMEOUT = 10.0   # a room whose port drops packets otherwise holds the
+                         # thread for the OS SYN ladder (~4 min) with the UI
+                         # stuck on "pending" the whole time
 HEAL_TTL = 45.0          # request-path memo: non-AP games pay a dict lookup
 BACKOFF_MIN, BACKOFF_MAX = 1.0, 60.0
 
@@ -221,9 +225,19 @@ def _send(sock, msgs):
     sock.send(json.dumps(msgs))
 
 
+def _preflight(host, port):
+    """simple_websocket has no connect timeout of its own, so reach the port
+    ourselves first and fail fast with an address the UI can show."""
+    try:
+        socket.create_connection((host, port), timeout=CONNECT_TIMEOUT).close()
+    except OSError as e:
+        raise OSError("can't reach %s:%s from orirando (%s)" % (host, port, e))
+
+
 def _open_socket(host, port, scheme_hint=None):
     """wss first (archipelago.gg), ws fallback (local ArchipelagoServer);
     a known-good scheme from the last connection goes first."""
+    _preflight(host, port)
     schemes = [scheme_hint] if scheme_hint else []
     schemes += [s for s in ("wss", "ws") if s not in schemes]
     last_err = None

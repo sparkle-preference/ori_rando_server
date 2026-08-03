@@ -392,6 +392,28 @@ class TestApRoutes(SessionTestCase):
         self.assertTrue(link.enabled)
         self.assertIsNone(link.password)  # no password posted: cleared
 
+    def test_connect_rejects_addresses_only_the_user_can_reach(self):
+        self.game = FakeApGame()
+        for host in ("localhost", "127.0.0.1", "192.168.1.50", "10.0.0.4", "::1"):
+            status, body = netcode.ap_connect(1309, {"host": host, "port": "38281"})
+            self.assertEqual(status, 400, "%s should be rejected" % host)
+            self.assertIn("archipelago.gg", body)
+        self.assertEqual(self.links, {})
+        self.assertEqual(netcode.ap_connect(1309, {"host": "archipelago.gg",
+                                                   "port": "38281"})[0], 200)
+
+    def test_retrying_same_room_keeps_the_last_error_visible(self):
+        self.game = FakeApGame()
+        netcode.ap_connect(1310, {"host": "ap.example", "port": "38281"})
+        self.links[1310].status = "reconnecting"
+        self.links[1310].last_error = "world 1: can't reach ap.example:38281"
+        netcode.ap_connect(1310, {"host": "ap.example", "port": "38281"})
+        self.assertEqual(self.links[1310].status, "pending")
+        self.assertIn("can't reach", self.links[1310].last_error)
+        # a different room starts clean
+        netcode.ap_connect(1310, {"host": "other.example", "port": "38281"})
+        self.assertIsNone(self.links[1310].last_error)
+
     def test_status_serves_link_json(self):
         import json
         self.game = FakeApGame()
