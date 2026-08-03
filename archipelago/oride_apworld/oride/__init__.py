@@ -9,7 +9,7 @@ items so AP's reachability state simulates the Ori seed exactly.
 """
 import json
 import logging
-import os
+import pkgutil
 from collections import Counter
 
 from BaseClasses import Item, ItemClassification, Location, Region
@@ -24,8 +24,9 @@ logger = logging.getLogger("oride")
 
 
 def _load(name):
-    with open(os.path.join(os.path.dirname(__file__), "data", name)) as f:
-        return json.load(f)
+    # a packaged .apworld is a zip: open() on a __file__ path inside it finds
+    # nothing, pkgutil goes through the loader either way
+    return json.loads(pkgutil.get_data(__name__, "data/" + name).decode("utf-8"))
 
 
 ITEMS = _load("items.json")
