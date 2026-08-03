@@ -262,7 +262,22 @@ class MultiworldGenTests(unittest.TestCase):
     # bit-identical: re-inserting the old flag reproduces the prior hash.)
     # (bumped 2026-07-28: 4.2.3 impossible-path fixes (#83), placements
     # legitimately shuffled -- see SOLO_CANARY note.)
-    MW_CANARY = "053c4264e17b73f7e1515965775356053a7f8817b0be28558200f72e4590abf3"
+    # (bumped 2026-08-02: exp_pool is now per-world (134701: it was being
+    # split across all worlds' slots) -- EX values change, placements don't.)
+    MW_CANARY = "6381bb2ada5bfde82ad967a64423ffc7c101538bda8aa42094ef30a3c1e18782"
+
+    def test_exp_pool_is_per_world(self):
+        # 134701 report: the global exp budget was being spread across every
+        # world's slots, quartering everyone's exp income at 4 players.
+        # exp_pool (default 10000) is a PER-WORLD budget. A world's exp lives
+        # in two forms: EX placements in its own seed, plus its manifest
+        # entries other worlds find for it (-slot|MW|finder,EX,value).
+        for p, lines in self.seeds.items():
+            placements, manifest = parse_seed(lines)
+            total = sum(int(id) for (code, id, zone) in placements.values() if code == "EX")
+            total += sum(int(iid) for (finder, icode, iid, zone) in manifest.values() if icode == "EX")
+            self.assertGreater(total, 6000, "world %s exp pool deflated: %s" % (p, total))
+            self.assertLess(total, 16000, "world %s exp pool inflated: %s" % (p, total))
 
     def test_mw_output_canary(self):
         import hashlib

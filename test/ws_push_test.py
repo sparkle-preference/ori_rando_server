@@ -230,15 +230,20 @@ class TickOutputParityTests(unittest.TestCase):
         self._ctx.__exit__(None, None, None)
 
     def test_matches_tick_slow_path_body(self):
+        # bitfields match the payload and no version is sent, so the slow
+        # path has nothing to write and never reaches tick_update_txn
         p = Player(id="9.1", skills=1027, events=3, teleporters=512,
-                   bonuses={"17": 2}, hints={}, signals=["msg:@hi@"])
+                   bonuses={"17": 2}, hints={}, signals=["msg:@hi@"],
+                   seen_bflds=8 * [0], have_bflds=8 * [0])
         p.put = lambda *a, **k: None
-        p.bitfield_updates = lambda payload, gid: None
-        p.note_version = lambda *a, **k: False
         game = FakeGame(p)
         Game.with_id = staticmethod(lambda gid: game)
 
-        tick_status, tick_body = netcode.tick(9, 1, {"x": "1", "y": "2"})
+        payload = {"x": "1", "y": "2"}
+        for i in range(8):
+            payload["seen_%s" % i] = "0"
+            payload["have_%s" % i] = "0"
+        tick_status, tick_body = netcode.tick(9, 1, payload)
         self.assertEqual(tick_status, 200)
         self.assertEqual(netcode.tick_output(9, 1), tick_body)
 

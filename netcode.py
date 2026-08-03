@@ -18,7 +18,7 @@ from ap_models import APLink
 from archipelago import ap_bridge
 from cache import Cache
 from enums import MultiplayerGameType
-from models import Game, BingoGameData, bingo_lock
+from models import Game, BingoGameData, Player, bingo_lock
 from pickups import Pickup
 from util import all_locs, bfield_checksum, coord_correction_map, debug, netperf, seed_sync_id, version_check, ARCHIPELAGO, BINGO_V2
 
@@ -70,11 +70,21 @@ def tick(game_id, player_id, payload):
     if not game:
         return _code(412)
     p = game.player(player_id)
-    # slow path only: the fast path above serves cache and never sees a Player,
-    # so version tracking costs nothing on the ~1 Hz steady-state tick
-    if p.note_version(payload.get("version"), game_id):
-        p.put()
-    p.bitfield_updates(payload, game_id)
+    vers = payload.get("version")
+    seen = [int(payload.get("seen_%s" % i, 0)) for i in range(8)]
+    have = [int(payload.get("have_%s" % i)) for i in range(8)]
+    # slow path only: the fast path above serves cache and never sees a
+    # Player. The write re-reads fresh inside a txn and touches only
+    # tick-owned fields — putting the stale handler copy raced concurrent
+    # grant txns and erased their bits (134701 lost two shared skills, and
+    # multiworld has no sanity check to repair that).
+    if (vers and p.dll_version != vers) or p.seen_bflds != seen or p.have_bflds != have:
+        if vers and p.dll_version != vers:
+            log.info("NETPERF dll_version gid=%s pid=%s vers=%s was=%s", game_id, player_id, vers, p.dll_version)
+        p = Player.tick_update_txn(p.key, vers, seen, have)
+        # set_have has merge semantics — pass only our own entry
+        Cache.set_have(game_id, {p.pid(): p.have_coords()})
+    Cache.set_seen_checksum((game_id, player_id), bfield_checksum(payload.get("seen_%s" % i, 0) for i in range(8)))
     Cache.set_pos(game_id, player_id, x, y)
     return 200, p.output(include_slots=(game.mode == MultiplayerGameType.MULTIWORLD))
 

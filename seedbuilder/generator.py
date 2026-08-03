@@ -590,7 +590,10 @@ class SeedGenerator:
         """A full reset. Resets internal state completely (besides pRNG
         advancement), then sets initial values according to params."""
         self.init_fields()
-        self.expRemaining = self.params.exp_pool
+        # exp_pool is a PER-WORLD budget: expSlots spans every world's
+        # locations, so an unscaled pool got split N ways in multiworld
+        # (134701: 4 players quartered everyone's exp income)
+        self.expRemaining = self.params.exp_pool * self.seed_count
         # forcedAssignments is keyed (player, loc): the same coordinate exists
         # in every world. Values may carry an owner tag ("GinsoKey|3") for
         # cross-world items; untagged values belong to the world they sit in.

@@ -515,6 +515,30 @@ class Player(ndb.Model):
 
     @staticmethod
     @ndb.transactional(retries=5)
+    def tick_update_txn(pkey, vers, seen_bflds, have_bflds):
+        """The tick slow path's write: fresh read inside a txn, touching only
+        tick-owned fields (seen/have bitfields, dll_version). Putting the
+        handler's stale copy here raced concurrent grant txns and erased
+        their bits — 134701 lost two shared skills, and multiworld has no
+        sanity check to repair that. Returns the fresh entity so the caller
+        renders tick output from post-grant state."""
+        p = pkey.get()
+        changed = False
+        if vers and p.dll_version != vers:
+            p.dll_version = vers
+            changed = True
+        if p.seen_bflds != seen_bflds:
+            p.seen_bflds = list(seen_bflds)
+            changed = True
+        if p.have_bflds != have_bflds:
+            p.have_bflds = list(have_bflds)
+            changed = True
+        if changed:
+            p.put()
+        return p
+
+    @staticmethod
+    @ndb.transactional(retries=5)
     def mark_slot_txn(pkey, slot):
         return pkey.get().mark_slot(slot)
 

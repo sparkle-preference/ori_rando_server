@@ -91,9 +91,31 @@ class SessionTestCase(NdbTestCase):
         self._with_id = Game.__dict__["with_id"]
         self.game = None
         Game.with_id = staticmethod(lambda gid: self.game)
+        # mirror the real txn's semantics against the FakeGame's in-memory
+        # entity (no datastore here): fresh-read + tick-owned fields only
+        self._tick_txn = Player.__dict__["tick_update_txn"]
+
+        def fake_tick_txn(pkey, vers, seen, have):
+            _, _, pid = pkey.id().partition(".")
+            p = self.game.player(int(pid))
+            changed = False
+            if vers and p.dll_version != vers:
+                p.dll_version = vers
+                changed = True
+            if p.seen_bflds != seen:
+                p.seen_bflds = list(seen)
+                changed = True
+            if p.have_bflds != have:
+                p.have_bflds = list(have)
+                changed = True
+            if changed:
+                p.put()
+            return p
+        Player.tick_update_txn = staticmethod(fake_tick_txn)
 
     def tearDown(self):
         Game.with_id = self._with_id
+        Player.tick_update_txn = self._tick_txn
         super(SessionTestCase, self).tearDown()
 
 
@@ -172,6 +194,23 @@ class TestTick(SessionTestCase):
         Cache.set_seen_checksum((1215, 1), util.bfield_checksum(payload["seen_%s" % i] for i in range(8)))
         Cache.set_output((1215, 1), "0,0,0,,")
         self.assertEqual(netcode.tick(1215, 1, payload), (200, "0,0,0,,"))
+
+    def test_slow_path_output_reflects_the_txn_entity(self):
+        # 134701: the old plain put of the stale handler copy erased skills
+        # granted between the tick's read and its write. The fix renders
+        # output from the entity the txn returns (fresh), not the handler's
+        # stale read — this pins that plumbing.
+        stale = make_player(1216, 1)
+        fresh = make_player(1216, 1, skills=1793)
+        self.game = FakeGame(players={1: stale})
+        real_stub = Player.__dict__["tick_update_txn"]
+        Player.tick_update_txn = staticmethod(lambda pkey, vers, seen, have: fresh)
+        try:
+            Cache.set_seen_checksum((1216, 1), 999999)
+            status, body = netcode.tick(1216, 1, self._payload(version="9.9.9"))
+        finally:
+            Player.tick_update_txn = real_stub
+        self.assertEqual((status, body), (200, "1793,0,0,,"))
 
     def test_checksum_miss_returns_fresh_output(self):
         p = make_player(1213, 1, skills=1793)
