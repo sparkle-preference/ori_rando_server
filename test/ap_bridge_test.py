@@ -785,6 +785,43 @@ class TestBridgeLoopBackoff(SessionTestCase):
                          ["connected", "reconnecting"])
 
 
+class TestDeflateHandshake(unittest.TestCase):
+    """AP warns clients that connect uncompressed and plans to require it;
+    simple_websocket only offers permessage-deflate server-side."""
+
+    def _handshake_headers(self, client_class):
+        import socket as socket_mod
+        srv = socket_mod.socket()
+        srv.setsockopt(socket_mod.SOL_SOCKET, socket_mod.SO_REUSEADDR, 1)
+        srv.bind(("127.0.0.1", 0))
+        srv.listen(1)
+        port = srv.getsockname()[1]
+        seen = {}
+
+        def accept():
+            conn, _ = srv.accept()
+            seen["data"] = conn.recv(4096).decode("latin-1")
+            conn.close()
+        thread = threading.Thread(target=accept, daemon=True)
+        thread.start()
+        try:
+            client_class.connect("ws://127.0.0.1:%s/" % port)
+        except Exception:
+            pass       # the request is all we need; no server response follows
+        thread.join(timeout=5)
+        srv.close()
+        return seen.get("data", "")
+
+    def test_client_offers_permessage_deflate(self):
+        headers = self._handshake_headers(ap_bridge.DeflateClient)
+        self.assertIn("permessage-deflate", headers.lower())
+
+    def test_upstream_client_does_not(self):
+        # pins WHY the subclass exists: drop it when simple_websocket offers it
+        from simple_websocket import Client
+        self.assertNotIn("permessage-deflate", self._handshake_headers(Client).lower())
+
+
 class TestPreflight(unittest.TestCase):
     """An unroutable room must fail in seconds with an address in the message,
     not hold the thread for the OS SYN ladder."""

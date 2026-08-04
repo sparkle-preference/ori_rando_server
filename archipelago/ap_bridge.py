@@ -21,6 +21,9 @@ from time import monotonic
 
 from google.cloud import ndb
 from simple_websocket import Client as WsClient, ConnectionClosed
+from simple_websocket.errors import ConnectionError as WsConnectionError
+from wsproto.events import AcceptConnection, RejectConnection, Request
+from wsproto.extensions import PerMessageDeflate
 
 from ap_models import APLink, APNames, ap_display_name, ap_slot_name
 from cache import Cache
@@ -269,6 +272,34 @@ def _preflight(host, port):
         raise OSError("can't reach %s:%s from orirando (%s)" % (host, port, e))
 
 
+class DeflateClient(WsClient):
+    """simple_websocket 1.1.0 offers permessage-deflate as a server but never
+    proposes it as a client, which AP warns about and plans to require. Same
+    handshake as upstream plus the extension."""
+
+    def handshake(self):
+        out_data = self.ws.send(Request(host=self.host, target=self.path,
+                                        subprotocols=self.subprotocols,
+                                        extra_headers=self.extra_headeers,
+                                        extensions=[PerMessageDeflate()]))
+        self.sock.send(out_data)
+        while True:
+            in_data = self.sock.recv(self.receive_bytes)
+            self.ws.receive_data(in_data)
+            try:
+                event = next(self.ws.events())
+            except StopIteration:
+                pass
+            else:
+                break
+        if isinstance(event, RejectConnection):
+            raise WsConnectionError(event.status_code)
+        elif not isinstance(event, AcceptConnection):
+            raise WsConnectionError(400)
+        self.subprotocol = event.subprotocol
+        self.connected = True
+
+
 def _open_socket(host, port, scheme_hint=None):
     """wss first (archipelago.gg), ws fallback (local ArchipelagoServer);
     a known-good scheme from the last connection goes first."""
@@ -278,7 +309,7 @@ def _open_socket(host, port, scheme_hint=None):
     last_err = None
     for scheme in schemes:
         try:
-            return WsClient.connect("%s://%s:%s/" % (scheme, host, port)), scheme
+            return DeflateClient.connect("%s://%s:%s/" % (scheme, host, port)), scheme
         except Exception as e:
             last_err = e
     raise last_err
