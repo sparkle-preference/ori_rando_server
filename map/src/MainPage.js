@@ -1093,15 +1093,15 @@ onDrop = (files) => {
                     {step(1, "Install the Ori apworld: put it in your Archipelago install's custom_worlds folder, replacing any older copy.",
                         <Button color="primary" block target="_blank" href="/generator/apworld">Get apworld</Button>, "apworldDownload")}
                     {step(2, "Download every world's yaml with the AP YAML buttons above, and drop them in Archipelago's Players folder.")}
-                    {step(3, "Generate the session in Archipelago, then host the room somewhere the internet can reach (an archipelago.gg room always works; we dial out to it).")}
+                    {step(3, "Generate the game in Archipelago, then host the room somewhere(an archipelago.gg room always works and is recommended).")}
                     {step(4, "Enter that room's host and port below and hit Connect.")}
                     {step(5, namesReady
-                        ? "Item names are ready: download each world's seed now (anything downloaded earlier still says \"AP Item #n\")."
-                        : "Wait for every world below to report its item names, then download the seeds. Seeds downloaded before that say \"AP Item #n\" instead of the real item.")}
-                    {step(6, "Play: randomizer.dat goes next to OriDE.exe, and picking up an Archipelago location sends the check straight to the room.")}
+                        ? "Item names are ready: download and distribute Ori seeds now."
+                        : "Wait for every world below to report its item names, then download the seeds. Seeds downloaded early say \"AP Item #n\" instead of the real item.")}
+                    {step(6, "Ori players load their randomizer.dat files into the randomizer as usual and are ready to play.")}
                     {worldVersion ? (
                         <Row className="p-1">
-                            <Col className="text-center"><small className="text-muted">apworld {worldVersion}, seed data version {dataVersion} — quote these if Archipelago refuses to generate.</small></Col>
+                            <Col className="text-center"><small className="text-muted">apworld {worldVersion}, seed data version {dataVersion}.</small></Col>
                         </Row>
                     ) : null}
                 </Col>

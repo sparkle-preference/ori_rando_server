@@ -1,32 +1,28 @@
 # Ori DE Rando Setup Guide
 
-## Read this first: how this world is different
+## Overview
 
-Most Archipelago worlds roll their randomization inside the apworld. This one does not.
+Ori seeds are rolled on **[orirando.com](https://orirando.com/)**, the Ori 1 solo randomizer site.
+When you tick the Archipelago option there, the generator reserves some of the seed's pickup locations 
+for Archipelago and hands the items that were in them to the Archipelago item pool. It then creates one
+yaml per Ori world, which is what you feed to Archipelago's generator. You never write that yaml by hand,
+and the player-options page on the website does not apply to this game.
 
-Ori seeds are rolled on **[orirando.com](https://orirando.com/)**, the Ori and the Blind Forest: Definitive
-Edition randomizer site. When you tick the Archipelago option there, the generator reserves some of the seed's
-pickup locations for Archipelago and hands the items that were in them to the Archipelago item pool. It then
-emits a ready-made **yaml per Ori world**, which is what you feed to Archipelago's generator. You never write
-that yaml by hand, and the player-options page on the website does not apply to this game.
-
-The second unusual part: **Ori players do not run an Archipelago client.** orirando.com's own server holds one
-websocket to the Archipelago room on behalf of every Ori world, and items ride the Ori randomizer's existing
-multiworld netcode. There is nothing to install for the connection, no port to open on a player's PC, and
-nothing to keep running while you play — but the room itself has to be reachable from the internet, because
-orirando.com is the side doing the dialing. See [Hosting the room](#5-host-the-room) below.
+Using this system, players can use their existing ori rando installation and do not need an archipelago client;
+The ori rando website handles the connection to the archipelago server instead. All that is required is an
+up-to-date randomizer install and an internet connection.
 
 ## What you need
 
-* **Ori and the Blind Forest: Definitive Edition** on PC, plus the Ori randomizer mod:
-  * Join the [Ori Discord](https://orirando.com/discord) — it is the best place to get help.
+* **Ori and the Blind Forest: Definitive Edition** (steam or GoG version), plus the Ori randomizer mod:
   * Copy the [randomizer dll](https://orirando.com/dll) into your `Ori DE/oriDE_Data/Managed` folder.
-    Step-by-step instructions are in the [install FAQ](https://orirando.com/faq?g=install).
+  * Step-by-step instructions are in the [install FAQ](https://orirando.com/faq?g=install).
   * Optional but recommended: the [item tracker](https://orirando.com/tracker).
 * **Archipelago 0.6.7 or newer**, from the
   [Archipelago releases page](https://github.com/ArchipelagoMW/Archipelago/releases/latest).
 * **`oride.apworld`**, the file this guide comes with. The current build is always a download away on the seed
   page — see step 1.
+* Join the [Ori Discord](https://orirando.com/discord) — it is the best place to get help.
 
 Every Ori player needs the game and the randomizer dll. Only the person generating the Archipelago session
 needs Archipelago itself and this apworld.
@@ -38,23 +34,17 @@ always the build the site is currently serving. (Direct link, if you have no see
 [orirando.com/generator/apworld](https://orirando.com/generator/apworld).)
 
 Put it in your Archipelago install's **`custom_worlds`** folder (next to `ArchipelagoLauncher.exe`; create the
-folder if it is not there). If you are replacing an older copy, delete the old one first — two builds of the
-same world in that folder is asking for trouble. **Keep the file name `oride.apworld`**: Archipelago takes the
-world's module name from the file name, so a renamed copy does not load.
+folder if it is not there). Overwrite the old version when you update, and do not change the file name.
 
 You can check it took by launching `ArchipelagoLauncher` and generating; the generator log lists
 `Ori DE Rando` with its item and location counts.
 
 While Ori DE Rando is in closed testing, the apworld build and the seeds have to match. If they do not, the
-generator says so in plain words and tells you which side to update — see [Troubleshooting](#troubleshooting).
+generator will complete tells you which side to update — see [Troubleshooting](#troubleshooting).
 
-## 2. Roll the Ori seed on orirando.com
+## 2. Roll the Ori seeds(s) on orirando.com
 
-The seed is rolled **once, for all Ori players in the session**. One person does this.
-
-1. Go to [orirando.com](https://orirando.com/). During closed testing the Archipelago controls are hidden
-   until you visit `https://orirando.com/?ap_test=1` once — that browser then keeps them until you visit
-   `https://orirando.com/?ap_test=0`. If you see no Archipelago option, that is why.
+1. Go to [orirando.com](https://orirando.com/).
 2. Pick your logic paths, key mode, goal and so on as you would for any Ori seed.
 3. On the **Multiplayer Options** tab, set **Players** to the number of Ori players. 1 is fine — one Ori world
    inside somebody else's Archipelago session. With 2 or more, also set **Multiplayer Game Type** to
@@ -65,8 +55,7 @@ The seed is rolled **once, for all Ori players in the session**. One person does
    *Export Stones* are optional. A category cannot be both Shared and Exported, so selecting one deselects
    the other. With more than one Ori player, items that land in another Ori world travel through Archipelago
    as well regardless of category — so a multi-player game exports more than you picked here.
-6. Hit **Generate Seed**. You land on the **Seed** tab, and the page URL now carries `param_id` and `game_id` —
-   bookmark it, it is the page you and the other Ori players come back to.
+6. Generate the seed and keep the page open, but don't download or distribute the seed files just yet.
 
 ## 3. Download the yamls
 
@@ -91,16 +80,11 @@ wrong.
 
 ## 5. Host the room
 
-**The room must be reachable from the public internet**, because orirando.com connects *out* to it. This is
-the one requirement that trips people up.
-
+Host the archipleago room, either using archipelago.gg or elsewhere.
 * **[archipelago.gg](https://archipelago.gg/uploads)** — upload the `AP_<seed>.zip`, and use the host and
-  port the room page shows you (something like `archipelago.gg:38281`). This always works.
-* **Self-hosted** — you can run `ArchipelagoServer` yourself, but the port you host on has to be forwarded to
-  the internet on your router, and you have to give out your public IP. `localhost`, `127.0.0.1`, literal LAN
-  addresses and `.local` names are rejected outright:
-  orirando.com's server cannot reach your PC through them. A hostname that resolves to a LAN address is not
-  caught, but the connection attempt will fail within ten seconds and say so.
+  port the room page shows you (something like `archipelago.gg:38281`). This is the generally recommended
+  option.
+* **Self-hosted** — you can run `ArchipelagoServer` yourself if you want to, but 
 
 ## 6. Connect the room to the Ori game
 
@@ -112,11 +96,11 @@ Back on the seed page from step 2 (the URL with `param_id` and `game_id`), scrol
 3. Within a few seconds the status line should read **connected**. Each Ori world gets a row showing its slot
    name, how many items the room has sent it, and how many of its Archipelago locations it can name.
 
-If it says **reconnecting** with an error underneath, the room is not reachable — check the address, the port,
-and the port forwarding. The bridge keeps retrying on its own, so fixing the room is enough; you do not have
-to click Connect again. To point the game at a *different* room, hit Disconnect first, then Connect.
+If it says **reconnecting** with an error underneath, the room is not reachable — check the address and port.
+The bridge keeps retrying on its own, so fixing the room is enough; you do not have to click Connect again. 
+To point the game at a *different* room, hit Disconnect first, then Connect.
 
-## 7. Download the seeds — after connecting
+## 7. Download the seeds after connecting
 
 Each Ori world's row has a **Download Seed** button that gives you `randomizer.dat`. Put it next to
 `OriDE.exe` in your Ori install (the same folder, not `oriDE_Data`).
@@ -126,9 +110,6 @@ Archipelago put in the reserved locations, so a seed downloaded early calls them
 `AP Item #2`, and so on. Once every world reports its item names — the panel says so — download again and the
 real names are baked in, so the game announces things like `Found Archipelago's Progressive Sword (Zelda)!`.
 
-The placeholder names are cosmetic only. A seed with them plays exactly the same and no item is ever lost.
-But re-downloading is much nicer, and it is free.
-
 Send the other Ori players the URL of the seed page so they can grab their own world's seed.
 
 ## 8. Play
@@ -136,7 +117,7 @@ Send the other Ori players the URL of the seed page so they can grab their own w
 Play the Ori seed normally. Picking up a location Archipelago owns sends the check to the room; items other
 games find for you arrive in game the same way Ori multiworld items always have. Finishing the seed's goal
 reports your goal to the room; what happens to your remaining items after that is up to the room's release
-settings, exactly like any other game.
+settings.
 
 ## Troubleshooting
 
@@ -148,12 +129,9 @@ YAML button (a fresh yaml for the same seed is fine).
 **"empty orirando data"** — the yaml did not come from orirando.com's Archipelago mode, or the `orirando`
 block was emptied. Download it again from the seed page.
 
-**"exported item count X != reserved location count Y"** — a hand-edited or truncated yaml. Download it again.
-
-**The website shows no Archipelago option** — closed testing; visit `https://orirando.com/?ap_test=1` once.
+**"exported item count X != reserved location count Y"** — Corrupted Yaml. Redownload and try again.
 
 **The room panel is stuck on "reconnecting"** — orirando.com cannot reach the room. The error line under the
 status usually says exactly why. Use an archipelago.gg room if you are not sure.
 
-**The panel never appears** — it only shows on the seed page of a game generated with Archipelago mode on, and
-it needs the `game_id` in the URL.
+**Some other issue** - come tell us about it in [our discord](https://orirando.com/discord).

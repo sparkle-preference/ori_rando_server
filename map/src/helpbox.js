@@ -455,24 +455,22 @@ const getHelpHelper = (category, option) => {
                     lines = [
                         "Click here to download your seed file.",
                         "Once downloaded, move or copy the randomizer.dat file into your OriDE folder. (It should be named randomizer.dat and be in the same folder as OriDE.exe)",
-                        "Connect the Archipelago room below BEFORE handing seeds out: a seed downloaded first will call every Archipelago location \"AP Item #1\", \"AP Item #2\" and so on. Once the room is connected and every world reports its item names, download again and the real names are baked in.",
-                        "Remember to send your fellow players the URL to the current page so they can get their seeds!"
+                        "It's best to connect the Archipelago room below BEFORE handing seeds out: a seed downloaded first will call every Archipelago find \"AP Item #N\". (It's safe to redownload the seed file after joining.)",
                     ]
                 break;
                 case "apSetup":
                     title = "Archipelago Setup"
                     lines = [
-                        "The whole flow for this seed, in order: install the apworld, collect the YAMLs, generate and host the session in Archipelago, connect the room here, then download the seeds.",
+                        "Setup instructions: install the apworld, collect the YAMLs, generate and host the session in Archipelago, connect the room here, then download the seeds.",
                         "Only the person running the Archipelago session needs the apworld and the YAMLs. Everyone else just needs their own seed file from the row above.",
-                        "The version line at the bottom is what to quote if Archipelago refuses to generate: it says which apworld build this site is serving and which seed data version its YAMLs speak."
                     ]
                 break;
                 case "apworldDownload":
                     title = "Get apworld"
                     lines = [
                         "Downloads oride.apworld, the Archipelago world for Ori DE. Put it in your Archipelago install's custom_worlds folder (next to ArchipelagoLauncher.exe), and delete any older copy of it first.",
-                        "Keep the file name exactly oride.apworld: Archipelago takes the world's name from the file name, so a renamed copy will not load.",
-                        "Only the session host needs this. Ori players do not run an Archipelago client at all."
+                        "do not remame oride.apworld: Archipelago takes the world's name from the file name, so a renamed copy will not load.",
+                        "Only the session host needs to follow these steps: other players do not run an Archipelago client at all."
                     ]
                 break;
                 case "apYaml":
@@ -488,7 +486,6 @@ const getHelpHelper = (category, option) => {
                     lines = [
                         "Enter the host and port of your Archipelago room (shown on the room page as something like archipelago.gg:38281), plus the room password if it has one, then hit Connect.",
                         "The rando server joins the room on behalf of every world in this game and stays connected while players play; items flow both ways automatically.",
-                        "Because we dial the room from our servers, it has to be reachable from the internet: an archipelago.gg room always works, but a room hosted on your own PC needs its port forwarded (localhost and LAN addresses can't work).",
                         "Disconnect stops the bridge. Progress is remembered: reconnecting picks up where it left off (use Disconnect then Connect to move to a new room address)."
                     ]
                 break;
