@@ -922,6 +922,30 @@ class ApTestGateWiringTests(unittest.TestCase):
         self.assertEqual(self.seen, [True])
 
 
+class ApSoloPayloadTests(unittest.TestCase):
+    """The K=1 payload the page posts for one Ori world in someone else's
+    room. Shipped once with apMode dropped for players=1 (game 134910), so
+    pin what from_json must make of it."""
+
+    def _params(self, **extra):
+        from seedbuilder.seedparams import MultiplayerOptions
+        json_in = {"players": 1, "tracking": True, "apMode": True,
+                   "apExport": ["skills", "teleporters", "events"]}
+        json_in.update(extra)
+        return MultiplayerOptions.from_json(json_in)
+
+    def test_solo_ap_turns_on_multiworld_netcode(self):
+        from enums import MultiplayerGameType
+        sync = self._params()
+        self.assertTrue(sync.enabled, "the bridge grants over netcode")
+        self.assertEqual(sync.mode, MultiplayerGameType.MULTIWORLD,
+                         "the client only reads slot bitfields in SyncMode 5")
+
+    def test_solo_without_ap_is_untouched(self):
+        sync = self._params(apMode=False)
+        self.assertFalse(sync.enabled)
+
+
 class ApworldDownloadTests(unittest.TestCase):
     """The site serves the packaged apworld: a tester's session host needs
     the file and has no repo to build it from."""

@@ -792,16 +792,16 @@ onDrop = (files) => {
                 json.syncShared = this.state.shared.map(s => f(s))
             if(this.isMultiworld())
                 json.syncShared = this.state.mwShared.map(s => f(s))
-            // ap_enabled() guards the payload too, not just the controls: an AP
-            // params url rehydrates apMode into state, and a visitor without the
-            // opt-in rerolling it should get a plain multiworld, not a 409
-            if(this.apAvailable() && this.state.apMode) {
-                json.apMode = true
-                json.apExport = this.state.apExport
-                url += url.includes("?") ? "&ap_test=1" : "?ap_test=1"
-            }
             if(!this.state.dedupShared)
                 json.teams={1: [...Array(this.state.players).keys()].map(x=>x+1)}
+        }
+        // outside the players>1 block: a K=1 AP seed is one Ori world in
+        // someone else's room. The guard also keeps a visitor without the
+        // opt-in from rerolling a rehydrated AP params into a 409.
+        if(this.apAvailable() && this.state.apMode) {
+            json.apMode = true
+            json.apExport = this.state.apExport
+            url += url.includes("?") ? "&ap_test=1" : "?ap_test=1"
         }
         let seed = this.state.seed || randInt(0, 1000000000);
         if(seed === "daily")
