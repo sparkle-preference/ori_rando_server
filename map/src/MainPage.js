@@ -982,7 +982,10 @@ onDrop = (files) => {
                 let spoilerHelp = (button) => this.state.spoilers ? `spoiler${button + (auxSpoiler.active ? "Aux" : "")}` : "noSpoilers"
                 // 12 columns: player 3 + seed 3 (+ yaml 2) (+ save spoiler, solo only)
                 let apCols = inputApMode && ap_enabled()
-                let viewWidth = isMulti ? (apCols ? "4" : "6") : (apCols ? "2" : "3")
+                // no Save Spoiler alongside AP YAML: the cog's modal downloads
+                // (12 cols: player 3 + seed 3 + yaml 2 + view + save)
+                let saveCol = !isMulti && !apCols
+                let viewWidth = saveCol ? "3" : (apCols ? "4" : "6")
                 return (
                     <Row key={`player-${p}`} className="align-content-center p-1 border-bottom">
                         <Col xs="3" className="pt-1 border" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "playerPanel"+this.multi())}>
@@ -1003,14 +1006,14 @@ onDrop = (files) => {
                         <Col xs={viewWidth} className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", spoilerHelp("View"))}>
                             <ButtonGroup>
                                 <Button color={spoilers ? "primary" : "secondary"} disabled={!spoilers} href={spoilerUrl} target="_blank" block >{spoilerText}</Button>
-                                <Button color={spoilers ? "success" : "secondary"} disabled={!spoilers} onClick={() => this.setState({auxModal: true})} target="_blank"><FaCog/></Button>
+                                <Button color={spoilers ? "success" : "secondary"} disabled={!spoilers} onClick={() => this.setState({auxModal: true, auxPlayer: p})} target="_blank"><FaCog/></Button>
                             </ButtonGroup>
                         </Col>
-                        {isMulti ? null : (
-                        <Col xs={apCols ? "2" : "3"} className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab",spoilerHelp("Download"))}>
+                        {saveCol ? (
+                        <Col xs="3" className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab",spoilerHelp("Download"))}>
                             <Button color={spoilers ? "primary" : "secondary"} disabled={!spoilers} href={downloadSpoilerUrl} target="_blank" block >Save Spoiler</Button>
                         </Col>
-                        )}
+                        ) : null}
                     </Row>
                 )
             })
@@ -1653,6 +1656,8 @@ onDrop = (files) => {
                     </Container>
                   </ModalBody>
                   <ModalFooter style={inputStyle}>
+                    <Button color={this.state.spoilers ? "primary" : "secondary"} disabled={!this.state.spoilers} target="_blank"
+                            href={this.spoilerUrl(this.state.paramId, true, this.state.inputPlayerCount > 1, this.state.auxPlayer || 1)}>Save Spoiler</Button>
                     <Button color="secondary" onClick={this.closeModal}>Close</Button>
                   </ModalFooter>
                 </Modal>
@@ -1699,7 +1704,7 @@ onDrop = (files) => {
                         fragCount: 30, fragReq: 20, relicCount: 8, loader: get_random_loader(), paramId: paramId, seedTabExists: seedTabExists, 
                         reopenUrl: "", flagLine: "", fassList: fassDefaultsFor(1), fassWorld: 1, goalModesOpen: false, 
                         spoilers: true, spawnWeights: [1.0,2.0,2.0,2.0,1.5,2.0,0.1,0.1,0.25,0.5], seedIsBingo: false, bingoLines: 3, 
-                        auxModal: false, auxSpoiler: {active: false, byZone: false, exclude: ["EX","KS", "AC", "EC", "HC", "MS"]}, 
+                        auxModal: false, auxPlayer: 1, auxSpoiler: {active: false, byZone: false, exclude: ["EX","KS", "AC", "EC", "HC", "MS"]},
                         stupidMode: stupidMode, customLogic: false, stupidWarn: stupidWarn, verboseSpoiler: get_param("verbose") === "True"};
         
         if(url.searchParams.has("fromBingo")) {
@@ -1786,9 +1791,10 @@ onDrop = (files) => {
     });
     hasVar = (v) => this.state.variations.includes(v);
     isMultiworld = () => this.state.tracking && this.state.players > 1 && this.state.coopGameMode === "Multiworld";
-    // one Ori world in someone else's room is a normal AP setup, so this
-    // doesn't require the multiworld dropdown the way isMultiworld does
-    apAvailable = () => ap_enabled() && this.state.tracking && (this.state.players === 1 || this.isMultiworld());
+    // any solo mode can join someone else's AP room; only Race/Co-op with
+    // other Ori players can't. Tracking isn't required to *offer* it --
+    // turning AP on turns tracking on.
+    apAvailable = () => ap_enabled() && (this.state.players === 1 || this.isMultiworld());
     onPath = (p) => () => this.setState({paths: this.state.paths.includes(p) ? this.state.paths.filter(x => x !== p) : this.state.paths.concat(p)}, () => this.setState(p => {return {pathMode: get_preset(p.paths)}}))
     onSType = (s) => () => this.state.shared.includes(s) ? this.setState({shared: this.state.shared.filter(x => x !== s)}) : this.setState({shared: this.state.shared.concat(s)})
     // a category can't be both mw-shared and ap-exported; the newest click wins
