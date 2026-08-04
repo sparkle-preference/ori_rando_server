@@ -779,8 +779,9 @@ class TestAPNames(NdbTestCase):
 
 class TestNameCountVector(unittest.TestCase):
     def test_pads_and_sets(self):
+        # -1 padding, so a padded world never reads as a complete "0 of 0"
         from archipelago.ap_bridge import _at_world
-        self.assertEqual(_at_world([], 3, 7), [0, 0, 7])
+        self.assertEqual(_at_world([], 3, 7), [-1, -1, 7])
         self.assertEqual(_at_world(None, 1, 4), [4])
         self.assertEqual(_at_world([1, 2, 3], 2, 9), [1, 9, 3])
 

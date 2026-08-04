@@ -75,10 +75,7 @@ class APLink(ndb.Model):
     # worlds that completed (netcode complete path); the bridge owes each a
     # StatusUpdate{goal}, resent per connection (idempotent room-side)
     goal_worlds   = ndb.IntegerProperty(repeated=True)
-    # scout bookkeeping, index w-1: how many of world w's reserved slots the
-    # bridge asked the room about, and how many it could name. The names
-    # themselves live in APNames; only these two counters ride the hot row so
-    # the UI can say "names ready" without loading them.
+    # scouted/named counts per world, -1 = not reported yet (names: APNames)
     name_totals   = ndb.IntegerProperty(repeated=True)
     name_counts   = ndb.IntegerProperty(repeated=True)
     enabled       = ndb.BooleanProperty(default=False)

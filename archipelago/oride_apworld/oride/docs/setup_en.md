@@ -25,16 +25,22 @@ orirando.com is the side doing the dialing. See [Hosting the room](#5-host-the-r
   * Optional but recommended: the [item tracker](https://orirando.com/tracker).
 * **Archipelago 0.6.7 or newer**, from the
   [Archipelago releases page](https://github.com/ArchipelagoMW/Archipelago/releases/latest).
-* **`oride.apworld`**, the file this guide comes with.
+* **`oride.apworld`**, the file this guide comes with. The current build is always a download away on the seed
+  page — see step 1.
 
 Every Ori player needs the game and the randomizer dll. Only the person generating the Archipelago session
 needs Archipelago itself and this apworld.
 
 ## 1. Install the apworld
 
-Put `oride.apworld` in your Archipelago install's **`custom_worlds`** folder (next to `ArchipelagoLauncher.exe`;
-create the folder if it is not there). If you are replacing an older copy, delete the old one first — two builds
-of the same world in that folder is asking for trouble.
+Get `oride.apworld` from the **Get apworld** button in the *Archipelago Setup* panel on the seed page — that is
+always the build the site is currently serving. (Direct link, if you have no seed yet:
+[orirando.com/generator/apworld](https://orirando.com/generator/apworld).)
+
+Put it in your Archipelago install's **`custom_worlds`** folder (next to `ArchipelagoLauncher.exe`; create the
+folder if it is not there). If you are replacing an older copy, delete the old one first — two builds of the
+same world in that folder is asking for trouble. **Keep the file name `oride.apworld`**: Archipelago takes the
+world's module name from the file name, so a renamed copy does not load.
 
 You can check it took by launching `ArchipelagoLauncher` and generating; the generator log lists
 `Ori DE Rando` with its item and location counts.
@@ -91,8 +97,8 @@ the one requirement that trips people up.
 * **[archipelago.gg](https://archipelago.gg/uploads)** — upload the `AP_<seed>.zip`, and use the host and
   port the room page shows you (something like `archipelago.gg:38281`). This always works.
 * **Self-hosted** — you can run `ArchipelagoServer` yourself, but the port you host on has to be forwarded to
-  the internet on your router, and you have to give out your public IP. `localhost`, `127.0.0.1`, LAN
-  the internet. `localhost`, `127.0.0.1`, literal LAN addresses and `.local` names are rejected outright:
+  the internet on your router, and you have to give out your public IP. `localhost`, `127.0.0.1`, literal LAN
+  addresses and `.local` names are rejected outright:
   orirando.com's server cannot reach your PC through them. A hostname that resolves to a LAN address is not
   caught, but the connection attempt will fail within ten seconds and say so.
 
@@ -135,9 +141,9 @@ settings, exactly like any other game.
 ## Troubleshooting
 
 **"it was made for … data version N" / "this oride.apworld needs at least N"** — the apworld build and
-the yaml are from different generations of the item tables. The message says which side is behind: either get
-the newer `oride.apworld` from whoever rolled the seed, or re-download the yaml with the AP YAML button (a
-fresh yaml for the same seed is fine).
+the yaml are from different generations of the item tables. The message says which side is behind: either
+re-download `oride.apworld` from the seed page's **Get apworld** button, or re-download the yaml with the AP
+YAML button (a fresh yaml for the same seed is fine).
 
 **"empty orirando data"** — the yaml did not come from orirando.com's Archipelago mode, or the `orirando`
 block was emptied. Download it again from the seed page.

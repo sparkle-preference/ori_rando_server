@@ -1058,10 +1058,55 @@ onDrop = (files) => {
                       </Row>
                     {playerRows}
                     {trackedInfo}
+                    {this.getApSetupPanel()}
                     {this.getApPanel()}
                 </TabPane>
                 )
         }
+    }
+
+    // --- Archipelago setup steps (seed tab) ---
+    getApSetupPanel = () => {
+        // steps 4-5 point at the room panel, so share its gate
+        if(!this.apPanelVisible())
+            return null
+        let worldVersion = get_param("ap_world_version")
+        let dataVersion = get_param("ap_data_version")
+        let namesReady = this.apNamesReady()
+        let step = (n, text, button, help) => (
+            <Row key={`ap-step-${n}`} className="p-1 align-items-center border-bottom">
+                <Col xs="1" className="text-center">{n}.</Col>
+                <Col xs={button ? "8" : "11"}><span className="align-middle">{text}</span></Col>
+                {button ? (
+                <Col xs="3" className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", help)}>
+                    {button}
+                </Col>
+                ) : null}
+            </Row>
+        )
+        return (
+            <Row className="p-1 pt-3 align-items-center border-dark border-top">
+                <Col>
+                    <Row className="p-1 justify-content-center" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "apSetup")}>
+                        <Col xs="auto"><h5>Archipelago Setup</h5></Col>
+                    </Row>
+                    {step(1, "Install the Ori apworld: put it in your Archipelago install's custom_worlds folder, replacing any older copy.",
+                        <Button color="primary" block target="_blank" href="/generator/apworld">Get apworld</Button>, "apworldDownload")}
+                    {step(2, "Download every world's yaml with the AP YAML buttons above, and drop them in Archipelago's Players folder.")}
+                    {step(3, "Generate the session in Archipelago, then host the room somewhere the internet can reach (an archipelago.gg room always works; we dial out to it).")}
+                    {step(4, "Enter that room's host and port below and hit Connect.")}
+                    {step(5, namesReady
+                        ? "Item names are ready: download each world's seed now (anything downloaded earlier still says \"AP Item #n\")."
+                        : "Wait for every world below to report its item names, then download the seeds. Seeds downloaded before that say \"AP Item #n\" instead of the real item.")}
+                    {step(6, "Play: randomizer.dat goes next to OriDE.exe, and picking up an Archipelago location sends the check straight to the room.")}
+                    {worldVersion ? (
+                        <Row className="p-1">
+                            <Col className="text-center"><small className="text-muted">apworld {worldVersion}, seed data version {dataVersion} — quote these if Archipelago refuses to generate.</small></Col>
+                        </Row>
+                    ) : null}
+                </Col>
+            </Row>
+        )
     }
 
     // --- Archipelago room panel (seed tab, AP-mode games only) ---
@@ -1146,6 +1191,19 @@ onDrop = (files) => {
             NotificationManager.error(responseText || "Disconnect request failed", "Archipelago", 5000)
     }
 
+    // -1 = not scouted yet; a world with no AP locations reports 0 of 0
+    apNamesTotal = (i) => {
+        let totals = this.state.apStatus ? this.state.apStatus.names_total : null
+        return totals && totals[i] !== undefined && totals[i] !== null ? totals[i] : -1
+    }
+
+    apNamesDone = (i) => (this.state.apStatus && this.state.apStatus.names_resolved ? this.state.apStatus.names_resolved[i] : 0) || 0
+
+    apNamesReady = () => {
+        let {apStatus} = this.state
+        return !!apStatus && apStatus.slots.length > 0 && apStatus.slots.every((_, i) => this.apNamesTotal(i) >= 0 && this.apNamesDone(i) >= this.apNamesTotal(i))
+    }
+
     getApPanel = () => {
         let {gameId, inputApMode, apHidden, apHost, apPort, apPassword, apConnectPending, apStatus, apNoLink, apPollFailed} = this.state
         if(!(ap_enabled() && !apHidden && gameId > 0 && inputApMode))
@@ -1163,11 +1221,8 @@ onDrop = (files) => {
             if(!isNaN(d.getTime()))
                 lastActStr = "Last activity: " + d.toLocaleString()
         }
-        // names_total/names_resolved are absent on links written before name
-        // scouting shipped, so treat a missing entry as "nothing scouted yet"
-        let namesTotal = (i) => (apStatus && apStatus.names_total ? apStatus.names_total[i] : 0) || 0
-        let namesDone = (i) => (apStatus && apStatus.names_resolved ? apStatus.names_resolved[i] : 0) || 0
-        let namesReady = apStatus && apStatus.slots.length > 0 && apStatus.slots.every((_, i) => namesTotal(i) > 0 && namesDone(i) >= namesTotal(i))
+        let namesTotal = this.apNamesTotal, namesDone = this.apNamesDone
+        let namesReady = this.apNamesReady()
         let worldRows = apStatus ? apStatus.slots.map((slot, i) => (
             <Row key={`ap-world-${i}`} className="p-1 align-items-center border-bottom">
                 <Col xs="1">
@@ -1180,8 +1235,8 @@ onDrop = (files) => {
                     <span className="align-middle">{apStatus.recv_index[i] || 0} items received</span>
                 </Col>
                 <Col xs="3">
-                    <span className={"align-middle " + (namesTotal(i) > 0 && namesDone(i) >= namesTotal(i) ? "text-success" : "text-muted")}>
-                        {namesTotal(i) > 0 ? `${namesDone(i)}/${namesTotal(i)} item names` : "item names pending"}
+                    <span className={"align-middle " + (namesTotal(i) >= 0 && namesDone(i) >= namesTotal(i) ? "text-success" : "text-muted")}>
+                        {namesTotal(i) >= 0 ? `${namesDone(i)}/${namesTotal(i)} item names` : "item names pending"}
                     </span>
                 </Col>
                 <Col xs="2">

@@ -17,6 +17,8 @@ import google.cloud.logging
 
 # project imports
 import netcode
+from archipelago import build_apworld
+from archipelago.yaml_emit import DATA_VERSION as AP_DATA_VERSION
 from oidc import make_oidc
 from seedbuilder.seedparams import SeedGenParams, seed_mode_problem
 from seedbuilder.vanilla import seedtext as vanilla_seed
@@ -91,6 +93,25 @@ def code_resp(code):
 
 def text_download(text, filename, status=200):
     return make_response(text, status, {'Content-Type': 'application/x-gzip', 'Content-Disposition': 'attachment; filename=%s' % filename})
+
+def zip_download(data, filename, status=200):
+    return make_response(data, status, {'Content-Type': 'application/zip', 'Content-Disposition': 'attachment; filename=%s' % filename})
+
+def ap_versions():
+    """Versions the AP setup panel quotes, read from the packaged sources."""
+    try:
+        world_version = build_apworld.manifest().get("world_version", "")
+    except (OSError, ValueError) as e:
+        log.error("APWORLD manifest unreadable, version line will be blank: %s", e)
+        world_version = ""
+    return {'ap_world_version': world_version, 'ap_data_version': AP_DATA_VERSION}
+
+if ARCHIPELAGO:
+    # an image missing package files still boots and passes its health check,
+    # so say so at startup rather than when a tester clicks Get apworld
+    _apworld_problems = build_apworld.check(build_apworld.collect())
+    if _apworld_problems:
+        log.error("APWORLD package cannot be served: %s", "; ".join(_apworld_problems))
 
 @app.errorhandler(500)
 def server_error(err):
@@ -303,6 +324,8 @@ def active_games(hours=12):
 @app.route('/')
 def main_page():
     template_values = template_vals("MainPage", "Ori DE Randomizer %s" % VERSION, User.get())
+    if ARCHIPELAGO:
+        template_values.update(ap_versions())
     # _, error = CustomLogic.read()
     # template_values.update({"error_msg": error})
     return render_template(path, **template_values)
@@ -562,6 +585,22 @@ def get_apyaml_from_params(params_id, world_id):
     if world_id < 1 or world_id > params.players:
         return text_resp("Param %s has no world %s" % (params_id, world_id), 404)
     return text_download(params.to_ap_yaml(world_id), 'ap_world_%s.yaml' % world_id)
+
+apworld_zip = None
+
+@app.route('/generator/apworld')
+def get_apworld():
+    # ARCHIPELAGO only, no ap_test: a tester's session host needs the world
+    # even though they never touch the seed page (see the ap routes above)
+    if not ARCHIPELAGO:
+        return text_resp("Archipelago support is not enabled", 404)
+    global apworld_zip
+    if apworld_zip is None:
+        # raises on a package that fails its own checks: 500 beats a dud
+        apworld_zip = build_apworld.zip_bytes()
+    # the filename IS the module name Archipelago imports (worlds/__init__.py
+    # takes Path(path).stem), so anything but oride.apworld fails to load
+    return zip_download(apworld_zip, 'oride.apworld')
 
 @app.route('/generator/aux_spoiler/<params_id>')
 def get_aux_spoiler_from_params(params_id):
@@ -1220,9 +1259,15 @@ def dll():
 @app.route('/dll/beta')            
 def dll_beta():
     return redirect("https://github.com/sparkle-preference/OriDERandomizer/raw/master/Assembly-CSharp.dll")
-@app.route('/tracker')             
+@app.route('/tracker')
 def tracker():
     return redirect("https://github.com/jeflefou/OriDETracker/releases/tag/v3.3.2")
+
+@app.route('/apworld')
+def apworld():
+    # short link for the discord, same shape as /dll; point it at a github
+    # release once the item tables stop moving
+    return redirect("/generator/apworld")
 
 @app.route('/league/rules')
 def league_rules():

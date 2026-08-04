@@ -42,11 +42,10 @@ def data_version_problem(cfg):
                 "seed page instead of editing it by hand." % (raw,))
     if version > DATA_VERSION:
         return ("it was made for Ori DE Rando apworld data version %d, and "
-                "this oride.apworld only understands up to %d. Ask whoever "
-                "rolled the seed for the oride.apworld build it was rolled "
-                "with, put that in your Archipelago custom_worlds folder "
-                "replacing this one, and generate again."
-                % (version, DATA_VERSION))
+                "this oride.apworld only understands up to %d. Download the "
+                "current one from orirando.com/generator/apworld, put it in "
+                "your Archipelago custom_worlds folder replacing this one, "
+                "and generate again." % (version, DATA_VERSION))
     if version < COMPATIBLE_DATA_VERSION:
         return ("it is Ori DE Rando apworld data version %d, and this "
                 "oride.apworld needs at least %d: the item tables changed "

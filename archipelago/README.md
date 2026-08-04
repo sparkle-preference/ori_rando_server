@@ -22,13 +22,13 @@ closed testing (`seedparams.seed_mode_problem`, `map/src/common.js`).
 | `yaml_emit.py` | Builds the `orirando` yaml blob (`make_config`) and renders it as yaml (`_emit`/`emit_yaml`, a small hand-rolled emitter — no pyyaml on the server). Also holds `DATA_VERSION`, the contract version testers' apworlds check. Its `build_config` CLI path is the *prototype* classifier for unconverted solo seeds and is only used by `difftest`. |
 | `convert.py` | The conversion pass over rendered multiworld seed texts: picks what becomes an AP slot, balances each world's exports against its reserved locations by reverting cross-world spirit light, rewrites the seed lines, and derives the per-world yaml config (`build_ap_config`). Every refusal is an `ApConversionError`. |
 | `ap_bridge.py` | The room bridge: one daemon thread per `(game, world)`, lazy-started from the `ap/connect` route and re-armed by `heal()` on the request path. Sends `LocationChecks` from the shadow player's slot bits, applies `ReceivedItems` onto the real player's manifest slots, reports the goal, and scouts item names. Its module docstring is the protocol contract. |
-| `build_apworld.py` | Packages `oride_apworld/oride` into `dist/oride.apworld`. Also the guard rail: it fails the build if the package calls `open()`, if the manifest is missing keys, or if a data or docs file is absent. |
+| `build_apworld.py` | Packages `oride_apworld/oride` into `dist/oride.apworld` (CLI) or into zip bytes for the `/generator/apworld` route (`zip_bytes`). Also the guard rail: it fails the build if the package calls `open()`, if the manifest is missing keys, or if a data or docs file is absent. |
 | `difftest/` | Differential logic harness: walks spheres and diffs the server's own reachability engine against the apworld's compiled rules over the locations the apworld models. Not part of the unit suite — run it by hand when the rule compiler or `areas.ori` changes. |
 | `oride_apworld/oride/` | The apworld. `__init__.py` is the `World`; `rules.py` compiles areas.ori requirements into AP access rules; `shared.py` is the token vocabulary both sides must agree on; `options.py` is the single `orirando` blob option; `version.py` is the compatibility check; `docs/` is what the launcher and the AP website serve; `data/` is generated, never hand-edited. |
 
 Related code outside this directory: `ap_models.py` (the `APLink` and `APNames` entities), `netcode.py`
 (`ap_connect` / `ap_status` / `ap_disconnect` and the bridge hooks), `main.py` (thin routes, including
-`/generator/apyaml/<params_id>/<world>`), `seedbuilder/seedparams.py` (`ap_mode` / `ap_export` params,
+`/generator/apyaml/<params_id>/<world>` and `/generator/apworld`), `seedbuilder/seedparams.py` (`ap_mode` / `ap_export` params,
 `get_seed`'s name substitution, `to_ap_yaml`), and the UI in `map/src/MainPage.js` + `map/src/helpbox.js`.
 
 ## Commands
@@ -57,8 +57,24 @@ Differential logic check, when the rules or the graph move:
 .venv312\Scripts\python.exe archipelago\difftest\probes.py  <randomizer0.dat>   # writes probes.txt
 ```
 
-Release: build the apworld, verify it as a real zip (below), and ship the file — `dist/` is gitignored, so it
-goes out as a GitHub release / direct download, not in the repo.
+Release: the site serves the apworld itself (below), so deploying is the release. `dist/` is only for verifying
+the zip by hand and for handing someone a file out of band; it is gitignored either way.
+
+## Serving the apworld
+
+`/generator/apworld` (`main.py`, `ARCHIPELAGO`-gated, deliberately *not* behind the `ap_test` opt-in — a
+tester's session host never visits the seed page) hands out the same package the CLI writes.
+
+The bytes come from `oride_apworld/oride/` in the deployed source tree, never from `dist/`: the route calls
+`build_apworld.zip_bytes()`, which is `collect()` + `check()` + an in-memory zip, so a package that fails its
+own checks raises and 500s instead of downloading as a dud. They are cached in `main.apworld_zip` because the
+contents are fixed per deploy — set it back to `None` (or restart) after editing the world in a live dev
+server.
+
+**The filename `oride.apworld` is load-bearing.** Archipelago derives the world's module name from the file
+stem (`worlds/__init__.py`, `Path(path).stem`), so anything versioned like `oride-v2.apworld` fails to load.
+Version the world in `archipelago.json` (`world_version`) instead — that string and `yaml_emit.DATA_VERSION`
+are what the seed page's *Archipelago Setup* panel shows testers, via `main.ap_versions()`.
 
 ## The gotcha: dev junction vs packaged zip
 

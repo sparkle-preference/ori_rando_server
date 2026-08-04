@@ -459,6 +459,22 @@ const getHelpHelper = (category, option) => {
                         "Remember to send your fellow players the URL to the current page so they can get their seeds!"
                     ]
                 break;
+                case "apSetup":
+                    title = "Archipelago Setup"
+                    lines = [
+                        "The whole flow for this seed, in order: install the apworld, collect the YAMLs, generate and host the session in Archipelago, connect the room here, then download the seeds.",
+                        "Only the person running the Archipelago session needs the apworld and the YAMLs. Everyone else just needs their own seed file from the row above.",
+                        "The version line at the bottom is what to quote if Archipelago refuses to generate: it says which apworld build this site is serving and which seed data version its YAMLs speak."
+                    ]
+                break;
+                case "apworldDownload":
+                    title = "Get apworld"
+                    lines = [
+                        "Downloads oride.apworld, the Archipelago world for Ori DE. Put it in your Archipelago install's custom_worlds folder (next to ArchipelagoLauncher.exe), and delete any older copy of it first.",
+                        "Keep the file name exactly oride.apworld: Archipelago takes the world's name from the file name, so a renamed copy will not load.",
+                        "Only the session host needs this. Ori players do not run an Archipelago client at all."
+                    ]
+                break;
                 case "apYaml":
                     title = "AP YAML"
                     lines = [

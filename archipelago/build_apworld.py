@@ -4,6 +4,9 @@ Run from repo root:  python -m archipelago.build_apworld
 Output: archipelago/dist/oride.apworld -- drop it in Archipelago's
 custom_worlds/ (or worlds/ for a source install).
 
+zip_bytes() is the same build without the file: main.py's /generator/apworld
+route serves it straight to testers.
+
 The zip must hold exactly one top-level folder named like the file, and
 everything inside must be reachable through the package loader (pkgutil),
 never open() -- there is no filesystem inside a zip.
@@ -28,6 +31,26 @@ REQUIRED_DATA = ("items.json", "locations.json", "graph.json")
 # the game info page is looked up as "<lang>_<secure_filename(game)>.md", so
 # renaming the game means renaming that file (see oride/__init__.py)
 REQUIRED_DOCS = ("setup_en.md", "en_Ori_DE_Rando.md")
+
+
+class BuildError(Exception):
+    """The package failed its own checks; nothing gets shipped."""
+
+    def __init__(self, problems):
+        Exception.__init__(self, "; ".join(problems))
+        self.problems = list(problems)
+
+
+_manifest = None
+
+
+def manifest():
+    """The packaged world's archipelago.json, cached (fixed per deploy)."""
+    global _manifest
+    if _manifest is None:
+        with open(os.path.join(PKG_ROOT, PKG_NAME, "archipelago.json")) as f:
+            _manifest = json.load(f)
+    return _manifest
 
 
 def collect():
@@ -94,6 +117,24 @@ def calls_open(source):
     return False
 
 
+def _zip(files):
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as zf:
+        for arc, path in files:
+            zf.write(path, arc)
+    return buf.getvalue()
+
+
+def zip_bytes():
+    """The validated apworld as zip bytes. Raises BuildError rather than
+    handing anyone a package that would not survive a real install."""
+    files = collect()
+    problems = check(files)
+    if problems:
+        raise BuildError(problems)
+    return _zip(files)
+
+
 def main():
     files = collect()
     problems = check(files)
@@ -104,9 +145,8 @@ def main():
     if not os.path.isdir(DIST):
         os.makedirs(DIST)
     out = os.path.join(DIST, "%s.apworld" % PKG_NAME)
-    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as zf:
-        for arc, path in files:
-            zf.write(path, arc)
+    with open(out, "wb") as f:
+        f.write(_zip(files))
     print("%s (%s files, %.1f KB)" % (out, len(files), os.path.getsize(out) / 1024.0))
     return 0
 

@@ -2,7 +2,7 @@ import React from 'react';
 import {Container, Button, Collapse, Row, Col, Card, CardTitle, CardHeader, CardSubtitle, CardText, CardBody} from 'reactstrap';
 import {Helmet} from 'react-helmet';
 
-import {get_param, stuff_by_type} from "./common.js"
+import {get_param, get_flag, stuff_by_type} from "./common.js"
 import SiteBar from "./SiteBar.js"
 
 const GUIDES = ["install", "gen_seed", "get_tracker", "bonus_pickups", "starter_seeds", "differences", "gotchas", "bingo_userboard"];
@@ -136,6 +136,12 @@ export default class HelpAndGuides extends React.Component {
                     To play the original game again, simply replace your Assembly-CSharp.dll file with the backup you made. If you didn't
                     make one or can't find it, someone in the{" "}<a target="_blank" rel="noopener noreferrer" href="/discord">ori discord</a>{" "}can get you a copy.
                 </CardText>
+                {get_flag("ap_flag") ? (
+                <CardText>
+                    Playing in an Archipelago session? You will also want{" "}<a target="_blank" rel="noopener noreferrer" href="/apworld">oride.apworld</a>{" "}
+                    in your Archipelago install's custom_worlds folder. Only the person generating the session needs it; the seed page walks you through the rest.
+                </CardText>
+                ) : null}
                 </Collapse>
             </CardBody>
             </Card>)

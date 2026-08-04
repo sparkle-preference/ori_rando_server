@@ -193,11 +193,11 @@ def _goal_worlds(gid):
 
 
 def _at_world(values, world, value):
-    """`values` with 1-based index `world` set to `value`, zero-padded to fit
-    (a link made before this field existed starts out empty)."""
+    """`values` with 1-based `world` set to `value`. Pads with -1, not 0: a
+    real 0 means a world with no AP locations, already done."""
     out = list(values or [])
     while len(out) < world:
-        out.append(0)
+        out.append(-1)
     out[world - 1] = value
     return out
 
@@ -464,6 +464,10 @@ class ApSession(object):
         targets = sorted(set(self.maps.outbox[self.world].values()) & self.our_locations)
         self.scout_total = len(targets)
         if not targets:
+            # nothing to name: publish the complete 0 of 0 so the UI settles
+            self.named = {}
+            with self.ctx():
+                _persist_names(self.gid, self.world, 0, {})
             return
         for i in range(0, len(targets), SCOUT_CHUNK):
             _send(sock, [{"cmd": "LocationScouts",

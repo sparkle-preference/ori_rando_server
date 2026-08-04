@@ -21,10 +21,11 @@ COPY ./seedbuilder/*.py ./seedbuilder/
 # archipelago: netcode imports ap_bridge unconditionally, and ap_bridge +
 # convert read oride_apworld/oride/data/*.json AT IMPORT TIME — so both the
 # modules and that data dir must ship or the app dies before serving (a
-# missing COPY here failed 4.2.6's health check). difftest/ and the rest of
-# oride_apworld are dev/client-side only.
+# missing COPY here failed 4.2.6's health check). The whole oride package
+# ships too: /generator/apworld zips it live, docs and manifest included.
+# difftest/ is dev-only.
 COPY ./archipelago/*.py ./archipelago/
-COPY ./archipelago/oride_apworld/oride/data/ ./archipelago/oride_apworld/oride/data/
+COPY ./archipelago/oride_apworld/ ./archipelago/oride_apworld/
 
 COPY *.py ./
 

@@ -397,6 +397,11 @@ class TestScouting(SessionTestCase):
         sock = self.run_session(self.make_session(), self.hello(missing=[]))
         self.assertEqual(self.sent_of(sock, "LocationScouts"), [])
 
+    def test_no_reserved_locations_publishes_a_complete_result(self):
+        # otherwise the panel waits forever for names this world will never have
+        self.run_session(self.make_session(), self.hello(missing=[]))
+        self.assertEqual(self.names, [(self.GID, self.WORLD, 0, {})])
+
     def test_scout_chunks_a_large_world(self):
         maps = GameMaps(2, {1: {i: 900000 + i for i in range(250)}, 2: {}},
                         {1: {}, 2: {}})

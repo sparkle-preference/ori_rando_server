@@ -922,6 +922,83 @@ class ApTestGateWiringTests(unittest.TestCase):
         self.assertEqual(self.seen, [True])
 
 
+class ApworldDownloadTests(unittest.TestCase):
+    """The site serves the packaged apworld: a tester's session host needs
+    the file and has no repo to build it from."""
+
+    @classmethod
+    def setUpClass(cls):
+        import contextlib
+        import main
+        import models
+        from archipelago import build_apworld
+
+        class _FakeNdbClient(object):
+            def context(self):
+                return contextlib.nullcontext()
+        cls.main, cls.models, cls.build_apworld = main, models, build_apworld
+        cls._orig_client = models.client
+        models.client = _FakeNdbClient()
+        cls._orig_secret = main.app.secret_key
+        main.app.secret_key = main.app.secret_key or "ap-apworld"
+        cls.client = main.app.test_client()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.models.client = cls._orig_client
+        cls.main.app.secret_key = cls._orig_secret
+
+    def setUp(self):
+        self._orig = (self.main.ARCHIPELAGO, self.main.apworld_zip)
+        self.main.ARCHIPELAGO = True
+
+    def tearDown(self):
+        self.main.ARCHIPELAGO, self.main.apworld_zip = self._orig
+
+    def test_serves_a_zip_named_exactly_oride_apworld(self):
+        # AP takes the module name from the file stem, so the name is load-bearing
+        import io
+        import zipfile
+        resp = self.client.get("/generator/apworld")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.headers["Content-Disposition"],
+                         "attachment; filename=oride.apworld")
+        self.assertEqual(resp.headers["Content-Type"], "application/zip")
+        names = zipfile.ZipFile(io.BytesIO(resp.data)).namelist()
+        self.assertIn("oride/__init__.py", names)
+        self.assertIn("oride/archipelago.json", names)
+
+    def test_body_is_the_packaged_build(self):
+        self.assertEqual(self.client.get("/generator/apworld").data,
+                         self.build_apworld.zip_bytes())
+
+    def test_bytes_are_cached_after_the_first_request(self):
+        self.main.apworld_zip = None
+        self.client.get("/generator/apworld")
+        self.assertTrue(self.main.apworld_zip)
+        self.main.apworld_zip = b"cached"
+        self.assertEqual(self.client.get("/generator/apworld").data, b"cached")
+
+    def test_404_with_the_flag_off(self):
+        self.main.ARCHIPELAGO = False
+        self.assertEqual(self.client.get("/generator/apworld").status_code, 404)
+
+    def test_a_package_that_fails_its_checks_never_ships(self):
+        orig = self.build_apworld.check
+        self.build_apworld.check = lambda files: ["missing __init__.py"]
+        try:
+            self.assertRaises(self.build_apworld.BuildError, self.build_apworld.zip_bytes)
+        finally:
+            self.build_apworld.check = orig
+
+    def test_versions_read_from_the_packaged_sources(self):
+        from archipelago.yaml_emit import DATA_VERSION
+        vals = self.main.ap_versions()
+        self.assertEqual(vals["ap_world_version"],
+                         self.build_apworld.manifest()["world_version"])
+        self.assertEqual(vals["ap_data_version"], DATA_VERSION)
+
+
 def check_mw_invariants(tc, seeds):
     """Shared multiworld sanity: parseable lines, MW pickups and manifests
     correspond 1:1, nobody holds their own MW pickup."""
