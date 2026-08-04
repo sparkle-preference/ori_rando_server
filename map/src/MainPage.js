@@ -1093,7 +1093,7 @@ onDrop = (files) => {
                     {step(1, "Install the Ori apworld: put it in your Archipelago install's custom_worlds folder, replacing any older copy.",
                         <Button color="primary" block target="_blank" href="/generator/apworld">Get apworld</Button>, "apworldDownload")}
                     {step(2, "Download every world's yaml with the AP YAML buttons above, and drop them in Archipelago's Players folder.")}
-                    {step(3, "Generate the game in Archipelago, then host the room somewhere(an archipelago.gg room always works and is recommended).")}
+                    {step(3, "Generate the game in Archipelago, then host the room somewhere (an archipelago.gg room always works and is recommended).")}
                     {step(4, "Enter that room's host and port below and hit Connect.")}
                     {step(5, namesReady
                         ? "Item names are ready: download and distribute Ori seeds now."

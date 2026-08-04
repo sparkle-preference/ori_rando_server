@@ -40,9 +40,9 @@ You can check it took by launching `ArchipelagoLauncher` and generating; the gen
 `Ori DE Rando` with its item and location counts.
 
 While Ori DE Rando is in closed testing, the apworld build and the seeds have to match. If they do not, the
-generator will complete tells you which side to update — see [Troubleshooting](#troubleshooting).
+generator will tell you which side to update — see [Troubleshooting](#troubleshooting).
 
-## 2. Roll the Ori seeds(s) on orirando.com
+## 2. Roll the Ori seed(s) on orirando.com
 
 1. Go to [orirando.com](https://orirando.com/).
 2. Pick your logic paths, key mode, goal and so on as you would for any Ori seed.
@@ -84,7 +84,8 @@ Host the archipleago room, either using archipelago.gg or elsewhere.
 * **[archipelago.gg](https://archipelago.gg/uploads)** — upload the `AP_<seed>.zip`, and use the host and
   port the room page shows you (something like `archipelago.gg:38281`). This is the generally recommended
   option.
-* **Self-hosted** — you can run `ArchipelagoServer` yourself if you want to, but 
+* **Self-hosted** — you can run `ArchipelagoServer` yourself if you want to, but the room has to be
+  reachable from the internet.
 
 ## 6. Connect the room to the Ori game
 

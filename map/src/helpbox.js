@@ -469,7 +469,7 @@ const getHelpHelper = (category, option) => {
                     title = "Get apworld"
                     lines = [
                         "Downloads oride.apworld, the Archipelago world for Ori DE. Put it in your Archipelago install's custom_worlds folder (next to ArchipelagoLauncher.exe), and delete any older copy of it first.",
-                        "do not remame oride.apworld: Archipelago takes the world's name from the file name, so a renamed copy will not load.",
+                        "Do not rename oride.apworld: Archipelago takes the world's name from the file name, so a renamed copy will not load.",
                         "Only the session host needs to follow these steps: other players do not run an Archipelago client at all."
                     ]
                 break;
