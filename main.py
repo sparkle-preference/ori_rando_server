@@ -365,7 +365,9 @@ def netcode_get_areas_dot_ori():
     return text_resp(Cache.get_areas())
 
 # Archipelago link management (flag-gated in the session layer: with
-# ARCHIPELAGO unset every route 404s)
+# ARCHIPELAGO unset every route 404s). Deliberately NOT behind the ap_test
+# alpha opt-in: that gate is on seed creation, and everyone already holding a
+# seed from an AP game -- testers' friends included -- needs the bridge.
 @app.route('/netcode/game/<int:game_id>/ap/connect', methods=['POST'])
 def netcode_ap_connect(game_id):
     status, body = netcode.ap_connect(game_id, request.form)
@@ -455,7 +457,9 @@ def gen_seed_from_params():
     if not param_key:
         return text_resp("Failed to build params!", 500)
     params = param_key.get()
-    problem = seed_mode_problem(params)
+    # ap_test=1: the alpha opt-in, sent by the generator page when the visitor
+    # opted in. Gates creation only; existing AP games keep their bridge.
+    problem = seed_mode_problem(params, ap_override=param_flag("ap_test"))
     if problem:
         return text_resp(problem, 409)
     if not params.generate():
@@ -478,7 +482,7 @@ def gen_seed_from_url():
     verbose_paths = param_val("verbose_paths") is not None
     if param_key:
         params = param_key.get()
-        problem = seed_mode_problem(params)
+        problem = seed_mode_problem(params, ap_override=param_flag("ap_test"))
         if problem:
             return json_resp({"error": problem}, 409)
         if params.generate(preplaced={}):
@@ -548,6 +552,8 @@ def get_spoiler_from_params(params_id):
 
 @app.route('/generator/apyaml/<params_id>/<int:world_id>')
 def get_apyaml_from_params(params_id, world_id):
+    # ARCHIPELAGO only, no ap_test: the params already exist, and the yamls are
+    # what makes them playable (see the ap routes above)
     if not ARCHIPELAGO:
         return text_resp("Archipelago support is not enabled", 404)
     params = SeedGenParams.with_id(params_id)
@@ -564,7 +570,10 @@ def get_aux_spoiler_from_params(params_id):
         player = int(param_val("player_id") or 1)
         exclude = (param_val("exclude") or "EX KS AC EC HC MS").split(" ") if param_val("exclude") != "" else []
         by_zone = param_flag("by_zone")
-        spoiler = params.get_aux_spoiler(exclude, by_zone, player)
+        # optional game_id: AP seeds' reserved lines get their scouted item
+        # names, same as the seed file (no game, no names -- never an error)
+        spoiler = params.get_aux_spoiler(exclude, by_zone, player,
+                                         game_id=param_val("game_id"))
         if param_flag("download"):
             return text_download(spoiler.replace("\n", "\r\n"), 'spoiler.txt')
         return text_resp(spoiler)

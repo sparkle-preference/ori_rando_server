@@ -727,15 +727,23 @@ class SeedModeProblemTests(unittest.TestCase):
         p.tracking = tracking
         return p
 
-    def _check(self, flag_value, params):
+    def _check(self, flag_value, params, ap_override=False):
         import util
         from seedbuilder import seedparams
         orig = util.MULTIWORLD
         util.MULTIWORLD = flag_value
         try:
-            return seedparams.seed_mode_problem(params)
+            return seedparams.seed_mode_problem(params, ap_override=ap_override)
         finally:
             util.MULTIWORLD = orig
+
+    def _ap_params(self, players=2, enabled=True, mode="Multiworld"):
+        p = self._params(mode, enabled=enabled)
+        p.players = players
+        p.ap_mode = True
+        p.ap_export = ["skills"]
+        p.sync.shared = []
+        return p
 
     def test_multiworld_gated_by_flag(self):
         self.assertIsNotNone(self._check(False, self._params("Multiworld")))
@@ -743,16 +751,50 @@ class SeedModeProblemTests(unittest.TestCase):
 
     def test_ap_mode_gated_by_flag(self):
         import util
-        p = self._params("Multiworld")
-        p.ap_mode = True
-        p.ap_export = ["skills"]
-        p.sync.shared = []
+        p = self._ap_params()
         orig = util.ARCHIPELAGO
         try:
             util.ARCHIPELAGO = False
             self.assertIn("Archipelago", self._check(True, p))
             util.ARCHIPELAGO = True
-            self.assertIsNone(self._check(True, p))
+            self.assertIsNone(self._check(True, p, ap_override=True))
+        finally:
+            util.ARCHIPELAGO = orig
+
+    def test_ap_mode_also_gated_by_ap_test_optin(self):
+        """Alpha soft gate: ARCHIPELAGO is on in prod, so creation additionally
+        wants ?ap_test=1 (mw_override's shape, one layer up)."""
+        import util
+        orig = util.ARCHIPELAGO
+        util.ARCHIPELAGO = True
+        try:
+            self.assertIn("closed testing", self._check(True, self._ap_params()))
+            self.assertIsNone(self._check(True, self._ap_params(), ap_override=True))
+            # a K=1 AP world (sync disabled) is still an AP seed, not a free pass
+            self.assertIn("closed testing",
+                          self._check(True, self._ap_params(players=1, enabled=False, mode="None")))
+            # non-AP seeds never see the gate
+            self.assertIsNone(self._check(True, self._params("Multiworld")))
+            self.assertIsNone(self._check(False, self._params("Shared", cloned=True)))
+        finally:
+            util.ARCHIPELAGO = orig
+
+    def test_ap_override_bypasses_neither_flag_nor_validation(self):
+        import util
+        orig = util.ARCHIPELAGO
+        try:
+            util.ARCHIPELAGO = False
+            self.assertIn("aren't available yet", self._check(True, self._ap_params(), ap_override=True))
+            util.ARCHIPELAGO = True
+            # the export/share clash check still applies
+            from enums import ShareType
+            p = self._ap_params()
+            p.sync.shared = [ShareType.SKILL]
+            self.assertIn("overlap", self._check(True, p, ap_override=True))
+            # and so does the multiworld tracking requirement
+            p = self._ap_params()
+            p.tracking = False
+            self.assertIn("tracking", self._check(True, p, ap_override=True))
         finally:
             util.ARCHIPELAGO = orig
 
@@ -790,6 +832,77 @@ class SeedModeProblemTests(unittest.TestCase):
         self.assertIsNone(self._check(False, self._params("Shared", cloned=True)))
         self.assertIsNone(self._check(False, self._params("None")))
         self.assertIsNone(self._check(False, self._params("Shared", enabled=False)))
+
+
+class ApTestGateWiringTests(unittest.TestCase):
+    """The opt-in rides the QUERY string of the build POST (the page posts to
+    /generator/build?ap_test=1), so it has to survive a form-encoded request.
+    Params building and the gate itself are stubbed: this is wiring only."""
+
+    @classmethod
+    def setUpClass(cls):
+        import contextlib
+        import main
+        import models
+
+        class _FakeNdbClient(object):
+            def context(self):
+                return contextlib.nullcontext()
+        cls.main, cls.models = main, models
+        cls._orig_client = models.client
+        models.client = _FakeNdbClient()
+        cls._orig_secret = main.app.secret_key
+        main.app.secret_key = main.app.secret_key or "ap-test-gate"
+        cls.client = main.app.test_client()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.models.client = cls._orig_client
+        cls.main.app.secret_key = cls._orig_secret
+
+    def setUp(self):
+        main = self.main
+        self.seen = []
+        self._orig_params, self._orig_problem = main.SeedGenParams, main.seed_mode_problem
+
+        class _FakeKey(object):
+            def id(self):
+                return "ap-params"
+
+            def get(self):
+                return object()
+
+        class _FakeParams(object):
+            @staticmethod
+            def from_json(json_in):
+                return _FakeKey()
+        main.SeedGenParams = _FakeParams
+
+        def spy(params, mw_override=False, ap_override=False):
+            self.seen.append(ap_override)
+            return "gated"
+        main.seed_mode_problem = spy
+
+    def tearDown(self):
+        self.main.SeedGenParams = self._orig_params
+        self.main.seed_mode_problem = self._orig_problem
+
+    def _build(self, query=""):
+        return self.client.post("/generator/build" + query, data={"params": "{}"})
+
+    def test_plain_build_post_does_not_opt_in(self):
+        resp = self._build()
+        self.assertEqual(resp.status_code, 409)
+        self.assertEqual(self.seen, [False])
+
+    def test_ap_test_query_param_reaches_the_gate(self):
+        self._build("?ap_test=1")
+        self.assertEqual(self.seen, [True])
+
+    def test_ap_test_survives_an_existing_query_string(self):
+        # the page appends &ap_test=1 after ?bingo=1
+        self._build("?bingo=1&ap_test=1")
+        self.assertEqual(self.seen, [True])
 
 
 def check_mw_invariants(tc, seeds):
@@ -1210,6 +1323,293 @@ class ApModeSoloTests(unittest.TestCase):
         ks = sum(1 for (code, id, zone) in plain.values() if code == "KS")
         self.assertEqual(ks, 40, "casual closed-world seeds place 40 keystones")
         self.assertEqual(len(ap_manifest), len(reserved))
+
+
+class ApExportSlotCapTests(unittest.TestCase):
+    """A player carries 8x32 slot bits and nothing more (models.Player.
+    mark_slot refuses 256+), so a world can neither host nor export more than
+    256 Archipelago items. Past the cap the seed would render fine and the
+    surplus grants would silently evaporate, so conversion has to fail first.
+    Driven with synthetic seed text: real seeds can't reach the cap (only 256
+    pickup locations exist per world), which is exactly why it needs a test."""
+
+    FLAGS = "Sync0.0,test|mode=Multiworld"
+
+    def _world(self, lines):
+        return self.FLAGS + "\n" + "".join(line + "\n" for line in lines)
+
+    def _exports(self, n, start=1000000):
+        """n same-world skill placements: each becomes a reserved AP slot in
+        this world and an exported item owned by this world."""
+        return ["%s|SK|0|Glades" % (start + i) for i in range(n)]
+
+    def _natives(self, n):
+        """n native (non-AP) manifest entries, which keep holding their slots
+        through conversion because filler may ride the native MW fabric."""
+        return ["%s|MW|1,RB,6|Glades" % (-(slot + 2)) for slot in range(n)]
+
+    def _convert(self, texts, categories=("skills",)):
+        from archipelago.convert import ap_convert
+        return ap_convert(list(texts), list(categories))
+
+    def test_at_the_cap_still_converts(self):
+        """256 is legal -- slots 0..255 -- and the last one really is 255."""
+        from archipelago.convert import MAX_SLOTS
+        self.assertEqual(MAX_SLOTS, 256)
+        texts, info = self._convert([self._world(self._exports(MAX_SLOTS))])
+        self.assertEqual(len(info["reserved"][1]), MAX_SLOTS)
+        self.assertEqual(info["ap_slots"][1][-1], MAX_SLOTS - 1)
+        manifest = [l for l in texts[0].split("\n") if l.startswith("-")]
+        self.assertEqual(len(manifest), MAX_SLOTS)
+        self.assertTrue(manifest[-1].startswith("-257|MW|"), manifest[-1])
+
+    def test_over_the_cap_fails_with_world_and_count(self):
+        from archipelago.convert import ApConversionError
+        with self.assertRaises(ApConversionError) as caught:
+            self._convert([self._world(self._exports(257))])
+        message = str(caught.exception)
+        self.assertIn("world 1", message)
+        self.assertIn("257", message)
+        self.assertIn("256", message)
+
+    def test_the_cap_names_the_offending_world(self):
+        """K=2, world 2 over the cap: the error must not blame world 1."""
+        from archipelago.convert import ApConversionError
+        with self.assertRaises(ApConversionError) as caught:
+            self._convert([self._world([]), self._world(self._exports(300))])
+        self.assertIn("world 2", str(caught.exception))
+
+    def test_natives_holding_slots_count_against_the_cap(self):
+        """The reachable half of the guard: surviving native manifest entries
+        keep their slots, so the exports that fit is 256 minus those."""
+        from archipelago.convert import ApConversionError
+        # 200 natives + 56 exports exactly fills the space
+        _, info = self._convert([self._world([]),
+                                 self._world(self._exports(56) + self._natives(200))])
+        self.assertEqual(len(info["exported"][2]), 56)
+        self.assertEqual(sorted(info["ap_slots"][2]), list(range(200, 256)))
+        with self.assertRaises(ApConversionError) as caught:
+            self._convert([self._world([]),
+                           self._world(self._exports(57) + self._natives(200))])
+        message = str(caught.exception)
+        self.assertIn("world 2", message)
+        self.assertIn("57", message)   # what it wanted
+        self.assertIn("56", message)   # what was free
+
+    def test_no_slot_past_the_cap_is_ever_emitted(self):
+        """Belt and braces: whatever converts, every slot number on the wire
+        is one models.Player.mark_slot will accept."""
+        from archipelago.convert import MAX_SLOTS
+        texts, info = self._convert([self._world([]),
+                                     self._world(self._exports(56) + self._natives(200))])
+        for world_slots in info["ap_slots"].values():
+            for slot in world_slots:
+                self.assertTrue(0 <= slot < MAX_SLOTS, slot)
+        for text in texts:
+            for line in text.split("\n"):
+                if line.startswith("-"):
+                    loc = int(line.split("|", 1)[0])
+                    self.assertTrue(-257 <= loc <= -2, line)
+
+
+class ApDataVersionTests(unittest.TestCase):
+    """The yaml carries the version of the data contract it was emitted
+    against, and the apworld refuses what it can't read. The two constants
+    are hand-maintained on opposite sides of a zip boundary, so the first
+    test here is the thing that stops a one-sided bump from shipping."""
+
+    @staticmethod
+    def _apworld_version():
+        """Load the apworld's version module without Archipelago on the
+        path: oride/__init__.py imports BaseClasses, version.py imports
+        nothing at all (deliberately)."""
+        import importlib.util
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                            "archipelago", "oride_apworld", "oride", "version.py")
+        spec = importlib.util.spec_from_file_location("oride_version_undertest", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
+    def test_emitter_and_apworld_agree(self):
+        """Today's yamls must generate against today's apworld."""
+        from archipelago.yaml_emit import DATA_VERSION
+        version = self._apworld_version()
+        self.assertLessEqual(version.COMPATIBLE_DATA_VERSION, version.DATA_VERSION)
+        self.assertLessEqual(version.COMPATIBLE_DATA_VERSION, DATA_VERSION,
+                             "the apworld rejects the yamls we emit as too old")
+        self.assertLessEqual(DATA_VERSION, version.DATA_VERSION,
+                             "the apworld rejects the yamls we emit as too new")
+
+    def test_config_and_yaml_carry_the_version(self):
+        from archipelago.yaml_emit import DATA_VERSION, emit_yaml, make_config
+        config = make_config({}, [], {}, [], params_id=7, world=2)
+        self.assertEqual(config["data_version"], DATA_VERSION)
+        self.assertIn("data_version: %s" % DATA_VERSION, emit_yaml(config, "Ori2"))
+
+    def test_current_blob_is_accepted(self):
+        from archipelago.yaml_emit import make_config
+        version = self._apworld_version()
+        self.assertIsNone(version.data_version_problem(make_config({}, [], {}, [])))
+
+    def test_pre_versioning_yamls_still_generate(self):
+        """Yamls emitted before data_version existed have no such key."""
+        version = self._apworld_version()
+        self.assertIsNone(version.data_version_problem({"world": 1}))
+
+    def test_a_newer_seed_says_to_update_the_apworld(self):
+        version = self._apworld_version()
+        problem = version.data_version_problem(
+            {"data_version": version.DATA_VERSION + 1})
+        self.assertIsNotNone(problem)
+        self.assertIn("oride.apworld", problem)
+        self.assertIn(str(version.DATA_VERSION + 1), problem)
+        self.assertIn(str(version.DATA_VERSION), problem)
+
+    def test_an_older_seed_says_to_redownload_the_yaml(self):
+        version = self._apworld_version()
+        problem = version.data_version_problem(
+            {"data_version": version.COMPATIBLE_DATA_VERSION - 1})
+        self.assertIsNotNone(problem)
+        self.assertIn("yaml", problem)
+
+    def test_a_garbage_version_is_a_message_not_a_traceback(self):
+        version = self._apworld_version()
+        for bad in ("tomorrow", None, [1]):
+            problem = version.data_version_problem({"data_version": bad})
+            self.assertIsNotNone(problem, bad)
+            self.assertIn("yaml", problem)
+
+    def test_the_world_checks_the_version_before_reading_any_table(self):
+        """Pinned by source, since importing the world needs Archipelago:
+        generate_early must consult the version before the item/location
+        lookups whose KeyErrors it exists to prevent."""
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                            "archipelago", "oride_apworld", "oride", "__init__.py")
+        with open(path) as f:
+            source = f.read()
+        body = source.split("def generate_early", 1)[1].split("\n    def ", 1)[0]
+        self.assertLess(body.index("data_version_problem"), body.index("ITEM_TABLE"),
+                        "the data version check has to run before the tables are read")
+
+
+class ApNameSubstitutionTests(unittest.TestCase):
+    """get_seed swaps the room's real item names into this world's reserved
+    AP lines. Names come from APNames (stubbed here); everything the netcode
+    reads -- owner, slot, location, zone -- must survive untouched, and an
+    unscouted slot keeps its "AP Item #n" placeholder."""
+
+    K = 2       # two worlds, so world 1's shadow is pid 3 and world 2's is 4
+    WORLD = 1
+    GID = 4242
+
+    @classmethod
+    def setUpClass(cls):
+        import google.auth.credentials
+        from google.cloud import ndb
+        creds = google.auth.credentials.AnonymousCredentials()
+        cls.ndb_client = ndb.Client(project="unit-test", credentials=creds)
+
+    def setUp(self):
+        from ap_models import APNames
+        self._ctx = self.ndb_client.context()
+        self._ctx.__enter__()
+        self.stored = {}
+        self._orig_load = APNames.load
+        APNames.load = staticmethod(
+            lambda gid, world: dict(self.stored.get((int(gid), int(world)), {})))
+
+    def tearDown(self):
+        from ap_models import APNames
+        APNames.load = staticmethod(self._orig_load)
+        self._ctx.__exit__(None, None, None)
+
+    def _params(self):
+        from enums import MultiplayerGameType
+        from seedbuilder.seedparams import SeedGenParams, MultiplayerOptions, Placement, Stuff
+        sync = MultiplayerOptions(str_mode=MultiplayerGameType.MULTIWORLD.value)
+        def place(loc, code, id, zone):
+            return Placement(location=loc, zone=zone,
+                             stuff=[Stuff(code=code, id=id, player="1")])
+        return SeedGenParams(
+            seed="apnames", players=self.K, tracking=False, ap_mode=True,
+            ap_export=["skills"], sync=sync, placements=[
+                place("2", "SK", "0", "Glades"),                      # plain line
+                place("919908", "MW", "3,0,AP Item #1", "Grove"),     # reserved slot 0
+                place("959960", "MW", "3,1,AP Item #2", "Grove"),     # reserved slot 1
+                place("1799708", "MW", "2,55,Valley teleporter", "Valley"),  # plain cross-world
+                place("-2", "MW", "3,SK,0", "Glades"),                # our AP manifest slot
+                place("-3", "MW", "2,HC,1", "Glades"),                # native manifest
+            ])
+
+    def _lines(self, params, game_id=GID):
+        return {l.split("|")[0]: l for l in
+                params.get_seed(self.WORLD, game_id=game_id).splitlines()[1:]}
+
+    def test_scouted_slots_get_real_names(self):
+        self.stored[(self.GID, self.WORLD)] = {0: "Progressive Sword (TestQuest)"}
+        lines = self._lines(self._params())
+        self.assertEqual(lines["919908"], "919908|MW|3,0,Progressive Sword (TestQuest)|Grove")
+        # slot 1 was never scouted: placeholder intact
+        self.assertEqual(lines["959960"], "959960|MW|3,1,AP Item #2|Grove")
+
+    def test_nothing_else_moves(self):
+        before = self._lines(self._params())
+        self.stored[(self.GID, self.WORLD)] = {0: "Bash (Ori2)", 1: "Bow, Arrows (Zelda)"}
+        after = self._lines(self._params())
+        self.assertEqual(sorted(before), sorted(after))
+        for loc in ("2", "1799708", "-2", "-3"):
+            self.assertEqual(before[loc], after[loc], "line %s changed" % loc)
+        # commas ride through: the name is the last field of a maxsplit value
+        self.assertEqual(after["959960"], "959960|MW|3,1,Bow, Arrows (Zelda)|Grove")
+
+    def test_substituted_line_still_parses_as_the_client_and_server_do(self):
+        from pickups import Pickup
+        self.stored[(self.GID, self.WORLD)] = {1: "Bow, Arrows (Zelda)"}
+        parts = self._lines(self._params())["959960"].split("|")
+        self.assertEqual(len(parts), 4)
+        pickup = Pickup.n(parts[1], parts[2])
+        self.assertEqual((pickup.owner, pickup.slot), (3, 1))
+        self.assertEqual(pickup.name, "Player 3's Bow, Arrows (Zelda)")
+        self.assertEqual(parts[3], "Grove")
+
+    def test_other_worlds_names_are_not_borrowed(self):
+        # world 2's row must never leak into world 1's seed, and world 1's
+        # reserved lines are owned by shadow 3 -- not 4
+        self.stored[(self.GID, 2)] = {0: "Wrong World (Ori2)"}
+        lines = self._lines(self._params())
+        self.assertEqual(lines["919908"], "919908|MW|3,0,AP Item #1|Grove")
+
+    def test_no_game_id_means_placeholders(self):
+        # a seed pulled straight off the generator page has no room to ask
+        self.stored[(self.GID, self.WORLD)] = {0: "Bash (Ori2)"}
+        lines = self._lines(self._params(), game_id=None)
+        self.assertEqual(lines["919908"], "919908|MW|3,0,AP Item #1|Grove")
+
+    def test_non_ap_params_never_look_names_up(self):
+        from ap_models import APNames
+        params = self._params()
+        params.ap_mode = False
+        APNames.load = staticmethod(
+            lambda gid, world: self.fail("non-AP seed hit APNames"))
+        self._lines(params)
+
+    def test_lookup_failure_is_not_fatal(self):
+        from ap_models import APNames
+        def boom(gid, world):
+            raise RuntimeError("datastore is having a day")
+        APNames.load = staticmethod(boom)
+        lines = self._lines(self._params())
+        self.assertEqual(lines["919908"], "919908|MW|3,0,AP Item #1|Grove")
+
+    def test_aux_spoiler_uses_the_names_too(self):
+        self.stored[(self.GID, self.WORLD)] = {0: "Bash (Ori2)"}
+        params = self._params()
+        spoiler = params.get_aux_spoiler([], False, self.WORLD, game_id=self.GID)
+        self.assertIn("Player 3's Bash (Ori2)", spoiler)
+        self.assertIn("Player 3's AP Item #2", spoiler)  # unscouted slot
+        # and without a game id it is the old, placeholder-only output
+        self.assertNotIn("Bash (Ori2)", params.get_aux_spoiler([], False, self.WORLD))
 
 
 if __name__ == "__main__":

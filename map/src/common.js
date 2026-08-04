@@ -681,21 +681,33 @@ function get_flag(name) {
 // Archipelago alpha gate: the server flag has to be on AND this browser has
 // to have opted in with ?ap_test=1 (remembered like the dark theme, cleared
 // with ?ap_test=0), so a flag flip doesn't show everyone the work in progress.
+function ap_test_param() {
+    return new URL(window.document.URL).searchParams.get("ap_test")
+}
+
+// setter half, run once per page load (index.js) so the param takes on any page
+// and the opt-in survives generator -> seed page -> game page. Deliberately not
+// gated on ap_flag: opting in before the flag flips still counts.
+function ap_opt_in() {
+    let param = ap_test_param()
+    if(param === null)
+        return
+    try {
+        if(param === "0" || param === "false")
+            localStorage.removeItem("ap_test")
+        else
+            localStorage.setItem("ap_test", "1")
+    } catch(e) { /* storage disabled: ap_enabled falls back to the url */ }
+}
+
 function ap_enabled() {
     if(!get_flag("ap_flag"))
         return false
-    let param = new URL(window.document.URL).searchParams.get("ap_test")
-    let optOut = param === "0" || param === "false"
     try {
-        if(param !== null) {
-            if(optOut)
-                localStorage.removeItem("ap_test")
-            else
-                localStorage.setItem("ap_test", "1")
-        }
         return localStorage.getItem("ap_test") === "1"
     } catch(e) {
-        return param !== null && !optOut
+        let param = ap_test_param()
+        return param !== null && param !== "0" && param !== "false"
     }
 }
 
@@ -920,6 +932,6 @@ const prng = (strIn) => sfc32(...cyrb128(strIn));
  
 
 export {
-    player_icons, doNetRequest, prng, get_param, get_flag, ap_enabled, get_int, get_list, get_preset, presets, get_seed, logic_paths, get_random_loader, Blabel,
+    player_icons, doNetRequest, prng, get_param, get_flag, ap_enabled, ap_opt_in, get_int, get_list, get_preset, presets, get_seed, logic_paths, get_random_loader, Blabel,
     pickup_name, stuff_by_type, name_from_str, PickupSelect, Cent, ordinal_suffix, dev, gotoUrl, loginLogoutUrl, select_theme, randInt, spawn_defaults
 };

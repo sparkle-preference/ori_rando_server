@@ -672,6 +672,123 @@ class TestAPLink(NdbTestCase):
         self.assertEqual(rep["status"], "pending")
         self.assertIsNone(rep["last_error"])
         self.assertIsNone(rep["last_activity"])  # auto_now lands at put
+        # scout progress: empty until the bridge has been in the room
+        self.assertEqual(rep["names_total"], [])
+        self.assertEqual(rep["names_resolved"], [])
+
+    def test_report_carries_name_counts(self):
+        from ap_models import APLink
+        link = APLink.make(46, 2)
+        link.name_totals, link.name_counts = [111, 108], [111, 0]
+        rep = link.report()
+        self.assertEqual(rep["names_total"], [111, 108])
+        self.assertEqual(rep["names_resolved"], [111, 0])
+
+
+class TestDisplayNames(unittest.TestCase):
+    """Sanitizing what the Archipelago room tells us an item is called.
+
+    The label ends up in '<loc>|MW|<owner>,<slot>,<label>|<zone>', which the
+    client splits on '|' and then on ',' with maxsplit 3, and also pastes
+    unescaped into /found/<coords>/<kind>/<id>."""
+
+    def test_pipe_is_fatal_and_goes(self):
+        from ap_models import sanitize_display_name
+        self.assertEqual(sanitize_display_name("a|b"), "a b")
+
+    def test_comma_survives(self):
+        # last field of a maxsplit-bounded value on both sides of the wire
+        from ap_models import sanitize_display_name
+        self.assertEqual(sanitize_display_name("Bow, Silver Arrows"), "Bow, Silver Arrows")
+
+    def test_url_and_message_hazards_go(self):
+        from ap_models import sanitize_display_name
+        for hazard in "/\\?#%$*@\"<>;{}[]^~`\r\n\t":
+            self.assertNotIn(hazard, sanitize_display_name("x%sy" % hazard),
+                             "%r survived" % hazard)
+
+    def test_harmless_punctuation_stays(self):
+        from ap_models import sanitize_display_name
+        self.assertEqual(sanitize_display_name("Zelda's Bow (Progressive) 2: A+B & C!"),
+                         "Zelda's Bow (Progressive) 2: A+B & C!")
+
+    def test_non_ascii_goes(self):
+        from ap_models import sanitize_display_name
+        self.assertEqual(sanitize_display_name("Pokeball ★ café"), "Pokeball caf")
+
+    def test_lengths_are_capped(self):
+        from ap_models import ap_display_name, ITEM_NAME_MAX, PLAYER_NAME_MAX
+        label = ap_display_name("i" * 200, "p" * 200)
+        self.assertEqual(label, "%s (%s)" % ("i" * ITEM_NAME_MAX, "p" * PLAYER_NAME_MAX))
+
+    def test_unnameable_item_yields_nothing(self):
+        # the caller reads "" as "keep the AP Item #n placeholder"
+        from ap_models import ap_display_name
+        self.assertEqual(ap_display_name(None, "Ori2"), "")
+        self.assertEqual(ap_display_name("|||", "Ori2"), "")
+
+    def test_nameless_player_still_names_the_item(self):
+        from ap_models import ap_display_name
+        self.assertEqual(ap_display_name("Bash", None), "Bash")
+
+
+class TestAPNames(NdbTestCase):
+    """APNames: one world's scouted labels, stored as JSON (put/get_by_id
+    stubbed in-memory, session_golden_test style)."""
+
+    def setUp(self):
+        super(TestAPNames, self).setUp()
+        from ap_models import APNames
+        self.rows = {}
+
+        def fake_put(row, *a, **k):
+            self.rows[row.key.id()] = row
+            return row.key
+        APNames.put = fake_put
+        APNames.get_by_id = staticmethod(lambda rid: self.rows.get(rid))
+
+    def tearDown(self):
+        from ap_models import APNames
+        del APNames.put
+        del APNames.get_by_id
+        super(TestAPNames, self).tearDown()
+
+    def test_round_trip_int_keys(self):
+        from ap_models import APNames
+        APNames.store(88, 2, {0: "Bash (Ori2)", 40: "A Click (Questy)"})
+        self.assertEqual(list(self.rows), ["88.2"])
+        self.assertEqual(self.rows["88.2"].scouted, 2)
+        self.assertEqual(APNames.load(88, 2), {0: "Bash (Ori2)", 40: "A Click (Questy)"})
+
+    def test_worlds_do_not_share_a_row(self):
+        # K threads scout concurrently; per-world keys keep them apart
+        from ap_models import APNames
+        APNames.store(88, 1, {0: "one"})
+        APNames.store(88, 2, {0: "two"})
+        self.assertEqual(APNames.load(88, 1), {0: "one"})
+        self.assertEqual(APNames.load(88, 2), {0: "two"})
+
+    def test_missing_or_corrupt_row_is_empty_not_fatal(self):
+        from ap_models import APNames
+        self.assertEqual(APNames.load(88, 9), {})
+        APNames.store(88, 1, {})
+        self.assertEqual(APNames.load(88, 1), {})
+        self.rows["88.1"].names = "not json at all"
+        self.assertEqual(APNames.load(88, 1), {})
+
+
+class TestNameCountVector(unittest.TestCase):
+    def test_pads_and_sets(self):
+        from archipelago.ap_bridge import _at_world
+        self.assertEqual(_at_world([], 3, 7), [0, 0, 7])
+        self.assertEqual(_at_world(None, 1, 4), [4])
+        self.assertEqual(_at_world([1, 2, 3], 2, 9), [1, 9, 3])
+
+    def test_does_not_mutate_the_input(self):
+        from archipelago.ap_bridge import _at_world
+        vals = [1, 2]
+        self.assertEqual(_at_world(vals, 1, 5), [5, 2])
+        self.assertEqual(vals, [1, 2])
 
 
 class TestBingoV2(NdbTestCase):

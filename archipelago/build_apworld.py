@@ -24,6 +24,10 @@ SKIP_DIRS = {"__pycache__"}
 SKIP_SUFFIXES = (".pyc", ".pyo")
 
 REQUIRED_DATA = ("items.json", "locations.json", "graph.json")
+# WebHost copies anything under a "/docs/" path out of the zip and serves it;
+# the game info page is looked up as "<lang>_<secure_filename(game)>.md", so
+# renaming the game means renaming that file (see oride/__init__.py)
+REQUIRED_DOCS = ("setup_en.md", "en_Ori_DE_Rando.md")
 
 
 def collect():
@@ -60,6 +64,10 @@ def check(files):
     for data in REQUIRED_DATA:
         if "%s/data/%s" % (PKG_NAME, data) not in names:
             problems.append("missing data/%s (run archipelago.export_data)" % data)
+    for doc in REQUIRED_DOCS:
+        if "%s/docs/%s" % (PKG_NAME, doc) not in names:
+            problems.append("missing docs/%s (the launcher and website serve "
+                            "these; AP's own world test suite requires them)" % doc)
     for arc, path in files:
         if not arc.endswith(".py"):
             continue

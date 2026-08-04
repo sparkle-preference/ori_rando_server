@@ -16,6 +16,13 @@ Each AP-mode world w gets a daemon thread that connects to the room as slot
   goal      netcode's complete path records the world on APLink.goal_worlds
             (durable) and wakes the thread; the session sends
             StatusUpdate{CLIENT_GOAL} once per connection.
+  names     at seed-gen time nobody knows what AP's fill put in a reserved
+            slot, so the seed ships "AP Item #n". Once connected the room
+            does know: LocationScouts (create_as_hint 0, information only)
+            -> LocationInfo -> GetDataPackage for the owning slots' games ->
+            APNames, which get_seed substitutes into the reserved lines.
+            Best-effort throughout: a room that never answers just leaves
+            the placeholders in place.
 
 LAZY-START ONLY (the ws.py WS_PUSH lesson: gunicorn --preload forks kill
 import-time threads silently). Threads arm from the ap/connect route and from
@@ -41,7 +48,7 @@ from time import monotonic
 from google.cloud import ndb
 from simple_websocket import Client as WsClient, ConnectionClosed
 
-from ap_models import APLink, ap_slot_name
+from ap_models import APLink, APNames, ap_display_name, ap_slot_name
 from cache import Cache
 from util import ARCHIPELAGO, is_mw_manifest_loc
 
@@ -49,6 +56,7 @@ AP_GAME_NAME = "Ori DE Rando"
 AP_VERSION = {"class": "Version", "major": 0, "minor": 6, "build": 7}
 ITEMS_HANDLING = 0b011
 CLIENT_GOAL = 30
+SCOUT_CHUNK = 100        # locations per LocationScouts message
 EX_DENOMS = (50, 100, 200)
 
 POLL_SECS = 2.0          # shadow-outbox poll cadence
@@ -212,6 +220,37 @@ def _goal_worlds(gid):
     return list(link.goal_worlds or []) if link else []
 
 
+def _at_world(values, world, value):
+    """`values` with 1-based index `world` set to `value`, zero-padded to fit
+    (a link made before this field existed starts out empty)."""
+    out = list(values or [])
+    while len(out) < world:
+        out.append(0)
+    out[world - 1] = value
+    return out
+
+
+@ndb.transactional(retries=5)
+def _persist_name_counts(gid, world, total, resolved):
+    link = APLink.with_id(gid)
+    if link is None:
+        return
+    totals = _at_world(link.name_totals, world, total)
+    counts = _at_world(link.name_counts, world, resolved)
+    if (list(link.name_totals or []), list(link.name_counts or [])) == (totals, counts):
+        return
+    link.name_totals, link.name_counts = totals, counts
+    link.put()
+
+
+def _persist_names(gid, world, total, names):
+    """Store one world's scouted names + the counters ap/status reports.
+    Two entity groups, so no single transaction covers both -- display data,
+    a torn write just under- or over-reports for one poll."""
+    APNames.store(gid, world, names)
+    _persist_name_counts(gid, world, total, len(names))
+
+
 # --- wire helpers ---
 
 def _decode(frame):
@@ -223,6 +262,31 @@ def _decode(frame):
 
 def _send(sock, msgs):
     sock.send(json.dumps(msgs))
+
+
+# --- datapackage cache (process-wide, keyed by AP's own checksum) ---
+
+_dp_cache = {}   # (game, checksum) -> {item id: item name}
+_dp_lock = threading.Lock()
+
+
+def _dp_get(game, checksum):
+    with _dp_lock:
+        return _dp_cache.get((game, checksum or ""))
+
+
+def _dp_put(game, checksum, item_name_to_id):
+    """AP ships name->id; we resolve the other way. Checksum-keyed, so a
+    regenerated room invalidates itself and reconnects never refetch."""
+    table = {}
+    for name, item_id in (item_name_to_id or {}).items():
+        try:
+            table[int(item_id)] = name
+        except (TypeError, ValueError):
+            continue
+    with _dp_lock:
+        _dp_cache[(game, checksum or "")] = table
+    return table
 
 
 def _preflight(host, port):
@@ -278,6 +342,15 @@ class ApSession(object):
         self.recv_count = 0    # AP's ReceivedItems index contract
         self.authed = False
         self.goal_sent = False
+        # scouting (display names; see the module docstring)
+        self.room_checksums = {}  # RoomInfo: game -> datapackage checksum
+        self.slot_games = {}      # Connected slot_info: ap slot -> game name
+        self.slot_players = {}    # ap slot -> player display name
+        self.our_locations = set()  # every location the room says is ours
+        self.scout_total = 0      # how many we asked about
+        self.scouted = {}         # ap location id -> (item id, owner slot)
+        self.dp_pending = set()   # games requested, answer outstanding
+        self.named = None         # shadow slot -> display name, as persisted
 
     def _stopped(self):
         return self.stop_event is not None and self.stop_event.is_set()
@@ -312,7 +385,10 @@ class ApSession(object):
         deadline = monotonic() + HANDSHAKE_TIMEOUT
         while True:
             msgs = self._recv_deadline(sock, deadline, "RoomInfo")
-            if any(m.get("cmd") == "RoomInfo" for m in msgs):
+            room = next((m for m in msgs if m.get("cmd") == "RoomInfo"), None)
+            if room is not None:
+                sums = room.get("datapackage_checksums")
+                self.room_checksums = dict(sums) if isinstance(sums, dict) else {}
                 break
         _send(sock, [self.connect_msg()])
         while True:
@@ -340,13 +416,52 @@ class ApSession(object):
     def _on_connected(self, msg):
         self.authed = True
         self.checked = set(msg.get("checked_locations") or [])
+        missing = msg.get("missing_locations") or []
+        # authoritative list of THIS slot's locations: scouting anything else
+        # is a KeyError inside the room's LocationScouts handler
+        self.our_locations = self.checked | set(missing)
         self.fill = {}
         self.recv_count = 0
+        self.scouted, self.dp_pending, self.named, self.scout_total = {}, set(), None, 0
+        self._safe("slot_info", self._read_slot_info, msg)
         log.info("APBRIDGE connected gid=%s world=%s slot=%r checked=%s missing=%s",
-                 self.gid, self.world, self.slot_name,
-                 len(self.checked), len(msg.get("missing_locations") or []))
+                 self.gid, self.world, self.slot_name, len(self.checked), len(missing))
         with self.ctx():
             _persist_status(self.gid, "connected", None)
+
+    def _safe(self, what, fn, *args):
+        """Names are cosmetic; room data that doesn't parse must never take
+        the session -- and with it item delivery -- down. Transport failures
+        still propagate: those belong to the reconnect loop."""
+        try:
+            return fn(*args)
+        except (ConnectionClosed, ConnectionError, OSError):
+            raise
+        except Exception:
+            log.exception("APBRIDGE %s failed gid=%s world=%s", what, self.gid, self.world)
+
+    def _read_slot_info(self, msg):
+        """Connected.slot_info gives every slot's game (which datapackage an
+        item id belongs to); .players gives the display names, preferring the
+        alias the room shows over the raw slot name."""
+        self.slot_games, self.slot_players = {}, {}
+        for slot, info in (msg.get("slot_info") or {}).items():
+            if not isinstance(info, dict):
+                continue
+            try:
+                slot = int(slot)   # json object keys are strings
+            except (TypeError, ValueError):
+                continue
+            self.slot_games[slot] = info.get("game")
+            self.slot_players[slot] = info.get("name")
+        for p in msg.get("players") or []:
+            if not isinstance(p, dict):
+                continue
+            try:
+                slot = int(p.get("slot"))
+            except (TypeError, ValueError):
+                continue
+            self.slot_players[slot] = p.get("alias") or p.get("name") or self.slot_players.get(slot)
 
     def _reconcile(self, sock):
         self._poll_outbox(sock)
@@ -354,6 +469,7 @@ class ApSession(object):
             goals = _goal_worlds(self.gid)
         if self.world in goals:
             self._send_goal(sock)
+        self._safe("scout", self._scout, sock)
 
     def _dispatch(self, msg, sock):
         cmd = msg.get("cmd")
@@ -363,7 +479,87 @@ class ApSession(object):
             locs = msg.get("checked_locations")
             if locs:
                 self.checked.update(locs)
+        elif cmd == "LocationInfo":
+            self._safe("LocationInfo", self._on_location_info, msg, sock)
+        elif cmd == "DataPackage":
+            self._safe("DataPackage", self._on_data_package, msg)
         # PrintJSON and friends: ignored
+
+    # --- display names ---
+
+    def _scout(self, sock):
+        """Ask the room what is actually in our reserved locations.
+        create_as_hint 0: information only, no room-visible hints."""
+        targets = sorted(set(self.maps.outbox[self.world].values()) & self.our_locations)
+        self.scout_total = len(targets)
+        if not targets:
+            return
+        for i in range(0, len(targets), SCOUT_CHUNK):
+            _send(sock, [{"cmd": "LocationScouts",
+                          "locations": targets[i:i + SCOUT_CHUNK],
+                          "create_as_hint": 0}])
+
+    def _on_location_info(self, msg, sock):
+        for entry in msg.get("locations") or []:
+            try:
+                loc, item, owner = (int(entry["location"]), int(entry["item"]),
+                                    int(entry["player"]))
+            except (KeyError, TypeError, ValueError):
+                continue
+            self.scouted[loc] = (item, owner)
+        self._fetch_datapackages(sock)
+        self._resolve_names()
+
+    def _fetch_datapackages(self, sock):
+        """An item id only means something in the OWNING slot's game, so pull
+        exactly those games we still lack (never the whole room's package)."""
+        want = set()
+        for _, owner in self.scouted.values():
+            game = self.slot_games.get(owner)
+            if (game and game not in self.dp_pending
+                    and _dp_get(game, self.room_checksums.get(game)) is None):
+                want.add(game)
+        if not want:
+            return
+        self.dp_pending |= want
+        _send(sock, [{"cmd": "GetDataPackage", "games": sorted(want)}])
+
+    def _on_data_package(self, msg):
+        games = ((msg.get("data") or {}).get("games") or {})
+        for game, data in games.items():
+            checksum = (data or {}).get("checksum") or self.room_checksums.get(game)
+            _dp_put(game, checksum, (data or {}).get("item_name_to_id"))
+        self.dp_pending -= set(games)
+        self._resolve_names()
+
+    def _dp_for(self, owner):
+        game = self.slot_games.get(owner)
+        return _dp_get(game, self.room_checksums.get(game)) or {}
+
+    def _resolve_names(self):
+        """Scouted (item, owner) + datapackages -> {shadow slot: label}.
+        Partial by design: a game we never got a package for simply keeps its
+        placeholders."""
+        slot_of = {ap_id: slot for slot, ap_id in self.maps.outbox[self.world].items()}
+        names = {}
+        for loc, (item, owner) in self.scouted.items():
+            slot = slot_of.get(loc)
+            if slot is None:
+                continue
+            label = ap_display_name(self._dp_for(owner).get(item), self.slot_players.get(owner))
+            if label:
+                names[slot] = label
+        if not names and self.dp_pending:
+            # answers still outstanding (or the room ignored GetDataPackage):
+            # never publish a blank over a previous connection's good names
+            return
+        if names == self.named:
+            return
+        self.named = names
+        with self.ctx():
+            _persist_names(self.gid, self.world, self.scout_total, names)
+        log.info("APBRIDGE names gid=%s world=%s resolved=%s of %s",
+                 self.gid, self.world, len(names), self.scout_total)
 
     def _on_received_items(self, msg, sock):
         index, items = int(msg.get("index", 0)), msg.get("items") or []

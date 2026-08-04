@@ -18,6 +18,11 @@ from seedbuilder.oriparse import get_path_tags_from_pathsets
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "oride_apworld", "oride", "data")
 
+# Contract version of the blob below, checked by the apworld's
+# generate_early. Bump together with oride_apworld/oride/version.py, whose
+# docstring holds the rule; the suite fails if the two drift.
+DATA_VERSION = 1
+
 EXPORT_CODES = {"SK", "TP", "EV"}
 LOCAL_CODES = {"KS", "MS", "HC", "EC", "AC"}
 LOCAL_RB_IDS = {"17", "19", "21", "28"} | {str(n) for n in range(300, 312)}
@@ -76,6 +81,7 @@ def make_config(exported, reserved, local, logic_paths, key_mode="events",
     {location name: item name}. Shared by the file-based prototype path
     below and archipelago.convert.build_ap_config (converted seeds)."""
     return {
+        "data_version": DATA_VERSION,
         "params_id": params_id,
         "world": world,
         "spawn": spawn,

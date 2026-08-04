@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
-import {get_param, get_flag, gotoUrl, loginLogoutUrl} from './common.js';
+import {get_param, get_flag, gotoUrl, loginLogoutUrl, ap_opt_in} from './common.js';
 
 import ItemTracker from './ItemTracker';
 import MainPage from './MainPage';
@@ -30,6 +30,7 @@ const dark_apps = ["GameTracker", "PlandoBuilder", "LogicHelper"];
 const VALID_THEMES = ["cerulean", "cosmo", "cyborg", "darkly", "flatly", "journal", "litera", "lumen", "lux", "materia", "minty", "pulse", "sandstone", "simplex", "sketchy", "slate", "solar", "spacelab", "superhero", "united", "yeti"];
 
 (async () => {
+    ap_opt_in();  // ahead of the login bounce, which would drop the param
     if(localStorage.getItem("rememberMe") && !get_param('user')) {
         return gotoUrl(loginLogoutUrl(true));
     }

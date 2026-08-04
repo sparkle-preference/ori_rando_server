@@ -245,19 +245,30 @@ def ap_convert(texts, categories, keep_locs=frozenset()):
     for c in candidates:
         if c["kind"] == "cross":
             drops[c["owner"] - 1].add(c["manifest_line"])
+    # A player carries 8x32 slot bits and nothing more (models.Player.
+    # mark_slot refuses 256+), so a surplus has nowhere to live: the seed
+    # would render fine and every grant past the cap would evaporate.
+    # Balancing leaves reserved == exported, so the live check is the
+    # free-slot one; the flat caps hold the line if that ever changes.
     ap_slots = {}
     for p in range(1, players + 1):
         if len(reserved[p]) > MAX_SLOTS:
             raise ApConversionError(
                 "world %s reserves %s AP slots (max %s)" %
                 (p, len(reserved[p]), MAX_SLOTS))
+        if len(exported[p]) > MAX_SLOTS:
+            raise ApConversionError(
+                "world %s exports %s AP items (max %s)" %
+                (p, len(exported[p]), MAX_SLOTS))
         kept = {slot for slot, line in manifests[p - 1].items()
                 if line not in drops[p - 1]}
         free = [s for s in range(MAX_SLOTS) if s not in kept]
         if len(exported[p]) > len(free):
             raise ApConversionError(
-                "world %s manifest needs %s slots with %s native kept (max %s)" %
-                (p, len(exported[p]), len(kept), MAX_SLOTS))
+                "world %s exports %s AP items but only %s of its %s "
+                "multiworld slots are free (%s still hold native "
+                "cross-world items)" %
+                (p, len(exported[p]), len(free), MAX_SLOTS, len(kept)))
         ap_slots[p] = free[:len(exported[p])]
 
     rewrites = [{} for _ in range(players)]

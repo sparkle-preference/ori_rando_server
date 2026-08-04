@@ -63,9 +63,21 @@ class FakeParams(object):
 ROOMINFO = [{"cmd": "RoomInfo", "version": {"major": 0, "minor": 6, "build": 7}}]
 
 
-def connected(checked=(), missing=()):
-    return {"cmd": "Connected", "team": 0, "slot": 1,
-            "checked_locations": list(checked), "missing_locations": list(missing)}
+def roominfo(checksums=None):
+    room = dict(ROOMINFO[0])
+    if checksums is not None:
+        room["datapackage_checksums"] = checksums
+    return [room]
+
+
+def connected(checked=(), missing=(), slot_info=None, players=None):
+    msg = {"cmd": "Connected", "team": 0, "slot": 1,
+           "checked_locations": list(checked), "missing_locations": list(missing)}
+    if slot_info is not None:
+        msg["slot_info"] = slot_info   # json object keys arrive as strings
+    if players is not None:
+        msg["players"] = players
+    return msg
 
 
 class TestImportHygiene(unittest.TestCase):
@@ -139,18 +151,21 @@ class SessionTestCase(unittest.TestCase):
         self.grants = []         # (gid, world, slots)
         self.recvs = []          # (gid, world, count)
         self.statuses = []       # (gid, status, error)
+        self.names = []          # (gid, world, total, {slot: display name})
         self._orig = (ap_bridge._shadow_slots, ap_bridge._apply_grants,
                       ap_bridge._persist_recv, ap_bridge._persist_status,
-                      ap_bridge._goal_worlds)
+                      ap_bridge._goal_worlds, ap_bridge._persist_names)
         ap_bridge._shadow_slots = lambda gid, world, maps: set(self.shadow)
         ap_bridge._apply_grants = lambda gid, world, slots: self.grants.append((gid, world, list(slots))) or len(slots)
         ap_bridge._persist_recv = lambda gid, world, count: self.recvs.append((gid, world, count))
         ap_bridge._persist_status = lambda gid, status, error: self.statuses.append((gid, status, error))
         ap_bridge._goal_worlds = lambda gid: list(self.goals)
+        ap_bridge._persist_names = lambda gid, world, total, names: self.names.append((gid, world, total, dict(names)))
 
     def tearDown(self):
         (ap_bridge._shadow_slots, ap_bridge._apply_grants, ap_bridge._persist_recv,
-         ap_bridge._persist_status, ap_bridge._goal_worlds) = self._orig
+         ap_bridge._persist_status, ap_bridge._goal_worlds,
+         ap_bridge._persist_names) = self._orig
 
     def make_session(self, **kw):
         # slot 0 and 3 take Bash (524288); slot 1 takes 50 experience (524349)
@@ -325,6 +340,213 @@ class TestSteadyState(SessionTestCase):
         self.assertTrue(session.authed)
 
 
+class TestScouting(SessionTestCase):
+    """Display names: LocationScouts -> LocationInfo -> GetDataPackage ->
+    {shadow slot: label}. make_session's world 1 reserves ap locations
+    524541 (slot 0) and 524542 (slot 1)."""
+
+    LOCS = [524541, 524542]
+    # the room's own view: slot 1 is us, 2 is the other Ori world, 3 is a
+    # different game entirely (so its item ids live in ITS datapackage)
+    SLOT_INFO = {"1": {"class": "NetworkSlot", "name": "Ori1", "game": "Ori DE Rando", "type": 1},
+                 "2": {"class": "NetworkSlot", "name": "Ori2", "game": "Ori DE Rando", "type": 1},
+                 "3": {"class": "NetworkSlot", "name": "TestQuest", "game": "Clique", "type": 1}}
+    PLAYERS = [{"class": "NetworkPlayer", "team": 0, "slot": 1, "alias": "Ori1", "name": "Ori1"},
+               {"class": "NetworkPlayer", "team": 0, "slot": 2, "alias": "Ori2", "name": "Ori2"},
+               {"class": "NetworkPlayer", "team": 0, "slot": 3, "alias": "Questy", "name": "TestQuest"}]
+    CHECKSUMS = {"Ori DE Rando": "oridesum", "Clique": "cliquesum"}
+
+    def setUp(self):
+        SessionTestCase.setUp(self)
+        ap_bridge._dp_cache.clear()
+
+    def tearDown(self):
+        ap_bridge._dp_cache.clear()
+        SessionTestCase.tearDown(self)
+
+    def hello(self, missing=None):
+        return [roominfo(self.CHECKSUMS),
+                [connected(missing=self.LOCS if missing is None else missing,
+                           slot_info=self.SLOT_INFO, players=self.PLAYERS)]]
+
+    @staticmethod
+    def sent_of(sock, cmd):
+        return [m[0] for m in sock.sent if m[0].get("cmd") == cmd]
+
+    @staticmethod
+    def location_info(entries):
+        # NetworkItem serializes as a dict (NetUtils._scan_for_TypedTuples);
+        # in LocationInfo 'player' is the RECEIVING slot
+        return {"cmd": "LocationInfo", "locations": [
+            {"class": "NetworkItem", "item": item, "location": loc, "player": owner, "flags": flags}
+            for (loc, item, owner, flags) in entries]}
+
+    def test_scout_request_shape(self):
+        sock = self.run_session(self.make_session(), self.hello())
+        self.assertEqual(self.sent_of(sock, "LocationScouts"),
+                         [{"cmd": "LocationScouts", "locations": [524541, 524542],
+                           "create_as_hint": 0}])
+
+    def test_scout_only_asks_about_locations_the_room_says_are_ours(self):
+        # a mismatched room (different seed) would otherwise KeyError inside
+        # its own LocationScouts handler
+        sock = self.run_session(self.make_session(), self.hello(missing=[524542]))
+        self.assertEqual(self.sent_of(sock, "LocationScouts")[0]["locations"], [524542])
+
+    def test_no_reserved_locations_sends_no_scout(self):
+        sock = self.run_session(self.make_session(), self.hello(missing=[]))
+        self.assertEqual(self.sent_of(sock, "LocationScouts"), [])
+
+    def test_scout_chunks_a_large_world(self):
+        maps = GameMaps(2, {1: {i: 900000 + i for i in range(250)}, 2: {}},
+                        {1: {}, 2: {}})
+        session = ApSession(self.GID, self.WORLD, maps, "Ori1", None)
+        sock = self.run_session(session, [
+            roominfo(self.CHECKSUMS),
+            [connected(missing=[900000 + i for i in range(250)],
+                       slot_info=self.SLOT_INFO, players=self.PLAYERS)]])
+        scouts = self.sent_of(sock, "LocationScouts")
+        self.assertEqual([len(s["locations"]) for s in scouts], [100, 100, 50])
+        self.assertEqual(sorted(l for s in scouts for l in s["locations"]),
+                         [900000 + i for i in range(250)])
+
+    def test_datapackage_requested_for_exactly_the_owning_games(self):
+        sock = self.run_session(self.make_session(), self.hello() + [
+            [self.location_info([(524541, 77, 2, 1), (524542, 42, 3, 0)])]])
+        self.assertEqual(self.sent_of(sock, "GetDataPackage"),
+                         [{"cmd": "GetDataPackage", "games": ["Clique", "Ori DE Rando"]}])
+
+    def test_names_resolve_across_games(self):
+        sock = self.run_session(self.make_session(), self.hello() + [
+            [self.location_info([(524541, 77, 2, 1), (524542, 42, 3, 0)])],
+            [{"cmd": "DataPackage", "data": {"games": {
+                "Ori DE Rando": {"checksum": "oridesum", "item_name_to_id": {"Bash": 77}},
+                "Clique": {"checksum": "cliquesum", "item_name_to_id": {"A Click": 42}}}}}]])
+        self.assertEqual(self.names[-1],
+                         (self.GID, self.WORLD, 2,
+                          {0: "Bash (Ori2)", 1: "A Click (Questy)"}))
+        # nothing extra went out once both packages were in hand
+        self.assertEqual(len(self.sent_of(sock, "GetDataPackage")), 1)
+
+    def test_alias_beats_slot_name(self):
+        # slot_info calls slot 3 "TestQuest"; the room's players list aliases
+        # it to "Questy", which is what everyone in the room sees
+        self.run_session(self.make_session(), self.hello() + [
+            [self.location_info([(524541, 42, 3, 0)])],
+            [{"cmd": "DataPackage", "data": {"games": {
+                "Clique": {"checksum": "cliquesum", "item_name_to_id": {"A Click": 42}}}}}]])
+        self.assertEqual(self.names[-1][3], {0: "A Click (Questy)"})
+
+    def test_unknown_item_or_owner_keeps_its_placeholder(self):
+        self.run_session(self.make_session(), self.hello() + [
+            # 999 isn't in Clique's package; slot 8 isn't in the room at all
+            [self.location_info([(524541, 999, 3, 0), (524542, 42, 8, 0)])],
+            [{"cmd": "DataPackage", "data": {"games": {
+                "Clique": {"checksum": "cliquesum", "item_name_to_id": {"A Click": 42}}}}}]])
+        self.assertEqual(self.names[-1], (self.GID, self.WORLD, 2, {}))
+
+    def test_room_that_never_answers_the_scout_is_harmless(self):
+        session = self.make_session()
+        self.run_session(session, self.hello() + [None, None])
+        self.assertTrue(session.authed)
+        self.assertEqual(self.names, [])
+        self.assertIsNone(session.named)
+
+    def test_room_that_ignores_getdatapackage_publishes_nothing(self):
+        # a blank must never overwrite an earlier connection's good names
+        session = self.make_session()
+        self.run_session(session, self.hello() + [
+            [self.location_info([(524541, 77, 2, 1)])], None, None])
+        self.assertEqual(self.names, [])
+        self.assertEqual(session.dp_pending, {"Ori DE Rando"})
+
+    def test_datapackage_cached_by_checksum_across_reconnects(self):
+        frames = self.hello() + [
+            [self.location_info([(524541, 77, 2, 1)])],
+            [{"cmd": "DataPackage", "data": {"games": {
+                "Ori DE Rando": {"checksum": "oridesum", "item_name_to_id": {"Bash": 77}}}}}]]
+        self.run_session(self.make_session(), list(frames))
+        sock2 = self.run_session(self.make_session(), list(frames[:3]))
+        self.assertEqual(self.sent_of(sock2, "GetDataPackage"), [])
+        self.assertEqual(self.names[-1][3], {0: "Bash (Ori2)"})
+
+    def test_new_checksum_refetches(self):
+        self.run_session(self.make_session(), self.hello() + [
+            [self.location_info([(524541, 77, 2, 1)])],
+            [{"cmd": "DataPackage", "data": {"games": {
+                "Ori DE Rando": {"checksum": "oridesum", "item_name_to_id": {"Bash": 77}}}}}]])
+        sock2 = self.run_session(self.make_session(), [
+            roominfo({"Ori DE Rando": "REGENERATED"}),
+            [connected(missing=self.LOCS, slot_info=self.SLOT_INFO, players=self.PLAYERS)],
+            [self.location_info([(524541, 77, 2, 1)])]])
+        self.assertEqual(self.sent_of(sock2, "GetDataPackage"),
+                         [{"cmd": "GetDataPackage", "games": ["Ori DE Rando"]}])
+
+    def test_hostile_name_is_sanitized_but_keeps_its_commas(self):
+        hostile = "Bow|Pipe, Arrows #3 $green$ /slash/ 100% @red@"
+        self.run_session(self.make_session(), self.hello() + [
+            [self.location_info([(524541, 77, 3, 0)])],
+            [{"cmd": "DataPackage", "data": {"games": {
+                "Clique": {"checksum": "cliquesum", "item_name_to_id": {hostile: 77}}}}}]])
+        label = self.names[-1][3][0]
+        for bad in "|/\\?#%$*@\r\n":
+            self.assertNotIn(bad, label, "%r survived sanitization in %r" % (bad, label))
+        # ',' is the one separator that stays: the name is the LAST field of a
+        # maxsplit-bounded value on both sides of the wire
+        self.assertEqual(label, "Bow Pipe, Arrows 3 green slash 100 red (Questy)")
+
+    def test_hostile_name_still_renders_a_four_field_seed_line(self):
+        # the whole point: '|' would push the zone out of line.Split('|')
+        from ap_models import ap_display_name
+        label = ap_display_name("Evil|Name, Mk|II", "Bad|Guy")
+        line = "919908|MW|%s,%s,%s|%s" % (3, 7, label, "Grove")
+        self.assertEqual(len(line.split("|")), 4)
+        loc, code, value, zone = line.split("|")
+        owner, slot, name = value.split(",", 2)
+        self.assertEqual((loc, code, owner, slot, zone),
+                         ("919908", "MW", "3", "7", "Grove"))
+        self.assertEqual(name, "Evil Name, Mk II (Bad Guy)")
+
+    def test_garbage_room_data_never_kills_the_session(self):
+        # names are cosmetic: nothing the room says about them may stop items
+        session = self.make_session()
+        sock = self.run_session(session, [
+            roominfo("not a dict at all"),
+            [connected(missing=self.LOCS, slot_info={"x": 5, "2": None, "3": []},
+                       players=["nope", {"slot": "?"}])],
+            [{"cmd": "LocationInfo", "locations": ["junk", {"item": "x"}, None]}],
+            [{"cmd": "DataPackage", "data": {"games": {"Clique": None}}}],
+            [{"cmd": "ReceivedItems", "index": 0,
+              "items": [{"item": 524288, "location": 10, "player": 2}]}]])
+        self.assertTrue(session.authed)
+        # the item still landed
+        self.assertEqual(self.grants, [(self.GID, self.WORLD, [0])])
+        # every scouted entry was unusable, so it reports an honest 0 of 2
+        self.assertEqual(self.names, [(self.GID, self.WORLD, 2, {})])
+        self.assertIn([{"cmd": "LocationScouts", "locations": [524541, 524542],
+                        "create_as_hint": 0}], sock.sent)
+
+    def test_transport_failure_inside_the_name_path_still_propagates(self):
+        # a dead socket is the reconnect loop's business, not something the
+        # cosmetic guard may swallow
+        class DeadOnScout(FakeSocket):
+            def send(s, data):
+                if "LocationScouts" in data:
+                    raise ConnectionClosed()
+                FakeSocket.send(s, data)
+
+        sock = DeadOnScout(self.hello())
+        with self.assertRaises(ConnectionClosed):
+            self.make_session().run(sock)
+
+    def test_every_connection_rescouts(self):
+        # the loop builds a fresh ApSession per attempt; each must re-ask, so
+        # a room swap or a re-fill can never leave stale names behind
+        for _ in range(2):
+            sock = self.run_session(self.make_session(), self.hello())
+            self.assertEqual(len(self.sent_of(sock, "LocationScouts")), 1)
+
+
 class TestGoldenRealTouchpoints(unittest.TestCase):
     """ApSession wired to the REAL _apply_grants and _shadow_slots, running
     against in-memory Player entities (netcode_test style: only the txn
@@ -350,12 +572,20 @@ class TestGoldenRealTouchpoints(unittest.TestCase):
     def setUp(self):
         self._ctx = self.ndb_client.context()
         self._ctx.__enter__()
-        self.recvs, self.goals = [], []
+        self.recvs, self.goals, self.counts = [], [], []
         self._orig = (ap_bridge._persist_recv, ap_bridge._persist_status,
-                      ap_bridge._goal_worlds)
+                      ap_bridge._goal_worlds, ap_bridge._persist_name_counts)
         ap_bridge._persist_recv = lambda gid, world, count: self.recvs.append((gid, world, count))
         ap_bridge._persist_status = lambda gid, status, error: None
         ap_bridge._goal_worlds = lambda gid: list(self.goals)
+        # the counter half of _persist_names is @ndb.transactional, which
+        # wants a real backend; _persist_names itself and APNames are real
+        ap_bridge._persist_name_counts = lambda gid, world, total, resolved: self.counts.append(
+            (gid, world, total, resolved))
+        from ap_models import APNames
+        self.rows = {}
+        APNames.put = lambda row, *a, **k: self.rows.__setitem__(row.key.id(), row) or row.key
+        APNames.get_by_id = staticmethod(lambda rid: self.rows.get(rid))
 
         # K=2 world 1: real player 1301.1, shadow outbox 1301.3. Reserved
         # slot 40 on purpose: the diff must read past the first bfld word.
@@ -391,8 +621,12 @@ class TestGoldenRealTouchpoints(unittest.TestCase):
         }))
 
     def tearDown(self):
+        from ap_models import APNames
         (ap_bridge._persist_recv, ap_bridge._persist_status,
-         ap_bridge._goal_worlds) = self._orig
+         ap_bridge._goal_worlds, ap_bridge._persist_name_counts) = self._orig
+        del APNames.put
+        del APNames.get_by_id
+        ap_bridge._dp_cache.clear()
         Player.mark_slots_txn = staticmethod(self._mtxn)
         models.Game.with_id = staticmethod(self._gwid)
         ndb.Key.get = self._kget
@@ -450,6 +684,23 @@ class TestGoldenRealTouchpoints(unittest.TestCase):
         sock3 = FakeSocket([])
         session._poll_outbox(sock3)
         self.assertEqual(sock3.sent, [])  # nothing new: silent
+
+    def test_scouted_names_land_in_a_readable_apnames_row(self):
+        # the real _persist_names -> APNames -> the dict get_seed reads back.
+        # Reserved slots here are 0 (ap loc 524541) and 40 (ap loc 524542).
+        from ap_models import APNames
+        self.run_session(self.make_session(), [
+            roominfo({"Ori DE Rando": "oridesum"}),
+            [connected(missing=[524541, 524542],
+                       slot_info={"1": {"name": "Ori1", "game": "Ori DE Rando"},
+                                  "2": {"name": "Ori2", "game": "Ori DE Rando"}},
+                       players=[{"slot": 2, "alias": "Ori2", "name": "Ori2"}])],
+            [{"cmd": "LocationInfo", "locations": [
+                {"item": 524288, "location": 524542, "player": 2, "flags": 1}]}],
+            [{"cmd": "DataPackage", "data": {"games": {"Ori DE Rando": {
+                "checksum": "oridesum", "item_name_to_id": {"Bash": 524288}}}}}]])
+        self.assertEqual(APNames.load(self.GID, self.WORLD), {40: "Bash (Ori2)"})
+        self.assertEqual(self.counts, [(self.GID, self.WORLD, 2, 1)])
 
 
 class _StopOnFirstWait(object):

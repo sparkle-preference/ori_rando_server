@@ -450,6 +450,15 @@ const getHelpHelper = (category, option) => {
                     if(multi)
                         lines.push("Remember to send your fellow players the URL to the current page so they can get their seeds!")
                 break;
+                case "downloadButtonAp":
+                    title = "Download Seed"
+                    lines = [
+                        "Click here to download your seed file.",
+                        "Once downloaded, move or copy the randomizer.dat file into your OriDE folder. (It should be named randomizer.dat and be in the same folder as OriDE.exe)",
+                        "Connect the Archipelago room below BEFORE handing seeds out: a seed downloaded first will call every Archipelago location \"AP Item #1\", \"AP Item #2\" and so on. Once the room is connected and every world reports its item names, download again and the real names are baked in.",
+                        "Remember to send your fellow players the URL to the current page so they can get their seeds!"
+                    ]
+                break;
                 case "apYaml":
                     title = "AP YAML"
                     lines = [
@@ -471,8 +480,17 @@ const getHelpHelper = (category, option) => {
                     title = "Archipelago Status"
                     lines = [
                         "The bridge's view of the Archipelago room: connection status, the room address, and per-world progress.",
-                        "Each world row shows its Archipelago slot name, how many items the room has sent it so far, and whether it has finished its goal.",
+                        "Each world row shows its Archipelago slot name, how many items the room has sent it so far, how many of its Archipelago locations it can name, and whether it has finished its goal.",
                         "If the connection fails, the most recent error shows up here. The display refreshes every few seconds."
+                    ]
+                break;
+                case "apNames":
+                    title = "Archipelago Item Names"
+                    lines = [
+                        "When a seed is generated, nobody knows yet what Archipelago's own randomizer put in each of this world's reserved locations, so the seed file calls them \"AP Item #1\", \"AP Item #2\", and so on.",
+                        "The moment the bridge joins the room it asks what those locations really hold, and from then on downloaded seeds say things like \"Bash (Ori2)\" or \"Progressive Sword (Zelda)\" instead.",
+                        "Seeds are baked when the game loads them, so anyone who downloaded before the room was connected keeps the placeholders: connect the room first, wait for every world to report its item names, then download the seeds again.",
+                        "Names are cosmetic. A seed with placeholders plays exactly the same, and no item is ever lost by using one."
                     ]
                 break;
                 case "spoilerView":

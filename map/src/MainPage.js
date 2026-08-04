@@ -372,6 +372,9 @@ onDrop = (files) => {
             url.searchParams.set('exclude', exclude.join(" "));
             if(byZone)
                 url.searchParams.set('by_zone', 1)
+            // AP item lists resolve their real names from the game's room
+            if(this.state.inputApMode && this.state.gameId > 0)
+                url.searchParams.set('game_id', this.state.gameId)
         } else
             url = new URL(`/generator/spoiler/${paramId}`, window.document.URL);
         if(download)
@@ -721,7 +724,7 @@ onDrop = (files) => {
     generateSeed = () => {
         let pMap = {"Race": "None", "None": "Default", "Co-op": "Shared", "World Events": "WorldEvents", "Cloned Seeds": "cloned", "Seperate Seeds": "disjoint"}
         let url = "/generator/build"
-        if(this.isMultiworld() && this.state.apMode && this.state.apExport.length === 0) {
+        if(this.isMultiworld() && this.state.apMode && ap_enabled() && this.state.apExport.length === 0) {
             NotificationManager.error("Select at least one Archipelago export category", "Cannot generate seed!", 5000)
             this.setState({activeTab: 'multiplayer'})
             return
@@ -791,9 +794,13 @@ onDrop = (files) => {
                 json.syncShared = this.state.shared.map(s => f(s))
             if(this.isMultiworld())
                 json.syncShared = this.state.mwShared.map(s => f(s))
-            if(this.isMultiworld() && this.state.apMode) {
+            // ap_enabled() guards the payload too, not just the controls: an AP
+            // params url rehydrates apMode into state, and a visitor without the
+            // opt-in rerolling it should get a plain multiworld, not a 409
+            if(this.isMultiworld() && this.state.apMode && ap_enabled()) {
                 json.apMode = true
                 json.apExport = this.state.apExport
+                url += url.includes("?") ? "&ap_test=1" : "?ap_test=1"
             }
             if(!this.state.dedupShared)
                 json.teams={1: [...Array(this.state.players).keys()].map(x=>x+1)}
@@ -963,7 +970,8 @@ onDrop = (files) => {
                 if(inputPlayerCount > 1)
                     seedParams.push("player_id="+p);
                 let mainButtonText = "Download Seed"
-                let mainButtonHelp = "downloadButton"+this.multi()
+                // AP seeds bake item names at download time; the help says so
+                let mainButtonHelp = (inputApMode && ap_enabled() ? "downloadButtonAp" : "downloadButton")+this.multi()
                 seedUrl += "?" + seedParams.join("&")
                 if(seedIsBingo) {
                     seedUrl = `/bingo/board?game_id=${gameId}&fromGen=1&seed=${inputSeed}&bingoLines=${bingoLines}`
@@ -1152,18 +1160,28 @@ onDrop = (files) => {
             if(!isNaN(d.getTime()))
                 lastActStr = "Last activity: " + d.toLocaleString()
         }
+        // names_total/names_resolved are absent on links written before name
+        // scouting shipped, so treat a missing entry as "nothing scouted yet"
+        let namesTotal = (i) => (apStatus && apStatus.names_total ? apStatus.names_total[i] : 0) || 0
+        let namesDone = (i) => (apStatus && apStatus.names_resolved ? apStatus.names_resolved[i] : 0) || 0
+        let namesReady = apStatus && apStatus.slots.length > 0 && apStatus.slots.every((_, i) => namesTotal(i) > 0 && namesDone(i) >= namesTotal(i))
         let worldRows = apStatus ? apStatus.slots.map((slot, i) => (
             <Row key={`ap-world-${i}`} className="p-1 align-items-center border-bottom">
                 <Col xs="1">
                     <Media object style={{width: "25px", height: "25px"}} src={player_icons(i + 1, false)} alt={"Icon for player " + (i + 1)} />
                 </Col>
-                <Col xs="4">
+                <Col xs="3">
                     <span className="align-middle">Player {i + 1} ({slot})</span>
                 </Col>
-                <Col xs="4">
+                <Col xs="3">
                     <span className="align-middle">{apStatus.recv_index[i] || 0} items received</span>
                 </Col>
                 <Col xs="3">
+                    <span className={"align-middle " + (namesTotal(i) > 0 && namesDone(i) >= namesTotal(i) ? "text-success" : "text-muted")}>
+                        {namesTotal(i) > 0 ? `${namesDone(i)}/${namesTotal(i)} item names` : "item names pending"}
+                    </span>
+                </Col>
+                <Col xs="2">
                     <span className="align-middle text-success">{apStatus.goal_worlds.includes(i + 1) ? "Goal complete!" : ""}</span>
                 </Col>
             </Row>
@@ -1211,6 +1229,13 @@ onDrop = (files) => {
                                     </Col>
                                 </Row>
                                 {worldRows}
+                                <Row className="p-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "apNames")}>
+                                    <Col className={namesReady ? "text-center text-success" : "text-center text-warning"}>
+                                        {namesReady
+                                            ? "Item names are ready: seeds downloaded from now on show what each Archipelago location really holds."
+                                            : "Seeds downloaded before the room is connected show \"AP Item #n\" placeholders. Once every world reports its item names, download the seeds again to see the real ones."}
+                                    </Col>
+                                </Row>
                                 {apStatus.last_error ? (
                                     <Row className="p-1">
                                         <Col className="text-danger">Last error: {apStatus.last_error}</Col>

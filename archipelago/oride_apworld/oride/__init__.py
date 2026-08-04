@@ -12,13 +12,17 @@ import logging
 import pkgutil
 from collections import Counter
 
-from BaseClasses import Item, ItemClassification, Location, Region
+from BaseClasses import Item, ItemClassification, Location, Region, Tutorial
 from worlds.AutoWorld import WebWorld, World
 
 from .options import OriDEOptions
 from .rules import RuleCompiler, make_rule
+from .version import data_version_problem
 
-GAME_NAME = "Ori DE Rando"  # pre-release working name; safe to change until first public apworld release
+# pre-release working name; safe to change until first public apworld
+# release. Renaming it also renames the game-info doc: WebHost looks for
+# docs/en_<secure_filename(game)>.md, i.e. docs/en_Ori_DE_Rando.md today.
+GAME_NAME = "Ori DE Rando"
 
 logger = logging.getLogger("oride")
 
@@ -57,6 +61,19 @@ class OriDELocation(Location):
 
 class OriDEWeb(WebWorld):
     theme = "grass"
+    # every option lives in the seed rolled on orirando.com; the yaml is
+    # downloaded, never hand-written, so send people there instead of to a
+    # player-options form (the FF1 pattern)
+    options_page = "https://orirando.com/"
+    game_info_languages = ["en"]  # -> docs/en_Ori_DE_Rando.md
+    tutorials = [Tutorial(
+        "Multiworld Setup Guide",
+        "A guide to playing Ori DE Rando in an Archipelago multiworld.",
+        "English",
+        "setup_en.md",
+        "setup/en",
+        ["orirando.com"],
+    )]
 
 
 class OriDEWorld(World):
@@ -78,6 +95,11 @@ class OriDEWorld(World):
                 "%s (%s): empty orirando data. Roll a seed with the Archipelago "
                 "game mode on orirando.com and use the yaml it emits." %
                 (self.player_name, GAME_NAME))
+        # ahead of every table read: a yaml from a newer server otherwise
+        # dies as a KeyError on a name this build never heard of
+        problem = data_version_problem(cfg)
+        if problem:
+            raise Exception("%s (%s): %s" % (self.player_name, GAME_NAME, problem))
         self.cfg = cfg
         self.reserved = list(cfg.get("reserved_locations", []))
         self.exported = dict(cfg.get("exported_items", {}))

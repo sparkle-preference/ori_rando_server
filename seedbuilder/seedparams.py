@@ -10,18 +10,32 @@ from seedbuilder.generator import SeedGenerator
 
 JSON_SHARE = lambda x: x.value if x != ShareType.EVENT else "World Events"
 
-def seed_mode_problem(params, mw_override=False):
+def seed_mode_problem(params, mw_override=False, ap_override=False):
     """User-facing reason a seed request's multiplayer mode can't be built,
     or None. Removed modes get a clear message instead of a generation 500;
     Multiworld creation is feature-flagged (the gameplay paths are always
     present but unreachable without games of this mode). mw_override (the
     mw=1 query param) bypasses the flag for testing -- it's a soft gate
-    against confusion, not a security boundary."""
+    against confusion, not a security boundary.
+
+    ap_override (the ap_test=1 query param) is the same shape for the
+    Archipelago alpha, one layer above the flag: ARCHIPELAGO is on in prod,
+    so without the opt-in every visitor could otherwise stumble into making
+    an AP seed. Only CREATION is gated. A game that already exists keeps
+    working -- its bridge routes and /generator/apyaml are ARCHIPELAGO-gated
+    only -- because the people playing a tester's seed never carry the
+    opt-in, and taking their running game away would be the actual harm."""
     from util import MULTIWORLD, ARCHIPELAGO
+    ap_mode = getattr(params, "ap_mode", False)
+    if ap_mode:
+        # ahead of the singleplayer early return: a K=1 AP world is a real AP
+        # seed (one Ori in someone else's room), it just isn't a multiworld
+        if not ARCHIPELAGO:
+            return "Archipelago seeds aren't available yet."
+        if not ap_override:
+            return "Archipelago seeds are in closed testing."
     if not params.sync.enabled:
         return None
-    if getattr(params, "ap_mode", False) and not ARCHIPELAGO:
-        return "Archipelago seeds aren't available yet."
     if params.sync.mode == MultiplayerGameType.MULTIWORLD:
         if not (MULTIWORLD or mw_override):
             return "Multiworld seeds aren't available yet."
@@ -37,7 +51,7 @@ def seed_mode_problem(params, mw_override=False):
                         return "Preplacement references player %s, but this game only has %s players." % (ref, params.players)
                 except ValueError:
                     return "Preplacement references invalid player %r." % ref
-    if getattr(params, "ap_mode", False):
+    if ap_mode:
         # AP mode is a multiworld conversion pass (K=1 skips this branch:
         # sync is disabled there and there's nothing to gate)
         if params.sync.mode != MultiplayerGameType.MULTIWORLD:
@@ -512,8 +526,46 @@ class SeedGenParams(ndb.Model):
             else:
                 flags = f"Sync{game_id}.{player},{flags}"
         outlines = [flags]
-        outlines += ["|".join(p for p in line if p) for line in self.get_seed_data(player, no_door_zone = True)]
+        seed_data = self.ap_named(self.get_seed_data(player, no_door_zone = True), player, game_id)
+        outlines += ["|".join(p for p in line if p) for line in seed_data]
         return "\n".join(outlines) + "\n"
+
+    def ap_names(self, player, game_id):
+        """This world's scouted Archipelago item names, {shadow slot: label}.
+        Empty until the game's room has been connected at least once (the
+        bridge learns them from LocationScouts), so a seed downloaded before
+        then keeps its "AP Item #n" placeholders until it is downloaded
+        again."""
+        if not self.ap_mode or not game_id:
+            return {}
+        try:
+            from ap_models import APNames
+            return APNames.load(game_id, player)
+        except Exception:
+            log.exception("couldn't load AP names for game %s world %s", game_id, player)
+            return {}
+
+    def ap_named(self, seed_data, player, game_id):
+        """Substitute scouted names into this world's reserved AP lines
+        ('<loc>|MW|<K+player>,<slot>,AP Item #n|<zone>'). Display only:
+        owner and slot -- everything the netcode reads -- are untouched, and
+        an unscouted slot keeps its placeholder."""
+        names = self.ap_names(player, game_id)
+        if not names:
+            return seed_data
+        from util import is_mw_manifest_loc
+        shadow = str(int(self.players) + int(player))
+        out = []
+        for line in seed_data:
+            loc, code, id, zone = line
+            if code == "MW" and not is_mw_manifest_loc(loc):
+                parts = id.split(",", 2)
+                if len(parts) == 3 and parts[0] == shadow and parts[1].isdigit():
+                    name = names.get(int(parts[1]))
+                    if name:
+                        line = (loc, code, "%s,%s,%s" % (parts[0], parts[1], name), zone)
+            out.append(line)
+        return out
 
     def get_seed_data(self, player=1, no_door_zone = True):
         player = int(player)
@@ -528,12 +580,14 @@ class SeedGenParams(ndb.Model):
             return self.spoilers[0]
         return self.spoilers[self.team_pid(player) - 1]
 
-    def get_aux_spoiler(self, exclude_types, by_zone, player=1):
+    def get_aux_spoiler(self, exclude_types, by_zone, player=1, game_id=None):
         from models import Pickup
         from util import is_mw_manifest_loc
         outlines = []
         seed_data = OrderedDict()
-        for coords, pcode, pid, _ in self.get_seed_data(player):
+        # game_id is optional and AP-only: with it the reserved AP lines list
+        # their real items instead of "AP Item #n", exactly like the seed
+        for coords, pcode, pid, _ in self.ap_named(self.get_seed_data(player), player, game_id):
             if pcode == "EN" or pcode in exclude_types or pcode + pid == "RB81":
                 continue
             if is_mw_manifest_loc(coords):
