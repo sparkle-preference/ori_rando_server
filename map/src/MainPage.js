@@ -1791,10 +1791,9 @@ onDrop = (files) => {
     });
     hasVar = (v) => this.state.variations.includes(v);
     isMultiworld = () => this.state.tracking && this.state.players > 1 && this.state.coopGameMode === "Multiworld";
-    // any solo mode can join someone else's AP room; only Race/Co-op with
-    // other Ori players can't. Tracking isn't required to *offer* it --
-    // turning AP on turns tracking on.
-    apAvailable = () => ap_enabled() && (this.state.players === 1 || this.isMultiworld());
+    // any solo mode can join an AP room; Race/Co-op with other Ori players
+    // and Bingo can't. Turning AP on turns tracking on.
+    apAvailable = () => ap_enabled() && !this.hasVar("Bingo") && (this.state.players === 1 || this.isMultiworld());
     onPath = (p) => () => this.setState({paths: this.state.paths.includes(p) ? this.state.paths.filter(x => x !== p) : this.state.paths.concat(p)}, () => this.setState(p => {return {pathMode: get_preset(p.paths)}}))
     onSType = (s) => () => this.state.shared.includes(s) ? this.setState({shared: this.state.shared.filter(x => x !== s)}) : this.setState({shared: this.state.shared.concat(s)})
     // a category can't be both mw-shared and ap-exported; the newest click wins

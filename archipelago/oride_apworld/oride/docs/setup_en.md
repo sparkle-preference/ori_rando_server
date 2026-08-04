@@ -45,7 +45,8 @@ generator will tell you which side to update — see [Troubleshooting](#troubles
 ## 2. Roll the Ori seed(s) on orirando.com
 
 1. Go to [orirando.com](https://orirando.com/).
-2. Pick your logic paths, key mode, goal and so on as you would for any Ori seed.
+2. Pick your logic paths, key mode, goal and so on as you would for any Ori seed — anything except the Bingo
+   goal, which Archipelago can't use.
 3. On the **Multiplayer Options** tab, set **Players** to the number of Ori players. 1 is fine — one Ori world
    inside somebody else's Archipelago session. With 2 or more, also set **Multiplayer Game Type** to
    **Multiworld**.

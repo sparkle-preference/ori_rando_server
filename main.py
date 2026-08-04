@@ -1006,13 +1006,18 @@ def reroll_seed():
     old_params = old_game.params.get().to_json()
     old_params['seed'] = str(random.randint(0, 1000000000))
     new_params = SeedGenParams.from_json(old_params).get()
+    # the overrides pass modes this user already has a game of; combinations
+    # that can't work at all still refuse
+    problem = seed_mode_problem(new_params, mw_override=True, ap_override=True)
+    if problem:
+        return text_resp(problem, 409)
     if not new_params.generate():
         return text_resp( "Failed to generate seed!", 500)
     game = Game.from_params(new_params)
     if Variation.BINGO in new_params.variations:
         url = "/bingo/board?game_id=%s&fromGen=1&seed=%s&bingoLines=%s" % (game.key.id(), new_params.seed, new_params.bingo_lines)
-        b = old_game.bingo_data.get()
-        if b.discovery and b.discovery > 0:
+        b = old_game.bingo_data.get() if old_game.bingo_data else None
+        if b and b.discovery and b.discovery > 0:
             url += "&disc=%s" % b.discovery
         return redirect(url)
     return redirect("%s?param_id=%s&game_id=%s" % (url_for('main_page'), new_params.key.id(), game.key.id()))
@@ -1632,6 +1637,9 @@ def add_bingo_to_game(game_id):
         if game.mode in [MultiplayerGameType.SPLITSHARDS]:
             return text_resp("splitshards bingo are not currently supported", 412)
         params = game.params.get()
+        # the roster wipe below would delete the AP shadow players the bridge grants through
+        if getattr(params, "ap_mode", False):
+            return text_resp("Archipelago games can't have a bingo board. Roll a separate bingo seed.", 412)
         seed = param_val("seed") or params.seed
         rand = random.Random()
         rand.seed(seed)

@@ -24,6 +24,9 @@ def seed_mode_problem(params, mw_override=False, ap_override=False):
             return "Archipelago seeds aren't available yet."
         if not ap_override:
             return "Archipelago seeds are in closed testing."
+        # a bingo board hands seeds out by board pid, which is not an AP world
+        if Variation.BINGO in (getattr(params, "variations", None) or []):
+            return "Archipelago seeds can't use the Bingo goal. Pick another goal mode, or roll the bingo separately."
         # without netcode the bridge has no way in: the client would find AP
         # slots and silently drop them
         if not (params.sync.enabled and params.tracking):

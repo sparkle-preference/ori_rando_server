@@ -749,6 +749,22 @@ class SeedModeProblemTests(unittest.TestCase):
         self.assertIsNotNone(self._check(False, self._params("Multiworld")))
         self.assertIsNone(self._check(True, self._params("Multiworld")))
 
+    def test_ap_bingo_blocked_even_with_overrides(self):
+        """/reroll passes both overrides (the user already has such a game);
+        a combination that can't work must still refuse."""
+        import util
+        from enums import Variation
+        from seedbuilder import seedparams
+        p = self._ap_params(players=1)
+        p.variations = [Variation.BINGO]
+        orig = util.ARCHIPELAGO
+        util.ARCHIPELAGO = True
+        try:
+            problem = seedparams.seed_mode_problem(p, mw_override=True, ap_override=True)
+            self.assertIn("Bingo", problem)
+        finally:
+            util.ARCHIPELAGO = orig
+
     def test_ap_needs_netcode(self):
         """Without sync the bridge has no way to grant: the client would find
         AP slots and drop them silently, so refuse to build one."""
@@ -793,6 +809,27 @@ class SeedModeProblemTests(unittest.TestCase):
             # non-AP seeds never see the gate
             self.assertIsNone(self._check(True, self._params("Multiworld")))
             self.assertIsNone(self._check(False, self._params("Shared", cloned=True)))
+        finally:
+            util.ARCHIPELAGO = orig
+
+    def test_ap_and_bingo_cant_be_combined(self):
+        """A bingo board hands its seeds out by board pid, which is unrelated
+        to the AP world that pid would have to be."""
+        import util
+        from enums import Variation
+        orig = util.ARCHIPELAGO
+        util.ARCHIPELAGO = True
+        try:
+            for players in (1, 2):
+                p = self._ap_params(players=players)
+                p.variations = [Variation.OPEN_WORLD, Variation.BINGO]
+                self.assertIn("Bingo", self._check(True, p, ap_override=True))
+            # neither half is affected on its own
+            self.assertIsNone(self._check(True, self._ap_params(), ap_override=True))
+            for mode in ("None", "Multiworld"):
+                bingo = self._params(mode)
+                bingo.variations = [Variation.BINGO]
+                self.assertIsNone(self._check(True, bingo))
         finally:
             util.ARCHIPELAGO = orig
 
@@ -1021,6 +1058,111 @@ class ApworldDownloadTests(unittest.TestCase):
         self.assertEqual(vals["ap_world_version"],
                          self.build_apworld.manifest()["world_version"])
         self.assertEqual(vals["ap_data_version"], DATA_VERSION)
+
+
+class BingoBoltOnGateTests(unittest.TestCase):
+    """/bingo/from_game clears the game's roster to seat bingo players, which
+    on an AP game deletes the shadow players the bridge grants through. The
+    board itself is stubbed out; what's under test is which games get one."""
+
+    @classmethod
+    def setUpClass(cls):
+        import google.auth.credentials
+        from google.cloud import ndb
+        import main
+        import models
+        cls.main, cls.models = main, models
+        cls._orig_client = models.client
+        models.client = ndb.Client(project="unit-test",
+                                   credentials=google.auth.credentials.AnonymousCredentials())
+        cls._orig_secret = main.app.secret_key
+        main.app.secret_key = main.app.secret_key or "ap-bingo-gate"
+        cls.client = main.app.test_client()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.models.client = cls._orig_client
+        cls.main.app.secret_key = cls._orig_secret
+
+    def setUp(self):
+        main, test = self.main, self
+        from enums import MultiplayerGameType
+
+        class _Sync(object):
+            mode = MultiplayerGameType.MULTIWORLD
+
+        class _Params(object):
+            ap_mode = False
+            seed = "boltongate"
+            variations = []
+            players = 2
+            sync = _Sync()
+
+            def flag_line(self):
+                return "boltongate"
+
+        class _ParamsKey(object):
+            def get(self):
+                return test.params
+
+        class _Player(object):
+            def __init__(self, pid):
+                self.key = type("K", (), {"id": lambda s, p=pid: p})()
+
+        class _Game(object):
+            key = object()
+            mode = MultiplayerGameType.MULTIWORLD
+            params = _ParamsKey()
+            bingo_data = None
+
+            def get_players(self):
+                return [_Player(1), _Player(2)]
+
+            def remove_player(self, pid):
+                test.removed.append(pid)
+
+            def put(self):
+                pass
+
+        class _Bingo(object):
+            def __init__(self, **kw):
+                self.square_count, self.bingo_count, self.event_log = 0, 3, []
+                self.__dict__.update(kw)
+
+            def get_json(self, first):
+                return {}
+
+            def put(self):
+                return "bingo-key"
+
+        self.params, self.removed, self.cards = _Params(), [], 0
+        self._orig = (main.Game, main.User, main.BingoGameData, main.BingoGenerator.get_cards)
+        main.Game = type("G", (), {"with_id": staticmethod(lambda gid: _Game())})
+        main.User = type("U", (), {"get": staticmethod(lambda: None)})
+        main.BingoGameData = _Bingo
+
+        def cards(*a, **k):
+            test.cards += 1
+            return []
+        main.BingoGenerator.get_cards = staticmethod(cards)
+
+    def tearDown(self):
+        (self.main.Game, self.main.User, self.main.BingoGameData,
+         self.main.BingoGenerator.get_cards) = self._orig
+
+    def test_ap_game_is_refused_before_the_roster_is_touched(self):
+        self.params.ap_mode = True
+        resp = self.client.get("/bingo/from_game/7")
+        self.assertEqual(resp.status_code, 412)
+        self.assertIn("Archipelago", resp.data.decode())
+        self.assertEqual(self.removed, [], "the gate let the roster wipe run")
+        self.assertEqual(self.cards, 0)
+
+    def test_non_ap_game_still_gets_its_board(self):
+        resp = self.client.get("/bingo/from_game/7")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(self.removed, [1, 2])
+        self.assertEqual(self.cards, 1)
 
 
 def check_mw_invariants(tc, seeds):

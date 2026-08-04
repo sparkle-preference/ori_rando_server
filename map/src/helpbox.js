@@ -228,7 +228,8 @@ const getHelpHelper = (category, option) => {
                     title = "Bingo"
                     lines = [
                         "The Bingo Goal mode is a completely different way of playing the Ori Randomizer. Instead of trying to beat the game, players must complete objectives on a randomly-generated bingo card",
-                        "This goal mode is not recommended for newer players due to the game knowledge that tends to be required, and is much easier with 2 monitors. If you're interested in trying it but unsure how it works, please join the discord and ask about it there!"
+                        "This goal mode is not recommended for newer players due to the game knowledge that tends to be required, and is much easier with 2 monitors. If you're interested in trying it but unsure how it works, please join the discord and ask about it there!",
+                        "Bingo can't be combined with Archipelago; roll them as separate seeds."
                     ]
                     break;
                 default:
@@ -690,6 +691,7 @@ const getHelpHelper = (category, option) => {
                         "Archipelago mode makes this Multiworld game part of an Archipelago session (archipelago.gg), a multi-game multiworld where every player can be playing a different randomized game.",
                         "Items in the selected Export Categories are handed to the Archipelago item pool: they can be found by any game in the session, and the locations that held them will contain other games' items instead. Everything else stays a normal Ori Multiworld.",
                         "The Seed tab will have an AP YAML download for each world; the session host needs all of them to generate the Archipelago session.",
+                        "Archipelago can't use the Bingo goal; roll bingo boards as their own seed.",
                         "Note: a category cannot be both Shared and Exported; selecting one will deselect the other.",
                     ]
                     break;
