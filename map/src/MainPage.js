@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import  {DropdownToggle, DropdownMenu, Dropdown, DropdownItem, Nav, NavLink, NavItem, Collapse,  Input, UncontrolledButtonDropdown, Button, 
         Row, FormFeedback, Col, Container, TabContent, TabPane, Modal, ModalHeader, ModalBody, ModalFooter, Media, ButtonGroup} from 'reactstrap';
 import { FaCog } from 'react-icons/fa';
@@ -373,7 +373,7 @@ onDrop = (files) => {
             if(byZone)
                 url.searchParams.set('by_zone', 1)
             // AP item lists resolve their real names from the game's room
-            if(this.state.inputApMode && this.state.gameId > 0)
+            if(this.state.inputApMode && ap_enabled() && this.state.gameId > 0)
                 url.searchParams.set('game_id', this.state.gameId)
         } else
             url = new URL(`/generator/spoiler/${paramId}`, window.document.URL);
@@ -701,20 +701,18 @@ onDrop = (files) => {
                     <Row className="p-2">
                         {mwShareButtons}
                     </Row>
-                    {apFlag && (
+                </Collapse>
+                <Collapse isOpen={this.apAvailable()}>
+                    <Row className="p-2">
+                        <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "apMode")} className="p-2">
+                            <Button block outline={!apMode} active={apMode} onClick={this.onApMode}>Archipelago</Button>
+                        </Col>
+                    </Row>
+                    <Collapse isOpen={apMode}>
                         <Row className="p-2">
-                            <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "apMode")} className="p-2">
-                                <Button block outline={!apMode} active={apMode} onClick={this.onApMode}>Archipelago</Button>
-                            </Col>
+                            {apExportButtons}
                         </Row>
-                    )}
-                    {apFlag && (
-                        <Collapse isOpen={apMode}>
-                            <Row className="p-2">
-                                {apExportButtons}
-                            </Row>
-                        </Collapse>
-                    )}
+                    </Collapse>
                 </Collapse>
             </TabPane>
         )
@@ -724,7 +722,7 @@ onDrop = (files) => {
     generateSeed = () => {
         let pMap = {"Race": "None", "None": "Default", "Co-op": "Shared", "World Events": "WorldEvents", "Cloned Seeds": "cloned", "Seperate Seeds": "disjoint"}
         let url = "/generator/build"
-        if(this.isMultiworld() && this.state.apMode && ap_enabled() && this.state.apExport.length === 0) {
+        if(this.apAvailable() && this.state.apMode && this.state.apExport.length === 0) {
             NotificationManager.error("Select at least one Archipelago export category", "Cannot generate seed!", 5000)
             this.setState({activeTab: 'multiplayer'})
             return
@@ -797,7 +795,7 @@ onDrop = (files) => {
             // ap_enabled() guards the payload too, not just the controls: an AP
             // params url rehydrates apMode into state, and a visitor without the
             // opt-in rerolling it should get a plain multiworld, not a 409
-            if(this.isMultiworld() && this.state.apMode && ap_enabled()) {
+            if(this.apAvailable() && this.state.apMode) {
                 json.apMode = true
                 json.apExport = this.state.apExport
                 url += url.includes("?") ? "&ap_test=1" : "?ap_test=1"
@@ -906,7 +904,7 @@ onDrop = (files) => {
             this.setState({
                 paramId: res.paramId, seedIsGenerating: false, inputPlayerCount: res.playerCount, inputSeed: res.seed,
                 flagLine: res.flagLine, gameId: res.gameId, seedIsBingo: res.doBingoRedirect || false,
-                inputApMode: this.isMultiworld() && this.state.apMode
+                inputApMode: this.apAvailable() && this.state.apMode
             }, this.updateUrl)
         }
     }
@@ -982,6 +980,9 @@ onDrop = (files) => {
                     mainButtonHelp = "openBingoBoard"
                 }
                 let spoilerHelp = (button) => this.state.spoilers ? `spoiler${button + (auxSpoiler.active ? "Aux" : "")}` : "noSpoilers"
+                // 12 columns: player 3 + seed 3 (+ yaml 2) (+ save spoiler, solo only)
+                let apCols = inputApMode && ap_enabled()
+                let viewWidth = isMulti ? (apCols ? "4" : "6") : (apCols ? "2" : "3")
                 return (
                     <Row key={`player-${p}`} className="align-content-center p-1 border-bottom">
                         <Col xs="3" className="pt-1 border" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "playerPanel"+this.multi())}>
@@ -994,20 +995,22 @@ onDrop = (files) => {
                         <Col xs="3" className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", mainButtonHelp)}>
                             <Button color="primary" block target="_blank" href={seedUrl}>{mainButtonText}</Button>
                         </Col>
-                        {inputApMode && ap_enabled() ? (
+                        {apCols ? (
                         <Col xs="2" className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "apYaml")}>
                             <Button color="primary" block target="_blank" href={"/generator/apyaml/"+paramId+"/"+p}>AP YAML</Button>
                         </Col>
                         ) : null}
-                        <Col xs={inputApMode && ap_enabled() ? "2" : "3"} className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", spoilerHelp("View"))}>
+                        <Col xs={viewWidth} className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", spoilerHelp("View"))}>
                             <ButtonGroup>
                                 <Button color={spoilers ? "primary" : "secondary"} disabled={!spoilers} href={spoilerUrl} target="_blank" block >{spoilerText}</Button>
                                 <Button color={spoilers ? "success" : "secondary"} disabled={!spoilers} onClick={() => this.setState({auxModal: true})} target="_blank"><FaCog/></Button>
                             </ButtonGroup>
                         </Col>
-                        <Col xs={inputApMode && ap_enabled() ? "2" : "3"} className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab",spoilerHelp("Download"))}>
+                        {isMulti ? null : (
+                        <Col xs={apCols ? "2" : "3"} className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab",spoilerHelp("Download"))}>
                             <Button color={spoilers ? "primary" : "secondary"} disabled={!spoilers} href={downloadSpoilerUrl} target="_blank" block >Save Spoiler</Button>
                         </Col>
+                        )}
                     </Row>
                 )
             })
@@ -1728,6 +1731,9 @@ onDrop = (files) => {
     });
     hasVar = (v) => this.state.variations.includes(v);
     isMultiworld = () => this.state.tracking && this.state.players > 1 && this.state.coopGameMode === "Multiworld";
+    // one Ori world in someone else's room is a normal AP setup, so this
+    // doesn't require the multiworld dropdown the way isMultiworld does
+    apAvailable = () => ap_enabled() && this.state.tracking && (this.state.players === 1 || this.isMultiworld());
     onPath = (p) => () => this.setState({paths: this.state.paths.includes(p) ? this.state.paths.filter(x => x !== p) : this.state.paths.concat(p)}, () => this.setState(p => {return {pathMode: get_preset(p.paths)}}))
     onSType = (s) => () => this.state.shared.includes(s) ? this.setState({shared: this.state.shared.filter(x => x !== s)}) : this.setState({shared: this.state.shared.concat(s)})
     // a category can't be both mw-shared and ap-exported; the newest click wins
@@ -1735,7 +1741,8 @@ onDrop = (files) => {
         ? {mwShared: prev.mwShared.filter(x => x !== s)}
         : {mwShared: prev.mwShared.concat(s), apExport: prev.apMode ? prev.apExport.filter(c => apShareNames[c] !== s) : prev.apExport})
     onApMode = () => this.setState(prev => prev.apMode ? {apMode: false}
-        : {apMode: true, mwShared: prev.mwShared.filter(s => !prev.apExport.map(c => apShareNames[c]).includes(s))})
+        : {apMode: true, tracking: true,  // the bridge delivers over netcode
+           mwShared: prev.mwShared.filter(s => !prev.apExport.map(c => apShareNames[c]).includes(s))})
     onApExport = (cat) => () => this.setState(prev => prev.apExport.includes(cat)
         ? {apExport: prev.apExport.filter(x => x !== cat)}
         : {apExport: prev.apExport.concat(cat), mwShared: prev.mwShared.filter(s => s !== apShareNames[cat])})

@@ -148,8 +148,7 @@ def game_complete(game_id, player_id):
 # --- Archipelago link management (ARCHIPELAGO flag; AP-mode games only) ---
 
 def _host_is_local(host):
-    """Loopback/LAN addresses resolve to the server itself, never the user's
-    machine -- the bridge dials out from orirando, not from their browser."""
+    """The bridge dials from orirando, so these never reach the user's PC."""
     name = host.strip().lower()
     if name in ("localhost", "localhost.localdomain") or name.endswith(".local"):
         return True
@@ -192,9 +191,7 @@ def ap_connect(game_id, payload):
     link.enabled = True
     link.status = "pending"
     if retarget:
-        # keep the last failure visible while someone retries the same room;
-        # a different room's errors start clean
-        link.last_error = None
+        link.last_error = None  # retrying the same room keeps its diagnosis
     link.put()
     # lazy-start the room bridge (ws.py WS_PUSH pattern: request-path start
     # only; gunicorn --preload silently kills import-time threads)

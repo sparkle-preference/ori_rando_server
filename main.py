@@ -1,4 +1,4 @@
-# py imports
+﻿# py imports
 import random
 import json
 from collections import Counter, defaultdict
@@ -24,7 +24,7 @@ from enums import MultiplayerGameType, ShareType, Variation
 from models import ndb_wsgi_middleware, Game, Seed, User, BingoGameData, BingoEvent, BingoTeam, CustomLogic, trees_by_coords, LegacyUser, bingo_lock
 from bingo import BingoGenerator
 from cache import Cache
-from util import coord_correction_map, clone_entity, all_locs, picks_by_type_generator, param_val, param_flag, debug, template_root, VER, MIN_VER, BETA_VER, game_list_html, version_check, template_vals, layout_json, bfield_checksum, netperf, NETPERF_TAG, json_default, seed_sync_id, is_mw_manifest_loc, BATCH_GRANTS, HIST_ON_PLAYER, SPLIT_CACHE, BINGO_V2, CHUNKED_LOGS, MULTIWORLD, WEBSOCKETS, WS_PUSH, ARCHIPELAGO
+from util import coord_correction_map, clone_entity, all_locs, picks_by_type_generator, param_val, param_flag, param_true, debug, template_root, VER, MIN_VER, BETA_VER, game_list_html, version_check, template_vals, layout_json, bfield_checksum, netperf, NETPERF_TAG, json_default, seed_sync_id, is_mw_manifest_loc, BATCH_GRANTS, HIST_ON_PLAYER, SPLIT_CACHE, BINGO_V2, CHUNKED_LOGS, MULTIWORLD, WEBSOCKETS, WS_PUSH, ARCHIPELAGO
 from reachable import Map, PlayerState
 from pickups import Pickup, Skill, AbilityCell, HealthCell, EnergyCell, Multiple
 
@@ -325,7 +325,7 @@ def my_games():
 
 # Client-netcode routes are thin HTTP adapters over the transport-neutral
 # session layer in netcode.py: parse transport params, delegate, wrap
-# (status, body) — nothing else. New netcode behavior belongs in netcode.py.
+# (status, body) â€” nothing else. New netcode behavior belongs in netcode.py.
 @app.route('/netcode/game/<int:game_id>/player/<int:player_id>/found/<coords>/<kind>/<path:id>/')
 @app.route('/netcode/game/<int:game_id>/player/<int:player_id>/found/<coords>/<kind>/<path:id>')
 def netcode_found_pickup(game_id, player_id, coords, kind, id):
@@ -459,7 +459,7 @@ def gen_seed_from_params():
     params = param_key.get()
     # ap_test=1: the alpha opt-in, sent by the generator page when the visitor
     # opted in. Gates creation only; existing AP games keep their bridge.
-    problem = seed_mode_problem(params, ap_override=param_flag("ap_test"))
+    problem = seed_mode_problem(params, ap_override=param_true("ap_test"))
     if problem:
         return text_resp(problem, 409)
     if not params.generate():
@@ -482,7 +482,7 @@ def gen_seed_from_url():
     verbose_paths = param_val("verbose_paths") is not None
     if param_key:
         params = param_key.get()
-        problem = seed_mode_problem(params, ap_override=param_flag("ap_test"))
+        problem = seed_mode_problem(params, ap_override=param_true("ap_test"))
         if problem:
             return json_resp({"error": problem}, 409)
         if params.generate(preplaced={}):

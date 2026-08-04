@@ -749,6 +749,23 @@ class SeedModeProblemTests(unittest.TestCase):
         self.assertIsNotNone(self._check(False, self._params("Multiworld")))
         self.assertIsNone(self._check(True, self._params("Multiworld")))
 
+    def test_ap_needs_netcode(self):
+        """Without sync the bridge has no way to grant: the client would find
+        AP slots and drop them silently, so refuse to build one."""
+        import util
+        orig = util.ARCHIPELAGO
+        util.ARCHIPELAGO = True
+        try:
+            solo = self._ap_params(players=1, enabled=False)
+            self.assertIn("tracking", self._check(True, solo, ap_override=True))
+            tracked = self._ap_params(players=1)
+            tracked.tracking = False
+            self.assertIn("tracking", self._check(True, tracked, ap_override=True))
+            # K=1 with netcode on is a legitimate AP seed
+            self.assertIsNone(self._check(True, self._ap_params(players=1), ap_override=True))
+        finally:
+            util.ARCHIPELAGO = orig
+
     def test_ap_mode_gated_by_flag(self):
         import util
         p = self._ap_params()

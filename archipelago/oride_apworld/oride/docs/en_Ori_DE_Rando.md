@@ -49,8 +49,10 @@ stay inside Ori too.
 
 ## Which items can appear in other players' worlds?
 
-Any item from the exported categories above. Nothing else — an item type you did not export never leaves the
-Ori side of the session.
+Every item from the exported categories, plus anything that a multi-world Ori game happened to place in
+another Ori player's world: those cross-world items have to travel through Archipelago too, whatever their
+category. In a 1-player Ori game only the exported categories leave. In a multi-player Ori game, expect
+cells, keystones and spirit light in the pool as well — often most of it.
 
 ## What does another world's item look like in Ori DE Rando?
 

@@ -12,28 +12,22 @@ JSON_SHARE = lambda x: x.value if x != ShareType.EVENT else "World Events"
 
 def seed_mode_problem(params, mw_override=False, ap_override=False):
     """User-facing reason a seed request's multiplayer mode can't be built,
-    or None. Removed modes get a clear message instead of a generation 500;
-    Multiworld creation is feature-flagged (the gameplay paths are always
-    present but unreachable without games of this mode). mw_override (the
-    mw=1 query param) bypasses the flag for testing -- it's a soft gate
-    against confusion, not a security boundary.
-
-    ap_override (the ap_test=1 query param) is the same shape for the
-    Archipelago alpha, one layer above the flag: ARCHIPELAGO is on in prod,
-    so without the opt-in every visitor could otherwise stumble into making
-    an AP seed. Only CREATION is gated. A game that already exists keeps
-    working -- its bridge routes and /generator/apyaml are ARCHIPELAGO-gated
-    only -- because the people playing a tester's seed never carry the
-    opt-in, and taking their running game away would be the actual harm."""
+    or None. mw_override (mw=1) and ap_override (ap_test=1) are soft gates
+    against stumbling in, not security boundaries. Both gate CREATION only:
+    existing games keep their routes, since the people playing a tester's
+    seed never carry the opt-in."""
     from util import MULTIWORLD, ARCHIPELAGO
     ap_mode = getattr(params, "ap_mode", False)
     if ap_mode:
-        # ahead of the singleplayer early return: a K=1 AP world is a real AP
-        # seed (one Ori in someone else's room), it just isn't a multiworld
+        # ahead of the singleplayer early return: K=1 AP is still an AP seed
         if not ARCHIPELAGO:
             return "Archipelago seeds aren't available yet."
         if not ap_override:
             return "Archipelago seeds are in closed testing."
+        # without netcode the bridge has no way in: the client would find AP
+        # slots and silently drop them
+        if not (params.sync.enabled and params.tracking):
+            return "Archipelago seeds need tracking (the room talks to the game over netcode)."
     if not params.sync.enabled:
         return None
     if params.sync.mode == MultiplayerGameType.MULTIWORLD:
@@ -52,10 +46,8 @@ def seed_mode_problem(params, mw_override=False, ap_override=False):
                 except ValueError:
                     return "Preplacement references invalid player %r." % ref
     if ap_mode:
-        # AP mode is a multiworld conversion pass (K=1 skips this branch:
-        # sync is disabled there and there's nothing to gate)
         if params.sync.mode != MultiplayerGameType.MULTIWORLD:
-            return "Archipelago seeds with multiple players use Multiworld mode."
+            return "Archipelago seeds use Multiworld mode."
         # a shared singleton is generated once for everyone; exporting it
         # would hand ONE copy to the AP pool while every world's logic
         # expects the netcode fan-out
@@ -133,11 +125,16 @@ class MultiplayerOptions(ndb.Model):
     @staticmethod
     def from_json(json):
         opts = MultiplayerOptions()
-        opts.enabled = json.get("players", 1) > 1
+        # a lone Ori world in someone else's AP room still needs the netcode:
+        # the bridge delivers through it
+        ap_mode = bool(json.get("apMode", False))
+        opts.enabled = json.get("players", 1) > 1 or ap_mode
         opts.teams = json.get("teams", {})
         if opts.enabled:
             jsonMode = json.get("coopGameMode", "None")
             opts.mode = JSON_MODE_GAME[jsonMode] if jsonMode in JSON_MODE_GAME else MultiplayerGameType(jsonMode)
+            if ap_mode:
+                opts.mode = MultiplayerGameType.MULTIWORLD  # SyncMode 5: the client only reads slot bitfields there
             # cloned/teams are SHARED-mode concepts; multiworld players each
             # have their own world (a stray teams={1: everyone} here made
             # every player download player 1's seed -- game 133746)
@@ -265,7 +262,7 @@ class SeedGenParams(ndb.Model):
         params.exp_pool = json.get("expPool", 10000)
         params.balanced = json.get("fillAlg") != "Classic"
         params.players = json.get("players", 1)
-        params.tracking = json.get("tracking")
+        params.tracking = json.get("tracking") or bool(json.get("apMode", False))
         params.frag_count = json.get("fragCount", 30)
         params.frag_req = json.get("fragReq", 20)
         params.relic_count = json.get("relicCount", 8)

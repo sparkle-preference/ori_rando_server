@@ -1,42 +1,16 @@
 """Archipelago room bridge: one outbound websocket per (game, world).
 
-Each AP-mode world w gets a daemon thread that connects to the room as slot
-'Ori<w>' and translates between AP and the game's own multiworld fabric:
+Each AP-mode world w runs a daemon thread joining the room as slot 'Ori<w>':
+shadow player K+w's slot bitfield is polled for outgoing LocationChecks,
+ReceivedItems fill world w's manifest slots (lowest unused match, monotone
+and idempotent so a full replay is safe), the complete path sends
+StatusUpdate{CLIENT_GOAL}, and LocationScouts resolves the real names the
+seed ships as "AP Item #n". Scouting is best-effort.
 
-  outgoing  shadow player K+w's slot bitfield (found_pickup's durable outbox)
-            is polled ~2s; newly-set bits diff against the room's
-            checked_locations and go out as LocationChecks. Poll-only: no
-            found_pickup nudge (push.py's single handler slot belongs to ws).
-  incoming  ReceivedItems index order deterministically fills each item into
-            the LOWEST unused matching manifest slot of world w, then
-            mark_slots_txn on REAL player w -- monotone and idempotent, so
-            the full replay a fresh connect triggers is always safe. recv
-            progress persists on APLink once per message (batched; per-item
-            puts would contend with the owner's 1 Hz tick).
-  goal      netcode's complete path records the world on APLink.goal_worlds
-            (durable) and wakes the thread; the session sends
-            StatusUpdate{CLIENT_GOAL} once per connection.
-  names     at seed-gen time nobody knows what AP's fill put in a reserved
-            slot, so the seed ships "AP Item #n". Once connected the room
-            does know: LocationScouts (create_as_hint 0, information only)
-            -> LocationInfo -> GetDataPackage for the owning slots' games ->
-            APNames, which get_seed substitutes into the reserved lines.
-            Best-effort throughout: a room that never answers just leaves
-            the placeholders in place.
-
-LAZY-START ONLY (the ws.py WS_PUSH lesson: gunicorn --preload forks kill
-import-time threads silently). Threads arm from the ap/connect route and from
-heal(), a memoized request-path hook with is_alive self-heal; importing this
-module must never start a thread. Single-instance deployment assumed (see
-BINGO_V2 in util.py); a second process would just run a redundant bridge --
-checks and grants are idempotent, so that is wasteful but sound.
-
-Wire facts verified against Archipelago 0.6.7 MultiServer.py: frames are JSON
-arrays of {cmd} dicts; RoomInfo greets; Connect needs password/game/name/
-uuid/version/tags/items_handling (0b011: remote + own-world items -- our own
-exported items that land in our own AP slots must come back through
-ReceivedItems); a fresh Connected auto-resends ReceivedItems from index 0;
-index mismatch -> Sync; Connected/RoomUpdate carry checked_locations.
+LAZY-START ONLY -- importing this module must never start a thread (gunicorn
+--preload forks kill import-time threads; see ws.py). Threads arm from the
+ap/connect route and heal(). Wire shapes follow Archipelago 0.6.7
+MultiServer.py. Design notes: prior_notes/ARCHIPELAGO_NOTES.md.
 """
 import json
 import logging as log
@@ -63,9 +37,7 @@ POLL_SECS = 2.0          # shadow-outbox poll cadence
 RECV_TIMEOUT = 1.0
 LINK_RECHECK_SECS = 15.0  # re-read APLink (disable/goal from other processes)
 HANDSHAKE_TIMEOUT = 20.0
-CONNECT_TIMEOUT = 10.0   # a room whose port drops packets otherwise holds the
-                         # thread for the OS SYN ladder (~4 min) with the UI
-                         # stuck on "pending" the whole time
+CONNECT_TIMEOUT = 10.0   # the OS SYN ladder is ~4 min
 HEAL_TTL = 45.0          # request-path memo: non-AP games pay a dict lookup
 BACKOFF_MIN, BACKOFF_MAX = 1.0, 60.0
 
@@ -290,8 +262,7 @@ def _dp_put(game, checksum, item_name_to_id):
 
 
 def _preflight(host, port):
-    """simple_websocket has no connect timeout of its own, so reach the port
-    ourselves first and fail fast with an address the UI can show."""
+    """simple_websocket has no connect timeout, so reach the port ourselves."""
     try:
         socket.create_connection((host, port), timeout=CONNECT_TIMEOUT).close()
     except OSError as e:

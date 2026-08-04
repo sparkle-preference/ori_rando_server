@@ -50,14 +50,16 @@ The seed is rolled **once, for all Ori players in the session**. One person does
    until you visit `https://orirando.com/?ap_test=1` once — that browser then keeps them until you visit
    `https://orirando.com/?ap_test=0`. If you see no Archipelago option, that is why.
 2. Pick your logic paths, key mode, goal and so on as you would for any Ori seed.
-3. On the **Multiplayer Options** tab, set **Players** to the number of Ori players (1 is fine — one Ori world
-   inside somebody else's Archipelago session) and **Multiplayer Game Type** to **Multiworld**.
+3. On the **Multiplayer Options** tab, set **Players** to the number of Ori players. 1 is fine — one Ori world
+   inside somebody else's Archipelago session. With 2 or more, also set **Multiplayer Game Type** to
+   **Multiworld**.
 4. Press the **Archipelago** button that appears.
 5. Choose which kinds of item get handed to Archipelago's pool with the **Export …** buttons:
    *Export Skills*, *Export Teleporters* and *Export World Events* are on by default; *Export Cells* and
-   *Export Stones* are optional. Everything you do not export stays inside the Ori multiworld exactly as
-   normal. A category cannot be both Shared and Exported, so selecting one deselects the other.
-6. Hit **Generate**. You land on the **Seed** tab, and the page URL now carries `param_id` and `game_id` —
+   *Export Stones* are optional. A category cannot be both Shared and Exported, so selecting one deselects
+   the other. With more than one Ori player, items that land in another Ori world travel through Archipelago
+   as well regardless of category — so a multi-player game exports more than you picked here.
+6. Hit **Generate Seed**. You land on the **Seed** tab, and the page URL now carries `param_id` and `game_id` —
    bookmark it, it is the page you and the other Ori players come back to.
 
 ## 3. Download the yamls
@@ -90,8 +92,9 @@ the one requirement that trips people up.
   port the room page shows you (something like `archipelago.gg:38281`). This always works.
 * **Self-hosted** — you can run `ArchipelagoServer` yourself, but the port you host on has to be forwarded to
   the internet on your router, and you have to give out your public IP. `localhost`, `127.0.0.1`, LAN
-  addresses and `.local` names are rejected outright: orirando.com's server cannot reach your PC through
-  them, and a rejected address is better than a connection that hangs.
+  the internet. `localhost`, `127.0.0.1`, literal LAN addresses and `.local` names are rejected outright:
+  orirando.com's server cannot reach your PC through them. A hostname that resolves to a LAN address is not
+  caught, but the connection attempt will fail within ten seconds and say so.
 
 ## 6. Connect the room to the Ori game
 
@@ -131,7 +134,7 @@ settings, exactly like any other game.
 
 ## Troubleshooting
 
-**"this seed's yaml needs data version N" / "this oride.apworld needs at least N"** — the apworld build and
+**"it was made for … data version N" / "this oride.apworld needs at least N"** — the apworld build and
 the yaml are from different generations of the item tables. The message says which side is behind: either get
 the newer `oride.apworld` from whoever rolled the seed, or re-download the yaml with the AP YAML button (a
 fresh yaml for the same seed is fine).

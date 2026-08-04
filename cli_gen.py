@@ -337,7 +337,7 @@ class CLISeedParams(object):
 
         if self.players > 1 or self.tracking:
             self.sync_id = args.sync_id or int(time.time() * 1000 % 1073741824)
-        if self.players > 1:
+        if self.players > 1 or args.ap_export:
             self.sync.enabled = True
             self.sync.mode = MultiplayerGameType.mk(args.share_mode) or MultiplayerGameType.SIMUSOLO
             raw_shared = args.shared_items
@@ -365,8 +365,11 @@ class CLISeedParams(object):
             if bad:
                 parser.error("unknown --ap-export categories: %s (valid: %s)" % (
                     ",".join(bad), ",".join(EXPORTABLE_CATEGORIES)))
-            if self.players > 1 and self.sync.mode != MultiplayerGameType.MULTIWORLD:
-                parser.error("--ap-export needs --share-mode multiworld when --players > 1")
+            # any player count: the client only reads slot bitfields in
+            # multiworld sync mode, so a non-MW AP seed can never be granted to
+            if self.sync.mode != MultiplayerGameType.MULTIWORLD:
+                parser.error("--ap-export needs --share-mode multiworld")
+            self.sync.enabled = True
             share_to_ap = {"Skills": "skills", "Teleporters": "teleporters", "WorldEvents": "events"}
             clash = sorted(set(share_to_ap[s.value] for s in self.sync.shared
                                if share_to_ap.get(s.value) in self.ap_export))
