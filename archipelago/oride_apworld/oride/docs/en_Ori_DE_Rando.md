@@ -35,12 +35,12 @@ Items are the Ori pickups from the categories you chose to export. What can appe
 
 * **Skills** — Bash, Charge Flame, Wall Jump, Stomp, Double Jump, Charge Jump, Climb, Glide, Dash, Grenade,
   Spirit Flame
-* **Teleporters** — Grove, Swamp, Grotto, Valley, Forlorn, Sorrow, Ginso, Horu, Blackroot, Glades
+* **Teleporters** — Grove, Swamp, Grotto, Valley, Forlorn, Sorrow, Ginso, Horu, Blackroot, Glades, plus the
+  Alt+R warp pickups a seed rolls, named by destination
 * **World Events** — Water Vein, Gumon Seal, Sunstone, Clean Water, Wind Restored, Warmth Returned, and their
   shard/fragment forms in the seed modes that use them
 * **Cells** — Health Cell, Energy Cell, Ability Cell
 * **Stones** — Mapstone, and the per-area keystones of Keysanity seeds
-* **Warps** — the Alt+R warp pickups a seed rolls, named by destination
 * **Upgrades** — the bonus pickups: Attack Upgrade, Health/Energy Regeneration, Mega Health, Mega Energy, the
   bonus skills, and the rest of the bonus pools
 * **Spirit light** — an exact amount per pickup, which the generator also uses to keep each world's

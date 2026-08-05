@@ -39,7 +39,7 @@ const fassDefaultsFor = (world) => [2, 919772, -1560272, 799776, -120208].map(co
 const apDefaultExport = ["skills", "teleporters", "events"];
 // mw share name for each ap export category that can clash with it (shared
 // singletons can't also go to the AP pool)
-const apShareNames = {"skills": "Skills", "teleporters": "Teleporters", "warps": "Teleporters", "events": "World Events", "upgrades": "Upgrades"};
+const apShareNames = {"skills": "Skills", "teleporters": "Teleporters", "events": "World Events", "upgrades": "Upgrades"};
 const getPool = (pool_name) => { switch(pool_name) {
     case "Standard": 
         return [
@@ -425,7 +425,7 @@ onDrop = (files) => {
                     <Col xs={isMW ? leftCol : leftCol+1}>
                         <Select theme={select_theme} className="align-middle" options={locOptions.filter(l => l.value === loc.value || !fassUsed.has(l.value))} value={loc} onChange={(newLoc) => this.onFassList(i, {loc: newLoc})}></Select>
                     </Col><Col xs={rightCol-1}>
-                        <PickupSelect value={item} updater={(code, _) => this.onFassList(i, {item: code})}/>
+                        <PickupSelect value={item} updater={(code, _) => this.onFassList(i, {item: code})} allowGroup/>
                     </Col>
                     {isMW ? ownerDropdown(i, loc, world || 1, owner) : null}
             </Row>
@@ -451,7 +451,7 @@ onDrop = (files) => {
                     <Col xs={leftCol+1}>
                     <Select theme={select_theme} className="align-middle" options={locOptions.filter(l => !fassUsed.has(l.value))} value={{label: 'Add new Placement:', value: -1}} onChange={(newLoc) => this.addToFassList({loc: newLoc, item: "NO|1"})}></Select>
                     </Col><Col xs={rightCol-1}>
-                        <PickupSelect ref="fassTabula" value={"NO|1"} updater={(code, _) => this.addToFassList({item: code})}/>
+                        <PickupSelect ref="fassTabula" value={"NO|1"} updater={(code, _) => this.addToFassList({item: code})} allowGroup/>
                     </Col>
             </Row>
         ))
@@ -645,7 +645,7 @@ onDrop = (files) => {
         let apFlag = ap_enabled()
         // ap export categories are server-side names; no Keystones (generic
         // keys never export; 'stones' covers Mapstones + keysanity zone keys)
-        let apExportButtons = [["skills", "Skills"], ["teleporters", "Teleporters"], ["events", "World Events"], ["cells", "Cells"], ["stones", "Stones"], ["warps", "Warps"], ["upgrades", "Upgrades"]].map(([cat, label]) => (
+        let apExportButtons = [["skills", "Skills"], ["teleporters", "Teleporters"], ["events", "World Events"], ["cells", "Cells"], ["stones", "Stones"], ["upgrades", "Upgrades"]].map(([cat, label]) => (
             <Col xs="4" key={`ap-export-${cat}`} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("AP Export Categories", cat)} className="p-2">
                 <Button block outline={!apExport.includes(cat)} onClick={this.onApExport(cat)}>Export {label}</Button>
             </Col>
@@ -952,7 +952,9 @@ onDrop = (files) => {
         else 
         {
             let {inputPlayerCount, gameId, seedIsBingo, paramId, flagLine, spoilers, inputSeed, bingoLines, auxSpoiler, inputApMode} = this.state
-            let spoilerText = auxSpoiler.active ? "Item List" : "View Spoiler"
+            let spoilerText = auxSpoiler.active
+                ? (auxSpoiler.download ? "Save Item List" : "Item List")
+                : (auxSpoiler.download ? "Save Spoiler" : "View Spoiler")
             let raw = flagLine.split('|');
             let seedStr = raw.pop();
             let flags = raw.join("").split(",");
@@ -970,8 +972,7 @@ onDrop = (files) => {
                     seedParams.push(`game_id=${gameId}`)
                 let seedUrl = "/generator/seed/"+paramId
                 let isMulti = inputPlayerCount > 1
-                let spoilerUrl = this.spoilerUrl(paramId, false, isMulti, p) 
-                let downloadSpoilerUrl = this.spoilerUrl(paramId, true, isMulti, p)
+                let spoilerUrl = this.spoilerUrl(paramId, auxSpoiler.download, isMulti, p)
                 if(inputPlayerCount > 1)
                     seedParams.push("player_id="+p);
                 let mainButtonText = "Download Seed"
@@ -987,12 +988,10 @@ onDrop = (files) => {
                     mainButtonHelp = "openBingoBoard"
                 }
                 let spoilerHelp = (button) => this.state.spoilers ? `spoiler${button + (auxSpoiler.active ? "Aux" : "")}` : "noSpoilers"
-                // 12 columns: player 3 + seed 3 (+ yaml 2) (+ save spoiler, solo only)
+                // 12 columns: player 3 + seed 3 + spoiler, with the yaml
+                // button splitting the remainder evenly
                 let apCols = inputApMode && ap_enabled()
-                // no Save Spoiler alongside AP YAML: the cog's modal downloads
-                // (12 cols: player 3 + seed 3 + yaml 2 + view + save)
-                let saveCol = !isMulti && !apCols
-                let viewWidth = saveCol ? "3" : (apCols ? "4" : "6")
+                let viewWidth = apCols ? "3" : "6"
                 return (
                     <Row key={`player-${p}`} className="align-content-center p-1 border-bottom">
                         <Col xs="3" className="pt-1 border" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "playerPanel"+this.multi())}>
@@ -1006,21 +1005,16 @@ onDrop = (files) => {
                             <Button color="primary" block target="_blank" href={seedUrl}>{mainButtonText}</Button>
                         </Col>
                         {apCols ? (
-                        <Col xs="2" className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "apYaml")}>
+                        <Col xs="3" className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "apYaml")}>
                             <Button color="primary" block target="_blank" href={"/generator/apyaml/"+paramId+"/"+p}>AP YAML</Button>
                         </Col>
                         ) : null}
-                        <Col xs={viewWidth} className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", spoilerHelp("View"))}>
+                        <Col xs={viewWidth} className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", spoilerHelp(auxSpoiler.download ? "Download" : "View"))}>
                             <ButtonGroup>
                                 <Button color={spoilers ? "primary" : "secondary"} disabled={!spoilers} href={spoilerUrl} target="_blank" block >{spoilerText}</Button>
                                 <Button color={spoilers ? "success" : "secondary"} disabled={!spoilers} onClick={() => this.setState({auxModal: true, auxPlayer: p})} target="_blank"><FaCog/></Button>
                             </ButtonGroup>
                         </Col>
-                        {saveCol ? (
-                        <Col xs="3" className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab",spoilerHelp("Download"))}>
-                            <Button color={spoilers ? "primary" : "secondary"} disabled={!spoilers} href={downloadSpoilerUrl} target="_blank" block >Save Spoiler</Button>
-                        </Col>
-                        ) : null}
                     </Row>
                 )
             })
@@ -1630,6 +1624,26 @@ onDrop = (files) => {
                                 </UncontrolledButtonDropdown>
                             </Col>
                         </Row>
+                        <Row>
+                            <Col xs="4" className="text-center p-1 border">
+                                <Cent>Button Action</Cent>
+                            </Col>
+                            <Col xs="6">
+                                <UncontrolledButtonDropdown nav inNavbar>
+                                    <DropdownToggle color="primary" nav caret>
+                                    {auxSpoiler.download ? "Download" : "View"}
+                                    </DropdownToggle>
+                                    <DropdownMenu right>
+                                        <DropdownItem active={!auxSpoiler.download} onClick={() => this.onSpoilerSettings({download: false})}>
+                                            View
+                                        </DropdownItem>
+                                        <DropdownItem active={auxSpoiler.download} onClick={() => this.onSpoilerSettings({download: true})}>
+                                            Download
+                                        </DropdownItem>
+                                    </DropdownMenu>
+                                </UncontrolledButtonDropdown>
+                            </Col>
+                        </Row>
                         <Collapse isOpen={auxSpoiler.active}>
                         <Row>
                             <Col xs="4" className="text-center p-1 border">
@@ -1663,8 +1677,6 @@ onDrop = (files) => {
                     </Container>
                   </ModalBody>
                   <ModalFooter style={inputStyle}>
-                    <Button color={this.state.spoilers ? "primary" : "secondary"} disabled={!this.state.spoilers} target="_blank"
-                            href={this.spoilerUrl(this.state.paramId, true, this.state.inputPlayerCount > 1, this.state.auxPlayer || 1)}>Save Spoiler</Button>
                     <Button color="secondary" onClick={this.closeModal}>Close</Button>
                   </ModalFooter>
                 </Modal>
@@ -1711,7 +1723,7 @@ onDrop = (files) => {
                         fragCount: 30, fragReq: 20, relicCount: 8, loader: get_random_loader(), paramId: paramId, seedTabExists: seedTabExists, 
                         reopenUrl: "", flagLine: "", fassList: fassDefaultsFor(1), fassWorld: 1, goalModesOpen: false, 
                         spoilers: true, spawnWeights: [1.0,2.0,2.0,2.0,1.5,2.0,0.1,0.1,0.25,0.5], seedIsBingo: false, bingoLines: 3, 
-                        auxModal: false, auxPlayer: 1, auxSpoiler: {active: false, byZone: false, exclude: ["EX","KS", "AC", "EC", "HC", "MS"]},
+                        auxModal: false, auxPlayer: 1, auxSpoiler: {active: false, byZone: false, download: false, exclude: ["EX","KS", "AC", "EC", "HC", "MS"]},
                         stupidMode: stupidMode, customLogic: false, stupidWarn: stupidWarn, verboseSpoiler: get_param("verbose") === "True"};
         
         if(url.searchParams.has("fromBingo")) {

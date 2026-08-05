@@ -93,7 +93,8 @@ class CLISeedParams(object):
         parser.add_argument("--balanced", help="Reduce the value of newly discovered locations for progression placements", action="store_true")
         parser.add_argument("--anti-bk-bias", help="Multiworld only: 0.0-1.0, bias progression toward the world with the fewest reachable checks", type=float, default=0.0)
         parser.add_argument("--fass", help="""Forced assignments, |-separated: [world.]loc:item[@owner], e.g. '919772:SK0|2.-280256:EV0@3'.
-        loc 20000000+N is the BuriedN pseudo-location: the item stays out of the pool until N locations are reachable""", type=str, default=None)
+        loc 20000000+N is the BuriedN pseudo-location: the item stays out of the pool until N locations are reachable.
+        An RG item ('RGSK/0/SK/51') is a group: seedgen places one of the listed items, picked at random""", type=str, default=None)
         parser.add_argument("--force-cells", help="Force health and energy cells to appear every N pickups, if they don't randomly", type=int, default=256)
         parser.add_argument("--verbose-spoiler", help="show everything in the spoiler", action="store_true")
         # anal TODO: IMPL
@@ -114,7 +115,7 @@ class CLISeedParams(object):
         parser.add_argument("--keysanity", help="Keysanity mode: keys only belong to one door", action="store_true")
         # archipelago
         parser.add_argument("--ap-export", help="""Archipelago mode: comma-separated item categories exported to the AP pool
-        (any of: skills,teleporters,events,cells,stones,upgrades,warps). Converts the rolled multiworld seed
+        (any of: skills,teleporters,events,cells,stones,upgrades; teleporters covers warp pickups). Converts the rolled multiworld seed
         (multiplayer requires --share-mode multiworld) and writes a paired ap_world_<n>.yaml next to each .dat""", type=str, default=None)
         parser.add_argument("--ap-death-link", help="Archipelago mode: this world's deaths kill the room, and the room's kill it", action="store_true")
         args = parser.parse_args()
@@ -361,8 +362,9 @@ class CLISeedParams(object):
         self.ap_export = []
         self.ap_death_link = self.ap_mode and bool(args.ap_death_link)
         if self.ap_mode:
-            from archipelago.convert import EXPORTABLE_CATEGORIES
-            self.ap_export = [c.strip().lower() for c in args.ap_export.split(",") if c.strip()]
+            from archipelago.convert import EXPORTABLE_CATEGORIES, normalize_categories
+            self.ap_export = normalize_categories(
+                c.strip().lower() for c in args.ap_export.split(",") if c.strip())
             bad = [c for c in self.ap_export if c not in EXPORTABLE_CATEGORIES]
             if bad:
                 parser.error("unknown --ap-export categories: %s (valid: %s)" % (

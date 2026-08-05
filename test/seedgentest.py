@@ -455,6 +455,51 @@ class MultiworldPreplacementTests(unittest.TestCase):
         self.assertEqual(count_for(3, "EV", "0"), 1)
 
 
+class GroupPlacementTests(unittest.TestCase):
+    """RG ("one of...") forced assignments: the site hands seedgen a group and
+    seedgen places exactly one of its items. RG never reaches a seed file."""
+
+    LOC = 919772
+    GROUP = "RGSK/0/SK/51/SK/12"  # Bash, Grenade, Climb
+    MEMBERS = {("SK", "0"), ("SK", "51"), ("SK", "12")}
+
+    def _placed(self, seed):
+        """-> (the (code, id) that landed at LOC, the whole seed)"""
+        outdir = tempfile.mkdtemp(prefix="seedgentest_group_")
+        self.addCleanup(shutil.rmtree, outdir, ignore_errors=True)
+        old_argv = sys.argv
+        sys.argv = ["cli_gen", "--output-dir", outdir, "--preset", "standard",
+                    "--open-world", "--force-trees", "--seed", seed,
+                    "--fass", "%s:%s" % (self.LOC, self.GROUP)]
+        try:
+            CLISeedParams().from_cli()
+        finally:
+            sys.argv = old_argv
+        path = os.path.join(outdir, "randomizer0.dat")
+        self.assertTrue(os.path.exists(path), "no seed produced")
+        with open(path) as f:
+            lines = f.read().splitlines()
+        self.assertEqual([l for l in lines if "RG" in l], [], "RG leaked into the seed")
+        placements, _ = parse_seed(lines)
+        return placements[self.LOC][:2], placements
+
+    def test_one_group_member_lands_at_the_location(self):
+        picked, _ = self._placed("grouptest1")
+        self.assertIn(picked, self.MEMBERS)
+
+    def test_the_choice_is_stable_for_a_seed(self):
+        self.assertEqual(self._placed("grouptest1")[0], self._placed("grouptest1")[0])
+
+    def test_the_choice_varies_across_seeds(self):
+        picks = {self._placed("grouptest%s" % n)[0] for n in range(1, 6)}
+        self.assertGreater(len(picks), 1, "every seed picked the same group member")
+
+    def test_the_picked_item_leaves_the_pool(self):
+        picked, placements = self._placed("grouptest1")
+        copies = [1 for v in placements.values() if v[:2] == picked]
+        self.assertEqual(len(copies), 1, "%s|%s was placed twice" % picked)
+
+
 class BuriedPlacementTests(unittest.TestCase):
     """Buried pseudo-locations: a fass at loc 20000000+N keeps its items out
     of the pool until N locations are reachable. Classic fill here (balanced
@@ -845,9 +890,8 @@ class SeedModeProblemTests(unittest.TestCase):
             p = self._ap_params()
             p.sync.shared = [ShareType.SKILL]
             self.assertIn("overlap", self._check(True, p, ap_override=True))
-            # warps share as teleporters and bonus RBs as upgrades, so those
-            # pairs clash too
-            for share, category in ((ShareType.TELEPORTER, "warps"),
+            # every share type with an export counterpart clashes with it
+            for share, category in ((ShareType.TELEPORTER, "teleporters"),
                                     (ShareType.UPGRADE, "upgrades")):
                 p = self._ap_params()
                 p.sync.shared = [share]
@@ -1769,15 +1813,25 @@ class ApFullConversionTests(unittest.TestCase):
         self.assertEqual(len(info["reserved"][1]), 1)
         self.assertIn("|MW|4,TW,%s|" % warp, texts[1])
 
-    def test_a_warp_exports_under_its_own_category(self):
-        """Selecting warps exports a world's own warp pickups; not selecting
-        it leaves them alone."""
+    def test_a_warp_exports_with_the_teleporters(self):
+        """Warps ride the teleporters category; not selecting it leaves them
+        alone."""
         line = "1000000|TW|Warp to Ginso Escape,510,910,GinsoEscape|Ginso"
-        _, info = self._convert([[line]], categories=("warps",))
+        _, info = self._convert([[line]], categories=("teleporters",))
         self.assertEqual(info["exported"][1],
                          [("TW", "Warp to Ginso Escape,510,910,GinsoEscape", 0)])
         _, info = self._convert([[line]], categories=("skills",))
         self.assertEqual(info["exported"][1], [])
+
+    def test_the_retired_warps_category_folds_into_teleporters(self):
+        """Params rolled before the fold still name it."""
+        from archipelago.convert import (EXPORTABLE_CATEGORIES,
+                                         normalize_categories)
+        self.assertNotIn("warps", EXPORTABLE_CATEGORIES)
+        self.assertEqual(normalize_categories(["skills", "warps"]),
+                         ["skills", "teleporters"])
+        self.assertEqual(normalize_categories(["teleporters", "warps"]),
+                         ["teleporters"])
 
     def test_a_plando_only_warp_destination_stays_native(self):
         """Custom teleporters are plando-only and can name anywhere, so a
@@ -1786,7 +1840,7 @@ class ApFullConversionTests(unittest.TestCase):
         texts, info = self._convert([
             [self._cross(1000000, 2, 0, "Grove")],
             [self._mani(0, 1, "TW", "Warp to Nowhere In Particular,1,2,Node", "Swamp")],
-        ], categories=("warps",))
+        ], categories=("teleporters",))
         self.assertEqual(info["exported"][2], [])
         self.assertIn("|MW|1,TW,Warp to Nowhere In Particular,1,2,Node|", texts[1])
 

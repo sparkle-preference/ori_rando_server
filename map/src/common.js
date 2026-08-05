@@ -59,6 +59,7 @@ function pickup_name(code, id) {
     switch (code) {
         case "MU":
         case "RP":
+        case "RG":
             let parts = id.split("/");
             let names = [];
             while (parts.length > 1) {
@@ -66,6 +67,8 @@ function pickup_name(code, id) {
             }
             if (code === "RP")
                 return "Repeatable: " + names.join(", ")
+            if (code === "RG")
+                return "One of: " + names.join(", ")
             return names.join(", ")
         case "TP":
             return id + "TP";
@@ -270,6 +273,9 @@ const compareOption = (inputValue, option) => {
     return (option.value.toLowerCase() === candidate || option.label.toLowerCase() === candidate);
 };
 
+// chips that shape the pickup instead of being one of its items
+const MARKERS = ["RP", "RG"];
+
 const all_opts = [];
 const grouped_opts = Object.keys(stuff_by_type).map(t => {
     all_opts.push(...stuff_by_type[t]);
@@ -313,7 +319,9 @@ class PickupSelect extends Component {
       let [code, id] = input.split("|");
       if (code === "RP")
         value.push({ label: "Repeatable", value: "RP" })
-      if (code === "MU" || code === "RP") {
+      if (code === "RG")
+        value.push({ label: "one of...", value: "RG" })
+      if (code === "MU" || code === "RP" || code === "RG") {
         let seen = []
         let parts = id.split("/")
         while (parts.length > 1) {
@@ -369,6 +377,9 @@ class PickupSelect extends Component {
         }
         if(props.allowPsuedo) {
             misc.options.splice(0, 0, {label: "Random Bonus Skill", value: "BS|*", desc: "A random bonus skill", max: 6})
+        }
+        if(props.allowGroup) {
+            misc.options.splice(0, 0, {label: "one of...", value: "RG", desc: "Seedgen picks one of the listed items at random."})
         }
         options.push(misc)
     }
@@ -438,6 +449,9 @@ class PickupSelect extends Component {
         return { value: value, editIdx: null };
       }, this.updatePickup);
     } else {
+      // "Repeatable" and "one of..." are exclusive: picking one drops the other
+      if (actionMeta.action === "select-option" && last && MARKERS.includes(last.value))
+        newValue = newValue.filter(v => v === last || !MARKERS.includes(v.value));
       this.setState({ value: newValue, editIdx: null }, this.updatePickup);
     }
   };
@@ -445,6 +459,7 @@ class PickupSelect extends Component {
     let pickup = "";
     let values = []
     let repeat = false;
+    let group = false;
     this.state.value.forEach(v => {
       let val = v.value
       while(val.endsWith("|"))
@@ -453,15 +468,17 @@ class PickupSelect extends Component {
       }
       if (val === "RP")
         repeat = true;
+      else if (val === "RG")
+        group = true;
       else
         values.push(val);
     });
     if (values.length === 0)
       pickup = "NO|1"
-    else if (!repeat && values.length === 1)
+    else if (!repeat && !group && values.length === 1)
       pickup = values[0]
     else {
-      pickup = repeat ? "RP|" : "MU|"
+      pickup = group ? "RG|" : (repeat ? "RP|" : "MU|")
       pickup += values.join("/").replace(/\|/g, "/")
     }
     this.state.updater(pickup, name_from_str(pickup))

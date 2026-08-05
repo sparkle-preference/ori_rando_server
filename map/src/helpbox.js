@@ -510,7 +510,7 @@ const getHelpHelper = (category, option) => {
                 case "spoilerView":
                     title = "Open Spoiler"
                     lines = [
-                        "Click here to open your spoiler in a new tab.",
+                        "Click here to open your spoiler in a new tab. The cog next to it switches this button to a download.",
                         "The spoiler contains a detailed report of what items are placed where, and the order in which the randomizer intended you to find them.",
                         "Don't be afraid to check your spoiler if you get stuck!"
                     ]
@@ -789,7 +789,7 @@ const getHelpHelper = (category, option) => {
                 case "teleporters":
                     title = "Export Teleporters"
                     lines = [
-                        "With Export Teleporters enabled, teleporter pickups are handed to the Archipelago item pool: any game in the session can find them, and the locations that held them will contain other games' items instead.",
+                        "With Export Teleporters enabled, teleporter and warp pickups are handed to the Archipelago item pool: any game in the session can find them, and the locations that held them will contain other games' items instead.",
                         "Exporting teleporters is enabled by default."
                     ]
                     break;
@@ -812,13 +812,6 @@ const getHelpHelper = (category, option) => {
                     lines = [
                         "With Export Stones enabled, Mapstones (and Keysanity zone keys, if Keysanity is on) are handed to the Archipelago item pool: any game in the session can find them, and the locations that held them will contain other games' items instead.",
                         "Note: regular Keystones are never exported; door currency stays in your own world."
-                    ]
-                    break;
-                case "warps":
-                    title = "Export Warps"
-                    lines = [
-                        "With Export Warps enabled, the Alt+R warp pickups a seed rolls (Warps Instead of TPs, or Warp Count) are handed to the Archipelago item pool: any game in the session can find them, and the locations that held them will contain other games' items instead.",
-                        "Warps only exist if the seed rolls them, so this does nothing on a seed without warps."
                     ]
                     break;
                 case "upgrades":
@@ -945,6 +938,7 @@ const getHelpHelper = (category, option) => {
                     lines = [
                         "You can use these fields to control specific placements in your seed!",
                         "Select the item location in the left box and the item to place there in the right box. (You can place multiple items at one location this way!)",
+                        "Add 'one of...' to the item box to make a group instead: seedgen picks one of the items you listed and places that.",
                         "You can add more item locations to prepplace by editing either box in the bottom row.",
                         "Note: some placements (like 4 mapstones in the first 4 pickups) will cause seed generation to always fail.",
                         "Note: The 'Spawn' location is a special location that is granted at the beginning of every seed. You can use it to generate seeds to practice specific skill combinations, like Bash+Grenade or Grenade+Climb+Charge Jump.",

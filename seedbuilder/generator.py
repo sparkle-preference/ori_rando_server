@@ -1773,6 +1773,11 @@ class SeedGenerator:
         for k, v in preplaced.items():
             world, loc = k if isinstance(k, tuple) else (1, k)
             base, _, owner = v.partition("|")
+            # RG ("one of these") is a website-only group: resolve it here so
+            # nothing downstream -- least of all the client -- ever sees one
+            if base[0:2] == "RG":
+                choices = self.get_multi_items(base)
+                base = self.random.choice(choices) if choices else "NO1"
             base = self.codeToName.get(base, base)
             self.preplaced[(world, loc)] = "%s|%s" % (base, owner) if owner else base
         self.is_cloned = self.params.sync.enabled and self.params.sync.mode == MultiplayerGameType.SHARED

@@ -43,8 +43,13 @@ ITEM_BY_CODE_ID = {(i["code"], i["id"]): i for i in _ITEMS}
 ITEM_BY_AP_ID = {i["ap_id"]: (i["code"], i["id"]) for i in _ITEMS}
 
 EXPORTABLE_CATEGORIES = ("skills", "teleporters", "events", "cells", "stones",
-                         "upgrades", "warps")
+                         "upgrades")
 DEFAULT_EXPORT = ("skills", "teleporters", "events")
+# datapackage categories each export category hands over. Warps are
+# teleporters to a player and export with them; the datapackage keeps them
+# apart only so the apworld can file warps as filler.
+CATEGORY_ITEMS = {"teleporters": ("teleporters", "warps")}
+RETIRED_CATEGORIES = {"warps": "teleporters"}
 # generic keystones are consumable door currency under the generator's
 # cumulative-supply invariant; exporting them breaks the per-door thresholds
 # the apworld compiles (it hard-rejects them too). Keysanity zone keys and
@@ -54,10 +59,10 @@ BANNED_EXPORTS = {("KS", "1")}
 # A shared singleton is generated once for everyone and fanned out by the
 # netcode, so exporting the same category hands ONE copy to the AP pool while
 # every world's logic still expects the fan-out. Keyed by ShareType value;
-# TW warps share as teleporters and bonus RBs share as upgrades.
+# bonus RBs share as upgrades.
 SHARE_TO_AP = {
     "Skills": ("skills",),
-    "Teleporters": ("teleporters", "warps"),
+    "Teleporters": ("teleporters",),
     "WorldEvents": ("events",),
     "Upgrades": ("upgrades",),
 }
@@ -139,12 +144,19 @@ def share_export_clash(shared, exported):
     return sorted(clash)
 
 
+def normalize_categories(categories):
+    """Selected category names, with retired ones folded into their survivor."""
+    return sorted({RETIRED_CATEGORIES.get(c, c) for c in categories})
+
+
 def export_code_ids(categories):
     """Category names -> set of exportable (code, id) pairs."""
     bad = [c for c in categories if c not in EXPORTABLE_CATEGORIES]
     if bad:
         raise ApConversionError("unknown AP export categories: %s" % ", ".join(bad))
-    cats = set(categories)
+    cats = set()
+    for c in categories:
+        cats.update(CATEGORY_ITEMS.get(c, (c,)))
     return {(i["code"], i["id"]) for i in _ITEMS
             if i["category"] in cats} - BANNED_EXPORTS
 

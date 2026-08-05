@@ -294,7 +294,8 @@ class SeedGenParams(ndb.Model):
         params.start = json.get("spawn", "Glades")
         params.spawn_weights = json.get("spawnWeights", [])
         params.verbose_spoiler = json.get("verboseSpoiler", False)
-        params.ap_export = [str(c) for c in json.get("apExport", [])]
+        from archipelago.convert import normalize_categories
+        params.ap_export = normalize_categories(str(c) for c in json.get("apExport", []))
         params.ap_mode = bool(json.get("apMode")) or bool(params.ap_export)
         params.ap_death_link = params.ap_mode and bool(json.get("apDeathLink"))
         if params.ap_mode:
@@ -384,7 +385,8 @@ class SeedGenParams(ndb.Model):
                     params.spawn_placement = Placement(location=loc, zone="", stuff=stuff)
                 else:
                     params.preplaced_coords.append(int(loc))
-        params.ap_export = qparams.getlist("ap_export")
+        from archipelago.convert import normalize_categories
+        params.ap_export = normalize_categories(qparams.getlist("ap_export"))
         params.ap_mode = bool(qparams.get("ap_mode")) or bool(params.ap_export)
         params.ap_death_link = params.ap_mode and bool(qparams.get("ap_death_link"))
         if params.ap_mode:
@@ -465,10 +467,11 @@ class SeedGenParams(ndb.Model):
             if self.sync.enabled and self.sync.mode != MultiplayerGameType.MULTIWORLD:
                 log.error("AP mode requires Multiworld generation (got %s)", self.sync.mode)
                 return False
-            from archipelago.convert import ap_convert, DEFAULT_EXPORT
+            from archipelago.convert import (ap_convert, normalize_categories,
+                                             DEFAULT_EXPORT)
             keep = set(k if isinstance(k, tuple) else (1, k) for k in preplaced)
             converted, _ = ap_convert([pr[0] for pr in raw],
-                                      list(self.ap_export) or list(DEFAULT_EXPORT),
+                                      normalize_categories(self.ap_export) or list(DEFAULT_EXPORT),
                                       keep_locs=keep)
             raw = [(converted[i], raw[i][1]) for i in range(len(raw))]
         from util import is_mw_manifest_loc
