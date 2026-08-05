@@ -337,7 +337,7 @@ onDrop = (files) => {
             </Cent>
             </Col>
             <Col onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("itemPool", disabled ? "pickupSelectorDisabled" : row.item)} xs="7">
-                <PickupSelect value={row.item} isClearable={false} isDisabled={disabled} updater={(code, _) => this.updatePoolItem(index, code)} allowPsuedo/>
+                <PickupSelect value={row.item} isClearable={false} isDisabled={disabled} updater={(code, _) => this.updatePoolItem(index, code)} allowPsuedo allowGroup/>
             </Col>
             <Col xs="1">{delButton}</Col>
           </Row>)
@@ -355,7 +355,7 @@ onDrop = (files) => {
                 </Cent>
                 </Col>
                 <Col xs="7" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("itemPool", "pickupSelector")} >
-                    <PickupSelect ref="tabula" value={"NO|1"} updater={(code, _) => this.addPoolItem(code)} allowPsuedo/>
+                    <PickupSelect ref="tabula" value={"NO|1"} updater={(code, _) => this.addPoolItem(code)} allowPsuedo allowGroup/>
                 </Col>
                 <Col xs="1"></Col>
             </Row>

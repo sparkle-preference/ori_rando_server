@@ -623,6 +623,12 @@ class SeedGenerator:
                 fixed_item = self.codeToName.get(item, item)
                 count = self.random.randint(*counts) if len(counts) == 2 else counts[0]
                 for p in self.multi_ps():
+                    # every copy of an RG group draws its own member, per world
+                    if item[0:2] == "RG":
+                        for member in self.pick_group_members(item, count):
+                            m = tag(member, p)
+                            self.itemPool[m] = self.itemPool.get(m, 0) + 1
+                        continue
                     i = tag(fixed_item, p)
                     self.itemPool[i] = self.itemPool.get(i, 0) + count
 
@@ -984,6 +990,12 @@ class SeedGenerator:
         self.codeToName = OrderedDict([(v, k) for k, v in list(self.skillsOutput.items()) + list(self.eventsOutput.items()) +
             list(self.keysanityOutput.items()) + [("RB17", "WaterVeinShard"), ("RB19", "GumonSealShard"), ("RB21", "SunstoneShard")]])
         self.codeToName["WT*"] = "Relic"  # random relic preplacement (WT|*): resolved per-zone by adjust_item
+
+    # resolve an RG ("one of these") group into concrete items. Website-only:
+    # the client has no RG pickup, so every RG must die before a seed is written
+    def pick_group_members(self, group, count=1):
+        choices = self.get_multi_items(group)
+        return [self.random.choice(choices) for _ in range(count)] if choices else []
 
     # resolve a WP|* (random warp) preplacement into a concrete warp pickup
     def random_warp_id(self, p=1):
@@ -1773,11 +1785,9 @@ class SeedGenerator:
         for k, v in preplaced.items():
             world, loc = k if isinstance(k, tuple) else (1, k)
             base, _, owner = v.partition("|")
-            # RG ("one of these") is a website-only group: resolve it here so
-            # nothing downstream -- least of all the client -- ever sees one
             if base[0:2] == "RG":
-                choices = self.get_multi_items(base)
-                base = self.random.choice(choices) if choices else "NO1"
+                picked = self.pick_group_members(base)
+                base = picked[0] if picked else "NO1"
             base = self.codeToName.get(base, base)
             self.preplaced[(world, loc)] = "%s|%s" % (base, owner) if owner else base
         self.is_cloned = self.params.sync.enabled and self.params.sync.mode == MultiplayerGameType.SHARED

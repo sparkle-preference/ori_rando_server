@@ -499,6 +499,47 @@ class GroupPlacementTests(unittest.TestCase):
         copies = [1 for v in placements.values() if v[:2] == picked]
         self.assertEqual(len(copies), 1, "%s|%s was placed twice" % picked)
 
+    # --- the same group in the item pool: one draw per copy ---
+    POOL_GROUP = "RG|RB/30/RB/31/RB/32"  # Bleeding, Health Drain, Energy Drain
+    POOL_MEMBERS = {"30", "31", "32"}    # none of these are in the standard pool
+    POOL_COUNT = 6
+
+    def _pool_members_placed(self, seed):
+        """Generate with POOL_COUNT copies of POOL_GROUP added to the standard
+        pool -> the member ids that actually landed."""
+        from seedbuilder.generator import SeedGenerator
+        outdir = tempfile.mkdtemp(prefix="seedgentest_grouppool_")
+        self.addCleanup(shutil.rmtree, outdir, ignore_errors=True)
+        orig = SeedGenerator.setSeedAndPlaceItems
+        def patched(sg, params, **kwargs):
+            params.item_pool = dict(params.item_pool)
+            params.item_pool[self.POOL_GROUP] = [self.POOL_COUNT]
+            return orig(sg, params, **kwargs)
+        old_argv = sys.argv
+        sys.argv = ["cli_gen", "--output-dir", outdir, "--preset", "standard",
+                    "--open-world", "--force-trees", "--seed", seed]
+        SeedGenerator.setSeedAndPlaceItems = patched
+        try:
+            CLISeedParams().from_cli()
+        finally:
+            SeedGenerator.setSeedAndPlaceItems = orig
+            sys.argv = old_argv
+        path = os.path.join(outdir, "randomizer0.dat")
+        self.assertTrue(os.path.exists(path), "no seed produced")
+        with open(path) as f:
+            lines = f.read().splitlines()
+        self.assertEqual([l for l in lines if "RG" in l], [], "RG leaked into the seed")
+        placements, _ = parse_seed(lines)
+        return [i for (c, i, z) in placements.values()
+                if c == "RB" and i in self.POOL_MEMBERS]
+
+    def test_a_pool_group_places_one_item_per_copy(self):
+        self.assertEqual(len(self._pool_members_placed("grouppool1")), self.POOL_COUNT)
+
+    def test_pool_group_copies_are_drawn_independently(self):
+        # one draw reused POOL_COUNT times would put all copies on one member
+        self.assertGreater(len(set(self._pool_members_placed("grouppool1"))), 1)
+
 
 class BuriedPlacementTests(unittest.TestCase):
     """Buried pseudo-locations: a fass at loc 20000000+N keeps its items out
