@@ -586,6 +586,18 @@ def get_apyaml_from_params(params_id, world_id):
         return text_resp("Param %s has no world %s" % (params_id, world_id), 404)
     return text_download(params.to_ap_yaml(world_id), 'ap_world_%s.yaml' % world_id)
 
+@app.route('/generator/apyamls/<params_id>')
+def get_apyamls_from_params(params_id):
+    # every world in one multi-document yaml: the session host wants the set,
+    # not one file per player
+    if not ARCHIPELAGO:
+        return text_resp("Archipelago support is not enabled", 404)
+    params = SeedGenParams.with_id(params_id)
+    if not params or not params.ap_mode:
+        return text_resp("No Archipelago params %s found" % params_id, 404)
+    worlds = [params.to_ap_yaml(w) for w in range(1, params.players + 1)]
+    return text_download("---\n".join(worlds), 'ap_worlds_%s.yaml' % params_id)
+
 apworld_zip = None
 
 @app.route('/generator/apworld')

@@ -1706,6 +1706,31 @@ class ApModeGenTests(unittest.TestCase):
         finally:
             shutil.rmtree(out2, ignore_errors=True)
 
+    # /generator/apyamls hands the session host every world in one file.
+    # Archipelago splits a player file on "---" before any world code runs
+    # (Utils.parse_yamls -> yaml.load_all), verified against AP 0.6.7.
+    def _combined(self):
+        return "---\n".join(self.yamls[p] for p in sorted(self.yamls))
+
+    def test_combined_yaml_holds_one_document_per_world(self):
+        parts = self._combined().split("\n---\n")
+        self.assertEqual(len(parts), self.PLAYERS)
+        for p, part in zip(sorted(self.yamls), parts):
+            # every world survives whole, and each doc opens a fresh mapping
+            # (the separator eats one newline; the last world keeps its own)
+            self.assertEqual(part.rstrip("\n") + "\n", self.yamls[p])
+            self.assertTrue(part.startswith("name: Ori%s\n" % p), part[:40])
+
+    def test_combined_yaml_parses_as_distinct_slots(self):
+        import importlib.util
+        if importlib.util.find_spec("yaml") is None:
+            self.skipTest("pyyaml not installed (dev-only check)")
+        import yaml as pyyaml
+        docs = list(pyyaml.safe_load_all(self._combined()))
+        self.assertEqual([d["name"] for d in docs],
+                         ["Ori%s" % p for p in sorted(self.yamls)])
+        self.assertEqual({d["game"] for d in docs}, {"Ori DE Rando"})
+
 
 class ApModeSoloTests(unittest.TestCase):
     """K=1 AP mode: no cross-world landings, so no balancing reverts --

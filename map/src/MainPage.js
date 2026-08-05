@@ -954,9 +954,7 @@ onDrop = (files) => {
         else 
         {
             let {inputPlayerCount, gameId, seedIsBingo, paramId, flagLine, spoilers, inputSeed, bingoLines, auxSpoiler, inputApMode} = this.state
-            let spoilerText = auxSpoiler.active
-                ? (auxSpoiler.download ? "Save Item List" : "Item List")
-                : (auxSpoiler.download ? "Save Spoiler" : "View Spoiler")
+            let spoilerText = auxSpoiler.active ? "Item List" : "View Spoiler"
             let raw = flagLine.split('|');
             let seedStr = raw.pop();
             let flags = raw.join("").split(",");
@@ -974,7 +972,8 @@ onDrop = (files) => {
                     seedParams.push(`game_id=${gameId}`)
                 let seedUrl = "/generator/seed/"+paramId
                 let isMulti = inputPlayerCount > 1
-                let spoilerUrl = this.spoilerUrl(paramId, auxSpoiler.download, isMulti, p)
+                let spoilerUrl = this.spoilerUrl(paramId, false, isMulti, p)
+                let downloadSpoilerUrl = this.spoilerUrl(paramId, true, isMulti, p)
                 if(inputPlayerCount > 1)
                     seedParams.push("player_id="+p);
                 let mainButtonText = "Download Seed"
@@ -990,10 +989,9 @@ onDrop = (files) => {
                     mainButtonHelp = "openBingoBoard"
                 }
                 let spoilerHelp = (button) => this.state.spoilers ? `spoiler${button + (auxSpoiler.active ? "Aux" : "")}` : "noSpoilers"
-                // 12 columns: player 3 + seed 3 + spoiler, with the yaml
-                // button splitting the remainder evenly
-                let apCols = inputApMode && ap_enabled()
-                let viewWidth = apCols ? "3" : "6"
+                // 12 columns: player 3 + seed 3 + view 3 + save 3. AP yamls
+                // aren't here -- the session host takes all of them at once
+                // from the setup panel below
                 return (
                     <Row key={`player-${p}`} className="align-content-center p-1 border-bottom">
                         <Col xs="3" className="pt-1 border" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "playerPanel"+this.multi())}>
@@ -1006,16 +1004,14 @@ onDrop = (files) => {
                         <Col xs="3" className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", mainButtonHelp)}>
                             <Button color="primary" block target="_blank" href={seedUrl}>{mainButtonText}</Button>
                         </Col>
-                        {apCols ? (
-                        <Col xs="3" className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "apYaml")}>
-                            <Button color="primary" block target="_blank" href={"/generator/apyaml/"+paramId+"/"+p}>AP YAML</Button>
-                        </Col>
-                        ) : null}
-                        <Col xs={viewWidth} className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", spoilerHelp(auxSpoiler.download ? "Download" : "View"))}>
+                        <Col xs="3" className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", spoilerHelp("View"))}>
                             <ButtonGroup>
                                 <Button color={spoilers ? "primary" : "secondary"} disabled={!spoilers} href={spoilerUrl} target="_blank" block >{spoilerText}</Button>
                                 <Button color={spoilers ? "success" : "secondary"} disabled={!spoilers} onClick={() => this.setState({auxModal: true, auxPlayer: p})} target="_blank"><FaCog/></Button>
                             </ButtonGroup>
+                        </Col>
+                        <Col xs="3" className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab",spoilerHelp("Download"))}>
+                            <Button color={spoilers ? "primary" : "secondary"} disabled={!spoilers} href={downloadSpoilerUrl} target="_blank" block >Save Spoiler</Button>
                         </Col>
                     </Row>
                 )
@@ -1098,7 +1094,8 @@ onDrop = (files) => {
                     </Row>
                     {step(1, "Install the Ori apworld: put it in your Archipelago install's custom_worlds folder, replacing any older copy.",
                         <Button color="primary" block target="_blank" href="/generator/apworld">Get apworld</Button>, "apworldDownload")}
-                    {step(2, "Download every world's yaml with the AP YAML buttons above, and drop them in Archipelago's Players folder.")}
+                    {step(2, "Get this game's yamls -- one file holding every world -- and drop it in Archipelago's Players folder.",
+                        <Button color="primary" block target="_blank" href={"/generator/apyamls/"+this.state.paramId}>Get YAMLs</Button>, "apYaml")}
                     {step(3, "Generate the game in Archipelago, then host the room somewhere (an archipelago.gg room always works and is recommended).")}
                     {step(4, "Enter that room's host and port below and hit Connect.")}
                     {step(5, namesReady
@@ -1626,26 +1623,6 @@ onDrop = (files) => {
                                 </UncontrolledButtonDropdown>
                             </Col>
                         </Row>
-                        <Row>
-                            <Col xs="4" className="text-center p-1 border">
-                                <Cent>Button Action</Cent>
-                            </Col>
-                            <Col xs="6">
-                                <UncontrolledButtonDropdown nav inNavbar>
-                                    <DropdownToggle color="primary" nav caret>
-                                    {auxSpoiler.download ? "Download" : "View"}
-                                    </DropdownToggle>
-                                    <DropdownMenu right>
-                                        <DropdownItem active={!auxSpoiler.download} onClick={() => this.onSpoilerSettings({download: false})}>
-                                            View
-                                        </DropdownItem>
-                                        <DropdownItem active={auxSpoiler.download} onClick={() => this.onSpoilerSettings({download: true})}>
-                                            Download
-                                        </DropdownItem>
-                                    </DropdownMenu>
-                                </UncontrolledButtonDropdown>
-                            </Col>
-                        </Row>
                         <Collapse isOpen={auxSpoiler.active}>
                         <Row>
                             <Col xs="4" className="text-center p-1 border">
@@ -1725,7 +1702,7 @@ onDrop = (files) => {
                         fragCount: 30, fragReq: 20, relicCount: 8, loader: get_random_loader(), paramId: paramId, seedTabExists: seedTabExists, 
                         reopenUrl: "", flagLine: "", fassList: fassDefaultsFor(1), fassWorld: 1, goalModesOpen: false, 
                         spoilers: true, spawnWeights: [1.0,2.0,2.0,2.0,1.5,2.0,0.1,0.1,0.25,0.5], seedIsBingo: false, bingoLines: 3, 
-                        auxModal: false, auxPlayer: 1, auxSpoiler: {active: false, byZone: false, download: false, exclude: ["EX","KS", "AC", "EC", "HC", "MS"]},
+                        auxModal: false, auxPlayer: 1, auxSpoiler: {active: false, byZone: false, exclude: ["EX","KS", "AC", "EC", "HC", "MS"]},
                         stupidMode: stupidMode, customLogic: false, stupidWarn: stupidWarn, verboseSpoiler: get_param("verbose") === "True"};
         
         if(url.searchParams.has("fromBingo")) {

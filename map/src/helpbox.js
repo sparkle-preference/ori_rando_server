@@ -462,7 +462,7 @@ const getHelpHelper = (category, option) => {
                 case "apSetup":
                     title = "Archipelago Setup"
                     lines = [
-                        "Setup instructions: install the apworld, collect the YAMLs, generate and host the session in Archipelago, connect the room here, then download the seeds.",
+                        "Setup instructions: install the apworld, get the YAMLs, generate and host the session in Archipelago, connect the room here, then download the seeds.",
                         "Only the person running the Archipelago session needs the apworld and the YAMLs. Everyone else just needs their own seed file from the row above.",
                     ]
                 break;
@@ -475,10 +475,10 @@ const getHelpHelper = (category, option) => {
                     ]
                 break;
                 case "apYaml":
-                    title = "AP YAML"
+                    title = "Get YAMLs"
                     lines = [
-                        "Click here to download this world's Archipelago YAML file.",
-                        "The Archipelago session host needs one YAML per world: collect them all (along with the YAMLs for any other games) to generate the session.",
+                        "Click here to download this game's Archipelago YAML file. It holds every world, so only the session host needs it.",
+                        "Put it in Archipelago's Players folder alongside the YAMLs for any other games in the session.",
                         "Players still play from their seed file; the YAML is only used for session generation."
                     ]
                 break;
@@ -510,7 +510,7 @@ const getHelpHelper = (category, option) => {
                 case "spoilerView":
                     title = "Open Spoiler"
                     lines = [
-                        "Click here to open your spoiler in a new tab. The cog next to it switches this button to a download.",
+                        "Click here to open your spoiler in a new tab.",
                         "The spoiler contains a detailed report of what items are placed where, and the order in which the randomizer intended you to find them.",
                         "Don't be afraid to check your spoiler if you get stuck!"
                     ]
@@ -690,7 +690,7 @@ const getHelpHelper = (category, option) => {
                     lines = [
                         "Archipelago mode makes this Multiworld game part of an Archipelago session (archipelago.gg), a multi-game multiworld where every player can be playing a different randomized game.",
                         "Items in the selected Export Categories are handed to the Archipelago item pool: they can be found by any game in the session, and the locations that held them will contain other games' items instead. Everything else stays a normal Ori Multiworld.",
-                        "The Seed tab will have an AP YAML download for each world; the session host needs all of them to generate the Archipelago session.",
+                        "The Seed tab will have a YAML download covering every world; the session host needs it to generate the Archipelago session.",
                         "Archipelago can't use the Bingo goal; roll bingo boards as their own seed.",
                         "Note: a category cannot be both Shared and Exported; selecting one will deselect the other.",
                     ]

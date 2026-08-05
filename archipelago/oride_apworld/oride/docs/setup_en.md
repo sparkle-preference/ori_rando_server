@@ -4,8 +4,8 @@
 
 Ori seeds are rolled on **[orirando.com](https://orirando.com/)**, the Ori 1 solo randomizer site.
 When you tick the Archipelago option there, the generator reserves some of the seed's pickup locations 
-for Archipelago and hands the items that were in them to the Archipelago item pool. It then creates one
-yaml per Ori world, which is what you feed to Archipelago's generator. You never write that yaml by hand,
+for Archipelago and hands the items that were in them to the Archipelago item pool. It then creates the
+yaml you feed to Archipelago's generator, covering every Ori world. You never write that yaml by hand,
 and the player-options page on the website does not apply to this game.
 
 Using this system, players can use their existing ori rando installation and do not need an archipelago client;
@@ -60,18 +60,13 @@ generator will tell you which side to update — see [Troubleshooting](#troubles
 
 ## 3. Download the yamls
 
-The Seed tab has one row per Ori world. Each row has an **AP YAML** button; download all of them.
+The Seed tab's **Archipelago Setup** panel has a **Get YAMLs** button. It downloads one file covering every
+Ori world in the game, with slot names `Ori1`, `Ori2`, … — one Archipelago slot per Ori world.
 
-The files are named `ap_world_1.yaml`, `ap_world_2.yaml`, and so on, and their slot names are `Ori1`, `Ori2`,
-… — one Archipelago slot per Ori world.
+Put it in your Archipelago install's **`Players`** folder, alongside the yamls for every other game in the
+session. Only the session host needs it.
 
-**Generate all of a game's yamls into the same session.** They share one Ori seed: items cross between the
-Ori worlds through Archipelago, so leaving one out won't generate.
-
-Put them in your Archipelago install's **`Players`** folder, alongside the yamls for every other game in the
-session.
-
-Do not edit them. The `orirando` block in each one is the whole Ori seed: which locations Archipelago owns,
+Do not edit it. The `orirando` block in each world is the whole Ori seed: which locations Archipelago owns,
 which items it was given, and enough of the seed's logic for Archipelago to know what is reachable.
 
 ## 4. Generate the session
@@ -128,8 +123,8 @@ settings.
 
 **"it was made for … data version N" / "this oride.apworld needs at least N"** — the apworld build and
 the yaml are from different generations of the item tables. The message says which side is behind: either
-re-download `oride.apworld` from the seed page's **Get apworld** button, or re-download the yaml with the AP
-YAML button (a fresh yaml for the same seed is fine).
+re-download `oride.apworld` from the seed page's **Get apworld** button, or re-download the yaml with the
+**Get YAMLs** button (a fresh yaml for the same seed is fine).
 
 **"empty orirando data"** — the yaml did not come from orirando.com's Archipelago mode, or the `orirando`
 block was emptied. Download it again from the seed page.
