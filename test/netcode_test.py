@@ -753,28 +753,44 @@ class TestAPNames(NdbTestCase):
         del APNames.get_by_id
         super(TestAPNames, self).tearDown()
 
+    @staticmethod
+    def _scout(item, who="Ori2", to="P2", ap_item=1, ap_owner=2):
+        from ap_models import APScout
+        return APScout(item, who, to, ap_item, ap_owner)
+
     def test_round_trip_int_keys(self):
         from ap_models import APNames
-        APNames.store(88, 2, {0: "Bash (Ori2)", 40: "A Click (Questy)"})
+        entries = {0: self._scout("Bash"), 40: self._scout("A Click", "Questy", "Questy", 42, 3)}
+        APNames.store(88, 2, entries, ap_slot=1)
         self.assertEqual(list(self.rows), ["88.2"])
         self.assertEqual(self.rows["88.2"].scouted, 2)
-        self.assertEqual(APNames.load(88, 2), {0: "Bash (Ori2)", 40: "A Click (Questy)"})
+        self.assertEqual(APNames.load(88, 2), (entries, 1))
 
     def test_worlds_do_not_share_a_row(self):
         # K threads scout concurrently; per-world keys keep them apart
         from ap_models import APNames
-        APNames.store(88, 1, {0: "one"})
-        APNames.store(88, 2, {0: "two"})
-        self.assertEqual(APNames.load(88, 1), {0: "one"})
-        self.assertEqual(APNames.load(88, 2), {0: "two"})
+        APNames.store(88, 1, {0: self._scout("one")}, ap_slot=1)
+        APNames.store(88, 2, {0: self._scout("two")}, ap_slot=2)
+        self.assertEqual(APNames.load(88, 1)[0][0].item, "one")
+        self.assertEqual(APNames.load(88, 2)[0][0].item, "two")
+        self.assertEqual((APNames.load(88, 1)[1], APNames.load(88, 2)[1]), (1, 2))
 
     def test_missing_or_corrupt_row_is_empty_not_fatal(self):
         from ap_models import APNames
-        self.assertEqual(APNames.load(88, 9), {})
-        APNames.store(88, 1, {})
-        self.assertEqual(APNames.load(88, 1), {})
+        self.assertEqual(APNames.load(88, 9), ({}, None))
+        APNames.store(88, 1, {}, ap_slot=1)
+        self.assertEqual(APNames.load(88, 1), ({}, 1))  # a world with no AP locations
         self.rows["88.1"].names = "not json at all"
-        self.assertEqual(APNames.load(88, 1), {})
+        self.assertEqual(APNames.load(88, 1), ({}, None))
+
+    def test_a_row_from_an_older_build_reads_as_empty(self):
+        """Pre-v2 rows hold bare label strings and no room slot, which the
+        join can't use. The bridge rescouts on every connection, so
+        reporting nothing is a few seconds of placeholders, not a loss."""
+        from ap_models import APNames
+        APNames.store(88, 1, {0: self._scout("Bash")}, ap_slot=1)
+        self.rows["88.1"].names = '{"0": "Bash (Ori2)"}'
+        self.assertEqual(APNames.load(88, 1), ({}, None))
 
 
 class TestNameCountVector(unittest.TestCase):

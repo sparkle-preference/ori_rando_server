@@ -1,0 +1,119 @@
+"""Download-time annotation of an AP-mode world's seed text.
+
+The conversion pass runs at generation, before Archipelago has filled
+anything, so a freshly generated seed can only say "AP Item #n" and can only
+guess where an exported item went. Once the room has been connected each
+world scouts its own reserved locations, and the K scout rows together say a
+lot more. This pass rewrites the seed at download time:
+
+  reserved line   <coord>|MW|<K+w>,<slot>,<label>|<zone>|<recipient>;<item>
+  manifest line   -(slot+2)|MW|<K+w>,<code>,<id>|<true zone>|<holder>
+
+Field 5 is additive and the four fields before it are untouched: every
+shipped client splits a seed line on '|' and reads indices 0..3 only, so an
+old dll drops field 5 and behaves exactly as it does today -- which is why
+the reserved line keeps the combined "<item> (<recipient>)" label in the
+comma field and repeats the bare item in field 5. Seeds downloaded before
+the room is connected have no scout rows and pass through untouched.
+
+WHAT THE JOIN CAN AND CANNOT SEE. LocationScouts only answers about the
+asking slot's own locations, so the K worlds between them know where an
+exported item landed exactly when it landed in one of THEM. Anything
+Archipelago put in a foreign game is invisible: those keep the holder
+"Archipelago" and lose the zone, because the rolled zone is where the item
+was taken FROM and measured wrong for 55 of 58 exports on a real room.
+"""
+from archipelago.convert import ITEM_BY_AP_ID, ex_export_value
+from util import is_mw_manifest_loc
+
+FOREIGN_HOLDER = "Archipelago"
+
+
+def _reserved_slot(code, id, shadow):
+    """(slot, label) if this is a reserved AP line of the given shadow."""
+    if code != "MW":
+        return None
+    parts = id.split(",", 2)
+    if len(parts) != 3 or parts[0] != shadow or not parts[1].isdigit():
+        return None
+    return int(parts[1]), parts[2]
+
+
+def _exports(seed_data, shadow):
+    """This world's manifest slots -> the datapackage key each exports."""
+    out = {}
+    for loc, code, id, zone in seed_data:
+        if code != "MW" or not is_mw_manifest_loc(int(loc)):
+            continue
+        finder, icode, iid = id.split(",", 2)
+        if finder != shadow:
+            continue
+        out[-int(loc) - 2] = (icode, str(ex_export_value(iid))) if icode == "EX" \
+            else (icode, iid)
+    return out
+
+
+def _holders(players, world, rows, seed_data_for):
+    """Where each of world w's exported items actually sits.
+
+    -> {datapackage key: (holder token, true zone)} for the keys the join
+    identifies UNAMBIGUOUSLY: exactly one copy found across the K worlds.
+    Several copies in flight are indistinguishable in the room's answers, so
+    they are left out rather than guessed at.
+    """
+    _, our_slot = rows.get(world, ({}, None))
+    if our_slot is None:
+        return {}
+    found = {}
+    for v in range(1, players + 1):
+        entries, _ = rows.get(v, ({}, None))
+        if not entries:
+            continue
+        zones = {}
+        for loc, code, id, zone in seed_data_for(v):
+            held = _reserved_slot(code, id, str(players + v))
+            if held:
+                zones[held[0]] = zone
+        for slot, scout in entries.items():
+            if scout.ap_owner != our_slot:
+                continue
+            key = ITEM_BY_AP_ID.get(scout.ap_item)
+            if key is not None:
+                found.setdefault(key, []).append(("P%s" % v, zones.get(slot, "")))
+    return {key: hits[0] for key, hits in found.items() if len(hits) == 1}
+
+
+def annotate(seed_data, players, world, rows, seed_data_for):
+    """Seed tuples -> seed tuples, this world's AP lines gaining a 5th field.
+
+    rows: {world: (APNames entries, that world's room slot)}; a world that
+    has never scouted contributes nothing. seed_data_for(v) yields world v's
+    raw placement tuples, which is where the join reads reserved zones.
+    """
+    entries, _ = rows.get(world, ({}, None))
+    if not entries:
+        return seed_data
+    shadow = str(int(players) + int(world))
+    exports = _exports(seed_data, shadow)
+    holders = _holders(players, world, rows, seed_data_for)
+    counts = {}
+    for key in exports.values():
+        counts[key] = counts.get(key, 0) + 1
+    out = []
+    for line in seed_data:
+        loc, code, id, zone = line
+        if is_mw_manifest_loc(int(loc)):
+            key = exports.get(-int(loc) - 2)
+            hit = holders.get(key) if key is not None and counts.get(key) == 1 else None
+            if hit:
+                # unresolved entries keep the pre-conversion zone: it's often
+                # wrong, but blanking it strips the hint on shipped clients
+                line = (loc, code, id, hit[1], hit[0])
+        else:
+            held = _reserved_slot(code, id, shadow)
+            scout = entries.get(held[0]) if held else None
+            if scout is not None:
+                line = (loc, code, "%s,%s,%s" % (shadow, held[0], scout.label()),
+                        zone, "%s;%s" % (scout.to, scout.item))
+        out.append(line)
+    return out

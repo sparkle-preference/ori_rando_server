@@ -4,7 +4,9 @@ APLink is a game's durable record of its AP room: where to connect, each
 world's slot name, and how far into each world's ReceivedItems stream the
 bridge has applied (AP's index contract). Key = game id, same as Game.
 
-APNames holds one world's scouted item names, keyed '<gid>.<world>'.
+APNames holds one world's scouted Archipelago placements, keyed
+'<gid>.<world>': what is in each reserved slot, who it is for, and the raw
+AP ids the download-time cross-world join reads.
 
 Must stay importable without main.py (no Flask), like netcode.py.
 """
@@ -52,14 +54,25 @@ def sanitize_display_name(name, limit=ITEM_NAME_MAX):
 
 
 def ap_display_name(item, player):
-    """'<item> (<player>)', the reserved-slot label the client shows as
-    "Found Archipelago's <this>!". Empty when the item name doesn't survive
+    """'<item> (<player>)', the whole-label form for clients that read only
+    the four original seed fields. Empty when the item name doesn't survive
     sanitization, which the caller reads as "keep the placeholder"."""
     item = sanitize_display_name(item, ITEM_NAME_MAX)
     player = sanitize_display_name(player, PLAYER_NAME_MAX)
     if not item:
         return ""
     return "%s (%s)" % (item, player) if player else item
+
+
+# field 5 and the apfrom signal are split on , ; = and |, so a name on them
+# keeps none of those (matches models.Player.wire_name)
+_WIRE_NAME_DROP = re.compile(r"[^A-Za-z0-9 _.'-]")
+
+
+def wire_safe_name(name, limit=PLAYER_NAME_MAX):
+    """Name as safe to embed in a seed field or a signal payload."""
+    clean = _WIRE_NAME_DROP.sub(" ", name or "")
+    return re.sub(r"\s+", " ", clean).strip()[:limit].strip()
 
 
 class APLink(ndb.Model):
@@ -111,19 +124,65 @@ class APLink(ndb.Model):
         }
 
 
+class APScout(object):
+    """What the room said sits in one reserved slot of one world.
+
+    item + who build the combined label every shipped client reads out of
+    the comma field; `to` is the seed's field 5, which prefers 'P<world>' for
+    a sibling world so the client can print that player's own name.
+    ap_item/ap_owner are the raw AP ids the cross-world join in
+    archipelago.annotate needs to see where an exported item actually landed.
+    """
+    __slots__ = ("item", "who", "to", "ap_item", "ap_owner")
+
+    def __init__(self, item, who, to, ap_item, ap_owner):
+        self.item, self.who, self.to = item, who, to
+        self.ap_item, self.ap_owner = ap_item, ap_owner
+
+    def label(self):
+        """The one-string form clients read out of the comma field."""
+        return ap_display_name(self.item, self.who)
+
+    def __eq__(self, other):
+        return isinstance(other, APScout) and self.as_json() == other.as_json()
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def __repr__(self):
+        return "APScout(%r, %r, %r, %r, %r)" % (
+            self.item, self.who, self.to, self.ap_item, self.ap_owner)
+
+    def as_json(self):
+        return {"i": self.item, "w": self.who, "t": self.to,
+                "a": self.ap_item, "o": self.ap_owner}
+
+    @staticmethod
+    def from_json(blob):
+        return APScout(blob["i"], blob.get("w") or "", blob.get("t") or "",
+                       int(blob["a"]), int(blob["o"]))
+
+
 class APNames(ndb.Model):
-    """One world's scouted Archipelago item names, id '<gid>.<world>'.
+    """One world's scouted Archipelago placements, id '<gid>.<world>'.
 
     Pure display data: always regenerable by rescouting, so a missing row
     just means the seed keeps its "AP Item #n" placeholders and nothing
     breaks. Its own kind rather than a field on APLink because (a) APLink is
     written on every ReceivedItems batch and every status change, and up to
-    256 names per world would ride all of those puts, and (b) the K bridge
+    256 entries per world would ride all of those puts, and (b) the K bridge
     threads scout concurrently, so a per-world key keeps them from
     contending on one entity. Compressed like SeedGenParams.spoilers.
+
+    A row written by an older build stores bare label strings and no
+    ap_slot; load() reports those as empty rather than guessing, and the
+    bridge rewrites the row on its next connection (it rescouts every time).
     """
-    # JSON {"<shadow slot>": "<display name>"}
+    # JSON {"<shadow slot>": {"i": item, "t": recipient, "a": ap item id,
+    #                         "o": ap owner slot}}
     names   = ndb.TextProperty(compressed=True)
+    # this world's own slot number in the room: the join's "is it mine?"
+    ap_slot = ndb.IntegerProperty()
     scouted = ndb.IntegerProperty(default=0)
     updated = ndb.DateTimeProperty(auto_now=True)
 
@@ -133,17 +192,21 @@ class APNames(ndb.Model):
 
     @staticmethod
     def load(gid, world):
-        """{slot: display name} for one world; {} when nothing is scouted."""
+        """-> ({shadow slot: APScout}, this world's room slot or None)."""
         row = APNames.get_by_id(APNames.key_id(gid, world))
         if row is None or not row.names:
-            return {}
+            return {}, None
         try:
-            return {int(k): v for k, v in json.loads(row.names).items()}
-        except (TypeError, ValueError):
-            log.warning("APNames %s holds unreadable json", APNames.key_id(gid, world))
-            return {}
+            blob = json.loads(row.names)
+            entries = {int(k): APScout.from_json(v) for k, v in blob.items()}
+        except (TypeError, ValueError, KeyError, AttributeError):
+            log.warning("APNames %s holds json this build can't read",
+                        APNames.key_id(gid, world))
+            return {}, None
+        return entries, row.ap_slot
 
     @staticmethod
-    def store(gid, world, names):
-        APNames(id=APNames.key_id(gid, world), scouted=len(names),
-                names=json.dumps({str(k): v for k, v in sorted(names.items())})).put()
+    def store(gid, world, entries, ap_slot=None):
+        blob = {str(k): v.as_json() for k, v in sorted(entries.items())}
+        APNames(id=APNames.key_id(gid, world), scouted=len(entries),
+                ap_slot=ap_slot, names=json.dumps(blob)).put()

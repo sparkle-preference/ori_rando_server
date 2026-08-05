@@ -10,29 +10,28 @@ prior_notes/ARCHIPELAGO_NOTES.md "Generator AP game mode" for the design.
 
 What converts:
 - Same-world placements of the user-selected export categories.
-- EVERY cross-landed progression item, regardless of selection: a native MW
-  manifest line is invisible to its owner's AP logic, so any logic-relevant
-  item left native under-models the world and breaks accessibility (the
-  E2E-discovered Misty Ability Cell case).
-- Cross-landed EX, exported under the nearest denomination (50/100/200
-  experience); the manifest entry keeps the true value, so exact in-game
-  amounts survive (the bridge maps by slot, not name).
+- EVERY cross-landed item the datapackage can name, so a K>1 game shares one
+  way instead of two. Progression is mandatory: a native MW manifest line is
+  invisible to its owner's AP logic, so a logic-relevant item left native
+  under-models the world and breaks accessibility (the E2E-discovered Misty
+  Ability Cell case).
 Generic keystones never convert AND never cross (the generator pins them to
-their owner's world in AP mode); bonus RBs, warps and relics may stay native
-cross-world -- invisible to AP logic and harmless.
+their owner's world in AP mode). What still rides the native MW fabric is
+exactly what the datapackage cannot name: TW warps, whose ids are per-seed
+strings ("Warp to Stompless AC,-358,65,...").
 
-Per-world balance: AP requires exported-count == reserved-count per slot.
-Cross-world drift skews this, so conversion REVERTS cross-landed EX
-conversions (revert = back to a native MW line, harmless for filler) until
-every deficit is zero. Progression conversions are mandatory and never
-reverted. A single revert strictly reduces total imbalance exactly when its
-host world over-reserves and its owner world over-exports; deficits sum to
-zero and cross EX is plentiful, so balancing effectively always succeeds --
-if no such revert exists the conversion fails cleanly.
+Per-world balance: NOT an invariant. Archipelago's fill only requires the
+GAME's item and location counts to match globally (Fill.py raises on a
+global shortfall; a per-player mismatch is a logged warning), and cross-world
+drift means each world's own counts cannot both be honest and equal. They
+sum to zero across the game by construction -- every conversion adds one
+reserved location to its host and one exported item to its owner -- so the
+global check below is the real one.
 """
 import json
 import os
 
+from archipelago.export_data import EX_EXACT_CAP
 from archipelago.yaml_emit import (LOC_NAMES, ITEM_NAMES, make_config,
                                    SPAWN_COORD)
 
@@ -41,6 +40,7 @@ DATA_DIR = os.path.join(os.path.dirname(__file__), "oride_apworld", "oride", "da
 with open(os.path.join(DATA_DIR, "items.json")) as _f:
     _ITEMS = json.load(_f)
 ITEM_BY_CODE_ID = {(i["code"], i["id"]): i for i in _ITEMS}
+ITEM_BY_AP_ID = {i["ap_id"]: (i["code"], i["id"]) for i in _ITEMS}
 
 EXPORTABLE_CATEGORIES = ("skills", "teleporters", "events", "cells", "stones")
 DEFAULT_EXPORT = ("skills", "teleporters", "events")
@@ -84,6 +84,25 @@ def is_progression(code, pid):
 def nearest_ex_denom(value):
     """True EX value -> datapackage denomination (ties round down)."""
     return min(EX_DENOMS, key=lambda d: (abs(d - int(value)), d))
+
+
+def ex_export_value(value):
+    """True EX value -> the value BOTH the AP pool and the manifest use.
+    Exact up to the cap; above it the two round together, so the amount the
+    room announces is the amount the client grants."""
+    try:
+        v = int(value)
+    except (TypeError, ValueError):
+        return nearest_ex_denom(0)
+    return v if 1 <= v <= EX_EXACT_CAP else nearest_ex_denom(v)
+
+
+def is_exportable(code, id):
+    """Can this pickup ride the AP pool? Datapackage membership is the whole
+    rule -- TW warp ids are per-seed strings and can never be static items."""
+    if code == "EX":
+        return True
+    return (code, str(id)) in ITEM_BY_CODE_ID
 
 
 def export_code_ids(categories):
@@ -143,7 +162,8 @@ def ap_convert(texts, categories, keep_locs=frozenset()):
         f = [None]
         m = {}
         for idx, line in enumerate(lines[1:], start=1):
-            parts = line.split("|", 3)
+            # not split("|", 3): an annotated line's 5th field would land in zone
+            parts = line.split("|")
             f.append(parts if len(parts) == 4 else None)
             if len(parts) != 4:
                 continue
@@ -157,8 +177,8 @@ def ap_convert(texts, categories, keep_locs=frozenset()):
         fields.append(f)
         manifests.append(m)
 
-    # candidates: same-world placements of the selected categories, every
-    # cross-landed progression item, and cross-landed EX (balancing currency)
+    # candidates: same-world placements of the selected categories, plus
+    # every cross-landed item the datapackage can name
     candidates = []
     for v in range(1, players + 1):
         for idx, parts in enumerate(fields[v - 1]):
@@ -187,8 +207,12 @@ def ap_convert(texts, categories, keep_locs=frozenset()):
                     raise ApConversionError(
                         "world %s keystone crossed into world %s at %s "
                         "(the AP keystone pin failed)" % (owner, v, loc))
-                if not is_progression(icode, iid) and icode != "EX":
-                    continue  # filler may ride the native MW fabric
+                if not is_exportable(icode, iid):
+                    if is_progression(icode, iid):
+                        raise ApConversionError(
+                            "cross-world progression %s|%s at %s of world %s "
+                            "is not in the datapackage" % (icode, iid, loc, v))
+                    continue  # unnameable filler rides the native MW fabric
                 if (v, loc) in keep_locs:
                     if is_progression(icode, iid):
                         raise ApConversionError(
@@ -196,6 +220,8 @@ def ap_convert(texts, categories, keep_locs=frozenset()):
                             "mode can't model it natively or convert it" %
                             (icode, iid, loc, v))
                     continue  # forced cross-world filler stays native
+                if icode == "EX":
+                    iid = str(ex_export_value(iid))
                 candidates.append({
                     "v": v, "loc": loc, "line": idx, "owner": owner,
                     "code": icode, "id": iid, "zone": zone,
@@ -208,33 +234,19 @@ def ap_convert(texts, categories, keep_locs=frozenset()):
                     "code": code, "id": pid, "zone": zone, "kind": "local"})
     candidates.sort(key=lambda c: (c["v"], c["loc"]))
 
-    # balance: deficit>0 = world hosts more AP slots than it exports.
-    # Revert cross-landed EX until every deficit is zero.
-    deficit = {p: 0 for p in range(1, players + 1)}
-    for c in candidates:
-        deficit[c["v"]] += 1
-        deficit[c["owner"]] -= 1
-    reverted = []
-    ex_pool = sorted((c for c in candidates
-                      if c["kind"] == "cross" and c["code"] == "EX"),
-                     key=lambda c: (c["owner"], c["v"], c["loc"]))
-    while any(deficit[p] for p in deficit):
-        c = next((c for c in ex_pool
-                  if deficit[c["v"]] > 0 and deficit[c["owner"]] < 0), None)
-        if c is None:
-            raise ApConversionError(
-                "can't balance AP export with EX reverts: deficits %s" %
-                {p: d for p, d in sorted(deficit.items()) if d})
-        ex_pool.remove(c)
-        candidates.remove(c)
-        reverted.append(c)
-        deficit[c["v"]] -= 1
-        deficit[c["owner"]] += 1
-
     reserved = {p: [c for c in candidates if c["v"] == p]
                 for p in range(1, players + 1)}
     exported = {p: [c for c in candidates if c["owner"] == p]
                 for p in range(1, players + 1)}
+    # the invariant AP actually has: one item per location across the game.
+    # True by construction (every candidate is one of each), so a failure
+    # here means the candidate list itself is malformed.
+    total_reserved = sum(len(r) for r in reserved.values())
+    total_exported = sum(len(e) for e in exported.values())
+    if total_reserved != total_exported:
+        raise ApConversionError(
+            "AP conversion is unbalanced across the game: %s reserved "
+            "locations, %s exported items" % (total_reserved, total_exported))
 
     # AP manifest entries share the 0..255 slot space with native MW slots.
     # Conversion drops most native entries, freeing their slots; nothing
@@ -248,8 +260,6 @@ def ap_convert(texts, categories, keep_locs=frozenset()):
     # A player carries 8x32 slot bits and nothing more (models.Player.
     # mark_slot refuses 256+), so a surplus has nowhere to live: the seed
     # would render fine and every grant past the cap would evaporate.
-    # Balancing leaves reserved == exported, so the live check is the
-    # free-slot one; the flat caps hold the line if that ever changes.
     ap_slots = {}
     for p in range(1, players + 1):
         if len(reserved[p]) > MAX_SLOTS:
@@ -298,8 +308,6 @@ def ap_convert(texts, categories, keep_locs=frozenset()):
         "exported": {p: [(c["code"], c["id"], ap_slots[p][i2])
                          for i2, c in enumerate(exported[p])]
                      for p in exported},
-        "reverted": [(c["v"], c["loc"], c["owner"], c["code"], c["id"])
-                     for c in reverted],
     }
     return new_texts, info
 
@@ -311,8 +319,8 @@ def build_ap_config(placements, players, world, logic_paths, key_mode,
     placements: [(loc, code, id, zone)] including manifest pseudo-locs.
     Classification is by wire shape: shadow-owned MW lines are the reserved
     slots, shadow-finder manifest entries are the exported items, plain
-    progression lines pin local_progression. The only things still riding
-    the native MW fabric are filler (reverted EX, bonus RBs, warps):
+    progression lines pin local_progression. Anything still riding the
+    native MW fabric is filler the datapackage cannot name (TW warps):
     invisible to AP, and omitting filler is sound -- rules never rely on
     it. A progression item on a native manifest means the conversion pass
     failed, so yaml derivation fails with it. K=1 has no native MW lines.
@@ -330,9 +338,12 @@ def build_ap_config(placements, players, world, logic_paths, key_mode,
             finder_s, icode, iid = pid.split(",", 2)
             if int(finder_s) > players:  # exported to the AP pool
                 if icode == "EX":
-                    name = ITEM_NAMES[("EX", str(nearest_ex_denom(iid)))]
-                else:
-                    name = ITEM_NAMES[(icode, iid)]
+                    iid = str(ex_export_value(iid))
+                name = ITEM_NAMES.get((icode, iid))
+                if name is None:
+                    raise ApConversionError(
+                        "world %s exports %s|%s, which is not in the "
+                        "datapackage" % (world, icode, iid))
                 exported[name] = exported.get(name, 0) + 1
             elif is_progression(icode, iid):
                 raise ApConversionError(
@@ -360,10 +371,7 @@ def build_ap_config(placements, players, world, logic_paths, key_mode,
             local[loc_name] = ITEM_NAMES[(code, pid)]
         # anything else (EX, bonus RBs, warps, relics, entrances) is
         # invisible to AP
-    if sum(exported.values()) != len(reserved):
-        raise ApConversionError(
-            "world %s: %s exported != %s reserved (unbalanced conversion?)" %
-            (world, sum(exported.values()), len(reserved)))
+    # per-world counts differ by design; ap_convert checks the game-wide totals
     return make_config(exported, reserved, local, logic_paths,
                        key_mode=key_mode, spawn=ap_spawn_region(spawn_zone),
                        variations=variations, params_id=params_id, world=world)

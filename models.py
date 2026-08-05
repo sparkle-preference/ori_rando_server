@@ -544,13 +544,25 @@ class Player(ndb.Model):
 
     @staticmethod
     @ndb.transactional(retries=5)
-    def mark_slots_txn(pkey, slots):
-        """Batch slot marking (multiworld release). Returns newly-set count."""
+    def mark_slots_txn(pkey, slots, signal_for=None, signal_latest_only=False):
+        """Batch slot marking (multiworld release). Returns newly-set count.
+        signal_for(newly-set slots) may return one signal to ride the same
+        write, so a client can read it on the tick that grants them.
+        signal_latest_only drops earlier signals of the same kind: a client
+        that never acks one (an older dll) would otherwise carry every one of
+        them on every tick."""
         p = pkey.get()
-        newly = sum(1 for s in slots if p.mark_slot(s, delay_put=True))
-        if newly:
+        fresh = [s for s in slots if p.mark_slot(s, delay_put=True)]
+        if fresh and signal_for:
+            signal = signal_for(fresh)
+            if signal and signal_latest_only:
+                kind = signal.split(":", 1)[0] + ":"
+                p.signals = [s for s in p.signals if not s.startswith(kind)]
+            if signal and signal not in p.signals:
+                p.signals.append(signal)
+        if fresh:
             p.put()
-        return newly
+        return len(fresh)
 
     @ndb.transactional(retries=5)
     def reset(self):

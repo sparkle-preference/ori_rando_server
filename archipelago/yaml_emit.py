@@ -21,7 +21,7 @@ DATA_DIR = os.path.join(os.path.dirname(__file__), "oride_apworld", "oride", "da
 # Contract version of the blob below, checked by the apworld's
 # generate_early. Bump together with oride_apworld/oride/version.py, whose
 # docstring holds the rule; the suite fails if the two drift.
-DATA_VERSION = 1
+DATA_VERSION = 2
 
 EXPORT_CODES = {"SK", "TP", "EV"}
 LOCAL_CODES = {"KS", "MS", "HC", "EC", "AC"}
@@ -59,6 +59,10 @@ def parse_seed(seed_lines):
         if not line:
             continue
         coord, code, pid, zone = line.split("|", 3)
+        if "|" in zone:
+            raise ValueError(
+                "seed line has more than 4 fields, so this is download-time "
+                "annotated text, not generator output: %r" % line)
         placements.append((int(coord), code, pid, zone))
     return seed_lines[0], placements
 

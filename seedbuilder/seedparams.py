@@ -527,45 +527,41 @@ class SeedGenParams(ndb.Model):
                 flags = f"Sync{game_id}.{player},{flags}"
         outlines = [flags]
         seed_data = self.ap_named(self.get_seed_data(player, no_door_zone = True), player, game_id)
-        outlines += ["|".join(p for p in line if p) for line in seed_data]
+        # AP-annotated lines join positionally: the zone of an item nobody
+        # can locate is empty, and dropping it would promote field 5 into it
+        outlines += ["|".join(line) if len(line) > 4 else "|".join(p for p in line if p)
+                     for line in seed_data]
         return "\n".join(outlines) + "\n"
 
-    def ap_names(self, player, game_id):
-        """This world's scouted Archipelago item names, {shadow slot: label}.
-        Empty until the game's room has been connected at least once (the
-        bridge learns them from LocationScouts), so a seed downloaded before
-        then keeps its "AP Item #n" placeholders until it is downloaded
-        again."""
+    def ap_rows(self, game_id):
+        """Every world's scouted Archipelago placements, {world: (entries,
+        room slot)}. Empty until the game's room has been connected at least
+        once (the bridge learns them from LocationScouts), so a seed
+        downloaded before then keeps its "AP Item #n" placeholders and its
+        rolled zones until it is downloaded again."""
         if not self.ap_mode or not game_id:
             return {}
         try:
             from ap_models import APNames
-            return APNames.load(game_id, player)
+            return {w: APNames.load(game_id, w) for w in range(1, int(self.players) + 1)}
         except Exception:
-            log.exception("couldn't load AP names for game %s world %s", game_id, player)
+            log.exception("couldn't load AP names for game %s", game_id)
             return {}
 
     def ap_named(self, seed_data, player, game_id):
-        """Substitute scouted names into this world's reserved AP lines
-        ('<loc>|MW|<K+player>,<slot>,AP Item #n|<zone>'). Display only:
-        owner and slot -- everything the netcode reads -- are untouched, and
-        an unscouted slot keeps its placeholder."""
-        names = self.ap_names(player, game_id)
-        if not names:
+        """Annotate this world's AP lines with what the room actually did
+        with them. Display only: every field the netcode reads is untouched,
+        and an unscouted world passes straight through."""
+        rows = self.ap_rows(game_id)
+        if not rows:
             return seed_data
-        from util import is_mw_manifest_loc
-        shadow = str(int(self.players) + int(player))
-        out = []
-        for line in seed_data:
-            loc, code, id, zone = line
-            if code == "MW" and not is_mw_manifest_loc(loc):
-                parts = id.split(",", 2)
-                if len(parts) == 3 and parts[0] == shadow and parts[1].isdigit():
-                    name = names.get(int(parts[1]))
-                    if name:
-                        line = (loc, code, "%s,%s,%s" % (parts[0], parts[1], name), zone)
-            out.append(line)
-        return out
+        try:
+            from archipelago.annotate import annotate
+            return annotate(seed_data, int(self.players), int(player), rows,
+                            lambda v: self.get_seed_data(v))
+        except Exception:
+            log.exception("couldn't annotate AP seed for game %s world %s", game_id, player)
+            return seed_data
 
     def get_seed_data(self, player=1, no_door_zone = True):
         player = int(player)
@@ -587,7 +583,8 @@ class SeedGenParams(ndb.Model):
         seed_data = OrderedDict()
         # game_id is optional and AP-only: with it the reserved AP lines list
         # their real items instead of "AP Item #n", exactly like the seed
-        for coords, pcode, pid, _ in self.ap_named(self.get_seed_data(player), player, game_id):
+        for line in self.ap_named(self.get_seed_data(player), player, game_id):
+            coords, pcode, pid = line[0], line[1], line[2]   # annotated AP lines carry a 5th field
             if pcode == "EN" or pcode in exclude_types or pcode + pid == "RB81":
                 continue
             if is_mw_manifest_loc(coords):

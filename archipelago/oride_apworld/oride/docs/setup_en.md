@@ -65,6 +65,9 @@ The Seed tab has one row per Ori world. Each row has an **AP YAML** button; down
 The files are named `ap_world_1.yaml`, `ap_world_2.yaml`, and so on, and their slot names are `Ori1`, `Ori2`,
 … — one Archipelago slot per Ori world.
 
+**Generate all of a game's yamls into the same session.** They share one Ori seed: items cross between the
+Ori worlds through Archipelago, so leaving one out won't generate.
+
 Put them in your Archipelago install's **`Players`** folder, alongside the yamls for every other game in the
 session.
 

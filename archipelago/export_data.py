@@ -22,6 +22,10 @@ BASE_ID = 524288  # 2**19; deliberately not c-ostic's 262144
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "oride_apworld", "oride", "data")
 
+# highest exact "N experience" item; above it EX rides the legacy
+# denominations. Measured range over 5 seeds was 1..514.
+EX_EXACT_CAP = 600
+
 # (code, id, category) in frozen datapackage order. Append-only!
 ITEM_ORDER = (
     [("SK", sk, "skills") for sk in (0, 2, 3, 4, 5, 8, 12, 14, 50, 51, 15)] +
@@ -33,9 +37,13 @@ ITEM_ORDER = (
     [("RB", rb, "events") for rb in (17, 19, 21, 28)] +      # shards + warmth frags
     [("RB", rb, "stones") for rb in range(300, 312)] +       # keysanity area keys
     [("RB", rb, "bonus") for rb in (6, 13, 15, 8, 9, 10, 11, 12, 0, 1, 33, 36, 37)] +
-    # spirit light balancing currency: cross-world EX converts under the
-    # nearest of these denominations (the manifest keeps the true value)
-    [("EX", ex, "bonus") for ex in (50, 100, 200)]
+    # spirit light denominations: the fallback above EX_EXACT_CAP
+    [("EX", ex, "bonus") for ex in (50, 100, 200)] +
+    # --- append-only past here: ids are frozen once shipped ---
+    [("RB", rb, "bonus") for rb in (31, 32, 102, 106, 111)] +   # bonus skills
+    # exact spirit light amounts, so an item name means one number
+    [("EX", ex, "bonus") for ex in range(1, EX_EXACT_CAP + 1)
+     if ex not in (50, 100, 200)]
 )
 
 

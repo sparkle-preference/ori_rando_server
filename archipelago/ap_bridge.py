@@ -25,7 +25,9 @@ from simple_websocket.errors import ConnectionError as WsConnectionError
 from wsproto.events import AcceptConnection, RejectConnection, Request
 from wsproto.extensions import PerMessageDeflate
 
-from ap_models import APLink, APNames, ap_display_name, ap_slot_name
+from ap_models import (APLink, APNames, APScout, ap_slot_name,
+                       sanitize_display_name, wire_safe_name,
+                       ITEM_NAME_MAX, PLAYER_NAME_MAX)
 from cache import Cache
 from util import ARCHIPELAGO, is_mw_manifest_loc
 
@@ -34,10 +36,18 @@ AP_VERSION = {"class": "Version", "major": 0, "minor": 6, "build": 7}
 ITEMS_HANDLING = 0b011
 CLIENT_GOAL = 30
 SCOUT_CHUNK = 100        # locations per LocationScouts message
+# hand-mirrored from archipelago.convert (this module stays import-light for
+# the lazy-start rule); test.ap_bridge_test pins the two together
 EX_DENOMS = (50, 100, 200)
+EX_EXACT_CAP = 600
 
 POLL_SECS = 2.0          # shadow-outbox poll cadence
 RECV_TIMEOUT = 1.0
+# a room's goal handler collects then releases, one ReceivedItems per source
+# world, so K+1 messages can land microseconds apart. Buffer them into one
+# grant transaction rather than one per message straddling the 1Hz tick.
+COALESCE_SECS = 0.3
+SIGNAL_MAX = 400         # chars of apfrom payload per tick
 LINK_RECHECK_SECS = 15.0  # re-read APLink (disable/goal from other processes)
 HANDSHAKE_TIMEOUT = 20.0
 CONNECT_TIMEOUT = 10.0   # the OS SYN ladder is ~4 min
@@ -56,15 +66,17 @@ class ApRefused(Exception):
 
 
 def _match_key(code, id):
-    """Manifest (code, id) -> the datapackage identity AP knows it by.
-    EX exports ride denomination names; ties round down (mirrors
-    convert.nearest_ex_denom so both sides bucket identically)."""
+    """Manifest (code, id) -> the datapackage identity AP knows it by. EX is
+    exact up to the cap and rides a denomination above it (mirrors
+    convert.ex_export_value so both sides bucket identically)."""
     if code == "EX":
         try:
             v = int(id)
         except (TypeError, ValueError):
             v = 0
-        return ("EX", str(min(EX_DENOMS, key=lambda d: (abs(d - v), d))))
+        if not 1 <= v <= EX_EXACT_CAP:
+            v = min(EX_DENOMS, key=lambda d: (abs(d - v), d))
+        return ("EX", str(v))
     return (code, str(id))
 
 
@@ -143,14 +155,33 @@ def _shadow_slots(gid, world, maps):
             if slot // 32 < len(bflds) and (bflds[slot // 32] >> (slot % 32)) & 1}
 
 
-def _apply_grants(gid, world, slots):
+def _apfrom_signal(senders, slots):
+    """'apfrom:<slot>=<sender>;...' for the slots actually granted. An empty
+    sender means "you found this yourself". Capped: signals ride every tick
+    until the client confirms them, and a release can mark 256 slots at once
+    -- past the cap the client falls back to naming Archipelago."""
+    if not senders:
+        return None
+    pairs, size = [], 0
+    for slot in slots:
+        pair = "%s=%s" % (slot, senders.get(slot, ""))
+        if size + len(pair) + 1 > SIGNAL_MAX:
+            break
+        pairs.append(pair)
+        size += len(pair) + 1
+    return "apfrom:" + ";".join(pairs) if pairs else None
+
+
+def _apply_grants(gid, world, slots, senders=None):
     """Mark manifest slots on REAL player w; their tick delivers the items."""
     from models import Game, Player
     game = Game.with_id(gid)
     if not game:
         return 0
     player = game.player(world)
-    newly = Player.mark_slots_txn(player.key, slots)
+    newly = Player.mark_slots_txn(
+        player.key, slots, signal_for=lambda fresh: _apfrom_signal(senders, fresh),
+        signal_latest_only=True)
     if newly:
         Cache.clear_seen_checksum(player.idpts())
     return newly
@@ -218,11 +249,11 @@ def _persist_name_counts(gid, world, total, resolved):
     link.put()
 
 
-def _persist_names(gid, world, total, names):
-    """Store one world's scouted names + the counters ap/status reports.
+def _persist_names(gid, world, total, names, ap_slot=None):
+    """Store one world's scout results + the counters ap/status reports.
     Two entity groups, so no single transaction covers both -- display data,
     a torn write just under- or over-reports for one poll."""
-    APNames.store(gid, world, names)
+    APNames.store(gid, world, names, ap_slot=ap_slot)
     _persist_name_counts(gid, world, total, len(names))
 
 
@@ -331,10 +362,13 @@ class ApSession(object):
     factory wrapped around every datastore touchpoint."""
 
     def __init__(self, gid, world, maps, slot_name, password,
-                 stop_event=None, goal_event=None, ctx=None, host=None, port=None):
+                 stop_event=None, goal_event=None, ctx=None, host=None, port=None,
+                 game_slots=None):
         self.gid, self.world, self.maps = int(gid), int(world), maps
         self.slot_name = slot_name
         self.password = password
+        # every world of this orirando game, index w-1 = world w's slot name
+        self.game_slots = list(game_slots or [])
         self.host, self.port = host, port  # room this session connected to
         self.stop_event = stop_event
         self.goal_event = goal_event
@@ -342,12 +376,17 @@ class ApSession(object):
         self.checked = set()   # room-acknowledged + optimistically sent
         self.fill = {}         # match_key -> next cursor into grant_slots
         self.recv_count = 0    # AP's ReceivedItems index contract
+        self.pending = []      # slots buffered for the next grant flush
+        self.pending_from = {}  # slot -> sender display name ("" = yourself)
+        self.flush_at = None   # monotonic deadline for that flush
         self.authed = False
         self.goal_sent = False
         # scouting (display names; see the module docstring)
         self.room_checksums = {}  # RoomInfo: game -> datapackage checksum
         self.slot_games = {}      # Connected slot_info: ap slot -> game name
         self.slot_players = {}    # ap slot -> player display name
+        self.slot_raw_names = {}  # ap slot -> slot_info name (never the alias)
+        self.our_slot = None      # Connected: our own slot number in the room
         self.our_locations = set()  # every location the room says is ours
         self.scout_total = 0      # how many we asked about
         self.scouted = {}         # ap location id -> (item id, owner slot)
@@ -367,21 +406,31 @@ class ApSession(object):
         self._handshake(sock)
         next_poll = monotonic() + POLL_SECS
         next_link = monotonic() + LINK_RECHECK_SECS
-        while not self._stopped():
-            frame = sock.receive(timeout=RECV_TIMEOUT)
-            if frame is not None:
-                for msg in _decode(frame):
-                    self._dispatch(msg, sock)
-            now = monotonic()
-            if now >= next_poll:
-                self._poll_outbox(sock)
-                next_poll = now + POLL_SECS
-            if self.goal_event is not None and self.goal_event.is_set():
-                self._send_goal(sock)
-            if now >= next_link:
-                next_link = now + LINK_RECHECK_SECS
-                if not self._recheck_link(sock):
-                    return
+        try:
+            while not self._stopped():
+                timeout = RECV_TIMEOUT
+                if self.flush_at is not None:
+                    timeout = max(0.02, self.flush_at - monotonic())
+                frame = sock.receive(timeout=timeout)
+                if frame is not None:
+                    for msg in _decode(frame):
+                        self._dispatch(msg, sock)
+                now = monotonic()
+                if self.flush_at is not None and now >= self.flush_at:
+                    self._flush_grants()
+                if now >= next_poll:
+                    self._poll_outbox(sock)
+                    next_poll = now + POLL_SECS
+                if self.goal_event is not None and self.goal_event.is_set():
+                    self._send_goal(sock)
+                if now >= next_link:
+                    next_link = now + LINK_RECHECK_SECS
+                    if not self._recheck_link(sock):
+                        return
+        finally:
+            # a dropped socket must not swallow items already taken off the
+            # stream: the grant is a datastore write and does not need it
+            self._flush_grants()
 
     def _handshake(self, sock):
         deadline = monotonic() + HANDSHAKE_TIMEOUT
@@ -417,6 +466,10 @@ class ApSession(object):
 
     def _on_connected(self, msg):
         self.authed = True
+        try:
+            self.our_slot = int(msg.get("slot"))
+        except (TypeError, ValueError):
+            self.our_slot = None
         self.checked = set(msg.get("checked_locations") or [])
         missing = msg.get("missing_locations") or []
         # authoritative list of THIS slot's locations: scouting anything else
@@ -424,7 +477,9 @@ class ApSession(object):
         self.our_locations = self.checked | set(missing)
         self.fill = {}
         self.recv_count = 0
+        self.pending, self.pending_from, self.flush_at = [], {}, None
         self.scouted, self.dp_pending, self.named, self.scout_total = {}, set(), None, 0
+        self.slot_raw_names = {}
         self._safe("slot_info", self._read_slot_info, msg)
         log.info("APBRIDGE connected gid=%s world=%s slot=%r checked=%s missing=%s",
                  self.gid, self.world, self.slot_name, len(self.checked), len(missing))
@@ -446,7 +501,7 @@ class ApSession(object):
         """Connected.slot_info gives every slot's game (which datapackage an
         item id belongs to); .players gives the display names, preferring the
         alias the room shows over the raw slot name."""
-        self.slot_games, self.slot_players = {}, {}
+        self.slot_games, self.slot_players, self.slot_raw_names = {}, {}, {}
         for slot, info in (msg.get("slot_info") or {}).items():
             if not isinstance(info, dict):
                 continue
@@ -456,6 +511,7 @@ class ApSession(object):
                 continue
             self.slot_games[slot] = info.get("game")
             self.slot_players[slot] = info.get("name")
+            self.slot_raw_names[slot] = info.get("name")
         for p in msg.get("players") or []:
             if not isinstance(p, dict):
                 continue
@@ -498,7 +554,7 @@ class ApSession(object):
             # nothing to name: publish the complete 0 of 0 so the UI settles
             self.named = {}
             with self.ctx():
-                _persist_names(self.gid, self.world, 0, {})
+                _persist_names(self.gid, self.world, 0, {}, ap_slot=self.our_slot)
             return
         for i in range(0, len(targets), SCOUT_CHUNK):
             _send(sock, [{"cmd": "LocationScouts",
@@ -542,8 +598,34 @@ class ApSession(object):
         game = self.slot_games.get(owner)
         return _dp_get(game, self.room_checksums.get(game)) or {}
 
+    def _recipient(self, owner):
+        """Display token for the slot an item is going to. Another world of
+        THIS orirando game gets 'P<world>', which the client already knows
+        how to turn into that player's own name; anyone else gets their room
+        name."""
+        world = self.sibling_world(owner)
+        if world:
+            return "P%s" % world
+        # a name that sanitizes away (unicode-only aliases are common) would
+        # otherwise render as "Found 's Bash!"
+        return wire_safe_name(self.slot_players.get(owner), PLAYER_NAME_MAX) or "Archipelago"
+
+    def sibling_world(self, slot):
+        """Room slot -> the world of THIS orirando game sitting on it, or 0.
+        Matched on the raw slot name the link stored, never the alias: an
+        alias is player-editable and any room can hold a second Ori game."""
+        if slot == self.our_slot:
+            return self.world
+        if self.slot_games.get(slot) != AP_GAME_NAME:
+            return 0
+        raw = self.slot_raw_names.get(slot)
+        for w, slot_name in enumerate(self.game_slots, start=1):
+            if raw and raw == slot_name:
+                return w
+        return 0
+
     def _resolve_names(self):
-        """Scouted (item, owner) + datapackages -> {shadow slot: label}.
+        """Scouted (item, owner) + datapackages -> {shadow slot: APScout}.
         Partial by design: a game we never got a package for simply keeps its
         placeholders."""
         slot_of = {ap_id: slot for slot, ap_id in self.maps.outbox[self.world].items()}
@@ -552,9 +634,11 @@ class ApSession(object):
             slot = slot_of.get(loc)
             if slot is None:
                 continue
-            label = ap_display_name(self._dp_for(owner).get(item), self.slot_players.get(owner))
-            if label:
-                names[slot] = label
+            item_name = sanitize_display_name(self._dp_for(owner).get(item), ITEM_NAME_MAX)
+            if item_name:
+                names[slot] = APScout(
+                    item_name, sanitize_display_name(self.slot_players.get(owner), PLAYER_NAME_MAX),
+                    self._recipient(owner), item, owner)
         if not names and self.dp_pending:
             # answers still outstanding (or the room ignored GetDataPackage):
             # never publish a blank over a previous connection's good names
@@ -563,9 +647,20 @@ class ApSession(object):
             return
         self.named = names
         with self.ctx():
-            _persist_names(self.gid, self.world, self.scout_total, names)
+            _persist_names(self.gid, self.world, self.scout_total, names,
+                           ap_slot=self.our_slot)
         log.info("APBRIDGE names gid=%s world=%s resolved=%s of %s",
                  self.gid, self.world, len(names), self.scout_total)
+
+    def _sender_name(self, finder):
+        """Display name for whoever found an item we received. Empty means
+        we found it ourselves, which the client renders with no suffix."""
+        world = self.sibling_world(finder)
+        if world == self.world:
+            return ""
+        if world:
+            return "P%s" % world
+        return wire_safe_name(self.slot_players.get(finder), PLAYER_NAME_MAX)
 
     def _on_received_items(self, msg, sock):
         index, items = int(msg.get("index", 0)), msg.get("items") or []
@@ -578,7 +673,6 @@ class ApSession(object):
                         self.gid, self.world, index, self.recv_count)
             _send(sock, [{"cmd": "Sync"}])
             return
-        slots = []
         for item in items:
             key = ITEM_KEY_BY_AP_ID.get(item.get("item"))
             lst = self.maps.grant_slots[self.world].get(key, []) if key else []
@@ -588,11 +682,26 @@ class ApSession(object):
                           item.get("item"), self.gid, self.world)
                 continue
             self.fill[key] = cur + 1
-            slots.append(lst[cur])
+            slot = lst[cur]
+            self.pending.append(slot)
+            try:
+                self.pending_from[slot] = self._sender_name(int(item.get("player")))
+            except (TypeError, ValueError):
+                self.pending_from[slot] = ""
         self.recv_count += len(items)
+        if self.flush_at is None:
+            self.flush_at = monotonic() + COALESCE_SECS
+
+    def _flush_grants(self):
+        """One grant transaction for everything buffered since the window
+        opened, so a collect+release burst is one message in game."""
+        if self.flush_at is None:
+            return
+        slots, senders = self.pending, self.pending_from
+        self.pending, self.pending_from, self.flush_at = [], {}, None
         with self.ctx():
             if slots:
-                _apply_grants(self.gid, self.world, slots)
+                _apply_grants(self.gid, self.world, slots, senders)
             _persist_recv(self.gid, self.world, self.recv_count)
 
     def _poll_outbox(self, sock):
@@ -676,7 +785,8 @@ class _Bridge(object):
                     continue
                 session = ApSession(gid, world, maps, slot_name, password,
                                     stop_event=self.stop_event, goal_event=self.goal_event,
-                                    ctx=ndb_client.context, host=host, port=port)
+                                    ctx=ndb_client.context, host=host, port=port,
+                                    game_slots=names)
                 sock = None
                 try:
                     sock, scheme = _open_socket(host, port, scheme)

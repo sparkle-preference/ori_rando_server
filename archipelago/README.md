@@ -29,7 +29,8 @@ closed testing (`seedparams.seed_mode_problem`, `map/src/common.js`).
 Related code outside this directory: `ap_models.py` (the `APLink` and `APNames` entities), `netcode.py`
 (`ap_connect` / `ap_status` / `ap_disconnect` and the bridge hooks), `main.py` (thin routes, including
 `/generator/apyaml/<params_id>/<world>` and `/generator/apworld`), `seedbuilder/seedparams.py` (`ap_mode` / `ap_export` params,
-`get_seed`'s name substitution, `to_ap_yaml`), and the UI in `map/src/MainPage.js` + `map/src/helpbox.js`.
+`get_seed`'s download-time annotation via `archipelago/annotate.py`, `to_ap_yaml`), and the UI in
+`map/src/MainPage.js` + `map/src/helpbox.js`.
 
 ## Commands
 
@@ -42,8 +43,8 @@ $env:PYTHONPATH = $PWD
 ```
 
 The test suite (must stay green; the AP tests are `ApModeGenTests`, `ApModeSoloTests`,
-`ApNameSubstitutionTests`, `ApExportSlotCapTests`, `ApDataVersionTests` in `test/seedgentest.py`, plus all of
-`test/ap_bridge_test.py`):
+`ApFullConversionTests`, `ApSeedAnnotationTests`, `ApExportSlotCapTests`, `ApDataVersionTests` in
+`test/seedgentest.py`, plus all of `test/ap_bridge_test.py`):
 
 ```powershell
 .venv312\Scripts\python.exe -m unittest test.seedgentest test.golden_wire_test test.netcode_test `

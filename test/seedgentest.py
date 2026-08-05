@@ -1429,16 +1429,18 @@ class ApModeGenTests(unittest.TestCase):
             self.assertEqual(sorted(slots), list(range(len(slots))),
                              "player %s reserved slots not dense" % p)
 
-    def test_exported_balances_reserved(self):
-        """AP requires items contributed == locations contributed per world."""
+    def test_exported_balances_reserved_across_the_game(self):
+        """AP's real invariant is one item per location room-wide. Per world
+        the two differ by cross-world drift; the game-wide totals cannot."""
+        total_exported = total_reserved = 0
         for p, lines in self.seeds.items():
             _, _, reserved, _, ap_manifest = parse_ap_seed(lines, self.PLAYERS)
-            self.assertEqual(len(ap_manifest), len(reserved),
-                             "player %s: %s exported != %s reserved" %
-                             (p, len(ap_manifest), len(reserved)))
+            total_exported += len(ap_manifest)
+            total_reserved += len(reserved)
             for slot, (finder, icode, iid, zone) in ap_manifest.items():
                 self.assertEqual(finder, self.PLAYERS + p,
                                  "AP manifest entry with finder %s in world %s" % (finder, p))
+        self.assertEqual(total_exported, total_reserved)
 
     def test_ap_manifest_slots_share_space(self):
         """AP manifest entries share the 0..255 slot space with surviving
@@ -1502,6 +1504,34 @@ class ApModeGenTests(unittest.TestCase):
             self.assertEqual(bad, [],
                              "player %s native manifest carries progression: %s" % (p, bad))
 
+    def test_nothing_crosses_worlds_natively(self):
+        """v4: a standard pool shares one way. Every cross-landed item the
+        datapackage can name converts, and it can name all of them, so no
+        plain-MW line survives in either direction."""
+        for p, lines in self.seeds.items():
+            _, native_mw, _, native_manifest, _ = parse_ap_seed(lines, self.PLAYERS)
+            self.assertEqual(native_mw, {},
+                             "player %s still hosts native cross-world items" % p)
+            self.assertEqual(native_manifest, {},
+                             "player %s still exports natively" % p)
+
+    def test_exported_ex_keeps_its_exact_amount(self):
+        """No denomination bucket: the manifest value and the AP item name
+        are the same number, so the amount granted is the amount announced."""
+        from archipelago.export_data import EX_EXACT_CAP
+        from archipelago.yaml_emit import ITEM_NAMES
+        seen = 0
+        for p, lines in self.seeds.items():
+            _, _, _, _, ap_manifest = parse_ap_seed(lines, self.PLAYERS)
+            for slot, (finder, icode, iid, zone) in ap_manifest.items():
+                if icode != "EX":
+                    continue
+                seen += 1
+                self.assertTrue(1 <= int(iid) <= EX_EXACT_CAP,
+                                "EX %s is outside the exact range" % iid)
+                self.assertEqual(ITEM_NAMES[("EX", iid)], "%s experience" % iid)
+        self.assertGreater(seen, 0, "no EX exported, so this proves nothing")
+
     def test_keystones_never_cross_worlds(self):
         """The AP-mode generator constraint: all 40 keystones are plain lines
         in their owner's world; none ride the MW fabric in either direction."""
@@ -1520,6 +1550,7 @@ class ApModeGenTests(unittest.TestCase):
         from archipelago.convert import build_ap_config, ap_variations
         from archipelago.yaml_emit import parse_seed as yaml_parse
         from enums import presets
+        items = locs = 0
         for p, lines in self.seeds.items():
             _, placements = yaml_parse(lines)
             config = build_ap_config(
@@ -1527,8 +1558,8 @@ class ApModeGenTests(unittest.TestCase):
                 logic_paths=[lp.value for lp in presets["Casual"]],
                 key_mode="Default", spawn_zone="Glades",
                 variations=ap_variations([]))
-            self.assertEqual(sum(config["exported_items"].values()),
-                             len(config["reserved_locations"]))
+            items += sum(config["exported_items"].values())
+            locs += len(config["reserved_locations"])
             self.assertNotIn("Keystone", config["exported_items"])
             ks_pins = sum(1 for item in config["local_progression"].values()
                           if item == "Keystone")
@@ -1536,6 +1567,7 @@ class ApModeGenTests(unittest.TestCase):
                              "player %s yaml pins %s keystones, not the full pool" % (p, ks_pins))
             self.assertIn("name: Ori%s" % p, self.yamls[p])
             self.assertIn("game: Ori DE Rando", self.yamls[p])
+        self.assertEqual(items, locs, "the game's yamls don't balance room-wide")
 
     def test_determinism(self):
         out2 = tempfile.mkdtemp(prefix="seedgentest_ap2_")
@@ -1672,6 +1704,87 @@ class ApExportSlotCapTests(unittest.TestCase):
                     self.assertTrue(-257 <= loc <= -2, line)
 
 
+class ApFullConversionTests(unittest.TestCase):
+    """v4 conversion rules driven with synthetic seed text: everything the
+    datapackage can name leaves the native MW fabric, everything it cannot
+    stays on it, and the game-wide totals balance while per-world ones do
+    not. Real seeds never contain a TW warp or an above-cap EX, which is
+    exactly why these need a fixture."""
+
+    FLAGS = "Sync0.0,test|mode=Multiworld"
+
+    def _convert(self, worlds, categories=("skills",)):
+        from archipelago.convert import ap_convert
+        texts = [self.FLAGS + "\n" + "".join(l + "\n" for l in lines) for lines in worlds]
+        return ap_convert(texts, list(categories))
+
+    def _cross(self, loc, owner, slot, zone="Glades"):
+        return "%s|MW|%s,%s,item|%s" % (loc, owner, slot, zone)
+
+    def _mani(self, slot, finder, code, id, zone="Glades"):
+        return "%s|MW|%s,%s,%s|%s" % (-(slot + 2), finder, code, id, zone)
+
+    def test_cross_landed_filler_converts(self):
+        """A bonus RB in someone else's world used to ride a native manifest
+        forever; now it is an AP item like everything else."""
+        _, info = self._convert([
+            [self._cross(1000000, 2, 0, "Grove")],       # world 1 hosts world 2's RB
+            [self._mani(0, 1, "RB", "6", "Swamp")],
+        ])
+        self.assertEqual(len(info["reserved"][1]), 1)
+        self.assertEqual(info["exported"][2], [("RB", "6", 0)])
+        self.assertEqual(info["exported"][1], [])
+
+    def test_unnameable_cross_items_stay_native(self):
+        """TW warp ids are per-seed strings, so they can never be static
+        datapackage items -- they keep the native MW fabric to themselves."""
+        texts, info = self._convert([
+            [self._cross(1000000, 2, 0, "Grove")],
+            [self._mani(0, 1, "TW", "Warp to Stompless AC,-358,65,Cell", "Swamp")],
+        ])
+        self.assertEqual(info["exported"][2], [])
+        self.assertEqual(info["reserved"][1], [])
+        self.assertIn("|MW|1,TW,Warp to Stompless AC,-358,65,Cell|", texts[1])
+        self.assertIn(self._cross(1000000, 2, 0, "Grove"), texts[0])
+
+    def test_cross_landed_progression_the_datapackage_cannot_name_fails(self):
+        """The one case that must not silently degrade: a logic item left
+        native under-models the world."""
+        from archipelago.convert import ApConversionError
+        with self.assertRaises(ApConversionError) as caught:
+            self._convert([
+                [self._cross(1000000, 2, 0, "Grove")],
+                [self._mani(0, 1, "SK", "999", "Swamp")],
+            ])
+        self.assertIn("not in the datapackage", str(caught.exception))
+
+    def test_per_world_counts_may_differ_while_the_game_balances(self):
+        """Two of world 2's items land in world 1 and none the other way:
+        world 1 over-reserves by exactly what world 2 over-exports."""
+        _, info = self._convert([
+            [self._cross(1000000, 2, 0, "Grove"), self._cross(1000001, 2, 1, "Grove")],
+            [self._mani(0, 1, "RB", "6", "Swamp"), self._mani(1, 1, "RB", "13", "Swamp")],
+        ])
+        counts = {p: (len(info["exported"][p]), len(info["reserved"][p])) for p in (1, 2)}
+        self.assertEqual(counts, {1: (0, 2), 2: (2, 0)})
+        self.assertEqual(sum(e for e, r in counts.values()),
+                         sum(r for e, r in counts.values()))
+
+    def test_ex_above_the_cap_rewrites_the_manifest_too(self):
+        """Display and delivery have to agree: past the cap the AP item name
+        rounds, so the amount the client grants rounds with it."""
+        from archipelago.export_data import EX_EXACT_CAP
+        texts, info = self._convert([
+            [self._cross(1000000, 2, 0, "Grove"), self._cross(1000001, 2, 1, "Grove")],
+            [self._mani(0, 1, "EX", str(EX_EXACT_CAP), "Swamp"),
+             self._mani(1, 1, "EX", str(EX_EXACT_CAP + 1), "Swamp")],
+        ])
+        self.assertEqual(info["exported"][2],
+                         [("EX", str(EX_EXACT_CAP), 0), ("EX", "200", 1)])
+        self.assertIn("|MW|4,EX,%s|" % EX_EXACT_CAP, texts[1])
+        self.assertIn("|MW|4,EX,200|", texts[1])
+
+
 class ApDataVersionTests(unittest.TestCase):
     """The yaml carries the version of the data contract it was emitted
     against, and the apworld refuses what it can't read. The two constants
@@ -1753,15 +1866,16 @@ class ApDataVersionTests(unittest.TestCase):
                         "the data version check has to run before the tables are read")
 
 
-class ApNameSubstitutionTests(unittest.TestCase):
-    """get_seed swaps the room's real item names into this world's reserved
-    AP lines. Names come from APNames (stubbed here); everything the netcode
-    reads -- owner, slot, location, zone -- must survive untouched, and an
-    unscouted slot keeps its "AP Item #n" placeholder."""
+class ApSeedAnnotationTests(unittest.TestCase):
+    """get_seed rewrites this world's AP lines from what the room actually
+    did with them (archipelago/annotate.py). Fields 0-3 keep their exact
+    meaning for every shipped client; field 5 is the new half. Scout rows
+    come from APNames, stubbed here."""
 
     K = 2       # two worlds, so world 1's shadow is pid 3 and world 2's is 4
     WORLD = 1
     GID = 4242
+    BASH_AP_ID = 524288
 
     @classmethod
     def setUpClass(cls):
@@ -1777,12 +1891,20 @@ class ApNameSubstitutionTests(unittest.TestCase):
         self.stored = {}
         self._orig_load = APNames.load
         APNames.load = staticmethod(
-            lambda gid, world: dict(self.stored.get((int(gid), int(world)), {})))
+            lambda gid, world: self.stored.get((int(gid), int(world)), ({}, None)))
 
     def tearDown(self):
         from ap_models import APNames
         APNames.load = staticmethod(self._orig_load)
         self._ctx.__exit__(None, None, None)
+
+    @staticmethod
+    def _scout(item, who, to, ap_item=0, ap_owner=9):
+        from ap_models import APScout
+        return APScout(item, who, to, ap_item, ap_owner)
+
+    def _store(self, world, entries, ap_slot=1):
+        self.stored[(self.GID, world)] = (entries, ap_slot)
 
     def _params(self):
         from enums import MultiplayerGameType
@@ -1796,7 +1918,7 @@ class ApNameSubstitutionTests(unittest.TestCase):
             ap_export=["skills"], sync=sync, placements=[
                 place("2", "SK", "0", "Glades"),                      # plain line
                 place("919908", "MW", "3,0,AP Item #1", "Grove"),     # reserved slot 0
-                place("959960", "MW", "3,1,AP Item #2", "Grove"),     # reserved slot 1
+                place("959960", "MW", "3,1,AP Item #2", "Sorrow"),    # reserved slot 1
                 place("1799708", "MW", "2,55,Valley teleporter", "Valley"),  # plain cross-world
                 place("-2", "MW", "3,SK,0", "Glades"),                # our AP manifest slot
                 place("-3", "MW", "2,HC,1", "Glades"),                # native manifest
@@ -1807,44 +1929,85 @@ class ApNameSubstitutionTests(unittest.TestCase):
                 params.get_seed(self.WORLD, game_id=game_id).splitlines()[1:]}
 
     def test_scouted_slots_get_real_names(self):
-        self.stored[(self.GID, self.WORLD)] = {0: "Progressive Sword (TestQuest)"}
+        self._store(self.WORLD, {0: self._scout("Progressive Sword", "TestQuest", "TestQuest")})
         lines = self._lines(self._params())
-        self.assertEqual(lines["919908"], "919908|MW|3,0,Progressive Sword (TestQuest)|Grove")
-        # slot 1 was never scouted: placeholder intact
-        self.assertEqual(lines["959960"], "959960|MW|3,1,AP Item #2|Grove")
+        self.assertEqual(lines["919908"],
+                         "919908|MW|3,0,Progressive Sword (TestQuest)|Grove|TestQuest;Progressive Sword")
+        # slot 1 was never scouted: placeholder intact, no field 5
+        self.assertEqual(lines["959960"], "959960|MW|3,1,AP Item #2|Sorrow")
 
-    def test_nothing_else_moves(self):
-        before = self._lines(self._params())
-        self.stored[(self.GID, self.WORLD)] = {0: "Bash (Ori2)", 1: "Bow, Arrows (Zelda)"}
-        after = self._lines(self._params())
-        self.assertEqual(sorted(before), sorted(after))
-        for loc in ("2", "1799708", "-2", "-3"):
-            self.assertEqual(before[loc], after[loc], "line %s changed" % loc)
-        # commas ride through: the name is the last field of a maxsplit value
-        self.assertEqual(after["959960"], "959960|MW|3,1,Bow, Arrows (Zelda)|Grove")
+    def test_the_first_four_fields_are_exactly_what_they_were(self):
+        """An old dll splits on '|' and reads 0..3, so the whole annotation
+        has to be invisible to it apart from the name it already showed."""
+        self._store(self.WORLD, {0: self._scout("Bash", "Ori2", "P2")})
+        lines = self._lines(self._params())
+        parts = lines["919908"].split("|")
+        self.assertEqual(parts[:4], ["919908", "MW", "3,0,Bash (Ori2)", "Grove"])
+        self.assertEqual(len(parts), 5)
 
-    def test_substituted_line_still_parses_as_the_client_and_server_do(self):
+    def test_field_five_carries_the_recipient_and_the_bare_item(self):
+        self._store(self.WORLD, {0: self._scout("Bow, Arrows", "Zelda", "Zelda")})
+        recipient, item = self._lines(self._params())["919908"].split("|")[4].split(";", 1)
+        self.assertEqual((recipient, item), ("Zelda", "Bow, Arrows"))
+
+    def test_annotated_line_still_parses_as_the_client_and_server_do(self):
         from pickups import Pickup
-        self.stored[(self.GID, self.WORLD)] = {1: "Bow, Arrows (Zelda)"}
+        self._store(self.WORLD, {1: self._scout("Bow, Arrows", "Zelda", "Zelda")})
         parts = self._lines(self._params())["959960"].split("|")
-        self.assertEqual(len(parts), 4)
         pickup = Pickup.n(parts[1], parts[2])
         self.assertEqual((pickup.owner, pickup.slot), (3, 1))
         self.assertEqual(pickup.name, "Player 3's Bow, Arrows (Zelda)")
-        self.assertEqual(parts[3], "Grove")
+        self.assertEqual(parts[3], "Sorrow")
 
-    def test_other_worlds_names_are_not_borrowed(self):
-        # world 2's row must never leak into world 1's seed, and world 1's
-        # reserved lines are owned by shadow 3 -- not 4
-        self.stored[(self.GID, 2)] = {0: "Wrong World (Ori2)"}
+    def test_nothing_outside_the_ap_lines_moves(self):
+        before = self._lines(self._params())
+        self._store(self.WORLD, {0: self._scout("Bash", "Ori2", "P2")})
+        after = self._lines(self._params())
+        self.assertEqual(sorted(before), sorted(after))
+        for loc in ("2", "1799708", "-3"):
+            self.assertEqual(before[loc], after[loc], "line %s changed" % loc)
+
+    def test_an_item_nobody_can_locate_keeps_its_original_line(self):
+        """The rolled zone is where the item was taken FROM, so after AP's
+        fill it is usually wrong -- but blanking it strips the hint entirely
+        on every shipped client, so an unresolved entry is left alone."""
+        self._store(self.WORLD, {0: self._scout("Bash", "Ori2", "P2")})
+        self.assertEqual(self._lines(self._params())["-2"], "-2|MW|3,SK,0|Glades")
+
+    def test_a_sibling_world_gives_the_true_zone_and_the_holder(self):
+        """The cross-world join: our Bash turns up in one of the K worlds'
+        reserved locations, so both where and who are known exactly."""
+        self._store(self.WORLD, {
+            0: self._scout("Bash", "Ori1", "P1", ap_item=self.BASH_AP_ID, ap_owner=1),
+            1: self._scout("Something Else", "Ori2", "P2", ap_item=1, ap_owner=2)})
+        self.assertEqual(self._lines(self._params())["-2"], "-2|MW|3,SK,0|Grove|P1")
+
+    def test_two_copies_of_one_item_are_left_unresolved(self):
+        """Two identical exports are indistinguishable in the room's answers,
+        so the join declines rather than picking one."""
+        params = self._params()
+        from seedbuilder.seedparams import Placement, Stuff
+        params.placements.append(Placement(location="-4", zone="Glades",
+                                           stuff=[Stuff(code="MW", id="3,SK,0", player="1")]))
+        self._store(self.WORLD, {
+            0: self._scout("Bash", "Ori1", "P1", ap_item=self.BASH_AP_ID, ap_owner=1)})
+        lines = self._lines(params)
+        self.assertEqual(lines["-2"], "-2|MW|3,SK,0|Glades")
+        self.assertEqual(lines["-4"], "-4|MW|3,SK,0|Glades")
+
+    def test_other_worlds_rows_are_not_borrowed(self):
+        # world 2's row must never name world 1's slots: world 1's reserved
+        # lines are owned by shadow 3, not 4
+        self._store(2, {0: self._scout("Wrong World", "Ori2", "P2")})
         lines = self._lines(self._params())
         self.assertEqual(lines["919908"], "919908|MW|3,0,AP Item #1|Grove")
 
     def test_no_game_id_means_placeholders(self):
         # a seed pulled straight off the generator page has no room to ask
-        self.stored[(self.GID, self.WORLD)] = {0: "Bash (Ori2)"}
+        self._store(self.WORLD, {0: self._scout("Bash", "Ori2", "P2")})
         lines = self._lines(self._params(), game_id=None)
         self.assertEqual(lines["919908"], "919908|MW|3,0,AP Item #1|Grove")
+        self.assertEqual(lines["-2"], "-2|MW|3,SK,0|Glades")
 
     def test_non_ap_params_never_look_names_up(self):
         from ap_models import APNames
@@ -1862,8 +2025,18 @@ class ApNameSubstitutionTests(unittest.TestCase):
         lines = self._lines(self._params())
         self.assertEqual(lines["919908"], "919908|MW|3,0,AP Item #1|Grove")
 
+    def test_annotation_failure_is_not_fatal(self):
+        """A seed that won't download is worse than one without names."""
+        import archipelago.annotate as annotate_mod
+        orig = annotate_mod.annotate
+        annotate_mod.annotate = lambda *a, **k: 1 / 0
+        self.addCleanup(setattr, annotate_mod, "annotate", orig)
+        self._store(self.WORLD, {0: self._scout("Bash", "Ori2", "P2")})
+        lines = self._lines(self._params())
+        self.assertEqual(lines["919908"], "919908|MW|3,0,AP Item #1|Grove")
+
     def test_aux_spoiler_uses_the_names_too(self):
-        self.stored[(self.GID, self.WORLD)] = {0: "Bash (Ori2)"}
+        self._store(self.WORLD, {0: self._scout("Bash", "Ori2", "P2")})
         params = self._params()
         spoiler = params.get_aux_spoiler([], False, self.WORLD, game_id=self.GID)
         self.assertIn("Player 3's Bash (Ori2)", spoiler)
