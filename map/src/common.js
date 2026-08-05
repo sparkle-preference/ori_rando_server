@@ -379,7 +379,7 @@ class PickupSelect extends Component {
             misc.options.splice(0, 0, {label: "Random Bonus Skill", value: "BS|*", desc: "A random bonus skill", max: 6})
         }
         if(props.allowGroup) {
-            misc.options.splice(0, 0, {label: "one of...", value: "RG", desc: "Seedgen rolls one of the listed items, once per copy."})
+            misc.options.splice(0, 0, {label: "one of...", value: "RG", desc: "Seedgen rolls one of the listed items at random."})
         }
         options.push(misc)
     }

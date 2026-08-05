@@ -1161,7 +1161,7 @@ const getHelpHelper = (category, option) => {
                     title = "Customize Items Tab"
                     lines = [
                         "The Customize Items tab allows users to further customize the contents of their item pool (the set of items placed by the randomizer) by manually adding / removing items.",
-                        "Add 'one of...' to a row to make it a group: each copy the row places is rolled separately from the items you listed. Three copies of 'one of: Extra Double Jump, Skill Velocity' is three pickups, each one or the other.",
+                        "Add 'one of...' to a row to add one of the items you add to it at random instead of all of them at once.",
                         "Note: selecting item pool presets has been moved to the main options above; you can find it below the Logic Mode selector, on the left."
                     ]
                     break;
