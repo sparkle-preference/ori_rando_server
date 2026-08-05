@@ -572,7 +572,7 @@ class GroupPlacementTests(unittest.TestCase):
     def test_the_bonus_preset_split_is_not_always_even(self):
         splits = {tuple(sorted(Counter(self._bonus_preset_seed("--bonus-lite", "bonuspreset%s" % n)).values()))
                   for n in range(1, 5)}
-        self.assertTrue(splits - {(3, 3, 3)}, "every seed rolled an even 3/3/3 split")
+        self.assertNotEqual(splits, {(3, 3, 3)}, "every seed rolled an even 3/3/3 split")
 
 
 class BuriedPlacementTests(unittest.TestCase):
