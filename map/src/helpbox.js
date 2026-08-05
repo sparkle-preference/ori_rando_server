@@ -1019,7 +1019,8 @@ const getHelpHelper = (category, option) => {
                     subtitle = "Item Pool Presets"
                     lines = [
                         "The Extra Bonus item pool preset introduces several new bonus pickups not normally found in the randomizer, including some new activateable skills.",
-                        "It also contains more copies of existing pickups; 2 more Attack Upgrades for a total of 5, and 2 more Extra Double Jumps for a total 3. Mega Health and Mega Energy pickups are not consumed on pickup.",
+                        "It also contains more copies of existing pickups; 2 more Attack Upgrades for a total of 5, and 1 more Extra Double Jump for a total of 2. Mega Health and Mega Energy pickups are not consumed on pickup.",
+                        "Extra Double Jump, Skill Velocity Upgrade and Jump Upgrade get 3 more copies split randomly between them.",
                         "Lastly, it adds 4-8 warps, which are pickups that let you teleport to specific locations on the map. Once collected, you can use a warp by opening your teleport menu and selecting it.",
                         "Note: The default bindings for bonus skills are Alt+Q to swap between them, and Alt+Mouse1 to activate them. These bindings can be changed in the RandomizerRebinding.txt file.",
                         "Mouse over the individual rows to learn more about the bonus pickups!",
@@ -1030,8 +1031,9 @@ const getHelpHelper = (category, option) => {
                     title = "Bonus Lite"
                     subtitle = "Item Pool Presets"
                     lines = [
-                        "The Bonus Lite item pool preset contains a few new passive bonus pickups (3 Skill Velocity Upgrades, 3 Jump Upgrades, and 1 each of Health Drain, Energy Drain, and Underwater Skill Usage)",
-                        "It also contains more copies of existing pickups; 2 more Attack Upgrades for a total of 5, and 2 more Extra Double Jumps for a total 3.",
+                        "The Bonus Lite item pool preset contains a few new passive bonus pickups (2 Skill Velocity Upgrades, 2 Jump Upgrades, and 1 each of Health Drain, Energy Drain, and Underwater Skill Usage)",
+                        "It also contains more copies of existing pickups; 2 more Attack Upgrades for a total of 5, and 1 more Extra Double Jump for a total of 2.",
+                        "Extra Double Jump, Skill Velocity Upgrade and Jump Upgrade get 3 more copies split randomly between them.",
                         "Lastly, it adds 4-8 Warps, which are pickups that let you teleport to specific locations on the map. Once collected, you can use a warp by opening your teleport menu and selecting it.",
                         (<span>Check out the <a target="_blank" rel="noopener noreferrer"  href="/faq?g=bonus_pickups">bonus item glossary</a> for more info about the extra bonus items.</span>),
                     ]

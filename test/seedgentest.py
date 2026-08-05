@@ -540,6 +540,40 @@ class GroupPlacementTests(unittest.TestCase):
         # one draw reused POOL_COUNT times would put all copies on one member
         self.assertGreater(len(set(self._pool_members_placed("grouppool1"))), 1)
 
+    # --- the shipped bonus presets, which now ship a group of their own ---
+    JUMPY = {"12", "33", "37"}  # Extra Double Jump, Skill Velocity, Jump Upgrade
+
+    def _bonus_preset_seed(self, flag, seed):
+        outdir = tempfile.mkdtemp(prefix="seedgentest_groupreset_")
+        self.addCleanup(shutil.rmtree, outdir, ignore_errors=True)
+        old_argv = sys.argv
+        sys.argv = ["cli_gen", "--output-dir", outdir, "--preset", "standard",
+                    "--open-world", "--force-trees", "--seed", seed, flag]
+        try:
+            CLISeedParams().from_cli()
+        finally:
+            sys.argv = old_argv
+        with open(os.path.join(outdir, "randomizer0.dat")) as f:
+            lines = f.read().splitlines()
+        self.assertEqual([l for l in lines if "RG" in l], [], "RG leaked into the seed")
+        placements, _ = parse_seed(lines)
+        return [i for (c, i, z) in placements.values() if c == "RB" and i in self.JUMPY]
+
+    def test_bonus_presets_keep_nine_jumpy_upgrades(self):
+        """2 each + a group of 3 = the 3/3/3 the presets used to ship, but the
+        split moves seed to seed."""
+        for flag in ("--bonus-pickups", "--bonus-lite"):
+            placed = self._bonus_preset_seed(flag, "bonuspreset1")
+            self.assertEqual(len(placed), 9, "%s placed %s" % (flag, sorted(placed)))
+            for member in self.JUMPY:
+                self.assertGreaterEqual(placed.count(member), 2,
+                                        "%s dropped below the flat 2 of RB|%s" % (flag, member))
+
+    def test_the_bonus_preset_split_is_not_always_even(self):
+        splits = {tuple(sorted(Counter(self._bonus_preset_seed("--bonus-lite", "bonuspreset%s" % n)).values()))
+                  for n in range(1, 5)}
+        self.assertTrue(splits - {(3, 3, 3)}, "every seed rolled an even 3/3/3 split")
+
 
 class BuriedPlacementTests(unittest.TestCase):
     """Buried pseudo-locations: a fass at loc 20000000+N keeps its items out
@@ -1938,7 +1972,7 @@ class ApBonusPoolConversionTests(unittest.TestCase):
     MW lines behind, invisible to Archipelago; now nothing does."""
 
     PLAYERS = 2
-    EXPORT = "skills,teleporters,events,cells,stones,warps,upgrades"
+    EXPORT = "skills,teleporters,events,cells,stones,upgrades"  # teleporters covers warps
     EXTRA = ("--bonus-pickups", "--warps-instead-of-tps", "4")
 
     @classmethod
