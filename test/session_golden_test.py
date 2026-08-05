@@ -223,6 +223,58 @@ class TestTick(SessionTestCase):
         self.assertEqual(Cache.get_output((1213, 1)), body)
 
 
+class TestTickHintRequests(SessionTestCase):
+    """Tick field 'aph': the manifest slots a client's own reveals now need.
+    It has to be read before the cached fast path returns, and it has to cost
+    nothing at all to the games that never send it."""
+
+    def _payload(self, **kw):
+        d = {"x": "1", "y": "2"}
+        for i in range(8):
+            d["seen_%s" % i] = "0"
+            d["have_%s" % i] = "0"
+        d.update(kw)
+        return d
+
+    def setUp(self):
+        SessionTestCase.setUp(self)
+        self.seen = []
+        self._flag, self._req = netcode.ARCHIPELAGO, netcode.ap_bridge.request_hints
+        self._heal = netcode.ap_bridge.heal
+        netcode.ARCHIPELAGO = True
+        netcode.ap_bridge.heal = lambda gid: None
+        netcode.ap_bridge.request_hints = lambda gid, pid, raw: self.seen.append((gid, pid, raw))
+
+    def tearDown(self):
+        netcode.ARCHIPELAGO = self._flag
+        netcode.ap_bridge.request_hints = self._req
+        netcode.ap_bridge.heal = self._heal
+        SessionTestCase.tearDown(self)
+
+    def test_the_request_survives_the_cached_fast_path(self):
+        # the fast path serves a cached body and never looks at a Player, so
+        # a hint request read after it would be dropped on every quiet tick
+        Game.with_id = staticmethod(lambda gid: self.fail("fast path hit the datastore"))
+        payload = self._payload(aph="5.6")
+        Cache.set_seen_checksum((1231, 1), util.bfield_checksum(payload["seen_%s" % i] for i in range(8)))
+        Cache.set_output((1231, 1), "0,0,0,,")
+        self.assertEqual(netcode.tick(1231, 1, payload), (200, "0,0,0,,"))
+        self.assertEqual(self.seen, [(1231, 1, "5.6")])
+
+    def test_a_tick_without_the_field_still_calls_through_with_nothing(self):
+        p = make_player(1232, 1)
+        self.game = FakeGame(players={1: p})
+        netcode.tick(1232, 1, self._payload())
+        self.assertEqual(self.seen, [(1232, 1, None)])
+
+    def test_the_flag_off_never_looks(self):
+        netcode.ARCHIPELAGO = False
+        p = make_player(1233, 1)
+        self.game = FakeGame(players={1: p})
+        netcode.tick(1233, 1, self._payload(aph="5"))
+        self.assertEqual(self.seen, [])
+
+
 class TestGameComplete(SessionTestCase):
     def test_no_game_is_412(self):
         self.assertEqual(netcode.game_complete(1221, 1), (412, "412"))

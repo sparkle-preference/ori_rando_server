@@ -59,6 +59,9 @@ def tick(game_id, player_id, payload):
         # bridge self-heal rides the 1 Hz tick (memoized: a dict lookup for
         # any game without a live AP link)
         ap_bridge.heal(game_id)
+        # ...and so does the client's progressive-hint request, which must be
+        # read before the cached fast path below returns without a payload
+        ap_bridge.request_hints(game_id, player_id, payload.get("aph"))
     x = payload.get("x")
     y = payload.get("y")
     if Cache.get_seen_checksum((game_id, player_id)) == bfield_checksum(payload.get("seen_%s" % i, 0) for i in range(8)):

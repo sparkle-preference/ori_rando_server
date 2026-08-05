@@ -8,11 +8,15 @@ APNames holds one world's scouted Archipelago placements, keyed
 '<gid>.<world>': what is in each reserved slot, who it is for, and the raw
 AP ids the download-time cross-world join reads.
 
+APHints holds one world's hint purchases, same key shape: which reveal
+slots have been bought, are in flight, or were unaffordable.
+
 Must stay importable without main.py (no Flask), like netcode.py.
 """
 import json
 import logging as log
 import re
+import time
 
 from google.cloud import ndb
 
@@ -210,3 +214,58 @@ class APNames(ndb.Model):
         blob = {str(k): v.as_json() for k, v in sorted(entries.items())}
         APNames(id=APNames.key_id(gid, world), scouted=len(entries),
                 ap_slot=ap_slot, names=json.dumps(blob)).put()
+
+
+# APHints entry states. PENDING is written BEFORE the room is asked, so a
+# crash between the claim and the answer leaves evidence instead of a second
+# purchase; DEFERRED means we did the arithmetic and the slot cannot pay yet.
+HINT_PENDING, HINT_RESOLVED, HINT_DEFERRED = "p", "r", "d"
+
+
+class APHints(ndb.Model):
+    """One world's Archipelago hint purchases, id '<gid>.<world>'.
+
+    A hint costs the player points they can never earn back, so this row --
+    not a bridge thread's memory -- decides whether the room may be asked
+    about a slot. Every gunicorn process running that world's session reads
+    and claims here, which is what makes the purchase exactly-once across
+    processes, reconnects and seed reloads.
+
+    Its own kind for APNames' reasons: off APLink (written on every
+    ReceivedItems batch), one key per world so K sessions never contend.
+    """
+    # JSON {"<slot>": {"s": state, "t": resolved text, "a": ap item id,
+    #                  "u": unix seconds of the last transition}}
+    hints   = ndb.TextProperty(compressed=True)
+    updated = ndb.DateTimeProperty(auto_now=True)
+
+    @staticmethod
+    def key_id(gid, world):
+        return "%s.%s" % (int(gid), int(world))
+
+    @staticmethod
+    def unpack(row):
+        """Entity (or None) -> {slot: entry dict}. A row this build can't
+        read reports empty: the worst case is one re-derivation, and the
+        room's own hint list is consulted before anything is bought."""
+        if row is None or not row.hints:
+            return {}
+        try:
+            blob = json.loads(row.hints)
+            return {int(k): v for k, v in blob.items() if isinstance(v, dict)}
+        except (TypeError, ValueError, AttributeError):
+            log.warning("APHints %s holds json this build can't read", row.key.id())
+            return {}
+
+    @staticmethod
+    def load(gid, world):
+        return APHints.unpack(APHints.get_by_id(APHints.key_id(gid, world)))
+
+    @staticmethod
+    def store(gid, world, entries):
+        blob = {str(k): v for k, v in sorted(entries.items())}
+        APHints(id=APHints.key_id(gid, world), hints=json.dumps(blob)).put()
+
+    @staticmethod
+    def entry(state, text="", ap_item=0):
+        return {"s": state, "t": text, "a": int(ap_item), "u": int(time.time())}

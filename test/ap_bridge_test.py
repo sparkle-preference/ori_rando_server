@@ -1,4 +1,4 @@
-"""Unit tests for the Archipelago room bridge.
+﻿"""Unit tests for the Archipelago room bridge.
 
 Self-contained, no mock lib, scripted transport in the ws_adapter_test
 style. Three layers:
@@ -70,13 +70,15 @@ def roominfo(checksums=None):
     return [room]
 
 
-def connected(checked=(), missing=(), slot_info=None, players=None):
+def connected(checked=(), missing=(), slot_info=None, players=None, hint_points=None):
     msg = {"cmd": "Connected", "team": 0, "slot": 1,
            "checked_locations": list(checked), "missing_locations": list(missing)}
     if slot_info is not None:
         msg["slot_info"] = slot_info   # json object keys arrive as strings
     if players is not None:
         msg["players"] = players
+    if hint_points is not None:
+        msg["hint_points"] = hint_points
     return msg
 
 
@@ -212,6 +214,12 @@ class TestGameMaps(unittest.TestCase):
         self.assertEqual(maps.grant_slots[1],
                          {("SK", "0"): [0], ("EX", "40"): [1], ("EX", "73"): [2]})
         self.assertEqual(maps.grant_slots[2], {("TP", "Grove"): [0]})
+        # the zone an Ori hint names, per reserved slot: what a bought hint
+        # about a sibling world has to print
+        self.assertEqual(maps.zones[1], {0: "Grove", 1: "Grove"})
+        self.assertEqual(maps.zones[2], {3: "Misty"})
+        # nothing in this seed is a reveal, so nothing in it is buyable
+        self.assertEqual(maps.hint_keys, {1: {}, 2: {}})
 
     def test_unknown_reserved_coord_is_skipped(self):
         params = FakeParams(1, {1: [("123456789", "MW", "2,0,AP Item #1", "Glades")]})
@@ -233,9 +241,26 @@ class SessionTestCase(unittest.TestCase):
         self.statuses = []       # (gid, status, error)
         self.names = []          # (gid, world, total, {slot: APScout})
         self.name_slots = []     # each publish's ap_slot
+        self.hint_rows = {}      # what _load_hints reports, {slot: entry}
+        self.claims = []         # (slot, ap item, stale_ok) actually granted
+        self.claim_ok = True     # whether the CAS lets the purchase through
+        self.hint_writes = []    # (slot, state, text)
+        self.published = []      # {slot: text} handed to the real player
+        self.notices = []        # affordability messages sent as signals
+        self.scouts_by_world = {}  # what _scout_rows reports
         self._orig = (ap_bridge._shadow_slots, ap_bridge._apply_grants,
                       ap_bridge._persist_recv, ap_bridge._persist_status,
-                      ap_bridge._goal_worlds, ap_bridge._persist_names)
+                      ap_bridge._goal_worlds, ap_bridge._persist_names,
+                      ap_bridge._load_hints, ap_bridge._claim_hint,
+                      ap_bridge._persist_hint, ap_bridge._apply_hint_text,
+                      ap_bridge._hint_notice, ap_bridge._scout_rows)
+        ap_bridge._load_hints = lambda gid, world: dict(self.hint_rows)
+        ap_bridge._claim_hint = self._claim
+        ap_bridge._persist_hint = lambda gid, world, slot, state, text="", ap_item=0: (
+            self.hint_writes.append((slot, state, text)))
+        ap_bridge._apply_hint_text = lambda gid, world, answers, keep=None: self.published.append(dict(answers))
+        ap_bridge._hint_notice = lambda gid, world, text: self.notices.append(text)
+        ap_bridge._scout_rows = lambda gid, worlds: dict(self.scouts_by_world)
         ap_bridge._shadow_slots = lambda gid, world, maps: set(self.shadow)
         ap_bridge._apply_grants = lambda gid, world, slots, senders=None: (
             self.grants.append((gid, world, list(slots)))
@@ -247,10 +272,19 @@ class SessionTestCase(unittest.TestCase):
             or self.name_slots.append(ap_slot))
         ap_bridge._goal_worlds = lambda gid: list(self.goals)
 
+    def _claim(self, gid, world, slot, ap_item, stale_ok=False):
+        if not self.claim_ok:
+            return False
+        self.claims.append((slot, ap_item, stale_ok))
+        return True
+
     def tearDown(self):
         (ap_bridge._shadow_slots, ap_bridge._apply_grants, ap_bridge._persist_recv,
          ap_bridge._persist_status, ap_bridge._goal_worlds,
-         ap_bridge._persist_names) = self._orig
+         ap_bridge._persist_names, ap_bridge._load_hints, ap_bridge._claim_hint,
+         ap_bridge._persist_hint, ap_bridge._apply_hint_text,
+         ap_bridge._hint_notice, ap_bridge._scout_rows) = self._orig
+        ap_bridge._notice_at.clear()
 
     def make_session(self, **kw):
         # slot 0 and 3 take Bash (524288); slot 1 takes 50 experience (524349)
@@ -719,6 +753,337 @@ class TestScouting(SessionTestCase):
             self.assertEqual(len(self.sent_of(sock, "LocationScouts")), 1)
 
 
+class HintTestCase(SessionTestCase):
+    """Progressive hints. World 1 exports one Water Vein (slot 5), two Glades
+    Pool keystones (slots 6 and 7) and one Stomp (slot 8); slot 1 is a plain
+    experience export, i.e. something no reveal may ever buy."""
+
+    WV, KS, STOMP = 524299, 524324, 524291     # EV|0, RB|300, SK|4 ap ids
+    HINT_KEYS = {5: ("EV", "0"), 6: ("RB", "300"), 7: ("RB", "300"), 8: ("SK", "4")}
+    GRANTS = {("EX", "50"): [1], ("EV", "0"): [5], ("RB", "300"): [6, 7], ("SK", "4"): [8]}
+    SLOT_INFO = {"1": {"name": "Ori1", "game": "Ori DE Rando"},
+                 "2": {"name": "Ori2", "game": "Ori DE Rando"},
+                 "3": {"name": "TestQuest", "game": "Clique"}}
+    PLAYERS = [{"slot": 3, "alias": "Questy", "name": "TestQuest"}]
+    # 100 locations x 10% -> a hint costs 10 points
+    OURS = list(range(600000, 600100))
+
+    def setUp(self):
+        SessionTestCase.setUp(self)
+        ap_bridge._dp_cache.clear()
+
+    def tearDown(self):
+        ap_bridge._dp_cache.clear()
+        SessionTestCase.tearDown(self)
+
+    def make_session(self, **kw):
+        maps = GameMaps(2, {1: {0: 524541, 1: 524542}, 2: {3: 524543}},
+                        {1: self.GRANTS, 2: {}},
+                        zones={1: {0: "Glades", 1: "Grove"}, 2: {3: "Valley"}},
+                        hint_keys={1: dict(self.HINT_KEYS), 2: {}})
+        kw.setdefault("game_slots", ["Ori1", "Ori2"])
+        kw.setdefault("hint_box", ap_bridge._HintBox())
+        return ApSession(self.GID, self.WORLD, maps, "Ori1", None, **kw)
+
+    def hello(self, hint_points=100, hint_cost=10, held=()):
+        """Handshake + the room's answer about the hints it already holds.
+        Nothing is ever bought before that answer lands."""
+        room = dict(ROOMINFO[0])
+        room["hint_cost"] = hint_cost
+        room["datapackage_checksums"] = {"Ori DE Rando": "oridesum", "Clique": "cliquesum"}
+        return [[room], [connected(missing=self.OURS, slot_info=self.SLOT_INFO,
+                                   players=self.PLAYERS, hint_points=hint_points)],
+                [self.retrieved(1, list(held))]]
+
+    def wanting(self, slots, **kw):
+        session = self.make_session(**kw)
+        session.hint_box.add(slots)
+        return session
+
+    @staticmethod
+    def says(sock):
+        return [m["text"] for f in sock.sent for m in f if m.get("cmd") == "Say"]
+
+    @staticmethod
+    def sent_of(sock, cmd):
+        return [m for f in sock.sent for m in f if m.get("cmd") == cmd]
+
+    @staticmethod
+    def hint_msg(receiving, item, finder, location):
+        return {"cmd": "PrintJSON", "type": "Hint", "receiving": receiving, "found": False,
+                "item": {"class": "NetworkItem", "item": item, "location": location,
+                         "player": finder, "flags": 1}}
+
+    @staticmethod
+    def retrieved(slot, hints):
+        return {"cmd": "Retrieved", "keys": {"_read_hints_0_%s" % slot: hints}}
+
+    @staticmethod
+    def stored_hint(receiving, finder, location, item):
+        return {"class": "Hint", "receiving_player": receiving, "finding_player": finder,
+                "location": location, "item": item, "found": False,
+                "entrance": "", "item_flags": 1, "status": 0}
+
+    def clique_package(self, locations):
+        return [{"cmd": "DataPackage", "data": {"games": {"Clique": {
+            "checksum": "cliquesum", "item_name_to_id": {"A Click": 42},
+            "location_name_to_id": locations}}}}]
+
+
+class TestHintGates(HintTestCase):
+    """Nothing reaches the room until every free answer is exhausted and the
+    slot can actually pay -- a '!hint' is broadcast to the whole room and
+    spends points the player can never earn back."""
+
+    def test_the_room_is_asked_for_its_own_hint_list_on_connect(self):
+        sock = self.run_session(self.make_session(), self.hello())
+        self.assertEqual(self.sent_of(sock, "Get"),
+                         [{"cmd": "Get", "keys": ["_read_hints_0_1"]}])
+        self.assertEqual(self.sent_of(sock, "SetNotify"),
+                         [{"cmd": "SetNotify", "keys": ["_read_hints_0_1"]}])
+
+    def test_a_slot_outside_the_three_reveals_never_reaches_the_room(self):
+        # slot 1 is an experience export: the client may ask, the server may
+        # not buy, and a modified client gets exactly the same answer
+        session = self.wanting([1])
+        sock = self.run_session(session, self.hello())
+        self.assertEqual(self.says(sock), [])
+        self.assertEqual(self.claims, [])
+        self.assertEqual(session.hint_wanted, set())
+
+    def test_an_unaffordable_hint_is_deferred_without_a_word(self):
+        session = self.wanting([5])
+        sock = self.run_session(session, self.hello(hint_points=9))
+        self.assertEqual(self.says(sock), [])
+        self.assertEqual(self.hint_writes, [(5, "d", "")])
+        self.assertEqual(self.published, [])
+        # no live point count in the text: signal_send dedups on an exact
+        # match, so a balance that ticks up would stack a line per deferral
+        self.assertEqual(self.notices, ["Find more Archipelago checks to afford this hint"])
+
+    def test_hint_cost_mirrors_the_rooms_own_formula(self):
+        session = self.make_session()
+        self.run_session(session, self.hello(hint_cost=10))
+        self.assertEqual(session._hint_cost(), 10)     # 10% of 100 locations
+        session.hint_cost_pct = 0
+        self.assertEqual(session._hint_cost(), 0)      # free hints
+        session.hint_cost_pct = 1
+        self.assertEqual(session._hint_cost(), 1)      # the max(1, ...) floor
+
+    def test_free_hints_are_affordable_at_zero_points(self):
+        session = self.wanting([5])
+        sock = self.run_session(session, self.hello(hint_points=0, hint_cost=0))
+        self.assertEqual(self.says(sock), ["!hint Water Vein"])
+
+    def test_the_affordability_notice_is_rate_limited_per_world(self):
+        self.run_session(self.wanting([5, 8]), self.hello(hint_points=0))
+        self.assertEqual(len(self.notices), 1)
+        self.assertEqual(sorted(w[0] for w in self.hint_writes), [5, 8])
+
+    def test_one_purchase_is_in_flight_at_a_time(self):
+        # a CommandResult carries no correlation id, so two open purchases
+        # would make an affordability refusal ambiguous
+        sock = self.run_session(self.wanting([5, 8]), self.hello())
+        self.assertEqual(self.says(sock), ["!hint Water Vein"])
+
+    def test_a_record_that_refuses_the_claim_stops_the_purchase(self):
+        self.claim_ok = False
+        sock = self.run_session(self.wanting([5]), self.hello())
+        self.assertEqual(self.says(sock), [])
+
+    def test_the_claim_is_written_before_the_room_is_asked(self):
+        session = self.wanting([5])
+        order = []
+        self._claim_inner = self._claim
+        ap_bridge._claim_hint = lambda *a, **k: (order.append("claim")
+                                                 or self._claim_inner(*a, **k))
+        real_send = ap_bridge._send
+        ap_bridge._send = lambda sock, msgs: (
+            order.append("say") if msgs[0].get("cmd") == "Say" else None) or real_send(sock, msgs)
+        try:
+            self.run_session(session, self.hello())
+        finally:
+            ap_bridge._send = real_send
+        self.assertEqual(order, ["claim", "say"])
+
+    def test_a_multi_copy_item_may_never_reclaim_a_stale_purchase(self):
+        # a repeat '!hint' for a 2-key door buys the NEXT copy and charges
+        # again, so an ambiguous outcome must never be retried
+        self.run_session(self.wanting([6]), self.hello())
+        self.assertEqual(self.claims, [(6, self.KS, False)])
+        self.claims = []
+        self.run_session(self.wanting([5]), self.hello())
+        self.assertEqual(self.claims, [(5, self.WV, True)])   # singleton: safe
+
+    def test_a_resolved_slot_is_answered_from_storage(self):
+        self.hint_rows = {5: {"s": "r", "t": "Questy Chest 4", "a": self.WV}}
+        sock = self.run_session(self.wanting([5]), self.hello())
+        self.assertEqual(self.says(sock), [])
+        self.assertEqual(self.claims, [])
+        self.assertEqual(self.published, [{5: "Questy Chest 4"}])
+
+    def test_a_deferred_slot_retries_when_the_room_pushes_more_points(self):
+        session = self.wanting([5])
+        sock = self.run_session(session, self.hello(hint_points=0) + [
+            [{"cmd": "RoomUpdate", "hint_points": 40}],
+            [{"cmd": "PrintJSON", "type": "Hint", "receiving": 1, "found": False,
+              "item": {"item": self.WV, "location": 524543, "player": 2, "flags": 1}}]])
+        self.assertEqual(session.hint_points, 40)
+        # the retry rides the next Hint-driven service pass, not a new Say:
+        # the room answered while we were still deferred
+        self.assertEqual(self.published, [{5: "P2 Valley"}])
+
+
+class TestHintFreeAnswers(HintTestCase):
+    """A hint we can derive costs nothing and must never be bought."""
+
+    def test_a_key_the_room_left_in_an_ori_world_comes_from_our_own_scouts(self):
+        from ap_models import APScout
+        # world 2's reserved slot 3 holds OUR Water Vein: every world scouts
+        # its own locations, so the K rows together already place it
+        self.scouts_by_world = {1: ({}, 1),
+                                2: ({3: APScout("Water Vein", "Ori1", "P1", self.WV, 1)}, 2)}
+        sock = self.run_session(self.wanting([5]), self.hello())
+        self.assertEqual(self.says(sock), [])
+        self.assertEqual(self.published, [{5: "P2 Valley"}])
+        self.assertEqual(self.hint_writes, [(5, "r", "P2 Valley")])
+
+    def test_a_hint_the_room_already_holds_is_never_bought(self):
+        sock = self.run_session(self.wanting([5]),
+                                self.hello(held=[self.stored_hint(1, 2, 524543, self.WV)]))
+        self.assertEqual(self.says(sock), [])
+        self.assertEqual(self.published, [{5: "P2 Valley"}])
+
+    def test_a_hint_for_someone_else_is_not_ours(self):
+        sock = self.run_session(self.wanting([5]),
+                                self.hello(held=[self.stored_hint(2, 2, 524543, self.WV)]))
+        self.assertEqual(self.says(sock), ["!hint Water Vein"])
+
+    def test_two_copies_are_answered_in_slot_order(self):
+        from ap_models import APScout
+        self.scouts_by_world = {
+            1: ({0: APScout("Glades Pool Keystone", "Ori1", "P1", self.KS, 1)}, 1),
+            2: ({3: APScout("Glades Pool Keystone", "Ori1", "P1", self.KS, 1)}, 2)}
+        sock = self.run_session(self.wanting([6, 7]), self.hello())
+        self.assertEqual(self.says(sock), [])
+        self.assertEqual(self.published, [{6: "P1 Glades"}, {7: "P2 Valley"}])
+
+    def test_a_scouted_copy_and_a_hinted_copy_are_one_copy(self):
+        from ap_models import APScout
+        self.scouts_by_world = {1: ({}, 1),
+                                2: ({3: APScout("Water Vein", "Ori1", "P1", self.WV, 1)}, 2)}
+        sock = self.run_session(self.wanting([5]),
+                                self.hello(held=[self.stored_hint(1, 2, 524543, self.WV)]))
+        self.assertEqual(self.says(sock), [])
+        self.assertEqual(self.published, [{5: "P2 Valley"}])
+
+
+class TestHintPurchase(HintTestCase):
+    def test_a_purchase_says_hint_once_and_publishes_the_answer(self):
+        sock = self.run_session(self.wanting([5]), self.hello() + [
+            [self.hint_msg(1, self.WV, 3, 99)],
+            self.clique_package({"Overworld Chest 12": 99})])
+        self.assertEqual(self.says(sock), ["!hint Water Vein"])
+        self.assertEqual(self.published, [{5: "Questy Overworld Chest 12"}])
+        self.assertEqual(self.hint_writes[-1], (5, "r", "Questy Overworld Chest 12"))
+
+    def test_a_sibling_world_reads_exactly_like_a_baked_clue(self):
+        # 'P2 Valley' is what annotate would have written at download time,
+        # and the client turns P2 into that player's own name
+        sock = self.run_session(self.wanting([5]), self.hello() + [
+            [self.hint_msg(1, self.WV, 2, 524543)]])
+        self.assertEqual(self.published, [{5: "P2 Valley"}])
+        self.assertEqual(self.sent_of(sock, "GetDataPackage"), [])
+
+    def test_the_location_name_is_fetched_before_anything_is_published(self):
+        sock = self.run_session(self.wanting([5]), self.hello() + [
+            [self.hint_msg(1, self.WV, 3, 99)]])
+        self.assertEqual(self.sent_of(sock, "GetDataPackage"),
+                         [{"cmd": "GetDataPackage", "games": ["Clique"]}])
+        self.assertEqual(self.published, [])       # a half-formed hint is not an answer
+
+    def test_a_hint_about_another_item_is_not_our_answer(self):
+        self.run_session(self.wanting([5]), self.hello() + [
+            [self.hint_msg(1, self.STOMP, 2, 524543)]])
+        self.assertEqual(self.published, [])
+
+    def test_cannot_afford_defers_the_slot_that_was_in_flight(self):
+        sock = self.run_session(self.wanting([5]), self.hello() + [
+            [{"cmd": "PrintJSON", "type": "CommandResult", "data": [
+                {"text": "You can't afford the hint. You have 4 points and need at least 10."}]}]])
+        self.assertEqual(self.says(sock), ["!hint Water Vein"])
+        self.assertEqual([w[1] for w in self.hint_writes], ["d"])
+        self.assertEqual(self.published, [])
+
+    def test_a_hostile_room_cannot_corrupt_the_tick_line(self):
+        sock = self.run_session(self.wanting([5]), [
+            [dict(ROOMINFO[0], hint_cost=10,
+                  datapackage_checksums={"Clique": "cliquesum"})],
+            [connected(missing=self.OURS, hint_points=100,
+                       slot_info={"1": {"name": "Ori1", "game": "Ori DE Rando"},
+                                  "3": {"name": "TestQuest", "game": "Clique"}},
+                       players=[{"slot": 3, "alias": "Ev,il;Na=me|X", "name": "TestQuest"}])],
+            [self.retrieved(1, [])],
+            [self.hint_msg(1, self.WV, 3, 99)],
+            self.clique_package({"Chest, in the |wall| = here": 99})])
+        text = self.published[-1][5]
+        for bad in ",;=|":
+            self.assertNotIn(bad, text)
+        self.assertLessEqual(len(text), ap_bridge.HINT_TEXT_MAX)
+        self.assertEqual(text, "Ev il Na me X Chest in the wall here")
+        self.assertEqual(self.says(sock), ["!hint Water Vein"])
+
+    def test_a_room_that_never_answers_leaves_the_claim_standing(self):
+        session = self.wanting([5])
+        sock = self.run_session(session, self.hello() + [None, None])
+        self.assertEqual(self.says(sock), ["!hint Water Vein"])
+        self.assertEqual(self.published, [])
+        # PENDING is deliberately not released: the purchase may have gone
+        # through, and buying it again would charge twice
+        self.assertEqual([w for w in self.hint_writes if w[1] != "p"], [])
+
+
+class TestHintRequestChannel(unittest.TestCase):
+    """The tick's 'aph' field. Every guard here also has to make the field
+    free for the games that never send it."""
+
+    def test_slots_parse_from_the_dot_separated_form(self):
+        self.assertEqual(ap_bridge._parse_hint_slots("5.6.204"), {5, 6, 204})
+
+    def test_junk_and_out_of_range_slots_are_dropped(self):
+        self.assertEqual(ap_bridge._parse_hint_slots("5..x.-1.256.7"), {5, 7})
+
+    def test_a_flood_cannot_grow_the_queue(self):
+        raw = ".".join(str(i) for i in range(200))
+        self.assertLessEqual(len(ap_bridge._parse_hint_slots(raw)), ap_bridge.HINT_QUEUE_MAX)
+        box = ap_bridge._HintBox()
+        box.add(range(200))
+        self.assertEqual(len(box.slots), ap_bridge.HINT_QUEUE_MAX)
+        self.assertEqual(len(box.drain()), ap_bridge.HINT_QUEUE_MAX)
+        self.assertEqual(box.drain(), set())     # draining empties it
+
+    def test_no_bridge_for_the_world_costs_nothing(self):
+        # plain multiworld and solo games land here: refused, silently, with
+        # no datastore read and no room traffic
+        ap_bridge.request_hints(4242, 1, "5.6")
+        self.assertEqual(ap_bridge._bridges, {})
+
+    def test_flag_off_ignores_the_field_entirely(self):
+        self.assertFalse(ap_bridge.ARCHIPELAGO)   # env flag is off in tests
+        ap_bridge.request_hints(4242, 1, "5")
+
+    def test_every_buyable_key_has_an_ap_item_and_a_name(self):
+        for key in ap_bridge.HINTABLE_KEYS:
+            ap_id = ap_bridge.AP_ID_BY_ITEM_KEY.get(key)
+            self.assertIsNotNone(ap_id, "%s is not in the datapackage" % (key,))
+            self.assertTrue(ap_bridge.ITEM_NAME_BY_AP_ID.get(ap_id))
+
+    def test_the_allowlist_is_exactly_the_three_reveals(self):
+        self.assertEqual(len(ap_bridge.HINTABLE_KEYS), 17)
+        for key in [("EV", "1"), ("SK", "0"), ("RB", "17"), ("EX", "50"), ("TP", "Grove")]:
+            self.assertNotIn(key, ap_bridge.HINTABLE_KEYS)
+
+
 class TestGoldenRealTouchpoints(unittest.TestCase):
     """ApSession wired to the REAL _apply_grants and _shadow_slots, running
     against in-memory Player entities (netcode_test style: only the txn
@@ -754,10 +1119,22 @@ class TestGoldenRealTouchpoints(unittest.TestCase):
         # wants a real backend; _persist_names itself and APNames are real
         ap_bridge._persist_name_counts = lambda gid, world, total, resolved: self.counts.append(
             (gid, world, total, resolved))
-        from ap_models import APNames
+        from ap_models import APHints, APNames
         self.rows = {}
         APNames.put = lambda row, *a, **k: self.rows.__setitem__(row.key.id(), row) or row.key
         APNames.get_by_id = staticmethod(lambda rid: self.rows.get(rid))
+        # hint purchases run for REAL here, minus the transaction wrapper the
+        # emulator would need: the compare-and-set is the whole point
+        self.hint_rows = {}
+        APHints.put = lambda row, *a, **k: self.hint_rows.__setitem__(row.key.id(), row) or row.key
+        APHints.get_by_id = staticmethod(lambda rid: self.hint_rows.get(rid))
+        self._hintfns = (ap_bridge._claim_hint, ap_bridge._persist_hint,
+                         Player.set_ap_hints_txn)
+        ap_bridge._claim_hint = ap_bridge._claim_hint.__wrapped__
+        ap_bridge._persist_hint = ap_bridge._persist_hint.__wrapped__
+        set_hints = Player.set_ap_hints_txn.__wrapped__
+        Player.set_ap_hints_txn = staticmethod(
+            lambda pkey, answers, keep=None, limit=16: set_hints(pkey, answers, keep, limit))
 
         # K=2 world 1: real player 1301.1, shadow outbox 1301.3. Reserved
         # slot 40 on purpose: the diff must read past the first bfld word.
@@ -794,16 +1171,22 @@ class TestGoldenRealTouchpoints(unittest.TestCase):
                 ("-2", "MW", "3,SK,0", "Glades"),              # export slot 0: Bash
                 ("-3", "MW", "3,EX,40", "Grove"),              # export slot 1: EX 40
                 ("-5", "MW", "3,SK,0", "Glades"),              # export slot 3: Bash
+                ("-6", "MW", "3,EV,0", "Swamp"),               # export slot 4: Water Vein
             ],
             2: [],
         }))
 
     def tearDown(self):
-        from ap_models import APNames
+        from ap_models import APHints, APNames
         (ap_bridge._persist_recv, ap_bridge._persist_status,
          ap_bridge._goal_worlds, ap_bridge._persist_name_counts) = self._orig
+        (ap_bridge._claim_hint, ap_bridge._persist_hint,
+         Player.set_ap_hints_txn) = self._hintfns
         del APNames.put
         del APNames.get_by_id
+        del APHints.put
+        del APHints.get_by_id
+        ap_bridge._notice_at.clear()
         ap_bridge._dp_cache.clear()
         Player.mark_slots_txn = staticmethod(self._mtxn)
         models.Game.with_id = staticmethod(self._gwid)
@@ -901,6 +1284,72 @@ class TestGoldenRealTouchpoints(unittest.TestCase):
         self.run_session(self.make_session(), list(frames))
         self.run_session(self.make_session(), list(frames))
         self.assertEqual(len(self.signals), 1)
+
+    # --- hint purchases against the real APHints record ---
+    # world 1's manifest slot 4 is a Water Vein (ap id 524299), so this is the
+    # clues-mode reveal end to end: request -> claim -> Say -> answer -> tick.
+
+    WV = 524299
+
+    def hint_session(self, slots):
+        session = ApSession(self.GID, self.WORLD, self.maps, "Ori1", None,
+                            game_slots=["Ori1", "Ori2"], hint_box=ap_bridge._HintBox())
+        session.hint_box.add(slots)
+        return session
+
+    @staticmethod
+    def hint_frames(hints=()):
+        return [ROOMINFO,
+                [connected(slot_info={"1": {"name": "Ori1", "game": "Ori DE Rando"},
+                                      "2": {"name": "Ori2", "game": "Ori DE Rando"}})],
+                [{"cmd": "Retrieved", "keys": {"_read_hints_0_1": list(hints)}}]]
+
+    @staticmethod
+    def says(sock):
+        return [m["text"] for f in sock.sent for m in f if m.get("cmd") == "Say"]
+
+    def test_the_buyable_slots_come_out_of_the_real_manifest(self):
+        # only the three reveals; the Bash and experience exports next to it
+        # have no purchase path at all
+        self.assertEqual(self.maps.hint_keys[1], {4: ("EV", "0")})
+
+    def test_a_purchase_is_claimed_before_the_room_hears_about_it(self):
+        from ap_models import APHints
+        sock = self.run_session(self.hint_session([4]), self.hint_frames())
+        self.assertEqual(self.says(sock), ["!hint Water Vein"])
+        self.assertEqual(APHints.load(self.GID, self.WORLD)[4]["s"], "p")
+
+    def test_only_one_session_can_buy_a_slot(self):
+        """The threat model is several gunicorn processes each running this
+        world's session, all seeing the same 1 Hz request."""
+        first = self.run_session(self.hint_session([4]), self.hint_frames())
+        second = self.run_session(self.hint_session([4]), self.hint_frames())
+        self.assertEqual(self.says(first) + self.says(second), ["!hint Water Vein"])
+
+    def test_a_repeat_request_is_answered_from_storage(self):
+        hint = {"receiving_player": 1, "finding_player": 1, "location": 524542,
+                "item": self.WV, "found": False}
+        self.run_session(self.hint_session([4]),
+                         self.hint_frames() + [[{"cmd": "PrintJSON", "type": "Hint",
+                                                 "receiving": 1, "found": False,
+                                                 "item": {"item": self.WV, "location": 524542,
+                                                          "player": 1, "flags": 1}}]])
+        self.assertEqual(self.real.ap_hints, {"4": "P1 Grove"})
+        # a later session -- reconnect, seed reload, another process -- answers
+        # the same request without a word to the room
+        again = self.run_session(self.hint_session([4]), self.hint_frames([hint]))
+        self.assertEqual(self.says(again), [])
+        self.assertEqual(self.real.ap_hints, {"4": "P1 Grove"})
+
+    def test_the_answer_reaches_the_client_on_tick_field_8(self):
+        Cache.set_seen_checksum((self.GID, self.WORLD), 333)
+        self.run_session(self.hint_session([4]),
+                         self.hint_frames() + [[{"cmd": "PrintJSON", "type": "Hint",
+                                                 "receiving": 1, "found": False,
+                                                 "item": {"item": self.WV, "location": 524542,
+                                                          "player": 1, "flags": 1}}]])
+        self.assertIsNone(Cache.get_seen_checksum((self.GID, self.WORLD)))  # pushed
+        self.assertEqual(self.real.output(include_slots=True).split(",")[8], "4=P1 Grove")
 
 
 class _StopOnFirstWait(object):

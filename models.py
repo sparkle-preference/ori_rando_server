@@ -450,6 +450,10 @@ class Player(ndb.Model):
     # fixed display name; overrides the user-derived one. Set on AP shadow
     # players (pid K+w) so the tick names field renders '<K+w>.Archipelago'.
     nickname    = ndb.StringProperty()
+    # Archipelago progressive hints: {manifest slot: resolved hint text}, the
+    # answers to this player's own hint requests. Tick field 8; the purchase
+    # state machine lives on APHints.
+    ap_hints    = ndb.JsonProperty()
 
     def note_version(self, vers, game_id=None):
         """Record the client's reported dll version. Returns True if it changed
@@ -564,6 +568,34 @@ class Player(ndb.Model):
             p.put()
         return len(fresh)
 
+    @staticmethod
+    @ndb.transactional(retries=5)
+    def set_ap_hints_txn(pkey, answers, keep=None, limit=16):
+        """Merge resolved Archipelago hint text in. `keep` is the slots the
+        client is still asking about; anything else is evicted first, so a
+        long keysanity run can't wedge against the cap holding answers
+        nobody is reading. Returns True if anything changed."""
+        p = pkey.get()
+        hints = dict(p.ap_hints or {})
+        changed = False
+        if keep is not None:
+            wanted = {str(s) for s in keep} | {str(s) for s in answers}
+            for slot in [s for s in hints if s not in wanted]:
+                del hints[slot]
+                changed = True
+        for slot, text in answers.items():
+            if hints.get(str(slot)) == text:
+                continue
+            if str(slot) not in hints and len(hints) >= limit:
+                log.warning("ap hint cap reached for %s, dropping slot %s", p.key.id(), slot)
+                continue
+            hints[str(slot)] = text
+            changed = True
+        if changed:
+            p.ap_hints = hints
+            p.put()
+        return changed
+
     @ndb.transactional(retries=5)
     def reset(self):
         self.can_nag = True
@@ -609,6 +641,16 @@ class Player(ndb.Model):
             names = ";".join("%s.%s" % (p.pid(), p.wire_name()) for p in game.get_players())
             Cache.set_names(gid, names)
         return names
+
+    def ap_hints_field(self):
+        """Tick field 8 (Archipelago): ';'-joined '<slot>=<hint>'. Only ever
+        answers to slots this client asked about, so it is empty on every
+        game that is not buying AP hints -- and an empty field is omitted,
+        which keeps every existing multiworld tick body byte-identical."""
+        if not self.ap_hints:
+            return ""
+        pairs = sorted(self.ap_hints.items(), key=lambda kv: int(kv[0]))
+        return ";".join("%s=%s" % (slot, text) for slot, text in pairs if text)
 
     def userdata(self):
         name = "Player %s" % self.pid()
@@ -661,6 +703,12 @@ class Player(ndb.Model):
             outlines.append("|".join(self.signals))
             outlines.append(";".join(str(b) for b in (self.slot_bflds or 8 * [0])))
             outlines.append(self.mw_names_field())
+            # field 8 is APPENDED ONLY WHEN NONEMPTY: it is last, so absence
+            # shifts nothing, and every multiworld body that predates AP
+            # hints stays byte-identical
+            ap_hints = self.ap_hints_field()
+            if ap_hints:
+                outlines.append(ap_hints)
         elif self.signals:
             outlines.append("|".join(self.signals))
         out = ",".join(outlines)

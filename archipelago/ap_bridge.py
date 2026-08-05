@@ -17,6 +17,7 @@ import logging as log
 import os
 import socket
 import threading
+import time
 from time import monotonic
 
 from google.cloud import ndb
@@ -25,8 +26,9 @@ from simple_websocket.errors import ConnectionError as WsConnectionError
 from wsproto.events import AcceptConnection, RejectConnection, Request
 from wsproto.extensions import PerMessageDeflate
 
-from ap_models import (APLink, APNames, APScout, ap_slot_name,
+from ap_models import (APHints, APLink, APNames, APScout, ap_slot_name,
                        sanitize_display_name, wire_safe_name,
+                       HINT_DEFERRED, HINT_PENDING, HINT_RESOLVED,
                        ITEM_NAME_MAX, PLAYER_NAME_MAX)
 from cache import Cache
 from util import ARCHIPELAGO, is_mw_manifest_loc
@@ -54,9 +56,33 @@ CONNECT_TIMEOUT = 10.0   # the OS SYN ladder is ~4 min
 HEAL_TTL = 45.0          # request-path memo: non-AP games pay a dict lookup
 BACKOFF_MIN, BACKOFF_MAX = 1.0, 60.0
 
+# --- progressive hints (see "hint purchases" below) ---
+HINT_QUEUE_MAX = 32      # slots a client may have outstanding at once
+HINT_RETRY_SECS = 30.0   # per-slot rate limit on reconsidering a request
+HINT_ACK_SECS = 20.0     # !hint said, no Hint and no CommandResult back
+HINT_CLAIM_TTL = 900.0   # a PENDING claim this old is a crashed purchase
+HINT_LOC_MAX = 30        # chars of a foreign game's location name
+HINT_TEXT_MAX = 52       # chars of one answer (clue lines pack three)
+FOREIGN_HINT_TEXT = "Archipelago"  # all we can say when the room named no place
+HINT_NOTICE_SECS = 600.0  # per-world floor between "can't afford" messages
+HINT_SERVICE_SECS = 1.0  # how often a session revisits its wanted set
+SCOUT_ROW_TTL = 60.0     # re-read the K worlds' scout rows this often
+# Only the three reveal moments may be bought. The client asks; a modified or
+# buggy one still cannot spend a player's points on filler, because nothing
+# outside this set has a purchase path at all.
+HINTABLE_KEYS = frozenset(
+    [("EV", "0"), ("EV", "2"), ("EV", "4"),   # Water Vein / Gumon Seal / Sunstone
+     ("SK", "4"), ("SK", "51")]               # Stomp / Grenade (Forlorn escape)
+    + [("RB", str(rb)) for rb in range(300, 312)])   # keysanity zone keystones
+
 _DATA_DIR = os.path.join(os.path.dirname(__file__), "oride_apworld", "oride", "data")
 with open(os.path.join(_DATA_DIR, "items.json")) as _f:
-    ITEM_KEY_BY_AP_ID = {i["ap_id"]: (i["code"], i["id"]) for i in json.load(_f)}
+    _ITEMS = json.load(_f)
+ITEM_KEY_BY_AP_ID = {i["ap_id"]: (i["code"], i["id"]) for i in _ITEMS}
+AP_ID_BY_ITEM_KEY = {(i["code"], str(i["id"])): i["ap_id"] for i in _ITEMS}
+# '!hint <name>' takes the datapackage name, so this map has to be exact
+ITEM_NAME_BY_AP_ID = {i["ap_id"]: i["name"] for i in _ITEMS}
+del _ITEMS
 with open(os.path.join(_DATA_DIR, "locations.json")) as _f:
     AP_LOC_BY_COORD = {l["coord"]: l["ap_id"] for l in json.load(_f)}
 
@@ -83,10 +109,12 @@ def _match_key(code, id):
 # --- per-game mapping tables (params-derived, immutable once built) ---
 
 class GameMaps(object):
-    def __init__(self, worlds, outbox, grant_slots):
+    def __init__(self, worlds, outbox, grant_slots, zones=None, hint_keys=None):
         self.worlds = worlds            # K
         self.outbox = outbox            # {w: {shadow slot i: ap location id}}
         self.grant_slots = grant_slots  # {w: {match_key: [manifest slot, asc]}}
+        self.zones = zones or {}        # {w: {shadow slot i: reserved zone}}
+        self.hint_keys = hint_keys or {}  # {w: {manifest slot: buyable key}}
 
 
 def maps_from_params(params):
@@ -94,9 +122,9 @@ def maps_from_params(params):
     lines world w holds for its own shadow K+w; exports are w's manifest
     lines with shadow finder K+w."""
     k = int(params.players)
-    outbox, grants = {}, {}
+    outbox, grants, zones, hints = {}, {}, {}, {}
     for w in range(1, k + 1):
-        ob, gr = {}, {}
+        ob, gr, zo, hk = {}, {}, {}, {}
         for (loc, code, id, zone) in params.get_seed_data(w):
             if code != "MW":
                 continue
@@ -104,7 +132,10 @@ def maps_from_params(params):
             if is_mw_manifest_loc(loc):
                 finder, icode, iid = id.split(",", 2)
                 if int(finder) == k + w:
-                    gr.setdefault(_match_key(icode, iid), []).append(-loc - 2)
+                    key = _match_key(icode, iid)
+                    gr.setdefault(key, []).append(-loc - 2)
+                    if key in HINTABLE_KEYS:
+                        hk[-loc - 2] = key
             else:
                 parts = id.split(",", 2)
                 if len(parts) == 3 and int(parts[0]) == k + w:
@@ -113,10 +144,13 @@ def maps_from_params(params):
                         log.error("APBRIDGE reserved coord %s of world %s not in datapackage", loc, w)
                         continue
                     ob[int(parts[1])] = ap_id
+                    # the zone an Ori hint names; the same string annotate
+                    # bakes into a seed it can resolve at download time
+                    zo[int(parts[1])] = zone
         for lst in gr.values():
             lst.sort()
-        outbox[w], grants[w] = ob, gr
-    return GameMaps(k, outbox, grants)
+        outbox[w], grants[w], zones[w], hints[w] = ob, gr, zo, hk
+    return GameMaps(k, outbox, grants, zones, hints)
 
 
 _maps = {}
@@ -257,6 +291,119 @@ def _persist_names(gid, world, total, names, ap_slot=None):
     _persist_name_counts(gid, world, total, len(names))
 
 
+# --- hint purchases (durable, because a repeat costs real points) ---
+
+def _load_hints(gid, world):
+    return APHints.load(gid, world)
+
+
+@ndb.transactional(retries=5)
+def _claim_hint(gid, world, slot, ap_item, stale_ok=False):
+    """Write-ahead PENDING: True means THIS process may now ask the room
+    about `slot`. Everything that could buy twice -- K sessions, several
+    gunicorn processes, a reconnect, a seed reload, a 1 Hz client that never
+    stops asking -- loses the compare-and-set instead.
+
+    stale_ok reclaims a PENDING older than HINT_CLAIM_TTL, and is passed only
+    for single-copy items: for a multi-copy one the next '!hint' buys the
+    NEXT copy, so an ambiguous outcome must never be retried blind.
+    """
+    row = APHints.get_by_id(APHints.key_id(gid, world))
+    entries = APHints.unpack(row)
+    cur = entries.get(int(slot)) or {}
+    state = cur.get("s")
+    if state == HINT_RESOLVED:
+        return False
+    if state == HINT_PENDING and not (stale_ok and time.time() - cur.get("u", 0) > HINT_CLAIM_TTL):
+        return False
+    entries[int(slot)] = APHints.entry(HINT_PENDING, ap_item=ap_item)
+    APHints.store(gid, world, entries)
+    return True
+
+
+@ndb.transactional(retries=5)
+def _persist_hint(gid, world, slot, state, text="", ap_item=0):
+    """Record a transition. RESOLVED is sticky: a later DEFERRED (say, a
+    reconnect that re-derives affordability) must not un-answer a slot."""
+    row = APHints.get_by_id(APHints.key_id(gid, world))
+    entries = APHints.unpack(row)
+    cur = entries.get(int(slot)) or {}
+    if cur.get("s") == HINT_RESOLVED and state != HINT_RESOLVED:
+        return
+    if cur.get("s") == state and cur.get("t", "") == text:
+        return
+    entries[int(slot)] = APHints.entry(state, text=text,
+                                       ap_item=ap_item or cur.get("a", 0))
+    APHints.store(gid, world, entries)
+
+
+def _apply_hint_text(gid, world, answers, keep=None):
+    """Publish resolved text on the real player: tick field 8, pushed the
+    moment the checksum is busted."""
+    from models import Game, Player
+    game = Game.with_id(gid)
+    if not game:
+        return
+    player = game.player(world)
+    if Player.set_ap_hints_txn(player.key, answers, keep=keep):
+        Cache.clear_seen_checksum(player.idpts())
+
+
+def _hint_notice(gid, world, text):
+    """One 'you can't afford it yet' line on the player's tick, rate limited
+    per world -- a deferred hint is re-derived every reconnect."""
+    from models import Game
+    game = Game.with_id(gid)
+    if not game:
+        return
+    player = game.player(world)
+    if ("msg:" + text) not in player.signals:
+        player.signal_send("msg:" + text)
+
+
+def _scout_rows(gid, worlds):
+    return {v: APNames.load(gid, v) for v in range(1, int(worlds) + 1)}
+
+
+_notice_at = {}    # (gid, world) -> monotonic of the last affordability message
+
+
+class _HintBox(object):
+    """Manifest slots the client has asked about, handed from request threads
+    to the world's session thread. Bounded: a client that asks for more than
+    it could ever afford must not grow a queue."""
+
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.slots = set()
+
+    def add(self, slots):
+        with self.lock:
+            for slot in slots:
+                if len(self.slots) >= HINT_QUEUE_MAX:
+                    return
+                self.slots.add(slot)
+
+    def drain(self):
+        with self.lock:
+            out, self.slots = self.slots, set()
+        return out
+
+
+def _parse_hint_slots(raw):
+    """'aph=3.17.204' -> {3, 17, 204}. Dot-separated because ',' and '|' are
+    the tick's own separators."""
+    slots = set()
+    for part in str(raw).split(".")[:HINT_QUEUE_MAX]:
+        try:
+            slot = int(part)
+        except (TypeError, ValueError):
+            continue
+        if 0 <= slot <= 255:
+            slots.add(slot)
+    return slots
+
+
 # --- wire helpers ---
 
 def _decode(frame):
@@ -272,7 +419,7 @@ def _send(sock, msgs):
 
 # --- datapackage cache (process-wide, keyed by AP's own checksum) ---
 
-_dp_cache = {}   # (game, checksum) -> {item id: item name}
+_dp_cache = {}   # (game, checksum) -> ({item id: name}, {location id: name})
 _dp_lock = threading.Lock()
 
 
@@ -281,18 +428,24 @@ def _dp_get(game, checksum):
         return _dp_cache.get((game, checksum or ""))
 
 
-def _dp_put(game, checksum, item_name_to_id):
-    """AP ships name->id; we resolve the other way. Checksum-keyed, so a
-    regenerated room invalidates itself and reconnects never refetch."""
+def _dp_invert(name_to_id):
     table = {}
-    for name, item_id in (item_name_to_id or {}).items():
+    for name, id in (name_to_id or {}).items():
         try:
-            table[int(item_id)] = name
+            table[int(id)] = name
         except (TypeError, ValueError):
             continue
-    with _dp_lock:
-        _dp_cache[(game, checksum or "")] = table
     return table
+
+
+def _dp_put(game, checksum, item_name_to_id, location_name_to_id=None):
+    """AP ships name->id; we resolve the other way. Locations ride along
+    because a hint answers with one. Checksum-keyed, so a regenerated room
+    invalidates itself and reconnects never refetch."""
+    tables = (_dp_invert(item_name_to_id), _dp_invert(location_name_to_id))
+    with _dp_lock:
+        _dp_cache[(game, checksum or "")] = tables
+    return tables
 
 
 def _preflight(host, port):
@@ -363,7 +516,7 @@ class ApSession(object):
 
     def __init__(self, gid, world, maps, slot_name, password,
                  stop_event=None, goal_event=None, ctx=None, host=None, port=None,
-                 game_slots=None):
+                 game_slots=None, hint_box=None):
         self.gid, self.world, self.maps = int(gid), int(world), maps
         self.slot_name = slot_name
         self.password = password
@@ -392,6 +545,19 @@ class ApSession(object):
         self.scouted = {}         # ap location id -> (item id, owner slot)
         self.dp_pending = set()   # games requested, answer outstanding
         self.named = None         # shadow slot -> display name, as persisted
+        # progressive hints (see "hint purchases")
+        self.hint_box = hint_box  # slots the client is asking about
+        self.hint_wanted = set()  # ... as this session still owes them
+        self.hint_state = {}      # durable APHints snapshot for this world
+        self.room_hints = []      # every Hint the room says is ours
+        self.hint_cost_pct = 0    # RoomInfo: percent of our location count
+        self.hint_points = 0      # Connected/RoomUpdate: what we can spend
+        self.hint_inflight = None  # (slot, ap item, sent at) -- one at a time
+        self.hint_last_try = {}   # slot -> monotonic of the last consideration
+        self.hint_next_service = 0.0
+        self.hint_hydrated = False   # the room has told us what it already holds
+        self.hint_asked_at = None    # ... when we asked it to
+        self.scout_rows = None    # (monotonic, {world: APNames entries})
 
     def _stopped(self):
         return self.stop_event is not None and self.stop_event.is_set()
@@ -421,6 +587,9 @@ class ApSession(object):
                 if now >= next_poll:
                     self._poll_outbox(sock)
                     next_poll = now + POLL_SECS
+                if now >= self.hint_next_service:
+                    self.hint_next_service = now + HINT_SERVICE_SECS
+                    self._safe("hints", self._service_hints, sock)
                 if self.goal_event is not None and self.goal_event.is_set():
                     self._send_goal(sock)
                 if now >= next_link:
@@ -440,6 +609,10 @@ class ApSession(object):
             if room is not None:
                 sums = room.get("datapackage_checksums")
                 self.room_checksums = dict(sums) if isinstance(sums, dict) else {}
+                try:
+                    self.hint_cost_pct = int(room.get("hint_cost") or 0)
+                except (TypeError, ValueError):
+                    self.hint_cost_pct = 0
                 break
         _send(sock, [self.connect_msg()])
         while True:
@@ -480,11 +653,24 @@ class ApSession(object):
         self.pending, self.pending_from, self.flush_at = [], {}, None
         self.scouted, self.dp_pending, self.named, self.scout_total = {}, set(), None, 0
         self.slot_raw_names = {}
+        # hints are re-derived per connection: the room is the authority on
+        # what has already been bought, and it tells us on the way in
+        self.room_hints, self.hint_inflight, self.hint_last_try = [], None, {}
+        self.hint_hydrated, self.hint_asked_at = False, None
+        self.scout_rows = None
+        self.hint_points = self._as_int(msg.get("hint_points"), 0)
         self._safe("slot_info", self._read_slot_info, msg)
         log.info("APBRIDGE connected gid=%s world=%s slot=%r checked=%s missing=%s",
                  self.gid, self.world, self.slot_name, len(self.checked), len(missing))
         with self.ctx():
             _persist_status(self.gid, "connected", None)
+
+    @staticmethod
+    def _as_int(value, default=0):
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return default
 
     def _safe(self, what, fn, *args):
         """Names are cosmetic; room data that doesn't parse must never take
@@ -525,9 +711,11 @@ class ApSession(object):
         self._poll_outbox(sock)
         with self.ctx():
             goals = _goal_worlds(self.gid)
+            self.hint_state = _load_hints(self.gid, self.world)
         if self.world in goals:
             self._send_goal(sock)
         self._safe("scout", self._scout, sock)
+        self._safe("hint hydrate", self._hydrate_hints, sock)
 
     def _dispatch(self, msg, sock):
         cmd = msg.get("cmd")
@@ -537,11 +725,20 @@ class ApSession(object):
             locs = msg.get("checked_locations")
             if locs:
                 self.checked.update(locs)
+            if "hint_points" in msg:
+                points = self._as_int(msg.get("hint_points"), self.hint_points)
+                if points > self.hint_points:
+                    # more points is the retry trigger for a deferred hint
+                    self.hint_last_try.clear()
+                self.hint_points = points
         elif cmd == "LocationInfo":
             self._safe("LocationInfo", self._on_location_info, msg, sock)
         elif cmd == "DataPackage":
-            self._safe("DataPackage", self._on_data_package, msg)
-        # PrintJSON and friends: ignored
+            self._safe("DataPackage", self._on_data_package, msg, sock)
+        elif cmd == "PrintJSON":
+            self._safe("PrintJSON", self._on_print_json, msg, sock)
+        elif cmd in ("Retrieved", "SetReply"):
+            self._safe("hint keys", self._on_hint_keys, msg, sock)
 
     # --- display names ---
 
@@ -586,17 +783,24 @@ class ApSession(object):
         self.dp_pending |= want
         _send(sock, [{"cmd": "GetDataPackage", "games": sorted(want)}])
 
-    def _on_data_package(self, msg):
+    def _on_data_package(self, msg, sock=None):
         games = ((msg.get("data") or {}).get("games") or {})
         for game, data in games.items():
             checksum = (data or {}).get("checksum") or self.room_checksums.get(game)
-            _dp_put(game, checksum, (data or {}).get("item_name_to_id"))
+            _dp_put(game, checksum, (data or {}).get("item_name_to_id"),
+                    (data or {}).get("location_name_to_id"))
         self.dp_pending -= set(games)
         self._resolve_names()
+        if sock is not None and self.hint_wanted:
+            # a hint waiting on a location name is exactly what just arrived
+            self._service_hints(sock)
+
+    def _dp_tables(self, owner):
+        game = self.slot_games.get(owner)
+        return _dp_get(game, self.room_checksums.get(game)) or ({}, {})
 
     def _dp_for(self, owner):
-        game = self.slot_games.get(owner)
-        return _dp_get(game, self.room_checksums.get(game)) or {}
+        return self._dp_tables(owner)[0]
 
     def _recipient(self, owner):
         """Display token for the slot an item is going to. Another world of
@@ -661,6 +865,278 @@ class ApSession(object):
         if world:
             return "P%s" % world
         return wire_safe_name(self.slot_players.get(finder), PLAYER_NAME_MAX)
+
+    # --- hint purchases ---
+    #
+    # Ori reveals its clues progressively: dungeon-key clues at 3/6/9 trees,
+    # a keysanity door hint when you touch the door, Stomp/Grenade when the
+    # Forlorn escape ends. All three conditions are CLIENT state, so the
+    # client asks (tick field 'aph') and the server buys. Every gate lives
+    # here, because '!hint' spends points the player can never earn back:
+    # free answers first (our own scouts, then the room's existing hints),
+    # then affordability, then a write-ahead claim, then exactly one Say.
+
+    def _hint_key(self):
+        return "_read_hints_0_%s" % self.our_slot
+
+    def _hydrate_hints(self, sock):
+        """The room's own hint list, free and silent: no Say, no chat line,
+        no points. This is the idempotence anchor -- a hint the room already
+        holds is never bought again, whoever bought it."""
+        if self.our_slot is None:
+            return
+        self.hint_asked_at = monotonic()
+        _send(sock, [{"cmd": "Get", "keys": [self._hint_key()]},
+                     {"cmd": "SetNotify", "keys": [self._hint_key()]}])
+
+    def _hint_buying_allowed(self):
+        """Never buy before the room has said what it already holds -- that
+        answer is free and may make the purchase unnecessary. A room that
+        ignores the Get is not allowed to block hints forever."""
+        if self.hint_hydrated:
+            return True
+        return self.hint_asked_at is not None and monotonic() - self.hint_asked_at > HINT_ACK_SECS
+
+    def _on_hint_keys(self, msg, sock):
+        """Retrieved (our Get) and SetReply (the room's push) both carry the
+        whole hint list for our slot."""
+        key = self._hint_key()
+        if msg.get("cmd") == "SetReply":
+            value = msg.get("value") if msg.get("key") == key else None
+        else:
+            value = (msg.get("keys") or {}).get(key)
+        if not isinstance(value, list):
+            return
+        # the room tells us about hints we FIND as well as hints we receive;
+        # only the latter answer a reveal, and keeping only those bounds this
+        self.room_hints = [h for h in value if isinstance(h, dict)
+                           and h.get("receiving_player") == self.our_slot]
+        self.hint_hydrated = True
+        self.hint_last_try.clear()
+        self._service_hints(sock)
+
+    def _on_print_json(self, msg, sock):
+        kind = msg.get("type")
+        if kind == "Hint":
+            item = msg.get("item") or {}
+            hint = {"receiving_player": self._as_int(msg.get("receiving"), -1),
+                    "finding_player": self._as_int(item.get("player"), -1),
+                    "location": self._as_int(item.get("location"), -1),
+                    "item": self._as_int(item.get("item"), -1)}
+            if hint["receiving_player"] != self.our_slot:
+                return          # a hint about someone else's item, not an answer
+            self.room_hints.append(hint)
+            if (self.hint_inflight is not None
+                    and hint["item"] == self.hint_inflight[1]):
+                self.hint_inflight = None      # the purchase landed
+            # a new hint is exactly what the retry window was waiting out
+            self.hint_last_try.clear()
+            self._service_hints(sock)
+        elif kind == "CommandResult" and self.hint_inflight is not None:
+            text = "".join(p.get("text") or "" for p in (msg.get("data") or [])
+                           if isinstance(p, dict))
+            if "afford" in text.lower():
+                slot, ap_item, _ = self.hint_inflight
+                self.hint_inflight = None
+                self._defer(slot, ap_item, self._afford_text())
+
+    def _hint_cost(self):
+        """MultiServer.get_hint_cost: a percentage of OUR location count."""
+        if not self.hint_cost_pct:
+            return 0
+        return max(1, int(self.hint_cost_pct * 0.01 * len(self.our_locations)))
+
+    def _afford_text(self):
+        # no live point count: the text has to repeat exactly, or signal_send's
+        # dedup never matches and every deferral stacks another line
+        return "Find more Archipelago checks to afford this hint"
+
+    def _service_hints(self, sock):
+        if self.hint_box is not None:
+            self.hint_wanted |= self.hint_box.drain()
+        if self.hint_inflight is not None and monotonic() - self.hint_inflight[2] > HINT_ACK_SECS:
+            # said into the void. The claim stays PENDING on purpose: an
+            # ambiguous purchase must never be retried blind.
+            log.warning("APBRIDGE hint unanswered gid=%s world=%s slot=%s",
+                        self.gid, self.world, self.hint_inflight[0])
+            self.hint_inflight = None
+        if not self.authed or not self.hint_wanted:
+            return
+        now = monotonic()
+        for slot in sorted(self.hint_wanted):
+            last = self.hint_last_try.get(slot)
+            if last is not None and now - last < HINT_RETRY_SECS:
+                continue
+            if self._service_hint(slot, sock):
+                self.hint_last_try[slot] = now
+
+    def _service_hint(self, slot, sock):
+        """One requested slot. False means 'ask me again next second', which
+        is only ever the wait for a datapackage."""
+        key = self.maps.hint_keys.get(self.world, {}).get(slot)
+        ap_item = AP_ID_BY_ITEM_KEY.get(key) if key else None
+        if ap_item is None:
+            # not one of the three reveals (or not an AP game at all):
+            # refused for free, without a word to the room
+            self.hint_wanted.discard(slot)
+            return True
+        entry = self.hint_state.get(slot) or {}
+        if entry.get("s") == HINT_RESOLVED:
+            # a repeat request is answered from storage; re-publishing costs
+            # nothing and repairs a player row that lost its copy
+            self._publish(slot, entry.get("t") or "", ap_item, store=False)
+            return True
+        known = self._known_locations(ap_item, sock)
+        if known is None:
+            return False                      # a location name is still in the post
+        copies = self.maps.grant_slots.get(self.world, {}).get(key, [slot])
+        index = copies.index(slot) if slot in copies else 0
+        if index < len(known):
+            self._publish(slot, known[index], ap_item)
+            return True
+        if entry.get("s") == HINT_PENDING and self.hint_inflight is None:
+            # bought, answered, and the room still named fewer places than
+            # this item has copies: it has no more to give, so settle for
+            # what we can say rather than buying the same answer again
+            self._publish(slot, FOREIGN_HINT_TEXT, ap_item)
+            return True
+        if self.hint_inflight is not None or not self._hint_buying_allowed():
+            # one purchase at a time, so a CommandResult is unambiguous; come
+            # back next second rather than sitting out the retry window
+            return False
+        cost = self._hint_cost()
+        if self.hint_points < cost:
+            self._defer(slot, ap_item, self._afford_text())
+            return True
+        name = ITEM_NAME_BY_AP_ID.get(ap_item)
+        if not name:
+            self.hint_wanted.discard(slot)
+            return True
+        with self.ctx():
+            # a single-copy item may re-buy a claim old enough to be a crash;
+            # for a multi-copy one the next '!hint' buys the NEXT copy, so it
+            # never may
+            claimed = _claim_hint(self.gid, self.world, slot, ap_item,
+                                  stale_ok=len(copies) == 1)
+        if not claimed:
+            return True
+        self.hint_state[slot] = APHints.entry(HINT_PENDING, ap_item=ap_item)
+        self.hint_inflight = (slot, ap_item, monotonic())
+        _send(sock, [{"cmd": "Say", "text": "!hint " + name}])
+        log.info("APBRIDGE hint buy gid=%s world=%s slot=%s item=%r cost=%s points=%s",
+                 self.gid, self.world, slot, name, cost, self.hint_points)
+        return True
+
+    def _known_locations(self, ap_item, sock):
+        """Where every copy of this item is, as far as we can tell for free:
+        our own scout rows first, then the room's hint list. Deduped on
+        (finding slot, location) -- one copy can appear in both. None means
+        a foreign location name is still being fetched."""
+        seen, out = set(), []
+        for finder, loc, text in self._scouted_copies(ap_item):
+            if (finder, loc) not in seen:
+                seen.add((finder, loc))
+                out.append(text)
+        for hint in self._room_hints_for(ap_item):
+            fl = (hint["finding_player"], hint["location"])
+            if fl in seen:
+                continue
+            text = self._hint_text(hint, sock)
+            if text is None:
+                return None
+            seen.add(fl)
+            out.append(text)
+        return out
+
+    def _scouted_copies(self, ap_item):
+        """Copies Archipelago left inside this orirando game. Each world
+        scouts its own reserved locations, so the K rows together place them
+        without asking the room anything -- which is also the whole answer
+        when the key never left Ori."""
+        if self.our_slot is None:
+            return []
+        now = monotonic()
+        if self.scout_rows is None or now - self.scout_rows[0] > SCOUT_ROW_TTL:
+            with self.ctx():
+                self.scout_rows = (now, _scout_rows(self.gid, self.maps.worlds))
+        out = []
+        for world, (entries, world_slot) in sorted(self.scout_rows[1].items()):
+            for shadow_slot, scout in sorted(entries.items()):
+                if scout.ap_owner != self.our_slot or scout.ap_item != ap_item:
+                    continue
+                zone = self.maps.zones.get(world, {}).get(shadow_slot, "")
+                out.append((world_slot, self.maps.outbox.get(world, {}).get(shadow_slot, -1),
+                            ("P%s %s" % (world, zone)).strip()))
+        return out
+
+    def _room_hints_for(self, ap_item):
+        mine, seen = [], set()
+        for hint in self.room_hints:
+            fl = (hint.get("finding_player"), hint.get("location"))
+            if (hint.get("receiving_player") != self.our_slot
+                    or hint.get("item") != ap_item or fl in seen):
+                continue
+            seen.add(fl)
+            mine.append(hint)
+        mine.sort(key=lambda h: (h.get("finding_player", 0), h.get("location", 0)))
+        return mine
+
+    def _hint_text(self, hint, sock):
+        """One room hint -> the string an Ori clue prints. A sibling world
+        renders exactly like a baked clue ('P3 Valley'); anyone else gets
+        their room name and the AP location name."""
+        finder = self._as_int(hint.get("finding_player"), -1)
+        loc = self._as_int(hint.get("location"), -1)
+        world = self.sibling_world(finder)
+        if world:
+            slot_of = {ap_id: s for s, ap_id in self.maps.outbox.get(world, {}).items()}
+            zone = self.maps.zones.get(world, {}).get(slot_of.get(loc), "")
+            return ("P%s %s" % (world, zone)).strip()
+        names = self._dp_tables(finder)[1]
+        if not names and self.slot_games.get(finder):
+            self._want_datapackage(finder, sock)
+            return None
+        who = wire_safe_name(self.slot_players.get(finder), PLAYER_NAME_MAX) or "Archipelago"
+        where = wire_safe_name(names.get(loc), HINT_LOC_MAX)
+        return ("%s %s" % (who, where)).strip()[:HINT_TEXT_MAX]
+
+    def _want_datapackage(self, slot, sock):
+        game = self.slot_games.get(slot)
+        if (game and game not in self.dp_pending
+                and _dp_get(game, self.room_checksums.get(game)) is None):
+            self.dp_pending.add(game)
+            _send(sock, [{"cmd": "GetDataPackage", "games": [game]}])
+
+    def _publish(self, slot, text, ap_item, store=True):
+        text = (text or "")[:HINT_TEXT_MAX]
+        with self.ctx():
+            if store:
+                _persist_hint(self.gid, self.world, slot, HINT_RESOLVED,
+                              text=text, ap_item=ap_item)
+            # keep = what the client still asks about, so answers it stopped
+            # reading are evicted before the cap can refuse a fresh one
+            _apply_hint_text(self.gid, self.world, {slot: text},
+                             keep=set(self.hint_wanted) | {slot})
+        self.hint_state[slot] = APHints.entry(HINT_RESOLVED, text=text, ap_item=ap_item)
+        self.hint_wanted.discard(slot)
+        if store:
+            log.info("APBRIDGE hint resolved gid=%s world=%s slot=%s -> %r",
+                     self.gid, self.world, slot, text)
+
+    def _defer(self, slot, ap_item, why):
+        """Unaffordable: leave the baked placeholder alone, say nothing to
+        the room (a doomed '!hint' still broadcasts what we are looking for),
+        and let the next RoomUpdate's hint_points retry it."""
+        with self.ctx():
+            _persist_hint(self.gid, self.world, slot, HINT_DEFERRED, ap_item=ap_item)
+        self.hint_state[slot] = APHints.entry(HINT_DEFERRED, ap_item=ap_item)
+        log.info("APBRIDGE hint deferred gid=%s world=%s slot=%s: %s",
+                 self.gid, self.world, slot, why)
+        now = monotonic()
+        if now - _notice_at.get((self.gid, self.world), -HINT_NOTICE_SECS) >= HINT_NOTICE_SECS:
+            _notice_at[(self.gid, self.world)] = now
+            with self.ctx():
+                _hint_notice(self.gid, self.world, why)
 
     def _on_received_items(self, msg, sock):
         index, items = int(msg.get("index", 0)), msg.get("items") or []
@@ -749,6 +1225,7 @@ class _Bridge(object):
         self.gid, self.world = gid, world
         self.stop_event = threading.Event()
         self.goal_event = threading.Event()
+        self.hint_box = _HintBox()
         self.thread = threading.Thread(target=self._run, daemon=True,
                                        name="ap-bridge-%s.%s" % (gid, world))
 
@@ -786,7 +1263,7 @@ class _Bridge(object):
                 session = ApSession(gid, world, maps, slot_name, password,
                                     stop_event=self.stop_event, goal_event=self.goal_event,
                                     ctx=ndb_client.context, host=host, port=port,
-                                    game_slots=names)
+                                    game_slots=names, hint_box=self.hint_box)
                 sock = None
                 try:
                     sock, scheme = _open_socket(host, port, scheme)
@@ -895,6 +1372,27 @@ def stop(game_id):
             b.stop_event.set()
     except Exception:
         log.exception("ap_bridge: stop failed for %s", game_id)
+
+
+def request_hints(game_id, player_id, raw):
+    """Tick field 'aph': the manifest slots this client's own reveals now
+    need. A level, not an event -- the client re-sends until it has an
+    answer, and every exactly-once concern (double purchase above all) is
+    settled on the session thread against the durable record. Costs a
+    non-AP game one `if`, since nothing else ever sends the field."""
+    if not ARCHIPELAGO or not raw:
+        return
+    try:
+        gid, world = int(game_id), int(player_id)
+        with _reg_lock:
+            bridge = _bridges.get((gid, world))
+        if bridge is None:
+            return   # no room for this world: refused for free, silently
+        slots = _parse_hint_slots(raw)
+        if slots:
+            bridge.hint_box.add(slots)
+    except Exception:
+        log.exception("ap_bridge: request_hints failed for %s.%s", game_id, player_id)
 
 
 def notify_goal(game_id, player_id):

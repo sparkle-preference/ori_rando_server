@@ -292,6 +292,60 @@ class TestMultiworldSlotsField(NdbTestCase):
         self.assertEqual(p.wire_name(), "Archipelago")
 
 
+class TestArchipelagoHintsField(NdbTestCase):
+    """Tick field 8 (2026-08-05): answers to the client's own progressive
+    hint requests, ";"-joined "{slot}={text}". It is APPENDED ONLY WHEN
+    NONEMPTY -- it is the last field, so absence shifts nothing, and every
+    multiworld body that predates it stays byte for byte the same."""
+
+    def test_absent_when_the_player_has_no_hints(self):
+        p = make_player(940, 1)
+        self.assertEqual(len(p.output(include_slots=True).split(",")), 8)
+        p.ap_hints = {}
+        self.assertEqual(len(p.output(include_slots=True).split(",")), 8)
+
+    def test_present_and_slot_ordered_when_answered(self):
+        p = make_player(941, 1)
+        p.ap_hints = {"12": "P2 Valley", "3": "Questy Chest 4"}
+        fields = p.output(include_slots=True).split(",")
+        self.assertEqual(len(fields), 9)
+        self.assertEqual(fields[8], "3=Questy Chest 4;12=P2 Valley")
+        # the fields the shipped client indexes are untouched
+        self.assertEqual(fields[:8], make_player(941, 2).output(include_slots=True).split(","))
+
+    def test_never_rides_a_legacy_game(self):
+        # non-multiworld clients index 0-5 and would read a 6th field as
+        # signals; AP is multiworld-only, so this can only be belt and braces
+        p = make_player(942, 1)
+        p.ap_hints = {"3": "P2 Valley"}
+        self.assertEqual(p.output(), "0,0,0,,")
+
+    def test_a_blank_answer_is_dropped_rather_than_shown(self):
+        p = make_player(943, 1)
+        p.ap_hints = {"3": ""}
+        self.assertEqual(len(p.output(include_slots=True).split(",")), 8)
+
+    def test_merging_answers_is_idempotent_and_capped(self):
+        p = make_player(944, 1)
+        key = type("K", (object,), {"get": staticmethod(lambda: p)})()
+        merge = Player.set_ap_hints_txn.__wrapped__
+        self.assertTrue(merge(key, {3: "P2 Valley"}))
+        self.assertFalse(merge(key, {3: "P2 Valley"}))   # no put, no cache bust
+        self.assertTrue(merge(key, {3: "P3 Grotto"}))    # a correction lands
+        self.assertEqual(p.ap_hints, {"3": "P3 Grotto"})
+        for slot in range(100, 130):
+            merge(key, {slot: "P2 Valley"})
+        self.assertEqual(len(p.ap_hints), 16)
+
+    def test_answers_carry_no_field_separator(self):
+        from ap_models import wire_safe_name
+        p = make_player(945, 1)
+        p.ap_hints = {"3": wire_safe_name("Ev,il Chest; x=1|2", 60)}
+        fields = p.output(include_slots=True).split(",")
+        self.assertEqual(len(fields), 9)
+        self.assertEqual(fields[8], "3=Ev il Chest x 1 2")
+
+
 class TestSlotMarking(NdbTestCase):
     def test_mark_check_idempotent(self):
         p = make_player(941, 1)
