@@ -17,8 +17,8 @@ What converts:
   Ability Cell case).
 Generic keystones never convert AND never cross (the generator pins them to
 their owner's world in AP mode). What still rides the native MW fabric is
-exactly what the datapackage cannot name: TW warps, whose ids are per-seed
-strings ("Warp to Stompless AC,-358,65,...").
+exactly what the datapackage cannot name -- relics, repeatables and
+multipickups, whose ids are per-seed strings.
 
 Per-world balance: NOT an invariant. Archipelago's fill only requires the
 GAME's item and location counts to match globally (Fill.py raises on a
@@ -42,13 +42,25 @@ with open(os.path.join(DATA_DIR, "items.json")) as _f:
 ITEM_BY_CODE_ID = {(i["code"], i["id"]): i for i in _ITEMS}
 ITEM_BY_AP_ID = {i["ap_id"]: (i["code"], i["id"]) for i in _ITEMS}
 
-EXPORTABLE_CATEGORIES = ("skills", "teleporters", "events", "cells", "stones")
+EXPORTABLE_CATEGORIES = ("skills", "teleporters", "events", "cells", "stones",
+                         "upgrades", "warps")
 DEFAULT_EXPORT = ("skills", "teleporters", "events")
 # generic keystones are consumable door currency under the generator's
 # cumulative-supply invariant; exporting them breaks the per-door thresholds
 # the apworld compiles (it hard-rejects them too). Keysanity zone keys and
 # mapstones are what "stones" exports.
 BANNED_EXPORTS = {("KS", "1")}
+
+# A shared singleton is generated once for everyone and fanned out by the
+# netcode, so exporting the same category hands ONE copy to the AP pool while
+# every world's logic still expects the fan-out. Keyed by ShareType value;
+# TW warps share as teleporters and bonus RBs share as upgrades.
+SHARE_TO_AP = {
+    "Skills": ("skills",),
+    "Teleporters": ("teleporters", "warps"),
+    "WorldEvents": ("events",),
+    "Upgrades": ("upgrades",),
+}
 
 MAX_SLOTS = 256  # 8x32-bit slot bitfields on the Player entity: wire format
 
@@ -97,12 +109,34 @@ def ex_export_value(value):
     return v if 1 <= v <= EX_EXACT_CAP else nearest_ex_denom(v)
 
 
+def match_key(code, id):
+    """Seed-line (code, id) -> the datapackage identity it names.
+
+    Two codes carry more in the seed than the item name means. EX buckets to
+    the amount both sides agree on. A TW id is "<name>,<x>,<y>,<logic node>"
+    and the coordinates are the client's warp target, so the seed keeps them
+    and the datapackage names the destination alone -- lossless because the
+    generator's warp table has one entry per destination.
+    """
+    if code == "EX":
+        return ("EX", str(ex_export_value(id)))
+    if code == "TW":
+        return ("TW", str(id).split(",")[0])
+    return (code, str(id))
+
+
 def is_exportable(code, id):
     """Can this pickup ride the AP pool? Datapackage membership is the whole
-    rule -- TW warp ids are per-seed strings and can never be static items."""
-    if code == "EX":
-        return True
-    return (code, str(id)) in ITEM_BY_CODE_ID
+    rule -- relics and multipickups have per-seed ids and never qualify."""
+    return match_key(code, id) in ITEM_BY_CODE_ID
+
+
+def share_export_clash(shared, exported):
+    """Export categories a seed can't have while sharing those categories."""
+    clash = set()
+    for s in shared:
+        clash |= set(SHARE_TO_AP.get(getattr(s, "value", s), ())) & set(exported)
+    return sorted(clash)
 
 
 def export_code_ids(categories):
@@ -228,7 +262,7 @@ def ap_convert(texts, categories, keep_locs=frozenset()):
                     "kind": "cross", "manifest_line": m_idx})
             elif (v, loc) in keep_locs:
                 continue  # forced assignments stay local placements
-            elif (code, pid) in export_ids:
+            elif match_key(code, pid) in export_ids:
                 candidates.append({
                     "v": v, "loc": loc, "line": idx, "owner": v,
                     "code": code, "id": pid, "zone": zone, "kind": "local"})
@@ -313,17 +347,18 @@ def ap_convert(texts, categories, keep_locs=frozenset()):
 
 
 def build_ap_config(placements, players, world, logic_paths, key_mode,
-                    spawn_zone, variations, params_id=0):
+                    spawn_zone, variations, params_id=0, death_link=False):
     """One CONVERTED world's placement tuples -> orirando yaml config dict.
 
     placements: [(loc, code, id, zone)] including manifest pseudo-locs.
     Classification is by wire shape: shadow-owned MW lines are the reserved
     slots, shadow-finder manifest entries are the exported items, plain
     progression lines pin local_progression. Anything still riding the
-    native MW fabric is filler the datapackage cannot name (TW warps):
-    invisible to AP, and omitting filler is sound -- rules never rely on
-    it. A progression item on a native manifest means the conversion pass
-    failed, so yaml derivation fails with it. K=1 has no native MW lines.
+    native MW fabric is filler the datapackage cannot name (relics,
+    multipickups): invisible to AP, and omitting filler is sound -- rules
+    never rely on it. A progression item on a native manifest means the
+    conversion pass failed, so yaml derivation fails with it. K=1 has no
+    native MW lines.
     """
     exported = {}
     reserved = []
@@ -337,9 +372,7 @@ def build_ap_config(placements, players, world, logic_paths, key_mode,
                 raise ApConversionError("non-MW line at manifest loc %s" % loc)
             finder_s, icode, iid = pid.split(",", 2)
             if int(finder_s) > players:  # exported to the AP pool
-                if icode == "EX":
-                    iid = str(ex_export_value(iid))
-                name = ITEM_NAMES.get((icode, iid))
+                name = ITEM_NAMES.get(match_key(icode, iid))
                 if name is None:
                     raise ApConversionError(
                         "world %s exports %s|%s, which is not in the "
@@ -369,9 +402,10 @@ def build_ap_config(placements, players, world, logic_paths, key_mode,
                 raise ApConversionError(
                     "progression coord %s is not in the datapackage" % loc)
             local[loc_name] = ITEM_NAMES[(code, pid)]
-        # anything else (EX, bonus RBs, warps, relics, entrances) is
-        # invisible to AP
+        # anything else (EX, unexported bonus RBs and warps, relics,
+        # entrances) is invisible to AP
     # per-world counts differ by design; ap_convert checks the game-wide totals
     return make_config(exported, reserved, local, logic_paths,
                        key_mode=key_mode, spawn=ap_spawn_region(spawn_zone),
-                       variations=variations, params_id=params_id, world=world)
+                       variations=variations, params_id=params_id, world=world,
+                       death_link=death_link)

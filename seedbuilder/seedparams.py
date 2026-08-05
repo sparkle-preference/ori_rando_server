@@ -51,16 +51,9 @@ def seed_mode_problem(params, mw_override=False, ap_override=False):
     if ap_mode:
         if params.sync.mode != MultiplayerGameType.MULTIWORLD:
             return "Archipelago seeds use Multiworld mode."
-        # a shared singleton is generated once for everyone; exporting it
-        # would hand ONE copy to the AP pool while every world's logic
-        # expects the netcode fan-out
-        share_to_ap = {"Skills": "skills", "Teleporters": "teleporters", "WorldEvents": "events"}
-        exported = set(getattr(params, "ap_export", None) or [])
-        if not exported:
-            from archipelago.convert import DEFAULT_EXPORT
-            exported = set(DEFAULT_EXPORT)
-        clash = sorted(set(share_to_ap[s.value] for s in params.sync.shared
-                           if share_to_ap.get(s.value) in exported))
+        from archipelago.convert import DEFAULT_EXPORT, share_export_clash
+        exported = set(getattr(params, "ap_export", None) or []) or set(DEFAULT_EXPORT)
+        clash = share_export_clash(params.sync.shared, exported)
         if clash:
             return "Archipelago export and shared categories overlap: %s." % ", ".join(clash)
     if params.sync.mode == MultiplayerGameType.SPLITSHARDS:
@@ -215,6 +208,9 @@ class SeedGenParams(ndb.Model):
     # pool; empty means the default set.
     ap_mode = ndb.BooleanProperty(default=False)
     ap_export = ndb.StringProperty(repeated=True)
+    # DeathLink: the room's deaths kill this world's Ori, and its deaths kill
+    # the room's. A property of the seed, so a game either has it or doesn't.
+    ap_death_link = ndb.BooleanProperty(default=False)
     do_loc_analysis = False
     areas_ori_path = ""
 
@@ -300,6 +296,7 @@ class SeedGenParams(ndb.Model):
         params.verbose_spoiler = json.get("verboseSpoiler", False)
         params.ap_export = [str(c) for c in json.get("apExport", [])]
         params.ap_mode = bool(json.get("apMode")) or bool(params.ap_export)
+        params.ap_death_link = params.ap_mode and bool(json.get("apDeathLink"))
         if params.ap_mode:
             from archipelago.convert import EXPORTABLE_CATEGORIES
             bad = [c for c in params.ap_export if c not in EXPORTABLE_CATEGORIES]
@@ -389,6 +386,7 @@ class SeedGenParams(ndb.Model):
                     params.preplaced_coords.append(int(loc))
         params.ap_export = qparams.getlist("ap_export")
         params.ap_mode = bool(qparams.get("ap_mode")) or bool(params.ap_export)
+        params.ap_death_link = params.ap_mode and bool(qparams.get("ap_death_link"))
         if params.ap_mode:
             from archipelago.convert import EXPORTABLE_CATEGORIES
             bad = [c for c in params.ap_export if c not in EXPORTABLE_CATEGORIES]
@@ -434,6 +432,7 @@ class SeedGenParams(ndb.Model):
             "antiBkBias": self.anti_bk_bias,
             "apMode": self.ap_mode,
             "apExport": list(self.ap_export),
+            "apDeathLink": self.ap_death_link,
             # stars i fucking hate this. anyways. forced assignments are: the
             # verbatim fass_json when we have it (world/owner survive), else
             # the legacy reconstruction:
@@ -622,7 +621,8 @@ class SeedGenParams(ndb.Model):
             key_mode=self.key_mode.value,
             spawn_zone=self.spawn or self.start or "Glades",
             variations=ap_variations(self.variations),
-            params_id=self.key.id() if self.key else 0)
+            params_id=self.key.id() if self.key else 0,
+            death_link=self.ap_death_link)
         return emit_yaml(config, ap_slot_name(world))
 
     def flag_line(self, verbose_paths=False):
@@ -649,6 +649,10 @@ class SeedGenParams(ndb.Model):
                 # always carry it, shared categories or not
                 if not self.sync.shared or self.sync.mode == MultiplayerGameType.MULTIWORLD:
                     flags.append("mode=%s" % self.sync.mode.value)
+            # the client only sends its death counter when the seed says so,
+            # so every other seed's tick body stays byte-identical
+            if self.ap_mode and self.ap_death_link:
+                flags.append("DeathLink")
             if self.balanced:
                 flags.append("balanced")
             if self.anti_bk_bias:

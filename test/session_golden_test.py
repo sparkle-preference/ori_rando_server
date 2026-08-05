@@ -275,6 +275,69 @@ class TestTickHintRequests(SessionTestCase):
         self.assertEqual(self.seen, [])
 
 
+class TestTickDeathCounters(SessionTestCase):
+    """Tick field 'dl': the death counters a DeathLink seed reports. Same
+    contract as 'aph' -- read ahead of the cached fast path, invisible to
+    every seed that doesn't send it, and never echoed back."""
+
+    def _payload(self, **kw):
+        d = {"x": "1", "y": "2"}
+        for i in range(8):
+            d["seen_%s" % i] = "0"
+            d["have_%s" % i] = "0"
+        d.update(kw)
+        return d
+
+    def setUp(self):
+        SessionTestCase.setUp(self)
+        self.seen = []
+        self._flag = netcode.ARCHIPELAGO
+        self._note, self._req = netcode.ap_bridge.note_deaths, netcode.ap_bridge.request_hints
+        self._heal = netcode.ap_bridge.heal
+        netcode.ARCHIPELAGO = True
+        netcode.ap_bridge.heal = lambda gid: None
+        netcode.ap_bridge.request_hints = lambda gid, pid, raw: None
+        netcode.ap_bridge.note_deaths = lambda gid, pid, raw: self.seen.append((gid, pid, raw))
+
+    def tearDown(self):
+        netcode.ARCHIPELAGO = self._flag
+        netcode.ap_bridge.note_deaths = self._note
+        netcode.ap_bridge.request_hints = self._req
+        netcode.ap_bridge.heal = self._heal
+        SessionTestCase.tearDown(self)
+
+    def test_the_counters_survive_the_cached_fast_path(self):
+        # an idle player's tick never reaches a Player, and a death is
+        # exactly the thing that happens while standing still
+        Game.with_id = staticmethod(lambda gid: self.fail("fast path hit the datastore"))
+        payload = self._payload(dl="12.3")
+        Cache.set_seen_checksum((1241, 1), util.bfield_checksum(payload["seen_%s" % i] for i in range(8)))
+        Cache.set_output((1241, 1), "0,0,0,,")
+        self.assertEqual(netcode.tick(1241, 1, payload), (200, "0,0,0,,"))
+        self.assertEqual(self.seen, [(1241, 1, "12.3")])
+
+    def test_a_seed_without_the_option_sends_nothing_to_read(self):
+        p = make_player(1242, 1)
+        self.game = FakeGame(players={1: p})
+        netcode.tick(1242, 1, self._payload())
+        self.assertEqual(self.seen, [(1242, 1, None)])
+
+    def test_the_field_does_not_change_the_tick_body(self):
+        p = make_player(1243, 1)
+        self.game = FakeGame(players={1: p})
+        without = netcode.tick(1243, 1, self._payload())
+        Cache.set_seen_checksum((1243, 1), 999999)
+        with_field = netcode.tick(1243, 1, self._payload(dl="4.0"))
+        self.assertEqual(with_field, without)
+
+    def test_the_flag_off_never_looks(self):
+        netcode.ARCHIPELAGO = False
+        p = make_player(1244, 1)
+        self.game = FakeGame(players={1: p})
+        netcode.tick(1244, 1, self._payload(dl="4.0"))
+        self.assertEqual(self.seen, [])
+
+
 class TestGameComplete(SessionTestCase):
     def test_no_game_is_412(self):
         self.assertEqual(netcode.game_complete(1221, 1), (412, "412"))

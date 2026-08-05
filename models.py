@@ -570,6 +570,20 @@ class Player(ndb.Model):
 
     @staticmethod
     @ndb.transactional(retries=5)
+    def signal_latest_txn(pkey, kind, signal):
+        """Send `signal`, dropping any earlier one of the same `kind` prefix.
+        For signals where only the newest matters (a DeathLink owed to a
+        client that was away is one death, not the backlog)."""
+        p = pkey.get()
+        signals = [s for s in p.signals if not s.startswith(kind)] + [signal]
+        if signals == p.signals:
+            return False
+        p.signals = signals
+        p.put()
+        return True
+
+    @staticmethod
+    @ndb.transactional(retries=5)
     def set_ap_hints_txn(pkey, answers, keep=None, limit=16):
         """Merge resolved Archipelago hint text in. `keep` is the slots the
         client is still asking about; anything else is evicted first, so a

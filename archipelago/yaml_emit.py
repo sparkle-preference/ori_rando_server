@@ -21,7 +21,7 @@ DATA_DIR = os.path.join(os.path.dirname(__file__), "oride_apworld", "oride", "da
 # Contract version of the blob below, checked by the apworld's
 # generate_early. Bump together with oride_apworld/oride/version.py, whose
 # docstring holds the rule; the suite fails if the two drift.
-DATA_VERSION = 2
+DATA_VERSION = 3
 
 EXPORT_CODES = {"SK", "TP", "EV"}
 LOCAL_CODES = {"KS", "MS", "HC", "EC", "AC"}
@@ -79,7 +79,7 @@ def keymode_to_ap(key_mode):
 
 def make_config(exported, reserved, local, logic_paths, key_mode="events",
                 spawn="SunkenGladesRunaway", variations=None,
-                params_id=0, world=1):
+                params_id=0, world=1, death_link=False):
     """Classified placements + generation options -> orirando yaml blob.
     exported: {item name: count}; reserved: [location name]; local:
     {location name: item name}. Shared by the file-based prototype path
@@ -94,6 +94,7 @@ def make_config(exported, reserved, local, logic_paths, key_mode="events",
         "pathsets": sorted(get_path_tags_from_pathsets(list(logic_paths))),
         "variations": dict(variations or {}),
         "key_mode": keymode_to_ap(key_mode),
+        "death_link": bool(death_link),
         "exported_items": dict(sorted(exported.items())),
         "reserved_locations": sorted(reserved),
         "local_progression": dict(sorted(local.items())),
@@ -189,6 +190,9 @@ def emit_yaml(config, slot_name):
         "Ori DE Rando": {
             "progression_balancing": 50,
             "accessibility": "full",
+            # AP's own option name, mirrored from the blob so the room, the
+            # spoiler and every tracker read death link where they expect to
+            "death_link": 1 if config.get("death_link") else 0,
             "orirando": config,
         },
     }

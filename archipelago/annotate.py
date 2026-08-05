@@ -23,7 +23,7 @@ Archipelago put in a foreign game is invisible: those keep the holder
 "Archipelago" and lose the zone, because the rolled zone is where the item
 was taken FROM and measured wrong for 55 of 58 exports on a real room.
 """
-from archipelago.convert import ITEM_BY_AP_ID, ex_export_value
+from archipelago.convert import ITEM_BY_AP_ID, match_key
 from util import is_mw_manifest_loc
 
 FOREIGN_HOLDER = "Archipelago"
@@ -48,8 +48,7 @@ def _exports(seed_data, shadow):
         finder, icode, iid = id.split(",", 2)
         if finder != shadow:
             continue
-        out[-int(loc) - 2] = (icode, str(ex_export_value(iid))) if icode == "EX" \
-            else (icode, iid)
+        out[-int(loc) - 2] = match_key(icode, iid)
     return out
 
 

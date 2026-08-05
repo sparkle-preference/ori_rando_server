@@ -95,6 +95,10 @@ class APLink(ndb.Model):
     # scouted/named counts per world, -1 = not reported yet (names: APNames)
     name_totals   = ndb.IntegerProperty(repeated=True)
     name_counts   = ndb.IntegerProperty(repeated=True)
+    # index w-1 = DeathLinks delivered to world w. Only ever grows, and the
+    # signal carries it as a token so two deaths a tick apart are two signals
+    # rather than one the client already acked.
+    dl_in         = ndb.IntegerProperty(repeated=True)
     enabled       = ndb.BooleanProperty(default=False)
     status        = ndb.StringProperty(default="disconnected")
     last_error    = ndb.StringProperty()
@@ -123,6 +127,7 @@ class APLink(ndb.Model):
             "goal_worlds": list(self.goal_worlds),
             "names_total": list(self.name_totals),
             "names_resolved": list(self.name_counts),
+            "deathlinks_in": list(self.dl_in),
             "last_error": self.last_error,
             "last_activity": self.last_activity.isoformat() if self.last_activity else None,
         }

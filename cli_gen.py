@@ -114,8 +114,9 @@ class CLISeedParams(object):
         parser.add_argument("--keysanity", help="Keysanity mode: keys only belong to one door", action="store_true")
         # archipelago
         parser.add_argument("--ap-export", help="""Archipelago mode: comma-separated item categories exported to the AP pool
-        (any of: skills,teleporters,events,cells,stones). Converts the rolled multiworld seed (multiplayer requires
-        --share-mode multiworld) and writes a paired ap_world_<n>.yaml next to each .dat""", type=str, default=None)
+        (any of: skills,teleporters,events,cells,stones,upgrades,warps). Converts the rolled multiworld seed
+        (multiplayer requires --share-mode multiworld) and writes a paired ap_world_<n>.yaml next to each .dat""", type=str, default=None)
+        parser.add_argument("--ap-death-link", help="Archipelago mode: this world's deaths kill the room, and the room's kill it", action="store_true")
         args = parser.parse_args()
 
         """
@@ -358,6 +359,7 @@ class CLISeedParams(object):
 
         self.ap_mode = bool(args.ap_export)
         self.ap_export = []
+        self.ap_death_link = self.ap_mode and bool(args.ap_death_link)
         if self.ap_mode:
             from archipelago.convert import EXPORTABLE_CATEGORIES
             self.ap_export = [c.strip().lower() for c in args.ap_export.split(",") if c.strip()]
@@ -370,13 +372,14 @@ class CLISeedParams(object):
             if self.sync.mode != MultiplayerGameType.MULTIWORLD:
                 parser.error("--ap-export needs --share-mode multiworld")
             self.sync.enabled = True
-            share_to_ap = {"Skills": "skills", "Teleporters": "teleporters", "WorldEvents": "events"}
-            clash = sorted(set(share_to_ap[s.value] for s in self.sync.shared
-                               if share_to_ap.get(s.value) in self.ap_export))
+            from archipelago.convert import share_export_clash
+            clash = share_export_clash(self.sync.shared, self.ap_export)
             if clash:
                 parser.error("--ap-export and --shared-items overlap: %s" % ",".join(clash))
             if self.start == "Random":
                 parser.error("--ap-export doesn't support --start Random yet (per-world spawns)")
+        elif args.ap_death_link:
+            parser.error("--ap-death-link needs --ap-export")
 
         self.verbose_spoiler = args.verbose_spoiler
         # todo: respect these LMAO
@@ -467,7 +470,8 @@ class CLISeedParams(object):
                             placements, players=self.players, world=p,
                             logic_paths=[lp.value for lp in self.logic_paths],
                             key_mode=self.key_mode.value, spawn_zone=self.start,
-                            variations=ap_variations(self.variations))
+                            variations=ap_variations(self.variations),
+                            death_link=self.ap_death_link)
                         with open(args.output_dir + "/ap_world_%s.yaml" % p, 'w', newline="\n") as f:
                             f.write(emit_yaml(config, "Ori%s" % p))
             player = 0
@@ -596,6 +600,10 @@ class CLISeedParams(object):
             flags.append("mode=%s" % self.sync.mode.value)
             if self.sync.shared:
                 flags.append("shared=%s" % "+".join([s.value for s in self.sync.shared]))
+        # mirrors SeedGenParams.flag_line: the client only sends its death
+        # counter when the seed says so
+        if self.ap_mode and self.ap_death_link:
+            flags.append("DeathLink")
         if self.balanced:
             flags.append("balanced")
         if self.anti_bk_bias:

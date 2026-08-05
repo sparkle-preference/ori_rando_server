@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from Options import OptionDict, PerGameCommonOptions
+from Options import DeathLink, OptionDict, PerGameCommonOptions
 
 
 class OrirandoData(OptionDict):
@@ -14,3 +14,7 @@ class OrirandoData(OptionDict):
 @dataclass
 class OriDEOptions(PerGameCommonOptions):
     orirando: OrirandoData
+    # set on orirando.com; the emitted yaml mirrors the blob's death_link
+    # into it. The bridge reads the seed's own params, so editing this alone
+    # changes nothing in game.
+    death_link: DeathLink

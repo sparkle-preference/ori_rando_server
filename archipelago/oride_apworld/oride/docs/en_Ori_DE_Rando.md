@@ -40,12 +40,14 @@ Items are the Ori pickups from the categories you chose to export. What can appe
   shard/fragment forms in the seed modes that use them
 * **Cells** — Health Cell, Energy Cell, Ability Cell
 * **Stones** — Mapstone, and the per-area keystones of Keysanity seeds
-* **Spirit light** — 50/100/200 experience, which the generator also uses to keep each world's give-and-take
-  balanced
+* **Warps** — the Alt+R warp pickups a seed rolls, named by destination
+* **Upgrades** — the bonus pickups: Attack Upgrade, Health/Energy Regeneration, Mega Health, Mega Energy, the
+  bonus skills, and the rest of the bonus pools
+* **Spirit light** — an exact amount per pickup, which the generator also uses to keep each world's
+  give-and-take balanced
 
 Generic Keystones are never exported: they are consumable door currency, and the seed's own supply rules
-guarantee you can always open the door in front of you. Bonus pickups (the optional upgrades and abilities)
-stay inside Ori too.
+guarantee you can always open the door in front of you.
 
 ## Which items can appear in other players' worlds?
 

@@ -111,15 +111,25 @@ class TestMatchKey(unittest.TestCase):
             self.assertEqual(ap_bridge._match_key("EX", str(value)), ("EX", denom),
                              "EX %s" % value)
 
+    def test_a_warp_is_named_by_its_destination(self):
+        """A TW id keeps the coordinates the client warps to; AP knows the
+        item by the leading destination alone."""
+        self.assertEqual(
+            ap_bridge._match_key("TW", "Warp to Ginso Escape,510,910,GinsoEscape"),
+            ("TW", "Warp to Ginso Escape"))
+
     def test_agrees_with_the_converter(self):
-        """The bridge hand-mirrors convert.ex_export_value (import weight:
-        this module must stay lazy-start clean). Pin them together."""
-        from archipelago.convert import ex_export_value
+        """The bridge hand-mirrors convert.match_key (import weight: this
+        module must stay lazy-start clean). Pin them together."""
+        from archipelago.convert import match_key
         self.assertEqual(ap_bridge.EX_EXACT_CAP,
                          __import__("archipelago.export_data", fromlist=["x"]).EX_EXACT_CAP)
         for value in (0, 1, 40, 50, 100, 200, 514, 600, 601, 9999):
             self.assertEqual(ap_bridge._match_key("EX", str(value)),
-                             ("EX", str(ex_export_value(value))), "EX %s" % value)
+                             match_key("EX", str(value)), "EX %s" % value)
+        for id in ("Warp to Swamp Swim,790,-195,SwampWaterWarp", "Warp to Water Vein"):
+            self.assertEqual(ap_bridge._match_key("TW", id), match_key("TW", id), id)
+        self.assertEqual(ap_bridge._match_key("SK", 0), match_key("SK", 0))
 
 
 class TestApfromSignal(unittest.TestCase):
@@ -333,6 +343,219 @@ class TestHandshake(SessionTestCase):
             [{"cmd": "PrintJSON", "data": []}], None, ROOMINFO,
             [{"cmd": "PrintJSON", "data": []}], [connected()]])
         self.assertTrue(session.authed)
+
+
+class DeathLinkTestCase(SessionTestCase):
+    """DeathLink rides the tick as a counter out and a signal in. The two
+    things that must never happen: an incoming death emitting an outgoing
+    one, and a seed without the option changing behaviour at all."""
+
+    def setUp(self):
+        SessionTestCase.setUp(self)
+        self.deaths_in = []      # (world, token, source) delivered to a client
+        self.tokens = {}
+        self._dl_orig = (ap_bridge._bump_death_in, ap_bridge._send_death_signal)
+        ap_bridge._bump_death_in = self._bump
+        ap_bridge._send_death_signal = lambda gid, world, token, source: (
+            self.deaths_in.append((world, token, source)))
+
+    def tearDown(self):
+        (ap_bridge._bump_death_in, ap_bridge._send_death_signal) = self._dl_orig
+        SessionTestCase.tearDown(self)
+
+    def _bump(self, gid, world):
+        self.tokens[world] = self.tokens.get(world, 0) + 1
+        return self.tokens[world]
+
+    def make_session(self, death_link=True, **kw):
+        session = SessionTestCase.make_session(self, **kw)
+        session.maps.death_link = death_link
+        session.death_box = ap_bridge._DeathBox()
+        return session
+
+    @staticmethod
+    def bounced(when, source="Zelda", tags=("DeathLink",), cause="drowned"):
+        return {"cmd": "Bounced", "tags": list(tags),
+                "data": {"time": when, "source": source, "cause": cause}}
+
+    @staticmethod
+    def bounces(sock):
+        return [m for frame in sock.sent for m in frame
+                if m.get("cmd") == "Bounce"]
+
+
+class TestDeathLinkTag(DeathLinkTestCase):
+    def test_the_tag_is_on_connect_only_when_the_seed_opted_in(self):
+        on = self.run_session(self.make_session(True), [ROOMINFO, [connected()]])
+        self.assertEqual(on.sent[0][0]["tags"], ["DeathLink"])
+        off = self.run_session(self.make_session(False), [ROOMINFO, [connected()]])
+        self.assertEqual(off.sent[0][0]["tags"], [])
+
+
+class TestDeathLinkOut(DeathLinkTestCase):
+    def _run(self, session, reports):
+        """Drive the outbound half: each report is (total, linked) seen on
+        one tick, with a session loop between them."""
+        sock = FakeSocket([ROOMINFO, [connected()]] + [None] * (len(reports) + 1))
+        try:
+            session._handshake(sock)
+        except ConnectionClosed:
+            pass
+        for total, linked in reports:
+            session.death_box.set(total, linked)
+            session._service_deaths(sock)
+        return sock
+
+    def test_the_first_report_is_a_baseline_not_a_death(self):
+        """Loading a save with 200 deaths owes the room nothing."""
+        sock = self._run(self.make_session(), [(200, 0)])
+        self.assertEqual(self.bounces(sock), [])
+        self.assertEqual(self.make_session().deaths_seen, None)
+
+    def test_an_increase_sends_one_bounce_in_the_ap_shape(self):
+        session = self.make_session()
+        sock = self._run(session, [(3, 0), (4, 0)])
+        bounces = self.bounces(sock)
+        self.assertEqual(len(bounces), 1)
+        self.assertEqual(bounces[0]["tags"], ["DeathLink"])
+        self.assertEqual(bounces[0]["data"]["source"], "Ori1")
+        self.assertIn("cause", bounces[0]["data"])
+        self.assertIsInstance(bounces[0]["data"]["time"], float)
+
+    def test_an_unchanged_count_says_nothing(self):
+        sock = self._run(self.make_session(), [(3, 0), (3, 0), (3, 0), (3, 0)])
+        self.assertEqual(self.bounces(sock), [])
+
+    def test_several_deaths_in_one_tick_are_one_bounce(self):
+        """Ori players die constantly; the room wants one death, not five."""
+        sock = self._run(self.make_session(), [(3, 0), (8, 0)])
+        self.assertEqual(len(self.bounces(sock)), 1)
+
+    def test_a_smaller_count_rebaselines_silently(self):
+        """A different save file (or a fresh slot) is not a resurrection."""
+        session = self.make_session()
+        sock = self._run(session, [(40, 0), (41, 0), (2, 0), (3, 0)])
+        self.assertEqual(len(self.bounces(sock)), 2)
+        self.assertEqual(session.deaths_seen, 3)
+
+    def test_a_deathlink_death_never_bounces_back_out(self):
+        """THE loop guard: total and linked rise together, so the net count
+        the room hears about does not move."""
+        sock = self._run(self.make_session(), [(3, 0), (4, 1), (5, 2), (6, 3)])
+        self.assertEqual(self.bounces(sock), [])
+
+    def test_a_real_death_in_the_same_second_still_goes_out(self):
+        """Suppression is arithmetic, not a time window: dying yourself right
+        after an incoming death is still your death."""
+        sock = self._run(self.make_session(), [(3, 0), (5, 1)])
+        self.assertEqual(len(self.bounces(sock)), 1)
+
+    def test_a_seed_without_the_option_never_sends(self):
+        sock = self._run(self.make_session(death_link=False), [(3, 0), (99, 0)])
+        self.assertEqual(self.bounces(sock), [])
+
+    def test_a_client_that_never_reports_sends_nothing(self):
+        session = self.make_session()
+        sock = FakeSocket([ROOMINFO, [connected()], None])
+        try:
+            session._handshake(sock)
+        except ConnectionClosed:
+            pass
+        session._service_deaths(sock)
+        self.assertEqual(self.bounces(sock), [])
+
+
+class TestDeathLinkIn(DeathLinkTestCase):
+    def _deliver(self, session, msgs):
+        sock = FakeSocket([ROOMINFO, [connected()]] + [[m] for m in msgs])
+        try:
+            session.run(sock)
+        except ConnectionClosed:
+            pass
+        return sock
+
+    def test_a_bounced_death_reaches_the_client_with_a_fresh_token(self):
+        self._deliver(self.make_session(),
+                      [self.bounced(100.0), self.bounced(101.0)])
+        self.assertEqual(self.deaths_in,
+                         [(self.WORLD, 1, "Zelda"), (self.WORLD, 2, "Zelda")])
+
+    def test_a_bounce_without_the_tag_is_not_a_death(self):
+        self._deliver(self.make_session(), [self.bounced(100.0, tags=["EnergyLink"])])
+        self.assertEqual(self.deaths_in, [])
+
+    def test_our_own_bounce_is_dropped_when_it_comes_back(self):
+        """MultiServer fans a Bounce to every tagged client, sender included."""
+        session = self.make_session()
+        sock = FakeSocket([ROOMINFO, [connected()], None])
+        try:
+            session._handshake(sock)
+        except ConnectionClosed:
+            pass
+        session.death_box.set(1, 0)
+        session._service_deaths(sock)   # baseline
+        session.death_box.set(2, 0)
+        session._service_deaths(sock)   # our death
+        mine = self.bounces(sock)[0]["data"]["time"]
+        session._on_bounced({"cmd": "Bounced", "tags": ["DeathLink"],
+                             "data": {"time": mine, "source": "Ori1"}})
+        self.assertEqual(self.deaths_in, [])
+
+    def test_a_bounce_naming_our_own_slot_is_dropped(self):
+        session = self.make_session()
+        self._deliver(session, [self.bounced(100.0, source="Ori1")])
+        self.assertEqual(self.deaths_in, [])
+
+    def test_a_sibling_ori_world_still_kills_us(self):
+        """Two worlds of one Ori game are two AP slots: they deathlink."""
+        self._deliver(self.make_session(), [self.bounced(100.0, source="Ori2")])
+        self.assertEqual(self.deaths_in, [(self.WORLD, 1, "Ori2")])
+
+    def test_a_seed_without_the_option_ignores_bounces(self):
+        self._deliver(self.make_session(death_link=False), [self.bounced(100.0)])
+        self.assertEqual(self.deaths_in, [])
+
+    def test_garbage_bounce_data_never_kills_the_session(self):
+        session = self.make_session()
+        self._deliver(session, [
+            {"cmd": "Bounced", "tags": ["DeathLink"], "data": "not a dict"},
+            {"cmd": "Bounced", "tags": ["DeathLink"]},
+            {"cmd": "Bounced"},
+            self.bounced(100.0)])
+        self.assertEqual(self.deaths_in, [(self.WORLD, 1, "Zelda")])
+
+    def test_a_hostile_source_name_is_wire_sanitized(self):
+        """The name rides a tick signal split on , ; = and |."""
+        self._deliver(self.make_session(),
+                      [self.bounced(100.0, source="ev;il=name|,x")])
+        self.assertEqual(self.deaths_in, [(self.WORLD, 1, "ev il name x")])
+
+
+class TestDeathCounterParsing(unittest.TestCase):
+    def test_shapes(self):
+        self.assertEqual(ap_bridge._parse_deaths("7.2"), (7, 2))
+        self.assertEqual(ap_bridge._parse_deaths("7"), (7, 0))
+        self.assertEqual(ap_bridge._parse_deaths("0.0"), (0, 0))
+
+    def test_junk_is_refused(self):
+        for raw in ("", None, "x", "1.x", "-1.0", "1.-2", "1,2"):
+            self.assertIsNone(ap_bridge._parse_deaths(raw), repr(raw))
+
+    def test_the_box_holds_a_level(self):
+        box = ap_bridge._DeathBox()
+        self.assertIsNone(box.read())
+        box.set(10, 3)
+        box.set(11, 3)
+        self.assertEqual(box.read(), 8)
+
+    def test_more_linked_than_total_floors_at_zero(self):
+        box = ap_bridge._DeathBox()
+        box.set(1, 4)
+        self.assertEqual(box.read(), 0)
+
+    def test_note_deaths_is_inert_without_a_bridge(self):
+        ap_bridge.note_deaths(4242, 1, "3.0")
+        self.assertEqual(ap_bridge._bridges, {})
 
 
 class TestReconcile(SessionTestCase):
@@ -1234,6 +1457,36 @@ class TestGoldenRealTouchpoints(unittest.TestCase):
         checks = [m for m in sock.sent if m[0].get("cmd") == "LocationChecks"]
         self.assertEqual(checks, [[{"cmd": "LocationChecks", "locations": [524542]}]])
         self.assertEqual(self.real.slot_bflds, [0b1011] + [0] * 7)  # replay-stable
+
+    def test_a_deathlink_death_leaves_ap_bookkeeping_alone(self):
+        """Ori's death rollback wipes the client's granted-slot items (940-947,
+        outside the 1500-1599 range deaths preserve) and the next tick re-grants
+        from the diff. The server side of that has to be untouched by a death:
+        the slot bits, the ReceivedItems index and the signal are all durable
+        here, so the re-grant delivers exactly the same items."""
+        self.run_session(self.make_session(), [ROOMINFO, [connected(), dict(self.BATCH)]])
+        before = (list(self.real.slot_bflds), self.recvs[-1])
+
+        # a DeathLink arrives and the client dies of it
+        session = self.make_session()
+        session.maps.death_link = True
+        deliveries = []
+        orig = (ap_bridge._bump_death_in, ap_bridge._send_death_signal)
+        ap_bridge._bump_death_in = lambda gid, world: 1
+        ap_bridge._send_death_signal = lambda gid, world, token, source: deliveries.append(source)
+        try:
+            self.run_session(session, [ROOMINFO, [connected()], [
+                {"cmd": "Bounced", "tags": ["DeathLink"],
+                 "data": {"time": 1.0, "source": "Zelda"}}]])
+        finally:
+            (ap_bridge._bump_death_in, ap_bridge._send_death_signal) = orig
+        self.assertEqual(deliveries, ["Zelda"])
+        self.assertEqual(list(self.real.slot_bflds), before[0])
+
+        # the client comes back with its local grant bits cleared: the tick
+        # still reports the same slots, so nothing was lost to the rollback
+        self.run_session(self.make_session(), [ROOMINFO, [connected(), dict(self.BATCH)]])
+        self.assertEqual((list(self.real.slot_bflds), self.recvs[-1]), before)
 
     def test_shadow_bit_flip_polls_correct_ap_id(self):
         session = self.make_session()

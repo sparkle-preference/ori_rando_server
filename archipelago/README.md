@@ -107,6 +107,9 @@ Two rules it enforces for you:
   are baked into every yaml and every room that has already generated. `freeze_check` asserts that every
   name→id pair already on disk survives regeneration.
 * **Location names come from areas.ori** where it has one, because the graph speaks those names.
+* **Warp destinations must match the generator.** `WARP_DESTINATIONS` mirrors `generator.warp_targets2`;
+  `check_warp_table` fails the export if the generator grows one, so adding a warp upstream is a deliberate
+  append here.
 
 Then bump the data version (next section), rebuild the apworld, and run the suite — `ApModeGenTests` and the
 seed canaries will tell you if the conversion pass moved.

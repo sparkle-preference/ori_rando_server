@@ -23,7 +23,7 @@ No imports here on purpose: the server's test suite loads this file
 directly, without Archipelago on the path.
 """
 
-DATA_VERSION = 2
+DATA_VERSION = 3
 COMPATIBLE_DATA_VERSION = 1
 
 # yamls emitted before data_version existed came from the only table

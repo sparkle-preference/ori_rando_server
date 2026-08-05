@@ -41,7 +41,10 @@ ITEM_TABLE = {item["name"]: item for item in ITEMS}
 LOC_TABLE = {loc["name"]: loc for loc in LOCATIONS}
 
 # cells count toward Health=/Energy=/Ability= requirements, so everything
-# except the bonus grab-bag is progression
+# except the bonus grab-bag is progression. upgrades/experience/warps are
+# filler: no compiled rule names one. Warps in particular are filler even
+# under the InLogicWarps variation -- the graph shipped here has no warp
+# edges at all, which under-models reach and so stays conservative.
 PROGRESSION_CATEGORIES = {"skills", "events", "teleporters", "cells", "stones"}
 
 # Warmth Returned is a no-op troll pickup (game-end triggers are positional;
@@ -273,4 +276,5 @@ class OriDEWorld(World):
         return {
             "params_id": self.cfg.get("params_id"),
             "world": self.cfg.get("world"),
+            "death_link": bool(self.cfg.get("death_link")),
         }

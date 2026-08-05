@@ -39,7 +39,7 @@ const fassDefaultsFor = (world) => [2, 919772, -1560272, 799776, -120208].map(co
 const apDefaultExport = ["skills", "teleporters", "events"];
 // mw share name for each ap export category that can clash with it (shared
 // singletons can't also go to the AP pool)
-const apShareNames = {"skills": "Skills", "teleporters": "Teleporters", "events": "World Events"};
+const apShareNames = {"skills": "Skills", "teleporters": "Teleporters", "warps": "Teleporters", "events": "World Events", "upgrades": "Upgrades"};
 const getPool = (pool_name) => { switch(pool_name) {
     case "Standard": 
         return [
@@ -631,7 +631,7 @@ onDrop = (files) => {
         )
     }
     getMultiplayerTab = ({inputStyle, menuStyle}) => {
-        let {shared, mwShared, players, tracking, coopGameMode, keyMode, coopGenMode, dedupShared, antiBkBias, apMode, apExport} = this.state
+        let {shared, mwShared, players, tracking, coopGameMode, keyMode, coopGenMode, dedupShared, antiBkBias, apMode, apExport, apDeathLink} = this.state
         let shareButtons = (stypes, current, toggle) => stypes.map(stype => (
             <Col xs="4" key={`share-${stype}`} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("Shared Item Categories", stype)} className="p-2">
                 <Button block outline={!current.includes(stype)} onClick={toggle(stype)}>Share {stype}</Button>
@@ -645,7 +645,7 @@ onDrop = (files) => {
         let apFlag = ap_enabled()
         // ap export categories are server-side names; no Keystones (generic
         // keys never export; 'stones' covers Mapstones + keysanity zone keys)
-        let apExportButtons = [["skills", "Skills"], ["teleporters", "Teleporters"], ["events", "World Events"], ["cells", "Cells"], ["stones", "Stones"]].map(([cat, label]) => (
+        let apExportButtons = [["skills", "Skills"], ["teleporters", "Teleporters"], ["events", "World Events"], ["cells", "Cells"], ["stones", "Stones"], ["warps", "Warps"], ["upgrades", "Upgrades"]].map(([cat, label]) => (
             <Col xs="4" key={`ap-export-${cat}`} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("AP Export Categories", cat)} className="p-2">
                 <Button block outline={!apExport.includes(cat)} onClick={this.onApExport(cat)}>Export {label}</Button>
             </Col>
@@ -711,6 +711,11 @@ onDrop = (files) => {
                     <Collapse isOpen={apMode}>
                         <Row className="p-2">
                             {apExportButtons}
+                        </Row>
+                        <Row className="p-2">
+                            <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "apDeathLink")} className="p-2">
+                                <Button block outline={!apDeathLink} active={apDeathLink} onClick={() => this.setState({apDeathLink: !apDeathLink})}>Death Link</Button>
+                            </Col>
                         </Row>
                     </Collapse>
                 </Collapse>
@@ -801,6 +806,7 @@ onDrop = (files) => {
         if(this.apAvailable() && this.state.apMode) {
             json.apMode = true
             json.apExport = this.state.apExport
+            json.apDeathLink = this.state.apDeathLink
             url += url.includes("?") ? "&ap_test=1" : "?ap_test=1"
         }
         let seed = this.state.seed || randInt(0, 1000000000);
@@ -857,6 +863,7 @@ onDrop = (files) => {
             // apMode/apExport rehydrate by name; empty export = server default
             if(!metaUpdate.apExport || metaUpdate.apExport.length === 0)
                 metaUpdate.apExport = [...apDefaultExport]
+            metaUpdate.apDeathLink = metaUpdate.apDeathLink || false
             metaUpdate.inputApMode = metaUpdate.apMode || false
             dev && console.log(metaUpdate)
             this.setState(metaUpdate, this.updateUrl)
@@ -1698,7 +1705,7 @@ onDrop = (files) => {
                         spawnHCs: 3, spawnECs: 0, spawnSKs: 0, pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null), 
                         goalModes: ["ForceTrees"], selectedPool: "Standard", seed: "", fillAlg: "Balanced", quickstartOpen: quickstartOpen, 
                         shared: ["Skills", "Teleporters", "World Events", "Upgrades", "Misc"], mwShared: [], helpcat: "", helpopt: "",
-                        apMode: false, apExport: [...apDefaultExport], inputApMode: false,
+                        apMode: false, apExport: [...apDefaultExport], apDeathLink: false, inputApMode: false,
                         apHost: "", apPort: "", apPassword: "", apConnectPending: false, apStatus: null, apNoLink: false, apHidden: false, apPollFailed: false,
                         expPool: 10000, lastHelp: new Date(), seedIsGenerating: seedTabExists, cellFreq: cellFreqPresets("standard"),
                         fragCount: 30, fragReq: 20, relicCount: 8, loader: get_random_loader(), paramId: paramId, seedTabExists: seedTabExists, 

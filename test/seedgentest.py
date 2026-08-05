@@ -845,6 +845,15 @@ class SeedModeProblemTests(unittest.TestCase):
             p = self._ap_params()
             p.sync.shared = [ShareType.SKILL]
             self.assertIn("overlap", self._check(True, p, ap_override=True))
+            # warps share as teleporters and bonus RBs as upgrades, so those
+            # pairs clash too
+            for share, category in ((ShareType.TELEPORTER, "warps"),
+                                    (ShareType.UPGRADE, "upgrades")):
+                p = self._ap_params()
+                p.sync.shared = [share]
+                p.ap_export = [category]
+                self.assertIn(category, self._check(True, p, ap_override=True) or "",
+                              "%s share vs %s export" % (share.value, category))
             # and so does the multiworld tracking requirement
             p = self._ap_params()
             p.tracking = False
@@ -1360,12 +1369,12 @@ def parse_ap_seed(lines, players):
     return plain, native_mw, reserved, native_manifest, ap_manifest
 
 
-def generate_ap(outdir, players, ap_export, seed="apgen2"):
+def generate_ap(outdir, players, ap_export, seed="apgen2", extra=()):
     """cli_gen an AP-mode casual seed; -> ({player: seed lines}, {player: yaml text})."""
     old_argv = sys.argv
     sys.argv = ["cli_gen", "--output-dir", outdir, "--preset", "casual",
                 "--balanced", "--seed", seed, "--players", str(players),
-                "--share-mode", "multiworld", "--ap-export", ap_export]
+                "--share-mode", "multiworld", "--ap-export", ap_export] + list(extra)
     try:
         CLISeedParams().from_cli()
     finally:
@@ -1708,8 +1717,8 @@ class ApFullConversionTests(unittest.TestCase):
     """v4 conversion rules driven with synthetic seed text: everything the
     datapackage can name leaves the native MW fabric, everything it cannot
     stays on it, and the game-wide totals balance while per-world ones do
-    not. Real seeds never contain a TW warp or an above-cap EX, which is
-    exactly why these need a fixture."""
+    not. Rolling a real seed that crosses a relic or an above-cap EX takes
+    luck, which is exactly why these need a fixture."""
 
     FLAGS = "Sync0.0,test|mode=Multiworld"
 
@@ -1736,16 +1745,59 @@ class ApFullConversionTests(unittest.TestCase):
         self.assertEqual(info["exported"][1], [])
 
     def test_unnameable_cross_items_stay_native(self):
-        """TW warp ids are per-seed strings, so they can never be static
-        datapackage items -- they keep the native MW fabric to themselves."""
+        """A relic's id is the seed's own flavour text, so it can never be a
+        static datapackage item -- it keeps the native MW fabric to itself."""
+        relic = "#Abandoned Nest#\\nLooks like birds lived here."
         texts, info = self._convert([
             [self._cross(1000000, 2, 0, "Grove")],
-            [self._mani(0, 1, "TW", "Warp to Stompless AC,-358,65,Cell", "Swamp")],
+            [self._mani(0, 1, "WT", relic, "Swamp")],
         ])
         self.assertEqual(info["exported"][2], [])
         self.assertEqual(info["reserved"][1], [])
-        self.assertIn("|MW|1,TW,Warp to Stompless AC,-358,65,Cell|", texts[1])
+        self.assertIn("|MW|1,WT,%s|" % relic, texts[1])
         self.assertIn(self._cross(1000000, 2, 0, "Grove"), texts[0])
+
+    def test_cross_landed_warp_converts_keeping_its_coordinates(self):
+        """A TW id is "<dest>,<x>,<y>,<node>": AP names the destination, and
+        the manifest keeps the coordinates the client actually warps to."""
+        warp = "Warp to Stompless AC,-358,65,ValleyRightFastStomplessCellWarp"
+        texts, info = self._convert([
+            [self._cross(1000000, 2, 0, "Grove")],
+            [self._mani(0, 1, "TW", warp, "Swamp")],
+        ])
+        self.assertEqual(info["exported"][2], [("TW", warp, 0)])
+        self.assertEqual(len(info["reserved"][1]), 1)
+        self.assertIn("|MW|4,TW,%s|" % warp, texts[1])
+
+    def test_a_warp_exports_under_its_own_category(self):
+        """Selecting warps exports a world's own warp pickups; not selecting
+        it leaves them alone."""
+        line = "1000000|TW|Warp to Ginso Escape,510,910,GinsoEscape|Ginso"
+        _, info = self._convert([[line]], categories=("warps",))
+        self.assertEqual(info["exported"][1],
+                         [("TW", "Warp to Ginso Escape,510,910,GinsoEscape", 0)])
+        _, info = self._convert([[line]], categories=("skills",))
+        self.assertEqual(info["exported"][1], [])
+
+    def test_a_plando_only_warp_destination_stays_native(self):
+        """Custom teleporters are plando-only and can name anywhere, so a
+        destination outside the generator's table is filler like any other
+        unnameable pickup rather than a conversion failure."""
+        texts, info = self._convert([
+            [self._cross(1000000, 2, 0, "Grove")],
+            [self._mani(0, 1, "TW", "Warp to Nowhere In Particular,1,2,Node", "Swamp")],
+        ], categories=("warps",))
+        self.assertEqual(info["exported"][2], [])
+        self.assertIn("|MW|1,TW,Warp to Nowhere In Particular,1,2,Node|", texts[1])
+
+    def test_a_bonus_skill_exports_under_upgrades(self):
+        """The BS* roll (RB101..RB113) is in the datapackage now, so the
+        upgrades category can hand it to the pool."""
+        line = "1000000|RB|103|Glades"
+        _, info = self._convert([[line]], categories=("upgrades",))
+        self.assertEqual(info["exported"][1], [("RB", "103", 0)])
+        _, info = self._convert([[line]], categories=("cells",))
+        self.assertEqual(info["exported"][1], [])
 
     def test_cross_landed_progression_the_datapackage_cannot_name_fails(self):
         """The one case that must not silently degrade: a logic item left
@@ -1783,6 +1835,224 @@ class ApFullConversionTests(unittest.TestCase):
                          [("EX", str(EX_EXACT_CAP), 0), ("EX", "200", 1)])
         self.assertIn("|MW|4,EX,%s|" % EX_EXACT_CAP, texts[1])
         self.assertIn("|MW|4,EX,200|", texts[1])
+
+
+class ApBonusPoolConversionTests(unittest.TestCase):
+    """The pools warps and bonus upgrades actually live in. Before these two
+    categories existed a bonus-pickup seed with warps left dozens of native
+    MW lines behind, invisible to Archipelago; now nothing does."""
+
+    PLAYERS = 2
+    EXPORT = "skills,teleporters,events,cells,stones,warps,upgrades"
+    EXTRA = ("--bonus-pickups", "--warps-instead-of-tps", "4")
+
+    @classmethod
+    def setUpClass(cls):
+        cls.out = tempfile.mkdtemp(prefix="seedgentest_apbonus_")
+        cls.seeds, cls.yamls = generate_ap(cls.out, cls.PLAYERS, cls.EXPORT,
+                                           seed="apbonus", extra=cls.EXTRA)
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.out, ignore_errors=True)
+
+    def test_the_pool_really_carries_warps_and_bonus_upgrades(self):
+        """Guard the fixture: if the pool stops rolling these, the residue
+        assertions below pass for the wrong reason."""
+        warps = bonus = 0
+        for p, lines in self.seeds.items():
+            _, _, _, _, ap_manifest = parse_ap_seed(lines, self.PLAYERS)
+            warps += sum(1 for e in ap_manifest.values() if e[1] == "TW")
+            bonus += sum(1 for e in ap_manifest.values()
+                         if e[1] == "RB" and int(e[2]) >= 100)
+        self.assertGreater(warps, 0, "no warp exported")
+        self.assertGreater(bonus, 0, "no bonus skill exported")
+
+    def test_no_native_multiworld_line_survives(self):
+        for p, lines in self.seeds.items():
+            _, native_mw, _, native_manifest, _ = parse_ap_seed(lines, self.PLAYERS)
+            self.assertEqual(native_mw, {}, "player %s hosts native items" % p)
+            self.assertEqual(native_manifest, {}, "player %s exports natively" % p)
+
+    def test_an_exported_warp_keeps_its_coordinates(self):
+        """The AP item is the destination; the manifest still has to say
+        where to put Ori."""
+        from archipelago.convert import match_key
+        from archipelago.yaml_emit import ITEM_NAMES
+        for p, lines in self.seeds.items():
+            _, _, _, _, ap_manifest = parse_ap_seed(lines, self.PLAYERS)
+            for slot, (finder, icode, iid, zone) in ap_manifest.items():
+                if icode != "TW":
+                    continue
+                dest, x, y, node = iid.split(",")
+                self.assertTrue(x.lstrip("-").isdigit() and y.lstrip("-").isdigit(), iid)
+                self.assertEqual(ITEM_NAMES[match_key("TW", iid)], dest)
+
+    def test_the_game_balances(self):
+        reserved = exported = 0
+        for p, lines in self.seeds.items():
+            _, _, res, _, ap_manifest = parse_ap_seed(lines, self.PLAYERS)
+            reserved += len(res)
+            exported += len(ap_manifest)
+        self.assertEqual(reserved, exported)
+        self.assertGreater(reserved, 0)
+
+    def test_the_yaml_names_every_exported_warp(self):
+        for p, text in self.yamls.items():
+            _, _, _, _, ap_manifest = parse_ap_seed(self.seeds[p], self.PLAYERS)
+            for slot, (finder, icode, iid, zone) in ap_manifest.items():
+                if icode == "TW":
+                    self.assertIn(iid.split(",")[0], text)
+
+
+class ApDeathLinkSeedTests(unittest.TestCase):
+    """The opt-in is a property of the seed: it reaches the client through
+    the flagline (which is what makes the client send its death counter at
+    all) and Archipelago through the yaml. A seed without it must be
+    byte-identical to one rolled before death link existed."""
+
+    def _params(self, ap_mode=True, death_link=True):
+        from enums import MultiplayerGameType
+        from seedbuilder.seedparams import SeedGenParams, MultiplayerOptions
+        sync = MultiplayerOptions(str_mode=MultiplayerGameType.MULTIWORLD.value)
+        return SeedGenParams(seed="dl", players=2, tracking=True, sync=sync,
+                             ap_mode=ap_mode, ap_export=["skills"],
+                             ap_death_link=death_link)
+
+    def test_the_flagline_carries_it_only_when_the_seed_has_it(self):
+        self.assertIn("DeathLink", self._params().flag_line())
+        self.assertNotIn("DeathLink", self._params(death_link=False).flag_line())
+        # a non-AP multiworld can't opt in, so its flagline never moves
+        self.assertNotIn("DeathLink",
+                         self._params(ap_mode=False, death_link=True).flag_line())
+
+    def test_the_flagline_is_otherwise_unchanged(self):
+        off = self._params(death_link=False).flag_line()
+        on = self._params(death_link=True).flag_line()
+        self.assertEqual(on.replace(",DeathLink", ""), off)
+
+    def test_from_json_needs_ap_mode(self):
+        from seedbuilder.seedparams import SeedGenParams
+        self.assertFalse(SeedGenParams(ap_mode=False).ap_death_link)
+        for payload, expected in (({"apMode": True, "apDeathLink": True}, True),
+                                  ({"apMode": True, "apDeathLink": False}, False),
+                                  ({"apMode": True}, False),
+                                  ({"apDeathLink": True}, False)):
+            p = SeedGenParams()
+            p.ap_export = [str(c) for c in payload.get("apExport", [])]
+            p.ap_mode = bool(payload.get("apMode")) or bool(p.ap_export)
+            p.ap_death_link = p.ap_mode and bool(payload.get("apDeathLink"))
+            self.assertEqual(p.ap_death_link, expected, payload)
+
+    def test_the_yaml_says_it_in_both_places(self):
+        from archipelago.yaml_emit import emit_yaml, make_config
+        cfg = make_config({}, [], {}, ["casual-core"], death_link=True)
+        self.assertTrue(cfg["death_link"])
+        text = emit_yaml(cfg, "Ori1")
+        self.assertIn("death_link: 1", text)          # the AP option
+        self.assertIn("death_link: true", text)       # the orirando blob
+        off = emit_yaml(make_config({}, [], {}, ["casual-core"]), "Ori1")
+        self.assertIn("death_link: 0", off)
+        self.assertIn("death_link: false", off)
+
+    def test_the_apworld_declares_the_standard_option(self):
+        import re
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                            "archipelago", "oride_apworld", "oride", "options.py")
+        with open(path) as f:
+            source = f.read()
+        self.assertTrue(re.search(r"^\s*death_link: DeathLink\s*$", source, re.M))
+
+    def test_the_bridge_reads_it_off_params(self):
+        from archipelago.ap_bridge import maps_from_params
+
+        class P(object):
+            players = 1
+            ap_death_link = True
+
+            def get_seed_data(self, player=1):
+                return []
+
+        self.assertTrue(maps_from_params(P()).death_link)
+        P.ap_death_link = False
+        self.assertFalse(maps_from_params(P()).death_link)
+        del P.ap_death_link       # params rolled before the option existed
+        self.assertFalse(maps_from_params(P()).death_link)
+
+
+class ApDatapackageTests(unittest.TestCase):
+    """The frozen item table. Regeneration must reproduce the committed
+    name->ap_id pairs exactly, and the warp half must cover every
+    destination the generator can roll."""
+
+    @staticmethod
+    def _committed():
+        from archipelago.convert import _ITEMS
+        return _ITEMS
+
+    def test_regeneration_is_append_only(self):
+        from archipelago import export_data
+        fresh = export_data.build_items()
+        old = {i["name"]: i["ap_id"] for i in self._committed()}
+        new = {i["name"]: i["ap_id"] for i in fresh}
+        self.assertEqual({n: new.get(n) for n in old}, old,
+                         "a committed ap_id moved; ids are frozen once shipped")
+        self.assertEqual(len(new), len(fresh), "duplicate item names")
+
+    def test_every_rollable_warp_is_in_the_table(self):
+        from archipelago.export_data import WARP_DESTINATIONS, check_warp_table
+        from seedbuilder.generator import warp_targets2
+        check_warp_table()
+        live = {"Warp to %s" % e[0] for g in warp_targets2 for e in g}
+        self.assertEqual(set(WARP_DESTINATIONS), live)
+        self.assertEqual(len(WARP_DESTINATIONS), len(live), "a duplicate destination")
+
+    def test_a_new_generator_warp_fails_the_export(self):
+        """The guard that keeps the two tables honest: adding a destination
+        upstream has to be a deliberate append here."""
+        from archipelago import export_data
+        from seedbuilder import generator
+        orig = generator.warp_targets2
+        generator.warp_targets2 = orig + [[("Brand New Place", 1, 2, "Glades", "Node", 41)]]
+        export_data.warp_targets2 = generator.warp_targets2
+        try:
+            with self.assertRaises(AssertionError) as caught:
+                export_data.check_warp_table()
+            self.assertIn("Warp to Brand New Place", str(caught.exception))
+        finally:
+            generator.warp_targets2 = orig
+            export_data.warp_targets2 = orig
+
+    def test_the_bonus_skill_roll_is_fully_named(self):
+        """Every RB the BS* draw can produce (generator.py:634-646) needs a
+        datapackage entry, or it silently rides the native MW fabric."""
+        from archipelago.convert import ITEM_BY_CODE_ID
+        bonus_skills = (101, 102, 103, 104, 105, 106, 107, 109, 110, 111, 113)
+        missing = [rb for rb in bonus_skills if ("RB", str(rb)) not in ITEM_BY_CODE_ID]
+        self.assertEqual(missing, [])
+
+    def test_warps_and_upgrades_are_filler_to_the_apworld(self):
+        """New categories must not become progression: the shipped graph has
+        no warp edges and no rule names a bonus upgrade."""
+        import importlib.util
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                            "archipelago", "oride_apworld", "oride", "__init__.py")
+        with open(path) as f:
+            source = f.read()
+        start = source.index("PROGRESSION_CATEGORIES = ")
+        line = source[start:source.index("\n", start)]
+        for category in ("upgrades", "warps", "experience"):
+            self.assertNotIn(category, line)
+
+    def test_match_key_round_trips_a_real_warp_id(self):
+        from archipelago.convert import ITEM_BY_CODE_ID, match_key
+        from seedbuilder.generator import warp_targets2
+        for group in warp_targets2:
+            for name, x, y, area, node, cost in group:
+                seed_id = "Warp to %s,%s,%s,%s" % (name, x, y, node)
+                key = match_key("TW", seed_id)
+                self.assertEqual(key, ("TW", "Warp to %s" % name))
+                self.assertIn(key, ITEM_BY_CODE_ID)
 
 
 class ApDataVersionTests(unittest.TestCase):
@@ -1981,6 +2251,23 @@ class ApSeedAnnotationTests(unittest.TestCase):
             0: self._scout("Bash", "Ori1", "P1", ap_item=self.BASH_AP_ID, ap_owner=1),
             1: self._scout("Something Else", "Ori2", "P2", ap_item=1, ap_owner=2)})
         self.assertEqual(self._lines(self._params())["-2"], "-2|MW|3,SK,0|Grove|P1")
+
+    def test_an_exported_warp_resolves_by_its_destination(self):
+        """The manifest keeps the warp's coordinates, so the join has to
+        normalise the id the same way the datapackage does."""
+        from archipelago.convert import ITEM_BY_CODE_ID
+        from seedbuilder.seedparams import Placement, Stuff
+        warp_id = "Warp to Ginso Escape,510,910,GinsoEscape"
+        params = self._params()
+        params.placements.append(Placement(
+            location="-4", zone="Glades",
+            stuff=[Stuff(code="MW", id="3,TW,%s" % warp_id, player="1")]))
+        self._store(self.WORLD, {
+            0: self._scout("Warp to Ginso Escape", "Ori1", "P1",
+                           ap_item=ITEM_BY_CODE_ID[("TW", "Warp to Ginso Escape")]["ap_id"],
+                           ap_owner=1)})
+        self.assertEqual(self._lines(params)["-4"],
+                         "-4|MW|3,TW,%s|Grove|P1" % warp_id)
 
     def test_two_copies_of_one_item_are_left_unresolved(self):
         """Two identical exports are indistinguishable in the room's answers,

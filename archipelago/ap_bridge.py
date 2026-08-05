@@ -56,6 +56,10 @@ CONNECT_TIMEOUT = 10.0   # the OS SYN ladder is ~4 min
 HEAL_TTL = 45.0          # request-path memo: non-AP games pay a dict lookup
 BACKOFF_MIN, BACKOFF_MAX = 1.0, 60.0
 
+# --- DeathLink (see "death link" below) ---
+DEATHLINK_TAG = "DeathLink"
+DEATHLINK_ECHO_KEEP = 8   # recent send times remembered for echo suppression
+
 # --- progressive hints (see "hint purchases" below) ---
 HINT_QUEUE_MAX = 32      # slots a client may have outstanding at once
 HINT_RETRY_SECS = 30.0   # per-slot rate limit on reconsidering a request
@@ -93,8 +97,9 @@ class ApRefused(Exception):
 
 def _match_key(code, id):
     """Manifest (code, id) -> the datapackage identity AP knows it by. EX is
-    exact up to the cap and rides a denomination above it (mirrors
-    convert.ex_export_value so both sides bucket identically)."""
+    exact up to the cap and rides a denomination above it; a TW warp keeps
+    its coordinates in the seed and is named by its destination. Mirrors
+    convert.match_key so both sides bucket identically."""
     if code == "EX":
         try:
             v = int(id)
@@ -103,18 +108,22 @@ def _match_key(code, id):
         if not 1 <= v <= EX_EXACT_CAP:
             v = min(EX_DENOMS, key=lambda d: (abs(d - v), d))
         return ("EX", str(v))
+    if code == "TW":
+        return ("TW", str(id).split(",")[0])
     return (code, str(id))
 
 
 # --- per-game mapping tables (params-derived, immutable once built) ---
 
 class GameMaps(object):
-    def __init__(self, worlds, outbox, grant_slots, zones=None, hint_keys=None):
+    def __init__(self, worlds, outbox, grant_slots, zones=None, hint_keys=None,
+                 death_link=False):
         self.worlds = worlds            # K
         self.outbox = outbox            # {w: {shadow slot i: ap location id}}
         self.grant_slots = grant_slots  # {w: {match_key: [manifest slot, asc]}}
         self.zones = zones or {}        # {w: {shadow slot i: reserved zone}}
         self.hint_keys = hint_keys or {}  # {w: {manifest slot: buyable key}}
+        self.death_link = bool(death_link)  # seed option, not a runtime toggle
 
 
 def maps_from_params(params):
@@ -150,7 +159,8 @@ def maps_from_params(params):
         for lst in gr.values():
             lst.sort()
         outbox[w], grants[w], zones[w], hints[w] = ob, gr, zo, hk
-    return GameMaps(k, outbox, grants, zones, hints)
+    return GameMaps(k, outbox, grants, zones, hints,
+                    death_link=bool(getattr(params, "ap_death_link", False)))
 
 
 _maps = {}
@@ -221,6 +231,20 @@ def _apply_grants(gid, world, slots, senders=None):
     return newly
 
 
+def _send_death_signal(gid, world, token, source):
+    """'dl:<token>;<source>' on the world's tick. latest-only: a client that
+    is offline while the room dies repeatedly owes exactly one death when it
+    comes back, not a queue of them."""
+    from models import Game, Player
+    game = Game.with_id(gid)
+    if not game:
+        return
+    player = game.player(world)
+    signal = "dl:%s;%s" % (token, source)
+    Player.signal_latest_txn(player.key, "dl:", signal)
+    Cache.clear_seen_checksum(player.idpts())
+
+
 @ndb.transactional(retries=5)
 def _persist_recv(gid, world, count):
     link = APLink.with_id(gid)
@@ -268,6 +292,21 @@ def _at_world(values, world, value):
         out.append(-1)
     out[world - 1] = value
     return out
+
+
+@ndb.transactional(retries=5)
+def _bump_death_in(gid, world):
+    """Count one DeathLink delivered to a world; -> the new total, which the
+    signal carries as its token. Durable so a bridge restart can't hand the
+    client a token it already acked and dropped as seen."""
+    link = APLink.with_id(gid)
+    if link is None:
+        return 0
+    seen = list(link.dl_in or [])
+    token = (seen[world - 1] if len(seen) >= world and seen[world - 1] > 0 else 0) + 1
+    link.dl_in = _at_world(seen, world, token)
+    link.put()
+    return token
 
 
 @ndb.transactional(retries=5)
@@ -388,6 +427,42 @@ class _HintBox(object):
         with self.lock:
             out, self.slots = self.slots, set()
         return out
+
+
+class _DeathBox(object):
+    """The client's death counters, handed from tick threads to the world's
+    session thread. A LEVEL, not a queue: the tick reports totals, so a lost
+    tick costs nothing and a burst of ticks costs one read.
+
+    `total` is every death this run; `linked` is the subset the client itself
+    caused applying an incoming DeathLink. total - linked is what the room
+    may hear about, which is why an incoming death can never bounce back out.
+    """
+
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.net = None
+
+    def set(self, total, linked):
+        with self.lock:
+            self.net = max(0, int(total) - int(linked))
+
+    def read(self):
+        with self.lock:
+            return self.net
+
+
+def _parse_deaths(raw):
+    """Tick field 'dl=<total>.<linked>' -> (total, linked), or None. Dotted
+    because ',' and '|' are the tick's own separators (same as 'aph')."""
+    total, _, linked = str(raw or "").partition(".")
+    try:
+        total, linked = int(total), int(linked or 0)
+    except (TypeError, ValueError):
+        return None
+    if total < 0 or linked < 0:
+        return None
+    return total, linked
 
 
 def _parse_hint_slots(raw):
@@ -516,7 +591,7 @@ class ApSession(object):
 
     def __init__(self, gid, world, maps, slot_name, password,
                  stop_event=None, goal_event=None, ctx=None, host=None, port=None,
-                 game_slots=None, hint_box=None):
+                 game_slots=None, hint_box=None, death_box=None):
         self.gid, self.world, self.maps = int(gid), int(world), maps
         self.slot_name = slot_name
         self.password = password
@@ -558,6 +633,10 @@ class ApSession(object):
         self.hint_hydrated = False   # the room has told us what it already holds
         self.hint_asked_at = None    # ... when we asked it to
         self.scout_rows = None    # (monotonic, {world: APNames entries})
+        # death link (see "death link")
+        self.death_box = death_box   # the client's counters, tick-fed
+        self.deaths_seen = None      # last net count we have already relayed
+        self.death_times = []        # times we sent, to drop our own echo
 
     def _stopped(self):
         return self.stop_event is not None and self.stop_event.is_set()
@@ -566,7 +645,8 @@ class ApSession(object):
         return {"cmd": "Connect", "password": self.password, "game": AP_GAME_NAME,
                 "name": self.slot_name, "uuid": "orirando-%s-%s" % (self.gid, self.world),
                 "version": AP_VERSION, "items_handling": ITEMS_HANDLING,
-                "tags": [], "slot_data": False}
+                "tags": [DEATHLINK_TAG] if self.maps.death_link else [],
+                "slot_data": False}
 
     def run(self, sock):
         self._handshake(sock)
@@ -590,6 +670,7 @@ class ApSession(object):
                 if now >= self.hint_next_service:
                     self.hint_next_service = now + HINT_SERVICE_SECS
                     self._safe("hints", self._service_hints, sock)
+                self._service_deaths(sock)
                 if self.goal_event is not None and self.goal_event.is_set():
                     self._send_goal(sock)
                 if now >= next_link:
@@ -737,8 +818,64 @@ class ApSession(object):
             self._safe("DataPackage", self._on_data_package, msg, sock)
         elif cmd == "PrintJSON":
             self._safe("PrintJSON", self._on_print_json, msg, sock)
+        elif cmd == "Bounced":
+            self._safe("Bounced", self._on_bounced, msg)
         elif cmd in ("Retrieved", "SetReply"):
             self._safe("hint keys", self._on_hint_keys, msg, sock)
+
+    # --- death link ---
+    # Deaths ride the tick as a counter (client save item 1590), and a death
+    # the client applied FROM the room increments a second one we subtract --
+    # so an incoming death can never emit an outgoing one. Rationale in
+    # prior_notes/ARCHIPELAGO_NOTES.md.
+
+    def _service_deaths(self, sock):
+        if self.death_box is None or not self.maps.death_link:
+            return
+        net = self.death_box.read()
+        if net is None:
+            return
+        if self.deaths_seen is None or net < self.deaths_seen:
+            # first report of the run, or a smaller count: a different save
+            # file or a fresh slot. Re-baseline silently -- nobody owes the
+            # room deaths that happened before we were watching.
+            self.deaths_seen = net
+            return
+        if net == self.deaths_seen:
+            return
+        self.deaths_seen = net
+        self._send_death(sock)
+
+    def _send_death(self, sock):
+        now = time.time()
+        self.death_times.append(now)
+        del self.death_times[:-DEATHLINK_ECHO_KEEP]
+        _send(sock, [{"cmd": "Bounce", "tags": [DEATHLINK_TAG],
+                      "data": {"time": now, "source": self.slot_name,
+                               "cause": "%s died" % self.slot_name}}])
+        log.info("APBRIDGE deathlink out gid=%s world=%s", self.gid, self.world)
+
+    def _on_bounced(self, msg):
+        if not self.maps.death_link:
+            return
+        if DEATHLINK_TAG not in (msg.get("tags") or []):
+            return
+        data = msg.get("data")
+        if not isinstance(data, dict):
+            return
+        when = data.get("time")
+        if any(when == sent for sent in self.death_times):
+            return  # our own bounce, fanned back to us
+        source = data.get("source") or ""
+        if source == self.slot_name:
+            return  # belt and braces: a resend of ours with a fresh timestamp
+        # the name rides a tick signal, whose own separators it may not carry
+        who = wire_safe_name(source) or "Archipelago"
+        with self.ctx():
+            token = _bump_death_in(self.gid, self.world)
+            _send_death_signal(self.gid, self.world, token, who)
+        log.info("APBRIDGE deathlink in gid=%s world=%s from=%r",
+                 self.gid, self.world, source)
 
     # --- display names ---
 
@@ -1226,6 +1363,7 @@ class _Bridge(object):
         self.stop_event = threading.Event()
         self.goal_event = threading.Event()
         self.hint_box = _HintBox()
+        self.death_box = _DeathBox()
         self.thread = threading.Thread(target=self._run, daemon=True,
                                        name="ap-bridge-%s.%s" % (gid, world))
 
@@ -1263,7 +1401,8 @@ class _Bridge(object):
                 session = ApSession(gid, world, maps, slot_name, password,
                                     stop_event=self.stop_event, goal_event=self.goal_event,
                                     ctx=ndb_client.context, host=host, port=port,
-                                    game_slots=names, hint_box=self.hint_box)
+                                    game_slots=names, hint_box=self.hint_box,
+                                    death_box=self.death_box)
                 sock = None
                 try:
                     sock, scheme = _open_socket(host, port, scheme)
@@ -1393,6 +1532,28 @@ def request_hints(game_id, player_id, raw):
             bridge.hint_box.add(slots)
     except Exception:
         log.exception("ap_bridge: request_hints failed for %s.%s", game_id, player_id)
+
+
+def note_deaths(game_id, player_id, raw):
+    """Tick field 'dl': this world's death counters. Same shape as the hint
+    request -- a level the client re-reports every second, read here and
+    diffed on the session thread (the socket belongs to it). Costs a game
+    without death link one `if`, since only a DeathLink seed sends the
+    field at all."""
+    if not ARCHIPELAGO or not raw:
+        return
+    try:
+        counts = _parse_deaths(raw)
+        if counts is None:
+            return
+        gid, world = int(game_id), int(player_id)
+        with _reg_lock:
+            bridge = _bridges.get((gid, world))
+        if bridge is None:
+            return   # no room for this world: nothing to relay to
+        bridge.death_box.set(*counts)
+    except Exception:
+        log.exception("ap_bridge: note_deaths failed for %s.%s", game_id, player_id)
 
 
 def notify_goal(game_id, player_id):

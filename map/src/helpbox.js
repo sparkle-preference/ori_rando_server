@@ -695,6 +695,15 @@ const getHelpHelper = (category, option) => {
                         "Note: a category cannot be both Shared and Exported; selecting one will deselect the other.",
                     ]
                     break;
+                case "apDeathLink":
+                    title = "Death Link"
+                    lines = [
+                        "With Death Link on, every death in this world kills everyone else in the session who has Death Link on, and every one of their deaths kills you.",
+                        "Ori dies a lot. Turn this on knowing what you are asking of the rest of the room.",
+                        "A death arriving while you are in a cutscene, a load, or the credits waits until you are back in control.",
+                        "This is a property of the seed: it can't be turned on or off once the seed is rolled.",
+                    ]
+                    break;
                 case "Seperate Seeds":
                     title = "Seperate Seeds"
                     subtitle = "Co-op Seed Generation Modes"
@@ -803,6 +812,20 @@ const getHelpHelper = (category, option) => {
                     lines = [
                         "With Export Stones enabled, Mapstones (and Keysanity zone keys, if Keysanity is on) are handed to the Archipelago item pool: any game in the session can find them, and the locations that held them will contain other games' items instead.",
                         "Note: regular Keystones are never exported; door currency stays in your own world."
+                    ]
+                    break;
+                case "warps":
+                    title = "Export Warps"
+                    lines = [
+                        "With Export Warps enabled, the Alt+R warp pickups a seed rolls (Warps Instead of TPs, or Warp Count) are handed to the Archipelago item pool: any game in the session can find them, and the locations that held them will contain other games' items instead.",
+                        "Warps only exist if the seed rolls them, so this does nothing on a seed without warps."
+                    ]
+                    break;
+                case "upgrades":
+                    title = "Export Upgrades"
+                    lines = [
+                        "With Export Upgrades enabled, bonus pickups (Attack Upgrade, Health Regeneration, Mega Health, the bonus skills, and friends) are handed to the Archipelago item pool: any game in the session can find them, and the locations that held them will contain other games' items instead.",
+                        "The bonus pools are where most of these live; a standard pool has far fewer."
                     ]
                     break;
                 default:
