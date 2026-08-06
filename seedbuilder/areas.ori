@@ -4579,14 +4579,17 @@ home: LowerSorrow -484 248
 		casual Keystone=4
 		casual Keysanity LowerSorrowKeys
 	conn: LeftSorrow
-		casual Glide Bash
 		casual Glide ChargeJump
-		master GrenadeJump
+		standard Glide Bash
+		expert Glide WallJump
+		expert Glide Climb
+		expert Glide DoubleJump
 		expert ChargeDash Bash
 		expert ChargeDash ChargeJump Energy=2
 		expert ChargeDash Stomp ChargeJump
 		expert ChargeDash DoubleJump ChargeJump
 		expert DoubleBash
+		master GrenadeJump
 		master ChargeJump Health=10 UltraDefense
 		master ChargeJump TripleJump
 	conn: MiddleSorrow
