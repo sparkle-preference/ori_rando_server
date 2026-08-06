@@ -455,6 +455,46 @@ class MultiworldPreplacementTests(unittest.TestCase):
         self.assertEqual(count_for(3, "EV", "0"), 1)
 
 
+class UnnameableItemWireTests(unittest.TestCase):
+    """A pool item the randomizer can't name renders as "CODE|id", and in
+    multiworld that name rides a |-delimited line as the MW display name. It
+    must not add a field: seedparams.generate unpacks exactly four."""
+
+    def _mw_seeds(self, pool_extra, seed):
+        from seedbuilder.generator import SeedGenerator
+        outdir = tempfile.mkdtemp(prefix="seedgentest_unnameable_")
+        self.addCleanup(shutil.rmtree, outdir, ignore_errors=True)
+        orig = SeedGenerator.setSeedAndPlaceItems
+        def patched(sg, params, **kwargs):
+            params.item_pool = dict(params.item_pool)
+            params.item_pool.update(pool_extra)
+            return orig(sg, params, **kwargs)
+        old_argv = sys.argv
+        sys.argv = ["cli_gen", "--output-dir", outdir, "--preset", "standard",
+                    "--open-world", "--force-trees", "--balanced", "--players", "3",
+                    "--share-mode", "multiworld", "--seed", seed]
+        SeedGenerator.setSeedAndPlaceItems = patched
+        try:
+            CLISeedParams().from_cli()
+        finally:
+            SeedGenerator.setSeedAndPlaceItems = orig
+            sys.argv = old_argv
+        seeds = {}
+        for p in (1, 2, 3):
+            with open(os.path.join(outdir, "randomizer_%s.dat" % p)) as f:
+                seeds[p] = f.read().splitlines()
+        return seeds
+
+    def test_an_unnameable_bonus_id_keeps_lines_parseable(self):
+        # RB|-33 is not a real upgrade; users reached it through the item pool
+        seeds = self._mw_seeds({"RB|-33": [10]}, "unnameable1")
+        check_mw_invariants(self, seeds)
+
+    def test_the_same_id_inside_a_group_is_also_safe(self):
+        seeds = self._mw_seeds({"RG|RB/33/RB/-33": [10]}, "unnameable2")
+        check_mw_invariants(self, seeds)
+
+
 class GroupPlacementTests(unittest.TestCase):
     """RG ("one of...") forced assignments: the site hands seedgen a group and
     seedgen places exactly one of its items. RG never reaches a seed file."""
@@ -1300,6 +1340,10 @@ def check_mw_invariants(tc, seeds):
     for p, lines in seeds.items():
         bad = [l for l in lines[1:] if l and not PICKUP_LINE.match(l)]
         tc.assertEqual(bad, [], "malformed lines for player %s: %s" % (p, bad[:5]))
+        # exactly four fields, like seedparams.generate's unpack -- parse_seed's
+        # maxsplit and PICKUP_LINE both tolerate a stray | that crashes the server
+        extra = [l for l in lines[1:] if l and len(l.split("|")) != 4]
+        tc.assertEqual(extra, [], "player %s has unparseable lines: %s" % (p, extra[:3]))
         placements, _ = parse_seed(lines)
         for loc, (code, id, zone) in placements.items():
             if code != "MW":

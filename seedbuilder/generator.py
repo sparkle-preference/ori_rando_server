@@ -1565,7 +1565,8 @@ class SeedGenerator:
     def mw_display_name(self, base_item):
         if base_item.startswith("Warp"):
             return "Warp to " + self.warps[base_item][0]
-        return Pickup.name(base_item[:2], base_item[2:] or "1")
+        # rides a |-delimited seed line; Pickup.name yields "CODE|id" for ids it can't name
+        return Pickup.name(base_item[:2], base_item[2:] or "1").replace("|", "/")
 
     def get_assignment(self, loc, player, item, zone):
         """item is tagged with its owner; player is the world the location is
