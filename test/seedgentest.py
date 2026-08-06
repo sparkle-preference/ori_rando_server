@@ -1298,7 +1298,11 @@ class BingoBoltOnGateTests(unittest.TestCase):
 
         class _Player(object):
             def __init__(self, pid):
+                self._pid = pid
                 self.key = type("K", (), {"id": lambda s, p=pid: p})()
+
+            def pid(self):
+                return self._pid
 
         class _Game(object):
             key = object()
@@ -1307,7 +1311,8 @@ class BingoBoltOnGateTests(unittest.TestCase):
             bingo_data = None
 
             def get_players(self):
-                return [_Player(1), _Player(2)]
+                # 1..2 are the humans, 3..4 the AP shadows holding the outbox
+                return [_Player(1), _Player(2), _Player(3), _Player(4)]
 
             def remove_player(self, pid):
                 test.removed.append(pid)
@@ -1318,7 +1323,9 @@ class BingoBoltOnGateTests(unittest.TestCase):
         class _Bingo(object):
             def __init__(self, **kw):
                 self.square_count, self.bingo_count, self.event_log = 0, 3, []
+                self.ap_worlds, self.teams_allowed = 0, False
                 self.__dict__.update(kw)
+                test.board = self
 
             def get_json(self, first):
                 return {}
@@ -1326,7 +1333,7 @@ class BingoBoltOnGateTests(unittest.TestCase):
             def put(self):
                 return "bingo-key"
 
-        self.params, self.removed, self.cards = _Params(), [], 0
+        self.params, self.removed, self.cards, self.board = _Params(), [], 0, None
         self._orig = (main.Game, main.User, main.BingoGameData, main.BingoGenerator.get_cards)
         main.Game = type("G", (), {"with_id": staticmethod(lambda gid: _Game())})
         main.User = type("U", (), {"get": staticmethod(lambda: None)})
@@ -1341,18 +1348,28 @@ class BingoBoltOnGateTests(unittest.TestCase):
         (self.main.Game, self.main.User, self.main.BingoGameData,
          self.main.BingoGenerator.get_cards) = self._orig
 
-    def test_ap_game_is_refused_before_the_roster_is_touched(self):
+    def test_ap_game_gets_a_board_and_keeps_its_shadows(self):
         self.params.ap_mode = True
         resp = self.client.get("/bingo/from_game/7")
+        self.assertEqual(resp.status_code, 200, resp.data.decode())
+        # the humans are re-seated by joining; the shadows must survive
+        self.assertEqual(self.removed, [1, 2], "the roster wipe ate the AP shadows")
+        self.assertEqual(self.board.ap_worlds, 2)
+        self.assertTrue(self.board.teams_allowed)
+
+    def test_solo_ap_game_is_refused_before_the_roster_is_touched(self):
+        self.params.ap_mode = True
+        self.params.players = 1
+        resp = self.client.get("/bingo/from_game/7")
         self.assertEqual(resp.status_code, 412)
-        self.assertIn("Archipelago", resp.data.decode())
+        self.assertIn("2 players", resp.data.decode())
         self.assertEqual(self.removed, [], "the gate let the roster wipe run")
         self.assertEqual(self.cards, 0)
 
     def test_non_ap_game_still_gets_its_board(self):
         resp = self.client.get("/bingo/from_game/7")
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(self.removed, [1, 2])
+        self.assertEqual(self.removed, [1, 2, 3, 4])
         self.assertEqual(self.cards, 1)
 
 

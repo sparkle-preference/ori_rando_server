@@ -1656,9 +1656,10 @@ def add_bingo_to_game(game_id):
         if game.mode in [MultiplayerGameType.SPLITSHARDS]:
             return text_resp("splitshards bingo are not currently supported", 412)
         params = game.params.get()
-        # the roster wipe below would delete the AP shadow players the bridge grants through
-        if getattr(params, "ap_mode", False):
-            return text_resp("Archipelago games can't have a bingo board. Roll a separate bingo seed.", 412)
+        # one team, one world each -- a solo AP game has nothing to be a team of
+        if getattr(params, "ap_mode", False) and int(params.players) < 2:
+            return text_resp("An Archipelago bingo board needs at least 2 players: "
+                             "the board is one team, one world each.", 412)
         seed = param_val("seed") or params.seed
         rand = random.Random()
         rand.seed(seed)
