@@ -23,9 +23,9 @@ try:
 except ImportError:
     ndb_imported = False
 
-VER = [4, 2, 7]
+VER = [4, 2, 8]
 MIN_VER = [4, 2, 7]
-BETA_VER = [4, 2, 7]
+BETA_VER = [4, 2, 8]
 
 # Feature flags for netcode rework (graceful fallback: unset/0 = legacy behavior)
 def _flag(name):
