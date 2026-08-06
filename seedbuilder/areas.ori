@@ -2734,6 +2734,7 @@ home: HoruFields 171 -24
 		master GrenadeJump
 home: HoruFieldsPushBlock 72 5
 	-- anchor: in the sky above Horu Fields, next to the pushable block
+	-- energy requirements for these paths are raised to account for potentially needing to get here using energy
 	pickup: HoruFieldsPlant
 		casual Bash ChargeFlame
 		casual Bash Grenade
@@ -2743,7 +2744,7 @@ home: HoruFieldsPushBlock 72 5
 		casual Climb ChargeJump Grenade
 		standard ChargeJump DoubleJump ChargeFlame AirDash
 		standard ChargeJump DoubleJump Grenade AirDash
-		expert ChargeDash Energy=3
+		expert ChargeDash Energy=4
 		-- throw a grenade from the platform then jump right to load the plant
 		-- you need the height/distance from dj/glide/dash for this
 		master Grenade DoubleJump
@@ -2755,7 +2756,7 @@ home: HoruFieldsPushBlock 72 5
 		casual ChargeJump DoubleJump Glide
 		standard ChargeJump Glide AirDash
 		standard ChargeJump DoubleJump AirDash
-		expert ChargeDash Energy=2
+		expert ChargeDash Energy=4
 		expert DoubleBash
 		master GrenadeJump
 	pickup: HoruFieldsHiddenExp
