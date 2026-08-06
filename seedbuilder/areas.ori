@@ -2713,11 +2713,11 @@ home: HoruFields 171 -24
 		standard ChargeJump Glide Climb AirDash
 		standard ChargeJump Glide WallJump AirDash
 		expert ChargeJump DoubleJump Glide
-		expert ChargeJump Glide ChargeDash Energy=3
-		expert ChargeJump ChargeDash Energy=4
+		expert ChargeJump Glide ChargeDash Energy=1
+		expert ChargeJump ChargeDash Energy=3
 		expert DoubleBash
-		master WallJump TripleJump ChargeDash Energy=5
-		master Climb TripleJump ChargeDash Energy=4
+		master WallJump TripleJump ChargeDash Energy=3
+		master Climb TripleJump ChargeDash Energy=3
 		master GrenadeJump
 	conn: HorufieldsHoruDoor
 		casual Bash DoubleJump WallJump
@@ -2726,10 +2726,11 @@ home: HoruFields 171 -24
 		casual Bash Glide Climb
 		standard Bash Grenade
 		standard ChargeJump Glide
+		expert ChargeJump ChargeDash Energy=2
 		master Bash
 		master WallJump Stomp Glide TripleJump
-		master WallJump TripleJump ChargeDash Energy=3
-		master Climb TripleJump ChargeDash
+		master WallJump TripleJump ChargeDash Energy=2
+		master Climb TripleJump ChargeDash Energy=2
 		master GrenadeJump
 home: HoruFieldsPushBlock 72 5
 	-- anchor: in the sky above Horu Fields, next to the pushable block
