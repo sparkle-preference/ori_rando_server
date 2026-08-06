@@ -38,6 +38,7 @@ const partsToPickup = (parts) => parts.length === 0 ? "NO|1" : (parts.length ===
 const fassDefaultsFor = (world) => [2, 919772, -1560272, 799776, -120208].map(coords => ({loc: locOptionFromCoords(coords), item: "NO|1", world: world, owner: world}));
 const apDefaultExport = ["skills", "teleporters", "events"];
 const PLAYER_NAME_MAX = 20;  // matches ap_models.PLAYER_NAME_MAX
+const AP_DEFAULT_HOST = "archipelago.gg";
 // mw share name for each ap export category that can clash with it (shared
 // singletons can't also go to the AP pool)
 const apShareNames = {"skills": "Skills", "teleporters": "Teleporters", "events": "World Events", "upgrades": "Upgrades"};
@@ -1154,8 +1155,10 @@ onDrop = (files) => {
         if(status === 200) {
             let report = JSON.parse(responseText)
             let update = {apStatus: report, apNoLink: false, apPollFailed: false}
-            // one-time prefill so reconnecting is a single click
-            if(!this.apPrefilled && report.host && this.state.apHost === "" && this.state.apPort === "") {
+            // one-time prefill so reconnecting is a single click; an untouched
+            // host box counts as empty
+            if(!this.apPrefilled && report.host && this.state.apPort === ""
+               && (this.state.apHost === "" || this.state.apHost === AP_DEFAULT_HOST)) {
                 update.apHost = report.host
                 update.apPort = String(report.port)
             }
@@ -1268,7 +1271,7 @@ onDrop = (files) => {
                     </Row>
                     <Row className="p-1 align-items-center" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "apConnect")}>
                         <Col xs="3" className="pl-1 pr-1">
-                            <Input type="text" placeholder="archipelago.gg" value={apHost} onChange={(e) => this.setState({apHost: e.target.value})}/>
+                            <Input type="text" placeholder={AP_DEFAULT_HOST} value={apHost} onChange={(e) => this.setState({apHost: e.target.value})}/>
                         </Col>
                         <Col xs="2" className="pl-1 pr-1">
                             <Input type="text" placeholder="38281" value={apPort} invalid={apPort !== "" && !portValid} onChange={(e) => this.setState({apPort: e.target.value})}/>
@@ -1710,7 +1713,7 @@ onDrop = (files) => {
                         goalModes: ["ForceTrees"], selectedPool: "Standard", seed: "", fillAlg: "Balanced", quickstartOpen: quickstartOpen, 
                         shared: ["Skills", "Teleporters", "World Events", "Upgrades", "Misc"], mwShared: [], helpcat: "", helpopt: "",
                         apMode: false, apExport: [...apDefaultExport], apDeathLink: false, inputApMode: false, playerNames: [],
-                        apHost: "", apPort: "", apPassword: "", apConnectPending: false, apStatus: null, apNoLink: false, apHidden: false, apPollFailed: false,
+                        apHost: AP_DEFAULT_HOST, apPort: "", apPassword: "", apConnectPending: false, apStatus: null, apNoLink: false, apHidden: false, apPollFailed: false,
                         expPool: 10000, lastHelp: new Date(), seedIsGenerating: seedTabExists, cellFreq: cellFreqPresets("standard"),
                         fragCount: 30, fragReq: 20, relicCount: 8, loader: get_random_loader(), paramId: paramId, seedTabExists: seedTabExists, 
                         reopenUrl: "", flagLine: "", fassList: fassDefaultsFor(1), fassWorld: 1, goalModesOpen: false, 
