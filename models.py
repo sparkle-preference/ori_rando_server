@@ -99,6 +99,23 @@ relics_by_zone = {
     "mountHoru": Pickup.n("RB", 921)
 }
 
+def _conf_signals(signals, signal):
+    """The signal_conf edit, in place on a list. Keeps the known quirk: the
+    fallback removes while iterating, so a non-msg signal queued first is what
+    an unmatched msg: callback eats."""
+    if signal in signals:
+        signals.remove(signal)
+    # basically it is never ok to be spamming ppl, so if we get a message callback
+    # we remove the first message we find if we don't get an exact match.
+    elif signal.startswith("msg:"):
+        for s in signals:
+            signals.remove(s)
+            if s.startswith("msg:"):
+                log.warning("No exact match for signal %s, removing %s instead (spam protection)" % (signal, s))
+                break
+    return signals
+
+
 def _pid(pkey):
     # type: (ModelKey) -> int
     try:
@@ -742,18 +759,54 @@ class Player(ndb.Model):
             Cache.clear_seen_checksum(self.idpts())
 
     def signal_conf(self, signal):
-        if signal in self.signals:
-            self.signals.remove(signal)
-        # basically it is never ok to be spamming ppl, so if we get a message callback
-        # we remove the first message we find if we don't get an exact match.
-        elif signal.startswith("msg:"):
-            for s in self.signals:
-                self.signals.remove(s)
-                if s.startswith("msg:"):
-                    log.warning("No exact match for signal %s, removing %s instead (spam protection)" % (signal, s))
-                    break
+        _conf_signals(self.signals, signal)
         self.put()
         Cache.clear_seen_checksum(self.idpts())
+
+    @staticmethod
+    @ndb.transactional(retries=5)
+    def signal_conf_txn(pkey, signal):
+        """Clear a confirmed signal on a fresh read, touching only signals.
+        The handler's copy is stale by the time the client answers, and a
+        plain put of it erased concurrent grant transactions' slot bits."""
+        p = pkey.get()
+        if p is None:
+            return False
+        before = list(p.signals)
+        _conf_signals(p.signals, signal)
+        if p.signals == before:
+            return False
+        p.put()
+        return True
+
+    @staticmethod
+    @ndb.transactional(retries=5)
+    def connect_update_txn(pkey, vers, nag_signal=None):
+        """connect's write: dll version and the out-of-date nag, on a fresh
+        read. Same rule as signal_conf_txn -- connect's own copy is stale."""
+        p = pkey.get()
+        if p is None:
+            return False
+        changed = p.note_version(vers)
+        if nag_signal and p.can_nag:
+            if nag_signal not in p.signals:
+                p.signals.append(nag_signal)
+            p.can_nag = False
+            changed = True
+        if changed:
+            p.put()
+        return changed
+
+    @staticmethod
+    @ndb.transactional(retries=5)
+    def signal_send_txn(pkey, signal):
+        """signal_send's write, same fresh-read rule as signal_conf_txn."""
+        p = pkey.get()
+        if p is None or signal in p.signals:
+            return False
+        p.signals.append(signal)
+        p.put()
+        return True
 
     @staticmethod
     @ndb.transactional(retries=5, xg=True)

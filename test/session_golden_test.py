@@ -113,9 +113,56 @@ class SessionTestCase(NdbTestCase):
             return p
         Player.tick_update_txn = staticmethod(fake_tick_txn)
 
+        # same deal for the signal writes, which stopped being plain puts once
+        # a stale one was found erasing concurrent grants' slot bitfields
+        from models import _conf_signals
+        self._conf_txn = Player.__dict__["signal_conf_txn"]
+        self._send_txn = Player.__dict__["signal_send_txn"]
+        self._connect_txn = Player.__dict__["connect_update_txn"]
+
+        def _fresh(pkey):
+            _, _, pid = pkey.id().partition(".")
+            return self.game.player(int(pid))
+
+        def fake_conf_txn(pkey, signal):
+            p = _fresh(pkey)
+            before = list(p.signals)
+            _conf_signals(p.signals, signal)
+            if p.signals == before:
+                return False
+            p.put()
+            return True
+
+        def fake_send_txn(pkey, signal):
+            p = _fresh(pkey)
+            if signal in p.signals:
+                return False
+            p.signals.append(signal)
+            p.put()
+            return True
+
+        def fake_connect_txn(pkey, vers, nag_signal=None):
+            p = _fresh(pkey)
+            changed = p.note_version(vers)
+            if nag_signal and p.can_nag:
+                if nag_signal not in p.signals:
+                    p.signals.append(nag_signal)
+                p.can_nag = False
+                changed = True
+            if changed:
+                p.put()
+            return changed
+
+        Player.signal_conf_txn = staticmethod(fake_conf_txn)
+        Player.signal_send_txn = staticmethod(fake_send_txn)
+        Player.connect_update_txn = staticmethod(fake_connect_txn)
+
     def tearDown(self):
         Game.with_id = self._with_id
         Player.tick_update_txn = self._tick_txn
+        Player.signal_conf_txn = self._conf_txn
+        Player.signal_send_txn = self._send_txn
+        Player.connect_update_txn = self._connect_txn
         super(SessionTestCase, self).tearDown()
 
 

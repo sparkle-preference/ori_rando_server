@@ -59,6 +59,16 @@ class NdbTestCase(unittest.TestCase):
         self._ctx.__exit__(None, None, None)
 
 
+class _KeyStub(object):
+    """Stands in for a Player key so the *_txn statics can be driven without a
+    datastore: get() hands back the entity the test already built."""
+    def __init__(self, player):
+        self._p = player
+
+    def get(self):
+        return self._p
+
+
 def make_player(gid, pid, **kw):
     fields = dict(skills=0, events=0, teleporters=0, bonuses={}, hints={})
     fields.update(kw)
@@ -170,6 +180,32 @@ class TestSignalFlow(NdbTestCase):
         p.signals = ["win:gg", "msg:one"]
         p.signal_conf("msg:zzz")
         self.assertEqual(p.signals, ["msg:one"])
+
+    def test_conf_txn_applies_the_same_edits_on_a_fresh_read(self):
+        # the durable path is signal_conf_txn, not the handler's stale copy:
+        # a plain put of that copy erased concurrent grant txns' slot bits
+        for queued, conf, expected in [
+            (["win:gg", "msg:hi"], "win:gg", ["msg:hi"]),
+            (["msg:one", "msg:two"], "msg:zzz", ["msg:two"]),
+            (["win:gg", "msg:one"], "msg:zzz", ["msg:one"]),   # the frozen quirk
+            (["win:gg"], "pickup:SK|0", ["win:gg"]),
+        ]:
+            fresh = make_player(917, 1, signals=list(queued))
+            Player.signal_conf_txn.__wrapped__(_KeyStub(fresh), conf)
+            self.assertEqual(fresh.signals, expected, "conf %s on %s" % (conf, queued))
+
+    def test_conf_txn_leaves_slot_bitfields_alone(self):
+        # the bug: a grant that lands between the handler's read and its write
+        fresh = make_player(918, 1, signals=["msg:hi"], slot_bflds=[0] * 8)
+        fresh.slot_bflds[0] = 0b1010          # granted after the handler read
+        Player.signal_conf_txn.__wrapped__(_KeyStub(fresh), "msg:hi")
+        self.assertEqual(fresh.signals, [])
+        self.assertEqual(fresh.slot_bflds[0], 0b1010, "the confirm ate a grant")
+
+    def test_conf_txn_skips_the_write_when_nothing_changed(self):
+        fresh = make_player(919, 1, signals=["win:gg"])
+        self.assertFalse(Player.signal_conf_txn.__wrapped__(_KeyStub(fresh), "pickup:SK|0"))
+        self.assertEqual(fresh.put_count, 0, "unconditional put is the whole bug")
 
     def test_conf_unmatched_nonmsg_removes_nothing(self):
         p = self._armed_player(916)

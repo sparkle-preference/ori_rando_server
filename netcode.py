@@ -28,6 +28,13 @@ def _code(status):
     return status, str(status)
 
 
+def _warn_signal(p, signal):
+    """Queue a warning without putting the handler's stale copy: that write
+    erased concurrent grant transactions' slot bitfields."""
+    if Player.signal_send_txn(p.key, signal):
+        Cache.clear_seen_checksum(p.idpts())
+
+
 def found_pickup(game_id, player_id, coords, kind, id, payload):
     game = Game.with_id(game_id)
     if not game:
@@ -234,7 +241,8 @@ def signal_callback(game_id, player_id, signal):
     if not game:
         return _code(412)
     p = game.player(player_id)
-    p.signal_conf(signal)
+    Player.signal_conf_txn(p.key, signal)
+    Cache.clear_seen_checksum(p.idpts())
     return 200, "cleared"
 
 
@@ -246,25 +254,22 @@ def connect(game_id, player_id, payload):
     if game:
         p = game.player(player_id)
         vers = payload.get("version")
-        needs_put = p.note_version(vers, game_id)
-        if p.can_nag and vers and (not version_check(vers)):
-            p.signal_send("msg:@dll out of date. (orirando.com/dll)@")
-            p.can_nag = False
-            needs_put = True
-        if needs_put:
-            p.put()
+        nag = ("msg:@dll out of date. (orirando.com/dll)@"
+               if p.can_nag and vers and (not version_check(vers)) else None)
+        if Player.connect_update_txn(p.key, vers, nag):
+            Cache.clear_seen_checksum(p.idpts())
         uploaded_sync = seed_sync_id(payload.get("seed"))
         if uploaded_sync:
             up_gid, _, up_pid = uploaded_sync.partition(".")
             if up_gid != str(game_id):
                 # wrong game: stale randomizer.dat, warn in every mode
                 log.warning("seed sync mismatch: %s.%s uploaded a seed for %s", game_id, player_id, uploaded_sync)
-                p.signal_send("msg:@Warning: your loaded seed belongs to game %s but you are connected to game %s. Wrong randomizer.dat?@" % (up_gid, game_id))
+                _warn_signal(p, "msg:@Warning: your loaded seed belongs to game %s but you are connected to game %s. Wrong randomizer.dat?@" % (up_gid, game_id))
             elif up_pid != str(player_id) and game.mode == MultiplayerGameType.MULTIWORLD:
                 # wrong player only matters in multiworld (wrong world's slot
                 # manifest); teammates sharing one .dat in cloned games is fine
                 log.warning("seed player mismatch: %s.%s uploaded player %s's seed", game_id, player_id, up_pid)
-                p.signal_send("msg:@Warning: you loaded Player %s's seed but connected as Player %s. In multiworld you need your own randomizer.dat!@" % (up_pid, player_id))
+                _warn_signal(p, "msg:@Warning: you loaded Player %s's seed but connected as Player %s. In multiworld you need your own randomizer.dat!@" % (up_pid, player_id))
         game.sanity_check()  # cheap if game is short!
     else:
         # we no longer support uploading seeds

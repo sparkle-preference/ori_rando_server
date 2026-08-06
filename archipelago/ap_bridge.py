@@ -391,13 +391,13 @@ def _apply_hint_text(gid, world, answers, keep=None):
 def _hint_notice(gid, world, text):
     """One 'you can't afford it yet' line on the player's tick, rate limited
     per world -- a deferred hint is re-derived every reconnect."""
-    from models import Game
+    from models import Game, Player
     game = Game.with_id(gid)
     if not game:
         return
     player = game.player(world)
-    if ("msg:" + text) not in player.signals:
-        player.signal_send("msg:" + text)
+    if Player.signal_send_txn(player.key, "msg:" + text):
+        Cache.clear_seen_checksum(player.idpts())
 
 
 def _scout_rows(gid, worlds):
