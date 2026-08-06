@@ -929,7 +929,7 @@ class SeedModeProblemTests(unittest.TestCase):
         self.assertIsNotNone(self._check(False, self._params("Multiworld")))
         self.assertIsNone(self._check(True, self._params("Multiworld")))
 
-    def test_ap_bingo_blocked_even_with_overrides(self):
+    def test_solo_ap_bingo_blocked_even_with_overrides(self):
         """/reroll passes both overrides (the user already has such a game);
         a combination that can't work must still refuse."""
         import util
@@ -941,7 +941,7 @@ class SeedModeProblemTests(unittest.TestCase):
         util.ARCHIPELAGO = True
         try:
             problem = seedparams.seed_mode_problem(p, mw_override=True, ap_override=True)
-            self.assertIn("Bingo", problem)
+            self.assertIn("2 players", problem)
         finally:
             util.ARCHIPELAGO = orig
 
@@ -992,18 +992,20 @@ class SeedModeProblemTests(unittest.TestCase):
         finally:
             util.ARCHIPELAGO = orig
 
-    def test_ap_and_bingo_cant_be_combined(self):
-        """A bingo board hands its seeds out by board pid, which is unrelated
-        to the AP world that pid would have to be."""
+    def test_ap_bingo_needs_more_than_one_world(self):
+        """The board is one team with one world each, so a K=1 AP bingo has
+        nothing to be a team of -- and two teams would share a slot."""
         import util
         from enums import Variation
         orig = util.ARCHIPELAGO
         util.ARCHIPELAGO = True
         try:
-            for players in (1, 2):
-                p = self._ap_params(players=players)
-                p.variations = [Variation.OPEN_WORLD, Variation.BINGO]
-                self.assertIn("Bingo", self._check(True, p, ap_override=True))
+            solo = self._ap_params(players=1)
+            solo.variations = [Variation.OPEN_WORLD, Variation.BINGO]
+            self.assertIn("2 players", self._check(True, solo, ap_override=True))
+            multi = self._ap_params(players=2)
+            multi.variations = [Variation.OPEN_WORLD, Variation.BINGO]
+            self.assertIsNone(self._check(True, multi, ap_override=True))
             # neither half is affected on its own
             self.assertIsNone(self._check(True, self._ap_params(), ap_override=True))
             for mode in ("None", "Multiworld"):

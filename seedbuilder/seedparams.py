@@ -24,9 +24,11 @@ def seed_mode_problem(params, mw_override=False, ap_override=False):
             return "Archipelago seeds aren't available yet."
         if not ap_override:
             return "Archipelago seeds are in closed testing."
-        # a bingo board hands seeds out by board pid, which is not an AP world
-        if Variation.BINGO in (getattr(params, "variations", None) or []):
-            return "Archipelago seeds can't use the Bingo goal. Pick another goal mode, or roll the bingo separately."
+        # a bingo board maps a player to a world by their index within their
+        # team, and across teams those worlds repeat -- two teams on world 2
+        # would share one AP slot's items and checks. One team only.
+        if Variation.BINGO in (getattr(params, "variations", None) or []) and int(params.players) < 2:
+            return "Archipelago bingo needs at least 2 players: the board is one team, one world each."
         # without netcode the bridge has no way in: the client would find AP
         # slots and silently drop them
         if not (params.sync.enabled and params.tracking):
@@ -62,9 +64,11 @@ def seed_mode_problem(params, mw_override=False, ap_override=False):
         return "Seperate Seeds generation was removed (2026-07). Use Cloned Seeds or Multiworld."
     return None
 def rolled_player_names(names, params):
-    """Sanitize the UI's per-world names. Bingo hands names out by lobby, so
-    it never stores any; trailing blanks are dropped."""
-    if Variation.BINGO in (getattr(params, "variations", None) or []):
+    """Sanitize the UI's per-world names. Bingo hands names out by lobby and
+    stores none, unless it's an AP board (pid is the world there); trailing
+    blanks are dropped."""
+    if (Variation.BINGO in (getattr(params, "variations", None) or [])
+            and not getattr(params, "ap_mode", False)):
         return []
     from ap_models import sanitize_display_name, PLAYER_NAME_MAX
     out = [sanitize_display_name(str(n or ""), PLAYER_NAME_MAX)
@@ -311,11 +315,11 @@ class SeedGenParams(ndb.Model):
         params.start = json.get("spawn", "Glades")
         params.spawn_weights = json.get("spawnWeights", [])
         params.verbose_spoiler = json.get("verboseSpoiler", False)
-        params.player_names = rolled_player_names(json.get("playerNames", []), params)
         from archipelago.convert import normalize_categories
         params.ap_export = normalize_categories(str(c) for c in json.get("apExport", []))
         params.ap_mode = bool(json.get("apMode")) or bool(params.ap_export)
         params.ap_death_link = params.ap_mode and bool(json.get("apDeathLink"))
+        params.player_names = rolled_player_names(json.get("playerNames", []), params)
         if params.ap_mode:
             from archipelago.convert import EXPORTABLE_CATEGORIES
             bad = [c for c in params.ap_export if c not in EXPORTABLE_CATEGORIES]
@@ -356,7 +360,6 @@ class SeedGenParams(ndb.Model):
         params.starting_health = int(qparams.get("spawnHCs", 3))
         params.starting_skills = int(qparams.get("spawnSKs", 0))
         params.verbose_spoiler = qparams.get("verboseSpoiler", "") == "true"
-        params.player_names = rolled_player_names(qparams.getlist("player_names"), params)
         raw_pool = qparams.get("item_pool")
         if raw_pool:
             for itemcnt in raw_pool.split("|"):
@@ -408,6 +411,7 @@ class SeedGenParams(ndb.Model):
         params.ap_export = normalize_categories(qparams.getlist("ap_export"))
         params.ap_mode = bool(qparams.get("ap_mode")) or bool(params.ap_export)
         params.ap_death_link = params.ap_mode and bool(qparams.get("ap_death_link"))
+        params.player_names = rolled_player_names(qparams.getlist("player_names"), params)
         if params.ap_mode:
             from archipelago.convert import EXPORTABLE_CATEGORIES
             bad = [c for c in params.ap_export if c not in EXPORTABLE_CATEGORIES]

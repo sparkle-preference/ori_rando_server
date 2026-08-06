@@ -1805,8 +1805,9 @@ onDrop = (files) => {
     hasVar = (v) => this.state.variations.includes(v);
     isMultiworld = () => this.state.tracking && this.state.players > 1 && this.state.coopGameMode === "Multiworld";
     // any solo mode can join an AP room; Race/Co-op with other Ori players
-    // and Bingo can't. Turning AP on turns tracking on.
-    apAvailable = () => ap_enabled() && !this.hasVar("Bingo") && (this.state.players === 1 || this.isMultiworld());
+    // can't. Bingo needs multiworld: the board is one team, one world each.
+    // Turning AP on turns tracking on.
+    apAvailable = () => ap_enabled() && (this.isMultiworld() || (this.state.players === 1 && !this.hasVar("Bingo")));
     onPath = (p) => () => this.setState({paths: this.state.paths.includes(p) ? this.state.paths.filter(x => x !== p) : this.state.paths.concat(p)}, () => this.setState(p => {return {pathMode: get_preset(p.paths)}}))
     onSType = (s) => () => this.state.shared.includes(s) ? this.setState({shared: this.state.shared.filter(x => x !== s)}) : this.setState({shared: this.state.shared.concat(s)})
     // a category can't be both mw-shared and ap-exported; the newest click wins
@@ -1816,8 +1817,8 @@ onDrop = (files) => {
     onApMode = () => this.setState(prev => prev.apMode ? {apMode: false}
         : {apMode: true, tracking: true,  // the bridge delivers over netcode
            mwShared: prev.mwShared.filter(s => !prev.apExport.map(c => apShareNames[c]).includes(s))})
-    // bingo hands names out by lobby, so it doesn't get the field
-    playerNamesShown = () => !this.hasVar("Bingo") && (this.state.players > 1 || (this.apAvailable() && this.state.apMode))
+    // bingo hands names out by lobby, except on an AP board where pid is the world
+    playerNamesShown = () => (this.apAvailable() && this.state.apMode) || (!this.hasVar("Bingo") && this.state.players > 1)
     onPlayerName = (i) => (e) => {
         // read before setState: the synthetic event is recycled by the time
         // the updater runs

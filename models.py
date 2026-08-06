@@ -1114,6 +1114,16 @@ class BingoGameData(ndb.Model):
     rand_dat         = ndb.TextProperty(compressed=True)
     meta             = ndb.BooleanProperty(default=False)
     ev_chunk         = ndb.IntegerProperty(default=0)  # CHUNKED_LOGS: next archive index
+    # Archipelago boards: K worlds, one team, pid == world. 0 = not an AP board.
+    ap_worlds        = ndb.IntegerProperty(default=0)
+
+    def ap_world_for(self, pid):
+        """This board's AP world for a player, or None if it isn't an AP board
+        (or the pid isn't one of its worlds)."""
+        if not self.ap_worlds:
+            return None
+        pid = int(pid)
+        return pid if 1 <= pid <= self.ap_worlds else None
 
     def discovery_squares(self, square_count=2):
         self.discovery = square_count
@@ -1278,6 +1288,13 @@ class BingoGameData(ndb.Model):
                 params = params.put().get()
             if params.players == 1:
                 return sync_flag + params.get_seed(1, include_sync=False) + goalstr
+            elif self.ap_worlds:
+                # pid is the world, so a rejoin can't shuffle anyone's AP slot
+                p_number = self.ap_world_for(pid)
+                if not p_number:
+                    log.error("player %s is outside this AP board's %s worlds", pid, self.ap_worlds)
+                    return None
+                return sync_flag + params.get_seed(p_number, include_sync=False) + goalstr
             else:
                 team = self.team(pid, cap_only=False)
                 if not team:

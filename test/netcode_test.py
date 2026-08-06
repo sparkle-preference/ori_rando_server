@@ -665,7 +665,18 @@ class TestRolledPlayerNames(NdbTestCase):
         class P:
             players = 2
             variations = [Variation.BINGO]
+            ap_mode = False
         self.assertEqual(rolled_player_names(["Alice", "Bob"], P()), [])
+
+    def test_an_ap_bingo_board_keeps_its_names(self):
+        # on an AP board the pid is the world, so the names are slot names
+        from seedbuilder.seedparams import rolled_player_names
+        from enums import Variation
+        class P:
+            players = 2
+            variations = [Variation.BINGO]
+            ap_mode = True
+        self.assertEqual(rolled_player_names(["Alice", "Bob"], P()), ["Alice", "Bob"])
 
     def test_names_are_capped_and_trailing_blanks_dropped(self):
         from seedbuilder.seedparams import rolled_player_names
@@ -683,6 +694,31 @@ class TestRolledPlayerNames(NdbTestCase):
             players = 2
             variations = []
         self.assertEqual(rolled_player_names(["A", "B", "C"], P()), ["A", "B"])
+
+
+class TestApBingoBoard(NdbTestCase):
+    """An AP board is one team, one world each, so the board pid IS the world
+    -- a rejoin must never shuffle anyone's AP slot."""
+
+    def _bingo(self, worlds=3):
+        from models import BingoGameData
+        return BingoGameData(id=77, ap_worlds=worlds)
+
+    def test_pid_is_the_world(self):
+        b = self._bingo()
+        for pid in (1, 2, 3):
+            self.assertEqual(b.ap_world_for(pid), pid)
+
+    def test_pids_outside_the_worlds_are_refused(self):
+        b = self._bingo()
+        self.assertIsNone(b.ap_world_for(0))
+        # 4..6 are the shadow players holding the bridge's outbox
+        self.assertIsNone(b.ap_world_for(4))
+        self.assertIsNone(b.ap_world_for(6))
+
+    def test_a_non_ap_board_has_no_world_mapping(self):
+        from models import BingoGameData
+        self.assertIsNone(BingoGameData(id=78).ap_world_for(1))
 
 
 class TestAPLink(NdbTestCase):

@@ -1389,6 +1389,14 @@ def _bingo_add_player_inner(game_id, player_id):
         return text_resp("Teams are forbidden in this game", 412)
     if player_id in bingo.player_nums():
         return text_resp("Player id already in use!", 409)
+    if bingo.ap_worlds:
+        # the pid IS the Archipelago world, so it has to be one of them, and
+        # everyone shares the one team the first joiner opens
+        if not 1 <= player_id <= bingo.ap_worlds:
+            return text_resp("This is an Archipelago board: pick a player number from 1 to %s."
+                             % bingo.ap_worlds, 412)
+        if bingo.teams:
+            join_team = str(bingo.teams[0].pids()[0])
 
     player = bingo.init_player(player_id)
     if join_team:
@@ -1754,7 +1762,16 @@ def add_bingo_to_game(game_id):
             client_now = int(param_val("time"))
             res["offset"] = server_now - client_now
 
+        ap_bingo = getattr(params, "ap_mode", False)
+        if ap_bingo:
+            # one team, one world each, so the board's pids ARE the AP worlds.
+            # Shadow players (pid > K) hold the bridge's outbox and must survive
+            # the roster wipe below.
+            bingo.teams_allowed = True
+            bingo.ap_worlds = int(params.players)
         for p in game.get_players():
+            if ap_bingo and p.pid() > int(params.players):
+                continue
             game.remove_player(p.key.id())
         bkey = bingo.put()
         game.bingo_data = bkey
