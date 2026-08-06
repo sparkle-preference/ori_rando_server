@@ -540,7 +540,7 @@ onDrop = (files) => {
                 {fass_rows}
                 <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "buriedPresets")} className="p-1 justify-content-center">
                     <Col xs={leftCol} className="text-center pt-1 border">
-                        <Cent>Bury Items (like the old Starved flags)</Cent>
+                        <Cent>Bury Items ([Item]Starved)</Cent>
                     </Col><Col xs="2">
                         <Button color="primary" block outline onClick={this.buryItems([{depth: 50, items: ["SK|3", "SK|12"]}])}>Walls</Button>
                     </Col><Col xs="2">
