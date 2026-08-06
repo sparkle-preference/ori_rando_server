@@ -2,6 +2,7 @@
 
 Run from the repo root:  python3 -m unittest test.seedgentest -v
 """
+import json
 import os
 import random
 import re
@@ -929,9 +930,10 @@ class SeedModeProblemTests(unittest.TestCase):
         self.assertIsNotNone(self._check(False, self._params("Multiworld")))
         self.assertIsNone(self._check(True, self._params("Multiworld")))
 
-    def test_solo_ap_bingo_blocked_even_with_overrides(self):
-        """/reroll passes both overrides (the user already has such a game);
-        a combination that can't work must still refuse."""
+    def test_reroll_overrides_pass_solo_ap_bingo_but_not_a_broken_one(self):
+        """/reroll passes both overrides (the user already has such a game).
+        A one-world AP board is a legitimate seed; the overrides still don't
+        buy a combination that can't work at all."""
         import util
         from enums import Variation
         from seedbuilder import seedparams
@@ -940,8 +942,10 @@ class SeedModeProblemTests(unittest.TestCase):
         orig = util.ARCHIPELAGO
         util.ARCHIPELAGO = True
         try:
-            problem = seedparams.seed_mode_problem(p, mw_override=True, ap_override=True)
-            self.assertIn("2 players", problem)
+            self.assertIsNone(seedparams.seed_mode_problem(p, mw_override=True, ap_override=True),
+                              "K=1 AP bingo is one world, one board, one player")
+            p.tracking = False
+            self.assertIn("tracking", seedparams.seed_mode_problem(p, mw_override=True, ap_override=True))
         finally:
             util.ARCHIPELAGO = orig
 
@@ -992,9 +996,9 @@ class SeedModeProblemTests(unittest.TestCase):
         finally:
             util.ARCHIPELAGO = orig
 
-    def test_ap_bingo_needs_more_than_one_world(self):
-        """The board is one team with one world each, so a K=1 AP bingo has
-        nothing to be a team of -- and two teams would share a slot."""
+    def test_ap_bingo_at_any_world_count(self):
+        """The board is one team, one world each -- and a team of one is a
+        legitimate board: one Ori world in a room of other games."""
         import util
         from enums import Variation
         orig = util.ARCHIPELAGO
@@ -1002,7 +1006,7 @@ class SeedModeProblemTests(unittest.TestCase):
         try:
             solo = self._ap_params(players=1)
             solo.variations = [Variation.OPEN_WORLD, Variation.BINGO]
-            self.assertIn("2 players", self._check(True, solo, ap_override=True))
+            self.assertIsNone(self._check(True, solo, ap_override=True))
             multi = self._ap_params(players=2)
             multi.variations = [Variation.OPEN_WORLD, Variation.BINGO]
             self.assertIsNone(self._check(True, multi, ap_override=True))
@@ -1328,7 +1332,9 @@ class BingoBoltOnGateTests(unittest.TestCase):
                 test.board = self
 
             def get_json(self, first):
-                return {}
+                # snapshot: the response is only right if it's built after the
+                # AP fields are set, and the board page seeds its state from it
+                return {"ap_worlds": self.ap_worlds, "teams_allowed": self.teams_allowed}
 
             def put(self):
                 return "bingo-key"
@@ -1356,15 +1362,21 @@ class BingoBoltOnGateTests(unittest.TestCase):
         self.assertEqual(self.removed, [1, 2], "the roster wipe ate the AP shadows")
         self.assertEqual(self.board.ap_worlds, 2)
         self.assertTrue(self.board.teams_allowed)
+        self.assertEqual(json.loads(resp.data.decode())["ap_worlds"], 2,
+                         "the board page reads ap_worlds off this response")
 
-    def test_solo_ap_game_is_refused_before_the_roster_is_touched(self):
+    def test_a_one_world_ap_game_gets_a_board(self):
+        """K=1 is one Ori world in a room of other games. The wipe is one off
+        from eating the outbox here: the only shadow sits at pid 2."""
         self.params.ap_mode = True
         self.params.players = 1
         resp = self.client.get("/bingo/from_game/7")
-        self.assertEqual(resp.status_code, 412)
-        self.assertIn("2 players", resp.data.decode())
-        self.assertEqual(self.removed, [], "the gate let the roster wipe run")
-        self.assertEqual(self.cards, 0)
+        self.assertEqual(resp.status_code, 200, resp.data.decode())
+        self.assertEqual(self.removed, [1], "the roster wipe ate the AP shadow")
+        self.assertEqual(self.board.ap_worlds, 1)
+        self.assertTrue(self.board.teams_allowed)
+        self.assertEqual(self.cards, 1)
+        self.assertEqual(json.loads(resp.data.decode())["ap_worlds"], 1)
 
     def test_non_ap_game_still_gets_its_board(self):
         resp = self.client.get("/bingo/from_game/7")

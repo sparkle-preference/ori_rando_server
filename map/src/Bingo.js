@@ -400,7 +400,8 @@ export default class Bingo extends React.Component {
         if(apWorlds) {
             let free = [...Array(apWorlds).keys()].map(i => i+1).filter(p => !players.includes(p));
             if(free.length === 0) {
-                this.setState({loadingText: "This Archipelago board is full."})
+                this.setState({loadingText: apWorlds === 1 ? "This Archipelago board has one world, and it's taken."
+                                                          : "This Archipelago board is full."})
                 return
             }
             nextPlayer = free[0];
@@ -558,6 +559,10 @@ export default class Bingo extends React.Component {
                            return false
                         })
                     })
+                // an AP board's player number is the AP world, so a preferred
+                // number from the profile means nothing here
+                if(res.ap_worlds && (activePlayer < 1 || activePlayer > res.ap_worlds))
+                    activePlayer = 1
                 this.setState({subtitle: res.subtitle, gameId: res.gameId, createModalOpen: false, creatingGame: false, haveGame: true, offset: res.offset || offset,
                               fails: 0, dispDiff: res.difficulty || dispDiff, teams: res.teams, paramId: res.paramId, activePlayer: activePlayer, ticksSinceLastSquare: 0,
                               currentRecord: 0, cards: res.cards, events: res.events, targetCount: res.bingo_count, fromGen: false, teamMax: res.teamMax || -1, discSquares: res.discovery || [],
@@ -642,7 +647,7 @@ export default class Bingo extends React.Component {
     }
     render = () => {
         let {specLink, viewOnly, isOwner, dark, activePlayer, startTime, paramId, teamsDisabled, userBoardParams,
-            subtitle, cards, haveGame, gameId, user, dispDiff, teams, loadingText, userBoard, discSquares, lockout} = this.state
+            subtitle, cards, haveGame, gameId, user, dispDiff, teams, loadingText, userBoard, discSquares, lockout, apWorlds} = this.state
         let s = getComputedStyle(document.body);
         let inputStyle = {'borderColor': s.getPropertyValue('--dark'), 'backgroundColor': s.getPropertyValue("background-color"), 'color': s.getPropertyValue("color")}
 
@@ -787,7 +792,8 @@ export default class Bingo extends React.Component {
          ] : null
          if(paramId > 0 && gameId > 0 && haveGame)
             links.push((<Row className="justify-content-center" key="gameLink"><Col xs="auto"><small><a href={`/?param_id=${paramId}&game_id=${gameId}`}>base seed</a></small></Col></Row>))
-        let joinGameButton = teamsDisabled ? (
+        // a one-world AP board has nobody to team with
+        let joinGameButton = (teamsDisabled || apWorlds === 1) ? (
             <Button block color="primary" onClick={() => this.joinGame()} disabled={!haveGame}>Join Game</Button>
         ) : (
             <Button block color="warning" onClick={() => this.joinGame()} disabled={!haveGame}>Create Team</Button>
@@ -819,7 +825,7 @@ export default class Bingo extends React.Component {
                                 Player:
                             </Cent></Col>
                             <Col xs="4"><Cent>
-                                <Input style={inputStyle} type="number" disabled={!haveGame} min="1" value={activePlayer} onChange={e => this.setState({activePlayer: parseInt(e.target.value, 10)})}/>
+                                <Input style={inputStyle} type="number" disabled={!haveGame} min="1" max={apWorlds || undefined} value={activePlayer} onChange={e => this.setState({activePlayer: parseInt(e.target.value, 10)})}/>
                             </Cent></Col>
                             <Col xs="auto"><Cent>
                                 {activePlayer > 0 ? make_icons([activePlayer]) : null}

@@ -678,6 +678,20 @@ class TestRolledPlayerNames(NdbTestCase):
             ap_mode = True
         self.assertEqual(rolled_player_names(["Alice", "Bob"], P()), ["Alice", "Bob"])
 
+    def test_a_one_world_ap_board_keeps_its_one_name(self):
+        """K=1 is a room of other games, so this name is how everyone there
+        sees the Ori player -- it has to survive to the yaml."""
+        from seedbuilder.seedparams import rolled_player_names
+        from ap_models import ap_slot_names
+        from enums import Variation
+        class P:
+            players = 1
+            variations = [Variation.BINGO]
+            ap_mode = True
+        self.assertEqual(rolled_player_names(["Alice"], P()), ["Alice"])
+        self.assertEqual(ap_slot_names(1, ["Alice"]), ["Alice"])
+        self.assertEqual(ap_slot_names(1, []), ["Ori1"])
+
     def test_names_are_capped_and_trailing_blanks_dropped(self):
         from seedbuilder.seedparams import rolled_player_names
         from ap_models import PLAYER_NAME_MAX
@@ -720,18 +734,25 @@ class TestApBingoBoard(NdbTestCase):
         from models import BingoGameData
         self.assertIsNone(BingoGameData(id=78).ap_world_for(1))
 
-    def test_board_seeds_carry_the_game_id(self):
-        """Scouted AP item names only reach a seed when get_seed is given the
-        game id -- without it a late joiner keeps 'AP Item #n' forever."""
+    def test_a_one_world_board_maps_only_pid_one(self):
+        b = self._bingo(worlds=1)
+        self.assertEqual(b.ap_world_for(1), 1)
+        # at K=1 pid 2 is the shadow holding the outbox, not a world
+        self.assertIsNone(b.ap_world_for(2))
+        self.assertIsNone(b.ap_world_for(0))
+
+    def _seed_probe(self, board_id, worlds, players, pid):
+        """get_seed against stub params; returns the (player, game_id) pairs
+        it asked for, or None if the board refused the pid."""
         from models import BingoGameData
-        seen = []
         from enums import Variation
+        seen = []
         class _Params:
-            players = 3
             variations = [Variation.BINGO]   # else get_seed puts it back
-            def get_seed(self, player=1, game_id=None, verbose_paths=False, include_sync=True):
+            def get_seed(_s, player=1, game_id=None, verbose_paths=False, include_sync=True):
                 seen.append((player, game_id))
                 return "flags\n"
+        _Params.players = players
         class _ParamsKey:
             def get(self):
                 return _Params()
@@ -740,14 +761,57 @@ class TestApBingoBoard(NdbTestCase):
         class _GameKey:
             def get(self):
                 return _Game()
-        b = BingoGameData(id=91, ap_worlds=3, board=[])
+        b = BingoGameData(id=board_id, ap_worlds=worlds, board=[])
         orig = BingoGameData.game
         BingoGameData.game = property(lambda self: _GameKey())
         try:
-            b.get_seed(2)
+            return seen if b.get_seed(pid) is not None else None
         finally:
             BingoGameData.game = orig
-        self.assertEqual(seen, [(2, 91)])
+
+    def test_board_seeds_carry_the_game_id(self):
+        """Scouted AP item names only reach a seed when get_seed is given the
+        game id -- without it a late joiner keeps 'AP Item #n' forever."""
+        self.assertEqual(self._seed_probe(91, worlds=3, players=3, pid=2), [(2, 91)])
+
+    def test_a_one_world_board_still_threads_the_game_id(self):
+        self.assertEqual(self._seed_probe(92, worlds=1, players=1, pid=1), [(1, 92)])
+
+    def test_a_one_world_board_refuses_the_shadows_pid(self):
+        """The solo shortcut must not outrank the AP branch: at K=1 it would
+        hand world 1's seed to pid 2, and pid 2 drives the bridge's outbox."""
+        self.assertIsNone(self._seed_probe(93, worlds=1, players=1, pid=2))
+
+    def test_a_non_ap_solo_board_still_shares_one_seed(self):
+        # ordinary solo bingo: everyone races the same seed, unchanged
+        self.assertEqual(self._seed_probe(94, worlds=0, players=1, pid=3), [(1, 94)])
+
+    def test_a_shadow_pid_is_never_adopted_onto_the_roster(self):
+        """The shadow resolves in the game's Player namespace, so an unguarded
+        lookup would durably put it on the board -- and every later render of
+        that board 500s on its empty bingo_prog."""
+        b = self._bingo(worlds=1)
+        self.assertIsNone(b.player(2))
+        self.assertEqual(b.players, [])
+
+    def test_a_won_ap_board_reports_the_goal_for_each_world(self):
+        """A bingo player never reaches the credits, so without this the room
+        never hears that the Ori slot is done."""
+        import netcode
+        from archipelago import ap_bridge
+        told = []
+        orig_flag, orig_notify = netcode.ARCHIPELAGO, ap_bridge.notify_goal
+        netcode.ARCHIPELAGO = True
+        ap_bridge.notify_goal = lambda gid, world: told.append((gid, world))
+        try:
+            netcode._ap_bingo_goal(self._bingo(worlds=2), 55)   # nothing stashed
+            self.assertEqual(told, [])
+            won = self._bingo(worlds=2)
+            won._ap_goal_worlds = [1, 2]
+            netcode._ap_bingo_goal(won, 55)
+            self.assertEqual(told, [(55, 1), (55, 2)])
+        finally:
+            netcode.ARCHIPELAGO, ap_bridge.notify_goal = orig_flag, orig_notify
 
 
 class TestAPLink(NdbTestCase):

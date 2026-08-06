@@ -24,11 +24,6 @@ def seed_mode_problem(params, mw_override=False, ap_override=False):
             return "Archipelago seeds aren't available yet."
         if not ap_override:
             return "Archipelago seeds are in closed testing."
-        # a bingo board maps a player to a world by their index within their
-        # team, and across teams those worlds repeat -- two teams on world 2
-        # would share one AP slot's items and checks. One team only.
-        if Variation.BINGO in (getattr(params, "variations", None) or []) and int(params.players) < 2:
-            return "Archipelago bingo needs at least 2 players: the board is one team, one world each."
         # without netcode the bridge has no way in: the client would find AP
         # slots and silently drop them
         if not (params.sync.enabled and params.tracking):

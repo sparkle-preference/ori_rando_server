@@ -1393,14 +1393,15 @@ def _bingo_add_player_inner(game_id, player_id):
         # the pid IS the Archipelago world, so it has to be one of them, and
         # everyone shares the one team the first joiner opens
         if not 1 <= player_id <= bingo.ap_worlds:
-            return text_resp("This is an Archipelago board: pick a player number from 1 to %s."
+            return text_resp("This Archipelago board has one world; you're player 1." if bingo.ap_worlds == 1
+                             else "This is an Archipelago board: pick a player number from 1 to %s."
                              % bingo.ap_worlds, 412)
         if bingo.teams:
             join_team = str(bingo.teams[0].pids()[0])
 
     player = bingo.init_player(player_id)
     if join_team:
-        cap_id = int(param_val("joinTeam"))
+        cap_id = int(param_val("joinTeam") or join_team)
         team = bingo.team(cap_id)
         if not team:
             return text_resp("Team %s not found" % cap_id, 412)
@@ -1656,10 +1657,6 @@ def add_bingo_to_game(game_id):
         if game.mode in [MultiplayerGameType.SPLITSHARDS]:
             return text_resp("splitshards bingo are not currently supported", 412)
         params = game.params.get()
-        # one team, one world each -- a solo AP game has nothing to be a team of
-        if getattr(params, "ap_mode", False) and int(params.players) < 2:
-            return text_resp("An Archipelago bingo board needs at least 2 players: "
-                             "the board is one team, one world each.", 412)
         seed = param_val("seed") or params.seed
         rand = random.Random()
         rand.seed(seed)
@@ -1757,12 +1754,6 @@ def add_bingo_to_game(game_id):
         elif bingo.bingo_count > 0:
             eventStr += " bingos to win: %s" % bingo.bingo_count
         bingo.event_log.append(BingoEvent(event_type=eventStr, timestamp=now))
-        res = bingo.get_json(True)
-        if param_flag("time"):
-            server_now = timegm(now.timetuple()) * 1000
-            client_now = int(param_val("time"))
-            res["offset"] = server_now - client_now
-
         ap_bingo = getattr(params, "ap_mode", False)
         if ap_bingo:
             # one team, one world each, so the board's pids ARE the AP worlds.
@@ -1770,6 +1761,13 @@ def add_bingo_to_game(game_id):
             # the roster wipe below.
             bingo.teams_allowed = True
             bingo.ap_worlds = int(params.players)
+        # after the AP fields: the creator's page reads ap_worlds off this
+        res = bingo.get_json(True)
+        if param_flag("time"):
+            server_now = timegm(now.timetuple()) * 1000
+            client_now = int(param_val("time"))
+            res["offset"] = server_now - client_now
+
         for p in game.get_players():
             if ap_bingo and p.pid() > int(params.players):
                 continue

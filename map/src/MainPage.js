@@ -912,13 +912,18 @@ onDrop = (files) => {
         } else {
             let res = JSON.parse(responseText)
             if(res.doBingoRedirect) {
-                let redir = `/bingo/board?game_id=${res.gameId}&fromGen=1&seed=${res.seed}&bingoLines=${res.bingoLines || 3}`
-                if(res.flagLine.includes("share="))
-                    redir += `&teamMax=${res.playerCount}`
-                if(this.state.randomizedWith === this.state.seed) 
-                    redir += `&randomSettings=1`;
-                
-                gotoUrl(redir, true)
+                // an AP board stays here: the host needs the apworld and the
+                // yamls before anyone downloads a seed, and the seed tab keeps
+                // an Open Bingo Board button either way
+                if(!(this.apAvailable() && this.state.apMode)) {
+                    let redir = `/bingo/board?game_id=${res.gameId}&fromGen=1&seed=${res.seed}&bingoLines=${res.bingoLines || 3}`
+                    if(res.flagLine.includes("share="))
+                        redir += `&teamMax=${res.playerCount}`
+                    if(this.state.randomizedWith === this.state.seed)
+                        redir += `&randomSettings=1`;
+
+                    gotoUrl(redir, true)
+                }
                 this.helpEnter("general", "seedBuiltBingo")()
             }
             else 
@@ -1805,9 +1810,8 @@ onDrop = (files) => {
     hasVar = (v) => this.state.variations.includes(v);
     isMultiworld = () => this.state.tracking && this.state.players > 1 && this.state.coopGameMode === "Multiworld";
     // any solo mode can join an AP room; Race/Co-op with other Ori players
-    // can't. Bingo needs multiworld: the board is one team, one world each.
-    // Turning AP on turns tracking on.
-    apAvailable = () => ap_enabled() && (this.isMultiworld() || (this.state.players === 1 && !this.hasVar("Bingo")));
+    // can't. Turning AP on turns tracking on.
+    apAvailable = () => ap_enabled() && (this.isMultiworld() || this.state.players === 1);
     onPath = (p) => () => this.setState({paths: this.state.paths.includes(p) ? this.state.paths.filter(x => x !== p) : this.state.paths.concat(p)}, () => this.setState(p => {return {pathMode: get_preset(p.paths)}}))
     onSType = (s) => () => this.state.shared.includes(s) ? this.setState({shared: this.state.shared.filter(x => x !== s)}) : this.setState({shared: this.state.shared.concat(s)})
     // a category can't be both mw-shared and ap-exported; the newest click wins

@@ -1257,6 +1257,12 @@ class BingoGameData(ndb.Model):
 
     def player(self, pid, create=False, delay_put=False):
         # type: (int, bool, bool) -> Optional[Player]
+        # a shadow player resolves in the game's namespace like any other, and
+        # adopting one onto the roster wedges every later board render
+        if self.ap_worlds and not self.ap_world_for(pid):
+            log.warning("Bingo game %s: pid %s is not one of its %s AP worlds",
+                        self.key.id(), pid, self.ap_worlds)
+            return None
         gid = self.game.id()
         full_pid = "%s.%s" % (gid, pid)
         player = Player.get_by_id(full_pid, parent=self.game)
@@ -1340,15 +1346,17 @@ class BingoGameData(ndb.Model):
             if Variation.BINGO not in params.variations:
                 params.variations.append(Variation.BINGO)
                 params = params.put().get()
-            if params.players == 1:
-                return sync_flag + params.get_seed(1, game_id=self.key.id(), include_sync=False) + goalstr
-            elif self.ap_worlds:
-                # pid is the world, so a rejoin can't shuffle anyone's AP slot
+            if self.ap_worlds:
+                # pid is the world, so a rejoin can't shuffle anyone's AP slot.
+                # Ahead of the solo shortcut: at K=1 that would hand world 1's
+                # seed to any pid, the shadow's included
                 p_number = self.ap_world_for(pid)
                 if not p_number:
                     log.error("player %s is outside this AP board's %s worlds", pid, self.ap_worlds)
                     return None
                 return sync_flag + params.get_seed(p_number, game_id=self.key.id(), include_sync=False) + goalstr
+            elif params.players == 1:
+                return sync_flag + params.get_seed(1, game_id=self.key.id(), include_sync=False) + goalstr
             else:
                 team = self.team(pid, cap_only=False)
                 if not team:
@@ -1573,6 +1581,11 @@ class BingoGameData(ndb.Model):
             # finished player's bitfields never change again, so the win sits
             # undelivered until alt+l (game 133908, pid 221: 16s stall).
             self._signal_pids = [p.idpts() for p in p_list]
+            # an AP board's pids are its worlds, so winning it is those worlds'
+            # Archipelago goal. Stashed for the caller: the room must not hear
+            # about a win the transaction is still free to roll back
+            if self.ap_worlds:
+                self._ap_goal_worlds = [w for w in (self.ap_world_for(p.pid()) for p in p_list) if w]
         # Stash the board for the CALLER to publish after the transaction commits.
         # Writing the cache here published uncommitted state: a doomed concurrent
         # attempt (computed without the other player's just-committed progress)

@@ -277,6 +277,15 @@ def connect(game_id, player_id, payload):
     return 200, "ok"
 
 
+def _ap_bingo_goal(bingo, game_id):
+    """A won AP board is its worlds' Archipelago goal. Without this the room
+    only hears about the credits roll, which a bingo player never reaches."""
+    if not ARCHIPELAGO:
+        return
+    for world in getattr(bingo, "_ap_goal_worlds", []):
+        ap_bridge.notify_goal(game_id, world)
+
+
 def bingo_update(game_id, player_id, payload):
     bingo = BingoGameData.with_id(game_id)
     if not bingo:
@@ -310,6 +319,7 @@ def bingo_update(game_id, player_id, payload):
             # the fast path after signal_send's own bust (see _update_inner)
             for idpts in getattr(bingo, "_signal_pids", []):
                 Cache.clear_seen_checksum(idpts)
+            _ap_bingo_goal(bingo, game_id)
             return _code(200)
         except Exception as e:
             log.error("NETPERF bingo_update_fail gid=%s pid=%s v2=1 err=%s: %s", game_id, player_id, type(e).__name__, e)
@@ -339,4 +349,5 @@ def bingo_update(game_id, player_id, payload):
             return _code(503)
     for idpts in getattr(bingo, "_signal_pids", []):
         Cache.clear_seen_checksum(idpts)
+    _ap_bingo_goal(bingo, game_id)
     return _code(200)
