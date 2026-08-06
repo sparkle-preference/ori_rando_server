@@ -620,6 +620,14 @@ const getHelpHelper = (category, option) => {
                         "The number of players in the multiplayer game.",
                     ]
                     break;
+                case "playerNames":
+                    title = "Player Names"
+                    lines = [
+                        "Names each player in the game, instead of Player 1, Player 2, and so on. Leave one blank to keep the default.",
+                        "Archipelago seeds use these to name their worlds, so the rest of the session sees them too.",
+                        "If a logged-in user downloads a seed, their own name takes over that slot.",
+                    ]
+                    break;
                 case "syncSeedType":
                     title = "Co-op Seed Generation Mode"
                     lines = [

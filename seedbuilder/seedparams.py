@@ -61,6 +61,19 @@ def seed_mode_problem(params, mw_override=False, ap_override=False):
     if params.sync.mode == MultiplayerGameType.SHARED and not params.sync.cloned:
         return "Seperate Seeds generation was removed (2026-07). Use Cloned Seeds or Multiworld."
     return None
+def rolled_player_names(names, params):
+    """Sanitize the UI's per-world names. Bingo hands names out by lobby, so
+    it never stores any; trailing blanks are dropped."""
+    if Variation.BINGO in (getattr(params, "variations", None) or []):
+        return []
+    from ap_models import sanitize_display_name, PLAYER_NAME_MAX
+    out = [sanitize_display_name(str(n or ""), PLAYER_NAME_MAX)
+           for n in (names or [])][:int(getattr(params, "players", 0) or 0)]
+    while out and not out[-1]:
+        out.pop()
+    return out
+
+
 FLAGLESS_VARS = [Variation.WARMTH_FRAGMENTS, Variation.WORLD_TOUR]
 JSON_GAME_MODE = {MultiplayerGameType.SHARED: "Co-op", MultiplayerGameType.SIMUSOLO: "Race", MultiplayerGameType.MULTIWORLD: "Multiworld", MultiplayerGameType.SPLITSHARDS: "SplitShards"}
 JSON_MODE_GAME = {v:k for k,v in JSON_GAME_MODE.items()}
@@ -208,6 +221,10 @@ class SeedGenParams(ndb.Model):
     # pool; empty means the default set.
     ap_mode = ndb.BooleanProperty(default=False)
     ap_export = ndb.StringProperty(repeated=True)
+    # per-world names chosen at roll time, index 0 = player 1. Blank entries
+    # (and bingo games, which have their own lobby names) fall back to
+    # "Player N" / "OriN".
+    player_names = ndb.StringProperty(repeated=True)
     # DeathLink: the room's deaths kill this world's Ori, and its deaths kill
     # the room's. A property of the seed, so a game either has it or doesn't.
     ap_death_link = ndb.BooleanProperty(default=False)
@@ -294,6 +311,7 @@ class SeedGenParams(ndb.Model):
         params.start = json.get("spawn", "Glades")
         params.spawn_weights = json.get("spawnWeights", [])
         params.verbose_spoiler = json.get("verboseSpoiler", False)
+        params.player_names = rolled_player_names(json.get("playerNames", []), params)
         from archipelago.convert import normalize_categories
         params.ap_export = normalize_categories(str(c) for c in json.get("apExport", []))
         params.ap_mode = bool(json.get("apMode")) or bool(params.ap_export)
@@ -337,7 +355,8 @@ class SeedGenParams(ndb.Model):
         params.starting_energy = int(qparams.get("spawnECs", 1))
         params.starting_health = int(qparams.get("spawnHCs", 3))
         params.starting_skills = int(qparams.get("spawnSKs", 0))
-        params.verbose_spoiler = qparams.get("verboseSpoiler", "") == "true" 
+        params.verbose_spoiler = qparams.get("verboseSpoiler", "") == "true"
+        params.player_names = rolled_player_names(qparams.getlist("player_names"), params)
         raw_pool = qparams.get("item_pool")
         if raw_pool:
             for itemcnt in raw_pool.split("|"):
@@ -431,6 +450,7 @@ class SeedGenParams(ndb.Model):
             "bingoLines": self.bingo_lines,
             "spawnWeights": self.spawn_weights,
             "verboseSpoiler": self.verbose_spoiler,
+            "playerNames": list(self.player_names),
             "antiBkBias": self.anti_bk_bias,
             "apMode": self.ap_mode,
             "apExport": list(self.ap_export),
@@ -617,7 +637,7 @@ class SeedGenParams(ndb.Model):
             return None
         from archipelago.convert import build_ap_config, ap_variations
         from archipelago.yaml_emit import emit_yaml
-        from ap_models import ap_slot_name
+        from ap_models import ap_slot_names
         config = build_ap_config(
             self.get_seed_data(world), players=self.players, world=int(world),
             logic_paths=[lp.value for lp in self.logic_paths],
@@ -626,7 +646,7 @@ class SeedGenParams(ndb.Model):
             variations=ap_variations(self.variations),
             params_id=self.key.id() if self.key else 0,
             death_link=self.ap_death_link)
-        return emit_yaml(config, ap_slot_name(world))
+        return emit_yaml(config, ap_slot_names(self.players, self.player_names)[int(world) - 1])
 
     def flag_line(self, verbose_paths=False):
         flags = []

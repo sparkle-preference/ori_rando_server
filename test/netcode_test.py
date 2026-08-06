@@ -552,6 +552,7 @@ class TestApShadowPlayers(NdbTestCase):
         ap_mode = True
         key = None
         variations = []
+        player_names = []
 
         class sync(object):
             shared = []
@@ -639,6 +640,51 @@ class TestApShadowPlayers(NdbTestCase):
         self.assertEqual(game.player_nums(), [1, 2])
 
 
+class TestRolledPlayerNames(NdbTestCase):
+    """Names chosen when the seed was rolled, and what outranks them."""
+
+    def _player(self, **kw):
+        return Player(id="9.2", skills=0, events=0, teleporters=0, bonuses={}, hints={}, **kw)
+
+    def test_a_rolled_name_replaces_the_default(self):
+        self.assertEqual(self._player().name(), "Player 2")
+        self.assertEqual(self._player(seed_name="Bob").name(), "Bob")
+
+    def test_the_nickname_still_wins(self):
+        p = self._player(seed_name="Bob", nickname="Archipelago")
+        self.assertEqual(p.name(), "Archipelago")
+
+    def test_a_rolled_name_survives_the_wire_sanitizer(self):
+        self.assertEqual(self._player(seed_name="Bob").wire_name(), "Bob")
+        # blank-after-sanitizing falls back rather than emitting an empty field
+        self.assertEqual(self._player(seed_name="!!!").wire_name(), "Player 2")
+
+    def test_bingo_games_store_no_names(self):
+        from seedbuilder.seedparams import rolled_player_names
+        from enums import Variation
+        class P:
+            players = 2
+            variations = [Variation.BINGO]
+        self.assertEqual(rolled_player_names(["Alice", "Bob"], P()), [])
+
+    def test_names_are_capped_and_trailing_blanks_dropped(self):
+        from seedbuilder.seedparams import rolled_player_names
+        from ap_models import PLAYER_NAME_MAX
+        class P:
+            players = 4
+            variations = []
+        out = rolled_player_names(["z" * 40, "Bob", "", ""], P())
+        self.assertEqual(len(out[0]), PLAYER_NAME_MAX)
+        self.assertEqual(out[1:], ["Bob"])
+
+    def test_more_names_than_players_are_ignored(self):
+        from seedbuilder.seedparams import rolled_player_names
+        class P:
+            players = 2
+            variations = []
+        self.assertEqual(rolled_player_names(["A", "B", "C"], P()), ["A", "B"])
+
+
 class TestAPLink(NdbTestCase):
     """The bridge's durable connection record (ap_models.APLink)."""
 
@@ -652,11 +698,32 @@ class TestAPLink(NdbTestCase):
         self.assertEqual(link.status, "disconnected")
 
     def test_slot_names_follow_the_yaml_convention(self):
-        # to_ap_yaml and APLink.make both go through ap_slot_name: the name in
+        # to_ap_yaml and APLink.make both go through ap_slot_names: the name in
         # the emitted yaml and the name the bridge connects with must agree
-        from ap_models import ap_slot_name
+        from ap_models import ap_slot_name, ap_slot_names
         self.assertEqual(ap_slot_name(1), "Ori1")
         self.assertEqual(ap_slot_name("3"), "Ori3")
+        self.assertEqual(ap_slot_names(3), ["Ori1", "Ori2", "Ori3"])
+
+    def test_rolled_names_become_slot_names(self):
+        from ap_models import APLink
+        link = APLink.make(47, 3, ["Alice", "Bob", "Carol"])
+        self.assertEqual(link.slot_names, ["Alice", "Bob", "Carol"])
+
+    def test_blank_and_missing_names_fall_back_per_world(self):
+        from ap_models import ap_slot_names
+        self.assertEqual(ap_slot_names(3, ["Alice", ""]), ["Alice", "Ori2", "Ori3"])
+
+    def test_duplicate_slot_names_are_separated(self):
+        # AP refuses a room with two identical slots
+        from ap_models import ap_slot_names
+        self.assertEqual(ap_slot_names(3, ["Ana", "Ana", "ana"]), ["Ana", "Ana2", "ana3"])
+
+    def test_slot_names_are_wire_safe_and_capped(self):
+        from ap_models import ap_slot_names, PLAYER_NAME_MAX
+        names = ap_slot_names(2, ["Al|ice/Bob", "z" * 40])
+        self.assertNotIn("|", names[0])
+        self.assertTrue(all(len(n) <= PLAYER_NAME_MAX for n in names))
 
     def test_report_shape(self):
         from ap_models import APLink

@@ -28,6 +28,21 @@ def ap_slot_name(world):
     return "Ori%s" % int(world)
 
 
+def ap_slot_names(worlds, names=None):
+    """Per-world slot names: the name the seed was rolled with, else OriN.
+    AP rejects duplicate slots, so collisions get their world number."""
+    out, seen = [], set()
+    for w in range(1, int(worlds) + 1):
+        raw = names[w - 1] if names and w <= len(names) else ""
+        name = sanitize_display_name(raw, PLAYER_NAME_MAX) or ap_slot_name(w)
+        if name.lower() in seen:
+            suffix = str(w)
+            name = name[:PLAYER_NAME_MAX - len(suffix)] + suffix
+        seen.add(name.lower())
+        out.append(name)
+    return out
+
+
 # Reserved-slot display names ride a seed line the C# client parses as
 #   line.Split('|')  ->  [coord, "MW", "<owner>,<slot>,<name>", zone]
 #   value.Split(',', 3)  ->  [owner, slot, name]         (Randomizer.cs:139,
@@ -109,11 +124,11 @@ class APLink(ndb.Model):
         return APLink.get_by_id(int(gid))
 
     @staticmethod
-    def make(gid, worlds):
+    def make(gid, worlds, names=None):
         """Fresh link for a K-world game: nothing received yet."""
         worlds = int(worlds)
         return APLink(id=int(gid),
-                      slot_names=[ap_slot_name(w) for w in range(1, worlds + 1)],
+                      slot_names=ap_slot_names(worlds, names),
                       recv_index=[0] * worlds)
 
     def report(self):

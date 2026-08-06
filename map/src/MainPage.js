@@ -37,6 +37,7 @@ const pickupToParts = (item) => {
 const partsToPickup = (parts) => parts.length === 0 ? "NO|1" : (parts.length === 1 ? parts[0] : "MU|" + parts.map(p => p.replace(/\|/g, "/")).join("/"));
 const fassDefaultsFor = (world) => [2, 919772, -1560272, 799776, -120208].map(coords => ({loc: locOptionFromCoords(coords), item: "NO|1", world: world, owner: world}));
 const apDefaultExport = ["skills", "teleporters", "events"];
+const PLAYER_NAME_MAX = 20;  // matches ap_models.PLAYER_NAME_MAX
 // mw share name for each ap export category that can clash with it (shared
 // singletons can't also go to the AP pool)
 const apShareNames = {"skills": "Skills", "teleporters": "Teleporters", "events": "World Events", "upgrades": "Upgrades"};
@@ -653,6 +654,16 @@ onDrop = (files) => {
             </Col>
         ))
 
+        let playerNameRows = !this.playerNamesShown() ? null : [...Array(players).keys()].map(i => (
+            <Row key={`player-name-${i}`} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "playerNames")} className="p-1 justify-content-center">
+                <Col xs="4" className="text-center pt-1 border">
+                    <span className="align-middle">{`Player ${i+1} Name`}</span>
+                </Col><Col xs="4">
+                    <Input style={inputStyle} type="text" maxLength={PLAYER_NAME_MAX} placeholder={`Player ${i+1}`}
+                           value={this.state.playerNames[i] || ""} onChange={this.onPlayerName(i)}/>
+                </Col>
+            </Row>
+        ))
         let playerNumValid = tracking && players > 0;
         let playerNumFeedback = tracking ? (players > 0 ? null : (
             <FormFeedback tooltip="true">Need at least one player...</FormFeedback>
@@ -669,6 +680,7 @@ onDrop = (files) => {
                         {playerNumFeedback }
                     </Col>
                 </Row>
+                {playerNameRows}
                 <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "multiGameType")} className="p-1 justify-content-center">
                     <Col xs="4" className="text-center pt-1 border">
                         <span className="align-middle">Multiplayer Game Type</span>
@@ -777,6 +789,8 @@ onDrop = (files) => {
             }
         }
         json.players=this.state.players
+        if(this.playerNamesShown())
+            json.playerNames = [...Array(this.state.players).keys()].map(i => this.state.playerNames[i] || "")
         json.fass = []
         this.state.fassList.forEach(fassEntry => {
                 let world = fassEntry.world || 1
@@ -862,6 +876,7 @@ onDrop = (files) => {
                 metaUpdate.mwShared = metaUpdate.shared || []
                 delete metaUpdate.shared
             }
+            metaUpdate.playerNames = metaUpdate.playerNames || []
             // apMode/apExport rehydrate by name; empty export = server default
             if(!metaUpdate.apExport || metaUpdate.apExport.length === 0)
                 metaUpdate.apExport = [...apDefaultExport]
@@ -1694,7 +1709,7 @@ onDrop = (files) => {
                         spawnHCs: 3, spawnECs: 0, spawnSKs: 0, pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null), 
                         goalModes: ["ForceTrees"], selectedPool: "Standard", seed: "", fillAlg: "Balanced", quickstartOpen: quickstartOpen, 
                         shared: ["Skills", "Teleporters", "World Events", "Upgrades", "Misc"], mwShared: [], helpcat: "", helpopt: "",
-                        apMode: false, apExport: [...apDefaultExport], apDeathLink: false, inputApMode: false,
+                        apMode: false, apExport: [...apDefaultExport], apDeathLink: false, inputApMode: false, playerNames: [],
                         apHost: "", apPort: "", apPassword: "", apConnectPending: false, apStatus: null, apNoLink: false, apHidden: false, apPollFailed: false,
                         expPool: 10000, lastHelp: new Date(), seedIsGenerating: seedTabExists, cellFreq: cellFreqPresets("standard"),
                         fragCount: 30, fragReq: 20, relicCount: 8, loader: get_random_loader(), paramId: paramId, seedTabExists: seedTabExists, 
@@ -1799,6 +1814,14 @@ onDrop = (files) => {
     onApMode = () => this.setState(prev => prev.apMode ? {apMode: false}
         : {apMode: true, tracking: true,  // the bridge delivers over netcode
            mwShared: prev.mwShared.filter(s => !prev.apExport.map(c => apShareNames[c]).includes(s))})
+    // bingo hands names out by lobby, so it doesn't get the field
+    playerNamesShown = () => !this.hasVar("Bingo") && (this.state.players > 1 || (this.apAvailable() && this.state.apMode))
+    onPlayerName = (i) => (e) => this.setState(prev => {
+        let names = [...prev.playerNames]
+        while(names.length <= i) names.push("")
+        names[i] = e.target.value.slice(0, PLAYER_NAME_MAX)
+        return {playerNames: names}
+    })
     onApExport = (cat) => () => this.setState(prev => prev.apExport.includes(cat)
         ? {apExport: prev.apExport.filter(x => x !== cat)}
         : {apExport: prev.apExport.concat(cat), mwShared: prev.mwShared.filter(s => s !== apShareNames[cat])})

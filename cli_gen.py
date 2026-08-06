@@ -103,6 +103,7 @@ class CLISeedParams(object):
         parser.add_argument("--count", help="Number of seeds to generate (default 1)", type=int, default=1)
         # sync
         parser.add_argument("--players", help="Player count for paired randomizer", type=int, default=1)
+        parser.add_argument("--player-names", help="Comma-separated per-world names, e.g. 'Alice,Bob'. Blank entries keep the default", type=str, default=None)
         parser.add_argument("--tracking", help="Place a sync ID in a seed for tracking purposes", action="store_true")
         parser.add_argument("--sync-id", help="Team identifier number for paired randomizer", type=int)
         parser.add_argument("--shared-items", help="What will be shared by sync, comma-separated: skills,worldevents,misc,teleporters,upgrades. Defaults to skills,worldevents (multiworld: nothing shared unless set)", default=None)
@@ -360,6 +361,9 @@ class CLISeedParams(object):
                         self.sync.teams[cnt] = [int(p) for p in team.split(",")]
                         cnt += 1
 
+        from ap_models import sanitize_display_name, PLAYER_NAME_MAX
+        self.player_names = [sanitize_display_name(n, PLAYER_NAME_MAX)
+                             for n in (args.player_names or "").split(",")][:self.players]
         self.ap_mode = bool(args.ap_export)
         self.ap_export = []
         self.ap_death_link = self.ap_mode and bool(args.ap_death_link)
@@ -476,8 +480,10 @@ class CLISeedParams(object):
                             key_mode=self.key_mode.value, spawn_zone=self.start,
                             variations=ap_variations(self.variations),
                             death_link=self.ap_death_link)
+                        from ap_models import ap_slot_names
+                        slot = ap_slot_names(self.players, self.player_names)[p - 1]
                         with open(args.output_dir + "/ap_world_%s.yaml" % p, 'w', newline="\n") as f:
-                            f.write(emit_yaml(config, "Ori%s" % p))
+                            f.write(emit_yaml(config, slot))
             player = 0
             for player_raw in raw:
                 player += 1

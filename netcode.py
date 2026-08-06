@@ -186,7 +186,7 @@ def ap_connect(game_id, payload):
         return 400, ("%s is only reachable from your own machine, and the room "
                      "is dialed from our servers. Use an archipelago.gg room, "
                      "or your public address with the port forwarded." % host)
-    link = APLink.with_id(game_id) or APLink.make(game_id, params.players)
+    link = APLink.with_id(game_id) or APLink.make(game_id, params.players, params.player_names)
     password = payload.get("password") or None
     retarget = (link.host, link.port, link.password) != (host, port, password)
     link.host = host

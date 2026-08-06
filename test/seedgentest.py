@@ -455,6 +455,27 @@ class MultiworldPreplacementTests(unittest.TestCase):
         self.assertEqual(count_for(3, "EV", "0"), 1)
 
 
+class ApSlotNamingTests(unittest.TestCase):
+    """Rolled names name the AP worlds, so the rest of the session sees them."""
+
+    def _yamls(self, names):
+        out = tempfile.mkdtemp(prefix="seedgentest_apnames_")
+        self.addCleanup(shutil.rmtree, out, ignore_errors=True)
+        _, yamls = generate_ap(out, 2, "skills,teleporters,events", seed="apnames",
+                               extra=("--player-names", names))
+        return yamls
+
+    def test_rolled_names_replace_OriN(self):
+        yamls = self._yamls("Alice,Bob")
+        self.assertIn("name: Alice\n", yamls[1])
+        self.assertIn("name: Bob\n", yamls[2])
+
+    def test_a_blank_name_keeps_its_default(self):
+        yamls = self._yamls("Alice,")
+        self.assertIn("name: Alice\n", yamls[1])
+        self.assertIn("name: Ori2\n", yamls[2])
+
+
 class UnnameableItemWireTests(unittest.TestCase):
     """An item name reaches the wire as the MW display name, so it must never
     contain a pipe."""
@@ -1263,6 +1284,7 @@ class BingoBoltOnGateTests(unittest.TestCase):
             seed = "boltongate"
             variations = []
             players = 2
+            player_names = []
             sync = _Sync()
 
             def flag_line(self):

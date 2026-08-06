@@ -426,6 +426,7 @@ class FakeApGame(object):
             p = _Params()
             p.ap_mode = ap_mode
             p.players = players
+            p.player_names = []
             self.params = _ParamsKey(p)
 
 

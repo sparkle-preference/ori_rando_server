@@ -450,6 +450,8 @@ class Player(ndb.Model):
     # fixed display name; overrides the user-derived one. Set on AP shadow
     # players (pid K+w) so the tick names field renders '<K+w>.Archipelago'.
     nickname    = ndb.StringProperty()
+    # name this world was rolled with; a claimed seed's user still wins
+    seed_name   = ndb.StringProperty()
     # Archipelago progressive hints: {manifest slot: resolved hint text}, the
     # answers to this player's own hint requests. Tick field 8; the purchase
     # state machine lives on APHints.
@@ -635,6 +637,8 @@ class Player(ndb.Model):
             u = self.user.get()
             if u and u.name:
                 return u.name
+        if self.seed_name:
+            return self.seed_name
         return "Player %s" % self.pid()
 
     def wire_name(self):
@@ -1632,6 +1636,7 @@ class Game(ndb.Model):
     players        = ndb.KeyProperty(Player, repeated=True)
     relics         = ndb.StringProperty(repeated=True)
     params         = ndb.KeyProperty(SeedGenParams)
+    player_names   = ndb.StringProperty(repeated=True)
     bingo_data     = ndb.KeyProperty(BingoGameData)
     dedup          = ndb.BooleanProperty(default=False)
     creator        = ndb.KeyProperty("User2", User)
@@ -2012,6 +2017,12 @@ class Game(ndb.Model):
                 shadow.put()
         Cache.clear_names(self.key.id())
 
+    def rolled_name(self, pid):
+        """The name this world was rolled with, if any."""
+        names = self.player_names or []
+        pid = int(pid)
+        return names[pid - 1] if 1 <= pid <= len(names) else None
+
     def player(self, pid, create=True, delay_put=False):
         gid = self.key.id()
         full_pid = "%s.%s" % (gid, pid)
@@ -2026,6 +2037,7 @@ class Game(ndb.Model):
                 player = Player(id=full_pid, skills=src.skills, events=src.events, teleporters=src.teleporters, hints={}, bonuses=src.bonuses.copy(), history=[], signals=[], parent=self.key)
             else:
                 player = Player(id=full_pid, skills=0, events=0, teleporters=0, history=[], hints={}, bonuses={}, parent=self.key)
+            player.seed_name = self.rolled_name(pid)
             k = player.put()
             Cache.set_pos(gid, pid, 189, -210)
             Cache.set_hist(gid, pid, [])
@@ -2273,7 +2285,8 @@ class Game(ndb.Model):
             params=params.key, players=[],
             str_shared=[s.value for s in params.sync.shared],
             str_mode=params.sync.mode.value,
-            dedup=params.sync.dedup
+            dedup=params.sync.dedup,
+            player_names=list(params.player_names or [])
         )
         game.is_race = Variation.RACE in params.variations
         if Variation.WORLD_TOUR in params.variations:
