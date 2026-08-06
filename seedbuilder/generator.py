@@ -992,7 +992,7 @@ class SeedGenerator:
         self.codeToName["WT*"] = "Relic"  # random relic preplacement (WT|*): resolved per-zone by adjust_item
 
     # resolve an RG ("one of these") group into concrete items. Website-only:
-    # the client has no RG pickup, so every RG must die before a seed is written
+    # no RG may survive into a seed
     def pick_group_members(self, group, count=1):
         choices = self.get_multi_items(group)
         return [self.random.choice(choices) for _ in range(count)] if choices else []
@@ -1565,7 +1565,7 @@ class SeedGenerator:
     def mw_display_name(self, base_item):
         if base_item.startswith("Warp"):
             return "Warp to " + self.warps[base_item][0]
-        # rides a |-delimited seed line; Pickup.name yields "CODE|id" for ids it can't name
+        # the name rides a |-delimited line, so it can't contain one
         return Pickup.name(base_item[:2], base_item[2:] or "1").replace("|", "/")
 
     def get_assignment(self, loc, player, item, zone):

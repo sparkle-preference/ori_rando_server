@@ -35,6 +35,9 @@ class Pickup(object):
         for subcls in Pickup.subclasses():
             if id and code == subcls.code and subcls(id):
                 return subcls(id).name
+        # a negative upgrade id removes one of the positive item
+        if code == "RB" and str(id).startswith("-") and Upgrade(str(id)[1:]):
+            return "Remove " + Upgrade(str(id)[1:]).name
         return "%s|%s" % (code, id)
     def add_to_bitfield(self, bits_int, remove=False):
         if self.stacks:

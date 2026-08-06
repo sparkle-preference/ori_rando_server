@@ -45,9 +45,7 @@ ITEM_BY_AP_ID = {i["ap_id"]: (i["code"], i["id"]) for i in _ITEMS}
 EXPORTABLE_CATEGORIES = ("skills", "teleporters", "events", "cells", "stones",
                          "upgrades")
 DEFAULT_EXPORT = ("skills", "teleporters", "events")
-# datapackage categories each export category hands over. Warps are
-# teleporters to a player and export with them; the datapackage keeps them
-# apart only so the apworld can file warps as filler.
+# datapackage categories each export category hands over
 CATEGORY_ITEMS = {"teleporters": ("teleporters", "warps")}
 RETIRED_CATEGORIES = {"warps": "teleporters"}
 # generic keystones are consumable door currency under the generator's

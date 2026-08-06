@@ -989,9 +989,7 @@ onDrop = (files) => {
                     mainButtonHelp = "openBingoBoard"
                 }
                 let spoilerHelp = (button) => this.state.spoilers ? `spoiler${button + (auxSpoiler.active ? "Aux" : "")}` : "noSpoilers"
-                // 12 columns: player 3 + seed 3 + view 3 + save 3. AP yamls
-                // aren't here -- the session host takes all of them at once
-                // from the setup panel below
+                // 12 columns: player 3 + seed 3 + view 3 + save 3
                 return (
                     <Row key={`player-${p}`} className="align-content-center p-1 border-bottom">
                         <Col xs="3" className="pt-1 border" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "playerPanel"+this.multi())}>

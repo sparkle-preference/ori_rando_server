@@ -588,8 +588,7 @@ def get_apyaml_from_params(params_id, world_id):
 
 @app.route('/generator/apyamls/<params_id>')
 def get_apyamls_from_params(params_id):
-    # every world in one multi-document yaml: the session host wants the set,
-    # not one file per player
+    # every world in one multi-document yaml
     if not ARCHIPELAGO:
         return text_resp("Archipelago support is not enabled", 404)
     params = SeedGenParams.with_id(params_id)

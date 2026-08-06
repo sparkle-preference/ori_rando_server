@@ -456,9 +456,8 @@ class MultiworldPreplacementTests(unittest.TestCase):
 
 
 class UnnameableItemWireTests(unittest.TestCase):
-    """A pool item the randomizer can't name renders as "CODE|id", and in
-    multiworld that name rides a |-delimited line as the MW display name. It
-    must not add a field: seedparams.generate unpacks exactly four."""
+    """An item name reaches the wire as the MW display name, so it must never
+    contain a pipe."""
 
     def _mw_seeds(self, pool_extra, seed):
         from seedbuilder.generator import SeedGenerator
@@ -1340,8 +1339,7 @@ def check_mw_invariants(tc, seeds):
     for p, lines in seeds.items():
         bad = [l for l in lines[1:] if l and not PICKUP_LINE.match(l)]
         tc.assertEqual(bad, [], "malformed lines for player %s: %s" % (p, bad[:5]))
-        # exactly four fields, like seedparams.generate's unpack -- parse_seed's
-        # maxsplit and PICKUP_LINE both tolerate a stray | that crashes the server
+        # exactly four fields, like seedparams.generate's unpack
         extra = [l for l in lines[1:] if l and len(l.split("|")) != 4]
         tc.assertEqual(extra, [], "player %s has unparseable lines: %s" % (p, extra[:3]))
         placements, _ = parse_seed(lines)
