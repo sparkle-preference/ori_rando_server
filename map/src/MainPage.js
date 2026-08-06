@@ -220,10 +220,7 @@ const VAR_WEIGHTS = {
     "0XP": .01,
     OpenWorld: .25,
     DoubleSkills: .1,
-    TPStarved: .2,
     GoalModeFinish: .1,
-    WallStarved: .2,
-    GrenadeStarved: .2,
     InLogicWarps: .25, // these last ones should be lower after april 1st
     Entrance: .2,
     Keysanity: .2,     // this one especially. hahaha holy shit.
@@ -681,7 +678,6 @@ onDrop = (files) => {
                         {playerNumFeedback }
                     </Col>
                 </Row>
-                {playerNameRows}
                 <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "multiGameType")} className="p-1 justify-content-center">
                     <Col xs="4" className="text-center pt-1 border">
                         <span className="align-middle">Multiplayer Game Type</span>
@@ -734,6 +730,7 @@ onDrop = (files) => {
                         </Row>
                     </Collapse>
                 </Collapse>
+                {playerNameRows}
             </TabPane>
         )
     }
@@ -934,8 +931,10 @@ onDrop = (files) => {
         }
     }
     getVariationsTab = () => {
-        let filteredVars = ["NonProgressMapStones", "BonusPickups", "ForceTrees", "WorldTour", "ForceMaps", "WarmthFrags", 
-                            "Hard", "Bingo", "StompTriggers", "StrictMapstones", "ClosedDungeons"];
+        // the Starved trio is CLI-only now; Buried placements cover it
+        let filteredVars = ["NonProgressMapStones", "BonusPickups", "ForceTrees", "WorldTour", "ForceMaps", "WarmthFrags",
+                            "Hard", "Bingo", "StompTriggers", "StrictMapstones", "ClosedDungeons",
+                            "TPStarved", "WallStarved", "GrenadeStarved"];
         let variationButtons = Object.keys(VAR_NAMES).filter(x => !filteredVars.includes(x)).map(v=> {
             let name = VAR_NAMES[v];
             return (
@@ -1987,9 +1986,6 @@ onDrop = (files) => {
             </Row>
             <Row className="pt-1">
                 <Cent><h3>Seed Generator {VERSION}</h3></Cent>
-            </Row>
-            <Row className="p-0">
-                <Cent><h6>PSA: As of 8/27/2025, Older DLLs (v4.1.4 and earlier) will NO LONGER connect to the website properly. Please update to <a style={{paddingLeft: .2 +"rem"}} target="_blank" href="/dll">{VERSION}</a></h6></Cent>
             </Row>
             <Row className="pb-1">
                 <Cent><a target="blank" href="/patchnotes/4.1.x">(changelog)</a></Cent>
