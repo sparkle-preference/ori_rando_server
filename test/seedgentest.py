@@ -2457,6 +2457,29 @@ class ApSeedAnnotationTests(unittest.TestCase):
         recipient, item = self._lines(self._params())["919908"].split("|")[4].split(";", 1)
         self.assertEqual((recipient, item), ("Zelda", "Bow, Arrows"))
 
+    def test_a_self_item_carries_its_manifest_slot(self):
+        """Field 6 is what lets the client grant on contact instead of waiting
+        out the room round trip. Our AP slot is 1, so ap_owner=1 is ours."""
+        self._store(self.WORLD, {0: self._scout("Bash", "Ori1", "Ori1",
+                                                ap_item=self.BASH_AP_ID, ap_owner=1)})
+        parts = self._lines(self._params())["919908"].split("|")
+        self.assertEqual(len(parts), 6)
+        self.assertEqual(parts[5], "0", "should point at our SK|0 manifest slot")
+        # the first five fields are untouched, so 4.2.7 behaves exactly as now
+        self.assertEqual(parts[:5],
+                         ["919908", "MW", "3,0,Bash (Ori1)", "Grove", "Ori1;Bash"])
+
+    def test_someone_elses_item_gets_no_slot_field(self):
+        self._store(self.WORLD, {0: self._scout("Bash", "Ori2", "Ori2",
+                                                ap_item=self.BASH_AP_ID, ap_owner=2)})
+        self.assertEqual(len(self._lines(self._params())["919908"].split("|")), 5)
+
+    def test_a_self_item_we_never_exported_gets_no_slot_field(self):
+        # ours by recipient, but nothing in our manifest holds it: nothing to claim
+        self._store(self.WORLD, {0: self._scout("Grenade", "Ori1", "Ori1",
+                                                ap_item=self.BASH_AP_ID + 9, ap_owner=1)})
+        self.assertEqual(len(self._lines(self._params())["919908"].split("|")), 5)
+
     def test_annotated_line_still_parses_as_the_client_and_server_do(self):
         from pickups import Pickup
         self._store(self.WORLD, {1: self._scout("Bow, Arrows", "Zelda", "Zelda")})

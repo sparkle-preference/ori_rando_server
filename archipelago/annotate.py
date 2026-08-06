@@ -6,10 +6,13 @@ guess where an exported item went. Once the room has been connected each
 world scouts its own reserved locations, and the K scout rows together say a
 lot more. This pass rewrites the seed at download time:
 
-  reserved line   <coord>|MW|<K+w>,<slot>,<label>|<zone>|<recipient>;<item>
+  reserved line   <coord>|MW|<K+w>,<slot>,<label>|<zone>|<recipient>;<item>[|<own slot>]
   manifest line   -(slot+2)|MW|<K+w>,<code>,<id>|<true zone>|<holder>
 
-Field 5 is additive and the four fields before it are untouched: every
+Field 6 rides only reserved lines holding our own item, naming the manifest
+slot it lands in so the client can grant it on contact.
+
+Fields 5 and 6 are additive and the four fields before them are untouched: every
 shipped client splits a seed line on '|' and reads indices 0..3 only, so an
 old dll drops field 5 and behaves exactly as it does today -- which is why
 the reserved line keeps the combined "<item> (<recipient>)" label in the
@@ -82,14 +85,29 @@ def _holders(players, world, rows, seed_data_for):
     return {key: hits[0] for key, hits in found.items() if len(hits) == 1}
 
 
+def _own_slot(scout, our_slot, exports):
+    """Field 6: the manifest slot a self-item will land in, so the client can
+    grant it on contact instead of waiting out the room round trip. Any slot
+    holding the same item does -- the bridge fills them by item name, so a
+    copy claimed early just means the room's copy fills a later one."""
+    if our_slot is None or scout.ap_owner != our_slot:
+        return None
+    key = ITEM_BY_AP_ID.get(scout.ap_item)
+    if key is None:
+        return None
+    mine = sorted(slot for slot, k in exports.items() if k == key)
+    return mine[0] if mine else None
+
+
 def annotate(seed_data, players, world, rows, seed_data_for):
-    """Seed tuples -> seed tuples, this world's AP lines gaining a 5th field.
+    """Seed tuples -> seed tuples, this world's AP lines gaining a 5th field
+    (and a 6th where the item is our own).
 
     rows: {world: (APNames entries, that world's room slot)}; a world that
     has never scouted contributes nothing. seed_data_for(v) yields world v's
     raw placement tuples, which is where the join reads reserved zones.
     """
-    entries, _ = rows.get(world, ({}, None))
+    entries, our_slot = rows.get(world, ({}, None))
     if not entries:
         return seed_data
     shadow = str(int(players) + int(world))
@@ -112,7 +130,11 @@ def annotate(seed_data, players, world, rows, seed_data_for):
             held = _reserved_slot(code, id, shadow)
             scout = entries.get(held[0]) if held else None
             if scout is not None:
-                line = (loc, code, "%s,%s,%s" % (shadow, held[0], scout.label()),
-                        zone, "%s;%s" % (scout.to, scout.item))
+                fields = [loc, code, "%s,%s,%s" % (shadow, held[0], scout.label()),
+                          zone, "%s;%s" % (scout.to, scout.item)]
+                mine = _own_slot(scout, our_slot, exports)
+                if mine is not None:
+                    fields.append(str(mine))
+                line = tuple(fields)
         out.append(line)
     return out
