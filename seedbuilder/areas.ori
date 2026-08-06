@@ -989,6 +989,7 @@ home: SpiderWaterArea 153 -147
 		standard Bash Climb
 		expert DoubleBash
 		expert ChargeDash
+		expert DoubleJump Health=2
 		master ChargeJump Climb
 	conn: HollowGrove
 		casual WallJump
