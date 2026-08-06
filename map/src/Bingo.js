@@ -394,8 +394,20 @@ export default class Bingo extends React.Component {
             players.push(team.cap.pid);
             players = players.concat(team.teammates.map(t => t.pid));
         })
-        while(players.includes(nextPlayer))
-            nextPlayer++;
+        // on an Archipelago board the player number IS the AP world, so
+        // preferred numbers are ignored: take the lowest free world
+        let apWorlds = this.state.apWorlds || 0
+        if(apWorlds) {
+            let free = [...Array(apWorlds).keys()].map(i => i+1).filter(p => !players.includes(p));
+            if(free.length === 0) {
+                this.setState({loadingText: "This Archipelago board is full."})
+                return
+            }
+            nextPlayer = free[0];
+        } else {
+            while(players.includes(nextPlayer))
+                nextPlayer++;
+        }
         this.setState({activePlayer: nextPlayer})
         let url = `/bingo/game/${gameId}/add/${nextPlayer}`
         if(joinTeam)
@@ -549,7 +561,8 @@ export default class Bingo extends React.Component {
                 this.setState({subtitle: res.subtitle, gameId: res.gameId, createModalOpen: false, creatingGame: false, haveGame: true, offset: res.offset || offset,
                               fails: 0, dispDiff: res.difficulty || dispDiff, teams: res.teams, paramId: res.paramId, activePlayer: activePlayer, ticksSinceLastSquare: 0,
                               currentRecord: 0, cards: res.cards, events: res.events, targetCount: res.bingo_count, fromGen: false, teamMax: res.teamMax || -1, discSquares: res.discovery || [],
-                              lockout: res.lockout || false, startTime: res.start_time_posix, isOwner: res.is_owner, countdownActive: res.countdown, teamsDisabled: !res.teams_allowed}, this.updateUrl);
+                              lockout: res.lockout || false, startTime: res.start_time_posix, isOwner: res.is_owner, countdownActive: res.countdown, teamsDisabled: !res.teams_allowed,
+                              apWorlds: res.ap_worlds || 0}, this.updateUrl);
             } catch (e) {
                 NotificationManager.error(`error encountered when attempting to initiate response`, "error", 5000);
                 console.log("failed to handle callback properly: ", e, status, responseText);

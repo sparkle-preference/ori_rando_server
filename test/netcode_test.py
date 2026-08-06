@@ -720,6 +720,35 @@ class TestApBingoBoard(NdbTestCase):
         from models import BingoGameData
         self.assertIsNone(BingoGameData(id=78).ap_world_for(1))
 
+    def test_board_seeds_carry_the_game_id(self):
+        """Scouted AP item names only reach a seed when get_seed is given the
+        game id -- without it a late joiner keeps 'AP Item #n' forever."""
+        from models import BingoGameData
+        seen = []
+        from enums import Variation
+        class _Params:
+            players = 3
+            variations = [Variation.BINGO]   # else get_seed puts it back
+            def get_seed(self, player=1, game_id=None, verbose_paths=False, include_sync=True):
+                seen.append((player, game_id))
+                return "flags\n"
+        class _ParamsKey:
+            def get(self):
+                return _Params()
+        class _Game:
+            params = _ParamsKey()
+        class _GameKey:
+            def get(self):
+                return _Game()
+        b = BingoGameData(id=91, ap_worlds=3, board=[])
+        orig = BingoGameData.game
+        BingoGameData.game = property(lambda self: _GameKey())
+        try:
+            b.get_seed(2)
+        finally:
+            BingoGameData.game = orig
+        self.assertEqual(seen, [(2, 91)])
+
 
 class TestAPLink(NdbTestCase):
     """The bridge's durable connection record (ap_models.APLink)."""

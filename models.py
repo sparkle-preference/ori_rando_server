@@ -1255,6 +1255,7 @@ class BingoGameData(ndb.Model):
             res["lockout"] = self.lockout
             res["subtitle"] = self.subtitle
             res["teams_allowed"] = self.teams_allowed
+            res["ap_worlds"] = self.ap_worlds
             if self.discovery or len(self.disc_squares):
                 res["discovery"] = self.discovery_squares()
 
@@ -1287,14 +1288,14 @@ class BingoGameData(ndb.Model):
                 params.variations.append(Variation.BINGO)
                 params = params.put().get()
             if params.players == 1:
-                return sync_flag + params.get_seed(1, include_sync=False) + goalstr
+                return sync_flag + params.get_seed(1, game_id=self.key.id(), include_sync=False) + goalstr
             elif self.ap_worlds:
                 # pid is the world, so a rejoin can't shuffle anyone's AP slot
                 p_number = self.ap_world_for(pid)
                 if not p_number:
                     log.error("player %s is outside this AP board's %s worlds", pid, self.ap_worlds)
                     return None
-                return sync_flag + params.get_seed(p_number, include_sync=False) + goalstr
+                return sync_flag + params.get_seed(p_number, game_id=self.key.id(), include_sync=False) + goalstr
             else:
                 team = self.team(pid, cap_only=False)
                 if not team:
@@ -1304,7 +1305,7 @@ class BingoGameData(ndb.Model):
                 if params.players < p_number:
                     log.error("player %s can't get seed as there is no seed available" % pid)
                     return None
-                return sync_flag + params.get_seed(p_number, include_sync=False) + goalstr
+                return sync_flag + params.get_seed(p_number, game_id=self.key.id(), include_sync=False) + goalstr
 
 
     def team(self, pid, cap_only=True):
