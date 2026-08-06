@@ -1819,12 +1819,17 @@ onDrop = (files) => {
            mwShared: prev.mwShared.filter(s => !prev.apExport.map(c => apShareNames[c]).includes(s))})
     // bingo hands names out by lobby, so it doesn't get the field
     playerNamesShown = () => !this.hasVar("Bingo") && (this.state.players > 1 || (this.apAvailable() && this.state.apMode))
-    onPlayerName = (i) => (e) => this.setState(prev => {
-        let names = [...prev.playerNames]
-        while(names.length <= i) names.push("")
-        names[i] = e.target.value.slice(0, PLAYER_NAME_MAX)
-        return {playerNames: names}
-    })
+    onPlayerName = (i) => (e) => {
+        // read before setState: the synthetic event is recycled by the time
+        // the updater runs
+        let name = e.target.value.slice(0, PLAYER_NAME_MAX)
+        this.setState(prev => {
+            let names = [...prev.playerNames]
+            while(names.length <= i) names.push("")
+            names[i] = name
+            return {playerNames: names}
+        })
+    }
     onApExport = (cat) => () => this.setState(prev => prev.apExport.includes(cat)
         ? {apExport: prev.apExport.filter(x => x !== cat)}
         : {apExport: prev.apExport.concat(cat), mwShared: prev.mwShared.filter(s => s !== apShareNames[cat])})
