@@ -3875,6 +3875,8 @@ home: ValleyStomplessApproach -350 29
 		expert ChargeJump Climb DoubleJump Health=4
 		expert ChargeDash WallJump DoubleJump Energy=2
 		expert ChargeDash Climb DoubleJump Energy=2
+		master ChargeDash Energy=2 Health=3
+		master ChargeDash Energy=3
 		master WallJump TripleJump Health=3
 	conn: ValleyRight
 home: ValleyRightFastStomplessCellWarp -349 68
