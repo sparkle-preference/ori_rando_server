@@ -1419,12 +1419,12 @@ class MultiworldOptionsTests(unittest.TestCase):
 
     PLAYERS = 2
 
-    def _gen(self, extra):
+    def _gen(self, extra, seed="mwtest"):
         outdir = tempfile.mkdtemp(prefix="seedgentest_mwopt_")
         self.addCleanup(shutil.rmtree, outdir, ignore_errors=True)
         old_argv = sys.argv
         sys.argv = ["cli_gen", "--output-dir", outdir, "--preset", "standard",
-                    "--open-world", "--force-trees", "--balanced", "--seed", "mwtest",
+                    "--open-world", "--force-trees", "--balanced", "--seed", seed,
                     "--players", str(self.PLAYERS), "--share-mode", "multiworld"] + extra
         try:
             CLISeedParams().from_cli()
@@ -1471,6 +1471,47 @@ class MultiworldOptionsTests(unittest.TestCase):
             self.assertIn(2, placements, "player %s has no spawn line" % p)
             code, id, zone = placements[2]
             self.assertIn("TP/Grotto", id, "named starts are shared by every world")
+
+    def test_shared_spawn_draws_reach_every_world(self):
+        """135100: a spawn-drawn shared skill rode one world's spawn line while
+        the pool's only copy was consumed -- a spawn grant never reaches the
+        netcode, so the fan-out sharing relies on can't deliver it, and the
+        other worlds could never obtain the skill at all."""
+        skills = {"0", "2", "3", "4", "5", "8", "12", "14", "50", "51"}
+        # seed chosen so both worlds draw shared spawn skills (deterministic;
+        # if a canary bump moves the spawns, change the seed string here
+        # rather than weakening this)
+        seeds = self._gen(["--start", "Random", "--shared-items", "skills,worldevents"],
+                          seed="gambler")
+        check_mw_invariants(self, seeds)
+        spawn_shared, census = {}, Counter()
+        for p, lines in seeds.items():
+            placements, _ = parse_seed(lines)
+            self.assertIn(2, placements, "player %s has no spawn line" % p)
+            code, id, zone = placements[2]
+            self.assertEqual(code, "MU")
+            bits = id.split("/")
+            parts = list(zip(bits[::2], bits[1::2]))
+            spawn_shared[p] = sorted("%s/%s" % (c, i) for c, i in parts
+                                     if (c == "SK" and i != "15") or c == "EV")
+            for c, i in parts:
+                if c == "SK" and i in skills:
+                    census[i] += 1
+            for loc, (c, i, z) in placements.items():
+                if loc != 2 and c == "SK":
+                    census[i] += 1
+        self.assertEqual(len(set(tuple(v) for v in spawn_shared.values())), 1,
+                         "every world's spawn must carry the same shared draws: %s" % spawn_shared)
+        self.assertTrue(spawn_shared[1], "this seed should draw shared spawn skills")
+        players = len(seeds)
+        # two worlds drawing the same skill deliver it twice (each draw is its
+        # own find), so a drawn skill's census is draws x players, not players
+        drawn = Counter(s.split("/")[1] for s in spawn_shared[1] if s.startswith("SK/"))
+        for sk in skills:
+            expected = drawn[sk] * players if drawn[sk] else 1
+            self.assertEqual(census[sk], expected,
+                             "SK|%s: expected %s copies (drawn %s times), found %s"
+                             % (sk, expected, drawn[sk], census[sk]))
 
     def test_random_spawns_roll_per_world(self):
         seeds = self._gen(["--start", "Random"])

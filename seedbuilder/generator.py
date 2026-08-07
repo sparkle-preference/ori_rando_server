@@ -781,6 +781,7 @@ class SeedGenerator:
         }
 
         self.spawn_things = {}
+        self.spawn_shared_things = {}
         for p in self.multi_ps():
             start = self.starts[p]
             starting_health, starting_energy = self.starting_health, self.starting_energy
@@ -820,63 +821,91 @@ class SeedGenerator:
                 starting_skills = self.choices(possible_skills, weights, start_skills)
 
             things = []
+            # a shared singleton can't ride one world's spawn line: a spawn
+            # grant never reaches the netcode, so the fan-out sharing relies
+            # on never fires. These are delivered at every world's spawn.
+            shared_things = []
+
+            def spawn_add(name, out):
+                (shared_things if name in self.shared_pool_bases else things).append(out)
+
             base_hc = self.inventory[tag("HC", p)]
             if starting_health > base_hc:
                 for _ in range(starting_health - base_hc):
-                    things.append("HC/1")
+                    spawn_add("HC", "HC/1")
             for _ in range(starting_energy):
-                things.append("EC/1")
+                spawn_add("EC", "EC/1")
             if (start == "Ginso"):
                 for _ in range(4):
                     if self.var(Variation.KEYSANITY):
-                        things.append("RB/306")
+                        spawn_add("Upper Ginso Keystone", "RB/306")
                     else:
-                        things.append("KS/1")
+                        spawn_add("KS", "KS/1")
                 if (not self.var(Variation.ENTRANCE_SHUFFLE)) and (self.params.key_mode != KeyMode.FREE):
                     if self.params.key_mode == KeyMode.SHARDS:
                         for _ in range(5):
-                            things.append("RB/17")
+                            spawn_add("WaterVeinShard", "RB/17")
                     else:
-                        things.append("EV/0")
+                        spawn_add("GinsoKey", "EV/0")
             if (start == "Forlorn"):
                 if (not self.var(Variation.ENTRANCE_SHUFFLE)) and (self.params.key_mode != KeyMode.FREE):
                     if self.params.key_mode == KeyMode.SHARDS:
                         for _ in range(5):
-                            things.append("RB/19")
+                            spawn_add("GumonSealShard", "RB/19")
                     else:
-                        things.append("EV/2")
+                        spawn_add("ForlornKey", "EV/2")
                 things.append("NB/-914,-298")
             if (start == "Horu"):
                 if (not self.var(Variation.ENTRANCE_SHUFFLE)) and (self.params.key_mode != KeyMode.FREE):
                     if self.params.key_mode == KeyMode.SHARDS:
                         for _ in range(5):
-                            things.append("RB/21")
+                            spawn_add("SunstoneShard", "RB/21")
                     else:
-                        things.append("EV/4")
+                        spawn_add("HoruKey", "EV/4")
             if (start != "Glades"):
                 things.append(self.toOutput("SpiritFlame", True))
             for skill in starting_skills:
-                things.append(self.toOutput(skill, True))
+                spawn_add(skill, self.toOutput(skill, True))
             if self.params.key_mode == KeyMode.FREE:
+                # already universal (appended for every world), so it stays local
                 things.append("EV/0/EV/2/EV/4")
 
             if start != "Glades":
                 self.itemPool[tag("TPGlades", p)] = 1
-                things.append("TP/" + start)
+                spawn_add("TP" + start, "TP/" + start)
                 # The Warp Save should be last in the line because of the *save*
                 things.append("WS/" + str(spawn_spots[start][0]) + "," + str(spawn_spots[start][1]) + ",force")
             self.spawn_things[p] = things
+            self.spawn_shared_things[p] = shared_things
 
+        # a lone shared singleton fass'd onto a spawn is just as invisible to
+        # the netcode as a drawn one; multipickup fasses keep today's behavior
+        for p in self.multi_ps():
+            cur = self.forcedAssignments.get((p, 2))
+            if cur and cur[0:2] not in ["MU", "RP"] and "|" not in cur and cur in self.shared_pool_bases:
+                self.spawn_shared_things[p].append(self.toOutput(cur, True))
+                del self.forcedAssignments[(p, 2)]
+
+        # every world's spawn carries every world's shared draws; pool and
+        # spoiler bookkeeping (spawn_book) run once, on the world that drew them
+        shared_spawn = [t for q in self.multi_ps() for t in self.spawn_shared_things[q]]
+        self.spawn_book = {}
         for p in self.multi_ps():
             things = self.spawn_things[p]
-            if len(things) > 0:
+            seed_things, book_things = things[:], things[:]
+            cut = len(things) - 1 if things and things[-1].startswith("WS/") else len(things)
+            seed_things[cut:cut] = shared_spawn
+            book_things[cut:cut] = self.spawn_shared_things[p]
+            if len(seed_things) > 0:
                 if (p, 2) in self.forcedAssignments:
                     current_assignment = self.forcedAssignments[(p, 2)]
                     if current_assignment[0:2] not in ["MU", "RP"]:
-                        self.forcedAssignments[(p, 2)] = "MU" + self.toOutput(current_assignment, True)
-                    self.forcedAssignments[(p, 2)] += "/" + "/".join(things)
+                        current_assignment = "MU" + self.toOutput(current_assignment, True)
+                    self.forcedAssignments[(p, 2)] = current_assignment + "/" + "/".join(seed_things)
+                    self.spawn_book[p] = current_assignment + (("/" + "/".join(book_things)) if book_things else "")
                 else:
-                    self.forcedAssignments[(p, 2)] = "MU" + "/".join(things)
+                    self.forcedAssignments[(p, 2)] = "MU" + "/".join(seed_things)
+                    self.spawn_book[p] = "MU" + "/".join(book_things)
 
 
         # FIXME Are we giving the correct number of ECs for non-glades starts?
@@ -1996,10 +2025,13 @@ class SeedGenerator:
                 continue
             raw_item = self.forcedAssignments[(p, 2)]
             del self.forcedAssignments[(p, 2)]
+            # the seed text carries every world's shared spawn draws; each copy
+            # books (pool + spoiler) once, on the world that drew it
+            book_item = self.spawn_book.get(p, raw_item)
             item = tag(raw_item, p)
-            self.assign(item)
-            if raw_item[0:2] in ["MU", "RP"] and item not in self.itemPool:
-                for multi_item in self.get_multi_items(raw_item):
+            self.assign(tag(book_item, p))
+            if book_item[0:2] in ["MU", "RP"] and tag(book_item, p) not in self.itemPool:
+                for multi_item in self.get_multi_items(book_item):
                     # below should not be needed as get_multi_items() already does it, and repeating
                     # it breaks shards names.
                     #name = self.codeToName.get(multi_item, multi_item)
@@ -2007,7 +2039,7 @@ class SeedGenerator:
                     if not multi_item.startswith("WS"): # avoid dumb padding thing
                         self.append_spoiler(self.adjust_item(tag(multi_item, p), "Glades"), "Spawn")
             else:
-                name = self.codeToName.get(raw_item, raw_item)
+                name = self.codeToName.get(book_item, book_item)
                 self.append_spoiler(self.adjust_item(tag(name, p), "Glades"), "Spawn")
             ass, _ = self.get_assignment(2, p, self.adjust_item(item, "Glades"), "Glades")
             self.seeds_text[p] += ass
@@ -2347,7 +2379,9 @@ class SeedGenerator:
           name, _, loc = instance.partition("!PDPLC!-")
           return name + (2+self.padding - len(name))*" " + loc
         i = 0
-        groupDepth = -1 if 2 in self.preplaced else 0
+        # keys have been (world, loc) tuples since the MW rework; the old
+        # bare-int check dated from when a location was the whole key
+        groupDepth = -1 if any(loc == 2 for _, loc in self.preplaced) else 0
         spoilerStr = ""
 
         while i < len(self.spoiler):
