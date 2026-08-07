@@ -24,6 +24,25 @@ const counts = {
   "bonus": { "RB|31": 1, "RB|32": 1, "RB|33": 3, "RB|36": 1, "RB|6": 5, "RB|12": 5, "RB|101": "*", "RB|102": "*", "RB|103": "*", "RB|104": "**", "RB|105": "**", "RB|106": "*", "RB|107": "*", "RB|109": "*", "RB|110": "*", "RB|111": "***", "RB|113": "***"},
 }
 const buttonHolder="mt-0 pt-0 pb-0 mb-0 text-center border-none"
+// spoiler-tagged hint: the label toggles it. (It used to be white-on-white,
+// which only hid anything in light mode.)
+class Hint extends React.Component {
+    state = {shown: false}
+    toggle = (e) => {
+        e.preventDefault()
+        this.setState(prev => ({shown: !prev.shown}))
+    }
+    render = () => {
+        let {label, note, children} = this.props
+        let {shown} = this.state
+        return (
+            <li>
+                <a href="#" onClick={this.toggle}>{label || "Hint"}</a>
+                {shown ? <span> (hide): {children}</span> : <span> (show{note ? ", " + note : ""})</span>}
+            </li>
+        )
+    }
+}
 export default class HelpAndGuides extends React.Component {
     getGlossaryCardContent = () => {
         let normal = []
@@ -271,19 +290,19 @@ export default class HelpAndGuides extends React.Component {
                     <li>
                     <a target="_blank" rel="noopener noreferrer" href="/plando/eiko/IntroToClimbStart/download?tracking=1">Intro to Climb Start</a>
                     <ul><li>You won't always start the game with Wall Jump. This seed will require you to navigate the early game using Climb as your form of wall interaction.</li>
-                        <li>Hint (highlight to view): <span style={{color: "#fff"}}>Remember to turn in your mapstones!</span></li>
+                        <Hint>Remember to turn in your mapstones!</Hint>
                     </ul>
                     </li>
                     <li>
                         <a target="_blank" rel="noopener noreferrer" href="/plando/eiko/OddOpeningsOne/download?tracking=1">Odd Openings One</a>
                         <ul><li>Sometimes getting out of Glades can be a puzzle. See if you can solve this one! (Remember to check the tracking map if you get stuck)</li>
-                        <li>Hint (highlight to view): <span style={{color: "#fff"}}>Check out the stompable peg near the Blackroot Spirit Well, in the rolling boulder area.</span></li>
+                        <Hint>Check out the stompable peg near the Blackroot Spirit Well, in the rolling boulder area.</Hint>
                         </ul>
                     </li>
                     <li>
                         <a target="_blank" rel="noopener noreferrer" href="/plando/eiko/OddOpeningsTwo/download?tracking=1">Odd Openings Two</a>
                         <ul><li>Same idea as Odd Openings One. Find your way out of Glades!</li>
-                        <li>Hint (highlight to view): <span style={{color: "#fff"}}>Be sure to pay attention what gets unlocked on the tracking map when you pick up skills <i>and teleporters</i>.</span></li>
+                        <Hint>Be sure to pay attention what gets unlocked on the tracking map when you pick up skills <i>and teleporters</i>.</Hint>
                         </ul>
                     </li>
                     <li>
@@ -296,8 +315,8 @@ export default class HelpAndGuides extends React.Component {
                     <li>
                         <a target="_blank" rel="noopener noreferrer" href="/plando/eiko/TrickyCleanupOne/download?tracking=1">Tricky Cleanup One</a>
                         <ul><li>In some seeds, the biggest challenge can be reaching a specific area. For this seed, that area is Sorrow: figure out how to get up to the Charge Jump tree so that you can finish this seed!</li>
-                        <li>Hint 1 (highlight to view): <span style={{color: "#fff"}}>There are several ways into Sorrow. For this seed, you can use either the teleporter or Glide+Wind... once you find them!</span></li>
-                        <li>Hint 2 (If 1 wasn't enough): <span style={{color: "#fff"}}>The dungeons (Ginso Tree, Forlorn Ruins, and Mount Horu) are full of pickups! Give them a search if you get stuck. </span></li>
+                        <Hint label="Hint 1">There are several ways into Sorrow. For this seed, you can use either the teleporter or Glide+Wind... once you find them!</Hint>
+                        <Hint label="Hint 2" note="if 1 wasn't enough">The dungeons (Ginso Tree, Forlorn Ruins, and Mount Horu) are full of pickups! Give them a search if you get stuck.</Hint>
                         </ul>
                     </li>
                 </ol>
