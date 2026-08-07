@@ -409,7 +409,9 @@ def template_vals(app, title, user):
 }
     if user:
         template_values['user'] = user.name
-        template_values['dark'] = user.dark_theme
+        # omitted when they've never chosen, so the page can follow the browser
+        if user.dark_theme is not None:
+            template_values['dark'] = user.dark_theme
         template_values['verbose'] = user.verbose
         if user.theme:
             template_values['theme'] = user.theme

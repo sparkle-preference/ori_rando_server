@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
-import {get_param, get_flag, gotoUrl, loginLogoutUrl, ap_opt_in} from './common.js';
+import {get_param, gotoUrl, loginLogoutUrl, ap_opt_in, resolve_dark, save_dark} from './common.js';
 
 import ItemTracker from './ItemTracker';
 import MainPage from './MainPage';
@@ -34,16 +34,16 @@ const VALID_THEMES = ["cerulean", "cosmo", "cyborg", "darkly", "flatly", "journa
     if(localStorage.getItem("rememberMe") && !get_param('user')) {
         return gotoUrl(loginLogoutUrl(true));
     }
-    let dark = get_param("dark") != null ? get_flag("dark") : localStorage.getItem("dark");
+    let dark = resolve_dark();
     let theme = get_param("theme") || localStorage.getItem("theme");
     if(theme && !localStorage.getItem("theme")){
         localStorage.setItem("theme", theme);
     }
-        
-    if(dark){
-        localStorage.setItem("dark", "true");
-    }else{
-        localStorage.removeItem("dark");
+
+    // mirror the account setting into this browser, but never persist a
+    // browser preference: storing it would freeze the theme against the OS
+    if(get_param("dark") != null){
+        save_dark(dark);
     }
 
     const link = document.createElement("link");

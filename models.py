@@ -231,7 +231,8 @@ class User(ndb.Model):
     # key = user_id
     name = ndb.StringProperty()
     games = ndb.KeyProperty("Game", repeated=True)
-    dark_theme = ndb.BooleanProperty(default=False)
+    # no default: None means "never chose", which follows the browser
+    dark_theme = ndb.BooleanProperty()
     email = ndb.StringProperty()
     teamname = ndb.StringProperty()
     pref_num  = ndb.IntegerProperty()
@@ -391,7 +392,8 @@ class LegacyUser(ndb.Model):
     # key = user_id
     name = ndb.StringProperty()
     games = ndb.KeyProperty("Game", repeated=True)
-    dark_theme = ndb.BooleanProperty(default=False)
+    # no default: None means "never chose", which follows the browser
+    dark_theme = ndb.BooleanProperty()
     email = ndb.StringProperty()
     teamname = ndb.StringProperty()
     pref_num  = ndb.IntegerProperty()

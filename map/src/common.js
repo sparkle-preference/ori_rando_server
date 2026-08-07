@@ -695,6 +695,41 @@ function get_flag(name) {
     return p != null && !p.toLowerCase().includes("false")
 }
 
+function prefers_dark() {
+    try {
+        return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches)
+    } catch(e) {
+        return false
+    }
+}
+
+// Is the dark theme on? An explicit choice wins, most specific first: the
+// ?dark url override, the account setting (absent until they've toggled it
+// once), this browser's saved toggle. With none of those, follow the browser.
+// Every reader of the theme has to come through here, or the stylesheet and
+// the components that style themselves disagree.
+function resolve_dark() {
+    let param = new URL(window.document.URL).searchParams.get("dark")
+    if(param !== null)
+        return !["0", "false", "no", "off"].includes(param.toLowerCase())
+    if(get_param("dark") != null)
+        return get_flag("dark")
+    try {
+        let saved = localStorage.getItem("dark")
+        if(saved !== null)
+            return saved === "true"
+    } catch(e) { /* storage disabled: fall through to the browser preference */ }
+    return prefers_dark()
+}
+
+// Record an explicit light choice as "false" rather than dropping the key:
+// a missing key means "never asked", which is what follows the browser.
+function save_dark(dark) {
+    try {
+        localStorage.setItem("dark", dark ? "true" : "false")
+    } catch(e) { /* storage disabled: the choice lasts this page load */ }
+}
+
 // Archipelago alpha gate: the server flag has to be on AND this browser has
 // to have opted in with ?ap_test=1 (remembered like the dark theme, cleared
 // with ?ap_test=0), so a flag flip doesn't show everyone the work in progress.
@@ -949,6 +984,6 @@ const prng = (strIn) => sfc32(...cyrb128(strIn));
  
 
 export {
-    player_icons, doNetRequest, prng, get_param, get_flag, ap_enabled, ap_opt_in, get_int, get_list, get_preset, presets, get_seed, logic_paths, get_random_loader, Blabel,
+    player_icons, doNetRequest, prng, get_param, get_flag, resolve_dark, save_dark, ap_enabled, ap_opt_in, get_int, get_list, get_preset, presets, get_seed, logic_paths, get_random_loader, Blabel,
     pickup_name, stuff_by_type, name_from_str, PickupSelect, Cent, ordinal_suffix, dev, gotoUrl, loginLogoutUrl, select_theme, randInt, spawn_defaults
 };

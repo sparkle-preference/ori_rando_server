@@ -963,7 +963,9 @@ def user_toggle_darkmode():
     target_url = unquote(param_val("redir")) or "/"
     user = User.get()
     if user:
-        user.dark_theme = not user.dark_theme
+        # the page sends the state it's switching to: with nothing stored it
+        # may be showing the browser's preference, which we can't see
+        user.dark_theme = param_true("dark") if param_val("dark") is not None else not user.dark_theme
         user.put()
     return redirect(target_url)
 
@@ -1605,7 +1607,8 @@ def bingo_userboard(name):
         return text_resp("User '%s' not found" % name, 404)
     template_values = {'app': "Bingo", 'title': "%s's Bingo Board" % user.name}
     template_values['user'] = user.name
-    template_values['dark'] = user.dark_theme
+    if user.dark_theme is not None:
+        template_values['dark'] = user.dark_theme
     if user.pref_num:
         template_values['pref_num'] = user.pref_num
     if user.theme:

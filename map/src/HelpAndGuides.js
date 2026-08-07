@@ -33,12 +33,12 @@ class Hint extends React.Component {
         this.setState(prev => ({shown: !prev.shown}))
     }
     render = () => {
-        let {label, note, children} = this.props
+        let {label, children} = this.props
         let {shown} = this.state
         return (
             <li>
                 <a href="#" onClick={this.toggle}>{label || "Hint"}</a>
-                {shown ? <span> (hide): {children}</span> : <span> (show{note ? ", " + note : ""})</span>}
+                {shown ? <span> (hide): {children}</span> : <span> (show)</span>}
             </li>
         )
     }
@@ -316,7 +316,7 @@ export default class HelpAndGuides extends React.Component {
                         <a target="_blank" rel="noopener noreferrer" href="/plando/eiko/TrickyCleanupOne/download?tracking=1">Tricky Cleanup One</a>
                         <ul><li>In some seeds, the biggest challenge can be reaching a specific area. For this seed, that area is Sorrow: figure out how to get up to the Charge Jump tree so that you can finish this seed!</li>
                         <Hint label="Hint 1">There are several ways into Sorrow. For this seed, you can use either the teleporter or Glide+Wind... once you find them!</Hint>
-                        <Hint label="Hint 2" note="if 1 wasn't enough">The dungeons (Ginso Tree, Forlorn Ruins, and Mount Horu) are full of pickups! Give them a search if you get stuck.</Hint>
+                        <Hint label="Hint 2">The dungeons (Ginso Tree, Forlorn Ruins, and Mount Horu) are full of pickups! Give them a search if you get stuck.</Hint>
                         </ul>
                     </li>
                 </ol>

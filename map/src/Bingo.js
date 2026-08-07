@@ -8,7 +8,7 @@ import 'react-confirm-alert/src/react-confirm-alert.css'
 import 'react-notifications/lib/notifications.css';
 
 import {download} from './shared_map.js'
-import {Cent, ordinal_suffix, doNetRequest, player_icons, get_random_loader, PickupSelect, get_flag, get_param, dev} from './common.js'
+import {Cent, ordinal_suffix, doNetRequest, player_icons, get_random_loader, PickupSelect, resolve_dark, get_param, dev} from './common.js'
 import SiteBar from "./SiteBar.js";
 
 
@@ -317,7 +317,7 @@ export default class Bingo extends React.Component {
         let fromGen = iniUrl.searchParams.has("fromGen");
         let teamMax = parseInt(iniUrl.searchParams.get("teamMax") || -1, 10);
         let seed = iniUrl.searchParams.get("seed") || String(Math.floor(Math.random() * 100000));
-        let dark = get_flag("dark") || iniUrl.searchParams.has("dark");
+        let dark = resolve_dark();
         let user = get_param("user");
         let targetCount = parseInt(iniUrl.searchParams.get("bingoLines") || 0, 10) || (fromGen && (teamMax > 1) ? 5 : 3)
         this.state = {

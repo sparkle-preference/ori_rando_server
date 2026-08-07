@@ -1,20 +1,19 @@
 import React, {Component} from 'react';
 import {Navbar,  NavbarBrand, Nav,  NavItem, Button, Modal, ModalHeader, ModalBody, ModalFooter, FormFeedback,
         UncontrolledDropdown, DropdownToggle, DropdownMenu, DropdownItem, Container, Row, Col, Input, UncontrolledAlert} from 'reactstrap'
-import {Cent, doNetRequest, get_random_loader, get_param, get_flag, loginLogoutUrl} from './common.js';
+import {Cent, doNetRequest, get_random_loader, get_param, loginLogoutUrl, resolve_dark, save_dark} from './common.js';
 
 const BAD_CHARS = ["@", "/", "\\", "?", "#", "&", "=", '"', "'"]
 const VERSION = get_param("version");
 class SiteBar extends Component {
     constructor(props) {
         super(props);
-        let url = new URL(window.document.URL);
         let user = get_param("user");
         // int(localStorage.getItem(`orirando-${VERSION}-visit`))
         // if(int(localStorage.getItem(`${VERSION}-visit`))) {
 
         // }
-        let dark = get_flag("dark") || url.searchParams.has("dark") || localStorage.getItem('dark')
+        let dark = resolve_dark()
         this.state = {user, dark, teamName: "", settingsOpen: false, quickstartOpen: false, editName: user, loadedNames: false, saveInProgress: false, loader: get_random_loader(), saveStatus: 0}
     }
 
@@ -109,21 +108,20 @@ class SiteBar extends Component {
         let {user, dark} = this.state;
         let url = new URL(window.document.URL)
         let page = encodeURIComponent(url.pathname + url.search)
+        let want = !dark
         if(user) {
             let redirTarget = new URL(url.protocol + "//" + url.host + `/theme/toggle`)
             redirTarget.searchParams.append("redir", page)
+            // the server can't see the browser preference, so it can't work
+            // out what we're switching away from -- tell it the target
+            redirTarget.searchParams.append("dark", want ? "1" : "0")
             window.location.replace(redirTarget.href)
         } else {
-            if(dark && localStorage.getItem("dark"))
-            {
-                localStorage.removeItem("dark")
-                document.getElementById("css_switcher").href = 'https://maxcdn.bootstrapcdn.com/bootswatch/4.2.1/flatly/bootstrap.min.css'
-                this.setState({dark: false})
-            } else {
-                localStorage.setItem("dark", "true")
-                document.getElementById("css_switcher").href = 'https://maxcdn.bootstrapcdn.com/bootswatch/4.2.1/darkly/bootstrap.min.css'
-                this.setState({dark: true})
-            }
+            save_dark(want)
+            document.getElementById("css_switcher").href = want
+                ? 'https://maxcdn.bootstrapcdn.com/bootswatch/4.2.1/darkly/bootstrap.min.css'
+                : 'https://maxcdn.bootstrapcdn.com/bootswatch/4.2.1/flatly/bootstrap.min.css'
+            this.setState({dark: want})
         }
     }
 
