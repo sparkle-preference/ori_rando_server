@@ -3731,8 +3731,7 @@ home: ValleyPostStompDoor -338 -82
 		casual Bash Grenade
 		expert WallJump DoubleJump ChargeJump Health=7
 		expert DoubleBash
-		master WallJump TripleJump ChargeJump UltraDefense Health=3
-		master Climb TripleJump ChargeJump UltraDefense Health=3
+		master TripleJump ChargeJump UltraDefense Health=3
 		master WallJump TripleJump Health=11 UltraDefense
 		master GrenadeJump Stomp DoubleJump Health=4
 		master GrenadeJump Stomp TripleJump
