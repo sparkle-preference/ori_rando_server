@@ -395,13 +395,16 @@ class TestDeathLinkTag(DeathLinkTestCase):
 class TestDeathLinkOut(DeathLinkTestCase):
     def _run(self, session, reports):
         """Drive the outbound half: each report is (total, linked) seen on
-        one tick, with a session loop between them."""
+        one tick, ticks minutes apart (past the outgoing cooldown);
+        rapid-fire behavior has its own test."""
         sock = FakeSocket([ROOMINFO, [connected()]] + [None] * (len(reports) + 1))
         try:
             session._handshake(sock)
         except ConnectionClosed:
             pass
         for total, linked in reports:
+            session.death_times[:] = [t - ap_bridge.DEATHLINK_OUT_COOLDOWN - 1
+                                      for t in session.death_times]
             session.death_box.set(total, linked)
             session._service_deaths(sock)
         return sock
@@ -449,6 +452,22 @@ class TestDeathLinkOut(DeathLinkTestCase):
         after an incoming death is still your death."""
         sock = self._run(self.make_session(), [(3, 0), (5, 1)])
         self.assertEqual(len(self.bounces(sock)), 1)
+
+    def test_a_respawn_loop_is_absorbed_after_the_first_bounce(self):
+        """A death drumbeat (e.g. the save-while-dead glitch) is one bounce;
+        absorbed deaths are dropped, and the baseline still advances."""
+        session = self.make_session()
+        sock = self._run(session, [(1, 0)])   # baseline report
+        for n in range(2, 12):                # rapid net increases, same seconds
+            session.death_box.set(n, 0)
+            session._service_deaths(sock)
+        self.assertEqual(len(self.bounces(sock)), 1)
+        self.assertEqual(session.deaths_seen, 11)
+        # past the cooldown, the next death is a real broadcast again
+        session.death_times[:] = [t - 60 for t in session.death_times]
+        session.death_box.set(12, 0)
+        session._service_deaths(sock)
+        self.assertEqual(len(self.bounces(sock)), 2)
 
     def test_a_seed_without_the_option_never_sends(self):
         sock = self._run(self.make_session(death_link=False), [(3, 0), (99, 0)])

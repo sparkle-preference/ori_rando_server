@@ -59,6 +59,9 @@ BACKOFF_MIN, BACKOFF_MAX = 1.0, 60.0
 # --- DeathLink (see "death link" below) ---
 DEATHLINK_TAG = "DeathLink"
 DEATHLINK_ECHO_KEEP = 8   # recent send times remembered for echo suppression
+# min gap between outgoing deaths; extras are dropped, not queued (a respawn
+# loop is one death to the room, not a drumbeat)
+DEATHLINK_OUT_COOLDOWN = 15.0
 
 # --- progressive hints (see "hint purchases" below) ---
 HINT_QUEUE_MAX = 32      # slots a client may have outstanding at once
@@ -844,6 +847,10 @@ class ApSession(object):
         if net == self.deaths_seen:
             return
         self.deaths_seen = net
+        if self.death_times and time.time() - self.death_times[-1] < DEATHLINK_OUT_COOLDOWN:
+            log.info("APBRIDGE deathlink absorbed gid=%s world=%s (cooldown)",
+                     self.gid, self.world)
+            return
         self._send_death(sock)
 
     def _send_death(self, sock):
