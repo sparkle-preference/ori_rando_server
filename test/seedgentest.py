@@ -2522,6 +2522,32 @@ class ApSeedAnnotationTests(unittest.TestCase):
         self.assertEqual(parts[:5],
                          ["919908", "MW", "3,0,Bash (Ori1)", "Grove", "Ori1;Bash"])
 
+    def test_duplicate_self_items_get_distinct_slots(self):
+        """Each copy of a duplicated item claims its own manifest slot;
+        sharing the lowest slot made the second copy read as a re-touch
+        (the 4.2.8 "(already collected)" double message)."""
+        from enums import MultiplayerGameType
+        from seedbuilder.seedparams import SeedGenParams, MultiplayerOptions, Placement, Stuff
+        sync = MultiplayerOptions(str_mode=MultiplayerGameType.MULTIWORLD.value)
+        def place(loc, code, id, zone):
+            return Placement(location=loc, zone=zone,
+                             stuff=[Stuff(code=code, id=id, player="1")])
+        params = SeedGenParams(
+            seed="apnames", players=self.K, tracking=False, ap_mode=True,
+            ap_export=["skills"], sync=sync, placements=[
+                place("919908", "MW", "3,0,AP Item #1", "Grove"),
+                place("959960", "MW", "3,1,AP Item #2", "Sorrow"),
+                place("-2", "MW", "3,SK,0", "Glades"),
+                place("-3", "MW", "3,SK,0", "Glades"),
+            ])
+        self._store(self.WORLD, {
+            0: self._scout("Bash", "Ori1", "Ori1", ap_item=self.BASH_AP_ID, ap_owner=1),
+            1: self._scout("Bash", "Ori1", "Ori1", ap_item=self.BASH_AP_ID, ap_owner=1)})
+        for _ in range(2):   # and the same assignment on every download
+            lines = self._lines(params)
+            self.assertEqual(lines["919908"].split("|")[5], "0")
+            self.assertEqual(lines["959960"].split("|")[5], "1")
+
     def test_someone_elses_item_gets_no_slot_field(self):
         self._store(self.WORLD, {0: self._scout("Bash", "Ori2", "Ori2",
                                                 ap_item=self.BASH_AP_ID, ap_owner=2)})

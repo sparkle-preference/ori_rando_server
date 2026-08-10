@@ -85,18 +85,18 @@ def _holders(players, world, rows, seed_data_for):
     return {key: hits[0] for key, hits in found.items() if len(hits) == 1}
 
 
-def _own_slot(scout, our_slot, exports):
+def _own_slot(scout, our_slot, own_pool):
     """Field 6: the manifest slot a self-item will land in, so the client can
-    grant it on contact instead of waiting out the room round trip. Any slot
-    holding the same item does -- the bridge fills them by item name, so a
-    copy claimed early just means the room's copy fills a later one."""
+    grant it on contact instead of waiting out the room round trip. Handed
+    out without replacement: every copy of a duplicated item needs its own
+    slot, or the client mistakes the second copy for a re-touch."""
     if our_slot is None or scout.ap_owner != our_slot:
         return None
     key = ITEM_BY_AP_ID.get(scout.ap_item)
     if key is None:
         return None
-    mine = sorted(slot for slot, k in exports.items() if k == key)
-    return mine[0] if mine else None
+    pool = own_pool.get(key)
+    return pool.pop(0) if pool else None
 
 
 def annotate(seed_data, players, world, rows, seed_data_for):
@@ -116,6 +116,10 @@ def annotate(seed_data, players, world, rows, seed_data_for):
     counts = {}
     for key in exports.values():
         counts[key] = counts.get(key, 0) + 1
+    # field-6 slot pools, consumed in seed-line order: stable across downloads
+    own_pool = {}
+    for slot, key in sorted(exports.items()):
+        own_pool.setdefault(key, []).append(slot)
     out = []
     for line in seed_data:
         loc, code, id, zone = line
@@ -132,7 +136,7 @@ def annotate(seed_data, players, world, rows, seed_data_for):
             if scout is not None:
                 fields = [loc, code, "%s,%s,%s" % (shadow, held[0], scout.label()),
                           zone, "%s;%s" % (scout.to, scout.item)]
-                mine = _own_slot(scout, our_slot, exports)
+                mine = _own_slot(scout, our_slot, own_pool)
                 if mine is not None:
                     fields.append(str(mine))
                 line = tuple(fields)
