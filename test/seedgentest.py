@@ -52,7 +52,7 @@ class SeedGenTests(unittest.TestCase):
         self.assertIn("|test", lines[0])
         if expect_flag:
             self.assertIn(expect_flag, lines[0])
-        bad = [l for l in lines[1:] if not PICKUP_LINE.match(l)]
+        bad = [l for l in lines[1:] if not l.startswith("//") and not PICKUP_LINE.match(l)]
         self.assertEqual(bad, [], "malformed placement lines: %s" % bad[:5])
 
     def test_default_keymode(self):
@@ -122,7 +122,7 @@ def parse_seed(lines):
     locations, manifest is {slot: (finder, code, id, zone)}."""
     placements, manifest = {}, {}
     for line in lines[1:]:
-        if not line:
+        if not line or line.startswith("//"):
             continue
         loc, code, id, zone = line.split("|", 3)
         loc = int(loc)
@@ -184,7 +184,7 @@ class MultiworldGenTests(unittest.TestCase):
     def test_line_shapes(self):
         for p, lines in self.seeds.items():
             self.assertIn("mode=Multiworld", lines[0])
-            bad = [l for l in lines[1:] if l and not PICKUP_LINE.match(l)]
+            bad = [l for l in lines[1:] if l and not l.startswith("//") and not PICKUP_LINE.match(l)]
             self.assertEqual(bad, [], "malformed lines for player %s: %s" % (p, bad[:5]))
 
     def test_every_world_fully_populated(self):
@@ -1390,10 +1390,10 @@ def check_mw_invariants(tc, seeds):
     correspond 1:1, nobody holds their own MW pickup."""
     pointed = Counter()
     for p, lines in seeds.items():
-        bad = [l for l in lines[1:] if l and not PICKUP_LINE.match(l)]
+        bad = [l for l in lines[1:] if l and not l.startswith("//") and not PICKUP_LINE.match(l)]
         tc.assertEqual(bad, [], "malformed lines for player %s: %s" % (p, bad[:5]))
         # exactly four fields, like seedparams.generate's unpack
-        extra = [l for l in lines[1:] if l and len(l.split("|")) != 4]
+        extra = [l for l in lines[1:] if l and not l.startswith("//") and len(l.split("|")) != 4]
         tc.assertEqual(extra, [], "player %s has unparseable lines: %s" % (p, extra[:3]))
         placements, _ = parse_seed(lines)
         for loc, (code, id, zone) in placements.items():
@@ -1605,7 +1605,7 @@ def parse_ap_seed(lines, players):
     plain, native_mw, reserved = {}, {}, {}
     native_manifest, ap_manifest = {}, {}
     for line in lines[1:]:
-        if not line:
+        if not line or line.startswith("//"):
             continue
         loc, code, id, zone = line.split("|", 3)
         loc = int(loc)
@@ -1624,11 +1624,11 @@ def parse_ap_seed(lines, players):
     return plain, native_mw, reserved, native_manifest, ap_manifest
 
 
-def keytier_values(flagline):
-    """The KeyTiers token's ints, positional over KEYSTONE_DOORS."""
-    for flag in flagline.split("|")[0].split(","):
-        if flag.startswith("KeyTiers="):
-            return [int(v) for v in flag[len("KeyTiers="):].split("+")]
+def keytier_values(lines):
+    """The //KeyTiers metadata line's ints, positional over KEYSTONE_DOORS."""
+    for line in lines:
+        if line.startswith("//KeyTiers="):
+            return [int(v) for v in line[len("//KeyTiers="):].split("+")]
     return None
 
 
@@ -1694,7 +1694,7 @@ class ApModeGenTests(unittest.TestCase):
     def test_line_shapes(self):
         for p, lines in self.seeds.items():
             self.assertIn("mode=Multiworld", lines[0])
-            bad = [l for l in lines[1:] if l and not PICKUP_LINE.match(l)]
+            bad = [l for l in lines[1:] if l and not l.startswith("//") and not PICKUP_LINE.match(l)]
             self.assertEqual(bad, [], "malformed lines for player %s: %s" % (p, bad[:5]))
 
     def test_reserved_lines_wellformed(self):
@@ -1933,36 +1933,36 @@ class ApKeystoneTierTests(unittest.TestCase):
         self.assertEqual(stray, [Counter({"Keystone": 40})])
         self.assertEqual(len(warned), 1)
 
-    def test_keytiers_flag(self):
-        from archipelago.convert import keytiers_flag, exports_generic_keystones
+    def test_keytiers_meta(self):
+        from archipelago.convert import keytiers_meta, exports_generic_keystones
 
         class P:
             ap_mode = True
             ap_export = ["stones"]
             variations = []
         self.assertTrue(exports_generic_keystones(P()))
-        self.assertEqual(keytiers_flag(P()),
-                         "KeyTiers=2+4+6+8+12+16+20+24+28+32+36+40")
+        self.assertEqual(keytiers_meta(P()),
+                         "//KeyTiers=2+4+6+8+12+16+20+24+28+32+36+40")
 
         class OW(P):
             variations = ["OpenWorld"]
-        self.assertEqual(keytiers_flag(OW()),
-                         "KeyTiers=0+2+4+6+10+14+18+22+26+30+34+38")
+        self.assertEqual(keytiers_meta(OW()),
+                         "//KeyTiers=0+2+4+6+10+14+18+22+26+30+34+38")
 
         class Sanity(P):
             variations = ["Keysanity"]
-        self.assertIsNone(keytiers_flag(Sanity()), "keysanity has no generic keys to tier")
+        self.assertIsNone(keytiers_meta(Sanity()), "keysanity has no generic keys to tier")
 
         class Default(P):
             ap_export = []
         self.assertFalse(exports_generic_keystones(Default()),
                          "the default categories must not flip the pin")
-        self.assertIsNone(keytiers_flag(Default()))
+        self.assertIsNone(keytiers_meta(Default()))
 
     def test_walk_order_ranks_the_tiers(self):
         """The generator's recorded door order reorders the thresholds: the
         first door the walk sees gets the cheapest tier, whatever it costs."""
-        from archipelago.convert import keytiers_flag
+        from archipelago.convert import keytiers_meta
 
         class P:
             ap_mode = True
@@ -1972,7 +1972,7 @@ class ApKeystoneTierTests(unittest.TestCase):
             ks_door_order = {"1": [["LowerSorrow", "LeftSorrowLowerDoor"],
                                    ["LeftSorrowMiddleDoorClosed", "LeftSorrowMiddleDoorOpen"],
                                    ["GladesFirstKeyDoor", "GladesFirstKeyDoorOpened"]]}
-        flag = keytiers_flag(P(), player=1)
+        flag = keytiers_meta(P(), player=1)
         vals = [int(v) for v in flag.partition("=")[2].split("+")]
         # positions: 0=Glades, 9=SorrowLower, 10=SorrowMid
         self.assertEqual(vals[9], 4, "first-seen door gets the cheapest tier")
@@ -1980,8 +1980,8 @@ class ApKeystoneTierTests(unittest.TestCase):
         self.assertEqual(vals[0], 10, "Glades door ranks third here")
         self.assertEqual(max(vals), 40, "unseen doors close the tail")
         # no player / no recorded order: canonical fallback
-        self.assertEqual(keytiers_flag(P()),
-                         "KeyTiers=2+4+6+8+12+16+20+24+28+32+36+40")
+        self.assertEqual(keytiers_meta(P()),
+                         "//KeyTiers=2+4+6+8+12+16+20+24+28+32+36+40")
 
 
 class ApModeSoloTests(unittest.TestCase):
@@ -2022,7 +2022,7 @@ class ApModeSoloTests(unittest.TestCase):
         ks = sum(1 for (code, id, zone) in plain.values() if code == "KS")
         self.assertEqual(ks, 0, "no keystone may stay local when stones export")
         self.assertEqual(len(ap_manifest), len(reserved))
-        tiers = keytier_values(lines[0])
+        tiers = keytier_values(lines)
         check_tier_shape(self, tiers, doors=12, total=40)
         self.assertIn("Keystone: 40", yaml)
         self.assertIn("key_tiers", yaml)
@@ -2296,7 +2296,7 @@ class ApBonusPoolConversionTests(unittest.TestCase):
             self.assertEqual([1 for (c, i, z) in plain.values() if c == "KS"], [],
                              "player %s kept local keystones" % p)
             ks_exported += sum(1 for e in ap_manifest.values() if e[1] == "KS")
-            check_tier_shape(self, keytier_values(lines[0]), doors=12, total=40)
+            check_tier_shape(self, keytier_values(lines), doors=12, total=40)
         self.assertEqual(ks_exported, 40 * self.PLAYERS)
 
     def test_an_exported_warp_keeps_its_coordinates(self):

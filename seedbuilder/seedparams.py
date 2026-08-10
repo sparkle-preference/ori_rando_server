@@ -502,6 +502,8 @@ class SeedGenParams(ndb.Model):
             seed, spoiler = tuple(player_raw)
             spoilers.append(spoiler)
             for line in seed.split("\n")[1:-1]:
+                if line.startswith("//"):
+                    continue  # seed metadata, not a placement
                 loc, stuff_code, stuff_id, zone = tuple(line.split("|"))
                 if stuff_code == "EN":
                     stuff_id = f"{stuff_id}|{zone}"
@@ -540,7 +542,7 @@ class SeedGenParams(ndb.Model):
         return int(self.teams_inv()[pid]) if (self.sync.teams and self.sync.cloned) else pid
 
     def get_seed(self, player=1, game_id=None, verbose_paths=False, include_sync = True):
-        flags = self.flag_line(verbose_paths, player=player)
+        flags = self.flag_line(verbose_paths)
         if self.players > 1 and self.sync.mode in [MultiplayerGameType.SHARED, MultiplayerGameType.MULTIWORLD]:
             flags += f"/{player}"
         if self.tracking and include_sync:
@@ -549,6 +551,11 @@ class SeedGenParams(ndb.Model):
             else:
                 flags = f"Sync{game_id}.{player},{flags}"
         outlines = [flags]
+        if self.ap_mode:
+            from archipelago.convert import keytiers_meta
+            meta = keytiers_meta(self, player)
+            if meta:
+                outlines.append(meta)
         seed_data = self.ap_named(self.get_seed_data(player, no_door_zone = True), player, game_id)
         # AP-annotated lines join positionally: the zone of an item nobody
         # can locate is empty, and dropping it would promote field 5 into it
@@ -651,7 +658,7 @@ class SeedGenParams(ndb.Model):
             key_tiers=keystone_tier_list(self, int(world)))
         return emit_yaml(config, ap_slot_names(self.players, self.player_names)[int(world) - 1])
 
-    def flag_line(self, verbose_paths=False, player=None):
+    def flag_line(self, verbose_paths=False):
         flags = []
         if self.is_plando:
             flags = self.plando_flags
@@ -679,11 +686,6 @@ class SeedGenParams(ndb.Model):
             # so every other seed's tick body stays byte-identical
             if self.ap_mode and self.ap_death_link:
                 flags.append("DeathLink")
-            if self.ap_mode:
-                from archipelago.convert import keytiers_flag
-                kt = keytiers_flag(self, player)
-                if kt:
-                    flags.append(kt)
             if self.balanced:
                 flags.append("balanced")
             if self.anti_bk_bias:

@@ -1886,16 +1886,17 @@ class SeedGenerator:
                 return None
             return self.placeItemsMulti(retries)
 
-        from archipelago.convert import exports_generic_keystones
+        from archipelago.convert import exports_generic_keystones, keytiers_meta
         if exports_generic_keystones(self.params):
             # the walk's door order is only known now: store it on params and
-            # re-form each world's flagline with the learned tiers (the line
-            # was written at attempt start, before any door was seen)
+            # slot each world's tiers in as a metadata line after the flagline
             self.params.ks_door_order = {str(p): [list(e) for e in self.ks_door_order[p]]
                                          for p in self.multi_ps()}
             for p in self.multi_ps():
-                _, _, rest = self.seeds_text[p].partition("\n")
-                self.seeds_text[p] = self.params.flag_line(self.verbose_paths, player=p) + "\n" + rest
+                meta = keytiers_meta(self.params, p)
+                if meta:
+                    first, _, rest = self.seeds_text[p].partition("\n")
+                    self.seeds_text[p] = first + "\n" + meta + "\n" + rest
 
         if self.is_multi:
             for p in self.multi_ps():

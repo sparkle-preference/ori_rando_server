@@ -56,7 +56,7 @@ def parse_seed(seed_lines):
     """-> (flagline, [(coord, code, id, zone)])."""
     placements = []
     for line in seed_lines[1:]:
-        if not line:
+        if not line or line.startswith("//"):
             continue
         coord, code, pid, zone = line.split("|", 3)
         if "|" in zone:

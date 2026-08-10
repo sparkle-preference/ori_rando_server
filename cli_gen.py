@@ -596,7 +596,7 @@ class CLISeedParams(object):
 
                 output.write(line + "\n")
 
-    def flag_line(self, verbose_paths=False, player=None):
+    def flag_line(self, verbose_paths=False):
         flags = []
         if verbose_paths:
             flags.append("lps=%s" % "+".join([lp.capitalize() for lp in self.logic_paths]))
@@ -618,11 +618,6 @@ class CLISeedParams(object):
         # counter when the seed says so
         if self.ap_mode and self.ap_death_link:
             flags.append("DeathLink")
-        if self.ap_mode:
-            from archipelago.convert import keytiers_flag
-            kt = keytiers_flag(self, player)
-            if kt:
-                flags.append(kt)
         if self.balanced:
             flags.append("balanced")
         if self.anti_bk_bias:

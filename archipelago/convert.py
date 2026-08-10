@@ -218,13 +218,15 @@ def keystone_tier_list(params, player=None):
     return [tiers.get((h, t), 0) for h, t, _ in shared.KEYSTONE_DOORS]
 
 
-def keytiers_flag(params, player=None):
-    """The KeyTiers flagline token, or None. The client uses this to warn
-    before an out-of-logic door open; old dlls ignore the unknown token."""
+def keytiers_meta(params, player=None):
+    """The KeyTiers seed metadata line, or None. Metadata lines start with
+    "//" and sit right after the flagline; 4.2.9+ clients skip them in the
+    pickup parse and read the tiers for out-of-logic door warnings. Older
+    dlls choke on them, which only AP alpha seeds ever emit."""
     tiers = keystone_tier_list(params, player)
     if tiers is None:
         return None
-    return "KeyTiers=" + "+".join(str(t) for t in tiers)
+    return "//KeyTiers=" + "+".join(str(t) for t in tiers)
 
 
 def ap_variations(variations):
