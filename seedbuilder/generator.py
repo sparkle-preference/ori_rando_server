@@ -556,6 +556,9 @@ class SeedGenerator:
 
         self.ap_ks_pin = False
         self.ap_doors_counted = set()
+        # per-world first-sighting order of keystone doors: exported keystones
+        # tier doors in this order, so thresholds follow the seed's own shape
+        self.ks_door_order = defaultdict(list)
         self.mapstonesSeen = {p: 1 for p in self.multi_ps()}
         self.mapstonesAssigned = defaultdict(lambda: 0)
         self.locs_by_player = defaultdict(lambda: 0)
@@ -1098,6 +1101,9 @@ class SeedGenerator:
                     if connection.keys > 0:
                         if area not in self.doorQueue[p].keys():
                             self.doorQueue[p][area] = connection
+                            edge = (base_of(area), base_of(connection.target))
+                            if edge not in self.ks_door_order[p]:
+                                self.ks_door_order[p].append(edge)
                             if self.ap_ks_pin:
                                 # deferred hosting keeps doors shut across
                                 # rounds; count each door's demand once (the
@@ -1880,6 +1886,17 @@ class SeedGenerator:
                 return None
             return self.placeItemsMulti(retries)
 
+        from archipelago.convert import exports_generic_keystones
+        if exports_generic_keystones(self.params):
+            # the walk's door order is only known now: store it on params and
+            # re-form each world's flagline with the learned tiers (the line
+            # was written at attempt start, before any door was seen)
+            self.params.ks_door_order = {str(p): [list(e) for e in self.ks_door_order[p]]
+                                         for p in self.multi_ps()}
+            for p in self.multi_ps():
+                _, _, rest = self.seeds_text[p].partition("\n")
+                self.seeds_text[p] = self.params.flag_line(self.verbose_paths, player=p) + "\n" + rest
+
         if self.is_multi:
             for p in self.multi_ps():
                 self.seeds_text[p] += self.mw_manifest(p)
@@ -1955,8 +1972,11 @@ class SeedGenerator:
         keystoneCount = defaultdict(lambda: 0)
         mapstoneCount = defaultdict(lambda: 0)
         # AP mode: generic keystones may not cross worlds (a native cross-world
-        # KS is invisible to AP logic, and exporting one is unsound)
-        ap_ks_pin = getattr(self.params, "ap_mode", False) and self.seed_count > 1
+        # KS is invisible to AP logic) -- unless they're exported, in which
+        # case crossing is fine: the conversion pulls them into the AP pool
+        from archipelago.convert import exports_generic_keystones
+        ap_ks_pin = (getattr(self.params, "ap_mode", False) and self.seed_count > 1
+                     and not exports_generic_keystones(self.params))
         self.ap_ks_pin = ap_ks_pin
 
         self.form_areas(self.var(Variation.ENTRANCE_SHUFFLE))

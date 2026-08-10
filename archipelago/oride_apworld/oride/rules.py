@@ -12,10 +12,13 @@ from .shared import (SIMPLE_ITEM_TOKENS, LONGFORM_ITEMS, KEY_EVENT_ITEMS,
 
 
 class RuleCompiler:
-    def __init__(self, config, warn):
+    def __init__(self, config, warn, ks_tiers=None):
         self.pathsets = set(config.get("pathsets", ["casualCore"]))
         self.variations = config.get("variations", {})
         self.key_mode = config.get("key_mode", "events")
+        # non-empty = generic Keystones are in the AP pool, and keystone
+        # doors charge their cumulative tier instead of their face cost
+        self.ks_tiers = ks_tiers or {}
         self.warn = warn
         self._warned = set()
 
@@ -24,7 +27,22 @@ class RuleCompiler:
             self._warned.add(token)
             self.warn("unknown logic token %r treated as unreachable" % token)
 
-    def compile_paths(self, paths):
+    def _apply_ks_tier(self, needs, edge):
+        if not self.ks_tiers or "Keystone" not in needs:
+            return needs
+        tier = self.ks_tiers.get(edge)
+        if tier is None:
+            # a keystone requirement on an edge the tier table doesn't know:
+            # charge the full pool -- over-asking is sound, under-asking locks
+            tier = max(self.ks_tiers.values())
+            if edge not in self._warned:
+                self._warned.add(edge)
+                self.warn("keystone requirement on unknown edge %r charged "
+                          "the full tier (%s)" % (edge, tier))
+        needs["Keystone"] = max(needs["Keystone"], tier)
+        return needs
+
+    def compile_paths(self, paths, edge=None):
         """[{tags, reqs}] -> list of Counters (OR of ANDs).
 
         [] = no valid path (drop the edge); a Counter() present = free.
@@ -41,7 +59,7 @@ class RuleCompiler:
                 continue
             if not needs:
                 return [Counter()]  # a free path dominates all alternatives
-            out.append(needs)
+            out.append(self._apply_ks_tier(needs, edge))
         return out
 
     def compile_reqs(self, reqs):

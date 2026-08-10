@@ -1624,6 +1624,25 @@ def parse_ap_seed(lines, players):
     return plain, native_mw, reserved, native_manifest, ap_manifest
 
 
+def keytier_values(flagline):
+    """The KeyTiers token's ints, positional over KEYSTONE_DOORS."""
+    for flag in flagline.split("|")[0].split(","):
+        if flag.startswith("KeyTiers="):
+            return [int(v) for v in flag[len("KeyTiers="):].split("+")]
+    return None
+
+
+def check_tier_shape(tc, tiers, doors, total):
+    """Tiers are a cumulative walk over the live doors' costs in SOME order:
+    distinct, ending at the full pool, stepping by door costs."""
+    tc.assertIsNotNone(tiers, "flagline carries no KeyTiers")
+    live = sorted(t for t in tiers if t)
+    tc.assertEqual(len(live), doors)
+    tc.assertEqual(live[-1], total)
+    steps = Counter(b - a for a, b in zip([0] + live, live))
+    tc.assertEqual(steps, Counter({4: 8, 2: 4}) if doors == 12 else steps)
+
+
 def generate_ap(outdir, players, ap_export, seed="apgen2", extra=()):
     """cli_gen an AP-mode casual seed; -> ({player: seed lines}, {player: yaml text})."""
     old_argv = sys.argv
@@ -1868,6 +1887,103 @@ class ApModeGenTests(unittest.TestCase):
         self.assertEqual({d["game"] for d in docs}, {"Ori DE Rando"})
 
 
+class ApKeystoneTierTests(unittest.TestCase):
+    """Generic-keystone export logic: doors charge cumulative tiers, not face
+    costs, so any in-logic spend order stays safe -- at count C every door the
+    player could have opened lies in the tier prefix whose total is <= C."""
+
+    def _tiers(self, variations={}):
+        from archipelago.convert import oride_module
+        return oride_module("shared").keystone_door_tiers(variations)
+
+    def test_tiers_are_cumulative_over_the_whole_pool(self):
+        from archipelago.convert import oride_module
+        KEYSTONE_DOORS = oride_module("shared").KEYSTONE_DOORS
+        tiers = self._tiers()
+        self.assertEqual(len(tiers), 12)
+        self.assertEqual(sorted(tiers.values()), [2, 4, 6, 8, 12, 16, 20, 24, 28, 32, 36, 40])
+        # the safety identity: each door's tier covers its own cost plus
+        # every door a player could have opened before it
+        costs = {(h, t): c for h, t, c in KEYSTONE_DOORS}
+        for edge, tier in tiers.items():
+            earlier = sum(c for e, c in costs.items() if tiers.get(e, 99) < tier)
+            self.assertEqual(tier, costs[edge] + earlier)
+
+    def test_open_world_drops_the_glades_door_and_shifts(self):
+        tiers = self._tiers({"open_world": True})
+        self.assertEqual(len(tiers), 11)
+        self.assertNotIn(("GladesFirstKeyDoor", "GladesFirstKeyDoorOpened"), tiers)
+        self.assertEqual(max(tiers.values()), 38)
+
+    def test_door_rules_compile_to_tiers_when_armed(self):
+        from archipelago.convert import oride_module
+        RuleCompiler = oride_module("rules").RuleCompiler
+        edge = ("ChargeJumpDoor", "ChargeJumpDoorOpen")
+        path = [{"tags": [], "reqs": ["Keystone=4"]}]
+        warned = []
+        plain = RuleCompiler({"pathsets": ["casualCore"]}, warned.append)
+        self.assertEqual(plain.compile_paths(path, edge=edge), [Counter({"Keystone": 4})])
+        tiered = RuleCompiler({"pathsets": ["casualCore"]}, warned.append,
+                              ks_tiers=self._tiers())
+        self.assertEqual(tiered.compile_paths(path, edge=edge), [Counter({"Keystone": 40})])
+        self.assertEqual(warned, [])
+        # a keystone requirement on an edge the table doesn't know charges
+        # the full pool: over-asking is sound, under-asking key-locks
+        stray = tiered.compile_paths(path, edge=("Nowhere", "NowhereElse"))
+        self.assertEqual(stray, [Counter({"Keystone": 40})])
+        self.assertEqual(len(warned), 1)
+
+    def test_keytiers_flag(self):
+        from archipelago.convert import keytiers_flag, exports_generic_keystones
+
+        class P:
+            ap_mode = True
+            ap_export = ["stones"]
+            variations = []
+        self.assertTrue(exports_generic_keystones(P()))
+        self.assertEqual(keytiers_flag(P()),
+                         "KeyTiers=2+4+6+8+12+16+20+24+28+32+36+40")
+
+        class OW(P):
+            variations = ["OpenWorld"]
+        self.assertEqual(keytiers_flag(OW()),
+                         "KeyTiers=0+2+4+6+10+14+18+22+26+30+34+38")
+
+        class Sanity(P):
+            variations = ["Keysanity"]
+        self.assertIsNone(keytiers_flag(Sanity()), "keysanity has no generic keys to tier")
+
+        class Default(P):
+            ap_export = []
+        self.assertFalse(exports_generic_keystones(Default()),
+                         "the default categories must not flip the pin")
+        self.assertIsNone(keytiers_flag(Default()))
+
+    def test_walk_order_ranks_the_tiers(self):
+        """The generator's recorded door order reorders the thresholds: the
+        first door the walk sees gets the cheapest tier, whatever it costs."""
+        from archipelago.convert import keytiers_flag
+
+        class P:
+            ap_mode = True
+            ap_export = ["stones"]
+            variations = []
+            # a Sorrow-ish spawn: the walk meets Sorrow's doors first
+            ks_door_order = {"1": [["LowerSorrow", "LeftSorrowLowerDoor"],
+                                   ["LeftSorrowMiddleDoorClosed", "LeftSorrowMiddleDoorOpen"],
+                                   ["GladesFirstKeyDoor", "GladesFirstKeyDoorOpened"]]}
+        flag = keytiers_flag(P(), player=1)
+        vals = [int(v) for v in flag.partition("=")[2].split("+")]
+        # positions: 0=Glades, 9=SorrowLower, 10=SorrowMid
+        self.assertEqual(vals[9], 4, "first-seen door gets the cheapest tier")
+        self.assertEqual(vals[10], 8)
+        self.assertEqual(vals[0], 10, "Glades door ranks third here")
+        self.assertEqual(max(vals), 40, "unseen doors close the tail")
+        # no player / no recorded order: canonical fallback
+        self.assertEqual(keytiers_flag(P()),
+                         "KeyTiers=2+4+6+8+12+16+20+24+28+32+36+40")
+
+
 class ApModeSoloTests(unittest.TestCase):
     """K=1 AP mode: no cross-world landings, so no balancing reverts --
     every exportable item converts, counts match by construction."""
@@ -1893,17 +2009,23 @@ class ApModeSoloTests(unittest.TestCase):
         for loc, (owner, slot, name, zone) in reserved.items():
             self.assertEqual(owner, 2)  # K + 1
 
-    def test_stones_export_never_includes_generic_keystones(self):
-        lines, _ = self._gen("stones,cells")
+    def test_stones_export_includes_generic_keystones(self):
+        """Stones exports the whole door economy: every keystone becomes an
+        AP item, none stay as plain lines, and the seed carries the KeyTiers
+        the apworld charges doors instead of face costs."""
+        lines, yaml = self._gen("stones,cells")
         plain, _, reserved, _, ap_manifest = parse_ap_seed(lines, 1)
         exported_codes = Counter(icode for (f, icode, iid, z) in ap_manifest.values())
-        self.assertNotIn("KS", exported_codes, "generic Keystone exported")
+        self.assertEqual(exported_codes["KS"], 40, "all 40 keystones export")
         self.assertGreater(exported_codes["MS"], 0, "stones should export mapstones")
         self.assertGreater(exported_codes["HC"] + exported_codes["EC"] + exported_codes["AC"], 0)
-        # keystones all stayed put
         ks = sum(1 for (code, id, zone) in plain.values() if code == "KS")
-        self.assertEqual(ks, 40, "casual closed-world seeds place 40 keystones")
+        self.assertEqual(ks, 0, "no keystone may stay local when stones export")
         self.assertEqual(len(ap_manifest), len(reserved))
+        tiers = keytier_values(lines[0])
+        check_tier_shape(self, tiers, doors=12, total=40)
+        self.assertIn("Keystone: 40", yaml)
+        self.assertIn("key_tiers", yaml)
 
 
 class ApExportSlotCapTests(unittest.TestCase):
@@ -2163,6 +2285,19 @@ class ApBonusPoolConversionTests(unittest.TestCase):
             _, native_mw, _, native_manifest, _ = parse_ap_seed(lines, self.PLAYERS)
             self.assertEqual(native_mw, {}, "player %s hosts native items" % p)
             self.assertEqual(native_manifest, {}, "player %s exports natively" % p)
+
+    def test_stones_export_keystones_at_k2(self):
+        """With stones exported the keystone pin lifts: every world's 40
+        keystones ride the AP pool (crossing is fine, they're datapackage
+        items now) and none stay as plain lines."""
+        ks_exported = 0
+        for p, lines in self.seeds.items():
+            plain, _, _, _, ap_manifest = parse_ap_seed(lines, self.PLAYERS)
+            self.assertEqual([1 for (c, i, z) in plain.values() if c == "KS"], [],
+                             "player %s kept local keystones" % p)
+            ks_exported += sum(1 for e in ap_manifest.values() if e[1] == "KS")
+            check_tier_shape(self, keytier_values(lines[0]), doors=12, total=40)
+        self.assertEqual(ks_exported, 40 * self.PLAYERS)
 
     def test_an_exported_warp_keeps_its_coordinates(self):
         """The AP item is the destination; the manifest still has to say

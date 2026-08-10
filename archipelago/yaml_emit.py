@@ -21,7 +21,7 @@ DATA_DIR = os.path.join(os.path.dirname(__file__), "oride_apworld", "oride", "da
 # Contract version of the blob below, checked by the apworld's
 # generate_early. Bump together with oride_apworld/oride/version.py, whose
 # docstring holds the rule; the suite fails if the two drift.
-DATA_VERSION = 3
+DATA_VERSION = 4
 
 EXPORT_CODES = {"SK", "TP", "EV"}
 LOCAL_CODES = {"KS", "MS", "HC", "EC", "AC"}
@@ -79,7 +79,7 @@ def keymode_to_ap(key_mode):
 
 def make_config(exported, reserved, local, logic_paths, key_mode="events",
                 spawn="SunkenGladesRunaway", variations=None,
-                params_id=0, world=1, death_link=False):
+                params_id=0, world=1, death_link=False, key_tiers=None):
     """Classified placements + generation options -> orirando yaml blob.
     exported: {item name: count}; reserved: [location name]; local:
     {location name: item name}. Shared by the file-based prototype path
@@ -98,6 +98,9 @@ def make_config(exported, reserved, local, logic_paths, key_mode="events",
         "exported_items": dict(sorted(exported.items())),
         "reserved_locations": sorted(reserved),
         "local_progression": dict(sorted(local.items())),
+        # positional over shared.KEYSTONE_DOORS; present only when generic
+        # keystones export (doors then charge these instead of face costs)
+        **({"key_tiers": list(key_tiers)} if key_tiers else {}),
         "extra_locations": EXTRA_LOCATIONS,
         "goal": {"region": GOAL_REGION},
     }

@@ -17,6 +17,7 @@ from worlds.AutoWorld import WebWorld, World
 
 from .options import OriDEOptions
 from .rules import RuleCompiler, make_rule
+from .shared import KEYSTONE_DOORS, keystone_door_tiers
 from .version import data_version_problem
 
 # pre-release working name; safe to change until first public apworld
@@ -120,14 +121,21 @@ class OriDEWorld(World):
             if name not in ITEM_TABLE:
                 raise Exception("%s (%s): unknown exported item %r" %
                                 (self.player_name, GAME_NAME, name))
+        ks_tiers = None
         if "Keystone" in self.exported:
-            # generic KS are consumable: the per-door thresholds these rules
-            # compile to are only sound while the generator's own cumulative
-            # supply invariant places them locally. Zone keystones (keysanity)
-            # export fine -- one key type per door, thresholds exact.
-            raise Exception("%s (%s): generic Keystones cannot be exported to "
-                            "the AP pool" % (self.player_name, GAME_NAME))
-        self.compiler = RuleCompiler(cfg, logger.warning)
+            # generic KS are consumable door currency, so doors can't charge
+            # face costs (fill can't see spend order). They charge cumulative
+            # tiers instead: in-logic spends can never key-lock, and opening a
+            # door early is out-of-logic play, same contract as single player.
+            # The yaml's tiers follow the seed's own door order (spawn, TPs,
+            # logic); a yaml without them falls back to the canonical order.
+            kt = cfg.get("key_tiers")
+            if kt:
+                ks_tiers = {(h, t): v for (h, t, _), v in
+                            zip(KEYSTONE_DOORS, kt) if v}
+            else:
+                ks_tiers = keystone_door_tiers(cfg.get("variations", {}))
+        self.compiler = RuleCompiler(cfg, logger.warning, ks_tiers=ks_tiers)
 
     def create_regions(self):
         player = self.player
@@ -154,7 +162,7 @@ class OriDEWorld(World):
                     if override.get("remove"):
                         continue
                     paths = paths + override.get("add_paths", [])
-                needs = self.compiler.compile_paths(paths)
+                needs = self.compiler.compile_paths(paths, edge=(home, target))
                 if conn["type"] == "conn":
                     if not needs:
                         continue  # edge dead under this seed's logic

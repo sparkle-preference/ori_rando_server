@@ -366,6 +366,7 @@ class CLISeedParams(object):
                              for n in (args.player_names or "").split(",")][:self.players]
         self.ap_mode = bool(args.ap_export)
         self.ap_export = []
+        self.ks_door_order = None  # set by the generator when keystones export
         self.ap_death_link = self.ap_mode and bool(args.ap_death_link)
         if self.ap_mode:
             from archipelago.convert import EXPORTABLE_CATEGORIES, normalize_categories
@@ -466,9 +467,11 @@ class CLISeedParams(object):
                         continue
                     return
             if self.ap_mode:
-                from archipelago.convert import ap_convert, build_ap_config, ap_variations
+                from archipelago.convert import (ap_convert, ap_export_categories,
+                                                 build_ap_config, ap_variations,
+                                                 keystone_tier_list)
                 from archipelago.yaml_emit import emit_yaml, parse_seed
-                converted, ap_info = ap_convert([pr[0] for pr in raw], self.ap_export,
+                converted, ap_info = ap_convert([pr[0] for pr in raw], ap_export_categories(self),
                                                 keep_locs=set(preplaced.keys()))
                 raw = [(converted[i], raw[i][1]) for i in range(len(raw))]
                 if not self.do_analysis and not self.do_loc_analysis:
@@ -479,7 +482,8 @@ class CLISeedParams(object):
                             logic_paths=[lp.value for lp in self.logic_paths],
                             key_mode=self.key_mode.value, spawn_zone=self.start,
                             variations=ap_variations(self.variations),
-                            death_link=self.ap_death_link)
+                            death_link=self.ap_death_link,
+                            key_tiers=keystone_tier_list(self, p))
                         from ap_models import ap_slot_names
                         slot = ap_slot_names(self.players, self.player_names)[p - 1]
                         with open(args.output_dir + "/ap_world_%s.yaml" % p, 'w', newline="\n") as f:
@@ -592,7 +596,7 @@ class CLISeedParams(object):
 
                 output.write(line + "\n")
 
-    def flag_line(self, verbose_paths=False):
+    def flag_line(self, verbose_paths=False, player=None):
         flags = []
         if verbose_paths:
             flags.append("lps=%s" % "+".join([lp.capitalize() for lp in self.logic_paths]))
@@ -614,6 +618,11 @@ class CLISeedParams(object):
         # counter when the seed says so
         if self.ap_mode and self.ap_death_link:
             flags.append("DeathLink")
+        if self.ap_mode:
+            from archipelago.convert import keytiers_flag
+            kt = keytiers_flag(self, player)
+            if kt:
+                flags.append(kt)
         if self.balanced:
             flags.append("balanced")
         if self.anti_bk_bias:

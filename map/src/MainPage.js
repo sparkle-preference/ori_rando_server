@@ -644,8 +644,8 @@ onDrop = (files) => {
         // keysanity keys stay per-world
         let mwShareButtons = shareButtons(["Skills", "Teleporters", "Upgrades", "World Events"], mwShared, this.onMWSType)
         let apFlag = ap_enabled()
-        // ap export categories are server-side names; no Keystones (generic
-        // keys never export; 'stones' covers Mapstones + keysanity zone keys)
+        // ap export categories are server-side names; 'stones' covers
+        // Mapstones, keysanity zone keys, and generic Keystones (tiered doors)
         let apExportButtons = [["skills", "Skills"], ["teleporters", "Teleporters"], ["events", "World Events"], ["cells", "Cells"], ["stones", "Stones"], ["upgrades", "Upgrades"]].map(([cat, label]) => (
             <Col xs="4" key={`ap-export-${cat}`} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("AP Export Categories", cat)} className="p-2">
                 <Button block outline={!apExport.includes(cat)} onClick={this.onApExport(cat)}>Export {label}</Button>

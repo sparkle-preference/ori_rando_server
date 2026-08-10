@@ -817,8 +817,8 @@ const getHelpHelper = (category, option) => {
                 case "stones":
                     title = "Export Stones"
                     lines = [
-                        "With Export Stones enabled, Mapstones (and Keysanity zone keys, if Keysanity is on) are handed to the Archipelago item pool: any game in the session can find them, and the locations that held them will contain other games' items instead.",
-                        "Note: regular Keystones are never exported; door currency stays in your own world."
+                        "With Export Stones enabled, Keystones and Mapstones (or Keysanity zone keys, if Keysanity is on) are handed to the Archipelago item pool: any game in the session can find them, and the locations that held them will contain other games' items instead.",
+                        "Keystone doors become safe to open in any order: each door is in logic once your total keystones reach its threshold, from 2 for the Glades door up to all 40 for the last Sorrow door. Opening a door before its threshold is out-of-logic play and can key-lock you, just like sequence breaking in single player."
                     ]
                     break;
                 case "upgrades":

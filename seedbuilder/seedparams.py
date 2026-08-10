@@ -205,6 +205,9 @@ class SeedGenParams(ndb.Model):
     sense = ndb.StringProperty()
     is_plando = ndb.BooleanProperty(default=False)
     plando_flags = ndb.StringProperty(repeated=True)
+    # {world: [[home, target], ...]} -- the placement walk's keystone door
+    # order, set by the generator when generic keystones export
+    ks_door_order = ndb.JsonProperty()
     item_pool = ndb.JsonProperty()
     pool_preset = ndb.StringProperty()
     bingo_lines = ndb.IntegerProperty(default=3)
@@ -486,11 +489,10 @@ class SeedGenParams(ndb.Model):
             if self.sync.enabled and self.sync.mode != MultiplayerGameType.MULTIWORLD:
                 log.error("AP mode requires Multiworld generation (got %s)", self.sync.mode)
                 return False
-            from archipelago.convert import (ap_convert, normalize_categories,
-                                             DEFAULT_EXPORT)
+            from archipelago.convert import ap_convert, ap_export_categories
             keep = set(k if isinstance(k, tuple) else (1, k) for k in preplaced)
             converted, _ = ap_convert([pr[0] for pr in raw],
-                                      normalize_categories(self.ap_export) or list(DEFAULT_EXPORT),
+                                      ap_export_categories(self),
                                       keep_locs=keep)
             raw = [(converted[i], raw[i][1]) for i in range(len(raw))]
         from util import is_mw_manifest_loc
@@ -538,7 +540,7 @@ class SeedGenParams(ndb.Model):
         return int(self.teams_inv()[pid]) if (self.sync.teams and self.sync.cloned) else pid
 
     def get_seed(self, player=1, game_id=None, verbose_paths=False, include_sync = True):
-        flags = self.flag_line(verbose_paths)
+        flags = self.flag_line(verbose_paths, player=player)
         if self.players > 1 and self.sync.mode in [MultiplayerGameType.SHARED, MultiplayerGameType.MULTIWORLD]:
             flags += f"/{player}"
         if self.tracking and include_sync:
@@ -634,7 +636,8 @@ class SeedGenParams(ndb.Model):
         an AP params."""
         if not self.ap_mode:
             return None
-        from archipelago.convert import build_ap_config, ap_variations
+        from archipelago.convert import (build_ap_config, ap_variations,
+                                         keystone_tier_list)
         from archipelago.yaml_emit import emit_yaml
         from ap_models import ap_slot_names
         config = build_ap_config(
@@ -644,10 +647,11 @@ class SeedGenParams(ndb.Model):
             spawn_zone=self.spawn or self.start or "Glades",
             variations=ap_variations(self.variations),
             params_id=self.key.id() if self.key else 0,
-            death_link=self.ap_death_link)
+            death_link=self.ap_death_link,
+            key_tiers=keystone_tier_list(self, int(world)))
         return emit_yaml(config, ap_slot_names(self.players, self.player_names)[int(world) - 1])
 
-    def flag_line(self, verbose_paths=False):
+    def flag_line(self, verbose_paths=False, player=None):
         flags = []
         if self.is_plando:
             flags = self.plando_flags
@@ -675,6 +679,11 @@ class SeedGenParams(ndb.Model):
             # so every other seed's tick body stays byte-identical
             if self.ap_mode and self.ap_death_link:
                 flags.append("DeathLink")
+            if self.ap_mode:
+                from archipelago.convert import keytiers_flag
+                kt = keytiers_flag(self, player)
+                if kt:
+                    flags.append(kt)
             if self.balanced:
                 flags.append("balanced")
             if self.anti_bk_bias:

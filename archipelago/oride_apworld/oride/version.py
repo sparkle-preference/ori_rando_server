@@ -23,7 +23,9 @@ No imports here on purpose: the server's test suite loads this file
 directly, without Archipelago on the path.
 """
 
-DATA_VERSION = 3
+# 4: generic keystones may ride the "stones" export; doors compile to
+# cumulative tier thresholds (shared.KEYSTONE_DOORS) for those seeds
+DATA_VERSION = 4
 COMPATIBLE_DATA_VERSION = 1
 
 # yamls emitted before data_version existed came from the only table

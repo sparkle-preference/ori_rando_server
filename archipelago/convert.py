@@ -15,7 +15,10 @@ What converts:
   invisible to its owner's AP logic, so a logic-relevant item left native
   under-models the world and breaks accessibility (the E2E-discovered Misty
   Ability Cell case).
-Generic keystones never convert AND never cross (the generator pins them to
+Generic keystones convert only when "stones" is exported; the apworld then
+charges keystone doors cumulative tier thresholds instead of face costs
+(shared.KEYSTONE_DOORS), which keeps every in-logic spend order safe.
+Otherwise they never convert AND never cross (the generator pins them to
 their owner's world in AP mode). What still rides the native MW fabric is
 exactly what the datapackage cannot name -- relics, repeatables and
 multipickups, whose ids are per-seed strings.
@@ -30,12 +33,26 @@ global check below is the real one.
 """
 import json
 import os
+import sys
+import types
 
 from archipelago.export_data import EX_EXACT_CAP
 from archipelago.yaml_emit import (LOC_NAMES, ITEM_NAMES, make_config,
                                    SPAWN_COORD)
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "oride_apworld", "oride", "data")
+
+
+def oride_module(name):
+    """Import an apworld submodule without running the package __init__,
+    which needs Archipelago's core (BaseClasses) and can't load server-side.
+    The shim package makes their relative imports resolve to each other."""
+    import importlib
+    if "_oride_shim" not in sys.modules:
+        pkg = types.ModuleType("_oride_shim")
+        pkg.__path__ = [os.path.join(os.path.dirname(__file__), "oride_apworld", "oride")]
+        sys.modules["_oride_shim"] = pkg
+    return importlib.import_module("_oride_shim." + name)
 
 with open(os.path.join(DATA_DIR, "items.json")) as _f:
     _ITEMS = json.load(_f)
@@ -48,11 +65,6 @@ DEFAULT_EXPORT = ("skills", "teleporters", "events")
 # datapackage categories each export category hands over
 CATEGORY_ITEMS = {"teleporters": ("teleporters", "warps")}
 RETIRED_CATEGORIES = {"warps": "teleporters"}
-# generic keystones are consumable door currency under the generator's
-# cumulative-supply invariant; exporting them breaks the per-door thresholds
-# the apworld compiles (it hard-rejects them too). Keysanity zone keys and
-# mapstones are what "stones" exports.
-BANNED_EXPORTS = {("KS", "1")}
 
 # A shared singleton is generated once for everyone and fanned out by the
 # netcode, so exporting the same category hands ONE copy to the AP pool while
@@ -148,7 +160,13 @@ def normalize_categories(categories):
 
 
 def export_code_ids(categories):
-    """Category names -> set of exportable (code, id) pairs."""
+    """Category names -> set of exportable (code, id) pairs.
+
+    Generic keystones (KS|1) ride the "stones" category: the apworld swaps
+    keystone doors to cumulative tier thresholds for these seeds, so any
+    in-logic spend order stays safe. Under keysanity no KS|1 placements
+    exist, so the selection is inert there.
+    """
     bad = [c for c in categories if c not in EXPORTABLE_CATEGORIES]
     if bad:
         raise ApConversionError("unknown AP export categories: %s" % ", ".join(bad))
@@ -156,7 +174,57 @@ def export_code_ids(categories):
     for c in categories:
         cats.update(CATEGORY_ITEMS.get(c, (c,)))
     return {(i["code"], i["id"]) for i in _ITEMS
-            if i["category"] in cats} - BANNED_EXPORTS
+            if i["category"] in cats}
+
+
+def ap_export_categories(params):
+    """The category list conversion runs with, resolved from params."""
+    return (normalize_categories(getattr(params, "ap_export", None) or [])
+            or list(DEFAULT_EXPORT))
+
+
+def exports_generic_keystones(params):
+    """True when this seed's conversion pulls generic keystones into the AP
+    pool -- the switch for the generator's KS pin and the KeyTiers flag."""
+    return (bool(getattr(params, "ap_mode", False))
+            and "stones" in ap_export_categories(params))
+
+
+def keystone_tier_list(params, player=None):
+    """Per-door tier values, positional over shared.KEYSTONE_DOORS (wire
+    order); 0 marks a door absent under these variations. None when this
+    seed has no tiers.
+
+    Ranks follow the world's own door order when the generator recorded one
+    (params.ks_door_order, from the placement walk: spawn, teleporters and
+    logic all shape it), falling back to the canonical list. Any fixed order
+    is sound -- the order only decides how well thresholds match the seed."""
+    if not exports_generic_keystones(params):
+        return None
+    vals = {getattr(v, "value", v) for v in getattr(params, "variations", [])}
+    if "Keysanity" in vals:
+        return None  # no generic keystones exist to tier
+    shared = oride_module("shared")
+    live = shared.keystone_door_tiers(ap_variations(vals))  # liveness + fallback order
+    stored = getattr(params, "ks_door_order", None) or {}
+    order = stored.get(str(player), stored.get(player)) if player is not None else None
+    costs = {(h, t): c for h, t, c in shared.KEYSTONE_DOORS}
+    ranked = [e for e in (tuple(d) for d in order or []) if e in live]
+    ranked += [e for e in live if e not in ranked]  # unseen doors close the tail
+    tiers, total = {}, 0
+    for edge in ranked:
+        total += costs[edge]
+        tiers[edge] = total
+    return [tiers.get((h, t), 0) for h, t, _ in shared.KEYSTONE_DOORS]
+
+
+def keytiers_flag(params, player=None):
+    """The KeyTiers flagline token, or None. The client uses this to warn
+    before an out-of-logic door open; old dlls ignore the unknown token."""
+    tiers = keystone_tier_list(params, player)
+    if tiers is None:
+        return None
+    return "KeyTiers=" + "+".join(str(t) for t in tiers)
 
 
 def ap_variations(variations):
@@ -247,7 +315,9 @@ def ap_convert(texts, categories, keep_locs=frozenset()):
                         "world %s MW line at %s points at missing manifest slot "
                         "%s of world %s" % (v, loc, slot, owner))
                 _, icode, iid = fields[owner - 1][m_idx][2].split(",", 2)
-                if icode == "KS":
+                if icode == "KS" and ("KS", "1") not in export_ids:
+                    # unexported keystones may never cross: a native cross-world
+                    # KS is invisible to its owner's AP logic
                     raise ApConversionError(
                         "world %s keystone crossed into world %s at %s "
                         "(the AP keystone pin failed)" % (owner, v, loc))
@@ -357,7 +427,8 @@ def ap_convert(texts, categories, keep_locs=frozenset()):
 
 
 def build_ap_config(placements, players, world, logic_paths, key_mode,
-                    spawn_zone, variations, params_id=0, death_link=False):
+                    spawn_zone, variations, params_id=0, death_link=False,
+                    key_tiers=None):
     """One CONVERTED world's placement tuples -> orirando yaml config dict.
 
     placements: [(loc, code, id, zone)] including manifest pseudo-locs.
@@ -418,4 +489,4 @@ def build_ap_config(placements, players, world, logic_paths, key_mode,
     return make_config(exported, reserved, local, logic_paths,
                        key_mode=key_mode, spawn=ap_spawn_region(spawn_zone),
                        variations=variations, params_id=params_id, world=world,
-                       death_link=death_link)
+                       death_link=death_link, key_tiers=key_tiers)
