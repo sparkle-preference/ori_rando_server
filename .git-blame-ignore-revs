@@ -1,0 +1,23 @@
+# Contentless refactors, skipped by blame. GitHub's blame UI reads this file
+# automatically; locally, run once:
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# remove trailing whitespace
+e98a10b48c473fd949d8a088eb5f42d349e85826
+
+# Mostly-whitespace commits that also carry real lines, left visible so blame
+# can still find them. Uncomment to taste. (The doubled entries are rebase
+# twins: both lineages exist in history.)
+# reindent + 18 real lines (ACs in the logic helper)
+#14ac8a74aa0ff7bc1e2eebf342fb2895b19abcc9
+#a1ca3c3b30331ad05383e03bc0c555b80baae909
+# reindent + 29 real lines (warp points, ghost-player steps)
+#af4978607ce3201e9696af536fe37c3facce92c1
+# plando editor: formatting + 48 real lines of visual fixes
+#3b8a74455c47ebf9fae195c13afe3ad993837c89
+# reindent sweep + ~220 real lines (cache rebuild on sanity check)
+#885f6f60922d39805e67ed503023237148eadc03
+#29fdf698b93873b34fff7908775f21b5926bb00b
+# reindent sweep + ~320 real lines (fillgen fixes)
+#c03ef55ea9af85732faf5f05a0fd26e515fb5b8a
+#91b0c2dd6947e2938c500c1597ad9a964bdbd7e5
