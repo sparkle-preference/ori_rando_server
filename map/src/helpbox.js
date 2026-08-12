@@ -774,7 +774,7 @@ const getHelpHelper = (category, option) => {
                         "With Dedup Shared enabled, stackable bonus pickups (Extra Double Jump, Regens, Skill Velocity, etc) will only grant one stack per item location.",
                         "(By default, players can gain up to 1 stack per player of any of these items, as long as each player collects their copy).",
                         "Dedup Shared has no effect on seeds without Share Upgrades enabled, because Shards, Warmth Fragments, and Keysanity keys are always deduped.",
-                        "Note: this is both a very fun and very silly option to leave disabled with the bonus lite item pool."
+                        "Note: this is both a very fun and very silly option to leave disabled with the bonus or bonus lite item pools."
                     ]
                     break;
                 default:
@@ -789,43 +789,42 @@ const getHelpHelper = (category, option) => {
                 case "skills":
                     title = "Export Skills"
                     lines = [
-                        "With Export Skills enabled, every world's skills are handed to the Archipelago item pool: any game in the session can find your Bash, and the locations that held skills will contain other games' items instead.",
-                        "Exporting skills is the classic Archipelago experience, and is enabled by default."
+                        "With Export Skills enabled, skills are put into the Archipelago item pool.",
+                        "Exporting skills is enabled by default."
                     ]
                     break;
                 case "teleporters":
                     title = "Export Teleporters"
                     lines = [
-                        "With Export Teleporters enabled, teleporter and warp pickups are handed to the Archipelago item pool: any game in the session can find them, and the locations that held them will contain other games' items instead.",
+                        "With Export Teleporters enabled, teleporter and warp pickups are put into the Archipelago item pool.",
                         "Exporting teleporters is enabled by default."
                     ]
                     break;
                 case "events":
                     title = "Export World Events"
                     lines = [
-                        "With Export World Events enabled, the 3 Dungeon Keys (or shards thereof), Clean Water, Wind Restored, and Warmth Fragments are handed to the Archipelago item pool: any game in the session can find them, and the locations that held them will contain other games' items instead.",
+                        "With Export World Events enabled, the 3 Dungeon Keys (or shards thereof), Clean Water, Wind Restored, and Warmth Fragments are put into the Archipelago item pool.",
                         "Exporting world events is enabled by default."
                     ]
                     break;
                 case "cells":
                     title = "Export Cells"
                     lines = [
-                        "With Export Cells enabled, Health, Energy, and Ability Cells are handed to the Archipelago item pool: any game in the session can find them, and the locations that held them will contain other games' items instead.",
-                        "This is a lot of items! Expect to receive most of your capacity from your fellow players."
+                        "With Export Cells enabled, Health, Energy, and Ability Cells are put into Archipelago item pool.",
+                        "Note: this is a lot of items."
                     ]
                     break;
                 case "stones":
                     title = "Export Stones"
                     lines = [
-                        "With Export Stones enabled, Keystones and Mapstones (or Keysanity zone keys, if Keysanity is on) are handed to the Archipelago item pool: any game in the session can find them, and the locations that held them will contain other games' items instead.",
-                        "Keystone doors become safe to open in any order: each door is in logic once your total keystones reach its threshold, from 2 for the Glades door up to all 40 for the last Sorrow door. Opening a door before its threshold is out-of-logic play and can key-lock you, just like sequence breaking in single player."
+                        "With Export Stones enabled, Keystones and Mapstones (or Keysanity zone keys, if Keysanity is on) are put into the Archipelago item pool.",
+                        "Note: opening a door before its threshold is out-of-logic play and can in rare cases softlock your seed."
                     ]
                     break;
                 case "upgrades":
                     title = "Export Upgrades"
                     lines = [
-                        "With Export Upgrades enabled, bonus pickups (Attack Upgrade, Health Regeneration, Mega Health, the bonus skills, and friends) are handed to the Archipelago item pool: any game in the session can find them, and the locations that held them will contain other games' items instead.",
-                        "The bonus pools are where most of these live; a standard pool has far fewer."
+                        "With Export Upgrades enabled, bonus pickups (Attack Upgrade, Health Regeneration, Mega Health, the bonus skills, and friends) are put into the Archipelago item pool.",
                     ]
                     break;
                 default:
