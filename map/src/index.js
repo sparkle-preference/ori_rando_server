@@ -11,6 +11,7 @@ import RebindingsEditor from './RebindingsEditor';
 import LogicHelper from './LogicHelper';
 import SeedDisplayPage from './SeedDisplayPage';
 import HelpAndGuides from './HelpAndGuides';
+import PatchNotes from './PatchNotes';
 import Bingo from './Bingo';
 
 const mods = {
@@ -23,7 +24,8 @@ const mods = {
     LogicHelper,
     SeedDisplayPage,
     HelpAndGuides,
-    Bingo  
+    PatchNotes,
+    Bingo
 };
 
 const dark_apps = ["GameTracker", "PlandoBuilder", "LogicHelper"];

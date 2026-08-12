@@ -375,7 +375,7 @@ export default class HelpAndGuides extends React.Component {
                         There are new pickups not found in the base game, including teleporter unlocks and several bonus pickups. Check out the Bonus Item Glossary guide below to learn more about them.
                     </li>
                     <li>
-                        The purple tree has been changed substantially: see the <a href="https://docs.google.com/document/d/1tprqq7mUJMGcgAA0TM-O5FeOklzz4dOReB0Nru3QlsI#bookmark=cax9k3:1me" target="_blank" rel="noopener noreferrer">patch notes</a> for a full summary.
+                        The purple tree has been changed substantially: see the <a href="/patchnotes#3.0" target="_blank" rel="noopener noreferrer">patch notes</a> for a full summary.
                     </li>
                     <li>
                         The UI transparency is increased while performing a "Save Anywhere" glitch. The amount of transparency is configurable in the RandomizerSettings.txt file.

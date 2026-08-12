@@ -1833,15 +1833,14 @@ def version_json():
 
 
     
-@app.route('/patchnotes/3.x')
-def v3_patchnotes_redir():
-    return redirect("https://docs.google.com/document/d/1tprqq7mUJMGcgAA0TM-O5FeOklzz4dOReB0Nru3QlsI")
+@app.route('/patchnotes') #  PatchNotes
+def patchnotes():
+    template_values = template_vals("PatchNotes", "Patch Notes", User.get())
+    return render_template(path, **template_values)
 
-@app.route('/patchnotes/4.0.x')
-def v4_0_patchnotes_redir():
-    return redirect("https://docs.google.com/document/d/1781ALoPPN1k_yo5rfoapjTIiX3iyihXPty_pVVG26LQ")
+# the old per-line doc links are anchors on the one page now
+PATCHNOTE_ALIASES = {"3.x": "3.0", "4.0.x": "4.0.0", "4.1.x": "4.1.0"}
 
-@app.route('/patchnotes')
-@app.route('/patchnotes/4.1.x')
-def v4_1_patchnotes_redir():
-    return redirect("https://docs.google.com/document/d/16xmoy3ooM9275vdY6BPeS5wmnplzSxR2YEzCapZy4Wc")
+@app.route('/patchnotes/<version>')
+def patchnotes_version(version):
+    return redirect("/patchnotes#%s" % PATCHNOTE_ALIASES.get(version, version))

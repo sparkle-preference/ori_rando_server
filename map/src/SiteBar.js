@@ -192,14 +192,8 @@ class SiteBar extends Component {
                     <DropdownItem target="_blank" href="trickglossary">
                         Trick Glossary
                     </DropdownItem>
-                    <DropdownItem target="_blank" href="/patchnotes/4.1.x">
-                        (Latest!) Patch Notes (4.1.x)
-                    </DropdownItem>
-                    <DropdownItem target="_blank" href="/patchnotes/4.0.x">
-                        Patch Notes (4.0.x)
-                    </DropdownItem>
-                    <DropdownItem target="_blank" href="/patchnotes/3.x">
-                        (Very old!) Patch Notes (3.0)
+                    <DropdownItem target="_blank" href="/patchnotes">
+                        Patch Notes
                     </DropdownItem>
                     <DropdownItem href="/bingo/board">
                         Vanilla+ Bingo

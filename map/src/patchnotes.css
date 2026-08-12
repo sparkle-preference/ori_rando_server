@@ -1,0 +1,99 @@
+/* Minor changes stay mounted and collapse by class, so switching between
+   Highlights and Everything animates instead of jumping. grid-template-rows
+   1fr -> 0fr animates to auto height, which max-height cannot do. */
+
+.pn-item,
+.pn-group {
+    display: grid;
+    grid-template-rows: 1fr;
+    opacity: 1;
+    visibility: visible;
+    transition: grid-template-rows .3s ease, opacity .25s ease, margin .3s ease, visibility 0s;
+}
+
+.pn-item > .pn-inner,
+.pn-group > .pn-inner {
+    overflow: hidden;
+    min-height: 0;
+}
+
+/* visibility is delayed until the collapse finishes, so the animation still
+   plays -- but once hidden it is hidden properly, and collapsed notes stay out
+   of screen readers and browser find */
+.pn-item.pn-off,
+.pn-group.pn-off {
+    grid-template-rows: 0fr;
+    opacity: 0;
+    margin: 0 !important;
+    visibility: hidden;
+    transition: grid-template-rows .3s ease, opacity .25s ease, margin .3s ease, visibility 0s .3s;
+}
+
+.pn-item {
+    margin-bottom: .25rem;
+}
+
+/* Own bullets, because a collapsed <li> still paints its marker at zero height.
+   The marker is absolutely positioned rather than hung off a negative
+   text-indent: a negative indent pulls the start of the first line outside the
+   padding box, and `overflow: hidden` then clips whatever sits there -- which
+   in practice meant the leading badge lost its first few characters. */
+.pn-item > .pn-inner {
+    position: relative;
+    padding-left: 1.15rem;
+}
+
+.pn-item > .pn-inner::before {
+    content: "\2022";
+    position: absolute;
+    left: .2rem;
+    opacity: .5;
+}
+
+.pn-sub {
+    padding-left: .5rem;
+}
+
+.pn-sub > div {
+    position: relative;
+    padding-left: 1rem;
+}
+
+.pn-sub > div::before {
+    content: "\2013";
+    position: absolute;
+    left: 0;
+    opacity: .45;
+}
+
+.pn-group {
+    margin-bottom: 1rem;
+}
+
+.pn-latest {
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, .45);
+}
+
+/* Version jump list. nowrap matters: browsers will happily break "4.2.10"
+   after a dot in a narrow sidebar, which reads as two separate versions. */
+.pn-version-line {
+    margin-bottom: .9rem;
+}
+
+.pn-versions {
+    margin-top: .15rem;
+}
+
+.pn-versions > a {
+    display: inline-block;
+    white-space: nowrap;
+    margin-right: .7rem;
+    margin-bottom: .4rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pn-item,
+    .pn-group {
+        transition: none;
+    }
+}
