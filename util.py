@@ -23,9 +23,9 @@ try:
 except ImportError:
     ndb_imported = False
 
-VER = [4, 2, 9]
+VER = [4, 2, 10]
 MIN_VER = [4, 2, 7]
-BETA_VER = [4, 2, 9]
+BETA_VER = [4, 2, 10]
 
 # Feature flags (env vars; unset/0 = off)
 def _flag(name):
