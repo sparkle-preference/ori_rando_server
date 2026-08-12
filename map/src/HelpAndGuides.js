@@ -414,7 +414,7 @@ export default class HelpAndGuides extends React.Component {
                     Userboards automatically show the last bingo game you most recently joined and update live when you join new games.
                 </CardText>
                 <CardText className="border p-2">
-                    Your userboard link is:{" "}<a target="_blank" rel="noopener noreferrer" href={`/bingo/userboard/${user}/`}><code>{`orirando.com/bingo/userboard/${user}/`}</code></a>
+                    Your userboard link is:{" "}<a target="_blank" rel="noopener noreferrer" href={`/bingo/userboard/${user}/`}><code>{`${window.location.host}/bingo/userboard/${user}/`}</code></a>
                     {!this.state.user ? (<div><small><i>(Userboards only work while logged in - the above link is a placeholder.)</i></small></div>) : null}
                 </CardText>
                 <CardText>

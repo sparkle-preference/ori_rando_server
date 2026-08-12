@@ -26,7 +26,7 @@ from enums import MultiplayerGameType, ShareType, Variation
 from models import ndb_wsgi_middleware, Game, Seed, User, BingoGameData, BingoEvent, BingoTeam, CustomLogic, trees_by_coords, LegacyUser, bingo_lock
 from bingo import BingoGenerator
 from cache import Cache
-from util import coord_correction_map, clone_entity, all_locs, picks_by_type_generator, param_val, param_flag, param_true, debug, template_root, VER, MIN_VER, BETA_VER, game_list_html, version_check, template_vals, layout_json, bfield_checksum, netperf, NETPERF_TAG, json_default, seed_sync_id, is_mw_manifest_loc, MULTIWORLD, ARCHIPELAGO
+from util import coord_correction_map, clone_entity, all_locs, picks_by_type_generator, param_val, param_flag, param_true, debug, template_root, VER, MIN_VER, BETA_VER, game_list_html, version_check, template_vals, layout_json, bfield_checksum, netperf, NETPERF_TAG, json_default, seed_sync_id, is_mw_manifest_loc, MULTIWORLD, ARCHIPELAGO, CANONICAL_HOST, REDIRECT_HOSTS
 from reachable import Map, PlayerState
 from pickups import Pickup, Skill, AbilityCell, HealthCell, EnergyCell, Multiple
 
@@ -118,7 +118,7 @@ def server_error(err):
     return make_resp("""
     <html><title>Server Error</title>
     <body><h3>Backend Server Error</h3>
-    <div>If this keeps happening, consider reaching out to Eiko in the <a target="_blank" href="https://orirando.com/discord/dev">dev discord</a>.</div>
+    <div>If this keeps happening, consider reaching out to Eiko in the <a target="_blank" href="/discord/dev">dev discord</a>.</div>
     <div style="padding-top: 2rem;">%s</div></body></html>""" % err, 500)
 
 @app.route('/clean/')
@@ -269,6 +269,20 @@ def reassign_plandos_to_legacy_users_by_name():
                     if new_seed.put():
                         seed.key.delete()
                         print(f"seed {new_seed.name} given to {seed.legacy_author_key} ({legacy_user.name}'s legacy account)")
+
+
+@app.before_request
+def canonical_host_redirect():
+    # the orirando.com -> bf.orirando.com move (see util.CANONICAL_HOST).
+    # Browsers only: never /netcode/* — the shipped dll fleet speaks wss and
+    # plain http to fixed hosts and treats a redirect as an error — and never
+    # non-GET, so a stray API POST fails loudly instead of vanishing into a 301.
+    if not CANONICAL_HOST or request.host not in REDIRECT_HOSTS:
+        return
+    if request.method not in ("GET", "HEAD") or request.path.startswith("/netcode/"):
+        return
+    target = request.full_path if request.query_string else request.path
+    return redirect("https://%s%s" % (CANONICAL_HOST, target), 301)
 
 
 @app.after_request

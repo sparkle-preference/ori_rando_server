@@ -45,6 +45,14 @@ ARCHIPELAGO = _flag("ARCHIPELAGO")
 # pool; rejected clients just keep polling and re-probe on reconnect backoff.
 WS_CONN_LIMIT = int(os.environ.get("WS_CONN_LIMIT", "48"))
 
+# the orirando.com -> bf.orirando.com move. Inert until BOTH are set: browser
+# traffic (GET/HEAD, non-/netcode/) on any host in REDIRECT_HOSTS 301s to
+# https://CANONICAL_HOST with path+query preserved. REDIRECT_HOSTS names the
+# hosts that redirect, comma-separated — bfnc.orirando.com must NEVER be in it
+# (the dll's plain-http netcode dies on any redirect toward https).
+CANONICAL_HOST = os.environ.get("CANONICAL_HOST", "")
+REDIRECT_HOSTS = [h.strip() for h in os.environ.get("REDIRECT_HOSTS", "").split(",") if h.strip()]
+
 # Perf instrumentation: stable, grep-able log lines ("NETPERF <what> ms=<dur> tag=<revision:pid> k=v ...").
 # tag identifies the Cloud Run revision + worker process, to detect cross-process cache misses.
 NETPERF_TAG = "%s:%s" % (os.environ.get("K_REVISION", "local"), os.getpid())

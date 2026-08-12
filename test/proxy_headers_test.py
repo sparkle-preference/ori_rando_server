@@ -67,5 +67,57 @@ class ProxyHeadersTestCase(unittest.TestCase):
         self.assertIsNone(r.headers.get("Strict-Transport-Security"))
 
 
+class CanonicalRedirectTestCase(unittest.TestCase):
+    """The orirando.com -> bf.orirando.com move: browser traffic on the old
+    host 301s to the canonical one; the dll fleet's /netcode/ surface and every
+    unlisted host (bfnc!) must never see a redirect."""
+
+    def setUp(self):
+        self._client = models.client
+        models.client = _FakeNdbClient()
+        self._secret = main.app.secret_key
+        main.app.secret_key = main.app.secret_key or "proxy-headers-test"
+        self._canonical, self._hosts = main.CANONICAL_HOST, main.REDIRECT_HOSTS
+        main.CANONICAL_HOST = "bf.orirando.com"
+        main.REDIRECT_HOSTS = ["orirando.com"]
+        self.client = main.app.test_client()
+
+    def tearDown(self):
+        main.CANONICAL_HOST, main.REDIRECT_HOSTS = self._canonical, self._hosts
+        models.client = self._client
+        main.app.secret_key = self._secret
+
+    def test_old_host_page_redirects_with_path_and_query(self):
+        r = self.client.get("/faq?g=install", headers={"X-Forwarded-Proto": "https"},
+                            base_url="http://orirando.com")
+        self.assertEqual(r.status_code, 301)
+        self.assertEqual(r.headers["Location"], "https://bf.orirando.com/faq?g=install")
+
+    def test_bare_path_has_no_stray_question_mark(self):
+        r = self.client.get("/version/latest", base_url="http://orirando.com")
+        self.assertEqual(r.status_code, 301)
+        self.assertEqual(r.headers["Location"], "https://bf.orirando.com/version/latest")
+
+    def test_unlisted_host_is_untouched(self):
+        # bfnc.orirando.com (the dll's plain-http host) must never redirect
+        r = self.client.get("/version/latest", base_url="http://bfnc.orirando.com")
+        self.assertEqual(r.status_code, 200)
+
+    def test_netcode_paths_never_redirect_even_on_old_host(self):
+        # the pre-move wss fleet connects to orirando.com/netcode/...
+        r = self.client.get("/netcode/areas", base_url="http://orirando.com")
+        self.assertNotEqual(r.status_code, 301)
+
+    def test_posts_never_redirect(self):
+        # 405 (GET-only route), never a 301 that would swallow the body
+        r = self.client.post("/version/latest", base_url="http://orirando.com")
+        self.assertNotEqual(r.status_code, 301)
+
+    def test_unset_is_inert(self):
+        main.CANONICAL_HOST, main.REDIRECT_HOSTS = "", []
+        r = self.client.get("/version/latest", base_url="http://orirando.com")
+        self.assertEqual(r.status_code, 200)
+
+
 if __name__ == "__main__":
     unittest.main()

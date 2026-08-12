@@ -17,9 +17,6 @@ function download(filename, text) {
   document.body.removeChild(element);
 }
 
-const dev = window.document.URL.includes("devshell")
-const base_url = dev ?  "https://8080-dot-3616814-dot-devshell.appspot.com" : "https://orirando.com"
-
 const pickup_icons = {
     "SK": new Leaflet.Icon({iconUrl: '/static/sprites/skill-tree.png', iconSize: new Leaflet.Point(32, 32), iconAnchor: new Leaflet.Point(0, 32)}),
     "HC": new Leaflet.Icon({iconUrl: '/static/sprites/health-cell.png', iconSize: new Leaflet.Point(24, 24)}),
@@ -280,4 +277,4 @@ const goToCurry = (url) => () => { window.location.href = url }
 
 export {PickupMarker, PickupMarkersList, download, getStuffType, locs, picks_by_loc, getMapCrs, pickups, distance, get_icon, select_wrap,
         point, picks_by_type, picks_by_zone, zones, stuff_types, areas, picks_by_area, select_styles,
-        is_match, str_ids, hide_opacity, seed_name_regex, uniq, listSwap, goToCurry, base_url, pickup_icons};
+        is_match, str_ids, hide_opacity, seed_name_regex, uniq, listSwap, goToCurry, pickup_icons};
