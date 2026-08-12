@@ -2,8 +2,13 @@
 
 Each AP-mode world w runs a daemon thread joining the room as slot 'Ori<w>':
 shadow player K+w's slot bitfield is polled for outgoing LocationChecks,
-ReceivedItems fill world w's manifest slots (lowest unused match, monotone
-and idempotent so a full replay is safe), the complete path sends
+ReceivedItems fill world w's manifest slots: a self-item (our own item at
+our own location) lands exactly on the slot annotate's field 6 promised the
+client, everything else takes the lowest open unpromised slot for that item
+(monotone and idempotent so a full replay is safe). The client grants a
+self-item on contact and relies on the delivery landing where promised --
+the 4.2.12 pairing; fills wait for scouting, which the promise map is
+derived from. The complete path sends
 StatusUpdate{CLIENT_GOAL}, and LocationScouts resolves the real names the
 seed ships as "AP Item #n". Scouting is best-effort.
 
@@ -45,6 +50,7 @@ EX_EXACT_CAP = 600
 
 POLL_SECS = 2.0          # shadow-outbox poll cadence
 RECV_TIMEOUT = 1.0
+PROMISES_TIMEOUT = 90.0  # scout never settled: degrade to arrival-order fills
 # a room's goal handler collects then releases, one ReceivedItems per source
 # world, so K+1 messages can land microseconds apart. Buffer them into one
 # grant transaction rather than one per message straddling the 1Hz tick.
@@ -120,13 +126,15 @@ def _match_key(code, id):
 
 class GameMaps(object):
     def __init__(self, worlds, outbox, grant_slots, zones=None, hint_keys=None,
-                 death_link=False):
+                 death_link=False, reserved_order=None):
         self.worlds = worlds            # K
         self.outbox = outbox            # {w: {shadow slot i: ap location id}}
         self.grant_slots = grant_slots  # {w: {match_key: [manifest slot, asc]}}
         self.zones = zones or {}        # {w: {shadow slot i: reserved zone}}
         self.hint_keys = hint_keys or {}  # {w: {manifest slot: buyable key}}
         self.death_link = bool(death_link)  # seed option, not a runtime toggle
+        # {w: [shadow slot, in seed-line order]} -- the promise draw order
+        self.reserved_order = reserved_order or {}
 
 
 def maps_from_params(params):
@@ -134,9 +142,9 @@ def maps_from_params(params):
     lines world w holds for its own shadow K+w; exports are w's manifest
     lines with shadow finder K+w."""
     k = int(params.players)
-    outbox, grants, zones, hints = {}, {}, {}, {}
+    outbox, grants, zones, hints, order = {}, {}, {}, {}, {}
     for w in range(1, k + 1):
-        ob, gr, zo, hk = {}, {}, {}, {}
+        ob, gr, zo, hk, ro = {}, {}, {}, {}, []
         for (loc, code, id, zone) in params.get_seed_data(w):
             if code != "MW":
                 continue
@@ -156,14 +164,37 @@ def maps_from_params(params):
                         log.error("APBRIDGE reserved coord %s of world %s not in datapackage", loc, w)
                         continue
                     ob[int(parts[1])] = ap_id
+                    ro.append(int(parts[1]))
                     # the zone an Ori hint names; the same string annotate
                     # bakes into a seed it can resolve at download time
                     zo[int(parts[1])] = zone
         for lst in gr.values():
             lst.sort()
-        outbox[w], grants[w], zones[w], hints[w] = ob, gr, zo, hk
+        outbox[w], grants[w], zones[w], hints[w], order[w] = ob, gr, zo, hk, ro
     return GameMaps(k, outbox, grants, zones, hints,
-                    death_link=bool(getattr(params, "ap_death_link", False)))
+                    death_link=bool(getattr(params, "ap_death_link", False)),
+                    reserved_order=order)
+
+
+def promised_slots(maps, world, scouted, our_slot):
+    """The manifest slot each of this world's own-item locations is promised
+    -- the same values annotate bakes into field 6, drawn the same way:
+    per-item pools of manifest slots ascending, consumed in seed-line order
+    by the reserved locations the room says hold our own item. Self rows key
+    off our own static items table, so no room datapackage is involved.
+    test.ap_bridge_test pins the two implementations together.
+    -> ({ap location id: slot}, {match_key: [unpromised slot, asc]})"""
+    pools = {key: list(slots) for key, slots in maps.grant_slots.get(world, {}).items()}
+    promised = {}
+    for shadow_slot in maps.reserved_order.get(world, []):
+        ap_id = maps.outbox[world].get(shadow_slot)
+        hit = scouted.get(ap_id) if ap_id is not None else None
+        if hit is None or hit[1] != our_slot:
+            continue
+        pool = pools.get(ITEM_KEY_BY_AP_ID.get(hit[0]))
+        if pool:
+            promised[ap_id] = pool.pop(0)
+    return promised, pools
 
 
 _maps = {}
@@ -605,11 +636,18 @@ class ApSession(object):
         self.goal_event = goal_event
         self.ctx = ctx or _nullctx
         self.checked = set()   # room-acknowledged + optimistically sent
-        self.fill = {}         # match_key -> next cursor into grant_slots
+        self.fill = {}         # match_key -> next cursor into free_slots
         self.recv_count = 0    # AP's ReceivedItems index contract
         self.pending = []      # slots buffered for the next grant flush
         self.pending_from = {}  # slot -> sender display name ("" = yourself)
         self.flush_at = None   # monotonic deadline for that flush
+        # deterministic self-item fills (see promised_slots). None until the
+        # scout settles; ReceivedItems wait in deferred_msgs so the fill stays
+        # a pure function of the stream
+        self.promised = None       # {ap location id: manifest slot}
+        self.free_slots = None     # {match_key: [unpromised slot, asc]}
+        self.deferred_msgs = []    # ReceivedItems held until promises exist
+        self.promises_deadline = None  # degraded-fill fallback timer
         self.authed = False
         self.goal_sent = False
         # scouting (display names; see the module docstring)
@@ -657,6 +695,7 @@ class ApSession(object):
         next_link = monotonic() + LINK_RECHECK_SECS
         try:
             while not self._stopped():
+                self._service_promises(sock)
                 timeout = RECV_TIMEOUT
                 if self.flush_at is not None:
                     timeout = max(0.02, self.flush_at - monotonic())
@@ -711,6 +750,9 @@ class ApSession(object):
                     for later in msgs[i + 1:]:
                         self._dispatch(later, sock)
                     self._reconcile(sock)
+                    # a world with nothing to scout can fill its connect
+                    # backlog right away
+                    self._service_promises(sock)
                     return
 
     def _recv_deadline(self, sock, deadline, waiting_for):
@@ -735,6 +777,8 @@ class ApSession(object):
         self.fill = {}
         self.recv_count = 0
         self.pending, self.pending_from, self.flush_at = [], {}, None
+        self.promised, self.free_slots, self.deferred_msgs = None, None, []
+        self.promises_deadline = monotonic() + PROMISES_TIMEOUT
         self.scouted, self.dp_pending, self.named, self.scout_total = {}, set(), None, 0
         self.slot_raw_names = {}
         # hints are re-derived per connection: the room is the authority on
@@ -1283,6 +1327,12 @@ class ApSession(object):
                 _hint_notice(self.gid, self.world, why)
 
     def _on_received_items(self, msg, sock):
+        if self.promised is None:
+            # self-item fills need the scout-derived promise map, and the
+            # fill must stay a pure function of the stream: hold everything
+            # (the connect backlog included) until the map exists
+            self.deferred_msgs.append(msg)
+            return
         index, items = int(msg.get("index", 0)), msg.get("items") or []
         if index == 0:
             # full resend: rebuild the deterministic fill from scratch
@@ -1294,15 +1344,24 @@ class ApSession(object):
             _send(sock, [{"cmd": "Sync"}])
             return
         for item in items:
-            key = ITEM_KEY_BY_AP_ID.get(item.get("item"))
-            lst = self.maps.grant_slots[self.world].get(key, []) if key else []
-            cur = self.fill.get(key, 0)
-            if key is None or cur >= len(lst):
-                log.error("APBRIDGE no free slot for AP item %s gid=%s world=%s",
-                          item.get("item"), self.gid, self.world)
-                continue
-            self.fill[key] = cur + 1
-            slot = lst[cur]
+            slot = None
+            try:
+                if int(item.get("player")) == self.our_slot:
+                    # our own item at our own location: the client granted the
+                    # promised slot on contact; the delivery must land there
+                    slot = self.promised.get(item.get("location"))
+            except (TypeError, ValueError):
+                pass
+            if slot is None:
+                key = ITEM_KEY_BY_AP_ID.get(item.get("item"))
+                lst = self.free_slots.get(key, []) if key else []
+                cur = self.fill.get(key, 0)
+                if key is None or cur >= len(lst):
+                    log.error("APBRIDGE no free slot for AP item %s gid=%s world=%s",
+                              item.get("item"), self.gid, self.world)
+                    continue
+                self.fill[key] = cur + 1
+                slot = lst[cur]
             self.pending.append(slot)
             try:
                 self.pending_from[slot] = self._sender_name(int(item.get("player")))
@@ -1311,6 +1370,33 @@ class ApSession(object):
         self.recv_count += len(items)
         if self.flush_at is None:
             self.flush_at = monotonic() + COALESCE_SECS
+
+    def _service_promises(self, sock):
+        if self.promised is None:
+            self._build_promises()
+        if self.promised is not None and self.deferred_msgs:
+            deferred, self.deferred_msgs = self.deferred_msgs, []
+            for msg in deferred:
+                self._on_received_items(msg, sock)
+
+    def _build_promises(self):
+        """Promise map, once every scout has answered (self rows need nothing
+        else -- their item keys come from our own static table). Past the
+        deadline, degrade to arrival-order fills so grants still flow; the
+        self-grant pairing is off for that (already broken) session."""
+        if self.our_slot is None or not self.authed:
+            return
+        if len(self.scouted) >= self.scout_total:
+            self.promised, self.free_slots = promised_slots(
+                self.maps, self.world, self.scouted, self.our_slot)
+            log.info("APBRIDGE promises gid=%s world=%s self_items=%s",
+                     self.gid, self.world, len(self.promised))
+            return
+        if self.promises_deadline is not None and monotonic() > self.promises_deadline:
+            log.error("APBRIDGE promises timed out gid=%s world=%s; degraded fills",
+                      self.gid, self.world)
+            self.promised = {}
+            self.free_slots = {k: list(v) for k, v in self.maps.grant_slots.get(self.world, {}).items()}
 
     def _flush_grants(self):
         """One grant transaction for everything buffered since the window

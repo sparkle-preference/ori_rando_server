@@ -956,7 +956,12 @@ class TestScouting(SessionTestCase):
         self.assertEqual(name, "Evil Name, Mk II (Bad Guy)")
 
     def test_garbage_room_data_never_kills_the_session(self):
-        # names are cosmetic: nothing the room says about them may stop items
+        # names are cosmetic: nothing the room says about them may stop items.
+        # Unanswerable scouts hold fills until the promise deadline; force it
+        # into the past so the degraded path runs inside this test
+        self._timeout = ap_bridge.PROMISES_TIMEOUT
+        ap_bridge.PROMISES_TIMEOUT = -1
+        self.addCleanup(lambda: setattr(ap_bridge, "PROMISES_TIMEOUT", self._timeout))
         session = self.make_session()
         sock = self.run_session(session, [
             roominfo("not a dict at all"),
@@ -1557,6 +1562,50 @@ class TestGoldenRealTouchpoints(unittest.TestCase):
         self.run_session(self.make_session(), list(frames))
         self.assertEqual(len(self.signals), 1)
 
+    # --- deterministic self-item fills (the 4.2.12 pairing) ---
+    # location 524541 (reserved slot 0) holds our own Bash; 524542 theirs
+
+    def _self_scouts(self):
+        return [{"cmd": "LocationInfo", "locations": [
+            {"item": 524288, "location": 524541, "player": 1, "flags": 1},
+            {"item": 524288, "location": 524542, "player": 2, "flags": 1}]}]
+
+    def test_self_delivery_lands_on_the_promised_slot(self):
+        # the client granted the promised slot (lowest Bash slot, 0) on
+        # contact; the delivery must land exactly there
+        self.run_session(self.make_session(), [
+            ROOMINFO, [connected(missing=[524541, 524542])], self._self_scouts(),
+            [{"cmd": "ReceivedItems", "index": 0, "items": [
+                {"item": 524288, "location": 524541, "player": 1, "flags": 1}]}]])
+        self.assertEqual(self.real.slot_bflds, [0b1] + [0] * 7)
+
+    def test_foreign_fills_never_take_a_promised_slot(self):
+        # Bash slots are [0, 3] and 0 is promised: foreign copies get 3 and
+        # then nowhere, and the self-delivery still lands on 0 afterwards
+        self.run_session(self.make_session(), [
+            ROOMINFO, [connected(missing=[524541, 524542])], self._self_scouts(),
+            [{"cmd": "ReceivedItems", "index": 0, "items": [
+                {"item": 524288, "location": 91, "player": 2, "flags": 1},
+                {"item": 524288, "location": 92, "player": 2, "flags": 1},
+                {"item": 524288, "location": 524541, "player": 1, "flags": 1}]}]])
+        self.assertEqual(self.real.slot_bflds, [0b1001] + [0] * 7)
+
+    def test_connect_backlog_waits_for_the_scout_and_replays_stable(self):
+        # the backlog shares the Connected frame, before any scout answer:
+        # fills hold, then land -- identically on a full reconnect replay
+        def frames():
+            return [ROOMINFO,
+                    [connected(missing=[524541, 524542]),
+                     {"cmd": "ReceivedItems", "index": 0, "items": [
+                         {"item": 524288, "location": 524541, "player": 1, "flags": 1},
+                         {"item": 524288, "location": 91, "player": 2, "flags": 1}]}],
+                    self._self_scouts()]
+        self.run_session(self.make_session(), frames())
+        self.assertEqual(self.real.slot_bflds, [0b1001] + [0] * 7)
+        self.run_session(self.make_session(), frames())
+        self.assertEqual(self.real.slot_bflds, [0b1001] + [0] * 7)
+        self.assertEqual(self.recvs[-1], (self.GID, self.WORLD, 2))
+
     # --- hint purchases against the real APHints record ---
     # world 1's manifest slot 4 is a Water Vein (ap id 524299), so this is the
     # clues-mode reveal end to end: request -> claim -> Say -> answer -> tick.
@@ -1805,6 +1854,44 @@ class TestLinkRetarget(unittest.TestCase):
     def test_disabled_stops(self):
         self.link.enabled = False
         self.assertFalse(self._session()._recheck_link(sock=None))
+
+
+class TestPromiseAnnotateParity(unittest.TestCase):
+    """promised_slots must hand out exactly the slots annotate bakes into
+    field 6: the client grants what its seed promises, the bridge fills what
+    the scout implies, and those must be the same numbers or self-item dupes
+    come back (the 4.2.11 bug, from the other side)."""
+
+    SEED = [
+        ("919908", "MW", "3,0,AP Item #1", "Grove"),   # reserved -> ap 524541
+        ("959960", "MW", "3,40,AP Item #2", "Grove"),  # reserved -> ap 524542
+        ("-2", "MW", "3,SK,0", "Glades"),              # manifest slot 0: Bash
+        ("-3", "MW", "3,EX,40", "Grove"),              # manifest slot 1: EX 40
+        ("-5", "MW", "3,SK,0", "Glades"),              # manifest slot 3: Bash
+        ("-6", "MW", "3,EV,0", "Swamp"),               # manifest slot 4: Water Vein
+    ]
+
+    def test_bridge_promises_match_annotate_field6(self):
+        from archipelago import annotate as annotate_mod
+        from ap_models import APScout
+        maps = ap_bridge.maps_from_params(FakeParams(2, {1: list(self.SEED), 2: []}))
+        # both reserved locations hold our own Bash, so the draw ORDER is
+        # what this pins: seed-line order over ascending per-item pools
+        scouted = {524541: (524288, 1), 524542: (524288, 1)}
+        promised, free = ap_bridge.promised_slots(maps, 1, scouted, 1)
+
+        entries = {0: APScout("Bash", "Ori1", "P1", 524288, 1),
+                   40: APScout("Bash", "Ori1", "P1", 524288, 1)}
+        out = annotate_mod.annotate(list(self.SEED), 2, 1, {1: (entries, 1)}, lambda v: [])
+        field6 = {ap_bridge.AP_LOC_BY_COORD[int(line[0])]: int(line[5])
+                  for line in out if len(line) >= 6}
+
+        self.assertEqual(field6, {524541: 0, 524542: 3})
+        self.assertEqual(promised, field6)
+        # promised copies left the free pools; the rest stayed fillable
+        self.assertEqual(free[("SK", "0")], [])
+        self.assertEqual(free[("EX", "40")], [1])
+        self.assertEqual(free[("EV", "0")], [4])
 
 
 if __name__ == "__main__":
