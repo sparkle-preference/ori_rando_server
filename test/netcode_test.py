@@ -116,14 +116,9 @@ class TestJsonDefault(unittest.TestCase):
 
 class TestSplitCache(unittest.TestCase):
     def setUp(self):
-        self._orig = cache_mod.SPLIT_CACHE
         self.mc = fake_memcached_cache()
 
-    def tearDown(self):
-        cache_mod.SPLIT_CACHE = self._orig
-
     def test_split_layout_round_trips(self):
-        cache_mod.SPLIT_CACHE = True
         mc = self.mc
         mc.set_pos(7, 1, 10, 20)
         mc.set_pos(7, 2, 30, 40)
@@ -145,7 +140,6 @@ class TestSplitCache(unittest.TestCase):
         self.assertEqual(sorted(mc._pids(7)), [1, 2])
 
     def test_split_remove_game_cleans_per_player_keys(self):
-        cache_mod.SPLIT_CACHE = True
         mc = self.mc
         mc.set_pos(7, 1, 10, 20)
         mc.set_hist(7, 1, ["h"])
@@ -155,19 +149,6 @@ class TestSplitCache(unittest.TestCase):
         self.assertEqual(mc._pids(7), [])
         leftovers = [k for k in mc.memcache.d if k.startswith("7.")]
         self.assertEqual(leftovers, [])
-
-    def test_legacy_layout_and_merge(self):
-        cache_mod.SPLIT_CACHE = False
-        mc = self.mc
-        mc.set_pos(7, 1, 10, 20)
-        mc.set_pos(7, 2, 30, 40)
-        self.assertEqual(mc.get_pos(7), {1: (10, 20), 2: (30, 40)})
-        self.assertIn("7.pos", mc.memcache.d)
-        self.assertNotIn("7.1.pos", mc.memcache.d)
-        # merge semantics hold in legacy mode too (callers pass subsets now)
-        mc.set_have(7, {1: [100]})
-        mc.set_have(7, {2: [200]})
-        self.assertEqual(mc.get_have(7), {1: [100], 2: [200]})
 
     def test_gates_require_noreply_false(self):
         # if san_check/second_strike stop passing noreply=False, FakeMemcache
@@ -221,13 +202,10 @@ class TestGivePickup(NdbTestCase):
 
 
 class TestHistoryMerge(NdbTestCase):
-    def setUp(self):
-        super(TestHistoryMerge, self).setUp()
-        self._orig = models.HIST_ON_PLAYER
-
-    def tearDown(self):
-        models.HIST_ON_PLAYER = self._orig
-        super(TestHistoryMerge, self).tearDown()
+    """history() merges every storage layout unconditionally. That invariant
+    predates this cleanup: when writes were still flag-gated, a reader that
+    honored the flags made a flag flip lossy (lines written under the newer
+    layout vanished from the tracker the moment it was turned off)."""
 
     def _game(self):
         t0 = datetime(2026, 7, 20, 12, 0, 0)
@@ -244,7 +222,6 @@ class TestHistoryMerge(NdbTestCase):
         return g
 
     def test_merged_ordering_backfill_filtering(self):
-        models.HIST_ON_PLAYER = True
         g = self._game()
         h = g.history()
         self.assertEqual([x.coords for x in h], [100, 300, 200])  # timestamp order
@@ -252,20 +229,9 @@ class TestHistoryMerge(NdbTestCase):
         self.assertEqual(len(g.history([1])), 2)
         self.assertEqual([x.coords for x in g.history([2])], [100])
 
-    def test_reader_merges_regardless_of_flag(self):
-        # CHANGED 2026-07-25 (CHUNKED_LOGS): this used to assert [100] -- the
-        # legacy reader returned Game.hls alone and hid Player.history. That
-        # made a flag flip lossy: lines written while HIST_ON_PLAYER was on
-        # disappeared from the tracker the moment it was turned off. Readers now
-        # merge every layout unconditionally; only writes follow the flags.
-        models.HIST_ON_PLAYER = False
-        g = self._game()
-        self.assertEqual([x.coords for x in g.history()], [100, 300, 200])
-
     def test_duplicate_lines_across_layouts_collapse(self):
         # guards the one unsafe merge shape: the pre-2018 read-time migration
         # copied Player.history into Game.hls without clearing the source
-        models.HIST_ON_PLAYER = False
         g = self._game()
         g.hls = list(g.hls) + [HistoryLine(pickup_code="EC", pickup_id="1", coords=300,
                                            player=1, timestamp=datetime(2026, 7, 20, 12, 0, 10))]
@@ -367,17 +333,14 @@ class TestMultiworldFoundPickup(NdbTestCase):
         super(TestMultiworldFoundPickup, self).setUp()
         self._txn = Player.mark_slot_txn
         self._btxn = Player.mark_slots_txn
-        self._ptxn = Player.transaction_pickup
         self._pbtxn = Player.transaction_pickup_batch
-        self._hop = models.HIST_ON_PLAYER
-        models.HIST_ON_PLAYER = False
+        self._chunked = Player.append_hl_chunked_txn
 
     def tearDown(self):
         Player.mark_slot_txn = self._txn
         Player.mark_slots_txn = self._btxn
-        Player.transaction_pickup = self._ptxn
         Player.transaction_pickup_batch = self._pbtxn
-        models.HIST_ON_PLAYER = self._hop
+        Player.append_hl_chunked_txn = self._chunked
         super(TestMultiworldFoundPickup, self).tearDown()
 
     def _game(self, shared=None, extra_pids=()):
@@ -392,14 +355,12 @@ class TestMultiworldFoundPickup(NdbTestCase):
         g.get_players = lambda: list(players.values())
         g.player = lambda pid, create=True, delay_put=False: players[pid]
         g.hist = []
-        g.append_hl = g.hist.append  # bypass the transactional history write
+        # bypass the transactional history write
+        Player.append_hl_chunked_txn = staticmethod(lambda pkey, hl: g.hist.append(hl) or True)
         by_key = {p.key: p for p in players.values()}
         Player.mark_slot_txn = staticmethod(lambda pkey, slot: by_key[pkey].mark_slot(slot))
         Player.mark_slots_txn = staticmethod(
             lambda pkey, slots: sum(1 for s in slots if by_key[pkey].mark_slot(s)))
-        Player.transaction_pickup = staticmethod(
-            lambda pkey, pickup, remove=False, delay_put=False, coords=None, finder=None:
-                by_key[pkey].give_pickup(pickup, remove, delay_put=True))
         Player.transaction_pickup_batch = staticmethod(
             lambda pkeys, grants: [by_key[k].give_pickup(g_[0], g_[1], delay_put=True)
                                    for k in pkeys for g_ in grants])
@@ -1004,7 +965,7 @@ class TestNameCountVector(unittest.TestCase):
         self.assertEqual(vals, [1, 2])
 
 
-class TestBingoV2(NdbTestCase):
+class TestBingoUpdateFlow(NdbTestCase):
     def test_lock_identity(self):
         self.assertIs(models.bingo_lock(5), models.bingo_lock(5))
         self.assertIsNot(models.bingo_lock(5), models.bingo_lock(6))
@@ -1015,23 +976,7 @@ class TestBingoV2(NdbTestCase):
         for e in entities:
             e.put = lambda *a, **k: None
 
-    def test_event_log_cap_preserves_misc_markers(self):
-        from models import BingoEvent, BingoGameData
-        bgd = BingoGameData(id="55")
-        markers = [BingoEvent(event_type="miscBingo Game 55 created!"),
-                   BingoEvent(event_type="miscBingo Game 55 started!")]
-        bgd.event_log = markers + [BingoEvent(event_type="square") for _ in range(600)]
-        bgd._update_inner = lambda *a, **k: None
-        bgd.update_v2({}, 1, 55)
-        self.assertEqual(len(bgd.event_log), 402)
-        self.assertTrue(bgd.event_log[0].event_type.startswith("misc"))
-        self.assertTrue(bgd.event_log[1].event_type.startswith("misc"))
-        # under the cap: untouched
-        bgd.event_log = markers + [BingoEvent(event_type="square") for _ in range(10)]
-        bgd.update_v2({}, 1, 55)
-        self.assertEqual(len(bgd.event_log), 12)
-
-    def test_update_v2_full_flow_in_memory(self):
+    def test_update_full_flow_in_memory(self):
         """The whole non-transactional update path: a posted goal completion
         lands as an event, completed_by membership, score, and a board stash."""
         from models import BingoGameData, BingoTeam
@@ -1048,7 +993,7 @@ class TestBingoV2(NdbTestCase):
         bgd.get_players = lambda: [p1]
         self._stub_puts(p1, bgd)
 
-        bgd.update_v2({"TestGoal": {"value": 5}}, 1, 55)
+        bgd.update({"TestGoal": {"value": 5}}, 1, 55)
 
         self.assertIn(1, card.completed_by)
         square_events = [e for e in bgd.event_log if e.event_type == "square"]
@@ -1059,7 +1004,7 @@ class TestBingoV2(NdbTestCase):
         self.assertIsNotNone(board)
         self.assertEqual(board["cards"][0]["completed_by"], [1])
         # idempotent re-post: no duplicate events, state stable
-        bgd.update_v2({"TestGoal": {"value": 5}}, 1, 55)
+        bgd.update({"TestGoal": {"value": 5}}, 1, 55)
         self.assertEqual(len([e for e in bgd.event_log if e.event_type == "square"]), 1)
 
     def test_winning_update_signals_and_stashes_rebust_pids(self):
@@ -1081,7 +1026,7 @@ class TestBingoV2(NdbTestCase):
         bgd.get_players = lambda: [p1]
         self._stub_puts(p1, bgd)
 
-        bgd.update_v2({"TestGoal": {"value": 5}}, 1, 56)
+        bgd.update({"TestGoal": {"value": 5}}, 1, 56)
 
         self.assertEqual(bgd.teams[0].place, 1)
         self.assertEqual(len([e for e in bgd.event_log if e.event_type == "win"]), 1)
@@ -1091,10 +1036,10 @@ class TestBingoV2(NdbTestCase):
 
 
 class TestChunkedHistory(NdbTestCase):
-    """CHUNKED_LOGS: history lines append into fixed-size child entities while
-    constant-size dedup state rides on the Player. The dedup decision must stay
-    bit-identical to the legacy scan of `history[:-20]` -- that scan is what
-    stops a client replaying old pickups from duplicating the game's history."""
+    """History lines append into fixed-size child entities while constant-size
+    dedup state rides on the Player. The dedup decision must stay bit-identical
+    to the legacy scan of `history[:-20]` -- that scan is what stops a client
+    replaying old pickups from duplicating the game's history."""
 
     def _line(self, coords, code="EX", pid=1, id="100"):
         return HistoryLine(player=pid, pickup_code=code, pickup_id=id, coords=coords,
@@ -1176,22 +1121,18 @@ class TestChunkedHistory(NdbTestCase):
 
 
 class TestHistoryWriteDispatch(NdbTestCase):
-    """Which of the three history layouts a pickup writes to is flag-driven:
-    CHUNKED_LOGS > HIST_ON_PLAYER > legacy Game.hls."""
+    """found_pickup writes history through the chunked writer only; legacy
+    layouts (Game.hls, Player.history) are read-side merges, never written."""
 
     def setUp(self):
         super(TestHistoryWriteDispatch, self).setUp()
-        self._flags = (models.CHUNKED_LOGS, models.HIST_ON_PLAYER)
-        self._chunked, self._on_player = Player.append_hl_chunked_txn, Player.append_hl_txn
+        self._chunked = Player.append_hl_chunked_txn
         self.calls = []
         Player.append_hl_chunked_txn = staticmethod(
             lambda pkey, hl: self.calls.append(("chunked", hl.coords)) or True)
-        Player.append_hl_txn = staticmethod(
-            lambda pkey, hl: self.calls.append(("on_player", hl.coords)) or True)
 
     def tearDown(self):
-        models.CHUNKED_LOGS, models.HIST_ON_PLAYER = self._flags
-        Player.append_hl_chunked_txn, Player.append_hl_txn = self._chunked, self._on_player
+        Player.append_hl_chunked_txn = self._chunked
         super(TestHistoryWriteDispatch, self).tearDown()
 
     def _game(self):
@@ -1203,35 +1144,17 @@ class TestHistoryWriteDispatch(NdbTestCase):
         g.hls = []
         return g
 
-    def _find(self, g):
-        g.found_pickup(1, Pickup.n("EX", "100"), 3000, False, False, "Glades")
-
-    def test_chunked_wins_when_both_flags_set(self):
-        models.CHUNKED_LOGS, models.HIST_ON_PLAYER = True, True
+    def test_find_writes_a_chunked_line_and_nothing_else(self):
         g = self._game()
-        self._find(g)
+        g.found_pickup(1, Pickup.n("EX", "100"), 3000, False, False, "Glades")
         self.assertEqual(self.calls, [("chunked", 3000)])
         self.assertEqual(g.hls, [])
 
-    def test_falls_back_to_player_history(self):
-        models.CHUNKED_LOGS, models.HIST_ON_PLAYER = False, True
-        g = self._game()
-        self._find(g)
-        self.assertEqual(self.calls, [("on_player", 3000)])
-
-    def test_falls_back_to_game_hls(self):
-        models.CHUNKED_LOGS, models.HIST_ON_PLAYER = False, False
-        g = self._game()
-        g.append_hl = g.hls.append  # bypass the transactional write
-        self._find(g)
-        self.assertEqual(self.calls, [])
-        self.assertEqual([hl.coords for hl in g.hls], [3000])
-
 
 class TestEvlogArchive(NdbTestCase):
-    """CHUNKED_LOGS: the bingo event log's overflow is archived into child
-    entities instead of being dropped at the 400 cap. The entity keeps the feed
-    tail -- get_json renders it on every update, so it must stay small."""
+    """The bingo event log's overflow is archived into child entities instead
+    of being dropped. The entity keeps the feed tail -- get_json renders it on
+    every update, so it must stay small."""
 
     class _RecordingChunk(object):
         made = []
@@ -1250,14 +1173,11 @@ class TestEvlogArchive(NdbTestCase):
     def setUp(self):
         super(TestEvlogArchive, self).setUp()
         self._chunk_cls = models.BingoEventChunk
-        self._flag = models.CHUNKED_LOGS
         TestEvlogArchive._RecordingChunk.made = []
         models.BingoEventChunk = TestEvlogArchive._RecordingChunk
-        models.CHUNKED_LOGS = True
 
     def tearDown(self):
         models.BingoEventChunk = self._chunk_cls
-        models.CHUNKED_LOGS = self._flag
         super(TestEvlogArchive, self).tearDown()
 
     def _game(self, squares, markers=2):
@@ -1301,10 +1221,10 @@ class TestEvlogArchive(NdbTestCase):
         self.assertEqual([e.square for e in archived + list(bgd.event_log)], list(range(seen)))
         self.assertLessEqual(len(bgd.event_log), models.EVLOG_KEEP + models.EVLOG_ARCHIVE)
 
-    def test_update_v2_archives_instead_of_pruning_when_flagged(self):
+    def test_update_archives_overflow(self):
         bgd = self._game(600)
         bgd._update_inner = lambda *a, **k: None
-        bgd.update_v2({}, 1, 60)
+        bgd.update({}, 1, 60)
         self.assertEqual(len(bgd.event_log), models.EVLOG_KEEP + 2)
         self.assertTrue(TestEvlogArchive._RecordingChunk.made)
 

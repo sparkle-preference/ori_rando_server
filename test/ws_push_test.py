@@ -1,4 +1,4 @@
-"""Tests for the websocket push layer (WS_PUSH): the push.py hub, the
+"""Tests for the websocket push layer: the push.py hub, the
 cache-bust trigger, the socket registry, and the pusher's send path.
 
 Same conventions as ws_adapter_test: save/restore stubs, fake sockets, no

@@ -627,14 +627,12 @@ class FakeBingo(object):
         self._signal_pids = [(int(game_id), int(player_id))]
 
     update = _update
-    update_v2 = _update
 
 
 class TestBingoUpdate(NdbTestCase):
     def setUp(self):
         super(TestBingoUpdate, self).setUp()
         self._with_id = BingoGameData.__dict__["with_id"]
-        self._v2 = netcode.BINGO_V2
         self.bingo = None
         self.refetched = None  # what get_by_id(use_cache=False) hands back
         BingoGameData.with_id = staticmethod(lambda gid: self.bingo)
@@ -643,7 +641,6 @@ class TestBingoUpdate(NdbTestCase):
     def tearDown(self):
         BingoGameData.with_id = self._with_id
         del BingoGameData.get_by_id  # restore the inherited ndb classmethod
-        netcode.BINGO_V2 = self._v2
         super(TestBingoUpdate, self).tearDown()
 
     def test_no_game_is_404_with_exact_body(self):
@@ -655,33 +652,7 @@ class TestBingoUpdate(NdbTestCase):
         self.assertEqual(netcode.bingo_update(1252, 9, {}),
                          (412, "player not in game! [1, 2]"))
 
-    def test_legacy_update_parses_json_and_publishes(self):
-        netcode.BINGO_V2 = False
-        self.bingo = FakeBingo()
-        status, body = netcode.bingo_update(1253, 1, {"bingoData": '{"sq": true}'})
-        self.assertEqual((status, body), (200, "200"))
-        self.assertEqual(self.bingo.updates, [({"sq": True}, 1, 1253)])
-        self.assertEqual(Cache.get_board(1253), {"updated_by": 1})
-
-    def test_legacy_retry_refetches_then_succeeds(self):
-        netcode.BINGO_V2 = False
-        self.bingo = FakeBingo(fail_times=1)
-        self.refetched = FakeBingo()
-        status, body = netcode.bingo_update(1254, 2, {"bingoData": '{"sq": 1}'})
-        self.assertEqual((status, body), (200, "200"))
-        self.assertEqual(self.bingo.updates, [])         # first attempt failed
-        self.assertEqual(len(self.refetched.updates), 1)  # retry used the fresh read
-        self.assertEqual(Cache.get_board(1254), {"updated_by": 2})
-
-    def test_legacy_double_failure_is_503(self):
-        netcode.BINGO_V2 = False
-        self.bingo = FakeBingo(fail_times=1)
-        self.refetched = FakeBingo(fail_times=1)
-        self.assertEqual(netcode.bingo_update(1255, 1, {"bingoData": '{"sq": 1}'}),
-                         (503, "503"))
-
-    def test_v2_updates_fresh_read_under_lock(self):
-        netcode.BINGO_V2 = True
+    def test_updates_fresh_read_under_lock(self):
         self.bingo = FakeBingo()
         self.refetched = FakeBingo()
         status, body = netcode.bingo_update(1256, 1, {"bingoData": '{"sq": 1}'})
@@ -690,32 +661,22 @@ class TestBingoUpdate(NdbTestCase):
         self.assertEqual(len(self.refetched.updates), 1)  # locked fresh read did the work
         self.assertEqual(Cache.get_board(1256), {"updated_by": 1})
 
-    def test_v2_failure_is_503(self):
-        netcode.BINGO_V2 = True
+    def test_failure_is_503(self):
         self.bingo = FakeBingo()
         self.refetched = FakeBingo(fail_times=1)
         self.assertEqual(netcode.bingo_update(1257, 1, {"bingoData": '{"sq": 1}'}),
                          (503, "503"))
 
-    def test_v2_win_rebusts_tick_checksum_after_update(self):
+    def test_win_rebusts_tick_checksum_after_update(self):
         # regression: a tick that read the winner pre-signal can re-arm the
         # fast path after signal_send's bust; the route must bust again once
         # the update has fully landed (game 133908: 16s win-signal stall)
-        netcode.BINGO_V2 = True
         self.bingo = FakeBingo()
         self.refetched = FakeBingo()
         Cache.set_seen_checksum((1258, 1), 4242)  # the racing tick's re-arm
         self.assertEqual(netcode.bingo_update(1258, 1, {"bingoData": '{"sq": 1}'}),
                          (200, "200"))
         self.assertIsNone(Cache.get_seen_checksum((1258, 1)))
-
-    def test_legacy_win_rebusts_tick_checksum_after_update(self):
-        netcode.BINGO_V2 = False
-        self.bingo = FakeBingo()
-        Cache.set_seen_checksum((1259, 2), 4242)
-        self.assertEqual(netcode.bingo_update(1259, 2, {"bingoData": '{"sq": 1}'}),
-                         (200, "200"))
-        self.assertIsNone(Cache.get_seen_checksum((1259, 2)))
 
 
 if __name__ == "__main__":

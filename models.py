@@ -13,7 +13,7 @@ from flask import g
 
 from seedbuilder.seedparams import Placement, Stuff, SeedGenParams
 from enums import MultiplayerGameType, ShareType, Variation
-from util import picks_by_coord, get_bit, get_taste, enums_from_strlist, ord_suffix, debug, bfields_to_coords, bfield_checksum, unpack, netperf, is_mw_manifest_loc, BATCH_GRANTS, HIST_ON_PLAYER, BINGO_V2, CHUNKED_LOGS
+from util import picks_by_coord, get_bit, get_taste, enums_from_strlist, ord_suffix, debug, bfields_to_coords, bfield_checksum, unpack, netperf, is_mw_manifest_loc
 import re
 import threading
 import zlib
@@ -21,9 +21,12 @@ from time import monotonic
 from pickups import Pickup, Skill, Teleporter, Event
 from cache import Cache
 
-# Per-game locks for BINGO_V2: serialize all writers of a game's BingoGameData
-# within this (single) process. dict.setdefault is atomic under the GIL, so two
-# threads racing to create a game's lock still converge on one object.
+# Per-game locks serializing all writers of a game's BingoGameData within this
+# (single) process. dict.setdefault is atomic under the GIL, so two threads
+# racing to create a game's lock still converge on one object.
+# CORRECT ONLY SINGLE-INSTANCE: bingo writes are plain puts serialized by these
+# locks, so the service must stay one process (gunicorn --workers 1, Cloud Run
+# max-instances=1 — see Dockerfile). Revisit before any horizontal scaling.
 _bingo_locks = {}
 
 def bingo_lock(gid):
@@ -215,9 +218,9 @@ def hl_dedup_key(hl):
     return zlib.crc32(("%s|%s|%s" % (hl.pickup_code, hl.pickup_id, hl.coords)).encode("utf-8")) & 0xffffffff
 
 class HistoryChunk(ndb.Model):
-    """CHUNKED_LOGS: a fixed-size slice of one player's history, stored as a
-    child of the Game (same entity group, so existing single-group transactions
-    keep working). Written by appends, read only by Game.history()."""
+    """A fixed-size slice of one player's history, stored as a child of the
+    Game (same entity group, so existing single-group transactions keep
+    working). Written by appends, read only by Game.history()."""
     lines = ndb.LocalStructuredProperty(HistoryLine, repeated=True)
 
     @staticmethod
@@ -452,7 +455,7 @@ class Player(ndb.Model):
     # (8x32 bits; slot semantics live in the player's own seed manifest)
     slot_bflds  = ndb.IntegerProperty(repeated=True)
     bingo_prog  = ndb.LocalStructuredProperty(BingoCardProgress, repeated=True)
-    # CHUNKED_LOGS dedup state (constant size, replaces scanning `history`):
+    # history dedup state (constant size, replaces scanning `history`):
     # hist_tail is the rolling last-HIST_TAIL keys, hist_seen is every key that
     # has fallen out of that window — together they reproduce the legacy
     # "skip if this line appears in history[:-20]" test exactly.
@@ -811,12 +814,6 @@ class Player(ndb.Model):
         return True
 
     @staticmethod
-    @ndb.transactional(retries=5, xg=True)
-    def transaction_pickup(pkey, pickup, remove=False, delay_put=False, coords=None, finder=None):
-        p = pkey.get()
-        p.give_pickup(pickup, remove=remove, coords=coords, finder=finder)
-
-    @staticmethod
     def hl_chunk_append(p, chunk, hl):
         """Dedup + append + tail bookkeeping. Returns True if the line was
         appended (False = dedup skip) and whether the chunk is now sealed.
@@ -837,9 +834,9 @@ class Player(ndb.Model):
     @staticmethod
     @ndb.transactional(retries=5, xg=True)
     def append_hl_chunked_txn(pkey, hl):
-        # CHUNKED_LOGS: the line goes into a fixed-size child entity, so neither
-        # this append nor any hot-path Player read grows with game length. Same
-        # RPC count as append_hl_txn (one extra get, one fewer fat entity).
+        # the line goes into a fixed-size child entity, so neither this append
+        # nor any hot-path Player read grows with game length (two gets and a
+        # put_multi of two small entities per line).
         p = pkey.get()
         gid, _, pid = pkey.id().partition(".")
         ckey = HistoryChunk.key_for(pkey.parent(), gid, pid, p.hist_chunk or 0)
@@ -851,25 +848,11 @@ class Player(ndb.Model):
 
     @staticmethod
     @ndb.transactional(retries=5, xg=True)
-    def append_hl_txn(pkey, hl):
-        # HIST_ON_PLAYER: history lines live on the finder's own Player entity, so
-        # concurrent finders no longer contend on the shared Game entity. Returns
-        # True if the line was appended (False = dedup skip), so the caller knows
-        # whether to update the hist cache.
-        p = pkey.get()
-        if any([h for h in p.history[:-20] if h.equals(hl)]):
-            return False
-        p.history.append(hl)
-        p.put()
-        return True
-
-    @staticmethod
-    @ndb.transactional(retries=5, xg=True)
     def transaction_pickup_batch(pkeys, grants):
-        # BATCH_GRANTS: grant every pickup to every player in ONE
-        # transaction — all Players share the Game entity group, so this is a
-        # single-group txn with one get_multi and one put_multi, replacing N
-        # sequential transactions (2N RPCs and N contention windows).
+        # grant every pickup to every player in ONE transaction — all Players
+        # share the Game entity group, so this is a single-group txn with one
+        # get_multi and one put_multi, replacing N sequential transactions
+        # (2N RPCs and N contention windows).
         # grants: list of (pickup, remove, coords, finder)
         players = [p for p in ndb.get_multi(pkeys) if p is not None]
         for p in players:
@@ -1134,7 +1117,7 @@ EVLOG_KEEP = 100     # events kept on the entity: this IS the board feed
 EVLOG_ARCHIVE = 50   # archive once this many have piled up past the tail
 
 class BingoEventChunk(ndb.Model):
-    """CHUNKED_LOGS: events aged out of the on-entity feed, kept as a child of
+    """Events aged out of the on-entity feed, kept as a child of
     the BingoGameData so nothing is lost (the legacy 400-cap prune simply
     dropped them). Write-only from the netcode's perspective — get_json renders
     the entity's own tail, and it must stay that way: it runs on every update."""
@@ -1168,7 +1151,7 @@ class BingoGameData(ndb.Model):
     disc_squares     = ndb.IntegerProperty(repeated=True)
     rand_dat         = ndb.TextProperty(compressed=True)
     meta             = ndb.BooleanProperty(default=False)
-    ev_chunk         = ndb.IntegerProperty(default=0)  # CHUNKED_LOGS: next archive index
+    ev_chunk         = ndb.IntegerProperty(default=0)  # next evlog archive index
     # Archipelago boards: K worlds, one team, pid == world. 0 = not an AP board.
     ap_worlds        = ndb.IntegerProperty(default=0)
 
@@ -1384,27 +1367,13 @@ class BingoGameData(ndb.Model):
             return res
         return None
 
-    @ndb.transactional(retries=0, xg=True)
     def update(self, bingo_data, player_id, game_id, meta_init = False):
-        # legacy path: the whole update in one contended transaction
-        return self._update_inner(bingo_data, player_id, game_id, meta_init)
-
-    def update_v2(self, bingo_data, player_id, game_id, meta_init = False):
-        # BINGO_V2 path: caller MUST hold bingo_lock(game_id). Serialization via
-        # the lock replaces the transaction — plain puts cannot conflict because
-        # every writer of this entity holds the same lock (see the bingo routes).
+        # caller MUST hold bingo_lock(game_id). Serialization via the lock
+        # instead of a transaction — plain puts cannot conflict because every
+        # writer of this entity holds the same lock (see the bingo routes).
         # No aborts means no retries, no doomed-attempt cache publishing, and no
         # stale-object re-fetch dance.
-        if CHUNKED_LOGS:
-            self.archive_evlog(game_id)
-        elif len(self.event_log) > 500:
-            # cap the event log (legacy grows without bound): keep the newest 400
-            # plus any misc marker events (game created / game started) from the
-            # pruned range, so the game's framing entries survive
-            keep_misc = [e for e in self.event_log[:-400] if e.event_type.startswith("misc")]
-            pruned = len(self.event_log) - 400 - len(keep_misc)
-            self.event_log = keep_misc + self.event_log[-400:]
-            log.info("NETPERF evlog_prune gid=%s pruned=%s kept=%s", game_id, pruned, len(self.event_log))
+        self.archive_evlog(game_id)
         return self._update_inner(bingo_data, player_id, game_id, meta_init)
 
     def evlog_overflow(self):
@@ -1420,9 +1389,9 @@ class BingoGameData(ndb.Model):
         return keep_misc + tail, archived
 
     def archive_evlog(self, game_id):
-        """CHUNKED_LOGS: age the event log's overflow into a chunk child. Caller
-        must hold bingo_lock (update_v2 contract). Puts self immediately so a
-        crash or a no-write update can't lose ev_chunk and overwrite the archive."""
+        """Age the event log's overflow into a chunk child. Caller must hold
+        bingo_lock (update's contract). Puts self immediately so a crash or a
+        no-write update can't lose ev_chunk and overwrite the archive."""
         kept, archived = self.evlog_overflow()
         if not archived:
             return 0
@@ -1730,10 +1699,10 @@ class Game(ndb.Model):
     is_race        = ndb.BooleanProperty(default=False)
     spawn          = ndb.StringProperty(default="Glades")
     def history(self, pids=[]):
-        # Readers merge every layout unconditionally — the flags gate writes only,
-        # so turning one off never hides lines already written (and a game played
-        # across a flag flip still reads back whole). Three sources, oldest first:
-        # Game.hls (pre-HIST_ON_PLAYER), Player.history (pre-CHUNKED_LOGS), chunks.
+        # Readers merge every storage layout unconditionally, so games written
+        # under any older revision still read back whole. Three sources, oldest
+        # first: Game.hls (legacy on-Game lines), Player.history (July 2026
+        # on-Player interim), HistoryChunk children (current writes).
         players = self.get_players()
         res = list(self.hls)
         for p in players:
@@ -2177,9 +2146,9 @@ class Game(ndb.Model):
                     # man just. fuck it?
 #                    log.info("Ignoring duplicate pickup at location %s from player %s" % (coords, pid))
 #                    return 410
-                    # BATCH_GRANTS: a lone duplicate is usually a client resend, not a
-                    # desync — only run the (expensive) sanity check on a second strike.
-                    if not BATCH_GRANTS or Cache.second_strike(self.key.id()):
+                    # a lone duplicate is usually a client resend, not a desync —
+                    # only run the (expensive) sanity check on a second strike.
+                    if Cache.second_strike(self.key.id()):
                         self.sanity_check()
                     return 200
             else:
@@ -2207,9 +2176,9 @@ class Game(ndb.Model):
                 ptple = p.sharetuple()
                 if ftple != ptple:
                     log.warning("sharetuple mismatch! %s is not %s, triggering san check" % (ftple, ptple))
-                    # BATCH_GRANTS: transient mismatches are expected while a grant
-                    # propagates; only sanity-check when the mismatch persists.
-                    if not BATCH_GRANTS or Cache.second_strike(self.key.id()):
+                    # transient mismatches are expected while a grant propagates;
+                    # only sanity-check when the mismatch persists.
+                    if Cache.second_strike(self.key.id()):
                         self.sanity_check()
                     break
             grants = []
@@ -2222,16 +2191,10 @@ class Game(ndb.Model):
             elif not shared_tree:
                 retcode = 406
             if grants:
-                if BATCH_GRANTS:
-                    Player.transaction_pickup_batch([p.key for p in players], grants)
-                    # clear AFTER commit so a failed txn can't leave stale-cleared caches
-                    for player in players:
-                        Cache.clear_seen_checksum(player.idpts())
-                else:
-                    for (g_pickup, g_remove, g_coords, g_finder) in grants:
-                        for player in players:
-                            Cache.clear_seen_checksum(player.idpts())
-                            Player.transaction_pickup(player.key, g_pickup, g_remove, coords=g_coords, finder=g_finder)
+                Player.transaction_pickup_batch([p.key for p in players], grants)
+                # clear AFTER commit so a failed txn can't leave stale-cleared caches
+                for player in players:
+                    Cache.clear_seen_checksum(player.idpts())
         elif self.mode == MultiplayerGameType.SPLITSHARDS:
             if pickup.code != "RB" or pickup.id not in [17, 19, 21]:
                 retcode = 406
@@ -2255,11 +2218,7 @@ class Game(ndb.Model):
             elif share:
                 # shared singleton: grant every world. The finder's client
                 # already granted itself; its server entity converges here too.
-                if BATCH_GRANTS:
-                    Player.transaction_pickup_batch([p.key for p in players], [(pickup, remove, coords, pid)])
-                else:
-                    for player in players:
-                        Player.transaction_pickup(player.key, pickup, remove, coords=coords, finder=pid)
+                Player.transaction_pickup_batch([p.key for p in players], [(pickup, remove, coords, pid)])
                 Cache.clear_items(self.key.id())
                 for player in players:
                     Cache.clear_seen_checksum(player.idpts())
@@ -2277,26 +2236,12 @@ class Game(ndb.Model):
         hl = HistoryLine(pickup_code=pickup.code, timestamp=datetime.utcnow(), pickup_id=str(pickup.id), coords=coords, removed=remove, player=pid)
         if coords in range(24, 60, 4) and zone in map_coords_by_zone:
             hl.map_coords = map_coords_by_zone[zone]
-        if CHUNKED_LOGS:
-            # constant-size append into a chunk child; the Player stays small
-            if Player.append_hl_chunked_txn(finder.key, hl):
-                Cache.append_hl(self.key.id(), hl.player, hl)
-        elif HIST_ON_PLAYER:
-            # write the line to the finder's own entity — no shared-entity contention
-            if Player.append_hl_txn(finder.key, hl):
-                Cache.append_hl(self.key.id(), hl.player, hl)
-        else:
-            self.append_hl(hl)
+        # constant-size append into a chunk child; the Player stays small
+        if Player.append_hl_chunked_txn(finder.key, hl):
+            Cache.append_hl(self.key.id(), hl.player, hl)
         if hl.map_coords or coords in trees_by_coords:
             Cache.clear_items(self.key.id())
         return retcode
-
-    @ndb.transactional(retries=5)
-    def append_hl(self, hl):
-        if not any([h for h in self.hls[:-20] if h.equals(hl)]):
-            self.hls.append(hl)
-            Cache.append_hl(self.key.id(), hl.player, hl)
-        self.put()
 
     def clean_up(self):
         [p.delete() for p in self.players]

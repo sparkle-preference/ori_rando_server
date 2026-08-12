@@ -26,7 +26,7 @@ from enums import MultiplayerGameType, ShareType, Variation
 from models import ndb_wsgi_middleware, Game, Seed, User, BingoGameData, BingoEvent, BingoTeam, CustomLogic, trees_by_coords, LegacyUser, bingo_lock
 from bingo import BingoGenerator
 from cache import Cache
-from util import coord_correction_map, clone_entity, all_locs, picks_by_type_generator, param_val, param_flag, param_true, debug, template_root, VER, MIN_VER, BETA_VER, game_list_html, version_check, template_vals, layout_json, bfield_checksum, netperf, NETPERF_TAG, json_default, seed_sync_id, is_mw_manifest_loc, BATCH_GRANTS, HIST_ON_PLAYER, SPLIT_CACHE, BINGO_V2, CHUNKED_LOGS, MULTIWORLD, WEBSOCKETS, WS_PUSH, ARCHIPELAGO
+from util import coord_correction_map, clone_entity, all_locs, picks_by_type_generator, param_val, param_flag, param_true, debug, template_root, VER, MIN_VER, BETA_VER, game_list_html, version_check, template_vals, layout_json, bfield_checksum, netperf, NETPERF_TAG, json_default, seed_sync_id, is_mw_manifest_loc, MULTIWORLD, ARCHIPELAGO
 from reachable import Map, PlayerState
 from pickups import Pickup, Skill, AbilityCell, HealthCell, EnergyCell, Multiple
 
@@ -406,20 +406,17 @@ def netcode_ap_disconnect(game_id):
     status, body = netcode.ap_disconnect(game_id)
     return text_resp(body, status)
 
-# websocket transport (flag-gated: unset = route 404s, clients poll http).
-# The route body lives in ws.py; each connection pins a gunicorn thread
-# until it closes, capped by util.WS_CONN_LIMIT.
-if WEBSOCKETS:
-    import ws
-    from flask_sock import Sock
-    sock = Sock(app)
+# websocket transport. The route body lives in ws.py; each connection pins a
+# gunicorn thread until it closes, capped by util.WS_CONN_LIMIT.
+import ws
+from flask_sock import Sock
+sock = Sock(app)
 
-    @sock.route('/netcode/game/<int:game_id>/player/<int:player_id>/ws')
-    def netcode_ws(conn, game_id, player_id):
-        ws.run_connection(conn, game_id, player_id)
+@sock.route('/netcode/game/<int:game_id>/player/<int:player_id>/ws')
+def netcode_ws(conn, game_id, player_id):
+    ws.run_connection(conn, game_id, player_id)
 
-    if WS_PUSH:
-        ws.enable_push()
+ws.enable_push()
 
 @app.route('/game/<int:game_id>/delete/')
 def game_delete(game_id):
@@ -1334,10 +1331,8 @@ def bingo_get_game(game_id):
 
 @app.route('/bingo/game/<int:game_id>/start') #BingoStartCountdown =
 def bingo_start_game(game_id):
-    if BINGO_V2:
-        with bingo_lock(game_id):
-            return _bingo_start_game_inner(game_id)
-    return _bingo_start_game_inner(game_id)
+    with bingo_lock(game_id):
+        return _bingo_start_game_inner(game_id)
 
 def _bingo_start_game_inner(game_id):
     res = {}
@@ -1374,13 +1369,10 @@ def _bingo_start_game_inner(game_id):
 
 @app.route('/bingo/game/<int:game_id>/add/<int:player_id>') #BingoAddPlayer =
 def bingo_add_player(game_id, player_id):
-    # BINGO_V2: all writers of a game's BingoGameData serialize on the same
-    # per-game lock; a plain-put update can't swallow a concurrent join.
-    # Legacy: the original whole-route transaction, via the call API.
-    if BINGO_V2:
-        with bingo_lock(game_id):
-            return _bingo_add_player_inner(game_id, player_id)
-    return ndb.transaction(lambda: _bingo_add_player_inner(game_id, player_id), xg=True)
+    # all writers of a game's BingoGameData serialize on the same per-game
+    # lock; a plain-put update can't swallow a concurrent join.
+    with bingo_lock(game_id):
+        return _bingo_add_player_inner(game_id, player_id)
 
 def _bingo_add_player_inner(game_id, player_id):
     bingo = BingoGameData.with_id(game_id)
@@ -1425,10 +1417,7 @@ def _bingo_add_player_inner(game_id, player_id):
             user.put()
     res = bingo.get_json()
     if bingo.meta:
-        if BINGO_V2:
-            bingo.update_v2({}, player_id, game_id, True)  # lock held by caller
-        else:
-            bingo.update({}, player_id, game_id, True)
+        bingo.update({}, player_id, game_id, True)  # lock held by caller
         board = getattr(bingo, "_board_json", None)
         if board is not None:
             Cache.set_board(game_id, board)  # NB: strips is_owner from board
@@ -1445,10 +1434,8 @@ def _bingo_add_player_inner(game_id, player_id):
 
 @app.route('/bingo/game/<int:game_id>/remove/<int:player_id>') #BingoRemovePlayer =
 def bingo_remove_player(game_id, player_id):
-    if BINGO_V2:
-        with bingo_lock(game_id):
-            return _bingo_remove_player_inner(game_id, player_id)
-    return _bingo_remove_player_inner(game_id, player_id)
+    with bingo_lock(game_id):
+        return _bingo_remove_player_inner(game_id, player_id)
 
 def _bingo_remove_player_inner(game_id, player_id):
     bingo = BingoGameData.with_id(game_id)
@@ -1800,9 +1787,9 @@ def bingothon_fetch_data(game_id, player_id):
         res["disc_squares"] = bingo.disc_squares
     return json_resp(res)
 
-@app.route('/flags')  # temporary: verify feature-flag status per revision
+@app.route('/flags')  # verify feature-flag status per revision
 def flag_status():
-    flags = {"BATCH_GRANTS": BATCH_GRANTS, "HIST_ON_PLAYER": HIST_ON_PLAYER, "SPLIT_CACHE": SPLIT_CACHE, "BINGO_V2": BINGO_V2, "CHUNKED_LOGS": CHUNKED_LOGS, "MULTIWORLD": MULTIWORLD, "WEBSOCKETS": WEBSOCKETS, "WS_PUSH": WS_PUSH, "ARCHIPELAGO": ARCHIPELAGO}
+    flags = {"MULTIWORLD": MULTIWORLD, "ARCHIPELAGO": ARCHIPELAGO}
     rows = "".join("<tr><td style='padding:4px 12px'>%s</td><td style='padding:4px 12px'><b>%s</b></td></tr>"
                    % (name, "ON" if val else "off") for name, val in flags.items())
     return make_resp("<html><body><h3>Feature flags</h3><table border=1>%s</table><p>serving: %s</p></body></html>"

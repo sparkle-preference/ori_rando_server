@@ -21,7 +21,7 @@ from cache import Cache
 from enums import MultiplayerGameType
 from models import Game, BingoGameData, Player, bingo_lock
 from pickups import Pickup
-from util import all_locs, bfield_checksum, coord_correction_map, debug, netperf, seed_sync_id, version_check, ARCHIPELAGO, BINGO_V2
+from util import all_locs, bfield_checksum, coord_correction_map, debug, netperf, seed_sync_id, version_check, ARCHIPELAGO
 
 
 def _code(status):
@@ -204,7 +204,7 @@ def ap_connect(game_id, payload):
     if retarget:
         link.last_error = None  # retrying the same room keeps its diagnosis
     link.put()
-    # lazy-start the room bridge (ws.py WS_PUSH pattern: request-path start
+    # lazy-start the room bridge (ws.py push pattern: request-path start
     # only; gunicorn --preload silently kills import-time threads)
     ap_bridge.ensure(game_id, link=link)
     return 200, "ok"
@@ -296,58 +296,28 @@ def bingo_update(game_id, player_id, payload):
     t0 = monotonic()
     evlog_len = len(bingo.event_log)
     def publish():
-        # Publish the board only after the transaction committed — publishing inside
-        # update() let doomed concurrent attempts overwrite the cache with state that
-        # was about to be rolled back (goal flicker). Publish IMMEDIATELY after commit
-        # (before logging) to minimize the window in which another thread's newer
-        # commit+publish could be overwritten by our older board.
+        # Publish the board only after update() finished — publishing from inside
+        # it let doomed concurrent attempts overwrite the cache with state that
+        # was about to be discarded (goal flicker, back when updates could abort).
         board = getattr(bingo, "_board_json", None)
         if board is not None:
             Cache.set_board(game_id, board)
-    if BINGO_V2:
-        try:
-            with bingo_lock(game_id):
-                # fresh read under the lock; the pre-checks above used an
-                # unlocked (possibly stale) read, which is fine for 404/412s
-                bingo = BingoGameData.get_by_id(int(game_id), use_cache=False)
-                bingo.update_v2(bingo_data, player_id, game_id)
-                # publish inside the lock: ordering is trivially correct because
-                # no other writer of this game can run concurrently
-                publish()
-            netperf("bingo_update", t0, gid=game_id, pid=player_id, evlog=evlog_len, v2=1)
-            # late re-bust: a tick that read the winner pre-signal can re-arm
-            # the fast path after signal_send's own bust (see _update_inner)
-            for idpts in getattr(bingo, "_signal_pids", []):
-                Cache.clear_seen_checksum(idpts)
-            _ap_bingo_goal(bingo, game_id)
-            return _code(200)
-        except Exception as e:
-            log.error("NETPERF bingo_update_fail gid=%s pid=%s v2=1 err=%s: %s", game_id, player_id, type(e).__name__, e)
-            return _code(503)
     try:
-        bingo.update(bingo_data, player_id, game_id)
-        publish()
-        netperf("bingo_update", t0, gid=game_id, pid=player_id, evlog=evlog_len, retried=0)
-    except Exception as e:
-        log.warning("NETPERF bingo_update_err gid=%s pid=%s err=%s: %s", game_id, player_id, type(e).__name__, e)
-        # Re-fetch before retrying: the failed transaction rolled back the datastore
-        # but NOT the in-memory entity, which update() already mutated (event_log
-        # appends, card state). CRITICAL: use_cache=False — the ndb context cache
-        # would hand back that same mutated object, making the retry see its own
-        # uncommitted changes as prior state → no event, need_write stays False,
-        # the BingoGameData put is skipped, and the gain is published to the board
-        # cache but never persisted. Next poster reverts it: the E2 flicker in 133486.
-        # No sleep — the contention window is sub-second, and on a second failure the
-        # client re-POSTs its full (durable) state within a few ticks anyway.
-        bingo = BingoGameData.get_by_id(int(game_id), use_cache=False)
-        try:
+        with bingo_lock(game_id):
+            # fresh read under the lock; the pre-checks above used an
+            # unlocked (possibly stale) read, which is fine for 404/412s
+            bingo = BingoGameData.get_by_id(int(game_id), use_cache=False)
             bingo.update(bingo_data, player_id, game_id)
+            # publish inside the lock: ordering is trivially correct because
+            # no other writer of this game can run concurrently
             publish()
-            netperf("bingo_update", t0, gid=game_id, pid=player_id, evlog=evlog_len, retried=1)
-        except Exception as e2:
-            log.error("NETPERF bingo_update_fail gid=%s pid=%s err=%s: %s", game_id, player_id, type(e2).__name__, e2)
-            return _code(503)
-    for idpts in getattr(bingo, "_signal_pids", []):
-        Cache.clear_seen_checksum(idpts)
-    _ap_bingo_goal(bingo, game_id)
-    return _code(200)
+        netperf("bingo_update", t0, gid=game_id, pid=player_id, evlog=evlog_len)
+        # late re-bust: a tick that read the winner pre-signal can re-arm
+        # the fast path after signal_send's own bust (see _update_inner)
+        for idpts in getattr(bingo, "_signal_pids", []):
+            Cache.clear_seen_checksum(idpts)
+        _ap_bingo_goal(bingo, game_id)
+        return _code(200)
+    except Exception as e:
+        log.error("NETPERF bingo_update_fail gid=%s pid=%s err=%s: %s", game_id, player_id, type(e).__name__, e)
+        return _code(503)

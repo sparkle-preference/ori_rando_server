@@ -27,56 +27,23 @@ VER = [4, 2, 9]
 MIN_VER = [4, 2, 7]
 BETA_VER = [4, 2, 9]
 
-# Feature flags for netcode rework (graceful fallback: unset/0 = legacy behavior)
+# Feature flags (env vars; unset/0 = off)
 def _flag(name):
     return os.environ.get(name, "0") not in ("", "0", "false", "False")
-BATCH_GRANTS = _flag("BATCH_GRANTS")
-# store new history lines on the finder's Player entity instead of the shared Game
-# entity — Game.hls appends were the found_pickup floor cost (every concurrent
-# finder contends on the one Game entity)
-HIST_ON_PLAYER = _flag("HIST_ON_PLAYER")
-# store the per-game hist/pos/have/reach caches under per-player keys instead of
-# one map per game — the whole-map read-modify-write pattern loses concurrent
-# writes (threads overwrite each other), the long-suspected source of transient
-# tracker wrongness
-SPLIT_CACHE = _flag("SPLIT_CACHE")
-# serialize bingo updates through a per-game in-process lock (plain puts, no
-# transactions, no retries) instead of contended transactions on the shared
-# BingoGameData entity. REQUIRES single-instance deployment (gunicorn threads
-# in one process — see Dockerfile); revisit before any horizontal scaling.
-BINGO_V2 = _flag("BINGO_V2")
-# shard both append-only growths off the hot entities: history lines into
-# HistoryChunk children (Player keeps only constant-size dedup state) and the
-# bingo event log into BingoEventChunk archives (the entity keeps the feed tail).
-# Gates WRITES only — readers merge every layout unconditionally, so flipping
-# this off never hides lines already written. Covers both because they share one
-# failure mode and one clean signal each: found_pickup ms answers for history
-# alone, bingo_update's evlog= field shows the log's on-entity size directly.
-CHUNKED_LOGS = _flag("CHUNKED_LOGS")
 # allow creating Multiworld games/seeds. The gameplay code paths (generator,
 # found_pickup, tick slots field) are mode-gated and always present; this
 # flag only controls whether the mode can be requested at seed creation.
 MULTIWORLD = _flag("MULTIWORLD")
-# register the websocket route (/netcode/game/../player/../ws) and serve tick
-# frames over it. Off = the route 404s and every client stays on http polling
-# (the dll treats a route that never connects as "no websocket here").
-WEBSOCKETS = _flag("WEBSOCKETS")
-# every open socket pins one gunicorn thread (Dockerfile --threads) for its
-# whole lifetime. Reject new sockets past this count — with a healthy gap
-# below the thread count — so they can't starve the http side of the shared
-# pool; rejected clients just keep polling and re-probe on reconnect backoff.
-WS_CONN_LIMIT = int(os.environ.get("WS_CONN_LIMIT", "48"))
-# push a fresh tick frame to a connected socket the moment the server busts
-# that player's tick cache (grants, signals, slot flips) instead of waiting
-# for the client's next 1 Hz tick. Server-only: the client already treats
-# any tick frame as a tick response, and the 1 Hz tick stays the reliable
-# delivery path (a lost push costs nothing). Requires WEBSOCKETS.
-WS_PUSH = _flag("WS_PUSH")
 # serve the Archipelago link routes (ap/connect, ap/status, ap/disconnect)
 # for AP-mode games. Off = the routes 404 and no bridge state can be created;
 # the AP gameplay data (shadow players, reserved slots) is mode-gated and
 # always present, MULTIWORLD-style.
 ARCHIPELAGO = _flag("ARCHIPELAGO")
+# every open socket pins one gunicorn thread (Dockerfile --threads) for its
+# whole lifetime. Reject new sockets past this count — with a healthy gap
+# below the thread count — so they can't starve the http side of the shared
+# pool; rejected clients just keep polling and re-probe on reconnect backoff.
+WS_CONN_LIMIT = int(os.environ.get("WS_CONN_LIMIT", "48"))
 
 # Perf instrumentation: stable, grep-able log lines ("NETPERF <what> ms=<dur> tag=<revision:pid> k=v ...").
 # tag identifies the Cloud Run revision + worker process, to detect cross-process cache misses.

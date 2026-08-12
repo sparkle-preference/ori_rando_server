@@ -29,7 +29,7 @@ http response, frozen by golden_wire_test/session_golden_test):
       complete strands multiworld releases. game_complete is idempotent.)
 
 Server -> client: tick:<body> frames, either as tick replies or pushed
-unsolicited (WS_PUSH) — the client treats both identically.
+unsolicited — the client treats both identically.
 
 handle_frame is pure (frame in, reply out) for tests; run_connection owns
 the socket loop, the per-frame ndb context, and the connection gauge.
@@ -77,8 +77,8 @@ def _unregister(gpid, conn):
             del _socks[gpid]
 
 
-# --- push (WS_PUSH): send a fresh tick frame the moment a player's tick
-# cache is busted, instead of waiting for their next 1 Hz tick. Best-effort
+# --- push: send a fresh tick frame the moment a player's tick cache is
+# busted, instead of waiting for their next 1 Hz tick. Best-effort
 # by design — the client's own tick remains the reliable delivery path, so
 # anything lost here arrives at most one tick later.
 
@@ -90,12 +90,11 @@ _push_thread_lock = Lock()
 
 
 def enable_push():
-    """Wire cache-bust notifications up. Called at startup when WEBSOCKETS
-    and WS_PUSH are both set. The pusher thread is NOT started here: with
-    gunicorn --preload this code runs in the master process and threads do
-    not survive the fork into the worker (game 134236: WS_PUSH on, sockets
-    up, zero pushes, zero errors). The thread starts lazily in whichever
-    process actually notifies."""
+    """Wire cache-bust notifications up. Called at startup from main.py.
+    The pusher thread is NOT started here: with gunicorn --preload this code
+    runs in the master process and threads do not survive the fork into the
+    worker (game 134236: push wired, sockets up, zero pushes, zero errors).
+    The thread starts lazily in whichever process actually notifies."""
     push.set_handler(_notify)
 
 
