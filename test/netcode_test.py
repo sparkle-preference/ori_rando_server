@@ -202,10 +202,8 @@ class TestGivePickup(NdbTestCase):
 
 
 class TestHistoryMerge(NdbTestCase):
-    """history() merges every storage layout unconditionally. That invariant
-    predates this cleanup: when writes were still flag-gated, a reader that
-    honored the flags made a flag flip lossy (lines written under the newer
-    layout vanished from the tracker the moment it was turned off)."""
+    """history() merges every storage layout unconditionally — old games hold
+    lines in any of the three."""
 
     def _game(self):
         t0 = datetime(2026, 7, 20, 12, 0, 0)

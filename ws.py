@@ -93,8 +93,7 @@ def enable_push():
     """Wire cache-bust notifications up. Called at startup from main.py.
     The pusher thread is NOT started here: with gunicorn --preload this code
     runs in the master process and threads do not survive the fork into the
-    worker (game 134236: push wired, sockets up, zero pushes, zero errors).
-    The thread starts lazily in whichever process actually notifies."""
+    worker. The thread starts lazily in whichever process actually notifies."""
     push.set_handler(_notify)
 
 

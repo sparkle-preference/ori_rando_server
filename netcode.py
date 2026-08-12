@@ -296,9 +296,7 @@ def bingo_update(game_id, player_id, payload):
     t0 = monotonic()
     evlog_len = len(bingo.event_log)
     def publish():
-        # Publish the board only after update() finished — publishing from inside
-        # it let doomed concurrent attempts overwrite the cache with state that
-        # was about to be discarded (goal flicker, back when updates could abort).
+        # _board_json is stashed by update(); None = nothing to publish
         board = getattr(bingo, "_board_json", None)
         if board is not None:
             Cache.set_board(game_id, board)

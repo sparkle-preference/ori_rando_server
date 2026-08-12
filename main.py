@@ -274,9 +274,9 @@ def reassign_plandos_to_legacy_users_by_name():
 @app.before_request
 def canonical_host_redirect():
     # the orirando.com -> bf.orirando.com move (see util.CANONICAL_HOST).
-    # Browsers only: never /netcode/* — the shipped dll fleet speaks wss and
-    # plain http to fixed hosts and treats a redirect as an error — and never
-    # non-GET, so a stray API POST fails loudly instead of vanishing into a 301.
+    # Browsers only: never /netcode/* (the dll fleet treats redirects as
+    # errors) and never non-GET (a stray API POST should fail loudly, not
+    # vanish into a 301).
     if not CANONICAL_HOST or request.host not in REDIRECT_HOSTS:
         return
     if request.method not in ("GET", "HEAD") or request.path.startswith("/netcode/"):

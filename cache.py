@@ -57,8 +57,7 @@ class MemcachedCache(object):
     # --- per-player keys ({gid}.{pid}.{suffix}) plus a pid registry ({gid}.pids)
     # so map-shaped readers know which keys to gather. Registration is lazy and
     # self-healing: a lost registry update is repaired by that player's next
-    # write (~1/s). One map per game would mean whole-map read-modify-writes,
-    # where concurrent writers silently discard each other's data.
+    # write (~1/s).
     def _pids(self, gid):
         return [int(p) for p in (self.memcache_get(key="%s.pids" % gid) or [])]
 

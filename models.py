@@ -22,8 +22,7 @@ from pickups import Pickup, Skill, Teleporter, Event
 from cache import Cache
 
 # Per-game locks serializing all writers of a game's BingoGameData within this
-# (single) process. dict.setdefault is atomic under the GIL, so two threads
-# racing to create a game's lock still converge on one object.
+# (single) process; dict.setdefault is atomic under the GIL.
 # CORRECT ONLY SINGLE-INSTANCE: bingo writes are plain puts serialized by these
 # locks, so the service must stay one process (gunicorn --workers 1, Cloud Run
 # max-instances=1 — see Dockerfile). Revisit before any horizontal scaling.
@@ -455,10 +454,9 @@ class Player(ndb.Model):
     # (8x32 bits; slot semantics live in the player's own seed manifest)
     slot_bflds  = ndb.IntegerProperty(repeated=True)
     bingo_prog  = ndb.LocalStructuredProperty(BingoCardProgress, repeated=True)
-    # history dedup state (constant size, replaces scanning `history`):
-    # hist_tail is the rolling last-HIST_TAIL keys, hist_seen is every key that
-    # has fallen out of that window — together they reproduce the legacy
-    # "skip if this line appears in history[:-20]" test exactly.
+    # history dedup state (constant size): hist_tail is the rolling
+    # last-HIST_TAIL keys, hist_seen is every key that has fallen out of that
+    # window — the "skip if in history[:-20]" replay guard, minus the scan.
     hist_chunk  = ndb.IntegerProperty(default=0)
     hist_tail   = ndb.IntegerProperty(repeated=True)
     hist_seen   = ndb.IntegerProperty(repeated=True)
@@ -851,8 +849,7 @@ class Player(ndb.Model):
     def transaction_pickup_batch(pkeys, grants):
         # grant every pickup to every player in ONE transaction — all Players
         # share the Game entity group, so this is a single-group txn with one
-        # get_multi and one put_multi, replacing N sequential transactions
-        # (2N RPCs and N contention windows).
+        # get_multi and one put_multi.
         # grants: list of (pickup, remove, coords, finder)
         players = [p for p in ndb.get_multi(pkeys) if p is not None]
         for p in players:
@@ -1368,11 +1365,9 @@ class BingoGameData(ndb.Model):
         return None
 
     def update(self, bingo_data, player_id, game_id, meta_init = False):
-        # caller MUST hold bingo_lock(game_id). Serialization via the lock
-        # instead of a transaction — plain puts cannot conflict because every
-        # writer of this entity holds the same lock (see the bingo routes).
-        # No aborts means no retries, no doomed-attempt cache publishing, and no
-        # stale-object re-fetch dance.
+        # caller MUST hold bingo_lock(game_id): plain puts cannot conflict
+        # because every writer of this entity holds the same lock (see the
+        # bingo routes).
         self.archive_evlog(game_id)
         return self._update_inner(bingo_data, player_id, game_id, meta_init)
 
@@ -1700,9 +1695,8 @@ class Game(ndb.Model):
     spawn          = ndb.StringProperty(default="Glades")
     def history(self, pids=[]):
         # Readers merge every storage layout unconditionally, so games written
-        # under any older revision still read back whole. Three sources, oldest
-        # first: Game.hls (legacy on-Game lines), Player.history (July 2026
-        # on-Player interim), HistoryChunk children (current writes).
+        # under any older revision still read back whole. Oldest first:
+        # Game.hls, Player.history (both write-retired), HistoryChunk children.
         players = self.get_players()
         res = list(self.hls)
         for p in players:
@@ -2236,7 +2230,6 @@ class Game(ndb.Model):
         hl = HistoryLine(pickup_code=pickup.code, timestamp=datetime.utcnow(), pickup_id=str(pickup.id), coords=coords, removed=remove, player=pid)
         if coords in range(24, 60, 4) and zone in map_coords_by_zone:
             hl.map_coords = map_coords_by_zone[zone]
-        # constant-size append into a chunk child; the Player stays small
         if Player.append_hl_chunked_txn(finder.key, hl):
             Cache.append_hl(self.key.id(), hl.player, hl)
         if hl.map_coords or coords in trees_by_coords:
