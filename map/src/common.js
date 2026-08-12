@@ -162,6 +162,8 @@ const stuff_by_type = {
     "Upgrades": [
         { label: "Mega Health", value: "RB|0", desc: "Restores health to full, then grants 5 temporary health. Does not stack with other sources of temporary health."},
         { label: "Mega Energy", value: "RB|1", desc: "Restores energy to full, then grants 5 temporary energy. Does not stack with other sources of temporary energy."},
+        { label: "Mini Health", value: "RB|38", desc: "Grants 1 temporary health."},
+        { label: "Mini Energy", value: "RB|39", desc: "Grants 1 temporary energy."},
         { label: "Attack Upgrade", value: "RB|6", desc: "Increases Spirit Flame's damage and maximum number of targets by 1. Increases Charge Flame damage by 6. Increases Grenade damage by 3 and explosion radius by 1. Stacks."},
         { label: "Explosion Power Upgrade", value: "RB|8", desc: "Deprecated. Increases Charge Flame damage by 6, Grenade damage by 6 and Grenade explosion radius by 1."},
         { label: "Spirit Light Efficiency", value: "RB|9", desc: "Doubles all incoming experience. Stacks additively, both with itself and with the purple tree ability of the same name."},

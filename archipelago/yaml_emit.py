@@ -21,7 +21,7 @@ DATA_DIR = os.path.join(os.path.dirname(__file__), "oride_apworld", "oride", "da
 # Contract version of the blob below, checked by the apworld's
 # generate_early. Bump together with oride_apworld/oride/version.py, whose
 # docstring holds the rule; the suite fails if the two drift.
-DATA_VERSION = 4
+DATA_VERSION = 5
 
 EXPORT_CODES = {"SK", "TP", "EV"}
 LOCAL_CODES = {"KS", "MS", "HC", "EC", "AC"}

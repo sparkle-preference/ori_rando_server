@@ -4989,5 +4989,19 @@
   "code": "TW",
   "id": "Warp to Wilhelm EX",
   "name": "Warp to Wilhelm EX"
+ },
+ {
+  "ap_id": 525001,
+  "category": "upgrades",
+  "code": "RB",
+  "id": "38",
+  "name": "Mini Health"
+ },
+ {
+  "ap_id": 525002,
+  "category": "upgrades",
+  "code": "RB",
+  "id": "39",
+  "name": "Mini Energy"
  }
 ]

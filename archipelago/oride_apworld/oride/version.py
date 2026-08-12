@@ -25,7 +25,8 @@ directly, without Archipelago on the path.
 
 # 4: generic keystones may ride the "stones" export; doors compile to
 # cumulative tier thresholds (shared.KEYSTONE_DOORS) for those seeds
-DATA_VERSION = 4
+# 5: Mini Health / Mini Energy join the datapackage (upgrades)
+DATA_VERSION = 5
 COMPATIBLE_DATA_VERSION = 1
 
 # yamls emitted before data_version existed came from the only table

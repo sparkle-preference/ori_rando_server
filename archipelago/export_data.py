@@ -96,7 +96,8 @@ ITEM_ORDER = (
      if ex not in (50, 100, 200)] +
     # the rest of the BS* bonus-skill roll (generator.py:634-646)
     [("RB", rb, "upgrades") for rb in (101, 103, 104, 105, 107, 109, 110, 113)] +
-    [("TW", dest, "warps") for dest in WARP_DESTINATIONS]
+    [("TW", dest, "warps") for dest in WARP_DESTINATIONS] +
+    [("RB", rb, "upgrades") for rb in (38, 39)]              # mini health/energy
 )
 
 
