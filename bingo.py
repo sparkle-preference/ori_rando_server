@@ -204,7 +204,6 @@ class BingoGenerator(object):
         if rando:
             tpGoals += [
                 BoolGoal(name = "swamp", disp_name = "Thornfelt Swamp", tags = [ "early" ]),
-                BoolGoal(name = "sorrowPass", disp_name = "Valley of the Wind")
             ]
         # journeys are drawn from whatever wells this seed actually has; adjacent
         # pairs are a free square anywhere but easy
