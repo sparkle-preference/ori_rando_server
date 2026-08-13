@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
-import {get_param, gotoUrl, loginLogoutUrl, ap_opt_in, resolve_dark, save_dark} from './common.js';
+import {get_param, ap_opt_in, resolve_dark, save_dark} from './common.js';
 
 import ItemTracker from './ItemTracker';
 import MainPage from './MainPage';

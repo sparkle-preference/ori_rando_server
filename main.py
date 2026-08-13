@@ -22,6 +22,7 @@ import google.cloud.logging
 import netcode
 from archipelago import build_apworld
 from archipelago.yaml_emit import DATA_VERSION as AP_DATA_VERSION
+from flask_oidc.signals import after_logout
 from oidc import make_oidc
 from seedbuilder.seedparams import SeedGenParams, seed_mode_problem
 from seedbuilder.vanilla import seedtext as vanilla_seed
@@ -39,6 +40,9 @@ from pickups import Pickup, Skill, AbilityCell, HealthCell, EnergyCell, Multiple
 path='index.html'
 app = Flask(__name__, template_folder=template_root, static_folder=template_root, static_url_path='/static')
 app.debug = debug()
+# open_session reads this as the cookie's max_age during request-context push,
+# before any before_request hook, so it has to be set at import.
+app.permanent_session_lifetime = timedelta(days=365)
 # app.url_map.strict_slashes = False
 app.wsgi_app = ndb_wsgi_middleware(app.wsgi_app)
 # Google Frontend terminates TLS, so without this every redirect Flask builds
@@ -316,9 +320,21 @@ def delete_flashes(response):
 
 @app.before_request
 def make_session_permanent():
-    session.permanent = True
-    app.permanent_session_lifetime = timedelta(days=365)
-    session.modified = True  # Force the cookie timestamp to update
+    """Rolling year-long login cookie, refreshed on every response.
+
+    Only for sessions that hold a token: setting `permanent` writes a key, and a
+    non-empty session means a signed cookie on every anonymous hit and every
+    /netcode/ poll too.
+    """
+    if session.get("oidc_auth_token"):
+        session.permanent = True
+
+
+@after_logout.connect
+def clear_session_on_logout(sender, **kwargs):
+    # logout_view only pops its own keys. Anything left keeps the session
+    # truthy, and Flask sends the delete-cookie only for an empty one.
+    session.clear()
 
 
 @app.route('/activeGames/')
