@@ -1,6 +1,9 @@
 ﻿# py imports
 import random
 import json
+import os
+import requests
+from html import escape
 from collections import Counter, defaultdict
 from time import sleep, monotonic
 from calendar import timegm
@@ -23,10 +26,10 @@ from oidc import make_oidc
 from seedbuilder.seedparams import SeedGenParams, seed_mode_problem
 from seedbuilder.vanilla import seedtext as vanilla_seed
 from enums import MultiplayerGameType, ShareType, Variation
-from models import ndb_wsgi_middleware, Game, Seed, User, BingoGameData, BingoEvent, BingoTeam, CustomLogic, trees_by_coords, LegacyUser, bingo_lock
+from models import ndb_wsgi_middleware, Game, Seed, User, BingoGameData, BingoEvent, BingoTeam, CustomLogic, trees_by_coords, LegacyUser, bingo_lock, AnnouncedPatchNotes
 from bingo import BingoGenerator
 from cache import Cache
-from util import coord_correction_map, clone_entity, all_locs, picks_by_type_generator, param_val, param_flag, param_true, debug, template_root, VER, MIN_VER, BETA_VER, game_list_html, version_check, template_vals, layout_json, bfield_checksum, netperf, NETPERF_TAG, json_default, seed_sync_id, is_mw_manifest_loc, MULTIWORLD, ARCHIPELAGO, CANONICAL_HOST, REDIRECT_HOSTS
+from util import coord_correction_map, clone_entity, all_locs, picks_by_type_generator, param_val, param_flag, param_true, debug, template_root, VER, MIN_VER, BETA_VER, game_list_html, version_check, template_vals, layout_json, bfield_checksum, netperf, NETPERF_TAG, json_default, seed_sync_id, is_mw_manifest_loc, MULTIWORLD, ARCHIPELAGO, CANONICAL_HOST, REDIRECT_HOSTS, PATCHNOTES_WEBHOOK_MAIN, PATCHNOTES_WEBHOOK_DEV
 from reachable import Map, PlayerState
 from pickups import Pickup, Skill, AbilityCell, HealthCell, EnergyCell, Multiple
 
@@ -1851,3 +1854,225 @@ PATCHNOTE_ALIASES = {"3.x": "3.0", "4.0.x": "4.0.0", "4.1.x": "4.1.0"}
 @app.route('/patchnotes/<version>')
 def patchnotes_version(version):
     return redirect("/patchnotes#%s" % PATCHNOTE_ALIASES.get(version, version))
+
+
+# Atom ids are permanent identities rather than locations, so they must not move
+# when the site is served from another host (bf.orirando.com, localhost, ...).
+FEED_TAG_HOST = "orirando.com"
+
+# map/src/patchnotes.json is what the frontend bundles, so the feeds can never
+# drift from the page. Loaded lazily and cached: if the file ever fails to ship,
+# only these two routes break instead of the whole app failing to import.
+_patchnotes_cache = None
+
+class PatchnotesMissing(Exception):
+    pass
+
+def patchnotes_doc():
+    global _patchnotes_cache
+    if _patchnotes_cache is None:
+        src = os.path.join(os.path.dirname(__file__), 'map/src/patchnotes.json')
+        try:
+            with open(src, encoding='utf-8') as f:
+                _patchnotes_cache = json.load(f)
+        except FileNotFoundError:
+            # says what to fix instead of a bare 500 six months from now
+            raise PatchnotesMissing(
+                "patchnotes.json is not in the image; check its COPY line in the Dockerfile")
+    return _patchnotes_cache
+
+
+def version_tuple(v):
+    try:
+        return tuple(int(x) for x in v.split("."))
+    except ValueError:
+        return ()
+
+
+@app.route('/patchnotes.json')
+def patchnotes_json():
+    """The notes as data. ?since=4.2.9 returns only releases newer than that,
+    which is what a bot wants when it last announced 4.2.9. ?highlights=1 drops
+    the minor changes, matching the page's default view."""
+    try:
+        doc = patchnotes_doc()
+    except PatchnotesMissing as e:
+        return text_resp(str(e), 503)
+    releases = doc["releases"]
+
+    since = param_val("since")
+    if since:
+        cutoff = version_tuple(since)
+        if not cutoff:
+            return text_resp("bad since= version: %s" % since, 400)
+        releases = [r for r in releases if version_tuple(r["version"]) > cutoff]
+
+    if param_flag("highlights"):
+        releases = [dict(r, changes=[c for c in r["changes"] if c["importance"] == "major"])
+                    for r in releases]
+
+    body = json.dumps({"categories": doc["categories"], "current": VERSION, "releases": releases})
+    resp = make_response(body)
+    resp.headers["Content-Type"] = "application/json"
+    return resp
+
+
+# "all" (the default when a release says nothing) reaches both channels, "dev"
+# only the dev one, "none" neither.
+ANNOUNCE_CHANNELS = {
+    "main": lambda a: a == "all",
+    "dev": lambda a: a in ("all", "dev"),
+}
+
+def announce_webhook(channel):
+    return {"main": PATCHNOTES_WEBHOOK_MAIN, "dev": PATCHNOTES_WEBHOOK_DEV}[channel]
+
+
+def announce_embed(release, base):
+    major = [c for c in release["changes"] if c["importance"] == "major"]
+    lines = []
+    if release.get("headline"):
+        lines.append(release["headline"])
+    for c in major:
+        lines.append("- %s" % c["text"])
+        for s in c.get("sub", []):
+            lines.append("  - %s" % s)
+    if not major and not release.get("headline"):
+        lines.append("Small fixes only - see the full notes.")
+    title = "%s%s" % (release["version"], " - %s" % release["title"] if release.get("title") else "")
+    # discord truncates a description past 4096 rather than rejecting it, but
+    # cutting it here keeps the "read the rest" link meaningful
+    body = "\n".join(lines)
+    if len(body) > 3900:
+        body = body[:3900].rsplit("\n", 1)[0] + "\n- ..."
+    return {"title": title, "url": "%s/patchnotes#%s" % (base, release["version"]), "description": body}
+
+
+def announce_patchnotes(base, force=False):
+    """Post any releases newer than each channel's marker. Returns a per-channel
+    summary. Inert unless a webhook is configured for that channel."""
+    doc = patchnotes_doc()
+    releases = doc["releases"]
+    if not releases:
+        return {}
+    newest = releases[0]["version"]
+    out = {}
+
+    for channel, wants in ANNOUNCE_CHANNELS.items():
+        hook = announce_webhook(channel)
+        if not hook:
+            continue
+        was = AnnouncedPatchNotes.claim(channel, newest)
+        if was is None:
+            # marker already current (or just seeded); force resends the newest
+            # only -- never the whole back catalogue
+            if not force:
+                out[channel] = "nothing new"
+                continue
+            pending = releases[:1]
+        else:
+            cutoff = version_tuple(was)
+            pending = [r for r in releases if version_tuple(r["version"]) > cutoff]
+        pending = [r for r in pending if wants(r.get("announce", "all"))]
+        if not pending:
+            out[channel] = "nothing for this channel"
+            continue
+        # oldest first so the channel reads chronologically, 10 embeds per message
+        embeds = [announce_embed(r, base) for r in reversed(pending)][-10:]
+        try:
+            resp = requests.post(hook, json={"embeds": embeds}, timeout=10)
+            resp.raise_for_status()
+            out[channel] = "posted %s" % ", ".join(r["version"] for r in reversed(pending))
+            log.info("patchnotes: announced %s to %s", [r["version"] for r in pending], channel)
+        except Exception as e:
+            # the marker already moved, so this release will not retry by itself
+            out[channel] = "FAILED: %s" % e
+            log.error("patchnotes: %s announce POST failed for %s: %s",
+                      channel, [r["version"] for r in pending], e)
+    return out
+
+
+_announce_checked = False
+
+@app.before_request
+def announce_on_first_request():
+    """Runs once per process. A deploy restarts the process, which is the only
+    thing that can change VERSION, so this fires exactly once per release."""
+    global _announce_checked
+    if _announce_checked or not (PATCHNOTES_WEBHOOK_MAIN or PATCHNOTES_WEBHOOK_DEV):
+        return
+    # never make a game wait on Discord: the webhook POST is synchronous, so
+    # let a browser request be the one that pays for it
+    if request.path.startswith("/netcode/"):
+        return
+    _announce_checked = True  # set first: a failure must not retry every request
+    try:
+        announce_patchnotes(request.host_url.rstrip("/"))
+    except Exception:
+        log.exception("patchnotes: announce check failed")
+
+
+@app.route('/patchnotes/announce')
+def patchnotes_announce():
+    """Manual resend, for when a POST failed and the marker already moved.
+    ?force=1 reposts the newest release even if the marker is current."""
+    if not User.is_admin():
+        return text_resp("admins only", 401)
+    if not (PATCHNOTES_WEBHOOK_MAIN or PATCHNOTES_WEBHOOK_DEV):
+        return text_resp("no PATCHNOTES_WEBHOOK_MAIN or PATCHNOTES_WEBHOOK_DEV set", 503)
+    try:
+        result = announce_patchnotes(request.host_url.rstrip("/"), force=param_flag("force"))
+    except PatchnotesMissing as e:
+        return text_resp(str(e), 503)
+    return text_resp(json.dumps(result, indent=2))
+
+
+@app.route('/patchnotes.xml')
+def patchnotes_feed():
+    """Atom feed of the highlights, newest first -- for feed readers and the
+    Discord bots that can consume one without anybody writing a poster."""
+    try:
+        doc = patchnotes_doc()
+    except PatchnotesMissing as e:
+        return text_resp(str(e), 503)
+    # CANONICAL_HOST is an env var that is often unset, so fall back to whatever
+    # host the feed was actually fetched from rather than emitting "https:///".
+    base = ("https://%s" % CANONICAL_HOST) if CANONICAL_HOST else request.host_url.rstrip("/")
+    releases = doc["releases"][:25]
+
+    def entry(r):
+        major = [c for c in r["changes"] if c["importance"] == "major"]
+        items = "".join(
+            "<li>%s%s</li>" % (
+                escape(c["text"]),
+                "<ul>%s</ul>" % "".join("<li>%s</li>" % escape(s) for s in c["sub"]) if c.get("sub") else "")
+            for c in major)
+        summary = "<p>%s</p>" % escape(r["headline"]) if r.get("headline") else ""
+        content = "%s<ul>%s</ul>" % (summary, items) if items else (summary or "<p>Small fixes only.</p>")
+        title = "%s%s" % (r["version"], " - %s" % r["title"] if r.get("title") else "")
+        url = "%s/patchnotes#%s" % (base, r["version"])
+        return (
+            "<entry>"
+            "<title>%s</title>"
+            "<id>tag:%s,%s:patchnotes/%s</id>"  # stable identity, not a location
+            "<link href=\"%s\"/>"
+            "<updated>%sT00:00:00Z</updated>"
+            "<content type=\"html\">%s</content>"
+            "</entry>"
+        ) % (escape(title), FEED_TAG_HOST, r["date"], r["version"], url, r["date"], escape(content))
+
+    feed = (
+        "<?xml version=\"1.0\" encoding=\"utf-8\"?>"
+        "<feed xmlns=\"http://www.w3.org/2005/Atom\">"
+        "<title>Ori DE Randomizer patch notes</title>"
+        "<id>%s/patchnotes.xml</id>"
+        "<link href=\"%s/patchnotes\"/>"
+        "<link rel=\"self\" href=\"%s/patchnotes.xml\"/>"
+        "<updated>%sT00:00:00Z</updated>"
+        "%s</feed>"
+    ) % (base, base, base, releases[0]["date"] if releases else "1970-01-01",
+         "".join(entry(r) for r in releases))
+
+    resp = make_response(feed)
+    resp.headers["Content-Type"] = "application/atom+xml; charset=utf-8"
+    return resp

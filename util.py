@@ -50,6 +50,15 @@ WS_CONN_LIMIT = int(os.environ.get("WS_CONN_LIMIT", "48"))
 # https://CANONICAL_HOST with path+query preserved. REDIRECT_HOSTS names the
 # hosts that redirect, comma-separated — bfnc.orirando.com must NEVER be in it
 # (the dll's plain-http netcode dies on any redirect toward https).
+# Patch note announcements. Inert until a webhook URL is set. On the first
+# request after a deploy, releases newer than the last announced one get posted;
+# a release's "announce" field in patchnotes.json picks who sees it —
+# "all" (default) goes to both channels, "dev" to the dev channel only, "none"
+# nowhere. The two markers advance independently, so a dev-only release does not
+# stop the next public one reaching the main channel.
+PATCHNOTES_WEBHOOK_MAIN = os.environ.get("PATCHNOTES_WEBHOOK_MAIN", "")
+PATCHNOTES_WEBHOOK_DEV = os.environ.get("PATCHNOTES_WEBHOOK_DEV", "")
+
 CANONICAL_HOST = os.environ.get("CANONICAL_HOST", "")
 REDIRECT_HOSTS = [h.strip() for h in os.environ.get("REDIRECT_HOSTS", "").split(",") if h.strip()]
 

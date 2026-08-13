@@ -27,6 +27,12 @@ COPY ./seedbuilder/*.py ./seedbuilder/
 COPY ./archipelago/*.py ./archipelago/
 COPY ./archipelago/oride_apworld/ ./archipelago/oride_apworld/
 
+# the patch notes feeds (/patchnotes.json, /patchnotes.xml) read this file at
+# request time. Parcel already bundles a copy into the page from the build
+# stage above; this is the runtime copy. main.py loads it lazily, so a missing
+# COPY here breaks only those two routes rather than killing the container.
+COPY ./map/src/patchnotes.json ./map/src/patchnotes.json
+
 COPY *.py ./
 
 # --threads sizes BOTH http concurrency and the websocket connection budget:

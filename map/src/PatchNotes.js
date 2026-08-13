@@ -5,7 +5,12 @@ import {Helmet} from 'react-helmet';
 import './patchnotes.css';
 import {get_param} from "./common.js"
 import SiteBar from "./SiteBar.js"
-import {RELEASES, CATEGORIES} from "./patchnotes_data.js"
+// patchnotes.json is the source of truth: parcel bundles it here, and Flask
+// reads the same file to serve /patchnotes.json and the Atom feed
+import notes from "./patchnotes.json"
+
+const RELEASES = notes.releases;
+const CATEGORIES = notes.categories;
 
 const TYPE_LABELS = {feature: "Feature", fix: "Bugfix"};
 const TYPE_COLORS = {feature: "success", fix: "secondary"};

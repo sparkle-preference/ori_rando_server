@@ -2356,3 +2356,38 @@ class Game(ndb.Model):
         log.debug("Game.new(%s, %s, %s): Created game %s ", _mode, _shared, id, game)
         return key
 
+
+class AnnouncedPatchNotes(ndb.Model):
+    """Newest release already posted to an announce channel; the entity id is
+    the channel name ("main" / "dev").
+
+    The marker is claimed in a transaction and written BEFORE the webhook call,
+    so a redeploy, a retry or a second instance can never double-post. The cost
+    is that a failed POST drops that announcement rather than retrying it, which
+    is logged loudly and can be resent with /patchnotes/announce. Silence is a
+    much better failure here than posting a release to Discord twice."""
+    version = ndb.StringProperty()
+    updated = ndb.DateTimeProperty(auto_now=True)
+
+    @staticmethod
+    @ndb.transactional(retries=5)
+    def claim(channel, newest):
+        """Advance the marker and return the version it was on, or None if
+        there is nothing to announce. The first run on a channel seeds the
+        marker silently: otherwise switching this on would replay the whole
+        back catalogue into the channel."""
+        key = ndb.Key(AnnouncedPatchNotes, channel)
+        row = key.get()
+        if row and row.version == newest:
+            return None
+        first_run = row is None
+        if first_run:
+            row = AnnouncedPatchNotes(key=key)
+        was = row.version
+        row.version = newest
+        row.put()
+        if first_run:
+            log.info("patchnotes: seeded %s marker at %s, posting nothing", channel, newest)
+            return None
+        return was
+

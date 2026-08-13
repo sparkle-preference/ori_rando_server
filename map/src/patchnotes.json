@@ -1,0 +1,2301 @@
+{
+  "categories": [
+    "Game",
+    "Website",
+    "Seed Generator",
+    "Logic",
+    "Multiplayer",
+    "Misc"
+  ],
+  "releases": [
+    {
+      "version": "4.2.12",
+      "date": "2026-08-12",
+      "changes": [
+        {
+          "text": "Patch notes are now on the site, covering every release back to 3.0.",
+          "category": "Website",
+          "type": "feature",
+          "importance": "major"
+        },
+        {
+          "text": "Finding one of your own items grants the right copy, and it comes back after a death or a quit to menu.",
+          "category": "Multiplayer",
+          "type": "fix",
+          "importance": "minor",
+          "tags": [
+            "Archipelago"
+          ]
+        },
+        {
+          "text": "Quitting to menu can no longer be used to claim extra copies of your own items.",
+          "category": "Multiplayer",
+          "type": "fix",
+          "importance": "minor",
+          "tags": [
+            "Archipelago"
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.2.11",
+      "date": "2026-08-12",
+      "changes": [
+        {
+          "text": "Added Mini Health and Mini Energy.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "major",
+          "sub": [
+            "Each restores you to full and then grants one temporary health or energy."
+          ]
+        },
+        {
+          "text": "Temporary health and energy now have their own row above each bar.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "major",
+          "sub": [
+            "Disable Temporary Resource Rows brings back the old inline display.",
+            "Temp Row Spacing, Temp Row Horizontal Offset, Temp Row Scale and Temp Row Brightness adjust the rows."
+          ]
+        },
+        {
+          "text": "Temporary health and energy you start the seed with are no longer wiped at spawn.",
+          "category": "Game",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Fixed your own duplicated items sometimes being granted twice.",
+          "category": "Multiplayer",
+          "type": "fix",
+          "importance": "minor",
+          "tags": [
+            "Archipelago"
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.2.10",
+      "date": "2026-08-12",
+      "changes": [
+        {
+          "text": "Plants now use their own icon on the in-game map.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "Keystone door warnings no longer fire at doors that are in logic.",
+          "category": "Game",
+          "type": "fix",
+          "importance": "major"
+        },
+        {
+          "text": "Doors you cannot afford yet stay quiet.",
+          "category": "Game",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Pickup messages stay on screen for the same time with VSync on.",
+          "category": "Game",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Using an empty bonus skill slot now tells you the slot is empty.",
+          "category": "Game",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Fixed a second copy of one of your own items not being granted.",
+          "category": "Multiplayer",
+          "type": "fix",
+          "importance": "minor",
+          "tags": [
+            "Archipelago"
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.2.9",
+      "date": "2026-08-10",
+      "changes": [
+        {
+          "text": "Keystone doors warn you before you open one that is not in logic.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "major",
+          "sub": [
+            "Turn it off with Keystone Door Logic Warnings in RandomizerSettings.txt."
+          ]
+        },
+        {
+          "text": "The site follows your browser's light or dark preference until you pick a theme.",
+          "category": "Website",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "Hints in the guides are now click-to-reveal.",
+          "category": "Website",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Rolling an Archipelago bingo game leaves you on the Seed tab so you can grab the apworld and YAML first.",
+          "category": "Website",
+          "type": "feature",
+          "importance": "minor",
+          "tags": [
+            "Archipelago"
+          ]
+        },
+        {
+          "text": "Shared starting items now go to every player.",
+          "category": "Multiplayer",
+          "type": "fix",
+          "importance": "major",
+          "tags": [
+            "Multiworld"
+          ]
+        },
+        {
+          "text": "Export Stones now puts regular Keystones into the Archipelago pool.",
+          "category": "Multiplayer",
+          "type": "feature",
+          "importance": "minor",
+          "tags": [
+            "Archipelago"
+          ],
+          "sub": [
+            "Each keystone door comes into logic once your total keystone count reaches its threshold."
+          ]
+        },
+        {
+          "text": "Bingo boards can now be a single world.",
+          "category": "Multiplayer",
+          "type": "feature",
+          "importance": "minor",
+          "tags": [
+            "Archipelago"
+          ]
+        },
+        {
+          "text": "DeathLink no longer sends the same death twice.",
+          "category": "Multiplayer",
+          "type": "fix",
+          "importance": "minor",
+          "tags": [
+            "Archipelago"
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.2.8",
+      "date": "2026-08-06",
+      "changes": [
+        {
+          "text": "Charge Jump is back to its normal strength.",
+          "category": "Game",
+          "type": "fix",
+          "importance": "major"
+        },
+        {
+          "text": "Seed rows now have both a View Spoiler and a Save Spoiler button.",
+          "category": "Website",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "The setup panel now hands out one YAML file for the whole game.",
+          "category": "Website",
+          "type": "feature",
+          "importance": "minor",
+          "tags": [
+            "Archipelago"
+          ]
+        },
+        {
+          "text": "The host box comes prefilled with archipelago.gg.",
+          "category": "Website",
+          "type": "feature",
+          "importance": "minor",
+          "tags": [
+            "Archipelago"
+          ]
+        },
+        {
+          "text": "The Advanced tab replaces the Starved variations with Buried placement buttons.",
+          "category": "Seed Generator",
+          "type": "feature",
+          "importance": "major",
+          "sub": [
+            "The Starved flags still work from the command line generator."
+          ]
+        },
+        {
+          "text": "Fixed Multiworld seeds failing to generate with certain custom item pools.",
+          "category": "Seed Generator",
+          "type": "fix",
+          "importance": "major"
+        },
+        {
+          "text": "Items that remove an upgrade now show a readable name instead of an item code.",
+          "category": "Seed Generator",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Multiplayer and Archipelago seeds can be rolled with a name for each player.",
+          "category": "Multiplayer",
+          "type": "feature",
+          "importance": "major"
+        },
+        {
+          "text": "Added Bingo support.",
+          "category": "Multiplayer",
+          "type": "feature",
+          "importance": "minor",
+          "tags": [
+            "Archipelago"
+          ]
+        },
+        {
+          "text": "Your own items are granted the moment you pick them up.",
+          "category": "Multiplayer",
+          "type": "feature",
+          "importance": "minor",
+          "tags": [
+            "Archipelago"
+          ]
+        },
+        {
+          "text": "Fixed items being lost when a warning message arrived at the same time.",
+          "category": "Multiplayer",
+          "type": "fix",
+          "importance": "minor",
+          "tags": [
+            "Archipelago"
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.2.7",
+      "date": "2026-08-05",
+      "changes": [
+        {
+          "text": "AsmPrgmC3 is credited under major contributions.",
+          "category": "Game",
+          "importance": "minor"
+        },
+        {
+          "text": "The spoiler button's cog has a View/Download setting, replacing the separate Save Spoiler button.",
+          "category": "Website",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "The seed tab walks you through Archipelago setup, with a button to download the apworld.",
+          "category": "Website",
+          "type": "feature",
+          "importance": "minor",
+          "tags": [
+            "Archipelago"
+          ]
+        },
+        {
+          "text": "Item pools and forced placements can take a \"one of...\" group, which rolls one of the listed items.",
+          "category": "Seed Generator",
+          "type": "feature",
+          "importance": "major"
+        },
+        {
+          "text": "The Extra Bonus and Bonus Lite pools roll a different mix of jump and velocity upgrades every seed.",
+          "category": "Seed Generator",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "Balance Bias now keeps each world's first unlocks inside that world.",
+          "category": "Multiplayer",
+          "type": "feature",
+          "importance": "major",
+          "tags": [
+            "Multiworld"
+          ]
+        },
+        {
+          "text": "Archipelago can be turned on for any seed, including single-player ones.",
+          "category": "Multiplayer",
+          "type": "feature",
+          "importance": "minor",
+          "tags": [
+            "Archipelago"
+          ]
+        },
+        {
+          "text": "Items bound for other games show their real names, like \"Progressive Sword (Zelda)\".",
+          "category": "Multiplayer",
+          "type": "feature",
+          "importance": "minor",
+          "tags": [
+            "Archipelago"
+          ],
+          "sub": [
+            "Connect the room before handing out seeds; a seed downloaded first shows \"AP Item #n\" instead."
+          ]
+        },
+        {
+          "text": "Added Death Link.",
+          "category": "Multiplayer",
+          "type": "feature",
+          "importance": "minor",
+          "tags": [
+            "Archipelago"
+          ],
+          "sub": [
+            "It's set when the seed is rolled and can't be changed later."
+          ]
+        },
+        {
+          "text": "Key clues and Stomp/Grenade hints name the real Archipelago location once they unlock.",
+          "category": "Multiplayer",
+          "type": "feature",
+          "importance": "minor",
+          "tags": [
+            "Archipelago"
+          ]
+        },
+        {
+          "text": "The Seed tab reports when Archipelago item names are ready.",
+          "category": "Multiplayer",
+          "type": "feature",
+          "importance": "minor",
+          "tags": [
+            "Archipelago"
+          ],
+          "sub": [
+            "A seed downloaded before the room is connected names every Archipelago location 'AP Item #1' and so on until you download it again."
+          ]
+        },
+        {
+          "text": "Items arriving from another world name the player who sent them.",
+          "category": "Multiplayer",
+          "type": "fix",
+          "importance": "minor",
+          "tags": [
+            "Archipelago"
+          ]
+        },
+        {
+          "text": "A big release arrives as one message instead of dozens.",
+          "category": "Multiplayer",
+          "type": "fix",
+          "importance": "minor",
+          "tags": [
+            "Archipelago"
+          ]
+        },
+        {
+          "text": "Spirit Light grants the exact amount the seed placed instead of rounding.",
+          "category": "Multiplayer",
+          "type": "fix",
+          "importance": "minor",
+          "tags": [
+            "Archipelago"
+          ]
+        },
+        {
+          "text": "Connecting to a room that can't be reached fails right away instead of sitting on Pending.",
+          "category": "Multiplayer",
+          "type": "fix",
+          "importance": "minor",
+          "tags": [
+            "Archipelago"
+          ]
+        },
+        {
+          "text": "Bingo and Archipelago don't mix yet.",
+          "category": "Multiplayer",
+          "type": "fix",
+          "importance": "minor",
+          "tags": [
+            "Archipelago"
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.2.6",
+      "date": "2026-08-02",
+      "changes": [
+        {
+          "text": "Archipelago games get a per-world YAML download and a room panel on the Seed tab.",
+          "category": "Website",
+          "type": "feature",
+          "importance": "minor",
+          "tags": [
+            "Archipelago"
+          ],
+          "sub": [
+            "The room panel connects to your Archipelago room and shows each world's item count and goal."
+          ]
+        },
+        {
+          "text": "Multiworld seeds no longer split the Spirit Light pool between worlds.",
+          "category": "Seed Generator",
+          "type": "fix",
+          "importance": "major"
+        },
+        {
+          "text": "Fixed multiworld items you had already been given disappearing from your inventory.",
+          "category": "Multiplayer",
+          "type": "fix",
+          "importance": "major"
+        },
+        {
+          "text": "Finishing your game no longer strands your world's remaining multiworld items.",
+          "category": "Multiplayer",
+          "type": "fix",
+          "importance": "major"
+        },
+        {
+          "text": "Multiworld games can now join an Archipelago session.",
+          "category": "Multiplayer",
+          "type": "feature",
+          "importance": "minor",
+          "tags": [
+            "Archipelago"
+          ],
+          "sub": [
+            "Choose which categories go into the shared pool on the Multiplayer tab: skills, teleporters, world events, cells, and stones."
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.2.5",
+      "date": "2026-07-30",
+      "changes": [
+        {
+          "text": "Added Door Hint pickups, which reveal a keysanity door's hints without walking to the door.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "Added Buried placements: an item placed at Buried050, 100, 150, or 200 is held back until that many locations are reachable.",
+          "category": "Seed Generator",
+          "type": "feature",
+          "importance": "major",
+          "sub": [
+            "Pick a Buried location in the placement rows on the Advanced tab, or use the Walls, Grenade, and Teleporters buttons for the usual sets."
+          ]
+        },
+        {
+          "text": "The Advanced tab has Walls, Grenade and Teleporters buttons that fill in Buried placements for you.",
+          "category": "Seed Generator",
+          "type": "feature",
+          "importance": "minor"
+        }
+      ]
+    },
+    {
+      "version": "4.2.4",
+      "date": "2026-07-29",
+      "changes": [
+        {
+          "text": "Reloading your seed with Alt+L now retries a dropped connection to the site.",
+          "category": "Game",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Items and messages from other players now show up the moment they are sent.",
+          "category": "Multiplayer",
+          "type": "feature",
+          "importance": "major"
+        }
+      ]
+    },
+    {
+      "version": "4.2.3",
+      "date": "2026-07-27",
+      "changes": [
+        {
+          "text": "Removed two impossible logic paths, in Horu L4 (expert) and at the Sorrow teleporter (master).",
+          "category": "Logic",
+          "type": "fix",
+          "importance": "major"
+        }
+      ]
+    },
+    {
+      "version": "4.2.2",
+      "date": "2026-07-26",
+      "changes": [
+        {
+          "text": "Seeds with fewer than two flags in the header now load correctly.",
+          "category": "Game",
+          "type": "fix",
+          "importance": "major"
+        },
+        {
+          "text": "The win message is no longer eaten if you die at the moment you win.",
+          "category": "Game",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Bingo boards can now roll Journey goals.",
+          "category": "Multiplayer",
+          "type": "feature",
+          "importance": "major",
+          "sub": [
+            "Travel between the two named spirit wells without touching another well or teleporting.",
+            "The square shows as in progress while you stand at the starting well."
+          ]
+        },
+        {
+          "text": "Experience sent to you from another world uses its random name again.",
+          "category": "Multiplayer",
+          "type": "fix",
+          "importance": "minor"
+        }
+      ]
+    },
+    {
+      "version": "4.2.1",
+      "date": "2026-07-25",
+      "changes": [
+        {
+          "text": "Custom pickup messages with a set duration now disappear on time.",
+          "category": "Game",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Custom pickup messages with a set background color now use it.",
+          "category": "Game",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Added a guide for the bingo userboard, linked from the bingo page.",
+          "category": "Website",
+          "type": "feature",
+          "importance": "major"
+        },
+        {
+          "text": "Fixed some site pages failing to load in an OBS browser source.",
+          "category": "Website",
+          "type": "fix",
+          "importance": "minor"
+        }
+      ]
+    },
+    {
+      "version": "4.2.0",
+      "date": "2026-07-25",
+      "changes": [
+        {
+          "text": "Pickup message backgrounds are configurable, and items you find for another player get their own color.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "major",
+          "sub": [
+            "Pickup Message Background Color and Multiworld Outbound Message Background Color in RandomizerSettings.txt.",
+            "Outbound messages are grey by default."
+          ]
+        },
+        {
+          "text": "Keysanity door hints no longer pile up in the message queue.",
+          "category": "Game",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Multiworld is the default multiplayer game type in the seed builder.",
+          "category": "Website",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "Co-op always uses Cloned Seeds, and the Seed Generation Mode dropdown is gone.",
+          "category": "Website",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "The preplacement world picker is a dropdown, so it still fits with a lot of players.",
+          "category": "Website",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "Fixed the tracker map failing to load for some games.",
+          "category": "Website",
+          "type": "fix",
+          "importance": "major"
+        },
+        {
+          "text": "Hovering a multiplayer game type shows help for that mode, and the help box no longer jumps around under your cursor.",
+          "category": "Website",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Preplacement works in multiworld seeds: pick which player's world the location is in and which player the item belongs to.",
+          "category": "Seed Generator",
+          "type": "feature",
+          "importance": "major"
+        },
+        {
+          "text": "Multiworld keeps its own Shared Item Categories selection, separate from Co-op's, and starts with nothing shared.",
+          "category": "Seed Generator",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "Multiworld shared categories leave out Misc: trees, World Tour relics and Keysanity keys always stay per-world.",
+          "category": "Seed Generator",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "Finding an item for another player names them and colors the item.",
+          "category": "Multiplayer",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "The two bingo symmetry goals had their names swapped.",
+          "category": "Multiplayer",
+          "type": "fix",
+          "importance": "major",
+          "sub": [
+            "A horizontally symmetric board matches columns A/B against D/E; a vertically symmetric one matches rows 1/2 against 4/5."
+          ]
+        },
+        {
+          "text": "Winning a bingo game announces the win right away instead of waiting for you to press alt+L.",
+          "category": "Multiplayer",
+          "type": "fix",
+          "importance": "major"
+        }
+      ]
+    },
+    {
+      "version": "4.1.10",
+      "date": "2026-07-23",
+      "changes": [
+        {
+          "text": "Holding alt+T shows your last five messages even with the side message queue turned off.",
+          "category": "Game",
+          "type": "fix",
+          "importance": "minor",
+          "sub": [
+            "The bind is Replay Message in RandomizerRebinding.txt.",
+            "The side queue is Display Multiple Pickup Messages in RandomizerSettings.txt."
+          ]
+        },
+        {
+          "text": "Setting Hints to Disabled now also turns off the Fronkey tip and the wall jump tree hint.",
+          "category": "Game",
+          "type": "fix",
+          "importance": "minor",
+          "sub": [
+            "The setting is Hints in RandomizerSettings.txt."
+          ]
+        },
+        {
+          "text": "The Experienced hint level now shows its own loading screen tips.",
+          "category": "Game",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Always Show Last Five Pickup Messages only does anything with the side message queue turned on.",
+          "category": "Game",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "The seed builder has help text for Multiworld.",
+          "category": "Website",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "Shared Item Categories now work in Multiworld: a shared category exists once across every world, and whoever finds it grants it to everyone.",
+          "category": "Seed Generator",
+          "type": "feature",
+          "importance": "major",
+          "sub": [
+            "Skills, Teleporters, Upgrades and World Events can each be shared."
+          ]
+        },
+        {
+          "text": "Added a Multiworld Balance Bias setting for how evenly progression is spread between worlds.",
+          "category": "Seed Generator",
+          "type": "feature",
+          "importance": "major",
+          "sub": [
+            "0.0 (the default) ignores balance, 1.0 keeps every world supplied with reachable checks. Try 0.5."
+          ]
+        },
+        {
+          "text": "Multiworld seeds say preplacement is not supported instead of failing to generate.",
+          "category": "Seed Generator",
+          "type": "fix",
+          "importance": "minor"
+        }
+      ]
+    },
+    {
+      "version": "4.1.9",
+      "date": "2026-07-23",
+      "changes": [
+        {
+          "text": "Warping to the credits now counts as finishing the game and records your run in the stats screen.",
+          "category": "Game",
+          "type": "fix",
+          "importance": "minor",
+          "sub": [
+            "In multiworld this also releases what is left in your world."
+          ]
+        },
+        {
+          "text": "Keysanity door hints point at keys that are in other players' worlds.",
+          "category": "Multiplayer",
+          "type": "feature",
+          "importance": "major"
+        },
+        {
+          "text": "Pickup messages, clues and hints use other players' names once they have joined.",
+          "category": "Multiplayer",
+          "type": "feature",
+          "importance": "minor",
+          "tags": [
+            "Multiworld"
+          ]
+        },
+        {
+          "text": "Grouped item messages color their items and count shards and fragments.",
+          "category": "Multiplayer",
+          "type": "feature",
+          "importance": "minor",
+          "tags": [
+            "Multiworld"
+          ]
+        },
+        {
+          "text": "Items you receive while the credits are rolling arrive quietly.",
+          "category": "Multiplayer",
+          "type": "fix",
+          "importance": "minor",
+          "tags": [
+            "Multiworld"
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.1.8",
+      "date": "2026-07-23",
+      "title": "Multiworld",
+      "headline": "Multiworld is here. Everyone gets their own world, and everyone's items are shuffled across all of them: what you find might belong to someone else, and someone else is out there finding yours.",
+      "changes": [
+        {
+          "text": "The plando editor can set entrance shuffle door connections.",
+          "category": "Website",
+          "type": "feature",
+          "importance": "major",
+          "sub": [
+            "Links are two-way by default, with one-way links and arbitrary warp targets also available.",
+            "Connections are per player, so each world in a multiplayer plando can have its own layout."
+          ]
+        },
+        {
+          "text": "Plando multipickup entries can be clicked to edit in place and dragged to reorder.",
+          "category": "Website",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "The plando editor's flag list now offers every seed variation and key mode.",
+          "category": "Website",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "R1 Outer can only be connected to R1 Inner.",
+          "category": "Website",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "Plando entrance shuffle can point a door at arbitrary map coordinates as a one-way warp target.",
+          "category": "Website",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "Plando entrance connections are stored per player, so each world in a multiplayer plando can have its own door layout.",
+          "category": "Website",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "Fixed multiplayer plandos serving player 1's seed to everyone.",
+          "category": "Website",
+          "type": "fix",
+          "importance": "major"
+        },
+        {
+          "text": "The site now shows why a seed failed to generate instead of a generic error.",
+          "category": "Website",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Half-typed text in the plando pickup box is no longer wiped when the box loses focus.",
+          "category": "Website",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Clicking an empty location in the plando editor no longer creates a placement there, and clearing a location's pickup removes it.",
+          "category": "Website",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "The plando clue order now recognises dungeon keys inside a multipickup.",
+          "category": "Website",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Plando logic and reachability now follow the player you have selected.",
+          "category": "Website",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Fixed the Shards Race option in the plando editor's multiplayer controls.",
+          "category": "Website",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Importing a tracked seed into the plando editor no longer adds its sync header to the flag list.",
+          "category": "Website",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "SplitShards and Seperate Seeds have been removed.",
+          "category": "Seed Generator",
+          "type": "feature",
+          "importance": "major",
+          "sub": [
+            "Use Multiworld with the Shards key mode, or Cloned Seeds."
+          ]
+        },
+        {
+          "text": "Plandos can place a Random Relic or a Random Warp, including inside multipickups.",
+          "category": "Seed Generator",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "Added Multiworld.",
+          "category": "Multiplayer",
+          "type": "feature",
+          "importance": "major",
+          "sub": [
+            "Multiworld requires tracking, and each player downloads their own seed."
+          ]
+        },
+        {
+          "text": "Finishing your game releases the items still sitting in your world to the players who own them.",
+          "category": "Multiplayer",
+          "type": "feature",
+          "importance": "major",
+          "tags": [
+            "Multiworld"
+          ]
+        },
+        {
+          "text": "Pickups name the player they belong to, both when you find one and when you receive one.",
+          "category": "Multiplayer",
+          "type": "feature",
+          "importance": "minor",
+          "tags": [
+            "Multiworld"
+          ]
+        },
+        {
+          "text": "Receiving several items at once shows one grouped message instead of one per item.",
+          "category": "Multiplayer",
+          "type": "feature",
+          "importance": "minor",
+          "tags": [
+            "Multiworld"
+          ]
+        },
+        {
+          "text": "Dungeon key clues point at keys that are in other players' worlds.",
+          "category": "Multiplayer",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "The game now warns you if your loaded seed belongs to a different game, or to another player.",
+          "category": "Multiplayer",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "Fixed bingo squares flickering between complete and incomplete.",
+          "category": "Multiplayer",
+          "type": "fix",
+          "importance": "major"
+        },
+        {
+          "text": "Fixed the Start Game button vanishing for the player who made the bingo game.",
+          "category": "Multiplayer",
+          "type": "fix",
+          "importance": "major"
+        },
+        {
+          "text": "Bingo players joining, leaving and starting a game show up right away.",
+          "category": "Multiplayer",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "The bingo keystone door goal picks its target counts based on whether the seed is open world.",
+          "category": "Multiplayer",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Fixed a missing line break in the bingo keystone door goal's help text, and the help link being hard to see on completed cards.",
+          "category": "Multiplayer",
+          "type": "fix",
+          "importance": "minor"
+        }
+      ]
+    },
+    {
+      "version": "4.1.7",
+      "date": "2026-07-19",
+      "changes": [
+        {
+          "text": "You can now edit the pool of random Experience names.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "major",
+          "sub": [
+            "Edit ExpNames.txt in your game folder, one name per line.",
+            "Needs Randomized Experience Names turned on."
+          ]
+        },
+        {
+          "text": "The plando list no longer breaks on seeds from deleted accounts.",
+          "category": "Website",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "The item tracker no longer errors out for a player who has not picked anything up.",
+          "category": "Website",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Fixed Valley damage boost paths that asked for too little health.",
+          "category": "Logic",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Added a route from the right side of Valley back to the Valley teleporter.",
+          "category": "Logic",
+          "importance": "major"
+        },
+        {
+          "text": "Added air dash paths through Valley.",
+          "category": "Logic",
+          "importance": "minor"
+        },
+        {
+          "text": "Fixed Bingo boards freezing and never updating again.",
+          "category": "Multiplayer",
+          "type": "fix",
+          "importance": "major"
+        },
+        {
+          "text": "Fixed Bingo squares counting twice when two players marked one at the same moment.",
+          "category": "Multiplayer",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Fixed messages from the site, like race placements, not arriving in game.",
+          "category": "Multiplayer",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Resetting a game and handing it to another player works again.",
+          "category": "Multiplayer",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Credited jmal116 for the custom experience names.",
+          "category": "Misc",
+          "importance": "minor"
+        }
+      ]
+    },
+    {
+      "version": "4.1.6",
+      "date": "2025-08-28",
+      "changes": [
+        {
+          "text": "Fixed logic updates not reaching the in-game map.",
+          "category": "Logic",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Fixed Bingo boards not updating in game.",
+          "category": "Multiplayer",
+          "type": "fix",
+          "importance": "major"
+        },
+        {
+          "text": "Bingo updates and the logic map's area data were still using the old address, and now follow the new one.",
+          "category": "Multiplayer",
+          "type": "fix",
+          "importance": "major",
+          "sub": [
+            "The site requires 4.1.6 or newer as a result."
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.1.5",
+      "date": "2025-08-28",
+      "title": "Sign in with Google",
+      "headline": "Logging in to orirando.com now goes through Google. The first time you sign in, your name, plandos, games and bingo boards come with you.",
+      "changes": [
+        {
+          "text": "Seed loading errors now name the line of randomizer.dat that failed.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "Plandos can now take Skill Velocity Upgrades and Jump Upgrades below zero.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "orirando.com now uses Google sign-in.",
+          "category": "Website",
+          "type": "feature",
+          "importance": "major"
+        },
+        {
+          "text": "Plando pages now say who to contact about missing seeds.",
+          "category": "Website",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "A plando author's seeds are now listed alphabetically.",
+          "category": "Website",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "Plando lists no longer drop seeds by authors who have not signed in yet.",
+          "category": "Website",
+          "type": "fix",
+          "importance": "major"
+        },
+        {
+          "text": "Logging in or out returns you to the page you were on.",
+          "category": "Website",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "The randomizer now connects to the site at a new address, so 4.1.4 and older dlls can't reach it any more.",
+          "category": "Multiplayer",
+          "type": "feature",
+          "importance": "major"
+        },
+        {
+          "text": "Sync updates no longer slow down at low framerates.",
+          "category": "Multiplayer",
+          "type": "fix",
+          "importance": "minor"
+        }
+      ]
+    },
+    {
+      "version": "4.1.4",
+      "date": "2025-08-01",
+      "changes": [
+        {
+          "text": "Keysanity door hints can now stay on the map instead of only showing when you hover a door.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "major",
+          "sub": [
+            "Always Show Keysanity Door Hints in RandomizerSettings.txt"
+          ]
+        },
+        {
+          "text": "Door hints now say when a door is already open.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "Map tooltips scale with how far you are zoomed in.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "Fixed garbled setting descriptions in RandomizerSettings.txt.",
+          "category": "Game",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Tidied up the keysanity hint and progress text.",
+          "category": "Game",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "The Misc menu now links to the Ori Rando League rules and the trick glossary.",
+          "category": "Website",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "Fixed the game tracker map bogging down.",
+          "category": "Website",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Fixed the logic helper ignoring a starting inventory passed in the URL.",
+          "category": "Website",
+          "type": "fix",
+          "importance": "minor"
+        }
+      ]
+    },
+    {
+      "version": "4.1.3",
+      "date": "2025-04-17",
+      "changes": [
+        {
+          "text": "Sense no longer stays stuck on the last pickup once you have collected everything it can find.",
+          "category": "Game",
+          "type": "fix",
+          "importance": "major"
+        },
+        {
+          "text": "Enhanced Charge Jump only explodes what actually dies.",
+          "category": "Game",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Collecting a door's last keystone no longer prints an empty list of remaining areas.",
+          "category": "Game",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Enhanced Charge Jump only explodes when whatever you hit actually dies.",
+          "category": "Game",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "The Last 10 Games list shows your ten most recent games.",
+          "category": "Website",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Tidied up the Legacy Flags row on the seed generator's Advanced tab.",
+          "category": "Website",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Rerolling a seed no longer breaks forced item placements, random spawn, or free keys.",
+          "category": "Seed Generator",
+          "type": "fix",
+          "importance": "major"
+        },
+        {
+          "text": "Keysanity with Open World no longer puts Glades pool keystones in the item pool.",
+          "category": "Seed Generator",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Entrance Shuffle no longer leaves the Horu escape door's vanilla connection in place.",
+          "category": "Logic",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Entrance Shuffle pairs its doors with a new algorithm.",
+          "category": "Logic",
+          "importance": "major"
+        },
+        {
+          "text": "In Entrance Shuffle, dungeon keys only open their own door and no longer gate the pickups inside.",
+          "category": "Logic",
+          "importance": "major",
+          "sub": [
+            "The Keys Only For Doors flag is gone -- Entrance Shuffle always does this now."
+          ]
+        },
+        {
+          "text": "Discovery bingo boards can roll Activate Squares.",
+          "category": "Multiplayer",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "Bonus skills and ability upgrades your teammates find are no longer granted to you over and over.",
+          "category": "Multiplayer",
+          "type": "fix",
+          "importance": "major"
+        },
+        {
+          "text": "The Glades teleporter shares with your teammates.",
+          "category": "Multiplayer",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Discovery bingo boards no longer fail to generate when a symmetry square rolls.",
+          "category": "Multiplayer",
+          "type": "fix",
+          "importance": "minor"
+        }
+      ]
+    },
+    {
+      "version": "4.1.2",
+      "date": "2025-04-04",
+      "changes": [
+        {
+          "text": "Picking up a Keysanity keystone lists the areas that still hold the rest of that door's keystones.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "minor",
+          "sub": [
+            "You get this once you've visited the door.",
+            "Areas holding more than one show a count."
+          ]
+        },
+        {
+          "text": "Horizontal dashes no longer drag you downward.",
+          "category": "Game",
+          "type": "fix",
+          "importance": "major"
+        },
+        {
+          "text": "Enhanced Stomp no longer stops on glancing hits, and stomping sideways into a wall works again.",
+          "category": "Game",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Aiming an Enhanced Dash upward off the ground registers reliably.",
+          "category": "Game",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Enhanced Spirit Flame brings Sein's dialogue with it, even in seeds that aren't Enhanced.",
+          "category": "Game",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "The Enhanced help text describes the variation.",
+          "category": "Website",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Seed contents name Enhanced skills properly and no longer break on unrecognised items.",
+          "category": "Seed Generator",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "The April Fools event has ended, so Enhanced and meta bingo squares are no longer on by default.",
+          "category": "Seed Generator",
+          "importance": "major",
+          "sub": [
+            "The Randomize! button also picks Enhanced, Keysanity and Entrance Shuffle less often now."
+          ]
+        },
+        {
+          "text": "Share Misc now also covers Keysanity zone keys, and Enhanced bonus upgrades share under Share Upgrades.",
+          "category": "Multiplayer",
+          "type": "feature",
+          "importance": "major",
+          "sub": [
+            "Both are deduped, so a team can't stack extra copies."
+          ]
+        },
+        {
+          "text": "Keysanity keystones are shared as Miscellaneous items, and a location only ever grants one.",
+          "category": "Multiplayer",
+          "type": "feature",
+          "importance": "minor",
+          "sub": [
+            "Controlled by Share Miscellaneous Items."
+          ]
+        },
+        {
+          "text": "Keystones your teammates find are no longer granted to you again every few seconds.",
+          "category": "Multiplayer",
+          "type": "fix",
+          "importance": "major"
+        },
+        {
+          "text": "Pickups that take a skill away are never shared in co-op.",
+          "category": "Multiplayer",
+          "type": "fix",
+          "importance": "minor"
+        }
+      ]
+    },
+    {
+      "version": "4.1.1",
+      "date": "2025-04-04",
+      "changes": [
+        {
+          "text": "Enhanced Dashes started on the ground go straight unless you aim more than 20 degrees up.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "An Enhanced Dash into the ground becomes a grounded dash.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "The Swamp drain finishes instantly with Enhanced Clean Water.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "Seeds that aren't Enhanced no longer give you Enhanced Spirit Flame.",
+          "category": "Game",
+          "type": "fix",
+          "importance": "major"
+        },
+        {
+          "text": "Projectiles no longer lose their collision after Enhanced Charge Flame catches them.",
+          "category": "Game",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Enhanced Charge Jump no longer spams explosions when you pass through projectiles.",
+          "category": "Game",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Enhanced Stomp and Enhanced Dash turn Ori to face the way you're travelling.",
+          "category": "Game",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Enhanced Clean Water clears the water it was missing in the Hollow Tree.",
+          "category": "Game",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Fixed Enhanced Climb misbehaving on walls.",
+          "category": "Game",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Added patch notes links to the Misc menu and a changelog link to the seed generator.",
+          "category": "Website",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "Changing only your team name in site settings no longer errors.",
+          "category": "Website",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "The Misc menu dropped the Weekly Race Poll and Open Book Seed Challenge links.",
+          "category": "Website",
+          "importance": "minor"
+        },
+        {
+          "text": "Fixed the Randomize! button rolling absurd experience pools and leaving settings from the last roll in place.",
+          "category": "Seed Generator",
+          "type": "fix",
+          "importance": "major"
+        },
+        {
+          "text": "Keysanity no longer throws off your World Tour relic count.",
+          "category": "Seed Generator",
+          "type": "fix",
+          "importance": "major"
+        },
+        {
+          "text": "Ginso spawn in Keysanity starts you with Upper Ginso keystones.",
+          "category": "Seed Generator",
+          "type": "fix",
+          "importance": "minor"
+        }
+      ]
+    },
+    {
+      "version": "4.1.0",
+      "date": "2025-04-01",
+      "title": "Happy 10th Oriversary!",
+      "headline": "A long-overdue update, released for the 10th anniversary of Ori and the Blind Forest. Alongside the fixes below, your friendly neighborhood devs shipped some features on April 1, a date with no special significance whatsoever. Please enjoy them in the true spirit of April 1, which is, again, just a day like any other. :)",
+      "changes": [
+        {
+          "text": "The Blackroot Burrows door to the boulder chase area is now permanently open in every mode.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "major",
+          "sub": [
+            "Standard logic no longer requires a Rekindle to glitch it open. Casual paths are unchanged for now."
+          ]
+        },
+        {
+          "text": "Spirit Flame autofire now runs at 20 Hz, up from 10.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "major"
+        },
+        {
+          "text": "New Disable Menu Blur setting, which turns off the background blur during Save Anywhere glitches.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "minor",
+          "sub": [
+            "If you run a low Save Anywhere opacity, you may want to raise it when using this."
+          ]
+        },
+        {
+          "text": "The default Toggle Chaos Mode bind has been removed, and is cleared the first time you run 4.1. You can add one back yourself.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "The in-game logic map handles keystones far more sensibly, and pickups that were already in logic no longer vanish when you pick up more skills.",
+          "category": "Game",
+          "type": "fix",
+          "importance": "major",
+          "sub": [
+            "The map assumes you can open any keystone door you have enough keystones for, regardless of which other doors you can reach.",
+            "Doors in succession still add their costs together.",
+            "The map remembers which doors you've already opened."
+          ]
+        },
+        {
+          "text": "Removed the Improved Spirit Flame setting. Mashing is no longer penalized in any way.",
+          "category": "Game",
+          "type": "fix",
+          "importance": "major"
+        },
+        {
+          "text": "Health and energy cells granted at spawn no longer show pickup messages.",
+          "category": "Game",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "All Misty Woods pickup icons behave properly on the world map.",
+          "category": "Game",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Fixed the game sometimes removing the Tap Double Bash setting from RandomizerRebinding.txt.",
+          "category": "Game",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Randomizer Randomizer: the Randomize! button on the front page rolls you a completely random set of seed settings.",
+          "category": "Website",
+          "type": "feature",
+          "importance": "major",
+          "sub": [
+            "Any number of variations may be selected, each with its own probability.",
+            "Any goal mode may be selected -- possibly several.",
+            "Logic preset, key mode and item pool are all in play too, with some options more common than others."
+          ]
+        },
+        {
+          "text": "Item pool selection moved to the top bar. Pool customization still lives in the item pool tab.",
+          "category": "Website",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "Discovery bingo tries much harder to place starting squares somewhere sensible.",
+          "category": "Website",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "A batch of small plando fixes.",
+          "category": "Website",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "New variation: Keysanity. Each keystone opens one specific door, and keystone duplication doesn't work.",
+          "category": "Seed Generator",
+          "type": "feature",
+          "importance": "major",
+          "sub": [
+            "Alt+K displays the keystones you've collected for each door.",
+            "Visiting a door gives you hints for where its keystones are.",
+            "Once you've seen those hints, you can read them again by mousing over the door on the map."
+          ]
+        },
+        {
+          "text": "New variation: Enhanced, which enhances the randomizer in ways you could never have imagined.",
+          "category": "Seed Generator",
+          "type": "feature",
+          "importance": "major",
+          "sub": [
+            "Enhanced was on by default on the website for the first 48 hours of 4.1."
+          ]
+        },
+        {
+          "text": "The first energy cell in Glades is now a randomized pickup.",
+          "category": "Seed Generator",
+          "type": "feature",
+          "importance": "major",
+          "sub": [
+            "Glades spawn seeds simply start with an extra energy.",
+            "Other spawns get the same health and energy they always did, but can no longer grab a free energy here."
+          ]
+        },
+        {
+          "text": "The Forlorn escape plant is a fixed 100 experience pickup again.",
+          "category": "Seed Generator",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "Fixed forced cell frequency counting the cells you start with against the forcing rate.",
+          "category": "Seed Generator",
+          "type": "fix",
+          "importance": "minor",
+          "sub": [
+            "Casual seeds get much more consistent early health progression.",
+            "Standard seeds should see slightly fewer health-starved situations."
+          ]
+        },
+        {
+          "text": "Fixed the generator mishandling Open World paths in non-Open World seeds, which sometimes placed three ability cells for no reason.",
+          "category": "Seed Generator",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Fixed paths with ability cells being chosen as forced progression less often than they should have been.",
+          "category": "Seed Generator",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Fixed shards being duplicated in the spoiler, and relics being missing from it. The spoiler now names each relic instead of saying 'Relic'.",
+          "category": "Seed Generator",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Logic changes across outer Swamp, the Grotto teleporter pickups, the Water Vein area, and exiting lower Sorrow, several contributed by the community.",
+          "category": "Logic",
+          "importance": "major",
+          "sub": [
+            "Added the FirstEnergyCell pickup to logic.",
+            "Removed Rekindle from the requirements to reach RazielNoArea, since the door is permanently open.",
+            "Fixed the Forlorn keystone door not being in logic without the Gumon Seal, so the generator places its keystones as soon as you have the Forlorn TP. The pickups still require the Seal.",
+            "LeftGrottoTeleporterExp: added damage boost paths to standard and expert; Double Jump is no longer strictly required in standard. (thanks to d265f27)",
+            "Both BelowGrottoTeleporter pickups: damage boosts no longer implicitly require Regroup, and Bash + Grenade paths were added to standard. (thanks to d265f27)",
+            "WaterVeinArea from Grotto TP: reachable in standard with only Wall Jump, or Climb, or Charge Jump; reachable in expert with no skills.",
+            "Outer Swamp: the hanging XP below the stomp floor needs Clean Water in casual; the Climb + Double Jump health cell path moved to expert, replaced in standard by Climb + Double Jump + Glide; the mortar area plant is in standard via an offscreen Grenade throw; casual now assumes you finish the mortar worm puzzle before taking the mortar area ability cell. (thanks to GreeZ)",
+            "Exiting Sorrow: added a Glide + Wind path and several Bash + Grenade paths, including in standard. (thanks to oshiimine, Roryrai, Cleanfel, others)"
+          ]
+        },
+        {
+          "text": "Meta Bingo: bingo boards can include 2-5 'meta' squares with conditions about the board itself.",
+          "category": "Multiplayer",
+          "type": "feature",
+          "importance": "major",
+          "sub": [
+            "Activate squares require you to complete another specified square, or one of, or all of, a set of them ('Activate B1', 'Activate A4 and C3'). They can reference permanently missable squares.",
+            "Symmetry squares require your board to be horizontally or vertically symmetric. Lose the symmetry and you lose the square.",
+            "A horizontal symmetry square only appears on row 3 and a vertical one only on column C; if you get both, one of them is C3.",
+            "An empty board is symmetric, so these can be discovery bingo starting squares as long as you set more than one."
+          ]
+        }
+      ],
+      "spoilers": {
+        "label": "Enhanced Mode spoilers",
+        "changes": [
+          {
+            "text": "Every skill pickup, and Clean Water, gives you an Enhanced version instead.",
+            "category": "Game",
+            "type": "feature",
+            "importance": "major"
+          },
+          {
+            "text": "Enhanced Spirit Flame: Sein's voice is restored, and she's here to help.",
+            "category": "Game",
+            "type": "feature",
+            "importance": "major",
+            "sub": [
+              "Her dialogue is updated to be more relevant and sometimes irreverent.",
+              "She'll sometimes hint at a pickup location.",
+              "Shift+Alt+U hides her dialogue without hiding the rest of your UI."
+            ]
+          },
+          {
+            "text": "Enhanced Wall Jump: has the effects of both Wall Jump and Climb.",
+            "category": "Game",
+            "type": "feature",
+            "importance": "major"
+          },
+          {
+            "text": "Enhanced Charge Flame: draws in nearby projectiles while you hold it, and sends them back the way they came when you release.",
+            "category": "Game",
+            "type": "feature",
+            "importance": "major"
+          },
+          {
+            "text": "Enhanced Double Jump: infinite Double Jumps.",
+            "category": "Game",
+            "type": "feature",
+            "importance": "major"
+          },
+          {
+            "text": "Enhanced Bash: works without a target -- hold the button briefly.",
+            "category": "Game",
+            "type": "feature",
+            "importance": "major"
+          },
+          {
+            "text": "Enhanced Stomp: aimable in any direction. Start the windup as normal, then hold a direction; you can keep changing direction until you hit something.",
+            "category": "Game",
+            "type": "feature",
+            "importance": "major"
+          },
+          {
+            "text": "Enhanced Glide: generates its own wind, anywhere.",
+            "category": "Game",
+            "type": "feature",
+            "importance": "major"
+          },
+          {
+            "text": "Enhanced Climb: immunity to spikes and heat damage.",
+            "category": "Game",
+            "type": "feature",
+            "importance": "major"
+          },
+          {
+            "text": "Enhanced Charge Jump: holding a charge gives you a damaging aura that kills enemies, breaks nearby terrain, and makes you immune to enemies and their attacks.",
+            "category": "Game",
+            "type": "feature",
+            "importance": "major"
+          },
+          {
+            "text": "Enhanced Dash: aimable in any direction, and reduces the base energy cost of Charge Dash by 0.5.",
+            "category": "Game",
+            "type": "feature",
+            "importance": "major",
+            "sub": [
+              "The default KBM Charge Jump bind (W) makes this awkward. Try a separate Charge Jump bind, or a Charge Dash bind with both Charge Jump and Dash on the same key."
+            ]
+          },
+          {
+            "text": "Enhanced Grenade: breaks walls and floors.",
+            "category": "Game",
+            "type": "feature",
+            "importance": "major"
+          },
+          {
+            "text": "Enhanced Clean Water: removes water from the world. Yes, really.",
+            "category": "Game",
+            "type": "feature",
+            "importance": "major"
+          },
+          {
+            "text": "Any Enhanced skill other than Spirit Flame, and Enhanced Clean Water, also gives you a bonus skill that toggles Enhanced effects off and on -- Alt+Right Click by default.",
+            "category": "Game",
+            "type": "feature",
+            "importance": "major",
+            "sub": [
+              "Doesn't affect Enhanced Spirit Flame; use Shift+Alt+U for that.",
+              "Useful for getting unstuck if a missing-water situation blocks you."
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "version": "4.0.4",
+      "date": "2022-09-22",
+      "changes": [
+        {
+          "text": "Turning disco sense off now actually turns disco sense off.",
+          "category": "Game",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Logic checking tools no longer literally always tell you that you can get the EC on the way to Sein.",
+          "category": "Website",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Random spawn selection is now weighted, and you can set the weights yourself.",
+          "category": "Seed Generator",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "Fixed single pickups on spawn not being granted when spawning outside of Glades.",
+          "category": "Seed Generator",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "The Glades teleporter is now shared in co-op.",
+          "category": "Multiplayer",
+          "type": "feature",
+          "importance": "minor"
+        }
+      ]
+    },
+    {
+      "version": "4.0.3",
+      "date": "2022-09-21",
+      "changes": [
+        {
+          "text": "Added safeties to reduce the odds of item deletions happening.",
+          "category": "Game",
+          "type": "fix",
+          "importance": "major"
+        },
+        {
+          "text": "Leveling up while warping no longer deals damage, so the Blackroot fronkey can survive it.",
+          "category": "Game",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Removed two beta-only settings that weren't meant to ship.",
+          "category": "Game",
+          "type": "fix",
+          "importance": "minor"
+        }
+      ]
+    },
+    {
+      "version": "4.0.2",
+      "date": "2022-09-14",
+      "changes": [
+        {
+          "text": "The areas.ori file the logic helper needs is now downloaded automatically by the game.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "major"
+        }
+      ]
+    },
+    {
+      "version": "4.0.1",
+      "date": "2022-09-14",
+      "changes": [
+        {
+          "text": "Fixed backwards compatibility for the built-in reachability check.",
+          "category": "Game",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Removed some logspam for bingo teleporter activation.",
+          "category": "Game",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Fixed reachable checks on the web map not working at all.",
+          "category": "Website",
+          "type": "fix",
+          "importance": "major"
+        },
+        {
+          "text": "Fixed Glades spawn seeds not generating.",
+          "category": "Seed Generator",
+          "type": "fix",
+          "importance": "major"
+        }
+      ]
+    },
+    {
+      "version": "4.0.0",
+      "date": "2022-09-14",
+      "title": "4.0 hype!",
+      "changes": [
+        {
+          "text": "Alt+R now opens the warp map and lets you teleport to any activated Spirit Well from anywhere, just like teleporting in Ori 2.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "major"
+        },
+        {
+          "text": "In-game logic helper: see which pickups are actually in logic without leaving the game.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "major",
+          "sub": [
+            "Set Toggle Map Mode in RandomizerRebinding.txt to switch between all uncollected and in-logic pickups (defaults to Grenade).",
+            "You can set which filter the map opens with by default."
+          ]
+        },
+        {
+          "text": "Revamped difficulties. Easy, Normal and Hard are now Relaxed, Challenging and Punishing.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "major",
+          "sub": [
+            "Set Default Difficulty in RandomizerSettings.txt to pick what you get if you just spam proceed on a new file.",
+            "Relaxed grants some abilities in each tree at the start and makes parts of the game easier, including the Blackroot Burrows orb room."
+          ]
+        },
+        {
+          "text": "Grenade jumps can be bound to a single key instead of needing two presses a frame apart.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "major",
+          "sub": [
+            "Set Free Grenade Jump in RandomizerRebinding.txt; it defaults to Grenade+Jump.",
+            "Set Grenade Jump Mode to Manual in RandomizerSettings.txt if you'd rather keep the skill sharp."
+          ]
+        },
+        {
+          "text": "Hints: custom hints play every time you teleport with Alt+R.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "major",
+          "sub": [
+            "Set Hints in RandomizerSettings.txt to NewPlayer, Skilled or Disabled."
+          ]
+        },
+        {
+          "text": "Mouse aim: use your mouse to aim where you swim, and to aim a climb + charge jump during a wall charge.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "major",
+          "sub": [
+            "Wall Charge Mouse Aim and Swimming Mouse Aim in RandomizerSettings.txt, on or off at any time."
+          ]
+        },
+        {
+          "text": "Spirit Flame autofire: have Sein fight enemies automatically when they're in range.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "major",
+          "sub": [
+            "Off, Hold or Toggle.",
+            "On Hold, a normal Charge Flame requires holding the Suppress Autofire bind (defaults to Grenade, same as Double Bash) when you press Spirit Flame. Toggle doesn't have this quirk."
+          ]
+        },
+        {
+          "text": "Invert Climb and Invert Swim: with Climb, touching a wall makes Ori hang on by default, and you release with your Glide bind.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "major"
+        },
+        {
+          "text": "Sound compression, to cut down the volume spikes in places like Spirit Caverns.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "major",
+          "sub": [
+            "Apply Sound Compression in RandomizerSettings.txt, with Sound Compression Factor to control how equalized it gets.",
+            "You may want to adjust the in-game sound effects volume afterwards."
+          ]
+        },
+        {
+          "text": "Camera shake can be reduced or turned down.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "major",
+          "sub": [
+            "Camera Shake Factor in RandomizerSettings.txt scales it (0.75 for 75%).",
+            "Reduce Camera Shake: True heavily cuts shaking across the whole game."
+          ]
+        },
+        {
+          "text": "Blackroot orb room climb assist adds a few frames of forgiveness to the climb ramp, taking most of the luck out of a climb start without keystones.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "major"
+        },
+        {
+          "text": "With this many new options, it's worth deleting RandomizerSettings.txt and RandomizerRebinding.txt and letting the dll write fresh, better-organized ones.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "Credits updated with more of the people who helped, and the 2021 Randomizer Tournament finalists.",
+          "category": "Game",
+          "importance": "minor"
+        },
+        {
+          "text": "You can set your spawn location from a dropdown above the main area when rolling seeds, including a random spawn option.",
+          "category": "Website",
+          "type": "feature",
+          "importance": "major"
+        },
+        {
+          "text": "New variation: In-Logic Warps, which adds warps to the map that become part of the seed's progression and opens up logic paths never seen before.",
+          "category": "Seed Generator",
+          "type": "feature",
+          "importance": "major",
+          "sub": [
+            "Alt+R over a warp opens the map and shows a warp teleporter icon. Set Warp Teleporter Color in RandomizerSettings.txt to tell them apart from normal teleporters."
+          ]
+        }
+      ]
+    },
+    {
+      "version": "3.0",
+      "date": "2019-01-01",
+      "title": "The 3.0 release",
+      "headline": "The randomizer moved to orirando.com in 3.0, and every logic path in the game was revisited. These notes are ported from the original 3.0 release document; dates before 4.0 are approximate.",
+      "changes": [
+        {
+          "text": "The purple (utility) ability tree has been reworked.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "major",
+          "sub": [
+            "Seeing partially through walls, normally from Sense, is now always active.",
+            "Map Markers gains every later Markers ability, shows all hidden pickups, and shows petrified plants as experience orbs.",
+            "Ability Markers now gives 50% bonus exp (rounded down); Spirit Light Efficiency combines with it for the same 100% as before.",
+            "Life Markers and Energy Markers now give 2 health and 2 energy regen levels respectively.",
+            "Sense now changes Ori's color based on distance to the nearest skill, world event, dungeon key, shard or warmth fragment. Colors are set in RandomizerSettings.txt.",
+            "Health and Energy Efficiency and the Magnets are unchanged, but Efficiency no longer increases regen rate."
+          ]
+        },
+        {
+          "text": "Finishing a Horu room's lava-lowering cutscene now also gives a pickup, whether or not you're playing Open Dungeons.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "major"
+        },
+        {
+          "text": "The Kuro cutscene in Hollow Grove and the kill plane in Valley are now always present by default, instead of only appearing once you have Stomp.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "major",
+          "sub": [
+            "Legacy Kuro Behavior restores the old behavior.",
+            "Open World removes them entirely."
+          ]
+        },
+        {
+          "text": "Returning to the top of the Ginso escape after completing it teleports you to its normal exit in Swamp, so this is now a logical way into Swamp.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "major"
+        },
+        {
+          "text": "Teleporting into Forlorn moves the gravity orb to the teleporter; Alt+R sends it back to the start of the dungeon.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "The cutscene after the Ginso escape is gone -- you get control back instantly. Your UI will be off; press Alt+U two or three times to restore it.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "The input lock when falling into Gumo's Hideout after you've already been to the bottom now lifts itself within 4 seconds.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "Alt+R back to the start now zeroes your speed and snaps the camera instead of panning. It doesn't take any longer.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "Health and energy only update visually each quarter cell, so you can appear to be at 0 health while actually between 0 and 0.24.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "Health and Energy Regeneration now tick once per 60 seconds per pickup, up from once per 83.3.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "Charge Flame now costs 0.5 energy by default; Charge Flame Efficiency reduces that to 0.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "Messages for important pickups linger longer.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "RandomizerSettings.txt has more options -- delete the file and press Alt+L for a fresh default one.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "minor",
+          "sub": [
+            "Controller Bash Deadzone (0.0-1.0): the analog deadzone when bashing with a controller. Default 0.5; the vanilla game uses 0.04.",
+            "Ability Menu Opacity (0.0-1.0): fades the ability menu while moving in a save anywhere. Default 0.5.",
+            "Instant Grenade Aim: snap the Grenade target to your analog stick instead of moving toward it. Default False.",
+            "Grenade Aim Speed: how fast the Grenade target moves when aiming with a controller.",
+            "Cold Color and Hot Color: Ori's colors when far from and near to hot pickups."
+          ]
+        },
+        {
+          "text": "RandomizerRebindings.txt includes many more binds. Take a look at the file to see what's available.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "Custom colors: create Color.txt in the Ori DE directory to set Ori's color, or define a rotation that shifts between colors over a set number of frames.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "minor",
+          "sub": [
+            "A single line of R,G,B,A sets one fixed color.",
+            "A CustomRotation block takes a starting R,G,B,A followed by R,G,B,A,F lines, where F is how many frames to spend shifting to that color. The rotation loops back to the first line.",
+            "You can fade in and out of visibility, rotate through bright colors, or become a stop light.",
+            "Color shift overrides other color options and auto-inputs a color code when activated."
+          ]
+        },
+        {
+          "text": "Returning to the start of the game from left Grotto no longer displaces you into Blackroot.",
+          "category": "Game",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Bonus item changes.",
+          "category": "Game",
+          "importance": "major",
+          "sub": [
+            "Explosion Power Upgrade is gone.",
+            "Spirit Flame Upgrade is now Damage Upgrade: +1 Spirit Flame damage, +1 Spirit Flame target, +3 Grenade damage, +1 Grenade burst radius, +6 Charge Flame damage."
+          ]
+        },
+        {
+          "text": "The randomizer has a new home at orirando.com. All other sites and seed generators have been replaced.",
+          "category": "Website",
+          "type": "feature",
+          "importance": "major"
+        },
+        {
+          "text": "New goal mode: World Tour. Eight zones are chosen at random, a relic is hidden in each, and you need all eight before you can enter the final escape.",
+          "category": "Seed Generator",
+          "type": "feature",
+          "importance": "major",
+          "sub": [
+            "Relics have their own names and flavor text.",
+            "Best played on the shards key mode with force trees off.",
+            "If you like 100%ing the game, you can play with 11 relics -- one in every zone."
+          ]
+        },
+        {
+          "text": "New variation: Open Dungeons, on by default. Turn it off with the Closed Dungeons option.",
+          "category": "Seed Generator",
+          "type": "feature",
+          "importance": "major",
+          "sub": [
+            "Keystone doors open from either side.",
+            "The elemental miniboss doors in Ginso are open.",
+            "The Forlorn orb cutscenes are gone -- the bridge is raised, the laser room door is open, and you can't lose the orb, so most Forlorn pickups need no skills.",
+            "The lava blocking each Horu room and the bottom of the mountain is gone.",
+            "The Ginso and Horu teleporters are in the drop pool."
+          ]
+        },
+        {
+          "text": "New variation: Open World, off by default, which opens up the world outside the dungeons.",
+          "category": "Seed Generator",
+          "type": "feature",
+          "importance": "major",
+          "sub": [
+            "The 2 keystone door near the start is open, and the cutscene teaching you about doors is gone.",
+            "The Stomp and lever doors from the Spirit Tree to Valley are open.",
+            "The Kuro kill plane in Valley and the Kuro cutscene in Hollow Grove are removed."
+          ]
+        },
+        {
+          "text": "Every pickup now has a unique name in the spoiler. No more map-and-compass work to figure out which LeftSorrow keystone you missed.",
+          "category": "Seed Generator",
+          "type": "feature",
+          "importance": "major"
+        },
+        {
+          "text": "In shards mode, the Ginso, Forlorn and Horu teleporter pickups don't grant access to that teleporter until you have at least 2 shards of the matching key.",
+          "category": "Seed Generator",
+          "type": "feature",
+          "importance": "major"
+        },
+        {
+          "text": "When forcing progression, the generator reduces its chosen path to the smallest subset that still opens progression, so fewer progression items get forced overall.",
+          "category": "Seed Generator",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "When forcing progression, paths with more requirements are chosen much less often, in inverse proportion to how many they have.",
+          "category": "Seed Generator",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "Mapstones are no longer placed as soon as a map altar becomes accessible. Strict Mapstones turns this off; it's not allowed with Discrete Mapstones.",
+          "category": "Seed Generator",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "Casual and standard seeds now have a minimum health and energy cell rate -- 1 per 20 pickups in casual, 1 per 40 in standard.",
+          "category": "Seed Generator",
+          "type": "feature",
+          "importance": "minor",
+          "sub": [
+            "Being stuck on 3HP after full clearing the right side of the map is now impossible."
+          ]
+        },
+        {
+          "text": "The final escape has no logical requirements any more. Every other location is filled first and the remaining item goes there, so the final escape item varies far more.",
+          "category": "Seed Generator",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "Every logic path has been revisited and rewritten to model what you can actually reach with a given set of skills.",
+          "category": "Logic",
+          "importance": "major",
+          "sub": [
+            "Paths are much more granular. Late-game areas like Misty and Sorrow now open incrementally instead of all at once with one skill combination."
+          ]
+        },
+        {
+          "text": "Casual: complicated Bash + Grenade paths (like throwing a Grenade above spikes to bash off it) are no longer required, and neither is damage boosting on spikes.",
+          "category": "Logic",
+          "importance": "major"
+        },
+        {
+          "text": "Standard: up to 3 damage per damage boost path, Air Dash and Climb + Charge Jump floor breaks are now in logic.",
+          "category": "Logic",
+          "importance": "major",
+          "sub": [
+            "Damage boosts still aren't required for the upper path to Valley or inside Misty Woods.",
+            "Underwater pickups in dirty water are never required, at any damage amount.",
+            "The randomizer provides 3 Ability Cells for the Air Dash paths."
+          ]
+        },
+        {
+          "text": "Expert: up to 6 damage per damage boost, Double Bash chains, wall vaults with Double Jump, and Charge Dashes on every pickup.",
+          "category": "Logic",
+          "importance": "major",
+          "sub": [
+            "Double Bash paths expect at most 5 or 6 chained bashes.",
+            "Double Jump may be expected to vault walls that are barely too high -- jump into the wall, then press jump again.",
+            "The randomizer provides 6 Ability Cells for the Charge Dash paths."
+          ]
+        },
+        {
+          "text": "Master: a lot more microledges and terrible damage boost paths. Sorry not sorry.",
+          "category": "Logic",
+          "importance": "major",
+          "sub": [
+            "Double Jump may be expected to act as wall interaction: jump into the wall, turn away briefly, turn back and jump again, as many times as needed.",
+            "Grenade jumps are in, and there are many more of them than there used to be.",
+            "Triple Jump and Ultra Defense are explicitly in logic; the randomizer provides 12 Ability Cells.",
+            "Charge Flame Burn is in logic for some plants; the randomizer provides 3 Ability Cells."
+          ]
+        },
+        {
+          "text": "Legends tell of a path set called 'insane', so heinous it was banished from all presets. If you don't value your sanity or your time, some say you can turn those paths on from the Logic Paths tab.",
+          "category": "Logic",
+          "importance": "minor"
+        }
+      ]
+    }
+  ]
+}
