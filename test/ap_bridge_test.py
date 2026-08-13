@@ -1894,5 +1894,45 @@ class TestPromiseAnnotateParity(unittest.TestCase):
         self.assertEqual(free[("EV", "0")], [4])
 
 
+class TestShadowVisibility(unittest.TestCase):
+    """Shadow players are the bridge's outbox, not people. Rendering one leaks
+    plumbing onto the map; computing reachability for one cost game 135658 its
+    whole instance, because the tracker polls per player it is told about."""
+
+    @classmethod
+    def setUpClass(cls):
+        creds = google.auth.credentials.AnonymousCredentials()
+        cls.ndb_client = ndb.Client(project="unit-test", credentials=creds)
+
+    def setUp(self):
+        self._ctx = self.ndb_client.context()
+        self._ctx.__enter__()
+        self._orig = models.Game.get_players
+
+    def tearDown(self):
+        models.Game.get_players = self._orig
+        self._ctx.__exit__(None, None, None)
+
+    def test_only_the_ap_nickname_marks_a_shadow(self):
+        self.assertTrue(Player(id="1.5", nickname=models.AP_SHADOW_NICK).is_ap_shadow())
+        self.assertFalse(Player(id="1.1").is_ap_shadow())
+        # a human who names themselves something close is still a human
+        self.assertFalse(Player(id="1.2", nickname="Archipelago Fan").is_ap_shadow())
+
+    def test_visible_players_drops_shadows(self):
+        roster = [Player(id="1.1"), Player(id="1.2"),
+                  Player(id="1.3", nickname=models.AP_SHADOW_NICK),
+                  Player(id="1.4", nickname=models.AP_SHADOW_NICK)]
+        models.Game.get_players = lambda self: roster
+        game = models.Game(id="1")
+        self.assertEqual([p.key.id() for p in game.visible_players()], ["1.1", "1.2"])
+
+    def test_visible_players_is_inert_without_shadows(self):
+        roster = [Player(id="1.1"), Player(id="1.2")]
+        models.Game.get_players = lambda self: roster
+        game = models.Game(id="1")
+        self.assertEqual(game.visible_players(), roster)
+
+
 if __name__ == "__main__":
     unittest.main()

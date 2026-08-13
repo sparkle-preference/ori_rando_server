@@ -433,6 +433,9 @@ class CustomLogic(ndb.Model):
             warnings = warnings
         )
 
+# marks the AP outbox players; the only thing that ever sets a nickname
+AP_SHADOW_NICK = "Archipelago"
+
 class Player(ndb.Model):
     # id = gid.pid
     skills      = ndb.IntegerProperty()
@@ -660,6 +663,11 @@ class Player(ndb.Model):
         if self.seed_name:
             return self.seed_name
         return "Player %s" % self.pid()
+
+    def is_ap_shadow(self):
+        """AP outbox players (pid K+w). No client ever connects as one, and
+        nothing player-facing should render or compute for them."""
+        return self.nickname == AP_SHADOW_NICK
 
     def wire_name(self):
         """Name as safe to embed in the tick wire format and signal text:
@@ -1782,6 +1790,13 @@ class Game(ndb.Model):
     def get_players(self):
         return [p.get() for p in self.players]
 
+    def visible_players(self):
+        """get_players() minus the AP shadows. Every player-facing surface —
+        tracker, history, item tracker — wants this one, not get_players():
+        rendering a shadow leaks the bridge's plumbing, and computing
+        reachability for one is pure waste on the request path."""
+        return [p for p in self.get_players() if p and not p.is_ap_shadow()]
+
     def remove_player(self, key):
         key = ndb.Key(Player, key, parent=self.key)
         if key in self.players:
@@ -2061,8 +2076,8 @@ class Game(ndb.Model):
         k = int(params.players)
         for w in range(1, k + 1):
             shadow = self.player(k + w)
-            if shadow.nickname != "Archipelago":
-                shadow.nickname = "Archipelago"
+            if shadow.nickname != AP_SHADOW_NICK:
+                shadow.nickname = AP_SHADOW_NICK
                 shadow.put()
         Cache.clear_names(self.key.id())
 

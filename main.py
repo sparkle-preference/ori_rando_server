@@ -494,7 +494,7 @@ def game_list_players(game_id):
         if not game:
             return text_resp("Game %s not found!" % game_id, 404)
         out_lines = []
-        for p in game.get_players():
+        for p in game.visible_players():
             out_lines.append("Player %s: %s" % (p.pid(), p.bitfields))
             out_lines.append("\t\t" + "\n\t\t".join([hl.print_line(game.start_time) for hl in game.history([p.pid()]) if hl.pickup().is_shared(share_types)]))
         return text_resp("\n".join(out_lines))
@@ -719,7 +719,7 @@ def tracker_fetch_gamedata(game_id):
         return json_resp({"error": "Game %s not found!" % game_id}, 404)
     params = game.params.get()
     gamedata["paths"] = params.logic_paths
-    gamedata["players"] = [p.userdata() for p in game.get_players()]
+    gamedata["players"] = [p.userdata() for p in game.visible_players()]
     gamedata["closed_dungeons"] = Variation.CLOSED_DUNGEONS in params.variations
     gamedata["open_world"] = Variation.OPEN_WORLD in params.variations
     return json_resp(gamedata)
@@ -745,7 +745,7 @@ def tracker_update_map(game_id):
         game = Game.with_id(game_id)
         if not game:
             return json_resp({"error": "Game %s not found" % game_id}, 404)
-        coords = { p.pid(): p.have_coords() for p in game.get_players() }
+        coords = { p.pid(): p.have_coords() for p in game.visible_players() }
         Cache.set_have(game_id, coords)
     for p, coords in coords.items():
         if p not in players:
@@ -760,7 +760,7 @@ def tracker_update_map(game_id):
             if not game:
                 return json_resp({"error": "Game %s not found" % game_id}, 404)
         if not inventories:
-            inventories = game.get_inventories(game.get_players(), True, True)
+            inventories = game.get_inventories(game.visible_players(), True, True)
         spawn = game.params.get().spawn or "Glades"
         for p in need_reach_updates:
             inventory = [(pcode, pid, count, False) for ((pcode, pid), count) in inventories["unshared"][p].items()]
@@ -792,7 +792,7 @@ def tracker_get_seen(game_id):
         game = Game.with_id(game_id)
         if not game:
             return code_resp(404)
-        coords = { p.pid(): p.have_coords() for p in game.get_players() }
+        coords = { p.pid(): p.have_coords() for p in game.visible_players() }
         Cache.set_have(game_id, coords)
     return json_resp(coords)
 
@@ -848,7 +848,7 @@ def tracker_get_items_update(game_id, player_id):
         if not coords:
             if not game:
                 return json_resp({"error": "Game %s not found" % game_id}, 404)
-            coords = { p.pid(): p.have_coords() for p in game.get_players() }
+            coords = { p.pid(): p.have_coords() for p in game.visible_players() }
             Cache.set_have(game_id, coords)
         items, _ = _get_item_tracker_items(coords.get(player_id, []), game, player_id)
     return json_resp(items)
@@ -866,8 +866,8 @@ def _get_item_tracker_items(coords, game, player=1):
         'relics': relics,
         'teleporters': set()
     }
-    inventories = game.get_inventories(game.get_players(), True, True)
-    
+    inventories = game.get_inventories(game.visible_players(), True, True)
+
     inv = [v for k,v in inventories.items() if k != "unshared"][0] if game.mode == MultiplayerGameType.SHARED else inventories["unshared"][player]
     for ((pcode, pid), count) in inv.items():
         p = Pickup.n(pcode, pid)
@@ -911,8 +911,8 @@ def tracker_fetch_seed(game_id, player_id):
     if not game or not game.params:
         return json_resp({"error": "game %s not found!" % game_id}, 404)
     player = game.player(player_id, False)
-    if not player:
-        return json_resp({"error": "game %s does not contain player %s!" % (game_id, player_id, 404)})
+    if not player or player.is_ap_shadow():
+        return json_resp({"error": "game %s does not contain player %s!" % (game_id, player_id)}, 404)
     res = {"seed": {}, 'name': player.name()}
     params = game.params.get()
     if Variation.BINGO in params.variations:
