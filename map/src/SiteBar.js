@@ -134,9 +134,9 @@ class SiteBar extends Component {
             (<DropdownItem key="name" disabled><i>Logged in as {user}</i></DropdownItem>),
             (<DropdownItem key="settings" onClick={() => this.setState({settingsOpen: true})}> Rename </DropdownItem>),
             (<DropdownItem key="my games" href={"/myGames"}>  My Games </DropdownItem>),
-            (<DropdownItem key="logout" onClick={() => {localStorage.removeItem("rememberMe")}} href={loginLogoutUrl(false)}>  Logout </DropdownItem>),
+            (<DropdownItem key="logout" href={loginLogoutUrl(false)}>  Logout </DropdownItem>),
         ] : [
-            (<DropdownItem key="login" onClick={() => localStorage.setItem("rememberMe", true)} href={loginLogoutUrl(true)}> Login </DropdownItem>)
+            (<DropdownItem key="login" href={loginLogoutUrl(true)}> Login </DropdownItem>)
         ]
         let myseeds = user ? (<DropdownItem href={"/plando/"+ user}> {user}'s seeds </DropdownItem>) : null
         let settings = this.settingsModal()
