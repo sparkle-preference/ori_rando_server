@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 import logging as log
 from urllib.request import urlopen
 from urllib.parse import unquote, quote_plus
-from flask import Flask, render_template, request, make_response, url_for, redirect, g, Response, get_flashed_messages
+from flask import Flask, render_template, request, make_response, url_for, redirect, g, Response, get_flashed_messages, session
 from werkzeug.middleware.proxy_fix import ProxyFix
 from google.cloud import ndb
 import google.cloud.logging
@@ -309,6 +309,13 @@ def delete_flashes(response):
     """
     get_flashed_messages()
     return response
+
+
+@app.before_request
+def make_session_permanent():
+    session.permanent = True
+    app.permanent_session_lifetime = timedelta(days=365)
+    session.modified = True  # Force the cookie timestamp to update
 
 
 @app.route('/activeGames/')

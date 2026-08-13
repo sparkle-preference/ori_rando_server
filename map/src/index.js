@@ -32,10 +32,7 @@ const dark_apps = ["GameTracker", "PlandoBuilder", "LogicHelper"];
 const VALID_THEMES = ["cerulean", "cosmo", "cyborg", "darkly", "flatly", "journal", "litera", "lumen", "lux", "materia", "minty", "pulse", "sandstone", "simplex", "sketchy", "slate", "solar", "spacelab", "superhero", "united", "yeti"];
 
 (async () => {
-    ap_opt_in();  // ahead of the login bounce, which would drop the param
-    if(localStorage.getItem("rememberMe") && !get_param('user')) {
-        return gotoUrl(loginLogoutUrl(true));
-    }
+    ap_opt_in();
     let dark = resolve_dark();
     let theme = get_param("theme") || localStorage.getItem("theme");
     if(theme && !localStorage.getItem("theme")){
