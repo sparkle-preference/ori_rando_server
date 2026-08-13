@@ -99,7 +99,7 @@ class Upgrade(Pickup):
             200: "Quick Flame", 201: "Spark Flame", 202: "Charge Flame Burn", 203: "Split Flame", 204: "Ultra Light Burst", 205: "Cinder Flame",
             206: "Ultra Stomp", 207: "Rapid Flame", 208: "Charge Flame Blast", 209: "Ultra Split Flame", 210: "Spirit Magnet", 211: "Map Markers",
             212: "Life Efficiency", 213: "Ultra Spirit Magnet", 214: "Energy Efficiency", 215: "Spirit Efficiency", 216: "Spirit Potency",
-            217: "Life Regen (Ability)", 218: "Energy Regen (Ability", 219: "Sense", 220: "Rekindle", 221: "Regroup", 222: "Charge Flame Efficiency",
+            217: "Life Regen (Ability)", 218: "Energy Regen (Ability)", 219: "Sense", 220: "Rekindle", 221: "Regroup", 222: "Charge Flame Efficiency",
             223: "Air Dash", 224: "Ultra Soul Link", 225: "Charge Dash", 226: "Water Breath", 227: "Soul Link Efficiency", 228: "Triple Jump", 229: "Ultra Defense",
             230: "Remove Quick Flame", 231: "Remove Spark Flame", 232: "Remove Charge Flame Burn", 233: "Remove Split Flame", 234: "Remove Ultra Light Burst",
             235: "Remove Cinder Flame", 236: "Remove Ultra Stomp", 237: "Remove Rapid Flame", 238: "Remove Charge Flame Blast", 239: "Remove Ultra Split Flame",
