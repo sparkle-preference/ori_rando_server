@@ -39,6 +39,7 @@ Capacity model: one gunicorn thread per open socket (see Dockerfile
 "NETPERF ws_conns" gauges on every connect/disconnect, and an explicit
 "NETPERF ws_conn_reject" line whenever the limit turns a client away.
 """
+import hashlib
 import logging as log
 from queue import Queue, Empty
 from threading import Lock, Thread
@@ -50,6 +51,7 @@ from simple_websocket import ConnectionClosed
 
 import netcode
 import push
+from cache import Cache
 from util import WS_CONN_LIMIT, NETPERF_TAG, netperf
 
 _conns_lock = Lock()
@@ -194,6 +196,14 @@ def handle_frame(game_id, player_id, frame):
         # to strand multiworld releases (game 134478)
         status, _ = netcode.game_complete(game_id, player_id)
         return "completeack:%s" % status, False
+    if kind == "areas":
+        # the client offers its areas.ori hash once per seed load; a match
+        # gets "ok", anything else the current file. This channel replaces
+        # the retiring http fetch.
+        areas = Cache.get_areas()
+        if hashlib.sha256(areas.encode()).hexdigest() == body.strip().lower():
+            return "areas:ok", False
+        return "areas:%s" % areas, False
     log.warning("ws: unknown frame kind %r from %s.%s", kind, game_id, player_id)
     return "err:%s" % kind, False
 

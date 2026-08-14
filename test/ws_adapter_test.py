@@ -78,6 +78,44 @@ class HandleFrameTests(unittest.TestCase):
         self.assertFalse(close)
 
 
+class AreasFrameTests(unittest.TestCase):
+    """areas:<sha256> asks whether the client's logic file is current: "ok"
+    on a match, the whole file otherwise (clients ignore small bodies, so
+    the stub serves at production size)."""
+
+    AREAS = "sl: SunkenGladesRunaway\n" * 500
+
+    def setUp(self):
+        self._cache = ws.Cache
+        test = self
+
+        class _Cache(object):
+            def get_areas(self):
+                return test.AREAS
+        ws.Cache = _Cache()
+
+    def tearDown(self):
+        ws.Cache = self._cache
+
+    def _hash(self):
+        import hashlib
+        return hashlib.sha256(self.AREAS.encode()).hexdigest()
+
+    def test_matching_hash_gets_ok(self):
+        reply, close = ws.handle_frame(1, 2, "areas:" + self._hash())
+        self.assertEqual(reply, "areas:ok")
+        self.assertFalse(close)
+
+    def test_stale_hash_gets_the_whole_file(self):
+        reply, close = ws.handle_frame(1, 2, "areas:none")
+        self.assertEqual(reply, "areas:" + self.AREAS)
+        self.assertFalse(close)
+
+    def test_uppercase_hash_still_matches(self):
+        reply, _ = ws.handle_frame(1, 2, "areas:" + self._hash().upper())
+        self.assertEqual(reply, "areas:ok")
+
+
 class RecordingStub(object):
     """save/restore stub for any netcode handler; returns (status, body)."""
 
