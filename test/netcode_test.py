@@ -939,10 +939,14 @@ class TestAPNames(NdbTestCase):
 
     def test_missing_or_corrupt_row_is_empty_not_fatal(self):
         from ap_models import APNames
+        from cache import Cache
         self.assertEqual(APNames.load(88, 9), ({}, None))
         APNames.store(88, 1, {}, ap_slot=1)
         self.assertEqual(APNames.load(88, 1), ({}, 1))  # a world with no AP locations
+        # mutating the row directly models one that was ALWAYS corrupt, so
+        # the read-cache must not remember the healthy version
         self.rows["88.1"].names = "not json at all"
+        Cache.clear_ap_row(88, 1)
         self.assertEqual(APNames.load(88, 1), ({}, None))
 
     def test_a_row_from_an_older_build_reads_as_empty(self):
@@ -950,8 +954,10 @@ class TestAPNames(NdbTestCase):
         join can't use. The bridge rescouts on every connection, so
         reporting nothing is a few seconds of placeholders, not a loss."""
         from ap_models import APNames
+        from cache import Cache
         APNames.store(88, 1, {0: self._scout("Bash")}, ap_slot=1)
         self.rows["88.1"].names = '{"0": "Bash (Ori2)"}'
+        Cache.clear_ap_row(88, 1)  # direct mutation, as above
         self.assertEqual(APNames.load(88, 1), ({}, None))
 
 

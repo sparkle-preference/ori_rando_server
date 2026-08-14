@@ -20,6 +20,8 @@ import time
 
 from google.cloud import ndb
 
+from cache import Cache
+
 
 def ap_slot_name(world):
     """The deterministic per-world AP slot name. Shared with to_ap_yaml:
@@ -235,19 +237,33 @@ class APNames(ndb.Model):
         return "%s.%s" % (int(gid), int(world))
 
     @staticmethod
+    def _row_blobs(gid, world):
+        """(names json, ap_slot, promises json), cached: a row only changes
+        when a bridge session rescouts, but every download, spoiler and hint
+        resolution reads it. The writers below bust; raw text is cached so
+        the entry is backend-agnostic and parsing stays per-reader."""
+        cached = Cache.get_ap_row(gid, world)
+        if cached is not None:
+            return cached
+        row = APNames.get_by_id(APNames.key_id(gid, world))
+        blobs = (row.names, row.ap_slot, row.promises) if row else (None, None, None)
+        Cache.set_ap_row(gid, world, blobs)
+        return blobs
+
+    @staticmethod
     def load(gid, world):
         """-> ({shadow slot: APScout}, this world's room slot or None)."""
-        row = APNames.get_by_id(APNames.key_id(gid, world))
-        if row is None or not row.names:
+        names, ap_slot, _ = APNames._row_blobs(gid, world)
+        if not names:
             return {}, None
         try:
-            blob = json.loads(row.names)
+            blob = json.loads(names)
             entries = {int(k): APScout.from_json(v) for k, v in blob.items()}
         except (TypeError, ValueError, KeyError, AttributeError):
             log.warning("APNames %s holds json this build can't read",
                         APNames.key_id(gid, world))
             return {}, None
-        return entries, row.ap_slot
+        return entries, ap_slot
 
     @staticmethod
     def store(gid, world, entries, ap_slot=None):
@@ -260,6 +276,7 @@ class APNames(ndb.Model):
         APNames(id=APNames.key_id(gid, world), scouted=len(entries),
                 ap_slot=ap_slot, names=json.dumps(blob),
                 promises=row.promises if row else None).put()
+        Cache.clear_ap_row(gid, world)
 
     @staticmethod
     def store_promises(gid, world, promised):
@@ -271,16 +288,17 @@ class APNames(ndb.Model):
         if row.promises != blob:
             row.promises = blob
             row.put()
+            Cache.clear_ap_row(gid, world)
 
     @staticmethod
     def load_promises(gid, world):
         """{shadow slot: manifest slot}, or None when no build ever
         published -- the caller bakes no field 6 rather than guessing."""
-        row = APNames.get_by_id(APNames.key_id(gid, world))
-        if row is None or not row.promises:
+        _, _, promises = APNames._row_blobs(gid, world)
+        if not promises:
             return None
         try:
-            return {int(k): int(v) for k, v in json.loads(row.promises).items()}
+            return {int(k): int(v) for k, v in json.loads(promises).items()}
         except (TypeError, ValueError, AttributeError):
             log.warning("APNames %s holds promise json this build can't read",
                         APNames.key_id(gid, world))

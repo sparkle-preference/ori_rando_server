@@ -1489,6 +1489,10 @@ class TestGoldenRealTouchpoints(unittest.TestCase):
     def setUp(self):
         self._ctx = self.ndb_client.context()
         self._ctx.__enter__()
+        # the fixed GID + the process-wide in-memory Cache would otherwise
+        # serve one test's APNames row text to the next
+        for w in (1, 2):
+            Cache.clear_ap_row(self.GID, w)
         self.recvs, self.goals, self.counts = [], [], []
         self._orig = (ap_bridge._persist_recv, ap_bridge._persist_status,
                       ap_bridge._goal_worlds, ap_bridge._persist_name_counts)
@@ -2044,6 +2048,65 @@ class TestPromiseAnnotateParity(unittest.TestCase):
         # fields 1-5 still annotate: names and recipients are row data
         by_loc = {line[0]: line for line in out}
         self.assertEqual(len(by_loc["919908"]), 5)
+
+
+class TestApRowCache(unittest.TestCase):
+    """APNames rows ride the cache: a row changes only when a session
+    rescouts, but every download, spoiler and hint resolution reads it.
+    Writers bust, so a fresh publish is visible immediately."""
+
+    GID, WORLD = 987654, 1
+
+    def setUp(self):
+        from ap_models import APNames
+        Cache.clear_ap_row(self.GID, self.WORLD)
+        self.reads = []
+        self._get = APNames.__dict__["get_by_id"] if "get_by_id" in APNames.__dict__ else None
+        self._get_inherited = APNames.get_by_id
+        row = type("R", (object,), {})()
+        row.names = json.dumps({"0": {"i": "Bash", "w": "Ori1", "t": "P1",
+                                      "a": 524288, "o": 1}})
+        row.ap_slot = 1
+        row.promises = json.dumps({"0": 3})
+        row.put = lambda *a, **k: None
+        self.row = row
+        APNames.get_by_id = staticmethod(
+            lambda rid: self.reads.append(rid) or self.row)
+
+    def tearDown(self):
+        from ap_models import APNames
+        if self._get is not None:
+            APNames.get_by_id = self._get
+        else:
+            del APNames.get_by_id
+        Cache.clear_ap_row(self.GID, self.WORLD)
+
+    def test_one_datastore_read_serves_every_consumer(self):
+        from ap_models import APNames
+        entries, ap_slot = APNames.load(self.GID, self.WORLD)
+        promises = APNames.load_promises(self.GID, self.WORLD)
+        entries2, _ = APNames.load(self.GID, self.WORLD)
+        self.assertEqual(len(self.reads), 1)
+        self.assertEqual(ap_slot, 1)
+        self.assertEqual(promises, {0: 3})
+        self.assertEqual(entries[0].ap_item, 524288)
+        self.assertEqual(entries2[0].item, "Bash")
+
+    def test_store_promises_busts_the_cache(self):
+        from ap_models import APNames
+        APNames.load(self.GID, self.WORLD)          # warm (1 read)
+        APNames.store_promises(self.GID, self.WORLD, {0: 7})  # reads the row itself
+        before = len(self.reads)
+        self.row.promises = json.dumps({"0": 7})
+        self.assertEqual(APNames.load_promises(self.GID, self.WORLD), {0: 7})
+        self.assertEqual(len(self.reads), before + 1)  # cache was busted
+
+    def test_missing_row_is_cached_as_missing(self):
+        from ap_models import APNames
+        self.row = None
+        self.assertEqual(APNames.load(self.GID, self.WORLD), ({}, None))
+        self.assertIsNone(APNames.load_promises(self.GID, self.WORLD))
+        self.assertEqual(len(self.reads), 1)
 
 
 class TestShadowVisibility(unittest.TestCase):

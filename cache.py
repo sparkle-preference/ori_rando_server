@@ -175,6 +175,18 @@ class MemcachedCache(object):
     def clear_names(self, gid):
         self.memcache.delete(key="%s.names" % gid)
 
+    # APNames row text per (game, world): rescouts are rare, readers are not
+    # (every download, spoiler and hint resolution). Writers bust; the TTL is
+    # a backstop.
+    def get_ap_row(self, gid, world):
+        return self.memcache_get(key="%s.%s.aprow" % (gid, world))
+
+    def set_ap_row(self, gid, world, blobs):
+        self.memcache.set(key="%s.%s.aprow" % (gid, world), value=blobs, expire=3600)
+
+    def clear_ap_row(self, gid, world):
+        self.memcache.delete(key="%s.%s.aprow" % (gid, world))
+
     def get_seen_checksum(self, gpid):
         return self.memcache_get(key="%s.%s.seenhash" % gpid)
 
@@ -363,6 +375,15 @@ class PythonCache(object):
 
     def clear_names(self, gid):
         self.cache.pop("%s.names" % gid, None)
+
+    def get_ap_row(self, gid, world):
+        return self.cache.get(key="%s.%s.aprow" % (gid, world))
+
+    def set_ap_row(self, gid, world, blobs):
+        self.cache.set(key="%s.%s.aprow" % (gid, world), value=blobs, time=3600)
+
+    def clear_ap_row(self, gid, world):
+        self.cache.pop("%s.%s.aprow" % (gid, world), None)
 
     def get_seen_checksum(self, gpid):
         return self.cache.get(key="%s.%s.seenhash" % gpid)
