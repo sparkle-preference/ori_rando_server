@@ -762,9 +762,9 @@ class Player(ndb.Model):
         return out
 
     def signal_send(self, signal):
-        # stale-put hazard: request paths want signal_send_txn (see
-        # tick_update_txn). Remaining callers hold copies they re-put anyway
-        # (bingo update tail, sanity repair) and need converting as a set.
+        # stale-put hazard: request paths want signal_send_txn. The callers
+        # here (bingo update tail, sanity repair) re-put their copies anyway
+        # and must convert together or the tail put erases the txn's append.
         if signal not in self.signals:
             self.signals.append(signal)
             self.put()
@@ -826,9 +826,8 @@ class Player(ndb.Model):
     @ndb.transactional(retries=5)
     def claim_user_txn(pkey, user_key):
         """The seed download's write: claim this world for a site account on
-        a fresh read, touching only `user`. Re-downloads happen mid-game
-        (135658 re-pulled seeds during play), and the route's stale put raced
-        grant txns like every other member of the class."""
+        a fresh read, touching only `user`. Re-downloads happen mid-game, so
+        this races grant txns like every other Player write."""
         p = pkey.get()
         if p is None or p.user == user_key:
             return False
@@ -2072,8 +2071,7 @@ class Game(ndb.Model):
             if newly:
                 released += newly
                 Cache.clear_seen_checksum(owner.idpts())
-                # txn, not a re-read + stale put: this fires in the middle of
-                # the release's own grant burst, the worst window there is
+                # fires mid grant-burst, the worst window for a stale put
                 if Player.signal_send_txn(owner.key, "msg:@%s finished! %s items from their world released to you@" % (finisher_name, newly)):
                     Cache.clear_seen_checksum(owner.idpts())
             netperf("mw_release_owner", t_owner, gid=self.key.id(), owner=owner_pid, slots=len(slots), newly=newly)

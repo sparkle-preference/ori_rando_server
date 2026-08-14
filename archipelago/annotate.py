@@ -103,10 +103,9 @@ def annotate(seed_data, players, world, rows, seed_data_for, promises=None):
 
     promises: the bridge's persisted {shadow slot: manifest slot} map, baked
     into field 6 VERBATIM -- the self-item draw lives in ap_bridge only, so
-    the client grants exactly what the bridge fills, by construction. With
-    no blob (never built, or a pre-blob row) no field 6 is baked at all:
-    the tick still delivers, only the contact-grant priming is lost, and an
-    abstention cannot dupe."""
+    the client grants exactly what the bridge fills. With no blob, no field
+    6 at all: the tick still delivers, only the contact-grant priming is
+    lost, and an abstention cannot dupe."""
     entries, our_slot = rows.get(world, ({}, None))
     if not entries:
         return seed_data
@@ -125,11 +124,10 @@ def annotate(seed_data, players, world, rows, seed_data_for, promises=None):
             if hit:
                 line = (loc, code, id, hit[1], hit[0])
             else:
-                # the rolled zone is where the item was taken FROM, wrong for
-                # nearly every export once the room refills (55 of 58 on a
-                # real room -- game 135658's door hints). An entry the join
-                # can't place keeps custody and no zone; the holder must be
-                # non-empty or shipped clients fall back to "P<shadow>".
+                # the rolled zone is where the item came FROM (see module
+                # docstring); an unplaced entry keeps custody and no zone.
+                # The holder must be non-empty or shipped clients render
+                # the finder as "P<shadow>".
                 line = (loc, code, id, "", FOREIGN_HOLDER)
         else:
             held = _reserved_slot(code, id, shadow)

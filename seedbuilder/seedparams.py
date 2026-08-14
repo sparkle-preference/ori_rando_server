@@ -10,15 +10,14 @@ from threading import Lock
 from cachetools import TTLCache
 from seedbuilder.generator import SeedGenerator
 
-# Inflating a big multiworld params entity is ~3000 protobuf decodes (the
-# half-second per call behind the 135658 tracker storm), so request paths
-# share one process-local inflated copy. This is CORRECT ONLY SINGLE-INSTANCE
-# (like models.bingo_lock, which already pins the deploy to max-instances=1);
-# the TTL covers deploy-overlap windows where another instance's put cannot
-# bust ours. Entries are handed out SHARED and READ-ONLY: a path that means
-# to mutate-and-put must fetch raw via key.get() (the bingo variation append
-# in BingoGameData.get_seed is the one such site), and every put busts via
-# the hooks on the model.
+# Inflating a big multiworld params entity is ~3000 protobuf decodes, about
+# half a second per request. Request paths share one process-local inflated
+# copy instead. CORRECT ONLY SINGLE-INSTANCE (like models.bingo_lock, which
+# already pins the deploy to max-instances=1); the TTL covers deploy-overlap
+# windows where another instance's put cannot bust ours. Entries are SHARED
+# and READ-ONLY: a path that mutates-and-puts must fetch raw via key.get()
+# (the bingo variation append in BingoGameData.get_seed is the one such
+# site), and every put busts via the hooks on the model.
 _PARAMS_CACHE = TTLCache(maxsize=8, ttl=120)
 _PARAMS_LOCK = Lock()
 
@@ -638,10 +637,10 @@ class SeedGenParams(ndb.Model):
         """Placement spoiler for an AP world, built from the room's scout
         rows: what each location HOLDS after the Archipelago fill, plus this
         world's incoming slot manifest. None until some world has scouted --
-        before that the only truthful text is the pre-export roll, and the
-        fill ORDER is never ours to tell (it lives in the room's own spoiler
-        log). Replaces the generation-time walkthrough, which is false for
-        every exported line once the room refills (135658: 435 of 476)."""
+        before that the only truthful text is the pre-export roll. The fill
+        ORDER is never ours to tell (it lives in the room's own spoiler log),
+        and the generation-time walkthrough this replaces is false for every
+        exported line once the room refills."""
         if not game_id:
             return None
         rows = self.ap_rows(game_id)

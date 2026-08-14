@@ -605,8 +605,6 @@ def load_seed_from_params(params_id):
             game = Game.with_id(game_id)
             user = User.get()
             if game and user:
-                # fresh-read txn: a mid-game re-download's stale put would
-                # erase grant bits, same class as the 134701 tick race
                 Player.claim_user_txn(game.player(pid).key, user.key)
                 if game.mode == MultiplayerGameType.MULTIWORLD:
                     # names ride the tick output: rebuild it for everyone
@@ -960,9 +958,8 @@ def tracker_fetch_seed(game_id, player_id):
     seed_lines = params.get_seed_data(player_id)
     shadow = None
     if getattr(params, "ap_mode", False):
-        # scouted labels for the reserved AP lines: the rows ride the cache
-        # and the params entity is already inflated above, so this adds
-        # compute only. Without it, AP locations tooltip "AP Item #n" forever.
+        # scouted labels for the reserved AP lines; without them the
+        # tooltips say "AP Item #n" forever
         seed_lines = params.ap_named(seed_lines, player_id, game_id)
         shadow = str(int(params.players) + int(player_id))
     for line in seed_lines:
@@ -972,8 +969,8 @@ def tracker_fetch_seed(game_id, player_id):
         if shadow is not None and code == "MW":
             parts = id.split(",", 2)
             if len(parts) == 3 and parts[0] == shadow:
-                # the scout's own label ("Grotto Keystone (Hal)"): Pickup.name
-                # would render the shadow pid as a player
+                # the scout's label as-is: Pickup.name renders the shadow
+                # pid as a player
                 res["seed"][coords] = parts[2]
                 continue
         res["seed"][coords] = Pickup.name(code, id)

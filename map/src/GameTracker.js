@@ -12,8 +12,8 @@ import {Helmet} from 'react-helmet';
 
 const paths = Object.keys(presets);
 
-// seed_loaded, not the size of seed: an empty seed is a valid answer, and
-// treating it as "not loaded yet" re-requests it forever
+// seed_loaded, not the size of seed: an empty seed is a valid answer, and a
+// size test re-requests it forever
 const EMPTY_PLAYER = {seed: {}, seed_loaded: false, pos: [-210, 189], seen:[], show_marker: true, hide_found: true, hide_unreachable: true, spoiler: false, hide_remaining: false, sense: false, areas: []}
 
 // function get_inner(id) {
@@ -273,9 +273,9 @@ class GameTracker extends React.Component {
         }
         if(check_seen === 0) {
             this.getUpdate(this.timeout);
-            // in flight is tracked per player: one shared flag let the fastest
-            // response re-arm the whole batch, so the slower the server got the
-            // harder this loop hit it
+            // in-flight is per player: a single shared flag lets the fastest
+            // response re-arm the whole batch, hitting the server hardest
+            // exactly when it is slowest
             let reqs = null;
             Object.keys(players).forEach((id) => {
                 if(players[id].seed_loaded || seed_reqs[id])
@@ -502,8 +502,8 @@ function doNetRequest(onRes, setter, url, timeout)
         xmlHttp.onreadystatechange = function() {
             try {
                 if (xmlHttp.readyState === 4) {
-                    // any error backs off — a 429 or 5xx that fell through to
-                    // onRes died in JSON.parse, so the loop never slowed down
+                    // any error backs off: a 429/5xx reaching onRes just dies
+                    // in JSON.parse and never slows the loop
                     if(xmlHttp.status >= 400)
                         setter(timeout());
                     else

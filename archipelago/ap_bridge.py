@@ -293,8 +293,7 @@ def _recv_at_least(idx, world, count):
 
 @ndb.transactional(retries=5)
 def _persist_recv(gid, world, count):
-    # the txn serializes writers, but a stale twin's smaller count still won
-    # the last write before the >= guard: monotone or nothing
+    # a stale twin's smaller count must lose: monotone or nothing
     link = APLink.with_id(gid)
     if link is None:
         return
@@ -347,8 +346,8 @@ def _persist_drop(gid, world, entry):
 
 
 def _notify_drop(gid, world, text):
-    """One red line on the player's tick: a silently vanishing console rescue
-    cost 135658 its remediation (nine keystones, only ERROR lines to show)."""
+    """One red line on the player's tick (console rescues vanished silently
+    in 135658; the sender has to hear it failed)."""
     from models import Game, Player
     game = Game.with_id(gid)
     if not game:
@@ -1484,11 +1483,10 @@ class ApSession(object):
     def _build_promises(self):
         """Promise map, once every scout has answered (self rows need nothing
         else -- their item keys come from our own static table). Past the
-        deadline, rebuild from the persisted scout row first: it is the same
-        row annotate reads, so those promises agree with every gated seed
-        download by construction -- 135658's twin sessions diverged exactly
-        here, one healthy and one arrival-order. Only with no usable row does
-        the session degrade to arrival-order fills."""
+        deadline, rebuild from the persisted scout row first: the same row
+        annotate reads, so the promises agree with every gated seed download
+        by construction (twin sessions diverged here, 135658). Only with no
+        usable row does the session degrade to arrival-order fills."""
         if self.our_slot is None or not self.authed:
             return
         if len(self.scouted) >= self.scout_total:
