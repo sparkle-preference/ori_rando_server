@@ -270,11 +270,14 @@ class SessionTestCase(unittest.TestCase):
                       ap_bridge._persist_hint, ap_bridge._apply_hint_text,
                       ap_bridge._hint_notice, ap_bridge._scout_rows,
                       ap_bridge._load_scout_row, ap_bridge._persist_drop,
-                      ap_bridge._notify_drop)
+                      ap_bridge._notify_drop, ap_bridge._persist_promises)
         ap_bridge._load_scout_row = lambda gid, world: self.scout_row
         ap_bridge._persist_drop = lambda gid, world, entry: (
             self.drops.append(entry) or self.drop_new)
         ap_bridge._notify_drop = lambda gid, world, text: self.drop_notices.append((gid, world, text))
+        self.promise_blobs = []      # (world, {shadow slot: manifest slot})
+        ap_bridge._persist_promises = lambda gid, world, blob: (
+            self.promise_blobs.append((world, dict(blob))))
         ap_bridge._load_hints = lambda gid, world: dict(self.hint_rows)
         ap_bridge._claim_hint = self._claim
         ap_bridge._persist_hint = lambda gid, world, slot, state, text="", ap_item=0: (
@@ -306,7 +309,7 @@ class SessionTestCase(unittest.TestCase):
          ap_bridge._persist_hint, ap_bridge._apply_hint_text,
          ap_bridge._hint_notice, ap_bridge._scout_rows,
          ap_bridge._load_scout_row, ap_bridge._persist_drop,
-         ap_bridge._notify_drop) = self._orig
+         ap_bridge._notify_drop, ap_bridge._persist_promises) = self._orig
         ap_bridge._notice_at.clear()
 
     def make_session(self, **kw):
@@ -1987,10 +1990,10 @@ class TestLinkRetarget(unittest.TestCase):
 
 
 class TestPromiseAnnotateParity(unittest.TestCase):
-    """promised_slots must hand out exactly the slots annotate bakes into
-    field 6: the client grants what its seed promises, the bridge fills what
-    the scout implies, and those must be the same numbers or self-item dupes
-    come back (the 4.2.11 bug, from the other side)."""
+    """Field 6 is promised_slots' output, persisted and consumed verbatim:
+    the self-item draw lives in ap_bridge alone, so the client grants exactly
+    what the bridge fills BY CONSTRUCTION. (It used to be two mirrored draws
+    pinned to agree; Asm's proposal (ii) retired the second one.)"""
 
     SEED = [
         ("919908", "MW", "3,0,AP Item #1", "Grove"),   # reserved -> ap 524541
@@ -2001,18 +2004,26 @@ class TestPromiseAnnotateParity(unittest.TestCase):
         ("-6", "MW", "3,EV,0", "Swamp"),               # manifest slot 4: Water Vein
     ]
 
-    def test_bridge_promises_match_annotate_field6(self):
-        from archipelago import annotate as annotate_mod
+    ENTRIES = None  # built per test: both reserved locations hold our Bash
+
+    def _entries(self):
         from ap_models import APScout
+        return {0: APScout("Bash", "Ori1", "P1", 524288, 1),
+                40: APScout("Bash", "Ori1", "P1", 524288, 1)}
+
+    def test_annotate_bakes_the_bridge_blob_verbatim(self):
+        from archipelago import annotate as annotate_mod
         maps = ap_bridge.maps_from_params(FakeParams(2, {1: list(self.SEED), 2: []}))
-        # both reserved locations hold our own Bash, so the draw ORDER is
-        # what this pins: seed-line order over ascending per-item pools
+        # both reserved locations hold our own Bash: seed-line order over
+        # ascending per-item pools gives 524541 -> 0, 524542 -> 3
         scouted = {524541: (524288, 1), 524542: (524288, 1)}
         promised, free = ap_bridge.promised_slots(maps, 1, scouted, 1)
+        # the persisted form is keyed by shadow slot, annotate's native key
+        slot_by_loc = {loc: s for s, loc in maps.outbox[1].items()}
+        blob = {slot_by_loc[loc]: mslot for loc, mslot in promised.items()}
 
-        entries = {0: APScout("Bash", "Ori1", "P1", 524288, 1),
-                   40: APScout("Bash", "Ori1", "P1", 524288, 1)}
-        out = annotate_mod.annotate(list(self.SEED), 2, 1, {1: (entries, 1)}, lambda v: [])
+        out = annotate_mod.annotate(list(self.SEED), 2, 1, {1: (self._entries(), 1)},
+                                    lambda v: [], promises=blob)
         field6 = {ap_bridge.AP_LOC_BY_COORD[int(line[0])]: int(line[5])
                   for line in out if len(line) >= 6}
 
@@ -2022,6 +2033,17 @@ class TestPromiseAnnotateParity(unittest.TestCase):
         self.assertEqual(free[("SK", "0")], [])
         self.assertEqual(free[("EX", "40")], [1])
         self.assertEqual(free[("EV", "0")], [4])
+
+    def test_no_blob_means_no_field6_at_all(self):
+        # a pre-blob row or a never-built game: abstain rather than re-derive.
+        # An abstention cannot dupe; a stale local draw did (135658).
+        from archipelago import annotate as annotate_mod
+        out = annotate_mod.annotate(list(self.SEED), 2, 1, {1: (self._entries(), 1)},
+                                    lambda v: [], promises=None)
+        self.assertEqual([line for line in out if len(line) >= 6], [])
+        # fields 1-5 still annotate: names and recipients are row data
+        by_loc = {line[0]: line for line in out}
+        self.assertEqual(len(by_loc["919908"]), 5)
 
 
 class TestShadowVisibility(unittest.TestCase):

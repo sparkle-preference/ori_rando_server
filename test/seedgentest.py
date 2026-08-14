@@ -2584,13 +2584,18 @@ class ApSeedAnnotationTests(unittest.TestCase):
         self._ctx = self.ndb_client.context()
         self._ctx.__enter__()
         self.stored = {}
+        self.promise_blobs = {}
         self._orig_load = APNames.load
+        self._orig_promises = APNames.load_promises
         APNames.load = staticmethod(
             lambda gid, world: self.stored.get((int(gid), int(world)), ({}, None)))
+        APNames.load_promises = staticmethod(
+            lambda gid, world: self.promise_blobs.get((int(gid), int(world))))
 
     def tearDown(self):
         from ap_models import APNames
         APNames.load = staticmethod(self._orig_load)
+        APNames.load_promises = staticmethod(self._orig_promises)
         self._ctx.__exit__(None, None, None)
 
     @staticmethod
@@ -2598,8 +2603,10 @@ class ApSeedAnnotationTests(unittest.TestCase):
         from ap_models import APScout
         return APScout(item, who, to, ap_item, ap_owner)
 
-    def _store(self, world, entries, ap_slot=1):
+    def _store(self, world, entries, ap_slot=1, promises=None):
         self.stored[(self.GID, world)] = (entries, ap_slot)
+        if promises is not None:
+            self.promise_blobs[(self.GID, world)] = dict(promises)
 
     def _params(self):
         from enums import MultiplayerGameType
@@ -2647,9 +2654,11 @@ class ApSeedAnnotationTests(unittest.TestCase):
 
     def test_a_self_item_carries_its_manifest_slot(self):
         """Field 6 is what lets the client grant on contact instead of waiting
-        out the room round trip. Our AP slot is 1, so ap_owner=1 is ours."""
+        out the room round trip. It is the bridge's persisted promise map,
+        baked verbatim -- the draw itself lives in ap_bridge alone."""
         self._store(self.WORLD, {0: self._scout("Bash", "Ori1", "Ori1",
-                                                ap_item=self.BASH_AP_ID, ap_owner=1)})
+                                                ap_item=self.BASH_AP_ID, ap_owner=1)},
+                    promises={0: 0})
         parts = self._lines(self._params())["919908"].split("|")
         self.assertEqual(len(parts), 6)
         self.assertEqual(parts[5], "0", "should point at our SK|0 manifest slot")
@@ -2660,7 +2669,8 @@ class ApSeedAnnotationTests(unittest.TestCase):
     def test_duplicate_self_items_get_distinct_slots(self):
         """Each copy of a duplicated item claims its own manifest slot;
         sharing the lowest slot made the second copy read as a re-touch
-        (the 4.2.8 "(already collected)" double message)."""
+        (the 4.2.8 "(already collected)" double message). The blob carries
+        the distinction; downloads just reproduce it."""
         from enums import MultiplayerGameType
         from seedbuilder.seedparams import SeedGenParams, MultiplayerOptions, Placement, Stuff
         sync = MultiplayerOptions(str_mode=MultiplayerGameType.MULTIWORLD.value)
@@ -2677,21 +2687,32 @@ class ApSeedAnnotationTests(unittest.TestCase):
             ])
         self._store(self.WORLD, {
             0: self._scout("Bash", "Ori1", "Ori1", ap_item=self.BASH_AP_ID, ap_owner=1),
-            1: self._scout("Bash", "Ori1", "Ori1", ap_item=self.BASH_AP_ID, ap_owner=1)})
+            1: self._scout("Bash", "Ori1", "Ori1", ap_item=self.BASH_AP_ID, ap_owner=1)},
+            promises={0: 0, 1: 1})
         for _ in range(2):   # and the same assignment on every download
             lines = self._lines(params)
             self.assertEqual(lines["919908"].split("|")[5], "0")
             self.assertEqual(lines["959960"].split("|")[5], "1")
 
     def test_someone_elses_item_gets_no_slot_field(self):
+        # a present-but-empty blob must not leak field 6 onto foreign lines
         self._store(self.WORLD, {0: self._scout("Bash", "Ori2", "Ori2",
-                                                ap_item=self.BASH_AP_ID, ap_owner=2)})
+                                                ap_item=self.BASH_AP_ID, ap_owner=2)},
+                    promises={})
         self.assertEqual(len(self._lines(self._params())["919908"].split("|")), 5)
 
     def test_a_self_item_we_never_exported_gets_no_slot_field(self):
         # ours by recipient, but nothing in our manifest holds it: nothing to claim
         self._store(self.WORLD, {0: self._scout("Grenade", "Ori1", "Ori1",
-                                                ap_item=self.BASH_AP_ID + 9, ap_owner=1)})
+                                                ap_item=self.BASH_AP_ID + 9, ap_owner=1)},
+                    promises={})
+        self.assertEqual(len(self._lines(self._params())["919908"].split("|")), 5)
+
+    def test_no_promise_blob_means_no_slot_field(self):
+        # a row from before the blob existed, or a build that never ran:
+        # abstain rather than re-derive -- an abstention cannot dupe
+        self._store(self.WORLD, {0: self._scout("Bash", "Ori1", "Ori1",
+                                                ap_item=self.BASH_AP_ID, ap_owner=1)})
         self.assertEqual(len(self._lines(self._params())["919908"].split("|")), 5)
 
     def test_annotated_line_still_parses_as_the_client_and_server_do(self):

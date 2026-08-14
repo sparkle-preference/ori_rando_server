@@ -580,15 +580,17 @@ class SeedGenParams(ndb.Model):
 
     def ap_named(self, seed_data, player, game_id):
         """Annotate this world's AP lines with what the room actually did
-        with them. Display only: every field the netcode reads is untouched,
-        and an unscouted world passes straight through."""
+        with them. Display only except field 6, which is the bridge's own
+        persisted promise map; an unscouted world passes straight through."""
         rows = self.ap_rows(game_id)
         if not rows:
             return seed_data
         try:
+            from ap_models import APNames
             from archipelago.annotate import annotate
+            promises = APNames.load_promises(game_id, int(player))
             return annotate(seed_data, int(self.players), int(player), rows,
-                            lambda v: self.get_seed_data(v))
+                            lambda v: self.get_seed_data(v), promises=promises)
         except Exception:
             log.exception("couldn't annotate AP seed for game %s world %s", game_id, player)
             return seed_data

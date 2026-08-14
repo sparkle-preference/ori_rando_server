@@ -221,6 +221,10 @@ class APNames(ndb.Model):
     # JSON {"<shadow slot>": {"i": item, "t": recipient, "a": ap item id,
     #                         "o": ap owner slot}}
     names   = ndb.TextProperty(compressed=True)
+    # JSON {"<shadow slot>": manifest slot} -- the bridge's promise map,
+    # written after a build; annotate bakes it into field 6 VERBATIM, so the
+    # self-item draw exists in exactly one place (ap_bridge.promised_slots)
+    promises = ndb.TextProperty()
     # this world's own slot number in the room: the join's "is it mine?"
     ap_slot = ndb.IntegerProperty()
     scouted = ndb.IntegerProperty(default=0)
@@ -247,9 +251,40 @@ class APNames(ndb.Model):
 
     @staticmethod
     def store(gid, world, entries, ap_slot=None):
+        # names and promises have different writers on one row, so each
+        # carries the other's field forward. Plain read-then-put (no txn: the
+        # golden harness runs these against patched entity ops); a lost blob
+        # in the race window is rewritten by the next promise build.
+        row = APNames.get_by_id(APNames.key_id(gid, world))
         blob = {str(k): v.as_json() for k, v in sorted(entries.items())}
         APNames(id=APNames.key_id(gid, world), scouted=len(entries),
-                ap_slot=ap_slot, names=json.dumps(blob)).put()
+                ap_slot=ap_slot, names=json.dumps(blob),
+                promises=row.promises if row else None).put()
+
+    @staticmethod
+    def store_promises(gid, world, promised):
+        """{shadow slot: manifest slot} onto the row, names carried forward."""
+        blob = json.dumps({str(k): int(v) for k, v in sorted(promised.items())})
+        row = APNames.get_by_id(APNames.key_id(gid, world))
+        if row is None:
+            row = APNames(id=APNames.key_id(gid, world))
+        if row.promises != blob:
+            row.promises = blob
+            row.put()
+
+    @staticmethod
+    def load_promises(gid, world):
+        """{shadow slot: manifest slot}, or None when no build ever
+        published -- the caller bakes no field 6 rather than guessing."""
+        row = APNames.get_by_id(APNames.key_id(gid, world))
+        if row is None or not row.promises:
+            return None
+        try:
+            return {int(k): int(v) for k, v in json.loads(row.promises).items()}
+        except (TypeError, ValueError, AttributeError):
+            log.warning("APNames %s holds promise json this build can't read",
+                        APNames.key_id(gid, world))
+            return None
 
 
 # APHints entry states. PENDING is written BEFORE the room is asked, so a

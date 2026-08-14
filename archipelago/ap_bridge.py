@@ -310,6 +310,12 @@ def _load_scout_row(gid, world):
     return APNames.load(gid, world)
 
 
+def _persist_promises(gid, world, promised_by_slot):
+    """The build's promise map onto the APNames row. Annotate bakes this
+    blob into field 6 verbatim, so the self-item draw has one home."""
+    APNames.store_promises(gid, world, promised_by_slot)
+
+
 # undeliverable ReceivedItems entries kept on the link; past this, log-only
 DROPPED_CAP = 100
 
@@ -1490,6 +1496,7 @@ class ApSession(object):
                 self.maps, self.world, self.scouted, self.our_slot)
             log.info("APBRIDGE promises gid=%s world=%s self_items=%s",
                      self.gid, self.world, len(self.promised))
+            self._publish_promises()
             return
         if self.promises_deadline is not None and monotonic() > self.promises_deadline:
             stored = self._stored_scouts()
@@ -1499,11 +1506,26 @@ class ApSession(object):
                 log.warning("APBRIDGE promises from stored scouts gid=%s world=%s "
                             "self_items=%s (live scouts %s/%s)", self.gid, self.world,
                             len(self.promised), len(self.scouted), self.scout_total)
+                self._publish_promises()  # older rows may predate the blob
                 return
             log.error("APBRIDGE promises timed out gid=%s world=%s; degraded fills",
                       self.gid, self.world)
             self.promised = {}
             self.free_slots = {k: list(v) for k, v in self.maps.grant_slots.get(self.world, {}).items()}
+
+    def _publish_promises(self):
+        """The promise map, keyed by shadow slot (the form annotate can look
+        up straight off a reserved line, no datapackage involved). An empty
+        map is still published: 'computed none' and 'never built' differ."""
+        slot_by_loc = {loc: s for s, loc in self.maps.outbox.get(self.world, {}).items()}
+        blob = {slot_by_loc[loc]: mslot for loc, mslot in (self.promised or {}).items()
+                if loc in slot_by_loc}
+        try:
+            with self.ctx():
+                _persist_promises(self.gid, self.world, blob)
+        except Exception:
+            log.exception("APBRIDGE promise publish failed gid=%s world=%s",
+                          self.gid, self.world)
 
     def _stored_scouts(self):
         """A complete persisted scout row, reshaped for promised_slots, or

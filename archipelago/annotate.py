@@ -10,7 +10,8 @@ lot more. This pass rewrites the seed at download time:
   manifest line   -(slot+2)|MW|<K+w>,<code>,<id>|<true zone>|<holder>
 
 Field 6 rides only reserved lines holding our own item, naming the manifest
-slot it lands in so the client can grant it on contact.
+slot it lands in so the client can grant it on contact. Its values are the
+bridge's own persisted promise map, not a local re-derivation.
 
 Fields 5 and 6 are additive and the four fields before them are untouched: every
 shipped client splits a seed line on '|' and reads indices 0..3 only, so an
@@ -85,28 +86,20 @@ def _holders(players, world, rows, seed_data_for):
     return {key: hits[0] for key, hits in found.items() if len(hits) == 1}
 
 
-def _own_slot(scout, our_slot, own_pool):
-    """Field 6: the manifest slot a self-item will land in, so the client can
-    grant it on contact instead of waiting out the room round trip. Handed
-    out without replacement: every copy of a duplicated item needs its own
-    slot, or the client mistakes the second copy for a re-touch."""
-    if our_slot is None or scout.ap_owner != our_slot:
-        return None
-    key = ITEM_BY_AP_ID.get(scout.ap_item)
-    if key is None:
-        return None
-    pool = own_pool.get(key)
-    return pool.pop(0) if pool else None
-
-
-def annotate(seed_data, players, world, rows, seed_data_for):
+def annotate(seed_data, players, world, rows, seed_data_for, promises=None):
     """Seed tuples -> seed tuples, this world's AP lines gaining a 5th field
     (and a 6th where the item is our own).
 
     rows: {world: (APNames entries, that world's room slot)}; a world that
     has never scouted contributes nothing. seed_data_for(v) yields world v's
     raw placement tuples, which is where the join reads reserved zones.
-    """
+
+    promises: the bridge's persisted {shadow slot: manifest slot} map, baked
+    into field 6 VERBATIM -- the self-item draw lives in ap_bridge only, so
+    the client grants exactly what the bridge fills, by construction. With
+    no blob (never built, or a pre-blob row) no field 6 is baked at all:
+    the tick still delivers, only the contact-grant priming is lost, and an
+    abstention cannot dupe."""
     entries, our_slot = rows.get(world, ({}, None))
     if not entries:
         return seed_data
@@ -116,10 +109,6 @@ def annotate(seed_data, players, world, rows, seed_data_for):
     counts = {}
     for key in exports.values():
         counts[key] = counts.get(key, 0) + 1
-    # field-6 slot pools, consumed in seed-line order: stable across downloads
-    own_pool = {}
-    for slot, key in sorted(exports.items()):
-        own_pool.setdefault(key, []).append(slot)
     out = []
     for line in seed_data:
         loc, code, id, zone = line
@@ -141,7 +130,7 @@ def annotate(seed_data, players, world, rows, seed_data_for):
             if scout is not None:
                 fields = [loc, code, "%s,%s,%s" % (shadow, held[0], scout.label()),
                           zone, "%s;%s" % (scout.to, scout.item)]
-                mine = _own_slot(scout, our_slot, own_pool)
+                mine = promises.get(held[0]) if promises else None
                 if mine is not None:
                     fields.append(str(mine))
                 line = tuple(fields)
