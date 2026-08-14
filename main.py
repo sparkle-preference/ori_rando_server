@@ -475,7 +475,7 @@ def game_show_history(game_id):
     template_values = template_vals("History", "Game %s" % game_id, User.get())
     game = Game.with_id(game_id)
     if game:
-        if (game.params and Variation.RACE in game.params.get().variations) and not template_values["race_wl"]:
+        if (game.params and Variation.RACE in game.fetch_params().variations) and not template_values["race_wl"]:
             return text_code("Access forbidden", 401)
         output = game.summary(int(param_val("p") or 0))
         output += "\nHistory:"
@@ -735,7 +735,7 @@ def tracker_show_map(game_id):
     #     if any([x is None for x in [game, pos, hist]]):
     #         return redirect(url_for('tests_map_gid', game_id=game_id, from_test=1))
     game = Game.with_id(game_id)
-    if game and (Variation.RACE in game.params.get().variations) and not template_values["race_wl"]:
+    if game and (Variation.RACE in game.fetch_params().variations) and not template_values["race_wl"]:
         return text_resp("Access forbidden", 401)
     return render_template(path, **template_values)
 
@@ -745,7 +745,7 @@ def tracker_fetch_gamedata(game_id):
     game = Game.with_id(game_id)
     if not game or not game.params:
         return json_resp({"error": "Game %s not found!" % game_id}, 404)
-    params = game.params.get()
+    params = game.fetch_params()
     gamedata["paths"] = params.logic_paths
     gamedata["players"] = [p.userdata() for p in game.visible_players()]
     gamedata["closed_dungeons"] = Variation.CLOSED_DUNGEONS in params.variations
@@ -789,7 +789,7 @@ def tracker_update_map(game_id):
                 return json_resp({"error": "Game %s not found" % game_id}, 404)
         if not inventories:
             inventories = game.get_inventories(game.visible_players(), True, True)
-        spawn = game.params.get().spawn or "Glades"
+        spawn = game.fetch_params().spawn or "Glades"
         for p in need_reach_updates:
             inventory = [(pcode, pid, count, False) for ((pcode, pid), count) in inventories["unshared"][p].items()]
             inventory  += [(pcode, pid, count, False) for group, inv in inventories.items()  if group != "unshared" and p in group for ((pcode, pid), count) in inv.items()]
@@ -845,7 +845,7 @@ def tracker_get_reachable(game_id):
         return json_resp({}, 404)
     modes = param_val("modes").split(" ")
     game = Game.with_id(game_id)
-    spawn = game.params.get().spawn or "Glades"
+    spawn = game.fetch_params().spawn or "Glades"
     shared_hist = []
     shared_coords = set()
     try:
@@ -947,7 +947,7 @@ def tracker_fetch_seed(game_id, player_id):
     if not player or player.is_ap_shadow():
         return json_resp({"error": "game %s does not contain player %s!" % (game_id, player_id)}, 404)
     res = {"seed": {}, 'name': player.name()}
-    params = game.params.get()
+    params = game.fetch_params()
     if Variation.BINGO in params.variations:
         bingo = BingoGameData.with_id(game_id)
         if not bingo:
@@ -984,7 +984,7 @@ def tracker_fetch_seed(game_id, player_id):
 def tracker_item_tracker(game_id, player_id=1):
     game = Game.with_id(game_id)
     template_values = template_vals("ItemTracker", "Game %s" % game_id, User.get())
-    if game and Variation.RACE in game.params.get().variations and not template_values["race_wl"]:
+    if game and Variation.RACE in game.fetch_params().variations and not template_values["race_wl"]:
         return text_code("Access forbidden", 401)
     template_values['game_id'] = game_id
     template_values['player_id'] = player_id
@@ -1102,7 +1102,7 @@ def reroll_seed():
     old_game = game_key.get()
     if not old_game.params:
         return text_resp("latest game does not have params", 404)
-    old_params = old_game.params.get().to_json()
+    old_params = old_game.fetch_params().to_json()
     old_params['seed'] = str(random.randint(0, 1000000000))
     new_params = SeedGenParams.from_json(old_params).get()
     # the overrides pass modes this user already has a game of; combinations
@@ -1735,7 +1735,7 @@ def add_bingo_to_game(game_id):
             return text_resp("game did not have required seed data", 412)
         if game.mode in [MultiplayerGameType.SPLITSHARDS]:
             return text_resp("splitshards bingo are not currently supported", 412)
-        params = game.params.get()
+        params = game.fetch_params()
         seed = param_val("seed") or params.seed
         rand = random.Random()
         rand.seed(seed)

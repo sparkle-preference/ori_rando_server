@@ -141,6 +141,9 @@ class _FakeTrackerGame(object):
                 return self._p
         self.params = _Key(params)
 
+    def fetch_params(self):
+        return self.params.get()
+
     def player(self, pid, create=True, delay_put=False):
         class _P(object):
             def is_ap_shadow(self):

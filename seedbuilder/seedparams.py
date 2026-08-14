@@ -6,7 +6,21 @@ import random
 from util import enums_from_strlist, picks_by_coord, get_preset_from_paths
 from enums import (MultiplayerGameType, ShareType, Variation, LogicPath, KeyMode, PathDifficulty, presets)
 from collections import OrderedDict
+from threading import Lock
+from cachetools import TTLCache
 from seedbuilder.generator import SeedGenerator
+
+# Inflating a big multiworld params entity is ~3000 protobuf decodes (the
+# half-second per call behind the 135658 tracker storm), so request paths
+# share one process-local inflated copy. This is CORRECT ONLY SINGLE-INSTANCE
+# (like models.bingo_lock, which already pins the deploy to max-instances=1);
+# the TTL covers deploy-overlap windows where another instance's put cannot
+# bust ours. Entries are handed out SHARED and READ-ONLY: a path that means
+# to mutate-and-put must fetch raw via key.get() (the bingo variation append
+# in BingoGameData.get_seed is the one such site), and every put busts via
+# the hooks on the model.
+_PARAMS_CACHE = TTLCache(maxsize=8, ttl=120)
+_PARAMS_LOCK = Lock()
 
 JSON_SHARE = lambda x: x.value if x != ShareType.EVENT else "World Events"
 
@@ -807,4 +821,33 @@ class SeedGenParams(ndb.Model):
 
     @staticmethod
     def with_id(id):
-        return SeedGenParams.get_by_id(int(id))
+        return SeedGenParams.cached_by_id(id)
+
+    @staticmethod
+    def cached_by_id(id):
+        """The inflated entity via the process cache (see the cache's comment
+        for the sharing rules)."""
+        pid = int(id)
+        with _PARAMS_LOCK:
+            hit = _PARAMS_CACHE.get(pid)
+        if hit is not None:
+            return hit
+        params = SeedGenParams.get_by_id(pid)
+        if params is not None:
+            with _PARAMS_LOCK:
+                _PARAMS_CACHE[pid] = params
+        return params
+
+    @staticmethod
+    def cached_by_key(key):
+        return SeedGenParams.cached_by_id(key.id()) if key else None
+
+    def _post_put_hook(self, future):
+        # any put invalidates: generation, and the bingo variation append
+        with _PARAMS_LOCK:
+            _PARAMS_CACHE.pop(self.key.id(), None)
+
+    @classmethod
+    def _post_delete_hook(cls, key, future):
+        with _PARAMS_LOCK:
+            _PARAMS_CACHE.pop(key.id(), None)

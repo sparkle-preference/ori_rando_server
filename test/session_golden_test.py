@@ -490,6 +490,9 @@ class FakeApGame(object):
     def visible_players(self):
         return list(self.roster)
 
+    def fetch_params(self):
+        return self.params.get() if self.params else None
+
 
 class TestApRoutes(SessionTestCase):
     """ap/connect | ap/status | ap/disconnect: ARCHIPELAGO gating, AP-mode

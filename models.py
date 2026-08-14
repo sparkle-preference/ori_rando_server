@@ -1329,7 +1329,7 @@ class BingoGameData(ndb.Model):
             if game.params:
                 res["paramId"] = game.params.id()
                 if self.teams_shared:
-                    params = game.params.get()
+                    params = game.fetch_params()
                     res["teamMax"] = params.players
         return res
 
@@ -1814,6 +1814,12 @@ class Game(ndb.Model):
         reachability for one is pure waste on the request path."""
         return [p for p in self.get_players() if p and not p.is_ap_shadow()]
 
+    def fetch_params(self):
+        """The game's SeedGenParams via the process cache: SHARED and
+        READ-ONLY. A path that mutates and puts (the bingo variation append)
+        must keep using self.params.get() for a private copy."""
+        return SeedGenParams.cached_by_key(self.params)
+
     def remove_player(self, key):
         key = ndb.Key(Player, key, parent=self.key)
         if key in self.players:
@@ -1853,7 +1859,7 @@ class Game(ndb.Model):
                     else:
                         log.error("Unknown relic zone %s" % zone)
 
-        params  = self.params.get()
+        params  = self.fetch_params()
         groups = []
         pid_map = {}
         if not params:
@@ -2037,7 +2043,7 @@ class Game(ndb.Model):
         sitting in their world that belongs to someone else is granted to its
         owner (their world is done being explored). Idempotent."""
         t0 = monotonic()
-        params = params or self.params.get()
+        params = params or self.fetch_params()
         # AP mode: slots owned by shadow players (pid > K) are the bridge's
         # outbox; releasing a world must never force-check them (whether the
         # AP room releases on goal is the room's policy, not ori's)
@@ -2197,7 +2203,7 @@ class Game(ndb.Model):
                 else:
                     log.error("No bingo team found for player %s!" % pid)
             if share and (self.dedup or (pickup.code == "RB" and pickup.id in dedup_bonus_ids)):
-                p = self.params.get()
+                p = self.fetch_params()
                 if p.sync.cloned and coords in [coord for p in players if p.pid() != pid for coord in p.seen_coords()]:
                     log.debug("Won't grant %s to player %s, as a teammate found it already" % (pickup.name, pid))
                     return 410

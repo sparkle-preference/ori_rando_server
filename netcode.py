@@ -179,7 +179,7 @@ def ap_connect(game_id, payload):
     game = Game.with_id(game_id)
     if not game:
         return 404, "Game %s not found" % game_id
-    params = game.params.get() if game.params else None
+    params = game.fetch_params()
     if not params or not getattr(params, "ap_mode", False):
         return 409, "Game %s is not an Archipelago game" % game_id
     host = (payload.get("host") or "").strip()

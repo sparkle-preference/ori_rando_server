@@ -1314,6 +1314,9 @@ class BingoBoltOnGateTests(unittest.TestCase):
             params = _ParamsKey()
             bingo_data = None
 
+            def fetch_params(self):
+                return test.params
+
             def get_players(self):
                 # 1..2 are the humans, 3..4 the AP shadows holding the outbox
                 return [_Player(1), _Player(2), _Player(3), _Player(4)]
