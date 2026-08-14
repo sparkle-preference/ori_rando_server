@@ -957,9 +957,25 @@ def tracker_fetch_seed(game_id, player_id):
             return json_resp({"error": "No team found for player %s!" % player_id}, 404)
         team = team.pids()
         player_id = team.index(player_id) + 1
-    for (coords, code, id, _) in params.get_seed_data(player_id):
+    seed_lines = params.get_seed_data(player_id)
+    shadow = None
+    if getattr(params, "ap_mode", False):
+        # scouted labels for the reserved AP lines: the rows ride the cache
+        # and the params entity is already inflated above, so this adds
+        # compute only. Without it, AP locations tooltip "AP Item #n" forever.
+        seed_lines = params.ap_named(seed_lines, player_id, game_id)
+        shadow = str(int(params.players) + int(player_id))
+    for line in seed_lines:
+        coords, code, id = line[0], line[1], line[2]
         if is_mw_manifest_loc(coords):
             continue  # multiworld slot manifests aren't map locations
+        if shadow is not None and code == "MW":
+            parts = id.split(",", 2)
+            if len(parts) == 3 and parts[0] == shadow:
+                # the scout's own label ("Grotto Keystone (Hal)"): Pickup.name
+                # would render the shadow pid as a player
+                res["seed"][coords] = parts[2]
+                continue
         res["seed"][coords] = Pickup.name(code, id)
     return json_resp(res)
 

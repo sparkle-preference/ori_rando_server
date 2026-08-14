@@ -107,5 +107,91 @@ class ApSeedGateTestCase(unittest.TestCase):
         self.assertEqual(r.status_code, 409)
 
 
+class _FakeTrackerParams(object):
+    ap_mode = True
+    players = 2
+    variations = []
+
+    def __init__(self):
+        self.named_calls = []
+
+    def get_seed_data(self, player=1, no_door_zone=True):
+        return [("919908", "MW", "3,0,AP Item #1", "Grove"),
+                ("1799708", "MW", "2,55,Valley teleporter", "Valley"),
+                ("-2", "MW", "3,SK,0", "Glades"),
+                ("2", "SK", "0", "Glades")]
+
+    def ap_named(self, seed_data, player, game_id):
+        self.named_calls.append(game_id)
+        out = []
+        for line in seed_data:
+            if line[0] == "919908":
+                line = ("919908", "MW", "3,0,Grotto Keystone (Hal)", "Grove", "Hal;Grotto Keystone")
+            out.append(line)
+        return out
+
+
+class _FakeTrackerGame(object):
+    def __init__(self, params):
+        class _Key(object):
+            def __init__(self, p):
+                self._p = p
+
+            def get(self):
+                return self._p
+        self.params = _Key(params)
+
+    def player(self, pid, create=True, delay_put=False):
+        class _P(object):
+            def is_ap_shadow(self):
+                return False
+
+            def name(self):
+                return "tester"
+        return _P()
+
+
+class TrackerSeedAnnotationTestCase(unittest.TestCase):
+    """The tracker seed view speaks scouted labels for AP lines -- without
+    this, AP locations tooltip "AP Item #n" forever -- and never renders a
+    shadow pid as a player name."""
+
+    def setUp(self):
+        self._ndb = models.client
+        models.client = _FakeNdbClient()
+        self._secret = main.app.secret_key
+        main.app.secret_key = main.app.secret_key or "tracker-seed-test"
+        self._with_id = models.Game.__dict__["with_id"]
+        self.params = _FakeTrackerParams()
+        game = _FakeTrackerGame(self.params)
+        models.Game.with_id = staticmethod(lambda gid: game)
+        self.client = main.app.test_client()
+
+    def tearDown(self):
+        models.Game.with_id = self._with_id
+        main.app.secret_key = self._secret
+        models.client = self._ndb
+
+    def test_reserved_lines_show_the_scouts_label(self):
+        r = self.client.get("/tracker/game/135658/fetch/player/1/seed")
+        self.assertEqual(r.status_code, 200)
+        seed = r.get_json()["seed"]
+        self.assertEqual(seed["919908"], "Grotto Keystone (Hal)")
+        self.assertEqual(self.params.named_calls, [135658])
+        # native cross-world MW lines keep their player attribution
+        self.assertTrue(seed["1799708"].startswith("Player 2's"))
+        # manifest pseudo-locations still aren't map locations
+        self.assertNotIn("-2", seed)
+        self.assertIn("2", seed)
+
+    def test_non_ap_games_never_touch_the_rows(self):
+        self.params.ap_mode = False
+        r = self.client.get("/tracker/game/77/fetch/player/1/seed")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(self.params.named_calls, [])
+        # the placeholder label is what the raw line carries
+        self.assertIn("919908", r.get_json()["seed"])
+
+
 if __name__ == "__main__":
     unittest.main()
