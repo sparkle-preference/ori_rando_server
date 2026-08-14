@@ -286,6 +286,15 @@ class APNames(ndb.Model):
         if row is None:
             row = APNames(id=APNames.key_id(gid, world))
         if row.promises != blob:
+            if row.promises:
+                # a given room only ever has one answer, so outside a room
+                # retarget this line is the promise-desync alarm
+                try:
+                    before = len(json.loads(row.promises))
+                except ValueError:
+                    before = "?"
+                log.info("APNames %s promises replaced (%s -> %s entries)",
+                         APNames.key_id(gid, world), before, len(promised))
             row.promises = blob
             row.put()
             Cache.clear_ap_row(gid, world)
