@@ -126,15 +126,16 @@ def _match_key(code, id):
 
 class GameMaps(object):
     def __init__(self, worlds, outbox, grant_slots, zones=None, hint_keys=None,
-                 death_link=False, reserved_order=None):
+                 death_link=False):
         self.worlds = worlds            # K
-        self.outbox = outbox            # {w: {shadow slot i: ap location id}}
+        # {w: {shadow slot i: ap location id}}, insertion = seed-line order,
+        # which is the promise draw order (dicts hold it; nothing mutates
+        # these after build)
+        self.outbox = outbox
         self.grant_slots = grant_slots  # {w: {match_key: [manifest slot, asc]}}
         self.zones = zones or {}        # {w: {shadow slot i: reserved zone}}
         self.hint_keys = hint_keys or {}  # {w: {manifest slot: buyable key}}
         self.death_link = bool(death_link)  # seed option, not a runtime toggle
-        # {w: [shadow slot, in seed-line order]} -- the promise draw order
-        self.reserved_order = reserved_order or {}
 
 
 def maps_from_params(params):
@@ -142,9 +143,9 @@ def maps_from_params(params):
     lines world w holds for its own shadow K+w; exports are w's manifest
     lines with shadow finder K+w."""
     k = int(params.players)
-    outbox, grants, zones, hints, order = {}, {}, {}, {}, {}
+    outbox, grants, zones, hints = {}, {}, {}, {}
     for w in range(1, k + 1):
-        ob, gr, zo, hk, ro = {}, {}, {}, {}, []
+        ob, gr, zo, hk = {}, {}, {}, {}
         for (loc, code, id, zone) in params.get_seed_data(w):
             if code != "MW":
                 continue
@@ -164,16 +165,14 @@ def maps_from_params(params):
                         log.error("APBRIDGE reserved coord %s of world %s not in datapackage", loc, w)
                         continue
                     ob[int(parts[1])] = ap_id
-                    ro.append(int(parts[1]))
                     # the zone an Ori hint names; the same string annotate
                     # bakes into a seed it can resolve at download time
                     zo[int(parts[1])] = zone
         for lst in gr.values():
             lst.sort()
-        outbox[w], grants[w], zones[w], hints[w], order[w] = ob, gr, zo, hk, ro
+        outbox[w], grants[w], zones[w], hints[w] = ob, gr, zo, hk
     return GameMaps(k, outbox, grants, zones, hints,
-                    death_link=bool(getattr(params, "ap_death_link", False)),
-                    reserved_order=order)
+                    death_link=bool(getattr(params, "ap_death_link", False)))
 
 
 def promised_slots(maps, world, scouted, our_slot):
@@ -186,9 +185,8 @@ def promised_slots(maps, world, scouted, our_slot):
     -> ({ap location id: slot}, {match_key: [unpromised slot, asc]})"""
     pools = {key: list(slots) for key, slots in maps.grant_slots.get(world, {}).items()}
     promised = {}
-    for shadow_slot in maps.reserved_order.get(world, []):
-        ap_id = maps.outbox[world].get(shadow_slot)
-        hit = scouted.get(ap_id) if ap_id is not None else None
+    for ap_id in maps.outbox.get(world, {}).values():
+        hit = scouted.get(ap_id)
         if hit is None or hit[1] != our_slot:
             continue
         pool = pools.get(ITEM_KEY_BY_AP_ID.get(hit[0]))
