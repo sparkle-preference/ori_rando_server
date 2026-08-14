@@ -127,9 +127,14 @@ def annotate(seed_data, players, world, rows, seed_data_for):
             key = exports.get(-int(loc) - 2)
             hit = holders.get(key) if key is not None and counts.get(key) == 1 else None
             if hit:
-                # unresolved entries keep the pre-conversion zone: it's often
-                # wrong, but blanking it strips the hint on shipped clients
                 line = (loc, code, id, hit[1], hit[0])
+            else:
+                # the rolled zone is where the item was taken FROM, wrong for
+                # nearly every export once the room refills (55 of 58 on a
+                # real room -- game 135658's door hints). An entry the join
+                # can't place keeps custody and no zone; the holder must be
+                # non-empty or shipped clients fall back to "P<shadow>".
+                line = (loc, code, id, "", FOREIGN_HOLDER)
         else:
             held = _reserved_slot(code, id, shadow)
             scout = entries.get(held[0]) if held else None

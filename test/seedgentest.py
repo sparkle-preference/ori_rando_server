@@ -2708,15 +2708,16 @@ class ApSeedAnnotationTests(unittest.TestCase):
         self._store(self.WORLD, {0: self._scout("Bash", "Ori2", "P2")})
         after = self._lines(self._params())
         self.assertEqual(sorted(before), sorted(after))
-        for loc in ("2", "1799708", "-3"):
+        for loc in ("2", "1799708"):
             self.assertEqual(before[loc], after[loc], "line %s changed" % loc)
 
-    def test_an_item_nobody_can_locate_keeps_its_original_line(self):
+    def test_an_item_nobody_can_locate_loses_its_rolled_zone(self):
         """The rolled zone is where the item was taken FROM, so after AP's
-        fill it is usually wrong -- but blanking it strips the hint entirely
-        on every shipped client, so an unresolved entry is left alone."""
+        fill it is nearly always wrong (55 of 58 on a real room; 135658's
+        door hints named cleared zones). An entry the join can't place keeps
+        custody -- "Archipelago", never a bare P<shadow> -- and no zone."""
         self._store(self.WORLD, {0: self._scout("Bash", "Ori2", "P2")})
-        self.assertEqual(self._lines(self._params())["-2"], "-2|MW|3,SK,0|Glades")
+        self.assertEqual(self._lines(self._params())["-2"], "-2|MW|3,SK,0||Archipelago")
 
     def test_a_sibling_world_gives_the_true_zone_and_the_holder(self):
         """The cross-world join: our Bash turns up in one of the K worlds'
@@ -2745,7 +2746,8 @@ class ApSeedAnnotationTests(unittest.TestCase):
 
     def test_two_copies_of_one_item_are_left_unresolved(self):
         """Two identical exports are indistinguishable in the room's answers,
-        so the join declines rather than picking one."""
+        so the join declines rather than picking one -- and both copies drop
+        the rolled zone rather than displaying the same wrong guess twice."""
         params = self._params()
         from seedbuilder.seedparams import Placement, Stuff
         params.placements.append(Placement(location="-4", zone="Glades",
@@ -2753,8 +2755,8 @@ class ApSeedAnnotationTests(unittest.TestCase):
         self._store(self.WORLD, {
             0: self._scout("Bash", "Ori1", "P1", ap_item=self.BASH_AP_ID, ap_owner=1)})
         lines = self._lines(params)
-        self.assertEqual(lines["-2"], "-2|MW|3,SK,0|Glades")
-        self.assertEqual(lines["-4"], "-4|MW|3,SK,0|Glades")
+        self.assertEqual(lines["-2"], "-2|MW|3,SK,0||Archipelago")
+        self.assertEqual(lines["-4"], "-4|MW|3,SK,0||Archipelago")
 
     def test_other_worlds_rows_are_not_borrowed(self):
         # world 2's row must never name world 1's slots: world 1's reserved
