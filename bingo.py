@@ -565,7 +565,13 @@ class BingoGenerator(object):
                     BoolGoal(name = "Blackroot Teleporter Crushers", disp_name = "BRB TP Crushers", help_lines = ["The crushers below the Blackroot Teleporter"], tags = ["early"]),
                     BoolGoal(name = "NoobSpikes", disp_name = "Sorrow Spike Maze", help_lines = ["The long spike maze room in upper sorrow with 2 keystones on each side"]),
                     BoolGoal(name= "Right Forlorn Laser", help_lines = ["The lasers above the HC and rightmost plant in Forlorn"]),
-                    BoolGoal(name= "Misty Vertical Lasers", help_lines = ["The vertical lasers past the 3rd keystone in Misty"])
+                    BoolGoal(name= "Misty Vertical Lasers", help_lines = ["The vertical lasers past the 3rd keystone in Misty"]),
+                    BoolGoal(name = "Valley Map Baneling", help_lines = ["The baneling in the hallway below the Valley map altar"]),
+                    BoolGoal(name = "R1 Door Baneling", help_lines = ["The baneling that guards R1 door at the top of the Horu hub"]),
+                    BoolGoal(name = "Swamp Swim Crushers", help_lines = ["The crushing platforms in the Swamp swim section"]),
+                    BoolGoal(name = "Grotto Vault Lasers", help_lines = ["The lasers in the Grotto 4-energy vault"]),
+                    BoolGoal(name = "Spidersack Spikes", help_lines = ["The instant-death spikes below the Spider Sac in Grove"]),
+                    BoolGoal(name = "Valley Floor Frogs", help_lines = ["The green frogs at the bottom of the giant room in Valley"])
                 ],
                 methods = [
                         ("or",    r((1, 2), (1, 2), (1, 1), flat=True)),
