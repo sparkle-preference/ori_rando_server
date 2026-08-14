@@ -114,6 +114,12 @@ class APLink(ndb.Model):
     # signal carries it as a token so two deaths a tick apart are two signals
     # rather than one the client already acked.
     dl_in         = ndb.IntegerProperty(repeated=True)
+    # JSON list of ReceivedItems entries the bridge could not deliver (every
+    # per-item slot already granted -- console sends land here). Each entry:
+    # {"w": world, "i": stream index, "a": ap item id, "f": sender,
+    #  "n": item name, "t": unix seconds}. The stream index makes the record
+    # exactly-once across twin sessions and index-0 resends.
+    dropped       = ndb.TextProperty()
     enabled       = ndb.BooleanProperty(default=False)
     status        = ndb.StringProperty(default="disconnected")
     last_error    = ndb.StringProperty()
@@ -131,10 +137,20 @@ class APLink(ndb.Model):
                       slot_names=ap_slot_names(worlds, names),
                       recv_index=[0] * worlds)
 
+    def drop_list(self):
+        if not self.dropped:
+            return []
+        try:
+            return json.loads(self.dropped)
+        except ValueError:
+            log.warning("APLink %s holds drop json this build can't read", self.key.id())
+            return []
+
     def report(self):
         return {
             "enabled": self.enabled,
             "status": self.status,
+            "dropped": self.drop_list(),
             "host": self.host,
             "port": self.port,
             "slots": list(self.slot_names),

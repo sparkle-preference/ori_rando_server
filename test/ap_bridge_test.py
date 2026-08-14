@@ -260,14 +260,21 @@ class SessionTestCase(unittest.TestCase):
         self.notices = []        # affordability messages sent as signals
         self.scouts_by_world = {}  # what _scout_rows reports
         self.scout_row = ({}, None)  # what _load_scout_row reports
+        self.drops = []              # entries handed to _persist_drop
+        self.drop_new = True         # whether the ledger reports them as new
+        self.drop_notices = []       # (gid, world, text) from _notify_drop
         self._orig = (ap_bridge._shadow_slots, ap_bridge._apply_grants,
                       ap_bridge._persist_recv, ap_bridge._persist_status,
                       ap_bridge._goal_worlds, ap_bridge._persist_names,
                       ap_bridge._load_hints, ap_bridge._claim_hint,
                       ap_bridge._persist_hint, ap_bridge._apply_hint_text,
                       ap_bridge._hint_notice, ap_bridge._scout_rows,
-                      ap_bridge._load_scout_row)
+                      ap_bridge._load_scout_row, ap_bridge._persist_drop,
+                      ap_bridge._notify_drop)
         ap_bridge._load_scout_row = lambda gid, world: self.scout_row
+        ap_bridge._persist_drop = lambda gid, world, entry: (
+            self.drops.append(entry) or self.drop_new)
+        ap_bridge._notify_drop = lambda gid, world, text: self.drop_notices.append((gid, world, text))
         ap_bridge._load_hints = lambda gid, world: dict(self.hint_rows)
         ap_bridge._claim_hint = self._claim
         ap_bridge._persist_hint = lambda gid, world, slot, state, text="", ap_item=0: (
@@ -298,7 +305,8 @@ class SessionTestCase(unittest.TestCase):
          ap_bridge._persist_names, ap_bridge._load_hints, ap_bridge._claim_hint,
          ap_bridge._persist_hint, ap_bridge._apply_hint_text,
          ap_bridge._hint_notice, ap_bridge._scout_rows,
-         ap_bridge._load_scout_row) = self._orig
+         ap_bridge._load_scout_row, ap_bridge._persist_drop,
+         ap_bridge._notify_drop) = self._orig
         ap_bridge._notice_at.clear()
 
     def make_session(self, **kw):
@@ -1060,6 +1068,66 @@ class TestStoredScoutFallback(SessionTestCase):
         self.assertIsNone(ap_bridge._recv_at_least([5, 2], 1, 5))
         self.assertEqual(ap_bridge._recv_at_least([], 2, 4), [0, 4])
         self.assertEqual(ap_bridge._recv_at_least(None, 1, 1), [1])
+
+
+class TestDroppedItems(SessionTestCase):
+    """An undeliverable ReceivedItems entry (per-item slots exhausted, or an
+    item this seed never exported) is recorded durably and the player told
+    once. 135658's nine console-sent keystones vanished here with only ERROR
+    lines to show for it, defeating the very rescue they were."""
+
+    EX50 = 524349  # ("EX", "50"): pool [1], capacity one
+
+    def setUp(self):
+        super(TestDroppedItems, self).setUp()
+        self._timeout = ap_bridge.PROMISES_TIMEOUT
+        ap_bridge.PROMISES_TIMEOUT = -1  # empty stored row -> arrival-order
+        self.addCleanup(lambda: setattr(ap_bridge, "PROMISES_TIMEOUT", self._timeout))
+
+    def _frames(self, items):
+        return [roominfo(),
+                [connected(missing=[524541, 524542])],
+                [{"cmd": "ReceivedItems", "index": 0, "items": items}]]
+
+    def test_overage_is_recorded_and_the_player_told(self):
+        # capacity one: the first EX50 fills slot 1, the second has nowhere
+        self.run_session(self.make_session(), self._frames([
+            {"item": self.EX50, "location": 90, "player": 2},
+            {"item": self.EX50, "location": 91, "player": 2}]))
+        self.assertEqual(self.grants, [(self.GID, self.WORLD, [1])])
+        self.assertEqual(len(self.drops), 1)
+        entry = self.drops[0]
+        self.assertEqual((entry["w"], entry["i"], entry["a"]), (self.WORLD, 1, self.EX50))
+        self.assertEqual(len(self.drop_notices), 1)
+        self.assertIn("Undeliverable", self.drop_notices[0][2])
+        # the stream still advances past the drop; it is never redelivered
+        self.assertEqual(self.recvs[-1], (self.GID, self.WORLD, 2))
+
+    def test_unknown_item_is_recorded_with_its_stream_index(self):
+        self.run_session(self.make_session(), self._frames([
+            {"item": self.EX50, "location": 90, "player": 2},
+            {"item": 999999999, "location": 91, "player": 2}]))
+        self.assertEqual(len(self.drops), 1)
+        self.assertEqual(self.drops[0]["i"], 1)
+        self.assertIn("AP item 999999999", self.drops[0]["n"])
+
+    def test_already_recorded_drops_stay_quiet(self):
+        # twin sessions and index-0 resends re-drop the same stream position;
+        # only the first record may signal
+        self.drop_new = False
+        self.run_session(self.make_session(), self._frames([
+            {"item": self.EX50, "location": 90, "player": 2},
+            {"item": self.EX50, "location": 91, "player": 2}]))
+        self.assertEqual(len(self.drops), 1)
+        self.assertEqual(self.drop_notices, [])
+
+    def test_drops_plus_rows(self):
+        held = [{"w": 1, "i": 4}]
+        self.assertIsNone(ap_bridge._drops_plus(held, 1, 4, {"w": 1, "i": 4}))
+        self.assertEqual(len(ap_bridge._drops_plus(held, 2, 4, {"w": 2, "i": 4})), 2)
+        self.assertEqual(len(ap_bridge._drops_plus(held, 1, 5, {"w": 1, "i": 5})), 2)
+        full = [{"w": 1, "i": n} for n in range(ap_bridge.DROPPED_CAP)]
+        self.assertIsNone(ap_bridge._drops_plus(full, 1, 9999, {"w": 1, "i": 9999}))
 
 
 class HintTestCase(SessionTestCase):

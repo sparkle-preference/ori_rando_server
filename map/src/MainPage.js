@@ -1332,6 +1332,14 @@ onDrop = (files) => {
                                         <Col className="text-danger">Last error: {apStatus.last_error}</Col>
                                     </Row>
                                 ) : null}
+                                {(apStatus.dropped || []).length > 0 ? (
+                                    <Row className="p-1">
+                                        <Col className="text-center text-danger">
+                                            {`Undeliverable (no free slot - console sends?): ` +
+                                             apStatus.dropped.map(d => `${d.n} (P${d.w})`).join(", ")}
+                                        </Col>
+                                    </Row>
+                                ) : null}
                             </Col>
                         </Row>
                     ) : null}

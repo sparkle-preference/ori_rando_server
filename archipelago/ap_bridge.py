@@ -310,6 +310,64 @@ def _load_scout_row(gid, world):
     return APNames.load(gid, world)
 
 
+# undeliverable ReceivedItems entries kept on the link; past this, log-only
+DROPPED_CAP = 100
+
+
+def _drops_plus(drops, world, stream_i, entry):
+    """drops + entry, or None when nothing needs writing: the fill is a pure
+    function of the stream, so twin sessions and every index-0 resend re-drop
+    the same stream position. Datastore-free; the txn below wraps it."""
+    if any(d.get("w") == world and d.get("i") == stream_i for d in drops):
+        return None
+    if len(drops) >= DROPPED_CAP:
+        return None
+    return drops + [entry]
+
+
+@ndb.transactional(retries=5)
+def _persist_drop(gid, world, entry):
+    """Durable record of an undeliverable item. True when newly recorded --
+    only the first record gets to tell the player."""
+    link = APLink.with_id(gid)
+    if link is None:
+        return False
+    new = _drops_plus(link.drop_list(), world, entry["i"], entry)
+    if new is None:
+        return False
+    link.dropped = json.dumps(new)
+    link.put()
+    return True
+
+
+def _notify_drop(gid, world, text):
+    """One red line on the player's tick: a silently vanishing console rescue
+    cost 135658 its remediation (nine keystones, only ERROR lines to show)."""
+    from models import Game, Player
+    game = Game.with_id(gid)
+    if not game:
+        return
+    player = game.player(world)
+    if Player.signal_send_txn(player.key, "msg:" + text):
+        Cache.clear_seen_checksum(player.idpts())
+
+
+def _drop_name(ap_item):
+    """Display name for an item addressed to an Ori world (so: our own
+    datapackage), wire-safe for a signal payload."""
+    key = ITEM_KEY_BY_AP_ID.get(ap_item)
+    if not key:
+        return "AP item %s" % ap_item
+    try:
+        from pickups import Pickup
+        p = Pickup.n(key[0], key[1])
+        if p and p.name:
+            return wire_safe_name(p.name, ITEM_NAME_MAX)
+    except Exception:
+        pass
+    return wire_safe_name("%s %s" % key, ITEM_NAME_MAX)
+
+
 @ndb.transactional(retries=5)
 def _persist_status(gid, status, error):
     link = APLink.with_id(gid)
@@ -1359,7 +1417,7 @@ class ApSession(object):
                         self.gid, self.world, index, self.recv_count)
             _send(sock, [{"cmd": "Sync"}])
             return
-        for item in items:
+        for offset, item in enumerate(items):
             slot = None
             try:
                 if int(item.get("player")) == self.our_slot:
@@ -1375,6 +1433,7 @@ class ApSession(object):
                 if key is None or cur >= len(lst):
                     log.error("APBRIDGE no free slot for AP item %s gid=%s world=%s",
                               item.get("item"), self.gid, self.world)
+                    self._note_drop(index + offset, item)
                     continue
                 self.fill[key] = cur + 1
                 slot = lst[cur]
@@ -1386,6 +1445,27 @@ class ApSession(object):
         self.recv_count += len(items)
         if self.flush_at is None:
             self.flush_at = monotonic() + COALESCE_SECS
+
+    def _note_drop(self, stream_i, item):
+        """Record an undeliverable delivery durably and tell the player once.
+        The stream index is the dedup key: the fill re-derives on every
+        index-0 resend, so the same overage re-drops in every session."""
+        ap_item = item.get("item")
+        name = _drop_name(ap_item)
+        try:
+            sender = self._sender_name(int(item.get("player")))
+        except (TypeError, ValueError):
+            sender = ""
+        entry = {"w": self.world, "i": int(stream_i), "a": ap_item,
+                 "f": sender, "n": name, "t": int(time.time())}
+        try:
+            with self.ctx():
+                if _persist_drop(self.gid, self.world, entry):
+                    _notify_drop(self.gid, self.world,
+                                 "@Undeliverable from Archipelago: %s (no free slot - console send?)@" % name)
+        except Exception:
+            log.exception("APBRIDGE drop bookkeeping failed gid=%s world=%s",
+                          self.gid, self.world)
 
     def _service_promises(self, sock):
         if self.promised is None:
