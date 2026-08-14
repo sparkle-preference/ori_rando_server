@@ -10,6 +10,148 @@
   ],
   "releases": [
     {
+      "version": "4.2.13",
+      "date": "2026-08-14",
+      "announce": "dev",
+      "changes": [
+        {
+          "text": "Receiving up to five items at once prints them one by one instead of summarising.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "minor",
+          "sub": [
+            "Alt+T still holds the last five either way."
+          ]
+        },
+        {
+          "text": "Added the Mark bonus skill, which prints your position, scene and zone.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "Plandos can hand out a pickup that turns on the game's debug movement controls.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "The Alt+Rs Used stat shows your actual Alt+R count again.",
+          "category": "Game",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Staying logged in now lasts a year, and logging out actually logs you out.",
+          "category": "Website",
+          "type": "feature",
+          "importance": "major"
+        },
+        {
+          "text": "The game tracker no longer re-requests a seed forever when a player's seed is empty.",
+          "category": "Website",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Added six new Die To bingo goals.",
+          "category": "Bingo",
+          "type": "feature",
+          "importance": "major",
+          "sub": [
+            "Valley Map Baneling, R1 Door Baneling, Swamp Swim Crushers, Grotto Vault Lasers, Spidersack Spikes and Valley Floor Frogs."
+          ]
+        },
+        {
+          "text": "Deaths to crushers now count for Die To goals however the crusher kills you.",
+          "category": "Bingo",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "The Valley of the Wind teleporter goal no longer turns up twice as often as the others.",
+          "category": "Bingo",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Lots of Archipelago fixes.",
+          "category": "Multiplayer",
+          "type": "fix",
+          "importance": "major",
+          "tags": [
+            "Archipelago"
+          ]
+        },
+        {
+          "text": "Items that could not be delivered are listed on the seed tab.",
+          "category": "Multiplayer",
+          "type": "feature",
+          "importance": "minor",
+          "tags": [
+            "Archipelago"
+          ]
+        },
+        {
+          "text": "The room refuses to connect while a player is on a randomizer older than the bridge supports.",
+          "category": "Multiplayer",
+          "type": "fix",
+          "importance": "minor",
+          "tags": [
+            "Archipelago"
+          ]
+        },
+        {
+          "text": "The tracking map shows real item names instead of AP Item #1.",
+          "category": "Multiplayer",
+          "type": "fix",
+          "importance": "minor",
+          "tags": [
+            "Archipelago"
+          ]
+        },
+        {
+          "text": "Spoilers and item lists show where things really ended up, not the pre-export roll.",
+          "category": "Multiplayer",
+          "type": "fix",
+          "importance": "minor",
+          "tags": [
+            "Archipelago"
+          ]
+        },
+        {
+          "text": "Keysanity door clues say Hint loading instead of naming the wrong zone.",
+          "category": "Multiplayer",
+          "type": "fix",
+          "importance": "minor",
+          "tags": [
+            "Archipelago"
+          ]
+        },
+        {
+          "text": "The seed download waits until every world's item names are ready.",
+          "category": "Multiplayer",
+          "type": "fix",
+          "importance": "minor",
+          "tags": [
+            "Archipelago"
+          ],
+          "sub": [
+            "There is a download anyway link if you would rather have generic names."
+          ]
+        },
+        {
+          "text": "The outbox no longer shows up as a player.",
+          "category": "Multiplayer",
+          "type": "fix",
+          "importance": "minor",
+          "tags": [
+            "Archipelago"
+          ]
+        }
+      ]
+    },
+    {
       "version": "4.2.12",
       "date": "2026-08-12",
       "changes": [
