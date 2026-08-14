@@ -21,7 +21,7 @@ from cache import Cache
 from enums import MultiplayerGameType
 from models import Game, BingoGameData, Player, bingo_lock
 from pickups import Pickup
-from util import all_locs, bfield_checksum, coord_correction_map, debug, netperf, seed_sync_id, version_check, ARCHIPELAGO
+from util import all_locs, bfield_checksum, coord_correction_map, debug, netperf, seed_sync_id, version_at_least, version_check, AP_MIN_DLL, ARCHIPELAGO
 
 
 def _code(status):
@@ -193,6 +193,17 @@ def ap_connect(game_id, payload):
         return 400, ("%s is only reachable from your own machine, and the room "
                      "is dialed from our servers. Use an archipelago.gg room, "
                      "or your public address with the port forwarded." % host)
+    # an old dll against the current bridge dupes self-items, so the room
+    # stays closed while any player we can see runs one. Versions arrive on
+    # the tick, so players who haven't launched yet are invisible here.
+    if not payload.get("force"):
+        stale = ["P%s is on %s" % (p.pid(), p.dll_version)
+                 for p in game.visible_players()
+                 if p.dll_version and not version_at_least(p.dll_version, AP_MIN_DLL)]
+        if stale:
+            return 409, ("Archipelago needs randomizer %s or newer (%s). "
+                         "Update, launch the game, then connect again."
+                         % (".".join(str(n) for n in AP_MIN_DLL), "; ".join(stale)))
     link = APLink.with_id(game_id) or APLink.make(game_id, params.players, params.player_names)
     password = payload.get("password") or None
     retarget = (link.host, link.port, link.password) != (host, port, password)

@@ -455,10 +455,20 @@ class TestConnect(SessionTestCase):
         self.assertEqual(p.signals, [])
 
 
+class FakeVersionedPlayer(object):
+    """pid + dll_version, all the connect gate reads."""
+
+    def __init__(self, pid, dll_version):
+        self._pid, self.dll_version = pid, dll_version
+
+    def pid(self):
+        return self._pid
+
+
 class FakeApGame(object):
     """A Game whose params carry (or lack) the ap_mode marker."""
 
-    def __init__(self, ap_mode=True, players=2, has_params=True):
+    def __init__(self, ap_mode=True, players=2, has_params=True, roster=None):
         class _Params(object):
             pass
 
@@ -469,12 +479,16 @@ class FakeApGame(object):
             def get(self):
                 return self._p
         self.params = None
+        self.roster = roster or []
         if has_params:
             p = _Params()
             p.ap_mode = ap_mode
             p.players = players
             p.player_names = []
             self.params = _ParamsKey(p)
+
+    def visible_players(self):
+        return list(self.roster)
 
 
 class TestApRoutes(SessionTestCase):
@@ -554,6 +568,38 @@ class TestApRoutes(SessionTestCase):
         self.assertEqual(link.recv_index, [5, 2])  # applied progress is durable
         self.assertTrue(link.enabled)
         self.assertIsNone(link.password)  # no password posted: cleared
+
+    def test_connect_refuses_stale_dlls(self):
+        # 135658 connected with three pre-4.2.12 clients mid-tick; the
+        # degraded pairing duped keystones. Known-old versions close the room.
+        self.game = FakeApGame(roster=[FakeVersionedPlayer(1, "4.2.10"),
+                                       FakeVersionedPlayer(2, "4.2.12")])
+        status, body = netcode.ap_connect(1310, {"host": "ap.example", "port": "38281"})
+        self.assertEqual(status, 409)
+        self.assertIn("P1 is on 4.2.10", body)
+        self.assertNotIn("P2", body)
+        self.assertEqual(self.links, {})
+
+    def test_connect_allows_current_and_unlaunched_dlls(self):
+        # no version yet = hasn't launched; refusing would deadlock the flow
+        self.game = FakeApGame(roster=[FakeVersionedPlayer(1, "4.2.12"),
+                                       FakeVersionedPlayer(2, None),
+                                       FakeVersionedPlayer(3, "4.3")])
+        self.assertEqual(netcode.ap_connect(1311, {"host": "ap.example", "port": "38281"})[0], 200)
+
+    def test_connect_force_overrides_the_version_gate(self):
+        self.game = FakeApGame(roster=[FakeVersionedPlayer(1, "4.2.8")])
+        self.assertEqual(netcode.ap_connect(1312, {"host": "ap.example", "port": "38281",
+                                                   "force": "1"})[0], 200)
+
+    def test_version_at_least_rows(self):
+        from util import version_at_least
+        floor = [4, 2, 12]
+        for version, expect in [("4.2.12", True), ("4.2.12.1", True), ("4.3", True),
+                                ("5.0", True), ("4.2.11", False), ("4.2", False),
+                                ("", False), (None, False), ("pineapple", False)]:
+            self.assertEqual(version_at_least(version, floor), expect,
+                             "%r should be %s" % (version, expect))
 
     def test_connect_rejects_addresses_only_the_user_can_reach(self):
         self.game = FakeApGame()

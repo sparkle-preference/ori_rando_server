@@ -604,7 +604,14 @@ class SeedGenParams(ndb.Model):
             player = 1
         if self.is_plando:
             return self.spoilers[0]
-        return self.spoilers[self.team_pid(player) - 1]
+        spoiler = self.spoilers[self.team_pid(player) - 1]
+        if getattr(self, "ap_mode", False):
+            # the spoiler is captured before the AP conversion, and the room's
+            # own fill re-places everything exported after that
+            spoiler = ("!! Archipelago: exported items were re-placed by the AP room.\n"
+                       "!! This file shows the roll before export; the Item List shows live placements.\n\n"
+                       + spoiler)
+        return spoiler
 
     def get_aux_spoiler(self, exclude_types, by_zone, player=1, game_id=None):
         from models import Pickup

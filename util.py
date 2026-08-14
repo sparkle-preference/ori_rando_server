@@ -115,6 +115,22 @@ def version_check(version):
         log.error("failed version check for version %s: %s", version, e)
         return False
 
+# grant pairing changed in 4.2.12: an older dll against the new bridge can
+# dupe self-items, so AP rooms hold a higher floor than the global MIN_VER
+AP_MIN_DLL = [4, 2, 12]
+
+def version_at_least(version, floor):
+    """Dotted version string >= floor (a [major, minor, patch] list).
+    Garbage reads as too old; missing segments read as zero."""
+    try:
+        nums = [int(num) for num in str(version).split(".")]
+    except ValueError:
+        return False
+    for want, got in zip(floor, nums + [0] * max(0, len(floor) - len(nums))):
+        if got != want:
+            return got > want
+    return True
+
 def clone_entity(e, **extra_args):
     klass = e.__class__
     if ndb_imported:
