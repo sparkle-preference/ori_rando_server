@@ -2780,8 +2780,7 @@ class ApSeedAnnotationTests(unittest.TestCase):
 
     def test_an_item_nobody_can_locate_loses_its_rolled_zone(self):
         """The rolled zone is where the item was taken FROM, so after AP's
-        fill it is nearly always wrong (55 of 58 on a real room; 135658's
-        door hints named cleared zones). An entry the join can't place keeps
+        fill it is nearly always wrong. An entry the join can't place keeps
         custody -- "Archipelago", never a bare P<shadow> -- and no zone."""
         self._store(self.WORLD, {0: self._scout("Bash", "Ori2", "P2")})
         self.assertEqual(self._lines(self._params())["-2"], "-2|MW|3,SK,0||Archipelago")

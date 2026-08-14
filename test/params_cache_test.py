@@ -1,7 +1,7 @@
 """The process-local SeedGenParams cache: request paths share one inflated
-copy instead of paying ~3000 protobuf decodes per read (the half-second
-behind the 135658 tracker storm). Correct only single-instance, like
-bingo_lock; entries are shared and read-only; every put busts via the hooks.
+copy instead of paying ~3000 protobuf decodes per read (about half a second
+on a big multiworld). Correct only single-instance, like bingo_lock; entries
+are shared and read-only; every put busts via the hooks.
 
 Run from the repo root:  python3 -m unittest test.params_cache_test -v
 """

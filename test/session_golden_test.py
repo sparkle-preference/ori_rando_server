@@ -573,8 +573,8 @@ class TestApRoutes(SessionTestCase):
         self.assertIsNone(link.password)  # no password posted: cleared
 
     def test_connect_refuses_stale_dlls(self):
-        # 135658 connected with three pre-4.2.12 clients mid-tick; the
-        # degraded pairing duped keystones. Known-old versions close the room.
+        # an old dll against the current bridge dupes self-items, so a
+        # known-old version closes the room
         self.game = FakeApGame(roster=[FakeVersionedPlayer(1, "4.2.10"),
                                        FakeVersionedPlayer(2, "4.2.12")])
         status, body = netcode.ap_connect(1310, {"host": "ap.example", "port": "38281"})

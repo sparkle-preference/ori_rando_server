@@ -346,8 +346,8 @@ def _persist_drop(gid, world, entry):
 
 
 def _notify_drop(gid, world, text):
-    """One red line on the player's tick (console rescues vanished silently
-    in 135658; the sender has to hear it failed)."""
+    """One red line on the player's tick: the sender of an undeliverable
+    item has to hear that it failed."""
     from models import Game, Player
     game = Game.with_id(gid)
     if not game:
@@ -1485,8 +1485,8 @@ class ApSession(object):
         else -- their item keys come from our own static table). Past the
         deadline, rebuild from the persisted scout row first: the same row
         annotate reads, so the promises agree with every gated seed download
-        by construction (twin sessions diverged here, 135658). Only with no
-        usable row does the session degrade to arrival-order fills."""
+        by construction. Only with no usable row does the session degrade to
+        arrival-order fills."""
         if self.our_slot is None or not self.authed:
             return
         if len(self.scouted) >= self.scout_total:

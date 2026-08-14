@@ -1019,9 +1019,9 @@ class TestScouting(SessionTestCase):
 class TestStoredScoutFallback(SessionTestCase):
     """A session whose live scouts miss the deadline rebuilds promises from
     the persisted APNames row -- the row annotate reads -- so it agrees with
-    every gated seed download. 135658's twins diverged exactly here: one
-    healthy allocator, one arrival-order. Only with no usable row does the
-    session fall back to arrival-order fills."""
+    every gated seed download instead of inventing an arrival order of its
+    own. Only with no usable row does the session fall back to
+    arrival-order fills."""
 
     def setUp(self):
         super(TestStoredScoutFallback, self).setUp()
@@ -1076,8 +1076,7 @@ class TestStoredScoutFallback(SessionTestCase):
 class TestDroppedItems(SessionTestCase):
     """An undeliverable ReceivedItems entry (per-item slots exhausted, or an
     item this seed never exported) is recorded durably and the player told
-    once. 135658's nine console-sent keystones vanished here with only ERROR
-    lines to show for it, defeating the very rescue they were."""
+    once: a console-sent rescue that vanishes silently defeats itself."""
 
     EX50 = 524349  # ("EX", "50"): pool [1], capacity one
 
@@ -2040,7 +2039,7 @@ class TestPromiseAnnotateParity(unittest.TestCase):
 
     def test_no_blob_means_no_field6_at_all(self):
         # a pre-blob row or a never-built game: abstain rather than re-derive.
-        # An abstention cannot dupe; a stale local draw did (135658).
+        # An abstention cannot dupe; a stale local draw can.
         from archipelago import annotate as annotate_mod
         out = annotate_mod.annotate(list(self.SEED), 2, 1, {1: (self._entries(), 1)},
                                     lambda v: [], promises=None)
@@ -2111,8 +2110,8 @@ class TestApRowCache(unittest.TestCase):
 
 class TestShadowVisibility(unittest.TestCase):
     """Shadow players are the bridge's outbox, not people. Rendering one leaks
-    plumbing onto the map; computing reachability for one cost game 135658 its
-    whole instance, because the tracker polls per player it is told about."""
+    plumbing onto the map, and the tracker polls per player it is told about,
+    so an unfiltered roster turns shadows into serving load."""
 
     @classmethod
     def setUpClass(cls):
