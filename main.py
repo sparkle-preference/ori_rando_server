@@ -27,7 +27,7 @@ from oidc import make_oidc
 from seedbuilder.seedparams import SeedGenParams, seed_mode_problem
 from seedbuilder.vanilla import seedtext as vanilla_seed
 from enums import MultiplayerGameType, ShareType, Variation
-from models import ndb_wsgi_middleware, Game, Seed, User, BingoGameData, BingoEvent, BingoTeam, CustomLogic, trees_by_coords, LegacyUser, bingo_lock, AnnouncedPatchNotes
+from models import ndb_wsgi_middleware, Game, Player, Seed, User, BingoGameData, BingoEvent, BingoTeam, CustomLogic, trees_by_coords, LegacyUser, bingo_lock, AnnouncedPatchNotes
 from bingo import BingoGenerator
 from cache import Cache
 from util import coord_correction_map, clone_entity, all_locs, picks_by_type_generator, param_val, param_flag, param_true, debug, template_root, VER, MIN_VER, BETA_VER, game_list_html, version_check, template_vals, layout_json, bfield_checksum, netperf, NETPERF_TAG, json_default, seed_sync_id, is_mw_manifest_loc, MULTIWORLD, ARCHIPELAGO, CANONICAL_HOST, REDIRECT_HOSTS, PATCHNOTES_WEBHOOK_MAIN, PATCHNOTES_WEBHOOK_DEV
@@ -605,9 +605,9 @@ def load_seed_from_params(params_id):
             game = Game.with_id(game_id)
             user = User.get()
             if game and user:
-                player = game.player(pid)
-                player.user = user.key
-                player.put()
+                # fresh-read txn: a mid-game re-download's stale put would
+                # erase grant bits, same class as the 134701 tick race
+                Player.claim_user_txn(game.player(pid).key, user.key)
                 if game.mode == MultiplayerGameType.MULTIWORLD:
                     # names ride the tick output: rebuild it for everyone
                     Cache.clear_names(int(game_id))

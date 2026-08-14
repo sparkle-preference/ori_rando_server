@@ -762,6 +762,9 @@ class Player(ndb.Model):
         return out
 
     def signal_send(self, signal):
+        # stale-put hazard: request paths want signal_send_txn (see
+        # tick_update_txn). Remaining callers hold copies they re-put anyway
+        # (bingo update tail, sanity repair) and need converting as a set.
         if signal not in self.signals:
             self.signals.append(signal)
             self.put()
@@ -816,6 +819,20 @@ class Player(ndb.Model):
         if p is None or signal in p.signals:
             return False
         p.signals.append(signal)
+        p.put()
+        return True
+
+    @staticmethod
+    @ndb.transactional(retries=5)
+    def claim_user_txn(pkey, user_key):
+        """The seed download's write: claim this world for a site account on
+        a fresh read, touching only `user`. Re-downloads happen mid-game
+        (135658 re-pulled seeds during play), and the route's stale put raced
+        grant txns like every other member of the class."""
+        p = pkey.get()
+        if p is None or p.user == user_key:
+            return False
+        p.user = user_key
         p.put()
         return True
 
@@ -2049,8 +2066,10 @@ class Game(ndb.Model):
             if newly:
                 released += newly
                 Cache.clear_seen_checksum(owner.idpts())
-                owner_fresh = self.player(owner_pid)
-                owner_fresh.signal_send("msg:@%s finished! %s items from their world released to you@" % (finisher_name, newly))
+                # txn, not a re-read + stale put: this fires in the middle of
+                # the release's own grant burst, the worst window there is
+                if Player.signal_send_txn(owner.key, "msg:@%s finished! %s items from their world released to you@" % (finisher_name, newly)):
+                    Cache.clear_seen_checksum(owner.idpts())
             netperf("mw_release_owner", t_owner, gid=self.key.id(), owner=owner_pid, slots=len(slots), newly=newly)
         log.info("mw_release: game %s player %s released %s items", self.key.id(), finisher_pid, released)
         return released

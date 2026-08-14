@@ -333,12 +333,14 @@ class TestMultiworldFoundPickup(NdbTestCase):
         self._btxn = Player.mark_slots_txn
         self._pbtxn = Player.transaction_pickup_batch
         self._chunked = Player.append_hl_chunked_txn
+        self._stxn = Player.signal_send_txn
 
     def tearDown(self):
         Player.mark_slot_txn = self._txn
         Player.mark_slots_txn = self._btxn
         Player.transaction_pickup_batch = self._pbtxn
         Player.append_hl_chunked_txn = self._chunked
+        Player.signal_send_txn = self._stxn
         super(TestMultiworldFoundPickup, self).tearDown()
 
     def _game(self, shared=None, extra_pids=()):
@@ -359,6 +361,11 @@ class TestMultiworldFoundPickup(NdbTestCase):
         Player.mark_slot_txn = staticmethod(lambda pkey, slot: by_key[pkey].mark_slot(slot))
         Player.mark_slots_txn = staticmethod(
             lambda pkey, slots: sum(1 for s in slots if by_key[pkey].mark_slot(s)))
+        # release's finish message rides the txn variant now; land it on the
+        # in-memory entity so tests can read p.signals
+        Player.signal_send_txn = staticmethod(
+            lambda pkey, signal: (signal not in by_key[pkey].signals
+                                  and (by_key[pkey].signals.append(signal) or True)))
         Player.transaction_pickup_batch = staticmethod(
             lambda pkeys, grants: [by_key[k].give_pickup(g_[0], g_[1], delay_put=True)
                                    for k in pkeys for g_ in grants])
