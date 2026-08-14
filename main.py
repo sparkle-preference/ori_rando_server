@@ -962,17 +962,39 @@ def tracker_fetch_seed(game_id, player_id):
         # tooltips say "AP Item #n" forever
         seed_lines = params.ap_named(seed_lines, player_id, game_id)
         shadow = str(int(params.players) + int(player_id))
+    names = {}
+    if any(l[1] == "MW" for l in seed_lines):
+        for part in (player.mw_names_field() or "").split(";"):
+            pid_s, dot, nm = part.partition(".")
+            if dot and pid_s.isdigit():
+                names[int(pid_s)] = nm
+
+    def owned(owner, item):
+        # in-game shape: bare for your own, "<name>'s" for anyone else's
+        if owner == player_id:
+            return item
+        return "%s's %s" % (names.get(owner, "Player %s" % owner), item)
+
     for line in seed_lines:
         coords, code, id = line[0], line[1], line[2]
         if is_mw_manifest_loc(coords):
             continue  # multiworld slot manifests aren't map locations
-        if shadow is not None and code == "MW":
+        if code == "MW":
             parts = id.split(",", 2)
-            if len(parts) == 3 and parts[0] == shadow:
-                # the scout's label as-is: Pickup.name renders the shadow
-                # pid as a player
-                res["seed"][coords] = parts[2]
-                continue
+            if len(parts) == 3:
+                if shadow is not None and parts[0] == shadow:
+                    to, sep, item = (line[4].partition(";") if len(line) > 4 and line[4]
+                                     else ("", "", ""))
+                    if sep and to.startswith("P") and to[1:].isdigit():
+                        res["seed"][coords] = owned(int(to[1:]), item)
+                    elif sep:
+                        res["seed"][coords] = "%s's %s" % (to, item)
+                    else:
+                        res["seed"][coords] = parts[2]  # unscouted placeholder
+                    continue
+                if parts[0].isdigit():
+                    res["seed"][coords] = owned(int(parts[0]), parts[2])
+                    continue
         res["seed"][coords] = Pickup.name(code, id)
     return json_resp(res)
 

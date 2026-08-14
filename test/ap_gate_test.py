@@ -117,18 +117,22 @@ class _FakeTrackerParams(object):
 
     def get_seed_data(self, player=1, no_door_zone=True):
         return [("919908", "MW", "3,0,AP Item #1", "Grove"),
+                ("959960", "MW", "3,1,AP Item #2", "Sorrow"),
+                ("919772", "MW", "3,2,AP Item #3", "Grove"),
+                ("799804", "MW", "3,3,AP Item #4", "Grove"),
                 ("1799708", "MW", "2,55,Valley teleporter", "Valley"),
                 ("-2", "MW", "3,SK,0", "Glades"),
                 ("2", "SK", "0", "Glades")]
 
     def ap_named(self, seed_data, player, game_id):
         self.named_calls.append(game_id)
-        out = []
-        for line in seed_data:
-            if line[0] == "919908":
-                line = ("919908", "MW", "3,0,Grotto Keystone (Hal)", "Grove", "Hal;Grotto Keystone")
-            out.append(line)
-        return out
+        annotated = {
+            # another Ori world's item, a self item, a foreign game's item
+            "919908": ("919908", "MW", "3,0,Grotto Keystone (Hal)", "Grove", "P2;Grotto Keystone"),
+            "959960": ("959960", "MW", "3,1,Bash (Asm)", "Sorrow", "P1;Bash"),
+            "919772": ("919772", "MW", "3,2,Progressive Sword (Cleric)", "Grove", "Cleric;Progressive Sword"),
+        }
+        return [annotated.get(line[0], line) for line in seed_data]
 
 
 class _FakeTrackerGame(object):
@@ -151,6 +155,10 @@ class _FakeTrackerGame(object):
 
             def name(self):
                 return "tester"
+
+            def mw_names_field(self):
+                # the live wire-names the in-game client resolves against
+                return "1.Asm;2.Cap;3.Archipelago;4.Archipelago"
         return _P()
 
 
@@ -175,14 +183,19 @@ class TrackerSeedAnnotationTestCase(unittest.TestCase):
         main.app.secret_key = self._secret
         models.client = self._ndb
 
-    def test_reserved_lines_show_the_scouts_label(self):
+    def test_reserved_lines_speak_the_in_game_format(self):
         r = self.client.get("/tracker/game/135658/fetch/player/1/seed")
         self.assertEqual(r.status_code, 200)
         seed = r.get_json()["seed"]
-        self.assertEqual(seed["919908"], "Grotto Keystone (Hal)")
         self.assertEqual(self.params.named_calls, [135658])
-        # native cross-world MW lines keep their player attribution
-        self.assertTrue(seed["1799708"].startswith("Player 2's"))
+        # one shape everywhere: bare for self, live-named possessive for
+        # everyone else -- Ori sibling, foreign game, and native MW alike
+        self.assertEqual(seed["959960"], "Bash")
+        self.assertEqual(seed["919908"], "Cap's Grotto Keystone")
+        self.assertEqual(seed["919772"], "Cleric's Progressive Sword")
+        self.assertEqual(seed["1799708"], "Cap's Valley teleporter")
+        # unscouted stays the honest placeholder
+        self.assertEqual(seed["799804"], "AP Item #4")
         # manifest pseudo-locations still aren't map locations
         self.assertNotIn("-2", seed)
         self.assertIn("2", seed)
