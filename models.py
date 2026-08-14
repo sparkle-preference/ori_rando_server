@@ -2057,8 +2057,10 @@ class Game(ndb.Model):
 
 
     def rebuild_hist(self):
+        # shadows have no history, and registering their pids here is what
+        # puts them in the cache's pid map for every later reader
         gid = self.key.id()
-        for pid in [_pid(p) for p in self.players]:
+        for pid in [p.pid() for p in self.visible_players()]:
             Cache.set_hist(gid, pid, self.history([pid]))
         return Cache.get_hist(gid)
     

@@ -495,7 +495,7 @@ def game_list_players(game_id):
             return text_resp("Game %s not found!" % game_id, 404)
         out_lines = []
         for p in game.visible_players():
-            out_lines.append("Player %s: %s" % (p.pid(), p.bitfields))
+            out_lines.append("Player %s: %s" % (p.pid(), p.output()))
             out_lines.append("\t\t" + "\n\t\t".join([hl.print_line(game.start_time) for hl in game.history([p.pid()]) if hl.pickup().is_shared(share_types)]))
         return text_resp("\n".join(out_lines))
 
@@ -824,7 +824,12 @@ def tracker_get_reachable(game_id):
         if game and game.mode == MultiplayerGameType.SHARED:
             shared_hist = [hl for hls in hist.values() for hl in hls if hl.pickup().is_shared(game.shared)]
             shared_coords = set([hl.coords for hl in shared_hist])
+        visible = set(p.pid() for p in game.visible_players()) if game else None
         for player, personal_hist in hist.items():
+            # a shadow's pid can already be in the cache map: Player creation
+            # seeds an empty hist key, and that predates any rebuild
+            if visible is not None and player not in visible:
+                continue
             player_hist = [hl for hl in hist[player] if hl.coords not in shared_coords] + shared_hist
             state = PlayerState([(h.pickup_code, h.pickup_id, 1, h.removed) for h in player_hist])
             areas = {}

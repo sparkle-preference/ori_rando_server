@@ -12,7 +12,9 @@ import {Helmet} from 'react-helmet';
 
 const paths = Object.keys(presets);
 
-const EMPTY_PLAYER = {seed: {}, pos: [-210, 189], seen:[], show_marker: true, hide_found: true, hide_unreachable: true, spoiler: false, hide_remaining: false, sense: false, areas: []}
+// seed_loaded, not the size of seed: an empty seed is a valid answer, and
+// treating it as "not loaded yet" re-requests it forever
+const EMPTY_PLAYER = {seed: {}, seed_loaded: false, pos: [-210, 189], seen:[], show_marker: true, hide_found: true, hide_unreachable: true, spoiler: false, hide_remaining: false, sense: false, areas: []}
 
 // function get_inner(id) {
 // 	return (
@@ -236,7 +238,7 @@ class GameTracker extends React.Component {
     let modes = presets['standard'];
     let url = new URL(window.document.URL);
     this.state = {
-        mousePos: {lat: 0, lng: 0}, players: {}, follow: url.searchParams.get("follow") || -1, retries: 0, check_seen: 1, modes: modes, timeout: TIMEOUT_START, searchStr: "", pickup_display: "all", seed_req_wait: false,
+        mousePos: {lat: 0, lng: 0}, players: {}, follow: url.searchParams.get("follow") || -1, retries: 0, check_seen: 1, modes: modes, timeout: TIMEOUT_START, searchStr: "", pickup_display: "all", seed_reqs: {},
         show_sidebar: !url.searchParams.has("hideSidebar"), idle_countdown: 10800, bg_update: true, pickups: ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "Ma", "CS"], show_tracker: !url.searchParams.has("hideTracker"),
         open_world: false, closed_dungeons: false, pathMode: get_preset(modes), hideOpt: "all", display_logic: false,  viewport: {center: [0, 0], zoom: 5}, usermap: url.searchParams.get("usermap") || "",
         /*tracker_data: {events: [], teleporters: [], shards: {gs: 0, ss: 0, wv: 0}, skills: [], maps: 0,relics_found: [], relics: [], trees: []},*/ gameId: get_param("game_id")
@@ -253,12 +255,12 @@ class GameTracker extends React.Component {
   };
 
   timeout = () => {
-  	return {retries: this.state.retries+1, check_seen: this.state.timeout, timeout: this.state.timeout+TIMEOUT_INC, seed_req_wait: false}
+  	return {retries: this.state.retries+1, check_seen: this.state.timeout, timeout: this.state.timeout+TIMEOUT_INC, seed_reqs: {}}
   };
   tick = () => {
     let update = {}
     try {
-        let {retries, bg_update, idle_countdown, check_seen, players, follow, seed_req_wait} = this.state;
+        let {retries, bg_update, idle_countdown, check_seen, players, follow, seed_reqs} = this.state;
         if(retries >= RETRY_MAX) return;
         if(!document.hasFocus()) {
             if(!bg_update) return;
@@ -271,13 +273,19 @@ class GameTracker extends React.Component {
         }
         if(check_seen === 0) {
             this.getUpdate(this.timeout);
-            if(!seed_req_wait) {
-                Object.keys(players).forEach((id) => {
-                if(Object.keys(players[id].seed).length < 50)
-                    getSeed((p) => this.setState(p), this.state.gameId, id, this.timeout);
-                    update.seed_req_wait = true;
-                });
-            }
+            // in flight is tracked per player: one shared flag let the fastest
+            // response re-arm the whole batch, so the slower the server got the
+            // harder this loop hit it
+            let reqs = null;
+            Object.keys(players).forEach((id) => {
+                if(players[id].seed_loaded || seed_reqs[id])
+                    return;
+                getSeed((p) => this.setState(p), this.state.gameId, id, this.timeout);
+                reqs = reqs || {...seed_reqs};
+                reqs[id] = true;
+            });
+            if(reqs)
+                update.seed_reqs = reqs;
         } else 
             update.check_seen = check_seen - 1
         if(follow > 0 && players.hasOwnProperty(follow)) {
@@ -494,7 +502,9 @@ function doNetRequest(onRes, setter, url, timeout)
         xmlHttp.onreadystatechange = function() {
             try {
                 if (xmlHttp.readyState === 4) {
-                    if(xmlHttp.status === 404)
+                    // any error backs off — a 429 or 5xx that fell through to
+                    // onRes died in JSON.parse, so the loop never slowed down
+                    if(xmlHttp.status >= 400)
                         setter(timeout());
                     else
                         onRes(xmlHttp.responseText);
@@ -507,7 +517,7 @@ function doNetRequest(onRes, setter, url, timeout)
         xmlHttp.send(null);
     } catch(e) {
         console.log(`doNetRequest: ${e}`)
-        setter(timeout()); // should prevent fuckery with seed_req_wait?
+        setter(timeout()); // clears seed_reqs so in-flight pids can retry
     }
 }
 
@@ -518,8 +528,11 @@ function getSeed(setter, gameId, pid, timeout)
 					let retVal = prevState.players;
                     let {seed, name} = JSON.parse(res);
                     retVal[pid].seed = seed;
+                    retVal[pid].seed_loaded = true;
                     retVal[pid].name = name || retVal[pid].name;
-					return {players:retVal, retries: 0, timeout: TIMEOUT_START, seed_req_wait: false};
+                    let reqs = {...prevState.seed_reqs};
+                    delete reqs[pid];
+					return {players:retVal, retries: 0, timeout: TIMEOUT_START, seed_reqs: reqs};
 				});
             }
      doNetRequest(onRes, setter, "/tracker/game/"+gameId+"/fetch/player/"+pid+"/seed", timeout);
