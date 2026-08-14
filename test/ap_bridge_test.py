@@ -23,6 +23,7 @@ from google.cloud import ndb
 from simple_websocket import ConnectionClosed
 
 import models
+from ap_models import APScout
 from archipelago import ap_bridge
 from archipelago.ap_bridge import ApSession, ApRefused, GameMaps
 from cache import Cache
@@ -258,12 +259,15 @@ class SessionTestCase(unittest.TestCase):
         self.published = []      # {slot: text} handed to the real player
         self.notices = []        # affordability messages sent as signals
         self.scouts_by_world = {}  # what _scout_rows reports
+        self.scout_row = ({}, None)  # what _load_scout_row reports
         self._orig = (ap_bridge._shadow_slots, ap_bridge._apply_grants,
                       ap_bridge._persist_recv, ap_bridge._persist_status,
                       ap_bridge._goal_worlds, ap_bridge._persist_names,
                       ap_bridge._load_hints, ap_bridge._claim_hint,
                       ap_bridge._persist_hint, ap_bridge._apply_hint_text,
-                      ap_bridge._hint_notice, ap_bridge._scout_rows)
+                      ap_bridge._hint_notice, ap_bridge._scout_rows,
+                      ap_bridge._load_scout_row)
+        ap_bridge._load_scout_row = lambda gid, world: self.scout_row
         ap_bridge._load_hints = lambda gid, world: dict(self.hint_rows)
         ap_bridge._claim_hint = self._claim
         ap_bridge._persist_hint = lambda gid, world, slot, state, text="", ap_item=0: (
@@ -293,7 +297,8 @@ class SessionTestCase(unittest.TestCase):
          ap_bridge._persist_status, ap_bridge._goal_worlds,
          ap_bridge._persist_names, ap_bridge._load_hints, ap_bridge._claim_hint,
          ap_bridge._persist_hint, ap_bridge._apply_hint_text,
-         ap_bridge._hint_notice, ap_bridge._scout_rows) = self._orig
+         ap_bridge._hint_notice, ap_bridge._scout_rows,
+         ap_bridge._load_scout_row) = self._orig
         ap_bridge._notice_at.clear()
 
     def make_session(self, **kw):
@@ -998,6 +1003,63 @@ class TestScouting(SessionTestCase):
         for _ in range(2):
             sock = self.run_session(self.make_session(), self.hello())
             self.assertEqual(len(self.sent_of(sock, "LocationScouts")), 1)
+
+
+class TestStoredScoutFallback(SessionTestCase):
+    """A session whose live scouts miss the deadline rebuilds promises from
+    the persisted APNames row -- the row annotate reads -- so it agrees with
+    every gated seed download. 135658's twins diverged exactly here: one
+    healthy allocator, one arrival-order. Only with no usable row does the
+    session fall back to arrival-order fills."""
+
+    def setUp(self):
+        super(TestStoredScoutFallback, self).setUp()
+        self._timeout = ap_bridge.PROMISES_TIMEOUT
+        ap_bridge.PROMISES_TIMEOUT = -1  # the deadline is always already past
+        self.addCleanup(lambda: setattr(ap_bridge, "PROMISES_TIMEOUT", self._timeout))
+
+    # both reserved locations hold our own Bash: the promise draw maps
+    # 524541 -> slot 0 and 524542 -> slot 3 (pool [0, 3] in seed-line order),
+    # while arrival-order filling would hand the first delivery slot 0
+    BASH = 524288
+
+    def _row(self, ap_slot=1, drop=()):
+        entries = {s: APScout("Bash", "Ori1", "P1", self.BASH, 1)
+                   for s in (0, 1) if s not in drop}
+        return entries, ap_slot
+
+    def _frames(self):
+        return [roominfo(),
+                [connected(missing=[524541, 524542])],
+                # no LocationInfo ever arrives; the second reserved location's
+                # item shows up first
+                [{"cmd": "ReceivedItems", "index": 0,
+                  "items": [{"item": self.BASH, "location": 524542, "player": 1}]}]]
+
+    def test_stored_row_rebuilds_the_promise_map(self):
+        self.scout_row = self._row()
+        self.run_session(self.make_session(), self._frames())
+        # slot 3 is the promised slot for 524542; arrival-order gives 0
+        self.assertEqual(self.grants, [(self.GID, self.WORLD, [3])])
+
+    def test_row_from_another_slot_is_not_trusted(self):
+        # a retargeted room's leftover row describes a different universe
+        self.scout_row = self._row(ap_slot=2)
+        self.run_session(self.make_session(), self._frames())
+        self.assertEqual(self.grants, [(self.GID, self.WORLD, [0])])
+
+    def test_incomplete_row_still_degrades(self):
+        self.scout_row = self._row(drop=(1,))
+        self.run_session(self.make_session(), self._frames())
+        self.assertEqual(self.grants, [(self.GID, self.WORLD, [0])])
+
+    def test_recv_index_never_moves_backwards(self):
+        # the monotone half of the twin-session fix, datastore-free
+        self.assertEqual(ap_bridge._recv_at_least([5, 2], 1, 7), [7, 2])
+        self.assertIsNone(ap_bridge._recv_at_least([5, 2], 1, 3))
+        self.assertIsNone(ap_bridge._recv_at_least([5, 2], 1, 5))
+        self.assertEqual(ap_bridge._recv_at_least([], 2, 4), [0, 4])
+        self.assertEqual(ap_bridge._recv_at_least(None, 1, 1), [1])
 
 
 class HintTestCase(SessionTestCase):

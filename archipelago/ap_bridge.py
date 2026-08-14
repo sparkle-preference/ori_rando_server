@@ -277,19 +277,37 @@ def _send_death_signal(gid, world, token, source):
     Cache.clear_seen_checksum(player.idpts())
 
 
+def _recv_at_least(idx, world, count):
+    """New recv_index list, or None when nothing needs writing. Monotone:
+    a twin session (deploy overlap) replaying an already-applied batch must
+    never move a world's index backwards. Datastore-free for the tests; the
+    txn below wraps it."""
+    idx = list(idx or [])
+    while len(idx) < world:
+        idx.append(0)
+    if idx[world - 1] >= count:
+        return None
+    idx[world - 1] = count
+    return idx
+
+
 @ndb.transactional(retries=5)
 def _persist_recv(gid, world, count):
+    # the txn serializes writers, but a stale twin's smaller count still won
+    # the last write before the >= guard: monotone or nothing
     link = APLink.with_id(gid)
     if link is None:
         return
-    idx = list(link.recv_index or [])
-    while len(idx) < world:
-        idx.append(0)
-    if idx[world - 1] == count:
-        return
-    idx[world - 1] = count
-    link.recv_index = idx
-    link.put()
+    idx = _recv_at_least(link.recv_index, world, count)
+    if idx is not None:
+        link.recv_index = idx
+        link.put()
+
+
+def _load_scout_row(gid, world):
+    """The persisted APNames row -> ({shadow slot: APScout}, ap_slot).
+    Module-level so the tests reroute it like every other touchpoint."""
+    return APNames.load(gid, world)
 
 
 @ndb.transactional(retries=5)
@@ -1380,8 +1398,11 @@ class ApSession(object):
     def _build_promises(self):
         """Promise map, once every scout has answered (self rows need nothing
         else -- their item keys come from our own static table). Past the
-        deadline, degrade to arrival-order fills so grants still flow; the
-        self-grant pairing is off for that (already broken) session."""
+        deadline, rebuild from the persisted scout row first: it is the same
+        row annotate reads, so those promises agree with every gated seed
+        download by construction -- 135658's twin sessions diverged exactly
+        here, one healthy and one arrival-order. Only with no usable row does
+        the session degrade to arrival-order fills."""
         if self.our_slot is None or not self.authed:
             return
         if len(self.scouted) >= self.scout_total:
@@ -1391,10 +1412,37 @@ class ApSession(object):
                      self.gid, self.world, len(self.promised))
             return
         if self.promises_deadline is not None and monotonic() > self.promises_deadline:
+            stored = self._stored_scouts()
+            if stored is not None:
+                self.promised, self.free_slots = promised_slots(
+                    self.maps, self.world, stored, self.our_slot)
+                log.warning("APBRIDGE promises from stored scouts gid=%s world=%s "
+                            "self_items=%s (live scouts %s/%s)", self.gid, self.world,
+                            len(self.promised), len(self.scouted), self.scout_total)
+                return
             log.error("APBRIDGE promises timed out gid=%s world=%s; degraded fills",
                       self.gid, self.world)
             self.promised = {}
             self.free_slots = {k: list(v) for k, v in self.maps.grant_slots.get(self.world, {}).items()}
+
+    def _stored_scouts(self):
+        """A complete persisted scout row, reshaped for promised_slots, or
+        None. Demands the row's ap_slot match this connection's (a retargeted
+        room's leftover row must not seed promises) and every reserved slot
+        answered -- the same completeness the download gate demands, so any
+        row this accepts is one annotated seeds were built from."""
+        try:
+            with self.ctx():
+                entries, ap_slot = _load_scout_row(self.gid, self.world)
+        except Exception:
+            log.exception("APBRIDGE stored-scout read failed gid=%s world=%s",
+                          self.gid, self.world)
+            return None
+        outbox = self.maps.outbox.get(self.world, {})
+        if ap_slot != self.our_slot or len(entries) < len(outbox):
+            return None
+        return {outbox[slot]: (s.ap_item, s.ap_owner)
+                for slot, s in entries.items() if slot in outbox}
 
     def _flush_grants(self):
         """One grant transaction for everything buffered since the window
