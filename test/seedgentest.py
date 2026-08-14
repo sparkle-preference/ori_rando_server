@@ -2617,6 +2617,7 @@ class ApSeedAnnotationTests(unittest.TestCase):
                              stuff=[Stuff(code=code, id=id, player="1")])
         return SeedGenParams(
             seed="apnames", players=self.K, tracking=False, ap_mode=True,
+            spoilers=["the old roll walkthrough", "the other world's roll"],
             ap_export=["skills"], sync=sync, placements=[
                 place("2", "SK", "0", "Glades"),                      # plain line
                 place("919908", "MW", "3,0,AP Item #1", "Grove"),     # reserved slot 0
@@ -2714,6 +2715,48 @@ class ApSeedAnnotationTests(unittest.TestCase):
         self._store(self.WORLD, {0: self._scout("Bash", "Ori1", "Ori1",
                                                 ap_item=self.BASH_AP_ID, ap_owner=1)})
         self.assertEqual(len(self._lines(self._params())["919908"].split("|")), 5)
+
+    def test_ap_spoiler_shows_scouted_placements_not_the_roll(self):
+        """The stored spoiler narrates the pre-export fill, false for every
+        exported line once the room refills. With scout rows, the spoiler is
+        rebuilt from what the room actually placed."""
+        self._store(self.WORLD, {0: self._scout("Progressive Sword", "TestQuest", "TestQuest")})
+        text = self._params().get_spoiler(self.WORLD, game_id=self.GID)
+        self.assertIn("Archipelago placement spoiler", text)
+        self.assertIn("Progressive Sword (TestQuest)", text)
+        # the walkthrough prose is gone, not appended below
+        self.assertNotIn("the old roll walkthrough", text)
+        # slot 1 never scouted: counted, shown as the placeholder it is
+        self.assertIn("1 locations not scouted yet", text)
+        self.assertIn("AP Item #2", text)
+
+    def test_ap_spoiler_incoming_section_names_holders(self):
+        # our exported Bash scouted in world 2 -> the join names the holder;
+        # the native -3 manifest line (finder 2) is a plain MW delivery
+        self._store(self.WORLD, {0: self._scout("Bash", "Ori2", "P2")})
+        self._store(2, {5: self._scout("Bash", "Ori1", "Ori1",
+                                       ap_item=self.BASH_AP_ID, ap_owner=1)}, ap_slot=2)
+        text = self._params().get_spoiler(self.WORLD, game_id=self.GID)
+        self.assertIn("Incoming (this world's slot manifest):", text)
+        self.assertIn("in P2's world", text)          # the scouted Bash export
+        self.assertIn("found by P2", text)            # the native HC manifest
+
+    def test_ap_spoiler_unlocatable_exports_say_so(self):
+        # nothing scouted holds our Bash: custody is all we can claim
+        self._store(self.WORLD, {0: self._scout("Something Else", "Ori2", "P2")})
+        text = self._params().get_spoiler(self.WORLD, game_id=self.GID)
+        self.assertIn("somewhere in the Archipelago", text)
+
+    def test_ap_spoiler_without_rows_keeps_the_banner_and_roll(self):
+        text = self._params().get_spoiler(self.WORLD, game_id=self.GID)
+        self.assertIn("!! Archipelago:", text)
+        self.assertIn("the old roll walkthrough", text)
+
+    def test_ap_spoiler_without_game_id_keeps_the_banner_and_roll(self):
+        self._store(self.WORLD, {0: self._scout("Bash", "Ori2", "P2")})
+        text = self._params().get_spoiler(self.WORLD)
+        self.assertIn("!! Archipelago:", text)
+        self.assertIn("the old roll walkthrough", text)
 
     def test_annotated_line_still_parses_as_the_client_and_server_do(self):
         from pickups import Pickup

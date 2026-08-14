@@ -630,7 +630,7 @@ def get_spoiler_from_params(params_id):
     params = SeedGenParams.with_id(params_id)
     if params:
         player = int(param_val("player_id") or 1)
-        spoiler = params.get_spoiler(player)
+        spoiler = params.get_spoiler(player, game_id=param_val("game_id"))
         if param_flag("download"):
             spoiler = spoiler.replace("\n", "\r\n")
             return text_download(spoiler, 'spoiler.txt')

@@ -56,14 +56,12 @@ def _exports(seed_data, shadow):
     return out
 
 
-def _holders(players, world, rows, seed_data_for):
-    """Where each of world w's exported items actually sits.
+def _holder_hits(players, world, rows, seed_data_for):
+    """Every scouted resting place of world w's own exported items.
 
-    -> {datapackage key: (holder token, true zone)} for the keys the join
-    identifies UNAMBIGUOUSLY: exactly one copy found across the K worlds.
-    Several copies in flight are indistinguishable in the room's answers, so
-    they are left out rather than guessed at.
-    """
+    -> {datapackage key: [(holder token, true zone), ...]} across the K
+    worlds. Copies that landed in foreign games are invisible to scouts and
+    simply absent from the lists."""
     _, our_slot = rows.get(world, ({}, None))
     if our_slot is None:
         return {}
@@ -83,7 +81,16 @@ def _holders(players, world, rows, seed_data_for):
             key = ITEM_BY_AP_ID.get(scout.ap_item)
             if key is not None:
                 found.setdefault(key, []).append(("P%s" % v, zones.get(slot, "")))
-    return {key: hits[0] for key, hits in found.items() if len(hits) == 1}
+    return found
+
+
+def _holders(players, world, rows, seed_data_for):
+    """The UNAMBIGUOUS subset of _holder_hits: exactly one copy found across
+    the K worlds. Several copies in flight are indistinguishable per-line in
+    the room's answers, so line annotation declines rather than guesses."""
+    return {key: hits[0] for key, hits
+            in _holder_hits(players, world, rows, seed_data_for).items()
+            if len(hits) == 1}
 
 
 def annotate(seed_data, players, world, rows, seed_data_for, promises=None):

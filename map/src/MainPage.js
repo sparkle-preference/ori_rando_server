@@ -373,11 +373,11 @@ onDrop = (files) => {
             url.searchParams.set('exclude', exclude.join(" "));
             if(byZone)
                 url.searchParams.set('by_zone', 1)
-            // AP item lists resolve their real names from the game's room
-            if(this.state.inputApMode && ap_enabled() && this.state.gameId > 0)
-                url.searchParams.set('game_id', this.state.gameId)
         } else
             url = new URL(`/generator/spoiler/${paramId}`, window.document.URL);
+        // AP spoilers and item lists resolve real placements from the game's room
+        if(this.state.inputApMode && ap_enabled() && this.state.gameId > 0)
+            url.searchParams.set('game_id', this.state.gameId)
         if(download)
             url.searchParams.set("download", 1);
         if(multi)

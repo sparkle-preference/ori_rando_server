@@ -601,9 +601,13 @@ class SeedGenParams(ndb.Model):
             player = 1
         return [(str(p.location), s.code, s.id, p.zone) for p in self.placements for s in p.stuff if int(s.player) == self.team_pid(player)]
 
-    def get_spoiler(self, player=1):
+    def get_spoiler(self, player=1, game_id=None):
         if self.sync.mode in [MultiplayerGameType.SIMUSOLO, MultiplayerGameType.SPLITSHARDS]:
             player = 1
+        if getattr(self, "ap_mode", False):
+            ap = self.ap_spoiler(player, game_id)
+            if ap is not None:
+                return ap
         if self.is_plando:
             return self.spoilers[0]
         spoiler = self.spoilers[self.team_pid(player) - 1]
@@ -611,9 +615,105 @@ class SeedGenParams(ndb.Model):
             # the spoiler is captured before the AP conversion, and the room's
             # own fill re-places everything exported after that
             spoiler = ("!! Archipelago: exported items were re-placed by the AP room.\n"
-                       "!! This file shows the roll before export; the Item List shows live placements.\n\n"
+                       "!! This file shows the roll before export. Once the room is\n"
+                       "!! connected and scouted, this page shows real placements instead.\n\n"
                        + spoiler)
         return spoiler
+
+    def ap_spoiler(self, player, game_id):
+        """Placement spoiler for an AP world, built from the room's scout
+        rows: what each location HOLDS after the Archipelago fill, plus this
+        world's incoming slot manifest. None until some world has scouted --
+        before that the only truthful text is the pre-export roll, and the
+        fill ORDER is never ours to tell (it lives in the room's own spoiler
+        log). Replaces the generation-time walkthrough, which is false for
+        every exported line once the room refills (135658: 435 of 476)."""
+        if not game_id:
+            return None
+        rows = self.ap_rows(game_id)
+        if not any(entries for entries, _ in rows.values()):
+            return None
+        try:
+            from archipelago.annotate import annotate, _holder_hits
+            from archipelago.convert import match_key
+            from models import Pickup
+            from util import is_mw_manifest_loc
+            lines = annotate(self.get_seed_data(player), int(self.players), int(player),
+                             rows, lambda v: self.get_seed_data(v))
+            hits = _holder_hits(int(self.players), int(player), rows,
+                                lambda v: self.get_seed_data(v))
+        except Exception:
+            log.exception("couldn't build AP spoiler for game %s world %s", game_id, player)
+            return None
+        shadow = str(int(self.players) + int(player))
+        zones, incoming, unscouted = OrderedDict(), [], 0
+        exported, native = OrderedDict(), OrderedDict()
+
+        def pickup_name(code, id):
+            pickup = Pickup.n(code, id)
+            return pickup.name if pickup else "%s|%s" % (code, id)
+
+        for line in lines:
+            loc, code, id, zone = line[0], line[1], line[2], line[3]
+            if code == "EN" or code + str(id) == "RB81":
+                continue
+            if is_mw_manifest_loc(int(loc)):
+                finder, icode, iid = id.split(",", 2)
+                if finder == shadow:
+                    # aggregate: per-copy attribution of duplicated items is
+                    # ambiguous, but the scouted multiset is exact
+                    row = exported.setdefault(match_key(icode, iid),
+                                              [pickup_name(icode, iid), 0])
+                    row[1] += 1
+                else:
+                    row = native.setdefault((pickup_name(icode, iid), finder), [0])
+                    row[0] += 1
+                continue
+            pick = PBC.get(int(loc))
+            locname = "%s %s (%s %s)" % (pick.area, pick.name, pick.x, pick.y) if pick else str(loc)
+            zname = zone or (pick.zone if pick else "Unknown")
+            parts = id.split(",", 2) if code == "MW" else None
+            if parts and len(parts) == 3 and parts[0] == shadow:
+                content = parts[2]  # the scout's label, or the placeholder
+                if content.startswith("AP Item #"):
+                    unscouted += 1
+            else:
+                content = pickup_name(code, id)
+            zones.setdefault(zname, []).append((locname, content))
+
+        for key, (name, copies) in exported.items():
+            placed = hits.get(key, [])[:copies]
+            if copies == 1:
+                wheres = ["in %s's world%s" % (h, ", %s" % z if z else "") for h, z in placed]
+            else:
+                wheres = [("%s %s" % (h, z)).strip() for h, z in placed]
+            missing = copies - len(placed)
+            if missing:
+                wheres.append("somewhere in the Archipelago" if not wheres and missing == 1
+                              else "%s in the Archipelago" % missing)
+            label = name if copies == 1 else "%s x%s" % (name, copies)
+            incoming.append((label, "; ".join(wheres)))
+        for (name, finder), (copies,) in native.items():
+            label = name if copies == 1 else "%s x%s" % (name, copies)
+            incoming.append((label, "found by P%s" % finder))
+
+        out = ["Archipelago placement spoiler for Player %s, scouted from the room." % int(player),
+               "Lists what each location holds after the Archipelago fill; fill order",
+               "and logic spheres live in the room's own spoiler log.", ""]
+        if unscouted:
+            out += ["(%s locations not scouted yet, shown as AP Item #n)" % unscouted, ""]
+        out.append("This world:")
+        for zname in sorted(zones):
+            out.append("  %s:" % zname)
+            width = max(len(n) for n, _ in zones[zname])
+            for locname, content in sorted(zones[zname]):
+                out.append("    %s  %s" % (locname.ljust(width), content))
+        if incoming:
+            out += ["", "Incoming (this world's slot manifest):"]
+            width = max(len(n) for n, _ in incoming)
+            for name, source in sorted(incoming):
+                out.append("    %s  %s" % (name.ljust(width), source))
+        return "\n".join(out) + "\n"
 
     def get_aux_spoiler(self, exclude_types, by_zone, player=1, game_id=None):
         from models import Pickup
