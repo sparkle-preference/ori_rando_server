@@ -1829,6 +1829,26 @@ class ApModeGenTests(unittest.TestCase):
                 self.assertEqual([e for e in manifest.values() if e[1] == "KS"], [],
                                  "player %s manifest carries a keystone" % p)
 
+    def test_custom_pool_id_variants_still_pin_locally(self):
+        """The local codes are id-insensitive in game -- a custom pool's
+        HC|-1 is still a health cell -- so pins fall back to the code's
+        canonical AP item instead of KeyErroring the yaml download."""
+        from archipelago.convert import build_ap_config, ap_variations
+        from archipelago.yaml_emit import LOC_NAMES
+        from enums import presets
+        placements = [(919908, "HC", "-1", "Grove"),
+                      (919772, "EC", "7", "Grove"),
+                      (799804, "RB", "99", "Grove")]
+        config = build_ap_config(
+            placements, players=1, world=1,
+            logic_paths=[lp.value for lp in presets["Casual"]],
+            key_mode="Default", spawn_zone="Glades",
+            variations=ap_variations([]))
+        self.assertEqual(config["local_progression"][LOC_NAMES[919908]], "Health Cell")
+        self.assertEqual(config["local_progression"][LOC_NAMES[919772]], "Energy Cell")
+        # a bonus RB outside the local set stays invisible to AP
+        self.assertNotIn(LOC_NAMES[799804], config["local_progression"])
+
     def test_yaml_config_sound(self):
         """The emitted yaml balances, pins local progression, and models the
         FULL keystone pool as local pins (per-world door thresholds need all

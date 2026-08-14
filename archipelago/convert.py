@@ -37,8 +37,8 @@ import sys
 import types
 
 from archipelago.export_data import EX_EXACT_CAP
-from archipelago.yaml_emit import (LOC_NAMES, ITEM_NAMES, make_config,
-                                   SPAWN_COORD)
+from archipelago.yaml_emit import (LOC_NAMES, ITEM_NAMES, local_item_name,
+                                   make_config, SPAWN_COORD)
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "oride_apworld", "oride", "data")
 
@@ -484,7 +484,11 @@ def build_ap_config(placements, players, world, logic_paths, key_mode,
             if loc_name is None:
                 raise ApConversionError(
                     "progression coord %s is not in the datapackage" % loc)
-            local[loc_name] = ITEM_NAMES[(code, pid)]
+            name = local_item_name(code, pid)
+            if name is None:
+                raise ApConversionError(
+                    "no AP item for local pin %s|%s at %s" % (code, pid, loc_name))
+            local[loc_name] = name
         # anything else (EX, unexported bonus RBs and warps, relics,
         # entrances) is invisible to AP
     # per-world counts differ by design; ap_convert checks the game-wide totals
