@@ -141,12 +141,16 @@
           ]
         },
         {
-          "text": "The outbox no longer shows up as a player.",
+          "text": "AP shadow players no longer show up in the tracking map, history, or similar.",
           "category": "Multiplayer",
           "type": "fix",
           "importance": "minor",
           "tags": [
             "Archipelago"
+          ],
+          "sub": [
+            "Q: Eiko, what even are AP shadow players? Why do they exist? Should I be scared?",
+            "A: Don't even worry about it."
           ]
         }
       ]
