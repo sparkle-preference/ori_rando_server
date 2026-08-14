@@ -565,6 +565,30 @@ def gen_seed_from_url():
     log.error("param gen failed")
     return json_resp({"error": "param gen failed"}, 500)
 
+def ap_seed_not_ready(params, game_id):
+    """Why an AP seed download would come out unannotated, or None when it
+    wouldn't. A seed file is a snapshot: downloaded before every world's
+    scouts persisted, it keeps "AP Item #n" and the rolled zones forever,
+    and nothing detects it. Gates on the persisted scout rows, not the live
+    socket -- a room that died after scouting still annotates fully."""
+    if not getattr(params, "ap_mode", False):
+        return None
+    if not game_id:
+        return "This Archipelago seed has no game attached; download it from its seed page"
+    from ap_models import APLink
+    link = APLink.with_id(game_id)
+    if not link:
+        return "Connect the Archipelago room first, then download (item names bake in at download time)"
+    worlds = int(params.players)
+    totals = list(link.name_totals) + [-1] * (worlds - len(link.name_totals))
+    counts = list(link.name_counts) + [0] * (worlds - len(link.name_counts))
+    if any(t < 0 for t in totals[:worlds]) or any(c < t for c, t in zip(counts[:worlds], totals[:worlds])):
+        done = sum(max(c, 0) for c in counts[:worlds])
+        total = sum(t for t in totals[:worlds] if t > 0)
+        return "Waiting for the room's location scouts (%s/%s item names resolved)" % (done, total or "?")
+    return None
+
+
 @app.route('/generator/seed/<params_id>')
 def load_seed_from_params(params_id):
     verbose_paths = param_flag("verbose_paths")
@@ -572,6 +596,10 @@ def load_seed_from_params(params_id):
     if params:
         pid = int(param_val("player_id") or 1)
         game_id = param_val("game_id")
+        if not param_flag("force"):
+            not_ready = ap_seed_not_ready(params, game_id)
+            if not_ready:
+                return json_resp({"error": not_ready, "retryable": True}, 409)
         if params.tracking and game_id:
             seed = params.get_seed(pid, game_id, verbose_paths)
             game = Game.with_id(game_id)

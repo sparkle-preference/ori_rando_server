@@ -1020,7 +1020,17 @@ onDrop = (files) => {
                             </Col></Row>
                         </Col>
                         <Col xs="3" className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", mainButtonHelp)}>
-                            <Button color="primary" block target="_blank" href={seedUrl}>{mainButtonText}</Button>
+                            {inputApMode && ap_enabled() && gameId > 0 && !seedIsBingo && !this.apNamesReady() ? (
+                                // item names bake in at download time, so hold the
+                                // button until every world's scouts are stored; the
+                                // status poll clears this on its own
+                                <div>
+                                    <Button color="secondary" block disabled>{this.state.apNoLink ? "Connect Room First" : "Waiting For Room…"}</Button>
+                                    <Button color="link" size="sm" block target="_blank" href={seedUrl + "&force=1"}>download anyway (generic item names)</Button>
+                                </div>
+                            ) : (
+                                <Button color="primary" block target="_blank" href={seedUrl}>{mainButtonText}</Button>
+                            )}
                         </Col>
                         <Col xs="3" className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", spoilerHelp("View"))}>
                             <ButtonGroup>
