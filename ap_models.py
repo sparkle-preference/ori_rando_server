@@ -131,6 +131,15 @@ class APLink(ndb.Model):
     def with_id(gid):
         return APLink.get_by_id(int(gid))
 
+    def _post_put_hook(self, future):
+        # every writer (bridge persists, connect, disconnect) invalidates the
+        # ap/status report cache; shared memcached makes it cross-instance
+        Cache.clear_aplink_report(self.key.id())
+
+    @classmethod
+    def _post_delete_hook(cls, key, future):
+        Cache.clear_aplink_report(key.id())
+
     @staticmethod
     def make(gid, worlds, names=None):
         """Fresh link for a K-world game: nothing received yet."""

@@ -61,6 +61,12 @@ HANDSHAKE_TIMEOUT = 20.0
 CONNECT_TIMEOUT = 10.0   # the OS SYN ladder is ~4 min
 HEAL_TTL = 45.0          # request-path memo: non-AP games pay a dict lookup
 BACKOFF_MIN, BACKOFF_MAX = 1.0, 60.0
+# no ticks for this long -> the bridge idles out: threads exit, status "idle",
+# and only real game activity (tick/complete) or an explicit connect restarts
+# them. Browser ap/status polls never do -- that's what made zombies immortal.
+AP_IDLE_SECS = 3 * 3600
+IDLE_CHECK_SECS = 600.0   # healthy-session staleness check cadence
+IDLE_MEMO_TTL = 450.0     # passive heals re-read an idle link this often
 
 # --- DeathLink (see "death link" below) ---
 DEATHLINK_TAG = "DeathLink"
@@ -373,10 +379,24 @@ def _drop_name(ap_item):
     return wire_safe_name("%s %s" % key, ITEM_NAME_MAX)
 
 
+# states whose repeats carry no news: their put is skipped when status is
+# unchanged (error text varies per world/attempt)
+_RETRY_STATES = ("reconnecting", "refused", "idle")
+
+
+def _status_is_noop(link, status, error):
+    """Pure helper (tests pin it): True when writing (status, error) would say
+    nothing new. Retry states dedupe on status alone -- and every put stamps
+    last_activity (auto_now), so a zombie's per-retry puts were burning a
+    write AND faking panel activity."""
+    return (link.status == status
+            and (status in _RETRY_STATES or link.last_error == error))
+
+
 @ndb.transactional(retries=5)
 def _persist_status(gid, status, error):
     link = APLink.with_id(gid)
-    if link is None:
+    if link is None or _status_is_noop(link, status, error):
         return
     link.status = status
     link.last_error = error
@@ -772,6 +792,7 @@ class ApSession(object):
         self._handshake(sock)
         next_poll = monotonic() + POLL_SECS
         next_link = monotonic() + LINK_RECHECK_SECS
+        next_idle = monotonic() + IDLE_CHECK_SECS
         try:
             while not self._stopped():
                 self._service_promises(sock)
@@ -797,6 +818,17 @@ class ApSession(object):
                 if now >= next_link:
                     next_link = now + LINK_RECHECK_SECS
                     if not self._recheck_link(sock):
+                        return
+                if now >= next_idle:
+                    next_idle = now + IDLE_CHECK_SECS
+                    if _idle_stale(self.gid):
+                        # live room, dead game: stop the POLL_SECS shadow-get
+                        # burn too. _run sees a clean return and exits.
+                        with self.ctx():
+                            _persist_status(self.gid, "idle",
+                                            "ori side quiet; bridge paused until next tick")
+                        log.info("APBRIDGE idle gid=%s world=%s, closing session",
+                                 self.gid, self.world)
                         return
         finally:
             # a dropped socket must not swallow items already taken off the
@@ -1593,12 +1625,24 @@ class ApSession(object):
 
 _bridges = {}      # (gid, world) -> _Bridge
 _reg_lock = threading.Lock()
-_heal_memo = {}    # gid -> (expiry, enabled, worlds)
+_heal_memo = {}    # gid -> (expiry, state, worlds); state: False | True | "idle"
+# gid -> monotonic() of the last ACTIVE heal (tick/complete) or thread start.
+# Passive heals (ap/status polls) never stamp -- that asymmetry is the whole
+# idle mechanism. Process-local: a deploy grants each zombie one more
+# AP_IDLE_SECS grace period, then the durable "idle" status holds it down.
+_last_active = {}
+
+
+def _idle_stale(gid):
+    return monotonic() - _last_active.get(gid, 0.0) > AP_IDLE_SECS
 
 
 class _Bridge(object):
     def __init__(self, gid, world):
         self.gid, self.world = gid, world
+        # thread-start grace: a bridge born with no activity record (deploy
+        # restart of a zombie) gets one AP_IDLE_SECS period before idling out
+        _last_active.setdefault(gid, monotonic())
         self.stop_event = threading.Event()
         self.goal_event = threading.Event()
         self.hint_box = _HintBox()
@@ -1618,6 +1662,11 @@ class _Bridge(object):
                 log.error("APBRIDGE no ndb client, thread exiting gid=%s world=%s", gid, world)
                 return
             while not self.stop_event.is_set():
+                if _idle_stale(gid):
+                    with ndb_client.context():
+                        _persist_status(gid, "idle", "ori side quiet; bridge paused until next tick")
+                    log.info("APBRIDGE idle gid=%s world=%s, thread exiting", gid, world)
+                    return
                 try:
                     with ndb_client.context():
                         link = APLink.with_id(gid)
@@ -1689,9 +1738,12 @@ def _alive(gid, world):
     return b is not None and b.alive()
 
 
-def ensure(game_id, link=None):
+def ensure(game_id, link=None, wake_idle=True):
     """Start any missing/dead bridge threads for an AP-enabled game. Needs an
-    active ndb context (request path only). Never raises; returns count started."""
+    active ndb context (request path only). Never raises; returns count started.
+    wake_idle=False (passive callers: ap/status heals) refuses links whose
+    status is "idle" -- only real game activity or an explicit connect restarts
+    an idled bridge."""
     if not ARCHIPELAGO:
         return 0
     started = 0
@@ -1700,9 +1752,16 @@ def ensure(game_id, link=None):
         link = link or APLink.with_id(gid)
         enabled = bool(link and link.enabled)
         worlds = len(link.slot_names) if link else 0
+        if enabled and not wake_idle and (link.status or "") == "idle":
+            _heal_memo[gid] = (monotonic() + IDLE_MEMO_TTL, "idle", worlds)
+            return 0
         _heal_memo[gid] = (monotonic() + HEAL_TTL, enabled, worlds)
         if not enabled:
             return 0
+        if wake_idle:
+            # real activity refreshes the idle clock (passive restarts of a
+            # crashed bridge instead ride _Bridge.__init__'s grace stamp)
+            _last_active[gid] = monotonic()
         for w in range(1, worlds + 1):
             with _reg_lock:
                 # start under the lock: a concurrent ensure() must see the
@@ -1719,21 +1778,30 @@ def ensure(game_id, link=None):
     return started
 
 
-def heal(game_id):
+def heal(game_id, active=False):
     """Request-path self-heal hook (ws.py pusher pattern): memoized so the
     steady-state cost for every game is one dict lookup; expired or
-    dead-thread states fall through to ensure(). Never raises."""
+    dead-thread states fall through to ensure(). Never raises.
+    active=True marks real game activity (tick, complete): it refreshes the
+    idle clock and is the only heal that wakes an idled bridge."""
     if not ARCHIPELAGO:
         return
     try:
         gid = int(game_id)
-        expiry, enabled, worlds = _heal_memo.get(gid, (0.0, False, 0))
+        expiry, state, worlds = _heal_memo.get(gid, (0.0, False, 0))
         if monotonic() < expiry:
-            if not enabled:
+            if state == "idle":
+                if not active:
+                    return
+            elif not state:
                 return
-            if all(_alive(gid, w) for w in range(1, worlds + 1)):
+            elif all(_alive(gid, w) for w in range(1, worlds + 1)):
+                if active:
+                    # cheap stamp keeps a busy game's idle clock fresh even
+                    # when the memo fast path short-circuits ensure()
+                    _last_active[gid] = monotonic()
                 return
-        ensure(gid)
+        ensure(gid, wake_idle=active)
     except Exception:
         log.exception("ap_bridge: heal failed for %s", game_id)
 
@@ -1744,6 +1812,7 @@ def stop(game_id):
     try:
         gid = int(game_id)
         _heal_memo.pop(gid, None)
+        _last_active.pop(gid, None)
         with _reg_lock:
             targets = [b for (g, _), b in _bridges.items() if g == gid]
         for b in targets:

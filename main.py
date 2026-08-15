@@ -450,6 +450,9 @@ def netcode_ap_disconnect(game_id):
 # gunicorn thread until it closes, capped by util.WS_CONN_LIMIT.
 import ws
 from flask_sock import Sock
+# client frames are tiny (found/bingo/conf); without a cap an incoming
+# fragmented message can grow unbounded in memory
+app.config['SOCK_SERVER_OPTIONS'] = {'max_message_size': 1 << 20}
 sock = Sock(app)
 
 @sock.route('/netcode/game/<int:game_id>/player/<int:player_id>/ws')

@@ -64,8 +64,9 @@ def found_pickup(game_id, player_id, coords, kind, id, payload):
 def tick(game_id, player_id, payload):
     if ARCHIPELAGO:
         # bridge self-heal rides the 1 Hz tick (memoized: a dict lookup for
-        # any game without a live AP link)
-        ap_bridge.heal(game_id)
+        # any game without a live AP link). active=True: ticks are the game
+        # activity that keeps a bridge awake / wakes an idled one.
+        ap_bridge.heal(game_id, active=True)
         # ...and so does the client's progressive-hint request, which must be
         # read before the cached fast path below returns without a payload
         ap_bridge.request_hints(game_id, player_id, payload.get("aph"))
@@ -222,14 +223,25 @@ def ap_connect(game_id, payload):
 
 
 def ap_status(game_id):
-    """GET ap/status: the stored APLink as JSON."""
+    """GET ap/status: the stored APLink as JSON. Served from memcache (every
+    APLink put busts via post-put hook); "-" negative-caches a missing row so
+    pre-connect polling never reaches the datastore."""
     if not ARCHIPELAGO:
         return 404, "Archipelago support is not enabled"
+    cached = Cache.get_aplink_report(game_id)
+    if cached == "-":
+        return 404, "No Archipelago link for game %s" % game_id
+    if cached:
+        ap_bridge.heal(game_id)  # passive: re-arms crashed threads, never idle ones
+        return 200, cached
     link = APLink.with_id(game_id)
     if not link:
+        Cache.set_aplink_report(game_id, "-", negative=True)
         return 404, "No Archipelago link for game %s" % game_id
-    ap_bridge.heal(game_id)  # checking status re-arms dead bridge threads
-    return 200, json.dumps(link.report())
+    ap_bridge.heal(game_id)  # passive: re-arms crashed threads, never idle ones
+    text = json.dumps(link.report())
+    Cache.set_aplink_report(game_id, text)
+    return 200, text
 
 
 def ap_disconnect(game_id):

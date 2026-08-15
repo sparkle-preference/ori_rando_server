@@ -17,6 +17,7 @@ Run from the repo root:  python3 -m unittest test.ap_bridge_test -v
 import json
 import threading
 import unittest
+from time import monotonic
 
 import google.auth.credentials
 from google.cloud import ndb
@@ -1884,6 +1885,165 @@ class TestBridgeLoopBackoff(SessionTestCase):
         self.assertEqual(b.stop_event.waits, [ap_bridge.BACKOFF_MIN])
         self.assertEqual([s for _, s, _ in self.statuses],
                          ["connected", "reconnecting"])
+
+    def test_stale_game_idles_before_dialing(self):
+        # no socket queued: a dial attempt would IndexError in _open_socket
+        ap_bridge._last_active[self.GID] = monotonic() - ap_bridge.AP_IDLE_SECS - 1
+        try:
+            b = ap_bridge._Bridge(self.GID, self.WORLD)
+            b.stop_event = _StopOnFirstWait()
+            b._run()
+            (gid, status, _), = self.statuses
+            self.assertEqual((gid, status), (self.GID, "idle"))
+            self.assertEqual(b.stop_event.waits, [])  # exited before any backoff
+        finally:
+            ap_bridge._last_active.pop(self.GID, None)
+
+    def test_thread_start_grace_stamps_activity(self):
+        # a bridge born with no record (deploy restart) must NOT idle instantly
+        ap_bridge._last_active.pop(self.GID, None)
+        try:
+            ap_bridge._Bridge(self.GID, self.WORLD)
+            self.assertIn(self.GID, ap_bridge._last_active)
+            self.assertFalse(ap_bridge._idle_stale(self.GID))
+        finally:
+            ap_bridge._last_active.pop(self.GID, None)
+
+
+class TestSessionIdleExit(SessionTestCase):
+    """A healthy session (live room) whose game stopped ticking closes itself
+    and persists "idle" -- the live-room zombie half of the idle mechanism."""
+
+    def test_stale_game_closes_session_and_persists_idle(self):
+        saved = ap_bridge.IDLE_CHECK_SECS
+        ap_bridge.IDLE_CHECK_SECS = -1.0  # first loop pass runs the check
+        ap_bridge._last_active[self.GID] = monotonic() - ap_bridge.AP_IDLE_SECS - 1
+        try:
+            session = self.make_session(ctx=ap_bridge._nullctx)
+            # trailing None timeouts: the loop would keep spinning if not idled
+            self.run_session(session, [ROOMINFO, [connected()], None, None])
+            self.assertEqual([s for _, s, _ in self.statuses][-1], "idle")
+        finally:
+            ap_bridge.IDLE_CHECK_SECS = saved
+            ap_bridge._last_active.pop(self.GID, None)
+
+    def test_fresh_game_session_survives_the_check(self):
+        saved = ap_bridge.IDLE_CHECK_SECS
+        ap_bridge.IDLE_CHECK_SECS = -1.0
+        ap_bridge._last_active[self.GID] = monotonic()
+        try:
+            session = self.make_session(ctx=ap_bridge._nullctx)
+            self.run_session(session, [ROOMINFO, [connected()], None])
+            self.assertNotIn("idle", [s for _, s, _ in self.statuses])
+        finally:
+            ap_bridge.IDLE_CHECK_SECS = saved
+            ap_bridge._last_active.pop(self.GID, None)
+
+
+class TestHealIdleSplit(unittest.TestCase):
+    """The activity split: passive heals (ap/status polls) never wake an
+    idled bridge; ticks, completes and explicit connects do."""
+    GID = 4401
+
+    def setUp(self):
+        self._saved = (ap_bridge.ARCHIPELAGO, ap_bridge.APLink)
+        ap_bridge.ARCHIPELAGO = True
+        test = self
+        self.link = type("L", (), {"enabled": True, "status": "idle",
+                                   "slot_names": ["Ori1", "Ori2"]})()
+        ap_bridge.APLink = type("FakeAPLink", (object,),
+                                {"with_id": staticmethod(lambda gid: test.link)})
+
+    def tearDown(self):
+        ap_bridge.ARCHIPELAGO, ap_bridge.APLink = self._saved
+        ap_bridge._heal_memo.pop(self.GID, None)
+        ap_bridge._last_active.pop(self.GID, None)
+
+    def test_passive_ensure_refuses_idle_link(self):
+        self.assertEqual(ap_bridge.ensure(self.GID, wake_idle=False), 0)
+        _, state, worlds = ap_bridge._heal_memo[self.GID]
+        self.assertEqual((state, worlds), ("idle", 2))
+        self.assertNotIn(self.GID, ap_bridge._last_active)
+
+    def test_active_ensure_wakes_idle_link(self):
+        saved_bridge = ap_bridge._Bridge
+        spawned = []
+
+        class _StubBridge(object):
+            def __init__(self, gid, world):
+                self.gid, self.world = gid, world
+                spawned.append((gid, world))
+                self.thread = type("T", (), {"start": lambda s: None,
+                                             "is_alive": lambda s: True})()
+
+            def alive(self):
+                return True
+        ap_bridge._Bridge = _StubBridge
+        try:
+            self.assertEqual(ap_bridge.ensure(self.GID), 2)
+            self.assertEqual(spawned, [(self.GID, 1), (self.GID, 2)])
+            self.assertIn(self.GID, ap_bridge._last_active)
+            _, state, _ = ap_bridge._heal_memo[self.GID]
+            self.assertIs(state, True)
+        finally:
+            ap_bridge._Bridge = saved_bridge
+            with ap_bridge._reg_lock:
+                for k in [k for k in ap_bridge._bridges if k[0] == self.GID]:
+                    del ap_bridge._bridges[k]
+
+    def test_heal_memo_idle_gates_on_active(self):
+        saved_ensure, ensured = ap_bridge.ensure, []
+        ap_bridge.ensure = lambda gid, link=None, wake_idle=True: ensured.append(wake_idle)
+        try:
+            ap_bridge._heal_memo[self.GID] = (monotonic() + 100, "idle", 2)
+            ap_bridge.heal(self.GID)                # passive: gated
+            self.assertEqual(ensured, [])
+            ap_bridge.heal(self.GID, active=True)   # activity: falls through
+            self.assertEqual(ensured, [True])
+        finally:
+            ap_bridge.ensure = saved_ensure
+
+    def test_heal_memo_disabled_still_blocks_both(self):
+        saved_ensure, ensured = ap_bridge.ensure, []
+        ap_bridge.ensure = lambda gid, link=None, wake_idle=True: ensured.append(wake_idle)
+        try:
+            ap_bridge._heal_memo[self.GID] = (monotonic() + 100, False, 0)
+            ap_bridge.heal(self.GID)
+            ap_bridge.heal(self.GID, active=True)
+            self.assertEqual(ensured, [])
+        finally:
+            ap_bridge.ensure = saved_ensure
+
+
+class TestPersistStatusDedupe(unittest.TestCase):
+    """_status_is_noop (the pure half of _persist_status, which stays
+    @ndb.transactional and is untestable directly): retry-state repeats must
+    not put -- last_activity is auto_now, so a zombie's per-retry puts were
+    both a write cost and a lie on the panel."""
+
+    class _Link(object):
+        def __init__(self, status, error):
+            self.status, self.last_error = status, error
+
+    def test_retry_state_dedupes_on_status_alone(self):
+        link = self._Link("reconnecting", "world 1: boom")
+        self.assertTrue(ap_bridge._status_is_noop(link, "reconnecting", "world 2: other boom"))
+        self.assertTrue(ap_bridge._status_is_noop(link, "reconnecting", "world 1: boom"))
+
+    def test_state_change_always_writes(self):
+        link = self._Link("reconnecting", "x")
+        self.assertFalse(ap_bridge._status_is_noop(link, "connected", None))
+        self.assertFalse(ap_bridge._status_is_noop(link, "idle", "quiet"))
+
+    def test_non_retry_state_dedupes_on_error_text(self):
+        link = self._Link("connected", None)
+        self.assertTrue(ap_bridge._status_is_noop(link, "connected", None))
+        self.assertFalse(ap_bridge._status_is_noop(link, "connected", "warn"))
+
+    def test_idle_repeat_is_noop(self):
+        # both worlds' threads persist "idle" on exit; the second is silent
+        link = self._Link("idle", "ori side quiet; bridge paused until next tick")
+        self.assertTrue(ap_bridge._status_is_noop(link, "idle", "anything"))
 
 
 class TestDeflateHandshake(unittest.TestCase):

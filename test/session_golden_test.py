@@ -289,7 +289,7 @@ class TestTickHintRequests(SessionTestCase):
         self._flag, self._req = netcode.ARCHIPELAGO, netcode.ap_bridge.request_hints
         self._heal = netcode.ap_bridge.heal
         netcode.ARCHIPELAGO = True
-        netcode.ap_bridge.heal = lambda gid: None
+        netcode.ap_bridge.heal = lambda gid, active=False: None
         netcode.ap_bridge.request_hints = lambda gid, pid, raw: self.seen.append((gid, pid, raw))
 
     def tearDown(self):
@@ -342,7 +342,7 @@ class TestTickDeathCounters(SessionTestCase):
         self._note, self._req = netcode.ap_bridge.note_deaths, netcode.ap_bridge.request_hints
         self._heal = netcode.ap_bridge.heal
         netcode.ARCHIPELAGO = True
-        netcode.ap_bridge.heal = lambda gid: None
+        netcode.ap_bridge.heal = lambda gid, active=False: None
         netcode.ap_bridge.request_hints = lambda gid, pid, raw: None
         netcode.ap_bridge.note_deaths = lambda gid, pid, raw: self.seen.append((gid, pid, raw))
 
@@ -511,12 +511,19 @@ class TestApRoutes(SessionTestCase):
             return link.key
         APLink.put = fake_put
         APLink.get_by_id = staticmethod(lambda gid: self.links.get(int(gid)))
+        # report cache off: fake_put fires no post-put hook, so busts would
+        # never come. This class tests storage semantics; TestApStatusCache
+        # owns the cache behavior.
+        self._rep = (Cache.get_aplink_report, Cache.set_aplink_report)
+        Cache.get_aplink_report = lambda gid: None
+        Cache.set_aplink_report = lambda gid, text, negative=False: None
 
     def tearDown(self):
         from ap_models import APLink
         netcode.ARCHIPELAGO = self._flag
         del APLink.put          # restore the inherited ndb methods
         del APLink.get_by_id
+        Cache.get_aplink_report, Cache.set_aplink_report = self._rep
         super(TestApRoutes, self).tearDown()
 
     def test_flag_off_is_404_everywhere(self):
@@ -654,6 +661,72 @@ class TestApRoutes(SessionTestCase):
 
     def test_disconnect_without_link_is_404(self):
         self.assertEqual(netcode.ap_disconnect(1310)[0], 404)
+
+
+class TestApStatusCache(SessionTestCase):
+    """ap/status memcache behavior: hit path, negative sentinel, hook bust.
+    Gids here (1391-1393) are unique to this class: the test cache is
+    process-wide and nothing else may see these entries."""
+
+    GIDS = (1391, 1392, 1393)
+
+    def setUp(self):
+        super(TestApStatusCache, self).setUp()
+        from ap_models import APLink
+        self._flag = netcode.ARCHIPELAGO
+        netcode.ARCHIPELAGO = True
+        self.links = {}
+
+        def fake_put(link, *a, **k):
+            self.links[link.key.id()] = link
+            return link.key
+        APLink.put = fake_put
+        APLink.get_by_id = staticmethod(lambda gid: self.links.get(int(gid)))
+        for gid in self.GIDS:
+            Cache.clear_aplink_report(gid)
+
+    def tearDown(self):
+        from ap_models import APLink
+        netcode.ARCHIPELAGO = self._flag
+        del APLink.put
+        del APLink.get_by_id
+        for gid in self.GIDS:
+            Cache.clear_aplink_report(gid)
+        super(TestApStatusCache, self).tearDown()
+
+    def test_second_status_is_served_from_cache(self):
+        self.game = FakeApGame()
+        netcode.ap_connect(1391, {"host": "ap.example", "port": "38281"})
+        _, first = netcode.ap_status(1391)
+        self.links[1391].status = "connected"  # direct mutation: no put, no bust
+        _, second = netcode.ap_status(1391)
+        self.assertEqual(second, first)         # stale by design until a bust
+        Cache.clear_aplink_report(1391)
+        _, third = netcode.ap_status(1391)
+        self.assertIn('"connected"', third)
+
+    def test_missing_link_is_negative_cached(self):
+        from ap_models import APLink
+        calls = []
+        real = APLink.get_by_id
+        APLink.get_by_id = staticmethod(lambda gid: calls.append(gid) or None)
+        try:
+            self.assertEqual(netcode.ap_status(1392)[0], 404)
+            self.assertEqual(netcode.ap_status(1392)[0], 404)
+            self.assertEqual(len(calls), 1)  # the second 404 never hit the store
+        finally:
+            APLink.get_by_id = staticmethod(real)
+        # a bust (what the post-put hook does when connect puts) clears the "-"
+        Cache.clear_aplink_report(1392)
+        self.game = FakeApGame()
+        netcode.ap_connect(1392, {"host": "ap.example", "port": "38281"})
+        self.assertEqual(netcode.ap_status(1392)[0], 200)
+
+    def test_post_put_hook_busts_report(self):
+        from ap_models import APLink
+        Cache.set_aplink_report(1393, "stale")
+        APLink(id=1393)._post_put_hook(None)
+        self.assertIsNone(Cache.get_aplink_report(1393))
 
 
 class FakeBingo(object):

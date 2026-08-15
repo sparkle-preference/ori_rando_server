@@ -187,6 +187,18 @@ class MemcachedCache(object):
     def clear_ap_row(self, gid, world):
         self.memcache.delete(key="%s.%s.aprow" % (gid, world))
 
+    # ap/status report text per game: the AP panel polls every 5s per open
+    # tab. Every APLink put busts (post-put hook); the TTL is a backstop.
+    # "-" is a negative entry: no link row exists for this game.
+    def get_aplink_report(self, gid):
+        return self.memcache_get(key="%s.aplink" % gid)
+
+    def set_aplink_report(self, gid, text, negative=False):
+        self.memcache.set(key="%s.aplink" % gid, value=text, expire=60 if negative else 300)
+
+    def clear_aplink_report(self, gid):
+        self.memcache.delete(key="%s.aplink" % gid)
+
     def get_seen_checksum(self, gpid):
         return self.memcache_get(key="%s.%s.seenhash" % gpid)
 
@@ -384,6 +396,15 @@ class PythonCache(object):
 
     def clear_ap_row(self, gid, world):
         self.cache.pop("%s.%s.aprow" % (gid, world), None)
+
+    def get_aplink_report(self, gid):
+        return self.cache.get(key="%s.aplink" % gid)
+
+    def set_aplink_report(self, gid, text, negative=False):
+        self.cache.set(key="%s.aplink" % gid, value=text, time=60 if negative else 300)
+
+    def clear_aplink_report(self, gid):
+        self.cache.pop("%s.aplink" % gid, None)
 
     def get_seen_checksum(self, gpid):
         return self.cache.get(key="%s.%s.seenhash" % gpid)
