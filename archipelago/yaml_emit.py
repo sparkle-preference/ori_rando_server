@@ -51,15 +51,9 @@ def _load(name):
 ITEM_NAMES = {(i["code"], i["id"]): i["name"] for i in _load("items.json")}
 LOC_NAMES = {l["coord"]: l["name"] for l in _load("locations.json")}
 
-# the local codes are id-insensitive in game (a custom pool's HC|-1 is still
-# a health cell), so pins fall back to the code's canonical row
-LOCAL_ITEM_BY_CODE = {i["code"]: i["name"] for i in _load("items.json")
-                      if i["code"] in LOCAL_CODES}
-
-
 def local_item_name(code, pid):
     """AP item name for a locally pinned placement, or None."""
-    return ITEM_NAMES.get((code, pid)) or LOCAL_ITEM_BY_CODE.get(code)
+    return ITEM_NAMES.get((code, pid))
 
 
 def parse_seed(seed_lines):
@@ -139,7 +133,9 @@ def build_config(seed_lines, logic_paths, key_mode="events",
             exported[ITEM_NAMES[(code, pid)]] += 1
             reserved.append(name)
         elif code in LOCAL_CODES or (code == "RB" and pid in LOCAL_RB_IDS):
-            local[name] = local_item_name(code, pid)
+            item = local_item_name(code, pid)
+            if item is not None:
+                local[name] = item
         elif code == "RB" or code in SKIP_CODES:
             continue
         else:

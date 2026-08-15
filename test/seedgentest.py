@@ -1829,25 +1829,26 @@ class ApModeGenTests(unittest.TestCase):
                 self.assertEqual([e for e in manifest.values() if e[1] == "KS"], [],
                                  "player %s manifest carries a keystone" % p)
 
-    def test_custom_pool_id_variants_still_pin_locally(self):
-        """The local codes are id-insensitive in game -- a custom pool's
-        HC|-1 is still a health cell -- so pins fall back to the code's
-        canonical AP item instead of KeyErroring the yaml download."""
+    def test_custom_pool_id_variants_stay_invisible_to_ap(self):
+        """A custom pool's HC|-1 REMOVES a health cell: pinning it as one
+        would inflate AP's health logic, and KeyErroring killed the yaml
+        download. Variant ids on the local codes go AP-invisible instead,
+        like the trap RBs always have; canonical ids still pin."""
         from archipelago.convert import build_ap_config, ap_variations
         from archipelago.yaml_emit import LOC_NAMES
         from enums import presets
         placements = [(919908, "HC", "-1", "Grove"),
                       (919772, "EC", "7", "Grove"),
-                      (799804, "RB", "99", "Grove")]
+                      (799804, "RB", "99", "Grove"),
+                      (52, "HC", "1", "Mapstone")]
         config = build_ap_config(
             placements, players=1, world=1,
             logic_paths=[lp.value for lp in presets["Casual"]],
             key_mode="Default", spawn_zone="Glades",
             variations=ap_variations([]))
-        self.assertEqual(config["local_progression"][LOC_NAMES[919908]], "Health Cell")
-        self.assertEqual(config["local_progression"][LOC_NAMES[919772]], "Energy Cell")
-        # a bonus RB outside the local set stays invisible to AP
-        self.assertNotIn(LOC_NAMES[799804], config["local_progression"])
+        self.assertEqual(config["local_progression"][LOC_NAMES[52]], "Health Cell")
+        for loc in (919908, 919772, 799804):
+            self.assertNotIn(LOC_NAMES[loc], config["local_progression"])
 
     def test_random_spawn_resolves_from_the_forced_warp(self):
         """params keep the 'Random' sentinel; the world's real spawn zone
