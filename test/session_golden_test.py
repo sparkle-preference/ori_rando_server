@@ -286,10 +286,11 @@ class TestTickHintRequests(SessionTestCase):
     def setUp(self):
         SessionTestCase.setUp(self)
         self.seen = []
+        self.heals = []
         self._flag, self._req = netcode.ARCHIPELAGO, netcode.ap_bridge.request_hints
         self._heal = netcode.ap_bridge.heal
         netcode.ARCHIPELAGO = True
-        netcode.ap_bridge.heal = lambda gid, active=False: None
+        netcode.ap_bridge.heal = lambda gid, active=False: self.heals.append((gid, active))
         netcode.ap_bridge.request_hints = lambda gid, pid, raw: self.seen.append((gid, pid, raw))
 
     def tearDown(self):
@@ -297,6 +298,14 @@ class TestTickHintRequests(SessionTestCase):
         netcode.ap_bridge.request_hints = self._req
         netcode.ap_bridge.heal = self._heal
         SessionTestCase.tearDown(self)
+
+    def test_the_tick_heal_is_active(self):
+        # ticks are the game activity that wakes an idled bridge; a passive
+        # default here would regress to bridges that never resume
+        p = make_player(1234, 1)
+        self.game = FakeGame(players={1: p})
+        netcode.tick(1234, 1, self._payload())
+        self.assertEqual(self.heals, [(1234, True)])
 
     def test_the_request_survives_the_cached_fast_path(self):
         # the fast path serves a cached body and never looks at a Player, so
@@ -682,6 +691,9 @@ class TestApStatusCache(SessionTestCase):
             return link.key
         APLink.put = fake_put
         APLink.get_by_id = staticmethod(lambda gid: self.links.get(int(gid)))
+        self.heals = []
+        self._heal = netcode.ap_bridge.heal
+        netcode.ap_bridge.heal = lambda gid, active=False: self.heals.append((gid, active))
         for gid in self.GIDS:
             Cache.clear_aplink_report(gid)
 
@@ -690,6 +702,7 @@ class TestApStatusCache(SessionTestCase):
         netcode.ARCHIPELAGO = self._flag
         del APLink.put
         del APLink.get_by_id
+        netcode.ap_bridge.heal = self._heal
         for gid in self.GIDS:
             Cache.clear_aplink_report(gid)
         super(TestApStatusCache, self).tearDown()
@@ -727,6 +740,16 @@ class TestApStatusCache(SessionTestCase):
         Cache.set_aplink_report(1393, "stale")
         APLink(id=1393)._post_put_hook(None)
         self.assertIsNone(Cache.get_aplink_report(1393))
+
+    def test_status_heals_are_passive(self):
+        # a poll must never wake an idled bridge -- that was the zombie
+        # immortality mechanism
+        self.game = FakeApGame()
+        netcode.ap_connect(1393, {"host": "ap.example", "port": "38281"})
+        self.heals[:] = []
+        netcode.ap_status(1393)   # cold path
+        netcode.ap_status(1393)   # cached path
+        self.assertEqual(self.heals, [(1393, False), (1393, False)])
 
 
 class FakeBingo(object):

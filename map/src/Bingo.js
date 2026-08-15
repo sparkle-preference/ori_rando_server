@@ -357,7 +357,7 @@ export default class Bingo extends React.Component {
         this.interval = setInterval(() => this.tick(), 1000 + Math.floor(Math.random() * 250));
         this.timerInterval = setInterval(() => this.updateTimer(), 10);
         document.addEventListener("visibilitychange", () => {
-            if(!document.hidden) this.tick()
+            if(!document.hidden) this.tick(true)
         });
   };
     updateUrl = () => {
@@ -418,29 +418,31 @@ export default class Bingo extends React.Component {
             url += `?joinTeam=${joinTeam}`
         this.setState({buildingPlayer: true, loadingText: "Joining game..."}, doNetRequest(url, this.tickCallback))
     }
-    tick = () => {
+    tick = (force = false) => {
         let {fails, gameId, haveGame, ticksSinceLastSquare, user, userBoard, ticking} = this.state;
         // ticking holds the fetch start time; treat it as stale after 10s so a
         // dropped callback can't permanently stall polling
         if((ticking && Date.now() - ticking < 10000) || fails > 50)
             return
         // hidden tabs idle to ~30s whatever the game is doing (OBS browser
-        // sources report visible, so stream overlays keep full cadence)
+        // sources report visible, so stream overlays keep full cadence).
+        // force (return-to-tab refresh) bypasses this AND the staleness
+        // ladder below -- the longest-hidden boards need the refresh most.
         if(document.hidden) {
             this.hiddenTicks = (this.hiddenTicks || 0) + 1
-            if(this.hiddenTicks % 30 !== 0)
+            if(!force && this.hiddenTicks % 30 !== 0)
                 return
         } else {
             this.hiddenTicks = 0
         }
         if((gameId && gameId > 0 && haveGame) || userBoard)
         {
-            if(
+            if(!force && (
                 (ticksSinceLastSquare > 14400 && ticksSinceLastSquare % 60 !== 0) ||
                 (ticksSinceLastSquare > 7200 && ticksSinceLastSquare % 30 !== 0) ||
                 (ticksSinceLastSquare > 3600 && ticksSinceLastSquare % 15 !== 0) ||
                 (ticksSinceLastSquare > 1200 && ticksSinceLastSquare % 5 !== 0)
-            ){
+            )){
                 this.setState({ticksSinceLastSquare: ticksSinceLastSquare+1})
                 return
             }

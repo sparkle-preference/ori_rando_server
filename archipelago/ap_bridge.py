@@ -17,6 +17,7 @@ LAZY-START ONLY -- importing this module must never start a thread (gunicorn
 ap/connect route and heal(). Wire shapes follow Archipelago 0.6.7
 MultiServer.py. Design notes: prior_notes/ARCHIPELAGO_NOTES.md.
 """
+import functools
 import json
 import logging as log
 import os
@@ -297,6 +298,25 @@ def _recv_at_least(idx, world, count):
     return idx
 
 
+def _busts_report(fn):
+    """Bust the ap/status report cache AFTER a transactional APLink writer
+    returns. The post-put hook is not enough here: inside a transaction a
+    complete key's put future resolves immediately (_TransactionalCommitBatch
+    .put), so the hook's bust fires PRE-commit and a racing poll can re-cache
+    the old row for the full TTL."""
+    @functools.wraps(fn)
+    def wrapper(gid, *args, **kwargs):
+        try:
+            return fn(gid, *args, **kwargs)
+        finally:
+            try:
+                Cache.clear_aplink_report(gid)
+            except Exception:
+                pass   # TTL backstop; a cache hiccup must not fail the write
+    return wrapper
+
+
+@_busts_report
 @ndb.transactional(retries=5)
 def _persist_recv(gid, world, count):
     # a stale twin's smaller count must lose: monotone or nothing
@@ -336,6 +356,7 @@ def _drops_plus(drops, world, stream_i, entry):
     return drops + [entry]
 
 
+@_busts_report
 @ndb.transactional(retries=5)
 def _persist_drop(gid, world, entry):
     """Durable record of an undeliverable item. True when newly recorded --
@@ -393,8 +414,9 @@ def _status_is_noop(link, status, error):
             and (status in _RETRY_STATES or link.last_error == error))
 
 
-@ndb.transactional(retries=5)
-def _persist_status(gid, status, error):
+def _persist_status_impl(gid, status, error):
+    """Body of _persist_status, un-decorated so tests can pin the dedupe
+    wiring without a real transaction."""
     link = APLink.with_id(gid)
     if link is None or _status_is_noop(link, status, error):
         return
@@ -403,6 +425,13 @@ def _persist_status(gid, status, error):
     link.put()
 
 
+@_busts_report
+@ndb.transactional(retries=5)
+def _persist_status(gid, status, error):
+    _persist_status_impl(gid, status, error)
+
+
+@_busts_report
 @ndb.transactional(retries=5)
 def _persist_goal(gid, world):
     link = APLink.with_id(gid)
@@ -427,6 +456,7 @@ def _at_world(values, world, value):
     return out
 
 
+@_busts_report
 @ndb.transactional(retries=5)
 def _bump_death_in(gid, world):
     """Count one DeathLink delivered to a world; -> the new total, which the
@@ -442,6 +472,7 @@ def _bump_death_in(gid, world):
     return token
 
 
+@_busts_report
 @ndb.transactional(retries=5)
 def _persist_name_counts(gid, world, total, resolved):
     link = APLink.with_id(gid)
@@ -824,11 +855,11 @@ class ApSession(object):
                     if _idle_stale(self.gid):
                         # live room, dead game: stop the POLL_SECS shadow-get
                         # burn too. _run sees a clean return and exits.
-                        with self.ctx():
-                            _persist_status(self.gid, "idle",
-                                            "ori side quiet; bridge paused until next tick")
-                        log.info("APBRIDGE idle gid=%s world=%s, closing session",
-                                 self.gid, self.world)
+                        if not self._stopped():
+                            with self.ctx():
+                                _persist_idle(self.gid)
+                            log.info("APBRIDGE idle gid=%s world=%s, closing session",
+                                     self.gid, self.world)
                         return
         finally:
             # a dropped socket must not swallow items already taken off the
@@ -1631,10 +1662,50 @@ _heal_memo = {}    # gid -> (expiry, state, worlds); state: False | True | "idle
 # idle mechanism. Process-local: a deploy grants each zombie one more
 # AP_IDLE_SECS grace period, then the durable "idle" status holds it down.
 _last_active = {}
+_shared_stamp_at = {}   # gid -> monotonic() of the last shared-beacon write
 
 
 def _idle_stale(gid):
     return monotonic() - _last_active.get(gid, 0.0) > AP_IDLE_SECS
+
+
+def _stamp_active(gid):
+    """Process-local stamp plus a throttled cross-process beacon: during
+    deploy overlap the ticks land on one process while the other still owns
+    bridge threads -- the beacon is how that twin knows the game is alive."""
+    _last_active[gid] = monotonic()
+    if monotonic() - _shared_stamp_at.get(gid, 0.0) > 60:
+        _shared_stamp_at[gid] = monotonic()
+        try:
+            Cache.set_ap_active(gid, AP_IDLE_SECS)
+        except Exception:
+            pass
+
+
+def _shared_active_recent(gid):
+    """Module touchpoint (tests reroute): the cross-process activity beacon.
+    Absence is not evidence of idleness (cache restarts) -- callers combine
+    this with the local clock, so a miss just falls back to local truth."""
+    try:
+        return bool(Cache.get_ap_active(gid))
+    except Exception:
+        return False
+
+
+def _persist_idle(gid):
+    """Durable "idle", guarded: the staleness verdict is process-local but the
+    row is shared. Never clobber an explicit disconnect ("disconnected") or a
+    fresh connect ("pending"), and never call a game idle while any process's
+    beacon says it is playing. Callers exit their thread regardless --
+    skipping the persist only skips the label."""
+    link = APLink.with_id(gid)
+    if link is None or not link.enabled:
+        return
+    if getattr(link, "status", "") in ("pending", "disconnected"):
+        return
+    if _shared_active_recent(gid):
+        return
+    _persist_status(gid, "idle", "ori side quiet; bridge paused until next tick")
 
 
 class _Bridge(object):
@@ -1663,9 +1734,12 @@ class _Bridge(object):
                 return
             while not self.stop_event.is_set():
                 if _idle_stale(gid):
-                    with ndb_client.context():
-                        _persist_status(gid, "idle", "ori side quiet; bridge paused until next tick")
-                    log.info("APBRIDGE idle gid=%s world=%s, thread exiting", gid, world)
+                    # re-check stop: stop() pops the stamp, which reads as
+                    # stale -- the route's own status must not be clobbered
+                    if not self.stop_event.is_set():
+                        with ndb_client.context():
+                            _persist_idle(gid)
+                        log.info("APBRIDGE idle gid=%s world=%s, thread exiting", gid, world)
                     return
                 try:
                     with ndb_client.context():
@@ -1761,7 +1835,7 @@ def ensure(game_id, link=None, wake_idle=True):
         if wake_idle:
             # real activity refreshes the idle clock (passive restarts of a
             # crashed bridge instead ride _Bridge.__init__'s grace stamp)
-            _last_active[gid] = monotonic()
+            _stamp_active(gid)
         for w in range(1, worlds + 1):
             with _reg_lock:
                 # start under the lock: a concurrent ensure() must see the
@@ -1797,9 +1871,9 @@ def heal(game_id, active=False):
                 return
             elif all(_alive(gid, w) for w in range(1, worlds + 1)):
                 if active:
-                    # cheap stamp keeps a busy game's idle clock fresh even
-                    # when the memo fast path short-circuits ensure()
-                    _last_active[gid] = monotonic()
+                    # keeps a busy game's idle clock (and the cross-process
+                    # beacon) fresh even when the memo short-circuits ensure()
+                    _stamp_active(gid)
                 return
         ensure(gid, wake_idle=active)
     except Exception:
@@ -1811,12 +1885,15 @@ def stop(game_id):
     unwind on their next timeout tick; the link row is the durable state."""
     try:
         gid = int(game_id)
-        _heal_memo.pop(gid, None)
-        _last_active.pop(gid, None)
         with _reg_lock:
             targets = [b for (g, _), b in _bridges.items() if g == gid]
+        # events first: a popped stamp reads as stale, and a mid-iteration
+        # thread must see the stop before its idle check can misfire
         for b in targets:
             b.stop_event.set()
+        _heal_memo.pop(gid, None)
+        _last_active.pop(gid, None)
+        _shared_stamp_at.pop(gid, None)
     except Exception:
         log.exception("ap_bridge: stop failed for %s", game_id)
 

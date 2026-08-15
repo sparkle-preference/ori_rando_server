@@ -1859,6 +1859,8 @@ class TestBridgeLoopBackoff(SessionTestCase):
     def tearDown(self):
         (models.client, ap_bridge.APLink, ap_bridge.game_maps,
          ap_bridge._open_socket) = self._saved
+        # _Bridge.__init__ setdefaults an activity stamp: no residue policy
+        ap_bridge._last_active.pop(self.GID, None)
         super(TestBridgeLoopBackoff, self).tearDown()
 
     def _run_bridge(self, frames):
@@ -1914,6 +1916,20 @@ class TestSessionIdleExit(SessionTestCase):
     """A healthy session (live room) whose game stopped ticking closes itself
     and persists "idle" -- the live-room zombie half of the idle mechanism."""
 
+    def setUp(self):
+        super(TestSessionIdleExit, self).setUp()
+        # _persist_idle reads the link row before labeling
+        test = self
+        self.link = type("L", (), {"enabled": True, "status": "connected"})()
+        self._saved_link = ap_bridge.APLink
+        ap_bridge.APLink = type("FakeAPLink", (object,),
+                                {"with_id": staticmethod(lambda gid: test.link)})
+        Cache.clear_ap_active(self.GID)
+
+    def tearDown(self):
+        ap_bridge.APLink = self._saved_link
+        super(TestSessionIdleExit, self).tearDown()
+
     def test_stale_game_closes_session_and_persists_idle(self):
         saved = ap_bridge.IDLE_CHECK_SECS
         ap_bridge.IDLE_CHECK_SECS = -1.0  # first loop pass runs the check
@@ -1921,8 +1937,10 @@ class TestSessionIdleExit(SessionTestCase):
         try:
             session = self.make_session(ctx=ap_bridge._nullctx)
             # trailing None timeouts: the loop would keep spinning if not idled
-            self.run_session(session, [ROOMINFO, [connected()], None, None])
+            sock = self.run_session(session, [ROOMINFO, [connected()], None, None])
             self.assertEqual([s for _, s, _ in self.statuses][-1], "idle")
+            # early close pinned: one trailing timeout was never consumed
+            self.assertEqual(len(sock.script), 1)
         finally:
             ap_bridge.IDLE_CHECK_SECS = saved
             ap_bridge._last_active.pop(self.GID, None)
@@ -1938,6 +1956,23 @@ class TestSessionIdleExit(SessionTestCase):
         finally:
             ap_bridge.IDLE_CHECK_SECS = saved
             ap_bridge._last_active.pop(self.GID, None)
+
+    def test_beacon_from_a_twin_blocks_the_label_but_not_the_exit(self):
+        # the other process is stamping: this one's thread still exits (its
+        # local clock is honest about ITS staleness) but must not label
+        saved = ap_bridge.IDLE_CHECK_SECS
+        ap_bridge.IDLE_CHECK_SECS = -1.0
+        ap_bridge._last_active[self.GID] = monotonic() - ap_bridge.AP_IDLE_SECS - 1
+        Cache.set_ap_active(self.GID, 60)
+        try:
+            session = self.make_session(ctx=ap_bridge._nullctx)
+            sock = self.run_session(session, [ROOMINFO, [connected()], None, None])
+            self.assertNotIn("idle", [s for _, s, _ in self.statuses])
+            self.assertEqual(len(sock.script), 1)  # still closed early
+        finally:
+            ap_bridge.IDLE_CHECK_SECS = saved
+            ap_bridge._last_active.pop(self.GID, None)
+            Cache.clear_ap_active(self.GID)
 
 
 class TestHealIdleSplit(unittest.TestCase):
@@ -1958,6 +1993,8 @@ class TestHealIdleSplit(unittest.TestCase):
         ap_bridge.ARCHIPELAGO, ap_bridge.APLink = self._saved
         ap_bridge._heal_memo.pop(self.GID, None)
         ap_bridge._last_active.pop(self.GID, None)
+        ap_bridge._shared_stamp_at.pop(self.GID, None)
+        Cache.clear_ap_active(self.GID)
 
     def test_passive_ensure_refuses_idle_link(self):
         self.assertEqual(ap_bridge.ensure(self.GID, wake_idle=False), 0)
@@ -2044,6 +2081,68 @@ class TestPersistStatusDedupe(unittest.TestCase):
         # both worlds' threads persist "idle" on exit; the second is silent
         link = self._Link("idle", "ori side quiet; bridge paused until next tick")
         self.assertTrue(ap_bridge._status_is_noop(link, "idle", "anything"))
+
+    def test_persist_status_body_wires_the_dedupe(self):
+        # pins _persist_status_impl (the real body behind the transaction)
+        # against a revert that keeps the helper but drops the check
+        saved = ap_bridge.APLink
+        puts = []
+        link = type("L", (), {"status": "reconnecting", "last_error": "x",
+                              "put": lambda s: puts.append((s.status, s.last_error))})()
+        ap_bridge.APLink = type("FakeAPLink", (object,),
+                                {"with_id": staticmethod(lambda gid: link)})
+        try:
+            ap_bridge._persist_status_impl(1, "reconnecting", "world 2: y")
+            self.assertEqual(puts, [])
+            ap_bridge._persist_status_impl(1, "connected", None)
+            self.assertEqual(puts, [("connected", None)])
+        finally:
+            ap_bridge.APLink = saved
+
+
+class TestPersistIdleGuard(unittest.TestCase):
+    """_persist_idle: the idle verdict is process-local but the row is shared
+    -- these guards keep twins and teardown races from mislabeling it."""
+    GID = 4402
+
+    def setUp(self):
+        test = self
+        self.statuses = []
+        self.shared = False
+        self.link = type("L", (), {"enabled": True, "status": "connected"})()
+        self._saved = (ap_bridge.APLink, ap_bridge._persist_status,
+                       ap_bridge._shared_active_recent)
+        ap_bridge.APLink = type("FakeAPLink", (object,),
+                                {"with_id": staticmethod(lambda gid: test.link)})
+        ap_bridge._persist_status = lambda gid, status, error: test.statuses.append(status)
+        ap_bridge._shared_active_recent = lambda gid: test.shared
+
+    def tearDown(self):
+        (ap_bridge.APLink, ap_bridge._persist_status,
+         ap_bridge._shared_active_recent) = self._saved
+
+    def test_quiet_connected_game_goes_idle(self):
+        ap_bridge._persist_idle(self.GID)
+        self.assertEqual(self.statuses, ["idle"])
+
+    def test_shared_beacon_blocks_the_label(self):
+        self.shared = True
+        ap_bridge._persist_idle(self.GID)
+        self.assertEqual(self.statuses, [])
+
+    def test_fresh_connect_and_disconnect_are_never_clobbered(self):
+        for status in ("pending", "disconnected"):
+            self.link.status = status
+            ap_bridge._persist_idle(self.GID)
+        self.assertEqual(self.statuses, [])
+
+    def test_disabled_or_missing_link_is_silent(self):
+        self.link.enabled = False
+        ap_bridge._persist_idle(self.GID)
+        ap_bridge.APLink = type("FakeAPLink", (object,),
+                                {"with_id": staticmethod(lambda gid: None)})
+        ap_bridge._persist_idle(self.GID)
+        self.assertEqual(self.statuses, [])
 
 
 class TestDeflateHandshake(unittest.TestCase):

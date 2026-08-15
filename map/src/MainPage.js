@@ -1219,7 +1219,14 @@ onDrop = (files) => {
     apConnectCallback = ({status, responseText}) => {
         this.setState({apConnectPending: false})
         if(status === 200) {
-            this.fetchApStatus()
+            // re-arm the poll chain: a pending 30s no-link timer must not
+            // govern the cadence right when the user is watching for
+            // connected/scouting progress
+            if(this.apPollTimer) {
+                clearTimeout(this.apPollTimer)
+                this.apPollTick()
+            } else
+                this.fetchApStatus()
             return
         }
         if(status === 404 && responseText && responseText.includes("not enabled")) {

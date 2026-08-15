@@ -238,9 +238,11 @@ def ap_status(game_id):
     if not link:
         Cache.set_aplink_report(game_id, "-", negative=True)
         return 404, "No Archipelago link for game %s" % game_id
-    ap_bridge.heal(game_id)  # passive: re-arms crashed threads, never idle ones
+    # cache before heal: a thread heal spawns could persist + bust while we
+    # hold the pre-spawn row, and a set after that bust would pin stale data
     text = json.dumps(link.report())
     Cache.set_aplink_report(game_id, text)
+    ap_bridge.heal(game_id)  # passive: re-arms crashed threads, never idle ones
     return 200, text
 
 

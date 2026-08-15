@@ -188,16 +188,29 @@ class MemcachedCache(object):
         self.memcache.delete(key="%s.%s.aprow" % (gid, world))
 
     # ap/status report text per game: the AP panel polls every 5s per open
-    # tab. Every APLink put busts (post-put hook); the TTL is a backstop.
-    # "-" is a negative entry: no link row exists for this game.
+    # tab. Every APLink put busts (post-put hook + post-txn bust); the TTL is
+    # a backstop. "-" is a negative entry: no link row exists for this game
+    # (short TTL: a connect racing a poll can pin a stale "-").
     def get_aplink_report(self, gid):
         return self.memcache_get(key="%s.aplink" % gid)
 
     def set_aplink_report(self, gid, text, negative=False):
-        self.memcache.set(key="%s.aplink" % gid, value=text, expire=60 if negative else 300)
+        self.memcache.set(key="%s.aplink" % gid, value=text, expire=15 if negative else 300)
 
     def clear_aplink_report(self, gid):
         self.memcache.delete(key="%s.aplink" % gid)
+
+    # cross-process activity beacon: active heals stamp it (throttled), the
+    # bridge's idle verdict reads it -- the process-local clock alone could
+    # call a live game idle from a twin that serves no requests
+    def get_ap_active(self, gid):
+        return self.memcache_get(key="%s.apactive" % gid)
+
+    def set_ap_active(self, gid, expire):
+        self.memcache.set(key="%s.apactive" % gid, value=1, expire=expire)
+
+    def clear_ap_active(self, gid):
+        self.memcache.delete(key="%s.apactive" % gid)
 
     def get_seen_checksum(self, gpid):
         return self.memcache_get(key="%s.%s.seenhash" % gpid)
@@ -401,10 +414,19 @@ class PythonCache(object):
         return self.cache.get(key="%s.aplink" % gid)
 
     def set_aplink_report(self, gid, text, negative=False):
-        self.cache.set(key="%s.aplink" % gid, value=text, time=60 if negative else 300)
+        self.cache.set(key="%s.aplink" % gid, value=text, time=15 if negative else 300)
 
     def clear_aplink_report(self, gid):
         self.cache.pop("%s.aplink" % gid, None)
+
+    def get_ap_active(self, gid):
+        return self.cache.get(key="%s.apactive" % gid)
+
+    def set_ap_active(self, gid, expire):
+        self.cache.set(key="%s.apactive" % gid, value=1, time=expire)
+
+    def clear_ap_active(self, gid):
+        self.cache.pop("%s.apactive" % gid, None)
 
     def get_seen_checksum(self, gpid):
         return self.cache.get(key="%s.%s.seenhash" % gpid)

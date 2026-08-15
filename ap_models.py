@@ -133,12 +133,21 @@ class APLink(ndb.Model):
 
     def _post_put_hook(self, future):
         # every writer (bridge persists, connect, disconnect) invalidates the
-        # ap/status report cache; shared memcached makes it cross-instance
-        Cache.clear_aplink_report(self.key.id())
+        # ap/status report cache; shared memcached makes it cross-instance.
+        # NOTE: inside a transaction this fires PRE-commit (complete keys
+        # resolve immediately) -- ap_bridge._busts_report re-busts post-txn.
+        # Best-effort: a raising done-callback would poison the put future.
+        try:
+            Cache.clear_aplink_report(self.key.id())
+        except Exception:
+            pass
 
     @classmethod
     def _post_delete_hook(cls, key, future):
-        Cache.clear_aplink_report(key.id())
+        try:
+            Cache.clear_aplink_report(key.id())
+        except Exception:
+            pass
 
     @staticmethod
     def make(gid, worlds, names=None):
