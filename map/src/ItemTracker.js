@@ -80,7 +80,21 @@ export default class ItemTracker extends React.Component {
     componentDidMount() {
         if(!this.props.embedded) {
             this.getUpdate();
-            this.interval = setInterval(() => this.getUpdate(), 1000);
+            this.hiddenTicks = 0;
+            this.interval = setInterval(() => {
+                // hidden tabs idle down to ~30s (OBS browser sources report
+                // visible, so stream overlays keep the 1Hz cadence)
+                if(document.hidden) {
+                    this.hiddenTicks++;
+                    if(this.hiddenTicks % 30 !== 0) return;
+                } else {
+                    this.hiddenTicks = 0;
+                }
+                this.getUpdate();
+            }, 1000);
+            document.addEventListener("visibilitychange", () => {
+                if(!document.hidden) this.getUpdate();
+            });
         }
     };
 

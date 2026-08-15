@@ -356,6 +356,9 @@ export default class Bingo extends React.Component {
         // small per-client jitter so viewers don't poll in lockstep
         this.interval = setInterval(() => this.tick(), 1000 + Math.floor(Math.random() * 250));
         this.timerInterval = setInterval(() => this.updateTimer(), 10);
+        document.addEventListener("visibilitychange", () => {
+            if(!document.hidden) this.tick()
+        });
   };
     updateUrl = () => {
         let {gameId, fromGen, viewOnly, userBoard} = this.state;
@@ -421,6 +424,15 @@ export default class Bingo extends React.Component {
         // dropped callback can't permanently stall polling
         if((ticking && Date.now() - ticking < 10000) || fails > 50)
             return
+        // hidden tabs idle to ~30s whatever the game is doing (OBS browser
+        // sources report visible, so stream overlays keep full cadence)
+        if(document.hidden) {
+            this.hiddenTicks = (this.hiddenTicks || 0) + 1
+            if(this.hiddenTicks % 30 !== 0)
+                return
+        } else {
+            this.hiddenTicks = 0
+        }
         if((gameId && gameId > 0 && haveGame) || userBoard)
         {
             if(

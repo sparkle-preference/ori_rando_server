@@ -1146,15 +1146,37 @@ onDrop = (files) => {
         return ap_enabled() && !apHidden && gameId > 0 && inputApMode && seedTabExists && !seedIsGenerating && activeTab === "seed"
     }
 
+    // 5s while watched; hidden tabs and not-yet-connected games slow way
+    // down (this poll used to run 24/7 from every abandoned seed tab)
+    apPollDelay = () => {
+        if(document.hidden) return 60000
+        if(this.state.apNoLink) return 30000
+        return 5000
+    }
+
+    apPollTick = () => {
+        this.fetchApStatus()
+        this.apPollTimer = setTimeout(this.apPollTick, this.apPollDelay())
+    }
+
     startApPoll = () => {
         if(this.apPollTimer) return
-        this.fetchApStatus()
-        this.apPollTimer = setInterval(this.fetchApStatus, 5000)
+        if(!this.apVisListener) {
+            this.apVisListener = () => {
+                // back to a visible tab: refresh now, resume the fast cadence
+                if(!document.hidden && this.apPollTimer) {
+                    clearTimeout(this.apPollTimer)
+                    this.apPollTick()
+                }
+            }
+            document.addEventListener("visibilitychange", this.apVisListener)
+        }
+        this.apPollTick()
     }
 
     stopApPoll = () => {
         if(!this.apPollTimer) return
-        clearInterval(this.apPollTimer)
+        clearTimeout(this.apPollTimer)
         this.apPollTimer = null
     }
 

@@ -270,6 +270,8 @@ class GameTracker extends React.Component {
                 this.setState({idle_countdown: 10800, bg_update: false})
         } else {
             update.idle_countdown = 10800
+            if(!bg_update)
+                update.bg_update = true  // refocus re-arms the background grace
         }
         if(check_seen === 0) {
             this.getUpdate(this.timeout);
