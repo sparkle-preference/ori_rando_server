@@ -33,10 +33,12 @@ global check below is the real one.
 """
 import json
 import os
+import re
 import sys
 import types
 
 from archipelago.export_data import EX_EXACT_CAP
+from seedbuilder.generator import SPAWN_SPOTS
 from archipelago.yaml_emit import (LOC_NAMES, ITEM_NAMES, local_item_name,
                                    make_config, SPAWN_COORD)
 
@@ -97,7 +99,32 @@ SPAWN_REGIONS = {
     "Forlorn": "ForlornTeleporter",
     "Ginso": "GinsoTeleporter",
     "Horu": "HoruTeleporter",
+    "Grove": "SpiritTreeRefined",
+    "Blackroot": "BlackrootGrottoConnection",
 }
+
+# a Random spawn stores only the sentinel; the seed's forced WS warp carries
+# the resolved point (generator.SPAWN_SPOTS, inverted)
+SPAWN_ZONE_BY_COORDS = {xy: zone for zone, xy in SPAWN_SPOTS.items()}
+
+
+def resolve_spawn_zone(placements, spawn_zone):
+    """The world's real spawn zone: 'Random' reads its forced spawn warp;
+    no warp on the spawn line means the roll landed Glades itself."""
+    if spawn_zone != "Random":
+        return spawn_zone
+    for loc, code, pid, zone in placements:
+        if str(loc) != str(SPAWN_COORD):
+            continue
+        m = re.search(r"WS/(-?\d+),(-?\d+)", "%s/%s" % (code, pid))
+        if m:
+            coords = (int(m.group(1)), int(m.group(2)))
+            resolved = SPAWN_ZONE_BY_COORDS.get(coords)
+            if resolved is None:
+                raise ApConversionError(
+                    "spawn warp to %s,%s has no AP zone mapping" % coords)
+            return resolved
+    return "Glades"
 
 
 class ApConversionError(Exception):
@@ -493,6 +520,7 @@ def build_ap_config(placements, players, world, logic_paths, key_mode,
         # entrances) is invisible to AP
     # per-world counts differ by design; ap_convert checks the game-wide totals
     return make_config(exported, reserved, local, logic_paths,
-                       key_mode=key_mode, spawn=ap_spawn_region(spawn_zone),
+                       key_mode=key_mode,
+                       spawn=ap_spawn_region(resolve_spawn_zone(placements, spawn_zone)),
                        variations=variations, params_id=params_id, world=world,
                        death_link=death_link, key_tiers=key_tiers)

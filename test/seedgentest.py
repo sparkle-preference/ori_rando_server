@@ -1849,6 +1849,30 @@ class ApModeGenTests(unittest.TestCase):
         # a bonus RB outside the local set stays invisible to AP
         self.assertNotIn(LOC_NAMES[799804], config["local_progression"])
 
+    def test_random_spawn_resolves_from_the_forced_warp(self):
+        """params keep the 'Random' sentinel; the world's real spawn zone
+        rides the seed's forced WS warp. No warp on the spawn line means
+        the roll landed Glades itself."""
+        from archipelago.convert import (resolve_spawn_zone, ap_spawn_region,
+                                         ApConversionError)
+        horu_spawn = [("2", "MU", "HC/1/EC/1/SK/15/WS/88,142,force", "Glades")]
+        self.assertEqual(resolve_spawn_zone(horu_spawn, "Random"), "Horu")
+        bare = [("2", "WS", "519,-174,force", "Glades")]
+        self.assertEqual(resolve_spawn_zone(bare, "Random"), "Grotto")
+        self.assertEqual(resolve_spawn_zone([("2", "SK", "15", "Glades")], "Random"),
+                         "Glades")
+        self.assertEqual(resolve_spawn_zone(horu_spawn, "Valley"), "Valley")
+        with self.assertRaises(ApConversionError):
+            resolve_spawn_zone([("2", "MU", "WS/1,1,force", "Glades")], "Random")
+
+    def test_every_generator_spawn_zone_has_an_ap_region(self):
+        # the generator offers these; a fixed Grove or Blackroot spawn used
+        # to 500 the yaml download just like Random did
+        from archipelago.convert import ap_spawn_region
+        from seedbuilder.generator import SPAWN_SPOTS
+        for zone in list(SPAWN_SPOTS) + ["Glades"]:
+            self.assertTrue(ap_spawn_region(zone), zone)
+
     def test_yaml_config_sound(self):
         """The emitted yaml balances, pins local progression, and models the
         FULL keystone pool as local pins (per-world door thresholds need all

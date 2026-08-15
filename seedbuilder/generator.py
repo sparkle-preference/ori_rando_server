@@ -361,6 +361,20 @@ forbidden_repeatable_locs = set([-7680144, -9120036, -10440008, -10759968, -1560
 # location keys are x*10000+y with |x| well under 2000, so 20M+ is free.
 BURIED_LOC_BASE = 20000000
 
+# spawn-warp target per zone; archipelago.convert reads the inverse to
+# recover a Random spawn's real zone from the seed's forced WS warp
+SPAWN_SPOTS = {
+    "Grove": (-159, -114),
+    "Swamp": (491, -73),
+    "Grotto": (519, -174),
+    "Forlorn": (-914, -298),
+    "Valley": (-430, 0),
+    "Horu": (88, 142),
+    "Ginso": (570, 539),
+    "Sorrow": (-594, 496),
+    "Blackroot": (381, -297),
+}
+
 class Location:
     factor = 4.0
 
@@ -720,17 +734,7 @@ class SeedGenerator:
             for i,k in enumerate(list(start_weights.keys())[1:]):
                 start_weights[k] = self.params.spawn_weights[i]
 #               print(k, start_weights[k])
-        spawn_spots = {
-            "Grove": (-159, -114),
-            "Swamp": (491, -73),
-            "Grotto": (519, -174),
-            "Forlorn": (-914, -298),
-            "Valley": (-430, 0),
-            "Horu": (88, 142),
-            "Ginso": (570, 539),
-            "Sorrow": (-594, 496),
-            "Blackroot": (381, -297),
-        }
+        spawn_spots = SPAWN_SPOTS
         self.spawn_logic_areas = {
             "Glades": "SunkenGladesRunaway",
             "Grove": "SpiritTreeRefined",
