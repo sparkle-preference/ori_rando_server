@@ -6,7 +6,7 @@ from collections import OrderedDict, defaultdict, Counter
 from operator import mul
 from enums import KeyMode, PathDifficulty, ShareType, Variation, MultiplayerGameType
 from pickups import Pickup
-from util import spawn_defaults, choices
+from util import spawn_defaults, choices, decompose_multi_value
 from hashlib import sha256
 from seedbuilder.oriparse import get_areas, get_path_tags_from_pathsets
 from seedbuilder.relics import relics
@@ -481,7 +481,7 @@ class SeedGenerator:
     def toOutput(self, item, asMultiPart=False):
         item = base_of(item) if "|" in item else item
         if asMultiPart:
-            raw = self.toOutput(item)
+            raw = self.toOutput(item).replace("/", "//")
             return "%s/%s" % (raw[0:2], raw[2:])
         if item in self.skillsOutput:
             return self.skillsOutput[item]
@@ -2390,10 +2390,10 @@ class SeedGenerator:
         return spoilerStr
 
     def get_multi_items(self, multi_item):
-        multi_parts = multi_item[2:].split("/")
+        log.warning("get_multi_item('%s')", multi_item)
         multi_items = []
-        while len(multi_parts) > 1:
-            item = multi_parts.pop(0) + multi_parts.pop(0)
+        for (code, id) in decompose_multi_value(multi_item[2:]):
+            item = code + id
             if item[0:2] in ["AC", "EC", "KS", "MS", "HC"]:
                 item = item[0:2]
             multi_items.append(self.codeToName.get(item, item))

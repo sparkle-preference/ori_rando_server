@@ -6,7 +6,7 @@ import Leaflet from 'leaflet';
 import {NotificationContainer, NotificationManager} from 'react-notifications';
 import 'react-notifications/lib/notifications.css';
 import {Checkbox, CheckboxGroup} from 'react-checkbox-group';
-import {get_param, get_flag, get_int, get_list, get_seed, presets, get_preset, logic_paths, pickup_name, PickupSelect, stuff_by_type, loginLogoutUrl} from './common.js';
+import {get_param, get_flag, get_int, get_list, get_seed, presets, get_preset, logic_paths, pickup_name, PickupSelect, stuff_by_type, loginLogoutUrl, decompose_pickup} from './common.js';
 import {download, picks_by_type, picks_by_loc, picks_by_zone, picks_by_area, zones, PickupMarkersList, get_icon, 
         getMapCrs, hide_opacity, select_wrap, is_match, str_ids, select_styles} from './shared_map.js';
 import NumericInput from 'react-numeric-input';
@@ -26,16 +26,10 @@ const DUNGEON_KEYS = ["EV|0", "EV|2", "EV|4"]
 // returns "EV|n" if this pickup is a dungeon key, or is a multipickup containing exactly
 // one dungeon key (the client treats such multipickups as that key for clue purposes)
 const clue_key_in = (code, id) => {
-    if(code === "EV")
-        return (parseInt(id, 10) % 2 === 0) ? `EV|${id}` : null
-    if(code !== "MU" && code !== "RP")
-        return null
-    let parts = String(id).split("/")
     let keys = []
-    while(parts.length > 1) {
-        let c = parts.shift(), i = parts.shift()
-        if(c === "EV" && parseInt(i, 10) % 2 === 0)
-            keys.push(`EV|${i}`)
+    for(let [partCode, partId] of decompose_pickup(code, id)) {
+        if(partCode === "EV" && parseInt(partId, 10) % 2 === 0)
+            keys.push(`EV|${partId}`)
     }
     return keys.length === 1 ? keys[0] : null
 }

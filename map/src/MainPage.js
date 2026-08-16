@@ -8,7 +8,7 @@ import 'react-notifications/lib/notifications.css';
 import './index.css';
 
 import {getHelpContent, HelpBox} from "./helpbox.js";
-import {get_param, spawn_defaults, get_flag, ap_enabled, presets, select_theme, name_from_str, get_preset, player_icons, doNetRequest, get_random_loader, PickupSelect, Cent, dev, randInt, gotoUrl, prng} from './common.js';
+import {get_param, spawn_defaults, get_flag, ap_enabled, presets, select_theme, name_from_str, get_preset, player_icons, doNetRequest, get_random_loader, PickupSelect, Cent, dev, randInt, gotoUrl, prng, decompose_pickup} from './common.js';
 import SiteBar from "./SiteBar.js";
 import Select from 'react-select';
 import Dropzone from 'react-dropzone';
@@ -27,12 +27,8 @@ const BURIED_LOC_BASE = 20000000;
 const locOptionFromCoords = (coords) => locOptions.find(l => l.value === coords);
 // multipickup <-> part codes ("SK|3"), for merging burials into an existing row
 const pickupToParts = (item) => {
-    if(!item || item === "NO|1") return [];
-    if(!item.startsWith("MU|")) return [item];
-    let segs = item.substring(3).split("/");
-    let parts = [];
-    while(segs.length > 1) parts.push(`${segs.shift()}|${segs.shift()}`);
-    return parts;
+    let [code, id] = item.split("|");
+    return decompose_pickup(code, id).map(([c, i]) => `${c}|${i}`);
 }
 const partsToPickup = (parts) => parts.length === 0 ? "NO|1" : (parts.length === 1 ? parts[0] : "MU|" + parts.map(p => p.replace(/\|/g, "/")).join("/"));
 const fassDefaultsFor = (world) => [2, 919772, -1560272, 799776, -120208].map(coords => ({loc: locOptionFromCoords(coords), item: "NO|1", world: world, owner: world}));

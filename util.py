@@ -895,3 +895,32 @@ def get_preset_from_paths(presets, logic_paths):
     for path in logic_paths:
         path_mask |= path_masks[path]
     return "Custom" + str(path_mask)
+
+def decompose_multi_value(value):
+    parts = []
+    if value == "":
+        return parts
+    
+    i = 0
+    part = ""
+    firstPiece = None
+    while i < len(value):
+        c = value[i]
+        if c == "/":
+            if i < len(value) - 1 and value[i + 1] == "/":
+                part += "/"
+                i += 1
+            else:
+                if firstPiece is None:
+                    firstPiece = part
+                    part = ""
+                else:
+                    parts.append((firstPiece, part))
+                    firstPiece = None
+                    part = ""
+        else:
+            part += c
+        i += 1
+    
+    parts.append((firstPiece, part))
+    return parts

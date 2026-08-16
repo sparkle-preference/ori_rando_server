@@ -44,6 +44,46 @@ function name_from_str(pick) {
     return pickup_name(parts[0], parts[1])
 }
 
+function decompose_pickup(code, id) {
+    if (code === "NO" && id === "1") {
+        return [];
+    }
+
+    if (code != "MU" && code != "RP" && code != "RG") {
+        return [[code, id]];
+    }
+    
+    if (id === "") {
+        return [];
+    }
+
+    let parts = [];
+    let firstPiece = null;
+    let part = '';
+    for(let i = 0; i < id.length; ++i) {
+        let c = id[i];
+        if (c == '/') {
+            if (i < id.length - 1 && id[i + 1] == '/') {
+                part += '/';
+                ++i;
+            } else {
+                if (firstPiece === null) {
+                    firstPiece = part;
+                    part = '';
+                } else {
+                    parts.push([firstPiece, part]);
+                    firstPiece = null;
+                    part = '';
+                }
+            }
+        } else {
+            part += c;
+        }
+    }
+    parts.push([firstPiece, part]);
+    return parts;
+}
+
 function pickup_name(code, id) {
     let upgrade_names = {};
     stuff_by_type["Upgrades"].forEach(s => {
@@ -60,11 +100,7 @@ function pickup_name(code, id) {
         case "MU":
         case "RP":
         case "RG":
-            let parts = id.split("/");
-            let names = [];
-            while (parts.length > 1) {
-                names.push(pickup_name(parts.shift(), parts.shift()))
-            }
+            let names = decompose_pickup(code, id).map(([code, id]) => pickup_name(code, id));
             if (code === "RP")
                 return "Repeatable: " + names.join(", ")
             if (code === "RG")
@@ -325,9 +361,8 @@ class PickupSelect extends Component {
         value.push({ label: "one of...", value: "RG" })
       if (code === "MU" || code === "RP" || code === "RG") {
         let seen = []
-        let parts = id.split("/")
-        while (parts.length > 1) {
-          let part = `${parts.shift()}|${parts.shift()}`
+        for (let [partCode, partId] of decompose_pickup(code, id)) {
+          let part = `${partCode}|${partId}`
           while (seen.includes(part))
             part += "|"
           seen.push(part)
@@ -481,7 +516,7 @@ class PickupSelect extends Component {
       pickup = values[0]
     else {
       pickup = group ? "RG|" : (repeat ? "RP|" : "MU|")
-      pickup += values.join("/").replace(/\|/g, "/")
+      pickup += values.map(v => v.replaceAll("/", "//")).join("/").replace(/\|/g, "/")
     }
     this.state.updater(pickup, name_from_str(pickup))
   }
@@ -987,5 +1022,5 @@ const prng = (strIn) => sfc32(...cyrb128(strIn));
 
 export {
     player_icons, doNetRequest, prng, get_param, get_flag, resolve_dark, save_dark, ap_enabled, ap_opt_in, get_int, get_list, get_preset, presets, get_seed, logic_paths, get_random_loader, Blabel,
-    pickup_name, stuff_by_type, name_from_str, PickupSelect, Cent, ordinal_suffix, dev, gotoUrl, loginLogoutUrl, select_theme, randInt, spawn_defaults
+    pickup_name, stuff_by_type, name_from_str, PickupSelect, Cent, ordinal_suffix, dev, gotoUrl, loginLogoutUrl, select_theme, randInt, spawn_defaults, decompose_pickup
 };
