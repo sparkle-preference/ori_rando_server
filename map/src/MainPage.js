@@ -27,10 +27,16 @@ const BURIED_LOC_BASE = 20000000;
 const locOptionFromCoords = (coords) => locOptions.find(l => l.value === coords);
 // multipickup <-> part codes ("SK|3"), for merging burials into an existing row
 const pickupToParts = (item) => {
+    if(!item || item === "NO|1") return [];
+    // only MU is decomposed: partsToPickup rebuilds as MU, so unwrapping an
+    // RP/RP group here would silently drop the repeat/one-of. They nest fine.
+    if(!item.startsWith("MU|")) return [item];
     let [code, id] = item.split("|");
     return decompose_pickup(code, id).map(([c, i]) => `${c}|${i}`);
 }
-const partsToPickup = (parts) => parts.length === 0 ? "NO|1" : (parts.length === 1 ? parts[0] : "MU|" + parts.map(p => p.replace(/\|/g, "/")).join("/"));
+// parts arrive decomposed (slashes literal), so re-escape on the way back in
+const partToSegs = (p) => p.replaceAll("/", "//").replace(/\|/g, "/");
+const partsToPickup = (parts) => parts.length === 0 ? "NO|1" : (parts.length === 1 ? parts[0] : "MU|" + parts.map(partToSegs).join("/"));
 const fassDefaultsFor = (world) => [2, 919772, -1560272, 799776, -120208].map(coords => ({loc: locOptionFromCoords(coords), item: "NO|1", world: world, owner: world}));
 const apDefaultExport = ["skills", "teleporters", "events"];
 const PLAYER_NAME_MAX = 20;  // matches ap_models.PLAYER_NAME_MAX

@@ -80,7 +80,10 @@ function decompose_pickup(code, id) {
             part += c;
         }
     }
-    parts.push([firstPiece, part]);
+    // an odd trailing piece is dropped, as the client does
+    if (firstPiece !== null) {
+        parts.push([firstPiece, part]);
+    }
     return parts;
 }
 

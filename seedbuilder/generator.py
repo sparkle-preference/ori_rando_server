@@ -2390,7 +2390,6 @@ class SeedGenerator:
         return spoilerStr
 
     def get_multi_items(self, multi_item):
-        log.warning("get_multi_item('%s')", multi_item)
         multi_items = []
         for (code, id) in decompose_multi_value(multi_item[2:]):
             item = code + id
