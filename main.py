@@ -2015,16 +2015,18 @@ def announce_webhook(channel):
     return {"main": PATCHNOTES_WEBHOOK_MAIN, "dev": PATCHNOTES_WEBHOOK_DEV}[channel]
 
 
-def announce_embed(release, base):
-    major = [c for c in release["changes"] if c["importance"] == "major"]
+def announce_embed(release, base, everything=False):
+    # the dev channel takes the whole list: it is the audience that wants the
+    # minor entries, and a dev-only release is often all minor
+    shown = [c for c in release["changes"] if everything or c["importance"] == "major"]
     lines = []
     if release.get("headline"):
         lines.append(release["headline"])
-    for c in major:
+    for c in shown:
         lines.append("- %s" % c["text"])
         for s in c.get("sub", []):
             lines.append("  - %s" % s)
-    if not major and not release.get("headline"):
+    if not shown and not release.get("headline"):
         lines.append("Small fixes only - see the full notes.")
     title = "%s%s" % (release["version"], " - %s" % release["title"] if release.get("title") else "")
     # discord truncates a description past 4096 rather than rejecting it, but
@@ -2065,7 +2067,8 @@ def announce_patchnotes(base, force=False):
             out[channel] = "nothing for this channel"
             continue
         # oldest first so the channel reads chronologically, 10 embeds per message
-        embeds = [announce_embed(r, base) for r in reversed(pending)][-10:]
+        embeds = [announce_embed(r, base, everything=(channel == "dev"))
+                  for r in reversed(pending)][-10:]
         try:
             resp = requests.post(hook, json={"embeds": embeds}, timeout=10)
             resp.raise_for_status()

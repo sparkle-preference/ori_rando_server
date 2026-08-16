@@ -10,6 +10,54 @@
   ],
   "releases": [
     {
+      "version": "4.2.14",
+      "date": "2026-08-15",
+      "announce": "dev",
+      "changes": [
+        {
+          "text": "Multi-pickups can hold items with slashes in them, like message pickups.",
+          "category": "Seed Generator",
+          "type": "feature",
+          "importance": "minor",
+          "sub": [
+            "Older randomizers read these wrong, so update before loading a seed that uses one.",
+            "Hand-editing a seed file: slashes inside an MU or RP pickup have to be doubled."
+          ]
+        },
+        {
+          "text": "Tabs you aren't looking at update every 30 seconds instead of every second, and refresh as soon as you come back.",
+          "category": "Website",
+          "importance": "minor",
+          "sub": [
+            "OBS browser sources count as visible, so stream overlays keep updating normally."
+          ]
+        },
+        {
+          "text": "The tracking map names items the way the game does: yours plain, everyone else's with their name.",
+          "category": "Multiplayer",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Fixed Archipelago yaml downloads failing for some spawns and for custom item pools.",
+          "category": "Multiplayer",
+          "type": "fix",
+          "importance": "minor",
+          "tags": [
+            "Archipelago"
+          ]
+        },
+        {
+          "text": "A room with nobody playing disconnects after a few hours, and reconnects when someone starts again.",
+          "category": "Multiplayer",
+          "importance": "minor",
+          "tags": [
+            "Archipelago"
+          ]
+        }
+      ]
+    },
+    {
       "version": "4.2.13",
       "date": "2026-08-14",
       "announce": "dev",
