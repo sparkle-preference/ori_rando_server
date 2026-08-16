@@ -456,6 +456,9 @@ class Player(ndb.Model):
     # multiworld: which of this player's item slots other players have found
     # (8x32 bits; slot semantics live in the player's own seed manifest)
     slot_bflds  = ndb.IntegerProperty(repeated=True)
+    # multiworld: locations in this world the shared release already spent.
+    # Shared singletons are local seed lines, not slots, so nothing else does.
+    shared_released = ndb.IntegerProperty(repeated=True)
     bingo_prog  = ndb.LocalStructuredProperty(BingoCardProgress, repeated=True)
     # history dedup state (constant size): hist_tail is the rolling
     # last-HIST_TAIL keys, hist_seen is every key that has fallen out of that
@@ -592,6 +595,23 @@ class Player(ndb.Model):
         if fresh:
             p.put()
         return len(fresh)
+
+    def claim_shared_released(self, coords):
+        """Claim locations for the shared release, returning the ones this call
+        won. Claiming before granting is what keeps a repeated /complete (the
+        client retries until acked) from stacking a bonus once per retry."""
+        already = set(self.shared_released or [])
+        fresh = [c for c in coords if c not in already]
+        if fresh:
+            self.shared_released = (self.shared_released or []) + fresh
+            self.put()
+        return fresh
+
+    @staticmethod
+    @ndb.transactional(retries=5)
+    def claim_shared_released_txn(pkey, coords):
+        p = pkey.get()
+        return p.claim_shared_released(coords) if p else []
 
     @staticmethod
     @ndb.transactional(retries=5)
@@ -2043,6 +2063,53 @@ class Game(ndb.Model):
         for p in params.placements:
             p
 
+    def mw_shareable(self, pickup):
+        """What a seed line shares, by found_pickup's rules: MW slots, TW warps
+        and EV5 never do; a multipickup shares whichever children do."""
+        if not pickup or pickup.code in ["MW", "TW"] or (pickup.code == "EV" and int(pickup.id) == 5):
+            return []
+        if pickup.code == "MU":
+            return [p for child in pickup.children for p in self.mw_shareable(child)]
+        return [pickup] if pickup.is_shared(self.shared) else []
+
+    def mw_release_shared(self, finisher_pid, params):
+        """The shared half of the release, granted to every player. A shared
+        category is one copy total, sitting as a plain local line with no owner
+        and no slot, so the slot pass above cannot see it -- and a finished
+        world is nobody's to explore (game 136058 stranded Climb)."""
+        if not self.shared:
+            return 0
+        finisher = self.player(finisher_pid)
+        seen = set(finisher.seen_coords())
+        by_coords = defaultdict(list)
+        for (loc, code, id, zone) in params.get_seed_data(finisher_pid):
+            try:
+                coords = int(loc)
+            except ValueError:
+                continue
+            if coords in seen:
+                continue
+            picks = self.mw_shareable(Pickup.n(code, id))
+            if picks:
+                by_coords[coords] += [(p, zone) for p in picks]
+        fresh = Player.claim_shared_released_txn(finisher.key, sorted(by_coords))
+        grants = [(pickup, False, coords, finisher_pid) for coords in fresh for pickup, _ in by_coords[coords]]
+        if not grants:
+            return 0
+        players = [p for p in self.get_players() if p]
+        Player.transaction_pickup_batch([p.key for p in players], grants)
+        Cache.clear_items(self.key.id())
+        for p in players:
+            Cache.clear_seen_checksum(p.idpts())
+            Cache.clear_reach(*p.idpts())
+        for coords in fresh:
+            for pickup, zone in by_coords[coords]:
+                hl = HistoryLine(pickup_code=pickup.code, timestamp=datetime.utcnow(), pickup_id=str(pickup.id),
+                                 coords=coords, removed=False, player=finisher_pid)
+                if Player.append_hl_chunked_txn(finisher.key, hl):
+                    Cache.append_hl(self.key.id(), finisher_pid, hl)
+        return len(grants)
+
     def mw_release(self, finisher_pid, params=None):
         """Multiworld release: when a player finishes, every item still
         sitting in their world that belongs to someone else is granted to its
@@ -2068,20 +2135,35 @@ class Game(ndb.Model):
             if owner != finisher_pid:
                 by_owner[owner].append(slot)
         netperf("mw_release_prep", t0, gid=self.key.id(), pid=finisher_pid, owners=len(by_owner))
-        released = 0
+        t_shared = monotonic()
+        shared = self.mw_release_shared(finisher_pid, params)
+        netperf("mw_release_shared", t_shared, gid=self.key.id(), pid=finisher_pid, shared=shared)
+        released = shared
         finisher_name = self.player(finisher_pid).wire_name()
+        gained = defaultdict(int)
+        if shared:
+            # shadows take the grant like anyone else, but never a message
+            for p in self.visible_players():
+                gained[p.pid()] += shared
         for owner_pid, slots in by_owner.items():
             t_owner = monotonic()
             owner = self.player(owner_pid)
             newly = Player.mark_slots_txn(owner.key, slots)
             if newly:
                 released += newly
+                gained[owner_pid] += newly
                 Cache.clear_seen_checksum(owner.idpts())
-                # fires mid grant-burst, the worst window for a stale put
-                if Player.signal_send_txn(owner.key, "msg:@%s finished! %s items from their world released to you@" % (finisher_name, newly)):
-                    Cache.clear_seen_checksum(owner.idpts())
             netperf("mw_release_owner", t_owner, gid=self.key.id(), owner=owner_pid, slots=len(slots), newly=newly)
-        log.info("mw_release: game %s player %s released %s items", self.key.id(), finisher_pid, released)
+        for pid, count in gained.items():
+            if pid == finisher_pid or not count:
+                continue
+            p = self.player(pid)
+            # fires mid grant-burst, the worst window for a stale put
+            msg = "msg:@%s finished! %s item%s from their world released to you@" % (
+                finisher_name, count, "" if count == 1 else "s")
+            if Player.signal_send_txn(p.key, msg):
+                Cache.clear_seen_checksum(p.idpts())
+        log.info("mw_release: game %s player %s released %s items (%s shared)", self.key.id(), finisher_pid, released, shared)
         return released
 
 

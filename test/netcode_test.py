@@ -334,6 +334,7 @@ class TestMultiworldFoundPickup(NdbTestCase):
         self._pbtxn = Player.transaction_pickup_batch
         self._chunked = Player.append_hl_chunked_txn
         self._stxn = Player.signal_send_txn
+        self._ctxn = Player.claim_shared_released_txn
         self._hist = Game.mark_history_txn
         Game.mark_history_txn = staticmethod(lambda key: None)
 
@@ -343,6 +344,7 @@ class TestMultiworldFoundPickup(NdbTestCase):
         Player.transaction_pickup_batch = self._pbtxn
         Player.append_hl_chunked_txn = self._chunked
         Player.signal_send_txn = self._stxn
+        Player.claim_shared_released_txn = self._ctxn
         Game.mark_history_txn = self._hist
         super(TestMultiworldFoundPickup, self).tearDown()
 
@@ -364,6 +366,8 @@ class TestMultiworldFoundPickup(NdbTestCase):
         Player.mark_slot_txn = staticmethod(lambda pkey, slot: by_key[pkey].mark_slot(slot))
         Player.mark_slots_txn = staticmethod(
             lambda pkey, slots: sum(1 for s in slots if by_key[pkey].mark_slot(s)))
+        Player.claim_shared_released_txn = staticmethod(
+            lambda pkey, coords: by_key[pkey].claim_shared_released(coords))
         # release's finish message rides the txn variant now; land it on the
         # in-memory entity so tests can read p.signals
         Player.signal_send_txn = staticmethod(
@@ -431,6 +435,47 @@ class TestMultiworldFoundPickup(NdbTestCase):
         again = g.mw_release(1, params=self._FakeParams())
         self.assertEqual(again, 0)
         self.assertEqual(len([s for s in owner.signals if s.startswith("msg:")]), 1)
+
+    class _FakeSharedParams(object):
+        """Finisher's world holds one of P2's items and four local lines: an
+        unfound shared skill, one already picked up, a shared skill inside a
+        multipickup, and a warp (never shared)."""
+        def get_seed_data(self, pid):
+            return [("200", "MW", "2,7,Bash", "Grove"),
+                    ("300", "SK", "12", "Valley"),
+                    ("400", "SK", "0", "Glades"),
+                    ("500", "MU", "EC/1/SK/4", "Grotto"),
+                    ("600", "TW", "Warp to Grove,1,2,Grove", "Grove")]
+
+    def test_release_hands_out_unfound_shared_items(self):
+        """Regression (game 136058): shared items are local lines with no slot,
+        so the slot pass cannot see them and a finished world kept them."""
+        g, finder, owner = self._game(shared=["Skills"])
+        finder.seen_coords = lambda: [400, 2]  # SK|0 already picked up
+        released = g.mw_release(1, params=self._FakeSharedParams())
+        self.assertEqual(released, 3)  # slot 7, Climb, and the multipickup's Stomp
+        for p in (finder, owner):
+            self.assertTrue(p.has_pickup(Pickup.n("SK", "12")), "Climb goes to everyone")
+            self.assertTrue(p.has_pickup(Pickup.n("SK", "4")), "so does a multipickup's share")
+            self.assertFalse(p.has_pickup(Pickup.n("EC", "1")), "unshared children stay put")
+        self.assertEqual(finder.signals, [])  # the finisher already knows
+        self.assertEqual(owner.signals, ["msg:@Player 1 finished! 3 items from their world released to you@"])
+
+    def test_release_shared_is_idempotent(self):
+        """The client retries /complete until acked; a bonus must not stack."""
+        g, finder, owner = self._game(shared=["Skills"])
+        g.mw_release(1, params=self._FakeSharedParams())
+        skills = owner.skills
+        again = g.mw_release(1, params=self._FakeSharedParams())
+        self.assertEqual(again, 0)
+        self.assertEqual(owner.skills, skills)
+        self.assertEqual(len(owner.signals), 1)
+
+    def test_release_leaves_shared_items_alone_when_nothing_is_shared(self):
+        g, finder, owner = self._game()
+        released = g.mw_release(1, params=self._FakeSharedParams())
+        self.assertEqual(released, 1)  # slot 7 only
+        self.assertEqual(owner.skills, 0)
 
     class _FakeApParams(object):
         """AP-mode: finisher's world holds one of P2's items plus two
