@@ -2919,5 +2919,48 @@ class ApSeedAnnotationTests(unittest.TestCase):
         self.assertNotIn("Bash (Ori2)", params.get_aux_spoiler([], False, self.WORLD))
 
 
+class MultiPickupDecomposeTests(unittest.TestCase):
+    """The multipickup grammar: "//" is a literal slash. Three implementations
+    read it -- util.decompose_multi_value, common.js decompose_pickup, and the
+    client's RandomizerAction.Decompose -- and they must agree exactly."""
+
+    ROWS = [
+        ("", []),
+        ("HC/1", [("HC", "1")]),
+        ("HC/1/EC/1", [("HC", "1"), ("EC", "1")]),
+        ("TP/Horu", [("TP", "Horu")]),
+        # escaped slashes belong to the value, not the grammar
+        ("SH/Hello//World", [("SH", "Hello/World")]),
+        ("MS/a//b", [("MS", "a/b")]),
+        ("EX/100//200", [("EX", "100/200")]),
+        # odd trailing pieces are dropped, as the client does after it throws
+        ("HC/1/", [("HC", "1")]),
+        ("HC/1/EC", [("HC", "1")]),
+        ("//", []),
+        ("HC//1", []),
+        ("/", [("", "")]),
+    ]
+
+    def test_grammar_rows(self):
+        from util import decompose_multi_value
+        for value, expected in self.ROWS:
+            self.assertEqual(decompose_multi_value(value), expected, value)
+
+    def test_a_dangling_piece_never_reaches_a_caller(self):
+        # callers concatenate code+id; a None code used to raise TypeError and
+        # 500 generation on a legacy plando that predates the escape
+        from util import decompose_multi_value
+        for value, _ in self.ROWS:
+            for code, id in decompose_multi_value(value):
+                self.assertIsInstance(code, str, value)
+                self.assertIsInstance(id, str, value)
+
+    def test_multipickup_names_survive_a_slash(self):
+        from pickups import Pickup
+        self.assertEqual(Pickup.n("MU", "HC/1/EC/1").name, "Health Cell, Energy Cell")
+        # a trailing piece leaves the parsed children intact
+        self.assertEqual(Pickup.n("MU", "HC/1/EC").name, "Health Cell")
+
+
 if __name__ == "__main__":
     unittest.main()

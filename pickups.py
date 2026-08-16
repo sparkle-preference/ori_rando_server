@@ -1,7 +1,7 @@
 import logging as log
 
 from enums import ShareType
-from util import add_single, inc_stackable
+from util import add_single, inc_stackable, decompose_multi_value
 
 class Pickup(object):
     @staticmethod
@@ -225,16 +225,14 @@ class Multiple(Pickup):
     def __new__(cls, id):
         inst = super(Multiple, cls).__new__(cls)
         inst.id, inst.bit = id, None
-        subparts = id.split('/')
         inst.children = []
-        while len(subparts) > 1:
+        for (partCode, partId) in decompose_multi_value(id):
             try:
-                c = Pickup.n(subparts[0], subparts[1])
-                if c:
-                    inst.children.append(c)
+                child = Pickup.n(partCode, partId)
+                if child:
+                    inst.children.append(child)
             except Exception as e:
-                log.warning("failed creating pickup %s|%s in multipickup %s: %s", subparts[0], subparts[1], id, e)
-            subparts = subparts[2:]
+                log.warning("failed creating pickup %s|%s in multipickup %s: %s", partCode, partId, id, e)
         inst.name = ", ".join([child.name for child in inst.children])
         return inst
     @classmethod
