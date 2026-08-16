@@ -806,6 +806,13 @@ class SeedGenerator:
                 if start_skills > 1:
                     possible_skills.append("Wind")
                     possible_skills.append("Warmth")
+                # a burial says "not before depth N" and spawn is depth 0;
+                # too few left to draw from and the burial loses instead
+                buried = self.buried_skill_names(p)
+                if buried:
+                    kept = [s for s in possible_skills if s not in buried]
+                    if len(kept) >= start_skills:
+                        possible_skills = kept
                 # Weigh skills. FIXME: it would be good to have weights
                 weights = []
                 for skill in possible_skills:
@@ -1939,6 +1946,24 @@ class SeedGenerator:
         balanced = len(self.balanceListLeftovers) if include_balanced else 0
         return sum([v for v in self.itemPool.values()]) + balanced + len(self.buried)
 
+    def buried_skill_names(self, player):
+        """Skills a buried fass has claimed for this world. Reads preplaced
+        and skillsOutput, not codeToName, which the spawn draw predates."""
+        by_code = {code: name for name, code in self.skillsOutput.items()}
+        names = set()
+        for (p, loc), v in self.preplaced.items():
+            if loc < BURIED_LOC_BASE:
+                continue
+            base_v, _, owner_v = v.partition("|")
+            if (int(owner_v) if owner_v else p) != player:
+                continue
+            if base_v[0:2] in ("MU", "RP"):
+                codes = [c + i for (c, i) in decompose_multi_value(base_v[2:])]
+            else:
+                codes = [base_v]
+            names.update(by_code[c] for c in codes if c in by_code)
+        return names
+
     def unearth_buried(self):
         """Return buried items to the pool once enough locations are
         reachable. Depths past the whole map release on the final batch."""
@@ -2086,9 +2111,21 @@ class SeedGenerator:
             parts = self.get_multi_items(base_v) if base_v[0:2] in ["MU", "RP"] else [base_v]
             for item in parts:
                 pool_k = self.pool_key(tag(item, fass_p))
+                # bury only what the pool gave up: unearth_buried returns
+                # every entry unconditionally
                 if self.itemPool.get(pool_k, 0) > 0:
                     self.itemPool[pool_k] -= 1
-                self.buried.append((depth, pool_k))
+                    self.buried.append((depth, pool_k))
+                    continue
+                # spawn takes the start teleporter and leaves the Glades one
+                # in the pool; a burial aimed at it follows that swap
+                if item == "TP" + self.starts.get(fass_p, ""):
+                    glades = self.pool_key(tag("TPGlades", fass_p))
+                    if self.itemPool.get(glades, 0) > 0:
+                        self.itemPool[glades] -= 1
+                        self.buried.append((depth, glades))
+                        continue
+                log.warning("can't bury %s at depth %s: none left in the pool", pool_k, depth)
 
         # forced-assignment pool bookkeeping. Values tagged with an owner
         # (cross-world items) decrement that owner's pool entry; untagged

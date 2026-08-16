@@ -693,6 +693,65 @@ class BuriedPlacementTests(unittest.TestCase):
         self.assertGreaterEqual(min(self._depths(records, "WallJump|1")), 100)
         self.assertGreaterEqual(min(self._depths(records, "Climb|1")), 100)
 
+    def test_burying_what_the_pool_cannot_supply_mints_nothing(self):
+        """unearth_buried returns every buried entry to the pool, so a burial
+        the pool can't fund must not be recorded at all."""
+        records, seeds = self._gen_with_records(
+            ["--fass", "%s:SK51|%s:SK51" % (self.BURIED + 100, self.BURIED + 150)])
+        placements, _ = parse_seed(seeds["randomizer0.dat"])
+        # the pool holds one Grenade, so the second burial has nothing to take
+        grenades = [1 for (c, i, z) in placements.values() if (c, i) == ("SK", "51")]
+        self.assertEqual(len(grenades), 1,
+                         "double-burying one Grenade produced %s of them" % len(grenades))
+
+    def test_spawn_never_draws_a_buried_skill(self):
+        """A burial says "not before depth N" and spawn is depth 0, so the
+        draw skips buried skills instead of spending the pool's only copy."""
+        from seedbuilder.generator import SeedGenerator
+        drawn = []
+        orig = SeedGenerator.buried_skill_names
+        def spy(sg, player):
+            out = orig(sg, player)
+            drawn.append(out)
+            return out
+        SeedGenerator.buried_skill_names = spy
+        self.addCleanup(setattr, SeedGenerator, "buried_skill_names", orig)
+        records, seeds = self._gen_with_records(
+            ["--start", "Grotto", "--starting-health", "3", "--starting-energy", "1",
+             "--starting-skills", "3", "--fass",
+             "%s:MUSK/3/SK/12/SK/51" % (self.BURIED + 100)])
+        placements, _ = parse_seed(seeds["randomizer0.dat"])
+        spawn = placements.get(2)
+        self.assertIsNotNone(spawn, "no spawn line")
+        self.assertTrue(drawn and drawn[0], "the burial was never consulted")
+        self.assertEqual(drawn[0], {"WallJump", "Climb", "Grenade"})
+        for code in ("SK/3", "SK/12", "SK/51"):
+            self.assertNotIn(code, spawn[1],
+                             "spawn handed out %s despite it being buried" % code)
+        # and each still lands exactly once, at or past its depth
+        for name in ("WallJump", "Climb", "Grenade"):
+            self.assertGreaterEqual(min(self._depths(records, "%s|1" % name)), 100)
+
+    def test_burying_the_start_teleporter_buries_glades_instead(self):
+        """A non-Glades spawn takes its start TP and leaves the Glades one in
+        the pool, so a burial aimed at the start TP lands on Glades."""
+        records, seeds = self._gen_with_records(
+            ["--start", "Grotto", "--starting-health", "3", "--starting-energy", "1",
+             "--starting-skills", "1",
+             "--fass", "%s:MUTP/Grotto/TP/Swamp" % (self.BURIED + 100)])
+        placements, _ = parse_seed(seeds["randomizer0.dat"])
+        spawn = placements.get(2)
+        self.assertIsNotNone(spawn, "no spawn line")
+        self.assertIn("TP/Grotto", spawn[1], "a Grotto spawn grants its teleporter")
+        # the burial the spawn stole becomes a Glades burial; the other stands
+        self.assertGreaterEqual(min(self._depths(records, "TPGlades|1")), 100)
+        self.assertGreaterEqual(min(self._depths(records, "TPSwamp|1")), 100)
+        tps = Counter(i for (c, i, z) in placements.values() if c == "TP")
+        self.assertEqual(tps.get("Grotto", 0), 0,
+                         "Grotto teleporter is at spawn AND in the world")
+        for tp, n in tps.items():
+            self.assertEqual(n, 1, "teleporter TP|%s placed %s times" % (tp, n))
+
     def test_multiworld_buried_with_owner(self):
         # balanced like the MW canon args; the invariant is assignment-time
         records, seeds = self._gen_with_records(

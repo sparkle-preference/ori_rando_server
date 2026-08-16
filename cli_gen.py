@@ -74,7 +74,8 @@ class CLISeedParams(object):
         parser.add_argument("--start", help="Sets start location, e.g. random or glades.", type=str, default="Glades")
         parser.add_argument("--starting-health", help="Sets starting health to X, note: X=5 would give you 2 HC at spawn.", type=int)
         parser.add_argument("--starting-energy", help="Sets starting energy to X, note: X=5 would give you 4-5 EC at spawn.", type=int)
-        parser.add_argument("--starting-skills", help="Sets how many skills we start with.", type=str)
+        # int: the retry loop bumps this by 1
+        parser.add_argument("--starting-skills", help="Sets how many skills we start with.", type=int)
         parser.add_argument("--spawn-weights", help="For random spawn, set custom weights for starting teleporters. Format: Glades=.5,Swamp=1.0,Sorrow=2.0")
 
         parser.add_argument("--goal-mode-finish", help="Skips the final escape when goal modes are done.", action="store_true")
