@@ -421,6 +421,30 @@ whitelist_secret = os.getenv("WHITELIST_SECRET")
 def whitelist_ok():
     return param_val("sec") == whitelist_secret
 
+def game_flags(params_key):
+    """(flag line, is race) for a seed, or (None, False) if the seed is gone.
+
+    A game list wants these two small values and nothing else, out of an
+    entity that is mostly placements and spoilers -- inflating one per row is
+    what made these pages a landmine. Params never change after generation
+    (the single mutate-and-put site busts this cache on put), so the pair
+    keeps, and the id for the Seed link comes off the key without a fetch."""
+    from cache import Cache   # lazy: cache.py imports util, so not at module scope
+    params_id = params_key.id()
+    hit = Cache.get_game_flags(params_id)
+    if hit:
+        return hit
+    params = params_key.get()
+    if not params:
+        return None, False
+    flags = (params.flag_line(), Variation.RACE in params.variations)
+    try:
+        Cache.set_game_flags(params_id, *flags)
+    except Exception:   # a cache write must not 500 a page it only speeds up
+        log.exception("could not cache game flags for params %s", params_id)
+    return flags
+
+
 def game_list_html(games):
     if not flask_imported:
         print("HELLO??????")
@@ -433,12 +457,12 @@ def game_list_html(games):
         slink = ""
         flags = ""
         if game.params:
-            params = game.params.get()
-            if params:
-                if Variation.RACE in params.variations and not whitelist_ok():
+            flag_line, is_race = game_flags(game.params)
+            if flag_line is not None:
+                if is_race and not whitelist_ok():
                     continue
-                flags = params.flag_line()
-                slink = " <a href=%s>Seed</a>" % url_for('main_page', game_id=gid, param_id=params.key.id())
+                flags = flag_line
+                slink = " <a href=%s>Seed</a>" % url_for('main_page', game_id=gid, param_id=game.params.id())
             else:
                 slink = " (Seed not found)"
         blink = ""

@@ -337,20 +337,29 @@ def clear_session_on_logout(sender, **kwargs):
     session.clear()
 
 
+GAME_LIST_LIMIT = 50
+
+
 @app.route('/activeGames/')
 @app.route('/activeGames/<hours>/')
 def active_games(hours=12):
     hours = int(hours)
     title = "Games active in the last %s hours" % hours
-    games = Game.query(Game.last_update > datetime.now() - timedelta(hours=hours)).fetch()
-    games = [game for game in games if len(game.get_all_hls()) > 0]
+    # bounded, and the "did anyone play" test is a field on the game now: it
+    # used to be a history walk (an ancestor query plus a get per player) per
+    # game, behind an unlimited query with an even less limited fallback.
+    # Games written before has_history existed read None -- unknown, so shown.
+    # Widen the window with /activeGames/<hours>/ rather than fetching all.
+    # order explicitly: an inequality query defaults to ASCENDING on that
+    # property, so a bare fetch(limit) would return the OLDEST games in the
+    # window. Same property, so no composite index needed. Over-fetch and
+    # slice AFTER filtering, or a run of generated-but-unplayed games fills
+    # the budget and reports "no active games" while real ones sit below it.
+    games = Game.query(Game.last_update > datetime.now() - timedelta(hours=hours)
+                       ).order(-Game.last_update).fetch(GAME_LIST_LIMIT * 4)
+    games = [game for game in games if game.has_history is not False][:GAME_LIST_LIMIT]
     if not len(games):
-        games = Game.query().fetch()
-        games = [game for game in games if len(game.get_all_hls()) > 0]
-        if not len(games):
-            title = "No active games found!"
-        else:
-            title = "All active games"
+        title = "No active games found!"
     body = game_list_html(games)
     out = "<html><head><title>%s - Ori Rando Server</title></head><body>" % title
     if body:
@@ -375,10 +384,14 @@ def main_page():
 @oidc.require_login
 def my_games():
     user = User.get()
-    title = "Games played by %s" % user.name
-    title, game_futures = ("Games played by %s" % user.name, [key.get_async() for key in user.games]) if param_flag("all") else (
-                           "Last 10 games played by %s" % user.name,[key.get_async() for key in user.games[-10:]])
-    body = game_list_html([gf.get_result() for gf in game_futures])
+    keys = user.games if param_flag("all") else user.games[-10:]
+    title = "Games played by %s" % user.name if param_flag("all") else "Last 10 games played by %s" % user.name
+    # even ?all is bounded: a long-time player's list is thousands of games,
+    # and one batched get beats a fan-out of per-key futures
+    if len(keys) > GAME_LIST_LIMIT * 4:
+        keys = keys[-GAME_LIST_LIMIT * 4:]
+        title = "Most recent games played by %s" % user.name
+    body = game_list_html(ndb.get_multi(keys))
     if body:
         out = "<h4>%s:</h4><ul>%s</ul></body</html>" % (title, body)
     else:
@@ -758,9 +771,13 @@ def tracker_update_map(game_id):
     players = {}
     username = param_val("usermap")
     gid_changed = False
-    if username and User.latest_game(username) != int(game_id):
-        game_id = User.latest_game(username)
-        gid_changed = True
+    if username:
+        # once, not twice: this is the 1Hz route, and a falsy answer (unknown
+        # user, or a user with no games) must not become the game id
+        latest = User.latest_game(username)
+        if latest and latest != int(game_id):
+            game_id = latest
+            gid_changed = True
     pos = Cache.get_pos(game_id)
     inventories = None
     game = None
@@ -1680,22 +1697,29 @@ def bingo_create_game():
         game.put()
         return json_resp(res)
 
-@app.route('/bingo/spectate/<name>') #BingoUserSpectate =     
-def bingo_user_board(name):
+def latest_bingo_game(name):
+    """(game id, error text) for a username's most recent bingo game. The
+    walk costs a name query plus a get per game the user has ever played, and
+    the userboard polls once a minute -- so the derived answer is cached."""
     game_id = Cache.get_latest_game(name, bingo=True)
-    if not game_id:
-        user = User.get_by_name(name)
-        if not user:
-            return text_resp("User '%s' not found" % name, 404)
-        game_keys = user.games[::-1]
-        game_id = None
-        for key in game_keys:
-            game = key.get()
-            if game.bingo_data:
-                game_id = game.key.id()
-                break
-        if not game_id:
-            return text_resp("Could not find any bingo games for user '%s'" % name, 404)
+    if game_id:
+        return game_id, None
+    user = User.get_by_name(name)
+    if not user:
+        return None, "User '%s' not found" % name
+    for key in user.games[::-1]:
+        game = key.get()
+        if game and game.bingo_data:   # cleanup leaves dangling keys behind
+            Cache.set_latest_bingo_game(name, game.key.id())
+            return game.key.id(), None
+    return None, "Could not find any bingo games for user '%s'" % name
+
+
+@app.route('/bingo/spectate/<name>') #BingoUserSpectate =
+def bingo_user_board(name):
+    game_id, err = latest_bingo_game(name)
+    if err:
+        return text_resp(err, 404)
     return redirect(url_for('bingo_board_spectate', game_id=4 + game_id*7))
 
 @app.route('/bingo/userboard/<name>/') #BingoUserboard =     
@@ -1717,20 +1741,9 @@ def bingo_userboard(name):
 def bingo_userboard_tick(name, game_id):
     cur_gid = int(game_id)
     now = datetime.utcnow()
-    game_id = Cache.get_latest_game(name, bingo=True)
-    if not game_id:
-        user = User.get_by_name(name)
-        if not user:
-            return text_resp("User '%s' not found" % name, 404)
-        game_keys = user.games[::-1]
-        game_id = None
-        for key in game_keys:
-            game = key.get()
-            if game.bingo_data:
-                game_id = game.key.id()
-                break
-        if not game_id:
-            return text_resp("Could not find any bingo games for user '%s'" % name, 404)
+    game_id, err = latest_bingo_game(name)
+    if err:
+        return text_resp(err, 404)
     first = cur_gid != game_id
     res = {}
     bingo = BingoGameData.with_id(game_id)

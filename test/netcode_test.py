@@ -334,6 +334,8 @@ class TestMultiworldFoundPickup(NdbTestCase):
         self._pbtxn = Player.transaction_pickup_batch
         self._chunked = Player.append_hl_chunked_txn
         self._stxn = Player.signal_send_txn
+        self._hist = Game.mark_history_txn
+        Game.mark_history_txn = staticmethod(lambda key: None)
 
     def tearDown(self):
         Player.mark_slot_txn = self._txn
@@ -341,6 +343,7 @@ class TestMultiworldFoundPickup(NdbTestCase):
         Player.transaction_pickup_batch = self._pbtxn
         Player.append_hl_chunked_txn = self._chunked
         Player.signal_send_txn = self._stxn
+        Game.mark_history_txn = self._hist
         super(TestMultiworldFoundPickup, self).tearDown()
 
     def _game(self, shared=None, extra_pids=()):
@@ -1138,13 +1141,26 @@ class TestHistoryWriteDispatch(NdbTestCase):
     def setUp(self):
         super(TestHistoryWriteDispatch, self).setUp()
         self._chunked = Player.append_hl_chunked_txn
+        self._hist = Game.mark_history_txn
         self.calls = []
+        self.marked = []      # kept out of self.calls: the history-write
+                              # assertions below are deliberately exact
         Player.append_hl_chunked_txn = staticmethod(
             lambda pkey, hl: self.calls.append(("chunked", hl.coords)) or True)
+        Game.mark_history_txn = staticmethod(lambda key: self.marked.append(key.id()))
 
     def tearDown(self):
         Player.append_hl_chunked_txn = self._chunked
+        Game.mark_history_txn = self._hist
         super(TestHistoryWriteDispatch, self).tearDown()
+
+    def test_the_first_pickup_marks_the_game_as_played(self):
+        # the flag the game lists read instead of walking history per game
+        g = self._game()
+        g.found_pickup(1, Pickup.n("EX", "100"), 20, False, False)
+        self.assertEqual(self.marked, ["88"])
+        g.found_pickup(1, Pickup.n("EX", "100"), 24, False, False)
+        self.assertEqual(self.marked, ["88"])   # once per game, not per pickup
 
     def _game(self):
         p = Player(id="88.1", skills=0, events=0, teleporters=0, bonuses={}, hints={})

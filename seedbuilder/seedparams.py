@@ -841,12 +841,26 @@ class SeedGenParams(ndb.Model):
     def cached_by_key(key):
         return SeedGenParams.cached_by_id(key.id()) if key else None
 
+    @staticmethod
+    def _bust_game_flags(params_id):
+        # best effort: these hooks run after the datastore write has already
+        # committed, and memcache's delete is not exception-guarded
+        from cache import Cache   # lazy: cache.py pulls in util, which pulls in seedbuilder
+        try:
+            Cache.clear_game_flags(params_id)
+        except Exception:
+            log.exception("could not bust game flags for params %s", params_id)
+
     def _post_put_hook(self, future):
         # any put invalidates: generation, and the bingo variation append
         with _PARAMS_LOCK:
             _PARAMS_CACHE.pop(self.key.id(), None)
+        SeedGenParams._bust_game_flags(self.key.id())
 
     @classmethod
     def _post_delete_hook(cls, key, future):
         with _PARAMS_LOCK:
             _PARAMS_CACHE.pop(key.id(), None)
+        # a game whose seed was deleted (clean_up shares params across games)
+        # must go back to rendering "(Seed not found)", not a dead Seed link
+        SeedGenParams._bust_game_flags(key.id())

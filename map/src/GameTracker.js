@@ -229,6 +229,13 @@ const DEFAULT_VIEWPORT = {
 const RETRY_MAX = 60;
 const TIMEOUT_START = 5;
 const TIMEOUT_INC = 5;
+// Idle backoff: a tracker left open on a finished game (an OBS source nobody
+// closed, say) walks down this ladder instead of polling 1Hz forever, and any
+// change at all snaps it straight back to live. [idle seconds before this
+// tier, seconds per poll]. The slowest tier is deliberately only 10s: it also
+// caps how long a restarted race, or a usermap redirect to a new game, can go
+// unnoticed on an overlay left up between races.
+const IDLE_TIERS = [[600, 10], [120, 3]];
 
 const crs = getMapCrs();
 
@@ -257,6 +264,37 @@ class GameTracker extends React.Component {
   timeout = () => {
   	return {retries: this.state.retries+1, check_seen: this.state.timeout, timeout: this.state.timeout+TIMEOUT_INC, seed_reqs: {}}
   };
+  // The update payload carries no timestamp, so what it renders IS the
+  // liveness signal. Everything order-unstable is sorted before comparing:
+  // the players dict comes from a memcache multi-get with no contractual key
+  // order, and `reachable` is a Python set serialized to a list, so its order
+  // moves with PYTHONHASHSEED (i.e. per container). A reordered-but-identical
+  // body must not read as activity.
+  updateSignature = (players) => JSON.stringify(
+    Object.keys(players || {}).sort().map(pid => {
+        let p = players[pid] || {}
+        let sorted = (l) => Array.isArray(l) ? [...l].sort() : l
+        return [pid, p.pos, sorted(p.seen), sorted(p.reachable)]
+    }));
+  noteActivity = (players) => {
+    let sig = this.updateSignature(players)
+    if(sig !== this.lastSignature) {
+        this.lastSignature = sig
+        this.lastChangeAt = Date.now()
+    }
+  };
+  // seconds per poll for the current idle streak. Measured in wall time, not
+  // ticks: a throttled tab fires its interval irregularly, and what matters
+  // is how long the game has actually been quiet.
+  idlePeriod = () => {
+    let idle = (Date.now() - (this.lastChangeAt || Date.now())) / 1000
+    let tier = IDLE_TIERS.find(([after]) => idle >= after)
+    return tier ? tier[1] : 1
+  };
+  // half-second slack: lastFetchAt is stamped inside a 1000ms interval whose
+  // callbacks drift, and without it a fetch that ran late pushes every later
+  // period out by a whole tick
+  dueForUpdate = () => Date.now() - (this.lastFetchAt || 0) >= this.idlePeriod() * 1000 - 500;
   tick = () => {
     let update = {}
     try {
@@ -274,21 +312,24 @@ class GameTracker extends React.Component {
                 update.bg_update = true  // refocus re-arms the background grace
         }
         if(check_seen === 0) {
-            this.getUpdate(this.timeout);
-            // in-flight is per player: a single shared flag lets the fastest
-            // response re-arm the whole batch, hitting the server hardest
-            // exactly when it is slowest
-            let reqs = null;
-            Object.keys(players).forEach((id) => {
-                if(players[id].seed_loaded || seed_reqs[id])
-                    return;
-                getSeed((p) => this.setState(p), this.state.gameId, id, this.timeout);
-                reqs = reqs || {...seed_reqs};
-                reqs[id] = true;
-            });
-            if(reqs)
-                update.seed_reqs = reqs;
-        } else 
+            if(this.dueForUpdate()) {
+                this.lastFetchAt = Date.now()
+                this.getUpdate(this.timeout);
+                // in-flight is per player: a single shared flag lets the fastest
+                // response re-arm the whole batch, hitting the server hardest
+                // exactly when it is slowest
+                let reqs = null;
+                Object.keys(players).forEach((id) => {
+                    if(players[id].seed_loaded || seed_reqs[id])
+                        return;
+                    getSeed((p) => this.setState(p), this.state.gameId, id, this.timeout);
+                    reqs = reqs || {...seed_reqs};
+                    reqs[id] = true;
+                });
+                if(reqs)
+                    update.seed_reqs = reqs;
+            }
+        } else
             update.check_seen = check_seen - 1
         if(follow > 0 && players.hasOwnProperty(follow)) {
             let map = this.refs.map.leafletElement;
@@ -435,6 +476,7 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
                     console.log(update.error)
                     this.setState(timeout())
                 }
+                this.noteActivity(update.players)
                 if(update.newGid) {
                     let o = this.state.gameId
                     let n = update.newGid

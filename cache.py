@@ -51,6 +51,34 @@ class MemcachedCache(object):
             self.memcache.set(key="%s.latest_bingo" % user, value=gid, expire=604800)
         self.memcache.set(key="%s.latest" % user, value=gid, expire=604800)
 
+    # bingo key only, short TTL: this is a *derived* answer (walking a user's
+    # game list), so it must not claim to be their latest game overall, and
+    # it re-derives hourly in case some path adds a board without joining it
+    def set_latest_bingo_game(self, user, gid, expire=3600):
+        self.memcache.set(key="%s.latest_bingo" % user, value=gid, expire=expire)
+
+    def clear_latest_bingo(self, user):
+        self.memcache.delete(key="%s.latest_bingo" % user)
+
+    def clear_latest(self, user):
+        self.memcache.delete(key="%s.latest" % user)
+
+    # a game list needs exactly two small things from a seed -- its flag line
+    # and whether it's a race -- out of an entity that is ~250KB of placements
+    # and spoilers. Params are immutable once generated (the lone mutate-and-
+    # put site busts this on put), so cache the pair and never inflate.
+    def get_game_flags(self, params_id):
+        return self.memcache_get(key="%s.gameflags" % params_id)
+
+    def set_game_flags(self, params_id, flags, is_race):
+        # an hour, not a day: a render that reads the entity just before a
+        # concurrent put busts this can re-plant the pre-mutation pair, and
+        # nothing busts it again (the mutating put has already happened)
+        self.memcache.set(key="%s.gameflags" % params_id, value=(flags, is_race), expire=3600)
+
+    def clear_game_flags(self, params_id):
+        self.memcache.delete(key="%s.gameflags" % params_id)
+
     def set_gid(self, gid):
         self.memcache.set(key="gid_max", value=int(gid))
 
@@ -298,6 +326,24 @@ class PythonCache(object):
         if bingo:
             self.cache.set(key="%s.latest_bingo" % user, value=gid, time=604800)
         self.cache.set(key="%s.latest" % user, value=gid, time=604800)
+
+    def set_latest_bingo_game(self, user, gid, expire=3600):
+        self.cache.set(key="%s.latest_bingo" % user, value=gid, time=expire)
+
+    def clear_latest_bingo(self, user):
+        self.cache.pop("%s.latest_bingo" % user, None)
+
+    def clear_latest(self, user):
+        self.cache.pop("%s.latest" % user, None)
+
+    def get_game_flags(self, params_id):
+        return self.cache.get(key="%s.gameflags" % params_id)
+
+    def set_game_flags(self, params_id, flags, is_race):
+        self.cache.set(key="%s.gameflags" % params_id, value=(flags, is_race), time=3600)
+
+    def clear_game_flags(self, params_id):
+        self.cache.pop("%s.gameflags" % params_id, None)
 
     def set_gid(self, gid):
         self.gid_max = int(gid)

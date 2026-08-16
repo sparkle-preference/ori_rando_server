@@ -1706,6 +1706,12 @@ class Game(ndb.Model):
     shared         = property(get_shared, set_shared)
     start_time     = ndb.DateTimeProperty(auto_now_add=True)
     last_update    = ndb.DateTimeProperty(auto_now=True)
+    # did anyone actually play? Set once, on the first pickup. Deliberately
+    # has NO default: a game written before this property existed reads None
+    # ("unknown", so game lists still show it) while a fresh game is written
+    # explicitly False ("empty, hide it"). Reading it replaces a per-game
+    # history walk that cost an ancestor query and a get per player.
+    has_history    = ndb.BooleanProperty()
     hls            = ndb.LocalStructuredProperty(HistoryLine, repeated=True)
     players        = ndb.KeyProperty(Player, repeated=True)
     relics         = ndb.StringProperty(repeated=True)
@@ -2087,12 +2093,6 @@ class Game(ndb.Model):
             Cache.set_hist(gid, pid, self.history([pid]))
         return Cache.get_hist(gid)
     
-    def get_all_hls(self):
-        hist = self.rebuild_hist()
-        if not hist:
-            return []
-        return [hl for players, hls in hist.items() for hl in hls]
-
     def create_ap_shadows(self, params):
         """AP-mode games: shadow players K+1..2K, one per world. Their slot
         bitfields are the AP bridge's durable outbox (found_pickup flips bit i
@@ -2272,6 +2272,14 @@ class Game(ndb.Model):
             hl.map_coords = map_coords_by_zone[zone]
         if Player.append_hl_chunked_txn(finder.key, hl):
             Cache.append_hl(self.key.id(), hl.player, hl)
+            if not self.has_history:
+                try:
+                    Game.mark_history_txn(self.key)
+                    self.has_history = True   # once per game, not per pickup
+                except Exception:
+                    # a game-list nicety must never fail a pickup that has
+                    # already committed its history line and its grants
+                    log.exception("could not mark game %s as played", self.key.id())
         if hl.map_coords or coords in trees_by_coords:
             Cache.clear_items(self.key.id())
         return retcode
@@ -2302,6 +2310,18 @@ class Game(ndb.Model):
     @staticmethod
     def with_id(id):
         return Game.get_by_id(int(id))
+
+    @staticmethod
+    @ndb.transactional(retries=3)
+    def mark_history_txn(key):
+        """Someone actually played: flip has_history on a freshly read entity.
+        Never a plain put -- writing a Game read on the pickup path would
+        erase whatever the 1Hz tick wrote meanwhile (the 134701 bug class)."""
+        game = key.get()
+        if game is None or game.has_history:
+            return
+        game.has_history = True
+        game.put()
 
     @staticmethod
     def clean_old(log_prog = False, timeout_window=timedelta(hours=1440)):
@@ -2346,7 +2366,7 @@ class Game(ndb.Model):
     def from_params(params, gid=None):
         game = Game(
             id=int(gid or Game.get_open_gid()),
-            params=params.key, players=[],
+            params=params.key, players=[], has_history=False,
             str_shared=[s.value for s in params.sync.shared],
             str_mode=params.sync.mode.value,
             dedup=params.sync.dedup,
@@ -2387,7 +2407,8 @@ class Game(ndb.Model):
             shared = Game.DEFAULT_SHARED
         mode = MultiplayerGameType.mk(_mode) if _mode else MultiplayerGameType.SIMUSOLO
         gid = int(gid or Game.get_open_gid())
-        game = Game(id=gid, players=[], str_shared=[s.value for s in shared], str_mode=mode.value)
+        game = Game(id=gid, players=[], str_shared=[s.value for s in shared],
+                    str_mode=mode.value, has_history=False)
         user = User.get()
         if user:
             game.creator = user.key
