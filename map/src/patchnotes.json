@@ -15,6 +15,23 @@
       "announce": "dev",
       "changes": [
         {
+          "text": "Message pickups can style their text with <style> tags: color, font, size and letter spacing, and <icon> for button prompts.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "minor",
+          "sub": [
+            "Styles nest, so a part of a message can differ from the rest."
+          ]
+        },
+        {
+          "text": "Everything message pickups can do is written up in SH Format.txt, next to the other reference files.",
+          "category": "Game",
+          "importance": "minor",
+          "sub": [
+            "Includes box formatting prefixes, placeholders, colors, styles, and which characters each font actually has."
+          ]
+        },
+        {
           "text": "Multi-pickups can hold items with slashes in them, like message pickups.",
           "category": "Seed Generator",
           "type": "feature",
@@ -63,7 +80,7 @@
       "announce": "dev",
       "changes": [
         {
-          "text": "Receiving up to five items at once prints them one by one instead of summarising.",
+          "text": "Receiving up to five items at once prints them one by one instead of summarizing.",
           "category": "Game",
           "type": "feature",
           "importance": "minor",
@@ -809,7 +826,7 @@
           "importance": "major",
           "sub": [
             "Relevant settings: Pickup Message Background Color and Multiworld Outbound Message Background Color in RandomizerSettings.txt.",
-            "Outbound messages are grey by default."
+            "Outbound messages are gray by default."
           ]
         },
         {
@@ -1068,7 +1085,7 @@
           "importance": "minor"
         },
         {
-          "text": "The plando clue order now recognises dungeon keys inside a multipickup.",
+          "text": "The plando clue order now recognizes dungeon keys inside a multipickup.",
           "category": "Website",
           "type": "fix",
           "importance": "minor"
@@ -1541,7 +1558,7 @@
           "importance": "minor"
         },
         {
-          "text": "Seed contents name Enhanced skills properly and no longer break on unrecognised items.",
+          "text": "Seed contents name Enhanced skills properly and no longer break on unrecognized items.",
           "category": "Seed Generator",
           "type": "fix",
           "importance": "minor"
@@ -1627,7 +1644,7 @@
           "importance": "minor"
         },
         {
-          "text": "Enhanced Stomp and Enhanced Dash turn Ori to face the way you're travelling.",
+          "text": "Enhanced Stomp and Enhanced Dash turn Ori to face the way you're traveling.",
           "category": "Game",
           "type": "fix",
           "importance": "minor"
@@ -2231,7 +2248,7 @@
           "importance": "major"
         },
         {
-          "text": "Bingo now stays in the goal mode list when tracking is off, greyed out.",
+          "text": "Bingo now stays in the goal mode list when tracking is off, grayed out.",
           "category": "Bingo",
           "type": "fix",
           "importance": "minor"
@@ -2354,7 +2371,7 @@
       "title": "The Map Update",
       "changes": [
         {
-          "text": "The in-game map now shows the whole world, greyed out where you have not been.",
+          "text": "The in-game map now shows the whole world, grayed out where you have not been.",
           "category": "Game",
           "type": "feature",
           "importance": "major"
@@ -2509,7 +2526,7 @@
           "importance": "major"
         },
         {
-          "text": "The plando editor no longer drops flags it doesn't recognise.",
+          "text": "The plando editor no longer drops flags it doesn't recognize.",
           "category": "Website",
           "type": "fix",
           "importance": "minor"
@@ -3794,7 +3811,7 @@
           "importance": "minor"
         },
         {
-          "text": "One Hit KO greys out the casual damage boost paths on the seed generator.",
+          "text": "One Hit KO grays out the casual damage boost paths on the seed generator.",
           "category": "Website",
           "type": "fix",
           "importance": "minor"
