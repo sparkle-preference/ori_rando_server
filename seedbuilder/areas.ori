@@ -794,7 +794,7 @@ home: SpiritTreeRefined -93 -118
 		standard AirDash Climb
 		expert Dash WallJump
 		expert Dash Climb
-		master Bash Glide DoubleJump
+		master DoubleJump
 	pickup: SpiritTreeExp
 		casual ChargeJump
 		casual BashGrenade
