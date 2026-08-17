@@ -41,6 +41,9 @@ const fassDefaultsFor = (world) => [2, 919772, -1560272, 799776, -120208].map(co
 const apDefaultExport = ["skills", "teleporters", "events"];
 const PLAYER_NAME_MAX = 20;  // matches ap_models.PLAYER_NAME_MAX
 const AP_DEFAULT_HOST = "archipelago.gg";
+// ap/status idle stepdown: a forgotten tab can be visible, so hidden-gating
+// alone can't shed it. [idle seconds before this tier, seconds per poll]
+const AP_IDLE_TIERS = [[600, 30], [120, 15]];
 // mw share name for each ap export category that can clash with it (shared
 // singletons can't also go to the AP pool)
 const apShareNames = {"skills": "Skills", "teleporters": "Teleporters", "events": "World Events", "upgrades": "Upgrades"};
@@ -1148,28 +1151,62 @@ onDrop = (files) => {
         return ap_enabled() && !apHidden && gameId > 0 && inputApMode && seedTabExists && !seedIsGenerating && activeTab === "seed"
     }
 
-    // 5s while watched; hidden tabs and not-yet-connected games slow way
-    // down (this poll used to run 24/7 from every abandoned seed tab)
+    // everything the panel renders except last_activity: it's auto_now on
+    // the link row, so a redundant put would read as news
+    apStatusSignature = (r) => JSON.stringify(r && [
+        r.enabled, r.status, r.host, r.port, r.slots, r.recv_index,
+        r.goal_worlds, r.names_total, r.names_resolved, r.deathlinks_in,
+        r.last_error, r.dropped])
+
+    apNoteActivity = (report) => {
+        let sig = this.apStatusSignature(report)
+        if(sig === this.apLastSignature)
+            return false
+        this.apLastSignature = sig
+        this.apLastChangeAt = Date.now()
+        return true
+    }
+
+    // 5s while anything is changing, then slower. No settled-state gate: a
+    // link that never progresses (refused, never scouted) must still idle out
     apPollDelay = () => {
         if(document.hidden) return 60000
         if(this.state.apNoLink) return 30000
-        return 5000
+        if(this.state.apConnectPending) return 5000
+        let idle = (Date.now() - (this.apLastChangeAt || Date.now())) / 1000
+        let tier = AP_IDLE_TIERS.find(([after]) => idle >= after)
+        return tier ? tier[1] * 1000 : 5000
     }
 
     apPollTick = () => {
         this.fetchApStatus()
+        this.apSchedule()
+    }
+
+    // separate from ticking so a response can move the timer it was already
+    // scheduled under (the delay is picked before the reply lands)
+    apSchedule = () => {
+        if(!this.apPolling) return
+        if(this.apPollTimer) clearTimeout(this.apPollTimer)
         this.apPollTimer = setTimeout(this.apPollTick, this.apPollDelay())
     }
 
+    apRefreshNow = () => {
+        this.fetchApStatus()
+        this.apSchedule()
+    }
+
     startApPoll = () => {
-        if(this.apPollTimer) return
+        if(this.apPolling) return
+        this.apPolling = true
+        // every (re)start begins live: never inherit the previous game's tier
+        this.apLastSignature = null
+        this.apLastChangeAt = Date.now()
         if(!this.apVisListener) {
             this.apVisListener = () => {
-                // back to a visible tab: refresh now, resume the fast cadence
-                if(!document.hidden && this.apPollTimer) {
-                    clearTimeout(this.apPollTimer)
-                    this.apPollTick()
-                }
+                // refresh on return to a visible tab; the listener outlives
+                // the panel, so check it's still polling
+                if(!document.hidden && this.apPolling) this.apRefreshNow()
             }
             document.addEventListener("visibilitychange", this.apVisListener)
         }
@@ -1177,8 +1214,8 @@ onDrop = (files) => {
     }
 
     stopApPoll = () => {
-        if(!this.apPollTimer) return
-        clearTimeout(this.apPollTimer)
+        this.apPolling = false
+        if(this.apPollTimer) clearTimeout(this.apPollTimer)
         this.apPollTimer = null
     }
 
@@ -1192,6 +1229,8 @@ onDrop = (files) => {
         if(gameId !== this.state.gameId) return // stale response from a previous game
         if(status === 200) {
             let report = JSON.parse(responseText)
+            // snap the cadence back on the same response that carried the news
+            let changed = this.apNoteActivity(report)
             let update = {apStatus: report, apNoLink: false, apPollFailed: false}
             // one-time prefill so reconnecting is a single click; an untouched
             // host box counts as empty
@@ -1201,12 +1240,14 @@ onDrop = (files) => {
                 update.apPort = String(report.port)
             }
             this.apPrefilled = true
-            this.setState(update)
+            this.setState(update, changed ? this.apSchedule : undefined)
         } else if(status === 404) {
             if(responseText && responseText.includes("not enabled"))
                 this.setState({apHidden: true}) // server-side ARCHIPELAGO flag is off
-            else
+            else {
+                this.apNoteActivity(null)   // a link that went away is news
                 this.setState({apStatus: null, apNoLink: true, apPollFailed: false}) // no link yet; connect creates one
+            }
         } else {
             this.setState({apPollFailed: true})
         }
@@ -1221,14 +1262,8 @@ onDrop = (files) => {
     apConnectCallback = ({status, responseText}) => {
         this.setState({apConnectPending: false})
         if(status === 200) {
-            // re-arm the poll chain: a pending 30s no-link timer must not
-            // govern the cadence right when the user is watching for
-            // connected/scouting progress
-            if(this.apPollTimer) {
-                clearTimeout(this.apPollTimer)
-                this.apPollTick()
-            } else
-                this.fetchApStatus()
+            // a pending slow timer must not govern the post-connect cadence
+            this.apRefreshNow()
             return
         }
         if(status === 404 && responseText && responseText.includes("not enabled")) {
@@ -1248,7 +1283,7 @@ onDrop = (files) => {
     apDisconnectCallback = ({status, responseText}) => {
         this.setState({apConnectPending: false})
         if(status === 200)
-            this.fetchApStatus()
+            this.apRefreshNow()
         else if(status === 404 && responseText && responseText.includes("not enabled"))
             this.setState({apHidden: true})
         else
