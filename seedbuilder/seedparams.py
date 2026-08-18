@@ -3,7 +3,7 @@ from google.cloud import ndb
 import logging as log
 import random
 
-from util import enums_from_strlist, picks_by_coord, get_preset_from_paths
+from util import enums_from_strlist, picks_by_coord, get_preset_from_paths, MIN_VER
 from enums import (MultiplayerGameType, ShareType, Variation, LogicPath, KeyMode, PathDifficulty, presets)
 from collections import OrderedDict
 from threading import Lock
@@ -564,6 +564,9 @@ class SeedGenParams(ndb.Model):
             else:
                 flags = f"Sync{game_id}.{player},{flags}"
         outlines = [flags]
+        # 4.2.15+ refuses the seed and tells the player to update; older dlls
+        # skip metadata lines, and pre-4.2.9 ones choke on them
+        outlines.append("// MIN_CLIENT_VER: %s.%s.%s" % tuple(MIN_VER))
         if self.ap_mode:
             from archipelago.convert import keytiers_meta
             meta = keytiers_meta(self, player)

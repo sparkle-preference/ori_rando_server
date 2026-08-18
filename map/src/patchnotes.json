@@ -10,6 +10,43 @@
   ],
   "releases": [
     {
+      "version": "4.2.15",
+      "date": "2026-08-18",
+      "announce": "all",
+      "changes": [
+        {
+          "text": "The randomizer can update itself. When a newer version exists, the main menu offers to download it and restart.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "major",
+          "sub": [
+            "The option only appears when there's a new version to update to."
+          ]
+        },
+        {
+          "text": "Seeds can now specify the minimum required client version to run them.",
+          "category": "Misc",
+          "type": "feature",
+          "importance": "major",
+          "sub": [
+            "The client will print an error if it isn't new enough to run the seed.",
+            "As a result of this change, clients earlier than 4.2.9 will not be able to parse new seeds from the website."
+          ]
+        },
+        {
+          "text": "The title screen says Randomizer under the logo.",
+          "category": "Game",
+          "importance": "minor"
+        },
+        {
+          "text": "Your version number shows in the corner of the main menu and the pause screen.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "minor"
+        }
+      ]
+    },
+    {
       "version": "4.2.14",
       "date": "2026-08-15",
       "announce": "dev",
