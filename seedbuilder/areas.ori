@@ -1998,6 +1998,7 @@ home: MoonGrottoAboveTeleporter 443 -150
 		expert Climb Glide
 		master DoubleJump
 		master Bash AirDash
+		master Lure Bash
 	conn: MoonGrottoStompPlantAccess
 		expert ChargeFlame
 	conn: MoonGrottoSwampAccessArea
