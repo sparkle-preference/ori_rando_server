@@ -1425,7 +1425,9 @@ home: HollowGrove 336 -91
 		casual ChargeJump
 		casual Bash Grenade
 		casual Wind Glide
+		expert ChargeDash
 		master DoubleJump
+		master Lure Bash
 	conn: HoruFields
 		casual Bash
 		standard WallJump Stomp
