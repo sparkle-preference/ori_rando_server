@@ -5274,6 +5274,9 @@ home: MistyMortarSpikeCave -803 -158
 		casual Climb Bash Glide
 		expert Bash DoubleJump
 		master Bash
+		master GrenadeJump
+		master ChargeJump Climb TripleJump
+		master ChargeJump Glide TripleJump
 	conn: MistyKeystone4Ledge
 		casual WallJump Bash Glide
 		casual Climb Bash Glide
@@ -5283,6 +5286,7 @@ home: MistyMortarSpikeCave -803 -158
 		master Bash
 		master ChargeJump TripleJump
 		master ChargeDash
+		master GrenadeJump
 home: MistyKeystone4Ledge -762 -158
 	--anchor point: on the ledge with the 4th keystone
 	pickup: MistyKeystone4
@@ -5295,6 +5299,7 @@ home: MistyKeystone4Ledge -762 -158
 		master ChargeDash
 		master ChargeJump DoubleJump Health=10
 		master Lure Bash
+		master GrenadeJump
 home: MistyBeforeDocks -694 -93
 	--anchor point: to the right of the sit shoot shark, on the docks
 	conn: MistyAbove200xp
