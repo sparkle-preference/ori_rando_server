@@ -1922,7 +1922,7 @@ home: UpperGrotto 433 -122
 		expert Climb ChargeDash
 		master Bash
 		master DoubleJump Glide
-		-- master DoubleJump
+		master DoubleJump
 	conn: MoonGrottoStompPlantAccess
 		casual Stomp
 		standard Climb ChargeJump
@@ -2030,7 +2030,7 @@ home: MoonGrotto 517 -177
 		expert Energy=2 Climb Glide
 		expert Energy=2 Climb DoubleJump Health=3
 		expert Energy=2 ChargeDash
-		-- master Energy=2 DoubleJump
+		master Energy=2 DoubleJump
 	pickup: BelowGrottoTeleporterHealthCell
 		casual DoubleJump Bash WallJump
 		casual DoubleJump Bash Climb
@@ -2346,6 +2346,7 @@ home: LowerLeftGumoHideout 439 -371
 		casual WallJump ChargeJump
 		casual Climb ChargeJump
 		casual Bash Grenade
+		expert Climb DoubleJump
 		expert DoubleBash
 		expert ChargeDash
 		master TripleJump
