@@ -607,6 +607,7 @@ home: LowerSpiritCaverns -201 -192
 		standard WallJump DoubleJump
 		expert Climb DoubleJump
 		master TripleJump
+		-- master DoubleJump
 	conn: MidSpiritCaverns
 		casual WallJump
 		casual Climb
@@ -1533,6 +1534,7 @@ home: OuterSwampSwarmLedge 600 -90
 		master Bash
 		master DoubleJump Glide
 		master TripleJump
+		-- master DoubleJump
 	pickup: OuterSwampMortarPlant
 		standard Grenade
 	conn: OuterSwampMortarPlantAccess
@@ -1920,6 +1922,7 @@ home: UpperGrotto 433 -122
 		expert Climb ChargeDash
 		master Bash
 		master DoubleJump Glide
+		-- master DoubleJump
 	conn: MoonGrottoStompPlantAccess
 		casual Stomp
 		standard Climb ChargeJump
@@ -2027,6 +2030,7 @@ home: MoonGrotto 517 -177
 		expert Energy=2 Climb Glide
 		expert Energy=2 Climb DoubleJump Health=3
 		expert Energy=2 ChargeDash
+		-- master Energy=2 DoubleJump
 	pickup: BelowGrottoTeleporterHealthCell
 		casual DoubleJump Bash WallJump
 		casual DoubleJump Bash Climb
@@ -2336,6 +2340,7 @@ home: LowerLeftGumoHideout 439 -371
 		expert Climb DoubleJump
 		expert DoubleBash
 		master TripleJump
+		-- master DoubleJump
 	pickup: LeftGumoHideoutHealthCell
 		casual WallJump DoubleJump
 		casual WallJump ChargeJump
@@ -2344,6 +2349,7 @@ home: LowerLeftGumoHideout 439 -371
 		expert DoubleBash
 		expert ChargeDash
 		master TripleJump
+		-- master DoubleJump Glide
 	pickup: LeftGumoHideoutSwim
 		casual Water
 		expert Health=3
