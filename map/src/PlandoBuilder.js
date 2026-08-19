@@ -378,12 +378,14 @@ class PlandoBuiler extends React.Component {
         }, () => this.updateReachable());
     };
 
-    parseUploadedSeed = (seedText) => {
+    // player defaults to the one being edited; a coop fill names each world
+    parseUploadedSeed = (seedText, player) => {
+        player = player || this.state.player
         let lines = seedText.split("\n")
         let newplc = {}
         let newClueOrder = []
         let newEntrances = {}
-        let currplc = this.state.placements[this.state.player]
+        let currplc = this.state.placements[player] || {}
         for (let i = 1, len = lines.length; i < len; i++) {
             let line = lines[i].split("|")
             let loc = parseInt(line[0], 10);
@@ -408,7 +410,7 @@ class PlandoBuiler extends React.Component {
             let stuff = {label: name, value:code+"|"+id};
             if(code === "TW") console.log(stuff)
             newplc[loc] = stuff;
-            if(loc === this.state.pickup.value.loc)
+            if(loc === this.state.pickup.value.loc && player === this.state.player)
                 this.setState({stuff: stuff});
         }
         this.parseFlagLine(lines[0])
@@ -416,11 +418,11 @@ class PlandoBuiler extends React.Component {
         this.setState(prevState => {
                 let retVal = {}
                 retVal.placements = prevState.placements;
-                retVal.placements[prevState.player] = newplc
+                retVal.placements[player] = newplc
                 if(Object.keys(newEntrances).length > 0) {
-                    // imported EN lines belong to the player being edited, like placements
+                    // imported EN lines belong to the player being filled, like placements
                     retVal.entrances = {...prevState.entrances}
-                    retVal.entrances[prevState.player] = newEntrances
+                    retVal.entrances[player] = newEntrances
                 }
                 if(newClueOrder.length === 3)
                     retVal.clueOrder = {value: newClueOrder, label: mkClueOrderLabel(newClueOrder)}
@@ -634,26 +636,31 @@ class PlandoBuiler extends React.Component {
         return data;
     }
 
+    // seedgen can't build Shards Race; those plandos take the dumb fill
+    canFillGen = () => this.state.coop_mode.value !== "SplitShards"
+
+    // one generation per world, in sequence: cloned coop only ever builds one
     doFillGen = () => {
-        var xmlHttp = new XMLHttpRequest();
-        var parser = this.parseUploadedSeed;
-        xmlHttp.onreadystatechange = function() {
-            if (xmlHttp.readyState === 4)
-                (function(res) {
-                    if(xmlHttp.status !== 200)
-                        NotificationManager.error("Unfinishable Seed", "Failed to complete seed using seedgen", 4000);
-                    else
-                        parser(res);
-                })(xmlHttp.responseText);
+        if(!this.canFillGen()) {
+            NotificationManager.error("Shards Race seeds can't be generated any more", "Can't fill this plando", 4000);
+            return
         }
-          let codes = []; 
-          Object.keys(this.state.reachable).forEach((area) => {
-              if(picks_by_area.hasOwnProperty(area))
-                  picks_by_area[area].forEach((pick) => {
-                      if(this.state.placements[this.state.player] && this.state.placements[this.state.player].hasOwnProperty(pick.loc))
-                          codes.push(pick.loc+":"+this.state.placements[1][pick.loc].value.replace("|",""));
-                  });
-          });
+        let players = Object.keys(this.state.placements)
+        NotificationManager.info(players.length > 1 ? `Generating ${players.length} seeds based on current placements...`
+                                                    : "Generating seed based on current placements...",
+                                 "Generating Seed", 5000);
+        this.fillGenPlayer(players, 0)
+    }
+
+    fillGenPlayer = (players, i) => {
+        if(i >= players.length)
+            return
+        let player = players[i]
+        // every placement, not just reachable ones: an unforwarded one comes back placed twice
+        let placed = this.state.placements[player] || {};
+        let codes = Object.keys(picks_by_loc)
+            .filter(loc => placed.hasOwnProperty(loc))
+            .map(loc => loc + ":" + placed[loc].value.replace("|", ""));
 
         let mode = "";
         let urlParams = [];
@@ -667,14 +674,31 @@ class PlandoBuiler extends React.Component {
             else urlParams.push(`flag=${flag}`)
         });
         if(mode) urlParams.push(`key_mode=${mode}`)
+        // the plando's own coop settings, or the fill comes back a solo seed
+        if(this.state.coop_mode.value === "Shared") {
+            urlParams.push(`players=${players.length}`)
+            urlParams.push(`sync_mode=Shared`)
+            this.state.share_types.forEach(s => urlParams.push(`sync_shared=${s.value}`))
+        }
         if(codes.length > 0)
             urlParams.push(`fass=${codes.join("|")}`);
         urlParams.push("tracking=Disabled");
         urlParams.push(`seed=${Math.round(Math.random() * 1000000000)}`);
-        let url = `/plando/fillgen?${urlParams.join("&")}`;
-        xmlHttp.open("GET", url, true);
+
+        let xmlHttp = new XMLHttpRequest();
+        xmlHttp.onreadystatechange = () => {
+            if(xmlHttp.readyState !== 4)
+                return
+            if(xmlHttp.status !== 200) {
+                NotificationManager.error(players.length > 1 ? `Player ${player}'s seed couldn't be completed` : "Unfinishable Seed",
+                                          "Failed to complete seed using seedgen", 4000);
+                return
+            }
+            this.parseUploadedSeed(xmlHttp.responseText, player)
+            this.fillGenPlayer(players, i + 1)
+        }
+        xmlHttp.open("GET", `/plando/fillgen?${urlParams.join("&")}`, true);
         xmlHttp.send(null);
-        NotificationManager.info("Generating Seed", "Generating seed based on current placements...", 5000);
     }
 
 
@@ -883,7 +907,8 @@ class PlandoBuiler extends React.Component {
         let fill_button = this.state.fill_opts.dumb ? (
             <Button color="warning" onClick={this.doFill} >Fill (Dumb)</Button>
         ) : (
-            <Button color="success" onClick={this.doFillGen} >Fill</Button>
+            <Button color="success" onClick={this.doFillGen} disabled={!this.canFillGen()}
+                    title={this.canFillGen() ? undefined : "Shards Race seeds can't be generated any more -- use Fill (Dumb)"}>Fill</Button>
         )
         let logic_path_buttons = logic_paths.map(lp => {return (<Col key={lp} className="pr-0" xs="4"><Button block size="sm" disabled={lp==="casual-core"} outline={!modes.includes(lp)} onClick={this.onMode(lp)}>{lp}</Button></Col>)});
         let formattingLegend = flags.includes('show_message_legend') ? (
