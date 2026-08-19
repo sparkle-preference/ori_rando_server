@@ -39,8 +39,54 @@ class PatchNotesDataTestCase(unittest.TestCase):
                 self.assertTrue(c["text"].strip(), where)
                 self.assertIsInstance(c.get("sub", []), list)
 
+    def test_no_version_has_a_fifth_part(self):
+        # the 3.x notes predate the third number; a fourth is a site-only release
+        for r in DOC["releases"]:
+            parts = r["version"].split(".")
+            self.assertLessEqual(len(parts), 4, r["version"])
+            if len(parts) == 4:
+                self.assertGreater(int(parts[3]), 0, r["version"])
+
     def test_the_newest_release_is_the_running_version(self):
-        self.assertEqual(DOC["releases"][0]["version"], main.VERSION)
+        # equal to it, or a site revision sitting on top of it
+        newest = version_tuple(DOC["releases"][0]["version"])
+        self.assertEqual(newest[:3], tuple(main.VER))
+
+
+class LatestNoteVersionTestCase(unittest.TestCase):
+    """The changelog link and current= both hang off this; a site-only release
+    is the whole reason it isn't just VERSION."""
+
+    def setUp(self):
+        self.doc = main.patchnotes_doc()
+
+    def tearDown(self):
+        main._patchnotes_cache = self.doc
+
+    def _with_newest(self, version):
+        release = dict(DOC["releases"][0], version=version)
+        main._patchnotes_cache = dict(self.doc, releases=[release] + DOC["releases"])
+        return main.latest_note_version()
+
+    def test_it_is_the_newest_release(self):
+        self.assertEqual(main.latest_note_version(), DOC["releases"][0]["version"])
+
+    def test_a_website_release_moves_it_without_moving_ver(self):
+        site = "%s.%s.%s.1" % tuple(main.VER)
+        self.assertEqual(self._with_newest(site), site)
+        self.assertEqual(main.VERSION, "%s.%s.%s" % tuple(main.VER))
+
+    def test_a_missing_file_falls_back_to_the_dll_version(self):
+        main._patchnotes_cache = None
+        real = main.patchnotes_doc
+
+        def boom():
+            raise main.PatchnotesMissing("gone")
+        main.patchnotes_doc = boom
+        try:
+            self.assertEqual(main.latest_note_version(), main.VERSION)
+        finally:
+            main.patchnotes_doc = real
 
 
 class AnnounceEmbedTestCase(unittest.TestCase):

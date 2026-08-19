@@ -177,6 +177,8 @@ const get_canon_index = ({item}) => CANONICAL_ORDERING[item]+1 || 99
 const keymode_options = ["None", "Shards", "Limitkeys", "Clues", "Free"];
 
 const VERSION = get_param("version")
+// moves on a site-only release, so the changelog link goes unread for those too
+const NOTES_ANCHOR = get_param("notes_anchor") || VERSION
 const SPAWN_TPS = ["Glades", "Grove", "Swamp", "Grotto", "Forlorn", "Valley", "Horu", "Ginso", "Sorrow", "Blackroot"]
 const STUPID_KEYS = {
     "blame": "vulajin",
@@ -2077,7 +2079,7 @@ onDrop = (files) => {
                 <Cent><h3>Seed Generator {VERSION}</h3></Cent>
             </Row>
             <Row className="pb-1">
-                <Cent><a target="blank" href={`/patchnotes#${VERSION}`}>(changelog)</a></Cent>
+                <Cent><a target="blank" href={`/patchnotes#${NOTES_ANCHOR}`}>(changelog)</a></Cent>
             </Row>
             <Row className="p-3 border">
                 <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "logicModes")}>

@@ -18,6 +18,20 @@ const TAG_COLORS = {Archipelago: "primary", Multiworld: "info"};
 
 const isOn = (change, everything) => everything || change.importance === "major";
 
+// A fourth number is a site-only release: labels split it out, links stay raw.
+const siteRev = (v) => {
+    let parts = v.split(".")
+    return parts.length > 3 ? [parts.slice(0, 3).join("."), parts[3]] : [v, null]
+};
+const displayVersion = (v) => {
+    let [dll, rev] = siteRev(v)
+    return rev ? `${dll} — Web Update ${rev}` : dll
+};
+const shortVersion = (v) => {
+    let [dll, rev] = siteRev(v)
+    return rev ? `${dll}+${rev}` : dll
+};
+
 // Within a category: Features, then Bugfixes, then changes that are neither
 // (credits, an event ending, an option being retired). Archipelago sinks to the
 // bottom of whichever section it lands in -- it's still alpha.
@@ -84,7 +98,7 @@ const Release = ({release, everything, latest, onShowEverything}) => {
         <Card className={"mb-3" + (latest ? " border-primary pn-latest" : "")} id={release.version}>
             <CardHeader tag="h5" className="d-flex align-items-center flex-wrap">
                 <a href={"#" + release.version} className="mr-2" title="Link to this release">
-                    {release.version}
+                    {displayVersion(release.version)}
                 </a>
                 {latest ? <Badge color="primary" className="mr-2">Latest</Badge> : null}
                 {release.title ? <span className="mr-2 font-weight-normal">{release.title}</span> : null}
@@ -137,14 +151,23 @@ export default class PatchNotes extends React.Component {
     componentDidMount() {
         // deep links from discord land on a specific version
         let target = decodeURIComponent(window.location.hash.replace("#", ""))
-        if(target && RELEASES.some(r => r.version === target))
-            this.scrollTo(target)
+        let release = RELEASES.find(r => r.version === target)
+        if(!release)
+            return
+        // nothing major means Highlights would land them on an empty card
+        let allMinor = !release.changes.some(c => c.importance === "major")
+        if(allMinor)
+            this.setState({everything: true})
+        // the collapse animates for .3s, so the target is still moving
+        this.scrollTo(target, allMinor ? 400 : 100)
     }
 
-    scrollTo = (version) => {
+    scrollTo = (version, delay = 100) => {
         let el = document.getElementById(version)
         if(el)
-            setTimeout(() => window.scrollTo({top: el.offsetTop, behavior: "smooth"}), 100)
+            // not offsetTop: a card's offsetParent is its column, not the page
+            setTimeout(() => window.scrollTo({top: el.getBoundingClientRect().top + window.scrollY,
+                                              behavior: "smooth"}), delay)
     }
 
     jumpTo = (version) => (e) => {
@@ -181,10 +204,12 @@ export default class PatchNotes extends React.Component {
                                     </Button>
                                 </ButtonGroup>
                             </Col>
-                            <Col className="text-md-right">
+                        </Row>
+                        <Row className="align-items-center">
+                            <Col xs="12" md="auto" className="mb-2 mb-md-0">
                                 <small className="text-muted">
                                     {everything
-                                        ? "Every change that shipped, down to the small fixes."
+                                        ? "All user-facing changes."
                                         : "The changes worth knowing about."}
                                 </small>
                             </Col>
@@ -218,7 +243,7 @@ export default class PatchNotes extends React.Component {
                                                         href={"#" + v}
                                                         onClick={this.jumpTo(v)}
                                                     >
-                                                        <small>{v}</small>
+                                                        <small>{shortVersion(v)}</small>
                                                     </a>
                                                 ))}
                                             </div>

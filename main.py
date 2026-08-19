@@ -374,6 +374,8 @@ def active_games(hours=12):
 @app.route('/')
 def main_page():
     template_values = template_vals("MainPage", "Ori DE Randomizer %s" % VERSION, User.get())
+    # not the displayed version: this moves on a site-only release, so the link goes unread
+    template_values['notes_anchor'] = latest_note_version()
     if ARCHIPELAGO:
         template_values.update(ap_versions())
     # _, error = CustomLogic.read()
@@ -2110,6 +2112,16 @@ def version_tuple(v):
         return ()
 
 
+def latest_note_version():
+    """The newest release in the notes: VER, plus a fourth number when the site
+    shipped alone. Falls back to VERSION, so a missing file 503s only its own routes."""
+    try:
+        releases = patchnotes_doc()["releases"]
+    except PatchnotesMissing:
+        return VERSION
+    return releases[0]["version"] if releases else VERSION
+
+
 @app.route('/patchnotes.json')
 def patchnotes_json():
     """The notes as data. ?since=4.2.9 returns only releases newer than that,
@@ -2132,7 +2144,8 @@ def patchnotes_json():
         releases = [dict(r, changes=[c for c in r["changes"] if c["importance"] == "major"])
                     for r in releases]
 
-    body = json.dumps({"categories": doc["categories"], "current": VERSION, "releases": releases})
+    # the newest note, not the dll version: it's what a caller passes back as since=
+    body = json.dumps({"categories": doc["categories"], "current": latest_note_version(), "releases": releases})
     resp = make_response(body)
     resp.headers["Content-Type"] = "application/json"
     return resp
