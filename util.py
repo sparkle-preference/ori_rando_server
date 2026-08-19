@@ -27,6 +27,10 @@ VER = [4, 2, 15]
 MIN_VER = [4, 2, 15]
 BETA_VER = [4, 2, 15]
 
+# Seed file layout, deliberately not tied to the versions above: bump it only
+# when a client that reads one format cannot read the other.
+SEED_FORMAT = 1
+
 # Feature flags (env vars; unset/0 = off)
 def _flag(name):
     return os.environ.get(name, "0") not in ("", "0", "false", "False")

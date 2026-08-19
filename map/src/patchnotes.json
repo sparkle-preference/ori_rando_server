@@ -15,7 +15,7 @@
       "announce": "all",
       "changes": [
         {
-          "text": "The randomizer can update itself. When a newer version exists, the main menu offers to download it and restart.",
+          "text": "It's now possible to update your randomizer in-game! Select \"Update to $(Version)\" from the main menu to download and then apply the latest update.",
           "category": "Game",
           "type": "feature",
           "importance": "major",
@@ -24,19 +24,19 @@
           ]
         },
         {
-          "text": "Seeds can now specify the minimum required client version to run them.",
+          "text": "The .dat seed file format is now versioned, and the DLL knows which seed format versions it's compatible with.",
           "category": "Misc",
           "type": "feature",
           "importance": "major",
           "sub": [
-            "The client will print an error if it isn't new enough to run the seed.",
+            "The game will print an error if it can't read the currently-loaded seed and explain how to fix it.",
             "As a result of this change, clients earlier than 4.2.9 will not be able to parse new seeds from the website."
           ]
         },
         {
-          "text": "The title screen says Randomizer under the logo.",
+          "text": "The title screen says Randomizer under the logo!",
           "category": "Game",
-          "importance": "minor"
+          "importance": "major"
         },
         {
           "text": "Your version number shows in the corner of the main menu and the pause screen.",
