@@ -89,6 +89,7 @@ class Spoilers extends React.Component {
 }
 
 const Release = ({release, everything, latest, onShowEverything}) => {
+    let [dllVersion, siteUpdate] = siteRev(release.version)
     let groups = CATEGORIES
         .map(cat => ({cat, items: release.changes.filter(c => c.category === cat).sort(byTagCombo)}))
         .filter(g => g.items.length > 0)
@@ -105,6 +106,11 @@ const Release = ({release, everything, latest, onShowEverything}) => {
                 <small className="ml-auto text-muted font-weight-normal">{release.date}</small>
             </CardHeader>
             <CardBody>
+                {siteUpdate ? (
+                    <p className="text-muted mb-2">
+                        <small><i>(this is a site-only update. {dllVersion} is still the latest dll)</i></small>
+                    </p>
+                ) : null}
                 {release.headline ? <p>{release.headline}</p> : null}
                 {!anyVisible ? (
                     <p className="text-muted mb-0">
@@ -158,9 +164,17 @@ export default class PatchNotes extends React.Component {
         let allMinor = !release.changes.some(c => c.importance === "major")
         if(allMinor)
             this.setState({everything: true})
-        // the collapse animates for .3s, so the target is still moving
-        this.scrollTo(target, allMinor ? 400 : 100)
+        // the newest release sits right under the header, and most links point
+        // at it: staying up top keeps the Highlights/Everything toggle on screen
+        if(release === RELEASES[0])
+            this.scrollToTop()
+        else
+            // the collapse animates for .3s, so the target is still moving
+            this.scrollTo(target, allMinor ? 400 : 100)
     }
+
+    // undoes the browser's own jump to the fragment, which got there first
+    scrollToTop = () => setTimeout(() => window.scrollTo({top: 0}), 100)
 
     scrollTo = (version, delay = 100) => {
         let el = document.getElementById(version)
@@ -210,7 +224,7 @@ export default class PatchNotes extends React.Component {
                                 <small className="text-muted">
                                     {everything
                                         ? "All user-facing changes."
-                                        : "The changes worth knowing about."}
+                                        : "Major changes only."}
                                 </small>
                             </Col>
                         </Row>

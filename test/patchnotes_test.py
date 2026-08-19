@@ -128,6 +128,19 @@ class AnnounceEmbedTestCase(unittest.TestCase):
         self.assertEqual(main.announce_embed(self.RELEASE, "https://x")["url"],
                          "https://x/patchnotes#9.9.9")
 
+    def test_an_ordinary_release_says_nothing_about_dlls(self):
+        self.assertIsNone(main.site_only_note(self.RELEASE["version"]))
+        self.assertNotIn("site-only", self._body())
+
+    def test_a_site_only_release_names_the_dll_it_sits_on(self):
+        site = dict(self.RELEASE, version="9.9.9.2")
+        body = main.announce_embed(site, "https://x")["description"]
+        # first line, italicised, and pointing at the three-part version
+        self.assertTrue(body.startswith("-# *(this is a site-only update. 9.9.9 is still the latest dll)*"), body)
+        # the aside is not a change: it must not stand in for the small-fixes line
+        minor_only = dict(site, changes=[c for c in site["changes"] if c["importance"] == "minor"])
+        self.assertIn("Small fixes only", main.announce_embed(minor_only, "https://x")["description"])
+
 
 class AnnounceChannelSelectionTestCase(unittest.TestCase):
     """announce_patchnotes(channels=...) is what keeps catching one channel up

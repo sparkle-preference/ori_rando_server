@@ -10,6 +10,41 @@
   ],
   "releases": [
     {
+      "version": "4.2.16.1",
+      "date": "2026-08-19",
+      "announce": "all",
+      "changes": [
+        {
+          "text": "Bingo boards built from a seed have a Reroll Seed button, which rolls a new rando seed using the current seed's settings and then opens the bingo creation page for that new seed.",
+          "category": "Bingo",
+          "type": "feature",
+          "importance": "major"
+        },
+        {
+          "text": "The owner of a bingo game can now reroll the bingo board if no players have joined the bingo lobby.",
+          "category": "Bingo",
+          "type": "feature",
+          "importance": "major"
+        },
+        {
+          "text": "Added a system to publish site-only patch notes for site changes without matching dll updates (like the one you're currently reading).",
+          "category": "Website",
+          "importance": "minor"
+        },
+        {
+          "text": "Opening a link to a patch note with only minor changes now shows all minor changes automatically.",
+          "category": "Website",
+          "importance": "minor"
+        },
+        {
+          "text": "Links to a patch note scroll to the right one.",
+          "category": "Website",
+          "type": "fix",
+          "importance": "minor"
+        }
+      ]
+    },
+    {
       "version": "4.2.16",
       "date": "2026-08-18",
       "announce": "dev",

@@ -2162,11 +2162,23 @@ def announce_webhook(channel):
     return {"main": PATCHNOTES_WEBHOOK_MAIN, "dev": PATCHNOTES_WEBHOOK_DEV}[channel]
 
 
+def site_only_note(version):
+    """The aside a site-only release carries, or None for an ordinary one.
+    Mirrored in PatchNotes.js, which renders the same line on the page."""
+    parts = version.split(".")
+    if len(parts) <= 3:
+        return None
+    return "(this is a site-only update. %s is still the latest dll)" % ".".join(parts[:3])
+
+
 def announce_embed(release, base, everything=False):
     # the dev channel takes the whole list: it is the audience that wants the
     # minor entries, and a dev-only release is often all minor
     shown = [c for c in release["changes"] if everything or c["importance"] == "major"]
     lines = []
+    note = site_only_note(release["version"])
+    if note:
+        lines.append("-# *%s*" % note)  # -# is discord's subtext
     if release.get("headline"):
         lines.append(release["headline"])
     for c in shown:
