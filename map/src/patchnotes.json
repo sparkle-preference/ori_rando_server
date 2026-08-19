@@ -10,6 +10,19 @@
   ],
   "releases": [
     {
+      "version": "4.2.16",
+      "date": "2026-08-18",
+      "announce": "dev",
+      "changes": [
+        {
+          "text": "Fixed a bug making the version number very large after quitting to menu.",
+          "category": "Game",
+          "type": "fix",
+          "importance": "minor"
+        }
+      ]
+    },
+    {
       "version": "4.2.15",
       "date": "2026-08-18",
       "announce": "all",
