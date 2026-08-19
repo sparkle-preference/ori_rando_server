@@ -2385,6 +2385,13 @@ class SeedGenerator:
         balanced = self.params.balanced
         self.params.balanced = False
         for p in self.multi_ps():
+            # the finale is placed outside the fill loop, so its fass lands here or nowhere
+            finale = Location(-240, 512, 'FinalEscape', 'EVWarmth', 0, 'Horu', p)
+            fass_key = (p, finale.get_key())
+            if fass_key in self.forcedAssignments and fass_key not in self.forceAssignedLocs:
+                self.forceAssignedLocs.add(fass_key)
+                self.force_assign(self.forcedAssignments[fass_key], finale)
+                continue
             for item in self.itemPool:
                 if self.itemPool[item] > 0:
                     if ap_ks_pin and base_of(item) == "KS" and untag(item)[1] != p:
