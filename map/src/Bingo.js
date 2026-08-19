@@ -17,6 +17,12 @@ const cardTextSize = iniUrl.searchParams.get("textSize") || "1.5vh"
 const hideFooter = iniUrl.searchParams.has("hideFooter")
 const hideLabels = iniUrl.searchParams.has("hideLabels")
 const blindRace = iniUrl.searchParams.has("blindRace")
+// a transport failure (deploy, network blip) has no status and no body,
+// so it retries quietly: banner once it stops looking momentary, toast
+// only once it persists, backing off so a dead server is not hammered
+const NET_FAIL_BANNER = 3;
+const NET_FAIL_TOAST = 8;
+const NET_BACKOFF_MAX = 30000;
 
 const make_icons = players => players.map(p => (<Media key={`playerIcon${p}`} object style={{width: "25px", height: "25px"}} src={player_icons(p, false)} alt={"Icon for player "+p} />))
 const BingoCard = ({card, progress, players, locked, help, dark, selected, onSelect, colors, hide}) => {
@@ -329,21 +335,22 @@ export default class Bingo extends React.Component {
                       start_with: "", difficulty: "normal", isRandoBingo: false, randoGameId: -1, viewOnly: viewOnly, buildingPlayer: false, meta: false,
                       events: [], startTime: (new Date()), countdownActive: false, isOwner: false, targetCount: targetCount, userBoard: userBoard,
                       teamsDisabled: (teamMax === -1), fromGen: fromGen, teamMax: teamMax, ticksSinceLastSquare: 0, userBoardParams: userBoardParams,
-                      ticking: false
+                      ticking: false, netFails: 0, netRetryAt: 0
                     };
         if(gameId > 0) {
             if(fromGen) {
                 this.state.isRandoBingo = true
                 this.state.randoGameId = gameId
             }
-            let url = `/bingo/game/${gameId}/fetch?first=1&time=${(new Date()).getTime()}`
-            doNetRequest(url, this.createCallback)
+            this.initialUrl = () => `/bingo/game/${gameId}/fetch?first=1&time=${(new Date()).getTime()}`
+            doNetRequest(this.initialUrl(), this.initialCallback)
             this.state.creatingGame = true
             this.state.createModalOpen = false
             this.state.loader = get_random_loader()
         } else if(userBoard)
         {
-            doNetRequest(`/bingo/userboard/${user}/fetch/${gameId}?time=${(new Date()).getTime()}`, this.createCallback)
+            this.initialUrl = () => `/bingo/userboard/${user}/fetch/${gameId}?time=${(new Date()).getTime()}`
+            doNetRequest(this.initialUrl(), this.initialCallback)
             this.state.creatingGame = true
             this.state.createModalOpen = false
             this.state.loader = get_random_loader()
@@ -419,10 +426,12 @@ export default class Bingo extends React.Component {
         this.setState({buildingPlayer: true, loadingText: "Joining game..."}, doNetRequest(url, this.tickCallback))
     }
     tick = (force = false) => {
-        let {fails, gameId, haveGame, ticksSinceLastSquare, user, userBoard, ticking} = this.state;
+        let {fails, gameId, haveGame, ticksSinceLastSquare, user, userBoard, ticking, netRetryAt} = this.state;
         // ticking holds the fetch start time; treat it as stale after 10s so a
         // dropped callback can't permanently stall polling
         if((ticking && Date.now() - ticking < 10000) || fails > 50)
+            return
+        if(netRetryAt && Date.now() < netRetryAt)
             return
         // hidden tabs idle to ~30s whatever the game is doing (OBS browser
         // sources report visible, so stream overlays keep full cadence).
@@ -447,9 +456,31 @@ export default class Bingo extends React.Component {
                 return
             }
             const url = userBoard ? `/bingo/userboard/${user}/fetch/${gameId}` : `/bingo/game/${gameId}/fetch`
-            this.setState({ticking: Date.now()}, () => doNetRequest(url, this.tickCallback))
+            this.setState({ticking: Date.now()}, () => doNetRequest(url, this.pollCallback))
         }
     }
+    // no response at all: the server went away mid-request (a deploy does
+    // this) or the network hiccuped. The next tick recovers, so stay quiet
+    // until it looks like more than a blip.
+    netFailed = (retry) => {
+        let netFails = this.state.netFails + 1
+        let backoff = Math.min(NET_BACKOFF_MAX, 1000 * Math.pow(2, netFails - 1))
+        if(netFails === NET_FAIL_TOAST)
+            NotificationManager.warning("Can't reach the server. Still retrying -- the board will catch up on its own.",
+                                        "Connection lost", 8000)
+        let update = {netFails: netFails, ticking: false, netRetryAt: Date.now() + backoff,
+                      loader: this.state.loader || get_random_loader()}
+        if(this.state.creatingGame && netFails >= NET_FAIL_BANNER)
+            update.loadingText = "Can't reach the server. Retrying..."
+        this.setState(update)
+        if(retry)
+            setTimeout(retry, backoff)
+    }
+
+    // only the poll loop may swallow a dead request; tickCallback is shared
+    // with Join, Start and Remove, where a click deserves an answer
+    pollCallback = (res) => res.status === 0 ? this.netFailed() : this.tickCallback(res)
+
     tickCallback = ({status, responseText}) => {
         if(status !== 200)
         {
@@ -461,13 +492,14 @@ export default class Bingo extends React.Component {
             if(status === 409)
                 stateUpdate.activePlayer = this.state.activePlayer + 1
             else if(this.state.fails < 5 || (this.state.fails - 1) % 5 === 0)
-                NotificationManager.error(`error ${status}: ${responseText}`, "error", 5000)
+                NotificationManager.error(status === 0 ? "Lost contact with the server -- that didn't go through."
+                                          : `error ${status}: ${responseText}`, "error", 5000)
             this.setState(stateUpdate)
         } else {
             let res = JSON.parse(responseText)
             // cached boards have is_owner stripped (it's viewer-specific); keep our
             // value from the initial fetch so the start button doesn't vanish
-            let newState = {events: res.events, startTime: res.start_time_posix, countdownActive: res.countdown, isOwner: res.hasOwnProperty('is_owner') ? res.is_owner : this.state.isOwner, ticking: false}
+            let newState = {events: res.events, startTime: res.start_time_posix, countdownActive: res.countdown, isOwner: res.hasOwnProperty('is_owner') ? res.is_owner : this.state.isOwner, ticking: false, netFails: 0, netRetryAt: 0}
             if(res.gameId !== this.state.gameId)
             {
                 if(this.state.userBoard && this.state.user)
@@ -543,7 +575,22 @@ export default class Bingo extends React.Component {
         doNetRequest(url+`&time=${(new Date()).getTime()}`, this.createCallback)
         this.setState({creatingGame: true, loadingText: "Building game...", createModalOpen: false, loader: get_random_loader()})
     }
+    // the page's own first fetch: retry it (a userboard rides the tick loop,
+    // a board with nothing loaded yet needs the timer)
+    initialCallback = (res) => res.status === 0
+        ? this.netFailed(this.state.userBoard ? null
+                         : () => doNetRequest(this.initialUrl(), this.initialCallback))
+        : this.createCallback(res)
+
     createCallback = ({status, responseText}) => {
+        if(status === 0)
+        {
+            // building a board can't be replayed blind: hand the form back
+            NotificationManager.error("Lost contact with the server before the board was made. Try again.",
+                                      "Connection lost", 5000)
+            this.setState({createModalOpen: true, creatingGame: false})
+            return
+        }
         if(status !== 200)
         {
             if(this.state.fromGen && (status === 404 || responseText.includes("test retry"))) {
@@ -578,7 +625,7 @@ export default class Bingo extends React.Component {
                 if(res.ap_worlds && (activePlayer < 1 || activePlayer > res.ap_worlds))
                     activePlayer = 1
                 this.setState({subtitle: res.subtitle, gameId: res.gameId, createModalOpen: false, creatingGame: false, haveGame: true, offset: res.offset || offset,
-                              fails: 0, dispDiff: res.difficulty || dispDiff, teams: res.teams, paramId: res.paramId, activePlayer: activePlayer, ticksSinceLastSquare: 0,
+                              fails: 0, netFails: 0, netRetryAt: 0, dispDiff: res.difficulty || dispDiff, teams: res.teams, paramId: res.paramId, activePlayer: activePlayer, ticksSinceLastSquare: 0,
                               currentRecord: 0, cards: res.cards, events: res.events, targetCount: res.bingo_count, fromGen: false, teamMax: res.teamMax || -1, discSquares: res.discovery || [],
                               lockout: res.lockout || false, startTime: res.start_time_posix, isOwner: res.is_owner, countdownActive: res.countdown, teamsDisabled: !res.teams_allowed,
                               apWorlds: res.ap_worlds || 0}, this.updateUrl);
@@ -826,6 +873,7 @@ export default class Bingo extends React.Component {
                         <Cent><h3>{headerText}</h3></Cent>
                     </Col>
                 </Row>
+                {this.reconnectBanner()}
                 {subheader}
                 {creatorControls}
                 <Row className="flex-nowrap justify-content-center align-items-center px-1">
@@ -853,6 +901,17 @@ export default class Bingo extends React.Component {
             </Container>
         )
     }
+    reconnectBanner = () => {
+        if(this.state.netFails < NET_FAIL_BANNER)
+            return null
+        return (
+            <Row className="p-1 justify-content-center align-items-center">
+                <Col xs="auto" className="p-1">{this.state.loader}</Col>
+                <Col xs="auto" className="p-1"><Cent>Reconnecting...</Cent></Col>
+            </Row>
+        )
+    }
+
     loadingModal = (style, text) => { return (
         <Modal size="sm" isOpen={this.state.creatingGame || this.state.buildingPlayer} backdrop={"static"} className={"modal-dialog-centered"}>
             <ModalHeader style={style}><Cent>{text}</Cent></ModalHeader>
