@@ -2138,7 +2138,12 @@ class SeedGenerator:
                     key = self.pool_key(tag(item, fass_p))
                     if key in self.itemPool:
                         self.itemPool[key] -= 1
-                    self.spoilerGroup[item].append(item + " preplaced at %s \n" % all_locations[loc].to_string() if loc in all_locations else loc)
+                    loc_name = all_locations[loc].to_string() if loc in all_locations else str(loc)
+                    name = item
+                    if not self.solo():
+                        name = "Shared %s" % item if self.is_shared_base(item) else "Player %s's %s" % (fass_p, item)
+                        loc_name = "Player %s's %s" % (p, loc_name)
+                    self.spoilerGroup[item].append("%s preplaced at %s \n" % (name, loc_name))
             tagged_v = self.pool_key(tag(base_v, fass_p))
             if tagged_v in self.itemPool:
                 self.itemPool[tagged_v] -= 1
