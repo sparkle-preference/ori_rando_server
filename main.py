@@ -2,6 +2,7 @@
 import random
 import json
 import os
+import re
 import requests
 from html import escape
 from collections import Counter, defaultdict
@@ -1512,6 +1513,88 @@ def _bingo_start_game_inner(game_id):
     bingo.put()
     return jsonres
 
+@app.route('/bingo/game/<int:game_id>/reroll') #BingoRerollSeed =
+def bingo_reroll_seed(game_id):
+    """A new seed on this game's settings, handed to the board builder as if it
+    had just come from the generator."""
+    game = Game.with_id(game_id)
+    if not game:
+        return text_resp("Game %s not found!" % game_id, 404)
+    if not game.params:
+        return text_resp("This bingo game has no seed to reroll", 412)
+    params = game.fetch_params()
+    if getattr(params, "ap_mode", False):
+        return text_resp("An Archipelago seed comes from its room, so it can't be rerolled here", 412)
+    old_params = params.to_json()
+    old_params['seed'] = str(random.randint(0, 1000000000))
+    new_params = SeedGenParams.from_json(old_params).get()
+    # as in /reroll: modes this game already exists in pass, impossible ones refuse
+    problem = seed_mode_problem(new_params, mw_override=True, ap_override=True)
+    if problem:
+        return text_resp(problem, 409)
+    if not new_params.generate():
+        return text_resp("Failed to generate seed!", 500)
+    new_game = Game.from_params(new_params)
+    url = "/bingo/board?game_id=%s&fromGen=1&seed=%s&bingoLines=%s" % (new_game.key.id(), new_params.seed, new_params.bingo_lines)
+    bingo = game.bingo_data.get() if game.bingo_data else None
+    if bingo and bingo.discovery:
+        url += "&disc=%s" % bingo.discovery
+    if new_params.sync.enabled and new_params.sync.mode == MultiplayerGameType.SHARED:
+        url += "&teamMax=%s" % new_params.players
+    return redirect(url)
+
+@app.route('/bingo/game/<int:game_id>/reroll_board') #BingoRerollBoard =
+def bingo_reroll_board(game_id):
+    with bingo_lock(game_id):
+        return _bingo_reroll_board_inner(game_id)
+
+def _bingo_reroll_board_inner(game_id):
+    now = datetime.utcnow()
+    bingo = BingoGameData.with_id(game_id)
+    if not bingo:
+        return text_resp("Bingo game %s not found" % game_id, 404)
+    user = User.get()
+    if not user or bingo.creator != user.key:
+        return text_resp("Only the creator can reroll the board", 401)
+    # a joined player is holding a seed file with this board's goals baked into
+    # it; the join route shares this lock, so nobody slips in mid-reroll
+    if bingo.players or bingo.teams:
+        return text_resp("Someone has already joined this board", 412)
+    game = Game.with_id(game_id)  # a board's id is its game's
+    difficulty = param_val("difficulty") or bingo.difficulty or "normal"
+    seed = param_val("seed") or bingo.seed or ""
+    if seed == (bingo.seed or ""):
+        seed = bump_board_seed(seed)  # a reroll has to move the board even when nothing else changed
+    d = int(param_val("discCount") or 0)
+    lockout = bool(int(param_val("lockout") or 0))
+    meta = param_flag("meta")
+    bingo.board = bingo_board_cards(game.fetch_params() if game and game.params else None,
+                                    difficulty, seed, d, meta, lockout)
+    bingo.difficulty = difficulty
+    bingo.seed = seed
+    bingo.lockout = lockout
+    bingo.meta = meta
+    bingo.discovery = None
+    bingo.disc_squares = []
+    if d:
+        bingo.discovery_squares(d)
+    if param_flag("lines"):
+        bingo.bingo_count = int(param_val("lines"))
+        bingo.square_count = None
+    if param_flag("squares"):
+        bingo.square_count = int(param_val("squares"))
+    bingo.teams_allowed = param_flag("teams") or bingo.teams_shared or bool(bingo.ap_worlds)
+    bingo.event_log.append(BingoEvent(event_type="miscBoard rerolled!", timestamp=now))
+    bingo.put()
+    # in the shape a poll expects, or every viewer sits on the old board for a TTL
+    Cache.set_board(game_id, bingo.get_json())
+    res = bingo.get_json(True)
+    if param_flag("time"):
+        server_now = timegm(now.timetuple()) * 1000
+        client_now = int(param_val("time"))
+        res["offset"] = server_now - client_now
+    return json_resp(res)
+
 @app.route('/bingo/game/<int:game_id>/add/<int:player_id>') #BingoAddPlayer =
 def bingo_add_player(game_id, player_id):
     # all writers of a game's BingoGameData serialize on the same per-game
@@ -1608,7 +1691,28 @@ def bingo_download_seed(game_id, player_id):
     else:
         return text_resp(seed)
 
-@app.route('/bingo/new') #BingoCreate =     
+RR_SUFFIX = re.compile(r"RR(\d+)$")
+
+def bump_board_seed(seed):
+    """The next board seed after this one. Mirrored in Bingo.js so the reroll
+    modal shows the seed it will actually use; this side is authoritative."""
+    seed = seed or ""
+    match = RR_SUFFIX.search(seed)
+    if match:
+        return seed[:match.start()] + "RR%s" % (int(match.group(1)) + 1)
+    return seed + "RR1"
+
+def bingo_board_cards(params, difficulty, seed, disc, meta, lockout):
+    """A fresh board. params is the seed behind a rando board, or None for a
+    vanilla+ one."""
+    rand = random.Random()
+    rand.seed(seed)
+    if not params:
+        return BingoGenerator.get_cards(rand, 25, False, difficulty, True, disc, meta, lockout, False)
+    return BingoGenerator.get_cards(rand, 25, True, difficulty, Variation.OPEN_WORLD in params.variations,
+                                    disc, meta, lockout, Variation.KEYSANITY in params.variations)
+
+@app.route('/bingo/new') #BingoCreate =
 def bingo_create_game():
         now = datetime.utcnow()
         difficulty = param_val("difficulty") or "normal"
@@ -1673,11 +1777,11 @@ def bingo_create_game():
             game          = key,
             rand_dat      = "\n".join(base),
             lockout       = lockout,
-            meta          = meta
+            meta          = meta,
+            seed          = seed  # kept whether or not discovery needs it: a reroll bumps it
         )
         if d:
             bingo.discovery = d
-            bingo.seed = seed
         if param_flag("lines"):
             bingo.bingo_count  = int(param_val("lines"))
         if param_flag("squares"):
@@ -1848,17 +1952,17 @@ def add_bingo_to_game(game_id):
 
         bingo = BingoGameData(
             id            = game_id,
-            board         = BingoGenerator.get_cards(rand, 25, True, difficulty, Variation.OPEN_WORLD in params.variations, d, meta, lockout, Variation.KEYSANITY in params.variations),
+            board         = bingo_board_cards(params, difficulty, seed, d, meta, lockout),
             difficulty    = difficulty,
             subtitle      = params.flag_line(),
             teams_allowed = param_flag("teams"),
             teams_shared  = params.players > 1 and params.sync.mode == MultiplayerGameType.SHARED,
             game          = game.key,
             lockout       = lockout,
-            meta          = meta
+            meta          = meta,
+            seed          = seed  # kept whether or not discovery needs it: a reroll bumps it
         )
         if d:
-            bingo.seed = seed
             bingo.discovery_squares(d)
 
         if bingo.teams_shared and not bingo.teams_allowed:

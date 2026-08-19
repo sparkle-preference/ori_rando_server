@@ -24,6 +24,12 @@ const NET_FAIL_BANNER = 3;
 const NET_FAIL_TOAST = 8;
 const NET_BACKOFF_MAX = 30000;
 
+// display only: main.py's bump_board_seed decides the seed a reroll really uses
+const bumpBoardSeed = (seed) => {
+    let match = /RR(\d+)$/.exec(seed || "")
+    return match ? (seed || "").slice(0, match.index) + `RR${parseInt(match[1], 10) + 1}` : `${seed || ""}RR1`
+}
+
 const make_icons = players => players.map(p => (<Media key={`playerIcon${p}`} object style={{width: "25px", height: "25px"}} src={player_icons(p, false)} alt={"Icon for player "+p} />))
 const BingoCard = ({card, progress, players, locked, help, dark, selected, onSelect, colors, hide}) => {
     let cardStyles = {width: '18vh', height: '18vh', minWidth: '120px', maxWidth: '200px', minHeight: '120px', maxHeight: '200px', flexGrow: 1}
@@ -335,14 +341,13 @@ export default class Bingo extends React.Component {
                       start_with: "", difficulty: "normal", isRandoBingo: false, randoGameId: -1, viewOnly: viewOnly, buildingPlayer: false, meta: false,
                       events: [], startTime: (new Date()), countdownActive: false, isOwner: false, targetCount: targetCount, userBoard: userBoard,
                       teamsDisabled: (teamMax === -1), fromGen: fromGen, teamMax: teamMax, ticksSinceLastSquare: 0, userBoardParams: userBoardParams,
-                      ticking: false, netFails: 0, netRetryAt: 0
+                      ticking: false, netFails: 0, netRetryAt: 0, rerollingBoard: false
                     };
         if(gameId > 0) {
             if(fromGen) {
                 this.state.isRandoBingo = true
                 this.state.randoGameId = gameId
             }
-            this.initialUrl = () => `/bingo/game/${gameId}/fetch?first=1&time=${(new Date()).getTime()}`
             doNetRequest(this.initialUrl(), this.initialCallback)
             this.state.creatingGame = true
             this.state.createModalOpen = false
@@ -357,6 +362,9 @@ export default class Bingo extends React.Component {
         }
 
     }
+
+    // off state, not the constructor: a reroll can strike a page that built the game itself
+    initialUrl = () => `/bingo/game/${this.state.gameId}/fetch?first=1&time=${(new Date()).getTime()}`
 
     componentWillMount() {
         this.tick()
@@ -523,11 +531,14 @@ export default class Bingo extends React.Component {
             })
             newState.teams = teams
             newState.cards = [...this.state.cards]
-            if(newState.cards.length !== res.cards.length)
-                console.log("error! card array length mismatch")
+            // a poll carries no card text, so a board that isn't ours is refetched whole
+            if(newState.cards.length !== res.cards.length || res.cards.some((c, i) => c.name !== newState.cards[i].name)) {
+                if(!this.state.userBoard && !this.state.viewOnly)
+                    NotificationManager.info("The game owner rolled a new one.", "Board rerolled", 5000)
+                this.setState({ticking: false}, () => doNetRequest(this.initialUrl(), this.createCallback))
+                return
+            }
             for(let i = 0; i < res.cards.length; i++) {
-                if(res.cards[i].name !== newState.cards[i].name)
-                    console.log(`card update mismatch! square ${i}, ${res.cards[i].name} was not ${newState.cards[i].name}`)
                 newState.cards[i].progress = {...res.cards[i].progress}
                 newState.cards[i].completed_by = res.cards[i].completed_by
                 newState.cards[i].owner = res.cards[i].owner
@@ -546,10 +557,12 @@ export default class Bingo extends React.Component {
         }
     }
     createGame = () => {
-        let {isRandoBingo, discovery, discCount, noTimer, targetCount, goalMode, lockout, squareCount, randoGameId, 
-            startSkills, startCells, startMisc, showInfo, difficulty, teamsDisabled, seed, meta, testIters} = this.state;
+        let {isRandoBingo, discovery, discCount, noTimer, targetCount, goalMode, lockout, squareCount, randoGameId, gameId,
+            startSkills, startCells, startMisc, showInfo, difficulty, teamsDisabled, seed, meta, testIters, rerollingBoard} = this.state;
         let url
-        if(isRandoBingo) {
+        if(rerollingBoard) {
+            url = `/bingo/game/${gameId}/reroll_board?difficulty=${difficulty}`
+        } else if(isRandoBingo) {
             url = `/bingo/from_game/${randoGameId}?difficulty=${difficulty}`
         } else {
             url = `/bingo/new?skills=${startSkills}&cells=${startCells}&misc=${startMisc}&difficulty=${difficulty}`
@@ -573,8 +586,13 @@ export default class Bingo extends React.Component {
         url += `&seed=${seed}`
 
         doNetRequest(url+`&time=${(new Date()).getTime()}`, this.createCallback)
-        this.setState({creatingGame: true, loadingText: "Building game...", createModalOpen: false, loader: get_random_loader()})
+        this.setState({creatingGame: true, loadingText: rerollingBoard ? "Rerolling board..." : "Building game...",
+                       createModalOpen: false, loader: get_random_loader()})
     }
+    // the server rolls the seed and lands us back here with the board modal over it
+    rerollSeed = () => this.setState({creatingGame: true, loadingText: "Rolling a new seed...", loader: get_random_loader()},
+                                     () => { window.location.href = `/bingo/game/${this.state.gameId}/reroll` })
+    openRerollBoard = () => this.setState({rerollingBoard: true, createModalOpen: true, seed: bumpBoardSeed(this.state.seed)})
     // the page's own first fetch: retry it (a userboard rides the tick loop,
     // a board with nothing loaded yet needs the timer)
     initialCallback = (res) => res.status === 0
@@ -628,7 +646,12 @@ export default class Bingo extends React.Component {
                               fails: 0, netFails: 0, netRetryAt: 0, dispDiff: res.difficulty || dispDiff, teams: res.teams, paramId: res.paramId, activePlayer: activePlayer, ticksSinceLastSquare: 0,
                               currentRecord: 0, cards: res.cards, events: res.events, targetCount: res.bingo_count, fromGen: false, teamMax: res.teamMax || -1, discSquares: res.discovery || [],
                               lockout: res.lockout || false, startTime: res.start_time_posix, isOwner: res.is_owner, countdownActive: res.countdown, teamsDisabled: !res.teams_allowed,
-                              apWorlds: res.ap_worlds || 0}, this.updateUrl);
+                              apWorlds: res.ap_worlds || 0, rerollingBoard: false,
+                              // the settings the modal reopens on, so a reroll only changes what was asked for
+                              difficulty: res.difficulty || this.state.difficulty, seed: res.board_seed || this.state.seed,
+                              meta: res.meta || false, goalMode: res.square_count > 0 ? "squares" : "bingos",
+                              squareCount: res.square_count || this.state.squareCount,
+                              discovery: !!res.disc_count, discCount: res.disc_count || this.state.discCount}, this.updateUrl);
             } catch (e) {
                 NotificationManager.error(`error encountered when attempting to initiate response`, "error", 5000);
                 console.log("failed to handle callback properly: ", e, status, responseText);
@@ -685,7 +708,7 @@ export default class Bingo extends React.Component {
         }
     }
 
-    toggleCreate = () => this.setState({createModalOpen: !this.state.createModalOpen, fromGen: false, teamMax: -1}, this.updateUrl)
+    toggleCreate = () => this.setState({createModalOpen: !this.state.createModalOpen, fromGen: false, teamMax: -1, rerollingBoard: false}, this.updateUrl)
     getCap = (pid) => {
         if(!this.state.teams)
         {
@@ -719,11 +742,21 @@ export default class Bingo extends React.Component {
             border: s.getPropertyValue("--dark")
         }
 
-        let creatorControls = isOwner && !startTime ? (
+        let startButton = isOwner && !startTime ? (
+            <Col xs="auto">
+                <Button block onClick={() => doNetRequest(`/bingo/game/${gameId}/start?time=${(new Date()).getTime()}`, this.tickCallback)} color="success" disabled={!!startTime}>Start game</Button>
+            </Col>
+        ) : null
+        // a joined player is holding a seed file with this board's goals in it
+        let rerollBoardButton = isOwner && Object.keys(teams || {}).length === 0 ? (
+            <Col xs="auto">
+                <Button block onClick={this.openRerollBoard} color="info">Reroll Board</Button>
+            </Col>
+        ) : null
+        let creatorControls = (startButton || rerollBoardButton) ? (
             <Row className="align-items-center justify-content-center p-2">
-                <Col xs="auto">
-                    <Button block onClick={() => doNetRequest(`/bingo/game/${gameId}/start?time=${(new Date()).getTime()}`, this.tickCallback)} color="success" disabled={!!startTime}>Start game</Button>
-                </Col>
+                {startButton}
+                {rerollBoardButton}
             </Row>
         ) : null
         let fmt = ({square, first, loss, time, type, player, bingo}) => {
@@ -853,6 +886,12 @@ export default class Bingo extends React.Component {
          ] : null
          if(paramId > 0 && gameId > 0 && haveGame)
             links.push((<Row className="justify-content-center" key="gameLink"><Col xs="auto"><small><a href={`/?param_id=${paramId}&game_id=${gameId}`}>base seed</a></small></Col></Row>))
+        // only a vanilla+ board, or no board at all, still opens the options modal cold
+        let newGameButton = (haveGame && paramId > 0 && !apWorlds) ? (
+            <Button block onClick={this.rerollSeed}>Reroll Seed</Button>
+        ) : (
+            <Button block onClick={this.toggleCreate}>Create New Game</Button>
+        )
         // a one-world AP board has nobody to team with
         let joinGameButton = (teamsDisabled || apWorlds === 1) ? (
             <Button block color="primary" onClick={() => this.joinGame()} disabled={!haveGame}>Join Game</Button>
@@ -878,7 +917,7 @@ export default class Bingo extends React.Component {
                 {creatorControls}
                 <Row className="flex-nowrap justify-content-center align-items-center px-1">
                     <Col xs="auto">
-                        <Button block onClick={this.toggleCreate}>Create New Game</Button>
+                        {newGameButton}
                     </Col><Col xs="auto">
                         {joinGameButton}
                     </Col><Col xs="auto">
@@ -975,7 +1014,9 @@ export default class Bingo extends React.Component {
     )}
     createModal = (style) => {
         let {discovery, difficulty, isRandoBingo, seed, fromGen, teamMax, randoGameId, targetCount, startSkills, meta, testIters,
-            discCount, startCells, startMisc, showInfo, teamsDisabled, noTimer, squareCount, goalMode, lockout, user} = this.state
+            discCount, startCells, startMisc, showInfo, teamsDisabled, noTimer, squareCount, goalMode, lockout, user, rerollingBoard} = this.state
+        // a reroll keeps the seed it handed out, so seed-changing rows are off the table
+        let seedRows = !rerollingBoard
         let randoInput = fromGen ? (
             <Row className="p-1">
                 <Col xs="4" className="text-center p-1 border">
@@ -991,7 +1032,7 @@ export default class Bingo extends React.Component {
                 </Col>
             </Row>
         )
-        let timerrow = user ? (
+        let timerrow = (user && seedRows) ? (
             <Row className="p-1">
                 <Col xs="4" className="p-1 border">
                     <Cent>Countdown Timer</Cent>
@@ -1041,7 +1082,7 @@ export default class Bingo extends React.Component {
                 </ButtonGroup>
             </Col>
         </Row>);
-        let testItersRow = dev ? (
+        let testItersRow = (dev && seedRows) ? (
             <Row className="p-1">
                 <Col xs="4" className="p-1 border">
                     <Cent>Run {testIters} tests</Cent>
@@ -1057,7 +1098,7 @@ export default class Bingo extends React.Component {
         ) : null;
         return (
         <Modal size="lg" isOpen={this.state.createModalOpen} backdrop={"static"} className={"modal-dialog-centered"} toggle={this.toggleCreate}>
-            <ModalHeader style={style} toggle={this.toggleCreate}><Cent>Bingo options</Cent></ModalHeader>
+            <ModalHeader style={style} toggle={this.toggleCreate}><Cent>{rerollingBoard ? "Reroll board" : "Bingo options"}</Cent></ModalHeader>
             <ModalBody style={style}>
                 <Container fluid>
                     {testItersRow}
@@ -1142,7 +1183,7 @@ export default class Bingo extends React.Component {
                             </Col>
                         </Row>
                     </Collapse>
-                    <Row className="p-1">
+                    <Row className="p-1" hidden={!seedRows}>
                         <Col xs="4" className="p-1 border">
                             <Cent>Bingo Type</Cent>
                         </Col>
@@ -1153,10 +1194,10 @@ export default class Bingo extends React.Component {
                             </ButtonGroup>
                         </Col>
                     </Row>
-                    <Collapse isOpen={isRandoBingo}>
+                    <Collapse isOpen={isRandoBingo && seedRows}>
                         {randoInput}
                     </Collapse>
-                    <Collapse isOpen={!isRandoBingo}>
+                    <Collapse isOpen={!isRandoBingo && seedRows}>
                         <Row className="p-1">
                             <Col xs="4" className="text-center p-1 border">
                                 <Cent>Random Free Skill Count</Cent>
@@ -1192,7 +1233,7 @@ export default class Bingo extends React.Component {
                 </Container>
             </ModalBody>
             <ModalFooter style={style}>
-                <Button color="primary" onClick={this.createGame} disabled={!fromGen && isRandoBingo}>Create Game</Button>
+                <Button color="primary" onClick={this.createGame} disabled={!rerollingBoard && !fromGen && isRandoBingo}>{rerollingBoard ? "Reroll Board" : "Create Game"}</Button>
                 <Button color="secondary" onClick={this.toggleCreate}>Cancel</Button>
             </ModalFooter>
         </Modal>

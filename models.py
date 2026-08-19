@@ -1341,6 +1341,11 @@ class BingoGameData(ndb.Model):
             res["subtitle"] = self.subtitle
             res["teams_allowed"] = self.teams_allowed
             res["ap_worlds"] = self.ap_worlds
+            # the settings a board reroll rebuilds from: its modal opens on these
+            res["board_seed"] = self.seed
+            res["square_count"] = self.square_count
+            res["meta"] = self.meta
+            res["disc_count"] = self.discovery
             if self.discovery or len(self.disc_squares):
                 res["discovery"] = self.discovery_squares()
 
