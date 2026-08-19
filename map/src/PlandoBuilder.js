@@ -639,25 +639,28 @@ class PlandoBuiler extends React.Component {
     // seedgen can't build Shards Race; those plandos take the dumb fill
     canFillGen = () => this.state.coop_mode.value !== "SplitShards"
 
-    // one generation per world, in sequence: cloned coop only ever builds one
+    // locations two players both authored differently: each keeps their own
+    divergentLocs = () => {
+        let players = Object.keys(this.state.placements)
+        return Object.keys(picks_by_loc).filter(loc => {
+            let vals = players.map(p => (this.state.placements[p][loc] || {}).value).filter(v => v)
+            return vals.length > 1 && vals.some(v => v !== vals[0])
+        })
+    }
+
+    // one generation for everyone: cloned coop builds a single world
     doFillGen = () => {
         if(!this.canFillGen()) {
             NotificationManager.error("Shards Race seeds can't be generated any more", "Can't fill this plando", 4000);
             return
         }
         let players = Object.keys(this.state.placements)
-        NotificationManager.info(players.length > 1 ? `Generating ${players.length} seeds based on current placements...`
-                                                    : "Generating seed based on current placements...",
-                                 "Generating Seed", 5000);
-        this.fillGenPlayer(players, 0)
-    }
-
-    fillGenPlayer = (players, i) => {
-        if(i >= players.length)
-            return
-        let player = players[i]
-        // every placement, not just reachable ones: an unforwarded one comes back placed twice
-        let placed = this.state.placements[player] || {};
+        let diverged = this.divergentLocs()
+        if(diverged.length)
+            NotificationManager.warning(`${diverged.length} location${diverged.length === 1 ? "" : "s"} hold a different item per player. Each player keeps their own.`,
+                                        "Placements disagree", 6000);
+        // the world that gets built is the one you're editing
+        let placed = this.state.placements[this.state.player] || {};
         let codes = Object.keys(picks_by_loc)
             .filter(loc => placed.hasOwnProperty(loc))
             .map(loc => loc + ":" + placed[loc].value.replace("|", ""));
@@ -690,15 +693,15 @@ class PlandoBuiler extends React.Component {
             if(xmlHttp.readyState !== 4)
                 return
             if(xmlHttp.status !== 200) {
-                NotificationManager.error(players.length > 1 ? `Player ${player}'s seed couldn't be completed` : "Unfinishable Seed",
-                                          "Failed to complete seed using seedgen", 4000);
+                NotificationManager.error("Unfinishable Seed", "Failed to complete seed using seedgen", 4000);
                 return
             }
-            this.parseUploadedSeed(xmlHttp.responseText, player)
-            this.fillGenPlayer(players, i + 1)
+            // same world into every player; each keeps what it already had
+            players.forEach(p => this.parseUploadedSeed(xmlHttp.responseText, p))
         }
         xmlHttp.open("GET", `/plando/fillgen?${urlParams.join("&")}`, true);
         xmlHttp.send(null);
+        NotificationManager.info("Generating Seed", "Generating seed based on current placements...", 5000);
     }
 
 
