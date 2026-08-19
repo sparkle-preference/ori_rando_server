@@ -2171,9 +2171,12 @@ def announce_embed(release, base, everything=False):
     return {"title": title, "url": "%s/patchnotes#%s" % (base, release["version"]), "description": body}
 
 
-def announce_patchnotes(base, force=False):
+def announce_patchnotes(base, force=False, channels=None):
     """Post any releases newer than each channel's marker. Returns a per-channel
-    summary. Inert unless a webhook is configured for that channel."""
+    summary. Inert unless a webhook is configured for that channel.
+
+    channels limits which channels are considered; None means all of them, so
+    catching one channel up cannot repost to a channel that has already seen it."""
     doc = patchnotes_doc()
     releases = doc["releases"]
     if not releases:
@@ -2182,8 +2185,14 @@ def announce_patchnotes(base, force=False):
     out = {}
 
     for channel, wants in ANNOUNCE_CHANNELS.items():
+        if channels is not None and channel not in channels:
+            continue
         hook = announce_webhook(channel)
         if not hook:
+            # worth saying only when the caller named this channel; the boot
+            # path runs on every deploy and would just be noise
+            if channels is not None:
+                out[channel] = "no webhook configured"
             continue
         was = AnnouncedPatchNotes.claim(channel, newest)
         if was is None:
@@ -2239,13 +2248,18 @@ def announce_on_first_request():
 @app.route('/patchnotes/announce')
 def patchnotes_announce():
     """Manual resend, for when a POST failed and the marker already moved.
-    ?force=1 reposts the newest release even if the marker is current."""
+    ?force=1 reposts the newest release even if the marker is current.
+    ?channel=main|dev|all picks which channels to post to (default all)."""
     if not User.is_admin():
         return text_resp("admins only", 401)
     if not (PATCHNOTES_WEBHOOK_MAIN or PATCHNOTES_WEBHOOK_DEV):
         return text_resp("no PATCHNOTES_WEBHOOK_MAIN or PATCHNOTES_WEBHOOK_DEV set", 503)
+    channel = (param_val("channel") or "all").lower()
+    if channel != "all" and channel not in ANNOUNCE_CHANNELS:
+        return text_resp("channel must be all, %s" % ", ".join(ANNOUNCE_CHANNELS), 400)
     try:
-        result = announce_patchnotes(request.host_url.rstrip("/"), force=param_flag("force"))
+        result = announce_patchnotes(request.host_url.rstrip("/"), force=param_flag("force"),
+                                     channels=None if channel == "all" else {channel})
     except PatchnotesMissing as e:
         return text_resp(str(e), 503)
     return text_resp(json.dumps(result, indent=2))

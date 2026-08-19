@@ -83,5 +83,37 @@ class AnnounceEmbedTestCase(unittest.TestCase):
                          "https://x/patchnotes#9.9.9")
 
 
+class AnnounceChannelSelectionTestCase(unittest.TestCase):
+    """announce_patchnotes(channels=...) is what keeps catching one channel up
+    from reposting to the other, so it has to reach the webhook lookup for
+    exactly the channels asked for and no others."""
+
+    def setUp(self):
+        self.asked = []
+        self.real = main.announce_webhook
+        # record which channels get as far as looking up a hook, and report
+        # every one as unconfigured so nothing tries to POST
+        main.announce_webhook = lambda channel: self.asked.append(channel) or ""
+
+    def tearDown(self):
+        main.announce_webhook = self.real
+
+    def test_no_channels_means_every_channel(self):
+        main.announce_patchnotes("https://x")
+        self.assertEqual(sorted(self.asked), sorted(main.ANNOUNCE_CHANNELS))
+
+    def test_naming_one_channel_leaves_the_other_alone(self):
+        for channel in main.ANNOUNCE_CHANNELS:
+            with self.subTest(channel=channel):
+                self.asked = []
+                out = main.announce_patchnotes("https://x", channels={channel})
+                self.assertEqual(self.asked, [channel])
+                # an unconfigured hook is reported when it was asked for by name
+                self.assertEqual(out, {channel: "no webhook configured"})
+
+    def test_an_unconfigured_channel_is_silent_on_the_boot_path(self):
+        self.assertEqual(main.announce_patchnotes("https://x"), {})
+
+
 if __name__ == "__main__":
     unittest.main()
