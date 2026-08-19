@@ -217,6 +217,9 @@ class SeedGenParams(ndb.Model):
     spoilers = ndb.TextProperty(repeated=True, compressed=True)
     sense = ndb.StringProperty()
     is_plando = ndb.BooleanProperty(default=False)
+    # set only when that plando has a spoiler, so it doubles as the "show the
+    # button" bit; the text stays on the Seed instead of being copied per roll
+    plando_spoiler_key = ndb.KeyProperty(kind="Seed")
     plando_flags = ndb.StringProperty(repeated=True)
     # {world: [[home, target], ...]} -- the placement walk's keystone door
     # order, set by the generator when generic keystones export
@@ -255,7 +258,8 @@ class SeedGenParams(ndb.Model):
             is_plando=True, 
             plando_flags = plando.flags,
             placements = plando.placements,
-            spoilers = [plando.description]
+            spoilers = [plando.description],
+            plando_spoiler_key = plando.key if plando.spoiler else None,
             )
         params.sync = MultiplayerOptions()
         params.sync.enabled = plando.players > 1
@@ -453,7 +457,7 @@ class SeedGenParams(ndb.Model):
             "shared": [JSON_SHARE(s) for s in self.sync.shared],
             "teamStr": self.sync.get_team_str(),
             "dedupShared": self.sync.dedup,
-            "spoilers": len(self.spoilers[0]) > 100,
+            "spoilers": len(self.spoilers[0]) > 100 or self.plando_spoiler_key is not None,
             "senseData": self.sense,
             "spawn": self.start,
             "spawnECs": self.starting_energy,
@@ -625,6 +629,10 @@ class SeedGenParams(ndb.Model):
             if ap is not None:
                 return ap
         if self.is_plando:
+            if self.plando_spoiler_key:
+                plando = self.plando_spoiler_key.get()
+                if plando and plando.spoiler:
+                    return plando.spoiler
             return self.spoilers[0]
         spoiler = self.spoilers[self.team_pid(player) - 1]
         if getattr(self, "ap_mode", False):

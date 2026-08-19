@@ -1613,6 +1613,8 @@ class Seed(ndb.Model):
     flagline = ndb.ComputedProperty(lambda self: ", ".join(sorted(self.flags)))
     hidden = ndb.BooleanProperty(default=False)
     description = ndb.StringProperty()
+    # author-written spoiler, served in place of description when set
+    spoiler = ndb.TextProperty(compressed=True)
     players = ndb.IntegerProperty(default=1)
     author_key = ndb.KeyProperty("author_key2", User)
     legacy_author_key = ndb.KeyProperty("author_key", LegacyUser)
@@ -1648,6 +1650,7 @@ class Seed(ndb.Model):
         s = Seed(
             id="%s:%s" % (author.key.id(), data["name"]),
                 description = data['desc'],
+                spoiler = data.get('spoiler') or None,
                 flags = [f.replace(' ', '+') for f in data['flags']],
                 name = data['name'],
                 author_key = author.key,
@@ -1685,6 +1688,7 @@ class Seed(ndb.Model):
             placements, players = Seed.get_placements(data['placements']) if 'placements' in data else (self.placements, self.players)
             self.populate(
                 description = data.get('desc', self.description),
+                spoiler = data.get('spoiler', self.spoiler) or None,
                 flags = [f.replace(' ', '+') for f in data.get('flags', self.flags)],
                 name = data.get('name', self.name),
                 author_key = author.key,

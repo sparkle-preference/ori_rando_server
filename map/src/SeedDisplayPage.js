@@ -11,7 +11,7 @@ const textStyle = {textAlign: "center"}
 export default class SeedDisplayPage extends React.Component {
   constructor(props) {
     super(props);
-    let {seedJson, authed, seed_name, hidden, seed_desc} = get_seed();
+    let {seedJson, authed, seed_name, hidden, seed_desc, seed_spoiler, seed_has_spoiler} = get_seed();
     let seedData = JSON.parse(he.decode(seedJson))
     let author = get_param("author")
     let gid = get_param("game_id")
@@ -21,7 +21,8 @@ export default class SeedDisplayPage extends React.Component {
 		alert(complain_message);
     let players = get_int("players", 1)
     this.state = {flags: seedData["flagline"].split("|")[0].split(","), author: author, authed: authed, seed_name: seed_name, tracking: true,
-    			  players: players, seed_desc: seed_desc, gid: gid, rename_to: seed_name, hidden: hidden || false, dropdownOpen: false};
+    			  players: players, seed_desc: seed_desc, seed_spoiler: seed_spoiler, has_spoiler: seed_has_spoiler,
+    			  gid: gid, rename_to: seed_name, hidden: hidden || false, dropdownOpen: false};
 }
   conf_delete = () => {
     confirmAlert({
@@ -73,6 +74,16 @@ export default class SeedDisplayPage extends React.Component {
 
             ),
             (
+                <Row key="spoiler" className="p-3 border border-danger border-top-0 border-bottom-0 justify-content-center">
+				<Col xs="4">
+					<span style={textStyle}>Spoiler (optional; players see a download link for it)</span>
+				</Col>
+                <Col xs="8">
+					<Input type="textarea" rows="8" placeholder="Paste a spoiler here" value={this.state.seed_spoiler} onChange={e => this.setState({seed_spoiler: e.target.value})}/>
+				</Col>
+                </Row>
+            ),
+            (
 			<Row key="delete/edit/hide" className="p-3 border border-danger border-top-0 justify-content-center">
 				<Col xs="4">
 					<Button block color="danger" onClick={() => this.conf_delete()} >Delete</Button>
@@ -84,6 +95,12 @@ export default class SeedDisplayPage extends React.Component {
 			</Row>
 			), 
             ] : null
+		// tracks what's saved, not what's typed: the link serves the stored text
+		let spoiler_button = this.state.has_spoiler ? (
+			<Col xs="3" key="spoiler-dl">
+				<Button block color="secondary" href={`/plando/${this.state.author}/${this.state.seed_name}/spoiler?download=1`}>Download Spoiler</Button>
+			</Col>
+		) : null
 		let summary = this.state.seed_desc ? (
 			<Row className="p-3 border">
 				<Col xs="2" className="text-right">
@@ -111,12 +128,13 @@ export default class SeedDisplayPage extends React.Component {
 				</Row>
 				{summary}
 				<Row className="p-3 justify-content-center">
-					<Col xs={{size: 3, offset: 3}}>
+					<Col xs={spoiler_button ? "3" : {size: 3, offset: 3}}>
                         <Button block color="primary" href={`/plando/${this.state.author}/${this.state.seed_name}/download${this.state.tracking ? "?tracking=1" : ""}`}>Start Seed</Button>
 					</Col>
                     <Col xs="3">
                         <Button color="info" block outline={!this.state.tracking} onClick={()=>this.setState({tracking: !this.state.tracking})}>Web Tracking {this.state.tracking ? "Enabled" : "Disabled"}</Button>
                     </Col>
+                    {spoiler_button}
 				</Row>
 			{owner_box}
 			</Container>
@@ -130,9 +148,15 @@ export default class SeedDisplayPage extends React.Component {
         xmlHttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
         let res = {}
         res.desc = this.state.seed_desc
+        res.spoiler = this.state.seed_spoiler
         res.name = this.state.seed_name
         res.oldName = this.state.seed_name
-        xmlHttp.send(encodeURI("seed="+JSON.stringify(res)));
+        xmlHttp.onload = () => {
+            if(xmlHttp.status < 400)
+                this.setState({has_spoiler: !!this.state.seed_spoiler})
+        }
+        // encodeURIComponent, not encodeURI: a spoiler may hold & or + and this is a form body
+        xmlHttp.send("seed="+encodeURIComponent(JSON.stringify(res)));
 
     }
 };

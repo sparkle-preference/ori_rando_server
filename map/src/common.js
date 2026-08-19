@@ -821,9 +821,12 @@ function get_seed() {
     let user = get_param("user")
     let name = get_param("seed_name") || "newSeed"
     let desc = get_param("seed_desc") || ""
+    let spoiler = get_param("seed_spoiler") || ""
+    let has_spoiler = get_flag("seed_has_spoiler")
     let hidden = get_flag("seed_hidden")
     let seedJson = get_param("seed_data")
-    return { seedJson: seedJson, user: user, authed: authed, seed_name: name, seed_desc: desc, hidden: hidden }
+    return { seedJson: seedJson, user: user, authed: authed, seed_name: name, seed_desc: desc,
+             seed_spoiler: spoiler, seed_has_spoiler: has_spoiler, hidden: hidden }
 }
     // health, energy, skills: 3, 1, 0 by default
 const spawn_defaults = {

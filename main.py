@@ -1289,6 +1289,20 @@ def plando_download(author_name, seed_name):
         return text_resp("seed %s (by user %s) not found" % (seed_name, author_name), 404)
 
 
+@app.route('/plando/<author_name>/<seed_name>/spoiler') # PlandoSpoiler
+def plando_spoiler(author_name, seed_name):
+    seed = Seed.get(author_name, seed_name)
+    if seed and seed.hidden:
+        user = User.get()
+        if not user or user.key != seed.author_key:
+            seed = None
+    if not seed or not seed.spoiler:
+        return text_resp("no spoiler for seed %s (by user %s)" % (seed_name, author_name), 404)
+    if param_flag("download"):
+        return text_download(seed.spoiler.replace("\n", "\r\n"), "%s_spoiler.txt" % seed_name)
+    return text_resp(seed.spoiler)
+
+
 @app.route('/plando/<author_name>/<seed_name>/') # PlandoView,
 def plando_view(author_name, seed_name):
     authed = False
@@ -1299,8 +1313,11 @@ def plando_view(author_name, seed_name):
             authed = True
         template_values = template_vals("SeedDisplayPage", "%s by %s" % (seed_name, author_name), user)
         template_values.update({'players': seed.players, 'seed_data': seed.get_plando_json(),
-            'seed_name': seed_name, 'author': author_name, 'authed': authed, 
-            'seed_desc': seed.description, 'game_id': Game.get_open_gid()})
+            'seed_name': seed_name, 'author': author_name, 'authed': authed,
+            'seed_desc': seed.description, 'game_id': Game.get_open_gid(),
+            # the body is for the author's editor only; everyone else just gets the link
+            'seed_has_spoiler': bool(seed.spoiler),
+            'seed_spoiler': (seed.spoiler or "") if authed else ""})
         hidden = seed.hidden or False
         if not hidden or authed:
             if hidden:
