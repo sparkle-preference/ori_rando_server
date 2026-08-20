@@ -25,10 +25,11 @@ class Pickup(object):
         return cls.n(code, pid)
 
     @classmethod
-    def n(cls, code, id):
+    def n(cls, code, id, *args):
+        # args is the caller's player count, which only a cross-world line needs
         for subcls in Pickup.subclasses():
             if code == subcls.code:
-                return subcls(id)
+                return subcls(id, *args) if args else subcls(id)
         return None
     @classmethod
     def name(cls, code, id):
@@ -315,8 +316,8 @@ class TPWarp(Pickup):
 
 class MultiworldItem(Pickup):
     # Another player's item, sitting in the finder's world. In seed files:
-    #   finder's world:  <loc>|MW|<owner>,<slot>,<display name>|<zone>
-    #   owner's manifest: -(slot+2)|MW|<finder>,<code>,<id>|<zone>
+    #   finder's world:  <loc>|MW|<owner>,<slot>,<code>,<id>|<zone>
+    #   owner's manifest: -(slot+2)|MW|<finder>,<holder>,<code>,<id>|<zone>
     # (manifest locs -2..-257: -1 and 2 are real pseudo-locations.)
     # This class parses the finder shape, which is what /found posts carry.
     # Never fanned out by SHARED-mode grant logic (the owner gets the real
@@ -324,12 +325,22 @@ class MultiworldItem(Pickup):
     code = "MW"
     int_id = False
     share_type = ShareType.NOT_SHARED
-    def __new__(cls, id):
+    def __new__(cls, id, players=None):
         parts = id.split(",", 2)
         if len(parts) != 3 or not parts[0].isdigit() or not parts[1].isdigit():
             return None
         inst = super(MultiworldItem, cls).__new__(cls)
         inst.id, inst.bit = id, None
         inst.owner, inst.slot = int(parts[0]), int(parts[1])
-        inst.name = "Player %s's %s" % (inst.owner, parts[2])
+        # an owner above the player count is an Archipelago shadow, and its line
+        # carries the room's recipient and promised slot ahead of the item
+        rest = parts[2]
+        inst.reserved = players is not None and inst.owner > int(players)
+        if inst.reserved and rest.count(",") >= 3:
+            _, _, rest = rest.split(",", 2)
+        code, _, item_id = rest.partition(",")
+        inst.item_code, inst.item_id = code, item_id
+        # AP is not an Ori item: its id is already the name the room gave it
+        shown = item_id if code == "AP" else Pickup.name(code, item_id)
+        inst.name = "Player %s's %s" % (inst.owner, shown)
         return inst
