@@ -32,14 +32,21 @@ class Pickup(object):
             if code == subcls.code:
                 return subcls(id, *args) if args and subcls.takes_players else subcls(id)
         return None
+    # a negative id of one of these removes one instead of granting it. The
+    # check has to come before the subclass loop: HealthCell("-1") is perfectly
+    # happy to build, and would name a removal exactly like a grant.
+    REMOVES_ON_NEGATIVE = ("HC", "EC", "AC", "KS", "MS", "RB")
+
     @classmethod
     def name(cls, code, id):
+        sid = str(id)
+        if code in Pickup.REMOVES_ON_NEGATIVE and sid.startswith("-") and sid[1:].isdigit():
+            positive = Pickup.name(code, sid[1:])
+            if positive != "%s|%s" % (code, sid[1:]):
+                return "Remove " + positive
         for subcls in Pickup.subclasses():
             if id and code == subcls.code and subcls(id):
                 return subcls(id).name
-        # a negative upgrade id removes one of the positive item
-        if code == "RB" and str(id).startswith("-") and Upgrade(str(id)[1:]):
-            return "Remove " + Upgrade(str(id)[1:]).name
         return "%s|%s" % (code, id)
     def add_to_bitfield(self, bits_int, remove=False):
         if self.stacks:
