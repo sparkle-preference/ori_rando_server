@@ -65,6 +65,18 @@ class SettingsSplitTests(unittest.TestCase):
     def test_the_seed_itself_is_dropped(self):
         self.assertNotIn("seed", SavedSeedParams.settings_from(request()))
 
+    def test_tracking_is_kept(self):
+        """It is a property of the settings, not of the lobby -- and a bingo
+        setting is unrollable without it."""
+        self.assertTrue(SavedSeedParams.settings_from(request())["tracking"])
+        self.assertFalse(SavedSeedParams.settings_from(request(tracking=False))["tracking"])
+
+    def test_bingo_settings_survive(self):
+        s = SavedSeedParams.settings_from(request(variations=["Bingo"], bingoLines=4))
+        self.assertEqual(s["variations"], ["Bingo"])
+        self.assertEqual(s["bingoLines"], 4)
+        self.assertTrue(s["tracking"])
+
     def test_an_unknown_option_rides_along(self):
         """The deny-list's whole point: a variation added later is saved without
         anyone registering it here."""

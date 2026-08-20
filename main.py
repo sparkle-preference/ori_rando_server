@@ -1216,7 +1216,6 @@ def ssp_roll(owner_name, name):
     settings = dict(ssp.settings or {})
     settings["seed"] = str(random.randint(0, 1000000000))
     settings["players"] = 1      # a setting says nothing about a lobby
-    settings["tracking"] = False
     param_key = SeedGenParams.from_json(settings)
     if not param_key:
         return text_resp("these settings can no longer be built", 422)
@@ -1226,7 +1225,14 @@ def ssp_roll(owner_name, name):
         return text_resp(problem, 409)
     if not params.generate():
         return text_resp("Failed to generate seed!", 500)
-    return redirect("%s?param_id=%s" % (url_for('main_page'), param_key.id()))
+    if not params.tracking:
+        return redirect("%s?param_id=%s" % (url_for('main_page'), param_key.id()))
+    game = Game.from_params(params)
+    if Variation.BINGO in params.variations:
+        return redirect("/bingo/board?game_id=%s&fromGen=1&seed=%s&bingoLines=%s"
+                        % (game.key.id(), params.seed, params.bingo_lines))
+    return redirect("%s?param_id=%s&game_id=%s"
+                    % (url_for('main_page'), param_key.id(), game.key.id()))
 
 
 @app.route('/settings/mine/<name>/delete')

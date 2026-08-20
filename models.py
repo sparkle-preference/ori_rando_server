@@ -1730,13 +1730,14 @@ class Seed(ndb.Model):
         return ["%s|%s" % (",".join(extraFlags + self.flags), self.name)] + ["|".join((str(p.location), s.code, s.id, p.zone)) for p in self.placements for s in p.stuff if int(s.player) == player]
 
 
-# The multiplayer half of a seedgen request, plus the two per-roll values. A
-# saved setting is player-agnostic on purpose: it describes one world, so it can
-# later be assigned to a world rather than deciding how many there are.
+# The multiplayer half of a seedgen request, plus the seed. A saved setting is
+# player-agnostic on purpose: it describes one world, so it can later be
+# assigned to a world rather than deciding how many there are. Tracking is NOT
+# denied -- it is a property of the settings, and a bingo setting needs it.
 # Denied rather than allowed, so a new variation is saved without being
 # registered anywhere -- forgetting would silently roll the default instead.
 SSP_DENY = frozenset([
-    "seed", "players", "playerNames", "tracking", "coopGenMode", "coopGameMode",
+    "seed", "players", "playerNames", "coopGenMode", "coopGameMode",
     "dedupShared", "antiBkBias", "syncShared", "shared", "teams",
     "apMode", "apExport", "apDeathLink",
 ])
