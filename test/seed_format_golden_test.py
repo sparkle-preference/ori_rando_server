@@ -44,7 +44,8 @@ def fields(line):
 class _FakeScout(object):
     """An APNames entry, as annotate() reads it."""
 
-    def __init__(self, to="P2", item="Bash", ap_owner=7, ap_item=999999):
+    # 524288 is Bash in the datapackage; a made-up id is a foreign game's item
+    def __init__(self, to="P2", item="Bash", ap_owner=7, ap_item=524288):
         self.to, self.item, self.ap_owner, self.ap_item = to, item, ap_owner, ap_item
 
     def label(self):
@@ -94,45 +95,89 @@ class MultiworldLineTests(unittest.TestCase):
                 self.assertTrue(parts[1].isdigit(), line)   # slot
                 self.assertTrue(parts[2], line)             # display name
 
-    def test_manifest_field_three_is_finder_code_id(self):
+    def test_manifest_field_three_is_finder_holder_code_id(self):
         for world in self.worlds:
             for line in self.manifest_lines(world):
-                parts = fields(line)[2].split(",", 2)
-                self.assertEqual(len(parts), 3, line)
+                parts = fields(line)[2].split(",", 3)
+                self.assertEqual(len(parts), 4, line)
                 self.assertTrue(parts[0].isdigit(), line)   # finder
-                self.assertTrue(Pickup.n(parts[1], parts[2]), "not a pickup: %s" % line)
+                # only the download-time AP join fills a holder in
+                self.assertEqual(parts[1], "", line)
+                self.assertTrue(Pickup.n(parts[2], parts[3]), "not a pickup: %s" % line)
 
-    def test_the_finder_carries_a_name_where_the_manifest_carries_a_code(self):
-        """THE line that format 2 changes. The finder says "Bash"; only the
-        owner's manifest says SK,0 -- which is why the client can't classify a
-        cross-world item, and why Sense is blind to every one of them."""
+    def test_the_finder_carries_the_same_code_the_manifest_does(self):
+        """The point of the format. A cross-world line names its item the way
+        every other line does, so anything that classifies pickups -- Sense
+        above all -- sees it too."""
         manifests = {}
         for owner, world in enumerate(self.worlds, start=1):
             for line in self.manifest_lines(world):
                 slot = -int(fields(line)[0]) - 2
-                _, icode, iid = fields(line)[2].split(",", 2)
+                _, _, icode, iid = fields(line)[2].split(",", 3)
                 manifests[(owner, slot)] = (icode, iid)
 
         checked = 0
         for world in self.worlds:
             for line in self.finder_lines(world):
-                owner_s, slot_s, name = fields(line)[2].split(",", 2)
+                owner_s, slot_s, fcode, fid = fields(line)[2].split(",", 3)
                 entry = manifests.get((int(owner_s), int(slot_s)))
                 self.assertIsNotNone(entry, "no manifest entry for %s" % line)
-                icode, iid = entry
-                self.assertEqual(name, Pickup.name(icode, iid).replace("|", "/"), line)
-                # the code the client needs is exactly what the finder line lacks
-                self.assertNotIn(",", name, line)
+                self.assertEqual((fcode, fid), entry, line)
                 checked += 1
         self.assertGreater(checked, 0)
 
     def test_the_reader_round_trips_a_generated_finder_id(self):
         line = self.finder_lines(self.worlds[0])[0]
-        owner_s, slot_s, name = fields(line)[2].split(",", 2)
+        owner_s, slot_s, fcode, fid = fields(line)[2].split(",", 3)
         item = Pickup.n("MW", fields(line)[2])
         self.assertIsNotNone(item)
         self.assertEqual((item.owner, item.slot), (int(owner_s), int(slot_s)))
-        self.assertEqual(item.name, "Player %s's %s" % (owner_s, name))
+        self.assertEqual((item.item_code, item.item_id), (fcode, fid))
+        self.assertEqual(item.name, "Player %s's %s" % (owner_s, Pickup.name(fcode, fid)))
+
+
+class WarpIdTests(unittest.TestCase):
+    """A TW id is "<name>,<x>,<y>,<node>" -- an item id that carries commas of
+    its own, which is why the id is the last field and every split is bounded.
+    Warps are forced here so the case is structural, not luck of the roll."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.out = tempfile.mkdtemp(prefix="seedformat_tw_")
+        cls.worlds = [generate(cls.out, ["--players", "2", "--tracking", "--keymode", "clues",
+                                         "--share-mode", "multiworld",
+                                         "--warps-instead-of-tps", "9"],
+                               "randomizer_%s.dat" % p) for p in (1, 2)]
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.out, ignore_errors=True)
+
+    def warp_lines(self):
+        return [l for world in self.worlds for l in world[1:]
+                if fields(l)[1] == "MW" and ",TW," in fields(l)[2]]
+
+    def test_the_seed_places_cross_world_warps(self):
+        self.assertTrue(self.warp_lines(), "no cross-world warps to check")
+
+    def test_the_whole_warp_id_lands_in_the_last_field(self):
+        for line in self.warp_lines():
+            parts = fields(line)[2].split(",", 3)
+            self.assertEqual(len(parts), 4, line)
+            code, id = parts[2], parts[3]
+            self.assertEqual(code, "TW", line)
+            self.assertEqual(id.count(","), 3, line)
+            self.assertTrue(Pickup.n("TW", id), line)
+
+    def test_the_reader_recovers_the_warp_intact(self):
+        for line in self.warp_lines():
+            if is_mw_manifest_loc(int(fields(line)[0])):
+                continue  # a manifest id holds a holder where a finder holds a slot
+            f3 = fields(line)[2]
+            item = Pickup.n("MW", f3)
+            self.assertIsNotNone(item, line)
+            self.assertEqual(item.item_code, "TW", line)
+            self.assertEqual(item.item_id, f3.split(",", 3)[3], line)
 
 
 class SoloControlTests(unittest.TestCase):
@@ -158,7 +203,7 @@ class SoloControlTests(unittest.TestCase):
 
 
 class ApAnnotationTests(unittest.TestCase):
-    """The download-time annotation: fields 5 and 6, which format 2 removes.
+    """The download-time annotation, which format 2 folds into field 3.
 
     annotate() is a pure function over seed tuples, so these drive it directly
     rather than standing a room up."""
@@ -166,40 +211,49 @@ class ApAnnotationTests(unittest.TestCase):
     PLAYERS = 2
     WORLD = 1
     SHADOW = "3"            # players + world
-    RESERVED = ("919772", "MW", "3,0,AP Item #0", "Glades")
+    RESERVED = ("919772", "MW", "3,0,,-1,AP,AP Item #0", "Glades")
 
     def _annotate(self, promises=None, entries=None):
         rows = {self.WORLD: (entries if entries is not None else {0: _FakeScout()}, 7)}
         return annotate([self.RESERVED], self.PLAYERS, self.WORLD, rows,
                         lambda v: [], promises=promises)
 
+    def parts(self, line):
+        return line[2].split(",", 5)
+
     def test_an_unscouted_world_passes_straight_through(self):
         out = annotate([self.RESERVED], self.PLAYERS, self.WORLD, {}, lambda v: [])
         self.assertEqual(out, [self.RESERVED])
 
-    def test_field_five_is_recipient_semicolon_item(self):
+    def test_a_scouted_line_keeps_four_fields(self):
+        """What the additive fields cost, reclaimed: no shape depends on how
+        much the room has told us."""
         line = self._annotate()[0]
-        self.assertEqual(len(line), 5)
-        self.assertEqual(line[4], "P2;Bash")
-
-    def test_field_six_is_the_promised_manifest_slot(self):
-        line = self._annotate(promises={0: 12})[0]
-        self.assertEqual(len(line), 6)
-        self.assertEqual(line[5], "12")
-
-    def test_no_promise_means_no_sixth_field(self):
-        self.assertEqual(len(self._annotate(promises={})[0]), 5)
-
-    def test_the_first_four_fields_survive_except_the_label(self):
-        """The whole reason 5 and 6 are additive: a shipped dll reads 0..3 and
-        must keep working. Format 2 gives that up deliberately."""
-        line = self._annotate()[0]
+        self.assertEqual(len(line), 4)
         self.assertEqual((line[0], line[1], line[3]),
                          (self.RESERVED[0], self.RESERVED[1], self.RESERVED[3]))
-        shadow, slot, label = line[2].split(",", 2)
-        self.assertEqual((shadow, slot), (self.SHADOW, "0"))
-        # the label bakes the recipient in, because field 5 is invisible to old dlls
-        self.assertEqual(label, "Bash (P2)")
+
+    def test_the_recipient_rides_field_three(self):
+        self.assertEqual(self.parts(self._annotate()[0])[2], "P2")
+
+    def test_the_promised_slot_rides_field_three(self):
+        self.assertEqual(self.parts(self._annotate(promises={0: 12})[0])[3], "12")
+
+    def test_no_promise_is_minus_one_rather_than_a_missing_field(self):
+        """An abstention has to keep the arity, or the field after it moves."""
+        self.assertEqual(self.parts(self._annotate(promises={})[0])[3], "-1")
+
+    def test_an_ori_item_is_named_by_code_and_a_foreign_one_by_name(self):
+        """ITEM_BY_AP_ID knows the room's id for anything of ours, so an
+        exported Ori item comes back classifiable; only a genuinely foreign
+        item falls back to carrying its name."""
+        ours = self.parts(self._annotate()[0])
+        self.assertEqual(ours[4:], ["SK", "0"])
+
+        foreign = _FakeScout(item="Hush, Hush", ap_item=999999999)
+        line = self.parts(self._annotate(entries={0: foreign})[0])
+        # the name keeps its comma because it is the last field
+        self.assertEqual(line[4:], ["AP", "Hush, Hush"])
 
 
 if __name__ == "__main__":
