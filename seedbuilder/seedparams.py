@@ -8,7 +8,7 @@ from enums import (MultiplayerGameType, ShareType, Variation, LogicPath, KeyMode
 from collections import OrderedDict
 from threading import Lock
 from cachetools import TTLCache
-from seedbuilder.generator import SeedGenerator
+from seedbuilder.generator import SeedGenerator, MultiworldSlotOverflow
 
 # Inflating a big multiworld params entity is ~3000 protobuf decodes, about
 # half a second per request. Request paths share one process-local inflated
@@ -621,7 +621,31 @@ class SeedGenParams(ndb.Model):
         player = int(player)
         if self.sync.mode in [MultiplayerGameType.SIMUSOLO, MultiplayerGameType.SPLITSHARDS]:
             player = 1
-        return [(str(p.location), s.code, s.id, p.zone) for p in self.placements for s in p.stuff if int(s.player) == self.team_pid(player)]
+        pid = self.team_pid(player)
+        rows = []
+        next_slot = {}
+        for p in self.placements:
+            for s in p.stuff:
+                if not (s.owner and s.owner != s.player):
+                    if int(s.player) == pid:
+                        rows.append((str(p.location), s.code, s.id, p.zone))
+                    continue
+                # A plando stores a cross-world item as intent -- the world
+                # holding it, plus whose it is -- and the wire pair is derived
+                # here. Slots are handed out in placement order over ALL
+                # placements, so every player's call agrees on the number
+                # without it being stored. A generated seed never reaches this
+                # branch: its cross-world lines are already MW-coded.
+                slot = next_slot.get(s.owner, 0)
+                next_slot[s.owner] = slot + 1
+                if slot >= SeedGenerator.MAX_SLOTS:
+                    raise MultiworldSlotOverflow("player %s owns more than %s cross-world items"
+                                       % (s.owner, SeedGenerator.MAX_SLOTS))
+                if int(s.player) == pid:
+                    rows.append((str(p.location), "MW", "%s,%s,%s,%s" % (s.owner, slot, s.code, s.id), p.zone))
+                if int(s.owner) == pid:
+                    rows.append((str(-(slot + 2)), "MW", "%s,,%s,%s" % (s.player, s.code, s.id), p.zone))
+        return rows
 
     def get_spoiler(self, player=1, game_id=None):
         if self.sync.mode in [MultiplayerGameType.SIMUSOLO, MultiplayerGameType.SPLITSHARDS]:
