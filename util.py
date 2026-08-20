@@ -74,6 +74,22 @@ def netperf(what, t0, **kw):
     extras = " ".join("%s=%s" % (k, v) for k, v in sorted(kw.items()))
     log.info("NETPERF %s ms=%d tag=%s %s", what, int((monotonic() - t0) * 1000), NETPERF_TAG, extras)
 
+def parse_fass(raw):
+    """Forced assignments as the generator's preplaced map. Each is
+    "[world.]loc:item[@owner]", joined by "|"; world defaults to 1 and an owner
+    rides the value, which is how a cross-world preplacement is expressed.
+    Raises ValueError on a location that isn't a number."""
+    out = {}
+    for fass in (raw or "").split("|"):
+        if not fass:
+            continue
+        rawloc, _, item = fass.partition(":")
+        world, _, loc = rawloc.rpartition(".")
+        item, _, owner = item.partition("@")
+        out[(int(world or 1), int(loc))] = "%s|%s" % (item, owner) if owner else item
+    return out
+
+
 def is_mw_manifest_loc(coords):
     """Multiworld slot manifests live at pseudo-locations -2..-257 in the
     owner's seed; display/tracker surfaces that resolve real coordinates

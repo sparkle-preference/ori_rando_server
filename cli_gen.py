@@ -5,7 +5,7 @@ import re
 import pickle
 from collections import OrderedDict, defaultdict, Counter
 
-from util import enums_from_strlist, get_preset_from_paths, SEED_FORMAT
+from util import enums_from_strlist, get_preset_from_paths, parse_fass, SEED_FORMAT
 from enums import MultiplayerGameType, ShareType, Variation, LogicPath, KeyMode, PathDifficulty, presets
 from seedbuilder.generator import SeedGenerator
 
@@ -451,14 +451,7 @@ class CLISeedParams(object):
                 sg.do_reachability_analysis(self)
                 return
 
-            preplaced = {}
-            for fass in (args.fass or "").split("|"):
-                if not fass:
-                    continue
-                rawloc, _, item = fass.partition(":")
-                world, _, loc = rawloc.rpartition(".")
-                item, _, owner = item.partition("@")
-                preplaced[(int(world or 1), int(loc))] = "%s|%s" % (item, owner) if owner else item
+            preplaced = parse_fass(args.fass)
             raw = sg.setSeedAndPlaceItems(self, preplaced=preplaced)
             seeds = []
             spoilers = []

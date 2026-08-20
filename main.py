@@ -31,7 +31,7 @@ from enums import MultiplayerGameType, ShareType, Variation
 from models import ndb_wsgi_middleware, Game, Player, Seed, User, BingoGameData, BingoEvent, BingoTeam, CustomLogic, trees_by_coords, LegacyUser, bingo_lock, AnnouncedPatchNotes
 from bingo import BingoGenerator
 from cache import Cache
-from util import coord_correction_map, clone_entity, all_locs, picks_by_type_generator, param_val, param_flag, param_true, debug, template_root, VER, MIN_VER, BETA_VER, game_list_html, version_check, template_vals, layout_json, bfield_checksum, netperf, NETPERF_TAG, json_default, seed_sync_id, is_mw_manifest_loc, MULTIWORLD, ARCHIPELAGO, CANONICAL_HOST, REDIRECT_HOSTS, PATCHNOTES_WEBHOOK_MAIN, PATCHNOTES_WEBHOOK_DEV
+from util import parse_fass, coord_correction_map, clone_entity, all_locs, picks_by_type_generator, param_val, param_flag, param_true, debug, template_root, VER, MIN_VER, BETA_VER, game_list_html, version_check, template_vals, layout_json, bfield_checksum, netperf, NETPERF_TAG, json_default, seed_sync_id, is_mw_manifest_loc, MULTIWORLD, ARCHIPELAGO, CANONICAL_HOST, REDIRECT_HOSTS, PATCHNOTES_WEBHOOK_MAIN, PATCHNOTES_WEBHOOK_DEV
 from reachable import Map, PlayerState
 from pickups import Pickup, Skill, AbilityCell, HealthCell, EnergyCell, Multiple
 
@@ -1341,14 +1341,19 @@ def plando_reachable():
 
 @app.route('/plando/fillgen') #PlandoFillGen
 def plando_fillgen():
+    """Fill a plando's empty locations. Answers {player: seed text}: one world
+    for everyone when the fill is cloned, one per player in multiworld."""
     qparams = request.args
-    forced_assignments = dict([(int(a), b) for (a, b) in ([tuple(fass.split(":")) for fass in (qparams.get('fass') or "").split("|") if fass])])
+    try:
+        preplaced = parse_fass(qparams.get('fass'))
+    except ValueError:
+        return text_resp("a forced assignment named a location that isn't a number", 422)
     param_key = SeedGenParams.from_url(qparams)
     params = param_key.get()
-    if params.generate(preplaced=forced_assignments):
-        return text_resp(params.get_seed(1))
-    else:
+    if not params.generate(preplaced=preplaced):
         return code_resp(422)
+    worlds = range(1, params.players + 1) if params.sync.mode == MultiplayerGameType.MULTIWORLD else [1]
+    return jsonify({str(p): params.get_seed(p) for p in worlds})
 
 def count_plandos(seed):
     if seed.author_key:

@@ -683,11 +683,29 @@ class PlandoBuiler extends React.Component {
         if(diverged.length)
             NotificationManager.warning(`${diverged.length} location${diverged.length === 1 ? "" : "s"} hold a different item per player. Each player keeps their own.`,
                                         "Placements disagree", 6000);
-        // the world that gets built is the one you're editing
-        let placed = this.state.placements[this.state.player] || {};
-        let codes = Object.keys(picks_by_loc)
-            .filter(loc => placed.hasOwnProperty(loc))
-            .map(loc => loc + ":" + placed[loc].value.replace("|", ""));
+        // Multiworld builds every world at once, so it sends every world's
+        // placements: world-prefixed, and tagged with an owner where the item
+        // belongs to someone else. Otherwise one world is built, the one being
+        // edited, and everybody takes a copy.
+        let isMulti = this.state.coop_mode.value === "Multiworld";
+        let codes = [];
+        if(isMulti) {
+            players.forEach(p => {
+                let plc = this.state.placements[p] || {};
+                Object.keys(picks_by_loc).filter(loc => plc.hasOwnProperty(loc)).forEach(loc => {
+                    let entry = plc[loc];
+                    let fass = `${p}.${loc}:${entry.value.replace("|", "")}`;
+                    if(entry.owner && entry.owner !== p)
+                        fass += `@${entry.owner}`;
+                    codes.push(fass);
+                })
+            })
+        } else {
+            let placed = this.state.placements[this.state.player] || {};
+            codes = Object.keys(picks_by_loc)
+                .filter(loc => placed.hasOwnProperty(loc))
+                .map(loc => loc + ":" + placed[loc].value.replace("|", ""));
+        }
 
         let mode = "";
         let urlParams = [];
@@ -702,9 +720,9 @@ class PlandoBuiler extends React.Component {
         });
         if(mode) urlParams.push(`key_mode=${mode}`)
         // the plando's own coop settings, or the fill comes back a solo seed
-        if(this.state.coop_mode.value === "Shared") {
+        if(this.state.coop_mode.value === "Shared" || isMulti) {
             urlParams.push(`players=${players.length}`)
-            urlParams.push(`sync_mode=Shared`)
+            urlParams.push(`sync_mode=${isMulti ? "Multiworld" : "Shared"}`)
             this.state.share_types.forEach(s => urlParams.push(`sync_shared=${s.value}`))
         }
         if(codes.length > 0)
@@ -720,8 +738,14 @@ class PlandoBuiler extends React.Component {
                 NotificationManager.error("Unfinishable Seed", "Failed to complete seed using seedgen", 4000);
                 return
             }
-            // same world into every player; each keeps what it already had
-            players.forEach(p => this.parseUploadedSeed(xmlHttp.responseText, p))
+            // {player: seed}. Multiworld answers one world per player; anything
+            // else answers a single world that every player takes a copy of.
+            let worlds = JSON.parse(xmlHttp.responseText)
+            let keys = Object.keys(worlds)
+            if(keys.length === 1)
+                players.forEach(p => this.parseUploadedSeed(worlds[keys[0]], p))
+            else
+                keys.forEach(p => this.parseUploadedSeed(worlds[p], p))
         }
         xmlHttp.open("GET", `/plando/fillgen?${urlParams.join("&")}`, true);
         xmlHttp.send(null);

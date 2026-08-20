@@ -15,6 +15,7 @@ import unittest
 from enums import MultiplayerGameType
 from seedbuilder.generator import MultiworldSlotOverflow
 from seedbuilder.seedparams import MultiplayerOptions, Placement, SeedGenParams, Stuff
+from util import parse_fass
 
 
 def plando(players, *placements):
@@ -104,6 +105,36 @@ class PlandoOwnershipTests(unittest.TestCase):
         p = plando(2, *[(str(i), "Glades", "EX", "100", 1, 2) for i in range(300)])
         with self.assertRaises(MultiworldSlotOverflow):
             lines(p, 1)
+
+
+
+class ForcedAssignmentParseTests(unittest.TestCase):
+    """util.parse_fass, shared by cli_gen and /plando/fillgen. The web route
+    used to int() the whole location, so a world-prefixed one threw."""
+
+    def test_a_bare_location_is_world_one(self):
+        self.assertEqual(parse_fass("919772:SK0"), {(1, 919772): "SK0"})
+
+    def test_a_world_prefix_is_honoured(self):
+        self.assertEqual(parse_fass("2.919772:SK0"), {(2, 919772): "SK0"})
+
+    def test_an_owner_rides_the_value(self):
+        self.assertEqual(parse_fass("1.919772:SK0@2"), {(1, 919772): "SK0|2"})
+
+    def test_several_are_pipe_joined(self):
+        self.assertEqual(parse_fass("1.1:SK0@2|2.2:HC1"),
+                         {(1, 1): "SK0|2", (2, 2): "HC1"})
+
+    def test_a_negative_location_survives(self):
+        self.assertEqual(parse_fass("1.-160:EC1"), {(1, -160): "EC1"})
+
+    def test_empty_is_empty(self):
+        self.assertEqual(parse_fass(""), {})
+        self.assertEqual(parse_fass(None), {})
+
+    def test_a_non_numeric_location_is_refused(self):
+        with self.assertRaises(ValueError):
+            parse_fass("Glades:SK0")
 
 
 if __name__ == "__main__":
