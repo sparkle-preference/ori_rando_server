@@ -27,7 +27,7 @@ class Pickup(object):
 
     @classmethod
     def n(cls, code, id, *args):
-        # args is the caller's player count, which only a cross-world line needs
+        # args is the seed's player count
         for subcls in Pickup.subclasses():
             if code == subcls.code:
                 return subcls(id, *args) if args and subcls.takes_players else subcls(id)
@@ -347,8 +347,7 @@ class MultiworldItem(Pickup):
         elif Pickup.n(code, item_id) is not None:
             shown = Pickup.name(code, item_id)
         else:
-            # a stored format-1 id, from history written before the format moved:
-            # its tail was the display name, not a code
+            # a format-1 id carries a display name where the code goes
             shown = rest
         inst.name = "Player %s's %s" % (inst.owner, shown)
         return inst

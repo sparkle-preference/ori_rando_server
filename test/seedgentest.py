@@ -2669,9 +2669,8 @@ class ApDataVersionTests(unittest.TestCase):
 
 
 class ApSeedAnnotationTests(unittest.TestCase):
-    """get_seed rewrites this world's AP lines from what the room actually
-    did with them (archipelago/annotate.py): the recipient, the promised slot
-    and the item all ride field 3. Scout rows come from APNames, stubbed."""
+    """get_seed rewrites this world's AP lines from what the room did (annotate.py):
+    recipient, promised slot and item all ride field 3. Scout rows stubbed from APNames."""
 
     K = 2       # two worlds, so world 1's shadow is pid 3 and world 2's is 4
     WORLD = 1
@@ -2763,9 +2762,8 @@ class ApSeedAnnotationTests(unittest.TestCase):
         self.assertEqual(parts[4:], ["AP", "Bow, Arrows"])
 
     def test_a_self_item_carries_its_manifest_slot(self):
-        """The promised slot is what lets the client grant on contact instead
-        of waiting out the room round trip. It is the bridge's persisted map,
-        baked verbatim -- the draw itself lives in ap_bridge alone."""
+        """The promised slot is the bridge's persisted map baked verbatim -- the draw
+        lives in ap_bridge alone, and it lets the client grant on contact."""
         self._store(self.WORLD, {0: self._scout("Bash", "Ori1", "Ori1",
                                                 ap_item=self.BASH_AP_ID, ap_owner=1)},
                     promises={0: 0})

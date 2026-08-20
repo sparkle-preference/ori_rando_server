@@ -81,7 +81,7 @@ class MultiworldLineTests(unittest.TestCase):
             self.assertTrue(self.manifest_lines(world), "world %s has no manifest" % p)
 
     def test_every_line_has_exactly_four_fields(self):
-        # fields 5 and 6 are an AP-only annotation applied at download time
+        # annotation rides field 3, so a downloaded line still has these four
         for p, world in enumerate(self.worlds, start=1):
             for line in world[1:]:
                 self.assertEqual(len(fields(line)), 4, "world %s: %s" % (p, line))
@@ -93,7 +93,7 @@ class MultiworldLineTests(unittest.TestCase):
                 self.assertEqual(len(parts), 3, line)
                 self.assertTrue(parts[0].isdigit(), line)   # owner
                 self.assertTrue(parts[1].isdigit(), line)   # slot
-                self.assertTrue(parts[2], line)             # display name
+                self.assertTrue(parts[2], line)             # item: code,id
 
     def test_manifest_field_three_is_finder_holder_code_id(self):
         for world in self.worlds:
@@ -106,9 +106,7 @@ class MultiworldLineTests(unittest.TestCase):
                 self.assertTrue(Pickup.n(parts[2], parts[3]), "not a pickup: %s" % line)
 
     def test_the_finder_carries_the_same_code_the_manifest_does(self):
-        """The point of the format. A cross-world line names its item the way
-        every other line does, so anything that classifies pickups -- Sense
-        above all -- sees it too."""
+        """A cross-world line names its item by code, so anything that classifies pickups -- Sense above all -- sees it."""
         manifests = {}
         for owner, world in enumerate(self.worlds, start=1):
             for line in self.manifest_lines(world):
@@ -137,9 +135,8 @@ class MultiworldLineTests(unittest.TestCase):
 
 
 class WarpIdTests(unittest.TestCase):
-    """A TW id is "<name>,<x>,<y>,<node>" -- an item id that carries commas of
-    its own, which is why the id is the last field and every split is bounded.
-    Warps are forced here so the case is structural, not luck of the roll."""
+    """A TW id is "<name>,<x>,<y>,<node>", so the id is the last field and every
+    split is bounded. Warps are forced so the case is structural, not luck of the roll."""
 
     @classmethod
     def setUpClass(cls):
@@ -181,8 +178,7 @@ class WarpIdTests(unittest.TestCase):
 
 
 class SoloControlTests(unittest.TestCase):
-    """A single-world seed must never carry a cross-world line -- which is what
-    lets format 2 retire only the seeds it actually breaks."""
+    """A single-world seed must never carry a cross-world line."""
 
     @classmethod
     def setUpClass(cls):
@@ -244,9 +240,7 @@ class ApAnnotationTests(unittest.TestCase):
         self.assertEqual(self.parts(self._annotate(promises={})[0])[3], "-1")
 
     def test_an_ori_item_is_named_by_code_and_a_foreign_one_by_name(self):
-        """ITEM_BY_AP_ID knows the room's id for anything of ours, so an
-        exported Ori item comes back classifiable; only a genuinely foreign
-        item falls back to carrying its name."""
+        """ITEM_BY_AP_ID names anything of ours by code; only a genuinely foreign item falls back to its name."""
         ours = self.parts(self._annotate()[0])
         self.assertEqual(ours[4:], ["SK", "0"])
 

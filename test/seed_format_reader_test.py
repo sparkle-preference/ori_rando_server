@@ -23,13 +23,11 @@ from archipelago.annotate import annotate
 from models import Game, HistoryLine, Player
 from pickups import Pickup
 from util import SEED_FORMAT
-# the AP scout stand-in is defined once, next to the writer goldens
 from test.seed_format_golden_test import _FakeScout, fields
 
 class MultiworldItemReaderTests(unittest.TestCase):
-    """pickups.MultiworldItem, the reader every /found POST goes through. It
-    splits field 3 with maxsplit 2 and validates only the two fields ahead of
-    that split, so anything appended to the id lands inside the display name."""
+    """pickups.MultiworldItem, the reader every /found POST goes through: it splits
+    field 3 at maxsplit 2 and type-checks only owner and slot."""
 
     def test_owner_and_slot_come_off_the_front_and_the_rest_is_the_name(self):
         item = Pickup.n("MW", "2,17,Bash")
@@ -38,14 +36,12 @@ class MultiworldItemReaderTests(unittest.TestCase):
         self.assertEqual(item.id, "2,17,Bash")  # whole field 3; this is what history stores
 
     def test_the_name_keeps_its_commas(self):
-        """maxsplit 2 is a contract, not an accident: AP labels carry commas.
-        It is also exactly what lets a format-2 tail through unnoticed."""
+        """maxsplit 2 is a contract, not an accident: AP labels carry commas."""
         item = Pickup.n("MW", "3,0,Bombs, Bow (P2)")
         self.assertEqual(item.name, "Player 3's Bombs, Bow (P2)")
 
     def test_the_only_rejections_are_a_missing_or_non_numeric_owner_or_slot(self):
-        # "3,,SK,0" is a manifest id -- the reader refuses it because SK is not
-        # a number, which is the whole of its type checking
+        # a manifest id is refused on its empty holder: only owner and slot are type-checked
         for bad in ["3,,SK,0", "2,17", "", "x,17,Bash", "-2,0,Bash", "2,-1,Bash"]:
             self.assertIsNone(Pickup.n("MW", bad), bad)
 
@@ -75,8 +71,7 @@ class MultiworldItemReaderTests(unittest.TestCase):
             return HistoryLine(player=1, pickup_code="MW", pickup_id=id, coords=919772,
                                removed=False, timestamp=t).print_line(t)
 
-        # a row written before the format moved still reads, because its tail
-        # was already a display name
+        # an old-shape history row still prints: its tail was already a name
         self.assertTrue(printed("2,17,Bash").startswith("found Player 2's Bash at "),
                         printed("2,17,Bash"))
         self.assertTrue(printed("2,17,SK,0").startswith("found Player 2's Bash at "),
@@ -85,9 +80,8 @@ class MultiworldItemReaderTests(unittest.TestCase):
 
 
 class ApSpoilerCommaFieldTests(unittest.TestCase):
-    """ap_spoiler reads two shapes out of the comma field: a manifest's
-    finder,holder,code,id and this world's reserved shadow,slot,recipient,
-    ownslot,code,id. Both name their item in the last two fields."""
+    """ap_spoiler reads two shapes: manifest finder,holder,code,id and reserved
+    shadow,slot,recipient,ownslot,code,id. Both name the item in the last two fields."""
 
     K = 2
     WORLD = 1
@@ -174,8 +168,7 @@ class ApSpoilerCommaFieldTests(unittest.TestCase):
         self.assertEqual(incoming["Warp to Ginso Escape"], "found by P2")    # native
 
     def test_a_scouted_ori_item_is_named_from_its_code(self):
-        """What the rework buys here: a reserved line holding one of our own
-        items names it the way every other line does."""
+        """A reserved line holding one of our own items names it by code, like every other line."""
         text = self.spoiler({0: _FakeScout()},
                             extra=[("2919744", "MW", "3,4,P2,-1,SK,0", "Grotto")])
         self.assertIn("Bash", self.sections(text)[0].values())
@@ -228,9 +221,8 @@ class _FetchSeedGame(object):
 
 
 class TrackerFetchSeedFormatTests(unittest.TestCase):
-    """What /tracker/.../fetch/player/N/seed pulls out of a seed line. A
-    reserved line names its recipient and item inside field 3; a finder line
-    names an owner and an item, and neither needs a fifth field."""
+    """What /tracker/.../fetch/player/N/seed pulls out of a line: a reserved line's
+    recipient and item, a finder line's owner and item, all from field 3."""
 
     def setUp(self):
         self._ndb = models.client
@@ -291,9 +283,8 @@ class TrackerFetchSeedFormatTests(unittest.TestCase):
 
 
 class _ModelsMwCase(unittest.TestCase):
-    """A MULTIWORLD Game whose datastore-touching statics are stubbed, so the
-    seed-line readers in models.py can be driven with no emulator. Slot flips,
-    history lines and grant batches land on the objects the test holds."""
+    """A MULTIWORLD Game with its datastore statics stubbed: slot flips, history
+    lines and grant batches land on the objects the test holds."""
 
     @classmethod
     def setUpClass(cls):
@@ -392,8 +383,7 @@ class MwReleaseFieldTests(_ModelsMwCase):
 
 
 class MwShareableTests(_ModelsMwCase):
-    """models.py:2075-2082. The release's shared pass reads field 2, never the
-    comma field: a cross-world line is somebody else's slot, not a share."""
+    """mw_shareable reads field 2, never the comma field: a cross-world line is somebody else's slot, not a share."""
 
     def test_a_cross_world_line_never_fans_out_whatever_its_tail_says(self):
         g, _, _ = self.game(shared=["Skills"])
@@ -414,9 +404,8 @@ class MwShareableTests(_ModelsMwCase):
 
 
 class MwFoundPickupTests(_ModelsMwCase):
-    """models.py:2256-2267 and 2331-2342. A found MW pickup flips the owner's
-    slot and records the whole comma field on the history line, which the
-    game's history page renders through MultiworldItem's name."""
+    """A found MW pickup flips the owner's slot and records the whole comma
+    field on the history line, which renders through MultiworldItem's name."""
 
     def test_the_slot_flip_reads_the_same_two_fields_as_the_release(self):
         g, _, owner = self.game()
@@ -445,9 +434,8 @@ class MwFoundPickupTests(_ModelsMwCase):
 
 
 class ApReservedIdReaderTests(unittest.TestCase):
-    """annotate._reserved_slot, the reserved-line id reader. It splits the six
-    fixed fields and hands back the item, so pin what it accepts and -- the
-    load-bearing half -- what it rejects."""
+    """annotate._reserved_slot splits the six fixed fields and hands back the item;
+    what it rejects is the load-bearing half."""
 
     SHADOW = "3"                       # players 2 + world 1
 
@@ -531,9 +519,7 @@ class ApManifestExportReaderTests(unittest.TestCase):
 
 
 class ApReservedRewriteTests(unittest.TestCase):
-    """Annotating an already-annotated line. The download path can run twice
-    over the same placements, so the second pass has to land on the same
-    shape rather than nesting the fields."""
+    """Annotation is idempotent: the download path can run twice over one set of placements."""
 
     LINE = ("919772", "MW", "3,0,,-1,AP,AP Item #0", "Glades")
 
@@ -551,9 +537,7 @@ class ApReservedRewriteTests(unittest.TestCase):
 
 
 class ApConversionReadTests(unittest.TestCase):
-    """What the AP conversion pass reads off a cross-world line. ap_convert is
-    a pure function over seed text, so these drive it with synthetic worlds
-    instead of rolling a seed."""
+    """What ap_convert reads off a cross-world line; it is pure over seed text, so these feed it synthetic worlds."""
 
     FLAGS = "Sync0.0,test|mode=Multiworld"
 
@@ -601,9 +585,8 @@ class ApConversionReadTests(unittest.TestCase):
         self.assertIn("of world 2", message)
 
     def test_an_ex_export_rounds_away_from_the_placed_amount(self):
-        """The id that exports is not always the id on the manifest: above the
-        exact cap EX rounds so the amount AP announces is the amount the client
-        grants. A finder line carrying the true amount would disagree."""
+        """Above the exact cap EX rounds, so the amount AP announces is the amount
+        the client grants -- the exported id need not match the placed one."""
         texts, info = self._convert([[self._finder(1000000, 2, 0, "EX", "1337")],
                                      [self._manifest(0, 1, "EX", "1337")]],
                                     categories=("upgrades",))
@@ -611,9 +594,7 @@ class ApConversionReadTests(unittest.TestCase):
         self.assertIn("|MW|4,,EX,200|", texts[1])
 
     def test_a_converted_line_fed_back_in_is_refused(self):
-        """Field count used to exclude annotated lines from conversion. Format 2
-        gives every line four fields, so the shadow-owner check is the whole
-        guard against converting an already-converted seed."""
+        """Every line is four fields, so the shadow-owner check is the only guard against re-converting a seed."""
         from archipelago.convert import ApConversionError
         already = "1000000|MW|3,0,,-1,AP,AP Item #1|Grove"
         with self.assertRaises(ApConversionError) as caught:
@@ -647,9 +628,7 @@ class ApConversionWriteTests(unittest.TestCase):
         self.assertEqual(fields(line), ["-2", "MW", "2,,SK,0", "Glades"])
 
     def test_unconverted_cross_lines_pass_through_byte_identical(self):
-        """Filler the datapackage cannot name keeps the native fabric, so one
-        converted seed carries lines this pass wrote next to lines it only
-        copied."""
+        """Filler the datapackage cannot name stays on the native fabric, so a converted seed mixes written and copied lines."""
         native = "1000000|MW|2,0,WT,#Abandoned Nest#|Grove"
         texts, _ = self._convert([[native, "1000001|SK|0|Glades"],
                                   ["-2|MW|1,,WT,#Abandoned Nest#|Swamp"]])
@@ -695,8 +674,7 @@ class ApBridgeMapReaderTests(unittest.TestCase):
         self.assertEqual(maps.grant_slots[1], {})
 
     def test_only_the_first_two_comma_fields_are_load_bearing(self):
-        """Fixed-arity fields lead and the free text is last, so widening the
-        tail is invisible here -- this reader survives format 2 untouched."""
+        """Fixed-arity fields lead and the free text is last, so widening the tail is invisible here."""
         f1 = self.maps([("919908", "MW", "3,0,AP Item #1", "Grove")] + self.MANIFEST)
         f2 = self.maps([("919908", "MW", "3,0,P2,-1,AP,AP Item #1", "Grove")] + self.MANIFEST)
         self.assertEqual((f1.outbox, f1.zones), (f2.outbox, f2.zones))
@@ -721,8 +699,7 @@ class ApBridgeMapReaderTests(unittest.TestCase):
         self.assertEqual(maps.outbox[1], {0: 524541})
 
     def test_the_bridge_reads_annotated_placements_too(self):
-        """Annotation no longer changes a line's arity, so the 4-tuple unpack
-        that used to refuse an annotated line now accepts one."""
+        """Annotation never changes a line's arity, so the 4-tuple unpack accepts an annotated line."""
         reserved = ("919772", "MW", "3,0,,-1,AP,AP Item #1", "Glades")
         lines = annotate([reserved], self.K, 1, {1: ({0: _FakeScout()}, 7)},
                          lambda v: [], promises={0: 12})
@@ -730,17 +707,14 @@ class ApBridgeMapReaderTests(unittest.TestCase):
         self.assertEqual(self.maps(lines).outbox[1], self.maps([reserved]).outbox[1])
 
     def test_a_field_three_that_stops_leading_with_the_shadow_id_goes_quiet(self):
-        """The silent failure: move the shadow id off the front and the outbox
-        empties without raising, so the bridge polls nothing and the room never
-        sees a check."""
+        """Move the shadow id off the front and the outbox empties without raising --
+        the bridge polls nothing and the room never sees a check."""
         maps = self.maps([("919908", "MW", "0,3,P2,-1,AP,AP Item #1", "Grove")])
         self.assertEqual(maps.outbox[1], {})
 
 
 class FormatTwoWorklistTests(unittest.TestCase):
-    """Every reader here is pinned against one format. A reader left behind at
-    the next one would still pass its own test, so this is the tripwire that
-    says when to walk the module again."""
+    """Tripwire: a reader left behind at the next format still passes its own test."""
 
     def test_seed_format_is_still_two(self):
         self.assertEqual(SEED_FORMAT, 2,

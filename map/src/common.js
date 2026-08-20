@@ -153,10 +153,8 @@ function pickup_name(code, id) {
           const subparts = id.split(",");
           return `${subparts[0]} (${subparts[1]}, ${subparts[2]})`;
         case "MW": {
-            // owner,slot,code,id -- or, on an Archipelago reserved line,
-            // shadow,slot,recipient,ownslot,code,id. Only a code sits in field
-            // three of the short form, so its shape tells the two apart without
-            // needing to know how many players the seed has.
+            // owner,slot,code,id -- reserved: shadow,slot,recipient,ownslot,code,id
+            // only the short form has a two-letter code in field three
             let fields = id.split(",");
             let reserved = !/^[A-Z]{2}$/.test(fields[2]);
             let owner = reserved ? fields[2] : "P" + fields[0];

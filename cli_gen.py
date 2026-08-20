@@ -495,8 +495,7 @@ class CLISeedParams(object):
                 seed, spoiler = tuple(player_raw)
                 if self.tracking:
                     seed = "Sync%s.%s," % (self.sync_id, player) + seed
-                # an unstamped seed reads as format 1, and the client would
-                # parse this one's cross-world lines by the old shape
+                # an unstamped seed reads as format 1 and its cross-world lines parse by the old shape
                 flags, _, rest = seed.partition("\n")
                 seed = "%s\n// SEED_FORMAT: %s\n// PLAYERS: %s\n%s" % (
                     flags, SEED_FORMAT, self.players, rest)

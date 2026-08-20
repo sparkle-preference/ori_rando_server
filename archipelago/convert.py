@@ -427,8 +427,7 @@ def ap_convert(texts, categories, keep_locs=frozenset()):
     rewrites = [{} for _ in range(players)]
     for p in range(1, players + 1):
         for i, c in enumerate(reserved[p]):
-            # conversion runs before the room has filled anything, so the
-            # recipient is unknown and no slot has been promised yet
+            # conversion predates the room's fills: no recipient, no promised slot
             rewrites[p - 1][c["line"]] = "%s|MW|%s,%s,,-1,AP,AP Item #%s|%s" % (
                 c["loc"], players + p, i, i + 1, c["zone"])
 

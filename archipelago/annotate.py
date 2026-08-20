@@ -121,9 +121,8 @@ def annotate(seed_data, players, world, rows, seed_data_for, promises=None):
         if is_mw_manifest_loc(int(loc)):
             key = exports.get(-int(loc) - 2)
             hit = holders.get(key) if key is not None and counts.get(key) == 1 else None
-            # the rolled zone is where the item came FROM (see module docstring);
-            # an unplaced entry keeps custody and no zone. The holder must be
-            # non-empty or the client renders the finder as "P<shadow>".
+            # an unplaced entry keeps custody and no zone; the holder must stay
+            # non-empty or the client renders the finder as "P<shadow>"
             holder, true_zone = hit if hit else (FOREIGN_HOLDER, "")
             finder, _, item = id.split(",", 2)
             line = (loc, code, "%s,%s,%s" % (finder, holder, item), true_zone)
