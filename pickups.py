@@ -35,7 +35,7 @@ class Pickup(object):
     # a negative id of one of these removes one instead of granting it. The
     # check has to come before the subclass loop: HealthCell("-1") is perfectly
     # happy to build, and would name a removal exactly like a grant.
-    REMOVES_ON_NEGATIVE = ("HC", "EC", "AC", "KS", "MS", "RB")
+    REMOVES_ON_NEGATIVE = ("HC", "EC", "AC", "KS", "MS", "RB", "EX")
 
     @classmethod
     def name(cls, code, id):
@@ -356,5 +356,13 @@ class MultiworldItem(Pickup):
         else:
             # a format-1 id carries a display name where the code goes
             shown = rest
-        inst.name = "Player %s's %s" % (inst.owner, shown)
+        inst.shown = shown
+        inst.name = inst.named_for()
         return inst
+
+    def named_for(self, names=None):
+        """The item, owned. A pid is all a seed line carries; the game's own
+        names arrive later, on the tick, so anything holding them can say who
+        this really is."""
+        return "%s's %s" % ((names or {}).get(self.owner) or "Player %s" % self.owner,
+                            self.shown)

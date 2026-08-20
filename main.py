@@ -501,8 +501,9 @@ def game_show_history(game_id):
         hls = []
         pids = [int(pid) for pid in param_val("pids").split("|")] if param_val("pids") else []
         hls = game.history(pids) if param_flag("verbose") else [h for h in game.history(pids) if h.pickup().is_shared(share_types)]
+        mw_names = game.mw_names()
         for hl in sorted(hls, key=lambda x: x.timestamp, reverse=True):
-            output += "\n\t\t%s Player %s %s" % ((hl.player-1)*"\t\t\t\t", hl.player, hl.print_line(game.start_time))
+            output += "\n\t\t%s Player %s %s" % ((hl.player-1)*"\t\t\t\t", hl.player, hl.print_line(game.start_time, mw_names))
         return text_resp(output)
     else:
         return text_resp("Game %s not found!" % game_id, 404)
@@ -513,9 +514,10 @@ def game_list_players(game_id):
         if not game:
             return text_resp("Game %s not found!" % game_id, 404)
         out_lines = []
+        mw_names = game.mw_names()
         for p in game.visible_players():
             out_lines.append("Player %s: %s" % (p.pid(), p.output()))
-            out_lines.append("\t\t" + "\n\t\t".join([hl.print_line(game.start_time) for hl in game.history([p.pid()]) if hl.pickup().is_shared(share_types)]))
+            out_lines.append("\t\t" + "\n\t\t".join([hl.print_line(game.start_time, mw_names) for hl in game.history([p.pid()]) if hl.pickup().is_shared(share_types)]))
         return text_resp("\n".join(out_lines))
 
 @app.route('/game/<int:game_id>/player/<pid>/remove/')

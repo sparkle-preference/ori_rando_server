@@ -41,3 +41,21 @@ class NegativeNameTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class OwnerNamingTests(unittest.TestCase):
+    """A seed line only ever carries a pid. The game's chosen names arrive on
+    the tick, so anything holding them can say who an item really belongs to;
+    everything else keeps saying "Player N"."""
+
+    def test_a_pid_is_the_default(self):
+        self.assertEqual(Pickup.n("MW", "2,0,SK,0").name, "Player 2's Bash")
+
+    def test_a_known_name_is_used(self):
+        self.assertEqual(Pickup.n("MW", "2,0,SK,0").named_for({2: "Skye"}), "Skye's Bash")
+
+    def test_an_unknown_owner_falls_back_to_the_pid(self):
+        mw = Pickup.n("MW", "2,0,SK,0")
+        self.assertEqual(mw.named_for({3: "Someone"}), "Player 2's Bash")
+        self.assertEqual(mw.named_for({}), "Player 2's Bash")
+        self.assertEqual(mw.named_for(None), "Player 2's Bash")

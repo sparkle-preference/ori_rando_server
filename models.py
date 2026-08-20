@@ -192,8 +192,10 @@ class HistoryLine(ndb.Model):
     def equals(self, other):
         return self.player == other.player and self.pickup_code == other.pickup_code and self.pickup_id == other.pickup_id and self.coords == other.coords
 
-    def print_line(self, start_time=None):
+    def print_line(self, start_time=None, names=None):
         t = (self.timestamp - start_time) if start_time and self.timestamp else self.timestamp
+        pick = self.pickup()
+        shown = pick.named_for(names) if hasattr(pick, "named_for") else pick.name
         if not self.removed:
             name = "at "
             if self.coords in pbc:
@@ -203,9 +205,9 @@ class HistoryLine(ndb.Model):
             else:
                 log.warning("Unknown coords: %s", self.coords)
                 name += "unknown coordset %s (%s, %s)" % (self.coords, unpack(self.coords))
-            return "found %s %s. (%s)" % (self.pickup().name, name, t)
+            return "found %s %s. (%s)" % (shown, name, t)
         else:
-            return "lost %s! (%s)" % (self.pickup().name, t)
+            return "lost %s! (%s)" % (shown, t)
 
 HIST_CHUNK_SIZE = 50   # lines per chunk entity
 HIST_TAIL = 20         # legacy dedup exemption window (Game.hls[:-20])
@@ -1833,6 +1835,11 @@ class Game(ndb.Model):
     legacy_creator = ndb.KeyProperty("User", LegacyUser)
     is_race        = ndb.BooleanProperty(default=False)
     spawn          = ndb.StringProperty(default="Glades")
+    def mw_names(self):
+        """pid -> the name that world's player chose, for anything naming a
+        cross-world item. Empty on a game nobody named."""
+        return {i + 1: n for i, n in enumerate(self.player_names or []) if n}
+
     def history(self, pids=[]):
         # Readers merge every storage layout unconditionally, so games written
         # under any older revision still read back whole. Oldest first:
