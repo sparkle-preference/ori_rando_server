@@ -1608,12 +1608,6 @@ class SeedGenerator:
             item = "EX%s" % value
         return tag(item, player)
 
-    def mw_display_name(self, base_item):
-        if base_item.startswith("Warp"):
-            return "Warp to " + self.warps[base_item][0]
-        # the name rides a |-delimited line, so it can't contain one
-        return Pickup.name(base_item[:2], base_item[2:] or "1").replace("|", "/")
-
     def get_assignment(self, loc, player, item, zone):
         """item is tagged with its owner; player is the world the location is
         in. Returns (seed line, mw_ref) where mw_ref is (owner, slot) when the
@@ -1632,7 +1626,7 @@ class SeedGenerator:
             pickup = "%s|1" % base[:2]
         if owner != player:
             slot = self.place_in_slot(owner, pickup, player, zone)
-            pickup = "MW|%s,%s,%s" % (owner, slot, self.mw_display_name(base))
+            pickup = "MW|%s,%s,%s" % (owner, slot, pickup.replace("|", ",", 1))
             mw_ref = (owner, slot)
         return ("%s|%s|%s\n" % (loc, pickup, zone), mw_ref)
 
@@ -1924,16 +1918,17 @@ class SeedGenerator:
     def mw_manifest(self, p):
         """Seed lines describing what fills each of p's multiworld slots, so
         their client can self-grant on slot-bitfield updates. Line shape:
-        -(slot+2)|MW|<finder>,<code>,<id>|<zone> -- locs -2..-257 are free
-        (-1 and 2 are real pseudo-locations), and 4 pipe-fields to parse like
-        any other seed line."""
+        -(slot+2)|MW|<finder>,<holder>,<code>,<id>|<zone> -- locs -2..-257 are
+        free (-1 and 2 are real pseudo-locations), and 4 pipe-fields to parse
+        like any other seed line. An empty holder means "P<finder> holds it";
+        only the download-time AP join ever fills it in."""
         lines = ""
         for slot, entry in enumerate(self.mw_slots[p]):
             if entry is None:
                 continue  # slot freed by balance churn and never reused
             pickup, finder, zone = entry
             code, _, id = pickup.partition("|")
-            lines += "%s|MW|%s,%s,%s|%s\n" % (-(slot + 2), finder, code, id, zone)
+            lines += "%s|MW|%s,,%s,%s|%s\n" % (-(slot + 2), finder, code, id, zone)
         return lines
 
     def locations(self):

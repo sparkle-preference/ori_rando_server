@@ -29,7 +29,7 @@ BETA_VER = [4, 2, 16]
 
 # Seed file layout, deliberately not tied to the versions above: bump it only
 # when a client that reads one format cannot read the other.
-SEED_FORMAT = 1
+SEED_FORMAT = 2
 
 # Feature flags (env vars; unset/0 = off)
 def _flag(name):

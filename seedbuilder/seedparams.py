@@ -571,16 +571,18 @@ class SeedGenParams(ndb.Model):
         # 4.2.15+ checks this and refuses a format it cannot read; 4.2.9 to
         # 4.2.14 skip metadata lines, and pre-4.2.9 ones choke on them
         outlines.append("// SEED_FORMAT: %s" % SEED_FORMAT)
+        # a reserved AP line is one whose owner is a shadow, i.e. above the player
+        # count; without this a reader can't tell one from a cross-world finder
+        outlines.append("// PLAYERS: %s" % self.players)
         if self.ap_mode:
             from archipelago.convert import keytiers_meta
             meta = keytiers_meta(self, player)
             if meta:
                 outlines.append(meta)
         seed_data = self.ap_named(self.get_seed_data(player, no_door_zone = True), player, game_id)
-        # AP-annotated lines join positionally: the zone of an item nobody
-        # can locate is empty, and dropping it would promote field 5 into it
-        outlines += ["|".join(line) if len(line) > 4 else "|".join(p for p in line if p)
-                     for line in seed_data]
+        # an EN line's zone rides inside field 3 and is None here; every other
+        # field, zone included, may legitimately be empty
+        outlines += ["|".join(p for p in line if p is not None) for line in seed_data]
         return "\n".join(outlines) + "\n"
 
     def ap_rows(self, game_id):

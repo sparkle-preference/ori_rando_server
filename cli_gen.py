@@ -5,7 +5,7 @@ import re
 import pickle
 from collections import OrderedDict, defaultdict, Counter
 
-from util import enums_from_strlist, get_preset_from_paths
+from util import enums_from_strlist, get_preset_from_paths, SEED_FORMAT
 from enums import MultiplayerGameType, ShareType, Variation, LogicPath, KeyMode, PathDifficulty, presets
 from seedbuilder.generator import SeedGenerator
 
@@ -495,6 +495,11 @@ class CLISeedParams(object):
                 seed, spoiler = tuple(player_raw)
                 if self.tracking:
                     seed = "Sync%s.%s," % (self.sync_id, player) + seed
+                # an unstamped seed reads as format 1, and the client would
+                # parse this one's cross-world lines by the old shape
+                flags, _, rest = seed.partition("\n")
+                seed = "%s\n// SEED_FORMAT: %s\n// PLAYERS: %s\n%s" % (
+                    flags, SEED_FORMAT, self.players, rest)
                 if args.output_number != "0":
                     seedfile = "randomizer" + args.output_number + "_%s.dat" % player
                     spoilerfile = "spoiler" + args.output_number + "_%s.txt" % player                    
