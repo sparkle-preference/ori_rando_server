@@ -394,11 +394,28 @@ class PlandoBuiler extends React.Component {
                 newEntrances[loc] = line[2] + "|" + line[3]
                 continue;
             }
+            // manifest pseudo-locations describe another world's slots. They are
+            // derived from ownership on the way out, and are not map coordinates.
+            if(loc <= -2 && loc >= -257)
+                continue;
             if(currplc.hasOwnProperty(loc)) {
                 newplc[loc] = currplc[loc];
                 continue;
             }
             let code = line[1];
+            let owner = null;
+            if(code === "MW") {
+                let f = line[2].split(",");
+                // owner,slot,code,id. An Archipelago reserved line carries a
+                // recipient token where the code sits; those are the room's to
+                // fill, not a plando's to hold.
+                if(!/^[A-Z]{2}$/.test(f[2]))
+                    continue;
+                owner = f[0];
+                code = f[2];
+                // the slot is dropped: it is re-derived from placement order
+                line = [line[0], code, f.slice(3).join(","), line[3]];
+            }
             let id = str_ids.includes(code) ? line[2] : parseInt(line[2], 10);
             if(code === "EX" && this.state.seedFlags.some(f => f.value === "NoExtraExp"))
                 id = 0
@@ -408,7 +425,8 @@ class PlandoBuiler extends React.Component {
             }
             let name = pickup_name(code, id);
             let stuff = {label: name, value:code+"|"+id};
-            if(code === "TW") console.log(stuff)
+            if(owner && owner !== player)
+                stuff.owner = owner;
             newplc[loc] = stuff;
             if(loc === this.state.pickup.value.loc && player === this.state.player)
                 this.setState({stuff: stuff});
