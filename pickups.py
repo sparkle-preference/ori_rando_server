@@ -15,6 +15,7 @@ class Pickup(object):
     stacks = False
     has_children = False
     int_id = True
+    takes_players = False   # only a cross-world line needs the seed's player count
 
     share_type = ShareType.NOT_SHARED
     def __eq__(self, other):
@@ -29,7 +30,7 @@ class Pickup(object):
         # args is the caller's player count, which only a cross-world line needs
         for subcls in Pickup.subclasses():
             if code == subcls.code:
-                return subcls(id, *args) if args else subcls(id)
+                return subcls(id, *args) if args and subcls.takes_players else subcls(id)
         return None
     @classmethod
     def name(cls, code, id):
@@ -324,6 +325,7 @@ class MultiworldItem(Pickup):
     # item through the slot-bitfield reconciliation path instead).
     code = "MW"
     int_id = False
+    takes_players = True
     share_type = ShareType.NOT_SHARED
     def __new__(cls, id, players=None):
         parts = id.split(",", 2)

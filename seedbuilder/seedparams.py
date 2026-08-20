@@ -757,10 +757,10 @@ class SeedGenParams(ndb.Model):
             if is_mw_manifest_loc(coords):
                 continue  # slot manifests aren't map locations
             loc = PBC[int(coords)]
-            pickup = Pickup.n(pcode, pid)
+            pickup = Pickup.n(pcode, pid, self.players)
             if pickup:
                 name = pickup.name.replace("Repeatable: ", "").replace("Message: Press AltR to ", "").replace(", Warp to", "")
-                sect = loc.zone if by_zone else type(Pickup.n(pcode, pid)).__name__
+                sect = loc.zone if by_zone else type(pickup).__name__
             else:
                 log.warn("couldn't make a pickup out of %s|%s", pcode, pid)
                 name = "%s|%s" %(pcode, pid)

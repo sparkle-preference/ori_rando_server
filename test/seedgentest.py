@@ -85,7 +85,7 @@ class SeedGenTests(unittest.TestCase):
     # (Last bumped: 2026-07-28 for 4.2.3's impossible-path fixes (#83) —
     # verified by diffing generated seeds across the PR: same items, ~9
     # placements shuffled, exactly what a logic-path change produces.)
-    SOLO_CANARY = "da8d5a061a509de4a2e960fc7b320365534cac662aa2bcf9b827f777928de7da"
+    SOLO_CANARY = "62a6675bc9898c6cfc57e29d2c989458ab9b0777398f7a764e6015b164591bf5"
 
     def test_solo_output_canary(self):
         import hashlib
@@ -266,7 +266,7 @@ class MultiworldGenTests(unittest.TestCase):
     # legitimately shuffled -- see SOLO_CANARY note.)
     # (bumped 2026-08-02: exp_pool is now per-world (134701: it was being
     # split across all worlds' slots) -- EX values change, placements don't.)
-    MW_CANARY = "6381bb2ada5bfde82ad967a64423ffc7c101538bda8aa42094ef30a3c1e18782"
+    MW_CANARY = "25e87417de74d885ff3537af15bb8b04b790257a583fa9e52df2a25b2f1d21f4"
 
     def test_exp_pool_is_per_world(self):
         # 134701 report: the global exp budget was being spread across every
@@ -1761,15 +1761,15 @@ class ApModeGenTests(unittest.TestCase):
 
     def test_reserved_lines_wellformed(self):
         """Converted locations hold MW placeholders owned by the world's own
-        shadow (K+p), slots dense 0..n-1, v1 display names."""
+        shadow (K+p), slots dense 0..n-1, nothing scouted or promised yet."""
         for p, lines in self.seeds.items():
             _, _, reserved, _, _ = parse_ap_seed(lines, self.PLAYERS)
             self.assertGreater(len(reserved), 0)
             slots = []
-            for loc, (owner, slot, name, zone) in reserved.items():
+            for loc, (owner, slot, item, zone) in reserved.items():
                 self.assertEqual(owner, self.PLAYERS + p,
                                  "reserved line at %s owned by %s, not this world's shadow" % (loc, owner))
-                self.assertEqual(name, "AP Item #%s" % (slot + 1))
+                self.assertEqual(item, ",-1,AP,AP Item #%s" % (slot + 1))
                 slots.append(slot)
             self.assertEqual(sorted(slots), list(range(len(slots))),
                              "player %s reserved slots not dense" % p)
@@ -2156,7 +2156,7 @@ class ApExportSlotCapTests(unittest.TestCase):
     def _natives(self, n):
         """n native (non-AP) manifest entries, which keep holding their slots
         through conversion because filler may ride the native MW fabric."""
-        return ["%s|MW|1,RB,6|Glades" % (-(slot + 2)) for slot in range(n)]
+        return ["%s|MW|1,,RB,6|Glades" % (-(slot + 2)) for slot in range(n)]
 
     def _convert(self, texts, categories=("skills",)):
         from archipelago.convert import ap_convert
@@ -2263,7 +2263,7 @@ class ApFullConversionTests(unittest.TestCase):
         ])
         self.assertEqual(info["exported"][2], [])
         self.assertEqual(info["reserved"][1], [])
-        self.assertIn("|MW|1,WT,%s|" % relic, texts[1])
+        self.assertIn("|MW|1,,WT,%s|" % relic, texts[1])
         self.assertIn(self._cross(1000000, 2, 0, "Grove"), texts[0])
 
     def test_cross_landed_warp_converts_keeping_its_coordinates(self):
@@ -2276,7 +2276,7 @@ class ApFullConversionTests(unittest.TestCase):
         ])
         self.assertEqual(info["exported"][2], [("TW", warp, 0)])
         self.assertEqual(len(info["reserved"][1]), 1)
-        self.assertIn("|MW|4,TW,%s|" % warp, texts[1])
+        self.assertIn("|MW|4,,TW,%s|" % warp, texts[1])
 
     def test_a_warp_exports_with_the_teleporters(self):
         """Warps ride the teleporters category; not selecting it leaves them
@@ -2307,7 +2307,7 @@ class ApFullConversionTests(unittest.TestCase):
             [self._mani(0, 1, "TW", "Warp to Nowhere In Particular,1,2,Node", "Swamp")],
         ], categories=("teleporters",))
         self.assertEqual(info["exported"][2], [])
-        self.assertIn("|MW|1,TW,Warp to Nowhere In Particular,1,2,Node|", texts[1])
+        self.assertIn("|MW|1,,TW,Warp to Nowhere In Particular,1,2,Node|", texts[1])
 
     def test_a_bonus_skill_exports_under_upgrades(self):
         """The BS* roll (RB101..RB113) is in the datapackage now, so the
@@ -2352,8 +2352,8 @@ class ApFullConversionTests(unittest.TestCase):
         ])
         self.assertEqual(info["exported"][2],
                          [("EX", str(EX_EXACT_CAP), 0), ("EX", "200", 1)])
-        self.assertIn("|MW|4,EX,%s|" % EX_EXACT_CAP, texts[1])
-        self.assertIn("|MW|4,EX,200|", texts[1])
+        self.assertIn("|MW|4,,EX,%s|" % EX_EXACT_CAP, texts[1])
+        self.assertIn("|MW|4,,EX,200|", texts[1])
 
 
 class ApBonusPoolConversionTests(unittest.TestCase):
@@ -2670,9 +2670,8 @@ class ApDataVersionTests(unittest.TestCase):
 
 class ApSeedAnnotationTests(unittest.TestCase):
     """get_seed rewrites this world's AP lines from what the room actually
-    did with them (archipelago/annotate.py). Fields 0-3 keep their exact
-    meaning for every shipped client; field 5 is the new half. Scout rows
-    come from APNames, stubbed here."""
+    did with them (archipelago/annotate.py): the recipient, the promised slot
+    and the item all ride field 3. Scout rows come from APNames, stubbed."""
 
     K = 2       # two worlds, so world 1's shadow is pid 3 and world 2's is 4
     WORLD = 1
@@ -2727,9 +2726,9 @@ class ApSeedAnnotationTests(unittest.TestCase):
             spoilers=["the old roll walkthrough", "the other world's roll"],
             ap_export=["skills"], sync=sync, placements=[
                 place("2", "SK", "0", "Glades"),                      # plain line
-                place("919908", "MW", "3,0,AP Item #1", "Grove"),     # reserved slot 0
-                place("959960", "MW", "3,1,AP Item #2", "Sorrow"),    # reserved slot 1
-                place("1799708", "MW", "2,55,Valley teleporter", "Valley"),  # plain cross-world
+                place("919908", "MW", "3,0,,-1,AP,AP Item #1", "Grove"),   # reserved slot 0
+                place("959960", "MW", "3,1,,-1,AP,AP Item #2", "Sorrow"),  # reserved slot 1
+                place("1799708", "MW", "2,55,TP,Valley", "Valley"),        # plain cross-world
                 place("-2", "MW", "3,,SK,0", "Glades"),                # our AP manifest slot
                 place("-3", "MW", "2,,HC,1", "Glades"),                # native manifest
             ])
@@ -2742,37 +2741,39 @@ class ApSeedAnnotationTests(unittest.TestCase):
         self._store(self.WORLD, {0: self._scout("Progressive Sword", "TestQuest", "TestQuest")})
         lines = self._lines(self._params())
         self.assertEqual(lines["919908"],
-                         "919908|MW|3,0,Progressive Sword (TestQuest)|Grove|TestQuest;Progressive Sword")
-        # slot 1 was never scouted: placeholder intact, no field 5
-        self.assertEqual(lines["959960"], "959960|MW|3,1,AP Item #2|Sorrow")
+                         "919908|MW|3,0,TestQuest,-1,AP,Progressive Sword|Grove")
+        # slot 1 was never scouted: placeholder intact
+        self.assertEqual(lines["959960"], "959960|MW|3,1,,-1,AP,AP Item #2|Sorrow")
 
-    def test_the_first_four_fields_are_exactly_what_they_were(self):
-        """An old dll splits on '|' and reads 0..3, so the whole annotation
-        has to be invisible to it apart from the name it already showed."""
+    def test_annotation_never_changes_a_line_shape(self):
+        """Every line is four fields whatever the room has said, so no reader
+        has to branch on how much is known."""
         self._store(self.WORLD, {0: self._scout("Bash", "Ori2", "P2")})
         lines = self._lines(self._params())
         parts = lines["919908"].split("|")
-        self.assertEqual(parts[:4], ["919908", "MW", "3,0,Bash (Ori2)", "Grove"])
-        self.assertEqual(len(parts), 5)
+        self.assertEqual(len(parts), 4)
+        self.assertEqual((parts[0], parts[1], parts[3]), ("919908", "MW", "Grove"))
+        self.assertEqual(parts[2].split(",", 5)[2], "P2")
 
-    def test_field_five_carries_the_recipient_and_the_bare_item(self):
+    def test_field_three_carries_the_recipient_and_the_item(self):
         self._store(self.WORLD, {0: self._scout("Bow, Arrows", "Zelda", "Zelda")})
-        recipient, item = self._lines(self._params())["919908"].split("|")[4].split(";", 1)
-        self.assertEqual((recipient, item), ("Zelda", "Bow, Arrows"))
+        parts = self._lines(self._params())["919908"].split("|")[2].split(",", 5)
+        self.assertEqual(parts[2], "Zelda")
+        # a foreign game's item has no code of ours, and its name keeps commas
+        self.assertEqual(parts[4:], ["AP", "Bow, Arrows"])
 
     def test_a_self_item_carries_its_manifest_slot(self):
-        """Field 6 is what lets the client grant on contact instead of waiting
-        out the room round trip. It is the bridge's persisted promise map,
+        """The promised slot is what lets the client grant on contact instead
+        of waiting out the room round trip. It is the bridge's persisted map,
         baked verbatim -- the draw itself lives in ap_bridge alone."""
         self._store(self.WORLD, {0: self._scout("Bash", "Ori1", "Ori1",
                                                 ap_item=self.BASH_AP_ID, ap_owner=1)},
                     promises={0: 0})
         parts = self._lines(self._params())["919908"].split("|")
-        self.assertEqual(len(parts), 6)
-        self.assertEqual(parts[5], "0", "should point at our SK|0 manifest slot")
-        # the first five fields are untouched, so 4.2.7 behaves exactly as now
-        self.assertEqual(parts[:5],
-                         ["919908", "MW", "3,0,Bash (Ori1)", "Grove", "Ori1;Bash"])
+        self.assertEqual(len(parts), 4)
+        self.assertEqual(parts[2].split(",", 5),
+                         ["3", "0", "Ori1", "0", "SK", "0"])
+        self.assertEqual(parts[3], "Grove")
 
     def test_duplicate_self_items_get_distinct_slots(self):
         """Each copy of a duplicated item claims its own manifest slot;
@@ -2788,8 +2789,8 @@ class ApSeedAnnotationTests(unittest.TestCase):
         params = SeedGenParams(
             seed="apnames", players=self.K, tracking=False, ap_mode=True,
             ap_export=["skills"], sync=sync, placements=[
-                place("919908", "MW", "3,0,AP Item #1", "Grove"),
-                place("959960", "MW", "3,1,AP Item #2", "Sorrow"),
+                place("919908", "MW", "3,0,,-1,AP,AP Item #1", "Grove"),
+                place("959960", "MW", "3,1,,-1,AP,AP Item #2", "Sorrow"),
                 place("-2", "MW", "3,,SK,0", "Glades"),
                 place("-3", "MW", "3,,SK,0", "Glades"),
             ])
@@ -2797,31 +2798,39 @@ class ApSeedAnnotationTests(unittest.TestCase):
             0: self._scout("Bash", "Ori1", "Ori1", ap_item=self.BASH_AP_ID, ap_owner=1),
             1: self._scout("Bash", "Ori1", "Ori1", ap_item=self.BASH_AP_ID, ap_owner=1)},
             promises={0: 0, 1: 1})
+        def promised(line):
+            return line.split("|")[2].split(",", 5)[3]
         for _ in range(2):   # and the same assignment on every download
             lines = self._lines(params)
-            self.assertEqual(lines["919908"].split("|")[5], "0")
-            self.assertEqual(lines["959960"].split("|")[5], "1")
+            self.assertEqual(promised(lines["919908"]), "0")
+            self.assertEqual(promised(lines["959960"]), "1")
 
     def test_someone_elses_item_gets_no_slot_field(self):
-        # a present-but-empty blob must not leak field 6 onto foreign lines
+        # a present-but-empty blob must not promise a slot on a foreign line
         self._store(self.WORLD, {0: self._scout("Bash", "Ori2", "Ori2",
                                                 ap_item=self.BASH_AP_ID, ap_owner=2)},
                     promises={})
-        self.assertEqual(len(self._lines(self._params())["919908"].split("|")), 5)
+        line = self._lines(self._params())["919908"]
+        self.assertEqual(len(line.split("|")), 4)
+        self.assertEqual(line.split("|")[2].split(",", 5)[3], "-1")
 
     def test_a_self_item_we_never_exported_gets_no_slot_field(self):
         # ours by recipient, but nothing in our manifest holds it: nothing to claim
         self._store(self.WORLD, {0: self._scout("Grenade", "Ori1", "Ori1",
                                                 ap_item=self.BASH_AP_ID + 9, ap_owner=1)},
                     promises={})
-        self.assertEqual(len(self._lines(self._params())["919908"].split("|")), 5)
+        line = self._lines(self._params())["919908"]
+        self.assertEqual(len(line.split("|")), 4)
+        self.assertEqual(line.split("|")[2].split(",", 5)[3], "-1")
 
     def test_no_promise_blob_means_no_slot_field(self):
         # a row from before the blob existed, or a build that never ran:
         # abstain rather than re-derive -- an abstention cannot dupe
         self._store(self.WORLD, {0: self._scout("Bash", "Ori1", "Ori1",
                                                 ap_item=self.BASH_AP_ID, ap_owner=1)})
-        self.assertEqual(len(self._lines(self._params())["919908"].split("|")), 5)
+        line = self._lines(self._params())["919908"]
+        self.assertEqual(len(line.split("|")), 4)
+        self.assertEqual(line.split("|")[2].split(",", 5)[3], "-1")
 
     def test_ap_spoiler_shows_scouted_placements_not_the_roll(self):
         """The stored spoiler narrates the pre-export fill, false for every
@@ -2830,7 +2839,7 @@ class ApSeedAnnotationTests(unittest.TestCase):
         self._store(self.WORLD, {0: self._scout("Progressive Sword", "TestQuest", "TestQuest")})
         text = self._params().get_spoiler(self.WORLD, game_id=self.GID)
         self.assertIn("Archipelago placement spoiler", text)
-        self.assertIn("Progressive Sword (TestQuest)", text)
+        self.assertIn("Progressive Sword", text)
         # the walkthrough prose is gone, not appended below
         self.assertNotIn("the old roll walkthrough", text)
         # slot 1 never scouted: counted, shown as the placeholder it is
@@ -2869,9 +2878,9 @@ class ApSeedAnnotationTests(unittest.TestCase):
         from pickups import Pickup
         self._store(self.WORLD, {1: self._scout("Bow, Arrows", "Zelda", "Zelda")})
         parts = self._lines(self._params())["959960"].split("|")
-        pickup = Pickup.n(parts[1], parts[2])
+        pickup = Pickup.n(parts[1], parts[2], self.K)
         self.assertEqual((pickup.owner, pickup.slot), (3, 1))
-        self.assertEqual(pickup.name, "Player 3's Bow, Arrows (Zelda)")
+        self.assertEqual(pickup.name, "Player 3's Bow, Arrows")
         self.assertEqual(parts[3], "Sorrow")
 
     def test_nothing_outside_the_ap_lines_moves(self):
@@ -2887,7 +2896,7 @@ class ApSeedAnnotationTests(unittest.TestCase):
         fill it is nearly always wrong. An entry the join can't place keeps
         custody -- "Archipelago", never a bare P<shadow> -- and no zone."""
         self._store(self.WORLD, {0: self._scout("Bash", "Ori2", "P2")})
-        self.assertEqual(self._lines(self._params())["-2"], "-2|MW|3,SK,0||Archipelago")
+        self.assertEqual(self._lines(self._params())["-2"], "-2|MW|3,Archipelago,SK,0|")
 
     def test_a_sibling_world_gives_the_true_zone_and_the_holder(self):
         """The cross-world join: our Bash turns up in one of the K worlds'
@@ -2895,7 +2904,7 @@ class ApSeedAnnotationTests(unittest.TestCase):
         self._store(self.WORLD, {
             0: self._scout("Bash", "Ori1", "P1", ap_item=self.BASH_AP_ID, ap_owner=1),
             1: self._scout("Something Else", "Ori2", "P2", ap_item=1, ap_owner=2)})
-        self.assertEqual(self._lines(self._params())["-2"], "-2|MW|3,SK,0|Grove|P1")
+        self.assertEqual(self._lines(self._params())["-2"], "-2|MW|3,P1,SK,0|Grove")
 
     def test_an_exported_warp_resolves_by_its_destination(self):
         """The manifest keeps the warp's coordinates, so the join has to
@@ -2912,7 +2921,7 @@ class ApSeedAnnotationTests(unittest.TestCase):
                            ap_item=ITEM_BY_CODE_ID[("TW", "Warp to Ginso Escape")]["ap_id"],
                            ap_owner=1)})
         self.assertEqual(self._lines(params)["-4"],
-                         "-4|MW|3,TW,%s|Grove|P1" % warp_id)
+                         "-4|MW|3,P1,TW,%s|Grove" % warp_id)
 
     def test_two_copies_of_one_item_are_left_unresolved(self):
         """Two identical exports are indistinguishable in the room's answers,
@@ -2925,22 +2934,22 @@ class ApSeedAnnotationTests(unittest.TestCase):
         self._store(self.WORLD, {
             0: self._scout("Bash", "Ori1", "P1", ap_item=self.BASH_AP_ID, ap_owner=1)})
         lines = self._lines(params)
-        self.assertEqual(lines["-2"], "-2|MW|3,SK,0||Archipelago")
-        self.assertEqual(lines["-4"], "-4|MW|3,SK,0||Archipelago")
+        self.assertEqual(lines["-2"], "-2|MW|3,Archipelago,SK,0|")
+        self.assertEqual(lines["-4"], "-4|MW|3,Archipelago,SK,0|")
 
     def test_other_worlds_rows_are_not_borrowed(self):
         # world 2's row must never name world 1's slots: world 1's reserved
         # lines are owned by shadow 3, not 4
         self._store(2, {0: self._scout("Wrong World", "Ori2", "P2")})
         lines = self._lines(self._params())
-        self.assertEqual(lines["919908"], "919908|MW|3,0,AP Item #1|Grove")
+        self.assertEqual(lines["919908"], "919908|MW|3,0,,-1,AP,AP Item #1|Grove")
 
     def test_no_game_id_means_placeholders(self):
         # a seed pulled straight off the generator page has no room to ask
         self._store(self.WORLD, {0: self._scout("Bash", "Ori2", "P2")})
         lines = self._lines(self._params(), game_id=None)
-        self.assertEqual(lines["919908"], "919908|MW|3,0,AP Item #1|Grove")
-        self.assertEqual(lines["-2"], "-2|MW|3,SK,0|Glades")
+        self.assertEqual(lines["919908"], "919908|MW|3,0,,-1,AP,AP Item #1|Grove")
+        self.assertEqual(lines["-2"], "-2|MW|3,,SK,0|Glades")
 
     def test_non_ap_params_never_look_names_up(self):
         from ap_models import APNames
@@ -2956,7 +2965,7 @@ class ApSeedAnnotationTests(unittest.TestCase):
             raise RuntimeError("datastore is having a day")
         APNames.load = staticmethod(boom)
         lines = self._lines(self._params())
-        self.assertEqual(lines["919908"], "919908|MW|3,0,AP Item #1|Grove")
+        self.assertEqual(lines["919908"], "919908|MW|3,0,,-1,AP,AP Item #1|Grove")
 
     def test_annotation_failure_is_not_fatal(self):
         """A seed that won't download is worse than one without names."""
@@ -2966,16 +2975,14 @@ class ApSeedAnnotationTests(unittest.TestCase):
         self.addCleanup(setattr, annotate_mod, "annotate", orig)
         self._store(self.WORLD, {0: self._scout("Bash", "Ori2", "P2")})
         lines = self._lines(self._params())
-        self.assertEqual(lines["919908"], "919908|MW|3,0,AP Item #1|Grove")
+        self.assertEqual(lines["919908"], "919908|MW|3,0,,-1,AP,AP Item #1|Grove")
 
     def test_aux_spoiler_uses_the_names_too(self):
         self._store(self.WORLD, {0: self._scout("Bash", "Ori2", "P2")})
         params = self._params()
         spoiler = params.get_aux_spoiler([], False, self.WORLD, game_id=self.GID)
-        self.assertIn("Player 3's Bash (Ori2)", spoiler)
+        self.assertIn("Player 3's Bash", spoiler)
         self.assertIn("Player 3's AP Item #2", spoiler)  # unscouted slot
-        # and without a game id it is the old, placeholder-only output
-        self.assertNotIn("Bash (Ori2)", params.get_aux_spoiler([], False, self.WORLD))
 
 
 class MultiPickupDecomposeTests(unittest.TestCase):
