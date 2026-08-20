@@ -108,6 +108,42 @@ class PlandoOwnershipTests(unittest.TestCase):
 
 
 
+class MultipickupOwnershipTests(unittest.TestCase):
+    """A multipickup can hand different pieces to different people. The plando
+    stores that as an "@owner" suffix per sub-item; the wire has no such
+    suffix and carries an MW child, which found_pickup already walks into."""
+
+    def test_a_mixed_multipickup_splits(self):
+        p = plando(2, ("1", "Glades", "MU", "SK/0@2/HC/1", 1, None))
+        # the holder keeps HC and hands SK to player 2, through an MW child
+        self.assertEqual(lines(p, 1), ["1|MU|MW/2,0,SK,0/HC/1|Glades"])
+        self.assertEqual(lines(p, 2), ["-2|MW|1,,SK,0|Glades"])
+
+    def test_every_piece_can_be_someone_elses(self):
+        # each owner counts slots on their own, so both are slot 0
+        p = plando(3, ("1", "Glades", "MU", "SK/0@2/HC/1@3", 1, None))
+        self.assertEqual(lines(p, 1), ["1|MU|MW/2,0,SK,0/MW/3,0,HC,1|Glades"])
+        self.assertEqual(lines(p, 2), ["-2|MW|1,,SK,0|Glades"])
+        self.assertEqual(lines(p, 3), ["-2|MW|1,,HC,1|Glades"])
+
+    def test_a_suffix_naming_the_holder_is_not_cross_world(self):
+        p = plando(2, ("1", "Glades", "MU", "SK/0@1/HC/1", 1, None))
+        self.assertEqual(lines(p, 1), ["1|MU|SK/0/HC/1|Glades"])
+        self.assertEqual(lines(p, 2), [])
+
+    def test_a_plain_multipickup_is_untouched(self):
+        p = plando(2, ("1", "Glades", "MU", "SK/0/HC/1", 1, None))
+        self.assertEqual(lines(p, 1), ["1|MU|SK/0/HC/1|Glades"])
+
+    def test_multipickup_slots_share_the_single_item_sequence(self):
+        """Both kinds draw from one per-owner counter, or a pair would collide."""
+        p = plando(2,
+                   ("1", "Glades", "SK", "0", 1, 2),
+                   ("2", "Grove", "MU", "HC/1@2/EC/1", 1, None))
+        self.assertEqual(lines(p, 1), ["1|MW|2,0,SK,0|Glades", "2|MU|MW/2,1,HC,1/EC/1|Grove"])
+        self.assertEqual(lines(p, 2), ["-2|MW|1,,SK,0|Glades", "-3|MW|1,,HC,1|Grove"])
+
+
 class ForcedAssignmentParseTests(unittest.TestCase):
     """util.parse_fass, shared by cli_gen and /plando/fillgen. The web route
     used to int() the whole location, so a world-prefixed one threw."""

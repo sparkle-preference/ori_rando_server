@@ -3,7 +3,7 @@ from google.cloud import ndb
 import logging as log
 import random
 
-from util import enums_from_strlist, picks_by_coord, get_preset_from_paths, SEED_FORMAT
+from util import enums_from_strlist, picks_by_coord, get_preset_from_paths, decompose_multi_value, SEED_FORMAT
 from enums import (MultiplayerGameType, ShareType, Variation, LogicPath, KeyMode, PathDifficulty, presets)
 from collections import OrderedDict
 from threading import Lock
@@ -624,8 +624,38 @@ class SeedGenParams(ndb.Model):
         pid = self.team_pid(player)
         rows = []
         next_slot = {}
+
+        def take_slot(owner):
+            slot = next_slot.get(owner, 0)
+            next_slot[owner] = slot + 1
+            if slot >= SeedGenerator.MAX_SLOTS:
+                raise MultiworldSlotOverflow("player %s owns more than %s cross-world items"
+                                             % (owner, SeedGenerator.MAX_SLOTS))
+            return slot
+
         for p in self.placements:
             for s in p.stuff:
+                if s.code == "MU" and "@" in s.id:
+                    # A multipickup can hand different pieces to different
+                    # people. The plando stores that as "SK/0@2"; the wire has
+                    # no such suffix, and carries an MW child instead -- which
+                    # found_pickup already walks into.
+                    mine, manifests = [], []
+                    for code, value in decompose_multi_value(s.id):
+                        value, _, owner = value.partition("@")
+                        if not owner or owner == s.player:
+                            mine += [code, value]
+                            continue
+                        slot = take_slot(owner)
+                        mine += ["MW", "%s,%s,%s,%s" % (owner, slot, code, value)]
+                        manifests.append((slot, owner, code, value))
+                    if int(s.player) == pid:
+                        rows.append((str(p.location), "MU", "/".join(mine), p.zone))
+                    for slot, owner, code, value in manifests:
+                        if int(owner) == pid:
+                            rows.append((str(-(slot + 2)), "MW",
+                                         "%s,,%s,%s" % (s.player, code, value), p.zone))
+                    continue
                 if not (s.owner and s.owner != s.player):
                     if int(s.player) == pid:
                         rows.append((str(p.location), s.code, s.id, p.zone))
@@ -636,11 +666,7 @@ class SeedGenParams(ndb.Model):
                 # placements, so every player's call agrees on the number
                 # without it being stored. A generated seed never reaches this
                 # branch: its cross-world lines are already MW-coded.
-                slot = next_slot.get(s.owner, 0)
-                next_slot[s.owner] = slot + 1
-                if slot >= SeedGenerator.MAX_SLOTS:
-                    raise MultiworldSlotOverflow("player %s owns more than %s cross-world items"
-                                       % (s.owner, SeedGenerator.MAX_SLOTS))
+                slot = take_slot(s.owner)
                 if int(s.player) == pid:
                     rows.append((str(p.location), "MW", "%s,%s,%s,%s" % (s.owner, slot, s.code, s.id), p.zone))
                 if int(s.owner) == pid:

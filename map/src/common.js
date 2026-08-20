@@ -87,6 +87,17 @@ function decompose_pickup(code, id) {
     return parts;
 }
 
+// A plando marks a multipickup piece bound for another world as "SK/0@2". The
+// suffix is the editor's own; it never reaches a seed, where the piece becomes
+// an MW child instead.
+function pickup_label(code, id) {
+    let raw = String(id)
+    let at = raw.lastIndexOf("@")
+    if (at > 0 && /^\d+$/.test(raw.slice(at + 1)))
+        return pickup_name(code, raw.slice(0, at)) + " /" + raw.slice(at + 1)
+    return pickup_name(code, id)
+}
+
 function pickup_name(code, id) {
     let upgrade_names = {};
     stuff_by_type["Upgrades"].forEach(s => {
@@ -103,7 +114,7 @@ function pickup_name(code, id) {
         case "MU":
         case "RP":
         case "RG":
-            let names = decompose_pickup(code, id).map(([code, id]) => pickup_name(code, id));
+            let names = decompose_pickup(code, id).map(([code, id]) => pickup_label(code, id));
             if (code === "RP")
                 return "Repeatable: " + names.join(", ")
             if (code === "RG")
@@ -383,7 +394,7 @@ class PickupSelect extends Component {
           while (seen.includes(part))
             part += "|"
           seen.push(part)
-          value.push({ label: name_from_str(part), value: part })
+          value.push({ label: pickup_label(partCode, partId), value: part })
         }
       } else {
         value.push({ label: name_from_str(input), value: input })
