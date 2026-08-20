@@ -287,14 +287,14 @@ def connect(game_id, player_id, payload):
         if uploaded_sync:
             up_gid, _, up_pid = uploaded_sync.partition(".")
             if up_gid != str(game_id):
-                # wrong game: stale randomizer.dat, warn in every mode
+                # wrong game: stale randomizer.bfr, warn in every mode
                 log.warning("seed sync mismatch: %s.%s uploaded a seed for %s", game_id, player_id, uploaded_sync)
-                _warn_signal(p, "msg:@Warning: your loaded seed belongs to game %s but you are connected to game %s. Wrong randomizer.dat?@" % (up_gid, game_id))
+                _warn_signal(p, "msg:@Warning: your loaded seed belongs to game %s but you are connected to game %s. Wrong randomizer.bfr?@" % (up_gid, game_id))
             elif up_pid != str(player_id) and game.mode == MultiplayerGameType.MULTIWORLD:
                 # wrong player only matters in multiworld (wrong world's slot
-                # manifest); teammates sharing one .dat in cloned games is fine
+                # manifest); teammates sharing one .bfr in cloned games is fine
                 log.warning("seed player mismatch: %s.%s uploaded player %s's seed", game_id, player_id, up_pid)
-                _warn_signal(p, "msg:@Warning: you loaded Player %s's seed but connected as Player %s. In multiworld you need your own randomizer.dat!@" % (up_pid, player_id))
+                _warn_signal(p, "msg:@Warning: you loaded Player %s's seed but connected as Player %s. In multiworld you need your own randomizer.bfr!@" % (up_pid, player_id))
         game.sanity_check()  # cheap if game is short!
     else:
         # we no longer support uploading seeds

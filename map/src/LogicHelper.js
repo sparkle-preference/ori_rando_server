@@ -581,7 +581,7 @@ class LogicHelper extends React.Component {
         let logic_path_buttons = logic_paths.map(lp => {return (<Col className="pr-0 pb-1" xs="4"><Button block size="sm" outline={!this.state.modes.includes(lp)} onClick={this.onMode(lp)}>{lp}</Button></Col>)});
         return (
           <Dropzone className="wrapper" disableClick onDrop={this.onDrop} onDragEnter={this.onDragEnter} onDragLeave={this.onDragLeave} >
-          { dropzoneActive && <div style={overlay_style}>Import your randomizer.dat to begin analysis</div> }
+          { dropzoneActive && <div style={overlay_style}>Import your randomizer.bfr to begin analysis</div> }
                 <Helmet>
                     <style type="text/css">{`
                         body {

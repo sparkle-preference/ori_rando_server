@@ -445,7 +445,7 @@ const getHelpHelper = (category, option) => {
                     title = "Download Seed"
                     lines = [
                         "Click here to download your seed file.",
-                        "Once downloaded, move or copy the randomizer.dat file into your OriDE folder. (It should be named randomizer.dat and be in the same folder as OriDE.exe)"
+                        "Once downloaded, move or copy the randomizer.bfr file into your OriDE folder. (It should be named randomizer.bfr and be in the same folder as OriDE.exe)"
                     ]
                     if(multi)
                         lines.push("Remember to send your fellow players the URL to the current page so they can get their seeds!")
@@ -454,7 +454,7 @@ const getHelpHelper = (category, option) => {
                     title = "Download Seed"
                     lines = [
                         "Click here to download your seed file.",
-                        "Once downloaded, move or copy the randomizer.dat file into your OriDE folder. (It should be named randomizer.dat and be in the same folder as OriDE.exe)",
+                        "Once downloaded, move or copy the randomizer.bfr file into your OriDE folder. (It should be named randomizer.bfr and be in the same folder as OriDE.exe)",
                         "It's best to connect the Archipelago room below BEFORE handing seeds out: a seed downloaded first will call every Archipelago find \"AP Item #N\". (It's safe to redownload the seed file after joining.)",
                     ]
                 break;
@@ -1198,7 +1198,7 @@ const getHelpHelper = (category, option) => {
                     title = "Seed"
                     lines = [
                         "The Seed field is used as a starting point for the seed generator's pRNG. If left blank, a value will be auto-generated",
-                        "If you use the same seed value and leave all the other options the same, you will get end up with the same randomizer.dat file (though only for the same seed generator release)."
+                        "If you use the same seed value and leave all the other options the same, you will get end up with the same randomizer.bfr file (though only for the same seed generator release)."
                     ]
                 break;
                 case "webTracking":
