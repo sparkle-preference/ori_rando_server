@@ -10,6 +10,41 @@
   ],
   "releases": [
     {
+      "version": "4.3.0",
+      "date": "2026-08-20",
+      "announce": "none",
+      "changes": [
+        {
+          "text": "Re-download any multiworld seed rolled before this update. Multiworld seeds use a new format, and an older one now refuses to load rather than reading its cross-world items wrong.",
+          "category": "Misc",
+          "importance": "major"
+        },
+        {
+          "text": "Sensing finds other players' items. With skill sensing on, another player's Bash sitting in your world senses like one of your own.",
+          "category": "Multiplayer",
+          "type": "fix",
+          "importance": "major"
+        },
+        {
+          "text": "Cross-world items show their own name instead of \"Bonus Item\".",
+          "category": "Multiplayer",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "The stats page credits each pickup to the area it came from, and an item another player sent you shows as Offworld.",
+          "category": "Game",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Jumpgrades are called Jump Upgrades, and Map Stones are called Mapstones.",
+          "category": "Game",
+          "importance": "minor"
+        }
+      ]
+    },
+    {
       "version": "4.2.16.1",
       "date": "2026-08-19",
       "announce": "all",
