@@ -128,7 +128,7 @@ def parse_seed(lines):
         loc = int(loc)
         if loc in MANIFEST_LOC_RANGE:
             assert code == "MW", "non-manifest line at manifest loc: %s" % line
-            finder, icode, iid = id.split(",", 2)
+            finder, _holder, icode, iid = id.split(",", 3)
             manifest[-loc - 2] = (int(finder), icode, iid, zone)
         else:
             placements[loc] = (code, id, zone)

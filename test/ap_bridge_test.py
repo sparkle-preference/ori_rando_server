@@ -2258,8 +2258,8 @@ class TestPromiseAnnotateParity(unittest.TestCase):
     pinned to agree; Asm's proposal (ii) retired the second one.)"""
 
     SEED = [
-        ("919908", "MW", "3,0,AP Item #1", "Grove"),   # reserved -> ap 524541
-        ("959960", "MW", "3,40,AP Item #2", "Grove"),  # reserved -> ap 524542
+        ("919908", "MW", "3,0,,-1,AP,AP Item #1", "Grove"),   # reserved -> ap 524541
+        ("959960", "MW", "3,40,,-1,AP,AP Item #2", "Grove"),  # reserved -> ap 524542
         ("-2", "MW", "3,,SK,0", "Glades"),              # manifest slot 0: Bash
         ("-3", "MW", "3,,EX,40", "Grove"),              # manifest slot 1: EX 40
         ("-5", "MW", "3,,SK,0", "Glades"),              # manifest slot 3: Bash
@@ -2286,11 +2286,12 @@ class TestPromiseAnnotateParity(unittest.TestCase):
 
         out = annotate_mod.annotate(list(self.SEED), 2, 1, {1: (self._entries(), 1)},
                                     lambda v: [], promises=blob)
-        field6 = {ap_bridge.AP_LOC_BY_COORD[int(line[0])]: int(line[5])
-                  for line in out if len(line) >= 6}
+        promised_out = {ap_bridge.AP_LOC_BY_COORD[int(line[0])]: int(parts[3])
+                        for line in out for parts in [line[2].split(",", 5)]
+                        if len(parts) == 6 and int(parts[3]) >= 0}
 
-        self.assertEqual(field6, {524541: 0, 524542: 3})
-        self.assertEqual(promised, field6)
+        self.assertEqual(promised_out, {524541: 0, 524542: 3})
+        self.assertEqual(promised, promised_out)
         # promised copies left the free pools; the rest stayed fillable
         self.assertEqual(free[("SK", "0")], [])
         self.assertEqual(free[("EX", "40")], [1])
@@ -2302,10 +2303,14 @@ class TestPromiseAnnotateParity(unittest.TestCase):
         from archipelago import annotate as annotate_mod
         out = annotate_mod.annotate(list(self.SEED), 2, 1, {1: (self._entries(), 1)},
                                     lambda v: [], promises=None)
-        self.assertEqual([line for line in out if len(line) >= 6], [])
-        # fields 1-5 still annotate: names and recipients are row data
+        promised_out = [line for line in out
+                        for parts in [line[2].split(",", 5)]
+                        if len(parts) == 6 and int(parts[3]) >= 0]
+        self.assertEqual(promised_out, [])
+        # the rest still annotates: the recipient and the item are row data
         by_loc = {line[0]: line for line in out}
-        self.assertEqual(len(by_loc["919908"]), 5)
+        self.assertEqual(len(by_loc["919908"]), 4)
+        self.assertEqual(by_loc["919908"][2].split(",", 5)[2:], ["P1", "-1", "SK", "0"])
 
 
 class TestApRowCache(unittest.TestCase):

@@ -527,12 +527,12 @@ class TestMultiworldSeedServing(NdbTestCase):
         self.assertEqual(p1["-280256"], ("AC", "1"))
         code, id = p2["919772"]
         self.assertEqual(code, "MW")
-        owner, slot, name = id.split(",", 2)
-        self.assertEqual(int(owner), 1)
+        owner, slot, fcode, fid = id.split(",", 3)
+        self.assertEqual((int(owner), fcode, fid), (1, "SK", "0"))
         mcode, mid = p1[str(-(int(slot) + 2))]
         self.assertEqual(mcode, "MW")
-        finder, icode, iid = mid.split(",", 2)
-        self.assertEqual((int(finder), icode, iid), (2, "SK", "0"))
+        finder, holder, icode, iid = mid.split(",", 3)
+        self.assertEqual((int(finder), holder, icode, iid), (2, "", "SK", "0"))
 
     def test_get_seed_data_serves_each_player_their_world(self):
         from seedbuilder.seedparams import MultiplayerOptions, SeedGenParams, Placement, Stuff

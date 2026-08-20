@@ -116,11 +116,11 @@ class _FakeTrackerParams(object):
         self.named_calls = []
 
     def get_seed_data(self, player=1, no_door_zone=True):
-        return [("919908", "MW", "3,0,AP Item #1", "Grove"),
-                ("959960", "MW", "3,1,AP Item #2", "Sorrow"),
-                ("919772", "MW", "3,2,AP Item #3", "Grove"),
-                ("799804", "MW", "3,3,AP Item #4", "Grove"),
-                ("1799708", "MW", "2,55,Valley teleporter", "Valley"),
+        return [("919908", "MW", "3,0,,-1,AP,AP Item #1", "Grove"),
+                ("959960", "MW", "3,1,,-1,AP,AP Item #2", "Sorrow"),
+                ("919772", "MW", "3,2,,-1,AP,AP Item #3", "Grove"),
+                ("799804", "MW", "3,3,,-1,AP,AP Item #4", "Grove"),
+                ("1799708", "MW", "2,55,TP,Valley", "Valley"),
                 ("-2", "MW", "3,,SK,0", "Glades"),
                 ("2", "SK", "0", "Glades")]
 
@@ -128,9 +128,9 @@ class _FakeTrackerParams(object):
         self.named_calls.append(game_id)
         annotated = {
             # another Ori world's item, a self item, a foreign game's item
-            "919908": ("919908", "MW", "3,0,Grotto Keystone (Hal)", "Grove", "P2;Grotto Keystone"),
-            "959960": ("959960", "MW", "3,1,Bash (Asm)", "Sorrow", "P1;Bash"),
-            "919772": ("919772", "MW", "3,2,Progressive Sword (Cleric)", "Grove", "Cleric;Progressive Sword"),
+            "919908": ("919908", "MW", "3,0,P2,-1,RB,302", "Grove"),
+            "959960": ("959960", "MW", "3,1,P1,-1,SK,0", "Sorrow"),
+            "919772": ("919772", "MW", "3,2,Cleric,-1,AP,Progressive Sword", "Grove"),
         }
         return [annotated.get(line[0], line) for line in seed_data]
 
