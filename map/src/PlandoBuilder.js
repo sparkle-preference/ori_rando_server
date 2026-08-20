@@ -77,7 +77,7 @@ const FLAG_CASEFIX = {};
 
 SEED_FLAGS.forEach(flag => FLAG_CASEFIX[flag.toLowerCase()] = flag);
 
-const modes_by_key = {"Shared": "Shared", "None": "Solo", "SplitShards": "Shards Race"}
+const modes_by_key = {"Shared": "Shared", "None": "Solo", "Multiworld": "Multiworld", "SplitShards": "Shards Race"}
 const COOP_MODES = Object.keys(modes_by_key).map((k) => { return {label: modes_by_key[k], value: k} });
 const SHARE_TYPES = ["WorldEvents", "Misc", "Upgrades", "Teleporters", "Skills"]
 // entrance shuffle doors, mirroring doors_inner/doors_outer (+R1OuterDoor) in seedbuilder/generator.py
@@ -160,7 +160,10 @@ function getPickupMarkers(state, setSelected, searchStr) {
                       rows = Object.keys(placements).map((pid) => {
                         if(!highlight && searchStr && placements[pid][pick.loc] && is_match(placements[pid][pick.loc], searchStr))
                             highlight = true
-                         let lineText = placements[pid][pick.loc] ? placements[pid][pick.loc].label : "";
+                         let entry = placements[pid][pick.loc];
+                         let lineText = entry ? entry.label : "";
+                         if(entry && entry.owner && entry.owner !== pid)
+                            lineText += ` (for player ${entry.owner})`;
                          if(playerCount > 1)
                             lineText = `${pid}: ` + lineText;
                          if(show_loc_names)
@@ -343,6 +346,24 @@ class PlandoBuiler extends React.Component {
     }
 
 
+    // whose item sits at the selected location, defaulting to the world holding it
+    currentOwner = () => {
+        let entry = (this.state.placements[this.state.player] || {})[this.state.pickup.value.loc]
+        return (entry && entry.owner) || this.state.player
+    }
+
+    setOwner = (owner) => {
+        this.setState(prev => {
+            let loc = prev.pickup.value.loc
+            let entry = (prev.placements[prev.player] || {})[loc]
+            if(!entry)
+                return {}
+            let plc = {...prev.placements}
+            plc[prev.player] = {...plc[prev.player], [loc]: {...entry, owner: owner}}
+            return {placements: plc, stuff: {...prev.stuff, owner: owner}}
+        })
+    }
+
     place = (s) => {
         if(s.value === "") return;
         if(s.value.length < 4 || s.value[2] !== "|") {
@@ -367,13 +388,18 @@ class PlandoBuiler extends React.Component {
                 return {placements: plc, stuff: s, reachable: r};
             }
             // i hate this i hate this i hate this
+            // changing the item at a location leaves its owner alone
+            let prevOwner = (plc[prevState.player] || {})[prevState.pickup.value.loc]
+            let owner = prevOwner ? prevOwner.owner : undefined
             if((s.value.substr(0,2) === "EX") && !s.label.endsWith("Experience"))
             {
                 let new_s = {...s}
                 new_s.label += " Experience"
-                plc[prevState.player][prevState.pickup.value.loc] = new_s;
-            } else 
-                plc[prevState.player][prevState.pickup.value.loc] = s;
+                s = new_s
+            }
+            if(owner)
+                s = {...s, owner: owner}
+            plc[prevState.player][prevState.pickup.value.loc] = s;
             return {placements: plc, stuff: s, reachable: r};
         }, () => this.updateReachable());
     };
@@ -679,7 +705,8 @@ class PlandoBuiler extends React.Component {
             return
         }
         let players = Object.keys(this.state.placements)
-        let diverged = this.divergentLocs()
+        // in multiworld every world is its own seed, so disagreeing is the point
+        let diverged = this.state.coop_mode.value === "Multiworld" ? [] : this.divergentLocs()
         if(diverged.length)
             NotificationManager.warning(`${diverged.length} location${diverged.length === 1 ? "" : "s"} hold a different item per player. Each player keeps their own.`,
                                         "Placements disagree", 6000);
@@ -1029,6 +1056,15 @@ class PlandoBuiler extends React.Component {
                         <div className="pickup-wrapper">
                             <PickupSelect ref="pickupSelect" value={this.state.stuff.value} updater={(code, name) => this.place({label: name, value: code})}/>
                         </div>
+                        {this.state.coop_mode.value === "Multiworld" ? (
+                            <div className="pickup-wrapper" title="Who receives this item. The world above still holds the location.">
+                                <span className="label">For: </span>
+                                <Select styles={select_styles} clearable={false}
+                                        options={Object.keys(this.state.placements).map(p => ({label: "Player " + p, value: p}))}
+                                        value={{label: "Player " + this.currentOwner(), value: this.currentOwner()}}
+                                        onChange={(n) => this.setOwner(n.value)}></Select>
+                            </div>
+                        ) : null}
                         <Button onClick={() => this.setState(prev => ({display_fill: !prev.display_fill}))}>Show Fill</Button>
                         <Collapse isOpen={this.state.display_fill}>
                             <div id="fill-params">
