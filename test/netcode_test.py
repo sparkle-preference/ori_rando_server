@@ -418,7 +418,7 @@ class TestMultiworldFoundPickup(NdbTestCase):
             assert pid == 1
             return [("100", "MW", "2,3,Keystone", "Glades"),
                     ("200", "MW", "2,7,Bash", "Grove"),
-                    ("-2", "MW", "2,SK,50", "Grotto"),
+                    ("-2", "MW", "2,,SK,50", "Grotto"),
                     ("300", "SK", "0", "Glades")]
 
     def test_release_grants_unfound_items_to_owners(self):
@@ -488,7 +488,7 @@ class TestMultiworldFoundPickup(NdbTestCase):
             return [("100", "MW", "2,3,Keystone", "Glades"),
                     ("400", "MW", "3,0,AP Item #1", "Grove"),
                     ("450", "MW", "3,1,AP Item #2", "Grove"),
-                    ("-2", "MW", "4,SK,50", "Grotto"),
+                    ("-2", "MW", "4,,SK,50", "Grotto"),
                     ("300", "SK", "0", "Glades")]
 
     def test_release_skips_ap_shadow_slots(self):

@@ -343,7 +343,7 @@ def ap_convert(texts, categories, keep_locs=frozenset()):
                     raise ApConversionError(
                         "world %s MW line at %s points at missing manifest slot "
                         "%s of world %s" % (v, loc, slot, owner))
-                _, icode, iid = fields[owner - 1][m_idx][2].split(",", 2)
+                _, _, icode, iid = fields[owner - 1][m_idx][2].split(",", 3)
                 if icode == "KS" and ("KS", "1") not in export_ids:
                     # unexported keystones may never cross: a native cross-world
                     # KS is invisible to its owner's AP logic
@@ -427,7 +427,9 @@ def ap_convert(texts, categories, keep_locs=frozenset()):
     rewrites = [{} for _ in range(players)]
     for p in range(1, players + 1):
         for i, c in enumerate(reserved[p]):
-            rewrites[p - 1][c["line"]] = "%s|MW|%s,%s,AP Item #%s|%s" % (
+            # conversion runs before the room has filled anything, so the
+            # recipient is unknown and no slot has been promised yet
+            rewrites[p - 1][c["line"]] = "%s|MW|%s,%s,,-1,AP,AP Item #%s|%s" % (
                 c["loc"], players + p, i, i + 1, c["zone"])
 
     new_texts = []
@@ -438,7 +440,7 @@ def ap_convert(texts, categories, keep_locs=frozenset()):
                 continue
             out.append(rewrites[p - 1].get(idx, line))
         for i2, c in enumerate(exported[p]):
-            out.append("%s|MW|%s,%s,%s|%s" % (
+            out.append("%s|MW|%s,,%s,%s|%s" % (
                 -(ap_slots[p][i2] + 2), players + p, c["code"], c["id"], c["zone"]))
         new_texts.append("\n".join(out) + "\n")
 
@@ -480,7 +482,7 @@ def build_ap_config(placements, players, world, logic_paths, key_mode,
         if _is_manifest_loc(loc):
             if code != "MW":
                 raise ApConversionError("non-MW line at manifest loc %s" % loc)
-            finder_s, icode, iid = pid.split(",", 2)
+            finder_s, _holder, icode, iid = pid.split(",", 3)
             if int(finder_s) > players:  # exported to the AP pool
                 name = ITEM_NAMES.get(match_key(icode, iid))
                 if name is None:

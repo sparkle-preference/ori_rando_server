@@ -1003,21 +1003,21 @@ def tracker_fetch_seed(game_id, player_id):
         if is_mw_manifest_loc(coords):
             continue  # multiworld slot manifests aren't map locations
         if code == "MW":
-            parts = id.split(",", 2)
-            if len(parts) == 3:
-                if shadow is not None and parts[0] == shadow:
-                    to, sep, item = (line[4].partition(";") if len(line) > 4 and line[4]
-                                     else ("", "", ""))
-                    if sep and to.startswith("P") and to[1:].isdigit():
-                        res["seed"][coords] = owned(int(to[1:]), item)
-                    elif sep:
-                        res["seed"][coords] = "%s's %s" % (to, item)
-                    else:
-                        res["seed"][coords] = parts[2]  # unscouted placeholder
-                    continue
-                if parts[0].isdigit():
-                    res["seed"][coords] = owned(int(parts[0]), parts[2])
-                    continue
+            parts = id.split(",", 5)
+            if shadow is not None and len(parts) == 6 and parts[0] == shadow:
+                to, icode, iid = parts[2], parts[4], parts[5]
+                item = iid if icode == "AP" else Pickup.name(icode, iid)
+                if to.startswith("P") and to[1:].isdigit():
+                    res["seed"][coords] = owned(int(to[1:]), item)
+                elif to:
+                    res["seed"][coords] = "%s's %s" % (to, item)
+                else:
+                    res["seed"][coords] = item  # nobody has scouted it yet
+                continue
+            parts = id.split(",", 3)
+            if len(parts) == 4 and parts[0].isdigit():
+                res["seed"][coords] = owned(int(parts[0]), Pickup.name(parts[2], parts[3]))
+                continue
         res["seed"][coords] = Pickup.name(code, id)
     return json_resp(res)
 

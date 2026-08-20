@@ -2730,8 +2730,8 @@ class ApSeedAnnotationTests(unittest.TestCase):
                 place("919908", "MW", "3,0,AP Item #1", "Grove"),     # reserved slot 0
                 place("959960", "MW", "3,1,AP Item #2", "Sorrow"),    # reserved slot 1
                 place("1799708", "MW", "2,55,Valley teleporter", "Valley"),  # plain cross-world
-                place("-2", "MW", "3,SK,0", "Glades"),                # our AP manifest slot
-                place("-3", "MW", "2,HC,1", "Glades"),                # native manifest
+                place("-2", "MW", "3,,SK,0", "Glades"),                # our AP manifest slot
+                place("-3", "MW", "2,,HC,1", "Glades"),                # native manifest
             ])
 
     def _lines(self, params, game_id=GID):
@@ -2790,8 +2790,8 @@ class ApSeedAnnotationTests(unittest.TestCase):
             ap_export=["skills"], sync=sync, placements=[
                 place("919908", "MW", "3,0,AP Item #1", "Grove"),
                 place("959960", "MW", "3,1,AP Item #2", "Sorrow"),
-                place("-2", "MW", "3,SK,0", "Glades"),
-                place("-3", "MW", "3,SK,0", "Glades"),
+                place("-2", "MW", "3,,SK,0", "Glades"),
+                place("-3", "MW", "3,,SK,0", "Glades"),
             ])
         self._store(self.WORLD, {
             0: self._scout("Bash", "Ori1", "Ori1", ap_item=self.BASH_AP_ID, ap_owner=1),
@@ -2906,7 +2906,7 @@ class ApSeedAnnotationTests(unittest.TestCase):
         params = self._params()
         params.placements.append(Placement(
             location="-4", zone="Glades",
-            stuff=[Stuff(code="MW", id="3,TW,%s" % warp_id, player="1")]))
+            stuff=[Stuff(code="MW", id="3,,TW,%s" % warp_id, player="1")]))
         self._store(self.WORLD, {
             0: self._scout("Warp to Ginso Escape", "Ori1", "P1",
                            ap_item=ITEM_BY_CODE_ID[("TW", "Warp to Ginso Escape")]["ap_id"],
@@ -2921,7 +2921,7 @@ class ApSeedAnnotationTests(unittest.TestCase):
         params = self._params()
         from seedbuilder.seedparams import Placement, Stuff
         params.placements.append(Placement(location="-4", zone="Glades",
-                                           stuff=[Stuff(code="MW", id="3,SK,0", player="1")]))
+                                           stuff=[Stuff(code="MW", id="3,,SK,0", player="1")]))
         self._store(self.WORLD, {
             0: self._scout("Bash", "Ori1", "P1", ap_item=self.BASH_AP_ID, ap_owner=1)})
         lines = self._lines(params)

@@ -121,7 +121,7 @@ class _FakeTrackerParams(object):
                 ("919772", "MW", "3,2,AP Item #3", "Grove"),
                 ("799804", "MW", "3,3,AP Item #4", "Grove"),
                 ("1799708", "MW", "2,55,Valley teleporter", "Valley"),
-                ("-2", "MW", "3,SK,0", "Glades"),
+                ("-2", "MW", "3,,SK,0", "Glades"),
                 ("2", "SK", "0", "Glades")]
 
     def ap_named(self, seed_data, player, game_id):

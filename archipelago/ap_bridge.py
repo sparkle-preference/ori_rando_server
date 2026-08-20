@@ -158,7 +158,7 @@ def maps_from_params(params):
                 continue
             loc = int(loc)
             if is_mw_manifest_loc(loc):
-                finder, icode, iid = id.split(",", 2)
+                finder, _holder, icode, iid = id.split(",", 3)
                 if int(finder) == k + w:
                     key = _match_key(icode, iid)
                     gr.setdefault(key, []).append(-loc - 2)

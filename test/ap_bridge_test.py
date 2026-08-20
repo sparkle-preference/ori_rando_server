@@ -208,14 +208,14 @@ class TestGameMaps(unittest.TestCase):
                 ("919908", "MW", "3,0,AP Item #1", "Grove"),   # reserved slot 0
                 ("959960", "MW", "3,1,AP Item #2", "Grove"),   # reserved slot 1
                 ("5043022", "MW", "2,7,Bash", "Grove"),        # native cross: not ours
-                ("-2", "MW", "3,SK,0", "Glades"),              # export slot 0
-                ("-3", "MW", "3,EX,40", "Grove"),              # export slot 1
-                ("-4", "MW", "3,EX,73", "Grove"),              # export slot 2
-                ("-5", "MW", "1,HC,1", "Glades"),              # native manifest: not ours
+                ("-2", "MW", "3,,SK,0", "Glades"),              # export slot 0
+                ("-3", "MW", "3,,EX,40", "Grove"),              # export slot 1
+                ("-4", "MW", "3,,EX,73", "Grove"),              # export slot 2
+                ("-5", "MW", "1,,HC,1", "Glades"),              # native manifest: not ours
             ],
             2: [
                 ("-10120036", "MW", "4,3,AP Item #1", "Misty"),
-                ("-2", "MW", "4,TP,Grove", "Glades"),
+                ("-2", "MW", "4,,TP,Grove", "Glades"),
             ],
         })
         maps = ap_bridge.maps_from_params(params)
@@ -1552,10 +1552,10 @@ class TestGoldenRealTouchpoints(unittest.TestCase):
             1: [
                 ("919908", "MW", "3,0,AP Item #1", "Grove"),   # reserved slot 0 -> 524541
                 ("959960", "MW", "3,40,AP Item #2", "Grove"),  # reserved slot 40 -> 524542
-                ("-2", "MW", "3,SK,0", "Glades"),              # export slot 0: Bash
-                ("-3", "MW", "3,EX,40", "Grove"),              # export slot 1: EX 40
-                ("-5", "MW", "3,SK,0", "Glades"),              # export slot 3: Bash
-                ("-6", "MW", "3,EV,0", "Swamp"),               # export slot 4: Water Vein
+                ("-2", "MW", "3,,SK,0", "Glades"),              # export slot 0: Bash
+                ("-3", "MW", "3,,EX,40", "Grove"),              # export slot 1: EX 40
+                ("-5", "MW", "3,,SK,0", "Glades"),              # export slot 3: Bash
+                ("-6", "MW", "3,,EV,0", "Swamp"),               # export slot 4: Water Vein
             ],
             2: [],
         }))
@@ -2260,10 +2260,10 @@ class TestPromiseAnnotateParity(unittest.TestCase):
     SEED = [
         ("919908", "MW", "3,0,AP Item #1", "Grove"),   # reserved -> ap 524541
         ("959960", "MW", "3,40,AP Item #2", "Grove"),  # reserved -> ap 524542
-        ("-2", "MW", "3,SK,0", "Glades"),              # manifest slot 0: Bash
-        ("-3", "MW", "3,EX,40", "Grove"),              # manifest slot 1: EX 40
-        ("-5", "MW", "3,SK,0", "Glades"),              # manifest slot 3: Bash
-        ("-6", "MW", "3,EV,0", "Swamp"),               # manifest slot 4: Water Vein
+        ("-2", "MW", "3,,SK,0", "Glades"),              # manifest slot 0: Bash
+        ("-3", "MW", "3,,EX,40", "Grove"),              # manifest slot 1: EX 40
+        ("-5", "MW", "3,,SK,0", "Glades"),              # manifest slot 3: Bash
+        ("-6", "MW", "3,,EV,0", "Swamp"),               # manifest slot 4: Water Vein
     ]
 
     ENTRIES = None  # built per test: both reserved locations hold our Bash

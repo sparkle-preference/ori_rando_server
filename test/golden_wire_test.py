@@ -547,12 +547,12 @@ class TestMultiworldSeedServing(NdbTestCase):
                 Stuff(code="EC", id="1", player="2"),
             ]),
             Placement(location="-2", zone="Glades", stuff=[
-                Stuff(code="MW", id="2,SK,50", player="1"),
+                Stuff(code="MW", id="2,,SK,50", player="1"),
             ]),
         ])
         p1 = params.get_seed_data(1)
         p2 = params.get_seed_data(2)
-        self.assertEqual([(l, c, i) for (l, c, i, z) in p1], [("100", "SK", "0"), ("-2", "MW", "2,SK,50")])
+        self.assertEqual([(l, c, i) for (l, c, i, z) in p1], [("100", "SK", "0"), ("-2", "MW", "2,,SK,50")])
         self.assertEqual([(l, c, i) for (l, c, i, z) in p2], [("100", "EC", "1")])
 
 

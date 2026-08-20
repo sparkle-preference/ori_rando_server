@@ -34,13 +34,13 @@ FOREIGN_HOLDER = "Archipelago"
 
 
 def _reserved_slot(code, id, shadow):
-    """(slot, label) if this is a reserved AP line of the given shadow."""
+    """(slot, item code, item id) if this is a reserved AP line of the shadow."""
     if code != "MW":
         return None
-    parts = id.split(",", 2)
-    if len(parts) != 3 or parts[0] != shadow or not parts[1].isdigit():
+    parts = id.split(",", 5)
+    if len(parts) != 6 or parts[0] != shadow or not parts[1].isdigit():
         return None
-    return int(parts[1]), parts[2]
+    return int(parts[1]), parts[4], parts[5]
 
 
 def _exports(seed_data, shadow):
@@ -49,7 +49,7 @@ def _exports(seed_data, shadow):
     for loc, code, id, zone in seed_data:
         if code != "MW" or not is_mw_manifest_loc(int(loc)):
             continue
-        finder, icode, iid = id.split(",", 2)
+        finder, _holder, icode, iid = id.split(",", 3)
         if finder != shadow:
             continue
         out[-int(loc) - 2] = match_key(icode, iid)
@@ -121,23 +121,22 @@ def annotate(seed_data, players, world, rows, seed_data_for, promises=None):
         if is_mw_manifest_loc(int(loc)):
             key = exports.get(-int(loc) - 2)
             hit = holders.get(key) if key is not None and counts.get(key) == 1 else None
-            if hit:
-                line = (loc, code, id, hit[1], hit[0])
-            else:
-                # the rolled zone is where the item came FROM (see module
-                # docstring); an unplaced entry keeps custody and no zone.
-                # The holder must be non-empty or shipped clients render
-                # the finder as "P<shadow>".
-                line = (loc, code, id, "", FOREIGN_HOLDER)
+            # the rolled zone is where the item came FROM (see module docstring);
+            # an unplaced entry keeps custody and no zone. The holder must be
+            # non-empty or the client renders the finder as "P<shadow>".
+            holder, true_zone = hit if hit else (FOREIGN_HOLDER, "")
+            finder, _, item = id.split(",", 2)
+            line = (loc, code, "%s,%s,%s" % (finder, holder, item), true_zone)
         else:
             held = _reserved_slot(code, id, shadow)
             scout = entries.get(held[0]) if held else None
             if scout is not None:
-                fields = [loc, code, "%s,%s,%s" % (shadow, held[0], scout.label()),
-                          zone, "%s;%s" % (scout.to, scout.item)]
+                # an Ori item keeps its own code so the client can classify it;
+                # anything from another game has only the name the room gave it
+                pair = ITEM_BY_AP_ID.get(scout.ap_item)
+                icode, iid = pair if pair else ("AP", scout.item)
                 mine = promises.get(held[0]) if promises else None
-                if mine is not None:
-                    fields.append(str(mine))
-                line = tuple(fields)
+                line = (loc, code, "%s,%s,%s,%s,%s,%s" % (
+                    shadow, held[0], scout.to, -1 if mine is None else mine, icode, iid), zone)
         out.append(line)
     return out

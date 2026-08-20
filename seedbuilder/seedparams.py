@@ -684,7 +684,7 @@ class SeedGenParams(ndb.Model):
             if code == "EN" or code + str(id) == "RB81":
                 continue
             if is_mw_manifest_loc(int(loc)):
-                finder, icode, iid = id.split(",", 2)
+                finder, _holder, icode, iid = id.split(",", 3)
                 if finder == shadow:
                     # aggregate: per-copy attribution of duplicated items is
                     # ambiguous, but the scouted multiset is exact
@@ -698,10 +698,12 @@ class SeedGenParams(ndb.Model):
             pick = PBC.get(int(loc))
             locname = "%s %s (%s %s)" % (pick.area, pick.name, pick.x, pick.y) if pick else str(loc)
             zname = zone or (pick.zone if pick else "Unknown")
-            parts = id.split(",", 2) if code == "MW" else None
-            if parts and len(parts) == 3 and parts[0] == shadow:
-                content = parts[2]  # the scout's label, or the placeholder
-                if content.startswith("AP Item #"):
+            parts = id.split(",", 5) if code == "MW" else None
+            if parts and len(parts) == 6 and parts[0] == shadow:
+                # a reserved line names its item in the last two fields; AP
+                # means the room's own, whose id is already its name
+                content = parts[5] if parts[4] == "AP" else pickup_name(parts[4], parts[5])
+                if parts[5].startswith("AP Item #"):
                     unscouted += 1
             else:
                 content = pickup_name(code, id)
