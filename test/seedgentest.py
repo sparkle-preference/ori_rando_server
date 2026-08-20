@@ -1672,7 +1672,7 @@ def parse_ap_seed(lines, players):
         loc, code, id, zone = line.split("|", 3)
         loc = int(loc)
         if loc in MANIFEST_LOC_RANGE:
-            finder, icode, iid = id.split(",", 2)
+            finder, _holder, icode, iid = id.split(",", 3)
             entry = (int(finder), icode, iid, zone)
             target = ap_manifest if int(finder) > players else native_manifest
             target[-loc - 2] = entry
@@ -2236,11 +2236,11 @@ class ApFullConversionTests(unittest.TestCase):
         texts = [self.FLAGS + "\n" + "".join(l + "\n" for l in lines) for lines in worlds]
         return ap_convert(texts, list(categories))
 
-    def _cross(self, loc, owner, slot, zone="Glades"):
-        return "%s|MW|%s,%s,item|%s" % (loc, owner, slot, zone)
+    def _cross(self, loc, owner, slot, zone="Glades", code="NO", id="1"):
+        return "%s|MW|%s,%s,%s,%s|%s" % (loc, owner, slot, code, id, zone)
 
     def _mani(self, slot, finder, code, id, zone="Glades"):
-        return "%s|MW|%s,%s,%s|%s" % (-(slot + 2), finder, code, id, zone)
+        return "%s|MW|%s,,%s,%s|%s" % (-(slot + 2), finder, code, id, zone)
 
     def test_cross_landed_filler_converts(self):
         """A bonus RB in someone else's world used to ride a native manifest

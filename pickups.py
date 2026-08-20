@@ -340,7 +340,13 @@ class MultiworldItem(Pickup):
             _, _, rest = rest.split(",", 2)
         code, _, item_id = rest.partition(",")
         inst.item_code, inst.item_id = code, item_id
-        # AP is not an Ori item: its id is already the name the room gave it
-        shown = item_id if code == "AP" else Pickup.name(code, item_id)
+        if code == "AP":
+            shown = item_id  # not an Ori item; the id is the room's own name
+        elif Pickup.n(code, item_id) is not None:
+            shown = Pickup.name(code, item_id)
+        else:
+            # a stored format-1 id, from history written before the format moved:
+            # its tail was the display name, not a code
+            shown = rest
         inst.name = "Player %s's %s" % (inst.owner, shown)
         return inst
