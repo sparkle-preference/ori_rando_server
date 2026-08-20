@@ -386,6 +386,9 @@ class User(ndb.Model):
     def plando(self, seed_name):
         return Seed.get_by_id(f"{self.key.id()}:{seed_name}")
 
+    def saved_params(self, name):
+        return SavedSeedParams.get_by_id(f"{self.key.id()}:{name}")
+
 class LegacyUser(ndb.Model):
     @classmethod
     def _get_kind(cls):
@@ -1725,6 +1728,76 @@ class Seed(ndb.Model):
 
     def to_lines(self, player=1, extraFlags=[]):
         return ["%s|%s" % (",".join(extraFlags + self.flags), self.name)] + ["|".join((str(p.location), s.code, s.id, p.zone)) for p in self.placements for s in p.stuff if int(s.player) == player]
+
+
+# The multiplayer half of a seedgen request, plus the two per-roll values. A
+# saved setting is player-agnostic on purpose: it describes one world, so it can
+# later be assigned to a world rather than deciding how many there are.
+# Denied rather than allowed, so a new variation is saved without being
+# registered anywhere -- forgetting would silently roll the default instead.
+SSP_DENY = frozenset([
+    "seed", "players", "playerNames", "tracking", "coopGenMode", "coopGameMode",
+    "dedupShared", "antiBkBias", "syncShared", "shared", "teams",
+    "apMode", "apExport", "apDeathLink",
+])
+
+# reroll already means "my last game's settings, new seed"; the name is spoken for
+SSP_RESERVED_NAMES = frozenset(["latest"])
+
+
+class SavedSeedParams(ndb.Model):
+    """Seedgen settings a user saved under a name. Stored as a blob rather than
+    a schema: SeedGenParams.from_json defaults every field it reads, so a blob
+    saved today still rolls once later versions add options."""
+    settings = ndb.JsonProperty(compressed=True)
+    name = ndb.StringProperty()
+    description = ndb.StringProperty()
+    hidden = ndb.BooleanProperty(default=False)
+    owner_key = ndb.KeyProperty("owner_key", User)
+    created = ndb.DateTimeProperty(auto_now_add=True)
+    updated = ndb.DateTimeProperty(auto_now=True)
+
+    @staticmethod
+    def settings_from(params_json, world=1):
+        """The saveable half of a seedgen request. A setting describes ONE
+        world, so forced assignments are taken from that world alone -- keeping
+        every world's would apply all of them to whichever world loaded it."""
+        out = {k: v for k, v in (params_json or {}).items() if k not in SSP_DENY}
+        world = str(world)
+        # cross-world rows name another player and belong to the multiplayer
+        # half; world and owner go with them, since the world a setting lands in
+        # is whichever one loads it
+        fass = [{k: v for k, v in f.items() if k not in ("world", "owner")}
+                for f in (params_json or {}).get("fass") or []
+                if str(f.get("world") or 1) == world
+                and str(f.get("owner") or f.get("world") or 1) == world]
+        if fass:
+            out["fass"] = fass
+        else:
+            out.pop("fass", None)
+        return out
+
+    @staticmethod
+    def name_problem(name):
+        """User-facing reason this name can't be used, or None."""
+        name = (name or "").strip()
+        if not name:
+            return "Give your settings a name."
+        if name.lower() in SSP_RESERVED_NAMES:
+            return "'%s' is reserved: it always means your last seed's settings." % name
+        if len(name) > 64:
+            return "That name is too long (64 characters max)."
+        if ":" in name:
+            return "Names can't contain a colon."
+        return None
+
+    @staticmethod
+    def get(owner_name, name):
+        owner = User.get_by_name(owner_name)
+        return owner.saved_params(name) if owner else None
+
+    def owned_by(self, user):
+        return bool(user) and self.owner_key == user.key
 
 
 class Game(ndb.Model):
