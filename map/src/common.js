@@ -152,6 +152,22 @@ function pickup_name(code, id) {
         case "TW":
           const subparts = id.split(",");
           return `${subparts[0]} (${subparts[1]}, ${subparts[2]})`;
+        case "MW": {
+            // owner,slot,code,id -- or, on an Archipelago reserved line,
+            // shadow,slot,recipient,ownslot,code,id. Only a code sits in field
+            // three of the short form, so its shape tells the two apart without
+            // needing to know how many players the seed has.
+            let fields = id.split(",");
+            let reserved = !/^[A-Z]{2}$/.test(fields[2]);
+            let owner = reserved ? fields[2] : "P" + fields[0];
+            let held = reserved
+                ? pickup_name(fields[4], fields.slice(5).join(","))
+                : pickup_name(fields[2], fields.slice(3).join(","));
+            let pid = /^P(\d+)$/.exec(owner);
+            return (pid ? "Player " + pid[1] : owner) + "'s " + held;
+        }
+        case "AP":
+            return id;   // a foreign game's item, named by the room that sent it
         default:
             return code + "|" + id;
     }
