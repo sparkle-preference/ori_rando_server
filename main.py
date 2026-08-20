@@ -28,7 +28,7 @@ from oidc import make_oidc
 from seedbuilder.seedparams import SeedGenParams, seed_mode_problem
 from seedbuilder.vanilla import seedtext as vanilla_seed
 from enums import MultiplayerGameType, ShareType, Variation
-from models import ndb_wsgi_middleware, Game, Player, Seed, User, BingoGameData, BingoEvent, BingoTeam, CustomLogic, trees_by_coords, LegacyUser, bingo_lock, AnnouncedPatchNotes
+from models import ndb_wsgi_middleware, Game, Player, SavedSeedParams, Seed, User, BingoGameData, BingoEvent, BingoTeam, CustomLogic, trees_by_coords, LegacyUser, bingo_lock, AnnouncedPatchNotes
 from bingo import BingoGenerator
 from cache import Cache
 from util import parse_fass, coord_correction_map, clone_entity, all_locs, picks_by_type_generator, param_val, param_flag, param_true, debug, template_root, VER, MIN_VER, BETA_VER, game_list_html, version_check, template_vals, layout_json, bfield_checksum, netperf, NETPERF_TAG, json_default, seed_sync_id, is_mw_manifest_loc, MULTIWORLD, ARCHIPELAGO, CANONICAL_HOST, REDIRECT_HOSTS, PATCHNOTES_WEBHOOK_MAIN, PATCHNOTES_WEBHOOK_DEV
@@ -1163,6 +1163,151 @@ def reroll_seed():
         return redirect(url)
     return redirect("%s?param_id=%s&game_id=%s" % (url_for('main_page'), new_params.key.id(), game.key.id()))
 
+# --- saved seedgen settings (SSPs) -------------------------------------------
+# A setting is the seedgen form minus the multiplayer tab and the seed, so the
+# same one rolls solo, in co-op, or as one world of a multiworld.
+
+def _ssp_or_404(owner_name, name):
+    ssp = SavedSeedParams.get(owner_name, name)
+    if not ssp:
+        return None, text_resp("no settings named %s by %s" % (name, owner_name), 404)
+    if ssp.hidden and not ssp.owned_by(User.get()):
+        return None, text_resp("no settings named %s by %s" % (name, owner_name), 404)
+    return ssp, None
+
+
+@app.route('/settings/save', methods=['POST'])
+def ssp_save():
+    user = User.get()
+    if not user:
+        return text_resp("log in to save settings", 401)
+    body = json.loads(request.form.get("ssp") or "{}")
+    name = (body.get("name") or "").strip()
+    problem = SavedSeedParams.name_problem(name)
+    if problem:
+        return text_resp(problem, 422)
+    ssp = user.saved_params(name) or SavedSeedParams(id="%s:%s" % (user.key.id(), name))
+    ssp.populate(
+        name=name,
+        owner_key=user.key,
+        description=(body.get("desc") or "").strip() or None,
+        settings=SavedSeedParams.settings_from(body.get("params") or {}, body.get("world") or 1),
+        hidden=bool(body.get("hidden", ssp.hidden)),
+    )
+    ssp.put()
+    return json_resp({"name": ssp.name, "owner": user.name})
+
+
+@app.route('/settings/<owner_name>/<name>')
+def ssp_get(owner_name, name):
+    """The settings themselves. A share link COPIES these into the opener's
+    form; it does not stay bound to this entity, so editing yours never changes
+    what someone else's link rolls."""
+    ssp, err = _ssp_or_404(owner_name, name)
+    return err or json_resp({"name": ssp.name, "owner": owner_name,
+                             "desc": ssp.description, "settings": ssp.settings})
+
+
+@app.route('/settings/<owner_name>/<name>/roll')
+def ssp_roll(owner_name, name):
+    ssp, err = _ssp_or_404(owner_name, name)
+    if err:
+        return err
+    settings = dict(ssp.settings or {})
+    settings["seed"] = str(random.randint(0, 1000000000))
+    settings["players"] = 1      # a setting says nothing about a lobby
+    settings["tracking"] = False
+    param_key = SeedGenParams.from_json(settings)
+    if not param_key:
+        return text_resp("these settings can no longer be built", 422)
+    params = param_key.get()
+    problem = seed_mode_problem(params)
+    if problem:
+        return text_resp(problem, 409)
+    if not params.generate():
+        return text_resp("Failed to generate seed!", 500)
+    return redirect("%s?param_id=%s" % (url_for('main_page'), param_key.id()))
+
+
+@app.route('/settings/mine/<name>/delete')
+@oidc.require_login
+def ssp_delete(name):
+    user = User.get()
+    ssp = user.saved_params(name)
+    if not ssp:
+        return text_resp("no settings named %s" % name, 404)
+    ssp.key.delete()
+    return redirect(url_for('my_settings'))
+
+
+@app.route('/settings/mine/<name>/rename/<new_name>')
+@oidc.require_login
+def ssp_rename(name, new_name):
+    user = User.get()
+    ssp = user.saved_params(name)
+    if not ssp:
+        return text_resp("no settings named %s" % name, 404)
+    problem = SavedSeedParams.name_problem(new_name)
+    if problem:
+        return text_resp(problem, 422)
+    if user.saved_params(new_name):
+        return text_resp("you already have settings named %s" % new_name, 409)
+    # the id carries the name, so a rename is a new entity
+    moved = SavedSeedParams(id="%s:%s" % (user.key.id(), new_name), name=new_name,
+                            owner_key=user.key, description=ssp.description,
+                            settings=ssp.settings, hidden=ssp.hidden)
+    moved.put()
+    ssp.key.delete()
+    return redirect(url_for('my_settings'))
+
+
+@app.route('/settings/mine/<name>/hideToggle')
+@oidc.require_login
+def ssp_hide_toggle(name):
+    user = User.get()
+    ssp = user.saved_params(name)
+    if not ssp:
+        return text_resp("no settings named %s" % name, 404)
+    ssp.hidden = not ssp.hidden
+    ssp.put()
+    return redirect(url_for('my_settings'))
+
+
+@app.route('/mySettings')
+@oidc.require_login
+def my_settings():
+    user = User.get()
+    rows = sorted(SavedSeedParams.query(SavedSeedParams.owner_key == user.key),
+                  key=lambda s: (s.name or "").lower())
+    out = ['<html><head><title>My Saved Settings</title></head><body>'
+           '<h5>Saved Settings</h5>']
+    if not rows:
+        out.append("<p>You haven't saved any settings yet. "
+                   "Save some from the <a href='/'>seed generator</a>.</p>")
+    out.append('<ul style="list-style-type:none;padding:5px">')
+    for ssp in rows:
+        share = "%ssettings/%s/%s" % (request.host_url, user.name, ssp.name)
+        out.append(
+            '<li style="padding:4px">'
+            '<b>%s</b>%s%s<br>'
+            '<a href="/settings/%s/%s/roll">roll seed</a> &middot; '
+            '<a href="/?ssp=%s:%s">load settings</a> &middot; '
+            '<a href="%s">share link</a> &middot; '
+            '<a href="/settings/mine/%s/hideToggle">%s</a> &middot; '
+            '<a href="/settings/mine/%s/delete">delete</a>'
+            '</li>' % (
+                ssp.name,
+                " (hidden)" if ssp.hidden else "",
+                (" &mdash; %s" % ssp.description) if ssp.description else "",
+                user.name, ssp.name,
+                user.name, ssp.name,
+                share,
+                ssp.name, "unhide" if ssp.hidden else "hide",
+                ssp.name))
+    out.append('</ul></body></html>')
+    return make_resp("".join(out))
+
+
 @app.route('/discord')
 def discord_redirect():
     return redirect("https://discord.gg/TZfue9V")
@@ -1353,7 +1498,7 @@ def plando_fillgen():
     if not params.generate(preplaced=preplaced):
         return code_resp(422)
     worlds = range(1, params.players + 1) if params.sync.mode == MultiplayerGameType.MULTIWORLD else [1]
-    return jsonify({str(p): params.get_seed(p) for p in worlds})
+    return json_resp({str(p): params.get_seed(p) for p in worlds})
 
 def count_plandos(seed):
     if seed.author_key:

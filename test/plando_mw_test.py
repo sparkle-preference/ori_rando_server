@@ -175,3 +175,68 @@ class ForcedAssignmentParseTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FillGenRouteTests(unittest.TestCase):
+    """/plando/fillgen end to end through test_client. This route went a long
+    time with nobody driving it, which is how a NameError in its response can
+    survive a green suite."""
+
+    @classmethod
+    def setUpClass(cls):
+        import google.auth.credentials
+        from google.cloud import ndb
+        cls.ndb_client = ndb.Client(project="unit-test",
+                                    credentials=google.auth.credentials.AnonymousCredentials())
+
+    def setUp(self):
+        import contextlib
+        import main
+        import models
+        self.main, self.models = main, models
+        self._ctx = self.ndb_client.context()
+        self._ctx.__enter__()
+        self._client_was = models.client
+        models.client = type("C", (), {"context": lambda s: contextlib.nullcontext()})()
+        self._secret = main.app.secret_key
+        main.app.secret_key = main.app.secret_key or "fillgen-test"
+        self._from_url = SeedGenParams.__dict__["from_url"]
+
+        rolled = self
+        class _Key(object):
+            def id(self): return "pk"
+            def get(self): return rolled.params
+        self.key = _Key()
+        SeedGenParams.from_url = staticmethod(lambda q: self.key)
+        self.client = main.app.test_client()
+
+    def tearDown(self):
+        SeedGenParams.from_url = self._from_url
+        self.main.app.secret_key = self._secret
+        self.models.client = self._client_was
+        self._ctx.__exit__(None, None, None)
+
+    def _params(self, players=1, mode=MultiplayerGameType.SIMUSOLO):
+        p = SeedGenParams(players=players)
+        p.sync = MultiplayerOptions()
+        p.sync.mode = mode
+        p.generate = lambda preplaced=None: True
+        p.get_seed = lambda player=1, **kw: "seed for world %s" % player
+        return p
+
+    def test_a_solo_fill_answers_one_world(self):
+        self.params = self._params()
+        res = self.client.get("/plando/fillgen?fass=919772:SK0")
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.get_json(), {"1": "seed for world 1"})
+
+    def test_a_multiworld_fill_answers_every_world(self):
+        self.params = self._params(players=3, mode=MultiplayerGameType.MULTIWORLD)
+        res = self.client.get("/plando/fillgen?fass=2.919772:SK0@3")
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(sorted(res.get_json()), ["1", "2", "3"])
+
+    def test_a_bad_location_is_refused_not_crashed(self):
+        self.params = self._params()
+        res = self.client.get("/plando/fillgen?fass=Glades:SK0")
+        self.assertEqual(res.status_code, 422)
