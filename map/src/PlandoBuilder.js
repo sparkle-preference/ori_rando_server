@@ -456,6 +456,8 @@ class PlandoBuiler extends React.Component {
                 }
                 let name = pickup_name(code, id);
                 let stuff_obj = {label: name, value: code+"|"+id};
+                if(stuff['owner'])
+                    stuff_obj.owner = stuff['owner'];
                 let player = stuff['player']
                 if(!placements.hasOwnProperty(player))
                     placements[player] = {}
@@ -603,13 +605,17 @@ class PlandoBuiler extends React.Component {
             let players_at_loc = players.filter(p => this.state.placements[p].hasOwnProperty(loc))
             let keyName = "";
             let stuff = players_at_loc.map(player => {
-                let rawId = this.state.placements[player][loc].value
-                let [code, id] = rawId.split("|");
+                let entry = this.state.placements[player][loc]
+                let [code, id] = entry.value.split("|");
                 let clueKey = clue_key_in(code, id);
                 if(clueKey) {
                     keyName = clueKey;
                 }
-                return {player: player, code: code, id: id};
+                let out = {player: player, code: code, id: id};
+                // only a cross-world item names an owner; player holds it either way
+                if(entry.owner && entry.owner !== player)
+                    out.owner = entry.owner;
+                return out;
             })
             if(players_at_loc.length > 0){
                 let plcmnt = {loc: loc, zone: picks_by_loc[loc].zone, stuff: stuff};

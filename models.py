@@ -1673,9 +1673,13 @@ class Seed(ndb.Model):
             plc = Placement(location=placement['loc'], zone=placement['zone'])
             for stuff in placement['stuff']:
                 player = stuff['player']
-                if int(player) > players:
-                    players = int(player)
-                plc.stuff.append(Stuff(code=stuff['code'], id=stuff['id'], player=player))
+                # absent owner means the world holding it owns it; a cross-world
+                # item's owner counts toward the player total on its own, since
+                # that player need hold nothing
+                owner = stuff.get('owner')
+                owner = str(owner) if owner and str(owner) != str(player) else None
+                players = max(players, int(player), int(owner or player))
+                plc.stuff.append(Stuff(code=stuff['code'], id=stuff['id'], player=player, owner=owner))
             placements.append(plc)
         return placements, players
 
@@ -1711,8 +1715,11 @@ class Seed(ndb.Model):
         placements = []
         for p in self.placements:
             stuffs = []
-            for stuff in p.stuff: 
-                stuffs.append({"player": stuff.player, "code": stuff.code, "id": stuff.id})
+            for stuff in p.stuff:
+                entry = {"player": stuff.player, "code": stuff.code, "id": stuff.id}
+                if stuff.owner and stuff.owner != stuff.player:
+                    entry["owner"] = stuff.owner
+                stuffs.append(entry)
             placements.append({'loc': p.location, 'stuff': stuffs})
         return jsonify({'placements': placements, 'flagline': self.flag_line()})
 
