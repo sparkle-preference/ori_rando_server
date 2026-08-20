@@ -23,7 +23,7 @@ try:
 except ImportError:
     ndb_imported = False
 
-VER = [4, 2, 17]
+VER = [4, 3, 0]
 MIN_VER = [4, 2, 15]
 BETA_VER = [4, 2, 17]
 
