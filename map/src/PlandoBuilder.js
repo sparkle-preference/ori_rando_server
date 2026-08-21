@@ -731,7 +731,7 @@ class PlandoBuiler extends React.Component {
     }
 
     downloadSeed = () => {
-        download('randomizer.dat', this.getLines().join("\n"));
+        download('randomizer.bfr', this.getLines().join("\n"));
     }
 
       updateReachable = (lastPass=[]) => {

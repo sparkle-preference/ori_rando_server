@@ -2,7 +2,7 @@
 
 Run right after compare.py -- reads the sphere-walk round inventories from
 ap_in.json before replacing the exchange files with its own queries:
-  .venv312\\Scripts\\python.exe archipelago\\difftest\\probes.py <randomizer0.dat>
+  .venv312\\Scripts\\python.exe archipelago\\difftest\\probes.py <randomizer0.bfr>
 
 Writes probes.txt next to this file.
 """

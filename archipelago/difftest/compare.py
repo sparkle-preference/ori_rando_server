@@ -1,7 +1,7 @@
 """Differential sphere walk: server tracker engine vs apworld compiled rules.
 
 Run with the server venv from anywhere:
-  .venv312\\Scripts\\python.exe archipelago\\difftest\\compare.py <randomizer0.dat>
+  .venv312\\Scripts\\python.exe archipelago\\difftest\\compare.py <randomizer0.bfr>
 
 Each round the server oracle reports reachable areas for the round's
 inventory; the inventory for the next round is every pickup sitting at a
