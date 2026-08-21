@@ -45,6 +45,19 @@
       ]
     },
     {
+      "version": "4.2.17",
+      "date": "2026-08-2",
+      "announce": "dev",
+      "changes": [
+        {
+          "text": "Added beta support for the launcher app.",
+          "category": "Misc",
+          "type": "feature",
+          "importance": "major"
+        }
+      ]
+    },
+    {
       "version": "4.2.16.1",
       "date": "2026-08-19",
       "announce": "all",
