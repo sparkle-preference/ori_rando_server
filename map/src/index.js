@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
-import {get_param, ap_opt_in, resolve_dark, save_dark} from './common.js';
+import {get_param, ap_opt_in, app_opt_in, resolve_dark, save_dark} from './common.js';
 
 import ItemTracker from './ItemTracker';
 import MainPage from './MainPage';
@@ -33,6 +33,7 @@ const VALID_THEMES = ["cerulean", "cosmo", "cyborg", "darkly", "flatly", "journa
 
 (async () => {
     ap_opt_in();
+    app_opt_in();
     let dark = resolve_dark();
     let theme = get_param("theme") || localStorage.getItem("theme");
     if(theme && !localStorage.getItem("theme")){
