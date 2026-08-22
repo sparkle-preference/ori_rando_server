@@ -11,7 +11,7 @@ from collections import defaultdict, OrderedDict
 from typing import List, Dict, Optional
 from flask import g
 
-from seedbuilder.seedparams import Placement, Stuff, SeedGenParams
+from seedbuilder.seedparams import Placement, Stuff, SeedGenParams, bingo_worlds
 from enums import MultiplayerGameType, ShareType, Variation
 from util import picks_by_coord, get_bit, get_taste, enums_from_strlist, ord_suffix, debug, bfields_to_coords, bfield_checksum, unpack, netperf, is_mw_manifest_loc
 import re
@@ -2650,7 +2650,7 @@ class Game(ndb.Model):
             game.relics_by_world = {str(w): [zone for (_, code, __, zone) in params.get_seed_data(w)
                                              if code == "WT"] for w in worlds}
             game.relics = game.relics_by_world.get("1", [])
-        if Variation.BINGO not in params.variations:
+        if not bingo_worlds(params):
             teams = params.sync.teams
             if teams:
                 for playerNums in teams.values():

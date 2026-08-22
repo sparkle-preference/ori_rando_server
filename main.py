@@ -25,7 +25,7 @@ from archipelago import build_apworld
 from archipelago.yaml_emit import DATA_VERSION as AP_DATA_VERSION
 from flask_oidc.signals import after_logout
 from oidc import make_oidc
-from seedbuilder.seedparams import SeedGenParams, seed_mode_problem
+from seedbuilder.seedparams import SeedGenParams, bingo_worlds, seed_mode_problem
 from seedbuilder.vanilla import seedtext as vanilla_seed
 from enums import MultiplayerGameType, ShareType, Variation
 from models import ndb_wsgi_middleware, Game, Player, SavedSeedParams, Seed, User, BingoGameData, BingoWorldBoard, BingoEvent, BingoTeam, pick_discovery_squares, CustomLogic, trees_by_coords, LegacyUser, bingo_lock, AnnouncedPatchNotes
@@ -2014,20 +2014,19 @@ def bingo_board_cards(params, difficulty, seed, disc, meta, lockout, world=1):
                                     spawn = params.spawn_for(world) or "Glades")
 
 
-def bingo_worlds(params):
-    """The worlds playing bingo. A world opts in with its own Bingo variation, so
-    a multiworld can have exactly one bingo player."""
+def mw_bingo_worlds(params):
+    """The worlds getting their own board. Only a multiworld splits boards; any
+    other shape plays the one board it always did."""
     if params.sync.mode != MultiplayerGameType.MULTIWORLD:
         return []
-    return [w for w in range(1, (params.players or 1) + 1)
-            if Variation.BINGO in params.world_params(w).variations]
+    return bingo_worlds(params)
 
 
 def bingo_boards_for(params, seed, lockout):
     """One board per participating world, each from that world's own settings.
     Seeded apart, so two worlds on the same settings still get different goals."""
     out = []
-    for w in bingo_worlds(params):
+    for w in mw_bingo_worlds(params):
         wp = params.world_params(w)
         board_seed = "%s.%s" % (seed, w)
         cards = bingo_board_cards(params, wp.bingo_diff, board_seed, wp.bingo_disc,
@@ -2279,7 +2278,7 @@ def add_bingo_to_game(game_id):
 
         # boards are per world only when more than one world opted in; a single
         # bingo player is one board, which is the shape everything already knows
-        worlds = bingo_worlds(params)
+        worlds = mw_bingo_worlds(params)
         per_world = len(worlds) > 1
         if per_world:
             lockout = False     # separate boards never share a square to take

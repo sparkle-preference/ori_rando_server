@@ -541,6 +541,7 @@ onDrop = (files) => {
                     </Col><Col xs={rightCol-1}>
                         <PickupSelect ref="fassTabula" value={"NO|1"} updater={(code, _) => this.addToFassList({item: code})} allowGroup/>
                     </Col>
+                    {isMW ? <Col xs="2"/> : null}
             </Row>
         ))
         let goalCol = (v) => (
@@ -624,7 +625,6 @@ onDrop = (files) => {
                         <FormFeedback tooltip="true">Forced Cell Frequency must be at least 3</FormFeedback>
                     </Col>
                 </Row>
-                {fass_rows}
                 <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "buriedPresets")} className="p-1 justify-content-center">
                     <Col xs={leftCol} className="text-center pt-1 border">
                         <Cent>Bury Items ([Item]Starved)</Cent>
@@ -637,7 +637,9 @@ onDrop = (files) => {
                                                                                       {depth: 100, items: ["TP|Forlorn", "TP|Sorrow", "TP|Ginso", "TP|Horu"]}])}>Teleporters</Button>
                     </Col>
                 </Row>
+                <div className="border rounded p-1 m-1">{fass_rows}</div>
                 <Collapse isOpen={this.hasVar("Bingo")}>
+                <div className="border rounded p-1 m-1">
                 <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "bingoDiff")} className="p-1 justify-content-center">
                     <Col xs={leftCol} className="text-center pt-1 border">
                         <span className="align-middle">Board Difficulty</span>
@@ -692,12 +694,23 @@ onDrop = (files) => {
                 </Row>
                 <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "bingoDisc")} className="p-1 justify-content-center">
                     <Col xs={leftCol} className="text-center pt-1 border">
-                        <span className="align-middle">Revealed Squares</span>
+                        <span className="align-middle">Discovery Mode</span>
                     </Col><Col xs={rightCol}>
-                        <Input style={inputStyle} type="number" value={bingoDisc} invalid={bingoDisc > 25 || bingoDisc < 0} onChange={(e) => this.setState({bingoDisc: parseInt(e.target.value, 10)})}/> 
-                        <FormFeedback tooltip="true">0 turns discovery mode off; otherwise 1 to 25</FormFeedback>
+                        <Button color="primary" block active={bingoDisc > 0} outline={!bingoDisc}
+                                onClick={() => this.setState({bingoDisc: bingoDisc > 0 ? 0 : 2})}>{bingoDisc > 0 ? "Enabled" : "Disabled"}</Button>
                     </Col>
                 </Row>
+                <Collapse isOpen={bingoDisc > 0}>
+                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "bingoDisc")} className="p-1 justify-content-center">
+                    <Col xs={leftCol} className="text-center pt-1 border">
+                        <span className="align-middle">Revealed Squares</span>
+                    </Col><Col xs={rightCol}>
+                        <Input style={inputStyle} type="number" value={bingoDisc} invalid={bingoDisc > 25 || bingoDisc < 1} onChange={(e) => this.setState({bingoDisc: parseInt(e.target.value, 10)})}/> 
+                        <FormFeedback tooltip="true">Revealed squares must be between 1 and 25</FormFeedback>
+                    </Col>
+                </Row>
+                </Collapse>
+                </div>
                 </Collapse>
                 <Collapse isOpen={this.hasVar("WorldTour")}>
                     <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "relicCount")} className="p-1 justify-content-center">
@@ -2607,7 +2620,7 @@ onDrop = (files) => {
         })
     }
 
-    playerNamesShown = () => (this.apAvailable() && this.state.apMode) || (!this.hasVar("Bingo") && this.state.players > 1)
+    playerNamesShown = () => (this.apAvailable() && this.state.apMode) || this.state.players > 1
     onPlayerName = (i) => (e) => {
         // read before setState: the synthetic event is recycled by the time
         // the updater runs

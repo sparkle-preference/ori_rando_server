@@ -183,5 +183,59 @@ class BoardPayloadTestCase(unittest.TestCase):
         self.assertEqual(list(got), ["cards"], "a tick is progress only")
 
 
+
+
+class BingoMultiworldNamesTestCase(unittest.TestCase):
+    """A bingo lobby hands names out itself; a multiworld names its worlds."""
+
+    @classmethod
+    def setUpClass(cls):
+        creds = google.auth.credentials.AnonymousCredentials()
+        cls.ndb_client = ndb.Client(project="unit-test", credentials=creds)
+
+    def setUp(self):
+        self._ctx = self.ndb_client.context()
+        self._ctx.__enter__()
+
+    def tearDown(self):
+        self._ctx.__exit__(None, None, None)
+
+    def params(self, mode, variations, worlds=None):
+        from enums import KeyMode, LogicPath, MultiplayerGameType, PathDifficulty
+        from seedbuilder.seedparams import MultiplayerOptions, SeedGenParams
+        p = SeedGenParams(seed="bingonames")
+        p.sync = MultiplayerOptions()
+        p.sync.enabled = mode is not None
+        if mode:
+            p.sync.mode = mode
+        p.spoilers, p.placements = [""], []
+        p.logic_paths = [LogicPath.CASUAL_CORE]
+        p.key_mode = KeyMode.CLUES
+        p.path_diff = PathDifficulty.NORMAL
+        p.players = 2
+        p.variations = variations
+        p.world_settings = worlds or []
+        return p
+
+    def test_a_bingo_multiworld_keeps_its_names(self):
+        from enums import MultiplayerGameType
+        from seedbuilder.seedparams import rolled_player_names
+        p = self.params(MultiplayerGameType.MULTIWORLD, [Variation.BINGO])
+        self.assertEqual(rolled_player_names(["Lapis", "Xemsys"], p), ["Lapis", "Xemsys"])
+
+    def test_a_plain_bingo_lobby_still_stores_none(self):
+        from enums import MultiplayerGameType
+        from seedbuilder.seedparams import rolled_player_names
+        p = self.params(MultiplayerGameType.SHARED, [Variation.BINGO])
+        self.assertEqual(rolled_player_names(["Lapis", "Xemsys"], p), [])
+
+    def test_from_params_sees_a_world_that_opted_in(self):
+        from enums import MultiplayerGameType
+        from seedbuilder.seedparams import bingo_worlds
+        p = self.params(MultiplayerGameType.MULTIWORLD, [],
+                        [{}, {"variations": ["Bingo"]}])
+        self.assertEqual(bingo_worlds(p), [2], "the seed itself carries no Bingo")
+
+
 if __name__ == "__main__":
     unittest.main()

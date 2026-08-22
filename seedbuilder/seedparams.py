@@ -78,12 +78,20 @@ def seed_mode_problem(params, mw_override=False, ap_override=False):
     if params.sync.mode == MultiplayerGameType.SHARED and not params.sync.cloned:
         return "Seperate Seeds generation was removed (2026-07). Use Cloned Seeds or Multiworld."
     return None
+def bingo_worlds(params):
+    """The worlds playing bingo. A world opts in with its own Bingo variation, so
+    a multiworld can have exactly one bingo player."""
+    return [w for w in range(1, int(getattr(params, "players", 1) or 1) + 1)
+            if Variation.BINGO in world_view(params, w).variations]
+
+
 def rolled_player_names(names, params):
-    """Sanitize the UI's per-world names. Bingo hands names out by lobby and
-    stores none, unless it's an AP board (pid is the world there); trailing
-    blanks are dropped."""
+    """Sanitize the UI's per-world names. A bingo lobby hands names out itself and
+    stores none; a multiworld names its worlds whether or not they play bingo.
+    Trailing blanks are dropped."""
+    multiworld = getattr(getattr(params, "sync", None), "mode", None) == MultiplayerGameType.MULTIWORLD
     if (Variation.BINGO in (getattr(params, "variations", None) or [])
-            and not getattr(params, "ap_mode", False)):
+            and not multiworld and not getattr(params, "ap_mode", False)):
         return []
     from ap_models import sanitize_display_name, PLAYER_NAME_MAX
     out = [sanitize_display_name(str(n or ""), PLAYER_NAME_MAX)
