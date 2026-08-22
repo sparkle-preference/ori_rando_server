@@ -98,6 +98,7 @@ const canonSettings = (json) => JSON.stringify(Object.keys(json || {}).sort().ma
 const PRESET_FORM_KEYS = ["keyMode", "fillAlg", "variations", "paths", "expPool", "cellFreq",
                           "selectedPool", "verboseSpoiler", "pathDiff", "senseData",
                           "fragCount", "fragReq", "relicCount", "bingoLines",
+                          "bingoDiff", "bingoGoal", "bingoSquares", "bingoMeta", "bingoDisc",
                           "spawn", "spawnSKs", "spawnECs", "spawnHCs", "spawnWeights"];
 // only the keys paramsJson would emit, gated on the same conditions
 const livePresetKeys = (form) => {
@@ -106,7 +107,7 @@ const livePresetKeys = (form) => {
     let vars = form.variations || [];
     if(vars.includes("WarmthFrags")) ks.push("fragCount", "fragReq");
     if(vars.includes("WorldTour")) ks.push("relicCount");
-    if(vars.includes("Bingo")) ks.push("bingoLines");
+    if(vars.includes("Bingo")) ks.push("bingoLines", "bingoDiff", "bingoGoal", "bingoSquares", "bingoMeta", "bingoDisc");
     if(form.spawn === "Random") ks.push("spawnWeights");
     else if(form.spawn && form.spawn !== "Glades") ks.push("spawnSKs", "spawnECs", "spawnHCs");
     return ks;
@@ -472,7 +473,8 @@ onDrop = (files) => {
 
     getAdvancedTab = ({inputStyle, menuStyle}) => {
         let {senseData, fillAlg, spawnSKs, spawnECs, spawnHCs, expPool, bingoLines, pathDiff, cellFreq, 
-            relicCount, fragCount, fragReq, spawnWeights, spawn, verboseSpoiler, fassList} = this.state
+            relicCount, fragCount, fragReq, spawnWeights, spawn, verboseSpoiler, fassList,
+            bingoDiff, bingoGoal, bingoSquares, bingoMeta, bingoDisc} = this.state
         let [leftCol, rightCol] = [4, 7]
         let weightSelectors = spawnWeights.map((weight, index) => (
             <Col xs="4" key={`weight-selector-${index}`} className="text-center pt-1 border">
@@ -636,12 +638,64 @@ onDrop = (files) => {
                     </Col>
                 </Row>
                 <Collapse isOpen={this.hasVar("Bingo")}>
+                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "bingoDiff")} className="p-1 justify-content-center">
+                    <Col xs={leftCol} className="text-center pt-1 border">
+                        <span className="align-middle">Board Difficulty</span>
+                    </Col><Col xs={rightCol}>
+                        <ButtonGroup className="w-100">
+                            {["easy", "normal", "hard"].map(d => (
+                                <Button key={`bingo-diff-${d}`} className="text-capitalize" color="primary"
+                                        active={bingoDiff === d} outline={bingoDiff !== d}
+                                        onClick={() => this.setState({bingoDiff: d})}>{d}</Button>))}
+                        </ButtonGroup>
+                    </Col>
+                </Row>
+                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "bingoGoal")} className="p-1 justify-content-center">
+                    <Col xs={leftCol} className="text-center pt-1 border">
+                        <span className="align-middle">Win By</span>
+                    </Col><Col xs={rightCol}>
+                        <ButtonGroup className="w-100">
+                            <Button color="primary" active={bingoGoal === "bingos"} outline={bingoGoal !== "bingos"}
+                                    onClick={() => this.setState({bingoGoal: "bingos"})}>Lines</Button>
+                            <Button color="primary" active={bingoGoal === "squares"} outline={bingoGoal !== "squares"}
+                                    onClick={() => this.setState({bingoGoal: "squares"})}>Squares</Button>
+                        </ButtonGroup>
+                    </Col>
+                </Row>
+                <Collapse isOpen={bingoGoal === "bingos"}>
                 <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "bingoLines")} className="p-1 justify-content-center">
                     <Col xs={leftCol} className="text-center pt-1 border">
                         <span className="align-middle">Bingo Lines</span>
                     </Col><Col xs={rightCol}>
                         <Input style={inputStyle} type="number" value={bingoLines} invalid={bingoLines > 12 || bingoLines < 1} onChange={(e) => this.setState({bingoLines: parseInt(e.target.value, 10)})}/> 
                         <FormFeedback tooltip="true">Line count must be between 1 and 12</FormFeedback>
+                    </Col>
+                </Row>
+                </Collapse>
+                <Collapse isOpen={bingoGoal === "squares"}>
+                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "bingoSquares")} className="p-1 justify-content-center">
+                    <Col xs={leftCol} className="text-center pt-1 border">
+                        <span className="align-middle">Squares to Win</span>
+                    </Col><Col xs={rightCol}>
+                        <Input style={inputStyle} type="number" value={bingoSquares} invalid={bingoSquares > 25 || bingoSquares < 1} onChange={(e) => this.setState({bingoSquares: parseInt(e.target.value, 10)})}/> 
+                        <FormFeedback tooltip="true">Squares must be between 1 and 25</FormFeedback>
+                    </Col>
+                </Row>
+                </Collapse>
+                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "bingoMeta")} className="p-1 justify-content-center">
+                    <Col xs={leftCol} className="text-center pt-1 border">
+                        <span className="align-middle">Meta Bingo</span>
+                    </Col><Col xs={rightCol}>
+                        <Button color="primary" block active={bingoMeta} outline={!bingoMeta}
+                                onClick={() => this.setState({bingoMeta: !bingoMeta})}>{bingoMeta ? "Enabled" : "Disabled"}</Button>
+                    </Col>
+                </Row>
+                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "bingoDisc")} className="p-1 justify-content-center">
+                    <Col xs={leftCol} className="text-center pt-1 border">
+                        <span className="align-middle">Revealed Squares</span>
+                    </Col><Col xs={rightCol}>
+                        <Input style={inputStyle} type="number" value={bingoDisc} invalid={bingoDisc > 25 || bingoDisc < 0} onChange={(e) => this.setState({bingoDisc: parseInt(e.target.value, 10)})}/> 
+                        <FormFeedback tooltip="true">0 turns discovery mode off; otherwise 1 to 25</FormFeedback>
                     </Col>
                 </Row>
                 </Collapse>
@@ -890,6 +944,11 @@ onDrop = (files) => {
         {
             url += "?bingo=1"
             json.bingoLines = this.state.bingoLines;
+            json.bingoDiff = this.state.bingoDiff;
+            json.bingoGoal = this.state.bingoGoal;
+            json.bingoSquares = this.state.bingoSquares;
+            json.bingoMeta = this.state.bingoMeta;
+            json.bingoDisc = this.state.bingoDisc;
         }
         if(this.state.spawn !== "Glades") {
             json.spawn = this.state.spawn;
@@ -2351,7 +2410,8 @@ onDrop = (files) => {
                         expPool: 10000, lastHelp: new Date(), seedIsGenerating: seedTabExists, cellFreq: cellFreqPresets("standard"),
                         fragCount: 30, fragReq: 20, relicCount: 8, loader: get_random_loader(), paramId: paramId, seedTabExists: seedTabExists, 
                         reopenUrl: "", flagLine: "", flagLines: [], fassList: fassDefaultsFor(1), fassWorld: 1, goalModesOpen: false, 
-                        spoilers: true, spawnWeights: [1.0,2.0,2.0,2.0,1.5,2.0,0.1,0.1,0.25,0.5], seedIsBingo: false, bingoLines: 3, 
+                        spoilers: true, spawnWeights: [1.0,2.0,2.0,2.0,1.5,2.0,0.1,0.1,0.25,0.5], seedIsBingo: false, bingoLines: 3,
+                        bingoDiff: "normal", bingoGoal: "bingos", bingoSquares: 13, bingoMeta: false, bingoDisc: 0, 
                         auxModal: false, auxPlayer: 1, auxSpoiler: {active: false, byZone: false, exclude: ["EX","KS", "AC", "EC", "HC", "MS"]},
                         stupidMode: stupidMode, customLogic: false, stupidWarn: stupidWarn, verboseSpoiler: get_param("verbose") === "True",
                         sspList: [], sspOwner: null, sspName: PRESET_DEFAULT, sspHasLatest: false,

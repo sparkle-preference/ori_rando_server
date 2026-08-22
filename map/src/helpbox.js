@@ -874,6 +874,27 @@ const getHelpHelper = (category, option) => {
                     title = "Verbose Spoilers"
                     lines = ["Show all pickups in spoilers (by default, Experience and Bonus pickups are filtered out)."]
                     break;    
+                case "bingoDiff":
+                    title = "Board Difficulty"
+                    lines = ["How hard the goals on your board are. Each world can pick its own."]
+                    break;
+                case "bingoGoal":
+                    title = "Win By"
+                    lines = ["Lines counts rows, columns and diagonals. Squares counts any squares you finish, wherever they are."]
+                    break;
+                case "bingoSquares":
+                    title = "Squares to Win"
+                    lines = ["How many squares finish your board."]
+                    break;
+                case "bingoMeta":
+                    title = "Meta Bingo"
+                    lines = ["Adds squares that are about the rest of your board, like completing a symmetric pair."]
+                    break;
+                case "bingoDisc":
+                    title = "Revealed Squares"
+                    lines = ["Discovery mode: your board starts hidden except for this many squares, and more reveal as you finish them.",
+                             "Zero shows the whole board from the start."]
+                    break;
                 case "bingoLines":
                     title = "Bingo Lines"
                     lines = ["Set the number of bingo lines to play for. Can also be adjusted on board generation"]
