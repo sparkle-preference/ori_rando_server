@@ -149,5 +149,39 @@ class PerWorldBingoTestCase(unittest.TestCase):
         self.assertEqual(b.all_boards(), [b.board])
 
 
+
+
+class BoardPayloadTestCase(unittest.TestCase):
+    """The payload carries a board per world, with the rules it finishes by."""
+
+    @classmethod
+    def setUpClass(cls):
+        creds = google.auth.credentials.AnonymousCredentials()
+        cls.ndb_client = ndb.Client(project="unit-test", credentials=creds)
+
+    def setUp(self):
+        self._ctx = self.ndb_client.context()
+        self._ctx.__enter__()
+
+    def tearDown(self):
+        self._ctx.__exit__(None, None, None)
+
+    def test_a_world_board_reports_its_own_rules(self):
+        from models import BingoWorldBoard
+        wb = BingoWorldBoard(world=2, board=[], bingo_count=5, square_count=13,
+                             goal="bingos", difficulty="hard", meta=False, discovery=0)
+        got = wb.to_json([], initial=True)
+        self.assertEqual(got["bingo_count"], 5)
+        self.assertEqual(got["difficulty"], "hard")
+        self.assertIs(got["meta"], False)
+        self.assertNotIn("discovery", got, "no revealed squares when discovery is off")
+
+    def test_a_poll_carries_cards_without_the_rules(self):
+        from models import BingoWorldBoard
+        wb = BingoWorldBoard(world=1, board=[], bingo_count=3)
+        got = wb.to_json([], initial=False)
+        self.assertEqual(list(got), ["cards"], "a tick is progress only")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1903,6 +1903,11 @@ def _bingo_add_player_inner(game_id, player_id):
         return text_resp("Bingo game %s not found" % game_id, 404)
     if join_team and not bingo.teams_allowed:
         return text_resp("Teams are forbidden in this game", 412)
+    # a multiworld player's pid is baked into the seed the host handed them, so
+    # there is no slot here to claim
+    if bingo.boards:
+        return text_resp("This game's players come from its multiworld seed; "
+                         "get your seed from whoever rolled it.", 412)
     if player_id in bingo.player_nums():
         return text_resp("Player id already in use!", 409)
     if bingo.ap_worlds:
@@ -2326,6 +2331,11 @@ def add_bingo_to_game(game_id):
             # the roster wipe below.
             bingo.teams_allowed = True
             bingo.ap_worlds = int(params.players)
+        if per_world:
+            # the board's pids ARE the multiworld's worlds, and the seeds went out
+            # with those numbers in them, so the roster is settled here
+            for w in worlds:
+                bingo.teams.append(BingoTeam(captain=bingo.init_player(w).key, teammates=[]))
         # after the AP fields: the creator's page reads ap_worlds off this
         res = bingo.get_json(True)
         if param_flag("time"):
