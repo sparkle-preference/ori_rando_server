@@ -1765,6 +1765,9 @@ URL_UNSAFE_NAME_CHARS = ["@", "/", "\\", "?", "#", "&", "="]
 # "default" is the untouched form
 SSP_RESERVED_NAMES = frozenset(["latest", "default"])
 
+# description is an indexed StringProperty, so anything past 1500 bytes fails at put()
+SSP_DESC_MAX = 200
+
 
 class SavedSeedParams(ndb.Model):
     """A preset: seedgen options a user saved under a name. Stored as a blob
@@ -1797,6 +1800,13 @@ class SavedSeedParams(ndb.Model):
         else:
             out.pop("fass", None)
         return out
+
+    @staticmethod
+    def desc_problem(desc):
+        """User-facing reason this description can't be used, or None."""
+        if len((desc or "").strip()) > SSP_DESC_MAX:
+            return "That description is too long (%s characters max)." % SSP_DESC_MAX
+        return None
 
     @staticmethod
     def name_problem(name):

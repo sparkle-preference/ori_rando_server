@@ -156,6 +156,13 @@ class SSPRouteTestCase(unittest.TestCase):
         self.assertEqual(res.status_code, 422)
         self.assertIn(b"reserved", res.data)
 
+    def test_an_overlong_description_is_refused(self):
+        """description is an indexed StringProperty, so an uncapped one reaches
+        put() and 500s instead of telling the user what went wrong."""
+        self.logged_in = self.user
+        self.assertEqual(self.save(name="wordy", desc="x" * 201, params={}).status_code, 422)
+        self.assertIsNone(SavedSeedParams.desc_problem("x" * 200))
+
     def test_url_unsafe_names_are_refused(self):
         """A preset name is a path segment in its own share link. One with a
         slash saved fine and then 404'd on every read, share and roll."""
@@ -254,7 +261,7 @@ class SSPListTestCase(SSPRouteTestCase):
         self.logged_in = self.user
         body = self.client.get("/preset/list").get_json()
         self.assertEqual(body["settings"], [{"name": "secret", "desc": None,
-                                             "hidden": True}])
+                                             "hidden": True, "blob": {}}])
 
 
 class LastSeedTestCase(SSPRouteTestCase):
@@ -289,6 +296,12 @@ class PresetEditTestCase(SSPRouteTestCase):
 
     def edit(self, **body):
         return self.client.post("/preset/edit", data={"preset": json.dumps(body)})
+
+    def test_an_overlong_description_is_refused(self):
+        self.logged_in = self.user
+        self.user.store["terse"] = _FakeSSP(self.user, "terse", desc="short")
+        self.assertEqual(self.edit(name="terse", desc="x" * 201).status_code, 422)
+        self.assertEqual(self.edit(name="terse", desc="x" * 200).status_code, 200)
 
     def delete(self, **body):
         return self.client.post("/preset/delete", data={"preset": json.dumps(body)})
@@ -351,6 +364,23 @@ class PresetEditTestCase(SSPRouteTestCase):
 class SettingsSplitOnSaveTestCase(SSPRouteTestCase):
     """The route saves the split, not the raw request."""
 
+    def test_an_options_only_save_keeps_the_rest(self):
+        """Update sends the name and the options; everything the modal owns is
+        left as the datastore has it, not as the caller last saw it."""
+        self.logged_in = self.user
+        self.user.store["kept"] = _FakeSSP(self.user, "kept", desc="how it plays", hidden=True)
+        self.assertEqual(self.save(name="kept", params={"paths": ["casual-core"]}).status_code, 200)
+        kept = self.user.store["kept"]
+        self.assertEqual(kept.description, "how it plays")
+        self.assertTrue(kept.hidden)
+        self.assertEqual(kept.settings.get("paths"), ["casual-core"])
+
+    def test_a_sent_blank_description_still_clears_it(self):
+        self.logged_in = self.user
+        self.user.store["kept"] = _FakeSSP(self.user, "kept", desc="how it plays")
+        self.assertEqual(self.save(name="kept", desc="", params={}).status_code, 200)
+        self.assertIsNone(self.user.store["kept"].description)
+
     def test_the_lobby_is_not_saved(self):
         self.logged_in = self.user
         # a real entity would be created here; stub the constructor's slot
@@ -366,6 +396,7 @@ class SettingsSplitOnSaveTestCase(SSPRouteTestCase):
             class Shim(object):
                 get = staticmethod(real.get)
                 name_problem = staticmethod(real.name_problem)
+                desc_problem = staticmethod(real.desc_problem)
                 settings_from = staticmethod(real.settings_from)
 
                 def __new__(cls, **kw):

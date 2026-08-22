@@ -1099,61 +1099,45 @@ const getHelpHelper = (category, option) => {
                         break;
     
                 case "savedSettings":
-                    title = "Load Preset"
+                    subtitle = "Seedgen Presets"
+                    title = "Presets"
                     lines = [
                         "Picking a preset fills the form in with its options, replacing what's there now.",
                         "\"Default\" is the settings the page starts with, and \"Last Seed\" is the ones you played most recently.",
-                        "A saved preset leaves the multiplayer tab alone, so the same one works solo, in co-op, or as one world of a multiworld.",
-                        "A * means you've changed something since loading."
+                        "A preset leaves the multiplayer tab alone, so the same one works solo, in co-op, or as one world of a multiworld.",
+                        "Italics mean you've changed something since loading. The pencil beside a preset describes, renames, shares or deletes it."
                     ]
                     break;
                 case "savedSettingsDisabled":
-                    title = "Load Preset"
+                    subtitle = "Seedgen Presets"
+                    title = "Presets"
                     lines = [
                         "Picking a preset fills the form in with its options.",
                         "\"Default\" is the settings the page starts with. Log in to save your own."
                     ]
                     break;
                 case "updatePreset":
+                    subtitle = "Seedgen Presets"
                     title = "Update Preset"
-                    lines = [
-                        "Saves your current options over the preset you have loaded, keeping its name."
-                    ]
+                    lines = ["Saves your current options over the preset you have loaded, keeping its name."]
                     break;
                 case "updatePresetDisabled":
+                    subtitle = "Seedgen Presets"
                     title = "Update Preset"
                     lines = ["Nothing has changed since you loaded this preset."]
                     break;
                 case "copyPreset":
+                    subtitle = "Seedgen Presets"
                     title = "Save As Preset"
-                    lines = ["Keeps the options you have now as a preset of your own."]
-                    break;
-                case "copyPresetDisabled":
-                    title = "Save As Preset"
-                    lines = ["Change something first, or log in, and you can keep it as a preset."]
-                    break;
-                case "presetManage":
-                    title = "Preset Settings"
-                    lines = ["Rename this preset, change its description, choose who can open its link, or delete it."]
-                    break;
-                case "presetManageDisabled":
-                    title = "Preset Settings"
-                    lines = ["Load one of your own presets to rename, share or delete it."]
-                    break;
-                case "noLatest":
-                    title = "Last Seed"
-                    lines = ["You haven't generated a seed yet, so there are no options to take."]
-                    break;
-                case "saveSettings":
-                    title = "Save Preset As..."
                     lines = [
-                        "Saves the options you have selected as a preset, under a name you choose.",
+                        "Keeps the options you have now as a preset of your own, under a name you choose.",
                         "A preset gets a link you can hand to anyone, and opening it fills in their form to match."
                     ]
                     break;
-                case "saveSettingsDisabled":
-                    title = "Save Preset As..."
-                    lines = ["Log in to save presets."]
+                case "copyPresetDisabled":
+                    subtitle = "Seedgen Presets"
+                    title = "Save As Preset"
+                    lines = ["Change something first, or log in, and you can keep it as a preset."]
                     break;
                 case "reroll":
                     title = "Generate"
@@ -1521,12 +1505,13 @@ class HelpBox extends React.Component {
         this.el.style.minHeight = HelpBox.minHeight + "px"
     }
     render() {
-        const {title, subtitle, lines, extras, padding, style} = this.props
+        const {title, subtitle, lines, extras, note, padding, style} = this.props
         return (
         <div ref={this.measure} style={{transition: "min-height 0.15s ease-out"}}>
             <Card className={padding} style={style}><CardBody className={padding}>
                 <CardTitle className="text-center">{title}</CardTitle>
                     <CardSubtitle className="p-1 text-center">{subtitle}</CardSubtitle>
+                {note ? <CardText className="font-italic text-center">{note}</CardText> : null}
                 {lines}
                 {extras}
             </CardBody></Card>

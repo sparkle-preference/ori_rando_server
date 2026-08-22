@@ -1185,14 +1185,15 @@ def ssp_save():
         return text_resp("log in to save presets", 401)
     body = json.loads(request.form.get("preset") or "{}")
     name = (body.get("name") or "").strip()
-    problem = SavedSeedParams.name_problem(name)
+    problem = SavedSeedParams.name_problem(name) or SavedSeedParams.desc_problem(body.get("desc"))
     if problem:
         return text_resp(problem, 422)
     ssp = user.saved_params(name) or SavedSeedParams(id="%s:%s" % (user.key.id(), name))
     ssp.populate(
         name=name,
         owner_key=user.key,
-        description=(body.get("desc") or "").strip() or None,
+        # absent means leave it: an options-only save must not blank the description
+        description=((body.get("desc") or "").strip() or None) if "desc" in body else ssp.description,
         settings=SavedSeedParams.settings_from(body.get("params") or {}, body.get("world") or 1),
         hidden=bool(body.get("hidden", ssp.hidden)),
     )
@@ -1211,10 +1212,12 @@ def ssp_list():
                   key=lambda s: (s.name or "").lower())
     # what /preset/latest and /reroll both need, so a lit button is one that works
     last = user.games[-1].get() if user.games else None
+    # the blob rides along so the page can tell whether what it just loaded IS
+    # one of these, without a request per preset
     return json_resp({"owner": user.name,
                       "hasLatest": bool(last and last.params),
                       "settings": [{"name": s.name, "desc": s.description,
-                                    "hidden": s.hidden} for s in rows]})
+                                    "hidden": s.hidden, "blob": s.settings} for s in rows]})
 
 
 @app.route('/preset/latest')
@@ -1342,7 +1345,7 @@ def preset_edit():
     if err:
         return err
     new_name = _str_field(body, "newName") or ssp.name
-    problem = SavedSeedParams.name_problem(new_name)
+    problem = SavedSeedParams.name_problem(new_name) or SavedSeedParams.desc_problem(_str_field(body, "desc"))
     if problem:
         return text_resp(problem, 422)
     desc = _str_field(body, "desc") or None

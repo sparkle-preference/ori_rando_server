@@ -65,6 +65,20 @@ const PRESET_FORM_KEYS = ["keyMode", "fillAlg", "variations", "paths", "expPool"
                           "selectedPool", "verboseSpoiler", "pathDiff", "senseData",
                           "fragCount", "fragReq", "relicCount", "bingoLines",
                           "spawn", "spawnSKs", "spawnECs", "spawnHCs", "spawnWeights"];
+// Fields only count when they apply: spawnWeights is meaningless without a random
+// spawn, relicCount without World Tour. Mirrors the conditions paramsJson emits on,
+// and keeping the two in step is what lets a stored preset be recognised again.
+const livePresetKeys = (form) => {
+    let ks = ["keyMode", "fillAlg", "variations", "paths", "expPool", "cellFreq",
+              "selectedPool", "verboseSpoiler", "pathDiff", "senseData", "spawn"];
+    let vars = form.variations || [];
+    if(vars.includes("WarmthFrags")) ks.push("fragCount", "fragReq");
+    if(vars.includes("WorldTour")) ks.push("relicCount");
+    if(vars.includes("Bingo")) ks.push("bingoLines");
+    if(form.spawn === "Random") ks.push("spawnWeights");
+    else if(form.spawn && form.spawn !== "Glades") ks.push("spawnSKs", "spawnECs", "spawnHCs");
+    return ks;
+};
 // the loaded preset's name is reserved or someone else's, so a copy needs its own
 const nextPresetName = (list) => {
     let n = 1
@@ -281,9 +295,9 @@ Object.keys(disabledPaths).forEach(v => disabledPaths[v].forEach(path => revDisa
 
 
 export default class MainPage extends React.Component {
-    helpEnter = (category, option, timeout=250) => () => {clearTimeout(this.state.helpTimeout) ; this.setState({helpTimeout: setTimeout(this.help(category, option), timeout)})}
+    helpEnter = (category, option, timeout=250, extra) => () => {clearTimeout(this.state.helpTimeout) ; this.setState({helpTimeout: setTimeout(this.help(category, option, extra), timeout)})}
     helpLeave = () => clearTimeout(this.state.helpTimeout) 
-    help = (category, option) => () => this.setState({helpcat: category, helpopt: option, helpParams: getHelpContent(category, option)})
+    help = (category, option, extra) => () => this.setState({helpcat: category, helpopt: option, helpParams: {...getHelpContent(category, option), ...extra}})
     
 
     updateItemCount = (index, newVal, {minimum}) => this.setState(prev => {
@@ -893,7 +907,16 @@ onDrop = (files) => {
         if(status !== 200)
             return
         let {owner, settings, hasLatest} = JSON.parse(responseText)
-        this.setState({sspOwner: owner, sspList: settings || [], sspHasLatest: !!hasLatest})
+        this.setState({sspOwner: owner, sspList: settings || [], sspHasLatest: !!hasLatest}, () => {
+            if(!hasLatest)
+                return this.setState({sspLatest: null})
+            doNetRequest("/preset/latest", ({status, responseText}) => {
+                if(status !== 200)
+                    return this.setState({sspLatest: null})
+                let latest = JSON.parse(responseText).settings || {}
+                this.setState({sspLatest: latest}, this.restoreLastUsed)
+            })
+        })
     })
 
     // a load merges: the lobby stays as the user left it, and preplacements are
@@ -968,6 +991,31 @@ onDrop = (files) => {
         return out
     }
 
+    // What a stored blob means once loaded: its own values over the defaults for
+    // whatever it leaves out. Two blobs are the same settings iff these match.
+    denseOf = (blob) => {
+        let form = {}
+        PRESET_FORM_KEYS.forEach(k => {
+            let v = (blob && k in blob) ? blob[k] : this.defaultForm[k]
+            form[k] = (v === undefined || v === "") ? null : v
+        })
+        let out = {}
+        livePresetKeys(form).forEach(k => { out[k] = form[k] })
+        out.itemPool = (blob && blob.itemPool) || this.defaultSettings.itemPool
+        out.fass = (((blob && blob.fass) || []).map(f => `${f.loc}|${f.item || (f.code + "|" + f.id)}`)).sort()
+        return canonSettings(out)
+    }
+
+    // the name to show for settings the user just got back: Default if they are,
+    // one of their presets if it is one, else whatever asked for them
+    nameFor = (blob, fallback) => {
+        let mine = this.denseOf(blob)
+        if(mine === this.denseOf({}))
+            return PRESET_DEFAULT
+        let hit = this.state.sspList.find(s => s.blob && this.denseOf(s.blob) === mine)
+        return hit ? hit.name : fallback
+    }
+
     // names are unique per user, not globally, so a loaded preset needs its owner
     markLoaded = (name, owner, world, snapshot) => this.setState(prev => ({
         sspName: name,
@@ -975,6 +1023,19 @@ onDrop = (files) => {
         sspLoadedWorld: world || 1,
         sspLoaded: snapshot || canonSettings(this.settingsNow(world || 1)),
     }))
+
+    // A bare page opens on the settings you last generated with, named for what they
+    // are. A ?param_id= or ?preset= link is the user asking for something specific,
+    // so it wins.
+    restoreLastUsed = () => {
+        if(this.restored || this.state.seedTabExists || this.sharedSsp || !this.state.sspLatest)
+            return
+        this.restored = true
+        let latest = this.state.sspLatest, name = this.nameFor(latest, PRESET_LAST)
+        // settings only: picking Last Seed by hand brings the lobby with it, but a
+        // page opening itself into someone's old multiworld is not what they asked
+        this.mergeSettings(latest, presetLabel(name), false, name)
+    }
 
     selectPreset = (name) => {
         let clean = this.state.sspLoaded === canonSettings(this.settingsNow(this.state.sspLoadedWorld))
@@ -1045,9 +1106,8 @@ onDrop = (files) => {
         if(!existing)
             return
         // the world it was loaded into; fassWorld is a view, not what to save
-        this.setState({sspBusy: true, sspSaveName: existing.name, sspSaveDesc: existing.desc || "",
-                       sspSaveHidden: !!existing.hidden},
-                      () => this.postSsp(this.state.sspLoadedWorld || 1))
+        this.setState({sspBusy: true},
+                      () => this.postSsp(this.state.sspLoadedWorld || 1, {name: existing.name}))
     }
 
     acceptSsp = ({status, responseText}, asked) => {
@@ -1056,6 +1116,8 @@ onDrop = (files) => {
             return
         }
         let ssp = JSON.parse(responseText)
+        // a borrowed preset is not in sspList, so its description has nowhere else to live
+        this.setState({sspLoadedDesc: ssp.desc || ""})
         let label = (ssp.owner && ssp.owner !== this.state.sspOwner) ? `${ssp.name}, by ${ssp.owner}` : ssp.name
         this.mergeSettings(ssp.settings, label, ssp.withLobby,
                            asked || (ssp.withLobby ? PRESET_LAST : undefined), ssp.owner)
@@ -1078,9 +1140,10 @@ onDrop = (files) => {
                       () => this.postSsp(this.isMultiworld() ? (this.state.fassWorld || 1) : 1))
     }
 
-    postSsp = (world) => {
-        let name = (this.state.sspSaveName || "").trim()
-        let ssp = {name: name, desc: this.state.sspSaveDesc, hidden: this.state.sspSaveHidden,
+    // what is not sent is left alone, so Update can send the name and options only
+    postSsp = (world, fields) => {
+        let ssp = {...(fields || {name: (this.state.sspSaveName || "").trim(),
+                                  desc: this.state.sspSaveDesc, hidden: this.state.sspSaveHidden}),
                    params: this.paramsJson().json, world: world}
         // captured now: the form stays editable, and a later edit is not saved
         let sent = canonSettings(this.settingsNow(world))
@@ -1956,7 +2019,7 @@ onDrop = (files) => {
                         <Row className="p-1">
                             <Col xs="4" className="text-center pt-1 border"><Cent>Description</Cent></Col>
                             <Col xs="8">
-                                <Input style={inputStyle} type="text" value={sspSaveDesc}
+                                <Input style={inputStyle} type="text" maxLength={200} value={sspSaveDesc}
                                        onChange={(e) => this.setState({sspSaveDesc: e.target.value})}/>
                             </Col>
                         </Row>
@@ -2008,7 +2071,7 @@ onDrop = (files) => {
                         <Row className="p-1">
                             <Col xs="4" className="text-center pt-1 border"><Cent>Description</Cent></Col>
                             <Col xs="8">
-                                <Input style={inputStyle} type="text" value={sspSaveDesc}
+                                <Input style={inputStyle} type="text" maxLength={200} value={sspSaveDesc}
                                        onChange={(e) => this.setState({sspSaveDesc: e.target.value})}/>
                             </Col>
                         </Row>
@@ -2198,6 +2261,7 @@ onDrop = (files) => {
                         stupidMode: stupidMode, customLogic: false, stupidWarn: stupidWarn, verboseSpoiler: get_param("verbose") === "True",
                         sspList: [], sspOwner: null, sspName: PRESET_DEFAULT, sspHasLatest: false,
                         sspLoaded: null, sspLoadedOwner: null, sspLoadedWorld: 1, presetEditing: "",
+                        sspLatest: null, sspLoadedDesc: "",
                         sspModal: false, presetModal: false, presetArmDelete: false, sspBusy: false,
                         sspSaveName: "", sspSaveDesc: "", sspSaveHidden: false};
         
@@ -2443,19 +2507,27 @@ onDrop = (files) => {
             <DropdownItem key={`ssp-${name}`} active={sspName === name} onClick={() => this.selectPreset(name)}>
                 {presetLabel(name)}
             </DropdownItem>)
+        // no description, no tooltip: undefined drops the attribute, "" would not
         const savedItem = (s) => (
-            <DropdownItem key={`ssp-${s.name}`} active={sspName === s.name} className="d-flex align-items-center"
-                          onClick={() => this.selectPreset(s.name)}>
+            <DropdownItem key={`ssp-${s.name}`} active={sspName === s.name} title={s.desc || undefined}
+                          className="d-flex align-items-center" onClick={() => this.selectPreset(s.name)}>
                 <span className="flex-grow-1 text-truncate">{s.name}{s.hidden ? " (private)" : ""}</span>
                 <span className="pl-3" title={`Edit ${s.name}`}
                       onClick={(e) => { e.preventDefault(); e.stopPropagation(); this.openPresetManage(s.name) }}><FaPencilAlt/></span>
             </DropdownItem>)
+        // an entry that would load nothing new is not worth offering
+        const latestIsDefault = !!this.state.sspLatest && this.denseOf(this.state.sspLatest) === this.denseOf({})
         const sspOptions = [presetItem(PRESET_DEFAULT)]
-            .concat(this.state.sspHasLatest ? [presetItem(PRESET_LAST)] : [])
+            .concat(this.state.sspHasLatest && !latestIsDefault ? [presetItem(PRESET_LAST)] : [])
             .concat(sspList.length ? [<DropdownItem key="ssp-div1" divider/>] : [])
             .concat(sspList.map(savedItem))
             .concat(user ? [<DropdownItem key="ssp-div2" divider/>,
                             <DropdownItem key="ssp-new" onClick={this.openSspSave}>Create new&hellip;</DropdownItem>] : [])
+
+        const loadedDesc = sspBorrowed ? this.state.sspLoadedDesc
+                                       : (sspList.find(s => s.name === sspName) || {}).desc
+        const sspHelp = this.helpEnter("general", user ? "savedSettings" : "savedSettingsDisabled",
+                                       250, {note: loadedDesc || undefined})
 
         // one chip: save over what is loaded, or keep a copy of what cannot be
         const presetChip = sspEditable
@@ -2588,12 +2660,12 @@ onDrop = (files) => {
                 </Col>
                 <Col xs="4" className="mt-2">
                 <Row>
-                    <Col xs="3"  className="text-center pt-1 border" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", user ? "savedSettings" : "savedSettingsDisabled")}>
+                    <Col xs="3"  className="text-center pt-1 border" onMouseLeave={this.helpLeave} onMouseEnter={sspHelp}>
                         <span className="align-middle">Preset</span>
                     </Col>
                     <Col xs="9" className="d-flex">
                         <UncontrolledButtonDropdown className="flex-grow-1" style={{minWidth: 0}}
-                                                    onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", user ? "savedSettings" : "savedSettingsDisabled")}>
+                                                    onMouseLeave={this.helpLeave} onMouseEnter={sspHelp}>
                             <DropdownToggle color="info" caret block className="d-flex align-items-center">
                                 <span className={`text-truncate flex-grow-1 text-center${sspEdited ? " font-italic" : ""}`}>
                                     {sspEditable ? null : <FaLock className="mr-1" style={{verticalAlign: "-.1em"}}/>}
