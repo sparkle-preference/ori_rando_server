@@ -45,8 +45,40 @@
         ]
       },
       {
+        "version": "4.2.17.1",
+        "date": "2026-08-22",
+        "announce": "all",
+        "changes": [
+          {
+            "text": "Bingo boards now take your spawn into account.",
+            "category": "Bingo",
+            "type": "feature",
+            "importance": "major",
+            "sub": [
+              "The spirit well and the area you spawn in no longer get a square to themselves.",
+              "Discovery boards pick their starting squares from what's early for that spawn."
+            ]
+          },
+          {
+            "text": "Some journeys between spirit wells now only appear on hard boards.",
+            "category": "Bingo",
+            "importance": "major",
+            "sub": [
+              "Anything starting at Lost Grove, and anything reaching it from outside Blackroot, Glades, Grotto and Swamp.",
+              "Anything between two of Horu, Ginso and Forlorn, plus Sorrow to Ginso.",
+              "Anything to or from the Grove well."
+            ]
+          },
+          {
+            "text": "Boards now roll at most three Collect Pickups In squares.",
+            "category": "Bingo",
+            "importance": "minor"
+          }
+        ]
+      },
+      {
         "version": "4.2.17",
-        "date": "2026-08-2",
+        "date": "2026-08-20",
         "announce": "dev",
         "changes": [
           {
