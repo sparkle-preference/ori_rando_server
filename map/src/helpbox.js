@@ -1514,15 +1514,22 @@ class HelpBox extends React.Component {
         this.el.style.minHeight = HelpBox.minHeight + "px"
     }
     render() {
-        const {title, subtitle, lines, extras, note, padding, style} = this.props
+        const {title, subtitle, lines, extras, preset, padding, style} = this.props
         return (
         <div ref={this.measure} style={{transition: "min-height 0.15s ease-out"}}>
             <Card className={padding} style={style}><CardBody className={padding}>
                 <CardTitle className="text-center">{title}</CardTitle>
                     <CardSubtitle className="p-1 text-center">{subtitle}</CardSubtitle>
-                {note ? <CardText className="font-italic text-center">{note}</CardText> : null}
                 {lines}
                 {extras}
+                {preset ? (
+                    <div>
+                        <hr className="mt-2 mb-2" style={{opacity: 0.25}}/>
+                        <CardText className="text-center mb-0"><small>Selected preset: <b>{preset.name}</b></small></CardText>
+                        {preset.desc ? <CardText className="text-center font-italic mb-0"><small>{preset.desc}</small></CardText> : null}
+                        {preset.flags ? <CardText className="text-center text-muted mb-0"><small>{preset.flags}</small></CardText> : null}
+                    </div>
+                ) : null}
             </CardBody></Card>
         </div>
         )

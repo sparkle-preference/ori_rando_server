@@ -67,6 +67,28 @@ const parsePresetLink = (text) => {
     let parts = pair.split(":")
     return (parts.length === 2 && parts[0].trim() && parts[1].trim()) ? [parts[0].trim(), parts[1].trim()] : null
 };
+// The gist of a preset in one line: logic mode, keymode, then its flags, cut
+// off after three. A sparse blob simply contributes fewer parts.
+const MINIMAL_FLAGS = 3;
+const minimalFlagline = (blob) => {
+    if(!blob)
+        return ""
+    let parts = []
+    if(blob.paths && blob.paths.length) {
+        let mode = get_preset(blob.paths)
+        parts.push(mode.charAt(0).toUpperCase() + mode.slice(1))
+    }
+    if(blob.keyMode)
+        parts.push(blob.keyMode)
+    // a goal mode is a variation to the generator but the headline to a player,
+    // so it goes first among the flags -- almost everyone has exactly one
+    let vars = blob.variations || []
+    let ordered = vars.filter(v => GOAL_VARS.includes(v)).concat(vars.filter(v => !GOAL_VARS.includes(v)))
+    parts = parts.concat(ordered.slice(0, MINIMAL_FLAGS))
+    return parts.join(", ") + (ordered.length > MINIMAL_FLAGS ? "..." : "")
+};
+// what a hover says about a preset: what the author wrote, then what it plays like
+const presetHoverText = (desc, blob) => [desc, minimalFlagline(blob)].filter(Boolean).join("\n") || undefined;
 // seedgen spells keymode None "Default" on the wire; the dropdown doesn't
 const keyModeFromJson = (mode) => mode === "Default" ? "None" : mode;
 // dropdown entries nobody can save over; "latest" carries its lobby, alone.
@@ -728,16 +750,17 @@ onDrop = (files) => {
             if(!perWorld)
                 return null
             if(i === 0)
-                return (<Col xs="4" className="pt-1 text-center font-italic text-muted">
+                return (<Col xs="6" className="pt-1 text-center font-italic text-muted">
                             <span className="align-middle">seed settings</span>
                         </Col>)
             const world = i + 1
             const pick = (name) => () => this.setWorldPreset(world, name)
             const info = this.worldPreset(world)
             return (
-                <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "worldPresets")}>
+                <Col xs="6" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "worldPresets")}>
                     <InputGroup>
                         <Input style={inputStyle} type="text" placeholder="same as world 1" invalid={!!info.bad}
+                               title={presetHoverText(info.desc, this.state.worldSettings[i])}
                                value={this.worldPresetValue(world)}
                                onChange={(e) => this.onWorldPresetText(world, e.target.value)}
                                onBlur={() => this.resolveWorldPreset(world)}
@@ -761,9 +784,9 @@ onDrop = (files) => {
         }
         let playerNameRows = !this.playerNamesShown() ? null : [...Array(players).keys()].map(i => (
             <Row key={`player-name-${i}`} className="p-1 justify-content-center">
-                <Col xs="4" className="text-center pt-1 border" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "playerNames")}>
-                    <span className="align-middle">{`Player ${i+1} Name`}</span>
-                </Col><Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "playerNames")}>
+                <Col xs="3" className="text-center pt-1 border" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "playerNames")}>
+                    <span className="align-middle">{perWorld ? `P${i+1}'s Name / Settings` : `Player ${i+1} Name`}</span>
+                </Col><Col xs={perWorld ? "3" : "4"} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "playerNames")}>
                     <Input style={inputStyle} type="text" maxLength={PLAYER_NAME_MAX} placeholder={`Player ${i+1}`}
                            value={this.state.playerNames[i] || ""} onChange={this.onPlayerName(i)}/>
                 </Col>
@@ -1178,8 +1201,9 @@ onDrop = (files) => {
             return
         }
         let ssp = JSON.parse(responseText)
-        // a borrowed preset is not in sspList, so its description has nowhere else to live
-        this.setState({sspLoadedDesc: ssp.desc || ""})
+        // a borrowed preset is not in sspList, so its description and settings
+        // have nowhere else to live
+        this.setState({sspLoadedDesc: ssp.desc || "", sspLoadedBlob: ssp.settings || null})
         let label = (ssp.owner && ssp.owner !== this.state.sspOwner) ? `${ssp.name}, by ${ssp.owner}` : ssp.name
         this.mergeSettings(ssp.settings, label, ssp.withLobby,
                            asked || (ssp.withLobby ? PRESET_LAST : undefined), ssp.owner)
@@ -2346,7 +2370,7 @@ onDrop = (files) => {
                         stupidMode: stupidMode, customLogic: false, stupidWarn: stupidWarn, verboseSpoiler: get_param("verbose") === "True",
                         sspList: [], sspOwner: null, sspName: PRESET_DEFAULT, sspHasLatest: false,
                         sspLoaded: null, sspLoadedOwner: null, sspLoadedWorld: 1, presetEditing: "",
-                        sspLatest: null, sspLoadedDesc: "",
+                        sspLatest: null, sspLoadedDesc: "", sspLoadedBlob: null,
                         sspModal: false, presetModal: false, presetArmDelete: false, sspBusy: false,
                         sspSaveName: "", sspSaveDesc: "", sspSaveHidden: false};
         
@@ -2461,18 +2485,19 @@ onDrop = (files) => {
     // bingo hands names out by lobby, except on an AP board where pid is the world
     // a world's rulebook is frozen into the seed at roll time, so we store the
     // preset's settings rather than its name -- editing it later changes nothing
-    assignWorld = (world, blob, label) => this.setState(prev => {
+    assignWorld = (world, blob, label, desc) => this.setState(prev => {
         let worlds = [...prev.worldSettings]
         while(worlds.length < prev.players)
             worlds.push({})
         worlds[world - 1] = blob ? {...blob} : {}
         return {worldSettings: worlds,
-                worldPresets: {...(prev.worldPresets || {}), [world]: {label: label || "", text: undefined, bad: false}}}
+                worldPresets: {...(prev.worldPresets || {}), [world]: {label: label || "", desc: desc || "",
+                                                                      text: undefined, bad: false}}}
     })
 
     setWorldPreset = (world, name) => {
         let hit = this.state.sspList.find(s => s.name === name)
-        this.assignWorld(world, hit && hit.blob, hit ? hit.name : "")
+        this.assignWorld(world, hit && hit.blob, hit ? hit.name : "", hit && hit.desc)
     }
 
     // the link a player hands the host; opening it copies the preset in
@@ -2487,6 +2512,12 @@ onDrop = (files) => {
             NotificationManager.info(url, "Copy this link", 8000)
     }
 
+    // Default is the untouched form and Last Seed is what you played; neither is
+    // a saved row, but both have settings worth describing
+    blobFor = (name, fallback) => name === PRESET_DEFAULT ? this.defaultSettings
+                                : name === PRESET_LAST ? this.state.sspLatest
+                                : fallback
+
     worldPreset = (world) => (this.state.worldPresets || {})[world] || {}
 
     // what the box shows: the resolved preset, unless the user is mid-edit
@@ -2495,9 +2526,11 @@ onDrop = (files) => {
         return info.text !== undefined ? info.text : (info.label || "")
     }
 
+    // the box keeps what was typed until focus leaves; swapping a url out for a
+    // name under the cursor reads as the page fighting you
     onWorldPresetText = (world, text) => this.setState(prev => ({
         worldPresets: {...(prev.worldPresets || {}), [world]: {...(prev.worldPresets || {})[world], text: text, bad: false}}
-    }), () => { if(parsePresetLink(text)) this.resolveWorldPreset(world) })
+    }))
 
     // an unusable link assigns nothing, so the red box and the seed agree
     failWorldPreset = (world) => this.setState(prev => {
@@ -2525,7 +2558,7 @@ onDrop = (files) => {
                 return this.failWorldPreset(world)
             let ssp = JSON.parse(responseText)
             let mine = ssp.owner === this.state.sspOwner
-            this.assignWorld(world, ssp.settings, mine ? ssp.name : `${ssp.name} (${ssp.owner})`)
+            this.assignWorld(world, ssp.settings, mine ? ssp.name : `${ssp.name} (${ssp.owner})`, ssp.desc)
         })
     }
 
@@ -2659,12 +2692,13 @@ onDrop = (files) => {
         const isDefault = canonSettings(this.settingsNow(this.state.sspLoadedWorld)) === canonSettings(this.defaultSettings)
 
         const presetItem = (name) => (
-            <DropdownItem key={`ssp-${name}`} active={sspName === name} onClick={() => this.selectPreset(name)}>
+            <DropdownItem key={`ssp-${name}`} active={sspName === name} title={minimalFlagline(this.blobFor(name))}
+                          onClick={() => this.selectPreset(name)}>
                 {presetLabel(name)}
             </DropdownItem>)
-        // no description, no tooltip: undefined drops the attribute, "" would not
+        // nothing to say, no tooltip: undefined drops the attribute, "" would not
         const savedItem = (s) => (
-            <DropdownItem key={`ssp-${s.name}`} active={sspName === s.name} title={s.desc || undefined}
+            <DropdownItem key={`ssp-${s.name}`} active={sspName === s.name} title={presetHoverText(s.desc, s.blob)}
                           className="d-flex align-items-center" onClick={() => this.selectPreset(s.name)}>
                 <span className="flex-grow-1 text-truncate">{s.name}{s.hidden ? " (private)" : ""}</span>
                 <span className="pl-3" title={`Edit ${s.name}`}
@@ -2679,10 +2713,14 @@ onDrop = (files) => {
             .concat(user ? [<DropdownItem key="ssp-div2" divider/>,
                             <DropdownItem key="ssp-new" onClick={this.openSspSave}>Create new&hellip;</DropdownItem>] : [])
 
-        const loadedDesc = sspBorrowed ? this.state.sspLoadedDesc
-                                       : (sspList.find(s => s.name === sspName) || {}).desc
-        const sspHelp = this.helpEnter("general", user ? "savedSettings" : "savedSettingsDisabled",
-                                       250, {note: loadedDesc || undefined})
+        const loadedEntry = sspList.find(s => s.name === sspName)
+        const loadedDesc = sspBorrowed ? this.state.sspLoadedDesc : (loadedEntry || {}).desc
+        const loadedBlob = sspBorrowed ? this.state.sspLoadedBlob : (loadedEntry || {}).blob
+        const sspHelp = this.helpEnter("general", user ? "savedSettings" : "savedSettingsDisabled", 250,
+                                       {preset: {
+                                            name: presetLabel(sspName) + (sspBorrowed ? ` (${this.state.sspLoadedOwner})` : ""),
+                                            desc: loadedDesc,
+                                            flags: minimalFlagline(this.blobFor(sspName, loadedBlob))}})
 
         // one chip: save over what is loaded, or keep a copy of what cannot be
         const presetChip = sspEditable

@@ -546,9 +546,9 @@ def gen_seed_from_params():
     if not params.generate():
         return text_resp("Failed to generate seed!", 500)
     resp = {"paramId": param_key.id(), "playerCount": params.players, "flagLine": params.flag_line(), 'seed': params.seed, "spoilers": True}
-    # only when the worlds can actually disagree; absent means one rulebook
-    if params.world_settings:
-        resp["flagLines"] = [params.world_params(p).flag_line() for p in range(1, (params.players or 1) + 1)]
+    lines = world_flag_lines(params)
+    if lines:
+        resp["flagLines"] = lines
     if params.tracking:
         game = Game.from_params(params, param_val("game_id"))
         resp["gameId"] = game.key.id()
@@ -717,6 +717,14 @@ def get_aux_spoiler_from_params(params_id):
     else:
         return text_resp("Param %s not found" % params_id, 404)
 
+def world_flag_lines(params):
+    """One flag line per world, or None when a single line says it all. Every
+    route that describes a rolled seed owes the page the same answer."""
+    if not getattr(params, "world_settings", None):
+        return None
+    return [params.world_params(p).flag_line() for p in range(1, (params.players or 1) + 1)]
+
+
 @app.route('/generator/metadata/<param_id>')
 def get_metadata_no_gid(param_id):
     return get_param_metadata(param_id, None)
@@ -727,6 +735,9 @@ def get_param_metadata(param_id, game_id):
     if not params:
         return json_resp({"error": "No params found"}, 404)
     res = params.to_json()
+    lines = world_flag_lines(params)
+    if lines:
+        res["flagLines"] = lines
     if params.tracking and not game_id:
         game = Game.from_params(params)
         res["gameId"] = game.key.id()
