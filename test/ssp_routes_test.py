@@ -114,9 +114,7 @@ class SSPRouteTestCase(unittest.TestCase):
         self._user_get = User.__dict__["get"]
         self._ssp_get = SavedSeedParams.__dict__["get"]
 
-        # no datastore here, so nothing to open a transaction against; drive the
-        # rename logic directly. Its transactionality is untested by design --
-        # see the emulator-backed testing item in ACTION_PLAN.md.
+        # no datastore to open a transaction against, so drive the rename body directly
         self._rename = main._rename_preset
         main._rename_preset = main._rename_preset_body
 
@@ -157,7 +155,7 @@ class SSPRouteTestCase(unittest.TestCase):
         self.assertEqual(res.status_code, 422)
         self.assertIn(b"reserved", res.data)
 
-    def test_an_overlong_description_is_refused(self):
+    def test_an_overlong_description_is_refused_on_edit(self):
         """description is an indexed StringProperty, so an uncapped one reaches
         put() and 500s instead of telling the user what went wrong."""
         self.logged_in = self.user
@@ -165,8 +163,7 @@ class SSPRouteTestCase(unittest.TestCase):
         self.assertIsNone(SavedSeedParams.desc_problem("x" * 200))
 
     def test_url_unsafe_names_are_refused(self):
-        """A preset name is a path segment in its own share link. One with a
-        slash saved fine and then 404'd on every read, share and roll."""
+        """A preset name is a path segment in its own share link."""
         self.logged_in = self.user
         for name in ("a/b", "who?", "hash#tag", "back\\slash", "a&b", "x=y", "at@me"):
             res = self.save(name=name, params={})
@@ -298,7 +295,7 @@ class PresetEditTestCase(SSPRouteTestCase):
     def edit(self, **body):
         return self.client.post("/preset/edit", data={"preset": json.dumps(body)})
 
-    def test_an_overlong_description_is_refused(self):
+    def test_an_overlong_description_is_refused_on_edit(self):
         self.logged_in = self.user
         self.user.store["terse"] = _FakeSSP(self.user, "terse", desc="short")
         self.assertEqual(self.edit(name="terse", desc="x" * 201).status_code, 422)

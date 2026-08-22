@@ -1,8 +1,7 @@
 """A first-time user has to be stored, not just built.
 
-User.get() builds an entity for someone it has never seen. Its key works, so
-anything keyed to that user saves fine -- but every lookup BY NAME misses until
-the row exists, and share links resolve their owner by name query.
+User.get() builds an entity for an unseen user; until it is stored, every lookup
+by name misses -- and share links resolve their owner by name.
 """
 import unittest
 

@@ -490,9 +490,7 @@ class PythonCache(object):
         push.notify(gpid)  # see MemcachedCache.clear_seen_checksum
 
     def remove_game(self, gid):
-        # every key this game owns: the map-storage ones above plus the
-        # per-player "{gid}.{pid}.{suffix}" keys. The trailing dot keeps game 7
-        # from matching game 77.
+        # every "{gid}." key; the trailing dot keeps game 7 from matching game 77
         prefix = "%s." % gid
         for key in [k for k in list(self.cache) if str(k).startswith(prefix)]:
             self.cache.pop(key, None)

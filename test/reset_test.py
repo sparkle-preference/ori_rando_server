@@ -32,9 +32,7 @@ class ResetTestCase(unittest.TestCase):
 
 class ProgressIsForgotten(ResetTestCase):
     def test_history_records_again_after_a_reset(self):
-        """The one that matters. hist_seen is the replay guard: a pickup found
-        before the reset would otherwise dedup against the old run forever, and
-        the game would silently record nothing."""
+        """hist_seen is the replay guard: a pickup found before the reset must record again after it."""
         line = HistoryLine(pickup_code="SK", pickup_id="0", coords=123)
         p = self.player()
         chunk = type("_C", (), {"lines": []})()

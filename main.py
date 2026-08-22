@@ -718,8 +718,7 @@ def get_aux_spoiler_from_params(params_id):
         return text_resp("Param %s not found" % params_id, 404)
 
 def world_flag_lines(params):
-    """One flag line per world, or None when a single line says it all. Every
-    route that describes a rolled seed owes the page the same answer."""
+    """One flag line per world, or None when a single line says it all."""
     if not getattr(params, "world_settings", None):
         return None
     return [params.world_params(p).flag_line() for p in range(1, (params.players or 1) + 1)]
@@ -1226,8 +1225,7 @@ def ssp_list():
                   key=lambda s: (s.name or "").lower())
     # what /preset/latest and /reroll both need, so a lit button is one that works
     last = user.games[-1].get() if user.games else None
-    # the blob rides along so the page can tell whether what it just loaded IS
-    # one of these, without a request per preset
+    # the blob rides along so the page can match a loaded form against a preset
     return json_resp({"owner": user.name,
                       "hasLatest": bool(last and last.params),
                       "settings": [{"name": s.name, "desc": s.description,
@@ -1238,8 +1236,7 @@ def ssp_list():
 def ssp_latest():
     """The user's last game's options, lobby included.
 
-    Alone among the loads this keeps players/coop/AP: it is not shareable, so it
-    is never assigned to someone else's world, and reroll has always kept them."""
+    Alone among the loads this keeps players/coop/AP: it is never assigned to someone else's world."""
     user = User.get()
     if not user:
         return text_resp("log in to load your last seed's options", 401)
@@ -1282,8 +1279,6 @@ def ssp_roll(owner_name, name):
     if problem:
         return text_resp(problem, 409)
     if not params.generate():
-        # the preset is unrollable, which is a property of what was saved rather
-        # than a server fault -- an empty item pool is the usual cause
         return text_resp("this preset can no longer be rolled: no completable seed "
                          "could be built from it", 422)
     if not params.tracking:
@@ -1332,8 +1327,6 @@ def _rename_preset_body(user, old_name, new_name, desc, hidden):
     return None
 
 
-# split from its wrapper: the stub-based tests have no datastore to open a
-# transaction against, so they drive the body and cover the logic only.
 _rename_preset = ndb.transactional(retries=5)(_rename_preset_body)
 
 
@@ -1389,10 +1382,9 @@ def preset_delete():
 @app.route('/preset/mine/<name>/delete')
 @oidc.require_login
 def ssp_delete(name):
-    user = User.get()
-    ssp = user.saved_params(name)
-    if not ssp:
-        return text_resp("no preset named %s" % name, 404)
+    _, ssp, err = _my_preset(name)
+    if err:
+        return err
     ssp.key.delete()
     return redirect(url_for('my_settings'))
 
@@ -1400,10 +1392,9 @@ def ssp_delete(name):
 @app.route('/preset/mine/<name>/rename/<new_name>')
 @oidc.require_login
 def ssp_rename(name, new_name):
-    user = User.get()
-    ssp = user.saved_params(name)
-    if not ssp:
-        return text_resp("no preset named %s" % name, 404)
+    user, ssp, err = _my_preset(name)
+    if err:
+        return err
     problem = SavedSeedParams.name_problem(new_name)
     if problem:
         return text_resp(problem, 422)
@@ -1416,10 +1407,9 @@ def ssp_rename(name, new_name):
 @app.route('/preset/mine/<name>/hideToggle')
 @oidc.require_login
 def ssp_hide_toggle(name):
-    user = User.get()
-    ssp = user.saved_params(name)
-    if not ssp:
-        return text_resp("no preset named %s" % name, 404)
+    _, ssp, err = _my_preset(name)
+    if err:
+        return err
     ssp.hidden = not ssp.hidden
     ssp.put()
     return redirect(url_for('my_settings'))

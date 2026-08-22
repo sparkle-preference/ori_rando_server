@@ -122,8 +122,6 @@ class WorldParamsTestCase(unittest.TestCase):
         self.assertEqual(p.to_json()["worldSettings"], [{}, {"keyMode": "Shards"}])
 
 
-if __name__ == "__main__":
-    unittest.main()
 
 
 class MixedSharingTestCase(WorldParamsTestCase):
@@ -183,3 +181,7 @@ class PerWorldSeedHeaderTestCase(WorldParamsTestCase):
     def test_a_world_without_overrides_downloads_the_seeds_flags(self):
         p = self.mw([])
         self.assertEqual(self.header(p, 1).replace("/1", ""), self.header(p, 2).replace("/2", ""))
+
+
+if __name__ == "__main__":
+    unittest.main()

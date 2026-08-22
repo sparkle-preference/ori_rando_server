@@ -66,8 +66,6 @@ def seed_mode_problem(params, mw_override=False, ap_override=False):
         clash = share_export_clash(params.sync.shared, exported)
         if clash:
             return "Archipelago export and shared categories overlap: %s." % ", ".join(clash)
-    # Shards replaces a world event with five shards, so a lobby that shares
-    # world events across a Shards/non-Shards split has no coherent item.
     if (ShareType.EVENT in (getattr(params.sync, "shared", None) or [])
             and getattr(params, "world_settings", None)):
         modes = {params.world_params(w).key_mode for w in range(1, (params.players or 1) + 1)}
@@ -206,8 +204,7 @@ WORLD_FIELDS = {
 
 
 def world_view(base, p):
-    """World p's settings: the base itself when it has nothing of its own, so
-    the no-per-world-settings path is identical rather than merely equivalent."""
+    """World p's settings; the base object itself when that world has no overrides."""
     settings = getattr(base, "world_settings", None) or []
     blob = settings[p - 1] if 0 < p <= len(settings) else None
     if not blob:
@@ -233,9 +230,7 @@ class WorldParams(object):
         if name in over:
             return over[name]
         base = object.__getattribute__(self, "_base")
-        # A settings method gets rebound to the view, so flag_line and friends
-        # read this world's values. Anything ndb.Model defines stays on the
-        # entity, whether or not a caller has patched it onto the subclass.
+        # settings methods rebind to the view; anything ndb.Model defines stays on the entity
         own = type(base).__dict__.get(name)
         if isinstance(own, type(lambda: 0)) and not hasattr(ndb.Model, name):
             return own.__get__(self, type(self))
@@ -640,8 +635,7 @@ class SeedGenParams(ndb.Model):
         return int(self.teams_inv()[pid]) if (self.sync.teams and self.sync.cloned) else pid
 
     def get_seed(self, player=1, game_id=None, verbose_paths=False, include_sync = True):
-        # the header is this player's rulebook: several variations have no
-        # server-side implementation and exist only as flags the client reads
+        # several variations are client-only flags, so each world needs its own header
         flags = self.world_params(player).flag_line(verbose_paths)
         if self.players > 1 and self.sync.mode in [MultiplayerGameType.SHARED, MultiplayerGameType.MULTIWORLD]:
             flags += f"/{player}"

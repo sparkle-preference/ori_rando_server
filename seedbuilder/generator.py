@@ -491,14 +491,13 @@ class SeedGenerator:
             return self.keysanityOutput[item]
         return item
 
-    # every world's rulebook. Worlds without overrides get the base object
-    # itself, so a seed where nobody diverges takes exactly the old path.
+    # every world's rulebook; worlds without overrides get the base object itself
     world_params = {}
 
     def params_for(self, p):
         return self.world_params.get(p) or self.params
 
-    def var(self, v, p=1):
+    def var(self, v, p):
         return v in self.params_for(p).variations
 
     # --- multiworld helpers ---
@@ -614,8 +613,7 @@ class SeedGenerator:
         """A full reset. Resets internal state completely (besides pRNG
         advancement), then sets initial values according to params."""
         self.init_fields()
-        # exp_pool is a PER-WORLD budget, drawn against by that world's own
-        # EX slots -- one world's generous pool never dilutes another's
+        # exp_pool is a PER-WORLD budget, drawn against by that world's own EX slots
         self.expRemaining = {p: self.params_for(p).exp_pool for p in self.multi_ps()}
         # forcedAssignments is keyed (player, loc): the same coordinate exists
         # in every world. Values may carry an owner tag ("GinsoKey|3") for
@@ -631,9 +629,8 @@ class SeedGenerator:
             ("GumonSealShard", 0), ("SunstoneShard", 0), ("Open", 0), ("OpenWorld", 0), ("Relic", 0)
         ]])
 
-        # each world has its own pool, but the keys stay item-major so the pool's
-        # order does not depend on the player count. A ranged count is rolled
-        # once per world: the range is that world's, not the lobby's.
+        # keys stay item-major so pool order does not depend on player count; a ranged
+        # count rolls once per world, against that world's range
         pools = {p: self.params_for(p).item_pool for p in self.multi_ps()}
         plain = [p for p in self.multi_ps() if not pools[p]]
         if plain:
@@ -711,9 +708,8 @@ class SeedGenerator:
                 self.inventory[tag("Keysanity", p)] = 1
 
 
-        # multiworld shared categories: one copy total (found -> everyone's),
-        # tagged world 1. The surviving count is the largest any world asked
-        # for, so a world is never short of an item its own rulebook needs.
+        # multiworld shared categories: one copy total (found -> everyone's), tagged
+        # world 1, at the largest count any world asked for
         if getattr(self, "is_multi", False) and self.params.sync.shared:
             shared_types = set(self.params.sync.shared)
             most = OrderedDict()
@@ -730,8 +726,7 @@ class SeedGenerator:
         # FIXME When we don't start in glades, add glades tp and remove other tp if applicable, before we process warps.
         # FIXME If Variation is closed dungeons, umm, check that we don't start in them, maybe? Can't start at the tp anyway.
 
-        # a random spawn's starting kit is sized by the difficulty of the logic
-        # that world is playing, so this is one answer per world
+        # a random spawn's starting kit is sized by that world's logic difficulty
         difficulty_for = {p: self.get_difficulty(get_path_tags_from_pathsets(
                               [lp.value for lp in self.params_for(p).logic_paths]))
                           for p in self.multi_ps()}
@@ -1057,10 +1052,8 @@ class SeedGenerator:
                 pools = {w: list(self.limitKeysPool) for w in self.multi_ps()}
                 for key in key_order:
                     owners = self.random.sample(limitkey_ps, len(limitkey_ps))
-                    # a key may land in any world, playing LimitKeys or not; only
-                    # the OWNERS are limited to the players who asked for it.
-                    # Sampling every world is a permutation, and pairing that with
-                    # a shuffled owner list is what ordered hosts already mean.
+                    # a key may land in any world; only its OWNER must be a LimitKeys player
+                    # all worlds eligible -> ordered hosts: the shuffled owners already randomize the pairing
                     hosts = (list(self.multi_ps()) if len(limitkey_ps) == self.seed_count
                              else self.random.sample(list(self.multi_ps()), len(limitkey_ps)))
                     for host, owner in zip(hosts, owners):
@@ -1686,9 +1679,8 @@ class SeedGenerator:
         return int(max(remaining * (rand_exp_found + slots / 4) * self.random.uniform(0.0, 2.0) / (slots * (slots + rand_exp_found)), minExp))
 
     def preferred_difficulty_assign(self, item, locationsToAssign):
-        # the world being searched decides how hidden its own spots are; when it
-        # has no preference the item's owner's applies. One weight function at
-        # every read, or total and position stop agreeing and the loop falls through
+        # a location's own path_diff decides; NORMAL defers to the item owner's
+        # total and the running position must use the same weight, or the loop falls through
         asked = self.params_for(untag(item)[1]).path_diff
 
         def weight(loc):
@@ -1873,8 +1865,7 @@ class SeedGenerator:
     def setSeedAndPlaceItems(self, params, preplaced={}, retries=10, verbose_paths=False):
         self.verbose_paths = verbose_paths
         self.params = params
-        # built once: a view per world, and only when some world has overrides.
-        # cli_gen's params carry no world_settings, so it keeps the base object.
+        # a view per world, built only when some world has overrides
         self.world_params = {}
         if getattr(params, "world_settings", None):
             self.world_params = {p: params.world_params(p)
@@ -2243,8 +2234,6 @@ class SeedGenerator:
 
         # every remaining location gets EXP; each world's final escape adds one
         # more item slot (warmth returned)
-        # who gets how many filler slots is still one uniform draw per slot;
-        # what changes is that each world spends its own budget over its own
         self.expSlots = {p: 0 for p in self.multi_ps()}
         slots_to_fill = self.locations() - sum([v for v in self.itemPool.values()]) - len(self.buried) + self.seed_count
         for p in self.multi_ps():
@@ -2494,8 +2483,7 @@ class SeedGenerator:
             self.spoiler.append((self.currentAreas, spoilerPath, self.spoilerGroup))
 
         spoilerStr = self.form_spoiler()
-        # one document for the whole seed, so every world's rulebook rides the
-        # top; worlds that agree collapse back to the single line they were
+        # one header per world, collapsed to one line when every world agrees
         headers = [self.params_for(p).flag_line(self.verbose_paths) for p in self.multi_ps()]
         if len(set(headers)) > 1:
             headers = ["World %s: %s" % (p, line) for p, line in zip(self.multi_ps(), headers)]

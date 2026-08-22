@@ -1,9 +1,7 @@
 """The seedgen page and the preset routes have to agree on the wire.
 
-These are contract tests: both sides are read out of the source, so renaming one
-without the other fails here instead of in the browser. A route test alone can't
-catch it -- it posts whatever the route reads, so the two agree by construction
-even when the real client disagrees with both.
+Both sides are read out of the source, so renaming one without the other fails
+here instead of in the browser.
 
 Run from the repo root:  python3 -m unittest test.preset_wire_test -v
 """

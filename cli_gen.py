@@ -223,11 +223,12 @@ class CLISeedParams(object):
         self.players = args.players
         if args.world_settings:
             try:
-                self.world_settings = [w or {} for w in json.loads(args.world_settings)]
+                parsed = json.loads(args.world_settings)
             except ValueError as e:
                 parser.error("--world-settings is not valid json: %s" % e)
-            if not isinstance(self.world_settings, list):
+            if not isinstance(parsed, list):
                 parser.error("--world-settings must be a list, one entry per world")
+            self.world_settings = [w or {} for w in parsed]
         self.tracking = args.tracking or False
         self.sync = CLIMultiOptions()
         

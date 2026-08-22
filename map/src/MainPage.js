@@ -51,8 +51,7 @@ const SSP_LOBBY_KEYS = ["players", "playerNames", "coopGenMode", "coopGameMode",
 // dropped by every load path, lobby or not: the seed box is the user's to type,
 // and the rest are outputs of a finished seed rather than form inputs.
 const PRESET_NEVER_LOAD = ["seed", "flagLine", "isPlando", "spoilers", "teamStr"];
-// A preset share link is <site>/?preset=owner:name. Accepts the whole url, the
-// query alone, or a bare owner:name -- people paste all three.
+// accepts a full ?preset=owner:name url, the query alone, or a bare owner:name
 const parsePresetLink = (text) => {
     let raw = (text || "").trim()
     if(!raw)
@@ -67,8 +66,7 @@ const parsePresetLink = (text) => {
     let parts = pair.split(":")
     return (parts.length === 2 && parts[0].trim() && parts[1].trim()) ? [parts[0].trim(), parts[1].trim()] : null
 };
-// The gist of a preset in one line: logic mode, keymode, then its flags, cut
-// off after three. A sparse blob simply contributes fewer parts.
+// a preset in one line: logic mode, keymode, then up to three flags
 const MINIMAL_FLAGS = 3;
 const minimalFlagline = (blob) => {
     if(!blob)
@@ -80,8 +78,7 @@ const minimalFlagline = (blob) => {
     }
     if(blob.keyMode)
         parts.push(blob.keyMode)
-    // a goal mode is a variation to the generator but the headline to a player,
-    // so it goes first among the flags -- almost everyone has exactly one
+    // a goal mode is a variation to the generator but the headline to a player, so it leads
     let vars = blob.variations || []
     let ordered = vars.filter(v => GOAL_VARS.includes(v)).concat(vars.filter(v => !GOAL_VARS.includes(v)))
     parts = parts.concat(ordered.slice(0, MINIMAL_FLAGS))
@@ -93,21 +90,16 @@ const presetHoverText = (desc, blob) => [desc, minimalFlagline(blob)].filter(Boo
 const keyModeFromJson = (mode) => mode === "Default" ? "None" : mode;
 // dropdown entries nobody can save over; "latest" carries its lobby, alone.
 const PRESET_LAST = "latest", PRESET_DEFAULT = "default";
-const PRESET_RESERVED = [PRESET_LAST, PRESET_DEFAULT];
 const presetLabel = (name) => name === PRESET_LAST ? "Last Seed"
                             : name === PRESET_DEFAULT ? "Default" : name;
 // key order varies with which optional fields are set, so compare canonically
 const canonSettings = (json) => JSON.stringify(Object.keys(json || {}).sort().map(k => [k, json[k]]));
-// paramsJson omits anything sitting at its default, so a stored preset is sparse.
-// Loading one has to put the omitted fields BACK to their defaults, or the previous
-// preset's leftovers ride along invisibly.
+// every form field a preset can carry; paramsJson omits defaults, so a stored preset is sparse
 const PRESET_FORM_KEYS = ["keyMode", "fillAlg", "variations", "paths", "expPool", "cellFreq",
                           "selectedPool", "verboseSpoiler", "pathDiff", "senseData",
                           "fragCount", "fragReq", "relicCount", "bingoLines",
                           "spawn", "spawnSKs", "spawnECs", "spawnHCs", "spawnWeights"];
-// Fields only count when they apply: spawnWeights is meaningless without a random
-// spawn, relicCount without World Tour. Mirrors the conditions paramsJson emits on,
-// and keeping the two in step is what lets a stored preset be recognised again.
+// only the keys paramsJson would emit, gated on the same conditions
 const livePresetKeys = (form) => {
     let ks = ["keyMode", "fillAlg", "variations", "paths", "expPool", "cellFreq",
               "selectedPool", "verboseSpoiler", "pathDiff", "senseData", "spawn"];
@@ -867,8 +859,7 @@ onDrop = (files) => {
     }
 
 
-    // the seedgen form as SeedGenParams reads it, minus the seed: seed
-    // generation and saving a setting need the same fields
+    // the seedgen form as SeedGenParams reads it, minus the seed
     paramsJson = () => {
         let pMap = {"Race": "None", "None": "Default", "Co-op": "Shared", "World Events": "WorldEvents", "Cloned Seeds": "cloned", "Seperate Seeds": "disjoint"}
         let url = "/generator/build"
@@ -917,8 +908,7 @@ onDrop = (files) => {
         json.players=this.state.players
         if(this.playerNamesShown())
             json.playerNames = [...Array(this.state.players).keys()].map(i => this.state.playerNames[i] || "")
-        // world 1 is the form above, so index 0 is always empty; an all-empty
-        // list is left off entirely and the seed reads exactly as it used to
+        // world 1 is the form above, so index 0 is always empty; an all-empty list is omitted
         if(this.isMultiworld()) {
             let worlds = [...Array(this.state.players).keys()].map(i => (i && this.state.worldSettings[i]) || {})
             if(worlds.some(w => Object.keys(w).length))
@@ -1109,23 +1099,19 @@ onDrop = (files) => {
         sspLoaded: snapshot || canonSettings(this.settingsNow(world || 1)),
     }))
 
-    // A bare page opens on the settings you last generated with, named for what they
-    // are. A ?param_id= or ?preset= link is the user asking for something specific,
-    // so it wins.
+    // a bare page opens on the last-generated settings; ?param_id= or ?preset= wins
     restoreLastUsed = () => {
         if(this.restored || this.state.seedTabExists || this.sharedSsp || !this.state.sspLatest)
             return
         this.restored = true
         let latest = this.state.sspLatest, name = this.nameFor(latest, PRESET_LAST)
-        // settings only: picking Last Seed by hand brings the lobby with it, but a
-        // page opening itself into someone's old multiworld is not what they asked
+        // settings only: an auto-restore never brings a lobby with it
         this.mergeSettings(latest, presetLabel(name), false, name)
     }
 
     selectPreset = (name) => {
         let clean = this.state.sspLoaded === canonSettings(this.settingsNow(this.state.sspLoadedWorld))
-        // re-picking is a no-op only for the world it was loaded into; loading the
-        // same preset into another world is a real action
+        // re-picking is a no-op only for the world it was loaded into
         let sameWorld = (this.isMultiworld() ? (this.state.fassWorld || 1) : 1) === this.state.sspLoadedWorld
         if(name === this.state.sspName && clean && sameWorld)
             return
@@ -2526,8 +2512,7 @@ onDrop = (files) => {
         return info.text !== undefined ? info.text : (info.label || "")
     }
 
-    // the box keeps what was typed until focus leaves; swapping a url out for a
-    // name under the cursor reads as the page fighting you
+    // the box keeps what was typed until focus leaves
     onWorldPresetText = (world, text) => this.setState(prev => ({
         worldPresets: {...(prev.worldPresets || {}), [world]: {...(prev.worldPresets || {})[world], text: text, bad: false}}
     }))

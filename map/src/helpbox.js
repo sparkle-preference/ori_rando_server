@@ -1148,12 +1148,6 @@ const getHelpHelper = (category, option) => {
                     title = "Save As Preset"
                     lines = ["Change something first, or log in, and you can keep it as a preset."]
                     break;
-                case "reroll":
-                    title = "Generate"
-                    lines = [
-                        "Rolls a brand-new seed with the same options as the last seed you played."
-                    ]
-                    break;
                 case "logicModes":
                 title = "Logic Modes"
                 lines = [

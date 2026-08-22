@@ -288,10 +288,7 @@ class User(ndb.Model):
                 user = User.create(app_user)
             else:
                 log.error("Users with same email detected: " + ",".join(lu.id for lu in legacy_user_query))
-            # create and migrate both build an entity without storing it. Its key
-            # works, so anything keyed to it saves fine, but every lookup BY NAME
-            # misses -- a new user's own share links 404 until something else puts
-            # them, and a migration is recomputed on every request until then.
+            # create and migrate build the entity but never store it; lookups by name need this put
             if user:
                 user.put()
         return user
@@ -667,10 +664,7 @@ class Player(ndb.Model):
         return changed
 
     def clear_progress(self):
-        """Everything a reset forgets. Datastore-free so it can be tested
-        directly; reset() wraps it with the put.
-
-        Kept: the seed, identity, and ap_hints -- the AP room holds those too."""
+        """Everything a reset forgets, minus the put. The seed, identity, and ap_hints are kept."""
         self.can_nag = True
         self.skills = 0
         self.events = 0

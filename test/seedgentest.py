@@ -78,9 +78,7 @@ class SeedGenTests(unittest.TestCase):
         self.assertEqual(first, second, "same seed string produced different seeds")
 
     def test_determinism_with_relics(self):
-        """World Tour picks relics out of an imported module-level dict. Anything
-        that mutates it makes the next generation in the process roll differently,
-        which a fresh-process test cannot see."""
+        """World Tour draws relics from a module-level dict; mutating it changes the next generation in the process."""
         args = ["--world-tour", "8"]
         first = self._generate(args)
         shutil.rmtree(self.out)
@@ -277,16 +275,10 @@ class MultiworldGenTests(unittest.TestCase):
     # legitimately shuffled -- see SOLO_CANARY note.)
     # (bumped 2026-08-02: exp_pool is now per-world (134701: it was being
     # split across all worlds' slots) -- EX values change, placements don't.)
-    # (bumped 2026-08-22: each world now spends its OWN exp budget over its own
-    # slots, so per-world exp_pool means something. Slot ownership is still one
-    # uniform draw per slot, so the draw sequence up to the fill is unchanged;
-    # solo is arithmetically identical and SOLO_CANARY is unmoved. MW is still
-    # env-gated, so no user warning is owed.)
+    # (bumped 2026-08-22: per-world exp budgets; solo unchanged, MW still env-gated.)
     MW_CANARY = "f814e851f7533af8287fa6e01aa64a7231c4155b3ceaded7a315f631c638d9b6"
 
     def test_exp_pool_is_per_world(self):
-        # 134701 report: the global exp budget was being spread across every
-        # world's slots, quartering everyone's exp income at 4 players.
         # exp_pool (default 10000) is a PER-WORLD budget. A world's exp lives
         # in two forms: EX placements in its own seed, plus its manifest
         # entries other worlds find for it (-slot|MW|finder,EX,value).
@@ -3043,8 +3035,6 @@ class MultiPickupDecomposeTests(unittest.TestCase):
         self.assertEqual(Pickup.n("MU", "HC/1/EC").name, "Health Cell")
 
 
-if __name__ == "__main__":
-    unittest.main()
 
 
 CASUAL = ["casual-core", "casual-dboost"]
@@ -3294,3 +3284,7 @@ class PerWorldItemPoolTests(unittest.TestCase):
         self.assertEqual(w1["HC"], 8, "world 1 asked for 8 health cells")
         self.assertGreater(w2["AC"], w1["AC"], "world 2 kept the seed's larger pool")
         self.assertGreater(w2["HC"], w1["HC"], "world 2 kept the seed's larger pool")
+
+
+if __name__ == "__main__":
+    unittest.main()
