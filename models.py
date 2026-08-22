@@ -1188,9 +1188,55 @@ class BingoEventChunk(ndb.Model):
         return ndb.Key(BingoEventChunk, "%s.%s" % (gid, n), parent=bingo_key)
 
 
+def pick_discovery_squares(board, seed, square_count=2):
+    """Which squares a board starts revealed. Early squares are preferred; a
+    pick that is all symmetry squares, or has two squares touching, is redrawn."""
+    if square_count > 25 or square_count < 1:
+        square_count = 2
+    rand = random.Random()
+    rand.seed(seed)
+    noncounts = [card.square for card in board if card.early]
+    i = 0
+    squares = []
+    while i < 10:
+        if len(noncounts) >= square_count:
+            squares = rand.sample(noncounts, square_count)
+        else:
+            squares = noncounts + rand.sample(range(25), square_count - len(noncounts))
+        if all("Sym" in board[card].name for card in squares): # girl noooooo
+            i += 1
+            continue
+        # todo - i think this code might be useless?
+        for s in squares:
+            if (s % 5 != 4 and s+1 in squares) or (s % 5 != 0 and s-1 in squares) or (s > 4 and s-5 in squares) or (s < 20 and s+5 in squares):
+                i += 1
+                break
+        else:
+            break
+    return squares[:]
+
+
 class BingoWorldBoard(ndb.Model):
-    world = ndb.IntegerProperty()
-    board = ndb.LocalStructuredProperty(BingoCard, repeated=True)
+    """One world's board and the rules it finishes by."""
+    world        = ndb.IntegerProperty()
+    board        = ndb.LocalStructuredProperty(BingoCard, repeated=True)
+    bingo_count  = ndb.IntegerProperty(default=3)
+    square_count = ndb.IntegerProperty()
+    goal         = ndb.StringProperty(default="bingos")
+    difficulty   = ndb.StringProperty()
+    meta         = ndb.BooleanProperty(default=False)
+    discovery    = ndb.IntegerProperty(default=0)
+    disc_squares = ndb.IntegerProperty(repeated=True)
+
+    def to_json(self, players, initial=False):
+        out = {"cards": [c.to_json(players, initial) for c in self.board]}
+        if initial:
+            out.update({"bingo_count": self.bingo_count, "square_count": self.square_count,
+                        "goal": self.goal, "difficulty": self.difficulty, "meta": self.meta,
+                        "disc_count": self.discovery})
+            if self.disc_squares:
+                out["discovery"] = list(self.disc_squares)
+        return out
 
 
 class BingoGameData(ndb.Model):
@@ -1245,30 +1291,8 @@ class BingoGameData(ndb.Model):
         self.discovery = square_count
         if len(self.disc_squares) > 0:
             return self.disc_squares[:]
-        if square_count > 25 or square_count < 1:
-            square_count = 2
-        rand = random.Random()
-        rand.seed(self.seed)
-        noncounts = [card.square for card in self.board if card.early]
-        i = 0
-        squares = []
-        while i < 10:
-            if len(noncounts) >= square_count:
-                squares = rand.sample(noncounts, square_count)
-            else:
-                squares = noncounts + rand.sample(range(25), square_count - len(noncounts))
-            if all("Sym" in self.board[card].name for card in squares): # girl noooooo
-                i += 1
-                continue
-            # todo - i think this code might be useless?
-            for s in squares:
-                if (s % 5 != 4 and s+1 in squares) or (s % 5 != 0 and s-1 in squares) or (s > 4 and s-5 in squares) or (s < 20 and s+5 in squares):
-                    i += 1
-                    break
-            else:
-                break
-        self.disc_squares = squares[:]
-        return squares
+        self.disc_squares = pick_discovery_squares(self.board, self.seed, square_count)
+        return self.disc_squares[:]
     
 
     @ndb.transactional(retries=5, xg=True)
@@ -1358,6 +1382,8 @@ class BingoGameData(ndb.Model):
         players_by_pkey = {p.key: p for p in players}
         res = {
             'cards':  [c.to_json(players, initial) for c in self.board],
+            # keyed by world; absent means the one board above is everyone's
+            'boards': {str(wb.world): wb.to_json(players, initial) for wb in self.boards},
             'events': [e.to_json(self.start_time) for e in self.event_log],
             'teams': {_pid(t.captain): t.to_json(players_by_pkey) for t in self.teams},
             "gameId": self.game.id()

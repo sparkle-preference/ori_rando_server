@@ -531,17 +531,21 @@ export default class Bingo extends React.Component {
             })
             newState.teams = teams
             newState.cards = [...this.state.cards]
+            let shown = this.boardFor(res, this.state.activePlayer)
+            let fresh = (shown && shown.cards) || res.cards
+            if(res.boards)
+                newState.boardsByWorld = res.boards
             // a poll carries no card text, so a board that isn't ours is refetched whole
-            if(newState.cards.length !== res.cards.length || res.cards.some((c, i) => c.name !== newState.cards[i].name)) {
+            if(newState.cards.length !== fresh.length || fresh.some((c, i) => c.name !== newState.cards[i].name)) {
                 if(!this.state.userBoard && !this.state.viewOnly)
                     NotificationManager.info("The game owner rolled a new one.", "Board rerolled", 5000)
                 this.setState({ticking: false}, () => doNetRequest(this.initialUrl(), this.createCallback))
                 return
             }
-            for(let i = 0; i < res.cards.length; i++) {
-                newState.cards[i].progress = {...res.cards[i].progress}
-                newState.cards[i].completed_by = res.cards[i].completed_by
-                newState.cards[i].owner = res.cards[i].owner
+            for(let i = 0; i < fresh.length; i++) {
+                newState.cards[i].progress = {...fresh[i].progress}
+                newState.cards[i].completed_by = fresh[i].completed_by
+                newState.cards[i].owner = fresh[i].owner
             }
             if(res.offset)
                 newState.offset = res.offset
@@ -600,6 +604,21 @@ export default class Bingo extends React.Component {
                          : () => doNetRequest(this.initialUrl(), this.initialCallback))
         : this.createCallback(res)
 
+    // a world's own board, or the one board when the game has only one
+    boardFor = (res, world) => (res.boards || {})[world] || null
+
+    // swap the displayed board and the rules it finishes by
+    showBoard = (world) => this.setState(prev => {
+        let wb = (prev.boardsByWorld || {})[world]
+        if(!wb)
+            return {activePlayer: world}
+        return {activePlayer: world, cards: wb.cards, targetCount: wb.bingo_count,
+                squareCount: wb.square_count, goalMode: wb.goal,
+                dispDiff: wb.difficulty || prev.dispDiff, meta: !!wb.meta,
+                discCount: wb.disc_count || 0, discovery: !!wb.disc_count,
+                discSquares: wb.discovery || []}
+    })
+
     createCallback = ({status, responseText}) => {
         if(status === 0)
         {
@@ -642,16 +661,22 @@ export default class Bingo extends React.Component {
                 // number from the profile means nothing here
                 if(res.ap_worlds && (activePlayer < 1 || activePlayer > res.ap_worlds))
                     activePlayer = 1
-                this.setState({subtitle: res.subtitle, gameId: res.gameId, createModalOpen: false, creatingGame: false, haveGame: true, offset: res.offset || offset,
+                let mine = this.boardFor(res, activePlayer)
+                this.setState({boardsByWorld: res.boards || {},
+                              subtitle: res.subtitle, gameId: res.gameId, createModalOpen: false, creatingGame: false, haveGame: true, offset: res.offset || offset,
                               fails: 0, netFails: 0, netRetryAt: 0, dispDiff: res.difficulty || dispDiff, teams: res.teams, paramId: res.paramId, activePlayer: activePlayer, ticksSinceLastSquare: 0,
-                              currentRecord: 0, cards: res.cards, events: res.events, targetCount: res.bingo_count, fromGen: false, teamMax: res.teamMax || -1, discSquares: res.discovery || [],
+                              currentRecord: 0, cards: (mine && mine.cards) || res.cards, events: res.events,
+                              targetCount: (mine && mine.bingo_count) || res.bingo_count, fromGen: false, teamMax: res.teamMax || -1,
+                              discSquares: (mine && mine.discovery) || res.discovery || [],
                               lockout: res.lockout || false, startTime: res.start_time_posix, isOwner: res.is_owner, countdownActive: res.countdown, teamsDisabled: !res.teams_allowed,
                               apWorlds: res.ap_worlds || 0, rerollingBoard: false,
                               // the settings the modal reopens on, so a reroll only changes what was asked for
                               difficulty: res.difficulty || this.state.difficulty, seed: res.board_seed || this.state.seed,
-                              meta: res.meta || false, goalMode: res.square_count > 0 ? "squares" : "bingos",
-                              squareCount: res.square_count || this.state.squareCount,
-                              discovery: !!res.disc_count, discCount: res.disc_count || this.state.discCount}, this.updateUrl);
+                              meta: (mine ? mine.meta : res.meta) || false,
+                              goalMode: mine ? mine.goal : (res.square_count > 0 ? "squares" : "bingos"),
+                              squareCount: (mine && mine.square_count) || res.square_count || this.state.squareCount,
+                              discovery: !!(mine ? mine.disc_count : res.disc_count),
+                              discCount: (mine ? mine.disc_count : res.disc_count) || this.state.discCount}, this.updateUrl);
             } catch (e) {
                 NotificationManager.error(`error encountered when attempting to initiate response`, "error", 5000);
                 console.log("failed to handle callback properly: ", e, status, responseText);
@@ -671,7 +696,7 @@ export default class Bingo extends React.Component {
                 })
                 break;
             case "selectPlayer":
-                this.setState({activePlayer: player})
+                this.showBoard(player)
                 break;
             case "showHidden":
                 this.setState(prev => {

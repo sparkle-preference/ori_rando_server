@@ -28,7 +28,7 @@ from oidc import make_oidc
 from seedbuilder.seedparams import SeedGenParams, seed_mode_problem
 from seedbuilder.vanilla import seedtext as vanilla_seed
 from enums import MultiplayerGameType, ShareType, Variation
-from models import ndb_wsgi_middleware, Game, Player, SavedSeedParams, Seed, User, BingoGameData, BingoWorldBoard, BingoEvent, BingoTeam, CustomLogic, trees_by_coords, LegacyUser, bingo_lock, AnnouncedPatchNotes
+from models import ndb_wsgi_middleware, Game, Player, SavedSeedParams, Seed, User, BingoGameData, BingoWorldBoard, BingoEvent, BingoTeam, pick_discovery_squares, CustomLogic, trees_by_coords, LegacyUser, bingo_lock, AnnouncedPatchNotes
 from bingo import BingoGenerator
 from cache import Cache
 from util import parse_fass, coord_correction_map, clone_entity, all_locs, picks_by_type_generator, param_val, param_flag, param_true, debug, template_root, VER, MIN_VER, BETA_VER, game_list_html, version_check, template_vals, layout_json, bfield_checksum, netperf, NETPERF_TAG, json_default, seed_sync_id, is_mw_manifest_loc, MULTIWORLD, ARCHIPELAGO, CANONICAL_HOST, REDIRECT_HOSTS, PATCHNOTES_WEBHOOK_MAIN, PATCHNOTES_WEBHOOK_DEV
@@ -2024,9 +2024,14 @@ def bingo_boards_for(params, seed, lockout):
     out = []
     for w in bingo_worlds(params):
         wp = params.world_params(w)
-        out.append(BingoWorldBoard(world=w, board=bingo_board_cards(
-            params, wp.bingo_diff, "%s.%s" % (seed, w), wp.bingo_disc,
-            wp.bingo_meta, lockout, world=w)))
+        board_seed = "%s.%s" % (seed, w)
+        cards = bingo_board_cards(params, wp.bingo_diff, board_seed, wp.bingo_disc,
+                                  wp.bingo_meta, lockout, world=w)
+        out.append(BingoWorldBoard(
+            world=w, board=cards, goal=wp.bingo_goal, difficulty=wp.bingo_diff,
+            bingo_count=wp.bingo_lines, square_count=wp.bingo_squares,
+            meta=wp.bingo_meta, discovery=wp.bingo_disc,
+            disc_squares=pick_discovery_squares(cards, board_seed, wp.bingo_disc) if wp.bingo_disc else []))
     return out
 
 @app.route('/bingo/new') #BingoCreate =
