@@ -630,7 +630,8 @@ const getHelpHelper = (category, option) => {
                 case "worldPresets":
                     title = "Each World's Rules"
                     lines = [
-                        "Gives this world its own logic, keymode, variations, spawn and item pool, taken from one of your presets.",
+                        "Gives this world its own logic, keymode, variations, spawn and item pool.",
+                        "Pick one of your presets from the dropdown, or paste a preset link someone sent you — you don't need a copy of their preset.",
                         "World 1 always plays the settings above; the others follow it unless you pick something else.",
                         "The preset is copied in when the seed is rolled, so editing it later won't change a seed you already made.",
                     ]

@@ -1,6 +1,7 @@
 ﻿import React from 'react';
 import  {DropdownToggle, DropdownMenu, Dropdown, DropdownItem, Nav, NavLink, NavItem, Collapse,  Input, UncontrolledButtonDropdown, Button, 
-        Row, FormFeedback, Col, Container, TabContent, TabPane, Modal, ModalHeader, ModalBody, ModalFooter, Media, ButtonGroup} from 'reactstrap';
+        Row, FormFeedback, Col, Container, TabContent, TabPane, Modal, ModalHeader, ModalBody, ModalFooter, Media, ButtonGroup,
+        InputGroup, InputGroupAddon} from 'reactstrap';
 import { FaCog, FaSave, FaCopy, FaLock, FaPencilAlt } from 'react-icons/fa';
 import {NotificationContainer, NotificationManager} from 'react-notifications';
 
@@ -50,6 +51,22 @@ const SSP_LOBBY_KEYS = ["players", "playerNames", "coopGenMode", "coopGameMode",
 // dropped by every load path, lobby or not: the seed box is the user's to type,
 // and the rest are outputs of a finished seed rather than form inputs.
 const PRESET_NEVER_LOAD = ["seed", "flagLine", "isPlando", "spoilers", "teamStr"];
+// A preset share link is <site>/?preset=owner:name. Accepts the whole url, the
+// query alone, or a bare owner:name -- people paste all three.
+const parsePresetLink = (text) => {
+    let raw = (text || "").trim()
+    if(!raw)
+        return null
+    let at = raw.indexOf("preset=")
+    let pair = at === -1 ? raw : raw.slice(at + 7).split("&")[0]
+    try {
+        pair = decodeURIComponent(pair)
+    } catch(e) {
+        return null    // a stray % is not a link
+    }
+    let parts = pair.split(":")
+    return (parts.length === 2 && parts[0].trim() && parts[1].trim()) ? [parts[0].trim(), parts[1].trim()] : null
+};
 // seedgen spells keymode None "Default" on the wire; the dropdown doesn't
 const keyModeFromJson = (mode) => mode === "Default" ? "None" : mode;
 // dropdown entries nobody can save over; "latest" carries its lobby, alone.
@@ -714,23 +731,32 @@ onDrop = (files) => {
                 return (<Col xs="4" className="pt-1 text-center font-italic text-muted">
                             <span className="align-middle">seed settings</span>
                         </Col>)
-            const pick = (name) => () => this.setWorldPreset(i + 1, name)
-            const chosen = this.worldPresetName(i + 1)
+            const world = i + 1
+            const pick = (name) => () => this.setWorldPreset(world, name)
+            const info = this.worldPreset(world)
             return (
                 <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "worldPresets")}>
-                    <UncontrolledButtonDropdown className="w-100">
-                        <DropdownToggle color="primary" caret block className="d-flex align-items-center">
-                            <span className="text-truncate flex-grow-1 text-center">{chosen || "same as world 1"}</span>
-                        </DropdownToggle>
-                        <DropdownMenu style={{zIndex: 10000, ...menuStyle}}>
-                            <DropdownItem active={!chosen} onClick={pick("")}>same as world 1</DropdownItem>
-                            {this.state.sspList.length ? <DropdownItem divider/> : null}
-                            {this.state.sspList.map(s => (
-                                <DropdownItem key={`w${i+1}-${s.name}`} active={chosen === s.name} onClick={pick(s.name)}>
-                                    {s.name}
-                                </DropdownItem>))}
-                        </DropdownMenu>
-                    </UncontrolledButtonDropdown>
+                    <InputGroup>
+                        <Input style={inputStyle} type="text" placeholder="same as world 1" invalid={!!info.bad}
+                               value={this.worldPresetValue(world)}
+                               onChange={(e) => this.onWorldPresetText(world, e.target.value)}
+                               onBlur={() => this.resolveWorldPreset(world)}
+                               onKeyPress={(e) => { if(e.key === "Enter") this.resolveWorldPreset(world) }}/>
+                        <InputGroupAddon addonType="append">
+                            <UncontrolledButtonDropdown>
+                                <DropdownToggle color="primary" caret/>
+                                <DropdownMenu right style={{zIndex: 10000, ...menuStyle}}>
+                                    <DropdownItem active={!info.label} onClick={pick("")}>same as world 1</DropdownItem>
+                                    {this.state.sspList.length ? <DropdownItem divider/> : null}
+                                    {this.state.sspList.map(s => (
+                                        <DropdownItem key={`w${world}-${s.name}`} active={info.label === s.name} onClick={pick(s.name)}>
+                                            {s.name}
+                                        </DropdownItem>))}
+                                </DropdownMenu>
+                            </UncontrolledButtonDropdown>
+                        </InputGroupAddon>
+                        <FormFeedback tooltip="true">Paste a preset share link</FormFeedback>
+                    </InputGroup>
                 </Col>)
         }
         let playerNameRows = !this.playerNamesShown() ? null : [...Array(players).keys()].map(i => (
@@ -2077,6 +2103,19 @@ onDrop = (files) => {
                                 </Button>
                             </Col>
                         </Row>
+                        <Row className="p-1">
+                            <Col xs="4" className="text-center pt-1 border"><Cent>Link</Cent></Col>
+                            <Col xs="8">
+                                <InputGroup>
+                                    <Input style={inputStyle} type="text" readOnly value={this.presetShareUrl(presetEditing)}
+                                           onFocus={(e) => e.target.select()}/>
+                                    <InputGroupAddon addonType="append">
+                                        <Button color="info" title="Copy link"
+                                                onClick={() => this.copyPresetLink(presetEditing)}><FaCopy/></Button>
+                                    </InputGroupAddon>
+                                </InputGroup>
+                            </Col>
+                        </Row>
                         <Row className="p-1 mt-2">
                             <Col>
                                 <Button color="danger" block outline={!presetArmDelete} disabled={sspBusy}
@@ -2422,16 +2461,73 @@ onDrop = (files) => {
     // bingo hands names out by lobby, except on an AP board where pid is the world
     // a world's rulebook is frozen into the seed at roll time, so we store the
     // preset's settings rather than its name -- editing it later changes nothing
-    setWorldPreset = (world, name) => this.setState(prev => {
+    assignWorld = (world, blob, label) => this.setState(prev => {
         let worlds = [...prev.worldSettings]
         while(worlds.length < prev.players)
             worlds.push({})
-        let hit = prev.sspList.find(s => s.name === name)
-        worlds[world - 1] = hit ? {...(hit.blob || {})} : {}
-        return {worldSettings: worlds, worldPresetNames: {...(prev.worldPresetNames || {}), [world]: hit ? name : ""}}
+        worlds[world - 1] = blob ? {...blob} : {}
+        return {worldSettings: worlds,
+                worldPresets: {...(prev.worldPresets || {}), [world]: {label: label || "", text: undefined, bad: false}}}
     })
 
-    worldPresetName = (world) => (this.state.worldPresetNames || {})[world] || ""
+    setWorldPreset = (world, name) => {
+        let hit = this.state.sspList.find(s => s.name === name)
+        this.assignWorld(world, hit && hit.blob, hit ? hit.name : "")
+    }
+
+    // the link a player hands the host; opening it copies the preset in
+    presetShareUrl = (name) => `${window.location.origin}/?preset=${encodeURIComponent(this.state.sspOwner || "")}:${encodeURIComponent(name || "")}`
+
+    copyPresetLink = (name) => {
+        let url = this.presetShareUrl(name)
+        let done = () => NotificationManager.success(url, "Link copied", 4000)
+        if(navigator.clipboard)
+            navigator.clipboard.writeText(url).then(done, () => NotificationManager.error(url, "Copy it by hand", 6000))
+        else
+            NotificationManager.info(url, "Copy this link", 8000)
+    }
+
+    worldPreset = (world) => (this.state.worldPresets || {})[world] || {}
+
+    // what the box shows: the resolved preset, unless the user is mid-edit
+    worldPresetValue = (world) => {
+        let info = this.worldPreset(world)
+        return info.text !== undefined ? info.text : (info.label || "")
+    }
+
+    onWorldPresetText = (world, text) => this.setState(prev => ({
+        worldPresets: {...(prev.worldPresets || {}), [world]: {...(prev.worldPresets || {})[world], text: text, bad: false}}
+    }), () => { if(parsePresetLink(text)) this.resolveWorldPreset(world) })
+
+    // an unusable link assigns nothing, so the red box and the seed agree
+    failWorldPreset = (world) => this.setState(prev => {
+        let worlds = [...prev.worldSettings]
+        if(worlds.length >= world)
+            worlds[world - 1] = {}
+        return {worldSettings: worlds,
+                worldPresets: {...prev.worldPresets, [world]: {...prev.worldPresets[world], label: "", bad: true}}}
+    })
+
+    // a pasted link is fetched once and copied in, exactly like opening one
+    resolveWorldPreset = (world) => {
+        let info = this.worldPreset(world)
+        if(info.text === undefined)
+            return
+        let text = info.text.trim()
+        if(!text)
+            return this.assignWorld(world, null, "")
+        let link = parsePresetLink(text)
+        if(!link)
+            return this.failWorldPreset(world)
+        let [owner, name] = link
+        doNetRequest(`/preset/${encodeURIComponent(owner)}/${encodeURIComponent(name)}`, ({status, responseText}) => {
+            if(status !== 200)
+                return this.failWorldPreset(world)
+            let ssp = JSON.parse(responseText)
+            let mine = ssp.owner === this.state.sspOwner
+            this.assignWorld(world, ssp.settings, mine ? ssp.name : `${ssp.name} (${ssp.owner})`)
+        })
+    }
 
     playerNamesShown = () => (this.apAvailable() && this.state.apMode) || (!this.hasVar("Bingo") && this.state.players > 1)
     onPlayerName = (i) => (e) => {
