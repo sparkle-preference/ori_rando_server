@@ -171,6 +171,57 @@ class MultiplayerOptions(ndb.Model):
             return "|".join([",".join(team) for team in self.teams])
         return ""
 
+# A world's overrides, keyed by the json the seedgen page and presets already
+# speak. A key the blob omits means that world keeps the seed's value.
+WORLD_FIELDS = {
+    "paths":          ("logic_paths",     lambda v: enums_from_strlist(LogicPath, v)),
+    "pathDiff":       ("path_diff",       PathDifficulty),
+    "keyMode":        ("key_mode",        KeyMode),
+    "variations":     ("variations",      lambda v: enums_from_strlist(Variation, v)),
+    "expPool":        ("exp_pool",        int),
+    "cellFreq":       ("cell_freq",       int),
+    "fragCount":      ("frag_count",      int),
+    "fragReq":        ("frag_req",        int),
+    "relicCount":     ("relic_count",     int),
+    "bingoLines":     ("bingo_lines",     int),
+    "itemPool":       ("item_pool",       dict),
+    "selectedPool":   ("pool_preset",     str),
+    "spawn":          ("start",           str),
+    "spawnECs":       ("starting_energy", int),
+    "spawnHCs":       ("starting_health", int),
+    "spawnSKs":       ("starting_skills", int),
+    "spawnWeights":   ("spawn_weights",   list),
+    "senseData":      ("sense",           lambda v: v),
+    "verboseSpoiler": ("verbose_spoiler", bool),
+}
+
+
+class WorldParams(object):
+    """One world's view of a seed: its own overrides, everything else read live
+    off the base entity."""
+    __slots__ = ("_base", "_over")
+
+    def __init__(self, base, over):
+        object.__setattr__(self, "_base", base)
+        object.__setattr__(self, "_over", over)
+
+    def __getattr__(self, name):
+        over = object.__getattribute__(self, "_over")
+        if name in over:
+            return over[name]
+        base = object.__getattribute__(self, "_base")
+        # A settings method gets rebound to the view, so flag_line and friends
+        # read this world's values. Anything ndb.Model defines stays on the
+        # entity, whether or not a caller has patched it onto the subclass.
+        own = type(base).__dict__.get(name)
+        if isinstance(own, type(lambda: 0)) and not hasattr(ndb.Model, name):
+            return own.__get__(self, type(self))
+        return getattr(base, name)
+
+    def __setattr__(self, name, value):
+        setattr(object.__getattribute__(self, "_base"), name, value)
+
+
 class SeedGenParams(ndb.Model):
     str_vars = ndb.StringProperty(repeated=True)
     str_paths = ndb.StringProperty(repeated=True)
@@ -246,8 +297,22 @@ class SeedGenParams(ndb.Model):
     # DeathLink: the room's deaths kill this world's Ori, and its deaths kill
     # the room's. A property of the seed, so a game either has it or doesn't.
     ap_death_link = ndb.BooleanProperty(default=False)
+    # index i overrides world i+1's settings; empty means every world plays the same seed
+    world_settings = ndb.JsonProperty(repeated=True, compressed=True)
     do_loc_analysis = False
     areas_ori_path = ""
+
+    def world_params(self, p):
+        """World p's settings. The base entity itself when it has no overrides,
+        so the no-per-world-settings path is identical rather than equivalent."""
+        blob = self.world_settings[p - 1] if 0 < p <= len(self.world_settings) else None
+        if not blob:
+            return self
+        over = {}
+        for key, (attr, conv) in WORLD_FIELDS.items():
+            if key in blob and blob[key] is not None:
+                over[attr] = conv(blob[key])
+        return WorldParams(self, over) if over else self
 
     @staticmethod
     def from_plando(plando, tracking=True):
@@ -335,6 +400,7 @@ class SeedGenParams(ndb.Model):
         params.ap_mode = bool(json.get("apMode")) or bool(params.ap_export)
         params.ap_death_link = params.ap_mode and bool(json.get("apDeathLink"))
         params.player_names = rolled_player_names(json.get("playerNames", []), params)
+        params.world_settings = [w or {} for w in (json.get("worldSettings") or [])]
         if params.ap_mode:
             from archipelago.convert import EXPORTABLE_CATEGORIES
             bad = [c for c in params.ap_export if c not in EXPORTABLE_CATEGORIES]
@@ -474,6 +540,7 @@ class SeedGenParams(ndb.Model):
             "apMode": self.ap_mode,
             "apExport": list(self.ap_export),
             "apDeathLink": self.ap_death_link,
+            "worldSettings": [dict(w) for w in self.world_settings],
             # stars i fucking hate this. anyways. forced assignments are: the
             # verbatim fass_json when we have it (world/owner survive), else
             # the legacy reconstruction:
