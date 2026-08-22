@@ -291,7 +291,7 @@ class User(ndb.Model):
         return user
 
     def rename(self, desired_name):
-        if any([forbidden in desired_name for forbidden in ["@", "/", "\\", "?", "#", "&", "="]]):
+        if any([forbidden in desired_name for forbidden in URL_UNSAFE_NAME_CHARS]):
             return False
         if User.get_by_name(desired_name):
             return False
@@ -1758,6 +1758,9 @@ SSP_DENY = frozenset([
     "apMode", "apExport", "apDeathLink",
 ])
 
+# names that end up in a url path or query cannot carry these
+URL_UNSAFE_NAME_CHARS = ["@", "/", "\\", "?", "#", "&", "="]
+
 # both are entries the dropdown always shows: "latest" is the user's last seed,
 # "default" is the untouched form
 SSP_RESERVED_NAMES = frozenset(["latest", "default"])
@@ -1807,6 +1810,15 @@ class SavedSeedParams(ndb.Model):
             return "That name is too long (64 characters max)."
         if ":" in name:
             return "Names can't contain a colon."
+        # a preset name is a path segment in its own share link, so it takes the
+        # same forbidden set as a username (User.rename)
+        bad = [c for c in URL_UNSAFE_NAME_CHARS if c in name]
+        if bad:
+            return "Names can't contain %s." % " or ".join(bad)
+        # someone else's preset shows as "name (them)", so a name with parens in
+        # it reads as an owner that isn't there
+        if "(" in name or ")" in name:
+            return "Names can't contain brackets."
         return None
 
     @staticmethod

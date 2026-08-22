@@ -794,6 +794,15 @@ class SeedGenParams(ndb.Model):
         return "\n".join(out) + "\n"
 
     def get_aux_spoiler(self, exclude_types, by_zone, player=1, game_id=None):
+        """Item list. Multiworld covers every world in one document, the way
+        the spoiler does; player picks the world only for a solo seed."""
+        if self.players > 1:
+            return "\n\n".join(
+                "=== Player %s ===\n%s" % (w, self.aux_spoiler_world(exclude_types, by_zone, w, game_id))
+                for w in range(1, self.players + 1))
+        return self.aux_spoiler_world(exclude_types, by_zone, player, game_id)
+
+    def aux_spoiler_world(self, exclude_types, by_zone, player=1, game_id=None):
         from models import Pickup
         from util import is_mw_manifest_loc
         outlines = []

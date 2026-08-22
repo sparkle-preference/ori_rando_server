@@ -1122,7 +1122,15 @@ const getHelpHelper = (category, option) => {
                     break;
                 case "updatePresetDisabled":
                     title = "Update Preset"
-                    lines = ["Load one of your own presets and change something, or use Save Preset As."]
+                    lines = ["Nothing has changed since you loaded this preset."]
+                    break;
+                case "copyPreset":
+                    title = "Save As Preset"
+                    lines = ["Keeps the options you have now as a preset of your own."]
+                    break;
+                case "copyPresetDisabled":
+                    title = "Save As Preset"
+                    lines = ["Change something first, or log in, and you can keep it as a preset."]
                     break;
                 case "presetManage":
                     title = "Preset Settings"

@@ -156,6 +156,23 @@ class SSPRouteTestCase(unittest.TestCase):
         self.assertEqual(res.status_code, 422)
         self.assertIn(b"reserved", res.data)
 
+    def test_url_unsafe_names_are_refused(self):
+        """A preset name is a path segment in its own share link. One with a
+        slash saved fine and then 404'd on every read, share and roll."""
+        self.logged_in = self.user
+        for name in ("a/b", "who?", "hash#tag", "back\\slash", "a&b", "x=y", "at@me"):
+            res = self.save(name=name, params={})
+            self.assertEqual(res.status_code, 422, "%r should be refused" % name)
+        self.assertIsNone(SavedSeedParams.name_problem("perfectly fine 2"))
+
+    def test_names_with_brackets_are_refused(self):
+        """A borrowed preset displays as "name (owner)", so a name carrying its
+        own brackets reads as an owner it does not have."""
+        self.logged_in = self.user
+        for name in ("mine (lapis)", "bracket(", "close)"):
+            self.assertEqual(self.save(name=name, params={}).status_code, 422)
+        self.assertIsNone(SavedSeedParams.name_problem("no brackets here"))
+
     def test_a_blank_name_is_refused(self):
         self.logged_in = self.user
         self.assertEqual(self.save(name="  ", params={}).status_code, 422)
