@@ -546,6 +546,9 @@ def gen_seed_from_params():
     if not params.generate():
         return text_resp("Failed to generate seed!", 500)
     resp = {"paramId": param_key.id(), "playerCount": params.players, "flagLine": params.flag_line(), 'seed': params.seed, "spoilers": True}
+    # only when the worlds can actually disagree; absent means one rulebook
+    if params.world_settings:
+        resp["flagLines"] = [params.world_params(p).flag_line() for p in range(1, (params.players or 1) + 1)]
     if params.tracking:
         game = Game.from_params(params, param_val("game_id"))
         resp["gameId"] = game.key.id()

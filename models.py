@@ -1756,6 +1756,8 @@ SSP_DENY = frozenset([
     "seed", "players", "playerNames", "coopGenMode", "coopGameMode",
     "dedupShared", "antiBkBias", "syncShared", "shared", "teams",
     "apMode", "apExport", "apDeathLink",
+    # a preset is one world's rulebook; it never carries the lobby's assignments
+    "worldSettings",
 ])
 
 # names that end up in a url path or query cannot carry these

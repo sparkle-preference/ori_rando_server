@@ -627,6 +627,14 @@ const getHelpHelper = (category, option) => {
                         "If a logged-in user downloads a seed, their own name takes over that slot.",
                     ]
                     break;
+                case "worldPresets":
+                    title = "Each World's Rules"
+                    lines = [
+                        "Gives this world its own logic, keymode, variations, spawn and item pool, taken from one of your presets.",
+                        "World 1 always plays the settings above; the others follow it unless you pick something else.",
+                        "The preset is copied in when the seed is rolled, so editing it later won't change a seed you already made.",
+                    ]
+                    break;
                 case "syncSeedType":
                     title = "Co-op Seed Generation Mode"
                     lines = [

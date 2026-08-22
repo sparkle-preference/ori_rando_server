@@ -631,29 +631,36 @@ class SeedGenerator:
             ("GumonSealShard", 0), ("SunstoneShard", 0), ("Open", 0), ("OpenWorld", 0), ("Relic", 0)
         ]])
 
-        if not self.params.item_pool:
-            self.itemPool.update(OrderedDict([(tag(k, p), v) for p in self.multi_ps() for k, v in [
+        # each world has its own pool, but the keys stay item-major so the pool's
+        # order does not depend on the player count. A ranged count is rolled
+        # once per world: the range is that world's, not the lobby's.
+        pools = {p: self.params_for(p).item_pool for p in self.multi_ps()}
+        plain = [p for p in self.multi_ps() if not pools[p]]
+        if plain:
+            self.itemPool.update(OrderedDict([(tag(k, p), v) for p in plain for k, v in [
                 ("RB0", 3), ("RB1", 3), ("RB6", 3), ("RB8", 0), ("RB9", 1), ("RB10", 1),
                 ("RB11", 1), ("RB12", 1), ("RB13", 3), ("RB15", 3), ("TPForlorn", 1),
                 ("TPGrotto", 1), ("TPSorrow", 1), ("TPGrove", 1), ("TPSwamp", 1),
                 ("TPValley", 1), ("TPGinso", 1), ("TPHoru", 1),
             ]]))
-        else:
-            for item, counts in sorted(list(self.params.item_pool.items()), key=lambda x: x[0]):
-                item = item.replace("|", "")
-                if item in ["HC1", "AC1", "EC1", "KS1", "MS1"]:
-                    item = item[0:2]
-                fixed_item = self.codeToName.get(item, item)
+        for raw in sorted({k for pool in pools.values() if pool for k in pool}):
+            item = raw.replace("|", "")
+            if item in ["HC1", "AC1", "EC1", "KS1", "MS1"]:
+                item = item[0:2]
+            fixed_item = self.codeToName.get(item, item)
+            for p in self.multi_ps():
+                counts = (pools[p] or {}).get(raw)
+                if counts is None:
+                    continue
                 count = self.random.randint(*counts) if len(counts) == 2 else counts[0]
-                for p in self.multi_ps():
-                    # every copy of an RG group draws its own member, per world
-                    if item[0:2] == "RG":
-                        for member in self.pick_group_members(item, count):
-                            m = tag(member, p)
-                            self.itemPool[m] = self.itemPool.get(m, 0) + 1
-                        continue
-                    i = tag(fixed_item, p)
-                    self.itemPool[i] = self.itemPool.get(i, 0) + count
+                # every copy of an RG group draws its own member, per world
+                if item[0:2] == "RG":
+                    for member in self.pick_group_members(item, count):
+                        m = tag(member, p)
+                        self.itemPool[m] = self.itemPool.get(m, 0) + 1
+                    continue
+                i = tag(fixed_item, p)
+                self.itemPool[i] = self.itemPool.get(i, 0) + count
 
         for p in self.multi_ps():
             if self.var(Variation.DOUBLE_SKILL, p):
@@ -1021,8 +1028,8 @@ class SeedGenerator:
                 self.itemPool[tag("RB28", p)] = self.params_for(p).frag_count
                 self.itemPool[tag("Warmth", p)] = 0
 
-        # LimitKeys belongs to a player, not to the generation: only the worlds
-        # playing it hold dungeon keys, and they hold each other's.
+        # LimitKeys belongs to a player, not to the generation: it decides whose
+        # world events get placed this way, not whose world they land in.
         limitkey_ps = [w for w in self.multi_ps() if self.params_for(w).key_mode == KeyMode.LIMITKEYS]
         if limitkey_ps:
             dungeonLocs = {"GinsoKey": {5480952, 5320328}, "ForlornKey": {-7320236}, "HoruKey": set()}
@@ -1047,13 +1054,19 @@ class SeedGenerator:
                 # dungeon key reachable without entering any dungeon, so no
                 # ordering of key finds can wedge.
                 all_dungeon_locked = set().union(*dungeonLocs.values())
-                pools = {w: list(self.limitKeysPool) for w in limitkey_ps}
+                pools = {w: list(self.limitKeysPool) for w in self.multi_ps()}
                 for key in key_order:
                     owners = self.random.sample(limitkey_ps, len(limitkey_ps))
-                    for i, w in enumerate(limitkey_ps):
-                        loc = self.random.choice([l for l in pools[w] if l not in all_dungeon_locked])
-                        pools[w].remove(loc)
-                        self.forcedAssignments[(w, loc)] = tag(key, owners[i])
+                    # a key may land in any world, playing LimitKeys or not; only
+                    # the OWNERS are limited to the players who asked for it.
+                    # Sampling every world is a permutation, and pairing that with
+                    # a shuffled owner list is what ordered hosts already mean.
+                    hosts = (list(self.multi_ps()) if len(limitkey_ps) == self.seed_count
+                             else self.random.sample(list(self.multi_ps()), len(limitkey_ps)))
+                    for host, owner in zip(hosts, owners):
+                        loc = self.random.choice([l for l in pools[host] if l not in all_dungeon_locked])
+                        pools[host].remove(loc)
+                        self.forcedAssignments[(host, loc)] = tag(key, owner)
 
     def __init__(self):
         self.init_fields()
@@ -1673,9 +1686,19 @@ class SeedGenerator:
         return int(max(remaining * (rand_exp_found + slots / 4) * self.random.uniform(0.0, 2.0) / (slots * (slots + rand_exp_found)), minExp))
 
     def preferred_difficulty_assign(self, item, locationsToAssign):
-        # the item's owner asked for this, so their rulebook picks the spot --
-        # the same key at every read, or total and position stop agreeing
-        path_diff = self.params_for(untag(item)[1]).path_diff
+        # the world being searched decides how hidden its own spots are; when it
+        # has no preference the item's owner's applies. One weight function at
+        # every read, or total and position stop agreeing and the loop falls through
+        asked = self.params_for(untag(item)[1]).path_diff
+
+        def weight(loc):
+            pref = self.params_for(loc.player).path_diff
+            if pref == PathDifficulty.NORMAL:
+                pref = asked
+            if pref == PathDifficulty.EASY:
+                return (20 - loc.difficulty) * (20 - loc.difficulty)
+            return loc.difficulty * loc.difficulty
+
         candidates = locationsToAssign
         home = self.anti_bk_home(item)
         if home is not None:
@@ -1685,17 +1708,11 @@ class SeedGenerator:
                 candidates = homes
         total = 0.0
         for loc in candidates:
-            if path_diff == PathDifficulty.EASY:
-                total += (20 - loc.difficulty) * (20 - loc.difficulty)
-            else:
-                total += (loc.difficulty * loc.difficulty)
+            total += weight(loc)
         value = self.random.random()
         position = 0.0
         for i in range(0, len(candidates)):
-            if path_diff == PathDifficulty.EASY:
-                position += (20 - candidates[i].difficulty) * (20 - candidates[i].difficulty) / total
-            else:
-                position += candidates[i].difficulty * candidates[i].difficulty / total
+            position += weight(candidates[i]) / total
             if value <= position:
                 self.assign_to_location(item, candidates[i])
                 break
@@ -2477,7 +2494,14 @@ class SeedGenerator:
             self.spoiler.append((self.currentAreas, spoilerPath, self.spoilerGroup))
 
         spoilerStr = self.form_spoiler()
-        spoilerStr = self.params.flag_line(self.verbose_paths) + "\n" + "Difficulty Rating: " + str(self.seedDifficulty // self.seed_count) + "\n" + spoilerStr
+        # one document for the whole seed, so every world's rulebook rides the
+        # top; worlds that agree collapse back to the single line they were
+        headers = [self.params_for(p).flag_line(self.verbose_paths) for p in self.multi_ps()]
+        if len(set(headers)) > 1:
+            headers = ["World %s: %s" % (p, line) for p, line in zip(self.multi_ps(), headers)]
+        else:
+            headers = headers[:1]
+        spoilerStr = "\n".join(headers) + "\n" + "Difficulty Rating: " + str(self.seedDifficulty // self.seed_count) + "\n" + spoilerStr
 
         if self.params.do_loc_analysis:
             self.params.locationAnalysis = self.params.locationAnalysisCopy

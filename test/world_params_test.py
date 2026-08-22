@@ -154,3 +154,32 @@ class MixedSharingTestCase(WorldParamsTestCase):
     def test_no_world_settings_is_never_refused(self):
         p = self.mw([], [ShareType.EVENT])
         self.assertIsNone(seed_mode_problem(p, mw_override=True))
+
+
+class PerWorldSeedHeaderTestCase(WorldParamsTestCase):
+    """The header a player downloads is their own rulebook: several variations
+    have no server-side implementation and exist only as flags on that line."""
+
+    def mw(self, worlds):
+        p = base_params(players=2, tracking=False, world_settings=worlds)
+        p.sync.enabled = True
+        p.sync.mode = MultiplayerGameType.MULTIWORLD
+        p.placements, p.spoilers = [], [""]
+        return p
+
+    def header(self, params, world):
+        return params.get_seed(world, include_sync=False).splitlines()[0]
+
+    def test_each_world_downloads_its_own_flags(self):
+        p = self.mw([{}, {"keyMode": "Shards", "variations": ["OpenWorld"]}])
+        first, second = self.header(p, 1), self.header(p, 2)
+        self.assertIn("Clues", first)
+        self.assertNotIn("Shards", first)
+        self.assertIn("Shards", second)
+        self.assertNotIn("Clues", second)
+        self.assertIn("OpenWorld", second)
+        self.assertNotIn("OpenWorld", first)
+
+    def test_a_world_without_overrides_downloads_the_seeds_flags(self):
+        p = self.mw([])
+        self.assertEqual(self.header(p, 1).replace("/1", ""), self.header(p, 2).replace("/2", ""))

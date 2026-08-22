@@ -640,7 +640,9 @@ class SeedGenParams(ndb.Model):
         return int(self.teams_inv()[pid]) if (self.sync.teams and self.sync.cloned) else pid
 
     def get_seed(self, player=1, game_id=None, verbose_paths=False, include_sync = True):
-        flags = self.flag_line(verbose_paths)
+        # the header is this player's rulebook: several variations have no
+        # server-side implementation and exist only as flags the client reads
+        flags = self.world_params(player).flag_line(verbose_paths)
         if self.players > 1 and self.sync.mode in [MultiplayerGameType.SHARED, MultiplayerGameType.MULTIWORLD]:
             flags += f"/{player}"
         if self.tracking and include_sync:

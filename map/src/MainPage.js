@@ -45,7 +45,8 @@ const seedWideFlag = (flag) => flag === "DeathLink" ||
     ["share=", "mode=", "anti_bk_bias="].some(p => flag.startsWith(p));
 // a preset describes one world, so a load drops the lobby. Mirrors SSP_DENY.
 const SSP_LOBBY_KEYS = ["players", "playerNames", "coopGenMode", "coopGameMode", "dedupShared",
-                        "antiBkBias", "syncShared", "shared", "teams", "apMode", "apExport", "apDeathLink"];
+                        "antiBkBias", "syncShared", "shared", "teams", "apMode", "apExport", "apDeathLink",
+                        "worldSettings"];
 // dropped by every load path, lobby or not: the seed box is the user's to type,
 // and the rest are outputs of a finished seed rather than form inputs.
 const PRESET_NEVER_LOAD = ["seed", "flagLine", "isPlando", "spoilers", "teamStr"];
@@ -705,14 +706,42 @@ onDrop = (files) => {
             </Col>
         ))
 
+        const perWorld = this.isMultiworld()
+        const worldPresetCell = (i) => {
+            if(!perWorld)
+                return null
+            if(i === 0)
+                return (<Col xs="4" className="pt-1 text-center font-italic text-muted">
+                            <span className="align-middle">seed settings</span>
+                        </Col>)
+            const pick = (name) => () => this.setWorldPreset(i + 1, name)
+            const chosen = this.worldPresetName(i + 1)
+            return (
+                <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "worldPresets")}>
+                    <UncontrolledButtonDropdown className="w-100">
+                        <DropdownToggle color="primary" caret block className="d-flex align-items-center">
+                            <span className="text-truncate flex-grow-1 text-center">{chosen || "same as world 1"}</span>
+                        </DropdownToggle>
+                        <DropdownMenu style={{zIndex: 10000, ...menuStyle}}>
+                            <DropdownItem active={!chosen} onClick={pick("")}>same as world 1</DropdownItem>
+                            {this.state.sspList.length ? <DropdownItem divider/> : null}
+                            {this.state.sspList.map(s => (
+                                <DropdownItem key={`w${i+1}-${s.name}`} active={chosen === s.name} onClick={pick(s.name)}>
+                                    {s.name}
+                                </DropdownItem>))}
+                        </DropdownMenu>
+                    </UncontrolledButtonDropdown>
+                </Col>)
+        }
         let playerNameRows = !this.playerNamesShown() ? null : [...Array(players).keys()].map(i => (
-            <Row key={`player-name-${i}`} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "playerNames")} className="p-1 justify-content-center">
-                <Col xs="4" className="text-center pt-1 border">
+            <Row key={`player-name-${i}`} className="p-1 justify-content-center">
+                <Col xs="4" className="text-center pt-1 border" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "playerNames")}>
                     <span className="align-middle">{`Player ${i+1} Name`}</span>
-                </Col><Col xs="4">
+                </Col><Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "playerNames")}>
                     <Input style={inputStyle} type="text" maxLength={PLAYER_NAME_MAX} placeholder={`Player ${i+1}`}
                            value={this.state.playerNames[i] || ""} onChange={this.onPlayerName(i)}/>
                 </Col>
+                {worldPresetCell(i)}
             </Row>
         ))
         let playerNumValid = tracking && players > 0;
@@ -839,6 +868,13 @@ onDrop = (files) => {
         json.players=this.state.players
         if(this.playerNamesShown())
             json.playerNames = [...Array(this.state.players).keys()].map(i => this.state.playerNames[i] || "")
+        // world 1 is the form above, so index 0 is always empty; an all-empty
+        // list is left off entirely and the seed reads exactly as it used to
+        if(this.isMultiworld()) {
+            let worlds = [...Array(this.state.players).keys()].map(i => (i && this.state.worldSettings[i]) || {})
+            if(worlds.some(w => Object.keys(w).length))
+                json.worldSettings = worlds
+        }
         json.fass = []
         this.state.fassList.forEach(fassEntry => {
                 let world = fassEntry.world || 1
@@ -1260,7 +1296,8 @@ onDrop = (files) => {
                 this.helpEnter("general", "seedBuilt" + this.multi())()
             this.setState({
                 paramId: res.paramId, seedIsGenerating: false, inputPlayerCount: res.playerCount, inputSeed: res.seed,
-                flagLine: res.flagLine, gameId: res.gameId, seedIsBingo: res.doBingoRedirect || false,
+                flagLine: res.flagLine, flagLines: res.flagLines || [],
+                gameId: res.gameId, seedIsBingo: res.doBingoRedirect || false,
                 inputApMode: this.apAvailable() && this.state.apMode
             }, this.updateUrl)
         }
@@ -1309,8 +1346,16 @@ onDrop = (files) => {
             let seedStr = raw.pop();
             let flags = raw.join("").split(",");
             let flagCol = (flag, where) => (<Col key={`flag-${where}-${flag}`} xs="auto" className="text-center" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("flags", flag)}><span className="ml-auto mr-auto align-middle">{flag}</span></Col>)
-            let flagCols = flags.filter(seedWideFlag).map(f => flagCol(f, "seed"))
+            // when the worlds disagree, what they share moves up top and each row
+            // keeps only its own differences; when they agree nothing moves
+            let perWorld = (this.state.flagLines || []).map(l => l.split('|').slice(0, -1).join("").split(","))
+            let mixed = perWorld.length > 1 && new Set(perWorld.map(f => f.join(","))).size > 1
+            let common = mixed ? perWorld.reduce((acc, f) => acc.filter(x => f.includes(x)), perWorld[0]) : []
+            let flagCols = (mixed ? common : flags.filter(seedWideFlag)).map(f => flagCol(f, "seed"))
             let worldFlagCols = flags.filter(f => !seedWideFlag(f)).map(f => flagCol(f, "world"))
+            let worldFlagColsFor = (p) => mixed
+                ? perWorld[p - 1].filter(f => !common.includes(f)).map(f => flagCol(f, `w${p}`))
+                : worldFlagCols
             let is_race = flags.includes("Race");
             if(is_race && !get_flag("race_wl")) {
                 return null;
@@ -1373,7 +1418,7 @@ onDrop = (files) => {
                         </Col>
                         <Col xs={showPlay ? 5 : 6} className="pl-1 pr-1 border-left d-flex align-items-center" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "flags")}>
                             <Row className="justify-content-start align-items-center flag-row w-100">
-                                {worldFlagCols}
+                                {worldFlagColsFor(p)}
                             </Row>
                         </Col>
                     </Row>
@@ -2252,10 +2297,11 @@ onDrop = (files) => {
                         goalModes: ["ForceTrees"], selectedPool: "Standard", seed: "", fillAlg: "Balanced", quickstartOpen: quickstartOpen, 
                         shared: ["Skills", "Teleporters", "World Events", "Upgrades", "Misc"], mwShared: [], helpcat: "", helpopt: "",
                         apMode: false, apExport: [...apDefaultExport], apDeathLink: false, inputApMode: false, playerNames: [],
+                        worldSettings: [],
                         apHost: AP_DEFAULT_HOST, apPort: "", apPassword: "", apConnectPending: false, apStatus: null, apNoLink: false, apHidden: false, apPollFailed: false,
                         expPool: 10000, lastHelp: new Date(), seedIsGenerating: seedTabExists, cellFreq: cellFreqPresets("standard"),
                         fragCount: 30, fragReq: 20, relicCount: 8, loader: get_random_loader(), paramId: paramId, seedTabExists: seedTabExists, 
-                        reopenUrl: "", flagLine: "", fassList: fassDefaultsFor(1), fassWorld: 1, goalModesOpen: false, 
+                        reopenUrl: "", flagLine: "", flagLines: [], fassList: fassDefaultsFor(1), fassWorld: 1, goalModesOpen: false, 
                         spoilers: true, spawnWeights: [1.0,2.0,2.0,2.0,1.5,2.0,0.1,0.1,0.25,0.5], seedIsBingo: false, bingoLines: 3, 
                         auxModal: false, auxPlayer: 1, auxSpoiler: {active: false, byZone: false, exclude: ["EX","KS", "AC", "EC", "HC", "MS"]},
                         stupidMode: stupidMode, customLogic: false, stupidWarn: stupidWarn, verboseSpoiler: get_param("verbose") === "True",
@@ -2374,6 +2420,19 @@ onDrop = (files) => {
         : {apMode: true, tracking: true,  // the bridge delivers over netcode
            mwShared: prev.mwShared.filter(s => !prev.apExport.map(c => apShareNames[c]).includes(s))})
     // bingo hands names out by lobby, except on an AP board where pid is the world
+    // a world's rulebook is frozen into the seed at roll time, so we store the
+    // preset's settings rather than its name -- editing it later changes nothing
+    setWorldPreset = (world, name) => this.setState(prev => {
+        let worlds = [...prev.worldSettings]
+        while(worlds.length < prev.players)
+            worlds.push({})
+        let hit = prev.sspList.find(s => s.name === name)
+        worlds[world - 1] = hit ? {...(hit.blob || {})} : {}
+        return {worldSettings: worlds, worldPresetNames: {...(prev.worldPresetNames || {}), [world]: hit ? name : ""}}
+    })
+
+    worldPresetName = (world) => (this.state.worldPresetNames || {})[world] || ""
+
     playerNamesShown = () => (this.apAvailable() && this.state.apMode) || (!this.hasVar("Bingo") && this.state.players > 1)
     onPlayerName = (i) => (e) => {
         // read before setState: the synthetic event is recycled by the time

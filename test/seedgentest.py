@@ -1640,13 +1640,13 @@ class MultiworldOptionsTests(unittest.TestCase):
                              "player %s: TPs (%s) + warps (%s) != 8" % (p, tps, warps[p]))
 
     def test_bonus_pickups_pool(self):
-        # Extra Bonus pool: BS|* resolves per world, WP|* becomes warps
+        # Extra Bonus pool: BS|* and WP|* both resolve per world, so a ranged
+        # count is rolled against each world's own pool and they may differ
         seeds = self._gen(["--bonus-pickups"])
         check_mw_invariants(self, seeds)
         warps = self._warps_received(seeds)
-        counts = set(warps.values())
-        self.assertEqual(len(counts), 1, "WP* count is drawn once, same for every world: %s" % warps)
-        self.assertTrue(4 <= counts.pop() <= 8, "WP|* pool is [4,8]: %s" % warps)
+        for p, count in warps.items():
+            self.assertTrue(4 <= count <= 8, "player %s: WP|* pool is [4,8], got %s" % (p, count))
 
     def test_limitkeys_cross_world(self):
         seeds = self._gen(["--keymode", "LimitKeys"])
@@ -3168,11 +3168,44 @@ class MixedLimitKeysTests(unittest.TestCase):
         self.assertIn("Limitkeys", self.seeds[1][0])
         self.assertIn("Clues", self.seeds[2][0])
 
+    KEYS = [("EV", "0"), ("EV", "2"), ("EV", "4")]
+    # skill trees and world event spots: the only places LimitKeys will put a key
+    LIMITKEY_LOCS = {-3160308, -560160, 2919744, 719620, 7839588, 5320328, 8599904,
+                     -4600020, -6959592, -11880100, 5480952, 4999752, -7320236,
+                     -7200024, -5599400}
+
     def test_both_worlds_still_get_one_of_each_key(self):
         owned = owned_by_world(self.seeds)
-        for key in [("EV", "0"), ("EV", "2"), ("EV", "4")]:
+        for key in self.KEYS:
             self.assertEqual(owned[1][key], 1, "LimitKeys world is missing %s" % (key,))
             self.assertEqual(owned[2][key], 1, "Clues world is missing %s" % (key,))
+
+    def placements_of(self, want_owner):
+        """-> set of (world, loc) holding a key owned by want_owner."""
+        found = set()
+        for w, lines in self.seeds.items():
+            placements, _ = parse_seed(lines)
+            for loc, (code, id, _z) in placements.items():
+                if code == "MW":
+                    owner, _slot, icode, iid = id.split(",", 3)
+                    if int(owner) == want_owner and (icode, iid) in self.KEYS:
+                        found.add((w, loc))
+                elif w == want_owner and (code, id) in self.KEYS:
+                    found.add((w, loc))
+        return found
+
+    def test_the_limitkeys_players_keys_land_in_limitkey_spots(self):
+        spots = self.placements_of(1)
+        self.assertEqual(len(spots), 3, "the LimitKeys player wants three keys placed: %s" % spots)
+        for world, loc in spots:
+            self.assertIn(loc, self.LIMITKEY_LOCS,
+                          "world %s loc %s is not a skill tree or world event" % (world, loc))
+
+    def test_the_other_players_keys_are_placed_normally(self):
+        """The flag decides whose events get placed this way, not whose world
+        they land in -- a player without it keeps ordinary placement."""
+        loose = [loc for (_w, loc) in self.placements_of(2) if loc not in self.LIMITKEY_LOCS]
+        self.assertTrue(loose, "the Clues player's keys should not all be forced into trees")
 
 
 class PerWorldExpPoolTests(unittest.TestCase):
@@ -3216,3 +3249,48 @@ class PerWorldExpPoolTests(unittest.TestCase):
                         "a 4000 pool should not out-earn a 16000 one: %s" % totals)
         self.assertLess(totals[1], 8000, "lean world inflated: %s" % totals)
         self.assertGreater(totals[2], 8000, "rich world deflated: %s" % totals)
+
+
+# the standard pool with fewer cells. A world's pool replaces rather than
+# merges, so it has to be complete or that world cannot open its own doors.
+LEAN_POOL = {
+    "TP|Grove": [1], "TP|Swamp": [1], "TP|Grotto": [1], "TP|Valley": [1],
+    "TP|Sorrow": [1], "TP|Ginso": [1], "TP|Horu": [1], "TP|Forlorn": [1],
+    "HC|1": [8], "EC|1": [15], "AC|1": [12],
+    "RB|0": [3], "RB|1": [3], "RB|6": [3], "RB|9": [1], "RB|10": [1],
+    "RB|11": [1], "RB|12": [1], "RB|13": [3], "RB|15": [3],
+}
+
+
+class PerWorldItemPoolTests(unittest.TestCase):
+    """A world's item pool is its own, and a ranged count rolls per world."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.out = tempfile.mkdtemp(prefix="seedgentest_pool_")
+        old_argv = sys.argv
+        sys.argv = ["cli_gen", "--output-dir", cls.out, "--preset", "standard",
+                    "--open-world", "--balanced", "--seed", "perworld-canary",
+                    "--players", "2", "--share-mode", "multiworld",
+                    "--world-settings", json.dumps([{"itemPool": LEAN_POOL}, {}])]
+        try:
+            CLISeedParams().from_cli()
+        finally:
+            sys.argv = old_argv
+        cls.seeds = {}
+        for p in (1, 2):
+            with open(os.path.join(cls.out, "randomizer_%s.dat" % p)) as f:
+                cls.seeds[p] = f.read().splitlines()
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.out, ignore_errors=True)
+
+    def test_each_world_gets_the_pool_it_asked_for(self):
+        owned = owned_by_world(self.seeds)
+        w1 = Counter({code: n for (code, _id), n in owned[1].items()})
+        w2 = Counter({code: n for (code, _id), n in owned[2].items()})
+        self.assertEqual(w1["AC"], 12, "world 1 asked for 12 ability cells")
+        self.assertEqual(w1["HC"], 8, "world 1 asked for 8 health cells")
+        self.assertGreater(w2["AC"], w1["AC"], "world 2 kept the seed's larger pool")
+        self.assertGreater(w2["HC"], w1["HC"], "world 2 kept the seed's larger pool")
