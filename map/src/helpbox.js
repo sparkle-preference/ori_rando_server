@@ -969,6 +969,13 @@ const getHelpHelper = (category, option) => {
                         "Balanced is the default algorithm and recommended in most cases. However, the swaps it makes can result in easier or less linear Starved seeds, as skills can be made available earlier than the progression path originally intended."
                     ]
                     break;
+                case "bingoSettings":
+                    title = "Bingo Settings"
+                    lines = [
+                        "How your board is built and what finishes it.",
+                        "In a multiworld every player who picked Bingo gets their own board, so these are yours: a preset assigned to another world brings theirs.",
+                    ]
+                    break;
                 case "preplacement":
                     title = "Forced Item Placement"
                     lines = [

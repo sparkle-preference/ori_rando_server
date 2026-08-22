@@ -476,6 +476,24 @@ onDrop = (files) => {
             relicCount, fragCount, fragReq, spawnWeights, spawn, verboseSpoiler, fassList,
             bingoDiff, bingoGoal, bingoSquares, bingoMeta, bingoDisc} = this.state
         let [leftCol, rightCol] = [4, 7]
+        // paired settings: label and control at half width, twice over
+        const halfLabel = (text, help) => (
+            <Col xs="3" className="text-center pt-1 border" onMouseLeave={this.helpLeave}
+                 onMouseEnter={this.helpEnter("advanced", help)}>
+                <span className="align-middle">{text}</span>
+            </Col>)
+        const halfCtl = (help, children) => (
+            <Col xs="3" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", help)}>
+                {children}
+            </Col>)
+        // the label that names a bordered section
+        const sectionLabel = (text, help) => (
+            <Row className="justify-content-center pb-2">
+                <Col xs={leftCol} className="text-center pt-1 border" onMouseLeave={this.helpLeave}
+                     onMouseEnter={this.helpEnter("advanced", help)}>
+                    <Cent>{text}</Cent>
+                </Col>
+            </Row>)
         let weightSelectors = spawnWeights.map((weight, index) => (
             <Col xs="4" key={`weight-selector-${index}`} className="text-center pt-1 border">
                     <Col onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "spawnWeights")}><Cent>{SPAWN_TPS[index]}</Cent></Col>
@@ -545,7 +563,7 @@ onDrop = (files) => {
             </Row>
         ))
         let goalCol = (v) => (
-            <Col xs="6" onMouseLeave={this.helpEnter("advanced", "goalModes")} onMouseEnter={this.helpEnter("goalModes", v)} className="p-2">
+            <Col xs="6" onMouseLeave={this.helpEnter("advanced", "goalModes")} onMouseEnter={this.helpEnter("goalModes", v)} className="px-2 py-1">
                 <Button color="primary" block outline={!this.hasVar(v)} onClick={this.onGoalModeAdvanced(v)}>{VAR_NAMES[v]}</Button>
             </Col>
         )
@@ -571,59 +589,42 @@ onDrop = (files) => {
                         </Row>
                     </Col>
                 </Row>
-                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "expPool")} className="p-1 justify-content-center">
-                    <Col xs={leftCol} className="text-center pt-1 border">
-                        <span className="align-middle">Exp Pool</span>
-                    </Col><Col xs={rightCol}>
-                        <Input style={inputStyle} type="number" value={expPool} invalid={expPool < 100} onChange={(e) => this.setState({expPool: parseInt(e.target.value, 10)})}/> 
+                <Row className="p-1 justify-content-center">
+                    {halfLabel("Exp Pool", "expPool")}
+                    {halfCtl("expPool", <React.Fragment>
+                        <Input style={inputStyle} type="number" value={expPool} invalid={expPool < 100} onChange={(e) => this.setState({expPool: parseInt(e.target.value, 10)})}/>
                         <FormFeedback tooltip="true">Experience Pool must be at least 100</FormFeedback>
-                    </Col>
+                    </React.Fragment>)}
+                    {halfLabel("Forced Cell Frequency", "cellFreq")}
+                    {halfCtl("cellFreq", <React.Fragment>
+                        <Input style={inputStyle} type="number" value={cellFreq} invalid={cellFreq < 3} onChange={(e) => this.setState({cellFreq: parseInt(e.target.value, 10)})}/>
+                        <FormFeedback tooltip="true">Forced Cell Frequency must be at least 3</FormFeedback>
+                    </React.Fragment>)}
                 </Row>
-                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "sense")} className="p-1 justify-content-center">
-                    <Col xs={leftCol} className="text-center pt-1 border">
-                        <span className="align-middle">Sense Triggers</span>
-                    </Col><Col xs={rightCol}>
-                        <Input style={inputStyle} type="text" value={senseData || ""} onChange={(e) => this.setState({senseData: e.target.value})}/> 
-                    </Col>
+                <Row className="p-1 justify-content-center">
+                    {halfLabel("Sense Triggers", "sense")}
+                    {halfCtl("sense",
+                        <Input style={inputStyle} type="text" value={senseData || ""} onChange={(e) => this.setState({senseData: e.target.value})}/>)}
+                    {halfLabel("Verbose Spoiler", "verbose")}
+                    {halfCtl("verbose",
+                        <Button color="primary" block outline={!verboseSpoiler} onClick={() => this.setState({verboseSpoiler: !verboseSpoiler})}>{verboseSpoiler ? "Enabled" : "Disabled"}</Button>)}
                 </Row>
-                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "verbose")} className="p-1 justify-content-center">
-                    <Col xs={leftCol} className="text-center pt-1 border">
-                        <span className="align-middle">Verbose Spoiler</span>
-                    </Col><Col xs={rightCol}>
-                        <Button color="primary" block outline={!verboseSpoiler} onClick={() => this.setState({verboseSpoiler: !verboseSpoiler})}>{verboseSpoiler ? "Enabled" : "Disabled"}</Button>
-                    </Col>
-                </Row>
-                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "fillAlg")} className="p-1 justify-content-center">
-                    <Col xs={leftCol} className="text-center pt-1 border">
-                        <span className="align-middle">Fill Algorithm</span>
-                    </Col><Col xs={rightCol}>
+                <Row className="p-1 justify-content-center">
+                    {halfLabel("Fill Algorithm", "fillAlg")}
+                    {halfCtl("fillAlg",
                         <UncontrolledButtonDropdown className="w-100">
                             <DropdownToggle color="primary" caret block> {fillAlg} </DropdownToggle>
                             <DropdownMenu style={menuStyle}>
                                 <DropdownItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "fillAlgClassic")}  active={"Classic" ===fillAlg} onClick={()=> this.setState({fillAlg: "Classic"})}>Classic</DropdownItem>
                                 <DropdownItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "fillAlgBalanced")} active={"Balanced"===fillAlg} onClick={()=> this.setState({fillAlg: "Balanced"})}>Balanced</DropdownItem>
                             </DropdownMenu>
-                        </UncontrolledButtonDropdown>
-                    </Col>
-                </Row>
-                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "pathDiff")} className="p-1 justify-content-center">
-                    <Col xs={leftCol} className="text-center pt-1 border">
-                        <span className="align-middle">Path Difficulty</span>
-                    </Col>
-                    <Col xs={rightCol}>
+                        </UncontrolledButtonDropdown>)}
+                    {halfLabel("Path Difficulty", "pathDiff")}
+                    {halfCtl("pathDiff",
                         <UncontrolledButtonDropdown className="w-100">
                             <DropdownToggle color="primary" caret block> {pathDiff} </DropdownToggle>
                             <DropdownMenu style={menuStyle}> {pathDiffOptions} </DropdownMenu>
-                        </UncontrolledButtonDropdown>
-                    </Col>
-                </Row>
-                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "cellFreq")} className="p-1 justify-content-center">
-                    <Col xs={leftCol} className="text-center pt-1 border">
-                        <span className="align-middle">Forced Cell Frequency</span>
-                    </Col><Col xs={rightCol}>
-                        <Input style={inputStyle} type="number" value={cellFreq} invalid={cellFreq < 3} onChange={(e) => this.setState({cellFreq: parseInt(e.target.value, 10)})}/> 
-                        <FormFeedback tooltip="true">Forced Cell Frequency must be at least 3</FormFeedback>
-                    </Col>
+                        </UncontrolledButtonDropdown>)}
                 </Row>
                 <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "buriedPresets")} className="p-1 justify-content-center">
                     <Col xs={leftCol} className="text-center pt-1 border">
@@ -637,9 +638,13 @@ onDrop = (files) => {
                                                                                       {depth: 100, items: ["TP|Forlorn", "TP|Sorrow", "TP|Ginso", "TP|Horu"]}])}>Teleporters</Button>
                     </Col>
                 </Row>
-                <div className="border rounded p-1 m-1">{fass_rows}</div>
+                <div className="border rounded p-1 m-1">
+                    {sectionLabel("Preplacement", "preplacement")}
+                    {fass_rows}
+                </div>
                 <Collapse isOpen={this.hasVar("Bingo")}>
                 <div className="border rounded p-1 m-1">
+                {sectionLabel("Bingo Settings", "bingoSettings")}
                 <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "bingoDiff")} className="p-1 justify-content-center">
                     <Col xs={leftCol} className="text-center pt-1 border">
                         <span className="align-middle">Board Difficulty</span>
