@@ -29,6 +29,7 @@ class _FakeKey(object):
     def id(self):
         return self._id
 
+
     def __eq__(self, other):
         return isinstance(other, _FakeKey) and other._id == self._id
 
