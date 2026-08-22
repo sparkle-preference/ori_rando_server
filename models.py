@@ -1188,9 +1188,16 @@ class BingoEventChunk(ndb.Model):
         return ndb.Key(BingoEventChunk, "%s.%s" % (gid, n), parent=bingo_key)
 
 
+class BingoWorldBoard(ndb.Model):
+    world = ndb.IntegerProperty()
+    board = ndb.LocalStructuredProperty(BingoCard, repeated=True)
+
+
 class BingoGameData(ndb.Model):
     players          = ndb.KeyProperty(Player, repeated=True)
     board            = ndb.LocalStructuredProperty(BingoCard, repeated=True)
+    # empty means one board for the game, which is every board that exists today
+    boards           = ndb.LocalStructuredProperty(BingoWorldBoard, repeated=True)
     start_time       = ndb.DateTimeProperty()
     started          = ndb.BooleanProperty(default=True)
     creator          = ndb.KeyProperty("User2", User)
@@ -1222,6 +1229,17 @@ class BingoGameData(ndb.Model):
             return None
         pid = int(pid)
         return pid if 1 <= pid <= self.ap_worlds else None
+
+    def board_for(self, world):
+        """The squares that world plays. One board for the game until some world
+        has its own."""
+        for wb in self.boards:
+            if wb.world == world:
+                return wb.board
+        return self.board
+
+    def all_boards(self):
+        return [wb.board for wb in self.boards] or [self.board]
 
     def discovery_squares(self, square_count=2):
         self.discovery = square_count
@@ -1260,7 +1278,7 @@ class BingoGameData(ndb.Model):
         self.started = False
         if 'start_time' in self._values:
             del self._values['start_time']
-        for card in self.board:
+        for card in [c for b in self.all_boards() for c in b]:
             card.completed_by = []
         for team in self.teams:
             team.bingos = []
@@ -1381,7 +1399,7 @@ class BingoGameData(ndb.Model):
         game = self.game.get()
         goals = OrderedDict()
         goals[""] = []
-        for card in self.board:
+        for card in self.board_for(pid):
             if card.subgoals:
                 goals[card.name] = [subgoal["name"] for subgoal in card.subgoals] + goals.get(card.name, [])
             elif card.goal_method == "count":
@@ -1528,7 +1546,7 @@ class BingoGameData(ndb.Model):
                             card.owner = _pid(new_owner)
                             self.event_log.append(BingoEvent(loss=False, event_type="owner", square=ev.square, player=new_owner, timestamp=datetime.utcnow()))
 
-        for card in self.board:  # type: BingoCard
+        for card in self.board_for(cpid):  # type: BingoCard
             if card.meta:
                 meta_cards.append(card)
                 continue
@@ -1545,7 +1563,7 @@ class BingoGameData(ndb.Model):
         if meta_cards:
             meta_data={}
             square_update = False
-            cards_data = {str(i) : {"value":  (cpid == card.owner) if self.lockout else (cpid in self.board[i].completed_by)} for i in range(25)}
+            cards_data = {str(i) : {"value":  (cpid == card.owner) if self.lockout else (cpid in self.board_for(cpid)[i].completed_by)} for i in range(25)}
             meta_data["Activate Squares"] = {"value": cards_data, "total": len([0 for p in cards_data.values() if p["value"]])}
             for card in meta_cards:
                 if card.name in meta_data:
@@ -1556,7 +1574,7 @@ class BingoGameData(ndb.Model):
                     if (cpid == card.owner) if self.lockout else (cpid in card.completed_by):
                         team.score += 1
             if square_update:
-                cards_data = {str(i) : {"value":  (cpid == card.owner) if self.lockout else (cpid in self.board[i].completed_by)} for i in range(25)}
+                cards_data = {str(i) : {"value":  (cpid == card.owner) if self.lockout else (cpid in self.board_for(cpid)[i].completed_by)} for i in range(25)}
             meta_data={}
             meta_data["VertSym"] = {"value": all([cards_data[str(i + left)]["value"] == cards_data[str(i + right)]["value"]
                                      for i in range(0, 25, 5) for (left, right) in [(0, 4), (1,3)]])}
@@ -1579,7 +1597,7 @@ class BingoGameData(ndb.Model):
         elif change_squares:
             for bingo, line in lines_by_index.items():
                 if set(line) & change_squares:
-                    squares = len([square for square in line if cpid in self.board[square].completed_by])
+                    squares = len([square for square in line if cpid in self.board_for(cpid)[square].completed_by])
                     lost_squares = len(set(line) & loss_squares)
                     if lost_squares + squares == 5:
                         loss = lost_squares > 0
