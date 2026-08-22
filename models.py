@@ -1866,6 +1866,7 @@ class Game(ndb.Model):
     hls            = ndb.LocalStructuredProperty(HistoryLine, repeated=True)
     players        = ndb.KeyProperty(Player, repeated=True)
     relics         = ndb.StringProperty(repeated=True)
+    relics_by_world = ndb.JsonProperty()
     params         = ndb.KeyProperty(SeedGenParams)
     player_names   = ndb.StringProperty(repeated=True)
     bingo_data     = ndb.KeyProperty(BingoGameData)
@@ -2528,6 +2529,11 @@ class Game(ndb.Model):
         self.rebuild_hist()
         self.put()
 
+    def relics_for(self, player):
+        """That world's relic zones; games rolled before this field fall back to
+        the one list they stored, which was world 1's."""
+        return (self.relics_by_world or {}).get(str(player), self.relics)
+
     @staticmethod
     def with_id(id):
         return Game.get_by_id(int(id))
@@ -2595,7 +2601,11 @@ class Game(ndb.Model):
         )
         game.is_race = Variation.RACE in params.variations
         if Variation.WORLD_TOUR in params.variations:
-            game.relics = [zone for (_, code, __, zone) in params.get_seed_data() if code == "WT"]
+            # relic zones are sampled per world, so every world needs its own list
+            worlds = range(1, (params.players or 1) + 1)
+            game.relics_by_world = {str(w): [zone for (_, code, __, zone) in params.get_seed_data(w)
+                                             if code == "WT"] for w in worlds}
+            game.relics = game.relics_by_world.get("1", [])
         if Variation.BINGO not in params.variations:
             teams = params.sync.teams
             if teams:

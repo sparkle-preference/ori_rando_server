@@ -203,6 +203,10 @@ WORLD_FIELDS = {
 }
 
 
+# a game has one bingo board, so a world cannot opt into or out of Bingo
+LOBBY_VARIATIONS = (Variation.BINGO,)
+
+
 def world_view(base, p):
     """World p's settings; the base object itself when that world has no overrides."""
     settings = getattr(base, "world_settings", None) or []
@@ -213,6 +217,9 @@ def world_view(base, p):
     for key, (attr, conv) in WORLD_FIELDS.items():
         if key in blob and blob[key] is not None:
             over[attr] = conv(blob[key])
+    if "variations" in over:
+        over["variations"] = ([v for v in over["variations"] if v not in LOBBY_VARIATIONS]
+                              + [v for v in base.variations if v in LOBBY_VARIATIONS])
     return WorldParams(base, over) if over else base
 
 

@@ -924,7 +924,7 @@ def tracker_get_items_update(game_id, player_id):
 
 # why is it like this??
 def _get_item_tracker_items(coords, game, player=1):
-    relics = game.relics
+    relics = game.relics_for(player)
     data = {
         'skills': set(),
         'trees': set(),
