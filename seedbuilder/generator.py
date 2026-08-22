@@ -614,10 +614,9 @@ class SeedGenerator:
         """A full reset. Resets internal state completely (besides pRNG
         advancement), then sets initial values according to params."""
         self.init_fields()
-        # exp_pool is a PER-WORLD budget: expSlots spans every world's
-        # locations, so an unscaled pool got split N ways in multiworld
-        # (134701: 4 players quartered everyone's exp income)
-        self.expRemaining = self.params.exp_pool * self.seed_count
+        # exp_pool is a PER-WORLD budget, drawn against by that world's own
+        # EX slots -- one world's generous pool never dilutes another's
+        self.expRemaining = {p: self.params_for(p).exp_pool for p in self.multi_ps()}
         # forcedAssignments is keyed (player, loc): the same coordinate exists
         # in every world. Values may carry an owner tag ("GinsoKey|3") for
         # cross-world items; untagged values belong to the world they sit in.
@@ -705,23 +704,30 @@ class SeedGenerator:
                 self.inventory[tag("Keysanity", p)] = 1
 
 
-        # multiworld shared categories: one copy total (found -> everyone's).
-        # Collapse the per-world pool entries down to world 1's.
+        # multiworld shared categories: one copy total (found -> everyone's),
+        # tagged world 1. The surviving count is the largest any world asked
+        # for, so a world is never short of an item its own rulebook needs.
         if getattr(self, "is_multi", False) and self.params.sync.shared:
             shared_types = set(self.params.sync.shared)
+            most = OrderedDict()
             for tagged in list(self.itemPool.keys()):
                 base, p = untag(tagged)
                 if base in self.shared_pool_bases or self.base_share_type(base) in shared_types:
                     self.shared_pool_bases.add(base)
+                    most[base] = max(most.get(base, 0), self.itemPool[tagged])
                     if p != 1:
                         del self.itemPool[tagged]
+            for base, count in most.items():
+                self.itemPool[tag(base, 1)] = count
 
         # FIXME When we don't start in glades, add glades tp and remove other tp if applicable, before we process warps.
         # FIXME If Variation is closed dungeons, umm, check that we don't start in them, maybe? Can't start at the tp anyway.
 
-        logic_paths = [lp.value for lp in self.params.logic_paths]
-        logic_path_tags = get_path_tags_from_pathsets(logic_paths)
-        difficulty = self.get_difficulty(logic_path_tags)
+        # a random spawn's starting kit is sized by the difficulty of the logic
+        # that world is playing, so this is one answer per world
+        difficulty_for = {p: self.get_difficulty(get_path_tags_from_pathsets(
+                              [lp.value for lp in self.params_for(p).logic_paths]))
+                          for p in self.multi_ps()}
 
         # FIXME On repeats after failed generation this will tend bias towards places that generate easier.
         start_weights = OrderedDict([
@@ -737,10 +743,22 @@ class SeedGenerator:
             ("Sorrow", 0.25),
             ("Blackroot", 0.5)
         ])
-        if len(self.params.spawn_weights) > 9:
-            for i,k in enumerate(list(start_weights.keys())[1:]):
-                start_weights[k] = self.params.spawn_weights[i]
-#               print(k, start_weights[k])
+        def weights_for(p):
+            # a fresh vector per world: the adjustments mutate it, and the
+            # weights and both dungeon variations belong to that world
+            weights = OrderedDict(start_weights)
+            wp = self.params_for(p)
+            if len(wp.spawn_weights) > 9:
+                for i, k in enumerate(list(weights.keys())[1:]):
+                    weights[k] = wp.spawn_weights[i]
+            if wp.start == "Random":
+                if not self.var(Variation.OPEN_WORLD, p):
+                    weights["Valley"] /= 10.0
+                if self.var(Variation.CLOSED_DUNGEONS, p):
+                    weights["Horu"] = 0
+                    weights["Ginso"] = 0
+            return weights
+
         spawn_spots = SPAWN_SPOTS
         self.spawn_logic_areas = {
             "Glades": "SunkenGladesRunaway",
@@ -759,26 +777,24 @@ class SeedGenerator:
         # rolls independently per world (multiworlds aren't races -- decision
         # 2026-07-22). self.starts is authoritative; self.start keeps the solo
         # semantics ("Random" resolves to the chosen spot) for params.spawn.
-        if self.params.start in ["Horu", "Ginso"] and self.var(Variation.CLOSED_DUNGEONS):
-            log.error("can't start in dungeons with closed dungeons.")
-            exit(1)
-        if self.params.start == "Random":
-            if not self.var(Variation.OPEN_WORLD):
-                start_weights["Valley"] /= 10.0
-            if self.var(Variation.CLOSED_DUNGEONS):
-                start_weights["Horu"] = 0
-                start_weights["Ginso"] = 0
+        # every rejection lands before the first draw, or a refused config
+        # would consume pRNG on its way out
+        for p in self.multi_ps():
+            if self.params_for(p).start in ["Horu", "Ginso"] and self.var(Variation.CLOSED_DUNGEONS, p):
+                log.error("can't start in dungeons with closed dungeons.")
+                exit(1)
         self.starts = {}
         for p in self.multi_ps():
-            if not self.params_for(p).start or self.params_for(p).start not in start_weights:
+            weights = weights_for(p)
+            if not self.params_for(p).start or self.params_for(p).start not in weights:
                 if p == 1:
                     log.warning("Unknown start location. Switching to Glades")
                 self.starts[p] = "Glades"
             elif self.params_for(p).start == "Random":
-                self.starts[p] = self.choice(start_weights.keys(), start_weights.values())
+                self.starts[p] = self.choice(weights.keys(), weights.values())
             else:
                 self.starts[p] = self.params_for(p).start
-        self.start = self.starts[1] if (self.solo() or self.params.start != "Random") else "Random"
+        self.start = self.starts[1] if (self.solo() or self.params_for(1).start != "Random") else "Random"
 
         possible_skills_base = ["WallJump", "ChargeFlame", "Dash", "Stomp", "DoubleJump", "Glide", "Bash", "Climb", "Grenade", "ChargeJump", "Water"]#, "Wind", "Warmth"]
         try_force = {
@@ -803,7 +819,7 @@ class SeedGenerator:
             start_skills = 0
             # FIXME Check if starved exists, then just set the defaults to 3/1?
             if self.params_for(p).start == "Random":
-                starting_health, starting_energy, start_skills = spawn_defaults[start][difficulty]
+                starting_health, starting_energy, start_skills = spawn_defaults[start][difficulty_for[p]]
             elif start != "Glades":
                 starting_health = max(self.params_for(p).starting_health, starting_health)
                 starting_energy = max(self.params_for(p).starting_energy, starting_energy)
@@ -942,8 +958,8 @@ class SeedGenerator:
         # Warps. format (warpName, x, y, area from TP name, logicLocation, logicCost).
         # Warp ids are globally unique ("Warp0", "Warp1", ...); ownership lives
         # in the tagged pool/cost/inventory keys and self.warp_owner.
-        if self.var(Variation.WARPS_INSTEAD_OF_TPS):
-            for p in self.multi_ps():
+        for p in self.multi_ps():
+            if self.var(Variation.WARPS_INSTEAD_OF_TPS, p):
                 tps = []
                 for item in self.itemPool:
                     if item.startswith("TP") and untag(item)[1] == p:
@@ -982,29 +998,33 @@ class SeedGenerator:
                     self.add_warp(warp, p)
                 self.itemPool.pop(wp_star)
 
-        if self.var(Variation.NO_TPS):
-            for item in self.itemPool:
-                if item.startswith("TP"):
-                    self.itemPool[item] = 0
+        for item in self.itemPool:
+            # a shared teleporter pool has already collapsed onto world 1, so
+            # the tag names the world that asked only when it is not shared
+            if item.startswith("TP") and self.var(Variation.NO_TPS, untag(item)[1]):
+                self.itemPool[item] = 0
 
-        if self.params.key_mode == KeyMode.SHARDS:
-            # (SplitShards' inflated shard count is gone with the mode itself)
-            shard_count = 5
-            for p in self.multi_ps():
+        # (SplitShards' inflated shard count is gone with the mode itself)
+        shard_count = 5
+        for p in self.multi_ps():
+            if self.params_for(p).key_mode == KeyMode.SHARDS:
                 for shard in ["WaterVeinShard", "GumonSealShard", "SunstoneShard"]:
                     self.itemPool[tag(shard, p)] = shard_count
                     self.costs[tag(shard, p)] = shard_count
                 for key in ["GinsoKey", "HoruKey", "ForlornKey"]:
                     self.itemPool[tag(key, p)] = 0
 
-        if self.var(Variation.WARMTH_FRAGMENTS):
-            for p in self.multi_ps():
+        for p in self.multi_ps():
+            if self.var(Variation.WARMTH_FRAGMENTS, p):
                 self.costs[tag("RB28", p)] = 3 * self.params_for(p).frag_count
                 self.inventory[tag("RB28", p)] = 0
                 self.itemPool[tag("RB28", p)] = self.params_for(p).frag_count
                 self.itemPool[tag("Warmth", p)] = 0
 
-        if self.params.key_mode == KeyMode.LIMITKEYS:
+        # LimitKeys belongs to a player, not to the generation: only the worlds
+        # playing it hold dungeon keys, and they hold each other's.
+        limitkey_ps = [w for w in self.multi_ps() if self.params_for(w).key_mode == KeyMode.LIMITKEYS]
+        if limitkey_ps:
             dungeonLocs = {"GinsoKey": {5480952, 5320328}, "ForlornKey": {-7320236}, "HoruKey": set()}
             names = {-3160308: "SKWallJump", -560160: "SKChargeFlame", 2919744: "SKDash", 719620: "SKGrenade", 7839588: "SKDoubleJump", 5320328: "SKBash", 8599904: "SKStomp", -4600020: "SKGlide",
                     -6959592: "SKChargeJump", -11880100: "SKClimb", 5480952: "EVWater", 4999752: "EVGinsoKey", -7320236: "EVWind", -7200024: "EVForlornKey", -5599400: "EVHoruKey"}
@@ -1027,13 +1047,13 @@ class SeedGenerator:
                 # dungeon key reachable without entering any dungeon, so no
                 # ordering of key finds can wedge.
                 all_dungeon_locked = set().union(*dungeonLocs.values())
-                pools = {w: list(self.limitKeysPool) for w in self.multi_ps()}
+                pools = {w: list(self.limitKeysPool) for w in limitkey_ps}
                 for key in key_order:
-                    owners = self.random.sample(list(self.multi_ps()), self.seed_count)
-                    for w in self.multi_ps():
+                    owners = self.random.sample(limitkey_ps, len(limitkey_ps))
+                    for i, w in enumerate(limitkey_ps):
                         loc = self.random.choice([l for l in pools[w] if l not in all_dungeon_locked])
                         pools[w].remove(loc)
-                        self.forcedAssignments[(w, loc)] = tag(key, owners[w - 1])
+                        self.forcedAssignments[(w, loc)] = tag(key, owners[i])
 
     def __init__(self):
         self.init_fields()
@@ -1071,10 +1091,11 @@ class SeedGenerator:
         self.inventory[tag(warp_id, p)] = 0
 
     def create_warp_paths(self):
-        if self.var(Variation.IN_LOGIC_WARPS):
-            for warp_id in self.warps:
+        for warp_id in self.warps:
+            # a warp is in logic when its own world says so
+            p = self.warp_owner[warp_id]
+            if self.var(Variation.IN_LOGIC_WARPS, p):
                 name, x, y, area, logic_location, logic_cost = self.warps[warp_id]
-                p = self.warp_owner[warp_id]
                 connection = Connection("TeleporterNetwork", logic_location, self, p)
                 requirements = [warp_id]
                 if not self.var(Variation.ENTRANCE_SHUFFLE, p):
@@ -1431,16 +1452,19 @@ class SeedGenerator:
             position += pool_weight(key) / denom
             if value <= position:
                 base = base_of(key)
-                if self.var(Variation.STARVED):
+                # starvation is the owner's preference for their own items; a
+                # shared base sits on world 1, so world 1's answer covers it
+                owner = untag(key)[1]
+                if self.var(Variation.STARVED, owner):
                     if base in self.skillsOutput and recurseCount < 3:
                         return self.assign_random(locs, recurseCount=recurseCount + 1, ks_blocked=ks_blocked, opening_hostless=opening_hostless)
-                if self.var(Variation.FUCK_WALLS):
+                if self.var(Variation.FUCK_WALLS, owner):
                     if base in ["WallJump", "Climb"] and recurseCount < 3 and self.total_locs() - locs < 40:
                         return self.assign_random(locs, recurseCount=recurseCount + 1, ks_blocked=ks_blocked, opening_hostless=opening_hostless)
-                if self.var(Variation.FUCK_GRENADE):
+                if self.var(Variation.FUCK_GRENADE, owner):
                     if base == "Grenade" and recurseCount < 3 and self.total_locs() - locs < 60:
                         return self.assign_random(locs, recurseCount=recurseCount + 1, ks_blocked=ks_blocked, opening_hostless=opening_hostless)
-                if self.var(Variation.TPSTARVED):
+                if self.var(Variation.TPSTARVED, owner):
                     if base.startswith("TP") and recurseCount < 3 and self.total_locs() - locs < self.costs.get(key, 0):
                         return self.assign_random(locs, recurseCount=recurseCount + 1, ks_blocked=ks_blocked, opening_hostless=opening_hostless)
                 return self.assign(key)
@@ -1609,9 +1633,9 @@ class SeedGenerator:
                 name, x, y, area, logic_location, logic_cost = self.warps[self.random_warp_id(player)]
                 item = item.replace("WP/*", "TW/Warp to %s,%s,%s,%s" % (name, x, y, logic_location), 1)
         elif item == "EX*":
-            value = self.get_random_exp_value()
-            self.expRemaining -= value
-            self.expSlots -= 1
+            value = self.get_random_exp_value(player)
+            self.expRemaining[player] -= value
+            self.expSlots[player] -= 1
             item = "EX%s" % value
         return tag(item, player)
 
@@ -1637,14 +1661,18 @@ class SeedGenerator:
             mw_ref = (owner, slot)
         return ("%s|%s|%s\n" % (loc, pickup, zone), mw_ref)
 
-    def get_random_exp_value(self):
+    def get_random_exp_value(self, p):
         minExp = self.random.randint(2, 9)
-        if self.expSlots <= 1:
-            return max(self.expRemaining, minExp)
-        rand_exp_found = sum(self.inventory[tag("EX*", p)] for p in self.multi_ps())
-        return int(max(self.expRemaining * (rand_exp_found + self.expSlots / 4) * self.random.uniform(0.0, 2.0) / (self.expSlots * (self.expSlots + rand_exp_found)), minExp))
+        slots, remaining = self.expSlots[p], self.expRemaining[p]
+        if slots <= 1:
+            return max(remaining, minExp)
+        rand_exp_found = self.inventory[tag("EX*", p)]
+        return int(max(remaining * (rand_exp_found + slots / 4) * self.random.uniform(0.0, 2.0) / (slots * (slots + rand_exp_found)), minExp))
 
     def preferred_difficulty_assign(self, item, locationsToAssign):
+        # the item's owner asked for this, so their rulebook picks the spot --
+        # the same key at every read, or total and position stop agreeing
+        path_diff = self.params_for(untag(item)[1]).path_diff
         candidates = locationsToAssign
         home = self.anti_bk_home(item)
         if home is not None:
@@ -1654,14 +1682,14 @@ class SeedGenerator:
                 candidates = homes
         total = 0.0
         for loc in candidates:
-            if self.params.path_diff == PathDifficulty.EASY:
+            if path_diff == PathDifficulty.EASY:
                 total += (20 - loc.difficulty) * (20 - loc.difficulty)
             else:
                 total += (loc.difficulty * loc.difficulty)
         value = self.random.random()
         position = 0.0
         for i in range(0, len(candidates)):
-            if self.params.path_diff == PathDifficulty.EASY:
+            if path_diff == PathDifficulty.EASY:
                 position += (20 - candidates[i].difficulty) * (20 - candidates[i].difficulty) / total
             else:
                 position += candidates[i].difficulty * candidates[i].difficulty / total
@@ -1670,16 +1698,18 @@ class SeedGenerator:
                 break
         locationsToAssign.remove(candidates[i])
 
-    def form_areas(self, keysOnlyForDoors=False):
+    def form_areas(self):
         if self.params.do_loc_analysis:
             self.params.locationAnalysis["FinalEscape EVWarmth (-240 512)"] = self.params.itemsToAnalyze.copy()
             self.params.locationAnalysis["FinalEscape EVWarmth (-240 512)"]["Zone"] = "Horu"
 
         # sorry for this - only intended to last as long as 3.0 beta lasts
-        meta = get_areas(self.params.areas_ori_path)
-        logic_paths = [lp.value for lp in self.params.logic_paths]
-        logic_path_tags = get_path_tags_from_pathsets(logic_paths)
+        meta = get_areas(self.params.areas_ori_path)     # one parse, shared, never mutated
         for p in self.multi_ps():
+            logic_paths = [lp.value for lp in self.params_for(p).logic_paths]
+            logic_path_tags = get_path_tags_from_pathsets(logic_paths)
+            # entrance shuffle requires keys at their own doors instead of granting them
+            keysOnlyForDoors = self.var(Variation.ENTRANCE_SHUFFLE, p)
             for loc_name, loc_info in meta["locs"].items():
                 area = Area(loc_name, p)
                 self.areasRemaining.append(area.name)
@@ -1859,11 +1889,10 @@ class SeedGenerator:
         self.clone_count = 1
         if self.is_cloned:
             self.clone_count = len(self.params.sync.teams) if self.params.sync.teams else self.params.players
-        if self.var(Variation.WORLD_TOUR):
-            # each world samples its own relic zones (decision 2026-07-22);
-            # relics are world-local -- they never cross as MW items
-            self.relicZones = {p: self.random.sample(["Glades", "Grove", "Grotto", "Blackroot", "Swamp", "Ginso", "Valley", "Misty", "Forlorn", "Sorrow", "Horu"], self.params_for(p).relic_count)
-                               for p in self.multi_ps()}
+        # each world samples its own relic zones (decision 2026-07-22);
+        # relics are world-local -- they never cross as MW items
+        self.relicZones = {p: self.random.sample(["Glades", "Grove", "Grotto", "Blackroot", "Swamp", "Ginso", "Valley", "Misty", "Forlorn", "Sorrow", "Horu"], self.params_for(p).relic_count)
+                           for p in self.multi_ps() if self.var(Variation.WORLD_TOUR, p)}
         return self.placeItemsMulti(retries)
 
     def placeItemsMulti(self, retries):
@@ -2017,7 +2046,7 @@ class SeedGenerator:
                      and not exports_generic_keystones(self.params))
         self.ap_ks_pin = ap_ks_pin
 
-        self.form_areas(self.var(Variation.ENTRANCE_SHUFFLE))
+        self.form_areas()
         self.create_warp_paths()
         if self.params.do_loc_analysis:
             self.params.locationAnalysisCopy = {}
@@ -2033,12 +2062,12 @@ class SeedGenerator:
         self.spoilerGroup = defaultdict(list)
         self.relicSpoiler = []
 
-        if self.var(Variation.ENTRANCE_SHUFFLE):
-            for p in self.multi_ps():
+        for p in self.multi_ps():
+            if self.var(Variation.ENTRANCE_SHUFFLE, p):
                 self.seeds_text[p] += self.randomize_entrances(p)
 
-        if self.var(Variation.WORLD_TOUR):
-            for p in self.multi_ps():
+        for p in self.multi_ps():
+            if self.var(Variation.WORLD_TOUR, p):
                 locations_by_zone = OrderedDict({zone: [] for zone in self.relicZones[p]})
                 for area in self.areas.values():
                     if area.player != p:
@@ -2194,11 +2223,16 @@ class SeedGenerator:
 
         # every remaining location gets EXP; each world's final escape adds one
         # more item slot (warmth returned)
-        self.expSlots = self.locations() - sum([v for v in self.itemPool.values()]) - len(self.buried) + self.seed_count
+        # who gets how many filler slots is still one uniform draw per slot;
+        # what changes is that each world spends its own budget over its own
+        self.expSlots = {p: 0 for p in self.multi_ps()}
+        slots_to_fill = self.locations() - sum([v for v in self.itemPool.values()]) - len(self.buried) + self.seed_count
         for p in self.multi_ps():
             self.itemPool.setdefault(tag("EX*", p), 0)
-        for _ in range(self.expSlots):
-            self.itemPool[tag("EX*", self.random_player())] += 1
+        for _ in range(slots_to_fill):
+            owner = self.random_player()
+            self.itemPool[tag("EX*", owner)] += 1
+            self.expSlots[owner] += 1
         locs = self.locations()
         while locs > 0:
             if locs != self.items() - self.seed_count:  # each world's final escape holds one extra item
@@ -2336,11 +2370,12 @@ class SeedGenerator:
                                                                 opening_hostless=self.anti_bk_hostless(itemsToAssign, locationsToAssign)))
 
             # force assign things if using --prefer-path-difficulty
-            if self.params.path_diff != PathDifficulty.NORMAL:
-                for item in list(itemsToAssign):
-                    if base_of(item) in self.skillsOutput or base_of(item) in self.eventsOutput:
-                        self.preferred_difficulty_assign(item, locationsToAssign)
-                        itemsToAssign.remove(item)
+            for item in list(itemsToAssign):
+                if self.params_for(untag(item)[1]).path_diff == PathDifficulty.NORMAL:
+                    continue
+                if base_of(item) in self.skillsOutput or base_of(item) in self.eventsOutput:
+                    self.preferred_difficulty_assign(item, locationsToAssign)
+                    itemsToAssign.remove(item)
 
             # shuffle the items around and put them somewhere
             self.random.shuffle(itemsToAssign)

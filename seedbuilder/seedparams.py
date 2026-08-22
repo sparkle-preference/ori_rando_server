@@ -66,6 +66,15 @@ def seed_mode_problem(params, mw_override=False, ap_override=False):
         clash = share_export_clash(params.sync.shared, exported)
         if clash:
             return "Archipelago export and shared categories overlap: %s." % ", ".join(clash)
+    # Shards replaces a world event with five shards, so a lobby that shares
+    # world events across a Shards/non-Shards split has no coherent item.
+    if (ShareType.EVENT in (getattr(params.sync, "shared", None) or [])
+            and getattr(params, "world_settings", None)):
+        modes = {params.world_params(w).key_mode for w in range(1, (params.players or 1) + 1)}
+        if KeyMode.SHARDS in modes and len(modes) > 1:
+            return ("Sharing World Events needs every world on the same dungeon keys: "
+                    "Shards splits each event into five pieces, so a mixed lobby has "
+                    "nothing to share.")
     if params.sync.mode == MultiplayerGameType.SPLITSHARDS:
         return "SplitShards was removed (2026-07). Consider Multiworld with Shards keymode."
     if params.sync.mode == MultiplayerGameType.SHARED and not params.sync.cloned:
@@ -196,6 +205,20 @@ WORLD_FIELDS = {
 }
 
 
+def world_view(base, p):
+    """World p's settings: the base itself when it has nothing of its own, so
+    the no-per-world-settings path is identical rather than merely equivalent."""
+    settings = getattr(base, "world_settings", None) or []
+    blob = settings[p - 1] if 0 < p <= len(settings) else None
+    if not blob:
+        return base
+    over = {}
+    for key, (attr, conv) in WORLD_FIELDS.items():
+        if key in blob and blob[key] is not None:
+            over[attr] = conv(blob[key])
+    return WorldParams(base, over) if over else base
+
+
 class WorldParams(object):
     """One world's view of a seed: its own overrides, everything else read live
     off the base entity."""
@@ -303,16 +326,7 @@ class SeedGenParams(ndb.Model):
     areas_ori_path = ""
 
     def world_params(self, p):
-        """World p's settings. The base entity itself when it has no overrides,
-        so the no-per-world-settings path is identical rather than equivalent."""
-        blob = self.world_settings[p - 1] if 0 < p <= len(self.world_settings) else None
-        if not blob:
-            return self
-        over = {}
-        for key, (attr, conv) in WORLD_FIELDS.items():
-            if key in blob and blob[key] is not None:
-                over[attr] = conv(blob[key])
-        return WorldParams(self, over) if over else self
+        return world_view(self, p)
 
     @staticmethod
     def from_plando(plando, tracking=True):

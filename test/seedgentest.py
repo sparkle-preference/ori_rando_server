@@ -266,7 +266,12 @@ class MultiworldGenTests(unittest.TestCase):
     # legitimately shuffled -- see SOLO_CANARY note.)
     # (bumped 2026-08-02: exp_pool is now per-world (134701: it was being
     # split across all worlds' slots) -- EX values change, placements don't.)
-    MW_CANARY = "25e87417de74d885ff3537af15bb8b04b790257a583fa9e52df2a25b2f1d21f4"
+    # (bumped 2026-08-22: each world now spends its OWN exp budget over its own
+    # slots, so per-world exp_pool means something. Slot ownership is still one
+    # uniform draw per slot, so the draw sequence up to the fill is unchanged;
+    # solo is arithmetically identical and SOLO_CANARY is unmoved. MW is still
+    # env-gated, so no user warning is owed.)
+    MW_CANARY = "f814e851f7533af8287fa6e01aa64a7231c4155b3ceaded7a315f631c638d9b6"
 
     def test_exp_pool_is_per_world(self):
         # 134701 report: the global exp budget was being spread across every
@@ -3029,3 +3034,174 @@ class MultiPickupDecomposeTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+CASUAL = ["casual-core", "casual-dboost"]
+EXPERT = CASUAL + ["standard-core", "standard-dboost", "standard-lure", "standard-abilities",
+                   "expert-core", "expert-dboost", "expert-lure", "expert-abilities", "dbash"]
+
+
+def owned_by_world(seeds):
+    """-> {world: Counter((code, id))} of what each world's PLAYER owns: the
+    items in their own file, plus the slots other worlds hold for them."""
+    out = {}
+    for p, lines in seeds.items():
+        placements, manifest = parse_seed(lines)
+        owned = Counter()
+        for code, id, _zone in placements.values():
+            if code != "MW":
+                owned[(code, id)] += 1
+        for _finder, icode, iid, _zone in manifest.values():
+            owned[(icode, iid)] += 1
+        out[p] = owned
+    return out
+
+
+class MixedWorldSettingsTests(unittest.TestCase):
+    """A multiworld where the two worlds play by different rules."""
+
+    WORLDS = [{"keyMode": "Clues", "paths": CASUAL},
+              {"keyMode": "Shards", "paths": EXPERT}]
+    KEYS = [("EV", "0"), ("EV", "2"), ("EV", "4")]
+    SHARDS = [("RB", "17"), ("RB", "19"), ("RB", "21")]
+
+    @classmethod
+    def setUpClass(cls):
+        cls.out = tempfile.mkdtemp(prefix="seedgentest_mixed_")
+        old_argv = sys.argv
+        sys.argv = ["cli_gen", "--output-dir", cls.out, "--preset", "standard",
+                    "--open-world", "--balanced", "--seed", "mixedworlds",
+                    "--players", "2", "--share-mode", "multiworld",
+                    "--world-settings", json.dumps(cls.WORLDS)]
+        try:
+            CLISeedParams().from_cli()
+        finally:
+            sys.argv = old_argv
+        cls.seeds = {}
+        for p in (1, 2):
+            path = os.path.join(cls.out, "randomizer_%s.dat" % p)
+            assert os.path.exists(path), "no seed for player %s" % p
+            with open(path) as f:
+                cls.seeds[p] = f.read().splitlines()
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.out, ignore_errors=True)
+
+    def test_each_world_gets_its_own_flag_line(self):
+        self.assertIn("Clues", self.seeds[1][0])
+        self.assertIn("Casual", self.seeds[1][0])
+        self.assertIn("Shards", self.seeds[2][0])
+        self.assertIn("Expert", self.seeds[2][0])
+        self.assertNotIn("Shards", self.seeds[1][0])
+        self.assertNotIn("Clues", self.seeds[2][0])
+
+    def test_each_world_gets_the_dungeon_keys_its_keymode_implies(self):
+        owned = owned_by_world(self.seeds)
+        for key in self.KEYS:
+            self.assertEqual(owned[1][key], 1, "Clues world is missing %s" % (key,))
+            self.assertEqual(owned[2][key], 0, "Shards world should hold no whole keys")
+        for shard in self.SHARDS:
+            self.assertEqual(owned[1][shard], 0, "Clues world should hold no shards")
+            self.assertEqual(owned[2][shard], 5, "Shards world wants five of %s" % (shard,))
+
+    def test_every_location_is_filled_in_both_worlds(self):
+        for p, lines in self.seeds.items():
+            bad = [l for l in lines[1:] if l and not l.startswith("//") and not PICKUP_LINE.match(l)]
+            self.assertEqual(bad, [], "malformed lines for player %s: %s" % (p, bad[:3]))
+
+    def test_a_world_with_no_entry_keeps_the_seeds_settings(self):
+        """An empty blob is not an override, so world 1 plays the seed."""
+        out = tempfile.mkdtemp(prefix="seedgentest_mixed2_")
+        old_argv = sys.argv
+        sys.argv = ["cli_gen", "--output-dir", out, "--preset", "standard",
+                    "--open-world", "--balanced", "--seed", "mixedworlds",
+                    "--keymode", "Clues", "--players", "2", "--share-mode", "multiworld",
+                    "--world-settings", json.dumps([{}, {"keyMode": "Shards"}])]
+        try:
+            CLISeedParams().from_cli()
+            with open(os.path.join(out, "randomizer_1.dat")) as f:
+                first = f.read().splitlines()[0]
+            self.assertIn("Clues", first)
+        finally:
+            sys.argv = old_argv
+            shutil.rmtree(out, ignore_errors=True)
+
+
+class MixedLimitKeysTests(unittest.TestCase):
+    """LimitKeys belongs to a player: only participating worlds hold keys."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.out = tempfile.mkdtemp(prefix="seedgentest_lk_")
+        old_argv = sys.argv
+        sys.argv = ["cli_gen", "--output-dir", cls.out, "--preset", "standard",
+                    "--open-world", "--balanced", "--seed", "limitmix",
+                    "--players", "2", "--share-mode", "multiworld",
+                    "--world-settings", json.dumps([{"keyMode": "Limitkeys"},
+                                                    {"keyMode": "Clues"}])]
+        try:
+            CLISeedParams().from_cli()
+        finally:
+            sys.argv = old_argv
+        cls.seeds = {}
+        for p in (1, 2):
+            with open(os.path.join(cls.out, "randomizer_%s.dat" % p)) as f:
+                cls.seeds[p] = f.read().splitlines()
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.out, ignore_errors=True)
+
+    def test_it_rolls_at_all(self):
+        self.assertIn("Limitkeys", self.seeds[1][0])
+        self.assertIn("Clues", self.seeds[2][0])
+
+    def test_both_worlds_still_get_one_of_each_key(self):
+        owned = owned_by_world(self.seeds)
+        for key in [("EV", "0"), ("EV", "2"), ("EV", "4")]:
+            self.assertEqual(owned[1][key], 1, "LimitKeys world is missing %s" % (key,))
+            self.assertEqual(owned[2][key], 1, "Clues world is missing %s" % (key,))
+
+
+class PerWorldExpPoolTests(unittest.TestCase):
+    """Each world spends its own exp budget over its own filler slots."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.out = tempfile.mkdtemp(prefix="seedgentest_exp_")
+        old_argv = sys.argv
+        sys.argv = ["cli_gen", "--output-dir", cls.out, "--preset", "standard",
+                    "--open-world", "--balanced", "--seed", "expsplit",
+                    "--players", "2", "--share-mode", "multiworld",
+                    "--world-settings", json.dumps([{"expPool": 4000}, {"expPool": 16000}])]
+        try:
+            CLISeedParams().from_cli()
+        finally:
+            sys.argv = old_argv
+        cls.seeds = {}
+        for p in (1, 2):
+            with open(os.path.join(cls.out, "randomizer_%s.dat" % p)) as f:
+                cls.seeds[p] = f.read().splitlines()
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.out, ignore_errors=True)
+
+    def exp_totals(self):
+        """A world's exp is the EX in its own file plus the EX other worlds
+        hold for it."""
+        totals = {}
+        for p, lines in self.seeds.items():
+            placements, manifest = parse_seed(lines)
+            total = sum(int(id) for (code, id, _z) in placements.values() if code == "EX")
+            total += sum(int(iid) for (_f, icode, iid, _z) in manifest.values() if icode == "EX")
+            totals[p] = total
+        return totals
+
+    def test_a_lean_world_and_a_rich_one_get_what_they_asked_for(self):
+        totals = self.exp_totals()
+        self.assertLess(totals[1], totals[2],
+                        "a 4000 pool should not out-earn a 16000 one: %s" % totals)
+        self.assertLess(totals[1], 8000, "lean world inflated: %s" % totals)
+        self.assertGreater(totals[2], 8000, "rich world deflated: %s" % totals)

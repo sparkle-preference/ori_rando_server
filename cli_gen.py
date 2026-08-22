@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import argparse, time
+import argparse, json, time
 import logging as log
 import re
 import pickle
@@ -33,8 +33,14 @@ class CLISeedParams(object):
     def __init__(self):
         pass
 
+    world_settings = []
+
     def put(self):
         pass # this is stupid as fuck but it does work.
+
+    def world_params(self, p):
+        from seedbuilder.seedparams import world_view
+        return world_view(self, p)
 
     def from_cli(self):
         parser = argparse.ArgumentParser()
@@ -105,6 +111,8 @@ class CLISeedParams(object):
         # sync
         parser.add_argument("--players", help="Player count for paired randomizer", type=int, default=1)
         parser.add_argument("--player-names", help="Comma-separated per-world names, e.g. 'Alice,Bob'. Blank entries keep the default", type=str, default=None)
+        parser.add_argument("--world-settings", help="""Per-world setting overrides as json: a list whose entry i belongs to world i+1,
+        using the same keys a saved preset does, e.g. '[{}, {"keyMode": "Shards", "paths": ["casual-core"]}]'. Omitted keys keep the seed's value.""", type=str, default=None)
         parser.add_argument("--tracking", help="Place a sync ID in a seed for tracking purposes", action="store_true")
         parser.add_argument("--sync-id", help="Team identifier number for paired randomizer", type=int)
         parser.add_argument("--shared-items", help="What will be shared by sync, comma-separated: skills,worldevents,misc,teleporters,upgrades. Defaults to skills,worldevents (multiworld: nothing shared unless set)", default=None)
@@ -213,6 +221,13 @@ class CLISeedParams(object):
         self.anti_bk_bias = min(1.0, max(0.0, args.anti_bk_bias or 0.0))
         self.cell_freq = args.force_cells
         self.players = args.players
+        if args.world_settings:
+            try:
+                self.world_settings = [w or {} for w in json.loads(args.world_settings)]
+            except ValueError as e:
+                parser.error("--world-settings is not valid json: %s" % e)
+            if not isinstance(self.world_settings, list):
+                parser.error("--world-settings must be a list, one entry per world")
         self.tracking = args.tracking or False
         self.sync = CLIMultiOptions()
         

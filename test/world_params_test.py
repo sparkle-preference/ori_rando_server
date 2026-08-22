@@ -4,8 +4,10 @@ import unittest
 import google.auth.credentials
 from google.cloud import ndb
 
-from enums import KeyMode, LogicPath, PathDifficulty, Variation
-from seedbuilder.seedparams import MultiplayerOptions, SeedGenParams, WorldParams
+from enums import (KeyMode, LogicPath, MultiplayerGameType, PathDifficulty,
+                   ShareType, Variation)
+from seedbuilder.seedparams import (MultiplayerOptions, SeedGenParams, WorldParams,
+                                    seed_mode_problem)
 
 
 def base_params(**kw):
@@ -122,3 +124,33 @@ class WorldParamsTestCase(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class MixedSharingTestCase(WorldParamsTestCase):
+    """Shards turns a world event into five shards, so a lobby that shares
+    world events cannot straddle it."""
+
+    def mw(self, worlds, shared):
+        p = base_params(players=len(worlds), tracking=True, world_settings=worlds)
+        p.sync.enabled = True
+        p.sync.mode = MultiplayerGameType.MULTIWORLD
+        p.sync.shared = shared
+        return p
+
+    def test_sharing_events_across_a_shards_split_is_refused(self):
+        p = self.mw([{"keyMode": "Shards"}, {"keyMode": "Clues"}], [ShareType.EVENT])
+        problem = seed_mode_problem(p, mw_override=True)
+        self.assertIsNotNone(problem)
+        self.assertIn("World Events", problem)
+
+    def test_sharing_events_with_every_world_on_shards_is_fine(self):
+        p = self.mw([{"keyMode": "Shards"}, {"keyMode": "Shards"}], [ShareType.EVENT])
+        self.assertIsNone(seed_mode_problem(p, mw_override=True))
+
+    def test_a_shards_split_is_fine_when_events_are_not_shared(self):
+        p = self.mw([{"keyMode": "Shards"}, {"keyMode": "Clues"}], [ShareType.SKILL])
+        self.assertIsNone(seed_mode_problem(p, mw_override=True))
+
+    def test_no_world_settings_is_never_refused(self):
+        p = self.mw([], [ShareType.EVENT])
+        self.assertIsNone(seed_mode_problem(p, mw_override=True))
