@@ -191,6 +191,11 @@ WORLD_FIELDS = {
     "fragReq":        ("frag_req",        int),
     "relicCount":     ("relic_count",     int),
     "bingoLines":     ("bingo_lines",     int),
+    "bingoDiff":      ("bingo_diff",      str),
+    "bingoGoal":      ("bingo_goal",      str),
+    "bingoSquares":   ("bingo_squares",   int),
+    "bingoMeta":      ("bingo_meta",      bool),
+    "bingoDisc":      ("bingo_disc",      int),
     "itemPool":       ("item_pool",       dict),
     "selectedPool":   ("pool_preset",     str),
     "spawn":          ("start",           str),
@@ -203,8 +208,11 @@ WORLD_FIELDS = {
 }
 
 
-# a game has one bingo board, so a world cannot opt into or out of Bingo
-LOBBY_VARIATIONS = (Variation.BINGO,)
+def spawn_view(base, world):
+    """Where that world starts. Seeds rolled before spawns existed fall back to
+    the summary, which reads "Random" when the worlds rolled separately."""
+    spawns = getattr(base, "spawns", None) or []
+    return spawns[world - 1] if 0 < world <= len(spawns) else base.spawn
 
 
 def world_view(base, p):
@@ -217,9 +225,6 @@ def world_view(base, p):
     for key, (attr, conv) in WORLD_FIELDS.items():
         if key in blob and blob[key] is not None:
             over[attr] = conv(blob[key])
-    if "variations" in over:
-        over["variations"] = ([v for v in over["variations"] if v not in LOBBY_VARIATIONS]
-                              + [v for v in base.variations if v in LOBBY_VARIATIONS])
     return WorldParams(base, over) if over else base
 
 
@@ -303,6 +308,12 @@ class SeedGenParams(ndb.Model):
     item_pool = ndb.JsonProperty()
     pool_preset = ndb.StringProperty()
     bingo_lines = ndb.IntegerProperty(default=3)
+    # what a world's board looks like; bingo_disc 0 means discovery is off
+    bingo_diff = ndb.StringProperty(default="normal")
+    bingo_goal = ndb.StringProperty(default="bingos")
+    bingo_squares = ndb.IntegerProperty(default=13)
+    bingo_meta = ndb.BooleanProperty(default=False)
+    bingo_disc = ndb.IntegerProperty(default=0)
     start = ndb.StringProperty(default="Glades")
     spawn = ndb.StringProperty(default="Glades")
     starting_health = ndb.IntegerProperty(default=3)
@@ -324,11 +335,16 @@ class SeedGenParams(ndb.Model):
     ap_death_link = ndb.BooleanProperty(default=False)
     # index i overrides world i+1's settings; empty means every world plays the same seed
     world_settings = ndb.JsonProperty(repeated=True, compressed=True)
+    # the spot each world actually starts at, once "Random" has been rolled
+    spawns = ndb.StringProperty(repeated=True)
     do_loc_analysis = False
     areas_ori_path = ""
 
     def world_params(self, p):
         return world_view(self, p)
+
+    def spawn_for(self, world):
+        return spawn_view(self, world)
 
     @staticmethod
     def from_plando(plando, tracking=True):
@@ -388,6 +404,11 @@ class SeedGenParams(ndb.Model):
         params.sense = json.get("senseData")
         params.item_pool = json.get("itemPool", {})
         params.bingo_lines = json.get("bingoLines", 3)
+        params.bingo_diff = json.get("bingoDiff", "normal")
+        params.bingo_goal = json.get("bingoGoal", "bingos")
+        params.bingo_squares = json.get("bingoSquares", 13)
+        params.bingo_meta = bool(json.get("bingoMeta", False))
+        params.bingo_disc = json.get("bingoDisc", 0)
         params.pool_preset = json.get("selectedPool", "Standard")
         params.placements = []
         params.preplaced_coords = []
@@ -549,6 +570,11 @@ class SeedGenParams(ndb.Model):
             "itemPool": self.item_pool,
             "selectedPool": self.pool_preset,
             "bingoLines": self.bingo_lines,
+            "bingoDiff": self.bingo_diff,
+            "bingoGoal": self.bingo_goal,
+            "bingoSquares": self.bingo_squares,
+            "bingoMeta": self.bingo_meta,
+            "bingoDisc": self.bingo_disc,
             "spawnWeights": self.spawn_weights,
             "verboseSpoiler": self.verbose_spoiler,
             "playerNames": list(self.player_names),

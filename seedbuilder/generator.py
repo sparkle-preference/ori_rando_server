@@ -1963,8 +1963,12 @@ class SeedGenerator:
         else:
             for _ in range(self.clone_count):
                 placements.append((self.seeds_text[1], spoiler))
-        if self.params.spawn != self.start:
+        # self.starts is the resolved spot per world; params.spawn keeps the solo
+        # summary, which reads "Random" for a multiworld that rolled per world
+        spawns = [self.starts[w] for w in self.multi_ps()]
+        if self.params.spawn != self.start or list(getattr(self.params, "spawns", []) or []) != spawns:
             self.params.spawn = self.start
+            self.params.spawns = spawns
             self.params.put()
         return placements
 

@@ -1361,8 +1361,20 @@ class BingoBoltOnGateTests(unittest.TestCase):
             spawn = "Glades"
             sync = _Sync()
 
+            world_settings = []
+            spawns = []
+
             def flag_line(self):
                 return "boltongate"
+
+            # the real helpers, so the double cannot drift from the entity
+            def world_params(self, w):
+                from seedbuilder.seedparams import world_view
+                return world_view(self, w)
+
+            def spawn_for(self, w):
+                from seedbuilder.seedparams import spawn_view
+                return spawn_view(self, w)
 
         class _ParamsKey(object):
             def get(self):

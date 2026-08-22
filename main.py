@@ -28,7 +28,7 @@ from oidc import make_oidc
 from seedbuilder.seedparams import SeedGenParams, seed_mode_problem
 from seedbuilder.vanilla import seedtext as vanilla_seed
 from enums import MultiplayerGameType, ShareType, Variation
-from models import ndb_wsgi_middleware, Game, Player, SavedSeedParams, Seed, User, BingoGameData, BingoEvent, BingoTeam, CustomLogic, trees_by_coords, LegacyUser, bingo_lock, AnnouncedPatchNotes
+from models import ndb_wsgi_middleware, Game, Player, SavedSeedParams, Seed, User, BingoGameData, BingoWorldBoard, BingoEvent, BingoTeam, CustomLogic, trees_by_coords, LegacyUser, bingo_lock, AnnouncedPatchNotes
 from bingo import BingoGenerator
 from cache import Cache
 from util import parse_fass, coord_correction_map, clone_entity, all_locs, picks_by_type_generator, param_val, param_flag, param_true, debug, template_root, VER, MIN_VER, BETA_VER, game_list_html, version_check, template_vals, layout_json, bfield_checksum, netperf, NETPERF_TAG, json_default, seed_sync_id, is_mw_manifest_loc, MULTIWORLD, ARCHIPELAGO, CANONICAL_HOST, REDIRECT_HOSTS, PATCHNOTES_WEBHOOK_MAIN, PATCHNOTES_WEBHOOK_DEV
@@ -1996,16 +1996,38 @@ def bump_board_seed(seed):
         return seed[:match.start()] + "RR%s" % (int(match.group(1)) + 1)
     return seed + "RR1"
 
-def bingo_board_cards(params, difficulty, seed, disc, meta, lockout):
+def bingo_board_cards(params, difficulty, seed, disc, meta, lockout, world=1):
     """A fresh board. params is the seed behind a rando board, or None for a
-    vanilla+ one."""
+    vanilla+ one; world picks whose rulebook and spawn the goals are built from."""
     rand = random.Random()
     rand.seed(seed)
     if not params:
         return BingoGenerator.get_cards(rand, 25, False, difficulty, True, disc, meta, lockout, False)
-    return BingoGenerator.get_cards(rand, 25, True, difficulty, Variation.OPEN_WORLD in params.variations,
-                                    disc, meta, lockout, Variation.KEYSANITY in params.variations,
-                                    spawn = params.spawn or "Glades")
+    wp = params.world_params(world)
+    return BingoGenerator.get_cards(rand, 25, True, difficulty, Variation.OPEN_WORLD in wp.variations,
+                                    disc, meta, lockout, Variation.KEYSANITY in wp.variations,
+                                    spawn = params.spawn_for(world) or "Glades")
+
+
+def bingo_worlds(params):
+    """The worlds playing bingo. A world opts in with its own Bingo variation, so
+    a multiworld can have exactly one bingo player."""
+    if params.sync.mode != MultiplayerGameType.MULTIWORLD:
+        return []
+    return [w for w in range(1, (params.players or 1) + 1)
+            if Variation.BINGO in params.world_params(w).variations]
+
+
+def bingo_boards_for(params, seed, lockout):
+    """One board per participating world, each from that world's own settings.
+    Seeded apart, so two worlds on the same settings still get different goals."""
+    out = []
+    for w in bingo_worlds(params):
+        wp = params.world_params(w)
+        out.append(BingoWorldBoard(world=w, board=bingo_board_cards(
+            params, wp.bingo_diff, "%s.%s" % (seed, w), wp.bingo_disc,
+            wp.bingo_meta, lockout, world=w)))
+    return out
 
 @app.route('/bingo/new') #BingoCreate =
 def bingo_create_game():
@@ -2245,12 +2267,20 @@ def add_bingo_to_game(game_id):
                 log.info("%s %3d/%s = %s", (name+":").ljust(36), num, test_iters, float(num)/float(test_iters))
             return text_resp("test retry", 420)
 
+        # boards are per world only when more than one world opted in; a single
+        # bingo player is one board, which is the shape everything already knows
+        worlds = bingo_worlds(params)
+        per_world = len(worlds) > 1
+        if per_world:
+            lockout = False     # separate boards never share a square to take
         bingo = BingoGameData(
             id            = game_id,
-            board         = bingo_board_cards(params, difficulty, seed, d, meta, lockout),
+            board         = bingo_board_cards(params, difficulty, seed, d, meta, lockout,
+                                              world=worlds[0] if worlds else 1),
+            boards        = bingo_boards_for(params, seed, lockout) if per_world else [],
             difficulty    = difficulty,
             subtitle      = params.flag_line(),
-            teams_allowed = param_flag("teams"),
+            teams_allowed = param_flag("teams") and not per_world,
             teams_shared  = params.players > 1 and params.sync.mode == MultiplayerGameType.SHARED,
             game          = game.key,
             lockout       = lockout,

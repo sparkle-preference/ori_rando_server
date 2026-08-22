@@ -7,7 +7,7 @@ from google.cloud import ndb
 import models
 from enums import Variation
 from models import Game
-from seedbuilder.seedparams import LOBBY_VARIATIONS, SeedGenParams
+from seedbuilder.seedparams import SeedGenParams
 
 
 class _FakeParams(object):
@@ -59,8 +59,25 @@ class RelicsPerWorldTestCase(unittest.TestCase):
         self.assertEqual(g.relics_for(3), ["Glades"])
 
 
-class LobbyVariationsTestCase(unittest.TestCase):
-    """A game has one bingo board, so a world cannot opt into or out of Bingo."""
+class ResetReadsNoSettingsTestCase(unittest.TestCase):
+    """A reset is progress-only. Settings live in params, which a reset never
+    touches, so a player who re-downloads after one gets their own rulebook
+    without any per-world work here."""
+
+    def test_reset_touches_no_params(self):
+        import inspect
+        src = inspect.getsource(Game.reset)
+        for forbidden in ("params", "variations", "world_settings", "flag_line"):
+            self.assertNotIn(forbidden, src,
+                             "Game.reset started reading settings (%s); per-world state "
+                             "would now need fanning out here" % forbidden)
+
+
+
+
+class PerWorldBingoTestCase(unittest.TestCase):
+    """Bingo is a per-player opt-in: a world takes it on with its own Bingo
+    variation, and gets a board built from its own settings."""
 
     @classmethod
     def setUpClass(cls):
@@ -74,10 +91,10 @@ class LobbyVariationsTestCase(unittest.TestCase):
     def tearDown(self):
         self._ctx.__exit__(None, None, None)
 
-    def params(self, base_vars, world_vars):
-        from seedbuilder.seedparams import MultiplayerOptions
+    def params(self, worlds, base_vars=None):
         from enums import KeyMode, LogicPath, MultiplayerGameType, PathDifficulty
-        p = SeedGenParams(seed="lobbyvars")
+        from seedbuilder.seedparams import MultiplayerOptions, SeedGenParams
+        p = SeedGenParams(seed="perworldbingo")
         p.sync = MultiplayerOptions()
         p.sync.enabled = True
         p.sync.mode = MultiplayerGameType.MULTIWORLD
@@ -85,43 +102,51 @@ class LobbyVariationsTestCase(unittest.TestCase):
         p.logic_paths = [LogicPath.CASUAL_CORE]
         p.key_mode = KeyMode.CLUES
         p.path_diff = PathDifficulty.NORMAL
-        p.players = 2
-        p.variations = base_vars
-        p.world_settings = [{}, {"variations": world_vars}]
+        p.players = len(worlds)
+        p.variations = base_vars if base_vars is not None else []
+        p.world_settings = worlds
         return p
 
-    def test_a_world_cannot_drop_bingo(self):
-        p = self.params([Variation.BINGO, Variation.FORCE_TREES], ["OpenWorld"])
-        self.assertIn(Variation.BINGO, p.world_params(2).variations)
+    def test_one_bingo_player_in_a_multiworld(self):
+        import main
+        p = self.params([{"variations": ["Bingo"]}, {"variations": ["OpenWorld"]}])
+        self.assertEqual(main.bingo_worlds(p), [1], "only the world that opted in plays")
 
-    def test_a_world_cannot_add_bingo(self):
-        p = self.params([Variation.FORCE_TREES], ["OpenWorld", "Bingo"])
-        self.assertNotIn(Variation.BINGO, p.world_params(2).variations)
+    def test_a_late_world_can_be_the_only_one(self):
+        import main
+        p = self.params([{"variations": ["OpenWorld"]}, {"variations": ["Bingo"]}])
+        self.assertEqual(main.bingo_worlds(p), [2])
 
-    def test_everything_else_still_overrides(self):
-        p = self.params([Variation.BINGO, Variation.FORCE_TREES], ["OpenWorld"])
-        got = p.world_params(2).variations
-        self.assertIn(Variation.OPEN_WORLD, got)
-        self.assertNotIn(Variation.FORCE_TREES, got, "a world's own variations still replace the seed's")
+    def test_two_worlds_on_the_same_settings_still_get_different_boards(self):
+        import main
+        p = self.params([{"variations": ["Bingo"]}, {"variations": ["Bingo"]}])
+        self.assertEqual(main.bingo_worlds(p), [1, 2])
+        boards = main.bingo_boards_for(p, "seedstring", False)
+        self.assertEqual([b.world for b in boards], [1, 2])
+        first = [c.name for c in boards[0].board]
+        second = [c.name for c in boards[1].board]
+        self.assertNotEqual(first, second, "each world is seeded apart")
 
-    def test_bingo_is_the_only_one_the_lobby_keeps(self):
-        """Race is a game mode, not a per-world rule, and cannot reach a
-        multiworld at all -- so it needs no pinning here."""
-        self.assertEqual(LOBBY_VARIATIONS, (Variation.BINGO,))
+    def test_a_world_plays_by_its_own_board_settings(self):
+        import main
+        p = self.params([{"variations": ["Bingo"], "bingoDiff": "easy"},
+                         {"variations": ["Bingo"], "bingoDiff": "hard"}])
+        self.assertEqual(p.world_params(1).bingo_diff, "easy")
+        self.assertEqual(p.world_params(2).bingo_diff, "hard")
+        self.assertEqual(p.world_params(1).bingo_lines, p.bingo_lines, "unset keeps the seed's")
 
+    def test_nobody_opted_in_is_no_boards(self):
+        import main
+        p = self.params([{}, {}])
+        self.assertEqual(main.bingo_worlds(p), [])
+        self.assertEqual(main.bingo_boards_for(p, "seedstring", False), [])
 
-class ResetReadsNoSettingsTestCase(unittest.TestCase):
-    """A reset is progress-only. Settings live in params, which a reset never
-    touches, so a player who re-downloads after one gets their own rulebook
-    without any per-world work here."""
-
-    def test_reset_touches_no_params(self):
-        import inspect
-        src = inspect.getsource(Game.reset)
-        for forbidden in ("params", "variations", "world_settings", "flag_line"):
-            self.assertNotIn(forbidden, src,
-                             "Game.reset started reading settings (%s); per-world state "
-                             "would now need fanning out here" % forbidden)
+    def test_board_for_falls_back_to_the_one_board(self):
+        from models import BingoGameData
+        b = BingoGameData()
+        self.assertEqual(b.board_for(1), b.board)
+        self.assertEqual(b.board_for(7), b.board, "one board serves every world")
+        self.assertEqual(b.all_boards(), [b.board])
 
 
 if __name__ == "__main__":
