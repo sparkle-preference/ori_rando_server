@@ -9,7 +9,8 @@ Run from the repo root:  python3 -m unittest test.bingogen_test -v
 import random
 import unittest
 
-from bingo import BingoGenerator, JourneyGoal, journey_key
+from bingo import (BingoGenerator, JourneyGoal, journey_key, journey_pairs, spawn_early_zones,
+                   SPAWN_AREAS, SPAWN_CLUSTER, SPAWN_TELEPORTERS)
 
 # BingoController.Teleporters in the client, verbatim. If these ever disagree,
 # journey cards silently never complete.
@@ -19,12 +20,10 @@ CLIENT_TELEPORTERS = [
 ]
 
 
-def make_goal(easy=False, pairs=None, disp=None):
+def make_goal(easy=False, hard=False, pairs=None, disp=None):
     disp = disp or {t: t.title() for t in CLIENT_TELEPORTERS}
     if pairs is None:
-        easy_only = [{"sunkenGlades", "mangroveFalls"}, {"sunkenGlades", "spiritTree"}, {"swamp", "moonGrotto"}]
-        pairs = [(f, t) for f in disp for t in disp
-                 if f != t and (easy or {f, t} not in easy_only)]
+        pairs = journey_pairs(disp, easy, hard)
     return JourneyGoal(pairs, disp)
 
 
@@ -87,13 +86,13 @@ class TestJourneyGeneration(unittest.TestCase):
 class TestEasyOnlyPairs(unittest.TestCase):
     """The trivial neighbour hops are a free square on a normal board."""
 
-    EASY_ONLY = [("sunkenGlades", "mangroveFalls"), ("sunkenGlades", "spiritTree"), ("swamp", "moonGrotto")]
+    EASY_ONLY = [("sunkenGlades", "mangroveFalls"), ("swamp", "moonGrotto")]
 
-    def _pairs(self, easy):
-        return set(make_goal(easy=easy).pairs)
+    def _pairs(self, **kwargs):
+        return set(make_goal(**kwargs).pairs)
 
     def test_excluded_on_normal_in_both_directions(self):
-        pairs = self._pairs(easy=False)
+        pairs = self._pairs()
         for frm, to in self.EASY_ONLY:
             self.assertNotIn((frm, to), pairs)
             self.assertNotIn((to, frm), pairs)
@@ -104,10 +103,190 @@ class TestEasyOnlyPairs(unittest.TestCase):
             self.assertIn((frm, to), pairs)
             self.assertIn((to, frm), pairs)
 
+    def test_excluded_on_hard_too(self):
+        pairs = self._pairs(hard=True)
+        for frm, to in self.EASY_ONLY:
+            self.assertNotIn((frm, to), pairs)
+            self.assertNotIn((to, frm), pairs)
+
     def test_other_pairs_survive_on_normal(self):
-        pairs = self._pairs(easy=False)
+        pairs = self._pairs()
         self.assertIn(("sunkenGlades", "mountHoru"), pairs)
         self.assertIn(("swamp", "forlorn"), pairs)
+
+
+class TestHardOnlyPairs(unittest.TestCase):
+    """Tedious or dead-end-prone routes: hard boards only, and that means not
+    easy ones either."""
+
+    HARD_ONLY = [
+        ("mangroveB", "mountHoru"),        # out of Lost Grove, always
+        ("mangroveB", "sunkenGlades"),
+        ("valleyOfTheWind", "mangroveB"),  # into Lost Grove from a far well
+        ("forlorn", "mangroveB"),
+        ("mountHoru", "ginsoTree"),        # between two dungeons
+        ("forlorn", "mountHoru"),
+        ("ginsoTree", "valleyOfTheWind"),  # Sorrow's well, not Valley's
+        ("valleyOfTheWind", "ginsoTree"),
+        ("spiritTree", "swamp"),           # anything touching Grove
+        ("mountHoru", "spiritTree"),
+    ]
+    NOT_HARD_ONLY = [
+        ("sunkenGlades", "mangroveB"),     # a near approach into Lost Grove
+        ("moonGrotto", "mangroveB"),
+        ("mangroveFalls", "mangroveB"),
+        ("swamp", "mangroveB"),
+        ("horuFields", "mountHoru"),       # Horu Fields is not a dungeon
+        ("sorrowPass", "ginsoTree"),       # Valley's well, not Sorrow's
+        ("valleyOfTheWind", "forlorn"),    # Sorrow to a dungeon is fine
+    ]
+
+    def test_only_on_hard(self):
+        hard = set(make_goal(hard=True).pairs)
+        for difficulty in [{}, {"easy": True}]:
+            pairs = set(make_goal(**difficulty).pairs)
+            for pair in self.HARD_ONLY:
+                self.assertIn(pair, hard, "%s should be a hard journey" % (pair,))
+                self.assertNotIn(pair, pairs, "%s: %s" % (difficulty, pair))
+
+    def test_pairs_that_stay_available(self):
+        pairs = set(make_goal().pairs)
+        for pair in self.NOT_HARD_ONLY:
+            self.assertIn(pair, pairs)
+
+    def test_lost_grove_is_one_way_below_hard(self):
+        # you may walk in from a neighbour, never out
+        pairs = set(make_goal().pairs)
+        self.assertFalse([p for p in pairs if p[0] == "mangroveB"])
+        self.assertTrue([p for p in pairs if p[1] == "mangroveB"])
+
+
+class TestSpawnTeleporter(unittest.TestCase):
+    """Spawn hands you its own well, so that one can't carry a card alone."""
+
+    BOARDS = 60
+
+    def _free_squares(self, spawn):
+        """Wells that rolled as the whole card, or inside an 'either'."""
+        seen = set()
+        for seed in range(self.BOARDS):
+            rand = random.Random()
+            rand.seed(str(seed))
+            for card in BingoGenerator.get_cards(rand, 25, rando=True, spawn=spawn):
+                if card.name != "ActivateTeleporter":
+                    continue
+                if len(card.subgoals) == 1 or card.goal_method.startswith("or"):
+                    seen |= {sg["name"] for sg in card.subgoals}
+        return seen
+
+    def test_the_spawn_well_is_excluded(self):
+        for spawn, well in [("Glades", "sunkenGlades"), ("Sorrow", "valleyOfTheWind"), ("Horu", "mountHoru")]:
+            free = self._free_squares(spawn)
+            self.assertNotIn(well, free, "%s spawn" % spawn)
+            self.assertTrue(free, "%s spawn: no wells rolled free at all" % spawn)
+
+    def test_other_wells_are_not(self):
+        # the tags used to be pinned to Glades; a non-Glades spawn frees it up
+        self.assertIn("sunkenGlades", self._free_squares("Sorrow"))
+        self.assertIn("valleyOfTheWind", self._free_squares("Glades"))
+
+    def test_an_unresolved_spawn_excludes_nothing(self):
+        # multiworld + random spawn leaves params.spawn == "Random"
+        free = self._free_squares("Random")
+        self.assertIn("sunkenGlades", free)
+        self.assertIn("valleyOfTheWind", free)
+
+    def test_every_spawn_zone_maps_to_a_client_teleporter(self):
+        for well in SPAWN_TELEPORTERS.values():
+            self.assertIn(well, CLIENT_TELEPORTERS)
+
+
+def roll_boards(spawn, difficulty="normal", boards=60):
+    for seed in range(boards):
+        rand = random.Random()
+        rand.seed("%s%s%s" % (spawn, difficulty, seed))
+        for card in BingoGenerator.get_cards(rand, 25, rando=True, difficulty=difficulty, spawn=spawn):
+            yield card
+
+
+class TestSpawnArea(unittest.TestCase):
+    """Spawning inside an area means entering it is free, same as its well."""
+
+    def _free_squares(self, spawn):
+        seen = set()
+        for card in roll_boards(spawn):
+            if card.name == "EnterArea" and (len(card.subgoals) == 1 or card.goal_method.startswith("or")):
+                seen |= {sg["name"] for sg in card.subgoals}
+        return seen
+
+    def test_the_spawn_area_is_excluded(self):
+        for spawn, area in SPAWN_AREAS.items():
+            free = self._free_squares(spawn)
+            self.assertNotIn(area, free, "%s spawn" % spawn)
+            self.assertTrue(free, "%s spawn: no areas rolled free at all" % spawn)
+
+    def test_areas_you_did_not_spawn_in_are_not(self):
+        free = self._free_squares("Glades")
+        for area in SPAWN_AREAS.values():
+            if area != "Ginso Tree":  # already no_singleton on its own
+                self.assertIn(area, free)
+
+
+class TestSpawnEarlyZones(unittest.TestCase):
+    def test_the_spawn_zone_opens_itself(self):
+        for zone in ["Sorrow", "Valley", "Forlorn", "Horu", "Ginso", "Blackroot"]:
+            self.assertIn(zone, spawn_early_zones(zone))
+
+    def test_the_opening_cluster_shares_its_zones(self):
+        for spawn in SPAWN_CLUSTER:
+            self.assertLessEqual({"Glades", "Grove", "Grotto"}, spawn_early_zones(spawn))
+
+    def test_sorrow_reaches_valley_and_misty(self):
+        self.assertEqual(spawn_early_zones("Sorrow"), {"Sorrow", "Valley", "Misty"})
+
+    def test_swamp_is_never_early(self):
+        # the Swamp well doesn't reach most of the zone, spawn or not
+        for spawn in list(SPAWN_TELEPORTERS) + ["Random"]:
+            self.assertNotIn("Swamp", spawn_early_zones(spawn))
+
+    def test_an_unresolved_spawn_opens_nothing(self):
+        self.assertFalse(spawn_early_zones("Random") & set(SPAWN_TELEPORTERS))
+
+    def test_the_early_cap_is_a_slice_of_the_roll_range(self):
+        # Glades rolls (8,15) easy / (10,22) normal / (16,27) hard
+        for difficulty, cap in [("easy", 9), ("normal", 13), ("hard", 20)]:
+            hi, lo = 0, 99
+            for card in roll_boards("Glades", difficulty, boards=300):
+                if card.name != "PickupsInGlades":
+                    continue
+                if card.early:
+                    hi = max(hi, card.target)
+                else:
+                    lo = min(lo, card.target)
+            self.assertEqual(hi, cap, difficulty)
+            self.assertEqual(lo, cap + 1, difficulty)
+
+    def test_a_zone_spawn_does_not_open_the_others(self):
+        early = {c.name for c in roll_boards("Forlorn", boards=200) if c.early and c.name.startswith("PickupsIn")}
+        self.assertEqual(early, {"PickupsInForlorn"})
+
+
+class TestClusterEarlyGoals(unittest.TestCase):
+    """Spidersack and Blackroot-crusher goals assume the opening cluster."""
+
+    def _early_names(self, spawn, group):
+        return {sg["name"] for card in roll_boards(spawn, boards=120)
+                if card.name == group and card.early for sg in card.subgoals}
+
+    def test_pickup_locations_are_early_only_in_the_cluster(self):
+        self.assertTrue({"SpiderSacEnergyDoor", "GladesLaser"} & self._early_names("Grotto", "GetItemAtLoc"))
+        self.assertFalse(self._early_names("Sorrow", "GetItemAtLoc"))
+
+    def test_deaths_are_early_only_in_the_cluster(self):
+        cluster = self._early_names("Blackroot", "DieTo")
+        for name in ["Spidersack Spikes", "Blackroot Teleporter Crushers", "Grotto Vault Lasers"]:
+            self.assertIn(name, cluster)
+        self.assertFalse(self._early_names("Horu", "DieTo"))
 
 
 class TestJourneyInProgress(unittest.TestCase):
@@ -175,6 +354,14 @@ class TestBoardGeneration(unittest.TestCase):
                 origins = [c.subgoals[0]["name"].partition("-")[0] for c in journeys]
                 self.assertEqual(len(set(origins)), len(origins))
         self.assertTrue(seen_any, "no journey cards rolled in 25 boards")
+
+    def test_zone_pickup_cards_are_capped(self):
+        counts = set()
+        for seed in range(40):
+            cards = self._board(str(seed))
+            counts.add(len([c for c in cards if c.disp_name.startswith("Collect Pickups In")]))
+        self.assertLessEqual(max(counts), 3)
+        self.assertGreaterEqual(min(counts), 2)
 
     def test_generation_is_deterministic(self):
         first = [c.disp_name for c in self._board("determinism")]

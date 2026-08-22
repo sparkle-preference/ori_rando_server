@@ -1712,7 +1712,8 @@ def bingo_board_cards(params, difficulty, seed, disc, meta, lockout):
     if not params:
         return BingoGenerator.get_cards(rand, 25, False, difficulty, True, disc, meta, lockout, False)
     return BingoGenerator.get_cards(rand, 25, True, difficulty, Variation.OPEN_WORLD in params.variations,
-                                    disc, meta, lockout, Variation.KEYSANITY in params.variations)
+                                    disc, meta, lockout, Variation.KEYSANITY in params.variations,
+                                    spawn = params.spawn or "Glades")
 
 @app.route('/bingo/new') #BingoCreate =
 def bingo_create_game():
@@ -1915,7 +1916,7 @@ def add_bingo_to_game(game_id):
             for i in range(test_iters):
                 iseed = seed+str(i)
                 rand.seed(iseed)
-                cards = BingoGenerator.get_cards(rand, 25, True, difficulty, Variation.OPEN_WORLD in params.variations, d, meta, lockout, Variation.KEYSANITY in params.variations)
+                cards = BingoGenerator.get_cards(rand, 25, True, difficulty, Variation.OPEN_WORLD in params.variations, d, meta, lockout, Variation.KEYSANITY in params.variations, spawn = params.spawn or "Glades")
 
                 if not all([card.square in range(2,23,5) for card in cards if card.name == "VertSym"]):
                     log.error("seed %s: VertSym: %s", iseed, [(card.square, card.square in range(2,23,5)) for card in cards if card.name == "VertSym"])

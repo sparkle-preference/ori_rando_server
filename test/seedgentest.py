@@ -1350,6 +1350,7 @@ class BingoBoltOnGateTests(unittest.TestCase):
             variations = []
             players = 2
             player_names = []
+            spawn = "Glades"
             sync = _Sync()
 
             def flag_line(self):

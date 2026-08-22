@@ -133,6 +133,55 @@ def journey_key(frm, to):
     # must match BingoController.JourneyKey in the client
     return "%s-%s" % (frm, to)
 
+# well ids, not zone names: Sorrow's well is valleyOfTheWind and Valley's is
+# sorrowPass. Mirrors Randomizer.TeleportTable in the client.
+SPAWN_TELEPORTERS = {
+    "Glades": "sunkenGlades", "Grove": "spiritTree", "Swamp": "swamp",
+    "Grotto": "moonGrotto", "Forlorn": "forlorn", "Valley": "sorrowPass",
+    "Horu": "mountHoru", "Ginso": "ginsoTree", "Sorrow": "valleyOfTheWind",
+    "Blackroot": "mangroveFalls",
+}
+# EnterArea subgoals you can spawn in
+SPAWN_AREAS = {"Sorrow": "Sorrow Pass", "Forlorn": "Forlorn Ruins", "Horu": "Mount Horu", "Ginso": "Ginso Tree"}
+FREE_SQUARE_TAGS = {"no_or", "no_singleton", "early"}
+# the connected opening; spawning anywhere in it opens the same zones
+SPAWN_CLUSTER = {"Glades", "Grove", "Grotto", "Blackroot", "Swamp"}
+CLUSTER_ZONES = {"Glades", "Grove", "Grotto"}
+# most of Swamp is out of reach from the Swamp well, so no spawn makes it early
+NEVER_EARLY_ZONES = {"Swamp"}
+
+def spawn_early_zones(spawn):
+    """Pickup zones a spawn puts within early reach."""
+    zones = {spawn} | (CLUSTER_ZONES if spawn in SPAWN_CLUSTER else set())
+    if spawn == "Sorrow":
+        zones |= {"Valley", "Misty"}
+    return zones - NEVER_EARLY_ZONES
+
+GROVE_WELL = "spiritTree"
+SORROW_WELL = "valleyOfTheWind"
+LOST_GROVE = "mangroveB"
+LOST_GROVE_APPROACHES = {"mangroveFalls", "sunkenGlades", "moonGrotto", "swamp"}
+DUNGEON_WELLS = {"mountHoru", "ginsoTree", "forlorn"}
+# adjacent hops: a free square, so easy boards only
+EASY_ONLY_JOURNEYS = [{"sunkenGlades", "mangroveFalls"}, {"sunkenGlades", "spiritTree"}, {"swamp", "moonGrotto"}]
+
+def hard_only_journey(frm, to):
+    """Journeys too tedious for a normal board -- plus Grove, which may not be
+    completable at all."""
+    pair = {frm, to}
+    return (frm == LOST_GROVE
+            or (to == LOST_GROVE and frm not in LOST_GROVE_APPROACHES)
+            or pair <= DUNGEON_WELLS
+            or pair == {SORROW_WELL, "ginsoTree"}
+            or GROVE_WELL in pair)
+
+def journey_pairs(wells, easy = False, hard = False):
+    """The ordered well pairs a board of this difficulty may draw from."""
+    return [(frm, to) for frm in wells for to in wells
+            if frm != to
+            and (easy or {frm, to} not in EASY_ONLY_JOURNEYS)
+            and (hard or not hard_only_journey(frm, to))]
+
 class JourneyGoal(BingoGoal):
     """One card, one ordered pair of spirit wells -- no composing, no counts.
 
@@ -178,7 +227,7 @@ def namef(verb, noun, plural_form = None):
 
 class BingoGenerator(object):
     @staticmethod
-    def get_cards(rand, count = 25, rando = False, difficulty = "normal", open_world = True, discovery = 0, meta = False, lockout = False, keysanity = False):
+    def get_cards(rand, count = 25, rando = False, difficulty = "normal", open_world = True, discovery = 0, meta = False, lockout = False, keysanity = False, spawn = "Glades"):
         easy = difficulty == "easy"
         hard = difficulty == "hard"
 
@@ -186,10 +235,27 @@ class BingoGenerator(object):
             low, high = easy_params if easy else (hard_params if hard else params)
             func = (lambda: rand.randint(low, high)*scalar) if flat else (lambda: int(round(rand.triangular(low, high, (low+high) * 3.0 / 5.0)))*scalar)
             func.min = low
+            func.max = high
             return func
 
+        early_zones = spawn_early_zones(spawn)
+        early_frac = 0.15 if easy else (0.4 if hard else 0.25)
+        cluster_early = ["early"] if spawn in SPAWN_CLUSTER else []
+
+        def zone_pickups(zone, easy_range, params_range, hard_range):
+            rf = r(easy_range, params_range, hard_range)
+            return IntGoal(
+                name = "PickupsIn%s" % zone,
+                disp_name = "Collect Pickups In %s" % zone,
+                help_lines = ["You can use the stats feature (alt+5 by default) to see your pickup counts by zone.", "Mapstone turn-ins are not in any zone."],
+                range_func = rf,
+                # a slice of the roll range counts as early where spawn opens the zone up
+                early_max = max(rf.min + 1, int(round(rf.min + early_frac * (rf.max - rf.min)))) if zone in early_zones else None,
+                tags = ["pickups_in_zone"]
+            )
+
         tpGoals = [
-            BoolGoal(name = "sunkenGlades", disp_name = "Sunken Glades", tags = ["no_or", "no_singleton", "early"]),
+            BoolGoal(name = "sunkenGlades", disp_name = "Sunken Glades", tags = [ "early" ]),
             BoolGoal(name = "moonGrotto", disp_name = "Moon Grotto", tags = [ "early" ]),
             BoolGoal(name = "mangroveFalls", disp_name = "Blackroot Burrows", tags = [ "early" ]),
             BoolGoal(name = "valleyOfTheWind", disp_name = "Sorrow Pass"),
@@ -205,12 +271,22 @@ class BingoGenerator(object):
             tpGoals += [
                 BoolGoal(name = "swamp", disp_name = "Thornfelt Swamp", tags = [ "early" ]),
             ]
-        # journeys are drawn from whatever wells this seed actually has; adjacent
-        # pairs are a free square anywhere but easy
+        areaGoals = [
+            BoolGoal("Lost Grove", help_lines = ["The upper boundary is the grenade door after the fight room, where the music changes"]),
+            BoolGoal("Misty Woods", help_lines = ["The first green frog is far enough"]),
+            BoolGoal("Sorrow Pass", help_lines = ["The lower boundary is where the always-on wind begins"]),
+            BoolGoal("Forlorn Ruins", help_lines = ["Requires the Gumon Seal or Forlorn TP. The Forlorn approach is in Valley, not Forlorn"]),
+            BoolGoal("Mount Horu", help_lines = ["Requires the Sunstone or Horu TP. Horu Fields is in Grove, not Horu"]),
+            BoolGoal("Ginso Tree", help_lines = ["Requires the Water Vein or Ginso TP"], tags = ["no_singleton"])
+        ]
+        # spawn hands you its own well and area, so neither can carry a card alone
+        free_squares = {SPAWN_TELEPORTERS.get(spawn), SPAWN_AREAS.get(spawn)}
+        for goal in tpGoals + areaGoals:
+            if goal.name in free_squares:
+                goal.tags |= FREE_SQUARE_TAGS
+        # journeys are drawn from whatever wells this seed actually has
         tp_disp = {goal.name: goal.disp_name for goal in tpGoals}
-        easy_only_journeys = [{"sunkenGlades", "mangroveFalls"}, {"sunkenGlades", "spiritTree"}, {"swamp", "moonGrotto"}]
-        journey_pairs = [(frm, to) for frm in tp_disp for to in tp_disp
-                         if frm != to and (easy or {frm, to} not in easy_only_journeys)]
+        journeys = journey_pairs(tp_disp, easy, hard)
         goals = [
             BoolGoal(
                 name = "DrainSwamp",
@@ -308,87 +384,17 @@ class BingoGenerator(object):
                 help_lines = ["Large swarms count as 3 enemies (the initial swarm and the first split)"],
                 range_func = r((25, 75), (50, 125), (75, 175))                
             ),
-            IntGoal(
-                name = "PickupsInGlades",
-                disp_name = "Collect Pickups In Glades",
-                help_lines = ["You can use the stats feature (alt+5 by default) to see your pickup counts by zone.", "Mapstone turn-ins are not in any zone."],
-                range_func = r((8, 15), (10, 22), (16, 27)),
-                early_max = 16,
-                tags = ["pickups_in_zone"]
-            ),
-            IntGoal(
-                name = "PickupsInGrove",
-                disp_name = "Collect Pickups In Grove",
-                help_lines = ["You can use the stats feature (alt+5 by default) to see your pickup counts by zone.", "Mapstone turn-ins are not in any zone."],
-                range_func = r((7, 14), (10, 19), (16, 26)),
-                tags = ["pickups_in_zone"],
-                early_max = 9
-            ),
-            IntGoal(
-                name = "PickupsInGrotto",
-                disp_name = "Collect Pickups In Grotto",
-                help_lines = ["You can use the stats feature (alt+5 by default) to see your pickup counts by zone.", "Mapstone turn-ins are not in any zone."],
-                range_func = r((8, 16), (12, 28), (20, 33)),
-                tags = ["pickups_in_zone"],
-                early_max = 12
-            ),
-            IntGoal(
-                name = "PickupsInBlackroot",
-                disp_name = "Collect Pickups In Blackroot",
-                help_lines = ["You can use the stats feature (alt+5 by default) to see your pickup counts by zone.", "Mapstone turn-ins are not in any zone."],
-                range_func = r((4, 10), (7, 15), (10, 19)),
-                tags = ["pickups_in_zone"],
-                early_max = 8
-            ),
-            IntGoal(
-                name = "PickupsInSwamp",
-                disp_name = "Collect Pickups In Swamp",
-                help_lines = ["You can use the stats feature (alt+5 by default) to see your pickup counts by zone.", "Mapstone turn-ins are not in any zone."],
-                range_func = r((4, 10), (7, 16), (11, 20)),
-                tags = ["pickups_in_zone"]                
-            ),
-            IntGoal(
-                name = "PickupsInGinso",
-                disp_name = "Collect Pickups In Ginso",
-                help_lines = ["You can use the stats feature (alt+5 by default) to see your pickup counts by zone.", "Mapstone turn-ins are not in any zone."],
-                range_func = r((6, 12), (8, 18), (12, 22)),
-                tags = ["pickups_in_zone"]
-            ),
-            IntGoal(
-                name = "PickupsInValley",
-                disp_name = "Collect Pickups In Valley",
-                help_lines = ["You can use the stats feature (alt+5 by default) to see your pickup counts by zone.", "Mapstone turn-ins are not in any zone."],
-                range_func = r((4, 9), (7, 14), (11, 18)),
-                tags = ["pickups_in_zone"]
-            ),
-        IntGoal(
-                name = "PickupsInMisty",
-                disp_name = "Collect Pickups In Misty",
-                help_lines = ["You can use the stats feature (alt+5 by default) to see your pickup counts by zone.", "Mapstone turn-ins are not in any zone."],
-                range_func = r((4, 8), (6, 13), (10, 16)),
-                tags = ["pickups_in_zone"]
-            ),
-            IntGoal(
-                name = "PickupsInForlorn",
-                disp_name = "Collect Pickups In Forlorn",
-                help_lines = ["You can use the stats feature (alt+5 by default) to see your pickup counts by zone.", "Mapstone turn-ins are not in any zone."],
-                range_func = r((3, 6), (5, 9), (8, 10)),
-                tags = ["pickups_in_zone"]
-            ),
-            IntGoal(
-                name = "PickupsInSorrow",
-                disp_name = "Collect Pickups In Sorrow",
-                help_lines = ["You can use the stats feature (alt+5 by default) to see your pickup counts by zone.", "Mapstone turn-ins are not in any zone."],
-                range_func = r((7, 14), (8, 19), (16, 26)),
-                tags = ["pickups_in_zone"]
-            ),
-            IntGoal(
-                name = "PickupsInHoru",
-                disp_name = "Collect Pickups In Horu",
-                help_lines = ["You can use the stats feature (alt+5 by default) to see your pickup counts by zone.", "Mapstone turn-ins are not in any zone."],
-                range_func = r((4, 10), (7, 15), (10, 19)),
-                tags = ["pickups_in_zone"]
-            ),
+            zone_pickups("Glades",     (8, 15),  (10, 22), (16, 27)),
+            zone_pickups("Grove",      (7, 14),  (10, 19), (16, 26)),
+            zone_pickups("Grotto",     (8, 16),  (12, 28), (20, 33)),
+            zone_pickups("Blackroot",  (4, 10),  (7, 15),  (10, 19)),
+            zone_pickups("Swamp",      (4, 10),  (7, 16),  (11, 20)),
+            zone_pickups("Ginso",      (6, 12),  (8, 18),  (12, 22)),
+            zone_pickups("Valley",     (4, 9),   (7, 14),  (11, 18)),
+            zone_pickups("Misty",      (4, 8),   (6, 13),  (10, 16)),
+            zone_pickups("Forlorn",    (3, 6),   (5, 9),   (8, 10)),
+            zone_pickups("Sorrow",     (7, 14),  (8, 19),  (16, 26)),
+            zone_pickups("Horu",       (4, 10),  (7, 15),  (10, 19)),
             GoalGroup(
                 name = "CompleteHoruRoom", 
                 name_func = namef("Complete", "Horu room"),
@@ -421,19 +427,12 @@ class BingoGenerator(object):
                     ],
                 max_repeats = 3
                 ),
-            JourneyGoal(journey_pairs, tp_disp),
+            JourneyGoal(journeys, tp_disp),
             GoalGroup(
                 name = "EnterArea",
                 name_func = namef("Enter", "area"),
                 help_lines = ["Enter these areas (either manually or by teleporting into them)"],
-                goals = [
-                    BoolGoal("Lost Grove", help_lines = ["The upper boundary is the grenade door after the fight room, where the music changes"]),
-                    BoolGoal("Misty Woods", help_lines = ["The first green frog is far enough"]),
-                    BoolGoal("Sorrow Pass", help_lines = ["The lower boundary is where the always-on wind begins"]),
-                    BoolGoal("Forlorn Ruins", help_lines = ["Requires the Gumon Seal or Forlorn TP. The Forlorn approach is in Valley, not Forlorn"]),
-                    BoolGoal("Mount Horu", help_lines = ["Requires the Sunstone or Horu TP. Horu Fields is in Grove, not Horu"]),
-                    BoolGoal("Ginso Tree", help_lines = ["Requires the Water Vein or Ginso TP"], tags = ["no_singleton"])
-                ],
+                goals = areaGoals, # defined above for reasons
                 methods = [
                     ("or", r((2, 3), (2, 2), (1, 1), flat=True)), 
                     ("and", r((1, 1), (1, 2), (2, 3), flat=True))
@@ -447,10 +446,10 @@ class BingoGenerator(object):
                 goals = [
                     BoolGoal(name = "LostGroveLongSwim", disp_name = "Lost Grove Swim AC", help_lines = ["The ability cell behind the hidden underwater crushers in Lost Grove"]),
                     BoolGoal(name = "ValleyEntryGrenadeLongSwim", disp_name = "Valley Long Swim", help_lines = ["The energy cell at the end of the grenade-locked swim in Valley entry"]),
-                    BoolGoal(name = "SpiderSacEnergyDoor", disp_name = "Spider Energy Door", help_lines = ["The ability cell behind the energy door in the spidersac area right of the Spirit Tree"], tags = [ "early" ]),
+                    BoolGoal(name = "SpiderSacEnergyDoor", disp_name = "Spider Energy Door", help_lines = ["The ability cell behind the energy door in the spidersac area right of the Spirit Tree"], tags = cluster_early),
                     BoolGoal(name = "SorrowHealthCell", disp_name = "Sorrow HC", help_lines = ["The health cell in the room above the lowest keystone door in Sorrow"]),
                     BoolGoal(name = "SunstonePlant", disp_name = "Sunstone Plant", help_lines = ["The plant at the top of Sorrow"]),
-                    BoolGoal(name = "GladesLaser", disp_name = "Gladzer EC", help_lines = ["The energy cell in the Glades Laser area, reachable via a hidden 4 energy door in Spirit Caverns"],tags = [ "early" ]),
+                    BoolGoal(name = "GladesLaser", disp_name = "Gladzer EC", help_lines = ["The energy cell in the Glades Laser area, reachable via a hidden 4 energy door in Spirit Caverns"], tags = cluster_early),
                     BoolGoal(name = "LowerBlackrootLaserAbilityCell", disp_name = "BRB Right Laser AC", help_lines = ["The ability cell to the far right of the lower BRB area, past the very long laser"]),
                     BoolGoal(name = "MistyGrenade", disp_name = "Misty Grenade EX", help_lines = ["The grenade-locked Exp orb near the very end of Misty"]),
                     BoolGoal(name = "LeftSorrowGrenade", disp_name = "Sorrow Grenade EX", help_lines = ["The grenade-locked Exp orb in the far left part of lower Sorrow"]),
@@ -562,15 +561,15 @@ class BingoGenerator(object):
                     BoolGoal(name = "Horu Fields Acid", help_lines = ["The yellowish liquid in the lower area of the main Horu Fields room"]),
                     BoolGoal(name = "Doorwarp Lava", help_lines = ["The lava at the very bottom of Horu"]),
                     BoolGoal(name = "Ginso Escape Fronkey", disp_name = "Ginso Escape Fronkey", help_lines = ["Any fronkey in the Ginso Escape (you can complete the escape and come back via the teleporter)"]),
-                    BoolGoal(name = "Blackroot Teleporter Crushers", disp_name = "BRB TP Crushers", help_lines = ["The crushers below the Blackroot Teleporter"], tags = ["early"]),
+                    BoolGoal(name = "Blackroot Teleporter Crushers", disp_name = "BRB TP Crushers", help_lines = ["The crushers below the Blackroot Teleporter"], tags = cluster_early),
                     BoolGoal(name = "NoobSpikes", disp_name = "Sorrow Spike Maze", help_lines = ["The long spike maze room in upper sorrow with 2 keystones on each side"]),
                     BoolGoal(name= "Right Forlorn Laser", help_lines = ["The lasers above the HC and rightmost plant in Forlorn"]),
                     BoolGoal(name= "Misty Vertical Lasers", help_lines = ["The vertical lasers past the 3rd keystone in Misty"]),
                     BoolGoal(name = "Valley Map Baneling", help_lines = ["The baneling in the hallway below the Valley map altar"]),
                     BoolGoal(name = "R1 Door Baneling", help_lines = ["The baneling that guards R1 door at the top of the Horu hub"]),
                     BoolGoal(name = "Swamp Swim Crushers", help_lines = ["The crushing platforms in the Swamp swim section"]),
-                    BoolGoal(name = "Grotto Vault Lasers", help_lines = ["The lasers in the Grotto 4-energy vault"]),
-                    BoolGoal(name = "Spidersack Spikes", help_lines = ["The instant-death spikes below the Spider Sac in Grove"]),
+                    BoolGoal(name = "Grotto Vault Lasers", help_lines = ["The lasers in the Grotto 4-energy vault"], tags = cluster_early),
+                    BoolGoal(name = "Spidersack Spikes", help_lines = ["The instant-death spikes below the Spider Sac in Grove"], tags = cluster_early),
                     BoolGoal(name = "Valley Floor Frogs", help_lines = ["The green frogs at the bottom of the giant room in Valley"])
                 ],
                 methods = [
@@ -770,7 +769,7 @@ class BingoGenerator(object):
         groupSeen = defaultdict(lambda: (1, [], []))
         cards = []
         goals = [goal for goal in goals]
-        pickups_in = rand.randint(2,4)
+        pickups_in = rand.randint(2,3)
         patience = 7 * discovery
         meta_count = int(round(rand.triangular(2, 5, 2.75))) if meta else 0
         is_disc = discovery > 0
