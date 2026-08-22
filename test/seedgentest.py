@@ -77,6 +77,17 @@ class SeedGenTests(unittest.TestCase):
         second = self._generate([])
         self.assertEqual(first, second, "same seed string produced different seeds")
 
+    def test_determinism_with_relics(self):
+        """World Tour picks relics out of an imported module-level dict. Anything
+        that mutates it makes the next generation in the process roll differently,
+        which a fresh-process test cannot see."""
+        args = ["--world-tour", "8"]
+        first = self._generate(args)
+        shutil.rmtree(self.out)
+        self.out = tempfile.mkdtemp(prefix="seedgentest_")
+        second = self._generate(args)
+        self.assertEqual(first, second, "same seed string produced different relic seeds")
+
     # Seed-output canary. If this fails, generation output changed for
     # existing seed strings: that can be fine (deliberate generator change),
     # but it means users re-generating an old seed get a DIFFERENT seed.

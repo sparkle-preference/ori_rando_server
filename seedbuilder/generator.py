@@ -1181,8 +1181,11 @@ class SeedGenerator:
     def choose_relic_for_zone(self, zone):
         if zone not in relics:  # e.g. a WT|* preplaced on a mapstone; pick any zone's relic
             zone = self.random.choice(list(relics.keys()))
-        self.random.shuffle(relics[zone])
-        return relics[zone][0]
+        # shuffle a copy: relics is imported module state, and mutating it makes
+        # every later generation in the process roll from a different order
+        zone_relics = list(relics[zone])
+        self.random.shuffle(zone_relics)
+        return zone_relics[0]
 
     def get_all_accessible_locations(self):
         locations = []
