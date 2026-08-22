@@ -1098,17 +1098,59 @@ const getHelpHelper = (category, option) => {
                         ];
                         break;
     
-                case "reroll":
-                    title = "Reroll Last Seed"
+                case "savedSettings":
+                    title = "Load Preset"
                     lines = [
-                        "Generates a brand-new seed with the same options and settings selected in the last seed you played while logged into the site."
+                        "Picking a preset fills the form in with its options, replacing what's there now.",
+                        "\"Default\" is the settings the page starts with, and \"Last Seed\" is the ones you played most recently.",
+                        "A saved preset leaves the multiplayer tab alone, so the same one works solo, in co-op, or as one world of a multiworld.",
+                        "A * means you've changed something since loading."
                     ]
                     break;
-                case "rerollDisabled":
-                    title = "Reroll Last Seed"
+                case "savedSettingsDisabled":
+                    title = "Load Preset"
                     lines = [
-                        "Generates a brand-new seed with the same options and settings selected in the last seed you played while logged into the site.",
-                        "(You need to be logged in to use this button)"
+                        "Picking a preset fills the form in with its options.",
+                        "\"Default\" is the settings the page starts with. Log in to save your own."
+                    ]
+                    break;
+                case "updatePreset":
+                    title = "Update Preset"
+                    lines = [
+                        "Saves your current options over the preset you have loaded, keeping its name."
+                    ]
+                    break;
+                case "updatePresetDisabled":
+                    title = "Update Preset"
+                    lines = ["Load one of your own presets and change something, or use Save Preset As."]
+                    break;
+                case "presetManage":
+                    title = "Preset Settings"
+                    lines = ["Rename this preset, change its description, choose who can open its link, or delete it."]
+                    break;
+                case "presetManageDisabled":
+                    title = "Preset Settings"
+                    lines = ["Load one of your own presets to rename, share or delete it."]
+                    break;
+                case "noLatest":
+                    title = "Last Seed"
+                    lines = ["You haven't generated a seed yet, so there are no options to take."]
+                    break;
+                case "saveSettings":
+                    title = "Save Preset As..."
+                    lines = [
+                        "Saves the options you have selected as a preset, under a name you choose.",
+                        "A preset gets a link you can hand to anyone, and opening it fills in their form to match."
+                    ]
+                    break;
+                case "saveSettingsDisabled":
+                    title = "Save Preset As..."
+                    lines = ["Log in to save presets."]
+                    break;
+                case "reroll":
+                    title = "Generate"
+                    lines = [
+                        "Rolls a brand-new seed with the same options as the last seed you played."
                     ]
                     break;
                 case "logicModes":

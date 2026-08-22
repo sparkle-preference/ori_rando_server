@@ -39,6 +39,22 @@ const partToSegs = (p) => p.replaceAll("/", "//").replace(/\|/g, "/");
 const partsToPickup = (parts) => parts.length === 0 ? "NO|1" : (parts.length === 1 ? parts[0] : "MU|" + parts.map(partToSegs).join("/"));
 const fassDefaultsFor = (world) => [2, 919772, -1560272, 799776, -120208].map(coords => ({loc: locOptionFromCoords(coords), item: "NO|1", world: world, owner: world}));
 const apDefaultExport = ["skills", "teleporters", "events"];
+const GOAL_VARS = ["ForceTrees", "WorldTour", "ForceMaps", "WarmthFrags", "Bingo"];
+// a preset describes one world, so a load drops the lobby. Mirrors SSP_DENY.
+const SSP_LOBBY_KEYS = ["players", "playerNames", "coopGenMode", "coopGameMode", "dedupShared",
+                        "antiBkBias", "syncShared", "shared", "teams", "apMode", "apExport", "apDeathLink"];
+// dropped by every load path, lobby or not: the seed box is the user's to type,
+// and the rest are outputs of a finished seed rather than form inputs.
+const PRESET_NEVER_LOAD = ["seed", "flagLine", "isPlando", "spoilers", "teamStr"];
+// seedgen spells keymode None "Default" on the wire; the dropdown doesn't
+const keyModeFromJson = (mode) => mode === "Default" ? "None" : mode;
+// dropdown entries nobody can save over; "latest" carries its lobby, alone.
+const PRESET_LAST = "latest", PRESET_DEFAULT = "default";
+const PRESET_RESERVED = [PRESET_LAST, PRESET_DEFAULT];
+const presetLabel = (name) => name === PRESET_LAST ? "Last Seed"
+                            : name === PRESET_DEFAULT ? "Default" : name;
+// key order varies with which optional fields are set, so compare canonically
+const canonSettings = (json) => JSON.stringify(Object.keys(json || {}).sort().map(k => [k, json[k]]));
 const PLAYER_NAME_MAX = 20;  // matches ap_models.PLAYER_NAME_MAX
 const AP_DEFAULT_HOST = "archipelago.gg";
 // ap/status idle stepdown: a forgotten tab can be visible, so hidden-gating
@@ -743,14 +759,11 @@ onDrop = (files) => {
     }
 
 
-    generateSeed = () => {
+    // the seedgen form as SeedGenParams reads it, minus the seed: seed
+    // generation and saving a setting need the same fields
+    paramsJson = () => {
         let pMap = {"Race": "None", "None": "Default", "Co-op": "Shared", "World Events": "WorldEvents", "Cloned Seeds": "cloned", "Seperate Seeds": "disjoint"}
         let url = "/generator/build"
-        if(this.apAvailable() && this.state.apMode && this.state.apExport.length === 0) {
-            NotificationManager.error("Select at least one Archipelago export category", "Cannot generate seed!", 5000)
-            this.setState({activeTab: 'multiplayer'})
-            return
-        }
         let f = (p) => pMap.hasOwnProperty(p) ? pMap[p] : p
         let json = {
             "keyMode": f(this.state.keyMode),
@@ -830,6 +843,16 @@ onDrop = (files) => {
             json.apDeathLink = this.state.apDeathLink
             url += url.includes("?") ? "&ap_test=1" : "?ap_test=1"
         }
+        return {json: json, url: url}
+    }
+
+    generateSeed = () => {
+        if(this.apAvailable() && this.state.apMode && this.state.apExport.length === 0) {
+            NotificationManager.error("Select at least one Archipelago export category", "Cannot generate seed!", 5000)
+            this.setState({activeTab: 'multiplayer'})
+            return
+        }
+        let {json, url} = this.paramsJson()
         let seed = this.state.seed || randInt(0, 1000000000);
         if(seed === "daily")
         {
@@ -847,6 +870,206 @@ onDrop = (files) => {
         this.setState({seedIsGenerating: true, seedTabExists: true, loader: get_random_loader(), activeTab: "seed"}, () => postGenJson(url, json, this.seedBuildCallback))
     }
     
+    loadSspList = () => doNetRequest("/preset/list", ({status, responseText}) => {
+        if(status !== 200)
+            return
+        let {owner, settings, hasLatest} = JSON.parse(responseText)
+        this.setState({sspOwner: owner, sspList: settings || [], sspHasLatest: !!hasLatest})
+    })
+
+    // a load merges: the lobby stays as the user left it, and preplacements are
+    // replaced only in the world it lands in.
+    mergeSettings = (settings, label, withLobby, key, owner) => {
+        let update = {}
+        Object.keys(settings || {}).forEach(k => {
+            if(PRESET_NEVER_LOAD.includes(k))
+                return
+            if(withLobby || !SSP_LOBBY_KEYS.includes(k))
+                update[k] = settings[k]
+        })
+        if(withLobby) {
+            // the lobby half of acceptMetadata; only "Last Seed" gets here
+            update.inputPlayerCount = update.players
+            update.playerNames = update.playerNames || []
+            update.inputApMode = update.apMode || false
+            if(update.coopGameMode === "Multiworld") {
+                update.mwShared = update.shared || []
+                delete update.shared
+            }
+            if(!update.apExport || update.apExport.length === 0)
+                update.apExport = [...apDefaultExport]
+        }
+        if(update.keyMode)
+            update.keyMode = keyModeFromJson(update.keyMode)
+        if(update.paths)
+            update.pathMode = get_preset(update.paths)
+        if(update.variations) {
+            update.goalModes = update.variations.filter(v => GOAL_VARS.includes(v))
+            if(update.goalModes.length === 0)
+                update.goalModes = ["None"]
+        }
+        // convert on shape: a blob may carry a pool without naming a preset
+        if(update.itemPool && !Array.isArray(update.itemPool))
+            update.itemPool = Object.keys(update.itemPool).map(i => ({item: i, count: update.itemPool[i][0], upTo: update.itemPool[i][1] || update.itemPool[i][0]})).sort((a, b) => get_canon_index(a) - get_canon_index(b))
+        // a named pool is rebuilt, so saved settings follow later balance changes
+        if(update.selectedPool && update.selectedPool !== "Custom")
+            update.itemPool = getPool(update.selectedPool)
+        // bingo and multiplayer both force tracking on, so a saved off can't win
+        if(this.state.players > 1 || (update.goalModes || this.state.goalModes).includes("Bingo"))
+            delete update.tracking
+        let world = this.isMultiworld() ? (this.state.fassWorld || 1) : 1
+        update.fassList = this.state.fassList.filter(f => (f.world || 1) !== world).concat(
+            (update.fass || []).map(({loc, item, code, id}) => (
+                {loc: locOptionFromCoords(parseInt(loc, 10)), item: item || `${code}|${id}`, world: world, owner: world})))
+        delete update.fass
+        this.setState(update, () => {
+            this.markLoaded(key || (label === "Default" ? PRESET_DEFAULT : this.state.sspName),
+                            owner === undefined ? this.state.sspOwner : owner, world)
+            NotificationManager.success(label, "Preset loaded", 4000)
+        })
+    }
+
+    // the form as a preset would store it: what Update writes, and what drift means
+    settingsNow = (world) => {
+        let json = this.paramsJson().json, out = {}
+        Object.keys(json).forEach(k => {
+            if(!SSP_LOBBY_KEYS.includes(k) && !PRESET_NEVER_LOAD.includes(k))
+                out[k] = json[k]
+        })
+        // one world's rows, mirroring settings_from: the rest are not this preset
+        world = world || 1
+        let fass = (out.fass || []).filter(f => (f.world || 1) === world && (f.owner || f.world || 1) === world)
+                                   .map(({loc, item}) => ({loc: loc, item: item}))
+        if(fass.length)
+            out.fass = fass
+        else
+            delete out.fass
+        return out
+    }
+
+    // names are unique per user, not globally, so a loaded preset needs its owner
+    markLoaded = (name, owner, world, snapshot) => this.setState(prev => ({
+        sspName: name,
+        sspLoadedOwner: owner === undefined ? prev.sspOwner : owner,
+        sspLoadedWorld: world || 1,
+        sspLoaded: snapshot || canonSettings(this.settingsNow(world || 1)),
+    }))
+
+    selectPreset = (name) => {
+        if(name === PRESET_DEFAULT)
+            this.mergeSettings(this.defaultSettings, "Default")
+        else if(name === PRESET_LAST)
+            doNetRequest("/preset/latest", this.acceptSsp)
+        else
+            this.fetchSsp(this.state.sspOwner, name)
+    }
+
+    openPresetManage = () => this.setState(prev => {
+        let ssp = prev.sspList.find(s => s.name === prev.sspName) || {}
+        return {presetModal: true, presetArmDelete: false, sspBusy: false,
+                sspSaveName: prev.sspName, sspSaveDesc: ssp.desc || "",
+                sspSaveHidden: !!ssp.hidden}
+    })
+
+    presetEdit = () => {
+        let name = (this.state.sspSaveName || "").trim()
+        if(!name)
+            return NotificationManager.error("Give your preset a name", "Can't save preset!", 4000)
+        this.setState({sspBusy: true}, () => postNetForm("/preset/edit", {preset: JSON.stringify(
+            {name: this.state.sspName, newName: name, desc: this.state.sspSaveDesc,
+             hidden: this.state.sspSaveHidden})}, ({status, responseText}) => {
+                if(status !== 200) {
+                    NotificationManager.error(responseText || "Failed to save preset", "Can't save preset!", 5000)
+                    return this.setState({sspBusy: false})
+                }
+                NotificationManager.success(name, "Preset updated", 4000)
+                this.setState({sspBusy: false, presetModal: false, sspName: name}, this.loadSspList)
+            }))
+    }
+
+    presetDelete = () => {
+        let name = this.state.sspName
+        this.setState({sspBusy: true}, () => postNetForm("/preset/delete", {preset: JSON.stringify({name: name})},
+            ({status, responseText}) => {
+                if(status !== 200) {
+                    NotificationManager.error(responseText || "Failed to delete preset", "Can't delete preset!", 5000)
+                    return this.setState({sspBusy: false, presetArmDelete: false})
+                }
+                NotificationManager.success(`"${name}" is gone`, "Preset deleted", 4000)
+                // the options stay in the form; only the saved copy went away
+                // the options stay in the form, so drift is measured against Default
+                this.setState({sspBusy: false, presetModal: false, sspName: PRESET_DEFAULT,
+                               sspLoadedOwner: null, sspLoadedWorld: 1,
+                               sspLoaded: canonSettings(this.defaultSettings)}, this.loadSspList)
+            }))
+    }
+
+    // Update writes over the selection in place; Save As always asks for a name
+    sspUpdate = () => {
+        let existing = this.state.sspList.find(s => s.name === this.state.sspName)
+        if(!existing)
+            return
+        // the world it was loaded into; fassWorld is a view, not what to save
+        this.setState({sspBusy: true, sspSaveName: existing.name, sspSaveDesc: existing.desc || "",
+                       sspSaveHidden: !!existing.hidden},
+                      () => this.postSsp(this.state.sspLoadedWorld || 1))
+    }
+
+    acceptSsp = ({status, responseText}, asked) => {
+        if(status !== 200) {
+            NotificationManager.error(responseText || "That preset could not be loaded", "Can't load preset!", 5000)
+            return
+        }
+        let ssp = JSON.parse(responseText)
+        let label = (ssp.owner && ssp.owner !== this.state.sspOwner) ? `${ssp.name}, by ${ssp.owner}` : ssp.name
+        this.mergeSettings(ssp.settings, label, ssp.withLobby,
+                           asked || (ssp.withLobby ? PRESET_LAST : undefined), ssp.owner)
+    }
+
+    // a share link copies a preset in; it does not stay bound to the owner's
+    fetchSsp = (owner, name) => doNetRequest(`/preset/${encodeURIComponent(owner)}/${encodeURIComponent(name)}`,
+        (res) => this.acceptSsp(res, name))
+
+    openSspSave = () => this.setState(prev => ({sspModal: true, sspSaveDesc: "",
+        sspSaveName: prev.sspName === "latest" ? "" : prev.sspName,
+        sspSaveHidden: (prev.sspList.find(s => s.name === prev.sspName) || {}).hidden || false}))
+
+    sspSave = () => {
+        if(!(this.state.sspSaveName || "").trim()) {
+            NotificationManager.error("Give your preset a name", "Can't save preset!", 4000)
+            return
+        }
+        // Save As snapshots the world in view; Update passes the one it loaded
+        this.setState({sspBusy: true},
+                      () => this.postSsp(this.isMultiworld() ? (this.state.fassWorld || 1) : 1))
+    }
+
+    postSsp = (world) => {
+        let name = (this.state.sspSaveName || "").trim()
+        let ssp = {name: name, desc: this.state.sspSaveDesc, hidden: this.state.sspSaveHidden,
+                   params: this.paramsJson().json, world: world}
+        // captured now: the form stays editable, and a later edit is not saved
+        let sent = canonSettings(this.settingsNow(world))
+        postNetForm("/preset/save", {preset: JSON.stringify(ssp)},
+                    (res) => this.sspSaveCallback(res, sent, world))
+    }
+
+    sspSaveCallback = ({status, responseText}, sent, world) => {
+        if(status !== 200) {
+            NotificationManager.error(responseText || "Failed to save preset", "Can't save preset!", 5000)
+            this.setState({sspBusy: false})
+            return
+        }
+        let {name} = JSON.parse(responseText)
+        NotificationManager.success(`Saved as "${name}"`, "Preset saved", 4000)
+        this.setState({sspBusy: false, sspModal: false}, () => {
+            // a slow save can land after the user picked something else
+            if(this.state.sspName === name || this.state.sspLoaded === null)
+                this.markLoaded(name, this.state.sspOwner, world, sent)
+            this.loadSspList()
+        })
+    }
+
     acceptMetadata = ({status, responseText}) => {
         if(status !== 200)
         {
@@ -867,7 +1090,8 @@ onDrop = (files) => {
             metaUpdate.inputPlayerCount = metaUpdate.players
             metaUpdate.inputSeed = metaUpdate.seed
             metaUpdate.seedIsBingo = metaUpdate.variations.some(v => v === "Bingo")
-            metaUpdate.goalModes = metaUpdate.variations.filter(v => ["ForceTrees", "WorldTour", "ForceMaps", "WarmthFrags", "Bingo"].includes(v))
+            metaUpdate.keyMode = keyModeFromJson(metaUpdate.keyMode)
+            metaUpdate.goalModes = metaUpdate.variations.filter(v => GOAL_VARS.includes(v))
             if(metaUpdate.goalModes.length === 0)
                 metaUpdate.goalModes = ["None"]
             if(metaUpdate.fass && metaUpdate.fass.length > 0) {
@@ -1657,7 +1881,106 @@ onDrop = (files) => {
             return this.getQuickstartModal(modalParams);
         if(auxModal)
             return this.getAuxModal(modalParams);
+        if(this.state.sspModal)
+            return this.getSspModal(modalParams);
+        if(this.state.presetModal)
+            return this.getPresetManageModal(modalParams);
 
+    }
+
+    getPresetManageModal = ({inputStyle}) => {
+        let {sspSaveName, sspSaveDesc, sspSaveHidden, sspBusy, presetArmDelete, sspName} = this.state
+        return (
+                <Modal isOpen={this.state.presetModal} className={"modal-dialog-centered"} toggle={this.closeModal}>
+                  <ModalHeader style={inputStyle} toggle={this.closeModal} centered>{`Preset: ${sspName}`}</ModalHeader>
+                  <ModalBody style={inputStyle}>
+                      <Container fluid>
+                        <Row className="p-1">
+                            <Col xs="4" className="text-center pt-1 border"><Cent>Name</Cent></Col>
+                            <Col xs="8">
+                                <Input style={inputStyle} type="text" value={sspSaveName} maxLength={64}
+                                       onChange={(e) => this.setState({sspSaveName: e.target.value})}/>
+                            </Col>
+                        </Row>
+                        <Row className="p-1">
+                            <Col xs="4" className="text-center pt-1 border"><Cent>Description</Cent></Col>
+                            <Col xs="8">
+                                <Input style={inputStyle} type="text" value={sspSaveDesc}
+                                       onChange={(e) => this.setState({sspSaveDesc: e.target.value})}/>
+                            </Col>
+                        </Row>
+                        <Row className="p-1">
+                            <Col xs="4" className="text-center pt-1 border"><Cent>Shareable</Cent></Col>
+                            <Col xs="8">
+                                <Button color="primary" block outline={sspSaveHidden}
+                                        onClick={() => this.setState({sspSaveHidden: !sspSaveHidden})}>
+                                    {sspSaveHidden ? "Only me" : "Anyone with the link"}
+                                </Button>
+                            </Col>
+                        </Row>
+                        <Row className="p-1 mt-2">
+                            <Col>
+                                <Button color="danger" block outline={!presetArmDelete} disabled={sspBusy}
+                                        onClick={() => presetArmDelete ? this.presetDelete() : this.setState({presetArmDelete: true})}>
+                                    {presetArmDelete ? "Click again to delete it for good" : "Delete this preset"}
+                                </Button>
+                            </Col>
+                        </Row>
+                        <Row className="p-1">
+                            <Col><Cent><small>Deleting only removes the saved copy. Your current options stay in the form.</small></Cent></Col>
+                        </Row>
+                    </Container>
+                  </ModalBody>
+                  <ModalFooter style={inputStyle}>
+                    <Button color="primary" disabled={sspBusy || !sspSaveName.trim()} onClick={this.presetEdit}>Save changes</Button>
+                    <Button color="secondary" onClick={this.closeModal}>Cancel</Button>
+                  </ModalFooter>
+                </Modal>
+        )
+    }
+
+    getSspModal = ({inputStyle}) => {
+        let {sspSaveName, sspSaveDesc, sspSaveHidden, sspBusy, sspList} = this.state
+        let overwrites = sspList.some(s => s.name === sspSaveName.trim())
+        return (
+                <Modal isOpen={this.state.sspModal} className={"modal-dialog-centered"} toggle={this.closeModal}>
+                  <ModalHeader style={inputStyle} toggle={this.closeModal} centered>Save Preset</ModalHeader>
+                  <ModalBody style={inputStyle}>
+                      <Container fluid>
+                        <Row className="p-1">
+                            <Col xs="4" className="text-center pt-1 border"><Cent>Name</Cent></Col>
+                            <Col xs="8">
+                                <Input style={inputStyle} type="text" value={sspSaveName} maxLength={64}
+                                       onChange={(e) => this.setState({sspSaveName: e.target.value})}/>
+                            </Col>
+                        </Row>
+                        <Row className="p-1">
+                            <Col xs="4" className="text-center pt-1 border"><Cent>Description</Cent></Col>
+                            <Col xs="8">
+                                <Input style={inputStyle} type="text" value={sspSaveDesc}
+                                       onChange={(e) => this.setState({sspSaveDesc: e.target.value})}/>
+                            </Col>
+                        </Row>
+                        <Row className="p-1">
+                            <Col xs="4" className="text-center pt-1 border"><Cent>Shareable</Cent></Col>
+                            <Col xs="8">
+                                <Button color="primary" block outline={sspSaveHidden}
+                                        onClick={() => this.setState({sspSaveHidden: !sspSaveHidden})}>
+                                    {sspSaveHidden ? "Only me" : "Anyone with the link"}
+                                </Button>
+                            </Col>
+                        </Row>
+                        <Row className="p-1">
+                            <Col><Cent><small>The multiplayer tab isn't saved: load a preset into any lobby.</small></Cent></Col>
+                        </Row>
+                    </Container>
+                  </ModalBody>
+                  <ModalFooter style={inputStyle}>
+                    <Button color="primary" disabled={sspBusy || !sspSaveName.trim()} onClick={this.sspSave}>{overwrites ? "Overwrite" : "Save"}</Button>
+                    <Button color="secondary" onClick={this.closeModal}>Cancel</Button>
+                  </ModalFooter>
+                </Modal>
+        )
     }
     getQuickstartModal = ({inputStyle}) => {
         return (
@@ -1821,8 +2144,16 @@ onDrop = (files) => {
                         reopenUrl: "", flagLine: "", fassList: fassDefaultsFor(1), fassWorld: 1, goalModesOpen: false, 
                         spoilers: true, spawnWeights: [1.0,2.0,2.0,2.0,1.5,2.0,0.1,0.1,0.25,0.5], seedIsBingo: false, bingoLines: 3, 
                         auxModal: false, auxPlayer: 1, auxSpoiler: {active: false, byZone: false, exclude: ["EX","KS", "AC", "EC", "HC", "MS"]},
-                        stupidMode: stupidMode, customLogic: false, stupidWarn: stupidWarn, verboseSpoiler: get_param("verbose") === "True"};
+                        stupidMode: stupidMode, customLogic: false, stupidWarn: stupidWarn, verboseSpoiler: get_param("verbose") === "True",
+                        sspList: [], sspOwner: null, sspName: PRESET_DEFAULT, sspHasLatest: false,
+                        sspLoaded: null, sspLoadedOwner: null, sspLoadedWorld: 1,
+                        sspModal: false, presetModal: false, presetArmDelete: false, sspBusy: false,
+                        sspSaveName: "", sspSaveDesc: "", sspSaveHidden: false};
         
+        // the untouched form IS the Default entry; snapshot before anything edits it
+        this.defaultSettings = this.settingsNow()
+        this.state.sspLoaded = canonSettings(this.defaultSettings)
+
         if(url.searchParams.has("fromBingo")) {
             this.state.goalModes = ["Bingo"]
             this.state.variations = ["Bingo", "OpenWorld"]
@@ -1832,11 +2163,17 @@ onDrop = (files) => {
         }
         this.apPollTimer = null
         this.apPrefilled = false
+        // ?preset=owner:name -- a share link, which needs no login to open
+        let shared = (url.searchParams.get("preset") || "").split(":")
+        this.sharedSsp = shared.length === 2 && shared[0] && shared[1] ? shared : null
     }
 
     componentDidMount() {
         if(this.apPanelVisible())
             this.startApPoll()
+        this.loadSspList()
+        if(this.sharedSsp)
+            this.fetchSsp(this.sharedSsp[0], this.sharedSsp[1])
     }
 
     componentDidUpdate(prevProps, prevState) {
@@ -1858,7 +2195,7 @@ onDrop = (files) => {
         
     closeModal = () => {
          window.history.replaceState('',window.document.title, window.document.URL.split("/quickstart")[0]);
-         this.setState({quickstartOpen: false, auxModal: false})
+         this.setState({quickstartOpen: false, auxModal: false, sspModal: false, presetModal: false})
     }
 
     onTab = (tabName) => () => this.setState({activeTab: tabName})
@@ -2026,6 +2363,10 @@ onDrop = (files) => {
 
     render = () => {
         let {randomizedWith, stupidMode, spawn, pathMode, goalModes, keyMode, helpParams, goalModesOpen, seedTabExists, helpcat, activeTab, seed, tracking, seedIsGenerating, user} = this.state;
+        const canRandomize = seed !== randomizedWith;
+        const randomizeButton = canRandomize ?
+        (<Button className="w-100" color="danger" onClick={this.randomize}>Randomize!</Button>) :
+        (<Button className="w-100" disabled block>Randomize</Button>);
         let s = getComputedStyle(document.body);
         let styles = {inputStyle: {'borderColor': s.getPropertyValue('--dark'), 'backgroundColor': s.getPropertyValue("background-color"), 'color': s.getPropertyValue("color")}, menuStyle: {}}
 
@@ -2036,11 +2377,27 @@ onDrop = (files) => {
             <DropdownItem key={`spawn-${loc}`} active={loc===spawn} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "spawnLoc")} onClick={this.onSpawnLoc(loc)}>{loc}</DropdownItem>
         ))
 
-        const rerollButton = user ? (<Button className="w-100" color="info" href="/reroll">Reroll Last Seed</Button>) : <Button className="w-100" color="info" outline disabled>(Can't Reroll!)</Button>;
-        const canRandomize = seed !== randomizedWith;
-        const randomizeButton = canRandomize ? 
-        (<Button className="w-100" color="danger" onClick={this.randomize}>Randomize!</Button>) :
-        (<Button className="w-100" disabled block>Randomize</Button>);
+        // picking an entry loads it; there is no separate Load button
+        const {sspList, sspName, sspLoaded, sspOwner} = this.state
+        const presetItem = (name, extra) => (
+            <DropdownItem key={`ssp-${name}`} active={sspName === name} onClick={() => this.selectPreset(name)}>
+                {presetLabel(name)}{extra || ""}
+            </DropdownItem>)
+        const sspOptions = [presetItem(PRESET_DEFAULT), presetItem(PRESET_LAST)]
+            .concat(sspList.map(s => presetItem(s.name, s.hidden ? " (private)" : "")))
+        // asterisk: the form has moved on, or the preset is not yours to save over
+        const sspBorrowed = !!this.state.sspLoadedOwner && this.state.sspLoadedOwner !== sspOwner
+        const sspMine = !sspBorrowed && sspList.some(s => s.name === sspName)
+        const sspUnsaved = !sspMine && !PRESET_RESERVED.includes(sspName)
+        const sspEdited = !!sspLoaded && sspLoaded !== canonSettings(this.settingsNow(this.state.sspLoadedWorld))
+        const sspDrifted = sspEdited || sspUnsaved
+        const sspEditable = !!user && sspMine
+        const presetBtn = (label, help, onClick, ok, cls) => (
+            <div className={cls || "w-100"} onMouseLeave={this.helpLeave}
+                 onMouseEnter={this.helpEnter("general", ok ? help : `${help}Disabled`)}>
+                <Button className="w-100" color="info" outline={!ok} disabled={!ok} onClick={onClick}
+                        style={ok ? undefined : {pointerEvents: "none"}}>{label}</Button>
+            </div>)
         let keyModeOptions = keymode_options.map(mode => (
             <DropdownItem key={`keymode-${mode}`} active={mode===keyMode} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("keyModes", mode)} onClick={this.onKeyMode(mode)}>{mode}</DropdownItem>
         ))
@@ -2124,13 +2481,13 @@ onDrop = (files) => {
                 </Col>
                 <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "goalModes")}>
                     <Row>
-                        <Col xs="5"  className="text-center pt-1 border">
+                        <Col xs="4"  className="text-center pt-1 border">
                             <span className="align-middle">Goal Mode</span>
                         </Col>
-                        <Col xs="7" onMouseLeave={this.helpEnter("general", "goalModes")} onMouseEnter={this.helpEnter("goalModes", goalModeMulti ? "Multiple" : goalModes[0])}>
+                        <Col xs="8" onMouseLeave={this.helpEnter("general", "goalModes")} onMouseEnter={this.helpEnter("goalModes", goalModeMulti ? "Multiple" : goalModes[0])}>
                             <Dropdown disabled={goalModeMulti} isOpen={goalModesOpen} toggle={() => this.setState({goalModesOpen: !goalModesOpen})} className="w-100">
                                 <DropdownToggle disabled={goalModeMulti} color={goalModeMulti ? "disabled" :"primary"} className="text-capitalize" caret={!goalModeMulti} block> 
-                                  {goalModeMulti ? ("Multi:" + (goalModes || []).map(gm => gm.split('').filter(c => c === c.toUpperCase()).join('')).join("+")) : (goalModes.length > 0 ? (VAR_NAMES[goalModes[0]] || goalModes[0]) : "None")}
+                                  {goalModeMulti ? ((goalModes || []).map(gm => gm.split('').filter(c => c === c.toUpperCase()).join('')).join("+")) : (goalModes.length > 0 ? (VAR_NAMES[goalModes[0]] || goalModes[0]) : "None")}
                                 </DropdownToggle>
                                 <DropdownMenu style={{zIndex: 10000, ...styles.menuStyle}}>
                                     {goalModeOptions}
@@ -2165,14 +2522,19 @@ onDrop = (files) => {
                         </Col>
                     </Row>
                 </Col>
-                <Col xs="4">
-                    <Row>
-                        <Col xs="5"  className="mt-2" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", canRandomize ? "randomize" : "randomizeDisabled")}>
-                            {randomizeButton}
-                        </Col>
-                        <Col xs="7"  className="mt-2" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", user ? "reroll" : "rerollDisabled")}>
-                            {rerollButton}
-                        </Col>
+                <Col xs="4" className="mt-2">
+                <Row>
+                    <Col xs="4"  className="text-center pt-1 border" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", user ? "savedSettings" : "savedSettingsDisabled")}>
+                        <span className="align-middle">Load Preset</span>
+                    </Col>
+                    <Col xs="8" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", user ? "savedSettings" : "savedSettingsDisabled")}>
+                        <UncontrolledButtonDropdown className="w-100">
+                            <DropdownToggle color="primary" caret block className="d-flex align-items-center">
+                                <span className="text-truncate flex-grow-1 text-left">{presetLabel(sspName)}{sspDrifted ? " *" : ""}</span>
+                            </DropdownToggle>
+                            <DropdownMenu style={styles.menuStyle}> {sspOptions} </DropdownMenu>
+                        </UncontrolledButtonDropdown>
+                    </Col>
                     </Row>
                 </Col>
             </Row>
@@ -2233,14 +2595,29 @@ onDrop = (files) => {
                                     </Col><Col xs="7">
                                         <Input style={styles.inputStyle} type="text" value={seed} onChange={(e) => this.setState({seed: e.target.value})}/>
                                     </Col>
-                                </Row><Row className="m-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "webTracking" + (lockTracking ? "-locked" : ""))}>
-                                    <Col>
-                                        <Button color="info" block outline={!tracking} disabled={lockTracking} onClick={()=>this.setState({tracking: !tracking})}>Web Tracking {tracking ? "Enabled" : "Disabled"}</Button>
+                                </Row>
+                                <Row className="m-1">
+                                    <Col xs="5" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "webTracking" + (lockTracking ? "-locked" : ""))}>
+                                        <Button className="w-100" color="info" outline={!tracking} disabled={lockTracking} onClick={()=>this.setState({tracking: !tracking})}>{`Tracking ${tracking ? "On" : "Off"}`}</Button>
+                                    </Col>
+                                    <Col xs="7" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", canRandomize ? "randomize" : "randomizeDisabled")}>
+                                        {randomizeButton}
                                     </Col>
                                 </Row>
                             </Col>
                             <Col>
-                                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "generate" + this.multi())}>
+                                <Row className="m-1">
+                                    <Col className="d-flex">
+                                        {presetBtn("Update preset", "updatePreset", this.sspUpdate, sspEditable && sspEdited, "flex-grow-1 pr-1")}
+                                        <div className="pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", sspEditable ? "presetManage" : "presetManageDisabled")}>
+                                            <Button color="info" outline={!sspEditable} disabled={!sspEditable}
+                                                    style={sspEditable ? undefined : {pointerEvents: "none"}}
+                                                    onClick={this.openPresetManage}><FaCog/></Button>
+                                        </div>
+                                        {presetBtn("Save preset as...", "saveSettings", this.openSspSave, !!user, "flex-grow-1")}
+                                    </Col>
+                                </Row>
+                                <Row className="m-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "generate" + this.multi())}>
                                     <Col>
                                         <Button color="success" disabled={seedIsGenerating} size="lg" onClick={this.generateSeed} block>Generate Seed</Button>
                                     </Col>

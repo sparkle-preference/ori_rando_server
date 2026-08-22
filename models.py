@@ -1744,14 +1744,15 @@ SSP_DENY = frozenset([
     "apMode", "apExport", "apDeathLink",
 ])
 
-# reroll already means "my last game's settings, new seed"; the name is spoken for
-SSP_RESERVED_NAMES = frozenset(["latest"])
+# both are entries the dropdown always shows: "latest" is the user's last seed,
+# "default" is the untouched form
+SSP_RESERVED_NAMES = frozenset(["latest", "default"])
 
 
 class SavedSeedParams(ndb.Model):
-    """Seedgen settings a user saved under a name. Stored as a blob rather than
-    a schema: SeedGenParams.from_json defaults every field it reads, so a blob
-    saved today still rolls once later versions add options."""
+    """A preset: seedgen options a user saved under a name. Stored as a blob
+    rather than a schema, since SeedGenParams.from_json defaults every field it
+    reads, so a blob saved today still rolls once later versions add options."""
     settings = ndb.JsonProperty(compressed=True)
     name = ndb.StringProperty()
     description = ndb.StringProperty()
@@ -1762,9 +1763,9 @@ class SavedSeedParams(ndb.Model):
 
     @staticmethod
     def settings_from(params_json, world=1):
-        """The saveable half of a seedgen request. A setting describes ONE
-        world, so forced assignments are taken from that world alone -- keeping
-        every world's would apply all of them to whichever world loaded it."""
+        """The saveable half of a seedgen request. A preset describes ONE world,
+        so forced assignments are taken from that world alone -- keeping every
+        world's would apply all of them to whichever world loaded it."""
         out = {k: v for k, v in (params_json or {}).items() if k not in SSP_DENY}
         world = str(world)
         # cross-world rows name another player and belong to the multiplayer
@@ -1782,12 +1783,12 @@ class SavedSeedParams(ndb.Model):
 
     @staticmethod
     def name_problem(name):
-        """User-facing reason this name can't be used, or None."""
+        """User-facing reason this preset name can't be used, or None."""
         name = (name or "").strip()
         if not name:
-            return "Give your settings a name."
+            return "Give your preset a name."
         if name.lower() in SSP_RESERVED_NAMES:
-            return "'%s' is reserved: it always means your last seed's settings." % name
+            return "'%s' is a reserved name: the preset list always has an entry by that name." % name
         if len(name) > 64:
             return "That name is too long (64 characters max)."
         if ":" in name:
