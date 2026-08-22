@@ -660,19 +660,33 @@ class Player(ndb.Model):
             p.put()
         return changed
 
-    @ndb.transactional(retries=5)
-    def reset(self):
+    def clear_progress(self):
+        """Everything a reset forgets. Datastore-free so it can be tested
+        directly; reset() wraps it with the put.
+
+        Kept: the seed, identity, and ap_hints -- the AP room holds those too."""
         self.can_nag = True
         self.skills = 0
         self.events = 0
         self.teleporters = 0
         self.bonuses = {}
+        self.hints = {}
         self.signals = []
         self.history = []
         self.seen_bflds = 8 * [0]
         self.have_bflds = 8 * [0]
         self.slot_bflds = 8 * [0]
+        self.shared_released = []
+        # dedup state must not outlive the run it describes
+        self.hist_chunk = 0
+        self.hist_tail = []
+        self.hist_seen = []
+        self.bingo_last_tp = None
         self.bingo_prog = [BingoCardProgress(square=i) for i in range(25)]
+
+    @ndb.transactional(retries=5)
+    def reset(self):
+        self.clear_progress()
         self.put()
 
     def sharetuple(self):
@@ -2476,9 +2490,12 @@ class Game(ndb.Model):
 
     def reset(self):
         self.hls = []
+        self.has_history = False
         self.start_time = datetime.now()
         for player in self.get_players():
             player.reset()
+        # chunks outlive Player.history, and Game.history() reads both
+        ndb.delete_multi(HistoryChunk.query(ancestor=self.key).fetch(keys_only=True))
         if self.bingo_data:
             b_data = self.bingo_data.get()
             b_data.creator = self.creator

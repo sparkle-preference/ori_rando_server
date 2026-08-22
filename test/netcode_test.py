@@ -57,9 +57,9 @@ class FakeMemcache(object):
     def get_many(self, keys):
         return {k: self.d[k] for k in keys if k in self.d}
 
-    def delete_multi(self, keys, key_prefix="", noreply=None):
+    def delete_multi(self, keys, noreply=None):
         for k in keys:
-            self.d.pop(key_prefix + k, None)
+            self.d.pop(k, None)
 
 
 def fake_memcached_cache():
@@ -138,6 +138,20 @@ class TestSplitCache(unittest.TestCase):
         mc.append_hl(7, 2, "h3")
         self.assertEqual(mc.get_hist(7), {1: ["h1", "h2"], 2: ["h3"]})
         self.assertEqual(sorted(mc._pids(7)), [1, 2])
+
+    def test_the_fake_cannot_accept_what_pymemcache_rejects(self):
+        """FakeMemcache stands in for pymemcache's PooledClient. If it accepts a
+        parameter the real client does not, cache.py can call something that
+        only works in tests -- which is how remove_game shipped a key_prefix
+        argument pymemcache has never had."""
+        import inspect
+        from pymemcache.client.base import PooledClient
+        for name in ("get", "set", "add", "delete", "get_many", "delete_multi"):
+            fake = set(inspect.signature(getattr(FakeMemcache, name)).parameters)
+            real = set(inspect.signature(getattr(PooledClient, name)).parameters)
+            self.assertLessEqual(fake, real,
+                                 "FakeMemcache.%s accepts %s, which PooledClient does not"
+                                 % (name, sorted(fake - real)))
 
     def test_split_remove_game_cleans_per_player_keys(self):
         mc = self.mc

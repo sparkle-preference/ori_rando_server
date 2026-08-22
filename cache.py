@@ -253,10 +253,12 @@ class MemcachedCache(object):
         push.notify(gpid)
 
     def remove_game(self, gid):
-        per_player = ["%s.%s" % (p, suffix) for p in self._pids(gid)
+        # pymemcache's delete_multi takes whole keys; there is no key_prefix
+        per_player = ["%s.%s.%s" % (gid, p, suffix) for p in self._pids(gid)
                       for suffix in ("have", "hist", "pos", "reach", "items", "output", "seenhash")]
-        self.memcache.delete_multi(keys=per_player + ["san", "relics", "board", "names", "pids", "strike"],
-                                   key_prefix="%s." % gid)
+        game_wide = ["%s.%s" % (gid, k) for k in
+                     ("san", "relics", "board", "names", "pids", "strike")]
+        self.memcache.delete_multi(per_player + game_wide)
 
     def clear(self):
         self.memcache.flush_all()
@@ -488,8 +490,12 @@ class PythonCache(object):
         push.notify(gpid)  # see MemcachedCache.clear_seen_checksum
 
     def remove_game(self, gid):
-        for key in ["have", "hist", "san", "pos", "reach", "items", "relics", "board"]:
-            self.cache.pop(f"{gid}.{key}", None)
+        # every key this game owns: the map-storage ones above plus the
+        # per-player "{gid}.{pid}.{suffix}" keys. The trailing dot keeps game 7
+        # from matching game 77.
+        prefix = "%s." % gid
+        for key in [k for k in list(self.cache) if str(k).startswith(prefix)]:
+            self.cache.pop(key, None)
 
     def clear(self):
         self.cache.clear()

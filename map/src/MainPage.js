@@ -824,15 +824,18 @@ onDrop = (files) => {
         if(this.state.tracking && this.state.players > 1) {
             json.coopGenMode=f(this.state.coopGenMode)
             json.coopGameMode=f(this.state.coopGameMode)
-            json.dedupShared = this.state.dedupShared
             if(this.isMultiworld())
                 json.antiBkBias = this.state.antiBkBias || 0
-            if(this.state.coopGameMode === "Co-op")
+            // dedup and teams are cloned-seed concepts; multiworld worlds are
+            // distinct by construction, and the server refuses to read them there
+            if(this.state.coopGameMode === "Co-op") {
+                json.dedupShared = this.state.dedupShared
                 json.syncShared = this.state.shared.map(s => f(s))
+                if(!this.state.dedupShared)
+                    json.teams={1: [...Array(this.state.players).keys()].map(x=>x+1)}
+            }
             if(this.isMultiworld())
                 json.syncShared = this.state.mwShared.map(s => f(s))
-            if(!this.state.dedupShared)
-                json.teams={1: [...Array(this.state.players).keys()].map(x=>x+1)}
         }
         // outside the players>1 block: a K=1 AP seed is one Ori world in
         // someone else's room. The guard also keeps a visitor without the

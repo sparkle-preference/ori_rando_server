@@ -570,6 +570,30 @@ class TestDevCacheParity(unittest.TestCase):
         pc.remove_game(998)  # only some keys exist: must not raise
         self.assertIsNone(pc.get_hist(998))
 
+    def test_remove_game_clears_per_player_keys_too(self):
+        """The dev cache keeps hist/pos/reach as whole-game maps but items,
+        output and seenhash are per-player. A reset has to take both."""
+        pc = cache_mod.PythonCache()
+        pc.set_hist(998, 1, ["h"])
+        pc.set_items(998, 1, {"HC": 3})
+        pc.set_output((998, 1), "tick")
+        pc.set_pos(998, 1, 10, 20)
+        pc.remove_game(998)
+        self.assertIsNone(pc.get_hist(998))
+        self.assertEqual(pc.get_items(998, 1), ({}, {}), "get_items has an empty default")
+        self.assertIsNone(pc.get_output((998, 1)))
+        self.assertFalse(pc.get_pos(998))
+        self.assertFalse([k for k in list(pc.cache) if str(k).startswith("998.")])
+
+    def test_remove_game_leaves_other_games_alone(self):
+        """A prefix scan must not let game 99 take game 998's keys with it."""
+        pc = cache_mod.PythonCache()
+        pc.set_hist(99, 1, ["keep me"])
+        pc.set_hist(998, 1, ["drop me"])
+        pc.remove_game(99)
+        self.assertIsNone(pc.get_hist(99))
+        self.assertEqual(pc.get_hist(998), {1: ["drop me"]})
+
 
 if __name__ == "__main__":
     unittest.main()
