@@ -34,29 +34,11 @@ Run from the repo root:  python3 -m unittest test.golden_wire_test -v
 """
 import unittest
 
-import google.auth.credentials
-from google.cloud import ndb
-
 import cache as cache_mod
 import util
 from cache import Cache
 from models import Player
-
-
-class NdbTestCase(unittest.TestCase):
-    """Provides an ndb context so entities can be constructed locally."""
-
-    @classmethod
-    def setUpClass(cls):
-        creds = google.auth.credentials.AnonymousCredentials()
-        cls.ndb_client = ndb.Client(project="unit-test", credentials=creds)
-
-    def setUp(self):
-        self._ctx = self.ndb_client.context()
-        self._ctx.__enter__()
-
-    def tearDown(self):
-        self._ctx.__exit__(None, None, None)
+from test.ndb_base import NdbTestCase
 
 
 class _KeyStub(object):

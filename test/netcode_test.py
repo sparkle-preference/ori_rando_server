@@ -11,13 +11,13 @@ import time as time_mod
 import unittest
 from datetime import datetime, timedelta
 
-import google.auth.credentials
 from google.cloud import ndb
 from google.cloud.ndb.model import _BaseValue
 
 import cache as cache_mod
 import models
 import util
+from test.ndb_base import NdbTestCase
 from enums import MultiplayerGameType
 from models import BingoCard, BingoCardProgress, Game, HistoryLine, Player
 from pickups import Pickup
@@ -66,22 +66,6 @@ def fake_memcached_cache():
     mc = cache_mod.MemcachedCache.__new__(cache_mod.MemcachedCache)
     mc.memcache = FakeMemcache()
     return mc
-
-
-class NdbTestCase(unittest.TestCase):
-    """Provides an ndb context so entities can be constructed locally."""
-
-    @classmethod
-    def setUpClass(cls):
-        creds = google.auth.credentials.AnonymousCredentials()
-        cls.ndb_client = ndb.Client(project="unit-test", credentials=creds)
-
-    def setUp(self):
-        self._ctx = self.ndb_client.context()
-        self._ctx.__enter__()
-
-    def tearDown(self):
-        self._ctx.__exit__(None, None, None)
 
 
 class TestBfieldChecksum(unittest.TestCase):

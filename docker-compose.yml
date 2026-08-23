@@ -45,6 +45,12 @@ services:
     command: "gcloud beta emulators datastore start --project=${GOOGLE_CLOUD_PROJECT:-orirandov3} --host-port 0.0.0.0:8000 --data-dir /data"
     volumes:
       - "datastore:/data"
+  # in-memory twin for the unittest suite: host-reachable, safe to POST /reset
+  datastore_test:
+    image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
+    ports:
+      - "${DATASTORE_TEST_PORT:-8001}:8000"
+    command: "gcloud beta emulators datastore start --project=${GOOGLE_CLOUD_PROJECT:-orirandov3} --host-port 0.0.0.0:8000 --no-store-on-disk --consistency=1.0"
   datastore_admin:
     image: "ghcr.io/remko/dsadmin:latest"
     depends_on:
