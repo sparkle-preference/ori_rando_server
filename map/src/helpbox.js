@@ -1001,9 +1001,9 @@ const getHelpHelper = (category, option) => {
                     ]
                     break;
                 case "cellFreq":
-                    title = "Forced Cell Frequency"
+                    title = "Cell Frequency"
                     lines = [
-                        "The Forced Cell Frequency number is the maximum number of pickups that can be placed without adding at least 1 Health and Energy cell. Defaults: 20 for Casual, 40 for Standard, and 256 (disabled) for all other difficulties.",
+                        "The Cell Frequency number is the maximum number of pickups that can be placed without adding at least 1 Health and Energy cell. Defaults: 20 for Casual, 40 for Standard, and 256 (disabled) for all other difficulties.",
                         "Lower numbers usually means easier access to health and energy, particularly early game. Numbers below 15 are not recommended.",
                         "The standard setting, 40, has minimal impact on most seeds, but can prevent extremely rare situations where most health and energy cells are unreachable for the majority of the seed."
                     ]

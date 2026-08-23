@@ -476,19 +476,20 @@ onDrop = (files) => {
             relicCount, fragCount, fragReq, spawnWeights, spawn, verboseSpoiler, fassList,
             bingoDiff, bingoGoal, bingoSquares, bingoMeta, bingoDisc} = this.state
         let [leftCol, rightCol] = [4, 7]
-        // two label+control pairs span the same columns a single row does, so the control is a half column
-        const halfLabelCols = 3
-        const halfCtlPct = 100 * (leftCol + rightCol - 2 * halfLabelCols) / 24
-        const halfCtlWidth = {flex: `0 0 ${halfCtlPct}%`, maxWidth: `${halfCtlPct}%`}
+        // a doubled row is label + control twice over, spanning the columns a single row does
+        const [halfLabelCols, narrowCols] = [2.5, 2]
+        const wideCols = leftCol + rightCol - 2 * halfLabelCols - narrowCols
+        const colWidth = (cols) => ({flex: `0 0 ${100 * cols / 12}%`, maxWidth: `${100 * cols / 12}%`})
         const halfLabel = (text, help) => (
-            <Col xs={halfLabelCols} className="text-center pt-1 px-1 border" onMouseLeave={this.helpLeave}
+            <Col style={colWidth(halfLabelCols)} className="text-center pt-1 px-1 border" onMouseLeave={this.helpLeave}
                  onMouseEnter={this.helpEnter("advanced", help)}>
                 <span className="align-middle">{text}</span>
             </Col>)
-        const halfCtl = (help, children) => (
-            <Col style={halfCtlWidth} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", help)}>
+        const halfCtl = (cols) => (help, children) => (
+            <Col style={colWidth(cols)} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", help)}>
                 {children}
             </Col>)
+        const [narrowCtl, wideCtl] = [halfCtl(narrowCols), halfCtl(wideCols)]
         const sectionLabel = (text, help) => (
             <Row className="justify-content-center pb-2">
                 <Col xs={leftCol} className="text-center pt-1" onMouseLeave={this.helpLeave}
@@ -593,27 +594,12 @@ onDrop = (files) => {
                 </Row>
                 <Row className="p-1 justify-content-center">
                     {halfLabel("Exp Pool", "expPool")}
-                    {halfCtl("expPool", <React.Fragment>
+                    {narrowCtl("expPool", <React.Fragment>
                         <Input style={inputStyle} type="number" value={expPool} invalid={expPool < 100} onChange={(e) => this.setState({expPool: parseInt(e.target.value, 10)})}/>
                         <FormFeedback tooltip="true">Experience Pool must be at least 100</FormFeedback>
                     </React.Fragment>)}
-                    {halfLabel("Forced Cell Frequency", "cellFreq")}
-                    {halfCtl("cellFreq", <React.Fragment>
-                        <Input style={inputStyle} type="number" value={cellFreq} invalid={cellFreq < 3} onChange={(e) => this.setState({cellFreq: parseInt(e.target.value, 10)})}/>
-                        <FormFeedback tooltip="true">Forced Cell Frequency must be at least 3</FormFeedback>
-                    </React.Fragment>)}
-                </Row>
-                <Row className="p-1 justify-content-center">
-                    {halfLabel("Sense Triggers", "sense")}
-                    {halfCtl("sense",
-                        <Input style={inputStyle} type="text" value={senseData || ""} onChange={(e) => this.setState({senseData: e.target.value})}/>)}
-                    {halfLabel("Verbose Spoiler", "verbose")}
-                    {halfCtl("verbose",
-                        <Button color="primary" block outline={!verboseSpoiler} onClick={() => this.setState({verboseSpoiler: !verboseSpoiler})}>{verboseSpoiler ? "Enabled" : "Disabled"}</Button>)}
-                </Row>
-                <Row className="p-1 justify-content-center">
                     {halfLabel("Fill Algorithm", "fillAlg")}
-                    {halfCtl("fillAlg",
+                    {wideCtl("fillAlg",
                         <UncontrolledButtonDropdown className="w-100">
                             <DropdownToggle color="primary" caret block> {fillAlg} </DropdownToggle>
                             <DropdownMenu style={menuStyle}>
@@ -621,12 +607,27 @@ onDrop = (files) => {
                                 <DropdownItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "fillAlgBalanced")} active={"Balanced"===fillAlg} onClick={()=> this.setState({fillAlg: "Balanced"})}>Balanced</DropdownItem>
                             </DropdownMenu>
                         </UncontrolledButtonDropdown>)}
+                </Row>
+                <Row className="p-1 justify-content-center">
+                    {halfLabel("Cell Frequency", "cellFreq")}
+                    {narrowCtl("cellFreq", <React.Fragment>
+                        <Input style={inputStyle} type="number" value={cellFreq} invalid={cellFreq < 3} onChange={(e) => this.setState({cellFreq: parseInt(e.target.value, 10)})}/>
+                        <FormFeedback tooltip="true">Cell Frequency must be at least 3</FormFeedback>
+                    </React.Fragment>)}
                     {halfLabel("Path Difficulty", "pathDiff")}
-                    {halfCtl("pathDiff",
+                    {wideCtl("pathDiff",
                         <UncontrolledButtonDropdown className="w-100">
                             <DropdownToggle color="primary" caret block> {pathDiff} </DropdownToggle>
                             <DropdownMenu style={menuStyle}> {pathDiffOptions} </DropdownMenu>
                         </UncontrolledButtonDropdown>)}
+                </Row>
+                <Row className="p-1 justify-content-center">
+                    {halfLabel("Verbose Spoiler", "verbose")}
+                    {narrowCtl("verbose",
+                        <Button color="primary" block outline={!verboseSpoiler} onClick={() => this.setState({verboseSpoiler: !verboseSpoiler})}>{verboseSpoiler ? "Enabled" : "Disabled"}</Button>)}
+                    {halfLabel("Sense Triggers", "sense")}
+                    {wideCtl("sense",
+                        <Input style={inputStyle} type="text" value={senseData || ""} onChange={(e) => this.setState({senseData: e.target.value})}/>)}
                 </Row>
                 <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "buriedPresets")} className="p-1 justify-content-center">
                     <Col xs={leftCol} className="text-center pt-1 border">
