@@ -340,19 +340,30 @@ export default class HelpAndGuides extends React.Component {
                     The Ori Randomizer includes a number of gameplay changes from the base game. The most important ones are documented here.
                     <ul>
                     <li>
-                        The energy cost of the Grenade (light burst) skill has been removed.
+                        The energy cost of the Grenade (Light Burst) skill has been removed.
                     </li>
                     <li>
                         The energy cost of the Charge Flame skill has been reduced to 1/2; it drops to 0 after leveling Charge Flame Efficiency in the blue ability tree.
                     </li>
                     <li>
-                        You can use the Return To Start (bound to alt+R by default, rebindable using RandomizerRebindings.txt) keybinding to return to the spawn location in Sunken Glades at any time, similar to the "save and quit" functionality from the ALttP randomizer.
+                        You can use the Warp keybinding (bound to alt+R by default, rebindable using RandomizerRebindings.txt) to teleport to a Spirit Well at any time, to prevent logical softlocks.
+                        <ul>
+                            <li>
+                                The Sunken Glades Spirit Well is automatically granted to the player upon picking up Sein/Spirit Flame.
+                            </li>
+                        </ul>
                     </li>
                     <li>
-                        The Kuro cutscene in Hollow Grove always plays the first time you go there (In Open World, it will instead never play.)
+                        You start the game with one energy instead of zero.
                     </li>
                     <li>
-                        The Valley killplane is always active, instead of being active as soon as you get stomp. (In Open World, it is instead never active.)
+                        The wall that slowly opens and closes in Blackroot (Below the dash tree, blocking access to the Spirit Well area) is permanently open.
+                    </li>
+                    <li>
+                        The Kuro cutscene in Hollow Grove always plays the first time you go there (In Open World, it will instead never play).
+                    </li>
+                    <li>
+                        The Valley killplane is always active, instead of being active as soon as you get stomp. (In Open World, it is instead never active).
                     </li>
                     <li>
                         First-time pickup animations and Sein's dialog boxes are disabled, just like they would be in the base game with the UI toggled off.
@@ -361,13 +372,13 @@ export default class HelpAndGuides extends React.Component {
                         In addition to the normal pickup locations, you can find pickups by:
                         <ul>
                             <li>
-                                Destroying petrified (blue) plants (These now show up on the minimap as exp orbs if the Map Markers ability is unlocked)
+                                Destroying petrified (blue) plants (These now show up on the minimap)
                             </li>
                             <li>
                                 Unlocking maps by turning in mapstones (9 pickups, 1 per map)
                             </li>
                             <li>
-                                Finishing rooms in mount horu (8 pickups, 1 per room)
+                                Finishing rooms in Mount Horu (8 pickups, 1 per room)
                             </li>
                         </ul>
                     </li>
@@ -375,12 +386,12 @@ export default class HelpAndGuides extends React.Component {
                         There are new pickups not found in the base game, including teleporter unlocks and several bonus pickups. Check out the Bonus Item Glossary guide below to learn more about them.
                     </li>
                     <li>
-                        The purple tree has been changed substantially: see the <a href="/patchnotes#3.0" target="_blank" rel="noopener noreferrer">patch notes</a> for a full summary.
+                        The purple tree has been changed substantially: see the <a href="/patchnotes#3.0" target="_blank" rel="noopener noreferrer">patch notes</a> for details.
                     </li>
                     <li>
                         The UI transparency is increased while performing a "Save Anywhere" glitch. The amount of transparency is configurable in the RandomizerSettings.txt file.
                     </li>
-                    </ul>
+                </ul>
                 </CardText>
                 </Collapse>
             </CardBody>
