@@ -478,7 +478,7 @@ onDrop = (files) => {
         let [leftCol, rightCol] = [4, 7]
         // paired settings: label and control at half width, twice over
         const halfLabel = (text, help) => (
-            <Col xs="3" className="text-center pt-1 border" onMouseLeave={this.helpLeave}
+            <Col xs="2" className="text-center pt-1 border" onMouseLeave={this.helpLeave}
                  onMouseEnter={this.helpEnter("advanced", help)}>
                 <span className="align-middle">{text}</span>
             </Col>)
@@ -638,12 +638,9 @@ onDrop = (files) => {
                                                                                       {depth: 100, items: ["TP|Forlorn", "TP|Sorrow", "TP|Ginso", "TP|Horu"]}])}>Teleporters</Button>
                     </Col>
                 </Row>
-                <div className="border rounded p-1 m-1">
-                    {sectionLabel("Preplacement", "preplacement")}
-                    {fass_rows}
-                </div>
+                {sectionLabel("Preplacement", "preplacement")}
+                {fass_rows}
                 <Collapse isOpen={this.hasVar("Bingo")}>
-                <div className="border rounded p-1 m-1">
                 {sectionLabel("Bingo Settings", "bingoSettings")}
                 <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "bingoDiff")} className="p-1 justify-content-center">
                     <Col xs={leftCol} className="text-center pt-1 border">
@@ -715,7 +712,6 @@ onDrop = (files) => {
                     </Col>
                 </Row>
                 </Collapse>
-                </div>
                 </Collapse>
                 <Collapse isOpen={this.hasVar("WorldTour")}>
                     <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "relicCount")} className="p-1 justify-content-center">
@@ -3020,7 +3016,7 @@ onDrop = (files) => {
                     </Collapse>
                 </Col>
                 <Col>
-                    <Row className="sticky-top">
+                    <Row className="sticky-top" style={{top: "1rem"}}>
                         <HelpBox style={styles.menuStyle} {...helpParams} />
                     </Row>
                 </Col>

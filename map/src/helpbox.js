@@ -1538,7 +1538,8 @@ class HelpBox extends React.Component {
     render() {
         const {title, subtitle, lines, extras, preset, padding, style} = this.props
         return (
-        <div ref={this.measure} style={{transition: "min-height 0.15s ease-out"}}>
+        <div ref={this.measure} style={{transition: "min-height 0.15s ease-out",
+                                        maxHeight: "calc(100vh - 2rem)", overflowY: "auto"}}>
             <Card className={padding} style={style}><CardBody className={padding}>
                 <CardTitle className="text-center">{title}</CardTitle>
                     <CardSubtitle className="p-1 text-center">{subtitle}</CardSubtitle>
