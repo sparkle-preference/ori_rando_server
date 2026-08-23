@@ -38,7 +38,8 @@ const pickupToParts = (item) => {
 // parts arrive decomposed (slashes literal), so re-escape on the way back in
 const partToSegs = (p) => p.replaceAll("/", "//").replace(/\|/g, "/");
 const partsToPickup = (parts) => parts.length === 0 ? "NO|1" : (parts.length === 1 ? parts[0] : "MU|" + parts.map(partToSegs).join("/"));
-const fassDefaultsFor = (world) => [2, 919772, -1560272, 799776, -120208].map(coords => ({loc: locOptionFromCoords(coords), item: "NO|1", world: world, owner: world}));
+// blank rows to type into: paramsJson drops item NO|1, so these never reach a seed
+const fassDefaultsFor = (world) => [2, 919772].map(coords => ({loc: locOptionFromCoords(coords), item: "NO|1", world: world, owner: world}));
 const apDefaultExport = ["skills", "teleporters", "events"];
 const GOAL_VARS = ["ForceTrees", "WorldTour", "ForceMaps", "WarmthFrags", "Bingo"];
 // flags describing the game rather than a world; the rest ride on a world's row
@@ -1117,9 +1118,11 @@ onDrop = (files) => {
         if(this.state.players > 1 || (update.goalModes || this.state.goalModes).includes("Bingo"))
             delete update.tracking
         let world = this.isMultiworld() ? (this.state.fassWorld || 1) : 1
-        update.fassList = this.state.fassList.filter(f => (f.world || 1) !== world).concat(
-            (update.fass || []).map(({loc, item, code, id}) => (
-                {loc: locOptionFromCoords(parseInt(loc, 10)), item: item || `${code}|${id}`, world: world, owner: world})))
+        let loadedFass = (update.fass || []).map(({loc, item, code, id}) => (
+            {loc: locOptionFromCoords(parseInt(loc, 10)), item: item || `${code}|${id}`, world: world, owner: world}))
+        // a preset carrying no placements leaves the blank rows instead of emptying the section
+        update.fassList = this.state.fassList.filter(f => (f.world || 1) !== world)
+            .concat(loadedFass.length ? loadedFass : fassDefaultsFor(world))
         delete update.fass
         this.setState(update, () => {
             let landed = key || (label === "Default" ? PRESET_DEFAULT : this.state.sspName)
