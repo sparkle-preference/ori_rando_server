@@ -476,20 +476,22 @@ onDrop = (files) => {
             relicCount, fragCount, fragReq, spawnWeights, spawn, verboseSpoiler, fassList,
             bingoDiff, bingoGoal, bingoSquares, bingoMeta, bingoDisc} = this.state
         let [leftCol, rightCol] = [4, 7]
-        // paired settings: label and control at half width, twice over
+        // two label+control pairs span the same columns a single row does, so the control is a half column
+        const halfLabelCols = 3
+        const halfCtlPct = 100 * (leftCol + rightCol - 2 * halfLabelCols) / 24
+        const halfCtlWidth = {flex: `0 0 ${halfCtlPct}%`, maxWidth: `${halfCtlPct}%`}
         const halfLabel = (text, help) => (
-            <Col xs="2" className="text-center pt-1 border" onMouseLeave={this.helpLeave}
+            <Col xs={halfLabelCols} className="text-center pt-1 px-1 border" onMouseLeave={this.helpLeave}
                  onMouseEnter={this.helpEnter("advanced", help)}>
                 <span className="align-middle">{text}</span>
             </Col>)
         const halfCtl = (help, children) => (
-            <Col xs="3" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", help)}>
+            <Col style={halfCtlWidth} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", help)}>
                 {children}
             </Col>)
-        // the label that names a bordered section
         const sectionLabel = (text, help) => (
             <Row className="justify-content-center pb-2">
-                <Col xs={leftCol} className="text-center pt-1 border" onMouseLeave={this.helpLeave}
+                <Col xs={leftCol} className="text-center pt-1" onMouseLeave={this.helpLeave}
                      onMouseEnter={this.helpEnter("advanced", help)}>
                     <Cent>{text}</Cent>
                 </Col>
@@ -530,7 +532,7 @@ onDrop = (files) => {
             <Row key={`fass-arbitrary-${i}`} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "preplacement")} className="p-1 justify-content-center">
                     <Col xs={isMW ? leftCol : leftCol+1}>
                         <Select theme={select_theme} className="align-middle" options={locOptions.filter(l => l.value === loc.value || !fassUsed.has(l.value))} value={loc} onChange={(newLoc) => this.onFassList(i, {loc: newLoc})}></Select>
-                    </Col><Col xs={rightCol-1}>
+                    </Col><Col xs={isMW ? rightCol-2 : rightCol-1}>
                         <PickupSelect value={item} updater={(code, _) => this.onFassList(i, {item: code})} allowGroup/>
                     </Col>
                     {isMW ? ownerDropdown(i, loc, world || 1, owner) : null}
@@ -554,9 +556,9 @@ onDrop = (files) => {
         ))
         fass_rows.push((
             <Row key={`fass-arbitrary-next`} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "preplacement")} className="p-1 justify-content-center">
-                    <Col xs={leftCol+1}>
+                    <Col xs={isMW ? leftCol : leftCol+1}>
                     <Select theme={select_theme} className="align-middle" options={locOptions.filter(l => !fassUsed.has(l.value))} value={{label: 'Add new Placement:', value: -1}} onChange={(newLoc) => this.addToFassList({loc: newLoc, item: "NO|1"})}></Select>
-                    </Col><Col xs={rightCol-1}>
+                    </Col><Col xs={isMW ? rightCol-2 : rightCol-1}>
                         <PickupSelect ref="fassTabula" value={"NO|1"} updater={(code, _) => this.addToFassList({item: code})} allowGroup/>
                     </Col>
                     {isMW ? <Col xs="2"/> : null}
@@ -638,9 +640,12 @@ onDrop = (files) => {
                                                                                       {depth: 100, items: ["TP|Forlorn", "TP|Sorrow", "TP|Ginso", "TP|Horu"]}])}>Teleporters</Button>
                     </Col>
                 </Row>
-                {sectionLabel("Preplacement", "preplacement")}
-                {fass_rows}
+                <div className="border rounded p-1 m-1">
+                    {sectionLabel("Preplacement", "preplacement")}
+                    {fass_rows}
+                </div>
                 <Collapse isOpen={this.hasVar("Bingo")}>
+                <div className="border rounded p-1 m-1">
                 {sectionLabel("Bingo Settings", "bingoSettings")}
                 <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "bingoDiff")} className="p-1 justify-content-center">
                     <Col xs={leftCol} className="text-center pt-1 border">
@@ -712,6 +717,7 @@ onDrop = (files) => {
                     </Col>
                 </Row>
                 </Collapse>
+                </div>
                 </Collapse>
                 <Collapse isOpen={this.hasVar("WorldTour")}>
                     <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "relicCount")} className="p-1 justify-content-center">
