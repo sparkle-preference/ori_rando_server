@@ -8,3 +8,4 @@ oauth
 .env
 *.apworld
 /archipelago/dist
+mockclient/*.log
