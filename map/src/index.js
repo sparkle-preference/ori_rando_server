@@ -6,7 +6,6 @@ import ItemTracker from './ItemTracker';
 import MainPage from './MainPage';
 import GameTracker from './GameTracker';
 import PlandoBuilder from './PlandoBuilder';
-import SeedAnalysis from './SeedAnalysis';
 import RebindingsEditor from './RebindingsEditor';
 import LogicHelper from './LogicHelper';
 import SeedDisplayPage from './SeedDisplayPage';
@@ -19,7 +18,6 @@ const mods = {
     MainPage,
     GameTracker,
     PlandoBuilder,
-    SeedAnalysis, 
     RebindingsEditor,
     LogicHelper,
     SeedDisplayPage,

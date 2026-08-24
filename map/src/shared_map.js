@@ -5,7 +5,6 @@ import {Marker} from 'react-leaflet';
 
 
 const point = (x, y) => {return {x: x, y: y}; } 
-const distance = (x1, y1, x2, y2) => Math.sqrt((x2-x1) ** 2 + (y2-y1) ** 2);
 
 function download(filename, text) {
   let element = document.createElement('a');
@@ -169,37 +168,6 @@ const PickupMarkersList = ({ map, markers }) => {
 };
 
 
-const stuff_types = [{value: "Skills", label: "Skills"}, {value: "Events", label: "Events"}, {value: "Upgrades", label: "Upgrades"}, {value: "Teleporters", label: "Teleporters"}, {value: "Experience", label: "Experience"}, 
-                     {value: "Cells/Stones", label: "Cells/Stones"}, {value: "Messages", label: "Messages"}, {value: "Custom", label: "Custom"}, {value: "Fill", label: "Fill"}];
-
-const getStuffType = (stuff) => {
-    if(!stuff || !stuff.hasOwnProperty("value"))
-        return "Fill"
-    switch(stuff.value.split("|")[0]) {
-        case "SK":
-            return "Skills"
-        case "EV":
-            return "Events"
-        case "RB":
-            return "Upgrades"
-        case "TP":
-            return "Teleporters"
-        case "EX":
-            return "Experience"
-        case "HC":
-        case "AC":
-        case "EC":
-        case "KS":
-        case "MS":
-            return "Cells/Stones"
-        case "SH":
-            return "Messages"
-        default:
-            return "Custom"
-    }
-}
-
-
 let request = new XMLHttpRequest()
 request.open('GET', '/pickupandlocinfo', false)
 request.send(null)
@@ -263,18 +231,8 @@ const select_styles = {
 //   }),
   }
 const select_wrap = x => Array.isArray(x) ? x.map(select_wrap) : {label: x, value: x}
-function listSwap(list, items)
-{
-    items.forEach(item => {
-        if(list.includes(item))
-            list = list.filter(i => i !== item);
-        else
-            list = list.concat(item);
-    })
-    return list
-}
 const goToCurry = (url) => () => { window.location.href = url } 
 
-export {PickupMarker, PickupMarkersList, download, getStuffType, locs, picks_by_loc, getMapCrs, pickups, distance, get_icon, select_wrap,
-        point, picks_by_type, picks_by_zone, zones, stuff_types, areas, picks_by_area, select_styles,
-        is_match, str_ids, hide_opacity, seed_name_regex, uniq, listSwap, goToCurry, pickup_icons};
+export {PickupMarkersList, download, picks_by_loc, getMapCrs, get_icon, select_wrap,
+        picks_by_type, picks_by_zone, zones, picks_by_area, select_styles,
+        is_match, str_ids, hide_opacity, seed_name_regex, uniq, goToCurry};

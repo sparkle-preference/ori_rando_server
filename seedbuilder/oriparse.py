@@ -1,8 +1,6 @@
 import sys
 from os import path
 from collections import OrderedDict
-import requests
-import pprint
 
 def _parsefatal(line, msg):
     if _VERBOSE:
@@ -201,11 +199,6 @@ def ori_load_file(fn, verbose=False):
 
     return ori_load(lines, verbose)
 
-def ori_load_url(url, verbose=False):
-    result = requests.get(url)
-    lines = result.text.split("\n")
-
-    return ori_load(lines, verbose)
 
 def ori_load(lines, verbose=False):
     global _VERBOSE
@@ -484,64 +477,6 @@ def ori_load(lines, verbose=False):
     return contents
 
 
-def check_for_reverse_connections(contents):
-    #            X has a connection to these Y that can be ignored, i.e. we don't need a path back.
-    areas_to_skip = {}
-    areas_to_skip["GladesFirstDoor"] = ["GladesFirstDoorOpened"]
-    areas_to_skip["SunkenGladesRunaway"] = ["DeathGauntletDoor", "GladesFirstDoor", "LowerChargeFlameArea"]
-    areas_to_skip["GladesFirstDoorOpened"] = ["SunkenGladesRunaway", "GladesMain"]
-    areas_to_skip["DeathGauntletDoor"] = ["DeathGauntletDoorOpened"]
-    areas_to_skip["DeathGauntletDoorOpened"] = ["DeathGauntlet", "DeathGauntletMoat", "SunkenGladesRunaway"]
-    areas_to_skip["DeathGauntlet"] = ["DeathGauntletDoor", "DeathGauntletMoat"]
-    areas_to_skip["GladesMain"] = ["GladesFirstDoor", "SpiritCavernsDoor"]
-    areas_to_skip["SpiritCavernsDoor"] = ["SpiritCavernsDoorOpened"]
-    areas_to_skip["SpiritCavernsDoorOpened"] = ["LowerSpiritCaverns", "GladesMain"]
-    areas_to_skip["LowerSpiritCaverns"] = ["SpiritCavernsDoor"]
-    areas_to_skip["UpperSpiritCaverns"] = ["SpiritTreeDoor"]
-    areas_to_skip["SpiritTreeDoor"] = ["SpiritTreeDoorOpened"]
-    areas_to_skip["SpiritTreeDoorOpened"] = ["SpiritTreeRefined", "UpperSpiritCaverns", ""]
-    areas_to_skip["SpiritTreeRefined"] = ["SpiritTreeDoor", "", ""]
-    areas_to_skip["SpiderWaterArea"] = ["DeathGauntletRoof", "", ""]
-    areas_to_skip["LowerGinsoTree"] = ["R4InnerDoor", "GinsoMiniBossDoor", ""]
-    areas_to_skip["GinsoMiniBossDoor"] = ["BashTreeDoorClosed", "", ""]
-    areas_to_skip["BashTreeDoorClosed"] = ["BashTreeDoorOpened", "", ""]
-    areas_to_skip["BashTreeDoorOpened"] = ["GinsoMiniBossDoor", "BashTree", ""]
-    areas_to_skip["BashTree"] = ["BashTreeDoorClosed", "", ""]
-    areas_to_skip["UpperGinsoTree"] = ["UpperGinsoDoorClosed", "", ""]
-    areas_to_skip["UpperGinsoDoorClosed"] = ["UpperGinsoDoorOpened", "", ""]
-    areas_to_skip["UpperGinsoDoorOpened"] = ["GinsoTeleporter", "UpperGinsoTree", ""]
-    areas_to_skip["GinsoTeleporter"] = ["UpperGinsoDoorClosed", "", ""]
-    areas_to_skip["TopGinsoTree"] = ["GinsoEscape", "", ""]
-    areas_to_skip["GinsoEscape"] = ["GinsoEscapeComplete", "", ""]
-    areas_to_skip["GinsoEscapeComplete"] = ["Swamp", "SwampKeyDoorPlatform", ""]
-    areas_to_skip["GumoHideout"] = ["DoubleJumpKeyDoor", "", ""]
-    areas_to_skip["DoubleJumpKeyDoor"] = ["DoubleJumpKeyDoorOpened", "", ""]
-    areas_to_skip["SwampKeyDoorPlatform"] = ["SwampKeyDoorOpened", "", ""]
-    areas_to_skip["SwampKeyDoorOpened"] = ["RightSwamp", "", ""]
-    areas_to_skip["ForlornOrbPossession"] = ["ForlornKeyDoor", "", ""]
-    areas_to_skip["ForlornMapArea"] = ["ForlornKeyDoor", "", ""]
-    areas_to_skip["ForlornLaserRoom"] = ["ForlornStompDoor", "", ""]
-    areas_to_skip["ForlornStompDoor"] = ["RightForlorn", "", ""]
-    areas_to_skip["LowerSorrow"] = ["LeftSorrowLowerDoor", "", ""]
-    areas_to_skip["SorrowMapstoneArea"] = ["HoruInnerDoor", "", ""]
-    areas_to_skip["LeftSorrowLowerDoor"] = ["LeftSorrow", "", ""]
-    areas_to_skip["MistyPreClimb"] = ["ForlornTeleporter", "RightForlorn", ""]
-    areas_to_skip["GladesMainAttic"] = ["LowerChargeFlameArea", "", ""]
-    areas_to_skip["RazielNoArea"] = ["GumoHideout", "", ""]
-    areas_to_skip["SwampTeleporter"] = ["OuterSwampMortarAbilityCellLedge", "", ""]
-    areas_to_skip["OuterSwampAbilityCellNook"] = ["InnerSwampSkyArea", "", ""]
-    areas_to_skip["LowerLeftGumoHideout"] = ["LowerBlackroot", "", ""]
-    areas_to_skip["HoruR1CutsceneTrigger"] = ["LowerGinsoTree", "", ""]
-    areas_to_skip["MistyPreMortarCorridor"] = ["RightForlorn", "", ""]
-    areas_to_skip[""] = ["", "", ""]
-       
-    for area in contents["homes"].keys():
-        for target in contents["homes"][area]["conns"].keys():
-            conn_type = contents["homes"][area]["conns"][target]["type"]
-            if conn_type == "conn":
-                if area not in contents["homes"][target]["conns"].keys():
-                    if target not in areas_to_skip.get(area, []):
-                        print("Area {} has connection to target {} that doesn't have a connection back.".format(area, target)) 
 
 
 
@@ -549,7 +484,3 @@ if __name__ == "__main__":
     import sys
     fn = sys.argv[1]
     ori_load_file(fn, True)
-    #contents = ori_load_file(fn, True)
-    #check_for_reverse_connections(contents)
-    pp = pprint.PrettyPrinter(indent=4)
-    #pp.pprint(contents)

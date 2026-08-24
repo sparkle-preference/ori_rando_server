@@ -115,26 +115,6 @@ def tick_output(game_id, player_id):
     return p.output(include_slots=(game.mode == MultiplayerGameType.MULTIWORLD))
 
 
-# testing-only GET variant (see the route comment in main.py)
-def tick_debug(game_id, player_id, xycoords, payload):
-    x, _, y = xycoords.partition(",")
-    game = Game.with_id(game_id)
-    if not game:
-        return _code(412)
-    p = game.player(player_id)
-    if debug():
-        fake = {"have_%s" % i: (payload.get("s%s" % i) or 0) for i in range(8)}
-        for i in range(8):
-            fake["seen_%s" % i] = fake["have_%s" % i]
-        if Cache.get_seen_checksum((game_id, player_id)) == bfield_checksum(fake.get("seen_%s" % i, 0) for i in range(8)):
-            cached_output = Cache.get_output((game_id, player_id))
-            if cached_output:
-                log.info("got output from cache")
-                return 200, cached_output
-        p.bitfield_updates(fake, game_id)
-        game.sanity_check()
-    Cache.set_pos(game_id, player_id, x, y)
-    return 200, p.output(include_slots=(game.mode == MultiplayerGameType.MULTIWORLD))
 
 
 def game_complete(game_id, player_id):

@@ -31,7 +31,7 @@ from enums import MultiplayerGameType, ShareType, Variation
 from models import ndb_wsgi_middleware, Game, Player, SavedSeedParams, Seed, User, BingoGameData, BingoWorldBoard, BingoEvent, BingoTeam, pick_discovery_squares, CustomLogic, trees_by_coords, LegacyUser, bingo_lock, AnnouncedPatchNotes
 from bingo import BingoGenerator
 from cache import Cache
-from util import parse_fass, coord_correction_map, clone_entity, all_locs, picks_by_type_generator, param_val, param_flag, param_true, debug, template_root, VER, MIN_VER, BETA_VER, game_list_html, version_check, template_vals, layout_json, bfield_checksum, netperf, NETPERF_TAG, json_default, seed_sync_id, is_mw_manifest_loc, MULTIWORLD, ARCHIPELAGO, CANONICAL_HOST, REDIRECT_HOSTS, PATCHNOTES_WEBHOOK_MAIN, PATCHNOTES_WEBHOOK_DEV
+from util import parse_fass, coord_correction_map, clone_entity, all_locs, picks_by_type_generator, param_val, param_flag, param_true, debug, template_root, VER, MIN_VER, BETA_VER, game_list_html, version_check, template_vals, bfield_checksum, netperf, NETPERF_TAG, json_default, seed_sync_id, is_mw_manifest_loc, MULTIWORLD, ARCHIPELAGO, CANONICAL_HOST, REDIRECT_HOSTS, PATCHNOTES_WEBHOOK_MAIN, PATCHNOTES_WEBHOOK_DEV
 from reachable import Map, PlayerState
 from pickups import Pickup, Skill, AbilityCell, HealthCell, EnergyCell, Multiple
 
@@ -142,141 +142,6 @@ def clean_up():
         log.info("Cleaned up %s games before timeout" % clean_count)
         return text_resp("Cleaned up %s games before timeout" % clean_count)
 
-
-# update as we get more info lol
-CLAIMED = {
-    "UntestedBrokenPossibleAmazement": "Cereberon",
-    "OriDetonatedNibel": "StorybookGumon",
-    "OriTurnedIntoABomb": "StorybookGumon",
-    "Pain": "StorybookGumon",
-    "PowerSkillRush": "StorybookGumon",
-}
-
-#@app.route('/userGamesMigrate')
-
-#rerwite every seed to the db one by one bc i hate my wallet (/want this to be done)
-def moveSeeds():
-    for seed in Seed.query():
-        try:
-            print(f"migrating seed: {seed.name}")
-            seed.put()
-        except Exception as e:
-            print(f"failed to migrate {seed.name}: {e}")
-    return text_resp("done")
-
-# the below are migration functions that we hope to remove eventually but I'm keeping them around for now
-
-def fix_game_associations():
-    game_id_seen = set()
-    for user in User.query():
-        legacy_users = LegacyUser.query(LegacyUser.name == user.name).fetch()
-        if not len(legacy_users):
-            print(f"No legacy user for {user.name}???")
-            continue
-        legacy_user = legacy_users[0]
-        # i = 0
-        # for game in Game.query(Game.legacy_creator == legacy_user.key):
-        #     if game.creator != user.key:
-        #         if game.key in game_id_seen:
-        #             print(f"Wuhoh: {game.key}")
-        #         game_id_seen.add(game.key)
-        #         game.creator = user.key
-        #         game.put()
-        #         i += 1
-        #         print(f"game {game.key} given back to {user.name}")
-        # print(f"gave {i} games back to {user.name}")
-        for seed in Seed.query(Seed.legacy_author_key == legacy_user.key):
-            if seed.author_key != user.key:
-                new_seed = Seed(
-                        id=f"{user.key.id()}:{seed.name}",
-                        placements = seed.placements,
-                        flags = seed.flags,
-                        hidden = seed.hidden,
-                        description = seed.description,
-                        players = seed.players,
-                        author_key = user.key,
-                        legacy_author_key = legacy_user.key,
-                        author = seed.author,
-                        name = seed.name
-                    )
-                if new_seed.put():
-                    seed.key.delete()
-                    print(f"seed {seed.name} was reassigned to {user.name}'s new account")
-                else:
-                    print("error saving new seed")
-
-    return text_resp("done")
-
-
-# @app.route('/plandoMigrate')
-def runplandomigration():
-    reassign_plandos_to_legacy_users_by_name()
-    return text_resp("Done")
-
-
-def fix_plando_authorname_cases():
-    uncased = {}
-    for user in LegacyUser.query():
-        uncased[user.name.lower()] = user
-    for seed in Seed.query():
-        if seed.author:
-            if seed.author_key:
-                user = seed.author_key.get()
-                if user.name != seed.author:
-                    print(f"{user.name} != {seed.author}, fixing")
-                    seed.author = user.name
-                    seed.put()
-            elif seed.legacy_author_key:
-                user = seed.legacy_author_key.get()
-                if not user:
-                    if seed.author in uncased:
-                        print(f"{seed.author} != {uncased[seed.author].name}, fixing..")
-                        seed.author = uncased[seed.author].name
-                        seed.put()
-                        continue
-                    print(f"???? {seed.legacy_author_key}, {seed.name}, {seed.key}, {seed.author}")
-                    continue
-                if user.name != seed.author:
-                    print(f"{user.name} != {seed.author}, maybe fix?")
-
-def reassign_plandos_to_legacy_users_by_name():
-    for seed in Seed.query():
-        if seed.author and not seed.author_key:
-            user = User.get_by_name(seed.author)
-            legacy_user = LegacyUser.get_by_name(seed.author)
-            if user:
-                new_seed = Seed(
-                        id=f"{user.key.id()}:{seed.name}",
-                        placements = seed.placements,
-                        flags = seed.flags,
-                        hidden = seed.hidden,
-                        description = seed.description,
-                        players = seed.players,
-                        author_key = user.key,
-                        legacy_author_key = legacy_user.key if legacy_user else None,
-                        author = seed.author,
-                        name = seed.name
-                    )
-                if new_seed.put() and new_seed.key.id() != seed.key.id():
-                    print(f"seed {seed.name} was reassigned to {user.name}'s new account")
-                else:
-                    print("error saving new seed")
-            elif legacy_user:
-                if seed.legacy_author_key != legacy_user.key:
-                    new_seed = Seed(
-                            id=f"{legacy_user.key.id()}:{seed.name}",
-                            placements = seed.placements,
-                            flags = seed.flags,
-                            hidden = seed.hidden,
-                            description = seed.description,
-                            players = seed.players,
-                            legacy_author_key = legacy_user.key,
-                            author = seed.author,
-                            name = seed.name
-                        )
-                    if new_seed.put():
-                        seed.key.delete()
-                        print(f"seed {new_seed.name} given to {seed.legacy_author_key} ({legacy_user.name}'s legacy account)")
 
 
 @app.before_request
@@ -411,11 +276,6 @@ def netcode_found_pickup(game_id, player_id, coords, kind, id):
     status, body = netcode.found_pickup(game_id, player_id, coords, kind, id, request.args)
     return text_resp(body, status)
 
-# do we even use this anymore? i think only for testing.........
-@app.route('/netcode/game/<int:game_id>/player/<int:player_id>/tick/<xycoords>', methods=['GET'])
-def netcode_tick_get(game_id, player_id, xycoords):
-    status, body = netcode.tick_debug(game_id, player_id, xycoords, request.args)
-    return text_resp(body, status)
 
 @app.route('/netcode/game/<int:game_id>/player/<int:player_id>/tick/', methods = ['POST'])
 @app.route('/netcode/game/<int:game_id>/player/<int:player_id>/tick', methods = ['POST'])
@@ -849,64 +709,6 @@ def tracker_update_map(game_id):
         res["newGid"] = game_id
     return json_resp(res)
 
-@app.route('/tracker/game/<int:game_id>/fetch/seen')
-def tracker_get_seen(game_id):
-    coords = Cache.get_have(game_id)
-    if not coords:
-        game = Game.with_id(game_id)
-        if not game:
-            return code_resp(404)
-        coords = { p.pid(): p.have_coords() for p in game.visible_players() }
-        Cache.set_have(game_id, coords)
-    return json_resp(coords)
-
-
-@app.route('/tracker/game/<int:game_id>/fetch/pos')
-def tracker_get_positions(game_id):
-    pos = Cache.get_pos(game_id)
-    if pos:
-        players = {}
-        for p, (x, y) in pos.items():
-            players[p] = [y, x]  # bc we use tiling software, this is lat/lng
-        return json_resp(players)
-    else:
-        return code_resp(404)
-
-
-@app.route('/tracker/game/<int:game_id>/fetch/reachable')
-def tracker_get_reachable(game_id):
-    hist = Cache.get_hist(game_id)
-    reachable_areas = {}
-    if not hist or not param_val("modes"):
-        return json_resp({}, 404)
-    modes = param_val("modes").split(" ")
-    game = Game.with_id(game_id)
-    spawn = game.fetch_params().spawn or "Glades"
-    shared_hist = []
-    shared_coords = set()
-    try:
-        if game and game.mode == MultiplayerGameType.SHARED:
-            shared_hist = [hl for hls in hist.values() for hl in hls if hl.pickup().is_shared(game.shared)]
-            shared_coords = set([hl.coords for hl in shared_hist])
-        visible = set(p.pid() for p in game.visible_players()) if game else None
-        for player, personal_hist in hist.items():
-            # a shadow's pid can already be in the cache map: Player creation
-            # seeds an empty hist key, and that predates any rebuild
-            if visible is not None and player not in visible:
-                continue
-            player_hist = [hl for hl in hist[player] if hl.coords not in shared_coords] + shared_hist
-            state = PlayerState([(h.pickup_code, h.pickup_id, 1, h.removed) for h in player_hist])
-            areas = {}
-            if state.has["KS"] > 8 and "standard-core" in modes:
-                state.has["KS"] += 2 * (state.has["KS"] - 8)
-            for area, reqs in Map.get_reachable_areas(state, modes, spawn).items():
-                areas[area] = [{item: count for (item, count) in req.cnt.items()} for req in reqs if len(req.cnt)]
-            reachable_areas[player] = areas
-        return json_resp(reachable_areas)
-    except AttributeError:
-        log.error("cache invalidated for game %s! Rebuilding..." % game_id)
-        game.rebuild_hist()
-        return json_resp(reachable_areas)
 
 @app.route('/tracker/game/<int:game_id>/fetch/items/<int:player_id>')
 def tracker_get_items_update(game_id, player_id):

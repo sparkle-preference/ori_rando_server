@@ -196,60 +196,6 @@ class TestSignalFlow(NdbTestCase):
         self.assertEqual(p.signals, ["win:gg"])
 
 
-class TestBitfieldUpdates(NdbTestCase):
-    """Tick input handling: the posted seen_i/have_i fields update the entity,
-    the have cache (merge semantics), and arm the fast-path checksum."""
-
-    @staticmethod
-    def _post(seen, have):
-        d = {"seen_%s" % i: str(v) for i, v in enumerate(seen)}
-        d.update({"have_%s" % i: str(v) for i, v in enumerate(have)})
-        return d
-
-    def test_update_writes_entity_cache_and_checksum(self):
-        p = make_player(921, 1)
-        seen, have = [1] + [0] * 7, [1] + [0] * 7
-        post = self._post(seen, have)
-        p.bitfield_updates(post, 921)
-        self.assertEqual(p.seen_bflds, seen)
-        self.assertEqual(p.have_bflds, have)
-        self.assertEqual(p.put_count, 1)
-        # have cache gets only this player's entry (merge semantics)
-        self.assertEqual(Cache.get_have(921)[1], p.have_coords())
-        # checksum armed with exactly what was posted (string forms)
-        expected = util.bfield_checksum(post.get("seen_%s" % i, 0) for i in range(8))
-        self.assertEqual(Cache.get_seen_checksum((921, 1)), expected)
-
-    def test_unchanged_post_arms_checksum_without_put(self):
-        p = make_player(922, 1)
-        post = self._post([5] * 8, [5] * 8)
-        p.bitfield_updates(post, 922)
-        self.assertEqual(p.put_count, 1)
-        p.bitfield_updates(post, 922)  # identical: no entity write
-        self.assertEqual(p.put_count, 1)
-        self.assertIsNotNone(Cache.get_seen_checksum((922, 1)))
-
-    def test_coords_carry_spawn_sentinel(self):
-        # seen/have coord lists always end with the spawn sentinel coord 2;
-        # tracker/reachable consumers rely on it
-        p = make_player(923, 1)
-        p.bitfield_updates(self._post([0] * 8, [0] * 8), 923)
-        self.assertEqual(p.seen_coords(), [2])
-        self.assertEqual(p.have_coords(), [2])
-
-    def test_fast_path_pair_is_in_sync_after_standard_sequence(self):
-        # the tick POST handler's contract: after bitfield_updates + output(),
-        # a repeat of the same post may be served entirely from cache. Both
-        # halves of that pair must exist and agree.
-        p = make_player(924, 1, skills=7)
-        post = self._post([9] * 8, [9] * 8)
-        p.bitfield_updates(post, 924)
-        out = p.output()
-        self.assertEqual(Cache.get_output((924, 1)), out)
-        self.assertEqual(Cache.get_seen_checksum((924, 1)),
-                         util.bfield_checksum(post.get("seen_%s" % i, 0) for i in range(8)))
-
-
 class TestMultiworldSlotsField(NdbTestCase):
     """The multiworld tick extension (2026-07-22, names added 2026-07-23):
     in MW games only, the signals field is ALWAYS present (possibly empty),

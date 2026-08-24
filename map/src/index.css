@@ -4,19 +4,8 @@ html, body {
   margin: 0;
 }
 
-body, #root, #app {
+body, #root {
   height: 100%;
-}
-
-#app {
-  display: flex;
-  flex-direction: column;
-}
-
-main {
-  flex-grow: 1;
-  display: flex;
-  flex-direction: column;
 }
 
 .stretch {
@@ -29,12 +18,6 @@ main {
   display: flex;
   width: 100%;
   height: 100%;
-}
-
-.board-container {
-  display: flex;
-  flex-direction: column;
-  flex-grow: 1;
 }
 
 .leaflet-container {
@@ -106,10 +89,6 @@ main {
 
 .fill-wrapper > .react-numeric-input {
   width: 80px;
-}
-
-#fill-params > .checkbox-label {
-  width: 100%;
 }
 
 #display-controls {
@@ -191,14 +170,6 @@ main {
   padding-right: 8px;
 }
 
-#logic-options {
-  width: 100%;
-  display: inline-grid;
-  grid-template-columns: auto auto auto;
-  grid-template-rows: auto auto auto auto auto auto;
-  justify-content: space-between;
-}
-
 .basic-coop-options {
   width: 100%;
   display: flex;
@@ -246,74 +217,9 @@ main {
   flex-grow: 1;
 }
 
-#flag-controls {
-  width: 100%;
-  display: flex;
-  align-content: center;
-  margin-bottom: 16px;
-}
-
-#flag-controls .label{
-  width: 90px;
-}
-
 #search-wrapper {
   width: 100%;
   margin-bottom: 16px;
-}
-
-#map-controls {
-  width: 100px;
-  margin-top: 16px;
-  margin-bottom: 16px;
-}
-
-#player-controls {
-  width: 100%;
-  margin-bottom: 4px;
-}
-
-.player-wrapper {
-  width: 100%;
-  padding-left: 8px;
-  padding-right: 8px;
-}
-
-.player_name {
-  display: block;
-  width: 100%;
-}
-
-.player-options {
-  width: 100%;
-  display: grid;
-  grid-template-columns: auto auto auto;
-  grid-template-rows: auto auto;
-  grid-gap: 2px;
-  justify-content: space-between;
-}
-
-#pickup-wrapper {
-  width: 100%;
-  padding-left: 8px;
-  padding-right: 8px;
-  display: grid;
-  grid-template-columns: auto auto auto;
-  grid-template-rows: auto auto auto;
-  justify-content: space-between;
-}
-
-.radio-label {
-	padding-left: 4px;
-	padding-right: 4px;
-}
-.control-label {
-  width: 100%;
-}
-
-#map-controls {
-  width: 100%;
-  margin-bottom: 4px;
 }
 
 .react-confirm-alert-body > h1 {

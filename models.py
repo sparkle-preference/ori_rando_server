@@ -502,29 +502,6 @@ class Player(ndb.Model):
         self.dll_version = vers
         return True
 
-    def bitfield_updates(self, post_data, game_id):
-        if not self.seen_bflds:
-            self.seen_bflds=8*[0]
-        if not self.have_bflds:
-            self.have_bflds=8*[0]
-        put = False
-        seen_diff = 8 * [0]
-        for i in range(8):
-            seen = int(post_data.get("seen_%s" % i, 0))
-            have = int(post_data.get("have_%s" % i))
-            if self.seen_bflds[i] != seen:
-                put = True
-                seen_diff[i] = seen - self.seen_bflds[i]
-                self.seen_bflds[i] = seen
-            if self.have_bflds[i] != have:
-                put = True
-                self.have_bflds[i] = have
-        if put:
-            # set_have has merge semantics — pass only our own entry (the old
-            # read-modify-write here raced with other players' updates)
-            Cache.set_have(game_id, {self.pid(): self.have_coords()})
-            self.put()
-        Cache.set_seen_checksum(self.idpts(), bfield_checksum(post_data.get("seen_%s" % i, 0) for i in range(8)))
     
     def seen_coords(self):
         return bfields_to_coords(self.seen_bflds) + [2]

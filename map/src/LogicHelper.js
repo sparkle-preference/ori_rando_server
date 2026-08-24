@@ -27,36 +27,6 @@ picks_by_type["Ma"].forEach(pick => {
     picks_by_area[pick.area] = [pick]
 })
 
-const xml_name_to_code = {
-'KS': 'KS|1',
-'MS': 'MS|1',
-'EC': 'EC|1',
-'HC': 'HC|1',
-'AC': 'AC|1',
-'TPSwamp': 'TP|Swamp',
-'TPGrove': 'TP|Grove',
-'TPGrotto': 'TP|Grotto',
-'TPValley': 'TP|Valley',
-'TPSorrow': 'TP|Sorrow',
-'TPForlorn': 'TP|Forlorn',
-'TPGinso': 'TP|Ginso',
-'TPHoru': 'TP|Horu',
-'Bash': 'SK|0',
-'ChargeFlame': 'SK|2',
-'WallJump': 'SK|3',
-'Stomp': 'SK|4',
-'DoubleJump': 'SK|5',
-'ChargeJump': 'SK|8',
-'Climb': 'SK|12',
-'Glide': 'SK|14',
-'Dash': 'SK|50',
-'Grenade': 'SK|51',
-'GinsoKey': 'EV|0',
-'Water': 'EV|1',
-'ForlornKey': 'EV|2',
-'Wind': 'EV|3',
-'HoruKey': 'EV|4'
-}
 
 function get_manual_reach() {
     let HC = get_int("hc", 0);
@@ -215,65 +185,6 @@ class LogicHelper extends React.Component {
             ),groups]
     }
 
-    getAreasPane = (inventory) => {
-        let area_groups = Object.keys(this.state.new_areas).filter(area => area.substr(0,2) !== "MS").map((area) => {
-            let is_selected = this.state.hasSeed && this.state.selected_area === area;
-            let paths = this.state.new_areas[area];
-            let path_rows = is_selected ? paths.map(reqs => {
-                if(reqs.length === 1 && reqs[0] === "Free")
-                    return null;
-                    
-                
-                let buttons = reqs.map(req => {
-                    let count = 1;
-                    if(req.includes("(")) {
-                        count = req.substr(3,req.indexOf(")")-3)
-                        req = req.substr(0,2)
-                    }
-                    if(!xml_name_to_code.hasOwnProperty(req))
-                        return null;
-                    let code = xml_name_to_code[req]
-                    if(!code_to_group.hasOwnProperty(code))
-                        return null;
-                    let group = code_to_group[code]
-                    if(!inventory.hasOwnProperty(group) || !inventory[group].hasOwnProperty(code)) {
-                        return null;
-                    }
-                    let picks = inventory[group][code]
-                    let name = name_from_str(code)+ (count > 1 ? " x" + count : "")
-                    return (
-                        <Button color={"danger"} outline={this.state.selected !== name} size="sm" onClick={() => this.onGroupClick(picks, name)}>{name}</Button>
-                    )
-                }).reduce((accu, elem) => accu === null ? [elem] : [...accu, <span>+</span>, elem] , null);
-                return ( 
-                    <li>
-                    {buttons}
-                    </li>
-                );
-            }) : []; 
-            let area_name = area.split(/(?=[A-Z])/).join(" ");
-            let unlocked_with = path_rows.filter(x => x !== null).length > 0 ? (<div>unlocked with:</div>) : null
-            if(!picks_by_area.hasOwnProperty(area))
-                return null
-            return (
-            <div>
-                <Button color={is_selected ? "warning" : "danger"} outline={this.state.selected !== area}  onClick={() => this.setState({selected_area: area}, () => this.onGroupClick(picks_by_area[area], area))}>{area_name}</Button>
-                <Collapse isOpen={is_selected}>
-                    {unlocked_with}
-                    <ul>
-                    {path_rows}
-                    </ul> 
-                </Collapse>
-            </div>
-            )  
-        });
-        return (
-            <div>
-                <div style={{textAlign: 'center', fontSize: '1.2em' }}>{this.state.hasSeed ? "New Reachable Areas" : "Reachable Areas"}</div>
-                {area_groups}
-            </div>
-        )
-    }
 
 
     getManualLogicControls = () => {
@@ -538,7 +449,6 @@ class LogicHelper extends React.Component {
         let overlay_style = { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, padding: '10em 0', background: 'rgba(0,0,0,0.5)', textAlign: 'center', color: '#fff' };
         let inventory = this.getInventory();
         let inv_pane = this.getInventoryPane(inventory);
-        let new_areas_report = null //this.getAreasPane(inventory); disabled until path compression exists
         let manual_controls = this.getManualLogicControls();
         let logic_auto_toggle = (
             <Collapse isOpen={this.state.hasSeed}>
@@ -636,7 +546,6 @@ class LogicHelper extends React.Component {
                         {logic_path_buttons}
                     </Row>
                     </Collapse>
-                    {new_areas_report}
                 </Container>
                 </div>
             </Dropzone>
