@@ -355,7 +355,7 @@ def game_show_history(game_id):
     game = Game.with_id(game_id)
     if game:
         if (game.params and Variation.RACE in game.fetch_params().variations) and not template_values["race_wl"]:
-            return text_code("Access forbidden", 401)
+            return text_resp("Access forbidden", 401)
         output = game.summary(int(param_val("p") or 0))
         output += "\nHistory:"
         hls = []
@@ -412,8 +412,6 @@ def gen_seed_from_params():
     if params.tracking:
         game = Game.from_params(params, param_val("game_id"))
         resp["gameId"] = game.key.id()
-        if debug() and param_flag("test_map_redir"):
-                return redirect(url_for("tracking_map", game_id=resp["gameId"], from_test=1))
     if Variation.BINGO in params.variations:
         resp["doBingoRedirect"] = True
         resp["bingoLines"] = params.bingo_lines
@@ -849,7 +847,7 @@ def tracker_item_tracker(game_id, player_id=1):
     game = Game.with_id(game_id)
     template_values = template_vals("ItemTracker", "Game %s" % game_id, User.get())
     if game and Variation.RACE in game.fetch_params().variations and not template_values["race_wl"]:
-        return text_code("Access forbidden", 401)
+        return text_resp("Access forbidden", 401)
     template_values['game_id'] = game_id
     template_values['player_id'] = player_id
     return render_template(path, **template_values)
@@ -1975,7 +1973,7 @@ def bingo_user_board(name):
     game_id, err = latest_bingo_game(name)
     if err:
         return text_resp(err, 404)
-    return redirect(url_for('bingo_board_spectate', game_id=4 + game_id*7))
+    return redirect("/bingo/spectate?game_id=%s" % (4 + game_id * 7))
 
 @app.route('/bingo/userboard/<name>/') #BingoUserboard =     
 def bingo_userboard(name):
