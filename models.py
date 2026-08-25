@@ -2129,39 +2129,26 @@ class Game(ndb.Model):
                     count = min(count, pickup.max)
                 for player in players:
                     has = player.has_pickup(pickup)
-                    if has < count:
+                    if has != count:
                         if has == 0 and count == 1:
                             log.warning("Player %s should have %s but did not. Fixing..." % (player.key.id(), pickup.name))
                         else:
                             log.warning("Player %s should have had %s of %s but had %s instead. Fixing..." % (player.key.id(), count, pickup.name, has))
-                        while(has < count):
-                            i += 1
-                            last = has
-                            player.give_pickup(pickup, delay_put=True)
-                            has = player.has_pickup(pickup)
-                            if has == last:
-                                player.signal_send(sanFailedSignal)
-                                log.critical("Aborting sanity check for Player %s: tried and failed to increment %s (at %s, should be %s)" % (player.key.id(), pickup.name, has, count))
-                                return False
-                            if i > 100:
-                                player.signal_send(sanFailedSignal)
-                                log.critical("Aborting sanity check for Player %s after too many iterations." % player.key.id())
-                                return False
-                    elif has > count:
-                        log.warning("Player %s should have had %s of %s but had %s instead. Fixing..." % (player.key.id(), count, pickup.name, has))
-                        while(has > count):
-                            i += 1
-                            last = has
-                            player.give_pickup(pickup, remove=True, delay_put=True)
-                            has = player.has_pickup(pickup)
-                            if has == last:
-                                player.signal_send(sanFailedSignal)
-                                log.critical("Aborting sanity check for Player %s: tried and failed to decrement %s (at %s, should be %s)" % (player.key.id(), pickup.name, has, count))
-                                return False
-                            if i > 100:
-                                player.signal_send(sanFailedSignal)
-                                log.critical("Aborting sanity check for Player %s after too many iterations." % player.key.id())
-                                return False
+                    # each give moves has one step toward count, so the
+                    # direction never flips mid-repair
+                    while has != count:
+                        i += 1
+                        last = has
+                        player.give_pickup(pickup, remove=(has > count), delay_put=True)
+                        has = player.has_pickup(pickup)
+                        if has == last:
+                            player.signal_send(sanFailedSignal)
+                            log.critical("Aborting sanity check for Player %s: tried and failed to %s %s (at %s, should be %s)" % (player.key.id(), "decrement" if last > count else "increment", pickup.name, has, count))
+                            return False
+                        if i > 100:
+                            player.signal_send(sanFailedSignal)
+                            log.critical("Aborting sanity check for Player %s after too many iterations." % player.key.id())
+                            return False
             stuples, bonuses = tuple(zip(*[(player.sharetuple(), player.bonuses) for player in players]))
             sk_max = max(tup[0] for tup in stuples)
             ev_max = max(tup[1] for tup in stuples)

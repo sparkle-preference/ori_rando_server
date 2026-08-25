@@ -1508,6 +1508,19 @@ class SeedGenerator:
         itemsToAssign[:] = result
         return True
 
+    def _grant(self, base, it, pool_item):
+        """Cost decrement and inventory bump for one world's copy; the zero-cost
+        branch watches pool_item, the shared entry when the grant fans out."""
+        if base in self.costs_to_decrement_by_one:
+            if self.costs[it] > 0:
+                self.costs[it] -= 1
+        elif base == "RB28":
+            if self.costs[it] > 0:
+                self.costs[it] -= min(3, self.costs[it])
+        elif it in self.costs and self.itemPool.get(pool_item, 0) == 0:
+            self.costs[it] = 0
+        self.inventory[it] = 1 + self.inventory.get(it, 0)
+
     def assign(self, item, preplaced=False):
         """item must be tagged with its owner ("Bash|2")."""
         base, owner = untag(item)
@@ -1519,15 +1532,7 @@ class SeedGenerator:
         else:
             if not preplaced:
                 self.itemPool[item] = max(self.itemPool.get(item, 0) - 1, 0)
-            if base in self.costs_to_decrement_by_one:
-                if self.costs[item] > 0:
-                    self.costs[item] -= 1
-            elif base == "RB28":
-                if self.costs[item] > 0:
-                    self.costs[item] -= min(3, self.costs[item])
-            elif item in self.costs and self.itemPool.get(item, 0) == 0:
-                self.costs[item] = 0
-            self.inventory[item] = 1 + self.inventory.get(item, 0)
+            self._grant(base, item, item)
         return item
 
     def assign_shared(self, base, preplaced=False):
@@ -1537,16 +1542,7 @@ class SeedGenerator:
         if not preplaced:
             self.itemPool[item] = max(self.itemPool.get(item, 0) - 1, 0)
         for p in self.multi_ps():
-            it = tag(base, p)
-            if base in self.costs_to_decrement_by_one:
-                if self.costs[it] > 0:
-                    self.costs[it] -= 1
-            elif base == "RB28":
-                if self.costs[it] > 0:
-                    self.costs[it] -= min(3, self.costs[it])
-            elif it in self.costs and self.itemPool.get(item, 0) == 0:
-                self.costs[it] = 0
-            self.inventory[it] = 1 + self.inventory.get(it, 0)
+            self._grant(base, tag(base, p), item)
         return item
 
     # forced assignments: untagged items belong to the location's world;
@@ -2398,27 +2394,22 @@ class SeedGenerator:
 
             self.spoiler.append((self.currentAreas, spoilerPath, self.spoilerGroup))
 
-            # open all reachable doors (for the next iteration)
+            # open all reachable doors (for the next iteration); KS before MS
+            # per player, the order the twin blocks always ran in
             for p in self.multi_ps():
-                if self.inventory[tag("KS", p)] >= keystoneCount[p]:
-                    for area in self.doorQueue[p].keys():
-                        if self.doorQueue[p][area].target not in self.areasReached:
-                            difficulty = self.doorQueue[p][area].cost()[2]
+                for key, queue, need in (("KS", self.doorQueue, keystoneCount),
+                                         ("MS", self.mapQueue, mapstoneCount)):
+                    if self.inventory[tag(key, p)] < need[p]:
+                        continue
+                    for area in queue[p].keys():
+                        conn = queue[p][area]
+                        if conn.target not in self.areasReached:
+                            difficulty = conn.cost()[2]
                             self.seedDifficulty += difficulty * difficulty
-                        self.reach_area(self.doorQueue[p][area].target)
-                        if self.doorQueue[p][area].target in self.areasRemaining:
-                            self.areasRemaining.remove(self.doorQueue[p][area].target)
-                        self.areas[area].remove_connection(self.doorQueue[p][area])
-
-                if self.inventory[tag("MS", p)] >= mapstoneCount[p]:
-                    for area in self.mapQueue[p].keys():
-                        if self.mapQueue[p][area].target not in self.areasReached:
-                            difficulty = self.mapQueue[p][area].cost()[2]
-                            self.seedDifficulty += difficulty * difficulty
-                        self.reach_area(self.mapQueue[p][area].target)
-                        if self.mapQueue[p][area].target in self.areasRemaining:
-                            self.areasRemaining.remove(self.mapQueue[p][area].target)
-                        self.areas[area].remove_connection(self.mapQueue[p][area])
+                        self.reach_area(conn.target)
+                        if conn.target in self.areasRemaining:
+                            self.areasRemaining.remove(conn.target)
+                        self.areas[area].remove_connection(conn)
 
             locationsToAssign = []
             self.spoilerGroup = defaultdict(list)

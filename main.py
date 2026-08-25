@@ -954,6 +954,31 @@ def rebinding_tool():
 
 @app.route('/reroll')
 @oidc.require_login
+def _reroll(params):
+    """Same settings, fresh seed. Returns (new_params, game, error_response)."""
+    old = params.to_json()
+    old['seed'] = str(random.randint(0, 1000000000))
+    new_params = SeedGenParams.from_json(old).get()
+    # the overrides pass modes a game already exists in; combinations that
+    # can't work at all still refuse
+    problem = seed_mode_problem(new_params, mw_override=True, ap_override=True)
+    if problem:
+        return None, None, text_resp(problem, 409)
+    if not new_params.generate():
+        return None, None, text_resp("Failed to generate seed!", 500)
+    return new_params, Game.from_params(new_params), None
+
+
+def _bingo_board_url(game, params, disc=None, team_max=None):
+    url = "/bingo/board?game_id=%s&fromGen=1&seed=%s&bingoLines=%s" % (
+        game.key.id(), params.seed, params.bingo_lines)
+    if disc:
+        url += "&disc=%s" % disc
+    if team_max:
+        url += "&teamMax=%s" % team_max
+    return url
+
+
 def reroll_seed():
     user = User.get()
     if not user.games:
@@ -962,23 +987,12 @@ def reroll_seed():
     old_game = game_key.get()
     if not old_game.params:
         return text_resp("latest game does not have params", 404)
-    old_params = old_game.fetch_params().to_json()
-    old_params['seed'] = str(random.randint(0, 1000000000))
-    new_params = SeedGenParams.from_json(old_params).get()
-    # the overrides pass modes this user already has a game of; combinations
-    # that can't work at all still refuse
-    problem = seed_mode_problem(new_params, mw_override=True, ap_override=True)
-    if problem:
-        return text_resp(problem, 409)
-    if not new_params.generate():
-        return text_resp( "Failed to generate seed!", 500)
-    game = Game.from_params(new_params)
+    new_params, game, err = _reroll(old_game.fetch_params())
+    if err:
+        return err
     if Variation.BINGO in new_params.variations:
-        url = "/bingo/board?game_id=%s&fromGen=1&seed=%s&bingoLines=%s" % (game.key.id(), new_params.seed, new_params.bingo_lines)
         b = old_game.bingo_data.get() if old_game.bingo_data else None
-        if b and b.discovery and b.discovery > 0:
-            url += "&disc=%s" % b.discovery
-        return redirect(url)
+        return redirect(_bingo_board_url(game, new_params, disc=b.discovery if b else None))
     return redirect("%s?param_id=%s&game_id=%s" % (url_for('main_page'), new_params.key.id(), game.key.id()))
 
 # --- presets (SSPs in code) --------------------------------------------------
@@ -1088,8 +1102,7 @@ def ssp_roll(owner_name, name):
         return redirect("%s?param_id=%s" % (url_for('main_page'), param_key.id()))
     game = Game.from_params(params)
     if Variation.BINGO in params.variations:
-        return redirect("/bingo/board?game_id=%s&fromGen=1&seed=%s&bingoLines=%s"
-                        % (game.key.id(), params.seed, params.bingo_lines))
+        return redirect(_bingo_board_url(game, params))
     return redirect("%s?param_id=%s&game_id=%s"
                     % (url_for('main_page'), param_key.id(), game.key.id()))
 
@@ -1551,10 +1564,7 @@ def bingo_get_game(game_id):
             # 1 Hz spectator poll (update() only writes this cache after start_time).
             # Copy: set_board strips is_owner, and offset is added to res below.
             Cache.set_board(game_id, dict(res))
-        if param_flag("time"):
-            server_now = timegm(now.timetuple()) * 1000
-            client_now = int(param_val("time"))
-            res["offset"] = server_now - client_now
+        add_client_offset(res, now)
     return json_resp(res)
 
 @app.route('/bingo/game/<int:game_id>/start') #BingoStartCountdown =
@@ -1588,9 +1598,7 @@ def _bingo_start_game_inner(game_id):
     # countdown on their next poll instead of after the 60s board TTL
     Cache.set_board(game_id, dict(res))
 
-    server_now = timegm(now.timetuple()) * 1000
-    client_now = int(param_val("time"))
-    res["offset"] = server_now - client_now
+    add_client_offset(res, now)
     jsonres = json_resp(res)
     bingo.put()
     return jsonres
@@ -1607,23 +1615,14 @@ def bingo_reroll_seed(game_id):
     params = game.fetch_params()
     if getattr(params, "ap_mode", False):
         return text_resp("An Archipelago seed comes from its room, so it can't be rerolled here", 412)
-    old_params = params.to_json()
-    old_params['seed'] = str(random.randint(0, 1000000000))
-    new_params = SeedGenParams.from_json(old_params).get()
-    # as in /reroll: modes this game already exists in pass, impossible ones refuse
-    problem = seed_mode_problem(new_params, mw_override=True, ap_override=True)
-    if problem:
-        return text_resp(problem, 409)
-    if not new_params.generate():
-        return text_resp("Failed to generate seed!", 500)
-    new_game = Game.from_params(new_params)
-    url = "/bingo/board?game_id=%s&fromGen=1&seed=%s&bingoLines=%s" % (new_game.key.id(), new_params.seed, new_params.bingo_lines)
+    new_params, new_game, err = _reroll(params)
+    if err:
+        return err
     bingo = game.bingo_data.get() if game.bingo_data else None
-    if bingo and bingo.discovery:
-        url += "&disc=%s" % bingo.discovery
-    if new_params.sync.enabled and new_params.sync.mode == MultiplayerGameType.SHARED:
-        url += "&teamMax=%s" % new_params.players
-    return redirect(url)
+    shared = new_params.sync.enabled and new_params.sync.mode == MultiplayerGameType.SHARED
+    return redirect(_bingo_board_url(new_game, new_params,
+                                     disc=bingo.discovery if bingo else None,
+                                     team_max=new_params.players if shared else None))
 
 @app.route('/bingo/game/<int:game_id>/reroll_board') #BingoRerollBoard =
 def bingo_reroll_board(game_id):
@@ -1647,9 +1646,7 @@ def _bingo_reroll_board_inner(game_id):
     seed = param_val("seed") or bingo.seed or ""
     if seed == (bingo.seed or ""):
         seed = bump_board_seed(seed)  # a reroll has to move the board even when nothing else changed
-    d = int(param_val("discCount") or 0)
-    lockout = bool(int(param_val("lockout") or 0))
-    meta = param_flag("meta")
+    d, lockout, meta = _bingo_query_opts()
     bingo.board = bingo_board_cards(game.fetch_params() if game and game.params else None,
                                     difficulty, seed, d, meta, lockout)
     bingo.difficulty = difficulty
@@ -1671,10 +1668,7 @@ def _bingo_reroll_board_inner(game_id):
     # in the shape a poll expects, or every viewer sits on the old board for a TTL
     Cache.set_board(game_id, bingo.get_json())
     res = bingo.get_json(True)
-    if param_flag("time"):
-        server_now = timegm(now.timetuple()) * 1000
-        client_now = int(param_val("time"))
-        res["offset"] = server_now - client_now
+    add_client_offset(res, now)
     return json_resp(res)
 
 @app.route('/bingo/game/<int:game_id>/add/<int:player_id>') #BingoAddPlayer =
@@ -1881,9 +1875,7 @@ def bingo_create_game():
             base.insert(1, mu_line)
         
         game = key.get()
-        d = int(param_val("discCount") or 0)
-        lockout = bool(int(param_val("lockout") or 0))
-        meta = param_flag("meta")
+        d, lockout, meta = _bingo_query_opts()
         bingo = BingoGameData(
             id            = key.id(),
             board         = BingoGenerator.get_cards(rand, 25, False, difficulty, True, d, meta, lockout, False),
@@ -1897,36 +1889,14 @@ def bingo_create_game():
         )
         if d:
             bingo.discovery = d
-        if param_flag("lines"):
-            bingo.bingo_count  = int(param_val("lines"))
-        if param_flag("squares"):
-            bingo.square_count = int(param_val("squares"))
-        user = User.get()
-        eventStr = "misc"
-        if user:
-            bingo.creator = user.key
-        if not user or param_flag("noTimer"):
-            bingo.start_time = now
-            eventStr += "Bingo Game %s started!" % key.id()
-        else:
-            eventStr += "Bingo Game %s created!" % key.id()
-
-        if bingo.square_count and bingo.square_count > 0:
-            eventStr += " squares to win: %s" % bingo.square_count
-            if bingo.lockout:
-                eventStr += ", lockout"
-        elif bingo.bingo_count > 0:
-            eventStr += " bingos to win: %s" % bingo.bingo_count
+        eventStr = _bingo_setup_tail(bingo, now, key.id())
         if show_info:
             bingo.subtitle = " | ".join(sw_parts)
             eventStr += ", starting with: " + ", ".join(sw_parts)
         bingo.event_log.append(BingoEvent(event_type=eventStr, timestamp=now))
         res = bingo.get_json(True)
 
-        if param_flag("time"):
-            server_now = timegm(now.timetuple()) * 1000
-            client_now = int(param_val("time"))
-            res["offset"] = server_now - client_now
+        add_client_offset(res, now)
 
         bkey = bingo.put()
         game.bingo_data = bkey
@@ -1986,11 +1956,46 @@ def bingo_userboard_tick(name, game_id):
     if not bingo:
         return text_resp("Bingo game %s not found" % game_id, 404)
     res = bingo.get_json(first)
-    if param_flag("time"):
-        server_now = timegm(now.timetuple()) * 1000
-        client_now = int(param_val("time"))
-        res["offset"] = server_now - client_now
+    add_client_offset(res, now)
     return json_resp(res)
+
+def _bingo_query_opts():
+    """The board options every bingo creation route reads the same way."""
+    return (int(param_val("discCount") or 0),
+            bool(int(param_val("lockout") or 0)),
+            param_flag("meta"))
+
+
+def _bingo_setup_tail(bingo, now, gid):
+    """The shared back half of board creation: count overrides, creator, start
+    timing. Returns the event string for the caller to extend and log."""
+    if param_flag("lines"):
+        bingo.bingo_count = int(param_val("lines"))
+    if param_flag("squares"):
+        bingo.square_count = int(param_val("squares"))
+    user = User.get()
+    event = "misc"
+    if user:
+        bingo.creator = user.key
+    if not user or param_flag("noTimer"):
+        bingo.start_time = now
+        event += "Bingo Game %s started!" % gid
+    else:
+        event += "Bingo Game %s created!" % gid
+    if bingo.square_count and bingo.square_count > 0:
+        event += " squares to win: %s" % bingo.square_count
+        if bingo.lockout:
+            event += ", lockout"
+    elif bingo.bingo_count > 0:
+        event += " bingos to win: %s" % bingo.bingo_count
+    return event
+
+
+def add_client_offset(res, now):
+    """The board clock rides every payload: server minus client, milliseconds."""
+    if param_flag("time"):
+        res["offset"] = timegm(now.timetuple()) * 1000 - int(param_val("time"))
+
 
 def _bingo_recreate_problem(game, bingo):
     """A second from_game wipes a live board, so it's the owner's call."""
@@ -2028,9 +2033,7 @@ def add_bingo_to_game(game_id):
         rand = random.Random()
         rand.seed(seed)
 
-        d = int(param_val("discCount") or 0)
-        lockout = bool(int(param_val("lockout") or 0))
-        meta = param_flag("meta")
+        d, lockout, meta = _bingo_query_opts()
         test_iters = int(param_val("testIters") or 0)
         if test_iters: # this is like having test code
             edges = [0,1,2,3,4,5,9,10,14,15,19,20,21,22,23,24]
@@ -2109,25 +2112,7 @@ def add_bingo_to_game(game_id):
             log.warning("Teams are required for shared seeds! Overriding invalid config")
             bingo.teams_allowed = True
 
-        if param_flag("lines"):
-            bingo.bingo_count  = int(param_val("lines"))
-        if param_flag("squares"):
-            bingo.square_count = int(param_val("squares"))
-        user = User.get()
-        eventStr = "misc"
-        if user:
-            bingo.creator = user.key
-        if not user or param_flag("noTimer"):
-            bingo.start_time = now
-            eventStr += "Bingo Game %s started!" % game_id
-        else:
-            eventStr += "Bingo Game %s created!" % game_id
-        if bingo.square_count and bingo.square_count > 0:
-            eventStr += " squares to win: %s" % bingo.square_count
-            if bingo.lockout:
-                eventStr += ", lockout"
-        elif bingo.bingo_count > 0:
-            eventStr += " bingos to win: %s" % bingo.bingo_count
+        eventStr = _bingo_setup_tail(bingo, now, game_id)
         bingo.event_log.append(BingoEvent(event_type=eventStr, timestamp=now))
         ap_bingo = getattr(params, "ap_mode", False)
         if ap_bingo:
@@ -2151,10 +2136,7 @@ def add_bingo_to_game(game_id):
                 bingo.teams.append(BingoTeam(captain=bingo.init_player(w).key, teammates=[]))
         # after the AP fields: the creator's page reads ap_worlds off this
         res = bingo.get_json(True)
-        if param_flag("time"):
-            server_now = timegm(now.timetuple()) * 1000
-            client_now = int(param_val("time"))
-            res["offset"] = server_now - client_now
+        add_client_offset(res, now)
 
         bkey = bingo.put()
         game.bingo_data = bkey
