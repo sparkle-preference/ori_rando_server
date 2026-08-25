@@ -346,10 +346,24 @@ export default class HelpAndGuides extends React.Component {
                         The energy cost of the Charge Flame skill has been reduced to 1/2; it drops to 0 after leveling Charge Flame Efficiency in the blue ability tree.
                     </li>
                     <li>
+                        In addition to the normal pickup locations, you can find pickups by:
+                        <ul>
+                            <li>
+                                Destroying petrified (blue) plants (These now show up on the minimap)
+                            </li>
+                            <li>
+                                Unlocking maps by turning in mapstones (9 pickups, 1 per map)
+                            </li>
+                            <li>
+                                Finishing rooms in Mount Horu (8 pickups, 1 per room)
+                            </li>
+                        </ul>
+                    </li>
+                    <li>
                         You can use the Warp keybinding (bound to alt+R by default, rebindable using RandomizerRebindings.txt) to teleport to a Spirit Well at any time, to prevent logical softlocks.
                         <ul>
                             <li>
-                                The Sunken Glades Spirit Well is automatically granted to the player upon picking up Sein/Spirit Flame.
+                                The Sunken Glades Spirit Well is automatically granted to the player upon picking up Sein/Spirit Flame - you can Warp back to Glades to skip fighting the three fronkeys (jumping enemies) that spawn after picking it up.
                             </li>
                         </ul>
                     </li>
@@ -367,20 +381,6 @@ export default class HelpAndGuides extends React.Component {
                     </li>
                     <li>
                         First-time pickup animations and Sein's dialog boxes are disabled, just like they would be in the base game with the UI toggled off.
-                    </li>
-                    <li>
-                        In addition to the normal pickup locations, you can find pickups by:
-                        <ul>
-                            <li>
-                                Destroying petrified (blue) plants (These now show up on the minimap)
-                            </li>
-                            <li>
-                                Unlocking maps by turning in mapstones (9 pickups, 1 per map)
-                            </li>
-                            <li>
-                                Finishing rooms in Mount Horu (8 pickups, 1 per room)
-                            </li>
-                        </ul>
                     </li>
                     <li>
                         There are new pickups not found in the base game, including teleporter unlocks and several bonus pickups. Check out the Bonus Item Glossary guide below to learn more about them.
