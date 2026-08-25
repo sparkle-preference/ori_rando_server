@@ -259,7 +259,7 @@ class User(ndb.Model):
     def is_admin():
         user = User.get()
         if user:
-            return user.is_admin
+            return user.admin
         return False
 
     @staticmethod
