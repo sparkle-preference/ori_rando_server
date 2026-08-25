@@ -87,5 +87,74 @@ class TransactionalRenameTestCase(EmulatorTestCase):
         self.assertEqual(user.saved_params("b").description, "d")
 
 
+class AdminAndRecreateGateTestCase(EmulatorTestCase):
+    """Who may rebuild a live bingo board, and who counts as an admin at all."""
+
+    def _login(self, uid, email, name):
+        from models import User
+        import main
+        with main.app.test_request_context():
+            g.oidc_user = _AppUser(uid, email, name)
+            return User.get()
+
+    def test_is_admin_reads_the_flag_not_the_method(self):
+        import main
+        from models import User
+        user = self._login("100", "pleb@example.com", "pleb")
+        with main.app.test_request_context():
+            g.oidc_user = _AppUser("100", "pleb@example.com", "pleb")
+            self.assertFalse(User.is_admin(), "a plain user must not pass admin checks")
+            user.admin = True
+            user.put()
+            self.assertTrue(User.is_admin())
+
+    def _game_with_board(self, owner):
+        from models import BingoGameData, Game
+        game = Game(id=41)
+        bingo = BingoGameData(id=41, game=game.key)
+        if owner is not None:
+            bingo.creator = owner.key
+        game.bingo_data = bingo.put()
+        game.put()
+        return game, bingo
+
+    def test_the_owner_may_recreate(self):
+        import main
+        owner = self._login("200", "own@example.com", "own")
+        game, bingo = self._game_with_board(owner)
+        with main.app.test_request_context():
+            g.oidc_user = _AppUser("200", "own@example.com", "own")
+            self.assertIsNone(main._bingo_recreate_problem(game, bingo))
+
+    def test_a_stranger_may_not(self):
+        import main
+        owner = self._login("200", "own@example.com", "own")
+        self._login("300", "other@example.com", "other")
+        game, bingo = self._game_with_board(owner)
+        with main.app.test_request_context():
+            g.oidc_user = _AppUser("300", "other@example.com", "other")
+            self.assertIsNotNone(main._bingo_recreate_problem(game, bingo))
+
+    def test_an_admin_may(self):
+        import main
+        owner = self._login("200", "own@example.com", "own")
+        boss = self._login("400", "boss@example.com", "boss")
+        boss.admin = True
+        boss.put()
+        game, bingo = self._game_with_board(owner)
+        with main.app.test_request_context():
+            g.oidc_user = _AppUser("400", "boss@example.com", "boss")
+            self.assertIsNone(main._bingo_recreate_problem(game, bingo))
+
+    def test_an_anonymous_board_is_admin_only(self):
+        import main
+        self._login("300", "other@example.com", "other")
+        game, bingo = self._game_with_board(None)
+        with main.app.test_request_context():
+            g.oidc_user = _AppUser("300", "other@example.com", "other")
+            self.assertIsNotNone(main._bingo_recreate_problem(game, bingo),
+                                 "no owner on record means only an admin rebuilds")
+
+
 if __name__ == "__main__":
     unittest.main()

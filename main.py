@@ -2011,6 +2011,17 @@ def bingo_userboard_tick(name, game_id):
         res["offset"] = server_now - client_now
     return json_resp(res)
 
+def _bingo_recreate_problem(game, bingo):
+    """A second from_game wipes a live board, so it's the owner's call."""
+    if User.is_admin():
+        return None
+    user = User.get()
+    owners = [k for k in (game.creator, bingo.creator) if k]
+    if user and user.key in owners:
+        return None
+    return "game %s already has a bingo board" % game.key.id()
+
+
 @app.route('/bingo/from_game/<int:game_id>') #AddBingoToGame =     
 def add_bingo_to_game(game_id):
         now = datetime.utcnow()
@@ -2023,6 +2034,12 @@ def add_bingo_to_game(game_id):
             return text_resp("game not found", 404)
         if not game.params:
             return text_resp("game did not have required seed data", 412)
+        if game.bingo_data:
+            existing = game.bingo_data.get()
+            if existing:
+                problem = _bingo_recreate_problem(game, existing)
+                if problem:
+                    return text_resp(problem, 403)
         if game.mode in [MultiplayerGameType.SPLITSHARDS]:
             return text_resp("splitshards bingo are not currently supported", 412)
         params = game.fetch_params()
