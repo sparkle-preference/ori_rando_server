@@ -22,7 +22,6 @@ NumericInput.style.input.width = '100%';
 NumericInput.style.input.height = '36px';
 
 const relevantCodes = ["HC", "AC", "EC", "KS", "MS", "TP", "RB", "EV", "SK", "TW"];
-const DUNGEON_KEYS = ["EV|0", "EV|2", "EV|4"]
 // returns "EV|n" if this pickup is a dungeon key, or is a multipickup containing exactly
 // one dungeon key (the client treats such multipickups as that key for clue purposes)
 const clue_key_in = (code, id) => {
@@ -231,7 +230,7 @@ class PlandoBuiler extends React.Component {
     super(props)
     let {seed_name, seed_desc, user, hidden} = get_seed();
 
-    this.state = {seed_in: "", reachable: {...DEFAULT_REACHABLE}, new_areas: {...DEFAULT_REACHABLE}, placements: {1: {...DEFAULT_DATA}}, player: 1, saving: false,
+    this.state = {seed_in: "", reachable: {...DEFAULT_REACHABLE}, new_areas: {...DEFAULT_REACHABLE}, placements: {1: {...DEFAULT_DATA}}, player: 1,
                   fill_opts: {HC: 13, EC: 15, AC: 34, KS: 40, MS: 9, EX: 300, ex_pool: 10000, dynamic: false, dumb: false}, viewport: {center: [0, 0], zoom: 5}, searchStr: "", clueOrder: CLUE_ORDERS[0],
                   flags: ['hide_unreachable', 'hide_softlockable'], seedFlags: [], hidden: hidden, share_types: select_wrap(["Skills", "WorldEvents", "Teleporters"]), coop_mode: {label: "Solo", value: "None"},
                   pickups: ["EX", "Ma", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "CS"], display_fill: false, display_import: false, display_logic: false, display_coop: false, display_meta: false,
@@ -801,7 +800,6 @@ class PlandoBuiler extends React.Component {
             NotificationManager.error("Server error", "Failed to save seed!", 4000);
         else 
             NotificationManager.error("Unknown error", "Failed to save seed!", 4000);
-        this.setState({saving: false})
         
     }
 

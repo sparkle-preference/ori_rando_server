@@ -333,12 +333,12 @@ export default class Bingo extends React.Component {
         let user = get_param("user");
         let targetCount = parseInt(iniUrl.searchParams.get("bingoLines") || 0, 10) || (fromGen && (teamMax > 1) ? 5 : 3)
         this.state = {
-                      cards: [], currentRecord: 0, haveGame: false, creatingGame: false, createModalOpen: true, offset: 0, noTimer: false, 
+                      cards: [], haveGame: false, creatingGame: false, createModalOpen: true, offset: 0, noTimer: false, 
                       discovery: iniUrl.searchParams.has("disc"), discCount: parseInt(iniUrl.searchParams.get("disc") || 2, 10), discSquares: [], lockout: false,
                       activePlayer: parseInt(get_param("pref_num") || 1, 10), showInfo: false, user: user, loadingText: "Loading...", paramId: -1, squareCount: 13, seed: seed,
                       dark: dark, specLink: window.document.location.href.replace("board", "spectate").replace(gameId, 4 + gameId*7), testIters: 0,
                       fails: 0, gameId: gameId, startSkills: 3, startCells: 4, startMisc: "MU|TP/Swamp/TP/Valley", goalMode: "bingos",
-                      start_with: "", difficulty: "normal", isRandoBingo: false, randoGameId: -1, viewOnly: viewOnly, buildingPlayer: false, meta: false,
+                      difficulty: "normal", isRandoBingo: false, randoGameId: -1, viewOnly: viewOnly, buildingPlayer: false, meta: false,
                       events: [], startTime: (new Date()), countdownActive: false, isOwner: false, targetCount: targetCount, userBoard: userBoard,
                       teamsDisabled: (teamMax === -1), fromGen: fromGen, teamMax: teamMax, ticksSinceLastSquare: 0, userBoardParams: userBoardParams,
                       ticking: false, netFails: 0, netRetryAt: 0, rerollingBoard: false
@@ -665,7 +665,7 @@ export default class Bingo extends React.Component {
                 this.setState({boardsByWorld: res.boards || {},
                               subtitle: res.subtitle, gameId: res.gameId, createModalOpen: false, creatingGame: false, haveGame: true, offset: res.offset || offset,
                               fails: 0, netFails: 0, netRetryAt: 0, dispDiff: res.difficulty || dispDiff, teams: res.teams, paramId: res.paramId, activePlayer: activePlayer, ticksSinceLastSquare: 0,
-                              currentRecord: 0, cards: (mine && mine.cards) || res.cards, events: res.events,
+                              cards: (mine && mine.cards) || res.cards, events: res.events,
                               targetCount: (mine && mine.bingo_count) || res.bingo_count, fromGen: false, teamMax: res.teamMax || -1,
                               discSquares: (mine && mine.discovery) || res.discovery || [],
                               lockout: res.lockout || false, startTime: res.start_time_posix, isOwner: res.is_owner, countdownActive: res.countdown, teamsDisabled: !res.teams_allowed,

@@ -144,7 +144,7 @@ function getPickupMarkers(state) {
 	});
 	
 	let hideOpt = state.hideOpt;
-	let pickupTypes = (state.pickup_display === "Some") ? state.pickups : ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "Ma", "CS"];
+	let pickupTypes = ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "Ma", "CS"];
 	let searchStr = (state.searchStr || "").toLowerCase();
 	let markers = []
 	let msTT = getMapstoneToolTip(players);
@@ -245,8 +245,8 @@ class GameTracker extends React.Component {
     let modes = presets['standard'];
     let url = new URL(window.document.URL);
     this.state = {
-        mousePos: {lat: 0, lng: 0}, players: {}, follow: url.searchParams.get("follow") || -1, retries: 0, check_seen: 1, modes: modes, timeout: TIMEOUT_START, searchStr: "", pickup_display: "all", seed_reqs: {},
-        show_sidebar: !url.searchParams.has("hideSidebar"), idle_countdown: 10800, bg_update: true, pickups: ["EX", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "Ma", "CS"], show_tracker: !url.searchParams.has("hideTracker"),
+        mousePos: {lat: 0, lng: 0}, players: {}, follow: url.searchParams.get("follow") || -1, retries: 0, check_seen: 1, modes: modes, timeout: TIMEOUT_START, searchStr: "", seed_reqs: {},
+        show_sidebar: !url.searchParams.has("hideSidebar"), idle_countdown: 10800, bg_update: true, show_tracker: !url.searchParams.has("hideTracker"),
         open_world: false, closed_dungeons: false, pathMode: get_preset(modes), hideOpt: "all", display_logic: false,  viewport: {center: [0, 0], zoom: 5}, usermap: url.searchParams.get("usermap") || "",
         /*tracker_data: {events: [], teleporters: [], shards: {gs: 0, ss: 0, wv: 0}, skills: [], maps: 0,relics_found: [], relics: [], trees: []},*/ gameId: get_param("game_id")
     };
@@ -346,7 +346,6 @@ class GameTracker extends React.Component {
   };
 
   hideOptChanged = newVal => { this.setState({hideOpt: newVal}) }
-  pickupsChanged = newVal => { this.setState({pickups: newVal}) }
   onSearch = event => { this.setState({searchStr: event.target.value}) }
   modesChanged = (paths) => this.setState(prevState => {
 		let players = prevState.players
@@ -379,7 +378,7 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
 
   render() {
     try {
-		let pickup_markers = (this.state.pickup_display !== "none") ? ( <PickupMarkersList markers={getPickupMarkers(this.state)} />) : null;
+		let pickup_markers = ( <PickupMarkersList markers={getPickupMarkers(this.state)} />);
 		let player_markers = ( <PlayerMarkersList players={this.state.players} />)
 		let player_opts = ( <PlayerUiOpts players={this.state.players} follow={this.state.follow} setter={(p) => this.setState(p)} />)
 		let show_button = !this.state.show_sidebar ? (<Button size="sm" onClick={() => this.setState({show_sidebar: true})}>Show Sidebar</Button>) : null

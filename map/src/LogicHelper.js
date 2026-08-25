@@ -248,7 +248,7 @@ class LogicHelper extends React.Component {
             modes = presets['standard'];
         }
 
-        this.setState({a:a, b:b, x:x, y:y, modes: modes, search: search, pathMode: {label: pathmode, value: pathmode}, manual_reach: manual_reach}, () => {this.updateReachable() ; this.updateURL()})
+        this.setState({a:a, b:b, x:x, y:y, modes: modes, pathMode: {label: pathmode, value: pathmode}, manual_reach: manual_reach}, () => {this.updateReachable() ; this.updateURL()})
     };
     componentDidMount() {
          setTimeout(() => {

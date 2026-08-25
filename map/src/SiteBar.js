@@ -14,7 +14,7 @@ class SiteBar extends Component {
 
         // }
         let dark = resolve_dark()
-        this.state = {user, dark, teamName: "", settingsOpen: false, quickstartOpen: false, editName: user, loadedNames: false, saveInProgress: false, loader: get_random_loader(), saveStatus: 0}
+        this.state = {user, dark, teamName: "", settingsOpen: false, editName: user, loadedNames: false, saveInProgress: false, loader: get_random_loader(), saveStatus: 0}
     }
 
     componentDidMount() {
@@ -40,7 +40,7 @@ class SiteBar extends Component {
             return {valid: false, feedback: (<FormFeedback tooltip>Invalid symbol(s): {forbiddenChars.join(", ")}</FormFeedback>)}
         return {valid: true, feedback: (<FormFeedback valid tooltip>Name is available and valid</FormFeedback>)}
     }
-    closeModals = () => this.setState({settingsOpen: false, quickstartOpen: false})
+    closeModals = () => this.setState({settingsOpen: false})
     submitSettings = () => {
         doNetRequest(`/user/settings/update?name=${this.state.editName}&teamname=${encodeURIComponent(this.state.teamName)}`, ({status}) => {
             if(status === 200)

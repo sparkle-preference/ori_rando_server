@@ -1,53 +1,42 @@
 {
-    "name": "parcel-react-client-starter",
-    "private": true,
-    "version": "0.0.0",
-    "source": "src/index.html",
-    "targets":{
-        "default":{
-            "publicUrl": "/static"
-        }
-    },
-    "scripts": {
-        "build": "parcel build",
-        "watch": "parcel watch"
-    },
-    "dependencies": {
-        "bootstrap": "^4.3.1",
-        "chalk": "1.1.3",
-        "he": "^1.2.0",
-        "http-proxy-middleware": "^3.0.5",
-        "leaflet": "^1.9.4",
-        "react": "^16.0.0",
-        "react-bootstrap-toggle": "^2.3.1",
-        "react-checkbox-group": "^4.0.1",
-        "react-confirm-alert": "^2.0.2",
-        "react-countdown-now": "^1.1.0",
-        "react-dev-utils": "^5.0.0",
-        "react-dom": "^16.3.0",
-        "react-dropdown": "^1.4.0",
-        "react-dropzone": "^4.2.13",
-        "react-helmet": "^5.2.0",
-        "react-icons": "^3.7.0",
-        "react-leaflet": "^1.9.0",
-        "react-leaflet-control": "^1.4.1",
-        "react-notifications": "^1.4.3",
-        "react-numeric-input": "^2.2.3",
-        "react-radio-group": "^3.0.3",
-        "react-router": "^4.2.0",
-        "react-router-dom": "^4.2.2",
-        "react-select": "^2.1.1",
-        "react-spinners": "^0.17.0",
-        "reactstrap": "^5.0.0-beta.3",
-        "underscore": "^1.8.3"
-    },
-    "devDependencies": {
-        "@types/react": "^19.0.0",
-        "@types/react-dom": "^19.0.0",
-        "connect-injector": "^0.4.4",
-        "events": "^3.3.0",
-        "mustache": "^4.2.0",
-        "parcel": "^2.14.0",
-        "parcel-reporter-static-files-copy": "^1.5.3"
+  "name": "parcel-react-client-starter",
+  "private": true,
+  "version": "0.0.0",
+  "source": "src/index.html",
+  "targets": {
+    "default": {
+      "publicUrl": "/static"
     }
+  },
+  "scripts": {
+    "build": "parcel build",
+    "watch": "parcel watch"
+  },
+  "dependencies": {
+    "he": "^1.2.0",
+    "leaflet": "^1.9.4",
+    "react": "^16.0.0",
+    "react-bootstrap-toggle": "^2.3.1",
+    "react-checkbox-group": "^4.0.1",
+    "react-confirm-alert": "^2.0.2",
+    "react-countdown-now": "^1.1.0",
+    "react-dom": "^16.3.0",
+    "react-dropzone": "^4.2.13",
+    "react-helmet": "^5.2.0",
+    "react-icons": "^3.7.0",
+    "react-leaflet": "^1.9.0",
+    "react-leaflet-control": "^1.4.1",
+    "react-notifications": "^1.4.3",
+    "react-numeric-input": "^2.2.3",
+    "react-select": "^2.1.1",
+    "react-spinners": "^0.17.0",
+    "reactstrap": "^5.0.0-beta.3"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "events": "^3.3.0",
+    "parcel": "^2.14.0",
+    "parcel-reporter-static-files-copy": "^1.5.3"
+  }
 }

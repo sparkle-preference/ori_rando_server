@@ -12,7 +12,6 @@ import {getHelpContent, HelpBox} from "./helpbox.js";
 import {get_param, spawn_defaults, get_flag, ap_enabled, presets, select_theme, name_from_str, get_preset, player_icons, doNetRequest, get_random_loader, PickupSelect, Cent, dev, randInt, gotoUrl, prng, decompose_pickup, app_enabled} from './common.js';
 import SiteBar from "./SiteBar.js";
 import Select from 'react-select';
-import Dropzone from 'react-dropzone';
 import {picks_by_zone} from './shared_map';
 
 
@@ -260,11 +259,6 @@ const VERSION = get_param("version")
 // moves on a site-only release, so the changelog link goes unread for those too
 const NOTES_ANCHOR = get_param("notes_anchor") || VERSION
 const SPAWN_TPS = ["Glades", "Grove", "Swamp", "Grotto", "Forlorn", "Valley", "Horu", "Ginso", "Sorrow", "Blackroot"]
-const STUPID_KEYS = {
-    "blame": "vulajin",
-    "gdi": "eiko",
-    "dont": "pingme"
-}
 
 const VAR_NAMES = {
     // variations that are hungry
@@ -359,56 +353,7 @@ export default class MainPage extends React.Component {
     }
 )
 
-    onDragEnter = () => this.setState({dropzoneActive: true});
 
-    onDragLeave = () => this.setState({dropzoneActive: false});
-
-onDrop = (files) => {
-        let file = files.pop();
-        if(file) {
-            let reader = new FileReader();
-            reader.onload = () => {
-                let text = reader.result;
-                window.URL.revokeObjectURL(file.preview);
-                // do whatever you want with the file content
-                dev && console.log(text.split("\n"));
-                uploadReaderLines(text.split("\n"))
-            };
-            reader.onabort = () => console.log('file reading was aborted');
-            reader.onerror = () => console.log('file reading has failed');
-    
-            reader.readAsText(file);            
-        } else {
-            this.setState({dropzoneActive: false})
-        }
-    }
-
-
-    getStupidTab = () => {
-        let {customLogic, stupidWarn, stupidMode} = this.state;
-        if(!stupidMode)
-            return null;
-        return (
-        <TabPane className="p-3 border" tabId="stupid">
-        <Dropzone className="wrapper" disableClick onDrop={this.onDrop} onDragEnter={this.onDragEnter} onDragLeave={this.onDragLeave} >
-            <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("stupid", "seedDrop")} className="p-1 justify-content-center border">
-                <Col xs="12"><Cent>Drag an areas.ori file here to update your custom logic</Cent></Col>
-            </Row>
-            <Row className="p-1 justify-content-center">  
-                <Col xs="12" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("stupid", "warn")} className="p-2">
-                    <Cent>{stupidWarn}</Cent>
-                 </Col>
-            </Row>
-            <Row className="p-1 justify-content-center">
-                <Col xs="12" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("stupid", "toggle")} className="p-2">
-                    <Button color="primary" block outline={!customLogic} onClick={() => this.setState({customLogic: !customLogic})}>{customLogic ? "Disable" : "Enable"} Custom Logic</Button>
-                </Col>
-            </Row>
-        </Dropzone>
-        </TabPane>
-        )
- 
-    }
     getItemPoolTab = ({inputStyle}) => {
         let itemSelectors = this.state.itemPool.map((row, index) => {
           let disabled = row.minimum && row.minimum > 0
@@ -2399,7 +2344,6 @@ onDrop = (files) => {
         let user = get_param("user");
         let url = new URL(window.document.location.href);
         let paramId = url.searchParams.get("param_id");
-        let stupidWarn = get_param("error_msg");
         if(get_flag("race_wl")) VAR_NAMES["Race"] = "Race"
         let quickstartOpen = window.document.location.href.includes("/quickstart");
         let gameId = parseInt(url.searchParams.get("game_id") || -1, 10);
@@ -2414,11 +2358,6 @@ onDrop = (files) => {
         } else {
 
         }
-        let stupidMode = false;
-        url.searchParams.forEach((v, k) => {
-            if(STUPID_KEYS.hasOwnProperty(k.toLowerCase()) && v.toLowerCase() === STUPID_KEYS[k.toLowerCase()])
-            stupidMode = true;          
-        })
 
         let activeTab = seedTabExists ? 'seed' : 'variations';
 
@@ -2437,7 +2376,7 @@ onDrop = (files) => {
                         spoilers: true, spawnWeights: [1.0,2.0,2.0,2.0,1.5,2.0,0.1,0.1,0.25,0.5], seedIsBingo: false, bingoLines: 3,
                         bingoDiff: "normal", bingoGoal: "bingos", bingoSquares: 13, bingoMeta: false, bingoDisc: 0, 
                         auxModal: false, auxPlayer: 1, auxSpoiler: {active: false, byZone: false, exclude: ["EX","KS", "AC", "EC", "HC", "MS"]},
-                        stupidMode: stupidMode, customLogic: false, stupidWarn: stupidWarn, verboseSpoiler: get_param("verbose") === "True",
+                        verboseSpoiler: get_param("verbose") === "True",
                         sspList: [], sspOwner: null, sspName: PRESET_DEFAULT, sspHasLatest: false,
                         sspLoaded: null, sspLoadedOwner: null, sspLoadedWorld: 1, presetEditing: "",
                         sspLatest: null, sspLoadedDesc: "", sspLoadedBlob: null,
@@ -2736,7 +2675,7 @@ onDrop = (files) => {
     }
 
     render = () => {
-        let {randomizedWith, stupidMode, spawn, pathMode, goalModes, keyMode, helpParams, goalModesOpen, seedTabExists, helpcat, activeTab, seed, tracking, seedIsGenerating, user} = this.state;
+        let {randomizedWith, spawn, pathMode, goalModes, keyMode, helpParams, goalModesOpen, seedTabExists, helpcat, activeTab, seed, tracking, seedIsGenerating, user} = this.state;
         const canRandomize = seed !== randomizedWith;
         const randomizeButton = canRandomize ?
         (<Button className="w-100" color="danger" onClick={this.randomize}>Randomize!</Button>) :
@@ -2810,16 +2749,8 @@ onDrop = (files) => {
         let advancedTab = this.getAdvancedTab(styles)
         let poolTab = this.getItemPoolTab(styles)
         let seedTab = this.getSeedTab()
-        let badIdeasTab = this.getStupidTab()
         let variationsTab = this.getVariationsTab()
         let pathsTab = this.getPathsTab()
-        let badIdeasNav = stupidMode ? (
-            <NavItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "stupidTab")}>
-                <NavLink active={activeTab === 'stupid'} onClick={this.onTab('stupid')}>
-                    Stupid
-                </NavLink>
-            </NavItem>
-        ) : null;
         let seedNav = seedTabExists ? (
             <NavItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "seedTab")}>
                 <NavLink active={activeTab === 'seed'} onClick={this.onTab('seed')}>
@@ -2974,7 +2905,6 @@ onDrop = (files) => {
                         Advanced
                         </NavLink>
                     </NavItem>
-                    {badIdeasNav}
                     {seedNav}
                 </Nav>
             </Col>
@@ -2989,7 +2919,6 @@ onDrop = (files) => {
                                 {poolTab}
                                 {multiplayerTab}
                                 {advancedTab}
-                                {badIdeasTab}
                                 {seedTab}
                             </TabContent>
                         </Col>
@@ -3036,12 +2965,6 @@ onDrop = (files) => {
 
     }
 };
-function uploadReaderLines(lines)  {
-    let xmlHttp = new XMLHttpRequest();
-    xmlHttp.open("POST", "user/custom_logic/set", true);
-    xmlHttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-    xmlHttp.send(encodeURI(`lines=${JSON.stringify(lines)}`));
-}
 
 function postGenJson(url, json, callback)  {
     let xmlHttp = new XMLHttpRequest();
