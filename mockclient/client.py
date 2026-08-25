@@ -13,7 +13,7 @@ from urllib.parse import quote
 import requests
 import simple_websocket
 
-from mockclient.seedfile import SeedFile
+from mockclient.seedfile import SeedFile, goal_shapes_from
 from mockclient.wire import TickBody, form_body, parse_frame
 from util import coords_in_order
 
@@ -63,16 +63,25 @@ class MockClient(threading.Thread):
         self.bingo_goals = {}          # name -> {"kind", "subs", "done", "count"}
         self._bingo_timer = 5
         self.bingoacks = []
+        self._pending_goals = []
 
+        # legacy seeds baked the goals in; the 4.3 flow asks the server instead
         if self.seed.bingo and self.seed.goals_line:
-            for cname, (kind, subs, target) in self.seed.goal_shapes().items():
-                self.bingo_goals[cname] = {"kind": kind, "subs": subs, "target": target,
-                                           "done": set(), "value": False}
+            self._init_goals(self.seed.goal_shapes())
         # multiworld manifest: slot s's item lives at pseudo-loc -(s+2); the
         # tick's [6] bitfields say which slots to grant, no signal involved
         self._manifest = {-int(p["loc"]) - 2: p for p in self.seed.pickups
                           if p["code"] == "MW" and -257 <= int(p["loc"]) <= -2}
         self._granted_slots = set()
+
+    def _init_goals(self, shapes):
+        for cname, (kind, subs, target) in shapes.items():
+            self.bingo_goals[cname] = {"kind": kind, "subs": subs, "target": target,
+                                       "done": set(), "value": False}
+        # a plan can ask for a goal before the goals: frame lands; do it now
+        pending, self._pending_goals = self._pending_goals, []
+        for name, sub in pending:
+            self.complete_goal(name, sub)
 
     def log(self, direction, text):
         self.events.append((self.tick_no, direction, text))
@@ -90,6 +99,9 @@ class MockClient(threading.Thread):
         self._found_queue.append((self._token, p))
 
     def complete_goal(self, name, sub=None):
+        if name not in self.bingo_goals:
+            self._pending_goals.append((name, sub))
+            return
         g = self.bingo_goals[name]
         if sub:
             g["done"].add(sub)
@@ -183,6 +195,10 @@ class WsClient(MockClient):
         self.ws_open = True
         self.send_frame("seed:" + form_body([("seed", self.seed.lines[0]),
                                              ("version", self.version)]))
+        # the bingo flag arms the controller; the goals come from the server,
+        # asked on every connect so a pre-start reroll reaches us
+        if self.seed.bingo:
+            self.send_frame("goals:")
 
     def disconnect(self):
         if self.ws_open:
@@ -209,6 +225,9 @@ class WsClient(MockClient):
             elif kind == "foundack":
                 token, _, status = body.partition("|")
                 self.on_foundack(int(token), int(status))
+            elif kind == "goals":
+                self.bingo_goals.clear()
+                self._init_goals(goal_shapes_from(body))
             elif kind == "bingoack":
                 self.bingoacks.append(int(body))
             elif kind == "completeack":

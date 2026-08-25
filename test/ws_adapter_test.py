@@ -78,6 +78,30 @@ class HandleFrameTests(unittest.TestCase):
         self.assertFalse(close)
 
 
+class GoalsFrameTests(unittest.TestCase):
+    """goals: asks what this player's board tracks; the 4.3 seed file stopped
+    carrying the Goals line, so this channel is the only source."""
+
+    def setUp(self):
+        self._goals = netcode.goals
+        self.answer = (200, "Goals:DrownFrog,CoreSkip/Journey:COUNT")
+        netcode.goals = lambda gid, pid: self.answer
+
+    def tearDown(self):
+        netcode.goals = self._goals
+
+    def test_a_board_answers_with_its_line(self):
+        reply, close = ws.handle_frame(1, 2, "goals:")
+        self.assertEqual(reply, "goals:Goals:DrownFrog,CoreSkip/Journey:COUNT")
+        self.assertFalse(close)
+
+    def test_no_board_is_an_err_frame_and_the_socket_lives(self):
+        self.answer = (404, "Bingo game 1 not found")
+        reply, close = ws.handle_frame(1, 2, "goals:")
+        self.assertEqual(reply, "err:goals:404")
+        self.assertFalse(close)
+
+
 class AreasFrameTests(unittest.TestCase):
     """areas:<sha256> asks whether the client's logic file is current: "ok"
     on a match, the whole file otherwise (clients ignore small bodies, so

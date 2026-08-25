@@ -483,10 +483,6 @@ def load_seed_from_params(params_id):
         if params.tracking and game_id:
             seed = params.get_seed(pid, game_id, verbose_paths)
             game = Game.with_id(game_id)
-            if game and game.bingo_data:
-                bingo = game.bingo_data.get()
-                if bingo and bingo.plays_bingo(pid):
-                    seed += bingo.goals_line(pid)
             user = User.get()
             if game and user:
                 Player.claim_user_txn(game.player(pid).key, user.key)
@@ -1637,18 +1633,23 @@ def _bingo_reroll_board_inner(game_id):
     user = User.get()
     if not user or bingo.creator != user.key:
         return text_resp("Only the creator can reroll the board", 401)
-    # a joined player is holding a seed file with this board's goals baked into
-    # it; the join route shares this lock, so nobody slips in mid-reroll
-    if bingo.players or bingo.teams:
-        return text_resp("Someone has already joined this board", 412)
+    # goals travel by channel now, so a reroll is safe until play begins --
+    # connected clients re-ask on their next socket open
+    if bingo.start_time:
+        return text_resp("The game has already started", 412)
     game = Game.with_id(game_id)  # a board's id is its game's
     difficulty = param_val("difficulty") or bingo.difficulty or "normal"
     seed = param_val("seed") or bingo.seed or ""
     if seed == (bingo.seed or ""):
         seed = bump_board_seed(seed)  # a reroll has to move the board even when nothing else changed
     d, lockout, meta = _bingo_query_opts()
-    bingo.board = bingo_board_cards(game.fetch_params() if game and game.params else None,
-                                    difficulty, seed, d, meta, lockout)
+    reroll_params = game.fetch_params() if game and game.params else None
+    if bingo.boards and reroll_params:
+        bingo.boards = bingo_boards_for(reroll_params, seed, lockout)
+        bingo.board = bingo_board_cards(reroll_params, difficulty, seed, d, meta, lockout,
+                                        world=bingo.boards[0].world if bingo.boards else 1)
+    else:
+        bingo.board = bingo_board_cards(reroll_params, difficulty, seed, d, meta, lockout)
     bingo.difficulty = difficulty
     bingo.seed = seed
     bingo.lockout = lockout
@@ -1664,6 +1665,8 @@ def _bingo_reroll_board_inner(game_id):
         bingo.square_count = int(param_val("squares"))
     bingo.teams_allowed = param_flag("teams") or bingo.teams_shared or bool(bingo.ap_worlds)
     bingo.event_log.append(BingoEvent(event_type="miscBoard rerolled!", timestamp=now))
+    for p in bingo.get_players():
+        p.signal_send("msg:@Board rerolled! Press alt+L to pick up the new goals@")
     bingo.put()
     # in the shape a poll expects, or every viewer sits on the old board for a TTL
     Cache.set_board(game_id, bingo.get_json())
@@ -1978,8 +1981,8 @@ def _bingo_setup_tail(bingo, now, gid):
     if user:
         bingo.creator = user.key
     if not user or param_flag("noTimer"):
-        bingo.start_time = now
-        event += "Bingo Game %s started!" % gid
+        bingo.auto_start = True
+        event += "Bingo Game %s created! The clock starts with its first player." % gid
     else:
         event += "Bingo Game %s created!" % gid
     if bingo.square_count and bingo.square_count > 0:
@@ -2142,6 +2145,11 @@ def add_bingo_to_game(game_id):
         game.bingo_data = bkey
         game.put()
         return json_resp(json.dumps(res))
+
+@app.route('/netcode/game/<int:game_id>/player/<int:player_id>/goals')
+def netcode_goals(game_id, player_id):
+    status, body = netcode.goals(game_id, player_id)
+    return text_resp(body, status)
 
 @app.route('/netcode/game/<int:game_id>/player/<int:player_id>/bingo', methods=['POST']) #HandleBingoUpdate
 def netcode_player_bingo_tick(game_id, player_id):

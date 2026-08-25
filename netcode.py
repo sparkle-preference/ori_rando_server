@@ -293,6 +293,17 @@ def _ap_bingo_goal(bingo, game_id):
         ap_bridge.notify_goal(game_id, world)
 
 
+def goals(game_id, player_id):
+    """What this player's board tracks. The 4.3 seed file stopped carrying the
+    Goals line; the dll asks here instead (ws goals: frame or the http route)."""
+    bingo = BingoGameData.with_id(game_id)
+    if not bingo:
+        return 404, "Bingo game %s not found" % game_id
+    if not bingo.plays_bingo(player_id):
+        return 404, "world %s has no board here" % player_id
+    return 200, bingo.goals_line(player_id).rstrip("\n")
+
+
 def bingo_update(game_id, player_id, payload):
     bingo = BingoGameData.with_id(game_id)
     if not bingo:

@@ -196,6 +196,13 @@ def handle_frame(game_id, player_id, frame):
         # to strand multiworld releases (game 134478)
         status, _ = netcode.game_complete(game_id, player_id)
         return "completeack:%s" % status, False
+    if kind == "goals":
+        # asked on every socket open while a bingo seed is loaded, so a
+        # pre-start reroll reaches the client on its next connect
+        status, out = netcode.goals(game_id, player_id)
+        if status == 200:
+            return "goals:%s" % out, False
+        return "err:goals:%s" % status, False
     if kind == "areas":
         # the client offers its areas.ori hash once per seed load; a match
         # gets "ok", anything else the current file. This channel replaces

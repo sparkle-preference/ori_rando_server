@@ -1203,6 +1203,9 @@ class BingoGameData(ndb.Model):
     boards           = ndb.LocalStructuredProperty(BingoWorldBoard, repeated=True)
     start_time       = ndb.DateTimeProperty()
     started          = ndb.BooleanProperty(default=True)
+    # no-countdown games arm this instead of a start_time: the clock starts
+    # with the first player's report
+    auto_start       = ndb.BooleanProperty(default=False)
     creator          = ndb.KeyProperty("User2", User)
     legacy_creator   = ndb.KeyProperty("User", LegacyUser)
     teams            = ndb.LocalStructuredProperty(BingoTeam, repeated=True)
@@ -1403,9 +1406,8 @@ class BingoGameData(ndb.Model):
     def get_seed(self, pid):
         sync_flag = ("Sync%s.%s," % (self.key.id(), pid))
         game = self.game.get()
-        goalstr = self.goals_line(pid)
         if not game.params:
-            return sync_flag + self.rand_dat + "\n" + goalstr
+            return sync_flag + self.rand_dat + "\n"
         else:
             params = game.params.get()
             # per-world games carry Bingo on the opted worlds' own flags already
@@ -1420,7 +1422,7 @@ class BingoGameData(ndb.Model):
                 if not p_number:
                     log.error("player %s is outside this AP board's %s worlds", pid, self.ap_worlds)
                     return None
-                return sync_flag + params.get_seed(p_number, game_id=self.key.id(), include_sync=False) + goalstr
+                return sync_flag + params.get_seed(p_number, game_id=self.key.id(), include_sync=False)
             elif self.boards:
                 # per-world: the board's pids are the multiworld's worlds, so the
                 # world number is the seed number -- never the team-index dance
@@ -1428,9 +1430,9 @@ class BingoGameData(ndb.Model):
                 if params.players < p_number or not self.plays_bingo(pid):
                     log.error("world %s has no per-world bingo seed here" % pid)
                     return None
-                return sync_flag + params.get_seed(p_number, game_id=self.key.id(), include_sync=False) + goalstr
+                return sync_flag + params.get_seed(p_number, game_id=self.key.id(), include_sync=False)
             elif params.players == 1:
-                return sync_flag + params.get_seed(1, game_id=self.key.id(), include_sync=False) + goalstr
+                return sync_flag + params.get_seed(1, game_id=self.key.id(), include_sync=False)
             else:
                 team = self.team(pid, cap_only=False)
                 if not team:
@@ -1440,7 +1442,7 @@ class BingoGameData(ndb.Model):
                 if params.players < p_number:
                     log.error("player %s can't get seed as there is no seed available" % pid)
                     return None
-                return sync_flag + params.get_seed(p_number, game_id=self.key.id(), include_sync=False) + goalstr
+                return sync_flag + params.get_seed(p_number, game_id=self.key.id(), include_sync=False)
 
 
     def team(self, pid, cap_only=True):
@@ -1506,9 +1508,12 @@ class BingoGameData(ndb.Model):
             log.error("no bingo data????")
             return
         player_id = int(player_id)
-        if not self.start_time and not meta_init:
-            return
         now = datetime.utcnow()
+        if not self.start_time and not meta_init:
+            if not self.auto_start:
+                return
+            self.start_time = now
+            self.event_log.append(BingoEvent(event_type="miscThe clock starts with the first report!", timestamp=now))
         change_squares = set()
         loss_squares = set()
         win_players = False

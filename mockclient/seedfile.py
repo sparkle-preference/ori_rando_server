@@ -35,28 +35,33 @@ class SeedFile(object):
         return int(self.sync_id.split(".")[1]) if self.sync_id else None
 
     def goal_shapes(self):
-        """{card name: (kind, subs, target)} as BingoController builds them.
-        Singles are bool cards, a numeric -suffix makes one an int card with that
-        target, and a lone COUNT subgoal marks a counted card; the rest are
-        multi cards whose subs are reported nested."""
-        out = {}
-        if not self.goals_line:
-            return out
-        for g in self.goals_line[len("Goals"):].split("/"):
-            name, _, subs = g.partition(":")
-            sublist = [s for s in subs.split(",") if s]
-            if name == "":
-                for s in sublist:
-                    base, dash, tgt = s.rpartition("-")
-                    if dash and tgt.isdigit():
-                        out[base] = ("int", [], int(tgt))
-                    else:
-                        out[s] = ("bool", [], None)
-            elif sublist == ["COUNT"]:
-                out[name] = ("multi", [], None)
-            else:
-                out[name] = ("multi", sublist, None)
-        return out
+        return goal_shapes_from(self.goals_line)
 
     def goal_names(self):
         return sorted(self.goal_shapes())
+
+
+def goal_shapes_from(line):
+    """{card name: (kind, subs, target)} as BingoController builds them, from a
+    "Goals..." line -- the ws goals: frame body, or the legacy baked seed line.
+    Singles are bool cards, a numeric -suffix makes one an int card with that
+    target, and a lone COUNT subgoal marks a counted card; the rest are
+    multi cards whose subs are reported nested."""
+    out = {}
+    if not line:
+        return out
+    for g in line[len("Goals"):].split("/"):
+        name, _, subs = g.partition(":")
+        sublist = [s for s in subs.split(",") if s]
+        if name == "":
+            for s in sublist:
+                base, dash, tgt = s.rpartition("-")
+                if dash and tgt.isdigit():
+                    out[base] = ("int", [], int(tgt))
+                else:
+                    out[s] = ("bool", [], None)
+        elif sublist == ["COUNT"]:
+            out[name] = ("multi", [], None)
+        else:
+            out[name] = ("multi", sublist, None)
+    return out

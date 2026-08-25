@@ -5,6 +5,13 @@ import requests
 
 from mockclient.client import LegacyClient, WsClient
 from mockclient.scenario import Judge, Rolled, base_params, run_clients
+from mockclient.seedfile import goal_shapes_from
+
+
+def fetch_goals(stack, gid, pid):
+    r = requests.get(stack.base_url + "/netcode/game/%s/player/%s/goals" % (gid, pid),
+                     timeout=30)
+    return r.status_code, r.text
 
 
 def _collect_plan(client, count, start=2, spacing=2):
@@ -104,24 +111,32 @@ def mw_bingo_solo_optin(stack):
     c2 = WsClient(stack.base_url, s2, tick_period=0.12, rng_seed=2)
     j.check("world 1's seed has the bingo flag", c1.seed.bingo,
             "flags: %r" % c1.seed.flags)
-    j.check("world 1's seed carries a Goals line", c1.seed.goals_line is not None,
+    j.check("no seed bakes a Goals line anymore", c1.seed.goals_line is None,
             "last lines: %r" % s1.strip().split("\n")[-2:])
     j.check("world 2's seed has NO bingo flag", not c2.seed.bingo,
             "flags: %r" % c2.seed.flags)
+    status, goals_body = fetch_goals(stack, rolled.game_id, 1)
+    j.equal("the goals route answers the bingo world", status, 200)
+    status2, _ = fetch_goals(stack, rolled.game_id, 2)
+    j.equal("the goals route refuses the non-bingo world", status2, 404)
     board = rolled.fetch_board()
     j.check("board payload has per-world boards", "boards" in board,
             "keys: %r" % sorted(board.keys()))
     worlds = sorted((board.get("boards") or {}).keys())
     j.equal("exactly world 1 has a board", worlds, ["1"])
-    goals = c1.seed.goal_names()
-    j.check("goals line names the board's cards", len(goals) >= 5, "parsed: %r" % goals[:8])
+    goals = sorted(goal_shapes_from(goals_body))
+    j.check("the channel names the board's cards", len(goals) >= 5, "parsed: %r" % goals[:8])
     done = goals[:3]
-    c1.plan = [(3 + i, "complete_goal", (g,)) for i, g in enumerate(done)]
+    c1.plan = [(4 + i, "complete_goal", (g,)) for i, g in enumerate(done)]
     _collect_plan(c2, 4)
     run_clients(c1, c2)
     j.check("bingo posts acked", c1.bingoacks and all(s == 200 for s in c1.bingoacks),
             repr(c1.bingoacks))
+    j.check("the client learned its goals over the socket", len(c1.bingo_goals) >= 5,
+            repr(sorted(c1.bingo_goals))[:120])
     after = rolled.fetch_board()
+    j.check("the first report started the clock",
+            (after.get("start_time_posix") or 0) > 0, "keys: %r" % sorted(after)[:12])
     cards = (after.get("boards", {}).get("1") or {}).get("cards", [])
     completed = set()
     for card in cards:
@@ -156,20 +171,22 @@ def mw_bingo_two_boards(stack):
     c1 = WsClient(stack.base_url, rolled.seed_text(1), tick_period=0.12, rng_seed=1)
     c2 = WsClient(stack.base_url, rolled.seed_text(2), tick_period=0.12, rng_seed=2)
     j.check("both seeds carry bingo", c1.seed.bingo and c2.seed.bingo)
-    j.check("both seeds carry Goals lines",
-            c1.seed.goals_line is not None and c2.seed.goals_line is not None)
+    j.check("neither seed bakes goals",
+            c1.seed.goals_line is None and c2.seed.goals_line is None)
+    _, g1 = fetch_goals(stack, rolled.game_id, 1)
+    _, g2 = fetch_goals(stack, rolled.game_id, 2)
     board = rolled.fetch_board()
     worlds = sorted((board.get("boards") or {}).keys())
     j.equal("a board per world", worlds, ["1", "2"])
     b1 = [c.get("name") for c in board["boards"]["1"]["cards"]]
     b2 = [c.get("name") for c in board["boards"]["2"]["cards"]]
     j.check("the two boards differ", b1 != b2, "identical card list")
-    j.equal("world 1 goals line matches world 1's board",
-            sorted(c1.seed.goal_names()), sorted(set(b1)))
-    j.equal("world 2 goals line matches world 2's board",
-            sorted(c2.seed.goal_names()), sorted(set(b2)))
-    done1 = c1.seed.goal_names()[:3]
-    c1.plan = [(3 + i, "complete_goal", (g,)) for i, g in enumerate(done1)]
+    j.equal("world 1's channel matches world 1's board",
+            sorted(goal_shapes_from(g1)), sorted(set(b1)))
+    j.equal("world 2's channel matches world 2's board",
+            sorted(goal_shapes_from(g2)), sorted(set(b2)))
+    done1 = sorted(goal_shapes_from(g1))[:3]
+    c1.plan = [(4 + i, "complete_goal", (g,)) for i, g in enumerate(done1)]
     run_clients(c1, c2)
     after = rolled.fetch_board()
     prog2 = [c for c in after["boards"]["2"]["cards"]
@@ -185,4 +202,41 @@ def mw_bingo_two_boards(stack):
     return j
 
 
-ALL = [solo_ws, solo_legacy, mw2, mw_bingo_solo_optin, mw_bingo_two_boards]
+def bingo_reroll_flow(stack):
+    """Reroll is free until the clock starts, and the clock starts with play."""
+    j = Judge("bingo_reroll_flow")
+    params = base_params("mock-reroll", players=2,
+                         worldSettings=[{"variations": ["Bingo", "ForceTrees"],
+                                        "bingoLines": 3}, {}])
+    rolled = Rolled(stack, params)
+    rolled.start_bingo(lines=3, difficulty="normal")
+    board = rolled.fetch_board()
+    j.check("no clock before anyone plays", "start_time_posix" not in board,
+            "keys: %r" % sorted(board)[:12])
+    _, before = fetch_goals(stack, rolled.game_id, 1)
+    s1 = rolled.seed_text(1)
+    r = requests.get(stack.base_url + "/bingo/game/%s/reroll_board" % rolled.game_id,
+                     params={"lines": 3}, timeout=60)
+    j.equal("reroll allowed before the clock starts (seed already downloaded)",
+            r.status_code, 200)
+    _, after_reroll = fetch_goals(stack, rolled.game_id, 1)
+    j.check("the reroll moved the goals", before != after_reroll, "identical channel body")
+    c1 = WsClient(stack.base_url, s1, tick_period=0.12, rng_seed=1)
+    done = sorted(goal_shapes_from(after_reroll))[:2]
+    c1.plan = [(4 + i, "complete_goal", (g,)) for i, g in enumerate(done)]
+    run_clients(c1)
+    j.check("the client tracked the REROLLED goals, not its stale seed file",
+            sorted(c1.bingo_goals) == sorted(goal_shapes_from(after_reroll)),
+            "client: %r" % sorted(c1.bingo_goals)[:6])
+    j.check("posts acked", c1.bingoacks and all(s == 200 for s in c1.bingoacks),
+            repr(c1.bingoacks))
+    board = rolled.fetch_board()
+    j.check("the first report started the clock", (board.get("start_time_posix") or 0) > 0)
+    r = requests.get(stack.base_url + "/bingo/game/%s/reroll_board" % rolled.game_id,
+                     timeout=60)
+    j.equal("reroll refused once the game is live", r.status_code, 412)
+    return j
+
+
+ALL = [solo_ws, solo_legacy, mw2, mw_bingo_solo_optin, mw_bingo_two_boards,
+       bingo_reroll_flow]

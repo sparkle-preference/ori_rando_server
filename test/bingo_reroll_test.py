@@ -156,18 +156,17 @@ class RerollTestCase(unittest.TestCase):
         self.assertEqual(self.reroll().status_code, 401)
         self.assertEqual(self.bingo.puts, 0)
 
-    def test_a_joined_board_keeps_its_board(self):
-        bingo = self.make_board()
+    def test_a_started_board_keeps_its_board(self):
+        bingo = self.make_board(start_time=datetime.utcnow())
         before = self.names(bingo)
-        bingo.players = [ndb.Key("Player", "%s.1" % GID)]
         self.assertEqual(self.reroll().status_code, 412)
         self.assertEqual(self.names(bingo), before)
         self.assertEqual(bingo.puts, 0)
 
-    def test_a_timerless_board_rerolls_until_someone_joins(self):
-        # no countdown means start_time is set at creation; an empty lobby is
-        # still an empty lobby
-        bingo = self.make_board(start_time=datetime.utcnow())
+    def test_a_joined_but_unstarted_board_rerolls(self):
+        # goals travel by channel, so holding a seed no longer pins the board
+        bingo = self.make_board()
+        bingo.players = [ndb.Key("Player", "%s.1" % GID)]
         before = self.names(bingo)
         self.assertEqual(self.reroll().status_code, 200)
         self.assertNotEqual(self.names(bingo), before)
