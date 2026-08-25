@@ -487,6 +487,10 @@ def load_seed_from_params(params_id):
         if params.tracking and game_id:
             seed = params.get_seed(pid, game_id, verbose_paths)
             game = Game.with_id(game_id)
+            if game and game.bingo_data:
+                bingo = game.bingo_data.get()
+                if bingo and bingo.plays_bingo(pid):
+                    seed += bingo.goals_line(pid)
             user = User.get()
             if game and user:
                 Player.claim_user_txn(game.player(pid).key, user.key)
@@ -790,11 +794,12 @@ def tracker_fetch_seed(game_id, player_id):
         bingo = BingoGameData.with_id(game_id)
         if not bingo:
             return json_resp({"error": "no bingo data found for game %s" % game_id}, 404)
-        team = bingo.team(player_id, cap_only=False)
-        if not team:
-            return json_resp({"error": "No team found for player %s!" % player_id}, 404)
-        team = team.pids()
-        player_id = team.index(player_id) + 1
+        if not bingo.boards:
+            team = bingo.team(player_id, cap_only=False)
+            if not team:
+                return json_resp({"error": "No team found for player %s!" % player_id}, 404)
+            team = team.pids()
+            player_id = team.index(player_id) + 1
     seed_lines = params.get_seed_data(player_id)
     shadow = None
     if getattr(params, "ap_mode", False):
@@ -1817,9 +1822,10 @@ def bingo_board_cards(params, difficulty, seed, disc, meta, lockout, world=1):
 
 
 def mw_bingo_worlds(params):
-    """The worlds getting their own board. Only a multiworld splits boards; any
-    other shape plays the one board it always did."""
-    if params.sync.mode != MultiplayerGameType.MULTIWORLD:
+    """The worlds getting their own board. Only a plain multiworld splits
+    boards; AP runs its own world machinery, and any other shape plays the one
+    board it always did."""
+    if params.sync.mode != MultiplayerGameType.MULTIWORLD or getattr(params, "ap_mode", False):
         return []
     return bingo_worlds(params)
 
@@ -2078,10 +2084,10 @@ def add_bingo_to_game(game_id):
                 log.info("%s %3d/%s = %s", (name+":").ljust(36), num, test_iters, float(num)/float(test_iters))
             return text_resp("test retry", 420)
 
-        # boards are per world only when more than one world opted in; a single
-        # bingo player is one board, which is the shape everything already knows
+        # any multiworld opt-in is per-world: even a lone bingo player keeps
+        # board pids == world numbers, which is what the seeds went out carrying
         worlds = mw_bingo_worlds(params)
-        per_world = len(worlds) > 1
+        per_world = bool(worlds)
         if per_world:
             lockout = False     # separate boards never share a square to take
         bingo = BingoGameData(
@@ -2132,6 +2138,14 @@ def add_bingo_to_game(game_id):
             # the roster wipe below.
             bingo.teams_allowed = True
             bingo.ap_worlds = int(params.players)
+        # wipe before seating, or the wipe eats the captains seated below and
+        # their bare lazy replacements break every later board fetch
+        for p in game.get_players():
+            if ap_bingo and p.pid() > int(params.players):
+                continue
+            if per_world and p.pid() not in worlds:
+                continue
+            game.remove_player(p.key.id())
         if per_world:
             # the board's pids ARE the multiworld's worlds, and the seeds went out
             # with those numbers in them, so the roster is settled here
@@ -2144,10 +2158,6 @@ def add_bingo_to_game(game_id):
             client_now = int(param_val("time"))
             res["offset"] = server_now - client_now
 
-        for p in game.get_players():
-            if ap_bingo and p.pid() > int(params.players):
-                continue
-            game.remove_player(p.key.id())
         bkey = bingo.put()
         game.bingo_data = bkey
         game.put()
@@ -2167,9 +2177,13 @@ def bingothon_fetch_data(game_id, player_id):
     p = bingo.player(player_id)
     if not p:
         return json_resp({"error": "player not found in game"}, 404)
-    for card in bingo.board:
+    for card in bingo.board_for(player_id):
         res["cards"].append(card.bingothon_json(p))
-    if bingo.discovery:
+    disc = next((list(wb.disc_squares) for wb in bingo.boards
+                 if wb.world == int(player_id) and wb.discovery), None)
+    if disc is not None:
+        res["disc_squares"] = disc
+    elif not bingo.boards and bingo.discovery:
         res["disc_squares"] = bingo.disc_squares
     return json_resp(res)
 

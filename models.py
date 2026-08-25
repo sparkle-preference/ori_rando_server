@@ -1206,6 +1206,9 @@ class BingoWorldBoard(ndb.Model):
     disc_squares = ndb.IntegerProperty(repeated=True)
 
     def to_json(self, players, initial=False):
+        # progress is per-square per-player; another world's marks on the same
+        # square index are its own board's business, never this one's
+        players = [p for p in players if p.pid() == self.world]
         out = {"cards": [c.to_json(players, initial) for c in self.board]}
         if initial:
             out.update({"bingo_count": self.bingo_count, "square_count": self.square_count,
@@ -1327,6 +1330,11 @@ class BingoGameData(ndb.Model):
             log.warning("Bingo game %s: pid %s is not one of its %s AP worlds",
                         self.key.id(), pid, self.ap_worlds)
             return None
+        # per-world membership is settled at seating (the one create=True path);
+        # adopting a stray world's bare player wedges every later board render
+        if self.boards and not create and int(pid) not in self.player_nums():
+            log.warning("Bingo game %s: world %s is not on its boards", self.key.id(), pid)
+            return None
         gid = self.game.id()
         full_pid = "%s.%s" % (gid, pid)
         player = Player.get_by_id(full_pid, parent=self.game)
@@ -1397,9 +1405,13 @@ class BingoGameData(ndb.Model):
                     res["teamMax"] = params.players
         return res
 
-    def get_seed(self, pid):
-        sync_flag = ("Sync%s.%s," % (self.key.id(), pid))
-        game = self.game.get()
+    def plays_bingo(self, pid):
+        """Whether this world's generator-page seed should carry bingo tracking.
+        Only per-world games hand seeds out there; legacy boards' pids are
+        join-order, a different space than the generator's player numbers."""
+        return any(wb.world == int(pid) for wb in self.boards)
+
+    def goals_line(self, pid):
         goals = OrderedDict()
         goals[""] = []
         for card in self.board_for(pid):
@@ -1409,12 +1421,18 @@ class BingoGameData(ndb.Model):
                 goals[card.name] = goals.get(card.name, []) + ["COUNT"]
             else:
                 goals[""].append(card.name + ("-%s" % card.target if card.target else ""))
-        goalstr = "Goals" + "/".join(["%s:%s" % (goal, ",".join(set(subgoals))) for (goal, subgoals) in goals.items()]) + "\n"
+        return "Goals" + "/".join(["%s:%s" % (goal, ",".join(set(subgoals))) for (goal, subgoals) in goals.items()]) + "\n"
+
+    def get_seed(self, pid):
+        sync_flag = ("Sync%s.%s," % (self.key.id(), pid))
+        game = self.game.get()
+        goalstr = self.goals_line(pid)
         if not game.params:
             return sync_flag + self.rand_dat + "\n" + goalstr
         else:
             params = game.params.get()
-            if Variation.BINGO not in params.variations:
+            # per-world games carry Bingo on the opted worlds' own flags already
+            if not self.boards and Variation.BINGO not in params.variations:
                 params.variations.append(Variation.BINGO)
                 params = params.put().get()
             if self.ap_worlds:
@@ -1424,6 +1442,14 @@ class BingoGameData(ndb.Model):
                 p_number = self.ap_world_for(pid)
                 if not p_number:
                     log.error("player %s is outside this AP board's %s worlds", pid, self.ap_worlds)
+                    return None
+                return sync_flag + params.get_seed(p_number, game_id=self.key.id(), include_sync=False) + goalstr
+            elif self.boards:
+                # per-world: the board's pids are the multiworld's worlds, so the
+                # world number is the seed number -- never the team-index dance
+                p_number = int(pid)
+                if params.players < p_number or not self.plays_bingo(pid):
+                    log.error("world %s has no per-world bingo seed here" % pid)
                     return None
                 return sync_flag + params.get_seed(p_number, game_id=self.key.id(), include_sync=False) + goalstr
             elif params.players == 1:
@@ -2053,7 +2079,7 @@ class Game(ndb.Model):
             for team in bingo.teams:
                 pids = tuple([_pid(p) for p in [team.captain] + team.teammates])
                 for pid in pids:
-                    pid_map[pid] = team.pids().index(pid) + 1
+                    pid_map[pid] = pid if bingo.boards else team.pids().index(pid) + 1
                 groups.append(pids)
         else:
             groups = [tuple([p.pid() for p in players])]

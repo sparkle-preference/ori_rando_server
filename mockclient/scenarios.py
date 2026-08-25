@@ -133,6 +133,13 @@ def mw_bingo_solo_optin(stack):
     j.check("world 2 played on unbothered",
             all(s < 300 for s in c2.acks.values()) and not c2.errors,
             "%r %r" % (c2.acks, c2.errors))
+    # a public overlay probe for the non-bingo world must refuse, not adopt it
+    r = requests.get(stack.base_url + "/bingo/bingothon/%s/player/2" % rolled.game_id, timeout=30)
+    j.equal("bingothon refuses the non-bingo world", r.status_code, 404)
+    r = requests.get(stack.base_url + "/bingo/bingothon/%s/player/1" % rolled.game_id, timeout=30)
+    j.equal("bingothon serves the bingo world", r.status_code, 200)
+    rolled.fetch_board()
+    j.check("the board still fetches after the probes", True)
     return j
 
 
