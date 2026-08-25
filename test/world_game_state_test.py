@@ -1,13 +1,11 @@
 """What a Game keeps per world, and what a reset is allowed to touch."""
 import unittest
 
-import google.auth.credentials
-from google.cloud import ndb
-
 import models
 from enums import Variation
 from models import Game
 from seedbuilder.seedparams import SeedGenParams
+from test.ndb_base import NdbTestCase
 
 
 class _FakeParams(object):
@@ -25,18 +23,7 @@ class _FakeParams(object):
         return [(0, "WT", "0", z) for z in self.zones[player]]
 
 
-class RelicsPerWorldTestCase(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        creds = google.auth.credentials.AnonymousCredentials()
-        cls.ndb_client = ndb.Client(project="unit-test", credentials=creds)
-
-    def setUp(self):
-        self._ctx = self.ndb_client.context()
-        self._ctx.__enter__()
-
-    def tearDown(self):
-        self._ctx.__exit__(None, None, None)
+class RelicsPerWorldTestCase(NdbTestCase):
 
     def test_each_world_gets_the_zones_it_was_dealt(self):
         g = Game()
@@ -75,21 +62,10 @@ class ResetReadsNoSettingsTestCase(unittest.TestCase):
 
 
 
-class PerWorldBingoTestCase(unittest.TestCase):
+class PerWorldBingoTestCase(NdbTestCase):
     """Bingo is a per-player opt-in: a world takes it on with its own Bingo
     variation, and gets a board built from its own settings."""
 
-    @classmethod
-    def setUpClass(cls):
-        creds = google.auth.credentials.AnonymousCredentials()
-        cls.ndb_client = ndb.Client(project="unit-test", credentials=creds)
-
-    def setUp(self):
-        self._ctx = self.ndb_client.context()
-        self._ctx.__enter__()
-
-    def tearDown(self):
-        self._ctx.__exit__(None, None, None)
 
     def params(self, worlds, base_vars=None):
         from enums import KeyMode, LogicPath, MultiplayerGameType, PathDifficulty
@@ -151,20 +127,9 @@ class PerWorldBingoTestCase(unittest.TestCase):
 
 
 
-class BoardPayloadTestCase(unittest.TestCase):
+class BoardPayloadTestCase(NdbTestCase):
     """The payload carries a board per world, with the rules it finishes by."""
 
-    @classmethod
-    def setUpClass(cls):
-        creds = google.auth.credentials.AnonymousCredentials()
-        cls.ndb_client = ndb.Client(project="unit-test", credentials=creds)
-
-    def setUp(self):
-        self._ctx = self.ndb_client.context()
-        self._ctx.__enter__()
-
-    def tearDown(self):
-        self._ctx.__exit__(None, None, None)
 
     def test_a_world_board_reports_its_own_rules(self):
         from models import BingoWorldBoard
@@ -185,20 +150,9 @@ class BoardPayloadTestCase(unittest.TestCase):
 
 
 
-class BingoMultiworldNamesTestCase(unittest.TestCase):
+class BingoMultiworldNamesTestCase(NdbTestCase):
     """A bingo lobby hands names out itself; a multiworld names its worlds."""
 
-    @classmethod
-    def setUpClass(cls):
-        creds = google.auth.credentials.AnonymousCredentials()
-        cls.ndb_client = ndb.Client(project="unit-test", credentials=creds)
-
-    def setUp(self):
-        self._ctx = self.ndb_client.context()
-        self._ctx.__enter__()
-
-    def tearDown(self):
-        self._ctx.__exit__(None, None, None)
 
     def params(self, mode, variations, worlds=None):
         from enums import KeyMode, LogicPath, MultiplayerGameType, PathDifficulty

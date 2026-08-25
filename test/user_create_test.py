@@ -5,11 +5,10 @@ by name misses -- and share links resolve their owner by name.
 """
 import unittest
 
-import google.auth.credentials
-from google.cloud import ndb
 
 import models
 from models import User
+from test.ndb_base import NdbTestCase
 
 
 class _AppUser(object):
@@ -26,12 +25,7 @@ class _G(object):
         self.oidc_user = app_user
 
 
-class UserCreateTestCase(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        creds = google.auth.credentials.AnonymousCredentials()
-        cls.ndb_client = ndb.Client(project="unit-test", credentials=creds)
-
+class UserCreateTestCase(NdbTestCase):
     def setUp(self):
         self._ctx = self.ndb_client.context()
         self._ctx.__enter__()

@@ -9,12 +9,13 @@ import contextlib
 import json
 import unittest
 
-import google.auth.credentials
+
 from google.cloud import ndb
 
 import main
 import models
 from models import SavedSeedParams, User
+from test.ndb_base import NdbTestCase
 
 
 class _FakeNdbClient(object):
@@ -98,15 +99,9 @@ class _FakeSSP(object):
         return bool(user) and user is self.owner
 
 
-class SSPRouteTestCase(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        creds = google.auth.credentials.AnonymousCredentials()
-        cls.ndb_client = ndb.Client(project="unit-test", credentials=creds)
-
+class SSPRouteTestCase(NdbTestCase):
     def setUp(self):
-        self._ctx = self.ndb_client.context()
-        self._ctx.__enter__()
+        super(SSPRouteTestCase, self).setUp()
         self._ndb_client = models.client
         models.client = _FakeNdbClient()
         self._secret = main.app.secret_key
@@ -132,7 +127,7 @@ class SSPRouteTestCase(unittest.TestCase):
         SavedSeedParams.get = self._ssp_get
         main.app.secret_key = self._secret
         models.client = self._ndb_client
-        self._ctx.__exit__(None, None, None)
+        super(SSPRouteTestCase, self).tearDown()
 
     def save(self, **body):
         return self.client.post("/preset/save",
