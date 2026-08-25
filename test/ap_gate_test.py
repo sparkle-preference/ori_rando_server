@@ -115,7 +115,7 @@ class _FakeTrackerParams(object):
     def __init__(self):
         self.named_calls = []
 
-    def get_seed_data(self, player=1, no_door_zone=True):
+    def get_seed_data(self, player=1):
         return [("919908", "MW", "3,0,,-1,AP,AP Item #1", "Grove"),
                 ("959960", "MW", "3,1,,-1,AP,AP Item #2", "Sorrow"),
                 ("919772", "MW", "3,2,,-1,AP,AP Item #3", "Grove"),

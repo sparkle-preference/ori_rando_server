@@ -21,7 +21,7 @@ class _FakeParams(object):
         self.key = None
         self.seed = "relics"
 
-    def get_seed_data(self, player=1, no_door_zone=True):
+    def get_seed_data(self, player=1):
         return [(0, "WT", "0", z) for z in self.zones[player]]
 
 

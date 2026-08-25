@@ -697,7 +697,7 @@ class SeedGenParams(ndb.Model):
             meta = keytiers_meta(self, player)
             if meta:
                 outlines.append(meta)
-        seed_data = self.ap_named(self.get_seed_data(player, no_door_zone = True), player, game_id)
+        seed_data = self.ap_named(self.get_seed_data(player), player, game_id)
         # an EN line's zone rides inside field 3 and is None here; every other
         # field, zone included, may legitimately be empty
         outlines += ["|".join(p for p in line if p is not None) for line in seed_data]
@@ -735,7 +735,7 @@ class SeedGenParams(ndb.Model):
             log.exception("couldn't annotate AP seed for game %s world %s", game_id, player)
             return seed_data
 
-    def get_seed_data(self, player=1, no_door_zone = True):
+    def get_seed_data(self, player=1):
         player = int(player)
         if self.sync.mode in [MultiplayerGameType.SIMUSOLO, MultiplayerGameType.SPLITSHARDS]:
             player = 1

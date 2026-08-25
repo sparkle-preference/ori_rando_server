@@ -417,29 +417,6 @@ class LegacyUser(ndb.Model):
     def get_by_name(name):
         return LegacyUser.query(LegacyUser.name == name).get()
 
-class CustomLogic(ndb.Model):
-    # id = userid
-    user = ndb.KeyProperty(User)
-    logic = ndb.PickleProperty()
-    warnings = ndb.TextProperty()
-
-    @staticmethod
-    def read():
-        user = User.get() 
-        if not user:
-            return None, "can't store custom logic while not logged in"
-        cl = CustomLogic.query().filter(CustomLogic.user == user.key).fetch()
-        if len(cl) == 0:
-            return None, "no custom logic for current user"
-        return cl[0].logic, cl[0].warnings
-    
-    @staticmethod
-    def write(logic, warnings):
-        CustomLogic(
-            user = User.get().key,
-            logic = logic,
-            warnings = warnings
-        )
 
 # marks the AP outbox players; the only thing that ever sets a nickname
 AP_SHADOW_NICK = "Archipelago"
@@ -1789,9 +1766,6 @@ class Seed(ndb.Model):
             placements.append({'loc': p.location, 'stuff': stuffs})
         return jsonify({'placements': placements, 'flagline': self.flag_line()})
 
-    def to_lines(self, player=1, extraFlags=[]):
-        return ["%s|%s" % (",".join(extraFlags + self.flags), self.name)] + ["|".join((str(p.location), s.code, s.id, p.zone)) for p in self.placements for s in p.stuff if int(s.player) == player]
-
 
 # The multiplayer half of a seedgen request, plus the seed. A saved setting is
 # player-agnostic on purpose: it describes one world, so it can later be
@@ -1964,12 +1938,6 @@ class Game(ndb.Model):
                 out.append(hl)
         return out
     
-    def next_player(self):
-        if self.mode != MultiplayerGameType.SIMUSOLO:
-            return False
-        player_nums = self.player_nums()
-        return max(player_nums)+1
-
     def player_nums(self):  return [_pid(k) for k in self.players]
 
     def summary(self, p=0):
@@ -2133,18 +2101,6 @@ class Game(ndb.Model):
                 inventories["unshared"][pid] = inv
         return inventories
 
-    def get_player_groups(self, int_ids=False):
-        player_groups = []
-        if self.bingo_data:
-            bingo = self.bingo_data.get()
-            for team in bingo.teams:
-                player_groups.append([team.captain] + team.teammates)
-        else:
-            player_groups = [self.players]
-        if int_ids:
-            return [[_pid(p) for p in group] for group in player_groups]
-        return player_groups
-
     def sanity_check(self):
         Cache.clear_items(self.key.id())
         ps = self.get_players()
@@ -2242,11 +2198,6 @@ class Game(ndb.Model):
         netperf("sanity_check", san_t0, gid=self.key.id(), players=len(ps), fixes=i)
         return True
     
-    def get_relevant_placements(self, pid):
-        params = self.params.get()
-        for p in params.placements:
-            p
-
     def mw_shareable(self, pickup):
         """What a seed line shares, by found_pickup's rules: MW slots, TW warps
         and EV5 never do; a multipickup shares whichever children do."""

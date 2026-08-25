@@ -28,7 +28,7 @@ from oidc import make_oidc
 from seedbuilder.seedparams import SeedGenParams, bingo_worlds, seed_mode_problem
 from seedbuilder.vanilla import seedtext as vanilla_seed
 from enums import MultiplayerGameType, ShareType, Variation
-from models import ndb_wsgi_middleware, Game, Player, SavedSeedParams, Seed, User, BingoGameData, BingoWorldBoard, BingoEvent, BingoTeam, pick_discovery_squares, CustomLogic, trees_by_coords, LegacyUser, bingo_lock, AnnouncedPatchNotes
+from models import ndb_wsgi_middleware, Game, Player, SavedSeedParams, Seed, User, BingoGameData, BingoWorldBoard, BingoEvent, BingoTeam, pick_discovery_squares, trees_by_coords, LegacyUser, bingo_lock, AnnouncedPatchNotes
 from bingo import BingoGenerator
 from cache import Cache
 from util import parse_fass, coord_correction_map, clone_entity, all_locs, picks_by_type_generator, param_val, param_flag, param_true, debug, template_root, VER, MIN_VER, BETA_VER, game_list_html, version_check, template_vals, bfield_checksum, netperf, NETPERF_TAG, json_default, seed_sync_id, is_mw_manifest_loc, MULTIWORLD, ARCHIPELAGO, CANONICAL_HOST, REDIRECT_HOSTS, PATCHNOTES_WEBHOOK_MAIN, PATCHNOTES_WEBHOOK_DEV
@@ -243,8 +243,6 @@ def main_page():
     template_values['notes_anchor'] = latest_note_version()
     if ARCHIPELAGO:
         template_values.update(ap_versions())
-    # _, error = CustomLogic.read()
-    # template_values.update({"error_msg": error})
     return render_template(path, **template_values)
 
 
@@ -1191,21 +1189,6 @@ def ssp_delete(name):
     if err:
         return err
     ssp.key.delete()
-    return redirect(url_for('my_settings'))
-
-
-@app.route('/preset/mine/<name>/rename/<new_name>')
-@oidc.require_login
-def ssp_rename(name, new_name):
-    user, ssp, err = _my_preset(name)
-    if err:
-        return err
-    problem = SavedSeedParams.name_problem(new_name)
-    if problem:
-        return text_resp(problem, 422)
-    problem = _rename_preset(user, ssp.name, new_name, ssp.description, ssp.hidden)
-    if problem:
-        return text_resp(problem, 409)
     return redirect(url_for('my_settings'))
 
 

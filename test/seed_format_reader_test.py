@@ -189,7 +189,7 @@ class _FetchSeedParams(object):
     def __init__(self, lines):
         self.lines = lines
 
-    def get_seed_data(self, player=1, no_door_zone=True):
+    def get_seed_data(self, player=1):
         return self.lines
 
     def ap_named(self, seed_data, player, game_id):

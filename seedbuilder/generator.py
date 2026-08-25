@@ -3,14 +3,12 @@ import random
 import logging as log
 import xml.etree.ElementTree as XML
 from collections import OrderedDict, defaultdict, Counter
-from operator import mul
 from enums import KeyMode, PathDifficulty, ShareType, Variation, MultiplayerGameType
 from pickups import Pickup
 from util import spawn_defaults, decompose_multi_value
 from hashlib import sha256
 from seedbuilder.oriparse import get_areas, get_path_tags_from_pathsets
 from seedbuilder.relics import relics
-from functools import reduce
 
 def stable_string_hash(s):
     """fuckin' INFURIATING that this is necessary but so it goes!!!"""
@@ -219,9 +217,6 @@ doors_outer = [
     ("R4OuterDoor", 126, 196),
     ("HoruEscapeOuterDoor", 18, 100)
 ]
-
-def ordhash(s):
-    return reduce(mul, [ord(c) for c in s])
 
 
 class MultiworldSlotOverflow(Exception):

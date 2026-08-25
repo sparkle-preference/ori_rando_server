@@ -1,8 +1,4 @@
-import sys, os
 import logging as log
-LIBS = os.path.join(os.path.dirname(os.path.realpath(__file__)), "lib")
-if LIBS not in sys.path:
-    sys.path.insert(0, LIBS)
 from enum import Enum
 
 class StrEnum(str, Enum):
