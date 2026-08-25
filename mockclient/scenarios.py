@@ -238,5 +238,131 @@ def bingo_reroll_flow(stack):
     return j
 
 
+def mw4_concurrency(stack):
+    """Four worlds hammering the stack at once: transactions, cache, slots."""
+    j = Judge("mw4_concurrency")
+    rolled = Rolled(stack, base_params("mock-mw-four", players=4))
+    j.equal("four players rolled", rolled.player_count, 4)
+    cs = [WsClient(stack.base_url, rolled.seed_text(p), tick_period=0.08, rng_seed=p)
+          for p in (1, 2, 3, 4)]
+    sent = {}
+    for c in cs:
+        c.linger = 30
+        mine = [i for i, p in enumerate(c.seed.pickups) if p["code"] != "MW"][:4]
+        theirs = [i for i, p in enumerate(c.seed.pickups) if p["code"] == "MW"][:6]
+        # every client acts on the same tick numbers, so the requests collide
+        c.plan = [(2 + n, "collect", (i,)) for n, i in enumerate(mine + theirs)]
+        sent[c.pid] = len(theirs)
+    run_clients(*cs)
+    for c in cs:
+        j.check("%s: no exceptions" % c.label, not c.errors, "; ".join(c.errors)[:160])
+        j.check("%s: no failed acks" % c.label,
+                all(s < 300 for s in c.acks.values()),
+                repr({k: v for k, v in c.acks.items() if v >= 300}))
+    total_sent = sum(sent.values())
+    total_got = sum(len(c.received_items) for c in cs)
+    j.check("every cross-world send arrived somewhere (%d sent)" % total_sent,
+            total_got >= total_sent, "only %d arrived" % total_got)
+    status, body = rolled.tracker_update()
+    j.equal("tracker serves the four-way game", status, 200)
+    if status == 200:
+        ok = all(str(c.pid) in body["players"] for c in cs)
+        j.check("tracker knows all four players", ok, "players: %r" % sorted(body["players"]))
+    return j
+
+
+def shared_bingo_teams(stack):
+    """A teams lobby board: three teammates and a rival post square progress
+    into the same cards at the same time."""
+    j = Judge("shared_bingo_teams")
+    r = requests.get(stack.base_url + "/bingo/new",
+                     params={"difficulty": "normal", "lines": 3, "teams": 1,
+                             "noTimer": 1, "seed": "contend"}, timeout=60)
+    j.equal("lobby created", r.status_code, 200)
+    gid = r.json()["gameId"]
+
+    def join(pid, team=None):
+        q = {"joinTeam": team} if team else {}
+        return requests.get(stack.base_url + "/bingo/game/%s/add/%s" % (gid, pid),
+                            params=q, timeout=60)
+
+    j.equal("P1 opens team", join(1).status_code, 200)
+    j.equal("P2 joins it", join(2, team=1).status_code, 200)
+    j.equal("P3 joins it", join(3, team=1).status_code, 200)
+    j.equal("P4 goes alone", join(4).status_code, 200)
+
+    def seed_for(pid):
+        rr = requests.get(stack.base_url + "/bingo/game/%s/seed/%s" % (gid, pid), timeout=60)
+        assert rr.status_code == 200, rr.status_code
+        return rr.text
+
+    status, goals_body = fetch_goals(stack, gid, 2)
+    j.equal("the channel serves a legacy lobby joiner", status, 200)
+    goals = sorted(goal_shapes_from(goals_body))
+    j.check("a real goal set", len(goals) >= 8, repr(goals[:6]))
+    cs = [WsClient(stack.base_url, seed_for(p), tick_period=0.1, rng_seed=p)
+          for p in (1, 2, 3, 4)]
+    for c in cs:
+        c.linger = 25
+    # disjoint thirds for the teammates, all posting on the same beats
+    thirds = [goals[0:2], goals[2:4], goals[4:6]]
+    for c, mine in zip(cs[:3], thirds):
+        c.plan = [(4 + n, "complete_goal", (g,)) for n, g in enumerate(mine)]
+    cs[3].plan = [(4 + n, "complete_goal", (g,)) for n, g in enumerate(goals[6:8])]
+    run_clients(*cs)
+    for c in cs:
+        j.check("%s: no exceptions" % c.label, not c.errors, "; ".join(c.errors)[:160])
+        j.check("%s: every bingo post acked 200" % c.label,
+                c.bingoacks and all(s == 200 for s in c.bingoacks), repr(c.bingoacks))
+    rr = requests.get(stack.base_url + "/bingo/game/%s/fetch" % gid,
+                      params={"first": 1}, timeout=30)
+    board = rr.json()
+    by_name = {card["name"]: card for card in board["cards"]}
+    team_done = set(thirds[0] + thirds[1] + thirds[2])
+    lost = [g for g in team_done if 1 not in by_name.get(g, {}).get("completed_by", [])]
+    j.check("the team's union survived concurrent posts (no lost updates)",
+            not lost, "missing from team 1: %r" % lost)
+    rival_lost = [g for g in goals[6:8] if 4 not in by_name.get(g, {}).get("completed_by", [])]
+    j.check("the rival's own squares landed", not rival_lost, repr(rival_lost))
+    leaked = [g for g in goals[6:8] if 1 in by_name.get(g, {}).get("completed_by", [])
+              and g not in team_done]
+    j.check("no cross-team leakage", not leaked, repr(leaked))
+    return j
+
+
+def ws_fallback_limit(stack):
+    """A full websocket house: late arrivals ride http and lose nothing.
+    Runs its own stack so WS_CONN_LIMIT can be pinned low."""
+    j = Judge("ws_fallback_limit")
+    from mockclient.stack import LocalStack
+    with LocalStack(port=8096, env={"WS_CONN_LIMIT": "2"}) as fb:
+        fb.reset()
+        rolled = Rolled(fb, base_params("mock-fallback", players=4))
+        cs = [WsClient(fb.base_url, rolled.seed_text(p), tick_period=0.15, rng_seed=p)
+              for p in (1, 2, 3, 4)]
+        for c in cs:
+            c.linger = 20
+            mine = [i for i, p in enumerate(c.seed.pickups) if p["code"] != "MW"][:3]
+            theirs = [i for i, p in enumerate(c.seed.pickups) if p["code"] == "MW"][:4]
+            c.plan = [(3 + n * 2, "collect", (i,)) for n, i in enumerate(mine + theirs)]
+        run_clients(*cs)
+        on_http = [c for c in cs if c.went_http]
+        j.check("the limit pushed somebody onto http (limit 2, clients 4)",
+                len(on_http) >= 2, "on http: %r" % [c.label for c in on_http])
+        for c in cs:
+            j.check("%s: no exceptions" % c.label, not c.errors, "; ".join(c.errors)[:160])
+            j.check("%s: no failed acks" % c.label,
+                    all(s < 300 for s in c.acks.values()),
+                    repr({k: v for k, v in c.acks.items() if v >= 300}))
+        for c in on_http:
+            j.check("%s actually played over http" % c.label,
+                    any(d == "http" and "tick -> 200" in t for _, d, t in c.events),
+                    "no http ticks in the log")
+        total_got = sum(len(c.received_items) for c in cs)
+        j.check("cross-world delivery crossed the transport line (16 sent)",
+                total_got >= 16, "only %d arrived" % total_got)
+    return j
+
+
 ALL = [solo_ws, solo_legacy, mw2, mw_bingo_solo_optin, mw_bingo_two_boards,
-       bingo_reroll_flow]
+       bingo_reroll_flow, mw4_concurrency, shared_bingo_teams, ws_fallback_limit]

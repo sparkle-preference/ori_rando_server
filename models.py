@@ -1386,10 +1386,11 @@ class BingoGameData(ndb.Model):
         return res
 
     def plays_bingo(self, pid):
-        """Whether this world's generator-page seed should carry bingo tracking.
-        Only per-world games hand seeds out there; legacy boards' pids are
-        join-order, a different space than the generator's player numbers."""
-        return any(wb.world == int(pid) for wb in self.boards)
+        """Whether the goals channel answers this pid. Per-world games serve
+        only their worlds; a legacy board is one goal set for every joiner."""
+        if self.boards:
+            return any(wb.world == int(pid) for wb in self.boards)
+        return True
 
     def goals_line(self, pid):
         goals = OrderedDict()

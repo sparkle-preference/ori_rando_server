@@ -22,11 +22,13 @@ def _emulator_up():
 class LocalStack(object):
     """Starts flask against the test emulator; reset() wipes the datastore."""
 
-    def __init__(self, port=PORT, log_path=None):
+    def __init__(self, port=PORT, log_path=None, env=None):
         self.port = port
         self.base_url = "http://127.0.0.1:%d" % port
         self.ws_base = "ws://127.0.0.1:%d" % port
-        self.log_path = log_path or os.path.join(REPO, "mockclient", "flask_scenario.log")
+        self.log_path = log_path or os.path.join(REPO, "mockclient",
+                                                 "flask_scenario_%d.log" % port)
+        self.env_extra = env or {}
         self.proc = None
         self._log = None
 
@@ -52,6 +54,7 @@ class LocalStack(object):
             "K_REVISION": "dev",
         })
         env.pop("MEMCACHED_HOST", None)
+        env.update(self.env_extra)
         self._log = open(self.log_path, "w")
         self.proc = subprocess.Popen(
             [PYTHON, "-u", "-m", "flask", "--app", "main", "run", "--port", str(self.port)],

@@ -64,6 +64,10 @@ class MockClient(threading.Thread):
         self._bingo_timer = 5
         self.bingoacks = []
         self._pending_goals = []
+        self.went_http = False
+        # ticks to keep draining after the plan ends: late slot grants, goals
+        # frames and acks arrive on the server's schedule, not ours
+        self.linger = 20
 
         # legacy seeds baked the goals in; the 4.3 flow asks the server instead
         if self.seed.bingo and self.seed.goals_line:
@@ -174,7 +178,7 @@ class MockClient(threading.Thread):
                     if self.send_complete and self.completeack is None:
                         if self.tick_no % 3 == 0 or idle == 0:
                             self.request_complete()
-                    elif idle > 6:
+                    elif idle > self.linger:
                         break
                     idle += 1
                 time.sleep(self.period)
@@ -189,16 +193,42 @@ class WsClient(MockClient):
     version = VERSION_43
 
     def connect(self):
-        self.ws = simple_websocket.Client(
-            self.base.replace("http://", "ws://") + "/netcode/game/%d/player/%d/ws"
-            % (self.gid, self.pid))
-        self.ws_open = True
-        self.send_frame("seed:" + form_body([("seed", self.seed.lines[0]),
-                                             ("version", self.version)]))
-        # the bingo flag arms the controller; the goals come from the server,
-        # asked on every connect so a pre-start reroll reaches us
+        try:
+            self.ws = simple_websocket.Client(
+                self.base.replace("http://", "ws://") + "/netcode/game/%d/player/%d/ws"
+                % (self.gid, self.pid))
+            self.ws_open = True
+        except (OSError, simple_websocket.ConnectionError,
+                simple_websocket.ConnectionClosed):
+            self.ws_open = False
+            self._go_http()
+            return
+        try:
+            self.send_frame("seed:" + form_body([("seed", self.seed.lines[0]),
+                                                 ("version", self.version)]))
+            # the bingo flag arms the controller; the goals come from the server,
+            # asked on every connect so a pre-start reroll reaches us
+            if self.seed.bingo:
+                self.send_frame("goals:")
+        except simple_websocket.ConnectionClosed:
+            self.ws_open = False
+            self._go_http()
+
+    def _go_http(self):
+        """The dll's per-channel fallback, wholesale: seed and goals re-land
+        over http so a mid-session socket loss loses nothing."""
+        self.went_http = True
+        self.log("http", "falling back to http")
+        r = self.http.post(self.root + "/setSeed",
+                           data={"seed": self.seed.lines[0], "version": self.version},
+                           timeout=10)
+        self.log("http", "setSeed -> %s" % r.status_code)
         if self.seed.bingo:
-            self.send_frame("goals:")
+            r = self.http.get(self.root + "/goals", timeout=10)
+            self.log("http", "goals -> %s" % r.status_code)
+            if r.status_code == 200:
+                self.bingo_goals.clear()
+                self._init_goals(goal_shapes_from(r.text))
 
     def disconnect(self):
         if self.ws_open:
@@ -214,7 +244,9 @@ class WsClient(MockClient):
             try:
                 got = self.ws.receive(timeout=0)
             except simple_websocket.ConnectionClosed:
+                # a full server accepts the handshake then closes 1013
                 self.ws_open = False
+                self._go_http()
                 return
             if got is None:
                 return
@@ -236,9 +268,20 @@ class WsClient(MockClient):
                 self.errors.append("server err frame: " + body)
 
     def send_tick(self):
-        self.send_frame("tick:" + form_body(self.tick_payload()))
+        if self.ws_open:
+            self.send_frame("tick:" + form_body(self.tick_payload()))
+            return
+        r = self.http.post(self.root + "/tick/", data=dict(self.tick_payload()), timeout=10)
+        self.log("http", "tick -> %s" % r.status_code)
+        if r.status_code == 200:
+            self.handle_tick_body(r.text)
 
     def service_found_queue(self):
+        if not self.ws_open:
+            while self._found_queue:
+                token, p = self._found_queue.pop(0)
+                self.send_found_http(token, p)
+            return
         if self._sending is None and self._found_queue:
             token, p = self._found_queue.pop(0)
             self._sending = (token, p, self.tick_no, 1)
@@ -277,10 +320,20 @@ class WsClient(MockClient):
                 self.dropped_pickups.append((p, status))
 
     def confirm(self, sig):
-        self.send_frame("conf:" + sig)
+        if self.ws_open:
+            self.send_frame("conf:" + sig)
+        else:
+            r = self.http.get("%s/callback/%s" % (self.root, quote(sig, safe="")), timeout=10)
+            self.log("http", "callback -> %s" % r.status_code)
 
     def request_complete(self):
-        self.send_frame("complete:")
+        if self.ws_open:
+            self.send_frame("complete:")
+            return
+        r = self.http.get(self.root + "/complete", timeout=10)
+        self.log("http", "complete -> %s %s" % (r.status_code, r.text[:30]))
+        if r.status_code == 200 and r.text.strip() == "ok":
+            self.completeack = 200
 
     def post_bingo(self):
         data = {}
