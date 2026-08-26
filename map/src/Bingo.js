@@ -548,7 +548,7 @@ export default class Bingo extends React.Component {
             if(res.player_seed)
             {
                 if(!dev)
-                    download("randomizer.dat", res.player_seed);
+                    download("randomizer.bfr", res.player_seed);
                 newState.buildingPlayer = false;
             }
             if(this.state.fails > 0)

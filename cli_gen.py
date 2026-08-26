@@ -39,7 +39,7 @@ class CLISeedParams(object):
     def from_cli(self):
         parser = argparse.ArgumentParser()
         parser.add_argument("--output-dir", help="directory to put the seeds in", type=str, default=".")
-        parser.add_argument("--output-number", help="number to be placed in randomizer0.dat", type=str, default="0")
+        parser.add_argument("--output-number", help="number to be placed in randomizer0.bfr", type=str, default="0")
         parser.add_argument("--preset", help="Choose a preset group of paths for the generator to use")
         parser.add_argument("--custom-logic", help="Customize paths that the generator will use, comma-separated: %s" % ", ".join(vals(LogicPath)))
         parser.add_argument("--seed", help="Seed value (default 'test')", type=str, default="test")
@@ -118,7 +118,7 @@ class CLISeedParams(object):
         # archipelago
         parser.add_argument("--ap-export", help="""Archipelago mode: comma-separated item categories exported to the AP pool
         (any of: skills,teleporters,events,cells,stones,upgrades; teleporters covers warp pickups). Converts the rolled multiworld seed
-        (multiplayer requires --share-mode multiworld) and writes a paired ap_world_<n>.yaml next to each .dat""", type=str, default=None)
+        (multiplayer requires --share-mode multiworld) and writes a paired ap_world_<n>.yaml next to each .bfr""", type=str, default=None)
         parser.add_argument("--ap-death-link", help="Archipelago mode: this world's deaths kill the room, and the room's kill it", action="store_true")
         args = parser.parse_args()
 
@@ -496,17 +496,17 @@ class CLISeedParams(object):
                 if self.tracking:
                     seed = "Sync%s.%s," % (self.sync_id, player) + seed
                 if args.output_number != "0":
-                    seedfile = "randomizer" + args.output_number + "_%s.dat" % player
+                    seedfile = "randomizer" + args.output_number + "_%s.bfr" % player
                     spoilerfile = "spoiler" + args.output_number + "_%s.txt" % player                    
                 else:
-                    seedfile = "randomizer_%s.dat" % player
+                    seedfile = "randomizer_%s.bfr" % player
                     spoilerfile = "spoiler_%s.txt" % player
                 if self.players == 1:
                     if args.output_number != "0":
-                        seedfile = "randomizer" + args.output_number + ".dat"
+                        seedfile = "randomizer" + args.output_number + ".bfr"
                         spoilerfile = "spoiler" + args.output_number + ".txt"
                     else:
-                        seedfile = "randomizer" + str(count) + ".dat"
+                        seedfile = "randomizer" + str(count) + ".bfr"
                         spoilerfile = "spoiler" + str(count) + ".txt"
 
                 if not self.do_analysis and not self.do_loc_analysis:

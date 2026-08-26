@@ -102,7 +102,7 @@ To point the game at a *different* room, hit Disconnect first, then Connect.
 
 ## 7. Download the seeds after connecting
 
-Each Ori world's row has a **Download Seed** button that gives you `randomizer.dat`. Put it next to
+Each Ori world's row has a **Download Seed** button that gives you `randomizer.bfr`. Put it next to
 `OriDE.exe` in your Ori install (the same folder, not `oriDE_Data`).
 
 **Connect the room before handing seeds out.** Until the bridge has joined the room, nobody knows what

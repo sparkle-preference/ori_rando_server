@@ -196,7 +196,7 @@ export default class HelpAndGuides extends React.Component {
                             Click the Generate Seed button to have the server begin generating your seed. It may take a few seconds.
                         </li>
                         <li>
-                            Once the generation finishes, click the Download Seed button to get your seed file. It should download with the name "randomizer.dat".
+                            Once the generation finishes, click the Download Seed button to get your seed file. It should download with the name "randomizer.bfr".
                             <ul>
                             <li><small>
                                 Tip: You can also open a live-updating map that can help you keep track of reachable pickups by clicking "Open Tracking Map". If you get stuck or have a second monitor,
@@ -205,7 +205,7 @@ export default class HelpAndGuides extends React.Component {
                             </ul>
                         </li>
                         <li>
-                            Move your randomizer.dat file to the same folder OriDE.exe is in. (See the installation guide for more details on how to find this folder)
+                            Move your randomizer.bfr file to the same folder OriDE.exe is in. (See the installation guide for more details on how to find this folder)
                         </li>
                         <li>
                             You're all set! Launch the game and start a new save file to begin playing your seed.
