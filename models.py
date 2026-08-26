@@ -1740,9 +1740,8 @@ class Seed(ndb.Model):
             plc = Placement(location=placement['loc'], zone=placement['zone'])
             for stuff in placement['stuff']:
                 player = stuff['player']
-                # absent owner means the world holding it owns it; a cross-world
-                # item's owner counts toward the player total on its own, since
-                # that player need hold nothing
+                # absent owner means the holding world owns it; a cross-world item's
+                # owner counts toward the player total while holding nothing
                 owner = stuff.get('owner')
                 owner = str(owner) if owner and str(owner) != str(player) else None
                 players = max(players, int(player), int(owner or player))
@@ -1791,12 +1790,8 @@ class Seed(ndb.Model):
         return jsonify({'placements': placements, 'flagline': self.flag_line()})
 
 
-# The multiplayer half of a seedgen request, plus the seed. A saved setting is
-# player-agnostic on purpose: it describes one world, so it can later be
-# assigned to a world rather than deciding how many there are. Tracking is NOT
-# denied -- it is a property of the settings, and a bingo setting needs it.
-# Denied rather than allowed, so a new variation is saved without being
-# registered anywhere -- forgetting would silently roll the default instead.
+# A saved setting describes one world, so the lobby half is denied and tracking is
+# not. Deny-list, so a new variation saves without being registered anywhere.
 SSP_DENY = frozenset([
     "seed", "players", "playerNames", "coopGenMode", "coopGameMode",
     "dedupShared", "antiBkBias", "syncShared", "shared", "teams",
@@ -1808,11 +1803,10 @@ SSP_DENY = frozenset([
 # names that end up in a url path or query cannot carry these
 URL_UNSAFE_NAME_CHARS = ["@", "/", "\\", "?", "#", "&", "=", '"', "'"]
 
-# Past the first three every name must be a real bootswatch 4.2.1 theme, and the
-# modal renders them in this order.
 # the bootswatch skins that ship a dark ground; the rest are light
 DARK_SKINS = frozenset(["cyborg", "darkly", "slate", "solar", "superhero"])
 
+# past the first three these must be real bootswatch 4.2.1 themes, in modal order
 SITE_THEMES = ("system", "light", "dark",
                "cerulean", "cosmo", "cyborg", "darkly", "flatly", "journal",
                "litera", "lumen", "lux", "materia", "minty", "pulse", "sandstone",
@@ -1846,9 +1840,8 @@ class SavedSeedParams(ndb.Model):
         world's would apply all of them to whichever world loaded it."""
         out = {k: v for k, v in (params_json or {}).items() if k not in SSP_DENY}
         world = str(world)
-        # cross-world rows name another player and belong to the multiplayer
-        # half; world and owner go with them, since the world a setting lands in
-        # is whichever one loads it
+        # cross-world rows belong to the multiplayer half, and world/owner go with
+        # them: the world a setting lands in is whichever one loads it
         fass = [{k: v for k, v in f.items() if k not in ("world", "owner")}
                 for f in (params_json or {}).get("fass") or []
                 if str(f.get("world") or 1) == world

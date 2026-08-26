@@ -754,10 +754,8 @@ class SeedGenParams(ndb.Model):
         for p in self.placements:
             for s in p.stuff:
                 if s.code == "MU" and "@" in s.id:
-                    # A multipickup can hand different pieces to different
-                    # people. The plando stores that as "SK/0@2"; the wire has
-                    # no such suffix, and carries an MW child instead -- which
-                    # found_pickup already walks into.
+                    # A multipickup can split pieces between people: the plando writes
+                    # "SK/0@2", the wire carries an MW child that found_pickup walks into.
                     mine, manifests = [], []
                     for code, value in decompose_multi_value(s.id):
                         value, _, owner = value.partition("@")
@@ -778,12 +776,8 @@ class SeedGenParams(ndb.Model):
                     if int(s.player) == pid:
                         rows.append((str(p.location), s.code, s.id, p.zone))
                     continue
-                # A plando stores a cross-world item as intent -- the world
-                # holding it, plus whose it is -- and the wire pair is derived
-                # here. Slots are handed out in placement order over ALL
-                # placements, so every player's call agrees on the number
-                # without it being stored. A generated seed never reaches this
-                # branch: its cross-world lines are already MW-coded.
+                # Slots go out in placement order over ALL placements, so every
+                # player's call agrees without storing it. Generated seeds skip this.
                 slot = take_slot(s.owner)
                 if int(s.player) == pid:
                     rows.append((str(p.location), "MW", "%s,%s,%s,%s" % (s.owner, slot, s.code, s.id), p.zone))

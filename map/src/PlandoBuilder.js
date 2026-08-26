@@ -431,9 +431,8 @@ class PlandoBuiler extends React.Component {
             let owner = null;
             if(code === "MW") {
                 let f = line[2].split(",");
-                // owner,slot,code,id. An Archipelago reserved line carries a
-                // recipient token where the code sits; those are the room's to
-                // fill, not a plando's to hold.
+                // owner,slot,code,id -- but an AP reserved line puts a recipient token
+                // where the code goes, and those are the room's to fill, not a plando's.
                 if(!/^[A-Z]{2}$/.test(f[2]))
                     continue;
                 owner = f[0];
@@ -709,10 +708,8 @@ class PlandoBuiler extends React.Component {
         if(diverged.length)
             NotificationManager.warning(`${diverged.length} location${diverged.length === 1 ? "" : "s"} hold a different item per player. Each player keeps their own.`,
                                         "Placements disagree", 6000);
-        // Multiworld builds every world at once, so it sends every world's
-        // placements: world-prefixed, and tagged with an owner where the item
-        // belongs to someone else. Otherwise one world is built, the one being
-        // edited, and everybody takes a copy.
+        // Multiworld sends every world's placements, world-prefixed and owner-tagged;
+        // otherwise just the world being edited, and everybody takes a copy.
         let isMulti = this.state.coop_mode.value === "Multiworld";
         let codes = [];
         if(isMulti) {

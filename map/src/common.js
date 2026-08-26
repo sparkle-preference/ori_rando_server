@@ -87,9 +87,8 @@ function decompose_pickup(code, id) {
     return parts;
 }
 
-// A plando marks a multipickup piece bound for another world as "SK/0@2". The
-// suffix is the editor's own; it never reaches a seed, where the piece becomes
-// an MW child instead.
+// A plando writes a cross-world multipickup piece as "SK/0@2"; the suffix is the
+// editor's own and never reaches a seed, where the piece becomes an MW child.
 function pickup_label(code, id) {
     let raw = String(id)
     let at = raw.lastIndexOf("@")

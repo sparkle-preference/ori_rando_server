@@ -32,9 +32,8 @@ class Pickup(object):
             if code == subcls.code:
                 return subcls(id, *args) if args and subcls.takes_players else subcls(id)
         return None
-    # a negative id of one of these removes one instead of granting it. The
-    # check has to come before the subclass loop: HealthCell("-1") is perfectly
-    # happy to build, and would name a removal exactly like a grant.
+    # a negative id removes rather than grants, and this must precede the subclass
+    # loop -- HealthCell("-1") builds happily and would name a removal like a grant
     REMOVES_ON_NEGATIVE = ("HC", "EC", "AC", "KS", "MS", "RB", "EX")
 
     @classmethod

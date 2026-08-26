@@ -15,8 +15,7 @@ class SiteBar extends Component {
         super(props);
         let user = get_param("user");
         let dark = resolve_dark()
-        // the page already rendered with a theme, so the navbar switch knows whether to
-        // show itself without waiting on the settings fetch
+        // the page already rendered with a theme, so the switch never waits to know
         this.state = {user, dark, teamName: "", theme: get_param("theme") || "system", verbose: false, themes: [],
                       badChars: [], nameFree: null, settingsOpen: false, editName: user,
                       loaded: false, saveInProgress: false,
@@ -117,7 +116,7 @@ class SiteBar extends Component {
                 this.setState({saveStatus: status, saveError: responseText, saveInProgress: false})
                 return
             }
-            // a skin has to clear dark_apps and the mode rules, so let the page redo the whole resolution
+            // a skin has to clear dark_apps and the mode rules, so let the page redo it
             if((JSON.parse(responseText).changed || []).includes("theme")) {
                 window.location.reload()
                 return
