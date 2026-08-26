@@ -335,7 +335,7 @@ export default class Bingo extends React.Component {
         this.state = {
                       cards: [], haveGame: false, creatingGame: false, createModalOpen: true, offset: 0, noTimer: false, 
                       discovery: iniUrl.searchParams.has("disc"), discCount: parseInt(iniUrl.searchParams.get("disc") || 2, 10), discSquares: [], lockout: false,
-                      activePlayer: parseInt(get_param("pref_num") || 1, 10), showInfo: false, user: user, loadingText: "Loading...", paramId: -1, squareCount: 13, seed: seed,
+                      activePlayer: 1, showInfo: false, user: user, loadingText: "Loading...", paramId: -1, squareCount: 13, seed: seed,
                       dark: dark, specLink: window.document.location.href.replace("board", "spectate").replace(gameId, 4 + gameId*7), testIters: 0,
                       fails: 0, gameId: gameId, startSkills: 3, startCells: 4, startMisc: "MU|TP/Swamp/TP/Valley", goalMode: "bingos",
                       difficulty: "normal", isRandoBingo: false, randoGameId: -1, viewOnly: viewOnly, buildingPlayer: false, meta: false,
@@ -657,10 +657,6 @@ export default class Bingo extends React.Component {
                            return false
                         })
                     })
-                // an AP board's player number is the AP world, so a preferred
-                // number from the profile means nothing here
-                if(res.ap_worlds && (activePlayer < 1 || activePlayer > res.ap_worlds))
-                    activePlayer = 1
                 let mine = this.boardFor(res, activePlayer)
                 this.setState({boardsByWorld: res.boards || {},
                               subtitle: res.subtitle, gameId: res.gameId, createModalOpen: false, creatingGame: false, haveGame: true, offset: res.offset || offset,

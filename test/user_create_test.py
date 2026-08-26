@@ -84,7 +84,7 @@ class _Legacy(object):
         self.id = uid
         self.name = uid
         self.teamname = "%s's team" % uid
-        self.games, self.pref_num, self.theme, self.dark_theme = [], 0, None, False
+        self.games, self.theme, self.dark_theme = [], None, False
 
 
 if __name__ == "__main__":

@@ -515,11 +515,11 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
                     this.setState(state => {
                         let {paths, closed_dungeons, open_world, players} = JSON.parse(res);
                         let curr_players = state.players;
-                        players.forEach(({pid, name, ppid}) => {
+                        players.forEach(({pid, name}) => {
                             if(!curr_players.hasOwnProperty(pid))
                             {
                                 curr_players[pid] = {...EMPTY_PLAYER}
-                                curr_players[pid].id = ppid || pid
+                                curr_players[pid].id = pid
                                 curr_players[pid].name = name
                                 if(state.usermap) {
                                     if(state.usermap === name) {

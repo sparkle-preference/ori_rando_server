@@ -890,19 +890,6 @@ def user_set_settings():
         user.put()
     return json_resp({"changed": changed, "name": user.name, "theme": user.site_theme()})
 
-@app.route('/user/settings/number/<new_num>')
-def user_set_number(new_num):
-    user = User.get()
-    if user:
-        if int(new_num) > 0:
-            user.pref_num = int(new_num)
-            user.put()
-            return text_resp("Preferred player number for %s set to %s" % (user.name, new_num))
-        else:
-            return text_resp("Preferred player number must be >0", 400)
-    else:
-        return text_resp("You are not logged in!", 401)
-
 @app.route('/theme/toggle')
 def user_toggle_darkmode():
     target_url = unquote(param_val("redir")) or "/"
@@ -1533,8 +1520,6 @@ def trickrepo():
 def bingo_board():
     user = User.get()
     template_values = template_vals("Bingo", "OriDE Bingo", user)
-    if user and user.pref_num:
-        template_values['pref_num'] = user.pref_num
     return render_template(path, **template_values)
 
 @app.route('/bingo/game/<int:game_id>/fetch') #BingoGetGame =     
@@ -1935,8 +1920,6 @@ def bingo_userboard(name):
     template_values['theme'] = user.site_theme()
     if user.theme_dark() is not None:
         template_values['dark'] = user.theme_dark()
-    if user.pref_num:
-        template_values['pref_num'] = user.pref_num
     return render_template(path, **template_values)
 
 @app.route('/bingo/userboard/<name>/fetch/<game_id>') #UserboardTick =     

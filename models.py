@@ -239,7 +239,6 @@ class User(ndb.Model):
     dark_theme = ndb.BooleanProperty()
     email = ndb.StringProperty()
     teamname = ndb.StringProperty()
-    pref_num  = ndb.IntegerProperty()
     # "system" | "light" | "dark" | a bootswatch skin; None predates the control
     theme  = ndb.StringProperty()
     verbose = ndb.BooleanProperty(default=False)
@@ -351,7 +350,6 @@ class User(ndb.Model):
         user.teamname = old_user.teamname
         user.dark_theme = old_user.dark_theme
         user.games = old_user.games
-        user.pref_num = old_user.pref_num
         user.theme = old_user.theme
         user.verbose = old_user.verbose
         key = user.put()
@@ -715,13 +713,11 @@ class Player(ndb.Model):
 
     def userdata(self):
         name = "Player %s" % self.pid()
-        ppid = self.pid()
         if self.user:
             u = self.user.get()
             if u:
                 name = u.name
-                ppid = u.pref_num
-        return {'name': name, 'ppid': ppid, 'pid': self.pid()}
+        return {'name': name, 'pid': self.pid()}
 
     def teamname(self):
         if self.user:
