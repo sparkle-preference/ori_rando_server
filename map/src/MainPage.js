@@ -8,7 +8,7 @@ import 'react-notifications/lib/notifications.css';
 import './index.css';
 
 import {getHelpContent, HelpBox} from "./helpbox.js";
-import {get_param, spawn_defaults, get_flag, ap_enabled, presets, select_theme, name_from_str, get_preset, player_icons, doNetRequest, get_random_loader, PickupSelect, Cent, dev, randInt, gotoUrl, prng, decompose_pickup, app_enabled} from './common.js';
+import {get_param, spawn_defaults, get_flag, ap_enabled, presets, select_theme, name_from_str, get_preset, player_icons, doNetRequest, get_random_loader, PickupSelect, Cent, dev, randInt, gotoUrl, prng, decompose_pickup} from './common.js';
 import SiteBar from "./SiteBar.js";
 import Select from 'react-select';
 import Dropzone from 'react-dropzone';
@@ -1018,7 +1018,6 @@ onDrop = (files) => {
                 let playUrl = "bfr:/play/params/"+paramId;
                 playUrl += "?" + seedParams.join("&");
                 let showApNotReady = inputApMode && ap_enabled() && gameId > 0 && !seedIsBingo && !this.apNamesReady();
-                let showPlay = app_enabled() && !showApNotReady && !seedIsBingo;
                 let spoilerHelp = (button) => this.state.spoilers ? `spoiler${button + (auxSpoiler.active ? "Aux" : "")}` : "noSpoilers"
                 // 12 columns: player 3 + seed 3 + view 3 + save 3
                 // If showing "play" button: play 3 + seed 4 + view 3 + save 2
@@ -1031,7 +1030,7 @@ onDrop = (files) => {
                                 <span className="align-middle">Player {p}</span>
                             </Col></Row>
                         </Col>
-                        <Col xs={showPlay ? 4 : 3} className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", mainButtonHelp)}>
+                        <Col xs="4" className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", mainButtonHelp)}>
                             {showApNotReady ? (
                                 // item names bake in at download time, so hold the
                                 // button until every world's scouts are stored; the
@@ -1041,13 +1040,13 @@ onDrop = (files) => {
                                     <Button color="link" size="sm" block target="_blank" href={seedUrl + "&force=1"}>download anyway (generic item names)</Button>
                                 </div>
                             ) : (
-                                showPlay ? (
+                                seedIsBingo ? (
+                                    <Button color="primary" block target="_blank" href={seedUrl}>{mainButtonText}</Button>
+                                ) : (
                                     <ButtonGroup>
                                         <Button color="primary" block target="_blank" href={seedUrl}>{mainButtonText}</Button>
                                         <Button color="success" href={playUrl}>Play</Button>
                                     </ButtonGroup>
-                                ) : (
-                                    <Button color="primary" block target="_blank" href={seedUrl}>{mainButtonText}</Button>
                                 )
                             )}
                         </Col>
@@ -1057,7 +1056,7 @@ onDrop = (files) => {
                                 <Button color={spoilers ? "success" : "secondary"} disabled={!spoilers} onClick={() => this.setState({auxModal: true, auxPlayer: p})} target="_blank"><FaCog/></Button>
                             </ButtonGroup>
                         </Col>
-                        <Col xs={showPlay ? 2 : 3} className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab",spoilerHelp("Download"))}>
+                        <Col xs="2" className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab",spoilerHelp("Download"))}>
                             <Button color={spoilers ? "primary" : "secondary"} disabled={!spoilers} href={downloadSpoilerUrl} target="_blank" block >Save Spoiler</Button>
                         </Col>
                     </Row>
