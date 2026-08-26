@@ -227,3 +227,21 @@ body, #root {
 	font-size: 28px;
 	font-weight: 700;
 }
+
+/* the settings dialog centres its title over its centred column block, which
+   means the close button must not take space out of the row */
+.settings-modal .modal-header {
+  position: relative;
+}
+
+.settings-modal .modal-title {
+  flex: 1;
+  text-align: center;
+}
+
+.settings-modal .modal-header .close {
+  position: absolute;
+  right: 0;
+  top: 0;
+  margin: 0;
+}

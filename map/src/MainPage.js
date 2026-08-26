@@ -9,7 +9,7 @@ import 'react-notifications/lib/notifications.css';
 import './index.css';
 
 import {getHelpContent, HelpBox} from "./helpbox.js";
-import {get_param, spawn_defaults, get_flag, ap_enabled, presets, select_theme, name_from_str, get_preset, player_icons, doNetRequest, get_random_loader, PickupSelect, Cent, dev, randInt, gotoUrl, prng, decompose_pickup, app_enabled} from './common.js';
+import {postNetForm, get_param, spawn_defaults, get_flag, ap_enabled, presets, select_theme, name_from_str, get_preset, player_icons, doNetRequest, get_random_loader, PickupSelect, Cent, dev, randInt, gotoUrl, prng, decompose_pickup, app_enabled} from './common.js';
 import SiteBar from "./SiteBar.js";
 import Select from 'react-select';
 import {picks_by_zone} from './shared_map';
@@ -2976,16 +2976,4 @@ function postGenJson(url, json, callback)  {
     xmlHttp.open("POST", url, true);
     xmlHttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
     xmlHttp.send(encodeURI(`params=${JSON.stringify(json)}`));
-}
-
-function postNetForm(url, fields, callback)  {
-    let xmlHttp = new XMLHttpRequest();
-    xmlHttp.onreadystatechange = () => {
-        if (xmlHttp.readyState === 4) {
-            callback(xmlHttp);
-        }
-    };
-    xmlHttp.open("POST", url, true);
-    xmlHttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-    xmlHttp.send(Object.keys(fields).map(k => `${k}=${encodeURIComponent(fields[k])}`).join("&"));
 }

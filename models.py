@@ -240,6 +240,7 @@ class User(ndb.Model):
     email = ndb.StringProperty()
     teamname = ndb.StringProperty()
     pref_num  = ndb.IntegerProperty()
+    # "system" | "light" | "dark" | a bootswatch skin; None predates the control
     theme  = ndb.StringProperty()
     verbose = ndb.BooleanProperty(default=False)
     admin = ndb.BooleanProperty(default = False, indexed= False)
@@ -293,15 +294,36 @@ class User(ndb.Model):
                 user.put()
         return user
 
-    def rename(self, desired_name):
-        if any([forbidden in desired_name for forbidden in URL_UNSAFE_NAME_CHARS]):
+    def site_theme(self):
+        if self.theme:
+            return self.theme
+        if self.dark_theme is None:
+            return "system"
+        return "dark" if self.dark_theme else "light"
+
+    # None when the theme defers to the browser, which the server cannot see
+    def theme_dark(self):
+        theme = self.site_theme()
+        return None if theme == "system" else (theme == "dark" or theme in DARK_SKINS)
+
+    # dark_theme is legacy, kept in step so a rollback keeps what it can express
+    def set_theme(self, theme):
+        self.theme = theme if theme in SITE_THEMES else "system"
+        self.dark_theme = {"dark": True, "light": False}.get(self.theme)
+
+    # the one rule; the rename and the availability check must not drift apart
+    @staticmethod
+    def name_available(name, for_user=None):
+        if not name or any(c in name for c in URL_UNSAFE_NAME_CHARS):
             return False
-        if User.get_by_name(desired_name):
+        owner = User.get_by_name(name)
+        return owner is None or (for_user is not None and owner.key == for_user.key)
+
+    def rename(self, desired_name):
+        if not User.name_available(desired_name, self):
             return False
         self.name = desired_name
-        if self.put():
-            return True
-        return False
+        return bool(self.put())
 
     @staticmethod
     def get_by_name(name):
@@ -1788,7 +1810,18 @@ SSP_DENY = frozenset([
 ])
 
 # names that end up in a url path or query cannot carry these
-URL_UNSAFE_NAME_CHARS = ["@", "/", "\\", "?", "#", "&", "="]
+URL_UNSAFE_NAME_CHARS = ["@", "/", "\\", "?", "#", "&", "=", '"', "'"]
+
+# Past the first three every name must be a real bootswatch 4.2.1 theme, and the
+# modal renders them in this order.
+# the bootswatch skins that ship a dark ground; the rest are light
+DARK_SKINS = frozenset(["cyborg", "darkly", "slate", "solar", "superhero"])
+
+SITE_THEMES = ("system", "light", "dark",
+               "cerulean", "cosmo", "cyborg", "darkly", "flatly", "journal",
+               "litera", "lumen", "lux", "materia", "minty", "pulse", "sandstone",
+               "simplex", "sketchy", "slate", "solar", "spacelab", "superhero",
+               "united", "yeti")
 
 # both are entries the dropdown always shows: "latest" is the user's last seed,
 # "default" is the untouched form

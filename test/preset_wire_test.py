@@ -25,7 +25,10 @@ class PresetWireTestCase(unittest.TestCase):
         page = read(PAGE)
         field = re.search(r'postNetForm\("/preset/save",\s*\{(\w+):', page)
         self.assertIsNotNone(field, "the page no longer posts to /preset/save")
-        served = re.search(r'request\.form\.get\("(\w+)"\)', read(MAIN))
+        # scoped to ssp_save: main.py has other routes reading form fields
+        body = re.search(r"def ssp_save\(\):.*?(?=\n@app\.route)", read(MAIN), re.S)
+        self.assertIsNotNone(body, "ssp_save is gone")
+        served = re.search(r'request\.form\.get\("(\w+)"\)', body.group(0))
         self.assertIsNotNone(served, "ssp_save no longer reads a form field")
         self.assertEqual(field.group(1), served.group(1),
                          "the page posts %r but the route reads %r"

@@ -28,7 +28,7 @@ from oidc import make_oidc
 from seedbuilder.seedparams import SeedGenParams, bingo_worlds, seed_mode_problem
 from seedbuilder.vanilla import seedtext as vanilla_seed
 from enums import MultiplayerGameType, ShareType, Variation
-from models import ndb_wsgi_middleware, Game, Player, SavedSeedParams, Seed, User, BingoGameData, BingoWorldBoard, BingoEvent, BingoTeam, pick_discovery_squares, trees_by_coords, LegacyUser, bingo_lock, AnnouncedPatchNotes
+from models import ndb_wsgi_middleware, Game, Player, SavedSeedParams, Seed, User, BingoGameData, BingoWorldBoard, BingoEvent, BingoTeam, SITE_THEMES, URL_UNSAFE_NAME_CHARS, pick_discovery_squares, trees_by_coords, LegacyUser, bingo_lock, AnnouncedPatchNotes
 from bingo import BingoGenerator
 from cache import Cache
 from util import parse_fass, coord_correction_map, clone_entity, all_locs, picks_by_type_generator, param_val, param_flag, param_true, debug, template_root, VER, MIN_VER, BETA_VER, game_list_html, version_check, template_vals, bfield_checksum, netperf, NETPERF_TAG, json_default, seed_sync_id, is_mw_manifest_loc, MULTIWORLD, ARCHIPELAGO, CANONICAL_HOST, REDIRECT_HOSTS, PATCHNOTES_WEBHOOK_MAIN, PATCHNOTES_WEBHOOK_DEV
@@ -848,36 +848,49 @@ def tracker_item_tracker(game_id, player_id=1):
 
 @app.route('/user/settings')
 def user_get_settings():
-    res = {}
-    res["names"] = [user.name.lower() for user in User.query().fetch()]
+    res = {"themes": list(SITE_THEMES), "badChars": URL_UNSAFE_NAME_CHARS}
     user = User.get()
     if user:
+        res["name"] = user.name
         res["teamname"] = user.teamname or "%s's team" % user.name
-        res["theme"] = "dark" if user.dark_theme else "light"
+        res["theme"] = user.site_theme()
+        res["verbose"] = user.verbose
     return json_resp(res)
 
-@app.route('/user/settings/update')
+@app.route('/user/settings/name-free')
+def user_name_free():
+    name = param_val("name") or ""
+    return json_resp({"name": name, "free": User.name_available(name, User.get())})
+
+@app.route('/user/settings/update', methods=['POST'])
 def user_set_settings():
     user = User.get()
-    if user:
-        name = param_val("name")
-        teamname = param_val("teamname")
-        if name and name != user.name:
-            if not user.rename(name):
-                return text_resp("Rename failed!")
-        if teamname and teamname != user.teamname:
-            user.teamname = teamname
-            user.put()
-        if name or teamname:
-            return text_resp("Rename successful!")
-        else:
-            return text_resp("No settings changed")
-        
+    if not user:
+        return text_resp("You are not logged in!", 401)
+    changed = []
+    name = request.form.get("name")
+    if name and name != user.name:
+        if not user.rename(name):
+            return text_resp("Name '%s' is taken or has a forbidden character" % name, 409)
+        changed.append("display name")
+    teamname = request.form.get("teamname")
+    if teamname and teamname != user.teamname:
+        user.teamname = teamname
+        changed.append("team name")
+    theme = request.form.get("theme")
+    if theme is not None and theme != user.site_theme():
+        user.set_theme(theme)
+        changed.append("theme")
+    if "verbose" in request.form:
+        want = request.form["verbose"].strip().lower() not in ("0", "false", "no", "off", "")
+        if want != user.verbose:
+            user.verbose = want
+            changed.append("spoiler detail")
+    if changed:
+        user.put()
+    return json_resp({"changed": changed, "name": user.name, "theme": user.site_theme()})
 
-    else:
-        return text_resp("You are not logged in!")
-
-@app.route('/user/settings/number/<new_num>') 
+@app.route('/user/settings/number/<new_num>')
 def user_set_number(new_num):
     user = User.get()
     if user:
@@ -890,16 +903,6 @@ def user_set_number(new_num):
     else:
         return text_resp("You are not logged in!", 401)
 
-@app.route('/user/settings/theme/<new_theme>')
-def user_set_theme(new_theme):
-    user = User.get()
-    if user:
-        user.theme = new_theme
-        user.put()
-        return text_resp("theme for %s set to %s" % (user.name, new_theme))
-    else:
-        return text_resp("You are not logged in!", 401)
-
 @app.route('/theme/toggle')
 def user_toggle_darkmode():
     target_url = unquote(param_val("redir")) or "/"
@@ -907,19 +910,10 @@ def user_toggle_darkmode():
     if user:
         # the page sends the state it's switching to: with nothing stored it
         # may be showing the browser's preference, which we can't see
-        user.dark_theme = param_true("dark") if param_val("dark") is not None else not user.dark_theme
+        want = param_true("dark") if param_val("dark") is not None else user.site_theme() != "dark"
+        user.set_theme("dark" if want else "light")
         user.put()
     return redirect(target_url)
-
-@app.route('/user/settings/verbose') # ToggleVerbose,
-def user_toggle_verbose():
-    user = User.get()
-    if user:
-        user.verbose = not user.verbose
-        user.put()
-        return text_resp("verbose seed spoilers set to %s" % user.verbose)
-    else:
-        return text_resp("You are not logged in!", 401)
 
 @app.route('/tracker/spectate/<name>') # LatestMap
 def get_map_by_name(name):
@@ -1938,12 +1932,11 @@ def bingo_userboard(name):
         return text_resp("User '%s' not found" % name, 404)
     template_values = {'app': "Bingo", 'title': "%s's Bingo Board" % user.name}
     template_values['user'] = user.name
-    if user.dark_theme is not None:
-        template_values['dark'] = user.dark_theme
+    template_values['theme'] = user.site_theme()
+    if user.theme_dark() is not None:
+        template_values['dark'] = user.theme_dark()
     if user.pref_num:
         template_values['pref_num'] = user.pref_num
-    if user.theme:
-        template_values['theme'] = user.theme
     return render_template(path, **template_values)
 
 @app.route('/bingo/userboard/<name>/fetch/<game_id>') #UserboardTick =     

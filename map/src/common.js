@@ -773,6 +773,10 @@ function prefers_dark() {
 // once), this browser's saved toggle. With none of those, follow the browser.
 // Every reader of the theme has to come through here, or the stylesheet and
 // the components that style themselves disagree.
+const BOOTSWATCH = "https://maxcdn.bootstrapcdn.com/bootswatch/4.2.1"
+// "system"/"light"/"dark" are modes, not skins: they resolve before they get here
+const theme_href = skin => `${BOOTSWATCH}/${skin}/bootstrap.min.css`
+
 function resolve_dark() {
     let param = new URL(window.document.URL).searchParams.get("dark")
     if(param !== null)
@@ -1001,6 +1005,18 @@ function player_icons(id, as_leaflet = true) {
     return ico
 };
 
+function postNetForm(url, fields, callback)  {
+    let xmlHttp = new XMLHttpRequest();
+    xmlHttp.onreadystatechange = () => {
+        if (xmlHttp.readyState === 4) {
+            callback(xmlHttp);
+        }
+    };
+    xmlHttp.open("POST", url, true);
+    xmlHttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+    xmlHttp.send(Object.keys(fields).map(k => `${k}=${encodeURIComponent(fields[k])}`).join("&"));
+}
+
 function doNetRequest(url, onRes) {
     var xmlHttp = new XMLHttpRequest();
     xmlHttp.onreadystatechange = function() {
@@ -1077,6 +1093,6 @@ const prng = (strIn) => sfc32(...cyrb128(strIn));
  
 
 export {
-    player_icons, doNetRequest, prng, get_param, get_flag, resolve_dark, save_dark, ap_enabled, ap_opt_in, get_int, get_list, get_preset, presets, get_seed, logic_paths, get_random_loader, Blabel,
+    player_icons, doNetRequest, prng, get_param, get_flag, resolve_dark, save_dark, theme_href, postNetForm, ap_enabled, ap_opt_in, get_int, get_list, get_preset, presets, get_seed, logic_paths, get_random_loader, Blabel,
     pickup_name, stuff_by_type, name_from_str, PickupSelect, Cent, ordinal_suffix, dev, gotoUrl, loginLogoutUrl, select_theme, randInt, spawn_defaults, decompose_pickup, app_opt_in, app_enabled
 };

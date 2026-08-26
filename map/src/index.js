@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
-import {get_param, ap_opt_in, app_opt_in, resolve_dark, save_dark} from './common.js';
+import {get_param, ap_opt_in, app_opt_in, resolve_dark, save_dark, theme_href} from './common.js';
 
 import ItemTracker from './ItemTracker';
 import MainPage from './MainPage';
@@ -27,16 +27,14 @@ const mods = {
 };
 
 const dark_apps = ["GameTracker", "PlandoBuilder", "LogicHelper"];
-const VALID_THEMES = ["cerulean", "cosmo", "cyborg", "darkly", "flatly", "journal", "litera", "lumen", "lux", "materia", "minty", "pulse", "sandstone", "simplex", "sketchy", "slate", "solar", "spacelab", "superhero", "united", "yeti"];
+const MODES = ["system", "light", "dark"];
 
 (async () => {
     ap_opt_in();
     app_opt_in();
     let dark = resolve_dark();
-    let theme = get_param("theme") || localStorage.getItem("theme");
-    if(theme && !localStorage.getItem("theme")){
-        localStorage.setItem("theme", theme);
-    }
+    // one server-validated value; a mode defers to resolve_dark, anything else is a skin
+    let theme = get_param("theme");
 
     // mirror the account setting into this browser, but never persist a
     // browser preference: storing it would freeze the theme against the OS
@@ -48,14 +46,7 @@ const VALID_THEMES = ["cerulean", "cosmo", "cyborg", "darkly", "flatly", "journa
     link.rel = "stylesheet";
     link.type = "text/css";
     link.id = "css_switcher";
-    let css = 'https://maxcdn.bootstrapcdn.com/bootswatch/4.2.1/flatly/bootstrap.min.css'
-    if(VALID_THEMES.includes(theme)) {
-        css = `https://maxcdn.bootstrapcdn.com/bootswatch/4.2.1/${theme}/bootstrap.min.css`
-    }
-    else if(dark) {
-        css = 'https://maxcdn.bootstrapcdn.com/bootswatch/4.2.1/darkly/bootstrap.min.css'
-    }
-    link.href = css;
+    link.href = theme_href((theme && !MODES.includes(theme)) ? theme : (dark ? "darkly" : "flatly"));
     document.getElementsByTagName("head")[0].appendChild(link);
     
     const root = document.getElementById("root");
@@ -63,7 +54,7 @@ const VALID_THEMES = ["cerulean", "cosmo", "cyborg", "darkly", "flatly", "journa
     const app = root.dataset.app;
 
     if(dark_apps.includes(app)) {
-        link.href = 'https://maxcdn.bootstrapcdn.com/bootswatch/4.2.1/darkly/bootstrap.min.css'
+        link.href = theme_href("darkly")
     }
     const Content = mods[app];
     ReactDOM.render(<Content />, root);
