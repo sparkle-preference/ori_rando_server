@@ -1022,7 +1022,7 @@ export default class MainPage extends React.Component {
 
     // a load merges: the lobby stays as the user left it, and preplacements are
     // replaced only in the world it lands in.
-    mergeSettings = (settings, label, withLobby, key, owner) => {
+    mergeSettings = (settings, label, withLobby, key, owner, quiet) => {
         let update = {}
         // anything the preset does not mention goes back to its default
         PRESET_FORM_KEYS.forEach(k => { if(!(k in (settings || {}))) update[k] = this.defaultForm[k] })
@@ -1072,7 +1072,8 @@ export default class MainPage extends React.Component {
         this.setState(update, () => {
             let landed = key || (label === "Default" ? PRESET_DEFAULT : this.state.sspName)
             this.markLoaded(landed, landed === PRESET_DEFAULT ? null : (owner === undefined ? this.state.sspOwner : owner), world)
-            NotificationManager.success(label, "Preset loaded", 4000)
+            if(!quiet)
+                NotificationManager.success(label, "Preset loaded", 4000)
         })
     }
 
@@ -1133,8 +1134,8 @@ export default class MainPage extends React.Component {
             return
         this.restored = true
         let latest = this.state.sspLatest, name = this.nameFor(latest, PRESET_LAST)
-        // settings only: an auto-restore never brings a lobby with it
-        this.mergeSettings(latest, presetLabel(name), false, name)
+        // settings only, and silently: an auto-restore is not something the user just did
+        this.mergeSettings(latest, presetLabel(name), false, name, undefined, true)
     }
 
     selectPreset = (name) => {
