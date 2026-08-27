@@ -2999,10 +2999,10 @@ export default class MainPage extends React.Component {
                                     </Col>
                                     <Col xs="6" onMouseEnter={this.helpEnter("general", "undoRedo")}
                                          onMouseLeave={this.helpEnter("general", canRandomize ? "randomize" : "randomizeDisabled")}>
-                                        <ButtonGroup className="d-flex">
-                                            <Button color="secondary" className="w-100" outline={!canUndo} onClick={this.undo}><FaUndo/></Button>
-                                            <Button color="secondary" className="w-100" outline={!canRedo} onClick={this.redo}><FaRedo/></Button>
-                                        </ButtonGroup>
+                                        <div className="d-flex" role="group">
+                                            <Button color="secondary" className="w-100 mr-1" title="Undo" outline={!canUndo} onClick={this.undo}><FaUndo/></Button>
+                                            <Button color="secondary" className="w-100" title="Redo" outline={!canRedo} onClick={this.redo}><FaRedo/></Button>
+                                        </div>
                                     </Col>
                                 </Row>
                                 <Row className="m-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "generate" + this.multi())}>
