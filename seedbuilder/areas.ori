@@ -2006,7 +2006,7 @@ home: MoonGrottoAboveTeleporter 443 -150
 	conn: MoonGrottoSwampAccessArea
 		casual ChargeJump DoubleJump
 		casual Bash
-		casual DoubleJump Health=3
+		standard DoubleJump Health=3
 		standard ChargeJump Health=3
 		expert Dash Health=4
 		expert ChargeDash
