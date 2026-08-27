@@ -9,6 +9,7 @@ import 'react-notifications/lib/notifications.css';
 import './index.css';
 
 import {getHelpContent, HelpBox} from "./helpbox.js";
+import {History, HIST_SET} from './history.js';
 import {postNetForm, get_param, spawn_defaults, get_flag, ap_enabled, presets, select_theme, name_from_str, get_preset, player_icons, doNetRequest, get_random_loader, PickupSelect, Cent, dev, randInt, gotoUrl, prng, decompose_pickup, app_enabled} from './common.js';
 import SiteBar from "./SiteBar.js";
 import Select from 'react-select';
@@ -2401,6 +2402,7 @@ export default class MainPage extends React.Component {
             this.state.selectedPool = "Bonus Lite"
             this.updateUrl()
         }
+        this.history = new History(() => this.state)
         this.apPollTimer = null
         this.apPrefilled = false
         // ?preset=owner:name -- a share link, which needs no login to open
@@ -2408,7 +2410,16 @@ export default class MainPage extends React.Component {
         this.sharedSsp = shared.length === 2 && shared[0] && shared[1] ? shared : null
     }
 
+    // React never calls component.setState itself, so shadowing it here sees every
+    // write without touching the ~117 call sites, 30 of which are inline in render.
+    setState(update, cb) {
+        if(!update || typeof update === "function" || Object.keys(update).some(k => HIST_SET.has(k)))
+            this.history.touch()
+        return super.setState(update, cb)
+    }
+
     componentDidMount() {
+        this.history.attach()
         if(this.apPanelVisible())
             this.startApPoll()
         this.loadSspList()
@@ -2434,6 +2445,7 @@ export default class MainPage extends React.Component {
     }
 
     componentWillUnmount() {
+        this.history.detach()
         this.stopApPoll()
     }
         
