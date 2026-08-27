@@ -2,14 +2,14 @@
 import  {DropdownToggle, DropdownMenu, Dropdown, DropdownItem, Nav, NavLink, NavItem, Collapse,  Input, UncontrolledButtonDropdown, Button, 
         Row, FormFeedback, Col, Container, TabContent, TabPane, Modal, ModalHeader, ModalBody, ModalFooter, Media, ButtonGroup,
         InputGroup, InputGroupAddon} from 'reactstrap';
-import { FaCog, FaSave, FaCopy, FaLock, FaPencilAlt } from 'react-icons/fa';
+import { FaCog, FaSave, FaCopy, FaLock, FaPencilAlt, FaUndo, FaRedo } from 'react-icons/fa';
 import {NotificationContainer, NotificationManager} from 'react-notifications';
 
 import 'react-notifications/lib/notifications.css';
 import './index.css';
 
 import {getHelpContent, HelpBox} from "./helpbox.js";
-import {History, HIST_SET} from './history.js';
+import {History, HIST_KEYS, HIST_SET} from './history.js';
 import {postNetForm, get_param, spawn_defaults, get_flag, ap_enabled, presets, select_theme, name_from_str, get_preset, player_icons, doNetRequest, get_random_loader, PickupSelect, Cent, dev, randInt, gotoUrl, prng, decompose_pickup, app_enabled} from './common.js';
 import SiteBar from "./SiteBar.js";
 import Select from 'react-select';
@@ -1135,10 +1135,41 @@ export default class MainPage extends React.Component {
     }))
 
     // a bare page opens on the last-generated settings; ?param_id= or ?preset= wins
-    restoreLastUsed = () => {
-        if(this.restored || this.state.seedTabExists || this.sharedSsp || !this.state.sspLatest)
+    // a plain dense setState: mergeSettings is a preset codec, not a restore primitive
+    histApply = (frame) => {
+        if(!frame)
             return
+        let vals = JSON.parse(frame.blob), update = {}
+        HIST_KEYS.forEach((k, i) => { update[k] = vals[i] })
+        if(frame.tab)
+            update.activeTab = frame.tab
+        // players can rewind below the world the edit was made in
+        update.fassWorld = Math.min(frame.world || 1, update.players || 1)
+        this.history.suppress = true
+        this.setState(update)
+    }
+    undo = () => this.histApply(this.history.undo())
+    redo = () => this.histApply(this.history.redo())
+    // a disabled button eats the click that would commit a focused text box
+    histReady = () => !this.state.seedIsGenerating && !this.state.sspBusy
+    onHistKey = (e) => {
+        if(!(e.ctrlKey || e.metaKey) || e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")
+            return
+        let key = e.key.toLowerCase()
+        if(key !== "z" && key !== "y")
+            return
+        e.preventDefault()
+        if(this.histReady())
+            (key === "y" || e.shiftKey) ? this.redo() : this.undo()
+    }
+
+    restoreLastUsed = () => {
+        if(this.restored || !this.state.sspLatest)
+            return
+        // deciding not to restore is still a decision, and loadSspList runs again later
         this.restored = true
+        if(this.state.seedTabExists || this.sharedSsp)
+            return
         let latest = this.state.sspLatest, name = this.nameFor(latest, PRESET_LAST)
         // settings only, and silently: an auto-restore is not something the user just did
         this.mergeSettings(latest, presetLabel(name), false, name, undefined, true)
@@ -2377,6 +2408,7 @@ export default class MainPage extends React.Component {
                         apMode: false, apExport: [...apDefaultExport], apDeathLink: false, inputApMode: false, playerNames: [],
                         worldSettings: [],
                         apHost: AP_DEFAULT_HOST, apPort: "", apPassword: "", apConnectPending: false, apStatus: null, apNoLink: false, apHidden: false, apPollFailed: false,
+                        histAt: -1, histLen: 0,
                         expPool: 10000, lastHelp: new Date(), seedIsGenerating: seedTabExists, cellFreq: cellFreqPresets("standard"),
                         fragCount: 30, fragReq: 20, relicCount: 8, loader: get_random_loader(), paramId: paramId, seedTabExists: seedTabExists, 
                         reopenUrl: "", flagLine: "", flagLines: [], fassList: fassDefaultsFor(1), fassWorld: 1, goalModesOpen: false, 
@@ -2404,6 +2436,7 @@ export default class MainPage extends React.Component {
             this.updateUrl()
         }
         this.history = new History(() => this.state)
+        this.history.onChange = () => this.setState({histAt: this.history.index, histLen: this.history.stack.length})
         this.apPollTimer = null
         this.apPrefilled = false
         // ?preset=owner:name -- a share link, which needs no login to open
@@ -2421,6 +2454,7 @@ export default class MainPage extends React.Component {
 
     componentDidMount() {
         this.history.attach()
+        document.addEventListener("keydown", this.onHistKey)
         if(this.apPanelVisible())
             this.startApPoll()
         this.loadSspList()
@@ -2446,6 +2480,7 @@ export default class MainPage extends React.Component {
     }
 
     componentWillUnmount() {
+        document.removeEventListener("keydown", this.onHistKey)
         this.history.detach()
         this.stopApPoll()
     }
@@ -2690,6 +2725,8 @@ export default class MainPage extends React.Component {
     render = () => {
         let {randomizedWith, spawn, pathMode, goalModes, keyMode, helpParams, goalModesOpen, seedTabExists, helpcat, activeTab, seed, tracking, seedIsGenerating, user} = this.state;
         const canRandomize = seed !== randomizedWith;
+        const canUndo = this.history.canUndo() && this.histReady()
+        const canRedo = this.history.canRedo() && this.histReady()
         const randomizeButton = canRandomize ?
         (<Button className="w-100" color="danger" onClick={this.randomize}>Randomize!</Button>) :
         (<Button className="w-100" disabled block>Randomize</Button>);
@@ -2708,6 +2745,9 @@ export default class MainPage extends React.Component {
         const sspBorrowed = !!this.state.sspLoadedOwner && this.state.sspLoadedOwner !== sspOwner
         const sspMine = !sspBorrowed && sspList.some(s => s.name === sspName)
         const sspEditable = !!user && sspMine
+        // a preset can be deleted while the form still holds it; that is not a borrow
+        const sspGone = !!user && !sspBorrowed && !sspMine
+                        && sspName !== PRESET_DEFAULT && sspName !== PRESET_LAST
         const sspEdited = !!sspLoaded && sspLoaded !== canonSettings(this.settingsNow(this.state.sspLoadedWorld))
         // Default is the untouched form, so there is nothing to copy out of it
         const isDefault = canonSettings(this.settingsNow(this.state.sspLoadedWorld)) === canonSettings(this.defaultSettings)
@@ -2874,8 +2914,8 @@ export default class MainPage extends React.Component {
                                                     onMouseLeave={this.helpLeave} onMouseEnter={sspHelp}>
                             <DropdownToggle color="info" caret block className="d-flex align-items-center">
                                 <span className={`text-truncate flex-grow-1 text-center${sspEdited ? " font-italic" : ""}`}>
-                                    {sspEditable ? null : <FaLock className="mr-1" style={{verticalAlign: "-.1em"}}/>}
-                                    {presetLabel(sspName)}{sspBorrowed ? ` (${this.state.sspLoadedOwner})` : ""}
+                                    {sspEditable || sspGone ? null : <FaLock className="mr-1" style={{verticalAlign: "-.1em"}}/>}
+                                    {presetLabel(sspName)}{sspBorrowed ? ` (${this.state.sspLoadedOwner})` : ""}{sspGone ? " (unsaved)" : ""}
                                 </span>
                             </DropdownToggle>
                             <DropdownMenu style={{zIndex: 10000, ...styles.menuStyle}}> {sspOptions} </DropdownMenu>
@@ -2956,6 +2996,13 @@ export default class MainPage extends React.Component {
                                 <Row className="m-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", canRandomize ? "randomize" : "randomizeDisabled")}>
                                     <Col xs="6">
                                         {randomizeButton}
+                                    </Col>
+                                    <Col xs="6" onMouseEnter={this.helpEnter("general", "undoRedo")}
+                                         onMouseLeave={this.helpEnter("general", canRandomize ? "randomize" : "randomizeDisabled")}>
+                                        <ButtonGroup className="d-flex">
+                                            <Button color="secondary" className="w-100" outline={!canUndo} onClick={this.undo}><FaUndo/></Button>
+                                            <Button color="secondary" className="w-100" outline={!canRedo} onClick={this.redo}><FaRedo/></Button>
+                                        </ButtonGroup>
                                     </Col>
                                 </Row>
                                 <Row className="m-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "generate" + this.multi())}>

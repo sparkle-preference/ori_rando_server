@@ -1134,7 +1134,16 @@ const getHelpHelper = (category, option) => {
                             "To re-randomize, delete or change the value in your seed input (bottom left textbox), then click this button."
                         ];
                         break;
-    
+
+                case "undoRedo":
+                    title = "Undo and Redo";
+                    lines = [
+                        "Step back and forth through your settings changes. Whichever tab you were on comes back with them.",
+                        "Typing in a box counts as one change, once you click away from it.",
+                        "Ctrl+Z and Ctrl+Shift+Z also work."
+                    ];
+                    break;
+
                 case "savedSettings":
                     subtitle = "Seedgen Presets"
                     title = "Presets"
