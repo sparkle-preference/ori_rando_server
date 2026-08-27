@@ -344,17 +344,16 @@ export default class MainPage extends React.Component {
         return {itemPool: itemPool, selectedPool: "Custom"}
  })
     updatePoolItem = (index, code) => this.setState(prev => {
-        prev.itemPool[index].item = code
-        return {itemPool: [...prev.itemPool], selectedPool: "Custom"}
+        let itemPool = [...prev.itemPool]
+        itemPool[index] = {...itemPool[index], item: code}
+        return {itemPool: itemPool, selectedPool: "Custom"}
     })
     deletePoolItem = (index) => () => this.setState(prev => {
-        prev.itemPool.splice(index, 1)
-        return {itemPool: [...prev.itemPool], selectedPool: "Custom"}
+        return {itemPool: prev.itemPool.filter((_, i) => i !== index), selectedPool: "Custom"}
   })
     addPoolItem = (code) => this.setState(prev => {
-        prev.itemPool.push({item: code, count: 1})
         this.refs.tabula.clear()
-        return {itemPool: [...prev.itemPool], selectedPool: "Custom"}
+        return {itemPool: prev.itemPool.concat({item: code, count: 1}), selectedPool: "Custom"}
     }
 )
 
@@ -2603,8 +2602,8 @@ export default class MainPage extends React.Component {
                 this.setState({variations: ["Race", "WorldTour"], players: 4, coopGameMode: "Race", keyMode: "Shards", goalModes: ["WorldTour"]})
             else {
                 if(v === "InLogicWarps" && !this.state.itemPool.some(({item}) => item === "WP|*")) this.setState(prev => {
-                    prev.itemPool.push({item: "WP|*", count: 4, upTo: 8, maximum: 14})
-                    return {itemPool: [...prev.itemPool], variations: prev.variations.concat(v), selectedPool: "Custom"}
+                    return {itemPool: prev.itemPool.concat({item: "WP|*", count: 4, upTo: 8, maximum: 14}),
+                            variations: prev.variations.concat(v), selectedPool: "Custom"}
                 });
                 else this.setState({variations: this.state.variations.concat(v)});
             }
