@@ -383,9 +383,9 @@ export default class MainPage extends React.Component {
         })
 
         return (
-        <TabPane className="p-3 border" tabId="item pool">
+        <TabPane className="p-3 border" tabId="item pool" data-hist="itemPool">
             {itemSelectors}
-            <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "customPool")} className="p-1 justify-content-center">
+            <Row data-hist="itemPoolAdd" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "customPool")} className="p-1 justify-content-center">
             <Col xs="4">
                 <Cent>
                     <Input type="number" className="mr-2" style={inputStyle} value={1} disabled/>
@@ -432,13 +432,14 @@ export default class MainPage extends React.Component {
         const [halfLabelCols, narrowCols] = [2.5, 2]
         const wideCols = leftCol + rightCol - 2 * halfLabelCols - narrowCols
         const colWidth = (cols) => ({flex: `0 0 ${100 * cols / 12}%`, maxWidth: `${100 * cols / 12}%`})
+        // data-hist is the undo flash's id: optional, and never interpolated from form state
         const halfLabel = (text, help) => (
-            <Col style={colWidth(halfLabelCols)} className="text-center px-1 border" onMouseLeave={this.helpLeave}
+            <Col data-hist={help} style={colWidth(halfLabelCols)} className="text-center px-1 border" onMouseLeave={this.helpLeave}
                  onMouseEnter={this.helpEnter("advanced", help)}>
                 <Cent>{text}</Cent>
             </Col>)
         const halfCtl = (cols) => (help, children) => (
-            <Col style={colWidth(cols)} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", help)}>
+            <Col data-hist={help} style={colWidth(cols)} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", help)}>
                 {children}
             </Col>)
         const [narrowCtl, wideCtl] = [halfCtl(narrowCols), halfCtl(wideCols)]
@@ -450,7 +451,7 @@ export default class MainPage extends React.Component {
                 </Col>
             </Row>)
         let weightSelectors = spawnWeights.map((weight, index) => (
-            <Col xs="4" key={`weight-selector-${index}`} className="text-center border">
+            <Col data-hist={`spawnWeight-${SPAWN_TPS[index]}`} xs="4" key={`weight-selector-${index}`} className="text-center border">
                     <Col onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "spawnWeights")}><Cent>{SPAWN_TPS[index]}</Cent></Col>
                     <Col onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "spawnWeights")}>
                         <Input style={inputStyle} type="number" value={weight} invalid={weight < 0} onChange={(e) => {
@@ -519,14 +520,14 @@ export default class MainPage extends React.Component {
         ))
         let goalCol = (v) => (
             <Col xs="6" onMouseLeave={this.helpEnter("advanced", "goalModes")} onMouseEnter={this.helpEnter("goalModes", v)} className="px-2 py-1">
-                <Button color="primary" block outline={!this.hasVar(v)} onClick={this.onGoalModeAdvanced(v)}>{VAR_NAMES[v]}</Button>
+                <Button data-hist={`goal-${v}`} color="primary" block outline={!this.hasVar(v)} onClick={this.onGoalModeAdvanced(v)}>{VAR_NAMES[v]}</Button>
             </Col>
         )
         let legacyVars = ["StompTriggers", "StrictMapstones", "ClosedDungeons"].map(v=> {
             let name = VAR_NAMES[v];
             return (
             <Col key={`var-button-${v}`} xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("variations", v)} className="p-2">
-                <Button block color="primary" outline={!this.hasVar(v)} onClick={this.onVar(v)}>{name}</Button>
+                <Button data-hist={`var-${v}`} block color="primary" outline={!this.hasVar(v)} onClick={this.onVar(v)}>{name}</Button>
             </Col>
             )});
         return (
@@ -586,21 +587,21 @@ export default class MainPage extends React.Component {
                         <Cent>Bury Items ([Item]Starved)</Cent>
                     </Col><Col xs={rightCol}>
                         <ButtonGroup className="w-100">
-                            <Button color="primary" outline onClick={this.buryItems([{depth: 50, items: ["SK|3", "SK|12"]}])}>Walls</Button>
-                            <Button color="primary" outline onClick={this.buryItems([{depth: 50, items: ["SK|51"]}])}>Grenade</Button>
-                            <Button color="primary" outline onClick={this.buryItems([{depth: 50, items: ["TP|Grove", "TP|Swamp", "TP|Grotto", "TP|Valley"]},
+                            <Button data-hist="buryWalls" color="primary" outline onClick={this.buryItems([{depth: 50, items: ["SK|3", "SK|12"]}])}>Walls</Button>
+                            <Button data-hist="buryGrenade" color="primary" outline onClick={this.buryItems([{depth: 50, items: ["SK|51"]}])}>Grenade</Button>
+                            <Button data-hist="buryTeleporters" color="primary" outline onClick={this.buryItems([{depth: 50, items: ["TP|Grove", "TP|Swamp", "TP|Grotto", "TP|Valley"]},
                                                                                      {depth: 100, items: ["TP|Forlorn", "TP|Sorrow", "TP|Ginso", "TP|Horu"]}])}>Teleporters</Button>
                         </ButtonGroup>
                     </Col>
                 </Row>
-                <div className="border rounded p-1 m-1">
+                <div className="border rounded p-1 m-1" data-hist="preplacement">
                     {sectionLabel("Preplacement", "preplacement")}
                     {fass_rows}
                 </div>
                 <Collapse isOpen={this.hasVar("Bingo")}>
                 <div className="border rounded p-1 m-1">
                 {sectionLabel("Bingo Settings", "bingoSettings")}
-                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "bingoDiff")} className="p-1 justify-content-center">
+                <Row data-hist="bingoDiff" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "bingoDiff")} className="p-1 justify-content-center">
                     <Col xs={leftCol} className="text-center border">
                         <Cent>Board Difficulty</Cent>
                     </Col><Col xs={rightCol}>
@@ -612,7 +613,7 @@ export default class MainPage extends React.Component {
                         </ButtonGroup>
                     </Col>
                 </Row>
-                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "bingoGoal")} className="p-1 justify-content-center">
+                <Row data-hist="bingoGoal" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "bingoGoal")} className="p-1 justify-content-center">
                     <Col xs={leftCol} className="text-center border">
                         <Cent>Win By</Cent>
                     </Col><Col xs={rightCol}>
@@ -625,7 +626,7 @@ export default class MainPage extends React.Component {
                     </Col>
                 </Row>
                 <Collapse isOpen={bingoGoal === "bingos"}>
-                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "bingoLines")} className="p-1 justify-content-center">
+                <Row data-hist="bingoLines" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "bingoLines")} className="p-1 justify-content-center">
                     <Col xs={leftCol} className="text-center border">
                         <Cent>Bingo Lines</Cent>
                     </Col><Col xs={rightCol}>
@@ -635,7 +636,7 @@ export default class MainPage extends React.Component {
                 </Row>
                 </Collapse>
                 <Collapse isOpen={bingoGoal === "squares"}>
-                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "bingoSquares")} className="p-1 justify-content-center">
+                <Row data-hist="bingoSquares" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "bingoSquares")} className="p-1 justify-content-center">
                     <Col xs={leftCol} className="text-center border">
                         <Cent>Squares to Win</Cent>
                     </Col><Col xs={rightCol}>
@@ -644,7 +645,7 @@ export default class MainPage extends React.Component {
                     </Col>
                 </Row>
                 </Collapse>
-                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "bingoMeta")} className="p-1 justify-content-center">
+                <Row data-hist="bingoMeta" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "bingoMeta")} className="p-1 justify-content-center">
                     <Col xs={leftCol} className="text-center border">
                         <Cent>Meta Bingo</Cent>
                     </Col><Col xs={rightCol}>
@@ -652,7 +653,7 @@ export default class MainPage extends React.Component {
                                 onClick={() => this.setState({bingoMeta: !bingoMeta})}>{bingoMeta ? "Enabled" : "Disabled"}</Button>
                     </Col>
                 </Row>
-                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "bingoDisc")} className="p-1 justify-content-center">
+                <Row data-hist="bingoDisc" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "bingoDisc")} className="p-1 justify-content-center">
                     <Col xs={leftCol} className="text-center border">
                         <Cent>Discovery Mode</Cent>
                     </Col><Col xs={rightCol}>
@@ -661,7 +662,7 @@ export default class MainPage extends React.Component {
                     </Col>
                 </Row>
                 <Collapse isOpen={bingoDisc > 0}>
-                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "bingoDisc")} className="p-1 justify-content-center">
+                <Row data-hist="bingoRevealed" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "bingoDisc")} className="p-1 justify-content-center">
                     <Col xs={leftCol} className="text-center border">
                         <Cent>Revealed Squares</Cent>
                     </Col><Col xs={rightCol}>
@@ -673,7 +674,7 @@ export default class MainPage extends React.Component {
                 </div>
                 </Collapse>
                 <Collapse isOpen={this.hasVar("WorldTour")}>
-                    <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "relicCount")} className="p-1 justify-content-center">
+                    <Row data-hist="relicCount" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "relicCount")} className="p-1 justify-content-center">
                         <Col xs={leftCol} className="text-center border">
                             <Cent>Relic Count</Cent>
                         </Col><Col xs={rightCol}>
@@ -683,7 +684,7 @@ export default class MainPage extends React.Component {
                     </Row>
                 </Collapse>
                 <Collapse isOpen={this.hasVar("WarmthFrags")}>
-                    <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "fragCount")} className="p-1 justify-content-center">
+                    <Row data-hist="fragCount" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "fragCount")} className="p-1 justify-content-center">
                         <Col xs={leftCol} className="text-center border">
                             <Cent>Fragment Count</Cent>
                         </Col><Col xs={rightCol}>
@@ -691,7 +692,7 @@ export default class MainPage extends React.Component {
                             <FormFeedback tooltip="true">Frag Count must be between 1 and 60</FormFeedback>
                         </Col>
                     </Row>
-                    <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "fragRequired")} className="p-1 justify-content-center">
+                    <Row data-hist="fragReq" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "fragRequired")} className="p-1 justify-content-center">
                         <Col xs={leftCol} className="text-center border">
                             <Cent>Fragments Required</Cent>
                         </Col><Col xs={rightCol}>
@@ -701,7 +702,7 @@ export default class MainPage extends React.Component {
                     </Row>
                 </Collapse>
                 <Collapse isOpen={spawn !== "Random" && spawn !== "Glades"}>
-                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "spawnSkills")} className="p-1 justify-content-center">
+                <Row data-hist="spawnSKs" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "spawnSkills")} className="p-1 justify-content-center">
                     <Col xs={leftCol} className="text-center border">
                         <Cent>Randomized Starting Skills</Cent>
                     </Col><Col xs={rightCol}>
@@ -709,7 +710,7 @@ export default class MainPage extends React.Component {
                         <FormFeedback tooltip="true">Can't spawn with less than 0 or more than 10 skills</FormFeedback>
                     </Col>
                 </Row>
-                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "spawnHCs")} className="p-1 justify-content-center">
+                <Row data-hist="spawnHCs" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "spawnHCs")} className="p-1 justify-content-center">
                     <Col xs={leftCol} className="text-center border">
                         <Cent>Starting Health</Cent>
                     </Col><Col xs={rightCol}>
@@ -717,7 +718,7 @@ export default class MainPage extends React.Component {
                         <FormFeedback tooltip="true">Can't spawn with fewer than 3 Health</FormFeedback>
                     </Col>
                 </Row>
-                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "spawnECs")} className="p-1 justify-content-center">
+                <Row data-hist="spawnECs" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "spawnECs")} className="p-1 justify-content-center">
                     <Col xs={leftCol} className="text-center border">
                         <Cent>Starting Energy</Cent>
                     </Col><Col xs={rightCol}>
@@ -745,22 +746,22 @@ export default class MainPage extends React.Component {
     }
     getMultiplayerTab = ({inputStyle, menuStyle}) => {
         let {shared, mwShared, players, tracking, coopGameMode, keyMode, coopGenMode, dedupShared, antiBkBias, apMode, apExport, apDeathLink} = this.state
-        let shareButtons = (stypes, current, toggle) => stypes.map(stype => (
+        let shareButtons = (stypes, current, toggle, kind) => stypes.map(stype => (
             <Col xs="4" key={`share-${stype}`} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("Shared Item Categories", stype)} className="p-2">
-                <Button block outline={!current.includes(stype)} onClick={toggle(stype)}>Share {stype}</Button>
+                <Button data-hist={`${kind}-${stype.replace(" ", "")}`} block outline={!current.includes(stype)} onClick={toggle(stype)}>Share {stype}</Button>
             </Col>
         ))
-        let multiplayerButtons = shareButtons(["Skills", "Teleporters", "Upgrades", "World Events", "Misc"], shared, this.onSType)
+        let multiplayerButtons = shareButtons(["Skills", "Teleporters", "Upgrades", "World Events", "Misc"], shared, this.onSType, "shared")
         // multiworld selections are stored separately (default none; shared
         // singletons are a spicier choice there), and no Misc: trees/relics/
         // keysanity keys stay per-world
-        let mwShareButtons = shareButtons(["Skills", "Teleporters", "Upgrades", "World Events"], mwShared, this.onMWSType)
+        let mwShareButtons = shareButtons(["Skills", "Teleporters", "Upgrades", "World Events"], mwShared, this.onMWSType, "mwShared")
         let apFlag = ap_enabled()
         // ap export categories are server-side names; 'stones' covers
         // Mapstones, keysanity zone keys, and generic Keystones (tiered doors)
         let apExportButtons = [["skills", "Skills"], ["teleporters", "Teleporters"], ["events", "World Events"], ["cells", "Cells"], ["stones", "Stones"], ["upgrades", "Upgrades"]].map(([cat, label]) => (
             <Col xs="4" key={`ap-export-${cat}`} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("AP Export Categories", cat)} className="p-2">
-                <Button block outline={!apExport.includes(cat)} onClick={this.onApExport(cat)}>Export {label}</Button>
+                <Button data-hist={`apExport-${cat}`} block outline={!apExport.includes(cat)} onClick={this.onApExport(cat)}>Export {label}</Button>
             </Col>
         ))
 
@@ -776,7 +777,7 @@ export default class MainPage extends React.Component {
             const pick = (name) => () => this.setWorldPreset(world, name)
             const info = this.worldPreset(world)
             return (
-                <Col xs="6" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "worldPresets")}>
+                <Col xs="6" data-hist={`worldPreset-${world}`} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "worldPresets")}>
                     <InputGroup>
                         <Input style={inputStyle} type="text" placeholder="same as world 1" invalid={!!info.bad}
                                title={presetHoverText(info.desc, this.state.worldSettings[i])}
@@ -803,9 +804,9 @@ export default class MainPage extends React.Component {
         }
         let playerNameRows = !this.playerNamesShown() ? null : [...Array(players).keys()].map(i => (
             <Row key={`player-name-${i}`} className="p-1 justify-content-center">
-                <Col xs="3" className="text-center border" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "playerNames")}>
+                <Col xs="3" data-hist={`playerName-${i+1}`} className="text-center border" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "playerNames")}>
                     <Cent>{perWorld ? `P${i+1}'s Name / Settings` : `Player ${i+1} Name`}</Cent>
-                </Col><Col xs={perWorld ? "3" : "4"} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "playerNames")}>
+                </Col><Col xs={perWorld ? "3" : "4"} data-hist={`playerName-${i+1}`} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "playerNames")}>
                     <Input style={inputStyle} type="text" maxLength={PLAYER_NAME_MAX} placeholder={`Player ${i+1}`}
                            value={this.state.playerNames[i] || ""} onChange={this.onPlayerName(i)}/>
                 </Col>
@@ -820,7 +821,7 @@ export default class MainPage extends React.Component {
         )
         return (
              <TabPane className="p-3 border" tabId="multiplayer">
-                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "playerCount")}  className="p-1 justify-content-center">
+                <Row data-hist="players" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "playerCount")}  className="p-1 justify-content-center">
                     <Col xs="4" className="text-center border">
                         <Cent>Players</Cent>
                     </Col><Col xs="4">
@@ -828,7 +829,7 @@ export default class MainPage extends React.Component {
                         {playerNumFeedback }
                     </Col>
                 </Row>
-                <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "multiGameType")} className="p-1 justify-content-center">
+                <Row data-hist="coopGameMode" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "multiGameType")} className="p-1 justify-content-center">
                     <Col xs="4" className="text-center border">
                         <Cent>Multiplayer Game Type</Cent>
                     </Col><Col onMouseLeave={this.helpEnter("multiplayerOptions", "multiGameType")} onMouseEnter={this.helpEnter("multiplayerOptions", coopGameMode)} xs="4">
@@ -846,12 +847,12 @@ export default class MainPage extends React.Component {
                     <Row className="p-2">
                         {multiplayerButtons}
                         <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("Shared Item Categories", "Dedup")} className="p-2">
-                            <Button block outline={!dedupShared} active={dedupShared} disabled={coopGenMode!=="Cloned Seeds"} onClick={() => this.setState({dedupShared: !dedupShared})}>Dedup Shared</Button>
+                            <Button data-hist="dedupShared" block outline={!dedupShared} active={dedupShared} disabled={coopGenMode!=="Cloned Seeds"} onClick={() => this.setState({dedupShared: !dedupShared})}>Dedup Shared</Button>
                         </Col>
                     </Row>
                 </Collapse>
                 <Collapse isOpen={this.isMultiworld()}>
-                    <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "antiBkBias")} className="p-1 justify-content-center">
+                    <Row data-hist="antiBkBias" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "antiBkBias")} className="p-1 justify-content-center">
                         <Col xs="4" className="text-center border">
                             <Cent>Multiworld Balance Bias</Cent>
                         </Col><Col xs="4">
@@ -866,7 +867,7 @@ export default class MainPage extends React.Component {
                 <Collapse isOpen={this.apAvailable()}>
                     <Row className="p-2">
                         <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "apMode")} className="p-2">
-                            <Button block outline={!apMode} active={apMode} onClick={this.onApMode}>Archipelago</Button>
+                            <Button data-hist="apMode" block outline={!apMode} active={apMode} onClick={this.onApMode}>Archipelago</Button>
                         </Col>
                     </Row>
                     <Collapse isOpen={apMode}>
@@ -875,7 +876,7 @@ export default class MainPage extends React.Component {
                         </Row>
                         <Row className="p-2">
                             <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "apDeathLink")} className="p-2">
-                                <Button block outline={!apDeathLink} active={apDeathLink} onClick={() => this.setState({apDeathLink: !apDeathLink})}>Death Link</Button>
+                                <Button data-hist="apDeathLink" block outline={!apDeathLink} active={apDeathLink} onClick={() => this.setState({apDeathLink: !apDeathLink})}>Death Link</Button>
                             </Col>
                         </Row>
                     </Collapse>
@@ -1136,6 +1137,17 @@ export default class MainPage extends React.Component {
 
     // a bare page opens on the last-generated settings; ?param_id= or ?preset= wins
     // a plain dense setState: mergeSettings is a preset codec, not a restore primitive
+    // the class has to go and a reflow be taken before it returns, or a repeat flash never restarts
+    histFlash = (ctl) => {
+        clearTimeout(this.histFlashTimer)
+        let stale = [...document.querySelectorAll(".hist-flash")]
+        stale.forEach(el => el.classList.remove("hist-flash"))
+        if(!ctl)
+            return
+        let hits = [...document.querySelectorAll(`[data-hist="${ctl}"]`)]
+        hits.forEach(el => { void el.offsetWidth; el.classList.add("hist-flash") })
+        this.histFlashTimer = setTimeout(() => hits.forEach(el => el.classList.remove("hist-flash")), 1200)
+    }
     histApply = (frame) => {
         if(!frame)
             return
@@ -1146,7 +1158,7 @@ export default class MainPage extends React.Component {
         // players can rewind below the world the edit was made in
         update.fassWorld = Math.min(frame.world || 1, update.players || 1)
         this.history.suppress = true
-        this.setState(update)
+        this.setState(update, () => this.histFlash(frame.ctl))
     }
     undo = () => this.histApply(this.history.undo())
     redo = () => this.histApply(this.history.redo())
@@ -1413,7 +1425,7 @@ export default class MainPage extends React.Component {
             let name = VAR_NAMES[v];
             return (
             <Col key={`var-button-${v}`} xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("variations", v)} className="p-2">
-                <Button block color="primary" outline={!this.hasVar(v)} onClick={this.onVar(v)}>{name}</Button>
+                <Button data-hist={`var-${v}`} block color="primary" outline={!this.hasVar(v)} onClick={this.onVar(v)}>{name}</Button>
             </Col>
             )
         })
@@ -1925,7 +1937,7 @@ export default class MainPage extends React.Component {
         </Col>
         )].concat(optionalPaths.map(path=> (
             <Col xs="3" key={`path-button-${path}`} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("logicPaths", path)}  className="p-1">
-                <Button block color="primary" outline={!this.state.paths.includes(path)} disabled={this.pathDisabled(path)} className="text-capitalize" onClick={this.onPath(path)}>{path}</Button>
+                <Button data-hist={`path-${path}`} block color="primary" outline={!this.state.paths.includes(path)} disabled={this.pathDisabled(path)} className="text-capitalize" onClick={this.onPath(path)}>{path}</Button>
             </Col>
         )))    
         return (
@@ -2833,7 +2845,7 @@ export default class MainPage extends React.Component {
                 <Cent><a target="blank" href={`/patchnotes#${NOTES_ANCHOR}`}>(changelog)</a></Cent>
             </Row>
             <Row className="p-3 border">
-                <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "logicModes")}>
+                <Col xs="4" data-hist="logicMode" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "logicModes")}>
                     <Row>
                         <Col xs="5"  className="text-center border">
                             <Cent>Logic Mode</Cent>
@@ -2846,7 +2858,7 @@ export default class MainPage extends React.Component {
                         </Col>
                     </Row>
                 </Col>
-                <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "keyModes")}>
+                <Col xs="4" data-hist="keyMode" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "keyModes")}>
                     <Row>
                         <Col xs="5"  className="text-center border">
                             <Cent>Key Mode</Cent>
@@ -2861,7 +2873,7 @@ export default class MainPage extends React.Component {
                         </Col>
                     </Row>
                 </Col>
-                <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "goalModes")}>
+                <Col xs="4" data-hist="goalMode" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "goalModes")}>
                     <Row>
                         <Col xs="5"  className="text-center border">
                             <Cent>Goal Mode</Cent>
@@ -2878,7 +2890,7 @@ export default class MainPage extends React.Component {
                         </Col>
                     </Row>
                 </Col>
-                <Col xs="4">
+                <Col xs="4" data-hist="itemPoolPreset">
                     <Row>
                         <Col xs="5"  className="text-center border mt-2" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "itemPoolPreset")}>
                             <Cent>Item Pool</Cent>
@@ -2891,7 +2903,7 @@ export default class MainPage extends React.Component {
                         </Col>
                     </Row>
                 </Col>
-                <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "spawnLoc")}>
+                <Col xs="4" data-hist="spawn" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "spawnLoc")}>
                     <Row>
                         <Col xs="5"  className="text-center border mt-2">
                             <Cent>Spawn</Cent>
@@ -2904,7 +2916,7 @@ export default class MainPage extends React.Component {
                         </Col>
                     </Row>
                 </Col>
-                <Col xs="4" className="mt-2">
+                <Col xs="4" data-hist="preset" className="mt-2">
                 <Row>
                     <Col xs="3"  className="text-center border" onMouseLeave={this.helpLeave} onMouseEnter={sspHelp}>
                         <Cent>Preset</Cent>
@@ -2979,7 +2991,7 @@ export default class MainPage extends React.Component {
                     <Collapse isOpen={activeTab !== "seed"}>
                         <Row className="align-items-center">
                             <Col xs="6">
-                                <Row className="m-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "seed")}>
+                                <Row className="m-1" data-hist="seed" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "seed")}>
                                     <Col xs="5" className="text-center border">
                                         <Cent>Seed</Cent>
                                     </Col><Col xs="7">
@@ -2988,13 +3000,13 @@ export default class MainPage extends React.Component {
                                 </Row>
                                 <Row className="m-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "webTracking" + (lockTracking ? "-locked" : ""))}>
                                     <Col>
-                                        <Button color="info" block outline={!tracking} disabled={lockTracking} onClick={()=>this.setState({tracking: !tracking})}>Web Tracking {tracking ? "Enabled" : "Disabled"}</Button>
+                                        <Button color="info" data-hist="webTracking" block outline={!tracking} disabled={lockTracking} onClick={()=>this.setState({tracking: !tracking})}>Web Tracking {tracking ? "Enabled" : "Disabled"}</Button>
                                     </Col>
                                 </Row>
                             </Col>
                             <Col>
                                 <Row className="m-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", canRandomize ? "randomize" : "randomizeDisabled")}>
-                                    <Col xs="6">
+                                    <Col xs="6" data-hist="randomize">
                                         {randomizeButton}
                                     </Col>
                                     <Col xs="6" onMouseEnter={this.helpEnter("general", "undoRedo")}

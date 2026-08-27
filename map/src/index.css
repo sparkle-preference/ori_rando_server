@@ -245,3 +245,14 @@ body, #root {
   top: 0;
   margin: 0;
 }
+
+/* box-shadow adds no layout box; currentColor survives the bootswatch skin swap */
+@keyframes histFlash {
+  from { box-shadow: 0 0 0 2px currentColor; }
+  to { box-shadow: 0 0 0 2px transparent; }
+}
+
+.hist-flash {
+  animation: histFlash 1.2s ease-out;
+  border-radius: .25rem;
+}
