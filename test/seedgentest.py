@@ -651,9 +651,13 @@ class BuriedPlacementTests(unittest.TestCase):
 
     BURIED = 20000000
 
-    def _gen_with_records(self, extra, seedfiles=("randomizer0.dat",)):
+    def _gen_with_records(self, extra, seedfiles=("randomizer0.dat",), classic=True):
         """Generate and also record (tagged item, reachable-loc-count) at
-        every assignment. -> (records, {seedfile: lines})"""
+        every assignment. -> (records, {seedfile: lines})
+
+        Classic by default, and asked for rather than inherited: the CLI defaults
+        to Balanced like the site does, and these depths are cleanest without the
+        swap pass on top of them."""
         from seedbuilder.generator import SeedGenerator
         outdir = tempfile.mkdtemp(prefix="seedgentest_buried_")
         self.addCleanup(shutil.rmtree, outdir, ignore_errors=True)
@@ -663,8 +667,9 @@ class BuriedPlacementTests(unittest.TestCase):
             records.append((item, sg.total_locs() - sg.locations()))
             return orig(sg, item, location)
         old_argv = sys.argv
-        sys.argv = ["cli_gen", "--output-dir", outdir, "--preset", "standard",
-                    "--open-world", "--force-trees", "--seed", "buriedtest3"] + extra
+        sys.argv = (["cli_gen", "--output-dir", outdir, "--preset", "standard",
+                     "--open-world", "--force-trees", "--seed", "buriedtest3"]
+                    + (["--classic-fill"] if classic else []) + extra)
         SeedGenerator.assign_to_location = spy
         try:
             CLISeedParams().from_cli()
@@ -695,6 +700,16 @@ class BuriedPlacementTests(unittest.TestCase):
         # same seed string, no burial: proves the assertion above can fail
         records, _ = self._gen_with_records([])
         self.assertLess(min(self._depths(records, "Grenade|1")), 150)
+
+    def test_burial_survives_the_fill_the_site_actually_rolls(self):
+        """The caveat the rest of this class sidesteps: Balanced relocates items
+        after assignment, so a buried one could surface in the swap pass."""
+        records, seeds = self._gen_with_records(["--fass", "%s:SK51" % (self.BURIED + 150)],
+                                                classic=False)
+        self.assertGreaterEqual(min(self._depths(records, "Grenade|1")), 150)
+        placements, _ = parse_seed(seeds["randomizer0.dat"])
+        grenades = [1 for (c, i, z) in placements.values() if (c, i) == ("SK", "51")]
+        self.assertEqual(len(grenades), 1)
 
     def test_multipickup_buries_each_part(self):
         records, _ = self._gen_with_records(["--fass", "%s:MUSK/3/SK/12" % (self.BURIED + 100)])

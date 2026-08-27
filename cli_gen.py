@@ -97,7 +97,8 @@ class CLISeedParams(object):
         parser.add_argument("--extra-frags", help="""Sets the number of extra warmth fragments. Total frag number is still the value passed to --warmth-frags;
         --warmth-frags 40 --extra-frags 10 will place 40 total frags, 30 of which will be required to finish""", type=int, default=10)
         parser.add_argument("--prefer-path-difficulty", help="Increase the chances of putting items in more convenient (easy) or less convenient (hard) locations", choices=["easy", "hard"])
-        parser.add_argument("--balanced", help="Reduce the value of newly discovered locations for progression placements", action="store_true")
+        parser.add_argument("--balanced", help="Reduce the value of newly discovered locations for progression placements. On by default; accepted so older invocations still parse", action="store_true")
+        parser.add_argument("--classic-fill", help="Place progression one at a time and mostly at random, with no balancing pass. Struggles with multiworld seeds", action="store_true")
         parser.add_argument("--anti-bk-bias", help="Multiworld only: 0.0-1.0, bias progression toward the world with the fewest reachable checks", type=float, default=0.0)
         parser.add_argument("--fass", help="""Forced assignments, |-separated: [world.]loc:item[@owner], e.g. '919772:SK0|2.-280256:EV0@3'.
         loc 20000000+N is the BuriedN pseudo-location: the item stays out of the pool until N locations are reachable.
@@ -217,7 +218,8 @@ class CLISeedParams(object):
             print (self.spawn_weights)
         else:
             self.spawn_weights = []
-        self.balanced = args.balanced or False
+        # the site has defaulted this on for most of the randomizer's life
+        self.balanced = not args.classic_fill
         self.anti_bk_bias = min(1.0, max(0.0, args.anti_bk_bias or 0.0))
         self.cell_freq = args.force_cells
         self.players = args.players
