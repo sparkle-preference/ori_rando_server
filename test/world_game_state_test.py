@@ -117,6 +117,77 @@ class PerWorldBingoTestCase(NdbTestCase):
         self.assertEqual(main.bingo_worlds(p), [])
         self.assertEqual(main.bingo_boards_for(p, "seedstring", False), [])
 
+    def test_the_modal_moves_the_owners_world_and_no_other(self):
+        import main
+        p = self.params([{"variations": ["Bingo"], "bingoDiff": "easy"},
+                         {"variations": ["Bingo"], "bingoDiff": "easy"}])
+        opts = {"difficulty": "hard", "discovery": 0, "meta": False,
+                "bingo_count": 5, "square_count": None, "goal": "bingos"}
+        by_world = {b.world: b for b in main.bingo_boards_for(p, "seedstring", False, 1, opts)}
+        self.assertEqual(by_world[1].difficulty, "hard")
+        self.assertEqual(by_world[1].bingo_count, 5)
+        self.assertEqual(by_world[2].difficulty, "easy", "world 2 was handed its rules with its seed")
+        self.assertEqual(by_world[2].bingo_count, p.world_params(2).bingo_lines)
+
+    def test_discovery_is_drawn_only_on_the_owners_board(self):
+        import main
+        p = self.params([{"variations": ["Bingo"]}, {"variations": ["Bingo"]}])
+        opts = {"difficulty": "normal", "discovery": 4, "meta": False}
+        by_world = {b.world: b for b in main.bingo_boards_for(p, "seedstring", False, 1, opts)}
+        self.assertEqual(by_world[1].discovery, 4)
+        self.assertEqual(len(by_world[1].disc_squares), 4)
+        self.assertEqual(by_world[2].discovery, p.world_params(2).bingo_disc)
+        self.assertEqual(by_world[2].disc_squares, [])
+
+    def test_a_world_1_that_isnt_playing_leaves_the_modal_no_world(self):
+        import main
+        p = self.params([{"variations": ["OpenWorld"]},
+                         {"variations": ["Bingo"], "bingoDiff": "easy"}])
+        self.assertIsNone(main.owner_world(main.bingo_worlds(p)))
+        boards = main.bingo_boards_for(p, "seedstring", False, None,
+                                       {"difficulty": "hard", "discovery": 0, "meta": False})
+        self.assertEqual(boards[0].difficulty, "easy")
+
+    def test_a_reroll_moves_cards_and_leaves_other_worlds_rules_alone(self):
+        """Rerolling world 1 must not roll back an override world 2 was given
+        earlier: a world's rules outlive the cards they shaped."""
+        import main
+        p = self.params([{"variations": ["Bingo"]}, {"variations": ["Bingo"]}])
+        first = main.bingo_boards_for(p, "seedstring", False, 2,
+                                      {"difficulty": "hard", "discovery": 0, "meta": False})
+        again = main.bingo_boards_for(p, "seedstringRR1", False, 1,
+                                      {"difficulty": "easy", "discovery": 0, "meta": False}, first)
+        by_world = {b.world: b for b in again}
+        self.assertEqual(by_world[1].difficulty, "easy")
+        self.assertEqual(by_world[2].difficulty, "hard", "world 2 keeps what it was given")
+        self.assertNotEqual([c.name for c in by_world[2].board],
+                            [c.name for c in first[1].board], "its cards still moved")
+
+    def test_owner_world_prefers_the_board_the_modal_was_on(self):
+        import main
+        self.assertEqual(main.owner_world([1, 2, 3], 3), 3)
+        self.assertEqual(main.owner_world([1, 2, 3], "2"), 2)
+        self.assertEqual(main.owner_world([1, 2, 3], 9), 1, "a world with no board falls back")
+        self.assertEqual(main.owner_world([1, 2, 3], "nonsense"), 1)
+        self.assertIsNone(main.owner_world([2, 3], 9))
+
+    def test_the_modals_settings_are_authoritative_even_when_absent(self):
+        """It opens on one board and posts the whole set back, so no discCount
+        means discovery off -- not "leave that world as it rolled"."""
+        import main
+        with main.app.test_request_context("/?difficulty=hard&lines=4"):
+            opts = main.owner_board_opts("hard", 0, False)
+        self.assertEqual(opts["discovery"], 0)
+        self.assertIs(opts["meta"], False)
+        self.assertEqual(opts["bingo_count"], 4)
+        self.assertEqual(opts["goal"], "bingos")
+        self.assertIsNone(opts["square_count"])
+        with main.app.test_request_context("/?difficulty=hard&squares=13&discCount=3&meta=1"):
+            opts = main.owner_board_opts("hard", 3, True)
+        self.assertEqual(opts["square_count"], 13)
+        self.assertEqual(opts["goal"], "squares")
+        self.assertNotIn("bingo_count", opts, "squares mode leaves the line count alone")
+
     def test_board_for_falls_back_to_the_one_board(self):
         from models import BingoGameData
         b = BingoGameData()

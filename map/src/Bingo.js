@@ -196,7 +196,7 @@ class BingoBoard extends Component {
     }
 }
 
-const PlayerList = ({activePlayer, teams, viewOnly, isOwner, timerTime, onPlayerListAction, userBoard, userBoardParams, gameId, teamMax, teamsDisabled}) => {
+const PlayerList = ({activePlayer, teams, viewOnly, isOwner, timerTime, onPlayerListAction, userBoard, userBoardParams, gameId, teamMax, teamsDisabled, boardsByWorld}) => {
     if(!teams)
         return null
     let team_list = Object.keys(teams).map(cid => teams[cid])
@@ -291,6 +291,28 @@ const PlayerList = ({activePlayer, teams, viewOnly, isOwner, timerTime, onPlayer
         </Row>
     ): null
 
+    // a world whose board is still here but whose seat is not: removed, and the
+    // owner is the only one who can undo that
+    let seated = new Set(Object.keys(teams).map(Number))
+    let emptyRows = !isOwner ? [] : Object.keys(boardsByWorld || {}).map(Number)
+        .filter(w => !seated.has(w)).sort((a, b) => a - b).map(w => (
+            <Row key={`empty-world-${w}`} className="px-1 text-center pb-2">
+                <Col className="p-0">
+                    <UncontrolledButtonDropdown className="w-100 px-1">
+                        <Button size="sm" color="secondary" outline block disabled>
+                            <Cent>{make_icons([w])} World {w} (removed)</Cent>
+                        </Button>
+                        <DropdownToggle caret color="secondary" outline size="sm"/>
+                        <DropdownMenu right>
+                            <DropdownItem onClick={onPlayerListAction("reseatWorld", w)}>
+                                Put back
+                            </DropdownItem>
+                        </DropdownMenu>
+                    </UncontrolledButtonDropdown>
+                </Col>
+            </Row>
+        ))
+
     players = players.filter(p => p != null).sort((a, b) => b[0] - a[0]).map(p => p[1])
 
     let colStyle= {minWidth: '200px', maxWidth: '420px'}
@@ -303,6 +325,7 @@ const PlayerList = ({activePlayer, teams, viewOnly, isOwner, timerTime, onPlayer
             <Row  className="px-1 pb-2"><h6>{timerText}</h6></Row>
             <Row  className="px-1 pb-2"><Cent><h4>Players</h4></Cent></Row>
             {players}
+            {emptyRows}
             {hiddenButton}
         </Col>
     );
@@ -562,10 +585,12 @@ export default class Bingo extends React.Component {
     }
     createGame = () => {
         let {isRandoBingo, discovery, discCount, noTimer, targetCount, goalMode, lockout, squareCount, randoGameId, gameId,
-            startSkills, startCells, startMisc, showInfo, difficulty, teamsDisabled, seed, meta, testIters, rerollingBoard} = this.state;
+            startSkills, startCells, startMisc, showInfo, difficulty, teamsDisabled, seed, meta, testIters, rerollingBoard,
+            activePlayer} = this.state;
         let url
         if(rerollingBoard) {
-            url = `/bingo/game/${gameId}/reroll_board?difficulty=${difficulty}`
+            // the modal opened on one world's board, so it is that world these settings move
+            url = `/bingo/game/${gameId}/reroll_board?difficulty=${difficulty}&world=${activePlayer}`
         } else if(isRandoBingo) {
             url = `/bingo/from_game/${randoGameId}?difficulty=${difficulty}`
         } else {
@@ -703,6 +728,10 @@ export default class Bingo extends React.Component {
             case "joinTeam":
                 if(!this.state.teamsDisabled)
                     this.joinGame(player)
+                break;
+            // the board kept its goals; the squares it had marked did not
+            case "reseatWorld":
+                doNetRequest(`/bingo/game/${this.state.gameId}/add/${player}`, this.tickCallback)
                 break;
             case "deleteTeam":
                 if(this.state.startTime)

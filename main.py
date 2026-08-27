@@ -1630,9 +1630,12 @@ def _bingo_reroll_board_inner(game_id):
     d, lockout, meta = _bingo_query_opts()
     reroll_params = game.fetch_params() if game and game.params else None
     if bingo.boards and reroll_params:
-        bingo.boards = bingo_boards_for(reroll_params, seed, lockout)
+        # ?world= is the board the modal was opened on; without it, the roller's
+        owner = owner_world([wb.world for wb in bingo.boards], param_val("world"))
+        bingo.boards = bingo_boards_for(reroll_params, seed, lockout, owner,
+                                        owner_board_opts(difficulty, d, meta), bingo.boards)
         bingo.board = bingo_board_cards(reroll_params, difficulty, seed, d, meta, lockout,
-                                        world=bingo.boards[0].world if bingo.boards else 1)
+                                        world=owner or bingo.boards[0].world)
     else:
         bingo.board = bingo_board_cards(reroll_params, difficulty, seed, d, meta, lockout)
     bingo.difficulty = difficulty
@@ -1666,6 +1669,26 @@ def bingo_add_player(game_id, player_id):
     with bingo_lock(game_id):
         return _bingo_add_player_inner(game_id, player_id)
 
+def _bingo_reseat_world(bingo, game_id, player_id):
+    """Put a removed world back. Its board survived the removal and comes back
+    untouched; the Player did not, so the world starts its squares again."""
+    user = User.get()
+    if not (User.is_admin() or (user and bingo.creator and bingo.creator == user.key)):
+        return text_resp("This game's players come from its multiworld seed; "
+                         "get your seed from whoever rolled it.", 412)
+    if player_id not in [wb.world for wb in bingo.boards]:
+        return text_resp("World %s has no board in this game" % player_id, 412)
+    if player_id in bingo.player_nums():
+        return text_resp("World %s is already on the board" % player_id, 409)
+    bingo.teams.append(BingoTeam(captain=bingo.init_player(player_id).key, teammates=[]))
+    bingo.event_log.append(BingoEvent(event_type="miscWorld %s is back, with a clear board." % player_id,
+                                      timestamp=datetime.utcnow()))
+    bingo.put()
+    res = bingo.get_json()
+    Cache.set_board(game_id, dict(res))
+    return json_resp(res)
+
+
 def _bingo_add_player_inner(game_id, player_id):
     bingo = BingoGameData.with_id(game_id)
     join_team = param_flag("joinTeam")
@@ -1674,10 +1697,9 @@ def _bingo_add_player_inner(game_id, player_id):
     if join_team and not bingo.teams_allowed:
         return text_resp("Teams are forbidden in this game", 412)
     # a multiworld player's pid is baked into the seed the host handed them, so
-    # there is no slot here to claim
+    # there is no slot here to claim -- only a removed one for the owner to undo
     if bingo.boards:
-        return text_resp("This game's players come from its multiworld seed; "
-                         "get your seed from whoever rolled it.", 412)
+        return _bingo_reseat_world(bingo, game_id, player_id)
     if player_id in bingo.player_nums():
         return text_resp("Player id already in use!", 409)
     if bingo.ap_worlds:
@@ -1793,20 +1815,55 @@ def mw_bingo_worlds(params):
     return bingo_worlds(params)
 
 
-def bingo_boards_for(params, seed, lockout):
+def owner_board_opts(difficulty, d, meta):
+    """The board settings the create/reroll modal sends. They belong to whichever
+    world had the modal open, never to a world handed a seed that already told it
+    how its board works. The modal opens on one board and posts the whole set
+    back, so difficulty, discovery and meta are authoritative even when absent."""
+    opts = {"difficulty": difficulty, "discovery": d or 0, "meta": bool(meta)}
+    if param_flag("lines"):
+        opts.update(bingo_count=int(param_val("lines")), square_count=None, goal="bingos")
+    if param_flag("squares"):
+        opts.update(square_count=int(param_val("squares")), goal="squares")
+    return opts
+
+
+def owner_world(worlds, asked=None):
+    """The world the modal speaks for: whoever asked, else the roller. World 1 is
+    the seedgen form itself, so it is the roller's own -- and None when world 1
+    isn't playing, because then the modal has no world to move."""
+    try:
+        if asked is not None and int(asked) in worlds:
+            return int(asked)
+    except (TypeError, ValueError):
+        pass
+    return 1 if 1 in worlds else None
+
+
+def bingo_boards_for(params, seed, lockout, owner=None, opts=None, base=None):
     """One board per participating world, each from that world's own settings.
-    Seeded apart, so two worlds on the same settings still get different goals."""
+    Seeded apart, so two worlds on the same settings still get different goals.
+
+    opts moves the owner's world and no other. base is the boards being replaced:
+    a reroll moves cards, and a world's rules outlive the cards they shaped."""
     out = []
+    was = {b.world: b for b in (base or [])}
     for w in mw_bingo_worlds(params):
         wp = params.world_params(w)
+        rules = {"difficulty": wp.bingo_diff, "discovery": wp.bingo_disc, "meta": wp.bingo_meta,
+                 "bingo_count": wp.bingo_lines, "square_count": wp.bingo_squares,
+                 "goal": wp.bingo_goal}
+        if w in was:
+            rules = {k: getattr(was[w], k) for k in rules}
+        if opts and w == owner:
+            rules.update(opts)
         board_seed = "%s.%s" % (seed, w)
-        cards = bingo_board_cards(params, wp.bingo_diff, board_seed, wp.bingo_disc,
-                                  wp.bingo_meta, lockout, world=w)
+        cards = bingo_board_cards(params, rules["difficulty"], board_seed,
+                                  rules["discovery"], rules["meta"], lockout, world=w)
         out.append(BingoWorldBoard(
-            world=w, board=cards, goal=wp.bingo_goal, difficulty=wp.bingo_diff,
-            bingo_count=wp.bingo_lines, square_count=wp.bingo_squares,
-            meta=wp.bingo_meta, discovery=wp.bingo_disc,
-            disc_squares=pick_discovery_squares(cards, board_seed, wp.bingo_disc) if wp.bingo_disc else []))
+            world=w, board=cards,
+            disc_squares=pick_discovery_squares(cards, board_seed, rules["discovery"]) if rules["discovery"] else [],
+            **rules))
     return out
 
 @app.route('/bingo/new') #BingoCreate =
@@ -2076,11 +2133,14 @@ def add_bingo_to_game(game_id):
         per_world = bool(worlds)
         if per_world:
             lockout = False     # separate boards never share a square to take
+        # the modal belongs to whoever rolled the seed, and that is world 1
+        owner = owner_world(worlds)
         bingo = BingoGameData(
             id            = game_id,
             board         = bingo_board_cards(params, difficulty, seed, d, meta, lockout,
-                                              world=worlds[0] if worlds else 1),
-            boards        = bingo_boards_for(params, seed, lockout) if per_world else [],
+                                              world=owner or (worlds[0] if worlds else 1)),
+            boards        = bingo_boards_for(params, seed, lockout, owner,
+                                             owner_board_opts(difficulty, d, meta)) if per_world else [],
             difficulty    = difficulty,
             subtitle      = params.flag_line(),
             teams_allowed = param_flag("teams") and not per_world,
