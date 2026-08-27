@@ -3794,6 +3794,7 @@ home: ValleyTeleporter -438 -4
 		expert AirDash DoubleJump OpenWorld
 		expert ChargeDash Energy=2 OpenWorld
 		master Bash OpenWorld
+		master TripleJump ChargeJump OpenWorld
 	conn: LowerValley
 		casual OpenWorld
 	conn: LowerValleyPlantApproach
@@ -5090,6 +5091,8 @@ home: MistyEntrance -690 -20
 		expert ChargeDash Energy=4
 		master Bash
 		master GrenadeJump Health=4
+		master TripleJump Health=7
+		master TripleJump UltraDefense Health=5
 	conn: ValleyTeleporter
 		casual Glide Wind OpenWorld
 		casual ChargeJump Glide DoubleJump WallJump OpenWorld
