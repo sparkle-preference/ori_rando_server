@@ -18,14 +18,10 @@ HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PAGE = os.path.join(HERE, "map", "src", "MainPage.js")
 HISTORY = os.path.join(HERE, "map", "src", "history.js")
 
-# Read by paramsJson and deliberately not tracked.
-UNTRACKED = {
-    # the frame carries the world as a field: it is a view selector, and putting it in
-    # the blob would charge an undo for browsing between worlds
-    "fassWorld",
-    # who you are, not a setting the form can change
-    "sspOwner",
-}
+# The escape hatch: a key paramsJson sends that undo deliberately does not restore.
+# Empty on purpose -- everything the payload carries is currently tracked. Anything
+# added here needs a reason beside it.
+UNTRACKED = set()
 
 
 def read(path):
@@ -40,9 +36,14 @@ def hist_keys():
 
 
 def params_json_body():
+    """Stop at the next sibling class property. generateSeed, loadSspList and
+    mergeSettings all sit between this and settingsNow, and what they read off
+    state is not what the page sends."""
     page = read(PAGE)
-    start = page.index("paramsJson = ")
-    return page[start:page.index("settingsNow = ", start)]
+    rest = page[page.index("paramsJson = "):]
+    nxt = re.search(r"\n    [a-zA-Z_]\w* = ", rest[1:])
+    assert nxt, "paramsJson is the last thing in the class?"
+    return rest[:nxt.start() + 1]
 
 
 class HistoryKeysTestCase(unittest.TestCase):
