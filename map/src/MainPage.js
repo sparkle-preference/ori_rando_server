@@ -314,6 +314,8 @@ const cellFreqPresets = (preset) => preset === "casual" ? 20 : (preset === "stan
 const optionalPaths = ['casual-dboost', 'standard-core', 'standard-dboost', 'standard-lure', 'standard-abilities', 'expert-core', 'expert-dboost', 'expert-lure', 'expert-abilities', 'dbash', 'master-core', 'master-dboost', 'master-lure', 'master-abilities', 'gjump', 'glitched', 'timed-level', 'insane']
 const varPaths = {"master": ["Starved"]}
 const diffPaths = {"glitched": "Hard", "master": "Hard"}
+// an emptied box parses to NaN, which the generator takes as null and dies on
+const numOr = (raw, dflt) => { let n = parseInt(raw, 10); return isNaN(n) ? dflt : n }
 const disabledPaths = {
                     "0XP": ["glitched", "standard-abilities", "expert-abilities", "master-abilities", "master-dboost", "timed-level", "insane"], 
                     "OHKO": ["casual-dboost", "standard-dboost", "expert-dboost", "master-dboost", "glitched", "master-lure"]
@@ -328,15 +330,18 @@ export default class MainPage extends React.Component {
     help = (category, option, extra) => () => this.setState({helpcat: category, helpopt: option, helpParams: {...getHelpContent(category, option), ...extra}})
     
 
+    // an emptied number box parses to NaN
     updateItemCount = (index, newVal, {minimum}) => this.setState(prev => {
         minimum = minimum || 0
-        let x = Math.max(newVal, minimum)
-        prev.itemPool[index].count = x
-        return {itemPool: [...prev.itemPool], selectedPool: "Custom"}
+        let x = Math.max(newVal || 0, minimum)
+        let itemPool = [...prev.itemPool]
+        itemPool[index] = {...itemPool[index], count: x}
+        return {itemPool: itemPool, selectedPool: "Custom"}
     })
     updateItemUpTo = (index, newVal) => this.setState(prev => {
-        prev.itemPool[index].upTo = newVal
-        return {itemPool: [...prev.itemPool], selectedPool: "Custom"}
+        let itemPool = [...prev.itemPool]
+        itemPool[index] = {...itemPool[index], upTo: newVal}
+        return {itemPool: itemPool, selectedPool: "Custom"}
  })
     updatePoolItem = (index, code) => this.setState(prev => {
         prev.itemPool[index].item = code
@@ -699,7 +704,7 @@ export default class MainPage extends React.Component {
                     <Col xs={leftCol} className="text-center pt-1 border">
                         <span className="align-middle">Randomized Starting Skills</span>
                     </Col><Col xs={rightCol}>
-                        <Input style={inputStyle} type="text" value={spawnSKs} invalid={spawnSKs < 0 || spawnSKs > 10 } onChange={(e) => this.setState({spawnSKs: parseInt(e.target.value,10)})}/> 
+                        <Input style={inputStyle} type="text" value={spawnSKs} invalid={spawnSKs < 0 || spawnSKs > 10 } onChange={(e) => this.setState({spawnSKs: numOr(e.target.value, 0)})}/> 
                         <FormFeedback tooltip="true">Can't spawn with less than 0 or more than 10 skills</FormFeedback>
                     </Col>
                 </Row>
@@ -707,7 +712,7 @@ export default class MainPage extends React.Component {
                     <Col xs={leftCol} className="text-center pt-1 border">
                         <span className="align-middle">Starting Health</span>
                     </Col><Col xs={rightCol}>
-                        <Input style={inputStyle} type="text" value={spawnHCs} invalid={spawnHCs < 3} onChange={(e) => this.setState({spawnHCs: parseInt(e.target.value,10)})}/> 
+                        <Input style={inputStyle} type="text" value={spawnHCs} invalid={spawnHCs < 3} onChange={(e) => this.setState({spawnHCs: numOr(e.target.value, 3)})}/> 
                         <FormFeedback tooltip="true">Can't spawn with fewer than 3 Health</FormFeedback>
                     </Col>
                 </Row>
@@ -715,7 +720,7 @@ export default class MainPage extends React.Component {
                     <Col xs={leftCol} className="text-center pt-1 border">
                         <span className="align-middle">Starting Energy</span>
                     </Col><Col xs={rightCol}>
-                        <Input style={inputStyle} type="text" value={spawnECs} invalid={spawnHCs < 1} onChange={(e) => this.setState({spawnECs: parseInt(e.target.value,10)})}/> 
+                        <Input style={inputStyle} type="text" value={spawnECs} invalid={spawnECs < 1} onChange={(e) => this.setState({spawnECs: numOr(e.target.value, 1)})}/> 
                         <FormFeedback tooltip="true">Can't spawn with fewer than 1 Energy</FormFeedback>
                     </Col>
                 </Row>
@@ -920,7 +925,7 @@ export default class MainPage extends React.Component {
         if(this.state.spawn !== "Glades") {
             json.spawn = this.state.spawn;
             if(this.state.spawn !== "Random") {
-                if(this.state.startingSkills !== 0) 
+                if(this.state.spawnSKs !== 0) 
                     json.spawnSKs = this.state.spawnSKs;
                 if(this.state.spawnECs !== 1) 
                     json.spawnECs = this.state.spawnECs;
@@ -2043,9 +2048,9 @@ export default class MainPage extends React.Component {
                 break;
         }
         if(newState.spawn !== "Random") {
-            [newState.spawnHCs, newState.spawnECs, newState.spawnSkills] = [3, 1, 0]; // defaults
+            [newState.spawnHCs, newState.spawnECs, newState.spawnSKs] = [3, 1, 0]; // defaults
             if(spawn_defaults[newState.spawn].hasOwnProperty(newState.pathMode)) 
-                [newState.spawnHCs, newState.spawnECs, newState.spawnSkills] = spawn_defaults[newState.spawn][newState.pathMode];    
+                [newState.spawnHCs, newState.spawnECs, newState.spawnSKs] = spawn_defaults[newState.spawn][newState.pathMode];    
         }
 
         // advanced tab bullshit START
@@ -2365,7 +2370,7 @@ export default class MainPage extends React.Component {
         this.state = {user: user, activeTab: activeTab, coopGenMode: "Cloned Seeds", coopGameMode: "Multiworld", players: 1, antiBkBias: 0, dropActive: false,
                         tracking: true, variations: ["ForceTrees"], gameId: gameId, itemPool: getPool("Standard"), dedupShared: false, 
                         paths: presets["standard"], keyMode: "Clues", oldKeyMode: "Clues", spawn: "Glades", advancedSpawnTouched: false, 
-                        spawnHCs: 3, spawnECs: 0, spawnSKs: 0, pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null), 
+                        spawnHCs: 3, spawnECs: 1, spawnSKs: 0, pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null), 
                         goalModes: ["ForceTrees"], selectedPool: "Standard", seed: "", fillAlg: "Balanced", quickstartOpen: quickstartOpen, 
                         shared: ["Skills", "Teleporters", "World Events", "Upgrades", "Misc"], mwShared: [], helpcat: "", helpopt: "",
                         apMode: false, apExport: [...apDefaultExport], apDeathLink: false, inputApMode: false, playerNames: [],
@@ -2384,7 +2389,7 @@ export default class MainPage extends React.Component {
                         sspModal: false, presetModal: false, presetArmDelete: false, sspBusy: false,
                         sspSaveName: "", sspSaveDesc: "", sspSaveHidden: false};
         
-        // the untouched form IS the Default entry; snapshot before anything edits it
+        // the untouched form IS the Default entry; its arrays are the live state arrays, not copies
         this.defaultSettings = this.settingsNow()
         this.defaultForm = {}
         PRESET_FORM_KEYS.forEach(k => { this.defaultForm[k] = this.state[k] })
@@ -2413,6 +2418,10 @@ export default class MainPage extends React.Component {
     }
 
     componentDidUpdate(prevProps, prevState) {
+        // a path banned by an active variation can't stay selected
+        let paths = this.state.paths.filter(p => !this.pathDisabled(p))
+        if(paths.length !== this.state.paths.length)
+            this.setState({paths: paths, pathMode: get_preset(paths)})
         if(prevState.gameId !== this.state.gameId) {
             // new game: any polled link state belongs to the old one
             this.apPrefilled = false
@@ -2445,7 +2454,7 @@ export default class MainPage extends React.Component {
         let world = this.isMultiworld() ? prevState.fassWorld : 1;
         let newLoc = loc;
         if(!newLoc) {
-            const usedCoords = new Set(fassList.filter(fass => (fass.world || 1) === world).map(fass => fass.value));
+            const usedCoords = new Set(fassList.filter(fass => (fass.world || 1) === world).map(fass => fass.loc.value));
             newLoc = locOptions.find(loc => !usedCoords.has(loc.value));
             if(!newLoc) return {};
         }
@@ -2547,7 +2556,7 @@ export default class MainPage extends React.Component {
         if(worlds.length >= world)
             worlds[world - 1] = {}
         return {worldSettings: worlds,
-                worldPresets: {...prev.worldPresets, [world]: {...prev.worldPresets[world], label: "", bad: true}}}
+                worldPresets: {...(prev.worldPresets || {}), [world]: {...(prev.worldPresets || {})[world], label: "", bad: true}}}
     })
 
     // a pasted link is fetched once and copied in, exactly like opening one
@@ -2601,16 +2610,7 @@ export default class MainPage extends React.Component {
             }
         }
     }
-    pathDisabled = (path) => {
-        if(revDisabledPaths.hasOwnProperty(path))
-            if(revDisabledPaths[path].some(v => this.hasVar(v)))
-            {
-                if(this.state.paths.includes(path))
-                    this.onPath(path)()
-                return true
-            }
-        return false
-    }
+    pathDisabled = (path) => revDisabledPaths.hasOwnProperty(path) && revDisabledPaths[path].some(v => this.hasVar(v))
     onKeyMode = (mode) => () => this.setState({keyMode: mode})
 
     onSpawnLoc = (loc) => () => this.setState(prev => {
@@ -2666,7 +2666,7 @@ export default class MainPage extends React.Component {
             vars = vars.filter(v => !varPaths[this.state.pathMode].includes(v))
         // Then add any variations tied to the new pathmode.
         if(varPaths.hasOwnProperty(mode))
-            varPaths[mode].forEach(v => vars.includes(v) ? null : vars.push(v))
+            vars = vars.concat(varPaths[mode].filter(v => !vars.includes(v)))
         let pd = this.state.pathDiff
         if(diffPaths.hasOwnProperty(this.state.pathMode))
             pd = "Normal"
