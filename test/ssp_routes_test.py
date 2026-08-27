@@ -14,7 +14,7 @@ from google.cloud import ndb
 
 import main
 import models
-from models import SavedSeedParams, User
+from models import SavedSeedParams, USER_SETTINGS, User
 from test.ndb_base import NdbTestCase
 
 
@@ -41,9 +41,14 @@ class _FakeUser(object):
         self.key = _FakeKey(name)
         self.store = {}
         self.games = []
+        self.settings = None
 
     def saved_params(self, name):
         return self.store.get(name)
+
+    # the real rule, not a stub of it: absent is the registered default
+    def setting(self, key):
+        return (self.settings or {}).get(key, USER_SETTINGS[key]["default"])
 
 
 class _FakeGameKey(object):
@@ -223,7 +228,8 @@ class SSPListTestCase(SSPRouteTestCase):
         res = self.client.get("/preset/list")
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.get_json(),
-                         {"owner": None, "hasLatest": False, "settings": []})
+                         {"owner": None, "hasLatest": False,
+                          "restoreLastSeed": True, "settings": []})
 
     def test_the_owner_sees_their_own_sorted_case_insensitively(self):
         for name in ("zeta", "Alpha", "middle"):

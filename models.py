@@ -243,7 +243,18 @@ class User(ndb.Model):
     theme  = ndb.StringProperty()
     verbose = ndb.BooleanProperty(default=False)
     admin = ndb.BooleanProperty(default = False, indexed= False)
+    # one-field preferences that do not each deserve a column; USER_SETTINGS is
+    # the whole list, and a key absent from it is not readable or writable
+    settings = ndb.JsonProperty()
 
+    def setting(self, key):
+        return (self.settings or {}).get(key, USER_SETTINGS[key]["default"])
+
+    # a JsonProperty mutated in place is not reliably marked dirty
+    def set_setting(self, key, value):
+        stored = dict(self.settings or {})
+        stored[key] = value
+        self.settings = stored
 
     @staticmethod
     def latest_game(username):
@@ -1802,6 +1813,13 @@ SSP_DENY = frozenset([
 
 # names that end up in a url path or query cannot carry these
 URL_UNSAFE_NAME_CHARS = ["@", "/", "\\", "?", "#", "&", "=", '"', "'"]
+
+# User.settings: every key the modal can read or write -- the value a user who has
+# never touched it gets, and how a save reports it. Adding a key is the whole
+# registration; one absent from here is neither readable nor writable.
+USER_SETTINGS = {
+    "restoreLastSeed": {"default": True, "label": "remembered seedgen settings"},
+}
 
 # the bootswatch skins that ship a dark ground; the rest are light
 DARK_SKINS = frozenset(["cyborg", "darkly", "slate", "solar", "superhero"])

@@ -1016,7 +1016,9 @@ export default class MainPage extends React.Component {
     loadSspList = () => doNetRequest("/preset/list", ({status, responseText}) => {
         if(status !== 200)
             return
-        let {owner, settings, hasLatest} = JSON.parse(responseText)
+        let {owner, settings, hasLatest, restoreLastSeed} = JSON.parse(responseText)
+        // absent means an older server: opening on the last seed is what it did
+        this.restoreLastSeed = restoreLastSeed !== false
         this.setState({sspOwner: owner, sspList: settings || [], sspHasLatest: !!hasLatest}, () => {
             if(!hasLatest)
                 return this.setState({sspLatest: null})
@@ -1196,7 +1198,9 @@ export default class MainPage extends React.Component {
             return
         // deciding not to restore is still a decision, and loadSspList runs again later
         this.restored = true
-        if(this.state.seedTabExists || this.sharedSsp)
+        // the toggle is about opening on it, not about keeping it: Last Seed stays
+        // in the dropdown, and /reroll still has a seed to reroll
+        if(this.state.seedTabExists || this.sharedSsp || !this.restoreLastSeed)
             return
         let latest = this.state.sspLatest, name = this.nameFor(latest, PRESET_LAST)
         // settings only, and silently: an auto-restore is not something the user just did
@@ -2471,6 +2475,8 @@ export default class MainPage extends React.Component {
         this.history.onChange = () => this.setState({histAt: this.history.index, histLen: this.history.stack.length})
         this.apPollTimer = null
         this.apPrefilled = false
+        // until /preset/list says otherwise, opening on the last seed is the behaviour
+        this.restoreLastSeed = true
         // ?preset=owner:name -- a share link, which needs no login to open
         let shared = (url.searchParams.get("preset") || "").split(":")
         this.sharedSsp = shared.length === 2 && shared[0] && shared[1] ? shared : null
@@ -2486,6 +2492,10 @@ export default class MainPage extends React.Component {
 
     componentDidMount() {
         this.history.attach()
+        // the form as loaded is frame 0, whether or not anything restores over it:
+        // without this the first edit of a page that restored nothing is frame 0
+        // itself, and undo has nowhere to go back to
+        this.history.touch()
         document.addEventListener("keydown", this.onHistKey)
         if(this.apPanelVisible())
             this.startApPoll()

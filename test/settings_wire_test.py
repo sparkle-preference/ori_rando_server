@@ -13,12 +13,21 @@ import unittest
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MAIN = os.path.join(HERE, "main.py")
+MODELS = os.path.join(HERE, "models.py")
 BAR = os.path.join(HERE, "map", "src", "SiteBar.js")
 
 
 def read(path):
     with io.open(path, encoding="utf-8") as f:
         return f.read()
+
+
+def registered_settings():
+    """The one-field prefs the route loops over instead of naming, so the
+    scrapes below have to know the registry as well as the route body."""
+    block = re.search(r"USER_SETTINGS = \{(.*?)\n\}", read(MODELS), re.S)
+    assert block, "USER_SETTINGS is gone from models.py"
+    return set(re.findall(r'"(\w+)":\s*\{', block.group(1)))
 
 
 def route_body(name):
@@ -34,24 +43,25 @@ class SettingsWireTestCase(unittest.TestCase):
         self.assertIsNotNone(got, "the modal no longer builds a fields object")
         return set(re.findall(r"(\w+):", got.group(1)))
 
-    def test_the_modal_posts_only_fields_the_route_reads(self):
+    def served_fields(self):
         body = route_body("user_set_settings")
         served = set(re.findall(r'request\.form\.get\("(\w+)"\)', body))
         served |= set(re.findall(r'"(\w+)" in request\.form', body))
-        extra = self.posted_fields() - served
+        return served | registered_settings()
+
+    def test_the_modal_posts_only_fields_the_route_reads(self):
+        extra = self.posted_fields() - self.served_fields()
         self.assertFalse(extra, "the modal posts %s, which the route ignores" % sorted(extra))
 
     def test_the_route_reads_only_fields_the_modal_posts(self):
-        body = route_body("user_set_settings")
-        served = set(re.findall(r'request\.form\.get\("(\w+)"\)', body))
-        served |= set(re.findall(r'"(\w+)" in request\.form', body))
-        missing = served - self.posted_fields()
+        missing = self.served_fields() - self.posted_fields()
         self.assertFalse(missing, "the route reads %s, which nothing posts" % sorted(missing))
 
     def test_the_modal_reads_only_keys_the_getter_sends(self):
         body = route_body("user_get_settings")
-        # keys land either in the dict literal or by assignment after it
+        # keys land in the dict literal, by assignment, or through the registry
         sent = set(re.findall(r'res\["(\w+)"\]', body)) | set(re.findall(r'"(\w+)":', body))
+        sent |= registered_settings()
         loader = re.search(r"loadSettings = .*?\n    \}", read(BAR), re.S)
         self.assertIsNotNone(loader, "the modal no longer loads settings")
         read_keys = set(re.findall(r"res\.(\w+)", loader.group(0)))
@@ -64,6 +74,12 @@ class SettingsWireTestCase(unittest.TestCase):
         routed = set(re.findall(r"@app\.route\('(/user/settings[^']*)'", read(MAIN)))
         for url in called:
             self.assertIn(url, routed, "the modal posts to %s, which no route serves" % url)
+
+    def test_both_routes_go_through_the_registry(self):
+        """Registering a key in USER_SETTINGS has to be the whole job. Naming
+        them one at a time in the routes is how the two lists drift apart."""
+        self.assertIn("USER_SETTINGS", route_body("user_get_settings"))
+        self.assertIn("USER_SETTINGS", route_body("user_set_settings"))
 
     def test_opening_the_modal_does_not_read_every_user(self):
         """Name collisions are one indexed query against the name being typed,

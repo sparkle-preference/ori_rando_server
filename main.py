@@ -28,7 +28,7 @@ from oidc import make_oidc
 from seedbuilder.seedparams import SeedGenParams, bingo_worlds, seed_mode_problem, seed_failure_reason
 from seedbuilder.vanilla import seedtext as vanilla_seed
 from enums import MultiplayerGameType, ShareType, Variation
-from models import ndb_wsgi_middleware, Game, Player, SavedSeedParams, Seed, User, BingoGameData, BingoWorldBoard, BingoEvent, BingoTeam, SITE_THEMES, URL_UNSAFE_NAME_CHARS, pick_discovery_squares, trees_by_coords, LegacyUser, bingo_lock, AnnouncedPatchNotes
+from models import ndb_wsgi_middleware, Game, Player, SavedSeedParams, Seed, User, BingoGameData, BingoWorldBoard, BingoEvent, BingoTeam, SITE_THEMES, URL_UNSAFE_NAME_CHARS, USER_SETTINGS, pick_discovery_squares, trees_by_coords, LegacyUser, bingo_lock, AnnouncedPatchNotes
 from bingo import BingoGenerator
 from cache import Cache
 from util import parse_fass, coord_correction_map, clone_entity, all_locs, picks_by_type_generator, param_val, param_flag, param_true, debug, template_root, VER, MIN_VER, BETA_VER, game_list_html, version_check, template_vals, bfield_checksum, netperf, NETPERF_TAG, json_default, seed_sync_id, is_mw_manifest_loc, MULTIWORLD, ARCHIPELAGO, CANONICAL_HOST, REDIRECT_HOSTS, PATCHNOTES_WEBHOOK_MAIN, PATCHNOTES_WEBHOOK_DEV
@@ -860,6 +860,7 @@ def user_get_settings():
         res["teamname"] = user.teamname or "%s's team" % user.name
         res["theme"] = user.site_theme()
         res["verbose"] = user.verbose
+        res.update({k: user.setting(k) for k in USER_SETTINGS})
     return json_resp(res)
 
 @app.route('/user/settings/name-free')
@@ -891,6 +892,12 @@ def user_set_settings():
         if want != user.verbose:
             user.verbose = want
             changed.append("spoiler detail")
+    for key, spec in USER_SETTINGS.items():
+        if key in request.form:
+            want = request.form[key].strip().lower() not in ("0", "false", "no", "off", "")
+            if want != user.setting(key):
+                user.set_setting(key, want)
+                changed.append(spec["label"])
     if changed:
         user.put()
     return json_resp({"changed": changed, "name": user.name, "theme": user.site_theme()})
@@ -1020,7 +1027,7 @@ def ssp_list():
     rather than a 401: the page greys the controls out instead of erroring."""
     user = User.get()
     if not user:
-        return json_resp({"owner": None, "hasLatest": False, "settings": []})
+        return json_resp({"owner": None, "hasLatest": False, "restoreLastSeed": True, "settings": []})
     rows = sorted(SavedSeedParams.query(SavedSeedParams.owner_key == user.key),
                   key=lambda s: (s.name or "").lower())
     # what /preset/latest and /reroll both need, so a lit button is one that works
@@ -1028,6 +1035,9 @@ def ssp_list():
     # the blob rides along so the page can match a loaded form against a preset
     return json_resp({"owner": user.name,
                       "hasLatest": bool(last and last.params),
+                      # whether the page opens on that last seed. Off still keeps it:
+                      # Last Seed stays pickable and /reroll still has something to reroll
+                      "restoreLastSeed": user.setting("restoreLastSeed"),
                       "settings": [{"name": s.name, "desc": s.description,
                                     "hidden": s.hidden, "blob": s.settings} for s in rows]})
 
