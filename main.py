@@ -420,9 +420,7 @@ def gen_seed_from_params():
 
 @app.route('/generator/json')
 def gen_seed_from_url():
-    # from_url reports its own failures to the log and returns None, which reaches the
-    # caller as a bare 500. This route answers bots, so the one argument they are most
-    # likely to typo says so out loud instead.
+    # from_url's own failures are log-only; a bot cannot read those
     group = param_val("logic_mode")
     if group and group.capitalize() not in presets:
         return json_resp({"error": "Unknown logic_mode %r; expected one of %s"

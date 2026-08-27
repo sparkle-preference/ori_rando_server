@@ -1,8 +1,7 @@
 import {dev} from './common.js';
 
-// The form keys a frame restores. Hand-authored: it is every key paramsJson reads,
-// minus fassWorld and sspOwner, plus the display mirrors and preset chip fields that
-// would otherwise lie after a restore.
+// The form keys a frame restores, hand-authored: every key paramsJson reads bar
+// fassWorld and sspOwner, plus the mirrors and chip fields that would lie without them.
 const HIST_KEYS = [
     "keyMode", "fillAlg", "variations", "paths", "pathMode", "pathDiff", "expPool", "cellFreq",
     "selectedPool", "itemPool", "verboseSpoiler", "senseData",
@@ -23,9 +22,8 @@ const CAP = 200
 // never send the user back to it.
 const restorableTab = (tab) => tab === "seed" ? null : tab
 
-// worldPresets[w].text is what is in the box mid-edit and it shadows the resolved label;
-// bad is the ring that text earned. A frame holds neither, so the box always agrees
-// with the worldSettings blob beside it.
+// text is the box mid-edit and shadows the resolved label, bad is the ring it earned.
+// A frame holds neither, so the box always agrees with the worldSettings beside it.
 const resolved = (presets) => {
     if(!presets)
         return presets
@@ -79,8 +77,8 @@ class History {
         clearTimeout(this.heldTimer)
     }
 
-    // An async write lands long after its gesture is gone, and the live gesture by then
-    // is whatever the user did next. Wrap the response handler to carry the label over.
+    // an async write lands after its gesture is gone, and the live one by then is
+    // whatever the user did next; wrap the handler to carry the label over
     carry = (fn, ctl) => {
         let state = this.getState()
         let held = {ctl: ctl || (this.gesture ? this.gesture.ctl : null),

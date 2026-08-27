@@ -51,8 +51,7 @@ body, #root {
   white-space: nowrap;
 }
 
-/* Applied by fitFileControls only when the row would otherwise wrap: a long Fill
-   label, a scrollbar arriving, a narrow window. Full size the rest of the time. */
+/* fitFileControls adds this only when the row would otherwise wrap */
 #file-controls.compact .btn {
   padding-left: .4rem;
   padding-right: .4rem;
@@ -102,9 +101,8 @@ body, #root {
   margin-bottom: 4px;
 }
 
-/* Fixed columns, or "Health Cells:" and "Ability Cells:" start their boxes at
-   different x. flex 0 0 rather than width: these shrink to their text otherwise,
-   and each label shrinks by a different amount. */
+/* flex 0 0, not width: a width still shrinks to the text, by a different amount per
+   label, and the rows stop agreeing on where their boxes start */
 .fill-wrapper .label {
   flex: 0 0 90px;
 }
@@ -113,8 +111,7 @@ body, #root {
   flex: 0 0 80px;
 }
 
-/* EXP Pool holds five digits where every other box on the row holds two, and it
-   is alone on this row when it shows, so it takes the space Max EXP left */
+/* EXP Pool holds five digits where the other boxes hold two, and is alone when shown */
 .fill-wrapper.exp-pool-row > .react-numeric-input:last-child {
   flex-basis: 160px;
 }
@@ -128,9 +125,8 @@ body, #root {
   width: 90px;
 }
 
-/* four toggles, 2x2. Columns are content-sized so a switch lines up with the one
-   under it, and the pair is centred rather than pushed out to both edges.
-   minmax(0, ...) so a narrow window shrinks them instead of overflowing. */
+/* four toggles, 2x2: content-sized columns so a switch lines up with the one under
+   it, centred rather than spread, and minmax so a narrow window shrinks not overflows */
 #display-flags {
   width: 100%;
   margin-top: 4px;

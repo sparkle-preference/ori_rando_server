@@ -472,15 +472,11 @@ class SeedGenParams(ndb.Model):
     @staticmethod
     def from_url(qparams):
         params = SeedGenParams()
-        # a caller with nothing to say about the seed gets the clock rather than an
-        # error; the page always sends one, so this only ever answers a bot
+        # a caller with nothing to say about the seed gets the clock, not an error
         params.seed = qparams.get("seed") or str(int(time.time()))
         params.variations = enums_from_strlist(Variation, qparams.getlist("var"))
         params.logic_paths = enums_from_strlist(LogicPath, qparams.getlist("path"))
-        # logic_mode names one of the page's Logic Mode buttons and stands in for
-        # spelling its paths out. Everything else still applies on top: paths and vars
-        # add to the group's, and path_diff overrides it, because a single value cannot
-        # be added to.
+        # paths and vars add to the mode's; path_diff replaces, having nothing to add to
         group = qparams.get("logic_mode")
         if group:
             group = group.capitalize()

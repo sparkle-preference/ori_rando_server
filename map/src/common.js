@@ -357,9 +357,8 @@ const EditableMultiValueLabel = props => (
     </div>
 );
 
-// Chip container: native drag-and-drop to reorder multipickup entries.
-// Drop target index = the dragged chip's final position.
-// The chip currently loaded into the input for editing gets dimmed + dashed outline.
+// Chip container: native drag-and-drop reorders multipickup entries, the drop index
+// being the chip's final position. The chip loaded for editing dims and goes dashed.
 const DraggableMultiValue = props => {
     const idx = props.selectProps.value.indexOf(props.data);
     const editing = props.selectProps.editingIdx === idx;
@@ -502,9 +501,8 @@ class PickupSelect extends Component {
         val = val.slice(0, -1)
       this.setState({ inputValue: val, menuOpen: true }, this.updatePickup);
     } else if (actionMeta.action === "select-option" && this.state.editIdx !== null) {
-      // mid-edit: the picked option replaces the chip being edited instead of appending.
-      // capture the index NOW: react-select fires onMenuClose (which clears editIdx)
-      // before onChange, so inside the batched updater prev.editIdx is already null
+      // mid-edit the picked option replaces the chip being edited. Capture the index
+      // now: onMenuClose clears editIdx before onChange, so prev.editIdx is already null
       const idx = this.state.editIdx;
       this.setState(prev => {
         let value = [...prev.value];
@@ -768,11 +766,9 @@ function prefers_dark() {
     }
 }
 
-// Is the dark theme on? An explicit choice wins, most specific first: the
-// ?dark url override, the account setting (absent until they've toggled it
-// once), this browser's saved toggle. With none of those, follow the browser.
-// Every reader of the theme has to come through here, or the stylesheet and
-// the components that style themselves disagree.
+// Is the dark theme on? Most specific explicit choice wins -- ?dark, the account
+// setting, this browser's toggle -- else follow the browser. Every reader comes
+// through here, or the stylesheet and the self-styling components disagree.
 const BOOTSWATCH = "https://maxcdn.bootstrapcdn.com/bootswatch/4.2.1"
 // "system"/"light"/"dark" are modes, not skins: they resolve before they get here
 const theme_href = skin => `${BOOTSWATCH}/${skin}/bootstrap.min.css`
@@ -799,16 +795,14 @@ function save_dark(dark) {
     } catch(e) { /* storage disabled: the choice lasts this page load */ }
 }
 
-// Archipelago alpha gate: the server flag has to be on AND this browser has
-// to have opted in with ?ap_test=1 (remembered like the dark theme, cleared
-// with ?ap_test=0), so a flag flip doesn't show everyone the work in progress.
+// Archipelago alpha gate: the server flag AND this browser's ?ap_test=1 opt-in,
+// remembered like the dark theme, so a flag flip alone shows nobody the work.
 function ap_test_param() {
     return new URL(window.document.URL).searchParams.get("ap_test")
 }
 
-// setter half, run once per page load (index.js) so the param takes on any page
-// and the opt-in survives generator -> seed page -> game page. Deliberately not
-// gated on ap_flag: opting in before the flag flips still counts.
+// setter half, run once per page load so the opt-in survives generator -> seed ->
+// game page. Not gated on ap_flag: opting in before the flag flips still counts.
 function ap_opt_in() {
     let param = ap_test_param()
     if(param === null)
@@ -938,13 +932,9 @@ const spawn_defaults = {
     },
 }
 
-// The kit a hand-picked spawn starts with: [health, energy, skills].
-//
-// The table is capitalised and pathMode is not, and pathMode can carry one or two
-// trailing "*" from banned-path variations, so every lookup went through
-// hasOwnProperty and missed. glitched has no row of its own and takes expert's
-// (Lapis, 2026-08-27). A zone with no row for the mode gets the vanilla start,
-// which is deliberate for Grove and Swamp at master.
+// [health, energy, skills] for a hand-picked spawn. The table is capitalised where
+// pathMode is not and may be starred; glitched takes expert's, and a missing row means
+// the vanilla start is enough there.
 const spawnKitFor = (loc, pathMode) => {
     let mode = (pathMode || "").replace(/\*+$/, "")
     if(mode === "glitched")

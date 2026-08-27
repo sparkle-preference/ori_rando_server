@@ -32,9 +32,8 @@ const clue_key_in = (code, id) => {
     }
     return keys.length === 1 ? keys[0] : null
 }
-// What the location is called. pick.name is the item that started there, and
-// pick.area is unique across all 257 of them -- except that the injected spawn
-// pseudo-pick borrows FirstPickup's area to inherit its reachability.
+// What the location is called: pick.name is the item that started there. pick.area is
+// unique per pick, bar the spawn pseudo-pick borrowing FirstPickup's for reachability.
 const locLabel = (pick) => pick.name === "SPAWN" ? "Spawn" : (pick.area || pick.name)
 
 // the switch the settings modal uses. react-checkbox-group emits a bare input,
@@ -313,11 +312,9 @@ class PlandoBuiler extends React.Component {
 
     componentWillUnmount() { window.removeEventListener("resize", this.fitFileControls) }
 
-    // The top row is a hair too wide only sometimes: Fill's label grows by "(Dumb)",
-    // and opening a panel anywhere in the sidebar can bring the scrollbar, which
-    // takes 15px off the row. Rather than keeping the buttons small for the case
-    // that needs it, measure at full size and compact only when they would wrap.
-    // Toggling a class on the node does not re-render, so this cannot loop.
+    // The row only sometimes overflows: Fill's label grows by "(Dumb)", and a panel
+    // opening anywhere in the sidebar brings the scrollbar. Measure at full size and
+    // compact only when needed; a class toggle does not re-render, so this cannot loop.
     fitFileControls = () => {
         let row = this.fileControls
         if(!row)
@@ -444,9 +441,8 @@ class PlandoBuiler extends React.Component {
         }, () => this.updateReachable());
     };
 
-    // player defaults to the one being edited; a coop fill names each world.
-    // Merging is the default and what Fill needs: it exists to complete what is
-    // already placed. Only a hand-pasted import can ask to replace instead.
+    // player defaults to the one being edited; a coop fill names each world. Merging is
+    // the default because Fill completes what is placed; only an import may replace.
     parseUploadedSeed = (seedText, player, overwrite) => {
         player = player || this.state.player
         let lines = seedText.split("\n")
@@ -1106,8 +1102,7 @@ class PlandoBuiler extends React.Component {
                                 <span className="label">Keystones:</span>
                                 <NumericInput min={0} disabled={!this.state.fill_opts.dumb} value={this.state.fill_opts.KS} onChange={(n) => this.updateFill("KS",n)}></NumericInput>
                             </div>
-                            {/* the two exp fields belong to different fills, so only
-                                one is ever live: show that one and give it the room */}
+                            {/* the two exp fields belong to different fills; only one is live */}
                             <div className={`fill-wrapper${this.state.fill_opts.dumb ? "" : " exp-pool-row"}`}>
                                 <span className="label">Mapstones:</span>
                                 <NumericInput min={0} disabled={!this.state.fill_opts.dumb} value={this.state.fill_opts.MS} onChange={(n) => this.updateFill("MS",n)}></NumericInput>
@@ -1164,8 +1159,7 @@ class PlandoBuiler extends React.Component {
                     </div>
                     <hr style={{ backgroundColor: 'grey', height: 2 }}/>
                     <div id="display-controls">
-                        {/* one group, laid out 2x2 by #display-flags: two of them only
-                            ever differed in where they sat */}
+                        {/* one group; #display-flags lays the four out 2x2 */}
                         <CheckboxGroup id="display-flags" checkboxDepth={6} name="flags" value={this.state.flags} onChange={this.flagsChanged}>
                             {flagCheck("hide_unreachable", "Hide Unreachable")}
                             {flagCheck("hide_assigned", "Hide Assigned")}

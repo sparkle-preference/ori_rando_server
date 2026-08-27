@@ -18,9 +18,8 @@ PICKUP_LINE = re.compile(r"^-?\d+\|\w+\|[^|]*\|[\w ]*")
 # multiworld slot manifests live at pseudo-locations -2..-257
 MANIFEST_LOC_RANGE = range(-257, -1)
 
-# The canaries hash a whole generated seed, so their failure is read as often in a CI
-# log as in an editor. The bump history and the reasoning live in the comments above
-# each constant; this is the part a reader needs without the source in front of them.
+# Appended to the canary assertions: their failure is read in a CI log as often as in
+# an editor, where the comments above each constant are not on screen.
 CANARY_HELP = """
 This is a byte-level canary: the seed produced from a fixed seed string moved.
 

@@ -18,9 +18,8 @@ HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PAGE = os.path.join(HERE, "map", "src", "MainPage.js")
 HISTORY = os.path.join(HERE, "map", "src", "history.js")
 
-# The escape hatch: a key paramsJson sends that undo deliberately does not restore.
-# Empty on purpose -- everything the payload carries is currently tracked. Anything
-# added here needs a reason beside it.
+# A key paramsJson sends that undo deliberately does not restore. Empty on purpose;
+# anything added here needs a reason beside it.
 UNTRACKED = set()
 
 

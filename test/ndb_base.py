@@ -37,9 +37,7 @@ class EmulatorTestCase(unittest.TestCase):
             with urllib.request.urlopen("http://%s/" % EMULATOR_HOST, timeout=2):
                 pass
         except OSError:
-            # skipping is a convenience for a laptop with no docker running. CI
-            # asks for the tier on purpose, and a green run that quietly skipped
-            # it is worse than a red one.
+            # the skip is a laptop convenience; a caller can refuse it
             if os.environ.get("REQUIRE_DATASTORE_EMULATOR"):
                 raise AssertionError(
                     "no emulator at %s, and REQUIRE_DATASTORE_EMULATOR is set. The "

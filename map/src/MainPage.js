@@ -42,9 +42,8 @@ const pickupToParts = (item) => {
 const partToSegs = (p) => p.replaceAll("/", "//").replace(/\|/g, "/");
 const partsToPickup = (parts) => parts.length === 0 ? "NO|1" : (parts.length === 1 ? parts[0] : "MU|" + parts.map(partToSegs).join("/"));
 // blank rows to type into: paramsJson drops item NO|1, so these never reach a seed
-// merge items into the Buried row(s) at the given depths for one world, creating rows
-// as needed (items already buried there are skipped). Shared by the Advanced buttons
-// and by Randomize, so both bury the same way.
+// merge items into one world's Buried rows, creating them as needed; already-buried
+// items are skipped. Shared, so the Advanced buttons and Randomize bury alike.
 const mergeBuried = (fassList, groups, world) => {
     let out = [...fassList];
     groups.forEach(({depth, items}) => {
@@ -65,10 +64,8 @@ const mergeBuried = (fassList, groups, world) => {
 
 const SPAWN_LOC = 2;
 const fassDefaultsFor = (world) => [SPAWN_LOC, 919772].map(coords => ({loc: locOptionFromCoords(coords), item: "NO|1", world: world, owner: world}));
-// "has the user put anything in the spawn fass_line" -- derived rather than stored,
-// because a stored flag has to be cleared again on every path that empties the row.
-// Scoped to the world in view: a preset loaded for another player must not quietly
-// change what this one's spawn dropdown does.
+// has anything been placed in the spawn fass_line, for the world in view -- another
+// world's preset must not change what this one's spawn dropdown does
 const spawnFassSet = (fassList, world) => (fassList || []).some(
     f => f.loc && f.loc.value === SPAWN_LOC && f.item !== "NO|1" && (f.world || 1) === (world || 1));
 const apDefaultExport = ["skills", "teleporters", "events"];
@@ -346,8 +343,7 @@ const SPAWN_OPTS = ["Random", "Glades", "Grove", "Swamp", "Grotto", "Forlorn", "
 const cellFreqPresets = (preset) => preset.startsWith("casual") ? 20 : (preset.startsWith("standard") ? 40 : 256)
 // 3 is rolled on its own; these share what is left, evenly
 const BINGO_LINE_CHOICES = [1, 2, 4, 5, 7, 11]
-// what Randomize can bury. The first four mirror the Advanced buttons; POWER_SKILLS
-// is Lapis's grouping and exists nowhere else in the codebase.
+// what Randomize can bury; the first three mirror the Advanced bury buttons
 const GRENADE = "SK|51"
 const WALL_SKILLS = ["SK|3", "SK|12"]                              // wall jump, climb
 const POWER_SKILLS = ["SK|0", "SK|8", "SK|50"]                     // bash, charge jump, dash
@@ -793,9 +789,8 @@ export default class MainPage extends React.Component {
             </Col>
         ))
         let multiplayerButtons = shareButtons(["Skills", "Teleporters", "Upgrades", "World Events", "Misc"], shared, this.onSType, "shared")
-        // multiworld selections are stored separately (default none; shared
-        // singletons are a spicier choice there), and no Misc: trees/relics/
-        // keysanity keys stay per-world
+        // multiworld selections are stored separately and default to none; no Misc,
+        // since trees, relics and keysanity keys stay per-world
         let mwShareButtons = shareButtons(["Skills", "Teleporters", "Upgrades", "World Events"], mwShared, this.onMWSType, "mwShared")
         let apFlag = ap_enabled()
         // ap export categories are server-side names; 'stones' covers
@@ -1016,9 +1011,8 @@ export default class MainPage extends React.Component {
             if(this.isMultiworld())
                 json.syncShared = this.state.mwShared.map(s => f(s))
         }
-        // outside the players>1 block: a K=1 AP seed is one Ori world in
-        // someone else's room. The guard also keeps a visitor without the
-        // opt-in from rerolling a rehydrated AP params into a 409.
+        // outside the players>1 block: a K=1 AP seed is one Ori world in someone
+        // else's room, and a visitor without the opt-in must not reroll into a 409
         if(this.apAvailable() && this.state.apMode) {
             json.apMode = true
             json.apExport = this.state.apExport
@@ -1457,9 +1451,8 @@ export default class MainPage extends React.Component {
         } else {
             let res = JSON.parse(responseText)
             if(res.doBingoRedirect) {
-                // an AP board stays here: the host needs the apworld and the
-                // yamls before anyone downloads a seed, and the seed tab keeps
-                // an Open Bingo Board button either way
+                // an AP board stays here: the host needs the apworld and yamls before
+                // anyone downloads, and the seed tab keeps its Open Bingo Board button
                 if(!(this.apAvailable() && this.state.apMode)) {
                     let redir = `/bingo/board?game_id=${res.gameId}&fromGen=1&seed=${res.seed}&bingoLines=${res.bingoLines || 3}`
                     if(res.flagLine.includes("share="))
@@ -1577,9 +1570,8 @@ export default class MainPage extends React.Component {
                         </Col>
                         <Col xs={showPlay ? 4 : 3} className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", mainButtonHelp)}>
                             {showApNotReady ? (
-                                // item names bake in at download time, so hold the
-                                // button until every world's scouts are stored; the
-                                // status poll clears this on its own
+                                // names bake in at download, so hold the button until
+                                // every world's scouts are stored; the poll clears it
                                 <div>
                                     <Button color="secondary" block disabled>{this.state.apNoLink ? "Connect Room First" : "Waiting For Room…"}</Button>
                                     <Button color="link" size="sm" block target="_blank" href={seedUrl + "&force=1"}>download anyway (generic item names)</Button>
@@ -2140,9 +2132,8 @@ export default class MainPage extends React.Component {
         if(hasVar("InLogicWarps") && ! newState.itemPool.some(({item}) => item === "WP|*")) 
                 newState.itemPool.push({item: "WP|*", count: 6, upTo: 10, maximum: 14})
 
-        // Randomize spawn location: the two that need no kit from us. Glades has none,
-        // and Random's zone is the generator's to pick, so there is nothing to look up
-        // here -- making that roll interesting is the generator's job, not this button's.
+        // the two spawns needing no kit: Glades has none, and Random's zone is the
+        // generator's to pick, so there is nothing here to look up
         newState.spawn = rng() < .5 ? "Random" : "Glades";
         [newState.spawnHCs, newState.spawnECs, newState.spawnSKs] = [3, 1, 0];
 
@@ -2164,8 +2155,8 @@ export default class MainPage extends React.Component {
         if(hasVar("WorldTour"))
             newState.relicCount = prandInt(6,11);
 
-        // Bury something one roll in seven. Spam-clicking must not stack burials, so a
-        // previous roll's are dropped first -- hand-made preplacements are left alone.
+        // drop a previous roll's burials so spam-clicking cannot stack them; hand-made
+        // preplacements are not ours to touch
         newState.fassList = this.state.fassList.filter(
             f => !(f.loc && f.loc.value >= BURIED_LOC_BASE && (f.world || 1) === 1));
         if(rng() < .15) {
@@ -2174,8 +2165,7 @@ export default class MainPage extends React.Component {
             const buryRoll = rng();
             let groups;
             if(buryRoll < .20)
-                // the deep tier trails by 30 rather than the preset's 50: past 200 nothing
-                // outside a Starved seed would ever reach it
+                // the tiers stay 30 apart: past 200 only a Starved seed ever reaches
                 groups = [{depth: depth - 10, items: TELEPORTER_TIERS[0]},
                           {depth: depth + 20, items: TELEPORTER_TIERS[1]}];
             else if(buryRoll < .40)
@@ -2202,13 +2192,11 @@ export default class MainPage extends React.Component {
         }
 
         if(hasVar("Bingo")) {
-            // win by lines three times in four; there is no lockout knob on this page,
-            // so a rolled squares board is never one
+            // this page has no lockout knob, so a rolled squares board is never one
             newState.bingoGoal = rng() < .75 ? "bingos" : "squares";
             // 3 is the house default and keeps four rolls in ten; the rest split evenly
             newState.bingoLines = rng() < .4 ? 3 : BINGO_LINE_CHOICES[prandInt(0, BINGO_LINE_CHOICES.length - 1)];
-            // triangular over 5..25 peaking at 12, so a board is usually middling and
-            // occasionally a sprint or a slog. The ends get half a bin, as rounding does.
+            // triangular over 5..25 peaking at 12; rounding gives the ends half a bin
             newState.bingoSquares = Math.round(triangular(5, 25, 12));
             const bingoDiffRoll = rng();
             newState.bingoDiff = bingoDiffRoll < .8 ? "normal" : bingoDiffRoll < .95 ? "easy" : "hard";
@@ -2566,7 +2554,7 @@ export default class MainPage extends React.Component {
     }
 
     // React never calls component.setState itself, so shadowing it here sees every
-    // write without touching the ~117 call sites, 30 of which are inline in render.
+    // write without touching the call sites, including the ones inline in render.
     setState(update, cb) {
         if(!update || typeof update === "function" || Object.keys(update).some(k => HIST_SET.has(k)))
             this.history.touch()
@@ -2575,9 +2563,7 @@ export default class MainPage extends React.Component {
 
     componentDidMount() {
         this.history.attach()
-        // the form as loaded is frame 0, whether or not anything restores over it:
-        // without this the first edit of a page that restored nothing is frame 0
-        // itself, and undo has nowhere to go back to
+        // the form as loaded is frame 0, or the first edit has nothing to go back to
         this.history.touch()
         document.addEventListener("keydown", this.onHistKey)
         if(this.apPanelVisible())
@@ -2659,8 +2645,8 @@ export default class MainPage extends React.Component {
         : {apMode: true, tracking: true,  // the bridge delivers over netcode
            mwShared: prev.mwShared.filter(s => !prev.apExport.map(c => apShareNames[c]).includes(s))})
     // bingo hands names out by lobby, except on an AP board where pid is the world
-    // a world's rulebook is frozen into the seed at roll time, so we store the
-    // preset's settings rather than its name -- editing it later changes nothing
+    // a world's rulebook freezes at roll time, so this stores the preset's settings
+    // rather than its name: editing the preset later changes nothing
     assignWorld = (world, blob, label, desc) => this.setState(prev => {
         let worlds = [...prev.worldSettings]
         while(worlds.length < prev.players)

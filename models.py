@@ -243,8 +243,7 @@ class User(ndb.Model):
     theme  = ndb.StringProperty()
     verbose = ndb.BooleanProperty(default=False)
     admin = ndb.BooleanProperty(default = False, indexed= False)
-    # one-field preferences that do not each deserve a column; USER_SETTINGS is
-    # the whole list, and a key absent from it is not readable or writable
+    # the one-field preferences; USER_SETTINGS is the whole readable/writable list
     settings = ndb.JsonProperty()
 
     def setting(self, key):
@@ -1814,9 +1813,8 @@ SSP_DENY = frozenset([
 # names that end up in a url path or query cannot carry these
 URL_UNSAFE_NAME_CHARS = ["@", "/", "\\", "?", "#", "&", "=", '"', "'"]
 
-# User.settings: every key the modal can read or write -- the value a user who has
-# never touched it gets, and how a save reports it. Adding a key is the whole
-# registration; one absent from here is neither readable nor writable.
+# Every key User.settings can hold: its default, and how a save reports it changing.
+# Registering here is the whole job; both routes loop over this rather than naming keys.
 USER_SETTINGS = {
     "restoreLastSeed": {"default": True, "label": "remembered seedgen settings"},
 }
