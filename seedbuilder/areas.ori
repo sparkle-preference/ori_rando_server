@@ -4742,6 +4742,33 @@ home: LeftSorrowKeystones -623 328
 		standard BashGrenade
 		standard Climb ChargeJump
 		expert Health=5
+home: LeftSorrowKeystonesFromAbove -599 385
+-- for the reverse path through the door - anchored up top with the door open
+	pickup: LeftSorrowKeystone1
+		casual Glide
+		casual DoubleJump
+		casual Bash Grenade
+		casual ChargeJump Climb
+		standard Lure Bash
+		standard Dash
+		expert ChargeJump WallJump
+	pickup: LeftSorrowKeystone2
+		casual Glide
+		standard Free
+	pickup: LeftSorrowKeystone3
+		casual Glide
+		standard Free
+	pickup: LeftSorrowKeystone4
+		casual Glide
+		standard Free
+	pickup: LeftSorrowEnergyCell
+		casual Glide
+		standard DoubleJump WallJump
+		standard DoubleJump Climb
+		expert DoubleJump
+		expert Bash
+		expert ChargeJump Health=5
+		master ChargeJump Health=4 UltraDefense
 home: LeftSorrowMiddleDoorClosed -600 300
 	conn: LeftSorrowMiddleDoorOpen
 		casual Keystone=4
@@ -4773,6 +4800,8 @@ home: LeftSorrowMiddleDoorOpen -587 385
 		expert Stomp ChargeDash Energy=1
 		expert Stomp Health=5
 		expert BashGrenade ChargeJump
+	conn: LeftSorrowKeystonesFromAbove
+		expert Climb ChargeJump
 home: LeftSorrowTumbleweedDoorWarp -597 386
 -- anchored at the left side of the keystone door, door closed (at -595, 385)
 	conn: LeftSorrowMiddleDoorClosed
