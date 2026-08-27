@@ -738,7 +738,7 @@ const Blabel = (props) => {
 const Cent = (props) => {
     let className = "justify-content-center text-center align-items-center d-flex w-100 h-100"
     if(props.hasOwnProperty("className"))
-        className += props.className;
+        className += " " + props.className;
     let spanProps = {...props}
     spanProps.className = className
     
