@@ -27,7 +27,7 @@ jobs:
           - tier: seedgen canaries
             select: test.seedgen_test -v
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: actions/setup-python@v5
         with:
@@ -74,9 +74,9 @@ jobs:
     name: frontend build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           # what the site is built with locally; parcel 2.15 asks only for >= 16
           node-version: "22"
