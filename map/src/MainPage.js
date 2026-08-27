@@ -584,13 +584,13 @@ export default class MainPage extends React.Component {
                 <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "buriedPresets")} className="p-1 justify-content-center">
                     <Col xs={leftCol} className="text-center border">
                         <Cent>Bury Items ([Item]Starved)</Cent>
-                    </Col><Col xs="2">
-                        <Button color="primary" block outline onClick={this.buryItems([{depth: 50, items: ["SK|3", "SK|12"]}])}>Walls</Button>
-                    </Col><Col xs="2">
-                        <Button color="primary" block outline onClick={this.buryItems([{depth: 50, items: ["SK|51"]}])}>Grenade</Button>
-                    </Col><Col xs="3">
-                        <Button color="primary" block outline onClick={this.buryItems([{depth: 50, items: ["TP|Grove", "TP|Swamp", "TP|Grotto", "TP|Valley"]},
-                                                                                      {depth: 100, items: ["TP|Forlorn", "TP|Sorrow", "TP|Ginso", "TP|Horu"]}])}>Teleporters</Button>
+                    </Col><Col xs={rightCol}>
+                        <ButtonGroup className="w-100">
+                            <Button color="primary" outline onClick={this.buryItems([{depth: 50, items: ["SK|3", "SK|12"]}])}>Walls</Button>
+                            <Button color="primary" outline onClick={this.buryItems([{depth: 50, items: ["SK|51"]}])}>Grenade</Button>
+                            <Button color="primary" outline onClick={this.buryItems([{depth: 50, items: ["TP|Grove", "TP|Swamp", "TP|Grotto", "TP|Valley"]},
+                                                                                     {depth: 100, items: ["TP|Forlorn", "TP|Sorrow", "TP|Ginso", "TP|Horu"]}])}>Teleporters</Button>
+                        </ButtonGroup>
                     </Col>
                 </Row>
                 <div className="border rounded p-1 m-1">
@@ -769,8 +769,8 @@ export default class MainPage extends React.Component {
             if(!perWorld)
                 return null
             if(i === 0)
-                return (<Col xs="6" className="pt-1 text-center font-italic text-muted">
-                            <span className="align-middle">seed settings</span>
+                return (<Col xs="6" className="text-center font-italic text-muted">
+                            <Cent>seed settings</Cent>
                         </Col>)
             const world = i + 1
             const pick = (name) => () => this.setWorldPreset(world, name)
@@ -803,8 +803,8 @@ export default class MainPage extends React.Component {
         }
         let playerNameRows = !this.playerNamesShown() ? null : [...Array(players).keys()].map(i => (
             <Row key={`player-name-${i}`} className="p-1 justify-content-center">
-                <Col xs="3" className="text-center pt-1 border" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "playerNames")}>
-                    <span className="align-middle">{perWorld ? `P${i+1}'s Name / Settings` : `Player ${i+1} Name`}</span>
+                <Col xs="3" className="text-center border" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "playerNames")}>
+                    <Cent>{perWorld ? `P${i+1}'s Name / Settings` : `Player ${i+1} Name`}</Cent>
                 </Col><Col xs={perWorld ? "3" : "4"} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "playerNames")}>
                     <Input style={inputStyle} type="text" maxLength={PLAYER_NAME_MAX} placeholder={`Player ${i+1}`}
                            value={this.state.playerNames[i] || ""} onChange={this.onPlayerName(i)}/>
@@ -821,16 +821,16 @@ export default class MainPage extends React.Component {
         return (
              <TabPane className="p-3 border" tabId="multiplayer">
                 <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "playerCount")}  className="p-1 justify-content-center">
-                    <Col xs="4" className="text-center pt-1 border">
-                        <span className="align-middle">Players</span>
+                    <Col xs="4" className="text-center border">
+                        <Cent>Players</Cent>
                     </Col><Col xs="4">
                         <Input style={inputStyle} type="number" value={players} disabled={!tracking} invalid={!playerNumValid} onChange={(e) => this.setState({players: parseInt(e.target.value, 10)})}/> 
                         {playerNumFeedback }
                     </Col>
                 </Row>
                 <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "multiGameType")} className="p-1 justify-content-center">
-                    <Col xs="4" className="text-center pt-1 border">
-                        <span className="align-middle">Multiplayer Game Type</span>
+                    <Col xs="4" className="text-center border">
+                        <Cent>Multiplayer Game Type</Cent>
                     </Col><Col onMouseLeave={this.helpEnter("multiplayerOptions", "multiGameType")} onMouseEnter={this.helpEnter("multiplayerOptions", coopGameMode)} xs="4">
                         <UncontrolledButtonDropdown className="w-100" >
                             <DropdownToggle disabled={players < 2} color={players > 1 ? "primary" : "secondary"} caret block> {coopGameMode} </DropdownToggle>
@@ -852,8 +852,8 @@ export default class MainPage extends React.Component {
                 </Collapse>
                 <Collapse isOpen={this.isMultiworld()}>
                     <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "antiBkBias")} className="p-1 justify-content-center">
-                        <Col xs="4" className="text-center pt-1 border">
-                            <span className="align-middle">Multiworld Balance Bias</span>
+                        <Col xs="4" className="text-center border">
+                            <Cent>Multiworld Balance Bias</Cent>
                         </Col><Col xs="4">
                             <Input style={inputStyle} type="number" step="0.1" min="0" max="1" value={antiBkBias} invalid={!(antiBkBias >= 0 && antiBkBias <= 1)} onChange={(e) => this.setState({antiBkBias: parseFloat(e.target.value)})}/>
                             <FormFeedback tooltip="true">Balance Bias is a value between 0.0 and 1.0</FormFeedback>
@@ -1532,7 +1532,7 @@ export default class MainPage extends React.Component {
             let spoilerRow = (
                 <Row className="p-1 align-items-center">
                     <Col xs="3" className="text-center" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", spoilerHelp("View"))}>
-                        <span className="align-middle">Spoilers:</span>
+                        <Cent>Spoilers:</Cent>
                     </Col>
                     <Col xs={{size: 3, offset: 2}} className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", spoilerHelp("View"))}>
                         <ButtonGroup className="d-flex">
@@ -1560,7 +1560,7 @@ export default class MainPage extends React.Component {
               )  : (
                   <Row className="p-1 pt-3 align-items-center border-dark border-top">
                     <Col xs="4" className="text-center" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "tracking")}>
-                        <span className="align-middle">Game Id: {gameId}</span>
+                        <Cent>Game Id: {gameId}</Cent>
                     </Col>
                     <Col xs="4">
                         <Button color="primary" block onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "mapLink")} href={mapUrl} target="_blank">Open Map</Button>
@@ -2835,8 +2835,8 @@ export default class MainPage extends React.Component {
             <Row className="p-3 border">
                 <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "logicModes")}>
                     <Row>
-                        <Col xs="5"  className="text-center pt-1 border">
-                            <span className="align-middle">Logic Mode</span>
+                        <Col xs="5"  className="text-center border">
+                            <Cent>Logic Mode</Cent>
                         </Col>
                         <Col xs="7" onMouseLeave={this.helpEnter("general", "logicModes")} onMouseEnter={this.helpEnter("logicModes", pathMode)}>
                             <UncontrolledButtonDropdown className="w-100">
@@ -2848,8 +2848,8 @@ export default class MainPage extends React.Component {
                 </Col>
                 <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "keyModes")}>
                     <Row>
-                        <Col xs="5"  className="text-center pt-1 border">
-                            <span className="align-middle">Key Mode</span>
+                        <Col xs="5"  className="text-center border">
+                            <Cent>Key Mode</Cent>
                         </Col>
                         <Col xs="7" onMouseEnter={this.helpEnter("keyModes", keyMode)} onMouseLeave={this.helpEnter("general", "keyModes",(keyMode === "Clues" && helpcat === "keyModes") ? 1000 : 250 )}>
                             <UncontrolledButtonDropdown className="w-100">
@@ -2863,8 +2863,8 @@ export default class MainPage extends React.Component {
                 </Col>
                 <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "goalModes")}>
                     <Row>
-                        <Col xs="5"  className="text-center pt-1 border">
-                            <span className="align-middle">Goal Mode</span>
+                        <Col xs="5"  className="text-center border">
+                            <Cent>Goal Mode</Cent>
                         </Col>
                         <Col xs="7" onMouseLeave={this.helpEnter("general", "goalModes")} onMouseEnter={this.helpEnter("goalModes", goalModeMulti ? "Multiple" : goalModes[0])}>
                             <Dropdown disabled={goalModeMulti} isOpen={goalModesOpen} toggle={() => this.setState({goalModesOpen: !goalModesOpen})} className="w-100">
@@ -2880,8 +2880,8 @@ export default class MainPage extends React.Component {
                 </Col>
                 <Col xs="4">
                     <Row>
-                        <Col xs="5"  className="text-center pt-1 border mt-2" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "itemPoolPreset")}>
-                            <span className="align-middle">Item Pool</span>
+                        <Col xs="5"  className="text-center border mt-2" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "itemPoolPreset")}>
+                            <Cent>Item Pool</Cent>
                         </Col>
                         <Col xs="7" className="mt-2" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("itemPool", this.state.selectedPool)}>
                             <UncontrolledButtonDropdown className="w-100">
@@ -2893,8 +2893,8 @@ export default class MainPage extends React.Component {
                 </Col>
                 <Col xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "spawnLoc")}>
                     <Row>
-                        <Col xs="5"  className="text-center pt-1 border mt-2">
-                            <span className="align-middle">Spawn</span>
+                        <Col xs="5"  className="text-center border mt-2">
+                            <Cent>Spawn</Cent>
                         </Col>
                         <Col xs="7" className="mt-2" onMouseLeave={this.helpEnter("general", "spawnLoc")} onMouseEnter={this.helpEnter("general", "spawnLoc")}>
                             <UncontrolledButtonDropdown className="w-100">
@@ -2906,8 +2906,8 @@ export default class MainPage extends React.Component {
                 </Col>
                 <Col xs="4" className="mt-2">
                 <Row>
-                    <Col xs="3"  className="text-center pt-1 border" onMouseLeave={this.helpLeave} onMouseEnter={sspHelp}>
-                        <span className="align-middle">Preset</span>
+                    <Col xs="3"  className="text-center border" onMouseLeave={this.helpLeave} onMouseEnter={sspHelp}>
+                        <Cent>Preset</Cent>
                     </Col>
                     <Col xs="9" className="d-flex">
                         <UncontrolledButtonDropdown className="flex-grow-1" style={{minWidth: 0}}
@@ -2980,8 +2980,8 @@ export default class MainPage extends React.Component {
                         <Row className="align-items-center">
                             <Col xs="6">
                                 <Row className="m-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "seed")}>
-                                    <Col xs="5" className="text-center pt-1 border">
-                                        <span className="align-middle">Seed</span>
+                                    <Col xs="5" className="text-center border">
+                                        <Cent>Seed</Cent>
                                     </Col><Col xs="7">
                                         <Input style={styles.inputStyle} type="text" value={seed} onChange={(e) => this.setState({seed: e.target.value})}/>
                                     </Col>
