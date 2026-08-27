@@ -37,11 +37,26 @@ body, #root {
   color: white;
 }
 
+/* five buttons now; wrap to a second line rather than overflow a narrow window */
 #file-controls {
   width: 100%;
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   margin-bottom: 16px;
+}
+
+/* a label that wraps inside its own button makes the row taller, not narrower */
+#file-controls .btn {
+  white-space: nowrap;
+}
+
+/* Applied by fitFileControls only when the row would otherwise wrap: a long Fill
+   label, a scrollbar arriving, a narrow window. Full size the rest of the time. */
+#file-controls.compact .btn {
+  padding-left: .4rem;
+  padding-right: .4rem;
+  font-size: .875rem;
 }
 
 #import-wrapper {
@@ -87,8 +102,21 @@ body, #root {
   margin-bottom: 4px;
 }
 
+/* Fixed columns, or "Health Cells:" and "Ability Cells:" start their boxes at
+   different x. flex 0 0 rather than width: these shrink to their text otherwise,
+   and each label shrinks by a different amount. */
+.fill-wrapper .label {
+  flex: 0 0 90px;
+}
+
 .fill-wrapper > .react-numeric-input {
-  width: 80px;
+  flex: 0 0 80px;
+}
+
+/* EXP Pool holds five digits where every other box on the row holds two, and it
+   is alone on this row when it shows, so it takes the space Max EXP left */
+.fill-wrapper.exp-pool-row > .react-numeric-input:last-child {
+  flex-basis: 160px;
 }
 
 #display-controls {
@@ -100,13 +128,18 @@ body, #root {
   width: 90px;
 }
 
+/* four toggles, 2x2. Columns are content-sized so a switch lines up with the one
+   under it, and the pair is centred rather than pushed out to both edges.
+   minmax(0, ...) so a narrow window shrinks them instead of overflowing. */
 #display-flags {
   width: 100%;
   margin-top: 4px;
   margin-bottom: 4px;
-  display: flex;
-  align-content: center;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, max-content));
+  justify-content: center;
+  column-gap: 32px;
+  row-gap: 6px;
 }
 
 #logic-controls {
@@ -129,12 +162,13 @@ body, #root {
   padding-right: 8px;
 }
 
+/* align-items, not align-content: a single-line flex row ignores the latter */
 .manual-wrapper {
   width: 100%;
   height: 100%;
   margin-bottom: 4px;
   display: flex;
-  align-content: center;
+  align-items: center;
 }
 
 .manual-wrapper .label {
@@ -173,14 +207,15 @@ body, #root {
 .basic-coop-options {
   width: 100%;
   display: flex;
-  align-content: center;
+  align-items: center;
   margin-bottom: 4px;
 }
 
+/* sized to the words, so the picker sits beside its label instead of 90px away */
 .basic-coop-options .label{
-  width: 90px;
   margin-left: 10px;
-  margin-top: 5px;
+  margin-right: 6px;
+  white-space: nowrap;
 }
 .basic-coop-options .Select{
   width: auto;

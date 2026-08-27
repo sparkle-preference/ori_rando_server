@@ -12,10 +12,10 @@ import {download, picks_by_type, picks_by_loc, picks_by_zone, picks_by_area, zon
 import NumericInput from 'react-numeric-input';
 import Select from 'react-select'
 import {Creatable} from 'react-select';
-import {Alert, Button, Collapse,  Container, Row, Col} from 'reactstrap';
+import {Alert, Button, Collapse,  Container, Row, Col, Input, InputGroup, InputGroupAddon, InputGroupText} from 'reactstrap';
 import Control from 'react-leaflet-control';
 import {Helmet} from 'react-helmet';
-import Toggle from 'react-bootstrap-toggle';
+import {FaSearch} from 'react-icons/fa';
 
 
 NumericInput.style.input.width = '100%';
@@ -32,6 +32,28 @@ const clue_key_in = (code, id) => {
     }
     return keys.length === 1 ? keys[0] : null
 }
+// What the location is called. pick.name is the item that started there, and
+// pick.area is unique across all 257 of them -- except that the injected spawn
+// pseudo-pick borrows FirstPickup's area to inherit its reachability.
+const locLabel = (pick) => pick.name === "SPAWN" ? "Spawn" : (pick.area || pick.name)
+
+// the switch the settings modal uses. react-checkbox-group emits a bare input,
+// and the label has to be its sibling for the track to draw
+const flagCheck = (value, text) => (
+    <div className="custom-control custom-switch" key={value}>
+        <Checkbox className="custom-control-input" id={`flag-${value}`} value={value} />
+        <label className="custom-control-label" htmlFor={`flag-${value}`}>{text}</label>
+    </div>
+)
+
+// the same switch for the plain checkboxes, which are not in a CheckboxGroup
+const optSwitch = (id, text, checked, onChange) => (
+    <div className="custom-control custom-switch">
+        <input className="custom-control-input" type="checkbox" id={id} checked={checked} onChange={onChange}/>
+        <label className="custom-control-label" htmlFor={id}>{text}</label>
+    </div>
+)
+
 const DEFAULT_DATA = {
     '-12320248': {label: "100 Experience", value: "EX|100"}
 }
@@ -108,7 +130,6 @@ const R1_INNER_TARGET = "153|413"
 const R1_RULE = "R1 Outer must lead to R1 Inner: the exit cutscene softlocks anywhere else"
 const COORD_RE = /^\s*-?\d+\s*,\s*-?\d+\s*$/
 const crs = getMapCrs();
-const DANGEROUS = [-12320248]
 const paths = Object.keys(presets);
 
 const dev = window.document.URL.includes("devshell")
@@ -119,7 +140,6 @@ function getPickupMarkers(state, setSelected, searchStr) {
     let reachable = Object.keys(state.reachable)
     let flags = state.flags
     let hide_unreachable = flags.includes("hide_unreachable")
-    let skip_danger = flags.includes("hide_softlockable")
     let skip_assigned = flags.includes("hide_assigned")
     let show_loc_names = flags.includes("show_loc_names")
     let playerCount = Object.keys(placements).length
@@ -128,7 +148,7 @@ function getPickupMarkers(state, setSelected, searchStr) {
         picks_by_type[pre].forEach((pick) => {
             let {x, y} = pick
             let icon = get_icon(pick)
-            let show = !(skip_danger && DANGEROUS.includes(pick.loc));
+            let show = true;
             if(hide_unreachable && !reachable.includes(pick.area))
                         show = false;
             if(skip_assigned && placements[state.player].hasOwnProperty(pick.loc))
@@ -166,7 +186,7 @@ function getPickupMarkers(state, setSelected, searchStr) {
                          if(playerCount > 1)
                             lineText = `${pid}: ` + lineText;
                          if(show_loc_names)
-                            lineText = `(${pick.area}${pick.name}) ` + lineText;
+                            lineText = `(${locLabel(pick)}) ` + lineText;
                           return (
                             <tr key={pid}><td style={{color:'black'}}>{lineText}</td></tr>
                           )
@@ -178,7 +198,7 @@ function getPickupMarkers(state, setSelected, searchStr) {
                     </Tooltip>
                 );
                 let opacity = highlight ? 1  : hide_opacity
-                let name = pick.name+"("+pick.x + "," + pick.y +")"
+                let name = locLabel(pick)
                 let onclick = setSelected({label: name, value: pick})
                 markers.push({key: name, position: [y, x], inner: inner, icon: icon, opacity: opacity, onClick: onclick});
             }
@@ -232,9 +252,10 @@ class PlandoBuiler extends React.Component {
 
     this.state = {seed_in: "", reachable: {...DEFAULT_REACHABLE}, new_areas: {...DEFAULT_REACHABLE}, placements: {1: {...DEFAULT_DATA}}, player: 1,
                   fill_opts: {HC: 13, EC: 15, AC: 34, KS: 40, MS: 9, EX: 300, ex_pool: 10000, dynamic: false, dumb: false}, viewport: {center: [0, 0], zoom: 5}, searchStr: "", clueOrder: CLUE_ORDERS[0],
-                  flags: ['hide_unreachable', 'hide_softlockable'], seedFlags: [], hidden: hidden, share_types: select_wrap(["Skills", "WorldEvents", "Teleporters"]), coop_mode: {label: "Solo", value: "None"},
+                  flags: ['hide_unreachable'], seedFlags: [], hidden: hidden, share_types: select_wrap(["Skills", "WorldEvents", "Teleporters"]), coop_mode: {label: "Solo", value: "None"},
                   pickups: ["EX", "Ma", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "CS"], display_fill: false, display_import: false, display_logic: false, display_coop: false, display_meta: false,
                   entrances: {1: {}}, display_entrances: false, entrance_from: {value: "", label: ""}, entrance_to: {value: "", label: ""},
+                  import_overwrite: false,
                 seed_name: seed_name, last_seed_name: seed_name, seed_desc: seed_desc, user: user};
     }
 
@@ -256,7 +277,7 @@ class PlandoBuiler extends React.Component {
         let lastSelected = {};
         zones.forEach((zone) => {
             let pick = picks_by_zone[zone][0];
-            lastSelected[zone] = {label: pick.name+"("+pick.x + "," + pick.y +")",value: pick}
+            lastSelected[zone] = {label: locLabel(pick),value: pick}
         });
         // i hate this
         picks_by_zone['Glades'].push({"loc": 2, "name": "SPAWN", "zone": "Glades", "area": "FirstPickup", "x": 189, "y": -210})
@@ -264,7 +285,7 @@ class PlandoBuiler extends React.Component {
         picks_by_loc[2] = {"loc": 2, "name": "SPAWN", "zone": "Glades", "area": "FirstPickup", "x": 189, "y": -210}
 
         let pick = {loc: 919772, name: "EX15", zone: "Glades", area: "FirstPickup", y: -227, x: 92};
-        let pickup = {label: pick.name+"("+pick.x + "," + pick.y +")",value: pick}
+        let pickup = {label: locLabel(pick),value: pick}
         lastSelected['Glades'] = pickup
     
         this.setState({mousePos: {lat: 0, lng: 0}, zone: zone, pickup: pickup, modes: modes, lastSelected: lastSelected, logicMode: logicMode, pathMode: pathmode,
@@ -277,6 +298,8 @@ class PlandoBuiler extends React.Component {
             this.refs.map.leafletElement.invalidateSize(false);
             this.setState({viewport: DEFAULT_VIEWPORT});
         }, 100);
+        window.addEventListener("resize", this.fitFileControls)
+        this.fitFileControls()
         if(this.state.authed)
         {
             let {seedJson} = get_seed();
@@ -284,6 +307,24 @@ class PlandoBuiler extends React.Component {
                 this.parseSavedSeed(seedJson);
         } else
             this.updateReachable();
+    };
+
+    componentDidUpdate() { this.fitFileControls() }
+
+    componentWillUnmount() { window.removeEventListener("resize", this.fitFileControls) }
+
+    // The top row is a hair too wide only sometimes: Fill's label grows by "(Dumb)",
+    // and opening a panel anywhere in the sidebar can bring the scrollbar, which
+    // takes 15px off the row. Rather than keeping the buttons small for the case
+    // that needs it, measure at full size and compact only when they would wrap.
+    // Toggling a class on the node does not re-render, so this cannot loop.
+    fitFileControls = () => {
+        let row = this.fileControls
+        if(!row)
+            return
+        row.classList.remove("compact")
+        let needed = [...row.children].reduce((wide, kid) => wide + kid.offsetWidth, 0)
+        row.classList.toggle("compact", needed > row.clientWidth)
     };
 
     onSelectZone = (newZone, pan=true) => {this.selectPickup(this.state.lastSelected[newZone.value], pan)};
@@ -403,8 +444,10 @@ class PlandoBuiler extends React.Component {
         }, () => this.updateReachable());
     };
 
-    // player defaults to the one being edited; a coop fill names each world
-    parseUploadedSeed = (seedText, player) => {
+    // player defaults to the one being edited; a coop fill names each world.
+    // Merging is the default and what Fill needs: it exists to complete what is
+    // already placed. Only a hand-pasted import can ask to replace instead.
+    parseUploadedSeed = (seedText, player, overwrite) => {
         player = player || this.state.player
         let lines = seedText.split("\n")
         let newplc = {}
@@ -414,6 +457,9 @@ class PlandoBuiler extends React.Component {
         for (let i = 1, len = lines.length; i < len; i++) {
             let line = lines[i].split("|")
             let loc = parseInt(line[0], 10);
+            // every pasted seed ends in a newline, and that blank line parses to NaN
+            if(isNaN(loc))
+                continue;
             if(line[1] === "EN") {
                 // entrance shuffle line: loc|EN|x|y (loc = door key, x|y = target door coords)
                 newEntrances[loc] = line[2] + "|" + line[3]
@@ -423,7 +469,7 @@ class PlandoBuiler extends React.Component {
             // derived from ownership on the way out, and are not map coordinates.
             if(loc <= -2 && loc >= -257)
                 continue;
-            if(currplc.hasOwnProperty(loc)) {
+            if(!overwrite && currplc.hasOwnProperty(loc)) {
                 newplc[loc] = currplc[loc];
                 continue;
             }
@@ -862,10 +908,17 @@ class PlandoBuiler extends React.Component {
             getReachable((s, c) => this.setState(s, c), reachableStuff, modes, recursive ? () => this.updateReachable(reachableAreas) : () => null);
       };
       
+    // the three top-row panels share that row's width: two open pushes the buttons
+    // onto a second line, so opening one closes the others
+    showPanel = (which) => this.setState(prev => ({
+        display_meta: which === "meta" && !prev.display_meta,
+        display_import: which === "import" && !prev.display_import,
+        display_fill: which === "fill" && !prev.display_fill,
+    }));
     toggleImport = () => {
         if(dev)
             console.log(this.state)
-        this.setState({display_import: !this.state.display_import})
+        this.showPanel("import")
     };
     toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
     toggleCoop = () => {this.setState({display_coop: !this.state.display_coop})};
@@ -918,7 +971,7 @@ class PlandoBuiler extends React.Component {
         entrances[prevState.player] = mine
         return {entrances: entrances}
     });
-    toggleMeta = () => {this.setState({display_meta: !this.state.display_meta})};
+    toggleMeta = () => this.showPanel("meta");
     addPlayer = () => {
         this.setState(prevState => {
             let newPlc = prevState.placements;
@@ -965,10 +1018,12 @@ class PlandoBuiler extends React.Component {
 
 
     render() {
-        let {clueOrder, modes, searchStr, seedFlags, authed, hidden, flags} = this.state;
+        let {clueOrder, modes, searchStr, seedFlags, authed, hidden, flags, import_overwrite} = this.state;
+        // what an overwriting import would replace, so the choice is made knowing the cost
+        const placed_here = Object.keys(this.state.placements[this.state.player] || {}).length
         const pickup_markers = ( <PickupMarkersList markers={getPickupMarkers(this.state, this.selectPickupCurry, searchStr)} />)
         const zone_opts = zones.map(zone => ({label: zone, value: zone}))
-        const pickups_opts = picks_by_zone[this.state.zone].map(pick => ({label: pick.name+"("+pick.x + "," + pick.y +")",value: pick}) )
+        const pickups_opts = picks_by_zone[this.state.zone].map(pick => ({label: locLabel(pick),value: pick}) )
         let clue_order_picker = seedFlags.map(f => f.value).includes("Clues") ? (
             <div className="pickup-wrapper">
                 <span className="label">Clue Order: </span>
@@ -1012,23 +1067,69 @@ class PlandoBuiler extends React.Component {
                 </Map>
                 <div className="controls">
                 {alert}
-                    <div id="file-controls">
+                    <div id="file-controls" ref={el => this.fileControls = el}>
                         <Button color="primary" onClick={this.toggleImport} >Import</Button>
                         {fill_button}
+                        <Button color="primary" onClick={() => this.showPanel("fill")}>Fill Options</Button>
                         <Button color="primary" onClick={this.downloadSeed} >Download</Button>
                         {save_if_auth}
                     </div>
                     <Collapse id="import-wrapper" isOpen={this.state.display_meta}>
                         <input id="seed-name-input" type="text" className="form-control" value={this.state.seed_name} onChange={event => this.setState({seed_name: event.target.value})} />
                         <textarea id="seed-desc-input" className="form-control" placeholder="Seed Description" value={this.state.seed_desc} onChange={event => this.setState({seed_desc: event.target.value})} />
-                        <Button color="primary" style={{paddingLeft: ".2rem"}} onClick={this.saveSeed} >Save</Button>
-                        <Button color="primary" style={{paddingLeft: ".2rem"}} onClick={() => window.open(`/plando/${this.state.user}/${this.state.last_seed_name}/`,'_blank') } >Open Seed Page</Button>
+                        <Button className="mr-1" color="primary" onClick={this.saveSeed} >Save</Button>
+                        <Button className="mr-1" color="primary" onClick={() => window.open(`/plando/${this.state.user}/${this.state.last_seed_name}/`,'_blank') } >Open Seed Page</Button>
                         <Button color="primary" outline={hidden} onClick={() => this.setState({hidden: !hidden})}>
                             {hidden ? "Hidden" : "Visible"}
                         </Button>
                     </Collapse>
                     <Collapse id="import-wrapper" isOpen={this.state.display_import}>
-                        <textarea id="import-seed-area" className="form-control" placeholder="Paste Seed Here" value={this.state.seed_in} onChange={event => {this.parseUploadedSeed(event.target.value) ; this.toggleImport() }} />
+                        <div className="mb-2">
+                            {optSwitch("import-overwrite",
+                                       `Overwrite existing placements${placed_here ? ` (${placed_here} in world ${this.state.player})` : ""}`,
+                                       import_overwrite,
+                                       event => this.setState({import_overwrite: event.target.checked}))}
+                        </div>
+                        <textarea id="import-seed-area" className="form-control" placeholder="Paste Seed Here" value={this.state.seed_in} onChange={event => {this.parseUploadedSeed(event.target.value, null, import_overwrite) ; this.toggleImport() }} />
+                    </Collapse>
+                    <Collapse isOpen={this.state.display_fill}>
+                        <div id="fill-params">
+                            <div className="fill-wrapper">
+                                <span className="label">Health Cells:</span>
+                                <NumericInput min={0} disabled={!this.state.fill_opts.dumb} value={this.state.fill_opts.HC} onChange={(n) => this.updateFill("HC",n)}></NumericInput>
+                                <span className="label">Energy Cells:</span>
+                                <NumericInput min={0} disabled={!this.state.fill_opts.dumb} value={this.state.fill_opts.EC} onChange={(n) => this.updateFill("EC",n)}></NumericInput>
+                            </div>
+                            <div className="fill-wrapper">
+                                <span className="label">Ability Cells:</span>
+                                <NumericInput min={0} disabled={!this.state.fill_opts.dumb} value={this.state.fill_opts.AC} onChange={(n) => this.updateFill("AC",n)}></NumericInput>
+                                <span className="label">Keystones:</span>
+                                <NumericInput min={0} disabled={!this.state.fill_opts.dumb} value={this.state.fill_opts.KS} onChange={(n) => this.updateFill("KS",n)}></NumericInput>
+                            </div>
+                            {/* the two exp fields belong to different fills, so only
+                                one is ever live: show that one and give it the room */}
+                            <div className={`fill-wrapper${this.state.fill_opts.dumb ? "" : " exp-pool-row"}`}>
+                                <span className="label">Mapstones:</span>
+                                <NumericInput min={0} disabled={!this.state.fill_opts.dumb} value={this.state.fill_opts.MS} onChange={(n) => this.updateFill("MS",n)}></NumericInput>
+                                {this.state.fill_opts.dumb ? (
+                                    <React.Fragment>
+                                        <span className="label">Max EXP: </span>
+                                        <NumericInput min={0} value={this.state.fill_opts.EX} onChange={(n) => this.updateFill("EX",n)}></NumericInput>
+                                    </React.Fragment>
+                                ) : (
+                                    <React.Fragment>
+                                        <span className="label">EXP Pool: </span>
+                                        <NumericInput min={0} value={this.state.fill_opts.ex_pool} onChange={(n) => this.updateFill("ex_pool",n)}></NumericInput>
+                                    </React.Fragment>
+                                )}
+                            </div>
+                            <div>
+                                {optSwitch("fill-dynamic", "Update Automatically", this.state.fill_opts.dynamic,
+                                           () => this.updateFill("dynamic", !this.state.fill_opts.dynamic))}
+                                {optSwitch("fill-dumb", "Enable Dumb Fill", this.state.fill_opts.dumb,
+                                           () => this.updateFill("dumb", !this.state.fill_opts.dumb))}
+                            </div>
+                        </div>
                     </Collapse>
                     <hr style={{ backgroundColor: 'grey', height: 2 }}/>
                     <div id="pickup-controls">
@@ -1049,7 +1150,7 @@ class PlandoBuiler extends React.Component {
                             <Select styles={select_styles} options={pickups_opts} onChange={this.selectPickup} clearable={false} value={this.state.pickup} label={this.state.pickup.name+"("+this.state.pickup.x + "," + this.state.pickup.y +")"}></Select>
                         </div>
                         <div className="pickup-wrapper">
-                            <PickupSelect ref="pickupSelect" value={this.state.stuff.value} updater={(code, name) => this.place({label: name, value: code})}/>
+                            <PickupSelect ref="pickupSelect" value={this.state.stuff.value} placeholder={`place item(s) at ${locLabel(this.state.pickup.value)}`} updater={(code, name) => this.place({label: name, value: code})}/>
                         </div>
                         {this.state.coop_mode.value === "Multiworld" ? (
                             <div className="pickup-wrapper" title="Who receives this item. The world above still holds the location.">
@@ -1060,80 +1161,41 @@ class PlandoBuiler extends React.Component {
                                         onChange={(n) => this.setOwner(n.value)}></Select>
                             </div>
                         ) : null}
-                        <Button onClick={() => this.setState(prev => ({display_fill: !prev.display_fill}))}>Show Fill</Button>
-                        <Collapse isOpen={this.state.display_fill}>
-                            <div id="fill-params">
-                                <div className="fill-wrapper">
-                                    <span className="label">Health Cells:</span>
-                                    <NumericInput min={0} disabled={!this.state.fill_opts.dumb} value={this.state.fill_opts.HC} onChange={(n) => this.updateFill("HC",n)}></NumericInput>
-                                    <span className="label">Energy Cells:</span>
-                                    <NumericInput min={0} disabled={!this.state.fill_opts.dumb} value={this.state.fill_opts.EC} onChange={(n) => this.updateFill("EC",n)}></NumericInput>
-                                </div>
-                                <div className="fill-wrapper">
-                                    <span className="label">Ability Cells:</span>
-                                    <NumericInput min={0} disabled={!this.state.fill_opts.dumb} value={this.state.fill_opts.AC} onChange={(n) => this.updateFill("AC",n)}></NumericInput>
-                                    <span className="label">Keystones:</span>
-                                    <NumericInput min={0} disabled={!this.state.fill_opts.dumb} value={this.state.fill_opts.KS} onChange={(n) => this.updateFill("KS",n)}></NumericInput>
-                                </div>
-                                <div className="fill-wrapper">
-                                    <span className="label">Mapstones:</span>
-                                    <NumericInput min={0} disabled={!this.state.fill_opts.dumb} value={this.state.fill_opts.MS} onChange={(n) => this.updateFill("MS",n)}></NumericInput>
-                                    <span className="label">Max EXP: </span>
-                                    <NumericInput min={0} disabled={!this.state.fill_opts.dumb} value={this.state.fill_opts.EX} onChange={(n) => this.updateFill("EX",n)}></NumericInput>
-                                    <span className="label">EXP Pool: </span>
-                                    <NumericInput min={0} disabled={this.state.fill_opts.dumb} value={this.state.fill_opts.ex_pool} onChange={(n) => this.updateFill("ex_pool",n)}></NumericInput>
-                                </div>
-                                <div className="form-check-label">
-                                    <label className="form-check-label"><input type="checkbox" checked={this.state.fill_opts.dynamic} onChange={() => this.updateFill("dynamic",!this.state.fill_opts.dynamic)}/>Update Automatically</label>
-                                    <label className="form-check-label"><input type="checkbox" checked={this.state.fill_opts.dumb} onChange={() => this.updateFill("dumb",!this.state.fill_opts.dumb)}/>Enable Dumb Fill</label>
-                                </div>
-                            </div>
-                        </Collapse>
                     </div>
                     <hr style={{ backgroundColor: 'grey', height: 2 }}/>
                     <div id="display-controls">
+                        {/* one group, laid out 2x2 by #display-flags: two of them only
+                            ever differed in where they sat */}
                         <CheckboxGroup id="display-flags" checkboxDepth={6} name="flags" value={this.state.flags} onChange={this.flagsChanged}>
-                                <label className="form-check-label"><Checkbox value="hide_unreachable" />Hide Unreachable</label>
-                                <label className="form-check-label"><Checkbox value="hide_assigned" />Hide Assigned</label>
-                                <label className="form-check-label"><Checkbox value="hide_softlockable" />Hide Dangerous</label>
-                            </CheckboxGroup>
-                            <CheckboxGroup id="helptext-flags" checkboxDepth={6} name="flags" value={this.state.flags} onChange={this.flagsChanged}>
-                                <label className="form-check-label"><Checkbox value="show_loc_names" />Show Loc Names</label>
-                                <label className="form-check-label pl-2"><Checkbox value="show_message_legend" />Show Styleguide</label>
+                            {flagCheck("hide_unreachable", "Hide Unreachable")}
+                            {flagCheck("hide_assigned", "Hide Assigned")}
+                            {flagCheck("show_loc_names", "Show Loc Names")}
+                            {flagCheck("show_message_legend", "Show Styleguide")}
                         </CheckboxGroup>
                     <hr style={{ backgroundColor: 'grey', height: 2 }}/>
                         <div id="search-wrapper">
-                            <label htmlFor="search">Search</label>
-                            <input id="search" className="form-control" value={this.state.searchStr} onChange={(event) => this.setState({searchStr: event.target.value})} type="text" />
+                            <InputGroup>
+                                <InputGroupAddon addonType="prepend"><InputGroupText><FaSearch/></InputGroupText></InputGroupAddon>
+                                <Input id="search" type="text" placeholder="search by location name or placed pickup name"
+                                       value={this.state.searchStr} onChange={(event) => this.setState({searchStr: event.target.value})}/>
+                            </InputGroup>
                         </div>
                     </div>
                     <hr style={{ backgroundColor: 'grey', height: 2 }}/>
                     <div id="logic-controls">
                         <div id="logic-mode-wrapper">
-                            <span className="label">Automatic Logic:</span>
-                            <Toggle
-                              onClick={this.autoLogicToggle}
-                              on="Enabled"
-                              off="Disabled"
-                              size="xs"
-                              onstyle="primary"
-                              offstyle="secondary"
-                              active={this.state.logicMode === "auto"}
-                            />
+                            {optSwitch("auto-logic", "Automatic Logic", this.state.logicMode === "auto", this.autoLogicToggle)}
                             <Collapse id="manual-controls" isOpen={this.state.logicMode === "manual"}>
-                                <div className="manual-wrapper">
+                                {/* two to a row with a fixed box, the way the fill params sit */}
+                                <div className="fill-wrapper">
                                     <span className="label">Health Cells:</span>
                                     <NumericInput min={0} value={this.state.manual_reach.HC} onChange={(n) => this.updateManual("HC",n)}></NumericInput>
-                                </div>
-                                <div className="manual-wrapper">
                                     <span className="label">Energy Cells:</span>
                                     <NumericInput min={0} value={this.state.manual_reach.EC} onChange={(n) => this.updateManual("EC",n)}></NumericInput>
                                 </div>
-                                <div className="manual-wrapper">
+                                <div className="fill-wrapper">
                                     <span className="label">Keystones:</span>
                                     <NumericInput min={0} value={this.state.manual_reach.KS} onChange={(n) => this.updateManual("KS",n)}></NumericInput>
-                                </div>
-                                <div className="manual-wrapper">
                                     <span className="label">Mapstones:</span>
                                     <NumericInput min={0} value={this.state.manual_reach.MS} onChange={(n) => this.updateManual("MS",n)}></NumericInput>
                                 </div>
@@ -1166,8 +1228,13 @@ class PlandoBuiler extends React.Component {
                     <div id="coop-controls">
                         <div className="basic-coop-options">
                             <Button color="primary" onClick={this.toggleCoop}>Multiplayer Controls</Button>
-                            <span className="label">Player: </span>
-                            <Select styles={select_styles}  options={select_wrap(Object.keys(this.state.placements))} onChange={(n) => this.setState({player: n.value, reachable: {...DEFAULT_REACHABLE}}, () => this.updateReachable())} clearable={false} value={select_wrap(this.state.player)} label={this.state.player}></Select>
+                            {/* one world has nobody to switch to */}
+                            {Object.keys(this.state.placements).length > 1 ? (
+                                <React.Fragment>
+                                    <span className="label">Current player</span>
+                                    <Select styles={select_styles}  options={select_wrap(Object.keys(this.state.placements))} onChange={(n) => this.setState({player: n.value, reachable: {...DEFAULT_REACHABLE}}, () => this.updateReachable())} clearable={false} value={select_wrap(this.state.player)} label={this.state.player}></Select>
+                                </React.Fragment>
+                            ) : null}
                         </div>
                         <Collapse id="coop-wrapper" isOpen={this.state.display_coop}>
                              <div className="coop-select-wrapper">

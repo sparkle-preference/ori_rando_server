@@ -687,6 +687,7 @@ class PickupSelect extends Component {
         isClearable={this.props.isClearable}
         isDisabled={this.props.isDisabled || this.props.disabled || false}
         isMulti
+        placeholder={this.props.placeholder}
         onMenuOpen={() => this.setState({ menuOpen: true })}
         onMenuClose={() => this.setState({ menuOpen: false, editIdx: null })}
         components={{ MultiValue: DraggableMultiValue, MultiValueLabel: EditableMultiValueLabel }}
