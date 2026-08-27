@@ -1149,6 +1149,37 @@ class SeedModeProblemTests(unittest.TestCase):
         self.assertIsNone(self._check(False, self._params("Shared", enabled=False)))
 
 
+class SeedFailureReasonTests(unittest.TestCase):
+    """Read only after a real attempt failed, so it refuses nothing: Classic
+    multiworld stays generatable, and gets told why it probably didn't."""
+
+    def _params(self, mode="Multiworld", balanced=False, enabled=True):
+        from enums import MultiplayerGameType
+        p = CLISeedParams()
+        p.sync = CLIMultiOptions(mode=MultiplayerGameType.mk(mode), enabled=enabled, cloned=True)
+        p.balanced = balanced
+        return p
+
+    def _reason(self, params):
+        from seedbuilder import seedparams
+        return seedparams.seed_failure_reason(params)
+
+    def test_classic_multiworld_gets_named(self):
+        self.assertIn("Classic fill", self._reason(self._params()))
+
+    def test_everything_else_says_nothing(self):
+        self.assertIsNone(self._reason(self._params(balanced=True)))
+        # solo Classic is the Starved niche the helptext recommends it for
+        self.assertIsNone(self._reason(self._params(enabled=False)))
+        self.assertIsNone(self._reason(self._params(mode="Shared")))
+
+    def test_params_without_a_fill_algorithm_say_nothing(self):
+        """A hint nobody can act on is worse than the generic message."""
+        p = self._params()
+        del p.balanced
+        self.assertIsNone(self._reason(p))
+
+
 class ApTestGateWiringTests(unittest.TestCase):
     """The opt-in rides the QUERY string of the build POST (the page posts to
     /generator/build?ap_test=1), so it has to survive a form-encoded request.
@@ -1218,6 +1249,73 @@ class ApTestGateWiringTests(unittest.TestCase):
         # the page appends &ap_test=1 after ?bingo=1
         self._build("?bingo=1&ap_test=1")
         self.assertEqual(self.seen, [True])
+
+
+class BuildFailureReasonWiringTests(unittest.TestCase):
+    """A failed build carries its reason as a 422 the page will show. Nothing is
+    refused: the gate passes, generation is attempted, and only then does the
+    message land. Params and the reason are stubbed; this is wiring only."""
+
+    @classmethod
+    def setUpClass(cls):
+        import contextlib
+        import main
+        import models
+
+        class _FakeNdbClient(object):
+            def context(self):
+                return contextlib.nullcontext()
+        cls.main, cls.models = main, models
+        cls._orig_client = models.client
+        models.client = _FakeNdbClient()
+        cls._orig_secret = main.app.secret_key
+        main.app.secret_key = main.app.secret_key or "build-failure-reason"
+        cls.client = main.app.test_client()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.models.client = cls._orig_client
+        cls.main.app.secret_key = cls._orig_secret
+
+    def setUp(self):
+        main = self.main
+        self._orig = (main.SeedGenParams, main.seed_mode_problem, main.seed_failure_reason)
+
+        class _FailingParams(object):
+            def generate(self, *args, **kwargs):
+                return False
+
+        class _FakeKey(object):
+            def id(self):
+                return "build-failure"
+
+            def get(self):
+                return _FailingParams()
+
+        class _FakeParams(object):
+            @staticmethod
+            def from_json(json_in):
+                return _FakeKey()
+        main.SeedGenParams = _FakeParams
+        main.seed_mode_problem = lambda *args, **kwargs: None
+
+    def tearDown(self):
+        (self.main.SeedGenParams, self.main.seed_mode_problem,
+         self.main.seed_failure_reason) = self._orig
+
+    def _build(self):
+        return self.client.post("/generator/build", data={"params": "{}"})
+
+    def test_a_named_reason_becomes_a_422(self):
+        self.main.seed_failure_reason = lambda params: "Classic fill often can't finish a multiworld seed."
+        resp = self._build()
+        self.assertEqual(resp.status_code, 422)
+        self.assertIn(b"Classic fill", resp.data)
+
+    def test_no_reason_stays_the_generic_500(self):
+        self.main.seed_failure_reason = lambda params: None
+        resp = self._build()
+        self.assertEqual(resp.status_code, 500)
 
 
 class ApSoloPayloadTests(unittest.TestCase):

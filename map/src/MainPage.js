@@ -556,7 +556,7 @@ export default class MainPage extends React.Component {
                         <UncontrolledButtonDropdown className="w-100">
                             <DropdownToggle color="primary" caret block> {fillAlg} </DropdownToggle>
                             <DropdownMenu style={menuStyle}>
-                                <DropdownItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "fillAlgClassic")}  active={"Classic" ===fillAlg} onClick={()=> this.setState({fillAlg: "Classic"})}>Classic</DropdownItem>
+                                <DropdownItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", this.isMultiworld() ? "fillAlgClassicMulti" : "fillAlgClassic")}  active={"Classic" ===fillAlg} onClick={()=> this.setState({fillAlg: "Classic"})}>Classic</DropdownItem>
                                 <DropdownItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "fillAlgBalanced")} active={"Balanced"===fillAlg} onClick={()=> this.setState({fillAlg: "Balanced"})}>Balanced</DropdownItem>
                             </DropdownMenu>
                         </UncontrolledButtonDropdown>)}
@@ -1404,8 +1404,8 @@ export default class MainPage extends React.Component {
     seedBuildCallback = ({status, responseText}) => {
         if(status !== 200)
         {
-            // 409s carry a human-readable reason (removed modes, multiworld flag off)
-            let reason = (status === 409 && responseText) ? responseText : "Failed to generate seed!"
+            // 409 refused before trying, 422 tried and knows why; both carry a reason
+            let reason = ((status === 409 || status === 422) && responseText) ? responseText : "Failed to generate seed!"
             NotificationManager.error(reason, "Seed generation failure!", 5000)
             this.setState({seedIsGenerating: false, seedTabExists: false, activeTab: 'variations'}, this.updateUrl)
             return

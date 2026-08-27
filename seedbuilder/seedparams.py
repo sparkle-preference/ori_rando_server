@@ -78,6 +78,19 @@ def seed_mode_problem(params, mw_override=False, ap_override=False):
     if params.sync.mode == MultiplayerGameType.SHARED and not params.sync.cloned:
         return "Seperate Seeds generation was removed (2026-07). Use Cloned Seeds or Multiworld."
     return None
+
+
+def seed_failure_reason(params):
+    """Something better to say than "it failed", when the combination is a known
+    bad bet rather than bad luck. None when there is nothing to add. Unlike
+    seed_mode_problem this refuses nothing: it is read only after a real attempt."""
+    if (params.sync.enabled and params.sync.mode == MultiplayerGameType.MULTIWORLD
+            and not getattr(params, "balanced", True)):
+        return ("Classic fill often can't finish a multiworld seed. Switch the fill "
+                "algorithm to Balanced under Advanced, or try again.")
+    return None
+
+
 def bingo_worlds(params):
     """The worlds playing bingo. A world opts in with its own Bingo variation, so
     a multiworld can have exactly one bingo player."""

@@ -961,6 +961,14 @@ const getHelpHelper = (category, option) => {
                         "It is only recommended for players who are using the Starved flag and don't want to risk the Balanced algorithm interfering with this."
                     ]
                     break;
+                case "fillAlgClassicMulti":
+                    title = "Classic Algorithm"
+                    lines = [
+                        "The Classic fill algorithm places pickups throughout the world one at a time and mostly at random (though subject to logical constraints).",
+                        "It is only recommended for players who are using the Starved flag and don't want to risk the Balanced algorithm interfering with this.",
+                        "It often can't finish a multiworld seed, and fails more often the more worlds there are. Generating may take a few tries, or none may work."
+                    ]
+                    break;
                 case "fillAlgBalanced":
                     title = "Balanced Algorithm"
                     lines = [

@@ -25,7 +25,7 @@ from archipelago import build_apworld
 from archipelago.yaml_emit import DATA_VERSION as AP_DATA_VERSION
 from flask_oidc.signals import after_logout
 from oidc import make_oidc
-from seedbuilder.seedparams import SeedGenParams, bingo_worlds, seed_mode_problem
+from seedbuilder.seedparams import SeedGenParams, bingo_worlds, seed_mode_problem, seed_failure_reason
 from seedbuilder.vanilla import seedtext as vanilla_seed
 from enums import MultiplayerGameType, ShareType, Variation
 from models import ndb_wsgi_middleware, Game, Player, SavedSeedParams, Seed, User, BingoGameData, BingoWorldBoard, BingoEvent, BingoTeam, SITE_THEMES, URL_UNSAFE_NAME_CHARS, pick_discovery_squares, trees_by_coords, LegacyUser, bingo_lock, AnnouncedPatchNotes
@@ -402,7 +402,9 @@ def gen_seed_from_params():
     if problem:
         return text_resp(problem, 409)
     if not params.generate():
-        return text_resp("Failed to generate seed!", 500)
+        # 422 rather than 500: the request was fine, the settings were the problem
+        reason = seed_failure_reason(params)
+        return text_resp(reason, 422) if reason else text_resp("Failed to generate seed!", 500)
     resp = {"paramId": param_key.id(), "playerCount": params.players, "flagLine": params.flag_line(), 'seed': params.seed, "spoilers": True}
     lines = world_flag_lines(params)
     if lines:
@@ -442,6 +444,9 @@ def gen_seed_from_url():
                 players.append({"seed": seed, "spoiler": spoiler, "spoiler_url": url_for('get_spoiler_from_params', params_id=param_key.id(), player=p)})
             resp["players"] = players
             return json_resp(resp)
+        reason = seed_failure_reason(params)
+        if reason:
+            return json_resp({"error": reason}, 422)
     log.error("param gen failed")
     return json_resp({"error": "param gen failed"}, 500)
 
@@ -942,7 +947,8 @@ def _reroll(params):
     if problem:
         return None, None, text_resp(problem, 409)
     if not new_params.generate():
-        return None, None, text_resp("Failed to generate seed!", 500)
+        reason = seed_failure_reason(new_params)
+        return None, None, (text_resp(reason, 422) if reason else text_resp("Failed to generate seed!", 500))
     return new_params, Game.from_params(new_params), None
 
 
