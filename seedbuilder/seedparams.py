@@ -2,9 +2,11 @@ from google.cloud import ndb
 
 import logging as log
 import random
+import time
 
 from util import enums_from_strlist, picks_by_coord, get_preset_from_paths, decompose_multi_value, SEED_FORMAT
-from enums import (MultiplayerGameType, ShareType, Variation, LogicPath, KeyMode, PathDifficulty, presets)
+from enums import (MultiplayerGameType, ShareType, Variation, LogicPath, KeyMode, PathDifficulty, presets,
+                   preset_path_diff, preset_variations)
 from collections import OrderedDict
 from threading import Lock
 from cachetools import TTLCache
@@ -470,17 +472,30 @@ class SeedGenParams(ndb.Model):
     @staticmethod
     def from_url(qparams):
         params = SeedGenParams()
-        params.seed = qparams.get("seed")
-        if not params.seed:
-            log.error("No seed in %r! returning None" % qparams)
-            return None
+        # a caller with nothing to say about the seed gets the clock rather than an
+        # error; the page always sends one, so this only ever answers a bot
+        params.seed = qparams.get("seed") or str(int(time.time()))
         params.variations = enums_from_strlist(Variation, qparams.getlist("var"))
         params.logic_paths = enums_from_strlist(LogicPath, qparams.getlist("path"))
+        # logic_mode names one of the page's Logic Mode buttons and stands in for
+        # spelling its paths out. Everything else still applies on top: paths and vars
+        # add to the group's, and path_diff overrides it, because a single value cannot
+        # be added to.
+        group = qparams.get("logic_mode")
+        if group:
+            group = group.capitalize()
+            if group not in presets:
+                log.error("Unknown logic_mode %r; expected one of %s",
+                          qparams.get("logic_mode"), ", ".join(sorted(presets)))
+                return None
+            params.logic_paths = sorted(set(params.logic_paths) | presets[group])
+            params.variations = sorted(set(params.variations) | preset_variations.get(group, set()))
         if not params.logic_paths:
             log.error("No logic paths in %r! returning None" % qparams)
             return None
         params.key_mode = KeyMode(qparams.get("key_mode", "Clues"))
-        params.path_diff = PathDifficulty(qparams.get("path_diff", "Normal"))
+        default_diff = preset_path_diff.get(group, PathDifficulty.NORMAL)
+        params.path_diff = PathDifficulty(qparams.get("path_diff", default_diff))
         params.exp_pool = int(qparams.get("exp_pool", 10000))
         params.balanced = qparams.get("gen_mode") != "Classic"
         params.players = int(qparams.get("players", 1))

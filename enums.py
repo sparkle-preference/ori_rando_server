@@ -132,3 +132,15 @@ presets = {
             LogicPath.GLITCHED, LogicPath.TIMED_LEVEL
         }
     }
+
+# The rest of what the seedgen page's Logic Mode buttons set, so a preset named on its
+# own means the same thing here as clicking that button does there. Second copies of
+# map/src/MainPage.js's diffPaths and varPaths; a group absent from either gets the
+# ordinary default. These have not moved in years -- if they ever do, both files change.
+preset_path_diff = {
+    "Master": PathDifficulty.HARD,
+    "Glitched": PathDifficulty.HARD,
+    }
+preset_variations = {
+    "Master": {Variation.STARVED},
+    }

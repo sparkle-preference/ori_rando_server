@@ -27,7 +27,7 @@ from flask_oidc.signals import after_logout
 from oidc import make_oidc
 from seedbuilder.seedparams import SeedGenParams, bingo_worlds, seed_mode_problem, seed_failure_reason
 from seedbuilder.vanilla import seedtext as vanilla_seed
-from enums import MultiplayerGameType, ShareType, Variation
+from enums import MultiplayerGameType, ShareType, Variation, presets
 from models import ndb_wsgi_middleware, Game, Player, SavedSeedParams, Seed, User, BingoGameData, BingoWorldBoard, BingoEvent, BingoTeam, SITE_THEMES, URL_UNSAFE_NAME_CHARS, USER_SETTINGS, pick_discovery_squares, trees_by_coords, LegacyUser, bingo_lock, AnnouncedPatchNotes
 from bingo import BingoGenerator
 from cache import Cache
@@ -420,6 +420,13 @@ def gen_seed_from_params():
 
 @app.route('/generator/json')
 def gen_seed_from_url():
+    # from_url reports its own failures to the log and returns None, which reaches the
+    # caller as a bare 500. This route answers bots, so the one argument they are most
+    # likely to typo says so out loud instead.
+    group = param_val("logic_mode")
+    if group and group.capitalize() not in presets:
+        return json_resp({"error": "Unknown logic_mode %r; expected one of %s"
+                                   % (group, ", ".join(sorted(presets)))}, 409)
     param_key = SeedGenParams.from_url(request.args)
     verbose_paths = param_val("verbose_paths") is not None
     if param_key:
