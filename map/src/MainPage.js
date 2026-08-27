@@ -10,7 +10,7 @@ import './index.css';
 
 import {getHelpContent, HelpBox} from "./helpbox.js";
 import {History, HIST_KEYS, HIST_SET} from './history.js';
-import {postNetForm, get_param, spawn_defaults, get_flag, ap_enabled, presets, select_theme, name_from_str, get_preset, player_icons, doNetRequest, get_random_loader, PickupSelect, Cent, dev, randInt, gotoUrl, prng, decompose_pickup, app_enabled} from './common.js';
+import {postNetForm, get_param, spawnKitFor, get_flag, ap_enabled, presets, select_theme, name_from_str, get_preset, player_icons, doNetRequest, get_random_loader, PickupSelect, Cent, dev, randInt, gotoUrl, prng, decompose_pickup, app_enabled} from './common.js';
 import SiteBar from "./SiteBar.js";
 import Select from 'react-select';
 import {picks_by_zone} from './shared_map';
@@ -23,7 +23,10 @@ picks_by_zone['Mapstone'].forEach(p => locOptions.push({'label': p.name, 'value'
 // Buried pseudo-locations: seedgen keeps these items out of the pool until N
 // locations are reachable (loc key = BURIED_LOC_BASE + N)
 const BURIED_LOC_BASE = 20000000;
-[50, 100, 150, 200].forEach(depth => locOptions.push(
+// every ten from 50 to 200: a rolled burial can land on any of them, and the
+// teleporter tiers reach exactly 50 at the shallow end and 200 at the deep
+const BURIED_DEPTHS = Array.from({length: 16}, (_, i) => 50 + i * 10);
+BURIED_DEPTHS.forEach(depth => locOptions.push(
     {'label': `Buried${String(depth).padStart(3, "0")} (held back until ${depth} locations are reachable)`, 'value': BURIED_LOC_BASE + depth}));
 const locOptionFromCoords = (coords) => locOptions.find(l => l.value === coords);
 // multipickup <-> part codes ("SK|3"), for merging burials into an existing row
@@ -39,7 +42,35 @@ const pickupToParts = (item) => {
 const partToSegs = (p) => p.replaceAll("/", "//").replace(/\|/g, "/");
 const partsToPickup = (parts) => parts.length === 0 ? "NO|1" : (parts.length === 1 ? parts[0] : "MU|" + parts.map(partToSegs).join("/"));
 // blank rows to type into: paramsJson drops item NO|1, so these never reach a seed
-const fassDefaultsFor = (world) => [2, 919772].map(coords => ({loc: locOptionFromCoords(coords), item: "NO|1", world: world, owner: world}));
+// merge items into the Buried row(s) at the given depths for one world, creating rows
+// as needed (items already buried there are skipped). Shared by the Advanced buttons
+// and by Randomize, so both bury the same way.
+const mergeBuried = (fassList, groups, world) => {
+    let out = [...fassList];
+    groups.forEach(({depth, items}) => {
+        const loc = locOptionFromCoords(BURIED_LOC_BASE + depth);
+        if(!loc)
+            return;  // a depth with no option is a location nothing can name
+        const idx = out.findIndex(f => (f.world || 1) === world && f.loc && f.loc.value === loc.value);
+        if(idx > -1) {
+            let parts = pickupToParts(out[idx].item);
+            items.forEach(i => parts.includes(i) || parts.push(i));
+            out[idx] = {...out[idx], item: partsToPickup(parts)};
+        } else {
+            out.push({loc: loc, item: partsToPickup(items), world: world, owner: world});
+        }
+    });
+    return out;
+};
+
+const SPAWN_LOC = 2;
+const fassDefaultsFor = (world) => [SPAWN_LOC, 919772].map(coords => ({loc: locOptionFromCoords(coords), item: "NO|1", world: world, owner: world}));
+// "has the user put anything in the spawn fass_line" -- derived rather than stored,
+// because a stored flag has to be cleared again on every path that empties the row.
+// Scoped to the world in view: a preset loaded for another player must not quietly
+// change what this one's spawn dropdown does.
+const spawnFassSet = (fassList, world) => (fassList || []).some(
+    f => f.loc && f.loc.value === SPAWN_LOC && f.item !== "NO|1" && (f.world || 1) === (world || 1));
 const apDefaultExport = ["skills", "teleporters", "events"];
 const GOAL_VARS = ["ForceTrees", "WorldTour", "ForceMaps", "WarmthFrags", "Bingo"];
 // flags describing the game rather than a world; the rest ride on a world's row
@@ -313,6 +344,16 @@ const VAR_WEIGHTS = {
 const SPAWN_OPTS = ["Random", "Glades", "Grove", "Swamp", "Grotto", "Forlorn", "Valley", "Horu", "Ginso", "Sorrow", "Blackroot"]
 // randomize stars the mode when a variation bans paths, so match the prefix
 const cellFreqPresets = (preset) => preset.startsWith("casual") ? 20 : (preset.startsWith("standard") ? 40 : 256)
+// 3 is rolled on its own; these share what is left, evenly
+const BINGO_LINE_CHOICES = [1, 2, 4, 5, 7, 11]
+// what Randomize can bury. The first four mirror the Advanced buttons; POWER_SKILLS
+// is Lapis's grouping and exists nowhere else in the codebase.
+const GRENADE = "SK|51"
+const WALL_SKILLS = ["SK|3", "SK|12"]                              // wall jump, climb
+const POWER_SKILLS = ["SK|0", "SK|8", "SK|50"]                     // bash, charge jump, dash
+const TELEPORTER_TIERS = [["TP|Grove", "TP|Swamp", "TP|Grotto", "TP|Valley"],
+                          ["TP|Forlorn", "TP|Sorrow", "TP|Ginso", "TP|Horu"]]
+const ALL_SKILLS = ["SK|0", "SK|2", "SK|3", "SK|4", "SK|5", "SK|8", "SK|12", "SK|14", "SK|15", "SK|50", GRENADE]
 const optionalPaths = ['casual-dboost', 'standard-core', 'standard-dboost', 'standard-lure', 'standard-abilities', 'expert-core', 'expert-dboost', 'expert-lure', 'expert-abilities', 'dbash', 'master-core', 'master-dboost', 'master-lure', 'master-abilities', 'gjump', 'glitched', 'timed-level', 'insane']
 const varPaths = {"master": ["Starved"]}
 const diffPaths = {"glitched": "Hard", "master": "Hard"}
@@ -1981,6 +2022,12 @@ export default class MainPage extends React.Component {
         const newState = {randomizedWith: seed};
         const prandInt = (min, max) => Math.floor(rng() * (max - min + 1)) + min;
         const prandPop = (ls) => ls.splice(prandInt(0, ls.length - 1),1)[0]
+        // inverse-CDF triangular: peak is the mode, not the mean
+        const triangular = (lo, hi, peak) => {
+            const u = rng(), turn = (peak - lo) / (hi - lo);
+            return u < turn ? lo + Math.sqrt(u * (hi - lo) * (peak - lo))
+                            : hi - Math.sqrt((1 - u) * (hi - lo) * (hi - peak));
+        };
 
         // randomize goal modes
 
@@ -2093,33 +2140,11 @@ export default class MainPage extends React.Component {
         if(hasVar("InLogicWarps") && ! newState.itemPool.some(({item}) => item === "WP|*")) 
                 newState.itemPool.push({item: "WP|*", count: 6, upTo: 10, maximum: 14})
 
-        // Randomize spawn location
-        const spawnRoll = rng()
-        switch(true) {
-            case (spawnRoll < .4):  // Random 40%
-                newState.spawn = "Random";
-                break;
-            case (spawnRoll < .8):  // Glades 40%
-                newState.spawn = "Glades";
-                break;
-            case (spawnRoll < .85): // Blackroot 5%
-                newState.spawn = "Blackroot";
-                break;
-            case (spawnRoll < .9):  // Ginso 5%
-                newState.spawn = "Ginso";
-                break;
-            case (spawnRoll < .95): // Forlorn 5%
-                newState.spawn = "Forlorn";
-                break;
-            default:                // Horu 5%
-                newState.spawn = "Horu";
-                break;
-        }
-        if(newState.spawn !== "Random") {
-            [newState.spawnHCs, newState.spawnECs, newState.spawnSKs] = [3, 1, 0]; // defaults
-            if(spawn_defaults[newState.spawn].hasOwnProperty(newState.pathMode)) 
-                [newState.spawnHCs, newState.spawnECs, newState.spawnSKs] = spawn_defaults[newState.spawn][newState.pathMode];    
-        }
+        // Randomize spawn location: the two that need no kit from us. Glades has none,
+        // and Random's zone is the generator's to pick, so there is nothing to look up
+        // here -- making that roll interesting is the generator's job, not this button's.
+        newState.spawn = rng() < .5 ? "Random" : "Glades";
+        [newState.spawnHCs, newState.spawnECs, newState.spawnSKs] = [3, 1, 0];
 
         // advanced tab bullshit START
 
@@ -2138,7 +2163,65 @@ export default class MainPage extends React.Component {
 
         if(hasVar("WorldTour"))
             newState.relicCount = prandInt(6,11);
-        
+
+        // Bury something one roll in seven. Spam-clicking must not stack burials, so a
+        // previous roll's are dropped first -- hand-made preplacements are left alone.
+        newState.fassList = this.state.fassList.filter(
+            f => !(f.loc && f.loc.value >= BURIED_LOC_BASE && (f.world || 1) === 1));
+        if(rng() < .15) {
+            // triangular 60..180 peaking at 100, to the nearest ten so the row reads Buried100
+            const depth = Math.round(triangular(60, 180, 100) / 10) * 10;
+            const buryRoll = rng();
+            let groups;
+            if(buryRoll < .20)
+                // the deep tier trails by 30 rather than the preset's 50: past 200 nothing
+                // outside a Starved seed would ever reach it
+                groups = [{depth: depth - 10, items: TELEPORTER_TIERS[0]},
+                          {depth: depth + 20, items: TELEPORTER_TIERS[1]}];
+            else if(buryRoll < .40)
+                groups = [{depth: depth, items: WALL_SKILLS}];
+            else if(buryRoll < .70)
+                groups = [{depth: depth, items: [GRENADE]}];
+            else if(buryRoll < .90)
+                groups = [{depth: depth, items: [POWER_SKILLS[prandInt(0, POWER_SKILLS.length - 1)]]}];
+            else {
+                // 1-4 skills at 4:3:2:1, drawn without replacement. A lone Grenade and a
+                // bare wall jump + climb are categories above, so the draw never rebuilds one.
+                const countRoll = rng();
+                const count = countRoll < .4 ? 1 : countRoll < .7 ? 2 : countRoll < .9 ? 3 : 4;
+                let pool = ALL_SKILLS.filter(s => count > 1 || s !== GRENADE);
+                let picked = [];
+                while(picked.length < count) {
+                    if(count === 2 && picked.length === 1 && WALL_SKILLS.includes(picked[0]))
+                        pool = pool.filter(s => !WALL_SKILLS.includes(s));
+                    picked.push(prandPop(pool));
+                }
+                groups = [{depth: depth, items: picked}];
+            }
+            newState.fassList = mergeBuried(newState.fassList, groups, 1);
+        }
+
+        if(hasVar("Bingo")) {
+            // win by lines three times in four; there is no lockout knob on this page,
+            // so a rolled squares board is never one
+            newState.bingoGoal = rng() < .75 ? "bingos" : "squares";
+            // 3 is the house default and keeps four rolls in ten; the rest split evenly
+            newState.bingoLines = rng() < .4 ? 3 : BINGO_LINE_CHOICES[prandInt(0, BINGO_LINE_CHOICES.length - 1)];
+            // triangular over 5..25 peaking at 12, so a board is usually middling and
+            // occasionally a sprint or a slog. The ends get half a bin, as rounding does.
+            newState.bingoSquares = Math.round(triangular(5, 25, 12));
+            const bingoDiffRoll = rng();
+            newState.bingoDiff = bingoDiffRoll < .8 ? "normal" : bingoDiffRoll < .95 ? "easy" : "hard";
+            newState.bingoMeta = rng() < .5;
+            // meta boards get discovery half as often, and reveal one more when they do
+            newState.bingoDisc = 0;
+            if(rng() < (newState.bingoMeta ? .2 : .4)) {
+                const revealRoll = rng(), fewest = newState.bingoMeta ? 2 : 1;
+                // the bottom of each range is the rare one
+                newState.bingoDisc = fewest + (revealRoll < .1 ? 0 : revealRoll < .55 ? 1 : 2);
+            }
+        }
+
         const poolRoll = rng();
         if(poolRoll < .5) // 50% of the time, randomize the exp pool (between 10k and 15k)
             newState.expPool = prandInt(20, 30) * 500;
@@ -2437,7 +2520,7 @@ export default class MainPage extends React.Component {
 
         this.state = {user: user, activeTab: activeTab, coopGenMode: "Cloned Seeds", coopGameMode: "Multiworld", players: 1, antiBkBias: 0, dropActive: false,
                         tracking: true, variations: ["ForceTrees"], gameId: gameId, itemPool: getPool("Standard"), dedupShared: false, 
-                        paths: presets["standard"], keyMode: "Clues", oldKeyMode: "Clues", spawn: "Glades", advancedSpawnTouched: false, 
+                        paths: presets["standard"], keyMode: "Clues", oldKeyMode: "Clues", spawn: "Glades", 
                         spawnHCs: 3, spawnECs: 1, spawnSKs: 0, pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null), 
                         goalModes: ["ForceTrees"], selectedPool: "Standard", seed: "", fillAlg: "Balanced", quickstartOpen: quickstartOpen, 
                         shared: ["Skills", "Teleporters", "World Events", "Upgrades", "Misc"], mwShared: [], helpcat: "", helpopt: "",
@@ -2551,24 +2634,9 @@ export default class MainPage extends React.Component {
         this.refs.fassTabula.clear();
         return {fassList: fassList};
     });
-    // merge items into the Buried row(s) at the given depths for the current
-    // world, creating rows as needed (items already buried there are skipped)
-    buryItems = (groups) => () => this.setState(prevState => {
-        const world = this.isMultiworld() ? prevState.fassWorld : 1;
-        let fassList = [...prevState.fassList];
-        groups.forEach(({depth, items}) => {
-            const loc = locOptionFromCoords(BURIED_LOC_BASE + depth);
-            const idx = fassList.findIndex(f => (f.world || 1) === world && f.loc.value === loc.value);
-            if(idx > -1) {
-                let parts = pickupToParts(fassList[idx].item);
-                items.forEach(i => parts.includes(i) || parts.push(i));
-                fassList[idx] = {...fassList[idx], item: partsToPickup(parts)};
-            } else {
-                fassList.push({loc: loc, item: partsToPickup(items), world: world, owner: world});
-            }
-        });
-        return {fassList: fassList};
-    });
+    buryItems = (groups) => () => this.setState(prevState => ({
+        fassList: mergeBuried(prevState.fassList, groups, this.isMultiworld() ? prevState.fassWorld : 1)
+    }));
     onFassWorld = (w) => this.setState(prevState => {
         let update = {fassWorld: w};
         // first visit to a world's tab: offer the usual suggestion rows
@@ -2715,14 +2783,10 @@ export default class MainPage extends React.Component {
     onKeyMode = (mode) => () => this.setState({keyMode: mode})
 
     onSpawnLoc = (loc) => () => this.setState(prev => {
-        if(loc === "Random" || prev.advancedSpawnTouched) // on your own, nerds!
+        if(loc === "Random" || spawnFassSet(prev.fassList, prev.fassWorld)) // on your own, nerds!
             return {spawn: loc}
  
-        let [hp, energy, skills] = [3, 1, 0] // defaults
-        if(spawn_defaults[loc].hasOwnProperty(this.state.pathMode)) 
-            [hp, energy, skills] = spawn_defaults[loc][this.state.pathMode]
-        else 
-            dev && console.log(this.state.pathMode, loc, spawn_defaults[loc], spawn_defaults.hasOwnProperty(loc), spawn_defaults[loc].hasOwnProperty(this.state.pathMode));
+        let [hp, energy, skills] = spawnKitFor(loc, prev.pathMode)
         return {spawn: loc, spawnHCs: hp, spawnECs: energy, spawnSKs: skills}
     });
     

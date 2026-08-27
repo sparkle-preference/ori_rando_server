@@ -938,6 +938,22 @@ const spawn_defaults = {
     },
 }
 
+// The kit a hand-picked spawn starts with: [health, energy, skills].
+//
+// The table is capitalised and pathMode is not, and pathMode can carry one or two
+// trailing "*" from banned-path variations, so every lookup went through
+// hasOwnProperty and missed. glitched has no row of its own and takes expert's
+// (Lapis, 2026-08-27). A zone with no row for the mode gets the vanilla start,
+// which is deliberate for Grove and Swamp at master.
+const spawnKitFor = (loc, pathMode) => {
+    let mode = (pathMode || "").replace(/\*+$/, "")
+    if(mode === "glitched")
+        mode = "expert"
+    let rows = spawn_defaults[loc] || {}
+    let key = mode.charAt(0).toUpperCase() + mode.slice(1)
+    return rows.hasOwnProperty(key) ? rows[key] : [3, 1, 0]
+}
+
 const presets = {
     casual: ['casual-core', 'casual-dboost'],
     standard: [
@@ -1087,5 +1103,5 @@ const prng = (strIn) => sfc32(...cyrb128(strIn));
 
 export {
     player_icons, doNetRequest, prng, get_param, get_flag, resolve_dark, save_dark, theme_href, postNetForm, ap_enabled, ap_opt_in, get_int, get_list, get_preset, presets, get_seed, logic_paths, get_random_loader, Blabel,
-    pickup_name, stuff_by_type, name_from_str, PickupSelect, Cent, ordinal_suffix, dev, gotoUrl, loginLogoutUrl, select_theme, randInt, spawn_defaults, decompose_pickup, app_opt_in, app_enabled
+    pickup_name, stuff_by_type, name_from_str, PickupSelect, Cent, ordinal_suffix, dev, gotoUrl, loginLogoutUrl, select_theme, randInt, spawn_defaults, spawnKitFor, decompose_pickup, app_opt_in, app_enabled
 };
