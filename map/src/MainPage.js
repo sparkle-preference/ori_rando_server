@@ -433,9 +433,9 @@ export default class MainPage extends React.Component {
         const wideCols = leftCol + rightCol - 2 * halfLabelCols - narrowCols
         const colWidth = (cols) => ({flex: `0 0 ${100 * cols / 12}%`, maxWidth: `${100 * cols / 12}%`})
         const halfLabel = (text, help) => (
-            <Col style={colWidth(halfLabelCols)} className="text-center pt-1 px-1 border" onMouseLeave={this.helpLeave}
+            <Col style={colWidth(halfLabelCols)} className="text-center px-1 border" onMouseLeave={this.helpLeave}
                  onMouseEnter={this.helpEnter("advanced", help)}>
-                <span className="align-middle">{text}</span>
+                <Cent>{text}</Cent>
             </Col>)
         const halfCtl = (cols) => (help, children) => (
             <Col style={colWidth(cols)} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", help)}>
@@ -450,7 +450,7 @@ export default class MainPage extends React.Component {
                 </Col>
             </Row>)
         let weightSelectors = spawnWeights.map((weight, index) => (
-            <Col xs="4" key={`weight-selector-${index}`} className="text-center pt-1 border">
+            <Col xs="4" key={`weight-selector-${index}`} className="text-center border">
                     <Col onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "spawnWeights")}><Cent>{SPAWN_TPS[index]}</Cent></Col>
                     <Col onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "spawnWeights")}>
                         <Input style={inputStyle} type="number" value={weight} invalid={weight < 0} onChange={(e) => {
@@ -493,7 +493,7 @@ export default class MainPage extends React.Component {
         )).filter(r => r);
         if(isMW) fass_rows.unshift((
             <Row key={`fass-world-tabs`} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "preplacement")} className="p-1 justify-content-center">
-                    <Col xs={leftCol} className="text-center pt-1 border">
+                    <Col xs={leftCol} className="text-center border">
                         <Cent>Preplacement World</Cent>
                     </Col><Col xs={rightCol}>
                         <UncontrolledButtonDropdown className="w-100">
@@ -532,7 +532,7 @@ export default class MainPage extends React.Component {
         return (
             <TabPane className="p-3 border" tabId="advanced">
                 <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "goalModes")} className="p-1 justify-content-center">
-                    <Col xs={leftCol} className="text-center pt-1 border">
+                    <Col xs={leftCol} className="text-center border">
                         <Cent>Goal Modes</Cent>
                     </Col>
                     <Col xs={rightCol}>
@@ -582,7 +582,7 @@ export default class MainPage extends React.Component {
                         <Input style={inputStyle} type="text" value={senseData || ""} onChange={(e) => this.setState({senseData: e.target.value})}/>)}
                 </Row>
                 <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "buriedPresets")} className="p-1 justify-content-center">
-                    <Col xs={leftCol} className="text-center pt-1 border">
+                    <Col xs={leftCol} className="text-center border">
                         <Cent>Bury Items ([Item]Starved)</Cent>
                     </Col><Col xs="2">
                         <Button color="primary" block outline onClick={this.buryItems([{depth: 50, items: ["SK|3", "SK|12"]}])}>Walls</Button>
@@ -601,8 +601,8 @@ export default class MainPage extends React.Component {
                 <div className="border rounded p-1 m-1">
                 {sectionLabel("Bingo Settings", "bingoSettings")}
                 <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "bingoDiff")} className="p-1 justify-content-center">
-                    <Col xs={leftCol} className="text-center pt-1 border">
-                        <span className="align-middle">Board Difficulty</span>
+                    <Col xs={leftCol} className="text-center border">
+                        <Cent>Board Difficulty</Cent>
                     </Col><Col xs={rightCol}>
                         <ButtonGroup className="w-100">
                             {["easy", "normal", "hard"].map(d => (
@@ -613,8 +613,8 @@ export default class MainPage extends React.Component {
                     </Col>
                 </Row>
                 <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "bingoGoal")} className="p-1 justify-content-center">
-                    <Col xs={leftCol} className="text-center pt-1 border">
-                        <span className="align-middle">Win By</span>
+                    <Col xs={leftCol} className="text-center border">
+                        <Cent>Win By</Cent>
                     </Col><Col xs={rightCol}>
                         <ButtonGroup className="w-100">
                             <Button color="primary" active={bingoGoal === "bingos"} outline={bingoGoal !== "bingos"}
@@ -626,8 +626,8 @@ export default class MainPage extends React.Component {
                 </Row>
                 <Collapse isOpen={bingoGoal === "bingos"}>
                 <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "bingoLines")} className="p-1 justify-content-center">
-                    <Col xs={leftCol} className="text-center pt-1 border">
-                        <span className="align-middle">Bingo Lines</span>
+                    <Col xs={leftCol} className="text-center border">
+                        <Cent>Bingo Lines</Cent>
                     </Col><Col xs={rightCol}>
                         <Input style={inputStyle} type="number" value={bingoLines} invalid={bingoLines > 12 || bingoLines < 1} onChange={(e) => this.setState({bingoLines: parseInt(e.target.value, 10)})}/> 
                         <FormFeedback tooltip="true">Line count must be between 1 and 12</FormFeedback>
@@ -636,8 +636,8 @@ export default class MainPage extends React.Component {
                 </Collapse>
                 <Collapse isOpen={bingoGoal === "squares"}>
                 <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "bingoSquares")} className="p-1 justify-content-center">
-                    <Col xs={leftCol} className="text-center pt-1 border">
-                        <span className="align-middle">Squares to Win</span>
+                    <Col xs={leftCol} className="text-center border">
+                        <Cent>Squares to Win</Cent>
                     </Col><Col xs={rightCol}>
                         <Input style={inputStyle} type="number" value={bingoSquares} invalid={bingoSquares > 25 || bingoSquares < 1} onChange={(e) => this.setState({bingoSquares: parseInt(e.target.value, 10)})}/> 
                         <FormFeedback tooltip="true">Squares must be between 1 and 25</FormFeedback>
@@ -645,16 +645,16 @@ export default class MainPage extends React.Component {
                 </Row>
                 </Collapse>
                 <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "bingoMeta")} className="p-1 justify-content-center">
-                    <Col xs={leftCol} className="text-center pt-1 border">
-                        <span className="align-middle">Meta Bingo</span>
+                    <Col xs={leftCol} className="text-center border">
+                        <Cent>Meta Bingo</Cent>
                     </Col><Col xs={rightCol}>
                         <Button color="primary" block active={bingoMeta} outline={!bingoMeta}
                                 onClick={() => this.setState({bingoMeta: !bingoMeta})}>{bingoMeta ? "Enabled" : "Disabled"}</Button>
                     </Col>
                 </Row>
                 <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "bingoDisc")} className="p-1 justify-content-center">
-                    <Col xs={leftCol} className="text-center pt-1 border">
-                        <span className="align-middle">Discovery Mode</span>
+                    <Col xs={leftCol} className="text-center border">
+                        <Cent>Discovery Mode</Cent>
                     </Col><Col xs={rightCol}>
                         <Button color="primary" block active={bingoDisc > 0} outline={!bingoDisc}
                                 onClick={() => this.setState({bingoDisc: bingoDisc > 0 ? 0 : 2})}>{bingoDisc > 0 ? "Enabled" : "Disabled"}</Button>
@@ -662,8 +662,8 @@ export default class MainPage extends React.Component {
                 </Row>
                 <Collapse isOpen={bingoDisc > 0}>
                 <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "bingoDisc")} className="p-1 justify-content-center">
-                    <Col xs={leftCol} className="text-center pt-1 border">
-                        <span className="align-middle">Revealed Squares</span>
+                    <Col xs={leftCol} className="text-center border">
+                        <Cent>Revealed Squares</Cent>
                     </Col><Col xs={rightCol}>
                         <Input style={inputStyle} type="number" value={bingoDisc} invalid={bingoDisc > 25 || bingoDisc < 1} onChange={(e) => this.setState({bingoDisc: parseInt(e.target.value, 10)})}/> 
                         <FormFeedback tooltip="true">Revealed squares must be between 1 and 25</FormFeedback>
@@ -674,8 +674,8 @@ export default class MainPage extends React.Component {
                 </Collapse>
                 <Collapse isOpen={this.hasVar("WorldTour")}>
                     <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "relicCount")} className="p-1 justify-content-center">
-                        <Col xs={leftCol} className="text-center pt-1 border">
-                            <span className="align-middle">Relic Count</span>
+                        <Col xs={leftCol} className="text-center border">
+                            <Cent>Relic Count</Cent>
                         </Col><Col xs={rightCol}>
                             <Input style={inputStyle} type="number" value={relicCount} invalid={relicCount > 11 || relicCount < 1} onChange={(e) => this.setState({relicCount: parseInt(e.target.value, 10)})}/> 
                             <FormFeedback tooltip="true">Relic count must be greater than 0 and less than 12</FormFeedback>
@@ -684,16 +684,16 @@ export default class MainPage extends React.Component {
                 </Collapse>
                 <Collapse isOpen={this.hasVar("WarmthFrags")}>
                     <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "fragCount")} className="p-1 justify-content-center">
-                        <Col xs={leftCol} className="text-center pt-1 border">
-                            <span className="align-middle">Fragment Count</span>
+                        <Col xs={leftCol} className="text-center border">
+                            <Cent>Fragment Count</Cent>
                         </Col><Col xs={rightCol}>
                             <Input style={inputStyle} type="number" value={fragCount} invalid={fragCount > 60 || fragCount < 1} onChange={(e) => this.setState({fragCount: parseInt(e.target.value, 10)})}/> 
                             <FormFeedback tooltip="true">Frag Count must be between 1 and 60</FormFeedback>
                         </Col>
                     </Row>
                     <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "fragRequired")} className="p-1 justify-content-center">
-                        <Col xs={leftCol} className="text-center pt-1 border">
-                            <span className="align-middle">Fragments Required</span>
+                        <Col xs={leftCol} className="text-center border">
+                            <Cent>Fragments Required</Cent>
                         </Col><Col xs={rightCol}>
                             <Input style={inputStyle} type="number" value={fragReq} invalid={fragCount < fragReq || fragReq <= 0} onChange={e => this.setState({fragReq: parseInt(e.target.value, 10)})}/> 
                             <FormFeedback tooltip="true">Fragments Required must be between 0 and Fragment Count ({fragCount})</FormFeedback>
@@ -702,24 +702,24 @@ export default class MainPage extends React.Component {
                 </Collapse>
                 <Collapse isOpen={spawn !== "Random" && spawn !== "Glades"}>
                 <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "spawnSkills")} className="p-1 justify-content-center">
-                    <Col xs={leftCol} className="text-center pt-1 border">
-                        <span className="align-middle">Randomized Starting Skills</span>
+                    <Col xs={leftCol} className="text-center border">
+                        <Cent>Randomized Starting Skills</Cent>
                     </Col><Col xs={rightCol}>
                         <Input style={inputStyle} type="text" value={spawnSKs} invalid={spawnSKs < 0 || spawnSKs > 10 } onChange={(e) => this.setState({spawnSKs: numOr(e.target.value, 0)})}/> 
                         <FormFeedback tooltip="true">Can't spawn with less than 0 or more than 10 skills</FormFeedback>
                     </Col>
                 </Row>
                 <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "spawnHCs")} className="p-1 justify-content-center">
-                    <Col xs={leftCol} className="text-center pt-1 border">
-                        <span className="align-middle">Starting Health</span>
+                    <Col xs={leftCol} className="text-center border">
+                        <Cent>Starting Health</Cent>
                     </Col><Col xs={rightCol}>
                         <Input style={inputStyle} type="text" value={spawnHCs} invalid={spawnHCs < 3} onChange={(e) => this.setState({spawnHCs: numOr(e.target.value, 3)})}/> 
                         <FormFeedback tooltip="true">Can't spawn with fewer than 3 Health</FormFeedback>
                     </Col>
                 </Row>
                 <Row onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "spawnECs")} className="p-1 justify-content-center">
-                    <Col xs={leftCol} className="text-center pt-1 border">
-                        <span className="align-middle">Starting Energy</span>
+                    <Col xs={leftCol} className="text-center border">
+                        <Cent>Starting Energy</Cent>
                     </Col><Col xs={rightCol}>
                         <Input style={inputStyle} type="text" value={spawnECs} invalid={spawnECs < 1} onChange={(e) => this.setState({spawnECs: numOr(e.target.value, 1)})}/> 
                         <FormFeedback tooltip="true">Can't spawn with fewer than 1 Energy</FormFeedback>
@@ -732,8 +732,8 @@ export default class MainPage extends React.Component {
                 </Row>
                 </Collapse>
                 <Row className="p-1 justify-content-center">
-                    <Col onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "legacyFlags")} xs={leftCol} className="text-center pt-1 border">
-                        <span className="align-middle">Legacy Flags</span>
+                    <Col onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "legacyFlags")} xs={leftCol} className="text-center border">
+                        <Cent>Legacy Flags</Cent>
                     </Col><Col xs={rightCol}>
                     <Row>
                         {legacyVars}
