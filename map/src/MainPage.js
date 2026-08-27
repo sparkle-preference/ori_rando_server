@@ -311,7 +311,8 @@ const VAR_WEIGHTS = {
 
 
 const SPAWN_OPTS = ["Random", "Glades", "Grove", "Swamp", "Grotto", "Forlorn", "Valley", "Horu", "Ginso", "Sorrow", "Blackroot"]
-const cellFreqPresets = (preset) => preset === "casual" ? 20 : (preset === "standard" ? 40 : 256)
+// randomize stars the mode when a variation bans paths, so match the prefix
+const cellFreqPresets = (preset) => preset.startsWith("casual") ? 20 : (preset.startsWith("standard") ? 40 : 256)
 const optionalPaths = ['casual-dboost', 'standard-core', 'standard-dboost', 'standard-lure', 'standard-abilities', 'expert-core', 'expert-dboost', 'expert-lure', 'expert-abilities', 'dbash', 'master-core', 'master-dboost', 'master-lure', 'master-abilities', 'gjump', 'glitched', 'timed-level', 'insane']
 const varPaths = {"master": ["Starved"]}
 const diffPaths = {"glitched": "Hard", "master": "Hard"}
