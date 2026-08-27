@@ -23,11 +23,22 @@ const CAP = 200
 // never send the user back to it.
 const restorableTab = (tab) => tab === "seed" ? null : tab
 
+// worldPresets[w].text is what is in the box mid-edit and it shadows the resolved label;
+// bad is the ring that text earned. A frame holds neither, so the box always agrees
+// with the worldSettings blob beside it.
+const resolved = (presets) => {
+    if(!presets)
+        return presets
+    let out = {}
+    Object.keys(presets).forEach(w => { out[w] = {...presets[w], text: undefined, bad: false} })
+    return out
+}
+
 // Positional, so key order is fixed by the const above and blobs compare as strings.
 // An emptied number box parses to NaN, and no frame should be able to hold one.
 const snap = (state) => {
     let bad = false
-    let blob = JSON.stringify(HIST_KEYS.map(k => state[k]),
+    let blob = JSON.stringify(HIST_KEYS.map(k => k === "worldPresets" ? resolved(state[k]) : state[k]),
                               (k, v) => { if(typeof v === "number" && !isFinite(v)) bad = true; return v })
     return bad ? null : blob
 }
@@ -43,6 +54,7 @@ class History {
         this.queued = false
         this.suppress = false
         this.gesture = null
+        this.held = null
         this.pending = null
         this.focused = null
         this.onChange = () => {}
@@ -64,6 +76,21 @@ class History {
         document.removeEventListener("focusin", this.onFocusIn, true)
         document.removeEventListener("focusout", this.onFocusOut, true)
         clearTimeout(this.gestureTimer)
+        clearTimeout(this.heldTimer)
+    }
+
+    // An async write lands long after its gesture is gone, and the live gesture by then
+    // is whatever the user did next. Wrap the response handler to carry the label over.
+    carry = (fn, ctl) => {
+        let state = this.getState()
+        let held = {ctl: ctl || (this.gesture ? this.gesture.ctl : null),
+                    tab: restorableTab(state.activeTab), world: state.fassWorld || 1}
+        return (...args) => {
+            this.held = held
+            clearTimeout(this.heldTimer)
+            this.heldTimer = setTimeout(() => { this.held = null }, 0)
+            return fn(...args)
+        }
     }
 
     // A capture listener runs before the handler that will queue the settle, so the
@@ -134,7 +161,7 @@ class History {
     record = (blob) => {
         if(this.index >= 0 && this.stack[this.index].blob === blob)
             return
-        let frame = {blob: blob, ...(this.gesture || {ctl: null, tab: null, world: 1})}
+        let frame = {blob: blob, ...(this.held || this.gesture || {ctl: null, tab: null, world: 1})}
         if(!this.live && this.index >= 0) {
             this.stack[this.index] = frame
             this.onChange()

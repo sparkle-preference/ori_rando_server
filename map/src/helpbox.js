@@ -1230,6 +1230,13 @@ const getHelpHelper = (category, option) => {
                         "View and download your generated seed here!"
                     ]
                 break;
+                case "seedTabStale":
+                    title = "Seed Tab"
+                    lines = [
+                        "View and download your generated seed here!",
+                        "The settings have moved since this one was rolled. Generate again to match them."
+                    ]
+                break;
                 case "itemPoolPreset":
                     title = "Item Pool Presets";
                     lines = [

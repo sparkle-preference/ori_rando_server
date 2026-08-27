@@ -72,9 +72,12 @@ class HistoryKeysTestCase(unittest.TestCase):
                                 % stale)
 
     def test_a_frame_is_positional_so_order_is_load_bearing(self):
-        """Frames store values by index, so the reader has to rebuild the same order."""
-        history = read(HISTORY)
-        self.assertIn("HIST_KEYS.map(k => state[k])", history)
+        """Frames store values by index, so the reader has to rebuild the same order.
+
+        The writer's map body is not pinned -- a key may be massaged on the way in,
+        as worldPresets is. Walking HIST_KEYS in order at both ends is the invariant.
+        """
+        self.assertIn("HIST_KEYS.map(k =>", read(HISTORY))
         self.assertIn("HIST_KEYS.forEach", read(PAGE))
 
 

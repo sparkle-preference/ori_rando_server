@@ -994,6 +994,8 @@ export default class MainPage extends React.Component {
             return
         }
         let {json, url} = this.paramsJson()
+        // what the Seed tab is a seed of; undo compares against it, so take it before json.seed
+        this.seedParams = canonSettings(json)
         let seed = this.state.seed || randInt(0, 1000000000);
         if(seed === "daily")
         {
@@ -1008,7 +1010,7 @@ export default class MainPage extends React.Component {
         }
         json.seed = seed
         this.helpEnter("general", "seedBuilding" + this.multi())()
-        this.setState({seedIsGenerating: true, seedTabExists: true, loader: get_random_loader(), activeTab: "seed"}, () => postGenJson(url, json, this.seedBuildCallback))
+        this.setState({seedIsGenerating: true, seedTabExists: true, seedStale: false, loader: get_random_loader(), activeTab: "seed"}, () => postGenJson(url, json, this.seedBuildCallback))
     }
     
     loadSspList = () => doNetRequest("/preset/list", ({status, responseText}) => {
@@ -1135,8 +1137,6 @@ export default class MainPage extends React.Component {
         sspLoaded: snapshot || canonSettings(this.settingsNow(world || 1)),
     }))
 
-    // a bare page opens on the last-generated settings; ?param_id= or ?preset= wins
-    // a plain dense setState: mergeSettings is a preset codec, not a restore primitive
     // the class has to go and a reflow be taken before it returns, or a repeat flash never restarts
     histFlash = (ctl) => {
         clearTimeout(this.histFlashTimer)
@@ -1148,6 +1148,13 @@ export default class MainPage extends React.Component {
         hits.forEach(el => { void el.offsetWidth; el.classList.add("hist-flash") })
         this.histFlashTimer = setTimeout(() => hits.forEach(el => el.classList.remove("hist-flash")), 1200)
     }
+    // the help pane bakes the loaded preset in at hover time, so a move has to re-bake it
+    refreshPresetHelp = () => {
+        let {helpcat, helpopt} = this.state
+        if(helpcat === "general" && (helpopt === "savedSettings" || helpopt === "savedSettingsDisabled"))
+            this.help(helpcat, helpopt, this.sspHelpExtra())()
+    }
+    // a plain dense setState: mergeSettings is a preset codec, not a restore primitive
     histApply = (frame) => {
         if(!frame)
             return
@@ -1157,8 +1164,16 @@ export default class MainPage extends React.Component {
             update.activeTab = frame.tab
         // players can rewind below the world the edit was made in
         update.fassWorld = Math.min(frame.world || 1, update.players || 1)
+        let ssp = this.state.sspName
         this.history.suppress = true
-        this.setState(update, () => this.histFlash(frame.ctl))
+        this.setState(update, () => {
+            // the Seed tab outlives the form, and its download links keep working
+            if(this.state.seedTabExists && this.seedParams)
+                this.setState({seedStale: canonSettings(this.paramsJson().json) !== this.seedParams})
+            if(this.state.sspName !== ssp)
+                this.refreshPresetHelp()
+            this.histFlash(frame.ctl)
+        })
     }
     undo = () => this.histApply(this.history.undo())
     redo = () => this.histApply(this.history.redo())
@@ -1175,6 +1190,7 @@ export default class MainPage extends React.Component {
             (key === "y" || e.shiftKey) ? this.redo() : this.undo()
     }
 
+    // a bare page opens on the last-generated settings; ?param_id= or ?preset= wins
     restoreLastUsed = () => {
         if(this.restored || !this.state.sspLatest)
             return
@@ -1196,7 +1212,7 @@ export default class MainPage extends React.Component {
         if(name === PRESET_DEFAULT)
             this.mergeSettings(this.defaultSettings, "Default")
         else if(name === PRESET_LAST)
-            doNetRequest("/preset/latest", this.acceptSsp)
+            doNetRequest("/preset/latest", this.history.carry(this.acceptSsp, "preset"))
         else
             this.fetchSsp(this.state.sspOwner, name)
     }
@@ -1275,7 +1291,7 @@ export default class MainPage extends React.Component {
 
     // a share link copies a preset in; it does not stay bound to the owner's
     fetchSsp = (owner, name) => doNetRequest(`/preset/${encodeURIComponent(owner)}/${encodeURIComponent(name)}`,
-        (res) => this.acceptSsp(res, name))
+        this.history.carry((res) => this.acceptSsp(res, name), "preset"))
 
     openSspSave = () => this.setState(prev => ({sspModal: true, sspSaveDesc: "",
         sspSaveName: nextPresetName(prev.sspList), sspSaveHidden: false}))
@@ -1361,7 +1377,11 @@ export default class MainPage extends React.Component {
             metaUpdate.apDeathLink = metaUpdate.apDeathLink || false
             metaUpdate.inputApMode = metaUpdate.apMode || false
             dev && console.log(metaUpdate)
-            this.setState(metaUpdate, this.updateUrl)
+            // the form now is the seed's own settings, whatever this session did before
+            this.setState(metaUpdate, () => {
+                this.seedParams = canonSettings(this.paramsJson().json)
+                this.updateUrl()
+            })
         }
     }
 
@@ -2420,7 +2440,7 @@ export default class MainPage extends React.Component {
                         apMode: false, apExport: [...apDefaultExport], apDeathLink: false, inputApMode: false, playerNames: [],
                         worldSettings: [],
                         apHost: AP_DEFAULT_HOST, apPort: "", apPassword: "", apConnectPending: false, apStatus: null, apNoLink: false, apHidden: false, apPollFailed: false,
-                        histAt: -1, histLen: 0,
+                        histAt: -1, histLen: 0, seedStale: false,
                         expPool: 10000, lastHelp: new Date(), seedIsGenerating: seedTabExists, cellFreq: cellFreqPresets("standard"),
                         fragCount: 30, fragReq: 20, relicCount: 8, loader: get_random_loader(), paramId: paramId, seedTabExists: seedTabExists, 
                         reopenUrl: "", flagLine: "", flagLines: [], fassList: fassDefaultsFor(1), fassWorld: 1, goalModesOpen: false, 
@@ -2596,6 +2616,16 @@ export default class MainPage extends React.Component {
                                 : name === PRESET_LAST ? this.state.sspLatest
                                 : fallback
 
+    // a borrowed preset is not in sspList, so its description lives on the form
+    sspHelpExtra = () => {
+        let {sspName, sspList, sspOwner, sspLoadedOwner, sspLoadedDesc, sspLoadedBlob} = this.state
+        let borrowed = !!sspLoadedOwner && sspLoadedOwner !== sspOwner
+        let entry = sspList.find(s => s.name === sspName) || {}
+        return {preset: {name: presetLabel(sspName) + (borrowed ? ` (${sspLoadedOwner})` : ""),
+                         desc: borrowed ? sspLoadedDesc : entry.desc,
+                         flags: minimalFlagline(this.blobFor(sspName, borrowed ? sspLoadedBlob : entry.blob))}}
+    }
+
     worldPreset = (world) => (this.state.worldPresets || {})[world] || {}
 
     // what the box shows: the resolved preset, unless the user is mid-edit
@@ -2623,20 +2653,22 @@ export default class MainPage extends React.Component {
         let info = this.worldPreset(world)
         if(info.text === undefined)
             return
+        // named, not inferred: a blur is caused by whatever the user clicked next
+        let tag = (fn) => this.history.carry(fn, `worldPreset-${world}`)
         let text = info.text.trim()
         if(!text)
-            return this.assignWorld(world, null, "")
+            return tag(() => this.assignWorld(world, null, ""))()
         let link = parsePresetLink(text)
         if(!link)
-            return this.failWorldPreset(world)
+            return tag(() => this.failWorldPreset(world))()
         let [owner, name] = link
-        doNetRequest(`/preset/${encodeURIComponent(owner)}/${encodeURIComponent(name)}`, ({status, responseText}) => {
+        doNetRequest(`/preset/${encodeURIComponent(owner)}/${encodeURIComponent(name)}`, tag(({status, responseText}) => {
             if(status !== 200)
                 return this.failWorldPreset(world)
             let ssp = JSON.parse(responseText)
             let mine = ssp.owner === this.state.sspOwner
             this.assignWorld(world, ssp.settings, mine ? ssp.name : `${ssp.name} (${ssp.owner})`, ssp.desc)
-        })
+        }))
     }
 
     playerNamesShown = () => (this.apAvailable() && this.state.apMode) || this.state.players > 1
@@ -2735,7 +2767,7 @@ export default class MainPage extends React.Component {
     }
 
     render = () => {
-        let {randomizedWith, spawn, pathMode, goalModes, keyMode, helpParams, goalModesOpen, seedTabExists, helpcat, activeTab, seed, tracking, seedIsGenerating, user} = this.state;
+        let {randomizedWith, spawn, pathMode, goalModes, keyMode, helpParams, goalModesOpen, seedTabExists, seedStale, helpcat, activeTab, seed, tracking, seedIsGenerating, user} = this.state;
         const canRandomize = seed !== randomizedWith;
         const canUndo = this.history.canUndo() && this.histReady()
         const canRedo = this.history.canRedo() && this.histReady()
@@ -2786,14 +2818,8 @@ export default class MainPage extends React.Component {
             .concat(user ? [<DropdownItem key="ssp-div2" divider/>,
                             <DropdownItem key="ssp-new" onClick={this.openSspSave}>Create new&hellip;</DropdownItem>] : [])
 
-        const loadedEntry = sspList.find(s => s.name === sspName)
-        const loadedDesc = sspBorrowed ? this.state.sspLoadedDesc : (loadedEntry || {}).desc
-        const loadedBlob = sspBorrowed ? this.state.sspLoadedBlob : (loadedEntry || {}).blob
         const sspHelp = this.helpEnter("general", user ? "savedSettings" : "savedSettingsDisabled", 250,
-                                       {preset: {
-                                            name: presetLabel(sspName) + (sspBorrowed ? ` (${this.state.sspLoadedOwner})` : ""),
-                                            desc: loadedDesc,
-                                            flags: minimalFlagline(this.blobFor(sspName, loadedBlob))}})
+                                       this.sspHelpExtra())
 
         // one chip: save over what is loaded, or keep a copy of what cannot be
         const presetChip = sspEditable
@@ -2817,8 +2843,8 @@ export default class MainPage extends React.Component {
         let variationsTab = this.getVariationsTab()
         let pathsTab = this.getPathsTab()
         let seedNav = seedTabExists ? (
-            <NavItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "seedTab")}>
-                <NavLink active={activeTab === 'seed'} onClick={this.onTab('seed')}>
+            <NavItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", seedStale ? "seedTabStale" : "seedTab")}>
+                <NavLink className={seedStale ? "text-warning" : undefined} active={activeTab === 'seed'} onClick={this.onTab('seed')}>
                     Seed
                 </NavLink>
             </NavItem>
