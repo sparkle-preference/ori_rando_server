@@ -28,7 +28,8 @@ class NdbTestCase(unittest.TestCase):
 
 class EmulatorTestCase(unittest.TestCase):
     """Runs against the datastore_test emulator, wiped before every test.
-    Skips itself when the emulator isn't up (docker compose up -d datastore_test)."""
+    Skips itself when the emulator isn't up (docker compose up -d datastore_test),
+    unless REQUIRE_DATASTORE_EMULATOR says the caller was counting on it."""
 
     @classmethod
     def setUpClass(cls):
@@ -36,6 +37,13 @@ class EmulatorTestCase(unittest.TestCase):
             with urllib.request.urlopen("http://%s/" % EMULATOR_HOST, timeout=2):
                 pass
         except OSError:
+            # skipping is a convenience for a laptop with no docker running. CI
+            # asks for the tier on purpose, and a green run that quietly skipped
+            # it is worse than a red one.
+            if os.environ.get("REQUIRE_DATASTORE_EMULATOR"):
+                raise AssertionError(
+                    "no emulator at %s, and REQUIRE_DATASTORE_EMULATOR is set. The "
+                    "emulator-backed tests were meant to run here and did not." % EMULATOR_HOST)
             raise unittest.SkipTest(
                 "no emulator at %s (docker compose up -d datastore_test)" % EMULATOR_HOST)
         cls._prior_host = os.environ.get("DATASTORE_EMULATOR_HOST")

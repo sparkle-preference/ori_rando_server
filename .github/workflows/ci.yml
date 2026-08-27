@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  push:
+    # The opt-in list. Add a long-lived branch here to have its own pushes tested;
+    # everything else is covered as a pull request, or by hand via workflow_dispatch.
+    branches: [master, "4.3"]
+  pull_request:
+  workflow_dispatch:
+
+# a second push to the same branch cancels the first: the older answer is not wanted
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    name: tests (${{ matrix.tier }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # split so the log says which kind of thing broke without being read
+          - tier: unit
+            select: discover -s test -p "*_test.py" -t . -v
+          - tier: seedgen canaries
+            select: test.seedgen_test -v
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - run: pip install -r requirements.txt
+
+      # compose owns the emulator's flags -- notably --consistency=1.0, without which
+      # a put followed by a query intermittently returns nothing and the failure
+      # reproduces nowhere else. Do not inline the command here.
+      - name: Start the datastore emulator
+        run: docker compose up -d datastore_test
+
+      - name: Wait for the emulator
+        run: |
+          for _ in $(seq 1 60); do
+            curl -sf http://localhost:8001/ >/dev/null && exit 0
+            sleep 1
+          done
+          echo "emulator never came up"
+          docker compose logs datastore_test
+          exit 1
+
+      - name: Run
+        # the emulator-backed cases skip themselves when nothing answers, so a broken
+        # service container would otherwise read as a green run
+        env:
+          REQUIRE_DATASTORE_EMULATOR: "1"
+        run: python -m unittest ${{ matrix.select }}
+
+      - name: What a canary failure means
+        if: failure() && matrix.tier == 'seedgen canaries'
+        run: |
+          echo "The seed a fixed seed string produces has changed."
+          echo "Expected, bump the hash: you changed logic paths / areas.ori, the item"
+          echo "pool, or anything that draws from the RNG. Say what moved and why in the"
+          echo "comment above the constant, and consider whether it owes a patch note."
+          echo "A bug, do not bump: you were changing a route, the page, or a helper."
+          echo "The full note is at the top of test/seedgen_test.py."
+
+  frontend:
+    name: frontend build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # what the site is built with locally; parcel 2.15 asks only for >= 16
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: map/package-lock.json
+
+      # nothing type-checks this code, so the build is the only gate a JS syntax
+      # error meets before it reaches a page
+      - run: npm ci
+        working-directory: map
+
+      - run: npx parcel build
+        working-directory: map

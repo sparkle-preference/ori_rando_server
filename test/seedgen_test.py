@@ -1,6 +1,6 @@
 """Seed generation tests (python3).
 
-Run from the repo root:  python3 -m unittest test.seedgentest -v
+Run from the repo root:  python3 -m unittest test.seedgen_test -v
 """
 import json
 import os
@@ -17,6 +17,25 @@ from cli_gen import CLISeedParams, CLIMultiOptions
 PICKUP_LINE = re.compile(r"^-?\d+\|\w+\|[^|]*\|[\w ]*")
 # multiworld slot manifests live at pseudo-locations -2..-257
 MANIFEST_LOC_RANGE = range(-257, -1)
+
+# The canaries hash a whole generated seed, so their failure is read as often in a CI
+# log as in an editor. The bump history and the reasoning live in the comments above
+# each constant; this is the part a reader needs without the source in front of them.
+CANARY_HELP = """
+This is a byte-level canary: the seed produced from a fixed seed string moved.
+
+EXPECTED, and the hash should be bumped, if you deliberately changed something
+generation reads -- logic paths or areas.ori (placements shuffle: same items,
+different spots), the item pool or its presets (different items), or anything that
+draws from the RNG (the whole stream shifts from that draw onward).
+
+A BUG, and the hash should NOT be bumped, if you were changing something with no
+business reaching generation -- a route, the page, a helper, a test.
+
+Before bumping: generate a seed either side of your change and diff them, then say
+in the comment above the constant WHAT moved and WHY. Anyone re-generating an old
+seed string now gets a different seed, so a bump may also owe a patch note.
+"""
 
 
 class SeedGenTests(unittest.TestCase):
@@ -101,7 +120,7 @@ class SeedGenTests(unittest.TestCase):
         lines = self._generate([])
         digest = hashlib.sha256(("\n".join(lines) + "\n").encode("utf-8")).hexdigest()
         self.assertEqual(digest, self.SOLO_CANARY,
-                         "solo seed output changed for an existing seed string -- see comment above")
+                         "solo seed output changed for an existing seed string." + CANARY_HELP)
 
     def test_separate_seeds_generation_removed(self):
         argv = ["cli_gen", "--output-dir", self.out, "--preset", "standard",
@@ -295,7 +314,7 @@ class MultiworldGenTests(unittest.TestCase):
         for p in range(1, self.PLAYERS + 1):
             h.update(("\n".join(self.seeds[p]) + "\n").encode("utf-8"))
         self.assertEqual(h.hexdigest(), self.MW_CANARY,
-                         "multiworld seed output changed for an existing seed string -- see comment above")
+                         "multiworld seed output changed for an existing seed string." + CANARY_HELP)
 
     # (the variation rejection list is empty now -- only plando preplacement
     # remains unsupported, and that isn't reachable from the CLI)

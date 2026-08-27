@@ -7,7 +7,7 @@ downstream in a table lookup that was never going to succeed (an item or
 location name a newer server invented is a bare KeyError otherwise).
 
 BUMP RULE -- by hand, on BOTH sides. The emitter's copy lives in
-archipelago/yaml_emit.py; test.seedgentest asserts the two agree, so a
+archipelago/yaml_emit.py; test.seedgen_test asserts the two agree, so a
 one-sided bump fails the server suite rather than shipping.
 
   * DATA_VERSION += 1 whenever the emitted blob or the shipped data tables

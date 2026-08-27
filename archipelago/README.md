@@ -44,7 +44,7 @@ $env:PYTHONPATH = $PWD
 
 The test suite (must stay green; the AP tests are `ApModeGenTests`, `ApModeSoloTests`,
 `ApFullConversionTests`, `ApSeedAnnotationTests`, `ApExportSlotCapTests`, `ApDataVersionTests` in
-`test/seedgentest.py`, plus all of `test/ap_bridge_test.py`):
+`test/seedgen_test.py`, plus all of `test/ap_bridge_test.py`):
 
 ```powershell
 .venv312\Scripts\python.exe -m unittest test.seedgentest test.golden_wire_test test.netcode_test `
