@@ -2011,6 +2011,8 @@ home: MoonGrottoAboveTeleporter 443 -150
 		expert Dash Health=4
 		expert ChargeDash
 		master GrenadeJump
+		master Health=6
+		master UltraDefense Health=4
 	conn: MoonGrotto
 	conn: DeathGauntletRoof
 		master Lure Bash
