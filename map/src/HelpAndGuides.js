@@ -243,7 +243,7 @@ export default class HelpAndGuides extends React.Component {
                             <li>Easily switch between rando versions and vanilla</li>
                             <li>Quickly play seeds by clicking the "Play" button on seed pages</li>
                             <li>Automatically archiving old seeds and stats</li>
-                            <li>Quick access to game folders and settings files</li>
+                            <li>Quick access to game folders and settings files (keybinds, rando settings, etc.)</li>
                         </ul>
                     </CardText>
                 </Collapse>
