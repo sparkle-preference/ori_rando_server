@@ -1045,7 +1045,7 @@ onDrop = (files) => {
                                 ) : (
                                     <ButtonGroup>
                                         <Button color="primary" block target="_blank" href={seedUrl}>{mainButtonText}</Button>
-                                        <Button color="success" href={playUrl}>Play</Button>
+                                        <Button color="success" href={playUrl} onMouseLeave={this.helpEnter("seedTab", mainButtonHelp)} onMouseEnter={this.helpEnter("seedTab", "playButton"+this.multi())}>Play</Button>
                                     </ButtonGroup>
                                 )
                             )}
@@ -1676,7 +1676,7 @@ onDrop = (files) => {
                               The community is one of the best resources for getting help with learning the randomizer.
                           </li>
                           <li>
-                              Install the Ori Randomizer by copying this <a target='_blank' rel='noopener noreferrer' href="/dll">dll</a> into
+                              Install the Ori Randomizer by downloading the <a target="_blank" href="/app">Rando App</a> (recommended), or by copying this <a target='_blank' rel='noopener noreferrer' href="/dll">dll</a> into
                               your Ori DE/oriDE_Data/Managed folder. (Detailed installation instructions are available <a href="/faq?g=install">here</a>)
                           </li>
                           <li>
