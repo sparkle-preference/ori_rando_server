@@ -242,6 +242,7 @@ export default class HelpAndGuides extends React.Component {
                             <li>Automatically keeping the randomizer up-to date (by selecting the version "Latest")</li>
                             <li>Easily switch between rando versions and vanilla</li>
                             <li>Quickly play seeds by clicking the "Play" button on seed pages</li>
+                            <li>Play seeds by dragging & dropping them onto the app (either desktop icon or app window)</li>
                             <li>Automatically archiving old seeds and stats</li>
                             <li>Quick access to game folders and settings files (keybinds, rando settings, etc.)</li>
                         </ul>
