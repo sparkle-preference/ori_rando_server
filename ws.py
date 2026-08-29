@@ -73,10 +73,65 @@ def _register(gpid, conn):
 
 
 def _unregister(gpid, conn):
+    dropped = False
     with _socks_lock:
         entry = _socks.get(gpid)
         if entry is not None and entry[0] is conn:
             del _socks[gpid]
+            dropped = gpid in _ghosts
+            _ghosts.discard(gpid)
+    if dropped:
+        # the roster shrank, and whoever is left may now be the host
+        _broadcast_roster(gpid[0])
+
+
+# --- ghost multiplayer signalling ---------------------------------------
+#
+# Players who want to see each other exchange one WebRTC description each; the
+# server passes those two strings along and never looks inside them. That is
+# the whole of its part: no session state, nothing persisted, and a failure
+# here costs a cosmetic feature rather than anything in the game.
+#
+# Participation lives beside _socks and dies with the connection, because it
+# describes a live socket rather than anything worth keeping. Same
+# single-instance assumption the push path already makes -- fine while Cloud
+# Run is pinned to max-instances=1, and the failure mode if that changes is
+# "ghosts do not connect", not a broken game.
+_ghosts = set()
+
+
+def _ghost_roster(game_id):
+    """(host player id, participating player ids) for one game, live sockets only."""
+    with _socks_lock:
+        pids = sorted(pid for (gid, pid) in _ghosts if gid == game_id)
+    # lowest id hosts: stable, computable by every client from the same list,
+    # and it needs no negotiation round
+    return (pids[0] if pids else 0), pids
+
+
+def _send_to(gpid, frame):
+    """Send one frame to one player. False if they are not here."""
+    with _socks_lock:
+        entry = _socks.get(gpid)
+    if entry is None:
+        return False
+    conn, send_lock = entry
+    try:
+        with send_lock:
+            conn.send(frame)
+        return True
+    except ConnectionClosed:
+        return False  # run_connection's finally cleans up the registry
+    except Exception:
+        log.exception("ws: ghost send failed for %s.%s", gpid[0], gpid[1])
+        return False
+
+
+def _broadcast_roster(game_id):
+    host, pids = _ghost_roster(game_id)
+    frame = "ghosts:%s:%s" % (host, ",".join(str(p) for p in pids))
+    for pid in pids:
+        _send_to((game_id, pid), frame)
 
 
 # --- push: send a fresh tick frame the moment a player's tick cache is
@@ -211,6 +266,44 @@ def handle_frame(game_id, player_id, frame):
         if hashlib.sha256(areas.encode()).hexdigest() == body.strip().lower():
             return "areas:ok", False
         return "areas:%s" % areas, False
+    if kind == "ghosts":
+        # "ghosts:1" opts in, "ghosts:0" out. The reply is the roster, so one
+        # frame both joins and tells the client who else is here.
+        want = body.strip() == "1"
+        gpid = (game_id, player_id)
+        with _socks_lock:
+            changed = (gpid in _ghosts) != want
+            if want:
+                _ghosts.add(gpid)
+            else:
+                _ghosts.discard(gpid)
+        if changed:
+            _broadcast_roster(game_id)
+        host, pids = _ghost_roster(game_id)
+        return "ghosts:%s:%s" % (host, ",".join(str(p) for p in pids)), False
+    if kind == "ghost":
+        # "ghost:<to>:<blob>" -- one description, relayed verbatim. The server
+        # does not parse the blob and does not keep it.
+        target, sep2, payload = body.partition(":")
+        if not sep2:
+            return "err:ghost:malformed", False
+        try:
+            to_pid = int(target)
+        except ValueError:
+            return "err:ghost:malformed", False
+        gpid = (game_id, player_id)
+        with _socks_lock:
+            joined = gpid in _ghosts
+            reachable = (game_id, to_pid) in _ghosts
+        if not joined:
+            # relaying for someone who has not opted in would let them be seen
+            # without being visible, which is the one thing the setting promises
+            return "err:ghost:notjoined", False
+        if not reachable:
+            return "err:ghost:away", False
+        if _send_to((game_id, to_pid), "ghost:%s:%s" % (player_id, payload)):
+            return None, False
+        return "err:ghost:away", False
     log.warning("ws: unknown frame kind %r from %s.%s", kind, game_id, player_id)
     return "err:%s" % kind, False
 

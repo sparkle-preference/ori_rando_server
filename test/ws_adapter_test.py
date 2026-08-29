@@ -325,3 +325,101 @@ class RunConnectionTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class GhostSignallingTests(unittest.TestCase):
+    """The relay half: opting in, the roster, and passing one blob to one peer.
+
+    Nothing here touches the datastore -- signalling lives entirely in the live
+    socket registry, which is also why it is single-instance only.
+    """
+
+    def setUp(self):
+        ws._socks.clear()
+        ws._ghosts.clear()
+
+    tearDown = setUp
+
+    def _join(self, game_id, player_id):
+        """Register a fake socket and opt it in, returning the socket."""
+        conn = FakeConn([])
+        ws._register((game_id, player_id), conn)
+        ws.handle_frame(game_id, player_id, "ghosts:1")
+        return conn
+
+    def test_joining_reports_yourself_as_host(self):
+        self._join(7, 3)
+        reply, close = ws.handle_frame(7, 3, "ghosts:1")
+        self.assertEqual(reply, "ghosts:3:3")
+        self.assertFalse(close)
+
+    def test_lowest_player_id_hosts(self):
+        self._join(7, 9)
+        self._join(7, 2)
+        reply, _ = ws.handle_frame(7, 5, "ghosts:1")
+        self.assertEqual(reply, "ghosts:2:2,5,9")
+
+    def test_other_games_do_not_share_a_roster(self):
+        self._join(7, 1)
+        conn = FakeConn([])
+        ws._register((8, 4), conn)
+        reply, _ = ws.handle_frame(8, 4, "ghosts:1")
+        self.assertEqual(reply, "ghosts:4:4")
+
+    def test_leaving_updates_the_others(self):
+        stayer = self._join(7, 1)
+        self._join(7, 2)
+        stayer.sent = []
+        ws.handle_frame(7, 2, "ghosts:0")
+        self.assertIn("ghosts:1:1", stayer.sent)
+
+    def test_disconnect_updates_the_others(self):
+        stayer = self._join(7, 1)
+        leaver_conn = FakeConn([])
+        ws._register((7, 2), leaver_conn)
+        ws.handle_frame(7, 2, "ghosts:1")
+        stayer.sent = []
+        ws._unregister((7, 2), leaver_conn)
+        self.assertIn("ghosts:1:1", stayer.sent)
+
+    def test_description_reaches_the_named_peer_only(self):
+        self._join(7, 1)
+        target = self._join(7, 2)
+        bystander = self._join(7, 3)
+        target.sent = []
+        bystander.sent = []
+        reply, _ = ws.handle_frame(7, 1, "ghost:2:offer|BLOB")
+        self.assertIsNone(reply)
+        self.assertEqual(target.sent, ["ghost:1:offer|BLOB"])
+        self.assertEqual(bystander.sent, [])
+
+    def test_payload_is_relayed_verbatim_including_colons(self):
+        self._join(7, 1)
+        target = self._join(7, 2)
+        target.sent = []
+        ws.handle_frame(7, 1, "ghost:2:answer|a=b:c:d")
+        self.assertEqual(target.sent, ["ghost:1:answer|a=b:c:d"])
+
+    def test_cannot_relay_without_joining(self):
+        conn = FakeConn([])
+        ws._register((7, 1), conn)
+        self._join(7, 2)
+        reply, _ = ws.handle_frame(7, 1, "ghost:2:offer|BLOB")
+        self.assertEqual(reply, "err:ghost:notjoined")
+
+    def test_relay_to_someone_who_has_not_joined_errs(self):
+        self._join(7, 1)
+        conn = FakeConn([])
+        ws._register((7, 2), conn)
+        reply, _ = ws.handle_frame(7, 1, "ghost:2:offer|BLOB")
+        self.assertEqual(reply, "err:ghost:away")
+
+    def test_relay_to_an_absent_peer_errs(self):
+        self._join(7, 1)
+        reply, _ = ws.handle_frame(7, 1, "ghost:99:offer|BLOB")
+        self.assertEqual(reply, "err:ghost:away")
+
+    def test_malformed_relay_errs(self):
+        self._join(7, 1)
+        self.assertEqual(ws.handle_frame(7, 1, "ghost:nonsense")[0], "err:ghost:malformed")
+        self.assertEqual(ws.handle_frame(7, 1, "ghost:abc:BLOB")[0], "err:ghost:malformed")
