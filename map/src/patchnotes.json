@@ -16,15 +16,17 @@
         "title": "Rando App Release",
         "changes": [
           {
-            "text": "The Ori Rando App, built by :AsmPrgmC3, is now generally available as a launcher, updater, and general utility program for the Ori BF Randomizer!",
+            "text": "The Ori Rando App, built by :AsmPrgmC3, is now generally available as a launcher, updater, and general utility program for the Ori DE Randomizer!",
             "category": "Misc",
             "type": "feature",
             "importance": "major",
             "sub": [
               "It installs the randomizer for you, keeps it updated, and can switch between rando versions and vanilla as required.",
               "(Getting into Ori Rando has never been easier! Tell your friends.)",
-              "It automatically archives your seeds and your stats.txt for them once you're finished with them.",
-              "It can open your various settings and configuration files automatically.",
+              "It allows you to play seeds via the new Play button on seed pages.",
+              "You can also play seeds by dragging & dropping them onto the app.",
+              "It automatically archives your old seeds and your stats.txt.",
+              "It can find and open your various settings and configuration files for you.",
               "Find it in the Downloads section of the main menu above."
             ]
           },
@@ -34,7 +36,6 @@
             "type": "feature",
             "importance": "major",
             "sub": [
-              "Seed files can also be drag-and-dropped onto the app to load them in.",
               "The Play button will confuse your browser if you click it and do not have the Rando App installed.",
               "Downloading seeds via the download button still works exactly the way it always has."
             ]
