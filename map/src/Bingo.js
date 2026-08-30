@@ -17,6 +17,9 @@ const cardTextSize = iniUrl.searchParams.get("textSize") || "1.5vh"
 const hideFooter = iniUrl.searchParams.has("hideFooter")
 const hideLabels = iniUrl.searchParams.has("hideLabels")
 const blindRace = iniUrl.searchParams.has("blindRace")
+// a finished square rings instead of filling; ?altCmplt=<len> sets the ring width
+const altComplete = iniUrl.searchParams.has("altCmplt")
+const altCompleteWidth = iniUrl.searchParams.get("altCmplt") || "clamp(6px, 0.9vh, 10px)"
 // a transport failure (deploy, network blip) has no status and no body,
 // so it retries quietly: banner once it stops looking momentary, toast
 // only once it persists, backing off so a dead server is not hammered
@@ -85,8 +88,12 @@ const BingoCard = ({card, progress, players, locked, help, dark, selected, onSel
         )
     }
 
-    if(progress.completed)
-        cardStyles.background = colors.complete
+    if(progress.completed) {
+        if(altComplete)
+            cardStyles.boxShadow = `inset 0 0 0 ${altCompleteWidth} ${colors.complete}`
+        else
+            cardStyles.background = colors.complete
+    }
     if(locked)
         cardStyles.background = colors.taken
     let footer = (hideFooter || blindRace) ? null : (
