@@ -1332,14 +1332,8 @@ class BingoGameData(ndb.Model):
 
     def player(self, pid, create=False, delay_put=False):
         # type: (int, bool, bool) -> Optional[Player]
-        # a shadow player resolves in the game's namespace like any other, and
-        # adopting one onto the roster wedges every later board render
-        if self.ap_worlds and not self.ap_world_for(pid):
-            log.warning("Bingo game %s: pid %s is not one of its %s AP worlds",
-                        self.key.id(), pid, self.ap_worlds)
-            return None
-        # per-world membership is settled at seating (the one create=True path);
-        # adopting a stray world's bare player wedges every later board render
+        # membership is settled at seating (the one create=True path); adopting a
+        # stray -- an AP shadow resolves here like any other -- wedges board renders
         if self.boards and not create and int(pid) not in self.player_nums():
             log.warning("Bingo game %s: world %s is not on its boards", self.key.id(), pid)
             return None
@@ -1443,16 +1437,7 @@ class BingoGameData(ndb.Model):
             if not self.boards and Variation.BINGO not in params.variations:
                 params.variations.append(Variation.BINGO)
                 params = params.put().get()
-            if self.ap_worlds:
-                # pid is the world, so a rejoin can't shuffle anyone's AP slot.
-                # Ahead of the solo shortcut: at K=1 that would hand world 1's
-                # seed to any pid, the shadow's included
-                p_number = self.ap_world_for(pid)
-                if not p_number:
-                    log.error("player %s is outside this AP board's %s worlds", pid, self.ap_worlds)
-                    return None
-                return sync_flag + params.get_seed(p_number, game_id=self.key.id(), include_sync=False)
-            elif self.boards:
+            if self.boards:
                 # per-world: the board's pids are the multiworld's worlds, so the
                 # world number is the seed number -- never the team-index dance
                 p_number = int(pid)

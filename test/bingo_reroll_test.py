@@ -60,6 +60,12 @@ class _FakeParams(object):
         self.ap_mode = ap_mode
         self.seed = "rolled"
         self.bingo_lines = 4
+        # the board url carries every bingo setting, so the double owes them all
+        self.bingo_goal = "bingos"
+        self.bingo_squares = 13
+        self.bingo_diff = "normal"
+        self.bingo_meta = False
+        self.bingo_disc = 0
         self.players = players
         self.sync = _FakeSync(enabled=shared, mode=MultiplayerGameType.SHARED)
         self.generated = False

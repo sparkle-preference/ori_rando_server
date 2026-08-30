@@ -1440,6 +1440,17 @@ export default class MainPage extends React.Component {
         window.history.replaceState('',window.document.title, url.href);
     }
     
+    // the board's create modal opens on these; bingoLines already rides the url
+    bingoBoardParams = () => {
+        let {bingoGoal, bingoSquares, bingoDiff, bingoMeta, bingoDisc} = this.state
+        let out = `&bingoGoal=${bingoGoal}&bingoSquares=${bingoSquares}&bingoDiff=${bingoDiff}`
+        if(bingoMeta)
+            out += "&bingoMeta=1"
+        if(bingoDisc > 0)
+            out += `&disc=${bingoDisc}`
+        return out
+    }
+
     seedBuildCallback = ({status, responseText}) => {
         if(status !== 200)
         {
@@ -1454,7 +1465,7 @@ export default class MainPage extends React.Component {
                 // an AP board stays here: the host needs the apworld and yamls before
                 // anyone downloads, and the seed tab keeps its Open Bingo Board button
                 if(!(this.apAvailable() && this.state.apMode)) {
-                    let redir = `/bingo/board?game_id=${res.gameId}&fromGen=1&seed=${res.seed}&bingoLines=${res.bingoLines || 3}`
+                    let redir = `/bingo/board?game_id=${res.gameId}&fromGen=1&seed=${res.seed}&bingoLines=${res.bingoLines || 3}` + this.bingoBoardParams()
                     if(res.flagLine.includes("share="))
                         redir += `&teamMax=${res.playerCount}`
                     if(this.state.randomizedWith === this.state.seed)
@@ -1547,7 +1558,7 @@ export default class MainPage extends React.Component {
                 let mainButtonHelp = (inputApMode && ap_enabled() ? "downloadButtonAp" : "downloadButton")+this.multi()
                 seedUrl += "?" + seedParams.join("&")
                 if(seedIsBingo) {
-                    seedUrl = `/bingo/board?game_id=${gameId}&fromGen=1&seed=${inputSeed}&bingoLines=${bingoLines}`
+                    seedUrl = `/bingo/board?game_id=${gameId}&fromGen=1&seed=${inputSeed}&bingoLines=${bingoLines}` + this.bingoBoardParams()
                     if(inputPlayerCount > 1) {
                         seedUrl += `&teamMax=${inputPlayerCount}`
                     }

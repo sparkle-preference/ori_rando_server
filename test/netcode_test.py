@@ -723,12 +723,15 @@ class TestRolledPlayerNames(NdbTestCase):
 
 
 class TestApBingoBoard(NdbTestCase):
-    """An AP board is one team, one world each, so the board pid IS the world
-    -- a rejoin must never shuffle anyone's AP slot."""
+    """An AP board is per-world like any multiworld's, so the board pid IS the
+    world -- a rejoin must never shuffle anyone's AP slot. ap_worlds survives
+    only to mark that winning one of these boards is that world's AP goal."""
 
     def _bingo(self, worlds=3):
-        from models import BingoGameData
-        return BingoGameData(id=77, ap_worlds=worlds)
+        from models import BingoGameData, BingoWorldBoard
+        return BingoGameData(id=77, ap_worlds=worlds,
+                             boards=[BingoWorldBoard(world=w, board=[])
+                                     for w in range(1, worlds + 1)])
 
     def test_pid_is_the_world(self):
         b = self._bingo()
@@ -773,7 +776,10 @@ class TestApBingoBoard(NdbTestCase):
         class _GameKey:
             def get(self):
                 return _Game()
-        b = BingoGameData(id=board_id, ap_worlds=worlds, board=[])
+        from models import BingoWorldBoard
+        b = BingoGameData(id=board_id, ap_worlds=worlds, board=[],
+                          boards=[BingoWorldBoard(world=w, board=[])
+                                  for w in range(1, worlds + 1)])
         orig = BingoGameData.game
         BingoGameData.game = property(lambda self: _GameKey())
         try:
@@ -790,8 +796,8 @@ class TestApBingoBoard(NdbTestCase):
         self.assertEqual(self._seed_probe(92, worlds=1, players=1, pid=1), [(1, 92)])
 
     def test_a_one_world_board_refuses_the_shadows_pid(self):
-        """The solo shortcut must not outrank the AP branch: at K=1 it would
-        hand world 1's seed to pid 2, and pid 2 drives the bridge's outbox."""
+        """The solo shortcut must not outrank the per-world branch: at K=1 it
+        would hand world 1's seed to pid 2, which drives the bridge's outbox."""
         self.assertIsNone(self._seed_probe(93, worlds=1, players=1, pid=2))
 
     def test_a_non_ap_solo_board_still_shares_one_seed(self):

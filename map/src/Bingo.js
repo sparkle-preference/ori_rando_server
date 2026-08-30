@@ -362,13 +362,18 @@ export default class Bingo extends React.Component {
         let dark = resolve_dark();
         let user = get_param("user");
         let targetCount = parseInt(iniUrl.searchParams.get("bingoLines") || 0, 10) || (fromGen && (teamMax > 1) ? 5 : 3)
+        // the seed page hands its bingo settings over so the modal opens on them
+        let diffParam = iniUrl.searchParams.get("bingoDiff")
+        let difficulty = ["easy", "normal", "hard"].includes(diffParam) ? diffParam : "normal"
+        let goalMode = iniUrl.searchParams.get("bingoGoal") === "squares" ? "squares" : "bingos"
+        let squareCount = parseInt(iniUrl.searchParams.get("bingoSquares") || 0, 10) || 13
         this.state = {
                       cards: [], haveGame: false, creatingGame: false, createModalOpen: true, offset: 0, noTimer: false, 
                       discovery: iniUrl.searchParams.has("disc"), discCount: parseInt(iniUrl.searchParams.get("disc") || 2, 10), discSquares: [], lockout: false,
-                      activePlayer: 1, showInfo: false, user: user, loadingText: "Loading...", paramId: -1, squareCount: 13, seed: seed,
+                      activePlayer: 1, showInfo: false, user: user, loadingText: "Loading...", paramId: -1, squareCount: squareCount, seed: seed,
                       dark: dark, specLink: window.document.location.href.replace("board", "spectate").replace(gameId, 4 + gameId*7), testIters: 0,
-                      fails: 0, gameId: gameId, startSkills: 3, startCells: 4, startMisc: "MU|TP/Swamp/TP/Valley", goalMode: "bingos",
-                      difficulty: "normal", isRandoBingo: false, randoGameId: -1, viewOnly: viewOnly, buildingPlayer: false, meta: false,
+                      fails: 0, gameId: gameId, startSkills: 3, startCells: 4, startMisc: "MU|TP/Swamp/TP/Valley", goalMode: goalMode,
+                      difficulty: difficulty, isRandoBingo: false, randoGameId: -1, viewOnly: viewOnly, buildingPlayer: false, meta: iniUrl.searchParams.has("bingoMeta"),
                       events: [], startTime: (new Date()), countdownActive: false, isOwner: false, targetCount: targetCount, userBoard: userBoard,
                       teamsDisabled: (teamMax === -1), fromGen: fromGen, teamMax: teamMax, ticksSinceLastSquare: 0, userBoardParams: userBoardParams,
                       ticking: false, netFails: 0, netRetryAt: 0, rerollingBoard: false
@@ -420,7 +425,7 @@ export default class Bingo extends React.Component {
             url.searchParams.delete("game_id")
         
         if(!fromGen)
-            ["fromGen", "teamMax", "seed", "bingoLines", "disc", "blindRace"].forEach(p => {
+            ["fromGen", "teamMax", "seed", "bingoLines", "bingoGoal", "bingoSquares", "bingoDiff", "bingoMeta", "disc", "blindRace"].forEach(p => {
                 if(url.searchParams.has(p))
                     url.searchParams.delete(p)
             })

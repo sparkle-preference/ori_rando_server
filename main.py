@@ -967,6 +967,13 @@ def _reroll(params):
 def _bingo_board_url(game, params, disc=None, team_max=None):
     url = "/bingo/board?game_id=%s&fromGen=1&seed=%s&bingoLines=%s" % (
         game.key.id(), params.seed, params.bingo_lines)
+    # the create modal opens on these, so a board matches the seed it came from
+    url += "&bingoGoal=%s&bingoSquares=%s&bingoDiff=%s" % (
+        params.bingo_goal, params.bingo_squares, params.bingo_diff)
+    if params.bingo_meta:
+        url += "&bingoMeta=1"
+    # a caller's disc wins even when it is an explicit off, so a reroll keeps it
+    disc = params.bingo_disc if disc is None else disc
     if disc:
         url += "&disc=%s" % disc
     if team_max:
@@ -1670,7 +1677,7 @@ def _bingo_reroll_board_inner(game_id):
         bingo.square_count = None
     if param_flag("squares"):
         bingo.square_count = int(param_val("squares"))
-    bingo.teams_allowed = param_flag("teams") or bingo.teams_shared or bool(bingo.ap_worlds)
+    bingo.teams_allowed = (param_flag("teams") or bingo.teams_shared) and not bingo.boards
     bingo.event_log.append(BingoEvent(event_type="miscBoard rerolled!", timestamp=now))
     for p in bingo.get_players():
         p.signal_send("msg:@Board rerolled! Press alt+L to pick up the new goals@")
@@ -1721,16 +1728,6 @@ def _bingo_add_player_inner(game_id, player_id):
         return _bingo_reseat_world(bingo, game_id, player_id)
     if player_id in bingo.player_nums():
         return text_resp("Player id already in use!", 409)
-    if bingo.ap_worlds:
-        # the pid IS the Archipelago world, so it has to be one of them, and
-        # everyone shares the one team the first joiner opens
-        if not 1 <= player_id <= bingo.ap_worlds:
-            return text_resp("This Archipelago board has one world; you're player 1." if bingo.ap_worlds == 1
-                             else "This is an Archipelago board: pick a player number from 1 to %s."
-                             % bingo.ap_worlds, 412)
-        if bingo.teams:
-            join_team = str(bingo.teams[0].pids()[0])
-
     player = bingo.init_player(player_id)
     if join_team:
         cap_id = int(param_val("joinTeam") or join_team)
@@ -1826,11 +1823,13 @@ def bingo_board_cards(params, difficulty, seed, disc, meta, lockout, world=1):
 
 
 def mw_bingo_worlds(params):
-    """The worlds getting their own board. Only a plain multiworld splits
-    boards; AP runs its own world machinery, and any other shape plays the one
-    board it always did."""
-    if params.sync.mode != MultiplayerGameType.MULTIWORLD or getattr(params, "ap_mode", False):
+    """The worlds getting their own board. Multiworld splits boards, Archipelago
+    included; any other shape plays the one board it always did."""
+    if params.sync.mode != MultiplayerGameType.MULTIWORLD:
         return []
+    if getattr(params, "ap_mode", False):
+        # a board bolted onto a room covers every Ori world in it, opted in or not
+        return list(range(1, int(params.players) + 1))
     return bingo_worlds(params)
 
 
@@ -2178,18 +2177,14 @@ def add_bingo_to_game(game_id):
 
         eventStr = _bingo_setup_tail(bingo, now, game_id)
         bingo.event_log.append(BingoEvent(event_type=eventStr, timestamp=now))
-        ap_bingo = getattr(params, "ap_mode", False)
-        if ap_bingo:
-            # one team, one world each, so the board's pids ARE the AP worlds.
-            # Shadow players (pid > K) hold the bridge's outbox and must survive
-            # the roster wipe below.
-            bingo.teams_allowed = True
+        if getattr(params, "ap_mode", False):
+            # the boards are per-world like any multiworld's; this only marks
+            # that winning one is its world's Archipelago goal
             bingo.ap_worlds = int(params.players)
         # wipe before seating, or the wipe eats the captains seated below and
         # their bare lazy replacements break every later board fetch
         for p in game.get_players():
-            if ap_bingo and p.pid() > int(params.players):
-                continue
+            # spares the AP shadows (pid > K) too: they hold the bridge's outbox
             if per_world and p.pid() not in worlds:
                 continue
             game.remove_player(p.key.id())
