@@ -20,9 +20,9 @@ try:
 except ImportError:
     ndb_imported = False
 
-VER = [4, 3, 0]
-MIN_VER = [4, 2, 15]
-BETA_VER = [4, 2, 17]
+VER = [5, 0, 0]
+MIN_VER = [5, 0, 0]
+BETA_VER = [5, 0, 0]
 
 # Seed file layout, deliberately not tied to the versions above: bump it only
 # when a client that reads one format cannot read the other.
