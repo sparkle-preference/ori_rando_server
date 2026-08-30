@@ -17,6 +17,8 @@ const cardTextSize = iniUrl.searchParams.get("textSize") || "1.5vh"
 const hideFooter = iniUrl.searchParams.has("hideFooter")
 const hideLabels = iniUrl.searchParams.has("hideLabels")
 const blindRace = iniUrl.searchParams.has("blindRace")
+// a finished square colours its text instead of filling its background
+const altComplete = iniUrl.searchParams.has("altCmplt")
 // a transport failure (deploy, network blip) has no status and no body,
 // so it retries quietly: banner once it stops looking momentary, toast
 // only once it persists, backing off so a dead server is not hammered
@@ -34,6 +36,7 @@ const make_icons = players => players.map(p => (<Media key={`playerIcon${p}`} ob
 const BingoCard = ({card, progress, players, locked, help, dark, selected, onSelect, colors, hide}) => {
     let cardStyles = {width: '18vh', height: '18vh', minWidth: '120px', maxWidth: '200px', minHeight: '120px', maxHeight: '200px', flexGrow: 1}
     let footerStyles = {}
+    let bodyStyles = {fontSize: cardTextSize, fontWeight: "bold"}
     cardStyles.border = '1px solid'
     cardStyles.borderColor = colors.border
     if(hide)
@@ -85,8 +88,12 @@ const BingoCard = ({card, progress, players, locked, help, dark, selected, onSel
         )
     }
 
-    if(progress.completed)
-        cardStyles.background = colors.complete
+    if(progress.completed) {
+        if(altComplete)
+            bodyStyles.color = colors.complete
+        else
+            cardStyles.background = colors.complete
+    }
     if(locked)
         cardStyles.background = colors.taken
     let footer = (hideFooter || blindRace) ? null : (
@@ -98,7 +105,7 @@ const BingoCard = ({card, progress, players, locked, help, dark, selected, onSel
     ) 
     return (
         <Card inverse={dark} style={cardStyles}>
-            <CardBody onClick={onSelect} style={{fontSize: cardTextSize, fontWeight: "bold"}} className={className}>
+            <CardBody onClick={onSelect} style={bodyStyles} className={className}>
                 {text}
             </CardBody>
             {footer}

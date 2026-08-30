@@ -1510,6 +1510,10 @@ def plando_author_index(author_name):
 def dll():
     return redirect("https://github.com/sparkle-preference/OriDERandomizer/raw/master/Assembly-CSharp.dll")
 
+@app.route('/app')
+def rando_app():
+    return redirect("https://github.com/ori-community/bf-rando-installer/releases/latest/download/Ori.DE.Randomizer.exe")
+
 @app.route('/dll/beta')            
 def dll_beta():
     return redirect("https://github.com/sparkle-preference/OriDERandomizer/raw/master/Assembly-CSharp.dll")

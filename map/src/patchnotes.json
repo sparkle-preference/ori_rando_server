@@ -45,18 +45,56 @@
         ]
       },
       {
+        "version": "4.2.17.2",
+        "date": "2026-08-28",
+        "announce": "all",
+        "title": "Rando App Release",
+        "changes": [
+          {
+            "text": "The Ori Rando App, built by :AsmPrgmC3, is now generally available as a launcher, updater, and general utility program for the Ori DE Randomizer!",
+            "category": "Misc",
+            "type": "feature",
+            "importance": "major",
+            "sub": [
+              "It installs the randomizer for you, keeps it updated, and can switch between rando versions and vanilla as required.",
+              "(Getting into Ori Rando has never been easier! Tell your friends.)",
+              "It allows you to play seeds via the new Play button on seed pages.",
+              "You can also play seeds by dragging & dropping them onto the app.",
+              "It automatically archives your old seeds and your stats.txt.",
+              "It can find and open your various settings and configuration files for you.",
+              "Find it in the Downloads section of the main menu above."
+            ]
+          },
+          {
+            "text": "Seed pages now have a Play button, which launches the game via the Rando App and sends your seeds directly to it.",
+            "category": "Website",
+            "type": "feature",
+            "importance": "major",
+            "sub": [
+              "The Play button will confuse your browser if you click it and do not have the Rando App installed.",
+              "Downloading seeds via the download button still works exactly the way it always has."
+            ]
+          },
+          {
+            "text": "Updated FAQ and help texts to recommend the Rando App to users.",
+            "category": "Website",
+            "importance": "minor"
+          }
+        ]
+      },
+      {
         "version": "4.2.17.1",
         "date": "2026-08-22",
         "announce": "all",
         "changes": [
           {
-            "text": "Bingo boards now take your spawn into account.",
+            "text": "Bingo boards now take your spawn location into account.",
             "category": "Bingo",
             "type": "feature",
             "importance": "major",
             "sub": [
-              "The spirit well and the area you spawn in no longer get a square to themselves.",
-              "Discovery boards pick their starting squares from what's early for that spawn."
+              "Discovery boards pick their starting squares based on where you spawned.",
+              "You should no longer get squares that are automatically completed due to your spawn teleporter or location."
             ]
           },
           {
@@ -64,9 +102,9 @@
             "category": "Bingo",
             "importance": "major",
             "sub": [
-              "Anything starting at Lost Grove, and anything reaching it from outside Blackroot, Glades, Grotto and Swamp.",
-              "Anything between two of Horu, Ginso and Forlorn, plus Sorrow to Ginso.",
-              "Anything to or from the Grove well."
+              "From Lost Grove to anywhere; to Lost Grove from anywhere but Blackroot, Glades, Grotto, and Swamp.",
+              "Anything between two dungeons, and Sorrow to Ginso.",
+              "Anything to or from the Grove well (don't skip the Grove cutscene with a hard board!)"
             ]
           },
           {

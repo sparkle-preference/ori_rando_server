@@ -458,6 +458,14 @@ const getHelpHelper = (category, option) => {
                         "It's best to connect the Archipelago room below BEFORE handing seeds out: a seed downloaded first will call every Archipelago find \"AP Item #N\". (It's safe to redownload the seed file after joining.)",
                     ]
                 break;
+                case "playButton":
+                    title = "Play Seed"
+                    lines = [
+                        (<span>Click here to play the seed via the <a href="/faq?g=app">Rando App</a>.</span>),
+                    ]
+                    if(multi)
+                        lines.push("Remember to send your fellow players the URL to the current page so they can get their seeds!")
+                    break;
                 case "apSetup":
                     title = "Archipelago Setup"
                     lines = [

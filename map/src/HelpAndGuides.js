@@ -5,7 +5,7 @@ import {Helmet} from 'react-helmet';
 import {get_param, get_flag, stuff_by_type} from "./common.js"
 import SiteBar from "./SiteBar.js"
 
-const GUIDES = ["install", "gen_seed", "get_tracker", "bonus_pickups", "starter_seeds", "differences", "gotchas", "bingo_userboard"];
+const GUIDES = ["install", "install_manual", "app", "gen_seed", "get_tracker", "bonus_pickups", "starter_seeds", "differences", "gotchas", "bingo_userboard"];
 // userboard url params, as read by Bingo.js's constructor
 const USERBOARD_PARAMS = [
   ["playerList", "off", "Show the player list (scores, teams, timer) beside the board."],
@@ -110,17 +110,71 @@ export default class HelpAndGuides extends React.Component {
         </Card>
         )
     }
-    getInstallSteamCardContent = () => {
+    getInstallCardContent = () => {
         return (<Card className="w-100 mt-2" id="install">
             <CardBody>
                 <div className={buttonHolder}>
-                <Button color="primary" active={this.state.open["install"]} onClick={this.toggleOpen("install")}>
-                    Installing the Randomizer (Steam/GOG)
-                </Button>
+                    <Button color="primary" active={this.state.open["install"]} onClick={this.toggleOpen("install")}>
+                        Installing the Randomizer
+                    </Button>
                 </div>
                 <Collapse isOpen={this.state.open["install"]}>
+                    <CardText>
+                        The recommended way to install the randomizer is via the Ori DE Rando App (described below).<br/>
+                        Note that the app is fully optional (though convenient), and currently only available for Windows.
+                        If you wish (or need) to install the randomizer manually, the instructions can be found <a href="/faq?g=install_manual">here</a>
+                    </CardText>
+                    <CardText className="border">
+                        <small>Compatibility Note: The Ori randomizer is only compatible with Ori and the Blind Forest: Definitive Edition (Ori DE) for the PC.
+                            It is not compatible the Windows Store version of Ori DE, as the Windows Store has anti-tampering features that prevent the mod from working.</small>
+                    </CardText>
+                    <CardText>
+                        Installation steps:
+                        <ol>
+                            <li>
+                                Download the Rando App from <a target="_blank" href="/app">here</a>.
+                            </li>
+                            <li>
+                                Start the app and install the randomizer. Further features of the app are described <a href="/faq?g=app">here</a>.
+                            </li>
+                            <li>
+                                If the game installation directory can not be found automatically, you will need to select it manually.
+                                Typical install locations are:
+                                <small><ul><li>
+                                    Steam: Your Ori install will be inside your steam install at <code>.../Steam/steamapps/common/Ori DE</code> You can also right click on the game in your Steam library, click properties, then open the "Local Files" tab and click the "Browse Local Files..." button.
+                                </li><li>
+                                    GOG:  Your Ori install will be inside your GOG install at <code>...GOG Games/Ori and The Blind Forest - Definitive Edition</code> You can also right click on the game in your GOG library, click "Manage Installation" and then "Show folder".
+                                </li></ul></small>
+                            </li>
+                            <li>
+                                Installation complete! All you need now to start playing is a seed; either grab one from the Starter Seed check out the guide below to generate your own!
+                            </li>
+                        </ol>
+                    </CardText>
+                    <CardText>
+                        To play the original game again, simply select "Vanilla" from the version selector in the app.
+                    </CardText>
+                    {get_flag("ap_flag") ? (
+                        <CardText>
+                            Playing in an Archipelago session? You will also want{" "}<a target="_blank" rel="noopener noreferrer" href="/apworld">oride.apworld</a>{" "}
+                            in your Archipelago install's custom_worlds folder. Only the person generating the session needs it; the seed page walks you through the rest.
+                        </CardText>
+                    ) : null}
+                </Collapse>
+            </CardBody>
+        </Card>)
+    }
+    getInstallManualCardContent = () => {
+        return (<Card className="w-100 mt-2" id="install_manual">
+            <CardBody>
+                <div className={buttonHolder}>
+                <Button color="primary" active={this.state.open["install_manual"]} onClick={this.toggleOpen("install_manual")}>
+                    Installing the Randomizer (Manual)
+                </Button>
+                </div>
+                <Collapse isOpen={this.state.open["install_manual"]}>
                 <CardText>
-                    Installing the randomizer into your existing copy of the game is the easiest way to get started. It will allow you to continue
+                    Outside of using the app, installing the randomizer into your existing copy of the game is the easiest way to get started. It will allow you to continue
                     accruing Steam playtime hours and achievements, but will require a bit of work to switch between the regular game and the Randomizer.
                 </CardText>
                 <CardText className="border">
@@ -165,6 +219,38 @@ export default class HelpAndGuides extends React.Component {
             </CardBody>
             </Card>)
     }
+    getAppCardContent = () => {
+        return (<Card className="w-100 mt-2" id="app">
+            <CardBody>
+                <div className={buttonHolder}>
+                    <Button color="primary" active={this.state.open["app"]} onClick={this.toggleOpen("app")}>
+                        Rando App
+                    </Button>
+                </div>
+                <Collapse isOpen={this.state.open["app"]}>
+                    <CardText>
+                        The Randomizer App is a small standalone app to make working with the randomizer more convenient.
+                        You can download it <a target="_blank" href="/app">here</a>.
+                    </CardText>
+                    <CardText className="border">
+                        Note: The Rando app is fully optional and currently only available for Windows.
+                    </CardText>
+                    <CardText>
+                        The major features are:
+                        <ul>
+                            <li>Installing and updating the randomizer</li>
+                            <li>Automatically keeping the randomizer up-to date (by selecting the version "Latest")</li>
+                            <li>Easily switch between rando versions and vanilla</li>
+                            <li>Quickly play seeds by clicking the "Play" button on seed pages</li>
+                            <li>Play seeds by dragging & dropping them onto the app (either desktop icon or app window)</li>
+                            <li>Automatically archiving old seeds and stats</li>
+                            <li>Quick access to game folders and settings files (keybinds, rando settings, etc.)</li>
+                        </ul>
+                    </CardText>
+                </Collapse>
+            </CardBody>
+        </Card>)
+    }
     getGenSeedCardContent = () => {
         return (
             <Card className="w-100 mt-2" id="gen_seed">
@@ -196,19 +282,41 @@ export default class HelpAndGuides extends React.Component {
                             Click the Generate Seed button to have the server begin generating your seed. It may take a few seconds.
                         </li>
                         <li>
-                            Once the generation finishes, click the Download Seed button to get your seed file. It should download with the name "randomizer.dat".
+                            Once the generation finishes:
+                            <p>
+                            If you're using the <a target="_blank" href="/faq?g=app">Rando App</a>:
                             <ul>
-                            <li><small>
-                                Tip: You can also open a live-updating map that can help you keep track of reachable pickups by clicking "Open Tracking Map". If you get stuck or have a second monitor,
-                                this can be very helpful!
-                            </small></li>
+                                <li>
+                                    Click the Play button to start the game with your seed. Start a new save file and begin playing.
+                                    <ul>
+                                        <li><small>
+                                            Tip: You can also open a live-updating map that can help you keep track of reachable pickups by clicking "Open Tracking Map". If you get stuck or have a second monitor,
+                                            this can be very helpful!
+                                        </small></li>
+                                    </ul>
+                                </li>
                             </ul>
-                        </li>
-                        <li>
-                            Move your randomizer.dat file to the same folder OriDE.exe is in. (See the installation guide for more details on how to find this folder)
-                        </li>
-                        <li>
-                            You're all set! Launch the game and start a new save file to begin playing your seed.
+                            </p>
+                            <p>
+                            If you aren't using the Rando App:
+                            <ol>
+                                <li>
+                                    Click the Download Seed button to get your seed file. It should download with the name "randomizer.dat".
+                                    <ul>
+                                        <li><small>
+                                            Tip: You can also open a live-updating map that can help you keep track of reachable pickups by clicking "Open Tracking Map". If you get stuck or have a second monitor,
+                                            this can be very helpful!
+                                        </small></li>
+                                    </ul>
+                                </li>
+                                <li>
+                                    Move your randomizer.dat file to the same folder OriDE.exe is in. (See the installation guide for more details on how to find this folder)
+                                </li>
+                                <li>
+                                    You're all set! Launch the game and start a new save file to begin playing your seed.
+                                </li>
+                            </ol>
+                            </p>
                         </li>
                         </ol>
                     </CardText>
@@ -599,7 +707,9 @@ export default class HelpAndGuides extends React.Component {
             </CardText>
           </CardBody>
         </Card>
-        {this.getInstallSteamCardContent()}
+        {this.getInstallCardContent()}
+        {this.getInstallManualCardContent()}
+        {this.getAppCardContent()}
         {this.getGenSeedCardContent()}
         {this.getStarterSeedsCardContent()}
         {this.getTrackerCardContent()}
