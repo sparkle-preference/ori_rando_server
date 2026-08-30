@@ -1239,7 +1239,7 @@ class TestHintGates(HintTestCase):
         self.assertEqual(self.published, [])
         # no live point count in the text: signal_send dedups on an exact
         # match, so a balance that ticks up would stack a line per deferral
-        self.assertEqual(self.notices, ["Find more Archipelago checks to afford this hint"])
+        self.assertEqual(self.notices, ["Not enough Archipelago hint points -- clues fill in as you find more checks"])
 
     def test_hint_cost_mirrors_the_rooms_own_formula(self):
         session = self.make_session()

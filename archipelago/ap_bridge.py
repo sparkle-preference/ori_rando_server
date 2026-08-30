@@ -1279,7 +1279,7 @@ class ApSession(object):
     def _afford_text(self):
         # no live point count: the text has to repeat exactly, or signal_send's
         # dedup never matches and every deferral stacks another line
-        return "Find more Archipelago checks to afford this hint"
+        return "Not enough Archipelago hint points -- clues fill in as you find more checks"
 
     def _service_hints(self, sock):
         if self.hint_box is not None:
