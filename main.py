@@ -31,6 +31,8 @@ from enums import MultiplayerGameType, ShareType, Variation, presets
 from models import ndb_wsgi_middleware, Game, Player, SavedSeedParams, Seed, User, BingoGameData, BingoWorldBoard, BingoEvent, BingoTeam, SITE_THEMES, URL_UNSAFE_NAME_CHARS, USER_SETTINGS, pick_discovery_squares, trees_by_coords, LegacyUser, bingo_lock, AnnouncedPatchNotes
 from bingo import BingoGenerator
 from cache import Cache
+import util
+from uuid import uuid4
 from util import parse_fass, coord_correction_map, clone_entity, all_locs, picks_by_type_generator, param_val, param_flag, param_true, debug, template_root, VER, MIN_VER, BETA_VER, game_list_html, version_check, template_vals, bfield_checksum, netperf, NETPERF_TAG, json_default, seed_sync_id, is_mw_manifest_loc, ARCHIPELAGO, CANONICAL_HOST, REDIRECT_HOSTS, PATCHNOTES_WEBHOOK_MAIN, PATCHNOTES_WEBHOOK_DEV
 from reachable import Map, PlayerState
 from pickups import Pickup, Skill, AbilityCell, HealthCell, EnergyCell, Multiple
@@ -52,6 +54,30 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 
 oidc = make_oidc(app)
+
+
+class _GuestUser(object):
+    """The shape User.get reads off g.oidc_user, for a visitor we invented."""
+    logged_in = True
+
+    def __init__(self, sub):
+        self.unique_id = sub
+        self.name = "Guest-%s" % sub[-6:]
+        self.email = "%s@guests.invalid" % sub
+
+
+@app.before_request
+def _seat_guest():
+    # registered after make_oidc, so this runs second and the assignment wins.
+    # util.GUEST_USERS is read live: tests flip it per case
+    if not util.GUEST_USERS or app.config.get("OIDC_ENABLED"):
+        return
+    sub = session.get("guest_sub")
+    if not sub:
+        sub = "guest-%s" % uuid4().hex[:12]
+        session["guest_sub"] = sub
+        session.permanent = True  # a month, not a tab: rejoining keeps your games
+    g.oidc_user = _GuestUser(sub)
 
 
 if debug():

@@ -14,6 +14,7 @@ services:
       OIDC_TESTING_ID: "${OIDC_TESTING_ID:-123454321234543212345}"
       # the dev stack is where these get exercised, so default them on
       ARCHIPELAGO: "${ARCHIPELAGO:-1}"
+      GUEST_USERS: "${GUEST_USERS:-0}"
       WHITELIST_SECRET: "${WHITELIST_SECRET:-PLACEHOLDER_DEV_SECRET}"
       APP_SECRET_KEY: "${APP_SECRET_KEY:-INSECURE_DEV_SECRET_KEY}"
 

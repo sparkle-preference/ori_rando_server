@@ -34,6 +34,9 @@ def _flag(name, default="1"):
 # off means the link routes 404 and no new AP seed rolls; an existing game's AP
 # data is mode-gated and always present, so it breaks only when it needs the bridge
 ARCHIPELAGO = _flag("ARCHIPELAGO")
+# beta sites only: every visitor gets their own throwaway account (session
+# cookie), instead of everyone sharing the one OIDC testing profile
+GUEST_USERS = _flag("GUEST_USERS", "0")
 # every open socket pins one gunicorn thread (Dockerfile --threads) for its
 # whole lifetime. Reject new sockets past this count — with a healthy gap
 # below the thread count — so they can't starve the http side of the shared
