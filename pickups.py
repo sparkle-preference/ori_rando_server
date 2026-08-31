@@ -103,7 +103,7 @@ class Upgrade(Pickup):
             81: "Stompnade Hint", 40: "Remove Wall Jump", 41: "Remove Charge Flame", 42: "Remove Double Jump", 43: "Remove Bash", 44: "Remove Stomp", 45: "Remove Glide",
             46: "Remove Climb", 47: "Remove Charge Jump", 48: "Remove Dash", 49: "Remove Grenade", 34: "Disable Alt+R", 35: "Enable Alt+R", 36: "Underwater Skill Usage", 37: "Jump Upgrade",
             101: "Polarity Shift", 102: "Gravity Swap", 103: "Extreme Speed", 104: "Teleport: Last AltR", 105: "Teleport: Soul Link", 106: "Respec", 
-            107: "Level Explosion", 110: "Invincibility", 109: "Timewarp", 111: "Wither", 113: "Bash/Stomp Damage", 1587: "Credit Warp", 
+            107: "Level Explosion", 110: "Invincibility", 109: "Timewarp", 111: "Wither", 113: "Bash/Stomp Damage", 4087: "Credit Warp", 1587: "Credit Warp (Legacy pre-5.0 ID)", 
             200: "Quick Flame", 201: "Spark Flame", 202: "Charge Flame Burn", 203: "Split Flame", 204: "Ultra Light Burst", 205: "Cinder Flame",
             206: "Ultra Stomp", 207: "Rapid Flame", 208: "Charge Flame Blast", 209: "Ultra Split Flame", 210: "Spirit Magnet", 211: "Map Markers",
             212: "Life Efficiency", 213: "Ultra Spirit Magnet", 214: "Energy Efficiency", 215: "Spirit Efficiency", 216: "Spirit Potency",

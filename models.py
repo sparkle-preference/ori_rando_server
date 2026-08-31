@@ -460,6 +460,10 @@ class Player(ndb.Model):
     teleporters = ndb.IntegerProperty()
     seed        = ndb.TextProperty()
     signals     = ndb.StringProperty(repeated=True)
+    # set once this player's world has been released, so their client can treat everything
+    # still sitting in it as spent. Durable because mw_release is idempotent and its
+    # idempotency lives in the RECEIVERS' slots -- nothing else here remembers it happened.
+    released    = ndb.BooleanProperty(default=False)
     history     = ndb.LocalStructuredProperty(HistoryLine, repeated=True)
     last_update = ndb.DateTimeProperty(auto_now=True)
     teammates   = ndb.KeyProperty("Player", repeated=True)
@@ -772,10 +776,13 @@ class Player(ndb.Model):
             outlines.append(self.mw_names_field())
             # field 8 is APPENDED ONLY WHEN NONEMPTY: it is last, so absence
             # shifts nothing, and every multiworld body that predates AP
-            # hints stays byte-identical
+            # hints stays byte-identical. Field 9 (released) has to hold 8's
+            # place when it lands, or an empty hints field would shift it up.
             ap_hints = self.ap_hints_field()
-            if ap_hints:
+            if ap_hints or self.released:
                 outlines.append(ap_hints)
+            if self.released:
+                outlines.append("1")
         elif self.signals:
             outlines.append("|".join(self.signals))
         out = ",".join(outlines)

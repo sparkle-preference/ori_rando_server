@@ -131,6 +131,16 @@ def game_complete(game_id, player_id):
     if game.mode == MultiplayerGameType.MULTIWORLD:
         released = game.mw_release(player_id)
         netperf("mw_release", t0, gid=game_id, pid=player_id, released=released)
+        # marked even when released == 0: a re-finish hands over nothing and must still
+        # leave the world marked, since that is what the client reads to stop offering
+        # locations whose contents have already gone to their owners
+        # player() answers None for a stray pid on a bingo game; nothing to mark then
+        finisher = game.player(player_id)
+        if finisher is not None and not finisher.released:
+            finisher.released = True
+            finisher.put()
+            # or an idle finisher hits the cached tick body forever and never sees it
+            Cache.clear_seen_checksum(finisher.idpts())
         if ARCHIPELAGO:
             # AP-mode world done: durable goal mark + StatusUpdate on its
             # room socket (no-op for games without an AP link)

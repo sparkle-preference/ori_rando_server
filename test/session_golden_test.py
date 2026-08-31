@@ -68,7 +68,8 @@ class FakeGame(object):
         self._players = players or {}
 
     def player(self, pid, *a, **k):
-        return self._players[pid]
+        # the real one answers None rather than raising for a pid it has no seat for
+        return self._players.get(pid)
 
     def found_pickup(self, *args):
         self.found_args = args
