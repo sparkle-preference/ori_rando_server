@@ -290,8 +290,8 @@ export default class HelpAndGuides extends React.Component {
                                     Click the Play button to start the game with your seed. Start a new save file and begin playing.
                                     <ul>
                                         <li><small>
-                                            Tip: You can also open a live-updating map that can help you keep track of reachable pickups by clicking "Open Tracking Map". If you get stuck or have a second monitor,
-                                            this can be very helpful!
+                                            Tip: If you get stuck, open the in-game map. It's revealed from the start, and the In Logic
+                                            filter shows every pickup you can currently reach.
                                         </small></li>
                                     </ul>
                                 </li>
@@ -304,8 +304,8 @@ export default class HelpAndGuides extends React.Component {
                                     Click the Download Seed button to get your seed file. It should download with the name "randomizer.dat".
                                     <ul>
                                         <li><small>
-                                            Tip: You can also open a live-updating map that can help you keep track of reachable pickups by clicking "Open Tracking Map". If you get stuck or have a second monitor,
-                                            this can be very helpful!
+                                            Tip: If you get stuck, open the in-game map. It's revealed from the start, and the In Logic
+                                            filter shows every pickup you can currently reach.
                                         </small></li>
                                     </ul>
                                 </li>
@@ -387,7 +387,7 @@ export default class HelpAndGuides extends React.Component {
                 These seeds have been picked out as decent seeds for learning the Ori randomizer. If you're not sure where to begin, try them out in order. 
             </CardText>
             <CardText><i>
-                Need help? click the link to the seed below, then follow the instructions (step 4 onward) from the seedgen guide above. Be sure to check out the tracking map if you get stuck!
+                Need help? click the link to the seed below, then follow the instructions (step 4 onward) from the seedgen guide above. Be sure to check the in-game map if you get stuck!
             </i></CardText>
             <CardText>
                 <ol>
@@ -403,14 +403,14 @@ export default class HelpAndGuides extends React.Component {
                     </li>
                     <li>
                         <a target="_blank" rel="noopener noreferrer" href="/plando/eiko/OddOpeningsOne/download?tracking=1">Odd Openings One</a>
-                        <ul><li>Sometimes getting out of Glades can be a puzzle. See if you can solve this one! (Remember to check the tracking map if you get stuck)</li>
+                        <ul><li>Sometimes getting out of Glades can be a puzzle. See if you can solve this one! (Remember to check the in-game map if you get stuck)</li>
                         <Hint>Check out the stompable peg near the Blackroot Spirit Well, in the rolling boulder area.</Hint>
                         </ul>
                     </li>
                     <li>
                         <a target="_blank" rel="noopener noreferrer" href="/plando/eiko/OddOpeningsTwo/download?tracking=1">Odd Openings Two</a>
                         <ul><li>Same idea as Odd Openings One. Find your way out of Glades!</li>
-                        <Hint>Be sure to pay attention what gets unlocked on the tracking map when you pick up skills <i>and teleporters</i>.</Hint>
+                        <Hint>Be sure to pay attention to what gets unlocked on the in-game map when you pick up skills <i>and teleporters</i>.</Hint>
                         </ul>
                     </li>
                     <li>
