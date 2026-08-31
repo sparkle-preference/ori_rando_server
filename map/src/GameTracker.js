@@ -24,17 +24,66 @@ const EMPTY_PLAYER = {seed: {}, seed_loaded: false, pos: [-210, 189], seen:[], s
 // 	);
 // };
 
-const PlayerMarker = ({ map, position, icon, name, sense}) => sense ? (
-    <Fragment>
-	<Marker map={map} position={position} icon={icon}>
-        <Tooltip><span>{name}</span></Tooltip>
-	</Marker>
-    <Circle center={position} radius={64}/>
-	</Fragment>) : (
-	<Marker map={map} position={position} icon={icon}>
-        <Tooltip><span>{name}</span></Tooltip>
-	</Marker>
-)
+// A poll's worth of movement, walked instead of teleported. Deliberately
+// uncapped in distance: a rocket jump really does cross that much map in a
+// second, and a cap would rubber-band the fastest movement in the game.
+const LERP_MIN = 100
+const LERP_MAX = 2000
+const LERP_FIRST = 1000
+const samePos = (a, b) => !!a && !!b && a[0] === b[0] && a[1] === b[1]
+
+// Animating in this leaf's own state keeps the frame loop off GameTracker,
+// whose render walks every pickup on the map.
+class PlayerMarker extends React.Component {
+    state = {pos: this.props.position}
+
+    componentDidUpdate(prev) {
+        let {position} = this.props
+        if(samePos(position, prev.position))
+            return
+        let now = Date.now()
+        // tween over the gap the updates are actually arriving at, so the icon
+        // is still moving when the next one lands rather than waiting for it
+        this.ms = this.at ? Math.min(LERP_MAX, Math.max(LERP_MIN, now - this.at)) : LERP_FIRST
+        this.at = now
+        // the wire carries pos as formatted strings, and `+` would concatenate
+        this.from = (this.state.pos || position).map(Number)
+        this.to = position.map(Number)
+        this.startedAt = now
+        if(!this.raf)
+            this.raf = window.requestAnimationFrame(this.step)
+    }
+
+    componentWillUnmount() {
+        if(this.raf)
+            window.cancelAnimationFrame(this.raf)
+    }
+
+    step = () => {
+        let f = Math.min(1, (Date.now() - this.startedAt) / this.ms)
+        this.setState({pos: [
+            this.from[0] + (this.to[0] - this.from[0]) * f,
+            this.from[1] + (this.to[1] - this.from[1]) * f
+        ]})
+        this.raf = f < 1 ? window.requestAnimationFrame(this.step) : null
+    }
+
+    render() {
+        let {map, icon, name, sense} = this.props
+        let pos = this.state.pos || this.props.position
+        return sense ? (
+            <Fragment>
+                <Marker map={map} position={pos} icon={icon}>
+                    <Tooltip><span>{name}</span></Tooltip>
+                </Marker>
+                <Circle center={pos} radius={64}/>
+            </Fragment>) : (
+            <Marker map={map} position={pos} icon={icon}>
+                <Tooltip><span>{name}</span></Tooltip>
+            </Marker>
+        )
+    }
+}
 
 const PlayerMarkersList = ({map, players}) => {
 	let players_to_show = Object.keys(players).filter(id => players[id].show_marker).map(id => players[id])
