@@ -35,13 +35,15 @@ class FakeSocket(object):
     """Scripted transport: each script entry is a list of msg dicts (one
     frame) or None (a receive timeout). Exhausted script = connection lost."""
 
-    def __init__(self, frames):
+    def __init__(self, frames, close_reason=None):
         self.script = list(frames)
         self.sent = []
+        self.close_reason = close_reason
 
     def receive(self, timeout=None):
         if not self.script:
-            raise ConnectionClosed()
+            raise (ConnectionClosed() if self.close_reason is None
+                   else ConnectionClosed(self.close_reason))
         frame = self.script.pop(0)
         return None if frame is None else json.dumps(frame)
 
@@ -1868,10 +1870,10 @@ class TestBridgeLoopBackoff(SessionTestCase):
         ap_bridge._last_active.pop(self.GID, None)
         super(TestBridgeLoopBackoff, self).tearDown()
 
-    def _run_bridge(self, frames):
+    def _run_bridge(self, frames, close_reason=None):
         b = ap_bridge._Bridge(self.GID, self.WORLD)
         b.stop_event = _StopOnFirstWait()
-        self.sockets.append(FakeSocket(frames))
+        self.sockets.append(FakeSocket(frames, close_reason))
         b._run()
         # the loop unwound: no thread ever ran, no registry residue
         self.assertEqual(ap_bridge._bridges, {})
@@ -1892,6 +1894,21 @@ class TestBridgeLoopBackoff(SessionTestCase):
         self.assertEqual(b.stop_event.waits, [ap_bridge.BACKOFF_MIN])
         self.assertEqual([s for _, s, _ in self.statuses],
                          ["connected", "reconnecting"])
+
+    def test_a_room_that_hung_up_ends_the_loop(self):
+        """1001 is the room process stopping. Retrying that forever is what
+        pinned a red error on the panel for a game that simply finished."""
+        b = self._run_bridge([ROOMINFO, [connected()]], close_reason=1001)
+        self.assertEqual(b.stop_event.waits, [], "a closed room was retried")
+        self.assertEqual([s for _, s, _ in self.statuses], ["connected", "closed"])
+        self.assertEqual(self.statuses[-1][2], ap_bridge.ROOM_CLOSED_MSG)
+
+    def test_a_drop_with_no_close_code_still_retries(self):
+        """The negative control for the above: only a deliberate close is
+        terminal, and 1006 is what an abrupt network drop looks like."""
+        b = self._run_bridge([ROOMINFO, [connected()]], close_reason=1006)
+        self.assertEqual(b.stop_event.waits, [ap_bridge.BACKOFF_MIN])
+        self.assertEqual([s for _, s, _ in self.statuses], ["connected", "reconnecting"])
 
     def test_stale_game_idles_before_dialing(self):
         # no socket queued: a dial attempt would IndexError in _open_socket
@@ -2055,6 +2072,78 @@ class TestHealIdleSplit(unittest.TestCase):
             self.assertEqual(ensured, [])
         finally:
             ap_bridge.ensure = saved_ensure
+
+
+class TestClosedRoomIsTerminal(unittest.TestCase):
+    """A room that hung up stays hung up. Unlike idle, activity does not wake
+    it: the player still ticking says nothing about whether the room is back."""
+    GID = 4402
+
+    def setUp(self):
+        self._saved = (ap_bridge.ARCHIPELAGO, ap_bridge.APLink)
+        ap_bridge.ARCHIPELAGO = True
+        test = self
+        self.link = type("L", (), {"enabled": True, "status": "closed",
+                                   "slot_names": ["Ori1", "Ori2"]})()
+        ap_bridge.APLink = type("FakeAPLink", (object,),
+                                {"with_id": staticmethod(lambda gid: test.link)})
+
+    def tearDown(self):
+        ap_bridge.ARCHIPELAGO, ap_bridge.APLink = self._saved
+        ap_bridge._heal_memo.pop(self.GID, None)
+        ap_bridge._last_active.pop(self.GID, None)
+        ap_bridge._shared_stamp_at.pop(self.GID, None)
+        Cache.clear_ap_active(self.GID)
+
+    def test_close_codes_read_off_the_exception(self):
+        for reason in (1000, 1001):
+            self.assertTrue(ap_bridge.room_closed_for_good(ConnectionClosed(reason)), reason)
+        # 1005 no-status and 1006 abnormal are drops, not decisions
+        for reason in (1005, 1006, 4000):
+            self.assertFalse(ap_bridge.room_closed_for_good(ConnectionClosed(reason)), reason)
+        # the other two arms of the except clause carry no reason at all
+        for exc in (ConnectionError("reset"), OSError("no route")):
+            self.assertFalse(ap_bridge.room_closed_for_good(exc))
+
+    def test_ensure_refuses_a_closed_link_on_activity_too(self):
+        self.assertEqual(ap_bridge.ensure(self.GID), 0)
+        _, state, worlds = ap_bridge._heal_memo[self.GID]
+        self.assertEqual((state, worlds), ("closed", 2))
+
+    def test_heal_memo_closed_blocks_both(self):
+        saved_ensure, ensured = ap_bridge.ensure, []
+        ap_bridge.ensure = lambda gid, link=None, wake_idle=True: ensured.append(wake_idle)
+        try:
+            ap_bridge._heal_memo[self.GID] = (monotonic() + 100, "closed", 2)
+            ap_bridge.heal(self.GID)
+            ap_bridge.heal(self.GID, active=True)
+            self.assertEqual(ensured, [], "a heal redialled a room that ended")
+        finally:
+            ap_bridge.ensure = saved_ensure
+
+    def test_an_explicit_connect_reopens_it(self):
+        """ap_connect stamps 'pending' before calling ensure, so the terminal
+        status is already gone by the time the gate above is read."""
+        self.link.status = "pending"
+        saved_bridge, spawned = ap_bridge._Bridge, []
+
+        class _StubBridge(object):
+            def __init__(self, gid, world):
+                spawned.append((gid, world))
+                self.thread = type("T", (), {"start": lambda s: None,
+                                             "is_alive": lambda s: True})()
+
+            def alive(self):
+                return True
+        ap_bridge._Bridge = _StubBridge
+        try:
+            self.assertEqual(ap_bridge.ensure(self.GID, link=self.link), 2)
+            self.assertEqual(spawned, [(self.GID, 1), (self.GID, 2)])
+        finally:
+            ap_bridge._Bridge = saved_bridge
+            with ap_bridge._reg_lock:
+                for k in [k for k in ap_bridge._bridges if k[0] == self.GID]:
+                    del ap_bridge._bridges[k]
 
 
 class TestPersistStatusDedupe(unittest.TestCase):

@@ -1888,7 +1888,7 @@ export default class MainPage extends React.Component {
         let portValid = portNum > 0 && portNum < 65536
         let canConnect = apHost.trim() !== "" && portValid && !apConnectPending
         let canDisconnect = !apConnectPending && !!(apStatus && apStatus.enabled)
-        let statusColor = {connected: "text-success", pending: "text-warning", reconnecting: "text-warning", refused: "text-danger"}[apStatus ? apStatus.status : ""] || "text-muted"
+        let statusColor = {connected: "text-success", pending: "text-warning", reconnecting: "text-warning", refused: "text-danger", closed: "text-muted"}[apStatus ? apStatus.status : ""] || "text-muted"
         let lastActStr = ""
         if(apStatus && apStatus.last_activity) {
             // naive utc isoformat from the server
@@ -1972,7 +1972,10 @@ export default class MainPage extends React.Component {
                                 </Row>
                                 {apStatus.last_error ? (
                                     <Row className="p-1">
-                                        <Col className="text-danger">Last error: {apStatus.last_error}</Col>
+                                        {/* a closed room is how a game ends, not a fault to report */}
+                                        <Col className={apStatus.status === "closed" ? "text-muted" : "text-danger"}>
+                                            {apStatus.status === "closed" ? apStatus.last_error : `Last error: ${apStatus.last_error}`}
+                                        </Col>
                                     </Row>
                                 ) : null}
                                 {(apStatus.dropped || []).length > 0 ? (

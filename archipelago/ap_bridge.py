@@ -404,6 +404,20 @@ def _drop_name(ap_item):
 # unchanged (error text varies per world/attempt)
 _RETRY_STATES = ("reconnecting", "refused", "idle")
 
+# a room that hung up on purpose is not coming back, so retrying it is noise:
+# 1000 normal, 1001 going away (the room process stopped)
+_ROOM_CLOSED_CODES = (1000, 1001)
+ROOM_CLOSED_MSG = "The Archipelago room closed. Connect again once you have a new one."
+
+
+def room_closed_for_good(exc):
+    """True when the room chose to hang up rather than the link breaking under
+    us. ConnectionError/OSError carry no reason and are always retryable."""
+    try:
+        return int(getattr(exc, "reason", None)) in _ROOM_CLOSED_CODES
+    except (TypeError, ValueError):
+        return False
+
 
 def _status_is_noop(link, status, error):
     """Pure helper (tests pin it): True when writing (status, error) would say
@@ -1780,6 +1794,11 @@ class _Bridge(object):
                     log.warning("APBRIDGE connection lost gid=%s world=%s: %s", gid, world, e)
                     if not self.stop_event.is_set():  # don't clobber the route's 'disconnected'
                         with ndb_client.context():
+                            if room_closed_for_good(e):
+                                # terminal: ensure() refuses to restart on this
+                                # status, so only an explicit connect reopens it
+                                _persist_status(gid, "closed", ROOM_CLOSED_MSG)
+                                return
                             _persist_status(gid, "reconnecting", "world %s: %s" % (world, e))
                 except Exception as e:
                     log.exception("APBRIDGE session failed gid=%s world=%s", gid, world)
@@ -1817,7 +1836,7 @@ def ensure(game_id, link=None, wake_idle=True):
     active ndb context (request path only). Never raises; returns count started.
     wake_idle=False (passive callers: ap/status heals) refuses links whose
     status is "idle" -- only real game activity or an explicit connect restarts
-    an idled bridge."""
+    an idled bridge. A "closed" link refuses both: its room is gone."""
     if not ARCHIPELAGO:
         return 0
     started = 0
@@ -1826,6 +1845,11 @@ def ensure(game_id, link=None, wake_idle=True):
         link = link or APLink.with_id(gid)
         enabled = bool(link and link.enabled)
         worlds = len(link.slot_names) if link else 0
+        # ahead of the idle check and deaf to wake_idle: a tick means the player
+        # is still going, which is no reason to redial a room that ended
+        if enabled and (link.status or "") == "closed":
+            _heal_memo[gid] = (monotonic() + IDLE_MEMO_TTL, "closed", worlds)
+            return 0
         if enabled and not wake_idle and (link.status or "") == "idle":
             _heal_memo[gid] = (monotonic() + IDLE_MEMO_TTL, "idle", worlds)
             return 0
@@ -1864,6 +1888,8 @@ def heal(game_id, active=False):
         gid = int(game_id)
         expiry, state, worlds = _heal_memo.get(gid, (0.0, False, 0))
         if monotonic() < expiry:
+            if state == "closed":
+                return
             if state == "idle":
                 if not active:
                     return
