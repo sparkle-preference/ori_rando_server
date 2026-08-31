@@ -13,6 +13,7 @@ import unittest
 from google.cloud import ndb
 
 import main
+from web import presets
 import models
 from models import SavedSeedParams, USER_SETTINGS, User
 from test.ndb_base import NdbTestCase
@@ -115,8 +116,8 @@ class SSPRouteTestCase(NdbTestCase):
         self._ssp_get = SavedSeedParams.__dict__["get"]
 
         # no datastore to open a transaction against, so drive the rename body directly
-        self._rename = main._rename_preset
-        main._rename_preset = main._rename_preset_body
+        self._rename = presets._rename_preset
+        presets._rename_preset = presets._rename_preset_body
 
         self.user = _FakeUser()
         self.logged_in = None
@@ -127,7 +128,7 @@ class SSPRouteTestCase(NdbTestCase):
         self.client = main.app.test_client()
 
     def tearDown(self):
-        main._rename_preset = self._rename
+        presets._rename_preset = self._rename
         User.get = self._user_get
         SavedSeedParams.get = self._ssp_get
         main.app.secret_key = self._secret
@@ -390,7 +391,7 @@ class SettingsSplitOnSaveTestCase(SSPRouteTestCase):
             ssp = _FakeSSP(self.user, kw.get("id", "x").split(":")[-1])
             return ssp
 
-        real = main.SavedSeedParams
+        real = presets.SavedSeedParams
         try:
             class Shim(object):
                 get = staticmethod(real.get)
@@ -401,13 +402,13 @@ class SettingsSplitOnSaveTestCase(SSPRouteTestCase):
                 def __new__(cls, **kw):
                     return fake_ctor(**kw)
 
-            main.SavedSeedParams = Shim
+            presets.SavedSeedParams = Shim
             res = self.save(name="solo", params={
                 "paths": ["casual-core"], "keyMode": "Clues",
                 "players": 4, "syncShared": ["Skills"], "seed": "12345",
             })
         finally:
-            main.SavedSeedParams = real
+            presets.SavedSeedParams = real
         self.assertEqual(res.status_code, 200)
         saved = self.user.store["solo"].settings
         self.assertEqual(saved.get("keyMode"), "Clues")

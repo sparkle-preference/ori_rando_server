@@ -1,7 +1,7 @@
 """The seed page's bingo settings have to survive the trip to the board's modal.
 
 Three builders hand the board its opening settings -- two in MainPage.js and
-_bingo_board_url in main.py -- and the board's constructor reads them back.
+bingo_board_url in main.py -- and the board's constructor reads them back.
 A setting that one side stops emitting is silently ignored by the other, so
 both sides are scraped out of the source here.
 
@@ -13,7 +13,7 @@ import re
 import unittest
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MAIN = os.path.join(HERE, "main.py")
+MAIN = os.path.join(HERE, "web", "bingo.py")
 BINGO = os.path.join(HERE, "map", "src", "Bingo.js")
 PAGE = os.path.join(HERE, "map", "src", "MainPage.js")
 
@@ -60,9 +60,9 @@ class BingoBoardUrlTestCase(unittest.TestCase):
                                   "MainPage's board urls")
         self.assertEqual(want - client, set(), "the seed page drops these")
 
-        server = re.search(r"def _bingo_board_url\(.*?\n    return url", read(MAIN), re.S)
-        self.assertIsNotNone(server, "_bingo_board_url is gone from main.py")
-        self.assertEqual(want - self.emitted_by(server.group(0), "_bingo_board_url"),
+        server = re.search(r"def bingo_board_url\(.*?\n    return url", read(MAIN), re.S)
+        self.assertIsNotNone(server, "bingo_board_url is gone from web/bingo.py")
+        self.assertEqual(want - self.emitted_by(server.group(0), "bingo_board_url"),
                          set(), "the server redirect drops these")
 
     def test_board_reads_every_param_the_seed_page_sends(self):

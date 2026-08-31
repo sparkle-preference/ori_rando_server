@@ -10,6 +10,9 @@ import shutil
 import sys
 import tempfile
 import unittest
+
+import util
+from web import generator
 from collections import Counter
 
 from cli_gen import CLISeedParams, CLIMultiOptions
@@ -1202,7 +1205,7 @@ class BuildFailureReasonWiringTests(unittest.TestCase):
         class _FakeNdbClient(object):
             def context(self):
                 return contextlib.nullcontext()
-        cls.main, cls.models = main, models
+        cls.main, cls.models, cls.generator = main, models, generator
         cls._orig_client = models.client
         models.client = _FakeNdbClient()
         cls._orig_secret = main.app.secret_key
@@ -1216,7 +1219,7 @@ class BuildFailureReasonWiringTests(unittest.TestCase):
 
     def setUp(self):
         main = self.main
-        self._orig = (main.SeedGenParams, main.seed_mode_problem, main.seed_failure_reason)
+        self._orig = (generator.SeedGenParams, generator.seed_mode_problem, generator.seed_failure_reason)
 
         class _FailingParams(object):
             def generate(self, *args, **kwargs):
@@ -1233,24 +1236,24 @@ class BuildFailureReasonWiringTests(unittest.TestCase):
             @staticmethod
             def from_json(json_in):
                 return _FakeKey()
-        main.SeedGenParams = _FakeParams
-        main.seed_mode_problem = lambda *args, **kwargs: None
+        generator.SeedGenParams = _FakeParams
+        generator.seed_mode_problem = lambda *args, **kwargs: None
 
     def tearDown(self):
-        (self.main.SeedGenParams, self.main.seed_mode_problem,
-         self.main.seed_failure_reason) = self._orig
+        (self.generator.SeedGenParams, self.generator.seed_mode_problem,
+         self.generator.seed_failure_reason) = self._orig
 
     def _build(self):
         return self.client.post("/generator/build", data={"params": "{}"})
 
     def test_a_named_reason_becomes_a_422(self):
-        self.main.seed_failure_reason = lambda params: "Classic fill often can't finish a multiworld seed."
+        self.generator.seed_failure_reason = lambda params: "Classic fill often can't finish a multiworld seed."
         resp = self._build()
         self.assertEqual(resp.status_code, 422)
         self.assertIn(b"Classic fill", resp.data)
 
     def test_no_reason_stays_the_generic_500(self):
-        self.main.seed_failure_reason = lambda params: None
+        self.generator.seed_failure_reason = lambda params: None
         resp = self._build()
         self.assertEqual(resp.status_code, 500)
 
@@ -1294,6 +1297,7 @@ class ApworldDownloadTests(unittest.TestCase):
             def context(self):
                 return contextlib.nullcontext()
         cls.main, cls.models, cls.build_apworld = main, models, build_apworld
+        cls.generator = generator
         cls._orig_client = models.client
         models.client = _FakeNdbClient()
         cls._orig_secret = main.app.secret_key
@@ -1306,11 +1310,11 @@ class ApworldDownloadTests(unittest.TestCase):
         cls.main.app.secret_key = cls._orig_secret
 
     def setUp(self):
-        self._orig = (self.main.ARCHIPELAGO, self.main.apworld_zip)
-        self.main.ARCHIPELAGO = True
+        self._orig = (util.ARCHIPELAGO, self.generator.apworld_zip)
+        util.ARCHIPELAGO = True
 
     def tearDown(self):
-        self.main.ARCHIPELAGO, self.main.apworld_zip = self._orig
+        util.ARCHIPELAGO, self.generator.apworld_zip = self._orig
 
     def test_serves_a_zip_named_exactly_oride_apworld(self):
         # AP takes the module name from the file stem, so the name is load-bearing
@@ -1330,14 +1334,14 @@ class ApworldDownloadTests(unittest.TestCase):
                          self.build_apworld.zip_bytes())
 
     def test_bytes_are_cached_after_the_first_request(self):
-        self.main.apworld_zip = None
+        self.generator.apworld_zip = None
         self.client.get("/generator/apworld")
-        self.assertTrue(self.main.apworld_zip)
-        self.main.apworld_zip = b"cached"
+        self.assertTrue(self.generator.apworld_zip)
+        self.generator.apworld_zip = b"cached"
         self.assertEqual(self.client.get("/generator/apworld").data, b"cached")
 
     def test_404_with_the_flag_off(self):
-        self.main.ARCHIPELAGO = False
+        util.ARCHIPELAGO = False
         self.assertEqual(self.client.get("/generator/apworld").status_code, 404)
 
     def test_a_package_that_fails_its_checks_never_ships(self):
@@ -1367,7 +1371,7 @@ class BingoBoltOnGateTests(unittest.TestCase):
         from google.cloud import ndb
         import main
         import models
-        cls.main, cls.models = main, models
+        cls.main, cls.models, cls.generator = main, models, generator
         cls._orig_client = models.client
         models.client = ndb.Client(project="unit-test",
                                    credentials=google.auth.credentials.AnonymousCredentials())

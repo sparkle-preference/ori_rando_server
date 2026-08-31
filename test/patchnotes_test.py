@@ -8,7 +8,8 @@ import json
 import os
 import unittest
 
-import main
+import util
+from web import patchnotes as pn
 
 DOC = json.load(open(os.path.join("map", "src", "patchnotes.json"), encoding="utf-8"))
 
@@ -50,7 +51,7 @@ class PatchNotesDataTestCase(unittest.TestCase):
     def test_the_newest_release_is_the_running_version(self):
         # equal to it, or a site revision sitting on top of it
         newest = version_tuple(DOC["releases"][0]["version"])
-        self.assertEqual(newest[:3], tuple(main.VER))
+        self.assertEqual(newest[:3], tuple(util.VER))
 
 
 class LatestNoteVersionTestCase(unittest.TestCase):
@@ -58,35 +59,35 @@ class LatestNoteVersionTestCase(unittest.TestCase):
     is the whole reason it isn't just VERSION."""
 
     def setUp(self):
-        self.doc = main.patchnotes_doc()
+        self.doc = pn.patchnotes_doc()
 
     def tearDown(self):
-        main._patchnotes_cache = self.doc
+        pn._patchnotes_cache = self.doc
 
     def _with_newest(self, version):
         release = dict(DOC["releases"][0], version=version)
-        main._patchnotes_cache = dict(self.doc, releases=[release] + DOC["releases"])
-        return main.latest_note_version()
+        pn._patchnotes_cache = dict(self.doc, releases=[release] + DOC["releases"])
+        return pn.latest_note_version()
 
     def test_it_is_the_newest_release(self):
-        self.assertEqual(main.latest_note_version(), DOC["releases"][0]["version"])
+        self.assertEqual(pn.latest_note_version(), DOC["releases"][0]["version"])
 
     def test_a_website_release_moves_it_without_moving_ver(self):
-        site = "%s.%s.%s.1" % tuple(main.VER)
+        site = "%s.%s.%s.1" % tuple(util.VER)
         self.assertEqual(self._with_newest(site), site)
-        self.assertEqual(main.VERSION, "%s.%s.%s" % tuple(main.VER))
+        self.assertEqual(util.VERSION, "%s.%s.%s" % tuple(util.VER))
 
     def test_a_missing_file_falls_back_to_the_dll_version(self):
-        main._patchnotes_cache = None
-        real = main.patchnotes_doc
+        pn._patchnotes_cache = None
+        real = pn.patchnotes_doc
 
         def boom():
-            raise main.PatchnotesMissing("gone")
-        main.patchnotes_doc = boom
+            raise pn.PatchnotesMissing("gone")
+        pn.patchnotes_doc = boom
         try:
-            self.assertEqual(main.latest_note_version(), main.VERSION)
+            self.assertEqual(pn.latest_note_version(), util.VERSION)
         finally:
-            main.patchnotes_doc = real
+            pn.patchnotes_doc = real
 
 
 class AnnounceEmbedTestCase(unittest.TestCase):
@@ -101,7 +102,7 @@ class AnnounceEmbedTestCase(unittest.TestCase):
     }
 
     def _body(self, **kw):
-        return main.announce_embed(self.RELEASE, "https://x", **kw)["description"]
+        return pn.announce_embed(self.RELEASE, "https://x", **kw)["description"]
 
     def test_main_channel_gets_majors_only(self):
         body = self._body()
@@ -118,28 +119,28 @@ class AnnounceEmbedTestCase(unittest.TestCase):
         minor_only = dict(self.RELEASE,
                           changes=[c for c in self.RELEASE["changes"]
                                    if c["importance"] == "minor"])
-        self.assertIn("Small fixes only", main.announce_embed(minor_only, "https://x")["description"])
+        self.assertIn("Small fixes only", pn.announce_embed(minor_only, "https://x")["description"])
         # ...but the dev channel gets the actual list instead
-        dev = main.announce_embed(minor_only, "https://x", everything=True)["description"]
+        dev = pn.announce_embed(minor_only, "https://x", everything=True)["description"]
         self.assertIn("Small one.", dev)
         self.assertNotIn("Small fixes only", dev)
 
     def test_the_embed_links_the_release_anchor(self):
-        self.assertEqual(main.announce_embed(self.RELEASE, "https://x")["url"],
+        self.assertEqual(pn.announce_embed(self.RELEASE, "https://x")["url"],
                          "https://x/patchnotes#9.9.9")
 
     def test_an_ordinary_release_says_nothing_about_dlls(self):
-        self.assertIsNone(main.site_only_note(self.RELEASE["version"]))
+        self.assertIsNone(pn.site_only_note(self.RELEASE["version"]))
         self.assertNotIn("site-only", self._body())
 
     def test_a_site_only_release_names_the_dll_it_sits_on(self):
         site = dict(self.RELEASE, version="9.9.9.2")
-        body = main.announce_embed(site, "https://x")["description"]
+        body = pn.announce_embed(site, "https://x")["description"]
         # first line, italicised, and pointing at the three-part version
         self.assertTrue(body.startswith("-# *(this is a site-only update. 9.9.9 is still the latest dll)*"), body)
         # the aside is not a change: it must not stand in for the small-fixes line
         minor_only = dict(site, changes=[c for c in site["changes"] if c["importance"] == "minor"])
-        self.assertIn("Small fixes only", main.announce_embed(minor_only, "https://x")["description"])
+        self.assertIn("Small fixes only", pn.announce_embed(minor_only, "https://x")["description"])
 
 
 class AnnounceChannelSelectionTestCase(unittest.TestCase):
@@ -149,29 +150,29 @@ class AnnounceChannelSelectionTestCase(unittest.TestCase):
 
     def setUp(self):
         self.asked = []
-        self.real = main.announce_webhook
+        self.real = pn.announce_webhook
         # record which channels get as far as looking up a hook, and report
         # every one as unconfigured so nothing tries to POST
-        main.announce_webhook = lambda channel: self.asked.append(channel) or ""
+        pn.announce_webhook = lambda channel: self.asked.append(channel) or ""
 
     def tearDown(self):
-        main.announce_webhook = self.real
+        pn.announce_webhook = self.real
 
     def test_no_channels_means_every_channel(self):
-        main.announce_patchnotes("https://x")
-        self.assertEqual(sorted(self.asked), sorted(main.ANNOUNCE_CHANNELS))
+        pn.announce_patchnotes("https://x")
+        self.assertEqual(sorted(self.asked), sorted(pn.ANNOUNCE_CHANNELS))
 
     def test_naming_one_channel_leaves_the_other_alone(self):
-        for channel in main.ANNOUNCE_CHANNELS:
+        for channel in pn.ANNOUNCE_CHANNELS:
             with self.subTest(channel=channel):
                 self.asked = []
-                out = main.announce_patchnotes("https://x", channels={channel})
+                out = pn.announce_patchnotes("https://x", channels={channel})
                 self.assertEqual(self.asked, [channel])
                 # an unconfigured hook is reported when it was asked for by name
                 self.assertEqual(out, {channel: "no webhook configured"})
 
     def test_an_unconfigured_channel_is_silent_on_the_boot_path(self):
-        self.assertEqual(main.announce_patchnotes("https://x"), {})
+        self.assertEqual(pn.announce_patchnotes("https://x"), {})
 
 
 if __name__ == "__main__":

@@ -11,7 +11,7 @@ import re
 import unittest
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MAIN = os.path.join(HERE, "main.py")
+PRESETS = os.path.join(HERE, "web", "presets.py")
 PAGE = os.path.join(HERE, "map", "src", "MainPage.js")
 
 
@@ -25,8 +25,8 @@ class PresetWireTestCase(unittest.TestCase):
         page = read(PAGE)
         field = re.search(r'postNetForm\("/preset/save",\s*\{(\w+):', page)
         self.assertIsNotNone(field, "the page no longer posts to /preset/save")
-        # scoped to ssp_save: main.py has other routes reading form fields
-        body = re.search(r"def ssp_save\(\):.*?(?=\n@app\.route)", read(MAIN), re.S)
+        # scoped to ssp_save: the module has other routes reading form fields
+        body = re.search(r"def ssp_save\(\):.*?(?=\n@bp\.route)", read(PRESETS), re.S)
         self.assertIsNotNone(body, "ssp_save is gone")
         served = re.search(r'request\.form\.get\("(\w+)"\)', body.group(0))
         self.assertIsNotNone(served, "ssp_save no longer reads a form field")
@@ -36,8 +36,8 @@ class PresetWireTestCase(unittest.TestCase):
 
     def test_every_preset_url_the_page_calls_is_routed(self):
         page = read(PAGE)
-        main = read(MAIN)
-        routes = set(re.findall(r"@app\.route\('(/preset/[^']*|/myPresets)'", main))
+        main = read(PRESETS)
+        routes = set(re.findall(r"@bp\.route\('(/preset/[^']*|/myPresets)'", main))
         # strip flask's <converters> so a template compares against a template
         shapes = {re.sub(r"<[^>]+>", "*", r) for r in routes}
         called = set(re.findall(r'["`](/preset/[^"`]*)["`]', page))
@@ -61,7 +61,7 @@ class PresetWireTestCase(unittest.TestCase):
         page = read(PAGE)
         read_by_page = re.search(r'url\.searchParams\.get\("(\w+)"\)\s*\|\|\s*""\)\.split\(":"\)', page)
         self.assertIsNotNone(read_by_page, "the page no longer parses a share link")
-        emitted = re.search(r'<a href="/\?(\w+)=%s:%s">', read(MAIN))
+        emitted = re.search(r'<a href="/\?(\w+)=%s:%s">', read(PRESETS))
         self.assertIsNotNone(emitted, "the presets page no longer emits a load link")
         self.assertEqual(read_by_page.group(1), emitted.group(1),
                          "the page reads ?%s= but the link says ?%s="

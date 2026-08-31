@@ -11,6 +11,7 @@ from datetime import timedelta
 
 import main
 import models
+import util
 
 # unittest imports every named module before it runs anything, so nothing has
 # served a request yet: this is the app's import-time value.
@@ -82,13 +83,13 @@ class CanonicalRedirectTestCase(unittest.TestCase):
         models.client = _FakeNdbClient()
         self._secret = main.app.secret_key
         main.app.secret_key = main.app.secret_key or "proxy-headers-test"
-        self._canonical, self._hosts = main.CANONICAL_HOST, main.REDIRECT_HOSTS
-        main.CANONICAL_HOST = "bf.orirando.com"
-        main.REDIRECT_HOSTS = ["orirando.com"]
+        self._canonical, self._hosts = util.CANONICAL_HOST, util.REDIRECT_HOSTS
+        util.CANONICAL_HOST = "bf.orirando.com"
+        util.REDIRECT_HOSTS = ["orirando.com"]
         self.client = main.app.test_client()
 
     def tearDown(self):
-        main.CANONICAL_HOST, main.REDIRECT_HOSTS = self._canonical, self._hosts
+        util.CANONICAL_HOST, util.REDIRECT_HOSTS = self._canonical, self._hosts
         models.client = self._client
         main.app.secret_key = self._secret
 
@@ -119,7 +120,7 @@ class CanonicalRedirectTestCase(unittest.TestCase):
         self.assertNotEqual(r.status_code, 301)
 
     def test_unset_is_inert(self):
-        main.CANONICAL_HOST, main.REDIRECT_HOSTS = "", []
+        util.CANONICAL_HOST, util.REDIRECT_HOSTS = "", []
         r = self.client.get("/version/latest", base_url="http://orirando.com")
         self.assertEqual(r.status_code, 200)
 

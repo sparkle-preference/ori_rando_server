@@ -10,6 +10,7 @@ import google.auth.credentials
 from google.cloud import ndb
 
 import main
+from web import generator
 from enums import KeyMode, LogicPath, MultiplayerGameType, PathDifficulty, Variation
 from seedbuilder.seedparams import MultiplayerOptions, SeedGenParams
 
@@ -43,25 +44,25 @@ class WorldFlagLinesTestCase(unittest.TestCase):
         self._ctx.__exit__(None, None, None)
 
     def test_one_line_per_world_when_they_differ(self):
-        lines = main.world_flag_lines(mw_params([{}, {"keyMode": "Shards"}]))
+        lines = generator.world_flag_lines(mw_params([{}, {"keyMode": "Shards"}]))
         self.assertEqual(len(lines), 2)
         self.assertIn("Clues", lines[0])
         self.assertIn("Shards", lines[1])
 
     def test_nothing_to_say_when_no_world_overrides(self):
         """Absent means one rulebook, and the page renders as it always did."""
-        self.assertIsNone(main.world_flag_lines(mw_params([])))
+        self.assertIsNone(generator.world_flag_lines(mw_params([])))
 
     def test_a_params_object_without_the_field_is_fine(self):
         """cli_gen's params carry no world_settings at all."""
         class Bare(object):
             players = 2
-        self.assertIsNone(main.world_flag_lines(Bare()))
+        self.assertIsNone(generator.world_flag_lines(Bare()))
 
     def test_a_line_for_every_player_even_past_the_overrides(self):
         p = mw_params([{}, {"keyMode": "Shards"}])
         p.players = 4
-        self.assertEqual(len(main.world_flag_lines(p)), 4)
+        self.assertEqual(len(generator.world_flag_lines(p)), 4)
 
 
 if __name__ == "__main__":

@@ -33,6 +33,10 @@ COPY ./archipelago/oride_apworld/ ./archipelago/oride_apworld/
 # COPY here breaks only those two routes rather than killing the container.
 COPY ./map/src/patchnotes.json ./map/src/patchnotes.json
 
+# main imports web.responses at module scope, so a missing COPY here kills the
+# container rather than one route.
+COPY ./web/*.py ./web/
+
 COPY *.py ./
 
 # --threads sizes BOTH http concurrency and the websocket connection budget:

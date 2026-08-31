@@ -12,7 +12,7 @@ import re
 import unittest
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MAIN = os.path.join(HERE, "main.py")
+USERS = os.path.join(HERE, "web", "users.py")
 MODELS = os.path.join(HERE, "models.py")
 BAR = os.path.join(HERE, "map", "src", "SiteBar.js")
 
@@ -31,8 +31,8 @@ def registered_settings():
 
 
 def route_body(name):
-    body = re.search(r"def %s\(\):.*?(?=\n@app\.route)" % name, read(MAIN), re.S)
-    assert body, "%s is gone from main.py" % name
+    body = re.search(r"def %s\(\):.*?(?=\n@bp\.route)" % name, read(USERS), re.S)
+    assert body, "%s is gone from web/users.py" % name
     return body.group(0)
 
 
@@ -71,7 +71,7 @@ class SettingsWireTestCase(unittest.TestCase):
 
     def test_the_save_posts_to_a_route_that_exists(self):
         called = set(re.findall(r'postNetForm\("(/[^"]+)"', read(BAR)))
-        routed = set(re.findall(r"@app\.route\('(/user/settings[^']*)'", read(MAIN)))
+        routed = set(re.findall(r"@bp\.route\('(/user/settings[^']*)'", read(USERS)))
         for url in called:
             self.assertIn(url, routed, "the modal posts to %s, which no route serves" % url)
 

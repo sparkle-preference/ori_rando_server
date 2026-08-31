@@ -4,6 +4,7 @@ import unittest
 from flask import g
 
 from test.ndb_base import EmulatorTestCase
+from web import presets
 
 
 class _AppUser(object):
@@ -50,7 +51,7 @@ class UserPersistenceTestCase(EmulatorTestCase):
 
 
 class TransactionalRenameTestCase(EmulatorTestCase):
-    """main._rename_preset through a real transaction, not the unwrapped body."""
+    """presets._rename_preset through a real transaction, not the unwrapped body."""
 
     def _user_with(self, *preset_names):
         from models import SavedSeedParams, User
@@ -64,7 +65,7 @@ class TransactionalRenameTestCase(EmulatorTestCase):
     def test_rename_moves_the_preset(self):
         import main
         user = self._user_with("warps")
-        problem = main._rename_preset(user, "warps", "warps2", "new desc", True)
+        problem = presets._rename_preset(user, "warps", "warps2", "new desc", True)
         self.assertIsNone(problem)
         self.assertIsNone(user.saved_params("warps"))
         moved = user.saved_params("warps2")
@@ -75,13 +76,13 @@ class TransactionalRenameTestCase(EmulatorTestCase):
     def test_missing_preset_is_a_problem_string(self):
         import main
         user = self._user_with()
-        self.assertEqual(main._rename_preset(user, "ghost", "x", "", False),
+        self.assertEqual(presets._rename_preset(user, "ghost", "x", "", False),
                          "no preset named ghost")
 
     def test_occupied_target_changes_nothing(self):
         import main
         user = self._user_with("a", "b")
-        problem = main._rename_preset(user, "a", "b", "", False)
+        problem = presets._rename_preset(user, "a", "b", "", False)
         self.assertEqual(problem, "you already have a preset named b")
         self.assertIsNotNone(user.saved_params("a"))
         self.assertEqual(user.saved_params("b").description, "d")
