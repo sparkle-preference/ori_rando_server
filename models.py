@@ -13,7 +13,7 @@ from flask import g
 
 from seedbuilder.seedparams import Placement, Stuff, SeedGenParams, bingo_worlds
 from enums import MultiplayerGameType, ShareType, Variation
-from util import picks_by_coord, get_bit, get_taste, enums_from_strlist, ord_suffix, debug, bfields_to_coords, bfield_checksum, unpack, netperf, is_mw_manifest_loc
+from util import utcnow, picks_by_coord, get_bit, get_taste, enums_from_strlist, ord_suffix, debug, bfields_to_coords, bfield_checksum, unpack, netperf, is_mw_manifest_loc
 import re
 import threading
 import zlib
@@ -1092,7 +1092,7 @@ class BingoCard(ndb.Model):
             # joins) freeze a stale pre-start `true` forever (game 133486, C2). No
             # debounce either: the underlying squares are already debounced.
             if prior_value != completed:
-                return BingoEvent(event_type="square", loss=not completed, square=self.square, player=capkey, timestamp=datetime.utcnow())
+                return BingoEvent(event_type="square", loss=not completed, square=self.square, player=capkey, timestamp=utcnow())
             return None
         if teammates and not completed:
             all_progress = [self.progress(p) for p in teammates]
@@ -1113,7 +1113,7 @@ class BingoCard(ndb.Model):
         if prior_value != completed:
             if completed:
                 p_progress.pending_loss = False
-                return BingoEvent(event_type="square", loss=False, square=self.square, player=capkey, timestamp=datetime.utcnow())
+                return BingoEvent(event_type="square", loss=False, square=self.square, player=capkey, timestamp=utcnow())
             # Regression. Only the player whose own data is down may stage/confirm
             # the loss — a teammate's interleaved update reflecting our stored
             # (possibly stale) state must not fast-track it. Staging requires the
@@ -1123,7 +1123,7 @@ class BingoCard(ndb.Model):
             if not p_progress.completed:
                 if p_progress.pending_loss:
                     p_progress.pending_loss = False
-                    return BingoEvent(event_type="square", loss=True, square=self.square, player=capkey, timestamp=datetime.utcnow())
+                    return BingoEvent(event_type="square", loss=True, square=self.square, player=capkey, timestamp=utcnow())
                 if prior_completed:
                     p_progress.pending_loss = True
             return None
@@ -1388,7 +1388,7 @@ class BingoGameData(ndb.Model):
             res["is_owner"] = user and self.creator == user.key
 
         if self.start_time:
-            res['countdown'] = datetime.utcnow() < self.start_time
+            res['countdown'] = utcnow() < self.start_time
             res['start_time_posix'] = timegm(self.start_time.timetuple())
   
         if initial:
@@ -1529,7 +1529,7 @@ class BingoGameData(ndb.Model):
             log.error("no bingo data????")
             return
         player_id = int(player_id)
-        now = datetime.utcnow()
+        now = utcnow()
         if not self.start_time and not meta_init:
             if not self.auto_start:
                 return
@@ -1564,10 +1564,10 @@ class BingoGameData(ndb.Model):
             if self.lockout:
                 if not ev.loss and not card.owner:
                     card.owner = cpid
-                    self.event_log.append(BingoEvent(loss=False, event_type="owner", square=ev.square, player=team.captain, timestamp=datetime.utcnow()))
+                    self.event_log.append(BingoEvent(loss=False, event_type="owner", square=ev.square, player=team.captain, timestamp=utcnow()))
                 elif ev.loss and card.owner == cpid:
                     card.owner = 0
-                    self.event_log.append(BingoEvent(loss=True, event_type="owner", square=ev.square, player=team.captain, timestamp=datetime.utcnow()))
+                    self.event_log.append(BingoEvent(loss=True, event_type="owner", square=ev.square, player=team.captain, timestamp=utcnow()))
                     if len(card.completed_by):
                         new_id = card.completed_by[0]
                         new_team = self.team(new_id, cap_only=False)
@@ -1576,7 +1576,7 @@ class BingoGameData(ndb.Model):
                             log.error("Card is completed by player %d without team?!", new_id)
                         else:
                             card.owner = _pid(new_owner)
-                            self.event_log.append(BingoEvent(loss=False, event_type="owner", square=ev.square, player=new_owner, timestamp=datetime.utcnow()))
+                            self.event_log.append(BingoEvent(loss=False, event_type="owner", square=ev.square, player=new_owner, timestamp=utcnow()))
 
         for card in self.board_for(cpid):  # type: BingoCard
             if card.meta:
@@ -2262,7 +2262,7 @@ class Game(ndb.Model):
             Cache.clear_reach(*p.idpts())
         for coords in fresh:
             for pickup, zone in by_coords[coords]:
-                hl = HistoryLine(pickup_code=pickup.code, timestamp=datetime.utcnow(), pickup_id=str(pickup.id),
+                hl = HistoryLine(pickup_code=pickup.code, timestamp=utcnow(), pickup_id=str(pickup.id),
                                  coords=coords, removed=False, player=finisher_pid)
                 if Player.append_hl_chunked_txn(finisher.key, hl):
                     Cache.append_hl(self.key.id(), finisher_pid, hl)
@@ -2507,7 +2507,7 @@ class Game(ndb.Model):
         else:
             log.error("game mode %s not supported" % self.mode)
             retcode = 404
-        hl = HistoryLine(pickup_code=pickup.code, timestamp=datetime.utcnow(), pickup_id=str(pickup.id), coords=coords, removed=remove, player=pid)
+        hl = HistoryLine(pickup_code=pickup.code, timestamp=utcnow(), pickup_id=str(pickup.id), coords=coords, removed=remove, player=pid)
         if coords in range(24, 60, 4) and zone in map_coords_by_zone:
             hl.map_coords = map_coords_by_zone[zone]
         if Player.append_hl_chunked_txn(finder.key, hl):
@@ -2537,7 +2537,7 @@ class Game(ndb.Model):
     def reset(self):
         self.hls = []
         self.has_history = False
-        self.start_time = datetime.now()
+        self.start_time = utcnow()
         for player in self.get_players():
             player.reset()
         # chunks outlive Player.history, and Game.history() reads both
@@ -2573,20 +2573,20 @@ class Game(ndb.Model):
 
     @staticmethod
     def clean_old(log_prog = False, timeout_window=timedelta(hours=1440)):
-        start_time = datetime.now()
+        start_time = utcnow()
         i = 0
-        for game in Game.query(Game.last_update < datetime.now() - timeout_window).fetch(500):
+        for game in Game.query(Game.last_update < utcnow() - timeout_window).fetch(500):
             i+=1
             game.clean_up()
-            if datetime.now() - start_time > timedelta(seconds = 30):
+            if utcnow() - start_time > timedelta(seconds = 30):
                 log.warning("stopping early because we're running out of time")
                 if log_prog:
-                    log.warning("%s remaining" % Game.query(Game.last_update < datetime.now() - timeout_window).count())
+                    log.warning("%s remaining" % Game.query(Game.last_update < utcnow() - timeout_window).count())
                 return i, False
         if i == 500:
             log.warning("stopping after hitting 500 targets")
             if log_prog:
-                log.warning("%s remaining" % Game.query(Game.last_update < datetime.now() - timeout_window).count())
+                log.warning("%s remaining" % Game.query(Game.last_update < utcnow() - timeout_window).count())
             return i, False
         return i, True
 
@@ -2596,7 +2596,7 @@ class Game(ndb.Model):
         if gid == -1:
             if not debug:
                 log.info("Need to grab the list of games to get a free gid, will be slow...")
-            in_use = [int(game.key.id()) for game in Game.query(Game.last_update > datetime.now() - timedelta(hours=24))]
+            in_use = [int(game.key.id()) for game in Game.query(Game.last_update > utcnow() - timedelta(hours=24))]
             if len(in_use) == 0:
                 if not debug:
                     log.warning("Need to check vs every GID! Will be much slower!")

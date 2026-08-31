@@ -8,7 +8,7 @@ from html import escape
 from collections import Counter, defaultdict
 from time import sleep, monotonic
 from calendar import timegm
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 # web imports
 import logging as log
@@ -34,7 +34,7 @@ from cache import Cache
 import hmac
 import util
 from uuid import uuid4
-from util import parse_fass, coord_correction_map, clone_entity, all_locs, picks_by_type_generator, param_val, param_flag, param_true, debug, template_root, VER, MIN_VER, BETA_VER, game_list_html, version_check, template_vals, bfield_checksum, netperf, NETPERF_TAG, json_default, seed_sync_id, is_mw_manifest_loc, ARCHIPELAGO, CANONICAL_HOST, REDIRECT_HOSTS, PATCHNOTES_WEBHOOK_MAIN, PATCHNOTES_WEBHOOK_DEV
+from util import utcnow, parse_fass, coord_correction_map, clone_entity, all_locs, picks_by_type_generator, param_val, param_flag, param_true, debug, template_root, VER, MIN_VER, BETA_VER, game_list_html, version_check, template_vals, bfield_checksum, netperf, NETPERF_TAG, json_default, seed_sync_id, is_mw_manifest_loc, ARCHIPELAGO, CANONICAL_HOST, REDIRECT_HOSTS, PATCHNOTES_WEBHOOK_MAIN, PATCHNOTES_WEBHOOK_DEV
 from reachable import Map, PlayerState
 from pickups import Pickup, Skill, AbilityCell, HealthCell, EnergyCell, Multiple
 
@@ -266,7 +266,7 @@ def active_games(hours=12):
     # window. Same property, so no composite index needed. Over-fetch and
     # slice AFTER filtering, or a run of generated-but-unplayed games fills
     # the budget and reports "no active games" while real ones sit below it.
-    games = Game.query(Game.last_update > datetime.now() - timedelta(hours=hours)
+    games = Game.query(Game.last_update > utcnow() - timedelta(hours=hours)
                        ).order(-Game.last_update).fetch(GAME_LIST_LIMIT * 4)
     games = [game for game in games if game.has_history is not False][:GAME_LIST_LIMIT]
     if not len(games):
@@ -1592,7 +1592,7 @@ def bingo_board():
 
 @app.route('/bingo/game/<int:game_id>/fetch') #BingoGetGame =     
 def bingo_get_game(game_id):
-    now = datetime.utcnow()
+    now = utcnow()
     first = param_flag("first")
     res = Cache.get_board(game_id)
     if first or not res:
@@ -1617,7 +1617,7 @@ def bingo_start_game(game_id):
 
 def _bingo_start_game_inner(game_id):
     res = {}
-    now = datetime.utcnow()
+    now = utcnow()
     bingo = BingoGameData.with_id(game_id)
     if not bingo:
         return text_resp("Bingo game %s not found" % game_id, 404)
@@ -1633,7 +1633,7 @@ def _bingo_start_game_inner(game_id):
                 if p.players != len(team.teammates) + 1:
                     log.error("team %s did not have %s players!", team, p.players)
                     return text_resp("Not all teams have the correct number of players!", 412)
-    bingo.start_time = datetime.utcnow() + timedelta(seconds=15)
+    bingo.start_time = utcnow() + timedelta(seconds=15)
     startStr = "miscBingo Game %s started!" % game_id
     bingo.event_log.append(BingoEvent(event_type=startStr, timestamp=bingo.start_time))
     res = bingo.get_json()
@@ -1673,7 +1673,7 @@ def bingo_reroll_board(game_id):
         return _bingo_reroll_board_inner(game_id)
 
 def _bingo_reroll_board_inner(game_id):
-    now = datetime.utcnow()
+    now = utcnow()
     bingo = BingoGameData.with_id(game_id)
     if not bingo:
         return text_resp("Bingo game %s not found" % game_id, 404)
@@ -1744,7 +1744,7 @@ def _bingo_reseat_world(bingo, game_id, player_id):
         return text_resp("World %s is already on the board" % player_id, 409)
     bingo.teams.append(BingoTeam(captain=bingo.init_player(player_id).key, teammates=[]))
     bingo.event_log.append(BingoEvent(event_type="miscWorld %s is back, with a clear board." % player_id,
-                                      timestamp=datetime.utcnow()))
+                                      timestamp=utcnow()))
     bingo.put()
     res = bingo.get_json()
     Cache.set_board(game_id, dict(res))
@@ -1930,7 +1930,7 @@ def bingo_boards_for(params, seed, lockout, owner=None, opts=None, base=None):
 
 @app.route('/bingo/new') #BingoCreate =
 def bingo_create_game():
-        now = datetime.utcnow()
+        now = utcnow()
         difficulty = param_val("difficulty") or "normal"
         skills = param_val("skills")
         cells = param_val("cells")
@@ -2050,7 +2050,7 @@ def bingo_userboard(name):
 @app.route('/bingo/userboard/<name>/fetch/<game_id>') #UserboardTick =     
 def bingo_userboard_tick(name, game_id):
     cur_gid = int(game_id)
-    now = datetime.utcnow()
+    now = utcnow()
     game_id, err = latest_bingo_game(name)
     if err:
         return text_resp(err, 404)
@@ -2114,7 +2114,7 @@ def _bingo_recreate_problem(game, bingo):
 
 @app.route('/bingo/from_game/<int:game_id>') #AddBingoToGame =     
 def add_bingo_to_game(game_id):
-        now = datetime.utcnow()
+        now = utcnow()
         game_id = int(game_id)
         difficulty = param_val("difficulty") or "normal"
         if not game_id or int(game_id) < 1:

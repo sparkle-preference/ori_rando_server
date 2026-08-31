@@ -3,7 +3,7 @@ from math import floor
 from collections import defaultdict, namedtuple
 from seedbuilder.oriparse import get_areas
 from enums import Variation, LogicPath
-from datetime import datetime
+from datetime import datetime, timezone
 import logging as log
 import os
 from time import monotonic
@@ -19,6 +19,11 @@ try:
     ndb_imported = True
 except ImportError:
     ndb_imported = False
+
+# Naive UTC: our DateTimeProperties carry no tzinfo, and ndb rejects aware values there.
+def utcnow():
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
 
 VER = [5, 0, 0]
 MIN_VER = [5, 0, 0]
@@ -468,7 +473,7 @@ def game_list_html(games):
         blink = ""
         if game.bingo_data:
             blink += " <a href='/bingo/board?game_id=%s'>Bingo board</a>" % gid
-        body += "<li><a href='%s'>Game #%s</a> <a href='%s'>Map</a>%s%s %s (Last update: %s ago)</li>" % (game_link, gid, map_link, slink, blink, flags, datetime.now() - game.last_update)
+        body += "<li><a href='%s'>Game #%s</a> <a href='%s'>Map</a>%s%s %s (Last update: %s ago)</li>" % (game_link, gid, map_link, slink, blink, flags, utcnow() - game.last_update)
     return body
 
 is_debug = "K_REVISION" not in os.environ or os.environ["K_REVISION"].startswith('dev')

@@ -10,7 +10,6 @@ this module: the test PythonCache is process-wide.
 Run from the repo root:  python3 -m unittest test.gamelist_test -v
 """
 import unittest
-from datetime import datetime
 
 import google.auth.credentials
 from google.cloud import ndb
@@ -20,6 +19,7 @@ import models
 import util
 from cache import Cache
 from enums import MultiplayerGameType, Variation
+from util import utcnow
 from seedbuilder.seedparams import SeedGenParams
 
 
@@ -116,7 +116,7 @@ class _FakeGame(object):
         self.key = _FakeKey(gid)
         self.params = params_key
         self.has_history = has_history
-        self.last_update = datetime.now()
+        self.last_update = utcnow()
         self.bingo_data = None
 
 

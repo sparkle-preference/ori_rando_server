@@ -12,7 +12,6 @@ Run from the repo root:  python3 -m unittest test.bingo_reroll_test -v
 import contextlib
 import json
 import unittest
-from datetime import datetime
 
 import google.auth.credentials
 from google.cloud import ndb
@@ -21,6 +20,7 @@ import main
 import models
 from enums import MultiplayerGameType
 from models import BingoGameData, Game, User
+from util import utcnow
 from seedbuilder.seedparams import SeedGenParams
 
 GID = 91001
@@ -163,7 +163,7 @@ class RerollTestCase(unittest.TestCase):
         self.assertEqual(self.bingo.puts, 0)
 
     def test_a_started_board_keeps_its_board(self):
-        bingo = self.make_board(start_time=datetime.utcnow())
+        bingo = self.make_board(start_time=utcnow())
         before = self.names(bingo)
         self.assertEqual(self.reroll().status_code, 412)
         self.assertEqual(self.names(bingo), before)
