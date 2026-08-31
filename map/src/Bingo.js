@@ -954,8 +954,19 @@ export default class Bingo extends React.Component {
         ) : (
             <Button block onClick={this.toggleCreate}>Create New Game</Button>
         )
+        // a per-world board's seats come from its seeds; all held = nothing to join
+        let bbw = this.state.boardsByWorld || {}
+        let allSeated = false
+        if(Object.keys(bbw).length && teams) {
+            let seated = new Set()
+            Object.keys(teams).forEach(t => {
+                seated.add(teams[t].cap.pid)
+                teams[t].teammates.forEach(tm => seated.add(tm.pid))
+            })
+            allSeated = Object.keys(bbw).every(w => seated.has(parseInt(w, 10)))
+        }
         // a one-world AP board has nobody to team with
-        let joinGameButton = (teamsDisabled || apWorlds === 1) ? (
+        let joinGameButton = allSeated ? null : (teamsDisabled || apWorlds === 1) ? (
             <Button block color="primary" onClick={() => this.joinGame()} disabled={!haveGame}>Join Game</Button>
         ) : (
             <Button block color="warning" onClick={() => this.joinGame()} disabled={!haveGame}>Create Team</Button>
