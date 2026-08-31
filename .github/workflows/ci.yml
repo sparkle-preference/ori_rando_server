@@ -90,3 +90,53 @@ jobs:
 
       - run: npx parcel build
         working-directory: map
+
+  e2e:
+    name: browser smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            map/package-lock.json
+            e2e/package-lock.json
+
+      - run: npm ci
+        working-directory: map
+
+      - run: npx parcel build
+        working-directory: map
+
+      # the flask dev container serves map/dist straight off the checkout
+      - name: Start the dev stack
+        run: docker compose up -d flask datastore memcached
+
+      - name: Wait for the site
+        # first boot pip-installs inside the container, so be patient
+        run: |
+          for _ in $(seq 1 180); do
+            curl -sf http://localhost:8080/ >/dev/null && exit 0
+            sleep 1
+          done
+          echo "the site never came up"
+          docker compose logs flask | tail -50
+          exit 1
+
+      - run: npm ci
+        working-directory: e2e
+
+      - run: npx playwright install --with-deps chromium
+        working-directory: e2e
+
+      - run: npx playwright test
+        working-directory: e2e
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: e2e/playwright-report/

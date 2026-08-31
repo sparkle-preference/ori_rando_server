@@ -31,6 +31,7 @@ from enums import MultiplayerGameType, ShareType, Variation, presets
 from models import ndb_wsgi_middleware, Game, Player, SavedSeedParams, Seed, User, BingoGameData, BingoWorldBoard, BingoEvent, BingoTeam, SITE_THEMES, URL_UNSAFE_NAME_CHARS, USER_SETTINGS, pick_discovery_squares, trees_by_coords, LegacyUser, bingo_lock, AnnouncedPatchNotes
 from bingo import BingoGenerator
 from cache import Cache
+import hmac
 import util
 from uuid import uuid4
 from util import parse_fass, coord_correction_map, clone_entity, all_locs, picks_by_type_generator, param_val, param_flag, param_true, debug, template_root, VER, MIN_VER, BETA_VER, game_list_html, version_check, template_vals, bfield_checksum, netperf, NETPERF_TAG, json_default, seed_sync_id, is_mw_manifest_loc, ARCHIPELAGO, CANONICAL_HOST, REDIRECT_HOSTS, PATCHNOTES_WEBHOOK_MAIN, PATCHNOTES_WEBHOOK_DEV
@@ -69,8 +70,10 @@ class _GuestUser(object):
 @app.before_request
 def _seat_guest():
     # registered after make_oidc, so this runs second and the assignment wins.
-    # util.GUEST_USERS is read live: tests flip it per case
-    if not util.GUEST_USERS or app.config.get("OIDC_ENABLED"):
+    # util.GUEST_USERS is read live: tests flip it per case. Three latches, and
+    # prod fails two: real OIDC wins outright, and a non-dev revision refuses
+    # even a stray GUEST_USERS=1
+    if not util.GUEST_USERS or not debug() or app.config.get("OIDC_ENABLED"):
         return
     sub = session.get("guest_sub")
     if not sub:
@@ -78,6 +81,22 @@ def _seat_guest():
         session["guest_sub"] = sub
         session.permanent = True  # a month, not a tab: rejoining keeps your games
     g.oidc_user = _GuestUser(sub)
+
+
+@app.route('/beta/claim/<secret>')
+def beta_claim(secret):
+    """Point this browser's guest session at the shared testing account, so
+    the one tester who knows the secret keeps its presets and games while
+    everyone else stays a guest. Same latches as the guest seat itself."""
+    want = os.getenv("GUEST_CLAIM_SECRET")
+    if not (util.GUEST_USERS and debug() and want
+            and not app.config.get("OIDC_ENABLED")):
+        return text_resp("Nothing here", 404)
+    if not hmac.compare_digest(secret, want):
+        return text_resp("Nothing here", 404)
+    session["guest_sub"] = os.getenv("OIDC_USER_ID", "123454321234543212345")
+    session.permanent = True
+    return redirect("/")
 
 
 if debug():
