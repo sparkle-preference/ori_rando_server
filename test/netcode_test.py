@@ -1039,6 +1039,25 @@ class TestBingoUpdateFlow(NdbTestCase):
         for e in entities:
             e.put = lambda *a, **k: None
 
+    def _stub_txns(self, player):
+        """The update's Player writes are transactions; point them at the
+        in-memory copy so the flow still runs without a datastore."""
+        for name in ("signal_send_txn", "set_bingo_tp_txn"):
+            self.addCleanup(setattr, Player, name, Player.__dict__[name])
+
+        def fake_send(pkey, signal):
+            if signal in player.signals:
+                return False
+            player.signals.append(signal)
+            return True
+
+        def fake_tp(pkey, value):
+            player.bingo_last_tp = value
+            return True
+
+        Player.signal_send_txn = staticmethod(fake_send)
+        Player.set_bingo_tp_txn = staticmethod(fake_tp)
+
     def test_update_full_flow_in_memory(self):
         """The whole non-transactional update path: a posted goal completion
         lands as an event, completed_by membership, score, and a board stash."""
@@ -1055,6 +1074,7 @@ class TestBingoUpdateFlow(NdbTestCase):
         bgd.game = ndb.Key("Game", 55)
         bgd.get_players = lambda: [p1]
         self._stub_puts(p1, bgd)
+        self._stub_txns(p1)
 
         bgd.update({"TestGoal": {"value": 5}}, 1, 55)
 
@@ -1088,6 +1108,7 @@ class TestBingoUpdateFlow(NdbTestCase):
         bgd.game = ndb.Key("Game", 56)
         bgd.get_players = lambda: [p1]
         self._stub_puts(p1, bgd)
+        self._stub_txns(p1)
 
         bgd.update({"TestGoal": {"value": 5}}, 1, 56)
 

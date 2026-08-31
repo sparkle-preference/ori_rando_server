@@ -196,6 +196,23 @@ class TestSignalFlow(NdbTestCase):
         self.assertEqual(p.signals, ["win:gg"])
 
 
+class TestBingoTeleporterWrite(NdbTestCase):
+    """The bingo update's only Player write. It runs under bingo_lock, which
+    no grant transaction takes, so it may not put a whole stale entity."""
+
+    def test_tp_txn_leaves_slot_bitfields_alone(self):
+        fresh = make_player(920, 1, slot_bflds=[0] * 8, bingo_last_tp="sunkenGlades")
+        fresh.slot_bflds[0] = 0b1010          # granted after the update read
+        Player.set_bingo_tp_txn.__wrapped__(_KeyStub(fresh), "forlornRuins")
+        self.assertEqual(fresh.bingo_last_tp, "forlornRuins")
+        self.assertEqual(fresh.slot_bflds[0], 0b1010, "the bingo update ate a grant")
+
+    def test_tp_txn_skips_the_write_when_unchanged(self):
+        fresh = make_player(921, 1, bingo_last_tp="forlornRuins")
+        self.assertFalse(Player.set_bingo_tp_txn.__wrapped__(_KeyStub(fresh), "forlornRuins"))
+        self.assertEqual(fresh.put_count, 0)
+
+
 class TestMultiworldSlotsField(NdbTestCase):
     """The multiworld tick extension (2026-07-22, names added 2026-07-23):
     in MW games only, the signals field is ALWAYS present (possibly empty),

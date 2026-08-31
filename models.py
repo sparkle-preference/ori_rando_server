@@ -790,9 +790,7 @@ class Player(ndb.Model):
         return out
 
     def signal_send(self, signal):
-        # stale-put hazard: request paths want signal_send_txn. The callers
-        # here (bingo update tail, sanity repair) re-put their copies anyway
-        # and must convert together or the tail put erases the txn's append.
+        # stale-put hazard: everything outside tests wants signal_send_txn.
         if signal not in self.signals:
             self.signals.append(signal)
             self.put()
@@ -847,6 +845,18 @@ class Player(ndb.Model):
         if p is None or signal in p.signals:
             return False
         p.signals.append(signal)
+        p.put()
+        return True
+
+    @staticmethod
+    @ndb.transactional(retries=5)
+    def set_bingo_tp_txn(pkey, tp):
+        """The bingo update's only Player write. bingo_lock serializes board
+        writers, but grant txns never take it, so a full put here drops slots."""
+        p = pkey.get()
+        if p is None or p.bingo_last_tp == tp:
+            return False
+        p.bingo_last_tp = tp
         p.put()
         return True
 
@@ -1546,6 +1556,7 @@ class BingoGameData(ndb.Model):
         players_by_id = {_pid(p.key): p for p in self.get_players()}  # type: Dict[int, Player]
         player = players_by_id[player_id]
         # no card is named for it; journey cards read it via prog_json
+        prior_tp = player.bingo_last_tp
         player.bingo_last_tp = ((bingo_data or {}).get("LastTouchedTeleporter") or {}).get("value") or ""
         cpid = _pid(team.captain)
         teammates = [players_by_id[pid] for pid in team.pids() if pid != player_id]
@@ -1657,13 +1668,10 @@ class BingoGameData(ndb.Model):
         if win_players:
             p_list = [player] + teammates
             for p in p_list:
-                p.signal_send(win_sig % (place, round_now))
-            # Stash for the caller to re-bust AFTER this update fully lands.
-            # signal_send busts the tick checksum itself, but a 1 Hz tick that
-            # read this player just before the signal was put can finish after
-            # the bust and re-arm the fast path with signal-less output; a
-            # finished player's bitfields never change again, so the win sits
-            # undelivered until alt+l (game 133908, pid 221: 16s stall).
+                Player.signal_send_txn(p.key, win_sig % (place, round_now))
+            # The caller re-busts these after the update lands; a tick that read
+            # this player pre-signal can re-arm the fast path after an earlier
+            # bust, and a finished player's bitfields never bust it again.
             self._signal_pids = [p.idpts() for p in p_list]
             # an AP board's pids are its worlds, so winning it is those worlds'
             # Archipelago goal. Stashed for the caller: the room must not hear
@@ -1676,7 +1684,9 @@ class BingoGameData(ndb.Model):
         # would overwrite the cache before aborting — the source of the goal
         # flicker seen in games 133478/133482.
         self._board_json = self.get_json(players=players_by_id.values())
-        player.put()
+        # the update's only Player field, and nothing reads Player.last_update
+        if player.bingo_last_tp != prior_tp:
+            Player.set_bingo_tp_txn(player.key, player.bingo_last_tp)
         if need_write:
             self.put()
 
@@ -2178,11 +2188,13 @@ class Game(ndb.Model):
                         player.give_pickup(pickup, remove=(has > count), delay_put=True)
                         has = player.has_pickup(pickup)
                         if has == last:
-                            player.signal_send(sanFailedSignal)
+                            Player.signal_send_txn(player.key, sanFailedSignal)
+                            Cache.clear_seen_checksum(player.idpts())
                             log.critical("Aborting sanity check for Player %s: tried and failed to %s %s (at %s, should be %s)" % (player.key.id(), "decrement" if last > count else "increment", pickup.name, has, count))
                             return False
                         if i > 100:
-                            player.signal_send(sanFailedSignal)
+                            Player.signal_send_txn(player.key, sanFailedSignal)
+                            Cache.clear_seen_checksum(player.idpts())
                             log.critical("Aborting sanity check for Player %s after too many iterations." % player.key.id())
                             return False
             stuples, bonuses = tuple(zip(*[(player.sharetuple(), player.bonuses) for player in players]))

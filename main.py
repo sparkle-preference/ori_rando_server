@@ -1716,7 +1716,8 @@ def _bingo_reroll_board_inner(game_id):
     bingo.teams_allowed = (param_flag("teams") or bingo.teams_shared) and not bingo.boards
     bingo.event_log.append(BingoEvent(event_type="miscBoard rerolled!", timestamp=now))
     for p in bingo.get_players():
-        p.signal_send("msg:@Board rerolled! Press alt+L to pick up the new goals@")
+        if Player.signal_send_txn(p.key, "msg:@Board rerolled! Press alt+L to pick up the new goals@"):
+            Cache.clear_seen_checksum(p.idpts())
     bingo.put()
     # in the shape a poll expects, or every viewer sits on the old board for a TTL
     Cache.set_board(game_id, bingo.get_json())
