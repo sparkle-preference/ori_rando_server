@@ -42,6 +42,12 @@ This will expose two services
 - `APP_SECRET_KEY`: Flask's secret key, used to save user login sessions. Default `INSECURE_DEV_SECRET_KEY`.
 - `NO_WATCH_REACT_APP`: Don't watch for changes in the React App after initial build. If you'd like to not build the React app at all, avoid running the `react` service in `docker-compose.yml`.
 
+#### Tests
+```sh
+python -m unittest discover -s test -p "*_test.py"
+```
+These run on the host rather than in Docker, and need Python 3.12+ - older versions can't parse `main.py`.
+
 For additional help, you can contact me (Eiko) in the [Ori Randomizer Discord](https://orirando.com/discord).
 
 
