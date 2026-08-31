@@ -14,10 +14,6 @@ from web.patchnotes import latest_note_version
 app = create_app()
 
 
-# nothing reads this any more; kept until someone says the plando format moved
-PLANDO_VER = "0.5.1"
-
-
 def ap_versions():
     """Versions the AP setup panel quotes, read from the packaged sources."""
     try:
@@ -26,6 +22,7 @@ def ap_versions():
         log.error("APWORLD manifest unreadable, version line will be blank: %s", e)
         world_version = ""
     return {'ap_world_version': world_version, 'ap_data_version': AP_DATA_VERSION}
+
 
 if util.ARCHIPELAGO:
     # an image missing package files still boots and passes its health check,
@@ -44,6 +41,3 @@ def main_page():
     if util.ARCHIPELAGO:
         template_values.update(ap_versions())
     return render_template(INDEX_TEMPLATE, **template_values)
-
-
-# why is it like this??

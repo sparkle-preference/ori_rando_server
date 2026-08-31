@@ -251,6 +251,7 @@ def tracker_get_items_update(game_id, player_id):
             Cache.set_have(game_id, coords)
         items, _ = _get_item_tracker_items(coords.get(player_id, []), game, player_id)
     return json_resp(items)
+# why is it like this??
 def _get_item_tracker_items(coords, game, player=1):
     relics = game.relics_for(player)
     data = {
