@@ -22,7 +22,9 @@ from models import BingoGameData, BingoWorldBoard, Game, User
 from test.bingo_reroll_test import GID, _FakeGame, _FakeNdbClient, _FakeUser
 
 
-class PerWorldSeatTestCase(unittest.TestCase):
+class _SeatHarness(unittest.TestCase):
+    """Stubs only -- no tests. A TestCase subclass inherits its parent's
+    tests, so the classes below share this instead of each other."""
 
     @classmethod
     def setUpClass(cls):
@@ -88,6 +90,9 @@ class PerWorldSeatTestCase(unittest.TestCase):
     def add(self, pid):
         return self.client.get("/bingo/game/%s/add/%s" % (GID, pid))
 
+
+class PerWorldSeatTestCase(_SeatHarness):
+
     def test_the_owner_puts_a_removed_world_back(self):
         bingo = self.make_board(worlds=(1, 2), seated=(2,))
         res = self.add(1)
@@ -136,6 +141,52 @@ class PerWorldSeatTestCase(unittest.TestCase):
         self.add(1)
         self.assertEqual(len(bingo.event_log), 1)
         self.assertIn("clear board", bingo.event_log[0].event_type)
+
+
+class ApBingoSeedGateTestCase(_SeatHarness):
+    """The board's seed handout obeys the same not-ready gate as the seed
+    page. An AP seed is a snapshot; the bingo route was the way around it."""
+
+    def setUp(self):
+        super(ApBingoSeedGateTestCase, self).setUp()
+        self._gate = main.ap_seed_not_ready
+        self.gate_calls = []
+        self.gate_answer = None
+        def gate(params, gid):
+            self.gate_calls.append((params, gid))
+            return self.gate_answer
+        main.ap_seed_not_ready = gate
+        # the default harness game is paramless; the gate needs one to consult
+        self.ap_params = object()
+        self.game._params = self.ap_params
+
+    def tearDown(self):
+        main.ap_seed_not_ready = self._gate
+        super(ApBingoSeedGateTestCase, self).tearDown()
+
+    def download(self, pid=2):
+        bingo = self.make_board()
+        bingo.get_seed = lambda p: "Sync%s.%s,flags\n" % (GID, p)
+        return self.client.get("/bingo/game/%s/seed/%s" % (GID, pid))
+
+    def test_a_not_ready_ap_game_refuses_the_download(self):
+        self.gate_answer = "names are not ready"
+        res = self.download()
+        self.assertEqual(res.status_code, 409)
+        self.assertIn(b"names are not ready", res.data)
+        self.assertEqual(self.gate_calls, [(self.ap_params, GID)])
+
+    def test_a_ready_ap_game_hands_the_seed_out(self):
+        res = self.download()
+        self.assertEqual(res.status_code, 200)
+        self.assertIn(b"flags", res.data)
+
+    def test_a_paramless_board_skips_the_gate(self):
+        # vanilla+ boards have a game and no params; there is nothing to bake
+        self.game._params = None
+        res = self.download()
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(self.gate_calls, [])
 
 
 if __name__ == "__main__":
