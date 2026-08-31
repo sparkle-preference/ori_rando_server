@@ -17,6 +17,7 @@ from google.cloud import ndb
 import main
 import models
 import util
+from web import tracker
 from cache import Cache
 from enums import MultiplayerGameType, Variation
 from util import utcnow
@@ -71,41 +72,41 @@ class GameFlagsTestCase(unittest.TestCase):
         return _FakeKey(self.PID, self.params, self.gets)
 
     def test_the_entity_is_read_once_and_then_never_again(self):
-        self.assertEqual(util.game_flags(self._key()),
+        self.assertEqual(tracker.game_flags(self._key()),
                          ("standard,balanced|seedname", False))
         self.assertEqual(self.gets[0], 1)
         for _ in range(20):
-            util.game_flags(self._key())
+            tracker.game_flags(self._key())
         self.assertEqual(self.gets[0], 1)   # twenty more rows, no inflation
 
     def test_a_race_seed_reports_itself(self):
         self.params = _FakeParams(race=True)
-        line, is_race = util.game_flags(self._key())
+        line, is_race = tracker.game_flags(self._key())
         self.assertTrue(is_race)
         self.assertEqual(line, "standard,balanced|seedname")
 
     def test_a_deleted_seed_is_not_cached_as_an_answer(self):
         self.params = None
-        self.assertEqual(util.game_flags(self._key()), (None, False))
+        self.assertEqual(tracker.game_flags(self._key()), (None, False))
         self.assertIsNone(Cache.get_game_flags(self.PID))
 
     def test_a_params_put_busts_the_pair(self):
         # the one mutate-and-put site (bingo's variation append) must not
         # leave a stale flag line behind. Drives the REAL hook, so deleting
         # its bust fails here rather than passing quietly.
-        util.game_flags(self._key())
+        tracker.game_flags(self._key())
         self.assertIsNotNone(Cache.get_game_flags(self.PID))
         planted = SeedGenParams(id=self.PID, seed="x")
         planted._post_put_hook(None)         # what ndb fires after any put
         self.assertIsNone(Cache.get_game_flags(self.PID))
         self.params = _FakeParams(line="standard,balanced,bingo|seedname")
-        self.assertEqual(util.game_flags(self._key())[0],
+        self.assertEqual(tracker.game_flags(self._key())[0],
                          "standard,balanced,bingo|seedname")
 
     def test_a_params_delete_busts_the_pair(self):
         # clean_up deletes params that another live game may still point at:
         # that row has to go back to "(Seed not found)", not a dead link
-        util.game_flags(self._key())
+        tracker.game_flags(self._key())
         self.assertIsNotNone(Cache.get_game_flags(self.PID))
         SeedGenParams._post_delete_hook(ndb.Key("SeedGenParams", self.PID), None)
         self.assertIsNone(Cache.get_game_flags(self.PID))
@@ -125,38 +126,38 @@ class GameListHtmlTestCase(unittest.TestCase):
 
     def setUp(self):
         self.gets = [0]
-        self._url_for, self._whitelist = util.url_for, util.whitelist_ok
-        util.url_for = lambda route, **kw: "/%s/%s" % (route, kw.get("game_id", ""))
-        util.whitelist_ok = lambda: False
+        self._url_for, self._whitelist = tracker.url_for, tracker.whitelist_ok
+        tracker.url_for = lambda route, **kw: "/%s/%s" % (route, kw.get("game_id", ""))
+        tracker.whitelist_ok = lambda: False
         Cache.clear_game_flags(self.PID)
 
     def tearDown(self):
-        util.url_for, util.whitelist_ok = self._url_for, self._whitelist
+        tracker.url_for, tracker.whitelist_ok = self._url_for, self._whitelist
         Cache.clear_game_flags(self.PID)
 
     def test_the_seed_link_costs_no_fetch_when_flags_are_cached(self):
         Cache.set_game_flags(self.PID, "standard|seed", False)
         games = [_FakeGame(500 + i, _FakeKey(self.PID, _FakeParams(), self.gets))
                  for i in range(5)]
-        body = util.game_list_html(games)
+        body = tracker.game_list_html(games)
         self.assertEqual(self.gets[0], 0)         # five rows, zero inflations
         self.assertEqual(body.count("Seed</a>"), 5)
         self.assertIn("standard|seed", body)
 
     def test_race_games_are_hidden_from_the_unwhitelisted(self):
         Cache.set_game_flags(self.PID, "standard|seed", True)
-        body = util.game_list_html([_FakeGame(501, _FakeKey(self.PID, _FakeParams(race=True)))])
+        body = tracker.game_list_html([_FakeGame(501, _FakeKey(self.PID, _FakeParams(race=True)))])
         self.assertEqual(body, "")
-        util.whitelist_ok = lambda: True
-        body = util.game_list_html([_FakeGame(501, _FakeKey(self.PID, _FakeParams(race=True)))])
+        tracker.whitelist_ok = lambda: True
+        body = tracker.game_list_html([_FakeGame(501, _FakeKey(self.PID, _FakeParams(race=True)))])
         self.assertIn("Game #501", body)
 
     def test_a_missing_seed_says_so(self):
-        body = util.game_list_html([_FakeGame(502, _FakeKey(77003, None))])
+        body = tracker.game_list_html([_FakeGame(502, _FakeKey(77003, None))])
         self.assertIn("Seed not found", body)
 
     def test_a_game_without_params_still_renders(self):
-        body = util.game_list_html([_FakeGame(503)])
+        body = tracker.game_list_html([_FakeGame(503)])
         self.assertIn("Game #503", body)
 
 
@@ -234,7 +235,7 @@ class ActiveGamesRouteTestCase(unittest.TestCase):
         self.orders = []
         self.rendered = []
         self.games = []
-        self._query, self._html = main.Game.query, main.game_list_html
+        self._query, self._html = tracker.Game.query, tracker.game_list_html
         outer = self
 
         class _Query(object):
@@ -249,16 +250,16 @@ class ActiveGamesRouteTestCase(unittest.TestCase):
         def counting_query(*a, **kw):
             outer.queries += 1
             return _Query()
-        main.Game.query = staticmethod(counting_query)
-        main.game_list_html = lambda games: (outer.rendered.append(list(games))
+        tracker.Game.query = staticmethod(counting_query)
+        tracker.game_list_html = lambda games: (outer.rendered.append(list(games))
                                              or "<li>rendered</li>")
 
     def tearDown(self):
-        main.Game.query, main.game_list_html = self._query, self._html
+        tracker.Game.query, tracker.game_list_html = self._query, self._html
 
     def _run(self):
         with main.app.test_request_context("/activeGames/"):
-            main.active_games()
+            tracker.active_games()
         return self.rendered[-1]
 
     def test_the_query_is_bounded_and_runs_once(self):
@@ -266,13 +267,13 @@ class ActiveGamesRouteTestCase(unittest.TestCase):
         self._run()
         self.assertEqual(self.queries, 1)
         # over-fetches so the has_history filter has slack, then slices
-        self.assertEqual(self.limits, [main.GAME_LIST_LIMIT * 4])
+        self.assertEqual(self.limits, [tracker.GAME_LIST_LIMIT * 4])
 
     def test_the_rendered_list_is_capped_after_filtering(self):
         self.games = ([_FakeGame(i, has_history=False) for i in range(60)]
                       + [_FakeGame(900 + i, has_history=True) for i in range(60)])
         shown = self._run()
-        self.assertEqual(len(shown), main.GAME_LIST_LIMIT)
+        self.assertEqual(len(shown), tracker.GAME_LIST_LIMIT)
         # the empty ones were dropped BEFORE the cap, so real games survive
         self.assertTrue(all(g.key.id() >= 900 for g in shown))
 
@@ -299,7 +300,7 @@ class ActiveGamesRouteTestCase(unittest.TestCase):
         # entire Game corpus into one request
         self.games = []
         with main.app.test_request_context("/activeGames/"):
-            resp = main.active_games()
+            resp = tracker.active_games()
         self.assertEqual(self.queries, 1)
         self.assertIn("No active games", resp.get_data(as_text=True))
 

@@ -74,15 +74,15 @@ def gen_seed_from_url():
             if params.tracking:
                 game = Game.from_params(params, param_val("game_id"))
                 key = game.key
-                resp["map_url"] = url_for("tracker_show_map", game_id=key.id())
-                resp["history_url"] = url_for("game_show_history", game_id=key.id())
+                resp["map_url"] = url_for("tracker.tracker_show_map", game_id=key.id())
+                resp["history_url"] = url_for("tracker.game_show_history", game_id=key.id())
             for p in range(1, params.players + 1):
                 if params.tracking:
                     seed = params.get_seed(p, key.id(), verbose_paths)
                 else:
                     seed = params.get_seed(p, verbose_paths=verbose_paths)
                 spoiler = params.get_spoiler(p).replace("\n", "\r\n")
-                players.append({"seed": seed, "spoiler": spoiler, "spoiler_url": url_for('get_spoiler_from_params', params_id=param_key.id(), player=p)})
+                players.append({"seed": seed, "spoiler": spoiler, "spoiler_url": url_for('generator.get_spoiler_from_params', params_id=param_key.id(), player=p)})
             resp["players"] = players
             return json_resp(resp)
         reason = seed_failure_reason(params)

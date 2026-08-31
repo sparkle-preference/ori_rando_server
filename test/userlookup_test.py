@@ -13,6 +13,7 @@ import json
 import unittest
 
 import main
+from web import tracker
 from cache import Cache
 from models import User
 
@@ -155,7 +156,7 @@ class TrackerUsermapTestCase(unittest.TestCase):
     def _resolve(self, game_id):
         with main.app.test_request_context(
                 "/tracker/game/%s/fetch/update?usermap=%s" % (game_id, self.NAME)):
-            self.assertRaises(_StopRoute, main.tracker_update_map, game_id)
+            self.assertRaises(_StopRoute, tracker.tracker_update_map, game_id)
         return self.resolved[-1]
 
     def test_the_lookup_runs_once_per_poll(self):
@@ -199,7 +200,7 @@ class TrackerRedirectResponseTestCase(unittest.TestCase):
         with main.app.test_request_context(
                 "/tracker/game/%s/fetch/update?modes=%s&usermap=%s"
                 % (game_id, self.MODES, self.NAME)):
-            resp = main.tracker_update_map(game_id)
+            resp = tracker.tracker_update_map(game_id)
         return json.loads(resp.get_data(as_text=True))
 
     def test_a_moved_game_tells_the_client_its_new_id(self):

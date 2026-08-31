@@ -19,6 +19,7 @@ from web.plando import bp as plando_bp
 from web.presets import bp as presets_bp
 from web.netcode import bp as netcode_bp
 from web.pages import bp as pages_bp
+from web.tracker import bp as tracker_bp
 from web.users import bp as users_bp
 from web.patchnotes import bp as patchnotes_bp
 
@@ -71,6 +72,7 @@ def create_app():
     app.register_blueprint(users_bp)
     app.register_blueprint(netcode_bp)
     app.register_blueprint(generator_bp)
+    app.register_blueprint(tracker_bp)
     app.register_blueprint(meta_bp)
     app.register_blueprint(plando_bp)
     app.register_blueprint(presets_bp)

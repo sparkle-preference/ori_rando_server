@@ -10,7 +10,7 @@ from time import monotonic
 from zlib import crc32
 
 try:
-    from flask import request, url_for
+    from flask import request
     flask_imported = True
 except ImportError:
     flask_imported = False
@@ -453,32 +453,6 @@ def game_flags(params_key):
         log.exception("could not cache game flags for params %s", params_id)
     return flags
 
-
-def game_list_html(games):
-    if not flask_imported:
-        print("HELLO??????")
-        return "CRITICAL WEBSITE ERROR"
-    body = ""
-    for game in sorted([g for g in games if g], key=lambda x: x.last_update, reverse=True):
-        gid = game.key.id()
-        game_link = url_for('game_show_history', game_id=gid)
-        map_link = url_for('tracker_show_map', game_id=gid)
-        slink = ""
-        flags = ""
-        if game.params:
-            flag_line, is_race = game_flags(game.params)
-            if flag_line is not None:
-                if is_race and not whitelist_ok():
-                    continue
-                flags = flag_line
-                slink = " <a href=%s>Seed</a>" % url_for('main_page', game_id=gid, param_id=game.params.id())
-            else:
-                slink = " (Seed not found)"
-        blink = ""
-        if game.bingo_data:
-            blink += " <a href='/bingo/board?game_id=%s'>Bingo board</a>" % gid
-        body += "<li><a href='%s'>Game #%s</a> <a href='%s'>Map</a>%s%s %s (Last update: %s ago)</li>" % (game_link, gid, map_link, slink, blink, flags, utcnow() - game.last_update)
-    return body
 
 is_debug = "K_REVISION" not in os.environ or os.environ["K_REVISION"].startswith('dev')
 def debug():
