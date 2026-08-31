@@ -11,6 +11,26 @@ from models import Game, User, BingoCard, BingoGameData, BingoEvent, BingoTeam
 from util import param_val, param_flag, debug, path, VER, version_check
 from seedbuilder.vanilla import seedtext as vanilla_seed
 
+# The create/reroll modal opens on these, so a board matches the seed it came
+# from. A rule rather than a route: presets, the generator and the bingo routes
+# all build this URL, and none of them may import each other.
+def bingo_board_url(game, params, disc=None, team_max=None):
+    url = "/bingo/board?game_id=%s&fromGen=1&seed=%s&bingoLines=%s" % (
+        game.key.id(), params.seed, params.bingo_lines)
+    # the create modal opens on these, so a board matches the seed it came from
+    url += "&bingoGoal=%s&bingoSquares=%s&bingoDiff=%s" % (
+        params.bingo_goal, params.bingo_squares, params.bingo_diff)
+    if params.bingo_meta:
+        url += "&bingoMeta=1"
+    # a caller's disc wins even when it is an explicit off, so a reroll keeps it
+    disc = params.bingo_disc if disc is None else disc
+    if disc:
+        url += "&disc=%s" % disc
+    if team_max:
+        url += "&teamMax=%s" % team_max
+    return url
+
+
 # if debug:
 #     from test.data import bingo_data as test_data
 

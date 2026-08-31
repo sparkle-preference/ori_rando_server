@@ -13,6 +13,7 @@ import json
 import unittest
 
 import main
+from web import bingo as bingo_routes
 from web import tracker
 from cache import Cache
 from models import User
@@ -66,13 +67,13 @@ class LatestBingoGameTestCase(unittest.TestCase):
         Cache.clear_latest(self.NAME)
 
     def test_the_walk_runs_once_then_the_answer_is_cached(self):
-        gid, err = main.latest_bingo_game(self.NAME)
+        gid, err = bingo_routes.latest_bingo_game(self.NAME)
         self.assertEqual((gid, err), (9001, None))
         self.assertEqual(self.queries, 1)
         walk_gets = self.gets[0]
         self.assertGreater(walk_gets, 0)
         for _ in range(10):
-            gid, err = main.latest_bingo_game(self.NAME)
+            gid, err = bingo_routes.latest_bingo_game(self.NAME)
             self.assertEqual((gid, err), (9001, None))
         # ten more polls: no more name queries AND no more per-game gets
         self.assertEqual(self.queries, 1)
@@ -82,21 +83,21 @@ class LatestBingoGameTestCase(unittest.TestCase):
         # an OLD bingo game found by walking must not clobber the key the
         # tracker's usermap redirect reads
         Cache.set_latest_game(self.NAME, 9999)
-        main.latest_bingo_game(self.NAME)
+        bingo_routes.latest_bingo_game(self.NAME)
         self.assertEqual(Cache.get_latest_game(self.NAME), 9999)
         self.assertEqual(Cache.get_latest_game(self.NAME, bingo=True), 9001)
 
     def test_unknown_user_is_an_error_and_is_not_cached(self):
         self.user = None
-        gid, err = main.latest_bingo_game(self.NAME)
+        gid, err = bingo_routes.latest_bingo_game(self.NAME)
         self.assertIsNone(gid)
         self.assertIn("not found", err)
-        main.latest_bingo_game(self.NAME)
+        bingo_routes.latest_bingo_game(self.NAME)
         self.assertEqual(self.queries, 2)   # nothing to cache, so it re-asks
 
     def test_no_bingo_games_is_a_distinct_error(self):
         self.user = _FakeUser([_FakeKey(9003, _FakeGame(9003))])
-        gid, err = main.latest_bingo_game(self.NAME)
+        gid, err = bingo_routes.latest_bingo_game(self.NAME)
         self.assertIsNone(gid)
         self.assertIn("Could not find any bingo games", err)
 
@@ -106,12 +107,12 @@ class LatestBingoGameTestCase(unittest.TestCase):
         # here to be the first one visited.
         self.user = _FakeUser([_FakeKey(9005, _FakeGame(9005, bingo=True)),
                                _FakeKey(9004, None)])
-        gid, err = main.latest_bingo_game(self.NAME)
+        gid, err = bingo_routes.latest_bingo_game(self.NAME)
         self.assertEqual((gid, err), (9005, None))
 
     def test_every_key_dangling_falls_through_to_the_error(self):
         self.user = _FakeUser([_FakeKey(9006, None), _FakeKey(9007, None)])
-        gid, err = main.latest_bingo_game(self.NAME)
+        gid, err = bingo_routes.latest_bingo_game(self.NAME)
         self.assertIsNone(gid)
         self.assertIn("Could not find any bingo games", err)
 

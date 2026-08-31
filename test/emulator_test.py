@@ -1,5 +1,6 @@
 """The paths stubs cannot reach: real queries, real transactions, real puts."""
 import unittest
+from web import bingo as bingo_routes
 
 from flask import g
 
@@ -125,7 +126,7 @@ class AdminAndRecreateGateTestCase(EmulatorTestCase):
         game, bingo = self._game_with_board(owner)
         with main.app.test_request_context():
             g.oidc_user = _AppUser("200", "own@example.com", "own")
-            self.assertIsNone(main._bingo_recreate_problem(game, bingo))
+            self.assertIsNone(bingo_routes._bingo_recreate_problem(game, bingo))
 
     def test_a_stranger_may_not(self):
         import main
@@ -134,7 +135,7 @@ class AdminAndRecreateGateTestCase(EmulatorTestCase):
         game, bingo = self._game_with_board(owner)
         with main.app.test_request_context():
             g.oidc_user = _AppUser("300", "other@example.com", "other")
-            self.assertIsNotNone(main._bingo_recreate_problem(game, bingo))
+            self.assertIsNotNone(bingo_routes._bingo_recreate_problem(game, bingo))
 
     def test_an_admin_may(self):
         import main
@@ -145,7 +146,7 @@ class AdminAndRecreateGateTestCase(EmulatorTestCase):
         game, bingo = self._game_with_board(owner)
         with main.app.test_request_context():
             g.oidc_user = _AppUser("400", "boss@example.com", "boss")
-            self.assertIsNone(main._bingo_recreate_problem(game, bingo))
+            self.assertIsNone(bingo_routes._bingo_recreate_problem(game, bingo))
 
     def test_an_anonymous_board_is_admin_only(self):
         import main
@@ -153,7 +154,7 @@ class AdminAndRecreateGateTestCase(EmulatorTestCase):
         game, bingo = self._game_with_board(None)
         with main.app.test_request_context():
             g.oidc_user = _AppUser("300", "other@example.com", "other")
-            self.assertIsNotNone(main._bingo_recreate_problem(game, bingo),
+            self.assertIsNotNone(bingo_routes._bingo_recreate_problem(game, bingo),
                                  "no owner on record means only an admin rebuilds")
 
 

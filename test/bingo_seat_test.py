@@ -16,6 +16,7 @@ import google.auth.credentials
 from google.cloud import ndb
 
 import main
+from web import generator
 import models
 from models import BingoGameData, BingoWorldBoard, Game, User
 
@@ -149,19 +150,19 @@ class ApBingoSeedGateTestCase(_SeatHarness):
 
     def setUp(self):
         super(ApBingoSeedGateTestCase, self).setUp()
-        self._gate = main.ap_seed_not_ready
+        self._gate = generator.ap_seed_not_ready
         self.gate_calls = []
         self.gate_answer = None
         def gate(params, gid):
             self.gate_calls.append((params, gid))
             return self.gate_answer
-        main.ap_seed_not_ready = gate
+        generator.ap_seed_not_ready = gate
         # the default harness game is paramless; the gate needs one to consult
         self.ap_params = object()
         self.game._params = self.ap_params
 
     def tearDown(self):
-        main.ap_seed_not_ready = self._gate
+        generator.ap_seed_not_ready = self._gate
         super(ApBingoSeedGateTestCase, self).tearDown()
 
     def download(self, pid=2):

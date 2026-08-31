@@ -17,6 +17,7 @@ import google.auth.credentials
 from google.cloud import ndb
 
 import main
+from web import bingo as bingo_routes
 import models
 from enums import MultiplayerGameType
 from models import BingoGameData, Game, User
@@ -127,7 +128,7 @@ class RerollTestCase(unittest.TestCase):
         """A real board entity with the datastore-touching bits stubbed out."""
         fields = dict(difficulty="normal", seed=seed, bingo_count=3, teams_allowed=False)
         fields.update(kw)
-        bingo = BingoGameData(id=GID, board=main.bingo_board_cards(None, fields["difficulty"], seed, 0, False, False),
+        bingo = BingoGameData(id=GID, board=bingo_routes.bingo_board_cards(None, fields["difficulty"], seed, 0, False, False),
                               game=ndb.Key("Game", GID), creator=ndb.Key("User2", owner), **fields)
         bingo.puts = 0
 
@@ -152,7 +153,7 @@ class RerollTestCase(unittest.TestCase):
     def test_bump_board_seed(self):
         for before, after in [("12345", "12345RR1"), ("12345RR1", "12345RR2"),
                               ("12345RR9", "12345RR10"), ("", "RR1"), ("RRRR2", "RRRR3")]:
-            self.assertEqual(main.bump_board_seed(before), after)
+            self.assertEqual(bingo_routes.bump_board_seed(before), after)
 
     def test_a_stranger_cannot_reroll(self):
         self.make_board()

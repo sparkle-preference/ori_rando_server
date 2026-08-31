@@ -10,6 +10,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+from web import bingo as bingo_routes
 
 import util
 from web import generator
@@ -1469,22 +1470,22 @@ class BingoBoltOnGateTests(unittest.TestCase):
                 return "bingo-key"
 
         self.params, self.removed, self.cards, self.board = _Params(), [], 0, None
-        self._orig = (main.Game, main.User, main.BingoGameData, main.BingoGenerator.get_cards,
-                      main.BingoTeam)
+        self._orig = (bingo_routes.Game, bingo_routes.User, bingo_routes.BingoGameData, bingo_routes.BingoGenerator.get_cards,
+                      bingo_routes.BingoTeam)
         # the real one validates captain is a Key, and the seats here are ints
-        main.BingoTeam = lambda **kw: kw
-        main.Game = type("G", (), {"with_id": staticmethod(lambda gid: _Game())})
-        main.User = type("U", (), {"get": staticmethod(lambda: None)})
-        main.BingoGameData = _Bingo
+        bingo_routes.BingoTeam = lambda **kw: kw
+        bingo_routes.Game = type("G", (), {"with_id": staticmethod(lambda gid: _Game())})
+        bingo_routes.User = type("U", (), {"get": staticmethod(lambda: None)})
+        bingo_routes.BingoGameData = _Bingo
 
         def cards(*a, **k):
             test.cards += 1
             return []
-        main.BingoGenerator.get_cards = staticmethod(cards)
+        bingo_routes.BingoGenerator.get_cards = staticmethod(cards)
 
     def tearDown(self):
-        (self.main.Game, self.main.User, self.main.BingoGameData,
-         self.main.BingoGenerator.get_cards, self.main.BingoTeam) = self._orig
+        (bingo_routes.Game, bingo_routes.User, bingo_routes.BingoGameData,
+         bingo_routes.BingoGenerator.get_cards, bingo_routes.BingoTeam) = self._orig
 
     def test_ap_game_gets_a_board_and_keeps_its_shadows(self):
         self.params.ap_mode = True

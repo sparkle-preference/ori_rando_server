@@ -17,7 +17,7 @@ from seedbuilder.seedparams import SeedGenParams, seed_failure_reason, seed_mode
 from seedbuilder.vanilla import seedtext as vanilla_seed
 import util
 from util import debug, param_flag, param_val
-from web.bingo import bingo_board_url
+from bingo import bingo_board_url
 from web.extensions import oidc
 from web.responses import json_resp, text_download, text_resp, zip_download
 

@@ -1,5 +1,6 @@
 """What a Game keeps per world, and what a reset is allowed to touch."""
 import unittest
+from web import bingo as bingo_routes
 
 import models
 from enums import Variation
@@ -86,18 +87,18 @@ class PerWorldBingoTestCase(NdbTestCase):
     def test_one_bingo_player_in_a_multiworld(self):
         import main
         p = self.params([{"variations": ["Bingo"]}, {"variations": ["OpenWorld"]}])
-        self.assertEqual(main.bingo_worlds(p), [1], "only the world that opted in plays")
+        self.assertEqual(bingo_routes.bingo_worlds(p), [1], "only the world that opted in plays")
 
     def test_a_late_world_can_be_the_only_one(self):
         import main
         p = self.params([{"variations": ["OpenWorld"]}, {"variations": ["Bingo"]}])
-        self.assertEqual(main.bingo_worlds(p), [2])
+        self.assertEqual(bingo_routes.bingo_worlds(p), [2])
 
     def test_two_worlds_on_the_same_settings_still_get_different_boards(self):
         import main
         p = self.params([{"variations": ["Bingo"]}, {"variations": ["Bingo"]}])
-        self.assertEqual(main.bingo_worlds(p), [1, 2])
-        boards = main.bingo_boards_for(p, "seedstring", False)
+        self.assertEqual(bingo_routes.bingo_worlds(p), [1, 2])
+        boards = bingo_routes.bingo_boards_for(p, "seedstring", False)
         self.assertEqual([b.world for b in boards], [1, 2])
         first = [c.name for c in boards[0].board]
         second = [c.name for c in boards[1].board]
@@ -114,8 +115,8 @@ class PerWorldBingoTestCase(NdbTestCase):
     def test_nobody_opted_in_is_no_boards(self):
         import main
         p = self.params([{}, {}])
-        self.assertEqual(main.bingo_worlds(p), [])
-        self.assertEqual(main.bingo_boards_for(p, "seedstring", False), [])
+        self.assertEqual(bingo_routes.bingo_worlds(p), [])
+        self.assertEqual(bingo_routes.bingo_boards_for(p, "seedstring", False), [])
 
     def test_the_modal_moves_the_owners_world_and_no_other(self):
         import main
@@ -123,7 +124,7 @@ class PerWorldBingoTestCase(NdbTestCase):
                          {"variations": ["Bingo"], "bingoDiff": "easy"}])
         opts = {"difficulty": "hard", "discovery": 0, "meta": False,
                 "bingo_count": 5, "square_count": None, "goal": "bingos"}
-        by_world = {b.world: b for b in main.bingo_boards_for(p, "seedstring", False, 1, opts)}
+        by_world = {b.world: b for b in bingo_routes.bingo_boards_for(p, "seedstring", False, 1, opts)}
         self.assertEqual(by_world[1].difficulty, "hard")
         self.assertEqual(by_world[1].bingo_count, 5)
         self.assertEqual(by_world[2].difficulty, "easy", "world 2 was handed its rules with its seed")
@@ -133,7 +134,7 @@ class PerWorldBingoTestCase(NdbTestCase):
         import main
         p = self.params([{"variations": ["Bingo"]}, {"variations": ["Bingo"]}])
         opts = {"difficulty": "normal", "discovery": 4, "meta": False}
-        by_world = {b.world: b for b in main.bingo_boards_for(p, "seedstring", False, 1, opts)}
+        by_world = {b.world: b for b in bingo_routes.bingo_boards_for(p, "seedstring", False, 1, opts)}
         self.assertEqual(by_world[1].discovery, 4)
         self.assertEqual(len(by_world[1].disc_squares), 4)
         self.assertEqual(by_world[2].discovery, p.world_params(2).bingo_disc)
@@ -143,8 +144,8 @@ class PerWorldBingoTestCase(NdbTestCase):
         import main
         p = self.params([{"variations": ["OpenWorld"]},
                          {"variations": ["Bingo"], "bingoDiff": "easy"}])
-        self.assertIsNone(main.owner_world(main.bingo_worlds(p)))
-        boards = main.bingo_boards_for(p, "seedstring", False, None,
+        self.assertIsNone(bingo_routes.owner_world(bingo_routes.bingo_worlds(p)))
+        boards = bingo_routes.bingo_boards_for(p, "seedstring", False, None,
                                        {"difficulty": "hard", "discovery": 0, "meta": False})
         self.assertEqual(boards[0].difficulty, "easy")
 
@@ -153,9 +154,9 @@ class PerWorldBingoTestCase(NdbTestCase):
         earlier: a world's rules outlive the cards they shaped."""
         import main
         p = self.params([{"variations": ["Bingo"]}, {"variations": ["Bingo"]}])
-        first = main.bingo_boards_for(p, "seedstring", False, 2,
+        first = bingo_routes.bingo_boards_for(p, "seedstring", False, 2,
                                       {"difficulty": "hard", "discovery": 0, "meta": False})
-        again = main.bingo_boards_for(p, "seedstringRR1", False, 1,
+        again = bingo_routes.bingo_boards_for(p, "seedstringRR1", False, 1,
                                       {"difficulty": "easy", "discovery": 0, "meta": False}, first)
         by_world = {b.world: b for b in again}
         self.assertEqual(by_world[1].difficulty, "easy")
@@ -165,25 +166,25 @@ class PerWorldBingoTestCase(NdbTestCase):
 
     def test_owner_world_prefers_the_board_the_modal_was_on(self):
         import main
-        self.assertEqual(main.owner_world([1, 2, 3], 3), 3)
-        self.assertEqual(main.owner_world([1, 2, 3], "2"), 2)
-        self.assertEqual(main.owner_world([1, 2, 3], 9), 1, "a world with no board falls back")
-        self.assertEqual(main.owner_world([1, 2, 3], "nonsense"), 1)
-        self.assertIsNone(main.owner_world([2, 3], 9))
+        self.assertEqual(bingo_routes.owner_world([1, 2, 3], 3), 3)
+        self.assertEqual(bingo_routes.owner_world([1, 2, 3], "2"), 2)
+        self.assertEqual(bingo_routes.owner_world([1, 2, 3], 9), 1, "a world with no board falls back")
+        self.assertEqual(bingo_routes.owner_world([1, 2, 3], "nonsense"), 1)
+        self.assertIsNone(bingo_routes.owner_world([2, 3], 9))
 
     def test_the_modals_settings_are_authoritative_even_when_absent(self):
         """It opens on one board and posts the whole set back, so no discCount
         means discovery off -- not "leave that world as it rolled"."""
         import main
         with main.app.test_request_context("/?difficulty=hard&lines=4"):
-            opts = main.owner_board_opts("hard", 0, False)
+            opts = bingo_routes.owner_board_opts("hard", 0, False)
         self.assertEqual(opts["discovery"], 0)
         self.assertIs(opts["meta"], False)
         self.assertEqual(opts["bingo_count"], 4)
         self.assertEqual(opts["goal"], "bingos")
         self.assertIsNone(opts["square_count"])
         with main.app.test_request_context("/?difficulty=hard&squares=13&discCount=3&meta=1"):
-            opts = main.owner_board_opts("hard", 3, True)
+            opts = bingo_routes.owner_board_opts("hard", 3, True)
         self.assertEqual(opts["square_count"], 13)
         self.assertEqual(opts["goal"], "squares")
         self.assertNotIn("bingo_count", opts, "squares mode leaves the line count alone")

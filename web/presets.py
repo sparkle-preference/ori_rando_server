@@ -12,7 +12,7 @@ from google.cloud import ndb
 from enums import Variation
 from models import Game, SavedSeedParams, Seed, User
 from seedbuilder.seedparams import SeedGenParams, seed_mode_problem
-from web.bingo import bingo_board_url
+from bingo import bingo_board_url
 from web.extensions import oidc
 from web.responses import json_resp, make_resp, text_resp
 

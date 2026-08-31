@@ -13,6 +13,7 @@ from models import ndb_wsgi_middleware
 from util import debug, template_root
 from web.extensions import init_extensions
 from web.hooks import register_hooks
+from web.bingo import bp as bingo_bp
 from web.generator import bp as generator_bp
 from web.meta import bp as meta_bp
 from web.plando import bp as plando_bp
@@ -71,6 +72,7 @@ def create_app():
     register_hooks(app)
     app.register_blueprint(users_bp)
     app.register_blueprint(netcode_bp)
+    app.register_blueprint(bingo_bp)
     app.register_blueprint(generator_bp)
     app.register_blueprint(tracker_bp)
     app.register_blueprint(meta_bp)
