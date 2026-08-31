@@ -295,6 +295,8 @@ def tracker_get_items_update(game_id, player_id):
     return json_resp(items)
 
 # why is it like this??
+
+
 def _get_item_tracker_items(coords, game, player=1):
     relics = game.relics_for(player)
     data = {
@@ -501,6 +503,7 @@ def bingo_start_game(game_id):
     with bingo_lock(game_id):
         return _bingo_start_game_inner(game_id)
 
+
 def _bingo_start_game_inner(game_id):
     res = {}
     now = utcnow()
@@ -557,6 +560,7 @@ def bingo_reroll_seed(game_id):
 def bingo_reroll_board(game_id):
     with bingo_lock(game_id):
         return _bingo_reroll_board_inner(game_id)
+
 
 def _bingo_reroll_board_inner(game_id):
     now = utcnow()
@@ -617,6 +621,7 @@ def bingo_add_player(game_id, player_id):
     # lock; a plain-put update can't swallow a concurrent join.
     with bingo_lock(game_id):
         return _bingo_add_player_inner(game_id, player_id)
+
 
 def _bingo_reseat_world(bingo, game_id, player_id):
     """Put a removed world back. Its board survived the removal and comes back
@@ -695,6 +700,7 @@ def bingo_remove_player(game_id, player_id):
     with bingo_lock(game_id):
         return _bingo_remove_player_inner(game_id, player_id)
 
+
 def _bingo_remove_player_inner(game_id, player_id):
     bingo = BingoGameData.with_id(game_id)
     if not bingo:
@@ -731,6 +737,7 @@ def bingo_download_seed(game_id, player_id):
 
 RR_SUFFIX = re.compile(r"RR(\d+)$")
 
+
 def bump_board_seed(seed):
     """The next board seed after this one. Mirrored in Bingo.js so the reroll
     modal shows the seed it will actually use; this side is authoritative."""
@@ -739,6 +746,7 @@ def bump_board_seed(seed):
     if match:
         return seed[:match.start()] + "RR%s" % (int(match.group(1)) + 1)
     return seed + "RR1"
+
 
 def bingo_board_cards(params, difficulty, seed, disc, meta, lockout, world=1):
     """A fresh board. params is the seed behind a rando board, or None for a
@@ -897,6 +905,7 @@ def bingo_create_game():
         game.put()
         return json_resp(res)
 
+
 def latest_bingo_game(name):
     """(game id, error text) for a username's most recent bingo game. The
     walk costs a name query plus a get per game the user has ever played, and
@@ -949,6 +958,7 @@ def bingo_userboard_tick(name, game_id):
     res = bingo.get_json(first)
     add_client_offset(res, now)
     return json_resp(res)
+
 
 def _bingo_query_opts():
     """The board options every bingo creation route reads the same way."""

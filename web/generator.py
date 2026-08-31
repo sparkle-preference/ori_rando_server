@@ -52,6 +52,8 @@ def gen_seed_from_params():
         resp["bingoLines"] = params.bingo_lines
 
     return json_resp(resp)
+
+
 @bp.route('/generator/json')
 def gen_seed_from_url():
     # from_url's own failures are log-only; a bot cannot read those
@@ -88,6 +90,8 @@ def gen_seed_from_url():
             return json_resp({"error": reason}, 422)
     log.error("param gen failed")
     return json_resp({"error": "param gen failed"}, 500)
+
+
 def ap_seed_not_ready(params, game_id):
     """Why an AP seed download would come out unannotated, or None when it
     wouldn't. A seed file is a snapshot: downloaded before every world's
@@ -110,6 +114,8 @@ def ap_seed_not_ready(params, game_id):
         total = sum(t for t in totals[:worlds] if t > 0)
         return "Waiting for the room's location scouts (%s/%s item names resolved)" % (done, total or "?")
     return None
+
+
 @bp.route('/generator/seed/<params_id>')
 def load_seed_from_params(params_id):
     verbose_paths = param_flag("verbose_paths")
@@ -143,6 +149,8 @@ def load_seed_from_params(params_id):
         return text_resp(seed)
     else:
         return text_resp("Param %s not found" % params_id, 404)
+
+
 @bp.route('/generator/spoiler/<params_id>')
 def get_spoiler_from_params(params_id):
     params = SeedGenParams.with_id(params_id)
@@ -155,6 +163,8 @@ def get_spoiler_from_params(params_id):
         return text_resp(spoiler)
     else:
         return text_resp("Param %s not found" % params_id, 404)
+
+
 @bp.route('/generator/apyaml/<params_id>/<int:world_id>')
 def get_apyaml_from_params(params_id, world_id):
     if not util.ARCHIPELAGO:
@@ -165,6 +175,8 @@ def get_apyaml_from_params(params_id, world_id):
     if world_id < 1 or world_id > params.players:
         return text_resp("Param %s has no world %s" % (params_id, world_id), 404)
     return text_download(params.to_ap_yaml(world_id), 'ap_world_%s.yaml' % world_id)
+
+
 @bp.route('/generator/apyamls/<params_id>')
 def get_apyamls_from_params(params_id):
     # every world in one multi-document yaml
@@ -175,6 +187,8 @@ def get_apyamls_from_params(params_id):
         return text_resp("No Archipelago params %s found" % params_id, 404)
     worlds = [params.to_ap_yaml(w) for w in range(1, params.players + 1)]
     return text_download("---\n".join(worlds), 'ap_worlds_%s.yaml' % params_id)
+
+
 @bp.route('/generator/apworld')
 def get_apworld():
     # a session host needs this even though they never touch the seed page
@@ -187,6 +201,8 @@ def get_apworld():
     # the filename IS the module name Archipelago imports (worlds/__init__.py
     # takes Path(path).stem), so anything but oride.apworld fails to load
     return zip_download(apworld_zip, 'oride.apworld')
+
+
 @bp.route('/generator/aux_spoiler/<params_id>')
 def get_aux_spoiler_from_params(params_id):
     params = SeedGenParams.with_id(params_id)
@@ -203,14 +219,20 @@ def get_aux_spoiler_from_params(params_id):
         return text_resp(spoiler)
     else:
         return text_resp("Param %s not found" % params_id, 404)
+
+
 def world_flag_lines(params):
     """One flag line per world, or None when a single line says it all."""
     if not getattr(params, "world_settings", None):
         return None
     return [params.world_params(p).flag_line() for p in range(1, (params.players or 1) + 1)]
+
+
 @bp.route('/generator/metadata/<param_id>')
 def get_metadata_no_gid(param_id):
     return get_param_metadata(param_id, None)
+
+
 @bp.route('/generator/metadata/<param_id>/<int:game_id>')
 def get_param_metadata(param_id, game_id):
     params = SeedGenParams.with_id(param_id)
@@ -224,11 +246,13 @@ def get_param_metadata(param_id, game_id):
         game = Game.from_params(params)
         res["gameId"] = game.key.id()
     return json_resp(res)
+
+
 @bp.route('/vanilla')
 def get_vanilla_seed():
     return text_download(vanilla_seed, "randomizer.dat")
-@bp.route('/reroll')
-@oidc.require_login
+
+
 def _reroll(params):
     """Same settings, fresh seed. Returns (new_params, game, error_response)."""
     old = params.to_json()
@@ -241,6 +265,10 @@ def _reroll(params):
         reason = seed_failure_reason(new_params)
         return None, None, (text_resp(reason, 422) if reason else text_resp("Failed to generate seed!", 500))
     return new_params, Game.from_params(new_params), None
+
+
+@bp.route('/reroll')
+@oidc.require_login
 def reroll_seed():
     user = User.get()
     if not user.games:

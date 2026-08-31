@@ -23,6 +23,7 @@ bp = Blueprint("presets", __name__)
 # A preset is the seedgen form minus the multiplayer tab and the seed, so the
 # same one rolls solo, in co-op, or as one world of a multiworld.
 
+
 def _ssp_or_404(owner_name, name):
     ssp = SavedSeedParams.get(owner_name, name)
     if not ssp:

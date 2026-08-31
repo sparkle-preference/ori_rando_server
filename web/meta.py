@@ -28,13 +28,19 @@ def clean_up():
     else:
         log.info("Cleaned up %s games before timeout" % clean_count)
         return text_resp("Cleaned up %s games before timeout" % clean_count)
+
+
 @bp.route('/cache/clear')
 def clear_cache():
     Cache.clear()
     return text_resp("cache cleared!")
+
+
 @bp.route('/pickupandlocinfo')
 def picks_by_type():
     return json_resp({'picks_by_type': picks_by_type_generator(), 'str_ids': Pickup.strtypes()})
+
+
 @bp.route('/flags')  # verify feature-flag status per revision
 def flag_status():
     flags = {"ARCHIPELAGO": util.ARCHIPELAGO}
@@ -42,15 +48,23 @@ def flag_status():
                    % (name, "ON" if val else "off") for name, val in flags.items())
     return make_resp("<html><body><h3>Feature flags</h3><table border=1>%s</table><p>serving: %s</p></body></html>"
                      % (rows, NETPERF_TAG))
+
+
 @bp.route('/version/latest')
 def version_txt():
     return text_resp("%s.%s.%s" % tuple(VER))
+
+
 @bp.route('/version/minimum')
 def min_version_txt():
     return text_resp("%s.%s.%s" % tuple(MIN_VER))
+
+
 @bp.route('/version/beta')
 def beta_version_txt():
     return text_resp("%s.%s.%s" % tuple(BETA_VER))
+
+
 @bp.route('/version')
 @bp.route('/version/json')
 def version_json():

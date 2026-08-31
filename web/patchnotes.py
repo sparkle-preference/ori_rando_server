@@ -18,6 +18,7 @@ from web.responses import text_resp
 
 bp = Blueprint("patchnotes", __name__)
 
+
 @bp.route('/patchnotes') #  PatchNotes
 def patchnotes():
     template_values = template_vals("PatchNotes", "Patch Notes", User.get())
@@ -25,6 +26,7 @@ def patchnotes():
 
 # the old per-line doc links are anchors on the one page now
 PATCHNOTE_ALIASES = {"3.x": "3.0", "4.0.x": "4.0.0", "4.1.x": "4.1.0"}
+
 
 @bp.route('/patchnotes/<version>')
 def patchnotes_version(version):
@@ -40,8 +42,10 @@ FEED_TAG_HOST = "orirando.com"
 # only these two routes break instead of the whole app failing to import.
 _patchnotes_cache = None
 
+
 class PatchnotesMissing(Exception):
     pass
+
 
 def patchnotes_doc():
     global _patchnotes_cache
@@ -109,6 +113,7 @@ ANNOUNCE_CHANNELS = {
     "main": lambda a: a == "all",
     "dev": lambda a: a in ("all", "dev"),
 }
+
 
 def announce_webhook(channel):
     return {"main": util.PATCHNOTES_WEBHOOK_MAIN, "dev": util.PATCHNOTES_WEBHOOK_DEV}[channel]
@@ -203,6 +208,7 @@ def announce_patchnotes(base, force=False, channels=None):
 
 
 _announce_checked = False
+
 
 @bp.before_app_request
 def announce_on_first_request():

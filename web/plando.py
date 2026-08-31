@@ -31,6 +31,7 @@ def plando_upload(seed_name):
         res = Seed.new(seed_data)
     return text_resp(str(res))
 
+
 @bp.route('/plando/<seed_name>/edit')   #PlandoEdit
 def plando_edit(seed_name):
     user = User.get()
@@ -45,6 +46,7 @@ def plando_edit(seed_name):
             template_values['seed_data'] = seed.get_plando_json()
     return render_template(INDEX_TEMPLATE, **template_values)
 
+
 @bp.route('/plando/<seed_name>/delete')   #PlandoDelete
 def plando_delete(seed_name):
     user = User.get()
@@ -57,6 +59,7 @@ def plando_delete(seed_name):
         return code_resp(404)
     seed.key.delete()
     return redirect(url_for("plando.plando_author_index", author_name=user.name))
+
 
 @bp.route('/plando/<seed_name>/rename/<new_name>')   #PlandoRename
 def plando_rename(seed_name, new_name):
@@ -74,6 +77,7 @@ def plando_rename(seed_name, new_name):
     else:
         return text_resp("Failed to rename seed", 500)
 
+
 @bp.route('/plando/<seed_name>/hideToggle')   #PlandoToggleHide
 def plando_toggle_hide(seed_name):
     user = User.get()
@@ -87,6 +91,7 @@ def plando_toggle_hide(seed_name):
     seed.hidden = not (seed.hidden or False)
     seed.put()
     return redirect(url_for("plando.plando_view", author_name=user.name, seed_name=seed_name))
+
 
 @bp.route('/plando/<author_name>/<seed_name>/download') # PlandoDownload
 def plando_download(author_name, seed_name):
@@ -142,6 +147,7 @@ def plando_view(author_name, seed_name):
             return render_template(INDEX_TEMPLATE, **template_values)
     return text_resp("seed %s (by user %s) not found" % (seed_name, author_name), 404)
 
+
 @bp.route('/plando/reachable', methods=['POST']) #PlandoReachable
 def plando_reachable():
     modes = json.loads(request.form.get("modes"))
@@ -152,6 +158,7 @@ def plando_reachable():
     for area, reqs in Map.get_reachable_areas(PlayerState(codes), modes).items():
         areas[area] = [{item: count for (item, count) in req.cnt.items()} for req in reqs if len(req.cnt)]
     return json_resp(areas)
+
 
 @bp.route('/plando/fillgen') #PlandoFillGen
 def plando_fillgen():
@@ -169,6 +176,7 @@ def plando_fillgen():
     worlds = range(1, params.players + 1) if params.sync.mode == MultiplayerGameType.MULTIWORLD else [1]
     return json_resp({str(p): params.get_seed(p) for p in worlds})
 
+
 def count_plandos(seed):
     if seed.author_key:
         return seed.author_key
@@ -179,6 +187,8 @@ def count_plandos(seed):
 PLANDO_DISCLAIMER = """<div><i>
 (If one or more of your plandos are missing, please reach out to @Eiko or @Skyedelaciel in the <a target="_blank" href="/discord">Ori Discord</a> - we have the data, we just don't know whose seeds are whose for a small number of users)
 </i></div>"""
+
+
 @bp.route('/plandos')      #AllAuthors
 def plando_index():
     out = '<html><head><title>All Plando Authors</title></head><body><h5>All Seeds</h5><ul style="list-style-type:none;padding:5px">'
@@ -194,6 +204,7 @@ def plando_index():
             out += '<li style="padding:2px"><a href="%s">%s</a> (%s plandos)</li>' % (url, author, cnt)
     out += f"</ul>{PLANDO_DISCLAIMER}</body></html>"
     return make_resp(out)
+
 
 @bp.route('/plando/<author_name>')
 def plando_author_index(author_name):

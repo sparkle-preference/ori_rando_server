@@ -75,10 +75,12 @@ def user_get_settings():
         res.update({k: user.setting(k) for k in USER_SETTINGS})
     return json_resp(res)
 
+
 @bp.route('/user/settings/name-free')
 def user_name_free():
     name = param_val("name") or ""
     return json_resp({"name": name, "free": User.name_available(name, User.get())})
+
 
 @bp.route('/user/settings/update', methods=['POST'])
 def user_set_settings():
@@ -113,6 +115,7 @@ def user_set_settings():
     if changed:
         user.put()
     return json_resp({"changed": changed, "name": user.name, "theme": user.site_theme()})
+
 
 @bp.route('/theme/toggle')
 def user_toggle_darkmode():
