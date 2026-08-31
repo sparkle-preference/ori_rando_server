@@ -1806,11 +1806,11 @@ def bingo_download_seed(game_id, player_id):
     bingo = BingoGameData.with_id(game_id)
     if not bingo:
         return text_resp("Bingo game %s not found" % game_id, 404)
-    # same gate as the seed page: an AP seed is a snapshot, and one taken
-    # before the room's scouts persist keeps its placeholder names forever
+    # same gate as the seed page, same force=1 escape: an AP seed is a
+    # snapshot, and one taken before the scouts persist keeps placeholders
     game = Game.with_id(game_id)
     params = game.fetch_params() if game else None
-    if params:
+    if params and not param_flag("force"):
         not_ready = ap_seed_not_ready(params, int(game_id))
         if not_ready:
             return text_resp(not_ready, 409)

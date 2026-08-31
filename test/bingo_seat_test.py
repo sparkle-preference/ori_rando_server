@@ -181,6 +181,14 @@ class ApBingoSeedGateTestCase(_SeatHarness):
         self.assertEqual(res.status_code, 200)
         self.assertIn(b"flags", res.data)
 
+    def test_force_is_the_same_escape_hatch_the_seed_page_has(self):
+        self.gate_answer = "names are not ready"
+        bingo = self.make_board()
+        bingo.get_seed = lambda p: "Sync%s.%s,flags\n" % (GID, p)
+        res = self.client.get("/bingo/game/%s/seed/2?force=1" % GID)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(self.gate_calls, [], "force must skip the gate, not ask it")
+
     def test_a_paramless_board_skips_the_gate(self):
         # vanilla+ boards have a game and no params; there is nothing to bake
         self.game._params = None
