@@ -792,7 +792,6 @@ export default class MainPage extends React.Component {
         // multiworld selections are stored separately and default to none; no Misc,
         // since trees, relics and keysanity keys stay per-world
         let mwShareButtons = shareButtons(["Skills", "Teleporters", "Upgrades", "World Events"], mwShared, this.onMWSType, "mwShared")
-        let apFlag = ap_enabled()
         // ap export categories are server-side names; 'stones' covers
         // Mapstones, keysanity zone keys, and generic Keystones (tiered doors)
         let apExportButtons = [["skills", "Skills"], ["teleporters", "Teleporters"], ["events", "World Events"], ["cells", "Cells"], ["stones", "Stones"], ["upgrades", "Upgrades"]].map(([cat, label]) => (
@@ -1012,12 +1011,11 @@ export default class MainPage extends React.Component {
                 json.syncShared = this.state.mwShared.map(s => f(s))
         }
         // outside the players>1 block: a K=1 AP seed is one Ori world in someone
-        // else's room, and a visitor without the opt-in must not reroll into a 409
+        // else's room
         if(this.apAvailable() && this.state.apMode) {
             json.apMode = true
             json.apExport = this.state.apExport
             json.apDeathLink = this.state.apDeathLink
-            url += url.includes("?") ? "&ap_test=1" : "?ap_test=1"
         }
         return {json: json, url: url}
     }

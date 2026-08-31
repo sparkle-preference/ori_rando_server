@@ -137,21 +137,21 @@ class MixedSharingTestCase(WorldParamsTestCase):
 
     def test_sharing_events_across_a_shards_split_is_refused(self):
         p = self.mw([{"keyMode": "Shards"}, {"keyMode": "Clues"}], [ShareType.EVENT])
-        problem = seed_mode_problem(p, mw_override=True)
+        problem = seed_mode_problem(p)
         self.assertIsNotNone(problem)
         self.assertIn("World Events", problem)
 
     def test_sharing_events_with_every_world_on_shards_is_fine(self):
         p = self.mw([{"keyMode": "Shards"}, {"keyMode": "Shards"}], [ShareType.EVENT])
-        self.assertIsNone(seed_mode_problem(p, mw_override=True))
+        self.assertIsNone(seed_mode_problem(p))
 
     def test_a_shards_split_is_fine_when_events_are_not_shared(self):
         p = self.mw([{"keyMode": "Shards"}, {"keyMode": "Clues"}], [ShareType.SKILL])
-        self.assertIsNone(seed_mode_problem(p, mw_override=True))
+        self.assertIsNone(seed_mode_problem(p))
 
     def test_no_world_settings_is_never_refused(self):
         p = self.mw([], [ShareType.EVENT])
-        self.assertIsNone(seed_mode_problem(p, mw_override=True))
+        self.assertIsNone(seed_mode_problem(p))
 
 
 class PerWorldSeedHeaderTestCase(WorldParamsTestCase):

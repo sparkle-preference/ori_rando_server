@@ -48,7 +48,6 @@ class LocalStack(object):
             "DATASTORE_PROJECT_ID": "orirandov3",
             "GOOGLE_CLOUD_PROJECT": "orirandov3",
             "OIDC_ENABLED": "False",
-            "MULTIWORLD": "1",
             "ARCHIPELAGO": "1",
             "APP_SECRET_KEY": "scenario-secret",
             "K_REVISION": "dev",

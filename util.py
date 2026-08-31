@@ -28,17 +28,11 @@ BETA_VER = [5, 0, 0]
 # when a client that reads one format cannot read the other.
 SEED_FORMAT = 2
 
-# Feature flags (env vars; unset/0 = off)
-def _flag(name):
-    return os.environ.get(name, "0") not in ("", "0", "false", "False")
-# allow creating Multiworld games/seeds. The gameplay code paths (generator,
-# found_pickup, tick slots field) are mode-gated and always present; this
-# flag only controls whether the mode can be requested at seed creation.
-MULTIWORLD = _flag("MULTIWORLD")
-# serve the Archipelago link routes (ap/connect, ap/status, ap/disconnect)
-# for AP-mode games. Off = the routes 404 and no bridge state can be created;
-# the AP gameplay data (shadow players, reserved slots) is mode-gated and
-# always present, MULTIWORLD-style.
+# Feature flags (env vars). ARCHIPELAGO is a kill switch, so it defaults ON.
+def _flag(name, default="1"):
+    return os.environ.get(name, default) not in ("", "0", "false", "False")
+# off means the link routes 404 and no new AP seed rolls; an existing game's AP
+# data is mode-gated and always present, so it breaks only when it needs the bridge
 ARCHIPELAGO = _flag("ARCHIPELAGO")
 # every open socket pins one gunicorn thread (Dockerfile --threads) for its
 # whole lifetime. Reject new sockets past this count — with a healthy gap

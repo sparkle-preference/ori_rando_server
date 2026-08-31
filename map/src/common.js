@@ -795,35 +795,9 @@ function save_dark(dark) {
     } catch(e) { /* storage disabled: the choice lasts this page load */ }
 }
 
-// Archipelago alpha gate: the server flag AND this browser's ?ap_test=1 opt-in,
-// remembered like the dark theme, so a flag flip alone shows nobody the work.
-function ap_test_param() {
-    return new URL(window.document.URL).searchParams.get("ap_test")
-}
-
-// setter half, run once per page load so the opt-in survives generator -> seed ->
-// game page. Not gated on ap_flag: opting in before the flag flips still counts.
-function ap_opt_in() {
-    let param = ap_test_param()
-    if(param === null)
-        return
-    try {
-        if(param === "0" || param === "false")
-            localStorage.removeItem("ap_test")
-        else
-            localStorage.setItem("ap_test", "1")
-    } catch(e) { /* storage disabled: ap_enabled falls back to the url */ }
-}
-
+// the server's Archipelago kill switch, the one thing left gating AP in the ui
 function ap_enabled() {
-    if(!get_flag("ap_flag"))
-        return false
-    try {
-        return localStorage.getItem("ap_test") === "1"
-    } catch(e) {
-        let param = ap_test_param()
-        return param !== null && param !== "0" && param !== "false"
-    }
+    return get_flag("ap_flag")
 }
 
 function app_test_param() {
@@ -1092,6 +1066,6 @@ const prng = (strIn) => sfc32(...cyrb128(strIn));
  
 
 export {
-    player_icons, doNetRequest, prng, get_param, get_flag, resolve_dark, save_dark, theme_href, postNetForm, ap_enabled, ap_opt_in, get_int, get_list, get_preset, presets, get_seed, logic_paths, get_random_loader, Blabel,
+    player_icons, doNetRequest, prng, get_param, get_flag, resolve_dark, save_dark, theme_href, postNetForm, ap_enabled, get_int, get_list, get_preset, presets, get_seed, logic_paths, get_random_loader, Blabel,
     pickup_name, stuff_by_type, name_from_str, PickupSelect, Cent, ordinal_suffix, dev, gotoUrl, loginLogoutUrl, select_theme, randInt, spawn_defaults, spawnKitFor, decompose_pickup, app_opt_in, app_enabled
 };

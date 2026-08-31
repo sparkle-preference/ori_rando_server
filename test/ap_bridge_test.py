@@ -1449,8 +1449,13 @@ class TestHintRequestChannel(unittest.TestCase):
         self.assertEqual(ap_bridge._bridges, {})
 
     def test_flag_off_ignores_the_field_entirely(self):
-        self.assertFalse(ap_bridge.ARCHIPELAGO)   # env flag is off in tests
-        ap_bridge.request_hints(4242, 1, "5")
+        # the switch defaults on now, so this one sets it rather than assuming
+        orig = ap_bridge.ARCHIPELAGO
+        ap_bridge.ARCHIPELAGO = False
+        try:
+            ap_bridge.request_hints(4242, 1, "5")
+        finally:
+            ap_bridge.ARCHIPELAGO = orig
 
     def test_every_buyable_key_has_an_ap_item_and_a_name(self):
         for key in ap_bridge.HINTABLE_KEYS:

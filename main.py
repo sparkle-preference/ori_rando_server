@@ -31,7 +31,7 @@ from enums import MultiplayerGameType, ShareType, Variation, presets
 from models import ndb_wsgi_middleware, Game, Player, SavedSeedParams, Seed, User, BingoGameData, BingoWorldBoard, BingoEvent, BingoTeam, SITE_THEMES, URL_UNSAFE_NAME_CHARS, USER_SETTINGS, pick_discovery_squares, trees_by_coords, LegacyUser, bingo_lock, AnnouncedPatchNotes
 from bingo import BingoGenerator
 from cache import Cache
-from util import parse_fass, coord_correction_map, clone_entity, all_locs, picks_by_type_generator, param_val, param_flag, param_true, debug, template_root, VER, MIN_VER, BETA_VER, game_list_html, version_check, template_vals, bfield_checksum, netperf, NETPERF_TAG, json_default, seed_sync_id, is_mw_manifest_loc, MULTIWORLD, ARCHIPELAGO, CANONICAL_HOST, REDIRECT_HOSTS, PATCHNOTES_WEBHOOK_MAIN, PATCHNOTES_WEBHOOK_DEV
+from util import parse_fass, coord_correction_map, clone_entity, all_locs, picks_by_type_generator, param_val, param_flag, param_true, debug, template_root, VER, MIN_VER, BETA_VER, game_list_html, version_check, template_vals, bfield_checksum, netperf, NETPERF_TAG, json_default, seed_sync_id, is_mw_manifest_loc, ARCHIPELAGO, CANONICAL_HOST, REDIRECT_HOSTS, PATCHNOTES_WEBHOOK_MAIN, PATCHNOTES_WEBHOOK_DEV
 from reachable import Map, PlayerState
 from pickups import Pickup, Skill, AbilityCell, HealthCell, EnergyCell, Multiple
 
@@ -301,10 +301,8 @@ def netcode_connect(game_id, player_id):
 def netcode_get_areas_dot_ori():
     return text_resp(Cache.get_areas())
 
-# Archipelago link management (flag-gated in the session layer: with
-# ARCHIPELAGO unset every route 404s). Deliberately NOT behind the ap_test
-# alpha opt-in: that gate is on seed creation, and everyone already holding a
-# seed from an AP game -- testers' friends included -- needs the bridge.
+# Archipelago link management (kill-switched in the session layer: with
+# ARCHIPELAGO unset every route 404s).
 @app.route('/netcode/game/<int:game_id>/ap/connect', methods=['POST'])
 def netcode_ap_connect(game_id):
     status, body = netcode.ap_connect(game_id, request.form)
@@ -396,9 +394,7 @@ def gen_seed_from_params():
     if not param_key:
         return text_resp("Failed to build params!", 500)
     params = param_key.get()
-    # ap_test=1: the alpha opt-in, sent by the generator page when the visitor
-    # opted in. Gates creation only; existing AP games keep their bridge.
-    problem = seed_mode_problem(params, ap_override=param_true("ap_test"))
+    problem = seed_mode_problem(params)
     if problem:
         return text_resp(problem, 409)
     if not params.generate():
@@ -429,7 +425,7 @@ def gen_seed_from_url():
     verbose_paths = param_val("verbose_paths") is not None
     if param_key:
         params = param_key.get()
-        problem = seed_mode_problem(params, ap_override=param_true("ap_test"))
+        problem = seed_mode_problem(params)
         if problem:
             return json_resp({"error": problem}, 409)
         if params.generate(preplaced={}):
@@ -528,8 +524,6 @@ def get_spoiler_from_params(params_id):
 
 @app.route('/generator/apyaml/<params_id>/<int:world_id>')
 def get_apyaml_from_params(params_id, world_id):
-    # ARCHIPELAGO only, no ap_test: the params already exist, and the yamls are
-    # what makes them playable (see the ap routes above)
     if not ARCHIPELAGO:
         return text_resp("Archipelago support is not enabled", 404)
     params = SeedGenParams.with_id(params_id)
@@ -554,8 +548,7 @@ apworld_zip = None
 
 @app.route('/generator/apworld')
 def get_apworld():
-    # ARCHIPELAGO only, no ap_test: a tester's session host needs the world
-    # even though they never touch the seed page (see the ap routes above)
+    # a session host needs this even though they never touch the seed page
     if not ARCHIPELAGO:
         return text_resp("Archipelago support is not enabled", 404)
     global apworld_zip
@@ -953,9 +946,7 @@ def _reroll(params):
     old = params.to_json()
     old['seed'] = str(random.randint(0, 1000000000))
     new_params = SeedGenParams.from_json(old).get()
-    # the overrides pass modes a game already exists in; combinations that
-    # can't work at all still refuse
-    problem = seed_mode_problem(new_params, mw_override=True, ap_override=True)
+    problem = seed_mode_problem(new_params)
     if problem:
         return None, None, text_resp(problem, 409)
     if not new_params.generate():
@@ -2233,7 +2224,7 @@ def bingothon_fetch_data(game_id, player_id):
 
 @app.route('/flags')  # verify feature-flag status per revision
 def flag_status():
-    flags = {"MULTIWORLD": MULTIWORLD, "ARCHIPELAGO": ARCHIPELAGO}
+    flags = {"ARCHIPELAGO": ARCHIPELAGO}
     rows = "".join("<tr><td style='padding:4px 12px'>%s</td><td style='padding:4px 12px'><b>%s</b></td></tr>"
                    % (name, "ON" if val else "off") for name, val in flags.items())
     return make_resp("<html><body><h3>Feature flags</h3><table border=1>%s</table><p>serving: %s</p></body></html>"

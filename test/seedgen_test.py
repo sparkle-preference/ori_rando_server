@@ -997,8 +997,9 @@ class MultiworldLocalizeGenTests(unittest.TestCase):
 
 
 class SeedModeProblemTests(unittest.TestCase):
-    """Web-facing creation gate: removed modes get clear messages; Multiworld
-    creation is behind the MULTIWORLD env flag and requires tracking."""
+    """Web-facing creation gate: removed modes get clear messages, Multiworld
+    and Archipelago both require tracking, and the AP kill switch refuses
+    creation as well as the routes."""
 
     def _params(self, mode, enabled=True, cloned=True, tracking=True):
         import util
@@ -1008,15 +1009,9 @@ class SeedModeProblemTests(unittest.TestCase):
         p.tracking = tracking
         return p
 
-    def _check(self, flag_value, params, ap_override=False):
-        import util
+    def _check(self, params):
         from seedbuilder import seedparams
-        orig = util.MULTIWORLD
-        util.MULTIWORLD = flag_value
-        try:
-            return seedparams.seed_mode_problem(params, ap_override=ap_override)
-        finally:
-            util.MULTIWORLD = orig
+        return seedparams.seed_mode_problem(params)
 
     def _ap_params(self, players=2, enabled=True, mode="Multiworld"):
         p = self._params(mode, enabled=enabled)
@@ -1026,14 +1021,9 @@ class SeedModeProblemTests(unittest.TestCase):
         p.sync.shared = []
         return p
 
-    def test_multiworld_gated_by_flag(self):
-        self.assertIsNotNone(self._check(False, self._params("Multiworld")))
-        self.assertIsNone(self._check(True, self._params("Multiworld")))
-
-    def test_reroll_overrides_pass_solo_ap_bingo_but_not_a_broken_one(self):
-        """/reroll passes both overrides (the user already has such a game).
-        A one-world AP board is a legitimate seed; the overrides still don't
-        buy a combination that can't work at all."""
+    def test_solo_ap_bingo_rolls_but_still_needs_tracking(self):
+        """A one-world AP board is a legitimate seed; the combination that
+        can't work at all is still refused."""
         import util
         from enums import Variation
         from seedbuilder import seedparams
@@ -1042,10 +1032,10 @@ class SeedModeProblemTests(unittest.TestCase):
         orig = util.ARCHIPELAGO
         util.ARCHIPELAGO = True
         try:
-            self.assertIsNone(seedparams.seed_mode_problem(p, mw_override=True, ap_override=True),
+            self.assertIsNone(seedparams.seed_mode_problem(p),
                               "K=1 AP bingo is one world, one board, one player")
             p.tracking = False
-            self.assertIn("tracking", seedparams.seed_mode_problem(p, mw_override=True, ap_override=True))
+            self.assertIn("tracking", seedparams.seed_mode_problem(p))
         finally:
             util.ARCHIPELAGO = orig
 
@@ -1057,42 +1047,38 @@ class SeedModeProblemTests(unittest.TestCase):
         util.ARCHIPELAGO = True
         try:
             solo = self._ap_params(players=1, enabled=False)
-            self.assertIn("tracking", self._check(True, solo, ap_override=True))
+            self.assertIn("tracking", self._check(solo))
             tracked = self._ap_params(players=1)
             tracked.tracking = False
-            self.assertIn("tracking", self._check(True, tracked, ap_override=True))
+            self.assertIn("tracking", self._check(tracked))
             # K=1 with netcode on is a legitimate AP seed
-            self.assertIsNone(self._check(True, self._ap_params(players=1), ap_override=True))
+            self.assertIsNone(self._check(self._ap_params(players=1)))
         finally:
             util.ARCHIPELAGO = orig
 
-    def test_ap_mode_gated_by_flag(self):
+    def test_ap_creation_follows_the_kill_switch(self):
+        """Off is off for creation too: a seed whose bridge 404s is worse than
+        no seed, so the switch refuses both halves."""
         import util
         p = self._ap_params()
         orig = util.ARCHIPELAGO
         try:
             util.ARCHIPELAGO = False
-            self.assertIn("Archipelago", self._check(True, p))
+            self.assertIn("Archipelago", self._check(p))
             util.ARCHIPELAGO = True
-            self.assertIsNone(self._check(True, p, ap_override=True))
+            self.assertIsNone(self._check(p))
         finally:
             util.ARCHIPELAGO = orig
 
-    def test_ap_mode_also_gated_by_ap_test_optin(self):
-        """Alpha soft gate: ARCHIPELAGO is on in prod, so creation additionally
-        wants ?ap_test=1 (mw_override's shape, one layer up)."""
+    def test_the_kill_switch_only_touches_ap(self):
+        """Multiworld and co-op are GA on their own, so switching AP off is
+        not allowed to take them with it."""
         import util
         orig = util.ARCHIPELAGO
-        util.ARCHIPELAGO = True
+        util.ARCHIPELAGO = False
         try:
-            self.assertIn("closed testing", self._check(True, self._ap_params()))
-            self.assertIsNone(self._check(True, self._ap_params(), ap_override=True))
-            # a K=1 AP world (sync disabled) is still an AP seed, not a free pass
-            self.assertIn("closed testing",
-                          self._check(True, self._ap_params(players=1, enabled=False, mode="None")))
-            # non-AP seeds never see the gate
-            self.assertIsNone(self._check(True, self._params("Multiworld")))
-            self.assertIsNone(self._check(False, self._params("Shared", cloned=True)))
+            self.assertIsNone(self._check(self._params("Multiworld")))
+            self.assertIsNone(self._check(self._params("Shared", cloned=True)))
         finally:
             util.ARCHIPELAGO = orig
 
@@ -1106,80 +1092,69 @@ class SeedModeProblemTests(unittest.TestCase):
         try:
             solo = self._ap_params(players=1)
             solo.variations = [Variation.OPEN_WORLD, Variation.BINGO]
-            self.assertIsNone(self._check(True, solo, ap_override=True))
+            self.assertIsNone(self._check(solo))
             multi = self._ap_params(players=2)
             multi.variations = [Variation.OPEN_WORLD, Variation.BINGO]
-            self.assertIsNone(self._check(True, multi, ap_override=True))
+            self.assertIsNone(self._check(multi))
             # neither half is affected on its own
-            self.assertIsNone(self._check(True, self._ap_params(), ap_override=True))
+            self.assertIsNone(self._check(self._ap_params()))
             for mode in ("None", "Multiworld"):
                 bingo = self._params(mode)
                 bingo.variations = [Variation.BINGO]
-                self.assertIsNone(self._check(True, bingo))
+                self.assertIsNone(self._check(bingo))
         finally:
             util.ARCHIPELAGO = orig
 
-    def test_ap_override_bypasses_neither_flag_nor_validation(self):
+    def test_the_switch_being_on_buys_no_broken_combination(self):
         import util
         orig = util.ARCHIPELAGO
         try:
             util.ARCHIPELAGO = False
-            self.assertIn("aren't available yet", self._check(True, self._ap_params(), ap_override=True))
+            self.assertIn("switched off right now", self._check(self._ap_params()))
             util.ARCHIPELAGO = True
             # the export/share clash check still applies
             from enums import ShareType
             p = self._ap_params()
             p.sync.shared = [ShareType.SKILL]
-            self.assertIn("overlap", self._check(True, p, ap_override=True))
+            self.assertIn("overlap", self._check(p))
             # every share type with an export counterpart clashes with it
             for share, category in ((ShareType.TELEPORTER, "teleporters"),
                                     (ShareType.UPGRADE, "upgrades")):
                 p = self._ap_params()
                 p.sync.shared = [share]
                 p.ap_export = [category]
-                self.assertIn(category, self._check(True, p, ap_override=True) or "",
+                self.assertIn(category, self._check(p) or "",
                               "%s share vs %s export" % (share.value, category))
             # and so does the multiworld tracking requirement
             p = self._ap_params()
             p.tracking = False
-            self.assertIn("tracking", self._check(True, p, ap_override=True))
+            self.assertIn("tracking", self._check(p))
         finally:
             util.ARCHIPELAGO = orig
 
-    def test_mw_override_bypasses_flag(self):
-        import util
-        from seedbuilder import seedparams
-        orig = util.MULTIWORLD
-        util.MULTIWORLD = False
-        try:
-            self.assertIsNone(seedparams.seed_mode_problem(self._params("Multiworld"), mw_override=True))
-            # the override doesn't bypass the tracking requirement
-            self.assertIsNotNone(seedparams.seed_mode_problem(self._params("Multiworld", tracking=False), mw_override=True))
-        finally:
-            util.MULTIWORLD = orig
-
-    def test_multiworld_requires_tracking(self):
-        self.assertIn("tracking", self._check(True, self._params("Multiworld", tracking=False)))
+    def test_multiworld_rolls_and_requires_tracking(self):
+        self.assertIsNone(self._check(self._params("Multiworld")))
+        self.assertIn("tracking", self._check(self._params("Multiworld", tracking=False)))
 
     def test_multiworld_preplacement_validates_player_refs(self):
         from seedbuilder.seedparams import Placement, Stuff
         p = self._params("Multiworld")
         p.players = 3
         p.placements = [Placement(location="919772", zone="", stuff=[Stuff(code="SK", id="0", player="2", owner="3")])]
-        self.assertIsNone(self._check(True, p))  # in range: allowed now
+        self.assertIsNone(self._check(p))  # in range: allowed now
         p.placements = [Placement(location="919772", zone="", stuff=[Stuff(code="SK", id="0", player="2", owner="7")])]
-        self.assertIn("player 7", self._check(True, p))
+        self.assertIn("player 7", self._check(p))
         p.placements = []
-        self.assertIsNone(self._check(True, p))
+        self.assertIsNone(self._check(p))
 
     def test_removed_modes_get_messages(self):
-        self.assertIn("SplitShards", self._check(True, self._params("SplitShards")))
-        self.assertIn("Seperate Seeds", self._check(True, self._params("Shared", cloned=False)))
+        self.assertIn("SplitShards", self._check(self._params("SplitShards")))
+        self.assertIn("Seperate Seeds", self._check(self._params("Shared", cloned=False)))
 
     def test_supported_modes_pass(self):
-        self.assertIsNone(self._check(False, self._params("Shared", cloned=True)))
-        self.assertIsNone(self._check(False, self._params("None")))
-        self.assertIsNone(self._check(False, self._params("Shared", enabled=False)))
+        self.assertIsNone(self._check(self._params("Shared", cloned=True)))
+        self.assertIsNone(self._check(self._params("None")))
+        self.assertIsNone(self._check(self._params("Shared", enabled=False)))
 
 
 class SeedFailureReasonTests(unittest.TestCase):
@@ -1211,77 +1186,6 @@ class SeedFailureReasonTests(unittest.TestCase):
         p = self._params()
         del p.balanced
         self.assertIsNone(self._reason(p))
-
-
-class ApTestGateWiringTests(unittest.TestCase):
-    """The opt-in rides the QUERY string of the build POST (the page posts to
-    /generator/build?ap_test=1), so it has to survive a form-encoded request.
-    Params building and the gate itself are stubbed: this is wiring only."""
-
-    @classmethod
-    def setUpClass(cls):
-        import contextlib
-        import main
-        import models
-
-        class _FakeNdbClient(object):
-            def context(self):
-                return contextlib.nullcontext()
-        cls.main, cls.models = main, models
-        cls._orig_client = models.client
-        models.client = _FakeNdbClient()
-        cls._orig_secret = main.app.secret_key
-        main.app.secret_key = main.app.secret_key or "ap-test-gate"
-        cls.client = main.app.test_client()
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.models.client = cls._orig_client
-        cls.main.app.secret_key = cls._orig_secret
-
-    def setUp(self):
-        main = self.main
-        self.seen = []
-        self._orig_params, self._orig_problem = main.SeedGenParams, main.seed_mode_problem
-
-        class _FakeKey(object):
-            def id(self):
-                return "ap-params"
-
-            def get(self):
-                return object()
-
-        class _FakeParams(object):
-            @staticmethod
-            def from_json(json_in):
-                return _FakeKey()
-        main.SeedGenParams = _FakeParams
-
-        def spy(params, mw_override=False, ap_override=False):
-            self.seen.append(ap_override)
-            return "gated"
-        main.seed_mode_problem = spy
-
-    def tearDown(self):
-        self.main.SeedGenParams = self._orig_params
-        self.main.seed_mode_problem = self._orig_problem
-
-    def _build(self, query=""):
-        return self.client.post("/generator/build" + query, data={"params": "{}"})
-
-    def test_plain_build_post_does_not_opt_in(self):
-        resp = self._build()
-        self.assertEqual(resp.status_code, 409)
-        self.assertEqual(self.seen, [False])
-
-    def test_ap_test_query_param_reaches_the_gate(self):
-        self._build("?ap_test=1")
-        self.assertEqual(self.seen, [True])
-
-    def test_ap_test_survives_an_existing_query_string(self):
-        # the page appends &ap_test=1 after ?bingo=1
-        self._build("?bingo=1&ap_test=1")
-        self.assertEqual(self.seen, [True])
 
 
 class BuildFailureReasonWiringTests(unittest.TestCase):

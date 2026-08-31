@@ -25,20 +25,16 @@ _PARAMS_LOCK = Lock()
 
 JSON_SHARE = lambda x: x.value if x != ShareType.EVENT else "World Events"
 
-def seed_mode_problem(params, mw_override=False, ap_override=False):
-    """User-facing reason a seed request's multiplayer mode can't be built,
-    or None. mw_override (mw=1) and ap_override (ap_test=1) are soft gates
-    against stumbling in, not security boundaries. Both gate CREATION only:
-    existing games keep their routes, since the people playing a tester's
-    seed never carry the opt-in."""
-    from util import MULTIWORLD, ARCHIPELAGO
+def seed_mode_problem(params):
+    """User-facing reason a seed request's multiplayer mode can't be built, or
+    None. The Archipelago kill switch refuses creation as well as the routes:
+    a seed whose bridge 404s is worse than no seed at all."""
+    from util import ARCHIPELAGO
     ap_mode = getattr(params, "ap_mode", False)
     if ap_mode:
         # ahead of the singleplayer early return: K=1 AP is still an AP seed
         if not ARCHIPELAGO:
-            return "Archipelago seeds aren't available yet."
-        if not ap_override:
-            return "Archipelago seeds are in closed testing."
+            return "Archipelago support is switched off right now."
         # without netcode the bridge has no way in: the client would find AP
         # slots and silently drop them
         if not (params.sync.enabled and params.tracking):
@@ -46,8 +42,6 @@ def seed_mode_problem(params, mw_override=False, ap_override=False):
     if not params.sync.enabled:
         return None
     if params.sync.mode == MultiplayerGameType.MULTIWORLD:
-        if not (MULTIWORLD or mw_override):
-            return "Multiworld seeds aren't available yet."
         if not params.tracking:
             return "Multiworld requires tracking (it's netcode all the way down)."
         # preplacement is supported; just sanity-check the player references
