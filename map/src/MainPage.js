@@ -1233,7 +1233,7 @@ export default class MainPage extends React.Component {
         this.restored = true
         // the toggle is about opening on it, not about keeping it: Last Seed stays
         // in the dropdown, and /reroll still has a seed to reroll
-        if(this.state.seedTabExists || this.sharedSsp || !this.restoreLastSeed)
+        if(this.state.seedTabExists || this.sharedSsp || this.fromBingo || !this.restoreLastSeed)
             return
         let latest = this.state.sspLatest, name = this.nameFor(latest, PRESET_LAST)
         // settings only, and silently: an auto-restore is not something the user just did
@@ -2548,6 +2548,8 @@ export default class MainPage extends React.Component {
         this.state.sspLoaded = canonSettings(this.defaultSettings)
 
         if(url.searchParams.has("fromBingo")) {
+            // updateUrl strips the param, so the restore guard needs a flag
+            this.fromBingo = true
             this.state.goalModes = ["Bingo"]
             this.state.variations = ["Bingo", "OpenWorld"]
             this.state.itemPool = getPool("Bonus Lite")
