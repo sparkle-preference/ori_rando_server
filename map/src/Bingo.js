@@ -988,7 +988,11 @@ export default class Bingo extends React.Component {
                                 Player:
                             </Cent></Col>
                             <Col xs="4"><Cent>
-                                <Input style={inputStyle} type="number" disabled={!haveGame} min="1" max={apWorlds || undefined} value={activePlayer} onChange={e => this.setState({activePlayer: parseInt(e.target.value, 10)})}/>
+                                {/* showBoard, not bare state: on a per-world game the cards must follow */}
+                                <Input style={inputStyle} type="number" disabled={!haveGame} min="1" max={apWorlds || undefined} value={activePlayer} onChange={e => {
+                                    let v = parseInt(e.target.value, 10)
+                                    isNaN(v) ? this.setState({activePlayer: v}) : this.showBoard(v)
+                                }}/>
                             </Cent></Col>
                             <Col xs="auto"><Cent>
                                 {activePlayer > 0 ? make_icons([activePlayer]) : null}
