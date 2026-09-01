@@ -418,3 +418,109 @@ class SettingsSplitOnSaveTestCase(SSPRouteTestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PresetTransferTestCase(SSPListTestCase):
+    """/preset/export and /preset/import: one paste carries every preset a
+    person owns, so a second account can be seeded from the first."""
+
+    def setUp(self):
+        super(PresetTransferTestCase, self).setUp()
+        # writes land in the owner's dict; everything else is the real code
+        self._put_multi = ndb.put_multi
+        ndb.put_multi = lambda rows: [self.user.store.__setitem__(r.name, r) for r in rows]
+
+    def tearDown(self):
+        ndb.put_multi = self._put_multi
+        super(PresetTransferTestCase, self).tearDown()
+
+    def imp(self, doc, **form):
+        return self.client.post("/preset/import",
+                                data=dict(presets=json.dumps(doc), **form))
+
+    def test_exporting_needs_a_login(self):
+        self.assertEqual(self.client.get("/preset/export").status_code, 401)
+
+    def test_importing_needs_a_login(self):
+        self.assertEqual(self.imp([{"name": "x"}]).status_code, 401)
+
+    def test_an_export_carries_what_an_import_needs(self):
+        self.user.store["mine"] = _FakeSSP(self.user, "mine", settings={"paths": ["casual-core"]},
+                                           hidden=True, desc="notes")
+        self.logged_in = self.user
+        doc = self.client.get("/preset/export").get_json()
+        self.assertEqual(doc["orirando_presets"], presets.EXPORT_FORMAT)
+        self.assertEqual(doc["owner"], "lapis")
+        self.assertEqual(doc["presets"],
+                         [{"name": "mine", "desc": "notes", "hidden": True,
+                           "settings": {"paths": ["casual-core"]}}])
+
+    def test_a_paste_adds_what_is_not_there(self):
+        self.logged_in = self.user
+        res = self.imp({"presets": [{"name": "fresh", "settings": {"paths": ["standard-core"]}}]})
+        self.assertEqual(res.status_code, 200)
+        self.assertIn(b"Added: fresh", res.data)
+        self.assertEqual(self.user.store["fresh"].settings, {"paths": ["standard-core"]})
+
+    def test_an_existing_name_is_left_alone_by_default(self):
+        self.user.store["mine"] = _FakeSSP(self.user, "mine", settings={"paths": ["casual-core"]})
+        self.logged_in = self.user
+        res = self.imp([{"name": "mine", "settings": {"paths": ["master-core"]}}])
+        self.assertIn(b"Left alone: mine", res.data)
+        self.assertEqual(self.user.store["mine"].settings, {"paths": ["casual-core"]})
+
+    def test_overwrite_replaces_it(self):
+        self.user.store["mine"] = _FakeSSP(self.user, "mine", settings={"paths": ["casual-core"]})
+        self.logged_in = self.user
+        res = self.imp([{"name": "mine", "settings": {"paths": ["master-core"]}}], overwrite="1")
+        self.assertIn(b"Replaced: mine", res.data)
+        self.assertEqual(self.user.store["mine"].settings, {"paths": ["master-core"]})
+
+    def test_one_preset_on_its_own_is_a_valid_paste(self):
+        """What /preset/<owner>/<name> serves, so a share link can be pasted."""
+        self.logged_in = self.user
+        res = self.imp({"name": "shared", "owner": "someone", "desc": "",
+                        "settings": {"paths": ["casual-core"]}})
+        self.assertIn(b"Added: shared", res.data)
+
+    def test_a_hand_edited_paste_cannot_smuggle_in_the_multiplayer_half(self):
+        self.logged_in = self.user
+        self.imp([{"name": "sneaky",
+                   "settings": {"paths": ["casual-core"], "players": 4,
+                                "syncShared": ["Skills"], "seed": "1234"}}])
+        kept = self.user.store["sneaky"].settings
+        self.assertEqual(kept, {"paths": ["casual-core"]})
+
+    def test_a_reserved_name_is_refused_and_says_why(self):
+        self.logged_in = self.user
+        res = self.imp([{"name": "latest", "settings": {}}])
+        self.assertIn(b"Refused", res.data)
+        self.assertIn(b"reserved", res.data)
+        self.assertNotIn("latest", self.user.store)
+
+    def test_junk_is_a_422_not_a_500(self):
+        self.logged_in = self.user
+        res = self.client.post("/preset/import", data={"presets": "not json at all"})
+        self.assertEqual(res.status_code, 422)
+
+    def test_a_document_of_the_wrong_shape_is_refused(self):
+        self.logged_in = self.user
+        self.assertEqual(self.imp("just a string").status_code, 422)
+
+    def test_too_many_at_once_is_refused(self):
+        self.logged_in = self.user
+        many = [{"name": "p%s" % i, "settings": {}} for i in range(presets.IMPORT_MAX + 1)]
+        res = self.imp(many)
+        self.assertEqual(res.status_code, 422)
+        self.assertEqual(self.user.store, {})
+
+    def test_export_then_import_is_the_same_set(self):
+        for name in ("alpha", "beta"):
+            self.user.store[name] = _FakeSSP(self.user, name, settings={"paths": [name]},
+                                             desc="d-%s" % name)
+        self.logged_in = self.user
+        before = self.client.get("/preset/export").get_json()["presets"]
+        self.user.store.clear()
+        self.imp({"presets": before})
+        after = self.client.get("/preset/export").get_json()["presets"]
+        self.assertEqual(before, after)

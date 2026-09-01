@@ -95,6 +95,7 @@ EXPECTED = [
     "GET /plandos",
     "GET /preset/<owner_name>/<name>",
     "GET /preset/<owner_name>/<name>/roll",
+    "GET /preset/export",
     "GET /preset/latest",
     "GET /preset/list",
     "GET /preset/mine/<name>/delete",
@@ -137,6 +138,7 @@ EXPECTED = [
     "POST /plando/reachable",
     "POST /preset/delete",
     "POST /preset/edit",
+    "POST /preset/import",
     "POST /preset/save",
     "POST /user/settings/update",
 ]

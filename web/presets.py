@@ -5,6 +5,7 @@ one rolls solo, in co-op, or as one world of a multiworld.
 """
 import json
 import random
+from html import escape
 
 from flask import Blueprint, redirect, request, url_for
 from google.cloud import ndb
@@ -14,6 +15,7 @@ from models import Game, SavedSeedParams, Seed, User
 from seedbuilder.seedparams import SeedGenParams, seed_mode_problem
 from bingo import bingo_board_url
 from web.extensions import oidc
+from util import param_flag, utcnow
 from web.responses import json_resp, make_resp, text_resp
 
 bp = Blueprint("presets", __name__)
@@ -55,6 +57,144 @@ def ssp_save():
     ssp.put()
     return json_resp({"name": ssp.name, "owner": user.name})
 
+
+# One paste holds every preset a person owns, so a new account or a second site
+# can be seeded from an old one. The blob is the stored form, not the wire form.
+EXPORT_FORMAT = 1
+IMPORT_MAX = 200
+
+
+def _export_doc(user, rows):
+    return {"orirando_presets": EXPORT_FORMAT,
+            "owner": user.name,
+            "exported": utcnow().isoformat() + "Z",
+            "presets": [{"name": s.name, "desc": s.description,
+                         "hidden": bool(s.hidden), "settings": s.settings} for s in rows]}
+
+
+def _pasted_presets(body):
+    """The presets in a pasted document, whatever shape it arrived in: a whole
+    export, a bare list, or the single object a share link serves."""
+    if isinstance(body, list):
+        return body
+    if isinstance(body, dict):
+        return body["presets"] if isinstance(body.get("presets"), list) else [body]
+    return None
+
+
+def _owned_presets(user):
+    return sorted(SavedSeedParams.query(SavedSeedParams.owner_key == user.key),
+                  key=lambda s: (s.name or "").lower())
+
+
+# The clipboard needs a focused window and a secure context, and the box is
+# selected either way, so a refusal says what to press instead of going quiet.
+TRANSFER_HTML = """
+<hr><h5>Copy out</h5>
+<p>Everything above, as JSON. Paste it into the box below on another account to
+get the same presets there.</p>
+<textarea id="export" readonly rows="8" style="width:100%%;font-family:monospace">%s</textarea>
+<p><button type="button" id="copyExport">Copy to clipboard</button>
+ &middot; <a href="/preset/export">open as a file</a></p>
+<script>
+document.getElementById('copyExport').onclick = function() {
+  var box = document.getElementById('export'), btn = this;
+  box.select();
+  var say = function(msg) {
+    btn.textContent = msg;
+    setTimeout(function() { btn.textContent = 'Copy to clipboard'; }, 3000);
+  };
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(box.value).then(
+      function() { say('Copied'); }, function() { say('Press Ctrl+C'); });
+  } else {
+    say('Press Ctrl+C');
+  }
+};
+</script>
+<h5>Paste in</h5>
+<form method="POST" action="/preset/import">
+<textarea name="presets" rows="8" style="width:100%%;font-family:monospace"
+ placeholder="Paste an export here"></textarea>
+<p><label><input type="checkbox" name="overwrite" value="1">
+ Replace presets I already have with the same name</label></p>
+<button type="submit">Import</button>
+</form>"""
+
+
+@bp.route('/preset/export')
+def ssp_export():
+    """Every preset you own, as one JSON document to copy out."""
+    user = User.get()
+    if not user:
+        return text_resp("log in to export your presets", 401)
+    return json_resp(json.dumps(_export_doc(user, _owned_presets(user)), indent=2))
+
+
+@bp.route('/preset/import', methods=['POST'])
+def ssp_import():
+    """Take a pasted export back in. Existing names are left alone unless the
+    paster asked to overwrite, so a paste can never quietly lose work."""
+    user = User.get()
+    if not user:
+        return text_resp("log in to import presets", 401)
+    try:
+        entries = _pasted_presets(json.loads(request.form.get("presets") or ""))
+    except ValueError as e:
+        return text_resp("That isn't JSON: %s" % e, 422)
+    if entries is None:
+        return text_resp("Expected an export, a list of presets, or one preset.", 422)
+    if len(entries) > IMPORT_MAX:
+        return text_resp("That's %s presets; %s at a time." % (len(entries), IMPORT_MAX), 422)
+
+    # the page posts the checkbox in the body, which param_flag never reads;
+    # ?overwrite=1 stays available for a scripted import
+    overwrite = bool(request.form.get("overwrite")) or param_flag("overwrite")
+    existing = {s.name: s for s in _owned_presets(user)}
+    made, replaced, skipped, refused, writes = [], [], [], [], []
+    for entry in entries:
+        if not isinstance(entry, dict):
+            refused.append((str(entry)[:40], "not a preset"))
+            continue
+        name = (entry.get("name") or "").strip()
+        desc = (entry.get("desc") or entry.get("description") or "").strip()
+        problem = SavedSeedParams.name_problem(name) or SavedSeedParams.desc_problem(desc)
+        if problem:
+            refused.append((name or "(unnamed)", problem))
+            continue
+        was = existing.get(name)
+        if was and not overwrite:
+            skipped.append(name)
+            continue
+        ssp = was or SavedSeedParams(id="%s:%s" % (user.key.id(), name))
+        # the same filter a save runs: a hand-edited paste cannot smuggle in the
+        # multiplayer half, or another world's forced assignments
+        blob = entry.get("settings")
+        if blob is None:
+            blob = entry.get("blob") or entry.get("params") or {}
+        ssp.populate(name=name, owner_key=user.key,
+                     description=desc or None,
+                     settings=SavedSeedParams.settings_from(blob, 1),
+                     hidden=bool(entry.get("hidden")))
+        writes.append(ssp)
+        (replaced if was else made).append(name)
+    if writes:
+        ndb.put_multi(writes)
+
+    lines = []
+    for label, names in (("Added", made), ("Replaced", replaced), ("Left alone", skipped)):
+        if names:
+            lines.append("<li>%s: %s</li>" % (label, escape(", ".join(sorted(names)))))
+    for name, why in refused:
+        lines.append("<li>Refused <b>%s</b>: %s</li>" % (escape(name), escape(why)))
+    if not lines:
+        lines.append("<li>Nothing in that paste.</li>")
+    if skipped:
+        lines.append("<li><i>Tick 'overwrite' to replace the ones left alone.</i></li>")
+    return make_resp('<html><head><title>Presets imported</title></head><body>'
+                     '<h5>Presets imported</h5><ul>%s</ul>'
+                     '<a href="/myPresets">Back to my presets</a></body></html>'
+                     % "".join(lines))
 
 @bp.route('/preset/list')
 def ssp_list():
@@ -248,8 +388,7 @@ def ssp_hide_toggle(name):
 @oidc.require_login
 def my_settings():
     user = User.get()
-    rows = sorted(SavedSeedParams.query(SavedSeedParams.owner_key == user.key),
-                  key=lambda s: (s.name or "").lower())
+    rows = _owned_presets(user)
     out = ['<html><head><title>My Presets</title></head><body>'
            '<h5>My Presets</h5>']
     if not rows:
@@ -275,5 +414,13 @@ def my_settings():
                 share,
                 ssp.name, "unhide" if ssp.hidden else "hide",
                 ssp.name))
-    out.append('</ul></body></html>')
+    out.append('</ul>')
+    out.append(_transfer_html(user, rows))
+    out.append('</body></html>')
     return make_resp("".join(out))
+
+
+def _transfer_html(user, rows):
+    """Copy every preset out, or paste a set back in. Plain textareas on purpose:
+    what people want is something they can put in a message to a friend."""
+    return TRANSFER_HTML % escape(json.dumps(_export_doc(user, rows), indent=2))

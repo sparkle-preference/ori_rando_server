@@ -147,6 +147,15 @@ const nextPresetName = (list) => {
     while(list.some(s => s.name === `Preset ${n}`)) n++
     return `Preset ${n}`
 };
+// the duplicate opens with this selected, so it is a starting point and not a
+// decision. 64 is the server's limit on a preset name.
+const copyPresetName = (list, name) => {
+    let base = `Copy of ${name}`.slice(0, 64)
+    if(!list.some(s => s.name === base)) return base
+    let n = 2
+    while(list.some(s => s.name === `${base} ${n}`)) n++
+    return `${base} ${n}`
+};
 const PLAYER_NAME_MAX = 20;  // matches ap_models.PLAYER_NAME_MAX
 const AP_DEFAULT_HOST = "archipelago.gg";
 // ap/status idle stepdown: a forgotten tab can be visible, so hidden-gating
@@ -1283,6 +1292,38 @@ export default class MainPage extends React.Component {
             }))
     }
 
+    // Staged, not saved: the copy exists only in the modal until the footer
+    // button is pressed, so backing out costs nothing.
+    presetDuplicate = () => this.setState(prev => ({
+        presetDuplicating: true, presetArmDelete: false,
+        sspSaveName: copyPresetName(prev.sspList, prev.presetEditing),
+    }), () => {
+        let box = this.presetNameRef.current
+        if(box) { box.focus(); box.select() }
+    })
+
+    presetSaveDuplicate = () => {
+        let name = (this.state.sspSaveName || "").trim()
+        if(!name)
+            return NotificationManager.error("Give your preset a name", "Can't save preset!", 4000)
+        let source = this.state.sspList.find(s => s.name === this.state.presetEditing)
+        if(!source)
+            return NotificationManager.error("That preset is gone", "Can't save preset!", 4000)
+        // the source's stored options, untouched: a duplicate copies the preset,
+        // not whatever the form happens to be showing
+        this.setState({sspBusy: true}, () => postNetForm("/preset/save", {preset: JSON.stringify(
+            {name: name, desc: this.state.sspSaveDesc, hidden: this.state.sspSaveHidden,
+             params: source.blob || {}})}, ({status, responseText}) => {
+                if(status !== 200) {
+                    NotificationManager.error(responseText || "Failed to save preset", "Can't save preset!", 5000)
+                    return this.setState({sspBusy: false})
+                }
+                NotificationManager.success(name, "Preset duplicated", 4000)
+                this.setState({sspBusy: false, presetModal: false, presetDuplicating: false},
+                              this.loadSspList)
+            }))
+    }
+
     presetDelete = () => {
         let name = this.state.presetEditing
         this.setState({sspBusy: true}, () => postNetForm("/preset/delete", {preset: JSON.stringify({name: name})},
@@ -2269,16 +2310,26 @@ export default class MainPage extends React.Component {
     }
 
     getPresetManageModal = ({inputStyle}) => {
-        let {sspSaveName, sspSaveDesc, sspSaveHidden, sspBusy, presetArmDelete, presetEditing} = this.state
+        let {sspSaveName, sspSaveDesc, sspSaveHidden, sspBusy, presetArmDelete, presetEditing,
+             presetDuplicating, sspList} = this.state
+        // what it plays like, in the same words the dropdown hover uses
+        let plays = minimalFlagline((sspList.find(s => s.name === presetEditing) || {}).blob)
         return (
                 <Modal isOpen={this.state.presetModal} className={"modal-dialog-centered"} toggle={this.closeModal}>
-                  <ModalHeader style={inputStyle} toggle={this.closeModal} centered>{`Preset: ${presetEditing}`}</ModalHeader>
+                  <ModalHeader style={inputStyle} toggle={this.closeModal} centered>
+                    {presetDuplicating ? `Duplicating: ${presetEditing}` : `Preset: ${presetEditing}`}
+                  </ModalHeader>
                   <ModalBody style={inputStyle}>
                       <Container fluid>
+                        {plays ? (
+                        <Row className="px-1 pb-1">
+                            <Col><Cent><small className="font-italic text-muted">{plays}</small></Cent></Col>
+                        </Row>) : null}
                         <Row className="p-1">
                             <Col xs="4" className="text-center pt-1 border"><Cent>Name</Cent></Col>
                             <Col xs="8">
                                 <Input style={inputStyle} type="text" value={sspSaveName} maxLength={64}
+                                       innerRef={this.presetNameRef}
                                        onChange={(e) => this.setState({sspSaveName: e.target.value})}/>
                             </Col>
                         </Row>
@@ -2298,7 +2349,7 @@ export default class MainPage extends React.Component {
                                 </Button>
                             </Col>
                         </Row>
-                        <Row className="p-1">
+                        <Row className="p-1" hidden={presetDuplicating}>
                             <Col xs="4" className="text-center pt-1 border"><Cent>Link</Cent></Col>
                             <Col xs="8">
                                 <InputGroup>
@@ -2311,7 +2362,7 @@ export default class MainPage extends React.Component {
                                 </InputGroup>
                             </Col>
                         </Row>
-                        <Row className="p-1 mt-2">
+                        <Row className="p-1 mt-2" hidden={presetDuplicating}>
                             <Col>
                                 <Button color="danger" block outline={!presetArmDelete} disabled={sspBusy}
                                         onClick={() => presetArmDelete ? this.presetDelete() : this.setState({presetArmDelete: true})}>
@@ -2320,12 +2371,19 @@ export default class MainPage extends React.Component {
                             </Col>
                         </Row>
                         <Row className="p-1">
-                            <Col><Cent><small>Deleting only removes the saved copy. Your current options stay in the form.</small></Cent></Col>
+                            <Col><Cent><small>{presetDuplicating
+                                ? "Nothing is saved until you press Save duplicate."
+                                : "Deleting only removes the saved copy. Your current options stay in the form."}</small></Cent></Col>
                         </Row>
                     </Container>
                   </ModalBody>
                   <ModalFooter style={inputStyle}>
-                    <Button color="primary" disabled={sspBusy || !sspSaveName.trim()} onClick={this.presetEdit}>Save changes</Button>
+                    <Button color="info" outline disabled={sspBusy} hidden={presetDuplicating}
+                            onClick={this.presetDuplicate}>Duplicate</Button>
+                    <Button color="primary" disabled={sspBusy || !sspSaveName.trim()}
+                            onClick={presetDuplicating ? this.presetSaveDuplicate : this.presetEdit}>
+                        {presetDuplicating ? "Save duplicate" : "Save changes"}
+                    </Button>
                     <Button color="secondary" onClick={this.closeModal}>Cancel</Button>
                   </ModalFooter>
                 </Modal>
@@ -2496,6 +2554,8 @@ export default class MainPage extends React.Component {
         )
     }
 
+    presetNameRef = React.createRef()
+
     constructor(props) {
         super(props);
         let user = get_param("user");
@@ -2612,7 +2672,8 @@ export default class MainPage extends React.Component {
         
     closeModal = () => {
          window.history.replaceState('',window.document.title, window.document.URL.split("/quickstart")[0]);
-         this.setState({quickstartOpen: false, auxModal: false, sspModal: false, presetModal: false})
+         this.setState({quickstartOpen: false, auxModal: false, sspModal: false,
+                        presetModal: false, presetDuplicating: false})
     }
 
     onTab = (tabName) => () => this.setState({activeTab: tabName})
@@ -2895,10 +2956,11 @@ export default class MainPage extends React.Component {
         const sspHelp = this.helpEnter("general", user ? "savedSettings" : "savedSettingsDisabled", 250,
                                        this.sspHelpExtra())
 
-        // one chip: save over what is loaded, or keep a copy of what cannot be
+        // one chip: save over what is loaded, or save a copy of what cannot be.
+        // Always the save icon -- a copy icon read as "copy to clipboard".
         const presetChip = sspEditable
             ? {icon: <FaSave/>, ok: sspEdited, act: this.sspUpdate, help: "updatePreset"}
-            : {icon: <FaCopy/>, ok: !!user && !isDefault, act: this.openSspSave, help: "copyPreset"}
+            : {icon: <FaSave/>, ok: !!user && !isDefault, act: this.openSspSave, help: "copyPreset"}
 
         let keyModeOptions = keymode_options.map(mode => (
             <DropdownItem key={`keymode-${mode}`} active={mode===keyMode} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("keyModes", mode)} onClick={this.onKeyMode(mode)}>{mode}</DropdownItem>

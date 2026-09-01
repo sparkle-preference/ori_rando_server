@@ -26,6 +26,11 @@
             "importance": "major"
           },
           {
+            "text": "Presets save the seed generator's options under a name. Load one from the dropdown, share it by link, or duplicate it as a starting point - and My Presets can copy your whole set out as text to move it to another account.",
+            "category": "Seed Generator",
+            "importance": "major"
+          },
+          {
             "text": "Cross-world items show their own name instead of \"Bonus Item\".",
             "category": "Multiplayer",
             "type": "fix",
