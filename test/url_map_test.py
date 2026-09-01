@@ -12,6 +12,7 @@ HEAD and OPTIONS are dropped: Flask derives both, so they carry no signal.
 
 Run from the repo root:  python3 -m unittest test.url_map_test -v
 """
+import inspect
 import unittest
 
 import main
@@ -161,6 +162,37 @@ class UrlMapTestCase(unittest.TestCase):
             "URL surface moved.%snew: %s%sgone: %s%s"
             "If you meant it, update EXPECTED. If you were moving routes between "
             "modules, you did not mean it." % (chr(10), added, chr(10), gone, chr(10)))
+
+    def test_every_handler_accepts_exactly_its_url_variables(self):
+        """Flask hands a view the rule's variables as keyword arguments, so a
+        handler whose signature disagrees is a 500 on every request to it.
+
+        This is what catches a decorator binding to the wrong function: inserting
+        a def directly beneath an existing @route steals it, the URL stays
+        registered, and nothing else notices. /reroll spent a week that way.
+        """
+        for rule in main.app.url_map.iter_rules():
+            fn = main.app.view_functions.get(rule.endpoint)
+            if fn is None or rule.endpoint == "static":
+                continue
+            # flask_sock injects the connection; it is not a URL variable
+            injected = {"conn"} if rule.endpoint.startswith("__flask_sock.") else set()
+            params = list(inspect.signature(fn).parameters.values())
+            takes_kwargs = any(p.kind is p.VAR_KEYWORD for p in params)
+            named = {p.name for p in params
+                     if p.kind in (p.POSITIONAL_OR_KEYWORD, p.KEYWORD_ONLY)}
+            required = {p.name for p in params
+                        if p.kind in (p.POSITIONAL_OR_KEYWORD, p.KEYWORD_ONLY)
+                        and p.default is p.empty} - injected
+            args = set(rule.arguments)
+
+            if not takes_kwargs:
+                self.assertFalse(args - named,
+                                 "%s: the URL supplies %s, %s does not accept it"
+                                 % (rule, sorted(args - named), rule.endpoint))
+            self.assertFalse(required - args,
+                             "%s: %s requires %s, which the URL never supplies"
+                             % (rule, rule.endpoint, sorted(required - args)))
 
     def test_every_rule_is_reachable_by_name(self):
         """A blueprint split renames endpoints; url_for must still resolve each."""
