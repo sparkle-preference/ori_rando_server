@@ -10,7 +10,7 @@ import './index.css';
 
 import {getHelpContent, HelpBox} from "./helpbox.js";
 import {History, HIST_KEYS, HIST_SET} from './history.js';
-import {postNetForm, get_param, spawnKitFor, get_flag, ap_enabled, presets, select_theme, name_from_str, get_preset, player_icons, doNetRequest, get_random_loader, PickupSelect, Cent, dev, randInt, gotoUrl, prng, decompose_pickup, app_enabled} from './common.js';
+import {postNetForm, get_param, spawnKitFor, get_flag, ap_enabled, presets, select_theme, name_from_str, get_preset, player_icons, doNetRequest, get_random_loader, PickupSelect, Cent, dev, randInt, gotoUrl, prng, decompose_pickup} from './common.js';
 import SiteBar from "./SiteBar.js";
 import Select from 'react-select';
 import {picks_by_zone} from './shared_map';
@@ -1058,10 +1058,10 @@ export default class MainPage extends React.Component {
     loadSspList = () => doNetRequest("/preset/list", ({status, responseText}) => {
         if(status !== 200)
             return
-        let {owner, settings, hasLatest, restoreLastSeed} = JSON.parse(responseText)
+        let {owner, settings, hasLatest, restoreLastSeed, hidePlayButton} = JSON.parse(responseText)
         // absent means an older server: opening on the last seed is what it did
         this.restoreLastSeed = restoreLastSeed !== false
-        this.setState({sspOwner: owner, sspList: settings || [], sspHasLatest: !!hasLatest}, () => {
+        this.setState({sspOwner: owner, sspList: settings || [], sspHasLatest: !!hasLatest, hidePlayButton: !!hidePlayButton}, () => {
             if(!hasLatest)
                 return this.setState({sspLatest: null})
             doNetRequest("/preset/latest", ({status, responseText}) => {
@@ -1604,10 +1604,11 @@ export default class MainPage extends React.Component {
                     mainButtonText = `Open Bingo Board`
                     mainButtonHelp = "openBingoBoard"
                 }
-                let playUrl = "bfr:/play/params/"+paramId;
-                playUrl += "?" + seedParams.join("&");
+                // a beta site's link says so, for a launcher that knows more than one server
+                let playParams = get_flag("beta") ? seedParams.concat("beta") : seedParams
+                let playUrl = "bfr:/play/params/"+paramId + "?" + playParams.join("&");
                 let showApNotReady = inputApMode && ap_enabled() && gameId > 0 && !seedIsBingo && !this.apNamesReady();
-                let showPlay = app_enabled() && !showApNotReady && !seedIsBingo;
+                let showPlay = !this.state.hidePlayButton && !showApNotReady && !seedIsBingo;
                 // 12 columns: player 3 + seed 3 (4 with Play) + this world's flags
                 return (
                     <Row key={`player-${p}`} className="align-content-center p-1 border-bottom">
@@ -2640,6 +2641,7 @@ export default class MainPage extends React.Component {
         // the form as loaded is frame 0, or the first edit has nothing to go back to
         this.history.touch()
         document.addEventListener("keydown", this.onHistKey)
+        window.addEventListener("userSettingsSaved", this.onUserSettingsSaved)
         if(this.apPanelVisible())
             this.startApPoll()
         this.loadSspList()
@@ -2664,7 +2666,14 @@ export default class MainPage extends React.Component {
             this.stopApPoll()
     }
 
+    // the navbar's settings modal saved: the seed tab follows without a reload
+    onUserSettingsSaved = ({detail}) => {
+        if("hidePlayButton" in detail)
+            this.setState({hidePlayButton: detail.hidePlayButton === "1"})
+    }
+
     componentWillUnmount() {
+        window.removeEventListener("userSettingsSaved", this.onUserSettingsSaved)
         document.removeEventListener("keydown", this.onHistKey)
         this.history.detach()
         this.stopApPoll()

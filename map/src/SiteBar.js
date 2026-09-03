@@ -17,7 +17,7 @@ class SiteBar extends Component {
         let dark = resolve_dark()
         // the page already rendered with a theme, so the switch never waits to know
         this.state = {user, dark, teamName: "", theme: get_param("theme") || "system", verbose: false, themes: [],
-                      restoreLastSeed: true,
+                      restoreLastSeed: true, hidePlayButton: false,
                       badChars: [], nameFree: null, settingsOpen: false, editName: user,
                       loaded: false, saveInProgress: false,
                       loader: get_random_loader(), saveStatus: 0, saveError: ""}
@@ -37,16 +37,17 @@ class SiteBar extends Component {
             // pristine is what Save Changes compares against, so it holds every editable field
             let clean = {editName: res.name || this.state.user, teamName: res.teamname,
                          theme: res.theme || "system", verbose: !!res.verbose,
-                         restoreLastSeed: res.restoreLastSeed !== false}
+                         restoreLastSeed: res.restoreLastSeed !== false, hidePlayButton: !!res.hidePlayButton}
             this.setState({...clean, pristine: clean, loaded: true,
                            badChars: res.badChars || [], themes: res.themes || []})
         })
     }
     isDirty = () => {
-        let {pristine, editName, teamName, theme, verbose, restoreLastSeed} = this.state
+        let {pristine, editName, teamName, theme, verbose, restoreLastSeed, hidePlayButton} = this.state
         return !!pristine && (editName !== pristine.editName || teamName !== pristine.teamName
                               || theme !== pristine.theme || verbose !== pristine.verbose
-                              || restoreLastSeed !== pristine.restoreLastSeed)
+                              || restoreLastSeed !== pristine.restoreLastSeed
+                              || hidePlayButton !== pristine.hidePlayButton)
     }
     // local rules answer without asking; only "is it taken" needs the server
     localNameProblem = (name) => {
@@ -111,9 +112,9 @@ class SiteBar extends Component {
         this.setState({...this.state.pristine, settingsOpen: false, saveStatus: 0, nameFree: null})
     }
     submitSettings = () => {
-        let {editName, teamName, theme, verbose, restoreLastSeed} = this.state
+        let {editName, teamName, theme, verbose, restoreLastSeed, hidePlayButton} = this.state
         let fields = {name: editName, teamname: teamName, theme: theme, verbose: verbose ? "1" : "0",
-                      restoreLastSeed: restoreLastSeed ? "1" : "0"}
+                      restoreLastSeed: restoreLastSeed ? "1" : "0", hidePlayButton: hidePlayButton ? "1" : "0"}
         this.setState({saveInProgress: true}, () => postNetForm("/user/settings/update", fields, ({status, responseText}) => {
             // a rejected save keeps the dialog, so the edits that caused it are still there to fix
             if(status !== 200) {
@@ -126,12 +127,14 @@ class SiteBar extends Component {
                 return
             }
             this.themeBeforePreview = undefined
+            // pages that render off a setting (the seed tab's Play button) follow without a reload
+            window.dispatchEvent(new CustomEvent("userSettingsSaved", {detail: fields}))
             this.setState({saveInProgress: false, settingsOpen: false, user: editName}, this.loadSettings)
         }))
     }
     settingsModal = () =>  {
         let {saveInProgress, loaded, settingsOpen, loader, nameFree, user, editName, teamName,
-             theme, themes, verbose, restoreLastSeed, saveStatus, saveError} = this.state
+             theme, themes, verbose, restoreLastSeed, hidePlayButton, saveStatus, saveError} = this.state
         if(saveInProgress || !loaded)
             return (
                 <Modal size="sm" isOpen={settingsOpen} backdrop={"static"} className={"modal-dialog-centered settings-modal"}>
@@ -199,6 +202,18 @@ class SiteBar extends Component {
                                     <input type="checkbox" className="custom-control-input" id="lastSeedSwitch" checked={restoreLastSeed} onChange={e => this.setState({restoreLastSeed: e.target.checked})}/>
                                     <label className="custom-control-label" htmlFor="lastSeedSwitch">
                                         <small className="text-muted">Open the seed generator on your last seed's options</small>
+                                    </label>
+                                </div>
+                            </Col>
+                        </Row>
+                        <Row className="p-1 justify-content-center">
+                            <Col xs="4" className="text-center p-1 border">
+                                <Cent>Hide Play button</Cent>
+                            </Col><Col xs="6" className="d-flex align-items-center">
+                                <div className="custom-control custom-switch">
+                                    <input type="checkbox" className="custom-control-input" id="hidePlaySwitch" checked={hidePlayButton} onChange={e => this.setState({hidePlayButton: e.target.checked})}/>
+                                    <label className="custom-control-label" htmlFor="hidePlaySwitch">
+                                        <small className="text-muted">If you don't use the Rando App, the seed tab only offers Download</small>
                                     </label>
                                 </div>
                             </Col>

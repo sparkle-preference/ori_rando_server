@@ -202,7 +202,8 @@ def ssp_list():
     rather than a 401: the page greys the controls out instead of erroring."""
     user = User.get()
     if not user:
-        return json_resp({"owner": None, "hasLatest": False, "restoreLastSeed": True, "settings": []})
+        return json_resp({"owner": None, "hasLatest": False, "restoreLastSeed": True,
+                          "hidePlayButton": False, "settings": []})
     rows = sorted(SavedSeedParams.query(SavedSeedParams.owner_key == user.key),
                   key=lambda s: (s.name or "").lower())
     # what /preset/latest and /reroll both need, so a lit button is one that works
@@ -213,6 +214,7 @@ def ssp_list():
                       # whether the page opens on that last seed. Off still keeps it:
                       # Last Seed stays pickable and /reroll still has something to reroll
                       "restoreLastSeed": user.setting("restoreLastSeed"),
+                      "hidePlayButton": user.setting("hidePlayButton"),
                       "settings": [{"name": s.name, "desc": s.description,
                                     "hidden": s.hidden, "blob": s.settings} for s in rows]})
 

@@ -428,7 +428,9 @@ def picks_by_type_generator():
 # request helpers
 def template_vals(app, title, user):
     template_values = {'app': app, 'title': title, 'version': DISPLAY_VERSION, 'race_wl': whitelist_ok(), 'admin': user.is_admin() if user else False,
-                       'ap_flag': ARCHIPELAGO
+                       'ap_flag': ARCHIPELAGO,
+                       # a beta site's play links tell the launcher which server rolled the seed
+                       'beta': bool(BETA_OF)
 }
     if user:
         template_values['user'] = user.name

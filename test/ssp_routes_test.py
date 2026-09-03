@@ -230,7 +230,7 @@ class SSPListTestCase(SSPRouteTestCase):
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.get_json(),
                          {"owner": None, "hasLatest": False,
-                          "restoreLastSeed": True, "settings": []})
+                          "restoreLastSeed": True, "hidePlayButton": False, "settings": []})
 
     def test_the_owner_sees_their_own_sorted_case_insensitively(self):
         for name in ("zeta", "Alpha", "middle"):

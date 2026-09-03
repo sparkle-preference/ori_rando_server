@@ -1840,6 +1840,7 @@ URL_UNSAFE_NAME_CHARS = ["@", "/", "\\", "?", "#", "&", "=", '"', "'"]
 # Registering here is the whole job; both routes loop over this rather than naming keys.
 USER_SETTINGS = {
     "restoreLastSeed": {"default": True, "label": "remembered seedgen settings"},
+    "hidePlayButton": {"default": False, "label": "Play button"},
 }
 
 # the bootswatch skins that ship a dark ground; the rest are light

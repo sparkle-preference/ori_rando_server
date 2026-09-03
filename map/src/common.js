@@ -843,31 +843,6 @@ function ap_enabled() {
     return get_flag("ap_flag")
 }
 
-function app_test_param() {
-    return new URL(window.document.URL).searchParams.get("app_test")
-}
-
-function app_opt_in() {
-    let param = app_test_param()
-    if(param === null)
-        return
-    try {
-        if(param === "0" || param === "false")
-            localStorage.removeItem("app_test")
-        else
-            localStorage.setItem("app_test", "1")
-    } catch(e) { /* storage disabled: app_enabled falls back to the url */ }
-}
-
-function app_enabled() {
-    try {
-        return localStorage.getItem("app_test") === "1"
-    } catch(e) {
-        let param = app_test_param()
-        return param !== null && param !== "0" && param !== "false"
-    }
-}
-
 function get_int(name, orElse) {
     return parseInt(get_param(name), 10) || orElse
 }
@@ -1110,6 +1085,6 @@ const prng = (strIn) => sfc32(...cyrb128(strIn));
 
 export {
     player_icons, doNetRequest, prng, get_param, get_flag, resolve_dark, save_dark, theme_href, postNetForm, ap_enabled, get_int, get_list, get_preset, presets, get_seed, logic_paths, get_random_loader, Blabel,
-    pickup_name, stuff_by_type, name_from_str, PickupSelect, Cent, ordinal_suffix, dev, gotoUrl, loginLogoutUrl, select_theme, randInt, spawn_defaults, spawnKitFor, decompose_pickup, app_opt_in, app_enabled,
+    pickup_name, stuff_by_type, name_from_str, PickupSelect, Cent, ordinal_suffix, dev, gotoUrl, loginLogoutUrl, select_theme, randInt, spawn_defaults, spawnKitFor, decompose_pickup,
     BOX_TYPES, BOX_COLOURS, new_box, parse_box_line, box_line, box_colour, box_label
 };

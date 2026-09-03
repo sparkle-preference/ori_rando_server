@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
-import {get_param, app_opt_in, resolve_dark, save_dark, theme_href} from './common.js';
+import {get_param, resolve_dark, save_dark, theme_href} from './common.js';
 
 import ItemTracker from './ItemTracker';
 import MainPage from './MainPage';
@@ -30,7 +30,6 @@ const dark_apps = ["GameTracker", "PlandoBuilder", "LogicHelper"];
 const MODES = ["system", "light", "dark"];
 
 (async () => {
-    app_opt_in();
     let dark = resolve_dark();
     // one server-validated value; a mode defers to resolve_dark, anything else is a skin
     let theme = get_param("theme");

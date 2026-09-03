@@ -94,5 +94,27 @@ class SeedgenRestoreGateTestCase(unittest.TestCase):
                       "the dropdown entry must not be gated on the toggle")
 
 
+class PlayButtonGateTestCase(unittest.TestCase):
+    """hidePlayButton is the only thing between a seed and its Play button: the
+    app_test opt-in it replaced is gone, and a beta site's link says beta."""
+
+    def src(self, name):
+        with io.open(os.path.join(HERE, "map", "src", name), encoding="utf-8") as f:
+            return f.read()
+
+    def test_the_gate_is_the_registered_setting(self):
+        page = self.src("MainPage.js")
+        self.assertIn("let showPlay = !this.state.hidePlayButton", page)
+        self.assertIn("hidePlayButton", re.search(r"loadSspList = .*?\n    \}\)", page, re.S).group(0))
+
+    def test_the_opt_in_flag_is_gone(self):
+        for name in ("common.js", "MainPage.js", "index.js"):
+            self.assertNotIn("app_test", self.src(name), name)
+
+    def test_a_beta_site_marks_its_play_links(self):
+        self.assertIn('get_flag("beta") ? seedParams.concat("beta")', self.src("MainPage.js"))
+        self.assertIn('data-beta="{{beta}}"', self.src("index.html"))
+
+
 if __name__ == "__main__":
     unittest.main()
