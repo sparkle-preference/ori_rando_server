@@ -3,16 +3,13 @@ import {Container, Row, Col, Card, CardBody, CardHeader, Badge, Button, ButtonGr
 import {Helmet} from 'react-helmet';
 
 import './patchnotes.css';
-import {get_flag, get_param} from "./common.js"
+import {get_param} from "./common.js"
 import SiteBar from "./SiteBar.js"
 // patchnotes.json is the source of truth: parcel bundles it here, and Flask
 // reads the same file to serve /patchnotes.json and the Atom feed
 import notes from "./patchnotes.json"
 
 const RELEASES = notes.releases;
-// a beta site's newest note is the release it previews, shown under the beta's own number
-const BETA = get_flag("beta");
-const DISPLAY_VERSION = get_param("version");
 const CATEGORIES = notes.categories;
 
 const TYPE_LABELS = {feature: "Feature", fix: "Bugfix"};
@@ -46,13 +43,17 @@ const siteRev = (v) => {
     let parts = v.split(".")
     return parts.length > 3 ? [parts.slice(0, 3).join("."), parts[3]] : [v, null]
 };
+// 4.9.x is the 5.0 beta: numbered on the wire, named on the page
+const isBeta = (dll) => dll.startsWith("4.9.")
+const betaName = (dll) => isBeta(dll) ? `5.0 beta v${dll.split(".")[2]}` : dll
 const displayVersion = (v) => {
     let [dll, rev] = siteRev(v)
-    return rev ? `${dll} — Web Update ${rev}` : dll
+    return rev ? `${betaName(dll)} — Web Update ${rev}` : betaName(dll)
 };
 const shortVersion = (v) => {
     let [dll, rev] = siteRev(v)
-    return rev ? `${dll}+${rev}` : dll
+    let short = isBeta(dll) ? `v${dll.split(".")[2]}` : dll
+    return rev ? `${short}+${rev}` : short
 };
 
 // Within a category: Features, then Bugfixes, then changes that are neither
@@ -122,9 +123,9 @@ const Release = ({release, everything, latest, onShowEverything}) => {
         <Card className={"mb-3" + (latest ? " border-primary pn-latest" : "")} id={release.version}>
             <CardHeader tag="h5" className="d-flex align-items-center flex-wrap">
                 <a href={"#" + release.version} className="mr-2" title="Link to this release">
-                    {latest && BETA ? DISPLAY_VERSION : displayVersion(release.version)}
+                    {displayVersion(release.version)}
                 </a>
-                {latest ? <Badge color="primary" className="mr-2">{BETA ? "Beta" : "Latest"}</Badge> : null}
+                {latest ? <Badge color="primary" className="mr-2">Latest</Badge> : null}
                 {release.title ? <span className="mr-2 font-weight-normal">{release.title}</span> : null}
                 <small className="ml-auto text-muted font-weight-normal">{release.date}</small>
             </CardHeader>
@@ -165,6 +166,8 @@ const versionLines = () => {
     let lines = []
     RELEASES.forEach(r => {
         let line = r.version.split(".").slice(0, 2).join(".")
+        if(line === "4.9")
+            line = "5.0 beta"
         let last = lines[lines.length - 1]
         if(!last || last.line !== line)
             lines.push({line, versions: [r.version]})

@@ -50,10 +50,10 @@ class PatchNotesDataTestCase(unittest.TestCase):
                 self.assertGreater(int(parts[3]), 0, r["version"])
 
     def test_the_newest_release_is_the_running_version(self):
-        # equal to it, or a site revision sitting on top of it; a beta stands
-        # in for the release it previews
+        # equal to it, or a site revision sitting on top of it; a beta build
+        # ships with its own 4.9.N note
         newest = version_tuple(DOC["releases"][0]["version"])
-        self.assertEqual(newest[:3], tuple(util.RELEASE_VER))
+        self.assertEqual(newest[:3], tuple(util.VER))
 
 
 class LatestNoteVersionTestCase(unittest.TestCase):

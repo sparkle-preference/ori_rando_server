@@ -30,11 +30,10 @@ MIN_VER = [4, 9, 0]
 BETA_VER = [4, 9, 0]
 VERSION = "%s.%s.%s" % tuple(VER)
 
-# 4.9.x is the 5.0 beta: numeric on the wire, "5.beta.x" on the page, and its
-# patch notes are 5.0's -- beta builds get no notes of their own
+# 4.9.x is the 5.0 beta: numeric on the wire, "5.0 beta vN" on the page. Each
+# beta build gets its own 4.9.N note; they collapse into 5.0.0 at release.
 BETA_OF = [5, 0, 0] if VER[:2] == [4, 9] else None
-RELEASE_VER = BETA_OF or VER
-DISPLAY_VERSION = "%d.beta.%d" % (BETA_OF[0], VER[2]) if BETA_OF else VERSION
+DISPLAY_VERSION = "%d.%d beta v%d" % (BETA_OF[0], BETA_OF[1], VER[2]) if BETA_OF else VERSION
 
 # which branch's committed Assembly-CSharp.dll the dll routes hand out
 DLL_BRANCH = os.environ.get("DLL_BRANCH", "master")

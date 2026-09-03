@@ -52,11 +52,10 @@ class DllRedirectTestCase(unittest.TestCase):
         self.assertEqual(self._target("/dll"), util.DLL_URL % "master")
         self.assertEqual(self._target("/dll/beta"), util.DLL_URL % "4.3")
 
-    def test_the_display_version_stands_in_for_the_release(self):
+    def test_the_display_version_names_the_beta(self):
         # 4.9.x is the 5.0 beta on the page; anything else is itself
-        self.assertEqual(util.RELEASE_VER, util.BETA_OF or util.VER)
         if util.BETA_OF:
-            self.assertEqual(util.DISPLAY_VERSION, "5.beta.%d" % util.VER[2])
+            self.assertEqual(util.DISPLAY_VERSION, "5.0 beta v%d" % util.VER[2])
         else:
             self.assertEqual(util.DISPLAY_VERSION, util.VERSION)
 
