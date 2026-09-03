@@ -1,0 +1,21 @@
+# The build needs map/ sources, requirements.txt, seedbuilder/, archipelago/,
+# web/ and the root *.py. Everything here is either rebuilt inside the image or
+# never copied; map/dist in particular arrives from the parcel stage, and a
+# local one would ship its stale bundles alongside the fresh build.
+.git
+.github
+.claude
+.vscode
+.env
+.venv
+.venv312
+**/__pycache__
+*.pyc
+map/node_modules
+map/dist
+map/.parcel-cache
+e2e
+test
+mockclient
+archipelago/dist
+*.apworld

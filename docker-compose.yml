@@ -31,8 +31,11 @@ services:
       # Uncomment
       # - ${APPDATA:-~/.config}/gcloud/application_default_credentials.json:/root/.config/gcloud/application_default_credentials.json
     entrypoint: "sh .internal_run_dev.sh"
+  # profiled off: its watcher cannot see host edits through the bind mount, and
+  # it fights the host watcher (tools/watch_dev.ps1) over map/dist
   react:
     image: node:24
+    profiles: ["container-react"]
     environment:
       - NO_WATCH_REACT_APP=${NO_WATCH_REACT_APP:-0}
     ports:
