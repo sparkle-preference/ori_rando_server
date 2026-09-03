@@ -94,10 +94,10 @@ class Teleporter(Pickup):
 
 class Upgrade(Pickup):
     stacking = set([6, 13, 15, 17, 19, 21])
-    name_only = set([0, 1, 2, 34, 35, 38, 39, 81, 1100] + list(range(40, 50)))
+    name_only = set([0, 1, 2, 3, 4, 34, 35, 38, 39, 81, 1100] + list(range(40, 50)))
     maxes = {17: 3, 19: 3, 21: 3}
     names = {
-            17: "Water Vein Shard", 19: "Gumon Seal Shard", 21: "Sunstone Shard", 28: "Warmth Fragment", 6: "Attack Upgrade", 13: "Health Regeneration", 2: "Go Home",
+            17: "Water Vein Shard", 19: "Gumon Seal Shard", 21: "Sunstone Shard", 28: "Warmth Fragment", 6: "Attack Upgrade", 13: "Health Regeneration", 2: "Go Home", 3: "Kill Ori", 4: "Air Refresh",
             15: "Energy Regeneration", 8: "Explosion Power Upgrade", 9: "Spirit Light Efficiency", 10: "Extra Air Dash", 11: "Charge Dash Efficiency",
             12: "Extra Double Jump", 0: "Mega Health", 1: "Mega Energy", 38: "Mini Health", 39: "Mini Energy", 30: "Bleeding", 31: "Health Drain", 32: "Energy Drain", 33: "Skill Velocity Upgrade",
             81: "Stompnade Hint", 40: "Remove Wall Jump", 41: "Remove Charge Flame", 42: "Remove Double Jump", 43: "Remove Bash", 44: "Remove Stomp", 45: "Remove Glide",

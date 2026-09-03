@@ -1,12 +1,13 @@
 import './index.css';
 import React from 'react';
 import he from 'he';
-import { ZoomControl, Map, Tooltip, TileLayer} from 'react-leaflet';
+import { ZoomControl, Map, Tooltip, TileLayer, Rectangle, Marker} from 'react-leaflet';
 import Leaflet from 'leaflet';
 import {NotificationContainer, NotificationManager} from 'react-notifications';
 import 'react-notifications/lib/notifications.css';
 import {Checkbox, CheckboxGroup} from 'react-checkbox-group';
-import {get_param, get_flag, get_int, get_list, get_seed, presets, get_preset, logic_paths, pickup_name, PickupSelect, stuff_by_type, loginLogoutUrl, decompose_pickup} from './common.js';
+import {get_param, get_flag, get_int, get_list, get_seed, presets, get_preset, logic_paths, pickup_name, PickupSelect, stuff_by_type, loginLogoutUrl, decompose_pickup,
+        BOX_TYPES, new_box, parse_box_line, box_line, box_colour, box_label} from './common.js';
 import {download, picks_by_type, picks_by_loc, picks_by_zone, picks_by_area, zones, PickupMarkersList, get_icon, 
         getMapCrs, hide_opacity, select_wrap, is_match, str_ids, select_styles} from './shared_map.js';
 import NumericInput from 'react-numeric-input';
@@ -56,6 +57,9 @@ const optSwitch = (id, text, checked, onChange) => (
 const DEFAULT_DATA = {
     '-12320248': {label: "100 Experience", value: "EX|100"}
 }
+
+// the corner of a box, while boxes are being edited on the map
+const HANDLE_ICON = Leaflet.divIcon({className: "box-handle", iconSize: [10, 10]})
 
 const FORMAT_LINES = `Message format:
 \\n: linebreak
@@ -254,6 +258,7 @@ class PlandoBuiler extends React.Component {
                   flags: ['hide_unreachable'], seedFlags: [], hidden: hidden, share_types: select_wrap(["Skills", "WorldEvents", "Teleporters"]), coop_mode: {label: "Solo", value: "None"},
                   pickups: ["EX", "Ma", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "CS"], display_fill: false, display_import: false, display_logic: false, display_coop: false, display_meta: false,
                   entrances: {1: {}}, display_entrances: false, entrance_from: {value: "", label: ""}, entrance_to: {value: "", label: ""},
+                  boxes: {1: []}, display_boxes: false, box_edit: false, box_type: "kill",
                   import_overwrite: false,
                 seed_name: seed_name, last_seed_name: seed_name, seed_desc: seed_desc, user: user};
     }
@@ -450,7 +455,15 @@ class PlandoBuiler extends React.Component {
         let newClueOrder = []
         let newEntrances = {}
         let currplc = this.state.placements[player] || {}
+        let newBoxes = []
         for (let i = 1, len = lines.length; i < len; i++) {
+            // a box has no location; it is kept as a line of its own
+            if(lines[i].startsWith("BX|")) {
+                let box = parse_box_line(lines[i])
+                if(box)
+                    newBoxes.push(box)
+                continue;
+            }
             let line = lines[i].split("|")
             let loc = parseInt(line[0], 10);
             // every pasted seed ends in a newline, and that blank line parses to NaN
@@ -510,6 +523,11 @@ class PlandoBuiler extends React.Component {
                 }
                 if(newClueOrder.length === 3)
                     retVal.clueOrder = {value: newClueOrder, label: mkClueOrderLabel(newClueOrder)}
+                // an overwriting import replaces the world's boxes too; a merge adds the new ones
+                let mine = overwrite ? [] : [...(prevState.boxes[player] || [])]
+                let known = mine.map(box_line)
+                newBoxes.forEach(b => { if(!known.includes(box_line(b))) mine.push(b) })
+                retVal.boxes = {...prevState.boxes, [player]: mine}
                 return retVal
             }, () => this.updateReachable());
 
@@ -555,6 +573,16 @@ class PlandoBuiler extends React.Component {
         let retVal = {}
         retVal.placements = placements;
         retVal.entrances = newEntrances;
+        let boxes = {}
+        ;(seedData['boxes'] || []).forEach(entry => {
+            let box = parse_box_line(entry['line'])
+            if(!box)
+                return
+            if(!boxes.hasOwnProperty(entry['player']))
+                boxes[entry['player']] = []
+            boxes[entry['player']].push(box)
+        })
+        retVal.boxes = boxes
         if(newClueOrder.length === 3)
             retVal.clueOrder = {value: newClueOrder, label: mkClueOrderLabel(newClueOrder)};
         this.setState(retVal, () => this.updateReachable());
@@ -665,6 +693,7 @@ class PlandoBuiler extends React.Component {
         this.state.clueOrder.value.forEach(ev => evLines.hasOwnProperty(ev) ? outLines.push(evLines[ev]) : null)
         let ent = this.curEntrances()
         Object.keys(ent).forEach(loc => outLines.push(loc + "|EN|" + ent[loc]))
+        this.curBoxes().forEach(b => outLines.push(box_line(b)))
         return outLines;
     }
 
@@ -722,6 +751,9 @@ class PlandoBuiler extends React.Component {
             })
         })
         Object.keys(enStuff).forEach(loc => data.placements.push({loc: String(loc), zone: "", stuff: enStuff[loc]}))
+        // boxes are not locations: one line each, per world
+        data.boxes = []
+        Object.keys(this.state.boxes).forEach(player => (this.state.boxes[player] || []).forEach(b => data.boxes.push({player: player, line: box_line(b)})))
 
         return data;
     }
@@ -919,6 +951,55 @@ class PlandoBuiler extends React.Component {
     toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
     toggleCoop = () => {this.setState({display_coop: !this.state.display_coop})};
     toggleEntrances = () => {this.setState({display_entrances: !this.state.display_entrances})};
+    toggleBoxes = () => {this.setState({display_boxes: !this.state.display_boxes})};
+    // boxes are per-player like entrances: {player: [box]}; the panel edits the current player's
+    curBoxes = () => this.state.boxes[this.state.player] || [];
+    setBoxes = (boxes) => this.setState(prev => ({boxes: {...prev.boxes, [prev.player]: boxes}}));
+    updateBox = (i, changes) => this.setBoxes(this.curBoxes().map((b, k) => k === i ? {...b, ...changes} : b));
+    removeBox = (i) => () => this.setBoxes(this.curBoxes().filter((b, k) => k !== i));
+    // a new box lands where the map is looking, of the kind last picked, to be dragged into place
+    addBox = () => {
+        let c = this.refs.map.leafletElement.getCenter()
+        let x = Math.round(c.lng * 10) / 10, y = Math.round(c.lat * 10) / 10
+        this.setBoxes([...this.curBoxes(), new_box(this.state.box_type, [x - 3, y - 3, x + 3, y + 3])])
+    };
+    // Dragging a box moves it, with the map's own drag off for the duration; the
+    // numbers are rounded when the mouse lets go.
+    startBoxDrag = (i) => (ev) => {
+        Leaflet.DomEvent.stop(ev.originalEvent)
+        this.refs.map.leafletElement.dragging.disable()
+        this.boxDrag = {index: i, from: ev.latlng, start: [...this.curBoxes()[i].box]}
+    };
+    moveBoxDrag = (ev) => {
+        if(!this.boxDrag)
+            return
+        let {index, from, start} = this.boxDrag
+        let dx = ev.latlng.lng - from.lng, dy = ev.latlng.lat - from.lat
+        this.updateBox(index, {box: [start[0] + dx, start[1] + dy, start[2] + dx, start[3] + dy]})
+    };
+    endBoxDrag = () => {
+        if(!this.boxDrag)
+            return
+        let {index} = this.boxDrag
+        this.boxDrag = null
+        this.refs.map.leafletElement.dragging.enable()
+        this.tidyBox(index)
+    };
+    // a corner handle resizes; k counts from the bottom left, clockwise
+    dragCorner = (i, k) => (ev) => {
+        let p = ev.target.getLatLng()
+        let b = [...this.curBoxes()[i].box]
+        if(k === 0) { b[0] = p.lng; b[1] = p.lat }
+        else if(k === 1) { b[2] = p.lng; b[1] = p.lat }
+        else if(k === 2) { b[2] = p.lng; b[3] = p.lat }
+        else { b[0] = p.lng; b[3] = p.lat }
+        this.updateBox(i, {box: b})
+    };
+    tidyBox = (i) => {
+        let b = this.curBoxes()[i].box
+        let r = v => Math.round(v * 10) / 10
+        this.updateBox(i, {box: [r(Math.min(b[0], b[2])), r(Math.min(b[1], b[3])), r(Math.max(b[0], b[2])), r(Math.max(b[1], b[3]))]})
+    };
     // entrances are per-player: {player: {doorKey: "x|y"}}. The panel edits the
     // player currently selected in Multiplayer Controls.
     curEntrances = () => this.state.entrances[this.state.player] || {};
@@ -975,7 +1056,9 @@ class PlandoBuiler extends React.Component {
             newPlc[players+1] = {...DEFAULT_DATA}
             let newEnt = {...prevState.entrances}
             newEnt[players+1] = {}
-            return {placements: newPlc, player: players+1, reachable: {...DEFAULT_REACHABLE}, entrances: newEnt}
+            let newBoxes = {...prevState.boxes}
+            newBoxes[players+1] = []
+            return {placements: newPlc, player: players+1, reachable: {...DEFAULT_REACHABLE}, entrances: newEnt, boxes: newBoxes}
         }, () => this.updateReachable())
     }
     dupePlayer = () => {
@@ -985,7 +1068,9 @@ class PlandoBuiler extends React.Component {
             newPlc[players+1] = {...newPlc[prevState.player]}
             let newEnt = {...prevState.entrances}
             newEnt[players+1] = {...(prevState.entrances[prevState.player] || {})}
-            return {placements: newPlc, player: players+1, reachable: {...DEFAULT_REACHABLE}, entrances: newEnt}
+            let newBoxes = {...prevState.boxes}
+            newBoxes[players+1] = (prevState.boxes[prevState.player] || []).map(b => new_box(b.type, [...b.box])).map((b, i) => ({...b, color: prevState.boxes[prevState.player][i].color, give: prevState.boxes[prevState.player][i].give}))
+            return {placements: newPlc, player: players+1, reachable: {...DEFAULT_REACHABLE}, entrances: newEnt, boxes: newBoxes}
         }, () => this.updateReachable())
     }
     removePlayer = () => {
@@ -993,18 +1078,21 @@ class PlandoBuiler extends React.Component {
             this.setState(prevState => {
                 let newPlc = {};
                 let newEnt = {};
+                let newBoxes = {};
                 let to_delete = prevState.player;
                 Object.keys(prevState.placements).forEach((pid) => {
                     if(pid < to_delete) {
                         newPlc[pid] = prevState.placements[pid]
                         newEnt[pid] = prevState.entrances[pid] || {}
+                        newBoxes[pid] = prevState.boxes[pid] || []
                     }
                     if(pid > to_delete) {
                         newPlc[pid-1] = prevState.placements[pid]
                         newEnt[pid-1] = prevState.entrances[pid] || {}
+                        newBoxes[pid-1] = prevState.boxes[pid] || []
                     }
                 });
-                return {placements: newPlc, player: 1, reachable: {...DEFAULT_REACHABLE}, entrances: newEnt}
+                return {placements: newPlc, player: 1, reachable: {...DEFAULT_REACHABLE}, entrances: newEnt, boxes: newBoxes}
             }, () => this.updateReachable())
     }
     
@@ -1018,6 +1106,23 @@ class PlandoBuiler extends React.Component {
         // what an overwriting import would replace, so the choice is made knowing the cost
         const placed_here = Object.keys(this.state.placements[this.state.player] || {}).length
         const pickup_markers = ( <PickupMarkersList markers={getPickupMarkers(this.state, this.selectPickupCurry, searchStr)} />)
+        // the current player's boxes, with corner handles while they are being edited
+        const box_shapes = this.curBoxes().map((b, i) => {
+            let bounds = [[Math.min(b.box[1], b.box[3]), Math.min(b.box[0], b.box[2])], [Math.max(b.box[1], b.box[3]), Math.max(b.box[0], b.box[2])]]
+            let shapes = [(
+                <Rectangle key={`box-${b._id}`} bounds={bounds} color={box_colour(b)} weight={2} fillOpacity={this.state.box_edit ? 0.3 : 0.15}
+                           dashArray={b.color === "none" || b.color === "0" ? "4 4" : null} onMousedown={this.state.box_edit ? this.startBoxDrag(i) : undefined}>
+                    {/* the tooltip wants one element child; a bare string throws on open */}
+                    <Tooltip sticky={true}><span>{box_label(b)}</span></Tooltip>
+                </Rectangle>
+            )]
+            if(this.state.box_edit) {
+                let xs = [b.box[0], b.box[2], b.box[2], b.box[0]], ys = [b.box[1], b.box[1], b.box[3], b.box[3]]
+                for(let k = 0; k < 4; k++)
+                    shapes.push(<Marker key={`box-${b._id}-${k}`} position={[ys[k], xs[k]]} draggable={true} icon={HANDLE_ICON} onDrag={this.dragCorner(i, k)} onDragend={() => this.tidyBox(i)} />)
+            }
+            return shapes
+        })
         const zone_opts = zones.map(zone => ({label: zone, value: zone}))
         const pickups_opts = picks_by_zone[this.state.zone].map(pick => ({label: locLabel(pick),value: pick}) )
         let clue_order_picker = seedFlags.map(f => f.value).includes("Clues") ? (
@@ -1049,7 +1154,7 @@ class PlandoBuiler extends React.Component {
                     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.3.1/dist/leaflet.css" integrity="sha512-Rksm5RenBEKSKFjgI3a41vrjkw4EVPlJ3+OiI65vTjIdo9brlAacEuKOiQ5OFh7cOI1bkDwLqdLw3Zg0cRJAAQ==" crossorigin=""/>
                 </Helmet>
 
-                    <Map style={{backgroundColor: "#121212"}} ref="map" crs={crs} onMouseMove={(ev) => this.setState({mousePos: ev.latlng})} zoomControl={false} onViewportChanged={this.onViewportChanged} viewport={this.state.viewport}>
+                    <Map style={{backgroundColor: "#121212"}} ref="map" crs={crs} onMouseMove={(ev) => { this.setState({mousePos: ev.latlng}); this.moveBoxDrag(ev) }} onMouseUp={this.endBoxDrag} zoomControl={false} onViewportChanged={this.onViewportChanged} viewport={this.state.viewport}>
                     <ZoomControl position="topright" />
                     <Control position="topleft" >
                     <div>
@@ -1060,6 +1165,7 @@ class PlandoBuiler extends React.Component {
 
                     <TileLayer url=' https://ori-tracker.firebaseapp.com/images/ori-map/{z}/{x}/{y}.png' noWrap='true'  />
                     {pickup_markers}
+                    {box_shapes}
                 </Map>
                 <div className="controls">
                 {alert}
@@ -1219,6 +1325,35 @@ class PlandoBuiler extends React.Component {
                             </Collapse>
                         </div>
                     </div>
+                    <div id="box-controls">
+                        <Button color="primary" onClick={this.toggleBoxes}>Boxes ({Object.keys(this.state.placements).length > 1 ? `P${this.state.player}: ` : ""}{this.curBoxes().length})</Button>
+                        <Collapse id="box-wrapper" isOpen={this.state.display_boxes}>
+                            <div>
+                                <Button color="primary" onClick={this.addBox}>Add Box</Button>
+                                <Button color={this.state.box_edit ? "success" : "secondary"} onClick={() => this.setState({box_edit: !this.state.box_edit})}>{this.state.box_edit ? "Editing on map" : "Edit on map"}</Button>
+                            </div>
+                            <div className="box-help">A kill box kills, a solid box is a block to stand on, an item box gives its pickup once (a message is SH|text) and an Item (RP) box every entry. With editing on, drag a box to move it and a corner to resize it.</div>
+                            {this.curBoxes().map((b, i) => (
+                                <div className="box-row" key={`box-row-${b._id}`}>
+                                    <div className="box-row-head">
+                                        <Button size="sm" color="danger" outline title="Remove this box" onClick={this.removeBox(i)}>&times;</Button>
+                                        <Select styles={select_styles} className="box-type" options={BOX_TYPES} onChange={(n) => { this.setState({box_type: n.value}); this.updateBox(i, {type: n.value}) }} clearable={false} value={BOX_TYPES.find(t => t.value === b.type) || BOX_TYPES[0]}/>
+                                        {[0, 1, 2, 3].map(k => (
+                                            <Input key={k} type="number" step="0.1" bsSize="sm" className="box-coord" title={["x1", "y1", "x2", "y2"][k]} value={b.box[k]}
+                                                   onChange={(e) => { let box = [...b.box]; box[k] = parseFloat(e.target.value) || 0; this.updateBox(i, {box: box}) }}/>
+                                        ))}
+                                        <input type="color" className="box-colour" title="colour" value={box_colour(b)} disabled={b.color === "none"} onChange={(e) => this.updateBox(i, {color: e.target.value.replace("#", "")})}/>
+                                        {optSwitch(`box-hidden-${b._id}`, "Hidden", b.color === "none", () => this.updateBox(i, {color: b.color === "none" ? "" : "none"}))}
+                                    </div>
+                                    {(b.type === "item" || b.type === "ritem") ? (
+                                        <div className="pickup-wrapper">
+                                            <PickupSelect value={b.give} placeholder="what the box gives" updater={(code) => this.updateBox(i, {give: code})}/>
+                                        </div>
+                                    ) : null}
+                                </div>
+                            ))}
+                        </Collapse>
+                    </div>
                     <div id="coop-controls">
                         <div className="basic-coop-options">
                             <Button color="primary" onClick={this.toggleCoop}>Multiplayer Controls</Button>
@@ -1314,7 +1449,8 @@ function uploadSeed(seedData, callback)
     let url = "/plando/"+seedData.name+"/upload";
     xmlHttp.open("POST", url, true);
     xmlHttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-    xmlHttp.send(encodeURI("seed="+JSON.stringify(seedData)));
+    // encodeURIComponent, not encodeURI: a box payload may hold & or +, and this is a form body
+    xmlHttp.send("seed="+encodeURIComponent(JSON.stringify(seedData)));
 }
 
 

@@ -227,6 +227,8 @@ const stuff_by_type = {
         { label: "Mega Energy", value: "RB|1", desc: "Restores energy to full, then grants 5 temporary energy. Does not stack with other sources of temporary energy."},
         { label: "Mini Health", value: "RB|38", desc: "Restores health to full, then grants 1 temporary health. Stacks with other sources of temporary health."},
         { label: "Mini Energy", value: "RB|39", desc: "Restores energy to full, then grants 1 temporary energy. Stacks with other sources of temporary energy."},
+        { label: "Kill Ori", value: "RB|3", desc: "Kills Ori on pickup. The practice tool's death boxes are made of it."},
+        { label: "Air Refresh", value: "RB|4", desc: "Double jumps and air dashes back, as if Ori had landed."},
         { label: "Attack Upgrade", value: "RB|6", desc: "Increases Spirit Flame's damage and maximum number of targets by 1. Increases Charge Flame damage by 6. Increases Grenade damage by 3 and explosion radius by 1. Stacks."},
         { label: "Explosion Power Upgrade", value: "RB|8", desc: "Deprecated. Increases Charge Flame damage by 6, Grenade damage by 6 and Grenade explosion radius by 1."},
         { label: "Spirit Light Efficiency", value: "RB|9", desc: "Doubles all incoming experience. Stacks additively, both with itself and with the purple tree ability of the same name."},
@@ -332,6 +334,47 @@ const stuff_by_type = {
         {label: "Remove Ultra Defense", value: "RB|259"},         
       ],
 };
+
+// A box line, as the client reads it: BX|type|x1,y1,x2,y2|colour|payload, the payload
+// keeping its own pipes. Held as {type, box, color, give}; _id is the editor's own key.
+const BOX_TYPES = [
+    {label: "Kill", value: "kill"},
+    {label: "Solid", value: "solid"},
+    {label: "Item", value: "item"},
+    {label: "Item (RP)", value: "ritem"},
+]
+const BOX_COLOURS = {goal: "#8fe3a0", kill: "#ff6b6b", solid: "#9aa0aa", item: "#40c0ff", ritem: "#7fd8ff"}
+let next_box_id = 1
+const new_box = (type, box) => ({_id: next_box_id++, type: type, box: box, color: "", give: ""})
+function parse_box_line(line) {
+    let f = line.trim().split("|")
+    if(f[0] !== "BX" || f.length < 3)
+        return null
+    let box = f[2].split(",").map(parseFloat)
+    if(box.length !== 4 || box.some(isNaN))
+        return null
+    let out = new_box(f[1].trim().toLowerCase(), box)
+    out.color = (f[3] || "").trim()
+    out.give = f.slice(4).join("|")
+    return out
+}
+function box_line(b) {
+    let out = "BX|" + b.type + "|" + b.box.map(v => Math.round(v * 10) / 10).join(",")
+    let give = (b.type === "item" || b.type === "ritem") ? (b.give || "") : ""
+    if(b.color || give)
+        out += "|" + (b.color || "")
+    if(give)
+        out += "|" + give
+    return out
+}
+function box_colour(b) {
+    return b.color && b.color !== "none" && b.color !== "0" ? "#" + b.color.replace("#", "").slice(0, 6) : (BOX_COLOURS[b.type] || BOX_COLOURS.item)
+}
+function box_label(b) {
+    if(b.type === "item" || b.type === "ritem")
+        return (b.type === "ritem" ? "repeat item box: " : "item box: ") + (b.give ? name_from_str(b.give) : "nothing yet")
+    return b.type + " box"
+}
 
 const compareOption = (inputValue, option) => {
     let candidate = inputValue.toLowerCase();
@@ -1067,5 +1110,6 @@ const prng = (strIn) => sfc32(...cyrb128(strIn));
 
 export {
     player_icons, doNetRequest, prng, get_param, get_flag, resolve_dark, save_dark, theme_href, postNetForm, ap_enabled, get_int, get_list, get_preset, presets, get_seed, logic_paths, get_random_loader, Blabel,
-    pickup_name, stuff_by_type, name_from_str, PickupSelect, Cent, ordinal_suffix, dev, gotoUrl, loginLogoutUrl, select_theme, randInt, spawn_defaults, spawnKitFor, decompose_pickup, app_opt_in, app_enabled
+    pickup_name, stuff_by_type, name_from_str, PickupSelect, Cent, ordinal_suffix, dev, gotoUrl, loginLogoutUrl, select_theme, randInt, spawn_defaults, spawnKitFor, decompose_pickup, app_opt_in, app_enabled,
+    BOX_TYPES, BOX_COLOURS, new_box, parse_box_line, box_line, box_colour, box_label
 };

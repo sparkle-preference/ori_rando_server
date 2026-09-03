@@ -240,6 +240,53 @@ body, #root {
   padding: 2px 0;
 }
 
+#box-controls {
+  margin-top: 10px;
+}
+
+#box-controls .box-help {
+  color: #aaa;
+  font-size: 12px;
+  margin: 4px 0;
+}
+
+#box-controls .box-row {
+  padding: 4px 0;
+  border-top: 1px solid #444;
+}
+
+#box-controls .box-row-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+#box-controls .box-type {
+  flex: 1;
+  min-width: 140px;
+}
+
+#box-controls .box-coord {
+  width: 66px;
+}
+
+#box-controls .box-colour {
+  width: 32px;
+  height: 31px;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.box-handle {
+  width: 10px;
+  height: 10px;
+  background: #fff;
+  border: 1px solid #000;
+  border-radius: 2px;
+}
+
 .coop-select-wrapper .label {
   width: 90px;
 }

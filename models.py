@@ -11,7 +11,7 @@ from collections import defaultdict, OrderedDict
 from typing import List, Dict, Optional
 from flask import g
 
-from seedbuilder.seedparams import Placement, Stuff, SeedGenParams, bingo_worlds
+from seedbuilder.seedparams import Placement, Stuff, BoxLine, SeedGenParams, bingo_worlds
 from enums import MultiplayerGameType, ShareType, Variation
 from util import utcnow, picks_by_coord, get_bit, get_taste, enums_from_strlist, ord_suffix, debug, bfields_to_coords, bfield_checksum, unpack, netperf, is_mw_manifest_loc
 import re
@@ -1693,6 +1693,8 @@ class BingoGameData(ndb.Model):
 class Seed(ndb.Model):
     # Seed ids used to be author_name:name but are being migrated to author_id:name
     placements = ndb.LocalStructuredProperty(Placement, repeated=True)
+    # boxes are not locations: one BX line each, per world
+    boxes = ndb.LocalStructuredProperty(BoxLine, repeated=True)
     flags = ndb.StringProperty(repeated=True)
     flagline = ndb.ComputedProperty(lambda self: ", ".join(sorted(self.flags)))
     hidden = ndb.BooleanProperty(default=False)
@@ -1731,6 +1733,7 @@ class Seed(ndb.Model):
             log.error("Error! No author found when attempting to create seed: %s", data)
             return None
         placements, players = Seed.get_placements(data['placements'])
+        boxes, box_players = Seed.get_boxes(data.get('boxes'))
         s = Seed(
             id="%s:%s" % (author.key.id(), data["name"]),
                 description = data['desc'],
@@ -1739,10 +1742,25 @@ class Seed(ndb.Model):
                 name = data['name'],
                 author_key = author.key,
                 placements = placements,
-                players = players,
+                boxes = boxes,
+                players = max(players, box_players),
                 hidden = data.get('hidden', False),
             )
         return s.put()
+
+    # a box line is kept as written; the client is what reads it
+    @staticmethod
+    def get_boxes(raw_data):
+        players = 1
+        boxes = []
+        for entry in raw_data or []:
+            line = str(entry.get('line', '')).strip()
+            if not line.startswith("BX|"):
+                continue
+            player = str(entry.get('player') or 1)
+            players = max(players, int(player))
+            boxes.append(BoxLine(player=player, line=line))
+        return boxes, players
 
     @staticmethod
     def get_placements(raw_data):
@@ -1773,6 +1791,7 @@ class Seed(ndb.Model):
             return new
         else:
             placements, players = Seed.get_placements(data['placements']) if 'placements' in data else (self.placements, self.players)
+            boxes, box_players = Seed.get_boxes(data['boxes']) if 'boxes' in data else (self.boxes, 1)
             self.populate(
                 description = data.get('desc', self.description),
                 spoiler = data.get('spoiler', self.spoiler) or None,
@@ -1780,7 +1799,8 @@ class Seed(ndb.Model):
                 name = data.get('name', self.name),
                 author_key = author.key,
                 placements = placements,
-                players = players,
+                boxes = boxes,
+                players = max(players, box_players),
                 hidden = data.get('hidden', self.hidden),
             )
             
@@ -1799,7 +1819,8 @@ class Seed(ndb.Model):
                     entry["owner"] = stuff.owner
                 stuffs.append(entry)
             placements.append({'loc': p.location, 'stuff': stuffs})
-        return jsonify({'placements': placements, 'flagline': self.flag_line()})
+        boxes = [{'player': b.player, 'line': b.line} for b in self.boxes]
+        return jsonify({'placements': placements, 'boxes': boxes, 'flagline': self.flag_line()})
 
 
 # A saved setting describes one world, so the lobby half is denied and tracking is

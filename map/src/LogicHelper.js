@@ -314,6 +314,9 @@ class LogicHelper extends React.Component {
         for (let i = 1, len = lines.length; i < len; i++) {
             let line = lines[i].split("|")
             let loc = parseInt(line[0], 10);
+            // box lines, metadata and the trailing blank are not locations
+            if(isNaN(loc))
+                continue;
             let code = line[1];
             let id = str_ids.includes(code) ? line[2] : parseInt(line[2], 10);
             let name = pickup_name(code, id);

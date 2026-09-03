@@ -128,6 +128,11 @@ class Placement(ndb.Model):
     zone = ndb.StringProperty()
     stuff = ndb.LocalStructuredProperty(Stuff, repeated=True)
 
+# a box seed line (BX|...), per world, kept as written; the client reads it
+class BoxLine(ndb.Model):
+    player = ndb.StringProperty()
+    line = ndb.StringProperty()
+
 class MultiplayerOptions(ndb.Model):
     str_mode = ndb.StringProperty(default="None")
     str_shared = ndb.StringProperty(repeated=True)
@@ -310,6 +315,7 @@ class SeedGenParams(ndb.Model):
     # reconstruction from placements can't carry world/owner)
     fass_json = ndb.JsonProperty()
     placements = ndb.LocalStructuredProperty(Placement, repeated=True, compressed=True)
+    boxes = ndb.LocalStructuredProperty(BoxLine, repeated=True)
     spawn_placement = ndb.LocalStructuredProperty(Placement)
     preplaced_coords = ndb.IntegerProperty(repeated=True)
     spoilers = ndb.TextProperty(repeated=True, compressed=True)
@@ -372,6 +378,7 @@ class SeedGenParams(ndb.Model):
             is_plando=True, 
             plando_flags = plando.flags,
             placements = plando.placements,
+            boxes = plando.boxes,
             spoilers = [plando.description],
             plando_spoiler_key = plando.key if plando.spoiler else None,
             )
@@ -719,6 +726,9 @@ class SeedGenParams(ndb.Model):
         # an EN line's zone rides inside field 3 and is None here; every other
         # field, zone included, may legitimately be empty
         outlines += ["|".join(p for p in line if p is not None) for line in seed_data]
+        # boxes are not locations: a world's lines ride at the end, as written
+        box_world = 1 if self.sync.mode in [MultiplayerGameType.SIMUSOLO, MultiplayerGameType.SPLITSHARDS] else int(player)
+        outlines += [b.line for b in self.boxes if int(b.player or 1) == box_world]
         return "\n".join(outlines) + "\n"
 
     def ap_rows(self, game_id):

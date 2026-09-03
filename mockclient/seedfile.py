@@ -17,7 +17,7 @@ class SeedFile(object):
             body = body[:-1]
         self.pickups = []
         for line in body:
-            if line.startswith("//"):
+            if line.startswith("//") or line.startswith("BX|"):
                 continue
             parts = line.split("|")
             if len(parts) < 4:
