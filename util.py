@@ -425,6 +425,18 @@ def picks_by_type_generator():
         code: [{"loc": l, "name": n, "zone": z, "area": a, "x": int(x), "y": int(y)} for (l,n,z,a,x,y) in 
                 sorted(pickups, key=lambda x: str(x.coords))] for (code, pickups) in picks_by_type(extras=True).items()}
 
+def ap_versions():
+    """Versions the Archipelago surfaces quote, read from the packaged sources."""
+    # lazy: everything imports util, and archipelago/ is a package the Dockerfile can miss
+    from archipelago import build_apworld
+    from archipelago.yaml_emit import DATA_VERSION
+    try:
+        world_version = build_apworld.manifest().get("world_version", "")
+    except (OSError, ValueError) as e:
+        log.error("APWORLD manifest unreadable, version line will be blank: %s", e)
+        world_version = ""
+    return {'ap_world_version': world_version, 'ap_data_version': DATA_VERSION}
+
 # request helpers
 def template_vals(app, title, user):
     template_values = {'app': app, 'title': title, 'version': DISPLAY_VERSION, 'race_wl': whitelist_ok(), 'admin': user.is_admin() if user else False,
@@ -432,6 +444,9 @@ def template_vals(app, title, user):
                        # a beta site's play links tell the launcher which server rolled the seed
                        'beta': bool(BETA_OF)
 }
+    if ARCHIPELAGO:
+        # the sitebar's apworld link is on every page, so these are too
+        template_values.update(ap_versions())
     if user:
         template_values['user'] = user.name
         template_values['theme'] = user.site_theme()

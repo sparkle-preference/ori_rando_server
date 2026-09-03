@@ -7,6 +7,7 @@ Run from the repo root:  python3 -m unittest test.patchnotes_test -v
 import json
 import os
 import unittest
+from html import escape
 
 import util
 from web import patchnotes as pn
@@ -174,6 +175,49 @@ class AnnounceChannelSelectionTestCase(unittest.TestCase):
 
     def test_an_unconfigured_channel_is_silent_on_the_boot_path(self):
         self.assertEqual(pn.announce_patchnotes("https://x"), {})
+
+
+class LinkTestCase(unittest.TestCase):
+    """A note writes [label](url). Both feeds are read off-site, so a
+    site-rooted href must come out absolute in each of them."""
+
+    def test_discord_keeps_the_markdown_and_gains_the_host(self):
+        self.assertEqual(pn.markdown_links("see the [faq](/faq)", "https://x"),
+                         "see the [faq](https://x/faq)")
+
+    def test_an_absolute_href_is_left_alone(self):
+        for text in ("[ap](https://archipelago.gg)", "[ap](http://archipelago.gg)"):
+            self.assertEqual(pn.markdown_links(text, "https://x"), text)
+            self.assertIn("href=", pn.html_links(text, "https://x"))
+
+    def test_the_feed_gets_an_anchor(self):
+        self.assertEqual(pn.html_links("see the [faq](/faq)", "https://x"),
+                         'see the <a href="https://x/faq">faq</a>')
+
+    def test_an_href_that_is_not_a_link_renders_as_its_label(self):
+        for href in ("javascript:void", "faq", "mailto:a@b.c"):
+            with self.subTest(href=href):
+                text = "read [this](%s) first" % href
+                self.assertEqual(pn.markdown_links(text, "https://x"), "read this first")
+                self.assertEqual(pn.html_links(text, "https://x"), "read this first")
+
+    def test_escaping_runs_first_so_a_query_string_survives(self):
+        # the feed escapes, then linkifies: & is &amp;, which is what an
+        # HTML attribute wants anyway
+        got = pn.html_links(escape("[practice](/faq?g=practice&x=1)"), "https://x")
+        self.assertEqual(got, '<a href="https://x/faq?g=practice&amp;x=1">practice</a>')
+
+    def test_every_link_in_the_notes_is_one_we_render(self):
+        for release in DOC["releases"]:
+            texts = [release.get("headline") or ""]
+            for c in release["changes"]:
+                texts.append(c["text"])
+                texts.extend(c.get("sub", []))
+            for text in texts:
+                for label, href in pn.LINK_RE.findall(text):
+                    self.assertIsNotNone(pn.link_href(href, "https://x"),
+                                         "%s: %s" % (release["version"], href))
+                    self.assertTrue(label.strip(), release["version"])
 
 
 if __name__ == "__main__":

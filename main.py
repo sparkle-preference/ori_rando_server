@@ -5,23 +5,12 @@ from flask import render_template
 
 import util
 from archipelago import build_apworld
-from archipelago.yaml_emit import DATA_VERSION as AP_DATA_VERSION
 from models import User
 from util import INDEX_TEMPLATE, VERSION, template_vals
 from web import create_app
 from web.patchnotes import latest_note_version
 
 app = create_app()
-
-
-def ap_versions():
-    """Versions the AP setup panel quotes, read from the packaged sources."""
-    try:
-        world_version = build_apworld.manifest().get("world_version", "")
-    except (OSError, ValueError) as e:
-        log.error("APWORLD manifest unreadable, version line will be blank: %s", e)
-        world_version = ""
-    return {'ap_world_version': world_version, 'ap_data_version': AP_DATA_VERSION}
 
 
 if util.ARCHIPELAGO:
@@ -38,6 +27,4 @@ def main_page():
     template_values = template_vals("MainPage", "Ori DE Randomizer %s" % util.DISPLAY_VERSION, User.get())
     # not the displayed version: this moves on a site-only release, so the link goes unread
     template_values['notes_anchor'] = latest_note_version()
-    if util.ARCHIPELAGO:
-        template_values.update(ap_versions())
     return render_template(INDEX_TEMPLATE, **template_values)

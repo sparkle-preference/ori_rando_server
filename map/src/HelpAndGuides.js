@@ -5,7 +5,7 @@ import {Helmet} from 'react-helmet';
 import {get_param, get_flag, stuff_by_type} from "./common.js"
 import SiteBar from "./SiteBar.js"
 
-const GUIDES = ["install", "install_manual", "app", "gen_seed", "get_tracker", "bonus_pickups", "starter_seeds", "differences", "gotchas", "bingo_userboard"];
+const GUIDES = ["install", "install_manual", "app", "gen_seed", "get_tracker", "bonus_pickups", "starter_seeds", "differences", "gotchas", "bingo_userboard", "practice", "archipelago"];
 // userboard url params, as read by Bingo.js's constructor
 const USERBOARD_PARAMS = [
   ["playerList", "off", "Show the player list (scores, teams, timer) beside the board."],
@@ -157,7 +157,7 @@ export default class HelpAndGuides extends React.Component {
                     {get_flag("ap_flag") ? (
                         <CardText>
                             Playing in an Archipelago session? You will also want{" "}<a target="_blank" rel="noopener noreferrer" href="/apworld">oride.apworld</a>{" "}
-                            in your Archipelago install's custom_worlds folder. Only the person generating the session needs it; the seed page walks you through the rest.
+                            in your Archipelago install's custom_worlds folder. Only the person generating the session needs it; the rest is <a href="/faq?g=archipelago">here</a>.
                         </CardText>
                     ) : null}
                 </Collapse>
@@ -646,6 +646,132 @@ export default class HelpAndGuides extends React.Component {
         )
     }
 
+    getArchipelagoCardContent = () => {
+        return (
+            <Card className="w-100 mt-2" id="archipelago">
+            <CardBody>
+                <div className={buttonHolder}>
+                <Button color="primary" active={this.state.open["archipelago"]} onClick={this.toggleOpen("archipelago")}>
+                    Archipelago
+                </Button>
+                </div>
+                <Collapse isOpen={this.state.open["archipelago"]}>
+                <CardText>
+                    <a target="_blank" rel="noopener noreferrer" href="https://archipelago.gg">Archipelago</a> is a multi-game randomizer: your skills and upgrades are
+                    scattered across everyone's games, and theirs across yours. An Ori rando seed can be part of one.
+                </CardText>
+                <CardText>
+                    Only the person running the Archipelago session installs anything extra. Everyone else plays from a normal seed file and never opens an Archipelago client &mdash;
+                    this website connects to the room on their behalf.
+                </CardText>
+                <CardText>
+                    Setup:
+                    <ol>
+                        <li>
+                            Generate a seed with Archipelago turned on, in the Multiplayer tab. Pick the Export Categories while you're there: those are the items that go
+                            into the Archipelago pool. Everything else stays an ordinary Ori multiworld item.
+                        </li>
+                        <li>
+                            Put <a target="_blank" rel="noopener noreferrer" href="/apworld">oride.apworld</a> in your Archipelago install's <code>custom_worlds</code> folder,
+                            replacing any older copy. Don't rename it &mdash; Archipelago takes the world's name from the file name.
+                        </li>
+                        <li>
+                            On the seed page, hit Get YAMLs and drop the file in Archipelago's <code>Players</code> folder. One file covers every Ori world.
+                        </li>
+                        <li>
+                            Generate the session in Archipelago and host the room. An archipelago.gg room always works; a self-hosted room has to be reachable from the internet.
+                        </li>
+                        <li>
+                            Back on the seed page, enter the room's host and port and hit Connect.
+                        </li>
+                        <li>
+                            Wait for every world to report its item names, then download the seeds and hand them out.
+                        </li>
+                        <li>
+                            Ori players drop their randomizer.dat in the game folder and play as usual.
+                        </li>
+                    </ol>
+                </CardText>
+                <CardText>
+                    <ul>
+                        <li>
+                            <b>A seed I downloaded says "AP Item #12".</b> It was downloaded before the room was connected. Download it again now and the real names are in it.
+                        </li>
+                        <li>
+                            <b>Do I have to keep the site open?</b> No. The connection lives on the server; the seed page is just where you start and check it.
+                        </li>
+                        <li>
+                            <b>Can I use the Bingo goal?</b> Yes. Your board number is your Archipelago world, and winning the board completes it.
+                        </li>
+                        <li>
+                            <b>Hints cost a lot.</b> Hint prices are an Archipelago room setting, the same for every game in the session. Ori worlds are large, so budget accordingly.
+                        </li>
+                        <li>
+                            <b>Death Link?</b> It's a checkbox at generation, and part of the seed &mdash; it can't be turned on or off afterwards.
+                        </li>
+                    </ul>
+                </CardText>
+                </Collapse>
+            </CardBody>
+            </Card>
+        )
+    }
+
+    getPracticeCardContent = () => {
+        return (
+            <Card className="w-100 mt-2" id="practice">
+            <CardBody>
+                <div className={buttonHolder}>
+                <Button color="primary" active={this.state.open["practice"]} onClick={this.toggleOpen("practice")}>
+                    Practice Mode
+                </Button>
+                </div>
+                <Collapse isOpen={this.state.open["practice"]}>
+                <CardText>
+                    Practice mode runs one stretch of the game over and over against a clock. A segment is a save file plus rules: where the run ends, what you start with,
+                    and boxes drawn in the world. PRACTICE on the title menu lists yours.
+                </CardText>
+                <CardText>
+                    To make one, get to the spot you want to practice in a normal game and press Alt+S. Then pick it from the practice menu and start it.
+                </CardText>
+                <CardText>
+                    <b>Boxes.</b> Pause a running segment and choose EDIT PRACTICE SEGMENT: the world freezes and you draw boxes with the mouse.
+                    1-4 pick the tool, Z undoes, X deletes the box under the cursor, WASD pans, Enter saves and restarts the attempt.
+                    <ul>
+                        <li><b>Goal</b> ends the run.</li>
+                        <li><b>Kill</b> kills Ori, so you can practice past a checkpoint without walking back.</li>
+                        <li><b>Item</b> hands you a pickup, or a message to read as a reminder.</li>
+                        <li><b>Solid</b> is a block you can stand on, climb and wall jump off.</li>
+                    </ul>
+                </CardText>
+                <CardText>
+                    <b>The editor page.</b> Press 5 in the box editor and the rest opens in your browser, on a map of the world: the name, the end condition,
+                    item boxes, shuffle groups, variants and ghosts. Save to game and a running attempt picks up the new rules immediately.
+                </CardText>
+                <CardText>
+                    <b>Ending a run.</b> Any combination of a goal box, skills or events held, a pickup count and locations collected &mdash; every part you set has to hold at once.
+                    Finishing shows your time against your best and your average, plus the run's deaths, quits and time spent in menus.
+                </CardText>
+                <CardText>
+                    <b>Ghosts.</b> A ghost of an earlier attempt runs alongside you. Each segment keeps your fastest and your most recent, plus one you pin at the finish screen.
+                </CardText>
+                <CardText>
+                    <b>Variants.</b> One segment, several loadouts: a variant brings its own starting items, boxes, history and ghosts, and shares the start and the ending.
+                    Practice the same room with Charge Jump and with Double Jump and each keeps its own best time.
+                </CardText>
+                <CardText>
+                    <b>Shuffle groups.</b> Scatter a set of pickups over a set of spots, redrawn every attempt &mdash; three keystones over five locations, in a different three each time.
+                </CardText>
+                <CardText>
+                    Segments are <code>.bfrp</code> files in the practice folder next to the game. They're safe to copy, rename and send to someone else.
+                    <code>RandomizerSettings.txt</code> has the folder, which ghost to race, and whether the timer shows.
+                </CardText>
+                </Collapse>
+            </CardBody>
+            </Card>
+        )
+    }
+
 
       constructor(props) {
         super(props);
@@ -714,6 +840,8 @@ export default class HelpAndGuides extends React.Component {
         {this.getStarterSeedsCardContent()}
         {this.getTrackerCardContent()}
         {this.getUserboardCardContent()}
+        {this.getPracticeCardContent()}
+        {get_flag("ap_flag") ? this.getArchipelagoCardContent() : null}
         {this.getGotchasCardContent()}
         {this.getDifferencesCardContent()}
         {this.getGlossaryCardContent()}

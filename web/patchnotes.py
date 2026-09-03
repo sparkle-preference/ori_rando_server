@@ -6,6 +6,7 @@ feeds read it at request time, so neither can drift from the other.
 import json
 import logging as log
 import os
+import re
 from html import escape
 
 import requests
@@ -59,6 +60,36 @@ def patchnotes_doc():
             raise PatchnotesMissing(
                 "patchnotes.json is not in the image; check its COPY line in the Dockerfile")
     return _patchnotes_cache
+
+
+# A note writes a link as [label](url), the same markdown discord speaks.
+# PatchNotes.js renders the same syntax on the page.
+LINK_RE = re.compile(r"\[([^\]\[]+)\]\(([^)\s]+)\)")
+
+
+def link_href(href, base):
+    """A feed is read off-site, so a site-rooted href needs the host on it.
+    Anything that is not http(s) or site-rooted is not a link."""
+    if href.startswith(("http://", "https://")):
+        return href
+    return base + href if href.startswith("/") else None
+
+
+def markdown_links(text, base):
+    """Links as discord's own markdown, hrefs made absolute."""
+    def one(m):
+        href = link_href(m.group(2), base)
+        return "[%s](%s)" % (m.group(1), href) if href else m.group(1)
+    return LINK_RE.sub(one, text)
+
+
+def html_links(text, base):
+    """Links as anchors. Runs on already-escaped text: an & inside an href is
+    &amp; there too, which is what an HTML attribute wants."""
+    def one(m):
+        href = link_href(m.group(2), base)
+        return '<a href="%s">%s</a>' % (href, m.group(1)) if href else m.group(1)
+    return LINK_RE.sub(one, text)
 
 
 def version_tuple(v):
@@ -137,11 +168,11 @@ def announce_embed(release, base, everything=False):
     if note:
         lines.append("-# *%s*" % note)  # -# is discord's subtext
     if release.get("headline"):
-        lines.append(release["headline"])
+        lines.append(markdown_links(release["headline"], base))
     for c in shown:
-        lines.append("- %s" % c["text"])
+        lines.append("- %s" % markdown_links(c["text"], base))
         for s in c.get("sub", []):
-            lines.append("  - %s" % s)
+            lines.append("  - %s" % markdown_links(s, base))
     if not shown and not release.get("headline"):
         lines.append("Small fixes only - see the full notes.")
     title = "%s%s" % (release["version"], " - %s" % release["title"] if release.get("title") else "")
@@ -263,12 +294,13 @@ def patchnotes_feed():
 
     def entry(r):
         major = [c for c in r["changes"] if c["importance"] == "major"]
+        rich = lambda s: html_links(escape(s), base)
         items = "".join(
             "<li>%s%s</li>" % (
-                escape(c["text"]),
-                "<ul>%s</ul>" % "".join("<li>%s</li>" % escape(s) for s in c["sub"]) if c.get("sub") else "")
+                rich(c["text"]),
+                "<ul>%s</ul>" % "".join("<li>%s</li>" % rich(s) for s in c["sub"]) if c.get("sub") else "")
             for c in major)
-        summary = "<p>%s</p>" % escape(r["headline"]) if r.get("headline") else ""
+        summary = "<p>%s</p>" % rich(r["headline"]) if r.get("headline") else ""
         content = "%s<ul>%s</ul>" % (summary, items) if items else (summary or "<p>Small fixes only.</p>")
         title = "%s%s" % (r["version"], " - %s" % r["title"] if r.get("title") else "")
         url = "%s/patchnotes#%s" % (base, r["version"])

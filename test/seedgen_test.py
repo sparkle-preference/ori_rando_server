@@ -1355,10 +1355,18 @@ class ApworldDownloadTests(unittest.TestCase):
 
     def test_versions_read_from_the_packaged_sources(self):
         from archipelago.yaml_emit import DATA_VERSION
-        vals = self.main.ap_versions()
+        vals = util.ap_versions()
         self.assertEqual(vals["ap_world_version"],
                          self.build_apworld.manifest()["world_version"])
         self.assertEqual(vals["ap_data_version"], DATA_VERSION)
+
+    def test_every_page_can_quote_the_apworld_version(self):
+        # the sitebar's download link names it, and the sitebar is on every page
+        with self.main.app.test_request_context("/faq"):
+            self.assertEqual(util.template_vals("HelpAndGuides", "t", None)["ap_world_version"],
+                             self.build_apworld.manifest()["world_version"])
+            util.ARCHIPELAGO = False
+            self.assertNotIn("ap_world_version", util.template_vals("HelpAndGuides", "t", None))
 
 
 class BingoBoltOnGateTests(unittest.TestCase):

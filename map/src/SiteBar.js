@@ -2,9 +2,10 @@ import React, {Component} from 'react';
 import {Navbar,  NavbarBrand, Nav,  NavItem, Button, Modal, ModalHeader, ModalBody, ModalFooter, FormFeedback,
         UncontrolledDropdown, DropdownToggle, DropdownMenu, DropdownItem, Container, Row, Col, Input, UncontrolledAlert} from 'reactstrap'
 import {FaSun, FaMoon} from 'react-icons/fa';
-import {Cent, doNetRequest, postNetForm, get_random_loader, get_param, loginLogoutUrl, resolve_dark, save_dark, theme_href} from './common.js';
+import {Cent, doNetRequest, postNetForm, get_random_loader, get_param, loginLogoutUrl, resolve_dark, save_dark, theme_href, ap_enabled} from './common.js';
 
 const VERSION = get_param("version");
+const AP_WORLD_VERSION = get_param("ap_world_version");
 // the three modes; every other theme the server sends is a bootswatch skin
 const MODES = {system: "Follow browser", light: "Light", dark: "Dark"}
 const theme_label = t => MODES[t] || t[0].toUpperCase() + t.slice(1)
@@ -303,6 +304,11 @@ class SiteBar extends Component {
                         <DropdownItem href="/tracker">
                             Rando Tracker
                         </DropdownItem>
+                        {ap_enabled() ? (
+                            <DropdownItem href="/apworld">
+                                Ori apworld{AP_WORLD_VERSION ? ` (${AP_WORLD_VERSION})` : ""}
+                            </DropdownItem>
+                        ) : null}
                     </DropdownMenu>
                 </UncontrolledDropdown>
                 <UncontrolledDropdown nav inNavbar>

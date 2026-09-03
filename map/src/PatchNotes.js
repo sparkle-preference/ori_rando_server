@@ -21,6 +21,26 @@ const TAG_COLORS = {Archipelago: "primary", Multiworld: "info"};
 
 const isOn = (change, everything) => everything || change.importance === "major";
 
+// A note writes a link as [label](url); web/patchnotes.py renders the same
+// syntax into the feeds. Only http(s) and site-rooted hrefs are links.
+const LINK_RE = /\[([^\][]+)\]\(([^)\s]+)\)/g;
+const linkOk = (href) => href.startsWith("http://") || href.startsWith("https://") || href.startsWith("/");
+const linkify = (text) => {
+    let out = [], at = 0, m
+    LINK_RE.lastIndex = 0
+    while((m = LINK_RE.exec(text)) !== null) {
+        out.push(text.slice(at, m.index))
+        out.push(linkOk(m[2])
+            ? <a key={m.index} href={m[2]} target="_blank" rel="noopener noreferrer">{m[1]}</a>
+            : m[1])
+        at = m.index + m[0].length
+    }
+    if(!out.length)
+        return text
+    out.push(text.slice(at))
+    return out
+};
+
 // A fourth number is a site-only release: labels split it out, links stay raw.
 const siteRev = (v) => {
     let parts = v.split(".")
@@ -61,10 +81,10 @@ const Change = ({change, everything}) => (
             {(change.tags || []).map(t => (
                 <Badge key={t} pill className="mr-1" color={TAG_COLORS[t] || "secondary"}>{t}</Badge>
             ))}
-            {change.text}
+            {linkify(change.text)}
             {change.sub ? (
                 <div className="pn-sub mt-1">
-                    {change.sub.map((s, i) => <div key={i}><small>{s}</small></div>)}
+                    {change.sub.map((s, i) => <div key={i}><small>{linkify(s)}</small></div>)}
                 </div>
             ) : null}
         </div>
@@ -114,7 +134,7 @@ const Release = ({release, everything, latest, onShowEverything}) => {
                         <small><i>(this is a site-only update. {dllVersion} is still the latest dll)</i></small>
                     </p>
                 ) : null}
-                {release.headline ? <p>{release.headline}</p> : null}
+                {release.headline ? <p>{linkify(release.headline)}</p> : null}
                 {!anyVisible ? (
                     <p className="text-muted mb-0">
                         <small>Just small fixes in this one. </small>
