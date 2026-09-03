@@ -20,6 +20,41 @@
             "importance": "major"
           },
           {
+            "text": "Added practice mode. PRACTICE on the title menu runs a saved stretch of the game against a clock and a ghost of your best attempt.",
+            "category": "Game",
+            "type": "feature",
+            "importance": "major",
+            "sub": [
+              "Alt+S saves the current game as a segment (bind: Create Practice Segment).",
+              "Goal, death and hint boxes are drawn in the game; what ends the run, item boxes, shuffled pickups and variants are edited on a page the game opens in your browser.",
+              "Settings: Practice Folder, Practice Ghost, Practice Timer. Practice Mode.txt in the download has the details."
+            ]
+          },
+          {
+            "text": "Warp from the map: hover a spirit well on the area map and hold the bind.",
+            "category": "Game",
+            "type": "feature",
+            "importance": "major",
+            "sub": [
+              "Bind: Map Warp (default: your Bash button). Settings: Map Warp Hold, Warp Teleporter Color."
+            ]
+          },
+          {
+            "text": "Every randomizer setting is in the in-game options menu now, colours included, and changes apply right away.",
+            "category": "Game",
+            "type": "feature",
+            "importance": "major"
+          },
+          {
+            "text": "The other players in your game appear as translucent ghosts in the world, and as markers on the map.",
+            "category": "Multiplayer",
+            "type": "feature",
+            "importance": "major",
+            "sub": [
+              "Setting: Show Other Players."
+            ]
+          },
+          {
             "text": "Sensing finds other players' items. With skill sensing on, another player's Bash sitting in your world senses like one of your own.",
             "category": "Multiplayer",
             "type": "fix",
@@ -28,12 +63,142 @@
           {
             "text": "Presets save the seed generator's options under a name. Load one from the dropdown, share it by link, or duplicate it as a starting point - and My Presets can copy your whole set out as text to move it to another account.",
             "category": "Seed Generator",
+            "type": "feature",
             "importance": "major"
+          },
+          {
+            "text": "In a multiworld, every world can have its own settings: logic mode, variations, item pool and the rest, per player.",
+            "category": "Seed Generator",
+            "type": "feature",
+            "importance": "major"
+          },
+          {
+            "text": "Undo and redo on the seed generator, tab and all.",
+            "category": "Seed Generator",
+            "type": "feature",
+            "importance": "major",
+            "sub": [
+              "Ctrl+Z and Ctrl+Y."
+            ]
+          },
+          {
+            "text": "In a multiworld, bingo is per world: each world that opts in gets its own board, and your seat on it comes from the seed.",
+            "category": "Bingo",
+            "type": "feature",
+            "importance": "major",
+            "sub": [
+              "Board settings picked when you generate the seed are carried to the board."
+            ]
+          },
+          {
+            "text": "Plando seeds can carry boxes: solid ground, kill zones, and item and goal boxes drawn on the plando editor's map.",
+            "category": "Website",
+            "type": "feature",
+            "importance": "major"
+          },
+          {
+            "text": "The plando editor handles multiworld: say which player an item is for, fill every world at once, and split a multipickup across worlds.",
+            "category": "Website",
+            "type": "feature",
+            "importance": "major"
+          },
+          {
+            "text": "Archipelago is out of testing: it is an option in the multiplayer settings for everyone.",
+            "category": "Multiplayer",
+            "type": "feature",
+            "importance": "major",
+            "tags": ["Archipelago"],
+            "sub": [
+              "Each world's yaml is on the seed page; the room is connected from the game page."
+            ]
+          },
+          {
+            "text": "Bingo works as an Archipelago game.",
+            "category": "Bingo",
+            "type": "feature",
+            "importance": "minor",
+            "tags": ["Archipelago"]
+          },
+          {
+            "text": "A room that has ended no longer shows as an error, a hint that does not happen says why, and a hint can no longer be bought twice.",
+            "category": "Multiplayer",
+            "type": "fix",
+            "importance": "minor",
+            "tags": ["Archipelago"]
+          },
+          {
+            "text": "Random spawn starts you in place with vanilla timing, instead of quitting to the menu first.",
+            "category": "Game",
+            "type": "feature",
+            "importance": "minor"
+          },
+          {
+            "text": "Fixed the Horu Fields push block softlock.",
+            "category": "Game",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "The chase experience in Horu L4 no longer softlocks.",
+            "category": "Logic",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Keysanity doors open for anyone holding enough keys, not only the exact count.",
+            "category": "Game",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "The map dims pickups that have nothing left to give, shows every pickup's name while the legend is on, and dims unlit spirit wells.",
+            "category": "Game",
+            "type": "feature",
+            "importance": "minor",
+            "sub": [
+              "Setting: Touched Pickup Visibility."
+            ]
+          },
+          {
+            "text": "The stats file has a goals page: a checklist of your goal-mode goals in world order, with where each unfound one waits.",
+            "category": "Game",
+            "type": "feature",
+            "importance": "minor"
+          },
+          {
+            "text": "Enemies that would have dropped nothing get a second roll for loot.",
+            "category": "Game",
+            "type": "feature",
+            "importance": "minor"
+          },
+          {
+            "text": "The game warns you when it cannot reach the server.",
+            "category": "Multiplayer",
+            "type": "feature",
+            "importance": "minor"
+          },
+          {
+            "text": "An item taken away by another player says so instead of reading like a gift, cells and stones included, and losing Charge Flame or Double Jump spells them properly.",
+            "category": "Multiplayer",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Once a world is released, its leftover pickups count as touched on the map.",
+            "category": "Multiplayer",
+            "type": "fix",
+            "importance": "minor"
           },
           {
             "text": "Cross-world items show their own name instead of \"Bonus Item\".",
             "category": "Multiplayer",
             "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "The tracker map names the player a multiworld item belongs to, and game history names players.",
+            "category": "Multiplayer",
+            "type": "feature",
             "importance": "minor"
           },
           {
@@ -45,6 +210,75 @@
           {
             "text": "Jumpgrades are called Jump Upgrades, and Map Stones are called Mapstones.",
             "category": "Game",
+            "importance": "minor"
+          },
+          {
+            "text": "Randomize rolls the newer settings too.",
+            "category": "Seed Generator",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Classic fill says it cannot do multiworld instead of failing.",
+            "category": "Seed Generator",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "The same seed string gives the same World Tour relics every time.",
+            "category": "Seed Generator",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "The Advanced tab is laid out in columns.",
+            "category": "Seed Generator",
+            "importance": "minor"
+          },
+          {
+            "text": "Seed links can name a logic mode instead of listing its paths.",
+            "category": "Seed Generator",
+            "type": "feature",
+            "importance": "minor"
+          },
+          {
+            "text": "New plando pickup RI|slot=value writes a randomizer inventory slot directly.",
+            "category": "Website",
+            "type": "feature",
+            "importance": "minor"
+          },
+          {
+            "text": "Every bingo square explains itself on hover, and clicking a player on a per-world board shows their board.",
+            "category": "Bingo",
+            "type": "feature",
+            "importance": "minor"
+          },
+          {
+            "text": "Site settings are one dialog: name, team, theme (light, dark or a skin), spoiler detail, whether the seed generator opens on your last seed, and whether seed pages show the Play button.",
+            "category": "Website",
+            "type": "feature",
+            "importance": "minor"
+          },
+          {
+            "text": "Players on the tracker map glide between updates instead of jumping.",
+            "category": "Website",
+            "type": "feature",
+            "importance": "minor"
+          },
+          {
+            "text": "The maps stop zooming in where the tiles run out, instead of going black.",
+            "category": "Website",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "The help and FAQ pages are brought up to date.",
+            "category": "Website",
+            "importance": "minor"
+          },
+          {
+            "text": "Uploading a custom logic file is no longer offered.",
+            "category": "Website",
             "importance": "minor"
           }
         ]
