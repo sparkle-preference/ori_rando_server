@@ -44,12 +44,12 @@
             "importance": "major"
           },
           {
-            "text": "In all multiplayer moods, other connected players appear as translucent ghosts in the world and as markers on the map.",
+            "text": "In all multiplayer modes, other connected players appear as translucent ghosts in the world and as markers on the map.",
             "category": "Multiplayer",
             "type": "feature",
             "importance": "major",
             "sub": [
-              "To disable, toggle off Show Other Players in your Randomizer settngs."
+              "To disable, toggle off Show Other Players in your Randomizer settings."
             ]
           },
           {
@@ -126,8 +126,8 @@
             "importance": "minor",
             "tags": ["Archipelago"],
             "sub": [
-              "A room that has ended no longer show errors on the seed page.",
-              "Unnaffordable hints now notify the player.",
+              "A room that has ended no longer shows errors on the seed page.",
+              "Unaffordable hints now notify the player.",
               "Hints for found items don't get requested."
             ]
           },
