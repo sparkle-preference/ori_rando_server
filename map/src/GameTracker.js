@@ -3,7 +3,7 @@ import React, {Fragment} from 'react';
 import {Map, Tooltip, TileLayer, Marker, ZoomControl, Circle} from 'react-leaflet';
 import Leaflet from 'leaflet';
 import {presets, player_icons, get_preset, logic_paths, Blabel, dev, get_param} from './common.js';
-import {picks_by_type, PickupMarkersList, get_icon, getMapCrs, hide_opacity, select_styles, select_wrap} from './shared_map.js';
+import {picks_by_type, PickupMarkersList, get_icon, getMapCrs, TILE_MAX_ZOOM, hide_opacity, select_styles, select_wrap} from './shared_map.js';
 import Select from 'react-select';
 import {Button, Collapse, Container, Row, Col, Input, UncontrolledButtonDropdown, DropdownToggle, DropdownMenu, DropdownItem} from 'reactstrap';
 import Control from 'react-leaflet-control';
@@ -498,7 +498,7 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
 		      	<Map style={{backgroundColor: "#121212"}} ref="map" crs={crs} onMouseMove={(ev) => this.setState({mousePos: ev.latlng})} zoomControl={false} onViewportChanged={this.onViewportChanged} viewport={this.state.viewport}>
 		      	     <ZoomControl position="topright" />
 
-					<TileLayer url=' https://ori-tracker.firebaseapp.com/images/ori-map/{z}/{x}/{y}.png' noWrap='true' />
+					<TileLayer url=' https://ori-tracker.firebaseapp.com/images/ori-map/{z}/{x}/{y}.png' noWrap='true' maxNativeZoom={TILE_MAX_ZOOM} maxZoom={TILE_MAX_ZOOM + 2} />
 					<Control position="topleft" >
 					<div>
 						{show_button}

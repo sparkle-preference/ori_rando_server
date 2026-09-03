@@ -9,7 +9,7 @@ import {Checkbox, CheckboxGroup} from 'react-checkbox-group';
 import {get_param, get_flag, get_int, get_list, get_seed, presets, get_preset, logic_paths, pickup_name, PickupSelect, stuff_by_type, loginLogoutUrl, decompose_pickup,
         BOX_TYPES, new_box, parse_box_line, box_line, box_colour, box_label} from './common.js';
 import {download, picks_by_type, picks_by_loc, picks_by_zone, picks_by_area, zones, PickupMarkersList, get_icon, 
-        getMapCrs, hide_opacity, select_wrap, is_match, str_ids, select_styles} from './shared_map.js';
+        getMapCrs, TILE_MAX_ZOOM, hide_opacity, select_wrap, is_match, str_ids, select_styles} from './shared_map.js';
 import NumericInput from 'react-numeric-input';
 import Select from 'react-select'
 import {Creatable} from 'react-select';
@@ -1163,7 +1163,7 @@ class PlandoBuiler extends React.Component {
                     </Control>
                     {formattingLegend}
 
-                    <TileLayer url=' https://ori-tracker.firebaseapp.com/images/ori-map/{z}/{x}/{y}.png' noWrap='true'  />
+                    <TileLayer url=' https://ori-tracker.firebaseapp.com/images/ori-map/{z}/{x}/{y}.png' noWrap='true' maxNativeZoom={TILE_MAX_ZOOM} maxZoom={TILE_MAX_ZOOM + 2}  />
                     {pickup_markers}
                     {box_shapes}
                 </Map>

@@ -113,6 +113,9 @@ function get_icon(pick, color = null) {
     return blank_icon;
 }
 
+// the tile host stops at this zoom; past it the map shows scaled tiles, not black
+const TILE_MAX_ZOOM = 7;
+
 function getMapCrs(x = .0001, y = -.0005, a = 0, b = -.2) {
     let swampTeleporter = point(493.719818, -74.31961);
     let gladesTeleporter = point(109.90181, -257.681549);
@@ -136,7 +139,7 @@ function getMapCrs(x = .0001, y = -.0005, a = 0, b = -.2) {
     let gameBottomSide = mapBottomSide / map1.y * (game1.y - gameTopSide) + gameTopSide;
     
     let leafletTileSize = 256;
-    let maxZoom = 7;
+    let maxZoom = TILE_MAX_ZOOM;
     
     let gameTileSizeX = (2 ** maxZoom * leafletTileSize) / mapRightSide * (gameRightSide - gameLeftSide);
     let scaleX = leafletTileSize / gameTileSizeX;
@@ -233,6 +236,6 @@ const select_styles = {
 const select_wrap = x => Array.isArray(x) ? x.map(select_wrap) : {label: x, value: x}
 const goToCurry = (url) => () => { window.location.href = url } 
 
-export {PickupMarkersList, download, picks_by_loc, getMapCrs, get_icon, select_wrap,
+export {PickupMarkersList, download, picks_by_loc, getMapCrs, TILE_MAX_ZOOM, get_icon, select_wrap,
         picks_by_type, picks_by_zone, zones, picks_by_area, select_styles,
         is_match, str_ids, hide_opacity, seed_name_regex, uniq, goToCurry};

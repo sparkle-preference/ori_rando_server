@@ -3,7 +3,7 @@ import React from 'react';
 import {LayerGroup, ZoomControl, Map, Tooltip, TileLayer} from 'react-leaflet';
 import Leaflet from 'leaflet';
 import {get_int, get_list, presets, logic_paths, stuff_by_type, name_from_str, pickup_name, Blabel, dev} from './common.js';
-import {str_ids, picks_by_type, picks_by_area, PickupMarkersList, get_icon, getMapCrs, select_styles, select_wrap} from './shared_map.js';
+import {str_ids, picks_by_type, picks_by_area, PickupMarkersList, get_icon, getMapCrs, TILE_MAX_ZOOM, select_styles, select_wrap} from './shared_map.js';
 import Select from 'react-select';
 import {Row, Input, Col, Container, Button, Collapse} from 'reactstrap';
 import Control from 'react-leaflet-control';
@@ -515,7 +515,7 @@ class LogicHelper extends React.Component {
                     <LayerGroup>
                         <PickupMarkersList markers={getPickupMarkers(this.state, this.selectPickup)} />
                     </LayerGroup>
-                    <TileLayer url=' https://ori-tracker.firebaseapp.com/images/ori-map/{z}/{x}/{y}.png' noWrap='true'  />
+                    <TileLayer url=' https://ori-tracker.firebaseapp.com/images/ori-map/{z}/{x}/{y}.png' noWrap='true' maxNativeZoom={TILE_MAX_ZOOM} maxZoom={TILE_MAX_ZOOM + 2}  />
                 </Map> 
                 <div className="controls">
                 <Container fluid>
