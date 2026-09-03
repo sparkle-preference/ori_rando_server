@@ -3,13 +3,16 @@ import {Container, Row, Col, Card, CardBody, CardHeader, Badge, Button, ButtonGr
 import {Helmet} from 'react-helmet';
 
 import './patchnotes.css';
-import {get_param} from "./common.js"
+import {get_flag, get_param} from "./common.js"
 import SiteBar from "./SiteBar.js"
 // patchnotes.json is the source of truth: parcel bundles it here, and Flask
 // reads the same file to serve /patchnotes.json and the Atom feed
 import notes from "./patchnotes.json"
 
 const RELEASES = notes.releases;
+// a beta site's newest note is the release it previews, shown under the beta's own number
+const BETA = get_flag("beta");
+const DISPLAY_VERSION = get_param("version");
 const CATEGORIES = notes.categories;
 
 const TYPE_LABELS = {feature: "Feature", fix: "Bugfix"};
@@ -99,9 +102,9 @@ const Release = ({release, everything, latest, onShowEverything}) => {
         <Card className={"mb-3" + (latest ? " border-primary pn-latest" : "")} id={release.version}>
             <CardHeader tag="h5" className="d-flex align-items-center flex-wrap">
                 <a href={"#" + release.version} className="mr-2" title="Link to this release">
-                    {displayVersion(release.version)}
+                    {latest && BETA ? DISPLAY_VERSION : displayVersion(release.version)}
                 </a>
-                {latest ? <Badge color="primary" className="mr-2">Latest</Badge> : null}
+                {latest ? <Badge color="primary" className="mr-2">{BETA ? "Beta" : "Latest"}</Badge> : null}
                 {release.title ? <span className="mr-2 font-weight-normal">{release.title}</span> : null}
                 <small className="ml-auto text-muted font-weight-normal">{release.date}</small>
             </CardHeader>
