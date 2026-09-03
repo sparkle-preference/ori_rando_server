@@ -10,7 +10,7 @@
   ],
   "releases": [
       {
-        "version": "4.9.x",
+        "version": "5.0.0",
         "date": "2026-09-03",
         "announce": "none",
         "changes": [
@@ -23,7 +23,7 @@
 
               "Alt+S saves the current game as a segment (bind: Create Practice Segment).",
               "Goal, death and hint boxes are drawn in the game; what ends the run, item boxes, shuffled pickups and variants are edited on a page the game opens in your browser.",
-              "Settings: Practice Folder, Practice Ghost, Practice Timer. Practice Mode.txt in the download has the details."
+              "Settings: Practice Folder, Practice Ghost, Practice Timer. The [full guide](/faq?g=practice) has the details."
             ]
           },
           {
@@ -32,7 +32,7 @@
             "type": "feature",
             "importance": "major",
             "sub": [
-              "The default bind is your Bash button - reconfigure in RandomizerRebindings.txt as necessary.",
+              "The default bind is your Bash button - reconfigure in RandomizerRebinding.txt as necessary.",
               "The duration of hold required and the color of custom warps on the , Warp Teleporter Color.",
               "(You can still warp using the Alt+R world-map-with-spirit-wells interface for it."
             ]
@@ -101,31 +101,38 @@
             "importance": "major"
           },
           {
-            "text": "Archipelago is out of testing: it is an option in the multiplayer settings for everyone.",
+            "text": "Archipelago is now in public beta! Enable in the multiplayer tab.",
             "category": "Multiplayer",
             "type": "feature",
             "importance": "major",
             "tags": ["Archipelago"],
             "sub": [
-              "Each world's yaml is on the seed page; the room is connected from the game page."
+              "Ori Rando AP uses the normal dll and seedgen, creating a yaml for the Ori players on seed generation.",
+              "The website itself acts as the client and connects to the AP server for you.",
+              "Setup, start to finish, is in the [FAQ](/faq?g=archipelago)."
             ]
           },
           {
-            "text": "Bingo works as an Archipelago game.",
+            "text": "Bingo works as an Archipelago goal mode.",
             "category": "Bingo",
             "type": "feature",
             "importance": "minor",
             "tags": ["Archipelago"]
           },
           {
-            "text": "A room that has ended no longer shows as an error, a hint that does not happen says why, and a hint can no longer be bought twice.",
+            "text": "AP bugfixes",
             "category": "Multiplayer",
             "type": "fix",
             "importance": "minor",
-            "tags": ["Archipelago"]
+            "tags": ["Archipelago"],
+            "sub": [
+              "A room that has ended no longer show errors on the seed page.",
+              "Unnaffordable hints now notify the player.",
+              "Hints for found items don't get requested."
+            ]
           },
           {
-            "text": "Random spawn starts you in place with vanilla timing, instead of quitting to the menu first.",
+            "text": "Random spawn uses the vanilla ori spawn timing at all locations; you can no longer qtm for a timesave.",
             "category": "Game",
             "type": "feature",
             "importance": "minor"
@@ -137,19 +144,19 @@
             "importance": "minor"
           },
           {
-            "text": "The chase experience in Horu L4 no longer softlocks.",
-            "category": "Logic",
-            "type": "fix",
-            "importance": "minor"
-          },
-          {
-            "text": "Keysanity doors open for anyone holding enough keys, not only the exact count.",
+            "text": "Fixed the Horu L4 softlock.",
             "category": "Game",
             "type": "fix",
             "importance": "minor"
           },
           {
-            "text": "The map dims pickups that have nothing left to give, shows every pickup's name while the legend is on, and dims unlit spirit wells.",
+            "text": "Keysanity formatting fixes for the rare cases where a player has extra keys for a door.",
+            "category": "Game",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "The map dims pickups that a player has touched if scummed, shows every pickup's name while the legend is on, and dims unlit spirit wells.",
             "category": "Game",
             "type": "feature",
             "importance": "minor",
@@ -163,7 +170,7 @@
             "type": "feature",
             "importance": "minor",
             "sub": [
-              "Binds: Save Select Back 3, Save Select Forward 3, Save Select Back 10, Save Select Forward 10."
+              "Rebindable in RandomizerRebinding.txt."
             ]
           },
           {
@@ -173,25 +180,25 @@
             "importance": "minor"
           },
           {
-            "text": "The stats file has a goals page: a checklist of your goal-mode goals in world order, with where each unfound one waits.",
+            "text": "Added teleporters and goal mode progress to end-of-game stats and stats.txt.",
             "category": "Game",
             "type": "feature",
             "importance": "minor"
           },
           {
-            "text": "Enemies that would have dropped nothing get a second roll for loot.",
+            "text": "Fixed a vanilla bug in Relaxed difficulty. In Relaxed, enemies roll for resource drops twice.",
             "category": "Game",
             "type": "feature",
             "importance": "minor"
           },
           {
-            "text": "The game warns you when it cannot reach the server.",
+            "text": "The game displays a warning when it cannot reach the server.",
             "category": "Multiplayer",
             "type": "feature",
             "importance": "minor"
           },
           {
-            "text": "An item taken away by another player says so instead of reading like a gift, cells and stones included, and losing Charge Flame or Double Jump spells them properly.",
+            "text": "Item removals in a multiworld no longer display as though they were the removed item.",
             "category": "Multiplayer",
             "type": "fix",
             "importance": "minor"
@@ -203,7 +210,7 @@
             "importance": "minor"
           },
           {
-            "text": "Cross-world items show their own name instead of \"Bonus Item\".",
+            "text": "Cross-world bonus items show their own name instead of \"Bonus Item\".",
             "category": "Multiplayer",
             "type": "fix",
             "importance": "minor"
@@ -221,7 +228,7 @@
             "importance": "minor"
           },
           {
-            "text": "Jumpgrades are called Jump Upgrades, and Map Stones are called Mapstones.",
+            "text": "Name normalization: Map Stones are called Mapstones, Jumpgrades are called Jump Upgrades.",
             "category": "Game",
             "importance": "minor"
           },
@@ -241,11 +248,6 @@
             "text": "The same seed string gives the same World Tour relics every time.",
             "category": "Seed Generator",
             "type": "fix",
-            "importance": "minor"
-          },
-          {
-            "text": "The Advanced tab is laid out in columns.",
-            "category": "Seed Generator",
             "importance": "minor"
           },
           {
@@ -285,7 +287,7 @@
             "importance": "minor"
           },
           {
-            "text": "The help and FAQ pages are brought up to date.",
+            "text": "The [help and FAQ pages](/faq) are brought up to date.",
             "category": "Website",
             "importance": "minor"
           },
@@ -314,7 +316,7 @@
               "You can also play seeds by dragging & dropping them onto the app.",
               "It automatically archives your old seeds and your stats.txt.",
               "It can find and open your various settings and configuration files for you.",
-              "Find it in the Downloads section of the main menu above."
+              "[Download it](/app) from the Downloads menu above."
             ]
           },
           {
@@ -328,7 +330,7 @@
             ]
           },
           {
-            "text": "Updated FAQ and help texts to recommend the Rando App to users.",
+            "text": "Updated [FAQ and help texts](/faq?g=install) to recommend the Rando App to users.",
             "category": "Website",
             "importance": "minor"
           }
@@ -4801,7 +4803,7 @@
           "type": "feature",
           "importance": "minor",
           "sub": [
-            "The relevant bindings are Bonus 1 through Bonus 5 in RandomizerRebindings.txt."
+            "The relevant bindings are Bonus 1 through Bonus 5 in RandomizerRebinding.txt."
           ]
         },
         {
@@ -5333,7 +5335,7 @@
           ]
         },
         {
-          "text": "RandomizerRebindings.txt includes many more binds. Take a look at the file to see what's available.",
+          "text": "RandomizerRebinding.txt includes many more binds. Take a look at the file to see what's available.",
           "category": "Game",
           "type": "feature",
           "importance": "minor"
