@@ -1,4 +1,5 @@
 services:
+  # the working tree, reloading on every save: bfdev.eiko.blue
   flask:
     image: python:3.12-slim
     environment:
@@ -20,7 +21,7 @@ services:
       APP_SECRET_KEY: "${APP_SECRET_KEY:-INSECURE_DEV_SECRET_KEY}"
       # a beta box serves its own branch's dll and names itself in the dll nag
       DLL_BRANCH: "${DLL_BRANCH:-master}"
-      CANONICAL_HOST: "${CANONICAL_HOST:-}"
+      CANONICAL_HOST: "${DEV_HOST:-}"
 
     ports:
       - "${PORT:-8080}:5000"
@@ -33,7 +34,7 @@ services:
   react:
     image: node:24
     environment:
-      - NO_WATCH_REACT_APP:${NO_WATCH_REACT_APP:-0}
+      - NO_WATCH_REACT_APP=${NO_WATCH_REACT_APP:-0}
     ports:
       - "${HMR_PORT:-1234}:1234"
     working_dir: "/app"
@@ -64,5 +65,48 @@ services:
     environment:
       DATASTORE_PROJECT_ID: "${GOOGLE_CLOUD_PROJECT:-orirandov3}"
       DATASTORE_EMULATOR_HOST: "datastore:8000"
+  # bfbeta.eiko.blue, the host baked into shipped dlls: pinned to one commit,
+  # and only a checkout in the ../ori_rando_parked worktree moves it
+  flask_parked:
+    image: python:3.12-slim
+    environment:
+      # must keep the dev prefix: util.is_debug reads it, and prod mode reaches
+      # for GCP credentials the box does not have
+      K_REVISION: "dev-parked"
+      MEMCACHED_HOST: "memcached_parked"
+      MEMCACHED_PORT: "${MEMCACHED_PORT:-11211}"
+      GOOGLE_CLOUD_PROJECT: "${GOOGLE_CLOUD_PROJECT:-orirandov3}"
+      DATASTORE_EMULATOR_HOST: ${DATASTORE_EMULATOR_HOST-datastore:8000}
+      DATASTORE_PROJECT_ID: "${GOOGLE_CLOUD_PROJECT:-orirandov3}"
+      OIDC_ENABLED: "${OIDC_ENABLED:-False}"
+      OIDC_TESTING_EMAIL: "${OIDC_TESTING_EMAIL:-testing@example.com}"
+      OIDC_TESTING_ID: "${OIDC_TESTING_ID:-123454321234543212345}"
+      ARCHIPELAGO: "${ARCHIPELAGO:-1}"
+      GUEST_USERS: "${GUEST_USERS:-1}"
+      GUEST_CLAIM_SECRET: "${GUEST_CLAIM_SECRET:-}"
+      WHITELIST_SECRET: "${WHITELIST_SECRET:-PLACEHOLDER_DEV_SECRET}"
+      APP_SECRET_KEY: "${APP_SECRET_KEY:-INSECURE_DEV_SECRET_KEY}"
+      # the dll is only ever pushed at release, so both boxes serve the same one
+      DLL_BRANCH: "${DLL_BRANCH:-master}"
+      CANONICAL_HOST: "${CANONICAL_HOST:-}"
+    ports:
+      - "${PARKED_PORT:-8090}:5000"
+    working_dir: "/app"
+    volumes:
+      - ../ori_rando_parked:/app
+    entrypoint: "sh .internal_run_dev.sh"
+  # cache keys carry no version tag, so the two boxes must not share one
+  memcached_parked:
+    image: memcached:latest
+  # map/dist is gitignored, so the parked tree needs its own build after a bump.
+  # Spelled out rather than run_dev.sh: that script comes from the parked tree,
+  # which is old code by definition.
+  parked_react:
+    image: node:24
+    profiles: ["parked-build"]
+    working_dir: "/app"
+    volumes:
+      - ../ori_rando_parked/map:/app
+    entrypoint: ["sh", "-c", "npm i --no-audit --no-fund && npm run build"]
 volumes:
   datastore:
