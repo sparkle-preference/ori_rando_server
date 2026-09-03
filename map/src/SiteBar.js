@@ -2,7 +2,7 @@ import React, {Component} from 'react';
 import {Navbar,  NavbarBrand, Nav,  NavItem, Button, Modal, ModalHeader, ModalBody, ModalFooter, FormFeedback,
         UncontrolledDropdown, DropdownToggle, DropdownMenu, DropdownItem, Container, Row, Col, Input, UncontrolledAlert} from 'reactstrap'
 import {FaSun, FaMoon} from 'react-icons/fa';
-import {Cent, doNetRequest, postNetForm, get_random_loader, get_param, loginLogoutUrl, resolve_dark, save_dark, theme_href, ap_enabled} from './common.js';
+import {Cent, doNetRequest, postNetForm, get_random_loader, get_param, loginLogoutUrl, resolve_dark, save_dark, theme_href, ap_enabled, get_flag} from './common.js';
 
 const VERSION = get_param("version");
 const AP_WORLD_VERSION = get_param("ap_world_version");
@@ -264,10 +264,16 @@ class SiteBar extends Component {
                 <FaMoon/>
             </NavItem>
         ) : null
+        // a beta account is a cookie: taking it elsewhere, or off the box entirely
+        let betaAccount = get_flag("beta") ? [
+            (<DropdownItem key="export" href={"/user/export"}> Download my stuff </DropdownItem>),
+            (<DropdownItem key="link" href={"/user/link/new"}> Use this account elsewhere </DropdownItem>),
+        ] : []
         let logonoff = user ? [
             (<DropdownItem key="name" disabled><i>Logged in as {user}</i></DropdownItem>),
             (<DropdownItem key="settings" onClick={() => this.setState({settingsOpen: true})}> Settings </DropdownItem>),
             (<DropdownItem key="my games" href={"/myGames"}>  My Games </DropdownItem>),
+            ...betaAccount,
             (<DropdownItem key="logout" href={loginLogoutUrl(false)}>  Logout </DropdownItem>),
         ] : [
             (<DropdownItem key="login" href={loginLogoutUrl(true)}> Login </DropdownItem>)

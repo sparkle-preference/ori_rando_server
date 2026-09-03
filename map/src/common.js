@@ -838,6 +838,25 @@ function save_dark(dark) {
     } catch(e) { /* storage disabled: the choice lasts this page load */ }
 }
 
+// Storing the version rather than a bool: bumping this shows the welcome again.
+const BETA_WELCOME_VERSION = "1"
+
+function beta_welcome_pending() {
+    if(!get_flag("beta"))
+        return false
+    try {
+        return localStorage.getItem("beta_welcome") !== BETA_WELCOME_VERSION
+    } catch(e) {
+        return true  // storage off: a disclaimer is better repeated than unseen
+    }
+}
+
+function save_beta_welcome() {
+    try {
+        localStorage.setItem("beta_welcome", BETA_WELCOME_VERSION)
+    } catch(e) { /* storage disabled: it comes back next load */ }
+}
+
 // the server's Archipelago kill switch, the one thing left gating AP in the ui
 function ap_enabled() {
     return get_flag("ap_flag")
@@ -1084,7 +1103,7 @@ const prng = (strIn) => sfc32(...cyrb128(strIn));
  
 
 export {
-    player_icons, doNetRequest, prng, get_param, get_flag, resolve_dark, save_dark, theme_href, postNetForm, ap_enabled, get_int, get_list, get_preset, presets, get_seed, logic_paths, get_random_loader, Blabel,
+    player_icons, doNetRequest, prng, get_param, get_flag, resolve_dark, save_dark, beta_welcome_pending, save_beta_welcome, theme_href, postNetForm, ap_enabled, get_int, get_list, get_preset, presets, get_seed, logic_paths, get_random_loader, Blabel,
     pickup_name, stuff_by_type, name_from_str, PickupSelect, Cent, ordinal_suffix, dev, gotoUrl, loginLogoutUrl, select_theme, randInt, spawn_defaults, spawnKitFor, decompose_pickup,
     BOX_TYPES, BOX_COLOURS, new_box, parse_box_line, box_line, box_colour, box_label
 };

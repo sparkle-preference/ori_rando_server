@@ -16,6 +16,27 @@ from web.responses import code_resp, json_resp, make_resp, text_download, text_r
 bp = Blueprint("plando", __name__)
 
 
+def export_files_for(user):
+    """Every plando this user owns as {name: {filename: text}} -- the seed file
+    itself plus whatever prose the author wrote. Untracked, so no game is made."""
+    out = {}
+    for seed in Seed.query(Seed.author_key == user.key):
+        params = SeedGenParams.from_plando(seed, tracking=False)
+        files = {}
+        if seed.players > 1:
+            for pid in range(1, seed.players + 1):
+                files["player%s/randomizer.dat" % pid] = params.get_seed(pid)
+        else:
+            files["randomizer.dat"] = params.get_seed(1)
+        # prose gets CRLF, the same courtesy the spoiler download does
+        if seed.description:
+            files["description.txt"] = seed.description.replace("\n", "\r\n")
+        if seed.spoiler:
+            files["spoiler.txt"] = seed.spoiler.replace("\n", "\r\n")
+        out[seed.name] = files
+    return out
+
+
 @bp.route('/plando/<seed_name>/upload', methods=['POST'])   #PlandoUpload
 def plando_upload(seed_name): 
     user = User.get()

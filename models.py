@@ -2738,3 +2738,37 @@ class AnnouncedPatchNotes(ndb.Model):
             return None
         return was
 
+
+
+class AccountLink(ndb.Model):
+    """A one-shot URL that seats another browser on the creator's guest account.
+
+    The key id IS the nonce, so guessing one is guessing a token_urlsafe(32).
+    claim() is transactional because two visitors racing the same link must not
+    both win it.
+    """
+    TTL = timedelta(minutes=15)
+
+    guest_sub = ndb.StringProperty()
+    created = ndb.DateTimeProperty(auto_now_add=True)
+    used = ndb.BooleanProperty(default=False)
+
+    def expired(self):
+        return utcnow() - self.created > AccountLink.TTL
+
+    @staticmethod
+    def mint(guest_sub, nonce):
+        link = AccountLink(id=nonce, guest_sub=guest_sub)
+        link.put()
+        return link
+
+    @staticmethod
+    @ndb.transactional(retries=5)
+    def claim(nonce):
+        """The sub this link seats you on, or None if it is spent, stale or fake."""
+        link = AccountLink.get_by_id(nonce)
+        if not link or link.used or link.expired():
+            return None
+        link.used = True
+        link.put()
+        return link.guest_sub

@@ -379,7 +379,8 @@ class SeedGenParams(ndb.Model):
             plando_flags = plando.flags,
             placements = plando.placements,
             boxes = plando.boxes,
-            spoilers = [plando.description],
+            # a description-less plando is a legal row; spoilers is a string list
+            spoilers = [plando.description or ""],
             plando_spoiler_key = plando.key if plando.spoiler else None,
             )
         params.sync = MultiplayerOptions()

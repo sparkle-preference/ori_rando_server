@@ -72,6 +72,11 @@ def _export_doc(user, rows):
                          "hidden": bool(s.hidden), "settings": s.settings} for s in rows]}
 
 
+def export_doc_for(user):
+    """The export document, for anything that ships a user's presets elsewhere."""
+    return _export_doc(user, _owned_presets(user))
+
+
 def _pasted_presets(body):
     """The presets in a pasted document, whatever shape it arrived in: a whole
     export, a bare list, or the single object a share link serves."""

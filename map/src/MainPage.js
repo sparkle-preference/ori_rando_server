@@ -10,7 +10,7 @@ import './index.css';
 
 import {getHelpContent, HelpBox} from "./helpbox.js";
 import {History, HIST_KEYS, HIST_SET} from './history.js';
-import {postNetForm, get_param, spawnKitFor, get_flag, ap_enabled, presets, select_theme, name_from_str, get_preset, player_icons, doNetRequest, get_random_loader, PickupSelect, Cent, dev, randInt, gotoUrl, prng, decompose_pickup} from './common.js';
+import {postNetForm, get_param, spawnKitFor, get_flag, ap_enabled, presets, select_theme, name_from_str, get_preset, player_icons, doNetRequest, get_random_loader, PickupSelect, Cent, dev, randInt, gotoUrl, prng, decompose_pickup, beta_welcome_pending, save_beta_welcome} from './common.js';
 import SiteBar from "./SiteBar.js";
 import Select from 'react-select';
 import {picks_by_zone} from './shared_map';
@@ -2299,6 +2299,9 @@ export default class MainPage extends React.Component {
 
     getModal = (modalParams) => {
         let {quickstartOpen, auxModal} = this.state
+        // ahead of quickstart, so a first visit to /quickstart sees both in turn
+        if(this.state.betaWelcomeOpen)
+            return this.getBetaWelcomeModal(modalParams);
         if(quickstartOpen)
             return this.getQuickstartModal(modalParams);
         if(auxModal)
@@ -2434,6 +2437,67 @@ export default class MainPage extends React.Component {
                 </Modal>
         )
     }
+    closeBetaWelcome = () => {
+        save_beta_welcome()
+        this.setState({betaWelcomeOpen: false})
+    }
+
+    getBetaWelcomeModal = ({inputStyle}) => {
+        return (
+                <Modal size="lg" isOpen={this.state.betaWelcomeOpen} backdrop={"static"} className={"modal-dialog-centered"} toggle={this.closeBetaWelcome}>
+                  <ModalHeader style={inputStyle} toggle={this.closeBetaWelcome} centered>Welcome to Ori Rando v5 beta!</ModalHeader>
+                  <ModalBody style={inputStyle}>
+                      <Container fluid>
+                      <Row className="p-1">
+                        <span>
+                        Check out the <a href="/patchnotes">patchnotes</a> for more info, but highlights include:
+                        </span>
+                      </Row>
+                      <Row>
+                          <ul>
+                          <li>Multiplayer ghosts!</li>
+                          <li>Ori 2-style warping!</li>
+                          <li>Seedgen Presets!</li>
+                          <li>Multiworlds where each player has their own settings!</li>
+                          <li>Archipelago!</li>
+                          <li>The Practice tool!</li>
+                          </ul>
+                      </Row>
+                      <Row className="p-1">
+                        <span>
+                        When you're ready to get started, get the beta dll <a href="/dll" target="_blank">here</a>
+                        or in the download section of the sitebar.
+                        </span>
+                      </Row>
+                      <Row className="p-1">
+                        <span>
+                        Important beta info: <b>Accounts are by-default one-per-browser.</b> It's stored in a cookie, so
+                        another browser or device is a different account, and clearing your cookies
+                        logs you out, permanently.
+                        </span>
+                      </Row>
+                      <Row className="p-1">
+                        <span>
+                        Two things in the User menu help with that. <b>Use this account elsewhere</b> makes
+                        a one-time link that signs another browser in to this account, and <b>Download my stuff</b>
+                        saves your presets and plandos as a zip.
+                        </span>
+                      </Row>
+                      <Row className="p-1">
+                        <span>
+                        Please note: this is a beta. Things change quickly. The database is not getting backed up server-side. 
+                        Please don't count on anything you save to your account sticking around. <b>Make your own backups.</b>
+                        </span>
+                      </Row>
+                    </Container>
+                  </ModalBody>
+                  <ModalFooter style={inputStyle}>
+                    <Button color="secondary" onClick={this.closeBetaWelcome}>Close</Button>
+                  </ModalFooter>
+                </Modal>
+        )
+    }
+
     getQuickstartModal = ({inputStyle}) => {
         return (
                 <Modal size="lg" isOpen={this.state.quickstartOpen} backdrop={"static"} className={"modal-dialog-centered"} toggle={this.closeModal}>
@@ -2583,7 +2647,8 @@ export default class MainPage extends React.Component {
                         tracking: true, variations: ["ForceTrees"], gameId: gameId, itemPool: getPool("Standard"), dedupShared: false, 
                         paths: presets["standard"], keyMode: "Clues", oldKeyMode: "Clues", spawn: "Glades", 
                         spawnHCs: 3, spawnECs: 1, spawnSKs: 0, pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null), 
-                        goalModes: ["ForceTrees"], selectedPool: "Standard", seed: "", fillAlg: "Balanced", quickstartOpen: quickstartOpen, 
+                        goalModes: ["ForceTrees"], selectedPool: "Standard", seed: "", fillAlg: "Balanced", quickstartOpen: quickstartOpen,
+                        betaWelcomeOpen: beta_welcome_pending(),
                         shared: ["Skills", "Teleporters", "World Events", "Upgrades", "Misc"], mwShared: [], helpcat: "", helpopt: "",
                         apMode: false, apExport: [...apDefaultExport], apDeathLink: false, inputApMode: false, playerNames: [],
                         worldSettings: [],
