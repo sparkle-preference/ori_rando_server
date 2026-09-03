@@ -10,58 +10,56 @@
   ],
   "releases": [
       {
-        "version": "5.0.0",
-        "date": "2026-08-20",
+        "version": "4.9.x",
+        "date": "2026-09-03",
         "announce": "none",
         "changes": [
           {
-            "text": "Re-download any multiworld seed rolled before this update. Multiworld seeds use a new format, and an older one now refuses to load rather than reading its cross-world items wrong.",
-            "category": "Misc",
-            "importance": "major"
-          },
-          {
-            "text": "Added practice mode. PRACTICE on the title menu runs a saved stretch of the game against a clock and a ghost of your best attempt.",
+            "text": "Added practice mode - run a saved stretch of the game with a built-in timer and a ghost of your best attempt.",
             "category": "Game",
             "type": "feature",
             "importance": "major",
             "sub": [
+
               "Alt+S saves the current game as a segment (bind: Create Practice Segment).",
               "Goal, death and hint boxes are drawn in the game; what ends the run, item boxes, shuffled pickups and variants are edited on a page the game opens in your browser.",
               "Settings: Practice Folder, Practice Ghost, Practice Timer. Practice Mode.txt in the download has the details."
             ]
           },
           {
-            "text": "Warp from the map: hover a spirit well on the area map and hold the bind.",
+            "text": "Added support for WotW-style teleporting - hover a spirit well in the item map and hold the keybind to warp there.",
             "category": "Game",
             "type": "feature",
             "importance": "major",
             "sub": [
-              "Bind: Map Warp (default: your Bash button). Settings: Map Warp Hold, Warp Teleporter Color."
+              "The default bind is your Bash button - reconfigure in RandomizerRebindings.txt as necessary.",
+              "The duration of hold required and the color of custom warps on the , Warp Teleporter Color.",
+              "(You can still warp using the Alt+R world-map-with-spirit-wells interface for it."
             ]
           },
           {
-            "text": "Every randomizer setting is in the in-game options menu now, colours included, and changes apply right away.",
+            "text": "Every randomizer setting is in the in-game options menu now, colours included. Changes apply right away.",
             "category": "Game",
             "type": "feature",
             "importance": "major"
           },
           {
-            "text": "The other players in your game appear as translucent ghosts in the world, and as markers on the map.",
+            "text": "In all multiplayer moods, other connected players appear as translucent ghosts in the world and as markers on the map.",
             "category": "Multiplayer",
             "type": "feature",
             "importance": "major",
             "sub": [
-              "Setting: Show Other Players."
+              "To disable, toggle off Show Other Players in your Randomizer settngs."
             ]
           },
           {
-            "text": "Sensing finds other players' items. With skill sensing on, another player's Bash sitting in your world senses like one of your own.",
+            "text": "Fixed Sense not detecting items for other players in your world in Multiworld and Archipelago seeds.",
             "category": "Multiplayer",
             "type": "fix",
             "importance": "major"
           },
           {
-            "text": "Presets save the seed generator's options under a name. Load one from the dropdown, share it by link, or duplicate it as a starting point - and My Presets can copy your whole set out as text to move it to another account.",
+            "text": "Added presets, which are saved bundles of seedgen options. Load one from the dropdown, share it by link, or duplicate it as a starting point - and My Presets can copy your whole set out as text to move it to another account.",
             "category": "Seed Generator",
             "type": "feature",
             "importance": "major"
@@ -158,6 +156,21 @@
             "sub": [
               "Setting: Touched Pickup Visibility."
             ]
+          },
+          {
+            "text": "Page Up and Page Down move three saves at a time on the save select, Shift+Page Up and Shift+Page Down ten.",
+            "category": "Game",
+            "type": "feature",
+            "importance": "minor",
+            "sub": [
+              "Binds: Save Select Back 3, Save Select Forward 3, Save Select Back 10, Save Select Forward 10."
+            ]
+          },
+          {
+            "text": "The save select stops scrolling when the game window loses focus.",
+            "category": "Game",
+            "type": "fix",
+            "importance": "minor"
           },
           {
             "text": "The stats file has a goals page: a checklist of your goal-mode goals in world order, with where each unfound one waits.",
