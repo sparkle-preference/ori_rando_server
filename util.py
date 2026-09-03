@@ -25,10 +25,21 @@ def utcnow():
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
-VER = [5, 0, 0]
-MIN_VER = [5, 0, 0]
-BETA_VER = [5, 0, 0]
+VER = [4, 9, 0]
+MIN_VER = [4, 9, 0]
+BETA_VER = [4, 9, 0]
 VERSION = "%s.%s.%s" % tuple(VER)
+
+# 4.9.x is the 5.0 beta: numeric on the wire, "5.beta.x" on the page, and its
+# patch notes are 5.0's -- beta builds get no notes of their own
+BETA_OF = [5, 0, 0] if VER[:2] == [4, 9] else None
+RELEASE_VER = BETA_OF or VER
+DISPLAY_VERSION = "%d.beta.%d" % (BETA_OF[0], VER[2]) if BETA_OF else VERSION
+
+# which branch's committed Assembly-CSharp.dll the dll routes hand out
+DLL_BRANCH = os.environ.get("DLL_BRANCH", "master")
+DLL_BETA_BRANCH = os.environ.get("DLL_BETA_BRANCH", DLL_BRANCH)
+DLL_URL = "https://github.com/sparkle-preference/OriDERandomizer/raw/%s/Assembly-CSharp.dll"
 
 # the only Jinja template: the page itself is a JS bundle under template_root
 INDEX_TEMPLATE = 'index.html'
@@ -68,6 +79,8 @@ PATCHNOTES_WEBHOOK_DEV = os.environ.get("PATCHNOTES_WEBHOOK_DEV", "")
 
 CANONICAL_HOST = os.environ.get("CANONICAL_HOST", "")
 REDIRECT_HOSTS = [h.strip() for h in os.environ.get("REDIRECT_HOSTS", "").split(",") if h.strip()]
+# the host this deployment tells players to fetch things from
+SITE_HOST = CANONICAL_HOST or "orirando.com"
 
 # Perf instrumentation: stable, grep-able log lines ("NETPERF <what> ms=<dur> tag=<revision:pid> k=v ...").
 # tag identifies the Cloud Run revision + worker process, to detect cross-process cache misses.
@@ -414,7 +427,7 @@ def picks_by_type_generator():
 
 # request helpers
 def template_vals(app, title, user):
-    template_values = {'app': app, 'title': title, 'version': "%s.%s.%s" % tuple(VER), 'race_wl': whitelist_ok(), 'admin': user.is_admin() if user else False,
+    template_values = {'app': app, 'title': title, 'version': DISPLAY_VERSION, 'race_wl': whitelist_ok(), 'admin': user.is_admin() if user else False,
                        'ap_flag': ARCHIPELAGO
 }
     if user:

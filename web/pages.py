@@ -5,6 +5,7 @@ each would be worse than one honest pile.
 """
 from flask import Blueprint, redirect, render_template
 
+import util
 from models import User
 from util import INDEX_TEMPLATE, param_val, template_vals
 
@@ -42,9 +43,9 @@ def dev_discord_redirect():
     return redirect("https://discord.gg/sfUr8ra5P7")
 
 
-@bp.route('/dll')                 
+@bp.route('/dll')
 def dll():
-    return redirect("https://github.com/sparkle-preference/OriDERandomizer/raw/master/Assembly-CSharp.dll")
+    return redirect(util.DLL_URL % util.DLL_BRANCH)
 
 
 @bp.route('/app')
@@ -52,9 +53,9 @@ def rando_app():
     return redirect("https://github.com/ori-community/bf-rando-installer/releases/latest/download/Ori.DE.Randomizer.exe")
 
 
-@bp.route('/dll/beta')            
+@bp.route('/dll/beta')
 def dll_beta():
-    return redirect("https://github.com/sparkle-preference/OriDERandomizer/raw/master/Assembly-CSharp.dll")
+    return redirect(util.DLL_URL % util.DLL_BETA_BRANCH)
 
 
 @bp.route('/apworld')

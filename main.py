@@ -35,7 +35,7 @@ if util.ARCHIPELAGO:
 @app.route('/quickstart')
 @app.route('/')
 def main_page():
-    template_values = template_vals("MainPage", "Ori DE Randomizer %s" % VERSION, User.get())
+    template_values = template_vals("MainPage", "Ori DE Randomizer %s" % util.DISPLAY_VERSION, User.get())
     # not the displayed version: this moves on a site-only release, so the link goes unread
     template_values['notes_anchor'] = latest_note_version()
     if util.ARCHIPELAGO:

@@ -431,6 +431,7 @@ class TestConnect(SessionTestCase):
         self.assertEqual(netcode.connect(1242, 1, {"version": "0.0.1"}), (200, "ok"))
         self.assertEqual(len(p.signals), 1)
         self.assertIn("dll out of date", p.signals[0])
+        self.assertIn("(%s/dll)" % util.SITE_HOST, p.signals[0])
         self.assertFalse(p.can_nag)
         self.assertEqual(self.game.sanity_checks, 1)
 

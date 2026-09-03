@@ -18,6 +18,9 @@ services:
       GUEST_CLAIM_SECRET: "${GUEST_CLAIM_SECRET:-}"
       WHITELIST_SECRET: "${WHITELIST_SECRET:-PLACEHOLDER_DEV_SECRET}"
       APP_SECRET_KEY: "${APP_SECRET_KEY:-INSECURE_DEV_SECRET_KEY}"
+      # a beta box serves its own branch's dll and names itself in the dll nag
+      DLL_BRANCH: "${DLL_BRANCH:-master}"
+      CANONICAL_HOST: "${CANONICAL_HOST:-}"
 
     ports:
       - "${PORT:-8080}:5000"

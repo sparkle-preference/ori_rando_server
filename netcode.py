@@ -21,7 +21,7 @@ from cache import Cache
 from enums import MultiplayerGameType
 from models import Game, BingoGameData, Player, bingo_lock
 from pickups import Pickup
-from util import all_locs, bfield_checksum, coord_correction_map, debug, netperf, seed_sync_id, version_at_least, version_check, AP_MIN_DLL, ARCHIPELAGO
+from util import SITE_HOST, all_locs, bfield_checksum, coord_correction_map, debug, netperf, seed_sync_id, version_at_least, version_check, AP_MIN_DLL, ARCHIPELAGO
 
 
 def _code(status):
@@ -271,7 +271,7 @@ def connect(game_id, player_id, payload):
     if game:
         p = game.player(player_id)
         vers = payload.get("version")
-        nag = ("msg:@dll out of date. (orirando.com/dll)@"
+        nag = ("msg:@dll out of date. (%s/dll)@" % SITE_HOST
                if p.can_nag and vers and (not version_check(vers)) else None)
         if Player.connect_update_txn(p.key, vers, nag):
             Cache.clear_seen_checksum(p.idpts())
