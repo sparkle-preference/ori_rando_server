@@ -33,11 +33,11 @@
             "sub": [
               "The default bind is your Bash button - reconfigure in RandomizerRebinding.txt as necessary.",
               "The duration of hold required and the color of custom warps on the , Warp Teleporter Color.",
-              "(You can still warp using the Alt+R world-map-with-spirit-wells interface for it."
+              "(You can still warp using the Alt+R world-map-with-spirit-wells interface for it)."
             ]
           },
           {
-            "text": "Every randomizer setting is in the in-game options menu now, colours included. Changes apply right away.",
+            "text": "Almost every randomizer setting is now editable via the in-game options menu, colours included. Changes apply right away.",
             "category": "Game",
             "type": "feature",
             "importance": "major"
@@ -58,60 +58,61 @@
             "importance": "major"
           },
           {
-            "text": "Added presets, which are saved bundles of seedgen options. Load one from the dropdown, share it by link, or duplicate it as a starting point - and My Presets can copy your whole set out as text to move it to another account.",
+            "text": "Added presets, which are saved bundles of seedgen options. Find them below goal modes at the top right of the seed generator.",
             "category": "Seed Generator",
             "type": "feature",
             "importance": "major"
           },
           {
-            "text": "In a multiworld, every world can have its own settings: logic mode, variations, item pool and the rest, per player.",
+            "text": "Multiworld seeds can now load in separate presets for each player.",
             "category": "Seed Generator",
             "type": "feature",
             "importance": "major"
           },
           {
-            "text": "Undo and redo on the seed generator, tab and all.",
+            "text": "Added undo and redo buttons to the seed generator, located above the Generate button.",
             "category": "Seed Generator",
             "type": "feature",
-            "importance": "major",
+            "importance": "minor",
             "sub": [
-              "Ctrl+Z and Ctrl+Y."
+              "Alternately, you can just press Ctrl+Z to undo and Ctrl+Y to redo."
             ]
           },
           {
-            "text": "In a multiworld, bingo is per world: each world that opts in gets its own board, and your seat on it comes from the seed.",
+            "text": "Multiworld bingo now rolls one board per player.",
             "category": "Bingo",
             "type": "feature",
             "importance": "major",
             "sub": [
-              "Board settings picked when you generate the seed are carried to the board."
+              "Using the new presets feature, it's also possible to only have some players in a multiworld playing bingo.",
+              "Board settings (including objective) can be set in the advanced tab when making presets."
             ]
           },
           {
-            "text": "Plando seeds can carry boxes: solid ground, kill zones, and item and goal boxes drawn on the plando editor's map.",
+            "text": "Plando seeds (and practice segments) can now contain boxes of ground, death, or item.",
             "category": "Website",
             "type": "feature",
             "importance": "major"
           },
           {
-            "text": "Rainbow Dash: sparkles and rainbows on every dash, purely cosmetic. Off unless you turn it on.",
+            "text": "Added Rainbow Dash to the settings file.",
             "category": "Game",
             "type": "feature",
-            "importance": "minor",
-            "sub": [
-              "Setting: Rainbow Dash, also in the in-game options."
-            ]
-          },
-          {
-            "text": "Seeds download as randomizer.bfr instead of randomizer.dat. The game reads either, and the Rando App already did.",
-            "category": "Website",
             "importance": "minor"
           },
           {
-            "text": "The plando editor handles multiworld: say which player an item is for, fill every world at once, and split a multipickup across worlds.",
+            "text": "Seeds download as randomizer.bfr instead of randomizer.dat.",
+            "category": "Website",
+            "importance": "minor",
+            "sub": [
+              "The Rando App will load .bfr files on double-click (and launch the game, if it isn't already open)."
+            ]
+          },
+          {
+            "text": "Added multiworld support to the plando editor.",
             "category": "Website",
             "type": "feature",
-            "importance": "major"
+            "importance": "minor"
           },
           {
             "text": "Archipelago is now in public beta! Enable in the multiplayer tab.",
@@ -120,17 +121,10 @@
             "importance": "major",
             "tags": ["Archipelago"],
             "sub": [
-              "Ori Rando AP uses the normal dll and seedgen, creating a yaml for the Ori players on seed generation.",
-              "The website itself acts as the client and connects to the AP server for you.",
-              "Setup, start to finish, is in the [FAQ](/faq?g=archipelago)."
+              "Ori Rando's AP implementation uses the normal dll and seedgen and creates a fresh yaml for the Ori player(s) on seed generation.",
+              "The website itself acts as the client, and connects to the AP server for you.",
+              "Learn more by checking out the [Archipelago guide](/faq?g=archipelago)."
             ]
-          },
-          {
-            "text": "Bingo works as an Archipelago goal mode.",
-            "category": "Bingo",
-            "type": "feature",
-            "importance": "minor",
-            "tags": ["Archipelago"]
           },
           {
             "text": "AP bugfixes",
@@ -141,7 +135,8 @@
             "sub": [
               "A room that has ended no longer shows errors on the seed page.",
               "Unaffordable hints now notify the player.",
-              "Hints for found items don't get requested."
+              "Hints for already-found items don't get requested.",
+              "Bingo is a supported AP goal mode."
             ]
           },
           {
@@ -174,7 +169,7 @@
             "type": "feature",
             "importance": "minor",
             "sub": [
-              "Setting: Touched Pickup Visibility."
+              "Adjust via the Touched Pickup Visibility setting."
             ]
           },
           {
@@ -199,7 +194,7 @@
             "importance": "minor"
           },
           {
-            "text": "Fixed a vanilla bug in Relaxed difficulty. In Relaxed, enemies roll for resource drops twice.",
+            "text": "Fixed a vanilla bug in Relaxed difficulty, increasing health and energy drop rates.",
             "category": "Game",
             "type": "feature",
             "importance": "minor"
@@ -229,13 +224,13 @@
             "importance": "minor"
           },
           {
-            "text": "The tracker map names the player a multiworld item belongs to, and game history names players.",
+            "text": "The tracking map and game history now properly fill player names in multiworlds.",
             "category": "Multiplayer",
             "type": "feature",
             "importance": "minor"
           },
           {
-            "text": "The stats page credits each pickup to the area it came from, and an item another player sent you shows as Offworld.",
+            "text": "The stats page no correctly identifies the zone for Multiworld items.",
             "category": "Game",
             "type": "fix",
             "importance": "minor"
@@ -246,13 +241,13 @@
             "importance": "minor"
           },
           {
-            "text": "Randomize rolls the newer settings too.",
+            "text": "The Randomize button can now roll more options.",
             "category": "Seed Generator",
             "type": "fix",
             "importance": "minor"
           },
           {
-            "text": "Classic fill says it cannot do multiworld instead of failing.",
+            "text": "Classic fill is disabled for Multiworld instead of just failing whenever you try.",
             "category": "Seed Generator",
             "type": "fix",
             "importance": "minor"
@@ -276,13 +271,7 @@
             "importance": "minor"
           },
           {
-            "text": "Every bingo square explains itself on hover, and clicking a player on a per-world board shows their board.",
-            "category": "Bingo",
-            "type": "feature",
-            "importance": "minor"
-          },
-          {
-            "text": "Site settings are one dialog: name, team, theme (light, dark or a skin), spoiler detail, whether the seed generator opens on your last seed, and whether seed pages show the Play button.",
+            "text": "Consolodated user settings into one place, including new settings for whether the seed generator opens on your last seed and whether seed pages show the Play button.",
             "category": "Website",
             "type": "feature",
             "importance": "minor"
@@ -300,16 +289,11 @@
             "importance": "minor"
           },
           {
-            "text": "The [help and FAQ pages](/faq) are brought up to date.",
-            "category": "Website",
-            "importance": "minor"
-          },
-          {
-            "text": "Uploading a custom logic file is no longer offered.",
+            "text": "The [help and FAQ pages](/faq) have been modernized.",
             "category": "Website",
             "importance": "minor"
           }
-        ]
+          ]
       },
       {
         "version": "4.2.17.2",
