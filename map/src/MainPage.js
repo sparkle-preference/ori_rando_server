@@ -2465,7 +2465,7 @@ export default class MainPage extends React.Component {
                       </Row>
                       <Row className="p-1">
                         <span>
-                        When you're ready to get started, get the beta dll <a href="/dll" target="_blank">here</a>
+                        When you're ready to get started, get the beta dll <a href="/dll" target="_blank">here</a>&nbsp;
                         or in the download section of the sitebar.
                         </span>
                       </Row>
