@@ -130,6 +130,7 @@ EXPECTED = [
     "GET /version/latest",
     "GET /version/minimum",
     "GET,POST /generator/build",
+    "POST /client_error",
     "POST /netcode/game/<int:game_id>/ap/connect",
     "POST /netcode/game/<int:game_id>/ap/disconnect",
     "POST /netcode/game/<int:game_id>/player/<int:player_id>/bingo",
