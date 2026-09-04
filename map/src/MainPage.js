@@ -1604,8 +1604,9 @@ export default class MainPage extends React.Component {
                     mainButtonText = `Open Bingo Board`
                     mainButtonHelp = "openBingoBoard"
                 }
-                // a beta site's link says so, for a launcher that knows more than one server
-                let playParams = get_flag("beta") ? seedParams.concat("beta") : seedParams
+                // the link names its server, for a launcher that knows more than one
+                let endpoint = get_param("endpoint")
+                let playParams = endpoint ? seedParams.concat("endpoint=" + endpoint) : seedParams
                 let playUrl = "bfr:/play/params/"+paramId + "?" + playParams.join("&");
                 let showApNotReady = inputApMode && ap_enabled() && gameId > 0 && !seedIsBingo && !this.apNamesReady();
                 let showPlay = !this.state.hidePlayButton && !showApNotReady && !seedIsBingo;

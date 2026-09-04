@@ -111,9 +111,9 @@ class PlayButtonGateTestCase(unittest.TestCase):
         for name in ("common.js", "MainPage.js", "index.js"):
             self.assertNotIn("app_test", self.src(name), name)
 
-    def test_a_beta_site_marks_its_play_links(self):
-        self.assertIn('get_flag("beta") ? seedParams.concat("beta")', self.src("MainPage.js"))
-        self.assertIn('data-beta="{{beta}}"', self.src("index.html"))
+    def test_play_links_name_their_server(self):
+        self.assertIn('seedParams.concat("endpoint=" + endpoint)', self.src("MainPage.js"))
+        self.assertIn('data-endpoint="{{endpoint}}"', self.src("index.html"))
 
 
 if __name__ == "__main__":

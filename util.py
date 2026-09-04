@@ -80,6 +80,11 @@ CANONICAL_HOST = os.environ.get("CANONICAL_HOST", "")
 REDIRECT_HOSTS = [h.strip() for h in os.environ.get("REDIRECT_HOSTS", "").split(",") if h.strip()]
 # the host this deployment tells players to fetch things from
 SITE_HOST = CANONICAL_HOST or "orirando.com"
+# what the launcher calls each non-prod server; play links carry it as endpoint=<name>
+PLAY_ENDPOINTS = {"bfbeta.eiko.blue": "beta", "bfdev.eiko.blue": "dev"}
+
+def play_endpoint():
+    return PLAY_ENDPOINTS.get(CANONICAL_HOST, "")
 
 # Perf instrumentation: stable, grep-able log lines ("NETPERF <what> ms=<dur> tag=<revision:pid> k=v ...").
 # tag identifies the Cloud Run revision + worker process, to detect cross-process cache misses.
@@ -440,8 +445,9 @@ def ap_versions():
 def template_vals(app, title, user):
     template_values = {'app': app, 'title': title, 'version': DISPLAY_VERSION, 'race_wl': whitelist_ok(), 'admin': user.is_admin() if user else False,
                        'ap_flag': ARCHIPELAGO,
-                       # a beta site's play links tell the launcher which server rolled the seed
-                       'beta': bool(BETA_OF)
+                       'beta': bool(BETA_OF),
+                       # play links tell the launcher which server rolled the seed
+                       'endpoint': play_endpoint()
 }
     if ARCHIPELAGO:
         # the sitebar's apworld link is on every page, so these are too
