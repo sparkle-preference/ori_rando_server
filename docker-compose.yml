@@ -1,6 +1,7 @@
 services:
   # the working tree, reloading on every save: bfdev.eiko.blue
   flask:
+    restart: unless-stopped
     image: python:3.12-slim
     environment:
       K_REVISION: "dev" 
@@ -45,8 +46,10 @@ services:
       - ./map:/app
     entrypoint: "sh run_dev.sh"
   memcached:
+    restart: unless-stopped
     image: memcached:latest
   datastore:
+    restart: unless-stopped
     image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
     expose:
       - 8000
@@ -60,6 +63,7 @@ services:
       - "${DATASTORE_TEST_PORT:-8001}:8000"
     command: "gcloud beta emulators datastore start --project=${GOOGLE_CLOUD_PROJECT:-orirandov3} --host-port 0.0.0.0:8000 --no-store-on-disk --consistency=1.0"
   datastore_admin:
+    restart: unless-stopped
     image: "ghcr.io/remko/dsadmin:latest"
     depends_on:
       - datastore
@@ -71,6 +75,7 @@ services:
   # bfbeta.eiko.blue, the host baked into shipped dlls: pinned to one commit,
   # and only a checkout in the ../ori_rando_parked worktree moves it
   flask_parked:
+    restart: unless-stopped
     image: python:3.12-slim
     environment:
       # must keep the dev prefix: util.is_debug reads it, and prod mode reaches
@@ -102,6 +107,7 @@ services:
     entrypoint: "sh .internal_run_dev.sh"
   # cache keys carry no version tag, so the two boxes must not share one
   memcached_parked:
+    restart: unless-stopped
     image: memcached:latest
   # map/dist is gitignored, so the parked tree needs its own build after a bump.
   # Spelled out rather than run_dev.sh: that script comes from the parked tree,
