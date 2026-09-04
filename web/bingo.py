@@ -290,10 +290,9 @@ def bingo_download_seed(game_id, player_id):
     if not seed:
         return text_resp("No seed found for player %s.%s" % (game_id, player_id), 412)
 
-    if not debug():
+    if not param_flag("text"):
         return text_download(seed, 'randomizer.bfr')
-    else:
-        return text_resp(seed)
+    return text_resp(seed)
 
 RR_SUFFIX = re.compile(r"RR(\d+)$")
 

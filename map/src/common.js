@@ -796,6 +796,32 @@ function get_param(name) {
     return (retVal !== "" && retVal !== "None") ? retVal : null
 }
 
+// A crash report to the server; the first few per page load, and never a second crash.
+let reported = 0
+function report_error(kind, error, extra) {
+    try {
+        if(reported >= 3)
+            return
+        reported++
+        let data = document.getElementById("templateData") ? document.getElementById("templateData").dataset : {}
+        let body = {
+            kind: kind,
+            message: String((error && error.message) || error || "").slice(0, 500),
+            stack: String((error && error.stack) || "").slice(0, 4000),
+            componentStack: String((extra && extra.componentStack) || "").slice(0, 4000),
+            app: (document.getElementById("root") || {dataset: {}}).dataset.app || "",
+            version: data.version || "",
+            url: window.location.href.slice(0, 300),
+            ua: navigator.userAgent.slice(0, 300),
+        }
+        let xhr = new XMLHttpRequest()
+        xhr.open("POST", "/client_error", true)
+        xhr.setRequestHeader("Content-type", "application/json")
+        xhr.send(JSON.stringify(body))
+    } catch(e) {
+    }
+}
+
 function get_flag(name) {
     let p = get_param(name);
     return p != null && !p.toLowerCase().includes("false")
@@ -1103,6 +1129,7 @@ const prng = (strIn) => sfc32(...cyrb128(strIn));
  
 
 export {
+    report_error,
     player_icons, doNetRequest, prng, get_param, get_flag, resolve_dark, save_dark, beta_welcome_pending, save_beta_welcome, theme_href, postNetForm, ap_enabled, get_int, get_list, get_preset, presets, get_seed, logic_paths, get_random_loader, Blabel,
     pickup_name, stuff_by_type, name_from_str, PickupSelect, Cent, ordinal_suffix, dev, gotoUrl, loginLogoutUrl, select_theme, randInt, spawn_defaults, spawnKitFor, decompose_pickup,
     BOX_TYPES, BOX_COLOURS, new_box, parse_box_line, box_line, box_colour, box_label

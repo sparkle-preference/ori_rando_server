@@ -80,6 +80,8 @@ const SSP_LOBBY_KEYS = ["players", "playerNames", "coopGenMode", "coopGameMode",
 // dropped by every load path, lobby or not: the seed box is the user's to type,
 // and the rest are outputs of a finished seed rather than form inputs.
 const PRESET_NEVER_LOAD = ["seed", "flagLine", "isPlando", "spoilers", "teamStr"];
+// list-valued settings a blob may leave null
+const NEVER_NULL_KEYS = ["itemPool", "variations", "paths", "fass", "shared", "mwShared", "apExport", "playerNames", "worldSettings", "spawnWeights"]
 // accepts a full ?preset=owner:name url, the query alone, or a bare owner:name
 const parsePresetLink = (text) => {
     let raw = (text || "").trim()
@@ -992,7 +994,7 @@ export default class MainPage extends React.Component {
                 json.worldSettings = worlds
         }
         json.fass = []
-        this.state.fassList.forEach(fassEntry => {
+        ;(this.state.fassList || []).forEach(fassEntry => {
                 let world = fassEntry.world || 1
                 let owner = fassEntry.owner || world
                 // drop rows referencing players that no longer exist
@@ -1001,7 +1003,7 @@ export default class MainPage extends React.Component {
                 }
         });
         json.itemPool = {} //{"HC": 12, "EC": 15, "AC": 33, }
-        this.state.itemPool.forEach(({item, count, upTo}) => { json.itemPool[item] = upTo ? [count, upTo] : [count] })
+        ;(this.state.itemPool || []).forEach(({item, count, upTo}) => { json.itemPool[item] = upTo ? [count, upTo] : [count] })
         json.tracking = this.state.tracking
         if(this.state.tracking && this.state.players > 1) {
             json.coopGenMode=f(this.state.coopGenMode)
@@ -1085,6 +1087,9 @@ export default class MainPage extends React.Component {
             if(withLobby || !SSP_LOBBY_KEYS.includes(k))
                 update[k] = settings[k]
         })
+        // a blob can say null where the page keeps a list; the page's own value stays
+        for(let k of NEVER_NULL_KEYS)
+            if(update[k] === null) delete update[k]
         if(withLobby) {
             // the lobby half of acceptMetadata; only "Last Seed" gets here
             update.inputPlayerCount = update.players
@@ -1242,7 +1247,8 @@ export default class MainPage extends React.Component {
         this.restored = true
         // the toggle is about opening on it, not about keeping it: Last Seed stays
         // in the dropdown, and /reroll still has a seed to reroll
-        if(this.state.seedTabExists || this.sharedSsp || this.fromBingo || !this.restoreLastSeed)
+        // ?fresh is the crash page's way back in without the settings that broke it
+        if(this.state.seedTabExists || this.sharedSsp || this.fromBingo || !this.restoreLastSeed || get_flag("fresh"))
             return
         let latest = this.state.sspLatest, name = this.nameFor(latest, PRESET_LAST)
         // settings only, and silently: an auto-restore is not something the user just did

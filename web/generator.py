@@ -16,7 +16,7 @@ from models import Game, Player, User
 from seedbuilder.seedparams import SeedGenParams, seed_failure_reason, seed_mode_problem
 from seedbuilder.vanilla import seedtext as vanilla_seed
 import util
-from util import debug, param_flag, param_val
+from util import param_flag, param_val
 from bingo import bingo_board_url
 from web.extensions import oidc
 from web.responses import json_resp, text_download, text_resp, zip_download
@@ -144,7 +144,8 @@ def load_seed_from_params(params_id):
                     user.put()
         else:
             seed = params.get_seed(pid, verbose_paths=verbose_paths)
-        if not debug():
+        # a dev box is still a real site; ?text is the way to read a seed in the browser
+        if not param_flag("text"):
             return text_download(seed, 'randomizer.bfr')
         return text_resp(seed)
     else:

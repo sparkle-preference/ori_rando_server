@@ -3,14 +3,17 @@ maintenance endpoints Cloud Scheduler calls.
 """
 import logging as log
 
-from flask import Blueprint
+import collections
+import time
+
+from flask import Blueprint, request
 from google.cloud import ndb
 
 import util
 from cache import Cache
 from models import Game, User
 from pickups import Pickup
-from util import BETA_VER, MIN_VER, NETPERF_TAG, VER, param_flag, picks_by_type_generator
+from util import BETA_VER, MIN_VER, NETPERF_TAG, VER, debug, param_flag, picks_by_type_generator
 from web.responses import json_resp, make_resp, text_resp
 
 bp = Blueprint("meta", __name__)
@@ -73,3 +76,38 @@ def version_json():
         "minimum": "%s.%s.%s" % tuple(MIN_VER),
         "beta": "%s.%s.%s" % tuple(BETA_VER),
     })
+
+
+# Crash reports from the page. Beta and dev boxes only: prod logging is metered, and the
+# page shows the user what happened either way. A per-process budget keeps a looping
+# page from filling the log.
+CLIENT_ERROR_MAX_BYTES = 16 * 1024
+CLIENT_ERROR_BUDGET = (20, 600)
+_client_errors = collections.deque()
+
+
+def _client_error_allowed(now=None):
+    limit, window = CLIENT_ERROR_BUDGET
+    now = time.time() if now is None else now
+    while _client_errors and now - _client_errors[0] > window:
+        _client_errors.popleft()
+    if len(_client_errors) >= limit:
+        return False
+    _client_errors.append(now)
+    return True
+
+
+@bp.route('/client_error', methods=['POST'])
+def client_error():
+    if not (util.BETA_OF or debug()):
+        return make_resp("", 204)
+    if (request.content_length or 0) > CLIENT_ERROR_MAX_BYTES:
+        return make_resp("", 413)
+    if not _client_error_allowed():
+        return make_resp("", 429)
+    body = request.get_json(silent=True) or {}
+    text = lambda k, n=2000: str(body.get(k) or "")[:n]
+    log.error("CLIENTERR app=%s ver=%s kind=%s url=%s\nmsg=%s\nua=%s\n%s\n%s",
+              text("app", 40), text("version", 40), text("kind", 40), text("url", 300),
+              text("message", 500), text("ua", 300), text("stack", 4000), text("componentStack", 4000))
+    return make_resp("", 204)

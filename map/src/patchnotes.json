@@ -10,6 +10,68 @@
   ],
   "releases": [
       {
+        "version": "4.9.2",
+        "date": "2026-09-04",
+        "announce": "dev",
+        "changes": [
+          {
+            "text": "Touched pickups now actually dim on the map.",
+            "category": "Game",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Fixed Valley and Sorrow map tooltips.",
+            "category": "Game",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Fixed stray tooltip text overlapping the legend row at the bottom of the map.",
+            "category": "Game",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Fixed rendering for custom ability icons in the purple tree.",
+            "category": "Game",
+            "type": "fix",
+            "importance": "major"
+          },
+          {
+            "text": "Leaving the ability tree after a while no longer shows a false \"Not syncing\" warning.",
+            "category": "Game",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Fixed a bug where returning to the main game after a practice session could render the pause menu unusable until the game was restarted.",
+            "category": "Game",
+            "type": "fix",
+            "importance": "major"
+          },
+          {
+            "text": "Fixed a bug where the practice session file select horizontal scroll was secretly tied to the main game's file select scroll position.",
+            "category": "Game",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Seed links on the beta site download seeds instead of opening them as text.",
+            "category": "Website",
+            "type": "fix",
+            "importance": "major"
+          },
+          {
+            "text": "It's now harder for the main page to crash (and easier to debug if it does anyways).",
+            "category": "Website",
+            "type": "fix",
+            "importance": "major"
+          }
+
+        ]
+      },
+      {
         "version": "4.9.1",
         "date": "2026-09-04",
         "announce": "dev",

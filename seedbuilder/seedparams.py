@@ -573,7 +573,7 @@ class SeedGenParams(ndb.Model):
         return params.put()
 
     def to_json(self):
-        return {
+        out = {
             "players": self.players,
             "flagLine": self.flag_line(),
             "seed": self.seed,
@@ -626,6 +626,11 @@ class SeedGenParams(ndb.Model):
                         [{"loc": "2", "item": f"{self.spawn_placement.stuff[0].code}|{self.spawn_placement.stuff[0].id}"}] if (self.spawn_placement) else []))
                         # and then specifically also the spawn_placement at 2, because we can't rely on self.placements[2] because NEW THINGS GET ADDED by seedgen (sometimes)
         }
+        # an unset list is left out: the page keeps its own, a null would replace it
+        for k in ("itemPool", "spawnWeights", "playerNames", "variations", "paths"):
+            if out.get(k) is None:
+                out.pop(k, None)
+        return out
 
 
     def generate(self, preplaced={}):
