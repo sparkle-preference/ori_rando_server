@@ -145,7 +145,7 @@ def load_seed_from_params(params_id):
         else:
             seed = params.get_seed(pid, verbose_paths=verbose_paths)
         if not debug():
-            return text_download(seed, 'randomizer.dat')
+            return text_download(seed, 'randomizer.bfr')
         return text_resp(seed)
     else:
         return text_resp("Param %s not found" % params_id, 404)
@@ -250,7 +250,7 @@ def get_param_metadata(param_id, game_id):
 
 @bp.route('/vanilla')
 def get_vanilla_seed():
-    return text_download(vanilla_seed, "randomizer.dat")
+    return text_download(vanilla_seed, "randomizer.bfr")
 
 
 def _reroll(params):

@@ -60,7 +60,7 @@ class MultiworldLineTests(unittest.TestCase):
         cls.out = tempfile.mkdtemp(prefix="seedformat_")
         cls.worlds = [generate(cls.out, ["--players", "2", "--tracking", "--keymode", "clues",
                                          "--share-mode", "multiworld"],
-                               "randomizer_%s.dat" % p) for p in (1, 2)]
+                               "randomizer_%s.bfr" % p) for p in (1, 2)]
 
     @classmethod
     def tearDownClass(cls):
@@ -144,7 +144,7 @@ class WarpIdTests(unittest.TestCase):
         cls.worlds = [generate(cls.out, ["--players", "2", "--tracking", "--keymode", "clues",
                                          "--share-mode", "multiworld",
                                          "--warps-instead-of-tps", "9"],
-                               "randomizer_%s.dat" % p) for p in (1, 2)]
+                               "randomizer_%s.bfr" % p) for p in (1, 2)]
 
     @classmethod
     def tearDownClass(cls):
@@ -183,7 +183,7 @@ class SoloControlTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.out = tempfile.mkdtemp(prefix="seedformat_solo_")
-        cls.lines = generate(cls.out, [], "randomizer0.dat")
+        cls.lines = generate(cls.out, [], "randomizer0.bfr")
 
     @classmethod
     def tearDownClass(cls):

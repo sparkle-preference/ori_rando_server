@@ -301,7 +301,7 @@ export default class HelpAndGuides extends React.Component {
                             If you aren't using the Rando App:
                             <ol>
                                 <li>
-                                    Click the Download Seed button to get your seed file. It should download with the name "randomizer.dat".
+                                    Click the Download Seed button to get your seed file. It should download with the name "randomizer.bfr".
                                     <ul>
                                         <li><small>
                                             Tip: If you get stuck, open the in-game map. It's revealed from the start, and the In Logic
@@ -310,7 +310,7 @@ export default class HelpAndGuides extends React.Component {
                                     </ul>
                                 </li>
                                 <li>
-                                    Move your randomizer.dat file to the same folder OriDE.exe is in. (See the installation guide for more details on how to find this folder)
+                                    Move your randomizer.bfr file to the same folder OriDE.exe is in. (See the installation guide for more details on how to find this folder)
                                 </li>
                                 <li>
                                     You're all set! Launch the game and start a new save file to begin playing your seed.
@@ -688,7 +688,7 @@ export default class HelpAndGuides extends React.Component {
                             Wait for every world to report its item names, then download the seeds and hand them out.
                         </li>
                         <li>
-                            Ori players drop their randomizer.dat in the game folder and play as usual.
+                            Ori players drop their randomizer.bfr in the game folder and play as usual.
                         </li>
                     </ol>
                 </CardText>

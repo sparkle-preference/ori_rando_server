@@ -7,7 +7,7 @@ Repository for the [Ori DE Randomizer](https://orirando.com) server.
 This repository contains the UI and backend code for the Ori DE randomizer website. New players: check out the [quickstart page](https://orirando.com/quickstart). Help for the various seed generation settings can be found on by mousing over the relevant UI elements.
 
 ## Key Features
-* Seed Generator - Generates randomizer.dat seeds
+* Seed Generator - Generates randomizer.bfr seeds
 * Logic Helper - Simple interface to determine in-logic pickups based on current skills and resources. Manual
 * Online Tracking Map - Web-based live tracker showing current available pickups on the world map by updating to this server 
 * Plandomizer Builder - Tool to allow players to design and share custom logic seeds

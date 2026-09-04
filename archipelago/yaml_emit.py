@@ -6,7 +6,7 @@ keysanity keys) is pinned local so AP reachability mirrors the seed exactly.
 EX and bonus RBs never leave the seed and are invisible to AP.
 
 Run from repo root:
-  python -m archipelago.yaml_emit <randomizer.dat> <out.yaml> [slot_name]
+  python -m archipelago.yaml_emit <randomizer.bfr> <out.yaml> [slot_name]
 """
 import json
 import os
@@ -210,7 +210,7 @@ def emit_yaml(config, slot_name):
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:
-        sys.exit("usage: python -m archipelago.yaml_emit <randomizer.dat> <out.yaml> [slot_name]")
+        sys.exit("usage: python -m archipelago.yaml_emit <randomizer.bfr> <out.yaml> [slot_name]")
     seed_path, out_path = sys.argv[1], sys.argv[2]
     slot = sys.argv[3] if len(sys.argv) > 3 else "TestOriReal"
     with open(seed_path) as f:

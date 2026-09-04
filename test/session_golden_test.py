@@ -453,7 +453,7 @@ class TestConnect(SessionTestCase):
         p = make_player(1245, 1, can_nag=False)
         self.game = FakeGame(players={1: p})
         netcode.connect(1245, 1, {"seed": "Sync1245.2|stuff,line2"})
-        self.assertEqual(p.signals, [])  # shared teammates share one .dat: fine
+        self.assertEqual(p.signals, [])  # shared teammates share one seed file: fine
         self.game.mode = MultiplayerGameType.MULTIWORLD
         netcode.connect(1245, 1, {"seed": "Sync1245.2|stuff,line2"})
         self.assertEqual(len(p.signals), 1)

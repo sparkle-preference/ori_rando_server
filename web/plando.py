@@ -25,9 +25,9 @@ def export_files_for(user):
         files = {}
         if seed.players > 1:
             for pid in range(1, seed.players + 1):
-                files["player%s/randomizer.dat" % pid] = params.get_seed(pid)
+                files["player%s/randomizer.bfr" % pid] = params.get_seed(pid)
         else:
-            files["randomizer.dat"] = params.get_seed(1)
+            files["randomizer.bfr"] = params.get_seed(1)
         # prose gets CRLF, the same courtesy the spoiler download does
         if seed.description:
             files["description.txt"] = seed.description.replace("\n", "\r\n")

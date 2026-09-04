@@ -112,7 +112,7 @@ class UserExportTestCase(_BetaHarness):
         self.assertEqual(res.headers["Content-Type"], "application/zip")
         names = zipfile.ZipFile(io.BytesIO(res.data)).namelist()
         self.assertIn("presets.json", names)
-        self.assertIn("plandos/aplando/randomizer.dat", names)
+        self.assertIn("plandos/aplando/randomizer.bfr", names)
         self.assertIn("plandos/aplando/description.txt", names)
         self.assertIn("plandos/aplando/spoiler.txt", names)
 
@@ -122,7 +122,7 @@ class UserExportTestCase(_BetaHarness):
         self._seed_content(User.get_by_name(self._whoami(c)).key)
         res = self._req(c, "/user/export")
         dat = zipfile.ZipFile(io.BytesIO(res.data)).read(
-            "plandos/aplando/randomizer.dat").decode()
+            "plandos/aplando/randomizer.bfr").decode()
         self.assertTrue(dat.startswith("OpenWorld|aplando"), dat)
         self.assertIn("919772|SK|0|Glades", dat)
 
@@ -134,6 +134,6 @@ class UserExportTestCase(_BetaHarness):
              flags=["OpenWorld"], players=1).put()
         res = self._req(c, "/user/export")
         names = zipfile.ZipFile(io.BytesIO(res.data)).namelist()
-        self.assertIn("plandos/bare/randomizer.dat", names)
+        self.assertIn("plandos/bare/randomizer.bfr", names)
         self.assertNotIn("plandos/bare/description.txt", names)
         self.assertNotIn("plandos/bare/spoiler.txt", names)

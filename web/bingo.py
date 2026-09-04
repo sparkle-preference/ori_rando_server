@@ -291,7 +291,7 @@ def bingo_download_seed(game_id, player_id):
         return text_resp("No seed found for player %s.%s" % (game_id, player_id), 412)
 
     if not debug():
-        return text_download(seed, 'randomizer.dat')
+        return text_download(seed, 'randomizer.bfr')
     else:
         return text_resp(seed)
 

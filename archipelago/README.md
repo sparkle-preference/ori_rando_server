@@ -54,8 +54,8 @@ The test suite (must stay green; the AP tests are `ApModeGenTests`, `ApModeSoloT
 Differential logic check, when the rules or the graph move:
 
 ```powershell
-.venv312\Scripts\python.exe archipelago\difftest\compare.py <randomizer0.dat>   # writes report.txt
-.venv312\Scripts\python.exe archipelago\difftest\probes.py  <randomizer0.dat>   # writes probes.txt
+.venv312\Scripts\python.exe archipelago\difftest\compare.py <randomizer0.bfr>   # writes report.txt
+.venv312\Scripts\python.exe archipelago\difftest\probes.py  <randomizer0.bfr>   # writes probes.txt
 ```
 
 Release: the site serves the apworld itself (below), so deploying is the release. `dist/` is only for verifying

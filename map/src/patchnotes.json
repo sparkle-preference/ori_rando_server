@@ -95,6 +95,11 @@
             "importance": "major"
           },
           {
+            "text": "Seeds download as randomizer.bfr instead of randomizer.dat. The game reads either, and the Rando App already did.",
+            "category": "Website",
+            "importance": "minor"
+          },
+          {
             "text": "The plando editor handles multiworld: say which player an item is for, fill every world at once, and split a multipickup across worlds.",
             "category": "Website",
             "type": "feature",

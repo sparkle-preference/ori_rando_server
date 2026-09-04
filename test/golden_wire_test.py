@@ -349,7 +349,7 @@ class TestSeedSyncId(unittest.TestCase):
     """The setSeed upload parse: line 1's commas become pipes client-side and
     lines are joined with commas, so segment 0 is the whole first line. The
     caller (netcode_connect) warns on game mismatch in every mode, and on
-    player mismatch only in multiworld (teammates sharing one .dat in cloned
+    player mismatch only in multiworld (teammates sharing one seed file in cloned
     games is normal and harmless)."""
 
     def _upload(self, first_line, rest=("2|EC|1|Glades", "919772|EX|15|Glades")):

@@ -1753,7 +1753,7 @@ export default class MainPage extends React.Component {
                     {step(5, namesReady
                         ? "Item names are ready: download and distribute Ori seeds now."
                         : "Wait for every world below to report its item names, then download the seeds. Seeds downloaded early say \"AP Item #n\" instead of the real item.")}
-                    {step(6, "Ori players load their randomizer.dat files into the randomizer as usual and are ready to play.")}
+                    {step(6, "Ori players load their randomizer.bfr files into the randomizer as usual and are ready to play.")}
                     {worldVersion ? (
                         <Row className="p-1">
                             <Col className="text-center"><small className="text-muted">apworld {worldVersion}, seed data version {dataVersion}.</small></Col>

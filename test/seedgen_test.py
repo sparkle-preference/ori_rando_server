@@ -48,7 +48,7 @@ class SeedGenTests(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.out, ignore_errors=True)
 
-    def _generate(self, extra_args, seedfile="randomizer0.dat", spoilerfile="spoiler0.txt"):
+    def _generate(self, extra_args, seedfile="randomizer0.bfr", spoilerfile="spoiler0.txt"):
         argv = ["cli_gen", "--output-dir", self.out, "--preset", "standard",
                 "--open-world", "--force-trees", "--balanced", "--seed", "test"]
         argv += extra_args
@@ -136,13 +136,13 @@ class SeedGenTests(unittest.TestCase):
             params.from_cli()
         finally:
             sys.argv = old_argv
-        self.assertFalse(os.path.exists(os.path.join(self.out, "randomizer_1.dat")),
+        self.assertFalse(os.path.exists(os.path.join(self.out, "randomizer_1.bfr")),
                          "Seperate Seeds generation should be removed")
 
     def test_cloned_seeds_are_identical(self):
         lines = self._generate(["--players", "2", "--share-mode", "shared", "--cloned"],
-                               seedfile="randomizer_1.dat", spoilerfile="spoiler_1.txt")
-        with open(os.path.join(self.out, "randomizer_2.dat")) as f:
+                               seedfile="randomizer_1.bfr", spoilerfile="spoiler_1.txt")
+        with open(os.path.join(self.out, "randomizer_2.bfr")) as f:
             lines2 = f.read().splitlines()
         self.assertEqual(lines, lines2, "cloned seeds must be byte-identical")
         self.assertEqual([l for l in lines if "|MW|" in l], [], "no MW pickups outside multiworld mode")
@@ -188,7 +188,7 @@ class MultiworldGenTests(unittest.TestCase):
             CLISeedParams().from_cli()
         finally:
             sys.argv = old_argv
-        with open(os.path.join(cls.solo_out, "randomizer0.dat")) as f:
+        with open(os.path.join(cls.solo_out, "randomizer0.bfr")) as f:
             cls.solo_seed = f.read().splitlines()
 
     @classmethod
@@ -206,7 +206,7 @@ class MultiworldGenTests(unittest.TestCase):
             sys.argv = old_argv
         seeds = {}
         for p in range(1, cls.PLAYERS + 1):
-            path = os.path.join(outdir, "randomizer_%s.dat" % p)
+            path = os.path.join(outdir, "randomizer_%s.bfr" % p)
             assert os.path.exists(path), "no seed for player %s" % p
             with open(path) as f:
                 seeds[p] = f.read().splitlines()
@@ -360,7 +360,7 @@ class MultiworldSharedGenTests(unittest.TestCase):
             sys.argv = old_argv
         cls.seeds = {}
         for p in range(1, cls.PLAYERS + 1):
-            path = os.path.join(cls.out, "randomizer_%s.dat" % p)
+            path = os.path.join(cls.out, "randomizer_%s.bfr" % p)
             assert os.path.exists(path), "no seed for player %s" % p
             with open(path) as f:
                 cls.seeds[p] = f.read().splitlines()
@@ -447,7 +447,7 @@ class MultiworldPreplacementTests(unittest.TestCase):
             sys.argv = old_argv
         cls.seeds = {}
         for p in range(1, cls.PLAYERS + 1):
-            path = os.path.join(cls.out, "randomizer_%s.dat" % p)
+            path = os.path.join(cls.out, "randomizer_%s.bfr" % p)
             assert os.path.exists(path), "no seed for player %s" % p
             with open(path) as f:
                 cls.seeds[p] = f.read().splitlines()
@@ -532,7 +532,7 @@ class UnnameableItemWireTests(unittest.TestCase):
             sys.argv = old_argv
         seeds = {}
         for p in (1, 2, 3):
-            with open(os.path.join(outdir, "randomizer_%s.dat" % p)) as f:
+            with open(os.path.join(outdir, "randomizer_%s.bfr" % p)) as f:
                 seeds[p] = f.read().splitlines()
         return seeds
 
@@ -566,7 +566,7 @@ class GroupPlacementTests(unittest.TestCase):
             CLISeedParams().from_cli()
         finally:
             sys.argv = old_argv
-        path = os.path.join(outdir, "randomizer0.dat")
+        path = os.path.join(outdir, "randomizer0.bfr")
         self.assertTrue(os.path.exists(path), "no seed produced")
         with open(path) as f:
             lines = f.read().splitlines()
@@ -615,7 +615,7 @@ class GroupPlacementTests(unittest.TestCase):
         finally:
             SeedGenerator.setSeedAndPlaceItems = orig
             sys.argv = old_argv
-        path = os.path.join(outdir, "randomizer0.dat")
+        path = os.path.join(outdir, "randomizer0.bfr")
         self.assertTrue(os.path.exists(path), "no seed produced")
         with open(path) as f:
             lines = f.read().splitlines()
@@ -644,7 +644,7 @@ class GroupPlacementTests(unittest.TestCase):
             CLISeedParams().from_cli()
         finally:
             sys.argv = old_argv
-        with open(os.path.join(outdir, "randomizer0.dat")) as f:
+        with open(os.path.join(outdir, "randomizer0.bfr")) as f:
             lines = f.read().splitlines()
         self.assertEqual([l for l in lines if "RG" in l], [], "RG leaked into the seed")
         placements, _ = parse_seed(lines)
@@ -673,7 +673,7 @@ class BuriedPlacementTests(unittest.TestCase):
 
     BURIED = 20000000
 
-    def _gen_with_records(self, extra, seedfiles=("randomizer0.dat",), classic=True):
+    def _gen_with_records(self, extra, seedfiles=("randomizer0.bfr",), classic=True):
         """Generate and also record (tagged item, reachable-loc-count) at
         every assignment. -> (records, {seedfile: lines})
 
@@ -714,7 +714,7 @@ class BuriedPlacementTests(unittest.TestCase):
     def test_buried_item_stays_buried(self):
         records, seeds = self._gen_with_records(["--fass", "%s:SK51" % (self.BURIED + 150)])
         self.assertGreaterEqual(min(self._depths(records, "Grenade|1")), 150)
-        placements, _ = parse_seed(seeds["randomizer0.dat"])
+        placements, _ = parse_seed(seeds["randomizer0.bfr"])
         grenades = [1 for (c, i, z) in placements.values() if (c, i) == ("SK", "51")]
         self.assertEqual(len(grenades), 1, "buried Grenade should still be placed exactly once")
 
@@ -729,7 +729,7 @@ class BuriedPlacementTests(unittest.TestCase):
         records, seeds = self._gen_with_records(["--fass", "%s:SK51" % (self.BURIED + 150)],
                                                 classic=False)
         self.assertGreaterEqual(min(self._depths(records, "Grenade|1")), 150)
-        placements, _ = parse_seed(seeds["randomizer0.dat"])
+        placements, _ = parse_seed(seeds["randomizer0.bfr"])
         grenades = [1 for (c, i, z) in placements.values() if (c, i) == ("SK", "51")]
         self.assertEqual(len(grenades), 1)
 
@@ -743,7 +743,7 @@ class BuriedPlacementTests(unittest.TestCase):
         the pool can't fund must not be recorded at all."""
         records, seeds = self._gen_with_records(
             ["--fass", "%s:SK51|%s:SK51" % (self.BURIED + 100, self.BURIED + 150)])
-        placements, _ = parse_seed(seeds["randomizer0.dat"])
+        placements, _ = parse_seed(seeds["randomizer0.bfr"])
         # the pool holds one Grenade, so the second burial has nothing to take
         grenades = [1 for (c, i, z) in placements.values() if (c, i) == ("SK", "51")]
         self.assertEqual(len(grenades), 1,
@@ -765,7 +765,7 @@ class BuriedPlacementTests(unittest.TestCase):
             ["--start", "Grotto", "--starting-health", "3", "--starting-energy", "1",
              "--starting-skills", "3", "--fass",
              "%s:MUSK/3/SK/12/SK/51" % (self.BURIED + 100)])
-        placements, _ = parse_seed(seeds["randomizer0.dat"])
+        placements, _ = parse_seed(seeds["randomizer0.bfr"])
         spawn = placements.get(2)
         self.assertIsNotNone(spawn, "no spawn line")
         self.assertTrue(drawn and drawn[0], "the burial was never consulted")
@@ -784,7 +784,7 @@ class BuriedPlacementTests(unittest.TestCase):
             ["--start", "Grotto", "--starting-health", "3", "--starting-energy", "1",
              "--starting-skills", "1",
              "--fass", "%s:MUTP/Grotto/TP/Swamp" % (self.BURIED + 100)])
-        placements, _ = parse_seed(seeds["randomizer0.dat"])
+        placements, _ = parse_seed(seeds["randomizer0.bfr"])
         spawn = placements.get(2)
         self.assertIsNotNone(spawn, "no spawn line")
         self.assertIn("TP/Grotto", spawn[1], "a Grotto spawn grants its teleporter")
@@ -802,12 +802,12 @@ class BuriedPlacementTests(unittest.TestCase):
         records, seeds = self._gen_with_records(
             ["--balanced", "--players", "2", "--share-mode", "multiworld",
              "--fass", "%s:SK51@2" % (self.BURIED + 100)],
-            seedfiles=("randomizer_1.dat", "randomizer_2.dat"))
+            seedfiles=("randomizer_1.bfr", "randomizer_2.bfr"))
         self.assertGreaterEqual(min(self._depths(records, "Grenade|2")), 100)
-        check_mw_invariants(self, {1: seeds["randomizer_1.dat"], 2: seeds["randomizer_2.dat"]})
+        check_mw_invariants(self, {1: seeds["randomizer_1.bfr"], 2: seeds["randomizer_2.bfr"]})
         # P2's pool copy was consumed: exactly one Grenade for P2 anywhere
         n = 0
-        for p, sf in ((1, "randomizer_1.dat"), (2, "randomizer_2.dat")):
+        for p, sf in ((1, "randomizer_1.bfr"), (2, "randomizer_2.bfr")):
             placements, manifest = parse_seed(seeds[sf])
             if p == 2:
                 n += sum(1 for (c, i, z) in placements.values() if (c, i) == ("SK", "51"))
@@ -975,7 +975,7 @@ class MultiworldLocalizeGenTests(unittest.TestCase):
         seeds = {}
         try:
             for p in range(1, cls.PLAYERS + 1):
-                with open(os.path.join(outdir, "randomizer_%s.dat" % p)) as f:
+                with open(os.path.join(outdir, "randomizer_%s.bfr" % p)) as f:
                     seeds[p] = f.read().splitlines()
         finally:
             shutil.rmtree(outdir, ignore_errors=True)
@@ -1574,7 +1574,7 @@ class MultiworldOptionsTests(unittest.TestCase):
             sys.argv = old_argv
         seeds = {}
         for p in range(1, self.PLAYERS + 1):
-            path = os.path.join(outdir, "randomizer_%s.dat" % p)
+            path = os.path.join(outdir, "randomizer_%s.bfr" % p)
             self.assertTrue(os.path.exists(path), "no seed for player %s with %s" % (p, extra))
             with open(path) as f:
                 seeds[p] = f.read().splitlines()
@@ -1797,7 +1797,7 @@ def generate_ap(outdir, players, ap_export, seed="apgen2", extra=()):
         sys.argv = old_argv
     seeds, yamls = {}, {}
     for p in range(1, players + 1):
-        datfile = "randomizer_%s.dat" % p if players > 1 else "randomizer0.dat"
+        datfile = "randomizer_%s.bfr" % p if players > 1 else "randomizer0.bfr"
         path = os.path.join(outdir, datfile)
         assert os.path.exists(path), "no seed for player %s" % p
         with open(path) as f:
@@ -3151,7 +3151,7 @@ class MixedWorldSettingsTests(unittest.TestCase):
             sys.argv = old_argv
         cls.seeds = {}
         for p in (1, 2):
-            path = os.path.join(cls.out, "randomizer_%s.dat" % p)
+            path = os.path.join(cls.out, "randomizer_%s.bfr" % p)
             assert os.path.exists(path), "no seed for player %s" % p
             with open(path) as f:
                 cls.seeds[p] = f.read().splitlines()
@@ -3192,7 +3192,7 @@ class MixedWorldSettingsTests(unittest.TestCase):
                     "--world-settings", json.dumps([{}, {"keyMode": "Shards"}])]
         try:
             CLISeedParams().from_cli()
-            with open(os.path.join(out, "randomizer_1.dat")) as f:
+            with open(os.path.join(out, "randomizer_1.bfr")) as f:
                 first = f.read().splitlines()[0]
             self.assertIn("Clues", first)
         finally:
@@ -3218,7 +3218,7 @@ class MixedLimitKeysTests(unittest.TestCase):
             sys.argv = old_argv
         cls.seeds = {}
         for p in (1, 2):
-            with open(os.path.join(cls.out, "randomizer_%s.dat" % p)) as f:
+            with open(os.path.join(cls.out, "randomizer_%s.bfr" % p)) as f:
                 cls.seeds[p] = f.read().splitlines()
 
     @classmethod
@@ -3286,7 +3286,7 @@ class PerWorldExpPoolTests(unittest.TestCase):
             sys.argv = old_argv
         cls.seeds = {}
         for p in (1, 2):
-            with open(os.path.join(cls.out, "randomizer_%s.dat" % p)) as f:
+            with open(os.path.join(cls.out, "randomizer_%s.bfr" % p)) as f:
                 cls.seeds[p] = f.read().splitlines()
 
     @classmethod
@@ -3340,7 +3340,7 @@ class PerWorldItemPoolTests(unittest.TestCase):
             sys.argv = old_argv
         cls.seeds = {}
         for p in (1, 2):
-            with open(os.path.join(cls.out, "randomizer_%s.dat" % p)) as f:
+            with open(os.path.join(cls.out, "randomizer_%s.bfr" % p)) as f:
                 cls.seeds[p] = f.read().splitlines()
 
     @classmethod
