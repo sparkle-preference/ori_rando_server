@@ -95,6 +95,15 @@
             "importance": "major"
           },
           {
+            "text": "Rainbow Dash: sparkles and rainbows on every dash, purely cosmetic. Off unless you turn it on.",
+            "category": "Game",
+            "type": "feature",
+            "importance": "minor",
+            "sub": [
+              "Setting: Rainbow Dash, also in the in-game options."
+            ]
+          },
+          {
             "text": "Seeds download as randomizer.bfr instead of randomizer.dat. The game reads either, and the Rando App already did.",
             "category": "Website",
             "importance": "minor"
