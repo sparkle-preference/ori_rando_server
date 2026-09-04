@@ -21,7 +21,7 @@
             "importance": "major",
             "sub": [
 
-              "Alt+S saves the current game as a segment (bind: Create Practice Segment).",
+              "Alt+M saves the current game as a segment (bind: Create Practice Segment).",
               "Goal, death and hint boxes are drawn in the game; what ends the run, item boxes, shuffled pickups and variants are edited on a page the game opens in your browser.",
               "Settings: Practice Folder, Practice Ghost, Practice Timer. The [full guide](/faq?g=practice) has the details."
             ]
