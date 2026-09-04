@@ -12,7 +12,7 @@
       {
         "version": "4.9.1",
         "date": "2026-09-04",
-        "announce": "none",
+        "announce": "dev",
         "changes": [
           {
             "text": "Added practice mode - run a saved stretch of the game with a built-in timer and a ghost of your best attempt.",
