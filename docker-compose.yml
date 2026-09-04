@@ -92,6 +92,8 @@ services:
       # the dll is only ever pushed at release, so both boxes serve the same one
       DLL_BRANCH: "${DLL_BRANCH:-master}"
       CANONICAL_HOST: "${CANONICAL_HOST:-}"
+      # the beta announces to the dev channel only; unset means it never posts
+      PATCHNOTES_WEBHOOK_DEV: "${PATCHNOTES_WEBHOOK_DEV:-}"
     ports:
       - "${PARKED_PORT:-8090}:5000"
     working_dir: "/app"
