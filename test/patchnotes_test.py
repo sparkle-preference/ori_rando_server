@@ -9,6 +9,7 @@ import os
 import unittest
 from html import escape
 
+import main
 import util
 from web import patchnotes as pn
 
@@ -222,3 +223,79 @@ class LinkTestCase(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AnnounceBaseTestCase(unittest.TestCase):
+    """Where a posted note points. The embed outlives the request that sent it,
+    so it must not carry whichever host happened to trigger the announce."""
+
+    def setUp(self):
+        self._canon = util.CANONICAL_HOST
+
+    def tearDown(self):
+        util.CANONICAL_HOST = self._canon
+
+    def base_for(self, host):
+        with main.app.test_request_context("/", base_url=host):
+            return pn.announce_base()
+
+    def test_the_canonical_host_wins_when_it_is_set(self):
+        util.CANONICAL_HOST = "bf.orirando.com"
+        self.assertEqual(self.base_for("http://localhost:8080"), "https://bf.orirando.com")
+
+    def test_without_one_it_takes_the_host_it_was_asked_on(self):
+        util.CANONICAL_HOST = ""
+        self.assertEqual(self.base_for("https://bfdev.eiko.blue"), "https://bfdev.eiko.blue")
+
+    def test_a_local_host_is_not_somewhere_to_send_people(self):
+        for host in ("http://localhost:8080", "http://127.0.0.1", "http://0.0.0.0:5000",
+                     "http://box.local"):
+            util.CANONICAL_HOST = ""
+            self.assertFalse(pn.is_public(self.base_for(host)), host)
+
+    def test_a_real_host_is(self):
+        for host in ("https://orirando.com", "https://bfdev.eiko.blue", "http://bf.orirando.com:8080"):
+            util.CANONICAL_HOST = ""
+            self.assertTrue(pn.is_public(self.base_for(host)), host)
+
+
+class AnnounceOnFirstRequestTestCase(unittest.TestCase):
+    """The flag is set before the POST so a failure cannot retry forever -- which
+    also means whichever request fires first decides the links for the process."""
+
+    def setUp(self):
+        self._canon, self._checked = util.CANONICAL_HOST, pn._announce_checked
+        self._main, self._dev = util.PATCHNOTES_WEBHOOK_MAIN, util.PATCHNOTES_WEBHOOK_DEV
+        self._announce = pn.announce_patchnotes
+        util.CANONICAL_HOST = ""
+        util.PATCHNOTES_WEBHOOK_MAIN = "https://discord.example/hook"
+        pn._announce_checked = False
+        self.bases = []
+        pn.announce_patchnotes = lambda base, **kw: self.bases.append(base)
+
+    def tearDown(self):
+        pn.announce_patchnotes = self._announce
+        util.PATCHNOTES_WEBHOOK_MAIN, util.PATCHNOTES_WEBHOOK_DEV = self._main, self._dev
+        util.CANONICAL_HOST, pn._announce_checked = self._canon, self._checked
+
+    def fire(self, host, path="/"):
+        with main.app.test_request_context(path, base_url=host):
+            pn.announce_on_first_request()
+
+    def test_a_health_check_does_not_get_to_pick_the_link(self):
+        self.fire("http://localhost:8080")
+        self.assertEqual(self.bases, [])
+        self.assertFalse(pn._announce_checked, "a local hit must not burn the one shot")
+        # the browser request that follows still announces, and to a real host
+        self.fire("https://bfdev.eiko.blue")
+        self.assertEqual(self.bases, ["https://bfdev.eiko.blue"])
+
+    def test_it_still_runs_once_only(self):
+        self.fire("https://bfdev.eiko.blue")
+        self.fire("https://bfdev.eiko.blue")
+        self.assertEqual(self.bases, ["https://bfdev.eiko.blue"])
+
+    def test_netcode_never_pays_for_the_webhook(self):
+        self.fire("https://bfdev.eiko.blue", "/netcode/game/1/player/1/tick")
+        self.assertEqual(self.bases, [])
+        self.assertFalse(pn._announce_checked)

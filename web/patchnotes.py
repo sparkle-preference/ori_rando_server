@@ -159,6 +159,24 @@ def site_only_note(version):
     return "(this is a site-only update. %s is still the latest dll)" % ".".join(parts[:3])
 
 
+# A note's links outlive the request that posted them, so they may not carry the
+# host that happened to trigger the announce.
+LOCAL_HOSTS = ("localhost", "127.0.0.1", "0.0.0.0", "[::1]", "::1")
+
+
+def announce_base():
+    """Where a patch note should point people. CANONICAL_HOST is often unset,
+    so the host the request arrived on is the fallback."""
+    if util.CANONICAL_HOST:
+        return "https://%s" % util.CANONICAL_HOST
+    return request.host_url.rstrip("/")
+
+
+def is_public(base):
+    """A health check or a local probe arrives on a host nobody else can reach."""
+    host = base.split("://", 1)[-1].split("/")[0].rsplit(":", 1)[0]
+    return host not in LOCAL_HOSTS and not host.endswith(".local")
+
 def announce_embed(release, base, everything=False):
     # the dev channel takes the whole list: it is the audience that wants the
     # minor entries, and a dev-only release is often all minor
@@ -252,9 +270,15 @@ def announce_on_first_request():
     # let a browser request be the one that pays for it
     if request.path.startswith("/netcode/"):
         return
+    # a health check's host would put localhost in front of a whole channel, and
+    # the flag below makes that permanent for the process. Leave it for a request
+    # that arrived somewhere people can actually reach.
+    base = announce_base()
+    if not is_public(base):
+        return
     _announce_checked = True  # set first: a failure must not retry every request
     try:
-        announce_patchnotes(request.host_url.rstrip("/"))
+        announce_patchnotes(base)
     except Exception:
         log.exception("patchnotes: announce check failed")
 
@@ -272,7 +296,7 @@ def patchnotes_announce():
     if channel != "all" and channel not in ANNOUNCE_CHANNELS:
         return text_resp("channel must be all, %s" % ", ".join(ANNOUNCE_CHANNELS), 400)
     try:
-        result = announce_patchnotes(request.host_url.rstrip("/"), force=param_flag("force"),
+        result = announce_patchnotes(announce_base(), force=param_flag("force"),
                                      channels=None if channel == "all" else {channel})
     except PatchnotesMissing as e:
         return text_resp(str(e), 503)
@@ -287,9 +311,7 @@ def patchnotes_feed():
         doc = patchnotes_doc()
     except PatchnotesMissing as e:
         return text_resp(str(e), 503)
-    # CANONICAL_HOST is an env var that is often unset, so fall back to whatever
-    # host the feed was actually fetched from rather than emitting "https:///".
-    base = ("https://%s" % util.CANONICAL_HOST) if util.CANONICAL_HOST else request.host_url.rstrip("/")
+    base = announce_base()
     releases = doc["releases"][:25]
 
     def entry(r):
