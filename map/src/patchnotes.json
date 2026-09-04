@@ -13,9 +13,10 @@
         "version": "4.9.1",
         "date": "2026-09-04",
         "announce": "dev",
+        "title": "5.0 Beta!",
         "changes": [
           {
-            "text": "Added practice mode - run a saved stretch of the game with a built-in timer and a ghost of your best attempt.",
+            "text": "Added practice mode, a brand new tool inspired by Torin's practice dll!.",
             "category": "Game",
             "type": "feature",
             "importance": "major",
@@ -32,12 +33,12 @@
             "importance": "major",
             "sub": [
               "The default bind is your Bash button - reconfigure in RandomizerRebinding.txt as necessary.",
-              "The duration of hold required and the color of custom warps on the , Warp Teleporter Color.",
+              "The hold duration before warping and the color of custom warps are both configurable in your settings.",
               "(You can still warp using the Alt+R world-map-with-spirit-wells interface for it)."
             ]
           },
           {
-            "text": "Almost every randomizer setting is now editable via the in-game options menu, colours included. Changes apply right away.",
+            "text": "Almost every randomizer setting is now editable via the in-game options menu, colors included. Changes apply right away.",
             "category": "Game",
             "type": "feature",
             "importance": "major"
