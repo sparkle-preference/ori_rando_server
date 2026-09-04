@@ -10,8 +10,8 @@
   ],
   "releases": [
       {
-        "version": "4.9.0",
-        "date": "2026-09-03",
+        "version": "4.9.1",
+        "date": "2026-09-04",
         "announce": "none",
         "changes": [
           {
@@ -20,10 +20,9 @@
             "type": "feature",
             "importance": "major",
             "sub": [
-
-              "Alt+M saves the current game as a segment (bind: Create Practice Segment).",
-              "Goal, death and hint boxes are drawn in the game; what ends the run, item boxes, shuffled pickups and variants are edited on a page the game opens in your browser.",
-              "Settings: Practice Folder, Practice Ghost, Practice Timer. The [full guide](/faq?g=practice) has the details."
+              "Alt+M from the main game creates a new practice segment from your current save.",
+              "Select Practice from the main menu, load the scenario, and press escape to begin editing.",
+              "Read all about it in [the guide](/faq?g=practice)."
             ]
           },
           {
