@@ -159,6 +159,18 @@
             "importance": "minor"
           },
           {
+            "text": "Map Markers (purple tree ability) has been replaced replaced with Drop Efficiency, which increases the likelihood of health and energy drops.",
+            "category": "Game",
+            "type": "feature",
+            "importance": "major"
+          },
+          {
+            "text": "Added new icons for the purple tree abilities reworked for the randomizer.",
+            "category": "Game",
+            "type": "feature",
+            "importance": "minor"
+          },
+          {
             "text": "Keysanity formatting fixes for the rare cases where a player has extra keys for a door.",
             "category": "Game",
             "type": "fix",
