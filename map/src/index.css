@@ -244,12 +244,16 @@ body, #root {
   margin-top: 10px;
 }
 
-/* the four controls stay on one line */
+/* the four base controls fit one line; the bulk pair deliberately wraps to a second */
 #box-controls .box-buttons {
   display: flex;
   align-items: center;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: 4px;
+}
+
+#box-controls .box-bulk-type {
+  width: 112px;
 }
 
 #box-controls .box-buttons .btn {

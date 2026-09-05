@@ -1,7 +1,7 @@
 import './index.css';
 import React from 'react';
 import he from 'he';
-import { ZoomControl, Map, Tooltip, TileLayer, Rectangle, Marker} from 'react-leaflet';
+import { ZoomControl, Map, Pane, Tooltip, TileLayer, Rectangle, Marker} from 'react-leaflet';
 import Leaflet from 'leaflet';
 import {NotificationContainer, NotificationManager} from 'react-notifications';
 import 'react-notifications/lib/notifications.css';
@@ -61,6 +61,15 @@ const DEFAULT_DATA = {
 // the corner of a box, while boxes are being edited on the map
 const HANDLE_ICON = Leaflet.divIcon({className: "box-handle", iconSize: [10, 10]})
 const HANDLE_ICON_SELECTED = Leaflet.divIcon({className: "box-handle box-handle-selected", iconSize: [10, 10]})
+
+// Locking one box at a time is fine until there are a lot of them; below this many
+// the bulk row is only a second line of buttons to read past.
+const BULK_LOCK_MIN = 20
+// 300ms of ease-in-out, by hand: scrollIntoView jumps and behavior:"smooth" is not
+// honoured everywhere
+const SCROLL_MS = 300
+const easeInOut = (p) => p < 0.5 ? 4 * p * p * p : 1 - Math.pow(2 - 2 * p, 3) / 2
+const BULK_TYPES = [{label: "ALL", value: "all"}, ...BOX_TYPES]
 
 const FORMAT_LINES = `Message format:
 \\n: linebreak
@@ -260,7 +269,7 @@ class PlandoBuiler extends React.Component {
                   pickups: ["EX", "Ma", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "CS"], display_fill: false, display_import: false, display_logic: false, display_coop: false, display_meta: false,
                   entrances: {1: {}}, display_entrances: false, entrance_from: {value: "", label: ""}, entrance_to: {value: "", label: ""},
                   boxes: {1: []}, display_boxes: false, box_edit: false, box_type: "kill",
-                  box_show_locked: true, box_selected: null,
+                  box_show_locked: true, box_selected: null, box_bulk_type: BULK_TYPES[0], box_rank: {},
                   import_overwrite: false,
                 seed_name: seed_name, last_seed_name: seed_name, seed_desc: seed_desc, user: user};
     }
@@ -586,6 +595,12 @@ class PlandoBuiler extends React.Component {
             boxes[entry['player']].push(box)
         })
         retVal.boxes = boxes
+        // A loaded seed lists its locked boxes last. Display only: the client assigns an
+        // item box's save bit from its position, so the saved order stays as written.
+        retVal.box_rank = {}
+        Object.keys(boxes).forEach(p => boxes[p].map((b, i) => ({b, i}))
+            .sort((x, y) => (x.b.locked ? 1 : 0) - (y.b.locked ? 1 : 0) || x.i - y.i)
+            .forEach(({b}, r) => { retVal.box_rank[b._id] = r }))
         if(newClueOrder.length === 3)
             retVal.clueOrder = {value: newClueOrder, label: mkClueOrderLabel(newClueOrder)};
         this.setState(retVal, () => this.updateReachable());
@@ -986,12 +1001,36 @@ class PlandoBuiler extends React.Component {
         this.setBoxes([box, ...this.curBoxes()])
         this.setState({display_boxes: true, box_selected: box._id})
     };
+    // one pass, so a bulk lock is a single render rather than one per box
+    bulkMatch = (b) => this.state.box_bulk_type.value === "all" || b.type === this.state.box_bulk_type.value;
+    bulkLock = (lock) => () => this.setBoxes(this.curBoxes().map(b => this.bulkMatch(b) ? {...b, locked: lock} : b));
     boxRows = {};
     selectBox = (id, scroll) => this.setState({box_selected: id, display_boxes: true}, () => {
-        let row = scroll ? this.boxRows[id] : null
-        if(row)
-            row.scrollIntoView({block: "nearest"})
+        if(scroll)
+            this.scrollToRow(this.boxRows[id])
     });
+    // as little travel as brings the row into view, eased over SCROLL_MS
+    scrollToRow = (row) => {
+        let panel = row ? row.closest(".controls") : null
+        if(!panel)
+            return
+        let from = panel.scrollTop
+        let top = row.getBoundingClientRect().top - panel.getBoundingClientRect().top + from
+        let to = top < from ? top
+               : (top + row.offsetHeight > from + panel.clientHeight ? top + row.offsetHeight - panel.clientHeight : from)
+        if(to === from)
+            return
+        cancelAnimationFrame(this.scrollAnim)
+        let started = null
+        let step = (now) => {
+            started = started || now
+            let p = Math.min((now - started) / SCROLL_MS, 1)
+            panel.scrollTop = from + (to - from) * easeInOut(p)
+            if(p < 1)
+                this.scrollAnim = requestAnimationFrame(step)
+        }
+        this.scrollAnim = requestAnimationFrame(step)
+    };
     // Leaflet gives the click to the rectangle it drew last, so pick again:
     // the smallest box holding the point, unlocked first.
     selectBoxAt = (ev) => {
@@ -1151,30 +1190,42 @@ class PlandoBuiler extends React.Component {
         // what an overwriting import would replace, so the choice is made knowing the cost
         const placed_here = Object.keys(this.state.placements[this.state.player] || {}).length
         const pickup_markers = ( <PickupMarkersList markers={getPickupMarkers(this.state, this.selectPickupCurry, searchStr)} />)
-        // i stays the index into curBoxes(): every box handler is index-keyed.
-        const shown_boxes = this.curBoxes().map((b, i) => ({b, i})).filter(({b}) => box_show_locked || !b.locked)
-        // the current player's boxes, with corner handles while they are being edited
-        const box_shapes = shown_boxes.map(({b, i}) => {
+        // i stays the index into curBoxes(); rank is only what order they are shown in, and
+        // a box added since the load has none, so it sorts to the top where it was put
+        const box_rank = (b) => this.state.box_rank[b._id] !== undefined ? this.state.box_rank[b._id] : -1
+        const all_boxes = this.curBoxes().map((b, i) => ({b, i})).sort((x, y) => box_rank(x.b) - box_rank(y.b))
+        const shown_boxes = all_boxes.filter(({b}) => box_show_locked || !b.locked)
+        // a box set invisible in game still draws here, faint and underneath
+        const box_dim = (b) => b.color === "none" || b.color === "0"
+        const box_rect = ({b, i}) => {
             let bounds = [[Math.min(b.box[1], b.box[3]), Math.min(b.box[0], b.box[2])], [Math.max(b.box[1], b.box[3]), Math.max(b.box[0], b.box[2])]]
             let selected = b._id === box_selected
-            let editable = box_edit && !b.locked
-            let shapes = [(
+            return (
                 <Rectangle key={`box-${b._id}`} bounds={bounds} color={box_colour(b)} weight={selected ? 4 : 2}
-                           opacity={b.locked ? 0.4 : 1} fillOpacity={b.locked ? 0.05 : (box_edit ? 0.3 : 0.15)}
-                           dashArray={b.color === "none" || b.color === "0" ? "4 4" : null}
-                           onClick={this.selectBoxAt} onMousedown={editable ? this.startBoxDrag(i) : undefined}>
+                           opacity={box_dim(b) ? 0.3 : (b.locked ? 0.4 : 1)}
+                           fillOpacity={box_dim(b) || b.locked ? 0.05 : (box_edit ? 0.3 : 0.15)}
+                           dashArray={box_dim(b) ? "4 4" : null}
+                           onClick={this.selectBoxAt} onMousedown={box_edit && !b.locked ? this.startBoxDrag(i) : undefined}>
                     {/* the tooltip wants one element child; a bare string throws on open */}
                     <Tooltip sticky={true}><span>{box_label(b)}{b.locked ? " (locked)" : ""}</span></Tooltip>
                 </Rectangle>
-            )]
-            if(editable) {
-                let xs = [b.box[0], b.box[2], b.box[2], b.box[0]], ys = [b.box[1], b.box[1], b.box[3], b.box[3]]
-                for(let k = 0; k < 4; k++)
-                    shapes.push(<Marker key={`box-${b._id}-${k}`} position={[ys[k], xs[k]]} draggable={true} icon={selected ? HANDLE_ICON_SELECTED : HANDLE_ICON} onDrag={this.dragCorner(i, k)} onDragend={() => this.tidyBox(i)} />)
-            }
-            return shapes
+            )
+        }
+        // The handles stay out of that pane: they live in the marker pane, above everything,
+        // which is where something you are meant to grab belongs.
+        const box_handles = shown_boxes.filter(({b}) => box_edit && !b.locked).map(({b, i}) => {
+            let selected = b._id === box_selected
+            let xs = [b.box[0], b.box[2], b.box[2], b.box[0]], ys = [b.box[1], b.box[1], b.box[3], b.box[3]]
+            return [0, 1, 2, 3].map(k => (
+                <Marker key={`box-${b._id}-${k}`} position={[ys[k], xs[k]]} draggable={true} icon={selected ? HANDLE_ICON_SELECTED : HANDLE_ICON}
+                        onDrag={this.dragCorner(i, k)} onDragend={() => this.tidyBox(i)} />
+            ))
         })
         const box_count = shown_boxes.length === this.curBoxes().length ? `${this.curBoxes().length}` : `${shown_boxes.length}/${this.curBoxes().length}`
+        // The verb is whichever one has anything left to do. every() on nothing is true,
+        // so an empty match has to be spelled out or it offers to unlock what isn't there.
+        const bulk_targets = this.curBoxes().filter(this.bulkMatch)
+        const bulk_locking = !bulk_targets.length || !bulk_targets.every(b => b.locked)
         const zone_opts = zones.map(zone => ({label: zone, value: zone}))
         const pickups_opts = picks_by_zone[this.state.zone].map(pick => ({label: locLabel(pick),value: pick}) )
         let clue_order_picker = seedFlags.map(f => f.value).includes("Clues") ? (
@@ -1217,7 +1268,13 @@ class PlandoBuiler extends React.Component {
 
                     <TileLayer url=' https://ori-tracker.firebaseapp.com/images/ori-map/{z}/{x}/{y}.png' noWrap='true' maxNativeZoom={TILE_MAX_ZOOM} maxZoom={TILE_MAX_ZOOM + 2}  />
                     {pickup_markers}
-                    {box_shapes}
+                    {/* leaflet draws in the order layers were added, not the order react lists
+                        them, so a pane below the overlay is what puts these underneath */}
+                    <Pane name="box-hidden" style={{zIndex: 390}}>
+                        {shown_boxes.filter(({b}) => box_dim(b)).map(box_rect)}
+                    </Pane>
+                    {shown_boxes.filter(({b}) => !box_dim(b)).map(box_rect)}
+                    {box_handles}
                 </Map>
                 <div className="controls">
                 {alert}
@@ -1344,10 +1401,20 @@ class PlandoBuiler extends React.Component {
                                     onClick={() => this.setState({box_show_locked: !box_show_locked})}>
                                 {box_show_locked ? "Hide" : "Show"} Locked
                             </Button>
+                            {this.curBoxes().length >= BULK_LOCK_MIN ? (
+                                <React.Fragment>
+                                    <Button color="secondary" disabled={!bulk_targets.length} onClick={this.bulkLock(bulk_locking)}
+                                            title={`${bulk_locking ? "Lock" : "Unlock"} every ${this.state.box_bulk_type.value === "all" ? "" : this.state.box_bulk_type.label + " "}box in this world`}>
+                                        {bulk_locking ? "Lock" : "Unlock"} {this.state.box_bulk_type.label} boxes
+                                    </Button>
+                                    <Select styles={select_styles} className="box-bulk-type" options={BULK_TYPES} clearable={false}
+                                            value={this.state.box_bulk_type} onChange={(n) => this.setState({box_bulk_type: n})}/>
+                                </React.Fragment>
+                            ) : null}
                         </div>
                         <Collapse id="box-wrapper" isOpen={this.state.display_boxes}>
                             <div className="box-help">A kill box kills, a solid box is a block to stand on, an item box gives its pickup once (a message is SH|text) and an Item (RP) box every entry. With editing on, drag a box to move it and a corner to resize it.</div>
-                            {this.curBoxes().map((b, i) => {
+                            {all_boxes.map(({b, i}) => {
                             // a locked row folds away instead of vanishing; Collapse measures
                             // the real height, so an item row's picker animates as well
                             let row = (
