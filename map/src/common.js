@@ -174,6 +174,14 @@ function pickup_name(code, id) {
             let pid = /^P(\d+)$/.exec(owner);
             return (pid ? "Player " + pid[1] : owner) + "'s " + held;
         }
+        case "BM": {
+            let [n, v] = String(id).split("=")
+            if(v === undefined)
+                return "Box " + n + ": flip"
+            if(v.startsWith("{"))
+                return "Box " + n + ": on if slot " + v.replace(/[{}]/g, "") + " is set"
+            return "Box " + n + (v === "0" ? ": off" : ": on")
+        }
         case "AP":
             return id;   // a foreign game's item, named by the room that sent it
         default:
@@ -344,6 +352,10 @@ const BOX_TYPES = [
     {label: "Item (RP)", value: "ritem"},
 ]
 const BOX_COLOURS = {goal: "#8fe3a0", kill: "#ff6b6b", solid: "#9aa0aa", item: "#40c0ff", ritem: "#7fd8ff"}
+// A deleted box keeps its line so the boxes after it keep their numbers, which is what
+// BM|n names. Never offered in BOX_TYPES; the editor writes it and hides it.
+const BOX_NONE = "none"
+const is_box_gone = (b) => b.type === BOX_NONE
 let next_box_id = 1
 const new_box = (type, box) => ({_id: next_box_id++, type: type, box: box, color: "", give: "", locked: false})
 function parse_box_line(line) {
@@ -370,10 +382,12 @@ function box_line(b) {
 function box_colour(b) {
     return b.color && b.color !== "none" && b.color !== "0" ? "#" + b.color.replace("#", "").slice(0, 6) : (BOX_COLOURS[b.type] || BOX_COLOURS.item)
 }
-function box_label(b) {
+const BOX_LABELS = {kill: "Kill", solid: "Solid", item: "Item", ritem: "Repeat Item", goal: "Goal"}
+function box_label(b, num) {
+    let name = `${BOX_LABELS[b.type] || b.type} Box - #${num}`
     if(b.type === "item" || b.type === "ritem")
-        return (b.type === "ritem" ? "repeat item box: " : "item box: ") + (b.give ? name_from_str(b.give) : "nothing yet")
-    return b.type + " box"
+        return name + ": " + (b.give ? name_from_str(b.give) : "nothing yet")
+    return name
 }
 
 const compareOption = (inputValue, option) => {
@@ -1132,5 +1146,5 @@ export {
     report_error,
     player_icons, doNetRequest, prng, get_param, get_flag, resolve_dark, save_dark, beta_welcome_pending, save_beta_welcome, theme_href, postNetForm, ap_enabled, get_int, get_list, get_preset, presets, get_seed, logic_paths, get_random_loader, Blabel,
     pickup_name, stuff_by_type, name_from_str, PickupSelect, Cent, ordinal_suffix, dev, gotoUrl, loginLogoutUrl, select_theme, randInt, spawn_defaults, spawnKitFor, decompose_pickup,
-    BOX_TYPES, BOX_COLOURS, new_box, parse_box_line, box_line, box_colour, box_label
+    BOX_TYPES, BOX_COLOURS, BOX_NONE, is_box_gone, new_box, parse_box_line, box_line, box_colour, box_label
 };

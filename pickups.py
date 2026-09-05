@@ -7,7 +7,8 @@ class Pickup(object):
     @staticmethod
     def subclasses():
         return [Skill, Event, Teleporter, Upgrade, Experience, AbilityCell, HealthCell, EnergyCell, Keystone,
-                Mapstone, Message, Hint, Relic, Multiple, Repeatable, Warp, WarpSave, Nothing, TPWarp, MultiworldItem]
+                Mapstone, Message, Hint, Relic, Multiple, Repeatable, Warp, WarpSave, Nothing, TPWarp, MultiworldItem,
+                SlotWrite, BoxModify]
     @staticmethod
     def strtypes():
         return [s.code for s in Pickup.subclasses() if not s.int_id]
@@ -214,6 +215,24 @@ class Message(Pickup):
     def __new__(cls, id):
         inst = super(Message, cls).__new__(cls)
         inst.id, inst.bit, inst.name = id, None, "Message: " + id
+        return inst
+
+# Neither is rolled into a seed; they exist so the plando editor keeps the whole id
+# instead of parseInt-ing it down to the slot or box number and dropping the rest.
+class SlotWrite(Pickup):
+    code = "RI"
+    int_id = False
+    def __new__(cls, id):
+        inst = super(SlotWrite, cls).__new__(cls)
+        inst.id, inst.bit, inst.name = id, None, "Slot " + id
+        return inst
+
+class BoxModify(Pickup):
+    code = "BM"
+    int_id = False
+    def __new__(cls, id):
+        inst = super(BoxModify, cls).__new__(cls)
+        inst.id, inst.bit, inst.name = id, None, "Box " + id
         return inst
 
 class Hint(Pickup):

@@ -7,7 +7,7 @@ import {NotificationContainer, NotificationManager} from 'react-notifications';
 import 'react-notifications/lib/notifications.css';
 import {Checkbox, CheckboxGroup} from 'react-checkbox-group';
 import {get_param, get_flag, get_int, get_list, get_seed, presets, get_preset, logic_paths, pickup_name, PickupSelect, stuff_by_type, loginLogoutUrl, decompose_pickup,
-        BOX_TYPES, new_box, parse_box_line, box_line, box_colour, box_label} from './common.js';
+        BOX_TYPES, BOX_NONE, is_box_gone, new_box, parse_box_line, box_line, box_colour, box_label} from './common.js';
 import {download, picks_by_type, picks_by_loc, picks_by_zone, picks_by_area, zones, PickupMarkersList, get_icon, 
         getMapCrs, TILE_MAX_ZOOM, hide_opacity, select_wrap, is_match, str_ids, select_styles} from './shared_map.js';
 import NumericInput from 'react-numeric-input';
@@ -269,7 +269,8 @@ class PlandoBuiler extends React.Component {
                   pickups: ["EX", "Ma", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "CS"], display_fill: false, display_import: false, display_logic: false, display_coop: false, display_meta: false,
                   entrances: {1: {}}, display_entrances: false, entrance_from: {value: "", label: ""}, entrance_to: {value: "", label: ""},
                   boxes: {1: []}, display_boxes: false, box_edit: false, box_type: "kill",
-                  box_show_locked: true, box_selected: null, box_bulk_type: BULK_TYPES[0], box_rank: {},
+                  box_show_locked: true, box_selected: null, box_bulk_type: BULK_TYPES[0],
+                  box_rank: {}, box_new_rank: 0,
                   import_overwrite: false,
                 seed_name: seed_name, last_seed_name: seed_name, seed_desc: seed_desc, user: user};
     }
@@ -711,7 +712,7 @@ class PlandoBuiler extends React.Component {
         this.state.clueOrder.value.forEach(ev => evLines.hasOwnProperty(ev) ? outLines.push(evLines[ev]) : null)
         let ent = this.curEntrances()
         Object.keys(ent).forEach(loc => outLines.push(loc + "|EN|" + ent[loc]))
-        this.curBoxes().forEach(b => outLines.push(box_line(b)))
+        this.boxLines(this.state.player).forEach(b => outLines.push(box_line(b)))
         return outLines;
     }
 
@@ -771,7 +772,8 @@ class PlandoBuiler extends React.Component {
         Object.keys(enStuff).forEach(loc => data.placements.push({loc: String(loc), zone: "", stuff: enStuff[loc]}))
         // boxes are not locations: one line each, per world
         data.boxes = []
-        Object.keys(this.state.boxes).forEach(player => (this.state.boxes[player] || []).forEach(b => data.boxes.push({player: player, line: box_line(b), locked: !!b.locked})))
+        Object.keys(this.state.boxes).forEach(player =>
+            this.boxLines(player).forEach(b => data.boxes.push({player: player, line: box_line(b), locked: !!b.locked})))
 
         return data;
     }
@@ -973,6 +975,13 @@ class PlandoBuiler extends React.Component {
     // boxes are per-player like entrances: {player: [box]}; the panel edits the current player's
     curBoxes = () => this.state.boxes[this.state.player] || [];
     setBoxes = (boxes) => this.setState(prev => ({boxes: {...prev.boxes, [prev.player]: boxes}}));
+    // as written to a seed: a deleted box holds its number, unless nothing follows it
+    boxLines = (player) => {
+        let mine = [...(this.state.boxes[player] || [])]
+        while(mine.length && is_box_gone(mine[mine.length - 1]))
+            mine.pop()
+        return mine
+    };
     // The lock gate: a locked box takes no change but the one that unlocks it.
     updateBox = (i, changes) => this.setState(prev => {
         let mine = prev.boxes[prev.player] || []
@@ -989,7 +998,7 @@ class PlandoBuiler extends React.Component {
         ev.stopPropagation()
         if(!box || box.locked)
             return
-        this.setBoxes(this.curBoxes().filter((b, k) => k !== i))
+        this.setBoxes(this.curBoxes().map((b, k) => k === i ? {...b, type: BOX_NONE, give: "", color: ""} : b))
         if(this.state.box_selected === box._id)
             this.setState({box_selected: null})
     };
@@ -998,8 +1007,21 @@ class PlandoBuiler extends React.Component {
         let c = this.refs.map.leafletElement.getCenter()
         let x = Math.round(c.lng * 10) / 10, y = Math.round(c.lat * 10) / 10
         let box = new_box(this.state.box_type, [x - 3, y - 3, x + 3, y + 3])
-        this.setBoxes([box, ...this.curBoxes()])
-        this.setState({display_boxes: true, box_selected: box._id})
+        this.setState(prev => {
+            let mine = prev.boxes[prev.player] || []
+            let hole = mine.findIndex(is_box_gone)
+            let next = hole < 0
+                ? [...mine, box]
+                : mine.map((b, k) => k === hole ? {...box, _id: b._id} : b)
+            return {
+                boxes: {...prev.boxes, [prev.player]: next},
+                // ranks from a loaded seed count up from 0, so each new box goes above the last
+                box_rank: {...prev.box_rank, [next[hole < 0 ? next.length - 1 : hole]._id]: prev.box_new_rank - 1},
+                box_new_rank: prev.box_new_rank - 1,
+                display_boxes: true,
+                box_selected: next[hole < 0 ? next.length - 1 : hole]._id,
+            }
+        })
     };
     // one pass, so a bulk lock is a single render rather than one per box
     bulkMatch = (b) => this.state.box_bulk_type.value === "all" || b.type === this.state.box_bulk_type.value;
@@ -1192,8 +1214,9 @@ class PlandoBuiler extends React.Component {
         const pickup_markers = ( <PickupMarkersList markers={getPickupMarkers(this.state, this.selectPickupCurry, searchStr)} />)
         // i stays the index into curBoxes(); rank is only what order they are shown in, and
         // a box added since the load has none, so it sorts to the top where it was put
-        const box_rank = (b) => this.state.box_rank[b._id] !== undefined ? this.state.box_rank[b._id] : -1
-        const all_boxes = this.curBoxes().map((b, i) => ({b, i})).sort((x, y) => box_rank(x.b) - box_rank(y.b))
+        const box_rank = (b) => this.state.box_rank[b._id] !== undefined ? this.state.box_rank[b._id] : Number.MAX_SAFE_INTEGER
+        const all_boxes = this.curBoxes().map((b, i) => ({b, i})).filter(({b}) => !is_box_gone(b))
+                              .sort((x, y) => box_rank(x.b) - box_rank(y.b))
         const shown_boxes = all_boxes.filter(({b}) => box_show_locked || !b.locked)
         // a box set invisible in game still draws here, faint and underneath
         const box_dim = (b) => b.color === "none" || b.color === "0"
@@ -1207,7 +1230,8 @@ class PlandoBuiler extends React.Component {
                            dashArray={box_dim(b) ? "4 4" : null}
                            onClick={this.selectBoxAt} onMousedown={box_edit && !b.locked ? this.startBoxDrag(i) : undefined}>
                     {/* the tooltip wants one element child; a bare string throws on open */}
-                    <Tooltip sticky={true}><span>{box_label(b)}{b.locked ? " (locked)" : ""}</span></Tooltip>
+                    {/* i is what BM|n names: a box's place in this world's box lines */}
+                    <Tooltip sticky={true}><span>{box_label(b, i)}{b.locked ? " (locked)" : ""}</span></Tooltip>
                 </Rectangle>
             )
         }
@@ -1221,10 +1245,10 @@ class PlandoBuiler extends React.Component {
                         onDrag={this.dragCorner(i, k)} onDragend={() => this.tidyBox(i)} />
             ))
         })
-        const box_count = shown_boxes.length === this.curBoxes().length ? `${this.curBoxes().length}` : `${shown_boxes.length}/${this.curBoxes().length}`
+        const box_count = shown_boxes.length === all_boxes.length ? `${all_boxes.length}` : `${shown_boxes.length}/${all_boxes.length}`
         // The verb is whichever one has anything left to do. every() on nothing is true,
         // so an empty match has to be spelled out or it offers to unlock what isn't there.
-        const bulk_targets = this.curBoxes().filter(this.bulkMatch)
+        const bulk_targets = this.curBoxes().filter(b => !is_box_gone(b) && this.bulkMatch(b))
         const bulk_locking = !bulk_targets.length || !bulk_targets.every(b => b.locked)
         const zone_opts = zones.map(zone => ({label: zone, value: zone}))
         const pickups_opts = picks_by_zone[this.state.zone].map(pick => ({label: locLabel(pick),value: pick}) )
@@ -1401,7 +1425,7 @@ class PlandoBuiler extends React.Component {
                                     onClick={() => this.setState({box_show_locked: !box_show_locked})}>
                                 {box_show_locked ? "Hide" : "Show"} Locked
                             </Button>
-                            {this.curBoxes().length >= BULK_LOCK_MIN ? (
+                            {all_boxes.length >= BULK_LOCK_MIN ? (
                                 <React.Fragment>
                                     <Button color="secondary" disabled={!bulk_targets.length} onClick={this.bulkLock(bulk_locking)}
                                             title={`${bulk_locking ? "Lock" : "Unlock"} every ${this.state.box_bulk_type.value === "all" ? "" : this.state.box_bulk_type.label + " "}box in this world`}>
@@ -1413,7 +1437,7 @@ class PlandoBuiler extends React.Component {
                             ) : null}
                         </div>
                         <Collapse id="box-wrapper" isOpen={this.state.display_boxes}>
-                            <div className="box-help">A kill box kills, a solid box is a block to stand on, an item box gives its pickup once (a message is SH|text) and an Item (RP) box every entry. With editing on, drag a box to move it and a corner to resize it.</div>
+                            <div className="box-help">A kill box kills, a solid box is a block to stand on, an item box gives its pickup once (a message is SH|text) and an Item (RP) box every entry. With editing on, drag a box to move it and a corner to resize it. A BM|3 pickup flips box #3 off or on; =0 and =1 say which.</div>
                             {all_boxes.map(({b, i}) => {
                             // a locked row folds away instead of vanishing; Collapse measures
                             // the real height, so an item row's picker animates as well
