@@ -33,7 +33,17 @@ VERSION = "%s.%s.%s" % tuple(VER)
 # 4.9.x is the 5.0 beta: numeric on the wire, "5.0 beta vN" on the page. Each
 # beta build gets its own 4.9.N note; they collapse into 5.0.0 at release.
 BETA_OF = [5, 0, 0] if VER[:2] == [4, 9] else None
-DISPLAY_VERSION = "%d.%d beta v%d" % (BETA_OF[0], BETA_OF[1], VER[2]) if BETA_OF else VERSION
+def display_version(v):
+    """What a release is called to a person. Mirrors displayVersion in
+    PatchNotes.js -- a note must not be named one thing on the page and
+    another in the Discord post that links to it."""
+    parts = v.split(".")
+    dll, rev = (".".join(parts[:3]), parts[3]) if len(parts) > 3 else (v, None)
+    named = "5.0 beta v%s" % dll.split(".")[2] if dll.startswith("4.9.") else dll
+    return "%s — Web Update %s" % (named, rev) if rev else named
+
+
+DISPLAY_VERSION = display_version(VERSION)
 
 # which branch's committed Assembly-CSharp.dll the dll routes hand out
 DLL_BRANCH = os.environ.get("DLL_BRANCH", "master")

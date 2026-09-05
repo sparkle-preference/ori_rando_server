@@ -4,12 +4,15 @@ once. These pin the shape of the data and who each channel hears about.
 
 Run from the repo root:  python3 -m unittest test.patchnotes_test -v
 """
+import contextlib
+import io
 import json
 import os
 import unittest
 from html import escape
 
 import main
+import models
 import util
 from web import patchnotes as pn
 
@@ -299,3 +302,62 @@ class AnnounceOnFirstRequestTestCase(unittest.TestCase):
         self.fire("https://bfdev.eiko.blue", "/netcode/game/1/player/1/tick")
         self.assertEqual(self.bases, [])
         self.assertFalse(pn._announce_checked)
+
+
+class _FakeNdbClient(object):
+    def context(self):
+        return contextlib.nullcontext()
+
+
+class DisplayVersionTestCase(unittest.TestCase):
+    """A release is named the same in the Discord post as on the page it links to."""
+
+    def test_the_beta_line_is_named_not_numbered(self):
+        self.assertEqual(util.display_version("4.9.2"), "5.0 beta v2")
+        self.assertEqual(util.display_version("4.9.11"), "5.0 beta v11")
+
+    def test_anything_else_is_itself(self):
+        for v in ("4.2.17", "5.0.0", "3.0"):
+            self.assertEqual(util.display_version(v), v)
+
+    def test_a_site_only_rev_rides_on_top(self):
+        self.assertEqual(util.display_version("4.9.2.1"), "5.0 beta v2 %s Web Update 1" % chr(8212))
+        self.assertEqual(util.display_version("4.2.17.2"), "4.2.17 %s Web Update 2" % chr(8212))
+
+    def test_the_page_and_the_server_agree(self):
+        """PatchNotes.js names releases too; if one moves the other must."""
+        js = io.open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                                  "map", "src", "PatchNotes.js"), encoding="utf-8").read()
+        self.assertIn('5.0 beta v', js)
+        self.assertIn('Web Update', js)
+
+
+class EverythingLinkTestCase(unittest.TestCase):
+    """/patchnotes/all is a way to link someone the unfolded list."""
+
+    def setUp(self):
+        self._client = models.client
+        models.client = _FakeNdbClient()
+        self._secret = main.app.secret_key
+        main.app.secret_key = main.app.secret_key or "patchnotes-all"
+        self.client = main.app.test_client()
+
+    def tearDown(self):
+        main.app.secret_key = self._secret
+        models.client = self._client
+
+    def test_all_opens_the_page_with_everything_showing(self):
+        res = self.client.get("/patchnotes/all")
+        self.assertEqual(res.status_code, 302)
+        self.assertTrue(res.headers["Location"].endswith("/patchnotes?all=1"),
+                        res.headers["Location"])
+
+    def test_a_version_still_anchors_to_its_release(self):
+        res = self.client.get("/patchnotes/4.9.2")
+        self.assertTrue(res.headers["Location"].endswith("/patchnotes#4.9.2"),
+                        res.headers["Location"])
+
+    def test_an_alias_still_resolves(self):
+        res = self.client.get("/patchnotes/3.x")
+        self.assertTrue(res.headers["Location"].endswith("/patchnotes#3.0"),
+                        res.headers["Location"])

@@ -14,7 +14,8 @@ from flask import Blueprint, make_response, redirect, render_template, request
 
 import util
 from models import AnnouncedPatchNotes, User
-from util import INDEX_TEMPLATE, VERSION, param_flag, param_val, template_vals
+from util import (INDEX_TEMPLATE, VERSION, display_version, param_flag, param_val,
+                  template_vals)
 from web.responses import text_resp
 
 bp = Blueprint("patchnotes", __name__)
@@ -31,6 +32,9 @@ PATCHNOTE_ALIASES = {"3.x": "3.0", "4.0.x": "4.0.0", "4.1.x": "4.1.0"}
 
 @bp.route('/patchnotes/<version>')
 def patchnotes_version(version):
+    # "all" is not a release: it is the page with the minor entries unfolded
+    if version == "all":
+        return redirect("/patchnotes?all=1")
     return redirect("/patchnotes#%s" % PATCHNOTE_ALIASES.get(version, version))
 
 
@@ -193,7 +197,8 @@ def announce_embed(release, base, everything=False):
             lines.append("  - %s" % markdown_links(s, base))
     if not shown and not release.get("headline"):
         lines.append("Small fixes only - see the full notes.")
-    title = "%s%s" % (release["version"], " - %s" % release["title"] if release.get("title") else "")
+    title = "%s%s" % (display_version(release["version"]),
+                      " - %s" % release["title"] if release.get("title") else "")
     # discord truncates a description past 4096 rather than rejecting it, but
     # cutting it here keeps the "read the rest" link meaningful
     body = "\n".join(lines)
@@ -324,7 +329,8 @@ def patchnotes_feed():
             for c in major)
         summary = "<p>%s</p>" % rich(r["headline"]) if r.get("headline") else ""
         content = "%s<ul>%s</ul>" % (summary, items) if items else (summary or "<p>Small fixes only.</p>")
-        title = "%s%s" % (r["version"], " - %s" % r["title"] if r.get("title") else "")
+        title = "%s%s" % (display_version(r["version"]),
+                          " - %s" % r["title"] if r.get("title") else "")
         url = "%s/patchnotes#%s" % (base, r["version"])
         return (
             "<entry>"

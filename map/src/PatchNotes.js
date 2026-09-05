@@ -178,7 +178,10 @@ const versionLines = () => {
 }
 
 export default class PatchNotes extends React.Component {
-    state = {user: get_param("user"), everything: false}
+    // ?all=1 (and /patchnotes/all, which redirects to it) opens with the minor
+    // entries already unfolded, for linking someone the whole list
+    state = {user: get_param("user"),
+             everything: new URLSearchParams(window.location.search).has("all")}
 
     componentDidMount() {
         // deep links from discord land on a specific version
