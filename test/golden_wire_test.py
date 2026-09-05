@@ -37,7 +37,7 @@ import unittest
 import cache as cache_mod
 import util
 from cache import Cache
-from models import Player
+from models import BingoCardProgress, Player
 from test.ndb_base import NdbTestCase
 
 
@@ -200,17 +200,22 @@ class TestBingoTeleporterWrite(NdbTestCase):
     """The bingo update's only Player write. It runs under bingo_lock, which
     no grant transaction takes, so it may not put a whole stale entity."""
 
-    def test_tp_txn_leaves_slot_bitfields_alone(self):
-        fresh = make_player(920, 1, slot_bflds=[0] * 8, bingo_last_tp="sunkenGlades")
+    def test_the_write_leaves_slot_bitfields_alone(self):
+        fresh = make_player(920, 1, slot_bflds=[0] * 8, bingo_last_tp="sunkenGlades",
+                            bingo_prog=[])
         fresh.slot_bflds[0] = 0b1010          # granted after the update read
-        Player.set_bingo_tp_txn.__wrapped__(_KeyStub(fresh), "forlornRuins")
+        Player.save_bingo_txn.__wrapped__(_KeyStub(fresh), [], "forlornRuins")
         self.assertEqual(fresh.bingo_last_tp, "forlornRuins")
         self.assertEqual(fresh.slot_bflds[0], 0b1010, "the bingo update ate a grant")
 
-    def test_tp_txn_skips_the_write_when_unchanged(self):
-        fresh = make_player(921, 1, bingo_last_tp="forlornRuins")
-        self.assertFalse(Player.set_bingo_tp_txn.__wrapped__(_KeyStub(fresh), "forlornRuins"))
-        self.assertEqual(fresh.put_count, 0)
+    def test_the_write_carries_card_progress(self):
+        """Progress is mutated in place on bingo_prog, so nothing assigns it to the
+        player -- if this write drops it, a board is only as durable as its cache."""
+        fresh = make_player(921, 1, bingo_prog=[], bingo_last_tp="")
+        prog = [BingoCardProgress(square=i, count=i) for i in range(3)]
+        Player.save_bingo_txn.__wrapped__(_KeyStub(fresh), prog, "forlornRuins")
+        self.assertEqual([p.count for p in fresh.bingo_prog], [0, 1, 2])
+        self.assertEqual(fresh.put_count, 1)
 
 
 class TestMultiworldSlotsField(NdbTestCase):

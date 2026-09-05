@@ -1042,7 +1042,8 @@ class TestBingoUpdateFlow(NdbTestCase):
     def _stub_txns(self, player):
         """The update's Player writes are transactions; point them at the
         in-memory copy so the flow still runs without a datastore."""
-        for name in ("signal_send_txn", "set_bingo_tp_txn"):
+        self.saved = None
+        for name in ("signal_send_txn", "save_bingo_txn"):
             self.addCleanup(setattr, Player, name, Player.__dict__[name])
 
         def fake_send(pkey, signal):
@@ -1051,12 +1052,38 @@ class TestBingoUpdateFlow(NdbTestCase):
             player.signals.append(signal)
             return True
 
-        def fake_tp(pkey, value):
-            player.bingo_last_tp = value
+        def fake_save(pkey, prog, tp):
+            self.saved = {"prog": prog, "tp": tp}
+            player.bingo_prog, player.bingo_last_tp = prog, tp
             return True
 
         Player.signal_send_txn = staticmethod(fake_send)
-        Player.set_bingo_tp_txn = staticmethod(fake_tp)
+        Player.save_bingo_txn = staticmethod(fake_save)
+
+    def test_the_update_persists_the_progress_it_just_computed(self):
+        """Card progress is mutated in place on player.bingo_prog, so there is no
+        assignment to notice -- a write that carries only bingo_last_tp leaves the
+        board as durable as its cache and no more. (The userboard reads it fresh.)"""
+        from models import BingoGameData, BingoTeam
+        card = BingoCard(name="TestGoal", goal_type="int", target=9, square=0)
+        filler = [BingoCard(name="Filler%s" % i, goal_type="int", target=99, square=i)
+                  for i in range(1, 25)]
+        p1 = Player(id="57.1", bingo_prog=[BingoCardProgress(square=i) for i in range(25)])
+        bgd = BingoGameData(id="57")
+        bgd.board = [card] + filler
+        bgd.teams = [BingoTeam(captain=p1.key, teammates=[])]
+        bgd.bingo_count = 99
+        bgd.start_time = datetime(2026, 7, 20, 12, 0, 0)
+        bgd.game = ndb.Key("Game", 57)
+        bgd.get_players = lambda: [p1]
+        self._stub_puts(p1, bgd)
+        self._stub_txns(p1)
+
+        bgd.update({"TestGoal": {"value": 4}}, 1, 57)
+
+        self.assertIsNotNone(self.saved, "the update never wrote the player")
+        self.assertEqual(self.saved["prog"][0].count, 4,
+                         "the progress the update computed never reached the write")
 
     def test_update_full_flow_in_memory(self):
         """The whole non-transactional update path: a posted goal completion

@@ -850,12 +850,17 @@ class Player(ndb.Model):
 
     @staticmethod
     @ndb.transactional(retries=5)
-    def set_bingo_tp_txn(pkey, tp):
-        """The bingo update's only Player write. bingo_lock serializes board
-        writers, but grant txns never take it, so a full put here drops slots."""
+    def save_bingo_txn(pkey, prog, tp):
+        """The bingo update's Player write: card progress, and the teleporter the
+        journey cards read. Card progress is mutated in place on bingo_prog, so it
+        leaves no assignment to grep for -- it still has to be persisted here.
+
+        Whole-list, because nothing else writes bingo_prog. Not a put of the whole
+        entity: bingo_lock does not stop a grant txn, and that would drop slots."""
         p = pkey.get()
-        if p is None or p.bingo_last_tp == tp:
+        if p is None:
             return False
+        p.bingo_prog = prog
         p.bingo_last_tp = tp
         p.put()
         return True
@@ -1556,7 +1561,6 @@ class BingoGameData(ndb.Model):
         players_by_id = {_pid(p.key): p for p in self.get_players()}  # type: Dict[int, Player]
         player = players_by_id[player_id]
         # no card is named for it; journey cards read it via prog_json
-        prior_tp = player.bingo_last_tp
         player.bingo_last_tp = ((bingo_data or {}).get("LastTouchedTeleporter") or {}).get("value") or ""
         cpid = _pid(team.captain)
         teammates = [players_by_id[pid] for pid in team.pids() if pid != player_id]
@@ -1684,9 +1688,7 @@ class BingoGameData(ndb.Model):
         # would overwrite the cache before aborting — the source of the goal
         # flicker seen in games 133478/133482.
         self._board_json = self.get_json(players=players_by_id.values())
-        # the update's only Player field, and nothing reads Player.last_update
-        if player.bingo_last_tp != prior_tp:
-            Player.set_bingo_tp_txn(player.key, player.bingo_last_tp)
+        Player.save_bingo_txn(player.key, player.bingo_prog, player.bingo_last_tp)
         if need_write:
             self.put()
 
