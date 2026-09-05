@@ -1217,7 +1217,8 @@ class PlandoBuiler extends React.Component {
         const box_rank = (b) => this.state.box_rank[b._id] !== undefined ? this.state.box_rank[b._id] : Number.MAX_SAFE_INTEGER
         const all_boxes = this.curBoxes().map((b, i) => ({b, i})).filter(({b}) => !is_box_gone(b))
                               .sort((x, y) => box_rank(x.b) - box_rank(y.b))
-        const shown_boxes = all_boxes.filter(({b}) => box_show_locked || !b.locked)
+        const listed_boxes = all_boxes.filter(({b}) => box_show_locked || !b.locked)
+        const box_faded = (b) => b.locked && !box_show_locked
         // a box set invisible in game still draws here, faint and underneath
         const box_dim = (b) => b.color === "none" || b.color === "0"
         const box_rect = ({b, i}) => {
@@ -1225,8 +1226,8 @@ class PlandoBuiler extends React.Component {
             let selected = b._id === box_selected
             return (
                 <Rectangle key={`box-${b._id}`} bounds={bounds} color={box_colour(b)} weight={selected ? 4 : 2}
-                           opacity={box_dim(b) ? 0.3 : (b.locked ? 0.4 : 1)}
-                           fillOpacity={box_dim(b) || b.locked ? 0.05 : (box_edit ? 0.3 : 0.15)}
+                           opacity={box_faded(b) ? 0.15 : box_dim(b) ? 0.3 : b.locked ? 0.5 : 1}
+                           fillOpacity={box_faded(b) || box_dim(b) || b.locked ? 0.05 : (box_edit ? 0.3 : 0.15)}
                            dashArray={box_dim(b) ? "4 4" : null}
                            onClick={this.selectBoxAt} onMousedown={box_edit && !b.locked ? this.startBoxDrag(i) : undefined}>
                     {/* the tooltip wants one element child; a bare string throws on open */}
@@ -1237,7 +1238,7 @@ class PlandoBuiler extends React.Component {
         }
         // The handles stay out of that pane: they live in the marker pane, above everything,
         // which is where something you are meant to grab belongs.
-        const box_handles = shown_boxes.filter(({b}) => box_edit && !b.locked).map(({b, i}) => {
+        const box_handles = all_boxes.filter(({b}) => box_edit && !b.locked).map(({b, i}) => {
             let selected = b._id === box_selected
             let xs = [b.box[0], b.box[2], b.box[2], b.box[0]], ys = [b.box[1], b.box[1], b.box[3], b.box[3]]
             return [0, 1, 2, 3].map(k => (
@@ -1245,7 +1246,7 @@ class PlandoBuiler extends React.Component {
                         onDrag={this.dragCorner(i, k)} onDragend={() => this.tidyBox(i)} />
             ))
         })
-        const box_count = shown_boxes.length === all_boxes.length ? `${all_boxes.length}` : `${shown_boxes.length}/${all_boxes.length}`
+        const box_count = listed_boxes.length === all_boxes.length ? `${all_boxes.length}` : `${listed_boxes.length}/${all_boxes.length}`
         // The verb is whichever one has anything left to do. every() on nothing is true,
         // so an empty match has to be spelled out or it offers to unlock what isn't there.
         const bulk_targets = this.curBoxes().filter(b => !is_box_gone(b) && this.bulkMatch(b))
@@ -1295,9 +1296,9 @@ class PlandoBuiler extends React.Component {
                     {/* leaflet draws in the order layers were added, not the order react lists
                         them, so a pane below the overlay is what puts these underneath */}
                     <Pane name="box-hidden" style={{zIndex: 390}}>
-                        {shown_boxes.filter(({b}) => box_dim(b)).map(box_rect)}
+                        {all_boxes.filter(({b}) => box_dim(b)).map(box_rect)}
                     </Pane>
-                    {shown_boxes.filter(({b}) => !box_dim(b)).map(box_rect)}
+                    {all_boxes.filter(({b}) => !box_dim(b)).map(box_rect)}
                     {box_handles}
                 </Map>
                 <div className="controls">
@@ -1438,7 +1439,7 @@ class PlandoBuiler extends React.Component {
                         </div>
                         <Collapse id="box-wrapper" isOpen={this.state.display_boxes}>
                             <div className="box-help">A kill box kills, a solid box is a block to stand on, an item box gives its pickup once (a message is SH|text) and an Item (RP) box every entry. With editing on, drag a box to move it and a corner to resize it. A BM|3 pickup flips box #3 off or on; =0 and =1 say which.</div>
-                            {all_boxes.map(({b, i}) => {
+                            {listed_boxes.map(({b, i}) => {
                             // a locked row folds away instead of vanishing; Collapse measures
                             // the real height, so an item row's picker animates as well
                             let row = (

@@ -10,6 +10,37 @@
   ],
   "releases": [
       {
+        "version": "4.9.3",
+        "date": "2026-09-05",
+        "announce": "dev",
+        "changes": [
+          {
+            "text": "Several box-related UX improvements to the plando editor.",
+            "category": "Website",
+            "type": "feature",
+            "importance": "major"
+          },
+          {
+            "text": "Added some advanced features for power plando users, including box control and reading randomizer ids in some places.",
+            "category": "Website",
+            "type": "feature",
+            "importance": "minor"
+          },
+          {
+            "text": "Added several new warping hints/tips and tweaked some existing ones.",
+            "category": "Game",
+            "type": "feature",
+            "importance": "major"
+          },
+          {
+            "text": "The Forlorn escape's Stomp/Grenade hint is now multiworld-aware.",
+            "category": "Multiplayer",
+            "type": "fix",
+            "importance": "minor"
+          }
+        ]
+      },
+      {
         "version": "4.9.2",
         "date": "2026-09-04",
         "announce": "dev",
