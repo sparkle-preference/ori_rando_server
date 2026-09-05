@@ -1761,7 +1761,7 @@ class Seed(ndb.Model):
                 continue
             player = str(entry.get('player') or 1)
             players = max(players, int(player))
-            boxes.append(BoxLine(player=player, line=line))
+            boxes.append(BoxLine(player=player, line=line, locked=bool(entry.get('locked'))))
         return boxes, players
 
     @staticmethod
@@ -1821,7 +1821,7 @@ class Seed(ndb.Model):
                     entry["owner"] = stuff.owner
                 stuffs.append(entry)
             placements.append({'loc': p.location, 'stuff': stuffs})
-        boxes = [{'player': b.player, 'line': b.line} for b in self.boxes]
+        boxes = [{'player': b.player, 'line': b.line, 'locked': b.locked} for b in self.boxes]
         return jsonify({'placements': placements, 'boxes': boxes, 'flagline': self.flag_line()})
 
 

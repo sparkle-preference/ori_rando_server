@@ -345,7 +345,7 @@ const BOX_TYPES = [
 ]
 const BOX_COLOURS = {goal: "#8fe3a0", kill: "#ff6b6b", solid: "#9aa0aa", item: "#40c0ff", ritem: "#7fd8ff"}
 let next_box_id = 1
-const new_box = (type, box) => ({_id: next_box_id++, type: type, box: box, color: "", give: ""})
+const new_box = (type, box) => ({_id: next_box_id++, type: type, box: box, color: "", give: "", locked: false})
 function parse_box_line(line) {
     let f = line.trim().split("|")
     if(f[0] !== "BX" || f.length < 3)

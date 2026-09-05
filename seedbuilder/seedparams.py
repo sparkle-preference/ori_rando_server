@@ -132,6 +132,8 @@ class Placement(ndb.Model):
 class BoxLine(ndb.Model):
     player = ndb.StringProperty()
     line = ndb.StringProperty()
+    # editor-only: a locked box is read-only in the plando builder
+    locked = ndb.BooleanProperty(default=False)
 
 class MultiplayerOptions(ndb.Model):
     str_mode = ndb.StringProperty(default="None")

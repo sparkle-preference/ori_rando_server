@@ -244,6 +244,29 @@ body, #root {
   margin-top: 10px;
 }
 
+/* the four controls stay on one line */
+#box-controls .box-buttons {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 4px;
+}
+
+#box-controls .box-buttons .btn {
+  white-space: nowrap;
+}
+
+#box-controls .box-icon {
+  display: flex;
+  align-items: center;
+  padding: 0 5px;
+}
+
+/* the lock is its own column, and a 16px target is too small to hit */
+#box-controls .box-row-head > .box-icon {
+  height: 32px;
+}
+
 #box-controls .box-help {
   color: #aaa;
   font-size: 12px;
@@ -255,28 +278,73 @@ body, #root {
   border-top: 1px solid #444;
 }
 
+#box-controls .box-row-selected {
+  background: rgba(59, 143, 255, 0.15);
+  box-shadow: inset -3px 0 0 #3b8fff;
+}
+
+#box-controls .box-row-locked {
+  opacity: 0.65;
+}
+
 #box-controls .box-row-head {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 3px;
 }
 
 #box-controls .box-type {
-  flex: 1;
-  min-width: 140px;
+  width: 112px;
 }
 
+/* the spinners cost more width than they earn, four numbers to a row */
 #box-controls .box-coord {
-  width: 66px;
+  width: 50px;
+  font-size: 12px;
+  padding: 2px 3px;
+  -moz-appearance: textfield;
 }
 
+#box-controls .box-coord::-webkit-inner-spin-button,
+#box-controls .box-coord::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* the stack is its two children, since stretch does not reach across a wrapped flex line */
+#box-controls .box-show {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  width: 26px;
+  height: 32px;
+}
+
+/* chrome pads and borders its own colour area, inside whatever the input is given */
 #box-controls .box-colour {
-  width: 32px;
-  height: 31px;
+  width: 26px;
+  height: 15px;
   padding: 0;
   border: 0;
   background: none;
+}
+
+#box-controls .box-colour::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+#box-controls .box-colour::-webkit-color-swatch {
+  border: 0;
+}
+
+#box-controls .box-show .box-icon {
+  height: 16px;
+  min-height: 0;
+  padding: 0;
+  justify-content: center;
+  font-size: 10px;
+  line-height: 1;
 }
 
 .box-handle {
@@ -285,6 +353,10 @@ body, #root {
   background: #fff;
   border: 1px solid #000;
   border-radius: 2px;
+}
+
+.box-handle-selected {
+  background: #3b8fff;
 }
 
 .coop-select-wrapper .label {
