@@ -1879,6 +1879,148 @@ export default class MainPage extends React.Component {
         }
     }
 
+    // --- hints for sale (see AP_HINT_MARKET.md) ---
+    //
+    // An offer is a hint Ori has unlocked that nothing free could answer. The
+    // server never buys one on its own any more, so this is where the points
+    // actually get spent.
+
+    fetchApHints = () => {
+        let {gameId} = this.state
+        if(!(gameId > 0)) return
+        doNetRequest(`/netcode/game/${gameId}/ap/hints?time=${(new Date()).getTime()}`, ({status, responseText}) => {
+            if(gameId !== this.state.gameId) return
+            this.setState({apHints: status === 200 ? JSON.parse(responseText) : null})
+        })
+    };
+
+    toggleApHints = () => this.setState(prev => ({apHintsOpen: !prev.apHintsOpen}),
+                                        () => this.state.apHintsOpen && this.fetchApHints());
+
+    buyApHint = (world, slot) => () => {
+        let {gameId} = this.state
+        this.setState({apHintsBusy: `${world}.${slot}`}, () => postNetForm(
+            `/netcode/game/${gameId}/ap/hints/buy`, {world: world, slot: slot},
+            ({status, responseText}) => {
+                this.setState({apHintsBusy: null})
+                if(status !== 200)
+                    NotificationManager.error(responseText, "Could not unlock that hint", 5000)
+                this.fetchApHints()
+            }))
+    };
+
+    // one row per thing you would ask about: several copies of the same door key
+    // are one line with a count, not the same name three times
+    apOfferGroups = (offers, prefix) => {
+        let out = []
+        ;(offers || []).filter(o => (o.key || "").startsWith(prefix)).forEach(offer => {
+            let row = out.find(r => r.key === offer.key)
+            if(row)
+                row.slots.push(offer.slot)
+            else
+                out.push({key: offer.key, name: offer.name || name_from_str(offer.key),
+                          slots: [offer.slot]})
+        })
+        return out
+    };
+
+    apWorldOffers = (world) => (((this.state.apHints || {}).worlds || [])
+        .find(w => w.world === world) || {world: world, points: 0, cost: 0, offers: []});
+
+    // the button's price: one figure while the worlds agree, which they do
+    // unless their location counts differ
+    apHintPrice = () => {
+        let costs = [...new Set((((this.state.apHints || {}).worlds) || [])
+            .filter(w => (w.offers || []).length).map(w => w.cost))]
+        if(costs.length === 0) return null
+        return costs.length === 1 ? `${costs[0]} pts` : `${Math.min(...costs)}-${Math.max(...costs)} pts`
+    };
+
+    // Dungeon keys, then the Forlorn escape's Stomp/Grenade pair, then keysanity
+    // doors -- the order they matter in, and an empty one is not drawn at all.
+    apHintSections = () => [
+        {prefix: "EV|", title: "Dungeon Keys"},
+        {prefix: "SK|", title: "Forlorn Escape"},
+        {prefix: "RB|", title: "Keysanity Doors"},
+    ];
+
+    apHintRows = (world) => {
+        let {apHintsBusy, apHints} = this.state
+        let entry = this.apWorldOffers(world)
+        let canBuy = (apHints || {}).can_buy && entry.points >= entry.cost
+        let sections = this.apHintSections()
+            .map(s => ({...s, groups: this.apOfferGroups(entry.offers, s.prefix)}))
+            .filter(s => s.groups.length)
+        if(!sections.length)
+            return (<div className="text-center text-muted p-3">
+                No hints available for {this.apWorldName(world)}
+            </div>)
+        return (<div>
+            <div className="text-muted pb-2">
+                {entry.points} points, {entry.cost} each
+                {(apHints || {}).can_buy ? "" : ` -- ${(apHints || {}).why || "you cannot buy these"}`}
+            </div>
+            {sections.map(section => (
+                <div key={section.prefix} className="pb-3">
+                    <h6 className="text-uppercase text-muted">{section.title}</h6>
+                    {section.groups.map(group => (
+                        <Row key={group.key} className="p-1 align-items-center">
+                            <Col>
+                                {group.name}
+                                {group.slots.length > 1 ? ` (${group.slots.length} left)` : ""}
+                            </Col>
+                            <Col xs="auto">
+                                <Button size="sm" color="primary" disabled={!canBuy || apHintsBusy !== null}
+                                        onClick={this.buyApHint(world, group.slots[0])}>
+                                    {apHintsBusy === `${world}.${group.slots[0]}` ? "..." : `Unlock (${entry.cost} pts)`}
+                                </Button>
+                            </Col>
+                        </Row>
+                    ))}
+                </div>
+            ))}
+        </div>)
+    };
+
+    apWorldName = (world) => {
+        let names = (this.state.apStatus || {}).slot_names || []
+        return names[world - 1] ? `${names[world - 1]} (P${world})` : `Player ${world}`
+    };
+
+    apHintsModal = () => {
+        let {apHints, apHintsOpen, apHintsTab} = this.state
+        let worlds = ((apHints || {}).worlds || []).map(w => w.world)
+        return (
+            <Modal isOpen={apHintsOpen} toggle={this.toggleApHints} size="lg" className="modal-dialog-centered">
+                <ModalHeader toggle={this.toggleApHints}>Unlock Hints</ModalHeader>
+                <ModalBody>
+                    {worlds.length > 1 ? (
+                        <Nav tabs>
+                            {worlds.map(w => (
+                                <NavItem key={w}>
+                                    <NavLink active={apHintsTab === w} onClick={() => this.setState({apHintsTab: w})}>
+                                        {this.apWorldName(w)}
+                                    </NavLink>
+                                </NavItem>
+                            ))}
+                        </Nav>
+                    ) : null}
+                    <TabContent activeTab={worlds.includes(apHintsTab) ? apHintsTab : worlds[0]}>
+                        {worlds.map(w => (
+                            <TabPane key={w} tabId={w} className="pt-3">{this.apHintRows(w)}</TabPane>
+                        ))}
+                    </TabContent>
+                    {worlds.length ? null : (
+                        <div className="text-center text-muted p-3">Nothing to unlock yet.</div>
+                    )}
+                </ModalBody>
+                <ModalFooter>
+                    <Button color="secondary" onClick={this.toggleApHints}>Close</Button>
+                </ModalFooter>
+            </Modal>
+        )
+    };
+
     onApConnect = () => {
         let {gameId, apHost, apPort, apPassword} = this.state
         this.setState({apConnectPending: true}, () => postNetForm(`/netcode/game/${gameId}/ap/connect`,
@@ -1937,6 +2079,7 @@ export default class MainPage extends React.Component {
         let portValid = portNum > 0 && portNum < 65536
         let canConnect = apHost.trim() !== "" && portValid && !apConnectPending
         let canDisconnect = !apConnectPending && !!(apStatus && apStatus.enabled)
+        let hintPrice = this.apHintPrice()
         let statusColor = {connected: "text-success", pending: "text-warning", reconnecting: "text-warning", refused: "text-danger", closed: "text-muted"}[apStatus ? apStatus.status : ""] || "text-muted"
         let lastActStr = ""
         if(apStatus && apStatus.last_activity) {
@@ -1992,6 +2135,14 @@ export default class MainPage extends React.Component {
                             <Button color="danger" outline block disabled={!canDisconnect} onClick={this.onApDisconnect}>Disconnect</Button>
                         </Col>
                     </Row>
+                    <Row className="p-1 justify-content-center">
+                        <Col xs="auto">
+                            <Button color="primary" outline disabled={!hintPrice} onClick={this.toggleApHints}>
+                                {hintPrice ? `Unlock Hints (${hintPrice})` : "No Hints Available"}
+                            </Button>
+                        </Col>
+                    </Row>
+                    {this.apHintsModal()}
                     {apNoLink ? (
                         <Row className="p-1">
                             <Col className="text-center text-muted">Not connected to an Archipelago room yet.</Col>
@@ -2660,6 +2811,7 @@ export default class MainPage extends React.Component {
                         apMode: false, apExport: [...apDefaultExport], apDeathLink: false, inputApMode: false, playerNames: [],
                         worldSettings: [],
                         apHost: AP_DEFAULT_HOST, apPort: "", apPassword: "", apConnectPending: false, apStatus: null, apNoLink: false, apHidden: false, apPollFailed: false,
+                        apHints: null, apHintsOpen: false, apHintsTab: 1, apHintsBusy: null,
                         histAt: -1, histLen: 0, seedStale: false,
                         expPool: 10000, lastHelp: new Date(), seedIsGenerating: seedTabExists, cellFreq: cellFreqPresets("standard"),
                         fragCount: 30, fragReq: 20, relicCount: 8, loader: get_random_loader(), paramId: paramId, seedTabExists: seedTabExists, 

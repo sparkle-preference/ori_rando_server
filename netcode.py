@@ -15,11 +15,11 @@ import json
 import logging as log
 from time import monotonic
 
-from ap_models import APLink
+from ap_models import APHints, APLink, HINT_OFFERED
 from archipelago import ap_bridge
 from cache import Cache
 from enums import MultiplayerGameType
-from models import Game, BingoGameData, Player, bingo_lock
+from models import Game, BingoGameData, Player, User, bingo_lock
 from pickups import Pickup
 from util import SITE_HOST, all_locs, bfield_checksum, coord_correction_map, debug, netperf, seed_sync_id, version_at_least, version_check, AP_MIN_DLL, ARCHIPELAGO
 
@@ -236,6 +236,92 @@ def ap_status(game_id):
     Cache.set_aplink_report(game_id, text)
     ap_bridge.heal(game_id)  # passive: re-arms crashed threads, never idle ones
     return 200, text
+
+
+def _may_buy_hints(game):
+    """A hint spends points the player can never earn back, so who may press
+    buy follows who could already do it by hand: a passwordless room takes
+    '!hint' from anyone who has its address, and the seed page is no worse.
+    A password means the room is closed, so the site closes too -- a logged-in
+    player of this game and nobody else."""
+    link = APLink.with_id(game.key.id())
+    if link is None:
+        return False, "No Archipelago link for game %s" % game.key.id()
+    if not link.password:
+        return True, None
+    user = User.get()
+    if not user:
+        return False, "This room has a password, so buying hints needs a login"
+    if any(p is not None and p.user == user.key for p in game.get_players()):
+        return True, None
+    return False, "Only a player in this game can buy its hints"
+
+
+def _ap_game(game_id):
+    """(game, None) or (None, (status, body)) -- the checks both hint routes
+    make before they look at anything."""
+    if not ARCHIPELAGO:
+        return None, (404, "Archipelago support is not enabled")
+    game = Game.with_id(game_id)
+    if not game:
+        return None, (404, "Game %s not found" % game_id)
+    params = game.fetch_params()
+    if not params or not getattr(params, "ap_mode", False):
+        return None, (409, "Game %s is not an Archipelago game" % game_id)
+    return game, None
+
+
+def ap_hints(game_id):
+    """GET ap/hints: what each world could buy, and what it would cost.
+
+    An offer means Ori has unlocked the hint and nothing free answered it.
+    Everything here is already visible to a player of this game; the price is
+    the room's own, reported by the bridge."""
+    game, problem = _ap_game(game_id)
+    if problem:
+        return problem
+    may, why = _may_buy_hints(game)
+    worlds = []
+    for world in range(1, (game.players or 1) + 1):
+        points, cost = APHints.price(game_id, world)
+        offers = []
+        for slot, entry in sorted(APHints.load(game_id, world).items()):
+            if entry.get("s") != HINT_OFFERED:
+                continue
+            key = entry.get("k", "")
+            code, _, ident = key.partition("|")
+            # named here because the page's own table has no keysanity door
+            # keystones in it -- they are never a thing you place
+            offers.append({"slot": slot, "key": key,
+                           "name": Pickup.name(code, ident) if key else ""})
+        worlds.append({"world": world, "points": points, "cost": cost,
+                       "offers": offers})
+    return 200, {"worlds": worlds, "can_buy": may, "why": why}
+
+
+def ap_buy_hint(game_id, payload):
+    """POST ap/hints/buy {world, slot}: mark one offer bought. The bridge
+    session picks the request up and spends the points; this only ever moves
+    an offer, so a double press is the second one losing a compare-and-set."""
+    game, problem = _ap_game(game_id)
+    if problem:
+        return problem
+    may, why = _may_buy_hints(game)
+    if not may:
+        return 403, why
+    try:
+        world, slot = int(payload.get("world")), int(payload.get("slot"))
+    except (TypeError, ValueError):
+        return 400, "world and slot are required"
+    if not 1 <= world <= (game.players or 1):
+        return 400, "Game %s has no world %s" % (game_id, world)
+    points, cost = APHints.price(game_id, world)
+    if points < cost:
+        return 402, "World %s has %s hint points and a hint costs %s" % (world, points, cost)
+    if not APHints.request(game_id, world, slot):
+        return 409, "That hint is not for sale"
+    ap_bridge.heal(game_id)   # a crashed session must not sit on a paid-for ask
+    return 200, "ok"
 
 
 def ap_disconnect(game_id):

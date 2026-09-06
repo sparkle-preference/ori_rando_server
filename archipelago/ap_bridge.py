@@ -34,7 +34,8 @@ from wsproto.extensions import PerMessageDeflate
 
 from ap_models import (APHints, APLink, APNames, APScout, ap_slot_name,
                        sanitize_display_name, wire_safe_name,
-                       HINT_DEFERRED, HINT_PENDING, HINT_RESOLVED,
+                       HINT_DEFERRED, HINT_OFFERED, HINT_PENDING,
+                       HINT_REQUESTED, HINT_RESOLVED,
                        ITEM_NAME_MAX, PLAYER_NAME_MAX)
 from cache import Cache
 from util import ARCHIPELAGO, is_mw_manifest_loc
@@ -81,6 +82,7 @@ HINT_QUEUE_MAX = 32      # slots a client may have outstanding at once
 HINT_RETRY_SECS = 30.0   # per-slot rate limit on reconsidering a request
 HINT_ACK_SECS = 20.0     # !hint said, no Hint and no CommandResult back
 HINT_CLAIM_TTL = 900.0   # a PENDING claim this old is a crashed purchase
+HINT_POLL_SECS = 5.0     # re-read the row while anything is for sale
 HINT_LOC_MAX = 30        # chars of a foreign game's location name
 HINT_TEXT_MAX = 52       # chars of one answer (clue lines pack three)
 FOREIGN_HINT_TEXT = "Archipelago"  # all we can say when the room named no place
@@ -533,13 +535,14 @@ def _claim_hint(gid, world, slot, ap_item, stale_ok=False):
         return False
     if state == HINT_PENDING and not (stale_ok and time.time() - cur.get("u", 0) > HINT_CLAIM_TTL):
         return False
-    entries[int(slot)] = APHints.entry(HINT_PENDING, ap_item=ap_item)
-    APHints.store(gid, world, entries)
+    entries[int(slot)] = APHints.entry(HINT_PENDING, ap_item=ap_item,
+                                      key=cur.get("k", ""))
+    APHints.store(gid, world, entries, row=row)
     return True
 
 
 @ndb.transactional(retries=5)
-def _persist_hint(gid, world, slot, state, text="", ap_item=0):
+def _persist_hint(gid, world, slot, state, text="", ap_item=0, key=""):
     """Record a transition. RESOLVED is sticky: a later DEFERRED (say, a
     reconnect that re-derives affordability) must not un-answer a slot."""
     row = APHints.get_by_id(APHints.key_id(gid, world))
@@ -550,8 +553,18 @@ def _persist_hint(gid, world, slot, state, text="", ap_item=0):
     if cur.get("s") == state and cur.get("t", "") == text:
         return
     entries[int(slot)] = APHints.entry(state, text=text,
-                                       ap_item=ap_item or cur.get("a", 0))
-    APHints.store(gid, world, entries)
+                                       ap_item=ap_item or cur.get("a", 0),
+                                       key=key or cur.get("k", ""))
+    APHints.store(gid, world, entries, row=row)
+
+
+@ndb.transactional(retries=5)
+def _persist_price(gid, world, points, cost):
+    row = APHints.get_by_id(APHints.key_id(gid, world))
+    if row is not None and row.points == points and row.cost == cost:
+        return
+    APHints.store(gid, world, APHints.unpack(row), row=row,
+                  points=points, cost=cost)
 
 
 def _apply_hint_text(gid, world, answers, keep=None):
@@ -815,6 +828,8 @@ class ApSession(object):
         self.hint_inflight = None  # (slot, ap item, sent at) -- one at a time
         self.hint_last_try = {}   # slot -> monotonic of the last consideration
         self.hint_next_service = 0.0
+        self.hint_next_poll = 0.0    # ... and when to look for a buy
+        self.price_written = None    # (points, cost) as last persisted
         self.hint_hydrated = False   # the room has told us what it already holds
         self.hint_asked_at = None    # ... when we asked it to
         self.scout_rows = None    # (monotonic, {world: APNames entries})
@@ -1307,6 +1322,17 @@ class ApSession(object):
         if not self.authed or not self.hint_wanted:
             return
         now = monotonic()
+        self._publish_price()
+        if now >= self.hint_next_poll and self._anything_for_sale():
+            self.hint_next_poll = now + HINT_POLL_SECS
+            with self.ctx():
+                fresh = _load_hints(self.gid, self.world)
+            # a live session's own transitions are the newer truth: only the
+            # states it cannot produce itself are taken from the row
+            for slot, cur in fresh.items():
+                if cur.get("s") == HINT_REQUESTED and self.hint_state.get(slot, {}).get("s") == HINT_OFFERED:
+                    self.hint_state[slot] = cur
+                    self.hint_last_try.pop(slot, None)
         for slot in sorted(self.hint_wanted):
             last = self.hint_last_try.get(slot)
             if last is not None and now - last < HINT_RETRY_SECS:
@@ -1343,6 +1369,11 @@ class ApSession(object):
             # this item has copies: it has no more to give, so settle for
             # what we can say rather than buying the same answer again
             self._publish(slot, FOREIGN_HINT_TEXT, ap_item)
+            return True
+        if entry.get("s") != HINT_REQUESTED:
+            # unlocked in Ori and not free anywhere: for sale, and it stays that
+            # way until somebody presses buy on the seed page
+            self._offer(slot, ap_item, key="%s|%s" % key if key else "")
             return True
         if self.hint_inflight is not None or not self._hint_buying_allowed():
             # one purchase at a time, so a CommandResult is unambiguous; come
@@ -1466,6 +1497,33 @@ class ApSession(object):
         if store:
             log.info("APBRIDGE hint resolved gid=%s world=%s slot=%s -> %r",
                      self.gid, self.world, slot, text)
+
+    def _anything_for_sale(self):
+        return any((self.hint_state.get(slot) or {}).get("s") == HINT_OFFERED
+                   for slot in self.hint_wanted)
+
+    def _publish_price(self):
+        """Only from the hint service, so a room that never stops updating
+        points does not turn into a write per message."""
+        cost = self._hint_cost()
+        if (self.hint_points, cost) == self.price_written:
+            return
+        self.price_written = (self.hint_points, cost)
+        with self.ctx():
+            _persist_price(self.gid, self.world, self.hint_points, cost)
+
+    def _offer(self, slot, ap_item, key=""):
+        """For sale: Ori has unlocked it, nothing free answered it, and no
+        points have been spent. Silent -- a '!hint' would broadcast what we are
+        looking for, and we have not decided to look yet. The key rides along so
+        the seed page can name the hint without the manifest."""
+        if (self.hint_state.get(slot) or {}).get("s") == HINT_OFFERED:
+            return
+        with self.ctx():
+            _persist_hint(self.gid, self.world, slot, HINT_OFFERED,
+                          ap_item=ap_item, key=key)
+        self.hint_state[slot] = APHints.entry(HINT_OFFERED, ap_item=ap_item, key=key)
+        log.info("APBRIDGE hint offered gid=%s world=%s slot=%s", self.gid, self.world, slot)
 
     def _defer(self, slot, ap_item, why):
         """Unaffordable: leave the baked placeholder alone, say nothing to

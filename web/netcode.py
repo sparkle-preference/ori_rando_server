@@ -75,6 +75,18 @@ def netcode_ap_status(game_id):
     return json_resp(body, status) if status == 200 else text_resp(body, status)
 
 
+@bp.route('/netcode/game/<int:game_id>/ap/hints')
+def netcode_ap_hints(game_id):
+    status, body = netcode.ap_hints(game_id)
+    return json_resp(body, status) if status == 200 else text_resp(body, status)
+
+
+@bp.route('/netcode/game/<int:game_id>/ap/hints/buy', methods=['POST'])
+def netcode_ap_buy_hint(game_id):
+    status, body = netcode.ap_buy_hint(game_id, request.form)
+    return text_resp(body, status)
+
+
 @bp.route('/netcode/game/<int:game_id>/ap/disconnect', methods=['POST'])
 def netcode_ap_disconnect(game_id):
     status, body = netcode.ap_disconnect(game_id)

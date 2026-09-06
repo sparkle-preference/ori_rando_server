@@ -273,7 +273,8 @@ class SessionTestCase(unittest.TestCase):
                       ap_bridge._persist_hint, ap_bridge._apply_hint_text,
                       ap_bridge._hint_notice, ap_bridge._scout_rows,
                       ap_bridge._load_scout_row, ap_bridge._persist_drop,
-                      ap_bridge._notify_drop, ap_bridge._persist_promises)
+                      ap_bridge._notify_drop, ap_bridge._persist_promises,
+                      ap_bridge._persist_price)
         ap_bridge._load_scout_row = lambda gid, world: self.scout_row
         ap_bridge._persist_drop = lambda gid, world, entry: (
             self.drops.append(entry) or self.drop_new)
@@ -283,8 +284,11 @@ class SessionTestCase(unittest.TestCase):
             self.promise_blobs.append((world, dict(blob))))
         ap_bridge._load_hints = lambda gid, world: dict(self.hint_rows)
         ap_bridge._claim_hint = self._claim
-        ap_bridge._persist_hint = lambda gid, world, slot, state, text="", ap_item=0: (
+        ap_bridge._persist_hint = lambda gid, world, slot, state, text="", ap_item=0, key="": (
             self.hint_writes.append((slot, state, text)))
+        self.prices = []             # (points, cost) as the bridge published them
+        ap_bridge._persist_price = lambda gid, world, points, cost: (
+            self.prices.append((points, cost)))
         ap_bridge._apply_hint_text = lambda gid, world, answers, keep=None: self.published.append(dict(answers))
         ap_bridge._hint_notice = lambda gid, world, text: self.notices.append(text)
         ap_bridge._scout_rows = lambda gid, worlds: dict(self.scouts_by_world)
@@ -312,7 +316,8 @@ class SessionTestCase(unittest.TestCase):
          ap_bridge._persist_hint, ap_bridge._apply_hint_text,
          ap_bridge._hint_notice, ap_bridge._scout_rows,
          ap_bridge._load_scout_row, ap_bridge._persist_drop,
-         ap_bridge._notify_drop, ap_bridge._persist_promises) = self._orig
+         ap_bridge._notify_drop, ap_bridge._persist_promises,
+         ap_bridge._persist_price) = self._orig
         ap_bridge._notice_at.clear()
 
     def make_session(self, **kw):
@@ -1178,9 +1183,17 @@ class HintTestCase(SessionTestCase):
                 [self.retrieved(1, list(held))]]
 
     def wanting(self, slots, **kw):
+        """Ori has unlocked these. Nothing is bought on that alone any more."""
         session = self.make_session(**kw)
         session.hint_box.add(slots)
         return session
+
+    def buying(self, slots, **kw):
+        """... and somebody pressed buy on the seed page, which is the only
+        thing that lets a session spend points."""
+        for slot in slots:
+            self.hint_rows[slot] = {"s": "q", "t": "", "a": 0, "u": 0}
+        return self.wanting(slots, **kw)
 
     @staticmethod
     def says(sock):
@@ -1234,7 +1247,7 @@ class TestHintGates(HintTestCase):
         self.assertEqual(session.hint_wanted, set())
 
     def test_an_unaffordable_hint_is_deferred_without_a_word(self):
-        session = self.wanting([5])
+        session = self.buying([5])
         sock = self.run_session(session, self.hello(hint_points=9))
         self.assertEqual(self.says(sock), [])
         self.assertEqual(self.hint_writes, [(5, "d", "")])
@@ -1253,19 +1266,19 @@ class TestHintGates(HintTestCase):
         self.assertEqual(session._hint_cost(), 1)      # the max(1, ...) floor
 
     def test_free_hints_are_affordable_at_zero_points(self):
-        session = self.wanting([5])
+        session = self.buying([5])
         sock = self.run_session(session, self.hello(hint_points=0, hint_cost=0))
         self.assertEqual(self.says(sock), ["!hint Water Vein"])
 
     def test_the_affordability_notice_is_rate_limited_per_world(self):
-        self.run_session(self.wanting([5, 8]), self.hello(hint_points=0))
+        self.run_session(self.buying([5, 8]), self.hello(hint_points=0))
         self.assertEqual(len(self.notices), 1)
         self.assertEqual(sorted(w[0] for w in self.hint_writes), [5, 8])
 
     def test_one_purchase_is_in_flight_at_a_time(self):
         # a CommandResult carries no correlation id, so two open purchases
         # would make an affordability refusal ambiguous
-        sock = self.run_session(self.wanting([5, 8]), self.hello())
+        sock = self.run_session(self.buying([5, 8]), self.hello())
         self.assertEqual(self.says(sock), ["!hint Water Vein"])
 
     def test_a_record_that_refuses_the_claim_stops_the_purchase(self):
@@ -1273,8 +1286,32 @@ class TestHintGates(HintTestCase):
         sock = self.run_session(self.wanting([5]), self.hello())
         self.assertEqual(self.says(sock), [])
 
-    def test_the_claim_is_written_before_the_room_is_asked(self):
+    def test_an_unlocked_hint_is_offered_not_bought(self):
+        """The whole point of the rework: Ori unlocking a hint puts it up for
+        sale and spends nothing. Only the seed page's buy moves it on."""
+        sock = self.run_session(self.wanting([5]), self.hello())
+        self.assertEqual(self.says(sock), [])
+        self.assertEqual(self.hint_writes, [(5, "o", "")])
+        self.assertEqual(self.published, [])
+
+    def test_an_offer_is_written_once_however_long_the_client_asks(self):
+        """The client re-declares what is unlocked every tick; that must not
+        rewrite the row, or a busy world writes forever."""
         session = self.wanting([5])
+        self.run_session(session, self.hello() + [[], [], []])
+        self.assertEqual(self.hint_writes, [(5, "o", "")])
+
+    def test_a_free_answer_still_needs_no_purchase(self):
+        """Free reveals stay automatic: the room already holds this hint, so
+        it is published without being offered or bought."""
+        sock = self.run_session(self.wanting([5]), self.hello(
+            held=[self.stored_hint(1, 3, 99, self.WV)]) + [
+            self.clique_package({"Overworld Chest 12": 99})])
+        self.assertEqual(self.says(sock), [])
+        self.assertEqual(self.published, [{5: "Questy Overworld Chest 12"}])
+
+    def test_the_claim_is_written_before_the_room_is_asked(self):
+        session = self.buying([5])
         order = []
         self._claim_inner = self._claim
         ap_bridge._claim_hint = lambda *a, **k: (order.append("claim")
@@ -1291,10 +1328,10 @@ class TestHintGates(HintTestCase):
     def test_a_multi_copy_item_may_never_reclaim_a_stale_purchase(self):
         # a repeat '!hint' for a 2-key door buys the NEXT copy and charges
         # again, so an ambiguous outcome must never be retried
-        self.run_session(self.wanting([6]), self.hello())
+        self.run_session(self.buying([6]), self.hello())
         self.assertEqual(self.claims, [(6, self.KS, False)])
         self.claims = []
-        self.run_session(self.wanting([5]), self.hello())
+        self.run_session(self.buying([5]), self.hello())
         self.assertEqual(self.claims, [(5, self.WV, True)])   # singleton: safe
 
     def test_a_resolved_slot_is_answered_from_storage(self):
@@ -1337,7 +1374,7 @@ class TestHintFreeAnswers(HintTestCase):
         self.assertEqual(self.published, [{5: "P2 Valley"}])
 
     def test_a_hint_for_someone_else_is_not_ours(self):
-        sock = self.run_session(self.wanting([5]),
+        sock = self.run_session(self.buying([5]),
                                 self.hello(held=[self.stored_hint(2, 2, 524543, self.WV)]))
         self.assertEqual(self.says(sock), ["!hint Water Vein"])
 
@@ -1362,7 +1399,7 @@ class TestHintFreeAnswers(HintTestCase):
 
 class TestHintPurchase(HintTestCase):
     def test_a_purchase_says_hint_once_and_publishes_the_answer(self):
-        sock = self.run_session(self.wanting([5]), self.hello() + [
+        sock = self.run_session(self.buying([5]), self.hello() + [
             [self.hint_msg(1, self.WV, 3, 99)],
             self.clique_package({"Overworld Chest 12": 99})])
         self.assertEqual(self.says(sock), ["!hint Water Vein"])
@@ -1390,7 +1427,7 @@ class TestHintPurchase(HintTestCase):
         self.assertEqual(self.published, [])
 
     def test_cannot_afford_defers_the_slot_that_was_in_flight(self):
-        sock = self.run_session(self.wanting([5]), self.hello() + [
+        sock = self.run_session(self.buying([5]), self.hello() + [
             [{"cmd": "PrintJSON", "type": "CommandResult", "data": [
                 {"text": "You can't afford the hint. You have 4 points and need at least 10."}]}]])
         self.assertEqual(self.says(sock), ["!hint Water Vein"])
@@ -1398,7 +1435,7 @@ class TestHintPurchase(HintTestCase):
         self.assertEqual(self.published, [])
 
     def test_a_hostile_room_cannot_corrupt_the_tick_line(self):
-        sock = self.run_session(self.wanting([5]), [
+        sock = self.run_session(self.buying([5]), [
             [dict(ROOMINFO[0], hint_cost=10,
                   datapackage_checksums={"Clique": "cliquesum"})],
             [connected(missing=self.OURS, hint_points=100,
@@ -1416,7 +1453,7 @@ class TestHintPurchase(HintTestCase):
         self.assertEqual(self.says(sock), ["!hint Water Vein"])
 
     def test_a_room_that_never_answers_leaves_the_claim_standing(self):
-        session = self.wanting([5])
+        session = self.buying([5])
         sock = self.run_session(session, self.hello() + [None, None])
         self.assertEqual(self.says(sock), ["!hint Water Vein"])
         self.assertEqual(self.published, [])
@@ -1756,7 +1793,18 @@ class TestGoldenRealTouchpoints(unittest.TestCase):
 
     WV = 524299
 
-    def hint_session(self, slots):
+    def hint_session(self, slots, requested=True):
+        """Ori has unlocked `slots`. requested=True also marks them bought on
+        the seed page, which is the only thing that lets points be spent."""
+        if requested:
+            from ap_models import APHints
+            entries = APHints.load(self.GID, self.WORLD)
+            for slot in slots:
+                # the site only ever promotes an offered slot, so a claim another
+                # session already made must not be re-armed here either
+                if (entries.get(int(slot)) or {}).get("s") in (None, "o"):
+                    entries[int(slot)] = APHints.entry("q")
+            APHints.store(self.GID, self.WORLD, entries)
         session = ApSession(self.GID, self.WORLD, self.maps, "Ori1", None,
                             game_slots=["Ori1", "Ori2"], hint_box=ap_bridge._HintBox())
         session.hint_box.add(slots)

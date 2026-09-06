@@ -335,7 +335,11 @@ class APNames(ndb.Model):
 # APHints entry states. PENDING is written BEFORE the room is asked, so a
 # crash between the claim and the answer leaves evidence instead of a second
 # purchase; DEFERRED means we did the arithmetic and the slot cannot pay yet.
+# o: Ori has unlocked it and nothing free answered it, so it is for sale.
+# q: somebody pressed buy. Only q lets a session spend points -- the site
+#    writes it, the bridge picks it up, and the claim turns it into p.
 HINT_PENDING, HINT_RESOLVED, HINT_DEFERRED = "p", "r", "d"
+HINT_OFFERED, HINT_REQUESTED = "o", "q"
 
 
 class APHints(ndb.Model):
@@ -351,9 +355,13 @@ class APHints(ndb.Model):
     ReceivedItems batch), one key per world so K sessions never contend.
     """
     # JSON {"<slot>": {"s": state, "t": resolved text, "a": ap item id,
-    #                  "u": unix seconds of the last transition}}
+    #                  "k": "<code>|<id>", "u": unix seconds of the transition}}
     hints   = ndb.TextProperty(compressed=True)
     updated = ndb.DateTimeProperty(auto_now=True)
+    # what the room last said this world can spend, and what one hint costs.
+    # Here so the seed page can price its button with no session in the loop.
+    points  = ndb.IntegerProperty(default=0)
+    cost    = ndb.IntegerProperty(default=0)
 
     @staticmethod
     def key_id(gid, world):
@@ -378,10 +386,42 @@ class APHints(ndb.Model):
         return APHints.unpack(APHints.get_by_id(APHints.key_id(gid, world)))
 
     @staticmethod
-    def store(gid, world, entries):
+    def store(gid, world, entries, row=None, points=None, cost=None):
+        """A put rebuilds the whole entity, so the price has to be carried
+        across every write that is not about the price."""
+        key_id = APHints.key_id(gid, world)
+        if points is None or cost is None:
+            if row is None:
+                row = APHints.get_by_id(key_id)
+            points = row.points if points is None and row else (points or 0)
+            cost = row.cost if cost is None and row else (cost or 0)
         blob = {str(k): v for k, v in sorted(entries.items())}
-        APHints(id=APHints.key_id(gid, world), hints=json.dumps(blob)).put()
+        APHints(id=key_id, hints=json.dumps(blob),
+                points=int(points), cost=int(cost)).put()
 
     @staticmethod
-    def entry(state, text="", ap_item=0):
-        return {"s": state, "t": text, "a": int(ap_item), "u": int(time.time())}
+    @ndb.transactional(retries=5)
+    def request(gid, world, slot):
+        """Offered -> requested, which is the only thing that lets a session
+        spend points. False means it was not for sale: already bought, already
+        answered, or never unlocked."""
+        key_id = APHints.key_id(gid, world)
+        row = APHints.get_by_id(key_id)
+        entries = APHints.unpack(row)
+        cur = entries.get(int(slot)) or {}
+        if cur.get("s") != HINT_OFFERED:
+            return False
+        entries[int(slot)] = dict(cur, s=HINT_REQUESTED, u=int(time.time()))
+        APHints.store(gid, world, entries, row=row)
+        return True
+
+    @staticmethod
+    def price(gid, world):
+        """(points, cost) as the room last reported them, 0 before it has."""
+        row = APHints.get_by_id(APHints.key_id(gid, world))
+        return (row.points, row.cost) if row else (0, 0)
+
+    @staticmethod
+    def entry(state, text="", ap_item=0, key=""):
+        return {"s": state, "t": text, "a": int(ap_item), "k": key,
+                "u": int(time.time())}
