@@ -213,7 +213,6 @@ extra_PBT = [
     PickLoc(48, 'Mapstone 7', 'Mapstone', 'MS7', 0, 48),
     PickLoc(52, 'Mapstone 8', 'Mapstone', 'MS8', 0, 52),
     PickLoc(56, 'Mapstone 9', 'Mapstone', 'MS9', 0, 56),
-    PickLoc(-280256, "EC", "Glades", "SunkenGladesFirstEC", -28, -256),
     PickLoc(-2399488, "EVWarmth", "Horu", "FinalEscape", -240, 512),
     PickLoc(-12320248, "Plant", "Forlorn", "ForlornEscapePlant", -1232, -248),
     PickLoc(2, "SPAWN", "Glades", "FirstPickup", 189, -210),

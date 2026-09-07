@@ -136,9 +136,8 @@ def build_items():
 
 def build_locations():
     pbc = picks_by_coord(extras=True)
-    # extra_PBT entries shadow areas.ori names in picks_by_coord (e.g.
-    # SunkenGladesFirstEC vs areas.ori's FirstEnergyCell); the graph speaks
-    # areas.ori, so the datapackage must prefer those names
+    # an extra_PBT entry that shares a coord with an areas.ori loc shadows its name in
+    # picks_by_coord; the graph speaks areas.ori, so the datapackage prefers those names
     ori_names = {p.coords: p for group in picks_by_type(extras=False).values() for p in group}
     locations = []
     for i, coord in enumerate(coords_in_order):
