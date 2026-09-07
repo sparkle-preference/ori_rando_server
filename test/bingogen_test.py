@@ -9,8 +9,16 @@ Run from the repo root:  python3 -m unittest test.bingogen_test -v
 import random
 import unittest
 
-from bingo import (BingoGenerator, JourneyGoal, journey_key, journey_pairs, spawn_early_zones,
-                   SPAWN_AREAS, SPAWN_CLUSTER, SPAWN_TELEPORTERS)
+from bingo import (BingoGenerator, DefeatGoal, JourneyGoal, defeat_key, defeat_zones, journey_key,
+                   journey_pairs, spawn_early_zones, DEFEAT_ZONES, SPAWN_AREAS, SPAWN_CLUSTER,
+                   SPAWN_TELEPORTERS)
+
+# BingoEnemyKinds.Kinds and RandomizerTrackedDataManager.Zones in the client, verbatim:
+# a Defeat subgoal named outside these never completes.
+CLIENT_KINDS = ["Slimes", "Spitters", "Frogs", "Fronkeys", "Spiders", "Birds", "Fish", "Rhinos", "Swarms",
+                "Elementals", "Exploders", "Sharks"]
+CLIENT_ZONES = ["Glades", "Grove", "Grotto", "Blackroot", "Swamp", "Ginso", "Valley", "Misty", "Forlorn",
+                "Sorrow", "Horu"]
 
 # BingoController.Teleporters in the client, verbatim. If these ever disagree,
 # journey cards silently never complete.
@@ -67,7 +75,7 @@ class TestJourneyGeneration(unittest.TestCase):
         goal = make_goal()
         rand = random.Random(4)
         banned, origins = [], []
-        for _ in range(3):  # max_repeats
+        for _ in range(2):  # max_repeats
             card = goal.to_card(rand, banned={"goals": banned})
             origins.append(card.subgoals[0]["name"].partition("-")[0])
         self.assertEqual(len(set(origins)), len(origins))
@@ -80,7 +88,7 @@ class TestJourneyGeneration(unittest.TestCase):
 
     def test_max_repeats_caps_journeys_per_board(self):
         # groupSeen starts at 1, so max_repeats N yields exactly N cards
-        self.assertEqual(make_goal().max_repeats, 3)
+        self.assertEqual(make_goal().max_repeats, 2)
 
 
 class TestEasyOnlyPairs(unittest.TestCase):
@@ -164,7 +172,7 @@ class TestHardOnlyPairs(unittest.TestCase):
 class TestSpawnTeleporter(unittest.TestCase):
     """Spawn hands you its own well, so that one can't carry a card alone."""
 
-    BOARDS = 60
+    BOARDS = 150
 
     def _free_squares(self, spawn):
         """Wells that rolled as the whole card, or inside an 'either'."""
@@ -360,8 +368,9 @@ class TestBoardGeneration(unittest.TestCase):
         for seed in range(40):
             cards = self._board(str(seed))
             counts.add(len([c for c in cards if c.disp_name.startswith("Collect Pickups In")]))
-        self.assertLessEqual(max(counts), 3)
-        self.assertGreaterEqual(min(counts), 2)
+        # a flat budget of 2 is a ceiling: a board can draw the family once and stop
+        self.assertLessEqual(max(counts), 2)
+        self.assertIn(2, counts)
 
     def test_generation_is_deterministic(self):
         first = [c.disp_name for c in self._board("determinism")]
@@ -371,3 +380,105 @@ class TestBoardGeneration(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestDefeatData(unittest.TestCase):
+    def test_every_kind_and_zone_is_one_the_client_tracks(self):
+        for kind, zones in defeat_zones(hard=True).items():
+            self.assertIn(kind, CLIENT_KINDS)
+            for zone in zones:
+                self.assertIn(zone, CLIENT_ZONES)
+
+    def test_hard_only_zones_join_on_hard(self):
+        self.assertNotIn("Forlorn", defeat_zones()["Spitters"])
+        self.assertIn("Forlorn", defeat_zones(hard=True)["Spitters"])
+        self.assertEqual(defeat_zones()["Rhinos"], defeat_zones(hard=True)["Rhinos"])
+
+    def test_sharks_are_a_kind_but_never_a_target(self):
+        self.assertIn("Sharks", CLIENT_KINDS)
+        self.assertNotIn("Sharks", DEFEAT_ZONES)
+
+    def test_key_is_kind_dash_zone(self):
+        self.assertEqual(defeat_key("Slimes", "Glades"), "Slimes-Glades")
+
+
+class TestDefeatCards(unittest.TestCase):
+    def kind_goal(self, count=2, zones=None, hard=False):
+        return DefeatGoal(zones or defeat_zones(hard), lambda: count)
+
+    def zone_goal(self, count=2, zones=None, hard=False):
+        return DefeatGoal(zones or defeat_zones(hard), lambda: count, by_zone=True)
+
+    def test_kind_card_is_one_kind_in_n_zones(self):
+        card = self.kind_goal(count=3).to_card(random.Random(1))
+        self.assertEqual(card.name, "Defeat")  # the client's top-level json key
+        self.assertEqual(card.goal_type, "multi")
+        self.assertEqual(card.goal_method, "and")
+        self.assertEqual(len(card.subgoals), 3)
+        kinds = {sg["name"].partition("-")[0] for sg in card.subgoals}
+        self.assertEqual(len(kinds), 1)
+        for sg in card.subgoals:
+            kind, _, zone = sg["name"].partition("-")
+            self.assertIn(zone, defeat_zones()[kind])
+            self.assertEqual(sg["disp_name"], zone)
+        self.assertEqual(card.disp_name, "Defeat a %s in zones" % {"Slimes": "Slime", "Spitters": "Spitter", "Frogs": "Frog",
+                         "Fronkeys": "Fronkey", "Spiders": "Spider", "Birds": "Bird", "Fish": "Fish", "Rhinos": "Rhino", "Swarms": "Swarm"}[kinds.pop()])
+        self.assertNotIn(":", card.disp_name)  # Bingo.js appends it
+
+    def test_zone_card_is_n_kinds_in_one_zone(self):
+        card = self.zone_goal(count=3).to_card(random.Random(2))
+        zones = {sg["name"].partition("-")[2] for sg in card.subgoals}
+        self.assertEqual(len(zones), 1)
+        zone = zones.pop()
+        for sg in card.subgoals:
+            kind, _, _ = sg["name"].partition("-")
+            self.assertIn(zone, defeat_zones()[kind])
+            self.assertEqual(sg["disp_name"], "a " + kind[:-1] if kind != "Fish" else "a Fish")
+        self.assertEqual(card.disp_name, "Defeat in %s" % zone)
+
+    def test_wording_follows_the_count(self):
+        self.assertTrue(self.kind_goal(count=1).to_card(random.Random(3)).disp_name.endswith(" in zone"))
+        self.assertTrue(self.kind_goal(count=2).to_card(random.Random(3)).disp_name.endswith(" in zones"))
+        self.assertTrue(self.zone_goal(count=1).to_card(random.Random(3)).disp_name.startswith("Defeat in "))
+
+    def test_count_is_capped_by_what_is_there(self):
+        card = self.kind_goal(count=9, zones={"Rhinos": defeat_zones()["Rhinos"]}).to_card(random.Random(4))
+        self.assertEqual(len(card.subgoals), len(defeat_zones()["Rhinos"]))
+
+    def test_banned_pairs_are_skipped_and_exhaustion_returns_none(self):
+        zones = {"Rhinos": ["Swamp", "Valley"]}
+        card = self.kind_goal(count=2, zones=zones).to_card(random.Random(5), banned={"goals": ["Rhinos-Swamp"]})
+        self.assertEqual([sg["name"] for sg in card.subgoals], ["Rhinos-Valley"])
+        self.assertIsNone(self.kind_goal(zones=zones).to_card(random.Random(5), banned={"goals": ["Rhinos-Swamp", "Rhinos-Valley"]}))
+
+    def test_no_hard_only_zone_below_hard(self):
+        hard_only = {defeat_key(k, z) for k, spec in DEFEAT_ZONES.items() for z in spec.get("hard", [])}
+        for seed in range(30):
+            for goal in (self.kind_goal(count=5), self.zone_goal(count=5)):
+                card = goal.to_card(random.Random(seed))
+                self.assertFalse(hard_only & {sg["name"] for sg in card.subgoals})
+
+    def test_hard_reaches_the_hard_only_zones(self):
+        seen = set()
+        for seed in range(200):
+            card = self.kind_goal(count=5, hard=True).to_card(random.Random(seed))
+            seen |= {sg["name"] for sg in card.subgoals}
+        self.assertIn("Spitters-Forlorn", seen)
+
+
+class TestDefeatBudget(unittest.TestCase):
+    def test_at_most_two_defeat_cards_per_board(self):
+        for seed in range(40):
+            for difficulty in ("easy", "normal", "hard"):
+                cards = BingoGenerator.get_cards(random.Random(seed), difficulty=difficulty)
+                self.assertLessEqual(sum(1 for card in cards if card.name == "Defeat"), 2)
+
+    def test_boards_do_get_defeat_cards(self):
+        self.assertTrue(any(card.name == "Defeat" for seed in range(20)
+                            for card in BingoGenerator.get_cards(random.Random(seed))))
+
+    def test_two_defeat_cards_never_share_a_pair(self):
+        for seed in range(60):
+            cards = [card for card in BingoGenerator.get_cards(random.Random(seed)) if card.name == "Defeat"]
+            keys = [sg["name"] for card in cards for sg in card.subgoals]
+            self.assertEqual(len(keys), len(set(keys)))

@@ -209,7 +209,7 @@ class JourneyGoal(BingoGoal):
     extending the banned-subgoal list get_cards threads through the group.
     """
     goalType = "multi"
-    def __init__(self, pairs, disp_names, max_repeats = 3, tags = ["journey"]):
+    def __init__(self, pairs, disp_names, max_repeats = 2, tags = ["journey"]):
         self.name = "Journey"
         self.pairs = pairs
         self.disp_names = disp_names
@@ -238,6 +238,84 @@ class JourneyGoal(BingoGoal):
         subgoal = BoolGoal(journey_key(frm, to),
                            disp_name = "%s → %s" % (self.disp_names[frm], self.disp_names[to])).to_card(rand)
         card.subgoals.append(subgoal.to_json([], True))
+        return card
+
+# Where each enemy kind shows up for the purposes of bingo tracking.
+DEFEAT_ZONES = {
+    "Slimes":   {"default": ["Blackroot",  "Misty", "Horu", "Glades", "Grove", "Grotto", "Valley", "Forlorn", "Sorrow", "Ginso", "Swamp"]},
+    "Frogs":    {"default": ["Sorrow",  "Valley", "Misty", "Blackroot", "Grotto", "Grove", "Swamp", "Forlorn"], "hard": [ "Ginso"]},
+    "Fronkeys": {"default": ["Glades",  "Misty", "Ginso", "Grove", "Blackroot", "Valley", "Grotto", "Sorrow"], "hard": [ "Horu"]},
+    "Spiders":  {"default": ["Grove",  "Grotto", "Valley", "Ginso", "Sorrow", "Blackroot", "Forlorn" ], "hard": [ "Misty"]},
+    "Spitters": {"default": ["Misty",  "Horu", "Swamp", "Ginso", "Blackroot", "Sorrow"], "hard": ["Forlorn"]},
+    "Birds":    {"default": ["Sorrow",  "Valley", "Blackroot", "Misty", "Glades", "Grove"]},
+    "Rhinos":   {"default": ["Swamp",  "Valley", "Grove", "Grotto", "Misty"]},
+    "Fish":     {"default": ["Blackroot",  "Swamp", "Valley", "Glades", "Grove"], "hard": ["Horu"]},
+    "Swarms":   {"default": ["Grove",  "Horu", "Swamp", "Grotto"], "hard": ["Blackroot", "Misty"]},
+}
+
+DEFEAT_SINGULAR = {
+    "Slimes": "Slime", "Spitters": "Spitter", "Frogs": "Frog", "Fronkeys": "Fronkey", "Spiders": "Spider",
+    "Birds": "Bird", "Fish": "Fish", "Rhinos": "Rhino", "Swarms": "Swarm",
+}
+
+def defeat_key(kind, zone):
+    return "%s-%s" % (kind, zone)
+
+def defeat_zones(hard = False):
+    """kind -> the zones a card may send you to at this difficulty."""
+    out = {}
+    for kind, spec in DEFEAT_ZONES.items():
+        out[kind] = spec["default"] + (spec["hard"] if hard and "hard" in spec else [])
+    return out
+
+class DefeatGoal(BingoGoal):
+    """"Defeat a Slime in EACH zone" (one kind, N zones) or, by_zone, "Defeat one of EACH
+    kind in Misty" (one zone, N kinds). Always "and".
+
+    Both shapes share the card name, so the board budget, the repeat cap and the banned
+    (kind, zone) pairs get_cards threads through are shared: no two squares on a kill.
+    """
+    goalType = "multi"
+    def __init__(self, zones_by_kind, count_func, by_zone = False, max_repeats = 2, tags = ["defeat"]):
+        self.name = "Defeat"
+        self.zones_by_kind = zones_by_kind
+        self.count_func = count_func
+        self.by_zone = by_zone
+        self.max_repeats = max_repeats
+        self.tags = set(tags)
+        self.help_lines = [
+            "A kill counts for the zone you are standing in, the one the stats page (alt+5 by default) shows.",
+            "Most enemies come back a minute after you leave the area.",
+        ]
+
+    def to_card(self, rand, banned = {}):
+        banned_goals = banned.get("goals", [])
+        options = defaultdict(list)
+        for kind, zones in self.zones_by_kind.items():
+            for zone in zones:
+                if defeat_key(kind, zone) not in banned_goals:
+                    options[zone if self.by_zone else kind].append(kind if self.by_zone else zone)
+        if not options:
+            return None
+        subject = rand.choice(sorted(options))
+        picks = rand.sample(options[subject], min(self.count_func(), len(options[subject])))
+        # the board appends the ":" and lists the subgoals under it
+        if self.by_zone:
+            disp = "Defeat in %s" % subject
+            subgoals = [(defeat_key(kind, subject), "a " + DEFEAT_SINGULAR[kind]) for kind in picks]
+        else:
+            disp = "Defeat a %s in %s" % (DEFEAT_SINGULAR[subject], "zone" if len(picks) == 1 else "zones")
+            subgoals = [(defeat_key(subject, zone), zone) for zone in picks]
+        card = BingoCard(
+            name = self.name,
+            disp_name = disp,
+            help_lines = [str(l) for l in self.help_lines],
+            goal_type = "multi",
+            early = False
+        )
+        card.goal_method = "and"
+        for key, label in subgoals:
+            card.subgoals.append(BoolGoal(key, disp_name = label).to_card(rand).to_json([], True))
         return card
 
 def namef(verb, noun, plural_form = None):
@@ -400,7 +478,7 @@ class BingoGenerator(object):
             ),
             IntGoal(
                 name = "KillEnemies",
-                disp_name = "Kill enemies",
+                disp_name = "Defeat enemies",
                 help_lines = ["Large swarms count as 3 enemies (the initial swarm and the first split)"],
                 range_func = r((25, 75), (50, 125), (75, 175))                
             ),
@@ -445,9 +523,11 @@ class BingoGenerator(object):
                         ("and", r((1, 2), (2, 3), (3, 4), flat=True)), 
                         ("count", r((4, 7), (5, 9), (8, 11), flat=True))
                     ],
-                max_repeats = 3
+                max_repeats = 2
                 ),
             JourneyGoal(journeys, tp_disp),
+            DefeatGoal(defeat_zones(hard), r((1, 3), (2, 4), (3, 5), flat=True)),
+            DefeatGoal(defeat_zones(hard), r((1, 2), (2, 4), (3, 5), flat=True), by_zone = True),
             GoalGroup(
                 name = "EnterArea",
                 name_func = namef("Enter", "area"),
@@ -598,7 +678,7 @@ class BingoGenerator(object):
                         ("and",   r((1, 1), (1, 2), (2, 3), flat=True)),
                         ("and_",  r((1, 1), (1, 2), (2, 3), flat=True)),
                 ],
-                max_repeats = 3
+                max_repeats = 2
             )
         ]
         if not keysanity:
@@ -789,7 +869,8 @@ class BingoGenerator(object):
         groupSeen = defaultdict(lambda: (1, [], []))
         cards = []
         goals = [goal for goal in goals]
-        pickups_in = rand.randint(2,3)
+        # per-board budgets, shared by every goal carrying the tag
+        budgets = {"pickups_in_zone": 2, "defeat": 2}
         patience = 7 * discovery
         meta_count = int(round(rand.triangular(2, 5, 2.75))) if meta else 0
         is_disc = discovery > 0
@@ -817,9 +898,10 @@ class BingoGenerator(object):
                         goal.range_func = r(drange, drange, drange)
             if not goal:
                 goal = rand.choice(goals)
-            if "pickups_in_zone" in goal.tags:
-                if pickups_in > 0:
-                    pickups_in -= 1
+            budget = next((tag for tag in budgets if tag in goal.tags), None)
+            if budget:
+                if budgets[budget] > 0:
+                    budgets[budget] -= 1
                 else:
                     continue
             repeats, banned_subgoals, banned_methods = groupSeen[goal.name]
