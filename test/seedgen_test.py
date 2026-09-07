@@ -2986,7 +2986,7 @@ class ApSeedAnnotationTests(unittest.TestCase):
 
     def test_an_exported_warp_resolves_by_its_destination(self):
         """The manifest keeps the warp's coordinates, so the join has to
-        normalise the id the same way the datapackage does."""
+        normalize the id the same way the datapackage does."""
         from archipelago.convert import ITEM_BY_CODE_ID
         from seedbuilder.seedparams import Placement, Stuff
         warp_id = "Warp to Ginso Escape,510,910,GinsoEscape"

@@ -372,7 +372,7 @@ class TestHandshake(SessionTestCase):
 class DeathLinkTestCase(SessionTestCase):
     """DeathLink rides the tick as a counter out and a signal in. The two
     things that must never happen: an incoming death emitting an outgoing
-    one, and a seed without the option changing behaviour at all."""
+    one, and a seed without the option changing behavior at all."""
 
     def setUp(self):
         SessionTestCase.setUp(self)

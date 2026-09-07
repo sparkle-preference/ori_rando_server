@@ -343,7 +343,7 @@ const stuff_by_type = {
       ],
 };
 
-// A box line, as the client reads it: BX|type|x1,y1,x2,y2|colour|payload, the payload
+// A box line, as the client reads it: BX|type|x1,y1,x2,y2|color|payload, the payload
 // keeping its own pipes. Held as {type, box, color, give}; _id is the editor's own key.
 const BOX_TYPES = [
     {label: "Kill", value: "kill"},
@@ -351,7 +351,7 @@ const BOX_TYPES = [
     {label: "Item", value: "item"},
     {label: "Item (RP)", value: "ritem"},
 ]
-const BOX_COLOURS = {goal: "#8fe3a0", kill: "#ff6b6b", solid: "#9aa0aa", item: "#40c0ff", ritem: "#7fd8ff"}
+const BOX_COLORS = {goal: "#8fe3a0", kill: "#ff6b6b", solid: "#9aa0aa", item: "#40c0ff", ritem: "#7fd8ff"}
 // A deleted box keeps its line so the boxes after it keep their numbers, which is what
 // BM|n names. Never offered in BOX_TYPES; the editor writes it and hides it.
 const BOX_NONE = "none"
@@ -379,8 +379,8 @@ function box_line(b) {
         out += "|" + give
     return out
 }
-function box_colour(b) {
-    return b.color && b.color !== "none" && b.color !== "0" ? "#" + b.color.replace("#", "").slice(0, 6) : (BOX_COLOURS[b.type] || BOX_COLOURS.item)
+function box_color(b) {
+    return b.color && b.color !== "none" && b.color !== "0" ? "#" + b.color.replace("#", "").slice(0, 6) : (BOX_COLORS[b.type] || BOX_COLORS.item)
 }
 const BOX_LABELS = {kill: "Kill", solid: "Solid", item: "Item", ritem: "Repeat Item", goal: "Goal"}
 function box_label(b, num) {
@@ -897,29 +897,29 @@ function save_beta_welcome() {
     } catch(e) { /* storage disabled: it comes back next load */ }
 }
 
-// Colours somebody has actually picked for a box, newest first. The native
-// picker's own "custom colours" belong to the browser and a page cannot write
+// Colors somebody has actually picked for a box, newest first. The native
+// picker's own "custom colors" belong to the browser and a page cannot write
 // them; a datalist is the one way in, and browsers that ignore it are no worse
 // off than before.
-const BOX_COLOUR_KEY = "box_colours"
-const BOX_COLOUR_MAX = 12
+const BOX_COLOR_KEY = "box_colors"
+const BOX_COLOR_MAX = 12
 
-function box_colour_history() {
+function box_color_history() {
     try {
-        let saved = JSON.parse(localStorage.getItem(BOX_COLOUR_KEY) || "[]")
+        let saved = JSON.parse(localStorage.getItem(BOX_COLOR_KEY) || "[]")
         return Array.isArray(saved) ? saved.filter(c => /^#[0-9a-f]{6}$/i.test(c)) : []
     } catch(e) {
         return []   // storage off, or a key some other build wrote
     }
 }
 
-function remember_box_colour(colour) {
-    if(!/^#[0-9a-f]{6}$/i.test(colour))
-        return box_colour_history()
-    let next = [colour.toLowerCase(), ...box_colour_history().filter(c => c.toLowerCase() !== colour.toLowerCase())]
-                   .slice(0, BOX_COLOUR_MAX)
+function remember_box_color(color) {
+    if(!/^#[0-9a-f]{6}$/i.test(color))
+        return box_color_history()
+    let next = [color.toLowerCase(), ...box_color_history().filter(c => c.toLowerCase() !== color.toLowerCase())]
+                   .slice(0, BOX_COLOR_MAX)
     try {
-        localStorage.setItem(BOX_COLOUR_KEY, JSON.stringify(next))
+        localStorage.setItem(BOX_COLOR_KEY, JSON.stringify(next))
     } catch(e) { /* storage disabled: they last this page load */ }
     return next
 }
@@ -1173,6 +1173,6 @@ export {
     report_error,
     player_icons, doNetRequest, prng, get_param, get_flag, resolve_dark, save_dark, beta_welcome_pending, save_beta_welcome, theme_href, postNetForm, ap_enabled, get_int, get_list, get_preset, presets, get_seed, logic_paths, get_random_loader, Blabel,
     pickup_name, stuff_by_type, name_from_str, PickupSelect, Cent, ordinal_suffix, dev, gotoUrl, loginLogoutUrl, select_theme, randInt, spawn_defaults, spawnKitFor, decompose_pickup,
-    BOX_TYPES, BOX_COLOURS, BOX_NONE, is_box_gone, new_box, parse_box_line, box_line, box_colour, box_label,
-    box_colour_history, remember_box_colour
+    BOX_TYPES, BOX_COLORS, BOX_NONE, is_box_gone, new_box, parse_box_line, box_line, box_color, box_label,
+    box_color_history, remember_box_color
 };

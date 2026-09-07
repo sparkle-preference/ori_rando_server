@@ -325,8 +325,8 @@ body, #root {
   height: 32px;
 }
 
-/* chrome pads and borders its own colour area, inside whatever the input is given */
-#box-controls .box-colour {
+/* chrome pads and borders its own color area, inside whatever the input is given */
+#box-controls .box-color {
   width: 26px;
   height: 15px;
   padding: 0;
@@ -334,11 +334,11 @@ body, #root {
   background: none;
 }
 
-#box-controls .box-colour::-webkit-color-swatch-wrapper {
+#box-controls .box-color::-webkit-color-swatch-wrapper {
   padding: 0;
 }
 
-#box-controls .box-colour::-webkit-color-swatch {
+#box-controls .box-color::-webkit-color-swatch {
   border: 0;
 }
 

@@ -17,7 +17,7 @@ const cardTextSize = iniUrl.searchParams.get("textSize") || "1.5vh"
 const hideFooter = iniUrl.searchParams.has("hideFooter")
 const hideLabels = iniUrl.searchParams.has("hideLabels")
 const blindRace = iniUrl.searchParams.has("blindRace")
-// a finished square colours its text instead of filling its background
+// a finished square colors its text instead of filling its background
 const altComplete = iniUrl.searchParams.has("altCmplt")
 // a transport failure (deploy, network blip) has no status and no body,
 // so it retries quietly: banner once it stops looking momentary, toast

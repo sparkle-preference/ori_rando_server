@@ -64,7 +64,7 @@ class CLISeedParams(object):
         parser.add_argument("--wall-starved", help="Reduces the rate at which WallJump and Climb will appear early game when not required to advance", action="store_true")
         parser.add_argument("--grenade-starved", help="Reduces the rate at which Grenade will appear early and when not required to advance", action="store_true")
         parser.add_argument("--strict-mapstones", help="Require a mapstone to be placed when a map monument becomes accessible", action="store_true")
-        parser.add_argument("--non-progressive-mapstones", help="Map Stones will retain their behaviour from before v1.2, having their own unique drops", action="store_true")
+        parser.add_argument("--non-progressive-mapstones", help="Map Stones will retain their behavior from before v1.2, having their own unique drops", action="store_true")
         # goal modes
         parser.add_argument("--force-trees", help="Prevent Ori from entering the final escape room until all skill trees have been visited", action="store_true")
         parser.add_argument("--force-mapstones", help="Prevent Ori from entering the final escape room until all mapstone altars have been activated", action="store_true")

@@ -233,7 +233,7 @@ def announce_patchnotes(base, force=False, channels=None):
         was = AnnouncedPatchNotes.claim(channel, newest)
         if was is None:
             # marker already current (or just seeded); force resends the newest
-            # only -- never the whole back catalogue
+            # only -- never the whole back catalog
             if not force:
                 out[channel] = "nothing new"
                 continue

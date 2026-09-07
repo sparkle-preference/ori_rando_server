@@ -2845,7 +2845,7 @@ export default class MainPage extends React.Component {
         this.history.onChange = () => this.setState({histAt: this.history.index, histLen: this.history.stack.length})
         this.apPollTimer = null
         this.apPrefilled = false
-        // until /preset/list says otherwise, opening on the last seed is the behaviour
+        // until /preset/list says otherwise, opening on the last seed is the behavior
         this.restoreLastSeed = true
         // ?preset=owner:name -- a share link, which needs no login to open
         let shared = (url.searchParams.get("preset") || "").split(":")

@@ -2724,7 +2724,7 @@ class AnnouncedPatchNotes(ndb.Model):
         """Advance the marker and return the version it was on, or None if
         there is nothing to announce. The first run on a channel seeds the
         marker silently: otherwise switching this on would replay the whole
-        back catalogue into the channel."""
+        back catalog into the channel."""
         key = ndb.Key(AnnouncedPatchNotes, channel)
         row = key.get()
         if row and row.version == newest:

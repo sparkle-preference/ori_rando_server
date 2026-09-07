@@ -109,7 +109,7 @@ class SiteBar extends Component {
             link.href = this.themeBeforePreview
         this.themeBeforePreview = undefined
         clearTimeout(this.nameTimer)
-        // every edit goes back, so reopening does not show what was cancelled
+        // every edit goes back, so reopening does not show what was canceled
         this.setState({...this.state.pristine, settingsOpen: false, saveStatus: 0, nameFree: null})
     }
     submitSettings = () => {

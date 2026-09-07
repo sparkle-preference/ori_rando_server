@@ -7,8 +7,8 @@ import {NotificationContainer, NotificationManager} from 'react-notifications';
 import 'react-notifications/lib/notifications.css';
 import {Checkbox, CheckboxGroup} from 'react-checkbox-group';
 import {get_param, get_flag, get_int, get_list, get_seed, presets, get_preset, logic_paths, pickup_name, PickupSelect, stuff_by_type, loginLogoutUrl, decompose_pickup,
-        BOX_TYPES, BOX_NONE, is_box_gone, new_box, parse_box_line, box_line, box_colour, box_label,
-        box_colour_history, remember_box_colour} from './common.js';
+        BOX_TYPES, BOX_NONE, is_box_gone, new_box, parse_box_line, box_line, box_color, box_label,
+        box_color_history, remember_box_color} from './common.js';
 import {download, picks_by_type, picks_by_loc, picks_by_zone, picks_by_area, zones, PickupMarkersList, get_icon, 
         getMapCrs, TILE_MAX_ZOOM, hide_opacity, select_wrap, is_match, str_ids, select_styles} from './shared_map.js';
 import NumericInput from 'react-numeric-input';
@@ -271,7 +271,7 @@ class PlandoBuiler extends React.Component {
                   entrances: {1: {}}, display_entrances: false, entrance_from: {value: "", label: ""}, entrance_to: {value: "", label: ""},
                   boxes: {1: []}, display_boxes: false, box_edit: false, box_type: "kill",
                   box_show_locked: true, box_selected: null, box_bulk_type: BULK_TYPES[0],
-                  box_rank: {}, box_new_rank: 0, box_colours: box_colour_history(),
+                  box_rank: {}, box_new_rank: 0, box_colors: box_color_history(),
                   import_overwrite: false,
                 seed_name: seed_name, last_seed_name: seed_name, seed_desc: seed_desc, user: user};
     }
@@ -1226,7 +1226,7 @@ class PlandoBuiler extends React.Component {
             let bounds = [[Math.min(b.box[1], b.box[3]), Math.min(b.box[0], b.box[2])], [Math.max(b.box[1], b.box[3]), Math.max(b.box[0], b.box[2])]]
             let selected = b._id === box_selected
             return (
-                <Rectangle key={`box-${b._id}`} bounds={bounds} color={box_colour(b)} weight={selected ? 4 : 2}
+                <Rectangle key={`box-${b._id}`} bounds={bounds} color={box_color(b)} weight={selected ? 4 : 2}
                            opacity={box_faded(b) ? 0.15 : box_dim(b) ? 0.3 : b.locked ? 0.5 : 1}
                            fillOpacity={box_faded(b) || box_dim(b) || b.locked ? 0.05 : (box_edit ? 0.3 : 0.15)}
                            dashArray={box_dim(b) ? "4 4" : null}
@@ -1367,7 +1367,7 @@ class PlandoBuiler extends React.Component {
                             </div>
                         </div>
                     </Collapse>
-                    <hr style={{ backgroundColor: 'grey', height: 2 }}/>
+                    <hr style={{ backgroundColor: 'gray', height: 2 }}/>
                     <div id="pickup-controls">
                         <div className="pickup-wrapper">
                             <span className="label">Seed Flags: </span>
@@ -1375,7 +1375,7 @@ class PlandoBuiler extends React.Component {
                         </div>
                         {clue_order_picker}
                     </div>
-                    <hr style={{ backgroundColor: 'grey', height: 2 }}/>
+                    <hr style={{ backgroundColor: 'gray', height: 2 }}/>
                     <div id="pickup-controls">
                          <div className="pickup-wrapper">
                             <span className="label">Zone:</span>
@@ -1398,7 +1398,7 @@ class PlandoBuiler extends React.Component {
                             </div>
                         ) : null}
                     </div>
-                    <hr style={{ backgroundColor: 'grey', height: 2 }}/>
+                    <hr style={{ backgroundColor: 'gray', height: 2 }}/>
                     <div id="display-controls">
                         {/* one group; #display-flags lays the four out 2x2 */}
                         <CheckboxGroup id="display-flags" checkboxDepth={6} name="flags" value={this.state.flags} onChange={this.flagsChanged}>
@@ -1407,7 +1407,7 @@ class PlandoBuiler extends React.Component {
                             {flagCheck("show_loc_names", "Show Loc Names")}
                             {flagCheck("show_message_legend", "Show Styleguide")}
                         </CheckboxGroup>
-                    <hr style={{ backgroundColor: 'grey', height: 2 }}/>
+                    <hr style={{ backgroundColor: 'gray', height: 2 }}/>
                         <div id="search-wrapper">
                             <InputGroup>
                                 <InputGroupAddon addonType="prepend"><InputGroupText><FaSearch/></InputGroupText></InputGroupAddon>
@@ -1416,7 +1416,7 @@ class PlandoBuiler extends React.Component {
                             </InputGroup>
                         </div>
                     </div>
-                    <hr style={{ backgroundColor: 'grey', height: 2 }}/>
+                    <hr style={{ backgroundColor: 'gray', height: 2 }}/>
                     <div id="box-controls">
                         <div className="box-buttons">
                             <Button color="primary" onClick={this.toggleBoxes}>Boxes ({Object.keys(this.state.placements).length > 1 ? `P${this.state.player}: ` : ""}{box_count})</Button>
@@ -1439,8 +1439,8 @@ class PlandoBuiler extends React.Component {
                             ) : null}
                         </div>
                         <Collapse id="box-wrapper" isOpen={this.state.display_boxes}>
-                            <datalist id="box-colour-history">
-                                {this.state.box_colours.map(c => <option key={c} value={c}/>)}
+                            <datalist id="box-color-history">
+                                {this.state.box_colors.map(c => <option key={c} value={c}/>)}
                             </datalist>
                             <div className="box-help">A kill box kills, a solid box is a block to stand on, an item box gives its pickup once (a message is SH|text) and an Item (RP) box every entry. With editing on, drag a box to move it and a corner to resize it. A BM|3 pickup flips box #3 off or on; =0 and =1 say which.</div>
                             {listed_boxes.map(({b, i}) => {
@@ -1456,10 +1456,10 @@ class PlandoBuiler extends React.Component {
                                             <Input key={k} type="number" step="0.1" bsSize="sm" className="box-coord" disabled={b.locked} title={["x1", "y1", "x2", "y2"][k]} value={b.box[k]}
                                                    onChange={(e) => { let box = [...b.box]; box[k] = parseFloat(e.target.value) || 0; this.updateBox(i, {box: box}) }}/>
                                         ))}
-                                        {/* colour and visibility are the same question, so they share a column */}
+                                        {/* color and visibility are the same question, so they share a column */}
                                         <div className="box-show">
-                                            <input type="color" className="box-colour" title="colour" list="box-colour-history" value={box_colour(b)} disabled={b.locked || b.color === "none"}
-                                                   onChange={(e) => { this.setState({box_colours: remember_box_colour(e.target.value)}); this.updateBox(i, {color: e.target.value.replace("#", "")}) }}/>
+                                            <input type="color" className="box-color" title="color" list="box-color-history" value={box_color(b)} disabled={b.locked || b.color === "none"}
+                                                   onChange={(e) => { this.setState({box_colors: remember_box_color(e.target.value)}); this.updateBox(i, {color: e.target.value.replace("#", "")}) }}/>
                                             <Button size="sm" className="box-icon" color="secondary" outline disabled={b.locked}
                                                     title={b.color === "none" ? "Invisible in game. Click to make it visible." : "Visible in game. Click to make it invisible (it stays dashed here)."}
                                                     onClick={this.toggleBoxHidden(i)}>{b.color === "none" ? <FaEyeSlash/> : <FaEye/>}</Button>
@@ -1479,7 +1479,7 @@ class PlandoBuiler extends React.Component {
                             })}
                         </Collapse>
                     </div>
-                    <hr style={{ backgroundColor: 'grey', height: 2 }}/>
+                    <hr style={{ backgroundColor: 'gray', height: 2 }}/>
                     <div id="logic-controls">
                         <div id="logic-mode-wrapper">
                             {optSwitch("auto-logic", "Automatic Logic", this.state.logicMode === "auto", this.autoLogicToggle)}
@@ -1508,7 +1508,7 @@ class PlandoBuiler extends React.Component {
                                 </div>
                             </Collapse>
                         </div>
-                        <hr style={{ backgroundColor: 'grey', height: 2 }}/>
+                        <hr style={{ backgroundColor: 'gray', height: 2 }}/>
                         <div id="logic-mode-controls">
                             <div id="logic-presets">
                                 <Button color="primary" onClick={this.toggleLogic} >Logic Paths:</Button>

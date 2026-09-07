@@ -1,7 +1,7 @@
 """Thin HTTP adapters over the transport-neutral session layer.
 
 Parse transport params, delegate, wrap the (status, body) it hands back --
-nothing else. New netcode behaviour belongs in the top-level netcode.py, which
+nothing else. New netcode behavior belongs in the top-level netcode.py, which
 knows nothing about Flask and is tested without a request context.
 
 `import netcode` below is the top-level module, not this one: absolute imports.

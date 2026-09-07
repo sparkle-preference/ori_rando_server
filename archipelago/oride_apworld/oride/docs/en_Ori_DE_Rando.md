@@ -27,7 +27,7 @@ have been there go into the Archipelago pool for anyone in the session to find.
 
 ## What items and locations get shuffled?
 
-Locations are Ori pickup spots — 256 of them are modelled here, everything the Ori randomizer can fill.
+Locations are Ori pickup spots — 256 of them are modeled here, everything the Ori randomizer can fill.
 Archipelago only owns the subset the seed reserved for it; the rest still hold Ori items and are invisible to
 Archipelago.
 

@@ -242,7 +242,7 @@ class SSPListTestCase(SSPRouteTestCase):
                          ["Alpha", "middle", "zeta"])
 
     def test_last_seed_is_offered_only_once_a_game_exists(self):
-        """Load and Generate grey out on "Last Seed" until there is a game to
+        """Load and Generate gray out on "Last Seed" until there is a game to
         take options from."""
         self.logged_in = self.user
         self.assertIs(self.client.get("/preset/list").get_json()["hasLatest"], False)
