@@ -897,6 +897,33 @@ function save_beta_welcome() {
     } catch(e) { /* storage disabled: it comes back next load */ }
 }
 
+// Colours somebody has actually picked for a box, newest first. The native
+// picker's own "custom colours" belong to the browser and a page cannot write
+// them; a datalist is the one way in, and browsers that ignore it are no worse
+// off than before.
+const BOX_COLOUR_KEY = "box_colours"
+const BOX_COLOUR_MAX = 12
+
+function box_colour_history() {
+    try {
+        let saved = JSON.parse(localStorage.getItem(BOX_COLOUR_KEY) || "[]")
+        return Array.isArray(saved) ? saved.filter(c => /^#[0-9a-f]{6}$/i.test(c)) : []
+    } catch(e) {
+        return []   // storage off, or a key some other build wrote
+    }
+}
+
+function remember_box_colour(colour) {
+    if(!/^#[0-9a-f]{6}$/i.test(colour))
+        return box_colour_history()
+    let next = [colour.toLowerCase(), ...box_colour_history().filter(c => c.toLowerCase() !== colour.toLowerCase())]
+                   .slice(0, BOX_COLOUR_MAX)
+    try {
+        localStorage.setItem(BOX_COLOUR_KEY, JSON.stringify(next))
+    } catch(e) { /* storage disabled: they last this page load */ }
+    return next
+}
+
 // the server's Archipelago kill switch, the one thing left gating AP in the ui
 function ap_enabled() {
     return get_flag("ap_flag")
@@ -1146,5 +1173,6 @@ export {
     report_error,
     player_icons, doNetRequest, prng, get_param, get_flag, resolve_dark, save_dark, beta_welcome_pending, save_beta_welcome, theme_href, postNetForm, ap_enabled, get_int, get_list, get_preset, presets, get_seed, logic_paths, get_random_loader, Blabel,
     pickup_name, stuff_by_type, name_from_str, PickupSelect, Cent, ordinal_suffix, dev, gotoUrl, loginLogoutUrl, select_theme, randInt, spawn_defaults, spawnKitFor, decompose_pickup,
-    BOX_TYPES, BOX_COLOURS, BOX_NONE, is_box_gone, new_box, parse_box_line, box_line, box_colour, box_label
+    BOX_TYPES, BOX_COLOURS, BOX_NONE, is_box_gone, new_box, parse_box_line, box_line, box_colour, box_label,
+    box_colour_history, remember_box_colour
 };
