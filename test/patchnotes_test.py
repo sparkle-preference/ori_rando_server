@@ -23,6 +23,15 @@ def version_tuple(v):
     return tuple(int(n) for n in v.split("."))
 
 
+def assert_change_well_formed(case, c, where):
+    case.assertIn(c["category"], set(DOC["categories"]), where)
+    case.assertIn(c["importance"], ("major", "minor"), where)
+    # no badge is a real third state, not an omission
+    case.assertIn(c.get("type"), (None, "feature", "fix"), where)
+    case.assertTrue(c["text"].strip(), where)
+    case.assertIsInstance(c.get("sub", []), list)
+
+
 class PatchNotesDataTestCase(unittest.TestCase):
     def test_releases_are_newest_first_and_unique(self):
         versions = [r["version"] for r in DOC["releases"]]
@@ -31,19 +40,13 @@ class PatchNotesDataTestCase(unittest.TestCase):
         self.assertEqual(keys, sorted(keys, reverse=True))
 
     def test_every_change_is_well_formed(self):
-        categories = set(DOC["categories"])
         for release in DOC["releases"]:
             where = release["version"]
             self.assertRegex(release["date"], r"^\d{4}-\d{2}-\d{2}$", where)
             self.assertIn(release.get("announce", "all"), ("all", "dev", "none"), where)
             self.assertTrue(release["changes"], where)
             for c in release["changes"]:
-                self.assertIn(c["category"], categories, where)
-                self.assertIn(c["importance"], ("major", "minor"), where)
-                # no badge is a real third state, not an omission
-                self.assertIn(c.get("type"), (None, "feature", "fix"), where)
-                self.assertTrue(c["text"].strip(), where)
-                self.assertIsInstance(c.get("sub", []), list)
+                assert_change_well_formed(self, c, where)
 
     def test_no_version_has_a_fifth_part(self):
         # the 3.x notes predate the third number; a fourth is a site-only release
@@ -58,6 +61,31 @@ class PatchNotesDataTestCase(unittest.TestCase):
         # ships with its own 4.9.N note
         newest = version_tuple(DOC["releases"][0]["version"])
         self.assertEqual(newest[:3], tuple(util.VER))
+
+
+class PendingNotesTestCase(unittest.TestCase):
+    """Draft lines, written when a change lands and cut into a release later.
+    They are held to the same shape as a released one so a bad line fails now
+    rather than on release day, and nothing serves them until they move."""
+
+    MARKER = "a pending line no release has claimed yet"
+
+    def setUp(self):
+        self.doc = pn.patchnotes_doc()
+        draft = {"text": self.MARKER, "category": "Game", "importance": "major"}
+        pn._patchnotes_cache = dict(self.doc, pending=[draft])
+
+    def tearDown(self):
+        pn._patchnotes_cache = self.doc
+
+    def test_they_are_well_formed(self):
+        for c in DOC.get("pending", []):
+            assert_change_well_formed(self, c, "pending")
+
+    def test_nothing_serves_them(self):
+        client = main.app.test_client()
+        for url in ("/patchnotes.json", "/patchnotes.xml"):
+            self.assertNotIn(self.MARKER, client.get(url).get_data(as_text=True), url)
 
 
 class LatestNoteVersionTestCase(unittest.TestCase):

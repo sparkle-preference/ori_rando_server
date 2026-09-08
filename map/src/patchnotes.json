@@ -8,7 +8,96 @@
     "Multiplayer",
     "Misc"
   ],
+  "pending": [],
   "releases": [
+      {
+        "version": "4.9.4",
+        "date": "2026-09-07",
+        "announce": "dev",
+        "changes": [
+          {
+            "text": "Added bingo goals for defeating enemy types in specific zones.",
+            "category": "Bingo",
+            "type": "feature",
+            "importance": "major"
+          },
+          {
+            "text": "Several enemies that do not respawn in vanilla now respawn in the randomizer.",
+            "category": "Game",
+            "type": "feature",
+            "importance": "major",
+            "sub": [
+              "The Blackroot boulder escape fronkey.",
+              "The fronkey above the Charge Flame tree.",
+              "The slimes and spider outside of Forlorn.",
+              "The slimes to the right right of the Valley teleporter."
+            ]
+          },
+          {
+            "text": "Archipelago hints are now bought from the seed page instead of spent automatically.",
+            "category": "Multiplayer",
+            "type": "feature",
+            "importance": "major",
+            "tags": [
+              "Archipelago"
+            ],
+            "sub": [
+              "Hints the room can already answer still appear on their own."
+            ]
+          },
+          {
+            "text": "Picking up a health or energy cell no longer deletes temporary health or energy.",
+            "category": "Game",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Level-up explosions no longer kill enemies while you teleport, even if you leveled up twice.",
+            "category": "Game",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "A seed not having an item at a collected location is now reported more cleanly.",
+            "category": "Game",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Plando boxes draw behind the HUD.",
+            "category": "Game",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Reduced the maximum number of times some goals could show up on a bingo board.",
+            "category": "Bingo",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "The plando editor remembers box colors you have used before.",
+            "category": "Website",
+            "type": "feature",
+            "importance": "minor"
+          },
+          {
+            "text": "The BM and RI pickup types accept comparisons like ({8000} > 2).",
+            "category": "Website",
+            "type": "feature",
+            "importance": "minor"
+          },
+          {
+            "text": "Fixed the first energy cell being listed twice in the Archipelago datapackage.",
+            "category": "Multiplayer",
+            "type": "fix",
+            "importance": "minor",
+            "tags": [
+              "Archipelago"
+            ]
+          }
+        ]
+      },
       {
         "version": "4.9.3",
         "date": "2026-09-05",
