@@ -616,3 +616,9 @@ def decompose_multi_value(value):
     else:
         parts.append((firstPiece, part))
     return parts
+
+
+def compose_multi_value(parts):
+    """[(code, id)] -> multipickup value, the inverse of decompose_multi_value. A "/"
+    inside an id (RI|8000/=5) has to be doubled, or the split reads it as a separator."""
+    return "/".join("%s/%s" % (code, str(id).replace("/", "//")) for code, id in parts)

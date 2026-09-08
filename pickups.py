@@ -1,7 +1,7 @@
 import logging as log
 
 from enums import ShareType
-from util import add_single, inc_stackable, decompose_multi_value
+from util import add_single, inc_stackable, compose_multi_value, decompose_multi_value
 
 class Pickup(object):
     @staticmethod
@@ -267,14 +267,13 @@ class Multiple(Pickup):
         if not children:
             log.warning("Can't build empty multipickup.")
             return None
-        ids = []
+        parts = []
         for child in children:
             if child.has_children:
-                for grandchild in child.children:
-                    ids += [grandchild.code, str(grandchild.id)]
+                parts += [(grandchild.code, grandchild.id) for grandchild in child.children]
             else:
-                ids += [child.code, str(child.id)]
-        return cls.__new__(cls, "/".join(ids))
+                parts.append((child.code, child.id))
+        return cls.__new__(cls, compose_multi_value(parts))
     def add_pickups(self, children):
         for child in children:
             self.add_pickup(child)
@@ -283,7 +282,7 @@ class Multiple(Pickup):
         if child.has_children:
             self.add_pickups(child.children)
         else:
-            self.id += "/%s/%s" % (child.code, child.id)
+            self.id += "/" + compose_multi_value([(child.code, child.id)])
             self.children.append(child)
     def is_shared(self, share_types):
         return False # if you have a multipickup you have its children, so...

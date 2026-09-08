@@ -3105,6 +3105,27 @@ class MultiPickupDecomposeTests(unittest.TestCase):
         # a trailing piece leaves the parsed children intact
         self.assertEqual(Pickup.n("MU", "HC/1/EC").name, "Health Cell")
 
+    def test_composing_is_the_inverse_of_decomposing(self):
+        from util import compose_multi_value, decompose_multi_value
+        for value, expected in self.ROWS:
+            if decompose_multi_value(value) != expected:
+                continue  # the malformed rows do not survive a round trip, by design
+            self.assertEqual(decompose_multi_value(compose_multi_value(expected)), expected, value)
+
+    def test_repacking_keeps_a_slash_inside_a_value(self):
+        # RI|8000/=5 in a multipickup: repacking used to emit a bare slash, which
+        # read back as RI|8000 and swallowed whatever followed it
+        from pickups import Multiple, Pickup
+        from util import decompose_multi_value
+        packed = "RI/8000//=5/EX/100"
+        parsed = [("RI", "8000/=5"), ("EX", "100")]
+        self.assertEqual(decompose_multi_value(packed), parsed)
+        self.assertEqual(Multiple.with_pickups(Multiple(packed).children).id, packed)
+
+        grown = Multiple("EX/100")
+        grown.add_pickup(Pickup.n("RI", "8000/=5"))
+        self.assertEqual(decompose_multi_value(grown.id), [("EX", "100"), ("RI", "8000/=5")])
+
 
 
 
