@@ -259,6 +259,88 @@ function get_manual_reach() {
     return {HC: HC, EC: EC, AC: AC, KS: KS, MS: MS, skills: skills, tps: tps, events: events};
 }
 
+// The readout is the only thing a mouse move changes. Held in the builder's state it
+// would re-render every box row and every rectangle on each pixel of travel.
+class MousePos extends React.Component {
+    state = {lat: 0, lng: 0}
+    set = (latlng) => this.setState(latlng)
+    render() {
+        return (<Button size="sm" color="disabled">{Math.round(this.state.lng)},{Math.round(this.state.lat)}</Button>)
+    }
+}
+
+// Same reason as the rows: leaflet re-applies bounds and restyles a rectangle every time
+// it is handed props, so each one only hears about a render its own box was part of.
+class BoxRect extends React.PureComponent {
+    dragStart = (ev) => this.props.onDragStart(this.props.i, ev)
+    render() {
+        let {b, i, selected, faded, dim, edit} = this.props
+        let bounds = [[Math.min(b.box[1], b.box[3]), Math.min(b.box[0], b.box[2])], [Math.max(b.box[1], b.box[3]), Math.max(b.box[0], b.box[2])]]
+        return (
+            <Rectangle bounds={bounds} color={box_color(b)} weight={selected ? 4 : 2}
+                       opacity={faded ? 0.15 : dim ? 0.3 : b.locked ? 0.5 : 1}
+                       fillOpacity={faded || dim || b.locked ? 0.05 : (edit ? 0.3 : 0.15)}
+                       dashArray={dim ? "4 4" : null}
+                       onClick={this.props.onSelect} onMousedown={edit && !b.locked ? this.dragStart : undefined}>
+                {/* the tooltip wants one element child; a bare string throws on open */}
+                {/* i is what BM|n names: a box's place in this world's box lines */}
+                <Tooltip sticky={true}><span>{box_label(b, i)}{b.locked ? " (locked)" : ""}</span></Tooltip>
+            </Rectangle>
+        )
+    }
+}
+
+// Pure so that a seed with hundreds of boxes only re-renders the rows that changed:
+// every handler here is bound once, and an untouched box keeps its object identity.
+class BoxRow extends React.PureComponent {
+    ref = (el) => this.props.onRegister(this.props.b._id, el)
+    select = () => this.props.onSelect(this.props.b._id)
+    remove = (ev) => this.props.onRemove(this.props.i, ev)
+    setType = (n) => this.props.onType(this.props.i, n.value)
+    setColor = (ev) => this.props.onColor(this.props.i, ev.target.value)
+    setGive = (code) => this.props.onUpdate(this.props.i, {give: code})
+    toggleHidden = () => this.props.onUpdate(this.props.i, {color: this.props.b.color === "none" ? "" : "none"})
+    toggleLock = () => this.props.onUpdate(this.props.i, {locked: !this.props.b.locked})
+    setCoord = (k) => (ev) => {
+        let box = [...this.props.b.box]
+        box[k] = parseFloat(ev.target.value) || 0
+        this.props.onUpdate(this.props.i, {box: box})
+    }
+    coordSetters = [this.setCoord(0), this.setCoord(1), this.setCoord(2), this.setCoord(3)]
+    render() {
+        let {b, i, selected} = this.props
+        return (
+            <div className={"box-row" + (selected ? " box-row-selected" : "") + (b.locked ? " box-row-locked" : "")}
+                 ref={this.ref} onClick={this.select}>
+                <div className="box-row-head">
+                    <Button size="sm" color="danger" outline disabled={b.locked} title="Remove this box" onClick={this.remove}>&times;</Button>
+                    <Select styles={select_styles} className="box-type" isDisabled={b.locked} options={BOX_TYPES} onChange={this.setType} clearable={false} value={BOX_TYPES.find(t => t.value === b.type) || BOX_TYPES[0]}/>
+                    {[0, 1, 2, 3].map(k => (
+                        <Input key={k} type="number" step="0.1" bsSize="sm" className="box-coord" disabled={b.locked} title={["x1", "y1", "x2", "y2"][k]} value={b.box[k]}
+                               onChange={this.coordSetters[k]}/>
+                    ))}
+                    {/* color and visibility are the same question, so they share a column */}
+                    <div className="box-show">
+                        <input type="color" className="box-color" title="color" list="box-color-history" value={box_color(b)} disabled={b.locked || b.color === "none"}
+                               onChange={this.setColor}/>
+                        <Button size="sm" className="box-icon" color="secondary" outline disabled={b.locked}
+                                title={b.color === "none" ? "Invisible in game. Click to make it visible." : "Visible in game. Click to make it invisible (it stays dashed here)."}
+                                onClick={this.toggleHidden}>{b.color === "none" ? <FaEyeSlash/> : <FaEye/>}</Button>
+                    </div>
+                    <Button size="sm" className="box-icon" color="secondary" outline={!b.locked}
+                            title={b.locked ? "Locked: nothing but this button will change it. Click to unlock." : "Lock this box: no edits, no dragging, no corners."}
+                            onClick={this.toggleLock}>{b.locked ? <FaLock/> : <FaLockOpen/>}</Button>
+                </div>
+                {(b.type === "item" || b.type === "ritem") ? (
+                    <div className="pickup-wrapper">
+                        <PickupSelect value={b.give} placeholder="what the box gives" disabled={b.locked} updater={this.setGive}/>
+                    </div>
+                ) : null}
+            </div>
+        )
+    }
+}
+
 class PlandoBuiler extends React.Component {
   constructor(props) {
     super(props)
@@ -269,7 +351,7 @@ class PlandoBuiler extends React.Component {
                   flags: ['hide_unreachable'], seedFlags: [], hidden: hidden, share_types: select_wrap(["Skills", "WorldEvents", "Teleporters"]), coop_mode: {label: "Solo", value: "None"},
                   pickups: ["EX", "Ma", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "CS"], display_fill: false, display_import: false, display_logic: false, display_coop: false, display_meta: false,
                   entrances: {1: {}}, display_entrances: false, entrance_from: {value: "", label: ""}, entrance_to: {value: "", label: ""},
-                  boxes: {1: []}, display_boxes: false, box_edit: false, box_type: "kill",
+                  boxes: {1: []}, display_boxes: false, boxes_mounted: false, box_edit: false, box_type: "kill",
                   box_show_locked: true, box_selected: null, box_bulk_type: BULK_TYPES[0],
                   box_rank: {}, box_new_rank: 0, box_colors: box_color_history(),
                   import_overwrite: false,
@@ -305,7 +387,7 @@ class PlandoBuiler extends React.Component {
         let pickup = {label: locLabel(pick),value: pick}
         lastSelected['Glades'] = pickup
     
-        this.setState({mousePos: {lat: 0, lng: 0}, zone: zone, pickup: pickup, modes: modes, lastSelected: lastSelected, logicMode: logicMode, pathMode: pathmode,
+        this.setState({zone: zone, pickup: pickup, modes: modes, lastSelected: lastSelected, logicMode: logicMode, pathMode: pathmode,
                       manual_reach: manual_reach, stuff: {value: "", label: ""}, authed: get_flag("authed")}, () => this.updateReachable())
     
     };
@@ -972,7 +1054,7 @@ class PlandoBuiler extends React.Component {
     toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
     toggleCoop = () => {this.setState({display_coop: !this.state.display_coop})};
     toggleEntrances = () => {this.setState({display_entrances: !this.state.display_entrances})};
-    toggleBoxes = () => {this.setState({display_boxes: !this.state.display_boxes})};
+    toggleBoxes = () => {this.setState({display_boxes: !this.state.display_boxes, boxes_mounted: true})};
     // boxes are per-player like entrances: {player: [box]}; the panel edits the current player's
     curBoxes = () => this.state.boxes[this.state.player] || [];
     setBoxes = (boxes) => this.setState(prev => ({boxes: {...prev.boxes, [prev.player]: boxes}}));
@@ -992,9 +1074,13 @@ class PlandoBuiler extends React.Component {
         return {boxes: {...prev.boxes, [prev.player]: mine.map((b, k) => k === i ? {...b, ...changes} : b)},
                 box_selected: box._id}
     });
-    toggleBoxLock = (i) => () => this.updateBox(i, {locked: !this.curBoxes()[i].locked});
-    toggleBoxHidden = (i) => () => this.updateBox(i, {color: this.curBoxes()[i].color === "none" ? "" : "none"});
-    removeBox = (i) => (ev) => {
+    // Every handler a row is given has to keep its identity between renders, or the rows
+    // are pure for nothing. The row supplies its own index.
+    pickBoxType = (i, type) => { this.setState({box_type: type}); this.updateBox(i, {type: type}) };
+    pickBoxColor = (i, color) => { this.setState({box_colors: remember_box_color(color)}); this.updateBox(i, {color: color.replace("#", "")}) };
+    registerBoxRow = (id, el) => { this.boxRows[id] = el };
+    selectBoxRow = (id) => this.selectBox(id, false);
+    removeBox = (i, ev) => {
         let box = this.curBoxes()[i]
         ev.stopPropagation()
         if(!box || box.locked)
@@ -1020,6 +1106,7 @@ class PlandoBuiler extends React.Component {
                 box_rank: {...prev.box_rank, [next[hole < 0 ? next.length - 1 : hole]._id]: prev.box_new_rank - 1},
                 box_new_rank: prev.box_new_rank - 1,
                 display_boxes: true,
+                boxes_mounted: true,
                 box_selected: next[hole < 0 ? next.length - 1 : hole]._id,
             }
         })
@@ -1028,7 +1115,7 @@ class PlandoBuiler extends React.Component {
     bulkMatch = (b) => this.state.box_bulk_type.value === "all" || b.type === this.state.box_bulk_type.value;
     bulkLock = (lock) => () => this.setBoxes(this.curBoxes().map(b => this.bulkMatch(b) ? {...b, locked: lock} : b));
     boxRows = {};
-    selectBox = (id, scroll) => this.setState({box_selected: id, display_boxes: true}, () => {
+    selectBox = (id, scroll) => this.setState({box_selected: id, display_boxes: true, boxes_mounted: true}, () => {
         if(scroll)
             this.scrollToRow(this.boxRows[id])
     });
@@ -1071,10 +1158,15 @@ class PlandoBuiler extends React.Component {
     };
     // Dragging a box moves it, with the map's own drag off for the duration; the
     // numbers are rounded when the mouse lets go.
-    startBoxDrag = (i) => (ev) => {
+    startBoxDrag = (i, ev) => {
         Leaflet.DomEvent.stop(ev.originalEvent)
         this.refs.map.leafletElement.dragging.disable()
         this.boxDrag = {index: i, from: ev.latlng, start: [...this.curBoxes()[i].box]}
+    };
+    onMapMouseMove = (ev) => {
+        if(this.mousePos)
+            this.mousePos.set(ev.latlng)
+        this.moveBoxDrag(ev)
     };
     moveBoxDrag = (ev) => {
         if(!this.boxDrag)
@@ -1209,7 +1301,7 @@ class PlandoBuiler extends React.Component {
 
     render() {
         let {clueOrder, modes, searchStr, seedFlags, authed, hidden, flags, import_overwrite,
-             box_edit, box_show_locked, box_selected} = this.state;
+             box_edit, box_show_locked, box_selected, boxes_mounted} = this.state;
         // what an overwriting import would replace, so the choice is made knowing the cost
         const placed_here = Object.keys(this.state.placements[this.state.player] || {}).length
         const pickup_markers = ( <PickupMarkersList markers={getPickupMarkers(this.state, this.selectPickupCurry, searchStr)} />)
@@ -1222,21 +1314,10 @@ class PlandoBuiler extends React.Component {
         const box_faded = (b) => b.locked && !box_show_locked
         // a box set invisible in game still draws here, faint and underneath
         const box_dim = (b) => b.color === "none" || b.color === "0"
-        const box_rect = ({b, i}) => {
-            let bounds = [[Math.min(b.box[1], b.box[3]), Math.min(b.box[0], b.box[2])], [Math.max(b.box[1], b.box[3]), Math.max(b.box[0], b.box[2])]]
-            let selected = b._id === box_selected
-            return (
-                <Rectangle key={`box-${b._id}`} bounds={bounds} color={box_color(b)} weight={selected ? 4 : 2}
-                           opacity={box_faded(b) ? 0.15 : box_dim(b) ? 0.3 : b.locked ? 0.5 : 1}
-                           fillOpacity={box_faded(b) || box_dim(b) || b.locked ? 0.05 : (box_edit ? 0.3 : 0.15)}
-                           dashArray={box_dim(b) ? "4 4" : null}
-                           onClick={this.selectBoxAt} onMousedown={box_edit && !b.locked ? this.startBoxDrag(i) : undefined}>
-                    {/* the tooltip wants one element child; a bare string throws on open */}
-                    {/* i is what BM|n names: a box's place in this world's box lines */}
-                    <Tooltip sticky={true}><span>{box_label(b, i)}{b.locked ? " (locked)" : ""}</span></Tooltip>
-                </Rectangle>
-            )
-        }
+        const box_rect = ({b, i}) => (
+            <BoxRect key={`box-${b._id}`} b={b} i={i} selected={b._id === box_selected} faded={box_faded(b)}
+                     dim={box_dim(b)} edit={box_edit} onSelect={this.selectBoxAt} onDragStart={this.startBoxDrag}/>
+        )
         // The handles stay out of that pane: they live in the marker pane, above everything,
         // which is where something you are meant to grab belongs.
         const box_handles = all_boxes.filter(({b}) => box_edit && !b.locked).map(({b, i}) => {
@@ -1283,11 +1364,11 @@ class PlandoBuiler extends React.Component {
                     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.3.1/dist/leaflet.css" integrity="sha512-Rksm5RenBEKSKFjgI3a41vrjkw4EVPlJ3+OiI65vTjIdo9brlAacEuKOiQ5OFh7cOI1bkDwLqdLw3Zg0cRJAAQ==" crossorigin=""/>
                 </Helmet>
 
-                    <Map style={{backgroundColor: "#121212"}} ref="map" crs={crs} onMouseMove={(ev) => { this.setState({mousePos: ev.latlng}); this.moveBoxDrag(ev) }} onMouseUp={this.endBoxDrag} zoomControl={false} onViewportChanged={this.onViewportChanged} viewport={this.state.viewport}>
+                    <Map style={{backgroundColor: "#121212"}} ref="map" crs={crs} onMouseMove={this.onMapMouseMove} onMouseUp={this.endBoxDrag} zoomControl={false} onViewportChanged={this.onViewportChanged} viewport={this.state.viewport}>
                     <ZoomControl position="topright" />
                     <Control position="topleft" >
                     <div>
-                        <Button size="sm" color="disabled">{Math.round(this.state.mousePos.lng)},{Math.round(this.state.mousePos.lat)}</Button>
+                        <MousePos ref={el => this.mousePos = el}/>
                     </div>
                     </Control>
                     {formattingLegend}
@@ -1438,45 +1519,18 @@ class PlandoBuiler extends React.Component {
                                 </React.Fragment>
                             ) : null}
                         </div>
+                        {/* The rows outweigh everything else on the page, so a panel that
+                            has never been opened has none. They stay once it has been. */}
                         <Collapse id="box-wrapper" isOpen={this.state.display_boxes}>
                             <datalist id="box-color-history">
                                 {this.state.box_colors.map(c => <option key={c} value={c}/>)}
                             </datalist>
                             <div className="box-help">A kill box kills, a solid box is a block to stand on, an item box gives its pickup once (a message is SH|text) and an Item (RP) box every entry. With editing on, drag a box to move it and a corner to resize it.</div>
-                            {listed_boxes.map(({b, i}) => {
-                            // a locked row folds away instead of vanishing; Collapse measures
-                            // the real height, so an item row's picker animates as well
-                            let row = (
-                                <div className={"box-row" + (b._id === box_selected ? " box-row-selected" : "") + (b.locked ? " box-row-locked" : "")}
-                                     key={`box-row-${b._id}`} ref={el => this.boxRows[b._id] = el} onClick={() => this.selectBox(b._id, false)}>
-                                    <div className="box-row-head">
-                                        <Button size="sm" color="danger" outline disabled={b.locked} title="Remove this box" onClick={this.removeBox(i)}>&times;</Button>
-                                        <Select styles={select_styles} className="box-type" isDisabled={b.locked} options={BOX_TYPES} onChange={(n) => { this.setState({box_type: n.value}); this.updateBox(i, {type: n.value}) }} clearable={false} value={BOX_TYPES.find(t => t.value === b.type) || BOX_TYPES[0]}/>
-                                        {[0, 1, 2, 3].map(k => (
-                                            <Input key={k} type="number" step="0.1" bsSize="sm" className="box-coord" disabled={b.locked} title={["x1", "y1", "x2", "y2"][k]} value={b.box[k]}
-                                                   onChange={(e) => { let box = [...b.box]; box[k] = parseFloat(e.target.value) || 0; this.updateBox(i, {box: box}) }}/>
-                                        ))}
-                                        {/* color and visibility are the same question, so they share a column */}
-                                        <div className="box-show">
-                                            <input type="color" className="box-color" title="color" list="box-color-history" value={box_color(b)} disabled={b.locked || b.color === "none"}
-                                                   onChange={(e) => { this.setState({box_colors: remember_box_color(e.target.value)}); this.updateBox(i, {color: e.target.value.replace("#", "")}) }}/>
-                                            <Button size="sm" className="box-icon" color="secondary" outline disabled={b.locked}
-                                                    title={b.color === "none" ? "Invisible in game. Click to make it visible." : "Visible in game. Click to make it invisible (it stays dashed here)."}
-                                                    onClick={this.toggleBoxHidden(i)}>{b.color === "none" ? <FaEyeSlash/> : <FaEye/>}</Button>
-                                        </div>
-                                        <Button size="sm" className="box-icon" color="secondary" outline={!b.locked}
-                                                title={b.locked ? "Locked: nothing but this button will change it. Click to unlock." : "Lock this box: no edits, no dragging, no corners."}
-                                                onClick={this.toggleBoxLock(i)}>{b.locked ? <FaLock/> : <FaLockOpen/>}</Button>
-                                    </div>
-                                    {(b.type === "item" || b.type === "ritem") ? (
-                                        <div className="pickup-wrapper">
-                                            <PickupSelect value={b.give} placeholder="what the box gives" disabled={b.locked} updater={(code) => this.updateBox(i, {give: code})}/>
-                                        </div>
-                                    ) : null}
-                                </div>
-                            )
-                            return b.locked ? (<Collapse key={`box-fold-${b._id}`} isOpen={box_show_locked}>{row}</Collapse>) : row
-                            })}
+                            {boxes_mounted ? listed_boxes.map(({b, i}) => (
+                                <BoxRow key={`box-row-${b._id}`} b={b} i={i} selected={b._id === box_selected}
+                                        onRegister={this.registerBoxRow} onSelect={this.selectBoxRow} onRemove={this.removeBox}
+                                        onUpdate={this.updateBox} onType={this.pickBoxType} onColor={this.pickBoxColor}/>
+                            )) : null}
                         </Collapse>
                     </div>
                     <hr style={{ backgroundColor: 'gray', height: 2 }}/>
