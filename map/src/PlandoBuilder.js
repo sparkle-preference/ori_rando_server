@@ -1442,7 +1442,7 @@ class PlandoBuiler extends React.Component {
                             <datalist id="box-color-history">
                                 {this.state.box_colors.map(c => <option key={c} value={c}/>)}
                             </datalist>
-                            <div className="box-help">A kill box kills, a solid box is a block to stand on, an item box gives its pickup once (a message is SH|text) and an Item (RP) box every entry. With editing on, drag a box to move it and a corner to resize it. A BM|3 pickup flips box #3 off or on; =0 and =1 say which, and =({8000}>=5) compares slots.</div>
+                            <div className="box-help">A kill box kills, a solid box is a block to stand on, an item box gives its pickup once (a message is SH|text) and an Item (RP) box every entry. With editing on, drag a box to move it and a corner to resize it.</div>
                             {listed_boxes.map(({b, i}) => {
                             // a locked row folds away instead of vanishing; Collapse measures
                             // the real height, so an item row's picker animates as well
