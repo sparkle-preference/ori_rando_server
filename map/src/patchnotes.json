@@ -6,9 +6,68 @@
     "Logic",
     "Bingo",
     "Multiplayer",
-    "Misc"
+    "Misc",
+    "Plando"
   ],
-  "pending": [],
+  "pending": [
+    {
+      "text": "Added a \"Default Preset\" in the website settings.",
+      "category": "Website",
+      "type": "feature",
+      "importance": "major",
+      "sub": [
+        "Default preset, in user settings. Last Seed and Default are still there as picks."
+      ]
+    },
+    {
+      "text": "Added a theme-picking button for indecisive users.",
+      "category": "Website",
+      "type": "feature",
+      "importance": "minor"
+    },
+    {
+      "text": "The plando editor can now handle long box lists without slowing to a crawl.",
+      "category": "Plando",
+      "type": "fix",
+      "importance": "minor"
+    },
+    {
+      "text": "RI slot writes accept *=, /= and %=. (Do not divide by zero.)",
+      "category": "Plando",
+      "type": "feature",
+      "importance": "minor"
+    },
+    {
+      "text": "Added a flag (VanillaRespawns) to preserve vanilla enemy respawning behavior.",
+      "category": "Seed Generator",
+      "type": "feature",
+      "importance": "minor"
+    },
+    {
+      "text": "Added a Pause Menu Opacity setting (does what it says on the tin).",
+      "category": "Game",
+      "type": "feature",
+      "importance": "minor"
+    },
+    {
+      "text": "Switching a box on while Ori is standing in it triggers the box.",
+      "category": "Plando",
+      "type": "fix",
+      "importance": "minor"
+    },
+    {
+      "text": "The Blackroot teleporter fronkey respawns on Relaxed too.",
+      "category": "Game",
+      "type": "fix",
+      "importance": "minor"
+    },
+    {
+      "text": "The right side of the Sorrow hub counts as Sorrow in your stats.",
+      "category": "Game",
+      "type": "fix",
+      "importance": "minor"
+    }
+  ],
   "releases": [
       {
         "version": "4.9.4",
@@ -65,7 +124,7 @@
           },
           {
             "text": "Plando boxes draw behind the HUD.",
-            "category": "Game",
+            "category": "Plando",
             "type": "fix",
             "importance": "minor"
           },
@@ -77,13 +136,13 @@
           },
           {
             "text": "The plando editor remembers box colors you have used before.",
-            "category": "Website",
+            "category": "Plando",
             "type": "feature",
             "importance": "minor"
           },
           {
             "text": "The BM and RI pickup types accept comparisons like ({8000} > 2).",
-            "category": "Website",
+            "category": "Plando",
             "type": "feature",
             "importance": "minor"
           },
@@ -105,13 +164,13 @@
         "changes": [
           {
             "text": "Several box-related UX improvements to the plando editor.",
-            "category": "Website",
+            "category": "Plando",
             "type": "feature",
             "importance": "major"
           },
           {
             "text": "Added some advanced features for power plando users, including box control and reading randomizer ids in some places.",
-            "category": "Website",
+            "category": "Plando",
             "type": "feature",
             "importance": "minor"
           },
@@ -273,7 +332,7 @@
           },
           {
             "text": "Plando seeds (and practice segments) can now contain boxes of ground, death, or item.",
-            "category": "Website",
+            "category": "Plando",
             "type": "feature",
             "importance": "major"
           },
@@ -293,7 +352,7 @@
           },
           {
             "text": "Added multiworld support to the plando editor.",
-            "category": "Website",
+            "category": "Plando",
             "type": "feature",
             "importance": "minor"
           },
@@ -461,7 +520,7 @@
           },
           {
             "text": "New plando pickup RI|slot=value writes a randomizer inventory slot directly.",
-            "category": "Website",
+            "category": "Plando",
             "type": "feature",
             "importance": "minor"
           },
@@ -665,7 +724,7 @@
       "changes": [
         {
           "text": "Message pickups can style their text with <style> tags: color, font, size and letter spacing, and <icon> for button prompts.",
-          "category": "Game",
+          "category": "Plando",
           "type": "feature",
           "importance": "minor",
           "sub": [
@@ -674,7 +733,7 @@
         },
         {
           "text": "Everything message pickups can do is written up in SH Format.txt, next to the other reference files.",
-          "category": "Game",
+          "category": "Plando",
           "importance": "minor",
           "sub": [
             "Includes box formatting prefixes, placeholders, colors, styles, and which characters each font actually has."
@@ -745,7 +804,7 @@
         },
         {
           "text": "Plandos can hand out a pickup that turns on the game's debug movement controls.",
-          "category": "Game",
+          "category": "Plando",
           "type": "feature",
           "importance": "minor"
         },
@@ -1671,7 +1730,7 @@
       "changes": [
         {
           "text": "The plando editor can set entrance shuffle door connections.",
-          "category": "Website",
+          "category": "Plando",
           "type": "feature",
           "importance": "major",
           "sub": [
@@ -1681,13 +1740,13 @@
         },
         {
           "text": "Plando multipickup entries can be clicked to edit in place and dragged to reorder.",
-          "category": "Website",
+          "category": "Plando",
           "type": "feature",
           "importance": "minor"
         },
         {
           "text": "The plando editor's flag list now offers every seed variation and key mode.",
-          "category": "Website",
+          "category": "Plando",
           "type": "feature",
           "importance": "minor"
         },
@@ -1699,19 +1758,19 @@
         },
         {
           "text": "Plando entrance shuffle can point a door at arbitrary map coordinates as a one-way warp target.",
-          "category": "Website",
+          "category": "Plando",
           "type": "feature",
           "importance": "minor"
         },
         {
           "text": "Plando entrance connections are stored per player, so each world in a multiplayer plando can have its own door layout.",
-          "category": "Website",
+          "category": "Plando",
           "type": "feature",
           "importance": "minor"
         },
         {
           "text": "Fixed multiplayer plandos serving player 1's seed to everyone.",
-          "category": "Website",
+          "category": "Plando",
           "type": "fix",
           "importance": "major"
         },
@@ -1723,37 +1782,37 @@
         },
         {
           "text": "Half-typed text in the plando pickup box is no longer wiped when the box loses focus.",
-          "category": "Website",
+          "category": "Plando",
           "type": "fix",
           "importance": "minor"
         },
         {
           "text": "Clicking an empty location in the plando editor no longer creates a placement there, and clearing a location's pickup removes it.",
-          "category": "Website",
+          "category": "Plando",
           "type": "fix",
           "importance": "minor"
         },
         {
           "text": "The plando clue order now recognizes dungeon keys inside a multipickup.",
-          "category": "Website",
+          "category": "Plando",
           "type": "fix",
           "importance": "minor"
         },
         {
           "text": "Plando logic and reachability now follow the player you have selected.",
-          "category": "Website",
+          "category": "Plando",
           "type": "fix",
           "importance": "minor"
         },
         {
           "text": "Fixed the Shards Race option in the plando editor's multiplayer controls.",
-          "category": "Website",
+          "category": "Plando",
           "type": "fix",
           "importance": "minor"
         },
         {
           "text": "Importing a tracked seed into the plando editor no longer adds its sync header to the flag list.",
-          "category": "Website",
+          "category": "Plando",
           "type": "fix",
           "importance": "minor"
         },
@@ -1768,7 +1827,7 @@
         },
         {
           "text": "Plandos can place a Random Relic or a Random Warp, including inside multipickups.",
-          "category": "Seed Generator",
+          "category": "Plando",
           "type": "feature",
           "importance": "minor"
         },
@@ -1868,7 +1927,7 @@
         },
         {
           "text": "The plando list no longer breaks on seeds from deleted accounts.",
-          "category": "Website",
+          "category": "Plando",
           "type": "fix",
           "importance": "minor"
         },
@@ -1966,7 +2025,7 @@
         },
         {
           "text": "Plandos can now take Skill Velocity Upgrades and Jump Upgrades below zero.",
-          "category": "Game",
+          "category": "Plando",
           "type": "feature",
           "importance": "minor"
         },
@@ -1978,19 +2037,19 @@
         },
         {
           "text": "Plando pages now say who to contact about missing seeds.",
-          "category": "Website",
+          "category": "Plando",
           "type": "feature",
           "importance": "minor"
         },
         {
           "text": "A plando author's seeds are now listed alphabetically.",
-          "category": "Website",
+          "category": "Plando",
           "type": "feature",
           "importance": "minor"
         },
         {
           "text": "Plando lists no longer drop seeds by authors who have not signed in yet.",
-          "category": "Website",
+          "category": "Plando",
           "type": "fix",
           "importance": "major"
         },
@@ -2472,7 +2531,7 @@
         },
         {
           "text": "The plando editor has new Show Loc Names and Show Styleguide display toggles.",
-          "category": "Website",
+          "category": "Plando",
           "type": "feature",
           "importance": "minor",
           "sub": [
@@ -2481,13 +2540,13 @@
         },
         {
           "text": "Every ability tree bonus item can now be placed by name in the plando editor.",
-          "category": "Website",
+          "category": "Plando",
           "type": "feature",
           "importance": "minor"
         },
         {
           "text": "A batch of small plando fixes.",
-          "category": "Website",
+          "category": "Plando",
           "type": "fix",
           "importance": "minor"
         },
@@ -2748,7 +2807,7 @@
       "changes": [
         {
           "text": "Fixed renaming a plando.",
-          "category": "Website",
+          "category": "Plando",
           "type": "fix",
           "importance": "minor"
         },
@@ -3004,7 +3063,7 @@
       "changes": [
         {
           "text": "Plando pickups can now take things away instead of giving them.",
-          "category": "Game",
+          "category": "Plando",
           "type": "feature",
           "importance": "major",
           "sub": [
@@ -3164,7 +3223,7 @@
         },
         {
           "text": "The plando editor can now mark a seed hidden.",
-          "category": "Website",
+          "category": "Plando",
           "type": "feature",
           "importance": "minor"
         },
@@ -3176,7 +3235,7 @@
         },
         {
           "text": "The plando editor no longer drops flags it doesn't recognize.",
-          "category": "Website",
+          "category": "Plando",
           "type": "fix",
           "importance": "minor"
         },
@@ -3787,7 +3846,7 @@
         },
         {
           "text": "Plandos can place Lose Sein and Free Level Explosion.",
-          "category": "Seed Generator",
+          "category": "Plando",
           "type": "feature",
           "importance": "minor"
         },
@@ -3815,7 +3874,7 @@
       "changes": [
         {
           "text": "Plandos can optionally specify that warping while carrying an orb does not auto-drop it.",
-          "category": "Game",
+          "category": "Plando",
           "type": "feature",
           "importance": "minor",
           "sub": [
@@ -3883,7 +3942,7 @@
       "changes": [
         {
           "text": "Plando messages can now set their own duration, or silence the rest of their multipickup.",
-          "category": "Game",
+          "category": "Plando",
           "type": "feature",
           "importance": "minor",
           "sub": [
@@ -4139,7 +4198,7 @@
         },
         {
           "text": "Jump Upgrade can be placed from the plando editor.",
-          "category": "Website",
+          "category": "Plando",
           "type": "feature",
           "importance": "minor"
         },
@@ -4333,7 +4392,7 @@
         },
         {
           "text": "casual-core can no longer be turned off in the plando logic settings.",
-          "category": "Website",
+          "category": "Plando",
           "type": "fix",
           "importance": "minor"
         },
@@ -4455,7 +4514,7 @@
         },
         {
           "text": "Viewing a plando that doesn't exist now shows an error instead of crashing.",
-          "category": "Website",
+          "category": "Plando",
           "type": "fix",
           "importance": "minor"
         },
@@ -4661,7 +4720,7 @@
         },
         {
           "text": "Fixed downloading plando seeds.",
-          "category": "Website",
+          "category": "Plando",
           "type": "fix",
           "importance": "major"
         },
@@ -4679,7 +4738,7 @@
         },
         {
           "text": "Fixed saving plandos that use custom sense data.",
-          "category": "Website",
+          "category": "Plando",
           "type": "fix",
           "importance": "minor"
         },
@@ -4789,7 +4848,7 @@
       "changes": [
         {
           "text": "Added plando-usable bonus pickups for every ability in the ability tree.",
-          "category": "Game",
+          "category": "Plando",
           "type": "feature",
           "importance": "minor",
           "sub": [
@@ -4860,7 +4919,7 @@
         },
         {
           "text": "Fixed plandos downloading incorrectly straight from the editor.",
-          "category": "Website",
+          "category": "Plando",
           "type": "fix",
           "importance": "minor"
         },
@@ -5234,7 +5293,7 @@
         },
         {
           "text": "The plando editor's pickup selector now handles multiple copies of the same item.",
-          "category": "Website",
+          "category": "Plando",
           "type": "feature",
           "importance": "minor"
         },
@@ -5255,25 +5314,25 @@
         },
         {
           "text": "Plandos can now place repeatable pickups.",
-          "category": "Seed Generator",
+          "category": "Plando",
           "type": "feature",
           "importance": "minor"
         },
         {
           "text": "Plandos can now grant pickups the moment you spawn.",
-          "category": "Seed Generator",
+          "category": "Plando",
           "type": "feature",
           "importance": "minor"
         },
         {
           "text": "Plandos can now disable and re-enable Alt+R.",
-          "category": "Seed Generator",
+          "category": "Plando",
           "type": "feature",
           "importance": "minor"
         },
         {
           "text": "Glades and Blackroot teleporters can now be placed in plandos.",
-          "category": "Seed Generator",
+          "category": "Plando",
           "type": "feature",
           "importance": "minor"
         },

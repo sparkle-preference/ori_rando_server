@@ -204,7 +204,9 @@ def announce_embed(release, base, everything=False):
     body = "\n".join(lines)
     if len(body) > 3900:
         body = body[:3900].rsplit("\n", 1)[0] + "\n- ..."
-    return {"title": title, "url": "%s/patchnotes#%s" % (base, release["version"]), "description": body}
+    # the dev channel reads every entry, so its link opens the page unfolded to match
+    page = "/patchnotes?all=1" if everything else "/patchnotes"
+    return {"title": title, "url": "%s%s#%s" % (base, page, release["version"]), "description": body}
 
 
 def announce_patchnotes(base, force=False, channels=None):

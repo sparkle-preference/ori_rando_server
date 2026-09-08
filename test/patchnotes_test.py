@@ -163,6 +163,11 @@ class AnnounceEmbedTestCase(unittest.TestCase):
         self.assertEqual(pn.announce_embed(self.RELEASE, "https://x")["url"],
                          "https://x/patchnotes#9.9.9")
 
+    def test_the_dev_link_opens_the_page_unfolded(self):
+        # the channel that gets every entry should not land on Highlights
+        self.assertEqual(pn.announce_embed(self.RELEASE, "https://x", everything=True)["url"],
+                         "https://x/patchnotes?all=1#9.9.9")
+
     def test_an_ordinary_release_says_nothing_about_dlls(self):
         self.assertIsNone(pn.site_only_note(self.RELEASE["version"]))
         self.assertNotIn("site-only", self._body())
