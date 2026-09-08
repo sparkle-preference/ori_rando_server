@@ -2,7 +2,7 @@ import './index.css';
 import React, {Fragment} from 'react';
 import {Map, Tooltip, TileLayer, Marker, ZoomControl, Circle} from 'react-leaflet';
 import Leaflet from 'leaflet';
-import {presets, player_icons, get_preset, logic_paths, Blabel, dev, get_param} from './common.js';
+import {presets, player_icons, get_preset, logic_paths, Blabel, dev, get_param, MousePos} from './common.js';
 import {picks_by_type, PickupMarkersList, get_icon, getMapCrs, TILE_MAX_ZOOM, hide_opacity, select_styles, select_wrap} from './shared_map.js';
 import Select from 'react-select';
 import {Button, Collapse, Container, Row, Col, Input, UncontrolledButtonDropdown, DropdownToggle, DropdownMenu, DropdownItem} from 'reactstrap';
@@ -294,7 +294,7 @@ class GameTracker extends React.Component {
     let modes = presets['standard'];
     let url = new URL(window.document.URL);
     this.state = {
-        mousePos: {lat: 0, lng: 0}, players: {}, follow: url.searchParams.get("follow") || -1, retries: 0, check_seen: 1, modes: modes, timeout: TIMEOUT_START, searchStr: "", seed_reqs: {},
+        players: {}, follow: url.searchParams.get("follow") || -1, retries: 0, check_seen: 1, modes: modes, timeout: TIMEOUT_START, searchStr: "", seed_reqs: {},
         show_sidebar: !url.searchParams.has("hideSidebar"), idle_countdown: 10800, bg_update: true, show_tracker: !url.searchParams.has("hideTracker"),
         open_world: false, closed_dungeons: false, pathMode: get_preset(modes), hideOpt: "all", display_logic: false,  viewport: {center: [0, 0], zoom: 5}, usermap: url.searchParams.get("usermap") || "",
         /*tracker_data: {events: [], teleporters: [], shards: {gs: 0, ss: 0, wv: 0}, skills: [], maps: 0,relics_found: [], relics: [], trees: []},*/ gameId: get_param("game_id")
@@ -423,6 +423,7 @@ class GameTracker extends React.Component {
 toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
 
   onViewportChanged = viewport => { this.setState({ viewport }) }
+  onMapMouseMove = (ev) => { if(this.mousePos) this.mousePos.set(ev.latlng) }
  _onPathModeChange = (n) => paths.includes(n.value) ? this.modesChanged(presets[n.value]) : this.setState({pathMode: n.value})
 
   render() {
@@ -495,7 +496,7 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
 	                <style>{'body { background-color: black}'}</style>
 					<link rel="stylesheet" href="https://unpkg.com/leaflet@1.3.1/dist/leaflet.css" integrity="sha512-Rksm5RenBEKSKFjgI3a41vrjkw4EVPlJ3+OiI65vTjIdo9brlAacEuKOiQ5OFh7cOI1bkDwLqdLw3Zg0cRJAAQ==" crossorigin=""/>
 	            </Helmet>
-		      	<Map style={{backgroundColor: "#121212"}} ref="map" crs={crs} onMouseMove={(ev) => this.setState({mousePos: ev.latlng})} zoomControl={false} onViewportChanged={this.onViewportChanged} viewport={this.state.viewport}>
+		      	<Map style={{backgroundColor: "#121212"}} ref="map" crs={crs} onMouseMove={this.onMapMouseMove} zoomControl={false} onViewportChanged={this.onViewportChanged} viewport={this.state.viewport}>
 		      	     <ZoomControl position="topright" />
 
 					<TileLayer url=' https://ori-tracker.firebaseapp.com/images/ori-map/{z}/{x}/{y}.png' noWrap='true' maxNativeZoom={TILE_MAX_ZOOM} maxZoom={TILE_MAX_ZOOM + 2} />
@@ -503,7 +504,7 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
 					<div>
 						{show_button}
 						<Button size="sm" onClick={() => this.setState({ viewport: DEFAULT_VIEWPORT })}>Reset View</Button>
-						<Button size="sm" color="disabled">{Math.round(this.state.mousePos.lng)},{Math.round(this.state.mousePos.lat)}</Button>
+						<Button size="sm" color="disabled"><MousePos ref={el => this.mousePos = el}/></Button>
 					</div>
 					</Control>
 					{pickup_markers}

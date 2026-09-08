@@ -787,6 +787,17 @@ const loaders = (color) => [
     (<SyncLoader color={color} />)
 ]
 
+// A map's cursor readout, keeping its own state and fed through a ref. Leaflet's events
+// are not React's, so a page holding this in its own state re-renders, unbatched, on
+// every pixel of travel -- with every marker and shape on the map along for the ride.
+class MousePos extends Component {
+    state = {lat: 0, lng: 0}
+    set = (latlng) => this.setState(latlng)
+    render() {
+        return (<Fragment>{Math.round(this.state.lng)}{this.props.sep || ","}{Math.round(this.state.lat)}</Fragment>)
+    }
+}
+
 const Blabel = (props) => {
 
     return (<Badge style={{ fontWeight: 400, fontSize: "100%", display: "flex", alignItems: "center", justifyContent: "center", height: "100%" }} {...props} />)
@@ -1171,7 +1182,7 @@ const prng = (strIn) => sfc32(...cyrb128(strIn));
 
 export {
     report_error,
-    player_icons, doNetRequest, prng, get_param, get_flag, resolve_dark, save_dark, beta_welcome_pending, save_beta_welcome, theme_href, postNetForm, ap_enabled, get_int, get_list, get_preset, presets, get_seed, logic_paths, get_random_loader, Blabel,
+    player_icons, doNetRequest, prng, get_param, get_flag, resolve_dark, save_dark, beta_welcome_pending, save_beta_welcome, theme_href, postNetForm, ap_enabled, get_int, get_list, get_preset, presets, get_seed, logic_paths, get_random_loader, Blabel, MousePos,
     pickup_name, stuff_by_type, name_from_str, PickupSelect, Cent, ordinal_suffix, dev, gotoUrl, loginLogoutUrl, select_theme, randInt, spawn_defaults, spawnKitFor, decompose_pickup,
     BOX_TYPES, BOX_COLORS, BOX_NONE, is_box_gone, new_box, parse_box_line, box_line, box_color, box_label,
     box_color_history, remember_box_color

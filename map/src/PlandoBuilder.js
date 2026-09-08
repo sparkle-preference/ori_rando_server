@@ -8,7 +8,7 @@ import 'react-notifications/lib/notifications.css';
 import {Checkbox, CheckboxGroup} from 'react-checkbox-group';
 import {get_param, get_flag, get_int, get_list, get_seed, presets, get_preset, logic_paths, pickup_name, PickupSelect, stuff_by_type, loginLogoutUrl, decompose_pickup,
         BOX_TYPES, BOX_NONE, is_box_gone, new_box, parse_box_line, box_line, box_color, box_label,
-        box_color_history, remember_box_color} from './common.js';
+        box_color_history, remember_box_color, MousePos} from './common.js';
 import {download, picks_by_type, picks_by_loc, picks_by_zone, picks_by_area, zones, PickupMarkersList, get_icon, 
         getMapCrs, TILE_MAX_ZOOM, hide_opacity, select_wrap, is_match, str_ids, select_styles} from './shared_map.js';
 import NumericInput from 'react-numeric-input';
@@ -257,16 +257,6 @@ function get_manual_reach() {
     let events = get_list("EV"," ").map(event => { let parts = event.split("|"); return {label: pickup_name(parts[0], parts[1]), value: event}; });
     let tps  = get_list("TP"," ").map(tp => {return {label: tp + " TP", value: "TP|" + tp}; });
     return {HC: HC, EC: EC, AC: AC, KS: KS, MS: MS, skills: skills, tps: tps, events: events};
-}
-
-// The readout is the only thing a mouse move changes. Held in the builder's state it
-// would re-render every box row and every rectangle on each pixel of travel.
-class MousePos extends React.Component {
-    state = {lat: 0, lng: 0}
-    set = (latlng) => this.setState(latlng)
-    render() {
-        return (<Button size="sm" color="disabled">{Math.round(this.state.lng)},{Math.round(this.state.lat)}</Button>)
-    }
 }
 
 // Same reason as the rows: leaflet re-applies bounds and restyles a rectangle every time
@@ -1368,7 +1358,7 @@ class PlandoBuiler extends React.Component {
                     <ZoomControl position="topright" />
                     <Control position="topleft" >
                     <div>
-                        <MousePos ref={el => this.mousePos = el}/>
+                        <Button size="sm" color="disabled"><MousePos ref={el => this.mousePos = el}/></Button>
                     </div>
                     </Control>
                     {formattingLegend}

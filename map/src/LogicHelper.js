@@ -2,7 +2,7 @@ import './index.css';
 import React from 'react';
 import {LayerGroup, ZoomControl, Map, Tooltip, TileLayer} from 'react-leaflet';
 import Leaflet from 'leaflet';
-import {get_int, get_list, presets, logic_paths, stuff_by_type, name_from_str, pickup_name, Blabel, dev} from './common.js';
+import {get_int, get_list, presets, logic_paths, stuff_by_type, name_from_str, pickup_name, Blabel, dev, MousePos} from './common.js';
 import {str_ids, picks_by_type, picks_by_area, PickupMarkersList, get_icon, getMapCrs, TILE_MAX_ZOOM, select_styles, select_wrap} from './shared_map.js';
 import Select from 'react-select';
 import {Row, Input, Col, Container, Button, Collapse} from 'reactstrap';
@@ -116,7 +116,7 @@ class LogicHelper extends React.Component {
         super(props)
         let url = new URL(window.document.URL);
     
-        this.state = {mousePos: {lat: 0, lng: 0}, seed_in: "", reachable: {...DEFAULT_REACHABLE}, new_areas: {...DEFAULT_REACHABLE}, selected: "", selected_area: "", history: {}, open_world: false,
+        this.state = {seed_in: "", reachable: {...DEFAULT_REACHABLE}, new_areas: {...DEFAULT_REACHABLE}, selected: "", selected_area: "", history: {}, open_world: false,
                       step: 0, placements: {}, viewport: {center: [0, 0], zoom: 5}, hasSeed: false, highlight_picks: [], logicMode: 'manual', searchStr: url.searchParams.get("search") || "", noMarkers: false, closed_dungeons: false}
     }
 
@@ -421,6 +421,7 @@ class LogicHelper extends React.Component {
       };
 
     onViewportChanged= (viewport) => this.setState({viewport: viewport})
+    onMapMouseMove = (ev) => { if(this.mousePos) this.mousePos.set(ev.latlng) }
     onSearch = (e) => this.setState({searchStr: e.target.value}, this.updateURL)
     onMode = (m) => () => this.setState(prevState => {
         if(prevState.modes.includes(m))
@@ -505,11 +506,11 @@ class LogicHelper extends React.Component {
                     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.3.1/dist/leaflet.css" integrity="sha512-Rksm5RenBEKSKFjgI3a41vrjkw4EVPlJ3+OiI65vTjIdo9brlAacEuKOiQ5OFh7cOI1bkDwLqdLw3Zg0cRJAAQ==" crossorigin=""/>
                 </Helmet>
 
-                <Map style={{backgroundColor: "#121212"}} ref="map" crs={dev ? getMapCrs(this.state.x, this.state.y, this.state.a, this.state.b): crs} zoomControl={false} onMouseMove={(ev) => this.setState({mousePos: ev.latlng})} onViewportChanged={this.onViewportChanged} viewport={this.state.viewport}>
+                <Map style={{backgroundColor: "#121212"}} ref="map" crs={dev ? getMapCrs(this.state.x, this.state.y, this.state.a, this.state.b): crs} zoomControl={false} onMouseMove={this.onMapMouseMove} onViewportChanged={this.onViewportChanged} viewport={this.state.viewport}>
                     <ZoomControl position="topright" />
                     <Control position="topleft" >
                     <div>
-                        <Blabel className="p-2">{Math.round(this.state.mousePos.lng)}, {Math.round(this.state.mousePos.lat)}</Blabel>
+                        <Blabel className="p-2"><MousePos ref={el => this.mousePos = el} sep=", "/></Blabel>
                     </div>
                     </Control>
                     <LayerGroup>
