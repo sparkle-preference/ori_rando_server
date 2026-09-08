@@ -1,4 +1,4 @@
-seedtext = """ClosedDungeons,StompTriggers|Vanilla
+seedtext = """ClosedDungeons,StompTriggers,VanillaRespawns|Vanilla
 -280256|EC|1|Glades
 -1680104|EX|100|Grove
 -12320248|NO|1|Forlorn
