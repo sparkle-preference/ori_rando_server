@@ -73,6 +73,7 @@ class Variation(StrEnum):
     ZONE_LOCKED_TPS = "ZoneLockedTPs"
     KEYSANITY = "Keysanity"
     ENHANCED = "Enhanced"
+    VANILLA_RESPAWNS = "VanillaRespawns"
 
 class LogicPath(StrEnum):
     CASUAL_CORE = 'casual-core'

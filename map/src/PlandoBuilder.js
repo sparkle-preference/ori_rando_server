@@ -96,10 +96,10 @@ const CLUE_ORDERS = [
 ].map(clueOrder => {return {label: mkClueOrderLabel(clueOrder), value: clueOrder}})
 
 const VALID_VARS = ["0XP", "NonProgressMapStones", "NoAltR", "ForceMaps", "ForceTrees", "Hard", "WorldTour", "OpenWorld", "ClosedDungeons", "OHKO", "Starved", "BonusPickups", "NoExtraExp", "Entrance",
-                    // sync'd with the Variation enum (enums.py), 2026-07-22
+                    // sync'd with the Variation enum (enums.py), 2026-09-08
                     "WarmthFrags", "DoubleSkills", "StrictMapstones", "StompTriggers", "TPStarved", "GoalModeFinish", "WallStarved", "GrenadeStarved",
                     "Race", "WarpsInsteadOfTPs", "InLogicWarps", "WarpCount", "StartingHealth", "StartingEnergy", "StartingSkills", "NoTPs",
-                    "Competitive", "BonusLite", "ClueLockedTPs", "ZoneLockedTPs", "Keysanity", "Enhanced", "Bingo"]
+                    "Competitive", "BonusLite", "ClueLockedTPs", "ZoneLockedTPs", "Keysanity", "Enhanced", "Bingo", "VanillaRespawns"]
 const VALID_KEYMODES = ["Shards", "Clues", "Limitkeys", "Free"];
 // plando flag usage counts from prod Datastore, 2026-07-22 (WorldTour=N counted as WorldTour, Frags/x/y as WarmthFrags).
 // static by design — re-run the count and update if usage shifts a lot
