@@ -207,7 +207,7 @@ def ssp_list():
     rather than a 401: the page greys the controls out instead of erroring."""
     user = User.get()
     if not user:
-        return json_resp({"owner": None, "hasLatest": False, "restoreLastSeed": True,
+        return json_resp({"owner": None, "hasLatest": False, "defaultPreset": "latest",
                           "hidePlayButton": False, "settings": []})
     rows = sorted(SavedSeedParams.query(SavedSeedParams.owner_key == user.key),
                   key=lambda s: (s.name or "").lower())
@@ -216,9 +216,9 @@ def ssp_list():
     # the blob rides along so the page can match a loaded form against a preset
     return json_resp({"owner": user.name,
                       "hasLatest": bool(last and last.params),
-                      # whether the page opens on that last seed. Off still keeps it:
-                      # Last Seed stays pickable and /reroll still has something to reroll
-                      "restoreLastSeed": user.setting("restoreLastSeed"),
+                      # which preset the page opens on. Naming another one still keeps
+                      # Last Seed pickable, and /reroll still has something to reroll
+                      "defaultPreset": user.setting("defaultPreset"),
                       "hidePlayButton": user.setting("hidePlayButton"),
                       "settings": [{"name": s.name, "desc": s.description,
                                     "hidden": s.hidden, "blob": s.settings} for s in rows]})

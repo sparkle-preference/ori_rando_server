@@ -32,23 +32,34 @@ class UserSettingsTestCase(NdbTestCase):
             self.assertEqual(u.setting(key), spec["default"])
 
     def test_a_stored_value_wins_over_the_default(self):
-        self.assertIs(self.user(settings={"restoreLastSeed": False}).setting("restoreLastSeed"),
-                      False)
+        self.assertIs(self.user(settings={"hidePlayButton": True}).setting("hidePlayButton"),
+                      True)
+
+    def test_a_retired_key_still_answers_for_the_one_that_replaced_it(self):
+        """restoreLastSeed was the same choice with two answers; both are presets now."""
+        self.assertEqual(self.user(settings={"restoreLastSeed": True}).setting("defaultPreset"),
+                         "latest")
+        self.assertEqual(self.user(settings={"restoreLastSeed": False}).setting("defaultPreset"),
+                         "default")
+
+    def test_a_stored_value_beats_the_key_it_replaced(self):
+        stored = {"restoreLastSeed": False, "defaultPreset": "Speedrun"}
+        self.assertEqual(self.user(settings=stored).setting("defaultPreset"), "Speedrun")
 
     def test_writing_one_key_leaves_the_rest_alone(self):
         u = self.user(settings={"somethingElse": 7})
-        u.set_setting("restoreLastSeed", False)
-        self.assertEqual(u.settings, {"somethingElse": 7, "restoreLastSeed": False})
+        u.set_setting("defaultPreset", "default")
+        self.assertEqual(u.settings, {"somethingElse": 7, "defaultPreset": "default"})
 
     def test_a_write_replaces_the_dict_instead_of_editing_it(self):
         """A JsonProperty mutated in place is not reliably marked dirty, so the
         put would drop the change with nothing raising anywhere."""
         u = self.user()
-        held = {"restoreLastSeed": True}
+        held = {"defaultPreset": "latest"}
         u.settings = held
-        u.set_setting("restoreLastSeed", False)
-        self.assertEqual(held, {"restoreLastSeed": True}, "the caller's dict was edited")
-        self.assertIs(u.setting("restoreLastSeed"), False)
+        u.set_setting("defaultPreset", "default")
+        self.assertEqual(held, {"defaultPreset": "latest"}, "the caller's dict was edited")
+        self.assertEqual(u.setting("defaultPreset"), "default")
 
     def test_an_unregistered_key_has_no_default_to_give(self):
         with self.assertRaises(KeyError):
@@ -62,7 +73,7 @@ class UserSettingsTestCase(NdbTestCase):
 
 
 class SeedgenRestoreGateTestCase(unittest.TestCase):
-    """restoreLastSeed gates opening on the last seed, and nothing else about it."""
+    """defaultPreset picks what the seedgen opens on, and nothing else about it."""
 
     def page(self):
         with io.open(PAGE, encoding="utf-8") as f:
@@ -73,12 +84,18 @@ class SeedgenRestoreGateTestCase(unittest.TestCase):
         self.assertIsNotNone(got, "%s no longer matches the page" % pattern)
         return got.group(0)
 
-    def test_the_restore_consults_the_flag(self):
-        self.assertIn("this.restoreLastSeed",
-                      self.block(r"restoreLastUsed = \(\) => \{.*?\n    \}"))
+    def test_the_restore_consults_the_setting(self):
+        self.assertIn("this.defaultPreset",
+                      self.block(r"openDefaultPreset = \(\) => \{.*?\n    \}"))
 
-    def test_the_flag_comes_off_the_preset_list(self):
-        self.assertIn("restoreLastSeed", self.block(r"loadSspList = .*?\n    \}\)"))
+    def test_the_setting_comes_off_the_preset_list(self):
+        self.assertIn("defaultPreset", self.block(r"loadSspList = .*?\n    \}\)"))
+
+    def test_a_named_preset_opens_without_a_second_request(self):
+        """/preset/list already carries every preset's blob."""
+        block = self.block(r"openDefaultPreset = \(\) => \{.*?\n    \}")
+        self.assertIn("this.state.sspList", block)
+        self.assertNotIn("doNetRequest", block)
 
     def test_the_page_takes_a_baseline_frame_of_its_own(self):
         """Undo's frame 0 used to be a side effect of the restore writing to the
@@ -87,9 +104,9 @@ class SeedgenRestoreGateTestCase(unittest.TestCase):
         self.assertIn("this.history.touch()",
                       self.block(r"componentDidMount\(\) \{.*?\n    \}"))
 
-    def test_last_seed_stays_offered_when_the_toggle_is_off(self):
-        """Off means "do not open on it", not "forget it": /reroll still writes
-        latest, and the dropdown entry stays pickable by hand."""
+    def test_last_seed_stays_offered_when_it_is_not_the_default(self):
+        """Picking another default means "do not open on it", not "forget it":
+        /reroll still writes latest, and the entry stays pickable by hand."""
         self.assertIn("sspHasLatest: !!hasLatest", self.block(r"loadSspList = .*?\n    \}\)"),
                       "the dropdown entry must not be gated on the toggle")
 

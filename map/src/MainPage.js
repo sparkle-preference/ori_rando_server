@@ -1060,17 +1060,17 @@ export default class MainPage extends React.Component {
     loadSspList = () => doNetRequest("/preset/list", ({status, responseText}) => {
         if(status !== 200)
             return
-        let {owner, settings, hasLatest, restoreLastSeed, hidePlayButton} = JSON.parse(responseText)
+        let {owner, settings, hasLatest, defaultPreset, hidePlayButton} = JSON.parse(responseText)
         // absent means an older server: opening on the last seed is what it did
-        this.restoreLastSeed = restoreLastSeed !== false
+        this.defaultPreset = defaultPreset || PRESET_LAST
         this.setState({sspOwner: owner, sspList: settings || [], sspHasLatest: !!hasLatest, hidePlayButton: !!hidePlayButton}, () => {
             if(!hasLatest)
-                return this.setState({sspLatest: null})
+                return this.setState({sspLatest: null}, this.openDefaultPreset)
             doNetRequest("/preset/latest", ({status, responseText}) => {
                 if(status !== 200)
-                    return this.setState({sspLatest: null})
+                    return this.setState({sspLatest: null}, this.openDefaultPreset)
                 let latest = JSON.parse(responseText).settings || {}
-                this.setState({sspLatest: latest}, this.restoreLastUsed)
+                this.setState({sspLatest: latest}, this.openDefaultPreset)
             })
         })
     })
@@ -1239,20 +1239,31 @@ export default class MainPage extends React.Component {
             (key === "y" || e.shiftKey) ? this.redo() : this.undo()
     }
 
-    // a bare page opens on the last-generated settings; ?param_id= or ?preset= wins
-    restoreLastUsed = () => {
-        if(this.restored || !this.state.sspLatest)
+    // a bare page opens on the user's default preset; ?param_id= or ?preset= wins
+    openDefaultPreset = () => {
+        if(this.restored)
             return
         // deciding not to restore is still a decision, and loadSspList runs again later
         this.restored = true
-        // the toggle is about opening on it, not about keeping it: Last Seed stays
-        // in the dropdown, and /reroll still has a seed to reroll
         // ?fresh is the crash page's way back in without the settings that broke it
-        if(this.state.seedTabExists || this.sharedSsp || this.fromBingo || !this.restoreLastSeed || get_flag("fresh"))
+        if(this.state.seedTabExists || this.sharedSsp || this.fromBingo || get_flag("fresh"))
             return
-        let latest = this.state.sspLatest, name = this.nameFor(latest, PRESET_LAST)
+        // Default is the untouched form, and a preset since deleted leaves it that way too
+        let want = this.defaultPreset
+        if(want === PRESET_DEFAULT)
+            return
         // settings only, and silently: an auto-restore is not something the user just did
-        this.mergeSettings(latest, presetLabel(name), false, name, undefined, true)
+        if(want === PRESET_LAST) {
+            let latest = this.state.sspLatest
+            if(latest)
+                this.mergeSettings(latest, presetLabel(this.nameFor(latest, PRESET_LAST)), false,
+                                   this.nameFor(latest, PRESET_LAST), undefined, true)
+            return
+        }
+        // the list carries each preset's blob, so naming one costs no second request
+        let hit = (this.state.sspList || []).find(s => s.name === want && s.blob)
+        if(hit)
+            this.mergeSettings(hit.blob, presetLabel(want), false, want, this.state.sspOwner, true)
     }
 
     selectPreset = (name) => {
@@ -2846,7 +2857,7 @@ export default class MainPage extends React.Component {
         this.apPollTimer = null
         this.apPrefilled = false
         // until /preset/list says otherwise, opening on the last seed is the behavior
-        this.restoreLastSeed = true
+        this.defaultPreset = PRESET_LAST
         // ?preset=owner:name -- a share link, which needs no login to open
         let shared = (url.searchParams.get("preset") || "").split(":")
         this.sharedSsp = shared.length === 2 && shared[0] && shared[1] ? shared : null

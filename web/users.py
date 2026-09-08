@@ -20,7 +20,7 @@ from urllib.parse import unquote
 from flask import Blueprint, current_app, g, redirect, request, session, url_for
 
 import util
-from models import SITE_THEMES, URL_UNSAFE_NAME_CHARS, USER_SETTINGS, AccountLink, User
+from models import SITE_THEMES, URL_UNSAFE_NAME_CHARS, USER_SETTINGS, AccountLink, SavedSeedParams, User
 from util import debug, param_true, param_val
 from web.plando import export_files_for
 from web.presets import export_doc_for
@@ -162,6 +162,10 @@ def user_get_settings():
         res["teamname"] = user.teamname or "%s's team" % user.name
         res["theme"] = user.site_theme()
         res["verbose"] = user.verbose
+        # names only: the default-preset dropdown picks one, it does not load one
+        res["presets"] = sorted((s.name or "" for s in
+                                 SavedSeedParams.query(SavedSeedParams.owner_key == user.key)),
+                                key=lambda n: n.lower())
         res.update({k: user.setting(k) for k in USER_SETTINGS})
     return json_resp(res)
 
@@ -198,7 +202,9 @@ def user_set_settings():
             changed.append("spoiler detail")
     for key, spec in USER_SETTINGS.items():
         if key in request.form:
-            want = request.form[key].strip().lower() not in ("0", "false", "no", "off", "")
+            raw = request.form[key].strip()
+            # the default's type is the setting's type, so registering one stays the whole job
+            want = raw.lower() not in ("0", "false", "no", "off", "") if isinstance(spec["default"], bool) else raw
             if want != user.setting(key):
                 user.set_setting(key, want)
                 changed.append(spec["label"])

@@ -247,7 +247,13 @@ class User(ndb.Model):
     settings = ndb.JsonProperty()
 
     def setting(self, key):
-        return (self.settings or {}).get(key, USER_SETTINGS[key]["default"])
+        stored, spec = self.settings or {}, USER_SETTINGS[key]
+        if key in stored:
+            return stored[key]
+        legacy, read = spec.get("legacy") or (None, None)
+        if legacy in stored:
+            return read(stored[legacy])
+        return spec["default"]
 
     # a JsonProperty mutated in place is not reliably marked dirty
     def set_setting(self, key, value):
@@ -1841,7 +1847,10 @@ URL_UNSAFE_NAME_CHARS = ["@", "/", "\\", "?", "#", "&", "=", '"', "'"]
 # Every key User.settings can hold: its default, and how a save reports it changing.
 # Registering here is the whole job; both routes loop over this rather than naming keys.
 USER_SETTINGS = {
-    "restoreLastSeed": {"default": True, "label": "remembered seedgen settings"},
+    # a preset name, or one of SSP_RESERVED_NAMES. "legacy" reads a retired key when this
+    # one was never written: restoreLastSeed was the same choice with only two answers.
+    "defaultPreset": {"default": "latest", "label": "default preset",
+                      "legacy": ("restoreLastSeed", lambda on: "latest" if on else "default")},
     "hidePlayButton": {"default": False, "label": "Play button"},
 }
 

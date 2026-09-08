@@ -10,6 +10,8 @@ const AP_WORLD_VERSION = get_param("ap_world_version");
 const MODES = {system: "Follow browser", light: "Light", dark: "Dark"}
 const theme_label = t => MODES[t] || t[0].toUpperCase() + t.slice(1)
 const NAME_DEBOUNCE_MS = 400
+// always first in the default-preset dropdown; the server calls them the same thing
+const SPECIAL_PRESETS = [["latest", "Last Seed"], ["default", "Default"]]
 
 class SiteBar extends Component {
     constructor(props) {
@@ -18,7 +20,7 @@ class SiteBar extends Component {
         let dark = resolve_dark()
         // the page already rendered with a theme, so the switch never waits to know
         this.state = {user, dark, teamName: "", theme: get_param("theme") || "system", verbose: false, themes: [],
-                      restoreLastSeed: true, hidePlayButton: false,
+                      defaultPreset: "latest", presets: [], hidePlayButton: false,
                       badChars: [], nameFree: null, settingsOpen: false, editName: user,
                       loaded: false, saveInProgress: false,
                       loader: get_random_loader(), saveStatus: 0, saveError: ""}
@@ -38,16 +40,16 @@ class SiteBar extends Component {
             // pristine is what Save Changes compares against, so it holds every editable field
             let clean = {editName: res.name || this.state.user, teamName: res.teamname,
                          theme: res.theme || "system", verbose: !!res.verbose,
-                         restoreLastSeed: res.restoreLastSeed !== false, hidePlayButton: !!res.hidePlayButton}
+                         defaultPreset: res.defaultPreset || "latest", hidePlayButton: !!res.hidePlayButton}
             this.setState({...clean, pristine: clean, loaded: true,
-                           badChars: res.badChars || [], themes: res.themes || []})
+                           badChars: res.badChars || [], themes: res.themes || [], presets: res.presets || []})
         })
     }
     isDirty = () => {
-        let {pristine, editName, teamName, theme, verbose, restoreLastSeed, hidePlayButton} = this.state
+        let {pristine, editName, teamName, theme, verbose, defaultPreset, hidePlayButton} = this.state
         return !!pristine && (editName !== pristine.editName || teamName !== pristine.teamName
                               || theme !== pristine.theme || verbose !== pristine.verbose
-                              || restoreLastSeed !== pristine.restoreLastSeed
+                              || defaultPreset !== pristine.defaultPreset
                               || hidePlayButton !== pristine.hidePlayButton)
     }
     // local rules answer without asking; only "is it taken" needs the server
@@ -93,6 +95,13 @@ class SiteBar extends Component {
                    && window.matchMedia("(prefers-color-scheme: dark)").matches)
         return theme_href(dark ? "darkly" : "flatly")
     }
+    // a skin, never one of the three modes: "pick for me" that lands on Follow browser
+    // twice running does not read as having picked anything
+    pickRandomTheme = () => {
+        let skins = this.state.themes.filter(t => !(t in MODES) && t !== this.state.theme)
+        if(skins.length)
+            this.onThemeChange(skins[Math.floor(Math.random() * skins.length)])
+    }
     onThemeChange = (theme) => {
         this.setState({theme})
         let link = document.getElementById("css_switcher")
@@ -113,9 +122,9 @@ class SiteBar extends Component {
         this.setState({...this.state.pristine, settingsOpen: false, saveStatus: 0, nameFree: null})
     }
     submitSettings = () => {
-        let {editName, teamName, theme, verbose, restoreLastSeed, hidePlayButton} = this.state
+        let {editName, teamName, theme, verbose, defaultPreset, hidePlayButton} = this.state
         let fields = {name: editName, teamname: teamName, theme: theme, verbose: verbose ? "1" : "0",
-                      restoreLastSeed: restoreLastSeed ? "1" : "0", hidePlayButton: hidePlayButton ? "1" : "0"}
+                      defaultPreset: defaultPreset, hidePlayButton: hidePlayButton ? "1" : "0"}
         this.setState({saveInProgress: true}, () => postNetForm("/user/settings/update", fields, ({status, responseText}) => {
             // a rejected save keeps the dialog, so the edits that caused it are still there to fix
             if(status !== 200) {
@@ -135,7 +144,7 @@ class SiteBar extends Component {
     }
     settingsModal = () =>  {
         let {saveInProgress, loaded, settingsOpen, loader, nameFree, user, editName, teamName,
-             theme, themes, verbose, restoreLastSeed, hidePlayButton, saveStatus, saveError} = this.state
+             theme, themes, verbose, defaultPreset, presets, hidePlayButton, saveStatus, saveError} = this.state
         if(saveInProgress || !loaded)
             return (
                 <Modal size="sm" isOpen={settingsOpen} backdrop={"static"} className={"modal-dialog-centered settings-modal"}>
@@ -183,6 +192,7 @@ class SiteBar extends Component {
                                     {themes.map(t => (<option key={t} value={t}>{theme_label(t)}</option>))}
                                 </Input>
                                 <a className="small text-muted" href="https://bootswatch.com/4/" target="_blank" rel="noopener noreferrer">see them all</a>
+                                <a className="small text-muted ml-3" href="#" title="pick for me :)" onClick={e => {e.preventDefault(); this.pickRandomTheme()}}>pick for me</a>
                             </Col>
                         </Row>
                         <Row className="p-1 justify-content-center">
@@ -197,14 +207,12 @@ class SiteBar extends Component {
                         </Row>
                         <Row className="p-1 justify-content-center">
                             <Col xs="4" className="text-center p-1 border">
-                                <Cent>Remember seedgen settings</Cent>
-                            </Col><Col xs="6" className="d-flex align-items-center">
-                                <div className="custom-control custom-switch">
-                                    <input type="checkbox" className="custom-control-input" id="lastSeedSwitch" checked={restoreLastSeed} onChange={e => this.setState({restoreLastSeed: e.target.checked})}/>
-                                    <label className="custom-control-label" htmlFor="lastSeedSwitch">
-                                        <small className="text-muted">Open the seed generator on your last seed's options</small>
-                                    </label>
-                                </div>
+                                <Cent>Default preset</Cent>
+                            </Col><Col xs="6">
+                                <Input type="select" value={defaultPreset} className="w-100" onChange={e => this.setState({defaultPreset: e.target.value})}>
+                                    {SPECIAL_PRESETS.map(([v, label]) => (<option key={v} value={v}>{label}</option>))}
+                                    {presets.map(p => (<option key={p} value={p}>{p}</option>))}
+                                </Input>
                             </Col>
                         </Row>
                         <Row className="p-1 justify-content-center">
@@ -213,9 +221,7 @@ class SiteBar extends Component {
                             </Col><Col xs="6" className="d-flex align-items-center">
                                 <div className="custom-control custom-switch">
                                     <input type="checkbox" className="custom-control-input" id="hidePlaySwitch" checked={hidePlayButton} onChange={e => this.setState({hidePlayButton: e.target.checked})}/>
-                                    <label className="custom-control-label" htmlFor="hidePlaySwitch">
-                                        <small className="text-muted">If you don't use the Rando App, the seed tab only offers Download</small>
-                                    </label>
+                                    <label className="custom-control-label" htmlFor="hidePlaySwitch"> </label>
                                 </div>
                             </Col>
                         </Row>
