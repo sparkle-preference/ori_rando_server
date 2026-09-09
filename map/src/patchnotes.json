@@ -9,99 +9,109 @@
     "Misc",
     "Plando"
   ],
-  "pending": [
-    {
-      "text": "Added a \"Default Preset\" in the website settings.",
-      "category": "Website",
-      "type": "feature",
-      "importance": "major",
-      "sub": [
-        "Default preset, in user settings. Last Seed and Default are still there as picks."
-      ]
-    },
-    {
-      "text": "Added a theme-picking button for indecisive users.",
-      "category": "Website",
-      "type": "feature",
-      "importance": "minor"
-    },
-    {
-      "text": "The plando editor can now handle long box lists without slowing to a crawl.",
-      "category": "Plando",
-      "type": "fix",
-      "importance": "minor"
-    },
-    {
-      "text": "RI slot writes accept *=, /= and %=. (Do not divide by zero.)",
-      "category": "Plando",
-      "type": "feature",
-      "importance": "minor"
-    },
-    {
-      "text": "Added a flag (VanillaRespawns) to preserve vanilla enemy respawning behavior.",
-      "category": "Seed Generator",
-      "type": "feature",
-      "importance": "minor"
-    },
-    {
-      "text": "Added a Pause Menu Opacity setting (does what it says on the tin).",
-      "category": "Game",
-      "type": "feature",
-      "importance": "minor"
-    },
-    {
-      "text": "Switching a box on while Ori is standing in it triggers the box.",
-      "category": "Plando",
-      "type": "fix",
-      "importance": "minor"
-    },
-    {
-      "text": "The Blackroot teleporter fronkey respawns on Relaxed too.",
-      "category": "Game",
-      "type": "fix",
-      "importance": "minor"
-    },
-    {
-      "text": "The right side of the Sorrow hub counts as Sorrow in your stats.",
-      "category": "Game",
-      "type": "fix",
-      "importance": "minor"
-    },
-    {
-      "text": "In a multiworld, every world playing Bingo gets its own board.",
-      "category": "Bingo",
-      "type": "feature",
-      "importance": "major",
-      "sub": [
-        "Your board is rolled for you, and your seed is on it."
-      ]
-    },
-    {
-      "text": "Rolling a bingo board points your userboard at it.",
-      "category": "Bingo",
-      "type": "fix",
-      "importance": "minor"
-    },
-    {
-      "text": "When only some worlds play Bingo, everyone can still reach their own seed.",
-      "category": "Multiplayer",
-      "type": "fix",
-      "importance": "minor"
-    },
-    {
-      "text": "Preplacements a preset sets for a world finally get placed.",
-      "category": "Seed Generator",
-      "type": "fix",
-      "importance": "minor"
-    },
-    {
-      "text": "Duplicating a preset selects the copy.",
-      "category": "Website",
-      "type": "fix",
-      "importance": "minor"
-    }
-  ],
+  "pending": [],
   "releases": [
+      {
+        "version": "4.9.5",
+        "date": "2026-09-09",
+        "announce": "dev",
+        "changes": [
+          {
+            "text": "Added \"Default Preset\" as a website setting, which will be applied on seed generator page load.",
+            "category": "Website",
+            "type": "feature",
+            "importance": "major",
+            "sub": [
+              "The default value here is the \"Last Seed\" preset.",
+              "Set it to the \"Default\" preset for the pre-5.0 behavior."
+            ]
+          },
+          {
+            "text": "Added a theme-picking button for indecisive users.",
+            "category": "Website",
+            "type": "feature",
+            "importance": "minor"
+          },
+          {
+            "text": "The plando editor can now handle large box counts without slowing to a crawl.",
+            "category": "Plando",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "RI slot writes accept *=, /= and %=. (Do not divide by zero.)",
+            "category": "Plando",
+            "type": "feature",
+            "importance": "minor"
+          },
+          {
+            "text": "Added a flag (VanillaRespawns) that can be used to preserve vanilla enemy respawning behavior.",
+            "category": "Seed Generator",
+            "type": "feature",
+            "importance": "minor"
+          },
+          {
+            "text": "Added a Pause Menu Opacity setting (does what it says on the tin).",
+            "category": "Game",
+            "type": "feature",
+            "importance": "minor"
+          },
+          {
+            "text": "Switching a box on while Ori is standing in it triggers the box right away.",
+            "category": "Plando",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "The Blackroot teleporter fronkey respawns on Relaxed too.",
+            "category": "Game",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Fixed the right edge of lower Sorrow not counting as Sorrow in stats.",
+            "category": "Game",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "A bunch of different Bingo multiworld fixes:",
+            "category": "Bingo",
+            "type": "fix",
+            "importance": "minor",
+            "sub": [
+              "Fixed userboards not updating properly.",
+              "Fixed when board rolling happens to make more sense.",
+              "Fixed several controls showing when they weren't relevant.",
+              "Made it much easier to figure out how to get your seed."
+            ]
+          },
+          {
+            "text": "Preplacements from a preset now reach the world that loaded them.",
+            "category": "Multiplayer",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Duplicating a preset selects the copy.",
+            "category": "Website",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Other players' ghosts no longer vanish after a connection hiccup.",
+            "category": "Multiplayer",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "The practice segment editor keeps up with long box lists, and looks more like the plando editor.",
+            "category": "Game",
+            "type": "fix",
+            "importance": "minor"
+          }
+        ]
+      },
       {
         "version": "4.9.4",
         "date": "2026-09-07",
@@ -122,7 +132,7 @@
               "The Blackroot boulder escape fronkey.",
               "The fronkey above the Charge Flame tree.",
               "The slimes and spider outside of Forlorn.",
-              "The slimes to the right right of the Valley teleporter."
+              "The slimes to the right of the Valley teleporter."
             ]
           },
           {

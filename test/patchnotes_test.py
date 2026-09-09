@@ -62,6 +62,14 @@ class PatchNotesDataTestCase(unittest.TestCase):
         newest = version_tuple(DOC["releases"][0]["version"])
         self.assertEqual(newest[:3], tuple(util.VER))
 
+    def test_a_beta_build_drags_the_floor_up_with_it(self):
+        """No 4.9.x build supports an older one, so a bump that moves VER alone
+        leaves clients on a beta nobody is testing against."""
+        if util.VER[:2] != [4, 9]:
+            self.skipTest("not a beta build")
+        self.assertEqual(util.MIN_VER, util.VER)
+        self.assertEqual(util.BETA_VER, util.VER)
+
 
 class PendingNotesTestCase(unittest.TestCase):
     """Draft lines, written when a change lands and cut into a release later.
