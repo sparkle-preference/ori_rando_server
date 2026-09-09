@@ -3,12 +3,14 @@ import {Container, Row, Col, Collapse, Button, ButtonGroup, Modal, ModalHeader, 
         ModalBody, ModalFooter, Input, Card, CardBody, CardFooter, Media, UncontrolledButtonDropdown, DropdownToggle, DropdownMenu, DropdownItem} from 'reactstrap';
 import {NotificationContainer, NotificationManager} from 'react-notifications';
 import Countdown from 'react-countdown-now';
+import {FaSave} from 'react-icons/fa';
 import { confirmAlert } from 'react-confirm-alert';
 import 'react-confirm-alert/src/react-confirm-alert.css'
 import 'react-notifications/lib/notifications.css';
 
 import {download} from './shared_map.js'
-import {Cent, ordinal_suffix, doNetRequest, player_icons, get_random_loader, PickupSelect, resolve_dark, get_param, dev} from './common.js'
+import {Cent, ordinal_suffix, doNetRequest, player_icons, get_random_loader, PickupSelect, resolve_dark, get_param, dev,
+        seed_link_pref, remember_seed_link} from './common.js'
 import SiteBar from "./SiteBar.js";
 
 
@@ -17,6 +19,8 @@ const cardTextSize = iniUrl.searchParams.get("textSize") || "1.5vh"
 const hideFooter = iniUrl.searchParams.has("hideFooter")
 const hideLabels = iniUrl.searchParams.has("hideLabels")
 const blindRace = iniUrl.searchParams.has("blindRace")
+// a multiworld splits the board per world; nothing there starts a shared clock
+const perWorldSeed = iniUrl.searchParams.has("perWorld")
 // a finished square colors its text instead of filling its background
 const altComplete = iniUrl.searchParams.has("altCmplt")
 // a transport failure (deploy, network blip) has no status and no body,
@@ -203,9 +207,37 @@ class BingoBoard extends Component {
     }
 }
 
-const PlayerList = ({activePlayer, teams, viewOnly, isOwner, timerTime, onPlayerListAction, userBoard, userBoardParams, gameId, teamMax, teamsDisabled, boardsByWorld}) => {
+// One way in for each player on a fixed roster: Play if they use the app, Download if not.
+// It goes once used or waved off -- the dropdown keeps Redownload seed for anyone who needs it again.
+const GetSeedButton = ({gameId, paramId, pid, name, taken, onTaken}) => {
+    if(taken)
+        return null
+    // what they reached for last time, and the setting only until they have
+    let pref = seed_link_pref()
+    let play = paramId && (pref ? pref === "play" : get_param("hideplay") !== "True")
+    let endpoint = get_param("endpoint")
+    let href = play
+        ? `bfr:/play/params/${paramId}?game_id=${gameId}&player_id=${pid}` + (endpoint ? `&endpoint=${endpoint}` : "")
+        : `/bingo/game/${gameId}/seed/${pid}`
+    let who = name || `player ${pid}`
+    return (
+        <React.Fragment>
+            <Button color={play ? "success" : "primary"} href={href} target={play ? undefined : "_blank"}
+                    title={play ? `Open seed for player ${who} via the Rando App` : `Download the seed for player ${who}`}
+                    onClick={() => { remember_seed_link(play ? "play" : "download"); onTaken(pid) }}>
+                {play ? "Play" : <FaSave/>}
+            </Button>
+            <Button color={play ? "success" : "primary"} className="px-2" title={`Dismiss: ${who} has their seed`}
+                    onClick={() => onTaken(pid)}>&times;</Button>
+        </React.Fragment>
+    )
+}
+
+const PlayerList = ({activePlayer, teams, viewOnly, isOwner, timerTime, onPlayerListAction, userBoard, userBoardParams, gameId, paramId, teamMax, teamsDisabled, boardsByWorld, seedsTaken, onSeedTaken}) => {
     if(!teams)
         return null
+    // the seed is for whoever is playing; a spectator and the userboard get the board alone
+    let showSeed = !viewOnly && !userBoard
     let team_list = Object.keys(teams).map(cid => teams[cid])
     let players = team_list.map(({hidden, cap, teammates, name, bingos, place, score}) => {
             if(hidden)
@@ -243,6 +275,8 @@ const PlayerList = ({activePlayer, teams, viewOnly, isOwner, timerTime, onPlayer
                         <Button color="secondary" active={active} block onClick={onPlayerListAction("selectPlayer", cap.pid)}>
                             <Cent>{badge}{" "}{make_icons([cap.pid])} {text}</Cent>
                         </Button>
+                        {showSeed ? (<GetSeedButton gameId={gameId} paramId={paramId} pid={cap.pid} name={name}
+                                       taken={seedsTaken.includes(cap.pid)} onTaken={onSeedTaken}/>) : null}
                         <DropdownToggle caret color="secondary" />
                         <DropdownMenu right>
                             {joinButton}
@@ -272,6 +306,8 @@ const PlayerList = ({activePlayer, teams, viewOnly, isOwner, timerTime, onPlayer
                                 <Button size="sm" color="secondary" active={pid === activePlayer} block onClick={onPlayerListAction("selectPlayer", pid)}>
                                     <Cent>{make_icons([pid])}{name}</Cent>
                                 </Button>
+                                {showSeed ? (<GetSeedButton gameId={gameId} paramId={paramId} pid={pid} name={name}
+                                               taken={seedsTaken.includes(pid)} onTaken={onSeedTaken}/>) : null}
                                 <DropdownToggle caret color="secondary" />
                                 <DropdownMenu right>
                                     {removePlayer}
@@ -326,10 +362,12 @@ const PlayerList = ({activePlayer, teams, viewOnly, isOwner, timerTime, onPlayer
     if(userBoard) {
         colStyle = {width: `${userBoardParams.listWidth}px`, height: `${userBoardParams.listHeight}px`}
     }
+    // a board each is not a race, so there is no clock to show
+    let perWorld = Object.keys(boardsByWorld || {}).length > 0
     let timerText = timerTime ? timerTime : `Time Elapsed: 00.00`
     return (
         <Col xs="auto" style={colStyle} className="border border-info">
-            <Row  className="px-1 pb-2"><h6>{timerText}</h6></Row>
+            {perWorld ? null : (<Row  className="px-1 pb-2"><h6>{timerText}</h6></Row>)}
             <Row  className="px-1 pb-2"><Cent><h4>Players</h4></Cent></Row>
             {players}
             {emptyRows}
@@ -375,8 +413,8 @@ export default class Bingo extends React.Component {
                       fails: 0, gameId: gameId, startSkills: 3, startCells: 4, startMisc: "MU|TP/Swamp/TP/Valley", goalMode: goalMode,
                       difficulty: difficulty, isRandoBingo: false, randoGameId: -1, viewOnly: viewOnly, buildingPlayer: false, meta: iniUrl.searchParams.has("bingoMeta"),
                       events: [], startTime: (new Date()), countdownActive: false, isOwner: false, targetCount: targetCount, userBoard: userBoard,
-                      teamsDisabled: (teamMax === -1), fromGen: fromGen, teamMax: teamMax, ticksSinceLastSquare: 0, userBoardParams: userBoardParams,
-                      ticking: false, netFails: 0, netRetryAt: 0, rerollingBoard: false
+                      teamsDisabled: perWorldSeed || (teamMax === -1), fromGen: fromGen, teamMax: teamMax, ticksSinceLastSquare: 0, userBoardParams: userBoardParams,
+                      ticking: false, netFails: 0, netRetryAt: 0, rerollingBoard: false, seedsTaken: []
                     };
         if(gameId > 0) {
             if(fromGen) {
@@ -567,9 +605,11 @@ export default class Bingo extends React.Component {
             newState.teams = teams
             newState.cards = [...this.state.cards]
             let shown = this.boardFor(res, this.state.activePlayer)
-            let fresh = (shown && shown.cards) || res.cards
+            // a world with no board of its own compares against a real one; res.cards is
+            // empty for per-world games, and an empty list looks like a fresh board
+            let fresh = (shown && shown.cards) || this.firstBoard(res) || res.cards
             if(res.boards)
-                newState.boardsByWorld = res.boards
+                newState.boardsByWorld = this.keepBoardText(res.boards)
             // a poll carries no card text, so a board that isn't ours is refetched whole
             if(newState.cards.length !== fresh.length || fresh.some((c, i) => c.name !== newState.cards[i].name)) {
                 if(!this.state.userBoard && !this.state.viewOnly)
@@ -644,6 +684,29 @@ export default class Bingo extends React.Component {
     // a world's own board, or the one board when the game has only one
     boardFor = (res, world) => (res.boards || {})[world] || null
 
+    // a world with no board of its own shows a real player's rather than the
+    // unplayed sample the server used to send alongside them
+    firstBoard = (res) => {
+        let worlds = Object.keys(res.boards || {}).sort((a, b) => a - b)
+        return worlds.length ? res.boards[worlds[0]].cards : null
+    }
+
+    // Only the first fetch says what a square is; every tick after carries progress alone,
+    // so a board kept straight off a tick is 25 blank squares. Take the new progress over
+    // the text we were given rather than replacing it.
+    keepBoardText = (fresh) => {
+        let was = this.state.boardsByWorld || {}
+        let out = {}
+        Object.keys(fresh || {}).forEach(w => {
+            let old = was[w]
+            out[w] = !old ? fresh[w] : {...fresh[w], cards: (fresh[w].cards || []).map((c, i) => {
+                let had = (old.cards || [])[i]
+                return had && had.name === c.name ? {...had, ...c} : c
+            })}
+        })
+        return out
+    }
+
     // swap the displayed board and the rules it finishes by
     showBoard = (world) => this.setState(prev => {
         let wb = (prev.boardsByWorld || {})[world]
@@ -695,10 +758,10 @@ export default class Bingo extends React.Component {
                         })
                     })
                 let mine = this.boardFor(res, activePlayer)
-                this.setState({boardsByWorld: res.boards || {},
+                this.setState({boardsByWorld: this.keepBoardText(res.boards),
                               subtitle: res.subtitle, gameId: res.gameId, createModalOpen: false, creatingGame: false, haveGame: true, offset: res.offset || offset,
-                              fails: 0, netFails: 0, netRetryAt: 0, dispDiff: res.difficulty || dispDiff, teams: res.teams, paramId: res.paramId, activePlayer: activePlayer, ticksSinceLastSquare: 0,
-                              cards: (mine && mine.cards) || res.cards, events: res.events,
+                              fails: 0, netFails: 0, netRetryAt: 0, dispDiff: res.difficulty || dispDiff, teams: res.teams, paramId: res.paramId || this.state.paramId, activePlayer: activePlayer, ticksSinceLastSquare: 0,
+                              cards: (mine && mine.cards) || this.firstBoard(res) || res.cards, events: res.events,
                               targetCount: (mine && mine.bingo_count) || res.bingo_count, fromGen: false, teamMax: res.teamMax || -1,
                               discSquares: (mine && mine.discovery) || res.discovery || [],
                               lockout: res.lockout || false, startTime: res.start_time_posix, isOwner: res.is_owner, countdownActive: res.countdown, teamsDisabled: !res.teams_allowed,
@@ -717,6 +780,9 @@ export default class Bingo extends React.Component {
             }
         }
     }
+    // a player only needs their seed once; the dropdown keeps a way back to it
+    onSeedTaken = (pid) => this.setState(prev => ({seedsTaken: prev.seedsTaken.concat([pid])}))
+
     onPlayerListAction = (action, player, name) => () => {
         let cpid = this.getCap(player)
         if(cpid === player)
@@ -804,7 +870,8 @@ export default class Bingo extends React.Component {
             border: s.getPropertyValue("--dark")
         }
 
-        let startButton = isOwner && !startTime ? (
+        // no clock on a per-world game, so nothing to start
+        let startButton = isOwner && !startTime && !Object.keys(this.state.boardsByWorld || {}).length ? (
             <Col xs="auto">
                 <Button block onClick={() => doNetRequest(`/bingo/game/${gameId}/start?time=${(new Date()).getTime()}`, this.tickCallback)} color="success" disabled={!!startTime}>Start game</Button>
             </Col>
@@ -882,7 +949,7 @@ export default class Bingo extends React.Component {
                 <Col xs="auto">
                     <BingoBoard colors={colors} discovery={discSquares} lockout={lockout} dark={dark} cards={cards} activePlayer={activePlayer} activeTeam={this.getCap(activePlayer)} bingos={bingos} hiddenPlayers={hiddenPlayers}/>
                 </Col>
-                    <PlayerList {...this.state} onPlayerListAction={this.onPlayerListAction}/>
+                    <PlayerList {...this.state} onPlayerListAction={this.onPlayerListAction} onSeedTaken={this.onSeedTaken}/>
             </Row>
             ) : null
 
@@ -894,7 +961,7 @@ export default class Bingo extends React.Component {
             if(showList) {
                 rows.push((
                     <Row className="p-1 m-0">
-                        <PlayerList {...this.state} onPlayerListAction={this.onPlayerListAction}/>
+                        <PlayerList {...this.state} onPlayerListAction={this.onPlayerListAction} onSeedTaken={this.onSeedTaken}/>
                     </Row>
                 ))
             }
@@ -1109,7 +1176,7 @@ export default class Bingo extends React.Component {
                 </Col>
             </Row>
         )
-        let timerrow = (user && seedRows) ? (
+        let timerrow = (user && seedRows && !perWorldSeed) ? (
             <Row className="p-1">
                 <Col xs="4" className="p-1 border">
                     <Cent>Countdown Timer</Cent>
@@ -1122,7 +1189,8 @@ export default class Bingo extends React.Component {
                 </Col>
             </Row>
         ) : null
-        let teamrow = teamMax > 0 ? (
+        // a board each: there are no teams to be in
+        let teamrow = perWorldSeed ? null : teamMax > 0 ? (
             <Row className="p-1">
                 <Col xs="4" className="p-1 border">
                     <Cent><i>Teams of {teamMax} required</i></Cent>
@@ -1239,6 +1307,7 @@ export default class Bingo extends React.Component {
                                 <Input style={style} type="number" value={squareCount}  onChange={(e) => this.setState({squareCount: parseInt(e.target.value, 10)})}/>
                             </Col>
                         </Row>
+                        {perWorldSeed ? null : (
                         <Row className="p-1">
                             <Col xs="4" className="p1 border">
                                 <Cent>Lockout</Cent>
@@ -1249,7 +1318,7 @@ export default class Bingo extends React.Component {
                                     <Button active={!lockout} outline={lockout} onClick={() => this.setState({lockout: false})}>Disabled</Button>
                                 </ButtonGroup>
                             </Col>
-                        </Row>
+                        </Row>)}
                     </Collapse>
                     <Collapse isOpen={goalMode === "bingos"}>
                         <Row className="p-1">

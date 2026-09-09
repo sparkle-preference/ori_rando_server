@@ -128,6 +128,8 @@ class CanonicalRedirectTestCase(unittest.TestCase):
 class SessionCookieTestCase(unittest.TestCase):
     """The login cookie survives a browser restart, and nothing else gets one.
 
+    The guest seat is the exception, and it is pinned off here: see guest_users_test.
+
     Flask-OIDC's OIDC_ENABLED=False path plants a token in the session on every
     request whenever OIDC_TESTING_PROFILE is non-empty, which is how these tests
     switch between a logged-in and an anonymous visitor.
@@ -141,12 +143,18 @@ class SessionCookieTestCase(unittest.TestCase):
         self._enabled = main.app.config["OIDC_ENABLED"]
         self._profile = main.app.config.get("OIDC_TESTING_PROFILE")
         main.app.config["OIDC_ENABLED"] = False
+        # the guest seat writes a session for anyone at all, which is a cookie by
+        # design and not the one under test. It reads the flag live, and a beta box
+        # runs the suite with it on, so pin it rather than inherit it.
+        self._guests = util.GUEST_USERS
+        util.GUEST_USERS = False
 
     def tearDown(self):
         models.client = self._client
         main.app.secret_key = self._secret
         main.app.config["OIDC_ENABLED"] = self._enabled
         main.app.config["OIDC_TESTING_PROFILE"] = self._profile
+        util.GUEST_USERS = self._guests
 
     def _logged_in(self):
         main.app.config["OIDC_TESTING_PROFILE"] = {"email": "t@example.com", "sub": "1"}

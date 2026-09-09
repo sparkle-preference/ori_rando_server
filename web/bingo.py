@@ -73,6 +73,9 @@ def _bingo_start_game_inner(game_id):
     user = User.get()
     if not user or bingo.creator != user.key:
         return text_resp("Only the creator can start the game", 401)
+    if bingo.boards:
+        # a board each is not a race: no shared start, and the owner may not be playing
+        return text_resp("This game gives every world its own board, so there is no clock", 412)
     if bingo.start_time:
         return text_resp("Game has already started!", 412)
     if bingo.teams_shared:
@@ -146,8 +149,7 @@ def _bingo_reroll_board_inner(game_id):
         owner = owner_world([wb.world for wb in bingo.boards], param_val("world"))
         bingo.boards = bingo_boards_for(reroll_params, seed, lockout, owner,
                                         owner_board_opts(difficulty, d, meta), bingo.boards)
-        bingo.board = bingo_board_cards(reroll_params, difficulty, seed, d, meta, lockout,
-                                        world=owner or bingo.boards[0].world)
+        bingo.board = []
     else:
         bingo.board = bingo_board_cards(reroll_params, difficulty, seed, d, meta, lockout)
     bingo.difficulty = difficulty
@@ -356,6 +358,96 @@ def owner_world(worlds, asked=None):
     return 1 if 1 in worlds else None
 
 
+def seat_board(bingo, game, params, worlds, per_world, now, gid):
+    """Creator, event line, and the roster. A per-world board's pids are its
+    worlds, so the seats are known here rather than claimed by whoever shows up."""
+    # a board rolled for worlds that are not the roller's is not their bingo game
+    eventStr = _bingo_setup_tail(bingo, now, gid, claim=owner_world(worlds) is not None)
+    bingo.event_log.append(BingoEvent(event_type=eventStr, timestamp=now))
+    if getattr(params, "ap_mode", False):
+        # the boards are per-world like any multiworld's; this only marks
+        # that winning one is its world's Archipelago goal
+        bingo.ap_worlds = int(params.players)
+    # wipe before seating, or the wipe eats the captains seated below and
+    # their bare lazy replacements break every later board fetch
+    for p in game.get_players():
+        # spares the AP shadows (pid > K) too: they hold the bridge's outbox
+        if per_world and p.pid() not in worlds:
+            continue
+        game.remove_player(p.key.id())
+    if per_world:
+        # the board's pids ARE the multiworld's worlds, and the seeds went out
+        # with those numbers in them, so the roster is settled here
+        for w in worlds:
+            bingo.teams.append(BingoTeam(captain=bingo.init_player(w).key, teammates=[]))
+
+
+def preroll_board(game, params):
+    """A per-world board with no owner world is decided entirely by the presets --
+    the create form has nothing it could move -- so roll it as the seed is built
+    instead of showing everyone a form that changes nothing. True when one was made."""
+    worlds = mw_bingo_worlds(params)
+    if not worlds or owner_world(worlds) is not None or game.bingo_data:
+        return False
+    now = utcnow()
+    seed = params.seed or ""
+    gid = game.key.id()
+    bingo, worlds, per_world = build_board(gid, game, params, seed, "normal", 0, False, False, False)
+    seat_board(bingo, game, params, worlds, per_world, now, gid)
+    game.bingo_data = bingo.put()
+    game.put()
+    return True
+
+
+def build_board(gid, game, params, seed, difficulty, d, lockout, meta, teams_flag):
+    """The board a game gets: one per world when the seed splits them, one shared
+    board otherwise. Unsaved, and without the roster -- the caller seats that.
+
+    Returns (bingo, worlds, per_world)."""
+    # any multiworld opt-in is per-world: even a lone bingo player keeps
+    # board pids == world numbers, which is what the seeds went out carrying
+    worlds = mw_bingo_worlds(params)
+    per_world = bool(worlds)
+    if per_world:
+        lockout = False     # separate boards never share a square to take
+    # the modal belongs to whoever rolled the seed, and that is world 1
+    owner = owner_world(worlds)
+    # No owner means the modal moved nothing, so the base board -- which no world
+    # plays once boards exist -- follows its own world's rules rather than a form
+    # whose answers reached nobody.
+    base_world = owner or (worlds[0] if worlds else 1)
+    if per_world and not owner:
+        wp = params.world_params(base_world)
+        base_diff, base_disc, base_meta = wp.bingo_diff, wp.bingo_disc, wp.bingo_meta
+    else:
+        base_diff, base_disc, base_meta = difficulty, d, meta
+    bingo = BingoGameData(
+        id            = gid,
+        # per-world games leave this empty: no world plays it, and board_for falls
+        # back to a real board rather than a sample nobody is looking at
+        board         = [] if per_world else bingo_board_cards(params, base_diff, seed,
+                                                               base_disc, base_meta,
+                                                               lockout, world=base_world),
+        boards        = bingo_boards_for(params, seed, lockout, owner,
+                                         owner_board_opts(difficulty, d, meta)) if per_world else [],
+        difficulty    = difficulty,
+        subtitle      = params.flag_line(),
+        teams_allowed = teams_flag and not per_world,
+        teams_shared  = params.players > 1 and params.sync.mode == MultiplayerGameType.SHARED,
+        game          = game.key,
+        lockout       = lockout,
+        meta          = meta,
+        seed          = seed  # kept whether or not discovery needs it: a reroll bumps it
+    )
+    if base_disc and not per_world:
+        bingo.discovery_squares(base_disc)
+
+    if bingo.teams_shared and not bingo.teams_allowed:
+        log.warning("Teams are required for shared seeds! Overriding invalid config")
+        bingo.teams_allowed = True
+    return bingo, worlds, per_world
+
+
 def bingo_boards_for(params, seed, lockout, owner=None, opts=None, base=None):
     """One board per participating world, each from that world's own settings.
     Seeded apart, so two worlds on the same settings still get different goals.
@@ -526,9 +618,12 @@ def _bingo_query_opts():
             param_flag("meta"))
 
 
-def _bingo_setup_tail(bingo, now, gid):
+def _bingo_setup_tail(bingo, now, gid, claim=True):
     """The shared back half of board creation: count overrides, creator, start
-    timing. Returns the event string for the caller to extend and log."""
+    timing. Returns the event string for the caller to extend and log.
+
+    claim is False when the board is rolled for somebody else -- a seed built for
+    worlds that are not yours should not become the board your userboard follows."""
     if param_flag("lines"):
         bingo.bingo_count = int(param_val("lines"))
     if param_flag("squares"):
@@ -539,7 +634,8 @@ def _bingo_setup_tail(bingo, now, gid):
         bingo.creator = user.key
         # the userboard follows this key, and rolling a board is as much a claim
         # on "my current bingo game" as joining someone else's is
-        Cache.set_latest_game(user.name, gid, True)
+        if claim:
+            Cache.set_latest_game(user.name, gid, True)
     if not user or param_flag("noTimer"):
         bingo.auto_start = True
         event += "Bingo Game %s created! The clock starts with its first player." % gid
@@ -648,54 +744,9 @@ def add_bingo_to_game(game_id):
                 log.info("%s %3d/%s = %s", (name+":").ljust(36), num, test_iters, float(num)/float(test_iters))
             return text_resp("test retry", 420)
 
-        # any multiworld opt-in is per-world: even a lone bingo player keeps
-        # board pids == world numbers, which is what the seeds went out carrying
-        worlds = mw_bingo_worlds(params)
-        per_world = bool(worlds)
-        if per_world:
-            lockout = False     # separate boards never share a square to take
-        # the modal belongs to whoever rolled the seed, and that is world 1
-        owner = owner_world(worlds)
-        bingo = BingoGameData(
-            id            = game_id,
-            board         = bingo_board_cards(params, difficulty, seed, d, meta, lockout,
-                                              world=owner or (worlds[0] if worlds else 1)),
-            boards        = bingo_boards_for(params, seed, lockout, owner,
-                                             owner_board_opts(difficulty, d, meta)) if per_world else [],
-            difficulty    = difficulty,
-            subtitle      = params.flag_line(),
-            teams_allowed = param_flag("teams") and not per_world,
-            teams_shared  = params.players > 1 and params.sync.mode == MultiplayerGameType.SHARED,
-            game          = game.key,
-            lockout       = lockout,
-            meta          = meta,
-            seed          = seed  # kept whether or not discovery needs it: a reroll bumps it
-        )
-        if d:
-            bingo.discovery_squares(d)
-
-        if bingo.teams_shared and not bingo.teams_allowed:
-            log.warning("Teams are required for shared seeds! Overriding invalid config")
-            bingo.teams_allowed = True
-
-        eventStr = _bingo_setup_tail(bingo, now, game_id)
-        bingo.event_log.append(BingoEvent(event_type=eventStr, timestamp=now))
-        if getattr(params, "ap_mode", False):
-            # the boards are per-world like any multiworld's; this only marks
-            # that winning one is its world's Archipelago goal
-            bingo.ap_worlds = int(params.players)
-        # wipe before seating, or the wipe eats the captains seated below and
-        # their bare lazy replacements break every later board fetch
-        for p in game.get_players():
-            # spares the AP shadows (pid > K) too: they hold the bridge's outbox
-            if per_world and p.pid() not in worlds:
-                continue
-            game.remove_player(p.key.id())
-        if per_world:
-            # the board's pids ARE the multiworld's worlds, and the seeds went out
-            # with those numbers in them, so the roster is settled here
-            for w in worlds:
-                bingo.teams.append(BingoTeam(captain=bingo.init_player(w).key, teammates=[]))
+        bingo, worlds, per_world = build_board(game_id, game, params, seed, difficulty, d, lockout,
+                                               meta, param_flag("teams"))
+        seat_board(bingo, game, params, worlds, per_world, now, game_id)
         # after the AP fields: the creator's page reads ap_worlds off this
         res = bingo.get_json(True)
         add_client_offset(res, now)

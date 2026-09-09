@@ -1298,7 +1298,9 @@ class BingoGameData(ndb.Model):
         for wb in self.boards:
             if wb.world == world:
                 return wb.board
-        return self.board
+        # a world without its own board borrows the first real one: once boards
+        # exist nobody plays the base, and per-world games no longer build it
+        return self.boards[0].board if self.boards else self.board
 
     def all_boards(self):
         return [wb.board for wb in self.boards] or [self.board]
@@ -1552,7 +1554,7 @@ class BingoGameData(ndb.Model):
         player_id = int(player_id)
         now = utcnow()
         if not self.start_time and not meta_init:
-            if not self.auto_start:
+            if not self.auto_start or self.boards:
                 return
             self.start_time = now
             self.event_log.append(BingoEvent(event_type="miscThe clock starts with the first report!", timestamp=now))

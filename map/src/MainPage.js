@@ -10,7 +10,7 @@ import './index.css';
 
 import {getHelpContent, HelpBox} from "./helpbox.js";
 import {History, HIST_KEYS, HIST_SET} from './history.js';
-import {postNetForm, get_param, spawnKitFor, get_flag, ap_enabled, presets, select_theme, name_from_str, get_preset, player_icons, doNetRequest, get_random_loader, PickupSelect, Cent, dev, randInt, gotoUrl, prng, decompose_pickup, beta_welcome_pending, save_beta_welcome} from './common.js';
+import {postNetForm, get_param, spawnKitFor, get_flag, ap_enabled, presets, select_theme, name_from_str, get_preset, player_icons, doNetRequest, get_random_loader, PickupSelect, Cent, dev, randInt, gotoUrl, prng, decompose_pickup, beta_welcome_pending, save_beta_welcome, remember_seed_link} from './common.js';
 import SiteBar from "./SiteBar.js";
 import Select from 'react-select';
 import {picks_by_zone} from './shared_map';
@@ -1336,8 +1336,17 @@ export default class MainPage extends React.Component {
                     return this.setState({sspBusy: false})
                 }
                 NotificationManager.success(name, "Preset duplicated", 4000)
-                this.setState({sspBusy: false, presetModal: false, presetDuplicating: false},
-                              this.loadSspList)
+                this.setState({sspBusy: false, presetModal: false, presetDuplicating: false}, () => {
+                    // the copy is what you are working on now -- but only when the form is
+                    // already showing the source untouched, or the selection would name a
+                    // preset it does not match. The pencil opens on presets that are not loaded.
+                    let world = this.state.sspLoadedWorld || 1
+                    let showing = this.state.sspName === source.name
+                        && this.state.sspLoaded === canonSettings(this.settingsNow(world))
+                    if(showing)
+                        this.markLoaded(name, this.state.sspOwner, world)
+                    this.loadSspList()
+                })
             }))
     }
 
@@ -1618,6 +1627,9 @@ export default class MainPage extends React.Component {
                 let isBingo = worldIsBingo(p)
                 if(isBingo) {
                     seedUrl = `/bingo/board?game_id=${gameId}&fromGen=1&seed=${inputSeed}&bingoLines=${bingoLines}` + this.bingoBoardParams()
+                    // a multiworld splits the board per world, and a per-world board has no clock
+                    if(this.isMultiworld())
+                        seedUrl += "&perWorld=1"
                     if(inputPlayerCount > 1) {
                         seedUrl += `&teamMax=${inputPlayerCount}`
                     }
@@ -1629,6 +1641,8 @@ export default class MainPage extends React.Component {
                 let playParams = endpoint ? seedParams.concat("endpoint=" + endpoint) : seedParams
                 let playUrl = "bfr:/play/params/"+paramId + "?" + playParams.join("&");
                 let showApNotReady = inputApMode && ap_enabled() && gameId > 0 && !isBingo && !this.apNamesReady();
+                // the bingo row's button opens a board, not a seed
+                let noteSeedLink = (kind) => isBingo ? undefined : () => remember_seed_link(kind)
                 let showPlay = !this.state.hidePlayButton && !showApNotReady && !isBingo;
                 // 12 columns: player 3 + seed 3 (4 with Play) + this world's flags
                 return (
@@ -1637,7 +1651,7 @@ export default class MainPage extends React.Component {
                             <Row className="align-content-center"><Col xs="3">
                                 <Media object style={{width: "25px", height: "25px"}} src={player_icons(p,false)} alt={"Icon for player "+p} />
                             </Col><Col>
-                                <span className="align-middle">Player {p}</span>
+                                <span className="align-middle">{(this.state.playerNames || [])[p - 1] || `Player ${p}`}</span>
                             </Col></Row>
                         </Col>
                         <Col xs={showPlay ? 4 : 3} className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", mainButtonHelp)}>
@@ -1646,16 +1660,16 @@ export default class MainPage extends React.Component {
                                 // every world's scouts are stored; the poll clears it
                                 <div>
                                     <Button color="secondary" block disabled>{this.state.apNoLink ? "Connect Room First" : "Waiting For Room…"}</Button>
-                                    <Button color="link" size="sm" block target="_blank" href={seedUrl + "&force=1"}>download anyway (generic item names)</Button>
+                                    <Button color="link" size="sm" block target="_blank" href={seedUrl + "&force=1"} onClick={noteSeedLink("download")}>download anyway (generic item names)</Button>
                                 </div>
                             ) : (
                                 showPlay ? (
                                     <ButtonGroup>
-                                        <Button color="primary" block target="_blank" href={seedUrl}>{mainButtonText}</Button>
-                                        <Button color="success" href={playUrl} onMouseLeave={this.helpEnter("seedTab", mainButtonHelp)} onMouseEnter={this.helpEnter("seedTab", "playButton"+this.multi())}>Play</Button>
+                                        <Button color="primary" block target="_blank" href={seedUrl} onClick={noteSeedLink("download")}>{mainButtonText}</Button>
+                                        <Button color="success" href={playUrl} onClick={noteSeedLink("play")} onMouseLeave={this.helpEnter("seedTab", mainButtonHelp)} onMouseEnter={this.helpEnter("seedTab", "playButton"+this.multi())}>Play</Button>
                                     </ButtonGroup>
                                 ) : (
-                                    <Button color="primary" block target="_blank" href={seedUrl}>{mainButtonText}</Button>
+                                    <Button color="primary" block target="_blank" href={seedUrl} onClick={noteSeedLink("download")}>{mainButtonText}</Button>
                                 )
                             )}
                         </Col>

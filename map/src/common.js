@@ -924,6 +924,25 @@ function box_color_history() {
     }
 }
 
+// Which link somebody actually used last. The hidePlayButton setting answers the same
+// question less precisely, and stays the fallback for anyone who has not clicked one yet.
+const SEED_LINK_KEY = "seed_link"
+
+function seed_link_pref() {
+    try {
+        let saved = localStorage.getItem(SEED_LINK_KEY)
+        return saved === "play" || saved === "download" ? saved : null
+    } catch(e) {
+        return null   // storage off, or a key some other build wrote
+    }
+}
+
+function remember_seed_link(kind) {
+    try {
+        localStorage.setItem(SEED_LINK_KEY, kind)
+    } catch(e) { /* storage disabled: the choice lasts this page load */ }
+}
+
 function remember_box_color(color) {
     if(!/^#[0-9a-f]{6}$/i.test(color))
         return box_color_history()
@@ -1185,5 +1204,5 @@ export {
     player_icons, doNetRequest, prng, get_param, get_flag, resolve_dark, save_dark, beta_welcome_pending, save_beta_welcome, theme_href, postNetForm, ap_enabled, get_int, get_list, get_preset, presets, get_seed, logic_paths, get_random_loader, Blabel, MousePos,
     pickup_name, stuff_by_type, name_from_str, PickupSelect, Cent, ordinal_suffix, dev, gotoUrl, loginLogoutUrl, select_theme, randInt, spawn_defaults, spawnKitFor, decompose_pickup,
     BOX_TYPES, BOX_COLORS, BOX_NONE, is_box_gone, new_box, parse_box_line, box_line, box_color, box_label,
-    box_color_history, remember_box_color
+    box_color_history, remember_box_color, seed_link_pref, remember_seed_link
 };

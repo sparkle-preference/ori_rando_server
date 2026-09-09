@@ -1503,7 +1503,8 @@ class BingoBoltOnGateTests(unittest.TestCase):
         self.assertEqual(self.removed, [1, 2], "the roster wipe ate the AP shadows")
         self.assertEqual(self.board.ap_worlds, 2)
         self.assertFalse(self.board.teams_allowed, "AP boards are per-world, not teamed")
-        self.assertEqual(self.cards, 3, "one board per world, plus the game's own")
+        self.assertEqual(self.cards, 2, "one board per world, and no unplayed base")
+        self.assertEqual(self.board.board, [], "a per-world game builds no base board")
         self.assertEqual(json.loads(resp.data.decode())["ap_worlds"], 2,
                          "the board page reads ap_worlds off this response")
 
@@ -1517,7 +1518,8 @@ class BingoBoltOnGateTests(unittest.TestCase):
         self.assertEqual(self.removed, [1], "the roster wipe ate the AP shadow")
         self.assertEqual(self.board.ap_worlds, 1)
         self.assertFalse(self.board.teams_allowed, "AP boards are per-world, not teamed")
-        self.assertEqual(self.cards, 2, "world 1's board, plus the game's own")
+        self.assertEqual(self.cards, 1, "world 1's board, and no unplayed base")
+        self.assertEqual(self.board.board, [], "a per-world game builds no base board")
         self.assertEqual(json.loads(resp.data.decode())["ap_worlds"], 1)
 
     def test_non_ap_game_still_gets_its_board(self):

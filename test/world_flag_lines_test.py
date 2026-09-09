@@ -98,6 +98,38 @@ class MixedBingoTestCase(NdbCase):
         self.assertFalse(generator.every_world_plays_bingo(p))
 
 
+class PrerollTestCase(NdbCase):
+    """A per-world board whose create form can move nothing is settled by the
+    presets, so it is rolled with the seed rather than by whoever clicks first."""
+
+    def params(self, worlds):
+        return mw_params([{"variations": v} for v in worlds])
+
+    def test_no_owner_world_means_the_form_moves_nothing(self):
+        from web.bingo import owner_world, mw_bingo_worlds
+        p = self.params([[], ["Bingo"]])          # world 2 only
+        self.assertEqual(mw_bingo_worlds(p), [2])
+        self.assertIsNone(owner_world(mw_bingo_worlds(p)))
+
+    def test_the_roller_keeps_their_choice_when_they_play(self):
+        from web.bingo import owner_world, mw_bingo_worlds
+        p = self.params([["Bingo"], ["Bingo"]])
+        self.assertEqual(owner_world(mw_bingo_worlds(p)), 1)
+
+    def test_a_seed_with_no_bingo_rolls_nothing(self):
+        from web.bingo import preroll_board
+        self.assertFalse(preroll_board(_FakeGame(), self.params([[], []])))
+
+    def test_world_one_playing_is_left_to_the_form(self):
+        from web.bingo import preroll_board
+        self.assertFalse(preroll_board(_FakeGame(), self.params([["Bingo"], ["Bingo"]])))
+
+
+class _FakeGame(object):
+    """Enough of a Game for the guard clauses; the builder is never reached."""
+    bingo_data = None
+
+
 class SeedTabBingoTestCase(unittest.TestCase):
     """The seed tab builds one row per player, so a per-world answer has to be
     asked per row rather than once for the seed."""

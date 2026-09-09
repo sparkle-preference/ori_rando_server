@@ -47,6 +47,9 @@ def gen_seed_from_params():
     if params.tracking:
         game = Game.from_params(params, param_val("game_id"))
         resp["gameId"] = game.key.id()
+        # local: web.bingo imports this module back
+        from web.bingo import preroll_board
+        preroll_board(game, params)
     if every_world_plays_bingo(params):
         resp["doBingoRedirect"] = True
         resp["bingoLines"] = params.bingo_lines

@@ -463,6 +463,8 @@ def template_vals(app, title, user):
         template_values.update(ap_versions())
     if user:
         template_values['user'] = user.name
+        # the seed tab is not the only place offering a seed; the bingo board reads it too
+        template_values['hide_play'] = user.setting("hidePlayButton")
         template_values['theme'] = user.site_theme()
         # omitted unless the theme picks a side, so the page can follow the browser
         if user.theme_dark() is not None:

@@ -66,6 +66,39 @@
       "category": "Game",
       "type": "fix",
       "importance": "minor"
+    },
+    {
+      "text": "In a multiworld, every world playing Bingo gets its own board.",
+      "category": "Bingo",
+      "type": "feature",
+      "importance": "major",
+      "sub": [
+        "Your board is rolled for you, and your seed is on it."
+      ]
+    },
+    {
+      "text": "Rolling a bingo board points your userboard at it.",
+      "category": "Bingo",
+      "type": "fix",
+      "importance": "minor"
+    },
+    {
+      "text": "When only some worlds play Bingo, everyone can still reach their own seed.",
+      "category": "Multiplayer",
+      "type": "fix",
+      "importance": "minor"
+    },
+    {
+      "text": "Preplacements a preset sets for a world finally get placed.",
+      "category": "Seed Generator",
+      "type": "fix",
+      "importance": "minor"
+    },
+    {
+      "text": "Duplicating a preset selects the copy.",
+      "category": "Website",
+      "type": "fix",
+      "importance": "minor"
     }
   ],
   "releases": [
