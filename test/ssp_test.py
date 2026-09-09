@@ -125,6 +125,31 @@ class ForcedAssignmentTests(unittest.TestCase):
         self.assertNotIn("fass", SavedSeedParams.settings_from(request(fass=[])))
 
 
+class WorldFassTests(unittest.TestCase):
+    """A preset saves its placements stripped of world and owner, so the world it was
+    loaded into is the only thing that says where they go. Nothing read them back:
+    world_settings held the rows and generation only ever looked at the top level."""
+
+    def test_a_worlds_own_rows_are_tagged_with_that_world(self):
+        from seedbuilder.seedparams import all_fass
+        rows = all_fass({"worldSettings": [{}, {"fass": [{"loc": "2", "item": "KS|1"}]}]})
+        self.assertEqual(rows, [{"loc": "2", "item": "KS|1", "world": 2, "owner": 2}])
+
+    def test_top_level_rows_come_first_and_keep_their_own_world(self):
+        from seedbuilder.seedparams import all_fass
+        rows = all_fass({"fass": [{"loc": "5", "item": "EX|100", "world": 1, "owner": 2}],
+                         "worldSettings": [{"fass": [{"loc": "2", "item": "KS|1"}]}]})
+        self.assertEqual(rows[0]["owner"], 2)
+        self.assertEqual(rows[1], {"loc": "2", "item": "KS|1", "world": 1, "owner": 1})
+
+    def test_nothing_to_merge_is_the_list_it_was(self):
+        from seedbuilder.seedparams import all_fass
+        self.assertEqual(all_fass({}), [])
+        self.assertEqual(all_fass({"worldSettings": [{}, {}]}), [])
+        self.assertEqual(all_fass({"fass": [{"loc": "1", "item": "SK|0"}]}),
+                         [{"loc": "1", "item": "SK|0"}])
+
+
 class NameTests(unittest.TestCase):
     def test_latest_is_reserved(self):
         self.assertIsNotNone(SavedSeedParams.name_problem("latest"))

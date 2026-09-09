@@ -232,6 +232,20 @@ WORLD_FIELDS = {
 }
 
 
+def all_fass(json):
+    """The seed's forced assignments, plus each world's own. A preset stores its
+    placements with no world on them -- the world it lands in is whichever one loaded
+    it -- so the world they were stored under is the world they belong to."""
+    rows = list(json.get("fass") or [])
+    for world, blob in enumerate(json.get("worldSettings") or [], 1):
+        for row in (blob or {}).get("fass") or []:
+            tagged = dict(row)
+            tagged.setdefault("world", world)
+            tagged.setdefault("owner", tagged["world"])
+            rows.append(tagged)
+    return rows
+
+
 def spawn_view(base, world):
     """Where that world starts. Seeds rolled before spawns existed fall back to
     the summary, which reads "Random" when the worlds rolled separately."""
@@ -440,7 +454,7 @@ class SeedGenParams(ndb.Model):
         params.placements = []
         params.preplaced_coords = []
         params.fass_json = json.get("fass", []) or None
-        for fass in json.get("fass", []):
+        for fass in all_fass(json):
             if "item" in fass: # this is stupid af but it's a faster way to handle the json mismatch than the other fixes available
                 pcode, _, pid = fass["item"].partition("|")
             else:
