@@ -1337,9 +1337,7 @@ export default class MainPage extends React.Component {
                 }
                 NotificationManager.success(name, "Preset duplicated", 4000)
                 this.setState({sspBusy: false, presetModal: false, presetDuplicating: false}, () => {
-                    // the copy is what you are working on now -- but only when the form is
-                    // already showing the source untouched, or the selection would name a
-                    // preset it does not match. The pencil opens on presets that are not loaded.
+                    // selecting the copy would lie about the form unless it holds the source untouched
                     let world = this.state.sspLoadedWorld || 1
                     let showing = this.state.sspName === source.name
                         && this.state.sspLoaded === canonSettings(this.settingsNow(world))

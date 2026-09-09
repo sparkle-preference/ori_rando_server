@@ -787,9 +787,8 @@ const loaders = (color) => [
     (<SyncLoader color={color} />)
 ]
 
-// A map's cursor readout, keeping its own state and fed through a ref. Leaflet's events
-// are not React's, so a page holding this in its own state re-renders, unbatched, on
-// every pixel of travel -- with every marker and shape on the map along for the ride.
+// A map's cursor readout, keeping its own state behind a ref: leaflet's events are not
+// React's, so a page holding this one re-renders unbatched on every pixel of travel.
 class MousePos extends Component {
     state = {lat: 0, lng: 0}
     set = (latlng) => this.setState(latlng)
@@ -924,8 +923,7 @@ function box_color_history() {
     }
 }
 
-// Which link somebody actually used last. The hidePlayButton setting answers the same
-// question less precisely, and stays the fallback for anyone who has not clicked one yet.
+// Which link somebody used last; the hidePlayButton setting is the fallback until they have
 const SEED_LINK_KEY = "seed_link"
 
 function seed_link_pref() {

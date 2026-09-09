@@ -413,9 +413,7 @@ def build_board(gid, game, params, seed, difficulty, d, lockout, meta, teams_fla
         lockout = False     # separate boards never share a square to take
     # the modal belongs to whoever rolled the seed, and that is world 1
     owner = owner_world(worlds)
-    # No owner means the modal moved nothing, so the base board -- which no world
-    # plays once boards exist -- follows its own world's rules rather than a form
-    # whose answers reached nobody.
+    # with no owner the modal reached nobody, so the base board follows its world's rules
     base_world = owner or (worlds[0] if worlds else 1)
     if per_world and not owner:
         wp = params.world_params(base_world)

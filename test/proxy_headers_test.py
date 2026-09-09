@@ -143,9 +143,7 @@ class SessionCookieTestCase(unittest.TestCase):
         self._enabled = main.app.config["OIDC_ENABLED"]
         self._profile = main.app.config.get("OIDC_TESTING_PROFILE")
         main.app.config["OIDC_ENABLED"] = False
-        # the guest seat writes a session for anyone at all, which is a cookie by
-        # design and not the one under test. It reads the flag live, and a beta box
-        # runs the suite with it on, so pin it rather than inherit it.
+        # the guest seat's own cookie is not the one under test, and the flag is read live
         self._guests = util.GUEST_USERS
         util.GUEST_USERS = False
 

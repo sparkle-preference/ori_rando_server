@@ -3115,8 +3115,7 @@ class MultiPickupDecomposeTests(unittest.TestCase):
             self.assertEqual(decompose_multi_value(compose_multi_value(expected)), expected, value)
 
     def test_repacking_keeps_a_slash_inside_a_value(self):
-        # RI|8000/=5 in a multipickup: repacking used to emit a bare slash, which
-        # read back as RI|8000 and swallowed whatever followed it
+        # a bare slash in a repacked multipickup reads back as the end of the pickup
         from pickups import Multiple, Pickup
         from util import decompose_multi_value
         packed = "RI/8000//=5/EX/100"

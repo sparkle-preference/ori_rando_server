@@ -684,16 +684,13 @@ export default class Bingo extends React.Component {
     // a world's own board, or the one board when the game has only one
     boardFor = (res, world) => (res.boards || {})[world] || null
 
-    // a world with no board of its own shows a real player's rather than the
-    // unplayed sample the server used to send alongside them
+    // a world with no board of its own shows a real player's
     firstBoard = (res) => {
         let worlds = Object.keys(res.boards || {}).sort((a, b) => a - b)
         return worlds.length ? res.boards[worlds[0]].cards : null
     }
 
-    // Only the first fetch says what a square is; every tick after carries progress alone,
-    // so a board kept straight off a tick is 25 blank squares. Take the new progress over
-    // the text we were given rather than replacing it.
+    // only the first fetch carries card text, so a tick's progress lands over what we hold
     keepBoardText = (fresh) => {
         let was = this.state.boardsByWorld || {}
         let out = {}
