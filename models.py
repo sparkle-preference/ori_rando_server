@@ -1848,9 +1848,11 @@ URL_UNSAFE_NAME_CHARS = ["@", "/", "\\", "?", "#", "&", "=", '"', "'"]
 
 # Every key User.settings can hold: its default, and how a save reports it changing.
 # Registering here is the whole job; both routes loop over this rather than naming keys.
+# a string setting comes off a form, so it gets a bound before it reaches the datastore
+MAX_SETTING_LEN = 64
+
 USER_SETTINGS = {
-    # a preset name, or one of SSP_RESERVED_NAMES. "legacy" reads a retired key when this
-    # one was never written: restoreLastSeed was the same choice with only two answers.
+    # a preset name, or one of SSP_RESERVED_NAMES; "legacy" reads the retired key it replaced
     "defaultPreset": {"default": "latest", "label": "default preset",
                       "legacy": ("restoreLastSeed", lambda on: "latest" if on else "default")},
     "hidePlayButton": {"default": False, "label": "Play button"},

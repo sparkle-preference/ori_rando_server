@@ -17,6 +17,9 @@ from web import bingo as bingo_routes
 from web import tracker
 from cache import Cache
 from models import User
+from util import utcnow
+from google.cloud import ndb
+import models
 
 
 class _FakeGame(object):
@@ -226,6 +229,64 @@ class TrackerRedirectResponseTestCase(unittest.TestCase):
         body = self._body(8102)
         self.assertNotIn("newGid", body)
         self.assertIn("players", body)
+
+
+class _SeatUser(object):
+    def __init__(self, name):
+        self.name, self.key = name, "key-" + name
+
+
+class _SeatGame(object):
+    def get_players(self):
+        return []
+
+
+class _SeatBingo(object):
+    """Only what seat_board and the tail touch: no datastore, no context."""
+    def __init__(self):
+        self.event_log, self.teams = [], []
+        self.bingo_count, self.square_count, self.lockout = 3, 0, False
+        self.creator, self.auto_start, self.ap_worlds = None, False, 0
+
+    def init_player(self, pid):
+        return _SeatUser("world-%s" % pid)
+
+
+class ClaimsTheBingoKeyTestCase(unittest.TestCase):
+    """seat_board decides whether rolling a board also points the roller's
+    userboard at it. Only a per-world board rolled for somebody else declines."""
+    NAME = "claimtester"
+
+    def setUp(self):
+        self.claimed = []
+        self._set_latest = Cache.set_latest_game
+        self._user_get = User.get
+        self._team = bingo_routes.BingoTeam
+        Cache.set_latest_game = staticmethod(
+            lambda name, gid, bingo=False: self.claimed.append((name, gid, bingo)))
+        User.get = staticmethod(lambda: _SeatUser(self.NAME))
+        # seating writes real keys; the claim is what is under test, so keep it out of ndb
+        bingo_routes.BingoTeam = lambda **kw: kw
+
+    def tearDown(self):
+        Cache.set_latest_game = self._set_latest
+        User.get = self._user_get
+        bingo_routes.BingoTeam = self._team
+
+    def _seat(self, gid, worlds):
+        with main.app.test_request_context("/"):
+            bingo_routes.seat_board(_SeatBingo(), _SeatGame(), object(), list(worlds),
+                                    bool(worlds), utcnow(), gid)
+        return [c for c in self.claimed if c[2]]
+
+    def test_a_plain_board_is_the_roller_s_own(self):
+        self.assertEqual(self._seat(9300, []), [(self.NAME, 9300, True)])
+
+    def test_a_per_world_board_the_roller_plays_is_theirs(self):
+        self.assertEqual(self._seat(9301, [1, 2]), [(self.NAME, 9301, True)])
+
+    def test_a_per_world_board_rolled_for_others_is_not(self):
+        self.assertEqual(self._seat(9302, [2, 3]), [])
 
 
 if __name__ == "__main__":

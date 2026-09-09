@@ -20,7 +20,8 @@ from urllib.parse import unquote
 from flask import Blueprint, current_app, g, redirect, request, session, url_for
 
 import util
-from models import SITE_THEMES, URL_UNSAFE_NAME_CHARS, USER_SETTINGS, AccountLink, SavedSeedParams, User
+from models import (MAX_SETTING_LEN, SITE_THEMES, URL_UNSAFE_NAME_CHARS, USER_SETTINGS,
+                    AccountLink, SavedSeedParams, User)
 from util import debug, param_true, param_val
 from web.plando import export_files_for
 from web.presets import export_doc_for
@@ -204,7 +205,8 @@ def user_set_settings():
         if key in request.form:
             raw = request.form[key].strip()
             # the default's type is the setting's type, so registering one stays the whole job
-            want = raw.lower() not in ("0", "false", "no", "off", "") if isinstance(spec["default"], bool) else raw
+            want = (raw.lower() not in ("0", "false", "no", "off", "")
+                    if isinstance(spec["default"], bool) else raw[:MAX_SETTING_LEN])
             if want != user.setting(key):
                 user.set_setting(key, want)
                 changed.append(spec["label"])

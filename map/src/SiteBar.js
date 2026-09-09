@@ -220,7 +220,7 @@ class SiteBar extends Component {
                                 <Cent>Hide Play button</Cent>
                             </Col><Col xs="6" className="d-flex align-items-center">
                                 <div className="custom-control custom-switch">
-                                    <input type="checkbox" className="custom-control-input" id="hidePlaySwitch" checked={hidePlayButton} onChange={e => this.setState({hidePlayButton: e.target.checked})}/>
+                                    <input type="checkbox" className="custom-control-input" id="hidePlaySwitch" aria-label="Hide the Play button" checked={hidePlayButton} onChange={e => this.setState({hidePlayButton: e.target.checked})}/>
                                     <label className="custom-control-label" htmlFor="hidePlaySwitch"> </label>
                                 </div>
                             </Col>

@@ -362,7 +362,8 @@ def seat_board(bingo, game, params, worlds, per_world, now, gid):
     """Creator, event line, and the roster. A per-world board's pids are its
     worlds, so the seats are known here rather than claimed by whoever shows up."""
     # a board rolled for worlds that are not the roller's is not their bingo game
-    eventStr = _bingo_setup_tail(bingo, now, gid, claim=owner_world(worlds) is not None)
+    eventStr = _bingo_setup_tail(bingo, now, gid,
+                                 claim=not per_world or owner_world(worlds) is not None)
     bingo.event_log.append(BingoEvent(event_type=eventStr, timestamp=now))
     if getattr(params, "ap_mode", False):
         # the boards are per-world like any multiworld's; this only marks
