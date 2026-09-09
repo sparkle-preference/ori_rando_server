@@ -87,6 +87,20 @@ class LatestBingoGameTestCase(unittest.TestCase):
         self.assertEqual(Cache.get_latest_game(self.NAME), 9999)
         self.assertEqual(Cache.get_latest_game(self.NAME, bingo=True), 9001)
 
+    def test_a_newer_bingo_game_takes_over_the_key(self):
+        """The cached answer is a week long, so nothing recovers on its own: whoever
+        learns about a newer board has to say so, or the userboard stays where it was."""
+        Cache.set_latest_game(self.NAME, 9001, True)
+        self.assertEqual(bingo_routes.latest_bingo_game(self.NAME), (9001, None))
+        Cache.set_latest_game(self.NAME, 9100, True)
+        self.assertEqual(bingo_routes.latest_bingo_game(self.NAME), (9100, None))
+
+    def test_a_plain_game_does_not_move_the_bingo_key(self):
+        Cache.set_latest_game(self.NAME, 9001, True)
+        Cache.set_latest_game(self.NAME, 9200, False)
+        self.assertEqual(Cache.get_latest_game(self.NAME, bingo=True), 9001)
+        self.assertEqual(Cache.get_latest_game(self.NAME), 9200)
+
     def test_unknown_user_is_an_error_and_is_not_cached(self):
         self.user = None
         gid, err = bingo_routes.latest_bingo_game(self.NAME)

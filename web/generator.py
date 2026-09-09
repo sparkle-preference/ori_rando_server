@@ -140,7 +140,9 @@ def load_seed_from_params(params_id):
                         Cache.clear_seen_checksum((int(game_id), p))
                 if game.key not in user.games:
                     user.games.append(game.key)
-                    Cache.set_latest_game(user.name, game.key.id())
+                    # bingo has its own key behind the userboard, and it only moves when
+                    # something says so: a downloaded board would otherwise never take over
+                    Cache.set_latest_game(user.name, game.key.id(), bool(game.bingo_data))
                     user.put()
         else:
             seed = params.get_seed(pid, verbose_paths=verbose_paths)

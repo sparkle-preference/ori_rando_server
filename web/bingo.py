@@ -537,6 +537,9 @@ def _bingo_setup_tail(bingo, now, gid):
     event = "misc"
     if user:
         bingo.creator = user.key
+        # the userboard follows this key, and rolling a board is as much a claim
+        # on "my current bingo game" as joining someone else's is
+        Cache.set_latest_game(user.name, gid, True)
     if not user or param_flag("noTimer"):
         bingo.auto_start = True
         event += "Bingo Game %s created! The clock starts with its first player." % gid
