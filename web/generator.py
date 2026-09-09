@@ -47,7 +47,7 @@ def gen_seed_from_params():
     if params.tracking:
         game = Game.from_params(params, param_val("game_id"))
         resp["gameId"] = game.key.id()
-    if Variation.BINGO in params.variations:
+    if every_world_plays_bingo(params):
         resp["doBingoRedirect"] = True
         resp["bingoLines"] = params.bingo_lines
 
@@ -220,6 +220,13 @@ def get_aux_spoiler_from_params(params_id):
         return text_resp(spoiler)
     else:
         return text_resp("Param %s not found" % params_id, 404)
+
+
+def every_world_plays_bingo(params):
+    """Whether a build should send the roller straight to a board. A mixed
+    multiworld must not: the worlds without bingo never get offered their seeds."""
+    return all(Variation.BINGO in params.world_params(p).variations
+               for p in range(1, (params.players or 1) + 1))
 
 
 def world_flag_lines(params):

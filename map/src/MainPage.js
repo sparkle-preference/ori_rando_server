@@ -1595,6 +1595,8 @@ export default class MainPage extends React.Component {
             let worldFlagColsFor = (p) => mixed
                 ? perWorld[p - 1].filter(f => !common.includes(f)).map(f => flagCol(f, `w${p}`))
                 : worldFlagCols
+            // bingo is per world, so each row asks its own flags rather than the seed's
+            let worldIsBingo = (p) => perWorld[p - 1] ? perWorld[p - 1].includes("Bingo") : seedIsBingo
             let is_race = flags.includes("Race");
             if(is_race && !get_flag("race_wl")) {
                 return null;
@@ -1613,7 +1615,8 @@ export default class MainPage extends React.Component {
                 // AP seeds bake item names at download time; the help says so
                 let mainButtonHelp = (inputApMode && ap_enabled() ? "downloadButtonAp" : "downloadButton")+this.multi()
                 seedUrl += "?" + seedParams.join("&")
-                if(seedIsBingo) {
+                let isBingo = worldIsBingo(p)
+                if(isBingo) {
                     seedUrl = `/bingo/board?game_id=${gameId}&fromGen=1&seed=${inputSeed}&bingoLines=${bingoLines}` + this.bingoBoardParams()
                     if(inputPlayerCount > 1) {
                         seedUrl += `&teamMax=${inputPlayerCount}`
@@ -1625,8 +1628,8 @@ export default class MainPage extends React.Component {
                 let endpoint = get_param("endpoint")
                 let playParams = endpoint ? seedParams.concat("endpoint=" + endpoint) : seedParams
                 let playUrl = "bfr:/play/params/"+paramId + "?" + playParams.join("&");
-                let showApNotReady = inputApMode && ap_enabled() && gameId > 0 && !seedIsBingo && !this.apNamesReady();
-                let showPlay = !this.state.hidePlayButton && !showApNotReady && !seedIsBingo;
+                let showApNotReady = inputApMode && ap_enabled() && gameId > 0 && !isBingo && !this.apNamesReady();
+                let showPlay = !this.state.hidePlayButton && !showApNotReady && !isBingo;
                 // 12 columns: player 3 + seed 3 (4 with Play) + this world's flags
                 return (
                     <Row key={`player-${p}`} className="align-content-center p-1 border-bottom">
