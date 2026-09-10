@@ -21,7 +21,7 @@ from cache import Cache
 from enums import MultiplayerGameType
 from models import Game, BingoGameData, Player, User, bingo_lock
 from pickups import Pickup
-from util import SITE_HOST, all_locs, bfield_checksum, coord_correction_map, debug, netperf, seed_sync_id, version_at_least, version_check, AP_MIN_DLL, ARCHIPELAGO
+from util import SITE_HOST, all_locs, bfield_checksum, coord_correction_map, debug, netperf, seed_sync_id, version_at_least, version_check, AP_LOCAL_ROOMS, AP_MIN_DLL, ARCHIPELAGO
 
 
 def _code(status):
@@ -182,7 +182,7 @@ def ap_connect(game_id, payload):
         port = 0
     if not host or not (0 < port < 65536):
         return 400, "host and port are required"
-    if _host_is_local(host):
+    if _host_is_local(host) and not AP_LOCAL_ROOMS:
         return 400, ("%s is only reachable from your own machine, and the room "
                      "is dialed from our servers. Use an archipelago.gg room, "
                      "or your public address with the port forwarded." % host)

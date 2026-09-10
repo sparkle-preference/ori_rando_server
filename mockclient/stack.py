@@ -51,6 +51,8 @@ class LocalStack(object):
             "GOOGLE_CLOUD_PROJECT": "orirandov3",
             "OIDC_ENABLED": "False",
             "ARCHIPELAGO": "1",
+            # the room this harness hosts is on this machine, which prod's guard forbids
+            "AP_ALLOW_LOCAL_ROOM": "1",
             "APP_SECRET_KEY": "scenario-secret",
             "K_REVISION": "dev",
         })

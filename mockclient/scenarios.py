@@ -3,9 +3,15 @@ import json
 
 import requests
 
+from mockclient.aproom import ApRoom, IMAGE as AP_IMAGE, docker_ok
 from mockclient.client import LegacyClient, WsClient
 from mockclient.scenario import Judge, Rolled, base_params, run_clients
 from mockclient.seedfile import goal_shapes_from
+
+
+def _ap_status(stack, gid):
+    r = requests.get("%s/netcode/game/%s/ap/status" % (stack.base_url, gid), timeout=30)
+    return r.json() if r.status_code == 200 else {"status": "http %s" % r.status_code}
 
 
 def fetch_goals(stack, gid, pid):
@@ -262,6 +268,60 @@ def mw_bingo_no_owner(stack):
     return j
 
 
+def ap_real_room(stack):
+    """The bridge against an actual Archipelago 0.6.7 server, generated from the apworld
+    and the yamls our own routes serve. Every other AP test scripts the frames we think
+    the room sends; this one asks the room."""
+    j = Judge("ap_real_room")
+    if not docker_ok():
+        j.check("skipped: docker or %s missing" % AP_IMAGE, True)
+        return j
+    params = base_params("mock-ap-room", players=2, apMode=True,
+                         apExport=["skills", "teleporters", "events"])
+    rolled = Rolled(stack, params)
+    yamls = requests.get("%s/generator/apyamls/%s" % (stack.base_url, rolled.param_id),
+                         timeout=90).text
+    j.equal("our routes serve a yaml per world", yamls.count("game: Ori DE Rando"), 2)
+
+    with ApRoom(stack, rolled.param_id) as room:
+        r = requests.post("%s/netcode/game/%s/ap/connect" % (stack.base_url, rolled.game_id),
+                          data={"host": room.host, "port": str(room.port), "password": ""},
+                          timeout=90)
+        j.equal("ap/connect took the room", r.status_code, 200)
+        j.check("the room says our slot joined", room.wait_for(" has joined.", timeout=60),
+                room.logs()[-600:])
+        # the room's stdout is block-buffered in the container, so this only reads back
+        # once something later has flushed it
+        j.check("a real room generated from the apworld we ship",
+                room.wait_for("data package for game Ori DE Rando", timeout=30),
+                "the room never loaded our datapackage")
+
+        status = _ap_status(stack, rolled.game_id)
+        j.equal("the bridge reports connected", status.get("status"), "connected")
+        j.equal("both worlds have a slot", status.get("slots"), ["Ori1", "Ori2"])
+        j.check("no error on the link", not status.get("last_error"),
+                repr(status.get("last_error")))
+        # scout -> GetDataPackage -> APNames, all against the room's real datapackage
+        total, done = status.get("names_total") or [], status.get("names_resolved") or []
+        j.check("every exported location resolved a real item name",
+                total and done == total, "resolved %r of %r" % (done, total))
+
+        c1 = WsClient(stack.base_url, rolled.seed_text(1), tick_period=0.12, rng_seed=1)
+        c2 = WsClient(stack.base_url, rolled.seed_text(2), tick_period=0.12, rng_seed=2)
+        _collect_plan(c1, 14)
+        _collect_plan(c2, 4)
+        run_clients(c1, c2)
+        j.check("the clients played without errors", not c1.errors and not c2.errors,
+                "%r %r" % (c1.errors, c2.errors))
+        j.check("what a world found reached the room",
+                room.wait_for("sent", timeout=45),
+                "room never narrated an item send:\n%s" % room.logs()[-800:])
+        after = _ap_status(stack, rolled.game_id)
+        j.check("the link stayed healthy through play", not after.get("last_error"),
+                repr(after.get("last_error")))
+    return j
+
+
 def bingo_reroll_flow(stack):
     """Reroll is free until the clock starts, and the clock starts with play."""
     j = Judge("bingo_reroll_flow")
@@ -425,5 +485,5 @@ def ws_fallback_limit(stack):
 
 
 ALL = [solo_ws, solo_legacy, mw2, mw_bingo_solo_optin, mw_bingo_two_boards,
-       mw_bingo_no_owner, bingo_reroll_flow, mw4_concurrency, shared_bingo_teams,
-       ws_fallback_limit]
+       mw_bingo_no_owner, ap_real_room, bingo_reroll_flow, mw4_concurrency,
+       shared_bingo_teams, ws_fallback_limit]

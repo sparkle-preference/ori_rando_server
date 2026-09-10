@@ -67,6 +67,10 @@ ARCHIPELAGO = _flag("ARCHIPELAGO")
 # beta sites only: every visitor gets their own throwaway account (session
 # cookie), instead of everyone sharing the one OIDC testing profile
 GUEST_USERS = _flag("GUEST_USERS", "0")
+# a harness runs the room on the same machine as the bridge, which is the one place
+# the "we dial from our servers" guard on ap/connect is wrong. Off everywhere else,
+# including the beta boxes -- a tester's localhost really is unreachable from them.
+AP_LOCAL_ROOMS = _flag("AP_ALLOW_LOCAL_ROOM", "0")
 # every open socket pins one gunicorn thread (Dockerfile --threads) for its
 # whole lifetime. Reject new sockets past this count — with a healthy gap
 # below the thread count — so they can't starve the http side of the shared
