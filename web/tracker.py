@@ -215,16 +215,21 @@ def tracker_update_map(game_id):
                 return json_resp({"error": "Game %s not found" % game_id}, 404)
         if not inventories:
             inventories = game.get_inventories(game.visible_players(), True, True)
-        spawn = game.fetch_params().spawn or "Glades"
+        from archipelago.convert import keystone_tier_map
+        params = game.fetch_params()
+        spawn = params.spawn or "Glades"
         for p in need_reach_updates:
             inventory = [(pcode, pid, count, False) for ((pcode, pid), count) in inventories["unshared"][p].items()]
             inventory  += [(pcode, pid, count, False) for group, inv in inventories.items()  if group != "unshared" and p in group for ((pcode, pid), count) in inv.items()]
             state = PlayerState(inventory)
-            if state.has["KS"] > 8 and "standard-core" in modes:
+            # AP seeds charge the room's door tiers; the spend model and its
+            # standard-mode keystone cushion are for seeds our own walk placed
+            tiers = keystone_tier_map(params, p)
+            if tiers is None and state.has["KS"] > 8 and "standard-core" in modes:
                 state.has["KS"] += 2 * (state.has["KS"] - 8)
             if p not in reach:
                 reach[p] = {}
-            reach[p][modes] = Map.get_reachable_areas(state, modes, spawn, False)
+            reach[p][modes] = Map.get_reachable_areas(state, modes, spawn, False, ks_tiers=tiers)
         # merge semantics: write back only the recomputed players, so this slow
         # compute can't clobber other players' entries written meanwhile
         Cache.set_reachable(game_id, {p: reach[p] for p in need_reach_updates})

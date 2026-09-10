@@ -1960,8 +1960,9 @@ class ApModeGenTests(unittest.TestCase):
         self.assertGreater(seen, 0, "no EX exported, so this proves nothing")
 
     def test_keystones_never_cross_worlds(self):
-        """The AP-mode generator constraint: all 40 keystones are plain lines
-        in their owner's world; none ride the MW fabric in either direction."""
+        """Without stones exported, all 40 keystones are plain lines in their
+        owner's world; none ride the MW fabric in either direction. Exporting
+        them lifts the pin -- test_stones_export_keystones_at_k2 covers that."""
         for p, lines in self.seeds.items():
             plain, _, _, native_manifest, ap_manifest = parse_ap_seed(lines, self.PLAYERS)
             ks = sum(1 for (code, id, zone) in plain.values() if code == "KS")
@@ -1969,6 +1970,12 @@ class ApModeGenTests(unittest.TestCase):
             for manifest in (native_manifest, ap_manifest):
                 self.assertEqual([e for e in manifest.values() if e[1] == "KS"], [],
                                  "player %s manifest carries a keystone" % p)
+
+    def test_every_world_carries_key_tiers(self):
+        """Keystones stay local here, but the apworld still tiers the doors,
+        so each world's seed tells the client the same thresholds."""
+        for p, lines in self.seeds.items():
+            check_tier_shape(self, keytier_values(lines), doors=12, total=40)
 
     def test_custom_pool_id_variants_stay_invisible_to_ap(self):
         """A custom pool's HC|-1 REMOVES a health cell: pinning it as one
@@ -2146,7 +2153,13 @@ class ApKeystoneTierTests(unittest.TestCase):
             ap_export = []
         self.assertFalse(exports_generic_keystones(Default()),
                          "the default categories must not flip the pin")
-        self.assertIsNone(keytiers_meta(Default()))
+        self.assertEqual(keytiers_meta(Default()),
+                         "//KeyTiers=2+4+6+8+12+16+20+24+28+32+36+40",
+                         "every AP seed's doors tier, whoever holds the keystones")
+
+        class NotAp(P):
+            ap_mode = False
+        self.assertIsNone(keytiers_meta(NotAp()), "our own walk placed it: no tiers")
 
     def test_walk_order_ranks_the_tiers(self):
         """The generator's recorded door order reorders the thresholds: the

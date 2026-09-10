@@ -180,12 +180,11 @@ class CLISeedParams(object):
         self.start = args.start
         self.spawn = self.start if self.start != "Random" else ""
 
-        if Variation.STARTING_HEALTH in self.variations:
-            self.starting_health = args.starting_health
-        if Variation.STARTING_ENERGY in self.variations:
-            self.starting_energy = args.starting_energy
-        if Variation.STARTING_SKILLS in self.variations:
-            self.starting_skills = args.starting_skills
+        # the generator reads all three for any non-Glades start, variation or not,
+        # so they carry SeedGenParams' own defaults rather than going unset
+        self.starting_health = args.starting_health or 3
+        self.starting_energy = args.starting_energy or 1
+        self.starting_skills = args.starting_skills or 0
         #misc
         self.exp_pool = args.exp_pool
         if args.prefer_path_difficulty:

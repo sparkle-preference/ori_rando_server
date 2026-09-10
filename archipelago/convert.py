@@ -224,10 +224,9 @@ def keystone_tier_list(params, player=None):
 
     Ranks follow the world's own door order when the generator recorded one
     (params.ks_door_order, from the placement walk: spawn, teleporters and
-    logic all shape it), falling back to the canonical list. Any fixed order
-    is sound -- the order only decides how well thresholds match the seed."""
-    if not exports_generic_keystones(params):
-        return None
+    logic all shape it), falling back to the canonical list. The fallback is a
+    guess: a canonical order can charge a door far less than the walk really
+    spent to reach it, and under-charging is the direction that key-locks."""
     vals = {getattr(v, "value", v) for v in getattr(params, "variations", [])}
     if "Keysanity" in vals:
         return None  # no generic keystones exist to tier
@@ -248,12 +247,31 @@ def keystone_tier_list(params, player=None):
 def keytiers_meta(params, player=None):
     """The KeyTiers seed metadata line, or None. Metadata lines start with
     "//" and sit right after the flagline; 4.2.9+ clients skip them in the
-    pickup parse and read the tiers for out-of-logic door warnings. Older
-    dlls choke on them, which only AP alpha seeds ever emit."""
+    pickup parse and read the tiers for door logic and out-of-logic warnings.
+    Every AP seed carries one: its doors tier in the apworld, so the client
+    has to charge the same thresholds or its logic approves an open the room
+    never budgeted for."""
+    if not getattr(params, "ap_mode", False):
+        return None
     tiers = keystone_tier_list(params, player)
     if tiers is None:
         return None
     return "//KeyTiers=" + "+".join(str(t) for t in tiers)
+
+
+def tier_map_from_list(tiers):
+    """Positional KeyTiers values -> {(home, target): tier}; absent doors dropped."""
+    shared = oride_module("shared")
+    return {(h, t): v for (h, t, _), v in zip(shared.KEYSTONE_DOORS, tiers) if v}
+
+
+def keystone_tier_map(params, player=None):
+    """Door thresholds for the tracker engine, keyed by graph edge. None
+    outside AP mode (the spend model stays) and under keysanity."""
+    if not getattr(params, "ap_mode", False):
+        return None
+    tiers = keystone_tier_list(params, player)
+    return None if tiers is None else tier_map_from_list(tiers)
 
 
 def ap_variations(variations):

@@ -21,7 +21,7 @@ DATA_DIR = os.path.join(os.path.dirname(__file__), "oride_apworld", "oride", "da
 # Contract version of the blob below, checked by the apworld's
 # generate_early. Bump together with oride_apworld/oride/version.py, whose
 # docstring holds the rule; the suite fails if the two drift.
-DATA_VERSION = 5
+DATA_VERSION = 6
 
 EXPORT_CODES = {"SK", "TP", "EV"}
 LOCAL_CODES = {"KS", "MS", "HC", "EC", "AC"}
@@ -112,7 +112,7 @@ def make_config(exported, reserved, local, logic_paths, key_mode="events",
 
 def build_config(seed_lines, logic_paths, key_mode="events",
                  spawn="SunkenGladesRunaway", variations=None,
-                 params_id=0, world=1):
+                 params_id=0, world=1, key_tiers=None):
     """Seed text lines + generation options -> orirando yaml blob.
 
     The prototype classifier for UNCONVERTED solo seeds: pretends the
@@ -142,7 +142,7 @@ def build_config(seed_lines, logic_paths, key_mode="events",
             raise ValueError("unhandled pickup %s|%s at %s" % (code, pid, name))
     return make_config(exported, reserved, local, logic_paths,
                        key_mode=key_mode, spawn=spawn, variations=variations,
-                       params_id=params_id, world=world)
+                       params_id=params_id, world=world, key_tiers=key_tiers)
 
 
 _PLAIN = re.compile(r"^[A-Za-z_][A-Za-z0-9_\- ]*[A-Za-z0-9_\-]$")

@@ -122,11 +122,12 @@ class OriDEWorld(World):
                 raise Exception("%s (%s): unknown exported item %r" %
                                 (self.player_name, GAME_NAME, name))
         ks_tiers = None
-        if "Keystone" in self.exported:
-            # generic KS are consumable door currency, so doors can't charge
-            # face costs (fill can't see spend order). They charge cumulative
-            # tiers instead: in-logic spends can never key-lock, and opening a
-            # door early is out-of-logic play, same contract as single player.
+        if not cfg.get("variations", {}).get("keysanity"):
+            # Keystones are door currency whoever holds them, and a CollectionState
+            # only ever counts, so a face cost says yes to a door the spend order
+            # already emptied. Doors charge cumulative tiers instead: in-logic spends
+            # can never key-lock, and opening a door early is out-of-logic play, same
+            # contract as single player. Keysanity has no generic KS pool to spend.
             # The yaml's tiers follow the seed's own door order (spawn, TPs,
             # logic); a yaml without them falls back to the canonical order.
             kt = cfg.get("key_tiers")

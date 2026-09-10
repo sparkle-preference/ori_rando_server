@@ -3,12 +3,14 @@
 Run from the repo root with the server venv (PYTHONPATH=repo root):
   .venv312\\Scripts\\python.exe archipelago\\difftest\\reach_server.py in.json out.json
 
-in.json:  {"spawn": "Glades", "modes": [...], "inventories": [{"CODE|ID": count}, ...]}
+in.json:  {"spawn": "Glades", "modes": [...], "key_tiers": [positional or absent],
+           "inventories": [{"CODE|ID": count}, ...]}
 out.json: {"results": [[reachable area name, ...], ...]}
 """
 import json
 import sys
 
+from archipelago.convert import tier_map_from_list
 from reachable import Map, PlayerState
 
 
@@ -18,6 +20,8 @@ def main():
         query = json.load(f)
     spawn = query.get("spawn", "Glades")
     modes = query.get("modes", ["casual-core", "casual-dboost"])
+    # the yaml's tiers, so keystone doors are charged the way the apworld charges them
+    ks_tiers = tier_map_from_list(query["key_tiers"]) if query.get("key_tiers") else None
     results = []
     for inv in query["inventories"]:
         pickinfos = []
@@ -25,10 +29,11 @@ def main():
             code, _, pid = key.partition("|")
             pickinfos.append((code, pid, int(count), False))
         state = PlayerState(pickinfos)
-        # mirrors the tracker routes in main.py
-        if state.has["KS"] > 8 and "standard-core" in modes:
+        # mirrors the tracker route
+        if ks_tiers is None and state.has["KS"] > 8 and "standard-core" in modes:
             state.has["KS"] += 2 * (state.has["KS"] - 8)
-        areas = Map.get_reachable_areas(state, modes, spawn, need_reached_with=False)
+        areas = Map.get_reachable_areas(state, modes, spawn, need_reached_with=False,
+                                        ks_tiers=ks_tiers)
         results.append(sorted(areas))
     with open(out_path, "w") as f:
         json.dump({"results": results}, f, indent=1)

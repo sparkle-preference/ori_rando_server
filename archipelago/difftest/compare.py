@@ -18,13 +18,22 @@ from collections import Counter
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
-AP_ROOT = os.path.normpath(os.path.join(REPO, "..", "..", "Archipelago"))
-SERVER_PY = os.path.join(REPO, ".venv312", "Scripts", "python.exe")
-AP_PY = os.path.join(AP_ROOT, ".venv", "Scripts", "python.exe")
-YAML_PATH = os.path.join(AP_ROOT, "Players", "TestOriReal.yaml")
+AP_ROOT = os.environ.get("AP_ROOT") or os.path.normpath(
+    os.path.join(REPO, "..", "..", "Archipelago"))
+# whatever is running this runs the server oracle; the AP oracle needs an Archipelago
+# checkout, so it keeps its own interpreter
+SERVER_PY = os.environ.get("DIFFTEST_SERVER_PY") or sys.executable
+AP_PY = os.environ.get("DIFFTEST_AP_PY") or os.path.join(AP_ROOT, ".venv", "Scripts", "python.exe")
+# the yaml must describe the seed being walked, or the two oracles diff different worlds
+YAML_PATH = os.environ.get("DIFFTEST_YAML") or os.path.join(AP_ROOT, "Players", "TestOriReal.yaml")
 
-MODES = ["casual-core", "casual-dboost"]
-SPAWN = "Glades"  # engine name for the SunkenGladesRunaway start
+# The walk has to run with the seed's OWN logic and spawn, or the two oracles are
+# answering about different worlds. Defaults are a casual Glades seed.
+MODES = (os.environ.get("DIFFTEST_MODES") or "casual-core,casual-dboost").split(",")
+SPAWN = os.environ.get("DIFFTEST_SPAWN") or "Glades"
+SPAWN_REGION = os.environ.get("DIFFTEST_SPAWN_REGION") or "SunkenGladesRunaway"
+KEY_MODE = os.environ.get("DIFFTEST_KEYMODE") or "events"
+VARIATIONS = json.loads(os.environ.get("DIFFTEST_VARIATIONS") or '{"open": true}')
 SPAWN_COORD = 2
 MAX_ROUNDS = 40
 
@@ -41,11 +50,27 @@ def load_locations():
     return {l["name"]: l["coord"] for l in locs}
 
 
+def yaml_key_tiers():
+    """The yaml's positional key_tiers, or None: both oracles must charge doors alike."""
+    with open(YAML_PATH) as f:
+        lines = f.read().splitlines()
+    tiers, inside = [], False
+    for line in lines:
+        if line.strip() == "key_tiers:":
+            inside = True
+        elif inside and line.strip().startswith("- "):
+            tiers.append(int(line.strip()[2:]))
+        elif inside:
+            break
+    return tiers or None
+
+
 def run_server(inventories):
     in_path = os.path.join(HERE, "server_in.json")
     out_path = os.path.join(HERE, "server_out.json")
     with open(in_path, "w") as f:
-        json.dump({"spawn": SPAWN, "modes": MODES, "inventories": inventories}, f)
+        json.dump({"spawn": SPAWN, "modes": MODES, "key_tiers": yaml_key_tiers(),
+                   "inventories": inventories}, f)
     env = os.environ.copy()
     env["PYTHONPATH"] = REPO
     # greedy KS spending makes reach traversal-order sensitive; pin the
@@ -83,13 +108,16 @@ def describe_inventory(inv):
 
 def main():
     seed_path = sys.argv[1]
+    global YAML_PATH
+    if len(sys.argv) > 2:
+        YAML_PATH = sys.argv[2]
     with open(seed_path) as f:
         seed_lines = f.read().splitlines()
     _, placement_list = parse_seed(seed_lines)
     placements = {coord: (code, pid) for coord, code, pid, _ in placement_list}
 
-    config = build_config(seed_lines, logic_paths=[lp.value for lp in presets["Casual"]],
-                          key_mode="events", variations={"open": True})
+    config = build_config(seed_lines, logic_paths=MODES, key_mode=KEY_MODE,
+                          spawn=SPAWN_REGION, variations=VARIATIONS)
     universe = sorted(set(config["reserved_locations"]) | set(config["local_progression"]))
     coord_by_name = load_locations()
 

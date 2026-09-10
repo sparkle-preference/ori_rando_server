@@ -61,10 +61,11 @@ class Area(object):
     def __init__(self, name):
         self.name = name
         self.conns = []
-    def get_reachable(self, state, modes, spendKS=False):
+    def get_reachable(self, state, modes, spendKS=False, tiers=None):
         reachable = {}
         for conn in self.conns:
-            active, conns, ksSpent = conn.is_active(state, modes)
+            tier = tiers.get((self.name, conn.target)) if tiers else None
+            active, conns, ksSpent = conn.is_active(state, modes, tier)
             if not spendKS and ksSpent > 0:
                 continue
             if active:
@@ -79,13 +80,26 @@ class Connection(object):
     def __init__(self, target):
         self.target = target
         self.reqs = defaultdict(list)
-    def is_active(self, state, modes):
+    def is_active(self, state, modes, tier=None):
+        if tier is not None:
+            return self.tier_active(state, modes, tier)
         res = [reqs for mode in modes for reqs in self.reqs[mode] if not reqs.cnt - state.has]
         if not res:
             return (False, [], 0)
         least_ks = min([r.cnt["KS"] for r in res])
         cheapest = [req for req in res if req.cnt["KS"] <= least_ks]
         return (True, cheapest, least_ks)
+
+    def tier_active(self, state, modes, tier):
+        # a tiered door charges lifetime keystones against its threshold and spends none
+        res = []
+        for mode in modes:
+            for reqs in self.reqs[mode]:
+                need = Counter(reqs.cnt)
+                ks = need.pop("KS", 0)
+                if not (need - state.has) and (not ks or state.has["KS"] >= tier):
+                    res.append(reqs)
+        return (bool(res), res, 0)
     def __str__(self):
         return "Connection to %s: %s" % (self.target, "\n".join(["%s: %s" % (mode, "|".join([str(x) for x in req])) for mode, req in self.reqs.items()]))
 
@@ -135,7 +149,7 @@ class Map(object):
             Map.areas[area.name] = area
 
     @staticmethod
-    def get_reachable_areas(state, modes, spawn="Glades", need_reached_with=True):
+    def get_reachable_areas(state, modes, spawn="Glades", need_reached_with=True, ks_tiers=None):
         if not Map.areas:
             Map.build()
         Map.reached_with = defaultdict(lambda: set())
@@ -153,13 +167,13 @@ class Map(object):
             curr = unchecked_areas.pop()
             reachable_areas.add(curr)
             needs_ks_check.add(curr)
-            reachable = Map.areas[curr].get_reachable(state, modes)
+            reachable = Map.areas[curr].get_reachable(state, modes, tiers=ks_tiers)
             for k, v in reachable.items():
                 Map.reached_with[k] |= set(v)
             unchecked_areas |= set([r for r in reachable.keys() if r not in reachable_areas])
             while len(unchecked_areas) < len(needs_ks_check):
                 curr = needs_ks_check.pop()
-                reachable = Map.areas[curr].get_reachable(state, modes, True)
+                reachable = Map.areas[curr].get_reachable(state, modes, True, ks_tiers)
                 for k, v in reachable.items():
                     Map.reached_with[k] |= set(v)
                 unchecked_areas |= set([r for r in reachable.keys() if r not in reachable_areas])
