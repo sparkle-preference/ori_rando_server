@@ -70,6 +70,62 @@ jobs:
           echo "A bug, do not bump: you were changing a route, the page, or a helper."
           echo "The full note is at the top of test/seedgen_test.py."
 
+  scenarios:
+    name: client scenarios
+    runs-on: ubuntu-latest
+    # generation and eleven scenarios; a hang should not burn the hour
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - run: pip install -r requirements.txt
+
+      # compose owns the emulator's flags -- see the note in the python job
+      - name: Start the datastore emulator
+        run: docker compose up -d datastore_test
+
+      - name: Wait for the emulator
+        run: |
+          for _ in $(seq 1 60); do
+            curl -sf http://localhost:8001/ >/dev/null && exit 0
+            sleep 1
+          done
+          echo "emulator never came up"
+          docker compose logs datastore_test
+          exit 1
+
+      # ap_real_room skips itself when the image is absent, so a missed pull would
+      # read as a green run that never spoke to Archipelago. Pull it on its own step,
+      # where a registry outage says so instead of quietly removing a scenario.
+      - name: Pull the Archipelago image
+        run: docker pull ghcr.io/archipelagomw/archipelago:0.6.7
+
+      # the runner's own interpreter hosts the flask the clients talk to
+      - name: Run the scenarios
+        run: python -m mockclient.run all
+
+      - name: What a scenario failure means
+        if: failure()
+        run: |
+          echo "These drive fake dll clients against a real flask, a real datastore and"
+          echo "-- for ap_real_room -- a real Archipelago server, and assert what the"
+          echo "server ended up believing. A failure here is an interaction the unit"
+          echo "suite cannot see: seeding, seating, delivery, or the AP wire contract."
+          echo "The scenario names its own invariant; read the [XX] line first."
+          echo "MOCK_CLIENT.md has the design and the landmines."
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: scenario-logs
+          path: mockclient/flask_scenario_*.log
+
   frontend:
     name: frontend build
     runs-on: ubuntu-latest
