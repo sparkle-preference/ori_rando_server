@@ -6,7 +6,9 @@ import time
 import urllib.request
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PYTHON = os.path.join(REPO, ".venv312", "Scripts", "python.exe")
+# whatever is running the scenarios runs the flask they talk to: an interpreter that can
+# import mockclient can import main. MOCKCLIENT_PYTHON overrides for a split setup.
+PYTHON = os.environ.get("MOCKCLIENT_PYTHON") or sys.executable
 EMULATOR = os.environ.get("DATASTORE_TEST_EMULATOR_HOST", "localhost:8001")
 PORT = int(os.environ.get("MOCKCLIENT_PORT", "8095"))
 
@@ -65,7 +67,15 @@ class LocalStack(object):
                     break
             except OSError:
                 if self.proc.poll() is not None:
-                    raise RuntimeError("flask exited on boot; see " + self.log_path)
+                    self._log.flush()
+                    tail = ""
+                    try:
+                        with open(self.log_path) as f:
+                            tail = "".join(f.readlines()[-8:])
+                    except OSError:
+                        pass
+                    raise RuntimeError("flask exited on boot under %s; see %s\n%s"
+                                       % (PYTHON, self.log_path, tail))
                 if time.time() > deadline:
                     raise RuntimeError("flask never answered; see " + self.log_path)
                 time.sleep(1)
