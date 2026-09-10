@@ -1554,10 +1554,11 @@ class BingoGameData(ndb.Model):
         player_id = int(player_id)
         now = utcnow()
         if not self.start_time and not meta_init:
-            if not self.auto_start or self.boards:
+            if not self.auto_start and not self.boards:
                 return
             self.start_time = now
-            self.event_log.append(BingoEvent(event_type="miscThe clock starts with the first report!", timestamp=now))
+            if not self.boards:
+                self.event_log.append(BingoEvent(event_type="miscThe clock starts with the first report!", timestamp=now))
         change_squares = set()
         loss_squares = set()
         win_players = False

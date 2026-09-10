@@ -1060,6 +1060,32 @@ class TestBingoUpdateFlow(NdbTestCase):
         Player.signal_send_txn = staticmethod(fake_send)
         Player.save_bingo_txn = staticmethod(fake_save)
 
+
+    def test_a_per_world_board_records_without_a_clock(self):
+        """A board each has no clock and nobody to start one. The guard that keeps
+        it from starting must not also swallow the report that carries the pickup."""
+        from models import BingoGameData, BingoTeam, BingoWorldBoard
+        card = BingoCard(name="TestGoal", goal_type="int", target=9, square=0)
+        filler = [BingoCard(name="Filler%s" % i, goal_type="int", target=99, square=i)
+                  for i in range(1, 25)]
+        p1 = Player(id="59.1", bingo_prog=[BingoCardProgress(square=i) for i in range(25)])
+        bgd = BingoGameData(id="59")
+        bgd.board = []
+        bgd.boards = [BingoWorldBoard(world=1, board=[card] + filler)]
+        bgd.teams = [BingoTeam(captain=p1.key, teammates=[])]
+        bgd.bingo_count = 99
+        bgd.game = ndb.Key("Game", 59)
+        bgd.get_players = lambda: [p1]
+        self._stub_puts(p1, bgd)
+        self._stub_txns(p1)
+
+        bgd.update({"TestGoal": {"value": 4}}, 1, 59)
+
+        self.assertIsNotNone(self.saved, "the per-world board never heard about the pickup")
+        self.assertEqual(self.saved["prog"][0].count, 4)
+        self.assertNotIn("clock", " ".join(e.event_type for e in bgd.event_log),
+                         "a game with no clock announced one starting")
+
     def test_the_update_persists_the_progress_it_just_computed(self):
         """Card progress is mutated in place on player.bingo_prog, so there is no
         assignment to notice -- a write that carries only bingo_last_tp leaves the
