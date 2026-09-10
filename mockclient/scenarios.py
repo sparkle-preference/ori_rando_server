@@ -202,6 +202,66 @@ def mw_bingo_two_boards(stack):
     return j
 
 
+def mw_bingo_no_owner(stack):
+    """Bingo on worlds 2 and 3, not on world 1. The roller does not play, so the create
+    modal has nothing it could move and the build rolls the boards itself."""
+    j = Judge("mw_bingo_no_owner")
+    params = base_params("mock-mw-bingo-no-owner", players=3,
+                         worldSettings=[{},
+                                        {"variations": ["Bingo", "ForceTrees"],
+                                         "bingoLines": 3},
+                                        {"variations": ["Bingo", "ForceTrees"],
+                                         "bingoDiff": "hard", "bingoLines": 5}])
+    rolled = Rolled(stack, params)
+    # no start_bingo(): nothing calls /bingo/from_game on this path, which is the point
+    j.check("the build did not send the roller to a board",
+            not rolled.build.get("doBingoRedirect"), "build keys: %r" % sorted(rolled.build))
+    board = rolled.fetch_board()
+    j.equal("the boards exist before anyone asked",
+            sorted((board.get("boards") or {}).keys()), ["2", "3"])
+    j.equal("no base board nobody plays", board.get("cards"), [])
+    j.equal("the roster is the bingo worlds", sorted(board.get("teams") or {}), ["2", "3"])
+    j.equal("teams are off on a board-each game", board.get("teams_allowed"), False)
+    j.check("no clock before anyone plays", not board.get("start_time_posix"),
+            "start_time_posix: %r" % board.get("start_time_posix"))
+    r = requests.get(stack.base_url + "/bingo/game/%s/start" % rolled.game_id, timeout=30)
+    j.equal("a board-each game refuses to be started", r.status_code, 412)
+
+    c1 = WsClient(stack.base_url, rolled.seed_text(1), tick_period=0.12, rng_seed=1)
+    c2 = WsClient(stack.base_url, rolled.seed_text(2), tick_period=0.12, rng_seed=2)
+    c3 = WsClient(stack.base_url, rolled.seed_text(3), tick_period=0.12, rng_seed=3)
+    j.check("the roller's seed has no bingo flag", not c1.seed.bingo,
+            "flags: %r" % c1.seed.flags)
+    j.check("both bingo worlds' seeds carry it", c2.seed.bingo and c3.seed.bingo,
+            "%r %r" % (c2.seed.flags, c3.seed.flags))
+    s1, _ = fetch_goals(stack, rolled.game_id, 1)
+    j.equal("the goals route refuses the world that is not playing", s1, 404)
+    s2, g2 = fetch_goals(stack, rolled.game_id, 2)
+    j.equal("the goals route answers world 2", s2, 200)
+    j.equal("world 2's channel matches world 2's board",
+            sorted(goal_shapes_from(g2)),
+            sorted({c.get("name") for c in board["boards"]["2"]["cards"]}))
+
+    done2 = sorted(goal_shapes_from(g2))[:3]
+    c2.plan = [(4 + i, "complete_goal", (g,)) for i, g in enumerate(done2)]
+    _collect_plan(c1, 4)
+    run_clients(c1, c2, c3)
+    j.check("bingo posts acked", c2.bingoacks and all(s == 200 for s in c2.bingoacks),
+            repr(c2.bingoacks))
+    after = rolled.fetch_board()
+    prog2 = {c.get("name") for c in after["boards"]["2"]["cards"]
+             if any(p.get("completed") for p in (c.get("progress") or {}).values())}
+    j.check("a prerolled board records what its world plays", set(done2) <= prog2,
+            "done %r, board %r" % (done2, sorted(prog2)))
+    prog3 = [c.get("name") for c in after["boards"]["3"]["cards"]
+             if any(p.get("completed") for p in (c.get("progress") or {}).values())]
+    j.check("world 3's board untouched", not prog3, "world 3 shows: %r" % prog3)
+    j.check("the world that is not playing bingo played on unbothered",
+            all(s < 300 for s in c1.acks.values()) and not c1.errors,
+            "%r %r" % (c1.acks, c1.errors))
+    return j
+
+
 def bingo_reroll_flow(stack):
     """Reroll is free until the clock starts, and the clock starts with play."""
     j = Judge("bingo_reroll_flow")
@@ -365,4 +425,5 @@ def ws_fallback_limit(stack):
 
 
 ALL = [solo_ws, solo_legacy, mw2, mw_bingo_solo_optin, mw_bingo_two_boards,
-       bingo_reroll_flow, mw4_concurrency, shared_bingo_teams, ws_fallback_limit]
+       mw_bingo_no_owner, bingo_reroll_flow, mw4_concurrency, shared_bingo_teams,
+       ws_fallback_limit]
