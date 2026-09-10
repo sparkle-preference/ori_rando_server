@@ -90,6 +90,10 @@ def plando_rename(seed_name, new_name):
     old_seed = user.plando(seed_name)
     if not old_seed:
         return text_resp("couldn't find old seed when trying to rename!", 404)
+    # a Seed is keyed author:name, so a put() onto a taken name replaces that seed --
+    # and the delete below would then take the source with it
+    if user.plando(new_name):
+        return text_resp("you already have a plando named %s" % new_name, 409)
     new_seed = clone_entity(old_seed, id="%s:%s" % (user.key.id(), new_name), name=new_name)
     if new_seed.put():
         if not param_flag("cp"):
