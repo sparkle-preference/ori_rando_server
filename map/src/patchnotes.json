@@ -12,6 +12,75 @@
   "pending": [],
   "releases": [
       {
+        "version": "4.9.7",
+        "date": "2026-09-11",
+        "announce": "dev",
+        "changes": [
+          {
+            "text": "Fixed a ghost-related performance issue.",
+            "category": "Multiplayer",
+            "type": "fix",
+            "importance": "major"
+          },
+          {
+            "text": "Fixed other players' markers going missing from the map.",
+            "category": "Multiplayer",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Fixed teleporters you activate yourself not being shared in co-op.",
+            "category": "Multiplayer",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Fixed a problem where connection hiccups could get getting stuck unsent after a connection hiccup.",
+            "category": "Multiplayer",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Practice sessions can no inherit multiplayer items.",
+            "category": "Game",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Fixed per-world bingo boards not recording progress.",
+            "category": "Bingo",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Fixed some rare-but-possible keylock situations in Archipelago seeds by using door tiers all the time instead of only on KS export.",
+            "category": "Multiplayer",
+            "importance": "minor",
+            "tags": [
+              "Archipelago"
+            ],
+            "sub": [
+              "This change requires an apworld version bump - redownload it before your next AP game."
+            ]
+          },
+          {
+            "text": "Fixed the map tracker failing for the first hour of an Archipelago game.",
+            "category": "Multiplayer",
+            "type": "fix",
+            "importance": "minor",
+            "tags": [
+              "Archipelago"
+            ]
+          },
+          {
+            "text": "Renaming a plando to an in-use name now displays an error instead of silently overwriting.",
+            "category": "Plando",
+            "type": "fix",
+            "importance": "minor"
+          }
+        ]
+      },
+      {
         "version": "4.9.5",
         "date": "2026-09-09",
         "announce": "dev",

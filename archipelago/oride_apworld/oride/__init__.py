@@ -123,13 +123,9 @@ class OriDEWorld(World):
                                 (self.player_name, GAME_NAME, name))
         ks_tiers = None
         if not cfg.get("variations", {}).get("keysanity"):
-            # Keystones are door currency whoever holds them, and a CollectionState
-            # only ever counts, so a face cost says yes to a door the spend order
-            # already emptied. Doors charge cumulative tiers instead: in-logic spends
-            # can never key-lock, and opening a door early is out-of-logic play, same
-            # contract as single player. Keysanity has no generic KS pool to spend.
-            # The yaml's tiers follow the seed's own door order (spawn, TPs,
-            # logic); a yaml without them falls back to the canonical order.
+            # a CollectionState only counts, so a face cost approves a door the spend
+            # order already emptied; cumulative tiers can't key-lock in-logic play.
+            # The yaml's tiers follow the seed's door order, else the canonical one.
             kt = cfg.get("key_tiers")
             if kt:
                 ks_tiers = {(h, t): v for (h, t, _), v in
