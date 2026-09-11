@@ -82,8 +82,15 @@ class PendingNotesTestCase(unittest.TestCase):
         self.doc = pn.patchnotes_doc()
         draft = {"text": self.MARKER, "category": "Game", "importance": "major"}
         pn._patchnotes_cache = dict(self.doc, pending=[draft])
+        # a bare host has no datastore client and no secret key; a request needs both
+        self._client = models.client
+        models.client = _FakeNdbClient()
+        self._secret = main.app.secret_key
+        main.app.secret_key = main.app.secret_key or "patchnotes-pending"
 
     def tearDown(self):
+        main.app.secret_key = self._secret
+        models.client = self._client
         pn._patchnotes_cache = self.doc
 
     def test_they_are_well_formed(self):

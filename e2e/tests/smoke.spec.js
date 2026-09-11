@@ -3,8 +3,18 @@
 // the bundle compiles, and the page still does the wrong thing.
 const { test, expect } = require("@playwright/test");
 
+// a beta box greets a fresh browser with a welcome modal that covers the page
+async function open(page, path) {
+    await page.goto(path);
+    const welcome = page.getByRole("dialog");
+    if (await welcome.waitFor({ state: "visible", timeout: 3000 }).then(() => true, () => false)) {
+        await welcome.getByRole("button", { name: "Close" }).last().click();
+        await expect(welcome).toBeHidden();
+    }
+}
+
 test("the generator rolls a seed down to a download button", async ({ page }) => {
-    await page.goto("/");
+    await open(page, "/");
     await page.getByRole("button", { name: "Generate Seed" }).click();
     // the seed tab is the payoff: a per-player row with a working main button
     await expect(
@@ -13,7 +23,7 @@ test("the generator rolls a seed down to a download button", async ({ page }) =>
 });
 
 test("undo arms on a real change and takes it back", async ({ page }) => {
-    await page.goto("/");
+    await open(page, "/");
     // the last-seed auto-restore lands async and would swallow an early click
     await page.waitForLoadState("networkidle");
     const starved = page.getByRole("button", { name: "Starved", exact: true });
@@ -31,7 +41,7 @@ test("undo arms on a real change and takes it back", async ({ page }) => {
 });
 
 test("a bingo board's squares carry their help", async ({ page }) => {
-    await page.goto("/?fromBingo=1");
+    await open(page, "/?fromBingo=1");
     // the redirect opens the board in a new tab; follow it there
     const [board] = await Promise.all([
         page.waitForEvent("popup", { timeout: 150000 }),
