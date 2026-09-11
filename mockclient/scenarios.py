@@ -1,5 +1,6 @@
 """The scenarios. Each takes a LocalStack, returns a Judge."""
 import json
+import time
 
 import requests
 
@@ -296,15 +297,22 @@ def ap_real_room(stack):
                 room.wait_for("data package for game Ori DE Rando", timeout=30),
                 "the room never loaded our datapackage")
 
-        status = _ap_status(stack, rolled.game_id)
+        # each world's bridge scouts on its own clock and the download gate wants
+        # every world's row, so wait for the last one rather than reading the first
+        deadline = time.time() + 60
+        while True:
+            status = _ap_status(stack, rolled.game_id)
+            total, done = status.get("names_total") or [], status.get("names_resolved") or []
+            if (len(total) == 2 and all(t > 0 for t in total) and done == total) or time.time() > deadline:
+                break
+            time.sleep(0.5)
         j.equal("the bridge reports connected", status.get("status"), "connected")
         j.equal("both worlds have a slot", status.get("slots"), ["Ori1", "Ori2"])
         j.check("no error on the link", not status.get("last_error"),
                 repr(status.get("last_error")))
         # scout -> GetDataPackage -> APNames, all against the room's real datapackage
-        total, done = status.get("names_total") or [], status.get("names_resolved") or []
         j.check("every exported location resolved a real item name",
-                total and done == total, "resolved %r of %r" % (done, total))
+                len(total) == 2 and done == total, "resolved %r of %r" % (done, total))
 
         c1 = WsClient(stack.base_url, rolled.seed_text(1), tick_period=0.12, rng_seed=1)
         c2 = WsClient(stack.base_url, rolled.seed_text(2), tick_period=0.12, rng_seed=2)
