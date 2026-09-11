@@ -2390,7 +2390,7 @@ class Game(ndb.Model):
         connects as one. Idempotent."""
         k = int(params.players)
         for w in range(1, k + 1):
-            shadow = self.player(k + w)
+            shadow = self.player(k + w, shadow=True)
             if shadow.nickname != AP_SHADOW_NICK:
                 shadow.nickname = AP_SHADOW_NICK
                 shadow.put()
@@ -2402,7 +2402,7 @@ class Game(ndb.Model):
         pid = int(pid)
         return names[pid - 1] if 1 <= pid <= len(names) else None
 
-    def player(self, pid, create=True, delay_put=False):
+    def player(self, pid, create=True, delay_put=False, shadow=False):
         gid = self.key.id()
         full_pid = "%s.%s" % (gid, pid)
         player = Player.get_by_id(full_pid, parent=self.key)
@@ -2418,7 +2418,10 @@ class Game(ndb.Model):
                 player = Player(id=full_pid, skills=0, events=0, teleporters=0, history=[], hints={}, bonuses={}, parent=self.key)
             player.seed_name = self.rolled_name(pid)
             k = player.put()
-            Cache.set_pos(gid, pid, 189, -210)
+            if not shadow:
+                # a cached position puts a marker on the tracker map, which
+                # then asks for an inventory only visible players have
+                Cache.set_pos(gid, pid, 189, -210)
             Cache.set_hist(gid, pid, [])
         else:
             k = player.key

@@ -613,12 +613,16 @@ class TestApShadowPlayers(NdbTestCase):
         self.addCleanup(lambda: setattr(ndb.Key, "get", orig))
 
     def test_from_params_creates_shadows(self):
+        from cache import Cache
         game = Game.from_params(self._ApParams(), gid=70)
         self.assertEqual(game.player_nums(), [1, 2, 3, 4])
         for w in (3, 4):
             self.assertEqual(self.store["70.%s" % w].nickname, "Archipelago")
         for w in (1, 2):
             self.assertIsNone(self.store["70.%s" % w].nickname)
+        # no cached position for a shadow: a marker on the tracker map would
+        # ask for an inventory only visible players have
+        self.assertEqual(sorted(Cache.get_pos(70)), [1, 2])
 
     def test_names_field_renders_shadow_pairs(self):
         from cache import Cache
