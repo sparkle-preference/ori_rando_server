@@ -57,6 +57,19 @@ class PlayerState(object):
         if self.has["RB21"] == 5:
             self.has['HoruKey'] = 1
 
+# the whole standard pool in hand
+FULL_INVENTORY = dict.fromkeys(PlayerState.name_from_id.values(), 1)
+FULL_INVENTORY.update({"HC": 15, "EC": 15, "AC": 33, "KS": 40, "MS": 11})
+
+def full_state(without=()):
+    """A player holding everything but the named items."""
+    state = PlayerState([])
+    for item, count in FULL_INVENTORY.items():
+        state.has[item] = count
+    for item in without:
+        state.has[item] = 0
+    return state
+
 class Area(object):
     def __init__(self, name):
         self.name = name

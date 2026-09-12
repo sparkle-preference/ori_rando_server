@@ -263,16 +263,13 @@ class TestSpawnEarlyZones(unittest.TestCase):
     def test_the_early_cap_is_a_slice_of_the_roll_range(self):
         # Glades rolls (8,15) easy / (10,22) normal / (16,27) hard
         for difficulty, cap in [("easy", 9), ("normal", 13), ("hard", 20)]:
-            hi, lo = 0, 99
-            for card in roll_boards("Glades", difficulty, boards=300):
-                if card.name != "PickupsInGlades":
-                    continue
-                if card.early:
-                    hi = max(hi, card.target)
-                else:
-                    lo = min(lo, card.target)
-            self.assertEqual(hi, cap, difficulty)
-            self.assertEqual(lo, cap + 1, difficulty)
+            pool = BingoGenerator.goal_pool(random.Random(1), rando=True, difficulty=difficulty, spawn="Glades")
+            goal = {g.name: g for g in pool}["PickupsInGlades"]
+            self.assertEqual(goal.early_max, cap, difficulty)
+            goal.range_func = lambda: cap
+            self.assertTrue(goal.to_card(random.Random(1)).early, difficulty)
+            goal.range_func = lambda: cap + 1
+            self.assertFalse(goal.to_card(random.Random(1)).early, difficulty)
 
     def test_a_zone_spawn_does_not_open_the_others(self):
         early = {c.name for c in roll_boards("Forlorn", boards=200) if c.early and c.name.startswith("PickupsIn")}
