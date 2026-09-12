@@ -732,20 +732,7 @@ class SeedGenerator:
                 self.inventory[tag("Keysanity", p)] = 1
 
 
-        # multiworld shared categories: one copy total (found -> everyone's), tagged
-        # world 1, at the largest count any world asked for
-        if getattr(self, "is_multi", False) and self.params.sync.shared:
-            shared_types = set(self.params.sync.shared)
-            most = OrderedDict()
-            for tagged in list(self.itemPool.keys()):
-                base, p = untag(tagged)
-                if base in self.shared_pool_bases or self.base_share_type(base) in shared_types:
-                    self.shared_pool_bases.add(base)
-                    most[base] = max(most.get(base, 0), self.itemPool[tagged])
-                    if p != 1:
-                        del self.itemPool[tagged]
-            for base, count in most.items():
-                self.itemPool[tag(base, 1)] = count
+        self.collapse_shared()
 
         # FIXME When we don't start in glades, add glades tp and remove other tp if applicable, before we process warps.
         # FIXME If Variation is closed dungeons, umm, check that we don't start in them, maybe? Can't start at the tp anyway.
@@ -1047,6 +1034,9 @@ class SeedGenerator:
                 self.itemPool[tag("RB28", p)] = self.params_for(p).frag_count
                 self.itemPool[tag("Warmth", p)] = 0
 
+        # shards and fragments are world events: their per-world entries collapse too
+        self.collapse_shared()
+
         # LimitKeys belongs to a player, not to the generation: it decides whose
         # world events get placed this way, not whose world they land in.
         limitkey_ps = [w for w in self.multi_ps() if self.params_for(w).key_mode == KeyMode.LIMITKEYS]
@@ -1267,6 +1257,23 @@ class SeedGenerator:
                 return None
         pickup = Pickup.n(code_id[:2], code_id[2:])
         return pickup.share_type if pickup else None
+
+    def collapse_shared(self):
+        """Multiworld shared categories: one pool copy total (found -> everyone's),
+        tagged world 1, at the largest count any world asked for. Safe to repeat."""
+        if not (getattr(self, "is_multi", False) and self.params.sync.shared):
+            return
+        shared_types = set(self.params.sync.shared)
+        most = OrderedDict()
+        for tagged in list(self.itemPool.keys()):
+            base, p = untag(tagged)
+            if base in self.shared_pool_bases or self.base_share_type(base) in shared_types:
+                self.shared_pool_bases.add(base)
+                most[base] = max(most.get(base, 0), self.itemPool[tagged])
+                if p != 1:
+                    del self.itemPool[tagged]
+        for base, count in most.items():
+            self.itemPool[tag(base, 1)] = count
 
     def pool_key(self, item):
         """Shared items keep one pool entry, tagged world 1."""

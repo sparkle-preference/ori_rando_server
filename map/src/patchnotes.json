@@ -21,6 +21,18 @@
       "category": "Bingo",
       "type": "feature",
       "importance": "minor"
+    },
+    {
+      "text": "Multiworld with shared world events now places one set of shards (and warmth fragments) for the whole game instead of one per world.",
+      "category": "Multiplayer",
+      "type": "fix",
+      "importance": "major"
+    },
+    {
+      "text": "Shared shards no longer vanish when the group finds more of them than one player can hold.",
+      "category": "Multiplayer",
+      "type": "fix",
+      "importance": "major"
     }
   ],
   "releases": [

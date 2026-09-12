@@ -943,9 +943,11 @@ class Player(ndb.Model):
                         del self.bonuses[pick_id]
             else:
                 if pick_id in self.bonuses:
-                    if (not stacks(pickup)) or (pickup.max and self.bonuses[pick_id] >= pickup.max):
-                        log.debug("Will not give %s pickup %s, as they already have %s" % (self.name(), pickup.name, self.bonuses[pick_id]))
+                    # a singleton is always exactly one; a stack at its cap stays there
+                    if not stacks(pickup):
                         self.bonuses[pick_id] = 1
+                        return
+                    if pickup.max and self.bonuses[pick_id] >= pickup.max:
                         return
                     self.bonuses[pick_id] += 1
                 else:

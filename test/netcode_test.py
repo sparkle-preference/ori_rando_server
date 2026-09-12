@@ -1408,5 +1408,25 @@ class TestVersionTracking(NdbTestCase):
         self.assertEqual(p.dll_version, "4.1.10")
 
 
+class TestUpgradeStacks(NdbTestCase):
+    """A stacking upgrade at its cap is left alone; it used to snap back to one,
+    which the client's tick sync then obeyed by deleting shards."""
+
+    def test_a_capped_stack_stays_capped(self):
+        p = Player(id="95.1", bonuses={"17": 3})
+        p.give_pickup(Pickup.n("RB", 17), delay_put=True)
+        self.assertEqual(p.bonuses["17"], 3)
+
+    def test_below_the_cap_it_grows(self):
+        p = Player(id="96.1", bonuses={"17": 2})
+        p.give_pickup(Pickup.n("RB", 17), delay_put=True)
+        self.assertEqual(p.bonuses["17"], 3)
+
+    def test_a_singleton_stays_one(self):
+        p = Player(id="97.1", bonuses={"10": 1})
+        p.give_pickup(Pickup.n("RB", 10), delay_put=True)
+        self.assertEqual(p.bonuses["10"], 1)
+
+
 if __name__ == "__main__":
     unittest.main()

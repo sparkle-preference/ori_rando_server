@@ -3500,3 +3500,50 @@ class LocalPseudoPickupTestCase(unittest.TestCase):
         self.assertEqual(bad, [], "solo seed carries an LC pickup: %s" % bad[:3])
         ecs = [l for l in lines[1:] if not l.startswith("//") and l.split("|")[1] == "EC"]
         self.assertGreaterEqual(len(ecs), 4, "solo seed lost the marked line's items")
+
+
+class MultiworldSharedEventsTests(unittest.TestCase):
+    """Shards and warmth fragments are world events. With events shared, a
+    multiworld places each of them once for the whole game like every other
+    shared category, instead of a full set per world that the shared pool key
+    never drains (which filled game 133's seeds with 170 shards)."""
+
+    PLAYERS = 3
+
+    def _generate(self, extra, prefix):
+        out = tempfile.mkdtemp(prefix=prefix)
+        self.addCleanup(shutil.rmtree, out, ignore_errors=True)
+        old_argv = sys.argv
+        sys.argv = MultiworldGenTests.ARGS + ["--shared-items", "skills,worldevents", "--output-dir", out] + extra
+        try:
+            CLISeedParams().from_cli()
+        finally:
+            sys.argv = old_argv
+        seeds = {}
+        for p in range(1, self.PLAYERS + 1):
+            with open(os.path.join(out, "randomizer_%s.bfr" % p)) as f:
+                seeds[p] = f.read().splitlines()
+        return seeds
+
+    def _rb(self, seeds, rb_id):
+        per_world = {}
+        for p, lines in seeds.items():
+            placements, manifest = parse_seed(lines)
+            per_world[p] = sum(1 for (code, id, zone) in placements.values() if (code, id) == ("RB", rb_id))
+            per_world[p] += sum(1 for (finder, icode, iid, zone) in manifest.values() if (icode, iid) == ("RB", rb_id))
+        return per_world
+
+    def test_shards_are_placed_once_for_the_game(self):
+        seeds = self._generate(["--keymode", "Shards"], "seedgentest_mwshards_")
+        for rb_id in ("17", "19", "21"):
+            per_world = self._rb(seeds, rb_id)
+            self.assertEqual(sum(per_world.values()), 5, "RB|%s per world: %s" % (rb_id, per_world))
+        for p, lines in seeds.items():
+            placements, _ = parse_seed(lines)
+            keys = [id for (code, id, zone) in placements.values() if code == "EV" and id in ("0", "2", "4")]
+            self.assertEqual(keys, [], "world %s still carries dungeon keys" % p)
+
+    def test_warmth_fragments_are_placed_once_for_the_game(self):
+        seeds = self._generate(["--warmth-frags", "30"], "seedgentest_mwfrags_")
+        per_world = self._rb(seeds, "28")
+        self.assertEqual(sum(per_world.values()), 30, per_world)
