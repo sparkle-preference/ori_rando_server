@@ -223,6 +223,9 @@ function uniq(array) {
 const hide_opacity = .2;
 const seed_name_regex = new RegExp("^[^ ?=/]+$");
 const select_styles = {
+  // an active bootstrap button in a group is position:relative z-index:1, the same as a
+  // menu's, and a later section wins that tie -- a dropdown opens behind the rows under it
+  menu: (base, _) => ({...base, zIndex: 5}),
   option: (base, _) => ({
     ...base,
     borderBottom: '1px dotted pink',

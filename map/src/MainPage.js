@@ -13,7 +13,7 @@ import {History, HIST_KEYS, HIST_SET} from './history.js';
 import {postNetForm, get_param, spawnKitFor, get_flag, ap_enabled, presets, select_theme, name_from_str, get_preset, player_icons, doNetRequest, get_random_loader, PickupSelect, Cent, dev, randInt, gotoUrl, prng, decompose_pickup, beta_welcome_pending, save_beta_welcome, remember_seed_link} from './common.js';
 import SiteBar from "./SiteBar.js";
 import Select from 'react-select';
-import {picks_by_zone} from './shared_map';
+import {picks_by_zone, select_styles} from './shared_map';
 
 
 const zonesInOrder = ['Glades', 'Blackroot', 'Grove', 'Grotto', 'Ginso', 'Swamp', 'Valley', 'Misty', 'Forlorn', 'Sorrow', 'Horu'];
@@ -533,7 +533,7 @@ export default class MainPage extends React.Component {
         let fass_rows = fassList.map(({loc, item, world, owner}, i) => ((world || 1) !== fassWorld) ? null : (
             <Row key={`fass-arbitrary-${i}`} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "preplacement")} className="p-1 justify-content-center">
                     <Col xs={isMW ? leftCol : leftCol+1}>
-                        <Select theme={select_theme} className="align-middle" options={locOptions.filter(l => l.value === loc.value || !fassUsed.has(l.value))} value={loc} onChange={(newLoc) => this.onFassList(i, {loc: newLoc})}></Select>
+                        <Select styles={select_styles} theme={select_theme} className="align-middle" options={locOptions.filter(l => l.value === loc.value || !fassUsed.has(l.value))} value={loc} onChange={(newLoc) => this.onFassList(i, {loc: newLoc})}></Select>
                     </Col><Col xs={isMW ? rightCol-2 : rightCol-1}>
                         <PickupSelect value={item} updater={(code, _) => this.onFassList(i, {item: code})} allowGroup/>
                     </Col>
@@ -559,7 +559,7 @@ export default class MainPage extends React.Component {
         fass_rows.push((
             <Row key={`fass-arbitrary-next`} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "preplacement")} className="p-1 justify-content-center">
                     <Col xs={isMW ? leftCol : leftCol+1}>
-                    <Select theme={select_theme} className="align-middle" options={locOptions.filter(l => !fassUsed.has(l.value))} value={{label: 'Add new Placement:', value: -1}} onChange={(newLoc) => this.addToFassList({loc: newLoc, item: "NO|1"})}></Select>
+                    <Select styles={select_styles} theme={select_theme} className="align-middle" options={locOptions.filter(l => !fassUsed.has(l.value))} value={{label: 'Add new Placement:', value: -1}} onChange={(newLoc) => this.addToFassList({loc: newLoc, item: "NO|1"})}></Select>
                     </Col><Col xs={isMW ? rightCol-2 : rightCol-1}>
                         <PickupSelect ref="fassTabula" value={"NO|1"} updater={(code, _) => this.addToFassList({item: code})} allowGroup/>
                     </Col>

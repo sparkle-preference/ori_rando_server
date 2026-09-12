@@ -469,6 +469,8 @@ class PickupSelect extends Component {
     let s = getComputedStyle(document.body);
 
     let styles = props.styles || {
+        // the same tie with bootstrap's active buttons that select_styles guards against
+        menu: (base, _) => ({...base, zIndex: 5}),
         option: (base, data) => {
           let { isDisabled, isFocused } = data
           let bgc = isDisabled ? s.getPropertyValue("--warning") : isFocused ? s.getPropertyValue("--info") : s.getPropertyValue("background-color")
