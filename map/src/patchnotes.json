@@ -9,7 +9,20 @@
     "Misc",
     "Plando"
   ],
-  "pending": [],
+  "pending": [
+    {
+      "text": "Boards cap the squares that need Grenade, Stomp or one dungeon: two each on easy and normal, four on hard.",
+      "category": "Bingo",
+      "type": "feature",
+      "importance": "major"
+    },
+    {
+      "text": "New goal: drop the spidersack in Grove.",
+      "category": "Bingo",
+      "type": "feature",
+      "importance": "minor"
+    }
+  ],
   "releases": [
       {
         "version": "4.9.7",
