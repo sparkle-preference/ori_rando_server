@@ -148,7 +148,7 @@ class SiteBar extends Component {
         if(saveInProgress || !loaded)
             return (
                 <Modal size="sm" isOpen={settingsOpen} backdrop={"static"} className={"modal-dialog-centered settings-modal"}>
-                    <ModalHeader centered="true">{loaded ? "Saving..." : "Loading Settings..."}</ModalHeader>
+                    <ModalHeader>{loaded ? "Saving..." : "Loading Settings..."}</ModalHeader>
                     <ModalBody>
                         <Container fluid>
                             <Row className="p-2 justify-content-center align-items-center">
@@ -164,7 +164,7 @@ class SiteBar extends Component {
             : null
         return (
             <Modal isOpen={settingsOpen} backdrop={"static"} className={"modal-dialog-centered settings-modal"} toggle={this.closeModals}>
-                <ModalHeader toggle={this.closeModals} centered="true">User settings</ModalHeader>
+                <ModalHeader toggle={this.closeModals}>User settings</ModalHeader>
                 <ModalBody >
                     {alert}
                     <Container fluid>

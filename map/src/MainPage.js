@@ -2504,7 +2504,7 @@ export default class MainPage extends React.Component {
         let plays = minimalFlagline((sspList.find(s => s.name === presetEditing) || {}).blob)
         return (
                 <Modal isOpen={this.state.presetModal} className={"modal-dialog-centered"} toggle={this.closeModal}>
-                  <ModalHeader style={inputStyle} toggle={this.closeModal} centered>
+                  <ModalHeader style={inputStyle} toggle={this.closeModal}>
                     {presetDuplicating ? `Duplicating: ${presetEditing}` : `Preset: ${presetEditing}`}
                   </ModalHeader>
                   <ModalBody style={inputStyle}>
@@ -2583,7 +2583,7 @@ export default class MainPage extends React.Component {
         let overwrites = sspList.some(s => s.name === sspSaveName.trim())
         return (
                 <Modal isOpen={this.state.sspModal} className={"modal-dialog-centered"} toggle={this.closeModal}>
-                  <ModalHeader style={inputStyle} toggle={this.closeModal} centered>Save Preset</ModalHeader>
+                  <ModalHeader style={inputStyle} toggle={this.closeModal}>Save Preset</ModalHeader>
                   <ModalBody style={inputStyle}>
                       <Container fluid>
                         <Row className="p-1">
@@ -2629,7 +2629,7 @@ export default class MainPage extends React.Component {
     getBetaWelcomeModal = ({inputStyle}) => {
         return (
                 <Modal size="lg" isOpen={this.state.betaWelcomeOpen} backdrop={"static"} className={"modal-dialog-centered"} toggle={this.closeBetaWelcome}>
-                  <ModalHeader style={inputStyle} toggle={this.closeBetaWelcome} centered>Welcome to Ori Rando v5 beta!</ModalHeader>
+                  <ModalHeader style={inputStyle} toggle={this.closeBetaWelcome}>Welcome to Ori Rando v5 beta!</ModalHeader>
                   <ModalBody style={inputStyle}>
                       <Container fluid>
                       <Row className="p-1">
@@ -2685,7 +2685,7 @@ export default class MainPage extends React.Component {
     getQuickstartModal = ({inputStyle}) => {
         return (
                 <Modal size="lg" isOpen={this.state.quickstartOpen} backdrop={"static"} className={"modal-dialog-centered"} toggle={this.closeModal}>
-                  <ModalHeader style={inputStyle} toggle={this.closeModal} centered>Welcome to the Ori DE Randomizer!</ModalHeader>
+                  <ModalHeader style={inputStyle} toggle={this.closeModal}>Welcome to the Ori DE Randomizer!</ModalHeader>
                   <ModalBody style={inputStyle}>
                       <Container fluid>
                       <Row className="p-1">
@@ -2741,7 +2741,7 @@ export default class MainPage extends React.Component {
         </Col>))
         return (
                 <Modal isOpen={auxModal} backdrop={"static"} className={"modal-dialog-centered"} toggle={this.closeModal}>
-                  <ModalHeader style={inputStyle} toggle={this.closeModal} centered>Spoiler Settings</ModalHeader>
+                  <ModalHeader style={inputStyle} toggle={this.closeModal}>Spoiler Settings</ModalHeader>
                   <ModalBody style={inputStyle}>
                       <Container fluid>
                       <Row>
