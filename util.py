@@ -585,6 +585,12 @@ def get_preset_from_paths(presets, logic_paths):
         path_mask |= path_masks[path]
     return "Custom" + str(path_mask)
 
+def compose_multi_value(parts):
+    """[(code, id)] -> a value decompose_multi_value reads back. A literal slash in a
+    piece is doubled, which is the only escape the grammar has."""
+    return "/".join(piece.replace("/", "//") for pair in parts for piece in pair)
+
+
 def decompose_multi_value(value):
     """Multipickup value -> [(code, id)]. "//" is a literal slash; the client's
     RandomizerAction.Decompose reads the same grammar. An odd trailing piece is

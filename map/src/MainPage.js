@@ -409,6 +409,14 @@ export default class MainPage extends React.Component {
 
 
     getItemPoolTab = ({inputStyle}) => {
+        // Lines that resolve to nothing at all. Not an error -- the seed still rolls, the
+        // line is simply dropped -- so it says so rather than blocking the button.
+        const poolRowWarning = (code) => {
+            let why = code === "LC|*" ? "Local has nothing to keep local. Add it to a line with items on it."
+                    : (code === "RP|" ? "Repeatable has nothing to repeat. Add an item to this line."
+                    : (code === "RG|" ? "One-of has nothing to choose from. Add items to this line." : null))
+            return why ? (<small className="d-block text-warning">{why}</small>) : null
+        }
         let itemSelectors = this.state.itemPool.map((row, index) => {
           let disabled = row.minimum && row.minimum > 0
           let delButton = disabled ? null : (<Button onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("itemPool", "deleteRow")} onClick={this.deletePoolItem(index)} color="danger">X</Button>)
@@ -424,7 +432,8 @@ export default class MainPage extends React.Component {
             </Cent>
             </Col>
             <Col onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("itemPool", disabled ? "pickupSelectorDisabled" : row.item)} xs="7">
-                <PickupSelect value={row.item} isClearable={false} isDisabled={disabled} updater={(code, _) => this.updatePoolItem(index, code)} allowPsuedo allowGroup/>
+                <PickupSelect value={row.item} isClearable={false} isDisabled={disabled} updater={(code, _) => this.updatePoolItem(index, code)} allowPsuedo allowGroup allowLocal/>
+                {poolRowWarning(row.item)}
             </Col>
             <Col xs="1">{delButton}</Col>
           </Row>)
@@ -442,7 +451,7 @@ export default class MainPage extends React.Component {
                 </Cent>
                 </Col>
                 <Col xs="7" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("itemPool", "pickupSelector")} >
-                    <PickupSelect ref="tabula" value={"NO|1"} updater={(code, _) => this.addPoolItem(code)} allowPsuedo allowGroup/>
+                    <PickupSelect ref="tabula" value={"NO|1"} updater={(code, _) => this.addPoolItem(code)} allowPsuedo allowGroup allowLocal/>
                 </Col>
                 <Col xs="1"></Col>
             </Row>

@@ -3394,3 +3394,109 @@ class PerWorldItemPoolTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+class LocalPseudoPickupTestCase(unittest.TestCase):
+    """LC|* keeps its pool line in its owner's world and never reaches a seed."""
+
+    PLAYERS = 2
+
+    def _mw_seeds(self, pool_extra, seed="lctest"):
+        from seedbuilder.generator import SeedGenerator
+        outdir = tempfile.mkdtemp(prefix="seedgentest_local_")
+        self.addCleanup(shutil.rmtree, outdir, ignore_errors=True)
+        orig = SeedGenerator.setSeedAndPlaceItems
+
+        def patched(sg, params, **kwargs):
+            params.item_pool = dict(params.item_pool)
+            params.item_pool.update(pool_extra)
+            return orig(sg, params, **kwargs)
+
+        old_argv = sys.argv
+        sys.argv = ["cli_gen", "--output-dir", outdir, "--preset", "standard",
+                    "--open-world", "--force-trees", "--balanced",
+                    "--players", str(self.PLAYERS), "--share-mode", "multiworld",
+                    "--seed", seed]
+        SeedGenerator.setSeedAndPlaceItems = patched
+        try:
+            CLISeedParams().from_cli()
+        finally:
+            SeedGenerator.setSeedAndPlaceItems = orig
+            sys.argv = old_argv
+        seeds = {}
+        for p in range(1, self.PLAYERS + 1):
+            with open(os.path.join(outdir, "randomizer_%s.bfr" % p)) as f:
+                seeds[p] = f.read().splitlines()
+        return seeds
+
+    def test_strip_local_shapes(self):
+        from seedbuilder.generator import strip_local
+        for raw, want in [
+            ("LC*", ("", True)),                                # nothing but the marker
+            ("RP", ("", False)),                                # a repeatable with nothing to repeat
+            ("RG", ("", False)),
+            ("MUSK/0/LC/*", ("SK0", True)),                     # one survivor stops being a multi
+            ("MUSK/0/HC/1/LC/*", ("MUSK/0/HC/1", True)),        # two stay one
+            ("RPEX/100/LC/*", ("RPEX/100", True)),              # the repeatable wrapper survives
+            ("MUSK/0/HC/1", ("MUSK/0/HC/1", False)),            # untouched without the marker
+            ("EX15", ("EX15", False)),
+        ]:
+            self.assertEqual(strip_local(raw), want, raw)
+
+    def test_marker_never_reaches_a_seed(self):
+        seeds = self._mw_seeds({"MU|EC/1/LC/*": [4], "LC|*": [3]})
+        check_mw_invariants(self, seeds)
+        for p, lines in seeds.items():
+            leaked = [l for l in lines if "LC" in l.split("|", 1)[-1].upper().replace("|", "/").split("/")[0:1]]
+            self.assertEqual(leaked, [], "player %s seed carries an LC line: %s" % (p, leaked[:3]))
+            raw = [l for l in lines[1:] if not l.startswith("//") and l.split("|")[1] == "LC"]
+            self.assertEqual(raw, [], "player %s seed carries an LC pickup: %s" % (p, raw[:3]))
+
+    def test_marker_alone_places_nothing(self):
+        """A line that is only the marker is a no-op, not an item and not a crash."""
+        with_marker = self._mw_seeds({"LC|*": [5]}, seed="lcnoop")
+        without = self._mw_seeds({}, seed="lcnoop")
+        for p in with_marker:
+            self.assertEqual(len(with_marker[p]), len(without[p]),
+                             "the marker changed player %s's seed length" % p)
+
+    def test_local_copies_stay_home(self):
+        """Six multipickups per world, all marked local. A multipickup is nothing the base
+        pool produces, so every one found is one of these: they must all sit in the world
+        that owns them, and none may cross into a manifest."""
+        seeds = self._mw_seeds({"MU|EC/1/HC/1/LC/*": [6]}, seed="lchome")
+        check_mw_invariants(self, seeds)
+        for p, lines in seeds.items():
+            placements, manifest = parse_seed(lines)
+            # loc 2 is spawn, which builds a multipickup of its own
+            own = [1 for loc, (code, _id, _z) in placements.items() if code == "MU" and loc != 2]
+            self.assertEqual(len(own), 6,
+                             "player %s holds %s of its 6 local multipickups" % (p, len(own)))
+            crossed = [1 for (_f, code, _id, _z) in manifest.values() if code == "MU"]
+            self.assertEqual(crossed, [], "player %s had a local multipickup cross worlds" % p)
+
+    def test_ignored_outside_multiworld(self):
+        """Solo seeds strip the marker and place the line's item as if it were plain."""
+        outdir = tempfile.mkdtemp(prefix="seedgentest_local_solo_")
+        self.addCleanup(shutil.rmtree, outdir, ignore_errors=True)
+        from seedbuilder.generator import SeedGenerator
+        orig = SeedGenerator.setSeedAndPlaceItems
+
+        def patched(sg, params, **kwargs):
+            params.item_pool = dict(params.item_pool)
+            params.item_pool.update({"MU|EC/1/LC/*": [4]})
+            return orig(sg, params, **kwargs)
+
+        old_argv = sys.argv
+        sys.argv = ["cli_gen", "--output-dir", outdir, "--preset", "standard",
+                    "--open-world", "--force-trees", "--balanced", "--seed", "lcsolo"]
+        SeedGenerator.setSeedAndPlaceItems = patched
+        try:
+            CLISeedParams().from_cli()
+        finally:
+            SeedGenerator.setSeedAndPlaceItems = orig
+            sys.argv = old_argv
+        with open(os.path.join(outdir, "randomizer0.bfr")) as f:
+            lines = f.read().splitlines()
+        bad = [l for l in lines[1:] if not l.startswith("//") and l.split("|")[1] == "LC"]
+        self.assertEqual(bad, [], "solo seed carries an LC pickup: %s" % bad[:3])
+        ecs = [l for l in lines[1:] if not l.startswith("//") and l.split("|")[1] == "EC"]
+        self.assertGreaterEqual(len(ecs), 4, "solo seed lost the marked line's items")

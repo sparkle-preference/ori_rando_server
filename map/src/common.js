@@ -153,6 +153,8 @@ function pickup_name(code, id) {
                 return "Warp (forced) to " + id.slice(0, id.length-6) + (code === "WS" ? " and save" : "")
             else
                 return "Warp (optional) to " + id + (code === "WS" ? " and save" : "")
+        case "LC":
+            return "Local"
         case "NO":
             return "Nothing"
         case "BS":
@@ -503,6 +505,9 @@ class PickupSelect extends Component {
         if(props.allowGroup) {
             misc.options.splice(0, 0, {label: "one of...", value: "RG", desc: "Seedgen rolls one of the listed items at random."})
         }
+        if(props.allowLocal) {
+            misc.options.splice(0, 0, {label: "Local", value: "LC|*", desc: "Multiworld: keep the rest of this line in its own world. Ignored anywhere else."})
+        }
         options.push(misc)
     }
 
@@ -595,7 +600,7 @@ class PickupSelect extends Component {
         values.push(val);
     });
     if (values.length === 0)
-      pickup = "NO|1"
+      pickup = repeat ? "RP|" : (group ? "RG|" : "NO|1")
     else if (!repeat && !group && values.length === 1)
       pickup = values[0]
     else {

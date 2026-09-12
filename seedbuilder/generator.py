@@ -5,7 +5,7 @@ import xml.etree.ElementTree as XML
 from collections import OrderedDict, defaultdict, Counter
 from enums import KeyMode, PathDifficulty, ShareType, Variation, MultiplayerGameType
 from pickups import Pickup
-from util import spawn_defaults, decompose_multi_value
+from util import compose_multi_value, spawn_defaults, decompose_multi_value
 from hashlib import sha256
 from seedbuilder.oriparse import get_areas, get_path_tags_from_pathsets
 from seedbuilder.relics import relics
@@ -238,6 +238,26 @@ def untag(name):
 
 def base_of(name):
     return name.rpartition("|")[0]
+
+def strip_local(item):
+    """(item without its Local marker, whether it carried one). LC only ever rides inside
+    a multipickup to say the line stays in its owner's world; it is resolved here and
+    never reaches a seed. A line with nothing else on it places nothing, and neither does
+    a bare repeatable or one-of, so those come back empty too."""
+    if item in ("LC*", "RP", "RG", "MU"):
+        return "", item == "LC*"
+    if item[0:2] not in ("MU", "RP"):
+        return item, False
+    members = decompose_multi_value(item[2:])
+    kept = [pair for pair in members if pair[0] != "LC"]
+    if len(kept) == len(members):
+        return item, False
+    if not kept:
+        return "", True
+    # one survivor is just that item; a multipickup of one is a lie the seed need not tell
+    if len(kept) == 1 and item[0:2] == "MU":
+        return kept[0][0] + kept[0][1], True
+    return item[0:2] + compose_multi_value(kept), True
 
 def display_name(name, solo):
     """Human form of a maybe-tagged name: base when solo, "P2's base" when
@@ -540,6 +560,7 @@ class SeedGenerator:
         require reading from params goes here."""
         # seed_count is set in setSeedAndPlaceItems; __init__ runs before it
         self.seed_count = getattr(self, "seed_count", 1)
+        self.localPool = OrderedDict()
         self.limitKeysPool = [-3160308, -560160, 2919744, 719620, 7839588, 5320328, 8599904, -4600020, -6959592, -11880100, 5480952, 4999752, -7320236, -7200024, -5599400]
 
         self.costs = OrderedDict([(tag(k, p), v) for p in self.multi_ps() for k, v in [
@@ -635,8 +656,12 @@ class SeedGenerator:
                 ("TPGrotto", 1), ("TPSorrow", 1), ("TPGrove", 1), ("TPSwamp", 1),
                 ("TPValley", 1), ("TPGinso", 1), ("TPHoru", 1),
             ]]))
+        is_mw = self.params.sync.enabled and self.params.sync.mode == MultiplayerGameType.MULTIWORLD
         for raw in sorted({k for pool in pools.values() if pool for k in pool}):
             item = raw.replace("|", "")
+            item, local = strip_local(item)
+            if not item:
+                continue
             if item in ["HC1", "AC1", "EC1", "KS1", "MS1"]:
                 item = item[0:2]
             fixed_item = self.codeToName.get(item, item)
@@ -653,6 +678,10 @@ class SeedGenerator:
                     continue
                 i = tag(fixed_item, p)
                 self.itemPool[i] = self.itemPool.get(i, 0) + count
+                # locality belongs to the line that asked for it, not to the item: another
+                # line granting the same thing is still free to travel
+                if local and is_mw:
+                    self.localPool[i] = self.localPool.get(i, 0) + count
 
         for p in self.multi_ps():
             if self.var(Variation.DOUBLE_SKILL, p):
@@ -1303,6 +1332,40 @@ class SeedGenerator:
                          if self.locs_by_player[p] < self.ANTI_BK_LOCAL_CHECKS
                          and slots[p] <= claims[p])
 
+    def local_blocked(self, itemsToAssign, locationsToAssign):
+        """Keys whose every remaining copy is owed to its owner's world, where that world
+        has no slot left this round: drawing one now could only strand it elsewhere."""
+        if not self.localPool:
+            return frozenset()
+        claims = Counter(untag(it)[1] for it in itemsToAssign if it and self.localPool.get(it))
+        slots = Counter(l.player for l in locationsToAssign)
+        return frozenset(key for key, owed in self.localPool.items()
+                         if owed and owed >= self.itemPool.get(key, 0)
+                         and slots[untag(key)[1]] <= claims[untag(key)[1]])
+
+    def place_local(self, itemsToAssign, locationsToAssign):
+        """Send this round's local draws home. The draw refuses to part with the last of
+        them where no home slot is left, so there is always one to swap into."""
+        if not self.localPool:
+            return
+        n = min(len(itemsToAssign), len(locationsToAssign))
+        for i in range(n):
+            item = itemsToAssign[i]
+            if not item or not self.localPool.get(item):
+                continue
+            home = untag(item)[1]
+            if locationsToAssign[i].player == home:
+                self.localPool[item] -= 1
+                continue
+            for j in range(n):
+                if j == i or locationsToAssign[j].player != home:
+                    continue
+                if itemsToAssign[j] and self.localPool.get(itemsToAssign[j]):
+                    continue  # that slot is already owed to this world
+                itemsToAssign[i], itemsToAssign[j] = itemsToAssign[j], itemsToAssign[i]
+                self.localPool[item] -= 1
+                break
+
     def ap_ks_cap(self, p, claim_items, locationsToAssign):
         """AP mode: slots world p can still offer its pinned keystones this
         round -- its location count minus home slots owed to opening
@@ -1433,7 +1496,7 @@ class SeedGenerator:
         self.balanceListLeftovers.append(item)
         return location
 
-    def assign_random(self, locs, recurseCount=0, ks_blocked=frozenset(), opening_hostless=frozenset()):
+    def assign_random(self, locs, recurseCount=0, ks_blocked=frozenset(), opening_hostless=frozenset(), local_blocked=frozenset()):
         value = self.random.random()
         position = 0.0
         # anti_bk_bias: progression draws are weighted toward the worlds with
@@ -1446,7 +1509,7 @@ class SeedGenerator:
         # this round -- their KS draws are suppressed
         bias = self.anti_bk_val()
         prog_weight = lambda p: self.anti_bk_boost(p) * ((1.0 - bias) if p in opening_hostless else 1.0)
-        pool_weight = lambda key: 0.0 if (ks_blocked and base_of(key) == "KS" and untag(key)[1] in ks_blocked) \
+        pool_weight = lambda key: 0.0 if (key in local_blocked or (ks_blocked and base_of(key) == "KS" and untag(key)[1] in ks_blocked)) \
             else self.itemPool[key] * (prog_weight(untag(key)[1]) if self.is_progression(key) and base_of(key) not in self.shared_pool_bases else 1.0)
         denom = float(sum(pool_weight(key) for key in self.itemPool.keys()))
         if denom == 0.0:
@@ -2369,7 +2432,8 @@ class SeedGenerator:
                                 if sum(1 for it in itemsToAssign if it == tag("KS", p)) >=
                                 self.ap_ks_cap(p, itemsToAssign + self.assignQueue, locationsToAssign))
                         itemsToAssign.append(self.assign_random(locs, ks_blocked=blocked,
-                                                                opening_hostless=self.anti_bk_hostless(itemsToAssign, locationsToAssign)))
+                                                                opening_hostless=self.anti_bk_hostless(itemsToAssign, locationsToAssign),
+                                                                local_blocked=self.local_blocked(itemsToAssign, locationsToAssign)))
 
             # force assign things if using --prefer-path-difficulty
             for item in list(itemsToAssign):
@@ -2387,6 +2451,7 @@ class SeedGenerator:
                     return
                 return self.placeItems(depth + 1, worried)
             self.anti_bk_localize(itemsToAssign, locationsToAssign)
+            self.place_local(itemsToAssign, locationsToAssign)
             for i in range(0, len(locationsToAssign)):
                 self.assign_to_location(itemsToAssign[i], locationsToAssign[i])
 
