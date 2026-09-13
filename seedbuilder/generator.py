@@ -240,13 +240,13 @@ def base_of(name):
     return name.rpartition("|")[0]
 
 def strip_local(item):
-    """(item without its Local marker, whether it carried one). LC only ever rides inside
-    a multipickup to say the line stays in its owner's world; it is resolved here and
-    never reaches a seed. A line with nothing else on it places nothing, and neither does
-    a bare repeatable or one-of, so those come back empty too."""
+    """(item without its Local marker, whether it carried one). LC rides inside a
+    multipickup or one-of to say the line stays in its owner's world; it is resolved here
+    and never reaches a seed. A line with nothing else on it places nothing, and neither
+    does a bare repeatable or one-of, so those come back empty too."""
     if item in ("LC*", "RP", "RG", "MU"):
         return "", item == "LC*"
-    if item[0:2] not in ("MU", "RP"):
+    if item[0:2] not in ("MU", "RP", "RG"):
         return item, False
     members = decompose_multi_value(item[2:])
     kept = [pair for pair in members if pair[0] != "LC"]
@@ -675,6 +675,8 @@ class SeedGenerator:
                     for member in self.pick_group_members(item, count):
                         m = tag(member, p)
                         self.itemPool[m] = self.itemPool.get(m, 0) + 1
+                        if local and is_mw:
+                            self.localPool[m] = self.localPool.get(m, 0) + 1
                     continue
                 i = tag(fixed_item, p)
                 self.itemPool[i] = self.itemPool.get(i, 0) + count

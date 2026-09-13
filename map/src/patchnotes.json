@@ -10,56 +10,119 @@
     "Plando"
   ],
   "pending": [
-    {
-      "text": "Added code to reduce the likelihood of Grenade/Stomp/dungeon-access-locked cards once a couple are already present.",
-      "category": "Bingo",
-      "type": "feature",
-      "importance": "minor"
-    },
-    {
-      "text": "Added goal: drop the spidersack.",
-      "category": "Bingo",
-      "type": "feature",
-      "importance": "minor"
-    },
-    {
-      "text": "Multiworld with shared world events now places one set of shards (and warmth fragments) for the whole game instead of one per world.",
-      "category": "Multiplayer",
-      "type": "fix",
-      "importance": "major"
-    },
-    {
-      "text": "Shared shards no longer vanish when the group finds more of them than one player can hold.",
-      "category": "Multiplayer",
-      "type": "fix",
-      "importance": "major"
-    },
-    {
-      "text": "Fixed ghosts not properly getting sent out from the host to the other players in 3+ player games.",
-      "category": "Multiplayer",
-      "type": "fix",
-      "importance": "major"
-    },
-    {
-      "text": "Fixed a rare netcode-related crash that could happen when a user was rapidly disconnecting and reconnecting to the server via fallback netcode.",
-      "category": "Game",
-      "type": "fix",
-      "importance": "minor"
-    },
-    {
-      "text": "Other players' soul links are fainter and wear their player's colour, so yours stands out.",
-      "category": "Multiplayer",
-      "type": "feature",
-      "importance": "minor"
-    },
-    {
-      "text": "New flag item (RB|1110): the soul flame button at an ally's soul link saves you there without moving your own link, and allies' links appear on your map.",
-      "category": "Multiplayer",
-      "type": "feature",
-      "importance": "minor"
-    }
   ],
   "releases": [
+      {
+        "version": "4.9.8",
+        "date": "2026-09-13",
+        "announce": "dev",
+        "changes": [
+        {
+          "text": "Ghosts fade in and out rather than popping: when one arrives, goes quiet, teleports, or leaves the area.",
+          "category": "Multiplayer",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "Huge swath of practice mode changes and improvements.",
+          "category": "Game",
+          "type": "feature",
+          "importance": "major",
+          "sub": [
+              "You can warp Ori in the editor with RMB to load distant scenes.",
+              "Rewrote the help text in the web practice editor.",
+              "Added briefings, a way to explain the goals of a segment and provide other info to the runner.",
+              "Added the ability to create new segments from the segment select menu.",
+              "Added the ability to change the save file a practice segment is based on.",
+              "Added the ability to delete practice segments from the segment select menu.",
+              "Smoothed over several awkward UX flows when using practice mode.",
+              "Fixed a few practice-related softlocks."
+          ]
+        },
+        {
+          "text": "The credits no longer mute the game's sound effects while they play.",
+          "category": "Game",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Added code to reduce the likelihood of Grenade/Stomp/dungeon-access-locked cards once a couple are already present.",
+          "category": "Bingo",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "Added square: drop the spidersack.",
+          "category": "Bingo",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "We now have a new icon drawn by Smashy!",
+          "category": "Website",
+          "type": "feature",
+          "importance": "major",
+          "sub": ["Visual design inspired by Cereberon."]
+        },
+        {
+          "text": "Added LC|* for the item pool editor, which is a pseudo-item used for locking things into associated players' item pools.",
+          "category": "Website",
+          "type": "feature",
+          "importance": "minor",
+          "sub": ["Yes this is basically just for Waldo."]
+        },
+        {
+          "text": "Removed square: find dungeon key(s).",
+          "category": "Bingo",
+          "type": "feature",
+          "importance": "minor",
+          "sub": ["The hint text \"If you aren't playing with Clues, consider playing Clues!\" should have been a hint that this was a bad card."]
+        },
+        {
+          "text": "Multiworld with shared world events now places one set of shards (and warmth fragments) for the whole game instead of one per world.",
+          "category": "Multiplayer",
+          "type": "fix",
+          "importance": "major"
+        },
+        {
+          "text": "Shared shards no longer vanish when the group finds more of them than one player can hold.",
+          "category": "Multiplayer",
+          "type": "fix",
+          "importance": "major"
+        },
+        {
+          "text": "Fixed ghosts not properly getting sent out from the host to the other players in 3+ player games.",
+          "category": "Multiplayer",
+          "type": "fix",
+          "importance": "major"
+        },
+        {
+          "text": "Fixed a rare netcode-related crash that could happen when a user was rapidly disconnecting and reconnecting to the server.",
+          "category": "Game",
+          "type": "fix",
+          "importance": "minor"
+        },
+        {
+          "text": "Other players' soul links are fainter and tinted the relevant colors.",
+          "category": "Multiplayer",
+          "type": "feature",
+          "importance": "minor"
+        },
+        {
+          "text": "Charged Rainbow Dashes now sound like Charge Dash and not Rainbow Dash.",
+          "category": "Game",
+          "type": "fix",
+          "importance": "major"
+        },
+        {
+          "text": "New flag setting, RB|1110, enables sharing soul links with your friends.",
+          "category": "Multiplayer",
+          "type": "feature",
+          "importance": "minor"
+        }
+
+        ]
+      }, 
       {
         "version": "4.9.7",
         "date": "2026-09-11",

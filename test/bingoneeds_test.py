@@ -92,7 +92,7 @@ class TestVocabulary(unittest.TestCase):
 
 
 class TestPropagation(unittest.TestCase):
-    """Lapis's rules: and/single/or take the union, count only what it cannot avoid."""
+    """and/single/or take the union; count only what it cannot avoid."""
 
     def setUp(self):
         self.rand = random.Random(7)
@@ -115,6 +115,9 @@ class TestPropagation(unittest.TestCase):
         self.assertEqual(IntGoal("n", "N", [], fixed(10), caps={"Grenade": 9}).to_card(self.rand).needs, {"Grenade", "Blue"})
         # through a count too: the implied need rides along with the one that implies it
         group = GoalGroup("G", [BoolGoal("a", needs=["Grenade"]), BoolGoal("b")], [("count", fixed(2))], namef("Do", "thing"))
+        self.assertEqual(group.to_card(self.rand, banned={"methods": [], "goals": []}).needs, {"Grenade", "Blue"})
+        # and through an and/or, which reads the subgoals' own tags
+        group = GoalGroup("G", [BoolGoal("a", needs=["Grenade"]), BoolGoal("b")], [("and", fixed(2))], namef("Do", "thing"))
         self.assertEqual(group.to_card(self.rand, banned={"methods": [], "goals": []}).needs, {"Grenade", "Blue"})
 
     def test_and_is_the_union(self):
@@ -203,7 +206,7 @@ class TestBudget(unittest.TestCase):
             self.assertTrue(any(hit[need] == most for need, most in budget.items()), (difficulty, hit))
 
     def test_blue_is_never_capped(self):
-        # the grenade cap already does most of that work (Lapis)
+        # the grenade cap already does most of that work
         for budget in NEEDS_BUDGET.values():
             self.assertNotIn("Blue", budget)
 

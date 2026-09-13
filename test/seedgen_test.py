@@ -3436,13 +3436,15 @@ class LocalPseudoPickupTestCase(unittest.TestCase):
             ("MUSK/0/LC/*", ("SK0", True)),                     # one survivor stops being a multi
             ("MUSK/0/HC/1/LC/*", ("MUSK/0/HC/1", True)),        # two stay one
             ("RPEX/100/LC/*", ("RPEX/100", True)),              # the repeatable wrapper survives
+            ("RGEC/1/LC/*", ("RGEC/1", True)),                  # so does a one-of, even of one
+            ("RGEC/1/HC/1/LC/*", ("RGEC/1/HC/1", True)),
             ("MUSK/0/HC/1", ("MUSK/0/HC/1", False)),            # untouched without the marker
             ("EX15", ("EX15", False)),
         ]:
             self.assertEqual(strip_local(raw), want, raw)
 
     def test_marker_never_reaches_a_seed(self):
-        seeds = self._mw_seeds({"MU|EC/1/LC/*": [4], "LC|*": [3]})
+        seeds = self._mw_seeds({"MU|EC/1/LC/*": [4], "LC|*": [3], "RG|EC/1/HC/1/LC/*": [3]})
         check_mw_invariants(self, seeds)
         for p, lines in seeds.items():
             leaked = [l for l in lines if "LC" in l.split("|", 1)[-1].upper().replace("|", "/").split("/")[0:1]]
@@ -3506,7 +3508,7 @@ class MultiworldSharedEventsTests(unittest.TestCase):
     """Shards and warmth fragments are world events. With events shared, a
     multiworld places each of them once for the whole game like every other
     shared category, instead of a full set per world that the shared pool key
-    never drains (which filled game 133's seeds with 170 shards)."""
+    never drains."""
 
     PLAYERS = 3
 

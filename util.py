@@ -25,10 +25,10 @@ def utcnow():
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
-VER = [4, 9, 7]
+VER = [4, 9, 8]
 # while 4.9.x is the beta, all three move together: an older beta build is not supported
-MIN_VER = [4, 9, 7]
-BETA_VER = [4, 9, 7]
+MIN_VER = [4, 9, 8]
+BETA_VER = [4, 9, 8]
 VERSION = "%s.%s.%s" % tuple(VER)
 
 # 4.9.x is the 5.0 beta: numeric on the wire, "5.0 beta vN" on the page. Each

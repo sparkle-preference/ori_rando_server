@@ -44,7 +44,7 @@ IMPLIES = {"Grenade": ("Blue",)}
 def with_implied(needs):
     return set(needs) | {implied for need in needs for implied in IMPLIES.get(need, ())}
 
-# most squares per board that may hinge on one need; an unlisted need is unlimited, and Blue is
+# most squares per board that may hinge on one need; an unlisted need (Blue) is unlimited
 NEEDS_BUDGET = {
     "easy":   {need: 2 for need in NEEDS if need != "Blue"},
     "normal": {need: 2 for need in NEEDS if need != "Blue"},
@@ -519,7 +519,7 @@ class BingoGenerator(object):
                 disp_name = "Break walls",
                 help_lines = ["A wall is a vertical barrier that can be broken with a skill."],
                 range_func = r((4, 10), (8, 20), (16, 28)),
-                # 14 of the 30 walls the client counts are blue barriers (entity census, prior_notes)
+                # 16 of the 30 walls the client counts break without blue breakage
                 caps = {"Blue": 16}
             ),
             IntGoal(

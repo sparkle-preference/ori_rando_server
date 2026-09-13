@@ -1409,8 +1409,7 @@ class TestVersionTracking(NdbTestCase):
 
 
 class TestUpgradeStacks(NdbTestCase):
-    """A stacking upgrade at its cap is left alone; it used to snap back to one,
-    which the client's tick sync then obeyed by deleting shards."""
+    """A stacking upgrade at its cap is left alone; a singleton stays one."""
 
     def test_a_capped_stack_stays_capped(self):
         p = Player(id="95.1", bonuses={"17": 3})
