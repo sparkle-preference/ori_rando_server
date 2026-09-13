@@ -822,18 +822,6 @@ class BingoGenerator(object):
                     max_repeats = 2
                     ),
                 GoalGroup(
-                    name = "GetEvent",
-                    name_func = namef("Find", "key"),
-                    help_lines = ["If you can't find a key and your keymode is clues, consider rushing skill trees",
-                                  "If you can't find a key and your keymode is not clues, consider making your next (and all future) bingo seeds with keymode clues."],
-                    goals = [BoolGoal(name) for name in ["Water Vein", "Gumon Seal", "Sunstone"]],
-                    methods = [
-                        ("or",    r((1, 2), (1, 2), (1, 1))), 
-                        ("and",   r((1, 1), (1, 2), (2, 3))), 
-                    ],
-                    max_repeats = 1
-                ),
-                GoalGroup(
                     name = "TouchMapstone",
                     name_func = namef("Touch", "Map altar"),
                     help_lines = ["To touch a map altar, have Sein enter the slot"],
