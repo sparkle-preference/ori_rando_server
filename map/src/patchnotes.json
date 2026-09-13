@@ -11,13 +11,13 @@
   ],
   "pending": [
     {
-      "text": "Boards cap the squares that need Grenade, Stomp or one dungeon: two each on easy and normal, four on hard.",
+      "text": "Added code to reduce the likelihood of Grenade/Stomp/dungeon-access-locked cards once a couple are already present.",
       "category": "Bingo",
       "type": "feature",
-      "importance": "major"
+      "importance": "minor"
     },
     {
-      "text": "New goal: drop the spidersack in Grove.",
+      "text": "Added goal: drop the spidersack.",
       "category": "Bingo",
       "type": "feature",
       "importance": "minor"
@@ -33,6 +33,30 @@
       "category": "Multiplayer",
       "type": "fix",
       "importance": "major"
+    },
+    {
+      "text": "Fixed ghosts not properly getting sent out from the host to the other players in 3+ player games.",
+      "category": "Multiplayer",
+      "type": "fix",
+      "importance": "major"
+    },
+    {
+      "text": "Fixed a rare netcode-related crash that could happen when a user was rapidly disconnecting and reconnecting to the server via fallback netcode.",
+      "category": "Game",
+      "type": "fix",
+      "importance": "minor"
+    },
+    {
+      "text": "Other players' soul links are fainter and wear their player's colour, so yours stands out.",
+      "category": "Multiplayer",
+      "type": "feature",
+      "importance": "minor"
+    },
+    {
+      "text": "New flag item (RB|1110): the soul flame button at an ally's soul link saves you there without moving your own link, and allies' links appear on your map.",
+      "category": "Multiplayer",
+      "type": "feature",
+      "importance": "minor"
     }
   ],
   "releases": [
