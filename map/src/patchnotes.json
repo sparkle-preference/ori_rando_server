@@ -18,12 +18,6 @@
         "announce": "dev",
         "changes": [
         {
-          "text": "Ghosts fade in and out rather than popping: when one arrives, goes quiet, teleports, or leaves the area.",
-          "category": "Multiplayer",
-          "type": "feature",
-          "importance": "minor"
-        },
-        {
           "text": "Huge swath of practice mode changes and improvements.",
           "category": "Game",
           "type": "feature",
@@ -79,7 +73,7 @@
           "sub": ["The hint text \"If you aren't playing with Clues, consider playing Clues!\" should have been a hint that this was a bad card."]
         },
         {
-          "text": "Multiworld with shared world events now places one set of shards (and warmth fragments) for the whole game instead of one per world.",
+          "text": "Multiworlds with shared world events now place one set of shards (and warmth fragments) for the whole game instead of one per world.",
           "category": "Multiplayer",
           "type": "fix",
           "importance": "major"
