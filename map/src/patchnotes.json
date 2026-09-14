@@ -10,6 +10,12 @@
     "Plando"
   ],
   "pending": [
+    {
+      "text": "The pause menu shows which skills are Enhanced: a rainbow tint on the icon, \"Enhanced\" before the name, and what the enhancement does in the skill's pop-up.",
+      "category": "Game",
+      "type": "feature",
+      "importance": "minor"
+    }
   ],
   "releases": [
       {

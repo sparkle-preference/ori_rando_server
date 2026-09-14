@@ -248,8 +248,8 @@ class CLISeedParams(object):
                 "HC|1": [12],
                 "EC|1": [15],
                 "AC|1": [33],
-                "RB|0": [3],
-                "RB|1": [3],
+                "RP|RB/0": [3],
+                "RP|RB/1": [3],
                 "RB|6": [5],
                 "RB|9": [1],
                 "RB|10": [1],
@@ -264,6 +264,7 @@ class CLISeedParams(object):
                 "RG|RB/12/RB/33/RB/37": [3],
                 "RB|36": [1],
                 "BS|*": [4],
+                "ES|*": [0, 2],
                 "WP|*": [4, 8],
             }
         elif Variation.BONUS_LITE in self.variations:
@@ -328,9 +329,6 @@ class CLISeedParams(object):
                 "TP|Grotto": [1],
                 "TP|Valley": [1],
                 "TP|Sorrow": [1],
-                "TP|Ginso": [1],
-                "TP|Horu": [1],
-                "TP|Forlorn": [1],
                 "EC|1": [4],
             }
         else:

@@ -161,6 +161,12 @@ function pickup_name(code, id) {
             if(id === "*")
                 return "Random bonus skill"
             return code + "|" + id;
+        case "ES":
+            if(id === "*")
+                return "Random Enhanced skill"
+            if(id === "**")
+                return "Random Enhanced skill (any)"
+            return code + "|" + id;
         case "TW":
           const subparts = id.split(",");
           return `${subparts[0]} (${subparts[1]}, ${subparts[2]})`;
@@ -504,6 +510,8 @@ class PickupSelect extends Component {
         }
         if(props.allowPsuedo) {
             misc.options.splice(0, 0, {label: "Random Bonus Skill", value: "BS|*", desc: "A random bonus skill", max: 6})
+            misc.options.splice(1, 0, {label: "Random Enhanced Skill", value: "ES|*", desc: "A random Enhanced skill, weighted toward the interesting ones", max: 10})
+            misc.options.splice(2, 0, {label: "Random Enhanced Skill (any)", value: "ES|**", desc: "A random Enhanced skill, any of the twelve equally likely", max: 12})
         }
         if(props.allowGroup) {
             misc.options.splice(0, 0, {label: "one of...", value: "RG", desc: "Seedgen rolls one of the listed items at random."})

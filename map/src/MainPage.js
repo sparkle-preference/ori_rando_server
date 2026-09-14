@@ -250,6 +250,7 @@ const getPool = (pool_name) => { switch(pool_name) {
             {item: "RG|RB/12/RB/33/RB/37", count: 3},
             {item: "RB|36", count: 1},
             {item: "BS|*", count: 4, maximum: 7},
+            {item: "ES|*", count: 0, upTo: 2, maximum: 10},
             {item: "WP|*", count: 4, upTo: 8, maximum: 14},
         ]
     case "Bonus Lite": 

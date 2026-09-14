@@ -493,6 +493,24 @@ class SeedGenerator:
         "Upper Sorrow Keystone": "RB311",
     })
 
+    # ES|* and ES|**: a rolled Enhanced skill rides on that skill's own placement rather
+    # than taking a slot of its own. Keyed by the pool item that carries it.
+    enhancedOutput = OrderedDict([
+        ("SpiritFlame", "RB410"), ("WallJump", "RB411"), ("ChargeFlame", "RB412"),
+        ("DoubleJump", "RB413"), ("Bash", "RB414"), ("Stomp", "RB415"),
+        ("Glide", "RB416"), ("Climb", "RB417"), ("ChargeJump", "RB418"),
+        ("Dash", "RB419"), ("Grenade", "RB420"), ("Water", "RB422"),
+    ])
+
+    # Weighted by how far an Enhanced skill bends the run. Spirit Flame is left out: ES|*
+    # hands it out through its own 20% roll instead. Wall Jump is left out because it is the
+    # least interesting of the twelve. Flight's weight is then split four ways, so any one of
+    # those is an eighth of a full share; Dash sits between, trivializing enough to want
+    # holding back but nothing like the flight four.
+    enhancedFlight = ["Stomp", "Glide", "DoubleJump", "Bash"]
+    enhancedWeighted = [("ChargeJump", 1.0), ("Water", 1.0), ("Climb", 1.0), ("ChargeFlame", 1.0),
+                        ("Grenade", 1.0), ("Dash", 0.4), ("FLIGHT", 0.5)]
+
     def toOutput(self, item, asMultiPart=False):
         item = base_of(item) if "|" in item else item
         if asMultiPart:
@@ -603,6 +621,7 @@ class SeedGenerator:
         self.balanceList = []
         self.balanceListLeftovers = []
         self.buried = []           # (depth, tagged item) not yet in the pool
+        self.enhancedSpawn = defaultdict(list)  # rolled ES|* Enhanced skills, per world
         self.seedDifficulty = 0
         self.seeds_text = defaultdict(str)
         self.event_lists = defaultdict(list)
@@ -704,6 +723,8 @@ class SeedGenerator:
                         bonus_skill = self.random.choice(["RB104", "RB105"])
                     self.itemPool[tag(bonus_skill, p)] = 1
                 del self.itemPool[tag("BS*", p)]
+
+            self.roll_enhanced(p)
 
             if not self.var(Variation.STRICT_MAPSTONES, p):
                 self.costs[tag("MS", p)] = 11
@@ -946,8 +967,8 @@ class SeedGenerator:
             things = self.spawn_things[p]
             seed_things, book_things = things[:], things[:]
             cut = len(things) - 1 if things and things[-1].startswith("WS/") else len(things)
-            seed_things[cut:cut] = shared_spawn
-            book_things[cut:cut] = self.spawn_shared_things[p]
+            seed_things[cut:cut] = shared_spawn + self.enhancedSpawn[p]
+            book_things[cut:cut] = self.spawn_shared_things[p] + self.enhancedSpawn[p]
             if len(seed_things) > 0:
                 if (p, 2) in self.forcedAssignments:
                     current_assignment = self.forcedAssignments[(p, 2)]
@@ -1710,6 +1731,54 @@ class SeedGenerator:
             self.expSlots[player] -= 1
             item = "EX%s" % value
         return tag(item, player)
+
+    def roll_enhanced(self, p):
+        """Turn this world's ES|* and ES|** into a wanted-list of Enhanced skills, each
+        waiting for its own skill to be placed. The slots they came from become EX."""
+        weighted = self.itemPool.pop(tag("ES*", p), 0)
+        flat = self.itemPool.pop(tag("ES**", p), 0)
+        if not weighted and not flat:
+            return
+
+        self.itemPool[tag("EX*", p)] = self.itemPool.get(tag("EX*", p), 0) + weighted + flat
+        taken = []
+        for _ in range(weighted):
+            choices = [(c, w) for c, w in self.enhancedWeighted
+                       if c not in taken and (c != "FLIGHT" or [f for f in self.enhancedFlight if f not in taken])]
+            picked = self.weighted_choice(choices)
+            if picked == "FLIGHT":
+                picked = self.random.choice([f for f in self.enhancedFlight if f not in taken])
+            if picked:
+                taken.append(picked)
+
+        for _ in range(flat):
+            choices = [(c, 1.0) for c in self.enhancedOutput if c not in taken]
+            picked = self.weighted_choice(choices)
+            if picked:
+                taken.append(picked)
+
+        # every ES|* adds a fifth to Sein's chance, and Sein comes on top of the rest
+        if weighted and "SpiritFlame" not in taken and self.random.random() < min(1.0, 0.2 * weighted):
+            taken.append("SpiritFlame")
+
+        # Onto the spawn rather than onto the skill's own placement: a skill the seed never
+        # places (Spirit Flame in most presets, anything a trimmed pool leaves out) would
+        # otherwise drop its roll. Every effect is gated on holding the base skill, so
+        # arriving early does nothing until the skill turns up.
+        for carrier in taken:
+            rb = self.enhancedOutput[carrier]
+            self.enhancedSpawn[p].append("%s/%s" % (rb[:2], rb[2:]))
+
+    def weighted_choice(self, choices):
+        total = sum(w for _, w in choices)
+        if total <= 0:
+            return None
+        at = self.random.random() * total
+        for choice, weight in choices:
+            at -= weight
+            if at < 0:
+                return choice
+        return choices[-1][0]
 
     def get_assignment(self, loc, player, item, zone):
         """item is tagged with its owner; player is the world the location is

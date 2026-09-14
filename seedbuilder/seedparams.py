@@ -539,15 +539,17 @@ class SeedGenParams(ndb.Model):
                 params.item_pool = { 
                   "TP|Grove": [1], "TP|Swamp": [1], "TP|Grotto": [1], "TP|Valley": [1], "TP|Sorrow": [1], "TP|Ginso": [1],
                   "TP|Horu": [1], "TP|Forlorn": [1], "TP|Blackroot": [1], "HC|1": [12], "EC|1": [15], "AC|1": [33], "RP|RB/0": [3], "RP|RB/1": [3], 
-                  "RB|6": [5], "RB|9": [1], "RB|10": [1], "RB|11": [1], "RB|12": [3], "RB|37": [3], "RB|13": [3], "RB|15": [3],
-                  "RB|31": [1], "RB|32": [1], "RB|33": [3], "BS|*": [4], "WP|*": [4, 8],
+                  "RB|6": [5], "RB|9": [1], "RB|10": [1], "RB|11": [1], "RB|12": [2], "RB|37": [2], "RB|13": [3], "RB|15": [3],
+                  "RB|31": [1], "RB|32": [1], "RB|33": [2], "RG|RB/12/RB/33/RB/37": [3], "RB|36": [1],
+                  "BS|*": [4], "ES|*": [0, 2], "WP|*": [4, 8],
                 }
             elif params.pool_preset == "Bonus Lite":
                 params.item_pool = {
                   "TP|Grove": [1], "TP|Swamp": [1], "TP|Grotto": [1], "TP|Valley": [1], "TP|Sorrow": [1], "TP|Ginso": [1],
                   "TP|Horu": [1], "TP|Forlorn": [1], "TP|Blackroot": [1], "HC|1": [12], "EC|1": [15], "AC|1": [33], "RB|0": [3], "RB|1": [3],
-                  "RB|6": [5], "RB|9": [1], "RB|10": [1], "RB|11": [1], "RB|12": [3], "RB|37": [3], "RB|13": [3], "RB|15": [3],
-                   "RB|31": [1], "RB|32": [1], "RB|33": [3], "RB|36": [1], "WP|*": [4,8],                }
+                  "RB|6": [5], "RB|9": [1], "RB|10": [1], "RB|11": [1], "RB|12": [2], "RB|37": [2], "RB|13": [3], "RB|15": [3],
+                  "RB|31": [1], "RB|32": [1], "RB|33": [2], "RG|RB/12/RB/33/RB/37": [3], "RB|36": [1], "WP|*": [4,8],
+                }
             elif params.pool_preset == "Competitive":
                 params.item_pool = {
                   "TP|Grove": [1], "TP|Swamp": [1], "TP|Grotto": [1], "TP|Valley": [1], "TP|Sorrow": [1], "TP|Forlorn": [1],

@@ -31,6 +31,14 @@ bonuses["WP|*"] = {name: "Warp", desc: [
     (<span><i>Once collected, you can use a warp by opening your teleport menu and selecting it.</i></span>)
  ]}
 bonuses["BS|*"] = {name: "Random Bonus Skill", desc: [(<span>A random bonus skill. Check out the <a target="_blank" rel="noopener noreferrer"  href="/faq?g=bonus_pickups">bonus item glossary</a> for more info on these.</span>)]}
+bonuses["ES|*"] = {name: "Random Enhanced Skill", desc: [
+    "One of your skills starts out Enhanced, weighted toward the ones that change how a skill plays. Wall Jump is never picked.",
+    (<span><i>Each one also adds a 25% chance of Enhanced Sein on top, up to a certainty at four of them.</i></span>)
+]}
+bonuses["ES|**"] = {name: "Random Enhanced Skill (any)", desc: [
+    "One of your skills starts out Enhanced, any of the twelve equally likely.",
+    (<span><i>Unlike the weighted one, this can roll Wall Jump or Sein, and gives no extra chance of Sein.</i></span>)
+]}
 
 const getHelpContent = (category, option) => {
     let {lines, title, subtitle, extras} = getHelpHelper(category, option);
