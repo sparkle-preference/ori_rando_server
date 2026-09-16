@@ -8,7 +8,9 @@ no datastore, no sockets.
 
 Run from the repo root:  python -m unittest test.ws_adapter_test -v
 """
+import os
 import unittest
+from contextlib import contextmanager
 
 import google.auth.credentials
 from google.cloud import ndb
@@ -327,6 +329,37 @@ if __name__ == "__main__":
     unittest.main()
 
 
+class _FakeResponse(object):
+    """Enough of urlopen's return value for _ice_config."""
+
+    def __init__(self, body):
+        self.body = body
+
+    def read(self):
+        return self.body
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+@contextmanager
+def _relay_configured(urlopen):
+    """A configured relay whose fetches go to `urlopen` instead of the network."""
+    real = ws.urlopen
+    ws.urlopen = urlopen
+    os.environ["TURN_CREDENTIALS_URL"] = "https://relay.invalid/turn/credentials"
+    os.environ["TURN_CREDENTIALS_TOKEN"] = "token"
+    try:
+        yield
+    finally:
+        ws.urlopen = real
+        del os.environ["TURN_CREDENTIALS_URL"]
+        del os.environ["TURN_CREDENTIALS_TOKEN"]
+
+
 class GhostSignallingTests(unittest.TestCase):
     """The relay half: opting in, the roster, and passing one blob to one peer.
 
@@ -337,6 +370,8 @@ class GhostSignallingTests(unittest.TestCase):
     def setUp(self):
         ws._socks.clear()
         ws._ghosts.clear()
+        ws._ghost_relayed.clear()
+        ws._ice_cache.clear()
 
     tearDown = setUp
 
@@ -423,3 +458,107 @@ class GhostSignallingTests(unittest.TestCase):
         self._join(7, 1)
         self.assertEqual(ws.handle_frame(7, 1, "ghost:nonsense")[0], "err:ghost:malformed")
         self.assertEqual(ws.handle_frame(7, 1, "ghost:abc:BLOB")[0], "err:ghost:malformed")
+
+    def test_the_unreachable_peer_is_marked_not_the_reporter(self):
+        self._join(7, 1)
+        self._join(7, 2)
+        ws.handle_frame(7, 1, "ghostice:2")
+        self.assertIn((7, 2), ws._ghost_relayed)
+        self.assertNotIn((7, 1), ws._ghost_relayed)
+
+    def test_a_host_reporting_every_peer_keeps_hosting(self):
+        self._join(7, 1)
+        self._join(7, 2)
+        self._join(7, 3)
+        ws.handle_frame(7, 1, "ghostice:2")
+        ws.handle_frame(7, 1, "ghostice:3")
+        self.assertEqual(ws._ghost_roster(7)[0], 1)
+
+    def test_a_host_everyone_reports_stops_hosting(self):
+        self._join(7, 1)
+        self._join(7, 2)
+        self._join(7, 3)
+        ws.handle_frame(7, 2, "ghostice:1")
+        ws.handle_frame(7, 3, "ghostice:1")
+        self.assertEqual(ws._ghost_roster(7)[0], 2)
+
+    def test_the_lowest_id_still_hosts_when_everyone_is_relayed(self):
+        self._join(7, 1)
+        self._join(7, 2)
+        ws.handle_frame(7, 1, "ghostice:2")
+        ws.handle_frame(7, 2, "ghostice:1")
+        self.assertEqual(ws._ghost_roster(7)[0], 1)
+
+    def test_the_new_host_is_told(self):
+        successor = self._join(7, 2)
+        self._join(7, 1)
+        successor.sent = []
+        ws.handle_frame(7, 2, "ghostice:1")
+        self.assertIn("ghosts:2:1,2", successor.sent)
+
+    def test_marking_a_peer_who_is_not_here_does_nothing(self):
+        self._join(7, 1)
+        ws.handle_frame(7, 1, "ghostice:99")
+        self.assertNotIn((7, 99), ws._ghost_relayed)
+
+    def test_relay_config_needs_joining(self):
+        conn = FakeConn([])
+        ws._register((7, 1), conn)
+        self.assertEqual(ws.handle_frame(7, 1, "ghostice:2")[0], "err:ghostice:notjoined")
+
+    def test_malformed_relay_request_errs(self):
+        self._join(7, 1)
+        self.assertEqual(ws.handle_frame(7, 1, "ghostice:")[0], "err:ghostice:malformed")
+        self.assertEqual(ws.handle_frame(7, 1, "ghostice:abc")[0], "err:ghostice:malformed")
+
+    def test_no_configured_relay_errs(self):
+        self._join(7, 1)
+        self._join(7, 2)
+        self.assertEqual(ws.handle_frame(7, 1, "ghostice:2")[0], "err:ghostice:unavailable")
+
+    def test_leaving_clears_the_relay_mark(self):
+        self._join(7, 1)
+        self._join(7, 2)
+        ws.handle_frame(7, 1, "ghostice:2")
+        ws.handle_frame(7, 2, "ghosts:0")
+        self.assertNotIn((7, 2), ws._ghost_relayed)
+
+    def test_disconnect_clears_the_relay_mark(self):
+        self._join(7, 1)
+        conn = FakeConn([])
+        ws._register((7, 2), conn)
+        ws.handle_frame(7, 2, "ghosts:1")
+        ws.handle_frame(7, 1, "ghostice:2")
+        ws._unregister((7, 2), conn)
+        self.assertNotIn((7, 2), ws._ghost_relayed)
+
+    def test_relay_config_is_fetched_once_and_cached(self):
+        self._join(7, 1)
+        self._join(7, 2)
+        calls = []
+
+        def fake_urlopen(request, timeout=None):
+            calls.append(request.full_url)
+            return _FakeResponse(b'{"urls": ["turn:198.51.100.7:3478?transport=udp"]}')
+
+        with _relay_configured(fake_urlopen):
+            first, _ = ws.handle_frame(7, 1, "ghostice:2")
+            second, _ = ws.handle_frame(7, 2, "ghostice:1")
+
+        self.assertEqual(first, 'ice:{"urls": ["turn:198.51.100.7:3478?transport=udp"]}')
+        self.assertEqual(second, first)
+        self.assertEqual(len(calls), 1)
+        self.assertTrue(calls[0].endswith("?name=g7"))
+
+    def test_a_failed_fetch_errs_rather_than_raising(self):
+        self._join(7, 1)
+        self._join(7, 2)
+
+        def boom(request, timeout=None):
+            raise IOError("relay is down")
+
+        with _relay_configured(boom):
+            reply, close = ws.handle_frame(7, 1, "ghostice:2")
+
+        self.assertEqual(reply, "err:ghostice:unavailable")
+        self.assertFalse(close)

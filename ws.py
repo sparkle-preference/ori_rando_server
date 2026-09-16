@@ -41,10 +41,12 @@ Capacity model: one gunicorn thread per open socket (see Dockerfile
 """
 import hashlib
 import logging as log
+import os
 from queue import Queue, Empty
 from threading import Lock, Thread
 from time import monotonic
 from urllib.parse import parse_qs
+from urllib.request import Request, urlopen
 
 from google.cloud import ndb
 from simple_websocket import ConnectionClosed
@@ -80,6 +82,7 @@ def _unregister(gpid, conn):
             del _socks[gpid]
             dropped = gpid in _ghosts
             _ghosts.discard(gpid)
+            _ghost_relayed.discard(gpid)
     if dropped:
         # the roster shrank, and whoever is left may now be the host
         _broadcast_roster(gpid[0])
@@ -88,9 +91,10 @@ def _unregister(gpid, conn):
 # --- ghost multiplayer signalling ---------------------------------------
 #
 # Players who want to see each other exchange one WebRTC description each; the
-# server passes those two strings along and never looks inside them. That is
-# the whole of its part: no session state, nothing persisted, and a failure
-# here costs a cosmetic feature rather than anything in the game.
+# server passes those two strings along and never looks inside them. Nothing is
+# persisted, and a failure here costs a cosmetic feature rather than anything in
+# the game. It also hands out relay credentials, which it holds for no longer
+# than it takes to forward them.
 #
 # Participation lives beside _socks and dies with the connection, because it
 # describes a live socket rather than anything worth keeping. Same
@@ -99,14 +103,20 @@ def _unregister(gpid, conn):
 # "ghosts do not connect", not a broken game.
 _ghosts = set()
 
+# players nobody could reach directly, for as long as they hold this socket
+_ghost_relayed = set()
+
 
 def _ghost_roster(game_id):
     """(host player id, participating player ids) for one game, live sockets only."""
     with _socks_lock:
         pids = sorted(pid for (gid, pid) in _ghosts if gid == game_id)
-    # lowest id hosts: stable, computable by every client from the same list,
-    # and it needs no negotiation round
-    return (pids[0] if pids else 0), pids
+        direct = [pid for pid in pids if (game_id, pid) not in _ghost_relayed]
+    # lowest id hosts: stable, computable by every client from the same list, and
+    # it needs no negotiation round. A relayed host relays for the whole lobby, so
+    # it hosts only when nobody else can.
+    host = (direct or pids or [0])[0]
+    return host, pids
 
 
 def _send_to(gpid, frame):
@@ -132,6 +142,52 @@ def _broadcast_roster(game_id):
     frame = "ghosts:%s:%s" % (host, ",".join(str(p) for p in pids))
     for pid in pids:
         _send_to((game_id, pid), frame)
+
+
+# Relay credentials, minted elsewhere and never stored here. Cached because this
+# runs single-instance and cannot spend a round trip per frame.
+_ice_lock = Lock()
+_ice_cache = {}
+ICE_TTL = 600
+ICE_FAIL_TTL = 60
+ICE_TIMEOUT = 3
+
+
+def _ice_config(game_id):
+    """The relay's ICE entry as json, or None when there is no relay to offer."""
+    url = os.environ.get("TURN_CREDENTIALS_URL")
+    token = os.environ.get("TURN_CREDENTIALS_TOKEN")
+    if not url or not token:
+        return None
+
+    now = monotonic()
+    with _ice_lock:
+        entry = _ice_cache.get(game_id)
+        if entry is not None and entry[0] > now:
+            return entry[1]
+
+    # outside the lock: a duplicate fetch beats blocking every other game on it
+    payload = None
+    try:
+        # Cloudflare fronts the relay and 403s urllib's default agent.
+        request = Request(
+            "%s?name=g%s" % (url, game_id),
+            headers={
+                "Authorization": "Bearer %s" % token,
+                "User-Agent": "ori-rando-server",
+            },
+        )
+        with urlopen(request, timeout=ICE_TIMEOUT) as response:
+            payload = response.read().decode()
+    except Exception as err:
+        log.warning("ws: ice fetch failed for game %s: %s", game_id, err)
+
+    with _ice_lock:
+        for key, cached in list(_ice_cache.items()):
+            if cached[0] <= now:
+                del _ice_cache[key]
+        _ice_cache[game_id] = (now + (ICE_TTL if payload else ICE_FAIL_TTL), payload)
+    return payload
 
 
 # --- push: send a fresh tick frame the moment a player's tick cache is
@@ -277,10 +333,35 @@ def handle_frame(game_id, player_id, frame):
                 _ghosts.add(gpid)
             else:
                 _ghosts.discard(gpid)
+                _ghost_relayed.discard(gpid)
         if changed:
             _broadcast_roster(game_id)
         host, pids = _ghost_roster(game_id)
         return "ghosts:%s:%s" % (host, ",".join(str(p) for p in pids)), False
+    if kind == "ghostice":
+        # "ghostice:<peer>" -- relay credentials, and the report that <peer> could
+        # not be reached directly. The mark lands on <peer>, never on the asker: a
+        # host fails against every unreachable peer and must not demote itself.
+        try:
+            peer_pid = int(body.strip())
+        except ValueError:
+            return "err:ghostice:malformed", False
+        gpid = (game_id, player_id)
+        peer = (game_id, peer_pid)
+        with _socks_lock:
+            if gpid not in _ghosts:
+                return "err:ghostice:notjoined", False
+            marked = peer in _ghosts and peer not in _ghost_relayed
+            if marked:
+                _ghost_relayed.add(peer)
+        if marked:
+            log.info("ws: ghost relay for %s.%s, reported by %s", game_id, peer_pid, player_id)
+            # the host may have just become the wrong player
+            _broadcast_roster(game_id)
+        payload = _ice_config(game_id)
+        if payload is None:
+            return "err:ghostice:unavailable", False
+        return "ice:%s" % payload, False
     if kind == "ghost":
         # "ghost:<to>:<blob>" -- one description, relayed verbatim. The server
         # does not parse the blob and does not keep it.
