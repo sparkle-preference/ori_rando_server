@@ -12,6 +12,7 @@ import {download} from './shared_map.js'
 import {Cent, ordinal_suffix, doNetRequest, player_icons, get_random_loader, PickupSelect, resolve_dark, get_param, dev,
         seed_link_pref, remember_seed_link} from './common.js'
 import SiteBar from "./SiteBar.js";
+import SiteFooter from "./SiteFooter.js";
 
 
 const iniUrl = new URL(window.document.URL);
@@ -1078,6 +1079,7 @@ export default class Bingo extends React.Component {
                 {bingoContent}
                 {eventlog}
                 {links}
+                <SiteFooter/>
             </Container>
         )
     }

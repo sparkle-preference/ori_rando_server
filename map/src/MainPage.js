@@ -12,6 +12,7 @@ import {getHelpContent, HelpBox} from "./helpbox.js";
 import {History, HIST_KEYS, HIST_SET} from './history.js';
 import {postNetForm, get_param, spawnKitFor, get_flag, ap_enabled, presets, select_theme, name_from_str, get_preset, player_icons, doNetRequest, get_random_loader, PickupSelect, Cent, dev, randInt, gotoUrl, prng, decompose_pickup, beta_welcome_pending, save_beta_welcome, remember_seed_link} from './common.js';
 import SiteBar from "./SiteBar.js";
+import SiteFooter from "./SiteFooter.js";
 import Select from 'react-select';
 import {picks_by_zone, select_styles} from './shared_map';
 
@@ -3463,6 +3464,7 @@ export default class MainPage extends React.Component {
                     </Row>
                 </Col>
             </Row>
+            <SiteFooter/>
             </Container>
         )
 

@@ -4,6 +4,7 @@ import {Cent, select_theme} from "./common.js"
 import {download, uniq} from "./shared_map.js"
 import Select, { createFilter } from 'react-select';
 import SiteBar from "./SiteBar.js"
+import SiteFooter from "./SiteFooter.js"
 
 const keyFilter = createFilter({
   ignoreCase: true,
@@ -165,6 +166,7 @@ export default class RebindingsEditor extends React.Component {
                         </Row>
                     </Col>
                 </Row>
+                <SiteFooter/>
             </Container>
         )
     }

@@ -4,6 +4,7 @@ import {Helmet} from 'react-helmet';
 
 import {get_param, get_flag, stuff_by_type} from "./common.js"
 import SiteBar from "./SiteBar.js"
+import SiteFooter from "./SiteFooter.js"
 
 const GUIDES = ["install", "install_manual", "app", "gen_seed", "get_tracker", "bonus_pickups", "starter_seeds", "differences", "gotchas", "bingo_userboard", "practice", "archipelago"];
 // userboard url params, as read by Bingo.js's constructor
@@ -844,6 +845,7 @@ export default class HelpAndGuides extends React.Component {
         {this.getGotchasCardContent()}
         {this.getDifferencesCardContent()}
         {this.getGlossaryCardContent()}
+        <SiteFooter/>
       </Container>
     );
   };

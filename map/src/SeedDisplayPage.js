@@ -6,6 +6,7 @@ import { confirmAlert } from 'react-confirm-alert';
 import 'react-confirm-alert/src/react-confirm-alert.css' 
 import {Button, Container, Row, Col, Input, Badge} from 'reactstrap';
 import SiteBar from "./SiteBar.js"
+import SiteFooter from "./SiteFooter.js"
 
 const textStyle = {textAlign: "center"}
 export default class SeedDisplayPage extends React.Component {
@@ -137,6 +138,7 @@ export default class SeedDisplayPage extends React.Component {
                     {spoiler_button}
 				</Row>
 			{owner_box}
+			<SiteFooter/>
 			</Container>
 	)
 
