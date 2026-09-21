@@ -78,3 +78,8 @@ def trickglossary():
 @bp.route('/trickrepo')           
 def trickrepo():
     return redirect('https://www.youtube.com/channel/UCowq0m-wHdwi0vpG3jY1hFA')
+
+@bp.route('/aiuse')
+def ai_disclosure():
+    template_values = template_vals("AIUse", "AI Disclosure", User.get())
+    return render_template(INDEX_TEMPLATE, **template_values)

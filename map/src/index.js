@@ -12,6 +12,7 @@ import SeedDisplayPage from './SeedDisplayPage';
 import HelpAndGuides from './HelpAndGuides';
 import PatchNotes from './PatchNotes';
 import Bingo from './Bingo';
+import AIUse from './AIUse';
 
 const mods = {
     ItemTracker,
@@ -23,7 +24,8 @@ const mods = {
     SeedDisplayPage,
     HelpAndGuides,
     PatchNotes,
-    Bingo
+    Bingo,
+    AIUse
 };
 
 // A render crash used to leave a white page. This shows what broke, reports it, and offers
