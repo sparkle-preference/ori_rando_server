@@ -4,9 +4,12 @@ import {FaGithub, FaDiscord, FaEnvelope} from 'react-icons/fa';
 
 const CONTACT = "eiko.the.blue+orisite@gmail.com"
 
+// the repos behind /dll, /app and /tracker; the redirects point at their releases
 const LINKS = [
-    [FaGithub, "Website", "https://github.com/sparkle-preference/ori_rando_server"],
-    [FaGithub, "Rando dll", "https://github.com/sparkle-preference/OriDERandomizer"],
+    [FaGithub, "Client", "https://github.com/sparkle-preference/OriDERandomizer"],
+    [FaGithub, "Server", "https://github.com/sparkle-preference/ori_rando_server"],
+    [FaGithub, "App", "https://github.com/ori-community/bf-rando-installer"],
+    [FaGithub, "Tracker", "https://github.com/jeflefou/OriDETracker"],
     [FaDiscord, "Discord", "/discord"],
     [FaEnvelope, "Contact", `mailto:${CONTACT}`],
 ]

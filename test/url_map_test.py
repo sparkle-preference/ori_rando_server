@@ -21,6 +21,7 @@ EXPECTED = [
     "GET /",
     "GET /activeGames/",
     "GET /activeGames/<hours>/",
+    "GET /aiuse",
     "GET /app",
     "GET /apworld",
     "GET /authorize",
