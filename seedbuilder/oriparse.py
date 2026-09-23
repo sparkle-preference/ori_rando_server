@@ -32,7 +32,7 @@ def get_path_tags(parts):
             tags.append(difficulty + "Abilities")
 
     if len(tags) == 0:
-        # If it isn't in any of dboost ability dbash etc. it is a "Core" path.
+        # no tag, damage boost or ability: a Core path
         tags.append(difficulty + "Core")
             
     return tags
@@ -213,23 +213,20 @@ def ori_load(lines, verbose=False):
     i = 0
 
     while i < len(lines):
-        # Tokenize the line by whitespace
         tokens = lines[i].split()
         i += 1
 
-        # Skip empty lines and full comment lines
+        # "--" starts a comment
         if len(tokens) == 0:
             continue
         if tokens[0][:2] == "--":
             continue
 
-        # Drop any tokens after a comment marker
         for j in range(len(tokens)):
             if tokens[j][:2] == "--":
                 tokens = tokens[:j]
                 break
 
-        # Find a type marker and perform contextual parsing
         if tokens[0][-1:] == ":":
             type_marker = tokens[0][:-1]
 
@@ -316,7 +313,7 @@ def ori_load(lines, verbose=False):
 
                 context_conn = name
         else:
-            # If there's no type marker, it's a logic path
+            # no type marker: a logic path
             valid = True
 
             if tokens[0] not in _DIFFICULTIES:
@@ -374,7 +371,7 @@ def ori_load(lines, verbose=False):
                             has_ability = True
                             if bundled_ability > ability:
                                 ability = bundled_ability
-                    else: #if req not in _TAGS:
+                    else:
                         if tokens[j] not in output_tokens:
                             output_tokens.append(tokens[j])
 
@@ -384,8 +381,6 @@ def ori_load(lines, verbose=False):
                     output_tokens.append("Health=" + str(health))
 
             if not valid:
-                # As far as I can tell the line of code below was useless.
-                #contents["homes"][context_home]["conns"][name]["paths"].append(tuple(["invalid"] + tokens))
                 continue
 
             path_tags = get_path_tags(tokens)
@@ -425,7 +420,7 @@ def ori_load(lines, verbose=False):
 
             # FIXME Do we want warnings for cases where Abilities with energy cost are listed but don't have energy values?
             
-            # Deals with, for example, having both GrenadeJump and Grenade listed.
+            # a tag listed alongside a skill it already bundles (GrenadeJump + Grenade)
             for tag in _TAGS_SKILLS.keys():
                 if tag in tokens:
                     for skill in _TAGS_SKILLS[tag]:
@@ -438,10 +433,7 @@ def ori_load(lines, verbose=False):
                 _parsewarn(i, "`%s` logic path (from: `%s` to: `%s`) incorrectly has a mapstone requirement" % (tokens[0], context_home, context_conn))
 
             contents["homes"][context_home]["conns"][name]["paths"].append((path_tags, ) + tuple(output_tokens))
-            
-            #print(tokens)
-            #print("&&& - " + str((path_tags, ) + tuple(output_tokens)))
-            #print()
+
 
     connected = {
         "SunkenGladesRunaway": True
@@ -465,7 +457,7 @@ def ori_load(lines, verbose=False):
             if not home.endswith("Warp"):
                 _parsewarn(0, "home `%s` is not connected from any home!" % home)
 
-    # The existence of paths to homes that don't otherwise exist.
+    # conns to homes that don't exist
     for area in contents["homes"].keys():
         for target in contents["homes"][area]["conns"].keys():
             conn_type = contents["homes"][area]["conns"][target]["type"]

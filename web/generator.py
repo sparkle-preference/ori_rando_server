@@ -96,11 +96,8 @@ def gen_seed_from_url():
 
 
 def ap_seed_not_ready(params, game_id):
-    """Why an AP seed download would come out unannotated, or None when it
-    wouldn't. A seed file is a snapshot: downloaded before every world's
-    scouts persisted, it keeps "AP Item #n" and the rolled zones forever,
-    and nothing detects it. Gates on the persisted scout rows, not the live
-    socket -- a room that died after scouting still annotates fully."""
+    """Why an AP seed download would come out unannotated, or None. Gates on the
+    persisted scout rows, not the live socket."""
     if not getattr(params, "ap_mode", False):
         return None
     if not game_id:

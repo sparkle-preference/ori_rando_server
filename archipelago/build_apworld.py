@@ -27,9 +27,7 @@ SKIP_DIRS = {"__pycache__"}
 SKIP_SUFFIXES = (".pyc", ".pyo")
 
 REQUIRED_DATA = ("items.json", "locations.json", "graph.json")
-# WebHost copies anything under a "/docs/" path out of the zip and serves it;
-# the game info page is looked up as "<lang>_<secure_filename(game)>.md", so
-# renaming the game means renaming that file (see oride/__init__.py)
+# WebHost serves docs/<lang>_<secure_filename(game)>.md: renaming the game renames this file
 REQUIRED_DOCS = ("setup_en.md", "en_Ori_DE_Rando.md")
 
 

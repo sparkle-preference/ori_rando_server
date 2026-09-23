@@ -112,9 +112,8 @@ services:
   memcached_parked:
     restart: unless-stopped
     image: memcached:latest
-  # map/dist is gitignored, so the parked tree needs its own build after a bump.
-  # Spelled out rather than run_dev.sh: that script comes from the parked tree,
-  # which is old code by definition.
+  # map/dist is gitignored, so the parked tree needs its own build; spelled out
+  # because run_dev.sh would come from the parked (old) tree
   parked_react:
     image: node:24
     profiles: ["parked-build"]

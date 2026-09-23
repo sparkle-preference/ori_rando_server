@@ -1,9 +1,6 @@
-"""How a route says what it is returning.
+"""Response builders; make_resp is the base the others wrap.
 
-`make_resp` is the base and the others wrap it, so content type is set in exactly
-one place. The netcode handlers deliberately do NOT use these: they return
-`(status, body)` and stay transport-neutral, and their route adapters call
-`text_resp` on the way out.
+Netcode handlers return (status, body) to stay transport-neutral; only their route adapters call these.
 """
 import json
 

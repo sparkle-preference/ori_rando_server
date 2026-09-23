@@ -1,5 +1,4 @@
-"""The wire contract as the shipped clients read it. Field indices are load-bearing;
-they mirror golden_wire_test.py and must never drift from it."""
+"""The wire contract as the shipped clients read it; field indices mirror golden_wire_test.py."""
 from urllib.parse import parse_qs
 
 TICK_SKILLS, TICK_EVENTS, TICK_TELEPORTERS, TICK_UPGRADES, TICK_HINTS, TICK_SIGNALS = range(6)

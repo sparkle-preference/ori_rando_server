@@ -21,11 +21,6 @@ from web.responses import json_resp, make_resp, text_resp
 bp = Blueprint("presets", __name__)
 
 
-# --- presets (SSPs in code) --------------------------------------------------
-# A preset is the seedgen form minus the multiplayer tab and the seed, so the
-# same one rolls solo, in co-op, or as one world of a multiworld.
-
-
 def _ssp_or_404(owner_name, name):
     ssp = SavedSeedParams.get(owner_name, name)
     if not ssp:
@@ -58,8 +53,7 @@ def ssp_save():
     return json_resp({"name": ssp.name, "owner": user.name})
 
 
-# One paste holds every preset a person owns, so a new account or a second site
-# can be seeded from an old one. The blob is the stored form, not the wire form.
+# an export holds every preset a user owns, in the stored form rather than the wire form
 EXPORT_FORMAT = 1
 IMPORT_MAX = 200
 
@@ -226,9 +220,7 @@ def ssp_list():
 
 @bp.route('/preset/latest')
 def ssp_latest():
-    """The user's last game's options, lobby included.
-
-    Alone among the loads this keeps players/coop/AP: it is never assigned to someone else's world."""
+    """The last game's options, lobby included: the one load never assigned to another world."""
     user = User.get()
     if not user:
         return text_resp("log in to load your last seed's options", 401)
@@ -247,9 +239,7 @@ def ssp_latest():
 
 @bp.route('/preset/<owner_name>/<name>')
 def ssp_get(owner_name, name):
-    """The preset itself. A share link COPIES it into the opener's form; it does
-    not stay bound to this entity, so editing yours never changes what someone
-    else's link rolls."""
+    """The preset itself; a share link copies it into the opener's form rather than binding to it."""
     ssp, err = _ssp_or_404(owner_name, name)
     return err or json_resp({"name": ssp.name, "owner": owner_name,
                              "desc": ssp.description, "settings": ssp.settings})
@@ -302,10 +292,8 @@ def _str_field(body, key, default=""):
 
 
 def _rename_preset_body(user, old_name, new_name, desc, hidden):
-    """Move a preset to a new name, returning a problem string or None.
-
-    The id carries the name, so this is a create plus a delete across two keys,
-    and the "is the target free?" read has to sit in the same transaction."""
+    """Move a preset to a new name; a problem string or None. The id carries the name,
+    so the target-free read and both writes share one transaction."""
     ssp = user.saved_params(old_name)
     if not ssp:
         return "no preset named %s" % old_name

@@ -1,31 +1,11 @@
-"""Download-time annotation of an AP-mode world's seed text.
-
-The conversion pass runs at generation, before Archipelago has filled
-anything, so a freshly generated seed can only say "AP Item #n" and can only
-guess where an exported item went. Once the room has been connected each
-world scouts its own reserved locations, and the K scout rows together say a
-lot more. This pass rewrites the seed at download time:
+"""Download-time annotation of an AP-mode world's seed text from the K scout rows.
 
   reserved line   <coord>|MW|<K+w>,<slot>,<label>|<zone>|<recipient>;<item>[|<own slot>]
   manifest line   -(slot+2)|MW|<K+w>,<code>,<id>|<true zone>|<holder>
 
-Field 6 rides only reserved lines holding our own item, naming the manifest
-slot it lands in so the client can grant it on contact. Its values are the
-bridge's own persisted promise map, not a local re-derivation.
-
-Fields 5 and 6 are additive and the four fields before them are untouched: every
-shipped client splits a seed line on '|' and reads indices 0..3 only, so an
-old dll drops field 5 and behaves exactly as it does today -- which is why
-the reserved line keeps the combined "<item> (<recipient>)" label in the
-comma field and repeats the bare item in field 5. Seeds downloaded before
-the room is connected have no scout rows and pass through untouched.
-
-WHAT THE JOIN CAN AND CANNOT SEE. LocationScouts only answers about the
-asking slot's own locations, so the K worlds between them know where an
-exported item landed exactly when it landed in one of THEM. Anything
-Archipelago put in a foreign game is invisible: those keep the holder
-"Archipelago" and lose the zone, because the rolled zone is where the item
-was taken FROM and measured wrong for 55 of 58 exports on a real room.
+Fields 0..3 are untouched (old clients read only those). Field 6, on own-item
+reserved lines, is the bridge's persisted promise map verbatim. Items placed in
+a foreign game are invisible to scouts: holder "Archipelago", no zone.
 """
 from archipelago.convert import ITEM_BY_AP_ID, match_key
 from util import is_mw_manifest_loc
@@ -57,11 +37,8 @@ def _exports(seed_data, shadow):
 
 
 def _holder_hits(players, world, rows, seed_data_for):
-    """Every scouted resting place of world w's own exported items.
-
-    -> {datapackage key: [(holder token, true zone), ...]} across the K
-    worlds. Copies that landed in foreign games are invisible to scouts and
-    simply absent from the lists."""
+    """Scouted resting places of world w's exported items across the K worlds.
+    -> {datapackage key: [(holder token, true zone), ...]}"""
     _, our_slot = rows.get(world, ({}, None))
     if our_slot is None:
         return {}
@@ -85,27 +62,16 @@ def _holder_hits(players, world, rows, seed_data_for):
 
 
 def _holders(players, world, rows, seed_data_for):
-    """The UNAMBIGUOUS subset of _holder_hits: exactly one copy found across
-    the K worlds. Several copies in flight are indistinguishable per-line in
-    the room's answers, so line annotation declines rather than guesses."""
+    """_holder_hits keys with exactly one copy found; several copies can't be
+    told apart per line."""
     return {key: hits[0] for key, hits
             in _holder_hits(players, world, rows, seed_data_for).items()
             if len(hits) == 1}
 
 
 def annotate(seed_data, players, world, rows, seed_data_for, promises=None):
-    """Seed tuples -> seed tuples, this world's AP lines gaining a 5th field
-    (and a 6th where the item is our own).
-
-    rows: {world: (APNames entries, that world's room slot)}; a world that
-    has never scouted contributes nothing. seed_data_for(v) yields world v's
-    raw placement tuples, which is where the join reads reserved zones.
-
-    promises: the bridge's persisted {shadow slot: manifest slot} map, baked
-    into field 6 VERBATIM -- the self-item draw lives in ap_bridge only, so
-    the client grants exactly what the bridge fills. With no blob, no field
-    6 at all: the tick still delivers, only the contact-grant priming is
-    lost, and an abstention cannot dupe."""
+    """Seed tuples with this world's AP lines annotated. rows: {world: (APNames
+    entries, room slot)}; promises: persisted blob, or None for no field 6."""
     entries, our_slot = rows.get(world, ({}, None))
     if not entries:
         return seed_data

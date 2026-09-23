@@ -37,9 +37,8 @@ jobs:
 
       - run: pip install -r requirements.txt
 
-      # compose owns the emulator's flags -- notably --consistency=1.0, without which
-      # a put followed by a query intermittently returns nothing and the failure
-      # reproduces nowhere else. Do not inline the command here.
+      # compose owns the emulator flags (--consistency=1.0 keeps put-then-query
+      # reliable); don't inline the command here
       - name: Start the datastore emulator
         run: docker compose up -d datastore_test
 
@@ -114,9 +113,7 @@ jobs:
           docker compose logs datastore_test
           exit 1
 
-      # ap_real_room skips itself when the image is absent, so a missed pull would
-      # read as a green run that never spoke to Archipelago. Pull it on its own step,
-      # where a registry outage says so instead of quietly removing a scenario.
+      # ap_real_room skips without the image, so pull on its own step where a failure shows
       - name: Pull the Archipelago image
         run: docker pull ghcr.io/archipelagomw/archipelago:0.6.7
 

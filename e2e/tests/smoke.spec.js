@@ -1,6 +1,5 @@
-// The behaviors nothing else can see: these run a real browser against the
-// compose dev stack, so they catch the class of bug where the server is right,
-// the bundle compiles, and the page still does the wrong thing.
+// A real browser against the compose dev stack: catches the page doing the wrong
+// thing while the server is right and the bundle compiles.
 const { test, expect } = require("@playwright/test");
 
 // a beta box greets a fresh browser with a welcome modal that covers the page

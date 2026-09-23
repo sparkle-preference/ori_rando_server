@@ -1,8 +1,4 @@
-"""Request-lifecycle plumbing: what every route gets whether it asks or not.
-
-Family-specific hooks do not belong here -- guest seating and the patch-note
-announcer stay with the code they serve.
-"""
+"""Request-lifecycle hooks every route gets. Family-specific hooks live with their blueprint."""
 
 from urllib.parse import quote_plus
 
@@ -22,10 +18,7 @@ def server_error(err):
 
 
 def canonical_host_redirect():
-    # the orirando.com -> bf.orirando.com move (see util.CANONICAL_HOST).
-    # Browsers only: never /netcode/* (the dll fleet treats redirects as
-    # errors) and never non-GET (a stray API POST should fail loudly, not
-    # vanish into a 301).
+    # browsers only: the dll treats a redirect as an error, and a POST must fail loudly, not 301
     if not util.CANONICAL_HOST or request.host not in util.REDIRECT_HOSTS:
         return
     if request.method not in ("GET", "HEAD") or request.path.startswith("/netcode/"):
@@ -42,28 +35,21 @@ def fix_logout_redirect(response: Response):
 
 
 def hsts_header(response):
-    # never add includeSubDomains: bfnc.orirando.com serves the dll over plain
-    # http and the dll has no TLS support
+    # never includeSubDomains: bfnc.orirando.com serves the TLS-less dll over plain http
     if request.is_secure:
         response.headers.setdefault("Strict-Transport-Security", "max-age=31536000")
     return response
 
 
 def delete_flashes(response):
-    """Flask-OIDC `flash()`es some messages, but we never read them.
-    Delete them here, so they don't accumulate in the session cookie.
-    """
+    """Drop flask-oidc's unread flash() messages so they don't pile up in the session cookie."""
     get_flashed_messages()
     return response
 
 
 def make_session_permanent():
-    """Rolling year-long login cookie, refreshed on every response.
-
-    Only for sessions that hold a token: setting `permanent` writes a key, and a
-    non-empty session means a signed cookie on every anonymous hit and every
-    /netcode/ poll too.
-    """
+    """Rolling year-long login cookie, only for sessions holding a token: setting permanent
+    writes a key, and a non-empty session sends a cookie on every anonymous hit and netcode poll."""
     if session.get("oidc_auth_token"):
         session.permanent = True
 
@@ -71,8 +57,7 @@ def make_session_permanent():
 # the signal is global rather than per-app, so this connects at import
 @after_logout.connect
 def clear_session_on_logout(sender, **kwargs):
-    # logout_view only pops its own keys. Anything left keeps the session
-    # truthy, and Flask sends the delete-cookie only for an empty one.
+    # logout_view pops only its own keys, and Flask deletes the cookie only for an empty session
     session.clear()
 
 

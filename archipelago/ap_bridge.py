@@ -1,21 +1,12 @@
 """Archipelago room bridge: one outbound websocket per (game, world).
 
-Each AP-mode world w runs a daemon thread joining the room as slot 'Ori<w>':
-shadow player K+w's slot bitfield is polled for outgoing LocationChecks,
-ReceivedItems fill world w's manifest slots: a self-item (our own item at
-our own location) lands exactly on the slot annotate's field 6 promised the
-client, everything else takes the lowest open unpromised slot for that item
-(monotone and idempotent so a full replay is safe). The client grants a
-self-item on contact and relies on the delivery landing where promised --
-the 4.2.12 pairing; fills wait for scouting, which the promise map is
-derived from. The complete path sends
-StatusUpdate{CLIENT_GOAL}, and LocationScouts resolves the real names the
-seed ships as "AP Item #n". Scouting is best-effort.
+World w joins the room as its slot. Shadow player K+w's slot bits go out as
+LocationChecks; ReceivedItems fill w's manifest slots, a self-item on the slot
+field 6 promised and everything else on the lowest free unpromised slot.
+Fills are idempotent, so a full replay is safe.
 
-LAZY-START ONLY -- importing this module must never start a thread (gunicorn
---preload forks kill import-time threads; see ws.py). Threads arm from the
-ap/connect route and heal(). Wire shapes follow Archipelago 0.6.7
-MultiServer.py. Design notes: prior_notes/ARCHIPELAGO_NOTES.md.
+Lazy-start only: gunicorn --preload kills import-time threads, so threads
+start from ap/connect and heal(). Wire shapes follow AP 0.6.7 MultiServer.py.
 """
 import functools
 import json
@@ -45,17 +36,14 @@ AP_VERSION = {"class": "Version", "major": 0, "minor": 6, "build": 7}
 ITEMS_HANDLING = 0b011
 CLIENT_GOAL = 30
 SCOUT_CHUNK = 100        # locations per LocationScouts message
-# hand-mirrored from archipelago.convert (this module stays import-light for
-# the lazy-start rule); test.ap_bridge_test pins the two together
+# mirrors archipelago.convert without importing it; test.ap_bridge_test pins them
 EX_DENOMS = (50, 100, 200)
 EX_EXACT_CAP = 600
 
 POLL_SECS = 2.0          # shadow-outbox poll cadence
 RECV_TIMEOUT = 1.0
 PROMISES_TIMEOUT = 90.0  # scout never settled: degrade to arrival-order fills
-# a room's goal handler collects then releases, one ReceivedItems per source
-# world, so K+1 messages can land microseconds apart. Buffer them into one
-# grant transaction rather than one per message straddling the 1Hz tick.
+# a collect+release burst is K+1 ReceivedItems at once: one grant txn for all
 COALESCE_SECS = 0.3
 SIGNAL_MAX = 400         # chars of apfrom payload per tick
 LINK_RECHECK_SECS = 15.0  # re-read APLink (disable/goal from other processes)
@@ -63,9 +51,7 @@ HANDSHAKE_TIMEOUT = 20.0
 CONNECT_TIMEOUT = 10.0   # the OS SYN ladder is ~4 min
 HEAL_TTL = 45.0          # request-path memo: non-AP games pay a dict lookup
 BACKOFF_MIN, BACKOFF_MAX = 1.0, 60.0
-# no ticks for this long -> the bridge idles out: threads exit, status "idle",
-# and only real game activity (tick/complete) or an explicit connect restarts
-# them. Browser ap/status polls never do -- that's what made zombies immortal.
+# no ticks this long: threads exit as "idle"; only tick/complete or connect restarts them
 AP_IDLE_SECS = 3 * 3600
 IDLE_CHECK_SECS = 600.0   # healthy-session staleness check cadence
 IDLE_MEMO_TTL = 450.0     # passive heals re-read an idle link this often
@@ -73,8 +59,7 @@ IDLE_MEMO_TTL = 450.0     # passive heals re-read an idle link this often
 # --- DeathLink (see "death link" below) ---
 DEATHLINK_TAG = "DeathLink"
 DEATHLINK_ECHO_KEEP = 8   # recent send times remembered for echo suppression
-# min gap between outgoing deaths; extras are dropped, not queued (a respawn
-# loop is one death to the room, not a drumbeat)
+# min gap between outgoing deaths; extras are dropped, not queued
 DEATHLINK_OUT_COOLDOWN = 15.0
 
 # --- progressive hints (see "hint purchases" below) ---
@@ -89,9 +74,7 @@ FOREIGN_HINT_TEXT = "Archipelago"  # all we can say when the room named no place
 HINT_NOTICE_SECS = 600.0  # per-world floor between "can't afford" messages
 HINT_SERVICE_SECS = 1.0  # how often a session revisits its wanted set
 SCOUT_ROW_TTL = 60.0     # re-read the K worlds' scout rows this often
-# Only the three reveal moments may be bought. The client asks; a modified or
-# buggy one still cannot spend a player's points on filler, because nothing
-# outside this set has a purchase path at all.
+# the only purchasable reveals: nothing outside this set has a buy path
 HINTABLE_KEYS = frozenset(
     [("EV", "0"), ("EV", "2"), ("EV", "4"),   # Water Vein / Gumon Seal / Sunstone
      ("SK", "4"), ("SK", "51")]               # Stomp / Grenade (Forlorn escape)
@@ -114,10 +97,7 @@ class ApRefused(Exception):
 
 
 def _match_key(code, id):
-    """Manifest (code, id) -> the datapackage identity AP knows it by. EX is
-    exact up to the cap and rides a denomination above it; a TW warp keeps
-    its coordinates in the seed and is named by its destination. Mirrors
-    convert.match_key so both sides bucket identically."""
+    """Manifest (code, id) -> datapackage identity; mirrors convert.match_key."""
     if code == "EX":
         try:
             v = int(id)
@@ -137,9 +117,7 @@ class GameMaps(object):
     def __init__(self, worlds, outbox, grant_slots, zones=None, hint_keys=None,
                  death_link=False):
         self.worlds = worlds            # K
-        # {w: {shadow slot i: ap location id}}, insertion = seed-line order,
-        # which is the promise draw order (dicts hold it; nothing mutates
-        # these after build)
+        # {w: {shadow slot: ap location id}} in seed-line order, the promise draw order
         self.outbox = outbox
         self.grant_slots = grant_slots  # {w: {match_key: [manifest slot, asc]}}
         self.zones = zones or {}        # {w: {shadow slot i: reserved zone}}
@@ -148,9 +126,8 @@ class GameMaps(object):
 
 
 def maps_from_params(params):
-    """Placement tuples -> GameMaps. Reserved slots are the real-coord MW
-    lines world w holds for its own shadow K+w; exports are w's manifest
-    lines with shadow finder K+w."""
+    """Placement tuples -> GameMaps. Reserved: w's real-coord MW lines owned by
+    shadow K+w. Exports: w's manifest lines with finder K+w."""
     k = int(params.players)
     outbox, grants, zones, hints = {}, {}, {}, {}
     for w in range(1, k + 1):
@@ -174,8 +151,7 @@ def maps_from_params(params):
                         log.error("APBRIDGE reserved coord %s of world %s not in datapackage", loc, w)
                         continue
                     ob[int(parts[1])] = ap_id
-                    # the zone an Ori hint names; the same string annotate
-                    # bakes into a seed it can resolve at download time
+                    # the zone a hint answer names, same string annotate bakes
                     zo[int(parts[1])] = zone
         for lst in gr.values():
             lst.sort()
@@ -185,12 +161,7 @@ def maps_from_params(params):
 
 
 def promised_slots(maps, world, scouted, our_slot):
-    """The manifest slot each of this world's own-item locations is promised
-    -- the same values annotate bakes into field 6, drawn the same way:
-    per-item pools of manifest slots ascending, consumed in seed-line order
-    by the reserved locations the room says hold our own item. Self rows key
-    off our own static items table, so no room datapackage is involved.
-    test.ap_bridge_test pins the two implementations together.
+    """Manifest slot promised to each own-item location, the draw field 6 bakes.
     -> ({ap location id: slot}, {match_key: [unpromised slot, asc]})"""
     pools = {key: list(slots) for key, slots in maps.grant_slots.get(world, {}).items()}
     promised = {}
@@ -241,10 +212,8 @@ def _shadow_slots(gid, world, maps):
 
 
 def _apfrom_signal(senders, slots):
-    """'apfrom:<slot>=<sender>;...' for the slots actually granted. An empty
-    sender means "you found this yourself". Capped: signals ride every tick
-    until the client confirms them, and a release can mark 256 slots at once
-    -- past the cap the client falls back to naming Archipelago."""
+    """'apfrom:<slot>=<sender>;...' for granted slots; "" = found it yourself.
+    Capped at SIGNAL_MAX; slots past it render as from Archipelago."""
     if not senders:
         return None
     pairs, size = [], 0
@@ -273,9 +242,7 @@ def _apply_grants(gid, world, slots, senders=None):
 
 
 def _send_death_signal(gid, world, token, source):
-    """'dl:<token>;<source>' on the world's tick. latest-only: a client that
-    is offline while the room dies repeatedly owes exactly one death when it
-    comes back, not a queue of them."""
+    """'dl:<token>;<source>' on the world's tick, latest-only: an offline client owes one death."""
     from models import Game, Player
     game = Game.with_id(gid)
     if not game:
@@ -287,10 +254,8 @@ def _send_death_signal(gid, world, token, source):
 
 
 def _recv_at_least(idx, world, count):
-    """New recv_index list, or None when nothing needs writing. Monotone:
-    a twin session (deploy overlap) replaying an already-applied batch must
-    never move a world's index backwards. Datastore-free for the tests; the
-    txn below wraps it."""
+    """New recv_index list, or None if nothing to write. Monotone: a twin
+    replaying an older batch never moves the index back."""
     idx = list(idx or [])
     while len(idx) < world:
         idx.append(0)
@@ -301,11 +266,8 @@ def _recv_at_least(idx, world, count):
 
 
 def _busts_report(fn):
-    """Bust the ap/status report cache AFTER a transactional APLink writer
-    returns. The post-put hook is not enough here: inside a transaction a
-    complete key's put future resolves immediately (_TransactionalCommitBatch
-    .put), so the hook's bust fires PRE-commit and a racing poll can re-cache
-    the old row for the full TTL."""
+    """Bust the ap/status cache after a txn'd APLink writer returns; inside a
+    txn the post-put hook fires pre-commit."""
     @functools.wraps(fn)
     def wrapper(gid, *args, **kwargs):
         try:
@@ -332,14 +294,12 @@ def _persist_recv(gid, world, count):
 
 
 def _load_scout_row(gid, world):
-    """The persisted APNames row -> ({shadow slot: APScout}, ap_slot).
-    Module-level so the tests reroute it like every other touchpoint."""
+    """The persisted APNames row -> ({shadow slot: APScout}, ap_slot)."""
     return APNames.load(gid, world)
 
 
 def _persist_promises(gid, world, promised_by_slot):
-    """The build's promise map onto the APNames row. Annotate bakes this
-    blob into field 6 verbatim, so the self-item draw has one home."""
+    """The promise map onto the APNames row; annotate bakes it into field 6 verbatim."""
     APNames.store_promises(gid, world, promised_by_slot)
 
 
@@ -348,9 +308,8 @@ DROPPED_CAP = 100
 
 
 def _drops_plus(drops, world, stream_i, entry):
-    """drops + entry, or None when nothing needs writing: the fill is a pure
-    function of the stream, so twin sessions and every index-0 resend re-drop
-    the same stream position. Datastore-free; the txn below wraps it."""
+    """drops + entry, or None if nothing to write. Keyed by stream position,
+    which twins and index-0 resends re-drop identically."""
     if any(d.get("w") == world and d.get("i") == stream_i for d in drops):
         return None
     if len(drops) >= DROPPED_CAP:
@@ -361,8 +320,7 @@ def _drops_plus(drops, world, stream_i, entry):
 @_busts_report
 @ndb.transactional(retries=5)
 def _persist_drop(gid, world, entry):
-    """Durable record of an undeliverable item. True when newly recorded --
-    only the first record gets to tell the player."""
+    """Durable record of an undeliverable item; True only when newly recorded."""
     link = APLink.with_id(gid)
     if link is None:
         return False
@@ -375,8 +333,7 @@ def _persist_drop(gid, world, entry):
 
 
 def _notify_drop(gid, world, text):
-    """One red line on the player's tick: the sender of an undeliverable
-    item has to hear that it failed."""
+    """One red line on the player's tick naming an undeliverable item."""
     from models import Game, Player
     game = Game.with_id(gid)
     if not game:
@@ -387,8 +344,7 @@ def _notify_drop(gid, world, text):
 
 
 def _drop_name(ap_item):
-    """Display name for an item addressed to an Ori world (so: our own
-    datapackage), wire-safe for a signal payload."""
+    """Wire-safe display name for an item addressed to an Ori world."""
     key = ITEM_KEY_BY_AP_ID.get(ap_item)
     if not key:
         return "AP item %s" % ap_item
@@ -402,19 +358,16 @@ def _drop_name(ap_item):
     return wire_safe_name("%s %s" % key, ITEM_NAME_MAX)
 
 
-# states whose repeats carry no news: their put is skipped when status is
-# unchanged (error text varies per world/attempt)
+# repeats of these skip the put even when the error text differs
 _RETRY_STATES = ("reconnecting", "refused", "idle")
 
-# a room that hung up on purpose is not coming back, so retrying it is noise:
-# 1000 normal, 1001 going away (the room process stopped)
+# deliberate closes (1000 normal, 1001 going away) are terminal, not retried
 _ROOM_CLOSED_CODES = (1000, 1001)
 ROOM_CLOSED_MSG = "The Archipelago room closed. Connect again once you have a new one."
 
 
 def room_closed_for_good(exc):
-    """True when the room chose to hang up rather than the link breaking under
-    us. ConnectionError/OSError carry no reason and are always retryable."""
+    """True when the room hung up on purpose; OSErrors carry no reason and retry."""
     try:
         return int(getattr(exc, "reason", None)) in _ROOM_CLOSED_CODES
     except (TypeError, ValueError):
@@ -422,17 +375,14 @@ def room_closed_for_good(exc):
 
 
 def _status_is_noop(link, status, error):
-    """Pure helper (tests pin it): True when writing (status, error) would say
-    nothing new. Retry states dedupe on status alone -- and every put stamps
-    last_activity (auto_now), so a zombie's per-retry puts were burning a
-    write AND faking panel activity."""
+    """True when writing (status, error) says nothing new. Retry states dedupe
+    on status alone: every put also stamps last_activity."""
     return (link.status == status
             and (status in _RETRY_STATES or link.last_error == error))
 
 
 def _persist_status_impl(gid, status, error):
-    """Body of _persist_status, un-decorated so tests can pin the dedupe
-    wiring without a real transaction."""
+    """_persist_status without the transaction, for tests."""
     link = APLink.with_id(gid)
     if link is None or _status_is_noop(link, status, error):
         return
@@ -463,8 +413,8 @@ def _goal_worlds(gid):
 
 
 def _at_world(values, world, value):
-    """`values` with 1-based `world` set to `value`. Pads with -1, not 0: a
-    real 0 means a world with no AP locations, already done."""
+    """`values` with 1-based `world` set to `value`. Pads with -1: 0 means a
+    world with no AP locations."""
     out = list(values or [])
     while len(out) < world:
         out.append(-1)
@@ -475,9 +425,8 @@ def _at_world(values, world, value):
 @_busts_report
 @ndb.transactional(retries=5)
 def _bump_death_in(gid, world):
-    """Count one DeathLink delivered to a world; -> the new total, which the
-    signal carries as its token. Durable so a bridge restart can't hand the
-    client a token it already acked and dropped as seen."""
+    """Count one DeathLink into a world -> the new total, the signal's token.
+    Durable, so a restart never reissues a token the client acked."""
     link = APLink.with_id(gid)
     if link is None:
         return 0
@@ -503,9 +452,8 @@ def _persist_name_counts(gid, world, total, resolved):
 
 
 def _persist_names(gid, world, total, names, ap_slot=None):
-    """Store one world's scout results + the counters ap/status reports.
-    Two entity groups, so no single transaction covers both -- display data,
-    a torn write just under- or over-reports for one poll."""
+    """One world's scout results + ap/status counters. Two entity groups, no
+    shared txn: a torn write misreports for one poll."""
     APNames.store(gid, world, names, ap_slot=ap_slot)
     _persist_name_counts(gid, world, total, len(names))
 
@@ -518,15 +466,8 @@ def _load_hints(gid, world):
 
 @ndb.transactional(retries=5)
 def _claim_hint(gid, world, slot, ap_item, stale_ok=False):
-    """Write-ahead PENDING: True means THIS process may now ask the room
-    about `slot`. Everything that could buy twice -- K sessions, several
-    gunicorn processes, a reconnect, a seed reload, a 1 Hz client that never
-    stops asking -- loses the compare-and-set instead.
-
-    stale_ok reclaims a PENDING older than HINT_CLAIM_TTL, and is passed only
-    for single-copy items: for a multi-copy one the next '!hint' buys the
-    NEXT copy, so an ambiguous outcome must never be retried blind.
-    """
+    """Write-ahead PENDING compare-and-set: True means this process may ask the
+    room about `slot`. stale_ok reclaims a PENDING older than HINT_CLAIM_TTL."""
     row = APHints.get_by_id(APHints.key_id(gid, world))
     entries = APHints.unpack(row)
     cur = entries.get(int(slot)) or {}
@@ -543,8 +484,7 @@ def _claim_hint(gid, world, slot, ap_item, stale_ok=False):
 
 @ndb.transactional(retries=5)
 def _persist_hint(gid, world, slot, state, text="", ap_item=0, key=""):
-    """Record a transition. RESOLVED is sticky: a later DEFERRED (say, a
-    reconnect that re-derives affordability) must not un-answer a slot."""
+    """Record a transition. RESOLVED is sticky."""
     row = APHints.get_by_id(APHints.key_id(gid, world))
     entries = APHints.unpack(row)
     cur = entries.get(int(slot)) or {}
@@ -568,8 +508,7 @@ def _persist_price(gid, world, points, cost):
 
 
 def _apply_hint_text(gid, world, answers, keep=None):
-    """Publish resolved text on the real player: tick field 8, pushed the
-    moment the checksum is busted."""
+    """Publish resolved text on the real player (tick field 8)."""
     from models import Game, Player
     game = Game.with_id(gid)
     if not game:
@@ -580,8 +519,7 @@ def _apply_hint_text(gid, world, answers, keep=None):
 
 
 def _hint_notice(gid, world, text):
-    """One 'you can't afford it yet' line on the player's tick, rate limited
-    per world -- a deferred hint is re-derived every reconnect."""
+    """One 'you can't afford it yet' line on the player's tick."""
     from models import Game, Player
     game = Game.with_id(gid)
     if not game:
@@ -599,9 +537,8 @@ _notice_at = {}    # (gid, world) -> monotonic of the last affordability message
 
 
 class _HintBox(object):
-    """Manifest slots the client has asked about, handed from request threads
-    to the world's session thread. Bounded: a client that asks for more than
-    it could ever afford must not grow a queue."""
+    """Manifest slots the client asked about, request thread -> session thread.
+    Bounded at HINT_QUEUE_MAX."""
 
     def __init__(self):
         self.lock = threading.Lock()
@@ -621,14 +558,8 @@ class _HintBox(object):
 
 
 class _DeathBox(object):
-    """The client's death counters, handed from tick threads to the world's
-    session thread. A LEVEL, not a queue: the tick reports totals, so a lost
-    tick costs nothing and a burst of ticks costs one read.
-
-    `total` is every death this run; `linked` is the subset the client itself
-    caused applying an incoming DeathLink. total - linked is what the room
-    may hear about, which is why an incoming death can never bounce back out.
-    """
+    """The client's death counters, tick thread -> session thread, as a level.
+    net = total - linked, so a death applied from the room never bounces back."""
 
     def __init__(self):
         self.lock = threading.Lock()
@@ -644,8 +575,7 @@ class _DeathBox(object):
 
 
 def _parse_deaths(raw):
-    """Tick field 'dl=<total>.<linked>' -> (total, linked), or None. Dotted
-    because ',' and '|' are the tick's own separators (same as 'aph')."""
+    """Tick field 'dl=<total>.<linked>' -> (total, linked), or None."""
     total, _, linked = str(raw or "").partition(".")
     try:
         total, linked = int(total), int(linked or 0)
@@ -657,8 +587,7 @@ def _parse_deaths(raw):
 
 
 def _parse_hint_slots(raw):
-    """'aph=3.17.204' -> {3, 17, 204}. Dot-separated because ',' and '|' are
-    the tick's own separators."""
+    """'aph=3.17.204' -> {3, 17, 204}."""
     slots = set()
     for part in str(raw).split(".")[:HINT_QUEUE_MAX]:
         try:
@@ -705,9 +634,8 @@ def _dp_invert(name_to_id):
 
 
 def _dp_put(game, checksum, item_name_to_id, location_name_to_id=None):
-    """AP ships name->id; we resolve the other way. Locations ride along
-    because a hint answers with one. Checksum-keyed, so a regenerated room
-    invalidates itself and reconnects never refetch."""
+    """Cache AP's name->id tables inverted. Checksum-keyed, so reconnects
+    never refetch and a regenerated room misses."""
     tables = (_dp_invert(item_name_to_id), _dp_invert(location_name_to_id))
     with _dp_lock:
         _dp_cache[(game, checksum or "")] = tables
@@ -723,9 +651,8 @@ def _preflight(host, port):
 
 
 class DeflateClient(WsClient):
-    """simple_websocket 1.1.0 offers permessage-deflate as a server but never
-    proposes it as a client, which AP warns about and plans to require. Same
-    handshake as upstream plus the extension."""
+    """Upstream Client handshake plus permessage-deflate, which simple_websocket
+    never offers as a client and AP warns about."""
 
     def handshake(self):
         out_data = self.ws.send(Request(host=self.host, target=self.path,
@@ -776,9 +703,8 @@ class _nullctx(object):
 
 
 class ApSession(object):
-    """Protocol logic, transport- and datastore-agnostic for tests: sock
-    needs send(str) / receive(timeout) -> frame|None, ctx is a context-manager
-    factory wrapped around every datastore touchpoint."""
+    """Protocol logic for one connection. sock: send(str) / receive(timeout);
+    ctx: context-manager factory wrapped around every datastore touchpoint."""
 
     def __init__(self, gid, world, maps, slot_name, password,
                  stop_event=None, goal_event=None, ctx=None, host=None, port=None,
@@ -798,9 +724,7 @@ class ApSession(object):
         self.pending = []      # slots buffered for the next grant flush
         self.pending_from = {}  # slot -> sender display name ("" = yourself)
         self.flush_at = None   # monotonic deadline for that flush
-        # deterministic self-item fills (see promised_slots). None until the
-        # scout settles; ReceivedItems wait in deferred_msgs so the fill stays
-        # a pure function of the stream
+        # None until the scout settles; ReceivedItems wait in deferred_msgs meanwhile
         self.promised = None       # {ap location id: manifest slot}
         self.free_slots = None     # {match_key: [unpromised slot, asc]}
         self.deferred_msgs = []    # ReceivedItems held until promises exist
@@ -882,8 +806,7 @@ class ApSession(object):
                 if now >= next_idle:
                     next_idle = now + IDLE_CHECK_SECS
                     if _idle_stale(self.gid):
-                        # live room, dead game: stop the POLL_SECS shadow-get
-                        # burn too. _run sees a clean return and exits.
+                        # live room, idle game: a clean return ends the thread
                         if not self._stopped():
                             with self.ctx():
                                 _persist_idle(self.gid)
@@ -891,8 +814,7 @@ class ApSession(object):
                                      self.gid, self.world)
                         return
         finally:
-            # a dropped socket must not swallow items already taken off the
-            # stream: the grant is a datastore write and does not need it
+            # items already taken off the stream are granted even if the socket died
             self._flush_grants()
 
     def _handshake(self, sock):
@@ -942,8 +864,7 @@ class ApSession(object):
             self.our_slot = None
         self.checked = set(msg.get("checked_locations") or [])
         missing = msg.get("missing_locations") or []
-        # authoritative list of THIS slot's locations: scouting anything else
-        # is a KeyError inside the room's LocationScouts handler
+        # scouting a location outside this list crashes the room's handler
         self.our_locations = self.checked | set(missing)
         self.fill = {}
         self.recv_count = 0
@@ -952,8 +873,7 @@ class ApSession(object):
         self.promises_deadline = monotonic() + PROMISES_TIMEOUT
         self.scouted, self.dp_pending, self.named, self.scout_total = {}, set(), None, 0
         self.slot_raw_names = {}
-        # hints are re-derived per connection: the room is the authority on
-        # what has already been bought, and it tells us on the way in
+        # hints are re-derived per connection from the room's own list
         self.room_hints, self.hint_inflight, self.hint_last_try = [], None, {}
         self.hint_hydrated, self.hint_asked_at = False, None
         self.scout_rows = None
@@ -972,9 +892,8 @@ class ApSession(object):
             return default
 
     def _safe(self, what, fn, *args):
-        """Names are cosmetic; room data that doesn't parse must never take
-        the session -- and with it item delivery -- down. Transport failures
-        still propagate: those belong to the reconnect loop."""
+        """Run a cosmetic handler, logging its failures; transport errors still
+        propagate to the reconnect loop."""
         try:
             return fn(*args)
         except (ConnectionClosed, ConnectionError, OSError):
@@ -983,9 +902,8 @@ class ApSession(object):
             log.exception("APBRIDGE %s failed gid=%s world=%s", what, self.gid, self.world)
 
     def _read_slot_info(self, msg):
-        """Connected.slot_info gives every slot's game (which datapackage an
-        item id belongs to); .players gives the display names, preferring the
-        alias the room shows over the raw slot name."""
+        """slot_info -> each slot's game and raw name; players -> display name
+        (alias first)."""
         self.slot_games, self.slot_players, self.slot_raw_names = {}, {}, {}
         for slot, info in (msg.get("slot_info") or {}).items():
             if not isinstance(info, dict):
@@ -1041,11 +959,7 @@ class ApSession(object):
         elif cmd in ("Retrieved", "SetReply"):
             self._safe("hint keys", self._on_hint_keys, msg, sock)
 
-    # --- death link ---
-    # Deaths ride the tick as a counter (client save item 1590), and a death
-    # the client applied FROM the room increments a second one we subtract --
-    # so an incoming death can never emit an outgoing one. Rationale in
-    # prior_notes/ARCHIPELAGO_NOTES.md.
+    # --- death link (counters via _DeathBox) ---
 
     def _service_deaths(self, sock):
         if self.death_box is None or not self.maps.death_link:
@@ -1054,9 +968,7 @@ class ApSession(object):
         if net is None:
             return
         if self.deaths_seen is None or net < self.deaths_seen:
-            # first report of the run, or a smaller count: a different save
-            # file or a fresh slot. Re-baseline silently -- nobody owes the
-            # room deaths that happened before we were watching.
+            # first report, or a smaller count (another save): re-baseline silently
             self.deaths_seen = net
             return
         if net == self.deaths_seen:
@@ -1102,8 +1014,7 @@ class ApSession(object):
     # --- display names ---
 
     def _scout(self, sock):
-        """Ask the room what is actually in our reserved locations.
-        create_as_hint 0: information only, no room-visible hints."""
+        """Ask the room what sits in our reserved locations, without creating hints."""
         targets = sorted(set(self.maps.outbox[self.world].values()) & self.our_locations)
         self.scout_total = len(targets)
         if not targets:
@@ -1129,8 +1040,7 @@ class ApSession(object):
         self._resolve_names()
 
     def _fetch_datapackages(self, sock):
-        """An item id only means something in the OWNING slot's game, so pull
-        exactly those games we still lack (never the whole room's package)."""
+        """Request datapackages for owning games we lack; item ids are per game."""
         want = set()
         for _, owner in self.scouted.values():
             game = self.slot_games.get(owner)
@@ -1162,21 +1072,17 @@ class ApSession(object):
         return self._dp_tables(owner)[0]
 
     def _recipient(self, owner):
-        """Display token for the slot an item is going to. Another world of
-        THIS orirando game gets 'P<world>', which the client already knows
-        how to turn into that player's own name; anyone else gets their room
-        name."""
+        """Display token for an item's recipient: 'P<world>' for a sibling world,
+        else the room name."""
         world = self.sibling_world(owner)
         if world:
             return "P%s" % world
-        # a name that sanitizes away (unicode-only aliases are common) would
-        # otherwise render as "Found 's Bash!"
+        # a name that sanitizes away would render as "Found 's Bash!"
         return wire_safe_name(self.slot_players.get(owner), PLAYER_NAME_MAX) or "Archipelago"
 
     def sibling_world(self, slot):
-        """Room slot -> the world of THIS orirando game sitting on it, or 0.
-        Matched on the raw slot name the link stored, never the alias: an
-        alias is player-editable and any room can hold a second Ori game."""
+        """Room slot -> the world of this orirando game on it, or 0. Matched on
+        the raw slot name, never the player-editable alias."""
         if slot == self.our_slot:
             return self.world
         if self.slot_games.get(slot) != AP_GAME_NAME:
@@ -1188,9 +1094,8 @@ class ApSession(object):
         return 0
 
     def _resolve_names(self):
-        """Scouted (item, owner) + datapackages -> {shadow slot: APScout}.
-        Partial by design: a game we never got a package for simply keeps its
-        placeholders."""
+        """Scouted (item, owner) + datapackages -> {shadow slot: APScout}; a game
+        with no package keeps its placeholders."""
         slot_of = {ap_id: slot for slot, ap_id in self.maps.outbox[self.world].items()}
         names = {}
         for loc, (item, owner) in self.scouted.items():
@@ -1216,8 +1121,7 @@ class ApSession(object):
                  self.gid, self.world, len(names), self.scout_total)
 
     def _sender_name(self, finder):
-        """Display name for whoever found an item we received. Empty means
-        we found it ourselves, which the client renders with no suffix."""
+        """Display name for whoever found an item we received; "" = ourselves."""
         world = self.sibling_world(finder)
         if world == self.world:
             return ""
@@ -1225,23 +1129,15 @@ class ApSession(object):
             return "P%s" % world
         return wire_safe_name(self.slot_players.get(finder), PLAYER_NAME_MAX)
 
-    # --- hint purchases ---
-    #
-    # Ori reveals its clues progressively: dungeon-key clues at 3/6/9 trees,
-    # a keysanity door hint when you touch the door, Stomp/Grenade when the
-    # Forlorn escape ends. All three conditions are CLIENT state, so the
-    # client asks (tick field 'aph') and the server buys. Every gate lives
-    # here, because '!hint' spends points the player can never earn back:
-    # free answers first (our own scouts, then the room's existing hints),
-    # then affordability, then a write-ahead claim, then exactly one Say.
+    # --- hint purchases: the client asks (tick 'aph'), the server buys. Gates in
+    # order: free answers (own scouts, room hints), affordability, claim, one Say.
 
     def _hint_key(self):
         return "_read_hints_0_%s" % self.our_slot
 
     def _hydrate_hints(self, sock):
-        """The room's own hint list, free and silent: no Say, no chat line,
-        no points. This is the idempotence anchor -- a hint the room already
-        holds is never bought again, whoever bought it."""
+        """Ask for the room's hint list for our slot (free, silent), and
+        subscribe to it: a hint the room holds is never bought again."""
         if self.our_slot is None:
             return
         self.hint_asked_at = monotonic()
@@ -1249,9 +1145,8 @@ class ApSession(object):
                      {"cmd": "SetNotify", "keys": [self._hint_key()]}])
 
     def _hint_buying_allowed(self):
-        """Never buy before the room has said what it already holds -- that
-        answer is free and may make the purchase unnecessary. A room that
-        ignores the Get is not allowed to block hints forever."""
+        """Buy only after the room's hint list arrived, or HINT_ACK_SECS after
+        asking for it."""
         if self.hint_hydrated:
             return True
         return self.hint_asked_at is not None and monotonic() - self.hint_asked_at > HINT_ACK_SECS
@@ -1266,8 +1161,7 @@ class ApSession(object):
             value = (msg.get("keys") or {}).get(key)
         if not isinstance(value, list):
             return
-        # the room tells us about hints we FIND as well as hints we receive;
-        # only the latter answer a reveal, and keeping only those bounds this
+        # only hints we receive answer a reveal
         self.room_hints = [h for h in value if isinstance(h, dict)
                            and h.get("receiving_player") == self.our_slot]
         self.hint_hydrated = True
@@ -1306,16 +1200,14 @@ class ApSession(object):
         return max(1, int(self.hint_cost_pct * 0.01 * len(self.our_locations)))
 
     def _afford_text(self):
-        # no live point count: the text has to repeat exactly, or signal_send's
-        # dedup never matches and every deferral stacks another line
+        # constant text, so signal_send's dedup can match a repeat
         return "Not enough Archipelago hint points -- clues fill in as you find more checks"
 
     def _service_hints(self, sock):
         if self.hint_box is not None:
             self.hint_wanted |= self.hint_box.drain()
         if self.hint_inflight is not None and monotonic() - self.hint_inflight[2] > HINT_ACK_SECS:
-            # said into the void. The claim stays PENDING on purpose: an
-            # ambiguous purchase must never be retried blind.
+            # unanswered: the claim stays PENDING, an ambiguous purchase is never retried
             log.warning("APBRIDGE hint unanswered gid=%s world=%s slot=%s",
                         self.gid, self.world, self.hint_inflight[0])
             self.hint_inflight = None
@@ -1327,8 +1219,7 @@ class ApSession(object):
             self.hint_next_poll = now + HINT_POLL_SECS
             with self.ctx():
                 fresh = _load_hints(self.gid, self.world)
-            # a live session's own transitions are the newer truth: only the
-            # states it cannot produce itself are taken from the row
+            # only a site buy (OFFERED -> REQUESTED) is taken from the row
             for slot, cur in fresh.items():
                 if cur.get("s") == HINT_REQUESTED and self.hint_state.get(slot, {}).get("s") == HINT_OFFERED:
                     self.hint_state[slot] = cur
@@ -1341,19 +1232,17 @@ class ApSession(object):
                 self.hint_last_try[slot] = now
 
     def _service_hint(self, slot, sock):
-        """One requested slot. False means 'ask me again next second', which
-        is only ever the wait for a datapackage."""
+        """One requested slot. False means retry next second instead of after
+        HINT_RETRY_SECS."""
         key = self.maps.hint_keys.get(self.world, {}).get(slot)
         ap_item = AP_ID_BY_ITEM_KEY.get(key) if key else None
         if ap_item is None:
-            # not one of the three reveals (or not an AP game at all):
-            # refused for free, without a word to the room
+            # not a hintable reveal: refused silently
             self.hint_wanted.discard(slot)
             return True
         entry = self.hint_state.get(slot) or {}
         if entry.get("s") == HINT_RESOLVED:
-            # a repeat request is answered from storage; re-publishing costs
-            # nothing and repairs a player row that lost its copy
+            # answered from storage; republishing repairs a player row that lost it
             self._publish(slot, entry.get("t") or "", ap_item, store=False)
             return True
         known = self._known_locations(ap_item, sock)
@@ -1365,19 +1254,16 @@ class ApSession(object):
             self._publish(slot, known[index], ap_item)
             return True
         if entry.get("s") == HINT_PENDING and self.hint_inflight is None:
-            # bought, answered, and the room still named fewer places than
-            # this item has copies: it has no more to give, so settle for
-            # what we can say rather than buying the same answer again
+            # claimed and no purchase in flight, yet no place for this copy:
+            # settle for the generic text rather than buying again
             self._publish(slot, FOREIGN_HINT_TEXT, ap_item)
             return True
         if entry.get("s") != HINT_REQUESTED:
-            # unlocked in Ori and not free anywhere: for sale, and it stays that
-            # way until somebody presses buy on the seed page
+            # for sale until somebody presses buy on the seed page
             self._offer(slot, ap_item, key="%s|%s" % key if key else "")
             return True
         if self.hint_inflight is not None or not self._hint_buying_allowed():
-            # one purchase at a time, so a CommandResult is unambiguous; come
-            # back next second rather than sitting out the retry window
+            # one purchase at a time, so a CommandResult is unambiguous
             return False
         cost = self._hint_cost()
         if self.hint_points < cost:
@@ -1388,9 +1274,7 @@ class ApSession(object):
             self.hint_wanted.discard(slot)
             return True
         with self.ctx():
-            # a single-copy item may re-buy a claim old enough to be a crash;
-            # for a multi-copy one the next '!hint' buys the NEXT copy, so it
-            # never may
+            # multi-copy never reclaims: a repeat '!hint' buys the next copy
             claimed = _claim_hint(self.gid, self.world, slot, ap_item,
                                   stale_ok=len(copies) == 1)
         if not claimed:
@@ -1403,10 +1287,8 @@ class ApSession(object):
         return True
 
     def _known_locations(self, ap_item, sock):
-        """Where every copy of this item is, as far as we can tell for free:
-        our own scout rows first, then the room's hint list. Deduped on
-        (finding slot, location) -- one copy can appear in both. None means
-        a foreign location name is still being fetched."""
+        """Free answer texts for this item: our scout rows, then room hints,
+        deduped on (finder, location). None while a location name is fetched."""
         seen, out = set(), []
         for finder, loc, text in self._scouted_copies(ap_item):
             if (finder, loc) not in seen:
@@ -1424,10 +1306,8 @@ class ApSession(object):
         return out
 
     def _scouted_copies(self, ap_item):
-        """Copies Archipelago left inside this orirando game. Each world
-        scouts its own reserved locations, so the K rows together place them
-        without asking the room anything -- which is also the whole answer
-        when the key never left Ori."""
+        """(finder slot, location, text) for copies AP placed inside this
+        orirando game, read from the K worlds' scout rows."""
         if self.our_slot is None:
             return []
         now = monotonic()
@@ -1457,9 +1337,8 @@ class ApSession(object):
         return mine
 
     def _hint_text(self, hint, sock):
-        """One room hint -> the string an Ori clue prints. A sibling world
-        renders exactly like a baked clue ('P3 Valley'); anyone else gets
-        their room name and the AP location name."""
+        """Room hint -> clue text: 'P3 Valley' for a sibling world, else
+        '<room name> <AP location>'. None while the location name is fetched."""
         finder = self._as_int(hint.get("finding_player"), -1)
         loc = self._as_int(hint.get("location"), -1)
         world = self.sibling_world(finder)
@@ -1488,8 +1367,7 @@ class ApSession(object):
             if store:
                 _persist_hint(self.gid, self.world, slot, HINT_RESOLVED,
                               text=text, ap_item=ap_item)
-            # keep = what the client still asks about, so answers it stopped
-            # reading are evicted before the cap can refuse a fresh one
+            # keep = still asked for; other answers may be evicted under the cap
             _apply_hint_text(self.gid, self.world, {slot: text},
                              keep=set(self.hint_wanted) | {slot})
         self.hint_state[slot] = APHints.entry(HINT_RESOLVED, text=text, ap_item=ap_item)
@@ -1503,8 +1381,7 @@ class ApSession(object):
                    for slot in self.hint_wanted)
 
     def _publish_price(self):
-        """Only from the hint service, so a room that never stops updating
-        points does not turn into a write per message."""
+        """Persist (points, cost) when changed; called from the hint service only."""
         cost = self._hint_cost()
         if (self.hint_points, cost) == self.price_written:
             return
@@ -1513,10 +1390,8 @@ class ApSession(object):
             _persist_price(self.gid, self.world, self.hint_points, cost)
 
     def _offer(self, slot, ap_item, key=""):
-        """For sale: Ori has unlocked it, nothing free answered it, and no
-        points have been spent. Silent -- a '!hint' would broadcast what we are
-        looking for, and we have not decided to look yet. The key rides along so
-        the seed page can name the hint without the manifest."""
+        """Mark a slot for sale on the seed page (no Say). The key lets the page
+        name it without the manifest."""
         if (self.hint_state.get(slot) or {}).get("s") == HINT_OFFERED:
             return
         with self.ctx():
@@ -1526,9 +1401,8 @@ class ApSession(object):
         log.info("APBRIDGE hint offered gid=%s world=%s slot=%s", self.gid, self.world, slot)
 
     def _defer(self, slot, ap_item, why):
-        """Unaffordable: leave the baked placeholder alone, say nothing to
-        the room (a doomed '!hint' still broadcasts what we are looking for),
-        and let the next RoomUpdate's hint_points retry it."""
+        """Unaffordable: record DEFERRED and say nothing to the room (a doomed
+        '!hint' still broadcasts); more hint_points retries it."""
         with self.ctx():
             _persist_hint(self.gid, self.world, slot, HINT_DEFERRED, ap_item=ap_item)
         self.hint_state[slot] = APHints.entry(HINT_DEFERRED, ap_item=ap_item)
@@ -1542,9 +1416,7 @@ class ApSession(object):
 
     def _on_received_items(self, msg, sock):
         if self.promised is None:
-            # self-item fills need the scout-derived promise map, and the
-            # fill must stay a pure function of the stream: hold everything
-            # (the connect backlog included) until the map exists
+            # hold everything until promises exist: the fill is a pure function of the stream
             self.deferred_msgs.append(msg)
             return
         index, items = int(msg.get("index", 0)), msg.get("items") or []
@@ -1561,8 +1433,7 @@ class ApSession(object):
             slot = None
             try:
                 if int(item.get("player")) == self.our_slot:
-                    # our own item at our own location: the client granted the
-                    # promised slot on contact; the delivery must land there
+                    # own item at own location: land on the slot the client granted on contact
                     slot = self.promised.get(item.get("location"))
             except (TypeError, ValueError):
                 pass
@@ -1587,9 +1458,8 @@ class ApSession(object):
             self.flush_at = monotonic() + COALESCE_SECS
 
     def _note_drop(self, stream_i, item):
-        """Record an undeliverable delivery durably and tell the player once.
-        The stream index is the dedup key: the fill re-derives on every
-        index-0 resend, so the same overage re-drops in every session."""
+        """Record an undeliverable delivery durably and tell the player once,
+        keyed by stream index."""
         ap_item = item.get("item")
         name = _drop_name(ap_item)
         try:
@@ -1616,12 +1486,8 @@ class ApSession(object):
                 self._on_received_items(msg, sock)
 
     def _build_promises(self):
-        """Promise map, once every scout has answered (self rows need nothing
-        else -- their item keys come from our own static table). Past the
-        deadline, rebuild from the persisted scout row first: the same row
-        annotate reads, so the promises agree with every gated seed download
-        by construction. Only with no usable row does the session degrade to
-        arrival-order fills."""
+        """Build promises once every scout answered. Past the deadline, use the
+        persisted scout row annotate reads; with none, degrade to arrival order."""
         if self.our_slot is None or not self.authed:
             return
         if len(self.scouted) >= self.scout_total:
@@ -1647,9 +1513,8 @@ class ApSession(object):
             self.free_slots = {k: list(v) for k, v in self.maps.grant_slots.get(self.world, {}).items()}
 
     def _publish_promises(self):
-        """The promise map, keyed by shadow slot (the form annotate can look
-        up straight off a reserved line, no datapackage involved). An empty
-        map is still published: 'computed none' and 'never built' differ."""
+        """Persist promises keyed by shadow slot. An empty map is still
+        published: 'computed none' differs from 'never built'."""
         slot_by_loc = {loc: s for s, loc in self.maps.outbox.get(self.world, {}).items()}
         blob = {slot_by_loc[loc]: mslot for loc, mslot in (self.promised or {}).items()
                 if loc in slot_by_loc}
@@ -1661,11 +1526,8 @@ class ApSession(object):
                           self.gid, self.world)
 
     def _stored_scouts(self):
-        """A complete persisted scout row, reshaped for promised_slots, or
-        None. Demands the row's ap_slot match this connection's (a retargeted
-        room's leftover row must not seed promises) and every reserved slot
-        answered -- the same completeness the download gate demands, so any
-        row this accepts is one annotated seeds were built from."""
+        """The persisted scout row reshaped for promised_slots, or None unless it
+        is complete and was written for this connection's ap_slot."""
         try:
             with self.ctx():
                 entries, ap_slot = _load_scout_row(self.gid, self.world)
@@ -1680,8 +1542,7 @@ class ApSession(object):
                 for slot, s in entries.items() if slot in outbox}
 
     def _flush_grants(self):
-        """One grant transaction for everything buffered since the window
-        opened, so a collect+release burst is one message in game."""
+        """One grant transaction for everything buffered since the window opened."""
         if self.flush_at is None:
             return
         slots, senders = self.pending, self.pending_from
@@ -1697,8 +1558,7 @@ class ApSession(object):
         pending = current - self.checked
         if pending:
             _send(sock, [{"cmd": "LocationChecks", "locations": sorted(pending)}])
-            # optimistic: a lost send kills the socket, and the next
-            # connect re-seeds checked from the room's own list
+            # optimistic: a lost send kills the socket, and Connected re-seeds checked
             self.checked |= pending
 
     def _send_goal(self, sock):
@@ -1715,8 +1575,7 @@ class ApSession(object):
             log.info("APBRIDGE link disabled gid=%s world=%s, stopping", self.gid, self.world)
             return False
         if (link.host, link.port, link.password) != (self.host, self.port, self.password):
-            # room retargeted via ap/connect: end this session so the
-            # reconnect loop re-reads the link and joins the new room
+            # room retargeted: the thread exits and the next heal() dials the new room
             log.info("APBRIDGE room changed gid=%s world=%s, cycling", self.gid, self.world)
             return False
         if self.world in (link.goal_worlds or []):
@@ -1729,10 +1588,7 @@ class ApSession(object):
 _bridges = {}      # (gid, world) -> _Bridge
 _reg_lock = threading.Lock()
 _heal_memo = {}    # gid -> (expiry, state, worlds); state: False | True | "idle"
-# gid -> monotonic() of the last ACTIVE heal (tick/complete) or thread start.
-# Passive heals (ap/status polls) never stamp -- that asymmetry is the whole
-# idle mechanism. Process-local: a deploy grants each zombie one more
-# AP_IDLE_SECS grace period, then the durable "idle" status holds it down.
+# gid -> monotonic() of the last active heal or thread start; passive heals never stamp
 _last_active = {}
 _shared_stamp_at = {}   # gid -> monotonic() of the last shared-beacon write
 
@@ -1742,9 +1598,7 @@ def _idle_stale(gid):
 
 
 def _stamp_active(gid):
-    """Process-local stamp plus a throttled cross-process beacon: during
-    deploy overlap the ticks land on one process while the other still owns
-    bridge threads -- the beacon is how that twin knows the game is alive."""
+    """Process-local activity stamp plus a throttled cross-instance beacon."""
     _last_active[gid] = monotonic()
     if monotonic() - _shared_stamp_at.get(gid, 0.0) > 60:
         _shared_stamp_at[gid] = monotonic()
@@ -1755,9 +1609,7 @@ def _stamp_active(gid):
 
 
 def _shared_active_recent(gid):
-    """Module touchpoint (tests reroute): the cross-process activity beacon.
-    Absence is not evidence of idleness (cache restarts) -- callers combine
-    this with the local clock, so a miss just falls back to local truth."""
+    """The cross-instance activity beacon; a miss proves nothing (cache restarts)."""
     try:
         return bool(Cache.get_ap_active(gid))
     except Exception:
@@ -1765,11 +1617,8 @@ def _shared_active_recent(gid):
 
 
 def _persist_idle(gid):
-    """Durable "idle", guarded: the staleness verdict is process-local but the
-    row is shared. Never clobber an explicit disconnect ("disconnected") or a
-    fresh connect ("pending"), and never call a game idle while any process's
-    beacon says it is playing. Callers exit their thread regardless --
-    skipping the persist only skips the label."""
+    """Write "idle" unless the link is disabled, pending or disconnected, or
+    another instance's beacon says the game is active."""
     link = APLink.with_id(gid)
     if link is None or not link.enabled:
         return
@@ -1783,8 +1632,7 @@ def _persist_idle(gid):
 class _Bridge(object):
     def __init__(self, gid, world):
         self.gid, self.world = gid, world
-        # thread-start grace: a bridge born with no activity record (deploy
-        # restart of a zombie) gets one AP_IDLE_SECS period before idling out
+        # a bridge born with no activity record gets one AP_IDLE_SECS of grace
         _last_active.setdefault(gid, monotonic())
         self.stop_event = threading.Event()
         self.goal_event = threading.Event()
@@ -1806,8 +1654,7 @@ class _Bridge(object):
                 return
             while not self.stop_event.is_set():
                 if _idle_stale(gid):
-                    # re-check stop: stop() pops the stamp, which reads as
-                    # stale -- the route's own status must not be clobbered
+                    # stop() pops the stamp, which reads as stale: don't clobber its status
                     if not self.stop_event.is_set():
                         with ndb_client.context():
                             _persist_idle(gid)
@@ -1842,7 +1689,7 @@ class _Bridge(object):
                     sock, scheme = _open_socket(host, port, scheme)
                     log.info("APBRIDGE socket up gid=%s world=%s %s://%s:%s", gid, world, scheme, host, port)
                     session.run(sock)
-                    return  # clean stop: disabled link or stop_event
+                    return  # clean return: disabled, stopped, retargeted or idle
                 except ApRefused as e:
                     log.warning("APBRIDGE refused gid=%s world=%s: %s", gid, world, e)
                     with ndb_client.context():
@@ -1853,8 +1700,7 @@ class _Bridge(object):
                     if not self.stop_event.is_set():  # don't clobber the route's 'disconnected'
                         with ndb_client.context():
                             if room_closed_for_good(e):
-                                # terminal: ensure() refuses to restart on this
-                                # status, so only an explicit connect reopens it
+                                # terminal: only an explicit connect reopens it
                                 _persist_status(gid, "closed", ROOM_CLOSED_MSG)
                                 return
                             _persist_status(gid, "reconnecting", "world %s: %s" % (world, e))
@@ -1890,11 +1736,8 @@ def _alive(gid, world):
 
 
 def ensure(game_id, link=None, wake_idle=True):
-    """Start any missing/dead bridge threads for an AP-enabled game. Needs an
-    active ndb context (request path only). Never raises; returns count started.
-    wake_idle=False (passive callers: ap/status heals) refuses links whose
-    status is "idle" -- only real game activity or an explicit connect restarts
-    an idled bridge. A "closed" link refuses both: its room is gone."""
+    """Start missing/dead bridge threads (ndb context required); -> count started.
+    Never raises. wake_idle=False skips "idle" links; "closed" is always skipped."""
     if not ARCHIPELAGO:
         return 0
     started = 0
@@ -1903,8 +1746,7 @@ def ensure(game_id, link=None, wake_idle=True):
         link = link or APLink.with_id(gid)
         enabled = bool(link and link.enabled)
         worlds = len(link.slot_names) if link else 0
-        # ahead of the idle check and deaf to wake_idle: a tick means the player
-        # is still going, which is no reason to redial a room that ended
+        # checked before idle and deaf to wake_idle: a ticking player doesn't reopen a room
         if enabled and (link.status or "") == "closed":
             _heal_memo[gid] = (monotonic() + IDLE_MEMO_TTL, "closed", worlds)
             return 0
@@ -1915,13 +1757,11 @@ def ensure(game_id, link=None, wake_idle=True):
         if not enabled:
             return 0
         if wake_idle:
-            # real activity refreshes the idle clock (passive restarts of a
-            # crashed bridge instead ride _Bridge.__init__'s grace stamp)
+            # passive restarts ride _Bridge.__init__'s grace stamp instead
             _stamp_active(gid)
         for w in range(1, worlds + 1):
             with _reg_lock:
-                # start under the lock: a concurrent ensure() must see the
-                # freshly-registered bridge as alive, not double-spawn it
+                # start under the lock so a concurrent ensure() sees it alive
                 if _bridges.get((gid, w)) is not None and _bridges[(gid, w)].alive():
                     continue
                 b = _Bridge(gid, w)
@@ -1935,11 +1775,8 @@ def ensure(game_id, link=None, wake_idle=True):
 
 
 def heal(game_id, active=False):
-    """Request-path self-heal hook (ws.py pusher pattern): memoized so the
-    steady-state cost for every game is one dict lookup; expired or
-    dead-thread states fall through to ensure(). Never raises.
-    active=True marks real game activity (tick, complete): it refreshes the
-    idle clock and is the only heal that wakes an idled bridge."""
+    """Request-path self-heal, memoized to a dict lookup per game. Never raises.
+    active=True (tick/complete) refreshes the idle clock and wakes idle bridges."""
     if not ARCHIPELAGO:
         return
     try:
@@ -1955,8 +1792,7 @@ def heal(game_id, active=False):
                 return
             elif all(_alive(gid, w) for w in range(1, worlds + 1)):
                 if active:
-                    # keeps a busy game's idle clock (and the cross-process
-                    # beacon) fresh even when the memo short-circuits ensure()
+                    # keep the idle clock fresh while the memo skips ensure()
                     _stamp_active(gid)
                 return
         ensure(gid, wake_idle=active)
@@ -1965,14 +1801,12 @@ def heal(game_id, active=False):
 
 
 def stop(game_id):
-    """Signal the game's bridge threads to exit (ap/disconnect). The threads
-    unwind on their next timeout tick; the link row is the durable state."""
+    """Signal the game's bridge threads to exit (ap/disconnect)."""
     try:
         gid = int(game_id)
         with _reg_lock:
             targets = [b for (g, _), b in _bridges.items() if g == gid]
-        # events first: a popped stamp reads as stale, and a mid-iteration
-        # thread must see the stop before its idle check can misfire
+        # events first: a popped stamp reads as stale to the idle check
         for b in targets:
             b.stop_event.set()
         _heal_memo.pop(gid, None)
@@ -1983,11 +1817,8 @@ def stop(game_id):
 
 
 def request_hints(game_id, player_id, raw):
-    """Tick field 'aph': the manifest slots this client's own reveals now
-    need. A level, not an event -- the client re-sends until it has an
-    answer, and every exactly-once concern (double purchase above all) is
-    settled on the session thread against the durable record. Costs a
-    non-AP game one `if`, since nothing else ever sends the field."""
+    """Tick field 'aph': manifest slots the client's reveals need. A level the
+    client re-sends; purchases are deduped on the session thread."""
     if not ARCHIPELAGO or not raw:
         return
     try:
@@ -2004,11 +1835,8 @@ def request_hints(game_id, player_id, raw):
 
 
 def note_deaths(game_id, player_id, raw):
-    """Tick field 'dl': this world's death counters. Same shape as the hint
-    request -- a level the client re-reports every second, read here and
-    diffed on the session thread (the socket belongs to it). Costs a game
-    without death link one `if`, since only a DeathLink seed sends the
-    field at all."""
+    """Tick field 'dl': this world's death counters, a level diffed on the
+    session thread."""
     if not ARCHIPELAGO or not raw:
         return
     try:
@@ -2026,9 +1854,8 @@ def note_deaths(game_id, player_id, raw):
 
 
 def notify_goal(game_id, player_id):
-    """World completed (netcode complete path): record it durably on APLink
-    and wake the world's session to send StatusUpdate{CLIENT_GOAL}. Needs an
-    active ndb context. Never raises (the credits ping must not break)."""
+    """World completed: record it on APLink and wake its session to send the
+    goal. Needs an ndb context; never raises."""
     if not ARCHIPELAGO:
         return
     try:

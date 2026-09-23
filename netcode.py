@@ -1,14 +1,8 @@
 """Transport-neutral session layer for the client netcode.
 
-Each handler is a function of (game_id, player_id, ...path args, payload) ->
-(status, body). `payload` is any Mapping with .get()/`in` (the HTTP adapters in
-main.py pass request.args or request.form verbatim; a websocket adapter passes
-a plain dict). Bodies are the exact strings the shipped C# client parses (see
-test/golden_wire_test.py); adapters must wrap them without modification —
-HTTP: text_resp(body, status).
-
-This module must stay importable without main.py (no Flask, no OIDC/logging
-setup) so route-level golden tests can drive the full handler bodies.
+Handlers map (game_id, player_id, ...path args, payload) to (status, body). payload is any
+Mapping (request.args/form, or a dict from ws.py); bodies are the exact strings the C# client
+parses (golden_wire_test) and adapters pass them through unmodified. No Flask imports here.
 """
 import ipaddress
 import json
@@ -29,8 +23,7 @@ def _code(status):
 
 
 def _warn_signal(p, signal):
-    """Queue a warning without putting the handler's stale copy: that write
-    erased concurrent grant transactions' slot bitfields."""
+    """Queue a warning via a fresh-read txn, never a put of the handler's copy."""
     if Player.signal_send_txn(p.key, signal):
         Cache.clear_seen_checksum(p.idpts())
 
@@ -46,8 +39,7 @@ def found_pickup(game_id, player_id, coords, kind, id, payload):
         coords = coord_correction_map[coords]
     if coords not in all_locs and abs(coords) != 1:  # +1 is the client's TP-activation pseudo-coord
         log.warning("Coord mismatch error! %s not in all_locs or correction map. Sync %s.%s, pickup %s|%s" % (coords, game_id, player_id, kind, id))
-    # no player count: a cross-world line needs one only to name its item, and
-    # nothing here reads the name -- history stores the raw id and renders later
+    # no player count: only naming a cross-world item needs one, and history stores the raw id
     pickup = Pickup.n(kind, id)
     if not pickup:
         log.error("Couldn't build pickup %s|%s" % (kind, id))
@@ -65,18 +57,14 @@ def found_pickup(game_id, player_id, coords, kind, id, payload):
 
 def tick(game_id, player_id, payload):
     if ARCHIPELAGO:
-        # bridge self-heal rides the 1 Hz tick (memoized: a dict lookup for
-        # any game without a live AP link). active=True: ticks are the game
-        # activity that keeps a bridge awake / wakes an idled one.
+        # ticks are the activity that keeps a bridge awake; cheap without a live link
         ap_bridge.heal(game_id, active=True)
-        # ...and so does the client's progressive-hint request, which must be
-        # read before the cached fast path below returns without a payload
+        # read before the fast path returns
         ap_bridge.request_hints(game_id, player_id, payload.get("aph"))
         ap_bridge.note_deaths(game_id, player_id, payload.get("dl"))
     x = payload.get("x")
     y = payload.get("y")
     if Cache.get_seen_checksum((game_id, player_id)) == bfield_checksum(payload.get("seen_%s" % i, 0) for i in range(8)):
-        # checksum and output caching should happen in sync, but it doesn't hurt to check
         cached_output = Cache.get_output((game_id, player_id))
         if cached_output:
             Cache.set_pos(game_id, player_id, x, y)
@@ -88,11 +76,7 @@ def tick(game_id, player_id, payload):
     vers = payload.get("version")
     seen = [int(payload.get("seen_%s" % i, 0)) for i in range(8)]
     have = [int(payload.get("have_%s" % i)) for i in range(8)]
-    # slow path only: the fast path above serves cache and never sees a
-    # Player. The write re-reads fresh inside a txn and touches only
-    # tick-owned fields — putting the stale handler copy raced concurrent
-    # grant txns and erased their bits (134701 lost two shared skills, and
-    # multiworld has no sanity check to repair that).
+    # a fresh-read txn on tick-owned fields: a put of this copy would erase concurrent grants
     if (vers and p.dll_version != vers) or p.seen_bflds != seen or p.have_bflds != have:
         if vers and p.dll_version != vers:
             log.info("NETPERF dll_version gid=%s pid=%s vers=%s was=%s", game_id, player_id, vers, p.dll_version)
@@ -105,9 +89,7 @@ def tick(game_id, player_id, payload):
 
 
 def tick_output(game_id, player_id):
-    """Fresh tick body for a websocket push frame — byte-identical to what
-    /tick/ would return for this player, minus the client-payload processing
-    (position, bitfield updates, version) only a real tick carries."""
+    """The /tick/ body for a push frame, without the payload processing a real tick does."""
     game = Game.with_id(game_id)
     if not game:
         return None
@@ -118,11 +100,8 @@ def tick_output(game_id, player_id):
 
 
 def game_complete(game_id, player_id):
-    """The client's credits-roll ping. In multiworld this releases everything
-    left in the finisher's world to its owners. Logged unconditionally —
-    game 134478's lost release was invisible because non-arrival left no
-    trace; now absence-of-line = client never sent, definitively. Idempotent
-    (a re-released world yields released=0), so clients retry freely."""
+    """Credits-roll ping; in multiworld, releases the finisher's world to its owners.
+    Idempotent, and always logged: no game_complete line means the client never sent it."""
     t0 = monotonic()
     game = Game.with_id(game_id)
     if not game:
@@ -131,19 +110,15 @@ def game_complete(game_id, player_id):
     if game.mode == MultiplayerGameType.MULTIWORLD:
         released = game.mw_release(player_id)
         netperf("mw_release", t0, gid=game_id, pid=player_id, released=released)
-        # marked even when released == 0: a re-finish hands over nothing and must still
-        # leave the world marked, since that is what the client reads to stop offering
-        # locations whose contents have already gone to their owners
-        # player() answers None for a stray pid on a bingo game; nothing to mark then
+        # marked even when nothing was released: the client reads it to stop offering spent locations
         finisher = game.player(player_id)
         if finisher is not None and not finisher.released:
             finisher.released = True
             finisher.put()
-            # or an idle finisher hits the cached tick body forever and never sees it
+            # or an idle finisher's fast path never shows it
             Cache.clear_seen_checksum(finisher.idpts())
         if ARCHIPELAGO:
-            # AP-mode world done: durable goal mark + StatusUpdate on its
-            # room socket (no-op for games without an AP link)
+            # durable goal mark + StatusUpdate; no-op without an AP link
             ap_bridge.notify_goal(game_id, player_id)
     netperf("game_complete", t0, gid=game_id, pid=player_id, mode=game.mode.name, status=200)
     return 200, "ok"
@@ -164,9 +139,8 @@ def _host_is_local(host):
 
 
 def ap_connect(game_id, payload):
-    """POST ap/connect {host, port, password}: store/refresh the game's
-    APLink. Reconnects keep the per-world recv indexes (durable progress);
-    only the room coordinates and enablement change."""
+    """POST ap/connect {host, port, password}: store or refresh the game's APLink.
+    Reconnects keep the per-world recv indexes."""
     if not ARCHIPELAGO:
         return 404, "Archipelago support is not enabled"
     game = Game.with_id(game_id)
@@ -186,9 +160,7 @@ def ap_connect(game_id, payload):
         return 400, ("%s is only reachable from your own machine, and the room "
                      "is dialed from our servers. Use an archipelago.gg room, "
                      "or your public address with the port forwarded." % host)
-    # an old dll against the current bridge dupes self-items, so the room
-    # stays closed while any player we can see runs one. Versions arrive on
-    # the tick, so players who haven't launched yet are invisible here.
+    # an old dll dupes self-items; players who haven't ticked yet report no version
     if not payload.get("force"):
         stale = ["P%s is on %s" % (p.pid(), p.dll_version)
                  for p in game.visible_players()
@@ -208,16 +180,13 @@ def ap_connect(game_id, payload):
     if retarget:
         link.last_error = None  # retrying the same room keeps its diagnosis
     link.put()
-    # lazy-start the room bridge (ws.py push pattern: request-path start
-    # only; gunicorn --preload silently kills import-time threads)
+    # threads start lazily: --preload forks away any started at import
     ap_bridge.ensure(game_id, link=link)
     return 200, "ok"
 
 
 def ap_status(game_id):
-    """GET ap/status: the stored APLink as JSON. Served from memcache (every
-    APLink put busts via post-put hook); "-" negative-caches a missing row so
-    pre-connect polling never reaches the datastore."""
+    """GET ap/status: the stored APLink as JSON, memcached; "-" negative-caches a missing row."""
     if not ARCHIPELAGO:
         return 404, "Archipelago support is not enabled"
     cached = Cache.get_aplink_report(game_id)
@@ -230,8 +199,7 @@ def ap_status(game_id):
     if not link:
         Cache.set_aplink_report(game_id, "-", negative=True)
         return 404, "No Archipelago link for game %s" % game_id
-    # cache before heal: a thread heal spawns could persist + bust while we
-    # hold the pre-spawn row, and a set after that bust would pin stale data
+    # cache before heal, or this row could overwrite a bust from the thread heal spawns
     text = json.dumps(link.report())
     Cache.set_aplink_report(game_id, text)
     ap_bridge.heal(game_id)  # passive: re-arms crashed threads, never idle ones
@@ -239,11 +207,8 @@ def ap_status(game_id):
 
 
 def _may_buy_hints(game):
-    """A hint spends points the player can never earn back, so who may press
-    buy follows who could already do it by hand: a passwordless room takes
-    '!hint' from anyone who has its address, and the seed page is no worse.
-    A password means the room is closed, so the site closes too -- a logged-in
-    player of this game and nobody else."""
+    """Anyone may buy for a passwordless room (it takes !hint from anyone with the
+    address); a password limits buying to this game's logged-in players."""
     link = APLink.with_id(game.key.id())
     if link is None:
         return False, "No Archipelago link for game %s" % game.key.id()
@@ -272,11 +237,8 @@ def _ap_game(game_id):
 
 
 def ap_hints(game_id):
-    """GET ap/hints: what each world could buy, and what it would cost.
-
-    An offer means Ori has unlocked the hint and nothing free answered it.
-    Everything here is already visible to a player of this game; the price is
-    the room's own, reported by the bridge."""
+    """GET ap/hints: what each world could buy, and the room's price.
+    An offer is a hint Ori unlocked that nothing free answered."""
     game, problem = _ap_game(game_id)
     if problem:
         return problem
@@ -290,8 +252,7 @@ def ap_hints(game_id):
                 continue
             key = entry.get("k", "")
             code, _, ident = key.partition("|")
-            # named here because the page's own table has no keysanity door
-            # keystones in it -- they are never a thing you place
+            # the page's name table has no keysanity door keystones
             offers.append({"slot": slot, "key": key,
                            "name": Pickup.name(code, ident) if key else ""})
         worlds.append({"world": world, "points": points, "cost": cost,
@@ -300,9 +261,8 @@ def ap_hints(game_id):
 
 
 def ap_buy_hint(game_id, payload):
-    """POST ap/hints/buy {world, slot}: mark one offer bought. The bridge
-    session picks the request up and spends the points; this only ever moves
-    an offer, so a double press is the second one losing a compare-and-set."""
+    """POST ap/hints/buy {world, slot}: mark one offer bought; the bridge spends the points.
+    A double press loses a compare-and-set."""
     game, problem = _ap_game(game_id)
     if problem:
         return problem
@@ -390,8 +350,7 @@ def _ap_bingo_goal(bingo, game_id):
 
 
 def goals(game_id, player_id):
-    """What this player's board tracks. The 4.3 seed file stopped carrying the
-    Goals line; the dll asks here instead (ws goals: frame or the http route)."""
+    """This player's Goals line, which seed files don't carry (ws goals: or http)."""
     bingo = BingoGameData.with_id(game_id)
     if not bingo:
         return 404, "Bingo game %s not found" % game_id
@@ -416,16 +375,13 @@ def bingo_update(game_id, player_id, payload):
             Cache.set_board(game_id, board)
     try:
         with bingo_lock(game_id):
-            # fresh read under the lock; the pre-checks above used an
-            # unlocked (possibly stale) read, which is fine for 404/412s
+            # fresh read under the lock; the 404/412 checks above tolerate a stale one
             bingo = BingoGameData.get_by_id(int(game_id), use_cache=False)
             bingo.update(bingo_data, player_id, game_id)
-            # publish inside the lock: ordering is trivially correct because
-            # no other writer of this game can run concurrently
+            # inside the lock, so publishes land in write order
             publish()
         netperf("bingo_update", t0, gid=game_id, pid=player_id, evlog=evlog_len)
-        # late re-bust: a tick that read the winner pre-signal can re-arm
-        # the fast path after signal_send's own bust (see _update_inner)
+        # a tick that read the winner pre-signal can re-arm the fast path after signal_send's bust
         for idpts in getattr(bingo, "_signal_pids", []):
             Cache.clear_seen_checksum(idpts)
         _ap_bingo_goal(bingo, game_id)

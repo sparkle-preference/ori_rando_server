@@ -42,11 +42,8 @@ class SeedFile(object):
 
 
 def goal_shapes_from(line):
-    """{card name: (kind, subs, target)} as BingoController builds them, from a
-    "Goals..." line -- the ws goals: frame body, or the legacy baked seed line.
-    Singles are bool cards, a numeric -suffix makes one an int card with that
-    target, and a lone COUNT subgoal marks a counted card; the rest are
-    multi cards whose subs are reported nested."""
+    """{card name: (kind, subs, target)} as BingoController builds them from a "Goals..."
+    line (the ws goals: frame body or the baked seed line)."""
     out = {}
     if not line:
         return out

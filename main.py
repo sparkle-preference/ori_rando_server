@@ -1,5 +1,4 @@
-﻿# The WSGI entry point. Everything that serves a URL lives under web/;
-# what is left here is the app object gunicorn names and the index page.
+﻿# WSGI entry point: the app gunicorn names and the index page; every other route lives in web/
 import logging as log
 from flask import render_template
 
@@ -14,8 +13,7 @@ app = create_app()
 
 
 if util.ARCHIPELAGO:
-    # an image missing package files still boots and passes its health check,
-    # so say so at startup rather than when a tester clicks Get apworld
+    # a broken apworld package still passes the health check, so say so at boot
     _apworld_problems = build_apworld.check(build_apworld.collect())
     if _apworld_problems:
         log.error("APWORLD package cannot be served: %s", "; ".join(_apworld_problems))
@@ -25,6 +23,6 @@ if util.ARCHIPELAGO:
 @app.route('/')
 def main_page():
     template_values = template_vals("MainPage", "Ori DE Randomizer %s" % util.DISPLAY_VERSION, User.get())
-    # not the displayed version: this moves on a site-only release, so the link goes unread
+    # the newest note, not VERSION: a site-only release moves only this
     template_values['notes_anchor'] = latest_note_version()
     return render_template(INDEX_TEMPLATE, **template_values)

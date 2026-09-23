@@ -14,7 +14,5 @@ class OrirandoData(OptionDict):
 @dataclass
 class OriDEOptions(PerGameCommonOptions):
     orirando: OrirandoData
-    # set on orirando.com; the emitted yaml mirrors the blob's death_link
-    # into it. The bridge reads the seed's own params, so editing this alone
-    # changes nothing in game.
+    # mirrored from the blob; the bridge reads the seed's params, so editing this changes nothing
     death_link: DeathLink

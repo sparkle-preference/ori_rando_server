@@ -12,31 +12,23 @@ from threading import Lock
 from cachetools import TTLCache
 from seedbuilder.generator import SeedGenerator, MultiworldSlotOverflow
 
-# Inflating a big multiworld params entity is ~3000 protobuf decodes, about
-# half a second per request. Request paths share one process-local inflated
-# copy instead. CORRECT ONLY SINGLE-INSTANCE (like models.bingo_lock, which
-# already pins the deploy to max-instances=1); the TTL covers deploy-overlap
-# windows where another instance's put cannot bust ours. Entries are SHARED
-# and READ-ONLY: a path that mutates-and-puts must fetch raw via key.get()
-# (the bingo variation append in BingoGameData.get_seed is the one such
-# site), and every put busts via the hooks on the model.
+# Process-local inflated params, shared and READ-ONLY (mutate-and-put paths use key.get()).
+# Correct only single-instance; puts bust it via the model hooks, the TTL covers deploy overlap.
 _PARAMS_CACHE = TTLCache(maxsize=8, ttl=120)
 _PARAMS_LOCK = Lock()
 
 JSON_SHARE = lambda x: x.value if x != ShareType.EVENT else "World Events"
 
 def seed_mode_problem(params):
-    """User-facing reason a seed request's multiplayer mode can't be built, or
-    None. The Archipelago kill switch refuses creation as well as the routes:
-    a seed whose bridge 404s is worse than no seed at all."""
+    """User-facing reason this seed request can't be built, or None. The Archipelago
+    kill switch refuses creation too."""
     from util import ARCHIPELAGO
     ap_mode = getattr(params, "ap_mode", False)
     if ap_mode:
         # ahead of the singleplayer early return: K=1 AP is still an AP seed
         if not ARCHIPELAGO:
             return "Archipelago support is switched off right now."
-        # without netcode the bridge has no way in: the client would find AP
-        # slots and silently drop them
+        # the bridge delivers through the netcode
         if not (params.sync.enabled and params.tracking):
             return "Archipelago seeds need tracking (the room talks to the game over netcode)."
     if not params.sync.enabled:
@@ -44,8 +36,7 @@ def seed_mode_problem(params):
     if params.sync.mode == MultiplayerGameType.MULTIWORLD:
         if not params.tracking:
             return "Multiworld requires tracking (it's netcode all the way down)."
-        # preplacement is supported; just sanity-check the player references
-        # (getattr: CLI params objects don't carry placement fields)
+        # getattr: CLI params carry no placements
         for placement in getattr(params, "placements", None) or []:
             s = placement.stuff[0]
             for ref in (s.player, getattr(s, "owner", None)):
@@ -77,9 +68,8 @@ def seed_mode_problem(params):
 
 
 def seed_failure_reason(params):
-    """Something better to say than "it failed", when the combination is a known
-    bad bet rather than bad luck. None when there is nothing to add. Unlike
-    seed_mode_problem this refuses nothing: it is read only after a real attempt."""
+    """Why a failed roll likely failed, for known-bad combinations, else None. Read only
+    after a real attempt; refuses nothing."""
     if (params.sync.enabled and params.sync.mode == MultiplayerGameType.MULTIWORLD
             and not getattr(params, "balanced", True)):
         return ("Classic fill often can't finish a multiworld seed. Switch the fill "
@@ -88,16 +78,14 @@ def seed_failure_reason(params):
 
 
 def bingo_worlds(params):
-    """The worlds playing bingo. A world opts in with its own Bingo variation, so
-    a multiworld can have exactly one bingo player."""
+    """The worlds whose own variations include Bingo."""
     return [w for w in range(1, int(getattr(params, "players", 1) or 1) + 1)
             if Variation.BINGO in world_view(params, w).variations]
 
 
 def rolled_player_names(names, params):
-    """Sanitize the UI's per-world names. A bingo lobby hands names out itself and
-    stores none; a multiworld names its worlds whether or not they play bingo.
-    Trailing blanks are dropped."""
+    """Sanitized per-world names, trailing blanks dropped; none for a non-multiworld,
+    non-AP bingo seed (its lobby names players)."""
     multiworld = getattr(getattr(params, "sync", None), "mode", None) == MultiplayerGameType.MULTIWORLD
     if (Variation.BINGO in (getattr(params, "variations", None) or [])
             and not multiworld and not getattr(params, "ap_mode", False)):
@@ -119,8 +107,7 @@ class Stuff(ndb.Model):
     code = ndb.StringProperty()
     id = ndb.StringProperty()
     player = ndb.StringProperty()
-    # multiworld preplacement: whose item this is, when it isn't the world
-    # it's placed in (player = the world holding the location)
+    # whose item this is when not the holding world (player)
     owner = ndb.StringProperty()
 
 class Placement(ndb.Model):
@@ -177,8 +164,7 @@ class MultiplayerOptions(ndb.Model):
     @staticmethod
     def from_json(json):
         opts = MultiplayerOptions()
-        # a lone Ori world in someone else's AP room still needs the netcode:
-        # the bridge delivers through it
+        # a solo AP world still needs the netcode: the bridge delivers through it
         ap_mode = bool(json.get("apMode", False))
         opts.enabled = json.get("players", 1) > 1 or ap_mode
         opts.teams = json.get("teams", {})
@@ -187,9 +173,7 @@ class MultiplayerOptions(ndb.Model):
             opts.mode = JSON_MODE_GAME[jsonMode] if jsonMode in JSON_MODE_GAME else MultiplayerGameType(jsonMode)
             if ap_mode:
                 opts.mode = MultiplayerGameType.MULTIWORLD  # SyncMode 5: the client only reads slot bitfields there
-            # cloned/teams are SHARED-mode concepts; multiworld players each
-            # have their own world (a stray teams={1: everyone} here made
-            # every player download player 1's seed -- game 133746)
+            # cloned/teams are SHARED-only: multiworld teams would hand everyone world 1's seed
             opts.cloned = json.get("coopGenMode") != "disjoint" and opts.mode != MultiplayerGameType.MULTIWORLD
             if opts.cloned:
                 opts.teams = {1: list(range(1, json.get("players", 1) + 1))}
@@ -202,8 +186,7 @@ class MultiplayerOptions(ndb.Model):
             return "|".join([",".join(team) for team in self.teams])
         return ""
 
-# A world's overrides, keyed by the json the seedgen page and presets already
-# speak. A key the blob omits means that world keeps the seed's value.
+# per-world override keys (page/preset json) -> (attribute, converter); omitted keys keep the seed's value
 WORLD_FIELDS = {
     "paths":          ("logic_paths",     lambda v: enums_from_strlist(LogicPath, v)),
     "pathDiff":       ("path_diff",       PathDifficulty),
@@ -233,9 +216,8 @@ WORLD_FIELDS = {
 
 
 def all_fass(json):
-    """The seed's forced assignments, plus each world's own. A preset stores its
-    placements with no world on them -- the world it lands in is whichever one loaded
-    it -- so the world they were stored under is the world they belong to."""
+    """The seed's forced assignments plus each world's own; a world's rows default to
+    that world as both host and owner."""
     rows = list(json.get("fass") or [])
     for world, blob in enumerate(json.get("worldSettings") or [], 1):
         for row in (blob or {}).get("fass") or []:
@@ -247,8 +229,7 @@ def all_fass(json):
 
 
 def spawn_view(base, world):
-    """Where that world starts. Seeds rolled before spawns existed fall back to
-    the summary, which reads "Random" when the worlds rolled separately."""
+    """Where that world starts; older seeds fall back to the summary (maybe "Random")."""
     spawns = getattr(base, "spawns", None) or []
     return spawns[world - 1] if 0 < world <= len(spawns) else base.spawn
 
@@ -267,8 +248,7 @@ def world_view(base, p):
 
 
 class WorldParams(object):
-    """One world's view of a seed: its own overrides, everything else read live
-    off the base entity."""
+    """One world's view: its overrides, else read live off the base entity (writes go to the base)."""
     __slots__ = ("_base", "_over")
 
     def __init__(self, base, over):
@@ -327,8 +307,7 @@ class SeedGenParams(ndb.Model):
     relic_count = ndb.IntegerProperty(default=8)
     cell_freq = ndb.IntegerProperty(default=256)
     anti_bk_bias = ndb.FloatProperty(default=0.0)
-    # the fass list as the UI sent it, kept verbatim for rerolls (the legacy
-    # reconstruction from placements can't carry world/owner)
+    # the UI's fass list verbatim, for rerolls (placements can't carry world/owner)
     fass_json = ndb.JsonProperty()
     placements = ndb.LocalStructuredProperty(Placement, repeated=True, compressed=True)
     boxes = ndb.LocalStructuredProperty(BoxLine, repeated=True)
@@ -337,12 +316,10 @@ class SeedGenParams(ndb.Model):
     spoilers = ndb.TextProperty(repeated=True, compressed=True)
     sense = ndb.StringProperty()
     is_plando = ndb.BooleanProperty(default=False)
-    # set only when that plando has a spoiler, so it doubles as the "show the
-    # button" bit; the text stays on the Seed instead of being copied per roll
+    # set only when the plando has a spoiler (the text stays on the Seed)
     plando_spoiler_key = ndb.KeyProperty(kind="Seed")
     plando_flags = ndb.StringProperty(repeated=True)
-    # {world: [[home, target], ...]} -- the placement walk's keystone door
-    # order, set by the generator when generic keystones export
+    # {world: [[home, target], ...]}: the generator's keystone-door sighting order
     ks_door_order = ndb.JsonProperty()
     item_pool = ndb.JsonProperty()
     pool_preset = ndb.StringProperty()
@@ -360,17 +337,12 @@ class SeedGenParams(ndb.Model):
     starting_skills = ndb.IntegerProperty(default=0)
     spawn_weights = ndb.FloatProperty(repeated=True)
     verbose_spoiler = ndb.BooleanProperty(default=False)
-    # Archipelago mode: multiworld generation + the AP conversion pass
-    # (archipelago/convert.py). ap_export = category names handed to the AP
-    # pool; empty means the default set.
+    # ap_export: categories handed to the AP pool; empty means the default set
     ap_mode = ndb.BooleanProperty(default=False)
     ap_export = ndb.StringProperty(repeated=True)
-    # per-world names chosen at roll time, index 0 = player 1. Blank entries
-    # (and bingo games, which have their own lobby names) fall back to
-    # "Player N" / "OriN".
+    # index 0 = player 1; blanks fall back to "Player N" / "OriN"
     player_names = ndb.StringProperty(repeated=True)
-    # DeathLink: the room's deaths kill this world's Ori, and its deaths kill
-    # the room's. A property of the seed, so a game either has it or doesn't.
+    # deaths cross between this seed's worlds and the AP room, both ways
     ap_death_link = ndb.BooleanProperty(default=False)
     # index i overrides world i+1's settings; empty means every world plays the same seed
     world_settings = ndb.JsonProperty(repeated=True, compressed=True)
@@ -403,9 +375,7 @@ class SeedGenParams(ndb.Model):
         params.sync.enabled = plando.players > 1
         mode = plando.mode()
         if mode is None and plando.players > 1:
-            # Plandos saved by older builder versions never persisted their mode= flag.
-            # Without this fallback, sync.mode defaults to SIMUSOLO and get_seed_data()
-            # coerces every player to 1, serving player 1's seed to the whole lobby.
+            # older plandos lack mode=; SIMUSOLO would serve player 1's seed to everyone
             mode = MultiplayerGameType.SHARED
         if mode:
             params.sync.mode = mode
@@ -463,7 +433,7 @@ class SeedGenParams(ndb.Model):
             # spawn items are granted at that world's start, never cross-world
             owner = world if fass["loc"] == "2" else str(fass.get("owner", world) or world)
             params.placements.append(Placement(location=fass["loc"], zone="", stuff=[Stuff(code=pcode, id=pid, player=world, owner=owner)]))
-            if fass["loc"] == "2" and world == "1": # this has to be special-cased because some seedgen options will put extra bullshit here and that breaks rerolls!
+            if fass["loc"] == "2" and world == "1":  # kept apart: seedgen adds its own items at loc 2
                 params.spawn_placement = Placement(location=fass["loc"], zone="", stuff=[Stuff(code=pcode, id=pid, player=world)])
             elif fass["loc"] != "2":
                 params.preplaced_coords.append(int(fass["loc"]))
@@ -635,14 +605,13 @@ class SeedGenParams(ndb.Model):
             "apExport": list(self.ap_export),
             "apDeathLink": self.ap_death_link,
             "worldSettings": [dict(w) for w in self.world_settings],
-            # stars i fucking hate this. anyways. forced assignments are: the
-            # verbatim fass_json when we have it (world/owner survive), else
-            # the legacy reconstruction:
+            # stars i fucking hate this. anyways.
+            # fass_json verbatim when present, else rebuilt from preplaced_coords + spawn_placement
+            # (placements at loc 2 also hold what seedgen added)
             "fass": self.fass_json if self.fass_json else (
-                    [{"loc": p.location, "item":  f"{p.stuff[0].code}|{p.stuff[0].id}"} for p in self.placements # placements on preplaced_coords
+                    [{"loc": p.location, "item":  f"{p.stuff[0].code}|{p.stuff[0].id}"} for p in self.placements
                             if int(p.location) in self.preplaced_coords] + (
                         [{"loc": "2", "item": f"{self.spawn_placement.stuff[0].code}|{self.spawn_placement.stuff[0].id}"}] if (self.spawn_placement) else []))
-                        # and then specifically also the spawn_placement at 2, because we can't rely on self.placements[2] because NEW THINGS GET ADDED by seedgen (sometimes)
         }
         # an unset list is left out: the page keeps its own, a null would replace it
         for k in ("itemPool", "spawnWeights", "playerNames", "variations", "paths"):
@@ -692,10 +661,8 @@ class SeedGenParams(ndb.Model):
                     stuff_id = f"{stuff_id}|{zone}"
                     zone = None
                 stuff = Stuff(code=stuff_code, id=stuff_id, player=str(player))
-                # real locations share one Placement across players (same spot,
-                # same zone in every world), but multiworld manifest pseudo-locs
-                # describe *different slots per player* -- merging them stored
-                # player 1's zone for everyone (the game-133746 wrong-zone bug)
+                # real locations share one Placement across players; manifest pseudo-locs are
+                # different slots per player and must not merge
                 key = (loc, player) if is_mw_manifest_loc(loc) else loc
                 if key not in placemap:
                     placemap[key] = Placement(location=loc, zone=zone, stuff=[stuff])
@@ -716,10 +683,8 @@ class SeedGenParams(ndb.Model):
     def teams_inv(self):  # generates {pid: tid}
         return {pid: tid for tid, pids in self.sync.teams.items() for pid in pids}
 
-    def team_pid(self, pid):  # given pid, get team or return pid if no teams exist (REMINDER: TEAMS ARE CLONED ONLY)
-        # multiworld guard: params created via the web before the from_json
-        # fix carry a bogus teams={1: everyone}; every player must keep their
-        # own pid or they all get player 1's seed
+    def team_pid(self, pid):  # the pid's team (teams are cloned-only), else pid
+        # multiworld ignores teams: some older params carry a bogus teams={1: everyone}
         if self.sync.mode == MultiplayerGameType.MULTIWORLD:
             return pid
         return int(self.teams_inv()[pid]) if (self.sync.teams and self.sync.cloned) else pid
@@ -735,11 +700,9 @@ class SeedGenParams(ndb.Model):
             else:
                 flags = f"Sync{game_id}.{player},{flags}"
         outlines = [flags]
-        # 4.2.15+ checks this and refuses a format it cannot read; 4.2.9 to
-        # 4.2.14 skip metadata lines, and pre-4.2.9 ones choke on them
+        # 4.2.15+ refuses an unreadable format; clients before 4.2.9 choke on metadata lines
         outlines.append("// SEED_FORMAT: %s" % SEED_FORMAT)
-        # a reserved AP line is one whose owner is a shadow, i.e. above the player
-        # count; without this a reader can't tell one from a cross-world finder
+        # an owner above the player count marks a reserved AP line
         outlines.append("// PLAYERS: %s" % self.players)
         if self.ap_mode:
             from archipelago.convert import keytiers_meta
@@ -747,8 +710,7 @@ class SeedGenParams(ndb.Model):
             if meta:
                 outlines.append(meta)
         seed_data = self.ap_named(self.get_seed_data(player), player, game_id)
-        # an EN line's zone rides inside field 3 and is None here; every other
-        # field, zone included, may legitimately be empty
+        # an EN line's zone is None (it rides in field 3); other fields may be empty
         outlines += ["|".join(p for p in line if p is not None) for line in seed_data]
         # boxes are not locations: a world's lines ride at the end, as written
         box_world = 1 if self.sync.mode in [MultiplayerGameType.SIMUSOLO, MultiplayerGameType.SPLITSHARDS] else int(player)
@@ -756,11 +718,8 @@ class SeedGenParams(ndb.Model):
         return "\n".join(outlines) + "\n"
 
     def ap_rows(self, game_id):
-        """Every world's scouted Archipelago placements, {world: (entries,
-        room slot)}. Empty until the game's room has been connected at least
-        once (the bridge learns them from LocationScouts), so a seed
-        downloaded before then keeps its "AP Item #n" placeholders and its
-        rolled zones until it is downloaded again."""
+        """{world: (scouted AP entries, room slot)}; empty until the room has been connected
+        and scouted at least once."""
         if not self.ap_mode or not game_id:
             return {}
         try:
@@ -771,9 +730,8 @@ class SeedGenParams(ndb.Model):
             return {}
 
     def ap_named(self, seed_data, player, game_id):
-        """Annotate this world's AP lines with what the room actually did
-        with them. Display only except field 6, which is the bridge's own
-        persisted promise map; an unscouted world passes straight through."""
+        """This world's AP lines annotated from the room's scouts (field 6 is the bridge's
+        promise map, the rest display only); unscouted passes through."""
         rows = self.ap_rows(game_id)
         if not rows:
             return seed_data
@@ -806,8 +764,7 @@ class SeedGenParams(ndb.Model):
         for p in self.placements:
             for s in p.stuff:
                 if s.code == "MU" and "@" in s.id:
-                    # A multipickup can split pieces between people: the plando writes
-                    # "SK/0@2", the wire carries an MW child that found_pickup walks into.
+                    # a plando piece "SK/0@2" belongs to world 2: it goes out as an MW child
                     mine, manifests = [], []
                     for code, value in decompose_multi_value(s.id):
                         value, _, owner = value.partition("@")
@@ -828,8 +785,7 @@ class SeedGenParams(ndb.Model):
                     if int(s.player) == pid:
                         rows.append((str(p.location), s.code, s.id, p.zone))
                     continue
-                # Slots go out in placement order over ALL placements, so every
-                # player's call agrees without storing it. Generated seeds skip this.
+                # slots are numbered over ALL placements in order, so every player's call agrees
                 slot = take_slot(s.owner)
                 if int(s.player) == pid:
                     rows.append((str(p.location), "MW", "%s,%s,%s,%s" % (s.owner, slot, s.code, s.id), p.zone))
@@ -852,22 +808,16 @@ class SeedGenParams(ndb.Model):
             return self.spoilers[0]
         spoiler = self.spoilers[self.team_pid(player) - 1]
         if getattr(self, "ap_mode", False):
-            # the spoiler is captured before the AP conversion, and the room's
-            # own fill re-places everything exported after that
-            spoiler = ("!! Archipelago: exported items were re-placed by the AP room.\n"
+            # captured before the AP conversion; the room re-places everything exported
+            spoiler =("!! Archipelago: exported items were re-placed by the AP room.\n"
                        "!! This file shows the roll before export. Once the room is\n"
                        "!! connected and scouted, this page shows real placements instead.\n\n"
                        + spoiler)
         return spoiler
 
     def ap_spoiler(self, player, game_id):
-        """Placement spoiler for an AP world, built from the room's scout
-        rows: what each location HOLDS after the Archipelago fill, plus this
-        world's incoming slot manifest. None until some world has scouted --
-        before that the only truthful text is the pre-export roll. The fill
-        ORDER is never ours to tell (it lives in the room's own spoiler log),
-        and the generation-time walkthrough this replaces is false for every
-        exported line once the room refills."""
+        """What each location holds after the AP fill, plus this world's incoming manifest,
+        from the room's scouts. None until some world has scouted."""
         if not game_id:
             return None
         rows = self.ap_rows(game_id)
@@ -998,9 +948,8 @@ class SeedGenParams(ndb.Model):
         return "\n".join(outlines[1:])
 
     def to_ap_yaml(self, world=1):
-        """Paired Archipelago yaml for one world of an AP-mode seed, derived
-        from the stored (already-converted) placements. None if this isn't
-        an AP params."""
+        """Paired AP yaml for one world, from the stored (converted) placements; None
+        unless ap_mode."""
         if not self.ap_mode:
             return None
         from archipelago.convert import (build_ap_config, ap_variations,
@@ -1062,8 +1011,7 @@ class SeedGenParams(ndb.Model):
 
     @staticmethod
     def cached_by_id(id):
-        """The inflated entity via the process cache (see the cache's comment
-        for the sharing rules)."""
+        """The inflated entity via _PARAMS_CACHE (shared: read-only)."""
         pid = int(id)
         with _PARAMS_LOCK:
             hit = _PARAMS_CACHE.get(pid)

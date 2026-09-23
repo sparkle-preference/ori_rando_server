@@ -1,35 +1,11 @@
 """Archipelago game-mode conversion pass over rendered multiworld seeds.
 
-AP mode = a normal K-world multiworld seed, generated unchanged (except the
-AP-only keystone pin in the generator), then converted before the seed text
-is parsed/stored. Converted placements become AP slots: the host location
-line is rewritten to an MW placeholder owned by the host world's AP shadow
-player (pid K+world, netcode-only), and the item moves to the AP pool via a
-manifest entry appended to its owner's seed. See
-prior_notes/ARCHIPELAGO_NOTES.md "Generator AP game mode" for the design.
-
-What converts:
-- Same-world placements of the user-selected export categories.
-- EVERY cross-landed item the datapackage can name, so a K>1 game shares one
-  way instead of two. Progression is mandatory: a native MW manifest line is
-  invisible to its owner's AP logic, so a logic-relevant item left native
-  under-models the world and breaks accessibility (the E2E-discovered Misty
-  Ability Cell case).
-Generic keystones convert only when "stones" is exported; the apworld then
-charges keystone doors cumulative tier thresholds instead of face costs
-(shared.KEYSTONE_DOORS), which keeps every in-logic spend order safe.
-Otherwise they never convert AND never cross (the generator pins them to
-their owner's world in AP mode). What still rides the native MW fabric is
-exactly what the datapackage cannot name -- relics, repeatables and
-multipickups, whose ids are per-seed strings.
-
-Per-world balance: NOT an invariant. Archipelago's fill only requires the
-GAME's item and location counts to match globally (Fill.py raises on a
-global shortfall; a per-player mismatch is a logged warning), and cross-world
-drift means each world's own counts cannot both be honest and equal. They
-sum to zero across the game by construction -- every conversion adds one
-reserved location to its host and one exported item to its owner -- so the
-global check below is the real one.
+A K-world MW seed is converted before it is stored: a converted placement's
+line becomes an MW placeholder owned by the host world's shadow player K+w,
+and the item moves to the AP pool as a manifest entry on its owner's seed.
+Converts the selected categories plus every cross-landed item the datapackage
+can name; generic keystones only when "stones" is exported. Per-world counts
+differ by design; only the game-wide item/location totals must match.
 """
 import json
 import os
@@ -46,9 +22,8 @@ DATA_DIR = os.path.join(os.path.dirname(__file__), "oride_apworld", "oride", "da
 
 
 def oride_module(name):
-    """Import an apworld submodule without running the package __init__,
-    which needs Archipelago's core (BaseClasses) and can't load server-side.
-    The shim package makes their relative imports resolve to each other."""
+    """Import an apworld submodule without its __init__ (which needs Archipelago
+    core); the shim package resolves their relative imports."""
     import importlib
     if "_oride_shim" not in sys.modules:
         pkg = types.ModuleType("_oride_shim")
@@ -68,10 +43,8 @@ DEFAULT_EXPORT = ("skills", "teleporters", "events")
 CATEGORY_ITEMS = {"teleporters": ("teleporters", "warps")}
 RETIRED_CATEGORIES = {"warps": "teleporters"}
 
-# A shared singleton is generated once for everyone and fanned out by the
-# netcode, so exporting the same category hands ONE copy to the AP pool while
-# every world's logic still expects the fan-out. Keyed by ShareType value;
-# bonus RBs share as upgrades.
+# a shared category is one item fanned out by the netcode, so it can't also export.
+# Keyed by ShareType value; bonus RBs share as upgrades.
 SHARE_TO_AP = {
     "Skills": ("skills",),
     "Teleporters": ("teleporters",),
@@ -81,9 +54,8 @@ SHARE_TO_AP = {
 
 MAX_SLOTS = 256  # 8x32-bit slot bitfields on the Player entity: wire format
 
-# everything the apworld's logic can see. Placed instances pin local when
-# same-world and un-selected, export otherwise; nothing progression may ride
-# a native manifest.
+# everything the apworld's logic can see: pinned local when same-world and unselected,
+# exported otherwise, never left on a native manifest
 LOCAL_CODES = {"KS", "MS", "HC", "EC", "AC", "SK", "TP", "EV"}
 LOCAL_RB_IDS = {"17", "19", "21", "28"} | {str(n) for n in range(300, 312)}
 
@@ -141,9 +113,8 @@ def nearest_ex_denom(value):
 
 
 def ex_export_value(value):
-    """True EX value -> the value BOTH the AP pool and the manifest use.
-    Exact up to the cap; above it the two round together, so the amount the
-    room announces is the amount the client grants."""
+    """True EX value -> the amount both the AP pool and the manifest use: exact
+    up to the cap, a denomination above it."""
     try:
         v = int(value)
     except (TypeError, ValueError):
@@ -152,14 +123,8 @@ def ex_export_value(value):
 
 
 def match_key(code, id):
-    """Seed-line (code, id) -> the datapackage identity it names.
-
-    Two codes carry more in the seed than the item name means. EX buckets to
-    the amount both sides agree on. A TW id is "<name>,<x>,<y>,<logic node>"
-    and the coordinates are the client's warp target, so the seed keeps them
-    and the datapackage names the destination alone -- lossless because the
-    generator's warp table has one entry per destination.
-    """
+    """Seed-line (code, id) -> datapackage identity. EX buckets to its exported
+    amount; a TW id "<name>,<x>,<y>,<node>" is named by its destination alone."""
     if code == "EX":
         return ("EX", str(ex_export_value(id)))
     if code == "TW":
@@ -168,8 +133,7 @@ def match_key(code, id):
 
 
 def is_exportable(code, id):
-    """Can this pickup ride the AP pool? Datapackage membership is the whole
-    rule -- relics and multipickups have per-seed ids and never qualify."""
+    """Can this pickup ride the AP pool? Datapackage membership is the whole rule."""
     return match_key(code, id) in ITEM_BY_CODE_ID
 
 
@@ -187,13 +151,8 @@ def normalize_categories(categories):
 
 
 def export_code_ids(categories):
-    """Category names -> set of exportable (code, id) pairs.
-
-    Generic keystones (KS|1) ride the "stones" category: the apworld swaps
-    keystone doors to cumulative tier thresholds for these seeds, so any
-    in-logic spend order stays safe. Under keysanity no KS|1 placements
-    exist, so the selection is inert there.
-    """
+    """Category names -> set of exportable (code, id) pairs. Generic keystones
+    ride "stones" (inert under keysanity, which places none)."""
     bad = [c for c in categories if c not in EXPORTABLE_CATEGORIES]
     if bad:
         raise ApConversionError("unknown AP export categories: %s" % ", ".join(bad))
@@ -211,22 +170,14 @@ def ap_export_categories(params):
 
 
 def exports_generic_keystones(params):
-    """True when this seed's conversion pulls generic keystones into the AP
-    pool -- the switch for the generator's KS pin and the KeyTiers flag."""
+    """True when conversion pulls generic keystones into the AP pool."""
     return (bool(getattr(params, "ap_mode", False))
             and "stones" in ap_export_categories(params))
 
 
 def keystone_tier_list(params, player=None):
-    """Per-door tier values, positional over shared.KEYSTONE_DOORS (wire
-    order); 0 marks a door absent under these variations. None when this
-    seed has no tiers.
-
-    Ranks follow the world's own door order when the generator recorded one
-    (params.ks_door_order, from the placement walk: spawn, teleporters and
-    logic all shape it), falling back to the canonical list. The fallback is a
-    guess: a canonical order can charge a door far less than the walk really
-    spent to reach it, and under-charging is the direction that key-locks."""
+    """Per-door tiers positional over shared.KEYSTONE_DOORS (0 = door absent), ranked
+    by params.ks_door_order, else canonical order. None under keysanity."""
     vals = {getattr(v, "value", v) for v in getattr(params, "variations", [])}
     if "Keysanity" in vals:
         return None  # no generic keystones exist to tier
@@ -245,12 +196,8 @@ def keystone_tier_list(params, player=None):
 
 
 def keytiers_meta(params, player=None):
-    """The KeyTiers seed metadata line, or None. Metadata lines start with
-    "//" and sit right after the flagline; 4.2.9+ clients skip them in the
-    pickup parse and read the tiers for door logic and out-of-logic warnings.
-    Every AP seed carries one: its doors tier in the apworld, so the client
-    has to charge the same thresholds or its logic approves an open the room
-    never budgeted for."""
+    """The '//KeyTiers=' metadata line every AP seed carries, or None. The client
+    must charge the same door thresholds as the apworld."""
     if not getattr(params, "ap_mode", False):
         return None
     tiers = keystone_tier_list(params, player)
@@ -275,9 +222,8 @@ def keystone_tier_map(params, player=None):
 
 
 def ap_variations(variations):
-    """Params variation enums (or their string values) -> apworld variations
-    dict. Default seeds run with open dungeons, so open is on unless the
-    ClosedDungeons variation is."""
+    """Params variations (enums or values) -> apworld variations dict. open is on
+    unless ClosedDungeons is set."""
     vals = {getattr(v, "value", v) for v in variations}
     out = {}
     if "ClosedDungeons" not in vals:
@@ -303,11 +249,8 @@ def _is_manifest_loc(loc):
 
 
 def ap_convert(texts, categories, keep_locs=frozenset()):
-    """The conversion pass. texts: per-world rendered seed texts (index 0 =
-    world 1, flagline + placement lines + native manifest). keep_locs:
-    (world, loc) pairs that must stay local placements (forced assignments).
-    Returns (new_texts, info); same inputs always yield identical outputs.
-    """
+    """Per-world seed texts (index 0 = world 1) -> (new_texts, info), deterministic.
+    keep_locs: (world, loc) pairs that must stay local placements."""
     players = len(texts)
     export_ids = export_code_ids(categories)
 
@@ -399,9 +342,7 @@ def ap_convert(texts, categories, keep_locs=frozenset()):
                 for p in range(1, players + 1)}
     exported = {p: [c for c in candidates if c["owner"] == p]
                 for p in range(1, players + 1)}
-    # the invariant AP actually has: one item per location across the game.
-    # True by construction (every candidate is one of each), so a failure
-    # here means the candidate list itself is malformed.
+    # one item per location across the game; true by construction, so a failure is a bug
     total_reserved = sum(len(r) for r in reserved.values())
     total_exported = sum(len(e) for e in exported.values())
     if total_reserved != total_exported:
@@ -409,18 +350,13 @@ def ap_convert(texts, categories, keep_locs=frozenset()):
             "AP conversion is unbalanced across the game: %s reserved "
             "locations, %s exported items" % (total_reserved, total_exported))
 
-    # AP manifest entries share the 0..255 slot space with native MW slots.
-    # Conversion drops most native entries, freeing their slots; nothing
-    # references a dropped slot, so exports fill the gaps in ascending order
-    # (the generator itself reuses freed slots the same way). The reserved
-    # side lives in the shadow player's fresh slot space (0..n-1).
+    # exports fill the manifest slots conversion freed, ascending; reserved lines
+    # use the shadow player's own slot space 0..n-1
     drops = [set() for _ in range(players)]
     for c in candidates:
         if c["kind"] == "cross":
             drops[c["owner"] - 1].add(c["manifest_line"])
-    # A player carries 8x32 slot bits and nothing more (models.Player.
-    # mark_slot refuses 256+), so a surplus has nowhere to live: the seed
-    # would render fine and every grant past the cap would evaporate.
+    # a Player holds 8x32 slot bits: a grant past the cap would silently evaporate
     ap_slots = {}
     for p in range(1, players + 1):
         if len(reserved[p]) > MAX_SLOTS:
@@ -477,18 +413,8 @@ def ap_convert(texts, categories, keep_locs=frozenset()):
 def build_ap_config(placements, players, world, logic_paths, key_mode,
                     spawn_zone, variations, params_id=0, death_link=False,
                     key_tiers=None):
-    """One CONVERTED world's placement tuples -> orirando yaml config dict.
-
-    placements: [(loc, code, id, zone)] including manifest pseudo-locs.
-    Classification is by wire shape: shadow-owned MW lines are the reserved
-    slots, shadow-finder manifest entries are the exported items, plain
-    progression lines pin local_progression. Anything still riding the
-    native MW fabric is filler the datapackage cannot name (relics,
-    multipickups): invisible to AP, and omitting filler is sound -- rules
-    never rely on it. A progression item on a native manifest means the
-    conversion pass failed, so yaml derivation fails with it. K=1 has no
-    native MW lines.
-    """
+    """One converted world's placements -> yaml config: shadow-owned MW lines are
+    reserved, shadow-finder manifest entries exported, progression pinned local."""
     exported = {}
     reserved = []
     local = {}

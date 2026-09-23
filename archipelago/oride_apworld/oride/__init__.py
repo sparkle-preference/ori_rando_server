@@ -20,9 +20,7 @@ from .rules import RuleCompiler, make_rule
 from .shared import KEYSTONE_DOORS, keystone_door_tiers
 from .version import data_version_problem
 
-# pre-release working name; safe to change until first public apworld
-# release. Renaming it also renames the game-info doc: WebHost looks for
-# docs/en_<secure_filename(game)>.md, i.e. docs/en_Ori_DE_Rando.md today.
+# renaming the game renames docs/en_<secure_filename(game)>.md (docs/en_Ori_DE_Rando.md)
 GAME_NAME = "Ori DE Rando"
 
 logger = logging.getLogger("oride")
@@ -41,11 +39,8 @@ GRAPH = _load("graph.json")
 ITEM_TABLE = {item["name"]: item for item in ITEMS}
 LOC_TABLE = {loc["name"]: loc for loc in LOCATIONS}
 
-# cells count toward Health=/Energy=/Ability= requirements, so everything
-# except the bonus grab-bag is progression. upgrades/experience/warps are
-# filler: no compiled rule names one. Warps in particular are filler even
-# under the InLogicWarps variation -- the graph shipped here has no warp
-# edges at all, which under-models reach and so stays conservative.
+# upgrades, experience and warps are filler: no compiled rule names one (the graph has
+# no warp edges, even under InLogicWarps)
 PROGRESSION_CATEGORIES = {"skills", "events", "teleporters", "cells", "stones"}
 
 # Warmth Returned is a no-op troll pickup (game-end triggers are positional;
@@ -65,9 +60,7 @@ class OriDELocation(Location):
 
 class OriDEWeb(WebWorld):
     theme = "grass"
-    # every option lives in the seed rolled on orirando.com; the yaml is
-    # downloaded, never hand-written, so send people there instead of to a
-    # player-options form (the FF1 pattern)
+    # options live in the orirando.com seed; the yaml is downloaded, never hand-written
     options_page = "https://orirando.com/"
     game_info_languages = ["en"]  # -> docs/en_Ori_DE_Rando.md
     tutorials = [Tutorial(
@@ -108,9 +101,7 @@ class OriDEWorld(World):
         self.reserved = list(cfg.get("reserved_locations", []))
         self.exported = dict(cfg.get("exported_items", {}))
         self.local_progression = dict(cfg.get("local_progression", {}))
-        # a K-world orirando game splits items across worlds, so one world's
-        # counts differ by design; only the room-wide totals have to match,
-        # and AP's own fill is what enforces those
+        # per-world counts differ by design; AP's fill enforces the room-wide totals
         exported_total = sum(self.exported.values())
         if exported_total != len(self.reserved):
             logger.info(
@@ -123,8 +114,7 @@ class OriDEWorld(World):
                                 (self.player_name, GAME_NAME, name))
         ks_tiers = None
         if not cfg.get("variations", {}).get("keysanity"):
-            # a CollectionState only counts, so a face cost approves a door the spend
-            # order already emptied; cumulative tiers can't key-lock in-logic play.
+            # cumulative tiers, not face costs: a CollectionState counts keys, never spends them.
             # The yaml's tiers follow the seed's door order, else the canonical one.
             kt = cfg.get("key_tiers")
             if kt:
@@ -243,8 +233,7 @@ class OriDEWorld(World):
         region.locations.append(loc)
         placed.add(name)
 
-    # the engines reserve the pool's +2 slack: 8th turn-in wants 9 stones,
-    # 9th wants 11 (reachable.py:167-171, generator.py:1908-1911)
+    # the engines keep the pool's +2 slack: the 8th turn-in wants 9 stones, the 9th 11
     MAPSTONE_BUMPS = {8: 9, 9: 11}
 
     def _mapstone_rule(self, n, pedestal_accesses):

@@ -43,10 +43,8 @@ class RuleCompiler:
         return needs
 
     def compile_paths(self, paths, edge=None):
-        """[{tags, reqs}] -> list of Counters (OR of ANDs).
-
-        [] = no valid path (drop the edge); a Counter() present = free.
-        """
+        """[{tags, reqs}] -> list of Counters (OR of ANDs). [] = no valid path;
+        [Counter()] = free."""
         if not paths:
             return [Counter()]  # no paths listed = unconditionally free
         out = []
@@ -79,9 +77,7 @@ class RuleCompiler:
             if "=" in tok:
                 base, _, n = tok.partition("=")
                 if base in LONGFORM_ITEMS:
-                    # mirrors generator.py translate(): count * [code]. Under
-                    # keysanity the KS pool is empty, so plain-Keystone paths
-                    # die naturally, same as the engine -- no special case.
+                    # mirrors generator.py translate(); keysanity's empty KS pool kills these paths
                     item = LONGFORM_ITEMS[base]
                     needs[item] = max(needs[item], int(n))
                     continue

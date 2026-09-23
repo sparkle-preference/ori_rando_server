@@ -1,43 +1,19 @@
-"""Websocket adapter over the transport-neutral session layer (netcode.py).
+"""Websocket adapter over the session layer (netcode.py).
 
-Protocol: text frames of the form "kind:body". Unknown kinds get
-"err:<kind>" and the connection stays up (a newer server talking to an
-older dll must not kill the socket; a newer dll talking to an older
-server sees its frames err'd and falls back to http per channel).
+Text frames are "kind:body"; qs bodies are form-encoded, and replies match the http bodies
+byte for byte. An unknown kind gets "err:<kind>" and the socket stays up.
 
-Client -> server frames (bodies use the same form-encoding request.form
-would parse; every reply body is byte-identical to the corresponding
-http response, frozen by golden_wire_test/session_golden_test):
+  tick:<qs>                                -> tick:<body>, or err:tick:<status> and close
+  found:<token>|<qs>|<coords>|<kind>|<id>  -> foundack:<token>|<status>  (id may hold |)
+  bingo:<qs>                               -> bingoack:<status>
+  conf:<signal> / seed:<qs>                -> no reply
+  complete:                                -> completeack:<status>
+  goals:                                   -> goals:<line> or err:goals:<status>
+  areas:<sha256>                           -> areas:ok or areas:<file>
+  ghosts:<0|1> / ghostice:<pid> / ghost:<to>:<blob>  -> ghost signalling, below
 
-  tick:<qs>                            -> tick:<body>   (v1; a failing
-      tick sends err:tick:<status> and closes — the http fallback takes
-      over and surfaces the error UX)
-  found:<token>|<qs>|<coords>|<kind>|<id>  -> foundack:<token>|<status>
-      (id goes LAST and is parsed greedily: TW ids contain slashes and
-      commas. token is client-chosen, echoed verbatim — the client's
-      pickup queue correlates acks and keeps its retry/Gone/NotAcceptable
-      semantics; qs carries zone= and flag-by-presence remove/override.)
-  bingo:<qs>                           -> bingoack:<status>
-      (bingoData=<json>&version=..; always acked because the http client
-      fast-retries on failure — non-200 lets it keep doing that.)
-  conf:<signal>                        -> no reply (http client ignores
-      the /callback/ response entirely)
-  seed:<qs>                            -> no reply (setSeed; http client
-      fires and forgets)
-  complete:                            -> completeack:<status>
-      (acked since 2026-08-01: clients resend until heard, because a lost
-      complete strands multiworld releases. game_complete is idempotent.)
-
-Server -> client: tick:<body> frames, either as tick replies or pushed
-unsolicited — the client treats both identically.
-
-handle_frame is pure (frame in, reply out) for tests; run_connection owns
-the socket loop, the per-frame ndb context, and the connection gauge.
-
-Capacity model: one gunicorn thread per open socket (see Dockerfile
---threads and util.WS_CONN_LIMIT). Saturation is visible in the logs:
-"NETPERF ws_conns" gauges on every connect/disconnect, and an explicit
-"NETPERF ws_conn_reject" line whenever the limit turns a client away.
+The server also pushes tick:<body> frames unsolicited; the client treats them as replies.
+Each open socket pins a gunicorn thread (util.WS_CONN_LIMIT).
 """
 import hashlib
 import logging as log
@@ -59,10 +35,8 @@ from util import WS_CONN_LIMIT, NETPERF_TAG, netperf
 _conns_lock = Lock()
 _conns = 0
 
-# live sockets by (game_id, player_id). Each entry carries a send lock:
-# the connection's own thread sends tick replies and the pusher thread
-# sends pushed frames, and simple_websocket's send() is not thread-safe.
-# Last connection wins on duplicate ids (reconnects, dual-boxing).
+# (gid, pid) -> (conn, send lock): simple_websocket's send isn't thread-safe and the pusher
+# shares the socket. The last connection for an id wins.
 _socks_lock = Lock()
 _socks = {}
 
@@ -88,19 +62,8 @@ def _unregister(gpid, conn):
         _broadcast_roster(gpid[0])
 
 
-# --- ghost multiplayer signalling ---------------------------------------
-#
-# Players who want to see each other exchange one WebRTC description each; the
-# server passes those two strings along and never looks inside them. Nothing is
-# persisted, and a failure here costs a cosmetic feature rather than anything in
-# the game. It also hands out relay credentials, which it holds for no longer
-# than it takes to forward them.
-#
-# Participation lives beside _socks and dies with the connection, because it
-# describes a live socket rather than anything worth keeping. Same
-# single-instance assumption the push path already makes -- fine while Cloud
-# Run is pinned to max-instances=1, and the failure mode if that changes is
-# "ghosts do not connect", not a broken game.
+# --- ghost signalling: relays opaque WebRTC descriptions between opted-in players and hands
+# out relay credentials. Nothing is persisted; membership dies with the socket.
 _ghosts = set()
 
 # players nobody could reach directly, for as long as they hold this socket
@@ -112,9 +75,8 @@ def _ghost_roster(game_id):
     with _socks_lock:
         pids = sorted(pid for (gid, pid) in _ghosts if gid == game_id)
         direct = [pid for pid in pids if (game_id, pid) not in _ghost_relayed]
-    # lowest id hosts: stable, computable by every client from the same list, and
-    # it needs no negotiation round. A relayed host relays for the whole lobby, so
-    # it hosts only when nobody else can.
+    # lowest pid hosts, so every client derives the same host; a relayed player hosts
+    # only when everyone is relayed
     host = (direct or pids or [0])[0]
     return host, pids
 
@@ -144,8 +106,7 @@ def _broadcast_roster(game_id):
         _send_to((game_id, pid), frame)
 
 
-# Relay credentials, minted elsewhere and never stored here. Cached because this
-# runs single-instance and cannot spend a round trip per frame.
+# relay credentials from TURN_CREDENTIALS_URL, cached per game
 _ice_lock = Lock()
 _ice_cache = {}
 ICE_TTL = 600
@@ -190,23 +151,18 @@ def _ice_config(game_id):
     return payload
 
 
-# --- push: send a fresh tick frame the moment a player's tick cache is
-# busted, instead of waiting for their next 1 Hz tick. Best-effort
-# by design — the client's own tick remains the reliable delivery path, so
-# anything lost here arrives at most one tick later.
+# --- push: a checksum bust sends that player a fresh tick frame now. Best-effort; their
+# next tick is the reliable path.
 
-# bounded: if the pusher ever wedges, drop pushes (best-effort) instead
-# of growing forever
+# bounded: a wedged pusher drops pushes rather than growing
 _push_queue = Queue(maxsize=1000)
 _push_thread = None
 _push_thread_lock = Lock()
 
 
 def enable_push():
-    """Wire cache-bust notifications up. Called at startup from main.py.
-    The pusher thread is NOT started here: with gunicorn --preload this code
-    runs in the master process and threads do not survive the fork into the
-    worker. The thread starts lazily in whichever process actually notifies."""
+    """Register the push handler. The pusher starts lazily: --preload runs this in the
+    master, and threads don't survive the fork."""
     push.set_handler(_notify)
 
 
@@ -222,8 +178,7 @@ def _ensure_pusher():
 
 
 def _notify(gpid):
-    # runs on request threads for every checksum bust in every game —
-    # only pay the queue hop when the player actually has a socket
+    # every bust in every game lands here; queue only for players with a socket
     with _socks_lock:
         if gpid not in _socks:
             return
@@ -269,8 +224,7 @@ def _push_one(gpid, ndb_client):
 
 
 def _qs(body):
-    # match request.form's parsing: scalar values, blanks kept (flag-by-
-    # presence args like "remove" arrive as bare keys with empty values)
+    # like request.form: scalar values, blanks kept for flag-by-presence args
     return {k: v[0] for k, v in parse_qs(body, keep_blank_values=True).items()}
 
 
@@ -278,7 +232,6 @@ def handle_frame(game_id, player_id, frame):
     """One frame in, (reply_or_None, close_after) out."""
     kind, sep, body = frame.partition(":")
     if not sep:
-        # a prefix-less frame has no kind at all
         log.warning("ws: unknown frame kind %r from %s.%s", kind, game_id, player_id)
         return "err:%s" % kind, False
     if kind == "tick":
@@ -303,28 +256,23 @@ def handle_frame(game_id, player_id, frame):
         netcode.connect(game_id, player_id, _qs(body))
         return None, False
     if kind == "complete":
-        # acked so the client can resend-until-heard: a lost complete used
-        # to strand multiworld releases (game 134478)
+        # acked: clients resend until heard
         status, _ = netcode.game_complete(game_id, player_id)
         return "completeack:%s" % status, False
     if kind == "goals":
-        # asked on every socket open while a bingo seed is loaded, so a
-        # pre-start reroll reaches the client on its next connect
+        # asked on every socket open, so a pre-start reroll reaches the client
         status, out = netcode.goals(game_id, player_id)
         if status == 200:
             return "goals:%s" % out, False
         return "err:goals:%s" % status, False
     if kind == "areas":
-        # the client offers its areas.ori hash once per seed load; a match
-        # gets "ok", anything else the current file. This channel replaces
-        # the retiring http fetch.
+        # offered once per seed load; a mismatch gets the current file
         areas = Cache.get_areas()
         if hashlib.sha256(areas.encode()).hexdigest() == body.strip().lower():
             return "areas:ok", False
         return "areas:%s" % areas, False
     if kind == "ghosts":
-        # "ghosts:1" opts in, "ghosts:0" out. The reply is the roster, so one
-        # frame both joins and tells the client who else is here.
+        # "ghosts:1" joins, "ghosts:0" leaves; the reply is the roster
         want = body.strip() == "1"
         gpid = (game_id, player_id)
         with _socks_lock:
@@ -339,9 +287,8 @@ def handle_frame(game_id, player_id, frame):
         host, pids = _ghost_roster(game_id)
         return "ghosts:%s:%s" % (host, ",".join(str(p) for p in pids)), False
     if kind == "ghostice":
-        # "ghostice:<peer>" -- relay credentials, and the report that <peer> could
-        # not be reached directly. The mark lands on <peer>, never on the asker: a
-        # host fails against every unreachable peer and must not demote itself.
+        # relay credentials, plus a report that <peer> is unreachable directly. The mark
+        # lands on the peer: a host fails against every such peer and must not demote itself.
         try:
             peer_pid = int(body.strip())
         except ValueError:
@@ -363,8 +310,7 @@ def handle_frame(game_id, player_id, frame):
             return "err:ghostice:unavailable", False
         return "ice:%s" % payload, False
     if kind == "ghost":
-        # "ghost:<to>:<blob>" -- one description, relayed verbatim. The server
-        # does not parse the blob and does not keep it.
+        # relayed verbatim, never parsed or kept
         target, sep2, payload = body.partition(":")
         if not sep2:
             return "err:ghost:malformed", False
@@ -377,8 +323,7 @@ def handle_frame(game_id, player_id, frame):
             joined = gpid in _ghosts
             reachable = (game_id, to_pid) in _ghosts
         if not joined:
-            # relaying for someone who has not opted in would let them be seen
-            # without being visible, which is the one thing the setting promises
+            # a non-participant must not see others without being seen
             return "err:ghost:notjoined", False
         if not reachable:
             return "err:ghost:away", False
@@ -409,15 +354,12 @@ def run_connection(conn, game_id, player_id):
             if isinstance(frame, bytes):
                 frame = frame.decode("utf-8", "replace")
             try:
-                # the middleware's ndb context lives as long as the
-                # connection and contexts can't nest on a thread, so clear
-                # its cache each frame — otherwise a multi-hour connection
-                # serves stale entities and the cache never shrinks
+                # the ndb context lives as long as the socket and can't nest, so clear it
+                # per frame or it serves stale entities and grows forever
                 ndb.get_context().clear_cache()
                 reply, close = handle_frame(game_id, player_id, frame)
             except Exception:
-                # parity with http, where a failed tick is one 500 and the
-                # client just keeps polling — don't tear down the transport
+                # like an http 500: log it and keep the socket
                 log.exception("ws: frame handler failed for %s.%s", game_id, player_id)
                 continue
             if reply is not None:

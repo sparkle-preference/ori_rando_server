@@ -131,17 +131,6 @@ class CLISeedParams(object):
         parser.add_argument("--ap-death-link", help="Archipelago mode: this world's deaths kill the room, and the room's kill it", action="store_true")
         args = parser.parse_args()
 
-        """
-        path_diff = property(get_pathdiff, set_pathdiff)
-        exp_pool = ndb.IntegerProperty(default=10000)
-        balanced = ndb.BooleanProperty(default=True)
-        tracking = ndb.BooleanProperty(default=True)
-        players = ndb.IntegerProperty(default=1)
-        sync = ndb.LocalStructuredProperty(MultiplayerOptions)
-        frag_count = ndb.IntegerProperty(default=40)
-        frag_extra = ndb.IntegerProperty(default=10)
-        cell_freq = ndb.IntegerProperty(default=256)
-        """
         self.seed = args.seed
         self.areas_ori_path = args.areas_ori_path or ""
         if args.preset:
@@ -180,8 +169,7 @@ class CLISeedParams(object):
         self.start = args.start
         self.spawn = self.start if self.start != "Random" else ""
 
-        # the generator reads all three for any non-Glades start, variation or not,
-        # so they carry SeedGenParams' own defaults rather than going unset
+        # read for any non-Glades start, so they default like SeedGenParams
         self.starting_health = args.starting_health or 3
         self.starting_energy = args.starting_energy or 1
         self.starting_skills = args.starting_skills or 0
@@ -217,7 +205,7 @@ class CLISeedParams(object):
             print (self.spawn_weights)
         else:
             self.spawn_weights = []
-        # the site has defaulted this on for most of the randomizer's life
+        # balanced by default, as on the site
         self.balanced = not args.classic_fill
         self.anti_bk_bias = min(1.0, max(0.0, args.anti_bk_bias or 0.0))
         self.cell_freq = args.force_cells
@@ -363,8 +351,7 @@ class CLISeedParams(object):
             self.sync.mode = MultiplayerGameType.mk(args.share_mode) or MultiplayerGameType.SIMUSOLO
             raw_shared = args.shared_items
             if raw_shared is None:
-                # multiworld shares nothing by default; shared categories there
-                # mean singleton items, not the co-op everyone-syncs default
+                # multiworld shares nothing by default
                 raw_shared = "" if self.sync.mode == MultiplayerGameType.MULTIWORLD else "skills,worldevents"
             self.sync.shared = enums_from_strlist(ShareType, raw_shared.split(","))
             self.sync.cloned = args.cloned or False
@@ -392,8 +379,7 @@ class CLISeedParams(object):
             if bad:
                 parser.error("unknown --ap-export categories: %s (valid: %s)" % (
                     ",".join(bad), ",".join(EXPORTABLE_CATEGORIES)))
-            # any player count: the client only reads slot bitfields in
-            # multiworld sync mode, so a non-MW AP seed can never be granted to
+            # the client reads slot bitfields only in multiworld mode, at any player count
             if self.sync.mode != MultiplayerGameType.MULTIWORLD:
                 parser.error("--ap-export needs --share-mode multiworld")
             self.sync.enabled = True
@@ -549,8 +535,6 @@ class CLISeedParams(object):
                                 info_by_group[i]["items"][item] += 1
 
         if self.do_analysis:
-#            output = open("analysis.csv", 'w')
-#            output.write("Location,Zone,WallJump,ChargeFlame,DoubleJump,Bash,Stomp,Glide,Climb,ChargeJump,Dash,Grenade,GinsoKey,ForlornKey,HoruKey,Water,Wind,WaterVeinShard,GumonSealShard,SunstoneShard,TPGrove,TPGrotto,TPSwamp,TPValley,TPSorrow,TPGinso,TPForlorn,TPHoru,Relic\n")
             for i, group in info_by_group.items():
                 seeds = float(group["seeds"])
                 print("%d (%d): " % (i, int(seeds)))

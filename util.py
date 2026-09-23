@@ -35,9 +35,7 @@ VERSION = "%s.%s.%s" % tuple(VER)
 # beta build gets its own 4.9.N note; they collapse into 5.0.0 at release.
 BETA_OF = [5, 0, 0] if VER[:2] == [4, 9] else None
 def display_version(v):
-    """What a release is called to a person. Mirrors displayVersion in
-    PatchNotes.js -- a note must not be named one thing on the page and
-    another in the Discord post that links to it."""
+    """What a release is called to a person; mirrors displayVersion in PatchNotes.js."""
     parts = v.split(".")
     dll, rev = (".".join(parts[:3]), parts[3]) if len(parts) > 3 else (v, None)
     named = "5.0 beta v%s" % dll.split(".")[2] if dll.startswith("4.9.") else dll
@@ -70,26 +68,16 @@ GUEST_USERS = _flag("GUEST_USERS", "0")
 # harness only: its room runs beside the bridge, the one place ap/connect's
 # "dialed from our servers" guard is wrong (a tester's localhost never is)
 AP_LOCAL_ROOMS = _flag("AP_ALLOW_LOCAL_ROOM", "0")
-# every open socket pins one gunicorn thread (Dockerfile --threads) for its
-# whole lifetime. Reject new sockets past this count — with a healthy gap
-# below the thread count — so they can't starve the http side of the shared
-# pool; rejected clients just keep polling and re-probe on reconnect backoff.
+# each open socket pins a gunicorn thread for life: refuse sockets past this, well
+# below Dockerfile --threads, so http keeps headroom (refused clients keep polling)
 WS_CONN_LIMIT = int(os.environ.get("WS_CONN_LIMIT", "48"))
 
-# the orirando.com -> bf.orirando.com move. Inert until BOTH are set: browser
-# traffic (GET/HEAD, non-/netcode/) on any host in REDIRECT_HOSTS 301s to
-# https://CANONICAL_HOST with path+query preserved. REDIRECT_HOSTS names the
-# hosts that redirect, comma-separated — bfnc.orirando.com must NEVER be in it
-# (the dll's plain-http netcode dies on any redirect toward https).
-# Patch note announcements. Inert until a webhook URL is set. On the first
-# request after a deploy, releases newer than the last announced one get posted;
-# a release's "announce" field in patchnotes.json picks who sees it —
-# "all" (default) goes to both channels, "dev" to the dev channel only, "none"
-# nowhere. The two markers advance independently, so a dev-only release does not
-# stop the next public one reaching the main channel.
+# patch-note announcement webhooks (web/patchnotes.py); inert when unset
 PATCHNOTES_WEBHOOK_MAIN = os.environ.get("PATCHNOTES_WEBHOOK_MAIN", "")
 PATCHNOTES_WEBHOOK_DEV = os.environ.get("PATCHNOTES_WEBHOOK_DEV", "")
 
+# browser GETs on REDIRECT_HOSTS 301 to https://CANONICAL_HOST; inert until both are set.
+# Never list bfnc.orirando.com: the dll's plain-http netcode dies on a redirect.
 CANONICAL_HOST = os.environ.get("CANONICAL_HOST", "")
 REDIRECT_HOSTS = [h.strip() for h in os.environ.get("REDIRECT_HOSTS", "").split(",") if h.strip()]
 # the host this deployment tells players to fetch things from
@@ -109,10 +97,8 @@ def netperf(what, t0, **kw):
     log.info("NETPERF %s ms=%d tag=%s %s", what, int((monotonic() - t0) * 1000), NETPERF_TAG, extras)
 
 def parse_fass(raw):
-    """Forced assignments as the generator's preplaced map. Each is
-    "[world.]loc:item[@owner]", joined by "|"; world defaults to 1 and an owner
-    rides the value, which is how a cross-world preplacement is expressed.
-    Raises ValueError on a location that isn't a number."""
+    """"[world.]loc:item[@owner]|..." as the generator's preplaced map; world defaults to 1.
+    Raises ValueError on a non-numeric location."""
     out = {}
     for fass in (raw or "").split("|"):
         if not fass:
@@ -125,18 +111,15 @@ def parse_fass(raw):
 
 
 def is_mw_manifest_loc(coords):
-    """Multiworld slot manifests live at pseudo-locations -2..-257 in the
-    owner's seed; display/tracker surfaces that resolve real coordinates
-    should skip them."""
+    """Multiworld slot manifests live at pseudo-locations -2..-257; map surfaces skip them."""
     try:
         return -257 <= int(coords) <= -2
     except (TypeError, ValueError):
         return False
 
 def seed_sync_id(seed_field):
-    """Extract the Sync id ("<gid>.<pid>") from a setSeed upload, or None.
-    The client joins seed lines with commas after swapping line 1's commas to
-    pipes, so the first comma-segment is the entire first line."""
+    """The Sync id ("<gid>.<pid>") of a setSeed upload, or None. The client pipes line 1's
+    commas before comma-joining the lines, so the first segment is the whole first line."""
     if not seed_field:
         return None
     first = seed_field.split(",", 1)[0]
@@ -145,10 +128,7 @@ def seed_sync_id(seed_field):
     return first[4:].split("|", 1)[0]
 
 def json_default(o):
-    # google-cloud-ndb wraps structured-property values in _BaseValue in place when
-    # an entity is put(); a board json computed after a put in the same request
-    # carries these wrappers, and caching spreads them to every viewer.
-    # b_val holds the plain primitive. Used as json.dumps(default=...).
+    # ndb wraps structured-property values in _BaseValue in place on put(); b_val is the primitive
     if ndb_imported:
         from google.cloud.ndb.model import _BaseValue
         if isinstance(o, _BaseValue):
@@ -343,10 +323,7 @@ spawn_defaults = {
 
 
 def bfield_checksum(bfdstrs):
-    # crc32 is stable across processes/instances; hash() is randomized per interpreter
-    # (PYTHONHASHSEED), which made checksums written by one Cloud Run instance
-    # unmatchable by another. Note: gunicorn workers fork from one master and share
-    # a seed, which is why the old version still worked single-instance.
+    # crc32, not hash(): hash() is salted per interpreter and the checksum crosses instances
     return crc32(",".join(str(i) for i in bfdstrs).encode())
 
 def get_bit(bits_int, bit):
@@ -481,13 +458,8 @@ def whitelist_ok():
     return param_val("sec") == whitelist_secret
 
 def game_flags(params_key):
-    """(flag line, is race) for a seed, or (None, False) if the seed is gone.
-
-    A game list wants these two small values and nothing else, out of an
-    entity that is mostly placements and spoilers -- inflating one per row is
-    what made these pages a landmine. Params never change after generation
-    (the single mutate-and-put site busts this cache on put), so the pair
-    keeps, and the id for the Seed link comes off the key without a fetch."""
+    """(flag line, is race) for a seed, or (None, False) if it's gone. Cached: params never
+    change after generation, and the one mutate-and-put site busts it."""
     from cache import Cache   # lazy: cache.py imports util, so not at module scope
     params_id = params_key.id()
     hit = Cache.get_game_flags(params_id)
@@ -592,11 +564,8 @@ def compose_multi_value(parts):
 
 
 def decompose_multi_value(value):
-    """Multipickup value -> [(code, id)]. "//" is a literal slash; the client's
-    RandomizerAction.Decompose reads the same grammar. An odd trailing piece is
-    dropped with a warning, matching the client (which throws it away and logs
-    "Malformed Multipickup"): callers concatenate code+id and legacy plandos
-    predate the escape."""
+    """Multipickup value -> [(code, id)], "//" a literal slash, as RandomizerAction.Decompose
+    reads it. An odd trailing piece is dropped with a warning, as the client does."""
     parts = []
     if value == "":
         return parts

@@ -1,7 +1,6 @@
-"""The Flask layer: the app factory, its extensions, its hooks, its responses.
+"""The Flask layer: the app factory, its extensions, hooks and responses.
 
-Nothing under here may import `main`. `main` is a leaf in the import graph, and
-keeping it one is what lets routes move out of it without cycles.
+Nothing under web/ may import main, which stays a leaf of the import graph.
 """
 import logging as log
 from datetime import timedelta
@@ -26,8 +25,7 @@ from web.patchnotes import bp as patchnotes_bp
 
 
 def configure_logging():
-    """Console in dev, Cloud Logging in prod. Called by the factory rather than
-    run at import, so importing this package does not reach for GCP."""
+    """Console in dev, Cloud Logging in prod; run by the factory so an import never reaches GCP."""
     if debug():
         root_logger = log.getLogger()
         for handler in root_logger.handlers:
@@ -47,27 +45,23 @@ def configure_logging():
 
         print("trying to setup prod log")
         client = google.cloud.logging.Client()
-        # a handler matched to the environment, wired into the logging module
         client.setup_logging(log_level=log.DEBUG)
 
 
 def create_app():
-    """Build the app. Call once: the extensions in web.extensions are module
-    singletons, so a second call rebinds them away from the first app."""
+    """Call once: web.extensions are module singletons and a second call rebinds them."""
     configure_logging()
     app = Flask(__name__, template_folder=template_root, static_folder=template_root,
                 static_url_path='/static')
     app.debug = debug()
-    # open_session reads this as the cookie's max_age during request-context push,
-    # before any before_request hook, so it has to be set before the first request.
+    # read as the cookie max_age at context push, before any before_request hook
     app.permanent_session_lifetime = timedelta(days=365)
     app.wsgi_app = ndb_wsgi_middleware(app.wsgi_app)
-    # Google Frontend terminates TLS, so without this every redirect Flask builds
-    # comes out http://. Must stay outermost. x_for off: nothing reads remote_addr.
+    # TLS ends upstream, so without this every redirect is http://. Stays outermost;
+    # x_for off because nothing reads remote_addr.
     app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
-    # order is load-bearing: flask-oidc registers its own before_request here, and
-    # main's guest seat has to register after it to win the g.oidc_user assignment.
+    # before the blueprints: the guest seat's hook must run after flask-oidc's to win g.oidc_user
     init_extensions(app)
     register_hooks(app)
     app.register_blueprint(users_bp)

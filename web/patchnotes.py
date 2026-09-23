@@ -26,7 +26,7 @@ def patchnotes():
     template_values = template_vals("PatchNotes", "Patch Notes", User.get())
     return render_template(INDEX_TEMPLATE, **template_values)
 
-# the old per-line doc links are anchors on the one page now
+# old per-line doc links, as anchors on the one page
 PATCHNOTE_ALIASES = {"3.x": "3.0", "4.0.x": "4.0.0", "4.1.x": "4.1.0"}
 
 
@@ -38,13 +38,10 @@ def patchnotes_version(version):
     return redirect("/patchnotes#%s" % PATCHNOTE_ALIASES.get(version, version))
 
 
-# Atom ids are permanent identities rather than locations, so they must not move
-# when the site is served from another host (bf.orirando.com, localhost, ...).
+# Atom ids are identities, not locations: they must not follow the serving host
 FEED_TAG_HOST = "orirando.com"
 
-# map/src/patchnotes.json is what the frontend bundles, so the feeds can never
-# drift from the page. Loaded lazily and cached: if the file ever fails to ship,
-# only these two routes break instead of the whole app failing to import.
+# loaded lazily, so a missing file breaks only the feeds and not the import
 _patchnotes_cache = None
 
 
@@ -60,7 +57,6 @@ def patchnotes_doc():
             with open(src, encoding='utf-8') as f:
                 _patchnotes_cache = json.load(f)
         except FileNotFoundError:
-            # says what to fix instead of a bare 500 six months from now
             raise PatchnotesMissing(
                 "patchnotes.json is not in the image; check its COPY line in the Dockerfile")
     return _patchnotes_cache
@@ -115,9 +111,7 @@ def latest_note_version():
 
 @bp.route('/patchnotes.json')
 def patchnotes_json():
-    """The notes as data. ?since=4.2.9 returns only releases newer than that,
-    which is what a bot wants when it last announced 4.2.9. ?highlights=1 drops
-    the minor changes, matching the page's default view."""
+    """The notes as data; ?since=<version> keeps newer releases, ?highlights=1 drops minor changes."""
     try:
         doc = patchnotes_doc()
     except PatchnotesMissing as e:
@@ -210,11 +204,8 @@ def announce_embed(release, base, everything=False):
 
 
 def announce_patchnotes(base, force=False, channels=None):
-    """Post any releases newer than each channel's marker. Returns a per-channel
-    summary. Inert unless a webhook is configured for that channel.
-
-    channels limits which channels are considered; None means all of them, so
-    catching one channel up cannot repost to a channel that has already seen it."""
+    """Post releases newer than each webhooked channel's marker; returns a per-channel summary.
+    channels limits which are considered (None: all)."""
     doc = patchnotes_doc()
     releases = doc["releases"]
     if not releases:
@@ -277,9 +268,7 @@ def announce_on_first_request():
     # let a browser request be the one that pays for it
     if request.path.startswith("/netcode/"):
         return
-    # a health check's host would put localhost in front of a whole channel, and
-    # the flag below makes that permanent for the process. Leave it for a request
-    # that arrived somewhere people can actually reach.
+    # a health check's localhost would go into every link, and the flag below makes it stick
     base = announce_base()
     if not is_public(base):
         return
@@ -292,9 +281,8 @@ def announce_on_first_request():
 
 @bp.route('/patchnotes/announce')
 def patchnotes_announce():
-    """Manual resend, for when a POST failed and the marker already moved.
-    ?force=1 reposts the newest release even if the marker is current.
-    ?channel=main|dev|all picks which channels to post to (default all)."""
+    """Admin resend after a failed POST. ?force=1 reposts the newest release;
+    ?channel=main|dev|all (default all)."""
     if not User.is_admin():
         return text_resp("admins only", 401)
     if not (util.PATCHNOTES_WEBHOOK_MAIN or util.PATCHNOTES_WEBHOOK_DEV):

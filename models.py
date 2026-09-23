@@ -21,11 +21,8 @@ from time import monotonic
 from pickups import Pickup, Skill, Teleporter, Event
 from cache import Cache
 
-# Per-game locks serializing all writers of a game's BingoGameData within this
-# (single) process; dict.setdefault is atomic under the GIL.
-# CORRECT ONLY SINGLE-INSTANCE: bingo writes are plain puts serialized by these
-# locks, so the service must stay one process (gunicorn --workers 1, Cloud Run
-# max-instances=1 — see Dockerfile). Revisit before any horizontal scaling.
+# per-game locks serializing BingoGameData writers, which make plain puts: correct only while
+# the service is one process (gunicorn --workers 1, Cloud Run max-instances=1)
 _bingo_locks = {}
 
 def bingo_lock(gid):
@@ -34,8 +31,7 @@ def bingo_lock(gid):
 try:
     client = ndb.Client()
 except Exception as e:
-    # no default credentials (e.g. unit tests, which provide their own client
-    # and context). In prod the Cloud Run service account always supplies ADC.
+    # no default credentials, e.g. unit tests, which bring their own client
     log.warning("ndb.Client() unavailable at import (%s); requests will fail unless a context is provided elsewhere", e)
     client = None
 
@@ -102,9 +98,8 @@ relics_by_zone = {
 }
 
 def _conf_signals(signals, signal):
-    """The signal_conf edit, in place on a list. Keeps the known quirk: the
-    fallback removes while iterating, so a non-msg signal queued first is what
-    an unmatched msg: callback eats."""
+    """Remove a confirmed signal in place. The msg: fallback removes while iterating,
+    so it can eat a non-msg signal queued ahead of the first msg:."""
     if signal in signals:
         signals.remove(signal)
     # basically it is never ok to be spamming ppl, so if we get a message callback
@@ -165,10 +160,7 @@ class BingoCardProgress(ndb.Model):
     completed = ndb.BooleanProperty(default=False)
     count = ndb.IntegerProperty(default=0)
     completed_subgoals = ndb.StringProperty(repeated=True)
-    # a regression (posted progress un-completing a square) is only applied after a
-    # second consecutive update from this player confirms it; guards against
-    # stale/out-of-order POSTs causing goal flicker. Real death-rollbacks confirm
-    # within one client post cycle.
+    # a regression (un-completing a square) applies only once a second update confirms it
     pending_loss = ndb.BooleanProperty(default=False)
 
     def to_json(self):
@@ -213,15 +205,12 @@ HIST_CHUNK_SIZE = 50   # lines per chunk entity
 HIST_TAIL = 20         # legacy dedup exemption window (Game.hls[:-20])
 
 def hl_dedup_key(hl):
-    # the legacy key is (player, code, id, coords); player is implicit because
-    # dedup state lives on that player's own entity. crc32 keeps the stored set
-    # to one int per distinct pickup (~250 max), vs. a full HistoryLine each.
+    # crc32 of (code, id, coords); the player is implicit, since dedup state lives on their entity
     return zlib.crc32(("%s|%s|%s" % (hl.pickup_code, hl.pickup_id, hl.coords)).encode("utf-8")) & 0xffffffff
 
 class HistoryChunk(ndb.Model):
-    """A fixed-size slice of one player's history, stored as a child of the
-    Game (same entity group, so existing single-group transactions keep
-    working). Written by appends, read only by Game.history()."""
+    """A fixed-size slice of one player's history, a child of the Game (same entity group).
+    Read only by Game.history()."""
     lines = ndb.LocalStructuredProperty(HistoryLine, repeated=True)
 
     @staticmethod
@@ -466,9 +455,7 @@ class Player(ndb.Model):
     teleporters = ndb.IntegerProperty()
     seed        = ndb.TextProperty()
     signals     = ndb.StringProperty(repeated=True)
-    # set once this player's world has been released, so their client can treat everything
-    # still sitting in it as spent. Durable because mw_release is idempotent and its
-    # idempotency lives in the RECEIVERS' slots -- nothing else here remembers it happened.
+    # this world has been released; its client treats whatever is left in it as spent
     released    = ndb.BooleanProperty(default=False)
     history     = ndb.LocalStructuredProperty(HistoryLine, repeated=True)
     last_update = ndb.DateTimeProperty(auto_now=True)
@@ -485,33 +472,26 @@ class Player(ndb.Model):
     # Shared singletons are local seed lines, not slots, so nothing else does.
     shared_released = ndb.IntegerProperty(repeated=True)
     bingo_prog  = ndb.LocalStructuredProperty(BingoCardProgress, repeated=True)
-    # history dedup state (constant size): hist_tail is the rolling
-    # last-HIST_TAIL keys, hist_seen is every key that has fallen out of that
-    # window — the "skip if in history[:-20]" replay guard, minus the scan.
+    # history dedup: hist_tail holds the last HIST_TAIL keys, hist_seen every older one;
+    # a line whose key is in hist_seen is skipped
     hist_chunk  = ndb.IntegerProperty(default=0)
     hist_tail   = ndb.IntegerProperty(repeated=True)
     hist_seen   = ndb.IntegerProperty(repeated=True)
     # last spirit well this player touched on foot; no goal tracks it, journey
     # cards use it to show whether they are live right now
     bingo_last_tp = ndb.StringProperty()
-    # dll version, refreshed from the tick (client >= 4.1.10 sends it every tick).
-    # The capability-negotiation hook for the websocket migration: it tells us
-    # what the live fleet is actually running, per game and per player.
+    # dll version, refreshed from the tick (sent by clients >= 4.1.10)
     dll_version = ndb.StringProperty()
     # fixed display name; overrides the user-derived one. Set on AP shadow
     # players (pid K+w) so the tick names field renders '<K+w>.Archipelago'.
     nickname    = ndb.StringProperty()
     # name this world was rolled with; a claimed seed's user still wins
     seed_name   = ndb.StringProperty()
-    # Archipelago progressive hints: {manifest slot: resolved hint text}, the
-    # answers to this player's own hint requests. Tick field 8; the purchase
-    # state machine lives on APHints.
+    # AP progressive hints this player asked for, {manifest slot: text}; tick field 8
     ap_hints    = ndb.JsonProperty()
 
     def note_version(self, vers, game_id=None):
-        """Record the client's reported dll version. Returns True if it changed
-        (caller puts) — false on every tick after the first, so this costs
-        nothing steady-state."""
+        """Record the reported dll version; True if it changed (the caller puts)."""
         if not vers or self.dll_version == vers:
             return False
         log.info("NETPERF dll_version gid=%s pid=%s vers=%s was=%s",
@@ -550,12 +530,8 @@ class Player(ndb.Model):
     @staticmethod
     @ndb.transactional(retries=5)
     def tick_update_txn(pkey, vers, seen_bflds, have_bflds):
-        """The tick slow path's write: fresh read inside a txn, touching only
-        tick-owned fields (seen/have bitfields, dll_version). Putting the
-        handler's stale copy here raced concurrent grant txns and erased
-        their bits — 134701 lost two shared skills, and multiworld has no
-        sanity check to repair that. Returns the fresh entity so the caller
-        renders tick output from post-grant state."""
+        """The tick's write: a fresh read touching only seen/have/dll_version. Returns the
+        fresh entity so the caller renders post-grant state."""
         p = pkey.get()
         changed = False
         if vers and p.dll_version != vers:
@@ -579,12 +555,8 @@ class Player(ndb.Model):
     @staticmethod
     @ndb.transactional(retries=5)
     def mark_slots_txn(pkey, slots, signal_for=None, signal_latest_only=False):
-        """Batch slot marking (multiworld release). Returns newly-set count.
-        signal_for(newly-set slots) may return one signal to ride the same
-        write, so a client can read it on the tick that grants them.
-        signal_latest_only drops earlier signals of the same kind: a client
-        that never acks one (an older dll) would otherwise carry every one of
-        them on every tick."""
+        """Mark slots; returns the newly-set count. signal_for(new slots) may add one signal to
+        the same write; signal_latest_only first drops older signals of its kind."""
         p = pkey.get()
         fresh = [s for s in slots if p.mark_slot(s, delay_put=True)]
         if fresh and signal_for:
@@ -599,9 +571,8 @@ class Player(ndb.Model):
         return len(fresh)
 
     def claim_shared_released(self, coords):
-        """Claim locations for the shared release, returning the ones this call
-        won. Claiming before granting is what keeps a repeated /complete (the
-        client retries until acked) from stacking a bonus once per retry."""
+        """Claim locations for the shared release; returns the ones this call won. Claim
+        before granting, or a resent /complete stacks bonuses."""
         already = set(self.shared_released or [])
         fresh = [c for c in coords if c not in already]
         if fresh:
@@ -618,9 +589,8 @@ class Player(ndb.Model):
     @staticmethod
     @ndb.transactional(retries=5)
     def signal_latest_txn(pkey, kind, signal):
-        """Send `signal`, dropping any earlier one of the same `kind` prefix.
-        For signals where only the newest matters (a DeathLink owed to a
-        client that was away is one death, not the backlog)."""
+        """Send `signal`, dropping earlier ones with the same `kind` prefix (a DeathLink owed
+        to an absent client is one death, not a backlog)."""
         p = pkey.get()
         signals = [s for s in p.signals if not s.startswith(kind)] + [signal]
         if signals == p.signals:
@@ -632,10 +602,8 @@ class Player(ndb.Model):
     @staticmethod
     @ndb.transactional(retries=5)
     def set_ap_hints_txn(pkey, answers, keep=None, limit=16):
-        """Merge resolved Archipelago hint text in. `keep` is the slots the
-        client is still asking about; anything else is evicted first, so a
-        long keysanity run can't wedge against the cap holding answers
-        nobody is reading. Returns True if anything changed."""
+        """Merge resolved hint text; slots not in `keep` are evicted first so the cap can't
+        wedge. True if anything changed."""
         p = pkey.get()
         hints = dict(p.ap_hints or {})
         changed = False
@@ -722,10 +690,7 @@ class Player(ndb.Model):
         return names
 
     def ap_hints_field(self):
-        """Tick field 8 (Archipelago): ';'-joined '<slot>=<hint>'. Only ever
-        answers to slots this client asked about, so it is empty on every
-        game that is not buying AP hints -- and an empty field is omitted,
-        which keeps every existing multiworld tick body byte-identical."""
+        """Tick field 8 (AP): ';'-joined '<slot>=<hint>' for the slots this client asked about."""
         if not self.ap_hints:
             return ""
         pairs = sorted(self.ap_hints.items(), key=lambda kv: int(kv[0]))
@@ -760,7 +725,6 @@ class Player(ndb.Model):
             log.error("invalid pkey %s: %s, returning 0,0", pkey, e)
             return 0,0
 
-    # post-refactor version of bitfields
     def output(self, include_slots=False):
         outlines = [str(x) for x in [self.skills, self.events, self.teleporters]]
         bonuses = []
@@ -773,17 +737,12 @@ class Player(ndb.Model):
         outlines.append(";".join(bonuses))
         outlines.append(";".join(["%s:%s" % (loc, finder) for (loc, finder) in self.hints.items()]))
         if include_slots:
-            # multiworld games only (new clients by definition): the signals
-            # field is ALWAYS present -- possibly empty -- so the slot
-            # bitfields land at a fixed index 6, player names at 7. Legacy
-            # games keep the conditional-signals format below untouched.
+            # multiworld always carries signals (maybe empty) so slots sit at 6 and names at 7;
+            # other modes omit empty signals
             outlines.append("|".join(self.signals))
             outlines.append(";".join(str(b) for b in (self.slot_bflds or 8 * [0])))
             outlines.append(self.mw_names_field())
-            # field 8 is APPENDED ONLY WHEN NONEMPTY: it is last, so absence
-            # shifts nothing, and every multiworld body that predates AP
-            # hints stays byte-identical. Field 9 (released) has to hold 8's
-            # place when it lands, or an empty hints field would shift it up.
+            # 8 (AP hints) only when nonempty or 9 follows, so older bodies stay byte-identical
             ap_hints = self.ap_hints_field()
             if ap_hints or self.released:
                 outlines.append(ap_hints)
@@ -812,9 +771,7 @@ class Player(ndb.Model):
     @staticmethod
     @ndb.transactional(retries=5)
     def signal_conf_txn(pkey, signal):
-        """Clear a confirmed signal on a fresh read, touching only signals.
-        The handler's copy is stale by the time the client answers, and a
-        plain put of it erased concurrent grant transactions' slot bits."""
+        """Clear a confirmed signal on a fresh read, touching only signals."""
         p = pkey.get()
         if p is None:
             return False
@@ -828,8 +785,7 @@ class Player(ndb.Model):
     @staticmethod
     @ndb.transactional(retries=5)
     def connect_update_txn(pkey, vers, nag_signal=None):
-        """connect's write: dll version and the out-of-date nag, on a fresh
-        read. Same rule as signal_conf_txn -- connect's own copy is stale."""
+        """connect's write, on a fresh read: dll version and the out-of-date nag."""
         p = pkey.get()
         if p is None:
             return False
@@ -846,7 +802,7 @@ class Player(ndb.Model):
     @staticmethod
     @ndb.transactional(retries=5)
     def signal_send_txn(pkey, signal):
-        """signal_send's write, same fresh-read rule as signal_conf_txn."""
+        """signal_send on a fresh read."""
         p = pkey.get()
         if p is None or signal in p.signals:
             return False
@@ -857,12 +813,8 @@ class Player(ndb.Model):
     @staticmethod
     @ndb.transactional(retries=5)
     def save_bingo_txn(pkey, prog, tp):
-        """The bingo update's Player write: card progress, and the teleporter the
-        journey cards read. Card progress is mutated in place on bingo_prog, so it
-        leaves no assignment to grep for -- it still has to be persisted here.
-
-        Whole-list, because nothing else writes bingo_prog. Not a put of the whole
-        entity: bingo_lock does not stop a grant txn, and that would drop slots."""
+        """The bingo update's Player write: card progress and the journey teleporter, on a
+        fresh read, since bingo_lock doesn't stop grant txns."""
         p = pkey.get()
         if p is None:
             return False
@@ -874,9 +826,7 @@ class Player(ndb.Model):
     @staticmethod
     @ndb.transactional(retries=5)
     def claim_user_txn(pkey, user_key):
-        """The seed download's write: claim this world for a site account on
-        a fresh read, touching only `user`. Re-downloads happen mid-game, so
-        this races grant txns like every other Player write."""
+        """The seed download's write: claim this world for an account, touching only `user`."""
         p = pkey.get()
         if p is None or p.user == user_key:
             return False
@@ -886,9 +836,7 @@ class Player(ndb.Model):
 
     @staticmethod
     def hl_chunk_append(p, chunk, hl):
-        """Dedup + append + tail bookkeeping. Returns True if the line was
-        appended (False = dedup skip) and whether the chunk is now sealed.
-        Datastore-free so it can be tested directly; the txn below wraps it."""
+        """Dedup, append, and advance hist_chunk once the chunk fills; False on a dedup skip."""
         key = hl_dedup_key(hl)
         if key in p.hist_seen:
             return False
@@ -905,9 +853,7 @@ class Player(ndb.Model):
     @staticmethod
     @ndb.transactional(retries=5, xg=True)
     def append_hl_chunked_txn(pkey, hl):
-        # the line goes into a fixed-size child entity, so neither this append
-        # nor any hot-path Player read grows with game length (two gets and a
-        # put_multi of two small entities per line).
+        # fixed-size child chunks keep Player reads constant-size as the game grows
         p = pkey.get()
         gid, _, pid = pkey.id().partition(".")
         ckey = HistoryChunk.key_for(pkey.parent(), gid, pid, p.hist_chunk or 0)
@@ -920,10 +866,7 @@ class Player(ndb.Model):
     @staticmethod
     @ndb.transactional(retries=5, xg=True)
     def transaction_pickup_batch(pkeys, grants):
-        # grant every pickup to every player in ONE transaction — all Players
-        # share the Game entity group, so this is a single-group txn with one
-        # get_multi and one put_multi.
-        # grants: list of (pickup, remove, coords, finder)
+        # grants: [(pickup, remove, coords, finder)], each to every player, in one txn
         players = [p for p in ndb.get_multi(pkeys) if p is not None]
         for p in players:
             for (pickup, remove, coords, finder) in grants:
@@ -1108,12 +1051,8 @@ class BingoCard(ndb.Model):
             log.error("invalid goal type %s" % self.goal_type)
         completed = p_progress.completed
         if self.meta:
-            # Meta squares (VertSym/HorizSym/Activate Squares) are derived from the
-            # team's CURRENT board state — the same inputs for every member — so the
-            # poster's freshly computed value is authoritative. Consulting stored
-            # teammate snapshots let never-posting players (ghost slots from double
-            # joins) freeze a stale pre-start `true` forever (game 133486, C2). No
-            # debounce either: the underlying squares are already debounced.
+            # meta squares derive from the team's current board, so the poster's value is
+            # authoritative and needs no debounce
             if prior_value != completed:
                 return BingoEvent(event_type="square", loss=not completed, square=self.square, player=capkey, timestamp=utcnow())
             return None
@@ -1137,12 +1076,8 @@ class BingoCard(ndb.Model):
             if completed:
                 p_progress.pending_loss = False
                 return BingoEvent(event_type="square", loss=False, square=self.square, player=capkey, timestamp=utcnow())
-            # Regression. Only the player whose own data is down may stage/confirm
-            # the loss — a teammate's interleaved update reflecting our stored
-            # (possibly stale) state must not fast-track it. Staging requires the
-            # transition (was completed, now isn't); confirming only requires the
-            # pending flag plus still-down data, since our stored `completed` was
-            # already overwritten to False by the staging update.
+            # a loss is staged and confirmed only by the player whose own data is down,
+            # so a teammate's update carrying stale stored state can't fast-track it
             if not p_progress.completed:
                 if p_progress.pending_loss:
                     p_progress.pending_loss = False
@@ -1189,10 +1124,8 @@ EVLOG_KEEP = 100     # events kept on the entity: this IS the board feed
 EVLOG_ARCHIVE = 50   # archive once this many have piled up past the tail
 
 class BingoEventChunk(ndb.Model):
-    """Events aged out of the on-entity feed, kept as a child of
-    the BingoGameData so nothing is lost (the legacy 400-cap prune simply
-    dropped them). Write-only from the netcode's perspective — get_json renders
-    the entity's own tail, and it must stay that way: it runs on every update."""
+    """Events aged out of the feed, as children of the BingoGameData. Write-only on the
+    update path: get_json renders the entity's own tail."""
     events = ndb.LocalStructuredProperty(BingoEvent, repeated=True)
 
     @staticmethod
@@ -1505,17 +1438,13 @@ class BingoGameData(ndb.Model):
         return None
 
     def update(self, bingo_data, player_id, game_id, meta_init = False):
-        # caller MUST hold bingo_lock(game_id): plain puts cannot conflict
-        # because every writer of this entity holds the same lock (see the
-        # bingo routes).
+        # caller holds bingo_lock(game_id); every writer of this entity does, so plain puts are safe
         self.archive_evlog(game_id)
         return self._update_inner(bingo_data, player_id, game_id, meta_init)
 
     def evlog_overflow(self):
-        """Split event_log into (kept, archived) without touching the datastore.
-        Keeps the newest EVLOG_KEEP plus every misc marker (the game's framing
-        entries), exactly like the legacy prune — but the remainder is returned
-        for archiving instead of dropped. Returns (None, None) if under the mark."""
+        """(kept, archived): kept is the newest EVLOG_KEEP plus every misc marker.
+        (None, None) while under the mark."""
         if len(self.event_log) <= EVLOG_KEEP + EVLOG_ARCHIVE:
             return None, None
         older, tail = self.event_log[:-EVLOG_KEEP], self.event_log[-EVLOG_KEEP:]
@@ -1524,9 +1453,8 @@ class BingoGameData(ndb.Model):
         return keep_misc + tail, archived
 
     def archive_evlog(self, game_id):
-        """Age the event log's overflow into a chunk child. Caller must hold
-        bingo_lock (update's contract). Puts self immediately so a crash or a
-        no-write update can't lose ev_chunk and overwrite the archive."""
+        """Age the overflow into a chunk child; caller holds bingo_lock. Puts self at once, or
+        a no-write update loses ev_chunk and the next archive overwrites this one."""
         kept, archived = self.evlog_overflow()
         if not archived:
             return 0
@@ -1684,20 +1612,12 @@ class BingoGameData(ndb.Model):
             p_list = [player] + teammates
             for p in p_list:
                 Player.signal_send_txn(p.key, win_sig % (place, round_now))
-            # The caller re-busts these after the update lands; a tick that read
-            # this player pre-signal can re-arm the fast path after an earlier
-            # bust, and a finished player's bitfields never bust it again.
+            # the caller re-busts these after the update (see netcode.bingo_update)
             self._signal_pids = [p.idpts() for p in p_list]
-            # an AP board's pids are its worlds, so winning it is those worlds'
-            # Archipelago goal. Stashed for the caller: the room must not hear
-            # about a win the transaction is still free to roll back
+            # an AP board's pids are its worlds, so the win is their AP goal; the caller notifies
             if self.ap_worlds:
                 self._ap_goal_worlds = [w for w in (self.ap_world_for(p.pid()) for p in p_list) if w]
-        # Stash the board for the CALLER to publish after the transaction commits.
-        # Writing the cache here published uncommitted state: a doomed concurrent
-        # attempt (computed without the other player's just-committed progress)
-        # would overwrite the cache before aborting — the source of the goal
-        # flicker seen in games 133478/133482.
+        # the caller publishes this once the update has landed
         self._board_json = self.get_json(players=players_by_id.values())
         Player.save_bingo_txn(player.key, player.bingo_prog, player.bingo_last_tp)
         if need_write:
@@ -1849,11 +1769,10 @@ SSP_DENY = frozenset([
 # names that end up in a url path or query cannot carry these
 URL_UNSAFE_NAME_CHARS = ["@", "/", "\\", "?", "#", "&", "=", '"', "'"]
 
-# Every key User.settings can hold: its default, and how a save reports it changing.
-# Registering here is the whole job; both routes loop over this rather than naming keys.
-# a string setting comes off a form, so it gets a bound before it reaches the datastore
+# string settings come off a form, so they're bounded before the datastore
 MAX_SETTING_LEN = 64
 
+# every key User.settings can hold, with its default; both routes loop over this
 USER_SETTINGS = {
     # a preset name, or one of SSP_RESERVED_NAMES; "legacy" reads the retired key it replaced
     "defaultPreset": {"default": "latest", "label": "default preset",
@@ -1880,9 +1799,8 @@ SSP_DESC_MAX = 200
 
 
 class SavedSeedParams(ndb.Model):
-    """A preset: seedgen options a user saved under a name. Stored as a blob
-    rather than a schema, since SeedGenParams.from_json defaults every field it
-    reads, so a blob saved today still rolls once later versions add options."""
+    """A preset: seedgen options saved under a name, as a blob (SeedGenParams.from_json
+    defaults missing fields, so old blobs keep rolling)."""
     settings = ndb.JsonProperty(compressed=True)
     name = ndb.StringProperty()
     description = ndb.StringProperty()
@@ -1893,9 +1811,8 @@ class SavedSeedParams(ndb.Model):
 
     @staticmethod
     def settings_from(params_json, world=1):
-        """The saveable half of a seedgen request. A preset describes ONE world,
-        so forced assignments are taken from that world alone -- keeping every
-        world's would apply all of them to whichever world loaded it."""
+        """The saveable half of a seedgen request. A preset is one world, so only that
+        world's forced assignments are kept."""
         out = {k: v for k, v in (params_json or {}).items() if k not in SSP_DENY}
         world = str(world)
         # cross-world rows belong to the multiplayer half, and world/owner go with
@@ -1964,11 +1881,8 @@ class Game(ndb.Model):
     shared         = property(get_shared, set_shared)
     start_time     = ndb.DateTimeProperty(auto_now_add=True)
     last_update    = ndb.DateTimeProperty(auto_now=True)
-    # did anyone actually play? Set once, on the first pickup. Deliberately
-    # has NO default: a game written before this property existed reads None
-    # ("unknown", so game lists still show it) while a fresh game is written
-    # explicitly False ("empty, hide it"). Reading it replaces a per-game
-    # history walk that cost an ancestor query and a get per player.
+    # set on the first pickup. No default: None (older games) lists as unknown, False hides
+    # an unplayed game
     has_history    = ndb.BooleanProperty()
     hls            = ndb.LocalStructuredProperty(HistoryLine, repeated=True)
     players        = ndb.KeyProperty(Player, repeated=True)
@@ -1988,9 +1902,7 @@ class Game(ndb.Model):
         return {i + 1: n for i, n in enumerate(self.player_names or []) if n}
 
     def history(self, pids=[]):
-        # Readers merge every storage layout unconditionally, so games written
-        # under any older revision still read back whole. Oldest first:
-        # Game.hls, Player.history (both write-retired), HistoryChunk children.
+        # merges every layout: Game.hls and Player.history (both write-retired), then chunks
         players = self.get_players()
         res = list(self.hls)
         for p in players:
@@ -2011,11 +1923,8 @@ class Game(ndb.Model):
         if pids:
             res = [hl for hl in res if hl.player in pids]
         res.sort(key=lambda hl: hl.timestamp or datetime.min)
-        # Drop exact duplicates. Merging is only unsafe for one shape of legacy
-        # data: the pre-2018 read-time migration copied Player.history into
-        # Game.hls without clearing the source, so such a game holds each line
-        # twice. A real re-find always differs in timestamp, so identical
-        # five-tuples are never two genuine events.
+        # drop exact duplicates (some legacy games hold each line in two layouts); a real
+        # re-find always differs in timestamp
         seen, out = set(), []
         for hl in res:
             k = (hl.player, hl.pickup_code, hl.pickup_id, hl.coords, hl.timestamp)
@@ -2071,16 +1980,12 @@ class Game(ndb.Model):
         return [p.get() for p in self.players]
 
     def visible_players(self):
-        """get_players() minus the AP shadows. Every player-facing surface —
-        tracker, history, item tracker — wants this one, not get_players():
-        rendering a shadow leaks the bridge's plumbing, and computing
-        reachability for one is pure waste on the request path."""
+        """get_players() minus the AP shadows: what every player-facing surface should use."""
         return [p for p in self.get_players() if p and not p.is_ap_shadow()]
 
     def fetch_params(self):
-        """The game's SeedGenParams via the process cache: SHARED and
-        READ-ONLY. A path that mutates and puts (the bingo variation append)
-        must keep using self.params.get() for a private copy."""
+        """The game's SeedGenParams from the process cache: shared and read-only. Mutators
+        use self.params.get()."""
         return SeedGenParams.cached_by_key(self.params)
 
     def remove_player(self, key):
@@ -2283,10 +2188,8 @@ class Game(ndb.Model):
         return [pickup] if pickup.is_shared(self.shared) else []
 
     def mw_release_shared(self, finisher_pid, params):
-        """The shared half of the release, granted to every player. A shared
-        category is one copy total, sitting as a plain local line with no owner
-        and no slot, so the slot pass above cannot see it -- and a finished
-        world is nobody's to explore (game 136058 stranded Climb)."""
+        """The shared half of the release, granted to everyone. Shared items are plain local
+        lines with no owner or slot, so the slot pass can't see them."""
         if not self.shared:
             return 0
         finisher = self.player(finisher_pid)
@@ -2321,14 +2224,10 @@ class Game(ndb.Model):
         return len(grants)
 
     def mw_release(self, finisher_pid, params=None):
-        """Multiworld release: when a player finishes, every item still
-        sitting in their world that belongs to someone else is granted to its
-        owner (their world is done being explored). Idempotent."""
+        """Grant every item left in the finisher's world to its owner. Idempotent."""
         t0 = monotonic()
         params = params or self.fetch_params()
-        # AP mode: slots owned by shadow players (pid > K) are the bridge's
-        # outbox; releasing a world must never force-check them (whether the
-        # AP room releases on goal is the room's policy, not ori's)
+        # AP shadows' slots (pid > K) are the bridge's outbox; a release never checks them
         ap_worlds = int(params.players) if getattr(params, "ap_mode", False) else None
         by_owner = defaultdict(list)
         for (loc, code, id, zone) in params.get_seed_data(finisher_pid):
@@ -2386,10 +2285,8 @@ class Game(ndb.Model):
         return Cache.get_hist(gid)
     
     def create_ap_shadows(self, params):
-        """AP-mode games: shadow players K+1..2K, one per world. Their slot
-        bitfields are the AP bridge's durable outbox (found_pickup flips bit i
-        on shadow K+v when world v checks reserved slot i); no client ever
-        connects as one. Idempotent."""
+        """AP games: shadow players K+1..2K whose slot bitfields are the bridge's outbox
+        (world v checking reserved slot i flips bit i on K+v). Idempotent."""
         k = int(params.players)
         for w in range(1, k + 1):
             shadow = self.player(k + w, shadow=True)
@@ -2458,16 +2355,11 @@ class Game(ndb.Model):
             share = ShareType.TELEPORTER in self.shared
             override = True # fuck no it actually should work like this. lol.
         if self.mode == MultiplayerGameType.MULTIWORLD:
-            # shared-category singletons fan out (see the mode branch below);
-            # everything else is client-local or a slot flip. TW warps are
-            # world-local by construction; EV5 is each world's finale trigger.
+            # only shared singletons fan out; TW warps are world-local, EV5 is each world's finale
             if pickup.code in ["MW", "TW"] or (pickup.code == "EV" and int(pickup.id) == 5):
                 share = False
             if pickup.code == "MW":
-                # no seen-coords dedup: the finder's 1Hz tick can deliver the
-                # seen bit BEFORE the found POST arrives, and the early return
-                # below would silently drop the slot flip (slot handling is
-                # idempotent, so reprocessing is free)
+                # no seen dedup: the tick can deliver the seen bit before this POST, and flips are idempotent
                 finder_seen = []
         if coords in finder_seen:
             if share:
@@ -2475,8 +2367,7 @@ class Game(ndb.Model):
                     # man just. fuck it?
 #                    log.info("Ignoring duplicate pickup at location %s from player %s" % (coords, pid))
 #                    return 410
-                    # a lone duplicate is usually a client resend, not a desync —
-                    # only run the (expensive) sanity check on a second strike.
+                    # a lone duplicate is usually a resend; sanity-check only on a second strike
                     if Cache.second_strike(self.key.id()):
                         self.sanity_check()
                     return 200
@@ -2540,9 +2431,7 @@ class Game(ndb.Model):
                     # the find is durable, not dropped
                     owner = self.player(pickup.owner)
                 if Player.mark_slot_txn(owner.key, pickup.slot):
-                    # bust the owner's tick cache, or an idle owner (unchanged
-                    # bitfields) never sees the flip -- same failure mode as
-                    # the dropped win signals (see signal_send)
+                    # or an idle owner's fast path never shows the flip
                     Cache.clear_seen_checksum(owner.idpts())
             elif share:
                 # shared singleton: grant every world. The finder's client
@@ -2552,11 +2441,8 @@ class Game(ndb.Model):
                 for player in players:
                     Cache.clear_seen_checksum(player.idpts())
                     Cache.clear_reach(*player.idpts())
-            # own-world pickups need no server-side action: the finder's
-            # client granted itself already, and seen/have bits arrive by tick.
-            # (release-on-finish is triggered by the /complete route at the
-            # credits, not by any pickup: warmth returned is granted at the
-            # START of the final escape, which is too early)
+            # own-world pickups need nothing here. Release waits for /complete: warmth
+            # returned comes at the start of the escape, too early.
         elif self.mode in [MultiplayerGameType.SIMUSOLO, MultiplayerGameType.BINGO]:
             pass
         else:
@@ -2617,9 +2503,7 @@ class Game(ndb.Model):
     @staticmethod
     @ndb.transactional(retries=3)
     def mark_history_txn(key):
-        """Someone actually played: flip has_history on a freshly read entity.
-        Never a plain put -- writing a Game read on the pickup path would
-        erase whatever the 1Hz tick wrote meanwhile (the 134701 bug class)."""
+        """Flip has_history on a fresh read; a put of the caller's copy would clobber other writes."""
         game = key.get()
         if game is None or game.has_history:
             return
@@ -2726,24 +2610,16 @@ class Game(ndb.Model):
 
 
 class AnnouncedPatchNotes(ndb.Model):
-    """Newest release already posted to an announce channel; the entity id is
-    the channel name ("main" / "dev").
-
-    The marker is claimed in a transaction and written BEFORE the webhook call,
-    so a redeploy, a retry or a second instance can never double-post. The cost
-    is that a failed POST drops that announcement rather than retrying it, which
-    is logged loudly and can be resent with /patchnotes/announce. Silence is a
-    much better failure here than posting a release to Discord twice."""
+    """Newest release posted to an announce channel (id = channel name). Claimed before the
+    webhook call: a failed POST drops the announcement rather than risking a double post."""
     version = ndb.StringProperty()
     updated = ndb.DateTimeProperty(auto_now=True)
 
     @staticmethod
     @ndb.transactional(retries=5)
     def claim(channel, newest):
-        """Advance the marker and return the version it was on, or None if
-        there is nothing to announce. The first run on a channel seeds the
-        marker silently: otherwise switching this on would replay the whole
-        back catalog into the channel."""
+        """Advance the marker; returns the version it was on, or None if there's nothing to
+        post. The first run on a channel seeds the marker silently."""
         key = ndb.Key(AnnouncedPatchNotes, channel)
         row = key.get()
         if row and row.version == newest:
@@ -2762,12 +2638,8 @@ class AnnouncedPatchNotes(ndb.Model):
 
 
 class AccountLink(ndb.Model):
-    """A one-shot URL that seats another browser on the creator's guest account.
-
-    The key id IS the nonce, so guessing one is guessing a token_urlsafe(32).
-    claim() is transactional because two visitors racing the same link must not
-    both win it.
-    """
+    """A one-shot URL seating another browser on the creator's guest account. The key id
+    is the nonce; claim() is a txn so two visitors can't both win."""
     TTL = timedelta(minutes=15)
 
     guest_sub = ndb.StringProperty()

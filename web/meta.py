@@ -78,9 +78,7 @@ def version_json():
     })
 
 
-# Crash reports from the page. Beta and dev boxes only: prod logging is metered, and the
-# page shows the user what happened either way. A per-process budget keeps a looping
-# page from filling the log.
+# page crash reports: beta/dev only (prod logging is metered), with a per-process budget
 CLIENT_ERROR_MAX_BYTES = 16 * 1024
 CLIENT_ERROR_BUDGET = (20, 600)
 _client_errors = collections.deque()

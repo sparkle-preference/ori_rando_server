@@ -28,8 +28,8 @@ const mods = {
     AIUse
 };
 
-// A render crash used to leave a white page. This shows what broke, reports it, and offers
-// the two ways back in. The buttons are plain: the theme may be part of the problem.
+// Shows what broke, reports it, and offers two ways back in. Plain buttons: the theme may
+// be part of the problem.
 class ErrorBoundary extends React.Component {
     constructor(props) {
         super(props)

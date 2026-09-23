@@ -118,8 +118,7 @@ class Connection(object):
 
     def add_requirements(self, req, mode):
         def translate(req_part):
-            """Helper function. Turns a req from areas.ori into
-            the list of the things that req indicates are required"""
+            """An areas.ori requirement as the list of items it stands for."""
             if req_part in longform_to_code:
                 return longform_to_code[req_part]
             if '=' not in req_part:

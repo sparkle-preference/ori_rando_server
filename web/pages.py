@@ -1,8 +1,4 @@
-"""Pages that are a redirect or a template name, and nothing else.
-
-A leftovers drawer on purpose: these have no family of their own, and a module
-each would be worse than one honest pile.
-"""
+"""Pages that are a redirect or a template name, and nothing else."""
 from flask import Blueprint, redirect, render_template
 
 import util
@@ -60,8 +56,7 @@ def dll_beta():
 
 @bp.route('/apworld')
 def apworld():
-    # short link for the discord, same shape as /dll; point it at a github
-    # release once the item tables stop moving
+    # TODO: point at a github release once the item tables stop moving
     return redirect("/generator/apworld")
 
 

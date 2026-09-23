@@ -23,17 +23,11 @@ BASE_ID = 524288  # 2**19; deliberately not c-ostic's 262144
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "oride_apworld", "oride", "data")
 
-# highest exact "N experience" item; above it EX rides the legacy
-# denominations. Measured range over 5 seeds was 1..514.
+# highest exact "N experience" item; above it EX rides the legacy denominations
 EX_EXACT_CAP = 600
 
-# Every warp destination the generator can roll. A TW pickup id is
-# "Warp to <dest>,<x>,<y>,<logic node>", and Pickup.n("TW", id).name is the
-# leading "Warp to <dest>" -- so the destination alone names the item and the
-# seed line keeps the coordinates the client warps to. Custom teleporters are
-# plando-only, so a generated seed can never leave this table.
-# APPEND-ONLY, like ITEM_ORDER; check_warp_table() below fails the export if
-# the generator's table grows and this one didn't.
+# every warp destination the generator rolls; a TW item is named by its destination.
+# APPEND-ONLY (frozen ids); check_warp_table() fails the export if the generator's grows.
 WARP_DESTINATIONS = (
     "Warp to Above Cflame Tree EX",
     "Warp to Above Gladeser",

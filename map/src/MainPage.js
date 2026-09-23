@@ -33,8 +33,7 @@ const locOptionFromCoords = (coords) => locOptions.find(l => l.value === coords)
 // multipickup <-> part codes ("SK|3"), for merging burials into an existing row
 const pickupToParts = (item) => {
     if(!item || item === "NO|1") return [];
-    // only MU is decomposed: partsToPickup rebuilds as MU, so unwrapping an
-    // RP/RP group here would silently drop the repeat/one-of. They nest fine.
+    // only MU is decomposed: partsToPickup rebuilds MU, so unwrapping RP/RG would drop the repeat/one-of
     if(!item.startsWith("MU|")) return [item];
     let [code, id] = item.split("|");
     return decompose_pickup(code, id).map(([c, i]) => `${c}|${i}`);
@@ -42,9 +41,7 @@ const pickupToParts = (item) => {
 // parts arrive decomposed (slashes literal), so re-escape on the way back in
 const partToSegs = (p) => p.replaceAll("/", "//").replace(/\|/g, "/");
 const partsToPickup = (parts) => parts.length === 0 ? "NO|1" : (parts.length === 1 ? parts[0] : "MU|" + parts.map(partToSegs).join("/"));
-// blank rows to type into: paramsJson drops item NO|1, so these never reach a seed
-// merge items into one world's Buried rows, creating them as needed; already-buried
-// items are skipped. Shared, so the Advanced buttons and Randomize bury alike.
+// merge items into one world's Buried rows, creating rows as needed and skipping duplicates
 const mergeBuried = (fassList, groups, world) => {
     let out = [...fassList];
     groups.forEach(({depth, items}) => {
@@ -64,6 +61,7 @@ const mergeBuried = (fassList, groups, world) => {
 };
 
 const SPAWN_LOC = 2;
+// blank rows to type into: paramsJson drops item NO|1, so these never reach a seed
 const fassDefaultsFor = (world) => [SPAWN_LOC, 919772].map(coords => ({loc: locOptionFromCoords(coords), item: "NO|1", world: world, owner: world}));
 // has anything been placed in the spawn fass_line, for the world in view -- another
 // world's preset must not change what this one's spawn dropdown does
@@ -150,8 +148,7 @@ const nextPresetName = (list) => {
     while(list.some(s => s.name === `Preset ${n}`)) n++
     return `Preset ${n}`
 };
-// the duplicate opens with this selected, so it is a starting point and not a
-// decision. 64 is the server's limit on a preset name.
+// the duplicate modal opens with this selected; 64 is the server's name limit
 const copyPresetName = (list, name) => {
     let base = `Copy of ${name}`.slice(0, 64)
     if(!list.some(s => s.name === base)) return base
@@ -411,8 +408,7 @@ export default class MainPage extends React.Component {
 
 
     getItemPoolTab = ({inputStyle}) => {
-        // Lines that resolve to nothing at all. Not an error -- the seed still rolls, the
-        // line is simply dropped -- so it says so rather than blocking the button.
+        // a line that resolves to nothing is dropped at roll time, so warn rather than block
         const poolRowWarning = (code) => {
             let why = code === "LC|*" ? "Local has nothing to keep local. Add it to a line with items on it."
                     : (code === "RP|" ? "Repeatable has nothing to repeat. Add an item to this line."
@@ -1320,8 +1316,7 @@ export default class MainPage extends React.Component {
             }))
     }
 
-    // Staged, not saved: the copy exists only in the modal until the footer
-    // button is pressed, so backing out costs nothing.
+    // staged: nothing is saved until the footer button is pressed
     presetDuplicate = () => this.setState(prev => ({
         presetDuplicating: true, presetArmDelete: false,
         sspSaveName: copyPresetName(prev.sspList, prev.presetEditing),
@@ -1560,7 +1555,7 @@ export default class MainPage extends React.Component {
         }
     }
     getVariationsTab = () => {
-        // the Starved trio is CLI-only now; Buried placements cover it
+        // the Starved trio is CLI-only; Buried placements cover it
         let filteredVars = ["NonProgressMapStones", "BonusPickups", "ForceTrees", "WorldTour", "ForceMaps", "WarmthFrags",
                             "Hard", "Bingo", "StompTriggers", "StrictMapstones", "ClosedDungeons",
                             "TPStarved", "WallStarved", "GrenadeStarved"];
@@ -1916,11 +1911,8 @@ export default class MainPage extends React.Component {
         }
     }
 
-    // --- hints for sale (see AP_HINT_MARKET.md) ---
-    //
-    // An offer is a hint Ori has unlocked that nothing free could answer. The
-    // server never buys one on its own any more, so this is where the points
-    // actually get spent.
+    // --- hints for sale (AP_HINT_MARKET.md): unlocked hints nothing free answers ---
+    // the server never auto-buys, so this is where points get spent
 
     fetchApHints = () => {
         let {gameId} = this.state
@@ -2279,7 +2271,6 @@ export default class MainPage extends React.Component {
             const goalModeCountRoll = rng();
             let goalModeCount = 0;
             switch(true) {
-                // Goal mode count randomization! 
                 // 0 modes 10% of the time; 1 mode 73% of the time; 2 modes 12% of the time;  3 modes 5% of the time 
                 case (goalModeCountRoll < .1):
                     break;
@@ -2358,7 +2349,6 @@ export default class MainPage extends React.Component {
         // Randomize item pool
         const itemPoolRoll = rng()
         switch(true) {
-            // itemPoolRandomization
             case (itemPoolRoll < .04):  // hard 4%
                 newState.selectedPool = "Hard";
                 break;
@@ -2989,9 +2979,7 @@ export default class MainPage extends React.Component {
     onApMode = () => this.setState(prev => prev.apMode ? {apMode: false}
         : {apMode: true, tracking: true,  // the bridge delivers over netcode
            mwShared: prev.mwShared.filter(s => !prev.apExport.map(c => apShareNames[c]).includes(s))})
-    // bingo hands names out by lobby, except on an AP board where pid is the world
-    // a world's rulebook freezes at roll time, so this stores the preset's settings
-    // rather than its name: editing the preset later changes nothing
+    // stores the preset's settings, not its name: a world's rules freeze at roll time
     assignWorld = (world, blob, label, desc) => this.setState(prev => {
         let worlds = [...prev.worldSettings]
         while(worlds.length < prev.players)
@@ -3226,8 +3214,7 @@ export default class MainPage extends React.Component {
         const sspHelp = this.helpEnter("general", user ? "savedSettings" : "savedSettingsDisabled", 250,
                                        this.sspHelpExtra())
 
-        // one chip: save over what is loaded, or save a copy of what cannot be.
-        // Always the save icon -- a copy icon read as "copy to clipboard".
+        // one chip: save over what is loaded, or save a copy of what cannot be
         const presetChip = sspEditable
             ? {icon: <FaSave/>, ok: sspEdited, act: this.sspUpdate, help: "updatePreset"}
             : {icon: <FaSave/>, ok: !!user && !isDefault, act: this.openSspSave, help: "copyPreset"}

@@ -1,8 +1,4 @@
-"""Bingo: the board, its lobby, and the per-world machinery behind both.
-
-bingo_board_url is shared: presets and the generator both hand a freshly rolled
-game here, so it stays importable without dragging the routes along.
-"""
+"""Bingo: the board, its lobby, and the per-world machinery behind both."""
 import json
 import logging as log
 import random
@@ -51,9 +47,8 @@ def bingo_get_game(game_id):
         res = bingo.get_json(first)
         netperf("board_miss", t0, gid=game_id, first=bool(first))
         if not first:
-            # repopulate on miss: pre-start lobbies otherwise recompute for every
-            # 1 Hz spectator poll (update() only writes this cache after start_time).
-            # Copy: set_board strips is_owner, and offset is added to res below.
+            # repopulate, or a pre-start lobby recomputes on every spectator poll;
+            # a copy, since set_board strips is_owner and the offset lands on res
             Cache.set_board(game_id, dict(res))
         add_client_offset(res, now)
     return json_resp(res)
@@ -89,8 +84,7 @@ def _bingo_start_game_inner(game_id):
     startStr = "miscBingo Game %s started!" % game_id
     bingo.event_log.append(BingoEvent(event_type=startStr, timestamp=bingo.start_time))
     res = bingo.get_json()
-    # cache before the per-client offset is added, so all viewers see the
-    # countdown on their next poll instead of after the 60s board TTL
+    # cached before the per-client offset, so every viewer sees the countdown next poll
     Cache.set_board(game_id, dict(res))
 
     add_client_offset(res, now)
@@ -133,8 +127,7 @@ def _bingo_reroll_board_inner(game_id):
     user = User.get()
     if not user or bingo.creator != user.key:
         return text_resp("Only the creator can reroll the board", 401)
-    # goals travel by channel now, so a reroll is safe until play begins --
-    # connected clients re-ask on their next socket open
+    # goals travel by channel, so a reroll is safe until play begins
     if bingo.start_time:
         return text_resp("The game has already started", 412)
     game = Game.with_id(game_id)  # a board's id is its game's
@@ -145,7 +138,7 @@ def _bingo_reroll_board_inner(game_id):
     d, lockout, meta = _bingo_query_opts()
     reroll_params = game.fetch_params() if game and game.params else None
     if bingo.boards and reroll_params:
-        # ?world= is the board the modal was opened on; without it, the roller's
+        # ?world= is the board the modal was opened on, else the roller's
         owner = owner_world([wb.world for wb in bingo.boards], param_val("world"))
         bingo.boards = bingo_boards_for(reroll_params, seed, lockout, owner,
                                         owner_board_opts(difficulty, d, meta), bingo.boards)
@@ -248,9 +241,8 @@ def _bingo_add_player_inner(game_id, player_id):
             Cache.set_board(game_id, board)  # NB: strips is_owner from board
             res = dict(board)
     else:
-        # push the new roster into the board cache immediately, or every viewer
-        # (including the joiner's own next poll) sees the stale pre-join board
-        # for up to 60s. Shallow copy so player_seed below stays per-response.
+        # refresh the cache now or viewers see the pre-join board for a TTL;
+        # a copy keeps player_seed per-response
         Cache.set_board(game_id, dict(res))
     res['player_seed'] = seed
     bingo.put()
@@ -334,10 +326,8 @@ def mw_bingo_worlds(params):
 
 
 def owner_board_opts(difficulty, d, meta):
-    """The board settings the create/reroll modal sends. They belong to whichever
-    world had the modal open, never to a world handed a seed that already told it
-    how its board works. The modal opens on one board and posts the whole set
-    back, so difficulty, discovery and meta are authoritative even when absent."""
+    """The create/reroll modal's settings, for the world it was opened on only. The modal
+    posts the whole set, so an absent difficulty, discovery or meta counts too."""
     opts = {"difficulty": difficulty, "discovery": d or 0, "meta": bool(meta)}
     if param_flag("lines"):
         opts.update(bingo_count=int(param_val("lines")), square_count=None, goal="bingos")
@@ -347,9 +337,7 @@ def owner_board_opts(difficulty, d, meta):
 
 
 def owner_world(worlds, asked=None):
-    """The world the modal speaks for: whoever asked, else the roller. World 1 is
-    the seedgen form itself, so it is the roller's own -- and None when world 1
-    isn't playing, because then the modal has no world to move."""
+    """The world the modal speaks for: whoever asked, else the roller's world 1, else None."""
     try:
         if asked is not None and int(asked) in worlds:
             return int(asked)
@@ -384,9 +372,8 @@ def seat_board(bingo, game, params, worlds, per_world, now, gid):
 
 
 def preroll_board(game, params):
-    """A per-world board with no owner world is decided entirely by the presets --
-    the create form has nothing it could move -- so roll it as the seed is built
-    instead of showing everyone a form that changes nothing. True when one was made."""
+    """Roll an ownerless per-world board at build time, since the create form could
+    change nothing. True when one was made."""
     worlds = mw_bingo_worlds(params)
     if not worlds or owner_world(worlds) is not None or game.bingo_data:
         return False
@@ -401,10 +388,8 @@ def preroll_board(game, params):
 
 
 def build_board(gid, game, params, seed, difficulty, d, lockout, meta, teams_flag):
-    """The board a game gets: one per world when the seed splits them, one shared
-    board otherwise. Unsaved, and without the roster -- the caller seats that.
-
-    Returns (bingo, worlds, per_world)."""
+    """(bingo, worlds, per_world): a board per world when the seed splits them, else one.
+    Unsaved and unseated; the caller seats the roster."""
     # any multiworld opt-in is per-world: even a lone bingo player keeps
     # board pids == world numbers, which is what the seeds went out carrying
     worlds = mw_bingo_worlds(params)
@@ -448,11 +433,8 @@ def build_board(gid, game, params, seed, difficulty, d, lockout, meta, teams_fla
 
 
 def bingo_boards_for(params, seed, lockout, owner=None, opts=None, base=None):
-    """One board per participating world, each from that world's own settings.
-    Seeded apart, so two worlds on the same settings still get different goals.
-
-    opts moves the owner's world and no other. base is the boards being replaced:
-    a reroll moves cards, and a world's rules outlive the cards they shaped."""
+    """A board per participating world, each on its own settings and seed. opts applies
+    to the owner's world only; a world in base keeps its rules through a reroll."""
     out = []
     was = {b.world: b for b in (base or [])}
     for w in mw_bingo_worlds(params):
@@ -557,9 +539,7 @@ def bingo_create_game():
 
 
 def latest_bingo_game(name):
-    """(game id, error text) for a username's most recent bingo game. The
-    walk costs a name query plus a get per game the user has ever played, and
-    the userboard polls once a minute -- so the derived answer is cached."""
+    """(game id, error text) for a user's newest bingo game; cached, as the walk gets every game."""
     game_id = Cache.get_latest_game(name, bingo=True)
     if game_id:
         return game_id, None
@@ -618,11 +598,8 @@ def _bingo_query_opts():
 
 
 def _bingo_setup_tail(bingo, now, gid, claim=True):
-    """The shared back half of board creation: count overrides, creator, start
-    timing. Returns the event string for the caller to extend and log.
-
-    claim is False when the board is rolled for somebody else -- a seed built for
-    worlds that are not yours should not become the board your userboard follows."""
+    """Count overrides, creator and start timing; returns the event string to extend.
+    claim=False keeps a board rolled for other worlds off the roller's userboard."""
     if param_flag("lines"):
         bingo.bingo_count = int(param_val("lines"))
     if param_flag("squares"):

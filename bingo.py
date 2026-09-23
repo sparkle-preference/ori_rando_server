@@ -11,9 +11,7 @@ from models import Game, User, BingoCard, BingoGameData, BingoEvent, BingoTeam
 from util import param_val, param_flag, debug, path, VER, version_check
 from seedbuilder.vanilla import seedtext as vanilla_seed
 
-# The create/reroll modal opens on these, so a board matches the seed it came
-# from. A rule rather than a route: presets, the generator and the bingo routes
-# all build this URL, and none of them may import each other.
+# here, not in web/: presets, the generator and the bingo routes all build it
 def bingo_board_url(game, params, disc=None, team_max=None):
     url = "/bingo/board?game_id=%s&fromGen=1&seed=%s&bingoLines=%s" % (
         game.key.id(), params.seed, params.bingo_lines)
@@ -245,8 +243,7 @@ DUNGEON_WELLS = {"mountHoru", "ginsoTree", "forlorn"}
 EASY_ONLY_JOURNEYS = [{"sunkenGlades", "mangroveFalls"}, {"sunkenGlades", "spiritTree"}, {"swamp", "moonGrotto"}]
 
 def hard_only_journey(frm, to):
-    """Journeys too tedious for a normal board -- plus Grove, which may not be
-    completable at all."""
+    """Journeys too tedious for a normal board, plus Grove, which may not be completable."""
     pair = {frm, to}
     return (frm == LOST_GROVE
             or (to == LOST_GROVE and frm not in LOST_GROVE_APPROACHES)
@@ -262,11 +259,8 @@ def journey_pairs(wells, easy = False, hard = False):
             and (hard or not hard_only_journey(frm, to))]
 
 class JourneyGoal(BingoGoal):
-    """One card, one ordered pair of spirit wells -- no composing, no counts.
-
-    Picking (X, Y) also bans every other journey out of X and the return trip, by
-    extending the banned-subgoal list get_cards threads through the group.
-    """
+    """One card, one ordered pair of spirit wells. Picking (X, Y) bans every other
+    journey out of X and the trip back."""
     goalType = "multi"
     def __init__(self, pairs, disp_names, max_repeats = 2, tags = ["journey"], well_needs = None):
         self.name = "Journey"
@@ -330,12 +324,8 @@ def defeat_zones(hard = False):
     return out
 
 class DefeatGoal(BingoGoal):
-    """"Defeat a Slime in EACH zone" (one kind, N zones) or, by_zone, "Defeat one of EACH
-    kind in Misty" (one zone, N kinds). Always "and".
-
-    Both shapes share the card name, so the board budget, the repeat cap and the banned
-    (kind, zone) pairs get_cards threads through are shared: no two squares on a kill.
-    """
+    """"Defeat a Slime in EACH zone", or by_zone "Defeat one of EACH kind in Misty"; always "and".
+    Both shapes share one name, so budget, repeat cap and banned pairs: no two squares on a kill."""
     goalType = "multi"
     def __init__(self, zones_by_kind, count_func, by_zone = False, max_repeats = 2, tags = ["defeat"]):
         self.name = "Defeat"
@@ -912,11 +902,8 @@ class BingoGenerator(object):
         if meta:
             if not lockout:
                 goals += [
-                    # internal names are historical and baked into board layout
-                    # rules + saved games: VertSym mirrors across the vertical
-                    # axis (left-right, lives in column C), HorizSym across the
-                    # horizontal axis (top-bottom, lives in row 3). Display
-                    # names describe the mirroring direction instead.
+                    # names are baked into saved games: VertSym mirrors left-right (column C),
+                    # HorizSym top-bottom (row 3); display names describe the mirroring
                     BoolGoal("VertSym",
                     disp_name= "Horizontally symmetric board",
                     help_lines = [
@@ -1021,7 +1008,7 @@ class BingoGenerator(object):
                 card.goal_method = card.goal_method.strip('_')
                 banned["goals"] += [subgoal["name"] for subgoal in card.subgoals]
             if "symmetry" in goal.tags and rand.random()<.8:
-                 # (you can have both at most 20% of the time. bc it kinda sucks.) 
+                 # both symmetry squares at most 20% of the time
                 goals = [goal for goal in goals if not "symmetry" in goal.tags]
             groupSeen[goal.name] = (repeats+1, banned["goals"], banned["methods"])
             if repeats == goal.max_repeats and goal in goals: # the meta cleanup may already have dropped it
@@ -1045,7 +1032,7 @@ class BingoGenerator(object):
             for index, card in enumerate(cards):
                 if card.meta:
                     metas_by_name[card.name].append(index)
-            # symmetry needs very specific rules. If you have both 1 must be in the center.
+            # with both symmetry cards, one takes the center
             if "HorizSym" in metas_by_name and "VertSym" in metas_by_name:
                 center_guy = random.choice(["HorizSym", "VertSym"])
                 center_i = metas_by_name[center_guy][0]

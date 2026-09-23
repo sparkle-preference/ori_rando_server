@@ -5,14 +5,8 @@ Run from the Archipelago checkout with its venv:
 
 in.json:  {"inventories": [{"CODE|ID": count}, ...]}
 out.json: {"results": [[reachable location base name, ...], ...],
-           "results_sweep": same but after sweep_for_advancements,
+           "results_sweep": same after sweep_for_advancements (reference only),
            "skipped_item_keys": inventory keys with no AP item (EX, bonus RBs)}
-
-"results" collects exactly the given inventory (the differential contract:
-same items in, reach out). "results_sweep" additionally auto-collects locked
-local-progression events AP itself can reach -- kept for reference, but it
-double-counts pickups the inventory already carries, so compare.py diffs
-against "results".
 """
 import json
 import os

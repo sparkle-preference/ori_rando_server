@@ -1,33 +1,12 @@
-"""Compatibility version of the orirando <-> apworld seed-data contract.
+"""Version of the orirando <-> apworld seed-data contract (`orirando.data_version`).
 
-Every yaml orirando.com emits carries `orirando.data_version`. This build
-reads yamls from COMPATIBLE_DATA_VERSION through DATA_VERSION and refuses
-anything else with a sentence naming the fix, instead of dying somewhere
-downstream in a table lookup that was never going to succeed (an item or
-location name a newer server invented is a bare KeyError otherwise).
-
-BUMP RULE -- by hand, on BOTH sides. The emitter's copy lives in
-archipelago/yaml_emit.py; test.seedgen_test asserts the two agree, so a
-one-sided bump fails the server suite rather than shipping.
-
-  * DATA_VERSION += 1 whenever the emitted blob or the shipped data tables
-    change in a way an older apworld would misread: new item or location
-    names, a new cfg key the world has to honor, different rule
-    compilation. Appending ap_ids counts -- an old apworld has never heard
-    of the new name.
-  * COMPATIBLE_DATA_VERSION only moves when a change makes older yamls
-    genuinely unreadable. Raising it invalidates every yaml testers are
-    already holding, so additive changes leave it alone.
-
-No imports here on purpose: the server's test suite loads this file
-directly, without Archipelago on the path.
+Bump by hand on both sides (yaml_emit.DATA_VERSION; test.seedgen_test pins them).
+DATA_VERSION += 1 when an older apworld would misread the blob or tables (new
+names, new cfg keys, different rule compilation). COMPATIBLE_DATA_VERSION moves
+only when older yamls become unreadable. No imports: the server suite loads this file.
 """
 
-# 4: generic keystones may ride the "stones" export; doors compile to
-# cumulative tier thresholds (shared.KEYSTONE_DOORS) for those seeds
-# 5: Mini Health / Mini Energy join the datapackage (upgrades)
-# 6: keystone doors compile to cumulative tiers on every non-keysanity seed,
-# not only the ones exporting stones
+# 4: "stones" export + keystone tiers; 5: Mini Health/Energy; 6: tiers on every non-keysanity seed
 DATA_VERSION = 6
 COMPATIBLE_DATA_VERSION = 1
 

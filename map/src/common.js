@@ -416,7 +416,7 @@ const grouped_opts = Object.keys(stuff_by_type).map(t => {
 });
 
 
-// Chip label: click to load the chip back into the input for editing (fixes un-editable SH|text pickups)
+// click a chip to load it back into the input for editing
 const EditableMultiValueLabel = props => (
     <div style={{cursor: "text"}} title="Click to edit"
          onMouseDown={e => e.stopPropagation()}
@@ -561,8 +561,7 @@ class PickupSelect extends Component {
     }, this.updatePickup);
   };
   handleInputChange = (inputValue, actionMeta) => {
-    // react-select clears the input on blur/menu-close; keep the user's
-    // half-typed text instead so tabbing out doesn't destroy it
+    // keep half-typed text through blur and menu-close, which react-select would clear
     if (actionMeta && (actionMeta.action === "input-blur" || actionMeta.action === "menu-close"))
       return;
     this.setState({ inputValue });
@@ -576,8 +575,7 @@ class PickupSelect extends Component {
         val = val.slice(0, -1)
       this.setState({ inputValue: val, menuOpen: true }, this.updatePickup);
     } else if (actionMeta.action === "select-option" && this.state.editIdx !== null) {
-      // mid-edit the picked option replaces the chip being edited. Capture the index
-      // now: onMenuClose clears editIdx before onChange, so prev.editIdx is already null
+      // mid-edit, the pick replaces the edited chip; capture editIdx now, as onMenuClose clears it first
       const idx = this.state.editIdx;
       this.setState(prev => {
         let value = [...prev.value];
@@ -805,8 +803,7 @@ const loaders = (color) => [
     (<SyncLoader color={color} />)
 ]
 
-// A map's cursor readout, keeping its own state behind a ref: leaflet's events are not
-// React's, so a page holding this one re-renders unbatched on every pixel of travel.
+// cursor readout with its own state: leaflet events aren't batched, so the page would re-render per pixel
 class MousePos extends Component {
     state = {lat: 0, lng: 0}
     set = (latlng) => this.setState(latlng)
@@ -877,13 +874,12 @@ function prefers_dark() {
     }
 }
 
-// Is the dark theme on? Most specific explicit choice wins -- ?dark, the account
-// setting, this browser's toggle -- else follow the browser. Every reader comes
-// through here, or the stylesheet and the self-styling components disagree.
 const BOOTSWATCH = "https://maxcdn.bootstrapcdn.com/bootswatch/4.2.1"
 // "system"/"light"/"dark" are modes, not skins: they resolve before they get here
 const theme_href = skin => `${BOOTSWATCH}/${skin}/bootstrap.min.css`
 
+// ?dark, then the account setting, then this browser's toggle, else the browser preference.
+// Every dark-mode reader must come through here.
 function resolve_dark() {
     let param = new URL(window.document.URL).searchParams.get("dark")
     if(param !== null)
@@ -898,8 +894,7 @@ function resolve_dark() {
     return prefers_dark()
 }
 
-// Record an explicit light choice as "false" rather than dropping the key:
-// a missing key means "never asked", which is what follows the browser.
+// light is stored as "false": a missing key means never asked, which follows the browser
 function save_dark(dark) {
     try {
         localStorage.setItem("dark", dark ? "true" : "false")
@@ -925,10 +920,7 @@ function save_beta_welcome() {
     } catch(e) { /* storage disabled: it comes back next load */ }
 }
 
-// Colors somebody has actually picked for a box, newest first. The native
-// picker's own "custom colors" belong to the browser and a page cannot write
-// them; a datalist is the one way in, and browsers that ignore it are no worse
-// off than before.
+// colors picked for boxes, newest first, offered to the native picker via a datalist
 const BOX_COLOR_KEY = "box_colors"
 const BOX_COLOR_MAX = 12
 
@@ -970,7 +962,7 @@ function remember_box_color(color) {
     return next
 }
 
-// the server's Archipelago kill switch, the one thing left gating AP in the ui
+// the server's Archipelago kill switch
 function ap_enabled() {
     return get_flag("ap_flag")
 }
@@ -1056,9 +1048,8 @@ const spawn_defaults = {
     },
 }
 
-// [health, energy, skills] for a hand-picked spawn. The table is capitalised where
-// pathMode is not and may be starred; glitched takes expert's, and a missing row means
-// the vanilla start is enough there.
+// [health, energy, skills] for a spawn. Keys are capitalised, pathMode may be starred,
+// glitched uses expert's row, and a missing row means the vanilla kit.
 const spawnKitFor = (loc, pathMode) => {
     let mode = (pathMode || "").replace(/\*+$/, "")
     if(mode === "glitched")
@@ -1147,7 +1138,7 @@ function doNetRequest(url, onRes) {
             onRes(xmlHttp);
         }
     }
-    xmlHttp.open("GET", url, true); // true for asynchronous
+    xmlHttp.open("GET", url, true);
     xmlHttp.send(null);
 }
 

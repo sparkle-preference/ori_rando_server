@@ -1,8 +1,5 @@
-"""The live map and the game pages behind it.
-
-Everything a spectator or a runner reads while a game is running: the map, its
-polled updates, the item tracker, plus the game admin the same people need
-(history, player list, reset, transfer).
+"""The live map and the game pages behind it: map polling, item tracker, history,
+player list, reset and transfer.
 """
 import logging as log
 from datetime import timedelta
@@ -57,16 +54,8 @@ share_types = [ShareType.EVENT, ShareType.SKILL, ShareType.UPGRADE, ShareType.MI
 def active_games(hours=12):
     hours = int(hours)
     title = "Games active in the last %s hours" % hours
-    # bounded, and the "did anyone play" test is a field on the game now: it
-    # used to be a history walk (an ancestor query plus a get per player) per
-    # game, behind an unlimited query with an even less limited fallback.
-    # Games written before has_history existed read None -- unknown, so shown.
-    # Widen the window with /activeGames/<hours>/ rather than fetching all.
-    # order explicitly: an inequality query defaults to ASCENDING on that
-    # property, so a bare fetch(limit) would return the OLDEST games in the
-    # window. Same property, so no composite index needed. Over-fetch and
-    # slice AFTER filtering, or a run of generated-but-unplayed games fills
-    # the budget and reports "no active games" while real ones sit below it.
+    # newest first (an inequality sorts ascending); over-fetch and slice after dropping
+    # unplayed games, where has_history None predates the field and is shown
     games = Game.query(Game.last_update > utcnow() - timedelta(hours=hours)
                        ).order(-Game.last_update).fetch(GAME_LIST_LIMIT * 4)
     games = [game for game in games if game.has_history is not False][:GAME_LIST_LIMIT]
@@ -85,8 +74,7 @@ def my_games():
     user = User.get()
     keys = user.games if param_flag("all") else user.games[-10:]
     title = "Games played by %s" % user.name if param_flag("all") else "Last 10 games played by %s" % user.name
-    # even ?all is bounded: a long-time player's list is thousands of games,
-    # and one batched get beats a fan-out of per-key futures
+    # even ?all is bounded, and one batched get beats per-key futures
     if len(keys) > GAME_LIST_LIMIT * 4:
         keys = keys[-GAME_LIST_LIMIT * 4:]
         title = "Most recent games played by %s" % user.name
@@ -152,12 +140,6 @@ def game_remove_player(game_id, pid):
 def tracker_show_map(game_id):
     template_values = template_vals("GameTracker", "Game %s" % game_id, User.get())
     template_values['game_id'] = game_id
-    # if debug() and param_flag("from_test"):
-    #     game = Game.with_id(game_id)
-    #     pos = Cache.get_pos(game_id)
-    #     hist = Cache.get_hist(game_id)
-    #     if any([x is None for x in [game, pos, hist]]):
-    #         return redirect(url_for('tests_map_gid', game_id=game_id, from_test=1))
     game = Game.with_id(game_id)
     if game and (Variation.RACE in game.fetch_params().variations) and not template_values["race_wl"]:
         return text_resp("Access forbidden", 401)
@@ -180,8 +162,7 @@ def tracker_update_map(game_id):
     username = param_val("usermap")
     gid_changed = False
     if username:
-        # once, not twice: this is the 1Hz route, and a falsy answer (unknown
-        # user, or a user with no games) must not become the game id
+        # a 1Hz route: look up once, and never let a falsy answer become the game id
         latest = User.latest_game(username)
         if latest and latest != int(game_id):
             game_id = latest
@@ -192,7 +173,7 @@ def tracker_update_map(game_id):
     if not pos:
         pos = {}
     for p, (x, y) in pos.items():
-        players[p] = {"pos": [y, x], "seen": [], "reachable": []}  # bc we use tiling software, this is lat/lng, and thus coords need inverting
+        players[p] = {"pos": [y, x], "seen": [], "reachable": []}  # the map is lat/lng, so y first
 
     coords = Cache.get_have(game_id)
     if not coords:
@@ -230,16 +211,13 @@ def tracker_update_map(game_id):
             if p not in reach:
                 reach[p] = {}
             reach[p][modes] = Map.get_reachable_areas(state, modes, spawn, False, ks_tiers=tiers)
-        # merge semantics: write back only the recomputed players, so this slow
-        # compute can't clobber other players' entries written meanwhile
+        # merge write: only the recomputed players, so entries written meanwhile survive
         Cache.set_reachable(game_id, {p: reach[p] for p in need_reach_updates})
-    # iterate the rendered players, not the cache: the merge-semantics writeback
-    # above never removes entries, so reach can carry pids (or mode sets) that
-    # players/need_reach_updates knows nothing about
+    # iterate rendered players: the merge write never prunes, so reach can hold stale pids
     for p in players:
         if modes in reach.get(p, {}):
             players[p]["reachable"] = reach[p][modes]
-    res = {"players": players} # , "items": items
+    res = {"players": players}
     if gid_changed:
         res["newGid"] = game_id
     return json_resp(res)
@@ -398,8 +376,6 @@ def reset_game(game_id):
         return text_resp("Can't restart a game you didn't create...", 401)
 @bp.route('/transfer/<int:game_id>/<int:player_id>') # ResetAndTransfer
 def reset_and_transfer_game(game_id, player_id):
-    # Was dead code (mis-indented under the not-found return, with new_owner undefined);
-    # rebuilt 2026-07-19: transfers ownership to the user attached to player <player_id>.
     game = Game.with_id(game_id)
     if not game:
         return text_resp("Game %s not found!" % game_id, 404)

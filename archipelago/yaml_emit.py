@@ -18,9 +18,7 @@ from seedbuilder.oriparse import get_path_tags_from_pathsets
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "oride_apworld", "oride", "data")
 
-# Contract version of the blob below, checked by the apworld's
-# generate_early. Bump together with oride_apworld/oride/version.py, whose
-# docstring holds the rule; the suite fails if the two drift.
+# contract version checked by the apworld; bump with oride/version.py (its docstring has the rule)
 DATA_VERSION = 6
 
 EXPORT_CODES = {"SK", "TP", "EV"}
@@ -84,10 +82,8 @@ def keymode_to_ap(key_mode):
 def make_config(exported, reserved, local, logic_paths, key_mode="events",
                 spawn="SunkenGladesRunaway", variations=None,
                 params_id=0, world=1, death_link=False, key_tiers=None):
-    """Classified placements + generation options -> orirando yaml blob.
-    exported: {item name: count}; reserved: [location name]; local:
-    {location name: item name}. Shared by the file-based prototype path
-    below and archipelago.convert.build_ap_config (converted seeds)."""
+    """Classified placements -> orirando yaml blob. exported: {item: count};
+    reserved: [location]; local: {location: item}."""
     return {
         "data_version": DATA_VERSION,
         "params_id": params_id,
@@ -113,12 +109,8 @@ def make_config(exported, reserved, local, logic_paths, key_mode="events",
 def build_config(seed_lines, logic_paths, key_mode="events",
                  spawn="SunkenGladesRunaway", variations=None,
                  params_id=0, world=1, key_tiers=None):
-    """Seed text lines + generation options -> orirando yaml blob.
-
-    The prototype classifier for UNCONVERTED solo seeds: pretends the
-    SK/TP/EV categories were exported. Kept for the file-based CLI below
-    (difftest depends on it); AP-mode seeds go through
-    archipelago.convert.build_ap_config instead."""
+    """Unconverted solo seed text -> yaml blob, as if SK/TP/EV were exported.
+    For the CLI and difftest; AP-mode seeds use convert.build_ap_config."""
     _, placements = parse_seed(seed_lines)
     exported = Counter()
     reserved = []

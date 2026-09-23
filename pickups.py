@@ -340,13 +340,8 @@ class TPWarp(Pickup):
         return inst
 
 class MultiworldItem(Pickup):
-    # Another player's item, sitting in the finder's world. In seed files:
-    #   finder's world:  <loc>|MW|<owner>,<slot>,<code>,<id>|<zone>
-    #   owner's manifest: -(slot+2)|MW|<finder>,<holder>,<code>,<id>|<zone>
-    # (manifest locs -2..-257: -1 and 2 are real pseudo-locations.)
-    # This class parses the finder shape, which is what /found posts carry.
-    # Never fanned out by SHARED-mode grant logic (the owner gets the real
-    # item through the slot-bitfield reconciliation path instead).
+    # another player's item. Finder's line <loc>|MW|<owner>,<slot>,<code>,<id>|<zone> (parsed here);
+    # owner's manifest line -(slot+2)|MW|<finder>,<holder>,<code>,<id>|<zone>
     code = "MW"
     int_id = False
     takes_players = True
@@ -378,8 +373,6 @@ class MultiworldItem(Pickup):
         return inst
 
     def named_for(self, names=None):
-        """The item, owned. A pid is all a seed line carries; the game's own
-        names arrive later, on the tick, so anything holding them can say who
-        this really is."""
+        """The item with its owner's name, when `names` (from the tick) has one."""
         return "%s's %s" % ((names or {}).get(self.owner) or "Player %s" % self.owner,
                             self.shown)

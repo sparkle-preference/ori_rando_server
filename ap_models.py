@@ -1,17 +1,8 @@
 """Archipelago bridge state.
 
-APLink is a game's durable record of its AP room: where to connect, each
-world's slot name, and how far into each world's ReceivedItems stream the
-bridge has applied (AP's index contract). Key = game id, same as Game.
-
-APNames holds one world's scouted Archipelago placements, keyed
-'<gid>.<world>': what is in each reserved slot, who it is for, and the raw
-AP ids the download-time cross-world join reads.
-
-APHints holds one world's hint purchases, same key shape: which reveal
-slots have been bought, are in flight, or were unaffordable.
-
-Must stay importable without main.py (no Flask), like netcode.py.
+APLink: a game's AP room, slot names and per-world progress, keyed by game id.
+APNames: one world's scouted placements; APHints: one world's hint purchases.
+Both keyed '<gid>.<world>'. Importable without main.py, like netcode.py.
 """
 import json
 import logging as log
@@ -24,9 +15,7 @@ from cache import Cache
 
 
 def ap_slot_name(world):
-    """The deterministic per-world AP slot name. Shared with to_ap_yaml:
-    the yaml a world hands to the AP generator and the name the bridge
-    connects with must always agree."""
+    """Default per-world AP slot name; the yaml and the bridge must agree on it."""
     return "Ori%s" % int(world)
 
 
@@ -45,39 +34,23 @@ def ap_slot_names(worlds, names=None):
     return out
 
 
-# Reserved-slot display names ride a seed line the C# client parses as
-#   line.Split('|')  ->  [coord, "MW", "<owner>,<slot>,<name>", zone]
-#   value.Split(',', 3)  ->  [owner, slot, name]         (Randomizer.cs:139,
-#                                                         RandomizerSwitch.cs:358)
-# and then paste UNESCAPED into /found/<coords>/<kind>/<id> (CleanedId in
-# RandomizerSyncManager.cs, which itself already drops '#' and truncates at
-# '\'). So:
-#   ','  stays -- the name is the last field and EVERY parser on both sides is
-#        maxsplit-bounded (pickups.MultiworldItem, models.mw_release,
-#        ap_bridge.maps_from_params, the client's Split(',', 3)); TW ids have
-#        carried commas down the same path for years.
-#   '|'  is fatal (shifts the zone out of the line) and goes.
-#   '/ \ ? %'  break the found URL, '$ * @ #' are the message-box color
-#        markers (RandomizerMW.ColorWrap; '#' also starts a URL fragment,
-#        which is why the client strips it), non-ASCII is a Mono Uri gamble
-#        -- all go.
+# names ride '|'-split seed lines and paste unescaped into the client's /found/ URL: drop '|',
+# URL breakers, color markers ($*@#) and non-ASCII. ',' stays: every parser is maxsplit-bounded.
 _NAME_DROP = re.compile(r"[^A-Za-z0-9 ,_.'\-()!:+&]")
 ITEM_NAME_MAX = 40
 PLAYER_NAME_MAX = 20
 
 
 def sanitize_display_name(name, limit=ITEM_NAME_MAX):
-    """Wire-safe form of an Archipelago-supplied name (see _NAME_DROP).
-    Dropped characters become a space, then runs collapse: AP loves names
-    like "Bow/Arrows", and "Bow Arrows" beats "BowArrows"."""
+    """Wire-safe form of an AP-supplied name: dropped characters become spaces,
+    then runs collapse."""
     clean = _NAME_DROP.sub(" ", name or "")
     return re.sub(r"\s+", " ", clean).strip()[:limit].strip()
 
 
 def ap_display_name(item, player):
-    """'<item> (<player>)', the whole-label form for clients that read only
-    the four original seed fields. Empty when the item name doesn't survive
-    sanitization, which the caller reads as "keep the placeholder"."""
+    """'<item> (<player>)' for clients that read only four seed fields; "" when
+    the item name sanitizes away (keep the placeholder)."""
     item = sanitize_display_name(item, ITEM_NAME_MAX)
     player = sanitize_display_name(player, PLAYER_NAME_MAX)
     if not item:
@@ -112,15 +85,10 @@ class APLink(ndb.Model):
     # scouted/named counts per world, -1 = not reported yet (names: APNames)
     name_totals   = ndb.IntegerProperty(repeated=True)
     name_counts   = ndb.IntegerProperty(repeated=True)
-    # index w-1 = DeathLinks delivered to world w. Only ever grows, and the
-    # signal carries it as a token so two deaths a tick apart are two signals
-    # rather than one the client already acked.
+    # index w-1 = DeathLinks delivered to world w; only grows, and is the signal's token
     dl_in         = ndb.IntegerProperty(repeated=True)
-    # JSON list of ReceivedItems entries the bridge could not deliver (every
-    # per-item slot already granted -- console sends land here). Each entry:
-    # {"w": world, "i": stream index, "a": ap item id, "f": sender,
-    #  "n": item name, "t": unix seconds}. The stream index makes the record
-    # exactly-once across twin sessions and index-0 resends.
+    # JSON list of undeliverable ReceivedItems, unique per (w, i):
+    # {"w": world, "i": stream index, "a": ap item id, "f": sender, "n": name, "t": unix secs}
     dropped       = ndb.TextProperty()
     enabled       = ndb.BooleanProperty(default=False)
     status        = ndb.StringProperty(default="disconnected")
@@ -132,11 +100,8 @@ class APLink(ndb.Model):
         return APLink.get_by_id(int(gid))
 
     def _post_put_hook(self, future):
-        # every writer (bridge persists, connect, disconnect) invalidates the
-        # ap/status report cache; shared memcached makes it cross-instance.
-        # NOTE: inside a transaction this fires PRE-commit (complete keys
-        # resolve immediately) -- ap_bridge._busts_report re-busts post-txn.
-        # Best-effort: a raising done-callback would poison the put future.
+        # inside a txn this fires pre-commit; ap_bridge._busts_report re-busts after.
+        # Swallowed: a raising done-callback would poison the put future.
         try:
             Cache.clear_aplink_report(self.key.id())
         except Exception:
@@ -185,14 +150,8 @@ class APLink(ndb.Model):
 
 
 class APScout(object):
-    """What the room said sits in one reserved slot of one world.
-
-    item + who build the combined label every shipped client reads out of
-    the comma field; `to` is the seed's field 5, which prefers 'P<world>' for
-    a sibling world so the client can print that player's own name.
-    ap_item/ap_owner are the raw AP ids the cross-world join in
-    archipelago.annotate needs to see where an exported item actually landed.
-    """
+    """What the room said sits in one reserved slot: item + who (the comma-field
+    label), to (field 5), and the raw AP ids annotate's cross-world join reads."""
     __slots__ = ("item", "who", "to", "ap_item", "ap_owner")
 
     def __init__(self, item, who, to, ap_item, ap_owner):
@@ -224,26 +183,12 @@ class APScout(object):
 
 
 class APNames(ndb.Model):
-    """One world's scouted Archipelago placements, id '<gid>.<world>'.
-
-    Pure display data: always regenerable by rescouting, so a missing row
-    just means the seed keeps its "AP Item #n" placeholders and nothing
-    breaks. Its own kind rather than a field on APLink because (a) APLink is
-    written on every ReceivedItems batch and every status change, and up to
-    256 entries per world would ride all of those puts, and (b) the K bridge
-    threads scout concurrently, so a per-world key keeps them from
-    contending on one entity. Compressed like SeedGenParams.spoilers.
-
-    A row written by an older build stores bare label strings and no
-    ap_slot; load() reports those as empty rather than guessing, and the
-    bridge rewrites the row on its next connection (it rescouts every time).
-    """
+    """One world's scouted placements, id '<gid>.<world>'. Display data the bridge
+    rewrites every connection; a missing or unreadable row loads as empty."""
     # JSON {"<shadow slot>": {"i": item, "t": recipient, "a": ap item id,
     #                         "o": ap owner slot}}
     names   = ndb.TextProperty(compressed=True)
-    # JSON {"<shadow slot>": manifest slot} -- the bridge's promise map,
-    # written after a build; annotate bakes it into field 6 VERBATIM, so the
-    # self-item draw exists in exactly one place (ap_bridge.promised_slots)
+    # JSON {"<shadow slot>": manifest slot}: the bridge's promise map, baked into field 6 verbatim
     promises = ndb.TextProperty()
     # this world's own slot number in the room: the join's "is it mine?"
     ap_slot = ndb.IntegerProperty()
@@ -256,10 +201,7 @@ class APNames(ndb.Model):
 
     @staticmethod
     def _row_blobs(gid, world):
-        """(names json, ap_slot, promises json), cached: a row only changes
-        when a bridge session rescouts, but every download, spoiler and hint
-        resolution reads it. The writers below bust; raw text is cached so
-        the entry is backend-agnostic and parsing stays per-reader."""
+        """(names json, ap_slot, promises json), cached as raw text; the writers below bust."""
         cached = Cache.get_ap_row(gid, world)
         if cached is not None:
             return cached
@@ -285,10 +227,8 @@ class APNames(ndb.Model):
 
     @staticmethod
     def store(gid, world, entries, ap_slot=None):
-        # names and promises have different writers on one row, so each
-        # carries the other's field forward. Plain read-then-put (no txn: the
-        # golden harness runs these against patched entity ops); a lost blob
-        # in the race window is rewritten by the next promise build.
+        # each writer carries the other's field forward. No txn (the golden harness patches
+        # entity ops); a promise blob lost to the race is rewritten by the next build.
         row = APNames.get_by_id(APNames.key_id(gid, world))
         blob = {str(k): v.as_json() for k, v in sorted(entries.items())}
         APNames(id=APNames.key_id(gid, world), scouted=len(entries),
@@ -332,28 +272,15 @@ class APNames(ndb.Model):
             return None
 
 
-# APHints entry states. PENDING is written BEFORE the room is asked, so a
-# crash between the claim and the answer leaves evidence instead of a second
-# purchase; DEFERRED means we did the arithmetic and the slot cannot pay yet.
-# o: Ori has unlocked it and nothing free answered it, so it is for sale.
-# q: somebody pressed buy. Only q lets a session spend points -- the site
-#    writes it, the bridge picks it up, and the claim turns it into p.
+# p: claimed before the room is asked; r: answered; d: unaffordable; o: for sale;
+# q: buy pressed on the site, the only state a session may spend on (its claim makes it p)
 HINT_PENDING, HINT_RESOLVED, HINT_DEFERRED = "p", "r", "d"
 HINT_OFFERED, HINT_REQUESTED = "o", "q"
 
 
 class APHints(ndb.Model):
-    """One world's Archipelago hint purchases, id '<gid>.<world>'.
-
-    A hint costs the player points they can never earn back, so this row --
-    not a bridge thread's memory -- decides whether the room may be asked
-    about a slot. Every gunicorn process running that world's session reads
-    and claims here, which is what makes the purchase exactly-once across
-    processes, reconnects and seed reloads.
-
-    Its own kind for APNames' reasons: off APLink (written on every
-    ReceivedItems batch), one key per world so K sessions never contend.
-    """
+    """One world's hint purchases, id '<gid>.<world>'. Every session claims here,
+    which makes a purchase exactly-once across processes and reconnects."""
     # JSON {"<slot>": {"s": state, "t": resolved text, "a": ap item id,
     #                  "k": "<code>|<id>", "u": unix seconds of the transition}}
     hints   = ndb.TextProperty(compressed=True)
@@ -369,9 +296,7 @@ class APHints(ndb.Model):
 
     @staticmethod
     def unpack(row):
-        """Entity (or None) -> {slot: entry dict}. A row this build can't
-        read reports empty: the worst case is one re-derivation, and the
-        room's own hint list is consulted before anything is bought."""
+        """Entity (or None) -> {slot: entry dict}; an unreadable row reports empty."""
         if row is None or not row.hints:
             return {}
         try:
@@ -402,9 +327,8 @@ class APHints(ndb.Model):
     @staticmethod
     @ndb.transactional(retries=5)
     def request(gid, world, slot):
-        """Offered -> requested, which is the only thing that lets a session
-        spend points. False means it was not for sale: already bought, already
-        answered, or never unlocked."""
+        """Offered -> requested, which lets a session spend points. False when the
+        slot was not for sale."""
         key_id = APHints.key_id(gid, world)
         row = APHints.get_by_id(key_id)
         entries = APHints.unpack(row)

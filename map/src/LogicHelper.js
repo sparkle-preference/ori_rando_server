@@ -271,7 +271,6 @@ class LogicHelper extends React.Component {
                 let {closed_dungeons, open_world, plc} = this.parseUploadedSeed(text);
                 this.setState({placements: plc, open_world: open_world, closed_dungeons: closed_dungeons, dropzoneActive: false, hasSeed: true, logicMode: "auto"}, this.resetReachable)
                 window.URL.revokeObjectURL(file.preview);
-                // do whatever you want with the file content
             };
             reader.onabort = () => console.log('file reading was aborted');
             reader.onerror = () => console.log('file reading has failed');

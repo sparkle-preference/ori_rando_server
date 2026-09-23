@@ -1559,9 +1559,8 @@ const getHelpHelper = (category, option) => {
     return {lines: lines, title: title, subtitle: subtitle, extras: extras}
 }
 
-// The box's height ratchets: it grows to fit longer help texts but never
-// shrinks back. A shrink reflows the page under the cursor, which changes the
-// hover target mid-hover and causes scroll-jumping/flickering feedback loops.
+// The box's height only grows: a shrink reflows the page under the cursor and
+// moves the hover target mid-hover.
 class HelpBox extends React.Component {
     measure = (el) => {
         this.el = el

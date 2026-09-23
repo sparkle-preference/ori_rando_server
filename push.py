@@ -1,10 +1,7 @@
-"""Decoupling hub between game-state code and the websocket push layer.
+"""Hook from tick-cache busts to the websocket push layer.
 
-models/cache call notify(gpid) at the moments a player's next tick output
-is known to have changed (in practice: every tick-cache checksum bust).
-If the websocket layer has push enabled it registers a handler that sends
-that player a fresh tick frame immediately; with no handler registered
-this is a no-op. This module imports nothing so anything can import it.
+Cache.clear_seen_checksum calls notify(gpid); ws.enable_push registers the handler.
+Imports nothing, so anything can import it.
 """
 import logging as log
 

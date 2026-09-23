@@ -63,11 +63,9 @@ const DEFAULT_DATA = {
 const HANDLE_ICON = Leaflet.divIcon({className: "box-handle", iconSize: [10, 10]})
 const HANDLE_ICON_SELECTED = Leaflet.divIcon({className: "box-handle box-handle-selected", iconSize: [10, 10]})
 
-// Locking one box at a time is fine until there are a lot of them; below this many
-// the bulk row is only a second line of buttons to read past.
+// the bulk lock row only shows at this many boxes
 const BULK_LOCK_MIN = 20
-// 300ms of ease-in-out, by hand: scrollIntoView jumps and behavior:"smooth" is not
-// honoured everywhere
+// eased by hand: scrollIntoView jumps and behavior:"smooth" isn't honoured everywhere
 const SCROLL_MS = 300
 const easeInOut = (p) => p < 0.5 ? 4 * p * p * p : 1 - Math.pow(2 - 2 * p, 3) / 2
 const BULK_TYPES = [{label: "ALL", value: "all"}, ...BOX_TYPES]
@@ -96,13 +94,12 @@ const CLUE_ORDERS = [
 ].map(clueOrder => {return {label: mkClueOrderLabel(clueOrder), value: clueOrder}})
 
 const VALID_VARS = ["0XP", "NonProgressMapStones", "NoAltR", "ForceMaps", "ForceTrees", "Hard", "WorldTour", "OpenWorld", "ClosedDungeons", "OHKO", "Starved", "BonusPickups", "NoExtraExp", "Entrance",
-                    // sync'd with the Variation enum (enums.py), 2026-09-08
+                    // kept in sync with the Variation enum (enums.py)
                     "WarmthFrags", "DoubleSkills", "StrictMapstones", "StompTriggers", "TPStarved", "GoalModeFinish", "WallStarved", "GrenadeStarved",
                     "Race", "WarpsInsteadOfTPs", "InLogicWarps", "WarpCount", "StartingHealth", "StartingEnergy", "StartingSkills", "NoTPs",
                     "Competitive", "BonusLite", "ClueLockedTPs", "ZoneLockedTPs", "Keysanity", "Enhanced", "Bingo", "VanillaRespawns"]
 const VALID_KEYMODES = ["Shards", "Clues", "Limitkeys", "Free"];
-// plando flag usage counts from prod Datastore, 2026-07-22 (WorldTour=N counted as WorldTour, Frags/x/y as WarmthFrags).
-// static by design — re-run the count and update if usage shifts a lot
+// static plando usage counts per flag; orders the flag suggestions
 const FLAG_FREQ = {"ForceTrees": 132, "Clues": 89, "OpenWorld": 42, "0XP": 33, "Shards": 32, "Keysanity": 20, "NoExtraExp": 19,
                    "WorldTour": 17, "Starved": 15, "ForceMaps": 13, "BonusPickups": 8, "ClosedDungeons": 8, "WarmthFrags": 5,
                    "Race": 4, "Hard": 3, "Enhanced": 2, "Entrance": 2, "Free": 2, "InLogicWarps": 2, "Limitkeys": 2,
@@ -259,8 +256,7 @@ function get_manual_reach() {
     return {HC: HC, EC: EC, AC: AC, KS: KS, MS: MS, skills: skills, tps: tps, events: events};
 }
 
-// Same reason as the rows: leaflet re-applies bounds and restyles a rectangle every time
-// it is handed props, so each one only hears about a render its own box was part of.
+// pure: leaflet re-applies bounds and restyles a rectangle whenever it is handed props
 class BoxRect extends React.PureComponent {
     dragStart = (ev) => this.props.onDragStart(this.props.i, ev)
     render() {
@@ -280,8 +276,7 @@ class BoxRect extends React.PureComponent {
     }
 }
 
-// Pure so that a seed with hundreds of boxes only re-renders the rows that changed:
-// every handler here is bound once, and an untouched box keeps its object identity.
+// pure, with handlers bound once, so only rows whose box object changed re-render
 class BoxRow extends React.PureComponent {
     ref = (el) => this.props.onRegister(this.props.b._id, el)
     select = () => this.props.onSelect(this.props.b._id)
@@ -402,9 +397,8 @@ class PlandoBuiler extends React.Component {
 
     componentWillUnmount() { window.removeEventListener("resize", this.fitFileControls) }
 
-    // The row only sometimes overflows: Fill's label grows by "(Dumb)", and a panel
-    // opening anywhere in the sidebar brings the scrollbar. Measure at full size and
-    // compact only when needed; a class toggle does not re-render, so this cannot loop.
+    // compact the row only when it overflows at full size; a class toggle doesn't
+    // re-render, so this can't loop
     fitFileControls = () => {
         let row = this.fileControls
         if(!row)
@@ -620,7 +614,6 @@ class PlandoBuiler extends React.Component {
 
 
     parseSavedSeed = (seedJson) => {
-        // help
         let newClueOrder = []
         let seedData = JSON.parse(he.decode(seedJson))
         let placements = {}
@@ -1308,8 +1301,7 @@ class PlandoBuiler extends React.Component {
             <BoxRect key={`box-${b._id}`} b={b} i={i} selected={b._id === box_selected} faded={box_faded(b)}
                      dim={box_dim(b)} edit={box_edit} onSelect={this.selectBoxAt} onDragStart={this.startBoxDrag}/>
         )
-        // The handles stay out of that pane: they live in the marker pane, above everything,
-        // which is where something you are meant to grab belongs.
+        // handles live in the marker pane, above everything, so they stay grabbable
         const box_handles = all_boxes.filter(({b}) => box_edit && !b.locked).map(({b, i}) => {
             let selected = b._id === box_selected
             let xs = [b.box[0], b.box[2], b.box[2], b.box[0]], ys = [b.box[1], b.box[1], b.box[3], b.box[3]]

@@ -21,7 +21,7 @@ ROOM_PORT = 38281
 
 
 def docker_ok():
-    """Docker answering AND the image present -- pulling 353 MB is not a test's job."""
+    """Docker answering AND the image present: pulling the image is not a test's job."""
     try:
         if subprocess.run(["docker", "version"], capture_output=True).returncode:
             return False

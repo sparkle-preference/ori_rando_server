@@ -11,7 +11,7 @@ from seedbuilder.oriparse import get_areas, get_path_tags_from_pathsets
 from seedbuilder.relics import relics
 
 def stable_string_hash(s):
-    """fuckin' INFURIATING that this is necessary but so it goes!!!"""
+    """Process-independent hash (str hash() is salted per process)."""
     return int(sha256(s.encode(encoding='UTF-8')).hexdigest(), 16)
 
 longform_to_code = {"Health": ["HC"], "Energy": ["EC"], "Ability": ["AC"], "Keystone": ["KS"], "Mapstone": ["MS"], "Free": []}
@@ -99,8 +99,7 @@ warp_targets = [
     ]
 ]
 
-# Grouped by subarea to limit 
-# (warpName, x, y, area from TP name, logicLocation, logicCost).
+# At most one warp per subarea; (warpName, x, y, area from TP name, logicLocation, logicCost).
 warp_targets2 = [
     [
         # inner swamp
@@ -222,11 +221,8 @@ doors_outer = [
 class MultiworldSlotOverflow(Exception):
     """A player needed more than MAX_SLOTS cross-world item slots."""
 
-# --- the tagged universe ---
-# Multiworld generation runs ONE placement pass over every player's world at
-# once: each area, location, item, and logic requirement is tagged with the
-# world it belongs to ("Bash|2", "GladesMain|3"). Single-world games are just
-# the 1-player case (everything tagged "|1"), so there is one code path.
+# One placement pass covers every world: areas, locations, items and requirements
+# are tagged with their world ("Bash|2"); a solo seed is everything tagged "|1".
 
 def tag(name, p):
     return "%s|%s" % (name, p)
@@ -240,10 +236,8 @@ def base_of(name):
     return name.rpartition("|")[0]
 
 def strip_local(item):
-    """(item without its Local marker, whether it carried one). LC rides inside a
-    multipickup or one-of to say the line stays in its owner's world; it is resolved here
-    and never reaches a seed. A line with nothing else on it places nothing, and neither
-    does a bare repeatable or one-of, so those come back empty too."""
+    """(item without its LC "stays local" member, whether it had one). A line left with
+    nothing to place, or a bare MU/RP/RG, comes back as ""."""
     if item in ("LC*", "RP", "RG", "MU"):
         return "", item == "LC*"
     if item[0:2] not in ("MU", "RP", "RG"):
@@ -254,7 +248,7 @@ def strip_local(item):
         return item, False
     if not kept:
         return "", True
-    # one survivor is just that item; a multipickup of one is a lie the seed need not tell
+    # a multipickup of one collapses to that item
     if len(kept) == 1 and item[0:2] == "MU":
         return kept[0][0] + kept[0][1], True
     return item[0:2] + compose_multi_value(kept), True
@@ -314,8 +308,7 @@ class Connection:
 
     def add_requirements(self, req, difficulty):
         def translate(req_part):
-            """Helper function. Turns a req from areas.ori into
-            the list of the things that req indicates are required"""
+            """An areas.ori requirement as the list of items it stands for."""
             if req_part in longform_to_code:
                 return longform_to_code[req_part]
             if self.sg.params_for(self.player).key_mode == KeyMode.SHARDS and req_part in key_to_shards:
@@ -371,13 +364,11 @@ all_locations = {}
 repeatable_locs = set()
 forbidden_repeatable_locs = set([-7680144, -9120036, -10440008, -10759968, -1560272])
 
-# Buried pseudo-locations: a preplacement at key BURIED_LOC_BASE + N means
-# "keep these items out of the pool until N locations are reachable". Real
-# location keys are x*10000+y with |x| well under 2000, so 20M+ is free.
+# A fass at BURIED_LOC_BASE + N keeps its items out of the pool until N locations are reachable.
+# Real keys are x*10000+y with |x| < 2000, so 20M+ is free.
 BURIED_LOC_BASE = 20000000
 
-# spawn-warp target per zone; archipelago.convert reads the inverse to
-# recover a Random spawn's real zone from the seed's forced WS warp
+# spawn-warp target per zone; archipelago.convert inverts it to recover a Random spawn's zone
 SPAWN_SPOTS = {
     "Grove": (-159, -114),
     "Swamp": (491, -73),
@@ -493,8 +484,7 @@ class SeedGenerator:
         "Upper Sorrow Keystone": "RB311",
     })
 
-    # ES|* and ES|**: a rolled Enhanced skill rides on that skill's own placement rather
-    # than taking a slot of its own. Keyed by the pool item that carries it.
+    # Enhanced skill pickup per base skill (ES|* / ES|** rolls)
     enhancedOutput = OrderedDict([
         ("SpiritFlame", "RB410"), ("WallJump", "RB411"), ("ChargeFlame", "RB412"),
         ("DoubleJump", "RB413"), ("Bash", "RB414"), ("Stomp", "RB415"),
@@ -502,11 +492,7 @@ class SeedGenerator:
         ("Dash", "RB419"), ("Grenade", "RB420"), ("Water", "RB422"),
     ])
 
-    # Weighted by how far an Enhanced skill bends the run. Spirit Flame is left out: ES|*
-    # hands it out through its own 20% roll instead. Wall Jump is left out because it is the
-    # least interesting of the twelve. Flight's weight is then split four ways, so any one of
-    # those is an eighth of a full share; Dash sits between, trivializing enough to want
-    # holding back but nothing like the flight four.
+    # ES|* weights; FLIGHT is one share split over enhancedFlight. Spirit Flame has its own roll.
     enhancedFlight = ["Stomp", "Glide", "DoubleJump", "Bash"]
     enhancedWeighted = [("ChargeJump", 1.0), ("Water", 1.0), ("Climb", 1.0), ("ChargeFlame", 1.0),
                         ("Grenade", 1.0), ("Dash", 0.4), ("FLIGHT", 0.5)]
@@ -524,7 +510,7 @@ class SeedGenerator:
             return self.keysanityOutput[item]
         return item
 
-    # every world's rulebook; worlds without overrides get the base object itself
+    # per-world views; a world without overrides falls back to self.params
     world_params = {}
 
     def params_for(self, p):
@@ -546,14 +532,13 @@ class SeedGenerator:
         return self.seed_count == 1
 
     def total_locs(self):
-        """The single-world '252 locations' constant, scaled."""
+        """252 locations per world."""
         return 252 * self.seed_count
 
     MAX_SLOTS = 256  # 8x32-bit slot bitfields on the Player entity: wire format
 
     def place_in_slot(self, owner, pickup, finder, zone):
-        """Allocate a slot on owner for an item found in finder's world.
-        Returns the slot number. Reuses slots freed by balance-list churn."""
+        """Slot number on owner for an item found in finder's world; reuses freed slots."""
         if self.mw_free_slots[owner]:
             slot = self.mw_free_slots[owner].pop()
             self.mw_slots[owner][slot] = (pickup, finder, zone)
@@ -561,8 +546,6 @@ class SeedGenerator:
         self.mw_slots[owner].append((pickup, finder, zone))
         slot = len(self.mw_slots[owner]) - 1
         if slot >= self.MAX_SLOTS:
-            # structurally near-impossible (a world only has ~252 locations),
-            # but this is wire format: fail generation rather than overflow
             raise MultiworldSlotOverflow("player %s needs > %s multiworld slots" % (owner, self.MAX_SLOTS))
         return slot
 
@@ -574,8 +557,7 @@ class SeedGenerator:
         return 20 + 4 * (1 + self.mapstonesAssigned[p])
 
     def init_fields(self):
-        """Part one of a reset. All initialization that doesn't
-        require reading from params goes here."""
+        """The params-independent half of reset()."""
         # seed_count is set in setSeedAndPlaceItems; __init__ runs before it
         self.seed_count = getattr(self, "seed_count", 1)
         self.localPool = OrderedDict()
@@ -610,8 +592,7 @@ class SeedGenerator:
 
         self.ap_ks_pin = False
         self.ap_doors_counted = set()
-        # per-world first-sighting order of keystone doors: exported keystones
-        # tier doors in this order, so thresholds follow the seed's own shape
+        # per-world first-sighting order of keystone doors; exported keystones tier doors by it
         self.ks_door_order = defaultdict(list)
         self.mapstonesSeen = {p: 1 for p in self.multi_ps()}
         self.mapstonesAssigned = defaultdict(lambda: 0)
@@ -645,14 +626,11 @@ class SeedGenerator:
         self.starting_energy = 1
 
     def reset(self, worried=False):
-        """A full reset. Resets internal state completely (besides pRNG
-        advancement), then sets initial values according to params."""
+        """Full reset of generation state (the pRNG keeps its position), then params setup."""
         self.init_fields()
-        # exp_pool is a PER-WORLD budget, drawn against by that world's own EX slots
+        # exp_pool is a per-world budget
         self.expRemaining = {p: self.params_for(p).exp_pool for p in self.multi_ps()}
-        # forcedAssignments is keyed (player, loc): the same coordinate exists
-        # in every world. Values may carry an owner tag ("GinsoKey|3") for
-        # cross-world items; untagged values belong to the world they sit in.
+        # keyed (world, loc); an untagged value belongs to that world, "GinsoKey|3" to world 3
         self.forcedAssignments = dict(self.preplaced)
         self.forceAssignedLocs = set()
         self.itemPool = OrderedDict([(tag(k, p), v) for p in self.multi_ps() for k, v in [
@@ -664,8 +642,7 @@ class SeedGenerator:
             ("GumonSealShard", 0), ("SunstoneShard", 0), ("Open", 0), ("OpenWorld", 0), ("Relic", 0)
         ]])
 
-        # keys stay item-major so pool order does not depend on player count; a ranged
-        # count rolls once per world, against that world's range
+        # item-major keys keep pool order independent of player count; ranges roll per world
         pools = {p: self.params_for(p).item_pool for p in self.multi_ps()}
         plain = [p for p in self.multi_ps() if not pools[p]]
         if plain:
@@ -699,8 +676,7 @@ class SeedGenerator:
                     continue
                 i = tag(fixed_item, p)
                 self.itemPool[i] = self.itemPool.get(i, 0) + count
-                # locality belongs to the line that asked for it, not to the item: another
-                # line granting the same thing is still free to travel
+                # locality belongs to this line's copies, not to every copy of the item
                 if local and is_mw:
                     self.localPool[i] = self.localPool.get(i, 0) + count
 
@@ -780,8 +756,7 @@ class SeedGenerator:
             ("Blackroot", 0.5)
         ])
         def weights_for(p):
-            # a fresh vector per world: the adjustments mutate it, and the
-            # weights and both dungeon variations belong to that world
+            # a fresh copy per world: the adjustments below mutate it
             weights = OrderedDict(start_weights)
             wp = self.params_for(p)
             if len(wp.spawn_weights) > 9:
@@ -809,12 +784,8 @@ class SeedGenerator:
             "Blackroot": "BlackrootGrottoConnection",
         }
 
-        # start locations: a named start is shared by every world; "Random"
-        # rolls independently per world (multiworlds aren't races -- decision
-        # 2026-07-22). self.starts is authoritative; self.start keeps the solo
-        # semantics ("Random" resolves to the chosen spot) for params.spawn.
-        # every rejection lands before the first draw, or a refused config
-        # would consume pRNG on its way out
+        # "Random" rolls per world; self.starts is authoritative, self.start is the solo summary.
+        # Rejections must precede the first draw.
         for p in self.multi_ps():
             if self.params_for(p).start in ["Horu", "Ginso"] and self.var(Variation.CLOSED_DUNGEONS, p):
                 log.error("can't start in dungeons with closed dungeons.")
@@ -865,8 +836,7 @@ class SeedGenerator:
                 if start_skills > 1:
                     possible_skills.append("Wind")
                     possible_skills.append("Warmth")
-                # a burial says "not before depth N" and spawn is depth 0;
-                # too few left to draw from and the burial loses instead
+                # buried skills (depth > 0) stay off the spawn unless too few would remain
                 buried = self.buried_skill_names(p)
                 if buried:
                     kept = [s for s in possible_skills if s not in buried]
@@ -894,9 +864,7 @@ class SeedGenerator:
                 starting_skills = self.choices(possible_skills, weights, start_skills)
 
             things = []
-            # a shared singleton can't ride one world's spawn line: a spawn
-            # grant never reaches the netcode, so the fan-out sharing relies
-            # on never fires. These are delivered at every world's spawn.
+            # spawn grants never reach the netcode, so shared singletons go on every world's spawn
             shared_things = []
 
             def spawn_add(name, out):
@@ -940,27 +908,24 @@ class SeedGenerator:
             for skill in starting_skills:
                 spawn_add(skill, self.toOutput(skill, True))
             if self.params_for(p).key_mode == KeyMode.FREE:
-                # already universal (appended for every world), so it stays local
                 things.append("EV/0/EV/2/EV/4")
 
             if start != "Glades":
                 self.itemPool[tag("TPGlades", p)] = 1
                 spawn_add("TP" + start, "TP/" + start)
-                # The Warp Save should be last in the line because of the *save*
+                # the warp-save must stay last on the spawn line
                 things.append("WS/" + str(spawn_spots[start][0]) + "," + str(spawn_spots[start][1]) + ",force")
             self.spawn_things[p] = things
             self.spawn_shared_things[p] = shared_things
 
-        # a lone shared singleton fass'd onto a spawn is just as invisible to
-        # the netcode as a drawn one; multipickup fasses keep today's behavior
+        # a lone shared singleton fass'd onto spawn is shared the same way (multipickups are not)
         for p in self.multi_ps():
             cur = self.forcedAssignments.get((p, 2))
             if cur and cur[0:2] not in ["MU", "RP"] and "|" not in cur and cur in self.shared_pool_bases:
                 self.spawn_shared_things[p].append(self.toOutput(cur, True))
                 del self.forcedAssignments[(p, 2)]
 
-        # every world's spawn carries every world's shared draws; pool and
-        # spoiler bookkeeping (spawn_book) run once, on the world that drew them
+        # every spawn carries every world's shared draws; spawn_book books each once, on its drawer
         shared_spawn = [t for q in self.multi_ps() for t in self.spawn_shared_things[q]]
         self.spawn_book = {}
         for p in self.multi_ps():
@@ -984,23 +949,19 @@ class SeedGenerator:
         # FIXME Are we giving the correct number of ECs for non-glades starts?
         # FIXME Test altering preplaced things at spawn, but can't add things at spawn currently anyway.
 
-        # Make it so we only give up to 1 warp in each subarea (per world:
-        # every world draws its own warp candidates).
+        # one warp candidate per subarea, drawn per world
         self.unused_warps = {p: [] for p in self.multi_ps()}
         for p in self.multi_ps():
             for warp_group in warp_targets2:
                 self.unused_warps[p].append(self.random.choice(warp_group))
 
-        # Warps. format (warpName, x, y, area from TP name, logicLocation, logicCost).
-        # Warp ids are globally unique ("Warp0", "Warp1", ...); ownership lives
-        # in the tagged pool/cost/inventory keys and self.warp_owner.
+        # warp ids ("Warp0", ...) are unique across worlds; self.warp_owner maps them back
         for p in self.multi_ps():
             if self.var(Variation.WARPS_INSTEAD_OF_TPS, p):
                 tps = []
                 for item in self.itemPool:
                     if item.startswith("TP") and untag(item)[1] == p:
                         tps.append(item)
-                # Calculate number of warps to add.
                 possible_warps_to_add = self.params_for(p).warps_instead_of_tps
                 if len(tps) < possible_warps_to_add:
                     possible_warps_to_add = len(tps)
@@ -1035,12 +996,10 @@ class SeedGenerator:
                 self.itemPool.pop(wp_star)
 
         for item in self.itemPool:
-            # a shared teleporter pool has already collapsed onto world 1, so
-            # the tag names the world that asked only when it is not shared
+            # shared TPs have collapsed onto world 1, so world 1's NoTPs decides for them
             if item.startswith("TP") and self.var(Variation.NO_TPS, untag(item)[1]):
                 self.itemPool[item] = 0
 
-        # (SplitShards' inflated shard count is gone with the mode itself)
         shard_count = 5
         for p in self.multi_ps():
             if self.params_for(p).key_mode == KeyMode.SHARDS:
@@ -1060,8 +1019,7 @@ class SeedGenerator:
         # shards and fragments are world events: their per-world entries collapse too
         self.collapse_shared()
 
-        # LimitKeys belongs to a player, not to the generation: it decides whose
-        # world events get placed this way, not whose world they land in.
+        # LimitKeys picks whose keys are placed this way, not which worlds host them
         limitkey_ps = [w for w in self.multi_ps() if self.params_for(w).key_mode == KeyMode.LIMITKEYS]
         if limitkey_ps:
             dungeonLocs = {"GinsoKey": {5480952, 5320328}, "ForlornKey": {-7320236}, "HoruKey": set()}
@@ -1077,20 +1035,13 @@ class SeedGenerator:
                             dungeonLocs[key_to_update] |= dungeonLocs[key]
                     self.forcedAssignments[(1, loc)] = key
             else:
-                # cross-world limitkeys (decision 2026-07-22): each world's
-                # trees/events hold keys, but the owners are a permutation of
-                # the players per key type -- "someone's tree has your Gumon
-                # Seal". Deadlock cycles between worlds are prevented by a
-                # stricter exclusion than solo: no dungeon key, whoever owns
-                # it, ever sits at a dungeon-locked location. That makes every
-                # dungeon key reachable without entering any dungeon, so no
-                # ordering of key finds can wedge.
+                # owners are permuted per key; no dungeon key sits behind any dungeon,
+                # so cross-world key finds can never deadlock
                 all_dungeon_locked = set().union(*dungeonLocs.values())
                 pools = {w: list(self.limitKeysPool) for w in self.multi_ps()}
                 for key in key_order:
                     owners = self.random.sample(limitkey_ps, len(limitkey_ps))
-                    # a key may land in any world; only its OWNER must be a LimitKeys player
-                    # all worlds eligible -> ordered hosts: the shuffled owners already randomize the pairing
+                    # any world may host; if every world is eligible the shuffled owners already randomize pairing
                     hosts = (list(self.multi_ps()) if len(limitkey_ps) == self.seed_count
                              else self.random.sample(list(self.multi_ps()), len(limitkey_ps)))
                     for host, owner in zip(hosts, owners):
@@ -1104,8 +1055,7 @@ class SeedGenerator:
             list(self.keysanityOutput.items()) + [("RB17", "WaterVeinShard"), ("RB19", "GumonSealShard"), ("RB21", "SunstoneShard")]])
         self.codeToName["WT*"] = "Relic"  # random relic preplacement (WT|*): resolved per-zone by adjust_item
 
-    # resolve an RG ("one of these") group into concrete items. Website-only:
-    # no RG may survive into a seed
+    # resolve an RG ("one of these") group; no RG may survive into a seed
     def pick_group_members(self, group, count=1):
         choices = self.get_multi_items(group)
         return [self.random.choice(choices) for _ in range(count)] if choices else []
@@ -1142,16 +1092,11 @@ class SeedGenerator:
                 connection = Connection("TeleporterNetwork", logic_location, self, p)
                 requirements = [warp_id]
                 if not self.var(Variation.ENTRANCE_SHUFFLE, p):
-                    # Consider keystone softlocks.
-                    #if area == "Ginso":
-                    #    requirements.append("GinsoKey")
+                    # only Horu's warps need their dungeon key
                     if area == "Horu":
                         requirements.append("HoruKey")
-                    #if area == "Forlorn":
-                    #    requirements.append("ForlornKey")
                 connection.add_requirements(requirements, 0)
                 self.get_area("TeleporterNetwork", p).add_connection(connection)
-                #log.debug("Added connect to {}".format(logic_location))
 
     def get_area(self, area_name, p):
         """Fetch an area by base name + player (or by an already-tagged name)."""
@@ -1168,8 +1113,7 @@ class SeedGenerator:
         found = False
         keystoneCount = defaultdict(lambda: 0)
         mapstoneCount = defaultdict(lambda: 0)
-        # python 3 wont allow concurrent changes
-        # list(areasReached.keys()) is a copy of the original list
+        # a copy: reach_area grows areasReached during the loop
         for area in list(self.areasReached.keys()):
             for connection in self.areas[area].get_connections():
                 cost = connection.cost()
@@ -1187,9 +1131,7 @@ class SeedGenerator:
                             if edge not in self.ks_door_order[p]:
                                 self.ks_door_order[p].append(edge)
                             if self.ap_ks_pin:
-                                # deferred hosting keeps doors shut across
-                                # rounds; count each door's demand once (the
-                                # actual cumulative invariant) or it inflates
+                                # doors can stay shut across rounds here; count each door once
                                 door_id = (area, connection.target)
                                 if door_id not in self.ap_doors_counted:
                                     self.ap_doors_counted.add(door_id)
@@ -1224,8 +1166,7 @@ class SeedGenerator:
     def choose_relic_for_zone(self, zone):
         if zone not in relics:  # e.g. a WT|* preplaced on a mapstone; pick any zone's relic
             zone = self.random.choice(list(relics.keys()))
-        # shuffle a copy: relics is imported module state, and mutating it makes
-        # every later generation in the process roll from a different order
+        # shuffle a copy: relics is shared module state
         zone_relics = list(relics[zone])
         self.random.shuffle(zone_relics)
         return zone_relics[0]
@@ -1264,10 +1205,8 @@ class SeedGenerator:
     countable_reqs = set(["HC", "EC", "AC", "WaterVeinShard", "GumonSealShard", "SunstoneShard"] + [keysanity_ks_name for keysanity_ks_name in keysanityOutput])
 
     def base_share_type(self, base):
-        """Runtime ShareType of a pool item base, matching the server's
-        pickups.py taxonomy exactly (the netcode fans shared finds out by that
-        taxonomy, so any mismatch strands or duplicates items). Warps are
-        world-local by construction; Warmth is each world's finale trigger."""
+        """ShareType of a pool item base; must match pickups.py, which the netcode fans out by.
+        Warps and Warmth are never shared."""
         if base.startswith("Warp") or base == "Warmth":
             return None
         code_id = self.skillsOutput.get(base) or self.eventsOutput.get(base)
@@ -1282,8 +1221,8 @@ class SeedGenerator:
         return pickup.share_type if pickup else None
 
     def collapse_shared(self):
-        """Multiworld shared categories: one pool copy total (found -> everyone's),
-        tagged world 1, at the largest count any world asked for. Safe to repeat."""
+        """Shared categories keep one pool entry, tagged world 1, at the largest count any
+        world asked for. Idempotent."""
         if not (getattr(self, "is_multi", False) and self.params.sync.shared):
             return
         shared_types = set(self.params.sync.shared)
@@ -1304,8 +1243,7 @@ class SeedGenerator:
         return tag(base, 1) if base in self.shared_pool_bases else item
 
     def is_shared_base(self, base):
-        """Accepts both pool names ("WallJump") and adjusted output codes
-        ("SK3"): assign_to_location runs items through adjust_item first."""
+        """Accepts pool names ("WallJump") and output codes ("SK3")."""
         return base in self.shared_pool_bases or self.codeToName.get(base, base) in self.shared_pool_bases
 
     def anti_bk_val(self):
@@ -1314,26 +1252,20 @@ class SeedGenerator:
         return bias if bias and getattr(self, "is_multi", False) else 0.0
 
     def anti_bk_boost(self, p):
-        """Multiworld balance: weight multiplier (<=1.0) for progression that
-        benefits player p. Players ahead of the most check-starved world get
-        downweighted; the strength scales with params.anti_bk_bias (0..1)."""
+        """Weight (<= 1.0) for progression benefiting p: worlds ahead of the most
+        check-starved one are downweighted, scaled by anti_bk_bias."""
         bias = self.anti_bk_val()
         if not bias:
             return 1.0
         lmin = min(self.locs_by_player[q] for q in self.multi_ps())
-        # +8 softens early-game extremes; exponent 10 makes 1.0 heavy-handed
-        # (a world with 2x the min's checks is weighted ~200x down)
+        # +8 softens the early game; at bias 1.0, twice the min's checks is ~200x down
         return ((lmin + 8.0) / (self.locs_by_player[p] + 8.0)) ** (10.0 * bias)
 
-    # a world with this many checks in logic is no longer "opening": its
-    # progression stops preferring home slots
+    # below this many checks in logic a world is "opening" and its progression prefers home slots
     ANTI_BK_LOCAL_CHECKS = 15
 
     def anti_bk_home(self, item):
-        """The world whose opening this item should stay inside, or None.
-        Progression owned by a world still under ANTI_BK_LOCAL_CHECKS checks
-        in logic qualifies while the bias is on; shared singletons benefit
-        every world from anywhere, so they never do."""
+        """The opening world this (unshared) progression item should stay in, or None."""
         if not item or not self.anti_bk_val():
             return None
         if not self.is_progression(item) or base_of(item) in self.shared_pool_bases:
@@ -1342,9 +1274,8 @@ class SeedGenerator:
         return owner if self.locs_by_player[owner] < self.ANTI_BK_LOCAL_CHECKS else None
 
     def anti_bk_hostless(self, itemsToAssign, locationsToAssign):
-        """Opening worlds that can't host their own progression this round:
-        no home slots at all, or every home slot already spoken for by a
-        pinned keystone or another opening item picked earlier this round."""
+        """Opening worlds with no home slot left this round (none at all, or all claimed
+        by pinned keystones or earlier opening items)."""
         if not self.anti_bk_val():
             return frozenset()
         claims = Counter()
@@ -1363,8 +1294,8 @@ class SeedGenerator:
                          and slots[p] <= claims[p])
 
     def local_blocked(self, itemsToAssign, locationsToAssign):
-        """Keys whose every remaining copy is owed to its owner's world, where that world
-        has no slot left this round: drawing one now could only strand it elsewhere."""
+        """Pool keys whose remaining copies are all local and whose home world has no slot
+        left this round."""
         if not self.localPool:
             return frozenset()
         claims = Counter(untag(it)[1] for it in itemsToAssign if it and self.localPool.get(it))
@@ -1374,8 +1305,7 @@ class SeedGenerator:
                          and slots[untag(key)[1]] <= claims[untag(key)[1]])
 
     def place_local(self, itemsToAssign, locationsToAssign):
-        """Send this round's local draws home. The draw refuses to part with the last of
-        them where no home slot is left, so there is always one to swap into."""
+        """Swap this round's local draws onto home slots (local_blocked guarantees one exists)."""
         if not self.localPool:
             return
         n = min(len(itemsToAssign), len(locationsToAssign))
@@ -1397,17 +1327,14 @@ class SeedGenerator:
                 break
 
     def ap_ks_cap(self, p, claim_items, locationsToAssign):
-        """AP mode: slots world p can still offer its pinned keystones this
-        round -- its location count minus home slots owed to opening
-        progression (anti_bk_home claims outrank generic keystones)."""
+        """AP mode: p's slots this round, minus those owed to its opening progression
+        (which outranks pinned keystones)."""
         cap = sum(1 for l in locationsToAssign if l.player == p)
         return cap - sum(1 for it in claim_items if it and self.anti_bk_home(it) == p)
 
     def anti_bk_localize(self, itemsToAssign, locationsToAssign):
-        """Multiworld balance, placement side: while a world is still opening,
-        its progression prefers slots in that world, so each player's first
-        unlocks are findable without waiting on another world's finds. Each
-        eligible item localizes with probability = anti_bk_bias."""
+        """Swap an opening world's progression onto its own slots, each with probability
+        anti_bk_bias."""
         bias = self.anti_bk_val()
         if not bias:
             return
@@ -1452,7 +1379,7 @@ class SeedGenerator:
                             log.warning(req, req_set, str(connection), connection.target)
                             continue
                         if self.costs[req] > 0:
-                            # if the item isn't in your itemPool (due to an unprocessed forced assignment), skip it
+                            # not in the pool (e.g. held by an unprocessed fass): path is unusable
                             if self.itemPool.get(self.pool_key(req), 0) == 0:
                                 requirements = []
                                 break
@@ -1471,15 +1398,13 @@ class SeedGenerator:
                                     cost += self.costs[req] * 5
                                 if self.var(Variation.FUCK_WALLS, connection.player) and base in ["WallJump", "Climb"]:
                                     cost += self.costs[req] * 7
-                    # don't decrease the rate of multi-ability paths, bc we're already pruning them
-                    # cost *= max(1, len(requirements) - 1)
                     if len(requirements) <= free_space:
                         for req in requirements:
                             if req not in abilities_to_open:
                                 abilities_to_open[req] = (cost, requirements, connection.player)
                             elif abilities_to_open[req][0] > cost:
                                 abilities_to_open[req] = (cost, requirements, connection.player)
-        # pick a random path weighted by cost (and by world starvation, if biased)
+        # pick a path weighted by 1/cost (and by world starvation, if biased)
         weight = lambda path: 1.0 / abilities_to_open[path][0] * self.anti_bk_boost(abilities_to_open[path][2])
         for path in abilities_to_open:
             totalCost += weight(path)
@@ -1491,7 +1416,7 @@ class SeedGenerator:
             if target <= position:
                 path_selected = abilities_to_open[path]
                 break
-        # if a connection will open with a subset of skills in the selected path, use that instead
+        # prefer a cheaper path whose requirements are a subset of the chosen one
         subsetCheck = list(abilities_to_open.keys())
         self.random.shuffle(subsetCheck)
         for path in subsetCheck:
@@ -1520,8 +1445,7 @@ class SeedGenerator:
         target = pool[int(pow(self.random.random(), 1.0 / self.balanceLevel) * len(pool))]
         item, location, assignment, mw_ref = self.balanceList.pop(target)
         if mw_ref:
-            # the stashed assignment string is discarded; free its slot so the
-            # owner's manifest doesn't accumulate dead entries
+            # the stashed line is discarded, so its slot is too
             self.free_slot(*mw_ref)
         self.balanceListLeftovers.append(item)
         return location
@@ -1529,14 +1453,8 @@ class SeedGenerator:
     def assign_random(self, locs, recurseCount=0, ks_blocked=frozenset(), opening_hostless=frozenset(), local_blocked=frozenset()):
         value = self.random.random()
         position = 0.0
-        # anti_bk_bias: progression draws are weighted toward the worlds with
-        # the fewest reachable checks (weights stay 1.0 when the bias is off;
-        # shared singletons benefit every world, so they stay neutral too).
-        # opening_hostless: opening worlds with no slot in this round --
-        # drawing their unlocks now could only place them in someone else's
-        # world, so they get suppressed instead (see anti_bk_localize)
-        # ks_blocked (AP mode): worlds whose keystones have no same-world spot
-        # this round -- their KS draws are suppressed
+        # unshared progression is weighted by anti_bk_boost and damped for opening_hostless worlds;
+        # local_blocked keys and ks_blocked worlds' keystones are not drawn
         bias = self.anti_bk_val()
         prog_weight = lambda p: self.anti_bk_boost(p) * ((1.0 - bias) if p in opening_hostless else 1.0)
         pool_weight = lambda key: 0.0 if (key in local_blocked or (ks_blocked and base_of(key) == "KS" and untag(key)[1] in ks_blocked)) \
@@ -1570,11 +1488,8 @@ class SeedGenerator:
                                     [keysanity_ks_itemcode for keysanity_ks_itemcode in keysanityOutput.values()])
 
     def ap_fix_ks_pairing(self, itemsToAssign, locationsToAssign):
-        """AP mode: rearrange the shuffled item list so every generic
-        keystone lands in its owner's world. In-place keystones stay,
-        displaced ones take the earliest free same-world slot, everything
-        else keeps its shuffled order. No pRNG; complete whenever each
-        world can host its keystones (False otherwise)."""
+        """AP mode: move each generic keystone to the earliest free slot in its owner's world,
+        others keep their order. No pRNG; False if some world can't host its keystones."""
         n = len(locationsToAssign)
         result = [None] * n
         moved_ks = []
@@ -1602,8 +1517,8 @@ class SeedGenerator:
         return True
 
     def _grant(self, base, it, pool_item):
-        """Cost decrement and inventory bump for one world's copy; the zero-cost
-        branch watches pool_item, the shared entry when the grant fans out."""
+        """Cost and inventory update for one world's copy; pool_item is the entry whose
+        exhaustion zeroes the cost (the shared one when fanned out)."""
         if base in self.costs_to_decrement_by_one:
             if self.costs[it] > 0:
                 self.costs[it] -= 1
@@ -1629,8 +1544,7 @@ class SeedGenerator:
         return item
 
     def assign_shared(self, base, preplaced=False):
-        """A shared singleton: one pool copy (tagged world 1), but every
-        world's inventory and costs update -- finding it grants everyone."""
+        """A shared singleton: one pool copy (world 1), granted to every world."""
         item = tag(base, 1)
         if not preplaced:
             self.itemPool[item] = max(self.itemPool.get(item, 0) - 1, 0)
@@ -1638,16 +1552,14 @@ class SeedGenerator:
             self._grant(base, tag(base, p), item)
         return item
 
-    # forced assignments: untagged items belong to the location's world;
-    # tagged ones (cross-world limitkeys) keep their owner
+    # an untagged item belongs to the location's world; a tagged one keeps its owner
     def force_assign(self, item, location):
         if "|" not in item:
             item = tag(item, location.player)
         self.assign(item, True)
         self.assign_to_location(item, location)
 
-    # for use in world tour mode
-    # TODO: replace this with generalized preplacement
+    # world tour; TODO: replace with generalized preplacement
     def relic_assign(self, location):
         self.force_assign("Relic", location)
         self.areas[location.area].remove_location(location)
@@ -1699,8 +1611,7 @@ class SeedGenerator:
         if not self.solo():
             pname = "Shared %s" % pname if self.is_shared_base(base) else "Player %s's %s" % (player, pname)
         self.padding = max(self.padding, len(pname))
-        # spoilerGroup is keyed by untagged codes so form_spoiler's per-type
-        # ordering keeps working; player attribution lives in the entry text
+        # keyed by untagged code for form_spoiler's ordering; the player is in the text
         self.spoilerGroup[base].append(pname + "!PDPLC!-from " + location_name + "\n")
 
 
@@ -1733,8 +1644,8 @@ class SeedGenerator:
         return tag(item, player)
 
     def roll_enhanced(self, p):
-        """Turn this world's ES|* and ES|** into a wanted-list of Enhanced skills, each
-        waiting for its own skill to be placed. The slots they came from become EX."""
+        """Roll this world's ES|* / ES|** into Enhanced skills on its spawn; their pool
+        slots become EX."""
         weighted = self.itemPool.pop(tag("ES*", p), 0)
         flat = self.itemPool.pop(tag("ES**", p), 0)
         if not weighted and not flat:
@@ -1757,14 +1668,11 @@ class SeedGenerator:
             if picked:
                 taken.append(picked)
 
-        # every ES|* adds a fifth to Sein's chance, and Sein comes on top of the rest
+        # Spirit Flame: +20% per ES|*, on top of the rest
         if weighted and "SpiritFlame" not in taken and self.random.random() < min(1.0, 0.2 * weighted):
             taken.append("SpiritFlame")
 
-        # Onto the spawn rather than onto the skill's own placement: a skill the seed never
-        # places (Spirit Flame in most presets, anything a trimmed pool leaves out) would
-        # otherwise drop its roll. Every effect is gated on holding the base skill, so
-        # arriving early does nothing until the skill turns up.
+        # on the spawn: each effect is inert until its base skill is held
         for carrier in taken:
             rb = self.enhancedOutput[carrier]
             self.enhancedSpawn[p].append("%s/%s" % (rb[:2], rb[2:]))
@@ -1781,9 +1689,8 @@ class SeedGenerator:
         return choices[-1][0]
 
     def get_assignment(self, loc, player, item, zone):
-        """item is tagged with its owner; player is the world the location is
-        in. Returns (seed line, mw_ref) where mw_ref is (owner, slot) when the
-        item landed in someone else's world, else None."""
+        """(seed line, mw_ref) for owner-tagged item at loc in world player; mw_ref is
+        (owner, slot) for a cross-world item, else None."""
         base, owner = untag(item)
         if self.is_shared_base(base):
             owner = player  # shared singletons are local lines; the netcode fans them out
@@ -1811,8 +1718,8 @@ class SeedGenerator:
         return int(max(remaining * (rand_exp_found + slots / 4) * self.random.uniform(0.0, 2.0) / (slots * (slots + rand_exp_found)), minExp))
 
     def preferred_difficulty_assign(self, item, locationsToAssign):
-        # a location's own path_diff decides; NORMAL defers to the item owner's
-        # total and the running position must use the same weight, or the loop falls through
+        # the location's world's path_diff decides, NORMAL deferring to the item owner's;
+        # total and position must use the same weight() or the loop falls through
         asked = self.params_for(untag(item)[1]).path_diff
 
         def weight(loc):
@@ -1848,11 +1755,10 @@ class SeedGenerator:
             self.params.locationAnalysis["FinalEscape EVWarmth (-240 512)"]["Zone"] = "Horu"
 
         # sorry for this - only intended to last as long as 3.0 beta lasts
-        meta = get_areas(self.params.areas_ori_path)     # one parse, shared, never mutated
+        meta = get_areas(self.params.areas_ori_path)     # one parse shared by every world; never mutated
         for p in self.multi_ps():
             logic_paths = [lp.value for lp in self.params_for(p).logic_paths]
             logic_path_tags = get_path_tags_from_pathsets(logic_paths)
-            # entrance shuffle requires keys at their own doors instead of granting them
             keysOnlyForDoors = self.var(Variation.ENTRANCE_SHUFFLE, p)
             for loc_name, loc_info in meta["locs"].items():
                 area = Area(loc_name, p)
@@ -1888,11 +1794,6 @@ class SeedGenerator:
                 for conn_target_name, conn_info in home_info["conns"].items():
                     connection = Connection(home_name, conn_target_name, self, p)
 
-                    # can't actually be used yet but this is roughly how this will be implemented
-                    # entranceConnection = True if "entrance" in conn_info else False
-                    # if self.var(Variation.ENTRANCE_SHUFFLE) and entranceConnection:
-                    #   continue
-
                     if not conn_info["paths"]:
                         connection.add_requirements(["Free"], 1)
                     for path in conn_info["paths"]:
@@ -1904,8 +1805,7 @@ class SeedGenerator:
                                 break
                         if valid:
                             if keysOnlyForDoors:
-                                # Okay, this is essentially Free keymode but with requirements
-                                # for the keys to be placed in their doors, but aren't given freely.
+                                # a dungeon key is required only at its own outer door
                                 altered_path = list(path)
                                 if "GinsoKey" in path:
                                     if (conn_target_name != "GinsoOuterDoor") or ("InnerDoor" in home_name):
@@ -1938,17 +1838,15 @@ class SeedGenerator:
         return dat_string, spoiler_string
 
     def randomize_entrances(self, p=1):
-        # each world gets its own independent shuffle (decision 2026-07-22)
+        # world p only; each world shuffles independently
         doors = doors_inner + doors_outer
 
-        # Remove all previous connections
         for door_name, x, y in doors:
             area = self.get_area(door_name, p)
             connections = area.get_connections()[:]
             for connection in connections:
                 if ("OuterDoor" in connection.target) or ("InnerDoor" in connection.target):
                     area.remove_connection(connection)
-                    #log.debug("Removed connection to {} from area {}".format(connection.target, door_name))
 
 
         dungeonOuterDoors = [Door("GinsoOuterDoor", 527, -43), Door("ForlornOuterDoor", -668, -246), Door("HoruOuterDoor", -78, 2)]
@@ -1966,15 +1864,14 @@ class SeedGenerator:
         self.entrance_spoiler += header
         doorStr = ""
 
-        # R1 cutscene softlocks so leave it vanilla for now
-        # Remember to add R1 back to doors_inner and doors_outer if you fix the softlock
+        # R1 stays vanilla (its cutscene softlocks); it is also absent from doors_inner/doors_outer
         R1Outer = oneWayLobbyDoors.pop(1)
         R1Inner = deadEndDoors.pop(7)
         dat_s, spoiler_s = self.connect_doors(R1Outer, R1Inner, p=p)
         doorStr += dat_s
         self.entrance_spoiler += spoiler_s
 
-        # Pick one of the outer dungeon doors, link that door to any door other than final escape or R1 outer in the Horu lobby.
+        # one dungeon outer door leads to a two-way Horu lobby door
         outerIdx, outerDoor = self.random.choice(list(enumerate(dungeonOuterDoors)))
         lobbyIdx, lobbyDoor = self.random.choice(list(enumerate(twoWayLobbyDoors)))
         dungeonOuterDoors.pop(outerIdx)
@@ -1983,7 +1880,7 @@ class SeedGenerator:
         doorStr += dat_s
         self.entrance_spoiler += spoiler_s
 
-        # For the rest of the doors, link all non dead ends to dead ends.
+        # every remaining non-dead-end door leads to a dead end
         nonDeadEndDoors = dungeonOuterDoors + oneWayLobbyDoors + twoWayLobbyDoors
         self.random.shuffle(deadEndDoors)
         for i in range(len(deadEndDoors)):
@@ -2005,9 +1902,7 @@ class SeedGenerator:
 
         self.random = random.Random()
         self.random.seed(stable_string_hash(self.params.seed))
-        # keys are (world, loc); plain-loc keys (solo callers, plando) mean
-        # world 1. Values may carry an owner tag ("SK0|3") for cross-world
-        # placements; only the base translates through codeToName.
+        # keys are (world, loc), a bare loc meaning world 1; an owner tag ("SK0|3") survives translation
         self.preplaced = {}
         for k, v in preplaced.items():
             world, loc = k if isinstance(k, tuple) else (1, k)
@@ -2026,14 +1921,12 @@ class SeedGenerator:
             log.error("SplitShards generation was removed (2026-07).")
             return None
 
-        # seed_count: how many distinct worlds we generate. clone_count: how
-        # many copies of the (single) world cloned coop hands out.
+        # seed_count: distinct worlds generated; clone_count: copies of world 1 cloned coop hands out
         self.seed_count = self.params.players if self.is_multi else 1
         self.clone_count = 1
         if self.is_cloned:
             self.clone_count = len(self.params.sync.teams) if self.params.sync.teams else self.params.players
-        # each world samples its own relic zones (decision 2026-07-22);
-        # relics are world-local -- they never cross as MW items
+        # relic zones are per world, and relics never cross worlds
         self.relicZones = {p: self.random.sample(["Glades", "Grove", "Grotto", "Blackroot", "Swamp", "Ginso", "Valley", "Misty", "Forlorn", "Sorrow", "Horu"], self.params_for(p).relic_count)
                            for p in self.multi_ps() if self.var(Variation.WORLD_TOUR, p)}
         return self.placeItemsMulti(retries)
@@ -2103,12 +1996,8 @@ class SeedGenerator:
         return placements
 
     def mw_manifest(self, p):
-        """Seed lines describing what fills each of p's multiworld slots, so
-        their client can self-grant on slot-bitfield updates. Line shape:
-        -(slot+2)|MW|<finder>,<holder>,<code>,<id>|<zone> -- locs -2..-257 are
-        free (-1 and 2 are real pseudo-locations), and 4 pipe-fields to parse
-        like any other seed line. An empty holder means "P<finder> holds it";
-        only the download-time AP join ever fills it in."""
+        """p's slot manifest: `-(slot+2)|MW|<finder>,<holder>,<code>,<id>|<zone>` per slot.
+        Holder is left empty here; only the AP download join fills it."""
         lines = ""
         for slot, entry in enumerate(self.mw_slots[p]):
             if entry is None:
@@ -2129,8 +2018,7 @@ class SeedGenerator:
         return sum([v for v in self.itemPool.values()]) + balanced + len(self.buried)
 
     def buried_skill_names(self, player):
-        """Skills a buried fass has claimed for this world. Reads preplaced
-        and skillsOutput, not codeToName, which the spawn draw predates."""
+        """Skills a buried fass has claimed for this world (runs before codeToName is usable)."""
         by_code = {code: name for name, code in self.skillsOutput.items()}
         names = set()
         for (p, loc), v in self.preplaced.items():
@@ -2147,8 +2035,8 @@ class SeedGenerator:
         return names
 
     def unearth_buried(self):
-        """Return buried items to the pool once enough locations are
-        reachable. Depths past the whole map release on the final batch."""
+        """Return buried items to the pool once enough locations are reachable (depth capped
+        at the whole map)."""
         reached = self.total_locs() - self.locations()
         still_buried = []
         for depth, item in self.buried:
@@ -2159,8 +2047,7 @@ class SeedGenerator:
         self.buried = still_buried
 
     def place_repeatables(self):
-        # repeatables are world-local: player p's RP pool entries land at
-        # random repeatable locations in p's own world
+        # repeatables are world-local
         repeatables = defaultdict(list)
         for item, count in [(i,c)  for (i,c) in self.itemPool.items()]:
             if item.startswith("RP"):
@@ -2183,9 +2070,8 @@ class SeedGenerator:
         self.reset(worried)
         keystoneCount = defaultdict(lambda: 0)
         mapstoneCount = defaultdict(lambda: 0)
-        # AP mode: generic keystones may not cross worlds (a native cross-world
-        # KS is invisible to AP logic) -- unless they're exported, in which
-        # case crossing is fine: the conversion pulls them into the AP pool
+        # AP mode: unexported generic keystones stay in their owner's world (AP logic can't see
+        # a native cross-world KS)
         from archipelago.convert import exports_generic_keystones
         ap_ks_pin = (getattr(self.params, "ap_mode", False) and self.seed_count > 1
                      and not exports_generic_keystones(self.params))
@@ -2200,7 +2086,6 @@ class SeedGenerator:
                 for item in self.params.locationAnalysis[location]:
                     self.params.locationAnalysisCopy[location][item] = self.params.locationAnalysis[location][item]
 
-        # flags line
         for p in self.multi_ps():
             self.seeds_text[p] += (self.params_for(p).flag_line(self.verbose_paths) + "\n")
 
@@ -2228,25 +2113,23 @@ class SeedGenerator:
 
                     while not relic_loc and len(locations):
                         next_loc = locations.pop()
-                        # Can't put a relic on a map turn-in
                         if next_loc.orig == "MapStone":
                             continue
-                        # Can't put a relic on a reserved preplacement location
                         # TODO: re-impl relics via preplacement
                         if (next_loc.player, next_loc.get_key()) in self.forcedAssignments:
                             continue
                         relic_loc = next_loc
                     self.relic_assign(relic_loc)
-            # Capture relic spoilers before the spoiler group is overwritten
+            # capture before spoilerGroup is replaced
             self.relicSpoiler = [(item, instance) for item in self.spoilerGroup.keys() if item[:2] == "WT" for instance in self.spoilerGroup[item]]
 
         self.place_repeatables()
-        # handle the fixed pickup: the forlorn escape plant (one per world)
+        # the Forlorn escape plant: fixed pickup, outside the pool and the location count
         for p in self.multi_ps():
             loc, item, zone = (-12320248, "EX100", "Forlorn")
             if (p, loc) in self.forcedAssignments:
                 item = self.forcedAssignments[(p, loc)]
-                del self.forcedAssignments[(p, loc)]  # don't count these ones
+                del self.forcedAssignments[(p, loc)]
             if item != "EX100" and tag(item, p) not in self.itemPool:
                 log.warning("Preplaced item %s was not in pool. Translation may be necessary." % item)
             ass, _ = self.get_assignment(loc, p, self.adjust_item(tag(item, p), zone), zone)
@@ -2257,17 +2140,12 @@ class SeedGenerator:
                 continue
             raw_item = self.forcedAssignments[(p, 2)]
             del self.forcedAssignments[(p, 2)]
-            # the seed text carries every world's shared spawn draws; each copy
-            # books (pool + spoiler) once, on the world that drew it
+            # the seed line carries every world's shared draws; pool and spoiler book only this world's
             book_item = self.spawn_book.get(p, raw_item)
             item = tag(raw_item, p)
             self.assign(tag(book_item, p))
             if book_item[0:2] in ["MU", "RP"] and tag(book_item, p) not in self.itemPool:
                 for multi_item in self.get_multi_items(book_item):
-                    # below should not be needed as get_multi_items() already does it, and repeating
-                    # it breaks shards names.
-                    #name = self.codeToName.get(multi_item, multi_item)
-                    #self.spoilerGroup[name].append(name + " preplaced at Spawn\n")
                     if not multi_item.startswith("WS"): # avoid dumb padding thing
                         self.append_spoiler(self.adjust_item(tag(multi_item, p), "Glades"), "Spawn")
             else:
@@ -2280,10 +2158,8 @@ class SeedGenerator:
             self.spoiler.append((["Spawn"], [], self.spoilerGroup))
             self.spoilerGroup = defaultdict(list)
 
-        # buried pseudo-locations: pull their items out of the pool now
-        # (invisible to random fill and to path forcing); unearth_buried
-        # returns them once enough locations are reachable. Multipickups
-        # bury each of their parts at the row's depth.
+        # buried items leave the pool (hidden from fill and path forcing) until unearth_buried;
+        # a multipickup buries each part at the row's depth
         for key in [k for k in self.forcedAssignments if k[1] >= BURIED_LOC_BASE]:
             p, loc = key
             depth = loc - BURIED_LOC_BASE
@@ -2293,14 +2169,12 @@ class SeedGenerator:
             parts = self.get_multi_items(base_v) if base_v[0:2] in ["MU", "RP"] else [base_v]
             for item in parts:
                 pool_k = self.pool_key(tag(item, fass_p))
-                # bury only what the pool gave up: unearth_buried returns
-                # every entry unconditionally
+                # bury only what the pool gave up: unearth_buried returns every entry
                 if self.itemPool.get(pool_k, 0) > 0:
                     self.itemPool[pool_k] -= 1
                     self.buried.append((depth, pool_k))
                     continue
-                # spawn takes the start teleporter and leaves the Glades one
-                # in the pool; a burial aimed at it follows that swap
+                # the start TP went to spawn and TPGlades took its pool slot
                 if item == "TP" + self.starts.get(fass_p, ""):
                     glades = self.pool_key(tag("TPGlades", fass_p))
                     if self.itemPool.get(glades, 0) > 0:
@@ -2309,9 +2183,7 @@ class SeedGenerator:
                         continue
                 log.warning("can't bury %s at depth %s: none left in the pool", pool_k, depth)
 
-        # forced-assignment pool bookkeeping. Values tagged with an owner
-        # (cross-world items) decrement that owner's pool entry; untagged
-        # values belong to the world they sit in.
+        # fass pool bookkeeping: an owner tag decrements the owner's entry, else the host world's
         for (p, loc), v in self.forcedAssignments.items():
             base_v, _, owner_v = v.partition("|")
             fass_p = int(owner_v) if owner_v else p
@@ -2342,7 +2214,7 @@ class SeedGenerator:
 
         for p in self.multi_ps():
             if self.var(Variation.OPEN_WORLD, p):
-                # We remove the keystone connection, and create a new connection that is free.
+                # the first Glades keystone door is free
                 for connection in list(self.get_area("GladesFirstKeyDoor", p).connections):
                     if connection.target == tag("GladesFirstKeyDoorOpened", p):
                         self.get_area("GladesFirstKeyDoor", p).remove_connection(connection)
@@ -2366,8 +2238,7 @@ class SeedGenerator:
 
             self.reach_area(tag(self.spawn_logic_areas[self.starts[p]], p))
 
-        # every remaining location gets EXP; each world's final escape adds one
-        # more item slot (warmth returned)
+        # EXP fills the rest; each world's final escape is one slot beyond locations()
         self.expSlots = {p: 0 for p in self.multi_ps()}
         slots_to_fill = self.locations() - sum([v for v in self.itemPool.values()]) - len(self.buried) + self.seed_count
         for p in self.multi_ps():
@@ -2381,7 +2252,6 @@ class SeedGenerator:
             if locs != self.items() - self.seed_count:  # each world's final escape holds one extra item
                 log.warning("Item (%s) /Location (%s) desync!", self.items(), self.locations())
             self.balanceLevel += 1
-            # open all paths that we can already access
             opening = True
             while opening:
                 (opening, keys, mapstones) = self.open_free_connections()
@@ -2400,10 +2270,7 @@ class SeedGenerator:
             if self.buried:
                 self.unearth_buried()
 
-            # if there aren't any doors to open, it's time to get a new skill
-            # consider -- work on stronger anti-key-lock logic so that we don't
-            # have to give keys out right away (this opens up the potential of
-            # using keys in the wrong place, will need to be careful)
+            # nothing to open and nowhere to place: force progression
             if (not any(self.doorQueue[p] and self.inventory[tag("KS", p)] >= keystoneCount[p] for p in self.multi_ps())
                     and not any(self.mapQueue[p] and self.inventory[tag("MS", p)] >= mapstoneCount[p] for p in self.multi_ps())
                     and not reset_loop and len(locationsToAssign) == 0):
@@ -2415,24 +2282,21 @@ class SeedGenerator:
                     for item in self.assignQueue:
                         if len(self.balanceList) == 0:
                             break
-                        # forced progression for a still-opening world steals
-                        # back one of that world's own filled slots
+                        # an opening world's forced progression prefers reclaiming its own slot
                         locationsToAssign.append(self.get_location_from_balance_list(self.anti_bk_home(item)))
                 if not self.assignQueue:
-                    # we've painted ourselves into a corner, try again
+                    # cornered: start over
                     if depth > max(self.seed_count * self.seed_count, 1):
                         return
                     return self.placeItems(depth + 1, worried)
 
-            # pick what we're going to put in our accessible space
             itemsToAssign = []
             ks_deficit = sum(max(keystoneCount[p] - self.inventory[tag("KS", p)], 0) for p in self.multi_ps())
             ms_deficit = sum(max(mapstoneCount[p] - self.inventory[tag("MS", p)], 0) for p in self.multi_ps())
             need = len(self.assignQueue) + ks_deficit + ms_deficit
             if ap_ks_pin:
-                # keystones their owner's world can't host this round defer
-                # instead of demanding space -- but an empty round against a
-                # real need must still corner
+                # unhostable keystones defer instead of demanding space; an empty round
+                # against real need still corners
                 q_ks = Counter(untag(it)[1] for it in self.assignQueue if base_of(it) == "KS")
                 blocked = 0
                 for p in self.multi_ps():
@@ -2444,7 +2308,7 @@ class SeedGenerator:
             else:
                 cornered = len(locationsToAssign) < need
             if cornered:
-                # we've painted ourselves into a corner, try again
+                # spend the reserved pair, else start over
                 if not self.reservedLocations:
                     if depth > max(self.seed_count * self.seed_count, 1):
                         return
@@ -2456,8 +2320,7 @@ class SeedGenerator:
                 if self.assignQueue:
                     qi = 0
                     if ap_ks_pin:
-                        # skip queued keystones their owner's world can't host
-                        # this round; they stay queued for a later one
+                        # skip (but keep queued) keystones their owner's world can't host this round
                         while qi < len(self.assignQueue):
                             base, qp = untag(self.assignQueue[qi])
                             if base == "KS":
@@ -2474,8 +2337,7 @@ class SeedGenerator:
                 for p in self.multi_ps():
                     if self.inventory[tag("KS", p)] < keystoneCount[p]:
                         if ap_ks_pin:
-                            # only force a KS its owner's world can host this
-                            # round; otherwise defer (the door stays shut)
+                            # force only a KS its owner's world can host; else the door stays shut
                             cap = self.ap_ks_cap(p, itemsToAssign + self.assignQueue, locationsToAssign)
                             held = sum(1 for it in itemsToAssign if it == tag("KS", p))
                             if held >= cap:
@@ -2486,20 +2348,18 @@ class SeedGenerator:
                         itemsToAssign.append(self.assign(tag("MS", p)))
                         break
                     elif (self.inventory[tag("HC", p)] - 2) * self.params_for(p).cell_freq < (self.total_locs() - locs) and self.itemPool[tag("HC", p)] > 0:
-                        # Subtract starting health cells from this count or else forcing doesn't work
-                        # Then add one because we want to compare "how many pickups should it take to get the next health" to the number we've placed
+                        # -2: the 3 starting cells don't count, plus one for the next cell
                         itemsToAssign.append(self.assign(tag("HC", p)))
                         break
                     elif self.inventory[tag("EC", p)] * self.params_for(p).cell_freq < (self.total_locs() - locs) and self.itemPool[tag("EC", p)] > 0:
-                        # *Don't* add one because we don't want the first forced EC at the start to count against the forcing frequency
+                        # no +1: the first EC is forced immediately
                         itemsToAssign.append(self.assign(tag("EC", p)))
                         break
                     elif self.itemPool.get(tag("RB28", p), 0) > 0 and self.itemPool[tag("RB28", p)] >= locs:
                         itemsToAssign.append(self.assign(tag("RB28", p)))
                         break
                 else:  # no per-world forcing fired; place something random
-                    # drain balance leftovers as the pool runs dry (each world's
-                    # final escape will absorb one more item after this loop)
+                    # drain balance leftovers as the pool runs dry (finales take one more each)
                     if self.balanceListLeftovers and self.items(include_balanced=False) < 1 + self.seed_count:
                         itemsToAssign.append(self.balanceListLeftovers.pop(0))
                     else:
@@ -2513,7 +2373,7 @@ class SeedGenerator:
                                                                 opening_hostless=self.anti_bk_hostless(itemsToAssign, locationsToAssign),
                                                                 local_blocked=self.local_blocked(itemsToAssign, locationsToAssign)))
 
-            # force assign things if using --prefer-path-difficulty
+            # prefer_path_difficulty places skills and events by location difficulty
             for item in list(itemsToAssign):
                 if self.params_for(untag(item)[1]).path_diff == PathDifficulty.NORMAL:
                     continue
@@ -2521,7 +2381,6 @@ class SeedGenerator:
                     self.preferred_difficulty_assign(item, locationsToAssign)
                     itemsToAssign.remove(item)
 
-            # shuffle the items around and put them somewhere
             self.random.shuffle(itemsToAssign)
             if ap_ks_pin and not self.ap_fix_ks_pairing(itemsToAssign, locationsToAssign):
                 # a keystone has no accessible spot in its owner's world
@@ -2535,8 +2394,7 @@ class SeedGenerator:
 
             self.spoiler.append((self.currentAreas, spoilerPath, self.spoilerGroup))
 
-            # open all reachable doors (for the next iteration); KS before MS
-            # per player, the order the twin blocks always ran in
+            # open affordable doors for the next round; KS before MS per world (order is pinned)
             for p in self.multi_ps():
                 for key, queue, need in (("KS", self.doorQueue, keystoneCount),
                                          ("MS", self.mapQueue, mapstoneCount)):
@@ -2564,11 +2422,11 @@ class SeedGenerator:
             for (_, loc, assignment, _) in self.balanceList:
                 self.seeds_text[loc.player] += assignment
 
-        # place the last item on each world's final escape
+        # each world's final escape takes one more item, never onto the balance list
         balanced = self.params.balanced
         self.params.balanced = False
         for p in self.multi_ps():
-            # the finale is placed outside the fill loop, so its fass lands here or nowhere
+            # outside the fill loop, so its fass lands here or nowhere
             finale = Location(-240, 512, 'FinalEscape', 'EVWarmth', 0, 'Horu', p)
             fass_key = (p, finale.get_key())
             if fass_key in self.forcedAssignments and fass_key not in self.forceAssignedLocs:
@@ -2579,12 +2437,11 @@ class SeedGenerator:
                 if self.itemPool[item] > 0:
                     if ap_ks_pin and base_of(item) == "KS" and untag(item)[1] != p:
                         continue  # AP mode: keystones stay in their owner's world
-                    # decrement, or every world's finale gets a copy of the
-                    # same item while other leftovers are dropped
+                    # decrement, or every finale takes a copy of the same item
                     self.itemPool[item] -= 1
                     self.assign_to_location(item, Location(-240, 512, 'FinalEscape', 'EVWarmth', 0, 'Horu', p))
                     break
-            else:  # In python, the else clause of a for loop triggers if the loop completed without breaking, e.g. we found nothing in the item pool
+            else:  # the pool is empty
                 if len(self.balanceListLeftovers) > 0:
                     item = self.balanceListLeftovers.pop(0)
                     log.info("Empty item pool: placing %s from balanceListLeftovers onto warmth returned.", item)
@@ -2597,8 +2454,7 @@ class SeedGenerator:
         if ap_ks_pin:
             stranded = {k: v for k, v in self.itemPool.items() if v > 0 and base_of(k) == "KS"}
             if stranded:
-                # every finale went to another item; dropping a KS would break
-                # the per-world 40-keystone accounting, so regenerate instead
+                # dropping a KS would break the per-world 40-keystone count; regenerate
                 log.info("AP mode: keystones stranded after finale placement (%s), retrying", stranded)
                 return
 
@@ -2641,8 +2497,7 @@ class SeedGenerator:
           name, _, loc = instance.partition("!PDPLC!-")
           return name + (2+self.padding - len(name))*" " + loc
         i = 0
-        # keys have been (world, loc) tuples since the MW rework; the old
-        # bare-int check dated from when a location was the whole key
+        # a spawn preplacement adds a group; preplaced keys are (world, loc)
         groupDepth = -1 if any(loc == 2 for _, loc in self.preplaced) else 0
         spoilerStr = ""
 

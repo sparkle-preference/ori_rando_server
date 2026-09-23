@@ -25,8 +25,7 @@ const counts = {
   "bonus": { "RB|31": 1, "RB|32": 1, "RB|33": 3, "RB|36": 1, "RB|6": 5, "RB|12": 5, "RB|101": "*", "RB|102": "*", "RB|103": "*", "RB|104": "**", "RB|105": "**", "RB|106": "*", "RB|107": "*", "RB|109": "*", "RB|110": "*", "RB|111": "***", "RB|113": "***"},
 }
 const buttonHolder="mt-0 pt-0 pb-0 mb-0 text-center border-none"
-// spoiler-tagged hint: the label toggles it. (It used to be white-on-white,
-// which only hid anything in light mode.)
+// spoiler-tagged hint: the label toggles it
 class Hint extends React.Component {
     state = {shown: false}
     toggle = (e) => {

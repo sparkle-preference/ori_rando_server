@@ -231,10 +231,6 @@ const select_styles = {
     borderBottom: '1px dotted pink',
     color: 'black',
   }),
-//   multiValue: (base, _) => ({
-//     ...base,
-//     color: 'black',
-//   }),
   }
 const select_wrap = x => Array.isArray(x) ? x.map(select_wrap) : {label: x, value: x}
 const goToCurry = (url) => () => { window.location.href = url } 

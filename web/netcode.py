@@ -1,10 +1,6 @@
-"""Thin HTTP adapters over the transport-neutral session layer.
+"""HTTP adapters over netcode.py: parse, delegate, wrap. Behavior belongs in netcode.py.
 
-Parse transport params, delegate, wrap the (status, body) it hands back --
-nothing else. New netcode behavior belongs in the top-level netcode.py, which
-knows nothing about Flask and is tested without a request context.
-
-`import netcode` below is the top-level module, not this one: absolute imports.
+`import netcode` below is the top-level module, not this one.
 """
 from flask import Blueprint, request
 
@@ -15,11 +11,6 @@ from web.extensions import sock
 from web.responses import json_resp, text_resp
 
 bp = Blueprint("netcode", __name__)
-
-
-# Client-netcode routes are thin HTTP adapters over the transport-neutral
-# session layer in netcode.py: parse transport params, delegate, wrap
-# (status, body) â€” nothing else. New netcode behavior belongs in netcode.py.
 
 
 @bp.route('/netcode/game/<int:game_id>/player/<int:player_id>/found/<coords>/<kind>/<path:id>/')
@@ -59,8 +50,7 @@ def netcode_connect(game_id, player_id):
 def netcode_get_areas_dot_ori():
     return text_resp(Cache.get_areas())
 
-# Archipelago link management (kill-switched in the session layer: with
-# ARCHIPELAGO unset every route 404s).
+# Archipelago link management; every route 404s unless ARCHIPELAGO is set
 
 
 @bp.route('/netcode/game/<int:game_id>/ap/connect', methods=['POST'])
@@ -92,8 +82,7 @@ def netcode_ap_disconnect(game_id):
     status, body = netcode.ap_disconnect(game_id)
     return text_resp(body, status)
 
-# websocket transport. The route body lives in ws.py; each connection pins a
-# gunicorn thread until it closes, capped by util.WS_CONN_LIMIT.
+# each open socket pins a gunicorn thread, capped by util.WS_CONN_LIMIT
 
 
 @sock.route('/netcode/game/<int:game_id>/player/<int:player_id>/ws')

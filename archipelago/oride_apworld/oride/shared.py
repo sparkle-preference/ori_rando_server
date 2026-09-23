@@ -45,15 +45,8 @@ KEYSANITY_TOKENS = {
 # variation-flag pseudo-tokens, resolved from the yaml's variations dict
 VARIATION_TOKENS = {"Open": "open", "OpenWorld": "open_world", "Keysanity": "keysanity"}
 
-# Generic-keystone door edges in canonical order, with in-game key costs.
-# When generic Keystones ride the AP pool, doors can't use face costs (any
-# spend order must stay safe), so each door requires the CUMULATIVE cost of
-# its tier prefix: at count C every door you could have opened lies in the
-# prefix whose total is <= C, so the door in front of you is always payable.
-# Any fixed order is sound -- the seed's yaml/flagline carry per-world tiers
-# ranked by the generator's own walk (spawn, TPs and logic shape it), and
-# this list is the POSITION identity for those values plus the fallback
-# ranking when no walk order is available. Append, don't reorder.
+# generic-keystone doors with face costs. A door requires the cumulative cost of its tier
+# prefix; this order is the wire position of per-seed tiers and the fallback ranking. Append only.
 KEYSTONE_DOORS = [
     ("GladesFirstKeyDoor", "GladesFirstKeyDoorOpened", 2),
     ("SpiritCavernsDoor", "SpiritCavernsDoorOpened", 2),
@@ -71,9 +64,8 @@ KEYSTONE_DOORS = [
 
 
 def keystone_door_tiers(variations):
-    """(home, target) -> cumulative threshold, for doors live under these
-    (apworld-form) variations. OpenWorld pre-opens the Glades door, which
-    also shifts every later tier down by its cost."""
+    """(home, target) -> cumulative threshold for doors live under these
+    variations; OpenWorld's open Glades door drops out of the sum."""
     tiers, total = {}, 0
     for home, target, cost in KEYSTONE_DOORS:
         if variations.get("open_world") and home == "GladesFirstKeyDoor":

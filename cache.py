@@ -13,10 +13,8 @@ class MemcachedCache(object):
     """Used to interact with memcache"""
 
     def __init__(self, host, port):
-        # PooledClient because gunicorn runs 1 worker x 8 threads (see Dockerfile) and
-        # the plain Client shares one socket across threads — interleaved commands
-        # desync the protocol (the historical MemcacheUnknownError with another
-        # response's bytes in it). ignore_exc turns get-side failures into misses.
+        # pooled: a plain Client shares one socket across threads, and interleaved commands
+        # desync the protocol. ignore_exc turns get failures into misses.
         self.memcache = PooledClient((host, port), serde=serde.pickle_serde,
                                      max_pool_size=16, ignore_exc=True)
 
@@ -27,15 +25,11 @@ class MemcachedCache(object):
             return None
 
     def san_check(self, gid):
-        # noreply=False is required: with pymemcache's default noreply, add()
-        # always returns True, so this rate limit silently never limited anything
+        # noreply=False, or add() always returns True
         return self.memcache.add(key="%s.san" % gid, value=True, expire=10, noreply=False)
 
     def second_strike(self, gid):
-        # True only when called twice within the window: first call plants the
-        # flag (add succeeds) and returns False; a repeat within 30s finds it.
-        # Used to gate sanity_check on persistent (not transient) desyncs.
-        # noreply=False for the same reason as san_check above.
+        # True only on a repeat within 30s, so sanity_check skips transient desyncs
         return not self.memcache.add(key="%s.strike" % gid, value=True, expire=30, noreply=False)
 
     def current_gid(self):
@@ -51,9 +45,7 @@ class MemcachedCache(object):
             self.memcache.set(key="%s.latest_bingo" % user, value=gid, expire=604800)
         self.memcache.set(key="%s.latest" % user, value=gid, expire=604800)
 
-    # bingo key only, short TTL: this is a *derived* answer (walking a user's
-    # game list), so it must not claim to be their latest game overall, and
-    # it re-derives hourly in case some path adds a board without joining it
+    # derived from the user's game list, so bingo key only and a short TTL
     def set_latest_bingo_game(self, user, gid, expire=3600):
         self.memcache.set(key="%s.latest_bingo" % user, value=gid, expire=expire)
 
@@ -63,17 +55,13 @@ class MemcachedCache(object):
     def clear_latest(self, user):
         self.memcache.delete(key="%s.latest" % user)
 
-    # a game list needs exactly two small things from a seed -- its flag line
-    # and whether it's a race -- out of an entity that is ~250KB of placements
-    # and spoilers. Params are immutable once generated (the lone mutate-and-
-    # put site busts this on put), so cache the pair and never inflate.
+    # (flag line, is_race) per params, so game lists never inflate a ~250KB seed.
+    # Params are immutable except one put site, which busts this.
     def get_game_flags(self, params_id):
         return self.memcache_get(key="%s.gameflags" % params_id)
 
     def set_game_flags(self, params_id, flags, is_race):
-        # an hour, not a day: a render that reads the entity just before a
-        # concurrent put busts this can re-plant the pre-mutation pair, and
-        # nothing busts it again (the mutating put has already happened)
+        # short TTL: a render racing the mutating put can re-plant the old pair
         self.memcache.set(key="%s.gameflags" % params_id, value=(flags, is_race), expire=3600)
 
     def clear_game_flags(self, params_id):
@@ -82,10 +70,8 @@ class MemcachedCache(object):
     def set_gid(self, gid):
         self.memcache.set(key="gid_max", value=int(gid))
 
-    # --- per-player keys ({gid}.{pid}.{suffix}) plus a pid registry ({gid}.pids)
-    # so map-shaped readers know which keys to gather. Registration is lazy and
-    # self-healing: a lost registry update is repaired by that player's next
-    # write (~1/s).
+    # --- per-player keys ({gid}.{pid}.{suffix}) plus a {gid}.pids registry for map readers.
+    # Registration is lazy; a lost update is repaired by that player's next write.
     def _pids(self, gid):
         return [int(p) for p in (self.memcache_get(key="%s.pids" % gid) or [])]
 
@@ -111,8 +97,7 @@ class MemcachedCache(object):
         self.memcache.set(key="%s.%s.hist" % (gid, pid), value=hist, expire=14400)
 
     def append_hl(self, gid, pid, hl):
-        # RMW on a single player's key: the only concurrent writers are that
-        # player's own requests plus the (rate-limited) sanity check
+        # unlocked RMW; the writers are this player's own requests and the sanity check
         self._register_pid(gid, pid)
         hist = self.memcache_get(key="%s.%s.hist" % (gid, pid)) or []
         hist.append(hl)
@@ -125,8 +110,7 @@ class MemcachedCache(object):
         return self._map_get(gid, "reach")
 
     def set_reachable(self, gid, reachable):
-        # merge semantics: only the given players are written. Callers may pass a
-        # subset (e.g. just-recomputed players) without clobbering the others.
+        # merge: only the given players are written
         for pid, val in reachable.items():
             self._register_pid(gid, pid)
             self.memcache.set(key="%s.%s.reach" % (gid, pid), value=val, expire=7200)
@@ -175,8 +159,7 @@ class MemcachedCache(object):
         return self.memcache_get(key="%s.board" % gid)
 
     def set_board(self, gid, board):
-        # is_owner is viewer-specific and must never be served from cache;
-        # clients keep their value from the initial (cache-bypassing) fetch
+        # is_owner is per-viewer; clients keep the one from their uncached first fetch
         board.pop("is_owner", None)
         return self.memcache.set(key="%s.board" % gid, value=board, expire=60)
 
@@ -203,9 +186,7 @@ class MemcachedCache(object):
     def clear_names(self, gid):
         self.memcache.delete(key="%s.names" % gid)
 
-    # APNames row text per (game, world): rescouts are rare, readers are not
-    # (every download, spoiler and hint resolution). Writers bust; the TTL is
-    # a backstop.
+    # APNames row text per (game, world); writers bust, the TTL is a backstop
     def get_ap_row(self, gid, world):
         return self.memcache_get(key="%s.%s.aprow" % (gid, world))
 
@@ -215,10 +196,8 @@ class MemcachedCache(object):
     def clear_ap_row(self, gid, world):
         self.memcache.delete(key="%s.%s.aprow" % (gid, world))
 
-    # ap/status report text per game: the AP panel polls every 5s per open
-    # tab. Every APLink put busts (post-put hook + post-txn bust); the TTL is
-    # a backstop. "-" is a negative entry: no link row exists for this game
-    # (short TTL: a connect racing a poll can pin a stale "-").
+    # ap/status report text; every APLink put busts it. "-" means no link row, with a
+    # short TTL since a connect racing a poll can pin it.
     def get_aplink_report(self, gid):
         return self.memcache_get(key="%s.aplink" % gid)
 
@@ -228,9 +207,7 @@ class MemcachedCache(object):
     def clear_aplink_report(self, gid):
         self.memcache.delete(key="%s.aplink" % gid)
 
-    # cross-process activity beacon: active heals stamp it (throttled), the
-    # bridge's idle verdict reads it -- the process-local clock alone could
-    # call a live game idle from a twin that serves no requests
+    # cross-process activity beacon: active heals stamp it, the bridge's idle check reads it
     def get_ap_active(self, gid):
         return self.memcache_get(key="%s.apactive" % gid)
 
@@ -248,8 +225,7 @@ class MemcachedCache(object):
 
     def clear_seen_checksum(self, gpid):
         self.memcache.delete(key="%s.%s.seenhash" % gpid)
-        # a busted checksum means this player's next tick output changed;
-        # the ws layer (if push is on) sends them that tick right now
+        # the next tick body changed; push it now if the player has a socket
         push.notify(gpid)
 
     def remove_game(self, gid):
@@ -266,12 +242,7 @@ class MemcachedCache(object):
 
 DEFAULT_TIME = 604800
 class TLRUCacheWithCustomExpiry(TLRUCache):
-    """Dev-only in-process stand-in for memcached with per-item TTLs.
-
-    (Rewritten 2026-07-20: the previous version hand-copied TLRUCache internals,
-    but name mangling and a zero-arg ttu meant it raised on every set. Prod is
-    unaffected — MemcachedCache is used whenever MEMCACHED_HOST is set.)
-    """
+    """Dev-only in-process stand-in for memcached with per-item TTLs."""
 
     def __init__(self, maxsize, timer=time.monotonic, getsizeof=None):
         super().__init__(maxsize, ttu=self._ttu, timer=timer, getsizeof=getsizeof)
@@ -288,8 +259,7 @@ class TLRUCacheWithCustomExpiry(TLRUCache):
         return True
 
     def set(self, key, value, time=DEFAULT_TIME):
-        # route the per-call TTL to _ttu via instance state; dev-server only,
-        # so the non-thread-safety of this handoff is acceptable
+        # per-call TTL reaches _ttu via instance state: not thread-safe, dev only
         self._next_ttl = time
         try:
             self[key] = value
@@ -304,7 +274,7 @@ class TLRUCacheWithCustomExpiry(TLRUCache):
 
 
 class PythonCache(object):
-    """Used to interact with memcache"""
+    """In-process dev cache with MemcachedCache's interface."""
 
     def __init__(self):
         self.cache = TLRUCacheWithCustomExpiry(2048)
@@ -370,8 +340,7 @@ class PythonCache(object):
         return self.cache.get(key="%s.reach" % gid) or {}
 
     def set_reachable(self, gid, reachable):
-        # merge semantics to match MemcachedCache — callers may pass subsets.
-        # (dev cache keeps map storage; prod stores per-player keys)
+        # merge, like MemcachedCache
         reach_map = self.get_reachable(gid) or {}
         reach_map.update({int(p): v for p, v in reachable.items()})
         self.cache.set(key="%s.reach" % gid, value=reach_map, time=7200)
@@ -483,9 +452,7 @@ class PythonCache(object):
         self.cache.set(key="%s.%s.seenhash" % gpid, value=seen_checksum, time=360)
 
     def clear_seen_checksum(self, gpid):
-        # tolerate missing keys, like memcached delete (a bare del raised
-        # KeyError whenever no checksum was armed, e.g. signal_send on a
-        # player who hadn't ticked yet -- dev-only crash)
+        # tolerate a missing key, like memcached delete
         self.cache.pop("%s.%s.seenhash" % gpid, None)
         push.notify(gpid)  # see MemcachedCache.clear_seen_checksum
 

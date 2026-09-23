@@ -8,32 +8,19 @@ import Select from 'react-select';
 import {Button, Collapse, Container, Row, Col, Input, UncontrolledButtonDropdown, DropdownToggle, DropdownMenu, DropdownItem} from 'reactstrap';
 import Control from 'react-leaflet-control';
 import {Helmet} from 'react-helmet';
-// import ItemTracker from './ItemTracker.js'
 
 const paths = Object.keys(presets);
 
-// seed_loaded, not the size of seed: an empty seed is a valid answer, and a
-// size test re-requests it forever
+// an empty seed is a valid answer, so loading is tracked by seed_loaded
 const EMPTY_PLAYER = {seed: {}, seed_loaded: false, pos: [-210, 189], seen:[], show_marker: true, hide_found: true, hide_unreachable: true, spoiler: false, hide_remaining: false, sense: false, areas: []}
 
-// function get_inner(id) {
-// 	return (
-// 	<Tooltip>
-// 	<span>{id}</span>
-// 	</Tooltip>
-// 	);
-// };
-
-// A poll's worth of movement, walked instead of teleported. Deliberately
-// uncapped in distance: a rocket jump really does cross that much map in a
-// second, and a cap would rubber-band the fastest movement in the game.
+// marker tween duration bounds (ms); distance is uncapped so fast movement never rubber-bands
 const LERP_MIN = 100
 const LERP_MAX = 2000
 const LERP_FIRST = 1000
 const samePos = (a, b) => !!a && !!b && a[0] === b[0] && a[1] === b[1]
 
-// Animating in this leaf's own state keeps the frame loop off GameTracker,
-// whose render walks every pickup on the map.
+// animates in its own state so the frame loop never re-renders GameTracker
 class PlayerMarker extends React.Component {
     state = {pos: this.props.position}
 
@@ -42,8 +29,7 @@ class PlayerMarker extends React.Component {
         if(samePos(position, prev.position))
             return
         let now = Date.now()
-        // tween over the gap the updates are actually arriving at, so the icon
-        // is still moving when the next one lands rather than waiting for it
+        // tween over the observed update interval so the icon never stalls between polls
         this.ms = this.at ? Math.min(LERP_MAX, Math.max(LERP_MIN, now - this.at)) : LERP_FIRST
         this.at = now
         // the wire carries pos as formatted strings, and `+` would concatenate
@@ -278,12 +264,8 @@ const DEFAULT_VIEWPORT = {
 const RETRY_MAX = 60;
 const TIMEOUT_START = 5;
 const TIMEOUT_INC = 5;
-// Idle backoff: a tracker left open on a finished game (an OBS source nobody
-// closed, say) walks down this ladder instead of polling 1Hz forever, and any
-// change at all snaps it straight back to live. [idle seconds before this
-// tier, seconds per poll]. The slowest tier is deliberately only 10s: it also
-// caps how long a restarted race, or a usermap redirect to a new game, can go
-// unnoticed on an overlay left up between races.
+// [idle seconds before this tier, seconds per poll]; any change snaps back to 1Hz.
+// The slowest tier bounds how late an idle overlay notices a new game.
 const IDLE_TIERS = [[600, 10], [120, 3]];
 
 const crs = getMapCrs();
@@ -297,7 +279,7 @@ class GameTracker extends React.Component {
         players: {}, follow: url.searchParams.get("follow") || -1, retries: 0, check_seen: 1, modes: modes, timeout: TIMEOUT_START, searchStr: "", seed_reqs: {},
         show_sidebar: !url.searchParams.has("hideSidebar"), idle_countdown: 10800, bg_update: true, show_tracker: !url.searchParams.has("hideTracker"),
         open_world: false, closed_dungeons: false, pathMode: get_preset(modes), hideOpt: "all", display_logic: false,  viewport: {center: [0, 0], zoom: 5}, usermap: url.searchParams.get("usermap") || "",
-        /*tracker_data: {events: [], teleporters: [], shards: {gs: 0, ss: 0, wv: 0}, skills: [], maps: 0,relics_found: [], relics: [], trees: []},*/ gameId: get_param("game_id")
+        gameId: get_param("game_id")
     };
   };
 
@@ -313,12 +295,8 @@ class GameTracker extends React.Component {
   timeout = () => {
   	return {retries: this.state.retries+1, check_seen: this.state.timeout, timeout: this.state.timeout+TIMEOUT_INC, seed_reqs: {}}
   };
-  // The update payload carries no timestamp, so what it renders IS the
-  // liveness signal. Everything order-unstable is sorted before comparing:
-  // the players dict comes from a memcache multi-get with no contractual key
-  // order, and `reachable` is a Python set serialized to a list, so its order
-  // moves with PYTHONHASHSEED (i.e. per container). A reordered-but-identical
-  // body must not read as activity.
+  // What renders is the liveness signal. Key order and `reachable` (a Python set)
+  // vary per container, so both are sorted or a reordered body reads as activity.
   updateSignature = (players) => JSON.stringify(
     Object.keys(players || {}).sort().map(pid => {
         let p = players[pid] || {}
@@ -332,17 +310,13 @@ class GameTracker extends React.Component {
         this.lastChangeAt = Date.now()
     }
   };
-  // seconds per poll for the current idle streak. Measured in wall time, not
-  // ticks: a throttled tab fires its interval irregularly, and what matters
-  // is how long the game has actually been quiet.
+  // seconds per poll; idle is wall time since a throttled tab fires its interval irregularly
   idlePeriod = () => {
     let idle = (Date.now() - (this.lastChangeAt || Date.now())) / 1000
     let tier = IDLE_TIERS.find(([after]) => idle >= after)
     return tier ? tier[1] : 1
   };
-  // half-second slack: lastFetchAt is stamped inside a 1000ms interval whose
-  // callbacks drift, and without it a fetch that ran late pushes every later
-  // period out by a whole tick
+  // half-second slack absorbs interval drift, or one late fetch delays every later period
   dueForUpdate = () => Date.now() - (this.lastFetchAt || 0) >= this.idlePeriod() * 1000 - 500;
   tick = () => {
     let update = {}
@@ -364,9 +338,7 @@ class GameTracker extends React.Component {
             if(this.dueForUpdate()) {
                 this.lastFetchAt = Date.now()
                 this.getUpdate(this.timeout);
-                // in-flight is per player: a single shared flag lets the fastest
-                // response re-arm the whole batch, hitting the server hardest
-                // exactly when it is slowest
+                // in-flight is per player, so one fast reply can't re-arm the whole batch
                 let reqs = null;
                 Object.keys(players).forEach((id) => {
                     if(players[id].seed_loaded || seed_reqs[id])
@@ -468,11 +440,6 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
                         <Col className="p-2"><Button block onClick={() => this.setState({show_sidebar: false})}>Hide Sidebar</Button></Col>
                         <Col className="p-2"><Button block color="primary" active={this.state.show_tracker} onClick={() => this.setState({show_tracker: !this.state.show_tracker})}>{`${this.state.show_tracker ? "Hide" : "Show"} Tracker`}</Button></Col>
                         </Row>
-                        {/*<Row>
-                            <Collapse className="w-100 h-100" isOpen={this.state.show_tracker}>
-                            <ItemTracker embedded data={this.state.tracker_data}/>
-                            </Collapse>
-                        </Row>*/}
                         {player_opts}
                         {hideopts}
                         <Row className="pt-2">
@@ -548,7 +515,7 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
                         players[pid].pos = pos
                         
 					})
-					return {players: players, /*tracker_data: update.items, */retries: 0, timeout: TIMEOUT_START }
+					return {players: players, retries: 0, timeout: TIMEOUT_START }
 				})
         }
         let modes = this.state.modes.join("+")
@@ -595,8 +562,7 @@ function doNetRequest(onRes, setter, url, timeout)
         xmlHttp.onreadystatechange = function() {
             try {
                 if (xmlHttp.readyState === 4) {
-                    // any error backs off: a 429/5xx reaching onRes just dies
-                    // in JSON.parse and never slows the loop
+                    // error statuses back off here; onRes would only die in JSON.parse
                     if(xmlHttp.status >= 400)
                         setter(timeout());
                     else
@@ -606,7 +572,7 @@ function doNetRequest(onRes, setter, url, timeout)
                 console.log(`netCallback: ${err} status ${xmlHttp.statusText}`)
             }
         }
-        xmlHttp.open("GET", url, true); // true for asynchronous
+        xmlHttp.open("GET", url, true);
         xmlHttp.send(null);
     } catch(e) {
         console.log(`doNetRequest: ${e}`)

@@ -57,9 +57,8 @@ const shortVersion = (v) => {
     return rev ? `${short}+${rev}` : short
 };
 
-// Within a category: Features, then Bugfixes, then changes that are neither
-// (credits, an event ending, an option being retired). Archipelago sinks to the
-// bottom of whichever section it lands in -- it's still alpha.
+// Within a category: Features, then Bugfixes, then the rest; Archipelago entries
+// sink to the bottom of their section.
 const TYPE_RANK = {feature: 0, fix: 1};
 const sortKey = (c) => [
     (c.tags || []).includes("Archipelago") ? 1 : 0,

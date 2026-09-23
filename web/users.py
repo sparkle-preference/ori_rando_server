@@ -1,9 +1,7 @@
 """Who the visitor is: the guest seat, the beta claim, and account settings.
 
-_seat_guest is a before_app_request and its ordering is load-bearing -- it has
-to register after flask-oidc's own hook so its g.oidc_user assignment wins.
-create_app inits the extensions before it registers any blueprint, which is
-what keeps that true.
+_seat_guest must run after flask-oidc's before_request so its g.oidc_user wins;
+create_app keeps that order by initing extensions before any blueprint.
 """
 import hmac
 import io
@@ -31,8 +29,7 @@ bp = Blueprint("users", __name__)
 
 
 def _guest_seat_live():
-    """The three latches the guest seat runs on. Prod fails two: real OIDC wins
-    outright, and a non-dev revision refuses even a stray GUEST_USERS=1."""
+    """Guest seats need GUEST_USERS, a dev revision, and OIDC off; prod fails the last two."""
     return bool(util.GUEST_USERS and debug()
                 and not current_app.config.get("OIDC_ENABLED"))
 
@@ -49,25 +46,20 @@ class _GuestUser(object):
 
 @bp.before_app_request
 def _seat_guest():
-    # create_app inits flask-oidc, so this registers second and its g.oidc_user wins.
-    # util.GUEST_USERS is read live: tests flip it per case. Three latches, and
-    # prod fails two: real OIDC wins outright, and a non-dev revision refuses
-    # even a stray GUEST_USERS=1
+    # util.GUEST_USERS is read live: tests flip it per case
     if not _guest_seat_live():
         return
     sub = session.get("guest_sub")
     if not sub:
         sub = "guest-%s" % uuid4().hex[:12]
         session["guest_sub"] = sub
-        session.permanent = True  # a month, not a tab: rejoining keeps your games
+        session.permanent = True  # outlives the tab: rejoining keeps your games
     g.oidc_user = _GuestUser(sub)
 
 
 @bp.route('/beta/claim/<secret>')
 def beta_claim(secret):
-    """Point this browser's guest session at the shared testing account, so
-    the one tester who knows the secret keeps its presets and games while
-    everyone else stays a guest. Same latches as the guest seat itself."""
+    """Seat this browser on the shared testing account; same latches as the guest seat."""
     want = os.getenv("GUEST_CLAIM_SECRET")
     if not (want and _guest_seat_live()):
         return text_resp("Nothing here", 404)
@@ -84,8 +76,7 @@ def _zip_safe(name):
 
 @bp.route('/user/export')
 def user_export():
-    """Everything you made here, in one zip. A beta account is a cookie, and
-    cookies go missing."""
+    """Everything this user made, in one zip: a beta account is only a cookie."""
     if not util.BETA_OF:
         return text_resp("Nothing here", 404)
     user = User.get()
@@ -204,7 +195,7 @@ def user_set_settings():
     for key, spec in USER_SETTINGS.items():
         if key in request.form:
             raw = request.form[key].strip()
-            # the default's type is the setting's type, so registering one stays the whole job
+            # a setting's type is its default's type
             want = (raw.lower() not in ("0", "false", "no", "off", "")
                     if isinstance(spec["default"], bool) else raw[:MAX_SETTING_LEN])
             if want != user.setting(key):

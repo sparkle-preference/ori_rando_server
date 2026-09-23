@@ -24,14 +24,12 @@ const blindRace = iniUrl.searchParams.has("blindRace")
 const perWorldSeed = iniUrl.searchParams.has("perWorld")
 // a finished square colors its text instead of filling its background
 const altComplete = iniUrl.searchParams.has("altCmplt")
-// a transport failure (deploy, network blip) has no status and no body,
-// so it retries quietly: banner once it stops looking momentary, toast
-// only once it persists, backing off so a dead server is not hammered
+// status-0 failures retry with backoff: a banner after this many, a toast after the next
 const NET_FAIL_BANNER = 3;
 const NET_FAIL_TOAST = 8;
 const NET_BACKOFF_MAX = 30000;
 
-// display only: main.py's bump_board_seed decides the seed a reroll really uses
+// display only: bingo.py's bump_board_seed decides the seed a reroll really uses
 const bumpBoardSeed = (seed) => {
     let match = /RR(\d+)$/.exec(seed || "")
     return match ? (seed || "").slice(0, match.index) + `RR${parseInt(match[1], 10) + 1}` : `${seed || ""}RR1`
@@ -208,8 +206,7 @@ class BingoBoard extends Component {
     }
 }
 
-// One way in for each player on a fixed roster: Play if they use the app, Download if not.
-// It goes once used or waved off -- the dropdown keeps Redownload seed for anyone who needs it again.
+// Play or Download for one player; gone once used or dismissed (the dropdown keeps Redownload)
 const GetSeedButton = ({gameId, paramId, pid, name, taken, onTaken}) => {
     if(taken)
         return null
@@ -335,8 +332,7 @@ const PlayerList = ({activePlayer, teams, viewOnly, isOwner, timerTime, onPlayer
         </Row>
     ): null
 
-    // a world whose board is still here but whose seat is not: removed, and the
-    // owner is the only one who can undo that
+    // a world with a board but no seat was removed; only the owner can put it back
     let seated = new Set(Object.keys(teams).map(Number))
     let emptyRows = !isOwner ? [] : Object.keys(boardsByWorld || {}).map(Number)
         .filter(w => !seated.has(w)).sort((a, b) => a - b).map(w => (
@@ -437,7 +433,7 @@ export default class Bingo extends React.Component {
 
     }
 
-    // off state, not the constructor: a reroll can strike a page that built the game itself
+    // reads state: a reroll can change gameId after construction
     initialUrl = () => `/bingo/game/${this.state.gameId}/fetch?first=1&time=${(new Date()).getTime()}`
 
     componentWillMount() {
@@ -486,8 +482,7 @@ export default class Bingo extends React.Component {
             players.push(team.cap.pid);
             players = players.concat(team.teammates.map(t => t.pid));
         })
-        // on an Archipelago board the player number IS the AP world, so
-        // preferred numbers are ignored: take the lowest free world
+        // on an AP board the player number is the AP world: take the lowest free one
         let apWorlds = this.state.apWorlds || 0
         if(apWorlds) {
             let free = [...Array(apWorlds).keys()].map(i => i+1).filter(p => !players.includes(p));
@@ -509,16 +504,13 @@ export default class Bingo extends React.Component {
     }
     tick = (force = false) => {
         let {fails, gameId, haveGame, ticksSinceLastSquare, user, userBoard, ticking, netRetryAt} = this.state;
-        // ticking holds the fetch start time; treat it as stale after 10s so a
-        // dropped callback can't permanently stall polling
+        // ticking is the fetch start time; stale after 10s so a lost callback can't stall polling
         if((ticking && Date.now() - ticking < 10000) || fails > 50)
             return
         if(netRetryAt && Date.now() < netRetryAt)
             return
-        // hidden tabs idle to ~30s whatever the game is doing (OBS browser
-        // sources report visible, so stream overlays keep full cadence).
-        // force (return-to-tab refresh) bypasses this AND the staleness
-        // ladder below -- the longest-hidden boards need the refresh most.
+        // hidden tabs poll every ~30s (OBS sources report visible); force, the return-to-tab
+        // refresh, skips this and the staleness ladder below
         if(document.hidden) {
             this.hiddenTicks = (this.hiddenTicks || 0) + 1
             if(!force && this.hiddenTicks % 30 !== 0)
@@ -541,9 +533,7 @@ export default class Bingo extends React.Component {
             this.setState({ticking: Date.now()}, () => doNetRequest(url, this.pollCallback))
         }
     }
-    // no response at all: the server went away mid-request (a deploy does
-    // this) or the network hiccuped. The next tick recovers, so stay quiet
-    // until it looks like more than a blip.
+    // status 0: back off quietly until it looks like more than a blip
     netFailed = (retry) => {
         let netFails = this.state.netFails + 1
         let backoff = Math.min(NET_BACKOFF_MAX, 1000 * Math.pow(2, netFails - 1))
@@ -559,8 +549,7 @@ export default class Bingo extends React.Component {
             setTimeout(retry, backoff)
     }
 
-    // only the poll loop may swallow a dead request; tickCallback is shared
-    // with Join, Start and Remove, where a click deserves an answer
+    // only the poll swallows status 0; Join, Start and Remove share tickCallback and report it
     pollCallback = (res) => res.status === 0 ? this.netFailed() : this.tickCallback(res)
 
     tickCallback = ({status, responseText}) => {
@@ -579,8 +568,7 @@ export default class Bingo extends React.Component {
             this.setState(stateUpdate)
         } else {
             let res = JSON.parse(responseText)
-            // cached boards have is_owner stripped (it's viewer-specific); keep our
-            // value from the initial fetch so the start button doesn't vanish
+            // cached boards strip the viewer-specific is_owner, so keep the first fetch's
             let newState = {events: res.events, startTime: res.start_time_posix, countdownActive: res.countdown, isOwner: res.hasOwnProperty('is_owner') ? res.is_owner : this.state.isOwner, ticking: false, netFails: 0, netRetryAt: 0}
             if(res.gameId !== this.state.gameId)
             {
@@ -606,8 +594,7 @@ export default class Bingo extends React.Component {
             newState.teams = teams
             newState.cards = [...this.state.cards]
             let shown = this.boardFor(res, this.state.activePlayer)
-            // a world with no board of its own compares against a real one; res.cards is
-            // empty for per-world games, and an empty list looks like a fresh board
+            // res.cards is empty on per-world games, so a boardless world compares against a real board
             let fresh = (shown && shown.cards) || this.firstBoard(res) || res.cards
             if(res.boards)
                 newState.boardsByWorld = this.keepBoardText(res.boards)
@@ -675,8 +662,7 @@ export default class Bingo extends React.Component {
     rerollSeed = () => this.setState({creatingGame: true, loadingText: "Rolling a new seed...", loader: get_random_loader()},
                                      () => { window.location.href = `/bingo/game/${this.state.gameId}/reroll` })
     openRerollBoard = () => this.setState({rerollingBoard: true, createModalOpen: true, seed: bumpBoardSeed(this.state.seed)})
-    // the page's own first fetch: retry it (a userboard rides the tick loop,
-    // a board with nothing loaded yet needs the timer)
+    // the first fetch retries on a timer; a userboard's tick loop retries it anyway
     initialCallback = (res) => res.status === 0
         ? this.netFailed(this.state.userBoard ? null
                          : () => doNetRequest(this.initialUrl(), this.initialCallback))

@@ -270,9 +270,8 @@ def mw_bingo_no_owner(stack):
 
 
 def ap_real_room(stack):
-    """The bridge against an actual Archipelago 0.6.7 server, generated from the apworld
-    and the yamls our own routes serve. Every other AP test scripts the frames we think
-    the room sends; this one asks the room."""
+    """The bridge against a real Archipelago server, generated from the apworld and yamls our
+    routes serve: the one AP test that doesn't script the room's frames."""
     j = Judge("ap_real_room")
     if not docker_ok():
         j.check("skipped: docker or %s missing" % AP_IMAGE, True)
