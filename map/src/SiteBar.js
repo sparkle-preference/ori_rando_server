@@ -35,7 +35,9 @@ class SiteBar extends Component {
     }
     loadSettings = () => {
         this.setState({loaded: false})
-        doNetRequest("/user/settings", ({responseText}) => {
+        doNetRequest("/user/settings", ({status, responseText}) => {
+            if(status !== 200)
+                return
             let res = JSON.parse(responseText)
             // pristine is what Save Changes compares against, so it holds every editable field
             let clean = {editName: res.name || this.state.user, teamName: res.teamname,
@@ -68,7 +70,9 @@ class SiteBar extends Component {
             this.nameTimer = setTimeout(() => this.checkName(name), NAME_DEBOUNCE_MS)
     }
     checkName = (name) => {
-        doNetRequest(`/user/settings/name-free?name=${encodeURIComponent(name)}`, ({responseText}) => {
+        doNetRequest(`/user/settings/name-free?name=${encodeURIComponent(name)}`, ({status, responseText}) => {
+            if(status !== 200)
+                return
             let res = JSON.parse(responseText)
             // a slow reply for an earlier keystroke must not answer for the current one
             if(res.name === this.state.editName)

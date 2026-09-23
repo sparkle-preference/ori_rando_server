@@ -11,7 +11,7 @@ from flask import Blueprint, redirect, request, url_for
 from google.cloud import ndb
 
 from enums import Variation
-from models import Game, SavedSeedParams, Seed, User
+from models import Game, SavedSeedParams, User
 from seedbuilder.seedparams import SeedGenParams, seed_mode_problem
 from bingo import bingo_board_url
 from web.extensions import oidc
@@ -35,7 +35,12 @@ def ssp_save():
     user = User.get()
     if not user:
         return text_resp("log in to save presets", 401)
-    body = json.loads(request.form.get("preset") or "{}")
+    try:
+        body = json.loads(request.form.get("preset") or "{}")
+    except ValueError:
+        body = None
+    if not isinstance(body, dict):
+        return text_resp("could not read that request", 400)
     name = (body.get("name") or "").strip()
     problem = SavedSeedParams.name_problem(name) or SavedSeedParams.desc_problem(body.get("desc"))
     if problem:
@@ -401,9 +406,9 @@ def my_settings():
             '<a href="/preset/mine/%s/hideToggle">%s</a> &middot; '
             '<a href="/preset/mine/%s/delete">delete</a>'
             '</li>' % (
-                ssp.name,
+                escape(ssp.name),
                 " (hidden)" if ssp.hidden else "",
-                (" &mdash; %s" % ssp.description) if ssp.description else "",
+                (" &mdash; %s" % escape(ssp.description)) if ssp.description else "",
                 user.name, ssp.name,
                 user.name, ssp.name,
                 share,

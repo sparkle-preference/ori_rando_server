@@ -144,32 +144,35 @@ class TestSignalFlow(NdbTestCase):
         self.assertEqual(p.signals, ["msg:hi"])
         self.assertIsNone(Cache.get_seen_checksum((913, 1)))
 
-    def test_conf_unmatched_msg_removes_first_msg(self):
-        # "spam protection": an inexact msg: callback removes the first msg:
-        # signal found rather than nothing
+    def test_conf_unmatched_msg_removes_nothing(self):
         p = self._armed_player(914)
         p.signals = ["msg:one", "msg:two"]
         p.signal_conf("msg:zzz")
-        self.assertEqual(p.signals, ["msg:two"])
+        self.assertEqual(p.signals, ["msg:one", "msg:two"])
 
-    def test_conf_unmatched_msg_with_mixed_queue_current_behavior(self):
-        # KNOWN QUIRK, frozen deliberately: the fallback loop removes list
-        # elements while iterating, so with a non-msg signal queued first, an
-        # unmatched msg: callback eats the *non-msg* signal and leaves the msg.
-        # If this test starts failing because the behavior was fixed to only
-        # remove msg: signals, that is an improvement -- update the test.
+    def test_conf_unmatched_msg_spares_other_signals(self):
         p = self._armed_player(915)
         p.signals = ["win:gg", "msg:one"]
         p.signal_conf("msg:zzz")
-        self.assertEqual(p.signals, ["msg:one"])
+        self.assertEqual(p.signals, ["win:gg", "msg:one"])
+
+    def test_a_repeated_conf_spares_the_next_unseen_msg(self):
+        # clients re-send confirms for signals still riding the tick, so a confirm can arrive
+        # again after its signal is gone; it must not take a newer message with it
+        p = self._armed_player(921)
+        p.signals = ["msg:Board rerolled!"]
+        p.signal_conf("msg:Board rerolled!")
+        p.signal_send("msg:Seed mismatch")
+        p.signal_conf("msg:Board rerolled!")
+        self.assertEqual(p.signals, ["msg:Seed mismatch"])
 
     def test_conf_txn_applies_the_same_edits_on_a_fresh_read(self):
         # the durable path is signal_conf_txn, not the handler's stale copy:
         # a plain put of that copy erased concurrent grant txns' slot bits
         for queued, conf, expected in [
             (["win:gg", "msg:hi"], "win:gg", ["msg:hi"]),
-            (["msg:one", "msg:two"], "msg:zzz", ["msg:two"]),
-            (["win:gg", "msg:one"], "msg:zzz", ["msg:one"]),   # the frozen quirk
+            (["msg:one", "msg:two"], "msg:zzz", ["msg:one", "msg:two"]),
+            (["win:gg", "msg:one"], "msg:zzz", ["win:gg", "msg:one"]),
             (["win:gg"], "pickup:SK|0", ["win:gg"]),
         ]:
             fresh = make_player(917, 1, signals=list(queued))
@@ -330,6 +333,67 @@ class TestArchipelagoHintsField(NdbTestCase):
         fields = p.output(include_slots=True).split(",")
         self.assertEqual(len(fields), 9)
         self.assertEqual(fields[8], "3=Ev il Chest x 1 2")
+
+
+class TestArchipelagoExtraItemsField(NdbTestCase):
+    """Tick field 10 (AP): items with no manifest slot, ";"-joined "code|id"
+    with % , ; percent-escaped. Only when nonempty; it drags 8 (maybe empty)
+    and 9 ("1"/"0") along, and a body without it is byte-identical to before."""
+
+    WARP = "Warp to Swamp Swim,790,-195,SwampWaterWarp"
+
+    def test_bodies_without_extras_are_unchanged(self):
+        p = make_player(950, 1)
+        self.assertEqual(p.output(include_slots=True), "0,0,0,,,,0;0;0;0;0;0;0;0,")
+        p.ap_hints = {"3": "P2 Valley"}
+        self.assertEqual(p.output(include_slots=True), "0,0,0,,,,0;0;0;0;0;0;0;0,,3=P2 Valley")
+        p.released = True
+        self.assertEqual(p.output(include_slots=True), "0,0,0,,,,0;0;0;0;0;0;0;0,,3=P2 Valley,1")
+        p.ap_hints, p.extra_items = {}, []
+        self.assertEqual(p.output(include_slots=True), "0,0,0,,,,0;0;0;0;0;0;0;0,,,1")
+
+    def test_field_10_rides_behind_an_empty_8_and_a_zero_9(self):
+        p = make_player(951, 1, extra_items=[[0, "EX", "37"], [4, "TW", self.WARP]])
+        fields = p.output(include_slots=True).split(",")
+        self.assertEqual(len(fields), 11)
+        self.assertEqual(fields[8:], [
+            "", "0", "EX|37;TW|Warp to Swamp Swim%2C790%2C-195%2CSwampWaterWarp"])
+
+    def test_released_and_hints_keep_their_values(self):
+        p = make_player(952, 1, released=True, ap_hints={"3": "P2 Valley"},
+                        extra_items=[[0, "SK", "3"]])
+        self.assertEqual(p.output(include_slots=True).split(",")[8:],
+                         ["3=P2 Valley", "1", "SK|3"])
+
+    def test_escaping_is_reversible_and_percent_goes_first(self):
+        p = make_player(953, 1, extra_items=[[0, "SH", "100%;a,b%2C"]])
+        field = p.output(include_slots=True).split(",")[10]
+        self.assertEqual(field, "SH|100%25%3Ba%2Cb%252C")
+        self.assertNotIn(";", field)
+
+    def test_never_rides_a_legacy_game(self):
+        p = make_player(954, 1, extra_items=[[0, "EX", "37"]])
+        self.assertEqual(p.output(), "0,0,0,,")
+
+    def test_append_skips_held_stream_indexes(self):
+        p = make_player(955, 1)
+        self.assertEqual(p.add_extra_items([[2, "EX", "50"], [5, "SK", "0"]]), (2, []))
+        self.assertEqual(p.add_extra_items([[2, "EX", "50"], [5, "SK", "0"], [7, "KS", "1"],
+                                            [7, "KS", "1"]]), (1, []))
+        self.assertEqual([e[0] for e in p.extra_items], [2, 5, 7])
+
+    def test_append_refuses_past_the_cap(self):
+        p = make_player(956, 1, extra_items=[[0, "EX", "50"]])
+        self.assertEqual(p.add_extra_items([[1, "EX", "50"], [2, "SK", "0"], [0, "EX", "50"]], cap=2),
+                         (1, [[2, "SK", "0"]]))
+        self.assertEqual(len(p.extra_items), 2)
+
+    def test_the_txn_puts_only_when_something_landed(self):
+        p = make_player(957, 1)
+        txn = Player.add_extra_items_txn.__wrapped__
+        self.assertEqual(txn(_KeyStub(p), [[1, "EX", "50"]]), (1, []))
+        self.assertEqual(txn(_KeyStub(p), [[1, "EX", "50"]]), (0, []))
+        self.assertEqual(p.put_count, 1)
 
 
 class TestSlotMarking(NdbTestCase):

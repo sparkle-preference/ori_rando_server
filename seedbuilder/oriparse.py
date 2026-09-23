@@ -412,7 +412,7 @@ def ori_load(lines, verbose=False):
             if (tokens[0] in ["casual", "standard"]) and ("RocketJump" in tokens):
                 _parsewarn(i, "`%s` logic path (from: `%s` to: `%s`) has RocketJump." % (tokens[0], context_home, context_conn))
             if (tokens[0] in ["casual"]) and ("AirDash" in tokens):
-                _parsewarn(i, "`%s` logic path (from: `%s` to: `%s`) has GrenadeJump." % (tokens[0], context_home, context_conn))
+                _parsewarn(i, "`%s` logic path (from: `%s` to: `%s`) has AirDash." % (tokens[0], context_home, context_conn))
             if (tokens[0] in ["casual", "standard", "expert"]) and ("TripleJump" in tokens):
                 _parsewarn(i, "`%s` logic path (from: `%s` to: `%s`) has TripleJump." % (tokens[0], context_home, context_conn))
             if (tokens[0] in ["casual", "standard", "expert"]) and ("UltraDefense" in tokens):
@@ -463,7 +463,7 @@ def ori_load(lines, verbose=False):
             conn_type = contents["homes"][area]["conns"][target]["type"]
             if conn_type == "conn":
                 if target not in contents["homes"].keys():
-                    _parsewarn(0, "Area {} has connection to target {} but that area doesn't exist." % (target, area))
+                    _parsewarn(0, "Area %s has connection to target %s but that area doesn't exist." % (area, target))
 
 
     return contents

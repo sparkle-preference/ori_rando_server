@@ -126,7 +126,7 @@ class Upgrade(Pickup):
             410: "Enhanced Spirit Flame", 411: "Enhanced Wall Jump", 412: "Enhanced Charge Flame", 413: "Enhanced Double Jump", 414: "Enhanced Bash", 415: "Enhanced Stomp", 
             416: "Enhanced Glide", 417: "Enhanced Climb", 418: "Enhanced Charge Jump", 419: "Enhanced Dash", 420: "Enhanced Grenade", 422: "Enhanced Clean Water", 
             900: "Wall Jump Tree", 901: "Charge Flame Tree", 902: "Double Jump Tree", 903: "Bash Tree", 904: "Stomp Tree", 905: "Glide Tree", 906: "Climb Tree",
-            907: "Charge Jump Tree", 908: "Dash Tree", 909: "Grenade Tree", 911: "Glades Relic", 912: "Grove Relic", 913: "Grotto Relic", 914: "Blackroot Relic",
+            907: "Charge Jump Tree", 908: "Grenade Tree", 909: "Dash Tree", 911: "Glades Relic", 912: "Grove Relic", 913: "Grotto Relic", 914: "Blackroot Relic",
             915: "Swamp Relic", 916: "Ginso Relic", 917: "Valley Relic", 918: "Misty Relic", 919: "Forlorn Relic", 920: "Sorrow Relic", 921: "Horu Relic", 1100: "Enable Frag Sense", 1110: "Ally Soul Link Saves",
         }
 

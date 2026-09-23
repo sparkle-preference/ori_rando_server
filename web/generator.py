@@ -16,7 +16,7 @@ from models import Game, Player, User
 from seedbuilder.seedparams import SeedGenParams, seed_failure_reason, seed_mode_problem
 from seedbuilder.vanilla import seedtext as vanilla_seed
 import util
-from util import param_flag, param_val
+from util import param_flag, param_int, param_val
 from bingo import bingo_board_url
 from web.extensions import oidc
 from web.responses import json_resp, text_download, text_resp, zip_download
@@ -29,8 +29,17 @@ apworld_zip = None
 
 @bp.route("/generator/build", methods=['GET', 'POST'])
 def gen_seed_from_params():
-    param_key = SeedGenParams.from_json(json.loads(request.form.get('params'))) if request.method == 'POST' else SeedGenParams.from_url(request.args)
+    if request.method == 'POST':
+        try:
+            posted = json.loads(request.form.get('params') or "")
+        except ValueError:
+            return text_resp("could not read the posted params", 400)
+        param_key = SeedGenParams.from_json(posted)
+    else:
+        param_key = SeedGenParams.from_url(request.args)
     if not param_key:
+        if request.method == 'POST' and isinstance(posted, dict) and not posted.get("paths"):
+            return text_resp("Pick at least one logic path.", 422)
         return text_resp("Failed to build params!", 500)
     params = param_key.get()
     problem = seed_mode_problem(params)
@@ -45,7 +54,10 @@ def gen_seed_from_params():
     if lines:
         resp["flagLines"] = lines
     if params.tracking:
-        game = Game.from_params(params, param_val("game_id"))
+        gid, problem = Game.free_gid(param_val("game_id"))
+        if problem:
+            return text_resp(problem, 409)
+        game = Game.from_params(params, gid)
         resp["gameId"] = game.key.id()
         # local: web.bingo imports this module back
         from web.bingo import preroll_board
@@ -75,7 +87,10 @@ def gen_seed_from_url():
             players = []
             resp = {}
             if params.tracking:
-                game = Game.from_params(params, param_val("game_id"))
+                gid, problem = Game.free_gid(param_val("game_id"))
+                if problem:
+                    return json_resp({"error": problem}, 409)
+                game = Game.from_params(params, gid)
                 key = game.key
                 resp["map_url"] = url_for("tracker.tracker_show_map", game_id=key.id())
                 resp["history_url"] = url_for("tracker.game_show_history", game_id=key.id())
@@ -121,8 +136,10 @@ def load_seed_from_params(params_id):
     verbose_paths = param_flag("verbose_paths")
     params = SeedGenParams.with_id(params_id)
     if params:
-        pid = int(param_val("player_id") or 1)
+        pid = param_int("player_id", 1)
         game_id = param_val("game_id")
+        if game_id and not game_id.isdigit():
+            return text_resp("Bad game id %s" % game_id, 400)
         if not param_flag("force"):
             not_ready = ap_seed_not_ready(params, game_id)
             if not_ready:
@@ -158,7 +175,7 @@ def load_seed_from_params(params_id):
 def get_spoiler_from_params(params_id):
     params = SeedGenParams.with_id(params_id)
     if params:
-        player = int(param_val("player_id") or 1)
+        player = param_int("player_id", 1)
         spoiler = params.get_spoiler(player, game_id=param_val("game_id"))
         if param_flag("download"):
             spoiler = spoiler.replace("\n", "\r\n")
@@ -210,7 +227,7 @@ def get_apworld():
 def get_aux_spoiler_from_params(params_id):
     params = SeedGenParams.with_id(params_id)
     if params:
-        player = int(param_val("player_id") or 1)
+        player = param_int("player_id", 1)
         exclude = (param_val("exclude") or "EX KS AC EC HC MS").split(" ") if param_val("exclude") != "" else []
         by_zone = param_flag("by_zone")
         # optional game_id: AP seeds' reserved lines get their scouted item
@@ -285,7 +302,7 @@ def reroll_seed():
         return text_resp("no games found", 404)
     game_key = user.games[-1]
     old_game = game_key.get()
-    if not old_game.params:
+    if not old_game or not old_game.params:
         return text_resp("latest game does not have params", 404)
     new_params, game, err = _reroll(old_game.fetch_params())
     if err:

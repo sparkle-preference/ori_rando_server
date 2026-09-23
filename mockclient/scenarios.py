@@ -1,5 +1,4 @@
 """The scenarios. Each takes a LocalStack, returns a Judge."""
-import json
 import time
 
 import requests

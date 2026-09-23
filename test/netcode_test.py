@@ -589,6 +589,8 @@ class TestApShadowPlayers(NdbTestCase):
         Player.get_by_id = staticmethod(fake_get_by_id)
         Player.put = fake_put
         Game.put = lambda g, *a, **k: g.key
+        self.addCleanup(setattr, Game, "add_player_txn", Game.__dict__["add_player_txn"])
+        Game.add_player_txn = staticmethod(lambda key, pkey: None)
         models.User.get = staticmethod(lambda: None)
         Game.rebuild_hist = lambda g: None
 

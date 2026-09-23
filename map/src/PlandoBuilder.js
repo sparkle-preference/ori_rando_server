@@ -351,11 +351,11 @@ class PlandoBuiler extends React.Component {
     
         if(pathmode && paths.includes(pathmode)) {
             logicMode = 'manual';
-            modes = presets[pathmode];
+            modes = [...presets[pathmode]];
         } else {
             pathmode = "standard";
             logicMode = "auto";
-            modes = presets["standard"];
+            modes = [...presets["standard"]];
         }
         let zone = 'Glades';
         let lastSelected = {};
@@ -409,13 +409,13 @@ class PlandoBuiler extends React.Component {
     };
 
     onSelectZone = (newZone, pan=true) => {this.selectPickup(this.state.lastSelected[newZone.value], pan)};
-    onPathModeChange = (n) => this.setState({modes: presets[n.value], pathMode: n.value}, this.updateReachable)
+    onPathModeChange = (n) => this.setState({modes: [...presets[n.value]], pathMode: n.value}, this.updateReachable)
     onMode = (m) => () => this.setState(prevState => {
         let modes = prevState.modes;
         if(modes.includes(m)) {
             modes = modes.filter(x => x !== m)
         } else {
-            modes.push(m)
+            modes = modes.concat(m)
         }
     return {modes: modes, pathMode: get_preset(modes)}}, this.updateReachable)
 
@@ -899,7 +899,7 @@ class PlandoBuiler extends React.Component {
             let flag = FLAG_CASEFIX[f.value.toLowerCase()] || f.value
             if(VALID_KEYMODES.includes(flag)) mode = flag
             else if(VALID_VARS.includes(flag)) urlParams.push(`var=${flag}`)
-            else urlParams.push(`flag=${flag}`)
+            else urlParams.push(`flag=${encodeURIComponent(flag)}`)
         });
         if(mode) urlParams.push(`key_mode=${mode}`)
         // the plando's own coop settings, or the fill comes back a solo seed
@@ -909,7 +909,7 @@ class PlandoBuiler extends React.Component {
             this.state.share_types.forEach(s => urlParams.push(`sync_shared=${s.value}`))
         }
         if(codes.length > 0)
-            urlParams.push(`fass=${codes.join("|")}`);
+            urlParams.push(`fass=${encodeURIComponent(codes.join("|"))}`);
         urlParams.push("tracking=Disabled");
         urlParams.push(`seed=${Math.round(Math.random() * 1000000000)}`);
 
@@ -953,6 +953,8 @@ class PlandoBuiler extends React.Component {
         }
         else if(statusCode === 404)
             NotificationManager.error("Invalid name", "Failed to save seed!", 4000);
+        else if(statusCode === 409)
+            NotificationManager.error("You already have a seed with that name", "Failed to save seed!", 4000);
         else if(statusCode >= 500)
             NotificationManager.error("Server error", "Failed to save seed!", 4000);
         else 
@@ -1627,11 +1629,11 @@ function getReachable(setter, inventory, modes, callback)
             (function(res) {
                     let new_reachables = JSON.parse(res);
                     setter(prevState => {
-                        let reachable = prevState.reachable;
+                        // only the area names are read, so an area already held is left as is
+                        let reachable = {...prevState.reachable};
                         Object.keys(new_reachables).forEach((area) => {
                             if(!reachable.hasOwnProperty(area))
                                 reachable[area] = new_reachables[area];
-                            reachable[area] = reachable[area].concat(new_reachables[area]);
                         });
                         return {reachable: reachable}
                     }, callback)
@@ -1639,7 +1641,7 @@ function getReachable(setter, inventory, modes, callback)
     }
     xmlHttp.open("POST", "/plando/reachable", true);
     xmlHttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-    xmlHttp.send(encodeURI(`inventory=${JSON.stringify(inventory)}&modes=${JSON.stringify(modes)}`));
+    xmlHttp.send(`inventory=${encodeURIComponent(JSON.stringify(inventory))}&modes=${encodeURIComponent(JSON.stringify(modes))}`);
 }
 
 
@@ -1651,7 +1653,7 @@ function uploadSeed(seedData, callback)
         if (xmlHttp.readyState === 4)
             callback(xmlHttp.status)
     }
-    let url = "/plando/"+seedData.name+"/upload";
+    let url = "/plando/"+encodeURIComponent(seedData.name)+"/upload";
     xmlHttp.open("POST", url, true);
     xmlHttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
     // encodeURIComponent, not encodeURI: a box payload may hold & or +, and this is a form body

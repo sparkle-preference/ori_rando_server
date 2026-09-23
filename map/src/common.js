@@ -614,7 +614,8 @@ class PickupSelect extends Component {
       pickup = values[0]
     else {
       pickup = group ? "RG|" : (repeat ? "RP|" : "MU|")
-      pickup += values.map(v => v.replaceAll("/", "//")).join("/").replace(/\|/g, "/")
+      // a value starting with "/" gets a space in front, or its "//" would read as part of the code
+      pickup += values.map(v => v.replace(/^([^|]*)\|\//, "$1| /").replaceAll("/", "//")).join("/").replace(/\|/g, "/")
     }
     this.state.updater(pickup, name_from_str(pickup))
   }

@@ -264,7 +264,8 @@ class OriDEWorld(World):
         return OriDEItem(name, classification, self.item_name_to_id[name], self.player)
 
     def get_filler_item_name(self):
-        return "Energy Cell"
+        # filler has no manifest slot and arrives on tick field 10: never make it progression
+        return "100 experience"
 
     def fill_slot_data(self):
         return {

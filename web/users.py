@@ -206,9 +206,17 @@ def user_set_settings():
     return json_resp({"changed": changed, "name": user.name, "theme": user.site_theme()})
 
 
+def _same_site_path(target):
+    """target when it is a path on this site, else "/"."""
+    if (not target or not target.startswith("/") or target.startswith("//")
+            or any(c == "\\" or c < " " for c in target)):
+        return "/"
+    return target
+
+
 @bp.route('/theme/toggle')
 def user_toggle_darkmode():
-    target_url = unquote(param_val("redir")) or "/"
+    target_url = _same_site_path(unquote(param_val("redir") or ""))
     user = User.get()
     if user:
         # the page sends the state it's switching to: with nothing stored it

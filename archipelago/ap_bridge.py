@@ -13,6 +13,7 @@ import json
 import logging as log
 import os
 import socket
+import ssl
 import threading
 import time
 from time import monotonic
@@ -51,6 +52,7 @@ HANDSHAKE_TIMEOUT = 20.0
 CONNECT_TIMEOUT = 10.0   # the OS SYN ladder is ~4 min
 HEAL_TTL = 45.0          # request-path memo: non-AP games pay a dict lookup
 BACKOFF_MIN, BACKOFF_MAX = 1.0, 60.0
+HEALTHY_SECS = 60.0      # connected at least this long: the next retry starts at BACKOFF_MIN
 # no ticks this long: threads exit as "idle"; only tick/complete or connect restarts them
 AP_IDLE_SECS = 3 * 3600
 IDLE_CHECK_SECS = 600.0   # healthy-session staleness check cadence
@@ -241,6 +243,36 @@ def _apply_grants(gid, world, slots, senders=None):
     return newly
 
 
+def _apply_extras(gid, world, entries):
+    """Append slotless items to REAL player w's tick field 10; returns those refused for the cap."""
+    from models import Game, Player
+    game = Game.with_id(gid)
+    if not game:
+        return []
+    player = game.player(world)
+    added, refused = Player.add_extra_items_txn(player.key, entries)
+    if added:
+        Cache.clear_seen_checksum(player.idpts())
+    return refused
+
+
+_tw_full_ids = {}
+
+
+def _extra_item(key):
+    """Datapackage key -> the (code, id) a client grants; None when it can't be rebuilt."""
+    code, id = key
+    if code != "TW":
+        return code, id
+    if not _tw_full_ids:
+        from seedbuilder.generator import warp_targets2
+        for group in warp_targets2:
+            for name, x, y, _area, node, _cost in group:
+                _tw_full_ids["Warp to %s" % name] = "Warp to %s,%s,%s,%s" % (name, x, y, node)
+    full = _tw_full_ids.get(id)
+    return (code, full) if full else None
+
+
 def _send_death_signal(gid, world, token, source):
     """'dl:<token>;<source>' on the world's tick, latest-only: an offline client owes one death."""
     from models import Game, Player
@@ -332,8 +364,8 @@ def _persist_drop(gid, world, entry):
     return True
 
 
-def _notify_drop(gid, world, text):
-    """One red line on the player's tick naming an undeliverable item."""
+def _tell_player(gid, world, text):
+    """One 'msg:' line on the world's tick."""
     from models import Game, Player
     game = Game.with_id(gid)
     if not game:
@@ -341,6 +373,10 @@ def _notify_drop(gid, world, text):
     player = game.player(world)
     if Player.signal_send_txn(player.key, "msg:" + text):
         Cache.clear_seen_checksum(player.idpts())
+
+
+# separate names so tests can reroute each
+_notify_drop = _hint_notice = _tell_player
 
 
 def _drop_name(ap_item):
@@ -518,17 +554,6 @@ def _apply_hint_text(gid, world, answers, keep=None):
         Cache.clear_seen_checksum(player.idpts())
 
 
-def _hint_notice(gid, world, text):
-    """One 'you can't afford it yet' line on the player's tick."""
-    from models import Game, Player
-    game = Game.with_id(gid)
-    if not game:
-        return
-    player = game.player(world)
-    if Player.signal_send_txn(player.key, "msg:" + text):
-        Cache.clear_seen_checksum(player.idpts())
-
-
 def _scout_rows(gid, worlds):
     return {v: APNames.load(gid, v) for v in range(1, int(worlds) + 1)}
 
@@ -650,11 +675,21 @@ def _preflight(host, port):
         raise OSError("can't reach %s:%s from orirando (%s)" % (host, port, e))
 
 
+class _TimedTLS(object):
+    """ssl_context stand-in: TCP connect and TLS handshake run under HANDSHAKE_TIMEOUT."""
+
+    def wrap_socket(self, sock, server_hostname=None):
+        sock.settimeout(HANDSHAKE_TIMEOUT)
+        ctx = ssl.create_default_context(purpose=ssl.Purpose.SERVER_AUTH)
+        return ctx.wrap_socket(sock, server_hostname=server_hostname)
+
+
 class DeflateClient(WsClient):
     """Upstream Client handshake plus permessage-deflate, which simple_websocket
     never offers as a client and AP warns about."""
 
     def handshake(self):
+        self.sock.settimeout(HANDSHAKE_TIMEOUT)
         out_data = self.ws.send(Request(host=self.host, target=self.path,
                                         subprotocols=self.subprotocols,
                                         extra_headers=self.extra_headeers,
@@ -674,6 +709,8 @@ class DeflateClient(WsClient):
         elif not isinstance(event, AcceptConnection):
             raise WsConnectionError(400)
         self.subprotocol = event.subprotocol
+        # the library's reader thread treats any recv timeout as a closed connection
+        self.sock.settimeout(None)
         self.connected = True
 
 
@@ -686,7 +723,8 @@ def _open_socket(host, port, scheme_hint=None):
     last_err = None
     for scheme in schemes:
         try:
-            return DeflateClient.connect("%s://%s:%s/" % (scheme, host, port)), scheme
+            return DeflateClient.connect("%s://%s:%s/" % (scheme, host, port),
+                                         ssl_context=_TimedTLS()), scheme
         except Exception as e:
             last_err = e
     raise last_err
@@ -723,6 +761,7 @@ class ApSession(object):
         self.recv_count = 0    # AP's ReceivedItems index contract
         self.pending = []      # slots buffered for the next grant flush
         self.pending_from = {}  # slot -> sender display name ("" = yourself)
+        self.pending_extra = []  # (stream index, code, id, item) with no slot, same flush
         self.flush_at = None   # monotonic deadline for that flush
         # None until the scout settles; ReceivedItems wait in deferred_msgs meanwhile
         self.promised = None       # {ap location id: manifest slot}
@@ -869,6 +908,7 @@ class ApSession(object):
         self.fill = {}
         self.recv_count = 0
         self.pending, self.pending_from, self.flush_at = [], {}, None
+        self.pending_extra = []
         self.promised, self.free_slots, self.deferred_msgs = None, None, []
         self.promises_deadline = monotonic() + PROMISES_TIMEOUT
         self.scouted, self.dp_pending, self.named, self.scout_total = {}, set(), None, 0
@@ -1253,8 +1293,9 @@ class ApSession(object):
         if index < len(known):
             self._publish(slot, known[index], ap_item)
             return True
-        if entry.get("s") == HINT_PENDING and self.hint_inflight is None:
-            # claimed and no purchase in flight, yet no place for this copy:
+        if entry.get("s") == HINT_PENDING:
+            if self.hint_inflight is not None or not self._hint_buying_allowed():
+                return False                  # the room may still answer this claim
             # settle for the generic text rather than buying again
             self._publish(slot, FOREIGN_HINT_TEXT, ap_item)
             return True
@@ -1441,6 +1482,10 @@ class ApSession(object):
                 key = ITEM_KEY_BY_AP_ID.get(item.get("item"))
                 lst = self.free_slots.get(key, []) if key else []
                 cur = self.fill.get(key, 0)
+                extra = _extra_item(key) if key is not None and cur >= len(lst) else None
+                if extra is not None:
+                    self.pending_extra.append((index + offset, extra[0], extra[1], item))
+                    continue
                 if key is None or cur >= len(lst):
                     log.error("APBRIDGE no free slot for AP item %s gid=%s world=%s",
                               item.get("item"), self.gid, self.world)
@@ -1545,12 +1590,20 @@ class ApSession(object):
         """One grant transaction for everything buffered since the window opened."""
         if self.flush_at is None:
             return
-        slots, senders = self.pending, self.pending_from
+        slots, senders, extras = self.pending, self.pending_from, self.pending_extra
         self.pending, self.pending_from, self.flush_at = [], {}, None
+        self.pending_extra = []
+        refused = []
         with self.ctx():
             if slots:
                 _apply_grants(self.gid, self.world, slots, senders)
+            if extras:
+                refused = _apply_extras(self.gid, self.world, [e[:3] for e in extras])
             _persist_recv(self.gid, self.world, self.recv_count)
+        items = {e[0]: e[3] for e in extras}
+        for entry in refused:
+            log.error("APBRIDGE extra items full gid=%s world=%s", self.gid, self.world)
+            self._note_drop(entry[0], items[entry[0]])
 
     def _poll_outbox(self, sock):
         with self.ctx():
@@ -1575,7 +1628,7 @@ class ApSession(object):
             log.info("APBRIDGE link disabled gid=%s world=%s, stopping", self.gid, self.world)
             return False
         if (link.host, link.port, link.password) != (self.host, self.port, self.password):
-            # room retargeted: the thread exits and the next heal() dials the new room
+            # room retargeted: _run's loop re-reads the link and dials the new room
             log.info("APBRIDGE room changed gid=%s world=%s, cycling", self.gid, self.world)
             return False
         if self.world in (link.goal_worlds or []):
@@ -1685,11 +1738,12 @@ class _Bridge(object):
                                     game_slots=names, hint_box=self.hint_box,
                                     death_box=self.death_box)
                 sock = None
+                started = monotonic()
                 try:
                     sock, scheme = _open_socket(host, port, scheme)
                     log.info("APBRIDGE socket up gid=%s world=%s %s://%s:%s", gid, world, scheme, host, port)
                     session.run(sock)
-                    return  # clean return: disabled, stopped, retargeted or idle
+                    continue  # clean return: the loop top exits, or redials a retargeted room
                 except ApRefused as e:
                     log.warning("APBRIDGE refused gid=%s world=%s: %s", gid, world, e)
                     with ndb_client.context():
@@ -1715,8 +1769,8 @@ class _Bridge(object):
                             sock.close()
                         except Exception:
                             pass
-                if session.authed:
-                    backoff = BACKOFF_MIN  # the room was reachable; retry fast
+                if session.authed and monotonic() - started >= HEALTHY_SECS:
+                    backoff = BACKOFF_MIN
                 if self.stop_event.wait(backoff):
                     return
                 backoff = min(backoff * 2, BACKOFF_MAX)

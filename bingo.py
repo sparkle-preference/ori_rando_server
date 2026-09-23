@@ -1,15 +1,7 @@
-import random
-from collections import defaultdict, Counter
-from datetime import datetime, timedelta
-from time import sleep
-import json
+from collections import defaultdict
 import logging as log
 
-from cache import Cache
-from enums import MultiplayerGameType, Variation
-from models import Game, User, BingoCard, BingoGameData, BingoEvent, BingoTeam
-from util import param_val, param_flag, debug, path, VER, version_check
-from seedbuilder.vanilla import seedtext as vanilla_seed
+from models import BingoCard
 
 # here, not in web/: presets, the generator and the bingo routes all build it
 def bingo_board_url(game, params, disc=None, team_max=None):
@@ -1008,7 +1000,7 @@ class BingoGenerator(object):
                 card.goal_method = card.goal_method.strip('_')
                 banned["goals"] += [subgoal["name"] for subgoal in card.subgoals]
             if "symmetry" in goal.tags and rand.random()<.8:
-                 # both symmetry squares at most 20% of the time
+                 # (you can have both at most 20% of the time. bc it kinda sucks.)
                 goals = [goal for goal in goals if not "symmetry" in goal.tags]
             groupSeen[goal.name] = (repeats+1, banned["goals"], banned["methods"])
             if repeats == goal.max_repeats and goal in goals: # the meta cleanup may already have dropped it
@@ -1034,7 +1026,7 @@ class BingoGenerator(object):
                     metas_by_name[card.name].append(index)
             # with both symmetry cards, one takes the center
             if "HorizSym" in metas_by_name and "VertSym" in metas_by_name:
-                center_guy = random.choice(["HorizSym", "VertSym"])
+                center_guy = rand.choice(["HorizSym", "VertSym"])
                 center_i = metas_by_name[center_guy][0]
                 if center_i != 12:
                     cards[center_i], cards[12] = cards[12], cards[center_i]

@@ -264,6 +264,7 @@ const DEFAULT_VIEWPORT = {
 const RETRY_MAX = 60;
 const TIMEOUT_START = 5;
 const TIMEOUT_INC = 5;
+const REQUEST_TIMEOUT_MS = 10000;
 // [idle seconds before this tier, seconds per poll]; any change snaps back to 1Hz.
 // The slowest tier bounds how late an idle overlay notices a new game.
 const IDLE_TIERS = [[600, 10], [120, 3]];
@@ -273,7 +274,7 @@ const crs = getMapCrs();
 class GameTracker extends React.Component {
   constructor(props) {
     super(props)
-    let modes = presets['standard'];
+    let modes = [...presets['standard']];
     let url = new URL(window.document.URL);
     this.state = {
         players: {}, follow: url.searchParams.get("follow") || -1, retries: 0, check_seen: 1, modes: modes, timeout: TIMEOUT_START, searchStr: "", seed_reqs: {},
@@ -337,7 +338,8 @@ class GameTracker extends React.Component {
         if(check_seen === 0) {
             if(this.dueForUpdate()) {
                 this.lastFetchAt = Date.now()
-                this.getUpdate(this.timeout);
+                if(!this.updateInFlight)
+                    this.getUpdate(this.timeout);
                 // in-flight is per player, so one fast reply can't re-arm the whole batch
                 let reqs = null;
                 Object.keys(players).forEach((id) => {
@@ -384,7 +386,7 @@ class GameTracker extends React.Component {
         if(modes.includes(m)) {
             modes = modes.filter(x => x !== m)
         } else {
-            modes.push(m)
+            modes = modes.concat(m)
         }
 		let players = prevState.players
 		Object.keys(players).forEach(id => {
@@ -396,7 +398,7 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
 
   onViewportChanged = viewport => { this.setState({ viewport }) }
   onMapMouseMove = (ev) => { if(this.mousePos) this.mousePos.set(ev.latlng) }
- _onPathModeChange = (n) => paths.includes(n.value) ? this.modesChanged(presets[n.value]) : this.setState({pathMode: n.value})
+ _onPathModeChange = (n) => paths.includes(n.value) ? this.modesChanged([...presets[n.value]]) : this.setState({pathMode: n.value})
 
   render() {
     try {
@@ -485,12 +487,18 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
     }
 	}
     getUpdate = (timeout) => {
+        let seq = this.updateSeq = (this.updateSeq || 0) + 1
+        this.updateInFlight = true
         let onRes = (res) => {
+                // only the newest request may land; a mode change supersedes the one in flight
+                if(seq !== this.updateSeq)
+                    return
             	let update = JSON.parse(res);
                 if(update.error)
                 {
                     console.log(update.error)
                     this.setState(timeout())
+                    return
                 }
                 this.noteActivity(update.players)
                 if(update.newGid) {
@@ -524,13 +532,15 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
         if(this.state.open_world) 
             modes +="+OPEN_WORLD"
         if(this.state.usermap)
-            modes += `&usermap=${this.state.usermap}`
-        doNetRequest(onRes, (s) => this.setState(s), `/tracker/game/${this.state.gameId}/fetch/update?modes=${modes}`, timeout)
+            modes += `&usermap=${encodeURIComponent(this.state.usermap)}`
+        let setter = (s) => { if(seq === this.updateSeq) this.setState(s) }
+        let done = () => { if(seq === this.updateSeq) this.updateInFlight = false }
+        doNetRequest(onRes, setter, `/tracker/game/${this.state.gameId}/fetch/update?modes=${modes}`, timeout, done)
     }
     getGamedata = () => {
         let onRes = (res) => {
+                    let {paths, closed_dungeons, open_world, players} = JSON.parse(res);
                     this.setState(state => {
-                        let {paths, closed_dungeons, open_world, players} = JSON.parse(res);
                         let curr_players = state.players;
                         players.forEach(({pid, name}) => {
                             if(!curr_players.hasOwnProperty(pid))
@@ -555,27 +565,33 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
     }
 };
 
-function doNetRequest(onRes, setter, url, timeout)
+function doNetRequest(onRes, setter, url, timeout, onDone)
 {
     try {
         var xmlHttp = new XMLHttpRequest();
         xmlHttp.onreadystatechange = function() {
+            if (xmlHttp.readyState !== 4)
+                return
+            if(onDone)
+                onDone()
             try {
-                if (xmlHttp.readyState === 4) {
-                    // error statuses back off here; onRes would only die in JSON.parse
-                    if(xmlHttp.status >= 400)
-                        setter(timeout());
-                    else
-                        onRes(xmlHttp.responseText);
-                }
+                // error statuses and status 0 (network failure, timeout) back off here
+                if(xmlHttp.status === 0 || xmlHttp.status >= 400)
+                    setter(timeout());
+                else
+                    onRes(xmlHttp.responseText);
             } catch(err) {
                 console.log(`netCallback: ${err} status ${xmlHttp.statusText}`)
+                setter(timeout());
             }
         }
         xmlHttp.open("GET", url, true);
+        xmlHttp.timeout = REQUEST_TIMEOUT_MS;
         xmlHttp.send(null);
     } catch(e) {
         console.log(`doNetRequest: ${e}`)
+        if(onDone)
+            onDone()
         setter(timeout()); // clears seed_reqs so in-flight pids can retry
     }
 }
@@ -583,14 +599,16 @@ function doNetRequest(onRes, setter, url, timeout)
 function getSeed(setter, gameId, pid, timeout)
 {
      var onRes = (res) => {
+                let {seed, name} = JSON.parse(res);
 				setter(prevState => {
 					let retVal = prevState.players;
-                    let {seed, name} = JSON.parse(res);
+                    let reqs = {...prevState.seed_reqs};
+                    delete reqs[pid];
+                    if(!retVal[pid])
+                        return {seed_reqs: reqs}
                     retVal[pid].seed = seed;
                     retVal[pid].seed_loaded = true;
                     retVal[pid].name = name || retVal[pid].name;
-                    let reqs = {...prevState.seed_reqs};
-                    delete reqs[pid];
 					return {players:retVal, retries: 0, timeout: TIMEOUT_START, seed_reqs: reqs};
 				});
             }

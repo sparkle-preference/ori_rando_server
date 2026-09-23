@@ -9,6 +9,10 @@ from pymemcache.client.base import PooledClient
 from pymemcache import serde
 
 
+# a saturated pool raises on writes, so it must cover gunicorn's --threads plus background threads
+POOL_SIZE = 128
+
+
 class MemcachedCache(object):
     """Used to interact with memcache"""
 
@@ -16,7 +20,7 @@ class MemcachedCache(object):
         # pooled: a plain Client shares one socket across threads, and interleaved commands
         # desync the protocol. ignore_exc turns get failures into misses.
         self.memcache = PooledClient((host, port), serde=serde.pickle_serde,
-                                     max_pool_size=16, ignore_exc=True)
+                                     max_pool_size=POOL_SIZE, ignore_exc=True)
 
     def memcache_get(self, key):
         try:
@@ -223,10 +227,11 @@ class MemcachedCache(object):
     def set_seen_checksum(self, gpid, seen_checksum):
         self.memcache.set(key="%s.%s.seenhash" % gpid, value=seen_checksum, expire=360)
 
-    def clear_seen_checksum(self, gpid):
+    def clear_seen_checksum(self, gpid, notify=True):
         self.memcache.delete(key="%s.%s.seenhash" % gpid)
         # the next tick body changed; push it now if the player has a socket
-        push.notify(gpid)
+        if notify:
+            push.notify(gpid)
 
     def remove_game(self, gid):
         # pymemcache's delete_multi takes whole keys; there is no key_prefix
@@ -451,10 +456,11 @@ class PythonCache(object):
     def set_seen_checksum(self, gpid, seen_checksum):
         self.cache.set(key="%s.%s.seenhash" % gpid, value=seen_checksum, time=360)
 
-    def clear_seen_checksum(self, gpid):
+    def clear_seen_checksum(self, gpid, notify=True):
         # tolerate a missing key, like memcached delete
         self.cache.pop("%s.%s.seenhash" % gpid, None)
-        push.notify(gpid)  # see MemcachedCache.clear_seen_checksum
+        if notify:
+            push.notify(gpid)  # see MemcachedCache.clear_seen_checksum
 
     def remove_game(self, gid):
         # every "{gid}." key; the trailing dot keeps game 7 from matching game 77

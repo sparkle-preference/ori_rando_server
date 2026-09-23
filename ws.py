@@ -156,6 +156,7 @@ def _ice_config(game_id):
 
 # bounded: a wedged pusher drops pushes rather than growing
 _push_queue = Queue(maxsize=1000)
+PUSH_LOCK_WAIT = 1.0
 _push_thread = None
 _push_thread_lock = Lock()
 
@@ -214,8 +215,14 @@ def _push_one(gpid, ndb_client):
             body = netcode.tick_output(*gpid)
         if body is None:
             return
-        with send_lock:
+        # one pusher serves every socket: skip a busy one rather than stall the rest
+        if not send_lock.acquire(timeout=PUSH_LOCK_WAIT):
+            log.warning("ws: push skipped, socket busy for %s.%s", gpid[0], gpid[1])
+            return
+        try:
             conn.send("tick:" + body)
+        finally:
+            send_lock.release()
         netperf("ws_push", t0, gid=gpid[0], pid=gpid[1])
     except ConnectionClosed:
         pass  # run_connection's finally cleans up the registry

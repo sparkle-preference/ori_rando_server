@@ -145,7 +145,7 @@ export default class SeedDisplayPage extends React.Component {
 	}
     updateDesc = () => {
         let xmlHttp = new XMLHttpRequest();
-        let url = "/plando/"+this.state.seed_name+"/upload";
+        let url = "/plando/"+encodeURIComponent(this.state.seed_name)+"/upload";
         xmlHttp.open("POST", url, true);
         xmlHttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
         let res = {}

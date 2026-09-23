@@ -3,17 +3,18 @@ player list, reset and transfer.
 """
 import logging as log
 from datetime import timedelta
+from html import escape
 
 from flask import Blueprint, redirect, render_template, request, url_for
 from google.cloud import ndb
 
 from cache import Cache
 from enums import MultiplayerGameType, ShareType, Variation
-from models import BingoGameData, Game, Player, User
+from models import BingoGameData, Game, User
 from pickups import Pickup
 from reachable import Map, PlayerState
 from util import (INDEX_TEMPLATE, game_flags, is_mw_manifest_loc, param_flag,
-                  param_val, template_vals, utcnow, whitelist_ok)
+                  param_int, param_val, template_vals, utcnow, whitelist_ok)
 from web.extensions import oidc
 from web.responses import json_resp, make_resp, text_resp
 
@@ -33,7 +34,7 @@ def game_list_html(games):
             if flag_line is not None:
                 if is_race and not whitelist_ok():
                     continue
-                flags = flag_line
+                flags = escape(flag_line)
                 slink = " <a href=%s>Seed</a>" % url_for('main_page', game_id=gid, param_id=game.params.id())
             else:
                 slink = " (Seed not found)"
@@ -44,6 +45,7 @@ def game_list_html(games):
     return body
 
 GAME_LIST_LIMIT = 50
+ACTIVE_GAMES_MAX_HOURS = 24 * 366 * 10
 # what a non-verbose history shows: the categories a game can share
 share_types = [ShareType.EVENT, ShareType.SKILL, ShareType.UPGRADE, ShareType.MISC,
                ShareType.TELEPORTER]
@@ -52,7 +54,9 @@ share_types = [ShareType.EVENT, ShareType.SKILL, ShareType.UPGRADE, ShareType.MI
 @bp.route('/activeGames/')
 @bp.route('/activeGames/<hours>/')
 def active_games(hours=12):
-    hours = int(hours)
+    if not str(hours).isdigit():
+        return text_resp("Bad hour count %s" % hours, 400)
+    hours = min(int(hours), ACTIVE_GAMES_MAX_HOURS)
     title = "Games active in the last %s hours" % hours
     # newest first (an inequality sorts ascending); over-fetch and slice after dropping
     # unplayed games, where has_history None predates the field and is shown
@@ -73,11 +77,11 @@ def active_games(hours=12):
 def my_games():
     user = User.get()
     keys = user.games if param_flag("all") else user.games[-10:]
-    title = "Games played by %s" % user.name if param_flag("all") else "Last 10 games played by %s" % user.name
+    title = escape("Games played by %s" % user.name if param_flag("all") else "Last 10 games played by %s" % user.name)
     # even ?all is bounded, and one batched get beats per-key futures
     if len(keys) > GAME_LIST_LIMIT * 4:
         keys = keys[-GAME_LIST_LIMIT * 4:]
-        title = "Most recent games played by %s" % user.name
+        title = escape("Most recent games played by %s" % user.name)
     body = game_list_html(ndb.get_multi(keys))
     if body:
         out = "<h4>%s:</h4><ul>%s</ul></body</html>" % (title, body)
@@ -86,14 +90,13 @@ def my_games():
     return make_resp(out)
 @bp.route('/game/<int:game_id>/delete/')
 def game_delete(game_id):
-    if int(game_id) < 10000 and not param_flag("override"):
-        return text_resp("No", 403)
     game = Game.with_id(game_id)
-    if game:
-        game.clean_up()
-        return text_resp("All according to daijobu")
-    else:
+    if not game:
         return text_resp("The game... was already dead...", 401)
+    if not game.may_manage() or (int(game_id) < 10000 and not param_flag("override")):
+        return text_resp("No", 403)
+    game.clean_up()
+    return text_resp("All according to daijobu")
 @bp.route('/game/<int:game_id>')
 @bp.route('/game/<int:game_id>/history/')
 def game_show_history(game_id):
@@ -102,10 +105,13 @@ def game_show_history(game_id):
     if game:
         if (game.params and Variation.RACE in game.fetch_params().variations) and not template_values["race_wl"]:
             return text_resp("Access forbidden", 401)
-        output = game.summary(int(param_val("p") or 0))
+        pids_raw = param_val("pids") or ""
+        if not all(pid.isdigit() for pid in pids_raw.split("|") if pid):
+            return text_resp("?pids= wants player numbers joined by |", 400)
+        output = game.summary(param_int("p", 0))
         output += "\nHistory:"
         hls = []
-        pids = [int(pid) for pid in param_val("pids").split("|")] if param_val("pids") else []
+        pids = [int(pid) for pid in pids_raw.split("|") if pid]
         hls = game.history(pids) if param_flag("verbose") else [h for h in game.history(pids) if h.pickup().is_shared(share_types)]
         mw_names = game.mw_names()
         for hl in sorted(hls, key=lambda x: x.timestamp, reverse=True):
@@ -126,10 +132,12 @@ def game_list_players(game_id):
         return text_resp("\n".join(out_lines))
 @bp.route('/game/<int:game_id>/player/<pid>/remove/')
 def game_remove_player(game_id, pid):
-    key = ".".join([game_id, pid])
+    key = "%s.%s" % (game_id, pid)
     game = Game.with_id(game_id)
     if not game:
         return text_resp("Game %s not found!" % game_id, 404)
+    if not game.may_manage():
+        return text_resp("No", 403)
     if key in [p.id() for p in game.players]:
         game.remove_player(key)
         return redirect(url_for("tracker.game_list_players", game_id=game_id))
@@ -141,7 +149,7 @@ def tracker_show_map(game_id):
     template_values = template_vals("GameTracker", "Game %s" % game_id, User.get())
     template_values['game_id'] = game_id
     game = Game.with_id(game_id)
-    if game and (Variation.RACE in game.fetch_params().variations) and not template_values["race_wl"]:
+    if game and game.params and (Variation.RACE in game.fetch_params().variations) and not template_values["race_wl"]:
         return text_resp("Access forbidden", 401)
     return render_template(INDEX_TEMPLATE, **template_values)
 @bp.route('/tracker/game/<int:game_id>/fetch/gamedata')
@@ -168,6 +176,8 @@ def tracker_update_map(game_id):
             game_id = latest
             gid_changed = True
     pos = Cache.get_pos(game_id)
+    if not param_val("modes"):
+        return json_resp({"error": "?modes= is required"}, 400)
     inventories = None
     game = None
     if not pos:
@@ -200,7 +210,7 @@ def tracker_update_map(game_id):
         params = game.fetch_params()
         spawn = params.spawn or "Glades"
         for p in need_reach_updates:
-            inventory = [(pcode, pid, count, False) for ((pcode, pid), count) in inventories["unshared"][p].items()]
+            inventory = [(pcode, pid, count, False) for ((pcode, pid), count) in inventories["unshared"].get(p, {}).items()]
             inventory  += [(pcode, pid, count, False) for group, inv in inventories.items()  if group != "unshared" and p in group for ((pcode, pid), count) in inv.items()]
             state = PlayerState(inventory)
             # AP seeds charge the room's door tiers; the spend model and its
@@ -227,9 +237,9 @@ def tracker_get_items_update(game_id, player_id):
     if not items:
         coords = Cache.get_have(game_id)
         game = Game.with_id(game_id)
+        if not game:
+            return json_resp({"error": "Game %s not found" % game_id}, 404)
         if not coords:
-            if not game:
-                return json_resp({"error": "Game %s not found" % game_id}, 404)
             coords = { p.pid(): p.have_coords() for p in game.visible_players() }
             Cache.set_have(game_id, coords)
         items, _ = _get_item_tracker_items(coords.get(player_id, []), game, player_id)
@@ -249,7 +259,7 @@ def _get_item_tracker_items(coords, game, player=1):
     }
     inventories = game.get_inventories(game.visible_players(), True, True)
 
-    inv = [v for k,v in inventories.items() if k != "unshared"][0] if game.mode == MultiplayerGameType.SHARED else inventories["unshared"][player]
+    inv = [v for k,v in inventories.items() if k != "unshared"][0] if game.mode == MultiplayerGameType.SHARED else inventories["unshared"].get(player, {})
     for ((pcode, pid), count) in inv.items():
         p = Pickup.n(pcode, pid)
         if not p:
@@ -351,7 +361,7 @@ def tracker_fetch_seed(game_id, player_id):
 def tracker_item_tracker(game_id, player_id=1):
     game = Game.with_id(game_id)
     template_values = template_vals("ItemTracker", "Game %s" % game_id, User.get())
-    if game and Variation.RACE in game.fetch_params().variations and not template_values["race_wl"]:
+    if game and game.params and Variation.RACE in game.fetch_params().variations and not template_values["race_wl"]:
         return text_resp("Access forbidden", 401)
     template_values['game_id'] = game_id
     template_values['player_id'] = player_id
@@ -382,7 +392,7 @@ def reset_and_transfer_game(game_id, player_id):
     user = User.get()
     if not (User.is_admin() or (user and user.key == game.creator)):
         return text_resp("Can't restart a game you didn't create...", 401)
-    p = game.player(player_id)
+    p = game.player(player_id, create=False)
     new_user = p.user.get() if p and p.user else None
     if not new_user:
         return text_resp("Couldn't find a user attached to player %s" % player_id, 404)

@@ -92,6 +92,10 @@ class SessionTestCase(NdbTestCase):
         self._with_id = Game.__dict__["with_id"]
         self.game = None
         Game.with_id = staticmethod(lambda gid: self.game)
+        # the routes' APLink writes are txns; the stubbed store takes their bare bodies
+        for name in ("_connect_link_txn", "_disconnect_link_txn"):
+            self.addCleanup(setattr, netcode, name, getattr(netcode, name))
+            setattr(netcode, name, getattr(netcode, name).__wrapped__)
         # mirror the real txn's semantics against the FakeGame's in-memory
         # entity (no datastore here): fresh-read + tick-owned fields only
         self._tick_txn = Player.__dict__["tick_update_txn"]

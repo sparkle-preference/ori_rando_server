@@ -266,6 +266,8 @@ class SessionTestCase(unittest.TestCase):
         self.drops = []              # entries handed to _persist_drop
         self.drop_new = True         # whether the ledger reports them as new
         self.drop_notices = []       # (gid, world, text) from _notify_drop
+        self.extras = []             # [stream index, code, id] handed to _apply_extras
+        self.extras_refused = False  # whether _apply_extras reports them past the cap
         self._orig = (ap_bridge._shadow_slots, ap_bridge._apply_grants,
                       ap_bridge._persist_recv, ap_bridge._persist_status,
                       ap_bridge._goal_worlds, ap_bridge._persist_names,
@@ -274,7 +276,10 @@ class SessionTestCase(unittest.TestCase):
                       ap_bridge._hint_notice, ap_bridge._scout_rows,
                       ap_bridge._load_scout_row, ap_bridge._persist_drop,
                       ap_bridge._notify_drop, ap_bridge._persist_promises,
-                      ap_bridge._persist_price)
+                      ap_bridge._persist_price, ap_bridge._apply_extras)
+        ap_bridge._apply_extras = lambda gid, world, entries: (
+            self.extras.extend(list(e) for e in entries)
+            or (list(entries) if self.extras_refused else []))
         ap_bridge._load_scout_row = lambda gid, world: self.scout_row
         ap_bridge._persist_drop = lambda gid, world, entry: (
             self.drops.append(entry) or self.drop_new)
@@ -317,7 +322,7 @@ class SessionTestCase(unittest.TestCase):
          ap_bridge._hint_notice, ap_bridge._scout_rows,
          ap_bridge._load_scout_row, ap_bridge._persist_drop,
          ap_bridge._notify_drop, ap_bridge._persist_promises,
-         ap_bridge._persist_price) = self._orig
+         ap_bridge._persist_price, ap_bridge._apply_extras) = self._orig
         ap_bridge._notice_at.clear()
 
     def make_session(self, **kw):
@@ -1081,45 +1086,41 @@ class TestStoredScoutFallback(SessionTestCase):
         self.assertEqual(ap_bridge._recv_at_least(None, 1, 1), [1])
 
 
-class TestDroppedItems(SessionTestCase):
-    """An undeliverable ReceivedItems entry (per-item slots exhausted, or an
-    item this seed never exported) is recorded durably and the player told
-    once: a console-sent rescue that vanishes silently defeats itself."""
-
-    EX50 = 524349  # ("EX", "50"): pool [1], capacity one
+class ExtraItemsTestCase(SessionTestCase):
+    EX50 = 524349     # ("EX", "50"): pool [1], capacity one
+    UNKNOWN = 999999999
 
     def setUp(self):
-        super(TestDroppedItems, self).setUp()
+        super(ExtraItemsTestCase, self).setUp()
         self._timeout = ap_bridge.PROMISES_TIMEOUT
         ap_bridge.PROMISES_TIMEOUT = -1  # empty stored row -> arrival-order
         self.addCleanup(lambda: setattr(ap_bridge, "PROMISES_TIMEOUT", self._timeout))
 
-    def _frames(self, items):
+    def _frames(self, items, *more):
         return [roominfo(),
                 [connected(missing=[524541, 524542])],
-                [{"cmd": "ReceivedItems", "index": 0, "items": items}]]
+                [{"cmd": "ReceivedItems", "index": 0, "items": items}]] + list(more)
 
-    def test_overage_is_recorded_and_the_player_told(self):
-        # capacity one: the first EX50 fills slot 1, the second has nowhere
+
+class TestDroppedItems(ExtraItemsTestCase):
+    """An undeliverable ReceivedItems entry (an item that isn't Ori's, or
+    extras past the cap) is recorded durably and the player told once: a
+    console-sent rescue that vanishes silently defeats itself."""
+
+    def test_an_unknown_item_is_recorded_and_the_player_told(self):
         self.run_session(self.make_session(), self._frames([
             {"item": self.EX50, "location": 90, "player": 2},
-            {"item": self.EX50, "location": 91, "player": 2}]))
+            {"item": self.UNKNOWN, "location": 91, "player": 2}]))
         self.assertEqual(self.grants, [(self.GID, self.WORLD, [1])])
+        self.assertEqual(self.extras, [])
         self.assertEqual(len(self.drops), 1)
         entry = self.drops[0]
-        self.assertEqual((entry["w"], entry["i"], entry["a"]), (self.WORLD, 1, self.EX50))
+        self.assertEqual((entry["w"], entry["i"], entry["a"]), (self.WORLD, 1, self.UNKNOWN))
+        self.assertIn("AP item 999999999", entry["n"])
         self.assertEqual(len(self.drop_notices), 1)
         self.assertIn("Undeliverable", self.drop_notices[0][2])
         # the stream still advances past the drop; it is never redelivered
         self.assertEqual(self.recvs[-1], (self.GID, self.WORLD, 2))
-
-    def test_unknown_item_is_recorded_with_its_stream_index(self):
-        self.run_session(self.make_session(), self._frames([
-            {"item": self.EX50, "location": 90, "player": 2},
-            {"item": 999999999, "location": 91, "player": 2}]))
-        self.assertEqual(len(self.drops), 1)
-        self.assertEqual(self.drops[0]["i"], 1)
-        self.assertIn("AP item 999999999", self.drops[0]["n"])
 
     def test_already_recorded_drops_stay_quiet(self):
         # twin sessions and index-0 resends re-drop the same stream position;
@@ -1127,9 +1128,17 @@ class TestDroppedItems(SessionTestCase):
         self.drop_new = False
         self.run_session(self.make_session(), self._frames([
             {"item": self.EX50, "location": 90, "player": 2},
-            {"item": self.EX50, "location": 91, "player": 2}]))
+            {"item": self.UNKNOWN, "location": 91, "player": 2}]))
         self.assertEqual(len(self.drops), 1)
         self.assertEqual(self.drop_notices, [])
+
+    def test_extras_past_the_cap_drop_by_stream_index(self):
+        self.extras_refused = True
+        self.run_session(self.make_session(), self._frames([
+            {"item": self.EX50, "location": 90, "player": 2},
+            {"item": self.EX50, "location": 91, "player": 2}]))
+        self.assertEqual([(d["i"], d["a"]) for d in self.drops], [(1, self.EX50)])
+        self.assertEqual(len(self.drop_notices), 1)
 
     def test_drops_plus_rows(self):
         held = [{"w": 1, "i": 4}]
@@ -1138,6 +1147,38 @@ class TestDroppedItems(SessionTestCase):
         self.assertEqual(len(ap_bridge._drops_plus(held, 1, 5, {"w": 1, "i": 5})), 2)
         full = [{"w": 1, "i": n} for n in range(ap_bridge.DROPPED_CAP)]
         self.assertIsNone(ap_bridge._drops_plus(full, 1, 9999, {"w": 1, "i": 9999}))
+
+
+class TestExtraItems(ExtraItemsTestCase):
+    """A known Ori item with no manifest slot left (start_inventory_from_pool
+    filler, item links, console sends) goes to tick field 10, keyed by stream
+    index, instead of being dropped."""
+
+    WARP = 524988  # "Warp to Spidersack Energy Door": never in this manifest
+
+    def test_a_slotless_known_item_is_appended_not_dropped(self):
+        self.run_session(self.make_session(), self._frames([
+            {"item": self.EX50, "location": 90, "player": 2},
+            {"item": self.EX50, "location": -2, "player": 0}]))
+        self.assertEqual(self.grants, [(self.GID, self.WORLD, [1])])
+        self.assertEqual(self.extras, [[1, "EX", "50"]])
+        self.assertEqual((self.drops, self.drop_notices), ([], []))
+        self.assertEqual(self.recvs[-1], (self.GID, self.WORLD, 2))
+
+    def test_a_warp_carries_the_id_a_client_can_grant(self):
+        self.run_session(self.make_session(), self._frames([
+            {"item": self.WARP, "location": 90, "player": 2}]))
+        self.assertEqual(self.extras, [
+            [0, "TW", "Warp to Spidersack Energy Door,70,-110,SpiderSacEnergyDoorWarp"]])
+
+    def test_an_index_zero_resend_offers_the_same_stream_index(self):
+        # the append skips a held index, so a replay has to name the same one
+        items = [{"item": self.EX50, "location": 90, "player": 2},
+                 {"item": self.EX50, "location": 91, "player": 2}]
+        self.run_session(self.make_session(), self._frames(
+            items, [{"cmd": "ReceivedItems", "index": 0, "items": items}]))
+        self.assertEqual({tuple(e) for e in self.extras}, {(1, "EX", "50")})
+        self.assertEqual(self.drops, [])
 
 
 class HintTestCase(SessionTestCase):
@@ -1581,6 +1622,9 @@ class TestGoldenRealTouchpoints(unittest.TestCase):
                 self.signals.append(signal_for(fresh))
             return len(fresh)
         Player.mark_slots_txn = staticmethod(_mark)
+        self._xtxn = Player.add_extra_items_txn
+        Player.add_extra_items_txn = staticmethod(
+            lambda pkey, entries: by_key[pkey].add_extra_items(entries))
         self._gwid = models.Game.with_id
         real = self.real
 
@@ -1617,6 +1661,7 @@ class TestGoldenRealTouchpoints(unittest.TestCase):
         ap_bridge._notice_at.clear()
         ap_bridge._dp_cache.clear()
         Player.mark_slots_txn = staticmethod(self._mtxn)
+        Player.add_extra_items_txn = staticmethod(self._xtxn)
         models.Game.with_id = staticmethod(self._gwid)
         ndb.Key.get = self._kget
         self._ctx.__exit__(None, None, None)
@@ -1650,6 +1695,27 @@ class TestGoldenRealTouchpoints(unittest.TestCase):
         self.assertEqual(self.real.slot_bflds, [0b1011] + [0] * 7)
         self.assertEqual(Cache.get_seen_checksum((self.GID, self.WORLD)), 222)  # no re-bust
         self.assertEqual(self.recvs[-1], (self.GID, self.WORLD, 3))
+
+    def test_slotless_items_reach_tick_field_10_once(self):
+        # a third Bash and a warp this manifest never exported have no slot
+        batch = dict(self.BATCH, items=self.BATCH["items"] + [
+            {"item": 524288, "location": 94, "player": 2, "flags": 1},
+            {"item": 524988, "location": -2, "player": 0, "flags": 0}])
+        Cache.set_seen_checksum((self.GID, self.WORLD), 111)
+        self.run_session(self.make_session(), [ROOMINFO, [connected(), dict(batch)]])
+        self.assertEqual(self.real.slot_bflds, [0b1011] + [0] * 7)
+        self.assertEqual(self.real.extra_items, [
+            [3, "SK", "0"],
+            [4, "TW", "Warp to Spidersack Energy Door,70,-110,SpiderSacEnergyDoorWarp"]])
+        self.assertIsNone(Cache.get_seen_checksum((self.GID, self.WORLD)))  # tick rearmed
+        # a fresh connection replays the whole stream: nothing appends twice
+        Cache.set_seen_checksum((self.GID, self.WORLD), 222)
+        self.run_session(self.make_session(), [ROOMINFO, [connected(), dict(batch)]])
+        self.assertEqual(len(self.real.extra_items), 2)
+        self.assertEqual(Cache.get_seen_checksum((self.GID, self.WORLD)), 222)  # no re-bust
+        fields = self.real.output(include_slots=True).split(",")
+        self.assertEqual(fields[8:], ["", "0", "SK|0;TW|Warp to Spidersack Energy Door"
+                                      "%2C70%2C-110%2CSpiderSacEnergyDoorWarp"])
 
     def test_reconnect_reconcile(self):
         # bits set during an outage + the room's own checked list reconcile

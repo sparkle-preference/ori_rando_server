@@ -33,7 +33,7 @@ bonuses["WP|*"] = {name: "Warp", desc: [
 bonuses["BS|*"] = {name: "Random Bonus Skill", desc: [(<span>A random bonus skill. Check out the <a target="_blank" rel="noopener noreferrer"  href="/faq?g=bonus_pickups">bonus item glossary</a> for more info on these.</span>)]}
 bonuses["ES|*"] = {name: "Random Enhanced Skill", desc: [
     "One of your skills starts out Enhanced, weighted toward the ones that change how a skill plays. Wall Jump is never picked.",
-    (<span><i>Each one also adds a 25% chance of Enhanced Sein on top, up to a certainty at four of them.</i></span>)
+    (<span><i>Each one also adds a 20% chance of Enhanced Sein on top, up to a certainty at five of them.</i></span>)
 ]}
 bonuses["ES|**"] = {name: "Random Enhanced Skill (any)", desc: [
     "One of your skills starts out Enhanced, any of the twelve equally likely.",
@@ -56,7 +56,7 @@ const getHelpHelper = (category, option) => {
             let h = {}
             if(vars.includes(option)) {
                 h = getHelpHelper("variations", option)
-                h.lines = h.lines.filter(l => !l.startsWith("Recommended"))
+                h.lines = h.lines.filter(l => typeof l !== "string" || !l.startsWith("Recommended"))
                 h.lines.push((<span><i>(This variation has been applied to your seed.)</i></span>))
             } else if(presets.includes(option.replace('*','')) || option.startsWith("Custom")) {
                 h = getHelpHelper("logicModes", option.toLowerCase())
@@ -102,11 +102,9 @@ const getHelpHelper = (category, option) => {
                 ]
             } else if(option.startsWith("mode")) {
                 let [, mode] = option.split("=")
-                h.title = "Multiplayer Game Mode"
-                if(mode.toLowerCase() === "shared")
-                     h.lines = ["A Co-op game creates different seeds for each player in the game. Items in the selected Shared Item Categories will be shared between players when found."]
-                else if(mode.toLowerCase() === "none")
-                     h.lines = ["A Race creates 1 copy of the generated seed for each player, each with a different player ID. This creates a map that can be used to watch all the players racing at once!"]
+                let name = {shared: "Co-op", none: "Race", multiworld: "Multiworld"}[(mode || "").toLowerCase()]
+                h = name ? getHelpHelper("multiplayerOptions", name) : {title: "Multiplayer Game Mode", lines: []}
+                h.lines = h.lines.filter(l => typeof l !== "string" || !l.startsWith("Recommended"))
                 h.lines.push((<span><i>(Your seeds are using this Multiplayer Mode.)</i></span>))
             } else if(option === "balanced") {
                 h = getHelpHelper("advanced", "fillAlgBalanced")

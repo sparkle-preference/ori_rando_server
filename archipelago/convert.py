@@ -17,6 +17,7 @@ from archipelago.export_data import EX_EXACT_CAP
 from seedbuilder.generator import SPAWN_SPOTS
 from archipelago.yaml_emit import (LOC_NAMES, ITEM_NAMES, local_item_name,
                                    make_config, SPAWN_COORD)
+from util import is_mw_manifest_loc
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "oride_apworld", "oride", "data")
 
@@ -244,10 +245,6 @@ def ap_spawn_region(zone):
     return SPAWN_REGIONS[zone]
 
 
-def _is_manifest_loc(loc):
-    return -257 <= loc <= -2
-
-
 def ap_convert(texts, categories, keep_locs=frozenset()):
     """Per-world seed texts (index 0 = world 1) -> (new_texts, info), deterministic.
     keep_locs: (world, loc) pairs that must stay local placements."""
@@ -273,7 +270,7 @@ def ap_convert(texts, categories, keep_locs=frozenset()):
                 loc = int(parts[0])
             except ValueError:
                 continue
-            if _is_manifest_loc(loc) and parts[1] == "MW":
+            if is_mw_manifest_loc(loc) and parts[1] == "MW":
                 m[-loc - 2] = idx
         worlds.append(lines)
         fields.append(f)
@@ -290,7 +287,7 @@ def ap_convert(texts, categories, keep_locs=frozenset()):
                 loc = int(parts[0])
             except ValueError:
                 continue
-            if loc == SPAWN_COORD or _is_manifest_loc(loc):
+            if loc == SPAWN_COORD or is_mw_manifest_loc(loc):
                 continue
             code, pid, zone = parts[1], parts[2], parts[3]
             if code == "MW":
@@ -422,7 +419,7 @@ def build_ap_config(placements, players, world, logic_paths, key_mode,
         loc = int(raw_loc)
         if loc == SPAWN_COORD:
             continue
-        if _is_manifest_loc(loc):
+        if is_mw_manifest_loc(loc):
             if code != "MW":
                 raise ApConversionError("non-MW line at manifest loc %s" % loc)
             finder_s, _holder, icode, iid = pid.split(",", 3)

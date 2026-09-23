@@ -98,8 +98,21 @@ export default class ItemTracker extends React.Component {
         }
     };
 
+    // inFlight is the request's start time, stale after 10s; failures back off up to 30s
     getUpdate = () => {
-        doNetRequest(`/tracker/game/${game_id}/fetch/items/${player_id}`, ({response}) => this.setState({ data: JSON.parse(response) }))
+        if((this.inFlight && Date.now() - this.inFlight < 10000) || Date.now() < (this.retryAt || 0))
+            return
+        this.inFlight = Date.now()
+        doNetRequest(`/tracker/game/${game_id}/fetch/items/${player_id}`, ({status, responseText}) => {
+            this.inFlight = 0
+            if(status === 200) {
+                this.fails = 0
+                this.setState({data: JSON.parse(responseText)})
+            } else {
+                this.fails = (this.fails || 0) + 1
+                this.retryAt = Date.now() + Math.min(30000, 1000 * Math.pow(2, this.fails - 1))
+            }
+        })
     }
 
 	render = () => {

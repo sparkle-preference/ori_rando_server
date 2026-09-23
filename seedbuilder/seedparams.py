@@ -19,10 +19,29 @@ _PARAMS_LOCK = Lock()
 
 JSON_SHARE = lambda x: x.value if x != ShareType.EVENT else "World Events"
 
+def spawn_weights(ws):
+    """A blank weight arrives as null (NaN in JSON); it reads as 0."""
+    return [float(w) if isinstance(w, (int, float)) else 0.0 for w in (ws or [])]
+
+
+def player_cap_problem(params):
+    from util import MAX_PLAYERS
+    if int(getattr(params, "players", 1) or 1) > MAX_PLAYERS:
+        return "Seeds can have at most %s players." % MAX_PLAYERS
+    return None
+
+
 def seed_mode_problem(params):
     """User-facing reason this seed request can't be built, or None. The Archipelago
     kill switch refuses creation too."""
     from util import ARCHIPELAGO
+    cap = player_cap_problem(params)
+    if cap:
+        return cap
+    for w in range(1, int(getattr(params, "players", 1) or 1) + 1):
+        view = world_view(params, w)
+        if getattr(view, "start", None) in ("Horu", "Ginso") and Variation.CLOSED_DUNGEONS in (getattr(view, "variations", None) or []):
+            return "Closed Dungeons can't start in %s." % view.start
     ap_mode = getattr(params, "ap_mode", False)
     if ap_mode:
         # ahead of the singleplayer early return: K=1 AP is still an AP seed
@@ -183,7 +202,7 @@ class MultiplayerOptions(ndb.Model):
 
     def get_team_str(self):
         if self.teams:
-            return "|".join([",".join(team) for team in self.teams])
+            return "|".join(",".join(str(p) for p in team) for team in self.teams.values())
         return ""
 
 # per-world override keys (page/preset json) -> (attribute, converter); omitted keys keep the seed's value
@@ -209,7 +228,7 @@ WORLD_FIELDS = {
     "spawnECs":       ("starting_energy", int),
     "spawnHCs":       ("starting_health", int),
     "spawnSKs":       ("starting_skills", int),
-    "spawnWeights":   ("spawn_weights",   list),
+    "spawnWeights":   ("spawn_weights",   spawn_weights),
     "senseData":      ("sense",           lambda v: v),
     "verboseSpoiler": ("verbose_spoiler", bool),
 }
@@ -391,7 +410,8 @@ class SeedGenParams(ndb.Model):
     @staticmethod
     def from_json(json):
         params = SeedGenParams()
-        params.seed = str(json.get("seed"))
+        seed = json.get("seed")
+        params.seed = "" if seed is None else str(seed)
         if not params.seed:
             log.error("No seed in %r! returning None" % json)
             return None
@@ -441,7 +461,7 @@ class SeedGenParams(ndb.Model):
         params.starting_health = json.get("spawnHCs", 3)
         params.starting_skills = json.get("spawnSKs", 0)
         params.start = json.get("spawn", "Glades")
-        params.spawn_weights = json.get("spawnWeights", [])
+        params.spawn_weights = spawn_weights(json.get("spawnWeights"))
         params.verbose_spoiler = json.get("verboseSpoiler", False)
         from archipelago.convert import normalize_categories
         params.ap_export = normalize_categories(str(c) for c in json.get("apExport", []))
@@ -539,12 +559,16 @@ class SeedGenParams(ndb.Model):
         if raw_fass:
             params.placements = []
             params.preplaced_coords = []
+            # the util.parse_fass shape: [world.]loc:item[@owner]; spawn items never cross worlds
             for fass in raw_fass.split("|"):
-                loc, _, item = fass.partition(":")
-                stuff = [Stuff(code=item[:2], id=item[2:], player="")]
+                rawloc, _, item = fass.partition(":")
+                world, _, loc = rawloc.rpartition(".")
+                item, _, owner = item.partition("@")
+                stuff = [Stuff(code=item[:2], id=item[2:], player=world, owner=(owner if loc != "2" else "") or None)]
                 params.placements.append(Placement(location=loc, zone="", stuff=stuff))
                 if loc == "2":
-                    params.spawn_placement = Placement(location=loc, zone="", stuff=stuff)
+                    if world in ("", "1"):
+                        params.spawn_placement = Placement(location=loc, zone="", stuff=stuff)
                 else:
                     params.preplaced_coords.append(int(loc))
         from archipelago.convert import normalize_categories

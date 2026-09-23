@@ -4,7 +4,7 @@ import os
 from flask_oidc import OpenIDConnect
 from flask_sock import Sock
 
-from util import debug
+from util import WS_PING_INTERVAL, debug
 
 oidc = OpenIDConnect()
 sock = Sock()
@@ -26,5 +26,13 @@ def init_extensions(app):
     oidc.oauth.oidc.authorize_params = {'access_type': 'offline', 'prompt': 'consent'}
 
     # client frames are tiny; uncapped, a fragmented message grows without bound
-    app.config['SOCK_SERVER_OPTIONS'] = {'max_message_size': 1 << 20}
+    app.config['SOCK_SERVER_OPTIONS'] = sock_server_options()
     sock.init_app(app)
+
+
+def sock_server_options(ping_interval=None):
+    opts = {'max_message_size': 1 << 20}
+    ping = WS_PING_INTERVAL if ping_interval is None else ping_interval
+    if ping > 0:
+        opts['ping_interval'] = ping
+    return opts

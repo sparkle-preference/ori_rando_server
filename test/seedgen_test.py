@@ -2671,6 +2671,18 @@ class ApDatapackageTests(unittest.TestCase):
         for category in ("upgrades", "warps", "experience"):
             self.assertNotIn(category, line)
 
+    def test_the_apworld_filler_is_a_filler_item(self):
+        """Filler rides tick field 10, never a manifest slot: AP's logic must not count on it."""
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                            "archipelago", "oride_apworld", "oride")
+        with open(os.path.join(path, "__init__.py")) as f:
+            source = f.read()
+        body = source[source.index("def get_filler_item_name"):]
+        name = re.search(r'return "([^"]+)"', body).group(1)
+        with open(os.path.join(path, "data", "items.json")) as f:
+            item = {i["name"]: i for i in json.load(f)}[name]
+        self.assertEqual(item["category"], "experience")
+
     def test_match_key_round_trips_a_real_warp_id(self):
         from archipelago.convert import ITEM_BY_CODE_ID, match_key
         from seedbuilder.generator import warp_targets2
@@ -3139,6 +3151,20 @@ class MultiPickupDecomposeTests(unittest.TestCase):
         grown = Multiple("EX/100")
         grown.add_pickup(Pickup.n("RI", "8000/=5"))
         self.assertEqual(decompose_multi_value(grown.id), [("EX", "100"), ("RI", "8000/=5")])
+
+    def test_a_value_starting_with_a_slash_keeps_its_code(self):
+        # "SH///a" would read as code "SH/"; a space in front keeps the piece whole
+        from util import compose_multi_value, decompose_multi_value
+        packed = compose_multi_value([("SH", "/a"), ("EX", "5")])
+        self.assertEqual(packed, "SH/ //a/EX/5")
+        self.assertEqual(decompose_multi_value(packed), [("SH", " /a"), ("EX", "5")])
+
+    def test_a_spawn_part_is_composed_the_same_way(self):
+        from seedbuilder.generator import SeedGenerator
+        sg = SeedGenerator()
+        self.assertEqual(sg.toOutput("Bash", True), "SK/0")
+        self.assertEqual(sg.toOutput("RI8000/=5", True), "RI/8000//=5")
+        self.assertEqual(sg.toOutput("SH/a", True), "SH/ //a")
 
 
 

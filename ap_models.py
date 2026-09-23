@@ -20,15 +20,20 @@ def ap_slot_name(world):
 
 
 def ap_slot_names(worlds, names=None):
-    """Per-world slot names: the name the seed was rolled with, else OriN.
-    AP rejects duplicate slots, so collisions get their world number."""
+    """Per-world slot names as AP's Generate keeps them: the rolled name (else OriN),
+    at most 16 chars, unique ignoring case; a collision takes its world number."""
+    worlds = int(worlds)
     out, seen = [], set()
-    for w in range(1, int(worlds) + 1):
+    for w in range(1, worlds + 1):
         raw = names[w - 1] if names and w <= len(names) else ""
-        name = sanitize_display_name(raw, PLAYER_NAME_MAX) or ap_slot_name(w)
-        if name.lower() in seen:
-            suffix = str(w)
-            name = name[:PLAYER_NAME_MAX - len(suffix)] + suffix
+        name = sanitize_display_name(raw, AP_SLOT_NAME_MAX)
+        if not name or name == "Archipelago":
+            name = ap_slot_name(w)
+        base, n = name, w
+        while name.lower() in seen:
+            suffix = str(n)
+            name = base[:AP_SLOT_NAME_MAX - len(suffix)] + suffix
+            n += worlds
         seen.add(name.lower())
         out.append(name)
     return out
@@ -39,6 +44,7 @@ def ap_slot_names(worlds, names=None):
 _NAME_DROP = re.compile(r"[^A-Za-z0-9 ,_.'\-()!:+&]")
 ITEM_NAME_MAX = 40
 PLAYER_NAME_MAX = 20
+AP_SLOT_NAME_MAX = 16    # Archipelago's Generate.handle_name truncates to this
 
 
 def sanitize_display_name(name, limit=ITEM_NAME_MAX):

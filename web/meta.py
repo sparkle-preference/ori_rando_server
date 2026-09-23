@@ -1,9 +1,10 @@
 """Operational surface: what version is live, what flags are on, and the two
-maintenance endpoints Cloud Scheduler calls.
+admin-only maintenance endpoints.
 """
 import logging as log
 
 import collections
+import threading
 import time
 
 from flask import Blueprint, request
@@ -21,6 +22,8 @@ bp = Blueprint("meta", __name__)
 
 @bp.route('/clean/')
 def clean_up():
+    if not User.is_admin():
+        return text_resp("No", 403)
     log.info("starting clean...")
     clean_count, did_finish = Game.clean_old(param_flag("log_prog"))
     ndb.get_context().clear_cache()
@@ -35,6 +38,8 @@ def clean_up():
 
 @bp.route('/cache/clear')
 def clear_cache():
+    if not User.is_admin():
+        return text_resp("No", 403)
     Cache.clear()
     return text_resp("cache cleared!")
 
@@ -82,17 +87,19 @@ def version_json():
 CLIENT_ERROR_MAX_BYTES = 16 * 1024
 CLIENT_ERROR_BUDGET = (20, 600)
 _client_errors = collections.deque()
+_client_errors_lock = threading.Lock()
 
 
 def _client_error_allowed(now=None):
     limit, window = CLIENT_ERROR_BUDGET
     now = time.time() if now is None else now
-    while _client_errors and now - _client_errors[0] > window:
-        _client_errors.popleft()
-    if len(_client_errors) >= limit:
-        return False
-    _client_errors.append(now)
-    return True
+    with _client_errors_lock:
+        while _client_errors and now - _client_errors[0] > window:
+            _client_errors.popleft()
+        if len(_client_errors) >= limit:
+            return False
+        _client_errors.append(now)
+        return True
 
 
 @bp.route('/client_error', methods=['POST'])

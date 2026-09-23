@@ -35,6 +35,15 @@ const bumpBoardSeed = (seed) => {
     return match ? (seed || "").slice(0, match.index) + `RR${parseInt(match[1], 10) + 1}` : `${seed || ""}RR1`
 }
 
+// the spectate page takes its game_id as 4 + 7n
+const spectateLink = (gameId) => {
+    let url = new URL(window.document.location.href)
+    url.pathname = url.pathname.replace("board", "spectate")
+    if(gameId > 0)
+        url.searchParams.set("game_id", 4 + gameId * 7)
+    return url.href
+}
+
 const make_icons = players => players.map(p => (<Media key={`playerIcon${p}`} object style={{width: "25px", height: "25px"}} src={player_icons(p, false)} alt={"Icon for player "+p} />))
 const BingoCard = ({card, progress, players, locked, help, dark, selected, onSelect, colors, hide}) => {
     let cardStyles = {width: '18vh', height: '18vh', minWidth: '120px', maxWidth: '200px', minHeight: '120px', maxHeight: '200px', flexGrow: 1}
@@ -406,7 +415,7 @@ export default class Bingo extends React.Component {
                       cards: [], haveGame: false, creatingGame: false, createModalOpen: true, offset: 0, noTimer: false, 
                       discovery: iniUrl.searchParams.has("disc"), discCount: parseInt(iniUrl.searchParams.get("disc") || 2, 10), discSquares: [], lockout: false,
                       activePlayer: 1, showInfo: false, user: user, loadingText: "Loading...", paramId: -1, squareCount: squareCount, seed: seed,
-                      dark: dark, specLink: window.document.location.href.replace("board", "spectate").replace(gameId, 4 + gameId*7), testIters: 0,
+                      dark: dark, specLink: spectateLink(gameId), testIters: 0,
                       fails: 0, gameId: gameId, startSkills: 3, startCells: 4, startMisc: "MU|TP/Swamp/TP/Valley", goalMode: goalMode,
                       difficulty: difficulty, isRandoBingo: false, randoGameId: -1, viewOnly: viewOnly, buildingPlayer: false, meta: iniUrl.searchParams.has("bingoMeta"),
                       events: [], startTime: (new Date()), countdownActive: false, isOwner: false, targetCount: targetCount, userBoard: userBoard,
@@ -424,7 +433,7 @@ export default class Bingo extends React.Component {
             this.state.loader = get_random_loader()
         } else if(userBoard)
         {
-            this.initialUrl = () => `/bingo/userboard/${user}/fetch/${gameId}?time=${(new Date()).getTime()}`
+            this.initialUrl = () => `/bingo/userboard/${encodeURIComponent(user)}/fetch/${gameId}?time=${(new Date()).getTime()}`
             doNetRequest(this.initialUrl(), this.initialCallback)
             this.state.creatingGame = true
             this.state.createModalOpen = false
@@ -469,7 +478,7 @@ export default class Bingo extends React.Component {
 
         window.history.replaceState('', title, url.href);
         document.title = title
-        this.setState({specLink: window.document.location.href.replace("board", "spectate").replace(gameId, 4 + gameId*7)})
+        this.setState({specLink: spectateLink(gameId)})
     }
     joinGame = (joinTeam) => {
         joinTeam = joinTeam || false
@@ -500,12 +509,12 @@ export default class Bingo extends React.Component {
         let url = `/bingo/game/${gameId}/add/${nextPlayer}`
         if(joinTeam)
             url += `?joinTeam=${joinTeam}`
-        this.setState({buildingPlayer: true, loadingText: "Joining game..."}, doNetRequest(url, this.tickCallback))
+        this.setState({buildingPlayer: true, loadingText: "Joining game..."}, () => doNetRequest(url, this.tickCallback))
     }
     tick = (force = false) => {
-        let {fails, gameId, haveGame, ticksSinceLastSquare, user, userBoard, ticking, netRetryAt} = this.state;
+        let {gameId, haveGame, ticksSinceLastSquare, user, userBoard, ticking, netRetryAt} = this.state;
         // ticking is the fetch start time; stale after 10s so a lost callback can't stall polling
-        if((ticking && Date.now() - ticking < 10000) || fails > 50)
+        if(ticking && Date.now() - ticking < 10000)
             return
         if(netRetryAt && Date.now() < netRetryAt)
             return
@@ -529,7 +538,7 @@ export default class Bingo extends React.Component {
                 this.setState({ticksSinceLastSquare: ticksSinceLastSquare+1})
                 return
             }
-            const url = userBoard ? `/bingo/userboard/${user}/fetch/${gameId}` : `/bingo/game/${gameId}/fetch`
+            const url = userBoard ? `/bingo/userboard/${encodeURIComponent(user)}/fetch/${gameId}` : `/bingo/game/${gameId}/fetch`
             this.setState({ticking: Date.now()}, () => doNetRequest(url, this.pollCallback))
         }
     }
@@ -550,16 +559,19 @@ export default class Bingo extends React.Component {
     }
 
     // only the poll swallows status 0; Join, Start and Remove share tickCallback and report it
-    pollCallback = (res) => res.status === 0 ? this.netFailed() : this.tickCallback(res)
+    pollCallback = (res) => {
+        if(res.status === 0)
+            return this.netFailed()
+        this.tickCallback(res)
+        if(res.status !== 200)
+            this.setState(prev => ({netRetryAt: Date.now() + Math.min(NET_BACKOFF_MAX, 1000 * Math.pow(2, prev.fails - 1))}))
+    }
 
     tickCallback = ({status, responseText}) => {
         if(status !== 200)
         {
-            let stateUpdate = {ticking: false}
-            if(status === 429)
-                stateUpdate.activePlayer = this.state.activePlayer + 1
-              else 
-                stateUpdate = {fails: this.state.fails + 1, buildingPlayer: false, ticking: false}
+            let stateUpdate = {fails: this.state.fails + 1, buildingPlayer: false, ticking: false}
+            // only 409 means the slot is taken
             if(status === 409)
                 stateUpdate.activePlayer = this.state.activePlayer + 1
             else if(this.state.fails < 5 || (this.state.fails - 1) % 5 === 0)
@@ -600,9 +612,13 @@ export default class Bingo extends React.Component {
                 newState.boardsByWorld = this.keepBoardText(res.boards)
             // a poll carries no card text, so a board that isn't ours is refetched whole
             if(newState.cards.length !== fresh.length || fresh.some((c, i) => c.name !== newState.cards[i].name)) {
-                if(!this.state.userBoard && !this.state.viewOnly)
-                    NotificationManager.info("The game owner rolled a new one.", "Board rerolled", 5000)
-                this.setState({ticking: false}, () => doNetRequest(this.initialUrl(), this.createCallback))
+                if(!this.refetching) {
+                    this.refetching = true
+                    if(!this.state.userBoard && !this.state.viewOnly)
+                        NotificationManager.info("The game owner rolled a new one.", "Board rerolled", 5000)
+                    doNetRequest(this.initialUrl(), (r) => { this.refetching = false; this.createCallback(r) })
+                }
+                this.setState({ticking: false})
                 return
             }
             for(let i = 0; i < fresh.length; i++) {
@@ -634,7 +650,7 @@ export default class Bingo extends React.Component {
         } else if(isRandoBingo) {
             url = `/bingo/from_game/${randoGameId}?difficulty=${difficulty}`
         } else {
-            url = `/bingo/new?skills=${startSkills}&cells=${startCells}&misc=${startMisc}&difficulty=${difficulty}`
+            url = `/bingo/new?skills=${startSkills}&cells=${startCells}&misc=${encodeURIComponent(startMisc)}&difficulty=${difficulty}`
             if(showInfo)
                 url += "&showInfo=1"
         }
@@ -652,7 +668,7 @@ export default class Bingo extends React.Component {
             url += `&meta=1`
         if(testIters)
             url += `&testIters=${testIters}`
-        url += `&seed=${seed}`
+        url += `&seed=${encodeURIComponent(seed)}`
 
         doNetRequest(url+`&time=${(new Date()).getTime()}`, this.createCallback)
         this.setState({creatingGame: true, loadingText: rerollingBoard ? "Rerolling board..." : "Building game...",

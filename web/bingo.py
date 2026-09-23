@@ -18,13 +18,17 @@ from models import (BingoEvent, BingoGameData, BingoTeam, BingoWorldBoard, Game,
 from pickups import AbilityCell, EnergyCell, HealthCell, Multiple, Pickup, Skill
 from seedbuilder.seedparams import bingo_worlds
 from seedbuilder.vanilla import seedtext as vanilla_seed
-from util import (INDEX_TEMPLATE, debug, netperf, param_flag, param_val,
+from util import (INDEX_TEMPLATE, netperf, param_flag, param_int, param_val,
                   template_vals, utcnow)
 # through the module, not by name: a test patches the owner, not each caller
 from web import generator
 from web.responses import json_resp, text_download, text_resp
 
 bp = Blueprint("bingo", __name__)
+
+# anonymous GETs loop over these, so they are capped; the page offers at most 1000 test runs
+START_CELLS_MAX = 100
+TEST_ITERS_MAX = 1000
 
 
 @bp.route('/bingo/board') #BingoBoard =     
@@ -153,11 +157,12 @@ def _bingo_reroll_board_inner(game_id):
     bingo.disc_squares = []
     if d:
         bingo.discovery_squares(d)
-    if param_flag("lines"):
-        bingo.bingo_count = int(param_val("lines"))
+    lines, squares = param_int("lines"), param_int("squares")
+    if lines is not None:
+        bingo.bingo_count = lines
         bingo.square_count = None
-    if param_flag("squares"):
-        bingo.square_count = int(param_val("squares"))
+    if squares is not None:
+        bingo.square_count = squares
     bingo.teams_allowed = (param_flag("teams") or bingo.teams_shared) and not bingo.boards
     bingo.event_log.append(BingoEvent(event_type="miscBoard rerolled!", timestamp=now))
     for p in bingo.get_players():
@@ -213,7 +218,7 @@ def _bingo_add_player_inner(game_id, player_id):
         return text_resp("Player id already in use!", 409)
     player = bingo.init_player(player_id)
     if join_team:
-        cap_id = int(param_val("joinTeam") or join_team)
+        cap_id = param_int("joinTeam", 1)
         team = bingo.team(cap_id)
         if not team:
             return text_resp("Team %s not found" % cap_id, 412)
@@ -329,10 +334,11 @@ def owner_board_opts(difficulty, d, meta):
     """The create/reroll modal's settings, for the world it was opened on only. The modal
     posts the whole set, so an absent difficulty, discovery or meta counts too."""
     opts = {"difficulty": difficulty, "discovery": d or 0, "meta": bool(meta)}
-    if param_flag("lines"):
-        opts.update(bingo_count=int(param_val("lines")), square_count=None, goal="bingos")
-    if param_flag("squares"):
-        opts.update(square_count=int(param_val("squares")), goal="squares")
+    lines, squares = param_int("lines"), param_int("squares")
+    if lines is not None:
+        opts.update(bingo_count=lines, square_count=None, goal="bingos")
+    if squares is not None:
+        opts.update(square_count=squares, goal="squares")
     return opts
 
 
@@ -459,10 +465,8 @@ def bingo_boards_for(params, seed, lockout, owner=None, opts=None, base=None):
 def bingo_create_game():
         now = utcnow()
         difficulty = param_val("difficulty") or "normal"
-        skills = param_val("skills")
-        cells = param_val("cells")
-        skills = int(skills) if skills and skills != "NaN" else 3
-        cells = int(cells) if cells and cells != "NaN" else 3
+        skills = 3 if param_val("skills") == "NaN" else param_int("skills", 3, 0)
+        cells = 3 if param_val("cells") == "NaN" else param_int("cells", 3, 0, START_CELLS_MAX)
         show_info = param_flag("showInfo")
         misc_raw = param_val("misc")
         misc_pickup = Pickup.from_str(misc_raw) if misc_raw and misc_raw != "NO|1" else None
@@ -472,7 +476,7 @@ def bingo_create_game():
         rand = random.Random()
         rand.seed(seed)
 
-        start_pickups = rand.sample(skill_pool, skills)
+        start_pickups = rand.sample(skill_pool, min(skills, len(skill_pool)))
         for _ in range(cells):
             start_pickups.append(rand.choice(cell_pool))
         if misc_pickup:
@@ -575,6 +579,8 @@ def bingo_userboard(name):
 
 @bp.route('/bingo/userboard/<name>/fetch/<game_id>') #UserboardTick =     
 def bingo_userboard_tick(name, game_id):
+    if not game_id.lstrip("-").isdigit():
+        return text_resp("Bad game id %s" % game_id, 400)
     cur_gid = int(game_id)
     now = utcnow()
     game_id, err = latest_bingo_game(name)
@@ -592,18 +598,19 @@ def bingo_userboard_tick(name, game_id):
 
 def _bingo_query_opts():
     """The board options every bingo creation route reads the same way."""
-    return (int(param_val("discCount") or 0),
-            bool(int(param_val("lockout") or 0)),
+    return (param_int("discCount", 0, 0, 25),
+            bool(param_int("lockout", 0)),
             param_flag("meta"))
 
 
 def _bingo_setup_tail(bingo, now, gid, claim=True):
     """Count overrides, creator and start timing; returns the event string to extend.
     claim=False keeps a board rolled for other worlds off the roller's userboard."""
-    if param_flag("lines"):
-        bingo.bingo_count = int(param_val("lines"))
-    if param_flag("squares"):
-        bingo.square_count = int(param_val("squares"))
+    lines, squares = param_int("lines"), param_int("squares")
+    if lines is not None:
+        bingo.bingo_count = lines
+    if squares is not None:
+        bingo.square_count = squares
     user = User.get()
     event = "misc"
     if user:
@@ -628,8 +635,9 @@ def _bingo_setup_tail(bingo, now, gid, claim=True):
 
 def add_client_offset(res, now):
     """The board clock rides every payload: server minus client, milliseconds."""
-    if param_flag("time"):
-        res["offset"] = timegm(now.timetuple()) * 1000 - int(param_val("time"))
+    client_ms = param_int("time")
+    if client_ms is not None:
+        res["offset"] = timegm(now.timetuple()) * 1000 - client_ms
 
 
 def _bingo_recreate_problem(game, bingo):
@@ -669,7 +677,7 @@ def add_bingo_to_game(game_id):
         rand.seed(seed)
 
         d, lockout, meta = _bingo_query_opts()
-        test_iters = int(param_val("testIters") or 0)
+        test_iters = param_int("testIters", 0, 0, TEST_ITERS_MAX)
         if test_iters: # this is like having test code
             edges = [0,1,2,3,4,5,9,10,14,15,19,20,21,22,23,24]
             metacnt = 0

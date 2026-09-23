@@ -5,7 +5,7 @@ from flask import render_template
 import util
 from archipelago import build_apworld
 from models import User
-from util import INDEX_TEMPLATE, VERSION, template_vals
+from util import INDEX_TEMPLATE, template_vals
 from web import create_app
 from web.patchnotes import latest_note_version
 

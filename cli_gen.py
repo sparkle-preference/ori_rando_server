@@ -121,7 +121,6 @@ class CLISeedParams(object):
         parser.add_argument("--cloned", help="Make a split cloned seed instead of seperate seeds", action="store_true")
         parser.add_argument("--teams", help="Cloned seeds only: define teams. Format: 1|2,3,4|5,6. Each player must appear once", type=str)
         parser.add_argument("--hints", help="Cloned seeds only: display a hint with the item category on a shared location instead of 'Warmth Returned'", action="store_true")
-        parser.add_argument("--do-reachability-analysis", help="Analyze how many locations are opened by various progression items in various inventory states", action="store_true")
         parser.add_argument("--areas-ori-path", help="Path to areas.ori. Will search next to generator if omitted.", type=str)
         parser.add_argument("--keysanity", help="Keysanity mode: keys only belong to one door", action="store_true")
         # archipelago
@@ -166,7 +165,7 @@ class CLISeedParams(object):
             self.warps_instead_of_tps = args.warps_instead_of_tps
         if Variation.WARP_COUNT in self.variations:
             self.warp_count = args.warp_count
-        self.start = args.start
+        self.start = args.start.capitalize()
         self.spawn = self.start if self.start != "Random" else ""
 
         # read for any non-Glades start, so they default like SeedGenParams
@@ -448,10 +447,6 @@ class CLISeedParams(object):
 
             sg = SeedGenerator()
 
-            if args.do_reachability_analysis:
-                sg.do_reachability_analysis(self)
-                return
-
             preplaced = parse_fass(args.fass)
             raw = sg.setSeedAndPlaceItems(self, preplaced=preplaced)
             seeds = []
@@ -545,7 +540,7 @@ class CLISeedParams(object):
                 for item, count in group["forced"].items():
                     print('%s: %02.2f%%,' % (item, 100*float(count)/float(group["force"])), end=" ")
                 print("]\n\taverage locs", float(group['locs'])/seeds)
-            with open("anal.pickle", 'w') as out_file:
+            with open("anal.pickle", 'wb') as out_file:
                 pickle.dump(info_by_group, out_file)
             with open("analysis.csv", 'w') as out_file:
                 out_file.write("Group,Seeds,Forced,Locs,WallJump,ChargeFlame,DoubleJump,Bash,Stomp,Glide,Climb,ChargeJump,Dash,Grenade,GinsoKey,ForlornKey,HoruKey,Water,Wind,TPGrove,TPGrotto,TPSwamp,TPValley,TPSorrow,TPGinso,TPForlorn,TPHoru,WallJump,ChargeFlame,DoubleJump,Bash,Stomp,Glide,Climb,ChargeJump,Dash,Grenade,GinsoKey,ForlornKey,HoruKey,Water,Wind,TPGrove,TPGrotto,TPSwamp,TPValley,TPSorrow,TPGinso,TPForlorn,TPHoru,KS,EC,HC,MS,AC\n")

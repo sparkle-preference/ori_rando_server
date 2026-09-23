@@ -76,9 +76,11 @@ class LocalStack(object):
                             tail = "".join(f.readlines()[-8:])
                     except OSError:
                         pass
+                    self.__exit__(None, None, None)
                     raise RuntimeError("flask exited on boot under %s; see %s\n%s"
                                        % (PYTHON, self.log_path, tail))
                 if time.time() > deadline:
+                    self.__exit__(None, None, None)
                     raise RuntimeError("flask never answered; see " + self.log_path)
                 time.sleep(1)
         return self

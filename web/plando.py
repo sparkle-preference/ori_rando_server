@@ -2,14 +2,15 @@
 import json
 import logging as log
 from collections import Counter
+from html import escape
 
 from flask import Blueprint, redirect, render_template, request, url_for
 
 from enums import MultiplayerGameType
 from models import Game, LegacyUser, Seed, User
-from seedbuilder.seedparams import SeedGenParams
+from seedbuilder.seedparams import SeedGenParams, player_cap_problem
 from reachable import Map, PlayerState
-from util import (INDEX_TEMPLATE, clone_entity, param_flag, param_val, parse_fass,
+from util import (INDEX_TEMPLATE, clone_entity, param_flag, param_int, param_val, parse_fass,
                   template_vals)
 from web.responses import code_resp, json_resp, make_resp, text_download, text_resp
 
@@ -43,8 +44,14 @@ def plando_upload(seed_name):
     if not user:
         log.error("Error: unauthenticated upload attempt")
         return code_resp(401)
-    seed_data = json.loads(request.form.get("seed"))
-    old_name = seed_data["oldName"]
+    try:
+        seed_data = json.loads(request.form.get("seed") or "")
+        old_name, new_name = seed_data["oldName"], seed_data["name"]
+    except (ValueError, TypeError, KeyError):
+        return text_resp("could not read that seed", 400)
+    # a Seed is keyed author:name, so saving under a taken name would replace that seed
+    if new_name != old_name and user.plando(new_name):
+        return text_resp("you already have a plando named %s" % new_name, 409)
     old_seed = user.plando(old_name)
     if old_seed:
         res = old_seed.update(seed_data)
@@ -128,7 +135,10 @@ def plando_download(author_name, seed_name):
         params = SeedGenParams.from_plando(seed, param_flag("tracking"))
         url = url_for("main_page", param_id=params.key.id())
         if params.tracking:
-            game = Game.from_params(params, param_val("game_id"))
+            gid, problem = Game.free_gid(param_val("game_id"))
+            if problem:
+                return text_resp(problem, 409)
+            game = Game.from_params(params, gid)
             url += "&game_id=%s" % game.key.id()
         return redirect(url)
     else:
@@ -174,10 +184,12 @@ def plando_view(author_name, seed_name):
 
 @bp.route('/plando/reachable', methods=['POST']) #PlandoReachable
 def plando_reachable():
-    modes = json.loads(request.form.get("modes"))
-    codes = []
-    for item, count in json.loads(request.form.get("inventory")).items():
-        codes.append(tuple(item.split("|") + [count, False]))
+    try:
+        modes = json.loads(request.form.get("modes") or "")
+        inventory = json.loads(request.form.get("inventory") or "")
+        codes = [tuple(item.split("|") + [count, False]) for item, count in inventory.items()]
+    except (ValueError, AttributeError):
+        return text_resp("could not read modes and inventory", 400)
     areas = {}
     for area, reqs in Map.get_reachable_areas(PlayerState(codes), modes).items():
         areas[area] = [{item: count for (item, count) in req.cnt.items()} for req in reqs if len(req.cnt)]
@@ -195,6 +207,9 @@ def plando_fillgen():
         return text_resp("a forced assignment named a location that isn't a number", 422)
     param_key = SeedGenParams.from_url(qparams)
     params = param_key.get()
+    cap = player_cap_problem(params)
+    if cap:
+        return text_resp(cap, 409)
     if not params.generate(preplaced=preplaced):
         return code_resp(422)
     worlds = range(1, params.players + 1) if params.sync.mode == MultiplayerGameType.MULTIWORLD else [1]
@@ -225,14 +240,14 @@ def plando_index():
                 else:
                     author = str(author.id() if author.id() else author)
             url = "/plando/%s" % author
-            out += '<li style="padding:2px"><a href="%s">%s</a> (%s plandos)</li>' % (url, author, cnt)
+            out += '<li style="padding:2px"><a href="%s">%s</a> (%s plandos)</li>' % (escape(url), escape(author), cnt)
     out += f"</ul>{PLANDO_DISCLAIMER}</body></html>"
     return make_resp(out)
 
 
 @bp.route('/plando/<author_name>')
 def plando_author_index(author_name):
-    start_at = int(param_val("offset") or 0)
+    start_at = param_int("offset", 0, 0)
     owner = False
     user = User.get()
     author = User.get_by_name(author_name)
@@ -250,12 +265,12 @@ def plando_author_index(author_name):
             query = Seed.query(Seed.legacy_author_key == legacy_author.key, Seed.hidden != True, projection=proj)
         else: 
             query = Seed.query(Seed.author == author_name, Seed.hidden != True, projection=proj)
-    seeds = query.fetch(limit=int(param_val("limit") or 1), offset=start_at) if start_at else query.fetch()
+    seeds = query.fetch(limit=param_int("limit", 1, 1), offset=start_at) if start_at else query.fetch()
     if len(seeds):
-        out = '<html><head><title>Seeds by %s</title></head><body><div>Seeds by %s:</div><ul style="list-style-type:none;padding:5px">' % (author_name, author_name)
+        out = '<html><head><title>Seeds by %s</title></head><body><div>Seeds by %s:</div><ul style="list-style-type:none;padding:5px">' % (escape(author_name), escape(author_name))
         for seed in sorted(seeds, key=lambda s: s.name):
             url = url_for("plando.plando_view", author_name=author_name, seed_name=seed.name)
-            out += f'<li style="padding:2px"><a href="{url}">{seed.name}</a>: {seed.description.partition("\n")[0]} ({seed.players} players, {seed.flagline})'
+            out += f'<li style="padding:2px"><a href="{url}">{escape(seed.name)}</a>: {escape(seed.description.partition("\n")[0])} ({seed.players} players, {escape(seed.flagline or "")})'
             if owner:
                 out += f' <a href="{url_for("plando.plando_edit", seed_name=seed.name)}">Edit</a>'
                 if seed.hidden:
@@ -267,4 +282,4 @@ def plando_author_index(author_name):
         if owner:
             return make_resp(f"<html><body>You haven't made any seeds yet! <a href='{url_for('plando.plando_edit', seed_name="newSeed")}'>Start a new seed</a></body>{PLANDO_DISCLAIMER}</html>")
         else:
-            return make_resp(f"<html><body>No seeds by user {author_name}</body>{PLANDO_DISCLAIMER}</html>")
+            return make_resp(f"<html><body>No seeds by user {escape(author_name)}</body>{PLANDO_DISCLAIMER}</html>")

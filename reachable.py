@@ -142,29 +142,30 @@ class Req(object):
 
 class Map(object):
     areas = {}
-    reached_with = defaultdict(lambda: set())
 
     @staticmethod
     def build():
-        areas = get_areas()["homes"]
-        for name, area_data in areas.items():
+        areas = {}
+        for name, area_data in get_areas()["homes"].items():
             area = Area(name)
             for target, conn_data in area_data["conns"].items():
                 conn = Connection(target)
                 if not conn_data["paths"]:
                     conn.add_requirements([], "casual-core")
-                if conn_data["type"] == "pickup" and target not in Map.areas:
-                    Map.areas[target] = Area(target)
+                if conn_data["type"] == "pickup" and target not in areas:
+                    areas[target] = Area(target)
                 for path in conn_data["paths"]:
                     conn.add_requirements(path[1:], hardest_pathset_from_tags(path[0]))
                 area.conns.append(conn)
-            Map.areas[area.name] = area
+            areas[area.name] = area
+        # published whole, so a concurrent caller never walks a half-built map
+        Map.areas = areas
 
     @staticmethod
     def get_reachable_areas(state, modes, spawn="Glades", need_reached_with=True, ks_tiers=None):
         if not Map.areas:
             Map.build()
-        Map.reached_with = defaultdict(lambda: set())
+        reached_with = defaultdict(set)
         unchecked_areas = { initial_area_by_spawn[spawn] if spawn in initial_area_by_spawn else "SunkenGladesRunaway" }
         reachable_areas = set()
         if "CLOSED_DUNGEON" not in modes:
@@ -175,19 +176,22 @@ class Map(object):
         if "OPEN_WORLD" in modes:
             state.has["OpenWorld"] = 1
         needs_ks_check = set()
+        # min(), not set.pop(): keystone spending follows visit order, which must not depend on the hash seed
         while len(unchecked_areas) > 0:
-            curr = unchecked_areas.pop()
+            curr = min(unchecked_areas)
+            unchecked_areas.discard(curr)
             reachable_areas.add(curr)
             needs_ks_check.add(curr)
             reachable = Map.areas[curr].get_reachable(state, modes, tiers=ks_tiers)
             for k, v in reachable.items():
-                Map.reached_with[k] |= set(v)
+                reached_with[k] |= set(v)
             unchecked_areas |= set([r for r in reachable.keys() if r not in reachable_areas])
             while len(unchecked_areas) < len(needs_ks_check):
-                curr = needs_ks_check.pop()
+                curr = min(needs_ks_check)
+                needs_ks_check.discard(curr)
                 reachable = Map.areas[curr].get_reachable(state, modes, True, ks_tiers)
                 for k, v in reachable.items():
-                    Map.reached_with[k] |= set(v)
+                    reached_with[k] |= set(v)
                 unchecked_areas |= set([r for r in reachable.keys() if r not in reachable_areas])
 
         mapstone_cnt = min(len([a for a in reachable_areas if a.endswith("Map")]), state.has["MS"])
@@ -199,6 +203,6 @@ class Map(object):
         if "FronkeyFight" in reachable_areas:
             reachable_areas.add("SunkenGladesFirstEC") 
         if need_reached_with:
-            return {area: list(Map.reached_with[area]) for area in (list(reachable_areas) + ms_areas)}
+            return {area: list(reached_with[area]) for area in (sorted(reachable_areas) + ms_areas)}
         else:
-            return list(reachable_areas) + ms_areas
+            return sorted(reachable_areas) + ms_areas

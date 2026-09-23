@@ -38,8 +38,8 @@ const pickupToParts = (item) => {
     let [code, id] = item.split("|");
     return decompose_pickup(code, id).map(([c, i]) => `${c}|${i}`);
 }
-// parts arrive decomposed (slashes literal), so re-escape on the way back in
-const partToSegs = (p) => p.replaceAll("/", "//").replace(/\|/g, "/");
+// parts arrive decomposed (slashes literal), so re-escape on the way back in; a leading "/" gets a space
+const partToSegs = (p) => p.replace(/^([^|]*)\|\//, "$1| /").replaceAll("/", "//").replace(/\|/g, "/");
 const partsToPickup = (parts) => parts.length === 0 ? "NO|1" : (parts.length === 1 ? parts[0] : "MU|" + parts.map(partToSegs).join("/"));
 // merge items into one world's Buried rows, creating rows as needed and skipping duplicates
 const mergeBuried = (fassList, groups, world) => {
@@ -422,7 +422,7 @@ export default class MainPage extends React.Component {
           return (<Row key={`pool-row-${index}`} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("general", "customPool")} className="p-1 justify-content-center">
             <Col xs="4">
             <Cent>
-                <Input  onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("itemPool", "count")} type="number" className="mr-2" style={inputStyle} invalid={row.maximum && row.maximum < row.row} value={row.count} onChange={(e) => this.updateItemCount(index, parseInt(e.target.value, 10), row)}/>
+                <Input  onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("itemPool", "count")} type="number" className="mr-2" style={inputStyle} invalid={row.maximum && row.maximum < row.count} value={row.count} onChange={(e) => this.updateItemCount(index, parseInt(e.target.value, 10), row)}/>
                 <FormFeedback tooltip="true">Maximum number of {name_from_str(row.item)} allowed is {row.maximum}</FormFeedback>
                 {" - "}
                 <Input type="number" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("itemPool", "upTo")}  invalid={row.upTo && (row.upTo < row.count || (row.maximum && row.maximum < row.upTo))} className="ml-2" style={inputStyle} value={row.upTo || row.count} onChange={(e) => this.updateItemUpTo(index, parseInt(e.target.value, 10))}/>
@@ -1534,7 +1534,7 @@ export default class MainPage extends React.Component {
                 // an AP board stays here: the host needs the apworld and yamls before
                 // anyone downloads, and the seed tab keeps its Open Bingo Board button
                 if(!(this.apAvailable() && this.state.apMode)) {
-                    let redir = `/bingo/board?game_id=${res.gameId}&fromGen=1&seed=${res.seed}&bingoLines=${res.bingoLines || 3}` + this.bingoBoardParams()
+                    let redir = `/bingo/board?game_id=${res.gameId}&fromGen=1&seed=${encodeURIComponent(res.seed)}&bingoLines=${res.bingoLines || 3}` + this.bingoBoardParams()
                     if(res.flagLine.includes("share="))
                         redir += `&teamMax=${res.playerCount}`
                     if(this.state.randomizedWith === this.state.seed)
@@ -1630,7 +1630,7 @@ export default class MainPage extends React.Component {
                 seedUrl += "?" + seedParams.join("&")
                 let isBingo = worldIsBingo(p)
                 if(isBingo) {
-                    seedUrl = `/bingo/board?game_id=${gameId}&fromGen=1&seed=${inputSeed}&bingoLines=${bingoLines}` + this.bingoBoardParams()
+                    seedUrl = `/bingo/board?game_id=${gameId}&fromGen=1&seed=${encodeURIComponent(inputSeed)}&bingoLines=${bingoLines}` + this.bingoBoardParams()
                     // a multiworld splits the board per world, and a per-world board has no clock
                     if(this.isMultiworld())
                         seedUrl += "&perWorld=1"
@@ -3467,5 +3467,5 @@ function postGenJson(url, json, callback)  {
     };
     xmlHttp.open("POST", url, true);
     xmlHttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-    xmlHttp.send(encodeURI(`params=${JSON.stringify(json)}`));
+    xmlHttp.send("params=" + encodeURIComponent(JSON.stringify(json)));
 }

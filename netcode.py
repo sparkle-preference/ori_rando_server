@@ -9,6 +9,8 @@ import json
 import logging as log
 from time import monotonic
 
+from google.cloud import ndb
+
 from ap_models import APHints, APLink, HINT_OFFERED
 from archipelago import ap_bridge
 from cache import Cache
@@ -34,16 +36,19 @@ def found_pickup(game_id, player_id, coords, kind, id, payload):
         return _code(412)
     remove = "remove" in payload
     zone = payload.get("zone")
-    coords = int(coords)
+    try:
+        coords = int(coords)
+        # no player count: only naming a cross-world item needs one, and history stores the raw id
+        pickup = Pickup.n(kind, id)
+    except (TypeError, ValueError):
+        pickup = None
+    if not pickup:
+        log.error("Couldn't build pickup %s|%s at %s" % (kind, id, coords))
+        return _code(406)
     if coords in coord_correction_map:
         coords = coord_correction_map[coords]
     if coords not in all_locs and abs(coords) != 1:  # +1 is the client's TP-activation pseudo-coord
         log.warning("Coord mismatch error! %s not in all_locs or correction map. Sync %s.%s, pickup %s|%s" % (coords, game_id, player_id, kind, id))
-    # no player count: only naming a cross-world item needs one, and history stores the raw id
-    pickup = Pickup.n(kind, id)
-    if not pickup:
-        log.error("Couldn't build pickup %s|%s" % (kind, id))
-        return _code(406)
     t0 = monotonic()
     status = game.found_pickup(player_id, pickup, coords, remove, "override" in payload, zone, [int(payload.get("s%s" % i) or 0) for i in range(8)])
     netperf("found_pickup", t0, gid=game_id, pid=player_id, coords=coords, kind=kind, status=status)
@@ -64,18 +69,35 @@ def tick(game_id, player_id, payload):
         ap_bridge.note_deaths(game_id, player_id, payload.get("dl"))
     x = payload.get("x")
     y = payload.get("y")
-    if Cache.get_seen_checksum((game_id, player_id)) == bfield_checksum(payload.get("seen_%s" % i, 0) for i in range(8)):
-        cached_output = Cache.get_output((game_id, player_id))
+    gpid = (game_id, player_id)
+    checksum = bfield_checksum(payload.get("seen_%s" % i, 0) for i in range(8))
+    if Cache.get_seen_checksum(gpid) == checksum:
+        cached_output = Cache.get_output(gpid)
         if cached_output:
             Cache.set_pos(game_id, player_id, x, y)
             return 200, cached_output
+    # armed before the read, so a grant that busts it mid-tick sends the next tick down here too
+    Cache.set_seen_checksum(gpid, checksum)
+    try:
+        status, out = _tick_slow(game_id, player_id, payload)
+    except Exception:
+        Cache.clear_seen_checksum(gpid, notify=False)
+        raise
+    if status != 200:
+        Cache.clear_seen_checksum(gpid, notify=False)
+        return status, out
+    Cache.set_pos(game_id, player_id, x, y)
+    return status, out
+
+
+def _tick_slow(game_id, player_id, payload):
     game = Game.with_id(game_id)
     if not game:
         return _code(412)
     p = game.player(player_id)
     vers = payload.get("version")
     seen = [int(payload.get("seen_%s" % i, 0)) for i in range(8)]
-    have = [int(payload.get("have_%s" % i)) for i in range(8)]
+    have = [int(payload.get("have_%s" % i, 0)) for i in range(8)]
     # a fresh-read txn on tick-owned fields: a put of this copy would erase concurrent grants
     if (vers and p.dll_version != vers) or p.seen_bflds != seen or p.have_bflds != have:
         if vers and p.dll_version != vers:
@@ -83,8 +105,6 @@ def tick(game_id, player_id, payload):
         p = Player.tick_update_txn(p.key, vers, seen, have)
         # set_have has merge semantics — pass only our own entry
         Cache.set_have(game_id, {p.pid(): p.have_coords()})
-    Cache.set_seen_checksum((game_id, player_id), bfield_checksum(payload.get("seen_%s" % i, 0) for i in range(8)))
-    Cache.set_pos(game_id, player_id, x, y)
     return 200, p.output(include_slots=(game.mode == MultiplayerGameType.MULTIWORLD))
 
 
@@ -112,9 +132,7 @@ def game_complete(game_id, player_id):
         netperf("mw_release", t0, gid=game_id, pid=player_id, released=released)
         # marked even when nothing was released: the client reads it to stop offering spent locations
         finisher = game.player(player_id)
-        if finisher is not None and not finisher.released:
-            finisher.released = True
-            finisher.put()
+        if finisher is not None and Player.mark_released_txn(finisher.key):
             # or an idle finisher's fast path never shows it
             Cache.clear_seen_checksum(finisher.idpts())
         if ARCHIPELAGO:
@@ -169,17 +187,9 @@ def ap_connect(game_id, payload):
             return 409, ("Archipelago needs randomizer %s or newer (%s). "
                          "Update, launch the game, then connect again."
                          % (".".join(str(n) for n in AP_MIN_DLL), "; ".join(stale)))
-    link = APLink.with_id(game_id) or APLink.make(game_id, params.players, params.player_names)
-    password = payload.get("password") or None
-    retarget = (link.host, link.port, link.password) != (host, port, password)
-    link.host = host
-    link.port = port
-    link.password = password
-    link.enabled = True
-    link.status = "pending"
-    if retarget:
-        link.last_error = None  # retrying the same room keeps its diagnosis
-    link.put()
+    link = _connect_link_txn(game_id, params.players, params.player_names,
+                             host, port, payload.get("password") or None)
+    Cache.clear_aplink_report(game_id)
     # threads start lazily: --preload forks away any started at import
     ap_bridge.ensure(game_id, link=link)
     return 200, "ok"
@@ -289,14 +299,34 @@ def ap_disconnect(game_id):
     stored; a later connect resumes where the bridge left off."""
     if not ARCHIPELAGO:
         return 404, "Archipelago support is not enabled"
-    link = APLink.with_id(game_id)
-    if not link:
+    if not _disconnect_link_txn(game_id):
         return 404, "No Archipelago link for game %s" % game_id
-    link.enabled = False
-    link.status = "disconnected"
-    link.put()
+    Cache.clear_aplink_report(game_id)
     ap_bridge.stop(game_id)
     return 200, "ok"
+
+
+# route writes re-read inside a txn: the bridge's own txns write this row too
+def _connect_link(game_id, players, names, host, port, password):
+    link = APLink.with_id(game_id) or APLink.make(game_id, players, names)
+    if (link.host, link.port, link.password) != (host, port, password):
+        link.last_error = None  # retrying the same room keeps its diagnosis
+    link.host, link.port, link.password = host, port, password
+    link.enabled, link.status = True, "pending"
+    link.put()
+    return link
+
+
+def _disconnect_link(game_id):
+    link = APLink.with_id(game_id)
+    if link is not None:
+        link.enabled, link.status = False, "disconnected"
+        link.put()
+    return link
+
+
+_connect_link_txn = ndb.transactional(retries=5)(_connect_link)
+_disconnect_link_txn = ndb.transactional(retries=5)(_disconnect_link)
 
 
 def signal_callback(game_id, player_id, signal):
@@ -381,7 +411,7 @@ def bingo_update(game_id, player_id, payload):
             # inside the lock, so publishes land in write order
             publish()
         netperf("bingo_update", t0, gid=game_id, pid=player_id, evlog=evlog_len)
-        # a tick that read the winner pre-signal can re-arm the fast path after signal_send's bust
+        # signal_send_txn doesn't bust; do it once the update has landed
         for idpts in getattr(bingo, "_signal_pids", []):
             Cache.clear_seen_checksum(idpts)
         _ap_bingo_goal(bingo, game_id)

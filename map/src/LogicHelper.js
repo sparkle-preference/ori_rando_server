@@ -597,7 +597,7 @@ function getReachable(setter, inventory, modes)
     }
     xmlHttp.open("POST", "/plando/reachable", true);
     xmlHttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-    xmlHttp.send(encodeURI(`inventory=${JSON.stringify(inventory)}&modes=${JSON.stringify(modes)}`));
+    xmlHttp.send(`inventory=${encodeURIComponent(JSON.stringify(inventory))}&modes=${encodeURIComponent(JSON.stringify(modes))}`);
 }
 
 

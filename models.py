@@ -98,19 +98,15 @@ relics_by_zone = {
 }
 
 def _conf_signals(signals, signal):
-    """Remove a confirmed signal in place. The msg: fallback removes while iterating,
-    so it can eat a non-msg signal queued ahead of the first msg:."""
+    """Remove a confirmed signal in place, exact matches only: clients re-send confirms."""
     if signal in signals:
         signals.remove(signal)
-    # basically it is never ok to be spamming ppl, so if we get a message callback
-    # we remove the first message we find if we don't get an exact match.
-    elif signal.startswith("msg:"):
-        for s in signals:
-            signals.remove(s)
-            if s.startswith("msg:"):
-                log.warning("No exact match for signal %s, removing %s instead (spam protection)" % (signal, s))
-                break
     return signals
+
+
+def _wire_escape(text):
+    """Percent-escape the tick's separators; '%' goes first so it can't double-escape."""
+    return text.replace("%", "%25").replace(",", "%2C").replace(";", "%3B")
 
 
 def _pid(pkey):
@@ -445,6 +441,8 @@ class LegacyUser(ndb.Model):
 
 # marks the AP outbox players; the only thing that ever sets a nickname
 AP_SHADOW_NICK = "Archipelago"
+# slotless AP items one world holds; the whole list rides every tick
+EXTRA_ITEMS_CAP = 256
 
 class Player(ndb.Model):
     # id = gid.pid
@@ -489,6 +487,8 @@ class Player(ndb.Model):
     seed_name   = ndb.StringProperty()
     # AP progressive hints this player asked for, {manifest slot: text}; tick field 8
     ap_hints    = ndb.JsonProperty()
+    # AP items with no manifest slot, [[stream index, code, id], ...] append-only; tick field 10
+    extra_items = ndb.JsonProperty()
 
     def note_version(self, vers, game_id=None):
         """Record the reported dll version; True if it changed (the caller puts)."""
@@ -625,8 +625,32 @@ class Player(ndb.Model):
             p.put()
         return changed
 
+    def add_extra_items(self, entries, cap=EXTRA_ITEMS_CAP):
+        """Append [stream index, code, id] entries whose index isn't held yet, up to cap.
+        Returns (appended count, entries refused for the cap); the caller puts."""
+        held = list(self.extra_items or [])
+        seen = {e[0] for e in held}
+        fresh, refused = [], []
+        for entry in entries:
+            if entry[0] in seen:
+                continue
+            seen.add(entry[0])
+            (fresh if len(held) + len(fresh) < cap else refused).append(list(entry))
+        if fresh:
+            self.extra_items = held + fresh
+        return len(fresh), refused
+
+    @staticmethod
+    @ndb.transactional(retries=5)
+    def add_extra_items_txn(pkey, entries):
+        p = pkey.get()
+        added, refused = p.add_extra_items(entries)
+        if added:
+            p.put()
+        return added, refused
+
     def clear_progress(self):
-        """Everything a reset forgets, minus the put. The seed, identity, and ap_hints are kept."""
+        """Everything a reset forgets, minus the put. Seed, identity, ap_hints, extra_items stay."""
         self.can_nag = True
         self.skills = 0
         self.events = 0
@@ -696,6 +720,10 @@ class Player(ndb.Model):
         pairs = sorted(self.ap_hints.items(), key=lambda kv: int(kv[0]))
         return ";".join("%s=%s" % (slot, text) for slot, text in pairs if text)
 
+    def extra_items_field(self):
+        """Tick field 10 (AP): ';'-joined 'code|id' in arrival order, each item %-escaped."""
+        return ";".join(_wire_escape("%s|%s" % (code, id)) for _, code, id in (self.extra_items or []))
+
     def userdata(self):
         name = "Player %s" % self.pid()
         if self.user:
@@ -722,7 +750,7 @@ class Player(ndb.Model):
             gid,_,pid = self.key.id().partition(".")
             return int(gid),int(pid)
         except Exception as e:
-            log.error("invalid pkey %s: %s, returning 0,0", pkey, e)
+            log.error("invalid pkey %s: %s, returning 0,0", self.key, e)
             return 0,0
 
     def output(self, include_slots=False):
@@ -742,12 +770,16 @@ class Player(ndb.Model):
             outlines.append("|".join(self.signals))
             outlines.append(";".join(str(b) for b in (self.slot_bflds or 8 * [0])))
             outlines.append(self.mw_names_field())
-            # 8 (AP hints) only when nonempty or 9 follows, so older bodies stay byte-identical
+            # 8 (AP hints) only when nonempty or 9 follows, so older bodies stay byte-identical;
+            # 9 (released) likewise, when set or 10 (AP extra items) follows
             ap_hints = self.ap_hints_field()
-            if ap_hints or self.released:
+            extras = self.extra_items_field()
+            if ap_hints or self.released or extras:
                 outlines.append(ap_hints)
-            if self.released:
-                outlines.append("1")
+            if self.released or extras:
+                outlines.append("1" if self.released else "0")
+            if extras:
+                outlines.append(extras)
         elif self.signals:
             outlines.append("|".join(self.signals))
         out = ",".join(outlines)
@@ -820,6 +852,52 @@ class Player(ndb.Model):
             return False
         p.bingo_prog = prog
         p.bingo_last_tp = tp
+        p.put()
+        return True
+
+    @staticmethod
+    @ndb.transactional(retries=5)
+    def sanity_repair_txn(pkey, targets, bits, bonus_max):
+        """Raise a player to the sanity check's targets on a fresh read; never lowers anything.
+        Returns (steps added, names of pickups that would not go up)."""
+        p = pkey.get()
+        if p is None:
+            return 0, []
+        added, stuck = 0, []
+        for pickup, count in targets:
+            for _ in range(count):
+                has = p.has_pickup(pickup)
+                if has >= count:
+                    break
+                p.give_pickup(pickup, delay_put=True)
+                if p.has_pickup(pickup) == has:
+                    stuck.append(pickup.name)
+                    break
+                added += 1
+        for field, v in zip(("skills", "events", "teleporters"), bits):
+            merged = (getattr(p, field) or 0) | v
+            if merged != getattr(p, field):
+                setattr(p, field, merged)
+                added += 1
+        bonuses = dict(p.bonuses or {})
+        for item, cnt in bonus_max.items():
+            if bonuses.get(item, 0) < cnt:
+                bonuses[item] = cnt
+                added += 1
+        if bonuses != (p.bonuses or {}):
+            p.bonuses = bonuses
+        if added:
+            p.put()
+        return added, stuck
+
+    @staticmethod
+    @ndb.transactional(retries=5)
+    def mark_released_txn(pkey):
+        """Mark this world released on a fresh read; False if it already was."""
+        p = pkey.get()
+        if p is None or p.released:
+            return False
+        p.released = True
         p.put()
         return True
 
@@ -1483,10 +1561,12 @@ class BingoGameData(ndb.Model):
             return
         player_id = int(player_id)
         now = utcnow()
+        clock_started = False
         if not self.start_time and not meta_init:
             if not self.auto_start and not self.boards:
                 return
             self.start_time = now
+            clock_started = True
             if not self.boards:
                 self.event_log.append(BingoEvent(event_type="miscThe clock starts with the first report!", timestamp=now))
         change_squares = set()
@@ -1503,7 +1583,7 @@ class BingoGameData(ndb.Model):
         player.bingo_last_tp = ((bingo_data or {}).get("LastTouchedTeleporter") or {}).get("value") or ""
         cpid = _pid(team.captain)
         teammates = [players_by_id[pid] for pid in team.pids() if pid != player_id]
-        need_write = False
+        need_write = clock_started
         meta_cards = []
         
         def handle_event(ev):
@@ -2094,10 +2174,10 @@ class Game(ndb.Model):
 
     def sanity_check(self):
         Cache.clear_items(self.key.id())
-        ps = self.get_players()
+        ps = [p for p in self.get_players() if p]
         for p in ps:
             Cache.clear_reach(*p.idpts())
-            Cache.clear_seen_checksum(p.idpts())    
+            Cache.clear_seen_checksum(p.idpts())
 
         if self.mode != MultiplayerGameType.SHARED:
             return False
@@ -2106,10 +2186,10 @@ class Game(ndb.Model):
             return False
         sanFailedSignal = "msg:@Major Error during sanity check. If this persists across multiple alt+l attempts please contact Eiko@"
         san_t0 = monotonic()
-        shared_inventories = self.get_inventories(ps)
-        i = 0
-        for pids, inv in shared_inventories.items():
+        fixes = 0
+        for pids, inv in self.get_inventories(ps).items():
             players = [p for p in ps if p.pid() in pids]
+            targets = []
             for key, count in inv.items():
                 if key[0] == "WT":
                     continue # hahahaha fucking christ
@@ -2118,66 +2198,30 @@ class Game(ndb.Model):
                     count = 1
                 elif pickup.max:
                     count = min(count, pickup.max)
-                for player in players:
-                    has = player.has_pickup(pickup)
-                    if has != count:
-                        if has == 0 and count == 1:
-                            log.warning("Player %s should have %s but did not. Fixing..." % (player.key.id(), pickup.name))
-                        else:
-                            log.warning("Player %s should have had %s of %s but had %s instead. Fixing..." % (player.key.id(), count, pickup.name, has))
-                    # each give moves has one step toward count, so the
-                    # direction never flips mid-repair
-                    while has != count:
-                        i += 1
-                        last = has
-                        player.give_pickup(pickup, remove=(has > count), delay_put=True)
-                        has = player.has_pickup(pickup)
-                        if has == last:
-                            Player.signal_send_txn(player.key, sanFailedSignal)
-                            Cache.clear_seen_checksum(player.idpts())
-                            log.critical("Aborting sanity check for Player %s: tried and failed to %s %s (at %s, should be %s)" % (player.key.id(), "decrement" if last > count else "increment", pickup.name, has, count))
-                            return False
-                        if i > 100:
-                            Player.signal_send_txn(player.key, sanFailedSignal)
-                            Cache.clear_seen_checksum(player.idpts())
-                            log.critical("Aborting sanity check for Player %s after too many iterations." % player.key.id())
-                            return False
-            stuples, bonuses = tuple(zip(*[(player.sharetuple(), player.bonuses) for player in players]))
-            sk_max = max(tup[0] for tup in stuples)
-            ev_max = max(tup[1] for tup in stuples)
-            tp_max = max(tup[2] for tup in stuples)
-            rb_cnt = max(tup[3] for tup in stuples)
-            bonus_max = {}
-            for p_bonus in bonuses:
-                for item, cnt in p_bonus.items():
-                    m = max(bonus_max.get(item, 0), cnt)
-                    if m:
-                        bonus_max[item] = m
+                targets.append((pickup, count))
+            # add-only: everyone is raised to the union of the group, never lowered
+            bits, bonus_max = [0, 0, 0], {}
+            for player in players:
+                for n, v in enumerate(player.sharetuple()[:3]):
+                    bits[n] |= v or 0
+                for item, cnt in (player.bonuses or {}).items():
+                    bonus_max[item] = max(bonus_max.get(item, 0), cnt)
             for player in players:
                 Cache.set_hist(self.key.id(), player.pid(), self.history([player.pid()]))
-                if player.skills < sk_max:
-                    log.error("Checksum failure! Player %s had %s for sks instead of %s" % (player.pid(), player.skills, sk_max))
-                    player.skills = sk_max
-                if player.events < ev_max:
-                    log.error("Checksum failure! Player %s had %s for evs instead of %s" % (player.pid(), player.events, ev_max))
-                    player.events = ev_max
-                if player.teleporters < tp_max:
-                    log.error("Checksum failure! Player %s had %s for tps instead of %s" % (player.pid(), player.teleporters, tp_max))
-                    player.teleporters = tp_max
-                if len(player.bonuses) < rb_cnt:
-                    msglines = ["Checksum failure!"]
-                    for item, mx in bonus_max.items():
-                        cnt = player.bonuses.get(item, 0)
-                        if cnt  < mx:
-                            msglines.append("Player %s had %s of %s instead of %s" % (player.pid(), cnt, item, mx))
-                            player.bonuses[item] = mx
-                    if len(player.bonuses) < rb_cnt:
-                        msglines.append("Failed to update bonuses! bonuses: %s, player is %s, calculated maxes are %s" % (bonuses, player.pid(), bonus_max))
-                    log.error("\n".join(msglines))
-                player.put()
-        netperf("sanity_check", san_t0, gid=self.key.id(), players=len(ps), fixes=i)
+                for pickup, count in targets:
+                    has = player.has_pickup(pickup)
+                    if has > count:
+                        log.warning("Player %s has %s of %s but seen coords account for %s; leaving it" % (player.key.id(), has, pickup.name, count))
+                added, stuck = Player.sanity_repair_txn(player.key, targets, bits, bonus_max)
+                fixes += added
+                if stuck:
+                    Player.signal_send_txn(player.key, sanFailedSignal)
+                    log.critical("Sanity check could not raise %s for Player %s" % (", ".join(stuck), player.key.id()))
+                if added or stuck:
+                    Cache.clear_seen_checksum(player.idpts())
+        netperf("sanity_check", san_t0, gid=self.key.id(), players=len(ps), fixes=fixes)
         return True
-    
+
     def mw_shareable(self, pickup):
         """What a seed line shares, by found_pickup's rules: MW slots, TW warps
         and EV5 never do; a multipickup shares whichever children do."""
@@ -2327,8 +2371,18 @@ class Game(ndb.Model):
         if k not in self.players:
             self.players.append(k)
             if not delay_put:
-                self.put()
+                Game.add_player_txn(self.key, k)
         return player
+
+    @staticmethod
+    @ndb.transactional(retries=5)
+    def add_player_txn(key, pkey):
+        """Append a player key on a fresh read; a put of the caller's copy loses concurrent joins.
+        A game not stored yet is left to its creator's own put."""
+        game = key.get()
+        if game is not None and pkey not in game.players:
+            game.players.append(pkey)
+            game.put()
 
     def found_pickup(self, pid, pickup, coords, remove, override, zone="", finder_bflds=None):
         pid = int(pid)
@@ -2499,6 +2553,24 @@ class Game(ndb.Model):
     @staticmethod
     def with_id(id):
         return Game.get_by_id(int(id))
+
+    @staticmethod
+    def free_gid(gid):
+        """(gid, problem) for a caller-chosen game id. It must be unused: from_params puts over an existing game."""
+        if not gid:
+            return None, None
+        if not str(gid).isdigit() or int(gid) <= 0:
+            return None, "game_id must be a positive number"
+        if Game.with_id(gid):
+            return None, "Game %s already exists" % gid
+        return int(gid), None
+
+    def may_manage(self):
+        """Admins, or whoever created the game."""
+        if User.is_admin():
+            return True
+        user = User.get()
+        return bool(user and self.creator and self.creator == user.key)
 
     @staticmethod
     @ndb.transactional(retries=3)

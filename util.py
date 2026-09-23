@@ -4,6 +4,7 @@ from collections import defaultdict, namedtuple
 from seedbuilder.oriparse import get_areas
 from enums import Variation, LogicPath
 from datetime import datetime, timezone
+import hmac
 import logging as log
 import os
 from time import monotonic
@@ -71,6 +72,10 @@ AP_LOCAL_ROOMS = _flag("AP_ALLOW_LOCAL_ROOM", "0")
 # each open socket pins a gunicorn thread for life: refuse sockets past this, well
 # below Dockerfile --threads, so http keeps headroom (refused clients keep polling)
 WS_CONN_LIMIT = int(os.environ.get("WS_CONN_LIMIT", "48"))
+# generation time climbs steeply with worlds, and one roll holds a thread and the GIL
+MAX_PLAYERS = int(os.environ.get("MAX_PLAYERS", "16"))
+# seconds between server pings on game sockets; one unanswered ping closes the socket. 0 = off
+WS_PING_INTERVAL = int(os.environ.get("WS_PING_INTERVAL", "0") or 0)
 
 # patch-note announcement webhooks (web/patchnotes.py); inert when unset
 PATCHNOTES_WEBHOOK_MAIN = os.environ.get("PATCHNOTES_WEBHOOK_MAIN", "")
@@ -137,17 +142,7 @@ def json_default(o):
     return str(o)
 
 def version_check(version):
-    try:
-        nums = [int(num) for num in version.split(".")]
-        for latest, test in zip(MIN_VER, nums):
-            if latest > test:
-                return False
-            if test > latest:
-                return True
-        return True
-    except Exception as e:
-        log.error("failed version check for version %s: %s", version, e)
-        return False
+    return version_at_least(version, MIN_VER)
 
 # grant pairing changed in 4.2.12: an older dll against the new bridge can
 # dupe self-items, so AP rooms hold a higher floor than the global MIN_VER
@@ -336,12 +331,10 @@ def get_taste(bits_int, bit):
 def add_single(bits_int, bit, remove=False):
     if bit < 0:
         return bits_int
-    if bits_int >= bit:
-        if remove:
-            return bits_int - bit
-        if get_bit(bits_int, bit) == 1:
-            return bits_int
-    return bits_int + bit
+    held = bits_int >= bit and get_bit(bits_int, bit) == 1
+    if remove:
+        return bits_int - bit if held else bits_int
+    return bits_int if held else bits_int + bit
 
 def inc_stackable(bits_int, bit, remove=False):
     if bit < 0:
@@ -455,7 +448,8 @@ def template_vals(app, title, user):
 
 whitelist_secret = os.getenv("WHITELIST_SECRET")
 def whitelist_ok():
-    return param_val("sec") == whitelist_secret
+    sec = param_val("sec")
+    return bool(whitelist_secret and sec) and hmac.compare_digest(sec.encode(), whitelist_secret.encode())
 
 def game_flags(params_key):
     """(flag line, is race) for a seed, or (None, False) if it's gone. Cached: params never
@@ -480,7 +474,6 @@ is_debug = "K_REVISION" not in os.environ or os.environ["K_REVISION"].startswith
 def debug():
     return is_debug
 
-path = os.path.join(os.path.dirname(__file__), 'map/dist/index.html')
 template_root = os.path.join(os.path.dirname(__file__), 'map/dist/')
 
 def param_val(f):
@@ -495,6 +488,22 @@ def param_true(f):
     # presence isn't enough where an explicit ?x=0 means off
     val = param_val(f)
     return val is not None and val.strip().lower() not in ("0", "false", "no", "off", "")
+
+def param_int(f, default=None, lo=None, hi=None):
+    """An int query param clamped to [lo, hi], default when absent or empty; malformed is a 400."""
+    val = param_val(f)
+    if val is None or val.strip() == "":
+        return default
+    try:
+        n = int(val)
+    except ValueError:
+        from werkzeug.exceptions import BadRequest
+        raise BadRequest("?%s= wants a whole number" % f)
+    if lo is not None:
+        n = max(lo, n)
+    if hi is not None:
+        n = min(hi, n)
+    return n
 
 coords_in_order = [ -10120036,  -10440008,  -10759968,  -10760004,  -10839992,  -11040068,  -11880100,  -120208,  -12320248,  -1560188,  -1560272,  -160096,  
                     -1639664,  -1680104,  -1680140,  -1800088,  -1800156,  -1840196,  -1840228,  -1919808,  -199724,  -2080116,  -2160176,  -2200148,  -2200184, 
@@ -557,12 +566,6 @@ def get_preset_from_paths(presets, logic_paths):
         path_mask |= path_masks[path]
     return "Custom" + str(path_mask)
 
-def compose_multi_value(parts):
-    """[(code, id)] -> a value decompose_multi_value reads back. A literal slash in a
-    piece is doubled, which is the only escape the grammar has."""
-    return "/".join(piece.replace("/", "//") for pair in parts for piece in pair)
-
-
 def decompose_multi_value(value):
     """Multipickup value -> [(code, id)], "//" a literal slash, as RandomizerAction.Decompose
     reads it. An odd trailing piece is dropped with a warning, as the client does."""
@@ -602,4 +605,9 @@ def decompose_multi_value(value):
 def compose_multi_value(parts):
     """[(code, id)] -> multipickup value, the inverse of decompose_multi_value. A "/"
     inside an id (RI|8000/=5) has to be doubled, or the split reads it as a separator."""
-    return "/".join("%s/%s" % (code, str(id).replace("/", "//")) for code, id in parts)
+    return "/".join("%s/%s" % (code, _lead_safe(str(id)).replace("/", "//")) for code, id in parts)
+
+
+def _lead_safe(id):
+    """A leading "/" gets a space in front, or its "//" would read as part of the code."""
+    return " " + id if id.startswith("/") else id
