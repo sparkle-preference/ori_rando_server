@@ -50,6 +50,8 @@ def gen_seed_from_params():
         reason = seed_failure_reason(params)
         return text_resp(reason, 422) if reason else text_resp("Failed to generate seed!", 500)
     resp = {"paramId": param_key.id(), "playerCount": params.players, "flagLine": params.flag_line(), 'seed': params.seed, "spoilers": True}
+    if getattr(params, "_gen_warnings", None):
+        resp["warnings"] = params._gen_warnings
     lines = world_flag_lines(params)
     if lines:
         resp["flagLines"] = lines
@@ -102,6 +104,8 @@ def gen_seed_from_url():
                 spoiler = params.get_spoiler(p).replace("\n", "\r\n")
                 players.append({"seed": seed, "spoiler": spoiler, "spoiler_url": url_for('generator.get_spoiler_from_params', params_id=param_key.id(), player=p)})
             resp["players"] = players
+            if getattr(params, "_gen_warnings", None):
+                resp["warnings"] = params._gen_warnings
             return json_resp(resp)
         reason = seed_failure_reason(params)
         if reason:

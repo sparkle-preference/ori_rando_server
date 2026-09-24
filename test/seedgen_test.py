@@ -2683,6 +2683,12 @@ class ApDatapackageTests(unittest.TestCase):
             item = {i["name"]: i for i in json.load(f)}[name]
         self.assertEqual(item["category"], "experience")
 
+    def test_the_apworld_offers_start_inventory_from_pool(self):
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                            "archipelago", "oride_apworld", "oride", "options.py")
+        with open(path) as f:
+            self.assertRegex(f.read(), r"start_inventory_from_pool: StartInventoryPool\n")
+
     def test_match_key_round_trips_a_real_warp_id(self):
         from archipelago.convert import ITEM_BY_CODE_ID, match_key
         from seedbuilder.generator import warp_targets2

@@ -354,51 +354,12 @@ const stuff_by_type = {
       ],
 };
 
-// A box line, as the client reads it: BX|type|x1,y1,x2,y2|color|payload, the payload
-// keeping its own pipes. Held as {type, box, color, give}; _id is the editor's own key.
-const BOX_TYPES = [
-    {label: "Kill", value: "kill"},
-    {label: "Solid", value: "solid"},
-    {label: "Item", value: "item"},
-    {label: "Item (RP)", value: "ritem"},
-]
-const BOX_COLORS = {goal: "#8fe3a0", kill: "#ff6b6b", solid: "#9aa0aa", item: "#40c0ff", ritem: "#7fd8ff"}
-// A deleted box keeps its line so the boxes after it keep their numbers, which is what
-// BM|n names. Never offered in BOX_TYPES; the editor writes it and hides it.
-const BOX_NONE = "none"
-const is_box_gone = (b) => b.type === BOX_NONE
-let next_box_id = 1
-const new_box = (type, box) => ({_id: next_box_id++, type: type, box: box, color: "", give: "", locked: false})
-function parse_box_line(line) {
-    let f = line.trim().split("|")
-    if(f[0] !== "BX" || f.length < 3)
-        return null
-    let box = f[2].split(",").map(parseFloat)
-    if(box.length !== 4 || box.some(isNaN))
-        return null
-    let out = new_box(f[1].trim().toLowerCase(), box)
-    out.color = (f[3] || "").trim()
-    out.give = f.slice(4).join("|")
-    return out
-}
-function box_line(b) {
-    let out = "BX|" + b.type + "|" + b.box.map(v => Math.round(v * 10) / 10).join(",")
-    let give = (b.type === "item" || b.type === "ritem") ? (b.give || "") : ""
-    if(b.color || give)
-        out += "|" + (b.color || "")
-    if(give)
-        out += "|" + give
-    return out
-}
-function box_color(b) {
-    return b.color && b.color !== "none" && b.color !== "0" ? "#" + b.color.replace("#", "").slice(0, 6) : (BOX_COLORS[b.type] || BOX_COLORS.item)
-}
-const BOX_LABELS = {kill: "Kill", solid: "Solid", item: "Item", ritem: "Repeat Item", goal: "Goal"}
+const BOX_LABELS = {kill: "Kill", solid: "Solid", item: "Item", ritem: "Repeat Item", goal: "Goal", none: "Plain"}
 function box_label(b, num) {
-    let name = `${BOX_LABELS[b.type] || b.type} Box - #${num}`
-    if(b.type === "item" || b.type === "ritem")
-        return name + ": " + (b.give ? name_from_str(b.give) : "nothing yet")
-    return name
+    let name = `${b.type ? (BOX_LABELS[b.type] || b.type) + " " : ""}Box - #${num}${b.extra ? ` (${b.extra})` : ""}`
+    if(b.give)
+        return name + ": " + name_from_str(b.give)
+    return b.type === "item" || b.type === "ritem" ? name + ": nothing yet" : name
 }
 
 const compareOption = (inputValue, option) => {
@@ -648,6 +609,8 @@ class PickupSelect extends Component {
       corrected = `SH|${raw.substring(5).trim()}`;
     else if (cleaned.startsWith("message"))
       corrected = `SH|${raw.substring(7).trim()}`;
+    else if (/^SH[^|]/.test(raw))
+      corrected = `SH|${raw.substring(2)}`;
     else if(raw.startsWith("WP|") || raw.startsWith("WS|")) {
         let parts = raw.split(",")
         if(parts.length === 3 && "force".startsWith(parts[2]))
@@ -1211,6 +1174,5 @@ export {
     report_error,
     player_icons, doNetRequest, prng, get_param, get_flag, resolve_dark, save_dark, beta_welcome_pending, save_beta_welcome, theme_href, postNetForm, ap_enabled, get_int, get_list, get_preset, presets, get_seed, logic_paths, get_random_loader, Blabel, MousePos,
     pickup_name, stuff_by_type, name_from_str, PickupSelect, Cent, ordinal_suffix, dev, gotoUrl, loginLogoutUrl, select_theme, randInt, spawn_defaults, spawnKitFor, decompose_pickup,
-    BOX_TYPES, BOX_COLORS, BOX_NONE, is_box_gone, new_box, parse_box_line, box_line, box_color, box_label,
-    box_color_history, remember_box_color, seed_link_pref, remember_seed_link
+    box_label, box_color_history, remember_box_color, seed_link_pref, remember_seed_link
 };

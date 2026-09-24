@@ -278,5 +278,22 @@ class GeneratorInputTestCase(_Routes):
         self.assertEqual(key.get().spawn_weights, [1.0, 0.0])
 
 
+
+class PublicPlandoPagesTestCase(_Routes):
+    def test_visitors_see_only_visible_plandos(self):
+        user = self.author()
+        for name, hidden in (("alpha", False), ("secret", True)):
+            Seed(id="%s:%s" % (user.key.id(), name), name=name, author=user.name, author_key=user.key,
+                 description="d", flags=["ForceTrees"], players=1, hidden=hidden).put()
+        self.user = None
+        index = self.client.get("/plandos")
+        self.assertEqual(index.status_code, 200)
+        self.assertIn("(1 plandos)", index.get_data(as_text=True))
+        page = self.client.get("/plando/pat")
+        self.assertEqual(page.status_code, 200)
+        self.assertIn("alpha", page.get_data(as_text=True))
+        self.assertNotIn("secret", page.get_data(as_text=True))
+
+
 if __name__ == "__main__":
     unittest.main()

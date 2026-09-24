@@ -486,6 +486,8 @@ class SeedGenerator:
         # seed_count is set in setSeedAndPlaceItems; __init__ runs before it
         self.seed_count = getattr(self, "seed_count", 1)
         self.localPool = OrderedDict()
+        # {text: level} for the page to toast; reset per attempt, so only the kept roll speaks
+        self.gen_warnings = OrderedDict()
         self.limitKeysPool = [-3160308, -560160, 2919744, 719620, 7839588, 5320328, 8599904, -4600020, -6959592, -11880100, 5480952, 4999752, -7320236, -7200024, -5599400]
 
         self.costs = OrderedDict([(tag(k, p), v) for p in self.multi_ps() for k, v in [
@@ -569,6 +571,9 @@ class SeedGenerator:
 
         # item-major keys keep pool order independent of player count; ranges roll per world
         pools = {p: self.params_for(p).item_pool for p in self.multi_ps()}
+        # custom rows in page order, and what each put in the pool, for drop_overflow
+        self.poolRows = {p: list(pools[p] or {}) for p in self.multi_ps()}
+        self.poolContrib = {}
         plain = [p for p in self.multi_ps() if not pools[p]]
         if plain:
             self.itemPool.update(OrderedDict([(tag(k, p), v) for p in plain for k, v in [
@@ -601,6 +606,7 @@ class SeedGenerator:
                     continue
                 i = tag(fixed_item, p)
                 self.itemPool[i] = self.itemPool.get(i, 0) + count
+                self.poolContrib[(p, raw)] = [i, count]
                 # locality belongs to this line's copies, not to every copy of the item
                 if local and is_mw:
                     self.localPool[i] = self.localPool.get(i, 0) + count
@@ -1934,6 +1940,28 @@ class SeedGenerator:
             lines += "%s|MW|%s,,%s,%s|%s\n" % (-(slot + 2), finder, code, id, zone)
         return lines
 
+    def drop_overflow(self, n):
+        """Take up to n items out of the custom pools, bottom rows first, one world at a time
+        from the last. Returns how many came out."""
+        rows = {p: [self.poolContrib[(p, raw)] for raw in reversed(self.poolRows.get(p, []))
+                    if (p, raw) in self.poolContrib] for p in self.multi_ps()}
+        dropped = 0
+        while dropped < n:
+            took = False
+            for p in reversed(self.multi_ps()):
+                row = next((r for r in rows[p] if r[1] > 0 and self.itemPool.get(r[0], 0) > 0), None)
+                if row is None or dropped >= n:
+                    continue
+                row[1] -= 1
+                self.itemPool[row[0]] -= 1
+                if self.localPool.get(row[0], 0) > self.itemPool[row[0]]:
+                    self.localPool[row[0]] = self.itemPool[row[0]]
+                dropped += 1
+                took = True
+            if not took:
+                break
+        return dropped
+
     def locations(self):
         """Number of remaining locations that can have items in them"""
         remaining_fass = len(self.forcedAssignments) - len(self.forceAssignedLocs)
@@ -2170,12 +2198,22 @@ class SeedGenerator:
         # EXP fills the rest; each open final escape is one slot beyond locations()
         self.expSlots = {p: 0 for p in self.multi_ps()}
         slots_to_fill = self.locations() - sum([v for v in self.itemPool.values()]) - len(self.buried) + open_finales
+        if slots_to_fill < 0:
+            dropped = self.drop_overflow(-slots_to_fill)
+            if dropped:
+                self.gen_warnings["Item pool larger than world - dropped %s items to compensate." % dropped] = "warning"
+            slots_to_fill += dropped
         for p in self.multi_ps():
             self.itemPool.setdefault(tag("EX*", p), 0)
         for _ in range(slots_to_fill):
             owner = self.random_player()
             self.itemPool[tag("EX*", owner)] += 1
             self.expSlots[owner] += 1
+        for p in self.multi_ps():
+            exp_pickups = self.itemPool[tag("EX*", p)]
+            if self.params_for(p).exp_pool == 10000 and 0 < exp_pickups < 25:
+                world = "World %s: " % p if self.seed_count > 1 else ""
+                self.gen_warnings["%s10k Experience was compressed into %s pickups, expect large values" % (world, exp_pickups)] = "soft-warning"
         locs = self.locations()
         while locs > 0:
             if locs != self.items() - open_finales:  # each open final escape holds one extra item

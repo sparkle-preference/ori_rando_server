@@ -267,5 +267,24 @@ class SanityCheckAddOnly(EmulatorTestCase):
         self.assertEqual(self._fresh(p2).has_pickup(Pickup.n("RB", 12)), 1, "the repair put erased a grant")
 
 
+
+class RemovalHistory(EmulatorTestCase):
+    def test_a_negative_pickup_is_logged_as_a_loss(self):
+        gid = 9501
+        game = Game(id=gid, players=[], str_mode=MultiplayerGameType.SIMUSOLO.value, has_history=False)
+        game.put()
+        game.player(1)
+        status, _ = netcode.found_pickup(gid, 1, "919772", "RB", "-33", {})
+        self.assertEqual(status, 200)
+        lines = Game.get_by_id(gid, use_cache=False).history([1])
+        self.assertEqual([(h.pickup_code, h.pickup_id, h.removed) for h in lines], [("RB", "33", True)])
+        self.assertTrue(lines[0].print_line().startswith("lost "))
+
+    def test_garbage_negative_ids_are_still_refused(self):
+        gid = 9502
+        Game(id=gid, players=[], str_mode=MultiplayerGameType.SIMUSOLO.value, has_history=False).put()
+        self.assertEqual(netcode.found_pickup(gid, 1, "919772", "SK", "-3", {})[0], 406)
+
+
 if __name__ == "__main__":
     unittest.main()

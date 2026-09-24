@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from Options import DeathLink, OptionDict, PerGameCommonOptions
+from Options import DeathLink, OptionDict, PerGameCommonOptions, StartInventoryPool
 
 
 class OrirandoData(OptionDict):
@@ -16,3 +16,4 @@ class OriDEOptions(PerGameCommonOptions):
     orirando: OrirandoData
     # mirrored from the blob; the bridge reads the seed's params, so editing this changes nothing
     death_link: DeathLink
+    start_inventory_from_pool: StartInventoryPool

@@ -568,10 +568,26 @@ def get_preset_from_paths(presets, logic_paths):
 
 def decompose_multi_value(value):
     """Multipickup value -> [(code, id)], "//" a literal slash, as RandomizerAction.Decompose
-    reads it. An odd trailing piece is dropped with a warning, as the client does."""
+    reads it. An odd trailing piece is dropped with a warning, unless it is a bare "SHtext"."""
+    return _decompose(value)[0]
+
+
+def normalize_multi_value(value):
+    """The value, with a trailing message typed as "SHtext" rewritten to the "SH/text" the client reads."""
+    parts, bare_message = _decompose(value)
+    return compose_multi_value(parts) if bare_message else value
+
+
+def normalize_pickup(code_id):
+    """"CODE|id", with a multipickup id passed through normalize_multi_value."""
+    code, sep, id = str(code_id).partition("|")
+    return code + sep + normalize_multi_value(id) if code in ("MU", "RP", "RG") and sep else code_id
+
+
+def _decompose(value):
     parts = []
     if value == "":
-        return parts
+        return parts, False
 
     i = 0
     part = ""
@@ -595,11 +611,14 @@ def decompose_multi_value(value):
         i += 1
     
     if firstPiece is None:
+        if part.startswith("SH") and len(part) > 2:
+            parts.append(("SH", part[2:]))
+            return parts, True
         if part:
             log.warning("multipickup value %r has an odd number of pieces; dropping %r", value, part)
     else:
         parts.append((firstPiece, part))
-    return parts
+    return parts, False
 
 
 def compose_multi_value(parts):

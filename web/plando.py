@@ -231,7 +231,7 @@ PLANDO_DISCLAIMER = """<div><i>
 @bp.route('/plandos')      #AllAuthors
 def plando_index():
     out = '<html><head><title>All Plando Authors</title></head><body><h5>All Seeds</h5><ul style="list-style-type:none;padding:5px">'
-    authors = Counter(count_plandos(seed) for seed in Seed.query(Seed.hidden != True, projection=[Seed.author, Seed.author_key, Seed.legacy_author_key]))
+    authors = Counter(count_plandos(seed) for seed in Seed.query(Seed.hidden == False, projection=[Seed.author, Seed.author_key, Seed.legacy_author_key]))
     for author, cnt in authors.most_common():
         if cnt > 0:
             if not isinstance(author, str):
@@ -258,13 +258,13 @@ def plando_author_index(author_name):
         if owner:
             query = Seed.query(Seed.author_key == author.key, projection=[Seed.hidden, *proj])
         else:
-            query = Seed.query(Seed.author_key == author.key, Seed.hidden != True, projection=proj)
+            query = Seed.query(Seed.author_key == author.key, Seed.hidden == False, projection=proj)
     else:
         legacy_author = LegacyUser.get_by_name(author_name)
         if legacy_author:
-            query = Seed.query(Seed.legacy_author_key == legacy_author.key, Seed.hidden != True, projection=proj)
+            query = Seed.query(Seed.legacy_author_key == legacy_author.key, Seed.hidden == False, projection=proj)
         else: 
-            query = Seed.query(Seed.author == author_name, Seed.hidden != True, projection=proj)
+            query = Seed.query(Seed.author == author_name, Seed.hidden == False, projection=proj)
     seeds = query.fetch(limit=param_int("limit", 1, 1), offset=start_at) if start_at else query.fetch()
     if len(seeds):
         out = '<html><head><title>Seeds by %s</title></head><body><div>Seeds by %s:</div><ul style="list-style-type:none;padding:5px">' % (escape(author_name), escape(author_name))

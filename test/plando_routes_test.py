@@ -16,6 +16,7 @@ import unittest
 import main
 import models
 from models import Seed, User
+from seedbuilder.seedparams import SeedGenParams
 from test.ndb_base import EmulatorTestCase
 
 
@@ -174,6 +175,18 @@ class UploadTestCase(_PlandoRoutes):
         self.assertEqual(self._post(desc="second pass").status_code, 200)
         self.assertEqual(self.named(user, "alpha").description, "second pass",
                          "a second upload under the same name did not update it")
+
+    def test_box_lines_reach_the_seed_as_written(self):
+        """The builder owns the box format; the server only carries the lines."""
+        user = self.author()
+        lines = ["BX|kill,once|1,2,3,4", "BX|tombstone|5,6,7,8", "BX|none|9,10,11,12",
+                 "BX|damage=1/Lava,foo|1,2,3,4|0|MU|SK/0/EX/15", "BX|ritem|1,2,3,4||SH|a|b"]
+        boxes = [{"player": "1", "line": line, "locked": False} for line in lines]
+        self.assertEqual(self._post(boxes=boxes).status_code, 200)
+        seed = self.named(user, "alpha")
+        self.assertEqual([b.line for b in seed.boxes], lines)
+        text = SeedGenParams.from_plando(seed, False).get_seed(1)
+        self.assertEqual(text.rstrip("\n").split("\n")[-len(lines):], lines)
 
 
 class DownloadTestCase(_PlandoRoutes):

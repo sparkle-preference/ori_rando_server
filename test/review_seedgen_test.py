@@ -309,3 +309,63 @@ class PlayerCap(unittest.TestCase):
         util.MAX_PLAYERS = 4
         self.assertIsNotNone(player_cap_problem(self._params(5)))
         self.assertIsNone(player_cap_problem(self._params(4)))
+
+
+class BareMessagePickups(unittest.TestCase):
+    """A multipickup message typed as "SHtext" reads as SH/text."""
+
+    def test_a_trailing_bare_message_is_kept(self):
+        from util import decompose_multi_value, normalize_multi_value
+        v = "EX/1/RB/-33/SHUnlucky - $Bash Lost$"
+        self.assertEqual(decompose_multi_value(v)[-1], ("SH", "Unlucky - $Bash Lost$"))
+        self.assertEqual(normalize_multi_value(v), "EX/1/RB/-33/SH/Unlucky - $Bash Lost$")
+
+    def test_well_formed_values_are_untouched(self):
+        from util import normalize_multi_value
+        for v in ("TP/Grove/LC/*", "RI/8000//=5", "SH/ //x", "EX/1/SH/hi", "SK/0/SK/51", ""):
+            self.assertEqual(normalize_multi_value(v), v)
+
+    def test_pool_keys_and_fass_items_are_normalized(self):
+        from seedbuilder.seedparams import normalize_pool
+        from util import normalize_pickup
+        self.assertEqual(normalize_pool({"MU|EX/1/SHhi": [1], "SK|0": [1]}), {"MU|EX/1/SH/hi": [1], "SK|0": [1]})
+        self.assertEqual(normalize_pickup("SH|plain message"), "SH|plain message")
+
+
+from test.ndb_base import EmulatorTestCase  # noqa: E402
+
+
+class PoolOverflow(EmulatorTestCase):
+    """A custom pool bigger than the world loses its bottom rows, and says so."""
+    POOL = {"TP|Grove": [1], "TP|Swamp": [1], "HC|1": [12], "EC|1": [15], "AC|1": [33]}
+
+    def _roll(self, tail):
+        from seedbuilder.seedparams import SeedGenParams
+        pool = dict(self.POOL)
+        pool.update(tail)
+        key = SeedGenParams.from_json({"seed": "overflow", "paths": ["casual-core"], "itemPool": pool,
+                                       "selectedPool": "Custom"})
+        params = key.get()
+        self.assertTrue(params.generate())
+        return params
+
+    def _dropped(self, params):
+        texts = [w["text"] for w in params._gen_warnings if w["level"] == "warning"]
+        return int(texts[0].split("dropped ")[1].split(" ")[0]) if texts else 0
+
+    def test_the_bottom_row_pays_for_the_overflow(self):
+        params = self._roll({"RB|9": [5], "RB|10": [400]})
+        dropped = self._dropped(params)
+        self.assertGreater(dropped, 0)
+        lines = params.get_seed(1).split("\n")
+        self.assertEqual(sum("|RB|9|" in l for l in lines), 5)
+        self.assertEqual(sum("|RB|10|" in l for l in lines), 400 - dropped)
+
+    def test_a_nearly_full_pool_warns_about_compressed_experience(self):
+        capacity = 400 - self._dropped(self._roll({"RB|10": [400]}))
+        params = self._roll({"RB|10": [capacity - 10]})
+        self.assertEqual(params._gen_warnings, [{"level": "soft-warning",
+                                                 "text": "10k Experience was compressed into 10 pickups, expect large values"}])
+
+    def test_a_roomy_pool_says_nothing(self):
+        self.assertEqual(self._roll({})._gen_warnings, [])

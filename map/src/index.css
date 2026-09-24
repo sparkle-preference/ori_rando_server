@@ -342,6 +342,29 @@ body, #root {
   border: 0;
 }
 
+#box-controls .box-row-more {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: 3px;
+}
+
+#box-controls .box-extra {
+  width: 140px;
+  flex: none;
+  font-size: 12px;
+}
+
+#box-controls .box-give {
+  flex: 1;
+  min-width: 0;
+}
+
+#box-controls .box-warn {
+  color: var(--warning);
+  font-size: 12px;
+}
+
 #box-controls .box-show .box-icon {
   height: 16px;
   min-height: 0;
@@ -409,4 +432,13 @@ body, #root {
 .hist-flash {
   animation: histFlash 1.2s ease-out;
   border-radius: .25rem;
+}
+
+/* a milder warning: react-notifications' orange at half saturation */
+.notification-soft-warning {
+  background-color: #bb8943;
+}
+
+.notification-soft-warning:before {
+  content: "";
 }

@@ -2502,7 +2502,11 @@ class Game(ndb.Model):
         else:
             log.error("game mode %s not supported" % self.mode)
             retcode = 404
-        hl = HistoryLine(pickup_code=pickup.code, timestamp=utcnow(), pickup_id=str(pickup.id), coords=coords, removed=remove, player=pid)
+        self.record_history(finder, pickup, coords, remove, zone)
+        return retcode
+
+    def record_history(self, finder, pickup, coords, removed, zone=""):
+        hl = HistoryLine(pickup_code=pickup.code, timestamp=utcnow(), pickup_id=str(pickup.id), coords=coords, removed=removed, player=finder.pid())
         if coords in range(24, 60, 4) and zone in map_coords_by_zone:
             hl.map_coords = map_coords_by_zone[zone]
         if Player.append_hl_chunked_txn(finder.key, hl):
@@ -2517,7 +2521,6 @@ class Game(ndb.Model):
                     log.exception("could not mark game %s as played", self.key.id())
         if hl.map_coords or coords in trees_by_coords:
             Cache.clear_items(self.key.id())
-        return retcode
 
     def clean_up(self):
         [p.delete() for p in self.players]

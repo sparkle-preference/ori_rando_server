@@ -43,6 +43,11 @@ def found_pickup(game_id, player_id, coords, kind, id, payload):
     except (TypeError, ValueError):
         pickup = None
     if not pickup:
+        lost = _removal(kind, id)
+        if lost and isinstance(coords, int):
+            # a removal (RB|-33) only needs its history line; nothing is shared or granted
+            game.record_history(game.player(player_id), lost, coords, True, zone)
+            return _code(200)
         log.error("Couldn't build pickup %s|%s at %s" % (kind, id, coords))
         return _code(406)
     if coords in coord_correction_map:
@@ -58,6 +63,14 @@ def found_pickup(game_id, player_id, coords, kind, id, payload):
         Cache.clear_reach(game_id, player_id)
         Cache.clear_items(game_id)
     return _code(status)
+
+
+def _removal(kind, id):
+    """The pickup a negative id takes away (RB|-33 -> RB|33), or None."""
+    sid = str(id)
+    if kind in Pickup.REMOVES_ON_NEGATIVE and sid.startswith("-") and sid[1:].isdigit():
+        return Pickup.n(kind, sid[1:])
+    return None
 
 
 def tick(game_id, player_id, payload):

@@ -1529,7 +1529,8 @@ export default class MainPage extends React.Component {
             this.setState({seedIsGenerating: false, seedTabExists: false, activeTab: 'variations'}, this.updateUrl)
             return
         } else {
-            let res = JSON.parse(responseText)
+            let res = JSON.parse(responseText);
+            (res.warnings || []).forEach(w => NotificationManager.create({type: w.level, message: w.text, timeOut: 10000}))
             if(res.doBingoRedirect) {
                 // an AP board stays here: the host needs the apworld and yamls before
                 // anyone downloads, and the seed tab keeps its Open Bingo Board button

@@ -4,7 +4,7 @@ import logging as log
 import random
 import time
 
-from util import enums_from_strlist, picks_by_coord, get_preset_from_paths, decompose_multi_value, SEED_FORMAT
+from util import enums_from_strlist, picks_by_coord, get_preset_from_paths, decompose_multi_value, normalize_pickup, SEED_FORMAT
 from enums import (MultiplayerGameType, ShareType, Variation, LogicPath, KeyMode, PathDifficulty, presets,
                    preset_path_diff, preset_variations)
 from collections import OrderedDict
@@ -18,6 +18,10 @@ _PARAMS_CACHE = TTLCache(maxsize=8, ttl=120)
 _PARAMS_LOCK = Lock()
 
 JSON_SHARE = lambda x: x.value if x != ShareType.EVENT else "World Events"
+
+def normalize_pool(pool):
+    return {normalize_pickup(k): v for k, v in (pool or {}).items()}
+
 
 def spawn_weights(ws):
     """A blank weight arrives as null (NaN in JSON); it reads as 0."""
@@ -222,7 +226,7 @@ WORLD_FIELDS = {
     "bingoSquares":   ("bingo_squares",   int),
     "bingoMeta":      ("bingo_meta",      bool),
     "bingoDisc":      ("bingo_disc",      int),
-    "itemPool":       ("item_pool",       dict),
+    "itemPool":       ("item_pool",       normalize_pool),
     "selectedPool":   ("pool_preset",     str),
     "spawn":          ("start",           str),
     "spawnECs":       ("starting_energy", int),
@@ -433,7 +437,7 @@ class SeedGenParams(ndb.Model):
         params.anti_bk_bias = min(1.0, max(0.0, float(json.get("antiBkBias", 0) or 0)))
         params.sync = MultiplayerOptions.from_json(json)
         params.sense = json.get("senseData")
-        params.item_pool = json.get("itemPool", {})
+        params.item_pool = normalize_pool(json.get("itemPool"))
         params.bingo_lines = json.get("bingoLines", 3)
         params.bingo_diff = json.get("bingoDiff", "normal")
         params.bingo_goal = json.get("bingoGoal", "bingos")
@@ -446,7 +450,7 @@ class SeedGenParams(ndb.Model):
         params.fass_json = json.get("fass", []) or None
         for fass in all_fass(json):
             if "item" in fass: # this is stupid af but it's a faster way to handle the json mismatch than the other fixes available
-                pcode, _, pid = fass["item"].partition("|")
+                pcode, _, pid = normalize_pickup(fass["item"]).partition("|")
             else:
                 pcode, pid  = fass["code"], fass["id"]
             world = str(fass.get("world", 1) or 1)
@@ -657,6 +661,7 @@ class SeedGenParams(ndb.Model):
             self.placements = []
         sg = SeedGenerator()
         raw = sg.setSeedAndPlaceItems(self, preplaced=preplaced)
+        self._gen_warnings = [{"level": level, "text": text} for text, level in getattr(sg, "gen_warnings", {}).items()]
         placemap = OrderedDict()
         spoilers = []
         if not raw:

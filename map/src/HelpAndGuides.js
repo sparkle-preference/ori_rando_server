@@ -3,6 +3,7 @@ import {Container, Button, Collapse, Row, Col, Card, CardTitle, CardHeader, Card
 import {Helmet} from 'react-helmet';
 
 import {get_param, get_flag, stuff_by_type} from "./common.js"
+import {BOXES_TXT} from "./boxes.js"
 import SiteBar from "./SiteBar.js"
 import SiteFooter from "./SiteFooter.js"
 
@@ -727,21 +728,22 @@ export default class HelpAndGuides extends React.Component {
                 </div>
                 <Collapse isOpen={this.state.open["practice"]}>
                 <CardText>
-                    Practice mode lets you run indvidual segments of the game over and over against a clock. A segment consists of a save file plus rules: where the run ends, what you start with, and more!
-                    Access your practice segments by selecting PRACTICE from the main menu.
+                    Practice mode lets you run individual segments of the game over and over against a clock. A segment consists of a save file plus rules: where the run ends, what you start with, and more!
+                    Access your practice segments by selecting PRACTICE MODE from the main menu.
                 </CardText>
                 <CardText>
                     To make a new segment, get to the spot you want to practice in a normal game and press Alt+M. Then pick it from the practice menu, start it, and press escape to open the editor.
                 </CardText>
                 <CardText>
-                    <b>Editing.</b> Pause a running segment and choose EDIT PRACTICE SEGMENT: the world freezes and you draw can boxes with the mouse.
+                    <b>Editing.</b> Pause a running segment and choose EDIT PRACTICE SEGMENT: the world freezes and you can draw boxes with the mouse.
                     1-4 picks the flavor, Z to undo, X to delete a box under the cursor, WASD to pan, Enter to save and test.
                     <ul>
                         <li>A <b>Goal</b> box marks the finish line.</li>
                         <li>A <b>Kill</b> box does about what you'd expect.</li>
                         <li>An <b>Item</b> box grants a configurable pickup (like a message! Useful if you want to make tutorials).</li>
-                        <li>A <b>Solid</b> boxes create solid terrain if you want to set up hyperspecific movement gauntlets.</li>
+                        <li>A <b>Solid</b> box creates solid terrain if you want to set up hyperspecific movement gauntlets.</li>
                     </ul>
+                    Boxes also take extra flags like damage=1 or unsafe (see <a target="_blank" rel="noopener noreferrer" href={BOXES_TXT}>Boxes.txt</a>).
                 </CardText>
                 <CardText>
                     <b>The Advanced Editor.</b> Press 5 in edit mode and the advanced editor opens in your browser. Use it to configure the segment's name,
@@ -756,7 +758,7 @@ export default class HelpAndGuides extends React.Component {
                 </CardText>
                 <CardText>
                     <b>Variants.</b> If you want to practice the same part of the game with different sets of items, use variants to create multiple versions of the same segment!
-                    Variants share the same spawn point and ending conditions, but can have their own starting items and boxes, and each stores their own  and ghosts. 
+                    Variants share the same spawn point and ending conditions, but can have their own starting items and boxes, and each stores their own run history and ghosts. 
                 </CardText>
                 <CardText>
                     <b>Shuffle groups.</b> Scatter one or more pickups over a set of spots, redrawn every attempt! Useful if you want to practice hunting down the Sunstone in Sorrow.
