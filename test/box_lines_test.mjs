@@ -1,8 +1,8 @@
 // The plando builder's box line helpers (map/src/boxes.js). Run from the repo root: node test/box_lines_test.mjs
 import test from "node:test"
 import assert from "node:assert/strict"
-import {parse_box_line, box_line, is_box_gone, box_hidden, box_color, unknown_box_flags, new_box, BOX_COLORS}
-    from "../map/src/boxes.js"
+import {parse_box_line, box_line, is_box_gone, box_hidden, box_color, box_flag_ok, box_flag_warning, box_flag_choices,
+    box_flags_from_chips, box_has_flag, describe_flag, flag_completions, new_box, BOX_COLORS, compact_boxes} from "../map/src/boxes.js"
 
 const model = (b) => ({type: b.type, extra: b.extra, box: b.box, color: b.color, give: b.give})
 const parsed = (line) => model(parse_box_line(line))
@@ -77,7 +77,7 @@ test("a plain box never writes as a tombstone", () => {
     assert.ok(!is_box_gone(parse_box_line(box_line({...new_box("", [1, 2, 3, 4]), extra: "none"}))))
 })
 
-test("colour 0 is none", () => {
+test("color 0 is none", () => {
     let b = parse_box_line("BX|kill|1,2,3,4|0")
     assert.ok(box_hidden(b) && !is_box_gone(b))
     assert.equal(box_color(b), BOX_COLORS.kill)
@@ -87,9 +87,15 @@ test("colour 0 is none", () => {
     assert.equal(box_color(parse_box_line("BX||1,2,3,4")), BOX_COLORS.item)
 })
 
+test("the last type flag picks the default color, as in game", () => {
+    assert.equal(box_color(parse_box_line("BX|solid,kill|1,2,3,4")), BOX_COLORS.kill)
+    assert.equal(box_color(parse_box_line("BX|kill,once,Solid|1,2,3,4")), BOX_COLORS.solid)
+    assert.equal(box_color(parse_box_line("BX|damage=1,unsafe|1,2,3,4")), BOX_COLORS.item)
+})
+
 test("writing rounds corners and keeps the flags field whole", () => {
-    let b = {...new_box("kill", [1.04, 2.06, -3.01, 4]), extra: " once, | unsafe ,"}
-    assert.equal(box_line(b), "BX|kill,once,unsafe|1,2.1,-3,4")
+    let b = {...new_box("kill", [1.044, 2.056, -3.001, 4]), extra: " once, | unsafe ,"}
+    assert.equal(box_line(b), "BX|kill,once,unsafe|1.04,2.06,-3,4")
 })
 
 test("malformed lines are skipped", () => {
@@ -97,7 +103,146 @@ test("malformed lines are skipped", () => {
         assert.equal(parse_box_line(line), null, line)
 })
 
-test("unknown flag names are reported, known ones in any case are not", () => {
-    assert.deepEqual(unknown_box_flags("once, Damage=1, foo=2,bar,renderDepth=3,ON=Tick,parallaxdepth=4"), ["foo", "bar"])
-    assert.deepEqual(unknown_box_flags(""), [])
+test("a flag chip with a comma or pipe is refused", () => {
+    for(let flag of ["once", "damage=36/Drowning/Player", "parallaxDepth=40", "foo"])
+        assert.ok(box_flag_ok(flag), flag)
+    for(let flag of ["once,unsafe", "SK|0", "", "  "])
+        assert.ok(!box_flag_ok(flag), flag)
+})
+
+test("unknown names and value flags without a value warn, the rest in any case do not", () => {
+    for(let flag of ["once", "Damage=1", "renderDepth=3", "ON=Tick", "parallaxdepth=4", "kill", "tombstone"])
+        assert.equal(box_flag_warning(flag), "", flag)
+    for(let flag of ["foo", "bar=2", "damage", "damage=", "renderDepth", "parallaxDepth= ", "on"])
+        assert.ok(box_flag_warning(flag), flag)
+})
+
+test("chips are the type then extra; the menu offers presets first, then suggestions and the box's own flags", () => {
+    let {chips, options} = box_flag_choices("solid", "foo,once,kill")
+    assert.deepEqual(chips.map(c => c.value), ["solid", "foo", "once", "kill"])
+    assert.ok(!chips[0].warn && chips[1].warn && !chips[2].warn && !chips[3].warn)
+    assert.equal(chips[0].color, BOX_COLORS.solid)
+    assert.equal(chips[2].color, undefined)
+    let offered = options.map(o => o.value)
+    assert.deepEqual(offered.slice(0, 4), ["kill", "item", "solid", "ritem"])
+    assert.ok(offered.includes("unsafe") && offered.includes("foo") && !offered.includes("none") && !offered.includes("goal"))
+    assert.equal(offered.filter(v => v === "once").length, 1)
+    assert.ok(options.every(o => o.value === "foo" || o.desc))
+    assert.deepEqual(box_flag_choices("", "").chips, [])
+})
+
+test("a flag describes itself from its values, and warns where the game would log a parse error", () => {
+    assert.equal(describe_flag("damage=36/Drowning/Player").text, "Does 36 Drowning damage to Ori and grenades inside the box")
+    assert.equal(describe_flag("DAMAGE=5/lava/all/normal").text, "Does 5 Lava damage to anything inside the box, by normal hitboxes")
+    assert.equal(describe_flag("damage=1").text, "Does 1 Spikes damage to anything inside the box")
+    assert.ok(describe_flag("On=tick").text && !describe_flag("On=tick").warn)
+    for(let flag of ["damage=x", "damage=1/Foo", "damage=1/Spikes/Enemies", "damage=1/Spikes/All/Big", "damage=1/Spikes/All/Normal/x",
+                     "on=Update", "renderDepth=400", "renderDepth=deep", "parallaxDepth=-20", "foo", "damage"])
+        assert.ok(describe_flag(flag).warn, flag)
+    for(let flag of ["kill", "once", "unsafe", "renderDepth=-99", "parallaxDepth=4979"])
+        assert.ok(describe_flag(flag).text && !describe_flag(flag).warn, flag)
+})
+
+test("a value flag being typed offers its names, then its next part", () => {
+    let values = (text) => flag_completions(text).map(c => c.value)
+    assert.deepEqual(values("on="), ["on=Enter", "on=Tick", "on=Frame"])
+    assert.deepEqual(values("ON=t"), ["ON=Tick", "ON=Enter"])
+    assert.deepEqual(flag_completions("on=T").map(c => c.fill), [false, false])
+    assert.deepEqual(values("on=Tick"), [])
+    assert.deepEqual(values("damage=1"), ["damage=1/"])
+    assert.equal(flag_completions("damage=1")[0].next.hint, "damage type")
+    assert.equal(values("damage=1/").length, 26)
+    assert.deepEqual(values("damage=1/").slice(0, 3), ["damage=1/Acid", "damage=1/Bash", "damage=1/Bat"])
+    assert.deepEqual(values("damage=1/s").slice(0, 6), ["damage=1/SlugSpike", "damage=1/Spikes", "damage=1/SpiritFlame",
+                                                        "damage=1/SpiritFlameSplatter", "damage=1/Stomp", "damage=1/StompBlast"])
+    assert.equal(values("damage=1/s").length, 12)
+    assert.deepEqual(values("damage=1/pik"), ["damage=1/SlugSpike", "damage=1/Spikes"])
+    assert.ok(flag_completions("damage=1/pik")[0].fill)
+    assert.deepEqual(values("damage=1/lava"), ["damage=1/lava/"])
+    assert.deepEqual(values("damage=1/Lava/p"), ["damage=1/Lava/Player"])
+    assert.deepEqual(values("damage=1/Lava/All/"), ["damage=1/Lava/All/Normal", "damage=1/Lava/All/Extended"])
+    assert.deepEqual(flag_completions("damage=1/Lava/All/n").map(c => c.fill), [false, false])
+    for(let text of ["damage=", "damage=x", "damage=1/Lava/All/Normal", "damage=1/Lava/All/Normal/", "once", "renderDepth=", "foo="])
+        assert.deepEqual(values(text), [], text)
+})
+
+test("a kill on a box that gives something warns; an empty give does not", () => {
+    assert.ok(box_flag_choices("kill", "", "SK|0").chips[0].warn)
+    assert.ok(!box_flag_choices("kill", "", "").chips[0].warn && !box_flag_choices("kill", "", "NO|1").chips[0].warn)
+    assert.ok(!box_flag_choices("solid", "once", "SK|0").chips.some(c => c.warn))
+})
+
+test("chips back to the model: the first type flag is the type, the rest keep their order", () => {
+    assert.deepEqual(box_flags_from_chips(["once", "Kill", "solid"]), {type: "kill", extra: "once,solid"})
+    assert.deepEqual(box_flags_from_chips(["damage=1", "unsafe"]), {type: "", extra: "damage=1,unsafe"})
+    assert.deepEqual(box_flags_from_chips([]), {type: "", extra: ""})
+    let b = {...new_box("", [1, 2, 3, 4]), ...box_flags_from_chips(["solid", "kill"])}
+    assert.equal(box_line(b), "BX|solid,kill|1,2,3,4")
+    assert.ok(box_has_flag(b, "kill") && box_has_flag(b, "solid") && !box_has_flag(b, "item"))
+})
+
+const world = (...lines) => lines.map(parse_box_line)
+const lines_of = (out) => Object.fromEntries(Object.entries(out.worlds).map(([w, bs]) => [w, bs.map(box_line)]))
+const here = (value, extra) => ({value: value, world: "1", where: value, ...extra})
+
+// 0 kill, 1 hole, 2 solid, 3 hole, 4 item naming box 2, 5 and 6 holes at the end
+const HOLEY = () => ({1: world("BX|kill|0,0,1,1", "BX|tombstone|1,0,2,1", "BX|solid|2,0,3,1", "BX|tombstone|3,0,4,1",
+                           "BX|item|4,0,5,1||BM|2=1", "BX|tombstone|5,0,6,1", "BX|tombstone|6,0,7,1")})
+
+test("compacting drops holes in the middle and at the end and renumbers before, between and after them", () => {
+    let out = compact_boxes(HOLEY(), [here("BM|0"), here("BM|2=0"), here("BM|4"), here("SK|0")])
+    assert.deepEqual(out.problems, [])
+    assert.deepEqual(lines_of(out), {1: ["BX|kill|0,0,1,1", "BX|solid|2,0,3,1", "BX|item|4,0,5,1||BM|1=1"]})
+    assert.deepEqual(out.renumber, {1: {0: 0, 2: 1, 4: 2}})
+    assert.deepEqual(out.pickups, ["BM|0", "BM|1=0", "BM|2", "SK|0"])
+})
+
+test("multipickup pieces are renumbered and repacked with their escapes", () => {
+    let out = compact_boxes(HOLEY(), [here("MU|SK/0/BM/4=1/EX/15"), here("RP|BM/2/SH/a//b"), here("RG|EX/1/BM/0")])
+    assert.deepEqual(out.problems, [])
+    assert.deepEqual(out.pickups, ["MU|SK/0/BM/2=1/EX/15", "RP|BM/1/SH/a//b", "RG|EX/1/BM/0"])
+})
+
+test("only the box number moves: {slot} and comparisons after = are slots", () => {
+    let out = compact_boxes(HOLEY(), [here("BM|4={8000}"), here("BM|2=({8000} >= 3)"), here("MU|BM/4={8000}/RI/8000+=1")])
+    assert.deepEqual(out.pickups, ["BM|2={8000}", "BM|1=({8000} >= 3)", "MU|BM/2={8000}/RI/8000+=1"])
+})
+
+test("a reference to a deleted box or past the end is a problem, and that tombstone stays", () => {
+    let out = compact_boxes(HOLEY(), [here("BM|1", {where: "A"}), here("BM|9", {where: "B"}), here("BM|4")])
+    assert.equal(out.problems.length, 2)
+    assert.ok(out.problems[0].startsWith("A: ") && out.problems[1].startsWith("B: "))
+    assert.deepEqual(lines_of(out)[1], ["BX|kill|0,0,1,1", "BX|tombstone|1,0,2,1", "BX|solid|2,0,3,1", "BX|item|4,0,5,1||BM|2=1"])
+    assert.deepEqual(out.pickups, ["BM|1", "BM|9", "BM|3"])
+})
+
+test("a pickup runs in its owner's world, and an MU piece in the world its @ names", () => {
+    let worlds = {1: world("BX|tombstone|0,0,1,1", "BX|kill|1,0,2,1"), 2: world("BX|kill|0,0,1,1", "BX|tombstone|1,0,2,1", "BX|kill|2,0,3,1")}
+    let out = compact_boxes(worlds, [here("BM|1"), here("BM|2", {owner: "2"}), here("BM|1", {owner: "1"}),
+                                     here("MU|BM/2@2/BM/1"), {value: "BM|2", world: "2", where: "P2"}])
+    assert.deepEqual(out.problems, [])
+    assert.deepEqual(out.pickups, ["BM|0", "BM|1", "BM|0", "MU|BM/1@2/BM/0", "BM|1"])
+})
+
+test("owners it can't settle are problems", () => {
+    let worlds = {1: world("BX|tombstone|0,0,1,1", "BX|kill|1,0,2,1"), 2: world("BX|kill|0,0,1,1")}
+    for(let pickup of [here("MU|BM/0@2/SK/0", {owner: "2"}), here("BM|0", {owner: "2", spawn: true}), here("BM|1@2"),
+                       here("RP|BM/1@2/SK/0"), here("BM|x=1")])
+        assert.equal(compact_boxes(worlds, [pickup]).problems.length, 1, pickup.value)
+    assert.deepEqual(compact_boxes(worlds, [here("BM|1", {spawn: true})]).problems, [])
+})
+
+test("box state read or written by slot is a problem", () => {
+    for(let value of ["RI|1700=0", "SH|{2651}", "BM|0={1999}", "MU|EX/1/RI/2950+=1"])
+        assert.equal(compact_boxes(HOLEY(), [here(value)]).problems.length, 1, value)
+    assert.deepEqual(compact_boxes(HOLEY(), [here("RI|8000=1"), here("SH|{2000}")]).problems, [])
+})
+
+test("compacting twice changes nothing the second time", () => {
+    let first = compact_boxes(HOLEY(), [here("BM|4"), here("MU|BM/2/SK/0")])
+    let second = compact_boxes(first.worlds, first.pickups.map(v => here(v)))
+    assert.deepEqual(second.problems, [])
+    assert.deepEqual(lines_of(second), lines_of(first))
+    assert.deepEqual(second.pickups, first.pickups)
+    assert.deepEqual(second.renumber, {1: {0: 0, 1: 1, 2: 2}})
 })

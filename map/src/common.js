@@ -7,6 +7,7 @@ import {
 import { Badge } from 'reactstrap';
 import { components } from 'react-select';
 import CreatableSelect from 'react-select/lib/Creatable';
+import {decompose_pickup, pack_piece} from './multipickup.js';
 
 const select_theme = (theme) => {
     let style = getComputedStyle(document.body);
@@ -42,49 +43,6 @@ function name_from_str(pick) {
         return ""
     let parts = pick.split("|");
     return pickup_name(parts[0], parts[1])
-}
-
-function decompose_pickup(code, id) {
-    if (code === "NO" && id === "1") {
-        return [];
-    }
-
-    if (code != "MU" && code != "RP" && code != "RG") {
-        return [[code, id]];
-    }
-    
-    if (id === "") {
-        return [];
-    }
-
-    let parts = [];
-    let firstPiece = null;
-    let part = '';
-    for(let i = 0; i < id.length; ++i) {
-        let c = id[i];
-        if (c == '/') {
-            if (i < id.length - 1 && id[i + 1] == '/') {
-                part += '/';
-                ++i;
-            } else {
-                if (firstPiece === null) {
-                    firstPiece = part;
-                    part = '';
-                } else {
-                    parts.push([firstPiece, part]);
-                    firstPiece = null;
-                    part = '';
-                }
-            }
-        } else {
-            part += c;
-        }
-    }
-    // an odd trailing piece is dropped, as the client does
-    if (firstPiece !== null) {
-        parts.push([firstPiece, part]);
-    }
-    return parts;
 }
 
 // A plando writes a cross-world multipickup piece as "SK/0@2"; the suffix is the
@@ -440,7 +398,8 @@ class PickupSelect extends Component {
     
     let s = getComputedStyle(document.body);
 
-    let styles = props.styles || {
+    // props.styles adds to these, a part at a time
+    let styles = {
         // the same tie with bootstrap's active buttons that select_styles guards against
         menu: (base, _) => ({...base, zIndex: 5}),
         option: (base, data) => {
@@ -451,6 +410,7 @@ class PickupSelect extends Component {
           backgroundColor: bgc,
           color: s.getPropertyValue("color"),
         })},
+        ...props.styles,
       }
     
     let options = [...grouped_opts]
@@ -575,8 +535,7 @@ class PickupSelect extends Component {
       pickup = values[0]
     else {
       pickup = group ? "RG|" : (repeat ? "RP|" : "MU|")
-      // a value starting with "/" gets a space in front, or its "//" would read as part of the code
-      pickup += values.map(v => v.replace(/^([^|]*)\|\//, "$1| /").replaceAll("/", "//")).join("/").replace(/\|/g, "/")
+      pickup += values.map(pack_piece).join("/")
     }
     this.state.updater(pickup, name_from_str(pickup))
   }
@@ -926,6 +885,27 @@ function remember_box_color(color) {
     return next
 }
 
+// the plando builder's box panel as a share of the window, or null for the CSS default
+const BOX_PANEL_KEY = "box_panel_width"
+
+function box_panel_width() {
+    try {
+        let saved = parseFloat(localStorage.getItem(BOX_PANEL_KEY))
+        return saved > 0 && saved < 1 ? saved : null
+    } catch(e) {
+        return null
+    }
+}
+
+function remember_box_panel_width(share) {
+    try {
+        if(share)
+            localStorage.setItem(BOX_PANEL_KEY, String(share))
+        else
+            localStorage.removeItem(BOX_PANEL_KEY)
+    } catch(e) { /* storage disabled: it lasts this page load */ }
+}
+
 // the server's Archipelago kill switch
 function ap_enabled() {
     return get_flag("ap_flag")
@@ -1174,5 +1154,6 @@ export {
     report_error,
     player_icons, doNetRequest, prng, get_param, get_flag, resolve_dark, save_dark, beta_welcome_pending, save_beta_welcome, theme_href, postNetForm, ap_enabled, get_int, get_list, get_preset, presets, get_seed, logic_paths, get_random_loader, Blabel, MousePos,
     pickup_name, stuff_by_type, name_from_str, PickupSelect, Cent, ordinal_suffix, dev, gotoUrl, loginLogoutUrl, select_theme, randInt, spawn_defaults, spawnKitFor, decompose_pickup,
-    box_label, box_color_history, remember_box_color, seed_link_pref, remember_seed_link
+    box_label, box_color_history, remember_box_color, seed_link_pref, remember_seed_link,
+    box_panel_width, remember_box_panel_width
 };

@@ -240,8 +240,147 @@ body, #root {
   padding: 2px 0;
 }
 
+/* The box panel swaps in under the file controls and widens the column. Its floor is the
+   normal column, where a box takes two lines; its ceiling leaves the map usable. */
+.controls.controls-boxes {
+  --box-min: 560px;
+  width: clamp(var(--box-min), var(--box-width, min(40vw, 1000px)), 70vw);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+.controls-boxes .main-controls,
+.controls:not(.controls-boxes) #box-controls {
+  display: none;
+}
+
+/* Changing modes, the side that's showing fades out, then the other fades in as the width eases
+   (FOLD_OUT_MS and FOLD_IN_MS in PlandoBuilder.js). The main side only fades in once it has left. */
+.controls {
+  transition: width 200ms ease;
+}
+
+.panel-dragging .controls {
+  transition: none;
+}
+
+@keyframes fold-in {
+  from { opacity: 0; transform: translateX(24px); }
+}
+
+@keyframes fold-out {
+  to { opacity: 0; transform: translateX(24px); }
+}
+
+.controls-boxes #box-controls,
+.controls-swapped:not(.controls-boxes) .main-controls {
+  animation: fold-in 200ms ease-out;
+}
+
+.controls.controls-folding #box-controls,
+.controls.controls-folding .main-controls {
+  animation: fold-out 100ms ease-in forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .controls {
+    transition: none;
+  }
+
+  .controls #box-controls,
+  .controls .main-controls {
+    animation: none;
+  }
+}
+
+/* the controls above the panel keep their narrow-column size, against the right edge */
+.controls-boxes #file-controls {
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.controls-boxes #import-wrapper,
+.controls-boxes #fill-params {
+  width: 430px;
+  margin-left: auto;
+}
+
+.box-panel-grip {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 8px;
+  z-index: 10;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.box-panel-grip::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 2px;
+  background: #333;
+  transition: background .15s;
+}
+
+.box-panel-grip:hover::after,
+.panel-dragging .box-panel-grip::after {
+  background: #3b8fff;
+}
+
+.panel-dragging,
+.panel-dragging * {
+  cursor: col-resize !important;
+  user-select: none;
+}
+
+#box-entry {
+  display: flex;
+  gap: 4px;
+}
+
 #box-controls {
-  margin-top: 10px;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  container: boxes / inline-size;
+}
+
+#box-controls .box-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+#box-controls .box-panel-title {
+  font-size: 1.25rem;
+  font-weight: 500;
+}
+
+#box-controls .box-panel-count {
+  padding: 1px 8px;
+  border-radius: 10px;
+  background: #2a2a2a;
+  color: #bbb;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+#box-controls .box-panel-player {
+  width: 130px;
+}
+
+#box-controls .box-panel-done {
+  margin-left: auto;
 }
 
 /* the four base controls fit one line; the bulk pair deliberately wraps to a second */
@@ -260,51 +399,116 @@ body, #root {
   white-space: nowrap;
 }
 
-#box-controls .box-icon {
-  display: flex;
-  align-items: center;
-  padding: 0 5px;
-}
-
-/* the lock is its own column, and a 16px target is too small to hit */
-#box-controls .box-row-head > .box-icon {
-  height: 32px;
-}
-
 #box-controls .box-help {
   color: #aaa;
   font-size: 12px;
-  margin: 4px 0;
+  margin: 6px 0;
 }
 
+#box-controls .box-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  margin-right: -10px;
+  scrollbar-color: #555 transparent;
+}
+
+/* A row is one grid: number to lock on the first line, flags taking the slack, and what the
+   box gives on a second line under the flags, or beside the lock once the panel fits it. */
 #box-controls .box-row {
-  padding: 4px 0;
-  border-top: 1px solid #444;
+  display: grid;
+  grid-template-columns: 30px 26px minmax(0, 1fr) repeat(4, 50px) 26px 28px;
+  grid-template-areas: "num del flags c0 c1 c2 c3 show lock" ". . give give give give give give give";
+  gap: 3px;
+  align-items: center;
+  padding: 4px 6px;
+  border-top: 1px solid #333;
 }
 
-#box-controls .box-row-selected {
+#box-controls .box-num { grid-area: num; }
+#box-controls .box-del { grid-area: del; }
+#box-controls .box-flags { grid-area: flags; }
+#box-controls .box-c0 { grid-area: c0; }
+#box-controls .box-c1 { grid-area: c1; }
+#box-controls .box-c2 { grid-area: c2; }
+#box-controls .box-c3 { grid-area: c3; }
+#box-controls .box-show { grid-area: show; }
+#box-controls .box-lock { grid-area: lock; }
+#box-controls .box-give { grid-area: give; min-width: 0; }
+
+/* the header is the list's first child, so odd children are every other box from the second */
+#box-controls .box-row:nth-child(odd) {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+#box-controls .box-row:hover {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+#box-controls .box-row.box-row-selected,
+#box-controls .box-row.box-row-selected:hover {
   background: rgba(59, 143, 255, 0.15);
-  box-shadow: inset -3px 0 0 #3b8fff;
+  box-shadow: inset 3px 0 0 #3b8fff;
 }
 
 #box-controls .box-row-locked {
   opacity: 0.65;
 }
 
-#box-controls .box-row-head {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 3px;
+#box-controls .box-list-header {
+  display: none;
 }
 
-#box-controls .box-type {
-  width: 112px;
+#box-controls .box-num {
+  color: #888;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  padding-right: 3px;
+}
+
+#box-controls .box-del {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+@container boxes (min-width: 760px) {
+  #box-controls .box-row {
+    grid-template-columns: 30px 26px minmax(0, 1fr) repeat(4, 50px) 26px 28px minmax(0, 1fr);
+    grid-template-areas: "num del flags c0 c1 c2 c3 show lock give";
+  }
+
+  #box-controls .box-row.box-list-header {
+    display: grid;
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    padding-top: 2px;
+    padding-bottom: 2px;
+    border-top: 0;
+    background: black;
+    color: #888;
+    font-size: 12px;
+  }
+
+  #box-controls .box-row.box-list-header:hover {
+    background: black;
+  }
+
+  #box-controls .box-list-header .box-flags,
+  #box-controls .box-list-header .box-coord,
+  #box-controls .box-list-header .box-give {
+    padding-left: 5px;
+  }
+
+  #box-controls .box-list-header .box-show,
+  #box-controls .box-list-header .box-lock {
+    text-align: center;
+  }
 }
 
 /* the spinners cost more width than they earn, four numbers to a row */
 #box-controls .box-coord {
-  width: 50px;
   font-size: 12px;
   padding: 2px 3px;
   -moz-appearance: textfield;
@@ -316,12 +520,11 @@ body, #root {
   margin: 0;
 }
 
-/* the stack is its two children, since stretch does not reach across a wrapped flex line */
-#box-controls .box-show {
+/* color over visibility, the same question in one column */
+#box-controls .box-row:not(.box-list-header) .box-show {
   display: flex;
   flex-direction: column;
   gap: 1px;
-  width: 26px;
   height: 32px;
 }
 
@@ -342,36 +545,94 @@ body, #root {
   border: 0;
 }
 
-#box-controls .box-row-more {
+/* The eye and the lock: outlined in their usual state, filled once hidden or locked. The
+   lock is a full-height column, since a 16px target is too small to hit. */
+#box-controls .box-toggle {
   display: flex;
   align-items: center;
-  gap: 3px;
-  margin-top: 3px;
-}
-
-#box-controls .box-extra {
-  width: 140px;
-  flex: none;
-  font-size: 12px;
-}
-
-#box-controls .box-give {
-  flex: 1;
-  min-width: 0;
-}
-
-#box-controls .box-warn {
-  color: var(--warning);
-  font-size: 12px;
-}
-
-#box-controls .box-show .box-icon {
-  height: 16px;
-  min-height: 0;
-  padding: 0;
   justify-content: center;
-  font-size: 10px;
+  padding: 0;
+  border: 1px solid #b0b0b0;
+  border-radius: 3px;
+  background: transparent;
+  color: #f0f0f0;
   line-height: 1;
+  cursor: pointer;
+}
+
+#box-controls .box-toggle:hover:not(:disabled) {
+  border-color: white;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+#box-controls .box-toggle.box-toggle-on {
+  border-color: #e8e8e8;
+  background: #e8e8e8;
+  color: #111;
+}
+
+#box-controls .box-toggle:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+#box-controls .box-show .box-toggle {
+  height: 16px;
+  font-size: 12px;
+}
+
+#box-controls .box-toggle.box-lock {
+  height: 32px;
+  font-size: 14px;
+}
+
+#box-controls .box-flags {
+  font-size: 12px;
+}
+
+/* stands in for the select until first use, so it copies react-select's control and chips */
+#box-controls .box-flags-idle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 4px;
+  border: 1px solid hsl(0, 0%, 80%);
+  border-radius: 4px;
+  cursor: text;
+}
+
+#box-controls .box-flag {
+  margin: 2px;
+  padding: 3px 6px;
+  border-radius: 2px;
+  font-size: 85%;
+  background: var(--secondary);
+}
+
+/* the menu's line for a suggested flag: swatch, name, what it does */
+.box-flag-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 6px;
+  border-radius: 2px;
+}
+
+.box-flag-desc {
+  margin-left: 8px;
+  opacity: 0.7;
+  font-size: 90%;
+}
+
+.box-flag-desc-warn {
+  color: var(--warning);
+  opacity: 1;
+}
+
+#box-controls .box-flags-empty {
+  margin: 0 2px;
+  color: hsl(0, 0%, 50%);
 }
 
 .box-handle {
