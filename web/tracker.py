@@ -45,6 +45,8 @@ def game_list_html(games):
     return body
 
 GAME_LIST_LIMIT = 50
+# what the map tracker sends in ?modes= besides logic paths
+MAP_FLAGS = ("CLOSED_DUNGEON", "OPEN_WORLD")
 ACTIVE_GAMES_MAX_HOURS = 24 * 366 * 10
 # what a non-verbose history shows: the categories a game can share
 share_types = [ShareType.EVENT, ShareType.SKILL, ShareType.UPGRADE, ShareType.MISC,
@@ -176,7 +178,7 @@ def tracker_update_map(game_id):
             game_id = latest
             gid_changed = True
     pos = Cache.get_pos(game_id)
-    if not param_val("modes"):
+    if param_val("modes") is None:
         return json_resp({"error": "?modes= is required"}, 400)
     inventories = None
     game = None
@@ -197,8 +199,10 @@ def tracker_update_map(game_id):
             players[p] = {}
         players[p]["seen"] = coords
     reach = Cache.get_reachable(game_id)
-    modes = tuple(sorted(param_val("modes").split(" ")))
-    need_reach_updates = [p for p in players.keys() if modes not in reach.get(p, {})]
+    modes = tuple(sorted(m for m in param_val("modes").split(" ") if m))
+    # with every logic path off nothing is in logic, whatever the flags say
+    no_paths = all(m in MAP_FLAGS for m in modes)
+    need_reach_updates = [] if no_paths else [p for p in players.keys() if modes not in reach.get(p, {})]
     if need_reach_updates:
         if not game:
             game = Game.with_id(game_id)
@@ -225,7 +229,9 @@ def tracker_update_map(game_id):
         Cache.set_reachable(game_id, {p: reach[p] for p in need_reach_updates})
     # iterate rendered players: the merge write never prunes, so reach can hold stale pids
     for p in players:
-        if modes in reach.get(p, {}):
+        if no_paths:
+            players[p]["reachable"] = []
+        elif modes in reach.get(p, {}):
             players[p]["reachable"] = reach[p][modes]
     res = {"players": players}
     if gid_changed:

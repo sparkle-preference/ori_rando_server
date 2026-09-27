@@ -42,13 +42,16 @@ function parse_box_line(line) {
     if(box.length !== 4 || box.some(isNaN))
         return null
     let flags = split_flags(f[1])
-    let t = flags.findIndex(flag => TYPE_FLAGS.includes(flag.toLowerCase()))
-    let out = new_box(t < 0 ? "" : flags[t].toLowerCase(), box)
+    // the game deletes a box with a tombstone flag anywhere in its flags
+    let gone = flags.some(flag => flag.toLowerCase() === BOX_TOMBSTONE)
+    flags = flags.filter(flag => flag.toLowerCase() !== BOX_TOMBSTONE)
+    let t = gone ? -1 : flags.findIndex(flag => TYPE_FLAGS.includes(flag.toLowerCase()))
+    let out = new_box(gone ? BOX_TOMBSTONE : t < 0 ? "" : flags[t].toLowerCase(), box)
     out.extra = flags.filter((_, k) => k !== t).join(",")
     out.color = (f[3] || "").trim()
     out.give = f.slice(4).join("|")
-    // what the builder wrote for a deleted box before tombstones; with a color it is a plain box
-    if(out.type === "none" && !out.extra && !out.color)
+    // what the builder wrote for a deleted box before tombstones; with a color or a give it is a plain box
+    if(out.type === "none" && !out.extra && !out.color && !f[4])
         out.type = BOX_TOMBSTONE
     return out
 }
@@ -81,7 +84,8 @@ const box_flag_ok = (flag) => !!flag.trim() && !/[,|]/.test(flag)
 
 const capital = (text) => text.charAt(0).toUpperCase() + text.slice(1)
 const one_of = (names, text) => names.find(n => n.toLowerCase() === text.trim().toLowerCase())
-const numeric = (text) => text.trim() !== "" && isFinite(Number(text))
+// a plain decimal, as the game's float.TryParse with NumberStyles.Number reads one
+const numeric = (text) => /^\s*[+-]?(\d+\.?\d*|\.\d+)\s*$/.test(text)
 
 // What a flag does, or with warn, why the game won't do what it says. Bad values are the
 // game's own parse errors, which it only logs.
@@ -134,8 +138,8 @@ const FLAG_PARTS = {
              {names: ["Normal", "Extended"], hint: "hitboxes", fallback: "Extended"}],
 }
 
-// Completions for a value flag being typed: its current part's names, prefix matches first, then the
-// next part once this one is whole. A pick more can follow fills the text box (fill); a final one is added.
+// Completions for a value flag being typed: its current part's names, prefix matches first (longer names too
+// once it is whole), then the next part. A pick more can follow fills the text box (fill); a final one is added.
 function flag_completions(text) {
     let eq = text.indexOf("=")
     let parts = eq < 0 ? null : FLAG_PARTS[text.slice(0, eq).trim().toLowerCase()]
@@ -147,14 +151,28 @@ function flag_completions(text) {
     let head = text.slice(0, text.length - typed[at].length)
     let whole = part.names ? part.names.some(n => n.toLowerCase() === partial) : numeric(typed[at])
     let out = []
-    if(part.names && !whole) {
-        let hits = [...part.names.filter(n => n.toLowerCase().startsWith(partial)),
-                    ...part.names.filter(n => !n.toLowerCase().startsWith(partial) && n.toLowerCase().includes(partial))]
+    if(part.names) {
+        let hits = whole ? part.names.filter(n => n.toLowerCase().startsWith(partial) && n.toLowerCase() !== partial)
+                         : [...part.names.filter(n => n.toLowerCase().startsWith(partial)),
+                            ...part.names.filter(n => !n.toLowerCase().startsWith(partial) && n.toLowerCase().includes(partial))]
         out = hits.map(n => ({value: head + n, fill: at < parts.length - 1}))
     }
     if(whole && parts[at + 1])
         out.push({value: text + "/", fill: true, next: parts[at + 1]})
     return out
+}
+
+// The flags menu for what's typed, its completions given as menu lines: after the usual lines when the flag is
+// whole as typed, so Enter adds it, else first, with a usual line taking the place of a completion it matches.
+function flag_menu(options, completions, whole) {
+    let known = options.map(o => o.value.toLowerCase())
+    let at = completions.map(c => known.indexOf(c.value.toLowerCase()))
+    let fresh = completions.filter((_, k) => at[k] < 0)
+    if(whole || !completions.length)
+        return fresh.length ? [...options, ...fresh] : options
+    // marked, so the menu's filter keeps it like the completion it stands for
+    return [...completions.map((c, k) => at[k] < 0 ? c : {...options[at[k]], completion: true}),
+            ...options.filter((_, k) => !at.includes(k))]
 }
 
 // the chip or menu line for a flag; a kill on a box that gives something is overridden, so it warns
@@ -181,7 +199,7 @@ function box_flags_from_chips(flags) {
 
 const MULTI_CODES = ["MU", "RP", "RG"]
 // the client keeps box state in these slots by box number: off bits, then contact bits
-const BOX_STATE_SLOTS = [[1700, 1999], [2651, 2950]]
+const BOX_STATE_SLOTS = [[1700, 1999], [2700, 2999]]
 
 // a pickup as pieces, each with the world it runs in; after a BM's box number come slots and values, never boxes
 function read_pickup(value, world, owner, where, spawn, box_item, problems) {
@@ -284,6 +302,6 @@ function compact_boxes(worlds, pickups) {
 
 export {
     BOX_PRESETS, BOX_COLORS, BOX_TOMBSTONE, is_box_gone, box_hidden, new_box, box_has_flag, box_flags_from_chips,
-    parse_box_line, box_line, box_color, box_flag_ok, box_flag_warning, describe_flag, flag_completions, box_flag_choices, BOXES_TXT,
+    parse_box_line, box_line, box_color, box_flag_ok, box_flag_warning, describe_flag, flag_completions, flag_menu, box_flag_choices, BOXES_TXT,
     compact_boxes
 };

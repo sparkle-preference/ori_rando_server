@@ -30,6 +30,7 @@ from simple_websocket import ConnectionClosed
 import netcode
 import push
 from cache import Cache
+from models import Game
 from util import WS_CONN_LIMIT, NETPERF_TAG, netperf
 
 _conns_lock = Lock()
@@ -112,6 +113,13 @@ _ice_cache = {}
 ICE_TTL = 600
 ICE_FAIL_TTL = 60
 ICE_TIMEOUT = 3
+
+
+def _in_game(game_id, player_id):
+    """Whether the game exists and seats this player."""
+    game = Game.with_id(game_id)
+    pid = "%s.%s" % (game_id, player_id)
+    return game is not None and any(key.id() == pid for key in game.players)
 
 
 def _ice_config(game_id):
@@ -300,6 +308,8 @@ def handle_frame(game_id, player_id, frame):
             peer_pid = int(body.strip())
         except ValueError:
             return "err:ghostice:malformed", False
+        if not _in_game(game_id, player_id):
+            return "err:ghostice:notingame", False
         gpid = (game_id, player_id)
         peer = (game_id, peer_pid)
         with _socks_lock:

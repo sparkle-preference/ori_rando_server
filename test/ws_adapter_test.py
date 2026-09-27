@@ -14,6 +14,7 @@ from google.cloud import ndb
 
 import netcode
 import ws
+from models import Game
 from simple_websocket import ConnectionClosed
 
 
@@ -357,17 +358,36 @@ def _relay_configured(urlopen):
         del os.environ["TURN_CREDENTIALS_TOKEN"]
 
 
+class _SeatKey(object):
+    def __init__(self, pid):
+        self._id = pid
+
+    def id(self):
+        return self._id
+
+
+class _SeatGame(object):
+    def __init__(self, gid, pids):
+        self.players = [_SeatKey("%s.%s" % (gid, pid)) for pid in pids]
+
+
 class GhostSignallingTests(unittest.TestCase):
     """The relay half: opting in, the roster, and passing one blob to one peer.
     No datastore: signaling lives in the live socket registry, so it is single-instance only."""
+    SEATED = {7: (1, 2, 3)}
 
     def setUp(self):
+        self._clear()
+        real = Game.__dict__["with_id"]
+        Game.with_id = staticmethod(lambda gid: _SeatGame(gid, self.SEATED[gid]) if gid in self.SEATED else None)
+        self.addCleanup(setattr, Game, "with_id", real)
+        self.addCleanup(self._clear)
+
+    def _clear(self):
         ws._socks.clear()
         ws._ghosts.clear()
         ws._ghost_relayed.clear()
         ws._ice_cache.clear()
-
-    tearDown = setUp
 
     def _join(self, game_id, player_id):
         """Register a fake socket and opt it in, returning the socket."""
@@ -556,3 +576,20 @@ class GhostSignallingTests(unittest.TestCase):
 
         self.assertEqual(reply, "err:ghostice:unavailable")
         self.assertFalse(close)
+
+    def test_relay_config_is_only_for_a_player_of_a_real_game(self):
+        self._join(7, 1)
+        self._join(7, 4)
+        self._join(8, 1)
+        self._join(8, 2)
+        calls = []
+
+        def fake_urlopen(request, timeout=None):
+            calls.append(request.full_url)
+            return _FakeResponse(b'{"urls": []}')
+
+        with _relay_configured(fake_urlopen):
+            self.assertEqual(ws.handle_frame(8, 1, "ghostice:2")[0], "err:ghostice:notingame")
+            self.assertEqual(ws.handle_frame(7, 4, "ghostice:1")[0], "err:ghostice:notingame")
+        self.assertEqual(calls, [])
+        self.assertEqual(ws._ghost_relayed, set())

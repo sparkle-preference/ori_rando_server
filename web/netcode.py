@@ -2,6 +2,8 @@
 
 `import netcode` below is the top-level module, not this one.
 """
+from urllib.parse import unquote_to_bytes
+
 from flask import Blueprint, request
 
 import netcode
@@ -35,6 +37,10 @@ def netcode_game_complete(game_id, player_id):
 
 @bp.route('/netcode/game/<int:game_id>/player/<int:player_id>/callback/<path:signal>')
 def netcode_signal_callback(game_id, player_id, signal):
+    # clients send the signal unescaped, so any "?" in it began the query string
+    raw_uri = request.environ.get("RAW_URI") or request.environ.get("REQUEST_URI") or ""
+    if request.query_string or "?" in raw_uri:
+        signal += "?" + unquote_to_bytes(request.query_string).decode("utf-8", "replace")
     status, body = netcode.signal_callback(game_id, player_id, signal)
     return text_resp(body, status)
 

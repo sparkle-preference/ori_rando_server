@@ -2,7 +2,7 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 import {parse_box_line, box_line, is_box_gone, box_hidden, box_color, box_flag_ok, box_flag_warning, box_flag_choices,
-    box_flags_from_chips, box_has_flag, describe_flag, flag_completions, new_box, BOX_COLORS, compact_boxes} from "../map/src/boxes.js"
+    box_flags_from_chips, box_has_flag, describe_flag, flag_completions, flag_menu, new_box, BOX_COLORS, compact_boxes} from "../map/src/boxes.js"
 
 const model = (b) => ({type: b.type, extra: b.extra, box: b.box, color: b.color, give: b.give})
 const parsed = (line) => model(parse_box_line(line))
@@ -58,7 +58,7 @@ test("give is written whenever present, for any type", () => {
 })
 
 test("tombstones", () => {
-    for(let line of ["BX|tombstone|1,2,3,4", "BX|none|1,2,3,4", "BX|none|1,2,3,4|", "BX| NONE |1,2,3,4"]) {
+    for(let line of ["BX|tombstone|1,2,3,4", "BX|none|1,2,3,4", "BX|none|1,2,3,4|", "BX|none|1,2,3,4||", "BX| NONE |1,2,3,4"]) {
         let b = parse_box_line(line)
         assert.ok(is_box_gone(b), line)
         assert.equal(box_line(b), "BX|tombstone|1,2,3,4", line)
@@ -68,6 +68,23 @@ test("tombstones", () => {
         assert.ok(!is_box_gone(b), line)
         assert.equal(box_line(b), line)
     }
+})
+
+test("a tombstone flag anywhere deletes the box, as in game", () => {
+    for(let line of ["BX|kill,tombstone|1,2,3,4", "BX|once,TombStone,solid|1,2,3,4", "BX|tombstone,kill|1,2,3,4||SK|0"]) {
+        let b = parse_box_line(line)
+        assert.ok(is_box_gone(b), line)
+        assert.ok(is_box_gone(parse_box_line(box_line(b))), line)
+    }
+    assert.equal(rewrite("BX|kill,tombstone|1,2,3,4"), "BX|tombstone,kill|1,2,3,4")
+})
+
+test("a bare none that gives something is a plain box", () => {
+    let b = parse_box_line("BX|none|1,2,3,4||SK|0")
+    assert.ok(!is_box_gone(b))
+    assert.deepEqual(model(b), {type: "none", extra: "", box: [1, 2, 3, 4], color: "", give: "SK|0"})
+    assert.equal(box_line(b), "BX|none|1,2,3,4|808080|SK|0")
+    assert.deepEqual(parsed(box_line(b)), {...model(b), color: "808080"})
 })
 
 test("a plain box never writes as a tombstone", () => {
@@ -143,6 +160,16 @@ test("a flag describes itself from its values, and warns where the game would lo
         assert.ok(describe_flag(flag).text && !describe_flag(flag).warn, flag)
 })
 
+test("numbers are plain decimals, as the game reads them", () => {
+    for(let flag of ["renderDepth=1e2", "renderDepth=0x10", "renderDepth=.", "renderDepth=-", "renderDepth=1.2.3", "damage=1e2",
+                     "damage=0x10/Lava", "damage=Infinity"])
+        assert.ok(describe_flag(flag).warn, flag)
+    for(let flag of ["renderDepth=-5", "renderDepth=+5", "renderDepth=.5", "renderDepth=5.", "renderDepth=-0.25", "damage=1.5",
+                     "damage= 2 /Lava"])
+        assert.ok(!describe_flag(flag).warn, flag)
+    assert.deepEqual(flag_completions("damage=1e2").map(c => c.value), [])
+})
+
 test("a value flag being typed offers its names, then its next part", () => {
     let values = (text) => flag_completions(text).map(c => c.value)
     assert.deepEqual(values("on="), ["on=Enter", "on=Tick", "on=Frame"])
@@ -159,11 +186,32 @@ test("a value flag being typed offers its names, then its next part", () => {
     assert.deepEqual(values("damage=1/pik"), ["damage=1/SlugSpike", "damage=1/Spikes"])
     assert.ok(flag_completions("damage=1/pik")[0].fill)
     assert.deepEqual(values("damage=1/lava"), ["damage=1/lava/"])
+    assert.deepEqual(values("damage=1/Grenade"), ["damage=1/GrenadeSplatter", "damage=1/Grenade/"])
+    assert.deepEqual(values("damage=1/spiritflame"), ["damage=1/SpiritFlameSplatter", "damage=1/spiritflame/"])
+    assert.deepEqual(values("damage=1/Stomp"), ["damage=1/StompBlast", "damage=1/Stomp/"])
+    assert.ok(flag_completions("damage=1/Stomp")[0].fill)
     assert.deepEqual(values("damage=1/Lava/p"), ["damage=1/Lava/Player"])
     assert.deepEqual(values("damage=1/Lava/All/"), ["damage=1/Lava/All/Normal", "damage=1/Lava/All/Extended"])
     assert.deepEqual(flag_completions("damage=1/Lava/All/n").map(c => c.fill), [false, false])
     for(let text of ["damage=", "damage=x", "damage=1/Lava/All/Normal", "damage=1/Lava/All/Normal/", "once", "renderDepth=", "foo="])
         assert.deepEqual(values(text), [], text)
+})
+
+test("a completion the menu already has stands in its place, once", () => {
+    let {options} = box_flag_choices("", "")
+    let menu = (text) => flag_menu(options, flag_completions(text).map(c => ({value: c.value, completion: true})), !describe_flag(text).warn)
+    let values = (text) => menu(text).map(o => o.value)
+    assert.deepEqual(values("on=T").slice(0, 2), ["on=Tick", "on=Enter"])
+    assert.deepEqual(values("ON=t").slice(0, 2), ["on=Tick", "ON=Enter"])
+    assert.equal(values("on=T").filter(v => v === "on=Tick").length, 1)
+    assert.equal(values("on=T").length, options.length + 1)
+    let tick = menu("on=T")[0]
+    assert.equal(tick.desc, options.find(o => o.value === "on=Tick").desc)
+    assert.ok(tick.completion)
+    // whole as typed, the usual lines stay first
+    assert.deepEqual(values("damage=1"), [...options.map(o => o.value), "damage=1/"])
+    assert.equal(menu("once"), options)
+    assert.equal(menu("foo"), options)
 })
 
 test("a kill on a box that gives something warns; an empty give does not", () => {
@@ -233,9 +281,9 @@ test("owners it can't settle are problems", () => {
 })
 
 test("box state read or written by slot is a problem", () => {
-    for(let value of ["RI|1700=0", "SH|{2651}", "BM|0={1999}", "MU|EX/1/RI/2950+=1"])
+    for(let value of ["RI|1700=0", "SH|{2700}", "BM|0={1999}", "MU|EX/1/RI/2999+=1"])
         assert.equal(compact_boxes(HOLEY(), [here(value)]).problems.length, 1, value)
-    assert.deepEqual(compact_boxes(HOLEY(), [here("RI|8000=1"), here("SH|{2000}")]).problems, [])
+    assert.deepEqual(compact_boxes(HOLEY(), [here("RI|8000=1"), here("SH|{2000}"), here("SH|{2651}")]).problems, [])
 })
 
 test("compacting twice changes nothing the second time", () => {

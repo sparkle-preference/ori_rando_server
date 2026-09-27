@@ -4,7 +4,7 @@ import logging as log
 import random
 import time
 
-from util import enums_from_strlist, picks_by_coord, get_preset_from_paths, decompose_multi_value, normalize_pickup, SEED_FORMAT
+from util import enums_from_strlist, picks_by_coord, get_preset_from_paths, compose_multi_value, decompose_multi_value, normalize_pickup, SEED_FORMAT
 from enums import (MultiplayerGameType, ShareType, Variation, LogicPath, KeyMode, PathDifficulty, presets,
                    preset_path_diff, preset_variations)
 from collections import OrderedDict
@@ -798,13 +798,13 @@ class SeedGenParams(ndb.Model):
                     for code, value in decompose_multi_value(s.id):
                         value, _, owner = value.partition("@")
                         if not owner or owner == s.player:
-                            mine += [code, value]
+                            mine.append((code, value))
                             continue
                         slot = take_slot(owner)
-                        mine += ["MW", "%s,%s,%s,%s" % (owner, slot, code, value)]
+                        mine.append(("MW", "%s,%s,%s,%s" % (owner, slot, code, value)))
                         manifests.append((slot, owner, code, value))
                     if int(s.player) == pid:
-                        rows.append((str(p.location), "MU", "/".join(mine), p.zone))
+                        rows.append((str(p.location), "MU", compose_multi_value(mine), p.zone))
                     for slot, owner, code, value in manifests:
                         if int(owner) == pid:
                             rows.append((str(-(slot + 2)), "MW",

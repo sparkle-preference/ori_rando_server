@@ -133,6 +133,16 @@ class PageRoutesTestCase(_Routes):
                     "/bingo/userboard/pat/fetch/abc", "/tracker/game/1/fetch/update"):
             self.assertEqual(self.client.get(url).status_code, 400, url)
 
+    def test_a_tracker_with_every_logic_path_off_still_polls(self):
+        from cache import Cache
+        self.game(777002)
+        Cache.set_pos(777002, 1, 189, -210)
+        Cache.set_have(777002, {1: []})
+        for modes in ("", "+CLOSED_DUNGEON", "+OPEN_WORLD"):
+            r = self.client.get("/tracker/game/777002/fetch/update?modes=" + modes)
+            self.assertEqual(r.status_code, 200, modes)
+            self.assertEqual(r.get_json()["players"]["1"]["reachable"], [], modes)
+
     def test_items_for_a_gone_game_with_cached_coords(self):
         from cache import Cache
         Cache.set_have(777001, {1: [2]})
@@ -293,6 +303,30 @@ class PublicPlandoPagesTestCase(_Routes):
         self.assertEqual(page.status_code, 200)
         self.assertIn("alpha", page.get_data(as_text=True))
         self.assertNotIn("secret", page.get_data(as_text=True))
+
+
+class SignalCallbackRouteTestCase(_Routes):
+    """Clients put the signal in the path unescaped, so a "?" in it starts the query string."""
+    WRONG_SEED = "msg:@Warning: your loaded seed belongs to game 1 but you are connected to game 2. Wrong randomizer.bfr?@"
+
+    def confirm(self, gid, signal, **kw):
+        g = self.game(gid)
+        p = g.player(1)
+        p.signals = [signal, "msg:@other@"]
+        p.put()
+        r = self.client.get("/netcode/game/%s/player/1/callback/%s" % (gid, signal), **kw)
+        self.assertEqual(r.status_code, 200)
+        return models.Player.get_by_id("%s.1" % gid, parent=g.key, use_cache=False).signals
+
+    def test_a_signal_with_a_question_mark_confirms(self):
+        self.assertEqual(self.confirm(123490, self.WRONG_SEED), ["msg:@other@"])
+
+    def test_a_signal_ending_in_a_question_mark_confirms(self):
+        path = "/netcode/game/123491/player/1/callback/msg:who?"
+        self.assertEqual(self.confirm(123491, "msg:who?", environ_overrides={"RAW_URI": path}), ["msg:@other@"])
+
+    def test_a_signal_without_one_is_unchanged(self):
+        self.assertEqual(self.confirm(123492, "msg:@plain@"), ["msg:@other@"])
 
 
 if __name__ == "__main__":

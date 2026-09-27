@@ -15,7 +15,7 @@ import unittest
 from enums import MultiplayerGameType
 from seedbuilder.generator import MultiworldSlotOverflow
 from seedbuilder.seedparams import MultiplayerOptions, Placement, SeedGenParams, Stuff
-from util import parse_fass
+from util import decompose_multi_value, parse_fass
 
 
 def plando(players, *placements):
@@ -130,6 +130,21 @@ class MultipickupOwnershipTests(unittest.TestCase):
         p = plando(2, ("1", "Glades", "MU", "SK/0@1/HC/1", 1, None))
         self.assertEqual(lines(p, 1), ["1|MU|SK/0/HC/1|Glades"])
         self.assertEqual(lines(p, 2), [])
+
+    def test_a_slash_inside_a_piece_stays_escaped(self):
+        p = plando(2, ("1", "Glades", "MU", "SK/0@2/SH/a//b/RI/8000//=5", 1, None))
+        line = lines(p, 1)[0]
+        self.assertEqual(line, "1|MU|MW/2,0,SK,0/SH/a//b/RI/8000//=5|Glades")
+        self.assertEqual(decompose_multi_value(line.split("|")[2]),
+                         [("MW", "2,0,SK,0"), ("SH", "a/b"), ("RI", "8000/=5")])
+        self.assertEqual(lines(p, 2), ["-2|MW|1,,SK,0|Glades"])
+
+    def test_a_slash_inside_a_piece_for_someone_else_stays_escaped(self):
+        p = plando(2, ("1", "Glades", "MU", "SH/a//b@2/HC/1", 1, None))
+        line = lines(p, 1)[0]
+        self.assertEqual(line, "1|MU|MW/2,0,SH,a//b/HC/1|Glades")
+        self.assertEqual(decompose_multi_value(line.split("|")[2]), [("MW", "2,0,SH,a/b"), ("HC", "1")])
+        self.assertEqual(lines(p, 2), ["-2|MW|1,,SH,a/b|Glades"])
 
     def test_a_plain_multipickup_is_untouched(self):
         p = plando(2, ("1", "Glades", "MU", "SK/0/HC/1", 1, None))

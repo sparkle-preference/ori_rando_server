@@ -10,7 +10,7 @@ import {get_param, get_flag, get_int, get_list, get_seed, presets, get_preset, l
         box_label, box_color_history, remember_box_color, MousePos, select_theme, name_from_str,
         box_panel_width, remember_box_panel_width} from './common.js';
 import {BOX_PRESETS, BOX_TOMBSTONE, is_box_gone, box_hidden, new_box, box_has_flag, box_flags_from_chips, parse_box_line, box_line,
-        box_color, box_flag_ok, box_flag_choices, describe_flag, flag_completions, BOXES_TXT, compact_boxes} from './boxes.js';
+        box_color, box_flag_ok, box_flag_choices, describe_flag, flag_completions, flag_menu, BOXES_TXT, compact_boxes} from './boxes.js';
 import {download, picks_by_type, picks_by_loc, picks_by_zone, picks_by_area, zones, PickupMarkersList, get_icon, 
         getMapCrs, TILE_MAX_ZOOM, hide_opacity, select_wrap, is_match, str_ids, select_styles} from './shared_map.js';
 import NumericInput from 'react-numeric-input';
@@ -359,8 +359,12 @@ class BoxRow extends React.PureComponent {
         }
         let list = (chips || []).map(c => c.value.trim())
         let at = this.state.flagEdit
-        if(at !== null && ["select-option", "create-option"].includes(action.action) && list.length === this.flags.chips.length + 1)
+        let adding = ["select-option", "create-option"].includes(action.action)
+        if(at !== null && adding && list.length === this.flags.chips.length + 1)
             list[at] = list.pop()
+        // any other change moves the chips out from under the edited index
+        if(!adding)
+            this.setState({flagEdit: null})
         this.props.onUpdate(this.props.i, box_flags_from_chips(list))
     }
     editFlag = (chip) => this.setState({flagEdit: this.flags.chips.indexOf(chip), flagText: chip.value, flagMenu: true}, () => {
@@ -385,15 +389,11 @@ class BoxRow extends React.PureComponent {
                ![...chips, ...options].some(o => o.value.toLowerCase() === t && !(edited && edited.value.toLowerCase() === t))
     }
     createLabel = (text) => flag_create_label(text, this.state.flagEdit !== null)
-    // What's typed, finished for it, and no line the menu has already. A flag that's whole as typed
-    // keeps the usual lines first, so Enter adds it; one that isn't puts its completions first.
+    // the menu with what's typed finished for it, in flag_menu's order
     flagOptions = (flags, text) => {
         if(!this.completed || this.completed.flags !== flags || this.completed.text !== text) {
-            let known = flags.options.map(o => o.value.toLowerCase())
-            let extra = flag_completions(text).map(completion_option).filter(o => !known.includes(o.value.toLowerCase()))
-            let whole = !describe_flag(text).warn
-            this.completed = {flags: flags, text: text,
-                              options: !extra.length ? flags.options : whole ? [...flags.options, ...extra] : [...extra, ...flags.options]}
+            let completions = flag_completions(text).map(completion_option)
+            this.completed = {flags: flags, text: text, options: flag_menu(flags.options, completions, !describe_flag(text).warn)}
         }
         return this.completed.options
     }
@@ -432,6 +432,7 @@ class BoxRow extends React.PureComponent {
                                    inputValue={this.state.flagText} onInputChange={this.typeFlag}
                                    menuIsOpen={this.state.flagMenu} onMenuOpen={this.openFlagMenu} onMenuClose={this.closeFlagMenu}
                                    onEditFlag={this.editFlag} editingFlag={this.state.flagEdit} isOptionSelected={flag_selected}
+                                   backspaceRemovesValue={this.state.flagEdit === null}
                                    formatCreateLabel={this.createLabel} formatOptionLabel={flag_menu_label} noOptionsMessage={flag_no_options}/>
                     ) : (
                         <div className="box-flags-idle" tabIndex={b.locked ? undefined : 0} onFocus={this.wakeFlags} onMouseDown={this.wakeFlags}>
@@ -1282,7 +1283,7 @@ class PlandoBuiler extends React.Component {
     // a new box lands where the map is looking, to be dragged into place
     addBox = () => {
         let c = this.refs.map.leafletElement.getCenter()
-        let x = Math.round(c.lng * 10) / 10, y = Math.round(c.lat * 10) / 10
+        let x = Math.round(c.lng * 100) / 100, y = Math.round(c.lat * 100) / 100
         // a new box takes the flags of the one added before it, while that one is still around
         let last = this.curBoxes().find(b => b._id === this.state.box_last && !is_box_gone(b))
         let box = {...new_box(last ? last.type : "kill", [x - 3, y - 3, x + 3, y + 3]), extra: last ? last.extra : ""}
@@ -1405,7 +1406,7 @@ class PlandoBuiler extends React.Component {
     };
     tidyBox = (i) => {
         let b = this.curBoxes()[i].box
-        let r = v => Math.round(v * 10) / 10
+        let r = v => Math.round(v * 100) / 100
         this.updateBox(i, {box: [r(Math.min(b[0], b[2])), r(Math.min(b[1], b[3])), r(Math.max(b[0], b[2])), r(Math.max(b[1], b[3]))]})
     };
     // entrances are per-player: {player: {doorKey: "x|y"}}. The panel edits the
