@@ -1512,6 +1512,8 @@ home: OuterSwampLowerArea 650 -100
 		standard Bash
 		standard WallJump
 		standard Climb
+		standard ChargeJump
+		master DoubleJump
 	conn: OuterSwampUpperArea
 		casual WallJump DoubleJump
 		casual Climb DoubleJump
@@ -1521,6 +1523,7 @@ home: OuterSwampLowerArea 650 -100
 		expert WallJump
 		expert Climb
 		expert ChargeDash Energy=1
+		master DoubleJump
 home: OuterSwampSwarmLedge 600 -90
 	-- anchor: where the swarm spawns
 	pickup: OuterSwampStompExp
@@ -1934,7 +1937,7 @@ home: UpperGrotto 433 -122
 		casual Climb
 		casual Bash Grenade
 		casual ChargeJump
-		expert DoubleJump
+		master DoubleJump
 	conn: Iceless
 		casual WallJump DoubleJump
 		casual Climb DoubleJump
