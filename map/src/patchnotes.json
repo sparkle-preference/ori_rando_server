@@ -10,14 +10,389 @@
     "Plando"
   ],
   "pending": [
-    {
-      "text": "The pause menu shows which skills are Enhanced: a rainbow tint on the icon, \"Enhanced\" before the name, and what the enhancement does in the skill's pop-up.",
-      "category": "Game",
-      "type": "feature",
-      "importance": "minor"
-    }
   ],
   "releases": [
+      {
+        "version": "4.9.9",
+        "date": "2026-09-27",
+        "announce": "dev",
+        "changes": [
+          {
+            "text": "Added a RANDO BINDS page to the in-game options, with every randomizer bind grouped and explained.",
+            "category": "Game",
+            "type": "feature",
+            "importance": "major",
+            "sub": [
+              "A bind can be a key chord or a game action; Tab switches between modes while editing.",
+              "Leaving a bind page with unsaved changes asks whether to keep them. Backspace resets the page to its defaults (keeping a backup), and DISCARD undoes that.",
+              "Added in-game icons for keys that Ori 1 does not natively have icons for but Ori 2 does.",
+              "Alt, Shift and Ctrl in RandomizerRebinding.txt can be used to mean either copy of the key (existing binds have been updated)."
+            ]
+          },
+          {
+            "text": "Options pages remember which row you were on until you close the options.",
+            "category": "Game",
+            "type": "feature",
+            "importance": "minor"
+          },
+          {
+            "text": "Double Bash's tap/hold choice is a setting and not a keybind (Existing settings will be migrated).",
+            "category": "Game",
+            "type": "feature",
+            "importance": "minor"
+          },
+          {
+            "text": "Page Up and Page Down work in long menus like the bind pages, and Shift+Page Up/Down jump to the top and bottom.",
+            "category": "Game",
+            "type": "feature",
+            "importance": "minor"
+          },
+          {
+            "text": "Added an experimental Performance Optimizations setting, on by default, that cuts down on loading freezes and hitches.",
+            "category": "Game",
+            "type": "feature",
+            "importance": "major"
+          },
+          {
+            "text": "An Enhanced skill found before its base skill just shows its name; the description appears once you have the skill.",
+            "category": "Game",
+            "type": "feature",
+            "importance": "minor"
+          },
+          {
+            "text": "More practice mode improvements and fixes.",
+            "category": "Game",
+            "type": "feature",
+            "importance": "minor",
+            "sub": [
+              "The title menu entry is called Practice Mode now.",
+              "Creating a segment no longer saves your game or moves your checkpoint.",
+              "A segment can end on turning in a map stone.",
+              "Retrying from the editor reloads the segment from disk first.",
+              "The segment list says which files it skipped and why.",
+              "Spirit Flame works as an end item, and a mistyped pickup no longer stops a segment from running.",
+              "You can no longer die to farm a pickup count segment goal.",
+              "Enemies loaded by a retry stay frozen through the countdown.",
+              "The briefing, the pause menu, the title screen and the clock no longer show practice leftovers after a run.",
+              "Other websites can no longer send commands to the game through the practice editor page.",
+              "A broken .bfrp file can no longer crash the game."
+            ]
+          },
+          {
+            "text": "A bunch of different stat fixes.",
+            "category": "Game",
+            "type": "fix",
+            "importance": "minor",
+            "sub": [
+              "Stats pages keep working past 72 hours on one seed.",
+              "Force Trees no longer lists a Spirit Flame tree."
+            ]
+          },
+          {
+            "text": "Mega Health/Energy pickups no longer remove temporary Health/Energy granted from stacked Mini Health/Energy pickups if you have more than 5 on find.",
+            "category": "Game",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Bonus skill fixes.",
+            "category": "Game",
+            "type": "fix",
+            "importance": "minor",
+            "sub": [
+              "Warp to Grenade follows the orb-warp rule and snaps once per explosion.",
+              "Trying to Bonus Switch with nothing unlocked now tells the user that nothing is unlocked.",
+              "Bonus skill energy drain no longer depends on frame rate."
+            ]
+          },
+          {
+            "text": "Map fixes.",
+            "category": "Game",
+            "type": "fix",
+            "importance": "minor",
+            "sub": [
+              "Disabled map-based warping when Ori should not be able to teleport.",
+              "Controller 'mouseover' target no longer favors warp targets at max zoom.",
+              "Door hints no longer freeze while a warp target is hovered.",
+              "Legend labels come back after returning to the title screen.",
+              "The In-Logic filter works on seeds whose flag line is only a logic preset, and keeps working when a fresh logic file can't be downloaded."
+            ]
+          },
+          {
+            "text": "Stats pages and float settings (like 1.5) now respect localization settings for decimal-comma languages like German and French.",
+            "category": "Game",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Options and bind fixes.",
+            "category": "Game",
+            "type": "fix",
+            "importance": "minor",
+            "sub": [
+              "Escape while editing a color no longer closes the whole options menu.",
+              "Tooltips no longer go stale after escaping out of a dropdown.",
+              "External setting changes are now picked up inside the settings screen when you Alt+L.",
+              "Pressing Escape right after opening a controller bind no longer unbinds it.",
+              "Extra controller buttons no longer bind as A.",
+              "An unreadable bind file is backed up before it's rewritten."
+            ]
+          },
+          {
+            "text": "Out-of-range settings reset to their defaults with a notice.",
+            "category": "Game",
+            "importance": "minor"
+          },
+          {
+            "text": "Online play and the auto-updater work from install folders with non-English characters in their path.",
+            "category": "Game",
+            "type": "fix",
+            "importance": "minor",
+            "sub": [
+              "A read-only install folder no longer breaks netcode.",
+              "A missing netcode dll says to check your antivirus."
+            ]
+          },
+          {
+            "text": "Alt+L from a seed that disables Alt+R to one that doesn't turns Alt+R back on.",
+            "category": "Game",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Pickups meant to be silent, like practice loadouts and multiworld batches, stay silent past the first multipickup.",
+            "category": "Game",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Added a footer to every page with links to the repos, the Discord and a contact address.",
+            "category": "Website",
+            "type": "feature",
+            "importance": "minor"
+          },
+          {
+            "text": "Added an AI tool usage disclaimer page, linked from the site footer.",
+            "category": "Website",
+            "type": "feature",
+            "importance": "minor"
+          },
+          {
+            "text": "Names with & or + in them no longer break seed generation, bingo links or plando uploads.",
+            "category": "Website",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Web Tracker fixes.",
+            "category": "Website",
+            "type": "fix",
+            "importance": "minor",
+            "sub": [
+              "Map tracker markers no longer jump backwards.",
+              "The item tracker keeps working when a game is gone or the server errors.",
+              "Toggling a logic mode on the tracker or plando page no longer changes that preset for the rest of the visit."
+            ]
+          },
+          {
+            "text": "Only a game's creator can delete it or remove its players, and removing a player works again.",
+            "category": "Website",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Added a chance to see Random Enhanced Skill pickups to the Extra Bonus item pool.",
+            "category": "Seed Generator",
+            "type": "feature",
+            "importance": "major",
+            "sub": [
+              "ES|* leans toward the interesting ones, and each adds a 20% chance of Enhanced Sein. ES|** is any of the twelve, evenly.",
+              "They're handed out at spawn and take effect once you have the skill.",
+              "The Extra Bonus pool includes up to two."
+            ]
+          },
+          {
+            "text": "A custom item pool bigger than the world drops its last rows, with a warning.",
+            "category": "Seed Generator",
+            "type": "feature",
+            "importance": "minor",
+            "sub": [
+              "There's also a warning when 10,000 experience is squeezed into fewer than 25 pickups."
+            ]
+          },
+          {
+            "text": "Seeds are capped at 16 players.",
+            "category": "Seed Generator",
+            "importance": "minor",
+            "sub": [
+              "If you have a 17 player game that you are dying to run, ping me and I will update this live."
+            ]
+          },
+          {
+            "text": "Seed generator fixes.",
+            "category": "Seed Generator",
+            "type": "fix",
+            "importance": "minor",
+            "sub": [
+              "A Horu or Ginso spawn with Closed Dungeons gives a clear error.",
+              "Unchecking every logic path asks you to pick one.",
+              "A blank spawn weight no longer fails generation.",
+              "World Tour Relics no longer silently overwrite repeatable items.",
+              "Preplacing a cell, keystone or mapstone no longer adds an extra copy, and logic has visibility on the preplaced one.",
+              "Messages typo'd as SHtext are read as SH|text."
+            ]
+          },
+          {
+            "text": "Several areas.ori updates from Torin!",
+            "category": "Logic",
+            "importance": "major",
+            "sub": [
+              "Casual no longer expects the damage boost above the Grotto teleporter (Moved to Standard).",
+              "Lower to Left Sorrow with Glide and Bash is Standard now.",
+              "A new Expert path for backtracking through the middle Sorrow door.",
+              "Lots of new Master routes with Double Jump and Triple Jump around Grotto, Swamp, Valley and Misty.",
+              "Added rocket jump paths up to Stompless area.",
+              "Fixed a possible keylock at the Spirit Caverns door in Keysanity.",
+              "Fixed a possible energy deadlock on the Horu Fields Charge Dash paths."
+            ]
+          },
+          {
+            "text": "Misc small Bingo fixes.",
+            "category": "Bingo",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Ghosts connect through a relay when a direct connection fails, like behind strict NAT or a VPN.",
+            "category": "Multiplayer",
+            "type": "feature",
+            "importance": "major"
+          },
+          {
+            "text": "Ghost fixes.",
+            "category": "Multiplayer",
+            "type": "fix",
+            "importance": "minor",
+            "sub": [
+              "A long loading freeze no longer drops a working link.",
+              "Deaths and loads no longer pile up \"Ori is not in the world\" hints that delay pickup messages.",
+              "A new ghost no longer flashes on top of you, and a ghost that died out of view no longer stands back up.",
+              "A ghost no longer freezes after its player's clock jumps.",
+              "Your ghost looks smooth to others at 30 fps.",
+              "Ghosts are hidden in practice mode and on single-player seeds.",
+              "A misbehaving peer can no longer freeze your game or add fake players."
+            ]
+          },
+          {
+            "text": "Netcode fixes.",
+            "category": "Multiplayer",
+            "type": "fix",
+            "importance": "minor",
+            "sub": [
+              "Alt+L while a pickup is being sent no longer blocks later pickups.",
+              "Warp and message pickups get through on the fallback connection.",
+              "Switching games no longer carries queued pickups over.",
+              "Alt+L restarts the connection after an outage.",
+              "A server message identical to an earlier one, like a second \"Board rerolled!\", is no longer swallowed.",
+              "Finishing the game keeps telling the server until it hears back."
+            ]
+          },
+          {
+            "text": "Co-op fixes.",
+            "category": "Multiplayer",
+            "type": "fix",
+            "importance": "minor",
+            "sub": [
+              "Co-op's inventory repair now only ever adds items.",
+              "Items arriving at the same moment as an update, a join or finish are no longer lost.",
+              "The game history had the Grenade and Dash tree names swapped.",
+              "Removal pickups show as lost in the game history.",
+              "Players in decimal-comma languages show up on the map tracker."
+            ]
+          },
+          {
+            "text": "Items Archipelago adds beyond your seed's slots, like start inventory from the pool, item links and /send, are delivered.",
+            "category": "Multiplayer",
+            "type": "feature",
+            "importance": "minor",
+            "tags": [
+              "Archipelago"
+            ]
+          },
+          {
+            "text": "The apworld supports start_inventory_from_pool, and its filler is 100 experience. Redownload the apworld (0.3.1).",
+            "category": "Multiplayer",
+            "type": "feature",
+            "importance": "minor",
+            "tags": [
+              "Archipelago"
+            ]
+          },
+          {
+            "text": "Archipelago fixes.",
+            "category": "Multiplayer",
+            "type": "fix",
+            "importance": "minor",
+            "sub": [
+              "Items from worlds nobody has scouted say \"(Archipelago)\" instead of naming a player who doesn't exist.",
+              "A bought hint can't be sold twice.",
+              "A silent room no longer hangs, and a crash right after connecting backs off.",
+              "Long or clashing slot names make valid yamls.",
+              "Retargeting a room connects right away.",
+              "A slot is no longer granted twice after dying."
+            ],
+            "tags": [
+              "Archipelago"
+            ]
+          },
+          {
+            "text": "Boxes.txt and RI Format.txt now come with the randomizer, and the other docs are updated.",
+            "category": "Misc",
+            "importance": "minor"
+          },
+          {
+            "text": "Boxes were reworked by :AsmPrgmC3. See the updated [Boxes.txt](https://github.com/sparkle-preference/OriDERandomizer/blob/4.3/Boxes.txt) for a rundown of the changes.",
+            "category": "Plando",
+            "type": "feature",
+            "importance": "major",
+            "sub": [
+              "The plando editor and practice editor box editing systems have been updated to support the new features."
+            ]
+          },
+          {
+            "text": "New pickups: Darkness Lifted (EV|6), Forlorn Energy Restored (EV|7), a Remove for each event (RB|260-267), and Save Game (RB|5).",
+            "category": "Plando",
+            "type": "feature",
+            "importance": "minor"
+          },
+          {
+            "text": "Message text takes gradient colors, like <style color=ff0000,ffff00,0000ff>.",
+            "category": "Plando",
+            "type": "feature",
+            "importance": "minor"
+          },
+          {
+            "text": "Seed loading is more forgiving.",
+            "category": "Plando",
+            "type": "fix",
+            "importance": "minor",
+            "sub": [
+              "A bad line no longer stops the rest from loading, and the error names the right line.",
+              "A bad multipickup piece no longer drops the others.",
+              "Alt+L after deleting a line no longer gives the old item.",
+              "Duplicate TW names load.",
+              "A spawn message containing WS no longer cancels the spawn warp.",
+              "Messages starting with / work inside multipickups, and a bad <style> tag no longer breaks the whole message."
+            ]
+          },
+          {
+            "text": "Fill works in multiworld plandos, and saving under another of your plando names asks instead of overwriting it.",
+            "category": "Plando",
+            "type": "fix",
+            "importance": "minor"
+          }
+        ]
+      },
       {
         "version": "4.9.8",
         "date": "2026-09-13",

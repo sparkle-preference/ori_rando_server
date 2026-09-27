@@ -26,10 +26,10 @@ def utcnow():
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
-VER = [4, 9, 8]
+VER = [4, 9, 9]
 # while 4.9.x is the beta, all three move together: an older beta build is not supported
-MIN_VER = [4, 9, 8]
-BETA_VER = [4, 9, 8]
+MIN_VER = [4, 9, 9]
+BETA_VER = [4, 9, 9]
 VERSION = "%s.%s.%s" % tuple(VER)
 
 # 4.9.x is the 5.0 beta: numeric on the wire, "5.0 beta vN" on the page. Each
@@ -144,8 +144,8 @@ def json_default(o):
 def version_check(version):
     return version_at_least(version, MIN_VER)
 
-# dlls before 4.2.12 dupe self-items against the bridge, so AP rooms hold a higher floor than MIN_VER
-AP_MIN_DLL = [4, 2, 12]
+# dlls before 4.9.9 ignore tick field 10 (AP items past the slot list), so AP rooms hold their own floor
+AP_MIN_DLL = [4, 9, 9]
 
 def version_at_least(version, floor):
     """Dotted version string >= floor (a [major, minor, patch] list).
