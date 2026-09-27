@@ -57,8 +57,9 @@ MAX_SLOTS = 256  # 8x32-bit slot bitfields on the Player entity: wire format
 
 # everything the apworld's logic can see: pinned local when same-world and unselected,
 # exported otherwise, never left on a native manifest
-LOCAL_CODES = {"KS", "MS", "HC", "EC", "AC", "SK", "TP", "EV"}
+LOCAL_CODES = {"KS", "MS", "HC", "EC", "AC", "SK", "TP"}
 LOCAL_RB_IDS = {"17", "19", "21", "28"} | {str(n) for n in range(300, 312)}
+LOCAL_EV_IDS = {str(n) for n in range(6)}
 
 EX_DENOMS = (50, 100, 200)
 
@@ -105,7 +106,8 @@ class ApConversionError(Exception):
 
 
 def is_progression(code, pid):
-    return code in LOCAL_CODES or (code == "RB" and pid in LOCAL_RB_IDS)
+    return (code in LOCAL_CODES or (code == "RB" and pid in LOCAL_RB_IDS)
+            or (code == "EV" and pid in LOCAL_EV_IDS))
 
 
 def nearest_ex_denom(value):
@@ -448,7 +450,7 @@ def build_ap_config(placements, players, world, logic_paths, key_mode,
                         "reserved coord %s is not in the datapackage" % loc)
                 reserved.append(loc_name)
             continue
-        if code in LOCAL_CODES or (code == "RB" and pid in LOCAL_RB_IDS):
+        if is_progression(code, pid):
             loc_name = LOC_NAMES.get(loc)
             if loc_name is None:
                 raise ApConversionError(

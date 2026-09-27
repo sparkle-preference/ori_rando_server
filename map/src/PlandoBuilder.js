@@ -6,7 +6,7 @@ import Leaflet from 'leaflet';
 import {NotificationContainer, NotificationManager} from 'react-notifications';
 import 'react-notifications/lib/notifications.css';
 import {Checkbox, CheckboxGroup} from 'react-checkbox-group';
-import {get_param, get_flag, get_int, get_list, get_seed, presets, get_preset, logic_paths, pickup_name, PickupSelect, stuff_by_type, loginLogoutUrl, decompose_pickup,
+import {get_param, get_flag, get_int, get_list, get_seed, presets, get_preset, logic_paths, pickup_name, PickupSelect, stuff_by_type, logic_events, loginLogoutUrl, decompose_pickup,
         box_label, box_color_history, remember_box_color, MousePos, select_theme, name_from_str,
         box_panel_width, remember_box_panel_width} from './common.js';
 import {BOX_PRESETS, BOX_TOMBSTONE, is_box_gone, box_hidden, new_box, box_has_flag, box_flags_from_chips, parse_box_line, box_line,
@@ -31,7 +31,7 @@ const relevantCodes = ["HC", "AC", "EC", "KS", "MS", "TP", "RB", "EV", "SK", "TW
 const clue_key_in = (code, id) => {
     let keys = []
     for(let [partCode, partId] of decompose_pickup(code, id)) {
-        if(partCode === "EV" && parseInt(partId, 10) % 2 === 0)
+        if(partCode === "EV" && [0, 2, 4].includes(parseInt(partId, 10)))
             keys.push(`EV|${partId}`)
     }
     return keys.length === 1 ? keys[0] : null
@@ -1746,7 +1746,7 @@ class PlandoBuiler extends React.Component {
                                     <Select styles={select_styles} placeholder="Teleporters" options={stuff_by_type["Teleporters"]} onChange={(n) => this.updateManual("tps", n)} isMulti={true} value={this.state.manual_reach.tps}></Select>
                                 </div>
                                 <div className="manual-wrapper">
-                                    <Select styles={select_styles} placeholder="Events" options={stuff_by_type["Events"]} onChange={(n) => this.updateManual("events", n)} isMulti={true} value={this.state.manual_reach.events}></Select>
+                                    <Select styles={select_styles} placeholder="Events" options={logic_events} onChange={(n) => this.updateManual("events", n)} isMulti={true} value={this.state.manual_reach.events}></Select>
                                 </div>
                             </Collapse>
                         </div>

@@ -2,7 +2,7 @@ import './index.css';
 import React from 'react';
 import {LayerGroup, ZoomControl, Map, Tooltip, TileLayer} from 'react-leaflet';
 import Leaflet from 'leaflet';
-import {get_int, get_list, presets, logic_paths, stuff_by_type, name_from_str, pickup_name, Blabel, dev, MousePos} from './common.js';
+import {get_int, get_list, presets, logic_paths, stuff_by_type, logic_events, name_from_str, pickup_name, Blabel, dev, MousePos} from './common.js';
 import {str_ids, picks_by_type, picks_by_area, PickupMarkersList, get_icon, getMapCrs, TILE_MAX_ZOOM, select_styles, select_wrap} from './shared_map.js';
 import Select from 'react-select';
 import {Row, Input, Col, Container, Button, Collapse} from 'reactstrap';
@@ -215,7 +215,7 @@ class LogicHelper extends React.Component {
                     <Select styles={select_styles} placeholder="Teleporters" options={stuff_by_type["Teleporters"]} onChange={(n) => this.updateManual("tps", n)} isMulti={true} value={this.state.manual_reach.tps}></Select>
                 </Col></Row>
                 <Row className="p-1"><Col xs="12">
-                    <Select styles={select_styles} placeholder="Events" options={stuff_by_type["Events"]} onChange={(n) => this.updateManual("evs", n)} isMulti={true} value={this.state.manual_reach.evs}></Select>
+                    <Select styles={select_styles} placeholder="Events" options={logic_events} onChange={(n) => this.updateManual("evs", n)} isMulti={true} value={this.state.manual_reach.evs}></Select>
                 </Col></Row>
                 <Row className="p-1">
                     <Col xs="6">

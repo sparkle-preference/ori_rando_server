@@ -11,7 +11,7 @@ from google.cloud import ndb
 from cache import Cache
 from enums import MultiplayerGameType, ShareType, Variation
 from models import BingoGameData, Game, User
-from pickups import Pickup
+from pickups import Event, Pickup
 from reachable import Map, PlayerState
 from util import (INDEX_TEMPLATE, game_flags, is_mw_manifest_loc, param_flag,
                   param_int, param_val, template_vals, utcnow, whitelist_ok)
@@ -270,7 +270,8 @@ def _get_item_tracker_items(coords, game, player=1):
         elif pcode == "TP":
             data['teleporters'].add(p.name.replace(" teleporter", ""))
         elif pcode == "EV":
-            data['events'].add(p.name)
+            if p.id not in Event.untracked:
+                data['events'].add(p.name)
         elif pcode == "RB":
             bid = int(pid)
             if bid == 17:

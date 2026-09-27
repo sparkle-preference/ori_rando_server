@@ -62,7 +62,7 @@ function pickup_name(code, id) {
     });
     let names = {
         "SK": { 0: "Bash", 2: "Charge Flame", 3: "Wall Jump", 4: "Stomp", 5: "Double Jump", 8: "Charge Jump", 12: "Climb", 14: "Glide", 15: "Spirit Flame", 50: "Dash", 51: "Grenade" },
-        "EV": { 0: "Water Vein", 1: "Clean Water", 2: "Gumon Seal", 3: "Wind Restored", 4: "Sunstone", 5: "Warmth Returned" },
+        "EV": { 0: "Water Vein", 1: "Clean Water", 2: "Gumon Seal", 3: "Wind Restored", 4: "Sunstone", 5: "Warmth Returned", 6: "Darkness Lifted", 7: "Forlorn Energy Restored" },
         "RB": upgrade_names,
     };
     if (names.hasOwnProperty(code) && names[code][id])
@@ -194,7 +194,9 @@ const stuff_by_type = {
         { label: "Gumon Seal", value: "EV|2" },
         { label: "Wind Restored", value: "EV|3" },
         { label: "Sunstone", value: "EV|4" },
-        { label: "Warmth Returned", value: "EV|5" }
+        { label: "Warmth Returned", value: "EV|5" },
+        { label: "Darkness Lifted", value: "EV|6" },
+        { label: "Forlorn Energy Restored", value: "EV|7" }
     ],
     "Upgrades": [
         { label: "Mega Health", value: "RB|0", desc: "Restores health to full, then grants 5 temporary health. Does not stack with other sources of temporary health."},
@@ -203,6 +205,7 @@ const stuff_by_type = {
         { label: "Mini Energy", value: "RB|39", desc: "Restores energy to full, then grants 1 temporary energy. Stacks with other sources of temporary energy."},
         { label: "Kill Ori", value: "RB|3", desc: "Kills Ori on pickup. The practice tool's death boxes are made of it."},
         { label: "Air Refresh", value: "RB|4", desc: "Double jumps and air dashes back, as if Ori had landed."},
+        { label: "Save Game", value: "RB|5", desc: "Saves the game when collected."},
         { label: "Attack Upgrade", value: "RB|6", desc: "Increases Spirit Flame's damage and maximum number of targets by 1. Increases Charge Flame damage by 6. Increases Grenade damage by 3 and explosion radius by 1. Stacks."},
         { label: "Explosion Power Upgrade", value: "RB|8", desc: "Deprecated. Increases Charge Flame damage by 6, Grenade damage by 6 and Grenade explosion radius by 1."},
         { label: "Spirit Light Efficiency", value: "RB|9", desc: "Doubles all incoming experience. Stacks additively, both with itself and with the purple tree ability of the same name."},
@@ -309,8 +312,19 @@ const stuff_by_type = {
         {label: "Remove Soul Link Efficiency", value: "RB|257"}, 
         {label: "Remove Triple Jump", value: "RB|258"}, 
         {label: "Remove Ultra Defense", value: "RB|259"},         
+        { label: "Remove Water Vein", value: "RB|260", desc: "Removes Water Vein."},
+        { label: "Remove Clean Water", value: "RB|261", desc: "Removes Clean Water."},
+        { label: "Remove Gumon Seal", value: "RB|262", desc: "Removes Gumon Seal."},
+        { label: "Remove Wind Restored", value: "RB|263", desc: "Removes Wind Restored."},
+        { label: "Remove Sunstone", value: "RB|264", desc: "Removes Sunstone."},
+        { label: "Remove Warmth Returned", value: "RB|265", desc: "Removes Warmth Returned."},
+        { label: "Remove Darkness Lifted", value: "RB|266", desc: "Removes Darkness Lifted."},
+        { label: "Remove Forlorn Energy Restored", value: "RB|267", desc: "Removes Forlorn Energy Restored."},
       ],
 };
+
+// the events logic knows; the later ones only switch world state
+const logic_events = stuff_by_type["Events"].filter(o => ["EV|6", "EV|7"].indexOf(o.value) < 0)
 
 const BOX_LABELS = {kill: "Kill", solid: "Solid", item: "Item", ritem: "Repeat Item", goal: "Goal", none: "Plain"}
 function box_label(b, num) {
@@ -1153,7 +1167,7 @@ const prng = (strIn) => sfc32(...cyrb128(strIn));
 export {
     report_error,
     player_icons, doNetRequest, prng, get_param, get_flag, resolve_dark, save_dark, beta_welcome_pending, save_beta_welcome, theme_href, postNetForm, ap_enabled, get_int, get_list, get_preset, presets, get_seed, logic_paths, get_random_loader, Blabel, MousePos,
-    pickup_name, stuff_by_type, name_from_str, PickupSelect, Cent, ordinal_suffix, dev, gotoUrl, loginLogoutUrl, select_theme, randInt, spawn_defaults, spawnKitFor, decompose_pickup,
+    pickup_name, stuff_by_type, logic_events, name_from_str, PickupSelect, Cent, ordinal_suffix, dev, gotoUrl, loginLogoutUrl, select_theme, randInt, spawn_defaults, spawnKitFor, decompose_pickup,
     box_label, box_color_history, remember_box_color, seed_link_pref, remember_seed_link,
     box_panel_width, remember_box_panel_width
 };

@@ -69,8 +69,10 @@ class Skill(Pickup):
         return inst
 
 class Event(Pickup):
-    bits = {0: 1, 1: 2, 2: 4, 3: 8, 4: 16, 5: 32}
-    names = {0: "Water Vein", 1: "Clean Water", 2: "Gumon Seal", 3: "Wind Restored", 4: "Sunstone", 5: "Warmth Returned"}
+    bits = {0: 1, 1: 2, 2: 4, 3: 8, 4: 16, 5: 32, 6: 64, 7: 128}
+    names = {0: "Water Vein", 1: "Clean Water", 2: "Gumon Seal", 3: "Wind Restored", 4: "Sunstone", 5: "Warmth Returned",
+             6: "Darkness Lifted", 7: "Forlorn Energy Restored"}
+    untracked = {6, 7}  # never shared, never on the tracker
     code = "EV"
     share_type = ShareType.EVENT
     def __new__(cls, id):
@@ -79,6 +81,8 @@ class Event(Pickup):
             return None
         inst = super(Event, cls).__new__(cls)
         inst.id, inst.bit, inst.name = id, Event.bits[id], Event.names[id]
+        if id in Event.untracked:
+            inst.share_type = ShareType.NOT_SHARED
         return inst
 
 class Teleporter(Pickup):
@@ -95,10 +99,10 @@ class Teleporter(Pickup):
 
 class Upgrade(Pickup):
     stacking = set([6, 13, 15, 17, 19, 21])
-    name_only = set([0, 1, 2, 3, 4, 34, 35, 38, 39, 81, 1100, 1110] + list(range(40, 50)))
+    name_only = set([0, 1, 2, 3, 4, 5, 34, 35, 38, 39, 81, 1100, 1110] + list(range(40, 50)))
     maxes = {17: 3, 19: 3, 21: 3}
     names = {
-            17: "Water Vein Shard", 19: "Gumon Seal Shard", 21: "Sunstone Shard", 28: "Warmth Fragment", 6: "Attack Upgrade", 13: "Health Regeneration", 2: "Go Home", 3: "Kill Ori", 4: "Air Refresh",
+            17: "Water Vein Shard", 19: "Gumon Seal Shard", 21: "Sunstone Shard", 28: "Warmth Fragment", 6: "Attack Upgrade", 13: "Health Regeneration", 2: "Go Home", 3: "Kill Ori", 4: "Air Refresh", 5: "Save Game",
             15: "Energy Regeneration", 8: "Explosion Power Upgrade", 9: "Spirit Light Efficiency", 10: "Extra Air Dash", 11: "Charge Dash Efficiency",
             12: "Extra Double Jump", 0: "Mega Health", 1: "Mega Energy", 38: "Mini Health", 39: "Mini Energy", 30: "Bleeding", 31: "Health Drain", 32: "Energy Drain", 33: "Skill Velocity Upgrade",
             81: "Stompnade Hint", 40: "Remove Wall Jump", 41: "Remove Charge Flame", 42: "Remove Double Jump", 43: "Remove Bash", 44: "Remove Stomp", 45: "Remove Glide",
@@ -117,6 +121,8 @@ class Upgrade(Pickup):
             248: "Remove Energy Regen (Ability)", 249: "Remove Sense", 250: "Remove Rekindle", 251: "Remove Regroup", 252: "Remove Charge Flame Efficiency",
             253: "Remove Air Dash", 254: "Remove Ultra Soul Link", 255: "Remove Charge Dash", 256: "Remove Water Breath", 257: "Remove Soul Link Efficiency",
             258: "Remove Triple Jump", 259: "Remove Ultra Defense",
+            260: "Remove Water Vein", 261: "Remove Clean Water", 262: "Remove Gumon Seal", 263: "Remove Wind Restored",
+            264: "Remove Sunstone", 265: "Remove Warmth Returned", 266: "Remove Darkness Lifted", 267: "Remove Forlorn Energy Restored",
             300: "Glades Pool Keystone", 301: "Lower Spirit Caverns Keystone", 302: "Grotto Keystone", 303: "Swamp Keystone", 304: "Upper Spirit Caverns Keystone",
             305: "Lower Ginso Keystone", 306: "Upper Ginso Keystone", 307: "Misty Keystone", 308: "Forlorn Keystone", 309: "Lower Sorrow Keystone",
             310: "Mid Sorrow Keystone", 311: "Upper Sorrow Keystone",
