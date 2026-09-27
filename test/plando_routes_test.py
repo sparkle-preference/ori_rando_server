@@ -1,11 +1,7 @@
 """The plando author routes: upload, delete, rename, hide, download.
 
-These write and delete real entities, and the interesting case is what a `put()` does to a
-key that is already taken -- so they run against the emulator rather than stubs, which is
-the only way the question is asked honestly.
-
-`User.get` is stubbed in the netcode_test save/restore style so the flask test client
-carries an author; everything below it is the route prod runs.
+Emulator-backed, since the interesting case is what a `put()` does to a taken key. Only
+`User.get` is stubbed, so the test client carries an author; the rest is the prod route.
 
 Run from the repo root:  python3 -m unittest test.plando_routes_test -v
 """

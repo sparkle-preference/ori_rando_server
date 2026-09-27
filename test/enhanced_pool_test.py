@@ -1,8 +1,6 @@
 """ES|* and ES|**: Enhanced skills rolled from the item pool.
 
-Neither becomes a pickup of its own. The rolled skills ride out on their world's spawn
-multipickup, which is the only delivery that reaches a skill the seed never places -- Spirit
-Flame in most presets, and anything a trimmed pool leaves out.
+Neither becomes a pickup of its own; the rolled skills ride their world's spawn multipickup.
 """
 import glob
 import os
@@ -78,8 +76,7 @@ class EnhancedPoolTests(unittest.TestCase):
             self.assertGreaterEqual(len(got), 6, "%s: %s" % (seed, sorted(got)))
 
     def test_five_weighted_rolls_always_bring_sein(self):
-        """Each ES|* adds a fifth to Sein's chance, so five of them is a certainty -- and
-        Spirit Flame not being a placement in this preset no longer matters."""
+        """Each ES|* adds a fifth to Sein's chance, so five of them is a certainty, placed or not."""
         for seed in ("essein1", "essein2", "essein3"):
             self.assertIn("410", granted(generate(seed, pool={"ES|*": [5]})[1]), seed)
 

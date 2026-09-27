@@ -144,8 +144,7 @@ def json_default(o):
 def version_check(version):
     return version_at_least(version, MIN_VER)
 
-# grant pairing changed in 4.2.12: an older dll against the new bridge can
-# dupe self-items, so AP rooms hold a higher floor than the global MIN_VER
+# dlls before 4.2.12 dupe self-items against the bridge, so AP rooms hold a higher floor than MIN_VER
 AP_MIN_DLL = [4, 2, 12]
 
 def version_at_least(version, floor):

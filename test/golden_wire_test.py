@@ -167,8 +167,7 @@ class TestSignalFlow(NdbTestCase):
         self.assertEqual(p.signals, ["msg:Seed mismatch"])
 
     def test_conf_txn_applies_the_same_edits_on_a_fresh_read(self):
-        # the durable path is signal_conf_txn, not the handler's stale copy:
-        # a plain put of that copy erased concurrent grant txns' slot bits
+        # the durable path is signal_conf_txn: a put of the handler's stale copy would erase grants' slot bits
         for queued, conf, expected in [
             (["win:gg", "msg:hi"], "win:gg", ["msg:hi"]),
             (["msg:one", "msg:two"], "msg:zzz", ["msg:one", "msg:two"]),
@@ -336,9 +335,8 @@ class TestArchipelagoHintsField(NdbTestCase):
 
 
 class TestArchipelagoExtraItemsField(NdbTestCase):
-    """Tick field 10 (AP): items with no manifest slot, ";"-joined "code|id"
-    with % , ; percent-escaped. Only when nonempty; it drags 8 (maybe empty)
-    and 9 ("1"/"0") along, and a body without it is byte-identical to before."""
+    """Tick field 10 (AP): slotless items, ";"-joined "code|id" with % , ; escaped.
+    Only when nonempty, dragging 8 (maybe empty) and 9 ("1"/"0") along."""
 
     WARP = "Warp to Swamp Swim,790,-195,SwampWaterWarp"
 

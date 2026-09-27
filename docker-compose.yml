@@ -23,7 +23,7 @@ services:
       # a beta box serves its own branch's dll and names itself in the dll nag
       DLL_BRANCH: "${DLL_BRANCH:-master}"
       CANONICAL_HOST: "${DEV_HOST:-}"
-      # unset means ghosts never offer a relay, which is the pre-relay behaviour
+      # unset means ghosts never offer a relay
       TURN_CREDENTIALS_URL: "${TURN_CREDENTIALS_URL:-}"
       TURN_CREDENTIALS_TOKEN: "${TURN_CREDENTIALS_TOKEN:-}"
       WS_PING_INTERVAL: "${WS_PING_INTERVAL:-0}"

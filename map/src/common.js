@@ -1006,7 +1006,7 @@ const spawn_defaults = {
     },
 }
 
-// [health, energy, skills] for a spawn. Keys are capitalised, pathMode may be starred,
+// [health, energy, skills] for a spawn. Keys are capitalized, pathMode may be starred,
 // glitched uses expert's row, and a missing row means the vanilla kit.
 const spawnKitFor = (loc, pathMode) => {
     let mode = (pathMode || "").replace(/\*+$/, "")

@@ -134,9 +134,8 @@ const FLAG_PARTS = {
              {names: ["Normal", "Extended"], hint: "hitboxes", fallback: "Extended"}],
 }
 
-// Ways to go on with a value flag being typed: the names its current part can take, those starting
-// with what's typed first, then the next part once this one is whole. A pick that more can follow
-// fills the text box (fill); one that ends the flag is added as it is.
+// Completions for a value flag being typed: its current part's names, prefix matches first, then the
+// next part once this one is whole. A pick more can follow fills the text box (fill); a final one is added.
 function flag_completions(text) {
     let eq = text.indexOf("=")
     let parts = eq < 0 ? null : FLAG_PARTS[text.slice(0, eq).trim().toLowerCase()]

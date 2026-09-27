@@ -37,7 +37,7 @@ body, #root {
   color: white;
 }
 
-/* five buttons now; wrap to a second line rather than overflow a narrow window */
+/* wrap to a second line rather than overflow a narrow window */
 #file-controls {
   width: 100%;
   display: flex;
@@ -126,7 +126,7 @@ body, #root {
 }
 
 /* four toggles, 2x2: content-sized columns so a switch lines up with the one under
-   it, centred rather than spread, and minmax so a narrow window shrinks not overflows */
+   it, centered rather than spread, and minmax so a narrow window shrinks not overflows */
 #display-flags {
   width: 100%;
   margin-top: 4px;
@@ -207,7 +207,7 @@ body, #root {
   margin-bottom: 4px;
 }
 
-/* sized to the words, so the picker sits beside its label instead of 90px away */
+/* sized to the words, so the picker sits beside its label */
 .basic-coop-options .label{
   margin-left: 10px;
   margin-right: 6px;
@@ -224,8 +224,7 @@ body, #root {
 
 .coop-select-wrapper {
   width: 100%;
-  /* min-height, not height: a multi-select with many chips wraps taller than 36px,
-     and a fixed height made it overlap the buttons below */
+  /* min-height, not height: a multi-select with many chips wraps taller than 36px */
   min-height: 36px;
   margin-bottom: 4px;
   display: flex;
@@ -666,8 +665,8 @@ body, #root {
 	font-weight: 700;
 }
 
-/* the settings dialog centres its title over its centred column block, which
-   means the close button must not take space out of the row */
+/* the settings dialog centers its title over its centered column block, so the
+   close button must not take space out of the row */
 .settings-modal .modal-header {
   position: relative;
 }

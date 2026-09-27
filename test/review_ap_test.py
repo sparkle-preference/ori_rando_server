@@ -1,6 +1,4 @@
-"""Regression tests for review findings on the Archipelago bridge.
-
-Each test asserts the correct behavior; @expectedFailure marks a defect still open.
+"""Archipelago bridge regressions; @expectedFailure marks a defect still open.
 
 Run from the repo root:  python3 -m unittest test.review_ap_test -v
 """

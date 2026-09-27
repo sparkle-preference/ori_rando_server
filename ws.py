@@ -10,7 +10,7 @@ byte for byte. An unknown kind gets "err:<kind>" and the socket stays up.
   complete:                                -> completeack:<status>
   goals:                                   -> goals:<line> or err:goals:<status>
   areas:<sha256>                           -> areas:ok or areas:<file>
-  ghosts:<0|1> / ghostice:<pid> / ghost:<to>:<blob>  -> ghost signalling, below
+  ghosts:<0|1> / ghostice:<pid> / ghost:<to>:<blob>  -> ghost signaling, below
 
 The server also pushes tick:<body> frames unsolicited; the client treats them as replies.
 Each open socket pins a gunicorn thread (util.WS_CONN_LIMIT).
@@ -62,7 +62,7 @@ def _unregister(gpid, conn):
         _broadcast_roster(gpid[0])
 
 
-# --- ghost signalling: relays opaque WebRTC descriptions between opted-in players and hands
+# --- ghost signaling: relays opaque WebRTC descriptions between opted-in players and hands
 # out relay credentials. Nothing is persisted; membership dies with the socket.
 _ghosts = set()
 

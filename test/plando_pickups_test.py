@@ -1,6 +1,5 @@
-"""EV 6/7, RB 260-267 and RB 5: they build and name like any pickup, never share,
-never fan out across worlds and never reach the item tracker, and roll in pools
-and preplacements like any other unshared bonus item.
+"""EV 6/7, RB 260-267 and RB 5 build, name and roll like any unshared bonus item,
+and never share, fan out across worlds or reach the item tracker.
 
 Run from the repo root:  python3 -m unittest test.plando_pickups_test -v
 """

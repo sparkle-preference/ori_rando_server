@@ -59,7 +59,7 @@ class MemcachedCache(object):
     def clear_latest(self, user):
         self.memcache.delete(key="%s.latest" % user)
 
-    # (flag line, is_race) per params, so game lists never inflate a ~250KB seed.
+    # (flag line, is_race) per params, so game lists never inflate a whole seed.
     # Params are immutable except one put site, which busts this.
     def get_game_flags(self, params_id):
         return self.memcache_get(key="%s.gameflags" % params_id)

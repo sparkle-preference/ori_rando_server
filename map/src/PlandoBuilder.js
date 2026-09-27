@@ -72,7 +72,7 @@ const reduced_motion = () => !!window.matchMedia && window.matchMedia("(prefers-
 
 // the bulk lock row only shows at this many boxes
 const BULK_LOCK_MIN = 20
-// eased by hand: scrollIntoView jumps and behavior:"smooth" isn't honoured everywhere
+// eased by hand: scrollIntoView jumps and behavior:"smooth" isn't honored everywhere
 const SCROLL_MS = 300
 const easeInOut = (p) => p < 0.5 ? 4 * p * p * p : 1 - Math.pow(2 - 2 * p, 3) / 2
 const BULK_TYPES = [{label: "ALL", value: "all"}, ...Object.keys(BOX_PRESETS).map(flag => ({label: flag, value: flag}))]
@@ -1267,7 +1267,6 @@ class PlandoBuiler extends React.Component {
     });
     // Every handler a row is given has to keep its identity between renders, or the rows
     // are pure for nothing. The row supplies its own index.
-    // an explicit give on a kill box replaces the kill, so picking kill drops it
     pickBoxColor = (i, color) => { this.setState({box_colors: remember_box_color(color)}); this.updateBox(i, {color: color.replace("#", "")}) };
     registerBoxRow = (id, el) => { this.boxRows[id] = el };
     selectBoxRow = (id) => this.selectBox(id, false);

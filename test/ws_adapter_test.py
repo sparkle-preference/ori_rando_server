@@ -1,10 +1,7 @@
-"""Tests for the websocket transport adapter (ws.py).
+"""Tests for the websocket transport adapter (ws.py); session_golden_test pins the layer below.
 
-The session layer itself is pinned by session_golden_test; these tests pin
-the adapter contract on top of it: frame parsing, payload parsing identical
-to request.form semantics, the reply/close protocol, and the connection
-gauge/limit behavior. netcode.tick is stubbed in the save/restore style —
-no datastore, no sockets.
+Frame parsing, request.form-style payloads, the reply/close protocol and the connection
+gauge/limit. netcode.tick is stubbed: no datastore, no sockets.
 
 Run from the repo root:  python -m unittest test.ws_adapter_test -v
 """
@@ -362,10 +359,7 @@ def _relay_configured(urlopen):
 
 class GhostSignallingTests(unittest.TestCase):
     """The relay half: opting in, the roster, and passing one blob to one peer.
-
-    Nothing here touches the datastore -- signalling lives entirely in the live
-    socket registry, which is also why it is single-instance only.
-    """
+    No datastore: signaling lives in the live socket registry, so it is single-instance only."""
 
     def setUp(self):
         ws._socks.clear()
