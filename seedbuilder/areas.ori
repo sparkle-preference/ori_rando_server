@@ -579,6 +579,8 @@ home: SpiritCavernsDoor -11 -222
 		casual Keysanity LowerSpiritCavernsKeys
 home: SpiritCavernsDoorOpened -197 -208
 	-- anchor: same as SpiritCavernsDoor, but the door is open
+	pickup: SpiritCavernsAbilityCell
+		expert ChargeDash
 	conn: LowerSpiritCaverns
 		casual Climb
 		casual WallJump
@@ -604,8 +606,8 @@ home: LowerSpiritCaverns -201 -192
 		casual Bash
 		standard WallJump DoubleJump
 		expert Climb DoubleJump
-		expert ChargeDash
 		master TripleJump
+		insane DoubleJump
 	conn: MidSpiritCaverns
 		casual WallJump
 		casual Climb
@@ -793,7 +795,7 @@ home: SpiritTreeRefined -93 -118
 		standard AirDash Climb
 		expert Dash WallJump
 		expert Dash Climb
-		master Bash Glide DoubleJump
+		master DoubleJump
 	pickup: SpiritTreeExp
 		casual ChargeJump
 		casual BashGrenade
@@ -988,6 +990,7 @@ home: SpiderWaterArea 153 -147
 		standard Bash Climb
 		expert DoubleBash
 		expert ChargeDash
+		expert DoubleJump Health=2
 		master ChargeJump Climb
 	conn: HollowGrove
 		casual WallJump
@@ -1422,7 +1425,9 @@ home: HollowGrove 336 -91
 		casual ChargeJump
 		casual Bash Grenade
 		casual Wind Glide
+		expert ChargeDash
 		master DoubleJump
+		master Lure Bash
 	conn: HoruFields
 		casual Bash
 		standard WallJump Stomp
@@ -1507,6 +1512,8 @@ home: OuterSwampLowerArea 650 -100
 		standard Bash
 		standard WallJump
 		standard Climb
+		standard ChargeJump
+		master DoubleJump
 	conn: OuterSwampUpperArea
 		casual WallJump DoubleJump
 		casual Climb DoubleJump
@@ -1516,6 +1523,7 @@ home: OuterSwampLowerArea 650 -100
 		expert WallJump
 		expert Climb
 		expert ChargeDash Energy=1
+		master DoubleJump
 home: OuterSwampSwarmLedge 600 -90
 	-- anchor: where the swarm spawns
 	pickup: OuterSwampStompExp
@@ -1531,6 +1539,7 @@ home: OuterSwampSwarmLedge 600 -90
 		master Bash
 		master DoubleJump Glide
 		master TripleJump
+		insane DoubleJump
 	pickup: OuterSwampMortarPlant
 		standard Grenade
 	conn: OuterSwampMortarPlantAccess
@@ -1918,6 +1927,7 @@ home: UpperGrotto 433 -122
 		expert Climb ChargeDash
 		master Bash
 		master DoubleJump Glide
+		master DoubleJump
 	conn: MoonGrottoStompPlantAccess
 		casual Stomp
 		standard Climb ChargeJump
@@ -1927,7 +1937,7 @@ home: UpperGrotto 433 -122
 		casual Climb
 		casual Bash Grenade
 		casual ChargeJump
-		expert DoubleJump
+		master DoubleJump
 	conn: Iceless
 		casual WallJump DoubleJump
 		casual Climb DoubleJump
@@ -1993,16 +2003,19 @@ home: MoonGrottoAboveTeleporter 443 -150
 		expert Climb Glide
 		master DoubleJump
 		master Bash AirDash
+		master Lure Bash
 	conn: MoonGrottoStompPlantAccess
 		expert ChargeFlame
 	conn: MoonGrottoSwampAccessArea
 		casual ChargeJump DoubleJump
 		casual Bash
-		casual DoubleJump Health=3
+		standard DoubleJump Health=3
 		standard ChargeJump Health=3
 		expert Dash Health=4
 		expert ChargeDash
 		master GrenadeJump
+		master Health=6
+		master UltraDefense Health=4
 	conn: MoonGrotto
 	conn: DeathGauntletRoof
 		master Lure Bash
@@ -2025,6 +2038,7 @@ home: MoonGrotto 517 -177
 		expert Energy=2 Climb Glide
 		expert Energy=2 Climb DoubleJump Health=3
 		expert Energy=2 ChargeDash
+		master Energy=2 DoubleJump
 	pickup: BelowGrottoTeleporterHealthCell
 		casual DoubleJump Bash WallJump
 		casual DoubleJump Bash Climb
@@ -2334,14 +2348,17 @@ home: LowerLeftGumoHideout 439 -371
 		expert Climb DoubleJump
 		expert DoubleBash
 		master TripleJump
+		insane DoubleJump
 	pickup: LeftGumoHideoutHealthCell
 		casual WallJump DoubleJump
 		casual WallJump ChargeJump
 		casual Climb ChargeJump
 		casual Bash Grenade
+		expert Climb DoubleJump
 		expert DoubleBash
 		expert ChargeDash
 		master TripleJump
+		insane DoubleJump Glide
 	pickup: LeftGumoHideoutSwim
 		casual Water
 		expert Health=3
@@ -2712,11 +2729,11 @@ home: HoruFields 171 -24
 		standard ChargeJump Glide Climb AirDash
 		standard ChargeJump Glide WallJump AirDash
 		expert ChargeJump DoubleJump Glide
-		expert ChargeJump Glide ChargeDash Energy=3
-		expert ChargeJump ChargeDash Energy=4
+		expert ChargeJump Glide ChargeDash Energy=1
+		expert ChargeJump ChargeDash Energy=3
 		expert DoubleBash
-		master WallJump TripleJump ChargeDash Energy=5
-		master Climb TripleJump ChargeDash Energy=4
+		master WallJump TripleJump ChargeDash Energy=3
+		master Climb TripleJump ChargeDash Energy=3
 		master GrenadeJump
 	conn: HorufieldsHoruDoor
 		casual Bash DoubleJump WallJump
@@ -2725,13 +2742,15 @@ home: HoruFields 171 -24
 		casual Bash Glide Climb
 		standard Bash Grenade
 		standard ChargeJump Glide
+		expert ChargeJump ChargeDash Energy=2
 		master Bash
 		master WallJump Stomp Glide TripleJump
-		master WallJump TripleJump ChargeDash Energy=3
-		master Climb TripleJump ChargeDash
+		master WallJump TripleJump ChargeDash Energy=2
+		master Climb TripleJump ChargeDash Energy=2
 		master GrenadeJump
 home: HoruFieldsPushBlock 72 5
 	-- anchor: in the sky above Horu Fields, next to the pushable block
+	-- energy requirements for these paths are raised to account for potentially needing to get here using energy
 	pickup: HoruFieldsPlant
 		casual Bash ChargeFlame
 		casual Bash Grenade
@@ -2741,7 +2760,7 @@ home: HoruFieldsPushBlock 72 5
 		casual Climb ChargeJump Grenade
 		standard ChargeJump DoubleJump ChargeFlame AirDash
 		standard ChargeJump DoubleJump Grenade AirDash
-		expert ChargeDash Energy=3
+		expert ChargeDash Energy=4
 		-- throw a grenade from the platform then jump right to load the plant
 		-- you need the height/distance from dj/glide/dash for this
 		master Grenade DoubleJump
@@ -2753,7 +2772,7 @@ home: HoruFieldsPushBlock 72 5
 		casual ChargeJump DoubleJump Glide
 		standard ChargeJump Glide AirDash
 		standard ChargeJump DoubleJump AirDash
-		expert ChargeDash Energy=2
+		expert ChargeDash Energy=4
 		expert DoubleBash
 		master GrenadeJump
 	pickup: HoruFieldsHiddenExp
@@ -3727,8 +3746,7 @@ home: ValleyPostStompDoor -338 -82
 		casual Bash Grenade
 		expert WallJump DoubleJump ChargeJump Health=7
 		expert DoubleBash
-		master WallJump TripleJump ChargeJump UltraDefense Health=3
-		master Climb TripleJump ChargeJump UltraDefense Health=3
+		master TripleJump ChargeJump UltraDefense Health=3
 		master WallJump TripleJump Health=11 UltraDefense
 		master GrenadeJump Stomp DoubleJump Health=4
 		master GrenadeJump Stomp TripleJump
@@ -3781,6 +3799,7 @@ home: ValleyTeleporter -438 -4
 		expert AirDash DoubleJump OpenWorld
 		expert ChargeDash Energy=2 OpenWorld
 		master Bash OpenWorld
+		master TripleJump ChargeJump OpenWorld
 	conn: LowerValley
 		casual OpenWorld
 	conn: LowerValleyPlantApproach
@@ -3873,6 +3892,8 @@ home: ValleyStomplessApproach -350 29
 		expert ChargeJump Climb DoubleJump Health=4
 		expert ChargeDash WallJump DoubleJump Energy=2
 		expert ChargeDash Climb DoubleJump Energy=2
+		master ChargeDash Energy=2 Health=3
+		master ChargeDash Energy=3
 		master WallJump TripleJump Health=3
 	conn: ValleyRight
 home: ValleyRightFastStomplessCellWarp -349 68
@@ -4574,14 +4595,17 @@ home: LowerSorrow -484 248
 		casual Keystone=4
 		casual Keysanity LowerSorrowKeys
 	conn: LeftSorrow
-		casual Glide Bash
 		casual Glide ChargeJump
-		master GrenadeJump
+		standard Glide Bash
+		expert Glide WallJump
+		expert Glide Climb
+		expert Glide DoubleJump
 		expert ChargeDash Bash
 		expert ChargeDash ChargeJump Energy=2
 		expert ChargeDash Stomp ChargeJump
 		expert ChargeDash DoubleJump ChargeJump
 		expert DoubleBash
+		master GrenadeJump
 		master ChargeJump Health=10 UltraDefense
 		master ChargeJump TripleJump
 	conn: MiddleSorrow
@@ -4721,6 +4745,33 @@ home: LeftSorrowKeystones -623 328
 		standard BashGrenade
 		standard Climb ChargeJump
 		expert Health=5
+home: LeftSorrowKeystonesFromAbove -599 385
+-- for the reverse path through the door - anchored up top with the door open
+	pickup: LeftSorrowKeystone1
+		casual Glide
+		casual DoubleJump
+		casual Bash Grenade
+		casual ChargeJump Climb
+		standard Lure Bash
+		standard Dash
+		expert ChargeJump WallJump
+	pickup: LeftSorrowKeystone2
+		casual Glide
+		standard Free
+	pickup: LeftSorrowKeystone3
+		casual Glide
+		standard Free
+	pickup: LeftSorrowKeystone4
+		casual Glide
+		standard Free
+	pickup: LeftSorrowEnergyCell
+		casual Glide
+		standard DoubleJump WallJump
+		standard DoubleJump Climb
+		expert DoubleJump
+		expert Bash
+		expert ChargeJump Health=5
+		master ChargeJump Health=4 UltraDefense
 home: LeftSorrowMiddleDoorClosed -600 300
 	conn: LeftSorrowMiddleDoorOpen
 		casual Keystone=4
@@ -4752,6 +4803,8 @@ home: LeftSorrowMiddleDoorOpen -587 385
 		expert Stomp ChargeDash Energy=1
 		expert Stomp Health=5
 		expert BashGrenade ChargeJump
+	conn: LeftSorrowKeystonesFromAbove
+		expert Climb ChargeJump
 home: LeftSorrowTumbleweedDoorWarp -597 386
 -- anchored at the left side of the keystone door, door closed (at -595, 385)
 	conn: LeftSorrowMiddleDoorClosed
@@ -5072,6 +5125,8 @@ home: MistyEntrance -690 -20
 		expert ChargeDash Energy=4
 		master Bash
 		master GrenadeJump Health=4
+		master TripleJump Health=7
+		master TripleJump UltraDefense Health=5
 	conn: ValleyTeleporter
 		casual Glide Wind OpenWorld
 		casual ChargeJump Glide DoubleJump WallJump OpenWorld
@@ -5256,6 +5311,9 @@ home: MistyMortarSpikeCave -803 -158
 		casual Climb Bash Glide
 		expert Bash DoubleJump
 		master Bash
+		master GrenadeJump
+		master ChargeJump Climb TripleJump
+		master ChargeJump Glide TripleJump
 	conn: MistyKeystone4Ledge
 		casual WallJump Bash Glide
 		casual Climb Bash Glide
@@ -5265,6 +5323,7 @@ home: MistyMortarSpikeCave -803 -158
 		master Bash
 		master ChargeJump TripleJump
 		master ChargeDash
+		master GrenadeJump
 home: MistyKeystone4Ledge -762 -158
 	--anchor point: on the ledge with the 4th keystone
 	pickup: MistyKeystone4
@@ -5277,6 +5336,7 @@ home: MistyKeystone4Ledge -762 -158
 		master ChargeDash
 		master ChargeJump DoubleJump Health=10
 		master Lure Bash
+		master GrenadeJump
 home: MistyBeforeDocks -694 -93
 	--anchor point: to the right of the sit shoot shark, on the docks
 	conn: MistyAbove200xp
