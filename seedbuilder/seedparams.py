@@ -4,7 +4,7 @@ import logging as log
 import random
 import time
 
-from util import enums_from_strlist, picks_by_coord, get_preset_from_paths, compose_multi_value, decompose_multi_value, normalize_pickup, SEED_FORMAT
+from util import enums_from_strlist, picks_by_coord, get_preset_from_paths, compose_multi_value, decompose_multi_value, normalize_pickup, split_owner, SEED_FORMAT
 from enums import (MultiplayerGameType, ShareType, Variation, LogicPath, KeyMode, PathDifficulty, presets,
                    preset_path_diff, preset_variations)
 from collections import OrderedDict
@@ -567,7 +567,7 @@ class SeedGenParams(ndb.Model):
             for fass in raw_fass.split("|"):
                 rawloc, _, item = fass.partition(":")
                 world, _, loc = rawloc.rpartition(".")
-                item, _, owner = item.partition("@")
+                item, owner = split_owner(item)
                 stuff = [Stuff(code=item[:2], id=item[2:], player=world, owner=(owner if loc != "2" else "") or None)]
                 params.placements.append(Placement(location=loc, zone="", stuff=stuff))
                 if loc == "2":
@@ -796,7 +796,7 @@ class SeedGenParams(ndb.Model):
                     # a plando piece "SK/0@2" belongs to world 2: it goes out as an MW child
                     mine, manifests = [], []
                     for code, value in decompose_multi_value(s.id):
-                        value, _, owner = value.partition("@")
+                        value, owner = split_owner(value)
                         if not owner or owner == s.player:
                             mine.append((code, value))
                             continue

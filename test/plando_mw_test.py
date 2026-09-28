@@ -15,7 +15,7 @@ import unittest
 from enums import MultiplayerGameType
 from seedbuilder.generator import MultiworldSlotOverflow
 from seedbuilder.seedparams import MultiplayerOptions, Placement, SeedGenParams, Stuff
-from util import decompose_multi_value, parse_fass
+from util import decompose_multi_value, parse_fass, split_owner
 
 
 def plando(players, *placements):
@@ -146,6 +146,16 @@ class MultipickupOwnershipTests(unittest.TestCase):
         self.assertEqual(decompose_multi_value(line.split("|")[2]), [("MW", "2,0,SH,a/b"), ("HC", "1")])
         self.assertEqual(lines(p, 2), ["-2|MW|1,,SH,a/b|Glades"])
 
+    def test_a_message_with_red_text_is_not_an_owner(self):
+        p = plando(2, ("1", "Glades", "MU", "SH/@IMPORTANT. READ BEFORE TOUCHING ANYTHING@ hi/HC/1", 1, None))
+        self.assertEqual(lines(p, 1), ["1|MU|SH/@IMPORTANT. READ BEFORE TOUCHING ANYTHING@ hi/HC/1|Glades"])
+        self.assertEqual(lines(p, 2), [])
+
+    def test_a_red_message_can_still_go_to_someone_else(self):
+        p = plando(2, ("1", "Glades", "MU", "SH/@red@ text@2/HC/1", 1, None))
+        self.assertEqual(lines(p, 1), ["1|MU|MW/2,0,SH,@red@ text/HC/1|Glades"])
+        self.assertEqual(lines(p, 2), ["-2|MW|1,,SH,@red@ text|Glades"])
+
     def test_a_plain_multipickup_is_untouched(self):
         p = plando(2, ("1", "Glades", "MU", "SK/0/HC/1", 1, None))
         self.assertEqual(lines(p, 1), ["1|MU|SK/0/HC/1|Glades"])
@@ -171,6 +181,13 @@ class ForcedAssignmentParseTests(unittest.TestCase):
 
     def test_an_owner_rides_the_value(self):
         self.assertEqual(parse_fass("1.919772:SK0@2"), {(1, 919772): "SK0|2"})
+
+    def test_an_at_that_is_not_a_world_number_is_part_of_the_item(self):
+        self.assertEqual(parse_fass("1.919772:SH@red@ hi"), {(1, 919772): "SH@red@ hi"})
+        self.assertEqual(parse_fass("1.919772:SH@red@ hi@2"), {(1, 919772): "SH@red@ hi|2"})
+        self.assertEqual(split_owner("SK0@2"), ("SK0", "2"))
+        self.assertEqual(split_owner("a@b"), ("a@b", ""))
+        self.assertEqual(split_owner("a@"), ("a@", ""))
 
     def test_several_are_pipe_joined(self):
         self.assertEqual(parse_fass("1.1:SK0@2|2.2:HC1"),
