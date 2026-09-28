@@ -3,10 +3,10 @@
 import {decompose_pickup, pack_piece} from './multipickup.js';
 
 // what the client knows, by the name before any "="; it matches them case-insensitively
-const KNOWN_FLAGS = ["goal", "kill", "solid", "item", "ritem", "none", "tombstone", "once", "on", "damage", "unsafe",
+const KNOWN_FLAGS = ["goal", "kill", "solid", "item", "ritem", "tombstone", "once", "on", "damage", "unsafe",
                      "renderdepth", "parallaxdepth"]
 const VALUE_FLAGS = ["on", "damage", "renderdepth", "parallaxdepth"]
-// the flags menu, presets first; goal and none load and show but aren't offered
+// the flags menu, presets first; goal loads and shows but isn't offered
 const BOX_PRESETS = {kill: "box kills Ori", item: "grants an item once", solid: "box with collision",
                      ritem: "grants an item repeatedly"}
 const BOX_FLAG_SUGGESTIONS = {...BOX_PRESETS, once: "box toggles off when collected", unsafe: "saves disabled inside box",
@@ -15,7 +15,7 @@ const BOX_FLAG_SUGGESTIONS = {...BOX_PRESETS, once: "box toggles off when collec
                               "parallaxDepth=10": "box scrolls like background art"}
 // a chip's tooltip; value flags build theirs from what is typed, in describe_flag
 const FLAG_TEXT = {...BOX_PRESETS, once: BOX_FLAG_SUGGESTIONS.once, unsafe: BOX_FLAG_SUGGESTIONS.unsafe,
-                   goal: "ends a practice segment", none: "plain gray"}
+                   goal: "ends a practice segment"}
 const TRIGGER_TEXT = {Enter: "grants when Ori enters the box", Tick: "grants 60 times a second while Ori is inside",
                       Frame: "grants every frame while Ori is inside"}
 // the game's DamageType names, which it matches case-insensitively
@@ -25,18 +25,17 @@ const DAMAGE_TYPES = ["Acid", "Bash", "Bat", "ChargeFlame", "Crush", "Drowning",
 const DEPTH_RANGES = {renderdepth: [-99, 399], parallaxdepth: [-19, 4979]}
 // a deleted box keeps its line, so the boxes after it keep the numbers BM|n names
 const BOX_TOMBSTONE = "tombstone"
-const BOX_COLORS = {goal: "#8fe3a0", kill: "#ff6b6b", solid: "#9aa0aa", item: "#40c0ff", ritem: "#7fd8ff", none: "#808080"}
+const BOX_TOMBSTONE_LINE = "BX|tombstone|0,0,0,0"
+const BOX_COLORS = {goal: "#8fe3a0", kill: "#ff6b6b", solid: "#9aa0aa", item: "#40c0ff", ritem: "#7fd8ff"}
 const BOXES_TXT = "https://github.com/sparkle-preference/OriDERandomizer/blob/4.3/Boxes.txt"
 const HEX_COLOR = /^#?([0-9a-f]{6})([0-9a-f]{2})?$/i
 
 const split_flags = (text) => text.split(",").map(f => f.trim()).filter(f => f)
 const box_flags = (b) => split_flags(b.flags || "")
 const box_has_flag = (b, flag) => box_flags(b).some(f => f.toLowerCase() === flag)
-// the game deletes a box with a tombstone flag anywhere in its flags
-const is_box_gone = (b) => box_has_flag(b, BOX_TOMBSTONE)
+// the game deletes a box with tombstone, or none (its old name), anywhere in its flags
+const is_box_gone = (b) => box_has_flag(b, BOX_TOMBSTONE) || box_has_flag(b, "none")
 const box_hidden = (b) => b.color === "none" || b.color === "0"
-// what the builder wrote for a deleted box before tombstones; with a color or a give it is a plain box
-const bare_none = (flags) => split_flags(flags).join(",").toLowerCase() === "none"
 let next_box_id = 1
 // flags is the field as written, so a line comes back byte for byte
 const new_box = (flags, box) => ({_id: next_box_id++, flags: flags, box: box, color: "", give: "", locked: false})
@@ -51,17 +50,15 @@ function parse_box_line(line) {
     let out = new_box(f[1], box)
     out.color = (f[3] || "").trim()
     out.give = f.slice(4).join("|")
-    if(bare_none(out.flags) && !out.color && !out.give)
-        out.flags = BOX_TOMBSTONE
-    return out
+    return is_box_gone(out) ? {...out, flags: BOX_TOMBSTONE, box: [0, 0, 0, 0], color: "", give: ""} : out
 }
 
 function box_line(b) {
+    if(is_box_gone(b))
+        return BOX_TOMBSTONE_LINE
     // a pipe would end the flags field
     let flags = (b.flags || "").replace(/\|/g, "")
     let color = (b.color || "").trim()
-    if(bare_none(flags) && !color && !b.give)
-        color = BOX_COLORS.none.slice(1)
     let fields = ["BX", flags, b.box.map(v => Math.round(v * 100) / 100).join(","), color, b.give || ""]
     while(fields.length > 3 && !fields[fields.length - 1])
         fields.pop()

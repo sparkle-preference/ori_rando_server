@@ -54,47 +54,32 @@ test("editing the chips writes the flags in chip order", () => {
 })
 
 test("give is written whenever present, whatever the flags", () => {
-    for(let line of ["BX|kill|1,2,3,4||SK|0", "BX|solid|1,2,3,4|ff0000|EX|15", "BX|none|1,2,3,4|808080|SH|hi"])
+    for(let line of ["BX|kill|1,2,3,4||SK|0", "BX|solid|1,2,3,4|ff0000|EX|15", "BX|ritem|1,2,3,4|808080|SH|hi"])
         assert.equal(rewrite(line), line)
 })
 
-test("tombstones", () => {
-    for(let line of ["BX|tombstone|1,2,3,4", "BX|none|1,2,3,4", "BX|none|1,2,3,4|", "BX|none|1,2,3,4||", "BX| NONE |1,2,3,4"]) {
+test("tombstones load and save as the one tombstone line", () => {
+    for(let line of ["BX|tombstone|1,2,3,4", "BX|tombstone|0,0,0,0", "BX|none|1,2,3,4", "BX|none|1,2,3,4|", "BX| NONE |1,2,3,4"]) {
         let b = parse_box_line(line)
         assert.ok(is_box_gone(b), line)
-        assert.equal(box_line(b), "BX|tombstone|1,2,3,4", line)
-    }
-    for(let line of ["BX|none|1,2,3,4|808080", "BX|none|1,2,3,4|none", "BX|none,unsafe|1,2,3,4", "BX|none,none|1,2,3,4"]) {
-        let b = parse_box_line(line)
-        assert.ok(!is_box_gone(b), line)
-        assert.equal(box_line(b), line)
+        assert.deepEqual(model(b), {flags: "tombstone", box: [0, 0, 0, 0], color: "", give: ""}, line)
+        assert.equal(box_line(b), "BX|tombstone|0,0,0,0", line)
     }
 })
 
-test("a tombstone flag anywhere deletes the box, as in game", () => {
-    for(let line of ["BX|kill,tombstone|1,2,3,4", "BX|once,TombStone,solid|1,2,3,4", "BX|tombstone,kill|1,2,3,4||SK|0"]) {
+test("tombstone, or none (its old name), anywhere deletes the box, whatever else the line says", () => {
+    for(let line of ["BX|kill,tombstone|1,2,3,4", "BX|once,TombStone,solid|1,2,3,4", "BX|tombstone,kill|1,2,3,4||SK|0",
+                     "BX|none|1,2,3,4|808080", "BX|none|1,2,3,4|none", "BX|none,unsafe|1,2,3,4", "BX|none|1,2,3,4||SK|0"]) {
         let b = parse_box_line(line)
         assert.ok(is_box_gone(b), line)
-        assert.ok(is_box_gone(parse_box_line(box_line(b))), line)
-        assert.equal(box_line(b), line)
+        assert.equal(box_line(b), "BX|tombstone|0,0,0,0", line)
     }
 })
 
-test("a bare none that gives something is a plain box", () => {
-    let b = parse_box_line("BX|none|1,2,3,4||SK|0")
-    assert.ok(!is_box_gone(b))
-    assert.deepEqual(model(b), {flags: "none", box: [1, 2, 3, 4], color: "", give: "SK|0"})
-    assert.equal(box_line(b), "BX|none|1,2,3,4||SK|0")
-    // with the give gone, it takes a color so it isn't read back as deleted
-    assert.equal(box_line({...b, give: ""}), "BX|none|1,2,3,4|808080")
-})
-
-test("a plain box never writes as a tombstone", () => {
-    for(let flags of ["none", " NONE ", "none,"]) {
-        let line = box_line(new_box(flags, [1, 2, 3, 4]))
-        assert.ok(line.endsWith("|808080"), flags)
-        assert.ok(!is_box_gone(parse_box_line(line)), flags)
-    }
+test("a box deleted in the editor saves as the tombstone line, whatever it held", () => {
+    let b = {...parse_box_line("BX|kill,once|1,2,3,4|ff0000|SK|0"), flags: "tombstone"}
+    assert.equal(box_line(b), "BX|tombstone|0,0,0,0")
+    assert.equal(box_line(new_box("none", [1, 2, 3, 4])), "BX|tombstone|0,0,0,0")
 })
 
 test("color 0 is none", () => {
@@ -279,7 +264,7 @@ test("a reference to a deleted box or past the end is a problem, and that tombst
     let out = compact_boxes(HOLEY(), [here("BM|1", {where: "A"}), here("BM|9", {where: "B"}), here("BM|4")])
     assert.equal(out.problems.length, 2)
     assert.ok(out.problems[0].startsWith("A: ") && out.problems[1].startsWith("B: "))
-    assert.deepEqual(lines_of(out)[1], ["BX|kill|0,0,1,1", "BX|tombstone|1,0,2,1", "BX|solid|2,0,3,1", "BX|item|4,0,5,1||BM|2=1"])
+    assert.deepEqual(lines_of(out)[1], ["BX|kill|0,0,1,1", "BX|tombstone|0,0,0,0", "BX|solid|2,0,3,1", "BX|item|4,0,5,1||BM|2=1"])
     assert.deepEqual(out.pickups, ["BM|1", "BM|9", "BM|3"])
 })
 

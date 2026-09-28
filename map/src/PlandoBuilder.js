@@ -380,12 +380,12 @@ class BoxRow extends React.PureComponent {
     }
     openFlagMenu = () => this.setState({flagMenu: true})
     closeFlagMenu = () => this.setState({flagMenu: false})
-    // a typed tombstone would delete the box
+    // a typed tombstone (or none, its old name) would delete the box
     // the chip being edited isn't a duplicate of itself, so its unchanged text still shows what it does
     newFlagOk = (text, chips, options) => {
         let t = text.trim().toLowerCase()
         let edited = this.state.flagEdit !== null && this.flags.chips[this.state.flagEdit]
-        return box_flag_ok(text) && t !== BOX_TOMBSTONE &&
+        return box_flag_ok(text) && t !== BOX_TOMBSTONE && t !== "none" &&
                ![...chips, ...options].some(o => o.value.toLowerCase() === t && !(edited && edited.value.toLowerCase() === t))
     }
     createLabel = (text) => flag_create_label(text, this.state.flagEdit !== null)
@@ -1276,7 +1276,7 @@ class PlandoBuiler extends React.Component {
         ev.stopPropagation()
         if(!box || box.locked)
             return
-        this.setBoxes(this.curBoxes().map((b, k) => k === i ? {...b, flags: BOX_TOMBSTONE, give: "", color: ""} : b))
+        this.setBoxes(this.curBoxes().map((b, k) => k === i ? {...b, flags: BOX_TOMBSTONE, box: [0, 0, 0, 0], give: "", color: ""} : b))
         if(this.state.box_selected === box._id)
             this.setState({box_selected: null})
     };
