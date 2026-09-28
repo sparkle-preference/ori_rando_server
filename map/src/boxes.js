@@ -1,18 +1,18 @@
-// BX|flags|x1,y1,x2,y2|color|give (Boxes.txt), give keeping its own pipes, as {type, extra, box, color, give}.
+// BX|flags|x1,y1,x2,y2|color|give (Boxes.txt), give keeping its own pipes, as {flags, box, color, give}.
 // Imports only pure modules, so plain node can load it (test/box_lines_test.mjs).
 import {decompose_pickup, pack_piece} from './multipickup.js';
 
-// the first of these on a line is its type; every other flag rides in extra, in order
-const TYPE_FLAGS = ["goal", "kill", "solid", "item", "ritem", "none", "tombstone"]
 // what the client knows, by the name before any "="; it matches them case-insensitively
-const KNOWN_FLAGS = [...TYPE_FLAGS, "once", "on", "damage", "unsafe", "renderdepth", "parallaxdepth"]
+const KNOWN_FLAGS = ["goal", "kill", "solid", "item", "ritem", "none", "tombstone", "once", "on", "damage", "unsafe",
+                     "renderdepth", "parallaxdepth"]
 const VALUE_FLAGS = ["on", "damage", "renderdepth", "parallaxdepth"]
-// the flags menu, presets first; a line's other type flags (goal, none) load and show but aren't offered
+// the flags menu, presets first; goal and none load and show but aren't offered
 const BOX_PRESETS = {kill: "box kills Ori", item: "grants an item once", solid: "box with collision",
                      ritem: "grants an item repeatedly"}
 const BOX_FLAG_SUGGESTIONS = {...BOX_PRESETS, once: "box toggles off when collected", unsafe: "saves disabled inside box",
                               "on=Tick": "grant 60 times a second while inside box", "on=Frame": "grant every frame while inside box",
-                              "damage=1": "box damages entities touching it", "renderDepth=-99": "draw box over terrain"}
+                              "damage=1": "box damages entities touching it", "renderDepth=-99": "draw box over terrain",
+                              "parallaxDepth=10": "box scrolls like background art"}
 // a chip's tooltip; value flags build theirs from what is typed, in describe_flag
 const FLAG_TEXT = {...BOX_PRESETS, once: BOX_FLAG_SUGGESTIONS.once, unsafe: BOX_FLAG_SUGGESTIONS.unsafe,
                    goal: "ends a practice segment", none: "plain gray"}
@@ -22,6 +22,7 @@ const TRIGGER_TEXT = {Enter: "grants when Ori enters the box", Tick: "grants 60 
 const DAMAGE_TYPES = ["Acid", "Bash", "Bat", "ChargeFlame", "Crush", "Drowning", "Enemy", "Explosion", "Grenade", "GrenadeSplatter",
                       "Heat", "HitSurface", "Ice", "Laser", "Lava", "LevelUp", "NightBerryDied", "Nova", "Projectile", "SlugSpike",
                       "Spikes", "SpiritFlame", "SpiritFlameSplatter", "Stomp", "StompBlast", "Water"]
+const DEPTH_RANGES = {renderdepth: [-99, 399], parallaxdepth: [-19, 4979]}
 // a deleted box keeps its line, so the boxes after it keep the numbers BM|n names
 const BOX_TOMBSTONE = "tombstone"
 const BOX_COLORS = {goal: "#8fe3a0", kill: "#ff6b6b", solid: "#9aa0aa", item: "#40c0ff", ritem: "#7fd8ff", none: "#808080"}
@@ -29,10 +30,16 @@ const BOXES_TXT = "https://github.com/sparkle-preference/OriDERandomizer/blob/4.
 const HEX_COLOR = /^#?([0-9a-f]{6})([0-9a-f]{2})?$/i
 
 const split_flags = (text) => text.split(",").map(f => f.trim()).filter(f => f)
-const is_box_gone = (b) => b.type === BOX_TOMBSTONE
+const box_flags = (b) => split_flags(b.flags || "")
+const box_has_flag = (b, flag) => box_flags(b).some(f => f.toLowerCase() === flag)
+// the game deletes a box with a tombstone flag anywhere in its flags
+const is_box_gone = (b) => box_has_flag(b, BOX_TOMBSTONE)
 const box_hidden = (b) => b.color === "none" || b.color === "0"
+// what the builder wrote for a deleted box before tombstones; with a color or a give it is a plain box
+const bare_none = (flags) => split_flags(flags).join(",").toLowerCase() === "none"
 let next_box_id = 1
-const new_box = (type, box) => ({_id: next_box_id++, type: type, extra: "", box: box, color: "", give: "", locked: false})
+// flags is the field as written, so a line comes back byte for byte
+const new_box = (flags, box) => ({_id: next_box_id++, flags: flags, box: box, color: "", give: "", locked: false})
 
 function parse_box_line(line) {
     let f = line.trim().split("|")
@@ -41,27 +48,19 @@ function parse_box_line(line) {
     let box = f[2].split(",").map(parseFloat)
     if(box.length !== 4 || box.some(isNaN))
         return null
-    let flags = split_flags(f[1])
-    // the game deletes a box with a tombstone flag anywhere in its flags
-    let gone = flags.some(flag => flag.toLowerCase() === BOX_TOMBSTONE)
-    flags = flags.filter(flag => flag.toLowerCase() !== BOX_TOMBSTONE)
-    let t = gone ? -1 : flags.findIndex(flag => TYPE_FLAGS.includes(flag.toLowerCase()))
-    let out = new_box(gone ? BOX_TOMBSTONE : t < 0 ? "" : flags[t].toLowerCase(), box)
-    out.extra = flags.filter((_, k) => k !== t).join(",")
+    let out = new_box(f[1], box)
     out.color = (f[3] || "").trim()
     out.give = f.slice(4).join("|")
-    // what the builder wrote for a deleted box before tombstones; with a color or a give it is a plain box
-    if(out.type === "none" && !out.extra && !out.color && !f[4])
-        out.type = BOX_TOMBSTONE
+    if(bare_none(out.flags) && !out.color && !out.give)
+        out.flags = BOX_TOMBSTONE
     return out
 }
 
 function box_line(b) {
     // a pipe would end the flags field
-    let flags = split_flags([b.type, b.extra].join(",").replace(/\|/g, "")).join(",")
+    let flags = (b.flags || "").replace(/\|/g, "")
     let color = (b.color || "").trim()
-    // a bare `none` with no color reads back as a deleted box
-    if(flags.toLowerCase() === "none" && !color)
+    if(bare_none(flags) && !color && !b.give)
         color = BOX_COLORS.none.slice(1)
     let fields = ["BX", flags, b.box.map(v => Math.round(v * 100) / 100).join(","), color, b.give || ""]
     while(fields.length > 3 && !fields[fields.length - 1])
@@ -69,10 +68,7 @@ function box_line(b) {
     return fields.join("|")
 }
 
-const box_flags = (b) => split_flags([b.type, b.extra].join(","))
-const box_has_flag = (b, flag) => box_flags(b).some(f => f.toLowerCase() === flag)
-
-// the game lets each type flag set the color in turn, so the last one shows
+// the game lets each preset flag set the color in turn, so the last one shows
 function box_color(b) {
     let m = HEX_COLOR.exec(b.color || "")
     let preset = box_flags(b).map(f => f.toLowerCase()).filter(f => BOX_COLORS[f]).pop()
@@ -102,8 +98,8 @@ function describe_flag(flag) {
         let when = one_of(Object.keys(TRIGGER_TEXT), value)
         return when ? {text: capital(TRIGGER_TEXT[when])} : bad("One of: Enter, Tick, Frame")
     }
-    if(key === "renderdepth" || key === "parallaxdepth") {
-        let [low, high] = key === "renderdepth" ? [-99, 399] : [-19, 4979]
+    if(DEPTH_RANGES[key]) {
+        let [low, high] = DEPTH_RANGES[key]
         if(!numeric(value) || Number(value) < low || Number(value) > high)
             return bad(`${name} takes a number from ${low} to ${high}`)
         return {text: key === "renderdepth" ? `Draws the box at depth ${value}; lower is further in front`
@@ -136,10 +132,13 @@ const FLAG_PARTS = {
     damage: [{hint: "amount"}, {names: DAMAGE_TYPES, hint: "damage type", fallback: "Spikes"},
              {names: ["All", "Player"], hint: "target", fallback: "All"},
              {names: ["Normal", "Extended"], hint: "hitboxes", fallback: "Extended"}],
+    renderdepth: [{hint: DEPTH_RANGES.renderdepth.join(" to ")}],
+    parallaxdepth: [{hint: DEPTH_RANGES.parallaxdepth.join(" to ")}],
 }
 
 // Completions for a value flag being typed: its current part's names, prefix matches first (longer names too
 // once it is whole), then the next part. A pick more can follow fills the text box (fill); a final one is added.
+// A value waiting on a part names it (next), which is how an empty part without names shows its hint.
 function flag_completions(text) {
     let eq = text.indexOf("=")
     let parts = eq < 0 ? null : FLAG_PARTS[text.slice(0, eq).trim().toLowerCase()]
@@ -148,6 +147,8 @@ function flag_completions(text) {
     if(!parts || !parts[at])
         return []
     let part = parts[at], partial = typed[at].trim().toLowerCase()
+    if(!part.names && !partial)
+        return [{value: text, fill: true, next: part}]
     let head = text.slice(0, text.length - typed[at].length)
     let whole = part.names ? part.names.some(n => n.toLowerCase() === partial) : numeric(typed[at])
     let out = []
@@ -184,18 +185,14 @@ function flag_option(flag, give) {
 }
 const SUGGESTED = Object.keys(BOX_FLAG_SUGGESTIONS).map(flag => flag_option(flag))
 
-// the flags select's chips (type first) and menu: the suggestions plus the box's own flags
-function box_flag_choices(type, extra, give) {
-    let chips = split_flags([type, extra || ""].join(",")).map(flag => flag_option(flag, give))
+// the flags select's chips, in written order, and menu: the suggestions plus the box's own flags
+function box_flag_choices(flags, give) {
+    let chips = split_flags(flags || "").map(flag => flag_option(flag, give))
     let own = chips.filter(c => !BOX_FLAG_SUGGESTIONS[c.value])
     return {chips: chips, options: own.length ? [...SUGGESTED, ...own] : SUGGESTED}
 }
 
-// a chip list back to the model: the first type flag is the type, the rest stay in order
-function box_flags_from_chips(flags) {
-    let t = flags.findIndex(flag => TYPE_FLAGS.includes(flag.toLowerCase()))
-    return {type: t < 0 ? "" : flags[t].toLowerCase(), extra: flags.filter((_, k) => k !== t).join(",")}
-}
+const box_flags_from_chips = (flags) => ({flags: flags.join(",")})
 
 const MULTI_CODES = ["MU", "RP", "RG"]
 // the client keeps box state in these slots by box number: off bits, then contact bits
@@ -301,7 +298,7 @@ function compact_boxes(worlds, pickups) {
 }
 
 export {
-    BOX_PRESETS, BOX_COLORS, BOX_TOMBSTONE, is_box_gone, box_hidden, new_box, box_has_flag, box_flags_from_chips,
+    BOX_PRESETS, BOX_COLORS, BOX_TOMBSTONE, is_box_gone, box_hidden, new_box, box_flags, box_has_flag, box_flags_from_chips,
     parse_box_line, box_line, box_color, box_flag_ok, box_flag_warning, describe_flag, flag_completions, flag_menu, box_flag_choices, BOXES_TXT,
     compact_boxes
 };

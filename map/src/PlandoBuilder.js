@@ -398,9 +398,9 @@ class BoxRow extends React.PureComponent {
         return this.completed.options
     }
     // kept while the flags are, so the select is handed the same arrays
-    flagChoices = (type, extra, give) => {
-        if(!this.flags || this.flags.type !== type || this.flags.extra !== extra || this.flags.give !== give)
-            this.flags = {type: type, extra: extra, give: give, ...box_flag_choices(type, extra, give)}
+    flagChoices = (flags, give) => {
+        if(!this.flags || this.flags.flags !== flags || this.flags.give !== give)
+            this.flags = {flags: flags, give: give, ...box_flag_choices(flags, give)}
         return this.flags
     }
     // an emptied picker says NO|1, which would be written as an explicit give
@@ -416,7 +416,7 @@ class BoxRow extends React.PureComponent {
     render() {
         let {b, i, selected} = this.props
         let hidden = box_hidden(b)
-        let flags = this.flagChoices(b.type, b.extra, b.give)
+        let flags = this.flagChoices(b.flags, b.give)
         return (
             <div className={"box-row" + (selected ? " box-row-selected" : "") + (b.locked ? " box-row-locked" : "")}
                  ref={this.ref} onClick={this.select}>
@@ -1276,7 +1276,7 @@ class PlandoBuiler extends React.Component {
         ev.stopPropagation()
         if(!box || box.locked)
             return
-        this.setBoxes(this.curBoxes().map((b, k) => k === i ? {...b, type: BOX_TOMBSTONE, extra: "", give: "", color: ""} : b))
+        this.setBoxes(this.curBoxes().map((b, k) => k === i ? {...b, flags: BOX_TOMBSTONE, give: "", color: ""} : b))
         if(this.state.box_selected === box._id)
             this.setState({box_selected: null})
     };
@@ -1286,7 +1286,7 @@ class PlandoBuiler extends React.Component {
         let x = Math.round(c.lng * 100) / 100, y = Math.round(c.lat * 100) / 100
         // a new box takes the flags of the one added before it, while that one is still around
         let last = this.curBoxes().find(b => b._id === this.state.box_last && !is_box_gone(b))
-        let box = {...new_box(last ? last.type : "kill", [x - 3, y - 3, x + 3, y + 3]), extra: last ? last.extra : ""}
+        let box = new_box(last ? last.flags : "kill", [x - 3, y - 3, x + 3, y + 3])
         this.setState(prev => {
             return {
                 // last, never in a hole: boxes touched on one tick give their items in line order
@@ -1478,7 +1478,7 @@ class PlandoBuiler extends React.Component {
             let newEnt = {...prevState.entrances}
             newEnt[players+1] = {...(prevState.entrances[prevState.player] || {})}
             let newBoxes = {...prevState.boxes}
-            newBoxes[players+1] = (prevState.boxes[prevState.player] || []).map(b => ({...new_box(b.type, [...b.box]), extra: b.extra, color: b.color, give: b.give, locked: b.locked}))
+            newBoxes[players+1] = (prevState.boxes[prevState.player] || []).map(b => ({...new_box(b.flags, [...b.box]), color: b.color, give: b.give, locked: b.locked}))
             return {placements: newPlc, player: players+1, reachable: {...DEFAULT_REACHABLE}, entrances: newEnt, boxes: newBoxes}
         }, () => this.updateReachable())
     }
@@ -1861,11 +1861,11 @@ class PlandoBuiler extends React.Component {
                         <datalist id="box-color-history">
                             {this.state.box_colors.map(c => <option key={c} value={c}/>)}
                         </datalist>
-                        <div className="box-help">With Edit on map on, drag a box to move it or a corner to resize it. # is the number BM|n uses; the eye hides a box in game and the lock freezes it. Types and flags are explained in <a target="_blank" rel="noopener noreferrer" href={BOXES_TXT}>Boxes.txt</a>.</div>
+                        <div className="box-help">With Edit on map on, drag a box to move it or a corner to resize it. # is the number BM|n uses; the eye hides a box in game and the lock freezes it. Flags are explained in <a target="_blank" rel="noopener noreferrer" href={BOXES_TXT}>Boxes.txt</a>.</div>
                         <div className="box-list">
                             {/* shown only once a box fits one line; the spans take the row's column widths */}
                             <div className="box-row box-list-header">
-                                <span className="box-num" title="The number BM|n uses">#</span><span className="box-del"/><span className="box-flags">type/flags</span>
+                                <span className="box-num" title="The number BM|n uses">#</span><span className="box-del"/><span className="box-flags">flags</span>
                                 {["x1", "y1", "x2", "y2"].map((c, k) => <span key={c} className={"box-coord box-c" + k}>{c}</span>)}
                                 <span className="box-show" title="Visible in game: the eye hides a box, which stays dashed here"><FaEye/></span>
                                 <span className="box-lock" title="Locked: a locked box takes no edits and can't be dragged"><FaLock/></span>

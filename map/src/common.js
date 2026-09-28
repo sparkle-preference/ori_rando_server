@@ -8,6 +8,7 @@ import { Badge } from 'reactstrap';
 import { components } from 'react-select';
 import CreatableSelect from 'react-select/lib/Creatable';
 import {decompose_pickup, pack_piece} from './multipickup.js';
+import {box_flags, box_has_flag} from './boxes.js';
 
 const select_theme = (theme) => {
     let style = getComputedStyle(document.body);
@@ -327,11 +328,14 @@ const stuff_by_type = {
 const logic_events = stuff_by_type["Events"].filter(o => ["EV|6", "EV|7"].indexOf(o.value) < 0)
 
 const BOX_LABELS = {kill: "Kill", solid: "Solid", item: "Item", ritem: "Repeat Item", goal: "Goal", none: "Plain"}
+// the preset flags name the box, the rest go in parentheses
 function box_label(b, num) {
-    let name = `${b.type ? (BOX_LABELS[b.type] || b.type) + " " : ""}Box - #${num}${b.extra ? ` (${b.extra})` : ""}`
+    let flags = box_flags(b)
+    let named = flags.filter(f => BOX_LABELS[f.toLowerCase()]), rest = flags.filter(f => !BOX_LABELS[f.toLowerCase()])
+    let name = `${named.map(f => BOX_LABELS[f.toLowerCase()] + " ").join("")}Box - #${num}${rest.length ? ` (${rest.join(",")})` : ""}`
     if(b.give)
         return name + ": " + name_from_str(b.give)
-    return b.type === "item" || b.type === "ritem" ? name + ": nothing yet" : name
+    return box_has_flag(b, "item") || box_has_flag(b, "ritem") ? name + ": nothing yet" : name
 }
 
 const compareOption = (inputValue, option) => {
