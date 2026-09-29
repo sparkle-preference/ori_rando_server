@@ -7,12 +7,14 @@ import 'react-confirm-alert/src/react-confirm-alert.css'
 import {Button, Container, Row, Col, Input, Badge} from 'reactstrap';
 import SiteBar from "./SiteBar.js"
 import SiteFooter from "./SiteFooter.js"
+import {draft_key, remove_draft, move_draft} from './plando_draft.js';
 
 const textStyle = {textAlign: "center"}
+const local_storage = () => { try { return window.localStorage } catch(e) { return null } }
 export default class SeedDisplayPage extends React.Component {
   constructor(props) {
     super(props);
-    let {seedJson, authed, seed_name, hidden, seed_desc, seed_spoiler, seed_has_spoiler} = get_seed();
+    let {seedJson, authed, user, seed_name, hidden, seed_desc, seed_spoiler, seed_has_spoiler} = get_seed();
     let seedData = JSON.parse(he.decode(seedJson))
     let author = get_param("author")
     let gid = get_param("game_id")
@@ -21,7 +23,7 @@ export default class SeedDisplayPage extends React.Component {
 	if(complain_message)
 		alert(complain_message);
     let players = get_int("players", 1)
-    this.state = {flags: seedData["flagline"].split("|")[0].split(","), author: author, authed: authed, seed_name: seed_name, tracking: true,
+    this.state = {flags: seedData["flagline"].split("|")[0].split(","), author: author, authed: authed, user: user, seed_name: seed_name, tracking: true,
     			  players: players, seed_desc: seed_desc, seed_spoiler: seed_spoiler, has_spoiler: seed_has_spoiler,
     			  gid: gid, rename_to: seed_name, hidden: hidden || false, dropdownOpen: false};
 }
@@ -32,7 +34,8 @@ export default class SeedDisplayPage extends React.Component {
       buttons: [
         {
           label: 'Yes, it is time :C',
-          onClick: () => { window.location.href = `/plando/${this.state.seed_name}/delete`; }
+          onClick: () => this.act(`/plando/${this.state.seed_name}/delete`,
+                                  () => remove_draft(local_storage(), draft_key(this.state.user, this.state.seed_name)))
         },
         {
           label: 'No wait! I still love you!',
@@ -42,13 +45,21 @@ export default class SeedDisplayPage extends React.Component {
     })
   };
 
+  // the server first; this browser's drafts follow only if it succeeds
+  act = (url, then) => fetch(url, {credentials: "same-origin"})
+    .then(r => r.ok ? r.url : r.text().then(text => { throw new Error(text || `Failed (${r.status})`) }))
+    .then(next => { then(); window.location.href = next })
+    .catch(e => alert(e.message));
+
 	render = () => {
 		let url = `/plando/${this.state.seed_name}`;
+		let rename = () => this.act(`${url}/rename/${this.state.rename_to}`,
+		                            () => move_draft(local_storage(), this.state.user, this.state.seed_name, this.state.rename_to));
     	let rename_enabled = (this.state.rename_to !== this.state.seed_name) && (seed_name_regex.test(this.state.rename_to))
     	let rename_copy = (
 			<Row key="rename/copy" className="p-3 border border-danger border-bottom-0 justify-content-center">
 				<Col xs="4">
-					<Button color="primary" block disabled={!rename_enabled} onClick={rename_enabled ? goToCurry(`${url}/rename/${this.state.rename_to}`) : () => { alert("Please enter a new name")}}>Rename</Button>
+					<Button color="primary" block disabled={!rename_enabled} onClick={rename_enabled ? rename : () => { alert("Please enter a new name")}}>Rename</Button>
 				</Col><Col xs="4">
 		 			<Button color="primary" block disabled={!rename_enabled} onClick={rename_enabled ? goToCurry(`${url}/rename/${this.state.rename_to}?cp=1`) : () => { alert("Please enter a new name")}}>Copy</Button>
 				</Col><Col xs="4">

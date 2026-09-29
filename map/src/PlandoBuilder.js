@@ -9,14 +9,17 @@ import {Checkbox, CheckboxGroup} from 'react-checkbox-group';
 import {get_param, get_flag, get_int, get_list, get_seed, presets, get_preset, logic_paths, pickup_name, PickupSelect, stuff_by_type, logic_events, loginLogoutUrl, decompose_pickup,
         box_label, box_color_history, remember_box_color, MousePos, select_theme, name_from_str,
         box_panel_width, remember_box_panel_width} from './common.js';
-import {BOX_PRESETS, BOX_TOMBSTONE, is_box_gone, box_hidden, new_box, box_has_flag, box_flags_from_chips, parse_box_line, box_line,
-        box_color, box_flag_ok, box_flag_choices, describe_flag, flag_completions, flag_menu, BOXES_TXT, compact_boxes} from './boxes.js';
+import {BOX_TOMBSTONE, is_box_gone, box_hidden, new_box, box_has_flag, box_flags_from_chips, parse_box_line, box_line,
+        box_color, box_flag_ok, box_flag_choices, describe_flag, flag_completions, flag_menu, BOXES_TXT, compact_boxes,
+        box_search, parse_box_paste, paste_boxes} from './boxes.js';
+import {draft_key, read_draft, write_draft, remove_draft, draft_hash, draft_offer, draft_saved, time_ago} from './plando_draft.js';
 import {download, picks_by_type, picks_by_loc, picks_by_zone, picks_by_area, zones, PickupMarkersList, get_icon, 
         getMapCrs, TILE_MAX_ZOOM, hide_opacity, select_wrap, is_match, str_ids, select_styles} from './shared_map.js';
 import NumericInput from 'react-numeric-input';
 import Select from 'react-select'
 import {Creatable, components, createFilter} from 'react-select';
-import {Alert, Button, Collapse,  Container, Row, Col, Input, InputGroup, InputGroupAddon, InputGroupText} from 'reactstrap';
+import {Alert, Button, ButtonGroup, Collapse,  Container, Row, Col, Input, InputGroup, InputGroupAddon, InputGroupText,
+        Modal, ModalHeader, ModalBody, ModalFooter} from 'reactstrap';
 import Control from 'react-leaflet-control';
 import {Helmet} from 'react-helmet';
 import {FaSearch, FaEye, FaEyeSlash, FaLock, FaLockOpen} from 'react-icons/fa';
@@ -70,12 +73,14 @@ const HANDLE_ICON_SELECTED = Leaflet.divIcon({className: "box-handle box-handle-
 const FOLD_OUT_MS = 100, FOLD_IN_MS = 200
 const reduced_motion = () => !!window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches
 
-// the bulk lock row only shows at this many boxes
-const BULK_LOCK_MIN = 20
 // eased by hand: scrollIntoView jumps and behavior:"smooth" isn't honored everywhere
 const SCROLL_MS = 300
 const easeInOut = (p) => p < 0.5 ? 4 * p * p * p : 1 - Math.pow(2 - 2 * p, 3) / 2
-const BULK_TYPES = [{label: "ALL", value: "all"}, ...Object.keys(BOX_PRESETS).map(flag => ({label: flag, value: flag}))]
+const plural = (n, word) => `${n} ${word}${n === 1 ? "" : word.endsWith("x") ? "es" : "s"}`
+// edits reach the local draft this long after they stop, and never later than the max after the first
+const DRAFT_WAIT_MS = 1000, DRAFT_MAX_WAIT_MS = 5000
+// even reading window.localStorage throws where site data is blocked
+const local_storage = () => { try { return window.localStorage } catch(e) { return null } }
 
 const FORMAT_LINES = `Message format:
 \\n: linebreak
@@ -467,6 +472,62 @@ class BoxRow extends React.PureComponent {
     }
 }
 
+// The paste dialog keeps its own text, so typing in it doesn't re-render the builder.
+class BoxPaste extends React.PureComponent {
+    state = {text: "", replace: false}
+    setText = (ev) => this.setState({text: ev.target.value})
+    setAppend = () => this.setState({replace: false})
+    setReplace = () => this.setState({replace: true})
+    focusText = () => { if(this.textArea) this.textArea.focus() }
+    close = () => { this.setState({replace: false}); this.props.onClose() }
+    apply = () => {
+        this.props.onApply(parse_box_paste(this.state.text).boxes, this.state.replace)
+        this.setState({text: "", replace: false})
+    }
+    render() {
+        let {isOpen, current, count, title} = this.props
+        let {text, replace} = this.state
+        let read = isOpen ? parse_box_paste(text) : {boxes: [], bad: [], ignored: 0}
+        let out = isOpen ? paste_boxes(current, read.boxes, replace) : {added: 0, dupes: 0, gone: 0}
+        let n = read.boxes.length
+        let whole = replace || !current.length
+        let skipped = [!whole && out.gone ? plural(out.gone, "deleted box") : null,
+                       read.ignored ? plural(read.ignored, "other line") : null].filter(s => s).join(" and ")
+        let summary = [text.trim() ? plural(n, "BX line") + (whole && out.gone ? ` (${out.gone} deleted)` : "") : null,
+                       !replace && out.dupes ? `${out.dupes} already here` : null, skipped ? skipped + " skipped" : null].filter(s => s).join(", ")
+        let label = !replace || !count ? `Add ${plural(out.added, "box")}` : `Replace ${plural(count, "box")} with ${out.added}`
+        return (
+            <Modal isOpen={isOpen} toggle={this.close} autoFocus={false} onOpened={this.focusText} className="modal-dialog-centered box-paste">
+                <ModalHeader toggle={this.close}>{title}</ModalHeader>
+                <ModalBody>
+                    <textarea className="form-control box-paste-text" rows={8} spellCheck={false} ref={el => this.textArea = el}
+                              placeholder="BX|flags|x1,y1,x2,y2|color|give, one per line" value={text} onChange={this.setText}/>
+                    <div className="box-paste-mode">
+                        <ButtonGroup>
+                            <Button color={replace ? "secondary" : "primary"} onClick={this.setAppend}
+                                    title="After the boxes already here">Append</Button>
+                            <Button color={replace ? "primary" : "secondary"} onClick={this.setReplace}
+                                    title="Instead of the boxes already here">Replace</Button>
+                        </ButtonGroup>
+                        <span className="box-paste-summary">{summary}</span>
+                    </div>
+                    {read.bad.length ? (
+                        <div className="box-paste-bad">
+                            Can't read {plural(read.bad.length, "line")}:
+                            {read.bad.slice(0, 3).map(b => <code key={b.line}>line {b.line}: {b.text}</code>)}
+                            {read.bad.length > 3 ? <div>and {read.bad.length - 3} more</div> : null}
+                        </div>
+                    ) : null}
+                </ModalBody>
+                <ModalFooter>
+                    <Button color="secondary" onClick={this.close}>Cancel</Button>
+                    <Button color="primary" disabled={!out.added} onClick={this.apply}>{label}</Button>
+                </ModalFooter>
+            </Modal>
+        )
+    }
+}
+
 class PlandoBuiler extends React.Component {
   constructor(props) {
     super(props)
@@ -478,9 +539,9 @@ class PlandoBuiler extends React.Component {
                   pickups: ["EX", "Ma", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "CS"], display_fill: false, display_import: false, display_logic: false, display_coop: false, display_meta: false,
                   entrances: {1: {}}, display_entrances: false, entrance_from: {value: "", label: ""}, entrance_to: {value: "", label: ""},
                   boxes: {1: []}, display_boxes: false, boxes_mounted: false, box_fold: false, box_edit: false, box_last: null,
-                  box_show_locked: true, box_selected: null, box_bulk_type: BULK_TYPES[0],
+                  box_show_locked: true, box_selected: null, box_filter: "", box_paste: false,
                   box_rank: {}, box_new_rank: 0, box_colors: box_color_history(), box_width: box_panel_width(),
-                  import_overwrite: false,
+                  import_overwrite: false, draft_offer: null,
                 seed_name: seed_name, last_seed_name: seed_name, seed_desc: seed_desc, user: user};
     }
 
@@ -524,17 +585,21 @@ class PlandoBuiler extends React.Component {
             this.setState({viewport: DEFAULT_VIEWPORT});
         }, 100);
         window.addEventListener("resize", this.fitFileControls)
+        window.addEventListener("pagehide", this.flushDraft)
+        document.addEventListener("visibilitychange", this.flushDraft)
         this.fitFileControls()
-        if(this.state.authed)
-        {
-            let {seedJson} = get_seed();
-            if(seedJson)
-                this.parseSavedSeed(seedJson);
-        } else
-            this.updateReachable();
+        let {seedJson} = get_seed();
+        if(this.state.authed && seedJson)
+            this.parseSavedSeed(seedJson, this.startDrafts);
+        else {
+            if(!this.state.authed)
+                this.updateReachable();
+            this.startDrafts()
+        }
     };
 
     componentDidUpdate(prevProps, prevState) {
+        this.draftChanged()
         this.fitFileControls()
         if(prevState.display_boxes !== this.state.display_boxes)
             this.followWidth()
@@ -561,7 +626,114 @@ class PlandoBuiler extends React.Component {
         step()
     }
 
-    componentWillUnmount() { window.removeEventListener("resize", this.fitFileControls) }
+    componentWillUnmount() {
+        window.removeEventListener("resize", this.fitFileControls)
+        window.removeEventListener("pagehide", this.flushDraft)
+        document.removeEventListener("visibilitychange", this.flushDraft)
+        this.flushDraft()
+    }
+
+    // Unsaved edits live in a local draft, never in the saved plando. It is compared against the plando
+    // as it loaded (draftBase), and while an offer to restore one is up (draftHold) nothing is written.
+    draftHold = true;
+    draftTab = Math.random().toString(36).slice(2);
+    // what a save keeps; the coop mode and share types reach the server only as flags
+    snapshot = () => { let {oldName, sharedMode, shareTypes, ...data} = this.getUploadData(); return data };
+    draftKey = () => draft_key(this.state.user, this.state.last_seed_name);
+    startDrafts = () => {
+        this.draftBase = JSON.stringify(this.snapshot())
+        let stored = read_draft(local_storage(), this.draftKey())
+        let offer = draft_offer(stored, this.draftBase)
+        if(offer) {
+            this.setState({draft_offer: offer})
+            return
+        }
+        if(stored)
+            remove_draft(local_storage(), this.draftKey())
+        this.draftHold = false
+    };
+    draftChanged = () => {
+        let now = Date.now()
+        this.draftSince = this.draftSince || now
+        clearTimeout(this.draftTimer)
+        this.draftTimer = setTimeout(this.writeDraft, Math.max(0, Math.min(DRAFT_WAIT_MS, this.draftSince + DRAFT_MAX_WAIT_MS - now)))
+    };
+    writeDraft = () => {
+        clearTimeout(this.draftTimer)
+        this.draftTimer = this.draftSince = null
+        if(this.draftHold) {
+            // an edit while a restore is offered turns it down: this version is the one being worked on
+            if(this.state.draft_offer && JSON.stringify(this.snapshot()) !== this.draftBase)
+                this.dropDraftOffer()
+            return
+        }
+        let data = this.snapshot(), text = JSON.stringify(data), key = this.draftKey()
+        if(text === this.draftLast)
+            return
+        this.draftLast = text
+        if(text === this.draftBase) {
+            // back to what was saved; a draft another tab wrote is theirs to keep
+            let stored = read_draft(local_storage(), key)
+            if(stored && stored.tab === this.draftTab)
+                remove_draft(local_storage(), key)
+            return
+        }
+        let wrote = write_draft(local_storage(), key, {v: 1, at: Date.now(), tab: this.draftTab, base: draft_hash(this.draftBase), data: data})
+        if(wrote !== "ok")
+            this.draftLast = null
+        if(wrote === "full" && !this.draftFull) {
+            this.draftFull = true
+            NotificationManager.warning("Browser storage is full, so unsaved changes can't be backed up. Save to keep them.", "No backup", 10000)
+        }
+    };
+    // a reload or a closed tab doesn't wait out the debounce
+    flushDraft = () => {
+        if(this.draftTimer)
+            this.writeDraft()
+    };
+    restoreDraft = () => {
+        let key = this.draftKey(), stored = read_draft(local_storage(), key)
+        if(!stored) {
+            NotificationManager.info("Another tab saved or discarded those changes.", "Nothing to restore", 5000)
+            this.dropDraftOffer()
+            return
+        }
+        let d = stored.data
+        this.loadSeed({placements: d.placements || [], boxes: d.boxes || [], flagline: d.flagLine || ""}, true, () => {
+            this.setState({seed_name: typeof d.name === "string" ? d.name : this.state.seed_name, seed_desc: d.desc || "", hidden: !!d.hidden,
+                           draft_offer: null}, () => {
+                this.selectPickup(this.state.pickup, false)
+                // this tab carries the draft on from here
+                write_draft(local_storage(), key, {...stored, tab: this.draftTab})
+                this.draftLast = JSON.stringify(stored.data)
+                this.draftHold = false
+                this.draftChanged()
+            })
+        })
+    };
+    discardDraft = () => {
+        remove_draft(local_storage(), this.draftKey())
+        this.dropDraftOffer()
+    };
+    dropDraftOffer = () => this.setState({draft_offer: null}, () => {
+        this.draftHold = false
+        this.draftLast = null
+        this.writeDraft()
+    });
+    // saved: the snapshot that was sent, key: the draft's key when it was
+    draftSaved = (saved, key) => {
+        if(draft_saved(read_draft(local_storage(), key), saved, this.draftTab))
+            remove_draft(local_storage(), key)
+        this.draftBase = saved
+        this.draftLast = null
+        // a save turns down a restore offer too, and its draft with it
+        if(this.state.draft_offer) {
+            remove_draft(local_storage(), key)
+            this.dropDraftOffer()
+            return
+        }
+        this.writeDraft()
+    };
 
     // compact the row only when it overflows at full size; a class toggle doesn't
     // re-render, so this can't loop
@@ -779,9 +951,11 @@ class PlandoBuiler extends React.Component {
     }
 
 
-    parseSavedSeed = (seedJson) => {
+    parseSavedSeed = (seedJson, then) => this.loadSeed(JSON.parse(he.decode(seedJson)), false, then)
+
+    // A seed as the server stores it. fresh: replace the seed flags and coop settings rather than add to them.
+    loadSeed = (seedData, fresh, then) => {
         let newClueOrder = []
-        let seedData = JSON.parse(he.decode(seedJson))
         let placements = {}
         let newEntrances = {}
         seedData['placements'].forEach(placement => {
@@ -812,11 +986,21 @@ class PlandoBuiler extends React.Component {
                     this.setState({stuff: stuff_obj});
             })
         })
-        this.parseFlagLine(seedData['flagline'])
+        this.parseFlagLine(seedData['flagline'], fresh)
         Object.values(newEntrances).forEach(set => this.enforceR1(set))
         let retVal = {}
         retVal.placements = placements;
         retVal.entrances = newEntrances;
+        if(fresh) {
+            if(!placements.hasOwnProperty(this.state.player))
+                retVal.player = Object.keys(placements)[0] || 1
+            // the box ids are all new
+            retVal.box_selected = retVal.box_last = null
+        }
+        // the world on show always has a placements map, if an empty one
+        let shown = retVal.player || this.state.player
+        if(!placements.hasOwnProperty(shown))
+            placements[shown] = {}
         let boxes = {}
         ;(seedData['boxes'] || []).forEach(entry => {
             let box = parse_box_line(entry['line'])
@@ -836,19 +1020,23 @@ class PlandoBuiler extends React.Component {
             .forEach(({b}, r) => { retVal.box_rank[b._id] = r }))
         if(newClueOrder.length === 3)
             retVal.clueOrder = {value: newClueOrder, label: mkClueOrderLabel(newClueOrder)};
-        this.setState(retVal, () => this.updateReachable());
+        this.setState(retVal, () => {
+            this.updateReachable()
+            if(then)
+                then()
+        });
     }
 
-    parseFlagLine = (flagLine) => {
-        let seedFlags = this.state.seedFlags.map(f => f.value)
-        let coop_mode = this.state.coop_mode
+    parseFlagLine = (flagLine, fresh) => {
+        let seedFlags = fresh ? [] : this.state.seedFlags.map(f => f.value)
+        let coop_mode = fresh ? {label: "Solo", value: "None"} : this.state.coop_mode
         let share_types = this.state.share_types
         let display_coop = this.state.display_coop
         let [flags,seed_name] = flagLine.split("|")
         if(this.state.seed_name) // don't overwrite name on upload
             seed_name = this.state.seed_name
         flags.split(",").forEach((flag) => {
-            if(/^Sync\d+\.\d+$/.test(flag)) // tracking header from an imported tracked seed, not a real flag
+            if(!flag || /^Sync\d+\.\d+$/.test(flag)) // no flags at all, or a tracked seed's tracking header
                 return
             if(flag.startsWith("mode="))
             {
@@ -1102,19 +1290,22 @@ class PlandoBuiler extends React.Component {
     }
 
 
+    // the name and draft key as sent, since either can change before the answer comes
     saveSeed = () => {
-        uploadSeed(this.getUploadData(), this.saveCallback)
+        let data = this.getUploadData()
+        let sent = {name: data.name, snapshot: JSON.stringify(this.snapshot()), key: this.draftKey()}
+        uploadSeed(data, (statusCode) => this.saveCallback(statusCode, sent))
     }
 
-    saveCallback = (statusCode) => {
+    saveCallback = (statusCode, sent) => {
         if(statusCode === 200)
         {
-            if(this.state.last_seed_name !== this.state.seed_name)
+            if(this.state.last_seed_name !== sent.name)
             {
-                let [url, title] = [window.document.URL, window.document.title].map(s => s.replace(this.state.last_seed_name, this.state.seed_name))
+                let [url, title] = [window.document.URL, window.document.title].map(s => s.replace(this.state.last_seed_name, sent.name))
                 window.history.replaceState('',title, url);
-                this.setState({last_seed_name: this.state.seed_name})
             }
+            this.setState({last_seed_name: sent.name}, () => this.draftSaved(sent.snapshot, sent.key))
             NotificationManager.success("Seed saved", "Success!", 2500);
         }
         else if(statusCode === 404)
@@ -1296,13 +1487,46 @@ class PlandoBuiler extends React.Component {
                 box_new_rank: prev.box_new_rank - 1,
                 box_selected: box._id,
                 box_last: box._id,
+                // or the new box could be filtered out of the list it was added to
+                box_filter: "",
             }
         })
         this.setDrawer(true)
     };
-    // one pass, so a bulk lock is a single render rather than one per box
-    bulkMatch = (b) => this.state.box_bulk_type.value === "all" || box_has_flag(b, this.state.box_bulk_type.value);
-    bulkLock = (lock) => () => this.setBoxes(this.curBoxes().map(b => this.bulkMatch(b) ? {...b, locked: lock} : b));
+    // a give's name only depends on the give, and the search asks for every box's on every keystroke
+    giveNames = {};
+    giveName = (give) => {
+        if(!this.giveNames.hasOwnProperty(give)) {
+            try { this.giveNames[give] = name_from_str(give) } catch(e) { this.giveNames[give] = "" }
+        }
+        return this.giveNames[give]
+    };
+    boxMatch = () => box_search(this.state.box_filter, this.giveName);
+    setBoxFilter = (ev) => this.setState({box_filter: ev.target.value});
+    clearBoxFilter = () => this.setState({box_filter: ""});
+    boxFilterKey = (ev) => { if(ev.key === "Escape") this.clearBoxFilter() };
+    // one pass over what the search matches, so a bulk lock is a single render rather than one per box
+    bulkLock = (lock) => {
+        let match = this.boxMatch()
+        this.setBoxes(this.curBoxes().map(b => !is_box_gone(b) && !!b.locked !== lock && (!match || match(b)) ? {...b, locked: lock} : b))
+    };
+    lockAll = () => this.bulkLock(true);
+    unlockAll = () => this.bulkLock(false);
+    openPaste = () => this.setState({box_paste: true});
+    closePaste = () => this.setState({box_paste: false});
+    // pasted boxes are listed first, in the order they were pasted
+    pasteBoxes = (pasted, replace) => {
+        let mine = this.curBoxes()
+        let out = paste_boxes(mine, pasted, replace)
+        let fresh = replace ? out.boxes : out.boxes.slice(mine.length)
+        this.setState(prev => {
+            let rank = {...prev.box_rank}
+            fresh.forEach((b, k) => { rank[b._id] = prev.box_new_rank - fresh.length + k })
+            return {boxes: {...prev.boxes, [prev.player]: out.boxes}, box_rank: rank, box_new_rank: prev.box_new_rank - fresh.length,
+                    box_filter: "", box_paste: false, ...(replace ? {box_selected: null, box_last: null} : {})}
+        })
+        NotificationManager.success(replace ? `Replaced with ${plural(out.added, "box")}` : `${plural(out.added, "box")} added`, "Pasted", 2500)
+    };
     // every world's deleted boxes out and every BM|n renumbered, or nothing at all if a reference is off
     compactBoxes = () => {
         let {placements, boxes, player, pickup} = this.state
@@ -1358,14 +1582,19 @@ class PlandoBuiler extends React.Component {
         let p = ev.latlng, best = null
         this.curBoxes().forEach(b => {
             let [x1, y1, x2, y2] = b.box
-            if(p.lng < Math.min(x1, x2) || p.lng > Math.max(x1, x2) || p.lat < Math.min(y1, y2) || p.lat > Math.max(y1, y2))
+            if(is_box_gone(b) || p.lng < Math.min(x1, x2) || p.lng > Math.max(x1, x2) || p.lat < Math.min(y1, y2) || p.lat > Math.max(y1, y2))
                 return
             let rank = [b.locked ? 1 : 0, Math.abs(x2 - x1) * Math.abs(y2 - y1)]
             if(!best || rank[0] < best.rank[0] || (rank[0] === best.rank[0] && rank[1] < best.rank[1]))
-                best = {id: b._id, rank: rank}
+                best = {id: b._id, rank: rank, b: b}
         })
-        if(best)
-            this.selectBox(best.id, true)
+        if(!best)
+            return
+        // a box the search hides gets its row back
+        let match = this.boxMatch()
+        if(match && !match(best.b))
+            this.setState({box_filter: ""})
+        this.selectBox(best.id, true)
     };
     // Dragging a box moves it, with the map's own drag off for the duration; the
     // numbers are rounded when the mouse lets go.
@@ -1521,8 +1750,11 @@ class PlandoBuiler extends React.Component {
         const box_rank = (b) => this.state.box_rank[b._id] !== undefined ? this.state.box_rank[b._id] : Number.MAX_SAFE_INTEGER
         const all_boxes = this.curBoxes().map((b, i) => ({b, i})).filter(({b}) => !is_box_gone(b))
                               .sort((x, y) => box_rank(x.b) - box_rank(y.b))
-        const listed_boxes = all_boxes.filter(({b}) => box_show_locked || !b.locked)
-        const box_faded = (b) => b.locked && !box_show_locked
+        const box_match = this.boxMatch()
+        const matched = box_match ? new Set(all_boxes.filter(({b}) => box_match(b)).map(({b}) => b._id)) : null
+        const box_matches = (b) => !matched || matched.has(b._id)
+        const listed_boxes = all_boxes.filter(({b}) => (box_show_locked || !b.locked) && box_matches(b))
+        const box_faded = (b) => (b.locked && !box_show_locked) || !box_matches(b)
         // a box set invisible in game still draws here, faint and underneath
         const box_dim = box_hidden
         const box_rect = ({b, i}) => (
@@ -1530,7 +1762,7 @@ class PlandoBuiler extends React.Component {
                      dim={box_dim(b)} edit={box_edit} onSelect={this.selectBoxAt} onDragStart={this.startBoxDrag}/>
         )
         // handles live in the marker pane, above everything, so they stay grabbable
-        const box_handles = all_boxes.filter(({b}) => box_edit && !b.locked).map(({b, i}) => {
+        const box_handles = all_boxes.filter(({b}) => box_edit && !b.locked && box_matches(b)).map(({b, i}) => {
             let selected = b._id === box_selected
             let xs = [b.box[0], b.box[2], b.box[2], b.box[0]], ys = [b.box[1], b.box[1], b.box[3], b.box[3]]
             return [0, 1, 2, 3].map(k => (
@@ -1541,10 +1773,8 @@ class PlandoBuiler extends React.Component {
         const box_count = listed_boxes.length === all_boxes.length ? `${all_boxes.length}` : `${listed_boxes.length}/${all_boxes.length}`
         // a trailing deleted box is never written, so only one with a live box after it is a hole
         const box_holes = display_boxes && Object.keys(this.state.boxes).some(p => this.boxLines(p).some(is_box_gone))
-        // The verb is whichever one has anything left to do. every() on nothing is true,
-        // so an empty match has to be spelled out or it offers to unlock what isn't there.
-        const bulk_targets = this.curBoxes().filter(b => !is_box_gone(b) && this.bulkMatch(b))
-        const bulk_locking = !bulk_targets.length || !bulk_targets.every(b => b.locked)
+        const to_lock = all_boxes.filter(({b}) => !b.locked && box_matches(b)).length
+        const to_unlock = all_boxes.filter(({b}) => b.locked && box_matches(b)).length
         const zone_opts = zones.map(zone => ({label: zone, value: zone}))
         const pickups_opts = picks_by_zone[this.state.zone].map(pick => ({label: locLabel(pick),value: pick}) )
         let clue_order_picker = seedFlags.map(f => f.value).includes("Clues") ? (
@@ -1570,6 +1800,9 @@ class PlandoBuiler extends React.Component {
         return (
             <div className="wrapper">
                 <NotificationContainer/>
+                <BoxPaste isOpen={this.state.box_paste} current={this.curBoxes()} count={all_boxes.length}
+                          title={`Paste BX lines${Object.keys(this.state.placements).length > 1 ? ` for Player ${this.state.player}` : ""}`}
+                          onApply={this.pasteBoxes} onClose={this.closePaste}/>
                 <Helmet>
                     <style>{'body { background-color: black}'}</style>
                     <link rel="stylesheet" href="https://gitcdn.github.io/bootstrap-toggle/2.2.2/css/bootstrap-toggle.min.css"/>
@@ -1603,6 +1836,18 @@ class PlandoBuiler extends React.Component {
                          title="Drag to resize. Double-click for the default width."/>
                 ) : null}
                 {alert}
+                {this.state.draft_offer ? (
+                    <Alert color="info" className="draft-offer">
+                        <span>
+                            Restore unsaved changes from {time_ago(this.state.draft_offer.at, Date.now())}?
+                            {this.state.draft_offer.saved_since ? " The plando has been saved since." : ""}
+                        </span>
+                        <span className="draft-offer-buttons">
+                            <Button size="sm" color="primary" onClick={this.restoreDraft}>Restore</Button>
+                            <Button size="sm" color="secondary" onClick={this.discardDraft}>Discard</Button>
+                        </span>
+                    </Alert>
+                ) : null}
                     <div id="file-controls" ref={el => this.fileControls = el}>
                         <Button color="primary" onClick={this.toggleImport} >Import</Button>
                         {fill_button}
@@ -1847,17 +2092,28 @@ class PlandoBuiler extends React.Component {
                                     title={box_holes ? "Close the gaps deleted boxes leave, in every world, and renumber each BM|n to match" : "No deleted boxes to clear out"}>
                                 Compact
                             </Button>
-                            {all_boxes.length >= BULK_LOCK_MIN ? (
-                                <React.Fragment>
-                                    <Button color="secondary" disabled={!bulk_targets.length} onClick={this.bulkLock(bulk_locking)}
-                                            title={`${bulk_locking ? "Lock" : "Unlock"} every ${this.state.box_bulk_type.value === "all" ? "" : this.state.box_bulk_type.label + " "}box in this world`}>
-                                        {bulk_locking ? "Lock" : "Unlock"} {this.state.box_bulk_type.label} boxes
-                                    </Button>
-                                    <Select styles={select_styles} className="box-bulk-type" options={BULK_TYPES} clearable={false}
-                                            value={this.state.box_bulk_type} onChange={(n) => this.setState({box_bulk_type: n})}/>
-                                </React.Fragment>
-                            ) : null}
+                            <Button color="secondary" onClick={this.openPaste} title="Add boxes from BX lines">Paste BX lines</Button>
                         </div>
+                        {all_boxes.length ? (
+                            <div className="box-bulk">
+                                <InputGroup className="box-filter">
+                                    <InputGroupAddon addonType="prepend"><InputGroupText><FaSearch/></InputGroupText></InputGroupAddon>
+                                    <Input type="text" placeholder="filter by item or flag" value={this.state.box_filter}
+                                           onChange={this.setBoxFilter} onKeyDown={this.boxFilterKey}/>
+                                    {this.state.box_filter ? (
+                                        <InputGroupAddon addonType="append">
+                                            <Button color="secondary" title="Clear the filter" onClick={this.clearBoxFilter}>&times;</Button>
+                                        </InputGroupAddon>
+                                    ) : null}
+                                </InputGroup>
+                                <Button color="secondary" disabled={!to_lock} onClick={this.lockAll} title={`Locks ${plural(to_lock, "box")}`}>
+                                    <FaLock/> {box_match ? "Lock matches" : "Lock all"}
+                                </Button>
+                                <Button color="secondary" disabled={!to_unlock} onClick={this.unlockAll} title={`Unlocks ${plural(to_unlock, "box")}`}>
+                                    <FaLockOpen/> {box_match ? "Unlock matches" : "Unlock all"}
+                                </Button>
+                            </div>
+                        ) : null}
                         <datalist id="box-color-history">
                             {this.state.box_colors.map(c => <option key={c} value={c}/>)}
                         </datalist>
@@ -1876,6 +2132,7 @@ class PlandoBuiler extends React.Component {
                                         onRegister={this.registerBoxRow} onSelect={this.selectBoxRow} onRemove={this.removeBox}
                                         onUpdate={this.updateBox} onColor={this.pickBoxColor}/>
                             ))}
+                            {matched && !matched.size ? <div className="box-list-empty">No boxes match.</div> : null}
                         </div>
                     </div>
                     ) : null}

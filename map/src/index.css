@@ -63,6 +63,20 @@ body, #root {
   padding-right: 8px;
 }
 
+/* the restore offer: the question, its two answers at the end of the line or under it */
+.draft-offer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+
+.draft-offer-buttons {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
 #import-seed-area{
   margin-bottom: 16px;
 }
@@ -382,7 +396,6 @@ body, #root {
   margin-left: auto;
 }
 
-/* the four base controls fit one line; the bulk pair deliberately wraps to a second */
 #box-controls .box-buttons {
   display: flex;
   align-items: center;
@@ -390,12 +403,61 @@ body, #root {
   gap: 4px;
 }
 
-#box-controls .box-bulk-type {
-  width: 112px;
+#box-controls .box-buttons .btn,
+#box-controls .box-bulk .btn {
+  white-space: nowrap;
 }
 
-#box-controls .box-buttons .btn {
+/* the filter takes the slack beside the lock pair */
+#box-controls .box-bulk {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+#box-controls .box-filter {
+  flex: 1;
+  width: auto;
+  min-width: 120px;
+}
+
+#box-controls .box-list-empty {
+  padding: 8px 6px;
+  color: #888;
+}
+
+/* pasted lines as written, one to a row */
+.box-paste .box-paste-text {
+  font-family: monospace;
+  font-size: 12px;
+  white-space: pre;
+}
+
+.box-paste .box-paste-mode {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.box-paste .box-paste-summary {
+  font-size: 13px;
+  opacity: 0.8;
+}
+
+.box-paste .box-paste-bad {
+  margin-top: 8px;
+  color: var(--warning);
+  font-size: 13px;
+}
+
+.box-paste .box-paste-bad code {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
+  color: inherit;
 }
 
 #box-controls .box-help {

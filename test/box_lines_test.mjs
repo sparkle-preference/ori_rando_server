@@ -2,7 +2,8 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 import {parse_box_line, box_line, is_box_gone, box_hidden, box_color, box_flag_ok, box_flag_warning, box_flag_choices,
-    box_flags_from_chips, box_has_flag, describe_flag, flag_completions, flag_menu, new_box, BOX_COLORS, compact_boxes} from "../map/src/boxes.js"
+    box_flags_from_chips, box_has_flag, describe_flag, flag_completions, flag_menu, new_box, BOX_COLORS, compact_boxes,
+    parse_box_paste, paste_boxes, box_search} from "../map/src/boxes.js"
 
 const model = (b) => ({flags: b.flags, box: b.box, color: b.color, give: b.give})
 const parsed = (line) => model(parse_box_line(line))
@@ -297,4 +298,90 @@ test("compacting twice changes nothing the second time", () => {
     assert.deepEqual(lines_of(second), lines_of(first))
     assert.deepEqual(second.pickups, first.pickups)
     assert.deepEqual(second.renumber, {1: {0: 0, 1: 1, 2: 2}})
+})
+
+const NAMES = {"SK|0": "Bash", "BS|*": "Random bonus skill", "HC|1": "Health Cell", "EX|15": "15 Experience", "SH|kill it": 'Print "kill it"'}
+const give_name = (give) => NAMES[give] || give
+const found = (text, ...lines) => {
+    let test = box_search(text, give_name)
+    return lines.map(parse_box_line).filter(test).map(box_line)
+}
+const SEARCHED = ["BX|kill|0,0,1,1", "BX|item|1,0,2,1||BS|*", "BX|ritem,once|2,0,3,1||HC|1", "BX|once,Kill,solid|3,0,4,1||SK|0",
+                  "BX|damage=1/Lava|4,0,5,1||EX|15", "BX|unsafe|5,0,6,1|808080|SH|kill it"]
+
+test("an empty search is no filter", () => {
+    for(let text of ["", "   ", null, undefined])
+        assert.equal(box_search(text, give_name), null, String(text))
+})
+
+test("the search finds flags, a give's name and a give as written, in any case", () => {
+    assert.deepEqual(found("KILL", ...SEARCHED), [SEARCHED[0], SEARCHED[3], SEARCHED[5]])
+    assert.deepEqual(found("bash", ...SEARCHED), [SEARCHED[3]])
+    assert.deepEqual(found("sk|0", ...SEARCHED), [SEARCHED[3]])
+    assert.deepEqual(found("health", ...SEARCHED), [SEARCHED[2]])
+    assert.deepEqual(found("lava", ...SEARCHED), [SEARCHED[4]])
+    assert.deepEqual(found("damage=1", ...SEARCHED), [SEARCHED[4]])
+    assert.deepEqual(found("experience", ...SEARCHED), [SEARCHED[4]])
+})
+
+test("a searched word starts a word, so a preset name doesn't find a longer one", () => {
+    assert.deepEqual(found("item", ...SEARCHED), [SEARCHED[1]])
+    assert.deepEqual(found("ritem", ...SEARCHED), [SEARCHED[2]])
+    assert.deepEqual(found("skill", ...SEARCHED), [SEARCHED[1]])
+    assert.deepEqual(found("ill", ...SEARCHED), [])
+    // punctuation first matches anywhere
+    assert.deepEqual(found("=1", ...SEARCHED), [SEARCHED[4]])
+})
+
+test("every word has to match, in any field", () => {
+    assert.deepEqual(found("kill once", ...SEARCHED), [SEARCHED[3]])
+    assert.deepEqual(found("once  health", ...SEARCHED), [SEARCHED[2]])
+    assert.deepEqual(found("kill lava", ...SEARCHED), [])
+})
+
+test("a paste reads its BX lines, counts the others and reports the ones that don't read", () => {
+    let text = ["OpenWorld,Clues|mySeed", "", "BX|kill|1,2,3,4", "   ", "919772|SK|0|Glades", "BX|once,kill|5,6,7,8|ff0000|SK|0",
+                "BX|kill|1,2,3", "bx|kill|1,2,3,4", " BX|solid|9,9,10,10 ", "BX", "-2|MW|1,1,SK,0|Glades"].join("\n")
+    let {boxes, bad, ignored} = parse_box_paste(text)
+    assert.deepEqual(boxes.map(box_line), ["BX|kill|1,2,3,4", "BX|once,kill|5,6,7,8|ff0000|SK|0", "BX|solid|9,9,10,10"])
+    assert.deepEqual(bad, [{line: 7, text: "BX|kill|1,2,3"}, {line: 8, text: "bx|kill|1,2,3,4"}, {line: 10, text: "BX"}])
+    assert.equal(ignored, 3)
+})
+
+test("a paste reads CRLF and lone CR line ends, and nothing is nothing", () => {
+    for(let sep of ["\r\n", "\r", "\n"]) {
+        let {boxes, bad, ignored} = parse_box_paste(["BX|kill|1,2,3,4", "BX|item|1,2,3,4||SK|0", ""].join(sep))
+        assert.deepEqual(boxes.map(box_line), ["BX|kill|1,2,3,4", "BX|item|1,2,3,4||SK|0"], JSON.stringify(sep))
+        assert.equal(bad.length + ignored, 0)
+    }
+    for(let text of ["", "\r\n\r\n", null])
+        assert.deepEqual(parse_box_paste(text), {boxes: [], bad: [], ignored: 0})
+    assert.ok(!is_box_gone(parse_box_paste("﻿BX|kill|1,2,3,4").boxes[0]))
+})
+
+test("appending pasted boxes skips deleted ones and lines the world already has", () => {
+    let mine = world("BX|kill|0,0,1,1", "BX|tombstone|1,0,2,1", "BX|solid|2,0,3,1")
+    let pasted = world("BX|solid|2,0,3,1", "BX|item|5,5,6,6||SK|0", "BX|tombstone|7,7,8,8", "BX|item|5,5,6,6||SK|0",
+                       "BX|kill,tombstone|9,9,10,10")
+    let out = paste_boxes(mine, pasted, false)
+    assert.deepEqual(out.boxes.map(box_line), ["BX|kill|0,0,1,1", "BX|tombstone|0,0,0,0", "BX|solid|2,0,3,1",
+                                               "BX|item|5,5,6,6||SK|0", "BX|item|5,5,6,6||SK|0"])
+    assert.equal(out.boxes[0], mine[0])
+    assert.deepEqual([out.added, out.dupes, out.gone], [2, 1, 2])
+})
+
+test("appending to a world with no boxes keeps the deleted ones, so every number holds", () => {
+    let copied = parse_box_paste("BX|kill|0,0,1,1\nBX|tombstone|0,0,0,0\nBX|item|4,0,5,1||BM|0\n").boxes
+    let out = paste_boxes([], copied, false)
+    assert.deepEqual(out.boxes.map(box_line), ["BX|kill|0,0,1,1", "BX|tombstone|0,0,0,0", "BX|item|4,0,5,1||BM|0"])
+    assert.deepEqual([out.added, out.dupes, out.gone], [2, 0, 1])
+})
+
+test("replacing with a copied list keeps its deleted boxes in place, so every number holds", () => {
+    let mine = world("BX|kill|0,0,1,1", "BX|solid|2,0,3,1")
+    let copied = parse_box_paste("BX|kill|0,0,1,1\nBX|tombstone|1,0,2,1\nBX|item|4,0,5,1||BM|0\n").boxes
+    let swap = paste_boxes(mine, copied, true)
+    assert.deepEqual(swap.boxes.map(box_line), ["BX|kill|0,0,1,1", "BX|tombstone|0,0,0,0", "BX|item|4,0,5,1||BM|0"])
+    assert.ok(is_box_gone(swap.boxes[1]))
+    assert.deepEqual([swap.added, swap.dupes, swap.gone], [2, 0, 1])
 })

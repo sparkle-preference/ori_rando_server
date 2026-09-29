@@ -65,6 +65,60 @@ function box_line(b) {
     return fields.join("|")
 }
 
+// Pasted text as boxes. A line whose first field is BX is a box, or a problem if it doesn't read; other
+// lines (a seed's placements and flag line) are counted and skipped, blank ones silently.
+function parse_box_paste(text) {
+    let boxes = [], bad = [], ignored = 0
+    ;(text || "").split(/\r\n|\r|\n/).forEach((line, k) => {
+        if(!line.trim())
+            return
+        if(line.split("|")[0].trim().toUpperCase() !== "BX") {
+            ignored++
+            return
+        }
+        let box = parse_box_line(line)
+        if(box)
+            boxes.push(box)
+        else
+            bad.push({line: k + 1, text: line.trim()})
+    })
+    return {boxes: boxes, bad: bad, ignored: ignored}
+}
+
+// Pasted boxes in place of a world's own or into an empty one, deleted ones kept so every box keeps its
+// number; or after them, less the deleted ones and the lines the world already has.
+function paste_boxes(current, pasted, replace) {
+    let live = pasted.filter(b => !is_box_gone(b))
+    if(replace || !current.length)
+        return {boxes: [...pasted], added: live.length, dupes: 0, gone: pasted.length - live.length}
+    let known = new Set(current.map(box_line))
+    let fresh = live.filter(b => !known.has(box_line(b)))
+    return {boxes: [...current, ...fresh], added: fresh.length, dupes: live.length - fresh.length, gone: pasted.length - live.length}
+}
+
+const WORDY = /[a-z0-9]/
+// a word typed has to start a word, so "kill" finds a kill box but not a bonus skill
+function starts_a_word(hay, word) {
+    if(!WORDY.test(word[0]))
+        return hay.includes(word)
+    for(let k = hay.indexOf(word); k >= 0; k = hay.indexOf(word, k + 1))
+        if(k === 0 || !WORDY.test(hay[k - 1]))
+            return true
+    return false
+}
+
+// The box list's search, as a test on a box, or null with nothing typed: every word has to turn up in the
+// give's name, the give as written, or the flags, in any case.
+function box_search(text, give_name) {
+    let words = (text || "").toLowerCase().split(/\s+/).filter(w => w)
+    if(!words.length)
+        return null
+    return (b) => {
+        let hay = [b.give ? give_name(b.give) : "", b.give || "", b.flags || ""].join("\n").toLowerCase()
+        return words.every(w => starts_a_word(hay, w))
+    }
+}
+
 // the game lets each preset flag set the color in turn, so the last one shows
 function box_color(b) {
     let m = HEX_COLOR.exec(b.color || "")
@@ -297,5 +351,5 @@ function compact_boxes(worlds, pickups) {
 export {
     BOX_PRESETS, BOX_COLORS, BOX_TOMBSTONE, is_box_gone, box_hidden, new_box, box_flags, box_has_flag, box_flags_from_chips,
     parse_box_line, box_line, box_color, box_flag_ok, box_flag_warning, describe_flag, flag_completions, flag_menu, box_flag_choices, BOXES_TXT,
-    compact_boxes
+    compact_boxes, parse_box_paste, paste_boxes, box_search
 };
