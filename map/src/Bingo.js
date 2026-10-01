@@ -1081,7 +1081,9 @@ export default class Bingo extends React.Component {
                 {bingoContent}
                 {eventlog}
                 {links}
-                <SiteFooter/>
+                <Container>
+                    <SiteFooter/>
+                </Container>
             </Container>
         )
     }

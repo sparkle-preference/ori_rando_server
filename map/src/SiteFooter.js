@@ -18,7 +18,7 @@ const LINKS = [
 const SiteFooter = (props) => {
     const disclaimer = (props.hasOwnProperty("hideDisclaim") && props["hideDisclaim"]) ? null : (<div className="justify-content-center text-center align-items-center d-flex w-100 h-100"><small>As of 2026, LLM coding tools are being used to develop and maintain the Ori BF Randomizer.&nbsp;&nbsp;<a href="/aiuse">Learn more here</a>.</small></div>);
     return (
-        <footer style={{maxWidth: '1074px'}} className="site-footer border border-dark p-2 mt-4">
+        <footer style={{maxWidth: '1074px'}} className="site-footer border border-dark p-2 mt-4 mx-auto">
             <Nav className="justify-content-center flex-wrap">
                 {LINKS.map(([Icon, label, href]) => {
                     // a mailto hands off to a mail client, so it must not open a tab

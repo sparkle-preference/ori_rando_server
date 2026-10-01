@@ -290,7 +290,7 @@ class SiteBar extends Component {
         ]
         let myseeds = user ? (<DropdownItem href={"/plando/"+ user}> {user}'s seeds </DropdownItem>) : null
         let settings = this.settingsModal()
-        let navClass = "border border-dark p-2"
+        let navClass = "border border-dark p-2 mx-auto"
         return (
             <Navbar style={{maxWidth: '1074px'}} className={navClass} expand="md">
             {settings}
