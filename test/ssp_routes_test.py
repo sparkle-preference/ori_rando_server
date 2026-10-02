@@ -56,12 +56,13 @@ class _FakeGameKey(object):
     """user.games holds keys; /preset/list and /preset/latest dereference the
     last one."""
 
-    def __init__(self, params="some-params", json=None):
+    def __init__(self, params="some-params", json=None, plando=False):
         payload = dict(json or {})
 
         class _G(object):
             def __init__(self):
                 self.params = params
+                self.is_plando = plando
 
             def fetch_params(self):
                 return self
@@ -256,6 +257,11 @@ class SSPListTestCase(SSPRouteTestCase):
         self.user.games = [_FakeGameKey(params=None)]
         self.assertIs(self.client.get("/preset/list").get_json()["hasLatest"], False)
 
+    def test_plandos_alone_offer_no_last_seed(self):
+        self.logged_in = self.user
+        self.user.games = [_FakeGameKey(plando=True)]
+        self.assertIs(self.client.get("/preset/list").get_json()["hasLatest"], False)
+
     def test_hidden_ones_are_listed_to_their_owner(self):
         self.user.store["secret"] = _FakeSSP(self.user, "secret", hidden=True)
         self.logged_in = self.user
@@ -289,6 +295,13 @@ class LastSeedTestCase(SSPRouteTestCase):
         for output_only in ("seed", "flagLine", "isPlando", "spoilers", "teamStr"):
             self.assertNotIn(output_only, settings)
         self.assertEqual(settings["keyMode"], "Clues")
+
+    def test_a_newer_plando_is_passed_over(self):
+        """A plando has no logic paths; its options would leave the form with none."""
+        self.logged_in = self.user
+        self.user.games = [_FakeGameKey(json={"keyMode": "Shards"}),
+                           _FakeGameKey(plando=True, json={"keyMode": "Clues", "paths": []})]
+        self.assertEqual(self.client.get("/preset/latest").get_json()["settings"]["keyMode"], "Shards")
 
 
 class PresetEditTestCase(SSPRouteTestCase):

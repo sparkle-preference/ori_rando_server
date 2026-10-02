@@ -12,7 +12,7 @@ from flask import Blueprint, redirect, request, url_for
 from archipelago import build_apworld
 from cache import Cache
 from enums import MultiplayerGameType, Variation, presets
-from models import Game, Player, User
+from models import Game, Player, User, last_rolled_game
 from seedbuilder.seedparams import SeedGenParams, seed_failure_reason, seed_mode_problem
 from seedbuilder.vanilla import seedtext as vanilla_seed
 import util
@@ -302,12 +302,9 @@ def _reroll(params):
 @oidc.require_login
 def reroll_seed():
     user = User.get()
-    if not user.games:
-        return text_resp("no games found", 404)
-    game_key = user.games[-1]
-    old_game = game_key.get()
-    if not old_game or not old_game.params:
-        return text_resp("latest game does not have params", 404)
+    old_game = last_rolled_game(user)
+    if not old_game:
+        return text_resp("no rolled seed to reroll", 404)
     new_params, game, err = _reroll(old_game.fetch_params())
     if err:
         return err

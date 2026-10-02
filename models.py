@@ -213,6 +213,19 @@ class HistoryChunk(ndb.Model):
     def key_for(game_key, gid, pid, n):
         return ndb.Key(HistoryChunk, "%s.%s.%s" % (gid, pid, n), parent=game_key)
 
+# how far back Last Seed and /reroll look past plandos for a rolled seed
+LAST_ROLLED_REACH = 20
+
+def last_rolled_game(user):
+    """The user's newest recent game rolled from options, or None. A plando's params are
+    its author's placements, with no logic paths, so they are never options to reuse."""
+    for key in reversed(user.games[-LAST_ROLLED_REACH:]):
+        game = key.get()
+        params = game.fetch_params() if game and game.params else None
+        if params and not params.is_plando:
+            return game
+    return None
+
 class User(ndb.Model):
     @classmethod
     def _get_kind(cls):

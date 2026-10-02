@@ -11,7 +11,7 @@ from flask import Blueprint, redirect, request, url_for
 from google.cloud import ndb
 
 from enums import Variation
-from models import Game, SavedSeedParams, User
+from models import Game, SavedSeedParams, User, last_rolled_game
 from seedbuilder.seedparams import SeedGenParams, seed_mode_problem
 from bingo import bingo_board_url
 from web.extensions import oidc
@@ -211,10 +211,10 @@ def ssp_list():
     rows = sorted(SavedSeedParams.query(SavedSeedParams.owner_key == user.key),
                   key=lambda s: (s.name or "").lower())
     # what /preset/latest and /reroll both need, so a lit button is one that works
-    last = user.games[-1].get() if user.games else None
+    last = last_rolled_game(user)
     # the blob rides along so the page can match a loaded form against a preset
     return json_resp({"owner": user.name,
-                      "hasLatest": bool(last and last.params),
+                      "hasLatest": bool(last),
                       # which preset the page opens on. Naming another one still keeps
                       # Last Seed pickable, and /reroll still has something to reroll
                       "defaultPreset": user.setting("defaultPreset"),
@@ -229,11 +229,9 @@ def ssp_latest():
     user = User.get()
     if not user:
         return text_resp("log in to load your last seed's options", 401)
-    if not user.games:
-        return text_resp("you have no games to take options from", 404)
-    game = user.games[-1].get()
-    if not game or not game.params:
-        return text_resp("your last game has no options to load", 404)
+    game = last_rolled_game(user)
+    if not game:
+        return text_resp("you have no rolled seeds to take options from", 404)
     settings = game.fetch_params().to_json()
     # the page drops these too; a preset never carries a seed or a finished seed's output
     for output_only in ("seed", "flagLine", "isPlando", "spoilers", "teamStr"):
