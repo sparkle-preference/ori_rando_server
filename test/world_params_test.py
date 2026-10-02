@@ -154,6 +154,21 @@ class MixedSharingTestCase(WorldParamsTestCase):
         self.assertIsNone(seed_mode_problem(p))
 
 
+class CasualCoreTestCase(WorldParamsTestCase):
+    """The basic routes are all casual-core, so a seed without it can never finish."""
+
+    def test_a_seed_without_casual_core_is_refused(self):
+        p = base_params()
+        p.logic_paths = [LogicPath.STANDARD_CORE]
+        self.assertEqual(seed_mode_problem(p), "This seed needs the Casual Core logic path.")
+
+    def test_the_world_without_it_is_named(self):
+        p = base_params(players=2, tracking=True, world_settings=[{}, {"paths": ["standard-core"]}])
+        p.sync.enabled = True
+        p.sync.mode = MultiplayerGameType.MULTIWORLD
+        self.assertEqual(seed_mode_problem(p), "World 2 needs the Casual Core logic path.")
+
+
 class PerWorldSeedHeaderTestCase(WorldParamsTestCase):
     """The header a player downloads is their own rulebook: several variations
     have no server-side implementation and exist only as flags on that line."""

@@ -42,10 +42,15 @@ def seed_mode_problem(params):
     cap = player_cap_problem(params)
     if cap:
         return cap
-    for w in range(1, int(getattr(params, "players", 1) or 1) + 1):
+    players = int(getattr(params, "players", 1) or 1)
+    for w in range(1, players + 1):
         view = world_view(params, w)
         if getattr(view, "start", None) in ("Horu", "Ginso") and Variation.CLOSED_DUNGEONS in (getattr(view, "variations", None) or []):
             return "Closed Dungeons can't start in %s." % view.start
+        # the basic routes are all casual-core, so no seed can finish without it
+        paths = getattr(view, "logic_paths", None)
+        if paths is not None and LogicPath.CASUAL_CORE not in paths:
+            return "%s needs the Casual Core logic path." % ("World %d" % w if players > 1 else "This seed")
     ap_mode = getattr(params, "ap_mode", False)
     if ap_mode:
         # ahead of the singleplayer early return: K=1 AP is still an AP seed

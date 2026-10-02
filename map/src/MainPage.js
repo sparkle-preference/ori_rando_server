@@ -360,6 +360,9 @@ const POWER_SKILLS = ["SK|0", "SK|8", "SK|50"]                     // bash, char
 const TELEPORTER_TIERS = [["TP|Grove", "TP|Swamp", "TP|Grotto", "TP|Valley"],
                           ["TP|Forlorn", "TP|Sorrow", "TP|Ginso", "TP|Horu"]]
 const ALL_SKILLS = ["SK|0", "SK|2", "SK|3", "SK|4", "SK|5", "SK|8", "SK|12", "SK|14", "SK|15", "SK|50", GRENADE]
+// casual-core has no off switch here, so settings that lack it (a plando's have no paths) get it back
+const withCasualCore = (paths) => paths.includes("casual-core") ? paths
+                                  : paths.length ? ["casual-core", ...paths] : [...presets["standard"]]
 const optionalPaths = ['casual-dboost', 'standard-core', 'standard-dboost', 'standard-lure', 'standard-abilities', 'expert-core', 'expert-dboost', 'expert-lure', 'expert-abilities', 'dbash', 'master-core', 'master-dboost', 'master-lure', 'master-abilities', 'gjump', 'glitched', 'timed-level', 'insane']
 const varPaths = {"master": ["Starved"]}
 const diffPaths = {"glitched": "Hard", "master": "Hard"}
@@ -1044,6 +1047,11 @@ export default class MainPage extends React.Component {
             this.setState({activeTab: 'multiplayer'})
             return
         }
+        // the Logic Paths tab always shows Casual Core on, so a list without it is a bug, not a choice
+        if(!this.state.paths.includes("casual-core")) {
+            NotificationManager.error("Every seed needs the Casual Core logic path. Pick a Logic Mode to reset the paths.", "Cannot generate seed!", 5000)
+            return
+        }
         let {json, url} = this.paramsJson()
         // what the Seed tab is a seed of; undo compares against it, so take it before json.seed
         this.seedParams = canonSettings(json)
@@ -1111,8 +1119,10 @@ export default class MainPage extends React.Component {
         }
         if(update.keyMode)
             update.keyMode = keyModeFromJson(update.keyMode)
-        if(update.paths)
+        if(update.paths) {
+            update.paths = withCasualCore(update.paths)
             update.pathMode = get_preset(update.paths)
+        }
         if(update.variations) {
             update.goalModes = update.variations.filter(v => GOAL_VARS.includes(v))
             if(update.goalModes.length === 0)
@@ -1458,6 +1468,10 @@ export default class MainPage extends React.Component {
                     metaUpdate.itemPool = getPool(metaUpdate.selectedPool) 
             } else {
                 metaUpdate.itemPool = this.state.itemPool
+            }
+            if(metaUpdate.paths) {
+                metaUpdate.paths = withCasualCore(metaUpdate.paths)
+                metaUpdate.pathMode = get_preset(metaUpdate.paths)
             }
             metaUpdate.seedIsGenerating = false
             metaUpdate.inputPlayerCount = metaUpdate.players
@@ -2985,7 +2999,7 @@ export default class MainPage extends React.Component {
         let worlds = [...prev.worldSettings]
         while(worlds.length < prev.players)
             worlds.push({})
-        worlds[world - 1] = blob ? {...blob} : {}
+        worlds[world - 1] = !blob ? {} : blob.paths ? {...blob, paths: withCasualCore(blob.paths)} : {...blob}
         return {worldSettings: worlds,
                 worldPresets: {...(prev.worldPresets || {}), [world]: {label: label || "", desc: desc || "",
                                                                       text: undefined, bad: false}}}
