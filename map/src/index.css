@@ -764,3 +764,82 @@ body, #root {
 .notification-soft-warning:before {
   content: "";
 }
+
+/* seed tab flags */
+.flag-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.badge.flag-chip {
+  font-size: 100%;
+  font-weight: normal;
+  padding: 4px 8px;
+}
+
+/* when the roomy size would cost a line */
+.flag-chips.tight {
+  gap: 4px;
+}
+
+.flag-chips.tight .badge.flag-chip {
+  font-size: 90%;
+}
+
+.flag-chip-logic {
+  background-color: #2a6fb8;
+  color: #fff;
+}
+
+.flag-chip-key {
+  background-color: #18805a;
+  color: #fff;
+}
+
+.flag-chip-goal {
+  background-color: #5b4fc4;
+  color: #fff;
+}
+
+.flag-chip-items {
+  background-color: #9a3fb0;
+  color: #fff;
+}
+
+.flag-chip-shared {
+  background-color: #127a8a;
+  color: #fff;
+}
+
+.flag-chip-spawn {
+  background-color: #4b6584;
+  color: #fff;
+}
+
+/* a fixed gray: theme grays are too light to carry white text on light skins */
+.flag-chip-plain {
+  background-color: #4a4f55;
+  color: #fff;
+}
+
+.seed-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+/* the first column is a 2-of-12 Col, so the player boxes line up with the labels */
+.player-grid {
+  display: grid;
+  grid-template-columns: 16.6667% auto 1fr;
+  width: 100%;
+}
+
+/* the space between players; padding rather than a gap keeps the flag lines unbroken */
+.player-cell {
+  padding: 2px 0;
+}

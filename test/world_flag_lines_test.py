@@ -72,6 +72,19 @@ class WorldFlagLinesTestCase(NdbCase):
         self.assertEqual(len(generator.world_flag_lines(p)), 4)
 
 
+class WorldSpawnsTestCase(NdbCase):
+    def test_glades_everywhere_says_nothing(self):
+        self.assertIsNone(generator.world_spawns(mw_params([{}, {"keyMode": "Shards"}])))
+
+    def test_each_world_names_its_own_spawn(self):
+        self.assertEqual(generator.world_spawns(mw_params([{}, {"spawn": "Random"}])), ["Glades", "Random"])
+
+    def test_one_world_reads_off_the_seed(self):
+        p = mw_params([])
+        p.players, p.start = 1, "Grotto"
+        self.assertEqual(generator.world_spawns(p), ["Grotto"])
+
+
 class MixedBingoTestCase(NdbCase):
     """Bingo can be on for one world and off for another. Everything that used to
     read the seed's own variations answered world 1 for everybody."""
@@ -139,8 +152,8 @@ class SeedTabBingoTestCase(unittest.TestCase):
                             "map", "src", "MainPage.js")
         with io.open(path, encoding="utf-8") as f:
             page = f.read()
-        got = re.search(r"let playerRows = .*?\n            \}\)", page, re.S)
-        self.assertIsNotNone(got, "playerRows no longer matches the page")
+        got = re.search(r"let downloadFor = .*?\n            \}\n", page, re.S)
+        self.assertIsNotNone(got, "downloadFor no longer matches the page")
         return got.group(0)
 
     def test_the_row_asks_for_its_own_world(self):

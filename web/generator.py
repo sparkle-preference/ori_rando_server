@@ -55,6 +55,9 @@ def gen_seed_from_params():
     lines = world_flag_lines(params)
     if lines:
         resp["flagLines"] = lines
+    spawns = world_spawns(params)
+    if spawns:
+        resp["spawns"] = spawns
     if params.tracking:
         gid, problem = Game.free_gid(param_val("game_id"))
         if problem:
@@ -259,6 +262,13 @@ def world_flag_lines(params):
     return [params.world_params(p).flag_line() for p in range(1, (params.players or 1) + 1)]
 
 
+def world_spawns(params):
+    """Each world's spawn setting for the seed tab, or None when all start in Glades.
+    Kept out of the flag line, which the seed file carries."""
+    spawns = [params.world_params(p).start or "Glades" for p in range(1, (params.players or 1) + 1)]
+    return spawns if any(s != "Glades" for s in spawns) else None
+
+
 @bp.route('/generator/metadata/<param_id>')
 def get_metadata_no_gid(param_id):
     return get_param_metadata(param_id, None)
@@ -273,6 +283,9 @@ def get_param_metadata(param_id, game_id):
     lines = world_flag_lines(params)
     if lines:
         res["flagLines"] = lines
+    spawns = world_spawns(params)
+    if spawns:
+        res["spawns"] = spawns
     if params.tracking and not game_id:
         game = Game.from_params(params)
         res["gameId"] = game.key.id()

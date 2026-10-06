@@ -2,7 +2,7 @@
 import  {DropdownToggle, DropdownMenu, Dropdown, DropdownItem, Nav, NavLink, NavItem, Collapse,  Input, UncontrolledButtonDropdown, Button, 
         Row, FormFeedback, Col, Container, TabContent, TabPane, Modal, ModalHeader, ModalBody, ModalFooter, Media, ButtonGroup,
         InputGroup, InputGroupAddon} from 'reactstrap';
-import { FaCog, FaSave, FaCopy, FaLock, FaPencilAlt, FaUndo, FaRedo } from 'react-icons/fa';
+import { FaBars, FaSave, FaCopy, FaLock, FaPencilAlt, FaUndo, FaRedo } from 'react-icons/fa';
 import {NotificationContainer, NotificationManager} from 'react-notifications';
 
 import 'react-notifications/lib/notifications.css';
@@ -10,11 +10,12 @@ import './index.css';
 
 import {getHelpContent, HelpBox} from "./helpbox.js";
 import {History, HIST_KEYS, HIST_SET} from './history.js';
-import {postNetForm, get_param, spawnKitFor, get_flag, ap_enabled, presets, select_theme, name_from_str, get_preset, player_icons, doNetRequest, get_random_loader, PickupSelect, Cent, dev, randInt, gotoUrl, prng, decompose_pickup, beta_welcome_pending, save_beta_welcome, remember_seed_link} from './common.js';
+import {postNetForm, get_param, spawnKitFor, get_flag, ap_enabled, presets, select_theme, name_from_str, get_preset, player_icons, doNetRequest, get_random_loader, PickupSelect, Cent, dev, randInt, gotoUrl, prng, decompose_pickup, beta_welcome_pending, save_beta_welcome, remember_seed_link, GOAL_VARS} from './common.js';
 import SiteBar from "./SiteBar.js";
 import SiteFooter from "./SiteFooter.js";
 import Select from 'react-select';
 import {picks_by_zone, select_styles} from './shared_map';
+import {flagChip, FlagChips} from './flagchips.js';
 
 
 const zonesInOrder = ['Glades', 'Blackroot', 'Grove', 'Grotto', 'Ginso', 'Swamp', 'Valley', 'Misty', 'Forlorn', 'Sorrow', 'Horu'];
@@ -68,10 +69,6 @@ const fassDefaultsFor = (world) => [SPAWN_LOC, 919772].map(coords => ({loc: locO
 const spawnFassSet = (fassList, world) => (fassList || []).some(
     f => f.loc && f.loc.value === SPAWN_LOC && f.item !== "NO|1" && (f.world || 1) === (world || 1));
 const apDefaultExport = ["skills", "teleporters", "events"];
-const GOAL_VARS = ["ForceTrees", "WorldTour", "ForceMaps", "WarmthFrags", "Bingo"];
-// flags describing the game rather than a world; the rest ride on a world's row
-const seedWideFlag = (flag) => flag === "DeathLink" ||
-    ["share=", "mode=", "anti_bk_bias="].some(p => flag.startsWith(p));
 // a preset describes one world, so a load drops the lobby. Mirrors SSP_DENY.
 const SSP_LOBBY_KEYS = ["players", "playerNames", "coopGenMode", "coopGameMode", "dedupShared",
                         "antiBkBias", "syncShared", "shared", "teams", "apMode", "apExport", "apDeathLink",
@@ -377,9 +374,9 @@ Object.keys(disabledPaths).forEach(v => disabledPaths[v].forEach(path => revDisa
 
 
 export default class MainPage extends React.Component {
-    helpEnter = (category, option, timeout=250, extra) => () => {clearTimeout(this.state.helpTimeout) ; this.setState({helpTimeout: setTimeout(this.help(category, option, extra), timeout)})}
-    helpLeave = () => clearTimeout(this.state.helpTimeout) 
-    help = (category, option, extra) => () => this.setState({helpcat: category, helpopt: option, helpParams: {...getHelpContent(category, option), ...extra}})
+    helpEnter = (category, option, timeout=250, extra, whose) => () => {clearTimeout(this.state.helpTimeout) ; this.setState({helpTimeout: setTimeout(this.help(category, option, extra, whose), timeout)})}
+    helpLeave = () => clearTimeout(this.state.helpTimeout)
+    help = (category, option, extra, whose) => () => this.setState({helpcat: category, helpopt: option, helpParams: {...getHelpContent(category, option, whose), ...extra}})
     
 
     // an emptied number box parses to NaN
@@ -1498,6 +1495,7 @@ export default class MainPage extends React.Component {
                 metaUpdate.apExport = [...apDefaultExport]
             metaUpdate.apDeathLink = metaUpdate.apDeathLink || false
             metaUpdate.inputApMode = metaUpdate.apMode || false
+            metaUpdate.spawns = metaUpdate.spawns || []
             dev && console.log(metaUpdate)
             // the form now is the seed's own settings, whatever this session did before
             this.setState(metaUpdate, () => {
@@ -1516,6 +1514,8 @@ export default class MainPage extends React.Component {
             url.searchParams.set("param_id", paramId);
             if(gameId && gameId > 0)
                 url.searchParams.set("game_id", gameId);
+            else
+                url.searchParams.delete("game_id");
         }
         if(url.searchParams.has("fromBingo"))
             url.searchParams.delete("fromBingo")
@@ -1563,7 +1563,7 @@ export default class MainPage extends React.Component {
                 this.helpEnter("general", "seedBuilt" + this.multi())()
             this.setState({
                 paramId: res.paramId, seedIsGenerating: false, inputPlayerCount: res.playerCount, inputSeed: res.seed,
-                flagLine: res.flagLine, flagLines: res.flagLines || [],
+                flagLine: res.flagLine, flagLines: res.flagLines || [], spawns: res.spawns || [],
                 gameId: res.gameId, seedIsBingo: res.doBingoRedirect || false,
                 inputApMode: this.apAvailable() && this.state.apMode
             }, this.updateUrl)
@@ -1612,17 +1612,26 @@ export default class MainPage extends React.Component {
             let raw = flagLine.split('|');
             let seedStr = raw.pop();
             let flags = raw.join("").split(",");
-            let flagCol = (flag, where) => (<Col key={`flag-${where}-${flag}`} xs="auto" className="text-center" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("flags", flag)}><span className="ml-auto mr-auto align-middle">{flag}</span></Col>)
-            // when the worlds disagree, what they share moves up top and each row
-            // keeps only its own differences; when they agree nothing moves
+            let single = inputPlayerCount <= 1
+            let playerName = (p) => (this.state.playerNames || [])[p - 1] || `Player ${p}`
+            // spawn is a chip but not a flag: the seed file doesn't carry it
+            let spawns = this.state.spawns || []
+            let withSpawn = (fs, p) => spawns[p - 1] && spawns[p - 1] !== "Glades" ? fs.concat("spawn=" + spawns[p - 1]) : fs
+            let flagChips = (fs, where, whose, label) => {
+                let chips = fs.filter(f => f).map(flag => ({flag, ...flagChip(flag)})).sort((a, b) => a.rank - b.rank)
+                let spans = chips.map(({flag, label, cls}) => (
+                    <span key={`flag-${where}-${flag}`} className={`badge flag-chip ${cls}`} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("flags", flag, 250, undefined, whose)}>{label}</span>
+                ))
+                return label ? [<span key="label">{label}</span>, ...spans] : spans
+            }
+            // when the worlds disagree, what they share goes up top and each row
+            // keeps only its own differences; when they agree it all goes up top
             let perWorld = (this.state.flagLines || []).map(l => l.split('|').slice(0, -1).join("").split(","))
+            if(spawns.length > 1)
+                perWorld = spawns.map((_, i) => withSpawn(perWorld[i] || flags, i + 1))
+            flags = withSpawn(flags, 1)
             let mixed = perWorld.length > 1 && new Set(perWorld.map(f => f.join(","))).size > 1
-            let common = mixed ? perWorld.reduce((acc, f) => acc.filter(x => f.includes(x)), perWorld[0]) : []
-            let flagCols = (mixed ? common : flags.filter(seedWideFlag)).map(f => flagCol(f, "seed"))
-            let worldFlagCols = flags.filter(f => !seedWideFlag(f)).map(f => flagCol(f, "world"))
-            let worldFlagColsFor = (p) => mixed
-                ? perWorld[p - 1].filter(f => !common.includes(f)).map(f => flagCol(f, `w${p}`))
-                : worldFlagCols
+            let common = mixed ? perWorld.reduce((acc, f) => acc.filter(x => f.includes(x)), perWorld[0]) : flags
             // bingo is per world, so each row asks its own flags rather than the seed's
             let worldIsBingo = (p) => perWorld[p - 1] ? perWorld[p - 1].includes("Bingo") : seedIsBingo
             let is_race = flags.includes("Race");
@@ -1630,9 +1639,8 @@ export default class MainPage extends React.Component {
                 return null;
             }
             let mapUrl = "/tracker/game/"+gameId+"/map";
-            
-            let playerRows = [...Array(inputPlayerCount).keys()].map(p => {
-                p++;
+
+            let downloadFor = (p) => {
                 let seedParams = [];
                 if(gameId > 0)
                     seedParams.push(`game_id=${gameId}`)
@@ -1663,109 +1671,112 @@ export default class MainPage extends React.Component {
                 // the bingo row's button opens a board, not a seed
                 let noteSeedLink = (kind) => isBingo ? undefined : () => remember_seed_link(kind)
                 let showPlay = !this.state.hidePlayButton && !showApNotReady && !isBingo;
-                // 12 columns: player 3 + seed 3 (4 with Play) + this world's flags
                 return (
-                    <Row key={`player-${p}`} className="align-content-center p-1 border-bottom">
-                        <Col xs="3" className="pt-1 border" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "playerPanel"+this.multi())}>
-                            <Row className="align-content-center"><Col xs="3">
-                                <Media object style={{width: "25px", height: "25px"}} src={player_icons(p,false)} alt={"Icon for player "+p} />
-                            </Col><Col>
-                                <span className="align-middle">{(this.state.playerNames || [])[p - 1] || `Player ${p}`}</span>
-                            </Col></Row>
-                        </Col>
-                        <Col xs={showPlay ? 4 : 3} className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", mainButtonHelp)}>
-                            {showApNotReady ? (
-                                // names bake in at download, so hold the button until
-                                // every world's scouts are stored; the poll clears it
-                                <div>
-                                    <Button color="secondary" block disabled>{this.state.apNoLink ? "Connect Room First" : "Waiting For Room…"}</Button>
-                                    <Button color="link" size="sm" block target="_blank" href={seedUrl + "&force=1"} onClick={noteSeedLink("download")}>download anyway (generic item names)</Button>
-                                </div>
+                    <div key="download" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", mainButtonHelp)}>
+                        {showApNotReady ? (
+                            // names bake in at download, so hold the button until
+                            // every world's scouts are stored; the poll clears it
+                            <div>
+                                <Button color="secondary" block disabled>{this.state.apNoLink ? "Connect Room First" : "Waiting For Room…"}</Button>
+                                <Button color="link" size="sm" block target="_blank" href={seedUrl + "&force=1"} onClick={noteSeedLink("download")}>download anyway (generic item names)</Button>
+                            </div>
+                        ) : (
+                            showPlay ? (
+                                <ButtonGroup>
+                                    <Button color="primary" target="_blank" href={seedUrl} onClick={noteSeedLink("download")}>{mainButtonText}</Button>
+                                    <Button color="success" href={playUrl} onClick={noteSeedLink("play")} onMouseLeave={this.helpEnter("seedTab", mainButtonHelp)} onMouseEnter={this.helpEnter("seedTab", "playButton"+this.multi())}>Play</Button>
+                                </ButtonGroup>
                             ) : (
-                                showPlay ? (
-                                    <ButtonGroup>
-                                        <Button color="primary" block target="_blank" href={seedUrl} onClick={noteSeedLink("download")}>{mainButtonText}</Button>
-                                        <Button color="success" href={playUrl} onClick={noteSeedLink("play")} onMouseLeave={this.helpEnter("seedTab", mainButtonHelp)} onMouseEnter={this.helpEnter("seedTab", "playButton"+this.multi())}>Play</Button>
-                                    </ButtonGroup>
-                                ) : (
-                                    <Button color="primary" block target="_blank" href={seedUrl} onClick={noteSeedLink("download")}>{mainButtonText}</Button>
-                                )
-                            )}
-                        </Col>
-                        <Col xs={showPlay ? 5 : 6} className="pl-1 pr-1 border-left d-flex align-items-center" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "flags")}>
-                            <Row className="justify-content-start align-items-center flag-row w-100">
-                                {worldFlagColsFor(p)}
-                            </Row>
-                        </Col>
-                    </Row>
+                                <Button color="primary" target="_blank" href={seedUrl} onClick={noteSeedLink("download")}>{mainButtonText}</Button>
+                            )
+                        )}
+                    </div>
                 )
-            })
+            }
 
-            // one spoiler for the whole seed, so one set of buttons for all of them
-            let spoilerHelp = (button) => spoilers ? `spoiler${button + (auxSpoiler.active ? "Aux" : "")}` : "noSpoilers"
-            let spoilerRow = (
-                <Row className="p-1 align-items-center">
-                    <Col xs="3" className="text-center" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", spoilerHelp("View"))}>
-                        <Cent>Spoilers:</Cent>
-                    </Col>
-                    <Col xs={{size: 3, offset: 2}} className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", spoilerHelp("View"))}>
-                        <ButtonGroup className="d-flex">
-                            <Button className="w-100" color={spoilers ? "primary" : "secondary"} disabled={!spoilers} href={this.spoilerUrl(paramId, false, false, 1)} target="_blank">{spoilerText}</Button>
-                            <Button color={spoilers ? "success" : "secondary"} disabled={!spoilers} onClick={() => this.setState({auxModal: true, auxPlayer: 1})}><FaCog/></Button>
-                        </ButtonGroup>
-                    </Col>
-                    <Col xs="3" className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", spoilerHelp("Download"))}>
-                        <Button color={spoilers ? "primary" : "secondary"} disabled={!spoilers} href={this.spoilerUrl(paramId, true, false, 1)} target="_blank" block>Save Spoiler</Button>
-                    </Col>
+            let chipBox = (fs, where, maxLines, whose, label) => (
+                <FlagChips sig={fs.join(",")} maxLines={maxLines}>{flagChips(fs, where, whose, label)}</FlagChips>
+            )
+            // a grid so one flags box can span every player when the worlds agree;
+            // its first column matches the 2-column labels below
+            let players = [...Array(inputPlayerCount).keys()].map(i => i + 1)
+            let playerGrid = (
+                <Row key="players" className="p-1 border-bottom">
+                    <div className="player-grid">
+                        {players.map(p => [
+                            <div key={`name-${p}`} className="d-flex player-cell" style={{gridColumn: 1, gridRow: p}}>
+                                <div className="flex-grow-1 py-1 px-2 border d-flex align-items-center"
+                                     onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "playerPanel"+this.multi())}>
+                                    <Media object className="mr-2 flex-shrink-0" style={{width: "25px", height: "25px"}} src={player_icons(p,false)} alt={"Icon for player "+p} />
+                                    <span className="text-break">{playerName(p)}</span>
+                                </div>
+                            </div>,
+                            <div key={`dl-${p}`} className="px-1 d-flex align-items-center" style={{gridColumn: 2, gridRow: p}}>
+                                {downloadFor(p)}
+                            </div>,
+                            mixed ? (
+                                <div key={`flags-${p}`} className={"pl-2 py-1 border-left d-flex align-items-center" + (p > 1 ? " border-top" : "")} style={{gridColumn: 3, gridRow: p}}
+                                     onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "flags")}>
+                                    {chipBox(perWorld[p - 1].filter(f => !common.includes(f)), `w${p}`, 1, `${playerName(p)}'s seed`)}
+                                </div>
+                            ) : null
+                        ])}
+                        {mixed ? null : (
+                            <div key="flags" className="player-cell pl-1" style={{gridColumn: 3, gridRow: `1 / span ${players.length}`}}
+                                 onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "flags")}>
+                                <div className="h-100 border p-2">
+                                    {chipBox(common, "seed", players.length, undefined, "Flags:")}
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </Row>
             )
-            let trackedInfo = gameId > 0 ? is_race ? (
-                  <Row className="p-1 pt-3 align-items-center border-dark border-top">
-                    <Col xs="4" className="pl-1 pr-1" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "downloadButton")}>
-                        <Button color="primary" block target="_blank" href={"/generator/seed/"+paramId}>Untracked</Button>
+
+            // one spoiler for the whole seed; its menu holds the settings and the download
+            let spoilerHelp = spoilers ? "spoilerView" : "noSpoilers"
+            let links = [
+                <div key="spoiler" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", spoilerHelp)}>
+                    <ButtonGroup>
+                        <Button color={spoilers ? "primary" : "secondary"} disabled={!spoilers} href={this.spoilerUrl(paramId, false, false, 1)} target="_blank">{spoilerText}</Button>
+                        <Button color={spoilers ? "success" : "secondary"} disabled={!spoilers} onClick={() => this.setState({auxModal: true, auxPlayer: 1})}
+                                onMouseEnter={this.helpEnter("seedTab", spoilers ? "spoilerMenu" : "noSpoilers")} onMouseLeave={this.helpEnter("seedTab", spoilerHelp)}><FaBars/></Button>
+                    </ButtonGroup>
+                </div>
+            ]
+            if(gameId > 0) {
+                let histUrl = "/game/"+gameId+"/history"
+                if(is_race) {
+                    histUrl += "?sec="+(new URL(window.document.URL)).searchParams.get("sec")
+                    links.push(<Button key="untracked" color="primary" target="_blank" href={"/generator/seed/"+paramId} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "downloadButton")}>Untracked</Button>)
+                } else
+                    links.push(<Button key="map" color="primary" target="_blank" href={mapUrl} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "mapLink")}>Open Map</Button>)
+                links.push(<Button key="hist" color="primary" target="_blank" href={histUrl} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "histLink")}>View Game History</Button>)
+            }
+
+            // single player labels take 1 column; multiplayer ones line up with the 2-column player boxes
+            let labelRow = (key, label, help, body, className = "") => (
+                <Row key={key} className={"p-1 align-items-center " + className}>
+                    <Col xs={single ? 1 : 2} className="px-1 text-center" onMouseLeave={help && this.helpLeave} onMouseEnter={help && this.helpEnter("seedTab", help)}>
+                        {label}
                     </Col>
-                    <Col xs="4">
-                        <Button color="primary" block onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "histLink")} href={"/game/"+this.state.gameId+"/history?sec="+(new URL(window.document.URL)).searchParams.get("sec")} target="_blank">View Game History</Button>
-                    </Col>
-                    <Col xs="4" className="text-center" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "gameId")}>
-                        {gameId}
-                    </Col>
-                  </Row>
-              )  : (
-                  <Row className="p-1 pt-3 align-items-center border-dark border-top">
-                    <Col xs="4" className="text-center" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "tracking")}>
-                        <Cent>Game Id: {gameId}</Cent>
-                    </Col>
-                    <Col xs="4">
-                        <Button color="primary" block onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "mapLink")} href={mapUrl} target="_blank">Open Map</Button>
-                    </Col>
-                    <Col xs="4">
-                        <Button color="primary" block onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "histLink")} href={"/game/"+this.state.gameId+"/history"} target="_blank">View Game History</Button>
-                    </Col>
-                  </Row>
-              ) : null
+                    <Col className="pl-2 border-left">{body}</Col>
+                </Row>
+            )
             return (
-                <TabPane className="p-3 border" tabId='seed'>
-                      <Row className="justify-content-center">
-                        <span className="align-middle">
-                            <h5>Seed {seedStr} ready!</h5>
-                        </span>
+                <TabPane className="px-3 pt-3 pb-0 border" tabId='seed'>
+                    <Row className="justify-content-center">
+                        <h5>
+                            Seed {seedStr} ready!
+                            {gameId > 0 ? (
+                                <span className="ml-3 text-muted" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", is_race ? "gameId" : "tracking")}>Game Id: {gameId}</span>
+                            ) : null}
+                        </h5>
                     </Row>
-                    {flagCols.length > 0 ? (
-                      <Row className="p-1 align-items-center border-top border-bottom">
-                        <Col xs="3" className="text-center" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("seedTab", "flags")}>
-                            Seed Flags:
-                        </Col>
-                        <Col xs="9 border-left">
-                            <Row className="justify-content-start flag-row">
-                            {flagCols}
-                            </Row>
-                        </Col>
-                      </Row>
-                    ) : null}
-                    {playerRows}
-                    {spoilerRow}
-                    {trackedInfo}
+                    {common.length > 0 && (single || mixed) ? labelRow("flags", single ? "Flags:" : "Shared Flags:", "flags", chipBox(common, "seed", 1), "border-top border-bottom") : null}
+                    {single
+                        ? labelRow("links", "Links:", null, <div className="seed-links">{downloadFor(1)}{links}</div>)
+                        : [playerGrid, labelRow("links", "Misc Links:", null, <div className="seed-links">{links}</div>)]}
                     {this.getApSetupPanel()}
                     {this.getApPanel()}
                 </TabPane>
@@ -2751,13 +2762,13 @@ export default class MainPage extends React.Component {
     })
 
     getAuxModal = ({inputStyle}) => {
-        let {auxModal, auxSpoiler} = this.state
+        let {auxModal, auxSpoiler, paramId} = this.state
         let itemTypes = ["AC", "EC", "HC", "KS", "MS", "EX"].map(iType => (<Col>
             <Button key={`asif-${iType}`} outline={!auxSpoiler.exclude.includes(iType)} onClick={() => this.onSpoilerItemType(iType)}>{iType}</Button>
         </Col>))
         return (
                 <Modal isOpen={auxModal} backdrop={"static"} className={"modal-dialog-centered"} toggle={this.closeModal}>
-                  <ModalHeader style={inputStyle} toggle={this.closeModal}>Spoiler Settings</ModalHeader>
+                  <ModalHeader style={inputStyle} toggle={this.closeModal}>Spoiler</ModalHeader>
                   <ModalBody style={inputStyle}>
                       <Container fluid>
                       <Row>
@@ -2813,6 +2824,8 @@ export default class MainPage extends React.Component {
                     </Container>
                   </ModalBody>
                   <ModalFooter style={inputStyle}>
+                    <Button color="primary" href={this.spoilerUrl(paramId, false, false, 1)} target="_blank">{auxSpoiler.active ? "Open Item List" : "Open Spoiler"}</Button>
+                    <Button color="primary" href={this.spoilerUrl(paramId, true, false, 1)} target="_blank">Download</Button>
                     <Button color="secondary" onClick={this.closeModal}>Close</Button>
                   </ModalFooter>
                 </Modal>
@@ -3446,8 +3459,8 @@ export default class MainPage extends React.Component {
                                     <Col xs="6" onMouseEnter={this.helpEnter("general", "undoRedo")}
                                          onMouseLeave={this.helpEnter("general", canRandomize ? "randomize" : "randomizeDisabled")}>
                                         <div className="d-flex" role="group">
-                                            <Button color="secondary" className="w-100 mr-1" title="Undo" outline={!canUndo} onClick={this.undo}><FaUndo/></Button>
-                                            <Button color="secondary" className="w-100" title="Redo" outline={!canRedo} onClick={this.redo}><FaRedo/></Button>
+                                            <Button color="secondary" className="w-100 mr-1" title="Undo" outline={!canUndo} disabled={!canUndo} onClick={this.undo}><FaUndo/></Button>
+                                            <Button color="secondary" className="w-100" title="Redo" outline={!canRedo} disabled={!canRedo} onClick={this.redo}><FaRedo/></Button>
                                         </div>
                                     </Col>
                                 </Row>

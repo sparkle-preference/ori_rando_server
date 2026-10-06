@@ -94,5 +94,12 @@ const MODES = ["system", "light", "dark"];
         link.href = theme_href("darkly")
     }
     const Content = mods[app];
-    ReactDOM.render(<ErrorBoundary><Content /></ErrorBoundary>, root);
+    // components read theme colors off the body as they render, so the first render waits
+    // for the stylesheet and every later load (a theme switch) renders again
+    const render = () => ReactDOM.render(<ErrorBoundary><Content /></ErrorBoundary>, root);
+    let rendered = false;
+    const first = () => { if(!rendered) { rendered = true; render(); } };
+    link.addEventListener("load", () => rendered ? render() : first());
+    link.addEventListener("error", first);
+    setTimeout(first, 3000);
 })()

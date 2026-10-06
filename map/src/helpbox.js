@@ -15,6 +15,10 @@ const vars = ["Starved", "NonProgressMapStones", "Hard", "0XP", "Entrance", "Bon
 const presets = ["Casual", "Standard", "Expert", "Master", "Glitched", "Custom"];
 const goalModes = ["ForceTrees", "ForceMaps", "Bingo"];
 const keyModes = ["Shards", "Clues", "Limitkeys", "Free"];
+// a CustomN flag's bits, in util.get_preset_from_paths's order
+const PATH_BITS = ["casual-core", "casual-dboost", "standard-core", "standard-dboost", "standard-lure", "standard-abilities",
+    "expert-core", "expert-dboost", "expert-lure", "expert-abilities", "dbash", "master-core", "master-dboost", "master-lure",
+    "master-abilities", "gjump", "glitched", "timed-level", "insane"];
 
 const bonuses = {}
 stuff_by_type["Upgrades"].forEach(({label, value, desc}) => bonuses[value]={name: label, desc: [desc]})
@@ -40,12 +44,13 @@ bonuses["ES|**"] = {name: "Random Enhanced Skill (any)", desc: [
     (<span><i>Unlike the weighted one, this can roll Wall Jump or Sein, and gives no extra chance of Sein.</i></span>)
 ]}
 
-const getHelpContent = (category, option) => {
-    let {lines, title, subtitle, extras} = getHelpHelper(category, option);
+// whose: the seed a flag belongs to, for a multiworld row ("Lapis's seed")
+const getHelpContent = (category, option, whose) => {
+    let {lines, title, subtitle, extras} = getHelpHelper(category, option, whose);
     return {lines: lines.map((l,i) => (<CardText key={`card-line-${i}`}>{l}</CardText>)), title: title, subtitle: subtitle, extras: extras};
 }
 
-const getHelpHelper = (category, option) => {
+const getHelpHelper = (category, option, whose = "your seed") => {
     let lines = noneLines;
     let title = noneTitle;
     let subtitle = noneSub;  
@@ -54,28 +59,39 @@ const getHelpHelper = (category, option) => {
     switch(category) {
         case "flags":
             let h = {}
+            let Whose = whose[0].toUpperCase() + whose.slice(1)
             if(vars.includes(option)) {
                 h = getHelpHelper("variations", option)
                 h.lines = h.lines.filter(l => typeof l !== "string" || !l.startsWith("Recommended"))
-                h.lines.push((<span><i>(This variation has been applied to your seed.)</i></span>))
+                h.lines.push((<span><i>(This variation has been applied to {whose}.)</i></span>))
             } else if(presets.includes(option.replace('*','')) || option.startsWith("Custom")) {
                 h = getHelpHelper("logicModes", option.toLowerCase())
                 h.lines.pop()
                 h.lines = h.lines.filter(l => l.startsWith && !l.startsWith("Recommended"))
+                let mask = /^Custom(\d+)$/.exec(option)
+                if(mask)
+                    h.lines.push("Logic paths: " + PATH_BITS.filter((_, i) => (parseInt(mask[1], 10) >> i) & 1).join(", "))
                 if(option !== "Custom")
-                    h.lines.push((<span><i>(Your seed is using this Logic Mode.)</i></span>))
+                    h.lines.push((<span><i>({Whose} is using this Logic Mode.)</i></span>))
             } else if(keyModes.includes(option)) {
                 h = getHelpHelper("keyModes", option)
-                h.lines[h.lines.length-1] = (<span><i>(Your seed is using this Key Mode.)</i></span>)
+                h.lines[h.lines.length-1] = (<span><i>({Whose} is using this Key Mode.)</i></span>)
             } else if(goalModes.includes(option)) {
                 h = getHelpHelper("goalModes", option)
-                h.lines[h.lines.length-1] = (<span><i>(Your seed is using this Goal Mode.)</i></span>)
+                h.lines[h.lines.length-1] = (<span><i>({Whose} is using this Goal Mode.)</i></span>)
             } else if(option.startsWith("Frags")) {
                 let [, required, total] = option.split("/")
                 h.title = "Warmth Fragments"
                 h.lines = [
                     "The Warmth Fragments Goal Mode scatters " + total + " warmth fragments across the entire map. You must collect " + required + " of them to access the final escape.",
-                    (<span><i>(Your seed is using this Goal Mode.)</i></span>)
+                    (<span><i>({Whose} is using this Goal Mode.)</i></span>)
+                ]
+            } else if(option.startsWith("spawn=")) {
+                let zone = option.slice(6)
+                h.title = "Spawn Location"
+                h.lines = [
+                    zone === "Random" ? "The game starts in a randomly chosen zone." : `The game starts at the ${zone} teleporter instead of in Glades.`,
+                    (<span><i>({Whose} uses this spawn.)</i></span>)
                 ]
             } else if(option.startsWith("sense=")) {
                 h.title = "Sense Triggers";
@@ -84,14 +100,14 @@ const getHelpHelper = (category, option) => {
                 let [, relics] = option.split("=")
                 h = getHelpHelper("goalModes", "WorldTour")
                 h.lines[0] = h.lines[0].replace(/8/g, relics)
-                h.lines[2] = (<span><i>(Your seed is using this Goal Mode.)</i></span>)
+                h.lines[2] = (<span><i>({Whose} is using this Goal Mode.)</i></span>)
             } else if(option.startsWith("pool=")) {
                 let [, poolName] = option.split("=")
                 h = getHelpHelper("itemPool", poolName)
                 if(poolName.toLowerCase() !== "custom")
-                    h.lines.push((<span><i>(Your seed is using this item pool preset.)</i></span>));
+                    h.lines.push((<span><i>({Whose} is using this item pool preset.)</i></span>));
                 else
-                    h.lines.push((<span><i>(Your seed is a custom item pool.)</i></span>))
+                    h.lines.push((<span><i>({Whose} uses a custom item pool.)</i></span>))
 
             } else if(option.startsWith("share")) {
                 let sharedCats = option.split("=")[1].split("+").join(", ")
@@ -108,10 +124,10 @@ const getHelpHelper = (category, option) => {
                 h.lines.push((<span><i>(Your seeds are using this Multiplayer Mode.)</i></span>))
             } else if(option === "balanced") {
                 h = getHelpHelper("advanced", "fillAlgBalanced")
-                h.lines.push((<span><i>(Your seed was generated using this fill algorithm)</i></span>))
+                h.lines.push((<span><i>({Whose} was generated using this fill algorithm)</i></span>))
             } else if(option.startsWith("prefer_path_difficulty")) {
                 h = getHelpHelper("advanced", "pathDiff")
-                h.lines[2] = ((<span><i>(Your seed has path difficulty set to {option.split('=')[1]})</i></span>))
+                h.lines[2] = ((<span><i>({Whose} has path difficulty set to {option.split('=')[1]})</i></span>))
             } else {
                 match = false;
                 break;
@@ -534,12 +550,10 @@ const getHelpHelper = (category, option) => {
                         "This seed has no text spoiler available! Consider loading it into the Logic Helper or using the tracking map's spoiler function."
                     ]
                 break;
-                case "spoilerDownload":
-                    title = "Download Spoiler"
+                case "spoilerMenu":
+                    title = "Spoiler Options"
                     lines = [
-                        "Click here to download your spoiler as a text file.",
-                        "The spoiler contains a detailed report of what items are placed where, and the order in which the randomizer intended you to find them.",
-                        "Don't be afraid to check your spoiler if you get stuck!"
+                        "Switch between the full spoiler and a plain item list, or download it as a text file."
                     ]
                 break;
                 case "tracking":
