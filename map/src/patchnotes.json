@@ -13,6 +13,188 @@
   ],
   "releases": [
       {
+        "version": "4.9.10",
+        "date": "2026-10-07",
+        "announce": "dev",
+        "changes": [
+          {
+            "text": "The lower Ginso miniboss doors now open from both sides, allowing downward traversal from the Ginso TP.",
+            "category": "Game",
+            "type": "feature",
+            "importance": "major",
+            "sub": [
+              "No paths currently exist for this - if one of our pathfinders wants to scout this out that would be appreciated."
+            ]
+          },
+          {
+            "text": "Experimental Dirty Water visual overhaul: post-Ginso water pools now look poisoned when they are.",
+            "category": "Game",
+            "type": "feature",
+            "importance": "major",
+            "sub": [
+              "Disableable in settings: Rando Options->Dirty Water.",
+              "Looking for feedback on this feature!"
+            ]
+          },
+          {
+            "text": "Added Custom Pickup Names: enable it in settings and rename any pickup with your own rules in PickupNames.txt, next to the game.",
+            "category": "Game",
+            "type": "feature",
+            "importance": "minor",
+            "sub": [
+              "The file explains the format. Randomized Experience Names still applies wherever no rule does."
+            ]
+          },
+          {
+            "text": "Added two accessibility settings that modify how messages display.",
+            "category": "Game",
+            "type": "feature",
+            "importance": "minor",
+            "sub": [
+              "Colorless Text shows text without colors.",
+              "Text Cues add a word where color carries meaning, like (Skill), (Key), (World), (Shard), (Relic) or (Error)."
+            ]
+          },
+          {
+            "text": "Enhanced skill names are rainbow-colored.",
+            "category": "Game",
+            "type": "feature",
+            "importance": "minor"
+          },
+          {
+            "text": "Some settings moved between the Rando Options and Rando UI pages.",
+            "category": "Game",
+            "importance": "minor"
+          },
+          {
+            "text": "The lower Ginso and Moon Grotto miniboss rooms no longer stay locked if you Alt+R out of the fight and come back.",
+            "category": "Game",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "A pickup you collected and then lost to a death now counts as touched, so the map dims it.",
+            "category": "Game",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Losing Bash mid-bash no longer leaves Ori unable to jump up.",
+            "category": "Game",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "The credits and loading tips show the site address again.",
+            "category": "Game",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Redesigned the seed download page.",
+            "category": "Website",
+            "type": "feature",
+            "importance": "major",
+            "sub": [
+              "Spawn shows as a flag when it isn't Glades.",
+              "Downloading a spoiler as text is now done via the spoiler's 3-line menu button."
+            ]
+          },
+          {
+            "text": "Fixed a bug that made it possible to try and roll seeds without casual-core.",
+            "category": "Website",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "The beta welcome message is readable in dark mode.",
+            "category": "Website",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Undo and Redo no longer light up on hover when unclickable.",
+            "category": "Website",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Rolling an untracked seed after a tracked one no longer keeps the old game in the page link.",
+            "category": "Website",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "More practice mode improvements and fixes.",
+            "category": "Misc",
+            "type": "feature",
+            "importance": "major",
+            "sub": [
+              "Segments being edited are stored as extracted folders for ease of inspection - .bfrp files are packaged versions that you can easily share with others.",
+              "Editing a segment is now done by pressing C/X on its card. Hold C/X on a .bfrp to extract it into a folder for editing.",
+              "The box editor can move and resize boxes: M switches between drawing and moving.",
+              "Reordered box tools to a more sensible default.",
+              "Ctrl+C in the editor copies all box lines to the clipboard.",
+              "New bind: Create Practice Segment With Seed (unbound by default) creates a practice segment while copying over pickups and boxes from the current seed.",
+              "A charging Charge Jump no longer carries into a practice attempt.",
+              "The editor page numbers its boxes and zooms in further."
+            ]
+          },
+          {
+            "text": "Added the ability to use the practice mode box editor outside of practice mode, writing drawn boxes to the loaded seed file on finish.",
+            "category": "Plando",
+            "type": "feature",
+            "importance": "major",
+            "sub": [
+              "Activate by adding a keybind for Edit Seed Boxes and pressing it, or via the debug menu.",
+              "The box editor will make a backup of your seed before adding boxes to it."
+            ]
+          },
+          {
+            "text": "The plando builder now backs up unsaved changes in your browser and offers to restore them after an accidental reload.",
+            "category": "Plando",
+            "type": "feature",
+            "importance": "minor"
+          },
+          {
+            "text": "The builder's box list can be filtered by item or flag. The Lock all / Unlock all buttons are now limited to boxes that match the filter.",
+            "category": "Plando",
+            "type": "feature",
+            "importance": "minor"
+          },
+          {
+            "text": "Added the ability to paste BX lines into both web tools that allow box manipulation.",
+            "category": "Plando",
+            "type": "feature",
+            "importance": "minor"
+          },
+          {
+            "text": "The box flag menus suggest parallaxDepth.",
+            "category": "Plando",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Enemies and push blocks no longer get stuck inside boxes.",
+            "category": "Plando",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Plando downloads no longer fail when a message uses @red@ text.",
+            "category": "Plando",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Plando Fill can now use any of the built-in item pools, or load one from a saved preset.",
+            "category": "Plando",
+            "type": "feature",
+            "importance": "minor"
+          }
+        ]
+      },
+      {
         "version": "4.9.9",
         "date": "2026-09-27",
         "announce": "dev",
