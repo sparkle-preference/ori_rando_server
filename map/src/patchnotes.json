@@ -10,6 +10,33 @@
     "Plando"
   ],
   "pending": [
+      {
+        "text": "Box triggers can now apply after a delay and repeat after a cooldown period; syntax is on=Tick/<delay>/<repeat>. See [Boxes.txt](https://github.com/sparkle-preference/OriDERandomizer/blob/4.3/Boxes.txt) for more details.",
+        "category": "Plando",
+        "type": "feature",
+        "importance": "minor",
+        "sub": [
+          "Both delay and repeat are in ticks (1/60th of a second).",
+          "Both box editors describe the timing behavior on flag hover."
+        ]
+      },
+      {
+        "text": "Boxes with no color are drawn fainter.",
+        "category": "Plando",
+        "importance": "minor"
+      },
+      {
+        "text": "Improved tooltips when hovering a box in the practice editor.",
+        "category": "Misc",
+        "type": "feature",
+        "importance": "minor"
+      },
+      {
+        "text": "Panning in the box editor no longer motion-blurs the screen.",
+        "category": "Misc",
+        "type": "fix",
+        "importance": "minor"
+      }
   ],
   "releases": [
       {
