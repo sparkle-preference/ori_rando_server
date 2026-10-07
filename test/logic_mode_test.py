@@ -34,10 +34,10 @@ def read(path):
         return f.read()
 
 
-class LogicModeTestCase(NdbTestCase):
+class FromUrlCase(NdbTestCase):
 
     def setUp(self):
-        super(LogicModeTestCase, self).setUp()
+        super(FromUrlCase, self).setUp()
         # from_url ends in put(); hand the entity back instead of storing it
         self._put = SeedGenParams.__dict__.get("put")
         SeedGenParams.put = lambda self: self
@@ -47,7 +47,7 @@ class LogicModeTestCase(NdbTestCase):
             del SeedGenParams.put
         else:
             SeedGenParams.put = self._put
-        super(LogicModeTestCase, self).tearDown()
+        super(FromUrlCase, self).tearDown()
 
     def build(self, seed="logicmode", **kw):
         """from_url over a query. seed=None leaves it out of the query entirely."""
@@ -56,6 +56,9 @@ class LogicModeTestCase(NdbTestCase):
             for one in (val if isinstance(val, list) else [val]):
                 pairs.append((key, one))
         return SeedGenParams.from_url(MultiDict(pairs))
+
+
+class LogicModeTestCase(FromUrlCase):
 
     def test_a_mode_stands_in_for_its_paths(self):
         got = self.build(logic_mode="expert")
@@ -176,6 +179,20 @@ class PresetsAgreeTestCase(unittest.TestCase):
         block = self.js_block(read(PAGE), "diffPaths")
         js = {name.capitalize(): diff for name, diff in re.findall(r'"(\w+)":\s*"(\w+)"', block)}
         self.assertEqual(js, {k: v.value for k, v in preset_path_diff.items()})
+
+
+class UrlPoolTestCase(FromUrlCase):
+    """The plando builder's Fill names a pool alongside the plando's own variations."""
+
+    def test_a_named_pool_beats_bonus_pickups(self):
+        got = self.build(logic_mode="standard", var="BonusPickups", pool_preset="Competitive")
+        self.assertEqual(got.pool_preset, "Competitive")
+        self.assertNotIn("BS|*", got.item_pool)
+
+    def test_bonus_pickups_still_brings_extra_bonus_by_itself(self):
+        got = self.build(logic_mode="standard", var="BonusPickups")
+        self.assertEqual(got.pool_preset, "Extra Bonus")
+        self.assertIn("BS|*", got.item_pool)
 
 
 if __name__ == "__main__":

@@ -377,6 +377,14 @@ test("appending to a world with no boxes keeps the deleted ones, so every number
     assert.deepEqual([out.added, out.dupes, out.gone], [2, 0, 1])
 })
 
+test("a world of only deleted boxes takes a paste as an empty one does", () => {
+    let mine = world("BX|tombstone|0,0,0,0", "BX|tombstone|0,0,0,0")
+    let copied = parse_box_paste("BX|kill|0,0,1,1\nBX|tombstone|0,0,0,0\nBX|item|4,0,5,1||BM|0\n").boxes
+    let out = paste_boxes(mine, copied, false)
+    assert.deepEqual(out.boxes.map(box_line), ["BX|kill|0,0,1,1", "BX|tombstone|0,0,0,0", "BX|item|4,0,5,1||BM|0"])
+    assert.deepEqual([out.added, out.dupes, out.gone], [2, 0, 1])
+})
+
 test("replacing with a copied list keeps its deleted boxes in place, so every number holds", () => {
     let mine = world("BX|kill|0,0,1,1", "BX|solid|2,0,3,1")
     let copied = parse_box_paste("BX|kill|0,0,1,1\nBX|tombstone|1,0,2,1\nBX|item|4,0,5,1||BM|0\n").boxes

@@ -55,13 +55,16 @@ export default class SeedDisplayPage extends React.Component {
 		let url = `/plando/${this.state.seed_name}`;
 		let rename = () => this.act(`${url}/rename/${this.state.rename_to}`,
 		                            () => move_draft(local_storage(), this.state.user, this.state.seed_name, this.state.rename_to));
+		// a copy lands on a name no plando had, so a draft under it is a dead plando's
+		let copy = () => this.act(`${url}/rename/${this.state.rename_to}?cp=1`,
+		                          () => remove_draft(local_storage(), draft_key(this.state.user, this.state.rename_to)));
     	let rename_enabled = (this.state.rename_to !== this.state.seed_name) && (seed_name_regex.test(this.state.rename_to))
     	let rename_copy = (
 			<Row key="rename/copy" className="p-3 border border-danger border-bottom-0 justify-content-center">
 				<Col xs="4">
 					<Button color="primary" block disabled={!rename_enabled} onClick={rename_enabled ? rename : () => { alert("Please enter a new name")}}>Rename</Button>
 				</Col><Col xs="4">
-		 			<Button color="primary" block disabled={!rename_enabled} onClick={rename_enabled ? goToCurry(`${url}/rename/${this.state.rename_to}?cp=1`) : () => { alert("Please enter a new name")}}>Copy</Button>
+		 			<Button color="primary" block disabled={!rename_enabled} onClick={rename_enabled ? copy : () => { alert("Please enter a new name")}}>Copy</Button>
 				</Col><Col xs="4">
 					<Input type="text" value={this.state.rename_to} onChange={event => this.setState({rename_to: event.target.value})} />
 				</Col>

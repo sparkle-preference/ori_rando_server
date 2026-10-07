@@ -14,7 +14,7 @@ import unittest
 
 from enums import MultiplayerGameType
 from seedbuilder.generator import MultiworldSlotOverflow
-from seedbuilder.seedparams import MultiplayerOptions, Placement, SeedGenParams, Stuff
+from seedbuilder.seedparams import MultiplayerOptions, Placement, SeedGenParams, Stuff, pool_from_query
 from util import decompose_multi_value, parse_fass, split_owner
 
 
@@ -272,3 +272,28 @@ class FillGenRouteTests(unittest.TestCase):
         self.params = self._params()
         res = self.client.get("/plando/fillgen?fass=Glades:SK0")
         self.assertEqual(res.status_code, 422)
+
+    def test_the_editor_posts(self):
+        self.params = self._params()
+        res = self.client.post("/plando/fillgen", data={"fass": "919772:SK0"})
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.get_json(), {"1": "seed for world 1"})
+
+    def test_a_bad_pool_is_refused_not_crashed(self):
+        self.params = self._params()
+        SeedGenParams.from_url = staticmethod(lambda q: pool_from_query(q["item_pool"]) and self.key)
+        res = self.client.post("/plando/fillgen", data={"item_pool": '{"HC|1": 12}'})
+        self.assertEqual(res.status_code, 422)
+
+
+class PoolFromQueryTests(unittest.TestCase):
+    """The fill's item pool, in the shape the seedgen page and presets store."""
+
+    def test_counts_and_ranges_stay_lists(self):
+        self.assertEqual(pool_from_query('{"HC|1": [12], "WP|*": [4, 8]}'), {"HC|1": [12], "WP|*": [4, 8]})
+
+    def test_anything_else_is_refused(self):
+        """The generator reads every count as a list, so a bare number would crash it."""
+        for raw in ('HC|1:12', '{"HC|1": 12}', '[["HC|1", [12]]]', '{"HC|1": [1, 2, 3]}', '{"HC|1": [-1]}'):
+            with self.subTest(raw=raw), self.assertRaises(ValueError):
+                pool_from_query(raw)

@@ -89,7 +89,7 @@ function parse_box_paste(text) {
 // number; or after them, less the deleted ones and the lines the world already has.
 function paste_boxes(current, pasted, replace) {
     let live = pasted.filter(b => !is_box_gone(b))
-    if(replace || !current.length)
+    if(replace || current.every(is_box_gone))
         return {boxes: [...pasted], added: live.length, dupes: 0, gone: pasted.length - live.length}
     let known = new Set(current.map(box_line))
     let fresh = live.filter(b => !known.has(box_line(b)))

@@ -196,16 +196,20 @@ def plando_reachable():
     return json_resp(areas)
 
 
-@bp.route('/plando/fillgen') #PlandoFillGen
+@bp.route('/plando/fillgen', methods=['GET', 'POST']) #PlandoFillGen
 def plando_fillgen():
     """Fill a plando's empty locations. Answers {player: seed text}: one world
-    for everyone when the fill is cloned, one per player in multiworld."""
-    qparams = request.args
+    for everyone when the fill is cloned, one per player in multiworld.
+    The editor POSTs: a full plando's placements outgrow a URL."""
+    qparams = request.values
     try:
         preplaced = parse_fass(qparams.get('fass'))
     except ValueError:
         return text_resp("a forced assignment named a location that isn't a number", 422)
-    param_key = SeedGenParams.from_url(qparams)
+    try:
+        param_key = SeedGenParams.from_url(qparams)
+    except ValueError:
+        return text_resp("could not read that item pool", 422)
     params = param_key.get()
     cap = player_cap_problem(params)
     if cap:

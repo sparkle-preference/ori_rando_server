@@ -8,7 +8,7 @@ import 'react-notifications/lib/notifications.css';
 import {Checkbox, CheckboxGroup} from 'react-checkbox-group';
 import {get_param, get_flag, get_int, get_list, get_seed, presets, get_preset, logic_paths, pickup_name, PickupSelect, stuff_by_type, logic_events, loginLogoutUrl, decompose_pickup,
         box_label, box_color_history, remember_box_color, MousePos, select_theme, name_from_str,
-        box_panel_width, remember_box_panel_width} from './common.js';
+        box_panel_width, remember_box_panel_width, doNetRequest} from './common.js';
 import {BOX_TOMBSTONE, is_box_gone, box_hidden, new_box, box_has_flag, box_flags_from_chips, parse_box_line, box_line,
         box_color, box_flag_ok, box_flag_choices, describe_flag, flag_completions, flag_menu, BOXES_TXT, compact_boxes,
         box_search, parse_box_paste, paste_boxes} from './boxes.js';
@@ -104,6 +104,18 @@ const CLUE_ORDERS = [
      ["EV|4", "EV|2", "EV|0"],
      ["EV|4", "EV|0", "EV|2"],
 ].map(clueOrder => {return {label: mkClueOrderLabel(clueOrder), value: clueOrder}})
+// Fill's pool menu: the built-in pools, then the user's presets. Nothing picked is the
+// server's default (Standard, or Extra Bonus under BonusPickups).
+const POOL_PRESETS = ["Standard", "Competitive", "Bonus Lite", "Extra Bonus", "Hard"].map(name => ({label: name, value: "pool:" + name, preset: name}))
+// a preset naming a built-in pool gets that pool as it is now, as the seed generator gives it
+const poolMenu = (saved) => {
+    let builtIn = (name) => POOL_PRESETS.some(p => p.preset === name)
+    let custom = (s) => s.blob.itemPool && Object.keys(s.blob.itemPool).length ? s.blob.itemPool : null
+    let mine = saved.filter(s => s.blob && (builtIn(s.blob.selectedPool) || custom(s)))
+        .map(s => ({label: s.name, value: "preset:" + s.name, preset: s.blob.selectedPool || "Custom",
+                    pool: builtIn(s.blob.selectedPool) ? null : custom(s)}))
+    return mine.length ? [{label: "Item Pools", options: POOL_PRESETS}, {label: "My Presets", options: mine}] : POOL_PRESETS
+}
 
 const VALID_VARS = ["0XP", "NonProgressMapStones", "NoAltR", "ForceMaps", "ForceTrees", "Hard", "WorldTour", "OpenWorld", "ClosedDungeons", "OHKO", "Starved", "BonusPickups", "NoExtraExp", "Entrance",
                     // kept in sync with the Variation enum (enums.py)
@@ -534,7 +546,7 @@ class PlandoBuiler extends React.Component {
     let {seed_name, seed_desc, user, hidden} = get_seed();
 
     this.state = {seed_in: "", reachable: {...DEFAULT_REACHABLE}, new_areas: {...DEFAULT_REACHABLE}, placements: {1: {...DEFAULT_DATA}}, player: 1,
-                  fill_opts: {HC: 13, EC: 15, AC: 34, KS: 40, MS: 9, EX: 300, ex_pool: 10000, dynamic: false, dumb: false}, viewport: {center: [0, 0], zoom: 5}, searchStr: "", clueOrder: CLUE_ORDERS[0],
+                  fill_opts: {HC: 13, EC: 15, AC: 34, KS: 40, MS: 9, EX: 300, ex_pool: 10000, dynamic: false, dumb: false}, fill_pool: null, pool_menu: POOL_PRESETS, viewport: {center: [0, 0], zoom: 5}, searchStr: "", clueOrder: CLUE_ORDERS[0],
                   flags: ['hide_unreachable'], seedFlags: [], hidden: hidden, share_types: select_wrap(["Skills", "WorldEvents", "Teleporters"]), coop_mode: {label: "Solo", value: "None"},
                   pickups: ["EX", "Ma", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "CS"], display_fill: false, display_import: false, display_logic: false, display_coop: false, display_meta: false,
                   entrances: {1: {}}, display_entrances: false, entrance_from: {value: "", label: ""}, entrance_to: {value: "", label: ""},
@@ -585,6 +597,10 @@ class PlandoBuiler extends React.Component {
             this.setState({viewport: DEFAULT_VIEWPORT});
         }, 100);
         window.addEventListener("resize", this.fitFileControls)
+        doNetRequest("/preset/list", ({status, responseText}) => {
+            if(status === 200)
+                this.setState({pool_menu: poolMenu(JSON.parse(responseText).settings || [])})
+        })
         window.addEventListener("pagehide", this.flushDraft)
         document.addEventListener("visibilitychange", this.flushDraft)
         this.fitFileControls()
@@ -1031,6 +1047,7 @@ class PlandoBuiler extends React.Component {
         let seedFlags = fresh ? [] : this.state.seedFlags.map(f => f.value)
         let coop_mode = fresh ? {label: "Solo", value: "None"} : this.state.coop_mode
         let share_types = this.state.share_types
+        let sawShared = false
         let display_coop = this.state.display_coop
         let [flags,seed_name] = flagLine.split("|")
         if(this.state.seed_name) // don't overwrite name on upload
@@ -1047,11 +1064,19 @@ class PlandoBuiler extends React.Component {
             else if(flag.startsWith("shared="))
             {
                 display_coop = true
+                sawShared = true
                 share_types=select_wrap(flag.substring(7).split("+").filter((id) => SHARE_TYPES.includes(id)))
             }
-            else if(!seedFlags.includes(flag))
+            else if(!seedFlags.includes(flag)) {
+                // a seed has one pool, so a fill's pool replaces the one before it
+                if(flag.startsWith("pool="))
+                    seedFlags = seedFlags.filter(f => !f.startsWith("pool="))
                 seedFlags.push(flag)
+            }
         });
+        // a Shared seed that shares nothing writes no shared= at all
+        if(fresh && coop_mode.value === "Shared" && !sawShared)
+            share_types = []
         this.setState({seedFlags: select_wrap(seedFlags), share_types: share_types, coop_mode: coop_mode, display_coop: display_coop, seed_name: seed_name})
     }
 
@@ -1248,6 +1273,12 @@ class PlandoBuiler extends React.Component {
         let urlParams = [];
         this.state.modes.forEach(p => urlParams.push(`path=${p}`));
         urlParams.push(`exp_pool=${this.state.fill_opts.ex_pool}`)
+        let pool = this.state.fill_pool
+        if(pool) {
+            urlParams.push(`pool_preset=${encodeURIComponent(pool.preset)}`)
+            if(pool.pool)
+                urlParams.push(`item_pool=${encodeURIComponent(JSON.stringify(pool.pool))}`)
+        }
 
         this.state.seedFlags.forEach(f => {
             let flag = FLAG_CASEFIX[f.value.toLowerCase()] || f.value
@@ -1272,7 +1303,9 @@ class PlandoBuiler extends React.Component {
             if(xmlHttp.readyState !== 4)
                 return
             if(xmlHttp.status !== 200) {
-                NotificationManager.error("Unfinishable Seed", "Failed to complete seed using seedgen", 4000);
+                // 409 and 422 say what was wrong with the request
+                let refused = (xmlHttp.status === 409 || xmlHttp.status === 422) && xmlHttp.responseText
+                NotificationManager.error(refused || "Unfinishable Seed", "Failed to complete seed using seedgen", 4000);
                 return
             }
             // {player: seed}. Multiworld answers one world per player; anything
@@ -1284,8 +1317,10 @@ class PlandoBuiler extends React.Component {
             else
                 keys.forEach(p => this.parseUploadedSeed(worlds[p], p))
         }
-        xmlHttp.open("GET", `/plando/fillgen?${urlParams.join("&")}`, true);
-        xmlHttp.send(null);
+        // a full plando's placements outgrow a URL
+        xmlHttp.open("POST", "/plando/fillgen", true);
+        xmlHttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+        xmlHttp.send(urlParams.join("&"));
         NotificationManager.info("Generating Seed", "Generating seed based on current placements...", 5000);
     }
 
@@ -1302,8 +1337,15 @@ class PlandoBuiler extends React.Component {
         {
             if(this.state.last_seed_name !== sent.name)
             {
-                let [url, title] = [window.document.URL, window.document.title].map(s => s.replace(this.state.last_seed_name, sent.name))
-                window.history.replaceState('',title, url);
+                // the name's own path segment: a plando named "ori" would otherwise rename the host
+                let url = new URL(window.document.URL)
+                let parts = url.pathname.split("/")
+                parts[2] = encodeURIComponent(sent.name)
+                url.pathname = parts.join("/")
+                window.document.title = "Plando Editor: " + sent.name
+                window.history.replaceState('', window.document.title, url.href);
+                // no plando had this name, so a draft under it is a dead plando's
+                remove_draft(local_storage(), draft_key(this.state.user, sent.name))
             }
             this.setState({last_seed_name: sent.name}, () => this.draftSaved(sent.snapshot, sent.key))
             NotificationManager.success("Seed saved", "Success!", 2500);
@@ -1875,6 +1917,11 @@ class PlandoBuiler extends React.Component {
                     </Collapse>
                     <Collapse isOpen={this.state.display_fill}>
                         <div id="fill-params">
+                            <div className="fill-wrapper fill-pool-row">
+                                <span className="label">Item Pool:</span>
+                                <Select styles={select_styles} options={this.state.pool_menu} value={this.state.fill_pool} onChange={(o) => this.setState({fill_pool: o})}
+                                        isClearable placeholder="Default" isDisabled={this.state.fill_opts.dumb}/>
+                            </div>
                             <div className="fill-wrapper">
                                 <span className="label">Health Cells:</span>
                                 <NumericInput min={0} disabled={!this.state.fill_opts.dumb} value={this.state.fill_opts.HC} onChange={(n) => this.updateFill("HC",n)}></NumericInput>

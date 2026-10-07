@@ -93,7 +93,7 @@ EXPECTED = [
     "GET /plando/<seed_name>/edit",
     "GET /plando/<seed_name>/hideToggle",
     "GET /plando/<seed_name>/rename/<new_name>",
-    "GET /plando/fillgen",
+    "GET,POST /plando/fillgen",
     "GET /plandos",
     "GET /preset/<owner_name>/<name>",
     "GET /preset/<owner_name>/<name>/roll",

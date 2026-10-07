@@ -125,6 +125,10 @@ body, #root {
   flex: 0 0 80px;
 }
 
+.fill-pool-row > div {
+  flex-grow: 1;
+}
+
 /* EXP Pool holds five digits where the other boxes hold two, and is alone when shown */
 .fill-wrapper.exp-pool-row > .react-numeric-input:last-child {
   flex-basis: 160px;

@@ -1,5 +1,6 @@
 from google.cloud import ndb
 
+import json
 import logging as log
 import random
 import time
@@ -21,6 +22,17 @@ JSON_SHARE = lambda x: x.value if x != ShareType.EVENT else "World Events"
 
 def normalize_pool(pool):
     return {normalize_pickup(k): v for k, v in (pool or {}).items()}
+
+
+def pool_from_query(raw):
+    """An item pool sent as JSON in the seedgen page's shape ({"HC|1": [12], "WP|*": [4, 8]});
+    ValueError when it isn't one."""
+    pool = json.loads(raw)
+    def counts_ok(v):
+        return isinstance(v, list) and len(v) in (1, 2) and all(type(n) is int and n >= 0 for n in v)
+    if not isinstance(pool, dict) or not all(isinstance(k, str) and counts_ok(v) for k, v in pool.items()):
+        raise ValueError("not an item pool")
+    return normalize_pool(pool)
 
 
 def spawn_weights(ws):
@@ -529,11 +541,11 @@ class SeedGenParams(ndb.Model):
         params.verbose_spoiler = qparams.get("verboseSpoiler", "") == "true"
         raw_pool = qparams.get("item_pool")
         if raw_pool:
-            for itemcnt in raw_pool.split("|"):
-                item, _, count = itemcnt.partition(":")
-                params.item_pool[item] = int(count)
+            params.item_pool = pool_from_query(raw_pool)
         else:
-            if Variation.EXTRA_BONUS_PICKUPS in params.variations or params.pool_preset == "Extra Bonus":
+            # a pool named outright beats the BonusPickups variation's
+            bonus = Variation.EXTRA_BONUS_PICKUPS in params.variations and not qparams.get("pool_preset")
+            if bonus or params.pool_preset == "Extra Bonus":
                 params.pool_preset = "Extra Bonus"
                 params.item_pool = { 
                   "TP|Grove": [1], "TP|Swamp": [1], "TP|Grotto": [1], "TP|Valley": [1], "TP|Sorrow": [1], "TP|Ginso": [1],
