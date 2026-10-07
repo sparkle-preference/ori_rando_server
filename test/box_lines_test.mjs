@@ -148,6 +148,33 @@ test("a flag describes itself from its values, and warns where the game would lo
         assert.ok(describe_flag(flag).text && !describe_flag(flag).warn, flag)
 })
 
+test("on=Tick takes a delay and a repeat, in ticks or never, as the game parses them", () => {
+    let says = (flag) => describe_flag(flag).text
+    assert.equal(says("on=Tick/30/60"), "Grants after 30 ticks (0.5 s) inside, then every 60 ticks (1 s)")
+    assert.equal(says("on=tick/60/never"), "Grants after 60 ticks (1 s) inside, then not again until Ori leaves and comes back")
+    assert.equal(says("on=Tick/30"), "Grants after 30 ticks (0.5 s) inside, then every tick")
+    assert.equal(says("on=Tick/1/1"), says("on=Tick"))
+    assert.equal(says("on=Tick/never"), "Never grants")
+    for(let flag of ["on=Tick/x", "on=Tick/1/x", "on=Tick/1/2/3", "on=Tick/", "on=Tick/1.5", "on=Tick/99999999999",
+                     "on=Enter/30", "on=Frame/1/1"])
+        assert.ok(describe_flag(flag).warn, flag)
+    for(let flag of ["on=Tick/ 30 /60", "on=Tick/+5", "on=TICK/30/NEVER", "on=Enter", "on=Frame"])
+        assert.ok(!describe_flag(flag).warn, flag)
+})
+
+test("on=Tick offers its delay, then its repeat; Enter and Frame take neither", () => {
+    let values = (text) => flag_completions(text).map(c => c.value)
+    assert.deepEqual(values("on=Tick"), ["on=Tick/"])
+    assert.equal(flag_completions("on=Tick")[0].next.hint, "delay in ticks")
+    assert.deepEqual(values("on=Enter"), [])
+    assert.deepEqual(values("on=Tick/30"), ["on=Tick/30/"])
+    assert.equal(flag_completions("on=Tick/30")[0].next.hint, "repeat in ticks, or never")
+    assert.deepEqual(values("on=Tick/30/n"), ["on=Tick/30/never"])
+    for(let text of ["on=Tick/30/60", "on=Tick/30/never", "on=Tick/x"])
+        assert.deepEqual(values(text), [], text)
+    assert.deepEqual(flag_completions("on=Tick/").map(c => [c.value, c.fill, c.next.hint]), [["on=Tick/", true, "delay in ticks"]])
+})
+
 test("numbers are plain decimals, as the game reads them", () => {
     for(let flag of ["renderDepth=1e2", "renderDepth=0x10", "renderDepth=.", "renderDepth=-", "renderDepth=1.2.3", "damage=1e2",
                      "damage=0x10/Lava", "damage=Infinity"])
@@ -162,8 +189,8 @@ test("a value flag being typed offers its names, then its next part", () => {
     let values = (text) => flag_completions(text).map(c => c.value)
     assert.deepEqual(values("on="), ["on=Enter", "on=Tick", "on=Frame"])
     assert.deepEqual(values("ON=t"), ["ON=Tick", "ON=Enter"])
-    assert.deepEqual(flag_completions("on=T").map(c => c.fill), [false, false])
-    assert.deepEqual(values("on=Tick"), [])
+    // only Tick has more to come
+    assert.deepEqual(flag_completions("on=T").map(c => c.fill), [true, false])
     assert.deepEqual(values("damage=1"), ["damage=1/"])
     assert.equal(flag_completions("damage=1")[0].next.hint, "damage type")
     assert.equal(values("damage=1/").length, 26)

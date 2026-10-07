@@ -10,7 +10,8 @@ const VALUE_FLAGS = ["on", "damage", "renderdepth", "parallaxdepth"]
 const BOX_PRESETS = {kill: "box kills Ori", item: "grants an item once", solid: "box with collision",
                      ritem: "grants an item repeatedly"}
 const BOX_FLAG_SUGGESTIONS = {...BOX_PRESETS, once: "box toggles off when collected", unsafe: "saves disabled inside box",
-                              "on=Tick": "grant 60 times a second while inside box", "on=Frame": "grant every frame while inside box",
+                              "on=Tick": "grant 60 times a second while inside box", "on=Tick/60/60": "grant once a second while inside box",
+                              "on=Frame": "grant every frame while inside box",
                               "damage=1": "box damages entities touching it", "renderDepth=-99": "draw box over terrain",
                               "parallaxDepth=10": "box scrolls like background art"}
 // a chip's tooltip; value flags build theirs from what is typed, in describe_flag
@@ -133,6 +134,37 @@ const capital = (text) => text.charAt(0).toUpperCase() + text.slice(1)
 const one_of = (names, text) => names.find(n => n.toLowerCase() === text.trim().toLowerCase())
 // a plain decimal, as the game's float.TryParse with NumberStyles.Number reads one
 const numeric = (text) => /^\s*[+-]?(\d+\.?\d*|\.\d+)\s*$/.test(text)
+// a whole number that fits an int, as int.TryParse takes one
+const integer = (text) => /^\s*[+-]?\d+\s*$/.test(text) && Math.abs(Number(text)) <= 2147483647
+
+// a count of physics ticks, with the seconds it comes to
+const ticks = (n) => `${n} tick${n === 1 ? "" : "s"} (${Math.round(n / 60 * 100) / 100} s)`
+
+// on=Enter, on=Frame, or on=Tick/<delay>/<repeat>: a delay and repeat are ticks or never, 1 when left out
+function describe_trigger(value, bad) {
+    let parts = value.split("/")
+    let when = one_of(Object.keys(TRIGGER_TEXT), parts[0])
+    if(!when)
+        return bad("One of: Enter, Tick, Frame")
+    if(when !== "Tick")
+        return parts.length > 1 ? bad(`${when} takes no delay or repeat`) : {text: capital(TRIGGER_TEXT[when])}
+    if(parts.length > 3)
+        return bad("Tick takes a delay and a repeat at most: Tick/30/60")
+    // the game collects once its countdown is at or below 0, so 0 and below act as 1
+    let count = (p) => p === undefined ? 1 : /^\s*never\s*$/i.test(p) ? Infinity : integer(p) ? Math.max(1, Number(p)) : NaN
+    let [delay, repeat] = [count(parts[1]), count(parts[2])]
+    if(isNaN(delay))
+        return bad(`The delay is a whole number of ticks, or never: ${parts[1]}`)
+    if(isNaN(repeat))
+        return bad(`The repeat is a whole number of ticks, or never: ${parts[2]}`)
+    if(delay === Infinity)
+        return {text: "Never grants"}
+    if(delay === 1 && repeat === 1)
+        return {text: capital(TRIGGER_TEXT.Tick)}
+    let first = delay === 1 ? "Grants as soon as Ori is inside" : `Grants after ${ticks(delay)} inside`
+    let then = repeat === Infinity ? "then not again until Ori leaves and comes back" : repeat === 1 ? "then every tick" : `then every ${ticks(repeat)}`
+    return {text: `${first}, ${then}`}
+}
 
 // What a flag does, or with warn, why the game won't do what it says. Bad values are the
 // game's own parse errors, which it only logs.
@@ -145,10 +177,8 @@ function describe_flag(flag) {
         return bad("Unknown flag (will be ignored)")
     if(VALUE_FLAGS.includes(key) && !value)
         return bad(`Needs a value: ${name}=...`)
-    if(key === "on") {
-        let when = one_of(Object.keys(TRIGGER_TEXT), value)
-        return when ? {text: capital(TRIGGER_TEXT[when])} : bad("One of: Enter, Tick, Frame")
-    }
+    if(key === "on")
+        return describe_trigger(value, bad)
     if(DEPTH_RANGES[key]) {
         let [low, high] = DEPTH_RANGES[key]
         if(!numeric(value) || Number(value) < low || Number(value) > high)
@@ -177,9 +207,11 @@ function describe_flag(flag) {
 
 const box_flag_warning = (flag) => describe_flag(flag).warn ? describe_flag(flag).text : ""
 
-// the parts after a value flag's "=", in order, and what the game uses for one left out
+// the parts after a value flag's "=", in order, and what the game uses for one left out; more: the names that
+// take the parts after them, where not every name does; whole: a whole number counts as a finished part
 const FLAG_PARTS = {
-    on: [{names: Object.keys(TRIGGER_TEXT)}],
+    on: [{names: Object.keys(TRIGGER_TEXT), more: ["Tick"]}, {hint: "delay in ticks", fallback: "1", whole: integer},
+         {names: ["never"], hint: "repeat in ticks, or never", fallback: "1", whole: integer}],
     damage: [{hint: "amount"}, {names: DAMAGE_TYPES, hint: "damage type", fallback: "Spikes"},
              {names: ["All", "Player"], hint: "target", fallback: "All"},
              {names: ["Normal", "Extended"], hint: "hitboxes", fallback: "Extended"}],
@@ -201,15 +233,17 @@ function flag_completions(text) {
     if(!part.names && !partial)
         return [{value: text, fill: true, next: part}]
     let head = text.slice(0, text.length - typed[at].length)
-    let whole = part.names ? part.names.some(n => n.toLowerCase() === partial) : numeric(typed[at])
+    let named = part.names ? part.names.find(n => n.toLowerCase() === partial) : undefined
+    let whole = !!named || (part.whole ? part.whole(typed[at]) : !part.names && numeric(typed[at]))
+    let goesOn = (name) => !!parts[at + 1] && (!part.more || part.more.includes(name))
     let out = []
     if(part.names) {
         let hits = whole ? part.names.filter(n => n.toLowerCase().startsWith(partial) && n.toLowerCase() !== partial)
                          : [...part.names.filter(n => n.toLowerCase().startsWith(partial)),
                             ...part.names.filter(n => !n.toLowerCase().startsWith(partial) && n.toLowerCase().includes(partial))]
-        out = hits.map(n => ({value: head + n, fill: at < parts.length - 1}))
+        out = hits.map(n => ({value: head + n, fill: goesOn(n)}))
     }
-    if(whole && parts[at + 1])
+    if(whole && goesOn(named))
         out.push({value: text + "/", fill: true, next: parts[at + 1]})
     return out
 }
