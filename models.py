@@ -1749,8 +1749,12 @@ class Seed(ndb.Model):
         return mode_opt[0] if mode_opt else None
 
     def shared(self):
-        shared_opt = [f[7:].replace("+", " ").split(" ") for f in self.flags if f.lower().startswith("shared=")]
-        return enums_from_strlist(ShareType, shared_opt[0]) if shared_opt else []
+        # the editor writes shared=; a filled or imported seed's flag line brings share=, which the editor's own choice beats
+        for prefix in ("shared=", "share="):
+            shared_opt = [f[len(prefix):] for f in self.flags if f.lower().startswith(prefix)]
+            if shared_opt:
+                return enums_from_strlist(ShareType, shared_opt[0].replace("+", " ").split(" "))
+        return []
 
     @staticmethod
     def new(data):

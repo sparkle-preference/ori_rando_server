@@ -136,6 +136,8 @@ SEED_FLAGS.forEach(flag => FLAG_CASEFIX[flag.toLowerCase()] = flag);
 const modes_by_key = {"Shared": "Shared", "None": "Solo", "Multiworld": "Multiworld", "SplitShards": "Shards Race"}
 const COOP_MODES = Object.keys(modes_by_key).map((k) => { return {label: modes_by_key[k], value: k} });
 const SHARE_TYPES = ["WorldEvents", "Misc", "Upgrades", "Teleporters", "Skills"]
+// the modes whose shared= the server reads
+const SHARING_MODES = ["Shared", "Multiworld"]
 // entrance shuffle doors, mirroring doors_inner/doors_outer (+R1OuterDoor) in seedbuilder/generator.py
 const DOORS = [
     ["GinsoInnerDoor", 522, 1], ["ForlornInnerDoor", -717, -408], ["HoruInnerDoor", 68, 169],
@@ -1061,11 +1063,11 @@ class PlandoBuiler extends React.Component {
                 coop_mode={label: modes_by_key[k] || k, value: k}
                 display_coop = true
             }
-            else if(flag.startsWith("shared="))
+            else if(flag.startsWith("shared=") || flag.startsWith("share=")) // share= is the generator's spelling
             {
                 display_coop = true
                 sawShared = true
-                share_types=select_wrap(flag.substring(7).split("+").filter((id) => SHARE_TYPES.includes(id)))
+                share_types=select_wrap(flag.substring(flag.indexOf("=") + 1).split("+").filter((id) => SHARE_TYPES.includes(id)))
             }
             else if(!seedFlags.includes(flag)) {
                 // a seed has one pool, so a fill's pool replaces the one before it
@@ -1074,8 +1076,8 @@ class PlandoBuiler extends React.Component {
                 seedFlags.push(flag)
             }
         });
-        // a Shared seed that shares nothing writes no shared= at all
-        if(fresh && coop_mode.value === "Shared" && !sawShared)
+        // a seed that shares nothing writes no shared= at all
+        if(fresh && SHARING_MODES.includes(coop_mode.value) && !sawShared)
             share_types = []
         this.setState({seedFlags: select_wrap(seedFlags), share_types: share_types, coop_mode: coop_mode, display_coop: display_coop, seed_name: seed_name})
     }
@@ -1084,7 +1086,7 @@ class PlandoBuiler extends React.Component {
         let flags = this.state.seedFlags.map(f => f.value)
         if(this.state.coop_mode.value !== "None")
         {
-            if(this.state.coop_mode.value === "Shared") {
+            if(SHARING_MODES.includes(this.state.coop_mode.value)) {
                 let stypes = this.state.share_types.map(f => f.value)
                 if(stypes.length)
                     flags.push("shared="+stypes.join("+"))
