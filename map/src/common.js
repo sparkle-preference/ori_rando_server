@@ -1024,6 +1024,11 @@ const spawnKitFor = (loc, pathMode) => {
 // the variations that are goal modes
 const GOAL_VARS = ["ForceTrees", "WorldTour", "ForceMaps", "WarmthFrags", "Bingo"];
 
+// a share flag's categories, or null; shared= is a legacy alias older plandos still carry
+function share_types_of(flag) {
+    return /^shared?=/i.test(flag) ? flag.slice(flag.indexOf("=") + 1).split("+") : null
+}
+
 const presets = {
     casual: ['casual-core', 'casual-dboost'],
     standard: [
@@ -1176,5 +1181,5 @@ export {
     player_icons, doNetRequest, prng, get_param, get_flag, resolve_dark, save_dark, beta_welcome_pending, save_beta_welcome, theme_href, postNetForm, ap_enabled, get_int, get_list, get_preset, presets, GOAL_VARS, get_seed, logic_paths, get_random_loader, Blabel, MousePos,
     pickup_name, stuff_by_type, logic_events, name_from_str, PickupSelect, Cent, ordinal_suffix, dev, gotoUrl, loginLogoutUrl, select_theme, randInt, spawn_defaults, spawnKitFor, decompose_pickup,
     box_label, box_color_history, remember_box_color, seed_link_pref, remember_seed_link,
-    box_panel_width, remember_box_panel_width
+    box_panel_width, remember_box_panel_width, share_types_of
 };

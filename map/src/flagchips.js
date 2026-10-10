@@ -1,5 +1,5 @@
 import React from 'react';
-import {presets, GOAL_VARS} from './common.js';
+import {presets, GOAL_VARS, share_types_of} from './common.js';
 
 const KEY_FLAGS = ["Shards", "Clues", "Limitkeys", "Free", "Default"];
 const MODE_NAMES = {shared: "Co-op", none: "Race", multiworld: "Multiworld", splitshards: "Split Shards"};
@@ -21,8 +21,8 @@ const flagChip = (flag) => {
         return {rank: 3, label: "Items: " + flag.slice(5), cls: "flag-chip-items"}
     if(flag.startsWith("spawn="))
         return {rank: 4, label: "Spawn: " + flag.slice(6), cls: "flag-chip-spawn"}
-    if(flag.startsWith("share="))
-        return {rank: 5, label: "Shared: " + flag.slice(6).split("+").join(", "), cls: "flag-chip-shared"}
+    if(share_types_of(flag))
+        return {rank: 5, label: "Shared: " + share_types_of(flag).join(", "), cls: "flag-chip-shared"}
     if(flag.startsWith("mode="))
         return {rank: 5, label: "Mode: " + (MODE_NAMES[flag.slice(5).toLowerCase()] || flag.slice(5)), cls: "flag-chip-plain"}
     if(flag === "DeathLink" || flag.startsWith("anti_bk_bias="))

@@ -8,7 +8,7 @@ import 'react-notifications/lib/notifications.css';
 import {Checkbox, CheckboxGroup} from 'react-checkbox-group';
 import {get_param, get_flag, get_int, get_list, get_seed, presets, get_preset, logic_paths, pickup_name, PickupSelect, stuff_by_type, logic_events, loginLogoutUrl, decompose_pickup,
         box_label, box_color_history, remember_box_color, MousePos, select_theme, name_from_str,
-        box_panel_width, remember_box_panel_width, doNetRequest} from './common.js';
+        box_panel_width, remember_box_panel_width, doNetRequest, share_types_of} from './common.js';
 import {BOX_TOMBSTONE, is_box_gone, box_hidden, new_box, box_has_flag, box_flags_from_chips, parse_box_line, box_line,
         box_color, box_flag_ok, box_flag_choices, describe_flag, flag_completions, flag_menu, BOXES_TXT, compact_boxes,
         box_search, parse_box_paste, paste_boxes} from './boxes.js';
@@ -136,7 +136,7 @@ SEED_FLAGS.forEach(flag => FLAG_CASEFIX[flag.toLowerCase()] = flag);
 const modes_by_key = {"Shared": "Shared", "None": "Solo", "Multiworld": "Multiworld", "SplitShards": "Shards Race"}
 const COOP_MODES = Object.keys(modes_by_key).map((k) => { return {label: modes_by_key[k], value: k} });
 const SHARE_TYPES = ["WorldEvents", "Misc", "Upgrades", "Teleporters", "Skills"]
-// the modes whose shared= the server reads
+// the modes whose share= the server reads
 const SHARING_MODES = ["Shared", "Multiworld"]
 // entrance shuffle doors, mirroring doors_inner/doors_outer (+R1OuterDoor) in seedbuilder/generator.py
 const DOORS = [
@@ -1063,11 +1063,11 @@ class PlandoBuiler extends React.Component {
                 coop_mode={label: modes_by_key[k] || k, value: k}
                 display_coop = true
             }
-            else if(flag.startsWith("shared=") || flag.startsWith("share=")) // share= is the generator's spelling
+            else if(share_types_of(flag))
             {
                 display_coop = true
                 sawShared = true
-                share_types=select_wrap(flag.substring(flag.indexOf("=") + 1).split("+").filter((id) => SHARE_TYPES.includes(id)))
+                share_types=select_wrap(share_types_of(flag).filter((id) => SHARE_TYPES.includes(id)))
             }
             else if(!seedFlags.includes(flag)) {
                 // a seed has one pool, so a fill's pool replaces the one before it
@@ -1076,7 +1076,7 @@ class PlandoBuiler extends React.Component {
                 seedFlags.push(flag)
             }
         });
-        // a seed that shares nothing writes no shared= at all
+        // a seed that shares nothing writes no share= at all
         if(fresh && SHARING_MODES.includes(coop_mode.value) && !sawShared)
             share_types = []
         this.setState({seedFlags: select_wrap(seedFlags), share_types: share_types, coop_mode: coop_mode, display_coop: display_coop, seed_name: seed_name})
@@ -1089,7 +1089,7 @@ class PlandoBuiler extends React.Component {
             if(SHARING_MODES.includes(this.state.coop_mode.value)) {
                 let stypes = this.state.share_types.map(f => f.value)
                 if(stypes.length)
-                    flags.push("shared="+stypes.join("+"))
+                    flags.push("share="+stypes.join("+"))
             }
             flags.push("mode="+this.state.coop_mode.value)
         }
@@ -1172,7 +1172,7 @@ class PlandoBuiler extends React.Component {
         data.desc = this.state.seed_desc
         data.sharedMode = this.state.coop_mode.value
         data.shareTypes = this.state.share_types.map(f => f.value)
-        // mode=/shared= flags must be included here: the server persists only data.flags,
+        // mode=/share= flags must be included here: the server persists only data.flags,
         // and Seed.mode()/Seed.shared() parse them back out of Seed.flags on download
         data.flags = this.buildFlags();
         data.hidden = this.state.hidden;

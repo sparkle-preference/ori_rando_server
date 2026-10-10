@@ -605,7 +605,7 @@ class CLISeedParams(object):
         if self.sync.enabled:
             flags.append("mode=%s" % self.sync.mode.value)
             if self.sync.shared:
-                flags.append("shared=%s" % "+".join([s.value for s in self.sync.shared]))
+                flags.append("share=%s" % "+".join([s.value for s in self.sync.shared]))
         # mirrors SeedGenParams.flag_line: the client only sends its death
         # counter when the seed says so
         if self.ap_mode and self.ap_death_link:

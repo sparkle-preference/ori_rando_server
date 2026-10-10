@@ -1,4 +1,4 @@
-"""A plando's shared categories come from its flags, in either spelling.
+"""A plando's shared categories come from its share= flag (shared= in older plandos).
 
 Run from the repo root:  python3 -m unittest test.plando_share_test -v
 """
@@ -32,17 +32,17 @@ class PlandoShareTestCase(unittest.TestCase):
     def _plando(*flags):
         return Seed(id="uid:Mw", name="Mw", players=4, placements=[], flags=["Master", *flags])
 
-    def test_the_editors_spelling(self):
-        plando = self._plando("shared=Skills+Teleporters", "mode=Shared")
-        self.assertEqual(plando.shared(), [ShareType.SKILL, ShareType.TELEPORTER])
-
-    def test_a_filled_seeds_spelling_reaches_the_game(self):
-        # a Fill or an imported seed brings the generator's flag line, share= and all
+    def test_share_reaches_the_game(self):
         params = SeedGenParams.from_plando(self._plando("share=Skills+WorldEvents+Teleporters", "mode=Multiworld"))
         self.assertEqual(params.sync.mode, MultiplayerGameType.MULTIWORLD)
         self.assertEqual(params.sync.shared, [ShareType.SKILL, ShareType.EVENT, ShareType.TELEPORTER])
 
-    def test_the_editors_choice_wins(self):
+    def test_older_plandos_say_shared(self):
+        plando = self._plando("shared=Skills+Teleporters", "mode=Shared")
+        self.assertEqual(plando.shared(), [ShareType.SKILL, ShareType.TELEPORTER])
+
+    def test_the_last_one_wins(self):
+        # an older editor appended its shared= after a fill's leftover share=
         plando = self._plando("share=Skills+WorldEvents", "shared=Teleporters", "mode=Multiworld")
         self.assertEqual(plando.shared(), [ShareType.TELEPORTER])
 
