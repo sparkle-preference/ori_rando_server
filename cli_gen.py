@@ -5,9 +5,10 @@ import re
 import pickle
 from collections import OrderedDict, defaultdict, Counter
 
-from util import enums_from_strlist, get_preset_from_paths, parse_fass, SEED_FORMAT
+from util import enums_from_strlist, get_preset_from_paths, parse_fass, SEED_FORMAT, spawn_defaults
 from enums import MultiplayerGameType, ShareType, Variation, LogicPath, KeyMode, PathDifficulty, presets
 from seedbuilder.generator import SeedGenerator
+from seedbuilder.oriparse import get_path_tags_from_pathsets
 
 FLAGLESS_VARS = [Variation.WARMTH_FRAGMENTS, Variation.WORLD_TOUR]
 first_line_pattern = re.compile(r"(\d+): (\[[^]]+\])")
@@ -65,6 +66,8 @@ class CLISeedParams(object):
         parser.add_argument("--grenade-starved", help="Reduces the rate at which Grenade will appear early and when not required to advance", action="store_true")
         parser.add_argument("--strict-mapstones", help="Require a mapstone to be placed when a map monument becomes accessible", action="store_true")
         parser.add_argument("--non-progressive-mapstones", help="Map Stones will retain their behavior from before v1.2, having their own unique drops", action="store_true")
+        parser.add_argument("--enemy-rando", help="Shuffle which enemy stands where; lure paths leave the logic", action="store_true")
+        parser.add_argument("--enemy-opts", help="Enemy rando options, 'pool=Frogs+Slimes;hp=0.5-2;logic=off' (see seedbuilder/enemyopts.py)", type=str)
         # goal modes
         parser.add_argument("--force-trees", help="Prevent Ori from entering the final escape room until all skill trees have been visited", action="store_true")
         parser.add_argument("--force-mapstones", help="Prevent Ori from entering the final escape room until all mapstone altars have been activated", action="store_true")
@@ -146,7 +149,8 @@ class CLISeedParams(object):
             "warmth_frags": "WarmthFrags", "world_tour": "WorldTour", "closed_dungeons": "ClosedDungeons", "tp_starved": "TPStarved", "wall_starved": "WallStarved",
             "warps_instead_of_tps": "WarpsInsteadOfTPs", "in_logic_warps": "InLogicWarps", "warp_count": "WarpCount", "starting_health": "StartingHealth",
             "starting_energy": "StartingEnergy", "starting_skills": "StartingSkills", "grenade_starved": "GrenadeStarved", "goal_mode_finish": "GoalModeFinish",
-            "no_tps": "NoTPs", "competitive": "Competitive", "bonus_lite": "BonusLite", "hard": "Hard", "bonus_pickups": "BonusPickups"
+            "no_tps": "NoTPs", "competitive": "Competitive", "bonus_lite": "BonusLite", "hard": "Hard", "bonus_pickups": "BonusPickups",
+            "enemy_rando": "EnemyRando"
         }
         self.variations = []
         for argName, flagStr in varMap.items():
@@ -168,10 +172,12 @@ class CLISeedParams(object):
         self.start = args.start.capitalize()
         self.spawn = self.start if self.start != "Random" else ""
 
-        # read for any non-Glades start, so they default like SeedGenParams
-        self.starting_health = args.starting_health or 3
-        self.starting_energy = args.starting_energy or 1
-        self.starting_skills = args.starting_skills or 0
+        # unset values take the site's kit for this start at the logic's difficulty
+        difficulty = SeedGenerator.get_difficulty(get_path_tags_from_pathsets([lp.value for lp in self.logic_paths]))
+        kit = spawn_defaults.get(self.start, {}).get(difficulty, [3, 1, 0])
+        self.starting_health = args.starting_health or kit[0]
+        self.starting_energy = args.starting_energy or kit[1]
+        self.starting_skills = args.starting_skills if args.starting_skills is not None else kit[2]
         #misc
         self.exp_pool = args.exp_pool
         if args.prefer_path_difficulty:
@@ -369,6 +375,9 @@ class CLISeedParams(object):
         self.ap_mode = bool(args.ap_export)
         self.ap_export = []
         self.ks_door_order = None  # set by the generator when keystones export
+        self.enemy_rolls = None    # set by the generator for EnemyRando seeds
+        from seedbuilder.enemyopts import parse_kv
+        self.enemy_opts = parse_kv(args.enemy_opts) if args.enemy_opts else None
         self.ap_death_link = self.ap_mode and bool(args.ap_death_link)
         if self.ap_mode:
             from archipelago.convert import EXPORTABLE_CATEGORIES, normalize_categories

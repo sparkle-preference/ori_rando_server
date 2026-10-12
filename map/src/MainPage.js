@@ -77,7 +77,7 @@ const SSP_LOBBY_KEYS = ["players", "playerNames", "coopGenMode", "coopGameMode",
 // and the rest are outputs of a finished seed rather than form inputs.
 const PRESET_NEVER_LOAD = ["seed", "flagLine", "isPlando", "spoilers", "teamStr"];
 // list-valued settings a blob may leave null
-const NEVER_NULL_KEYS = ["itemPool", "variations", "paths", "fass", "shared", "mwShared", "apExport", "playerNames", "worldSettings", "spawnWeights"]
+const NEVER_NULL_KEYS = ["itemPool", "variations", "paths", "fass", "shared", "mwShared", "apExport", "playerNames", "worldSettings", "spawnWeights", "enemyOpts"]
 // accepts a full ?preset=owner:name url, the query alone, or a bare owner:name
 const parsePresetLink = (text) => {
     let raw = (text || "").trim()
@@ -126,7 +126,7 @@ const PRESET_FORM_KEYS = ["keyMode", "fillAlg", "variations", "paths", "expPool"
                           "selectedPool", "verboseSpoiler", "pathDiff", "senseData",
                           "fragCount", "fragReq", "relicCount", "bingoLines",
                           "bingoDiff", "bingoGoal", "bingoSquares", "bingoMeta", "bingoDisc",
-                          "spawn", "spawnSKs", "spawnECs", "spawnHCs", "spawnWeights"];
+                          "spawn", "spawnSKs", "spawnECs", "spawnHCs", "spawnWeights", "enemyOpts"];
 // only the keys paramsJson would emit, gated on the same conditions
 const livePresetKeys = (form) => {
     let ks = ["keyMode", "fillAlg", "variations", "paths", "expPool", "cellFreq",
@@ -135,6 +135,7 @@ const livePresetKeys = (form) => {
     if(vars.includes("WarmthFrags")) ks.push("fragCount", "fragReq");
     if(vars.includes("WorldTour")) ks.push("relicCount");
     if(vars.includes("Bingo")) ks.push("bingoLines", "bingoDiff", "bingoGoal", "bingoSquares", "bingoMeta", "bingoDisc");
+    if(vars.includes("EnemyRando")) ks.push("enemyOpts");
     if(form.spawn === "Random") ks.push("spawnWeights");
     else if(form.spawn && form.spawn !== "Glades") ks.push("spawnSKs", "spawnECs", "spawnHCs");
     return ks;
@@ -309,6 +310,7 @@ const VAR_NAMES = {
     OpenWorld: "Open World",
     InLogicWarps: "In-Logic Warps",
     Keysanity: "Keysanity",
+    EnemyRando: "Enemy Rando",
     Enhanced: "Enhanced",
     Entrance: "Entrance Shuffle",
     OHKO: "One Hit KO",
@@ -330,6 +332,29 @@ const VAR_NAMES = {
     StompTriggers: "Legacy Kuro Behavior",
     ClosedDungeons: "Closed Dungeons",
 }
+
+// Enemy Rando options: non-default keys only, mirrored in seedbuilder/enemyopts.py
+const ENEMY_KINDS = ["Fronkeys", "Frogs", "Slimes", "Banelings", "DropSlugs", "Worms", "Rhinos", "Birds", "Elementals", "Swarms", "Spiders", "Fish", "Sharks"]
+const ENEMY_KIND_NAMES = {Fronkeys: "Fronkeys", Frogs: "Frogs", Slimes: "Slimes", Banelings: "Banelings", DropSlugs: "Drop slugs", Worms: "Worms",
+                          Rhinos: "Rhinos", Birds: "Birds", Elementals: "Elementals", Swarms: "Swarms", Spiders: "Spiders", Fish: "Fish", Sharks: "Sharks"}
+// the switches' defaults (seedbuilder/enemyopts.py); flying fish are off until asked for
+const ENEMY_SWITCHES = {pools: "on", flyingfish: "off", walkers: "on", shootercap: "on", logic: "on"}
+const ENEMY_PRESETS = {
+    Standard: {},
+    Mild: {pool: ENEMY_KINDS.filter(k => !["Rhinos", "Elementals", "Sharks"].includes(k)), keep: ["Worms"], arena: "kind", pools: "off", walkers: "off"},
+    Chaos: {hp: "0.5-2", dmg: "0.5-2", flyingfish: "on", shootercap: "off"},
+}
+const ENEMY_RANGE = /^([\d.]+)-([\d.]+)$/
+const cleanEnemyOpts = (o) => {
+    let out = {}
+    if(o.pool && !ENEMY_KINDS.every(k => o.pool.includes(k))) out.pool = o.pool.filter(k => ENEMY_KINDS.includes(k))
+    if(o.keep && o.keep.length) out.keep = o.keep.filter(k => ENEMY_KINDS.includes(k))
+    for(let k of ["hp", "dmg"]) if(o[k] && o[k] !== "zone") out[k] = o[k]
+    if(o.arena && o.arena !== "hp") out.arena = o.arena
+    for(let k in ENEMY_SWITCHES) if((o[k] === "on" || o[k] === "off") && o[k] !== ENEMY_SWITCHES[k]) out[k] = o[k]
+    return out
+}
+const enemyOptsCanon = (o) => JSON.stringify(Object.keys(o).sort().map(k => [k, o[k]]))
 
 const VAR_WEIGHTS = {
     Starved: .1,
@@ -505,6 +530,51 @@ export default class MainPage extends React.Component {
                     <Cent>{text}</Cent>
                 </Col>
             </Row>)
+        const eo = this.state.enemyOpts || {}
+        const eoPool = eo.pool || ENEMY_KINDS
+        const eoKeep = eo.keep || []
+        const setEo = (patch) => this.setState({enemyOpts: cleanEnemyOpts({...eo, ...patch})})
+        const enemyRow = (label, help, control) => (
+            <Row data-hist={help} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", help)} className="p-1 justify-content-center">
+                <Col xs={leftCol} className="text-center border"><Cent>{label}</Cent></Col>
+                <Col xs={rightCol}>{control}</Col>
+            </Row>)
+        const kindGrid = (picked, toggle) => (
+            <div className="d-flex flex-wrap">
+                {ENEMY_KINDS.map(k => (
+                    <Button key={`enemy-kind-${k}`} size="sm" className="m-1" color="primary" outline={!picked.includes(k)} onClick={() => toggle(k, picked.includes(k))}>{ENEMY_KIND_NAMES[k]}</Button>
+                ))}
+            </div>)
+        const modeRow = (label, key, help) => {
+            let value = eo[key] || "zone"
+            // anything but the two named modes is a range being edited, however malformed
+            let range = value !== "zone" && value !== "vanilla"
+            let dash = value.indexOf("-", 1)
+            let [lo, hi] = range ? (dash > 0 ? [value.slice(0, dash), value.slice(dash + 1)] : [value, ""]) : ["0.5", "2"]
+            let bad = range && !(ENEMY_RANGE.test(value) && parseFloat(lo) >= 0.25 && parseFloat(lo) <= parseFloat(hi) && parseFloat(hi) <= 4)
+            return enemyRow(label, help, (
+                <div>
+                    <ButtonGroup className="w-100">
+                        {[["zone", "Zone"], ["vanilla", "Vanilla"], ["range", "Random"]].map(([m, text]) => (
+                            <Button key={`enemy-${key}-${m}`} color="primary" outline={(range ? "range" : value) !== m}
+                                    onClick={() => setEo({[key]: m === "range" ? "0.5-2" : m})}>{text}</Button>
+                        ))}
+                    </ButtonGroup>
+                    {range ? (
+                    <InputGroup className="mt-1">
+                        <InputGroupAddon addonType="prepend"><Button color="primary" outline disabled>between</Button></InputGroupAddon>
+                        <Input style={inputStyle} type="text" value={lo} invalid={!!bad} onChange={(e) => setEo({[key]: `${e.target.value}-${hi}`})}/>
+                        <InputGroupAddon addonType="append"><Button color="primary" outline disabled>and</Button></InputGroupAddon>
+                        <Input style={inputStyle} type="text" value={hi} invalid={!!bad} onChange={(e) => setEo({[key]: `${lo}-${e.target.value}`})}/>
+                        <FormFeedback tooltip="true">Factors run from 0.25 up to 4, low first</FormFeedback>
+                    </InputGroup>) : null}
+                </div>))
+        }
+        const switchRow = (label, key, help) => enemyRow(label, help, (
+            <ButtonGroup className="w-100">
+                <Button color="primary" outline={(eo[key] || ENEMY_SWITCHES[key]) === "off"} onClick={() => setEo({[key]: "on"})}>On</Button>
+                <Button color="primary" outline={(eo[key] || ENEMY_SWITCHES[key]) !== "off"} onClick={() => setEo({[key]: "off"})}>Off</Button>
+            </ButtonGroup>))
         let weightSelectors = spawnWeights.map((weight, index) => (
             <Col data-hist={`spawnWeight-${SPAWN_TPS[index]}`} xs="4" key={`weight-selector-${index}`} className="text-center border">
                     <Col onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "spawnWeights")}><Cent>{SPAWN_TPS[index]}</Cent></Col>
@@ -653,6 +723,31 @@ export default class MainPage extends React.Component {
                     {sectionLabel("Preplacement", "preplacement")}
                     {fass_rows}
                 </div>
+                <Collapse isOpen={this.hasVar("EnemyRando")}>
+                <div className="border rounded p-1 m-1">
+                {sectionLabel("Enemy Rando", "enemyRando")}
+                {enemyRow("Valid enemy types", "enemyPool", kindGrid(eoPool, (k, on) => setEo({pool: on ? eoPool.filter(x => x !== k) : ENEMY_KINDS.filter(x => x === k || eoPool.includes(x))})))}
+                {enemyRow("Exempt enemy types", "enemyKeep", kindGrid(eoKeep, (k, on) => setEo({keep: on ? eoKeep.filter(x => x !== k) : eoKeep.concat(k)})))}
+                {modeRow("Health", "hp", "enemyHp")}
+                {modeRow("Damage", "dmg", "enemyDmg")}
+                {enemyRow("Minibosses", "enemyArena", (
+                    <ButtonGroup className="w-100">
+                        {[["hp", "Rolled"], ["kind", "Vanilla"]].map(([a, text]) => (
+                            <Button key={`enemy-arena-${a}`} color="primary" outline={(eo.arena || "hp") !== a} onClick={() => setEo({arena: a})}>{text}</Button>
+                        ))}
+                    </ButtonGroup>))}
+                {switchRow("Pool enemy rando", "pools", "enemyPools")}
+                {switchRow("Flying fish", "flyingfish", "enemyFish")}
+                {switchRow("Wall walkers", "walkers", "enemyWalkers")}
+                {switchRow("Shooter cap", "shootercap", "enemyCap")}
+                {switchRow("Preserve bash paths", "logic", "enemyLogic")}
+                <Collapse isOpen={eo.logic === "off"}>
+                    <Row className="p-1 justify-content-center"><Col xs={leftCol + rightCol} className="text-center text-danger">
+                        This could easily generate incompletable seeds.
+                    </Col></Row>
+                </Collapse>
+                </div>
+                </Collapse>
                 <Collapse isOpen={this.hasVar("Bingo")}>
                 <div className="border rounded p-1 m-1">
                 {sectionLabel("Bingo Settings", "bingoSettings")}
@@ -966,6 +1061,8 @@ export default class MainPage extends React.Component {
         }
         if(this.hasVar("WorldTour"))
             json.relicCount=this.state.relicCount
+        if(this.hasVar("EnemyRando") && Object.keys(cleanEnemyOpts(this.state.enemyOpts || {})).length)
+            json.enemyOpts = cleanEnemyOpts(this.state.enemyOpts)
 
         if(this.hasVar("Bingo"))
         {
@@ -1576,6 +1673,24 @@ export default class MainPage extends React.Component {
                             "TPStarved", "WallStarved", "GrenadeStarved"];
         let variationButtons = Object.keys(VAR_NAMES).filter(x => !filteredVars.includes(x)).map(v=> {
             let name = VAR_NAMES[v];
+            if(v === "EnemyRando") {
+                let preset = this.enemyPreset()
+                // the label carries the preset: - Mild, + Chaos, * hand-edited, nothing for Standard
+                let mark = this.hasVar(v) ? ({Mild: " −", Chaos: " +", Custom: " *"}[preset] || "") : ""
+                return (
+                <Col key={`var-button-${v}`} xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("variations", v)} className="p-2">
+                    <UncontrolledButtonDropdown className="w-100">
+                        <Button data-hist={`var-${v}`} className="flex-grow-1" color="primary" outline={!this.hasVar(v)} onClick={this.onVar(v)} title={this.hasVar(v) ? preset : ""}>{name}{mark}</Button>
+                        <DropdownToggle data-hist="enemyPreset" split caret color="primary" outline={!this.hasVar(v)}/>
+                        <DropdownMenu>
+                            {Object.keys(ENEMY_PRESETS).map(p => (
+                                <DropdownItem key={`enemy-preset-${p}`} active={this.hasVar(v) && preset === p} onClick={this.onEnemyPreset(p)}>{p}</DropdownItem>
+                            ))}
+                        </DropdownMenu>
+                    </UncontrolledButtonDropdown>
+                </Col>
+                )
+            }
             return (
             <Col key={`var-button-${v}`} xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("variations", v)} className="p-2">
                 <Button data-hist={`var-${v}`} block color="primary" outline={!this.hasVar(v)} onClick={this.onVar(v)}>{name}</Button>
@@ -2859,7 +2974,7 @@ export default class MainPage extends React.Component {
         this.state = {user: user, activeTab: activeTab, coopGenMode: "Cloned Seeds", coopGameMode: "Multiworld", players: 1, antiBkBias: 0, dropActive: false,
                         tracking: true, variations: ["ForceTrees"], gameId: gameId, itemPool: getPool("Standard"), dedupShared: false, 
                         paths: presets["standard"], keyMode: "Clues", oldKeyMode: "Clues", spawn: "Glades", 
-                        spawnHCs: 3, spawnECs: 1, spawnSKs: 0, pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null), 
+                        spawnHCs: 3, spawnECs: 1, spawnSKs: 0, enemyOpts: {}, pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null), 
                         goalModes: ["ForceTrees"], selectedPool: "Standard", seed: "", fillAlg: "Balanced", quickstartOpen: quickstartOpen,
                         betaWelcomeOpen: beta_welcome_pending(),
                         shared: ["Skills", "Teleporters", "World Events", "Upgrades", "Misc"], mwShared: [], helpcat: "", helpopt: "",
@@ -3117,6 +3232,8 @@ export default class MainPage extends React.Component {
         } else {
             if(v === "Race")
                 this.setState({variations: ["Race", "WorldTour"], players: 4, coopGameMode: "Race", keyMode: "Shards", goalModes: ["WorldTour"]})
+            else if(v === "EnemyRando")
+                this.setState({variations: this.state.variations.concat(v), enemyOpts: {}})
             else {
                 if(v === "InLogicWarps" && !this.state.itemPool.some(({item}) => item === "WP|*")) this.setState(prev => {
                     return {itemPool: prev.itemPool.concat({item: "WP|*", count: 4, upTo: 8, maximum: 14}),
@@ -3127,6 +3244,14 @@ export default class MainPage extends React.Component {
         }
     }
     pathDisabled = (path) => revDisabledPaths.hasOwnProperty(path) && revDisabledPaths[path].some(v => this.hasVar(v))
+    enemyPreset = () => {
+        let canon = enemyOptsCanon(cleanEnemyOpts(this.state.enemyOpts || {}))
+        return Object.keys(ENEMY_PRESETS).find(p => enemyOptsCanon(ENEMY_PRESETS[p]) === canon) || "Custom"
+    }
+    onEnemyPreset = (preset) => () => this.setState(prev => ({
+        enemyOpts: {...ENEMY_PRESETS[preset]},
+        variations: prev.variations.includes("EnemyRando") ? prev.variations : prev.variations.concat("EnemyRando")
+    }))
     onKeyMode = (mode) => () => this.setState({keyMode: mode})
 
     onSpawnLoc = (loc) => () => this.setState(prev => {

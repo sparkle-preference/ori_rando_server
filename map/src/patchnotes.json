@@ -10,6 +10,17 @@
     "Plando"
   ],
   "pending": [
+    {
+      "text": "Added the Enemy Rando variation, which randomizes enemies.",
+      "category": "Seed Generator",
+      "type": "feature",
+      "importance": "major",
+      "sub": [
+        "The Enemy Rando button has a dropdown for swapping Enemy Rando presets between Mild, Standard, or Chaos. (Chaos is not for the faint of heart.)",
+        "You can customize your enemy rando experience using several additional options in the Advanced tab.",
+        "Please note that this is highly experimental: expect the occasional enemy somewhere it has no business being, and a distinct possibility of seeds that aren't logically completable due to enemy randomization."
+      ]
+    }
   ],
   "releases": [
       {

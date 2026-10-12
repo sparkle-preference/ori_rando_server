@@ -316,7 +316,8 @@ def bingo_board_cards(params, difficulty, seed, disc, meta, lockout, world=1):
     wp = params.world_params(world)
     return BingoGenerator.get_cards(rand, 25, True, difficulty, Variation.OPEN_WORLD in wp.variations,
                                     disc, meta, lockout, Variation.KEYSANITY in wp.variations,
-                                    spawn = params.spawn_for(world) or "Glades")
+                                    spawn = params.spawn_for(world) or "Glades",
+                                    enemy_rando = Variation.ENEMY_RANDO in wp.variations)
 
 
 def mw_bingo_worlds(params):
@@ -691,7 +692,7 @@ def add_bingo_to_game(game_id):
             for i in range(test_iters):
                 iseed = seed+str(i)
                 rand.seed(iseed)
-                cards = BingoGenerator.get_cards(rand, 25, True, difficulty, Variation.OPEN_WORLD in params.variations, d, meta, lockout, Variation.KEYSANITY in params.variations, spawn = params.spawn or "Glades")
+                cards = BingoGenerator.get_cards(rand, 25, True, difficulty, Variation.OPEN_WORLD in params.variations, d, meta, lockout, Variation.KEYSANITY in params.variations, spawn = params.spawn or "Glades", enemy_rando = Variation.ENEMY_RANDO in params.variations)
 
                 if not all([card.square in range(2,23,5) for card in cards if card.name == "VertSym"]):
                     log.error("seed %s: VertSym: %s", iseed, [(card.square, card.square in range(2,23,5)) for card in cards if card.name == "VertSym"])

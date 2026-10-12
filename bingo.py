@@ -382,7 +382,7 @@ def roll_func(rand, easy, hard):
 
 class BingoGenerator(object):
     @staticmethod
-    def goal_pool(rand, rando = False, difficulty = "normal", open_world = True, meta = False, lockout = False, keysanity = False, spawn = "Glades"):
+    def goal_pool(rand, rando = False, difficulty = "normal", open_world = True, meta = False, lockout = False, keysanity = False, spawn = "Glades", enemy_rando = False):
         """Every goal a board with these settings may draw from."""
         easy = difficulty == "easy"
         hard = difficulty == "hard"
@@ -750,6 +750,9 @@ class BingoGenerator(object):
                 max_repeats = 2
             )
         ]
+        if enemy_rando:
+            # a seed's supply of each kind is random
+            goals = [goal for goal in goals if not isinstance(goal, DefeatGoal)]
         if not keysanity:
             goals.append(IntGoal(
                 name = "UnspentKeystones",
@@ -933,11 +936,11 @@ class BingoGenerator(object):
         return goals
 
     @staticmethod
-    def get_cards(rand, count = 25, rando = False, difficulty = "normal", open_world = True, discovery = 0, meta = False, lockout = False, keysanity = False, spawn = "Glades"):
+    def get_cards(rand, count = 25, rando = False, difficulty = "normal", open_world = True, discovery = 0, meta = False, lockout = False, keysanity = False, spawn = "Glades", enemy_rando = False):
         easy = difficulty == "easy"
         hard = difficulty == "hard"
         r = roll_func(rand, easy, hard)
-        goals = BingoGenerator.goal_pool(rand, rando, difficulty, open_world, meta, lockout, keysanity, spawn)
+        goals = BingoGenerator.goal_pool(rand, rando, difficulty, open_world, meta, lockout, keysanity, spawn, enemy_rando)
         groupSeen = defaultdict(lambda: (1, [], []))
         cards = []
         # per-board budgets, shared by every goal carrying the tag

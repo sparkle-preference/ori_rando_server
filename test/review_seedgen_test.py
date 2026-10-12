@@ -369,3 +369,21 @@ class PoolOverflow(EmulatorTestCase):
 
     def test_a_roomy_pool_says_nothing(self):
         self.assertEqual(self._roll({})._gen_warnings, [])
+
+
+class CliSpawnKit(unittest.TestCase):
+    """A non-Glades start on the CLI spawns with the site's kit unless told otherwise."""
+
+    def test_sorrow_gets_the_standard_kit(self):
+        from util import spawn_defaults
+        p = cli_params(["--start", "Sorrow"])
+        self.assertEqual([p.starting_health, p.starting_energy, p.starting_skills], spawn_defaults["Sorrow"][2])
+        self.assertGreater(p.starting_skills, 0)
+
+    def test_explicit_zero_skills_is_kept(self):
+        p = cli_params(["--start", "Sorrow", "--starting-skills", "0"])
+        self.assertEqual(p.starting_skills, 0)
+
+    def test_glades_is_untouched(self):
+        p = cli_params([])
+        self.assertEqual([p.starting_health, p.starting_energy, p.starting_skills], [3, 1, 0])

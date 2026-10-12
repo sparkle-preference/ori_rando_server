@@ -12,6 +12,7 @@ const HIST_KEYS = [
     "tracking", "players", "playerNames", "coopGenMode", "coopGameMode", "dedupShared",
     "antiBkBias", "shared", "mwShared", "worldSettings", "worldPresets",
     "apMode", "apExport", "apDeathLink",
+    "enemyOpts",
     "seed", "randomizedWith",
     "sspName", "sspLoaded", "sspLoadedOwner", "sspLoadedWorld", "sspLoadedDesc", "sspLoadedBlob",
 ]

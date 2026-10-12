@@ -11,7 +11,7 @@ If you believe you have recieved an unfinishable seed, please inform Eiko in the
 const noneTitle = "Confused?";
 const noneSub = "Mouse over anything to learn more!";
 const noneLines = ["Additional context-specific information will appear here as you interact with the UI."];
-const vars = ["Starved", "NonProgressMapStones", "Hard", "0XP", "Entrance", "BonusPickups", "DoubleSkills", "StrictMapstones", "ClosedDungeons", "OpenWorld", "StompTriggers", "TPStarved", "WallStarved", "GrenadeStarved", "Race", "InLogicWarps", "Keysanity", "GoalModeFinish", "OHKO", "Enhanced"];
+const vars = ["Starved", "NonProgressMapStones", "Hard", "0XP", "Entrance", "BonusPickups", "DoubleSkills", "StrictMapstones", "ClosedDungeons", "OpenWorld", "StompTriggers", "TPStarved", "WallStarved", "GrenadeStarved", "Race", "InLogicWarps", "Keysanity", "EnemyRando", "GoalModeFinish", "OHKO", "Enhanced"];
 const presets = ["Casual", "Standard", "Expert", "Master", "Glitched", "Custom"];
 const goalModes = ["ForceTrees", "ForceMaps", "Bingo"];
 const keyModes = ["Shards", "Clues", "Limitkeys", "Free"];
@@ -414,6 +414,15 @@ const getHelpHelper = (category, option, whose = "your seed") => {
                         "The Legacy Kuro Behavior variation reverts to the vanilla and pre-3.0 randomizer behavior for the Kuro kill plane in Valley and the Kuro cutscene in Hollow Grove. Both of these will only exist once you've acquired the Stomp skill.",
                         "This variation will be overridden if you select Open World, which removes the killplane and cutscene completely.",
                         "This variation exists primarily for legacy reasons and is not recommended for normal use."
+                    ]
+                    break;
+                case "EnemyRando":
+                    title = "Enemy Rando"
+                    lines = [
+                        "The Enemy Rando variation swaps most enemies in the game with other enemies, with some minor accommodations made for logic and sanity",
+                        "Click the arrow next to the Enemy Rando variation button to select the Standard, Mild, or Chaos presets, or use the Advanced tab to customize further.",
+                        "The Enemy Rando variation is not compatible with lure paths and also might generate uncompletable seeds, though it does try not to by default.",
+                        "Recommended for players who want a much weirder Ori rando experience."
                     ]
                     break;
                 case "Keysanity":
@@ -872,6 +881,57 @@ const getHelpHelper = (category, option, whose = "your seed") => {
         case "advanced":
             subtitle = "Advanced Options"
             switch(option) {
+                case "enemyRando":
+                    title = "Enemy Rando"
+                    lines = ["Settings for the Enemy Rando variation."]
+                    break;
+                case "enemyPool":
+                    title = "Valid Enemy Types"
+                    lines = ["Select the kinds of enemies that can replace enemies when randomizing.",
+                    "Note that some enemy types have rules limiting when they can spawn - e.g. rhinos and banelings will only spawn on level ground, fliers replace other fliers."]
+                    break;
+                case "enemyKeep":
+                    title = "Exempt Enemy Types"
+                    lines = ["Any enemy types selected here will not be randomized."]
+                    break;
+                case "enemyHp":
+                    title = "Health"
+                    lines = ["Zone: an enemy's health scales with the zone it is placed in.",
+                             "Vanilla: the health the vanilla enemy had. (Not recommended).",
+                             "Random: Zone, but with a random multiplier within the set range."]
+                    break;
+                case "enemyDmg":
+                    title = "Damage"
+                    lines = ["Zone: an enemy's damage scales with the zone it is placed in.",
+                             "Vanilla: enemies deal their vanilla damage. (Not recommended).",
+                             "Random: Zone, but with a random multiplier within the set range."]
+                    break;
+                case "enemyArena":
+                    title = "Minibosses"
+                    lines = ["Whether or not to randomize the minibosses that must be defeated to open purple doors.",
+                    "Rolled: randomize purple room enemies, with a few exceptions for sanity.",
+                    "Vanilla: do not randomize minibosses."]
+                    break;
+                case "enemyPools":
+                    title = "Pool Enemy Rando"
+                    lines = ["Toggle this on to increase the variety of Nibel's aquatic fauna."]
+                    break;
+                case "enemyFish":
+                    title = "Flying Fish"
+                    lines = ["Pretty self-explanatory, as options go."]
+                    break;
+                case "enemyWalkers":
+                    title = "Wall Walkers"
+                    lines = ["Fronkeys and frogs may replace wall and ceiling slimes. (Don't worry, they've figured out how to climb.)"]
+                    break;
+                case "enemyCap":
+                    title = "Shooter Cap"
+                    lines = ["When enabled, limit the number of additional ranged enemies that can appear in a seed."]
+                    break;
+                case "enemyLogic":
+                    title = "Preserve Bash Paths"
+                    lines = ["When enabled, the seed will make some attempt to randomize enemies in such a way that you can still bash as required."]
+                    break;
                 case "legacyFlags":
                     title = "Legacy Flags"
                     lines = ["These flags revert various changes made by the randomizer over time.",
