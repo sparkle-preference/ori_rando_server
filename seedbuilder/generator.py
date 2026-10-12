@@ -9,6 +9,7 @@ from util import compose_multi_value, spawn_defaults, decompose_multi_value
 from hashlib import sha256
 from seedbuilder.oriparse import get_areas, get_path_tags_from_pathsets
 from seedbuilder.relics import relics
+from seedbuilder import enemyroll
 
 def stable_string_hash(s):
     """Process-independent hash (str hash() is salted per process)."""
@@ -355,12 +356,13 @@ class SeedGenerator:
         "casual": 1, "standard": 2, "expert": 3, "master": 4, "glitched": 5, "timed-level": 5, "insane": 7
     })
 
-    def get_difficulty(self, path_tags):
+    @staticmethod
+    def get_difficulty(path_tags):
         for difficulty in ["insane", "glitched", "timed-level", "master", "expert", "standard"]:
             for path_tag in path_tags:
                 if path_tag.startswith(difficulty):
-                    return self.difficultyMap[difficulty]
-        return self.difficultyMap["casual"]
+                    return SeedGenerator.difficultyMap[difficulty]
+        return SeedGenerator.difficultyMap["casual"]
 
     def choice(self, things, weights):
         return self.choices(things, weights, 1)[0]
@@ -519,6 +521,8 @@ class SeedGenerator:
 
         self.ap_ks_pin = False
         self.ap_doors_counted = set()
+        self.enemy_rolls = {}      # world -> a variant per placement, EnemyRando worlds only
+        self.enemy_arenas = {}     # world -> miniboss rooms holding something spirit flame can't kill
         # per-world first-sighting order of keystone doors; exported keystones tier doors by it
         self.ks_door_order = defaultdict(list)
         self.mapstonesSeen = {p: 1 for p in self.multi_ps()}
@@ -1684,7 +1688,11 @@ class SeedGenerator:
         for p in self.multi_ps():
             logic_paths = [lp.value for lp in self.params_for(p).logic_paths]
             logic_path_tags = get_path_tags_from_pathsets(logic_paths)
+            if self.var(Variation.ENEMY_RANDO, p):
+                # a lure path names the enemy it lures, which may no longer be there
+                logic_path_tags = [t for t in logic_path_tags if not t.endswith("Lure")]
             keysOnlyForDoors = self.var(Variation.ENTRANCE_SHUFFLE, p)
+            kill_edges = enemyroll.gated_edges(self.enemy_arenas.get(p, {}))
             for loc_name, loc_info in meta["locs"].items():
                 area = Area(loc_name, p)
                 self.areasRemaining.append(area.name)
@@ -1721,7 +1729,10 @@ class SeedGenerator:
 
                     if not conn_info["paths"]:
                         connection.add_requirements(["Free"], 1)
-                    for path in conn_info["paths"]:
+                    paths = conn_info["paths"]
+                    if (home_name, conn_target_name) in kill_edges:
+                        paths = [kp for path in paths for kp in enemyroll.kill_paths(path, kill_edges[(home_name, conn_target_name)])]
+                    for path in paths:
                         valid = True
                         path_tags = path[0]
                         for path_tag in path_tags:
@@ -1907,8 +1918,13 @@ class SeedGenerator:
         self.params.ks_door_order = {str(p): [list(e) for e in self.ks_door_order[p]]
                                      for p in self.multi_ps()}
         for p in self.multi_ps():
-            meta = keytiers_meta(self.params, p)  # None outside AP mode
-            if meta:
+            metas = [keytiers_meta(self.params, p)]  # None outside AP mode
+            if self.var(Variation.ENEMY_RANDO, p):
+                from seedbuilder.enemyopts import meta_line as enemies_line
+                metas.append(enemies_line(getattr(self.params_for(p), "enemy_opts", None)))
+            if p in self.enemy_rolls:
+                metas.append(enemyroll.meta_line(self.enemy_rolls[p]))
+            for meta in filter(None, metas):
                 first, _, rest = self.seeds_text[p].partition("\n")
                 self.seeds_text[p] = first + "\n" + meta + "\n" + rest
 
@@ -1922,9 +1938,13 @@ class SeedGenerator:
         # self.starts is the resolved spot per world; params.spawn keeps the solo
         # summary, which reads "Random" for a multiworld that rolled per world
         spawns = [self.starts[w] for w in self.multi_ps()]
-        if self.params.spawn != self.start or list(getattr(self.params, "spawns", []) or []) != spawns:
+        # the enemy lines are rebuilt from params on every download: placements drop // lines
+        enemy_rolls = {str(w): rolls for w, rolls in self.enemy_rolls.items()} or None
+        if (self.params.spawn != self.start or list(getattr(self.params, "spawns", []) or []) != spawns
+                or getattr(self.params, "enemy_rolls", None) != enemy_rolls):
             self.params.spawn = self.start
             self.params.spawns = spawns
+            self.params.enemy_rolls = enemy_rolls
             self.params.put()
         return placements
 
@@ -2028,6 +2048,11 @@ class SeedGenerator:
         ap_ks_pin = (getattr(self.params, "ap_mode", False) and self.seed_count > 1
                      and not exports_generic_keystones(self.params))
         self.ap_ks_pin = ap_ks_pin
+
+        for p in self.multi_ps():
+            if self.var(Variation.ENEMY_RANDO, p):
+                self.enemy_rolls[p] = enemyroll.roll(self.params.seed, p, getattr(self.params_for(p), "enemy_opts", None))
+                self.enemy_arenas[p] = enemyroll.arena_threats(self.enemy_rolls[p])
 
         self.form_areas()
         self.create_warp_paths()
@@ -2543,5 +2568,7 @@ class SeedGenerator:
             spoilerStr += "}\n"
 
         spoilerStr += self.entrance_spoiler
+        for p, rolls in self.enemy_rolls.items():
+            spoilerStr += enemyroll.spoiler(rolls, "Enemies" if self.solo() else "Player %s's Enemies" % p)
 
         return spoilerStr

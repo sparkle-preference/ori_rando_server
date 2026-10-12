@@ -74,6 +74,7 @@ class Variation(StrEnum):
     KEYSANITY = "Keysanity"
     ENHANCED = "Enhanced"
     VANILLA_RESPAWNS = "VanillaRespawns"
+    ENEMY_RANDO = "EnemyRando"
 
 class LogicPath(StrEnum):
     CASUAL_CORE = 'casual-core'

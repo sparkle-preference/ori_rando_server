@@ -162,6 +162,9 @@ def tracker_fetch_gamedata(game_id):
         return json_resp({"error": "Game %s not found!" % game_id}, 404)
     params = game.fetch_params()
     gamedata["paths"] = params.logic_paths
+    if Variation.ENEMY_RANDO in params.variations:
+        # the generator walks without lure paths: their enemies may be gone
+        gamedata["paths"] = [lp for lp in params.logic_paths if not lp.value.endswith("-lure")]
     gamedata["players"] = [p.userdata() for p in game.visible_players()]
     gamedata["closed_dungeons"] = Variation.CLOSED_DUNGEONS in params.variations
     gamedata["open_world"] = Variation.OPEN_WORLD in params.variations

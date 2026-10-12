@@ -59,6 +59,11 @@ def seed_mode_problem(params):
         view = world_view(params, w)
         if getattr(view, "start", None) in ("Horu", "Ginso") and Variation.CLOSED_DUNGEONS in (getattr(view, "variations", None) or []):
             return "Closed Dungeons can't start in %s." % view.start
+        if Variation.ENEMY_RANDO in (getattr(view, "variations", None) or []):
+            from seedbuilder.enemyopts import problem
+            bad = problem(getattr(view, "enemy_opts", None))
+            if bad:
+                return bad
         # the basic routes are all casual-core, so no seed can finish without it
         paths = getattr(view, "logic_paths", None)
         if paths is not None and LogicPath.CASUAL_CORE not in paths:
@@ -250,6 +255,7 @@ WORLD_FIELDS = {
     "spawnHCs":       ("starting_health", int),
     "spawnSKs":       ("starting_skills", int),
     "spawnWeights":   ("spawn_weights",   spawn_weights),
+    "enemyOpts":      ("enemy_opts",      lambda v: dict(v or {})),
     "senseData":      ("sense",           lambda v: v),
     "verboseSpoiler": ("verbose_spoiler", bool),
 }
@@ -361,6 +367,10 @@ class SeedGenParams(ndb.Model):
     plando_flags = ndb.StringProperty(repeated=True)
     # {world: [[home, target], ...]}: the generator's keystone-door sighting order
     ks_door_order = ndb.JsonProperty()
+    # the page's Enemy Rando options, non-default keys only (seedbuilder.enemyopts)
+    enemy_opts = ndb.JsonProperty()
+    # {world: [variant index or None per placement]}: what each placeholder spawns (seedbuilder.enemyroll)
+    enemy_rolls = ndb.JsonProperty()
     item_pool = ndb.JsonProperty()
     pool_preset = ndb.StringProperty()
     bingo_lines = ndb.IntegerProperty(default=3)
@@ -483,6 +493,7 @@ class SeedGenParams(ndb.Model):
         params.starting_skills = json.get("spawnSKs", 0)
         params.start = json.get("spawn", "Glades")
         params.spawn_weights = spawn_weights(json.get("spawnWeights"))
+        params.enemy_opts = dict(json.get("enemyOpts") or {}) or None
         params.verbose_spoiler = json.get("verboseSpoiler", False)
         from archipelago.convert import normalize_categories
         params.ap_export = normalize_categories(str(c) for c in json.get("apExport", []))
@@ -643,6 +654,7 @@ class SeedGenParams(ndb.Model):
             "bingoMeta": self.bingo_meta,
             "bingoDisc": self.bingo_disc,
             "spawnWeights": self.spawn_weights,
+            "enemyOpts": self.enemy_opts,
             "verboseSpoiler": self.verbose_spoiler,
             "playerNames": list(self.player_names),
             "antiBkBias": self.anti_bk_bias,
@@ -737,7 +749,8 @@ class SeedGenParams(ndb.Model):
 
     def get_seed(self, player=1, game_id=None, verbose_paths=False, include_sync = True):
         # several variations are client-only flags, so each world needs its own header
-        flags = self.world_params(player).flag_line(verbose_paths)
+        view = self.world_params(player)
+        flags = view.flag_line(verbose_paths)
         if self.players > 1 and self.sync.mode in [MultiplayerGameType.SHARED, MultiplayerGameType.MULTIWORLD]:
             flags += f"/{player}"
         if self.tracking and include_sync:
@@ -755,6 +768,17 @@ class SeedGenParams(ndb.Model):
             meta = keytiers_meta(self, player)
             if meta:
                 outlines.append(meta)
+        if Variation.ENEMY_RANDO in view.variations:
+            from seedbuilder.enemyopts import meta_line as enemies_line
+            from seedbuilder.enemyroll import meta_line as rolls_line
+            enemies = enemies_line(getattr(view, "enemy_opts", None))
+            if enemies:
+                outlines.append(enemies)
+            # clones and races all play world 1's rolls
+            world = int(player) if self.sync.mode == MultiplayerGameType.MULTIWORLD else 1
+            rolls = (self.enemy_rolls or {}).get(str(world))
+            if rolls:
+                outlines.append(rolls_line(rolls))
         seed_data = self.ap_named(self.get_seed_data(player), player, game_id)
         # an EN line's zone is None (it rides in field 3); other fields may be empty
         outlines += ["|".join(p for p in line if p is not None) for line in seed_data]
