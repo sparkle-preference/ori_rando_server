@@ -1,7 +1,4 @@
-"""Enemy rando, the server's roll (2026-10-08): one variant per placement, pinned where logic needs it.
-
-Run from the repo root:  python3 -m unittest test.enemy_rolls_test -v
-"""
+"""Enemy rando, the server's roll: one variant per placement, pinned where logic needs it."""
 import unittest
 from collections import Counter
 from unittest import mock
@@ -21,6 +18,17 @@ def rolled(seed="test", world=1, opts=None):
     rolls = enemyroll.roll(seed, world, opts)
     index = {p["guid"]: i for i, p in enumerate(t["placements"])}
     return t, rolls, lambda guid: None if rolls[index[guid]] is None else t["variants"][rolls[index[guid]]]
+
+
+def parse_meta(line):
+    """The rolls on one of our //EnemyRolls= lines, else None."""
+    if not line.lower().startswith(enemyroll.META_PREFIX.lower()):
+        return None
+    version, _, body = line[len(enemyroll.META_PREFIX):].strip().partition(":")
+    if version != enemyroll.table()["version"]:
+        return None
+    rolls = [None if r == "" else int(r) for r in body.split(",")]
+    return rolls if len(rolls) == len(enemyroll.table()["placements"]) else None
 
 
 class TheRoll(unittest.TestCase):
@@ -94,7 +102,7 @@ class TheRoll(unittest.TestCase):
         index = {p["guid"]: i for i, p in enumerate(t["placements"])}
         rolls = [None] * len(t["placements"])
         rolls[index[GINSO_WORM]] = next(i for i, v in enumerate(t["variants"]) if v["prefab"] == "floatTurretEnemyFire")
-        # vanilla's own elemental rooms (and the swamp rhino) are always listed; their paths already carry a killer
+        # vanilla's own elemental rooms and the swamp rhino are always listed
         self.assertEqual(enemyroll.arena_threats([None] * len(rolls)),
                          {"ginsoTreeResurrection": ["Elementals"], "mountHoruProjectileCorridor": ["Elementals"], "thornfeltSwampStompAbility": ["Rhinos"]})
         self.assertEqual(enemyroll.arena_threats(rolls)["ginsoTreePuzzles"], ["Elementals"])
@@ -117,9 +125,9 @@ class TheRoll(unittest.TestCase):
         t, rolls, _ = rolled()
         line = enemyroll.meta_line(rolls)
         self.assertTrue(line.startswith("//EnemyRolls=" + t["version"] + ":"))
-        self.assertEqual(enemyroll.parse_meta(line), rolls)
-        self.assertIsNone(enemyroll.parse_meta("//EnemyRolls=00000000:1,2"))
-        self.assertIsNone(enemyroll.parse_meta("//Enemies=hp=zone"))
+        self.assertEqual(parse_meta(line), rolls)
+        self.assertIsNone(parse_meta("//EnemyRolls=00000000:1,2"))
+        self.assertIsNone(parse_meta("//Enemies=hp=zone"))
 
 
 class TheSeedCarriesIt(unittest.TestCase):
@@ -128,8 +136,8 @@ class TheSeedCarriesIt(unittest.TestCase):
         seed, spoiler = files["randomizer0.bfr"], files["spoiler0.txt"]
         lines = [l for l in seed if l.startswith("//EnemyRolls=")]
         self.assertEqual(len(lines), 1)
-        self.assertIsNotNone(enemyroll.parse_meta(lines[0]))
-        self.assertTrue(any(l.startswith("Enemies: {") for l in spoiler))
+        self.assertIsNotNone(parse_meta(lines[0]))
+        self.assertFalse(any("Enemies" in l for l in spoiler))
 
     def test_no_line_without_the_variation(self):
         seed = cli_lines([])["randomizer0.bfr"]
@@ -165,8 +173,9 @@ class TheDownloadRebuildsIt(unittest.TestCase):
         rolls = enemyroll.roll("enemies", 1, None)
         p.enemy_rolls = {"1": rolls}
         self.assertIn(enemyroll.meta_line(rolls), p.get_seed(1).splitlines())
+        # nothing stored (a plando): rolled from the name on the way out
         p.enemy_rolls = None
-        self.assertFalse(any(l.startswith("//EnemyRolls=") for l in p.get_seed(1).splitlines()))
+        self.assertIn(enemyroll.meta_line(rolls), p.get_seed(1).splitlines())
 
 
 if __name__ == "__main__":

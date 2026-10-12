@@ -1,7 +1,4 @@
-"""Enemy rando, server side (2026-10-08): the flag rides the header and lure paths leave the walk.
-
-Run from the repo root:  python3 -m unittest test.enemy_rando_test -v
-"""
+"""Enemy rando, server side: the flag rides the header and lure paths leave the walk."""
 import unittest
 from unittest import mock
 
@@ -78,7 +75,7 @@ class EnemyOptions(unittest.TestCase):
     def test_bad_values_are_dropped(self):
         from seedbuilder import enemyopts
         self.assertIsNone(enemyopts.normalize({"hp": "9-0.1", "arena": "sure", "zzz": 1}))
-        # an all-unknown pool stays empty so problem() can refuse it
+        # an all-unknown pool stays empty, never defaulted
         self.assertEqual(enemyopts.normalize({"pool": ["Dragons"]}), {"pool": []})
         self.assertEqual(enemyopts.normalize({"pool": ["Dragons", "Frogs"]}), {"pool": ["Frogs"]})
 
@@ -137,6 +134,43 @@ class EnemyOptionsDownload(unittest.TestCase):
         p.enemy_opts = None
         self.assertFalse(any(l.startswith("//Enemies=") for l in p.get_seed(1).splitlines()))
 
+    def test_default_options_load_as_an_empty_object(self):
+        from enums import KeyMode, LogicPath, PathDifficulty
+        from seedbuilder.seedparams import MultiplayerOptions, SeedGenParams
+        p = SeedGenParams(seed="enemies")
+        p.sync = MultiplayerOptions()
+        p.spoilers, p.placements = [""], []
+        p.logic_paths = [LogicPath.CASUAL_CORE]
+        p.key_mode = KeyMode.CLUES
+        p.path_diff = PathDifficulty.NORMAL
+        p.variations = [Variation.ENEMY_RANDO]
+        p.players = 1
+        p.tracking = False
+        p.enemy_opts = None
+        self.assertEqual(p.to_json()["enemyOpts"], {})
+
+    def test_a_plando_rolls_from_its_name(self):
+        from models import Seed
+        from seedbuilder import enemyroll
+        from seedbuilder.seedparams import SeedGenParams
+        put, SeedGenParams.put = SeedGenParams.put, lambda self: None
+        try:
+            params = SeedGenParams.from_plando(Seed(id="uid:En", name="En", players=1, placements=[], flags=["EnemyRando"]))
+        finally:
+            SeedGenParams.put = put
+        params.tracking = False
+        self.assertIn(enemyroll.meta_line(enemyroll.roll("En", 1, None)), params.get_seed(1).splitlines())
+
+    def test_the_page_presets_mirror_the_server(self):
+        import os
+        from seedbuilder import enemyopts
+        page = open(os.path.join(os.path.dirname(__file__), "..", "map", "src", "MainPage.js"), encoding="utf-8").read()
+        mild, chaos = enemyopts.PRESETS["Mild"], enemyopts.PRESETS["Chaos"]
+        dropped = [k for k in enemyopts.KINDS if k not in mild["pool"]]
+        self.assertIn('Mild: {pool: ENEMY_KINDS.filter(k => ![%s].includes(k)), keep: [%s], arena: "%s", pools: "%s", walkers: "%s"}' % (
+            ", ".join('"%s"' % k for k in dropped), ", ".join('"%s"' % k for k in mild["keep"]), mild["arena"], mild["pools"], mild["walkers"]), page)
+        self.assertIn('Chaos: {hp: "%s", dmg: "%s", flyingfish: "%s", shootercap: "%s"}' % (chaos["hp"], chaos["dmg"], chaos["flyingfish"], chaos["shootercap"]), page)
+
 
 class EnemyOptionsRefusals(unittest.TestCase):
     def _params(self, variations, opts=None):
@@ -149,6 +183,10 @@ class EnemyOptionsRefusals(unittest.TestCase):
         self.assertIn("health range", seed_mode_problem(self._params([Variation.ENEMY_RANDO], {"hp": "0.1-2"})))
         self.assertIn("damage range", seed_mode_problem(self._params([Variation.ENEMY_RANDO], {"dmg": "2-1"})))
         self.assertIsNone(seed_mode_problem(self._params([Variation.ENEMY_RANDO], {"hp": "0.5-2", "dmg": "vanilla"})))
+
+    def test_the_cli_refuses_bad_options(self):
+        with self.assertRaises(SystemExit):
+            cli_params(["--enemy-rando", "--enemy-opts", "hp=9-1"])
 
     def test_a_non_string_mode_is_a_refusal(self):
         from seedbuilder.seedparams import seed_mode_problem

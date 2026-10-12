@@ -1,7 +1,4 @@
-"""Enemy rando: the server rolls what each placeholder spawns, the client looks it up by index.
-
-enemies.json comes from prior_notes/tools/enemy_rando/gen_data.py, in the client's placement order.
-"""
+"""Enemy rando: the server rolls what each placeholder spawns, the client looks it up by index."""
 import json
 import os
 import random
@@ -23,7 +20,7 @@ KILLERS = {
     "Elementals": ("Grenade", "Bash", "ChargeFlame", "ChargeJump", "Stomp"),
     "Rhinos": ("Stomp", "ChargeFlame", "Grenade"),
 }
-# arena scene -> the logic edges its door gates (Lapis, 2026-10-09); rooms absent here gate nothing
+# arena scene -> the logic edges its door gates; rooms absent here gate nothing
 ARENA_EDGES = {
     "ginsoTreePuzzles": [("LowerGinsoTree", "GinsoMiniBossDoor")],
     "ginsoTreeResurrection": [("GinsoTeleporter", "TopGinsoTree")],
@@ -120,7 +117,7 @@ def pick(p, pool, keep, logic_on, pools_on, flying_fish, walkers, arena_kind, sh
             candidates.append(kind)
     if not candidates:
         return None
-    # kinds by their table weight (slimes a little likelier, the ground bruisers less), then a variant
+    # a kind by its table weight, then a variant
     draw = rng.randrange(sum(k["weight"] for k in candidates))
     chosen = candidates[-1]
     for kind in candidates:
@@ -135,7 +132,7 @@ def pick(p, pool, keep, logic_on, pools_on, flying_fish, walkers, arena_kind, sh
         variants = [v for v in variants if v["prefab"] != LASER]  # a laser's beam can't be bashed
     if not variants:
         return None
-    # elementals by vanilla frequency (more lasers is bad), every other kind's variants evenly
+    # elementals by vanilla frequency, every other kind's variants evenly
     weights = [v["count"] if chosen["name"] == "Elementals" else 1 for v in variants]
     draw = rng.randrange(sum(weights))
     for v, weight in zip(variants, weights):
@@ -180,29 +177,3 @@ def meta_line(rolls):
     return META_PREFIX + table()["version"] + ":" + ",".join("" if r is None else str(r) for r in rolls)
 
 
-def parse_meta(line):
-    """The rolls on an //EnemyRolls= line (None where vanilla), or None when it isn't one of ours."""
-    if not line.lower().startswith(META_PREFIX.lower()):
-        return None
-    version, _, body = line[len(META_PREFIX):].strip().partition(":")
-    if version != table()["version"]:
-        return None
-    rolls = [None if r == "" else int(r) for r in body.split(",")]
-    return rolls if len(rolls) == len(table()["placements"]) else None
-
-
-def spoiler(rolls, header="Enemies"):
-    """Kinds per zone, and the purple-door rooms whose elemental put a killer into the logic."""
-    t = table()
-    counts = defaultdict(Counter)
-    for p, r in zip(t["placements"], rolls):
-        kind = t["variants"][r]["kind"] if r is not None else (p["kind"] or "Sharks")
-        counts[p["zone"]][kind] += 1
-    out = header + ": {\n"
-    width = max(len(z) for z in counts)
-    for zone in sorted(counts):
-        out += "    %s%s%s\n" % (zone, " " * (2 + width - len(zone)), ", ".join("%s %d" % kv for kv in counts[zone].most_common()))
-    for scene, kinds in arena_threats(rolls).items():
-        if scene in ARENA_EDGES:
-            out += "    %s: %s (logic wants %s)\n" % (scene, ", ".join(kinds), "; ".join(" | ".join(KILLERS[k]) for k in kinds))
-    return out + "}\n"

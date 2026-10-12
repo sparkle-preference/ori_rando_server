@@ -344,7 +344,7 @@ const ENEMY_PRESETS = {
     Mild: {pool: ENEMY_KINDS.filter(k => !["Rhinos", "Elementals", "Sharks"].includes(k)), keep: ["Worms"], arena: "kind", pools: "off", walkers: "off"},
     Chaos: {hp: "0.5-2", dmg: "0.5-2", flyingfish: "on", shootercap: "off"},
 }
-const ENEMY_RANGE = /^([\d.]+)-([\d.]+)$/
+const ENEMY_RANGE = /^(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)$/
 const cleanEnemyOpts = (o) => {
     let out = {}
     if(o.pool && !ENEMY_KINDS.every(k => o.pool.includes(k))) out.pool = o.pool.filter(k => ENEMY_KINDS.includes(k))
@@ -549,8 +549,8 @@ export default class MainPage extends React.Component {
             let value = eo[key] || "zone"
             // anything but the two named modes is a range being edited, however malformed
             let range = value !== "zone" && value !== "vanilla"
-            let dash = value.indexOf("-", 1)
-            let [lo, hi] = range ? (dash > 0 ? [value.slice(0, dash), value.slice(dash + 1)] : [value, ""]) : ["0.5", "2"]
+            let dash = value.indexOf("-")
+            let [lo, hi] = range ? (dash >= 0 ? [value.slice(0, dash), value.slice(dash + 1)] : [value, ""]) : ["0.5", "2"]
             let bad = range && !(ENEMY_RANGE.test(value) && parseFloat(lo) >= 0.25 && parseFloat(lo) <= parseFloat(hi) && parseFloat(hi) <= 4)
             return enemyRow(label, help, (
                 <div>
@@ -1681,7 +1681,7 @@ export default class MainPage extends React.Component {
                 <Col key={`var-button-${v}`} xs="4" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("variations", v)} className="p-2">
                     <UncontrolledButtonDropdown className="w-100">
                         <Button data-hist={`var-${v}`} className="flex-grow-1" color="primary" outline={!this.hasVar(v)} onClick={this.onVar(v)} title={this.hasVar(v) ? preset : ""}>{name}{mark}</Button>
-                        <DropdownToggle data-hist="enemyPreset" split caret color="primary" outline={!this.hasVar(v)}/>
+                        <DropdownToggle data-hist="enemyPreset" split caret color="primary" outline={!this.hasVar(v)} className="px-2 flex-grow-0"/>
                         <DropdownMenu>
                             {Object.keys(ENEMY_PRESETS).map(p => (
                                 <DropdownItem key={`enemy-preset-${p}`} active={this.hasVar(v) && preset === p} onClick={this.onEnemyPreset(p)}>{p}</DropdownItem>

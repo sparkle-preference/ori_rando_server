@@ -654,7 +654,7 @@ class SeedGenParams(ndb.Model):
             "bingoMeta": self.bingo_meta,
             "bingoDisc": self.bingo_disc,
             "spawnWeights": self.spawn_weights,
-            "enemyOpts": self.enemy_opts,
+            "enemyOpts": dict(self.enemy_opts or {}),
             "verboseSpoiler": self.verbose_spoiler,
             "playerNames": list(self.player_names),
             "antiBkBias": self.anti_bk_bias,
@@ -776,9 +776,10 @@ class SeedGenParams(ndb.Model):
                 outlines.append(enemies)
             # clones and races all play world 1's rolls
             world = int(player) if self.sync.mode == MultiplayerGameType.MULTIWORLD else 1
-            rolls = (self.enemy_rolls or {}).get(str(world))
-            if rolls:
-                outlines.append(rolls_line(rolls))
+            # a plando carries the flag but no rolls: roll from its name
+            from seedbuilder.enemyroll import roll
+            rolls = (self.enemy_rolls or {}).get(str(world)) or roll(self.seed, world, getattr(view, "enemy_opts", None))
+            outlines.append(rolls_line(rolls))
         seed_data = self.ap_named(self.get_seed_data(player), player, game_id)
         # an EN line's zone is None (it rides in field 3); other fields may be empty
         outlines += ["|".join(p for p in line if p is not None) for line in seed_data]

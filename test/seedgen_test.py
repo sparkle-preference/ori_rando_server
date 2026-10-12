@@ -381,7 +381,7 @@ class MultiworldSharedGenTests(unittest.TestCase):
 
     def test_flags_carry_mode_and_shares(self):
         self.assertIn("mode=Multiworld", self.seeds[1][0])
-        self.assertIn("shared=", self.seeds[1][0])
+        self.assertIn("share=", self.seeds[1][0])
 
     def test_shared_categories_are_singletons(self):
         world, manifests = self._all_placements()

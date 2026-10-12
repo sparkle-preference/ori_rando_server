@@ -9,7 +9,7 @@ from util import compose_multi_value, spawn_defaults, decompose_multi_value
 from hashlib import sha256
 from seedbuilder.oriparse import get_areas, get_path_tags_from_pathsets
 from seedbuilder.relics import relics
-from seedbuilder import enemyroll
+from seedbuilder import enemyopts, enemyroll
 
 def stable_string_hash(s):
     """Process-independent hash (str hash() is salted per process)."""
@@ -1920,8 +1920,7 @@ class SeedGenerator:
         for p in self.multi_ps():
             metas = [keytiers_meta(self.params, p)]  # None outside AP mode
             if self.var(Variation.ENEMY_RANDO, p):
-                from seedbuilder.enemyopts import meta_line as enemies_line
-                metas.append(enemies_line(getattr(self.params_for(p), "enemy_opts", None)))
+                metas.append(enemyopts.meta_line(getattr(self.params_for(p), "enemy_opts", None)))
             if p in self.enemy_rolls:
                 metas.append(enemyroll.meta_line(self.enemy_rolls[p]))
             for meta in filter(None, metas):
@@ -2568,7 +2567,4 @@ class SeedGenerator:
             spoilerStr += "}\n"
 
         spoilerStr += self.entrance_spoiler
-        for p, rolls in self.enemy_rolls.items():
-            spoilerStr += enemyroll.spoiler(rolls, "Enemies" if self.solo() else "Player %s's Enemies" % p)
-
         return spoilerStr

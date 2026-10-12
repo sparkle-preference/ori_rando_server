@@ -375,8 +375,10 @@ class CLISeedParams(object):
         self.ap_mode = bool(args.ap_export)
         self.ap_export = []
         self.ks_door_order = None  # set by the generator when keystones export
-        self.enemy_rolls = None    # set by the generator for EnemyRando seeds
-        from seedbuilder.enemyopts import parse_kv
+        from seedbuilder.enemyopts import parse_kv, problem
+        raw = dict(kv.partition("=")[::2] for kv in (args.enemy_opts or "").split(";") if "=" in kv)
+        if problem(raw):
+            parser.error(problem(raw))
         self.enemy_opts = parse_kv(args.enemy_opts) if args.enemy_opts else None
         self.ap_death_link = self.ap_mode and bool(args.ap_death_link)
         if self.ap_mode:
