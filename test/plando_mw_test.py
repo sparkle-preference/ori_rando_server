@@ -180,17 +180,25 @@ class ForcedAssignmentParseTests(unittest.TestCase):
         self.assertEqual(parse_fass("2.919772:SK0"), {(2, 919772): "SK0"})
 
     def test_an_owner_rides_the_value(self):
-        self.assertEqual(parse_fass("1.919772:SK0@2"), {(1, 919772): "SK0|2"})
+        self.assertEqual(parse_fass("1.919772:SK0@2", 2), {(1, 919772): "SK0|2"})
 
     def test_an_at_that_is_not_a_world_number_is_part_of_the_item(self):
-        self.assertEqual(parse_fass("1.919772:SH@red@ hi"), {(1, 919772): "SH@red@ hi"})
-        self.assertEqual(parse_fass("1.919772:SH@red@ hi@2"), {(1, 919772): "SH@red@ hi|2"})
-        self.assertEqual(split_owner("SK0@2"), ("SK0", "2"))
-        self.assertEqual(split_owner("a@b"), ("a@b", ""))
-        self.assertEqual(split_owner("a@"), ("a@", ""))
+        self.assertEqual(parse_fass("1.919772:SH@red@ hi", 2), {(1, 919772): "SH@red@ hi"})
+        self.assertEqual(parse_fass("1.919772:SH@red@ hi@2", 2), {(1, 919772): "SH@red@ hi|2"})
+        self.assertEqual(split_owner("SK0@2", 2), ("SK0", "2"))
+        self.assertEqual(split_owner("a@b", 2), ("a@b", ""))
+        self.assertEqual(split_owner("a@", 2), ("a@", ""))
+
+    def test_a_world_the_seed_does_not_have_is_text(self):
+        """A solo plando's message ending in "@3" is just a message."""
+        self.assertEqual(parse_fass("1.919772:SH@3"), {(1, 919772): "SH@3"})
+        self.assertEqual(parse_fass("1.919772:SH@3", 3), {(1, 919772): "SH|3"})
+        self.assertEqual(split_owner("SK0@3", 2), ("SK0@3", ""))
+        self.assertEqual(split_owner("SK0@0", 2), ("SK0@0", ""))
+        self.assertEqual(split_owner("SK0@2"), ("SK0@2", ""))
 
     def test_several_are_pipe_joined(self):
-        self.assertEqual(parse_fass("1.1:SK0@2|2.2:HC1"),
+        self.assertEqual(parse_fass("1.1:SK0@2|2.2:HC1", 2),
                          {(1, 1): "SK0|2", (2, 2): "HC1"})
 
     def test_a_negative_location_survives(self):

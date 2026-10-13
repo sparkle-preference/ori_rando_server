@@ -502,6 +502,32 @@ class TestDeathLinkOut(DeathLinkTestCase):
         sock = self._run(self.make_session(death_link=False), [(3, 0), (99, 0)])
         self.assertEqual(self.bounces(sock), [])
 
+    def test_the_knob_sends_once_per_that_many_own_deaths(self):
+        session = self.make_session()
+        session.maps.deaths_per_link = 3
+        sock = self._run(session, [(1, 0), (2, 0), (3, 0), (4, 0), (5, 0), (6, 0), (7, 0)])
+        self.assertEqual(len(self.bounces(sock)), 2)
+        self.assertEqual(session.deaths_pending, 0)
+        # linked deaths move neither the baseline nor the count
+        sock = self._run(session, [(8, 1), (9, 2)])
+        self.assertEqual(self.bounces(sock), [])
+        self.assertEqual(session.deaths_pending, 0)
+
+    def test_the_knob_drops_a_death_absorbed_by_the_cooldown(self):
+        session = self.make_session()
+        session.maps.deaths_per_link = 2
+        sock = self._run(session, [(1, 0), (3, 0)])
+        self.assertEqual(len(self.bounces(sock)), 1)
+        for n in (4, 5):                      # inside the cooldown: counted, then dropped at the knob
+            session.death_box.set(n, 0)
+            session._service_deaths(sock)
+        self.assertEqual(len(self.bounces(sock)), 1)
+        self.assertEqual(session.deaths_pending, 0)
+        sock = self._run(session, [(6, 0)])   # one death past the cooldown is not two
+        self.assertEqual(self.bounces(sock), [])
+        sock = self._run(session, [(7, 0)])
+        self.assertEqual(len(self.bounces(sock)), 1)
+
     def test_a_client_that_never_reports_sends_nothing(self):
         session = self.make_session()
         sock = FakeSocket([ROOMINFO, [connected()], None])

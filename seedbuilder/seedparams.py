@@ -5,7 +5,7 @@ import logging as log
 import random
 import time
 
-from util import enums_from_strlist, picks_by_coord, get_preset_from_paths, compose_multi_value, decompose_multi_value, normalize_pickup, split_owner, SEED_FORMAT
+from util import enums_from_strlist, picks_by_coord, get_preset_from_paths, compose_multi_value, decompose_multi_value, normalize_pickup, split_owner, deaths_per_link, SEED_FORMAT
 from enums import (MultiplayerGameType, ShareType, Variation, LogicPath, KeyMode, PathDifficulty, presets,
                    preset_path_diff, preset_variations)
 from collections import OrderedDict
@@ -73,8 +73,6 @@ def seed_mode_problem(params):
         # ahead of the singleplayer early return: K=1 AP is still an AP seed
         if not ARCHIPELAGO:
             return "Archipelago support is switched off right now."
-        if any(Variation.ENEMY_RANDO in (getattr(world_view(params, w), "variations", None) or []) for w in range(1, players + 1)):
-            return "Enemy Rando can't be combined with Archipelago yet."
         # the bridge delivers through the netcode
         if not (params.sync.enabled and params.tracking):
             return "Archipelago seeds need tracking (the room talks to the game over netcode)."
@@ -399,6 +397,8 @@ class SeedGenParams(ndb.Model):
     player_names = ndb.StringProperty(repeated=True)
     # deaths cross between this seed's worlds and the AP room, both ways
     ap_death_link = ndb.BooleanProperty(default=False)
+    # own deaths per outgoing Death Link; incoming ones are unaffected
+    ap_deaths_per_link = ndb.IntegerProperty(default=1)
     # index i overrides world i+1's settings; empty means every world plays the same seed
     world_settings = ndb.JsonProperty(repeated=True, compressed=True)
     # the spot each world actually starts at, once "Random" has been rolled
@@ -506,6 +506,7 @@ class SeedGenParams(ndb.Model):
         params.ap_export = normalize_categories(str(c) for c in json.get("apExport", []))
         params.ap_mode = bool(json.get("apMode")) or bool(params.ap_export)
         params.ap_death_link = params.ap_mode and bool(json.get("apDeathLink"))
+        params.ap_deaths_per_link = deaths_per_link(json.get("apDeathsPerLink"))
         params.player_names = rolled_player_names(json.get("playerNames", []), params)
         params.world_settings = [w or {} for w in (json.get("worldSettings") or [])]
         if params.ap_mode:
@@ -602,7 +603,7 @@ class SeedGenParams(ndb.Model):
             for fass in raw_fass.split("|"):
                 rawloc, _, item = fass.partition(":")
                 world, _, loc = rawloc.rpartition(".")
-                item, owner = split_owner(item)
+                item, owner = split_owner(item, params.players)
                 stuff = [Stuff(code=item[:2], id=item[2:], player=world, owner=(owner if loc != "2" else "") or None)]
                 params.placements.append(Placement(location=loc, zone="", stuff=stuff))
                 if loc == "2":
@@ -614,6 +615,7 @@ class SeedGenParams(ndb.Model):
         params.ap_export = normalize_categories(qparams.getlist("ap_export"))
         params.ap_mode = bool(qparams.get("ap_mode")) or bool(params.ap_export)
         params.ap_death_link = params.ap_mode and bool(qparams.get("ap_death_link"))
+        params.ap_deaths_per_link = deaths_per_link(qparams.get("ap_deaths_per_link"))
         params.player_names = rolled_player_names(qparams.getlist("player_names"), params)
         if params.ap_mode:
             from archipelago.convert import EXPORTABLE_CATEGORIES
@@ -668,6 +670,7 @@ class SeedGenParams(ndb.Model):
             "apMode": self.ap_mode,
             "apExport": list(self.ap_export),
             "apDeathLink": self.ap_death_link,
+            "apDeathsPerLink": self.ap_deaths_per_link,
             "worldSettings": [dict(w) for w in self.world_settings],
             # stars i fucking hate this. anyways.
             # fass_json verbatim when present, else rebuilt from preplaced_coords + spawn_placement
@@ -845,7 +848,7 @@ class SeedGenParams(ndb.Model):
                     # a plando piece "SK/0@2" belongs to world 2: it goes out as an MW child
                     mine, manifests = [], []
                     for code, value in decompose_multi_value(s.id):
-                        value, owner = split_owner(value)
+                        value, owner = split_owner(value, self.players)
                         if not owner or owner == s.player:
                             mine.append((code, value))
                             continue
@@ -1042,7 +1045,8 @@ class SeedGenParams(ndb.Model):
             variations=ap_variations(self.variations),
             params_id=self.key.id() if self.key else 0,
             death_link=self.ap_death_link,
-            key_tiers=keystone_tier_list(self, int(world)))
+            key_tiers=keystone_tier_list(self, int(world)),
+            enemy_rolls=(self.enemy_rolls or {}).get(str(world)))
         return emit_yaml(config, ap_slot_names(self.players, self.player_names)[int(world) - 1])
 
     def flag_line(self, verbose_paths=False):

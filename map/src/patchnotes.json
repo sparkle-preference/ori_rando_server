@@ -10,6 +10,34 @@
     "Plando"
   ],
   "pending": [
+    {
+      "text": "Enemy Rando: swarms, fronkeys and frogs no longer take spots with nothing below them.",
+      "category": "Seed Generator",
+      "type": "fix",
+      "importance": "minor"
+    },
+    {
+      "text": "Plando editor: an Enemies panel next to Boxes sets what each enemy placeholder spawns; the download carries it.",
+      "category": "Plando",
+      "type": "feature",
+      "importance": "major",
+      "sub": [
+        "A placeholder can instead read a bonus id when it spawns: the value is the variant's number in the panel, 0 or out of range stays vanilla, so a box can change what lives there mid-run.",
+        "The variant list at /enemies.txt has every number with its kind and base stats."
+      ]
+    },
+    {
+      "text": "Archipelago seeds can use Enemy Rando: the yaml leaves out lure paths and carries the skills a miniboss room's new tenant needs. Needs the current apworld (data version 7).",
+      "category": "Multiplayer",
+      "type": "feature",
+      "importance": "minor"
+    },
+    {
+      "text": "Archipelago: a Deaths per Death Link field next to the Death Link button; the room hears one death per that many of yours.",
+      "category": "Multiplayer",
+      "type": "feature",
+      "importance": "minor"
+    }
   ],
   "releases": [
       {

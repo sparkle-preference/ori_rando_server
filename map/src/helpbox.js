@@ -757,6 +757,13 @@ const getHelpHelper = (category, option, whose = "your seed") => {
                         "This is a property of the seed: it can't be turned on or off once the seed is rolled.",
                     ]
                     break;
+                case "apDeathsPerLink":
+                    title = "Deaths per Death Link"
+                    lines = [
+                        "Sends the room one Death Link per this many of your own deaths. At 1, every death goes out.",
+                        "Deaths arriving from the room are unaffected and never count toward your next one.",
+                    ]
+                    break;
                 case "Seperate Seeds":
                     title = "Seperate Seeds"
                     subtitle = "Co-op Seed Generation Modes"

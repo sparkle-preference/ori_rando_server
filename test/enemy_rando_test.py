@@ -242,18 +242,11 @@ class EnemyOptionsRefusals(unittest.TestCase):
         return SimpleNamespace(players=1, start="Glades", variations=variations, world_settings=None,
                                ap_mode=False, sync=SimpleNamespace(enabled=False), enemy_opts=opts)
 
-    def test_archipelago_is_refused(self):
-        from types import SimpleNamespace
+    def test_archipelago_takes_it(self):
         from seedbuilder.seedparams import seed_mode_problem
         with mock.patch("util.ARCHIPELAGO", True):
             p = self._params([Variation.ENEMY_RANDO])
             p.ap_mode, p.tracking = True, True
-            self.assertEqual(seed_mode_problem(p), "Enemy Rando can't be combined with Archipelago yet.")
-            # a world's own preset counts too
-            p.variations, p.players = [], 2
-            p.world_settings = [{}, {"variations": ["EnemyRando"]}]
-            self.assertEqual(seed_mode_problem(p), "Enemy Rando can't be combined with Archipelago yet.")
-            p.world_settings = None
             self.assertNotIn("Enemy Rando", seed_mode_problem(p) or "")
 
     def test_a_bad_range_is_refused_not_dropped(self):

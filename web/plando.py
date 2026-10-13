@@ -1,5 +1,6 @@
 """Plandomizer seeds: upload, edit, browse, download."""
 import json
+import os
 import logging as log
 from collections import Counter
 from html import escape
@@ -203,7 +204,7 @@ def plando_fillgen():
     The editor POSTs: a full plando's placements outgrow a URL."""
     qparams = request.values
     try:
-        preplaced = parse_fass(qparams.get('fass'))
+        preplaced = parse_fass(qparams.get('fass'), int(qparams.get('players', 1)))
     except ValueError:
         return text_resp("a forced assignment named a location that isn't a number", 422)
     try:
@@ -230,6 +231,13 @@ def count_plandos(seed):
 PLANDO_DISCLAIMER = """<div><i>
 (If one or more of your plandos are missing, please reach out to @Eiko or @Skyedelaciel in the <a target="_blank" href="/discord">Ori Discord</a> - we have the data, we just don't know whose seeds are whose for a small number of users)
 </i></div>"""
+
+
+@bp.route('/enemies.txt')
+def enemies_txt():
+    # the plando editor's variant list, written by the enemy table generator
+    with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), "seedbuilder", "enemies.txt")) as f:
+        return text_resp(f.read())
 
 
 @bp.route('/plandos')      #AllAuthors

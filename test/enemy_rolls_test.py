@@ -78,6 +78,24 @@ class TheRoll(unittest.TestCase):
             self.assertGreater(counts["Slimes"], 2 * counts[bruiser], bruiser)
             self.assertGreater(counts["Fronkeys"], counts[bruiser], bruiser)
 
+    def test_a_bonus_entry_rides_the_line_and_pins_nothing(self):
+        t = enemyroll.table()
+        rolls = [None] * len(t["placements"])
+        arena = next(i for i, p in enumerate(t["placements"]) if p["arena"])
+        rolls[arena], rolls[0] = "b40", 1
+        line = enemyroll.meta_line(rolls)
+        self.assertIn(",b40,", line)
+        self.assertEqual(enemyroll.rolls_of(line), rolls)
+        self.assertIsNone(enemyroll.rolls_of(line.replace("b40", "bx")))
+        self.assertEqual(enemyroll.arena_threats(rolls), enemyroll.arena_threats([None] * len(rolls)))
+
+    def test_walkers_never_hang_over_a_drop(self):
+        t = enemyroll.table()
+        for seed in range(40):
+            for p, r in zip(t["placements"], enemyroll.roll(str(seed), 1, None)):
+                if r is not None and p["spot"] in ("roof", "wall", "air") and not p["floor"]:
+                    self.assertNotIn(t["variants"][r]["kind"], ("Fronkeys", "Frogs", "Swarms"), (seed, p["scene"]))
+
     def test_the_shooter_cap_and_flying_fish_switches(self):
         t = enemyroll.table()
         ranged = lambda rolls: sum(1 for r in rolls if r is not None and t["variants"][r]["kind"] in enemyroll.RANGED)

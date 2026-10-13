@@ -36,6 +36,9 @@ except Exception as e:
     client = None
 
 def ndb_wsgi_middleware(wsgi_app):
+    if client is None:
+        return wsgi_app
+
     def middleware(environ, start_response):
         with client.context():
             return wsgi_app(environ, start_response)
@@ -1872,7 +1875,7 @@ class Seed(ndb.Model):
 SSP_DENY = frozenset([
     "seed", "players", "playerNames", "coopGenMode", "coopGameMode",
     "dedupShared", "antiBkBias", "syncShared", "shared", "teams",
-    "apMode", "apExport", "apDeathLink",
+    "apMode", "apExport", "apDeathLink", "apDeathsPerLink",
     # a preset is one world's rulebook; it never carries the lobby's assignments
     "worldSettings",
 ])

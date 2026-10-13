@@ -73,3 +73,18 @@ def keystone_door_tiers(variations):
         total += cost
         tiers[(home, target)] = total
     return tiers
+
+
+def kill_paths(paths, kills):
+    """Paths past a miniboss room enemy rando filled: per kind there, a path stays as it is when
+    it can kill one, else grows one copy per killer. Mirrors seedbuilder.enemyroll.kill_paths."""
+    grown = [dict(p) for p in paths] or [{"tags": [], "reqs": []}]
+    for killers in kills:
+        step = []
+        for p in grown:
+            if any(tok in killers for tok in p["reqs"]):
+                step.append(p)
+            else:
+                step += [{"tags": list(p["tags"]), "reqs": list(p["reqs"]) + [k]} for k in killers]
+        grown = step
+    return grown

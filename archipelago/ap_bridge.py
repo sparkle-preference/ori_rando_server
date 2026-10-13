@@ -30,7 +30,7 @@ from ap_models import (APHints, APLink, APNames, APScout, ap_slot_name,
                        HINT_REQUESTED, HINT_RESOLVED,
                        ITEM_NAME_MAX, PLAYER_NAME_MAX)
 from cache import Cache
-from util import ARCHIPELAGO, is_mw_manifest_loc
+from util import ARCHIPELAGO, deaths_per_link, is_mw_manifest_loc
 
 AP_GAME_NAME = "Ori DE Rando"
 AP_VERSION = {"class": "Version", "major": 0, "minor": 6, "build": 7}
@@ -117,7 +117,7 @@ def _match_key(code, id):
 
 class GameMaps(object):
     def __init__(self, worlds, outbox, grant_slots, zones=None, hint_keys=None,
-                 death_link=False):
+                 death_link=False, deaths_per_link=1):
         self.worlds = worlds            # K
         # {w: {shadow slot: ap location id}} in seed-line order, the promise draw order
         self.outbox = outbox
@@ -125,6 +125,7 @@ class GameMaps(object):
         self.zones = zones or {}        # {w: {shadow slot i: reserved zone}}
         self.hint_keys = hint_keys or {}  # {w: {manifest slot: buyable key}}
         self.death_link = bool(death_link)  # seed option, not a runtime toggle
+        self.deaths_per_link = max(1, int(deaths_per_link or 1))
 
 
 def maps_from_params(params):
@@ -159,7 +160,8 @@ def maps_from_params(params):
             lst.sort()
         outbox[w], grants[w], zones[w], hints[w] = ob, gr, zo, hk
     return GameMaps(k, outbox, grants, zones, hints,
-                    death_link=bool(getattr(params, "ap_death_link", False)))
+                    death_link=bool(getattr(params, "ap_death_link", False)),
+                    deaths_per_link=deaths_per_link(getattr(params, "ap_deaths_per_link", 1)))
 
 
 def promised_slots(maps, world, scouted, our_slot):
@@ -799,6 +801,7 @@ class ApSession(object):
         # death link (see "death link")
         self.death_box = death_box   # the client's counters, tick-fed
         self.deaths_seen = None      # last net count we have already relayed
+        self.deaths_pending = 0      # own deaths since the last Bounce out
         self.death_times = []        # times we sent, to drop our own echo
 
     def _stopped(self):
@@ -1010,10 +1013,16 @@ class ApSession(object):
         if self.deaths_seen is None or net < self.deaths_seen:
             # first report, or a smaller count (another save): re-baseline silently
             self.deaths_seen = net
+            self.deaths_pending = 0
             return
         if net == self.deaths_seen:
             return
+        self.deaths_pending += net - self.deaths_seen
         self.deaths_seen = net
+        if self.deaths_pending < self.maps.deaths_per_link:
+            return
+        # a death that reaches the knob inside the cooldown is dropped with its count
+        self.deaths_pending = 0
         if self.death_times and time.time() - self.death_times[-1] < DEATHLINK_OUT_COOLDOWN:
             log.info("APBRIDGE deathlink absorbed gid=%s world=%s (cooldown)",
                      self.gid, self.world)

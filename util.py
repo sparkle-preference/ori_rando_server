@@ -101,14 +101,22 @@ def netperf(what, t0, **kw):
     extras = " ".join("%s=%s" % (k, v) for k, v in sorted(kw.items()))
     log.info("NETPERF %s ms=%d tag=%s %s", what, int((monotonic() - t0) * 1000), NETPERF_TAG, extras)
 
-def split_owner(text):
-    """"item@n" as (item, "n"). Only a world number ending the text is an owner: any other @ is the item's
-    own, like a message's @red@ text."""
+def split_owner(text, worlds=1):
+    """"item@n" as (item, "n") when n is one of the seed's worlds; any other @ is the item's own,
+    like a message's @red@ text."""
     head, at, tail = text.rpartition("@")
-    return (head, tail) if at and tail.isdigit() else (text, "")
+    return (head, tail) if at and tail.isdigit() and 1 <= int(tail) <= worlds else (text, "")
 
 
-def parse_fass(raw):
+def deaths_per_link(raw):
+    """The Death Link knob: a whole number from 1 up; anything else is 1."""
+    try:
+        return max(1, int(raw))
+    except (TypeError, ValueError):
+        return 1
+
+
+def parse_fass(raw, worlds=1):
     """"[world.]loc:item[@owner]|..." as the generator's preplaced map; world defaults to 1.
     Raises ValueError on a non-numeric location."""
     out = {}
@@ -117,7 +125,7 @@ def parse_fass(raw):
             continue
         rawloc, _, item = fass.partition(":")
         world, _, loc = rawloc.rpartition(".")
-        item, owner = split_owner(item)
+        item, owner = split_owner(item, worlds)
         out[(int(world or 1), int(loc))] = "%s|%s" % (item, owner) if owner else item
     return out
 

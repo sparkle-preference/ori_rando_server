@@ -2,6 +2,7 @@
 import json
 import os
 import random
+import re
 from collections import Counter, defaultdict
 from hashlib import sha256
 
@@ -104,7 +105,9 @@ def pick(p, pool, keep, logic_on, pools_on, flying_fish, walkers, arena_kind, sh
             continue
         if ((not pools_on and spot == "water" and name != "Fish")
                 or (not flying_fish and name == "Fish" and spot != "water")
-                or (not walkers and "clings" not in flags and spot in ("roof", "wall") and name != own)):
+                # a walker on a wall or ceiling, or a swarm in the air, needs a floor within reach below: swarms fall
+                or ("clings" not in flags and spot in ("roof", "wall") and name != own and (not walkers or not p["floor"]))
+                or (name == "Swarms" and spot == "air" and not p["floor"])):
             continue
         if only_kinds is not None and name not in only_kinds:
             continue
@@ -149,7 +152,7 @@ def arena_threats(rolls):
     t = table()
     out = defaultdict(set)
     for p, r in zip(t["placements"], rolls):
-        kind = t["variants"][r]["kind"] if r is not None else p["kind"]
+        kind = t["variants"][r]["kind"] if isinstance(r, int) else p["kind"]  # a bonus-read entry is unknown
         if p["arena"] and kind in KILLERS:
             out[p["scene"]].add(kind)
     return {scene: sorted(kinds) for scene, kinds in sorted(out.items())}
@@ -186,12 +189,13 @@ def rolls_of(line):
     version, _, body = line[len(META_PREFIX):].partition(":")
     t = table()
     try:
-        rolls = [None if r == "" else int(r) for r in body.split(",")]
+        # "b<N>" reads bonus N's value in play and takes variant value - 1 (a plando's trick)
+        rolls = [None if r == "" else r if re.match(r"^b\d+$", r) else int(r) for r in body.split(",")]
     except ValueError:
         return None
     if version != t["version"] or len(rolls) != len(t["placements"]):
         return None
-    if any(r is not None and not 0 <= r < len(t["variants"]) for r in rolls):
+    if any(isinstance(r, int) and not 0 <= r < len(t["variants"]) for r in rolls):
         return None
     return rolls
 

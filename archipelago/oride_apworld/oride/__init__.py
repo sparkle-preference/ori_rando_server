@@ -17,6 +17,7 @@ from worlds.AutoWorld import WebWorld, World
 
 from .options import OriDEOptions
 from .rules import RuleCompiler, make_rule
+from .shared import kill_paths
 from .shared import KEYSTONE_DOORS, keystone_door_tiers
 from .version import data_version_problem
 
@@ -140,6 +141,9 @@ class OriDEWorld(World):
         pickup_accesses = {}  # location -> [(home, needs)]
         overrides = {(o["home"], o["target"]): o
                      for o in self.cfg.get("graph_overrides", [])}
+        # enemy rando: a miniboss room past this edge holds something a path must be able to kill
+        killers = {(k["home"], k["target"]): k["kills"]
+                   for k in self.cfg.get("arena_killers", [])}
 
         for home, conns in GRAPH["homes"].items():
             for target, conn in conns.items():
@@ -149,6 +153,8 @@ class OriDEWorld(World):
                     if override.get("remove"):
                         continue
                     paths = paths + override.get("add_paths", [])
+                if (home, target) in killers:
+                    paths = kill_paths(paths, killers[(home, target)])
                 needs = self.compiler.compile_paths(paths, edge=(home, target))
                 if conn["type"] == "conn":
                     if not needs:

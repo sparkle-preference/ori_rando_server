@@ -5,7 +5,7 @@ import re
 import pickle
 from collections import OrderedDict, defaultdict, Counter
 
-from util import enums_from_strlist, get_preset_from_paths, parse_fass, SEED_FORMAT, spawn_defaults
+from util import enums_from_strlist, get_preset_from_paths, parse_fass, deaths_per_link, SEED_FORMAT, spawn_defaults
 from enums import MultiplayerGameType, ShareType, Variation, LogicPath, KeyMode, PathDifficulty, presets
 from seedbuilder.generator import SeedGenerator
 from seedbuilder.oriparse import get_path_tags_from_pathsets
@@ -131,6 +131,7 @@ class CLISeedParams(object):
         (any of: skills,teleporters,events,cells,stones,upgrades; teleporters covers warp pickups). Converts the rolled multiworld seed
         (multiplayer requires --share-mode multiworld) and writes a paired ap_world_<n>.yaml next to each .bfr""", type=str, default=None)
         parser.add_argument("--ap-death-link", help="Archipelago mode: this world's deaths kill the room, and the room's kill it", action="store_true")
+        parser.add_argument("--ap-deaths-per-link", type=int, default=1, help="Archipelago mode: send one Death Link per this many of this world's deaths")
         args = parser.parse_args()
 
         self.seed = args.seed
@@ -381,6 +382,7 @@ class CLISeedParams(object):
             parser.error(problem(raw))
         self.enemy_opts = parse_kv(args.enemy_opts) if args.enemy_opts else None
         self.ap_death_link = self.ap_mode and bool(args.ap_death_link)
+        self.ap_deaths_per_link = deaths_per_link(args.ap_deaths_per_link)
         if self.ap_mode:
             from archipelago.convert import EXPORTABLE_CATEGORIES, normalize_categories
             self.ap_export = normalize_categories(
@@ -458,7 +460,7 @@ class CLISeedParams(object):
 
             sg = SeedGenerator()
 
-            preplaced = parse_fass(args.fass)
+            preplaced = parse_fass(args.fass, self.players)
             raw = sg.setSeedAndPlaceItems(self, preplaced=preplaced)
             seeds = []
             spoilers = []

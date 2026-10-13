@@ -847,3 +847,22 @@ body, #root {
 .player-cell {
   padding: 2px 0;
 }
+
+/* the enemy panel: rows share the box panel's frame */
+.enemy-marker span { display: block; width: 10px; height: 10px; margin: 2px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 2px #000; }
+.enemy-marker-selected span { border-color: #ff0; width: 14px; height: 14px; margin: 0; }
+.enemy-filter { flex: 1 1 auto; min-width: 8rem; }
+.enemy-list { overflow-y: auto; }
+.enemy-scene { display: flex; justify-content: space-between; padding: 0.3rem 0.4rem; margin-top: 0.3rem; font-weight: 600; cursor: pointer; background: rgba(128, 128, 128, 0.15); border-radius: 4px; }
+.enemy-scene-count { font-weight: 400; opacity: 0.8; }
+.enemy-row { display: flex; align-items: center; gap: 0.4rem; padding: 0.2rem 0.4rem; border-bottom: 1px solid rgba(128, 128, 128, 0.3); cursor: pointer; }
+.enemy-row-selected { background: rgba(255, 255, 0, 0.12); }
+.enemy-num { min-width: 2.2rem; opacity: 0.7; font-variant-numeric: tabular-nums; }
+.enemy-swatch { width: 10px; height: 10px; border-radius: 50%; border: 1px solid #000; flex: 0 0 auto; }
+.enemy-where { flex: 1 1 auto; font-size: 0.85em; opacity: 0.85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.enemy-kind { flex: 0 0 11rem; }
+.enemy-variant { display: inline-flex; align-items: center; gap: 0.2rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.enemy-variant .btn { padding: 0 0.3rem; line-height: 1.2; }
+.enemy-bonus { width: 5rem; display: inline-block; }
+.enemy-list-link { align-self: center; white-space: nowrap; }
+

@@ -6,8 +6,9 @@ names, new cfg keys, different rule compilation). COMPATIBLE_DATA_VERSION moves
 only when older yamls become unreadable. No imports: the server suite loads this file.
 """
 
-# 4: "stones" export + keystone tiers; 5: Mini Health/Energy; 6: tiers on every non-keysanity seed
-DATA_VERSION = 6
+# 4: "stones" export + keystone tiers; 5: Mini Health/Energy; 6: tiers on every non-keysanity seed;
+# 7: enemy rando's arena_killers and lure-free pathsets
+DATA_VERSION = 7
 COMPATIBLE_DATA_VERSION = 1
 
 # yamls emitted before data_version existed came from the only table

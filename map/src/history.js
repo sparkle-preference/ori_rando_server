@@ -11,7 +11,7 @@ const HIST_KEYS = [
     "fassList",
     "tracking", "players", "playerNames", "coopGenMode", "coopGameMode", "dedupShared",
     "antiBkBias", "shared", "mwShared", "worldSettings", "worldPresets",
-    "apMode", "apExport", "apDeathLink",
+    "apMode", "apExport", "apDeathLink", "apDeathsPerLink",
     "enemyOpts",
     "seed", "randomizedWith",
     "sspName", "sspLoaded", "sspLoadedOwner", "sspLoadedWorld", "sspLoadedDesc", "sspLoadedBlob",

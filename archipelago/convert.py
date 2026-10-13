@@ -235,6 +235,8 @@ def ap_variations(variations):
         out["open_world"] = True
     if "Keysanity" in vals:
         out["keysanity"] = True
+    if "EnemyRando" in vals:
+        out["enemy_rando"] = True
     return out
 
 
@@ -411,7 +413,7 @@ def ap_convert(texts, categories, keep_locs=frozenset()):
 
 def build_ap_config(placements, players, world, logic_paths, key_mode,
                     spawn_zone, variations, params_id=0, death_link=False,
-                    key_tiers=None):
+                    key_tiers=None, enemy_rolls=None):
     """One converted world's placements -> yaml config: shadow-owned MW lines are
     reserved, shadow-finder manifest entries exported, progression pinned local."""
     exported = {}
@@ -465,4 +467,4 @@ def build_ap_config(placements, players, world, logic_paths, key_mode,
                        key_mode=key_mode,
                        spawn=ap_spawn_region(resolve_spawn_zone(placements, spawn_zone)),
                        variations=variations, params_id=params_id, world=world,
-                       death_link=death_link, key_tiers=key_tiers)
+                       death_link=death_link, key_tiers=key_tiers, enemy_rolls=enemy_rolls)

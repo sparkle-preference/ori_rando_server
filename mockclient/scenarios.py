@@ -490,6 +490,39 @@ def ws_fallback_limit(stack):
     return j
 
 
+def ap_enemy_rando(stack):
+    """An enemy rando AP seed: the yaml drops lure paths and names the miniboss killers, and a
+    real room generates from it with the apworld we ship."""
+    j = Judge("ap_enemy_rando")
+    if not docker_ok():
+        j.check("skipped: docker or %s missing" % AP_IMAGE, True)
+        return j
+    params = base_params("mock-ap-enemies", players=2, apMode=True, apExport=["skills", "teleporters", "events"],
+                         variations=["ForceTrees", "EnemyRando"])
+    rolled = Rolled(stack, params)
+    yamls = requests.get("%s/generator/apyamls/%s" % (stack.base_url, rolled.param_id), timeout=90).text
+    j.equal("a yaml per world", yamls.count("game: Ori DE Rando"), 2)
+    j.check("no lure pathset in the yaml", "Lure" not in yamls, yamls[:400])
+    j.check("the yaml names the miniboss killers", "arena_killers" in yamls, "no arena_killers key")
+    j.check("the yaml says enemy rando", "enemy_rando" in yamls, "no enemy_rando variation")
+    with ApRoom(stack, rolled.param_id) as room:
+        r = requests.post("%s/netcode/game/%s/ap/connect" % (stack.base_url, rolled.game_id),
+                          data={"host": room.host, "port": str(room.port), "password": ""}, timeout=90)
+        j.equal("ap/connect took the room", r.status_code, 200)
+        j.check("the room says our slot joined", room.wait_for(" has joined.", timeout=60), room.logs()[-600:])
+        deadline = time.time() + 60
+        while time.time() < deadline:
+            status = _ap_status(stack, rolled.game_id)
+            if status.get("status") == "connected" and status.get("names_resolved") == status.get("names_total"):
+                break
+            time.sleep(0.5)
+        j.equal("the bridge reports connected", status.get("status"), "connected")
+        j.check("no error on the link", not status.get("last_error"), repr(status.get("last_error")))
+        # the download opens once the room is connected
+        j.check("the seed carries the rolls", "//EnemyRolls=" in rolled.seed_text(1), rolled.seed_text(1)[:200])
+    return j
+
+
 ALL = [solo_ws, solo_legacy, mw2, mw_bingo_solo_optin, mw_bingo_two_boards,
-       mw_bingo_no_owner, ap_real_room, bingo_reroll_flow, mw4_concurrency,
+       mw_bingo_no_owner, ap_real_room, ap_enemy_rando, bingo_reroll_flow, mw4_concurrency,
        shared_bingo_teams, ws_fallback_limit]

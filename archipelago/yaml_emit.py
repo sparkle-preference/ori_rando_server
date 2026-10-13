@@ -19,7 +19,7 @@ from seedbuilder.oriparse import get_path_tags_from_pathsets
 DATA_DIR = os.path.join(os.path.dirname(__file__), "oride_apworld", "oride", "data")
 
 # contract version checked by the apworld; bump with oride/version.py (its docstring has the rule)
-DATA_VERSION = 6
+DATA_VERSION = 7
 
 EXPORT_CODES = {"SK", "TP", "EV"}
 LOCAL_CODES = {"KS", "MS", "HC", "EC", "AC"}
@@ -79,11 +79,25 @@ def keymode_to_ap(key_mode):
     return "events"  # Default/Clues/LimitKeys all place keys as EV items
 
 
+def arena_killers(enemy_rolls):
+    """[{home, target, kills: [[skill...] per kind]}]: the miniboss rooms an enemy rando roll
+    filled with something spirit flame can't kill, and the skills a path past each may use."""
+    from seedbuilder import enemyroll
+    threats = enemyroll.arena_threats(enemy_rolls)
+    return [{"home": home, "target": target, "kills": [list(enemyroll.KILLERS[k]) for k in kinds]}
+            for (home, target), kinds in sorted(enemyroll.gated_edges(threats).items())]
+
+
 def make_config(exported, reserved, local, logic_paths, key_mode="events",
                 spawn="SunkenGladesRunaway", variations=None,
-                params_id=0, world=1, death_link=False, key_tiers=None):
+                params_id=0, world=1, death_link=False, key_tiers=None, enemy_rolls=None):
     """Classified placements -> orirando yaml blob. exported: {item: count};
     reserved: [location]; local: {location: item}."""
+    variations = dict(variations or {})
+    pathsets = get_path_tags_from_pathsets(list(logic_paths))
+    if variations.get("enemy_rando"):
+        # a lure path names the enemy it lures, which may no longer be there
+        pathsets = [t for t in pathsets if not t.endswith("Lure")]
     return {
         "data_version": DATA_VERSION,
         "params_id": params_id,
@@ -91,8 +105,8 @@ def make_config(exported, reserved, local, logic_paths, key_mode="events",
         "spawn": spawn,
         # sorted: logic_paths arrives in hash order, and the tags are a set
         # to the apworld -- identical params must yield identical yaml
-        "pathsets": sorted(get_path_tags_from_pathsets(list(logic_paths))),
-        "variations": dict(variations or {}),
+        "pathsets": sorted(pathsets),
+        "variations": variations,
         "key_mode": keymode_to_ap(key_mode),
         "death_link": bool(death_link),
         "exported_items": dict(sorted(exported.items())),
@@ -101,6 +115,7 @@ def make_config(exported, reserved, local, logic_paths, key_mode="events",
         # positional over shared.KEYSTONE_DOORS; present only when generic
         # keystones export (doors then charge these instead of face costs)
         **({"key_tiers": list(key_tiers)} if key_tiers else {}),
+        **({"arena_killers": arena_killers(enemy_rolls)} if variations.get("enemy_rando") and enemy_rolls else {}),
         "extra_locations": EXTRA_LOCATIONS,
         "goal": {"region": GOAL_REGION},
     }

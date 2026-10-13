@@ -72,7 +72,7 @@ const apDefaultExport = ["skills", "teleporters", "events"];
 // a preset describes one world, so a load drops the lobby. Mirrors SSP_DENY.
 const SSP_LOBBY_KEYS = ["players", "playerNames", "coopGenMode", "coopGameMode", "dedupShared",
                         "antiBkBias", "syncShared", "shared", "teams", "apMode", "apExport", "apDeathLink",
-                        "worldSettings"];
+                        "apDeathsPerLink", "worldSettings"];
 // dropped by every load path, lobby or not: the seed box is the user's to type,
 // and the rest are outputs of a finished seed rather than form inputs.
 const PRESET_NEVER_LOAD = ["seed", "flagLine", "isPlando", "spoilers", "teamStr"];
@@ -895,7 +895,7 @@ export default class MainPage extends React.Component {
         )
     }
     getMultiplayerTab = ({inputStyle, menuStyle}) => {
-        let {shared, mwShared, players, tracking, coopGameMode, keyMode, coopGenMode, dedupShared, antiBkBias, apMode, apExport, apDeathLink} = this.state
+        let {shared, mwShared, players, tracking, coopGameMode, keyMode, coopGenMode, dedupShared, antiBkBias, apMode, apExport, apDeathLink, apDeathsPerLink} = this.state
         let shareButtons = (stypes, current, toggle, kind) => stypes.map(stype => (
             <Col xs="4" key={`share-${stype}`} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("Shared Item Categories", stype)} className="p-2">
                 <Button data-hist={`${kind}-${stype.replace(" ", "")}`} block outline={!current.includes(stype)} onClick={toggle(stype)}>Share {stype}</Button>
@@ -1027,6 +1027,16 @@ export default class MainPage extends React.Component {
                                 <Button data-hist="apDeathLink" block outline={!apDeathLink} active={apDeathLink} onClick={() => this.setState({apDeathLink: !apDeathLink})}>Death Link</Button>
                             </Col>
                         </Row>
+                        <Collapse isOpen={apDeathLink}>
+                            <Row data-hist="apDeathsPerLink" onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("multiplayerOptions", "apDeathsPerLink")} className="p-1 justify-content-center">
+                                <Col xs="4" className="text-center border">
+                                    <Cent>Deaths per Death Link</Cent>
+                                </Col><Col xs="4">
+                                    <Input style={inputStyle} type="number" step="1" min="1" max="99" value={apDeathsPerLink} invalid={!(apDeathsPerLink >= 1 && apDeathsPerLink <= 99)} onChange={(e) => this.setState({apDeathsPerLink: parseInt(e.target.value, 10)})}/>
+                                    <FormFeedback tooltip="true">Deaths per Death Link is a whole number from 1 to 99</FormFeedback>
+                                </Col>
+                            </Row>
+                        </Collapse>
                     </Collapse>
                 </Collapse>
                 {playerNameRows}
@@ -1131,6 +1141,7 @@ export default class MainPage extends React.Component {
             json.apMode = true
             json.apExport = this.state.apExport
             json.apDeathLink = this.state.apDeathLink
+            json.apDeathsPerLink = this.state.apDeathsPerLink || 1
         }
         return {json: json, url: url}
     }
@@ -1596,6 +1607,7 @@ export default class MainPage extends React.Component {
             if(!metaUpdate.apExport || metaUpdate.apExport.length === 0)
                 metaUpdate.apExport = [...apDefaultExport]
             metaUpdate.apDeathLink = metaUpdate.apDeathLink || false
+            metaUpdate.apDeathsPerLink = metaUpdate.apDeathsPerLink || 1
             metaUpdate.inputApMode = metaUpdate.apMode || false
             metaUpdate.spawns = metaUpdate.spawns || []
             dev && console.log(metaUpdate)
@@ -2983,7 +2995,7 @@ export default class MainPage extends React.Component {
                         goalModes: ["ForceTrees"], selectedPool: "Standard", seed: "", fillAlg: "Balanced", quickstartOpen: quickstartOpen,
                         betaWelcomeOpen: beta_welcome_pending(),
                         shared: ["Skills", "Teleporters", "World Events", "Upgrades", "Misc"], mwShared: [], helpcat: "", helpopt: "",
-                        apMode: false, apExport: [...apDefaultExport], apDeathLink: false, inputApMode: false, playerNames: [],
+                        apMode: false, apExport: [...apDefaultExport], apDeathLink: false, apDeathsPerLink: 1, inputApMode: false, playerNames: [],
                         worldSettings: [],
                         apHost: AP_DEFAULT_HOST, apPort: "", apPassword: "", apConnectPending: false, apStatus: null, apNoLink: false, apHidden: false, apPollFailed: false,
                         apHints: null, apHintsOpen: false, apHintsTab: 1, apHintsBusy: null,

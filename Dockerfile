@@ -17,6 +17,8 @@ RUN pip install --root-user-action ignore -r requirements.txt && rm requirements
 COPY --from=parcel /app/dist ./map/dist
 COPY ./seedbuilder/areas.ori ./seedbuilder/areas.ori
 COPY ./seedbuilder/*.py ./seedbuilder/
+COPY ./seedbuilder/enemies.json ./seedbuilder/enemies.json
+COPY ./seedbuilder/enemies.txt ./seedbuilder/enemies.txt
 
 # ap_bridge reads oride_apworld data at import and /generator/apworld zips the
 # whole package, so both ship or the app dies at boot; difftest/ is dev-only

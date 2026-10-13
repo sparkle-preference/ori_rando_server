@@ -2571,6 +2571,16 @@ class ApDeathLinkSeedTests(unittest.TestCase):
             p.ap_death_link = p.ap_mode and bool(payload.get("apDeathLink"))
             self.assertEqual(p.ap_death_link, expected, payload)
 
+    def test_deaths_per_link_rides_the_json_and_not_the_flagline(self):
+        from util import deaths_per_link
+        for raw, expected in ((None, 1), ("", 1), ("0", 1), ("-2", 1), ("x", 1), ("4", 4), (7, 7)):
+            self.assertEqual(deaths_per_link(raw), expected, raw)
+        p = self._params()
+        p.spoilers = [""]                 # to_json wants a rolled seed's spoiler
+        p.ap_deaths_per_link = 4
+        self.assertEqual(p.to_json()["apDeathsPerLink"], 4)
+        self.assertEqual(p.flag_line(), self._params().flag_line())
+
     def test_the_yaml_says_it_in_both_places(self):
         from archipelago.yaml_emit import emit_yaml, make_config
         cfg = make_config({}, [], {}, ["casual-core"], death_link=True)
@@ -2604,6 +2614,9 @@ class ApDeathLinkSeedTests(unittest.TestCase):
         P.ap_death_link = False
         self.assertFalse(maps_from_params(P()).death_link)
         del P.ap_death_link       # params rolled before the option existed
+        self.assertEqual(maps_from_params(P()).deaths_per_link, 1)
+        P.ap_deaths_per_link = 3
+        self.assertEqual(maps_from_params(P()).deaths_per_link, 3)
         self.assertFalse(maps_from_params(P()).death_link)
 
 

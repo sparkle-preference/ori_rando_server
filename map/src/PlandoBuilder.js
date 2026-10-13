@@ -12,6 +12,7 @@ import {get_param, get_flag, get_int, get_list, get_seed, presets, get_preset, l
 import {BOX_TOMBSTONE, is_box_gone, box_hidden, new_box, box_has_flag, box_flags_from_chips, parse_box_line, box_line,
         box_color, box_flag_ok, box_flag_choices, describe_flag, flag_completions, flag_menu, BOXES_TXT, compact_boxes,
         box_search, parse_box_paste, paste_boxes} from './boxes.js';
+import {EnemyPanel, enemy_markers, parse_rolls, rolls_line} from './enemies.js';
 import {draft_key, read_draft, write_draft, remove_draft, draft_hash, draft_offer, draft_saved, time_ago} from './plando_draft.js';
 import {download, picks_by_type, picks_by_loc, picks_by_zone, picks_by_area, zones, PickupMarkersList, get_icon, 
         getMapCrs, TILE_MAX_ZOOM, hide_opacity, select_wrap, is_match, str_ids, select_styles} from './shared_map.js';
@@ -552,7 +553,7 @@ class PlandoBuiler extends React.Component {
                   flags: ['hide_unreachable'], seedFlags: [], hidden: hidden, share_types: select_wrap(["Skills", "WorldEvents", "Teleporters"]), coop_mode: {label: "Solo", value: "None"},
                   pickups: ["EX", "Ma", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "CS"], display_fill: false, display_import: false, display_logic: false, display_coop: false, display_meta: false,
                   entrances: {1: {}}, display_entrances: false, entrance_from: {value: "", label: ""}, entrance_to: {value: "", label: ""},
-                  boxes: {1: []}, display_boxes: false, boxes_mounted: false, box_fold: false, box_edit: false, box_last: null,
+                  boxes: {1: []}, display_boxes: false, boxes_mounted: false, box_fold: false, box_edit: false, box_last: null, drawer_tab: "boxes", enemy_selected: null,
                   box_show_locked: true, box_selected: null, box_filter: "", box_paste: false,
                   box_rank: {}, box_new_rank: 0, box_colors: box_color_history(), box_width: box_panel_width(),
                   import_overwrite: false, draft_offer: null,
@@ -1452,7 +1453,15 @@ class PlandoBuiler extends React.Component {
     toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
     toggleCoop = () => {this.setState({display_coop: !this.state.display_coop})};
     toggleEntrances = () => {this.setState({display_entrances: !this.state.display_entrances})};
-    toggleBoxes = () => this.setDrawer(!this.state.display_boxes);
+    toggleBoxes = () => this.setDrawer(!(this.state.display_boxes && this.state.drawer_tab === "boxes"), {drawer_tab: "boxes"});
+    toggleEnemies = () => this.setDrawer(!(this.state.display_boxes && this.state.drawer_tab === "enemies"), {drawer_tab: "enemies"});
+    enemyRolls = () => parse_rolls(this.state.enemy_rolls[this.state.player]);
+    // a spawn set here is meant: the flag that writes the line comes along
+    setEnemyRolls = (rolls) => this.setState(prev => ({
+        enemy_rolls: {...prev.enemy_rolls, [prev.player]: rolls_line(rolls)},
+        seedFlags: prev.seedFlags.some(f => f.value.toLowerCase() === "enemyrando") ? prev.seedFlags : select_wrap(prev.seedFlags.map(f => f.value).concat("EnemyRando")),
+    }));
+    selectEnemy = (i) => this.setState({enemy_selected: i});
     // Opens or closes the box drawer. Everything else in `now` lands at once, the rows included,
     // so they render while the old side fades; `then` waits for the swap.
     setDrawer = (open, now = {}, then) => {
@@ -1801,6 +1810,13 @@ class PlandoBuiler extends React.Component {
         // what an overwriting import would replace, so the choice is made knowing the cost
         const placed_here = Object.keys(this.state.placements[this.state.player] || {}).length
         const pickup_markers = ( <PickupMarkersList markers={getPickupMarkers(this.state, this.selectPickupCurry, searchStr)} />)
+        const enemies_open = display_boxes && this.state.drawer_tab === "enemies"
+        const enemy_marker_list = enemies_open ? <PickupMarkersList markers={enemy_markers(this.enemyRolls(), this.state.enemy_selected, this.selectEnemy)}/> : null
+        const player_select = Object.keys(this.state.placements).length > 1 ? (
+            <Select styles={select_styles} className="box-panel-player" clearable={false} onChange={this.switchPlayer}
+                    options={Object.keys(this.state.placements).map(p => ({label: `Player ${p}`, value: p}))}
+                    value={{label: `Player ${this.state.player}`, value: this.state.player}}/>
+        ) : null
         // i stays the index into curBoxes(); rank is only what order they are shown in, and
         // a box added since the load has none, so it sorts to the top where it was put
         const box_rank = (b) => this.state.box_rank[b._id] !== undefined ? this.state.box_rank[b._id] : Number.MAX_SAFE_INTEGER
@@ -1876,6 +1892,7 @@ class PlandoBuiler extends React.Component {
 
                     <TileLayer url=' https://ori-tracker.firebaseapp.com/images/ori-map/{z}/{x}/{y}.png' noWrap='true' maxNativeZoom={TILE_MAX_ZOOM} maxZoom={TILE_MAX_ZOOM + 2}  />
                     {pickup_markers}
+                    {enemy_marker_list}
                     {/* leaflet draws in the order layers were added, not the order react lists
                         them, so a pane below the overlay is what puts these underneath */}
                     <Pane name="box-hidden" style={{zIndex: 390}}>
@@ -2026,6 +2043,7 @@ class PlandoBuiler extends React.Component {
                     <div id="box-entry">
                         <Button color="primary" onClick={this.toggleBoxes}>Boxes ({Object.keys(this.state.placements).length > 1 ? `P${this.state.player}: ` : ""}{box_count})</Button>
                         <Button color="primary" onClick={this.addBox}>Add Box</Button>
+                        <Button color="primary" onClick={this.toggleEnemies}>Enemies</Button>
                     </div>
                     <hr style={{ backgroundColor: 'gray', height: 2 }}/>
                     <div id="logic-controls">
@@ -2128,7 +2146,10 @@ class PlandoBuiler extends React.Component {
                     </div>
                     {/* The rows outweigh everything else on the page, so a panel that
                         has never been opened has none. They stay once it has been. */}
-                    {boxes_mounted ? (
+                    {boxes_mounted ? (this.state.drawer_tab === "enemies" ? (
+                    <EnemyPanel rolls={this.enemyRolls()} onChange={this.setEnemyRolls} selected={this.state.enemy_selected} onSelect={this.selectEnemy}
+                                onDone={this.toggleEnemies} styles={select_styles} player_select={player_select}/>
+                    ) : (
                     <div id="box-controls">
                         <hr style={{ backgroundColor: 'gray', height: 2 }}/>
                         <div className="box-panel-head">
@@ -2196,7 +2217,7 @@ class PlandoBuiler extends React.Component {
                             {matched && !matched.size ? <div className="box-list-empty">No boxes match.</div> : null}
                         </div>
                     </div>
-                    ) : null}
+                    )) : null}
                 </div>
             </div>
         )
