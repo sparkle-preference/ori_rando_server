@@ -179,3 +179,20 @@ def meta_line(rolls):
     return META_PREFIX + table()["version"] + ":" + ",".join("" if r is None else str(r) for r in rolls)
 
 
+def rolls_of(line):
+    """The rolls on an //EnemyRolls= line made against this table, else None."""
+    if not isinstance(line, str) or not line.startswith(META_PREFIX):
+        return None
+    version, _, body = line[len(META_PREFIX):].partition(":")
+    t = table()
+    try:
+        rolls = [None if r == "" else int(r) for r in body.split(",")]
+    except ValueError:
+        return None
+    if version != t["version"] or len(rolls) != len(t["placements"]):
+        return None
+    if any(r is not None and not 0 <= r < len(t["variants"]) for r in rolls):
+        return None
+    return rolls
+
+

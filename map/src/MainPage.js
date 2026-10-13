@@ -1141,6 +1141,11 @@ export default class MainPage extends React.Component {
             this.setState({activeTab: 'multiplayer'})
             return
         }
+        if(this.apAvailable() && this.state.apMode &&
+           (this.hasVar("EnemyRando") || this.state.worldSettings.some(w => ((w || {}).variations || []).includes("EnemyRando")))) {
+            NotificationManager.error("Enemy Rando can't be combined with Archipelago yet.", "Cannot generate seed!", 5000)
+            return
+        }
         // the Logic Paths tab always shows Casual Core on, so a list without it is a bug, not a choice
         if(!this.state.paths.includes("casual-core")) {
             NotificationManager.error("Every seed needs the Casual Core logic path. Pick a Logic Mode to reset the paths.", "Cannot generate seed!", 5000)

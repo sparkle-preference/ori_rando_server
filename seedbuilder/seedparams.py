@@ -73,6 +73,8 @@ def seed_mode_problem(params):
         # ahead of the singleplayer early return: K=1 AP is still an AP seed
         if not ARCHIPELAGO:
             return "Archipelago support is switched off right now."
+        if any(Variation.ENEMY_RANDO in (getattr(world_view(params, w), "variations", None) or []) for w in range(1, players + 1)):
+            return "Enemy Rando can't be combined with Archipelago yet."
         # the bridge delivers through the netcode
         if not (params.sync.enabled and params.tracking):
             return "Archipelago seeds need tracking (the room talks to the game over netcode)."
@@ -423,6 +425,8 @@ class SeedGenParams(ndb.Model):
             # a description-less plando is a legal row; spoilers is a string list
             spoilers = [plando.description or ""],
             plando_spoiler_key = plando.key if plando.spoiler else None,
+            # the rolls its fill made; a plando without them rolls from its name
+            enemy_rolls = getattr(plando, "enemy_rolls", None) or None,
             )
         params.sync = MultiplayerOptions()
         params.sync.enabled = plando.players > 1

@@ -888,7 +888,7 @@ const getHelpHelper = (category, option, whose = "your seed") => {
                 case "enemyPool":
                     title = "Valid Enemy Types"
                     lines = ["Select the kinds of enemies that can replace enemies when randomizing.",
-                    "Note that some enemy types have rules limiting when they can spawn - e.g. rhinos and banelings will only spawn on level ground, fliers replace other fliers."]
+                    "Note that some enemy types have rules limiting when they can spawn - e.g. rhinos and banelings will only spawn on level or gently sloped ground, fliers replace other fliers."]
                     break;
                 case "enemyKeep":
                     title = "Exempt Enemy Types"

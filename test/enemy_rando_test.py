@@ -192,6 +192,39 @@ class EnemyOptionsDownload(unittest.TestCase):
         params.tracking = False
         self.assertIn(enemyroll.meta_line(enemyroll.roll("En", 1, None)), params.get_seed(1).splitlines())
 
+    def test_a_plando_downloads_the_rolls_its_fill_made(self):
+        from models import Seed
+        from seedbuilder import enemyroll
+        from seedbuilder.seedparams import SeedGenParams
+        filled = enemyroll.roll("some fill seed", 1, None)
+        self.assertNotEqual(filled, enemyroll.roll("En", 1, None))
+        rolls = Seed.get_enemy_rolls({"1": enemyroll.meta_line(filled)})
+        put, SeedGenParams.put = SeedGenParams.put, lambda self: None
+        try:
+            params = SeedGenParams.from_plando(Seed(id="uid:En", name="En", players=1, placements=[], flags=["EnemyRando"],
+                                                    enemy_rolls=rolls))
+        finally:
+            SeedGenParams.put = put
+        params.tracking = False
+        self.assertIn(enemyroll.meta_line(filled), params.get_seed(1).splitlines())
+
+    def test_only_rolls_made_against_this_table_are_kept(self):
+        from models import Seed
+        from seedbuilder import enemyroll
+        good = enemyroll.roll("x", 1, None)
+        line = enemyroll.meta_line(good)
+        self.assertEqual(enemyroll.rolls_of(line), good)
+        body = line.split(":", 1)[1]
+        for bad in (enemyroll.META_PREFIX + "00000000:" + body,     # another table
+                    line + ",1",                                    # one placement too many
+                    line.replace(":", ":99999,", 1)[:len(line) + 7],  # a variant that doesn't exist
+                    enemyroll.META_PREFIX + enemyroll.table()["version"] + ":x",
+                    "//Enemies=hp=1", None, 5):
+            self.assertIsNone(enemyroll.rolls_of(bad), bad)
+        self.assertEqual(Seed.get_enemy_rolls({"1": line, "2": "junk", "w": line}), {"1": good})
+        self.assertIsNone(Seed.get_enemy_rolls({"1": "junk"}))
+        self.assertIsNone(Seed.get_enemy_rolls(None))
+
     def test_the_page_presets_mirror_the_server(self):
         import os
         from seedbuilder import enemyopts
@@ -208,6 +241,20 @@ class EnemyOptionsRefusals(unittest.TestCase):
         from types import SimpleNamespace
         return SimpleNamespace(players=1, start="Glades", variations=variations, world_settings=None,
                                ap_mode=False, sync=SimpleNamespace(enabled=False), enemy_opts=opts)
+
+    def test_archipelago_is_refused(self):
+        from types import SimpleNamespace
+        from seedbuilder.seedparams import seed_mode_problem
+        with mock.patch("util.ARCHIPELAGO", True):
+            p = self._params([Variation.ENEMY_RANDO])
+            p.ap_mode, p.tracking = True, True
+            self.assertEqual(seed_mode_problem(p), "Enemy Rando can't be combined with Archipelago yet.")
+            # a world's own preset counts too
+            p.variations, p.players = [], 2
+            p.world_settings = [{}, {"variations": ["EnemyRando"]}]
+            self.assertEqual(seed_mode_problem(p), "Enemy Rando can't be combined with Archipelago yet.")
+            p.world_settings = None
+            self.assertNotIn("Enemy Rando", seed_mode_problem(p) or "")
 
     def test_a_bad_range_is_refused_not_dropped(self):
         from seedbuilder.seedparams import seed_mode_problem

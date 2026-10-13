@@ -1732,6 +1732,8 @@ class Seed(ndb.Model):
     legacy_author_key = ndb.KeyProperty("author_key", LegacyUser)
     author = ndb.StringProperty()  # deprecated: will remove after migration is complete
     name = ndb.StringProperty()
+    # {world: [variant index or None per placement]}: the editor's last fill (seedbuilder.enemyroll)
+    enemy_rolls = ndb.JsonProperty()
 
     @staticmethod
     def get(author_name, seed_name):
@@ -1772,8 +1774,20 @@ class Seed(ndb.Model):
                 boxes = boxes,
                 players = max(players, box_players),
                 hidden = data.get('hidden', False),
+                enemy_rolls = Seed.get_enemy_rolls(data.get('enemyRolls')),
             )
         return s.put()
+
+    # the editor's rolls lines by world; only lines made against the current table are kept
+    @staticmethod
+    def get_enemy_rolls(raw_data):
+        from seedbuilder.enemyroll import rolls_of
+        rolls = {}
+        for world, line in (raw_data or {}).items():
+            parsed = rolls_of(line)
+            if parsed is not None and str(world).isdigit():
+                rolls[str(world)] = parsed
+        return rolls or None
 
     # a box line is kept as written; the client is what reads it
     @staticmethod
@@ -1829,6 +1843,7 @@ class Seed(ndb.Model):
                 boxes = boxes,
                 players = max(players, box_players),
                 hidden = data.get('hidden', self.hidden),
+                enemy_rolls = Seed.get_enemy_rolls(data['enemyRolls']) if 'enemyRolls' in data else self.enemy_rolls,
             )
             
             return self.put()
@@ -1847,7 +1862,9 @@ class Seed(ndb.Model):
                 stuffs.append(entry)
             placements.append({'loc': p.location, 'stuff': stuffs})
         boxes = [{'player': b.player, 'line': b.line, 'locked': b.locked} for b in self.boxes]
-        return jsonify({'placements': placements, 'boxes': boxes, 'flagline': self.flag_line()})
+        from seedbuilder.enemyroll import meta_line
+        rolls = {world: meta_line(r) for world, r in (self.enemy_rolls or {}).items()}
+        return jsonify({'placements': placements, 'boxes': boxes, 'flagline': self.flag_line(), 'enemyRolls': rolls})
 
 
 # A saved setting describes one world, so the lobby half is denied and tracking is

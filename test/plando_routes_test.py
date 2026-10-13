@@ -185,6 +185,20 @@ class UploadTestCase(_PlandoRoutes):
         self.assertEqual(text.rstrip("\n").split("\n")[-len(lines):], lines)
 
 
+    def test_a_fills_enemy_rolls_survive_upload_and_reach_the_download(self):
+        from seedbuilder import enemyroll
+        user = self.author()
+        line = enemyroll.meta_line(enemyroll.roll("a fill", 1, None))
+        self.assertEqual(self._post(flags=["EnemyRando"], enemyRolls={"1": line}).status_code, 200)
+        seed = self.named(user, "alpha")
+        self.assertIn(line, SeedGenParams.from_plando(seed, False).get_seed(1).split("\n"))
+        # a save that says nothing about rolls keeps them; a junk line drops them
+        self.assertEqual(self._post(desc="again").status_code, 200)
+        self.assertIsNotNone(self.named(user, "alpha").enemy_rolls)
+        self.assertEqual(self._post(enemyRolls={"1": "junk"}).status_code, 200)
+        self.assertIsNone(self.named(user, "alpha").enemy_rolls)
+
+
 class DownloadTestCase(_PlandoRoutes):
     def test_a_hidden_seed_is_not_served_to_a_stranger(self):
         owner = self.author()

@@ -547,7 +547,7 @@ class PlandoBuiler extends React.Component {
     super(props)
     let {seed_name, seed_desc, user, hidden} = get_seed();
 
-    this.state = {seed_in: "", reachable: {...DEFAULT_REACHABLE}, new_areas: {...DEFAULT_REACHABLE}, placements: {1: {...DEFAULT_DATA}}, player: 1,
+    this.state = {seed_in: "", reachable: {...DEFAULT_REACHABLE}, new_areas: {...DEFAULT_REACHABLE}, placements: {1: {...DEFAULT_DATA}}, player: 1, enemy_rolls: {},
                   fill_opts: {HC: 13, EC: 15, AC: 34, KS: 40, MS: 9, EX: 300, ex_pool: 10000, dynamic: false, dumb: false}, fill_pool: null, pool_menu: POOL_PRESETS, viewport: {center: [0, 0], zoom: 5}, searchStr: "", clueOrder: CLUE_ORDERS[0],
                   flags: ['hide_unreachable'], seedFlags: [], hidden: hidden, share_types: select_wrap(["Skills", "WorldEvents", "Teleporters"]), coop_mode: {label: "Solo", value: "None"},
                   pickups: ["EX", "Ma", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "CS"], display_fill: false, display_import: false, display_logic: false, display_coop: false, display_meta: false,
@@ -717,7 +717,7 @@ class PlandoBuiler extends React.Component {
             return
         }
         let d = stored.data
-        this.loadSeed({placements: d.placements || [], boxes: d.boxes || [], flagline: d.flagLine || ""}, true, () => {
+        this.loadSeed({placements: d.placements || [], boxes: d.boxes || [], flagline: d.flagLine || "", enemyRolls: d.enemyRolls}, true, () => {
             this.setState({seed_name: typeof d.name === "string" ? d.name : this.state.seed_name, seed_desc: d.desc || "", hidden: !!d.hidden,
                            draft_offer: null}, () => {
                 this.selectPickup(this.state.pickup, false)
@@ -891,7 +891,13 @@ class PlandoBuiler extends React.Component {
         let newEntrances = {}
         let currplc = this.state.placements[player] || {}
         let newBoxes = []
+        let rolls = null
         for (let i = 1, len = lines.length; i < len; i++) {
+            // the enemies a fill rolled: saved with the plando, so its download spawns the same
+            if(lines[i].startsWith("//EnemyRolls=")) {
+                rolls = lines[i]
+                continue;
+            }
             // a box has no location; it is kept as a line of its own
             if(lines[i].startsWith("BX|")) {
                 let box = parse_box_line(lines[i])
@@ -963,6 +969,8 @@ class PlandoBuiler extends React.Component {
                 let known = mine.map(box_line)
                 newBoxes.forEach(b => { if(!known.includes(box_line(b))) mine.push(b) })
                 retVal.boxes = {...prevState.boxes, [player]: mine}
+                if(rolls)
+                    retVal.enemy_rolls = {...prevState.enemy_rolls, [player]: rolls}
                 return retVal
             }, () => this.updateReachable());
 
@@ -1030,6 +1038,7 @@ class PlandoBuiler extends React.Component {
             boxes[entry['player']].push(box)
         })
         retVal.boxes = boxes
+        retVal.enemy_rolls = seedData['enemyRolls'] || {}
         // A loaded seed lists its locked boxes last. Display only: the client assigns an
         // item box's save bit from its position, so the saved order stays as written.
         retVal.box_rank = {}
@@ -1145,6 +1154,8 @@ class PlandoBuiler extends React.Component {
     getLines = () => {
         let playerPlacements = this.state.placements[this.state.player] || {}
         let outLines = [this.buildFlagLine()]
+        if(this.state.enemy_rolls[this.state.player] && this.state.seedFlags.some(f => f.value.toLowerCase() === "enemyrando"))
+            outLines.push(this.state.enemy_rolls[this.state.player])
         let locs = Object.keys(picks_by_loc).filter(loc => playerPlacements.hasOwnProperty(loc))
         let evLines = {};
         locs.forEach((loc) => {
@@ -1176,6 +1187,7 @@ class PlandoBuiler extends React.Component {
         // and Seed.mode()/Seed.shared() parse them back out of Seed.flags on download
         data.flags = this.buildFlags();
         data.hidden = this.state.hidden;
+        data.enemyRolls = this.state.enemy_rolls;
         data.placements = [];
         let locs = Object.keys(picks_by_loc);
         let players = Object.keys(this.state.placements);
