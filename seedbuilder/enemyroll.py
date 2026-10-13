@@ -14,6 +14,8 @@ RANGED_EXTRA = 2
 LASER = "floatingRockLaserEnemy"
 # kinds that want level floor under them when they take a floor spot that never held one
 GROUNDED = ("Banelings", "Sharks", "Rhinos")
+# grounded kinds that are fine on a gentle slope too
+SLOPE_OK = ("Banelings", "Rhinos")
 
 # a miniboss room holding one of these kinds needs one of the listed skills past its door: spirit flame can't kill them
 KILLERS = {
@@ -109,7 +111,7 @@ def pick(p, pool, keep, logic_on, pools_on, flying_fish, walkers, arena_kind, sh
         # a ranged flier at a spot that never held one needs room and a seat
         if shooter_cap and name in RANGED and not ranged and ((spot == "air" and not p["clear"]) or ranged_full):
             continue
-        if spot == "floor" and name in GROUNDED and own != name and not p["flat"]:
+        if spot == "floor" and name in GROUNDED and own != name and not (p["gentle"] if name in SLOPE_OK else p["flat"]):
             continue
         if spot == "water" and ((name == "Slimes" and not p["surface"]) or (name == "Frogs" and not p["floor"])):
             continue

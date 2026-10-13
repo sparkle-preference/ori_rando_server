@@ -87,15 +87,31 @@ class TheRoll(unittest.TestCase):
         self.assertEqual(fish(capped), 0)
         self.assertGreater(fish(enemyroll.roll("test", 1, {"flyingfish": "on"})), 0)
 
-    def test_sharks_and_rhinos_take_level_ground_and_the_grotto_shark_is_scripted(self):
+    def test_grounded_kinds_take_level_or_gentle_ground_and_the_grotto_shark_is_scripted(self):
         t = enemyroll.table()
         for seed in ("a", "b", "c", "d", "e", "f"):
             rolls = enemyroll.roll(seed, 1, None)
             for p, r in zip(t["placements"], rolls):
-                if r is not None and p["spot"] == "floor" and t["variants"][r]["kind"] in enemyroll.GROUNDED and p["kind"] != t["variants"][r]["kind"]:
-                    self.assertTrue(p["flat"], (seed, p["scene"]))
+                kind = t["variants"][r]["kind"] if r is not None else None
+                if p["spot"] == "floor" and kind in enemyroll.GROUNDED and p["kind"] != kind:
+                    self.assertTrue(p["gentle"] if kind in enemyroll.SLOPE_OK else p["flat"], (seed, p["scene"], kind))
                 if p["scene"] == "moonGrottoEnemyPuzzle" and p["kind"] == "Sharks":
                     self.assertIsNone(r)
+
+    def test_banelings_and_rhinos_take_gentle_slopes_and_sharks_do_not(self):
+        t = enemyroll.table()
+        sloped = [i for i, p in enumerate(t["placements"])
+                  if p["spot"] == "floor" and p["gentle"] and not p["flat"] and p["kind"] not in enemyroll.GROUNDED]
+        self.assertTrue(sloped)
+        landed = Counter()
+        for seed in range(60):
+            rolls = enemyroll.roll(str(seed), 1, None)
+            for i in sloped:
+                if rolls[i] is not None:
+                    landed[t["variants"][rolls[i]]["kind"]] += 1
+        self.assertGreater(landed["Banelings"], 0)
+        self.assertGreater(landed["Rhinos"], 0)
+        self.assertEqual(landed["Sharks"], 0)
 
     def test_an_elemental_behind_a_purple_door_wants_a_killer(self):
         t = enemyroll.table()
