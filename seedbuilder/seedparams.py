@@ -290,6 +290,9 @@ def world_view(base, p):
     for key, (attr, conv) in WORLD_FIELDS.items():
         if key in blob and blob[key] is not None:
             over[attr] = conv(blob[key])
+    # a saved preset leaves Standard enemy options out rather than inheriting world 1's
+    if "variations" in blob and "enemyOpts" not in blob:
+        over["enemy_opts"] = {}
     return WorldParams(base, over) if over else base
 
 

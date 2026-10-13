@@ -753,6 +753,10 @@ class BingoGenerator(object):
         if enemy_rando:
             # a seed's supply of each kind is random
             goals = [goal for goal in goals if not isinstance(goal, DefeatGoal)]
+            # deaths to one particular enemy the roll may move (pinned ones stay)
+            for group in goals:
+                if isinstance(group, GoalGroup) and group.name == "DieTo":
+                    group.goals = [g for g in group.goals if g.name not in ("Valley Map Baneling", "Valley Floor Frogs", "Ginso Escape Fronkey")]
         if not keysanity:
             goals.append(IntGoal(
                 name = "UnspentKeystones",

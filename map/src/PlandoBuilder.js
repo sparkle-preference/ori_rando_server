@@ -121,7 +121,7 @@ const VALID_VARS = ["0XP", "NonProgressMapStones", "NoAltR", "ForceMaps", "Force
                     // kept in sync with the Variation enum (enums.py)
                     "WarmthFrags", "DoubleSkills", "StrictMapstones", "StompTriggers", "TPStarved", "GoalModeFinish", "WallStarved", "GrenadeStarved",
                     "Race", "WarpsInsteadOfTPs", "InLogicWarps", "WarpCount", "StartingHealth", "StartingEnergy", "StartingSkills", "NoTPs",
-                    "Competitive", "BonusLite", "ClueLockedTPs", "ZoneLockedTPs", "Keysanity", "Enhanced", "Bingo", "VanillaRespawns"]
+                    "Competitive", "BonusLite", "ClueLockedTPs", "ZoneLockedTPs", "Keysanity", "Enhanced", "Bingo", "VanillaRespawns", "EnemyRando"]
 const VALID_KEYMODES = ["Shards", "Clues", "Limitkeys", "Free"];
 // static plando usage counts per flag; orders the flag suggestions
 const FLAG_FREQ = {"ForceTrees": 132, "Clues": 89, "OpenWorld": 42, "0XP": 33, "Shards": 32, "Keysanity": 20, "NoExtraExp": 19,

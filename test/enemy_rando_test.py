@@ -44,6 +44,13 @@ class HeaderFlag(unittest.TestCase):
         self.assertIn("EnemyRando", seed[0])
         self.assertEqual(seed[1], "// SEED_FORMAT: 2")
 
+    def test_the_plando_builder_knows_every_variation(self):
+        import os
+        import re
+        src = open(os.path.join(os.path.dirname(__file__), "..", "map", "src", "PlandoBuilder.js"), encoding="utf-8").read()
+        listed = set(re.findall(r'"(\w+)"', re.search(r"const VALID_VARS = \[(.*?)\]", src, re.S).group(1)))
+        self.assertEqual(set(v.value for v in Variation) - listed, set())
+
     def test_variation_round_trips(self):
         self.assertEqual(Variation.mk("EnemyRando"), Variation.ENEMY_RANDO)
 
@@ -57,6 +64,19 @@ class BingoDefeatGoals(unittest.TestCase):
         without = BingoGenerator.goal_pool(random.Random(1), True, "normal", True, enemy_rando=True)
         self.assertTrue(any(isinstance(g, DefeatGoal) for g in with_))
         self.assertFalse(any(isinstance(g, DefeatGoal) for g in without))
+
+    def test_deaths_to_a_rolled_enemy_leave_the_pool(self):
+        import random
+        from bingo import BingoGenerator
+        rolled = {"Valley Map Baneling", "Valley Floor Frogs", "Ginso Escape Fronkey"}
+        names = lambda pool: {g.name for group in pool if group.name == "DieTo" for g in group.goals}
+        with_ = names(BingoGenerator.goal_pool(random.Random(1), True, "normal", True))
+        without = names(BingoGenerator.goal_pool(random.Random(1), True, "normal", True, enemy_rando=True))
+        self.assertEqual(with_ & rolled, rolled)
+        self.assertEqual(without & rolled, set())
+        # pinned ones stay
+        self.assertIn("Stomp Rhino", without)
+        self.assertIn("R1 Door Baneling", without)
 
 
 class EnemyOptions(unittest.TestCase):
@@ -133,6 +153,17 @@ class EnemyOptionsDownload(unittest.TestCase):
         self.assertIn("//Enemies=pool=Frogs;walkers=off", p.get_seed(1).splitlines())
         p.enemy_opts = None
         self.assertFalse(any(l.startswith("//Enemies=") for l in p.get_seed(1).splitlines()))
+
+    def test_a_world_preset_at_standard_options_does_not_take_world_ones(self):
+        from types import SimpleNamespace
+        from seedbuilder.seedparams import world_view
+        chaos = {"hp": "0.5-2", "dmg": "0.5-2"}
+        # a saved preset leaves Standard options out entirely
+        base = SimpleNamespace(enemy_opts=chaos, world_settings=[
+            {}, {"variations": ["EnemyRando"]}, {"variations": ["EnemyRando"], "enemyOpts": {"walkers": "off"}}])
+        self.assertEqual(world_view(base, 1).enemy_opts, chaos)
+        self.assertEqual(world_view(base, 2).enemy_opts, {})
+        self.assertEqual(world_view(base, 3).enemy_opts, {"walkers": "off"})
 
     def test_default_options_load_as_an_empty_object(self):
         from enums import KeyMode, LogicPath, PathDifficulty

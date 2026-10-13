@@ -42,7 +42,7 @@ class PlandoShareTestCase(unittest.TestCase):
         self.assertEqual(plando.shared(), [ShareType.SKILL, ShareType.TELEPORTER])
 
     def test_the_last_one_wins(self):
-        # an older editor appended its shared= after a fill's leftover share=
+        # both spellings present: the later one wins
         plando = self._plando("share=Skills+WorldEvents", "shared=Teleporters", "mode=Multiworld")
         self.assertEqual(plando.shared(), [ShareType.TELEPORTER])
 

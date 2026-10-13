@@ -76,7 +76,7 @@ const SSP_LOBBY_KEYS = ["players", "playerNames", "coopGenMode", "coopGameMode",
 // dropped by every load path, lobby or not: the seed box is the user's to type,
 // and the rest are outputs of a finished seed rather than form inputs.
 const PRESET_NEVER_LOAD = ["seed", "flagLine", "isPlando", "spoilers", "teamStr"];
-// list-valued settings a blob may leave null
+// settings a blob may leave null
 const NEVER_NULL_KEYS = ["itemPool", "variations", "paths", "fass", "shared", "mwShared", "apExport", "playerNames", "worldSettings", "spawnWeights", "enemyOpts"]
 // accepts a full ?preset=owner:name url, the query alone, or a bare owner:name
 const parsePresetLink = (text) => {
@@ -337,7 +337,7 @@ const VAR_NAMES = {
 const ENEMY_KINDS = ["Fronkeys", "Frogs", "Slimes", "Banelings", "DropSlugs", "Worms", "Rhinos", "Birds", "Elementals", "Swarms", "Spiders", "Fish", "Sharks"]
 const ENEMY_KIND_NAMES = {Fronkeys: "Fronkeys", Frogs: "Frogs", Slimes: "Slimes", Banelings: "Banelings", DropSlugs: "Drop slugs", Worms: "Worms",
                           Rhinos: "Rhinos", Birds: "Birds", Elementals: "Elementals", Swarms: "Swarms", Spiders: "Spiders", Fish: "Fish", Sharks: "Sharks"}
-// the switches' defaults (seedbuilder/enemyopts.py); flying fish are off until asked for
+// the switches' defaults, mirrored in seedbuilder/enemyopts.py
 const ENEMY_SWITCHES = {pools: "on", flyingfish: "off", walkers: "on", shootercap: "on", logic: "on"}
 const ENEMY_PRESETS = {
     Standard: {},
