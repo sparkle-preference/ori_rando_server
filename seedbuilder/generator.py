@@ -291,6 +291,8 @@ forbidden_repeatable_locs = set([-7680144, -9120036, -10440008, -10759968, -1560
 # A fass at BURIED_LOC_BASE + N keeps its items out of the pool until N locations are reachable.
 # Real keys are x*10000+y with |x| < 2000, so 20M+ is free.
 BURIED_LOC_BASE = 20000000
+# A fass at EARLY_LOC_BASE + N places its items in a round that opens before N locations are filled.
+EARLY_LOC_BASE = 30000000
 # FinalEscape (-240, 512): filled after the main loop, never reachable in logic
 FINALE_LOC = -2399488
 
@@ -533,6 +535,8 @@ class SeedGenerator:
         self.balanceList = []
         self.balanceListLeftovers = []
         self.buried = []           # (depth, tagged item) not yet in the pool
+        self.early = []            # (depth, target, tagged item) held until a round reaches the target
+        self.early_pins = []       # Early items placed this round; they stay off the balance list
         self.enhancedSpawn = defaultdict(list)  # rolled ES|* Enhanced skills, per world
         self.seedDifficulty = 0
         self.seeds_text = defaultdict(str)
@@ -1506,6 +1510,9 @@ class SeedGenerator:
             self.mapstonesAssigned[location.player] += 1
             zone = "Mapstone"
         fass_key = (location.player, loc)
+        pinned = item in self.early_pins
+        if pinned:
+            self.early_pins.remove(item)
 
         fixed_item = self.adjust_item(item, zone)
         if (has_cost or self.params.verbose_spoiler) and not hist_written:
@@ -1520,7 +1527,7 @@ class SeedGenerator:
 
         if base_of(item) in self.eventsOutput:
             self.event_lists[location.player].append(assignment)
-        elif self.params.balanced and not has_cost and location.orig != "MapStone" and fass_key not in self.forceAssignedLocs:
+        elif self.params.balanced and not has_cost and location.orig != "MapStone" and fass_key not in self.forceAssignedLocs and not pinned:
             self.balanceList.append((fixed_item, location, assignment, mw_ref))
         else:
             self.seeds_text[location.player] += assignment
@@ -1899,6 +1906,7 @@ class SeedGenerator:
                             Inventory: %s,
                             Forced Assignments: %s,
                             Buried: %s,
+                            Early: %s,
                             Nonzero Costs:%s,
                             Partial Seeds: %s""",
                             self.locations(),
@@ -1908,6 +1916,7 @@ class SeedGenerator:
                             {k: v for k, v in self.inventory.items() if v != 0},
                             self.forcedAssignments,
                             self.buried,
+                            self.early,
                             {k: v for k, v in self.costs.items() if v != 0},
                             "\n".join("player %s:\n%s" % kv for kv in self.seeds_text.items()))
                 return None
@@ -1989,10 +1998,10 @@ class SeedGenerator:
     def items(self, include_balanced=True):
         """Number of items left to place"""
         balanced = len(self.balanceListLeftovers) if include_balanced else 0
-        return sum([v for v in self.itemPool.values()]) + balanced + len(self.buried)
+        return sum([v for v in self.itemPool.values()]) + balanced + len(self.buried) + len(self.early)
 
     def buried_skill_names(self, player):
-        """Skills a buried fass has claimed for this world (runs before codeToName is usable)."""
+        """Skills a Buried or Early fass has claimed for this world (runs before codeToName is usable)."""
         by_code = {code: name for name, code in self.skillsOutput.items()}
         names = set()
         for (p, loc), v in self.preplaced.items():
@@ -2019,6 +2028,27 @@ class SeedGenerator:
             else:
                 still_buried.append((depth, item))
         self.buried = still_buried
+
+    def early_target(self, depth):
+        """The spot inside an Early window the item waits for: uniform over the window."""
+        cap = min(depth, self.total_locs())
+        return self.random.randrange(1, cap) if cap > 1 else 0
+
+    def early_due(self, opened, size):
+        """Early items this round takes: its span (opened..opened+size) reaches their target or
+        crosses their depth. A depth already passed is a warning, not a refusal."""
+        due, waiting = [], []
+        for depth, target, item in self.early:
+            cap = min(depth, self.total_locs())
+            if opened >= cap:
+                self.gen_warnings["%s placed past Early%03d: every earlier round was full" % (base_of(item), depth)] = "soft-warning"
+                due.append((depth, target, item))
+            elif opened + size > target or opened + size >= cap:
+                due.append((depth, target, item))
+            else:
+                waiting.append((depth, target, item))
+        self.early = waiting
+        return due
 
     def place_repeatables(self):
         # repeatables are world-local
@@ -2134,30 +2164,36 @@ class SeedGenerator:
             self.spoiler.append((["Spawn"], [], self.spoilerGroup))
             self.spoilerGroup = defaultdict(list)
 
-        # buried items leave the pool (hidden from fill and path forcing) until unearth_buried;
-        # a multipickup buries each part at the row's depth
+        # Buried and Early items leave the pool (hidden from fill and path forcing) until their
+        # round comes; a multipickup holds each part at the row's depth
         for key in [k for k in self.forcedAssignments if k[1] >= BURIED_LOC_BASE]:
             p, loc = key
-            depth = loc - BURIED_LOC_BASE
+            early = loc >= EARLY_LOC_BASE
+            # not "depth": that is placeItems' retry counter
+            held_depth = loc - (EARLY_LOC_BASE if early else BURIED_LOC_BASE)
+            held, kind = (self.early, "Early") if early else (self.buried, "Buried")
             v = self.forcedAssignments.pop(key)
             base_v, _, owner_v = v.partition("|")
             fass_p = int(owner_v) if owner_v else p
             parts = self.get_multi_items(base_v) if base_v[0:2] in ["MU", "RP"] else [base_v]
             for item in parts:
                 pool_k = self.pool_key(tag(item, fass_p))
-                # bury only what the pool gave up: unearth_buried returns every entry
+                # hold only what the pool gave up: every held entry comes back
                 if self.itemPool.get(pool_k, 0) > 0:
                     self.itemPool[pool_k] -= 1
-                    self.buried.append((depth, pool_k))
+                    held.append((held_depth, pool_k))
                     continue
                 # the start TP went to spawn and TPGlades took its pool slot
                 if item == "TP" + self.starts.get(fass_p, ""):
                     glades = self.pool_key(tag("TPGlades", fass_p))
                     if self.itemPool.get(glades, 0) > 0:
                         self.itemPool[glades] -= 1
-                        self.buried.append((depth, glades))
+                        held.append((held_depth, glades))
                         continue
-                log.warning("can't bury %s at depth %s: none left in the pool", pool_k, depth)
+                self.gen_warnings["%s%03d: the pool had no %s left for it" % (kind, held_depth, base_of(pool_k))] = "warning"
+
+        # one draw per held item, in pull order, so a seed string always waits for the same spot
+        self.early = [(d, self.early_target(d), item) for d, item in self.early]
 
         # fass pool bookkeeping: an owner tag decrements the owner's entry, else the host world's
         for (p, loc), v in self.forcedAssignments.items():
@@ -2221,7 +2257,7 @@ class SeedGenerator:
 
         # EXP fills the rest; each open final escape is one slot beyond locations()
         self.expSlots = {p: 0 for p in self.multi_ps()}
-        slots_to_fill = self.locations() - sum([v for v in self.itemPool.values()]) - len(self.buried) + open_finales
+        slots_to_fill = self.locations() - sum([v for v in self.itemPool.values()]) - len(self.buried) - len(self.early) + open_finales
         if slots_to_fill < 0:
             dropped = self.drop_overflow(-slots_to_fill)
             if dropped:
@@ -2257,6 +2293,8 @@ class SeedGenerator:
                     self.areas[connection[0]].remove_connection(connection[1])
                 self.connectionQueue = []
             reset_loop = False
+            # the round's opening count: get_all_accessible_locations hands its slots out of the areas
+            round_opened = self.total_locs() - self.locations()
             locationsToAssign, reset_loop = self.get_all_accessible_locations()
             if self.buried:
                 self.unearth_buried()
@@ -2306,6 +2344,9 @@ class SeedGenerator:
                     return self.placeItems(depth + 1, worried)
                 locationsToAssign.append(self.reservedLocations.pop(0))
                 locationsToAssign.append(self.reservedLocations.pop(0))
+            # Early items take only the slots the round's forcing leaves spare
+            early_room = max(0, len(locationsToAssign) - need)
+            early_due = self.early_due(round_opened, len(locationsToAssign)) if self.early else []
             for i in range(0, len(locationsToAssign)):
                 locs = self.locations()
                 if self.assignQueue:
@@ -2325,6 +2366,13 @@ class SeedGenerator:
                         itemsToAssign.append(self.assign(self.assignQueue.pop(qi)))
                         continue
                     # the whole queue is unhostable keystones; fall through
+                # a due Early item outranks the per-world cell forcing, inside its spare slots
+                if early_due and early_room > 0:
+                    early_room -= 1
+                    item = self.assign(early_due.pop(0)[-1])
+                    self.early_pins.append(item)
+                    itemsToAssign.append(item)
+                    continue
                 for p in self.multi_ps():
                     if self.inventory[tag("KS", p)] < keystoneCount[p]:
                         if ap_ks_pin:
@@ -2363,6 +2411,9 @@ class SeedGenerator:
                         itemsToAssign.append(self.assign_random(locs, ks_blocked=blocked,
                                                                 opening_hostless=self.anti_bk_hostless(itemsToAssign, locationsToAssign),
                                                                 local_blocked=self.local_blocked(itemsToAssign, locationsToAssign)))
+
+            # due items the round had no slot for wait for the next one
+            self.early.extend(early_due)
 
             # prefer_path_difficulty places skills and events by location difficulty
             for item in list(itemsToAssign):

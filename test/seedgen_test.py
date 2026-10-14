@@ -666,16 +666,17 @@ class GroupPlacementTests(unittest.TestCase):
         self.assertNotEqual(splits, {(3, 3, 3)}, "every seed rolled an even 3/3/3 split")
 
 
-class BuriedPlacementTests(unittest.TestCase):
-    """Buried pseudo-locations: a fass at loc 20000000+N keeps its items out
-    of the pool until N locations are reachable. Classic fill here (balanced
-    swaps relocate items after assignment, which is a documented caveat)."""
+class PlacementRecordTests(unittest.TestCase):
+    """Helpers for the held-back pseudo-locations: generate through the CLI and
+    record what was assigned when."""
 
     BURIED = 20000000
+    EARLY = 30000000
 
     def _gen_with_records(self, extra, seedfiles=("randomizer0.bfr",), classic=True):
-        """Generate and also record (tagged item, reachable-loc-count) at
-        every assignment. -> (records, {seedfile: lines})
+        """Generate and also record (tagged item, reachable-loc-count, round, the count the
+        round opened at) at every assignment; the generator itself lands in self.gen.
+        -> (records, {seedfile: lines})
 
         Classic by default, and asked for rather than inherited: the CLI defaults
         to Balanced like the site does, and these depths are cleanest without the
@@ -685,19 +686,34 @@ class BuriedPlacementTests(unittest.TestCase):
         self.addCleanup(shutil.rmtree, outdir, ignore_errors=True)
         records = []
         orig = SeedGenerator.assign_to_location
+        orig_acc = SeedGenerator.get_all_accessible_locations
+        opened = {}
+        def spy_acc(sg):
+            # before the call: it hands the round's slots out of the areas
+            opened[sg.balanceLevel] = sg.total_locs() - sg.locations()
+            return orig_acc(sg)
         def spy(sg, item, location):
-            records.append((item, sg.total_locs() - sg.locations()))
+            records.append((item, sg.total_locs() - sg.locations(), sg.balanceLevel, opened.get(sg.balanceLevel, 0)))
+            self.gen = sg
             return orig(sg, item, location)
         old_argv = sys.argv
         sys.argv = (["cli_gen", "--output-dir", outdir, "--preset", "standard",
                      "--open-world", "--force-trees", "--seed", "buriedtest3"]
                     + (["--classic-fill"] if classic else []) + extra)
         SeedGenerator.assign_to_location = spy
+        SeedGenerator.get_all_accessible_locations = spy_acc
         try:
             CLISeedParams().from_cli()
         finally:
             SeedGenerator.assign_to_location = orig
+            SeedGenerator.get_all_accessible_locations = orig_acc
             sys.argv = old_argv
+        # a restarted roll records its discarded attempts too; keep the one that shipped
+        start = 0
+        for k in range(1, len(records)):
+            if records[k][2] < records[k - 1][2]:
+                start = k
+        del records[:start]
         seeds = {}
         for sf in seedfiles:
             path = os.path.join(outdir, sf)
@@ -707,9 +723,118 @@ class BuriedPlacementTests(unittest.TestCase):
         return records, seeds
 
     def _depths(self, records, tagged):
-        depths = [d for (i, d) in records if i == tagged]
+        depths = [d for (i, d, _, _) in records if i == tagged]
         self.assertTrue(depths, "%s was never assigned" % tagged)
         return depths
+
+    def _round_starts(self, records, tagged):
+        """How many locations were filled when each round that assigned tagged opened."""
+        starts = [opened for (i, _, _, opened) in records if i == tagged]
+        self.assertTrue(starts, "%s was never assigned" % tagged)
+        return starts
+
+
+class EarlyPlacementTests(PlacementRecordTests):
+    """Early pseudo-locations: a fass at loc 30000000+N places its items in a
+    round that opened before N locations were filled."""
+
+    def test_early_item_lands_inside_its_window(self):
+        records, seeds = self._gen_with_records(["--fass", "%s:SK51" % (self.EARLY + 30)])
+        self.assertLess(max(self._round_starts(records, "Grenade|1")), 30)
+        placements, _ = parse_seed(seeds["randomizer0.bfr"])
+        grenades = [1 for (c, i, z) in placements.values() if (c, i) == ("SK", "51")]
+        self.assertEqual(len(grenades), 1, "early Grenade should be placed exactly once")
+        self.assertEqual(dict(self.gen.gen_warnings), {})
+
+    def _with_target(self, target):
+        """Pin the window draw, so a test can ask about the round that reaches it."""
+        from seedbuilder.generator import SeedGenerator
+        orig = SeedGenerator.early_target
+        SeedGenerator.early_target = lambda sg, depth: target
+        self.addCleanup(setattr, SeedGenerator, "early_target", orig)
+
+    def test_the_target_keeps_the_item_out_of_the_opening(self):
+        self._with_target(25)
+        records, _ = self._gen_with_records(["--fass", "%s:SK5" % (self.EARLY + 75)])
+        starts = self._round_starts(records, "DoubleJump|1")
+        self.assertGreater(min(starts), 1, "a target of 25 still landed in the first round")
+        self.assertLess(max(starts), 75)
+        self.assertEqual(dict(self.gen.gen_warnings), {})
+
+    def test_the_crossing_forces_a_late_target_inside_the_window(self):
+        self._with_target(74)
+        records, _ = self._gen_with_records(["--fass", "%s:SK5" % (self.EARLY + 75)])
+        self.assertLess(max(self._round_starts(records, "DoubleJump|1")), 75)
+        self.assertEqual(dict(self.gen.gen_warnings), {})
+
+    def test_the_same_seed_waits_for_the_same_spot(self):
+        a, _ = self._gen_with_records(["--fass", "%s:SK5" % (self.EARLY + 75)])
+        b, _ = self._gen_with_records(["--fass", "%s:SK5" % (self.EARLY + 75)])
+        self.assertEqual(self._round_starts(a, "DoubleJump|1"), self._round_starts(b, "DoubleJump|1"))
+
+    def test_multipickup_holds_each_part_early(self):
+        records, _ = self._gen_with_records(["--fass", "%s:MUSK/3/SK/12" % (self.EARLY + 40)])
+        self.assertLess(max(self._round_starts(records, "WallJump|1")), 40)
+        self.assertLess(max(self._round_starts(records, "Climb|1")), 40)
+
+    def test_early_and_buried_share_a_seed(self):
+        records, _ = self._gen_with_records(
+            ["--fass", "%s:SK51|%s:SK3" % (self.EARLY + 30, self.BURIED + 100)])
+        self.assertLess(max(self._round_starts(records, "Grenade|1")), 30)
+        self.assertGreaterEqual(min(self._depths(records, "WallJump|1")), 100)
+
+    def test_what_the_pool_cannot_supply_is_a_warning_not_a_failure(self):
+        # the pool holds one Grenade; the second copy has nothing to hold
+        records, seeds = self._gen_with_records(["--fass", "%s:MUSK/51/SK/51" % (self.EARLY + 50)])
+        self.assertLess(max(self._round_starts(records, "Grenade|1")), 50)
+        placements, _ = parse_seed(seeds["randomizer0.bfr"])
+        self.assertEqual(len([1 for (c, i, z) in placements.values() if (c, i) == ("SK", "51")]), 1)
+        self.assertEqual(list(self.gen.gen_warnings.items()),
+                         [("Early050: the pool had no Grenade left for it", "warning")])
+
+    def test_balanced_fill_keeps_an_early_bonus_where_it_landed(self):
+        """A bonus rides the balance list and can be displaced later by forced
+        progression; an Early one is pinned at assignment."""
+        records, _ = self._gen_with_records(["--fass", "%s:RB9" % (self.EARLY + 20)], classic=False)
+        starts = self._round_starts(records, "RB9|1")
+        self.assertEqual(len(starts), 1, "the early bonus was assigned more than once")
+        self.assertLess(starts[0], 20)
+
+    def test_spawn_never_draws_an_early_skill(self):
+        from seedbuilder.generator import SeedGenerator
+        drawn = []
+        orig = SeedGenerator.buried_skill_names
+        def spy(sg, player):
+            out = orig(sg, player)
+            drawn.append(out)
+            return out
+        SeedGenerator.buried_skill_names = spy
+        self.addCleanup(setattr, SeedGenerator, "buried_skill_names", orig)
+        records, seeds = self._gen_with_records(
+            ["--start", "Grotto", "--starting-health", "3", "--starting-energy", "1",
+             "--starting-skills", "3", "--fass", "%s:MUSK/3/SK/12/SK/51" % (self.EARLY + 40)])
+        placements, _ = parse_seed(seeds["randomizer0.bfr"])
+        spawn = placements.get(2)
+        self.assertIsNotNone(spawn, "no spawn line")
+        self.assertEqual(drawn[0], {"WallJump", "Climb", "Grenade"})
+        for code in ("SK/3", "SK/12", "SK/51"):
+            self.assertNotIn(code, spawn[1], "spawn handed out %s despite it being held early" % code)
+        for name in ("WallJump", "Climb", "Grenade"):
+            self.assertLess(max(self._round_starts(records, "%s|1" % name)), 40)
+
+    def test_multiworld_early_with_owner(self):
+        records, seeds = self._gen_with_records(
+            ["--balanced", "--players", "2", "--share-mode", "multiworld",
+             "--fass", "%s:SK51@2" % (self.EARLY + 40)],
+            seedfiles=("randomizer_1.bfr", "randomizer_2.bfr"))
+        self.assertLess(max(self._round_starts(records, "Grenade|2")), 40)
+        check_mw_invariants(self, {1: seeds["randomizer_1.bfr"], 2: seeds["randomizer_2.bfr"]})
+
+
+class BuriedPlacementTests(PlacementRecordTests):
+    """Buried pseudo-locations: a fass at loc 20000000+N keeps its items out
+    of the pool until N locations are reachable. Classic fill here (balanced
+    swaps relocate items after assignment, which is a documented caveat)."""
 
     def test_buried_item_stays_buried(self):
         records, seeds = self._gen_with_records(["--fass", "%s:SK51" % (self.BURIED + 150)])

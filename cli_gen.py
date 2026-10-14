@@ -105,6 +105,7 @@ class CLISeedParams(object):
         parser.add_argument("--anti-bk-bias", help="Multiworld only: 0.0-1.0, bias progression toward the world with the fewest reachable checks", type=float, default=0.0)
         parser.add_argument("--fass", help="""Forced assignments, |-separated: [world.]loc:item[@owner], e.g. '919772:SK0|2.-280256:EV0@3'.
         loc 20000000+N is the BuriedN pseudo-location: the item stays out of the pool until N locations are reachable.
+        loc 30000000+N is the EarlyN pseudo-location: the item is placed before N locations are filled.
         An RG item ('RGSK/0/SK/51') is a group: seedgen places one of the listed items, picked at random""", type=str, default=None)
         parser.add_argument("--force-cells", help="Force health and energy cells to appear every N pickups, if they don't randomly", type=int, default=256)
         parser.add_argument("--verbose-spoiler", help="show everything in the spoiler", action="store_true")

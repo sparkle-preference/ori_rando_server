@@ -37,6 +37,25 @@
       "category": "Multiplayer",
       "type": "feature",
       "importance": "minor"
+    },
+    {
+      "text": "Preplacements: Early (50), (100) and (150) pseudo-locations place an item within the first N reachable locations, the mirror of Buried.",
+      "category": "Seed Generator",
+      "type": "feature",
+      "importance": "major",
+      "sub": [
+        "Early... and Buried... in the location list take any depth; the Buried list is down to 50, 100 and 150.",
+        "An Early or Buried item the pool can't supply is a warning on the seed, not a failed roll.",
+        "The Preplacements help was rewritten, and the multiworld world and recipient dropdowns have their own.",
+        "The Seed tab shows Preplaced, Early and Buried Items chips per player; hover for the items.",
+        "Help text sets item codes and location names in code style."
+      ]
+    },
+    {
+      "text": "Seed page: the location dropdown's options were black on dark in dark themes.",
+      "category": "Website",
+      "type": "fix",
+      "importance": "minor"
     }
   ],
   "releases": [

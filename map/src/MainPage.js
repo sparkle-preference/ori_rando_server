@@ -10,10 +10,10 @@ import './index.css';
 
 import {getHelpContent, HelpBox} from "./helpbox.js";
 import {History, HIST_KEYS, HIST_SET} from './history.js';
-import {postNetForm, get_param, spawnKitFor, get_flag, ap_enabled, presets, select_theme, name_from_str, get_preset, player_icons, doNetRequest, get_random_loader, PickupSelect, Cent, dev, randInt, gotoUrl, prng, decompose_pickup, beta_welcome_pending, save_beta_welcome, remember_seed_link, GOAL_VARS} from './common.js';
+import {postNetForm, get_param, spawnKitFor, get_flag, ap_enabled, presets, select_theme, name_from_str, get_preset, player_icons, doNetRequest, get_random_loader, PickupSelect, Cent, dev, randInt, gotoUrl, prng, decompose_pickup, beta_welcome_pending, save_beta_welcome, remember_seed_link, GOAL_VARS, pickup_name} from './common.js';
 import SiteBar from "./SiteBar.js";
 import SiteFooter from "./SiteFooter.js";
-import Select from 'react-select';
+import Select, {Creatable} from 'react-select';
 import {picks_by_zone, select_styles} from './shared_map';
 import {flagChip, FlagChips} from './flagchips.js';
 
@@ -22,15 +22,76 @@ const zonesInOrder = ['Glades', 'Blackroot', 'Grove', 'Grotto', 'Ginso', 'Swamp'
 const locOptions = [{'label': 'Spawn With', 'value': 2}];
 zonesInOrder.forEach(zone =>  picks_by_zone[zone].forEach(p => locOptions.push({'label': `${p.area} ${p.name} (${zone})`, 'value': p.loc})));
 picks_by_zone['Mapstone'].forEach(p => locOptions.push({'label': p.name, 'value': p.loc}));
-// Buried pseudo-locations: seedgen keeps these items out of the pool until N
-// locations are reachable (loc key = BURIED_LOC_BASE + N)
+// Held-back pseudo-locations (loc key = base + N): Buried keeps items out of the pool until N are
+// reachable, Early places them before N are filled. Three depths are listed; others are typed in.
 const BURIED_LOC_BASE = 20000000;
-// every ten from 50 to 200: a rolled burial can land on any of them, and the
-// teleporter tiers reach exactly 50 at the shallow end and 200 at the deep
-const BURIED_DEPTHS = Array.from({length: 16}, (_, i) => 50 + i * 10);
-BURIED_DEPTHS.forEach(depth => locOptions.push(
-    {'label': `Buried${String(depth).padStart(3, "0")} (held back until ${depth} locations are reachable)`, 'value': BURIED_LOC_BASE + depth}));
-const locOptionFromCoords = (coords) => locOptions.find(l => l.value === coords);
+const EARLY_LOC_BASE = 30000000;
+const HELD_KINDS = [["Early", EARLY_LOC_BASE], ["Buried", BURIED_LOC_BASE]];  // bases descending
+const heldLocOption = (kind, base, depth) => ({'label': `${kind} (${depth})`, 'value': base + depth});
+HELD_KINDS.forEach(([kind, base]) => [50, 100, 150].forEach(depth => locOptions.push(heldLocOption(kind, base, depth))));
+// "Early 75", "buried (120)", "Early120": a held-back location at a depth the list doesn't carry
+const heldLocFromText = (text) => {
+    const m = /^\s*(early|buried)\s*\(?\s*0*(\d{1,3})\s*\)?\s*$/i.exec(text || "");
+    if(!m || +m[2] < 1) return null;
+    const [kind, base] = HELD_KINDS.find(([k]) => k.toLowerCase() === m[1].toLowerCase());
+    return heldLocOption(kind, base, +m[2]);
+}
+const heldLocFromCoords = (coords) => {
+    const held = HELD_KINDS.find(([_, base]) => coords >= base);
+    return held && coords - held[1] > 0 ? heldLocOption(held[0], held[1], coords - held[1]) : undefined;
+}
+const locOptionFromCoords = (coords) => locOptions.find(l => l.value === coords) || heldLocFromCoords(coords);
+// per world: how many plain preplacements it hosts and which items are Early or Buried, for the seed tab's chips
+const fassSummary = (fass) => {
+    let out = {}
+    ;(fass || []).forEach(({loc, item, code, id, world}) => {
+        const w = world || 1, held = heldLocFromCoords(parseInt(loc, 10))
+        const s = out[w] = out[w] || {count: 0, Early: [], Buried: []}
+        if(!held)
+            s.count += 1
+        else {
+            const [c, ...rest] = (item || `${code}|${id}`).split("|")
+            s[held.label.startsWith("Early") ? "Early" : "Buried"].push(pickup_name(c, rest.join("|")))
+        }
+    })
+    return out
+}
+// pseudo-flags the seed tab turns into chips; "+" joins items because "," splits flags
+const fassChipFlags = (summary, p) => {
+    const s = (summary || {})[p]
+    return !s ? [] : (s.count ? [`preplaced=${s.count}`] : []).concat(
+        ["Early", "Buried"].filter(k => s[k].length).map(k => `${k.toLowerCase()}=${s[k].join("+")}`))
+}
+// select_styles' black option text is for a white menu; select_theme gives these a page-colored one
+const themedSelectStyles = {...select_styles,
+    option: (base, state) => ({...select_styles.option(base, state), color: state.isSelected ? base.color : state.isFocused ? "white" : "inherit"})};
+// "Early..." and "Buried..." close the location list: picking one leaves the kind typed, ready for a depth
+const HELD_PROMPTS = HELD_KINDS.map(([kind], i) => ({label: `${kind}...`, value: -2 - i, prompt: kind}));
+class HeldLocSelect extends React.Component {
+    state = {input: "", open: false}
+    onChange = (opt, meta) => {
+        if(opt && opt.prompt) {
+            this.setState({input: opt.prompt + " ", open: true})
+            return
+        }
+        this.setState({input: "", open: false})
+        this.props.onChange(opt, meta)
+    }
+    // set-value is react-select clearing after a pick; onChange decides that itself
+    onInputChange = (v, meta) => {
+        if(meta.action === "input-change")
+            this.setState({input: v})
+        else if(meta.action !== "set-value")
+            this.setState({input: ""})
+    }
+    render() {
+        const {options, ...rest} = this.props
+        return (<Creatable {...rest} options={[...options, ...HELD_PROMPTS]} inputValue={this.state.input} menuIsOpen={this.state.open}
+                           closeMenuOnSelect={false} blurInputOnSelect={false}
+                           onMenuOpen={() => this.setState({open: true})} onMenuClose={() => this.setState({open: false, input: ""})}
+                           onInputChange={this.onInputChange} onChange={this.onChange}/>)
+    }
+}
 // multipickup <-> part codes ("SK|3"), for merging burials into an existing row
 const pickupToParts = (item) => {
     if(!item || item === "NO|1") return [];
@@ -595,8 +656,16 @@ export default class MainPage extends React.Component {
         const fassWorld = isMW ? this.state.fassWorld : 1
         const players = this.state.players
         const fassUsed = new Set(fassList.filter(f => (f.world || 1) === fassWorld).map(({loc}) => loc.value));
+        // typed depths: react-select asks for the option twice, with the menu label and then with the raw text
+        const heldCreate = {
+            isValidNewOption: (text) => { const o = heldLocFromText(text); return !!o && !fassUsed.has(o.value); },
+            getNewOptionData: (text, label) => label === text ? heldLocFromText(text) : {...heldLocFromText(text), label: label},
+            // the menu filter wants the typed text inside the label
+            formatCreateLabel: (text) => `Add "${text}" as ${heldLocFromText(text).label}`,
+        };
+        const whoIs = (w) => this.state.playerNames[w - 1] || `P${w}`;
         const ownerDropdown = (i, loc, world, owner) => (
-            <Col xs="2">
+            <Col xs="2" onMouseLeave={this.helpEnter("advanced", "preplacement")} onMouseEnter={this.helpEnter("advanced", "mwRecipient", 250, undefined, {spawn: loc.value === 2})}>
                 <UncontrolledButtonDropdown className="w-100">
                     <DropdownToggle caret block color="primary" disabled={loc.value === 2}> {`P${loc.value === 2 ? world : (owner || world)}`} </DropdownToggle>
                     <DropdownMenu style={menuStyle}>
@@ -610,7 +679,7 @@ export default class MainPage extends React.Component {
         let fass_rows = fassList.map(({loc, item, world, owner}, i) => ((world || 1) !== fassWorld) ? null : (
             <Row key={`fass-arbitrary-${i}`} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "preplacement")} className="p-1 justify-content-center">
                     <Col xs={isMW ? leftCol : leftCol+1}>
-                        <Select styles={select_styles} theme={select_theme} className="align-middle" options={locOptions.filter(l => l.value === loc.value || !fassUsed.has(l.value))} value={loc} onChange={(newLoc) => this.onFassList(i, {loc: newLoc})}></Select>
+                        <HeldLocSelect {...heldCreate} styles={themedSelectStyles} theme={select_theme} className="align-middle" options={locOptions.filter(l => l.value === loc.value || !fassUsed.has(l.value))} value={loc} onChange={(newLoc) => this.onFassList(i, {loc: newLoc})}/>
                     </Col><Col xs={isMW ? rightCol-2 : rightCol-1}>
                         <PickupSelect value={item} updater={(code, _) => this.onFassList(i, {item: code})} allowGroup/>
                     </Col>
@@ -618,7 +687,7 @@ export default class MainPage extends React.Component {
             </Row>
         )).filter(r => r);
         if(isMW) fass_rows.unshift((
-            <Row key={`fass-world-tabs`} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "preplacement")} className="p-1 justify-content-center">
+            <Row key={`fass-world-tabs`} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "mwPreplaceWorld", 250, undefined, {who: whoIs(fassWorld), preset: this.worldPreset(fassWorld).label})} className="p-1 justify-content-center">
                     <Col xs={leftCol} className="text-center border">
                         <Cent>Preplacement World</Cent>
                     </Col><Col xs={rightCol}>
@@ -636,7 +705,7 @@ export default class MainPage extends React.Component {
         fass_rows.push((
             <Row key={`fass-arbitrary-next`} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "preplacement")} className="p-1 justify-content-center">
                     <Col xs={isMW ? leftCol : leftCol+1}>
-                    <Select styles={select_styles} theme={select_theme} className="align-middle" options={locOptions.filter(l => !fassUsed.has(l.value))} value={{label: 'Add new Placement:', value: -1}} onChange={(newLoc) => this.addToFassList({loc: newLoc, item: "NO|1"})}></Select>
+                    <HeldLocSelect {...heldCreate} styles={themedSelectStyles} theme={select_theme} className="align-middle" options={locOptions.filter(l => !fassUsed.has(l.value))} value={{label: 'Add new Placement:', value: -1}} onChange={(newLoc) => this.addToFassList({loc: newLoc, item: "NO|1"})}/>
                     </Col><Col xs={isMW ? rightCol-2 : rightCol-1}>
                         <PickupSelect ref="fassTabula" value={"NO|1"} updater={(code, _) => this.addToFassList({item: code})} allowGroup/>
                     </Col>
@@ -1591,6 +1660,7 @@ export default class MainPage extends React.Component {
             metaUpdate.goalModes = metaUpdate.variations.filter(v => GOAL_VARS.includes(v))
             if(metaUpdate.goalModes.length === 0)
                 metaUpdate.goalModes = ["None"]
+            metaUpdate.seedFass = fassSummary(metaUpdate.fass)
             if(metaUpdate.fass && metaUpdate.fass.length > 0) {
                 metaUpdate.fassList = metaUpdate.fass.map(({loc, item, code, id, world, owner}) => (
                     {loc: locOptionFromCoords(parseInt(loc, 10)), item: item || `${code}|${id}`, world: world || 1, owner: owner || world || 1}))
@@ -1678,6 +1748,7 @@ export default class MainPage extends React.Component {
             this.setState({
                 paramId: res.paramId, seedIsGenerating: false, inputPlayerCount: res.playerCount, inputSeed: res.seed,
                 flagLine: res.flagLine, flagLines: res.flagLines || [], spawns: res.spawns || [],
+                seedFass: fassSummary(this.paramsJson().json.fass),
                 gameId: res.gameId, seedIsBingo: res.doBingoRedirect || false,
                 inputApMode: this.apAvailable() && this.state.apMode
             }, this.updateUrl)
@@ -1749,6 +1820,7 @@ export default class MainPage extends React.Component {
             // spawn is a chip but not a flag: the seed file doesn't carry it
             let spawns = this.state.spawns || []
             let withSpawn = (fs, p) => spawns[p - 1] && spawns[p - 1] !== "Glades" ? fs.concat("spawn=" + spawns[p - 1]) : fs
+            let withFass = (fs, p) => fs.concat(fassChipFlags(this.state.seedFass, p))
             let flagChips = (fs, where, whose, label) => {
                 let chips = fs.filter(f => f).map(flag => ({flag, ...flagChip(flag)})).sort((a, b) => a.rank - b.rank)
                 let spans = chips.map(({flag, label, cls}) => (
@@ -1760,8 +1832,8 @@ export default class MainPage extends React.Component {
             // keeps only its own differences; when they agree it all goes up top
             let perWorld = (this.state.flagLines || []).map(l => l.split('|').slice(0, -1).join("").split(","))
             if(spawns.length > 1)
-                perWorld = spawns.map((_, i) => withSpawn(perWorld[i] || flags, i + 1))
-            flags = withSpawn(flags, 1)
+                perWorld = spawns.map((_, i) => withFass(withSpawn(perWorld[i] || flags, i + 1), i + 1))
+            flags = withFass(withSpawn(flags, 1), 1)
             let mixed = perWorld.length > 1 && new Set(perWorld.map(f => f.join(","))).size > 1
             let common = mixed ? perWorld.reduce((acc, f) => acc.filter(x => f.includes(x)), perWorld[0]) : flags
             // bingo is per world, so each row asks its own flags rather than the seed's
@@ -3002,7 +3074,7 @@ export default class MainPage extends React.Component {
                         histAt: -1, histLen: 0, seedStale: false,
                         expPool: 10000, lastHelp: new Date(), seedIsGenerating: seedTabExists, cellFreq: cellFreqPresets("standard"),
                         fragCount: 30, fragReq: 20, relicCount: 8, loader: get_random_loader(), paramId: paramId, seedTabExists: seedTabExists, 
-                        reopenUrl: "", flagLine: "", flagLines: [], fassList: fassDefaultsFor(1), fassWorld: 1, goalModesOpen: false, 
+                        reopenUrl: "", flagLine: "", flagLines: [], seedFass: {}, fassList: fassDefaultsFor(1), fassWorld: 1, goalModesOpen: false, 
                         spoilers: true, spawnWeights: [1.0,2.0,2.0,2.0,1.5,2.0,0.1,0.1,0.25,0.5], seedIsBingo: false, bingoLines: 3,
                         bingoDiff: "normal", bingoGoal: "bingos", bingoSquares: 13, bingoMeta: false, bingoDisc: 0, 
                         auxModal: false, auxPlayer: 1, auxSpoiler: {active: false, byZone: false, exclude: ["EX","KS", "AC", "EC", "HC", "MS"]},

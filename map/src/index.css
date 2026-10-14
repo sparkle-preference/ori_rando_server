@@ -774,6 +774,7 @@ body, #root {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: center;
   gap: 8px;
 }
 
@@ -822,10 +823,24 @@ body, #root {
   color: #fff;
 }
 
+/* preplacement chips, the seed tab's own */
+.flag-chip-fass {
+  background-color: #b5651d;
+  color: #fff;
+}
+
 /* a fixed gray: theme grays are too light to carry white text on light skins */
 .flag-chip-plain {
   background-color: #4a4f55;
   color: #fff;
+}
+
+/* item codes and location names in help text */
+.card-text code {
+  color: var(--info);
+  background-color: rgba(128, 128, 128, 0.2);
+  padding: 0.1em 0.3em;
+  border-radius: 0.2em;
 }
 
 .seed-links {

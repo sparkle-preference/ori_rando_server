@@ -19,6 +19,13 @@ const flagChip = (flag) => {
         return {rank: 2, label: flag, cls: "flag-chip-goal"}
     if(flag.startsWith("pool="))
         return {rank: 3, label: "Items: " + flag.slice(5), cls: "flag-chip-items"}
+    // the seed tab's own pseudo-flags for preplacements; a seed file never carries them
+    if(flag.startsWith("preplaced="))
+        return {rank: 3.5, label: "Preplaced Items", cls: "flag-chip-fass"}
+    if(flag.startsWith("early="))
+        return {rank: 3.5, label: "Early Items", cls: "flag-chip-fass"}
+    if(flag.startsWith("buried="))
+        return {rank: 3.5, label: "Buried Items", cls: "flag-chip-fass"}
     if(flag.startsWith("spawn="))
         return {rank: 4, label: "Spawn: " + flag.slice(6), cls: "flag-chip-spawn"}
     if(share_types_of(flag))

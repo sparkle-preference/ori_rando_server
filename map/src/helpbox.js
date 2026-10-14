@@ -44,6 +44,10 @@ bonuses["ES|**"] = {name: "Random Enhanced Skill (any)", desc: [
     (<span><i>Unlike the weighted one, this can roll Wall Jump or Sein, and gives no extra chance of Sein.</i></span>)
 ]}
 
+// the Early and Buried lines, shared by the Preplacements help and the seed tab's chips
+const EARLY_DESC = (<span><code>Early (N)</code> guarantees items will be placed within the first N logically reachable locations</span>)
+const BURIED_DESC = (<span><code>Buried (N)</code> restricts items from being placed until N locations are logically reachable (useful for avoiding specific undesirable early game setups)</span>)
+
 // whose: the seed a flag belongs to, for a multiworld row ("Lapis's seed")
 const getHelpContent = (category, option, whose) => {
     let {lines, title, subtitle, extras} = getHelpHelper(category, option, whose);
@@ -59,6 +63,7 @@ const getHelpHelper = (category, option, whose = "your seed") => {
     switch(category) {
         case "flags":
             let h = {}
+            let advanced = false
             let Whose = whose[0].toUpperCase() + whose.slice(1)
             if(vars.includes(option)) {
                 h = getHelpHelper("variations", option)
@@ -96,6 +101,7 @@ const getHelpHelper = (category, option, whose = "your seed") => {
             } else if(option.startsWith("sense=")) {
                 h.title = "Sense Triggers";
                 h.lines = ["Sense will detect these kinds of items instead of the default items."]; 
+                advanced = true
             } else if(option.startsWith("WorldTour")) {
                 let [, relics] = option.split("=")
                 h = getHelpHelper("goalModes", "WorldTour")
@@ -125,14 +131,28 @@ const getHelpHelper = (category, option, whose = "your seed") => {
             } else if(option === "balanced") {
                 h = getHelpHelper("advanced", "fillAlgBalanced")
                 h.lines.push((<span><i>({Whose} was generated using this fill algorithm)</i></span>))
+                advanced = true
             } else if(option.startsWith("prefer_path_difficulty")) {
                 h = getHelpHelper("advanced", "pathDiff")
                 h.lines[2] = ((<span><i>({Whose} has path difficulty set to {option.split('=')[1]})</i></span>))
+                advanced = true
+            } else if(/^(preplaced|early|buried)=/.test(option)) {
+                let [kind, value] = option.split("=")
+                h.title = {preplaced: "Preplaced Items", early: "Early Items", buried: "Buried Items"}[kind]
+                advanced = true
+                h.lines = kind === "preplaced" ? [
+                    "Preplacements automatically place one or more items at predetermined locations in the seed.",
+                    (<span><i>({Whose} has {value} preplacement{value === "1" ? "" : "s"} in it.)</i></span>),
+                ] : [
+                    kind === "early" ? EARLY_DESC : BURIED_DESC,
+                    (<span><i>({Whose} {kind === "early" ? "places these items early" : "buries these items"}: {value.split("+").join(", ")}.)</i></span>),
+                ]
             } else {
                 match = false;
                 break;
             }
-            h.subtitle = "Flags"
+            // settings only the Advanced tab edits sit apart from the flags proper
+            h.subtitle = advanced ? "Advanced Seed Options" : "Flags"
             return h
         case "logicModes":
             subtitle = "Logic Modes"
@@ -1080,19 +1100,34 @@ const getHelpHelper = (category, option, whose = "your seed") => {
                     ]
                     break;
                 case "preplacement":
-                    title = "Forced Item Placement"
+                    title = "Preplacements"
                     lines = [
-                        "You can use these fields to control specific placements in your seed!",
-                        "Select the item location in the left box and the item to place there in the right box. (You can place multiple items at one location this way!)",
-                        "Add 'one of...' to the item box to make a group instead: seedgen picks one of the items you listed and places that.",
-                        "You can add more item locations to prepplace by editing either box in the bottom row.",
-                        "Note: some placements (like 4 mapstones in the first 4 pickups) will cause seed generation to always fail.",
-                        "Note: The 'Spawn' location is a special location that is granted at the beginning of every seed. You can use it to generate seeds to practice specific skill combinations, like Bash+Grenade or Grenade+Climb+Charge Jump.",
-                        "In Multiworld games, pick which player's world the location is in with the buttons above the placement rows, and whose item it is with the dropdown on the right. Placing another player's item creates a real cross-world pickup: when found, it is sent to its owner. (Spawn items always belong to the world they start in.)",
-                        "NEW: The 'Buried' pseudo-locations at the bottom of the location list delay items instead of placing them: items placed at Buried050 stay out of the item pool until at least 50 locations are reachable, and only then get placed somewhere (Buried100, 150, and 200 work the same way, deeper). Add several items to one Buried row to bury each of them past that depth.",
-                        "Note: burying items the seed generator needs for progression (or burying too many items too deep) can make generation fail, just like impossible forced placements.",
-                        "Note: the Balanced fill algorithm can relocate items to earlier locations after they unbury. For the strictest burial, use the Classic fill algorithm (which fails to generate somewhat more often).",
+                        "Preplacements let you put one or more items into your seed at specific locations.",
+                        "Select a location using the left box and the item(s) to put there in the right box. (By default, all items go into a location. Add 'one of...' to the item list to instead pick one at random.)",
+                        (<span>In addition to all the normal ones, the location selector accepts a few special locations:
+                            <ul>
+                                <li><code>Spawn With</code> grants items at the start of the seed</li>
+                                <li>{EARLY_DESC}</li>
+                                <li>{BURIED_DESC}</li>
+                            </ul></span>),
+                        "Note that some Preplacements can increase the likelihood of seed generation errors and logically impossible ones (a Water Vein in Ginso, the Sunstone on Mapstone 9, Grenade at Valley Long Swim) will always fail to generate.",
                     ]
+                    break;
+                // whose: {who, preset} for the row's world
+                case "mwPreplaceWorld":
+                    title = "Multiworld Preplacements"
+                    lines = [
+                        "Use this dropdown to edit placements for different players.",
+                        whose && whose.preset ? `${whose.who} also has the preset ${whose.preset} loaded: its Preplacements are added to the rows here.` : null,
+                    ].filter(Boolean)
+                    break;
+                // whose: {spawn} for the row
+                case "mwRecipient":
+                    title = "Multiworld Item Recipient"
+                    lines = [
+                        "Use this dropdown to change which player gets the specified items.",
+                        whose && whose.spawn ? (<i>(Spawn items can't be for other players.)</i>) : null,
+                    ].filter(Boolean)
                     break;
                 case "buriedPresets":
                     title = "Bury Items"
