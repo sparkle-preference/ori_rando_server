@@ -52,6 +52,12 @@
       ]
     },
     {
+      "text": "The flag line no longer says balanced, every seed's default fill; a seed rolled with the Legacy fill (formerly Classic) says LegacyFill instead, and the game hides balanced in old headers.",
+      "category": "Seed Generator",
+      "type": "feature",
+      "importance": "minor"
+    },
+    {
       "text": "Seed page: the location dropdown's options were black on dark in dark themes.",
       "category": "Website",
       "type": "fix",

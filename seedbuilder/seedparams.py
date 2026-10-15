@@ -117,7 +117,7 @@ def seed_failure_reason(params):
     after a real attempt; refuses nothing."""
     if (params.sync.enabled and params.sync.mode == MultiplayerGameType.MULTIWORLD
             and not getattr(params, "balanced", True)):
-        return ("Classic fill often can't finish a multiworld seed. Switch the fill "
+        return ("Legacy fill often can't finish a multiworld seed. Switch the fill "
                 "algorithm to Balanced under Advanced, or try again.")
     return None
 
@@ -1077,8 +1077,9 @@ class SeedGenParams(ndb.Model):
             # so every other seed's tick body stays byte-identical
             if self.ap_mode and self.ap_death_link:
                 flags.append("DeathLink")
-            if self.balanced:
-                flags.append("balanced")
+            # the default fill goes unsaid; the old one is named
+            if not self.balanced:
+                flags.append("LegacyFill")
             if self.anti_bk_bias:
                 flags.append("anti_bk_bias=%g" % self.anti_bk_bias)
             if self.pool_preset != "Standard":

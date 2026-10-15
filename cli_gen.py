@@ -624,8 +624,8 @@ class CLISeedParams(object):
         # counter when the seed says so
         if self.ap_mode and self.ap_death_link:
             flags.append("DeathLink")
-        if self.balanced:
-            flags.append("balanced")
+        if not self.balanced:
+            flags.append("LegacyFill")
         if self.anti_bk_bias:
             flags.append("anti_bk_bias=%g" % self.anti_bk_bias)
         return "%s|%s" % (",".join(flags), self.seed)

@@ -115,8 +115,10 @@ class SeedGenTests(unittest.TestCase):
     # version X differ" warning gets updated. Do not "fix" this test blindly.
     # (Last bumped: 2026-07-28 for 4.2.3's impossible-path fixes (#83) —
     # verified by diffing generated seeds across the PR: same items, ~9
-    # placements shuffled, exactly what a logic-path change produces.)
-    SOLO_CANARY = "62a6675bc9898c6cfc57e29d2c989458ab9b0777398f7a764e6015b164591bf5"
+    # placements shuffled, exactly what a logic-path change produces.
+    # 2026-10-15: the header lost "balanced"; putting it back reproduces the
+    # old hash exactly, so no placement moved.)
+    SOLO_CANARY = "8a2d108b5533e2af6937e8854136b75ed5f6bb0ba3a1aa7306dc578515d17324"
 
     def test_solo_output_canary(self):
         import hashlib
@@ -297,8 +299,9 @@ class MultiworldGenTests(unittest.TestCase):
     # legitimately shuffled -- see SOLO_CANARY note.)
     # (bumped 2026-08-02: exp_pool is now per-world (134701: it was being
     # split across all worlds' slots) -- EX values change, placements don't.)
-    # (bumped 2026-08-22: per-world exp budgets; solo unchanged, MW still env-gated.)
-    MW_CANARY = "f814e851f7533af8287fa6e01aa64a7231c4155b3ceaded7a315f631c638d9b6"
+    # (bumped 2026-08-22: per-world exp budgets; solo unchanged, MW still env-gated.
+    # 2026-10-15: header only, see SOLO_CANARY.)
+    MW_CANARY = "20b9c69c803433635ba6ef11608672f715620692c1bbd31d44303ab4612f048d"
 
     def test_exp_pool_is_per_world(self):
         # exp_pool (default 10000) is a PER-WORLD budget. A world's exp lives
@@ -1302,7 +1305,7 @@ class SeedFailureReasonTests(unittest.TestCase):
         return seedparams.seed_failure_reason(params)
 
     def test_classic_multiworld_gets_named(self):
-        self.assertIn("Classic fill", self._reason(self._params()))
+        self.assertIn("Legacy fill", self._reason(self._params()))
 
     def test_everything_else_says_nothing(self):
         self.assertIsNone(self._reason(self._params(balanced=True)))

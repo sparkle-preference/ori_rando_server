@@ -36,8 +36,13 @@ const flagChip = (flag) => {
         return {rank: 5, label: flag, cls: "flag-chip-plain"}
     if(flag.startsWith("prefer_path_difficulty="))
         return {rank: 7, label: "Path Diff: " + flag.split("=")[1], cls: "flag-chip-plain"}
-    // a bare word is a variation; balanced is the fill algorithm
-    return {rank: flag.includes("=") || flag === "balanced" ? 7 : 6, label: flag, cls: "flag-chip-plain"}
+    if(flag === "LegacyFill")
+        return {rank: 7, label: "Legacy Fill", cls: "flag-chip-plain"}
+    // every seed's fill before 5.0, still in old headers: not a chip
+    if(flag === "balanced")
+        return null
+    // a bare word is a variation
+    return {rank: flag.includes("=") ? 7 : 6, label: flag, cls: "flag-chip-plain"}
 }
 
 // roomy unless that runs past maxLines and the tight style saves a line

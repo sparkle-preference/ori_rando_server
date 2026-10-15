@@ -128,8 +128,8 @@ const getHelpHelper = (category, option, whose = "your seed") => {
                 h = name ? getHelpHelper("multiplayerOptions", name) : {title: "Multiplayer Game Mode", lines: []}
                 h.lines = h.lines.filter(l => typeof l !== "string" || !l.startsWith("Recommended"))
                 h.lines.push((<span><i>(Your seeds are using this Multiplayer Mode.)</i></span>))
-            } else if(option === "balanced") {
-                h = getHelpHelper("advanced", "fillAlgBalanced")
+            } else if(option === "LegacyFill") {
+                h = getHelpHelper("advanced", "fillAlgClassic")
                 h.lines.push((<span><i>({Whose} was generated using this fill algorithm)</i></span>))
                 advanced = true
             } else if(option.startsWith("prefer_path_difficulty")) {
@@ -1060,7 +1060,7 @@ const getHelpHelper = (category, option, whose = "your seed") => {
                 case "fillAlg":
                     title = "Fill Algorithm"
                     lines = [
-                        "Change the algorithm used to place items during seed generation here. At the moment, only two Fill Algorithms are available, Balanced and Classic"
+                        "Change the algorithm used to place items during seed generation here. At the moment, only two Fill Algorithms are available, Balanced and Legacy"
                     ]
                     break;
                 case "goalModes":
@@ -1070,16 +1070,16 @@ const getHelpHelper = (category, option, whose = "your seed") => {
                     ]
                     break;
                 case "fillAlgClassic":
-                    title = "Classic Algorithm"
+                    title = "Legacy Algorithm"
                     lines = [
-                        "The Classic fill algorithm places pickups throughout the world one at a time and mostly at random (though subject to logical constraints).",
+                        "The Legacy fill algorithm places pickups throughout the world one at a time and mostly at random (though subject to logical constraints).",
                         "It is only recommended for players who are using the Starved flag and don't want to risk the Balanced algorithm interfering with this."
                     ]
                     break;
                 case "fillAlgClassicMulti":
-                    title = "Classic Algorithm"
+                    title = "Legacy Algorithm"
                     lines = [
-                        "The Classic fill algorithm places pickups throughout the world one at a time and mostly at random (though subject to logical constraints).",
+                        "The Legacy fill algorithm places pickups throughout the world one at a time and mostly at random (though subject to logical constraints).",
                         "It is only recommended for players who are using the Starved flag and don't want to risk the Balanced algorithm interfering with this.",
                         "It often can't finish a multiworld seed, and fails more often the more worlds there are. Generating may take a few tries, or none may work."
                     ]
@@ -1087,7 +1087,7 @@ const getHelpHelper = (category, option, whose = "your seed") => {
                 case "fillAlgBalanced":
                     title = "Balanced Algorithm"
                     lines = [
-                        "The Balanced fill algorithm is an improved version of the Classic algorithm that insures a more balanced placement of progression items.", 
+                        "The Balanced fill algorithm is an improved version of the Legacy algorithm that insures a more balanced placement of progression items.", 
                         "It does this by swapping newly placed progression items with 'useless' (exp, bonus pickups, etc) items that were placed earlier, creating a more even distribution of skills and other progression items throughout the seed",
                         "Balanced is the default algorithm and recommended in most cases. However, the swaps it makes can result in easier or less linear Starved seeds, as skills can be made available earlier than the progression path originally intended."
                     ]

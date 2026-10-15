@@ -748,9 +748,9 @@ export default class MainPage extends React.Component {
                     {halfLabel("Fill Algorithm", "fillAlg")}
                     {wideCtl("fillAlg",
                         <UncontrolledButtonDropdown className="w-100">
-                            <DropdownToggle color="primary" caret block> {fillAlg} </DropdownToggle>
+                            <DropdownToggle color="primary" caret block> {fillAlg === "Classic" ? "Legacy" : fillAlg} </DropdownToggle>
                             <DropdownMenu style={menuStyle}>
-                                <DropdownItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", this.isMultiworld() ? "fillAlgClassicMulti" : "fillAlgClassic")}  active={"Classic" ===fillAlg} onClick={()=> this.setState({fillAlg: "Classic"})}>Classic</DropdownItem>
+                                <DropdownItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", this.isMultiworld() ? "fillAlgClassicMulti" : "fillAlgClassic")}  active={"Classic" ===fillAlg} onClick={()=> this.setState({fillAlg: "Classic"})}>Legacy</DropdownItem>
                                 <DropdownItem onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "fillAlgBalanced")} active={"Balanced"===fillAlg} onClick={()=> this.setState({fillAlg: "Balanced"})}>Balanced</DropdownItem>
                             </DropdownMenu>
                         </UncontrolledButtonDropdown>)}
@@ -1822,7 +1822,7 @@ export default class MainPage extends React.Component {
             let withSpawn = (fs, p) => spawns[p - 1] && spawns[p - 1] !== "Glades" ? fs.concat("spawn=" + spawns[p - 1]) : fs
             let withFass = (fs, p) => fs.concat(fassChipFlags(this.state.seedFass, p))
             let flagChips = (fs, where, whose, label) => {
-                let chips = fs.filter(f => f).map(flag => ({flag, ...flagChip(flag)})).sort((a, b) => a.rank - b.rank)
+                let chips = fs.filter(f => f && flagChip(f)).map(flag => ({flag, ...flagChip(flag)})).sort((a, b) => a.rank - b.rank)
                 let spans = chips.map(({flag, label, cls}) => (
                     <span key={`flag-${where}-${flag}`} className={`badge flag-chip ${cls}`} onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("flags", flag, 250, undefined, whose)}>{label}</span>
                 ))
