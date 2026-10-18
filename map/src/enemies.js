@@ -36,7 +36,8 @@ const rolls_line = (rolls) => PREFIX + TABLE.version + ":" + rolls.map(r => r ==
 const vanilla_rolls = () => placements.map(() => null);
 const roll_kind = (p, r) => r === null ? p.kind : is_bonus(r) ? "Bonus" : variants[r].kind;
 // what may stand at a spot by the table alone; the server's finer rules are the author's to mind
-const kinds_for = (p) => TABLE.kinds.filter(k => k.spots.includes(p.spot) || (p.spot === "rhino" && k.spots.includes("floor"))).map(k => k.name);
+const kinds_for = (p) => TABLE.kinds.filter(k => k.spots.includes(p.spot) || (p.spot === "rhino" && k.spots.includes("floor"))
+                                                || (k.name === "DropSlugs" && p.ceiling)).map(k => k.name);
 const random_variant = (kind) => by_kind[kind][Math.floor(Math.random() * by_kind[kind].length)].i;
 const next_variant = (r, step) => {
     let vs = by_kind[variants[r].kind]
@@ -83,20 +84,20 @@ class EnemyRow extends React.PureComponent {
     render() {
         let {p, r, selected, onSelect, onChange, styles} = this.props
         let kind = roll_kind(p, r)
-        let options = [{label: `Vanilla (${p.kind})`, value: "vanilla"}].concat(kinds_for(p).map(k => ({label: k, value: k})), {label: "From a bonus", value: "bonus"})
+        let options = [{label: `Vanilla (${p.kind})`, value: "vanilla"}].concat(kinds_for(p).map(k => ({label: k, value: k})), {label: "Dynamic (RB id)", value: "bonus"})
         return (
             <div className={"enemy-row" + (selected ? " enemy-row-selected" : "")} ref={this.ref} onClick={() => onSelect(p.i)}>
                 <span className="enemy-num" title={`placeholder ${p.i}`}>{p.i}</span>
                 <span className="enemy-swatch" style={{background: KIND_COLORS[kind]}}/>
-                <span className="enemy-where" title={p.scene}>({p.x}, {p.y}) {p.spot}{p.arena ? ", miniboss room" : ""}</span>
+                <span className="enemy-where" title={p.scene}>({p.x}, {p.y}) {p.spot}{p.arena ? " (purple door)" : ""}</span>
                 <Select className="enemy-kind" styles={styles} isSearchable={false} onChange={this.setKind}
                         options={options} value={r === null ? options[0] : is_bonus(r) ? options[options.length - 1] : {label: kind, value: kind}}/>
                 {is_bonus(r) ? (
-                    <span className="enemy-variant" title="In play, this bonus id's value picks the variant by its number here; 0, unset or past the last number stays vanilla">
+                    <span className="enemy-variant" title="The value of this bonus id is used to pick the enemy variant (as long as it is a valid variant number).">
                         RB|<Input type="number" bsSize="sm" className="enemy-bonus" min={0} value={bonus_id(r)} onChange={this.setBonus} onClick={e => e.stopPropagation()}/>
                     </span>
                 ) : r !== null ? (
-                    <span className="enemy-variant" title="Which of this kind's variants: health and damage differ, the look may too">
+                    <span className="enemy-variant" title="Select enemy variant (changes health, damage, and occasionally the visuals.)">
                         <Button size="sm" color="secondary" outline onClick={e => { e.stopPropagation(); onChange(p.i, next_variant(r, -1)) }}>◀</Button>
                         #{r + 1}
                         <Button size="sm" color="secondary" outline onClick={e => { e.stopPropagation(); onChange(p.i, next_variant(r, 1)) }}>▶</Button>
@@ -134,10 +135,10 @@ class EnemyPanel extends React.Component {
                 </div>
                 <div className="box-buttons">
                     <Button color="secondary" disabled={!changed_count(rolls)} onClick={() => this.props.onChange(vanilla_rolls())}
-                            title="Every placeholder back to the enemy it has in the base game">All vanilla</Button>
+                            title="Reset all enemy location assignments to default.">Reset all enemy location assignments to default</Button>
                     <Input className="enemy-filter" placeholder="Filter by scene, coordinates or kind" value={filter}
                            onChange={e => this.setState({filter: e.target.value})}/>
-                    <a className="enemy-list-link" href="/enemies.txt" target="_blank" rel="noopener noreferrer" title="Every variant by number, with its kind and base stats">variant list</a>
+                    <a className="enemy-list-link" href="/enemies.txt" target="_blank" rel="noopener noreferrer" title="Lists each enemy variant and their base stats">variant list</a>
                 </div>
                 <div className="enemy-list">
                     {scenes.map(({scene, rows}) => {

@@ -65,5 +65,34 @@ class ApworldTests(unittest.TestCase):
         self.assertEqual([p["reqs"] for p in kill_paths([], [["Grenade"]])], [["Grenade"]])
 
 
+class EachWorldsYaml(unittest.TestCase):
+    def test_a_worlds_own_preset_reaches_its_yaml(self):
+        from unittest import mock
+        from enums import KeyMode, LogicPath
+        from seedbuilder.seedparams import SeedGenParams, world_view
+
+        class Params(object):
+            ap_mode, players, player_names, key, ap_death_link, enemy_rolls = True, 2, [], None, False, None
+            logic_paths, key_mode, variations = [LogicPath.CASUAL_CORE], KeyMode.CLUES, []
+            spawn, start = "Glades", None
+            world_settings = [None, {"paths": ["casual-core", "standard-core"], "keyMode": "Shards", "variations": ["EnemyRando"]}]
+
+            def world_params(self, w):
+                return world_view(self, w)
+
+            def get_seed_data(self, w):
+                return {}
+
+        seen = {}
+        with mock.patch("archipelago.convert.build_ap_config", side_effect=lambda *a, **k: seen.update(k) or {}), \
+                mock.patch("archipelago.convert.keystone_tier_list", return_value=[]), \
+                mock.patch("archipelago.yaml_emit.emit_yaml", return_value=""), \
+                mock.patch("ap_models.ap_slot_names", return_value=["one", "two"]):
+            SeedGenParams.to_ap_yaml(Params(), 2)
+        self.assertEqual(seen["logic_paths"], ["casual-core", "standard-core"])
+        self.assertEqual(seen["key_mode"], "Shards")
+        self.assertTrue(seen["variations"].get("enemy_rando"))
+
+
 if __name__ == "__main__":
     unittest.main()

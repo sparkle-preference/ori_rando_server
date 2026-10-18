@@ -797,6 +797,13 @@ class EarlyPlacementTests(PlacementRecordTests):
         self.assertEqual(list(self.gen.gen_warnings.items()),
                          [("Early050: the pool had no Grenade left for it", "warning")])
 
+    def test_an_early_copy_leaves_the_pool_once(self):
+        # several copies in the pool: holding one already took it out
+        count = lambda seeds: sum(1 for (c, i, z) in parse_seed(seeds["randomizer0.bfr"])[0].values() if c == "HC")
+        _, early = self._gen_with_records(["--fass", "%s:HC1" % (self.EARLY + 50)], seed="e0")
+        _, plain = self._gen_with_records([], seed="e0")
+        self.assertEqual(count(early), count(plain))
+
     def test_balanced_fill_keeps_an_early_bonus_where_it_landed(self):
         """A bonus rides the balance list and can be displaced later by forced
         progression; an Early one is pinned at assignment."""

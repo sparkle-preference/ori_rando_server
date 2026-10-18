@@ -117,7 +117,7 @@ def seed_failure_reason(params):
     after a real attempt; refuses nothing."""
     if (params.sync.enabled and params.sync.mode == MultiplayerGameType.MULTIWORLD
             and not getattr(params, "balanced", True)):
-        return ("Legacy fill often can't finish a multiworld seed. Switch the fill "
+        return ("Legacy fill often dead-ends on multiworld generation. Switch the fill "
                 "algorithm to Balanced under Advanced, or try again.")
     return None
 
@@ -1037,12 +1037,14 @@ class SeedGenParams(ndb.Model):
                                          keystone_tier_list)
         from archipelago.yaml_emit import emit_yaml
         from ap_models import ap_slot_names
+        # a world's own preset decides its logic, as it did at generation
+        view = self.world_params(int(world))
         config = build_ap_config(
             self.get_seed_data(world), players=self.players, world=int(world),
-            logic_paths=[lp.value for lp in self.logic_paths],
-            key_mode=self.key_mode.value,
+            logic_paths=[lp.value for lp in view.logic_paths],
+            key_mode=view.key_mode.value,
             spawn_zone=self.spawn or self.start or "Glades",
-            variations=ap_variations(self.variations),
+            variations=ap_variations(view.variations),
             params_id=self.key.id() if self.key else 0,
             death_link=self.ap_death_link,
             key_tiers=keystone_tier_list(self, int(world)),

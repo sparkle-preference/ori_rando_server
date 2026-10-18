@@ -600,7 +600,7 @@ class TestApRoutes(SessionTestCase):
                                        FakeVersionedPlayer(2, "4.9.9")])
         status, body = netcode.ap_connect(1310, {"host": "ap.example", "port": "38281"})
         self.assertEqual(status, 409)
-        self.assertIn("P1 is on 4.9.8", body)
+        self.assertIn("P1 last played on 4.9.8", body)
         self.assertNotIn("P2", body)
         self.assertEqual(self.links, {})
 

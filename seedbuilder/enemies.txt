@@ -1,185 +1,185 @@
 Enemy rando variants: the number the plando editor shows, and the value a bonus-read placeholder takes.
 Health and damage are the vanilla enemy's; in play both scale to the zone the enemy lands in.
 
-#    kind        prefab                   placeholder class                 health   touch    shot  spots
-1    Fish        fishEnemy                FishEnemyPlaceholder                  20       7              1
-2    Fish        fishEnemy                FishEnemyPlaceholder                  20       4              1
-3    Elementals  floatTurretEnemyFire     FloatingRockTurretEnemyPlaceholder     200       4      20      1
-4    Worms       mortarWormFireEnemy      MortarWormEnemyPlaceholder           100       2       8      4
-5    Spiders     spreadshotSpiderEnemy    ShootingSpiderPlaceholder             50       8       6      2
-6    Slimes      iceSlugEnemy             AcidSlugEnemyPlaceholder              30       2              9
-7    Frogs       spitterEnemy             SpitterEnemyPlaceholder               40       5      20      2
-8    Spiders     shootingSpiderEnemy      ShootingSpiderPlaceholder             50       1       6      1
-9    Slimes      iceSlugEnemy             AcidSlugEnemyPlaceholder              11       2              2
-10   Fronkeys    jumperEnemy              JumperEnemyPlaceholder                45       8       5      1
-11   Rhinos      armouredRammingEnemy     RammingEnemyPlaceholder               60       8              2
-12   Spiders     spreadshotSpiderEnemy    ShootingSpiderPlaceholder             50       1       6      1
-13   Banelings   kamikazeSootEnemy        KamikazeSootEnemyPlaceholder           5                      4
-14   Worms       mortarWormEnemy          MortarWormEnemyPlaceholder           150       2      10      1
-15   Slimes      starSlugEnemy            StarSlugEnemyPlaceholder              20       2              5
-16   Fronkeys    jumperEnemy              JumperEnemyPlaceholder                40       4       4      1
-17   Worms       mortarWormEnemy          MortarWormEnemyPlaceholder            12       4       4      2
-18   Worms       mortarWormEnemy          MortarWormEnemyPlaceholder            12       4       4      1
-19   Worms       mortarWormEnemy          MortarWormEnemyPlaceholder            80       4       8      1
-20   Elementals  floatTurretEnemyWood     FloatingRockTurretEnemyPlaceholder      80       4       5      1
-21   Spiders     shootingSpiderEnemy      ShootingSpiderPlaceholder             10       4       8      1
-22   Fronkeys    jumperEnemy              JumperEnemyPlaceholder                30       4       5      2
-23   Fronkeys    jumperEnemy              JumperEnemyPlaceholder                30       4       5      1
-24   Spiders     shootingSpiderEnemy      ShootingSpiderPlaceholder             30       4       8      1
-25   Frogs       spitterEnemy             SpitterEnemyPlaceholder               15       4       4      1
-26   Spiders     shootingSpiderEnemy      ShootingSpiderPlaceholder             30       4       8      2
-27   Fronkeys    jumperEnemy              JumperEnemyPlaceholder                30       4       5      1
-28   Fronkeys    jumperEnemy              JumperEnemyPlaceholder                20       4       5      1
-29   Spiders     shootingSpiderEnemy      ShootingSpiderPlaceholder             50       4       4      2
-30   Fronkeys    jumperEnemy              JumperEnemyPlaceholder                40       4       5      1
-31   Worms       mortarWormEnemy          MortarWormEnemyPlaceholder            40       2      10      1
-32   Worms       mortarWormEnemy          MortarWormEnemyPlaceholder            40       2      10      1
-33   Elementals  floatingRockLaserEnemy   FloatingRockLaserEnemyPlaceholder     100      12      20      1
-34   Elementals  floatTurretEnemyFire     FloatingRockTurretEnemyPlaceholder     100      12      20      2
-35   Slimes      fireSlugEnemy            AcidSlugEnemyPlaceholder              34       8             19
-36   DropSlugs   dropSlugFireEnemy        DropSlugEnemyPlaceholder              20       5       5      5
-37   Fronkeys    jumperEnemy              JumperEnemyPlaceholder                35      12       5      1
-38   Elementals  floatTurretEnemyFire     FloatingRockTurretEnemyPlaceholder     100      12      20      1
-39   Banelings   kamikazeSootEnemy        KamikazeSootEnemyPlaceholder           5                      3
-40   Banelings   kamikazeSootEnemy        KamikazeSootEnemyPlaceholder           5                      3
-41   Slimes      fireSlugEnemy            AcidSlugEnemyPlaceholder              34       8              1
-42   Swarms      swarmEnemyLargeFire      SwarmEnemyPlaceholder                 20       4              1
-43   Banelings   kamikazeSootEnemy        KamikazeSootEnemyPlaceholder           5                      2
-44   Elementals  floatingRockLaserEnemy   FloatingRockLaserEnemyPlaceholder      50      12      20      1
-45   Fronkeys    jumperEnemy              JumperEnemyPlaceholder                25       5       5      6
-46   Slimes      starSlugEnemy            StarSlugEnemyPlaceholder              20       4              5
-47   Worms       mortarWormEnemy          MortarWormEnemyPlaceholder            12       2      10      1
-48   Banelings   kamikazeSootEnemy        KamikazeSootEnemyPlaceholder           5                      1
-49   Birds       dashOwlEnemy             DashOwlEnemyPlaceholder               28       4              6
-50   Fronkeys    jumperEnemy              JumperEnemyPlaceholder                12       4       4      1
-51   Slimes      starSlugEnemy            StarSlugEnemyPlaceholder               7       4             14
-52   DropSlugs   dropSlugEnemy            DropSlugEnemyPlaceholder               3       5       8      2
-53   Frogs       spitterEnemy             SpitterEnemyPlaceholder               20       5      20      4
-54   Frogs       spitterEnemy             SpitterEnemyPlaceholder               11       5      20      1
-55   Slimes      acidSlugEnemy            AcidSlugEnemyPlaceholder              20       2              7
-56   Slimes      acidSlugEnemy            AcidSlugEnemyPlaceholder              20       2              2
-57   Swarms      swarmEnemyLarge          SwarmEnemyPlaceholder                 12       4              4
-58   Slimes      acidSlugEnemy            AcidSlugEnemyPlaceholder              20       2              2
-59   Slimes      acidSlugEnemy            AcidSlugEnemyPlaceholder              30       2             27
-60   Fronkeys    jumperEnemy              JumperEnemyPlaceholder                40       5       5      2
-61   Worms       mortarWormEnemy          MortarWormEnemyPlaceholder            50       2      10      3
-62   Frogs       fastSpitterEnemy         SpitterEnemyPlaceholder               50       5       8      2
-63   Fronkeys    jumperEnemy              JumperEnemyPlaceholder                40       5       5      1
-64   DropSlugs   dropSlugEnemy            DropSlugEnemyPlaceholder              20       8       8      1
-65   DropSlugs   dropSlugEnemy            DropSlugEnemyPlaceholder              20       8       8      1
-66   Spiders     spreadshotSpiderEnemy    ShootingSpiderPlaceholder             50       1       6      3
-67   DropSlugs   dropSlugEnemy            DropSlugEnemyPlaceholder              20       8       8      1
-68   Birds       dashOwlEnemy             DashOwlEnemyPlaceholder               35       8              1
-69   Fronkeys    jumperEnemy              JumperEnemyPlaceholder                40       5       5      5
-70   Worms       mortarWormEnemy          MortarWormEnemyPlaceholder           100       2      10      1
-71   Fronkeys    jumperEnemy              JumperEnemyPlaceholder                40       5       5      1
-72   Worms       mortarWormEnemy          MortarWormEnemyPlaceholder           100       2      10      1
-73   Fronkeys    jumperEnemy              JumperEnemyPlaceholder                40       5       5      1
-74   Worms       mortarWormEnemy          MortarWormEnemyPlaceholder            40       8      12      5
-75   Worms       mortarWormEnemy          MortarWormEnemyPlaceholder            40       8      12      4
-76   Frogs       fastSpitterEnemy         SpitterEnemyPlaceholder               40       5       8      3
-77   Frogs       fastSpitterEnemy         SpitterEnemyPlaceholder               50       5       8      2
-78   Worms       mortarWormEnemy          MortarWormEnemyPlaceholder            45       2      10      1
-79   Worms       mortarWormEnemy          MortarWormEnemyPlaceholder           100       2      10      1
-80   Worms       mortarWormEnemy          MortarWormEnemyPlaceholder           100       2      10      1
-81   Birds       dashOwlEnemy             DashOwlEnemyPlaceholder               30       7              1
-82   Swarms      swarmEnemyLarge          SwarmEnemyPlaceholder                 18       5              1
-83   Sharks      jumpShootSharkEnemy      JumpShootSharkPlaceholder             75       8              1
-84   Sharks      jumpShootSharkEnemy      JumpShootSharkPlaceholder             75       8              1
-85   Frogs       spitterEnemy             SpitterEnemyPlaceholder               20       5       8     12
-86   Spiders     shootingSpiderEnemy      ShootingSpiderPlaceholder             20       1       8      2
-87   Slimes      starSlugEnemy            StarSlugEnemyPlaceholder              11       2              1
-88   Sharks      jumpShootSharkEnemy      JumpShootSharkPlaceholder             90       4              1
-89   Spiders     shootingSpiderEnemy      ShootingSpiderPlaceholder             30       4       8      2
-90   Slimes      starSlugEnemy            StarSlugEnemyPlaceholder              20       4              5
-91   DropSlugs   dropSlugEnemy            DropSlugEnemyPlaceholder               4       5       5      2
-92   Spiders     shootingSpiderEnemy      ShootingSpiderPlaceholder             20       4       8      2
-93   Swarms      swarmEnemyLarge          SwarmEnemyPlaceholder                 18       4              1
-94   Fronkeys    jumperEnemy              JumperEnemyPlaceholder                20       4       5      1
-95   Slimes      starSlugEnemy            StarSlugEnemyPlaceholder              15       2              4
-96   Slimes      acidSlugEnemy            AcidSlugEnemyPlaceholder              11       2              6
-97   Rhinos      armouredRammingEnemy     RammingEnemyPlaceholder               45       5              1
-98   Swarms      swarmEnemyLargeFire      SwarmEnemyPlaceholder                 20       5              3
-99   Worms       mortarWormFireEnemy      MortarWormEnemyPlaceholder            12       2      10      1
-100  Elementals  floatTurretEnemyFire     FloatingRockTurretEnemyPlaceholder      50      12      20      4
-101  Worms       mortarWormFireEnemy      MortarWormEnemyPlaceholder            30       2      10      1
-102  Worms       mortarWormFireEnemy      MortarWormEnemyPlaceholder            30       2      10      1
-103  Worms       mortarWormFireEnemy      MortarWormEnemyPlaceholder            40       2      12      1
-104  Worms       mortarWormFireEnemy      MortarWormEnemyPlaceholder            40       2      12      1
-105  Elementals  floatingRockLaserEnemy   FloatingRockLaserEnemyPlaceholder      50      12      20      1
-106  Elementals  floatingRockLaserEnemy   FloatingRockLaserEnemyPlaceholder      50      12      20      1
-107  Sharks      jumpShootSharkEnemyFire  JumpShootSharkPlaceholder            250      12              1
-108  Worms       mortarWormFireEnemy      MortarWormEnemyPlaceholder            60       8      24      2
-109  Worms       mortarWormFireEnemy      MortarWormEnemyPlaceholder            60       8      24      1
-110  Elementals  floatTurretEnemyFire     FloatingRockTurretEnemyPlaceholder      50      12      20      3
-111  Elementals  floatTurretEnemyFire     FloatingRockTurretEnemyPlaceholder      50      12      20      6
-112  Elementals  floatTurretEnemyFire     FloatingRockTurretEnemyPlaceholder      50      12      20      1
-113  Elementals  floatingRockLaserEnemy   FloatingRockLaserEnemyPlaceholder      50      12      20      1
-114  Elementals  floatingRockLaserEnemy   FloatingRockLaserEnemyPlaceholder      50      12      20      1
-115  Fronkeys    jumperEnemy              JumperEnemyPlaceholder                40      12       5      1
-116  Worms       mortarWormFireEnemy      MortarWormEnemyPlaceholder            12       2      10      1
-117  Swarms      swarmEnemyLarge          SwarmEnemyPlaceholder                 20       5              1
-118  Elementals  floatTurretEnemyFire     FloatingRockTurretEnemyPlaceholder      15      12      20      9
-119  Elementals  floatTurretEnemyFire     FloatingRockTurretEnemyPlaceholder      50      12      20      1
-120  Spiders     shootingSpiderEnemy      ShootingSpiderPlaceholder             10       1       2      2
-121  Slimes      starSlugEnemy            StarSlugEnemyPlaceholder               7       4              1
-122  Frogs       fastSpitterEnemy         SpitterEnemyPlaceholder               70       5       8      4
-123  Rhinos      armouredRammingEnemy     RammingEnemyPlaceholder               40       4              1
-124  Frogs       fastSpitterEnemy         SpitterEnemyPlaceholder               35       5       8      1
-125  Rhinos      armouredRammingEnemy     RammingEnemyPlaceholder               30       5              1
-126  Birds       dashOwlEnemy             DashOwlEnemyPlaceholder               50       8              1
-127  Birds       dashOwlEnemy             DashOwlEnemyPlaceholder               35       8              4
-128  Birds       dashOwlEnemy             DashOwlEnemyPlaceholder               35       8              1
-129  Frogs       fastSpitterEnemy         SpitterEnemyPlaceholder               70       5       8     12
-130  Worms       mortarWormEnemy          MortarWormEnemyPlaceholder            12       2      10      1
-131  Worms       mortarWormEnemy          MortarWormEnemyPlaceholder            12       2      10      1
-132  Fish        fishEnemy                FishEnemyPlaceholder                  20       4             17
-133  Rhinos      armouredRammingEnemy     RammingEnemyPlaceholder               20       5              1
-134  Slimes      starSlugEnemy            StarSlugEnemyPlaceholder               7       1              4
-135  Fronkeys    jumperEnemy              JumperEnemyPlaceholder                20       5       5      3
-136  Slimes      starSlugEnemy            StarSlugEnemyPlaceholder               7       2              9
-137  Fronkeys    jumperEnemy              JumperEnemyPlaceholder                10       1       1      3
-138  DropSlugs   dropSlugEnemy            DropSlugEnemyPlaceholder              20       5       5      2
-139  Fronkeys    jumperEnemy              JumperEnemyPlaceholder                12       4       4      5
-140  DropSlugs   dropSlugEnemy            DropSlugEnemyPlaceholder               3       5       8      1
-141  Birds       dashOwlEnemy             DashOwlEnemyPlaceholder               32       4              2
-142  Fronkeys    jumperEnemy              JumperEnemyPlaceholder                40       5       5      2
-143  Worms       mortarWormEnemy          MortarWormEnemyPlaceholder            14       2      10      3
-144  Worms       mortarWormEnemy          MortarWormEnemyPlaceholder            30       2      10      3
-145  Worms       mortarWormEnemy          MortarWormEnemyPlaceholder            30       2      10      1
-146  Worms       mortarWormEnemy          MortarWormEnemyPlaceholder            30       2      10      1
-147  Slimes      acidSlugEnemy            AcidSlugEnemyPlaceholder              11       2              1
-148  Rhinos      armouredRammingEnemy     RammingEnemyPlaceholder               40       5              1
-149  Worms       mortarWormEnemy          MortarWormEnemyPlaceholder            12       2      10      1
-150  Worms       mortarWormEnemy          MortarWormEnemyPlaceholder            12       2      10      1
-151  Slimes      starSlugEnemy            StarSlugEnemyPlaceholder              30       2              1
-152  Rhinos      armouredRammingEnemy     RammingEnemyPlaceholder               45       5              1
-153  Spiders     shootingSpiderEnemy      ShootingSpiderPlaceholder             14       1       6      1
-154  Slimes      starSlugEnemy            StarSlugEnemyPlaceholder              10       2              3
-155  DropSlugs   dropSlugEnemy            DropSlugEnemyPlaceholder               3       5       5      1
-156  DropSlugs   dropSlugEnemy            DropSlugEnemyPlaceholder               3       5       5      1
-157  Spiders     shootingSpiderEnemy      ShootingSpiderPlaceholder             10       1       6      6
-158  Swarms      swarmEnemyLarge          SwarmEnemyPlaceholder                 20       4              1
-159  Slimes      starSlugEnemy            StarSlugEnemyPlaceholder              15       2              1
-160  Fronkeys    jumperEnemy              JumperEnemyPlaceholder                20       4       5      1
-161  Swarms      swarmEnemyMedium         SwarmEnemyPlaceholder                  9       4              1
-162  Swarms      swarmEnemyLarge          SwarmEnemyPlaceholder                  9       4              1
-163  Birds       dashOwlEnemy             DashOwlEnemyPlaceholder               35       8              3
-164  Birds       dashOwlEnemy             DashOwlEnemyPlaceholder               35       8              1
-165  Spiders     spreadshotSpiderEnemy    ShootingSpiderPlaceholder             50       1       6      3
-166  Slimes      acidSlugEnemy            AcidSlugEnemyPlaceholder              20       2              1
-167  Spiders     spreadshotSpiderEnemy    ShootingSpiderPlaceholder             50       1       8      2
-168  Slimes      acidSlugEnemy            AcidSlugEnemyPlaceholder              20       2              2
-169  Birds       dashOwlEnemy             DashOwlEnemyPlaceholder               35       8              1
-170  DropSlugs   dropSlugEnemy            DropSlugEnemyPlaceholder              20       5       5      1
-171  Slimes      acidSlugEnemy            AcidSlugEnemyPlaceholder              20       2              3
-172  Worms       mortarWormEnemy          MortarWormEnemyPlaceholder            12       2      10      1
-173  DropSlugs   dropSlugEnemy            DropSlugEnemyPlaceholder              20       5       5      1
-174  Slimes      acidSlugEnemy            AcidSlugEnemyPlaceholder              20       2              1
-175  Spiders     spreadshotSpiderEnemy    ShootingSpiderPlaceholder             40       1       6      3
-176  Birds       dashOwlEnemy             DashOwlEnemyPlaceholder               28       4              3
-177  DropSlugs   dropSlugEnemy            DropSlugEnemyPlaceholder               5       5       8      3
-178  Birds       dashOwlEnemy             DashOwlEnemyPlaceholder               28       4              1
-179  Slimes      iceSlugEnemy             AcidSlugEnemyPlaceholder              25       2              3
-180  Fronkeys    jumperEnemy              JumperEnemyPlaceholder                45       8       5      1
-181  Birds       dashOwlEnemy             DashOwlEnemyPlaceholder               50       8              2
+#    kind        prefab                   placeholder class                   health  touch  shot  spots
+1    Fish        fishEnemy                FishEnemyPlaceholder                    20      7            1
+2    Fish        fishEnemy                FishEnemyPlaceholder                    20      4            1
+3    Elementals  floatTurretEnemyFire     FloatingRockTurretEnemyPlaceholder     200      4    20      1
+4    Worms       mortarWormFireEnemy      MortarWormEnemyPlaceholder             100      2     8      4
+5    Spiders     spreadshotSpiderEnemy    ShootingSpiderPlaceholder               50      8     6      2
+6    Slimes      iceSlugEnemy             AcidSlugEnemyPlaceholder                30      2            9
+7    Frogs       spitterEnemy             SpitterEnemyPlaceholder                 40      5    20      2
+8    Spiders     shootingSpiderEnemy      ShootingSpiderPlaceholder               50      1     6      1
+9    Slimes      iceSlugEnemy             AcidSlugEnemyPlaceholder                11      2            2
+10   Fronkeys    jumperEnemy              JumperEnemyPlaceholder                  45      8     5      1
+11   Rhinos      armouredRammingEnemy     RammingEnemyPlaceholder                 60      8            2
+12   Spiders     spreadshotSpiderEnemy    ShootingSpiderPlaceholder               50      1     6      1
+13   Banelings   kamikazeSootEnemy        KamikazeSootEnemyPlaceholder             5                   4
+14   Worms       mortarWormEnemy          MortarWormEnemyPlaceholder             150      2    10      1
+15   Slimes      starSlugEnemy            StarSlugEnemyPlaceholder                20      2            5
+16   Fronkeys    jumperEnemy              JumperEnemyPlaceholder                  40      4     4      1
+17   Worms       mortarWormEnemy          MortarWormEnemyPlaceholder              12      4     4      2
+18   Worms       mortarWormEnemy          MortarWormEnemyPlaceholder              12      4     4      1
+19   Worms       mortarWormEnemy          MortarWormEnemyPlaceholder              80      4     8      1
+20   Elementals  floatTurretEnemyWood     FloatingRockTurretEnemyPlaceholder      80      4     5      1
+21   Spiders     shootingSpiderEnemy      ShootingSpiderPlaceholder               10      4     8      1
+22   Fronkeys    jumperEnemy              JumperEnemyPlaceholder                  30      4     5      2
+23   Fronkeys    jumperEnemy              JumperEnemyPlaceholder                  30      4     5      1
+24   Spiders     shootingSpiderEnemy      ShootingSpiderPlaceholder               30      4     8      1
+25   Frogs       spitterEnemy             SpitterEnemyPlaceholder                 15      4     4      1
+26   Spiders     shootingSpiderEnemy      ShootingSpiderPlaceholder               30      4     8      2
+27   Fronkeys    jumperEnemy              JumperEnemyPlaceholder                  30      4     5      1
+28   Fronkeys    jumperEnemy              JumperEnemyPlaceholder                  20      4     5      1
+29   Spiders     shootingSpiderEnemy      ShootingSpiderPlaceholder               50      4     4      2
+30   Fronkeys    jumperEnemy              JumperEnemyPlaceholder                  40      4     5      1
+31   Worms       mortarWormEnemy          MortarWormEnemyPlaceholder              40      2    10      1
+32   Worms       mortarWormEnemy          MortarWormEnemyPlaceholder              40      2    10      1
+33   Elementals  floatingRockLaserEnemy   FloatingRockLaserEnemyPlaceholder      100     12    20      1
+34   Elementals  floatTurretEnemyFire     FloatingRockTurretEnemyPlaceholder     100     12    20      2
+35   Slimes      fireSlugEnemy            AcidSlugEnemyPlaceholder                34      8           19
+36   DropSlugs   dropSlugFireEnemy        DropSlugEnemyPlaceholder                20      5     5      5
+37   Fronkeys    jumperEnemy              JumperEnemyPlaceholder                  35     12     5      1
+38   Elementals  floatTurretEnemyFire     FloatingRockTurretEnemyPlaceholder     100     12    20      1
+39   Banelings   kamikazeSootEnemy        KamikazeSootEnemyPlaceholder             5                   3
+40   Banelings   kamikazeSootEnemy        KamikazeSootEnemyPlaceholder             5                   3
+41   Slimes      fireSlugEnemy            AcidSlugEnemyPlaceholder                34      8            1
+42   Swarms      swarmEnemyLargeFire      SwarmEnemyPlaceholder                   20      4            1
+43   Banelings   kamikazeSootEnemy        KamikazeSootEnemyPlaceholder             5                   2
+44   Elementals  floatingRockLaserEnemy   FloatingRockLaserEnemyPlaceholder       50     12    20      1
+45   Fronkeys    jumperEnemy              JumperEnemyPlaceholder                  25      5     5      6
+46   Slimes      starSlugEnemy            StarSlugEnemyPlaceholder                20      4            5
+47   Worms       mortarWormEnemy          MortarWormEnemyPlaceholder              12      2    10      1
+48   Banelings   kamikazeSootEnemy        KamikazeSootEnemyPlaceholder             5                   1
+49   Birds       dashOwlEnemy             DashOwlEnemyPlaceholder                 28      4            6
+50   Fronkeys    jumperEnemy              JumperEnemyPlaceholder                  12      4     4      1
+51   Slimes      starSlugEnemy            StarSlugEnemyPlaceholder                 7      4           14
+52   DropSlugs   dropSlugEnemy            DropSlugEnemyPlaceholder                 3      5     8      2
+53   Frogs       spitterEnemy             SpitterEnemyPlaceholder                 20      5    20      4
+54   Frogs       spitterEnemy             SpitterEnemyPlaceholder                 11      5    20      1
+55   Slimes      acidSlugEnemy            AcidSlugEnemyPlaceholder                20      2            7
+56   Slimes      acidSlugEnemy            AcidSlugEnemyPlaceholder                20      2            2
+57   Swarms      swarmEnemyLarge          SwarmEnemyPlaceholder                   12      4            4
+58   Slimes      acidSlugEnemy            AcidSlugEnemyPlaceholder                20      2            2
+59   Slimes      acidSlugEnemy            AcidSlugEnemyPlaceholder                30      2           27
+60   Fronkeys    jumperEnemy              JumperEnemyPlaceholder                  40      5     5      2
+61   Worms       mortarWormEnemy          MortarWormEnemyPlaceholder              50      2    10      3
+62   Frogs       fastSpitterEnemy         SpitterEnemyPlaceholder                 50      5     8      2
+63   Fronkeys    jumperEnemy              JumperEnemyPlaceholder                  40      5     5      1
+64   DropSlugs   dropSlugEnemy            DropSlugEnemyPlaceholder                20      8     8      1
+65   DropSlugs   dropSlugEnemy            DropSlugEnemyPlaceholder                20      8     8      1
+66   Spiders     spreadshotSpiderEnemy    ShootingSpiderPlaceholder               50      1     6      3
+67   DropSlugs   dropSlugEnemy            DropSlugEnemyPlaceholder                20      8     8      1
+68   Birds       dashOwlEnemy             DashOwlEnemyPlaceholder                 35      8            1
+69   Fronkeys    jumperEnemy              JumperEnemyPlaceholder                  40      5     5      5
+70   Worms       mortarWormEnemy          MortarWormEnemyPlaceholder             100      2    10      1
+71   Fronkeys    jumperEnemy              JumperEnemyPlaceholder                  40      5     5      1
+72   Worms       mortarWormEnemy          MortarWormEnemyPlaceholder             100      2    10      1
+73   Fronkeys    jumperEnemy              JumperEnemyPlaceholder                  40      5     5      1
+74   Worms       mortarWormEnemy          MortarWormEnemyPlaceholder              40      8    12      5
+75   Worms       mortarWormEnemy          MortarWormEnemyPlaceholder              40      8    12      4
+76   Frogs       fastSpitterEnemy         SpitterEnemyPlaceholder                 40      5     8      3
+77   Frogs       fastSpitterEnemy         SpitterEnemyPlaceholder                 50      5     8      2
+78   Worms       mortarWormEnemy          MortarWormEnemyPlaceholder              45      2    10      1
+79   Worms       mortarWormEnemy          MortarWormEnemyPlaceholder             100      2    10      1
+80   Worms       mortarWormEnemy          MortarWormEnemyPlaceholder             100      2    10      1
+81   Birds       dashOwlEnemy             DashOwlEnemyPlaceholder                 30      7            1
+82   Swarms      swarmEnemyLarge          SwarmEnemyPlaceholder                   18      5            1
+83   Sharks      jumpShootSharkEnemy      JumpShootSharkPlaceholder               75      8            1
+84   Sharks      jumpShootSharkEnemy      JumpShootSharkPlaceholder               75      8            1
+85   Frogs       spitterEnemy             SpitterEnemyPlaceholder                 20      5     8     12
+86   Spiders     shootingSpiderEnemy      ShootingSpiderPlaceholder               20      1     8      2
+87   Slimes      starSlugEnemy            StarSlugEnemyPlaceholder                11      2            1
+88   Sharks      jumpShootSharkEnemy      JumpShootSharkPlaceholder               90      4            1
+89   Spiders     shootingSpiderEnemy      ShootingSpiderPlaceholder               30      4     8      2
+90   Slimes      starSlugEnemy            StarSlugEnemyPlaceholder                20      4            5
+91   DropSlugs   dropSlugEnemy            DropSlugEnemyPlaceholder                 4      5     5      2
+92   Spiders     shootingSpiderEnemy      ShootingSpiderPlaceholder               20      4     8      2
+93   Swarms      swarmEnemyLarge          SwarmEnemyPlaceholder                   18      4            1
+94   Fronkeys    jumperEnemy              JumperEnemyPlaceholder                  20      4     5      1
+95   Slimes      starSlugEnemy            StarSlugEnemyPlaceholder                15      2            4
+96   Slimes      acidSlugEnemy            AcidSlugEnemyPlaceholder                11      2            6
+97   Rhinos      armouredRammingEnemy     RammingEnemyPlaceholder                 45      5            1
+98   Swarms      swarmEnemyLargeFire      SwarmEnemyPlaceholder                   20      5            3
+99   Worms       mortarWormFireEnemy      MortarWormEnemyPlaceholder              12      2    10      1
+100  Elementals  floatTurretEnemyFire     FloatingRockTurretEnemyPlaceholder      50     12    20      4
+101  Worms       mortarWormFireEnemy      MortarWormEnemyPlaceholder              30      2    10      1
+102  Worms       mortarWormFireEnemy      MortarWormEnemyPlaceholder              30      2    10      1
+103  Worms       mortarWormFireEnemy      MortarWormEnemyPlaceholder              40      2    12      1
+104  Worms       mortarWormFireEnemy      MortarWormEnemyPlaceholder              40      2    12      1
+105  Elementals  floatingRockLaserEnemy   FloatingRockLaserEnemyPlaceholder       50     12    20      1
+106  Elementals  floatingRockLaserEnemy   FloatingRockLaserEnemyPlaceholder       50     12    20      1
+107  Sharks      jumpShootSharkEnemyFire  JumpShootSharkPlaceholder              250     12            1
+108  Worms       mortarWormFireEnemy      MortarWormEnemyPlaceholder              60      8    24      2
+109  Worms       mortarWormFireEnemy      MortarWormEnemyPlaceholder              60      8    24      1
+110  Elementals  floatTurretEnemyFire     FloatingRockTurretEnemyPlaceholder      50     12    20      3
+111  Elementals  floatTurretEnemyFire     FloatingRockTurretEnemyPlaceholder      50     12    20      6
+112  Elementals  floatTurretEnemyFire     FloatingRockTurretEnemyPlaceholder      50     12    20      1
+113  Elementals  floatingRockLaserEnemy   FloatingRockLaserEnemyPlaceholder       50     12    20      1
+114  Elementals  floatingRockLaserEnemy   FloatingRockLaserEnemyPlaceholder       50     12    20      1
+115  Fronkeys    jumperEnemy              JumperEnemyPlaceholder                  40     12     5      1
+116  Worms       mortarWormFireEnemy      MortarWormEnemyPlaceholder              12      2    10      1
+117  Swarms      swarmEnemyLarge          SwarmEnemyPlaceholder                   20      5            1
+118  Elementals  floatTurretEnemyFire     FloatingRockTurretEnemyPlaceholder      15     12    20      9
+119  Elementals  floatTurretEnemyFire     FloatingRockTurretEnemyPlaceholder      50     12    20      1
+120  Spiders     shootingSpiderEnemy      ShootingSpiderPlaceholder               10      1     2      2
+121  Slimes      starSlugEnemy            StarSlugEnemyPlaceholder                 7      4            1
+122  Frogs       fastSpitterEnemy         SpitterEnemyPlaceholder                 70      5     8      4
+123  Rhinos      armouredRammingEnemy     RammingEnemyPlaceholder                 40      4            1
+124  Frogs       fastSpitterEnemy         SpitterEnemyPlaceholder                 35      5     8      1
+125  Rhinos      armouredRammingEnemy     RammingEnemyPlaceholder                 30      5            1
+126  Birds       dashOwlEnemy             DashOwlEnemyPlaceholder                 50      8            1
+127  Birds       dashOwlEnemy             DashOwlEnemyPlaceholder                 35      8            4
+128  Birds       dashOwlEnemy             DashOwlEnemyPlaceholder                 35      8            1
+129  Frogs       fastSpitterEnemy         SpitterEnemyPlaceholder                 70      5     8     12
+130  Worms       mortarWormEnemy          MortarWormEnemyPlaceholder              12      2    10      1
+131  Worms       mortarWormEnemy          MortarWormEnemyPlaceholder              12      2    10      1
+132  Fish        fishEnemy                FishEnemyPlaceholder                    20      4           17
+133  Rhinos      armouredRammingEnemy     RammingEnemyPlaceholder                 20      5            1
+134  Slimes      starSlugEnemy            StarSlugEnemyPlaceholder                 7      1            4
+135  Fronkeys    jumperEnemy              JumperEnemyPlaceholder                  20      5     5      3
+136  Slimes      starSlugEnemy            StarSlugEnemyPlaceholder                 7      2            9
+137  Fronkeys    jumperEnemy              JumperEnemyPlaceholder                  10      1     1      3
+138  DropSlugs   dropSlugEnemy            DropSlugEnemyPlaceholder                20      5     5      2
+139  Fronkeys    jumperEnemy              JumperEnemyPlaceholder                  12      4     4      5
+140  DropSlugs   dropSlugEnemy            DropSlugEnemyPlaceholder                 3      5     8      1
+141  Birds       dashOwlEnemy             DashOwlEnemyPlaceholder                 32      4            2
+142  Fronkeys    jumperEnemy              JumperEnemyPlaceholder                  40      5     5      2
+143  Worms       mortarWormEnemy          MortarWormEnemyPlaceholder              14      2    10      3
+144  Worms       mortarWormEnemy          MortarWormEnemyPlaceholder              30      2    10      3
+145  Worms       mortarWormEnemy          MortarWormEnemyPlaceholder              30      2    10      1
+146  Worms       mortarWormEnemy          MortarWormEnemyPlaceholder              30      2    10      1
+147  Slimes      acidSlugEnemy            AcidSlugEnemyPlaceholder                11      2            1
+148  Rhinos      armouredRammingEnemy     RammingEnemyPlaceholder                 40      5            1
+149  Worms       mortarWormEnemy          MortarWormEnemyPlaceholder              12      2    10      1
+150  Worms       mortarWormEnemy          MortarWormEnemyPlaceholder              12      2    10      1
+151  Slimes      starSlugEnemy            StarSlugEnemyPlaceholder                30      2            1
+152  Rhinos      armouredRammingEnemy     RammingEnemyPlaceholder                 45      5            1
+153  Spiders     shootingSpiderEnemy      ShootingSpiderPlaceholder               14      1     6      1
+154  Slimes      starSlugEnemy            StarSlugEnemyPlaceholder                10      2            3
+155  DropSlugs   dropSlugEnemy            DropSlugEnemyPlaceholder                 3      5     5      1
+156  DropSlugs   dropSlugEnemy            DropSlugEnemyPlaceholder                 3      5     5      1
+157  Spiders     shootingSpiderEnemy      ShootingSpiderPlaceholder               10      1     6      6
+158  Swarms      swarmEnemyLarge          SwarmEnemyPlaceholder                   20      4            1
+159  Slimes      starSlugEnemy            StarSlugEnemyPlaceholder                15      2            1
+160  Fronkeys    jumperEnemy              JumperEnemyPlaceholder                  20      4     5      1
+161  Swarms      swarmEnemyMedium         SwarmEnemyPlaceholder                    9      4            1
+162  Swarms      swarmEnemyLarge          SwarmEnemyPlaceholder                    9      4            1
+163  Birds       dashOwlEnemy             DashOwlEnemyPlaceholder                 35      8            3
+164  Birds       dashOwlEnemy             DashOwlEnemyPlaceholder                 35      8            1
+165  Spiders     spreadshotSpiderEnemy    ShootingSpiderPlaceholder               50      1     6      3
+166  Slimes      acidSlugEnemy            AcidSlugEnemyPlaceholder                20      2            1
+167  Spiders     spreadshotSpiderEnemy    ShootingSpiderPlaceholder               50      1     8      2
+168  Slimes      acidSlugEnemy            AcidSlugEnemyPlaceholder                20      2            2
+169  Birds       dashOwlEnemy             DashOwlEnemyPlaceholder                 35      8            1
+170  DropSlugs   dropSlugEnemy            DropSlugEnemyPlaceholder                20      5     5      1
+171  Slimes      acidSlugEnemy            AcidSlugEnemyPlaceholder                20      2            3
+172  Worms       mortarWormEnemy          MortarWormEnemyPlaceholder              12      2    10      1
+173  DropSlugs   dropSlugEnemy            DropSlugEnemyPlaceholder                20      5     5      1
+174  Slimes      acidSlugEnemy            AcidSlugEnemyPlaceholder                20      2            1
+175  Spiders     spreadshotSpiderEnemy    ShootingSpiderPlaceholder               40      1     6      3
+176  Birds       dashOwlEnemy             DashOwlEnemyPlaceholder                 28      4            3
+177  DropSlugs   dropSlugEnemy            DropSlugEnemyPlaceholder                 5      5     8      3
+178  Birds       dashOwlEnemy             DashOwlEnemyPlaceholder                 28      4            1
+179  Slimes      iceSlugEnemy             AcidSlugEnemyPlaceholder                25      2            3
+180  Fronkeys    jumperEnemy              JumperEnemyPlaceholder                  45      8     5      1
+181  Birds       dashOwlEnemy             DashOwlEnemyPlaceholder                 50      8            2

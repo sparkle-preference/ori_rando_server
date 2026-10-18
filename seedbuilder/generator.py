@@ -2360,7 +2360,8 @@ class SeedGenerator:
                 # a due Early item outranks the per-world cell forcing, inside its spare slots
                 if early_due and early_room > 0:
                     early_room -= 1
-                    item = self.assign(early_due.pop(0)[-1])
+                    # holding it already took this copy out of the pool
+                    item = self.assign(early_due.pop(0)[-1], True)
                     self.early_pins.append(item)
                     itemsToAssign.append(item)
                     continue

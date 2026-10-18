@@ -191,9 +191,9 @@ def ap_connect(game_id, payload):
         return 400, ("%s is only reachable from your own machine, and the room "
                      "is dialed from our servers. Use an archipelago.gg room, "
                      "or your public address with the port forwarded." % host)
-    # an old dll dupes self-items; players who haven't ticked yet report no version
+    # an old dll dupes self-items; the version is whatever the player's game last reported
     if not payload.get("force"):
-        stale = ["P%s is on %s" % (p.pid(), p.dll_version)
+        stale = ["P%s last played on %s" % (p.pid(), p.dll_version)
                  for p in game.visible_players()
                  if p.dll_version and not version_at_least(p.dll_version, AP_MIN_DLL)]
         if stale:

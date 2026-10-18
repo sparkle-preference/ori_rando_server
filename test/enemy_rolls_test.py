@@ -96,6 +96,19 @@ class TheRoll(unittest.TestCase):
                 if r is not None and p["spot"] in ("roof", "wall", "air") and not p["floor"]:
                     self.assertNotIn(t["variants"][r]["kind"], ("Fronkeys", "Frogs", "Swarms"), (seed, p["scene"]))
 
+    def test_drop_slimes_leave_the_roof_only_for_a_ceiling_without_a_role(self):
+        t = enemyroll.table()
+        hung = Counter()
+        for seed in range(40):
+            for opts in (None, {"logic": "off"}):
+                for p, r in zip(t["placements"], enemyroll.roll(str(seed), 1, opts)):
+                    if r is not None and t["variants"][r]["kind"] == "DropSlugs" and p["spot"] != "roof":
+                        self.assertTrue(p["ceiling"], (seed, p["scene"]))
+                        self.assertTrue(opts or not p["role"], (seed, p["scene"]))
+                        hung[p["spot"]] += 1
+        self.assertGreater(hung["floor"], 0)
+        self.assertGreater(hung["air"], 0)
+
     def test_the_shooter_cap_and_flying_fish_switches(self):
         t = enemyroll.table()
         ranged = lambda rolls: sum(1 for r in rolls if r is not None and t["variants"][r]["kind"] in enemyroll.RANGED)

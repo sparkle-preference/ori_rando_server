@@ -956,8 +956,9 @@ const getHelpHelper = (category, option, whose = "your seed") => {
                     lines = ["When enabled, limit the number of additional ranged enemies that can appear in a seed."]
                     break;
                 case "enemyLogic":
-                    title = "Preserve Bash Paths"
-                    lines = ["When enabled, the seed will make some attempt to randomize enemies in such a way that you can still bash as required."]
+                    title = "Remove Logic Checks"
+                    lines = ["Removes almost all of the logical safeguards when randomizing enemies.",
+                            (<span className="text-danger"><i>(This setting can easily generate incompletable seeds.)</i></span>)]
                     break;
                 case "legacyFlags":
                     title = "Legacy Flags"
@@ -1060,7 +1061,7 @@ const getHelpHelper = (category, option, whose = "your seed") => {
                 case "fillAlg":
                     title = "Fill Algorithm"
                     lines = [
-                        "Change the algorithm used to place items during seed generation here. At the moment, only two Fill Algorithms are available, Balanced and Legacy"
+                        "Change the algorithm used to place items during seed generation here. At the moment, only two Fill Algorithms are available, Balanced and Legacy Fill"
                     ]
                     break;
                 case "goalModes":
@@ -1070,14 +1071,14 @@ const getHelpHelper = (category, option, whose = "your seed") => {
                     ]
                     break;
                 case "fillAlgClassic":
-                    title = "Legacy Algorithm"
+                    title = "Legacy Fill Algorithm"
                     lines = [
                         "The Legacy fill algorithm places pickups throughout the world one at a time and mostly at random (though subject to logical constraints).",
                         "It is only recommended for players who are using the Starved flag and don't want to risk the Balanced algorithm interfering with this."
                     ]
                     break;
                 case "fillAlgClassicMulti":
-                    title = "Legacy Algorithm"
+                    title = "Legacy Fill Algorithm"
                     lines = [
                         "The Legacy fill algorithm places pickups throughout the world one at a time and mostly at random (though subject to logical constraints).",
                         "It is only recommended for players who are using the Starved flag and don't want to risk the Balanced algorithm interfering with this.",

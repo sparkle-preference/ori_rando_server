@@ -132,7 +132,7 @@ class CLISeedParams(object):
         (any of: skills,teleporters,events,cells,stones,upgrades; teleporters covers warp pickups). Converts the rolled multiworld seed
         (multiplayer requires --share-mode multiworld) and writes a paired ap_world_<n>.yaml next to each .bfr""", type=str, default=None)
         parser.add_argument("--ap-death-link", help="Archipelago mode: this world's deaths kill the room, and the room's kill it", action="store_true")
-        parser.add_argument("--ap-deaths-per-link", type=int, default=1, help="Archipelago mode: send one Death Link per this many of this world's deaths")
+        parser.add_argument("--ap-deaths-per-link", type=int, default=1, help="Archipelago mode: send one Death Link per this many Ori deaths")
         args = parser.parse_args()
 
         self.seed = args.seed

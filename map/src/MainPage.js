@@ -631,11 +631,15 @@ export default class MainPage extends React.Component {
                     </InputGroup>) : null}
                 </div>))
         }
-        const switchRow = (label, key, help) => enemyRow(label, help, (
-            <ButtonGroup className="w-100">
-                <Button color="primary" outline={(eo[key] || ENEMY_SWITCHES[key]) === "off"} onClick={() => setEo({[key]: "on"})}>On</Button>
-                <Button color="primary" outline={(eo[key] || ENEMY_SWITCHES[key]) !== "off"} onClick={() => setEo({[key]: "off"})}>Off</Button>
-            </ButtonGroup>))
+        // an inverted row reads On while its switch is off
+        const switchRow = (label, key, help, inverted = false) => {
+            const shownOn = ((eo[key] || ENEMY_SWITCHES[key]) === "off") === inverted
+            return enemyRow(label, help, (
+                <ButtonGroup className="w-100">
+                    <Button color="primary" outline={!shownOn} onClick={() => setEo({[key]: inverted ? "off" : "on"})}>On</Button>
+                    <Button color="primary" outline={shownOn} onClick={() => setEo({[key]: inverted ? "on" : "off"})}>Off</Button>
+                </ButtonGroup>))
+        }
         let weightSelectors = spawnWeights.map((weight, index) => (
             <Col data-hist={`spawnWeight-${SPAWN_TPS[index]}`} xs="4" key={`weight-selector-${index}`} className="text-center border">
                     <Col onMouseLeave={this.helpLeave} onMouseEnter={this.helpEnter("advanced", "spawnWeights")}><Cent>{SPAWN_TPS[index]}</Cent></Col>
@@ -809,10 +813,10 @@ export default class MainPage extends React.Component {
                 {switchRow("Flying fish", "flyingfish", "enemyFish")}
                 {switchRow("Wall walkers", "walkers", "enemyWalkers")}
                 {switchRow("Shooter cap", "shootercap", "enemyCap")}
-                {switchRow("Preserve bash paths", "logic", "enemyLogic")}
+                {switchRow("Remove logic checks", "logic", "enemyLogic", true)}
                 <Collapse isOpen={eo.logic === "off"}>
                     <Row className="p-1 justify-content-center"><Col xs={leftCol + rightCol} className="text-center text-danger">
-                        This could easily generate incompletable seeds.
+                        This can easily generate incompatible seeds!
                     </Col></Row>
                 </Collapse>
                 </div>
@@ -2627,7 +2631,7 @@ export default class MainPage extends React.Component {
         // drop a previous roll's burials so spam-clicking cannot stack them; hand-made
         // preplacements are not ours to touch
         newState.fassList = this.state.fassList.filter(
-            f => !(f.loc && f.loc.value >= BURIED_LOC_BASE && (f.world || 1) === 1));
+            f => !(f.loc && f.loc.value >= BURIED_LOC_BASE && f.loc.value < EARLY_LOC_BASE && (f.world || 1) === 1));
         if(rng() < .15) {
             // triangular 60..180 peaking at 100, to the nearest ten so the row reads Buried100
             const depth = Math.round(triangular(60, 180, 100) / 10) * 10;

@@ -97,7 +97,11 @@ def pick(p, pool, keep, logic_on, pools_on, flying_fish, walkers, arena_kind, sh
     candidates = []
     for kind in kinds.values():
         name, flags = kind["name"], kind["flags"]
-        if spot not in kind["spots"] and not (spot == "rhino" and "floor" in kind["spots"]):
+        hangs = name == "DropSlugs" and spot not in kind["spots"] and p.get("ceiling")
+        if spot not in kind["spots"] and not (spot == "rhino" and "floor" in kind["spots"]) and not hangs:
+            continue
+        # a drop slime hangs well above its spot, out of reach of the bash or lure a role asks for there
+        if hangs and role:
             continue
         if keep_kind and not same_family(name, own):
             continue
